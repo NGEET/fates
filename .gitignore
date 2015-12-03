@@ -1,0 +1,30 @@
+# ignore svn directories
+**/.svn/**
+.svn/
+
+# editor files
+*.swp
+*~
+
+# mac files
+.DS_Store
+
+# cmake generated files
+build/
+CMakeFiles/
+
+# build output
+*.o
+*.mod
+core.*
+*.gz
+*.log
+
+# test and case directories
+*.seaotter_gnu.*/
+*.yellowstone_intel.*/
+tests/
+scripts/testreporter.pl
+
+
+
