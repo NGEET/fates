@@ -216,7 +216,7 @@ CONTAINS
     endif
     call init_communicate(mpicom_loc)
 
-    call glc_initialize(errorCode)
+    call glc_initialize(EClock, errorCode)
 
     if (verbose .and. my_task == master_task) then
        write(stdout,F01) ' GLC Initial Date ',iyear,imonth,iday,ihour,iminute,isecond

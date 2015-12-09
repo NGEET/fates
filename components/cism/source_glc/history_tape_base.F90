@@ -63,13 +63,16 @@ module history_tape_base
 contains
 
   !-----------------------------------------------------------------------
-  subroutine write_history(this, instance, EClock)
+  subroutine write_history(this, instance, EClock, force_write)
     !
     ! !DESCRIPTION:
     ! Write a CISM history file, if it's time to do so.
     !
     ! This routine should be called every time step. It will return without doing
     ! anything if it isn't yet time to write a history file.
+    !
+    ! If force_write is present and true, then a history file is written regardless of
+    ! the check for whether it's time to do so.
     !
     ! !USES:
     use glc_io, only : glc_io_write_history
@@ -80,13 +83,20 @@ contains
     class(history_tape_base_type), intent(in) :: this
     type(glad_instance), intent(inout) :: instance
     type(ESMF_Clock),     intent(in)    :: EClock
+    logical, intent(in), optional :: force_write
     !
     ! !LOCAL VARIABLES:
+    logical :: l_force_write   ! local version of force_write
 
     character(len=*), parameter :: subname = 'write_history'
     !-----------------------------------------------------------------------
 
-    if (this%is_time_to_write_hist(EClock)) then
+    l_force_write = .false.
+    if (present(force_write)) then
+       l_force_write = force_write
+    end if
+
+    if (l_force_write .or. this%is_time_to_write_hist(EClock)) then
        call glc_io_write_history(instance, EClock, &
             this%history_vars, this%history_frequency_string())
     end if

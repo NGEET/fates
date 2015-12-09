@@ -41,7 +41,7 @@ OPTIONS
      -silent [-s]          Turns on silent mode - only fatal messages issued.
      -verbose              Turn on verbose echoing of informational messages.
      -caseroot             CASEROOT directory variable
-     -scriptsroot          SCRIPTSROOT directory variable
+     -cimeroot             CIMEROOT directory variable
      -inst_string          INST_STRING variable
      -paramfile            name of top-level configuration file
      -lnd_grid             LND_GRID variable
@@ -97,7 +97,7 @@ if ($ProgDir) {
 my %opts = ( help        => 0,
 	     silent      => 0,
 	     caseroot    => undef,
-	     scriptsroot => undef,
+	     cimeroot    => undef,
 	     inst_string => undef,
 	     paramfile   => undef,
 	     lnd_grid    => undef,
@@ -112,7 +112,7 @@ GetOptions(
     "s|silent"      => \$opts{'silent'},
     "v|verbose"     => \$opts{'verbose'},
     "caseroot=s"    => \$opts{'caseroot'},
-    "scriptsroot=s" => \$opts{'scriptsroot'},
+    "cimeroot=s"    => \$opts{'cimeroot'},
     "inst_string=s" => \$opts{'inst_string'},	   
     "paramfile=s"   => \$opts{'paramfile'},
     "lnd_grid=s"    => \$opts{'lnd_grid'},
@@ -141,7 +141,7 @@ my $eol = "\n";
 if ($print>=2) { print "Setting CISM configuration script directory to $cfgdir$eol"; }
 
 my $CASEROOT    = $opts{'caseroot'}; 
-my $SCRIPTSROOT = $opts{'scriptsroot'};       
+my $CIMEROOT    = $opts{'cimeroot'};       
 my $INST_STRING = $opts{'inst_string'}; 
 my $LND_GRID    = $opts{'lnd_grid'}; 
 my $GLC_GRID    = $opts{'glc_grid'}; 
@@ -181,10 +181,7 @@ EOF
 # Look for them under the directory that contains the configure script.
 
 # The root directory for the perl5 required utilities 
-my $perl5lib_dir = "${SCRIPTSROOT}/../utils/perl5lib";
-
-# The root diretory for the perl SetupTools.pm module
-my $SetupTools_dir = "${SCRIPTSROOT}/Tools";
+my $perl5lib_dir = "${CIMEROOT}/utils/perl5lib";
 
 # The Build::Config module provides utilities to access the configuration information
 # in the config_cache.xml file (see below)
@@ -242,7 +239,7 @@ require Build::Config;
 require Build::NamelistDefinition;
 require Build::NamelistDefaults;
 require Build::Namelist;
-require SetupTools;
+require Config::SetupTools;
 
 #-----------------------------------------------------------------------------------------------
 # Create a configuration object from the CISM config_cache.xml file-  created by 
@@ -340,10 +337,6 @@ foreach my $attr (keys %xmlvars) {
 
 my $CASE                   = $xmlvars{'CASE'};
 my $CALENDAR               = $xmlvars{'CALENDAR'};
-my $EXEROOT                = $xmlvars{'EXEROOT'};
-my $CODEROOT               = $xmlvars{'CODEROOT'};
-my $SCRIPTSROOT            = $xmlvars{'SCRIPTSROOT'};
-my $CASEROOT               = $xmlvars{'CASEROOT'};
 my $DIN_LOC_ROOT           = $xmlvars{'DIN_LOC_ROOT'};
 my $RUN_TYPE               = $xmlvars{'RUN_TYPE'};
 my $RUN_STARTDATE          = $xmlvars{'RUN_STARTDATE'};
@@ -356,10 +349,7 @@ my $GLC_TWO_WAY_COUPLING   = $xmlvars{'GLC_TWO_WAY_COUPLING'};
 my $CISM_USE_TRILINOS      = $xmlvars{'CISM_USE_TRILINOS'};
 my $CISM_OBSERVED_IC       = $xmlvars{'CISM_OBSERVED_IC'};
 
-(-d $DIN_LOC_ROOT)  or  die <<"EOF";
-** $ProgName - CCSM inputdata root is not a directory: \"$DIN_LOC_ROOT\" **
-EOF
-if ($print>=2) { print "CESM inputdata root directory: $DIN_LOC_ROOT$eol"; }
+if ($print>=2) { print "Inputdata root directory: $DIN_LOC_ROOT$eol"; }
 
 ####################################
 # Preliminary consistency checks

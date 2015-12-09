@@ -16,8 +16,9 @@ for the CLM data in the CESM distribution
 
 <!-- Default rtm namelist -->
 
-<ice_runoff lnd_grid="48x96" >.false.</ice_runoff>
-<ice_runoff                  >.true.</ice_runoff>
+<ice_runoff lnd_grid="48x96">.false.</ice_runoff>
+<ice_runoff lnd_grid="T31"  >.false.</ice_runoff>
+<ice_runoff                 >.true.</ice_runoff>
 
 <rtmhist_mfilt>30</rtmhist_mfilt> 
 <rtmhist_nhtfrq>0</rtmhist_nhtfrq> 

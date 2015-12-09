@@ -13,7 +13,7 @@ OPTIONS
      -silent [-s]          Turns on silent mode - only fatal messages issued.
      -verbose              Turn on verbose echoing of informational messages.
      -caseroot             CASEROOT directory variable
-     -scriptsroot          SCRIPTSROOT directory variable
+     -cimeroot             CIMEROOT directory variable
      -inst_string          INST_STRING variable
      -lnd_grid             LND_GRID variable
      -glc_grid             GLC_GRID variable
@@ -34,7 +34,7 @@ Summary of build-namelist
 
 build-namelist 
 
-  - exists in $CCSMROOT/components/cism/bld (throughout this document, 
+  - exists in $SRCROOT/components/cism/bld (throughout this document, 
     $ALLCAPS denotes an xml variable while $nocaps denotes a perl variable)
   
   - is called from $CASEBUILD/cism.buildnml
@@ -45,7 +45,7 @@ build-namelist
     variables if that is desired
     (see "user_nl_cism" and "CISM Use Cases" sections below for details)
 
-  - depends on two files in $CCSMROOT/components/cism/bld/namelist_files
+  - depends on two files in $SRCROOT/components/cism/bld/namelist_files
 
       1. namelist_defaults_cism.xml
       2. namelist_definition_cism.xml
@@ -98,7 +98,7 @@ namelist_definition_cism.xml
 ============================================================================
 
 The file namelist_definition_cism.xml is located in the directory
-$CCSMROOT/components/cism/bld/namelist_files/. It contains entries for all namelist
+$SRCROOT/components/cism/bld/namelist_files/. It contains entries for all namelist
 variables that can be output by build-namelist.
 
 As mentioned in the "CISM Use Cases" section below, a modified copy of this
@@ -178,7 +178,7 @@ namelist_defaults_cism.xml
 ============================================================================
 
 The file namelist_defaults_cism.xml is located in the directory
-$CCSMROOT/components/cism/bld/namelist_files/. It provides default values for
+$SRCROOT/components/cism/bld/namelist_files/. It provides default values for
 variables contained in the input namelist definition file. 
 
 The build-namelist script is passed the glc_grid, lnd_grid and cism_phys
@@ -248,11 +248,11 @@ build-namelist has four perl objects that it uses
 
        my $nl = Build::Namelist->new();
 
---- Required $SCRIPTSROOT/../perl5lib perl files  ---
+--- Required $CIMEROOT/utils/perl5lib perl files  ---
 
 The root directory for the perl5 required utilities is
 
-  my $perl5lib_dir = ${SCRIPTSROOT}/../perl5lib";
+  my $perl5lib_dir = ${CIMEROOT}/utils/perl5lib";
 
 This directory contains all the required perl files:
 
@@ -474,7 +474,7 @@ Q: Rather than making the same changes to user_nl_cism over and over, can
    I change the default values used by build-namelist?
 
 A: Yes, you can modify the namelist_defaults_cism.xml file in
-   $CCSMROOT/components/cism/bld/namelist_files to change the default values. For
+   $SRCROOT/components/cism/bld/namelist_files to change the default values. For
    example:
 
    1. If you want to change geothermal from -5.e-2 to -6.e-2, you
