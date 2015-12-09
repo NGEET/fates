@@ -1,0 +1,211 @@
+   DOCUMENTATION OF TOOLS TO MAKE A CLM OVERLAP FILE FROM A GLC NATIVE GRID
+
+
+OVERVIEW
+
+The process of creating a CLM overlap file from a native GLC grid takes three 
+steps, and three separate tools:
+
+1. Convert the GLC grid from its native format to one understood by SCRIP.
+
+   The tool created for this step is an NCL script called glc2scripConvert.ncl.
+
+   Note that small differences in the extent of different GLC grids (e.g., 4km
+   vs. 5km vs. 10km CISM grid) are not important for the final glcmask file,
+   since these differences (currently) occur outside of the ice sheet area. So,
+   in general, this step only needs to be done once for a given icesheet (e.g.,
+   once for Greenland, once for Antarctica).
+
+2. Create an ESMF interpolation weights file from the GLC SCRIP file made in 
+   step 1.
+
+   For this, there is a general-purpose CESM tool, in
+   tools/mapping/gen_mapping_files/gen_ESMF_mapping_file.
+
+3. Create a CLM overlap file which contains a mask representing the list of CLM 
+   cells that overlap the GLC domain.
+
+   For this, there is a tool that compares the list of points on the CLM grid
+   required for any interpolation with the GLC grid. The tool created for this
+   step is called scrip2CLMoverlap.ncl.
+
+
+TOOLS
+
+Documentation for each tool follows below:
+
+** glc2scripConvert.ncl **
+
+Description:
+This script is written in NCL, and its basic function is to read in a native
+GLC grid file and write out the same grid in a format understood by SCRIP,
+CCSM's interpolation tool.  SCRIP requires that cell-center lats and lons be
+written out in 1D arrays whose length is the grid size, and that cell-corner
+lats and lons be output as 2D arrays with the grid size as the first dimension 
+and the number of corners per cell as the second dimension.
+
+This script assumes that the GLC grid file has lats and lons as 2D arrays of
+cell corner locations, and then assumes that cell centers are located at the
+midpoints of the corners. In actuality, the grid files we use have lats and lons
+of the CENTERS rather than the corners, but for the purposes of this toolchain,
+this small difference is generally not important.
+
+This script then does some simple transformations before outputting the same
+grid in the SCRIP format.
+
+Input:
+The script requires a user-specified GLC grid file with lats and lons in
+degrees. 
+
+This file can be obtained and linked to the current directory, as:
+
+ln -s /glade/p/cesmdata/cseg/inputdata/glc/cism/gland5.input.nc gland5km.nc
+
+User Modifications:
+The script is not commandline driven, so the script itself has to be modified
+in several places to set the correct input file name, output file name, and
+a corresponding output file attribute.  In the script, these variables are
+called, respectively:  infile, outfile, and globalAtt@title.
+
+    variable name              variable description
+______________________________________________________________________
+
+     infile                     input file name (GLC native grid file)
+     outfile                    output file name
+     globalAtt@title            output file title attribute
+
+Output:
+The script outputs the GLC grid in SCRIP format, with a user-specified file name.
+
+Usage:
+ncl glc2scripConvert.ncl
+
+
+** gen_ESMF_mapping_file **
+
+Description:
+This is a general-purpose CESM tool for generating ESMF mapping files between
+two grids, based on two SCRIP-format files.
+
+Input:
+The script requires two user-specified grid files in SCRIP format.
+
+Location of tool:
+From a CESM checkout, this tool can be found at:
+tools/mapping/gen_mapping_files/gen_ESMF_mapping_file
+
+(Note: for the files generated Nov 5, 2014, I used this version:
+https://svn-ccsm-models.cgd.ucar.edu/tools/mapping/trunk_tags/mapping_140702b)
+
+Running the tool on yellowstone:
+The above tool can be run on yellowstone with a modified version of the
+regridbatch.yellowstone.sh script. The version I have used looked like:
+
+   #!/bin/bash
+   #
+   #
+   # Batch script to submit to create ESMF mapping file
+   #
+   # Set up for yellowstone
+   # 
+   # yellowstone-specific batch commands:
+   #BSUB -P P93300601        # project number
+   #BSUB -n 8               # number of processors
+   #BSUB -R "span[ptile=16]" 
+   #BSUB -W 1:00             # wall-clock limit
+   #BSUB -q caldera            # queue
+   #BSUB -o regrid.%J.out    # ouput filename
+   #BSUB -e regrid.%J.err    # error filename
+   #BSUB -J create_ESMF_map  # job name
+   #BSUB -N                  # send email upon job completion
+
+   #----------------------------------------------------------------------
+
+   #----------------------------------------------------------------------
+   # Set user-defined parameters here
+   #----------------------------------------------------------------------
+
+   filesrc="$CESMDATAROOT/inputdata/lnd/clm2/mappingdata/grids/0.9x1.25_c110307.nc"
+   filedst="/glade/p/work/sacks/cesm_code/cism_trunk/tools/gland5km_scrip.nc"
+   namesrc='fv0.9x1.25'
+   namedst='gland'
+
+   typesrc='global'
+   typedst='regional'
+   maptype='aave'
+
+   #----------------------------------------------------------------------
+   # Done setting user-defined parameters
+   #----------------------------------------------------------------------
+
+   #----------------------------------------------------------------------
+   # Stuff done in a machine-specific way
+   #----------------------------------------------------------------------
+
+   # Determine number of processors we're running on
+   host_array=($LSB_HOSTS)
+   REGRID_PROC=${#host_array[@]}
+
+   #----------------------------------------------------------------------
+   # Begin general script
+   #----------------------------------------------------------------------
+
+   cmdargs="--filesrc $filesrc --filedst $filedst --namesrc $namesrc --namedst $namedst --typesrc $typesrc --typedst $typedst --maptype $maptype --batch"
+   env REGRID_PROC=$REGRID_PROC ./create_ESMF_map.sh $cmdargs
+
+For 1.9x2.5, I used:
+filesrc="$CESMDATAROOT/inputdata/lnd/clm2/mappingdata/grids/1.9x2.5_c110308.nc"
+
+and for 48x96 (T31), I used:
+filesrc="$CESMDATAROOT/inputdata/lnd/clm2/mappingdata/grids/SCRIPgrid_48x96_nomask_c110308.nc"
+
+
+This can be run with:
+
+bsub < regridbatch.yellowstone.sh 
+
+
+** scrip2CLMoverlap.ncl **
+
+Description:
+This script is written in NCL, and its basic function is to read in an ESMF
+interpolation weight file (between a CLM grid and a GLC grid) as well as a CLM
+fracdata file and output a CLM "overlap" file that contains a field for the
+GLCMASK representing which CLM grid cells might have data required by GLC during
+a coupled GLC run.  Note that the CLM fracdata MUST be on the same grid used to
+calculate the SCRIP interpolation file. The main functionality of this script
+involves determining the list of CLM source points that overlap with a GLC
+point, and creating a GLCMASK field that is set to one for such points. The
+script then outputs the GLCMASK in a netcdf file in a CLM format, with a
+user-specified name. A CLM fracdata file is used to determine the format of the
+output file, including the longxy and latixy variables.
+
+Input:
+The script requires a user-specified ESMF interpolation weight file and a
+user-specified CLM fracdata file. 
+
+Note that, in my workflow, I first moved the created map file into the current
+directory, as in:
+mv /glade/p/work/sacks/cesm_code/clm_glc_misc_updates_nov2014/tools/mapping/gen_mapping_files/gen_ESMF_mapping_file/map_fv0.9x1.25_TO_gland_aave.141105.nc .
+
+User Modifications:
+The script is not commandline driven, so the script itself has to be modified
+in several places to set the correct input file names, output file name, and
+a corresponding output file attribute.  These variables are described below,
+with their script variable name and corresponding description.  In the script,
+each variable has an example name.
+
+    variable name              variable description
+______________________________________________________________________
+
+     infileS                    input SCRIP interpolation weight file name
+     infileF                    input CLM fracdata file name
+     outfile                    output file name
+     globalAtt@title            output file title attribute
+
+Output:
+The script outputs the GLCMASK data in CLM format (similar to a LANDMASK
+data file), with a user-specified file name.
+
+Usage:
+ncl scrip2CLMoverlap.ncl
