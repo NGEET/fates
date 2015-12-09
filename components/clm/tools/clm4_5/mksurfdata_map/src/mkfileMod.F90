@@ -92,11 +92,11 @@ contains
          'Source', len_trim(str), trim(str)), subname)
 
     str = &
-'$HeadURL: https://svn-ccsm-models.cgd.ucar.edu/clm2/trunk_tags/clm4_5_2_r124/components/clm/tools/clm4_5/mksurfdata_map/src/mkfileMod.F90 $'
+'$HeadURL: https://svn-ccsm-models.cgd.ucar.edu/clm2/trunk_tags/clm4_5_2_r125/components/clm/tools/clm4_5/mksurfdata_map/src/mkfileMod.F90 $'
     call check_ret(nf_put_att_text (ncid, NF_GLOBAL, &
          'Version', len_trim(str), trim(str)), subname)
 
-    str = '$Id: mkfileMod.F90 66531 2014-12-27 13:54:58Z sacks $'
+    str = '$Id: mkfileMod.F90 73224 2015-09-15 22:23:48Z andre@ucar.edu $'
     call check_ret(nf_put_att_text (ncid, NF_GLOBAL, &
          'Revision_Id', len_trim(str), trim(str)), subname)
 
@@ -182,6 +182,10 @@ contains
     call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
          'peatland_raw_data_file_name', len_trim(str), trim(str)), subname)
 
+    str = get_filename(mksrf_fsoildepth)
+    call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
+         'soildepth_raw_data_file_name', len_trim(str), trim(str)), subname)
+
     str = get_filename(mksrf_ftopostats)
     call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
          'topography_stats_raw_data_file_name', len_trim(str), trim(str)), subname)
@@ -263,6 +267,10 @@ contains
     str = get_filename(map_fpeat)
     call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
          'map_peatland_file', len_trim(str), trim(str)), subname)
+
+    str = get_filename(map_fsoildepth)
+    call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
+         'map_soildepth_file', len_trim(str), trim(str)), subname)
 
     str = get_filename(map_ftopostats)
     call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
@@ -432,6 +440,9 @@ contains
 
        call ncd_def_spatial_var(ncid=ncid, varname='peatf', xtype=xtype, &
             long_name='peatland fraction', units='unitless')
+
+       call ncd_def_spatial_var(ncid=ncid, varname='zbedrock', xtype=xtype, &
+            long_name='soil depth', units='m')
 
        call ncd_def_spatial_var(ncid=ncid, varname='abm', xtype=nf_int, &
             long_name='agricultural fire peak month', units='unitless')
