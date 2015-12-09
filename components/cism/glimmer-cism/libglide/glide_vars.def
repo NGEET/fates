@@ -164,6 +164,7 @@ units:         Pa
 long_name:     basal traction (x-direction comp)
 data:          data%stress%btractx(:,:)
 factor:        scale_tau
+load:          1
 
 [btracty]
 dimensions:    time, y0, x0
@@ -171,6 +172,23 @@ units:         Pa
 long_name:     basal traction (y-direction comp)
 data:          data%stress%btracty(:,:)
 factor:        scale_tau
+load:          1
+
+[btractx_extend]
+dimensions:    time, y1, x1
+units:         Pa
+long_name:     basal traction (x-direction comp)
+data:          data%stress%btractx_extend(:,:)
+factor:        scale_tau
+load:          1
+
+[btracty_extend]
+dimensions:    time, y1, x1
+units:         Pa
+long_name:     basal traction (y-direction comp)
+data:          data%stress%btracty_extend(:,:)
+factor:        scale_tau
+load:          1
 
 [ubas]
 dimensions:    time, y0, x0
@@ -206,6 +224,22 @@ long_name:     basal shear stress in y direction
 data:          data%velocity%tau_y
 factor:        1e-3*thk0*thk0/len0
 
+[taudx]
+dimensions:    time, y0, x0
+units:         Pa
+long_name:     driving stress (x-direction comp)
+data:          data%stress%taudx(:,:)
+factor:        scale_tau
+load:          1
+
+[taudy]
+dimensions:    time, y0, x0
+units:         Pa
+long_name:     driving stress (y-direction comp)
+data:          data%stress%taudy(:,:)
+factor:        scale_tau
+load:          1
+
 [thk]
 dimensions:    time, y1, x1
 units:         meter
@@ -230,8 +264,23 @@ coordinates:   lon lat
 dimensions:    time, y1, x1
 units:         meter
 long_name:     ice margin calving
-data:          data%climate%calving
+data:          data%calving%calving_thck
 factor:        thk0
+coordinates:   lon lat
+
+[damage]
+dimensions:    time, staglevel, y1, x1
+units:         unitless [0,1]
+long_name:     ice damage
+data:          data%calving%damage(up,:,:)
+load:          1
+coordinates:   lon lat
+
+[damage_column]
+dimensions:    time, y1, x1
+units:         unitless [0,1]
+long_name:     vertically integrated ice damage
+data:          data%calving%damage_column
 coordinates:   lon lat
 
 [ivol]
@@ -401,6 +450,14 @@ data:          data%basal_physics%effecpress
 load:          1
 coordinates:   lon lat
 
+[C_space_factor]
+dimensions:    time, y1, x1
+units:         1
+long_name:     spatial factor for basal shear stress
+data:          data%basal_physics%C_space_factor
+load:          1
+coordinates:   lon lat
+
 [artm]
 dimensions:    time, y1, x1
 units:         degree_Celsius
@@ -470,7 +527,7 @@ long_name:     ice velocity in x direction (extended grid)
 data:          data%velocity%uvel_extend(up,:,:)
 factor:        scale_uvel
 standard_name: land_ice_x_velocity
-hot:           0
+load:          1
 
 [vvel_extend]
 dimensions:    time, level, y1, x1
@@ -479,7 +536,43 @@ long_name:     ice velocity in y direction (extended grid)
 data:          data%velocity%vvel_extend(up,:,:)
 factor:        scale_uvel
 standard_name: land_ice_y_velocity
-hot:           0
+load:          1
+
+[uvel_2d]
+dimensions:    time, y0, x0
+units:         meter/year
+long_name:     vertically averaged ice velocity in x direction
+data:          data%velocity%uvel_2d(:,:)
+factor:        scale_uvel
+standard_name: land_ice_x_velocity_2d
+load:          1
+
+[vvel_2d]
+dimensions:    time, y0, x0
+units:         meter/year
+long_name:     vertically averaged ice velocity in y direction
+data:          data%velocity%vvel_2d(:,:)
+factor:        scale_uvel
+standard_name: land_ice_y_velocity_2d
+load:          1
+
+[uvel_2d_extend]
+dimensions:    time, y1, x1
+units:         meter/year
+long_name:     vertically averaged ice velocity in x direction (extended grid)
+data:          data%velocity%uvel_2d_extend(:,:)
+factor:        scale_uvel
+standard_name: land_ice_x_velocity_2d
+load:          1
+
+[vvel_2d_extend]
+dimensions:    time, y1, x1
+units:         meter/year
+long_name:     vertically averaged ice velocity in y direction (extended grid)
+data:          data%velocity%vvel_2d_extend(:,:)
+factor:        scale_uvel
+standard_name: land_ice_y_velocity_2d
+load:          1
 
 [resid_u]
 dimensions:     time, level, y0, x0
@@ -539,7 +632,7 @@ factor:         scale_resid
 [kinbcmask]
 dimensions:   time, y0, x0
 units:        1
-long_name:    Mask of locations where uvel, vvel value should be held
+long_name:    Mask of locations where uvel, vvel value should be held constant
 data:         data%velocity%kinbcmask(:,:)
 type:         int
 load:         1
@@ -672,6 +765,7 @@ long_name:     effective viscosity
 data:          data%stress%efvs(up,:,:)
 factor:        scale_efvs
 coordinates:   lon lat
+load:          1
 
 [temp]
 dimensions:    time, level, y1, x1
@@ -701,24 +795,32 @@ data:          data%lithot%temp
 load:          1
 coordinates:   lon lat
 
-#[age]
-#dimensions:    time, level, y1, x1
-#units:         year
-#long_name:     ice age
-#data:          data%geometry%age(up,:,:)
-#standard_name: land_ice_age
-#factor:        tim0/scyr
-#load:          0
-#coordinates:   lon lat
+[ice_age]
+dimensions:    time, staglevel, y1, x1
+units:         year
+long_name:     ice age
+data:          data%geometry%ice_age(up,:,:)
+standard_name: land_ice_age
+factor:        tim0/scyr
+load:          1
+coordinates:   lon lat
 
-#[f_ground]
-#dimensions:    time, y0, x0
-#units:         unitless [0,1]
-#long_name:     grounded ice fraction
-#data:          data%geometry%f_ground
-#standard_name: grounded_fraction
-#load:          0
-#coordinates:   lon lat
+[f_pattyn]
+dimensions:    time, y1, x1
+units:         unitless
+long_name:     Pattyn flotation function
+data:          data%geometry%f_pattyn
+load:          0
+coordinates:   lon lat
+
+[f_ground]
+dimensions:    time, y0, x0
+units:         unitless [0,1]
+long_name:     grounded ice fraction
+data:          data%geometry%f_ground
+standard_name: grounded_fraction
+load:          0
+coordinates:   lon lat
 
 #TODO - Are these gline fields needed?
 #[gl_ew]

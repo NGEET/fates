@@ -54,20 +54,22 @@ module glimmer_physcon
   save
                                          
   real(dp),parameter :: pi = 3.14159265358979d0  !< Value of \f$\pi\f$.
-  real(dp),parameter :: rhoi = 910.d0            !< The density of ice (kg m<SUP>-3</SUP>)  
-  real(dp),parameter :: rhoo = 1028.0d0          !< The density of the ocean (kg m<SUP>-3</SUP>)
   real(dp),parameter :: rhow = 1000.0d0          !< The density of fresh water (kg m<SUP>-3</SUP>)  
   real(dp),parameter :: rearth  = 6.37122d6      ! radius of earth (m)  
-  real(dp),parameter :: grav = 9.81d0            !< The acceleration due to gravity (m s<SUP>-2</SUP>)
   real(dp),parameter :: shci = 2009.0d0          !< Specific heat capacity of ice (J kg<SUP>-1</SUP> K<SUP>-1</SUP>) 
   real(dp),parameter :: lhci = 335.0d3           !< Latent heat of melting of ice (J kg<SUP>-1</SUP>)  
   real(dp),parameter :: trpt = 273.15d0          !< Triple point of water (K)    
+
+  !NOTE: The following are not parameters because the default values can be overridden in the config file.
+  !      This may be desirable for test problems such as MISMIP that specify values different from CISM's default values. 
+  real(dp) :: rhoi = 910.d0                      !< The density of ice (kg m<SUP>-3</SUP>)  
+  real(dp) :: rhoo = 1028.0d0                    !< The density of the ocean (kg m<SUP>-3</SUP>)
+  real(dp) :: grav = 9.81d0                      !< The acceleration due to gravity (m s<SUP>-2</SUP>)
 #endif
 
   real(dp),parameter :: scyr = 31536000.d0       !< Number of seconds in a year of exactly 365 days
   real(dp),parameter :: rhom = 3300.0d0          !< The density of magma(?) (kg m<SUP>-3</SUP>) 
   real(dp),parameter :: rhos = 2600.0d0          !< The density of solid till (kg m$^{-3}$) 
-  real(dp),parameter :: f = - rhoo / rhoi    
   integer, parameter :: gn = 3                   !< The power dependency of Glenn's flow law.
   real(dp),parameter :: actenh = 139.0d3         !< Activation energy in Glenn's flow law for \f$T^{*}\geq263\f$K. (J mol<SUP>-1</SUP>)
   real(dp),parameter :: actenl = 60.0d3          !< Activation energy in Glenn's flow law for \f$T^{*}<263\f$K. (J mol<SUP>-1</SUP>)  

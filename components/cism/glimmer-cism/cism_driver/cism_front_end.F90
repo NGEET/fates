@@ -142,13 +142,25 @@ subroutine cism_init_dycore(model)
 
   call spinup_lithot(model)
 
-  if (model%options%whichdycore == DYCORE_BISICLES) then
-    call t_startf('init_external_dycore')
-    call cism_init_external_dycore(model%options%external_dycore_type,model)
-    call t_stopf('init_external_dycore')
-  endif
-
   call t_stopf('initialization')
+
+  if (model%options%whichdycore == DYCORE_BISICLES) then
+    call t_startf('initial_diag_var_solve')
+
+    if (model%numerics%tstart < (model%numerics%tend - model%numerics%tinc)) then
+      ! disable further profiling in normal usage
+      call t_adj_detailf(+10)
+    endif
+
+    call cism_init_external_dycore(model%options%external_dycore_type,model)
+
+    if (model%numerics%tstart < (model%numerics%tend - model%numerics%tinc)) then
+      ! restore profiling to normal settings
+      call t_adj_detailf(-10)
+    endif
+
+    call t_stopf('initial_diag_var_solve')
+  endif
 
   if (model%options%whichdycore .ne. DYCORE_BISICLES) then
   !MJH Created this block here to fill out initial state without needing to enter time stepping loop.  This allows
@@ -270,6 +282,15 @@ subroutine cism_run_dycore(model)
   if (time < model%numerics%tend) then
     do while(time + time_eps < model%numerics%tend)
 
+      !!! SFP moved block of code for applying time dependent forcing read in from netCDF here,
+      !!! as opposed to at the end of the time step (commented it out in it's original location for now)
+      !!! This is a short-term fix. See additioanl discussion as part of issue #19 (in cism-piscees github repo).
+
+      ! Forcing from a 'forcing' data file - will read time slice if needed
+      call t_startf('read_forcing')
+      call glide_read_forcing(model, model)
+      call t_stopf('read_forcing')
+
       ! Increment time step
       if (model%options%whichdycore /= DYCORE_BISICLES) then
         time = time + model%numerics%tinc
@@ -277,7 +298,6 @@ subroutine cism_run_dycore(model)
         model%numerics%time = time  ! TODO This is redundant with what is happening in glide/glissade, but this is needed for forcing to work properly.
       endif
 ! print *,"external_dycore_type: ",model%options%external_dycore_type
-
 
       !if (model%options%external_dycore_type .EQ. 0) then      ! NO_EXTERNAL_DYCORE) then
       !  if (model%options%whichdycore == DYCORE_GLIDE) then
@@ -347,10 +367,12 @@ subroutine cism_run_dycore(model)
       call eismint_surftemp(model%eismint_climate,model,time)
       call t_stopf('set_forcing')
 
-      ! Forcing from a 'forcing' data file - will read time slice if needed
-      call t_startf('read_forcing')
-      call glide_read_forcing(model, model)
-      call t_stopf('read_forcing')
+      !!! SFP moved this next block of code to the start of the time step. See additional notes there.
+
+  !    ! Forcing from a 'forcing' data file - will read time slice if needed
+  !    call t_startf('read_forcing')
+  !    call glide_read_forcing(model, model)
+  !    call t_stopf('read_forcing')
 
       ! Write to output netCDF files at desired intervals
       call t_startf('io_writeall')
@@ -394,6 +416,15 @@ subroutine cism_finalize_dycore(model)
 
   ! finalise GLIDE
   call glide_finalise(model)
+
+  ! (DFM) -- finalize external dycores 
+  if (model%options%whichdycore == DYCORE_BISICLES) then
+    call t_startf('finalize_external_dycore')
+    call cism_finalize_external_dycore(model%options%external_dycore_type,model)
+    call t_stopf('finalize_external_dycore')
+  endif
+
+
 
   !TODO - Do we need to call glimmer_write_stats?
 #if (! defined CCSMCOUPLED && ! defined CESMTIMERS)

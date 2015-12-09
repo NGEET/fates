@@ -42,16 +42,26 @@
     use glimmer_physcon, only: rhoi, rhoo
     use glissade_grid_operators     
     use glide_types  ! grounding line options
-!    use parallel
+    use parallel
 
     implicit none
 
-    private
-    public :: glissade_get_masks, glissade_grounded_fraction
+    ! All variables, functions and subroutines in this module are public
+
+    ! public parameters
+
+    ! integer mask values
+    integer, parameter :: mask_value_land          =  1   ! topg >= eus
+    integer, parameter :: mask_value_active_ice    =  2   ! thick enough to be active
+    integer, parameter :: mask_value_floating_ice  =  4   ! active and floating
+    integer, parameter :: mask_value_margin        =  8   ! margin between active ice and inactive/zero ice
+    integer, parameter :: mask_value_ice           =  16  ! giving this the highest value so it is obvious during visualization
 
   contains
 
 !****************************************************************************
+
+  !TODO - Remove this subroutine and replace with glissade_calculate_masks.
 
   subroutine glissade_get_masks(nx,          ny,         &
                                 thck,        topg,       &
@@ -59,11 +69,12 @@
                                 ice_mask,    floating_mask, &
                                 ocean_mask,  land_mask)
                                   
-
     !----------------------------------------------------------------
-    ! Compute various masks for Glissade dycore.
+    ! Compute various masks for the Glissade dycore.
     !----------------------------------------------------------------
     
+    use parallel  ! halo update for ocean_edge_mask
+
     !----------------------------------------------------------------
     ! Input-output arguments
     !----------------------------------------------------------------
@@ -118,7 +129,7 @@
           endif
 
           if (present(floating_mask)) then
-             if (topg(i,j) - eus < (-rhoi/rhoo)*thck(i,j) .and. thck(i,j) > thklim) then
+             if (topg(i,j) - eus < (-rhoi/rhoo)*thck(i,j) .and. ice_mask(i,j) == 1) then
                 floating_mask(i,j) = 1
              else
                 floating_mask(i,j) = 0
@@ -132,7 +143,7 @@
                 land_mask(i,j) = 0
              endif
           endif
-
+          
        enddo
     enddo
 
@@ -143,7 +154,8 @@
   subroutine glissade_grounded_fraction(nx,          ny,        &
                                         thck,        topg,      &
                                         eus,         ice_mask,  &
-                                        whichground, f_ground)
+                                        whichground, f_ground,  &
+                                        f_pattyn)
 
     !----------------------------------------------------------------
     ! Compute fraction of ice that is grounded.
@@ -157,8 +169,6 @@
     ! (2) HO_GROUND_ALL: f_ground = 1 for all cells with ice
     !----------------------------------------------------------------
     
-    !TODO: Apply this subroutine in MISMIP test cases
-
     !----------------------------------------------------------------
     ! Input-output arguments
     !----------------------------------------------------------------
@@ -184,7 +194,10 @@
 
     real(dp), dimension(nx-1,ny-1), intent(out) ::  &
        f_ground               ! grounded ice fraction at vertex, 0 <= f_ground <= 1
-                              ! set to -1 where vmask = 0
+                              ! set to special value where vmask = 0
+
+    real(dp), dimension(nx,ny), intent(out) :: &
+       f_pattyn               ! Pattyn flotation function, -rhoo*(topg-eus) / (rhoi*thck)
 
     !----------------------------------------------------------------
     ! Local variables
@@ -193,27 +206,24 @@
     integer :: i, j
 
     integer, dimension(nx-1,ny-1) ::   &
-       vmask                  ! = 1 for vertices of cells where ice is present (thk > thklim), else = 0
-
-    real(dp), dimension(nx,ny) :: &
-       fpat           ! Pattyn function, -rhoo*(topg-eus) / (rhoi*thck)
+       vmask              ! = 1 for vertices neighboring at least one cell where ice is present, else = 0
 
     real(dp), dimension(nx-1,ny-1) :: &
-       stagfpat       ! fpat interpolated to staggered grid
+       stagf_pattyn       ! f_pattyn interpolated to staggered grid
 
     real(dp) :: a, b, c, d       ! coefficients in bilinear interpolation
                                  ! f(x,y) = a + b*x + c*y + d*x*y
 
-    real(dp) :: f1, f2, f3, f4   ! fpat at different cell centers
+    real(dp) :: f1, f2, f3, f4   ! f_pattyn at different cell centers
 
     real(dp) ::  &
-       var,     &! combination of fpat terms that determines regions to be integrated
-       fpat_v    ! fpat interpolated to vertex
+       var,              &! combination of f_pattyn terms that determines regions to be integrated
+       f_pattyn_vertex    ! f_pattyn interpolated to vertex
 
     integer :: nfloat     ! number of grounded vertices of a cell (0 to 4)
 
     logical, dimension(nx,ny) :: &
-       cfloat              ! true if fpat > 1 at cell center, else = false
+       cfloat              ! true if f_pattyn > 1 at cell center, else = false
 
     logical, dimension(2,2) ::   &
        logvar              ! set locally to float or .not.float, depending on nfloat
@@ -246,46 +256,45 @@
        enddo
     enddo
 
+    ! Compute Pattyn function at cell centers
+    ! Note: f_pattyn <= 1 for grounded ice, f_pattyn > 1 for floating ice
+    !       Setting f_pattyn = 0 for ice-free cells implies that these cells are considered grounded
+
+    do j = 1, ny
+       do i = 1, nx
+          if (ice_mask(i,j) == 1) then
+             f_pattyn(i,j) = -rhoo*(topg(i,j) - eus) / (rhoi*thck(i,j))
+          else
+             f_pattyn(i,j) = 0.d0
+          endif
+       enddo
+    enddo
+
+    ! Interpolate f_pattyn to staggered mesh
+
+    ! For stagger_margin_in = 1, only ice-covered cells are included in the interpolation.
+    ! Will return stagf_pattyn = 0 in ice-free regions
+
+    call glissade_stagger(nx,       ny,             &
+                          f_pattyn, stagf_pattyn,   &
+                          ice_mask, stagger_margin_in = 1)
 
     ! initialize f_ground
-    ! Choose a special non-physical value; this value will be overwritten in all cells with ice
-    !TODO Choose a different special value?
-!    f_ground(:,:) = -1.d0
-    f_ground(:,:) = 9.d0
+    f_ground(:,:) = 0.d0
+
+    ! Compute f_ground according to the value of whichground
 
     select case(whichground)
 
     case(HO_GROUND_NO_GLP)   ! default: no grounding-line parameterization
-                             ! f_ground = 1 if fpat <=1, f_ground = 0 if fpat > 1
-                             ! Note: Ice is considered grounded at the GL.
+                             ! f_ground = 1 if stagf_pattyn <=1, f_ground = 0 if stagf_pattyn > 1
 
-       ! Compute Pattyn function at cell centers
-
-       do j = 1, ny
-          do i = 1, nx
-             if (ice_mask(i,j) == 1) then
-                fpat(i,j) = -rhoo*(topg(i,j) - eus) / (rhoi*thck(i,j))
-             else
-                fpat(i,j) = 0.d0
-             endif
-          enddo
-       enddo
-
-       ! Interpolate to staggered mesh
-
-       ! For stagger_margin_in = 1, only ice-covered cells are included in the interpolation.
-       ! Will return stagfpat = 0. in ice-free regions
-
-       call glissade_stagger(nx,       ny,         &
-                             fpat,     stagfpat,   &
-                             ice_mask, stagger_margin_in = 1)
-
-       ! Assume grounded if stagfpat <= 1, else floating
+       ! Assume grounded if stagf_pattyn <= 1, else floating
 
        do j = 1, ny-1
           do i = 1, nx-1
-             if (vmask(i,j)==1) then
-                if (stagfpat(i,j) <= 1.d0) then
+             if (vmask(i,j) == 1) then
+                if (stagf_pattyn(i,j) <= 1.d0) then
                    f_ground(i,j) = 1.d0
                 else
                    f_ground(i,j) = 0.d0
@@ -296,31 +305,11 @@
 
     case(HO_GROUND_GLP)      ! grounding-line parameterization based on Pattyn (2006, JGR)
 
-       ! Compute Pattyn function at grid cell centers
+       ! Identify cells that contain floating ice
 
        do j = 1, ny
           do i = 1, nx
-             if (ice_mask(i,j) == 1) then  ! thck > thklim
-                fpat(i,j) = -rhoo*(topg(i,j) - eus) / (rhoi*thck(i,j))
-             else
-                fpat(i,j) = 0.d0  ! this value is never used
-             endif
-          enddo
-       enddo
-
-       ! Interpolate Pattyn function to staggered mesh
-       ! For stagger_margin_in = 1, only ice-covered cells are included in the interpolation.
-       ! Returns stagfpat = 0. in ice-free regions
-
-       call glissade_stagger(nx,       ny,         &
-                             fpat,     stagfpat,   &
-                             ice_mask, stagger_margin_in = 1)
-
-       ! Identify cell centers that are floating
-
-       do j = 1, ny
-          do i = 1, nx
-             if (fpat(i,j) > 1.d0) then
+             if (f_pattyn(i,j) > 1.d0) then
                 cfloat(i,j) = .true.
              else
                 cfloat(i,j) = .false.
@@ -330,11 +319,11 @@
 
        !WHL - debug
        i = it; j = jt
-       print*, 'i, j =', i, j
-       print*, 'fpat(i:i+1,j+1):', fpat(i:i+1,j+1)
-       print*, 'fpat(i:i+1,j)  :', fpat(i:i+1,j)
-       print*, 'cfloat(i:i+1,j+1):', cfloat(i:i+1,j+1)
-       print*, 'cfloat(i:i+1,j)  :', cfloat(i:i+1,j)
+!!       print*, 'i, j =', i, j
+!!       print*, 'f_pattyn(i:i+1,j+1):', f_pattyn(i:i+1,j+1)
+!!       print*, 'f_pattyn(i:i+1,j)  :', f_pattyn(i:i+1,j)
+!!       print*, 'cfloat(i:i+1,j+1):', cfloat(i:i+1,j+1)
+!!       print*, 'cfloat(i:i+1,j)  :', cfloat(i:i+1,j)
 
        ! Loop over vertices, computing f_ground for each vertex with vmask = 1
 
@@ -346,7 +335,7 @@
                 if (ice_mask(i,j+1)==1 .and. ice_mask(i+1,j+1)==1 .and.  &
                     ice_mask(i,j)  ==1 .and. ice_mask(i+1,j)  ==1) then
 
-                   ! ice is present in all 4 neighboring cells; interpolate fpat to find f_ground
+                   ! ice is present in all 4 neighboring cells; interpolate f_pattyn to find f_ground
 
                    ! Count the number of floating cells surrounding this vertex
 
@@ -375,7 +364,7 @@
 
                    ! For the other cases the grounding line runs through the rectangular region 
                    !  around this vertex.
-                   ! Using the values at the 4 neighboring cells, we approximate fpat(x,y) as
+                   ! Using the values at the 4 neighboring cells, we approximate f_pattyn(x,y) as
                    !  a bilinear function f(x,y) = a + bx + cy + dxy over the region.
                    ! To find f_ground, we integrate over the region with f(x,y) <= 1
                    !  (or alternatively, we find f_float = 1 - f_ground by integrating
@@ -383,8 +372,8 @@
                    !  
                    ! There are 3 patterns to consider:
                    ! (1) nfloat = 1 or nfloat = 3 (one cell neighbor is not like the others)
-                   ! (2) nfloat = 2 and adjacent cells are floating
-                   ! (3) nfloat = 2 and diagonally opposite cells are floating
+                   ! (2) nfloat = 2, and adjacent cells are floating
+                   ! (3) nfloat = 2, and diagonally opposite cells are floating
 
                    elseif (nfloat == 1 .or. nfloat == 3) then
  
@@ -401,29 +390,29 @@
                       ! Diagrams below are for the case nfloat = 1.
                       ! If nfloat = 3, the F and G labels are switched.
 
-                      if (logvar(1,1)) then      ! no rotation
-                         f1 = fpat(i,j)          !   G-----G
-                         f2 = fpat(i+1,j)        !   |     |
-                         f3 = fpat(i+1,j+1)      !   |     |
-                         f4 = fpat(i,j+1)        !   F-----G
+                      if (logvar(1,1)) then          ! no rotation
+                         f1 = f_pattyn(i,j)          !   G-----G
+                         f2 = f_pattyn(i+1,j)        !   |     |
+                         f3 = f_pattyn(i+1,j+1)      !   |     |
+                         f4 = f_pattyn(i,j+1)        !   F-----G
 
-                      elseif (logvar(2,1)) then  ! rotate by 90 degrees
-                         f4 = fpat(i,j)          !   G-----G
-                         f1 = fpat(i+1,j)        !   |     |
-                         f2 = fpat(i+1,j+1)      !   |     |
-                         f3 = fpat(i,j+1)        !   G-----F
+                      elseif (logvar(2,1)) then      ! rotate by 90 degrees
+                         f4 = f_pattyn(i,j)          !   G-----G
+                         f1 = f_pattyn(i+1,j)        !   |     |
+                         f2 = f_pattyn(i+1,j+1)      !   |     |
+                         f3 = f_pattyn(i,j+1)        !   G-----F
 
-                      elseif (logvar(2,2)) then  ! rotate by 180 degrees
-                         f3 = fpat(i,j)          !   G-----F
-                         f4 = fpat(i+1,j)        !   |     |
-                         f1 = fpat(i+1,j+1)      !   |     |
-                         f2 = fpat(i,j+1)        !   G-----G
+                      elseif (logvar(2,2)) then      ! rotate by 180 degrees
+                         f3 = f_pattyn(i,j)          !   G-----F
+                         f4 = f_pattyn(i+1,j)        !   |     |
+                         f1 = f_pattyn(i+1,j+1)      !   |     |
+                         f2 = f_pattyn(i,j+1)        !   G-----G
 
-                      elseif (logvar(1,2)) then  ! rotate by 270 degrees
-                         f2 = fpat(i,j)          !   F-----G
-                         f3 = fpat(i+1,j)        !   |     |
-                         f4 = fpat(i+1,j+1)      !   |     |
-                         f1 = fpat(i,j+1)        !   G-----G
+                      elseif (logvar(1,2)) then      ! rotate by 270 degrees
+                         f2 = f_pattyn(i,j)          !   F-----G
+                         f3 = f_pattyn(i+1,j)        !   |     |
+                         f4 = f_pattyn(i+1,j+1)      !   |     |
+                         f1 = f_pattyn(i,j+1)        !   G-----G
                       endif
                       
                       ! Compute coefficients in f(x,y) = a + b*x + c*y + d*x*y
@@ -457,7 +446,7 @@
                       !                                    y(x) = (1 - (a+b*x)) / c
                       !     = (a-1)(a-1) / (2bc)
                       !
-                      ! Note: We cannot have bc = 0, because fpat varies in both x and y
+                      ! Note: We cannot have bc = 0, because f_pattyn varies in both x and y
 
                       if (abs(d) > eps10) then
                          f_corner = ((b*c - a*d + d) * log(1.d0 + d*(1.d0 - a)/(b*c)) - (1.d0 - a)*d) / (d*d)
@@ -483,32 +472,32 @@
                       ! We integrate over the trapezoid in the floating part of the cell
 
                       if (cfloat(i,j) .and. cfloat(i+1,j)) then  ! no rotation
-                         adjacent = .true.       !   G-----G
-                         f1 = fpat(i,j)          !   |     |
-                         f2 = fpat(i+1,j)        !   |     |
-                         f3 = fpat(i+1,j+1)      !   |     |
-                         f4 = fpat(i,j+1)        !   F-----F
+                         adjacent = .true.           !   G-----G
+                         f1 = f_pattyn(i,j)          !   |     |
+                         f2 = f_pattyn(i+1,j)        !   |     |
+                         f3 = f_pattyn(i+1,j+1)      !   |     |
+                         f4 = f_pattyn(i,j+1)        !   F-----F
 
                       elseif (cfloat(i+1,j) .and. cfloat(i+1,j+1)) then  ! rotate by 90 degrees
-                         adjacent = .true.       !   G-----F
-                         f4 = fpat(i,j)          !   |     |
-                         f1 = fpat(i+1,j)        !   |     |
-                         f2 = fpat(i+1,j+1)      !   |     |
-                         f3 = fpat(i,j+1)        !   G-----F
+                         adjacent = .true.           !   G-----F
+                         f4 = f_pattyn(i,j)          !   |     |
+                         f1 = f_pattyn(i+1,j)        !   |     |
+                         f2 = f_pattyn(i+1,j+1)      !   |     |
+                         f3 = f_pattyn(i,j+1)        !   G-----F
 
                       elseif (cfloat(i+1,j+1) .and. cfloat(i,j+1)) then  ! rotate by 180 degrees
-                         adjacent = .true.       !   F-----F
-                         f3 = fpat(i,j)          !   |     |
-                         f4 = fpat(i+1,j)        !   |     |
-                         f1 = fpat(i+1,j+1)      !   |     |
-                         f2 = fpat(i,j+1)        !   G-----G
+                         adjacent = .true.           !   F-----F
+                         f3 = f_pattyn(i,j)          !   |     |
+                         f4 = f_pattyn(i+1,j)        !   |     |
+                         f1 = f_pattyn(i+1,j+1)      !   |     |
+                         f2 = f_pattyn(i,j+1)        !   G-----G
 
                       elseif (cfloat(i,j+1) .and. cfloat(i,j)) then   ! rotate by 270 degrees
-                         adjacent = .true.       !   F-----G
-                         f2 = fpat(i,j)          !   |     |
-                         f3 = fpat(i+1,j)        !   |     |
-                         f4 = fpat(i+1,j+1)      !   |     |
-                         f1 = fpat(i,j+1)        !   F-----G
+                         adjacent = .true.           !   F-----G
+                         f2 = f_pattyn(i,j)          !   |     |
+                         f3 = f_pattyn(i+1,j)        !   |     |
+                         f4 = f_pattyn(i+1,j+1)      !   |     |
+                         f1 = f_pattyn(i,j+1)        !   F-----G
 
                       else   ! the 2 grounded cells are diagonally opposite
                          
@@ -530,18 +519,18 @@
                          !   |     |       |     |
                          !   F-----G       G-----F
                          !   
-                         var = fpat(i+1,j)*fpat(i,j+1) - fpat(i,j)*fpat(i+1,j+1)   &
-                             + fpat(i,j) + fpat(i+1,j+1) - fpat(i+1,j) - fpat(i,j+1)
+                         var = f_pattyn(i+1,j)*f_pattyn(i,j+1) - f_pattyn(i,j)*f_pattyn(i+1,j+1)   &
+                             + f_pattyn(i,j) + f_pattyn(i+1,j+1) - f_pattyn(i+1,j) - f_pattyn(i,j+1)
                          if (var >= 0.d0) then   ! we have one of the top two patterns
-                            f1 = fpat(i,j)
-                            f2 = fpat(i+1,j)
-                            f3 = fpat(i+1,j+1)
-                            f4 = fpat(i,j+1)
+                            f1 = f_pattyn(i,j)
+                            f2 = f_pattyn(i+1,j)
+                            f3 = f_pattyn(i+1,j+1)
+                            f4 = f_pattyn(i,j+1)
                          else   ! we have one of the bottom two patterns; rotate coordinates by 90 degrees
-                            f4 = fpat(i,j)
-                            f1 = fpat(i+1,j)
-                            f2 = fpat(i+1,j+1)
-                            f3 = fpat(i,j+1)
+                            f4 = f_pattyn(i,j)
+                            f1 = f_pattyn(i+1,j)
+                            f2 = f_pattyn(i+1,j+1)
+                            f3 = f_pattyn(i,j+1)
                          endif
                       endif  ! grounded cells are adjacent
 
@@ -636,21 +625,21 @@
                          endif
                          
                          ! Determine whether the central point (1/2,1/2) is grounded or floating.
-                         ! (Note: fpat_v /= stagfpat(i,j))
+                         ! (Note: f_pattyn_v /= stagf_pattyn(i,j))
                          ! Then compute the grounded area.
                          ! If the central point is floating, the corner regions are grounded;
                          ! if the central point is grounded, the corner regions are floating.
 
-                         fpat_v = a + 0.5d0*b + 0.5d0*c + 0.25d0*d
-                         if (fpat_v > 1.d0) then  ! the central point is floating; corners are grounded
+                         f_pattyn_vertex = a + 0.5d0*b + 0.5d0*c + 0.25d0*d
+                         if (f_pattyn_vertex > 1.d0) then  ! the central point is floating; corners are grounded
                             f_ground(i,j) = f_corner1 + f_corner2
-                         else                     ! the central point is grounded; corners are floating
+                         else                              ! the central point is grounded; corners are floating
                             f_ground(i,j) = 1.d0 - (f_corner1 + f_corner2)
                          endif
 
                          !WHL - debug
                          if (i==it .and. j==jt) then
-                            print*, 'fpat_v =', fpat_v
+                            print*, 'f_pattyn_v =', f_pattyn_vertex
                             print*, 'f_corner1 =', f_corner1
                             print*, 'f_corner2 =', f_corner2
                             print*, 'f_ground =', f_ground(i,j)
@@ -661,9 +650,9 @@
                    endif     ! nfloat
 
                 else   ! one or more neighboring cells is ice-free, so bilinear interpolation is not possible
-                       ! In this case, set f_ground = 0 or 1 based on stagfpat at vertex
+                       ! In this case, set f_ground = 0 or 1 based on stagf_pattyn at vertex
 
-                   if (stagfpat(i,j) <= 1.d0) then
+                   if (stagf_pattyn(i,j) <= 1.d0) then
                       f_ground(i,j) = 1.d0
                    else
                       f_ground(i,j) = 0.d0
@@ -688,6 +677,175 @@
     end select
 
   end subroutine glissade_grounded_fraction
+
+!****************************************************************************
+
+  subroutine glissade_calculate_masks(nx,            ny,             &
+                                      thck,                          &
+                                      topg,          eus,            &
+                                      thklim_ground, thklim_float,   &
+                                      cell_mask)
+                                  
+    !----------------------------------------------------------------
+    ! Compute an integer mask in each grid cell for the Glissade dycore.
+    !----------------------------------------------------------------
+    
+    use parallel
+
+    !----------------------------------------------------------------
+    ! Input-output arguments
+    !----------------------------------------------------------------
+
+    integer, intent(in) ::   &
+         nx,  ny                ! number of grid cells in each direction
+
+    ! Preferred dimensions are meters, but this subroutine will work for
+    ! any length units as long as thck, topg, eus and thklim have the same units.
+
+    real(dp), dimension(nx,ny), intent(in) ::  &
+         thck,                 &! ice thickness
+         topg                   ! elevation of bedrock topography
+
+    real(dp), intent(in) ::  &
+         eus,                  &! eustatic sea level, = 0. by default
+         thklim_ground,        &! min thickness for active grounded ice (land-based or marine)
+         thklim_float           ! min thickness for active floating ice
+
+    integer, dimension(nx,ny), intent(out) ::  &
+         cell_mask              ! integer mask that encodes information about each cell 
+
+    real(dp) :: &
+         h_flotation            ! flotation thickness, (rhoo/rhoi)*(eus-topg)
+
+    integer :: i, j
+
+    ! initialize
+    cell_mask(:,:) = 0
+
+    ! identify cells with ice (active or not)
+
+    where (thck > 0.0d0)
+       cell_mask = ior(cell_mask, mask_value_ice)
+    endwhere
+
+    ! identify land cells, active ice, floating ice
+
+    do j = 1, ny
+       do i = 1, nx
+          if (topg(i,j) >= eus) then  ! land cell
+             cell_mask(i,j) = ior(cell_mask(i,j), mask_value_land)
+             if (thck(i,j) > thklim_ground) then   ! active
+                cell_mask(i,j) = ior(cell_mask(i,j), mask_value_active_ice)
+             endif
+          else  ! marine cell, topg < eus
+             h_flotation = (rhoo/rhoi)*(eus - topg(i,j))  ! flotation thickness
+             if (thck(i,j) < h_flotation) then  ! floating
+                if (thck(i,j) > thklim_float) then  ! active
+                   cell_mask(i,j) = ior(cell_mask(i,j), mask_value_active_ice)
+                   cell_mask(i,j) = ior(cell_mask(i,j), mask_value_floating_ice)
+                endif
+             else   ! grounded marine ice
+                if (thck(i,j) > thklim_ground) then  ! active
+                   cell_mask(i,j) = ior(cell_mask(i,j), mask_value_active_ice)
+                endif
+             endif  ! floating
+          endif  ! land
+       enddo  ! i
+    enddo  ! j
+
+    ! identify cells on the margin between active ice and inactive/zero ice
+
+    do j = 2, ny-1
+       do i = 2, nx-1
+          if (mask_is_active_ice(cell_mask(i,j))) then
+             if (.not.mask_is_active_ice(cell_mask(i-1,j)) .or. .not.mask_is_active_ice(cell_mask(i+1,j)) .or.  &
+                 .not.mask_is_active_ice(cell_mask(i,j-1)) .or. .not.mask_is_active_ice(cell_mask(i,j+1))) then
+                cell_mask(i,j) = ior(cell_mask(i,j), mask_value_margin)
+             endif
+          else   ! inactive or zero ice
+             if (mask_is_active_ice(cell_mask(i-1,j)) .or. mask_is_active_ice(cell_mask(i+1,j)) .or.  &
+                 mask_is_active_ice(cell_mask(i,j-1)) .or. mask_is_active_ice(cell_mask(i,j+1))) then
+                cell_mask(i,j) = ior(cell_mask(i,j), mask_value_margin)
+             endif
+          endif  ! active
+       enddo  ! i
+    enddo  ! j
+
+    ! halo update, since margin mask was not calculated for all cells
+
+    call parallel_halo(cell_mask)
+
+  end subroutine glissade_calculate_masks
+
+!****************************************************************************
+
+! The following logical functions will decode bit masks
+
+!****************************************************************************
+
+  function mask_is_land(mask)
+
+    integer, intent(in) :: mask   ! mask with encoded info
+    logical :: mask_is_land
+
+    mask_is_land = iand(mask, mask_value_land) == mask_value_land
+    
+  end function mask_is_land
+
+!****************************************************************************
+
+  function mask_is_ice(mask)
+
+    integer, intent(in) :: mask   ! mask with encoded info
+    logical :: mask_is_ice
+
+    mask_is_ice = iand(mask, mask_value_ice) == mask_value_ice
+    
+  end function mask_is_ice
+
+!****************************************************************************
+
+  function mask_is_active_ice(mask)
+
+    integer, intent(in) :: mask   ! mask with encoded info
+    logical :: mask_is_active_ice
+
+    mask_is_active_ice = iand(mask, mask_value_active_ice) == mask_value_active_ice
+    
+  end function mask_is_active_ice
+
+!****************************************************************************
+
+  function mask_is_floating_ice(mask)
+
+    integer, intent(in) :: mask   ! mask with encoded info
+    logical :: mask_is_floating_ice
+
+    mask_is_floating_ice = iand(mask, mask_value_floating_ice) == mask_value_floating_ice
+    
+  end function mask_is_floating_ice
+
+!****************************************************************************
+
+  function mask_is_margin(mask)
+
+    integer, intent(in) :: mask   ! mask with encoded info
+    logical :: mask_is_margin
+
+    mask_is_margin = iand(mask, mask_value_margin) == mask_value_margin
+    
+  end function mask_is_margin
+
+!****************************************************************************
+
+  function mask_is_ocean(mask)
+
+    integer, intent(in) :: mask   ! mask with encoded info
+    logical :: mask_is_ocean
+
+    mask_is_ocean = (.not.mask_is_land(mask) .and. .not.mask_is_active_ice(mask))
+    
+  end function mask_is_ocean
 
 !****************************************************************************
 

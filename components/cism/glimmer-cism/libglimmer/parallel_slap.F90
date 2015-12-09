@@ -61,6 +61,11 @@ module parallel
 
   integer,save :: ewlb,ewub,nslb,nsub
   integer,save :: east,north,south,west
+  integer,save :: ewtasks,nstasks
+
+  !Note: Currently, periodic_bc is always T, since periodic BCs are always applied.                                                             
+  !      Outflow BCs require some additional operations on scalars after periodic BCs are applied.
+  !      No-penetration BCs are enforced by setting velocity masks, without altering halo updates.
 
   ! global boundary conditions
   logical,save :: periodic_bc  ! doubly periodic
@@ -537,17 +542,17 @@ contains
   end function distributed_get_var_real8_3d
 
 
-  subroutine distributed_grid(ewn, nsn, nhalo_in, periodic_bc_in, outflow_bc_in)
+  subroutine distributed_grid(ewn,      nsn,  &
+                              nhalo_in, outflow_bc_in)
 
     implicit none
 
     integer, intent(inout) :: ewn, nsn          ! global grid dimensions
     integer, intent(in), optional :: nhalo_in   ! number of rows of halo cells
-    logical, intent(in), optional :: periodic_bc_in ! true for periodic global BCs
     logical, intent(in), optional :: outflow_bc_in  ! true for outflow global BCs
                                                     ! (scalars in global halo set to zero)
            
-    integer :: ewrank,ewtasks,nsrank,nstasks
+    integer :: ewrank,nsrank
 
     ! Optionally, change the halo values
     ! Note: The higher-order dycores (glam, glissade) currently require nhalo = 2.
@@ -614,25 +619,18 @@ contains
     own_nsn = local_nsn - lhalo - uhalo
     nsn = local_nsn
 
-    !WHL - added global boundary conditions
-
-    periodic_bc = .true.  ! this is the default
-    outflow_bc = .false.
+    ! set periodic BC as the default
+    ! Note: Currently, it is not strictly necessary to set periodic_bc = T, because
+    !       all halo updates carried out for periodic BC are also carried out for other BCs.
+    !       (Outflow BCs simply add some additional operations on scalars.)                                                                                        !       But setting it here as the default in case that changes. 
+    periodic_bc = .true.
 
     if (present(outflow_bc_in)) then
        outflow_bc = outflow_bc_in
-       if (outflow_bc) periodic_bc = .false.
-    endif
-
-    if (present(periodic_bc_in)) then
-       periodic_bc = periodic_bc_in 
-       if (periodic_bc) outflow_bc = .false.
+    else
+       outflow_bc = .false.
     endif
     
-    !WHL - debug
-    if (outflow_bc) write(*,*) "Outflow global boundary conditions"
-    if (periodic_bc) write(*,*) "Periodic global boundary conditions"
-
     ! Print grid geometry
     write(*,*) "Process ", this_rank, " Total = ", tasks, " ewtasks = ", ewtasks, " nstasks = ", nstasks
     write(*,*) "Process ", this_rank, " ewrank = ", ewrank, " nsrank = ", nsrank
@@ -2396,6 +2394,32 @@ contains
     if (main_task) parallel_sync = nf90_sync(ncid)
     call broadcast(parallel_sync)
   end function parallel_sync
+
+  subroutine staggered_no_penetration_mask(umask, vmask)
+
+    implicit none
+    integer,dimension(:,:) :: umask, vmask  ! mask set to 1 wherever the outflow velocity should be zero
+
+    ! initialize the no-penetration masks to 0
+    umask(:,:) = 0
+    vmask(:,:) = 0
+
+    ! set u velocity mask = 1 at the east global boundary and vertices eastward
+    umask(local_ewn-uhalo:,:) = 1
+
+    ! set u velocity mask = 1 at the west global boundary and vertices westward
+    umask(:lhalo,:) = 1
+    
+    ! set v velocity mask = 1 at the north global boundary and vertices northward
+    vmask(:,local_nsn-uhalo:) = 1
+
+    ! set v velocity mask = 1 at the south global boundary and vertices southward
+    vmask(:,:lhalo) = 1
+
+    call staggered_parallel_halo(umask)
+    call staggered_parallel_halo(vmask)
+
+  end subroutine staggered_no_penetration_mask
 
   subroutine staggered_parallel_halo_extrapolate_integer_2d(a)
 

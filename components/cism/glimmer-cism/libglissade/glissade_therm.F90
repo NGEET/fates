@@ -317,7 +317,6 @@ module glissade_therm
     use glimmer_utils,  only : tridiag
     use glimmer_physcon, only: shci, coni, rhoi, tocnfrz_sfc, dtocnfrz_dh
     use glide_mask
-    use glissade_grid_operators, only: glissade_stagger
     use glissade_masks, only: glissade_get_masks
 
     !------------------------------------------------------------------------------------
@@ -390,6 +389,7 @@ module glissade_therm
          ice_mask_temp, &! = 1 where ice temperature is computed (thck > thklim_temp), else = 0
          floating_mask   ! = 1 where ice is floating, else = 0
 
+    !TODO - ucondflx cannot be strictly local because it is needed for coupling
     real(dp), dimension(ewn,nsn) ::  &
          ucondflx,     & ! conductive heat flux (W/m^2) at upper sfc (positive down)
          lcondflx,     & ! conductive heat flux (W/m^2) at lower sfc (positive down)
@@ -1393,9 +1393,7 @@ module glissade_therm
     real(dp), intent(in) :: depth      ! depth in column (model thickness units)
     real(dp), intent(out) :: pmptemp   ! pressure melting point temp (deg C)
 
-    real(dp), parameter :: pmpfact = - rhoi * grav * pmlt
-
-    pmptemp = pmpfact * depth
+    pmptemp = - rhoi * grav * pmlt * depth
 
   end subroutine glissade_pressure_melting_point
 
@@ -1413,9 +1411,7 @@ module glissade_therm
                                                     ! (defined at layer midpoints)
     real(dp), dimension(:), intent(out) :: pmptemp  ! pressure melting point temperature (deg C)
 
-    real(dp), parameter :: pmpfact = - rhoi * grav * pmlt
-
-    pmptemp(:) = pmpfact * thck * stagsigma(:)
+    pmptemp(:) = - rhoi * grav * pmlt * thck * stagsigma(:)
 
   end subroutine glissade_pressure_melting_point_column
 

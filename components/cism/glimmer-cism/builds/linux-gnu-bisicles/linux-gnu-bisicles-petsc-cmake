@@ -45,17 +45,17 @@ cmake \
   -D CMAKE_INSTALL_PREFIX:PATH=$PWD/install \
   -D CMAKE_VERBOSE_MAKEFILE:BOOL=ON \
 \
-  -D CMAKE_CXX_COMPILER=mpiCC \
-  -D CMAKE_C_COMPILER=mpicc \
+  -D CMAKE_CXX_COMPILER=/usr/bin/mpiCC \
+  -D CMAKE_C_COMPILER=/usr/bin/mpicc \
   -D CMAKE_Fortran_COMPILER=/usr/bin/mpif90 \
 \
   -D CISM_HDF5_LIB_DIR=${ANAG_HDF5_DIR}/lib \
-  -D CISM_HDF5_LIBS="-DH5_USE_16_API -lhdf5 -lz -lstdc++" \
+  -D CISM_HDF5_LIBS="-lnetcdff -lnetcdf -lhdf5 -lhdf5_hl -lz -lstdc++" \
   -D CMAKE_PREFIX_PATH="${ANAG_HDF5_DIR}" \
 \
-  -D CMAKE_CXX_FLAGS:STRING="-g -DH5_USE_16_API" \
+  -D CMAKE_CXX_FLAGS:STRING="-g" \
   -D CISM_Fortran_FLAGS:STRING="-g  -ffree-line-length-none -fno-range-check -DNO_RESCALE" \
-  -D CISM_EXTRA_LIBS:STRING="-L$PETSC_DIR/$PETSC_ARCH/lib -lpetsc -llapack -lblas" \
+  -D CISM_EXTRA_LIBS:STRING="-L$PETSC_DIR/$PETSC_ARCH/lib -lpetsc -llapack -lblas -lhdf5" \
   -D BISICLES_INTERFACE_DIR=$PWD/../../../BISICLES/CISM-interface/interface \
   -D BISICLES_LIB_SUBDIR=libgnu \
  ../..
