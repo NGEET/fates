@@ -4266,26 +4266,11 @@ Changes answers relative to baseline: YES (but only because of bug 1998)
 ===============================================================
 Tag name:  clm4_5_1_r089
 Originator(s):  erik (Erik)
-Date: Mon Oct 13 13:46:43 MDT 2014
+Date: Fri Oct 10 13:52:12 MDT 2014
 One-line Summary: Bring new urban building temperature to trunk as a clm5.0 feature 
                   as well as human-stress index calculations
 
 Purpose of changes:
-
-New prognostic internal building air temperature methodology for CLM5.0. Retain the older simpler method
-for CLM4.5. The namelist toggle to switch between them is: building_temp_method. By default for clm4_5 physics
-the older method is used and for clm5_0 the newer one is used. Also add in a package of human-stress index
-calculations. Again this is by default on for clm5_0 and off for clm4_5. 
-
-The new building air temperature methodology, solves the system of equations for internal: air, roof, floor, 
-and wall (shade and sunlit) Temperatures. It uses the LAPACK subroutine DGESV to solve the system. It also
-figures out the energy flux needed to either cool the building air temperature to a maximum allowed temperature
-or to heat it to the minimum allowed temperature.
-
-Add in the new load balancing tool and the PyReshaper tool (changes multi-variable 
-monthly history files into single-variable time-series files).
-
-Remove the now unneeded clm4_5 interpinic as well as the mkmapgrids FORTRAN program.
 
 Requirements for tag: Bring in new clm5_0 building temperature as option, Fix scripts bugs, bug 2053/2032
 
@@ -4320,13 +4305,12 @@ Describe any changes made to the namelist: new namelists and namelist items
 List any changes to the defaults for the boundary datasets: None
 
 Describe any substantial timing or memory changes:
-   clm5_0 memory use is greater than clm4_5 due to human_stress_indices calculations
-   and output on history (I've seen it make up to a 20% difference)
+   clm5_0 memory use is about 20% greater than clm4_5 due to human_stress_indices calculations
+   and output on history
 
 Code reviewed by: self, oleson, sacks, mvertens, andre
 
 List any svn externals directories updated (csm_share, mct, etc.): scripts, Machines, rtm, cism, csm_share
-   Update to cesm1_3_alpha13c externals.
    Also add in load_balancing_tool and pyReshaper
 
     scripts             to scripts4_141009
@@ -4339,7 +4323,7 @@ List any svn externals directories updated (csm_share, mct, etc.): scripts, Mach
 
 List all files eliminated:
 
---------- Remove clm4_5 interpinic, online interpinic supersedes it
+--------- Remove clm4_5 interpinic, online interpinic superseeds it
 D       models/lnd/clm/tools/clm4_5/interpinic
 D       models/lnd/clm/tools/clm4_5/interpinic/*
 D       models/lnd/clm/tools/clm4_5/interpinic/src/*
@@ -4492,9 +4476,7 @@ CLM testing:
 
 CLM tag used for the baseline comparisons:  clm4_5_1_r088
 
-Changes answers relative to baseline: No for CLM40 and CLM45
-       But, answers DO change for CLM50
-       (except scripts tag update changes history files for IG and irrigation compsets/tests)
+Changes answers relative to baseline: No (except scripts tag update changes history files for IG compsets)
 
 	
 ===============================================================

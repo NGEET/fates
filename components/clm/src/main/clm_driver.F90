@@ -212,7 +212,7 @@ contains
           call SoilBiogeochemVerticalProfile(bounds_clump                                       , &
                filter_inactive_and_active(nc)%num_soilc, filter_inactive_and_active(nc)%soilc   , &
                filter_inactive_and_active(nc)%num_soilp, filter_inactive_and_active(nc)%soilp   , &
-	       canopystate_inst, soilstate_inst, soilbiogeochem_state_inst)
+               canopystate_inst, soilstate_inst, soilbiogeochem_state_inst)
        end if
 
        call t_stopf("decomp_vert")
@@ -959,9 +959,18 @@ contains
     ! Update history buffer
     ! ============================================================================
 
-    call t_startf('hbuf')
-    call hist_update_hbuf(bounds_proc)
-    call t_stopf('hbuf')
+
+    !
+    ! TODO(SPM,012715) - XIX Note to CSEG.  I had to put this logical block around
+    ! this call as it was updating the history buffer prematurely when ED was
+    ! running and happened to be restarted on the same timestep as a history
+    ! write
+    !
+    if (.not. use_ed) then
+      call t_startf('hbuf')
+      call hist_update_hbuf(bounds_proc)
+      call t_stopf('hbuf')
+    end if
 
     ! ============================================================================
     ! Call dv (dynamic vegetation) at last time step of year
@@ -1018,6 +1027,13 @@ contains
                ed_clm_inst, ed_phenology_inst,                        &
                atm2lnd_inst, soilstate_inst, temperature_inst,        &
                waterstate_inst, canopystate_inst)
+
+          ! 
+          ! TODO(SPM, 012715) - see note XIX above regarding hbuf updates 
+          !
+          call t_startf('hbuf')
+          call hist_update_hbuf(bounds_proc)
+          call t_stopf('hbuf')
 
           call setFilters( bounds_clump, glc2lnd_inst%icemask_grc )
 

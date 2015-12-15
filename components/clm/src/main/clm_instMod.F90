@@ -385,7 +385,9 @@ contains
           call c14_cnveg_carbonstate_inst%Init(bounds, carbon_type='c14', ratio=c14ratio, &
                c12_cnveg_carbonstate_inst=cnveg_carbonstate_inst)
        end if
+
        call cnveg_carbonflux_inst%Init(bounds, carbon_type='c12')
+
        if (use_c13) then
           call c13_cnveg_carbonflux_inst%Init(bounds, carbon_type='c13')
        end if
@@ -555,6 +557,7 @@ contains
     end if
 
     if (use_ed) then
+       call ED_Phenology_inst%restart(bounds, ncid, flag=flag)
        call EDRest ( bounds, ncid, flag, ed_allsites_inst(bounds%begg:bounds%endg), &
             ed_clm_inst, ed_phenology_inst, waterstate_inst, canopystate_inst )
     end if
