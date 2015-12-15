@@ -609,6 +609,8 @@ contains
                      ft = currentCohort%pft
                      currentCohort%livestemn = currentCohort%bsw  / pftcon%leafcn(currentCohort%pft)
 
+                     currentCohort%livecrootn = 0.0_r8
+
                      if (pftcon%woody(ft) == 1) then
                         coarse_wood_frac = 0.5_r8
                      else
@@ -681,10 +683,6 @@ contains
                      tlai(p) = 0.0_r8
                   endif
 
-                  if ( DEBUG ) then
-                     write(iulog,*) 'tlai',tlai(p)
-                     write(iulog,*) 'htop',htop(p)
-                  endif
 
                   ! We are assuming here that grass is all located underneath tree canopies. 
                   ! The alternative is to assume it is all spatial distinct from tree canopies.
@@ -696,9 +694,6 @@ contains
                        (currentPatch%area/AREA)
                   currentPatch%bare_frac_area = (1.0_r8 - min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)) * &
                        (currentPatch%area/AREA)                 
-
-                  if ( DEBUG ) write(iulog,*) 'bare frac',currentPatch%bare_frac_area
-
                   total_patch_area = total_patch_area + clmpatch%wt_ed(p) + currentPatch%bare_frac_area
                   total_bare_ground = total_bare_ground + currentPatch%bare_frac_area
                   currentCohort=> currentPatch%tallest
@@ -1364,11 +1359,6 @@ contains
                esai(p) = max(0.1_r8,esai_temp)
                tsai(p) = max(0.1_r8,tsai_temp)
 
-               if ( DEBUG ) then
-                  write(iulog,*) 'elai',elai(p),tlai(p),tlai_temp,elai_temp
-                  write(iulog,*) 'esai',esai(p),tsai(p)
-                  write(iulog,*) 'TLAI_prof',currentPatch%tlai_profile(1,:,:)
-               endif
 
                ! Fraction of vegetation free of snow. What does this do? Is it right? 
                if ((elai(p) + esai(p)) > 0._r8) then
