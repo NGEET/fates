@@ -6,6 +6,10 @@
 *.swp
 *~
 
+# patch temp files
+*.orig
+*.rej
+
 # mac files
 .DS_Store
 
