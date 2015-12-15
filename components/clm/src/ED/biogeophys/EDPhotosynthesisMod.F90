@@ -75,6 +75,9 @@ contains
     type (ed_cohort_type), pointer :: currentCohort
     !
     integer , parameter :: psn_type = 2 !c3 or c4. 
+
+    logical   ::  DEBUG = .true.
+
     !
     ! Leaf photosynthesis parameters
     real(r8) :: vcmax_z(nclmax,mxpft,nlevcan_ed)  ! maximum rate of carboxylation (umol co2/m**2/s)
@@ -433,13 +436,11 @@ contains
                ! used jmax25 = 1.97 vcmax25, from Wullschleger (1993) Journal of Experimental Botany 44:907-920.
                ! Here use a factor "1.67", from Medlyn et al (2002) Plant, Cell and Environment 25:1167-1179
 
-	       !RF - copied this from the CLM trunk code, but where did it come from, and how can we make these consistant? 
-	       !jmax25top(FT) = (2.59_r8 - 0.035_r8*min(max((t10(p)-tfrz),11._r8),35._r8)) * vcmax25top(FT)
-	       jmax25top(FT) = 0.167_r8 * vcmax25top(FT)
-	       tpu25top(FT)  = 0.167_r8 * vcmax25top(FT)
-	       kp25top(FT)   = 20000._r8 * vcmax25top(FT)
-
-	       
+               !RF - copied this from the CLM trunk code, but where did it come from, and how can we make these consistant? 
+               !jmax25top(FT) = (2.59_r8 - 0.035_r8*min(max((t10(p)-tfrz),11._r8),35._r8)) * vcmax25top(FT)
+               jmax25top(FT) = 0.167_r8   * vcmax25top(FT)
+               tpu25top(FT)  = 0.167_r8  * vcmax25top(FT)
+               kp25top(FT)   = 20000._r8 * vcmax25top(FT)
 
                ! Nitrogen scaling factor. Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 used
                ! kn = 0.11. Here, derive kn from vcmax25 as in Lloyd et al (2010) Biogeosciences, 7, 1833-1859
@@ -581,7 +582,9 @@ contains
                   end if
                   if(currentPatch%present(CL,FT) == 1)then ! are there any leaves of this pft in this layer?     
                      do iv = 1, currentPatch%nrad(CL,FT)
+                        if ( DEBUG ) write(iulog,*) 'EDphoto 581 ',currentPatch%ed_parsun_z(CL,ft,iv)
                         if (currentPatch%ed_parsun_z(CL,FT,iv) <= 0._r8) then  ! night time
+
                            ac = 0._r8
                            aj = 0._r8
                            ap = 0._r8
@@ -591,10 +594,16 @@ contains
                            currentPatch%psn_z(cl,ft,iv) = 0._r8
                            rs_z(CL,FT,iv) = min(rsmax0, 1._r8/bbb(FT) * cf)
 
-
                         else ! day time
                            !is there leaf area? - (NV can be larger than 0 with only stem area if deciduous)
+
+                           if ( DEBUG ) write(iulog,*) 'EDphot 594 ',currentPatch%ed_laisun_z(CL,ft,iv)
+                           if ( DEBUG ) write(iulog,*) 'EDphot 595 ',currentPatch%ed_laisha_z(CL,ft,iv)
+
                            if(currentPatch%ed_laisun_z(CL,ft,iv)+currentPatch%ed_laisha_z(cl,ft,iv) > 0._r8)then 
+
+                              if ( DEBUG ) write(iulog,*) '600 in laisun, laisha loop '
+
                               !Loop aroun shaded and unshaded leaves          
                               currentPatch%psn_z(CL,ft,iv) = 0._r8    ! psn is accumulated across sun and shaded leaves. 
                               rs_z(CL,FT,iv)  = 0._r8                 ! 1/rs is accumulated across sun and shaded leaves. 
@@ -736,6 +745,10 @@ contains
                                  ! Convert gs_mol (umol H2O/m**2/s) to gs (m/s) and then to rs (s/m)
                                  gs = gs_mol / cf
 
+                                 if ( DEBUG ) write(iulog,*) 'EDPhoto 737 ', currentPatch%psn_z(cl,ft,iv)
+                                 if ( DEBUG ) write(iulog,*) 'EDPhoto 738 ', ag(cl,ft,iv)
+                                 if ( DEBUG ) write(iulog,*) 'EDPhoto 739 ', currentPatch%f_sun(cl,ft,iv) 
+
                                  !accumulate total photosynthesis umol/m2 ground/s-1. weight per unit sun and sha leaves.  
                                  if(sunsha == 1)then !sunlit       
 
@@ -756,6 +769,10 @@ contains
                                          1._r8/(min(1._r8/gs, rsmax0)) * (1.0_r8-currentPatch%f_sun(cl,ft,iv)) 
 
                                  end if
+
+                                 if ( DEBUG ) write(iulog,*) 'EDPhoto 758 ', currentPatch%psn_z(cl,ft,iv)
+                                 if ( DEBUG ) write(iulog,*) 'EDPhoto 759 ', ag(cl,ft,iv)
+                                 if ( DEBUG ) write(iulog,*) 'EDPhoto 760 ', currentPatch%f_sun(cl,ft,iv) 
 
                                  ! Make sure iterative solution is correct
                                  if (gs_mol < 0._r8) then
@@ -800,8 +817,11 @@ contains
                   call t_startf('edfluxunpack1')
                   if(currentCohort%n > 0._r8)then   
                      ! Zero cohort flux accumulators.
-                     currentCohort%npp_clm    = 0._r8
-                     currentCohort%resp_clm   = 0._r8
+                     currentCohort%npp_clm  = 0.0_r8
+                     currentCohort%resp_clm = 0.0_r8
+                     currentCohort%gpp_clm  = 0.0_r8
+                     currentCohort%rd       = 0.0_r8
+                     currentCohort%resp_m   = 0.0_r8
 
                      ! Select canopy layer and PFT.
                      FT = currentCohort%pft  !are we going to have ftindex?
@@ -811,10 +831,19 @@ contains
                      !------------------------------------------------------------------------------
                      ! Convert from umolC/m2leaf/s to umolC/indiv/s ( x canopy area x 1m2 leaf area). 
                      tree_area = currentCohort%c_area/currentCohort%n
+
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 816 ', currentCohort%gpp_clm
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 817 ', currentPatch%psn_z(cl,ft,1:currentCohort%nv-1)
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 818 ', cl
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 819 ', ft
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 820 ', currentCohort%nv
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 821 ', currentPatch%elai_profile(cl,ft,1:currentCohort%nv-1)
+
                      if(currentCohort%nv > 1)then
 
                         currentCohort%gpp_clm  = sum(currentPatch%psn_z(cl,ft,1:currentCohort%nv-1) * &
                              currentPatch%elai_profile(cl,ft,1:currentCohort%nv-1)) * tree_area
+
                         currentCohort%rd       = sum(lmr_z(cl,ft,1:currentCohort%nv-1)    * &
                              currentPatch%elai_profile(cl,ft,1:currentCohort%nv-1)) * tree_area 
 
@@ -824,11 +853,13 @@ contains
                      else
 
                         currentCohort%gpp_clm = 0.0_r8 
-                        currentCohort%rd = 0._r8 
-                        currentCohort%gscan = 0._r8 
-                        currentCohort%ts_net_uptake(:) = 0._r8
+                        currentCohort%rd = 0.0_r8 
+                        currentCohort%gscan = 0.0_r8 
+                        currentCohort%ts_net_uptake(:) = 0.0_r8
 
                      end if
+
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 832 ', currentCohort%gpp_clm
 
                      laifrac = (currentCohort%treelai+currentCohort%treesai)-(currentCohort%nv-1)*dinc_ed
 
@@ -837,6 +868,9 @@ contains
 
                      currentCohort%gpp_clm  = currentCohort%gpp_clm + currentPatch%psn_z(cl,ft,currentCohort%nv) * &
                           currentPatch%elai_profile(cl,ft,currentCohort%nv) * laifrac * tree_area
+
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 843 ', currentCohort%rd
+
                      currentCohort%rd       = currentCohort%rd      + lmr_z(cl,ft,currentCohort%nv)    * &
                           currentPatch%elai_profile(cl,ft,currentCohort%nv) * laifrac * tree_area 
 
@@ -864,6 +898,10 @@ contains
 
                      currentCohort%livestem_mr  = 0._r8
                      currentCohort%livecroot_mr = 0._r8
+
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 874 ', currentCohort%livecroot_mr
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 875 ', currentCohort%livecrootn
+
                      if (woody(FT) == 1) then
                         tc = q10**((t_veg(p)-tfrz - 20.0_r8)/10.0_r8) 
                         currentCohort%livestem_mr  = currentCohort%livestemn  * br * tc !*currentPatch%btran_ft(currentCohort%pft)  
@@ -900,6 +938,13 @@ contains
                      call t_startf('edfluxunpack3')
                      ! convert gpp and resp from umol/indiv/s-1 to kgC/indiv/s-1  = X * 12 *10-6 * 10-3
                      !currentCohort%resp_m  = currentCohort%rd      * 12.0E-9
+
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 904 ', currentCohort%resp_m
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 905 ', currentCohort%rd
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 906 ', currentCohort%livestem_mr
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 907 ', currentCohort%livecroot_mr
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 908 ', currentCohort%froot_mr
+
                      currentCohort%gpp_clm = currentCohort%gpp_clm * 12.0E-9    
                      ! add on whole plant respiration values in kgC/indiv/s-1  
                      currentCohort%resp_m = currentCohort%livestem_mr + currentCohort%livecroot_mr + currentCohort%froot_mr
@@ -909,6 +954,11 @@ contains
                      ! convert from kgC/indiv/s to kgC/indiv/timestep       
                      currentCohort%resp_m   = currentCohort%resp_m  * dtime 
                      currentCohort%gpp_clm  = currentCohort%gpp_clm * dtime          
+
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 911 ', currentCohort%gpp_clm
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 912 ', currentCohort%resp_clm
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 913 ', currentCohort%resp_m
+
                      currentCohort%resp_g   = ED_val_grperc * (max(0._r8,currentCohort%gpp_clm - currentCohort%resp_m))
                      currentCohort%resp_clm = currentCohort%resp_m + currentCohort%resp_g ! kgC/indiv/ts    
                      currentCohort%npp_clm  = currentCohort%gpp_clm - currentCohort%resp_clm  ! kgC/indiv/ts
