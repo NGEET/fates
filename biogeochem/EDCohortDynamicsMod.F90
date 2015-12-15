@@ -28,6 +28,8 @@ module EDCohortDynamicsMod
   public :: countCohorts
   public :: allocate_live_biomass
 
+  logical, parameter :: DEBUG  = .true. ! local debug flag
+
   ! 10/30/09: Created by Rosie Fisher
   !-------------------------------------------------------------------------------------!
 
@@ -62,7 +64,7 @@ contains
     type(ed_cohort_type), pointer :: storebigcohort   
     integer :: tnull,snull                      ! are the tallest and shortest cohorts allocate
     !----------------------------------------------------------------------
- 
+
     allocate(new_cohort)
     udata%cohort_number = udata%cohort_number + 1 !give each cohort a unique number for checking cohort fusing routine.
     
@@ -88,15 +90,20 @@ contains
     new_cohort%balive       = balive
     new_cohort%bstore       = bstore
 
+    if ( DEBUG ) write(iulog,*) 'EDCohortDyn I ',bstore
+
     if (new_cohort%dbh <= 0.0_r8 .or. new_cohort%n == 0._r8 .or. new_cohort%pft == 0 &
           .or. new_cohort%canopy_trim <= 0.0_r8 .or. new_cohort%balive <= 0._r8) then
-       write(iulog,*) 'ED: something is zero in create_cohort',new_cohort%indexnumber,new_cohort%dbh,new_cohort%n, &
-       new_cohort%pft,new_cohort%canopy_trim,new_cohort%balive
+             write(iulog,*) 'ED: something is zero in create_cohort', &
+                             new_cohort%indexnumber,new_cohort%dbh,new_cohort%n, &
+                             new_cohort%pft,new_cohort%canopy_trim,new_cohort%balive
     endif
-    if (new_cohort%siteptr%status==2.and.pftcon%season_decid(pft) == 1) then
+
+    if (new_cohort%siteptr%status==2 .and. pftcon%season_decid(pft) == 1) then
       new_cohort%laimemory = 0.0_r8
     endif
-    if (new_cohort%siteptr%dstatus==2.and.pftcon%stress_decid(pft) == 1) then
+
+    if (new_cohort%siteptr%dstatus==2 .and. pftcon%stress_decid(pft) == 1) then
       new_cohort%laimemory = 0.0_r8
     endif
     
@@ -187,12 +194,11 @@ contains
     endif
   
     if (leaves_off_switch==1) then
-
-    !the purpose of this section is to figure out the root and stem biomass when the leaves are off
-    !at this point, we know the former leaf mass (laimemory) and the current alive mass
-    !because balive may decline in the off-season, we need to adjust the root and stem biomass that are predicted
-    !from the laimemory, for the fact that we now might not have enough live biomass to support the hypothesized root mass
-    !thus, we use 'ratio_balive' to adjust br and bsw. Apologies that this is so complicated! RF
+       !the purpose of this section is to figure out the root and stem biomass when the leaves are off
+       !at this point, we know the former leaf mass (laimemory) and the current alive mass
+       !because balive may decline in the off-season, we need to adjust the root and stem biomass that are predicted
+       !from the laimemory, for the fact that we now might not have enough live biomass to support the hypothesized root mass
+       !thus, we use 'ratio_balive' to adjust br and bsw. Apologies that this is so complicated! RF
        currentcohort%bl  = 0.0_r8
        ideal_balive      = currentcohort%laimemory * pftcon%froot_leaf(ft) +  &
             currentcohort%laimemory*  EDecophyscon%sapwood_ratio(ft) * currentcohort%hite
@@ -203,12 +209,13 @@ contains
        ratio_balive           = currentcohort%balive / ideal_balive
        currentcohort%br       = currentcohort%br  * ratio_balive
        currentcohort%bsw      = currentcohort%bsw * ratio_balive               
-    endif
 
+    endif
     
     if (abs(currentcohort%balive -currentcohort%bl- currentcohort%br - currentcohort%bsw)>1e-12) then
-       write(iulog,*) 'issue with carbon allocation in create_cohort',&
-       currentcohort%balive -currentcohort%bl- currentcohort%br - currentcohort%bsw, currentcohort%status_coh,currentcohort%balive
+       write(iulog,*) 'issue with carbon allocation in create_cohort,allocate_live_biomass',&
+            currentcohort%balive -currentcohort%bl- currentcohort%br - currentcohort%bsw, &
+            currentcohort%status_coh,currentcohort%balive
        write(iulog,*) 'actual vs predicted balive',ideal_balive,currentcohort%balive ,ratio_balive,leaf_frac
        write(iulog,*) 'leaf,root,stem',currentcohort%bl,currentcohort%br,currentcohort%bsw
     endif
@@ -413,29 +420,44 @@ contains
        if (currentCohort%n/currentPatch%area <= 0.00001_r8 .or. currentCohort%dbh <  &
             0.00001_r8.and.currentCohort%bstore < 0._r8) then
           terminate = 1
-          !  write(iulog,*) 'terminating cohorts 1',currentCohort%n/currentPatch%area,currentCohort%dbh
+
+          if ( DEBUG ) then
+             write(iulog,*) 'terminating cohorts 1',currentCohort%n/currentPatch%area,currentCohort%dbh
+          endif
+
        endif
 
        ! In the third canopy layer
        if (currentCohort%canopy_layer > NCLMAX) then 
           terminate = 1
-          ! write(iulog,*) 'terminating cohorts 2', currentCohort%canopy_layer
+
+          if ( DEBUG ) then
+            write(iulog,*) 'terminating cohorts 2', currentCohort%canopy_layer
+          endif
+
        endif
 
        ! live biomass pools are terminally depleted
        if (currentCohort%balive < 1e-10_r8 .or. currentCohort%bstore < 1e-10_r8) then 
           terminate = 1  
-          ! write(iulog,*) 'terminating cohorts 3', currentCohort%balive,currentCohort%bstore
+
+          if ( DEBUG ) then
+            write(iulog,*) 'terminating cohorts 3', currentCohort%balive,currentCohort%bstore
+          endif
+
        endif
 
        ! Total cohort biomass is negative
        if (currentCohort%balive+currentCohort%bdead+currentCohort%bstore < 0._r8) then
           terminate = 1
-          ! write(iulog,*) 'terminating cohorts 4', currentCohort%balive, currentCohort%bstore, currentCohort%bdead, &
-          ! currentCohort%balive+currentCohort%bdead+&
-          ! currentCohort%bstore, currentCohort%n
-       endif
 
+          if ( DEBUG ) then
+            write(iulog,*) 'terminating cohorts 4', currentCohort%balive, currentCohort%bstore, currentCohort%bdead, &
+                           currentCohort%balive+currentCohort%bdead+&
+                           currentCohort%bstore, currentCohort%n
+          endif
+
+       endif
 
        if (terminate == 1) then 
           if (.not. associated(currentCohort%taller)) then
@@ -536,13 +558,20 @@ contains
                    if (currentCohort%pft == nextc%pft) then              
 
                       ! check cohorts in same c. layer. before fusing
-                      if (currentCohort%canopy_layer == nextc%canopy_layer) then 
+                      if (currentCohort%canopy_layer == nextc%canopy_layer) then
+
                          fusion_took_place = 1         
                          newn = currentCohort%n + nextc%n    ! sum individuals in both cohorts.     
 
                          currentCohort%balive    = (currentCohort%n*currentCohort%balive    + nextc%n*nextc%balive)/newn
                          currentCohort%bdead     = (currentCohort%n*currentCohort%bdead     + nextc%n*nextc%bdead)/newn
+
+                         if ( DEBUG ) write(iulog,*) 'EDcohortDyn I ',currentCohort%bstore
+
                          currentCohort%bstore    = (currentCohort%n*currentCohort%bstore    + nextc%n*nextc%bstore)/newn   
+
+                         if ( DEBUG ) write(iulog,*) 'EDcohortDyn II ',currentCohort%bstore
+
                          currentCohort%seed_prod = (currentCohort%n*currentCohort%seed_prod + nextc%n*nextc%seed_prod)/newn  
                          currentCohort%root_md   = (currentCohort%n*currentCohort%root_md   + nextc%n*nextc%root_md)/newn   
                          currentCohort%leaf_md   = (currentCohort%n*currentCohort%leaf_md   + nextc%n*nextc%leaf_md)/newn  
@@ -551,18 +580,34 @@ contains
 
                          currentCohort%carbon_balance = (currentCohort%n*currentCohort%carbon_balance + &
                               nextc%n*nextc%carbon_balance)/newn
+
                          currentCohort%storage_flux = (currentCohort%n*currentCohort%storage_flux + &
                               nextc%n*nextc%storage_flux)/newn               
 
                          currentCohort%b           = (currentCohort%n*currentCohort%b           + nextc%n*nextc%b)/newn
                          currentCohort%bsw         = (currentCohort%n*currentCohort%bsw         + nextc%n*nextc%bsw)/newn
                          currentCohort%bl          = (currentCohort%n*currentCohort%bl          + nextc%n*nextc%bl)/newn
+
+                         if ( DEBUG ) write(iulog,*) 'EDcohortDyn 569 ',currentCohort%br
+                         if ( DEBUG ) write(iulog,*) 'EDcohortDyn 570 ',currentCohort%n
+                         if ( DEBUG ) write(iulog,*) 'EDcohortDyn 571 ',nextc%br
+                         if ( DEBUG ) write(iulog,*) 'EDcohortDyn 572 ',nextc%n
+
                          currentCohort%br          = (currentCohort%n*currentCohort%br          + nextc%n*nextc%br)/newn
                          currentCohort%hite        = (currentCohort%n*currentCohort%hite        + nextc%n*nextc%hite)/newn         
                          currentCohort%dbh         = (currentCohort%n*currentCohort%dbh         + nextc%n*nextc%dbh)/newn
+
                          currentCohort%gpp_acc     = (currentCohort%n*currentCohort%gpp_acc     + nextc%n*nextc%gpp_acc)/newn
+
+                         if ( DEBUG ) write(iulog,*) 'EDcohortDyn III ',currentCohort%npp_acc
+                         if ( DEBUG ) write(iulog,*) 'EDcohortDyn IV ',currentCohort%resp_acc
+
                          currentCohort%npp_acc     = (currentCohort%n*currentCohort%npp_acc     + nextc%n*nextc%npp_acc)/newn
                          currentCohort%resp_acc    = (currentCohort%n*currentCohort%resp_acc    + nextc%n*nextc%resp_acc)/newn
+
+                         if ( DEBUG ) write(iulog,*) 'EDcohortDyn V ',currentCohort%npp_acc
+                         if ( DEBUG ) write(iulog,*) 'EDcohortDyn VI ',currentCohort%resp_acc
+
                          currentCohort%resp        = (currentCohort%n*currentCohort%resp        + nextc%n*nextc%resp)/newn
                          currentCohort%npp         = (currentCohort%n*currentCohort%npp         + nextc%n*nextc%npp)/newn
                          currentCohort%gpp         = (currentCohort%n*currentCohort%gpp         + nextc%n*nextc%gpp)/newn
@@ -588,9 +633,11 @@ contains
                          else
                             nextnextc%taller => nextc%taller
                          endif
+
                          if (associated(nextc)) then       
                             deallocate(nextc)            
                          endif
+
                       endif !canopy layer
                    endif !pft
                 endif  !index no. 
@@ -601,6 +648,7 @@ contains
              else
                 nextc => nextnextc !if we have removed next
              endif
+
           enddo !end checking nextc cohort loop
 
           if (associated (currentCohort%shorter)) then
@@ -620,11 +668,13 @@ contains
 
        if (nocohorts > maxcohorts) then
           iterate = 1
-          dynamic_fusion_tolerance = dynamic_fusion_tolerance * 1.1_r8
-          !write(iulog,*) 'maxcohorts exceeded',dynamic_fusion_tolerance
           !---------------------------------------------------------------------!
           ! Making profile tolerance larger means that more fusion will happen  !
           !---------------------------------------------------------------------!        
+          dynamic_fusion_tolerance = dynamic_fusion_tolerance * 1.1_r8
+
+          write(iulog,*) 'maxcohorts exceeded',dynamic_fusion_tolerance
+
        else
           iterate = 0
        endif
@@ -855,6 +905,10 @@ contains
     n%gpp_clm         = o%gpp_clm
     n%npp             = o%npp
     n%npp_clm         = o%npp_clm
+
+    if ( DEBUG ) write(iulog,*) 'EDcohortDyn Ia ',o%npp_acc
+    if ( DEBUG ) write(iulog,*) 'EDcohortDyn Ib ',o%resp_acc
+
     n%npp_acc         = o%npp_acc
     n%resp_clm        = o%resp_clm
     n%resp_acc        = o%resp_acc
@@ -895,6 +949,9 @@ contains
     n%dbalivedt       = o%dbalivedt
     n%dbdeaddt        = o%dbdeaddt
     n%dbstoredt       = o%dbstoredt
+
+    if ( DEBUG ) write(iulog,*) 'EDCohortDyn dpstoredt ',o%dbstoredt
+
     n%storage_flux    = o%storage_flux
 
     ! FIRE 

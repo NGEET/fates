@@ -5,6 +5,7 @@ module EDMainMod
   ! ============================================================================
 
   use shr_kind_mod         , only : r8 => shr_kind_r8
+  use spmdMod              , only : masterproc
   use decompMod            , only : bounds_type
   use clm_varctl           , only : iulog
   use atm2lndType          , only : atm2lnd_type
@@ -33,7 +34,7 @@ module EDMainMod
   private :: ed_integrate_state_variables
   private :: ed_total_balance_check
   
-  logical :: DEBUG_main = .false.
+  logical :: DEBUG_main = .true.
   !
   ! 10/30/09: Created by Rosie Fisher
   !-----------------------------------------------------------------------
@@ -107,13 +108,13 @@ contains
        endif
     enddo
 
-    ! updates site & patch information
-
     ! link to CLM structures
     call ed_clm_inst%ed_clm_link( bounds, ed_allsites_inst(bounds%begg:bounds%endg),  &
          ed_phenology_inst, waterstate_inst, canopystate_inst)
 
-    write(iulog,*) 'leaving ed model',bounds%begg,bounds%endg,dayDiffInt
+    if (masterproc) then
+      write(iulog,*) 'leaving ed model',bounds%begg,bounds%endg,dayDiffInt
+    end if
 
   end subroutine ed_driver
 
@@ -258,7 +259,11 @@ contains
           currentCohort%dbh    = max(small_no,currentCohort%dbh    + currentCohort%ddbhdt    * udata%deltat )
           currentCohort%balive = currentCohort%balive + currentCohort%dbalivedt * udata%deltat 
           currentCohort%bdead  = max(small_no,currentCohort%bdead  + currentCohort%dbdeaddt  * udata%deltat )
+          !write(iulog,*) 'EDMainMod dbstoredt I ',currentCohort%bstore, &
+                         !currentCohort%dbstoredt,udata%deltat
           currentCohort%bstore = currentCohort%bstore + currentCohort%dbstoredt * udata%deltat 
+          !write(iulog,*) 'EDMainMod dbstoredt II ',currentCohort%bstore, &
+                         !currentCohort%dbstoredt,udata%deltat
 
           if( (currentCohort%balive+currentCohort%bdead+currentCohort%bstore)*currentCohort%n<0._r8)then
             write(iulog,*) 'biomass is negative', currentCohort%n,currentCohort%balive, &
@@ -282,7 +287,9 @@ contains
 
        enddo
       
-       write(6,*)'DEBUG18: calling non_canopy_derivs with pno= ',currentPatch%clm_pno
+       if (DEBUG_main) then
+          write(6,*)'DEBUG18: calling non_canopy_derivs with pno= ',currentPatch%clm_pno
+       endif
        call non_canopy_derivs( currentPatch, temperature_inst, soilstate_inst, waterstate_inst )
 
        !update state variables simultaneously according to derivatives for this time period. 
