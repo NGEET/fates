@@ -606,6 +606,7 @@ contains
                   !update cohort quantitie s                                  
                   currentCohort => currentPatch%shortest
                   do while(associated(currentCohort))
+     
                      ft = currentCohort%pft
                      currentCohort%livestemn = currentCohort%bsw  / pftcon%leafcn(currentCohort%pft)
 
@@ -680,9 +681,11 @@ contains
                   ! currentPatch%total_canopy_area/currentPatch%area is fraction of this patch cover by plants 
                   ! currentPatch%area/AREA is the fraction of the soil covered by this patch. 
 
-                  clmpatch%wt_ed(p) = min(1.0_r8,(currentPatch%total_canopy_area/currentPatch%area)) * (currentPatch%area/AREA)
+                  clmpatch%wt_ed(p) = min(1.0_r8,(currentPatch%total_canopy_area/currentPatch%area)) * &
+                       (currentPatch%area/AREA)
                   currentPatch%bare_frac_area = (1.0_r8 - min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)) * &
                        (currentPatch%area/AREA)                 
+
                   ! write(iulog,*) 'bare frac',currentPatch%bare_frac_area
                   total_patch_area = total_patch_area + clmpatch%wt_ed(p) + currentPatch%bare_frac_area
                   total_bare_ground = total_bare_ground + currentPatch%bare_frac_area
@@ -791,7 +794,6 @@ contains
 
          begp                 => bounds%begp                     , &
          endp                 => bounds%endp                       &
-
          )
 
       ! ============================================================================
