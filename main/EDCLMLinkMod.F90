@@ -14,7 +14,7 @@ module EDCLMLinkMod
   implicit none
   private
   !
-  logical :: DEBUG = .false.  ! for debugging this module (EDCLMLinkMod.F90)
+  logical :: DEBUG = .true.  ! for debugging this module (EDCLMLinkMod.F90)
 
   type, public :: ed_clm_type
 
@@ -69,7 +69,7 @@ module EDCLMLinkMod
      real(r8), pointer, private  :: deadstemc_patch            (:)   ! (gC/m2) dead stem C
      real(r8), pointer, private  :: livestemn_patch            (:)   ! (gN/m2) live stem N
      real(r8), pointer, private  :: npp_patch                  (:)   ! (gC/m2/s) patch net primary production
-     real(r8), pointer, private  :: gpp_patch                  (:)   ! (gC/m2/s) patch gross primary production 
+     real(r8), pointer, public   :: gpp_patch                  (:)   ! (gC/m2/s) patch gross primary production 
 
    contains
 
@@ -507,7 +507,7 @@ contains
     logical  :: istheresoil(bounds%begg:bounds%endg) 
     !----------------------------------------------------------------------
 
-    if (DEBUG) then
+    if ( DEBUG ) then
        write(iulog,*) 'in ed_clm_link'
     endif
 
@@ -615,7 +615,17 @@ contains
                         coarse_wood_frac = 0.0_r8
                      end if
 
+                     if ( DEBUG ) then
+                        write(iulog,*) 'EDCLMLink 618 ',currentCohort%livecrootn
+                        write(iulog,*) 'EDCLMLink 619 ',currentCohort%br
+                        write(iulog,*) 'EDCLMLink 620 ',coarse_wood_frac
+                        write(iulog,*) 'EDCLMLink 621 ',pftcon%leafcn(ft)
+                     endif
+
                      currentCohort%livecrootn = currentCohort%br * coarse_wood_frac / pftcon%leafcn(ft)
+
+                     if ( DEBUG ) write(iulog,*) 'EDCLMLink 625 ',currentCohort%livecrootn
+
                      currentCohort%b = currentCohort%balive+currentCohort%bdead+currentCohort%bstore
                      currentCohort%treelai = tree_lai(currentCohort)
                      ! Why is currentCohort%c_area used and then reset in the
@@ -646,7 +656,7 @@ contains
                   enddo ! ends 'do while(associated(currentCohort))
 
                   if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
-                     write(iulog,*) 'canopy area bigger than area',currentPatch%total_canopy_area ,currentPatch%area
+                     write(iulog,*) 'ED: canopy area bigger than area',currentPatch%total_canopy_area ,currentPatch%area
                      currentPatch%total_canopy_area = currentPatch%area
                   endif
 
@@ -671,8 +681,10 @@ contains
                      tlai(p) = 0.0_r8
                   endif
 
-                  !write(iulog,*) 'tlai',tlai(p)
-                  !write(iulog,*) 'htop',htop(p)
+                  if ( DEBUG ) then
+                     write(iulog,*) 'tlai',tlai(p)
+                     write(iulog,*) 'htop',htop(p)
+                  endif
 
                   ! We are assuming here that grass is all located underneath tree canopies. 
                   ! The alternative is to assume it is all spatial distinct from tree canopies.
@@ -680,10 +692,13 @@ contains
                   ! currentPatch%total_canopy_area/currentPatch%area is fraction of this patch cover by plants 
                   ! currentPatch%area/AREA is the fraction of the soil covered by this patch. 
 
-                  clmpatch%wt_ed(p) = min(1.0_r8,(currentPatch%total_canopy_area/currentPatch%area)) * (currentPatch%area/AREA)
+                  clmpatch%wt_ed(p) = min(1.0_r8,(currentPatch%total_canopy_area/currentPatch%area)) * &
+                       (currentPatch%area/AREA)
                   currentPatch%bare_frac_area = (1.0_r8 - min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)) * &
                        (currentPatch%area/AREA)                 
-                  ! write(iulog,*) 'bare frac',currentPatch%bare_frac_area
+
+                  if ( DEBUG ) write(iulog,*) 'bare frac',currentPatch%bare_frac_area
+
                   total_patch_area = total_patch_area + clmpatch%wt_ed(p) + currentPatch%bare_frac_area
                   total_bare_ground = total_bare_ground + currentPatch%bare_frac_area
                   currentCohort=> currentPatch%tallest
@@ -896,6 +911,12 @@ contains
                      else
                         n_density = 0.0_r8
                      endif
+
+                     if ( DEBUG ) then
+                        write(iulog,*) 'EDCLMLinkMod I ',currentCohort%bstore
+                        write(iulog,*) 'EDCLMLinkMod II ',p,ED_bstore(p)
+                     endif
+
                      ED_bleaf(p)           = ED_bleaf(p)           + n_density * currentCohort%bl 
                      ED_bstore(p)          = ED_bstore(p)          + n_density * currentCohort%bstore 
                      ED_biomass(p)         = ED_biomass(p)         + n_density * currentCohort%b 
@@ -1156,7 +1177,7 @@ contains
                enddo
 
                if(lai > currentPatch%lai)then
-                  write(iulog,*) 'problem with lai assignments'
+                  write(iulog,*) 'ED: problem with lai assignments'
                endif
 
 
@@ -1181,14 +1202,14 @@ contains
                      fleaf = currentCohort%lai / (currentCohort%lai + currentCohort%sai) 
                   else
                      fleaf = 0._r8
-                     write(iulog,*) 'no stem or leaf area' ,currentCohort%pft,currentCohort%bl, &
+                     write(iulog,*) 'ED: no stem or leaf area' ,currentCohort%pft,currentCohort%bl, &
                           currentCohort%balive,currentCohort%treelai,currentCohort%treesai,currentCohort%dbh, &
                           currentCohort%n,currentCohort%status_coh
                   endif
                   currentPatch%ncan(L,ft) = max(currentPatch%ncan(L,ft),currentCohort%NV)  
                   currentPatch%nrad(L,ft) = currentPatch%ncan(L,ft)  !fudge - this needs to be altered for snow burial
                   if(currentCohort%NV > currentPatch%nrad(L,ft))then
-                     write(iulog,*) 'CF: issue with NV',currentCohort%NV,currentCohort%pft,currentCohort%canopy_layer
+                     write(iulog,*) 'ED: issue with NV',currentCohort%NV,currentCohort%pft,currentCohort%canopy_layer
                   endif
                   c = clmpatch%column(currentPatch%clm_pno)
 
@@ -1251,7 +1272,7 @@ contains
 
                   remainder = (currentCohort%treelai + currentCohort%treesai) - (dinc_ed*(currentCohort%NV-1))
                   if(remainder > 1.0_r8)then
-                     write(iulog,*)'issue with remainder',currentCohort%treelai,currentCohort%treesai,dinc_ed, & 
+                     write(iulog,*)'ED: issue with remainder',currentCohort%treelai,currentCohort%treesai,dinc_ed, & 
                           currentCohort%NV
                   endif
                   !assumes that fleaf is unchanging FIX(RF,032414)
@@ -1328,12 +1349,12 @@ contains
                p = currentPatch%clm_pno
                if(abs(tlai(p)-tlai_temp) > 0.0001_r8) then
 
-                  write(iulog,*) 'error with tlai calcs',&
+                  write(iulog,*) 'ED: error with tlai calcs',&
                        NC,currentSite%clmgcell, abs(tlai(p)-tlai_temp), tlai_temp,tlai(p)
 
                   do L = 1,currentPatch%NCL_p
-                     write(iulog,*) 'carea profile',L,currentPatch%canopy_area_profile(L,1,1:currentPatch%nrad(L,1))
-                     write(iulog,*) 'tlai profile',L,currentPatch%tlai_profile(L,1,1:currentPatch%nrad(L,1))
+                     write(iulog,*) 'ED: carea profile',L,currentPatch%canopy_area_profile(L,1,1:currentPatch%nrad(L,1))
+                     write(iulog,*) 'ED: tlai profile',L,currentPatch%tlai_profile(L,1,1:currentPatch%nrad(L,1))
                   end do
 
                endif
@@ -1343,9 +1364,11 @@ contains
                esai(p) = max(0.1_r8,esai_temp)
                tsai(p) = max(0.1_r8,tsai_temp)
 
-               ! write(iulog,*) 'elai',elai(p),tlai(p),tlai_temp,elai_temp
-               ! write(iulog,*) 'esai',esai(p),tsai(p)
-               !            write(iulog,*) 'TLAI_prof',currentPatch%tlai_profile(1,:,:)
+               if ( DEBUG ) then
+                  write(iulog,*) 'elai',elai(p),tlai(p),tlai_temp,elai_temp
+                  write(iulog,*) 'esai',esai(p),tsai(p)
+                  write(iulog,*) 'TLAI_prof',currentPatch%tlai_profile(1,:,:)
+               endif
 
                ! Fraction of vegetation free of snow. What does this do? Is it right? 
                if ((elai(p) + esai(p)) > 0._r8) then
@@ -1353,7 +1376,6 @@ contains
                else
                   frac_veg_nosno_alb(p) = 0.0_r8
                end if
-               ! write(iulog,*) 'frac nosno',frac_veg_nosno_alb(p)
 
                currentPatch%nrad = currentPatch%ncan
                do L = 1,currentPatch%NCL_p
@@ -1371,30 +1393,30 @@ contains
 
                   if ( L == 1 .and. abs(sum(currentPatch%canopy_area_profile(1,1:numpft_ed,1))) < 0.99999  &
                        .and. currentPatch%NCL_p > 1 ) then
-                     write(iulog,*) 'canopy area too small',sum(currentPatch%canopy_area_profile(1,1:numpft_ed,1))
-                     write(iulog,*) 'cohort areas', currentPatch%canopy_area_profile(1,1:numpft_ed,:)
+                     write(iulog,*) 'ED: canopy area too small',sum(currentPatch%canopy_area_profile(1,1:numpft_ed,1))
+                     write(iulog,*) 'ED: cohort areas', currentPatch%canopy_area_profile(1,1:numpft_ed,:)
                   endif
 
                   if (L == 1 .and. currentPatch%NCL_p > 1 .and.  &
                        abs(sum(currentPatch%canopy_area_profile(1,1:numpft_ed,1))) < 0.99999) then
-                     write(iulog,*) 'not enough area in the top canopy', &
+                     write(iulog,*) 'ED: not enough area in the top canopy', &
                           sum(currentPatch%canopy_area_profile(L,1:numpft_ed,1)), &
                           currentPatch%canopy_area_profile(L,1:numpft_ed,1)
                   endif
 
                   if(abs(sum(currentPatch%canopy_area_profile(L,1:numpft_ed,1))) > 1.00001)then
-                     write(iulog,*) 'canopy-area-profile wrong',sum(currentPatch%canopy_area_profile(L,1:numpft_ed,1)), &
+                     write(iulog,*) 'ED: canopy-area-profile wrong',sum(currentPatch%canopy_area_profile(L,1:numpft_ed,1)), &
                           currentSite%clmgcell,currentPatch%patchno,L
-                     write(iulog,*) 'areas',currentPatch%canopy_area_profile(L,1:2,1),currentPatch%patchno
+                     write(iulog,*) 'ED: areas',currentPatch%canopy_area_profile(L,1:2,1),currentPatch%patchno
 
                      currentCohort => currentPatch%shortest
 
                      do while(associated(currentCohort))
 
                         if(currentCohort%canopy_layer==1)then
-                           write(iulog,*) 'cohorts',currentCohort%dbh,currentCohort%c_area, &
+                           write(iulog,*) 'ED: cohorts',currentCohort%dbh,currentCohort%c_area, &
                                 currentPatch%total_canopy_area,currentPatch%area,currentPatch%canopy_area
-                           write(iulog,*) 'fracarea',currentCohort%pft, currentCohort%c_area/currentPatch%total_canopy_area
+                           write(iulog,*) 'ED: fracarea',currentCohort%pft, currentCohort%c_area/currentPatch%total_canopy_area
                         endif
 
                         currentCohort => currentCohort%taller  
@@ -1406,7 +1428,7 @@ contains
                do L = 1,currentPatch%NCL_p
                   do ft = 1,numpft_ed
                      if(currentPatch%present(L,FT) > 1)then
-                        write(iulog,*) 'present issue',currentPatch%clm_pno,L,ft,currentPatch%present(L,FT)
+                        write(iulog,*) 'ED: present issue',currentPatch%clm_pno,L,ft,currentPatch%present(L,FT)
                         currentPatch%present(L,ft) = 1
                      endif
                   enddo
