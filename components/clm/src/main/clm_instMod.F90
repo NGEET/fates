@@ -325,7 +325,7 @@ contains
 
     call drydepvel_inst%Init(bounds)
 
-    if (use_cn) then
+    if (use_cn .or. use_ed ) then
 
        ! Note - always initialize the memory for the c13_xxx_inst and
        ! c14_xxx_inst data structure so that they can be used in 
@@ -373,6 +373,10 @@ contains
           call c14_soilbiogeochem_carbonflux_inst%Init(bounds, carbon_type='c14')
        end if
        call soilbiogeochem_nitrogenflux_inst%Init(bounds) 
+
+    end if
+
+    if ( use_cn ) then 
 
        ! Initalize cnveg carbon and nitrogen types
 
@@ -520,7 +524,7 @@ contains
        call ch4_inst%restart(bounds, ncid, flag=flag)
     end if
 
-    if (use_cn) then
+    if (use_cn .or. use_ed) then
 
        call soilbiogeochem_state_inst%restart(bounds, ncid, flag=flag)
        call soilbiogeochem_carbonstate_inst%restart(bounds, ncid, flag=flag, carbon_type='c12')
@@ -533,6 +537,9 @@ contains
                c12_soilbiogeochem_carbonstate_inst=soilbiogeochem_carbonstate_inst)
        end if
        call soilbiogeochem_carbonflux_inst%restart(bounds, ncid, flag=flag)
+    endif
+    if ( use_cn ) then
+       
        call soilbiogeochem_nitrogenstate_inst%restart(bounds, ncid, flag=flag)
        call soilbiogeochem_nitrogenflux_inst%restart(bounds, ncid, flag=flag)
 

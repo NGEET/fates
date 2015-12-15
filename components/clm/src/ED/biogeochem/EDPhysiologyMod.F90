@@ -120,14 +120,14 @@ contains
        currentPatch%droot_litter_dt(p) = currentPatch%root_litter_in(p) - currentPatch%root_litter_out(p) 
     enddo
 
-    currentPatch%leaf_litter_in(:)  = 0.0_r8
-    currentPatch%root_litter_in(:)  = 0.0_r8
-    currentPatch%leaf_litter_out(:) = 0.0_r8
-    currentPatch%root_litter_out(:) = 0.0_r8
-    currentPatch%CWD_AG_in(:)       = 0.0_r8
-    currentPatch%cwd_bg_in(:)       = 0.0_r8
-    currentPatch%CWD_AG_out(:)      = 0.0_r8
-    currentPatch%cwd_bg_out(:)      = 0.0_r8
+    ! currentPatch%leaf_litter_in(:)  = 0.0_r8
+    ! currentPatch%root_litter_in(:)  = 0.0_r8
+    ! currentPatch%leaf_litter_out(:) = 0.0_r8
+    ! currentPatch%root_litter_out(:) = 0.0_r8
+    ! currentPatch%CWD_AG_in(:)       = 0.0_r8
+    ! currentPatch%cwd_bg_in(:)       = 0.0_r8
+    ! currentPatch%CWD_AG_out(:)      = 0.0_r8
+    ! currentPatch%cwd_bg_out(:)      = 0.0_r8
 
   end subroutine non_canopy_derivs
 
@@ -1173,5 +1173,7 @@ contains
          currentPatch%area *udata%deltat!kgC/site/day
 
   end subroutine cwd_out
+
+
 
 end module EDPhysiologyMod
