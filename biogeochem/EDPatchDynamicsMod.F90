@@ -1020,7 +1020,7 @@ contains
        if(nopatches > maxpatch)then
           iterate = 1
           profiletol = profiletol * 1.1_r8
-          write(iulog,*) 'maxpatch exceeded, triggering patch fusion iteration.',profiletol,nopatches
+
           !---------------------------------------------------------------------!
           ! Making profile tolerance larger means that more fusion will happen  !
           !---------------------------------------------------------------------!        
