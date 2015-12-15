@@ -285,7 +285,7 @@ contains
 
        enddo
       
-       write(6,*)'DEBUG18: calling non_canopy_derivs with pno= ',currentPatch%clm_pno
+
        call non_canopy_derivs( currentPatch, temperature_inst, soilstate_inst, waterstate_inst )
 
        !update state variables simultaneously according to derivatives for this time period. 

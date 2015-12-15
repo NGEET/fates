@@ -849,10 +849,10 @@ contains
                             enddo
                          enddo
                          if (lai_change(1,2,1).gt.0.0.and.lai_change(1,2,2).gt.0.0)then
-                             write(iulog,*) 'lai_change(1,2,12)',lai_change(1,2,1:4)
+!                             write(iulog,*) 'lai_change(1,2,12)',lai_change(1,2,1:4)
                          endif
                          if (lai_change(1,2,2).gt.0.0.and.lai_change(1,2,3).gt.0.0)then
-                             write(iulog,*) ' lai_change (1,2,23)',lai_change(1,2,1:4)
+!                             write(iulog,*) ' lai_change (1,2,23)',lai_change(1,2,1:4)
                          endif
                          if (lai_change(1,1,3).gt.0.0.and.lai_change(1,1,2).gt.0.0)then
                             ! write(iulog,*) 'first layer of lai_change 2 3',lai_change(1,1,1:3)
