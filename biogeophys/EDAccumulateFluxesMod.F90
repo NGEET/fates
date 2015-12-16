@@ -14,7 +14,7 @@ module EDAccumulateFluxesMod
   !
   public :: AccumulateFluxes_ED
 
-  logical :: DEBUG = .true.  ! for debugging this module
+  logical :: DEBUG = .false.  ! for debugging this module
   !------------------------------------------------------------------------------
 
 contains

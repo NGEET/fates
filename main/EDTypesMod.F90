@@ -39,9 +39,10 @@ module EDTypesMod
   real(r8), parameter :: DINC_ED              = 1.0_r8     ! size of LAI bins. 
   integer , parameter :: N_DIST_TYPES         = 2          ! number of disturbance types (mortality, fire)
   integer , parameter :: numpft_ed            = 2          ! number of PFTs used in ED. 
+  integer , parameter :: maxPft               = 79         ! max number of PFTs potentially used by CLM 
 
   ! SPITFIRE     
-  integer , parameter :: NLSC                 = 5          ! number carbon compartments in above ground litter array 
+  integer , parameter :: NLSC                 = 6          ! number carbon compartments in above ground litter array 
   integer , parameter :: NFSC                 = 6          ! number fuel size classes  
   integer , parameter :: N_EF                 = 7          ! number of emission factors. One per trace gas or aerosol species.
   integer,  parameter :: NCWD                 = 4          ! number of coarse woody debris pools

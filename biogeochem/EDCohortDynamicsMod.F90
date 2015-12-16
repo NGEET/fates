@@ -28,7 +28,7 @@ module EDCohortDynamicsMod
   public :: countCohorts
   public :: allocate_live_biomass
 
-  logical, parameter :: DEBUG  = .true. ! local debug flag
+  logical, parameter :: DEBUG  = .false. ! local debug flag
 
   ! 10/30/09: Created by Rosie Fisher
   !-------------------------------------------------------------------------------------!

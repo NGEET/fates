@@ -34,7 +34,7 @@ module EDMainMod
   private :: ed_integrate_state_variables
   private :: ed_total_balance_check
   
-  logical :: DEBUG_main = .true.
+  logical :: DEBUG  = .false.
   !
   ! 10/30/09: Created by Rosie Fisher
   !-----------------------------------------------------------------------
@@ -287,9 +287,10 @@ contains
 
        enddo
       
-       if (DEBUG_main) then
+       if ( DEBUG ) then
           write(6,*)'DEBUG18: calling non_canopy_derivs with pno= ',currentPatch%clm_pno
        endif
+
        call non_canopy_derivs( currentPatch, temperature_inst, soilstate_inst, waterstate_inst )
 
        !update state variables simultaneously according to derivatives for this time period. 
@@ -391,9 +392,10 @@ contains
 
        ! FIX(SPM,040314) why is this needed for BFB restarts? Look into this at some point
        cohort_number = count_cohorts(currentPatch)  
-       if (DEBUG_main) then
+       if ( DEBUG ) then
           write(iulog,*) 'tempCount ',cohort_number
        endif
+
        ! Note (RF)
        ! This breaks the balance check, but if we leave it out, then 
        ! the first new patch that isn't fused has no cohorts at the end of the spawn process
