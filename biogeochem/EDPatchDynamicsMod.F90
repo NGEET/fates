@@ -808,7 +808,7 @@ contains
     currentPatch%bare_frac_area             = nan                             
 
     currentPatch%tlai_profile(:,:,:)        = nan 
-    currentPatch%elai_profile(:,:,:)        = nan 
+    currentPatch%elai_profile(:,:,:)        = 0._r8 
     currentPatch%tsai_profile(:,:,:)        = nan 
     currentPatch%esai_profile(:,:,:)        = nan       
     currentPatch%canopy_area_profile(:,:,:) = nan       
@@ -822,7 +822,7 @@ contains
     currentPatch%ed_laisha_z(:,:,:)         = nan 
     currentPatch%ed_parsun_z(:,:,:)         = nan 
     currentPatch%ed_parsha_z(:,:,:)         = nan 
-    currentPatch%psn_z(:,:,:)               = nan   
+    currentPatch%psn_z(:,:,:)               = 0._r8   
 
     currentPatch%f_sun(:,:,:)               = nan
     currentPatch%tr_soil_dir(:)             = nan    ! fraction of incoming direct  radiation that is transmitted to the soil as direct

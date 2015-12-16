@@ -14,7 +14,7 @@ module EDCLMLinkMod
   implicit none
   private
   !
-  logical :: DEBUG = .true.  ! for debugging this module (EDCLMLinkMod.F90)
+  logical :: DEBUG = .false.  ! for debugging this module (EDCLMLinkMod.F90)
 
   type, public :: ed_clm_type
 

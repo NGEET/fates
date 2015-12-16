@@ -28,7 +28,7 @@ module EDInitMod
   implicit none
   private
 
-  logical   ::  DEBUG = .true.
+  logical   ::  DEBUG = .false.
 
   public  :: ed_init
   public  :: ed_init_sites
@@ -383,7 +383,7 @@ contains
           cstatus = patch_in%siteptr%dstatus
        endif
 
-       write(iulog,*) 'EDInitMod.F90 call create_cohort '
+       if ( DEBUG ) write(iulog,*) 'EDInitMod.F90 call create_cohort '
 
        call create_cohort(patch_in, pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
             temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore, &
