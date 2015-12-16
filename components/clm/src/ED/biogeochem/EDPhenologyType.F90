@@ -281,7 +281,9 @@ contains
     call extract_accum_field (this%accString, rbufslp, get_nstep())
     this%ED_GDD_patch(bounds%begp:bounds%endp) = rbufslp(bounds%begp:bounds%endp)
 
-    write(iulog,*) 'ED_GDD initAccVars ',this%ED_GDD_patch(bounds%begp:bounds%endp)
+    if ( this%DEBUG ) then
+       write(iulog,*) 'ED_GDD initAccVars ',this%ED_GDD_patch(bounds%begp:bounds%endp)
+    endif
 
     deallocate(rbufslp)
 

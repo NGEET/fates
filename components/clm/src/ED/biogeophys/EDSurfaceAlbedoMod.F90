@@ -23,7 +23,7 @@ module EDSurfaceAlbedoMod
   ! Full-spectral albedo for land ice is ~0.5 (Paterson, Physics of Glaciers, 1994, p. 59)
   ! This is the value used in CAM3 by Pritchard et al., GRL, 35, 2008.
 
-  logical :: DEBUG = .true.  ! for debugging this module
+  logical :: DEBUG = .false.  ! for debugging this module
 
   real(r8), public  :: albice(numrad) = &       ! albedo land ice by waveband (1=vis, 2=nir)
        (/ 0.80_r8, 0.55_r8 /)

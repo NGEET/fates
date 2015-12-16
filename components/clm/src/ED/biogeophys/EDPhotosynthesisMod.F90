@@ -76,7 +76,7 @@ contains
     !
     integer , parameter :: psn_type = 2 !c3 or c4. 
 
-    logical   ::  DEBUG = .true.
+    logical   ::  DEBUG = .false.
 
     !
     ! Leaf photosynthesis parameters
@@ -815,7 +815,9 @@ contains
 
                do while (associated(currentCohort)) ! Cohort loop
                   call t_startf('edfluxunpack1')
+
                   if(currentCohort%n > 0._r8)then   
+
                      ! Zero cohort flux accumulators.
                      currentCohort%npp_clm  = 0.0_r8
                      currentCohort%resp_clm = 0.0_r8
@@ -865,6 +867,15 @@ contains
 
                      gs_cohort = 1.0_r8/(rs_z(cl,ft,currentCohort%nv)+rb(p))*laifrac*tree_area   
                      currentCohort%gscan = currentCohort%gscan+gs_cohort
+
+                     if ( DEBUG ) then
+                        write(iulog,*) 'EDPhoto 868 ', currentCohort%gpp_clm
+                        write(iulog,*) 'EDPhoto 869 ',  currentPatch%psn_z(cl,ft,currentCohort%nv)
+                        write(iulog,*) 'EDPhoto 870 ',  currentPatch%elai_profile(cl,ft,currentCohort%nv)
+                        write(iulog,*) 'EDPhoto 871 ',  laifrac
+                        write(iulog,*) 'EDPhoto 872 ',  tree_area
+                        write(iulog,*) 'EDPhoto 873 ',  currentCohort%nv, cl, ft
+                     endif
 
                      currentCohort%gpp_clm  = currentCohort%gpp_clm + currentPatch%psn_z(cl,ft,currentCohort%nv) * &
                           currentPatch%elai_profile(cl,ft,currentCohort%nv) * laifrac * tree_area
@@ -959,7 +970,7 @@ contains
                      if ( DEBUG ) write(iulog,*) 'EDPhoto 912 ', currentCohort%resp_clm
                      if ( DEBUG ) write(iulog,*) 'EDPhoto 913 ', currentCohort%resp_m
 
-                     currentCohort%resp_g   = ED_val_grperc * (max(0._r8,currentCohort%gpp_clm - currentCohort%resp_m))
+                     currentCohort%resp_g   = ED_val_grperc(1) * (max(0._r8,currentCohort%gpp_clm - currentCohort%resp_m))
                      currentCohort%resp_clm = currentCohort%resp_m + currentCohort%resp_g ! kgC/indiv/ts    
                      currentCohort%npp_clm  = currentCohort%gpp_clm - currentCohort%resp_clm  ! kgC/indiv/ts
 

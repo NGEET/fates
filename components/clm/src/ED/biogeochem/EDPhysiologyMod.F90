@@ -36,7 +36,7 @@ module EDPhysiologyMod
   public :: seed_decay
   public :: seed_germination
 
-  logical, parameter :: DEBUG  = .true. ! local debug flag
+  logical, parameter :: DEBUG  = .false. ! local debug flag
 
   ! ============================================================================
 
@@ -186,13 +186,13 @@ contains
                    currentCohort%leaf_cost =  1._r8/(pftcon%slatop(currentCohort%pft)*1000.0_r8)
                    currentCohort%leaf_cost = currentCohort%leaf_cost + 1.0_r8/(pftcon%slatop(currentCohort%pft)*1000.0_r8) * &
                         pftcon%froot_leaf(currentCohort%pft) / EDecophyscon%root_long(currentCohort%pft)
-                   currentCohort%leaf_cost = currentCohort%leaf_cost * (ED_val_grperc+1._r8)
+                   currentCohort%leaf_cost = currentCohort%leaf_cost * (ED_val_grperc(1) + 1._r8)
                 else !evergreen costs
                    currentCohort%leaf_cost = 1.0_r8/(pftcon%slatop(currentCohort%pft)* &
                         pftcon%leaf_long(currentCohort%pft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1 
                    currentCohort%leaf_cost = currentCohort%leaf_cost + 1.0_r8/(pftcon%slatop(currentCohort%pft)*1000.0_r8) * &
                         pftcon%froot_leaf(currentCohort%pft) / EDecophyscon%root_long(currentCohort%pft)
-                   currentCohort%leaf_cost = currentCohort%leaf_cost * (ED_val_grperc+1._r8)
+                   currentCohort%leaf_cost = currentCohort%leaf_cost * (ED_val_grperc(1) + 1._r8)
                 endif
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost)then
                    if (currentCohort%canopy_trim > trim_limit)then

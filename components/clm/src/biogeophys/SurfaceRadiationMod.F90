@@ -25,7 +25,7 @@ module SurfaceRadiationMod
   implicit none
   private
 
-  logical :: DEBUG = .true.  ! for debugging this module
+  logical :: DEBUG = .false.  ! for debugging this module
 
   !
   ! !PUBLIC MEMBER FUNCTIONS:
