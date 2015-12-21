@@ -555,26 +555,39 @@ contains
                 fsun(p) = 0._r8
                 sunlai = 0._r8
                 shalai = 0._r8
+
                 currentPatch => map_clmpatch_to_edpatch(ed_allsites_inst(g), p) 
+
                 do CL = 1, currentPatch%NCL_p
                    do FT = 1,numpft_ed
                       do iv = 1, currentPatch%nrad(CL,ft) !NORMAL CASE. 
-                         ! FIX(SPM,040114) ** Should this be elai or tlai? Surely we only do radiation for elai? 
+                         ! FIX(SPM,040114) - existing comment
+                         ! ** Should this be elai or tlai? Surely we only do radiation for elai? 
+
                          currentPatch%ed_laisun_z(CL,ft,iv) = currentPatch%elai_profile(CL,ft,iv) * &
                               currentPatch%f_sun(CL,ft,iv)
+
+                         if ( DEBUG ) write(iulog,*) 'surfRad 570 ',currentPatch%elai_profile(CL,ft,iv)
+                         if ( DEBUG ) write(iulog,*) 'surfRad 571 ',currentPatch%f_sun(CL,ft,iv)
+
                          currentPatch%ed_laisha_z(CL,ft,iv) = currentPatch%elai_profile(CL,ft,iv) * &
                               (1._r8 - currentPatch%f_sun(CL,ft,iv))
+
                       end do
+
+                      !needed for the VOC emissions, etc. 
                       sunlai = sunlai + sum(currentPatch%ed_laisun_z(CL,ft,1: currentPatch%nrad(CL,ft)))
                       shalai = shalai + sum(currentPatch%ed_laisha_z(CL,ft,1: currentPatch%nrad(CL,ft)))
-                      !needed for the VOC emissions, etc. 
+
                    end do
                 end do
+
                 if(sunlai+shalai > 0._r8)then
                    fsun(p) = sunlai / (sunlai+shalai) 
                 else
                    fsun(p) = 0._r8
                 endif
+
                 if(fsun(p) > 1._r8)then
                    write(iulog,*) 'too much leaf area in profile', fsun(p),currentPatch%lai,sunlai,shalai
                 endif

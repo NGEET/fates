@@ -113,7 +113,7 @@ contains
          ed_phenology_inst, waterstate_inst, canopystate_inst)
 
     if (masterproc) then
-      write(iulog,*) 'leaving ed model',bounds%begg,bounds%endg,dayDiffInt
+      write(iulog,*) 'clm: leaving ED model',bounds%begg,bounds%endg,dayDiffInt
     end if
 
   end subroutine ed_driver

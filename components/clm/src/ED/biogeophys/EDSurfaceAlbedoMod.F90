@@ -904,6 +904,7 @@ contains
                             if (abs(error)  >  1.e-9_r8 .and. abs(error) < 0.15_r8)then
                                albi(p,ib) = albi(p,ib) + error
                             end if
+
                             if (abs(error)  >  0.15_r8)then
                                write(iulog,*)  '>5% Dif Radn consvn error',error ,p,ib
                                write(iulog,*) 'diags',albi(p,ib),ftii(p,ib),fabi(p,ib)
@@ -917,17 +918,14 @@ contains
                                write(iulog,*) 'ftw',sum(ftweight(1,:,1)),ftweight(1,1:2,1)
                                write(iulog,*) 'present',currentPatch%present(1,1:2)
                                write(iulog,*) 'CAP',currentPatch%canopy_area_profile(1,1:2,1)
-
-
-                               !                               albi(p,ib) = albi(p,ib) + error
                             end if
-
 
                             if (radtype == 1)then
                                error = (forc_dir(p,ib) + forc_dif(p,ib)) - (fabd(p,ib)  + albd(p,ib) + currentPatch%sabs_dir(ib))
                             else
                                error = (forc_dir(p,ib) + forc_dif(p,ib)) - (fabi(p,ib)  + albi(p,ib) + currentPatch%sabs_dif(ib))
                             endif
+
                             if (abs(error)  >  0.00000001_r8)then
                                write(iulog,*)  'there is still error after correction',error ,p,ib
                             end if

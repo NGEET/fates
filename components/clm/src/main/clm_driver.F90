@@ -1014,7 +1014,7 @@ contains
     if ( use_ed  .and. is_beg_curr_day() ) then ! run ED at the start of each day
 
        if ( masterproc ) then
-          write(iulog,*)  'CLM: calling ED model ', get_nstep()
+          write(iulog,*)  'clm: calling ED model ', get_nstep()
        end if
 
        !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)

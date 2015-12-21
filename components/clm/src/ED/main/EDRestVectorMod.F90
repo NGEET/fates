@@ -83,6 +83,7 @@ module EDRestVectorMod
      real(r8), pointer :: livegrass(:)   ! this can probably be removed
      real(r8), pointer :: age(:)
      real(r8), pointer :: areaRestart(:)
+     real(r8), pointer :: f_sun(:)
      real(r8), pointer :: fabd_sun_z(:)
      real(r8), pointer :: fabi_sun_z(:)
      real(r8), pointer :: fabd_sha_z(:)
@@ -179,6 +180,7 @@ contains
     deallocate(this%livegrass )
     deallocate(this%age )
     deallocate(this%areaRestart )
+    deallocate(this%f_sun )
     deallocate(this%fabd_sun_z )
     deallocate(this%fabi_sun_z )
     deallocate(this%fabd_sha_z )
@@ -378,6 +380,11 @@ contains
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
       SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
       new%areaRestart(:) = 0.0_r8
+
+      allocate(new%f_sun &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%f_sun(:) = 0.0_r8
 
       allocate(new%fabd_sun_z &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
@@ -723,6 +730,12 @@ contains
          interpinic_flag='interp', data=this%areaRestart, &
          readvar=readvar)
 
+    call restartvar(ncid=ncid, flag=flag, varname='ed_f_sun', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed patch - f_sun', units='unitless', &
+         interpinic_flag='interp', data=this%f_sun, &
+         readvar=readvar)
+
     call restartvar(ncid=ncid, flag=flag, varname='ed_fabd_sun_z', xtype=ncd_double,  &
          dim1name=dimName, &
          long_name='ed patch - fabd_sun_z', units='unitless', &
@@ -850,6 +863,8 @@ contains
          this%age(iSta:iSto)
     write(iulog,*) trim(methodName)//' :: area ', &
          this%areaRestart(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: f_sun ', &
+         this%f_sun(iSta:iSto)
     write(iulog,*) trim(methodName)//' :: fabd_sun_z ', &
          this%fabd_sun_z(iSta:iSto)
     write(iulog,*) trim(methodName)//' :: fabi_sun_z ', &
@@ -954,6 +969,7 @@ contains
              write(iulog,*) trim(methodName)//' livegrass '      ,currentPatch%livegrass
              write(iulog,*) trim(methodName)//' age '            ,currentPatch%age
              write(iulog,*) trim(methodName)//' area '           ,currentPatch%area
+             write(iulog,*) trim(methodName)//' f_sun (sum) '     ,sum(currentPatch%f_sun)
              write(iulog,*) trim(methodName)//' fabd_sun_z (sum) '     ,sum(currentPatch%fabd_sun_z)
              write(iulog,*) trim(methodName)//' fabi_sun_z (sum) '     ,sum(currentPatch%fabi_sun_z)
              write(iulog,*) trim(methodName)//' fabd_sha_z (sum) '     ,sum(currentPatch%fabd_sha_z)
@@ -1220,6 +1236,7 @@ contains
              do k = 1,nlevcan_ed ! nlevcan_ed currently 40
                 do j = 1,numpft_ed ! numpft_ed currently 2
                    do i = 1,nclmax ! nclmax currently 2
+                      this%f_sun(countSunZ)       = currentPatch%f_sun(i,j,k)
                       this%fabd_sun_z(countSunZ)  = currentPatch%fabd_sun_z(i,j,k)
                       this%fabi_sun_z(countSunZ)  = currentPatch%fabi_sun_z(i,j,k)
                       this%fabd_sha_z(countSunZ)  = currentPatch%fabd_sha_z(i,j,k)
@@ -1607,6 +1624,7 @@ contains
              do k = 1,nlevcan_ed ! nlevcan_ed currently 40
                 do j = 1,numpft_ed ! numpft_ed currently 2
                    do i = 1,nclmax ! nclmax currently 2
+                      currentPatch%f_sun(i,j,k)      = this%f_sun(countSunZ) 
                       currentPatch%fabd_sun_z(i,j,k) = this%fabd_sun_z(countSunZ) 
                       currentPatch%fabi_sun_z(i,j,k) = this%fabi_sun_z(countSunZ) 
                       currentPatch%fabd_sha_z(i,j,k) = this%fabd_sha_z(countSunZ) 
