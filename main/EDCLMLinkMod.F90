@@ -1150,8 +1150,13 @@ contains
 
                      ! no m2 of leaf per m2 of ground in each height class
                      ! FIX(SPM,032414) these should be uncommented this and double check
-                     !currentPatch%elai_profile(1,ft,iv) = currentPatch%tlai_profile(1,ft,iv) * fraction_exposed
-                     !currentPatch%esai_profile(1,ft,iv) = currentPatch%tsai_profile(1,ft,iv) * fraction_exposed
+
+                     if ( DEBUG ) write(iulog,*) 'EDCLMLink 1154 ', currentPatch%elai_profile(1,ft,iv)
+
+                     currentPatch%elai_profile(1,ft,iv) = currentPatch%tlai_profile(1,ft,iv) * fraction_exposed
+                     currentPatch%esai_profile(1,ft,iv) = currentPatch%tsai_profile(1,ft,iv) * fraction_exposed
+
+                     if ( DEBUG ) write(iulog,*) 'EDCLMLink 1159 ', currentPatch%elai_profile(1,ft,iv)
 
                   enddo ! (iv) hite bins
 
@@ -1238,7 +1243,12 @@ contains
                              (layer_top_hite-layer_bottom_hite ))))
                      endif
 
+                     if ( DEBUG ) write(iulog,*) 'EDCLMLink 1246 ', currentPatch%elai_profile(1,ft,iv)
+
                      currentPatch%elai_profile(L,ft,iv) =  currentPatch%tlai_profile(L,ft,iv) *fraction_exposed
+
+                     if ( DEBUG ) write(iulog,*) 'EDCLMLink 1250 ', currentPatch%elai_profile(1,ft,iv)
+
                      !here we are assuming that the stem and leaf area indices have the same profile... 
                      currentPatch%esai_profile(L,ft,iv) =  currentPatch%tsai_profile(L,ft,iv) *fraction_exposed 
                   end do
@@ -1279,8 +1289,12 @@ contains
 
                   currentPatch%tsai_profile(L,ft,iv) =  currentPatch%tsai_profile(L,ft,iv)+  remainder * &
                        (1.0_r8-fleaf) * currentCohort%c_area/currentPatch%total_canopy_area
+
+                  if ( DEBUG ) write(iulog,*) 'EDCLMLink 1293 ', currentPatch%elai_profile(L,ft,iv)
+
                   currentPatch%elai_profile(L,ft,iv) =  currentPatch%tlai_profile(L,ft,iv) *fraction_exposed
                   currentPatch%esai_profile(L,ft,iv) =  currentPatch%tsai_profile(L,ft,iv) *fraction_exposed
+
                   currentPatch%canopy_area_profile(L,ft,iv) = min(1.0_r8,currentPatch%canopy_area_profile(L,ft,iv) + &
                        currentCohort%c_area/currentPatch%total_canopy_area)
 
@@ -1306,6 +1320,9 @@ contains
                              currentPatch%canopy_area_profile(L,ft,iv)
                         currentPatch%tsai_profile(L,ft,iv) = currentPatch%tsai_profile(L,ft,iv) / &
                              currentPatch%canopy_area_profile(L,ft,iv)
+
+                        if ( DEBUG ) write(iulog,*) 'EDCLMLink 1293 ', currentPatch%elai_profile(L,ft,iv)
+
                         currentPatch%elai_profile(L,ft,iv) = currentPatch%elai_profile(L,ft,iv) / &
                              currentPatch%canopy_area_profile(L,ft,iv)
                         currentPatch%esai_profile(L,ft,iv) = currentPatch%esai_profile(L,ft,iv) / &

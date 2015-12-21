@@ -130,11 +130,6 @@ contains
     call update_accum_field  ( trim(this%accString), rbufslp, get_nstep() )
     call extract_accum_field ( trim(this%accstring), this%ED_GDD_patch, get_nstep() )
 
-    if (is_restart()) then
-       if (this%DEBUG) write(iulog,*) 'EDPhenologyType.F90 130 '
-       this%ED_GDD_patch(:) = 0.0_r8
-    end if
-
     if (this%DEBUG) write(iulog,*) 'ED_GDD accumAndExtract ', this%ED_GDD_patch
 
     deallocate(rbufslp)
