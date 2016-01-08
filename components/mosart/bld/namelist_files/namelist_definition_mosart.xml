@@ -8,14 +8,34 @@
 <!-- MOSART Namelist -->
 <!-- ========================================================================================  -->
 
-<entry id="rtm_tstep" 
+<entry id="coupling_period" 
+       type="integer" 
+       category="mosart"
+       group="mosart_inparm" 
+       valid_values="" >
+MOSART coupling period to driver (sec).
+Default: 10800
+Can ONLY be set by modifying the value of the xml variable ROF_NCPL in env_run.xml.
+</entry>
+
+<entry id="delt_mosart" 
        type="integer" 
        category="mosart"
        group="mosart_inparm" 
        valid_values="" >
 MOSART time step (sec).
-Default: 10800
-Can ONLY be set by modifying the value of the xml variable ROF_NCPL in env_run.xml.
+Default: 3600
+Internal mosart timestep, will be adjusted down to be integer multiple of coupling_period if necessary 
+</entry>
+
+<entry id="smat_option" 
+       type="char*32" 
+       category="mosart"
+       group="mosart_inparm" 
+       valid_values="opt,Xonly,Yonly" >
+sparse matrix mct setting.
+Default: Xonly
+Xonly is bfb on different pe counts, opt and Yonly might involve partial sums
 </entry>
 
 <entry id="ice_runoff" 
@@ -55,9 +75,27 @@ Note that mosart flood is not supported in CESM1.1
        type="char*32" 
        category="mosart"
        group="mosart_inparm" 
-       valid_values="" >
+       valid_values="basin,1d,roundrobin" >
 Decomposition Option for mosart
-Default: 'basin'
+Default: 'roundrobin'
+</entry>
+
+<entry id="bypass_routing_option" 
+       type="char*32" 
+       category="mosart"
+       group="mosart_inparm" 
+       valid_values="direct_in_place,direct_to_outlet,none" >
+Method for bypassing routing model.
+Default: direct_in_place
+</entry>
+
+<entry id="qgwl_runoff_option" 
+       type="char*32" 
+       category="mosart"
+       group="mosart_inparm" 
+       valid_values="all,negative,threshold" >
+Method for handling of qgwl runoff inputs.
+Default: threshold
 </entry>
 
 <entry id="finidat_rtm" 

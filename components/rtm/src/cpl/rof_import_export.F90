@@ -13,7 +13,6 @@ module rof_import_export
   use rtm_cpl_indices  , only : nt_rtm, rtm_tracers 
   use rtm_cpl_indices  , only : index_x2r_Flrl_rofsur,index_x2r_Flrl_rofi 
   use rtm_cpl_indices  , only : index_x2r_Flrl_rofgwl,index_x2r_Flrl_rofsub 
-  use rtm_cpl_indices  , only : index_x2r_Flrl_rofdto
   use rtm_cpl_indices  , only : index_r2x_Forr_rofl, index_r2x_Forr_rofi
   use rtm_cpl_indices  , only : index_r2x_Flrr_flood, index_r2x_Flrr_volr
   use rtm_cpl_indices  , only : index_r2x_Flrr_volrmch
@@ -66,8 +65,6 @@ contains
                           x2r(index_x2r_Flrl_rofgwl,n2)
 
        totrunin(n,nfrz) = x2r(index_x2r_Flrl_rofi,n2)
-
-       runoff%runoffdto(n) = x2r(index_x2r_Flrl_rofdto,n2)
 
     enddo
 
@@ -152,15 +149,6 @@ contains
           endif
        end do
     end if
-
-! add direct to ocean runoff to output
-    ni = 0
-    do n = runoff%begr,runoff%endr
-       ni = ni + 1
-       r2x(index_r2x_Forr_rofl,ni) &
-            = r2x(index_r2x_Forr_rofl,ni) &
-            + runoff%runoffdto(n)
-    end do
 
     ! Flooding back to land, sign convention is positive in land->rof direction
     ! so if water is sent from rof to land, the flux must be negative.

@@ -1,7 +1,28 @@
 <?xml version="1.0"?>
 <testlist>
+  <compset name="ICRUCLM50BGC">
+    <grid name="f10_f10">
+      <test name="ERS_Ld5">
+        <machine compiler="gnu" testtype="rtm" testmods="rtm/default">yellowstone</machine>
+        <machine compiler="intel" testtype="rtm" testmods="rtm/default">yellowstone</machine>
+        <machine compiler="intel" testtype="rtm" testmods="rtm/rtmOnIceOff">yellowstone</machine>
+        <machine compiler="intel" testtype="rtm" testmods="rtm/rtmOnFloodOnEffvelOn">yellowstone</machine>
+        <machine compiler="intel" testtype="rtm" testmods="rtm/rtmOnFloodOnEffvelOff">yellowstone</machine>
+        <machine compiler="intel" testtype="rtm" testmods="rtm/rtmOff">yellowstone</machine>
+        <machine compiler="pgi" testtype="rtm" testmods="rtm/default">yellowstone</machine>
+      </test>
+      <test name="SMS_D_Ld5">
+        <machine compiler="gnu" testtype="rtm" testmods="rtm/default">yellowstone</machine>
+        <machine compiler="intel" testtype="rtm" testmods="rtm/default">yellowstone</machine>
+        <machine compiler="pgi" testtype="rtm" testmods="rtm/default">yellowstone</machine>
+      </test>
+    </grid>
+  </compset>
   <compset name="I1850CLM45BGC">
     <grid name="f10_f10">
+      <test name="ERP_D_Ld5">
+         <machine compiler="intel" testtype="aux_clm45" testmods="rtm/default">yellowstone</machine>
+      </test>
       <test name="ERP_Ld5">
         <machine compiler="intel" testtype="aux_clm45" testmods="rtm/rtmOff">yellowstone</machine>
         <machine compiler="intel" testtype="aux_clm45" testmods="rtm/rtmOnFloodOnEffvelOn">yellowstone</machine>
@@ -22,7 +43,6 @@
         <machine compiler="intel" testtype="aux_clm_ys_pgi" testmods="rtm/rtmOnFloodOnEffvelOff">edison</machine>
         <machine compiler="intel" testtype="aux_clm_ys_pgi" testmods="rtm/rtmOnIceOn">edison</machine>
         <machine compiler="gnu" testtype="aux_clm45" testmods="rtm/rtmOnIceOn">yellowstone</machine>
-        <machine compiler="intel" testtype="aux_clm45" testmods="clm/default">yellowstone</machine>
         <machine compiler="pgi" testtype="aux_clm45" testmods="rtm/rtmOnFloodOnEffvelOff">yellowstone</machine>
       </test>
     </grid>

@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<testlist>
+  <compset name="IMCRUCLM50BGC">
+    <grid name="f10_f10">
+      <test name="ERS_Ld5">
+        <machine compiler="gnu" testtype="mosart" testmods="mosart/default">yellowstone</machine>
+        <machine compiler="intel" testtype="mosart" testmods="mosart/default">yellowstone</machine>
+        <machine compiler="intel" testtype="mosart" testmods="mosart/iceOff">yellowstone</machine>
+        <machine compiler="intel" testtype="mosart" testmods="mosart/mosartOff">yellowstone</machine>
+        <machine compiler="pgi" testtype="mosart" testmods="mosart/default">yellowstone</machine>
+      </test>
+      <test name="SMS_D_Ld5">
+        <machine compiler="gnu" testtype="mosart" testmods="mosart/default">yellowstone</machine>
+        <machine compiler="intel" testtype="mosart" testmods="mosart/default">yellowstone</machine>
+        <machine compiler="pgi" testtype="mosart" testmods="mosart/default">yellowstone</machine>
+      </test>
+    </grid>
+  </compset>
+</testlist>

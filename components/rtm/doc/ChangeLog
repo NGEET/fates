@@ -1,4 +1,28 @@
 ===============================================================
+Tag name:  rtm1_0_55
+Originator(s): andre
+Date: Oct 13, 2015
+One-line Summary: negative runoff remove direct to ocean runoff from Sean Swenson
+
+- Remove directo to ocean runnoff (Sean Swenson)
+- add error checking on history file name length.
+- add default test mod with hourly output from rtm
+
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnFloodOnEffvelOff/include_user_mods
+A  +    cime_config/testdefs/testmods_dirs/rtm/default
+A  +    cime_config/testdefs/testmods_dirs/rtm/default/user_nl_rtm
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnFloodOnEffvelOn/include_user_mods
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnIceOff/include_user_mods
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOff/include_user_mods
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnIceOn/include_user_mods
+M       cime_config/testdefs/testlist_rtm.xml
+M       src/riverroute/RtmHistFlds.F90
+M       src/riverroute/RtmHistFile.F90
+M       src/riverroute/RunoffMod.F90
+M       src/cpl/rtm_cpl_indices.F90
+M       src/cpl/rof_import_export.F90
+
+===============================================================
 Tag name:  rtm1_0_54
 Originator(s): andre
 Date: Oct 13, 2015
