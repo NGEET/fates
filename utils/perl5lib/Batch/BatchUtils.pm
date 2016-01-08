@@ -211,8 +211,8 @@ sub submitSingleJob()
     my $output;
 
     eval {
-        open (my $RUN, "-|", $runcmd) or $logger->logdie ("job submission failed, $!");
-        $output = <$RUN>;
+	open (my $RUN, "-|", $runcmd) or $logger->logdie ("job submission failed, $!");
+	$output = <$RUN>;
 	close $RUN or $logger->logdie( "job submission failed: |$?|, |$!|");
     };
     my $exitstatus = ($?>>8);
@@ -241,9 +241,9 @@ sub _decrementResubmitCounter()
     chdir $config->{'CASEROOT'};
     if($config->{COMP_RUN_BARRIERS} ne "TRUE") 
     {
-	`./xmlchange CONTINUE_RUN=TRUE`;
+	`./xmlchange -noecho CONTINUE_RUN=TRUE`;
     }
-    `./xmlchange RESUBMIT=$newresubmit`;
+    `./xmlchange -noecho RESUBMIT=$newresubmit`;
     if($?)
     {
 	$logger->logdie( "could not execute ./xmlchange RESUBMIT=$newresubmit");
@@ -280,23 +280,28 @@ sub dependencyCheck()
     
     $self->{dependencyqueue} = undef;
     # we always want to run the test or run again..
-    if(-e "$config{'CASE'}.test")
+    if(-e "case.test")
     {
-	my $jobname = "$config{'CASE'}.test";
+	my $jobname = "case.test";
 	$self->addDependentJob($jobname);
     }
     else
     {
-	my $jobname = "$config{'CASE'}.run";
+	my $jobname = "case.run";
 	$self->addDependentJob($jobname);
     }
     
     # do we add the short-term archiver to the dependency queue? 
     if($config{'DOUT_S'} eq 'TRUE')
     {
-	my $jobname = "$config{'CASE'}.st_archive";
+	my $jobname = "case.st_archive";
 	$self->addDependentJob($jobname);
     }
+	if($config{'DOUT_L_MS'} eq 'TRUE')
+	{
+		my $jobname = "case.lt_archive";
+		$self->addDependentJob($jobname);
+	}
     
 }
 
@@ -349,8 +354,10 @@ sub getSubmitArguments()
     # We need the script name and the dependent job id.
     my $scriptname = shift;
     my $dependentjobid = shift;
-
-    # Get a BatchMaker instance, we need its instance data. 
+    $scriptname =~ /\w+\.(\w+)$/;
+    $self->{job} = $1;
+    $logger->debug(" scriptname: $scriptname job $self->{job}");
+    # Get BatchMaker instance, we need its instance data. 
     my $batchmaker = Batch::BatchFactory::getBatchMaker( caseroot => $self->{caseroot}, 
 							 cimeroot => $self->{cimeroot},
 							 case => $self->{case},
