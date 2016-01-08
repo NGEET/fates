@@ -57,7 +57,7 @@ module glissade_therm
     use glimmer_global, only : dp 
     use glide_types
     use glimmer_log
-    use parallel, only: this_rank
+    use parallel
 
     implicit none
 
@@ -401,6 +401,10 @@ module glissade_therm
     logical, parameter:: verbose_therm = .false.  ! set to true for diagnostic column output
     logical :: verbose_column
 
+    logical :: lstop = .false.   ! flag for energy conservation error
+    integer :: istop, jstop      ! local location of energy conservation error
+    integer :: istop_global, jstop_global    ! global location of energy conservation error
+
     !------------------------------------------------------------------------------------
     ! Compute the new temperature profile in each column
     !------------------------------------------------------------------------------------
@@ -445,6 +449,10 @@ module glissade_therm
        !      Now it is computed in the velocity solver (for Glissade) or just after
        !       the velocity solution (for Glam).
 
+       ! Set error flag
+       lstop = .false.
+
+       ! loop over cells
        do ns = 1, nsn
        do ew = 1, ewn
 
@@ -702,13 +710,25 @@ module glissade_therm
                    print*, 'flux for bottom melting =', bfricflx(ew,ns) - bheatflx(ew,ns) + lcondflx(ew,ns)
                 endif   ! verbose_column
 
-                write(message,*) 'WARNING: Energy conservation error, ew, ns =', ew, ns
-                call write_log(message,GM_FATAL)
-             endif
+                lstop = .true.
+                istop = ew
+                jstop = ns
+            
+             endif  ! energy conservation error
 
           endif  ! thck > thklim_temp
        end do    ! ew
        end do    ! ns
+
+       if (lstop) then
+          call parallel_globalindex(istop, jstop, istop_global, jstop_global)
+          call broadcast(istop_global, proc=this_rank)
+          call broadcast(istop_global, proc=this_rank)
+          print*, 'ERROR: Energy not conserved in glissade_therm, rank, i, j =', this_rank, istop, jstop
+          print*, 'Global i, j:', istop_global, jstop_global
+          write(message,*) 'ERROR: Energy not conserved in glissade_therm, global i, j =', istop_global, jstop_global
+          call write_log(message,GM_FATAL)
+       endif
 
        ! Set temperature of thin ice to the air temperature and set ice-free nodes to zero
 

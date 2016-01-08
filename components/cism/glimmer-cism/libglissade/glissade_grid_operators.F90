@@ -228,7 +228,8 @@ contains
                                         ice_mask,                &
                                         gradient_margin_in,      &
                                         usrf,                    &
-                                        land_mask)
+                                        land_mask,               &
+                                        max_slope)
 
     !----------------------------------------------------------------
     ! Given a scalar variable f on the unstaggered grid (dimension nx, ny),
@@ -245,7 +246,7 @@ contains
     !  the gradient, but values in ice-free ocean cells are ignored.  Where required values are 
     !  missing, the gradient is set to zero. For land-based problems this reduces to option (0) 
     !  (except where ice-free land rises above the ice surface), and for ocean-based problems 
-    !  this reduced to option (2).
+    !  this reduces to option (2).
     !
     !  NOTE: Ice-free land cells contribute to the gradient only where their elevation lies below
     !        the elevation of the adjacent ice-covered cell. This constraint prevents nunataks from
@@ -291,11 +292,15 @@ contains
     integer, dimension(nx,ny), intent(in), optional ::        &
        land_mask                ! = 1 for land cells, else = 0 (required for gradient_margin = HO_GRADIENT_ICE_LAND)
 
+    real(dp), intent(in), optional :: &
+       max_slope                ! maximum slope allowed for surface gradient computations (unitless)
+
     !--------------------------------------------------------
     ! Local variables
     !--------------------------------------------------------
 
     integer :: gradient_margin
+
     integer :: i, j
 
     logical, dimension(nx-1,ny) ::    &
@@ -306,6 +311,10 @@ contains
 
     real(dp) :: df_dx_north, df_dx_south  ! df_dx at neighboring edges
     real(dp) :: df_dy_east, df_dy_west    ! df_dx at neighboring edges
+
+    !WHL - debug
+    real(dp) :: dfdx, dfdy
+    integer :: edge_count
 
     !--------------------------------------------------------
     !   Gradient at vertex(i,j) is based on f(i:i+1,j:j+1)
@@ -340,7 +349,7 @@ contains
 
     elseif (gradient_margin == HO_GRADIENT_MARGIN_ICE_ONLY) then
 
-       ! mask for vertical edges
+       ! mask for east and west cell edges
        do j = 1, ny
           do i = 1, nx-1
              if (ice_mask(i,j)==1  .and. ice_mask(i+1,j)==1) then
@@ -351,7 +360,7 @@ contains
           enddo
        enddo
        
-       ! mask for horizontal edges
+       ! mask for north and south edges
        do j = 1, ny-1
           do i = 1, nx
              if (ice_mask(i,j)==1  .and. ice_mask(i,j+1)==1) then
@@ -364,6 +373,28 @@ contains
        
     endif  ! gradient_margin
 
+    !WHL - debug - Count number of edges that require slope-limiting
+    if (present(max_slope)) then
+       edge_count = 0
+       do j = nhalo+1, ny-nhalo
+          do i = nhalo+1, nx-nhalo
+             dfdx = (field(i+1,j) - field(i,j)) / dx
+             if (abs(dfdx) > max_slope .and. edge_mask_x(i,j)) then
+                edge_count = edge_count + 1
+             endif
+             dfdy = (field(i,j+1) - field(i,j)) / dy
+             if (abs(dfdy) > max_slope .and. edge_mask_y(i,j)) then
+                edge_count = edge_count + 1
+             endif
+          enddo
+       enddo
+       edge_count = parallel_reduce_sum(edge_count)
+       if (main_task) then
+          print*, 'Number of edges:', (nx-2*nhalo)*(ny-2*nhalo)*2
+          print*, 'Limit slope: edge_count =', edge_count
+       endif
+    endif
+
     ! compute gradient at vertices by averaging gradient at adjacent edges
     ! ignore edges with edge_mask = 0
 
@@ -373,6 +404,22 @@ contains
           ! df/dx
           df_dx_north = (field(i+1,j+1) - field(i,j+1))/ dx
           df_dx_south = (field(i+1,j)   - field(i,j))  / dx
+
+          if (present(max_slope)) then
+
+             if (df_dx_north > 0.0d0) then
+                df_dx_north = min(df_dx_north, max_slope)
+             else
+                df_dx_north = max(df_dx_north, -max_slope)
+             endif
+
+             if (df_dx_south > 0.0d0) then
+                df_dx_south = min(df_dx_south, max_slope)
+             else
+                df_dx_south = max(df_dx_south, -max_slope)
+             endif
+
+          endif
 
           if (edge_mask_x(i,j) .and. edge_mask_x(i,j+1)) then
              df_dx(i,j) = (df_dx_north + df_dx_south) / 2.d0
@@ -387,6 +434,22 @@ contains
           ! df/dy
           df_dy_east = (field(i+1,j+1) - field(i+1,j))/ dy
           df_dy_west = (field(i,j+1)   - field(i,j))  / dy
+
+          if (present(max_slope)) then
+
+             if (df_dy_east > 0.0d0) then
+                df_dy_east = min(df_dy_east, max_slope)
+             else
+                df_dy_east = max(df_dy_east, -max_slope)
+             endif
+
+             if (df_dy_west > 0.0d0) then
+                df_dy_west = min(df_dy_west, max_slope)
+             else
+                df_dy_west = max(df_dy_west, -max_slope)
+             endif
+
+          endif
 
           if (edge_mask_y(i,j) .and. edge_mask_y(i+1,j)) then
              df_dy(i,j) = (df_dy_east + df_dy_west) / 2.d0
@@ -436,7 +499,8 @@ contains
                                         ice_mask,     usrf,      &
                                         gradient_margin_in,      &
                                         accuracy_flag_in,        &
-                                        land_mask)
+                                        land_mask,               &
+                                        max_slope)
 
     !----------------------------------------------------------------
     ! Given a scalar variable f on the unstaggered grid (dimension nx, ny),
@@ -489,6 +553,9 @@ contains
 
     integer, dimension(nx,ny), intent(in), optional ::        &
        land_mask                ! = 1 for land cells, else = 0 (required for gradient_margin = HO_GRADIENT_ICE_LAND)
+
+    real(dp), intent(in), optional :: &
+       max_slope               ! maximum slope allowed for surface gradient computations (unitless)
 
     !--------------------------------------------------------
     ! Local variables
@@ -553,7 +620,7 @@ contains
 
     elseif (gradient_margin == HO_GRADIENT_MARGIN_ICE_ONLY) then
 
-       ! mask for vertical edges
+       ! mask for east and west cell edges
        do j = 1, ny
           do i = 1, nx-1
              if (ice_mask(i,j)==1  .and. ice_mask(i+1,j)==1) then
@@ -564,7 +631,7 @@ contains
           enddo
        enddo
        
-       ! mask for horizontal edges
+       ! mask for north and south cell edges
        do j = 1, ny-1
           do i = 1, nx
              if (ice_mask(i,j)==1  .and. ice_mask(i,j+1)==1) then
@@ -588,6 +655,22 @@ contains
 
                 df_dx_north = (field(i+1,j+1) - field(i,j+1)) / dx
                 df_dx_south = (field(i+1,j) - field(i,j)) / dx
+
+                if (present(max_slope)) then
+
+                   if (df_dx_north > 0.0d0) then
+                      df_dx_north = min(df_dx_north, max_slope)
+                   else
+                      df_dx_north = max(df_dx_north, -max_slope)
+                   endif
+                   
+                   if (df_dx_south > 0.0d0) then
+                      df_dx_south = min(df_dx_south, max_slope)
+                   else
+                      df_dx_south = max(df_dx_south, -max_slope)
+                   endif
+
+                endif
 
                 sum1 = usrf(i+1,j+1) + usrf(i,j+1)
                 sum2 = usrf(i+1,j) + usrf(i,j)
@@ -622,6 +705,22 @@ contains
              
                 df_dy_east = (field(i+1,j+1) - field(i+1,j)) / dy
                 df_dy_west = (field(i,j+1) - field(i,j)) / dy
+
+                if (present(max_slope)) then
+
+                   if (df_dy_east > 0.0d0) then
+                      df_dy_east = min(df_dy_east, max_slope)
+                   else
+                      df_dy_east = max(df_dy_east, -max_slope)
+                   endif
+
+                   if (df_dy_west > 0.0d0) then
+                      df_dy_west = min(df_dy_west, max_slope)
+                   else
+                      df_dy_west = max(df_dy_west, -max_slope)
+                   endif
+                   
+                endif
 
                 sum1 = usrf(i+1,j+1) + usrf(i+1,j)
                 sum2 = usrf(i,j+1) + usrf(i,j)
@@ -667,15 +766,42 @@ contains
                 df_dx_south  = (field(i+1,j)   - field(i,j))   / dx
                 df_dx_south2 = (field(i+1,j-1) - field(i,j-1)) / dx
 
-                !TODO - Make this consistent with how df_dy is handled (with sums over 4 cells)
-                sum1 = usrf(i+1,j+1) + usrf(i,j+1)
-                sum2 = usrf(i+1,j) + usrf(i,j)
+                if (present(max_slope)) then
+
+                   if (df_dx_north > 0.0d0) then
+                      df_dx_north = min(df_dx_north, max_slope)
+                   else
+                      df_dx_north = max(df_dx_north, -max_slope)
+                   endif
+                   
+                   if (df_dx_north2 > 0.0d0) then
+                      df_dx_north2 = min(df_dx_north2, max_slope)
+                   else
+                      df_dx_north2 = max(df_dx_north2, -max_slope)
+                   endif
+
+                   if (df_dx_south > 0.0d0) then
+                      df_dx_south = min(df_dx_south, max_slope)
+                   else
+                      df_dx_south = max(df_dx_south, -max_slope)
+                   endif
+
+                   if (df_dx_south2 > 0.0d0) then
+                      df_dx_south2 = min(df_dx_south2, max_slope)
+                   else
+                      df_dx_south2 = max(df_dx_south2, -max_slope)
+                   endif
+
+                endif
+
+                sum1 = usrf(i+1,j+1) + usrf(i,j+1) + usrf(i+1,j+2) + usrf(i,j+2)
+                sum2 = usrf(i+1,j) + usrf(i,j) + usrf(i+1,j-1) + usrf(i,j-1)
 
                 if (sum1 > sum2) then   ! north is upstream; use north edge gradients if possible
 
                    if (edge_mask_x(i,j+1) .and. edge_mask_x(i,j+2)) then
                       df_dx(i,j) = 1.5d0 * df_dx_north - 0.5d0 * df_dx_north2
-                   elseif (edge_mask_x(i,j+1)) then   ! revert to firxt order
+                   elseif (edge_mask_x(i,j+1)) then   ! revert to first order
                       df_dx(i,j) = df_dx_north
                    else      ! first-order downstream
                       df_dx(i,j) = df_dx_south
@@ -685,7 +811,7 @@ contains
 
                    if (edge_mask_x(i,j) .and. edge_mask_x(i,j-1)) then
                       df_dx(i,j) = 1.5d0 * df_dx_south - 0.5d0 * df_dx_south2
-                   elseif (edge_mask_x(i,j)) then   ! revert to firxt order
+                   elseif (edge_mask_x(i,j)) then   ! revert to first order
                       df_dx(i,j) = df_dx_south
                    else      ! first-order downstream
                       df_dx(i,j) = df_dx_north
@@ -703,11 +829,39 @@ contains
 
                 ! Compute df_dy by taking upstream gradient
 
-                df_dy_east  = (field(i+1,j+1) - field(i+1,j)) / dy
                 df_dy_east2 = (field(i+2,j+1) - field(i+2,j)) / dy
+                df_dy_east  = (field(i+1,j+1) - field(i+1,j)) / dy
                 df_dy_west  = (field(i,j+1)   - field(i,j))   / dy
                 df_dy_west2 = (field(i-1,j+1) - field(i-1,j)) / dy
 
+                if (present(max_slope)) then
+                   
+                   if (df_dy_east > 0.0d0) then
+                      df_dy_east = min(df_dy_east, max_slope)
+                   else
+                      df_dy_east = max(df_dy_east, -max_slope)
+                   endif
+
+                   if (df_dy_east2 > 0.0d0) then
+                      df_dy_east2 = min(df_dy_east2, max_slope)
+                   else
+                      df_dy_east2 = max(df_dy_east2, -max_slope)
+                   endif
+                   
+                   if (df_dy_west > 0.0d0) then
+                      df_dy_west = min(df_dy_west, max_slope)
+                   else
+                      df_dy_west = max(df_dy_west, -max_slope)
+                   endif
+
+                   if (df_dy_west2 > 0.0d0) then
+                      df_dy_west2 = min(df_dy_west2, max_slope)
+                   else
+                      df_dy_west2 = max(df_dy_west2, -max_slope)
+                   endif
+
+                endif
+                
                 ! determine upstream direction
 
                 sum1 = usrf(i+1,j+1) + usrf(i+1,j) + usrf(i+2,j+1) + usrf(i+2,j)
@@ -717,7 +871,7 @@ contains
 
                    if (edge_mask_y(i+1,j) .and. edge_mask_y(i+2,j)) then
                       df_dy(i,j) = 1.5d0 * df_dy_east - 0.5d0 * df_dy_east2
-                   elseif (edge_mask_y(i+1,j)) then   ! revert to firxt order
+                   elseif (edge_mask_y(i+1,j)) then   ! revert to first order
                       df_dy(i,j) = df_dy_east
                    else    ! first-order downstream
                       df_dy(i,j) = df_dy_west
@@ -727,7 +881,7 @@ contains
 
                    if (edge_mask_y(i,j) .and. edge_mask_y(i-1,j)) then
                       df_dy(i,j) = 1.5d0 * df_dy_west - 0.5d0 * df_dy_west2
-                   elseif (edge_mask_y(i,j)) then   ! revert to firxt order
+                   elseif (edge_mask_y(i,j)) then   ! revert to first order
                       df_dy(i,j) = df_dy_west
                    else    ! first_order downstream
                       df_dy(i,j) = df_dy_east
@@ -781,7 +935,8 @@ contains
                                         df_dx,        df_dy,     &
                                         gradient_margin_in,      &
                                         ice_mask,     land_mask, &
-                                        usrf)
+                                        usrf,                    &
+                                        max_slope)
 
     !----------------------------------------------------------------
     ! Given a scalar variable f on the unstaggered grid (dimension nx, ny),
@@ -823,6 +978,9 @@ contains
 
     real(dp), dimension(nx,ny), intent(in), optional ::       &
        usrf                     ! ice surface elevation (required for gradient_margin = HO_GRADIENT_ICE_LAND)
+
+    real(dp), intent(in), optional :: &
+       max_slope               ! maximum slope allowed for surface gradient computations (unitless)
 
     !--------------------------------------------------------
     ! Local variables
@@ -882,7 +1040,7 @@ contains
 
     elseif (gradient_margin == HO_GRADIENT_MARGIN_ICE_ONLY) then
 
-       ! mask for vertical edges
+       ! mask for east and west cell edges
        do j = 1, ny
           do i = 1, nx-1
              if (ice_mask(i,j)==1  .and. ice_mask(i+1,j)==1) then
@@ -893,7 +1051,7 @@ contains
           enddo
        enddo
        
-       ! mask for horizontal edges
+       ! mask for north and south cell edges
        do j = 1, ny-1
           do i = 1, nx
              if (ice_mask(i,j)==1  .and. ice_mask(i,j+1)==1) then
@@ -929,6 +1087,32 @@ contains
           endif
        enddo    ! i
     enddo       ! j
+
+    if (present(max_slope)) then
+
+       ! limit df_dx
+       do j = 1, ny
+          do i = 1, nx-1
+             if (df_dx(i,j) > 0.0d0) then
+                df_dx(i,j) = min(df_dx(i,j), max_slope)
+             else
+                df_dx(i,j) = max(df_dx(i,j), -max_slope)
+             endif
+          enddo
+       enddo
+       
+       ! limit df_dy
+       do j = 1, ny-1
+          do i = 1, nx
+             if (df_dy(i,j) > 0.0d0) then
+                df_dy(i,j) = min(df_dy(i,j), max_slope)
+             else
+                df_dy(i,j) = max(df_dy(i,j), -max_slope)
+             endif
+          enddo
+       enddo
+
+    endif  ! present(max_slope)
 
     if (verbose_gradient .and. main_task) then
        print*, ' '
@@ -1008,7 +1192,7 @@ contains
 
  if (new_edgemask) then
 
-    ! compute mask for vertical edges
+    ! compute mask for east and west cell edges
     do j = 1, ny
        do i = 1, nx-1
           if (( ice_mask(i,j)==1 .and.  ice_mask(i+1,j)==1)  .or.  &
@@ -1021,7 +1205,7 @@ contains
        enddo
     enddo
     
-    ! compute mask for horizontal edges
+    ! compute mask for north and south cell edges
     do j = 1, ny-1
        do i = 1, nx
           if (( ice_mask(i,j)==1 .and.  ice_mask(i,j+1)==1)  .or.  &
@@ -1036,7 +1220,7 @@ contains
 
  else   ! old edge mask
 
-    ! compute mask for vertical edges
+    ! compute mask for east and west cell edges
     do j = 1, ny
        do i = 1, nx-1
            if ((ice_mask(i,j)==1  .and. ice_mask(i+1,j)==1)  .or.  &
@@ -1050,7 +1234,7 @@ contains
        enddo
     enddo
           
-    ! compute mask for horizontal edges
+    ! compute mask for north and south cell edges
     do j = 1, ny-1
        do i = 1, nx
           if ((ice_mask(i,j)==1  .and. ice_mask(i,j+1)==1)  .or.  &

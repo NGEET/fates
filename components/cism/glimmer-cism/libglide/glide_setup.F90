@@ -480,11 +480,12 @@ contains
     call GetValue(section,'ntem',model%numerics%ntem)
     call GetValue(section,'profile',model%numerics%profile_period)
 
-    call GetValue(section,'dt_diag',model%numerics%dt_diag)
     call GetValue(section,'idiag',model%numerics%idiag)
     call GetValue(section,'jdiag',model%numerics%jdiag)
 
-    !WHL - ndiag replaced by dt_diag, but retained for backward compatibility
+    !Note: Either dt_diag or ndiag can be specified in the config file.
+    !      If dt_diag is specified, it is used to compute ndiag. (Output is written every ndiag timesteps.)
+    call GetValue(section,'dt_diag',model%numerics%dt_diag)
     call GetValue(section,'ndiag',model%numerics%ndiag)
 
   end subroutine handle_time
@@ -516,18 +517,10 @@ contains
     call write_log(message)
 
     if (model%numerics%dt_diag > 0.d0) then
-       write(message,*) 'diagnostic time (yr): ',model%numerics%dt_diag
+       write(message,*) 'diagnostic interval (years):',model%numerics%dt_diag
        call write_log(message)
-       !TODO - Verify that this mod statement works for real numbers.  Might need different logic.
-       if (mod(model%numerics%dt_diag, model%numerics%tinc) > 1.e-11) then
-          write(message,*) 'Warning: diagnostic interval does not divide evenly into ice timestep dt'
-          call write_log(message)
-       endif
-    endif
-
-    !WHL - ndiag replaced by dt_diag, but retained for backward compatibility
-    if (model%numerics%ndiag > 0) then
-       write(message,*) 'diag time (steps)   : ',model%numerics%ndiag
+    elseif (model%numerics%ndiag > 0) then
+       write(message,*) 'diagnostic interval (steps):',model%numerics%ndiag
        call write_log(message)
     endif
 
@@ -610,7 +603,9 @@ contains
     call GetValue(section, 'which_ho_vertical_remap',  model%options%which_ho_vertical_remap)
     call GetValue(section, 'which_ho_assemble_beta',   model%options%which_ho_assemble_beta)
     call GetValue(section, 'which_ho_assemble_taud',   model%options%which_ho_assemble_taud)
+    call GetValue(section, 'which_ho_assemble_bfric',  model%options%which_ho_assemble_bfric)
     call GetValue(section, 'which_ho_ground',    model%options%which_ho_ground)
+    call GetValue(section, 'which_ho_flotation_function', model%options%which_ho_flotation_function)
     call GetValue(section, 'which_ho_ice_age',   model%options%which_ho_ice_age)
     call GetValue(section, 'glissade_maxiter',   model%options%glissade_maxiter)
 
@@ -762,11 +757,11 @@ contains
          '0-order SIA                       ', &
          'first-order model (Blatter-Pattyn)' /)
 
-    character(len=*), dimension(0:11), parameter :: ho_whichbabc = (/ &
+    character(len=*), dimension(0:12), parameter :: ho_whichbabc = (/ &
          'constant beta                                    ', &
-         'simple pattern of beta                           ', &
+         'beta depends on basal temp (melting or frozen)   ', &
          'till yield stress (Picard)                       ', &
-         'function of bwat                                 ', &
+         'beta is a function of bwat                       ', &
          'no slip (using large B^2)                        ', &
          'beta passed from CISM                            ', &
          'no slip (Dirichlet implementation)               ', &
@@ -774,7 +769,8 @@ contains
          'beta as in ISMIP-HOM test C                      ', &
          'power law using effective pressure               ', &
          'Coulomb friction law w/ effec press              ', &
-         'Coulomb friction law w/ effec press, const flwa_b' /)
+         'Coulomb friction law w/ effec press, const flwa_b', &
+         'simple pattern of beta                           ' /)
 
     character(len=*), dimension(0:1), parameter :: which_ho_nonlinear = (/ &
          'use standard Picard iteration  ', &
@@ -823,16 +819,25 @@ contains
 
     character(len=*), dimension(0:1), parameter :: ho_whichassemble_beta = (/ &
          'standard finite-element assembly (glissade dycore) ', &
-         'use local beta for assembly (glissade dycore)      '  /)
+         'use local beta at each vertex (glissade dycore)    '  /)
 
     character(len=*), dimension(0:1), parameter :: ho_whichassemble_taud = (/ &
-         'standard finite-element assembly (glissade dycore)     ', &
-         'use local driving stress for assembly (glissade dycore)'  /)
+         'standard finite-element assembly (glissade dycore)       ', &
+         'use local driving stress at each vertex (glissade dycore)'  /)
+
+    character(len=*), dimension(0:1), parameter :: ho_whichassemble_bfric = (/ &
+         'standard finite-element assembly (glissade dycore)       ', &
+         'use local basal friction at each vertex (glissade dycore)'  /)
 
     character(len=*), dimension(0:2), parameter :: ho_whichground = (/ &
          'f_ground = 0 or 1; no GLP  (glissade dycore)       ', &
-         'f_ground = 1 for all active cells (glissade dycore)', &
-         '0 <= f_ground <= 1, based on GLP (glissade dycore) ' /)
+         '0 <= f_ground <= 1, based on GLP (glissade dycore) ', &
+         'f_ground = 1 for all active cells (glissade dycore)' /)
+
+    character(len=*), dimension(0:2), parameter :: ho_whichflotation_function = (/ &
+         'f_pattyn = (-rhow*b)/(rhoi*H)              ', &
+         '1/fpattyn = (rhoi*H)/(-rhow*b)             ', &
+         'ocean cavity thickness = (-rhow*b) - rhoi*H' /)
 
     character(len=*), dimension(0:1), parameter :: ho_whichice_age = (/ &
          'ice age computation off', &
@@ -1247,11 +1252,26 @@ contains
              call write_log('Error, driving-stress assembly option out of range for glissade dycore', GM_FATAL)
           end if
 
+          write(message,*) 'ho_whichassemble_bfric  : ',model%options%which_ho_assemble_bfric,  &
+                            ho_whichassemble_bfric(model%options%which_ho_assemble_bfric)
+          call write_log(message)
+          if (model%options%which_ho_assemble_bfric < 0 .or. &
+              model%options%which_ho_assemble_bfric >= size(ho_whichassemble_bfric)) then
+             call write_log('Error, basal-friction assembly option out of range for glissade dycore', GM_FATAL)
+          end if
+
           write(message,*) 'ho_whichground          : ',model%options%which_ho_ground,  &
                             ho_whichground(model%options%which_ho_ground)
           call write_log(message)
           if (model%options%which_ho_ground < 0 .or. model%options%which_ho_ground >= size(ho_whichground)) then
              call write_log('Error, ground option out of range for glissade dycore', GM_FATAL)
+          end if
+
+          write(message,*) 'ho_whichflotation_function: ',model%options%which_ho_flotation_function,  &
+                            ho_whichflotation_function(model%options%which_ho_flotation_function)
+          call write_log(message)
+          if (model%options%which_ho_flotation_function < 0 .or. model%options%which_ho_flotation_function >= size(ho_whichflotation_function)) then
+             call write_log('Error, flotation_function option out of range for glissade dycore', GM_FATAL)
           end if
 
           write(message,*) 'ho_whichice_age         : ',model%options%which_ho_ice_age,  &
@@ -1265,6 +1285,13 @@ contains
           call write_log(message)
 
        end if
+
+       if (model%options%whichdycore == DYCORE_GLISSADE .and.   &
+           model%options%which_ho_ground == HO_GROUND_NO_GLP .and. &
+           model%options%which_ho_flotation_function == HO_FLOTATION_FUNCTION_PATTYN) then
+          write(message,*) 'Warning, Pattyn flotation function with no GLP tends to be unstable; inverse Pattyn is more stable'
+          call write_log(message)
+       endif
 
        if (model%options%whichdycore == DYCORE_GLISSADE .and.   &
            (model%options%which_ho_sparse == HO_SPARSE_PCG_STANDARD .or.  &
@@ -1289,7 +1316,7 @@ contains
     use glimmer_config
     use glide_types
     use glimmer_log
-    use glimmer_physcon, only: rhoi, rhoo, grav
+    use glimmer_physcon, only: rhoi, rhoo, grav, shci, lhci, trpt
 
     implicit none
     type(ConfigSection), pointer :: section
@@ -1307,6 +1334,9 @@ contains
     call GetValue(section,'rhoi', rhoi)
     call GetValue(section,'rhoo', rhoo)
     call GetValue(section,'grav', grav)
+    call GetValue(section,'shci', shci)
+    call GetValue(section,'lhci', lhci)
+    call GetValue(section,'trpt', trpt)
 #endif
 
     loglevel = GM_levels-GM_ERROR
@@ -1326,6 +1356,7 @@ contains
     call GetValue(section,'default_flwa',     model%paramets%default_flwa)
     call GetValue(section,'efvs_constant',    model%paramets%efvs_constant)
     call GetValue(section,'hydro_time',       model%paramets%hydtim)
+    call GetValue(section,'max_slope',        model%paramets%max_slope)
 
     ! NOTE: bpar is used only for BTRC_TANH_BWAT
     !       btrac_max and btrac_slope are used (with btrac_const) for BTRC_LINEAR_BMLT
@@ -1411,12 +1442,12 @@ contains
     endif
 
     if (model%options%whichcalving == CALVING_DAMAGE) then
-       write(message,*) 'calving damage threshold: ', model%calving%damage_threshold
+       write(message,*) 'calving damage threshold      : ', model%calving%damage_threshold
        call write_log(message)
     end if
 
-    if (model%calving%calving_timescale >= 0.0d0) then
-       write(message,*) 'calving time scale (yr): ', model%calving%calving_timescale
+    if (model%calving%calving_timescale > 0.0d0) then
+       write(message,*) 'calving time scale (yr)       : ', model%calving%calving_timescale
        call write_log(message)
     endif
 
@@ -1429,6 +1460,15 @@ contains
     write(message,*) 'gravitational accel (m/s^2)   : ', grav
     call write_log(message)
 
+    write(message,*) 'heat capacity of ice (J/kg/K) : ', shci
+    call write_log(message)
+
+    write(message,*) 'latent heat of ice (J/kg)     : ', lhci
+    call write_log(message)
+
+    write(message,*) 'triple point of water (K)     : ', trpt
+    call write_log(message)
+
     write(message,*) 'geothermal flux  (W/m^2)      : ', model%paramets%geot
     call write_log(message)
 
@@ -1438,6 +1478,11 @@ contains
     write(message,*) 'basal hydro time constant (yr): ', model%paramets%hydtim
     call write_log(message)
 
+    if (model%options%whichdycore == DYCORE_GLISSADE) then
+       write(message,*) 'max surface slope             : ', model%paramets%max_slope
+       call write_log(message)
+    end if       
+ 
     if (model%options%whichflwa == FLWA_CONST_FLWA) then
        write(message,*) 'constant flow factor (Pa^-n yr^-1):', model%paramets%default_flwa
        call write_log(message)
@@ -1930,7 +1975,9 @@ contains
         !TODO - Add C_space_factor to the restart file only if not = 1?
         call glide_add_to_restart_variable_list('C_space_factor')
       case default
-        ! Most other HO basal boundary conditions need the beta field  (although there are a few that don't)
+        ! Other HO basal boundary conditions may need the external beta field  (although there are a few that don't)
+        !Note: If using beta from an external file, then 'beta' here needs to be the fixed, external field,
+        !      and not the internal beta field that may have been weighted by the grounded fraction or otherwise adjusted.
         call glide_add_to_restart_variable_list('beta')
     end select
 

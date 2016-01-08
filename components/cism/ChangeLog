@@ -4,6 +4,159 @@ This file describes what main-trunk tags were created and why
 
 ================================================================================
 Originator: sacks
+Date: Nov 13, 2015
+Model: cism
+Version: cism2_1_10
+One-line summary: Update external, change some higher-order config settings
+
+Purpose of changes:
+
+   Update to a version of CISM and config setting changes which, together, allow
+   for long runs of CISM2.
+
+Changes answers relative to previous tag: YES
+
+   Changes answers for all CISM2 runs (but not CISM1)
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+========= Point to Bill Lipscomb's branch (not yet merged to 'develop')
+M       SVN_EXTERNAL_DIRECTORIES
+
+========= New config settings, and changed defaults for others
+M       bld/build-namelist
+M       bld/namelist_files/namelist_defaults_cism.xml
+M       bld/namelist_files/namelist_definition_cism.xml
+
+========= In aux_glc test list, change 1-year SMS test of 4-km CISM2 to 3-year
+          ERS test: performance of CISM2 has improved so that this is feasible
+          (just about 2-min run time). Also add 4-km tests back to prealpha /
+          prebeta test suites.
+M       cime_config/testdefs/testlist_cism.xml
+
+Summary of testing:
+
+   Ran full yellowstone aux_glc test suite. All tests passed, EXCEPT this
+   expected failure:
+
+   CFAIL ERS_Ly20_E.f09_g16_gl5.TGHIST.yellowstone_intel.GC.1113-0634.intel
+
+Externals used for testing: cesm1_5_beta02, but with cime at
+1e5b15f424d9d7bc57ef5158c3da7bcc0ef02fc3 (return_reverted_drv branch)
+
+cism tag used for baseline comparisons: cism2_1_08
+
+Any other externals that differed in baseline: cime at slightly different version
+
+================================================================================
+Originator: sacks
+Date: Nov 8, 2015
+Model: cism
+Version: cism2_1_09
+One-line summary: Add a single-processor TG test to the prealpha test suite
+
+Purpose of changes:
+
+   I realized we don't have any single-processor TG tests in the prealpha or
+   prebeta test suites, and recent CIME changes have broken these.
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+M       cime_config/testdefs/testlist_cism.xml
+
+Summary of testing: NONE
+
+Externals used for testing: N/A
+
+cism tag used for baseline comparisons: N/A
+
+Any other externals that differed in baseline: N/A
+
+================================================================================
+Originator: sacks
+Date: Oct 15, 2015
+Model: cism
+Version: cism2_1_08
+One-line summary: Add a compset option for turning off ice evolution
+
+Purpose of changes:
+
+   Allow turning off ice evolution (setting evolve_ice to 0 and zero_gcm_fluxes
+   to 1) via a compset option (CISM1%NOEVOLVE or CISM2%NOEVOLVE in the compset
+   long name). The purpose of this is to provide out-of-the-box settings for the
+   CESM2-dev compset, without needing to use a user_mods_dir.
+
+   Longer-term, I have been planning to rework the possible out-of-the-box
+   options, as part of turning CISM on by default. So, longer-term, I should
+   either:
+
+   (1) Back this out, replacing it with whatever my new scheme is
+
+   OR
+
+   (2) Keep something essentially like this long-term, as the mechanism to turn
+   ice evolution on/off. In this case, I should probably make the default to NOT
+   evolve, and then allow CISM%EVOLVE in the name. (or maybe require explicitly
+   setting CISM%EVOLVE or NOEVOLVE in the compset long name???)
+
+   I think my earlier thinking was to not make the setting of ice evolution be a
+   compset-level option (because this is simple enough to change after setting
+   up a compset), but now that I have this compset-level thing in place, I *may*
+   want to revisit that thinking.
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+========= Main change described here
+M       bld/namelist_files/namelist_defaults_cism.xml
+M       bld/build-namelist
+M       cime_config/config_component.xml
+
+========= Unrelated change: fix for cime3
+M       cime_config/buildnml
+
+Summary of testing:
+
+   Ran full yellowstone aux_glc test suite. All tests passed, EXCEPT these
+   expected failures:
+
+   CFAIL ERS_Ly20_E.f09_g16_gl5.TGHIST.yellowstone_intel
+   - See note under cism2_1_04
+
+   RUN SMS_Ly1.f09_g16_gl4.TGIS2.yellowstone_intel
+   - 4km Greenland runs are now dying due to a CFL violation
+
+   RUN ERS_Ly11.f09_g16_gl20.TG1850IS2.yellowstone_gnu.GC.1015-1613.gnu 
+   - Dies with MCT attribute array length mismatch error, which has been fixed
+   in a more recent cime tag than the one used here
+
+
+Externals used for testing:
+cime                               https://github.com/CESM-Development/cime/tags/cime3.0.5
+components/cam                     https://svn-ccsm-models.cgd.ucar.edu/cam1/branch_tags/cime_refactor_tags/cime_refactor_n03_cam5_4_11/components/cam
+components/clm                     https://svn-ccsm-models.cgd.ucar.edu/clm2/branch_tags/cime_refactor_tags/cime_refactor_n02_clm4_5_1_r119/components/clm
+components/cice                    https://svn-ccsm-models.cgd.ucar.edu/cice/trunk_tags/cice5_20150921
+components/pop                     https://svn-ccsm-models.cgd.ucar.edu/pop2/branch_tags/cime_refactor_tags/cime_refactor_n02_cesm_pop_2_1_20150810
+components/aquap                   https://svn-ccsm-models.cgd.ucar.edu/aquap/branch_tags/cime_refactor_tags/cime_refactor_n01_aquap_150301
+components/rtm                     https://svn-ccsm-models.cgd.ucar.edu/rivrtm/branch_tags/cime_refactor_tags/cime_refactor_n01_rtm1_0_52
+components/ww3                     https://svn-ccsm-models.cgd.ucar.edu/ww3/branch_tags/cime_refactor_tags/cime_refactor_n01_ww3_150311
+
+
+cism tag used for baseline comparisons: cism2_1_06
+
+Any other externals that differed in baseline: (same)
+
+================================================================================
+Originator: sacks
 Date: Sept 25, 2015
 Model: cism
 Version: cism2_1_07

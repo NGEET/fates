@@ -138,6 +138,7 @@
          !       but these values are applied to new accumulation at either surface (in glissade_add_smb)
 
          if (model%options%whichtemp == TEMP_PROGNOSTIC) then
+
             nt = nt + 1
             call parallel_halo(model%temper%temp)
             do k = 1, nlyr
@@ -147,6 +148,7 @@
             model%geometry%tracers_lsrf(:,:,nt) = model%temper%temp(nlyr+1,:,:)
 
          elseif (model%options%whichtemp == TEMP_ENTHALPY) then
+
             nt = nt + 1
             call parallel_halo(model%temper%enthalpy)
             do k = 1, nlyr
@@ -154,10 +156,12 @@
             enddo
             model%geometry%tracers_usrf(:,:,nt) = model%temper%enthalpy(0,:,:)
             model%geometry%tracers_lsrf(:,:,nt) = model%temper%enthalpy(nlyr+1,:,:)
+
          endif
 
          ! damage parameter for prognostic calving scheme
          if (model%options%whichcalving == CALVING_DAMAGE) then
+
             nt = nt + 1
             call parallel_halo(model%calving%damage)
             do k = 1, nlyr
@@ -177,6 +181,7 @@
          
          ! ice age parameter
          if (model%options%which_ho_ice_age == HO_ICE_AGE_COMPUTE) then
+
             nt = nt + 1
             call parallel_halo(model%geometry%ice_age)
             do k = 1, nlyr
@@ -1257,11 +1262,8 @@
             bed_accum = 0.d0
             bed_ablat = 0.d0
             
-            !TODO - Modify comments
             ! Add surface accumulation/ablation to ice thickness
             ! Also modify tracers conservatively.
-            ! Assume tracer(:,:,1,:) is temperature and is always present
-            ! Asumme tracer(:,:,2,:) is ice age and is optionally present
 
             if (acab(i,j) > 0.d0) then       ! accumulation, added to layer 1
 
@@ -1309,8 +1311,8 @@
             !TODO - Figure out how to handle excess energy given by melt_potential.
             !       Include in the heat flux passed back to CLM?
 
-            ! Note: It is theoretically possible that we could have residual energy remaining for surface
-            ! ablation while ice is freezing on at the bed, in which case the surface ablation should
+            ! Note: It is possible that we could have residual energy remaining for surface ablation
+            ! while ice is freezing on at the bed, in which case the surface ablation should
             ! be subtracted from the bed accumulation.  We ignore this possibility for now.
 
             if (bmlt(i,j) < 0.d0) then       ! freeze-on, added to lowest layer
@@ -1322,7 +1324,7 @@
                do nt = 1, ntracer  !TODO - Put this loop on the outside for speedup?
 
                   thck_tracer(i,j,nt,nlyr) = thck_layer(i,j,nlyr) * tracer(i,j,nt,nlyr)  &
-                                           + bed_accum * tracer_lsrf(i,j,nlyr)
+                                           + bed_accum * tracer_lsrf(i,j,nt)
 
                enddo  ! ntracer
 

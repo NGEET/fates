@@ -183,7 +183,7 @@ module glide_types
   integer, parameter :: HO_DISP_FIRSTORDER = 1
 
   integer, parameter :: HO_BABC_CONSTANT = 0
-  integer, parameter :: HO_BABC_SIMPLE = 1
+  integer, parameter :: HO_BABC_BETA_TPMP = 1
   integer, parameter :: HO_BABC_YIELD_PICARD = 2
   integer, parameter :: HO_BABC_BETA_BWAT = 3
   integer, parameter :: HO_BABC_LARGE_BETA = 4
@@ -194,6 +194,7 @@ module glide_types
   integer, parameter :: HO_BABC_POWERLAW = 9
   integer, parameter :: HO_BABC_COULOMB_FRICTION = 10
   integer, parameter :: HO_BABC_COULOMB_CONST_BASAL_FLWA = 11
+  integer, parameter :: HO_BABC_SIMPLE = 12
 
   integer, parameter :: HO_NONLIN_PICARD = 0
   integer, parameter :: HO_NONLIN_JFNK = 1
@@ -238,9 +239,16 @@ module glide_types
   integer, parameter :: HO_ASSEMBLE_TAUD_STANDARD = 0
   integer, parameter :: HO_ASSEMBLE_TAUD_LOCAL = 1
 
+  integer, parameter :: HO_ASSEMBLE_BFRIC_STANDARD = 0
+  integer, parameter :: HO_ASSEMBLE_BFRIC_LOCAL = 1
+
   integer, parameter :: HO_GROUND_NO_GLP = 0
   integer, parameter :: HO_GROUND_GLP = 1
   integer, parameter :: HO_GROUND_ALL = 2
+
+  integer, parameter :: HO_FLOTATION_FUNCTION_PATTYN = 0
+  integer, parameter :: HO_FLOTATION_FUNCTION_INVERSE_PATTYN = 1
+  integer, parameter :: HO_FLOTATION_FUNCTION_OCEAN_CAVITY = 2
 
   integer, parameter :: HO_ICE_AGE_NONE = 0 
   integer, parameter :: HO_ICE_AGE_COMPUTE = 1 
@@ -494,7 +502,7 @@ module glide_types
     !> Flag that describes basal boundary condition for HO dyn core: 
     !> \begin{description}
     !> \item[0] spatially uniform value (low value of 10 Pa/yr by default)
-    !> \item[1] simple hard-coded pattern (useful for debugging)
+    !> \item[1] large value for frozen bed, lower value for bed at pressure melting point
     !> \item[2] treat beta value as a till yield stress (in Pa) using Picard iteration 
     !> \item[3] linear (inverse) function of bwat 
     !> \item[4] very large value for beta to enforce no slip everywhere 
@@ -505,6 +513,7 @@ module glide_types
     !> \item[9] power law based using effective pressure
     !> \item[10] Coulomb friction law using effective pressure, with flwa from lowest ice layer
     !> \item[11] Coulomb friction law using effective pressure, with constant basal flwa
+    !> \item[12] simple hard-coded pattern (useful for debugging)
     !> \end{description}
 
     integer :: which_ho_nonlinear = 0
@@ -611,13 +620,30 @@ module glide_types
     !> \item[0] standard finite-element calculation (which effectively smooths the driving stress)
     !> \item[1] apply local value of driving stress at each vertex
 
-    integer :: which_ho_ground = 0    
+    integer :: which_ho_assemble_bfric = 0
+
+    !> Flag that describes how the basal friction heat flux is computed in the glissade finite-element calculation
+    !> \begin{description}
+    !> \item[0] standard finite-element calculation summing over quadrature points
+    !> \item[1] apply local value of beta*(u^2 + v^2) at each vertex
+
+    integer :: which_ho_ground = 0
     !> Flag that indicates how to compute the grounded fraction of each gridcell in the glissade dycore.
     !> Not valid for other dycores
     !> \begin{description}
     !> \item[0] fground = 0 in floating cells (based on flotation condition), else fground = 1 
     !> \item[1] 0 <= fground <= 1, based on a grounding line parameterization
     !> \item[2] fground = 1 in all cells
+
+    !TODO - Change default to linear function 2?  Change name to HO_FLOTATION_FUNCTION_LINEAR?
+    integer :: which_ho_flotation_function = 1
+    !> Flag that indicates how to compute the flotation function at and near vertices in the glissade dycore
+    !> Not valid for other dycores
+    !> \begin{description}
+    !> \item[0] f_flotation = (-rhow*b/rhoi*H) = f_pattyn; <=1 for grounded, > 1 for floating
+    !> \item[1] f_flotation = (rhoi*H)/(-rhow*b) = 1/f_pattyn; >=1 for grounded, < 1 for floating
+    !> \item[2] f_flotation = -rhow*b - rhoi*H = ocean cavity thickness; <=0 for grounded, > 0 for floating 
+    !TODO - Consider changing the default after further testing (currently 1/f_pattyn)
 
     integer :: which_ho_ice_age = 1    
     !> Flag that indicates whether to compute a 3d ice age tracer
@@ -664,8 +690,9 @@ module glide_types
     real(dp),dimension(:,:),pointer :: topg => null() 
     !> The elevation of the topography, divided by \texttt{thk0}.
 
-    real(dp),dimension(:,:),pointer :: f_pattyn=> null() 
-    !> Pattyn flotation function, rhoo*(topg-eus)/(rhoi*thck)
+    real(dp),dimension(:,:),pointer :: f_flotation => null() 
+    !> flotation function, (rhoi*thck) / (-rhoo*(topg-eus))
+    !> previously was f_pattyn = -rhoo*(topg-eus)/(rhoi*thck)
     !    (computed by glissade dycore only)
 
     real(dp),dimension(:,:),pointer :: f_ground => null() 
@@ -819,7 +846,7 @@ module glide_types
     real(dp),dimension(:,:)  ,pointer :: btrc  => null()        !>  basal traction (scaler field)
     real(dp),dimension(:,:,:),pointer :: btraction => null()    !> x(1,:,:) and y(2,:,:) "consistent" basal traction fields 
     real(dp),dimension(:,:)  ,pointer :: beta  => null()        !> basal shear coefficient on velo grid (Pa yr/m by default)
-    real(dp),dimension(:,:)  ,pointer :: beta_external => null()!> beta from external file (for which_ho_babc = HO_BABC_EXTERNAL_BETA)
+    real(dp),dimension(:,:)  ,pointer :: beta_internal => null()!> beta weighted by f_ground or otherwise adjusted (glissade only)
     real(dp),dimension(:,:)  ,pointer :: unstagbeta  => null()  !> basal shear coefficient on ice grid (Pa yr/m by default)
     real(dp),dimension(:,:)  ,pointer :: tau_x => null()        !> SIA basal shear stress, x-dir
     real(dp),dimension(:,:)  ,pointer :: tau_y => null()        !> SIA basal shear stress, y-dir
@@ -893,7 +920,7 @@ module glide_types
                                             !> WHL - previously defined as the fraction of floating ice that does not calve
      real(dp) :: calving_timescale = 0.0d0  !> time scale (yr) for calving (Glissade only); calving_thck = thck * max(dt/calving_timescale, 1)
                                             !> if calving_timescale = 0, then calving_thck = thck
-     real(dp) :: calving_minthck = 100.d0   !> min thickness (m) of ice at marine edge before it calves
+     real(dp) :: calving_minthck = 100.d0   !> minimum thickness (m) of floating ice at marine edge before it calves
                                             !> (whichcalving = CALVING_THCK_THRESHOLD)
      real(dp) :: damage_threshold = 1.0d0   !> threshold at which ice column is deemed sufficiently damaged to calve
                                             !> assuming that 0 = no damage, 1 = total damage
@@ -1145,11 +1172,10 @@ module glide_types
 
     integer :: profile_period = 100            ! profile frequency
 
-    !TODO - Compute ndiag as a function of dt_diag and pass to glide_diagnostics?
-    !       This is more robust than computing mods of real numbers. 
-
-    real(dp) :: dt_diag = 0.d0     ! diagnostic time interval (write diagnostics every dt_diag years)
-    integer  :: ndiag = -999       ! diagnostic period (write output every ndiag steps)
+    real(dp) :: dt_diag = 0.d0     ! diagnostic interval (write diagnostic output every dt_diag years)
+                                   ! dt_diag = 0 => never write diagnostic output
+    integer  :: ndiag = 0          ! diagnostic interval (write diagnostic output every ndiag timesteps)
+                                   ! ndiag = 0 => never write diagnostic output
     integer  :: idiag = 1          ! global grid indices for diagnostic point
     integer  :: jdiag = 1          ! 
     integer  :: idiag_local = 1    ! local grid indices for diagnostic point
@@ -1265,7 +1291,10 @@ module glide_types
                                        ! = 0.5*A^(-1), where A = 2.140373 Pa^(-1) yr^(1) is the value used in ISMIP-HOM Test F
     real(dp) :: ho_beta_const = 10.d0  ! spatially uniform beta for HO dycores, Pa yr m^{-1} (gets scaled during init)
     real(dp) :: p_ocean_penetration = 0.0d0  ! p-exponent parameter for ocean penetration parameterization
-
+    real(dp) :: max_slope = 1.0d0      ! maximum surface slope allowed in Glissade dycore (unitless)
+                                       ! Note: It may be necessary to reduce max_slope to ~0.1 to prevent huge velocities
+                                       !       in regions of rough coastal topography
+            
   end type glide_paramets
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1442,7 +1471,7 @@ contains
     !> \item \texttt{mask(ewn,nsn))}
     !> \item \texttt{age(upn-1,ewn,nsn))}
     !> \item \texttt{tracers(ewn,nsn,ntracers,upn-1)}
-    !> \item \texttt{f_pattyn(ewn,nsn)}
+    !> \item \texttt{f_flotation(ewn,nsn)}
     !> \item \texttt{f_ground(ewn-1,nsn-1)}
     !* (DFM) added floating_mask, ice_mask, lower_cell_loc, and lower_cell_temp
     !> \item \texttt{floating_mask(ewn,nsn))}
@@ -1589,13 +1618,13 @@ contains
        call coordsystem_allocate(model%general%velo_grid, model%velocity%tau_y)
     else   ! glam/glissade dycore
        call coordsystem_allocate(model%general%velo_grid, model%velocity%beta)
+       call coordsystem_allocate(model%general%velo_grid, model%velocity%beta_internal)
        call coordsystem_allocate(model%general%ice_grid, model%velocity%unstagbeta)
        ! Set beta and unstagbeta to physically unrealistic values so we can tell later 
        ! if these fields were read correctly from an input file
        model%velocity%beta(:,:) = unphys_val   ! unphys_val = -999.0d0
        model%velocity%unstagbeta(:,:) = unphys_val
 
-       call coordsystem_allocate(model%general%velo_grid, model%velocity%beta_external)
        call coordsystem_allocate(model%general%ice_grid,  upn, model%velocity%wvel_ho)
        call coordsystem_allocate(model%general%velo_grid, model%velocity%kinbcmask)
        call coordsystem_allocate(model%general%velo_grid, model%velocity%dynbcmask)
@@ -1655,7 +1684,7 @@ contains
        call coordsystem_allocate(model%general%ice_grid, model%thckwk%oldthck2)
     else   ! glam/glissade dycore
        call coordsystem_allocate(model%general%ice_grid, upn-1, model%geometry%ice_age)
-       call coordsystem_allocate(model%general%ice_grid,  model%geometry%f_pattyn)
+       call coordsystem_allocate(model%general%ice_grid,  model%geometry%f_flotation)
        call coordsystem_allocate(model%general%velo_grid, model%geometry%f_ground)
        call coordsystem_allocate(model%general%velo_grid, model%geomderv%dlsrfdew)
        call coordsystem_allocate(model%general%velo_grid, model%geomderv%dlsrfdns)
@@ -1882,8 +1911,8 @@ contains
         deallocate(model%velocity%beta)
     if (associated(model%velocity%unstagbeta)) &
         deallocate(model%velocity%unstagbeta)
-    if (associated(model%velocity%beta_external)) &
-        deallocate(model%velocity%beta_external)
+    if (associated(model%velocity%beta_internal)) &
+        deallocate(model%velocity%beta_internal)
     if (associated(model%velocity%wvel_ho)) &
         deallocate(model%velocity%wvel_ho)
     if (associated(model%velocity%kinbcmask)) &
@@ -1999,8 +2028,8 @@ contains
         deallocate(model%geometry%ice_age)
     if (associated(model%geometry%tracers)) &
         deallocate(model%geometry%tracers)
-    if (associated(model%geometry%f_pattyn)) &
-        deallocate(model%geometry%f_pattyn)
+    if (associated(model%geometry%f_flotation)) &
+        deallocate(model%geometry%f_flotation)
     if (associated(model%geometry%f_ground)) &
         deallocate(model%geometry%f_ground)
     if (associated(model%geomderv%dlsrfdew)) &
