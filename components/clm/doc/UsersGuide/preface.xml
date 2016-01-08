@@ -1,7 +1,7 @@
 <!-- Begin introduction preface -->
 <preface id="acknowledge">
 <prefaceinfo>
-<releaseinfo>$Id: preface.xml 46394 2013-04-25 22:24:18Z erik $</releaseinfo>
+<releaseinfo>$Id: preface.xml 75719 2015-12-11 17:54:27Z sacks $</releaseinfo>
 </prefaceinfo>
 <title>Acknowledgments</title>
 <para>
@@ -1269,9 +1269,6 @@ only used for &clm; stand-alone testing.</para>
 <listitem><para><emphasis>casa namelist options:</emphasis> lnpp, lalloc, q10, spunup, and fcpool
 
         CASA has NOT been scientifically validated in &clm4;.</para>
-</listitem>
-<listitem><para><emphasis>fine-mesh namelist options:</emphasis> flndtopo, and fatmtopo.
-        These options are functional but experimental. See the -lnd_res option above.</para>
 </listitem>
 <listitem>
    <para>
