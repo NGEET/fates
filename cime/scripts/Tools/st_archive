@@ -29,8 +29,8 @@ require Config::SetupTools;
 require Log::Log4perl;
 
 # Globals
-my %opts = (loglevel=>"DEBUG");
-
+my %opts = (loglevel=>"INFO");
+my $compmap;
 my $level = Log::Log4perl::Level::to_priority($opts{loglevel});
 Log::Log4perl->easy_init({level=>$level,
 			  layout=>'%m%n'});
@@ -57,7 +57,7 @@ sub usage {
 SYNOPSIS
 
     Controls short term archiving tasks after the model run is
-    successfully completed.  It is called after the \$CASE.run script
+    successfully completed.  It is called after the case.run script
     successfully completes and the DOUT_S variable is set to TRUE. It
     can also be run as a stand-alone script.
 
@@ -126,10 +126,6 @@ ENV_ARCHIVE.XML SCHEMA AND DOCUMENT TYPE DEFINITION (DTD)
         $\DOUT_S_ROOT location.  These may not correspond to the model
         component name.
 
-        <multi_instance>[string] (true|false)</multi_instance> 
-        True or false if model component supports multiple instances
-	in a given run directory.
-
         <files> <file_extension suffix="[regular expression string]">
 	Perl regular expression specification for "globbing" filenames
 	for matching. Run the command "\$CASEROOT/st_archive -input"
@@ -165,7 +161,7 @@ THAT ARE INCLUDED IN THE ENV_RUN.XML FILE
     archive files. The st_archive creates an archive locked directory
     (ARCHIVE_DIR_LOCKED) using the basename of the DOUT_S_ROOT location.
 
-    DOUT_S_SAVE_ALL_ON_DISK - [boolean] If set to TRUE (default), then
+    DOUT_S_CREATE_LINKED_ARCHIVE - [boolean] If set to TRUE (default), then
     the st_archive creates an archive linked directory
     (\$ARCHIVE_DIR_LINKED) using the basename of the \$DOUT_S_ROOT
     location.  The \$ARCHIVE_DIR_LOCKED and \$ARCHIVE_DIR_LINKED
@@ -192,37 +188,29 @@ THAT ARE INCLUDED IN THE ENV_RUN.XML FILE
     run. This is for expert users ONLY and requires expert
     knowledge. We will not document this further in this guide.
 
-    DOUT_S_SAVE_EVERY_NTH_RESTART_FILE_SET - [integer] If value is
-    greater than 0 (default), then only save the nth restart set in
-    the \$DOUT_S_ROOT/rest location. Always preserve the most recent
-    restart set regardless.
-
 USAGE
     st_archive [options]
 
 OPTIONS
-    -help [or -h] Print usage to STDOUT.
+    -help|-h     Print usage to STDOUT.
 
-    -input List out the contents of the env_archive.xml datafile in a
-           friendly format and check the env_archive.xml file for
-           validity.
+    -input|-in   List out the contents of the env_archive.xml datafile in a
+                 friendly format and check the env_archive.xml file for
+                 validity.
 
-    -output List out the contents of the archive directory.
+    -output|-out List out the contents of the archive directory.
 
-    -clean Create / update hardlinks in both the \$ARCHIVE_DIR_LOCKED
-           and \$ARCHIVE_DIR_LINKED for duplicate files.
+    -link        Create / update the hardlinks from the \$ARCHIVE_DIR_LINKED
+                 to the \$ARCHIVE_DIR_LOCKED.
 
-    -link Create / update the hardlinks from the \$ARCHIVE_DIR_LINKED
-          to the \$ARCHIVE_DIR_LOCKED.
+    -undo        move all the files from the \$ARCHIVE_DIR_LOCKED back into the \$RUNDIR
 
-    -undo move all the files from the \$ARCHIVE_DIR_LOCKED back into the \$RUNDIR
-
-    -debug Turn on script debugging messages.
+    -loglevel    set level of output from this script DEBUG, INFO, WARN, ERROR, FATAL (default INFO)
 
 EOF
 #" added per for emacs perl mode parsing
 
-    print $usgstatement;
+    $logger->info($usgstatement);
     exit(1);
 }
 
@@ -236,10 +224,9 @@ sub getOptions
 	"h|help"        => \$opts{'help'},
         "in|input"      => \$opts{'input'}, 	
         "out|output"    => \$opts{'output'}, 	
-        "clean"         => \$opts{'clean'}, 	
         "link"          => \$opts{'link'}, 	
 	"undo"          => \$opts{'undo'},
-	"debug"         => \$opts{'debug'}
+	"loglevel"     => \$opts{loglevel}
     );
     usage() if $opts{'help'};
 }
@@ -253,13 +240,13 @@ sub checkRun
     my $statusFile = shift;
     my $runComplete = 0;
 
-    if( defined $opts{'debug'} ) { print qq(In checkRun...\n); }
+    $logger->debug("In checkRun..."); 
 #
 # check if DOUT_S_ROOT is defined
 #
     if( !defined $config{'DOUT_S_ROOT'} || uc($config{'DOUT_S_ROOT'}) eq 'UNSET' )
     {
-	die qq(st_archive: Error - XML variable DOUT_S_ROOT is required for root location of short-term achiver. Exiting...\n);
+	$logger->logdie("st_archive: Error - XML variable DOUT_S_ROOT is required for root location of short-term achiver. Exiting...");
     }
 #
 # check if DOUT_S_ROOT dir needs to be created (or not) and if it can be read - creation permissions defaults to user's umask setting
@@ -271,10 +258,10 @@ sub checkRun
 
     my $readme = qq($dir.locked/README.locked);
     mkpath( $config{'ARCHIVE_DIR_LOCKED'}, {verbose => 1, error => \my $err_list} ) unless ( -d $config{'ARCHIVE_DIR_LOCKED'} );
-    chdir( $config{'ARCHIVE_DIR_LOCKED'} ) or die qq(st_archive: Error - cannot access directory $config{'ARCHIVE_DIR_LOCKED'} with error $err_list. Exiting...\n);
+    chdir( $config{'ARCHIVE_DIR_LOCKED'} ) or $logger->logdie ("st_archive: Error - cannot access directory $config{'ARCHIVE_DIR_LOCKED'} with error $err_list. Exiting...");
 
     if( !-e $readme ) {
-	open ( my $fh, ">", $readme) or die qq(st_archive: Error - cannont create $readme. Exiting...\n);
+	open ( my $fh, ">", $readme) or $logger->logdie("st_archive: Error - cannont create $readme. Exiting...");
 	print $fh <<"EOD";
 
 ** IMPORTANT NOTICE ** 
@@ -286,7 +273,7 @@ and the short term st_archive is active.
 A parallel directory located in DOUT_S_ROOT is available for *READ ONLY* 
 operations on CESM model output files. The short term archiver (st_archive)
 automatically creates and populates this directory with hard linked filenames 
-when the environment variable DOUT_S_SAVE_ALL_ON_DISK is set to TRUE. Users 
+when the environment variable DOUT_S_CREATE_LINKED_ARCHIVE is set to TRUE. Users 
 may run diagnostics and post-processing routines in this location while
 the model is running and st_archive is also running. However,
 be aware that the file names in this directory may not change but
@@ -304,7 +291,7 @@ EOD
     if( uc($config{'DOUT_S_SAVE_INTERIM_RESTART_FILES'}) eq 'FALSE' || uc($config{'DOUT_S_SAVE_INTERIM_RESTART_FILES'}) eq 'UNSET' ) 
     {
 	$config{'DOUT_S_SAVE_INTERIM_RESTART_FILES'} = 'FALSE';
-	warn qq(st_archive: Warning - restart files from end of run will be saved, interim restart files will be deleted.);
+	$logger->warn("st_archive: Warning - restart files from end of run will be saved, interim restart files will be deleted.");
     }
 #
 # check if the run completed successfully
@@ -322,10 +309,6 @@ EOD
 	}
 	close( $CASESTATUS );
     }
-    if( !defined $config{'DOUT_S_SAVE_EVERY_NTH_RESTART_FILE_SET'} || uc($config{'DOUT_S_SAVE_EVERY_NTH_RESTART_FILE_SET'}) eq 'UNSET' )
-    {
-	$config{'DOUT_S_SAVE_EVERY_NTH_RESTART_FILE_SET'} = 0;
-    }
 
     return $runComplete;
 }
@@ -337,7 +320,7 @@ EOD
 sub readXMLin
 {
     my $filename = shift;
-    if( defined $opts{'debug'} ) { print qq(In readXMLin...\n); }
+    $logger->debug("In readXMLin..."); 
     my $parser = XML::LibXML->new();
     my $xml = $parser->parse_file($filename);
     return $xml;
@@ -349,7 +332,7 @@ sub readXMLin
 sub listXMLin
 {
     my ($xml) = shift;
-    if( defined $opts{'debug'} ) { print qq(In listXMLin...\n); }
+    $logger->debug("In listXMLin..."); 
     my $rootel = $xml->getDocumentElement();
 
     my $schema = <<EOF;
@@ -373,7 +356,7 @@ EOF
     print $schema;
 
     my $elname = $rootel->getName();
-    print qq(Root element is a $elname and it contains ...\n);
+    $logger->info("Root element is a $elname and it contains ...");
 #
 # list out the components nodes
 #
@@ -382,12 +365,17 @@ EOF
 
 	my $compname = $comp->getAttribute('name');
 	my $rootdir = $comp->findvalue('./rootdir');
-	my $multi = $comp->findvalue('./multi_instance');
+	my $ninst = getcompninst($compname);
+	my $multi = "false";
+	if($ninst > 1){
+	    $multi = "true";
+	}
+	
 
-	print qq(\n============================================================================\n);
-	print qq(Component name = $compname\n);
-	print qq(rootdir = $rootdir\n);
-	print qq(multiple-instance support = $multi\n);
+	$logger->info("\n============================================================================");
+	$logger->info("Component name = $compname");
+	$logger->info("rootdir = $rootdir");
+	$logger->info("multiple-instance support = $multi");
 
 	my @files = $comp->findnodes('./files/file_extension');
         foreach my $file (@files) 
@@ -396,14 +384,12 @@ EOF
 	    my $subdir = $file->findvalue('./subdir');
 	    my $keep_last_in_rundir = $file->findvalue('./keep_last_in_rundir');
 
-	    print qq(\n***** File extension specification\n);
-	    print qq(  suffix = $suffix\n);  
-	    print qq(  subdir = $config{'ARCHIVE_DIR_LOCKED'}/$config{'CASENAME'}$rootdir/$subdir\n);
-	    print qq(  keep_last_in_rundir = $keep_last_in_rundir\n);
+	    $logger->info("\n***** File extension specification");
+	    $logger->info("  suffix = $suffix");  
+	    $logger->info("  subdir = $config{'ARCHIVE_DIR_LOCKED'}/$config{'CASENAME'}$rootdir/$subdir");
+	    $logger->info("  keep_last_in_rundir = $keep_last_in_rundir");
 	}
-	print qq(\n);
     }
-    print qq(\n);
 }
 
 #-----------------------------------------------------------------------------------------------
@@ -411,10 +397,10 @@ EOF
 #-----------------------------------------------------------------------------------------------
 sub getDname
 {
-    if( defined $opts{'debug'} ) { print qq(In getDname...\n); }
+    $logger->debug("In getDname...");
 
     my $DIR = $config{'RUNDIR'};
-    opendir( my $dh, $DIR ) or die qq(st_archive: Error - cannot open directory $DIR. Exiting...\n);
+    opendir( my $dh, $DIR ) or $logger->logdie("st_archive: Error - cannot open directory $DIR. Exiting...");
 
     my @files = sort { $b->[10] <=> $a->[10] } 
                 map {[ $_, CORE::stat "$DIR/$_" ]} 
@@ -425,7 +411,7 @@ sub getDname
     $name =~ s/\.nc//;
     $name =~ s/^.*\.r\.//;
 
-    if( defined $opts{'debug'} ) { print qq(Cpl dName: $name\n); }
+    $logger->debug("Cpl dName: $name"); 
     return $name;
 }
 
@@ -435,9 +421,9 @@ sub getDname
 sub listArchive
 {
     my ($thing) = @_;
-    if( defined $opts{'debug'} ) { print qq(In listArchive: $thing ...\n); }
+    $logger->debug("In listArchive: $thing ..."); 
 
-    print qq($thing \n);
+    $logger->info("$thing ");
     return if not -d $thing;
     opendir my $dh, $thing or die;
     while (my $sub = readdir $dh) {
@@ -455,7 +441,7 @@ sub listArchive
 sub traverse
 {
     my ($thing) = @_;
-    if( defined $opts{'debug'} ) { print qq(In traverse: $thing ...\n); }
+    $logger->debug("In traverse: $thing ...");
 # need to check for -f 
     if( -f $thing ) 
     {
@@ -475,7 +461,7 @@ sub traverse
 	mkpath( $linkdir, {verbose => 1, error => \my $err_list} )  unless ( -d $linkdir );	
 
 # return if $thing isn't a directory
-	opendir my $dh, $thing or die qq(st_archive: Error - in traverse cannot open directory $thing. Exiting...\n);
+	opendir my $dh, $thing or $logger->logdie("st_archive: Error - in traverse cannot open directory $thing. Exiting...");
 	while (my $sub = readdir $dh) {
 	    next if $sub eq '.' or $sub eq '..';
  	    traverse("$thing/$sub");
@@ -485,6 +471,41 @@ sub traverse
 
     return;
 }
+
+
+#-----------------------------------------------------------------------------------------------
+# get the NINST_[comp] from the config hash to determine if multiple instances are supported
+#-----------------------------------------------------------------------------------------------
+sub getcompninst
+{
+    my ($comp) = @_;
+
+    # the comp variable corresponds to the name attribute of the comp_archive_spec
+    # in the env_archive.xml. Only need the first word of the comp and not the
+    # regex punctuation
+    $comp = (split('\[',$comp))[0];
+
+    # this loop is only executed the first time the subroutine is called
+    # in order to load the compmap hash with all the actual model names
+    # for a given component
+    if(! defined $compmap){
+	foreach( qw(ATM CPL OCN WAV GLC ICE ROF LND )){
+	    if($comp = $config{"COMP_".$_}){
+		$compmap->{$comp} = $_;
+	    }
+	}
+    }
+
+    # with the compmap hash, look for the NINST value in the global config hash
+    my $ninstname = "NINST_".$compmap->{$comp};
+    $logger->debug("Looking for $ninstname in config");
+    if(defined $config{$ninstname}){
+	return $config{$ninstname};
+    }else{
+	return 1;
+    }
+}
+
 
 #-----------------------------------------------------------------------------------------------
 # crawl the DOUT_S_ROOT.locked dir and create the associated DOUT_S_ROOT hard links
@@ -497,17 +518,17 @@ sub processHardlinks
 ##
     $config{'ARCHIVE_DIR_LINKED'} = $config{'DOUT_S_ROOT'};
     mkpath( $config{'ARCHIVE_DIR_LINKED'}, {verbose => 1, error => \my $err_list} )  unless ( -d $config{'ARCHIVE_DIR_LINKED'} );
-    chdir( $config{'ARCHIVE_DIR_LINKED'} ) or die qq(st_archive: Error - cannot access directory $config{'ARCHIVE_DIR_LINKED'}. Not able to save a working copy of output files on disk with error $err_list. Exiting...\n);
+    chdir( $config{'ARCHIVE_DIR_LINKED'} ) or $logger->logdie("st_archive: Error - cannot access directory $config{'ARCHIVE_DIR_LINKED'}. Not able to save a working copy of output files on disk with error $err_list. Exiting...");
     my $readme = qq($config{'ARCHIVE_DIR_LINKED'}/../README);
     if( !-e $readme ) {
-	open ( my $fh, ">", $readme) or die qq(st_archive: Error - cannont create $readme. Exiting...\n);
+	open ( my $fh, ">", $readme) or $logger->logdie("st_archive: Error - cannont create $readme. Exiting...");
 	print $fh <<"EOD";
 
 ** IMPORTANT NOTICE ** 
 This directory is available for *READ ONLY* operations on CESM model 
 output files that have been written by the short term archiver (st_archive). 
 This directory is automatically created and populated with hard linked 
-filenames when the environment variable DOUT_S_SAVE_ALL_ON_DISK is set to TRUE. 
+filenames when the environment variable DOUT_S_CREATE_LINKED_ARCHIVE is set to TRUE. 
 Users may run diagnostics and post-processing routines in this location while
 the model is running and st_archive is also running.
 
@@ -532,8 +553,7 @@ EOD
 
 #-----------------------------------------------------------------------------------------------
 # undoArchive routine loops through the ARCHIVE_DIR_LOCKED getting the list of archived files
-# and unlinks the corresponding file in the ARCHIVE_DIR_LINKED and then moves the file back
-# into the RUNDIR
+# and then moves the file back into the RUNDIR. This has no affect on the ARCHIVE_DIR_LINKED files.
 #-----------------------------------------------------------------------------------------------
 sub undoArchive
 {
@@ -544,13 +564,9 @@ sub undoArchive
 	  }, 
 	  $config{'ARCHIVE_DIR_LOCKED'});
     
-    my $linkfile;
     my $numArchivefiles = @archivefiles;
     if( $numArchivefiles > 0 ) {
 	foreach my $file (@archivefiles) {
-	    $linkfile = $file;
-	    $linkfile =~ s/\.locked//g;
-	    unlink( $linkfile );
 	    move( $file, $config{'RUNDIR'} );
 	}
     }
@@ -573,7 +589,7 @@ sub moveFiles
 
     my %time = '';
     my $restFile = '';
-    if( defined $opts{'debug'} ) { print qq(In moveFiles...\n); }
+    $logger->debug("In moveFiles..."); 
 #
 # make sure operating from within the RUNDIR
 #
@@ -611,7 +627,7 @@ sub moveFiles
 #
 # copy the last file into the destination dir and the restdir
 #
-	    if( defined $opts{'debug'} ) { print qq(keepFile = $keepFile); }
+	    $logger->debug("keepFile = $keepFile"); 
 	    copy( $keepFile, $dest );
 
 	    foreach my $file (@files) {
@@ -631,7 +647,7 @@ sub moveFiles
     }
 # 
 # also get the file that matches the dname for this suffix and
-# add a hardlink to the restdir
+# copy to the restdir for a complete restart set
 #
     my @restFiles = grep(/${dname}/, @files);
     if( $#restFiles == 0 ) {
@@ -639,12 +655,12 @@ sub moveFiles
 	if ( $#path >= 0 ) {
 	    $restFile = $path[$#path];
 	    if ( -f $dest . "/" . $restFile ) {
-		link ( $dest . "/" . $restFile, $restdir . "/" . $restFile );
+		copy( $dest . "/" . $restFile, $restdir . "/" . $restFile );
 	    }
 	}
     }
     elsif( $#restFiles > 0 ) {
-	print qq(st_archive: multiple restart files found for suffix=$suffix);
+	$logger->info("st_archive: multiple restart files found for suffix=$suffix");
     }
     return $numfiles, \@runfiles;
 }
@@ -660,7 +676,7 @@ sub archiveProcess
 
     my @runfiles = @{$runfilesref};
 
-    if( defined $opts{'debug'} ) { print qq(In archiveProcess...\n); }
+    $logger->debug("In archiveProcess..."); 
     my %fExt = ();
     my %comp = ();
     my ($source, $destdir, $linkdir, $outfile) = '';
@@ -669,14 +685,14 @@ sub archiveProcess
 #
     my $restdir = qq($config{'ARCHIVE_DIR_LOCKED'}/rest/$dname);
     mkpath( $restdir, {verbose => 1, error => \my $err_list} )  unless ( -d $restdir );
-    chdir ($restdir ) or die qq(st_archive: Error - cannot access directory $restdir with error $err_list. Exiting...\n);
+    chdir ($restdir ) or $logger->logdie("st_archive: Error - cannot access directory $restdir with error $err_list. Exiting...");
 #
 # copy rpointer files for all components to the $restdir
 #
     chdir ($config{'RUNDIR'});
     my @rpointers = <$config{'RUNDIR'}/rpointer.*>;
     foreach my $rpointer (@rpointers) {
-	    copy( $rpointer, $restdir ) or die qq(st_archive: Error - cannot copy $rpointer file to directory $restdir. Exiting...\n);
+	    copy( $rpointer, $restdir ) or $logger->logdie("st_archive: Error - cannot copy $rpointer file to directory $restdir. Exiting...");
     }
 #
 # main loop through the comp_archive_spec XML elements handling the associated files accordingly
@@ -688,19 +704,10 @@ sub archiveProcess
 	$str =~ s/\s+$//;
 	my $compname = $str;
 	my $rootdir = $xmlcomp->findvalue('./rootdir');
-	my $multi = $xmlcomp->findvalue('./multi_instance');
 #
 # get the number of instances running for each component that supports multiple instances
 #
-	my $ninst = 1; 
-	if( $multi eq "true" ) {
-	    my $compuc = uc($rootdir);
-	    my $var = qq(NINST_$compuc);
-	    $ninst = $config{$var};
-	    if( length( $ninst ) == 0 ) { 
-		$ninst = 1; 
-	    }
-	}
+	my $ninst = getcompninst($compname);
 #
 # loop through the file extensions for this component to copy over files with those matching extensions to the ARCHIVE_DIR locations
 #
@@ -715,7 +722,7 @@ sub archiveProcess
 #
 	    $destdir = qq($config{'ARCHIVE_DIR_LOCKED'}/$rootdir/$subdir);
 	    mkpath( $destdir, {verbose => 1, error => \my $err_list} )  unless ( -d $destdir );
-	    chdir( $destdir ) or die qq(st_archive: Error - cannot access directory $destdir with error $err_list. Exiting...\n);
+	    chdir( $destdir ) or $logger->logdie("st_archive: Error - cannot access directory $destdir with error $err_list. Exiting...");
 #
 # main loop to move files
 # 
@@ -759,9 +766,9 @@ sub getRestartDirs
     my @subdirs;
     my @sorteddirs;
 
-    if( defined $opts{'debug'} ) { print qq(In getRestartDirs...\n); }
+    $logger->debug("In getRestartDirs..."); 
 
-    opendir my $dh, "$config{'ARCHIVE_DIR_LOCKED'}/rest" or die qq(st_archive: Error - in getRestartDirs cannot open directory $config{'ARCHIVE_DIR_LOCKED'}/rest. Exiting...\n);;
+    opendir my $dh, "$config{'ARCHIVE_DIR_LOCKED'}/rest" or $logger->logdie("st_archive: Error - in getRestartDirs cannot open directory $config{'ARCHIVE_DIR_LOCKED'}/rest. Exiting...");;
     while ( my $sub = readdir $dh ) {
 	next if (( $sub eq '.' ) or ( $sub eq '..' ));
 	if( -d "$config{'ARCHIVE_DIR_LOCKED'}/rest/$sub" ) 
@@ -785,49 +792,6 @@ sub getRestartDirs
 	@sorteddirs = reverse( sort { $time{$b} <=> $time{$a} } keys %time );
     }
     return ( @sorteddirs );
-}
-
-#-----------------------------------------------------------------------------------------------
-# short term archive clean - checks the DOUT_S_SAVE_EVERY_NTH_RESTART_FILE_SET option and deletes all 
-# restart sets that are not either the Nth set or the last set.
-#-----------------------------------------------------------------------------------------------
-sub cleanArchive
-{
-    my ($i, $j) = 0;
-    my @indeces;
-    my $linkeddir;
-
-    if( defined $opts{'debug'} ) { print qq(In cleanArchive...\n); }
-
-    my @sorteddirs = getRestartDirs();
-    my $numsubdirs = @sorteddirs;
-
-# this code may no longer be needed with the new DART loop in the run script...
-    if( $config{'DOUT_S_SAVE_EVERY_NTH_RESTART_FILE_SET'} > 1 ) 
-    {
-# save every nth restart file set
-	for( $i = 0; $i < $numsubdirs; $i += $config{'DOUT_S_SAVE_EVERY_NTH_RESTART_FILE_SET'} )
-	{
-	    push( @indeces, $i );
-	}
-	
-	for my $index (0 .. $#indeces-1) 
-	{
-	    my $start = $index;
-	    my $end = $indeces[$index+1];
-	    for( $j = $start+1; $j < $end; $j++ ) 
-	    {
-# remove the restart directory - this deletes the rpointer files but not the component intermediate restart files
-		rmtree $sorteddirs[$j];
-# do the same for the archive dir
-		if( $config{'DOUT_S_SAVE_ALL_ON_DISK'} eq 'TRUE' ) {
-		    $linkeddir = $sorteddirs[$j];
-		    $linkeddir =~ s/\.locked//;
-                    rmtree $linkeddir;
-		}
-	    }
-	}
-    }
 }
 
 #-----------------------------------------------------------------------------------------------
@@ -856,17 +820,8 @@ sub main
     {
 # list the directories in the $config{'ARCHIVE_DIR_LOCKED'} directory
 	$dname  = getDname();
-	print qq(Short-term archive listing of $config{'ARCHIVE_DIR_LOCKED'}:\n\n);
+	$logger->info("Short-term archive listing of $config{'ARCHIVE_DIR_LOCKED'}:");
 	listArchive( $config{'ARCHIVE_DIR_LOCKED'} );
-    }
-    elsif( defined $opts{'clean'} && $runComplete )
-    {
-#
-# clean up the archive directory and check if need to delete
-# the nth occurance of restart sets
-#
-	$dname  = getDname();
-	cleanArchive();
     }
     elsif( defined $opts{'link'} && $runComplete )
     {
@@ -897,24 +852,19 @@ sub main
 
 # run the short term archive process
 	archiveProcess( $XMLin, $dname, \@runfiles );
-#
-# clean up the archive directory and check if need to delete
-# the nth occurance of restart sets
-#
-	cleanArchive();
 
-	if( $config{'DOUT_S_SAVE_ALL_ON_DISK'} eq 'TRUE' ) {
+	if( $config{'DOUT_S_CREATE_LINKED_ARCHIVE'} eq 'TRUE' ) {
 #
 # create the hard links in the ARCHIVE_DIR_LINKED directory
 #
 	    processHardlinks();
 	}
-	print qq(st_archive process complete...\n);
+	$logger->info("st_archive process complete.");
 	exit 0;
     }
     else
     {
-	print qq(st_archive: run is not yet complete or was not successful. Unable to perform option...\n);
+	$logger->info("st_archive: run is not yet complete or was not successful. Unable to perform option...");
 	exit 1;
     }
 }

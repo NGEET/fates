@@ -28,6 +28,7 @@
       <value mach="eos">16</value>
       <value mach="mira">256</value>
       <value mach="titan">16</value>
+      <value mach="yellowstone">30</value>
       <value mach="yellowstone" grid="a%ne120.+oi%gx1">60</value>
       <value mach="pronghorn">16</value>
     </values>
@@ -53,6 +54,8 @@
     <values>
       <value>pnetcdf</value>
       <value mach="userdefined">netcdf</value>
+      <value mach="eastwind">netcdf</value>
+      <value mach="pleiades.*">netcdf</value>
       <value mpilib="mpi-serial">netcdf</value>
       <value mach="hobart" compiler="!intel">netcdf</value>
       <value mach="hobart" compiler="intel" mpilib="!mpi-serial">pnetcdf</value> 
