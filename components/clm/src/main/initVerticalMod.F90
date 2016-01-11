@@ -24,6 +24,7 @@ module initVerticalMod
   use LandunitType      , only : lun                
   use ColumnType        , only : col                
   use SnowHydrologyMod  , only : InitSnowLayers             
+  use EDTypesMod        , only : nlevsclass_ed,sclass_ed,ed_hist_scpfmaps
   use ncdio_pio
   !
   ! !PUBLIC TYPES:
@@ -70,6 +71,7 @@ contains
     real(r8)              :: depthratio        ! ratio of lake depth to standard deep lake depth 
     integer               :: begc, endc
     integer               :: begl, endl
+    integer               :: ipft, isc
     !------------------------------------------------------------------------
 
     begc = bounds%begc; endc= bounds%endc
@@ -173,6 +175,11 @@ contains
                errMsg(__FILE__, __LINE__))
        end if
     end if
+
+    if(use_ed)then
+      call ed_hist_scpfmaps
+    end if
+
 
     ! Column level initialization for urban wall and roof layers and interfaces
     do l = bounds%begl,bounds%endl
