@@ -335,6 +335,8 @@ contains
 
     do pft =  1,numpft_ed !FIX(RF,032414) - turning off veg dynamics
 
+       if(EDecophyscon%initd(pft)>1.0E-7) then
+
        allocate(temp_cohort) ! temporary cohort
 
        temp_cohort%pft         = pft
@@ -377,6 +379,8 @@ contains
             temp_cohort%laimemory,  cstatus, temp_cohort%canopy_trim, 1)
 
        deallocate(temp_cohort) ! get rid of temporary cohort
+
+       endif
 
     enddo !numpft
 
