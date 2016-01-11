@@ -324,7 +324,8 @@ contains
 
 ! ============================================================================
 
-  real(r8) function mortality_rates( cohort_in )
+  !real(r8) function mortality_rates( cohort_in )
+   real(r8) function mortality_rates( cohort_in,cmort,hmort,bmort )
 
     ! ============================================================================
     !  Calculate mortality rates as a function of carbon storage       
@@ -335,30 +336,42 @@ contains
     type (ed_cohort_type), intent(in) :: cohort_in
 
     real(r8) :: frac  ! relativised stored carbohydrate
-    real(r8) :: smort ! stress mortality     : Fraction per year
+    !real(r8) :: smort ! stress mortality     : Fraction per year
     real(r8) :: bmort ! background mortality : Fraction per year
+    real(r8) :: cmort  ! carbon starvation mortality
+    real(r8) :: hmort  ! hydraulic failure mortality
+
 
     ! 'Background' mortality (can vary as a function of density as in ED1.0 and ED2.0, but doesn't here for tractability) 
     bmort = 0.014_r8 
    
     ! Proxy for hydraulic failure induced mortality. 
-    smort = 0.0_r8
+    !smort = 0.0_r8
     if(cohort_in%patchptr%btran_ft(cohort_in%pft) <= 0.000001_r8)then 
-       smort = smort + ED_val_stress_mort 
-    endif
+       !smort = smort + ED_val_stress_mort
+       hmort = ED_val_stress_mort
+     else
+        hmort = 0.0_r8
+     endif 
+    !endif
     
     ! Carbon Starvation induced mortality.
     if ( cohort_in%dbh  >  0._r8 ) then
        if(Bleaf(cohort_in) > 0._r8.and.cohort_in%bstore <= Bleaf(cohort_in))then
           frac = cohort_in%bstore/(Bleaf(cohort_in))
-          smort = smort + max(0.0_r8,ED_val_stress_mort*(1.0_r8 - frac))
+          !smort = smort + max(0.0_r8,ED_val_stress_mort*(1.0_r8 - frac))
+          cmort = max(0.0_r8,ED_val_stress_mort*(1.0_r8 - frac))
+        else
+           cmort = 0.0_r8
        endif
+
     else
        write(iulog,*) 'dbh problem in mortality_rates', &
             cohort_in%dbh,cohort_in%pft,cohort_in%n,cohort_in%canopy_layer,cohort_in%indexnumber
     endif
 
-    mortality_rates = smort + bmort
+    !mortality_rates = smort + bmort
+     mortality_rates = bmort + hmort + cmort
 
   end function mortality_rates
 

@@ -677,6 +677,9 @@ contains
     real(r8) :: f_store  !fraction of NPP allocated to storage in this timestep (functionf of stored pool)
     real(r8) :: gr_fract !fraction of carbon balance that is allocated to growth (not reproduction)
     real(r8) :: target_balive  !target leaf biomass under allometric optimum.  
+    real(r8) :: cmort    ! starvation mortality rate (fraction per year)
+    real(r8) :: bmort    ! background mortality rate (fraction per year)
+    real(r8) :: hmort    ! hydraulic failure mortality rate (fraction per year)
     real(r8) :: balive_loss
     !----------------------------------------------------------------------
 
@@ -685,7 +688,8 @@ contains
     ! Mortality for trees in the understorey. 
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
     if (currentCohort%canopy_layer > 1)then 
-       currentCohort%dndt = -1.0_r8 * mortality_rates(currentCohort) * currentCohort%n
+       call mortality_rates(currentCohort,cmort,hmort,bmort)
+       currentCohort%dndt = -1.0_r8 * (cmort+hmort+bmort) * currentCohort%n
     else
        currentCohort%dndt = 0._r8
     endif
@@ -694,7 +698,7 @@ contains
     currentCohort%hite = Hite(currentCohort) 
     h = currentCohort%hite
                        
-    call allocate_live_biomass(currentCohort)
+    call allocate_live_biomass(currentCohort,0)
 
    ! calculate target size of living biomass compartment for a given dbh.   
     target_balive = Bleaf(currentCohort) * (1.0_r8 + pftcon%froot_leaf(currentCohort%pft) + &
@@ -751,6 +755,14 @@ contains
     ! this is the fraction of maintenance demand we -have- to do...
 
     currentCohort%carbon_balance = currentCohort%npp - currentCohort%md *  EDecophyscon%leaf_stor_priority(currentCohort%pft)
+
+    ! Allowing only carbon from NPP pool to account for npp flux into the maintenance pools
+    ! ie this does not include any use of storage carbon or balive to make up for missing carbon balance in the transfer
+    currentCohort%npp_leaf  = min(currentCohort%npp*currentCohort%leaf_md/currentCohort%md, &
+                                  currentCohort%leaf_md*EDecophyscon%leaf_stor_priority(currentCohort%pft))
+    currentCohort%npp_froot = min(currentCohort%npp*currentCohort%root_md/currentCohort%md, &
+                                  currentCohort%root_md*EDecophyscon%leaf_stor_priority(currentCohort%pft))
+
 
     if (Bleaf(currentCohort) > 0._r8)then
 
@@ -850,9 +862,15 @@ contains
        currentCohort%dbalivedt = 0._r8 
     endif
 
+    currentCohort%npp_bseed = currentCohort%seed_prod
+    currentCohort%npp_store = max(0.0_r8,currentCohort%storage_flux)
+
     ! calculate change in diameter and height 
     currentCohort%ddbhdt = currentCohort%dbdeaddt * dDbhdBd(currentCohort)
     currentCohort%dhdt   = currentCohort%dbdeaddt * dHdBd(currentCohort)
+
+    ! If the cohort has grown, it is not new
+    currentCohort%isnew=.false.
 
   end subroutine Growth_Derivatives
 
