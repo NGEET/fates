@@ -23,9 +23,9 @@ module EDTypesMod
 
   ! for setting number of patches per gridcell and number of cohorts per patch
   ! for I/O and converting to a vector
-  integer, parameter :: numPatchesPerGridCell = 20         !
+  integer, parameter :: numPatchesPerGridCell = 10         !
   integer, parameter :: numCohortsPerPatch    = 30         !
-  integer, parameter :: cohorts_per_gcell     = 600        ! should be numPatchesPerGridCell*numCohortsPerPatch 
+  integer, parameter :: cohorts_per_gcell     = 300        ! should be numPatchesPerGridCell*numCohortsPerPatch 
   integer, parameter :: numWaterMem           = 10         ! watermemory saved as site level var
 
   ! BIOLOGY/BIOGEOCHEMISTRY        
@@ -60,14 +60,14 @@ module EDTypesMod
   character*4 yearchar                    
 
   !the lower limit of the size classes of ED cohorts
-  !0-10,10-20....
-  integer, parameter :: nlevsclass_ed = 16    ! Number of dbh size classes for size structure analysis
+  !0-10,10-20...
+  integer, parameter :: nlevsclass_ed = 13    ! Number of dbh size classes for size structure analysis
                                               ! |0-1,1-2,2-3,3-4,4-5,5-10,10-20,20-30,30-40,40-50,50-60,60-70,70-80,80-90,90-100,100+|
-  real(r8), parameter, dimension(16) ::  sclass_ed  = (/0.0_r8,1.0_r8,2.0_r8,3.0_r8,4.0_r8,5.0_r8,10.0_r8,20.0_r8,30.0_r8,40.0_r8, &
-                                                       50.0_r8,60.0_r8,70.0_r8,80.0_r8,90.0_r8,100.0_r8/)
+!  real(r8), parameter, dimension(16) ::  sclass_ed  = (/0.0_r8,1.0_r8,2.0_r8,3.0_r8,4.0_r8,5.0_r8,10.0_r8,20.0_r8,30.0_r8,40.0_r8, &
+!                                                       50.0_r8,60.0_r8,70.0_r8,80.0_r8,90.0_r8,100.0_r8/)
 
-  !real(r8), parameter, dimension(11) ::  sclass_ed  = (/0.0_r8,10.0_r8,20.0_r8,30.0_r8,40.0_r8, &
-                                                       !50.0_r8,60.0_r8,70.0_r8,80.0_r8,90.0_r8,100.0_r8/)
+  real(r8), parameter, dimension(13) ::  sclass_ed  = (/0.0_r8,5.0_r8,10.0_r8,15.0_r8,20.0_r8,30.0_r8,40.0_r8, &
+                                                       50.0_r8,60.0_r8,70.0_r8,80.0_r8,90.0_r8,100.0_r8/)
 
 
  !  integer, parameter :: nlevsclass_ed = 17
