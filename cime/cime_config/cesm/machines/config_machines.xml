@@ -1570,7 +1570,7 @@
     <DOUT_S_ROOT>$CESMSCRATCHROOT/archive/$CASE</DOUT_S_ROOT>
     <DOUT_L_MSROOT>csm/$CASE</DOUT_L_MSROOT>              
     <CCSM_BASELINE>$ENV{CESMDATAROOT}/ccsm_baselines</CCSM_BASELINE>                   
-    <CCSM_CPRNC>$ENV{CESMDATAROOT}/tools/cprnc/cprnc</CCSM_CPRNC>
+    <CCSM_CPRNC>$ENV{CESMDATAROOT}/tools/cime/tools/cprnc/cprnc</CCSM_CPRNC>
     <PERL5LIB>/glade/apps/opt/perlmods/lib64/perl5:/glade/apps/opt/perlmods/share/perl5</PERL5LIB>
     <BATCHQUERY>bjobs -w</BATCHQUERY>                                                                     
     <BATCHSUBMIT>bsub</BATCHSUBMIT>
@@ -1640,7 +1640,7 @@
 	<command name="load"> esmf-6.3.0rp1-defio-uni-O</command>
       </modules>
       <modules compiler="pgi">
-	<command name="load">pgi/15.1</command>
+	<command name="load">pgi/15.10</command>
       </modules>
       <modules compiler="gnu">
 	<command name="load">gnu/5.2.0</command>
