@@ -102,7 +102,7 @@ contains
     endif
     
     ! Calculate live biomass allocation
-    call allocate_live_biomass(new_cohort)
+    call allocate_live_biomass(new_cohort,0)
 
     ! Assign canopy extent and depth
     new_cohort%c_area  = c_area(new_cohort)
@@ -173,7 +173,6 @@ contains
     leaf_frac = 1.0_r8/(1.0_r8 + EDecophyscon%sapwood_ratio(ft) * currentcohort%hite + pftcon%froot_leaf(ft))     
 
     !currentcohort%bl = currentcohort%balive*leaf_frac    
-    ratio_balive = 1.0_r8
     !for deciduous trees, there are no leaves  
     
     if (pftcon%evergreen(ft) == 1) then

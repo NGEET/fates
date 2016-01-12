@@ -69,7 +69,7 @@ contains
           currentCohort%patchptr => currentPatch
 
           call mortality_rates(currentCohort,cmort,hmort,bmort)
-          currentCohort%dmort  = mortality_rates(currentCohort)
+	  currentCohort%dmort  = cmort+hmort+bmort	
           currentCohort%c_area = c_area(currentCohort)
 
           ! Initialize diagnostic mortality rates
@@ -234,7 +234,7 @@ contains
        do while(associated(currentPatch))   
           patch_site_areadis = currentPatch%area * currentPatch%disturbance_rate ! how much land is disturbed in this donor patch? 
 
-          call average_patch_properties(currentPatch, new_patch, patch_site_areadis)               
+          call average_patch_properties(currentPatch, new_patch, patch_site_areadis)  ! MAY BE REDUNDANT CALL
           if (currentSite%disturbance_mortality > currentSite%disturbance_fire) then !mortality is dominant disturbance
              call mortality_litter_fluxes(currentPatch, new_patch, patch_site_areadis)
           else
@@ -263,7 +263,7 @@ contains
                    ! the plant density for large trees does not actually decrease in the donor patch
                    ! because this is the part of the original patch where no trees have actually fallen
                    ! The diagnostic cmort,bmort and hmort rates have already been saved         
-                   ! keep the trees that didn't die
+
                    currentCohort%n = currentCohort%n * (1.0_r8 - min(1.0_r8,currentCohort%dmort * udata%deltat))
 
                    nc%n = 0.0_r8      ! kill all of the trees who caused the disturbance.         
@@ -320,10 +320,14 @@ contains
                 endif
              else !fire
 
-                ! loss of individual from fire in new patch.
-                nc%n = currentCohort%n * patch_site_areadis/currentPatch%area * (1.0_r8 - currentCohort%fire_mort) 
-                ! loss of individuals from source patch
+                ! Number of members in the new patch, before we impose fire survivorship
+                nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
+
+                ! loss of individuals from source patch due to area shrinking
                 currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area) 
+
+                ! loss of individual from fire in new patch.
+                nc%n = nc%n * (1.0_r8 - currentCohort%fire_mort) 
 
                 nc%fmort = currentCohort%fire_mort/udata%deltat
                 nc%imort = 0.0_r8

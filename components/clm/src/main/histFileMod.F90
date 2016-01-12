@@ -21,6 +21,7 @@ module histFileMod
   use ColumnType     , only : col                
   use PatchType      , only : patch                
   use ncdio_pio
+  use EDtypesMod      , only : nlevsclass_ed
   !
   implicit none
   save
@@ -2233,6 +2234,7 @@ contains
     use domainMod       , only : ldomain, lon1d, lat1d
     use clm_time_manager, only : get_nstep, get_curr_date, get_curr_time
     use clm_time_manager, only : get_ref_date, get_calendar, NO_LEAP_C, GREGORIAN_C
+    use EDTypesMod,       only : levsclass_ed, pft_levscpf_ed, scls_levscpf_ed
     !
     ! !ARGUMENTS:
     integer, intent(in) :: t              ! tape index
@@ -4363,6 +4365,10 @@ contains
        num2d = numrad
     case ('levdcmp')
        num2d = nlevdecomp_full
+    case ('levscls')
+       num2d = nlevsclass_ed
+    case ('levscpf')
+       num2d = nlevsclass_ed*maxpft
     case('ltype')
        num2d = max_lunit
     case('natpft')
