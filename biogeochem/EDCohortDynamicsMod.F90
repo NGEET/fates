@@ -180,7 +180,7 @@ contains
        currentcohort%status_coh    = 2      
     endif    
 
-    !diagnore the root and stem biomass from the functional balance hypothesis. This is used when the leaves are 
+    ! iagnore the root and stem biomass from the functional balance hypothesis. This is used when the leaves are 
     !fully on. 
     !currentcohort%br  = pftcon%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
     !currentcohort%bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
@@ -225,14 +225,15 @@ contains
        currentcohort%bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
             currentcohort%laimemory)*leaf_frac
 
-
-    if (leaves_off_switch==1) then
+	    
+    else ! Leaves are on (leaves_off_switch==1)
 
     !the purpose of this section is to figure out the root and stem biomass when the leaves are off
     !at this point, we know the former leaf mass (laimemory) and the current alive mass
     !because balive may decline in the off-season, we need to adjust the root and stem biomass that are predicted
     !from the laimemory, for the fact that we now might not have enough live biomass to support the hypothesized root mass
     !thus, we use 'ratio_balive' to adjust br and bsw. Apologies that this is so complicated! RF
+
        currentcohort%bl  = 0.0_r8
        ideal_balive      = currentcohort%laimemory * pftcon%froot_leaf(ft) +  &
             currentcohort%laimemory*  EDecophyscon%sapwood_ratio(ft) * currentcohort%hite
@@ -242,11 +243,9 @@ contains
      
        ratio_balive           = currentcohort%balive / ideal_balive
        currentcohort%br       = currentcohort%br  * ratio_balive
-       currentcohort%bsw      = currentcohort%bsw * ratio_balive               
-    endif
+       currentcohort%bsw      = currentcohort%bsw * ratio_balive
 
-
-    ! Diagnostics
+       ! Diagnostics
        if(mode==1)then
 
           currentcohort%npp_froot = currentcohort%npp_froot + &
@@ -260,6 +259,8 @@ contains
 
        end if
  
+
+    endif
     
     if (abs(currentcohort%balive -currentcohort%bl- currentcohort%br - currentcohort%bsw)>1e-12) then
        write(iulog,*) 'issue with carbon allocation in create_cohort',&

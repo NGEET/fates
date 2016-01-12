@@ -868,6 +868,7 @@ contains
     use EDPhenologyType  , only : ed_phenology_type
     use CanopyStateType  , only : canopystate_type
     use PatchType        , only : clmpatch => patch
+    use pftconMod        , only : pftcon
     !
     ! !ARGUMENTS:
     class(ed_clm_type)                              ::  this
@@ -1098,7 +1099,7 @@ contains
                      scpf = (ft-1)*nlevsclass_ed+sc
 
                      ! Flux Variables (must pass a NaN check on growth increment and not be recruits)
-                     if(currentCohort%ddbhdt == currentCohort%ddbhdt .and. .not.(currentCohort%isnew)) then
+                     if( .not.(isnan(currentCohort%ddbhdt)) .and. .not.(currentCohort%isnew)) then
                         ed_gpp_scpf(g,scpf)      = ed_gpp_scpf(g,scpf) + n_perm2*currentCohort%gpp ! [kgC/m2/yr]
                         ed_npp_totl_scpf(g,scpf) = ed_npp_totl_scpf(g,scpf) + currentcohort%npp*n_perm2
                         ed_npp_leaf_scpf(g,scpf) = ed_npp_leaf_scpf(g,scpf) + currentcohort%npp_leaf*n_perm2
