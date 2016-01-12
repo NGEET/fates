@@ -796,7 +796,19 @@ contains
     if (currentCohort%carbon_balance > currentCohort%md*(1.0_r8- EDecophyscon%leaf_stor_priority(currentCohort%pft)))then ! Yes...
        currentCohort%carbon_balance = currentCohort%carbon_balance - currentCohort%md * (1.0_r8 - &
              EDecophyscon%leaf_stor_priority(currentCohort%pft))
+
+       currentCohort%npp_leaf  = currentCohort%npp_leaf  + &
+            currentCohort%leaf_md *  (1.0_r8-EDecophyscon%leaf_stor_priority(currentCohort%pft))
+       currentCohort%npp_froot = currentCohort%npp_froot + &
+            currentCohort%root_md *  (1.0_r8-EDecophyscon%leaf_stor_priority(currentCohort%pft))
+
     else ! we can't maintain constant leaf area and root area. Balive is reduced
+
+       currentCohort%npp_leaf  = currentCohort%npp_leaf  + &
+             max(0.0_r8,currentCohort%carbon_balance*(currentCohort%leaf_md/currentCohort%md))
+       currentCohort%npp_froot = currentCohort%npp_froot + &
+             max(0.0_r8,currentCohort%carbon_balance*(currentCohort%root_md/currentCohort%md))
+
        balive_loss = currentCohort%md *(1.0_r8- EDecophyscon%leaf_stor_priority(currentCohort%pft))- currentCohort%carbon_balance
        currentCohort%carbon_balance = 0._r8
     endif

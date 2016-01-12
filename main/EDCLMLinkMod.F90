@@ -88,7 +88,7 @@ module EDCLMLinkMod
      real(r8), pointer :: ed_litt_fnrt_gd_scpf    (:,:)   ! [kg/m2/yr] carbon flux of fine roots to litter
      real(r8), pointer :: ed_litt_sawd_gd_scpf    (:,:)   ! [kg/m2/yr] carbon flux of sapwood to litter (above+below)
      real(r8), pointer :: ed_litt_ddwd_gd_scpf    (:,:)   ! [kg/m2/yr] carbon flux of dead wood (above+below) to litter
-     real(r8), pointer :: ed_r_leaf_gd_scpf       (:,:)   ! [kg/m2/yr] totat leaf respiration 
+     real(r8), pointer :: ed_r_leaf_gd_scpf       (:,:)   ! [kg/m2/yr] total leaf respiration 
      real(r8), pointer :: ed_r_stem_gd_scpf       (:,:)   ! [kg/m2/yr] total above ground live wood (stem) respiration
      real(r8), pointer :: ed_r_root_gd_scpf       (:,:)   ! [kg/m2/yr] total below ground live wood (root) respiration
      real(r8), pointer :: ed_r_stor_gd_scpf       (:,:)   ! [kg/m2/yr] total storage respiration
@@ -99,10 +99,10 @@ module EDCLMLinkMod
      real(r8), pointer :: ed_ba_gd_scpf                 (:,:) ! [m2/ha] basal area
      real(r8), pointer :: ed_np_gd_scpf                 (:,:) ! [/m2] number of plants
      real(r8), pointer :: ed_m1_gd_scpf                 (:,:) ! [Stems/ha/yr] Mean Background Mortality
-     real(r8), pointer :: ed_m2_gd_scpf                 (:,:) ! [Stems/ha/yr] Mean Hydraulic Mortaliry rate
-     real(r8), pointer :: ed_m3_gd_scpf                 (:,:) ! [Stems/ha/yr] Mean Carbon Starvation Mortality rate
-     real(r8), pointer :: ed_m4_gd_scpf                 (:,:) ! [Stems/ha/yr] Mean Impact Mortality Rate
-     real(r8), pointer :: ed_m5_gd_scpf                 (:,:) ! [Stems/ha/yr] Mean Fire Mortality Rate
+     real(r8), pointer :: ed_m2_gd_scpf                 (:,:) ! [Stems/ha/yr] Mean Hydraulic Mortaliry
+     real(r8), pointer :: ed_m3_gd_scpf                 (:,:) ! [Stems/ha/yr] Mean Carbon Starvation Mortality
+     real(r8), pointer :: ed_m4_gd_scpf                 (:,:) ! [Stems/ha/yr] Mean Impact Mortality
+     real(r8), pointer :: ed_m5_gd_scpf                 (:,:) ! [Stems/ha/yr] Mean Fire Mortality
 
    contains
 
@@ -499,23 +499,23 @@ contains
           ptr_gcell=this%ed_np_gd_scpf, default='inactive')
 
     call hist_addfld2d (fname='ED_M1_GD_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
-          avgflag='A', long_name='background mortality rate by patch and pft/size', &
+          avgflag='A', long_name='background mortality count by patch and pft/size', &
           ptr_gcell=this%ed_m1_gd_scpf, default='inactive')
 
     call hist_addfld2d (fname='ED_M2_GD_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
-          avgflag='A', long_name='hydraulic mortality rate by patch and pft/size', &
+          avgflag='A', long_name='hydraulic mortality count by patch and pft/size', &
           ptr_gcell=this%ed_m2_gd_scpf, default='inactive')
 
     call hist_addfld2d (fname='ED_M3_GD_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
-          avgflag='A', long_name='carbon starvation mortality rate by patch and pft/size', &
+          avgflag='A', long_name='carbon starvation mortality count by patch and pft/size', &
           ptr_gcell=this%ed_m3_gd_scpf, default='inactive')
 
     call hist_addfld2d (fname='ED_M4_GD_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
-          avgflag='A', long_name='impact mortality rate by patch and pft/size', &
+          avgflag='A', long_name='impact mortality count by patch and pft/size', &
           ptr_gcell=this%ed_m4_gd_scpf, default='inactive')
 
     call hist_addfld2d (fname='ED_M5_GD_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
-          avgflag='A', long_name='fire mortality rate by patch and pft/size', &
+          avgflag='A', long_name='fire mortality count by patch and pft/size', &
           ptr_gcell=this%ed_m5_gd_scpf, default='inactive')
 
   end subroutine InitHistory
@@ -1076,8 +1076,10 @@ contains
                      ft = currentCohort%pft
                      if(currentPatch%area>0._r8)then
                         n_density = currentCohort%n/currentPatch%area
+			n_perm2   = currentCohort%n/AREA   ! plant density using whole area (for grid cell averages)
                      else
                         n_density = 0.0_r8
+			n_perm2   = 0.0_r8
                      endif
                      ED_bleaf(p)           = ED_bleaf(p)           + n_density * currentCohort%bl 
                      ED_bstore(p)          = ED_bstore(p)          + n_density * currentCohort%bstore 
