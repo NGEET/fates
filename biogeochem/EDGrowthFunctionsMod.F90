@@ -316,11 +316,11 @@ contains
     dblddbh = 1.56_r8*0.0419_r8*(cohort_in%dbh**0.56_r8)*(EDecophyscon%wood_density(cohort_in%pft)**0.55_r8)
     dblddbh = dblddbh*cohort_in%canopy_trim
 
-    if( cohort_in%dbh<EDecophyscon%max_dbh(cohort_in%pft) )
+    if( cohort_in%dbh<EDecophyscon%max_dbh(cohort_in%pft) ) then
         dDbhdBl = 1.0_r8/dblddbh
     else
         dDbhdBl = 1.0d15  ! At maximum size, the leaf biomass is saturated, dbl=0
-    end
+    endif
 
     return
 
@@ -328,7 +328,6 @@ contains
 
 ! ============================================================================
 
-  !real(r8) function mortality_rates( cohort_in )
   subroutine mortality_rates( cohort_in,cmort,hmort,bmort )
 
     ! ============================================================================
@@ -368,10 +367,9 @@ contains
             cohort_in%dbh,cohort_in%pft,cohort_in%n,cohort_in%canopy_layer,cohort_in%indexnumber
     endif
 
-    !mortality_rates = smort + bmort
-     mortality_rates = bmort + hmort + cmort
+    !mortality_rates = bmort + hmort + cmort
 
-  end function mortality_rates
+ end subroutine mortality_rates
 
 ! ============================================================================
 
