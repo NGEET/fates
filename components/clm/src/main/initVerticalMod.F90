@@ -16,7 +16,8 @@ module initVerticalMod
   use clm_varpar        , only : toplev_equalspace, nlev_equalspace
   use clm_varpar        , only : nlevsoi, nlevsoifl, nlevurb 
   use clm_varctl        , only : fsurdat, iulog
-  use clm_varctl        , only : use_vancouver, use_mexicocity, use_vertsoilc, use_extralakelayers
+  use clm_varctl        , only : use_vancouver, use_mexicocity
+  use clm_varctl        , only : use_vertsoilc, use_extralakelayers, use_ed
   use clm_varcon        , only : zlak, dzlak, zsoi, dzsoi, zisoi, dzsoi_decomp, spval, grlnd 
   use column_varcon     , only : icol_roof, icol_sunwall, icol_shadewall, icol_road_perv, icol_road_imperv
   use landunit_varcon   , only : istdlak, istice_mec
@@ -24,7 +25,7 @@ module initVerticalMod
   use LandunitType      , only : lun                
   use ColumnType        , only : col                
   use SnowHydrologyMod  , only : InitSnowLayers             
-  use EDTypesMod        , only : nlevsclass_ed,sclass_ed,ed_hist_scpfmaps
+  use EDTypesMod        , only : ed_hist_scpfmaps
   use ncdio_pio
   !
   ! !PUBLIC TYPES:

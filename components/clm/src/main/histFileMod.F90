@@ -1673,7 +1673,7 @@ contains
     ! wrapper calls to define the history file contents.
     !
     ! !USES:
-    use clm_varpar      , only : nlevgrnd, nlevsno, nlevlak, nlevurb, numrad, nlevcan
+    use clm_varpar      , only : nlevgrnd, nlevsno, nlevlak, nlevurb, numrad, nlevcan, mxpft
     use clm_varpar      , only : natpft_size, cft_size, maxpatch_glcmec, nlevdecomp_full
     use landunit_varcon , only : max_lunit
     use clm_varctl      , only : caseid, ctitle, fsurdat, finidat, paramfile
@@ -4287,7 +4287,7 @@ contains
     !
     ! !USES:
     use clm_varpar      , only : nlevgrnd, nlevsno, nlevlak, numrad, nlevdecomp_full, nlevcan
-    use clm_varpar      , only : natpft_size, cft_size, maxpatch_glcmec
+    use clm_varpar      , only : natpft_size, cft_size, maxpatch_glcmec, mxpft
     use landunit_varcon , only : max_lunit
     !
     ! !ARGUMENTS:
@@ -4368,7 +4368,7 @@ contains
     case ('levscls')
        num2d = nlevsclass_ed
     case ('levscpf')
-       num2d = nlevsclass_ed*maxpft
+       num2d = nlevsclass_ed*mxpft
     case('ltype')
        num2d = max_lunit
     case('natpft')
