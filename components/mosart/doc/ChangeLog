@@ -1,7 +1,42 @@
 ===============================================================
+Tag name:  mosart1_0_15
+Originator(s): swenson, andre
+Date: Dec 23 2015
+One-line Summary: bugfix for minimum channel length
+
+  bugfix: minimum channel length
+
+  Note(bja, 20151223) r14 this was made directly as a trunk tag, but
+  not put on the trunk. This brings that change to the trunk.
+
+M       src/riverroute/RtmMod.F90
+
+===============================================================
+Tag name:  mosart1_0_14
+Originator(s): swenson
+Date: Dec 22 2015
+One-line Summary: bugfix for negative river runoff
+
+  Note(bja, 20151223) this was made directly as a trunk tag, but not put on the trunk.
+
+  bugfix: minimum channel length
+
+M       src/riverroute/RtmMod.F90
+
+===============================================================
+Tag name:  mosart1_0_13
+Originator(s): swenson, andre
+Date: Dec 21 2015
+One-line Summary: bugfix for negative river runoff
+
+  bugfix: calculation of qgwl_volume must be multiplied by area.
+
+M       src/riverroute/RtmMod.F90
+
+===============================================================
 Tag name:  mosart1_0_12
 Originator(s): swenson, andre
-Date: Dec 7 2015
+Date: Dec 18 2015
 One-line Summary: negative river runoff changes
 
 - Update default routing file.

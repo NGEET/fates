@@ -1636,7 +1636,7 @@ contains
              endif
           else if (trim(qgwl_runoff_option) == 'threshold') then
              ! --- calculate volume of qgwl flux during timestep
-             qgwl_volume = TRunoff%qgwl(nr,nt) * delt_mosart
+             qgwl_volume = TRunoff%qgwl(nr,nt) * rtmCTL%area(nr) * delt_mosart
              river_volume_minimum = river_depth_minimum * rtmCTL%area(nr)
              ! if qgwl is negative, and adding it to the main channel 
              ! would bring main channel storage below a threshold, 
