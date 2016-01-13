@@ -28,6 +28,8 @@ module EDInitMod
   implicit none
   private
 
+  logical   ::  DEBUG = .false.
+
   public  :: ed_init
   public  :: ed_init_sites
   public  :: zero_site
@@ -62,11 +64,17 @@ contains
     !----------------------------------------------------------------------
 
     if (masterproc) then
-       write(iulog,*) 'ED: restart ? = ' ,is_restart()                                     ! FIX(SPM,032414) debug
-       write(iulog,*) 'ED_Mod.F90 :: SPITFIRE_SWITCH (use_ed_spit_fire) ',use_ed_spit_fire ! FIX(SPM,032414) debug
-       write(iulog,*) 'ED_Mod.F90 :: cohorts_per_gcell ',cohorts_per_gcell                 ! FIX(SPM,032414) debug
+       if (DEBUG) then
+          write(iulog,*) 'ED: restart ? = ' ,is_restart()
+          write(iulog,*) 'ED_Mod.F90 :: SPITFIRE_SWITCH (use_ed_spit_fire) ', &
+                          use_ed_spit_fire
+          write(iulog,*) 'ED_Mod.F90 :: cohorts_per_gcell ',cohorts_per_gcell
+       end if
     end if
 
+    !
+    ! don't call this if we are restarting
+    !
     if ( .not. is_restart() ) then
        call ed_init_sites( bounds, ed_allsites_inst(bounds%begg:bounds%endg))
 
@@ -101,8 +109,11 @@ contains
     logical  :: istheresoil(bounds%begg:bounds%endg) 
     !----------------------------------------------------------------------
 
+    !
     ! INITIALISE THE SITE STRUCTURES
-    udata%cohort_number = 0 !Makes unique cohort identifiers. Needs zeroing at beginning of run. 
+    !
+    ! Makes unique cohort identifiers. Needs zeroing at beginning of run.
+    udata%cohort_number = 0
 
     do g = bounds%begg,bounds%endg
        ! zero the site
@@ -126,9 +137,9 @@ contains
     call set_site_properties( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )     
 
     ! on restart, this functionality is handled in EDRestVectorMod::createPatchCohortStructure
-    if (.not. is_restart() ) then
-       call init_patches( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
-    endif
+    !if (.not. is_restart() ) then
+    call init_patches( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
+    !endif
 
   end subroutine ed_init_sites
 
@@ -371,6 +382,8 @@ contains
           temp_cohort%balive = temp_cohort%balive - temp_cohort%laimemory
           cstatus = patch_in%siteptr%dstatus
        endif
+
+       if ( DEBUG ) write(iulog,*) 'EDInitMod.F90 call create_cohort '
 
        call create_cohort(patch_in, pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
             temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore, &

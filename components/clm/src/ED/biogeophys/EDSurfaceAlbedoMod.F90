@@ -23,6 +23,8 @@ module EDSurfaceAlbedoMod
   ! Full-spectral albedo for land ice is ~0.5 (Paterson, Physics of Glaciers, 1994, p. 59)
   ! This is the value used in CAM3 by Pritchard et al., GRL, 35, 2008.
 
+  logical :: DEBUG = .false.  ! for debugging this module
+
   real(r8), public  :: albice(numrad) = &       ! albedo land ice by waveband (1=vis, 2=nir)
        (/ 0.80_r8, 0.55_r8 /)
   !
@@ -727,6 +729,12 @@ contains
                                   !it is absorbed?
                                   do iv = 1, currentPatch%nrad(L,ft)
                                      if (radtype==1)then
+
+                                        if ( DEBUG ) then
+                                           write(iulog,*) 'EDsurfAlb 730 ',Abs_dif_z(ft,iv),currentPatch%f_sun(L,ft,iv)
+                                           write(iulog,*) 'EDsurfAlb 731 ',currentPatch%fabd_sha_z(L,ft,iv),currentPatch%fabd_sun_z(L,ft,iv)
+                                        endif
+
                                         currentPatch%fabd_sha_z(L,ft,iv) = Abs_dif_z(ft,iv) * (1._r8 - currentPatch%f_sun(L,ft,iv))
                                         currentPatch%fabd_sun_z(L,ft,iv) = Abs_dif_z(ft,iv) * currentPatch%f_sun(L,ft,iv) + &
                                              Abs_dir_z(ft,iv)
@@ -734,6 +742,11 @@ contains
                                         currentPatch%fabi_sha_z(L,ft,iv) = Abs_dif_z(ft,iv) * (1._r8 - currentPatch%f_sun(L,ft,iv))
                                         currentPatch%fabi_sun_z(L,ft,iv) = Abs_dif_z(ft,iv) * currentPatch%f_sun(L,ft,iv)
                                      end if
+
+                                     if ( DEBUG ) then
+                                        write(iulog,*) 'EDsurfAlb 740 ',currentPatch%fabd_sha_z(L,ft,iv),currentPatch%fabd_sun_z(L,ft,iv)
+                                     endif
+
                                   end do
 
                                   !==============================================================================!
@@ -850,24 +863,22 @@ contains
                              write(iulog,*) ' lai_change (1,2,23)',lai_change(1,2,1:4)
                          endif
                          if (lai_change(1,1,3).gt.0.0.and.lai_change(1,1,2).gt.0.0)then
+                            ! NO-OP
                             ! write(iulog,*) 'first layer of lai_change 2 3',lai_change(1,1,1:3)
                          endif
                          if (lai_change(1,1,3).gt.0.0.and.lai_change(1,1,4).gt.0.0)then
+                            ! NO-OP
                             ! write(iulog,*) 'first layer of lai_change 3 4',lai_change(1,1,1:4)
                          endif
                          if (lai_change(1,1,4).gt.0.0.and.lai_change(1,1,5).gt.0.0)then
+                            ! NO-OP
                             ! write(iulog,*) 'first layer of lai_change 4 5',lai_change(1,1,1:5)
                          endif
-								 
-						
-								 
+
                          if (radtype == 1)then
                             !here we are adding a within-ED radiation scheme tolerance, and then adding the diffrence onto the albedo
                             !it is important that the lower boundary for this is ~1000 times smaller than the tolerance in surface albedo. 
                             if (abs(error)  >  1.e-9_r8 .and. abs(error) < 0.15_r8)then
-                              !   write(iulog,*) 'Dir error',error,fabd(p,ib),&
-                              !        albd(p,ib),currentPatch%sabs_dir(ib)
-                               !  write(iulog,*) 'elai',pps%elai(p),pps%tlai(p), currentPatch%NCL_p,currentPatch%nrad(1:2,1:2)
                                albd(p,ib) = albd(p,ib) + error
                                !this terms adds the error back on to the albedo. While this is partly inexcusable, it is 
                                ! in the medium term a solution that
@@ -891,10 +902,9 @@ contains
                          else
 
                             if (abs(error)  >  1.e-9_r8 .and. abs(error) < 0.15_r8)then
-                              ! write(iulog,*) 'Dif error',error,fabi(p,ib),&
-                              !        albi(p,ib),currentPatch%sabs_dif(ib)
                                albi(p,ib) = albi(p,ib) + error
                             end if
+
                             if (abs(error)  >  0.15_r8)then
                                write(iulog,*)  '>5% Dif Radn consvn error',error ,p,ib
                                write(iulog,*) 'diags',albi(p,ib),ftii(p,ib),fabi(p,ib)
@@ -908,17 +918,14 @@ contains
                                write(iulog,*) 'ftw',sum(ftweight(1,:,1)),ftweight(1,1:2,1)
                                write(iulog,*) 'present',currentPatch%present(1,1:2)
                                write(iulog,*) 'CAP',currentPatch%canopy_area_profile(1,1:2,1)
-
-
-                               !                               albi(p,ib) = albi(p,ib) + error
                             end if
-
 
                             if (radtype == 1)then
                                error = (forc_dir(p,ib) + forc_dif(p,ib)) - (fabd(p,ib)  + albd(p,ib) + currentPatch%sabs_dir(ib))
                             else
                                error = (forc_dir(p,ib) + forc_dif(p,ib)) - (fabi(p,ib)  + albi(p,ib) + currentPatch%sabs_dif(ib))
                             endif
+
                             if (abs(error)  >  0.00000001_r8)then
                                write(iulog,*)  'there is still error after correction',error ,p,ib
                             end if
