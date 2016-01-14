@@ -23,8 +23,8 @@ module EDTypesMod
 
   ! for setting number of patches per gridcell and number of cohorts per patch
   ! for I/O and converting to a vector
-  integer, parameter :: numPatchesPerGridCell = 4          !
-  integer, parameter :: numCohortsPerPatch    = 200        !
+  integer, parameter :: numPatchesPerGridCell = 20         !
+  integer, parameter :: numCohortsPerPatch    = 40         !
   integer, parameter :: cohorts_per_gcell     = 800        ! This is the max number of individual items one can store per 
                                                            ! each grid cell and effects the striding in the ED restart 
                                                            ! data as some fields are arrays where each array is
