@@ -10,8 +10,11 @@ module EDAccumulateFluxesMod
   !
   ! !USES:
   implicit none
+  private
   !
   public :: AccumulateFluxes_ED
+
+  logical :: DEBUG = .false.  ! for debugging this module
   !------------------------------------------------------------------------------
 
 contains
@@ -25,6 +28,7 @@ contains
     ! !USES:
     use shr_kind_mod      , only : r8 => shr_kind_r8
     use decompMod         , only : bounds_type
+    use clm_varctl        , only : iulog
     use EDTypesMod        , only : ed_patch_type, ed_cohort_type, ed_site_type, map_clmpatch_to_edpatch
     use PatchType         , only : patch
     use PhotosynthesisMod , only : photosyns_type
@@ -59,6 +63,13 @@ contains
 
             ! Accumulate fluxes from hourly to daily values. 
             ! _clm fluxes are KgC/indiv/timestep _acc are KgC/indiv/day
+
+            if ( DEBUG ) then
+               write(iulog,*) 'EDAccumFlux 64 ',currentCohort%npp_acc, &
+                               currentCohort%npp_clm
+               write(iulog,*) 'EDAccumFlux 66 ',currentCohort%gpp_clm
+               write(iulog,*) 'EDAccumFlux 67 ',currentCohort%resp_clm
+            endif
 
             currentCohort%npp_acc  = currentCohort%npp_acc  + currentCohort%npp_clm 
             currentCohort%gpp_acc  = currentCohort%gpp_acc  + currentCohort%gpp_clm 

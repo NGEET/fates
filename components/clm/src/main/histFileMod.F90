@@ -1306,7 +1306,7 @@ contains
     if (type1d_out == nameg .or. type1d_out == grlnd) then
        if (type1d == namep) then
           ! In this and the following calls, we do NOT explicitly subset field using
-	  ! (e.g., we do NOT do field(bounds%begp:bounds%endp). This is because,
+          ! (e.g., we do NOT do field(bounds%begp:bounds%endp). This is because,
           ! for some fields, the lower bound has been reset to 1 due to taking a pointer
           ! to an array slice. Thus, this code will NOT work properly if done within a
           ! threaded region! (See also bug 1786)
@@ -3124,7 +3124,9 @@ contains
                      trim(locfnh(t)),' at nstep = ', get_nstep()
                 write(iulog,*)
              endif
-	     call ncd_pio_closefile(nfid(t))
+
+            call ncd_pio_closefile(nfid(t))
+
              if (.not.if_stop .and. (tape(t)%ntimes/=tape(t)%mfilt)) then
                 call ncd_pio_openfile (nfid(t), trim(locfnh(t)), ncd_write)
              end if
