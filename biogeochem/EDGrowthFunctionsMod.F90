@@ -146,7 +146,7 @@ contains
 
     if( cohort_in%status_coh  ==  2 ) then ! are the leaves on? 
        slat = 1000.0_r8 * pftcon%slatop(cohort_in%pft) ! m2/g to m2/kg
-       cohort_in%c_area = c_area(cohort_in) ! call the tree area 
+       cohort_in%c_area = c_area(cohort_in) ! call the tree area
        leafc_per_unitarea = cohort_in%bl/(cohort_in%c_area/cohort_in%n) !KgC/m2
        if(leafc_per_unitarea > 0.0_r8)then
           tree_lai = leafc_per_unitarea * slat  !kg/m2 * m2/kg = unitless LAI 
