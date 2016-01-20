@@ -201,6 +201,7 @@ contains
     call lun%Init  (bounds_proc%begl, bounds_proc%endl)
     call col%Init  (bounds_proc%begc, bounds_proc%endc)
     call patch%Init(bounds_proc%begp, bounds_proc%endp)
+
     if ( use_ed ) then
        call ed_vec_cohort%Init(bounds_proc%begCohort,bounds_proc%endCohort)
     end if
@@ -612,13 +613,17 @@ contains
 
     call atm2lnd_inst%initAccVars(bounds_proc)
     call temperature_inst%initAccVars(bounds_proc)
-    if (use_ed) then
+
+    if ( use_ed) then
        call ed_phenology_inst%initAccVars(bounds_proc)
-    endif
+    end if
+
     call canopystate_inst%initAccVars(bounds_proc)
+
     if (use_cndv) then
        call dgvs_inst%initAccVars(bounds_proc)
     end if
+
     if (crop_prog) then
        call crop_inst%initAccVars(bounds_proc)
     end if
@@ -688,8 +693,8 @@ contains
           call ed_init( bounds_clump, ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), ed_clm_inst, &
                ed_phenology_inst, waterstate_inst, canopystate_inst)
        end do
-
-    endif ! use_ed
+       !$OMP END PARALLEL DO
+    end if
 
     ! topo_glc_mec was allocated in initialize1, but needed to be kept around through
     ! initialize2 because it is used to initialize other variables; now it can be

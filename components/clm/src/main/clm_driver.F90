@@ -1014,13 +1014,13 @@ contains
     if ( use_ed  .and. is_beg_curr_day() ) then ! run ED at the start of each day
 
        if ( masterproc ) then
-          write(iulog,*)  'edtime ed call edmodel ',get_nstep()
+          write(iulog,*)  'clm: calling ED model ', get_nstep()
        end if
 
        !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
        do nc = 1, nclumps
 
-             call get_clump_bounds(nc, bounds_clump)
+          call get_clump_bounds(nc, bounds_clump)
 
           call ed_driver( bounds_clump,                               &
                ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), &
@@ -1037,23 +1037,23 @@ contains
 
           call setFilters( bounds_clump, glc2lnd_inst%icemask_grc )
 
-             !reset surface albedo fluxes in case there is a mismatch between elai and canopy absorbtion. 
-             call SurfaceAlbedo(bounds_clump,                      &
-                filter_inactive_and_active(nc)%num_nourbanc,       &
-                filter_inactive_and_active(nc)%nourbanc,           &
-                filter_inactive_and_active(nc)%num_nourbanp,       &
-                filter_inactive_and_active(nc)%nourbanp,           &
-                filter_inactive_and_active(nc)%num_urbanc,         &
-                filter_inactive_and_active(nc)%urbanc,             &
-                filter_inactive_and_active(nc)%num_urbanp,         & 
-                filter_inactive_and_active(nc)%urbanp,             &
-                nextsw_cday, declinp1,                             &
+          !reset surface albedo fluxes in case there is a mismatch between elai and canopy absorbtion. 
+          call SurfaceAlbedo(bounds_clump,                            &
+               filter_inactive_and_active(nc)%num_nourbanc,           &
+               filter_inactive_and_active(nc)%nourbanc,               &
+               filter_inactive_and_active(nc)%num_nourbanp,           &
+               filter_inactive_and_active(nc)%nourbanp,               &
+               filter_inactive_and_active(nc)%num_urbanc,             &
+               filter_inactive_and_active(nc)%urbanc,                 &
+               filter_inactive_and_active(nc)%num_urbanp,             & 
+               filter_inactive_and_active(nc)%urbanp,                 &
+               nextsw_cday, declinp1,                                 &
                ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), &
-               aerosol_inst, canopystate_inst, waterstate_inst, &
+               aerosol_inst, canopystate_inst, waterstate_inst,       &
                lakestate_inst, temperature_inst, surfalb_inst)
 
-          end do
-          !$OMP END PARALLEL DO
+       end do
+       !$OMP END PARALLEL DO
 
     end if ! use_ed branch
 

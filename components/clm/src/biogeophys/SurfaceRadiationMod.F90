@@ -24,6 +24,9 @@ module SurfaceRadiationMod
   ! !PRIVATE TYPES:
   implicit none
   private
+
+  logical :: DEBUG = .false.  ! for debugging this module
+
   !
   ! !PUBLIC MEMBER FUNCTIONS:
   public :: SurfaceRadiation         ! Solar fluxes absorbed by veg and ground surface
@@ -551,26 +554,39 @@ contains
                 fsun(p) = 0._r8
                 sunlai = 0._r8
                 shalai = 0._r8
+
                 currentPatch => map_clmpatch_to_edpatch(ed_allsites_inst(g), p) 
+
                 do CL = 1, currentPatch%NCL_p
                    do FT = 1,numpft_ed
                       do iv = 1, currentPatch%nrad(CL,ft) !NORMAL CASE. 
-                         ! FIX(SPM,040114) ** Should this be elai or tlai? Surely we only do radiation for elai? 
+                         ! FIX(SPM,040114) - existing comment
+                         ! ** Should this be elai or tlai? Surely we only do radiation for elai? 
+
                          currentPatch%ed_laisun_z(CL,ft,iv) = currentPatch%elai_profile(CL,ft,iv) * &
                               currentPatch%f_sun(CL,ft,iv)
+
+                         if ( DEBUG ) write(iulog,*) 'surfRad 570 ',currentPatch%elai_profile(CL,ft,iv)
+                         if ( DEBUG ) write(iulog,*) 'surfRad 571 ',currentPatch%f_sun(CL,ft,iv)
+
                          currentPatch%ed_laisha_z(CL,ft,iv) = currentPatch%elai_profile(CL,ft,iv) * &
                               (1._r8 - currentPatch%f_sun(CL,ft,iv))
+
                       end do
+
+                      !needed for the VOC emissions, etc. 
                       sunlai = sunlai + sum(currentPatch%ed_laisun_z(CL,ft,1: currentPatch%nrad(CL,ft)))
                       shalai = shalai + sum(currentPatch%ed_laisha_z(CL,ft,1: currentPatch%nrad(CL,ft)))
-                      !needed for the VOC emissions, etc. 
+
                    end do
                 end do
+
                 if(sunlai+shalai > 0._r8)then
                    fsun(p) = sunlai / (sunlai+shalai) 
                 else
                    fsun(p) = 0._r8
                 endif
+
                 if(fsun(p) > 1._r8)then
                    write(iulog,*) 'too much leaf area in profile', fsun(p),currentPatch%lai,sunlai,shalai
                 endif
@@ -641,15 +657,34 @@ contains
 
                    if (patch%is_veg(p)) then
                       currentPatch => map_clmpatch_to_edpatch(ed_allsites_inst(g), p) 
+                      if ( DEBUG ) write(iulog,*) 'surfRad 645 ',currentPatch%NCL_p,numpft_ed
                       do CL = 1, currentPatch%NCL_p
                          do FT = 1,numpft_ed
+
+                            if ( DEBUG ) write(iulog,*) 'surfRad 649 ',currentPatch%nrad(CL,ft)
+
                             do iv = 1, currentPatch%nrad(CL,ft)
+
+                               if ( DEBUG ) then
+                                  write(iulog,*) 'surfRad 653 ', currentPatch%ed_parsun_z(CL,ft,iv)
+                                  write(iulog,*) 'surfRad 654 ', forc_solad(g,ib)
+                                  write(iulog,*) 'surfRad 655 ', forc_solai(g,ib)
+                                  write(iulog,*) 'surfRad 656 ', currentPatch%fabd_sun_z(CL,ft,iv)
+                                  write(iulog,*) 'surfRad 657 ', currentPatch%fabi_sun_z(CL,ft,iv)
+                               endif
+
                                currentPatch%ed_parsun_z(CL,ft,iv) = &
                                     forc_solad(g,ib)*currentPatch%fabd_sun_z(CL,ft,iv) + &
                                     forc_solai(g,ib)*currentPatch%fabi_sun_z(CL,ft,iv) 
+
+                               if ( DEBUG )write(iulog,*) 'surfRad 663 ', currentPatch%ed_parsun_z(CL,ft,iv)
+
                                currentPatch%ed_parsha_z(CL,ft,iv) = &
                                     forc_solad(g,ib)*currentPatch%fabd_sha_z(CL,ft,iv) + &
                                     forc_solai(g,ib)*currentPatch%fabi_sha_z(CL,ft,iv)          
+
+                               if ( DEBUG ) write(iulog,*) 'surfRad 669 ', currentPatch%ed_parsha_z(CL,ft,iv)
+
                             end do !iv
                          end do !FT
                       end do !CL
@@ -928,9 +963,7 @@ contains
           local_secp1 = mod(local_secp1,isecspday)
 
         if(elai(p)==0.0_r8.and.fabd(p,1)>0._r8)then
-           ! FIX(SPM, 051314) - is this necessary ?  puts lots of info in
-           ! lnd.log
-           write(iulog,*) 'absorption without LAI',elai(p),tlai(p),fabd(p,1),p
+           if ( DEBUG ) write(iulog,*) 'absorption without LAI',elai(p),tlai(p),fabd(p,1),p
         endif
           ! Solar incident 
 
