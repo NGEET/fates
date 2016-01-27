@@ -385,9 +385,7 @@ contains
           call c14_cnveg_carbonstate_inst%Init(bounds, carbon_type='c14', ratio=c14ratio, &
                c12_cnveg_carbonstate_inst=cnveg_carbonstate_inst)
        end if
-
        call cnveg_carbonflux_inst%Init(bounds, carbon_type='c12')
-
        if (use_c13) then
           call c13_cnveg_carbonflux_inst%Init(bounds, carbon_type='c13')
        end if

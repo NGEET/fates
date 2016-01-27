@@ -460,6 +460,7 @@ contains
 
       fn = num_exposedvegp
       filterp(1:fn) = filter_exposedvegp(1:fn)
+
       ! -----------------------------------------------------------------
       ! Time step initialization of photosynthesis variables
       ! -----------------------------------------------------------------
@@ -1262,6 +1263,7 @@ contains
       end if
 
     end associate
+
 
   end subroutine CanopyFluxes
 
