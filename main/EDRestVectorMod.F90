@@ -847,7 +847,7 @@ contains
          readvar=readvar)         
          
  
-    call restartvar(ncid=ncid, flag=flag, varname='ed_chilling days', xtype=ncd_double,  &
+    call restartvar(ncid=ncid, flag=flag, varname='ed_chilling_days', xtype=ncd_double,  &
          dim1name=dimName, &
          long_name='ed chilling day counter', units='unitless', &
          interpinic_flag='interp', data=this%ncd, &
