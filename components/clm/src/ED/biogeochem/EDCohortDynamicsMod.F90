@@ -632,14 +632,11 @@ contains
                    if (currentCohort%pft == nextc%pft) then              
 
                       ! check cohorts in same c. layer. before fusing
-<<<<<<< HEAD
+
                       if (currentCohort%canopy_layer == nextc%canopy_layer) then 
 
                          ! check to make sure one is not a new recruit (npp=nan flag)
                          if( (.not.(currentCohort%isnew)).and.(.not.(nextc%isnew)) ) then
-=======
-                      if (currentCohort%canopy_layer == nextc%canopy_layer) then
->>>>>>> master
 
                          fusion_took_place = 1         
                          newn = currentCohort%n + nextc%n    ! sum individuals in both cohorts.     
@@ -734,10 +731,8 @@ contains
                             deallocate(nextc)            
                          endif
 
-<<<<<<< HEAD
                          endif ! Not a recruit
-=======
->>>>>>> master
+
                       endif !canopy layer
                    endif !pft
                 endif  !index no. 
