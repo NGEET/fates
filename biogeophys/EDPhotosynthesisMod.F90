@@ -438,13 +438,9 @@ contains
 
 	       !RF - copied this from the CLM trunk code, but where did it come from, and how can we make these consistant? 
 	       !jmax25top(FT) = (2.59_r8 - 0.035_r8*min(max((t10(p)-tfrz),11._r8),35._r8)) * vcmax25top(FT)
-<<<<<<< HEAD
-	       jmax25top(FT) = 1.67_r8 * vcmax25top(FT) ! Reverting and old typo RGK 01-12-2016
-	       tpu25top(FT)  = 0.167_r8 * vcmax25top(FT)
-=======
+
 	       jmax25top(FT) = 1.67_r8   * vcmax25top(FT)
 	       tpu25top(FT)  = 0.167_r8  * vcmax25top(FT)
->>>>>>> master
 	       kp25top(FT)   = 20000._r8 * vcmax25top(FT)
 
                ! Nitrogen scaling factor. Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 used
