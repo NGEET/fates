@@ -8,6 +8,7 @@ module EDPhysiologyMod
 
   use shr_kind_mod        , only : r8 => shr_kind_r8
   use clm_varctl          , only : iulog 
+  use spmdMod             , only : masterproc
   use TemperatureType     , only : temperature_type
   use SoilStateType       , only : soilstate_type
   use WaterstateType      , only : waterstate_type
@@ -35,6 +36,9 @@ module EDPhysiologyMod
   public :: seeds_in
   public :: seed_decay
   public :: seed_germination
+
+  logical, parameter :: DEBUG  = .false. ! local debug flag
+
   ! ============================================================================
 
 contains
@@ -85,6 +89,8 @@ contains
 
     currentPatch%leaf_litter_in(:)   = 0.0_r8
     currentPatch%root_litter_in(:)   = 0.0_r8
+    currentPatch%dleaf_litter_dt(:)  = 0.0_r8
+    currentPatch%droot_litter_dt(:)  = 0.0_r8
     currentPatch%leaf_litter_out(:)  = 0.0_r8
     currentPatch%root_litter_out(:)  = 0.0_r8
     currentPatch%cwd_AG_in(:)        = 0.0_r8
@@ -122,6 +128,7 @@ contains
     currentPatch%root_litter_in(:)  = 0.0_r8
     currentPatch%leaf_litter_out(:) = 0.0_r8
     currentPatch%root_litter_out(:) = 0.0_r8
+
     currentPatch%CWD_AG_in(:)       = 0.0_r8
     currentPatch%cwd_bg_in(:)       = 0.0_r8
     currentPatch%CWD_AG_out(:)      = 0.0_r8
@@ -180,17 +187,21 @@ contains
                    currentCohort%leaf_cost =  1._r8/(pftcon%slatop(currentCohort%pft)*1000.0_r8)
                    currentCohort%leaf_cost = currentCohort%leaf_cost + 1.0_r8/(pftcon%slatop(currentCohort%pft)*1000.0_r8) * &
                         pftcon%froot_leaf(currentCohort%pft) / EDecophyscon%root_long(currentCohort%pft)
-                   currentCohort%leaf_cost = currentCohort%leaf_cost * (ED_val_grperc+1._r8)
+                   currentCohort%leaf_cost = currentCohort%leaf_cost * (ED_val_grperc(1) + 1._r8)
                 else !evergreen costs
                    currentCohort%leaf_cost = 1.0_r8/(pftcon%slatop(currentCohort%pft)* &
                         pftcon%leaf_long(currentCohort%pft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1 
                    currentCohort%leaf_cost = currentCohort%leaf_cost + 1.0_r8/(pftcon%slatop(currentCohort%pft)*1000.0_r8) * &
                         pftcon%froot_leaf(currentCohort%pft) / EDecophyscon%root_long(currentCohort%pft)
-                   currentCohort%leaf_cost = currentCohort%leaf_cost * (ED_val_grperc+1._r8)
+                   currentCohort%leaf_cost = currentCohort%leaf_cost * (ED_val_grperc(1) + 1._r8)
                 endif
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost)then
                    if (currentCohort%canopy_trim > trim_limit)then
-                      !  write(iulog,*) 'trimming leaves',currentCohort%canopy_trim,currentCohort%leaf_cost
+
+                      if ( DEBUG ) then
+                         write(iulog,*) 'trimming leaves',currentCohort%canopy_trim,currentCohort%leaf_cost
+                      endif
+
                       ! keep trimming until none of the canopy is in negative carbon balance.              
                       if (currentCohort%hite > EDecophyscon%hgt_min(currentCohort%pft))then
                          currentCohort%canopy_trim = currentCohort%canopy_trim - inc    
@@ -212,7 +223,10 @@ contains
           if (trimmed == 0.and.currentCohort%canopy_trim < 1.0_r8)then
              currentCohort%canopy_trim = currentCohort%canopy_trim + inc
           endif 
-          ! write(iulog,*) 'trimming',currentCohort%canopy_trim
+
+          if ( DEBUG ) then
+             write(iulog,*) 'trimming',currentCohort%canopy_trim
+          endif
          
           ! currentCohort%canopy_trim = 1.0_r8 !FIX(RF,032414) this turns off ctrim for now. 
           currentCohort => currentCohort%shorter
@@ -230,6 +244,8 @@ contains
     !
     ! !USES:
     use clm_varcon, only : tfrz
+    use clm_time_manager, only : get_days_per_year, get_curr_date
+    use clm_time_manager, only : get_ref_date, timemgr_datediff 
     use EDTypesMod, only : udata
     !
     ! !ARGUMENTS:
@@ -247,6 +263,14 @@ contains
     integer  :: ncolddayslim ! critical no days underneath the threshold for leaf drop
     integer  :: i
     integer  :: timesincedleafon,timesincedleafoff,timesinceleafon,timesinceleafoff
+    integer  :: refdate
+    integer  :: curdate
+    
+    integer  :: yr                       ! year (0, ...)
+    integer  :: mon                      ! month (1, ..., 12)
+    integer  :: day                      ! day of month (1, ..., 31)
+    integer  :: sec                      ! seconds of the day
+
     real(r8) :: gdd_threshold
     real(r8) :: a,b,c        ! params of leaf-pn model from botta et al. 2000. 
     real(r8) :: cold_t       ! threshold below which cold days are counted 
@@ -256,12 +280,25 @@ contains
     real(r8) :: off_time     ! minimum number of days between leaf off and leaf on for drought phenology 
     real(r8) :: temp_in_C    ! daily averaged temperature in celcius
     real(r8) :: mindayson 
+    real(r8) :: modelday
+
     !------------------------------------------------------------------------
 
     t_veg24       => temperature_inst%t_veg24_patch ! Input:  [real(r8) (:)]  avg pft vegetation temperature for last 24 hrs    
     ED_GDD_patch  => ed_phenology_inst%ED_GDD_patch ! Input:  [real(r8) (:)]  growing deg. days base 0 deg C (ddays)
 
+
     g = currentSite%clmgcell
+
+
+    call get_curr_date(yr, mon, day, sec)
+    curdate = yr*10000 + mon*100 + day
+    
+    call get_ref_date(yr, mon, day, sec)
+    refdate = yr*10000 + mon*100 + day
+  
+    call timemgr_datediff(refdate, 0, curdate, sec, modelday)
+    if ( masterproc ) write(iulog,*) 'modelday',modelday
 
     ! Parameter of drought decid leaf loss in mm in top layer...FIX(RF,032414) 
     ! - this is arbitrary and poorly understood. Needs work. ED_
@@ -315,29 +352,24 @@ contains
        endif
     enddo
 
-    timesinceleafoff = t - currentSite%leafoffdate
-    if (t < currentSite%leafoffdate)then
-       timesinceleafoff = t +(365-currentSite%leafoffdate)
-    endif
-
+    timesinceleafoff = modelday - currentSite%leafoffdate
     !LEAF ON: COLD DECIDUOUS. Needs to
     !1) have exceeded the growing degree day threshold 
     !2) The leaves should not be on already
     !3) There should have been at least on chilling day in the counting period.  
     if (ED_GDD_patch(currentSite%oldest_patch%clm_pno) > gdd_threshold)then
-       if (currentSite%status == 1)then
-             if (currentSite%ncd >= 1)then
-          currentSite%status = 2     !alter status of site to 'leaves on'
-          currentSite%leafondate = t  !record leaf on date   
-                write(iulog,*) 'leaves on'
-             endif !ncd
+       if (currentSite%status == 1) then
+          if (currentSite%ncd >= 1) then
+             currentSite%status = 2     !alter status of site to 'leaves on'
+             ! NOTE(bja, 2015-01) should leafondate = modelday to be consistent with leaf off?
+             currentSite%leafondate = t !record leaf on date   
+             if ( DEBUG ) write(iulog,*) 'leaves on'
+          endif !ncd
        endif !status
     endif !GDD
 
-    timesinceleafon = t - currentSite%leafondate
-    if (t < currentSite%leafondate)then
-       timesinceleafon = t +(365-currentSite%leafondate)
-       endif
+    timesinceleafon = modelday - currentSite%leafondate
+
 
     !LEAF OFF: COLD THRESHOLD
     !Needs to:
@@ -350,18 +382,18 @@ contains
      if (timesinceleafon > mindayson)then
        if (currentSite%status == 2)then
           currentSite%status = 1        !alter status of site to 'leaves on'
-          currentSite%leafoffdate = t   !record leaf off date   
-          write(iulog,*) 'leaves off'
+          currentSite%leafoffdate = modelday   !record leaf off date   
+          if ( DEBUG ) write(iulog,*) 'leaves off'
        endif
     endif
     endif
 
     !LEAF OFF: COLD LIFESPAN THRESHOLD
-    if (timesinceleafoff > 360)then !remove leaves after a whole year when there is no 'off' period.  
-       if (currentSite%status == 2)then
+    if(timesinceleafoff > 400)then !remove leaves after a whole year when there is no 'off' period.  
+       if(currentSite%status == 2)then
           currentSite%status = 1        !alter status of site to 'leaves on'
-          currentSite%leafoffdate = t   !record leaf off date   
-          write(iulog,*) 'leaves off'
+          currentSite%leafoffdate = modelday   !record leaf off date   
+          if ( DEBUG ) write(iulog,*) 'leaves off'
        endif
     endif
 
@@ -476,9 +508,14 @@ contains
     ! !LOCAL VARIABLES:
     type(ed_patch_type) , pointer :: currentPatch     
     type(ed_cohort_type), pointer :: currentCohort  
+
+    real(r8)           :: store_output ! the amount of the store to put into leaves - is a barrier against negative storage and C starvation. 
+
     !------------------------------------------------------------------------
 
     currentPatch => CurrentSite%oldest_patch   
+
+    store_output  = 0.5_r8
 
     do while(associated(currentPatch))    
        currentCohort => currentPatch%tallest
@@ -492,12 +529,23 @@ contains
                    if (currentCohort%laimemory <= currentCohort%bstore)then
                       currentCohort%bl = currentCohort%laimemory !extract stored carbon to make new leaves.
                    else
-                      currentCohort%bl = currentCohort%bstore    !we can only put on as much carbon as there is in the store...
-                    !nb. Putting all of bstore into leaves is C-starvation suicidal. The tendency for this could be parameterized
+                      ! we can only put on as much carbon as there is in the store...
+                      ! nb. Putting all of bstore into leaves is C-starvation suicidal. 
+                      ! The tendency for this could be parameterized
+                      currentCohort%bl = currentCohort%bstore * store_output
                    endif
-                   currentCohort%balive = currentCohort%balive + currentCohort%bl  ! Add deployed carbon to alive biomass pool
+
+                   ! Add deployed carbon to alive biomass pool
+                   currentCohort%balive = currentCohort%balive + currentCohort%bl
+
+                   if ( DEBUG ) write(iulog,*) 'EDPhysMod 1 ',currentCohort%bstore
+
                    currentCohort%bstore = currentCohort%bstore - currentCohort%bl  ! Drain store
+
+                   if ( DEBUG ) write(iulog,*) 'EDPhysMod 2 ',currentCohort%bstore
+
                    currentCohort%laimemory = 0.0_r8
+
                 endif !pft phenology
              endif ! growing season 
 
@@ -525,11 +573,18 @@ contains
                    if (currentCohort%laimemory <= currentCohort%bstore)then
                       currentCohort%bl = currentCohort%laimemory !extract stored carbon to make new leaves.
                    else
-                      currentCohort%bl = currentCohort%bstore !we can only put on as much carbon as there is in the store...
-                   endif
+                    currentCohort%bl = currentCohort%bstore * store_output    !we can only put on as much carbon as there is in the store...
+                    endif
                    currentCohort%balive = currentCohort%balive + currentCohort%bl
+
+                   if ( DEBUG ) write(iulog,*) 'EDPhysMod 3 ',currentCohort%bstore
+
                    currentCohort%bstore = currentCohort%bstore - currentCohort%bl ! empty store
+
+                   if ( DEBUG ) write(iulog,*) 'EDPhysMod 4 ',currentCohort%bstore
+
                    currentCohort%laimemory = 0.0_r8
+
                 endif !currentCohort status again?
              endif   !currentSite status
 
@@ -710,6 +765,8 @@ contains
     endif
 
     ! NPP 
+    if ( DEBUG ) write(iulog,*) 'EDphys 716 ',currentCohort%npp_acc
+
     currentCohort%npp  = currentCohort%npp_acc  * N_SUB   !Link to CLM. convert from kgC/indiv/day into kgC/indiv/year
     currentCohort%gpp  = currentCohort%gpp_acc  * N_SUB   !Link to CLM. convert from kgC/indiv/day into kgC/indiv/year
     currentCohort%resp = currentCohort%resp_acc * N_SUB   !Link to CLM. convert from kgC/indiv/day into kgC/indiv/year
@@ -754,6 +811,9 @@ contains
     ! Calculate carbon balance 
     ! this is the fraction of maintenance demand we -have- to do...
 
+    if ( DEBUG ) write(iulog,*) 'EDphys 760 ',currentCohort%npp, currentCohort%md, &
+                   EDecophyscon%leaf_stor_priority(currentCohort%pft)
+
     currentCohort%carbon_balance = currentCohort%npp - currentCohort%md *  EDecophyscon%leaf_stor_priority(currentCohort%pft)
 
     ! Allowing only carbon from NPP pool to account for npp flux into the maintenance pools
@@ -766,6 +826,8 @@ contains
 
     if (Bleaf(currentCohort) > 0._r8)then
 
+       if ( DEBUG ) write(iulog,*) 'EDphys A ',currentCohort%carbon_balance
+
        if (currentCohort%carbon_balance > 0._r8)then !spend C on growing and storing
 
           !what fraction of the target storage do we have? 
@@ -775,6 +837,9 @@ contains
           !what fraction of allocation do we divert to storage?
           !what is the flux into the store?
           currentCohort%storage_flux = currentCohort%carbon_balance * f_store                     
+
+          if ( DEBUG ) write(iulog,*) 'EDphys B ',f_store
+
           !what is the tax on the carbon available for growth? 
           currentCohort%carbon_balance = currentCohort%carbon_balance * (1.0_r8 - f_store)  
        else  !cbalance is negative. Take C out of store to pay for maintenance respn.
@@ -853,6 +918,9 @@ contains
     currentCohort%dbalivedt = gr_fract * va * currentCohort%carbon_balance - balive_loss
     currentCohort%dbdeaddt  = gr_fract * vs * currentCohort%carbon_balance
     currentCohort%dbstoredt = currentCohort%storage_flux
+
+    if ( DEBUG ) write(iulog,*) 'EDPhys dbstoredt I ',currentCohort%dbstoredt
+
     currentCohort%seed_prod = (1.0_r8 - gr_fract) * currentCohort%carbon_balance
     if (abs(currentCohort%npp-(currentCohort%dbalivedt+currentCohort%dbdeaddt+currentCohort%dbstoredt+ &
          currentCohort%seed_prod+currentCohort%md)) > 0.0000000001_r8)then
@@ -871,6 +939,9 @@ contains
        write(iulog,*) 'using non-neg leaf mass cap',currentCohort%balive , currentCohort%dbalivedt,currentCohort%dbstoredt, &
             currentCohort%carbon_balance
        currentCohort%dbstoredt = currentCohort%dbstoredt + currentCohort%dbalivedt
+
+       if ( DEBUG ) write(iulog,*) 'EDPhys dbstoredt II ',currentCohort%dbstoredt
+
        currentCohort%dbalivedt = 0._r8 
     endif
 
@@ -946,10 +1017,15 @@ contains
        endif
 
        if (temp_cohort%n > 0.0_r8)then
+
+          if ( DEBUG ) write(iulog,*) 'EDPhysiologyMod.F90 call create_cohort '
+
           call create_cohort(currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore,  &
                temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, currentPatch%NCL_p)
+
        endif
+
     enddo  !pft loop
 
     deallocate(temp_cohort) ! delete temporary cohort
@@ -1134,8 +1210,8 @@ contains
     !----------------------------------------------------------------------
 
     currentSite => currentPatch%siteptr
-    currentPatch%root_litter_out = 0.0_r8
-    currentPatch%leaf_litter_out = 0.0_r8
+    currentPatch%root_litter_out(:) = 0.0_r8
+    currentPatch%leaf_litter_out(:) = 0.0_r8
 
     call fragmentation_scaler(currentPatch, temperature_inst)
 

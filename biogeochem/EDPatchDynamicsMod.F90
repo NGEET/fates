@@ -824,6 +824,9 @@ contains
     new_patch%cwd_ag_in(:)       = 0._r8
     new_patch%cwd_bg_in(:)       = 0._r8
 
+    new_patch%cwd_ag_out(:)      = 0._r8
+    new_patch%cwd_bg_out(:)      = 0._r8
+
     new_patch%f_sun              = 0._r8
     new_patch%ed_laisun_z(:,:,:) = 0._r8 
     new_patch%ed_laisha_z(:,:,:) = 0._r8 
@@ -841,6 +844,9 @@ contains
     new_patch%frac_burnt         = 0._r8  
     new_patch%total_tree_area    = 0.0_r8  
     new_patch%NCL_p              = 1
+
+    new_patch%leaf_litter_in(:)  = 0._r8
+    new_patch%leaf_litter_out(:) = 0._r8
 
     allocate(new_patch%rootfr_ft(numpft_ed,nlevgrnd))
     allocate(new_patch%rootr_ft(numpft_ed,nlevgrnd)) 
@@ -883,7 +889,7 @@ contains
     currentPatch%bare_frac_area             = nan                             
 
     currentPatch%tlai_profile(:,:,:)        = nan 
-    currentPatch%elai_profile(:,:,:)        = nan 
+    currentPatch%elai_profile(:,:,:)        = 0._r8 
     currentPatch%tsai_profile(:,:,:)        = nan 
     currentPatch%esai_profile(:,:,:)        = nan       
     currentPatch%canopy_area_profile(:,:,:) = nan       
@@ -897,7 +903,7 @@ contains
     currentPatch%ed_laisha_z(:,:,:)         = nan 
     currentPatch%ed_parsun_z(:,:,:)         = nan 
     currentPatch%ed_parsha_z(:,:,:)         = nan 
-    currentPatch%psn_z(:,:,:)               = nan   
+    currentPatch%psn_z(:,:,:)               = 0._r8   
 
     currentPatch%f_sun(:,:,:)               = nan
     currentPatch%tr_soil_dir(:)             = nan    ! fraction of incoming direct  radiation that is transmitted to the soil as direct
@@ -927,6 +933,9 @@ contains
     currentPatch%cwd_bg(:)                  = 0.0_r8 ! below ground coarse woody debris
     currentPatch%root_litter(:)             = 0.0_r8
     currentPatch%leaf_litter(:)             = 0.0_r8
+
+    currentPatch%leaf_litter_in(:)          = 0.0_r8
+    currentPatch%leaf_litter_out(:)         = 0.0_r8
 
     ! FIRE
     currentPatch%fuel_eff_moist             = 0.0_r8 ! average fuel moisture content of the ground fuel 
@@ -1178,7 +1187,11 @@ contains
     rp%frac_burnt           = (dp%frac_burnt*dp%area + rp%frac_burnt*rp%area)/(dp%area + rp%area)
     rp%burnt_frac_litter(:) = (dp%burnt_frac_litter(:)*dp%area + rp%burnt_frac_litter(:)*rp%area)/(dp%area + rp%area)
     rp%btran_ft(:)          = (dp%btran_ft(:)*dp%area + rp%btran_ft(:)*rp%area)/(dp%area + rp%area)
-    
+    rp%dleaf_litter_dt(:)   = (dp%dleaf_litter_dt(:)*dp%area + rp%dleaf_litter_dt(:)*rp%area)/(dp%area+rp%area)
+    rp%leaf_litter_in(:)    = (dp%leaf_litter_in(:)*dp%area  + rp%leaf_litter_in(:)*rp%area)/(dp%area+rp%area)
+    rp%leaf_litter_out(:)   = (dp%leaf_litter_out(:)*dp%area + rp%leaf_litter_out(:)*rp%area)/(dp%area+rp%area)
+
+
     rp%area = rp%area + dp%area !THIS MUST COME AT THE END!
 
     !insert donor cohorts into recipient patch
