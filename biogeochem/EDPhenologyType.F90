@@ -15,18 +15,22 @@ module EDPhenologyType
   use decompMod         , only : bounds_type
   use accumulMod        , only : update_accum_field, extract_accum_field, accumResetVal
   use clm_varctl        , only : iulog
-  use clm_time_manager  , only : get_nstep, get_step_size
+  use clm_time_manager  , only : get_nstep, get_step_size, is_restart
   !
   ! !USES:
   implicit none
   private
   !
   type, public :: ed_phenology_type
+
+     logical   ::  DEBUG = .false.
+
      !
      ! change these to allocatable
      ! add a rbuf variable that is a part of this type
      !
      real(r8), pointer :: ED_GDD_patch               (:)   ! ED Phenology growing degree days.
+
      ! This (phen_cd_status_patch?) could and should be site-level. RF
      integer , pointer :: phen_cd_status_patch       (:)   ! ED Phenology cold deciduous status
      character(10)     :: accString = 'ED_GDD0'
@@ -160,6 +164,8 @@ contains
 
     call update_accum_field  ( trim(this%accString), rbufslp, get_nstep() )
     call extract_accum_field ( trim(this%accString), this%ED_GDD_patch, get_nstep() )
+
+    if (this%DEBUG) write(iulog,*) 'ED_GDD accumAndExtract ', this%ED_GDD_patch
 
     deallocate(rbufslp)
 
@@ -304,6 +310,10 @@ contains
 
     call extract_accum_field (this%accString, rbufslp, get_nstep())
     this%ED_GDD_patch(bounds%begp:bounds%endp) = rbufslp(bounds%begp:bounds%endp)
+
+    if ( this%DEBUG ) then
+       write(iulog,*) 'ED_GDD initAccVars ',this%ED_GDD_patch(bounds%begp:bounds%endp)
+    endif
 
     deallocate(rbufslp)
 
