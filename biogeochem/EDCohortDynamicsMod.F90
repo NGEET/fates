@@ -635,8 +635,14 @@ contains
 
                       if (currentCohort%canopy_layer == nextc%canopy_layer) then 
 
-                         ! check to make sure one is not a new recruit (npp=nan flag)
-                         if( (.not.(currentCohort%isnew)).and.(.not.(nextc%isnew)) ) then
+		      	 ! Note: because newly recruited cohorts that have not experienced
+			 ! a day yet will have un-known flux quantities or change rates
+			 ! we don't want them fusing with non-new cohorts.  We allow them
+			 ! to fuse with other new cohorts to keep the total number of cohorts
+			 ! down.
+
+                         if( (.not.(currentCohort%isnew)).and.(.not.(nextc%isnew)) .or. & 
+			          ((currentCohort%isnew)).and.((nextc%isnew)) ) then
 
                          fusion_took_place = 1         
                          newn = currentCohort%n + nextc%n    ! sum individuals in both cohorts.     
@@ -690,7 +696,7 @@ contains
                          currentCohort%npp         = (currentCohort%n*currentCohort%npp         + nextc%n*nextc%npp)/newn
                          currentCohort%gpp         = (currentCohort%n*currentCohort%gpp         + nextc%n*nextc%gpp)/newn
                          currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim + nextc%n*nextc%canopy_trim)/newn
-                         currentCohort%dmort       = (currentCohort%n*currentCohort%dmort       + nextc%n*nextc%dmort)/newn
+			 currentCohort%dmort       = (currentCohort%n*currentCohort%dmort       + nextc%n*nextc%dmort)/newn
                          currentCohort%fire_mort   = (currentCohort%n*currentCohort%fire_mort   + nextc%n*nextc%fire_mort)/newn
                          currentCohort%leaf_litter = (currentCohort%n*currentCohort%leaf_litter + nextc%n*nextc%leaf_litter)/newn
 
