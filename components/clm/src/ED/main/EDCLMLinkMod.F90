@@ -72,7 +72,7 @@ module EDCLMLinkMod
      real(r8), pointer, private  :: deadstemc_patch            (:)   ! (gC/m2) dead stem C
      real(r8), pointer, private  :: livestemn_patch            (:)   ! (gN/m2) live stem N
      real(r8), pointer, private  :: npp_patch                  (:)   ! (gC/m2/s) patch net primary production
-<<<<<<< HEAD
+
      real(r8), pointer, private  :: gpp_patch                  (:)   ! (gC/m2/s) patch gross primary production 
      
      real(r8), pointer :: ed_gpp_gd_scpf          (:,:)   ! [kg/m2/yr] gross primary production
@@ -104,9 +104,6 @@ module EDCLMLinkMod
      real(r8), pointer :: ed_m3_gd_scpf                 (:,:) ! [Stems/ha/yr] Mean Carbon Starvation Mortality
      real(r8), pointer :: ed_m4_gd_scpf                 (:,:) ! [Stems/ha/yr] Mean Impact Mortality
      real(r8), pointer :: ed_m5_gd_scpf                 (:,:) ! [Stems/ha/yr] Mean Fire Mortality
-=======
-     real(r8), pointer, public   :: gpp_patch                  (:)   ! (gC/m2/s) patch gross primary production 
->>>>>>> master
 
    contains
 
