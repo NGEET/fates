@@ -606,6 +606,7 @@ contains
                   !update cohort quantitie s                                  
                   currentCohort => currentPatch%shortest
                   do while(associated(currentCohort))
+     
                      ft = currentCohort%pft
                      currentCohort%livestemn = currentCohort%bsw  / pftcon%leafcn(currentCohort%pft)
 
@@ -694,6 +695,10 @@ contains
                        (currentPatch%area/AREA)
                   currentPatch%bare_frac_area = (1.0_r8 - min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)) * &
                        (currentPatch%area/AREA)                 
+
+                  if ( DEBUG ) then
+                     write(iulog, *) 'EDCLMLinkMod bare frac', currentPatch%bare_frac_area
+                  end if
                   total_patch_area = total_patch_area + clmpatch%wt_ed(p) + currentPatch%bare_frac_area
                   total_bare_ground = total_bare_ground + currentPatch%bare_frac_area
                   currentCohort=> currentPatch%tallest
@@ -801,7 +806,6 @@ contains
 
          begp                 => bounds%begp                     , &
          endp                 => bounds%endp                       &
-
          )
 
       ! ============================================================================

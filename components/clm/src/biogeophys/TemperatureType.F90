@@ -1223,7 +1223,6 @@ contains
 
     end if
 
-
     deallocate(rbufslp)
 
   end subroutine InitAccVars

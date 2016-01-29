@@ -113,7 +113,7 @@ contains
          ed_phenology_inst, waterstate_inst, canopystate_inst)
 
     if (masterproc) then
-      write(iulog,*) 'clm: leaving ED model',bounds%begg,bounds%endg,dayDiffInt
+      write(iulog, *) 'clm: leaving ED model', bounds%begg, bounds%endg, dayDiffInt
     end if
 
   end subroutine ed_driver
@@ -259,11 +259,15 @@ contains
           currentCohort%dbh    = max(small_no,currentCohort%dbh    + currentCohort%ddbhdt    * udata%deltat )
           currentCohort%balive = currentCohort%balive + currentCohort%dbalivedt * udata%deltat 
           currentCohort%bdead  = max(small_no,currentCohort%bdead  + currentCohort%dbdeaddt  * udata%deltat )
-          !write(iulog,*) 'EDMainMod dbstoredt I ',currentCohort%bstore, &
-                         !currentCohort%dbstoredt,udata%deltat
+          if ( DEBUG ) then
+             write(iulog,*) 'EDMainMod dbstoredt I ',currentCohort%bstore, &
+                  currentCohort%dbstoredt,udata%deltat
+          end if
           currentCohort%bstore = currentCohort%bstore + currentCohort%dbstoredt * udata%deltat 
-          !write(iulog,*) 'EDMainMod dbstoredt II ',currentCohort%bstore, &
-                         !currentCohort%dbstoredt,udata%deltat
+          if ( DEBUG ) then
+             write(iulog,*) 'EDMainMod dbstoredt II ',currentCohort%bstore, &
+                  currentCohort%dbstoredt,udata%deltat
+          end if
 
           if( (currentCohort%balive+currentCohort%bdead+currentCohort%bstore)*currentCohort%n<0._r8)then
             write(iulog,*) 'biomass is negative', currentCohort%n,currentCohort%balive, &
@@ -329,11 +333,12 @@ contains
 
        do p = 1,numpft_ed
           if(currentPatch%leaf_litter(p)<small_no)then
-            write(iulog,*) 'negative leaf litter', currentPatch%leaf_litter(p),CurrentSite%lat,CurrentSite%lon
+            write(iulog,*) 'negative leaf litter numerical error', currentPatch%leaf_litter(p),CurrentSite%lat,CurrentSite%lon,&
+            currentPatch%dleaf_litter_dt(p),currentPatch%leaf_litter_in(p),currentPatch%leaf_litter_out(p),currentpatch%age
             currentPatch%leaf_litter(p) = small_no
           endif
           if(currentPatch%root_litter(p)<small_no)then
-               write(iulog,*) 'negative root litter', currentPatch%root_litter(p), &
+               write(iulog,*) 'negative root litter numerical error', currentPatch%root_litter(p), &
                currentPatch%droot_litter_dt(p)* udata%deltat, &
                CurrentSite%lat,CurrentSite%lon
             currentPatch%root_litter(p) = small_no
