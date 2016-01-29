@@ -416,6 +416,7 @@ contains
     ! if use_ed is not set, then this will not contain any significant memory 
     ! if use_ed is true, then the actual memory for all of the ED data structures
     ! is allocated in the call to EDInitMod - called from clm_initialize
+    ! NOTE (SPM, 10-27-2015) ... check on deallocation of ed_allsites_inst
 
     allocate (ed_allsites_inst(bounds%begg:bounds%endg))
     if (use_ed) then
@@ -555,6 +556,7 @@ contains
     end if
 
     if (use_ed) then
+       call ED_Phenology_inst%restart(bounds, ncid, flag=flag)
        call EDRest ( bounds, ncid, flag, ed_allsites_inst(bounds%begg:bounds%endg), &
             ed_clm_inst, ed_phenology_inst, waterstate_inst, canopystate_inst )
     end if

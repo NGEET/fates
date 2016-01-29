@@ -705,7 +705,6 @@
         <machine compiler="ed" testtype="ed" testmods="clm/edTest">ed</machine>
         <machine compiler="gnu" testtype="aux_clm45" testmods="clm/edTest">yellowstone</machine>
         <machine compiler="intel" testtype="aux_clm45" testmods="clm/edTest">yellowstone</machine>
-	<machine compiler="intel" testtype="aux_clm45" testmods="clm/edTest">lawrencium-lr2</machine>
       </test>
     </grid>
     <grid name="5x5_amazon">
@@ -716,7 +715,6 @@
         <machine compiler="ed" testtype="ed" testmods="clm/edTest">ed</machine>
         <machine compiler="nag" testtype="aux_clm45" testmods="clm/edTest">hobart</machine>
         <machine compiler="pgi" testtype="aux_clm45" testmods="clm/edTest">yellowstone</machine>
-	<machine compiler="intel" testtype="aux_clm45" testmods="clm/edTest">lawrencium-lr2</machine>
       </test>
     </grid>
     <grid name="f09_g16">
@@ -735,19 +733,16 @@
         <machine compiler="ed" testtype="ed" testmods="clm/edTest">ed</machine>
         <machine compiler="intel" testtype="aux_clm45" testmods="clm/edTest">yellowstone</machine>
         <machine compiler="pgi" testtype="aux_clm45" testmods="clm/edTest">yellowstone</machine>
-	<machine compiler="intel" testtype="aux_clm45" testmods="clm/edTest">lawrencium-lr2</machine>
       </test>
     </grid>
     <grid name="f19_g16">
       <test name="ERS_D_Ld5">
         <machine compiler="ed" testtype="ed" testmods="clm/edTest">ed</machine>
-	<machine compiler="intel" testtype="aux_clm45" testmods="clm/edTest">lawrencium-lr2</machine>
       </test>
       <test name="SMS_Ld5">
         <machine compiler="ed" testtype="ed" testmods="clm/edTest">ed</machine>
         <machine compiler="gnu" testtype="aux_clm45" testmods="clm/edTest">yellowstone</machine>
         <machine compiler="intel" testtype="aux_clm45" testmods="clm/edTest">yellowstone</machine>
-	<machine compiler="intel" testtype="aux_clm45" testmods="clm/edTest">lawrencium-lr2</machine>
       </test>
     </grid>
     <grid name="f45_g37">

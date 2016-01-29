@@ -6,12 +6,13 @@ module EDRestVectorMod
   use shr_log_mod     , only : errMsg => shr_log_errMsg
   use shr_sys_mod     , only : shr_sys_abort
   use clm_varctl      , only : iulog
-  use decompMod       , only : bounds_type, get_clmlevel_gsmap
+  use spmdMod         , only : masterproc
+  use decompMod       , only : bounds_type
   use CanopyStateType , only : canopystate_type
   use WaterStateType  , only : waterstate_type
   use pftconMod       , only : pftcon
   use EDTypesMod      , only : area, cohorts_per_gcell, numpft_ed, numWaterMem, nclmax, numCohortsPerPatch
-  use EDTypesMod      , only : ncwd, invalidValue 
+  use EDTypesMod      , only : ncwd, invalidValue, nlevcan_ed
   use EDTypesMod      , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDPhenologyType , only : ed_phenology_type
   !
@@ -82,11 +83,26 @@ module EDRestVectorMod
      real(r8), pointer :: livegrass(:)   ! this can probably be removed
      real(r8), pointer :: age(:)
      real(r8), pointer :: areaRestart(:)
+     real(r8), pointer :: f_sun(:)
+     real(r8), pointer :: fabd_sun_z(:)
+     real(r8), pointer :: fabi_sun_z(:)
+     real(r8), pointer :: fabd_sha_z(:)
+     real(r8), pointer :: fabi_sha_z(:)
      !
      ! site level restart vars
      !
      real(r8), pointer :: water_memory(:) 
      real(r8), pointer :: old_stock(:) 
+     real(r8), pointer :: cd_status(:) 
+     real(r8), pointer :: dd_status(:)
+     real(r8), pointer :: ncd(:)   
+     real(r8), pointer :: leafondate(:)   
+     real(r8), pointer :: leafoffdate(:)   
+     real(r8), pointer :: dleafondate(:)   
+     real(r8), pointer :: dleafoffdate(:) 
+     real(r8), pointer :: acc_NI(:) 
+             
+     
    contains
      !
      ! implement getVector and setVector
@@ -174,8 +190,21 @@ contains
     deallocate(this%livegrass )
     deallocate(this%age )
     deallocate(this%areaRestart )
+    deallocate(this%f_sun )
+    deallocate(this%fabd_sun_z )
+    deallocate(this%fabi_sun_z )
+    deallocate(this%fabd_sha_z )
+    deallocate(this%fabi_sha_z )
     deallocate(this%water_memory )
     deallocate(this%old_stock )
+    deallocate(this%cd_status )
+    deallocate(this%dd_status )
+    deallocate(this%ncd )
+    deallocate(this%leafondate )
+    deallocate(this%leafoffdate )
+    deallocate(this%dleafondate )
+    deallocate(this%dleafoffdate )    
+    deallocate(this%acc_NI )
 
   end subroutine deleteEDRestartVectorClass
 
@@ -370,6 +399,31 @@ contains
       SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
       new%areaRestart(:) = 0.0_r8
 
+      allocate(new%f_sun &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%f_sun(:) = 0.0_r8
+
+      allocate(new%fabd_sun_z &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%fabd_sun_z(:) = 0.0_r8
+
+      allocate(new%fabi_sun_z &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%fabi_sun_z(:) = 0.0_r8
+
+      allocate(new%fabd_sha_z &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%fabd_sha_z(:) = 0.0_r8
+
+      allocate(new%fabi_sha_z &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%fabi_sha_z(:) = 0.0_r8
+
       !
       ! site level variable
       !
@@ -383,6 +437,46 @@ contains
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
       SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
       new%old_stock(:) = 0.0_r8
+
+      allocate(new%cd_status &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%cd_status(:) = 0_r8
+      
+       allocate(new%dd_status &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%dd_status(:) = 0_r8
+ 
+      allocate(new%ncd &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%ncd(:) = 0_r8
+     
+      allocate(new%leafondate &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%leafondate(:) = 0_r8
+      
+       allocate(new%leafoffdate &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%leafoffdate(:) = 0_r8     
+ 
+       allocate(new%dleafondate &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%dleafondate(:) = 0_r8
+      
+       allocate(new%dleafoffdate &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%dleafoffdate(:) = 0_r8        
+
+     allocate(new%acc_NI &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%acc_NI(:) = 0_r8        
 
     end associate
 
@@ -405,16 +499,18 @@ contains
     ! !LOCAL VARIABLES:
     !-----------------------------------------------------------------------
 
-    write(iulog,*) 'edtime setVectors ',get_nstep()
+    if ( masterproc ) write(iulog,*) 'edtime setVectors ',get_nstep()
 
-    if (this%DEBUG) then
-       call this%printIoInfoLL ( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
-       call this%printDataInfoLL ( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
-    end if
+    !if (this%DEBUG) then
+       !call this%printIoInfoLL ( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
+       !call this%printDataInfoLL ( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
+    !end if
 
     call this%convertCohortListToVector ( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
 
     if (this%DEBUG) then
+       call this%printIoInfoLL ( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
+       call this%printDataInfoLL ( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
        call this%printDataInfoVector (  )
     end if
 
@@ -448,7 +544,6 @@ contains
 
     if (this%DEBUG) then
        write(iulog,*) 'edtime getVectors ',get_nstep()
-       call this%printDataInfoVector (  )
     end if
 
     call this%createPatchCohortStructure ( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
@@ -467,6 +562,7 @@ contains
     if (this%DEBUG) then
        call this%printIoInfoLL ( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
        call this%printDataInfoLL ( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
+       call this%printDataInfoVector (  )
     end if
 
   end subroutine getVectors
@@ -482,7 +578,6 @@ contains
     use restUtilMod, only : restartvar
     use clm_varcon,  only : nameg, nameCohort
     use spmdMod,     only : iam
-    use mct_mod,     only : mct_gsMap, mct_gsmap_OP
     !
     ! !ARGUMENTS:
     class(EDRestartVectorClass), intent(inout) :: this
@@ -492,14 +587,7 @@ contains
     ! !LOCAL VARIABLES:
     logical             :: readvar
     character(len=16)   :: dimName  = trim(nameCohort)
-    type(mct_gsMap),pointer       :: gsmap   ! global seg map
-    integer, pointer,dimension(:) :: gsmOP   ! gsmap ordered points
     !-----------------------------------------------------------------------
-
-    ! TODO(wjs, 2014-11-25) gsmap and gsmOP are computed here, but never used. Are these
-    ! place-holders that are intended to be used at some point, or can they be removed?
-    call get_clmlevel_gsmap(clmlevel='cohort', gsmap=gsmap)
-    call mct_gsmap_OP(gsmap, iam, gsmOP)
 
     !
     ! cohort level vars
@@ -636,70 +724,99 @@ contains
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_cwd_ag', xtype=ncd_double,  &
          dim1name=dimName, &
-         long_name='ed cohort - cwd_ag', units='unitless', &
+         long_name='ed patch - cwd_ag', units='unitless', &
          interpinic_flag='interp', data=this%cwd_ag, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_cwd_bg', xtype=ncd_double,  &
          dim1name=dimName, &
-         long_name='ed cohort - cwd_bg', units='unitless', &
+         long_name='ed patch - cwd_bg', units='unitless', &
          interpinic_flag='interp', data=this%cwd_bg, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_leaf_litter', xtype=ncd_double,  &
          dim1name=dimName, &
-         long_name='ed cohort - leaf_litter', units='unitless', &
+         long_name='ed patch - leaf_litter', units='unitless', &
          interpinic_flag='interp', data=this%leaf_litter, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_root_litter', xtype=ncd_double,  &
          dim1name=dimName, &
-         long_name='ed cohort - root_litter', units='unitless', &
+         long_name='ed patch - root_litter', units='unitless', &
          interpinic_flag='interp', data=this%root_litter, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_leaf_litter_in', xtype=ncd_double,  &
          dim1name=dimName, &
-         long_name='ed cohort - leaf_litter_in', units='unitless', &
+         long_name='ed patch - leaf_litter_in', units='unitless', &
          interpinic_flag='interp', data=this%leaf_litter_in, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_root_litter_in', xtype=ncd_double,  &
          dim1name=dimName, &
-         long_name='ed cohort - root_litter_in', units='unitless', &
+         long_name='ed patch - root_litter_in', units='unitless', &
          interpinic_flag='interp', data=this%root_litter_in, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_seed_bank', xtype=ncd_double,  &
          dim1name=dimName, &
-         long_name='ed cohort - seed_bank', units='unitless', &
+         long_name='ed patch - seed_bank', units='unitless', &
          interpinic_flag='interp', data=this%seed_bank, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_spread', xtype=ncd_double,  &
          dim1name=dimName, &
-         long_name='ed cohort - spread', units='unitless', &
+         long_name='ed patch - spread', units='unitless', &
          interpinic_flag='interp', data=this%spread, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_livegrass', xtype=ncd_double,  &
          dim1name=dimName, &
-         long_name='ed cohort - livegrass', units='unitless', &
+         long_name='ed patch - livegrass', units='unitless', &
          interpinic_flag='interp', data=this%livegrass, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_age', xtype=ncd_double,  &
          dim1name=dimName, &
-         long_name='ed cohort - age', units='unitless', &
+         long_name='ed patch - age', units='unitless', &
          interpinic_flag='interp', data=this%age, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_area', xtype=ncd_double,  &
          dim1name=dimName, &
-         long_name='ed cohort - area', units='unitless', &
+         long_name='ed patch - area', units='unitless', &
          interpinic_flag='interp', data=this%areaRestart, &
          readvar=readvar)
 
+    call restartvar(ncid=ncid, flag=flag, varname='ed_f_sun', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed patch - f_sun', units='unitless', &
+         interpinic_flag='interp', data=this%f_sun, &
+         readvar=readvar)
+
+    call restartvar(ncid=ncid, flag=flag, varname='ed_fabd_sun_z', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed patch - fabd_sun_z', units='unitless', &
+         interpinic_flag='interp', data=this%fabd_sun_z, &
+         readvar=readvar)
+
+    call restartvar(ncid=ncid, flag=flag, varname='ed_fabi_sun_z', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed patch - fabi_sun_z', units='unitless', &
+         interpinic_flag='interp', data=this%fabi_sun_z, &
+         readvar=readvar)
+
+    call restartvar(ncid=ncid, flag=flag, varname='ed_fabd_sha_z', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed patch - fabd_sha_z', units='unitless', &
+         interpinic_flag='interp', data=this%fabd_sha_z, &
+         readvar=readvar)
+
+    call restartvar(ncid=ncid, flag=flag, varname='ed_fabi_sha_z', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed patch - fabi_sha_z', units='unitless', &
+         interpinic_flag='interp', data=this%fabi_sha_z, &
+         readvar=readvar)
     !
     ! site level vars
     !
@@ -716,7 +833,55 @@ contains
          interpinic_flag='interp', data=this%old_stock, &
          readvar=readvar)
 
-    deallocate(gsmOP)
+    call restartvar(ncid=ncid, flag=flag, varname='ed_cd_status', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed cold dec status', units='unitless', &
+         interpinic_flag='interp', data=this%cd_status, &
+         readvar=readvar)
+         
+
+    call restartvar(ncid=ncid, flag=flag, varname='ed_dd_status', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed drought dec status', units='unitless', &
+         interpinic_flag='interp', data=this%dd_status, &
+         readvar=readvar)         
+         
+ 
+    call restartvar(ncid=ncid, flag=flag, varname='ed_chilling_days', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed chilling day counter', units='unitless', &
+         interpinic_flag='interp', data=this%ncd, &
+         readvar=readvar)       
+         
+    call restartvar(ncid=ncid, flag=flag, varname='ed_leafondate', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed leafondate', units='unitless', &
+         interpinic_flag='interp', data=this%leafondate, &
+         readvar=readvar)         
+                   
+    call restartvar(ncid=ncid, flag=flag, varname='ed_leafoffdate', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed leafoffdate', units='unitless', &
+         interpinic_flag='interp', data=this%leafoffdate, &
+         readvar=readvar) 
+
+    call restartvar(ncid=ncid, flag=flag, varname='ed_dleafondate', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed dleafondate', units='unitless', &
+         interpinic_flag='interp', data=this%dleafondate, &
+         readvar=readvar)         
+                   
+    call restartvar(ncid=ncid, flag=flag, varname='ed_dleafoffdate', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed dleafoffdate', units='unitless', &
+         interpinic_flag='interp', data=this%dleafoffdate, &
+         readvar=readvar) 
+                   
+    call restartvar(ncid=ncid, flag=flag, varname='ed_acc_NI', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed nesterov index', units='unitless', &
+         interpinic_flag='interp', data=this%acc_NI, &
+         readvar=readvar) 
 
   end subroutine doVectorIO
 
@@ -806,11 +971,37 @@ contains
          this%age(iSta:iSto)
     write(iulog,*) trim(methodName)//' :: area ', &
          this%areaRestart(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: f_sun ', &
+         this%f_sun(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: fabd_sun_z ', &
+         this%fabd_sun_z(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: fabi_sun_z ', &
+         this%fabi_sun_z(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: fabd_sha_z ', &
+         this%fabd_sha_z(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: fabi_sha_z ', &
+         this%fabi_sha_z(iSta:iSto)
     write(iulog,*) trim(methodName)//' :: water_memory ', &
          this%water_memory(iSta:iSto)
     write(iulog,*) trim(methodName)//' :: old_stock ', &
          this%old_stock(iSta:iSto)
-
+    write(iulog,*) trim(methodName)//' :: cd_status', &
+         this%cd_status(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: dd_status', &
+         this%cd_status(iSta:iSto)  
+    write(iulog,*) trim(methodName)//' :: ncd', &
+         this%ncd(iSta:iSto)   
+    write(iulog,*) trim(methodName)//' :: leafondate', &
+         this%leafondate(iSta:iSto) 
+     write(iulog,*) trim(methodName)//' :: leafoffdate', &
+         this%leafoffdate(iSta:iSto) 
+    write(iulog,*) trim(methodName)//' :: dleafondate', &
+         this%dleafondate(iSta:iSto)  
+      write(iulog,*) trim(methodName)//' :: dleafoffdate', &
+         this%dleafoffdate(iSta:iSto) 
+    write(iulog,*) trim(methodName)//' :: acc_NI', &
+         this%acc_NI(iSta:iSto)                          
+         
   end subroutine printDataInfoVector
 
   !-------------------------------------------------------------------------------!
@@ -902,7 +1093,21 @@ contains
              write(iulog,*) trim(methodName)//' livegrass '      ,currentPatch%livegrass
              write(iulog,*) trim(methodName)//' age '            ,currentPatch%age
              write(iulog,*) trim(methodName)//' area '           ,currentPatch%area
+             write(iulog,*) trim(methodName)//' f_sun (sum) '     ,sum(currentPatch%f_sun)
+             write(iulog,*) trim(methodName)//' fabd_sun_z (sum) '     ,sum(currentPatch%fabd_sun_z)
+             write(iulog,*) trim(methodName)//' fabi_sun_z (sum) '     ,sum(currentPatch%fabi_sun_z)
+             write(iulog,*) trim(methodName)//' fabd_sha_z (sum) '     ,sum(currentPatch%fabd_sha_z)
+             write(iulog,*) trim(methodName)//' fabi_sha_z (sum) '     ,sum(currentPatch%fabi_sha_z)
              write(iulog,*) trim(methodName)//' old_stock '      ,ed_allsites_inst(g)%old_stock
+             write(iulog,*) trim(methodName)//' cd_status '      ,ed_allsites_inst(g)%status
+             write(iulog,*) trim(methodName)//' dd_status '      ,ed_allsites_inst(g)%dstatus
+             write(iulog,*) trim(methodName)//' ncd '            ,ed_allsites_inst(g)%ncd
+             write(iulog,*) trim(methodName)//' leafondate '     ,ed_allsites_inst(g)%leafondate
+             write(iulog,*) trim(methodName)//' leafoffdate '    ,ed_allsites_inst(g)%leafoffdate
+             write(iulog,*) trim(methodName)//' dleafondate '    ,ed_allsites_inst(g)%dleafondate
+             write(iulog,*) trim(methodName)//' dleafoffdate '   ,ed_allsites_inst(g)%dleafoffdate
+             write(iulog,*) trim(methodName)//' acc_NI'          ,ed_allsites_inst(g)%acc_NI
+   
 
              currentPatch => currentPatch%younger
 
@@ -910,9 +1115,9 @@ contains
              numPatches = numPatches + 1
           enddo ! currentPatch do while
        endif
-       g = g + 1
 
        write(iulog,*) trim(methodName)//' water_memory ',ed_allsites_inst(g)%water_memory(1)
+       g = g + 1
 
     enddo
 
@@ -922,7 +1127,7 @@ contains
 
   !-------------------------------------------------------------------------------!
   subroutine printIoInfoLL( this, bounds, ed_allsites_inst ) 
-    !
+    !!
     ! !DESCRIPTION:
     ! for debugging.  prints some IO info regarding cohorts/patches
     ! currently prints cohort level variables
@@ -1034,7 +1239,9 @@ contains
     integer :: countNcwd
     integer :: countWaterMem
     integer :: countNclmax
-    integer :: i, incrementOffset
+    integer :: countSunZ
+    integer :: i,j,k
+    integer :: incrementOffset
     !-----------------------------------------------------------------------
 
     totalCohorts = 0
@@ -1045,6 +1252,7 @@ contains
     countNcwd           = this%vectorLengthStart
     countNclmax         = this%vectorLengthStart
     countWaterMem       = this%vectorLengthStart
+    countSunZ           = this%vectorLengthStart
 
     g = bounds%begg
     do while(g <= bounds%endg)
@@ -1073,7 +1281,9 @@ contains
                 totalCohorts     = totalCohorts + 1
 
                 if (this%DEBUG) then
-                   write(iulog,*) 'countCohort ',countCohort, this%vectorLengthStart, this%vectorLengthStop
+                   write(iulog,*) 'CLTV countCohort ', countCohort
+                   write(iulog,*) 'CLTV vecLenStart ', this%vectorLengthStart
+                   write(iulog,*) 'CLTV vecLenStop  ', this%vectorLengthStop
                 endif
 
                 this%balive(countCohort)       = currentCohort%balive
@@ -1096,7 +1306,7 @@ contains
                 this%status_coh(countCohort)   = currentCohort%status_coh
 
                 if (this%DEBUG) then
-                   write(iulog,*) 'offsetNumCohorts II ',countCohort, &
+                   write(iulog,*) 'CLTV offsetNumCohorts II ',countCohort, &
                         numCohort
                 endif
 
@@ -1106,12 +1316,6 @@ contains
 
              enddo ! currentCohort do while
 
-             if ( numCohort  > numCohortsPerPatch   ) then
-                write(iulog,*) 'offsetNumCohorts, numCohortsPerPatch ',countCohort, numCohortsPerPatch
-                call shr_sys_abort( 'error in convertCohortListToVector :: '//&
-                     'overrun of number of total cohorts in one patch.  Try increasing cohorts for '//&
-                     'IO '//errMsg(__FILE__, __LINE__))               
-             endif
 
              !
              ! deal with patch level fields here
@@ -1120,6 +1324,16 @@ contains
              this%age(incrementOffset)         = currentPatch%age
              this%areaRestart(incrementOffset) = currentPatch%area
              this%old_stock(incrementOffset)   = ed_allsites_inst(g)%old_stock
+             this%cd_status(incrementOffset)   = ed_allsites_inst(g)%status
+             this%dd_status(incrementOffset)   = ed_allsites_inst(g)%dstatus
+             this%ncd(incrementOffset)         = ed_allsites_inst(g)%ncd 
+             this%leafondate(incrementOffset)  = ed_allsites_inst(g)%leafondate
+             this%leafoffdate(incrementOffset) = ed_allsites_inst(g)%leafoffdate
+             this%dleafondate(incrementOffset) = ed_allsites_inst(g)%dleafondate
+             this%dleafoffdate(incrementOffset)= ed_allsites_inst(g)%dleafoffdate
+             this%acc_NI(incrementOffset)      = ed_allsites_inst(g)%acc_NI
+             
+             
              ! set cohorts per patch for IO
              this%cohortsPerPatch( incrementOffset ) = numCohort
 
@@ -1152,10 +1366,29 @@ contains
                 countNclmax = countNclmax + 1
              end do
 
+             if (this%DEBUG) write(iulog,*) 'CLTV countSunZ 1 ',countSunZ
+
+             if (this%DEBUG) write(iulog,*) 'CLTV 1186 ',nlevcan_ed,numpft_ed,nclmax
+
+             do k = 1,nlevcan_ed ! nlevcan_ed currently 40
+                do j = 1,numpft_ed ! numpft_ed currently 2
+                   do i = 1,nclmax ! nclmax currently 2
+                      this%f_sun(countSunZ)       = currentPatch%f_sun(i,j,k)
+                      this%fabd_sun_z(countSunZ)  = currentPatch%fabd_sun_z(i,j,k)
+                      this%fabi_sun_z(countSunZ)  = currentPatch%fabi_sun_z(i,j,k)
+                      this%fabd_sha_z(countSunZ)  = currentPatch%fabd_sha_z(i,j,k)
+                      this%fabi_sha_z(countSunZ)  = currentPatch%fabi_sha_z(i,j,k)
+                      countSunZ = countSunZ + 1
+                   end do
+                end do
+             end do
+
+             if (this%DEBUG) write(iulog,*) 'CLTV countSunZ 2 ',countSunZ
+
              ! set numpatches for this gcell
              this%numPatchesPerCell( ed_allsites_inst(g)%clmgcell )  = numPatches
 
-             incrementOffset = incrementOffset + numCohortsPerPatch
+             incrementOffset = incrementOffset + cohorts_per_gcell
              ! reset counters so that they are all advanced evenly. Currently
              ! the offset is 10, the max of numpft_ed, ncwd, nclmax,
              ! countWaterMem and the number of allowed cohorts per patch
@@ -1163,9 +1396,14 @@ contains
              countNcwd     = incrementOffset
              countNclmax   = incrementOffset
              countCohort   = incrementOffset
+             countSunZ     = incrementOffset
 
-             write(iulog,*) 'incrementOffset, cohorts_per_gcell, numCohort, totalCohorts ', &
-                  incrementOffset, cohorts_per_gcell, numCohort, totalCohorts             
+             if (this%DEBUG) then
+                write(iulog,*) 'CLTV incrementOffset ', incrementOffset
+                write(iulog,*) 'CLTV cohorts_per_gcell ', cohorts_per_gcell
+                write(iulog,*) 'CLTV numCohort ', numCohort
+                write(iulog,*) 'CLTV totalCohorts ', totalCohorts
+             end if
 
              currentPatch => currentPatch%younger
 
@@ -1179,14 +1417,6 @@ contains
              countWaterMem = countWaterMem + 1
           end do
 
-          if ( incrementOffset  > cohorts_per_gcell ) then
-             write(iulog,*) 'incrementOffset, cohorts_per_gcell, numCohort, totalCohorts ', &
-                  incrementOffset, cohorts_per_gcell, numCohort, totalCohorts             
-             call shr_sys_abort( 'error in convertCohortListToVector :: '//&
-                  'overrun of number of total cohorts in this gcell.  Try increasing cohorts for '//&
-                  'IO '//errMsg(__FILE__, __LINE__))
-          endif
-
           countWaterMem = incrementOffset
 
        endif ! is there soil check
@@ -1196,7 +1426,7 @@ contains
     enddo
 
     if (this%DEBUG) then
-       write(iulog,*) 'total cohorts ',totalCohorts
+       write(iulog,*) 'CLTV total cohorts ',totalCohorts
     end if
 
   end subroutine convertCohortListToVector
@@ -1276,7 +1506,7 @@ contains
           call zero_patch(newp)
 
           ! make new patch
-          call create_patch(ed_allsites_inst(g), newp, age, AREA, &
+          call create_patch(ed_allsites_inst(g), newp, age, area, &
                spread_local, cwd_ag_local, cwd_bg_local,  &
                leaf_litter_local, root_litter_local, seed_bank_local) 
 
@@ -1315,6 +1545,8 @@ contains
              ! item it needs, not the entire cohort...refactor
              temp_cohort%dbh = Dbh(temp_cohort) + 0.0001_r8*ft
 
+             write(iulog,*) 'EDRestVectorMod.F90::createPatchCohortStructure call create_cohort '
+
              call create_cohort(newp, ft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                   temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore,  &
                   temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, newp%NCL_p)
@@ -1329,7 +1561,7 @@ contains
           !
           if (patchIdx == 1) then ! nothing associated yet. first patch is pointed to by youngest and oldest
 
-             if (this%DEBUG) write(iulog,*) 'patchIdx ',patchIdx
+             if (this%DEBUG) write(iulog,*) 'patchIdx = 1 ',patchIdx
 
              ed_allsites_inst(g)%youngest_patch         => newp                   
              ed_allsites_inst(g)%oldest_patch           => newp                        
@@ -1340,7 +1572,7 @@ contains
 
           else if (patchIdx == 2) then ! add second patch to list
 
-             if (this%DEBUG) write(iulog,*) 'patchIdx ',patchIdx
+             if (this%DEBUG) write(iulog,*) 'patchIdx = 2 ',patchIdx
 
              ed_allsites_inst(g)%youngest_patch         => newp
              ed_allsites_inst(g)%youngest_patch%younger => null()
@@ -1350,7 +1582,7 @@ contains
 
           else ! more than 2 patches, insert patch into youngest slot
 
-             if (this%DEBUG) write(iulog,*) 'patchIdx ',patchIdx
+             if (this%DEBUG) write(iulog,*) 'patchIdx > 2 ',patchIdx
 
              newp%older                                 => ed_allsites_inst(g)%youngest_patch
              ed_allsites_inst(g)%youngest_patch%younger => newp
@@ -1359,7 +1591,7 @@ contains
 
           endif
 
-          currIdx = currIdx + numCohortsPerPatch
+          currIdx = currIdx + cohorts_per_gcell
 
        enddo ! ends loop over patchIdx
 
@@ -1395,7 +1627,9 @@ contains
     integer :: countNcwd
     integer :: countWaterMem
     integer :: countNclmax
-    integer :: i, incrementOffset
+    integer :: countSunZ
+    integer :: i,j,k
+    integer :: incrementOffset
     !-----------------------------------------------------------------------
 
     totalCohorts = 0
@@ -1406,6 +1640,7 @@ contains
     countNcwd           = this%vectorLengthStart
     countNclmax         = this%vectorLengthStart
     countWaterMem       = this%vectorLengthStart
+    countSunZ           = this%vectorLengthStart
 
     g = bounds%begg
     do while(g <= bounds%endg)
@@ -1468,12 +1703,6 @@ contains
 
              enddo ! currentPatch do while
 
-             if ( numCohort  > numCohortsPerPatch   ) then
-                write(iulog,*) 'CVTL offsetNumCohorts, numCohortsPerPatch ',countCohort, numCohortsPerPatch
-                call shr_sys_abort( 'error in convertCohortListToVector :: '//&
-                     'overrun of number of total cohorts in one patch.  Try increasing cohorts for '//&
-                     'IO '//errMsg(__FILE__, __LINE__))               
-             endif
 
              ! FIX(SPM,032414) move to init if you can...or make a new init function
              currentPatch%leaf_litter(:)    = 0.0_r8
@@ -1490,6 +1719,15 @@ contains
              currentPatch%age       = this%age(incrementOffset) 
              currentPatch%area      = this%areaRestart(incrementOffset) 
              ed_allsites_inst(g)%old_stock  = this%old_stock(incrementOffset)
+             ed_allsites_inst(g)%status     = this%cd_status(incrementOffset)
+             ed_allsites_inst(g)%dstatus    = this%dd_status(incrementOffset)
+             ed_allsites_inst(g)%ncd        = this%ncd(incrementOffset)
+             ed_allsites_inst(g)%leafondate     = this%leafondate(incrementOffset)
+             ed_allsites_inst(g)%leafoffdate    = this%leafoffdate(incrementOffset)
+             ed_allsites_inst(g)%dleafondate    = this%dleafondate(incrementOffset)
+             ed_allsites_inst(g)%dleafoffdate   = this%dleafoffdate(incrementOffset)
+             ed_allsites_inst(g)%acc_NI         = this%acc_NI(incrementOffset)
+
              ! set cohorts per patch for IO
 
              if (this%DEBUG) then
@@ -1521,19 +1759,39 @@ contains
                 countNclmax  = countNclmax + 1
              end do
 
-             incrementOffset = incrementOffset + numCohortsPerPatch
+             if (this%DEBUG) write(iulog,*) 'CVTL countSunZ 1 ',countSunZ
+
+             do k = 1,nlevcan_ed ! nlevcan_ed currently 40
+                do j = 1,numpft_ed ! numpft_ed currently 2
+                   do i = 1,nclmax ! nclmax currently 2
+                      currentPatch%f_sun(i,j,k)      = this%f_sun(countSunZ) 
+                      currentPatch%fabd_sun_z(i,j,k) = this%fabd_sun_z(countSunZ) 
+                      currentPatch%fabi_sun_z(i,j,k) = this%fabi_sun_z(countSunZ) 
+                      currentPatch%fabd_sha_z(i,j,k) = this%fabd_sha_z(countSunZ) 
+                      currentPatch%fabi_sha_z(i,j,k) = this%fabi_sha_z(countSunZ) 
+                      countSunZ = countSunZ + 1
+                   end do
+                end do
+             end do
+
+             if (this%DEBUG) write(iulog,*) 'CVTL countSunZ 2 ',countSunZ
+
+             incrementOffset = incrementOffset + cohorts_per_gcell
              ! reset counters so that they are all advanced evenly. Currently
-             ! the offset is 10, the max of numpft_ed, ncwd, nclmax,
-             ! countWaterMem and the number of allowed cohorts per patch
+             ! the offset must be > 160, nlevcan_ed*numpft_ed*nclmax
+             ! and the number of allowed cohorts per patch (currently 200)
              countPft      = incrementOffset
              countNcwd     = incrementOffset
              countNclmax   = incrementOffset
              countCohort   = incrementOffset
+             countSunZ     = incrementOffset
 
              if (this%DEBUG) then
-                write(iulog,*) 'CVTL incrementOffset, cohorts_per_gcell, numCohort, totalCohorts ', &
-                     incrementOffset, cohorts_per_gcell, numCohort, totalCohorts             
-             endif
+                write(iulog,*) 'CVTL incrementOffset ', incrementOffset
+                write(iulog,*) 'CVTL cohorts_per_gcell ', cohorts_per_gcell
+                write(iulog,*) 'CVTL numCohort ', numCohort
+                write(iulog,*) 'CVTL totalCohorts ', totalCohorts
+             end if
 
              currentPatch => currentPatch%younger
 
@@ -1543,14 +1801,6 @@ contains
              ed_allsites_inst(g)%water_memory(i) = this%water_memory( countWaterMem )
              countWaterMem = countWaterMem + 1
           end do
-
-          if ( incrementOffset  > cohorts_per_gcell ) then
-             write(iulog,*) 'CVTL incrementOffset, cohorts_per_gcell, numCohort, totalCohorts ', &
-                  incrementOffset, cohorts_per_gcell, numCohort, totalCohorts             
-             call shr_sys_abort( 'error in convertCohortListToVector :: '//&
-                  'overrun of number of total cohorts in this gcell.  Try increasing cohorts for '//&
-                  'IO '//errMsg(__FILE__, __LINE__))
-          endif
 
           countWaterMem = incrementOffset
 
@@ -1599,6 +1849,10 @@ contains
     ! Note: ed_allsites_inst already exists and is allocated in clm_instInit
     !
     ervc = newEDRestartVectorClass( bounds )
+
+    if (ervc%DEBUG) then
+        write(iulog,*) 'EDRestVectorMod:EDRest flag ',flag
+    end if
 
     if ( flag == 'write' ) then
        call ervc%setVectors( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
