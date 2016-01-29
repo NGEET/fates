@@ -23,11 +23,7 @@ module EDTypesMod
 
   ! for setting number of patches per gridcell and number of cohorts per patch
   ! for I/O and converting to a vector
-<<<<<<< HEAD
-  integer, parameter :: numPatchesPerGridCell = 10         !
-  integer, parameter :: numCohortsPerPatch    = 30         !
-  integer, parameter :: cohorts_per_gcell     = 300        ! should be numPatchesPerGridCell*numCohortsPerPatch 
-=======
+
   integer, parameter :: numPatchesPerGridCell = 20         !
   integer, parameter :: numCohortsPerPatch    = 40         !
   integer, parameter :: cohorts_per_gcell     = 800        ! This is the max number of individual items one can store per 
@@ -35,7 +31,6 @@ module EDTypesMod
                                                            ! data as some fields are arrays where each array is
                                                            ! associated with one cohort
 
->>>>>>> master
   integer, parameter :: numWaterMem           = 10         ! watermemory saved as site level var
 
   ! BIOLOGY/BIOGEOCHEMISTRY        
@@ -44,12 +39,9 @@ module EDTypesMod
   integer , parameter :: SENES                = 10         ! Window of time over which we track temp for cold sensecence (days)
   real(r8), parameter :: DINC_ED              = 1.0_r8     ! size of LAI bins. 
   integer , parameter :: N_DIST_TYPES         = 2          ! number of disturbance types (mortality, fire)
-<<<<<<< HEAD
-  integer , parameter :: numpft_ed            = 10         ! number of PFTs used in ED. 
-=======
   integer , parameter :: numpft_ed            = 2          ! number of PFTs used in ED. 
   integer , parameter :: maxPft               = 79         ! max number of PFTs potentially used by CLM 
->>>>>>> master
+
 
   ! SPITFIRE     
   integer , parameter :: NLSC                 = 6          ! number carbon compartments in above ground litter array 
