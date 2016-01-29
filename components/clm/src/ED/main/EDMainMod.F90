@@ -34,7 +34,7 @@ module EDMainMod
   private :: ed_integrate_state_variables
   private :: ed_total_balance_check
   
-  logical :: DEBUG_main = .false.
+  logical :: DEBUG  = .false.
   !
   ! 10/30/09: Created by Rosie Fisher
   !-----------------------------------------------------------------------
@@ -108,14 +108,12 @@ contains
        endif
     enddo
 
-    ! updates site & patch information
-
     ! link to CLM structures
     call ed_clm_inst%ed_clm_link( bounds, ed_allsites_inst(bounds%begg:bounds%endg),  &
          ed_phenology_inst, waterstate_inst, canopystate_inst)
 
     if (masterproc) then
-      write(iulog,*) 'leaving ed model',bounds%begg,bounds%endg,dayDiffInt
+      write(iulog, *) 'clm: leaving ED model', bounds%begg, bounds%endg, dayDiffInt
     end if
 
   end subroutine ed_driver
@@ -261,7 +259,15 @@ contains
           currentCohort%dbh    = max(small_no,currentCohort%dbh    + currentCohort%ddbhdt    * udata%deltat )
           currentCohort%balive = currentCohort%balive + currentCohort%dbalivedt * udata%deltat 
           currentCohort%bdead  = max(small_no,currentCohort%bdead  + currentCohort%dbdeaddt  * udata%deltat )
+          if ( DEBUG ) then
+             write(iulog,*) 'EDMainMod dbstoredt I ',currentCohort%bstore, &
+                  currentCohort%dbstoredt,udata%deltat
+          end if
           currentCohort%bstore = currentCohort%bstore + currentCohort%dbstoredt * udata%deltat 
+          if ( DEBUG ) then
+             write(iulog,*) 'EDMainMod dbstoredt II ',currentCohort%bstore, &
+                  currentCohort%dbstoredt,udata%deltat
+          end if
 
           if( (currentCohort%balive+currentCohort%bdead+currentCohort%bstore)*currentCohort%n<0._r8)then
             write(iulog,*) 'biomass is negative', currentCohort%n,currentCohort%balive, &
@@ -285,6 +291,9 @@ contains
 
        enddo
       
+       if ( DEBUG ) then
+          write(6,*)'DEBUG18: calling non_canopy_derivs with pno= ',currentPatch%clm_pno
+       endif
 
        call non_canopy_derivs( currentPatch, temperature_inst, soilstate_inst, waterstate_inst )
 
@@ -388,9 +397,10 @@ contains
 
        ! FIX(SPM,040314) why is this needed for BFB restarts? Look into this at some point
        cohort_number = count_cohorts(currentPatch)  
-       if (DEBUG_main) then
+       if ( DEBUG ) then
           write(iulog,*) 'tempCount ',cohort_number
        endif
+
        ! Note (RF)
        ! This breaks the balance check, but if we leave it out, then 
        ! the first new patch that isn't fused has no cohorts at the end of the spawn process

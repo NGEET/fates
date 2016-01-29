@@ -193,10 +193,8 @@ contains
     ! Read in area, lon, lat
 
     if (istype_domain) then
-
        call ncd_io(ncid=ncid, varname= 'area', flag='read', data=ldomain%area, &
             dim1name=grlnd, readvar=readvar)
-
        ! convert from radians**2 to km**2
        ldomain%area = ldomain%area * (re**2)
        if (.not. readvar) call endrun( msg=' ERROR: area NOT on file'//errMsg(__FILE__, __LINE__))
@@ -207,13 +205,10 @@ contains
        
        call ncd_io(ncid=ncid, varname= 'yc', flag='read', data=ldomain%latc, &
             dim1name=grlnd, readvar=readvar)
-
        if (.not. readvar) call endrun( msg=' ERROR: yc NOT on file'//errMsg(__FILE__, __LINE__))
     else
-
        call ncd_io(ncid=ncid, varname= 'AREA', flag='read', data=ldomain%area, &
             dim1name=grlnd, readvar=readvar)
-
        if (.not. readvar) call endrun( msg=' ERROR: AREA NOT on file'//errMsg(__FILE__, __LINE__))
        
        call ncd_io(ncid=ncid, varname= 'LONGXY', flag='read', data=ldomain%lonc, &

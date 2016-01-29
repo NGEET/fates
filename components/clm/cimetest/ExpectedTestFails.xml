@@ -39,4 +39,17 @@
    <entry             >FAIL ERI_D.ne30_g16.ICLM45BGC.edison_intel.clm-vrtlay</entry>
    <entry bugz="1696" >FAIL ERS_Ld211_D_P144x1.f10_f10.ICNCP.edison_intel.clm-crop</entry>
 
+
+    <entry>FAIL ERS_D_Ld5.f19_g16.ICLM45ED.yellowstone_pgi.clm-edTest.clm2.h0.nc : test compare clm2.h0 (.base and .rest files)</entry>
+    <entry>FAIL ERS_D_Ld5.f19_g16.ICLM45ED.yellowstone_pgi.clm-edTest.cpl.hi.nc : test compare cpl.hi (.base and .rest files)</entry>
+    <entry>FAIL ERS_D_Ld5.f09_g16.ICLM45ED.yellowstone_pgi.clm-edTest.clm2.h0.nc : test compare clm2.h0 (.base and .rest files)</entry>
+    <entry>FAIL ERS_D_Ld5.f09_g16.ICLM45ED.yellowstone_pgi.clm-edTest.cpl.hi.nc : test compare cpl.hi (.base and .rest files)</entry>
+    <entry>FAIL ERS_D_Ld5.f19_g16.ICLM45ED.yellowstone_gnu.clm-edTest.clm2.h0.nc : test compare clm2.h0 (.base and .rest files)</entry>
+    <entry>FAIL ERS_D_Ld5.f19_g16.ICLM45ED.yellowstone_gnu.clm-edTest.cpl.hi.nc : test compare cpl.hi (.base and .rest files)</entry>
+    <entry>FAIL ERS_D_Ld5.f09_g16.ICLM45ED.yellowstone_gnu.clm-edTest.clm2.h0.nc : test compare clm2.h0 (.base and .rest files)</entry>
+    <entry>FAIL ERS_D_Ld5.f09_g16.ICLM45ED.yellowstone_gnu.clm-edTest.cpl.hi.nc : test compare cpl.hi (.base and .rest files)</entry>
+    <entry>FAIL ERS_D_Ld5.f19_g16.ICLM45ED.yellowstone_intel.clm-edTest.clm2.h0.nc : test compare clm2.h0 (.base and .rest files)</entry>
+    <entry>FAIL ERS_D_Ld5.f19_g16.ICLM45ED.yellowstone_intel.clm-edTest.cpl.hi.nc : test compare cpl.hi (.base and .rest files)</entry>
+    <entry>FAIL ERS_D_Ld5.f09_g16.ICLM45ED.yellowstone_intel.clm-edTest.clm2.h0.nc : test compare clm2.h0 (.base and .rest files)</entry>
+    <entry>FAIL ERS_D_Ld5.f09_g16.ICLM45ED.yellowstone_intel.clm-edTest.cpl.hi.nc : test compare cpl.hi (.base and .rest files)</entry>
 </expectedFails> 

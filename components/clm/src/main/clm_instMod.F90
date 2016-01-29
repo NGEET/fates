@@ -389,9 +389,7 @@ contains
           call c14_cnveg_carbonstate_inst%Init(bounds, carbon_type='c14', ratio=c14ratio, &
                c12_cnveg_carbonstate_inst=cnveg_carbonstate_inst)
        end if
-
        call cnveg_carbonflux_inst%Init(bounds, carbon_type='c12')
-
        if (use_c13) then
           call c13_cnveg_carbonflux_inst%Init(bounds, carbon_type='c13')
        end if
@@ -422,6 +420,7 @@ contains
     ! if use_ed is not set, then this will not contain any significant memory 
     ! if use_ed is true, then the actual memory for all of the ED data structures
     ! is allocated in the call to EDInitMod - called from clm_initialize
+    ! NOTE (SPM, 10-27-2015) ... check on deallocation of ed_allsites_inst
 
     allocate (ed_allsites_inst(bounds%begg:bounds%endg))
     if (use_ed) then

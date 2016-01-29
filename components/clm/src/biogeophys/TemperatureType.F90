@@ -7,7 +7,7 @@ module TemperatureType
   use shr_log_mod     , only : errMsg => shr_log_errMsg
   use decompMod       , only : bounds_type
   use abortutils      , only : endrun
-  use clm_varctl      , only : use_ed, use_cndv, iulog ,use_luna
+  use clm_varctl      , only : use_cndv, iulog ,use_luna
   use clm_varpar      , only : nlevsno, nlevgrnd, nlevlak, nlevlak, nlevurb, crop_prog 
   use clm_varcon      , only : spval, ispval
   use GridcellType    , only : grc
@@ -1106,19 +1106,6 @@ contains
             subgrid_type='pft', numlev=1, init_value=SHR_CONST_TKFRZ)
     end if
 
-    ! 
-    ! I TODO (SPM , 022615) - along with (II) below, this is removed
-    ! in the ed branch.  Seems like it's covered by the code in 
-    ! EDPhenologyType.F90, but need to double check
-    !
-    !if ( use_ed ) then
-    !
-       !call init_accum_field (name='ED_GDD0', units='K', &
-            !desc='growing degree-days base 0C from planting', accum_type='runaccum', accum_period=not_used, &
-            !subgrid_type='pft', numlev=1, init_value=0._r8)
-    !
-    !end if
-
     if ( crop_prog )then
 
        ! All GDD summations are relative to the planting date (Kucharik & Brye 2003)
@@ -1222,15 +1209,6 @@ contains
        this%t_ref2m_min_inst_r_patch(begp:endp) =  spval
        this%t_ref2m_min_inst_u_patch(begp:endp) =  spval
     end if
-
-    !
-    ! II TODO (SPM , 022615) - along with (I) above, this is removed
-    ! in the ed branch
-    !
-    !if ( use_ed ) then
-       !call extract_accum_field ('ED_GDD0', rbufslp, nstep)
-       !this%gdd0_patch(begp:endp) = rbufslp(begp:endp)
-    !end if
 
     if ( crop_prog ) then
 
