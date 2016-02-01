@@ -181,7 +181,6 @@ sub set_compiler
     }
     if(! defined($macros->{NETCDF_PATH}) && defined($ENV{NETCDF_PATH})){
       print "Setting NETCDF_PATH from Environment\n";
-      print $ENV{NETCDF_PATH};
       $macros->{NETCDF_PATH}=$ENV{NETCDF_PATH};
     }
 
