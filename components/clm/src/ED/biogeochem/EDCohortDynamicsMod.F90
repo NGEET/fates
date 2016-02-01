@@ -641,8 +641,8 @@ contains
 			 ! to fuse with other new cohorts to keep the total number of cohorts
 			 ! down.
 
-                         if( (.not.(currentCohort%isnew)).and.(.not.(nextc%isnew)) .or. & 
-			          ((currentCohort%isnew)).and.((nextc%isnew)) ) then
+                         if( (.not.(currentCohort%isnew) .and. .not.(nextc%isnew) ) .or. & 
+			          ( currentCohort%isnew .and. nextc%isnew ) ) then
 
                          fusion_took_place = 1         
                          newn = currentCohort%n + nextc%n    ! sum individuals in both cohorts.     
