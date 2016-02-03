@@ -480,6 +480,10 @@ for mct, etc.
   <GPTL_CPPDEFS> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY </GPTL_CPPDEFS>
 </compiler>
 
+<compiler COMPILER="intel" MACH="lawrencium-lr3">
+  <ADD_SLIBS> -lnetcdff -lnetcdf -mkl</ADD_SLIBS>
+  <GPTL_CPPDEFS> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY </GPTL_CPPDEFS>
+</compiler>
 
 <compiler COMPILER="gnu" MACH="yellowstone">
   <LAPACK_LIBDIR> /glade/apps/opt/lib </LAPACK_LIBDIR>
