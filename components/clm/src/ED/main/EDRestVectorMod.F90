@@ -1388,7 +1388,8 @@ contains
              ! set numpatches for this gcell
              this%numPatchesPerCell( ed_allsites_inst(g)%clmgcell )  = numPatches
 
-             incrementOffset = incrementOffset + cohorts_per_gcell
+             incrementOffset = incrementOffset + numCohortsPerPatch
+
              ! reset counters so that they are all advanced evenly. Currently
              ! the offset is 10, the max of numpft_ed, ncwd, nclmax,
              ! countWaterMem and the number of allowed cohorts per patch
@@ -1591,7 +1592,7 @@ contains
 
           endif
 
-          currIdx = currIdx + cohorts_per_gcell
+          currIdx = currIdx + numCohortsPerPatch
 
        enddo ! ends loop over patchIdx
 
@@ -1776,7 +1777,8 @@ contains
 
              if (this%DEBUG) write(iulog,*) 'CVTL countSunZ 2 ',countSunZ
 
-             incrementOffset = incrementOffset + cohorts_per_gcell
+             incrementOffset = incrementOffset + numCohortsPerPatch
+
              ! reset counters so that they are all advanced evenly. Currently
              ! the offset must be > 160, nlevcan_ed*numpft_ed*nclmax
              ! and the number of allowed cohorts per patch (currently 200)
