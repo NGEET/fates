@@ -102,6 +102,14 @@
      </directives>
    </batch_system>
    
+   <batch_system MACH="lawrencium-lr3" version="x.y">
+     <directives>
+       <directive>--partition=lr3</directive>
+       <directive>--account={{ project }}</directive>
+       <directive>--exclusive</directive>
+     </directives>
+   </batch_system>
+
 
     <!-- edison is PBS -->
     <batch_system MACH="edison" version="x.y">
