@@ -12,6 +12,7 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : fusetol, nclmax
   use EDtypesMod            , only : ncwd, numcohortsperpatch, udata
+  use EDtypesMod            , only : sclass_ed,nlevsclass_ed,AREA
   !
   implicit none
   private
@@ -108,7 +109,7 @@ contains
     endif
     
     ! Calculate live biomass allocation
-    call allocate_live_biomass(new_cohort)
+    call allocate_live_biomass(new_cohort,0)
 
     ! Assign canopy extent and depth
     new_cohort%c_area  = c_area(new_cohort)
@@ -134,6 +135,13 @@ contains
        patchptr%shortest => new_cohort 
     endif
 
+    ! Recuits do not have mortality rates, nor have they moved any
+    ! carbon when they are created.  They will bias our statistics
+    ! until they have experienced a full day.  We need a newly recruited flag.
+    ! This flag will be set to false after it has experienced 
+    ! growth, disturbance and mortality.
+    new_cohort%isnew = .true.
+
     call insert_cohort(new_cohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
          storebigcohort, storesmallcohort)
 
@@ -143,7 +151,7 @@ contains
   end subroutine create_cohort
 
   !-------------------------------------------------------------------------------------!
-  subroutine allocate_live_biomass(cc_p)
+  subroutine allocate_live_biomass(cc_p,mode)
     !
     ! !DESCRIPTION:
     ! Divide alive biomass between leaf, root and sapwood parts. 
@@ -153,6 +161,7 @@ contains
     !
     ! !ARGUMENTS    
     type (ed_cohort_type), intent(inout), target  :: cc_p ! current cohort pointer
+    integer              , intent(in)             :: mode
     !
     ! !LOCAL VARIABLES:
     type (ed_cohort_type), pointer :: currentCohort
@@ -170,8 +179,7 @@ contains
     ft = currentcohort%pft
     leaf_frac = 1.0_r8/(1.0_r8 + EDecophyscon%sapwood_ratio(ft) * currentcohort%hite + pftcon%froot_leaf(ft))     
 
-    currentcohort%bl = currentcohort%balive*leaf_frac    
-    ratio_balive = 1.0_r8
+    !currentcohort%bl = currentcohort%balive*leaf_frac    
     !for deciduous trees, there are no leaves  
     
     if (pftcon%evergreen(ft) == 1) then
@@ -179,11 +187,11 @@ contains
        currentcohort%status_coh    = 2      
     endif    
 
-    !diagnore the root and stem biomass from the functional balance hypothesis. This is used when the leaves are 
+    ! iagnore the root and stem biomass from the functional balance hypothesis. This is used when the leaves are 
     !fully on. 
-    currentcohort%br  = pftcon%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
-    currentcohort%bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
-         currentcohort%laimemory)*leaf_frac 
+    !currentcohort%br  = pftcon%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
+    !currentcohort%bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
+    !     currentcohort%laimemory)*leaf_frac 
     
     leaves_off_switch = 0
     if (currentcohort%status_coh == 1.and.pftcon%stress_decid(ft) == 1.and.currentcohort%siteptr%dstatus==1) then !no leaves 
@@ -193,12 +201,46 @@ contains
       leaves_off_switch = 1 !cold decid
     endif
   
-    if (leaves_off_switch==1) then
-       !the purpose of this section is to figure out the root and stem biomass when the leaves are off
-       !at this point, we know the former leaf mass (laimemory) and the current alive mass
-       !because balive may decline in the off-season, we need to adjust the root and stem biomass that are predicted
-       !from the laimemory, for the fact that we now might not have enough live biomass to support the hypothesized root mass
-       !thus, we use 'ratio_balive' to adjust br and bsw. Apologies that this is so complicated! RF
+    ! Use different proportions if the leaves are on vs off
+    if(leaves_off_switch==0)then
+
+       ! Tracking npp/gpp diagnostics only occur after growth derivatives is called
+       if(mode==1)then
+          ! it will not be able to put out as many leaves as it had previous timestep
+          currentcohort%npp_leaf = currentcohort%npp_leaf + &
+                max(0.0_r8,currentcohort%balive*leaf_frac - currentcohort%bl)/udata%deltat
+       end if
+
+       currentcohort%bl = currentcohort%balive*leaf_frac
+
+       !diagnose the root and stem biomass from the functional balance hypothesis. This is used when the leaves are 
+       !fully on. 
+       if(mode==1)then
+
+          currentcohort%npp_froot = currentcohort%npp_froot + &
+                max(0._r8,pftcon%froot_leaf(ft)*(currentcohort%balive+currentcohort%laimemory)*leaf_frac - currentcohort%br)/udata%deltat
+
+          currentcohort%npp_bsw = max(0._r8,EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
+                currentcohort%laimemory)*leaf_frac - currentcohort%bsw)/udata%deltat
+
+          currentcohort%npp_bdead =  currentCohort%dbdeaddt
+
+       end if
+
+       currentcohort%br  = pftcon%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
+       currentcohort%bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
+            currentcohort%laimemory)*leaf_frac
+
+	    
+    else ! Leaves are on (leaves_off_switch==1)
+
+    !the purpose of this section is to figure out the root and stem biomass when the leaves are off
+    !at this point, we know the former leaf mass (laimemory) and the current alive mass
+    !because balive may decline in the off-season, we need to adjust the root and stem biomass that are predicted
+    !from the laimemory, for the fact that we now might not have enough live biomass to support the hypothesized root mass
+    !thus, we use 'ratio_balive' to adjust br and bsw. Apologies that this is so complicated! RF
+
+
        currentcohort%bl  = 0.0_r8
        ideal_balive      = currentcohort%laimemory * pftcon%froot_leaf(ft) +  &
             currentcohort%laimemory*  EDecophyscon%sapwood_ratio(ft) * currentcohort%hite
@@ -208,7 +250,21 @@ contains
      
        ratio_balive           = currentcohort%balive / ideal_balive
        currentcohort%br       = currentcohort%br  * ratio_balive
-       currentcohort%bsw      = currentcohort%bsw * ratio_balive               
+       currentcohort%bsw      = currentcohort%bsw * ratio_balive
+
+       ! Diagnostics
+       if(mode==1)then
+
+          currentcohort%npp_froot = currentcohort%npp_froot + &
+                max(0.0_r8,pftcon%froot_leaf(ft)*(ideal_balive + &
+                currentcohort%laimemory)*leaf_frac*ratio_balive-currentcohort%br)/udata%deltat
+
+          currentcohort%npp_bsw = max(0.0_r8,EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(ideal_balive + &
+                currentcohort%laimemory)*leaf_frac*ratio_balive - currentcohort%bsw)/udata%deltat
+
+          currentcohort%npp_bdead =  currentCohort%dbdeaddt
+
+       end if
 
     endif
     
@@ -293,6 +349,14 @@ contains
     currentCohort%resp               = nan ! RESP: kgC/indiv/year
     currentCohort%resp_clm           = nan ! RESP: kgC/indiv/timestep
     currentCohort%resp_acc           = nan ! RESP: kGC/cohort/day
+
+    currentCohort%npp_leaf  = nan
+    currentCohort%npp_froot = nan
+    currentCohort%npp_bsw   = nan
+    currentCohort%npp_bdead = nan
+    currentCohort%npp_bseed = nan
+    currentCohort%npp_store = nan
+
 
     !RESPIRATION
     currentCohort%rd                 = nan
@@ -386,6 +450,13 @@ contains
     currentcohort%dmort              = 0._r8 
     currentcohort%gscan              = 0._r8 
     currentcohort%treesai            = 0._r8  
+
+    !    currentCohort%npp_leaf  = 0._r8
+    !    currentCohort%npp_froot = 0._r8
+    !    currentCohort%npp_bsw   = 0._r8
+    !    currentCohort%npp_bdead = 0._r8
+    !    currentCohort%npp_bseed = 0._r8
+    !    currentCohort%npp_store = 0._r8
 
   end subroutine zero_cohort
 
@@ -533,7 +604,9 @@ contains
     iterate = 1
     fusion_took_place = 0   
     currentPatch => patchptr
-    maxcohorts =  currentPatch%NCL_p * numCohortsPerPatch  
+   ! maxcohorts =  currentPatch%NCL_p * numCohortsPerPatch
+    maxcohorts = numCohortsPerPatch
+  
     !---------------------------------------------------------------------!
     !  Keep doing this until nocohorts <= maxcohorts                         !
     !---------------------------------------------------------------------!
@@ -559,7 +632,17 @@ contains
                    if (currentCohort%pft == nextc%pft) then              
 
                       ! check cohorts in same c. layer. before fusing
-                      if (currentCohort%canopy_layer == nextc%canopy_layer) then
+
+                      if (currentCohort%canopy_layer == nextc%canopy_layer) then 
+
+		      	 ! Note: because newly recruited cohorts that have not experienced
+			 ! a day yet will have un-known flux quantities or change rates
+			 ! we don't want them fusing with non-new cohorts.  We allow them
+			 ! to fuse with other new cohorts to keep the total number of cohorts
+			 ! down.
+
+                         if( (.not.(currentCohort%isnew) .and. .not.(nextc%isnew) ) .or. & 
+			          ( currentCohort%isnew .and. nextc%isnew ) ) then
 
                          fusion_took_place = 1         
                          newn = currentCohort%n + nextc%n    ! sum individuals in both cohorts.     
@@ -613,9 +696,24 @@ contains
                          currentCohort%npp         = (currentCohort%n*currentCohort%npp         + nextc%n*nextc%npp)/newn
                          currentCohort%gpp         = (currentCohort%n*currentCohort%gpp         + nextc%n*nextc%gpp)/newn
                          currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim + nextc%n*nextc%canopy_trim)/newn
-                         currentCohort%dmort       = (currentCohort%n*currentCohort%dmort       + nextc%n*nextc%dmort)/newn
+			 currentCohort%dmort       = (currentCohort%n*currentCohort%dmort       + nextc%n*nextc%dmort)/newn
                          currentCohort%fire_mort   = (currentCohort%n*currentCohort%fire_mort   + nextc%n*nextc%fire_mort)/newn
                          currentCohort%leaf_litter = (currentCohort%n*currentCohort%leaf_litter + nextc%n*nextc%leaf_litter)/newn
+
+                         ! mortality diagnostics
+                         currentCohort%cmort = (currentCohort%n*currentCohort%cmort + nextc%n*nextc%cmort)/newn
+                         currentCohort%hmort = (currentCohort%n*currentCohort%hmort + nextc%n*nextc%hmort)/newn
+                         currentCohort%bmort = (currentCohort%n*currentCohort%bmort + nextc%n*nextc%bmort)/newn
+                         currentCohort%imort = (currentCohort%n*currentCohort%imort + nextc%n*nextc%imort)/newn
+                         currentCohort%fmort = (currentCohort%n*currentCohort%fmort + nextc%n*nextc%fmort)/newn
+
+                         ! npp diagnostics
+                         currentCohort%npp_leaf  = (currentCohort%n*currentCohort%npp_leaf  + nextc%n*nextc%npp_leaf)/newn
+                         currentCohort%npp_froot = (currentCohort%n*currentCohort%npp_froot + nextc%n*nextc%npp_froot)/newn
+                         currentCohort%npp_bsw   = (currentCohort%n*currentCohort%npp_bsw   + nextc%n*nextc%npp_bsw)/newn
+                         currentCohort%npp_bdead = (currentCohort%n*currentCohort%npp_bdead + nextc%n*nextc%npp_bdead)/newn
+                         currentCohort%npp_bseed = (currentCohort%n*currentCohort%npp_bseed + nextc%n*nextc%npp_bseed)/newn
+                         currentCohort%npp_store = (currentCohort%n*currentCohort%npp_store + nextc%n*nextc%npp_store)/newn
 
                          do i=1, nlevcan_ed     
                             if (currentCohort%year_net_uptake(i) == 999._r8 .or. nextc%year_net_uptake(i) == 999._r8) then
@@ -638,6 +736,8 @@ contains
                          if (associated(nextc)) then       
                             deallocate(nextc)            
                          endif
+
+                         endif ! Not a recruit
 
                       endif !canopy layer
                    endif !pft
@@ -917,6 +1017,13 @@ contains
     n%year_net_uptake = o%year_net_uptake
     n%ts_net_uptake   = o%ts_net_uptake
 
+    n%npp_leaf       = o%npp_leaf
+    n%npp_froot      = o%npp_froot
+    n%npp_bsw        = o%npp_bsw
+    n%npp_bdead      = o%npp_bdead
+    n%npp_bseed      = o%npp_bseed
+    n%npp_store      = o%npp_store
+
     !RESPIRATION
     n%rd              = o%rd
     n%resp_m          = o%resp_m
@@ -942,6 +1049,16 @@ contains
     n%leaf_litter     = o%leaf_litter
     n%c_area          = o%c_area
     n%woody_turnover  = o%woody_turnover
+
+    ! Mortality diagnostics
+    n%cmort = o%cmort
+    n%bmort = o%bmort
+    n%imort = o%imort
+    n%fmort = o%fmort
+    n%hmort = o%hmort
+
+    ! Flags
+    n%isnew = o%isnew
 
     ! VARIABLES NEEDED FOR INTEGRATION 
     n%dndt            = o%dndt
