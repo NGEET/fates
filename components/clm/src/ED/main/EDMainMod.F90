@@ -285,7 +285,7 @@ contains
           currentCohort%gpp_acc  = 0.0_r8
           currentCohort%resp_acc = 0.0_r8
           
-          call allocate_live_biomass(currentCohort)
+          call allocate_live_biomass(currentCohort,1)
   
           currentCohort => currentCohort%taller
 
