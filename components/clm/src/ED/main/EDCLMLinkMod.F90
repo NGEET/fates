@@ -5,7 +5,8 @@ module EDCLMLinkMod
   ! diagnostics, or as input to the land surface components. 
   ! ============================================================================
 
-  use shr_kind_mod     , only : r8 => shr_kind_r8;
+  use shr_kind_mod     , only : r8 => shr_kind_r8
+  use shr_infnan_mod, only : isnan => shr_infnan_isnan
   use decompMod        , only : bounds_type
   use clm_varpar       , only : nclmax, nlevcan_ed, numpft, numcft, mxpft
   use clm_varctl       , only : iulog 
