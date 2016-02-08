@@ -632,8 +632,7 @@
         <machine compiler="intel" testtype="aux_clm45" testmods="clm/irrig_o3_reduceOutput">yellowstone</machine>
       </test>
       <test name="ERP_P15x2_Lm36">
-        <machine compiler="intel" testtype="aux_clm45" testmods="clm/irrig_o3_reduceOutput" comment="temporary test while the pgi version is failing">yellowstone</machine>
-        <machine compiler="pgi" testtype="aux_clm45" testmods="clm/irrig_o3_reduceOutput">yellowstone</machine>
+        <machine compiler="intel" testtype="aux_clm45" testmods="clm/irrig_o3_reduceOutput">yellowstone</machine>
         <machine compiler="intel" testtype="prebeta" testmods="clm/irrigOn_reduceOutput">yellowstone</machine>
       </test>
       <test name="ERP_P24x2_Lm36">
