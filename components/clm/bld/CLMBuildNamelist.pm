@@ -159,7 +159,8 @@ OPTIONS
                               (can ONLY be turned on when BGC type is 'cn' or 'bgc')
                               This turns on the namelist variable: use_cndv
      -ed_mode                 Turn ED (Ecosystem Demography) : [on | off] (default is off)
-                              Sets the namelist variable use_ed and use_spit_fire.
+                              Sets the namelist variable use_ed, use_spit_fire, 
+                                   use_vertsoilc, use_century_decomp
      -glc_present             Set to true if the glc model is present (not sglc).
                               This is used for error-checking, to make sure other options are
                               set appropriately.
@@ -745,13 +746,36 @@ sub setup_cmdl_ed_mode {
         fatal_error("$var has a value ($val) that is NOT valid. Valid values are: @valid_values\n");
       }
 
-      $var = "use_ed_spit_fire";
-      $nl->set_variable_value($group, $var, $val);
-      if ( ! $definition->is_valid_value($var, $val) ) {
-        my @valid_values   = $definition->get_valid_values( $var );
-        fatal_error("$var has a value ($val) that is NOT valid. Valid values are: @valid_values\n");
+      # If the variable has already been set use it, if not set to the value defined by the ed_mode
+      my @list  = (  "use_ed_spit_fire", "use_vertsoilc", "use_century_decomp" );
+      my $ndiff = 0;
+      foreach my $var ( @list ) {
+	  if ( ! defined($nl->get_value($var))  ) {
+	      $nl_flags->{$var} = $setting;
+	  } else {
+	      if ( $nl->get_value($var) ne $setting ) {
+		  $ndiff += 1;
+	      }
+	      $nl_flags->{$var} = $nl->get_value($var);
+	  }
+	  $val = $nl_flags->{$var};
+	  my $group = $definition->get_group_name($var);
+	  $nl->set_variable_value($group, $var, $val);
+	  if (  ! $definition->is_valid_value( $var, $val ) ) {
+	      my @valid_values   = $definition->get_valid_values( $var );
+	      fatal_error("$var has a value ($val) that is NOT valid. Valid values are: @valid_values\n");
+	  }
       }
+
+#      $var = "use_ed_spit_fire";
+#      $nl->set_variable_value($group, $var, $val);
+#      if ( ! $definition->is_valid_value($var, $val) ) {
+#        my @valid_values   = $definition->get_valid_values( $var );
+#        fatal_error("$var has a value ($val) that is NOT valid. Valid values are: @valid_values\n");
+#      }
+
     } else {
+	# we only dis-allow ed_spit_fire with non-ed runs
        $var = "use_ed_spit_fire";
        if ( defined($nl->get_value($var)) ) {
            fatal_error("$var is being set, but can ONLY be set when -ed_mode option is used.\n");
