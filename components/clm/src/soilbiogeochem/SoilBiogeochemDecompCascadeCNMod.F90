@@ -364,7 +364,7 @@ contains
          is_lignin(i_cwd) = .false.
       end if
 
-      if ( use_ed ) then
+      if ( .not. use_ed ) then
          i_soil1 = 5
       else
          i_soil1 = 4
@@ -383,7 +383,7 @@ contains
       is_cellulose(i_soil1) = .false.
       is_lignin(i_soil1) = .false.
 
-      if ( use_ed ) then
+      if ( .not. use_ed ) then
          i_soil2 = 6
       else
          i_soil2 = 5
@@ -402,7 +402,7 @@ contains
       is_cellulose(i_soil2) = .false.
       is_lignin(i_soil2) = .false.
 
-      if ( use_ed ) then
+      if ( .not. use_ed ) then
          i_soil3 = 7
       else
          i_soil3 = 6
@@ -421,7 +421,7 @@ contains
       is_cellulose(i_soil3) = .false.
       is_lignin(i_soil3) = .false.
 
-      if ( use_ed ) then
+      if ( .not. use_ed ) then
          i_soil4 = 8
       else
          i_soil4 = 7
