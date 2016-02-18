@@ -751,11 +751,8 @@ sub setup_cmdl_ed_mode {
       my $ndiff = 0;
       foreach my $var ( @list ) {
 	  if ( ! defined($nl->get_value($var))  ) {
-	      $nl_flags->{$var} = $setting;
+	      $nl_flags->{$var} = ".true.";
 	  } else {
-	      if ( $nl->get_value($var) ne $setting ) {
-		  $ndiff += 1;
-	      }
 	      $nl_flags->{$var} = $nl->get_value($var);
 	  }
 	  $val = $nl_flags->{$var};
