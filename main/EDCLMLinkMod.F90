@@ -605,6 +605,8 @@ contains
     ! !USES:
     use restUtilMod
     use ncdio_pio
+    ! use EDtypesMod           , only : numpft_ed
+
     !
     ! !ARGUMENTS:
     class (ed_clm_type) :: this
@@ -614,8 +616,8 @@ contains
     !
     ! !LOCAL VARIABLES:
     logical            :: readvar
-    character(LEN=3)   :: istr1
-    integer            :: k
+    ! character(LEN=3)   :: istr1
+    ! integer            :: k
     !------------------------------------------------------------------------
 
     call restartvar(ncid=ncid, flag=flag, varname='leafc', xtype=ncd_double,  &
@@ -649,33 +651,33 @@ contains
          long_name='', units='', &
          interpinic_flag='interp', readvar=readvar, data=this%ED_c_to_litr_lig_c_col) 
 
-    call restartvar(ncid=ncid, flag=flag, varname='leaf_prof_col', xtype=ncd_double,  &
-         dim1name='column', dim2name='levgrnd', switchdim=.true., &
-         long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=this%leaf_prof_col) 
+    ! call restartvar(ncid=ncid, flag=flag, varname='leaf_prof_col', xtype=ncd_double,  &
+    !      dim1name='column', dim2name='levgrnd', switchdim=.true., &
+    !      long_name='', units='', &
+    !      interpinic_flag='interp', readvar=readvar, data=this%leaf_prof_col) 
 
-    call restartvar(ncid=ncid, flag=flag, varname='croot_prof_col', xtype=ncd_double,  &
-         dim1name='column', dim2name='levgrnd', switchdim=.true., &
-         long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=this%croot_prof_col) 
+    ! call restartvar(ncid=ncid, flag=flag, varname='croot_prof_col', xtype=ncd_double,  &
+    !      dim1name='column', dim2name='levgrnd', switchdim=.true., &
+    !      long_name='', units='', &
+    !      interpinic_flag='interp', readvar=readvar, data=this%croot_prof_col) 
 
-    call restartvar(ncid=ncid, flag=flag, varname='stem_prof_col', xtype=ncd_double,  &
-         dim1name='column', dim2name='levgrnd', switchdim=.true., &
-         long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=this%stem_prof_col) 
+    ! call restartvar(ncid=ncid, flag=flag, varname='stem_prof_col', xtype=ncd_double,  &
+    !      dim1name='column', dim2name='levgrnd', switchdim=.true., &
+    !      long_name='', units='', &
+    !      interpinic_flag='interp', readvar=readvar, data=this%stem_prof_col) 
 
-    call restartvar(ncid=ncid, flag=flag, varname='ED_c_to_litr_lab_c_col', xtype=ncd_double,  &
-         dim1name='column', dim2name='levgrnd', switchdim=.true., &
-         long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=this%ED_c_to_litr_lab_c_col) 
+    ! call restartvar(ncid=ncid, flag=flag, varname='ED_c_to_litr_lab_c_col', xtype=ncd_double,  &
+    !      dim1name='column', dim2name='levgrnd', switchdim=.true., &
+    !      long_name='', units='', &
+    !      interpinic_flag='interp', readvar=readvar, data=this%ED_c_to_litr_lab_c_col) 
 
-    do k = 1, numpft_ed
-       write(istr1,"(I3.3)") k
-       call restartvar(ncid=ncid, flag=flag, varname='froot_prof_col_PFT'//istr1, xtype=ncd_double,  &
-            dim1name='column', dim2name='levgrnd', switchdim=.true., &
-            long_name='', units='', &
-            interpinic_flag='interp', readvar=readvar, data=this%froot_prof_col(:,k,:)) 
-    end do
+    ! do k = 1, numpft_ed
+    !    write(istr1,"(I3.3)") k
+    !    call restartvar(ncid=ncid, flag=flag, varname='froot_prof_col_PFT'//istr1, xtype=ncd_double,  &
+    !         dim1name='column', dim2name='levgrnd', switchdim=.true., &
+    !         long_name='', units='', &
+    !         interpinic_flag='interp', readvar=readvar, data=this%froot_prof_col(:,k,:)) 
+    ! end do
 
   end subroutine Restart
 
