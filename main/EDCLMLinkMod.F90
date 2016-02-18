@@ -628,7 +628,7 @@ contains
 
     call restartvar(ncid=ncid, flag=flag, varname='deadstemc', xtype=ncd_double,  &
          dim1name='pft', long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=this%deadstemc_patch) 4
+         interpinic_flag='interp', readvar=readvar, data=this%deadstemc_patch)
 
     call restartvar(ncid=ncid, flag=flag, varname='livestemn', xtype=ncd_double,  &
          dim1name='pft', long_name='', units='', &
