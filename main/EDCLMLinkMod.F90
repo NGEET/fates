@@ -616,40 +616,62 @@ contains
     !
     ! !LOCAL VARIABLES:
     logical            :: readvar
+    real(r8), pointer :: ptr2d(:,:) ! temp. pointers for slicing larger arrays
+    real(r8), pointer :: ptr1d(:)   ! temp. pointers for slicing larger arrays  
     ! character(LEN=3)   :: istr1
     ! integer            :: k
     !------------------------------------------------------------------------
 
-    call restartvar(ncid=ncid, flag=flag, varname='leafc', xtype=ncd_double,  &
-         dim1name='pft', long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=this%leafc_patch) 
+    ! call restartvar(ncid=ncid, flag=flag, varname='leafc', xtype=ncd_double,  &
+    !      dim1name='pft', long_name='', units='', &
+    !      interpinic_flag='interp', readvar=readvar, data=this%leafc_patch) 
 
-    call restartvar(ncid=ncid, flag=flag, varname='livestemc', xtype=ncd_double,  &
-         dim1name='pft', long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=this%livestemc_patch) 
+    ! call restartvar(ncid=ncid, flag=flag, varname='livestemc', xtype=ncd_double,  &
+    !      dim1name='pft', long_name='', units='', &
+    !      interpinic_flag='interp', readvar=readvar, data=this%livestemc_patch) 
 
-    call restartvar(ncid=ncid, flag=flag, varname='deadstemc', xtype=ncd_double,  &
-         dim1name='pft', long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=this%deadstemc_patch)
+    ! call restartvar(ncid=ncid, flag=flag, varname='deadstemc', xtype=ncd_double,  &
+    !      dim1name='pft', long_name='', units='', &
+    !      interpinic_flag='interp', readvar=readvar, data=this%deadstemc_patch)
 
-    call restartvar(ncid=ncid, flag=flag, varname='livestemn', xtype=ncd_double,  &
-         dim1name='pft', long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=this%livestemn_patch) 
+    ! call restartvar(ncid=ncid, flag=flag, varname='livestemn', xtype=ncd_double,  &
+    !      dim1name='pft', long_name='', units='', &
+    !      interpinic_flag='interp', readvar=readvar, data=this%livestemn_patch) 
 
-    call restartvar(ncid=ncid, flag=flag, varname='ED_c_to_litr_lab_c_col', xtype=ncd_double,  &
-         dim1name='column', dim2name='levgrnd', switchdim=.true., &
-         long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=this%ED_c_to_litr_lab_c_col) 
+    if (use_vertsoilc) then
+       ptr2d => this%ED_c_to_litr_lab_c_col
+       call restartvar(ncid=ncid, flag=flag, varname='ED_c_to_litr_lab_c_col', xtype=ncd_double,  &
+            dim1name='column', dim2name='levgrnd', switchdim=.true., &
+            long_name='', units='', &
+            interpinic_flag='interp', readvar=readvar, data=ptr2d) 
 
-    call restartvar(ncid=ncid, flag=flag, varname='ED_c_to_litr_cel_c_col', xtype=ncd_double,  &
-         dim1name='column', dim2name='levgrnd', switchdim=.true., &
-         long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=this%ED_c_to_litr_cel_c_col) 
+       ptr2d => this%ED_c_to_litr_cel_c_col
+       call restartvar(ncid=ncid, flag=flag, varname='ED_c_to_litr_cel_c_col', xtype=ncd_double,  &
+            dim1name='column', dim2name='levgrnd', switchdim=.true., &
+            long_name='', units='', &
+            interpinic_flag='interp', readvar=readvar, data=ptr2d) 
 
-    call restartvar(ncid=ncid, flag=flag, varname='ED_c_to_litr_lig_c_col', xtype=ncd_double,  &
-         dim1name='column', dim2name='levgrnd', switchdim=.true., &
-         long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=this%ED_c_to_litr_lig_c_col) 
+       ptr2d => this%ED_c_to_litr_lig_c_col
+       call restartvar(ncid=ncid, flag=flag, varname='ED_c_to_litr_lig_c_col', xtype=ncd_double,  &
+            dim1name='column', dim2name='levgrnd', switchdim=.true., &
+            long_name='', units='', &
+            interpinic_flag='interp', readvar=readvar, data=ptr2d) 
+    else
+       ptr1d => this%ED_c_to_litr_lab_c_col(:,1)
+       call restartvar(ncid=ncid, flag=flag, varname='ED_c_to_litr_lab_c_col', xtype=ncd_double,  &
+            dim1name='column', long_name='', units='', &
+            interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+
+       ptr1d => this%ED_c_to_litr_cel_c_col(:,1)
+       call restartvar(ncid=ncid, flag=flag, varname='ED_c_to_litr_cel_c_col', xtype=ncd_double,  &
+            dim1name='column', long_name='', units='', &
+            interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+
+       ptr1d => this%ED_c_to_litr_lig_c_col(:,1)
+       call restartvar(ncid=ncid, flag=flag, varname='ED_c_to_litr_lig_c_col', xtype=ncd_double,  &
+            dim1name='column', long_name='', units='', &
+            interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+    end if
 
     ! call restartvar(ncid=ncid, flag=flag, varname='leaf_prof_col', xtype=ncd_double,  &
     !      dim1name='column', dim2name='levgrnd', switchdim=.true., &
@@ -665,11 +687,6 @@ contains
     !      dim1name='column', dim2name='levgrnd', switchdim=.true., &
     !      long_name='', units='', &
     !      interpinic_flag='interp', readvar=readvar, data=this%stem_prof_col) 
-
-    ! call restartvar(ncid=ncid, flag=flag, varname='ED_c_to_litr_lab_c_col', xtype=ncd_double,  &
-    !      dim1name='column', dim2name='levgrnd', switchdim=.true., &
-    !      long_name='', units='', &
-    !      interpinic_flag='interp', readvar=readvar, data=this%ED_c_to_litr_lab_c_col) 
 
     ! do k = 1, numpft_ed
     !    write(istr1,"(I3.3)") k
