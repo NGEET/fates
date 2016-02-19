@@ -731,7 +731,6 @@ sub setup_cmdl_ed_mode {
     $var = "use_ed";
     $nl_flags->{$var} = ".false.";
     if ($nl_flags->{'ed_mode'} eq 1) {
-      message("Using ED (Ecosystem Demography).");
       $val = ".true.";
       $nl_flags->{$var} = $val;
     }
@@ -746,7 +745,7 @@ sub setup_cmdl_ed_mode {
         fatal_error("$var has a value ($val) that is NOT valid. Valid values are: @valid_values\n");
       }
 
-      # If the variable has already been set use it, if not set to the value defined by the ed_mode
+      # If these variablse  not being set by user, default to true
       my @list  = (  "use_ed_spit_fire", "use_vertsoilc", "use_century_decomp" );
       my $ndiff = 0;
       foreach my $var ( @list ) {

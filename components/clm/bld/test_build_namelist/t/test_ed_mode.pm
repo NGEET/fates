@@ -53,7 +53,14 @@ sub teardown : Test(teardown) {
 # tests
 # 
 # 1: test that use_century_decom is the default with ed_mode
-# 7: test that clm4.0 fails with ed_mode
+# 2: test that use_vertsoilc is the default with ed_mode
+# 3: test that use_ed_spit_fire is the default with ed_mode
+# 4: test that use_ed = .false. will fail for ed_mode
+# 5: test that crop = "on" will fail for ed_mode
+# 6: test that clm4_0 will fail for ed_mode (NOT AVAILABLE)
+# 7: test that use_ed_spit_fire = false generates a false
+# 8: test that use_versoilc = false generates a false
+# 9: test that use_century_decomp = false generates a false
 #
 #-------------------------------------------------------------------------------
 
@@ -61,22 +68,155 @@ sub teardown : Test(teardown) {
 sub test_ed_mode__use_century_decomp : Tests {
   my $self = shift;
 
-  my $msg = "Test that the ed_mode set with use_century_decomp results success.\n";
+  my $msg = "Test that use_century_decomp is the default on ed_mode.\n";
 
   use CLMBuildNamelist qw(setup_cmdl_ed_mode);
 
   my $opts = { ed_mode => 1, };
-  my $nl_flags = { crop => 1, };  # eq "on"
-
-#  my $nl_flags = { phys => "clm4_5", };
-#  my $physv = config_files::clm_phys_vers->new( "clm4_5" );
+  my $nl_flags = { crop => "off", }; # the setup_cmdl_ed_mode code requires this logic
 
   CLMBuildNamelist::setup_cmdl_ed_mode($opts, $nl_flags, $self->{definition}, $self->{defaults}, $self->{nl}, $self->{physv});
   my $group = $self->{definition}->get_group_name("use_century_decomp");
   my $result = $self->{nl}->get_variable_value($group, "use_century_decomp");
   is($result, '.true.' ) || diag($msg);
-  #isnt
 }
+
+# Test 2: use_vertsoilc is default with ed_mode
+sub test_ed_mode__use_vertsoilc : Tests {
+    my $self = shift;
+
+    my $msg = "Tests that use_vertsoilc is default on ed_mode.\n";
+
+    use CLMBuildNamelist qw(setup_cmdl_ed_mode);
+
+    my $opts = { ed_mode => 1, };
+    my $nl_flags = { crop => "off", };
+
+    CLMBuildNamelist::setup_cmdl_ed_mode($opts, $nl_flags, $self->{definition}, $self->{defaults}, $self->{nl}, $self->{physv});
+    my $group = $self->{definition}->get_group_name("use_vertsoilc");
+    my $result = $self->{nl}->get_variable_value($group, "use_vertsoilc");
+    is($result, '.true.' ) || diag($msg);
+}
+
+# Test 3: use_ed_spit_fire is default with ed_mode
+sub test_ed_mode__use_ed_spit_fire : Tests {
+    my $self = shift;
+
+    my $msg = "Tests that use_ed_spit_fire is default on ed_mode.\n";
+
+    use CLMBuildNamelist qw(setup_cmdl_ed_mode);
+
+    my $opts = { ed_mode => 1, };
+    my $nl_flags = { crop => "off", };
+
+    CLMBuildNamelist::setup_cmdl_ed_mode($opts, $nl_flags, $self->{definition}, $self->{defaults}, $self->{nl}, $self->{physv});
+    my $group = $self->{definition}->get_group_name("use_ed_spit_fire");
+    my $result = $self->{nl}->get_variable_value($group, "use_ed_spit_fire");
+    is($result, '.true.' ) || diag($msg);
+}
+
+# Test 4: use_ed=false will crash on ed_mode
+sub test_ed_mode__use_ed_nl_contradicts_cmdl : Tests {
+    my $self = shift;
+
+    my $msg = "Tests that use_ed=false will fail on ed_mode.\n";
+
+    use CLMBuildNamelist qw(setup_cmdl_ed_mode);
+
+    my $opts = { ed_mode => 1, };
+    my $nl_flags = { crop => "off", use_ed => ".false."};
+
+    my $group = $self->{definition}->get_group_name("use_ed");
+    $self->{nl}->set_variable_value($group, "use_ed", '.false.' );
+
+    dies_ok(sub { CLMBuildNamelist::setup_cmdl_ed_mode($opts, $nl_flags, $self->{definition}, $self->{defaults}, $self->{nl},
+							$self->{physv}) }) || diag($msg);
+}
+
+# Test 5: crop=on will crash on ed_mode
+sub test_ed_mode__crop_on_nl_contradicts_cmdl : Tests {
+    my $self = shift;
+
+    my $msg = "Tests that crop=on will fail on ed_mode.\n";
+
+    use CLMBuildNamelist qw(setup_cmdl_ed_mode);
+
+    my $opts = { ed_mode => 1, };
+    my $nl_flags = { crop => "on", };
+
+    my $group = $self->{definition}->get_group_name("crop");
+    $self->{nl}->set_variable_value($group, "crop", 'on' );
+
+    dies_ok(sub { CLMBuildNamelist::setup_cmdl_ed_mode($opts, $nl_flags, $self->{definition}, $self->{defaults}, $self->{nl},
+						   $self->{physv}) }) || diag($msg);
+}
+
+# 7: test that use_ed_spit_fire = false generates a false
+sub test_ed_mode__use_ed_spit_fire_false : Tests {
+    my $self = shift;
+
+    my $msg = "Tests that use_ed_spit_fire can be turned to false.\n";
+
+    use CLMBuildNamelist qw(setup_cmdl_ed_mode);
+
+    my $opts = { ed_mode => 1, };
+    my $nl_flags = { crop => "off", };
+
+    my $group = $self->{definition}->get_group_name("use_ed_spit_fire");
+    $self->{nl}->set_variable_value($group, "use_ed_spit_fire", '.false.' );
+
+    CLMBuildNamelist::setup_cmdl_ed_mode($opts, $nl_flags, $self->{definition}, $self->{defaults}, $self->{nl},
+						       $self->{physv});
+
+    my $result = $self->{nl}->get_variable_value($group, "use_ed_spit_fire");
+    is($result, '.false.' ) || diag($msg);
+
+}
+
+# 8: test that use_ed_spit_fire = false generates a false
+sub test_ed_mode__use_vertsoilc_false : Tests {
+    my $self = shift;
+
+    my $msg = "Tests that use_vertsoilc can be turned to false.\n";
+
+    use CLMBuildNamelist qw(setup_cmdl_ed_mode);
+
+    my $opts = { ed_mode => 1, };
+    my $nl_flags = { crop => "off", };
+
+    my $group = $self->{definition}->get_group_name("use_vertsoilc");
+    $self->{nl}->set_variable_value($group, "use_vertsoilc", '.false.' );
+
+    CLMBuildNamelist::setup_cmdl_ed_mode($opts, $nl_flags, $self->{definition}, $self->{defaults}, $self->{nl},
+					 $self->{physv});
+
+    my $result = $self->{nl}->get_variable_value($group, "use_vertsoilc");
+    is($result, '.false.' ) || diag($msg);
+
+}
+
+# 9: test that use_ed_spit_fire = false generates a false
+sub test_ed_mode__use_century_decomp_false : Tests {
+    my $self = shift;
+
+    my $msg = "Tests that use_century_decomp can be turned to false.\n";
+
+    use CLMBuildNamelist qw(setup_cmdl_ed_mode);
+
+    my $opts = { ed_mode => 1, };
+    my $nl_flags = { crop => "off", };
+
+    my $group = $self->{definition}->get_group_name("use_century_decomp");
+    $self->{nl}->set_variable_value($group, "use_century_decomp", '.false.' );
+
+    CLMBuildNamelist::setup_cmdl_ed_mode($opts, $nl_flags, $self->{definition}, $self->{defaults}, $self->{nl},
+                                         $self->{physv});
+
+    my $result = $self->{nl}->get_variable_value($group, "use_century_decomp");
+    is($result, '.false.' ) || diag($msg);
+
+}
+
 
 
 1;
