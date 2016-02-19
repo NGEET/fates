@@ -566,6 +566,7 @@ contains
        call ED_Phenology_inst%restart(bounds, ncid, flag=flag)
        call EDRest ( bounds, ncid, flag, ed_allsites_inst(bounds%begg:bounds%endg), &
             ed_clm_inst, ed_phenology_inst, waterstate_inst, canopystate_inst )
+       call ed_clm_inst%Restart(bounds, ncid, flag=flag)
     end if
 
   end subroutine clm_instRest
