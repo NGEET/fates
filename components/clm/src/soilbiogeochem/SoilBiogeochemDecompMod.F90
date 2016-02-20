@@ -260,9 +260,9 @@ contains
             if(.not.use_ed)then
               net_nmin(c) = net_nmin(c) + net_nmin_vr(c,j) * dzsoi_decomp(j)
               gross_nmin(c) = gross_nmin(c) + gross_nmin_vr(c,j) * dzsoi_decomp(j)
-            else
-              net_nmin(c) = 0.0_r8
-              gross_nmin(c) = 0.0_r8
+            ! else
+            !   net_nmin(c) = 0.0_r8
+            !   gross_nmin(c) = 0.0_r8
             endif
          end do
       end do
