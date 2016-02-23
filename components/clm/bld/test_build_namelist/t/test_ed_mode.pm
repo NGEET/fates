@@ -8,6 +8,8 @@ use Test::Exception;
 
 use parent qw(Test::Class);
 
+use CLMBuildNamelist qw(setup_logic_lnd_frac);
+
 #-------------------------------------------------------------------------------
 #
 # Common test fixture for all tests:
@@ -29,6 +31,8 @@ sub startup : Test(startup => 4) {
 
   $self->{physv} = config_files::clm_phys_vers->new( $self->{cfg}->get('phys') );
   isnt($self->{physv}, undef,  (caller(0))[3] . " : phys_vers object created.");
+
+  $self->{test_files} = 0;
 
 }
 
@@ -71,14 +75,20 @@ sub test_ed_mode__use_century_decomp : Tests {
   my $msg = "Test that use_century_decomp is the default on ed_mode.\n";
 
   use CLMBuildNamelist qw(setup_cmdl_ed_mode);
+  use CLMBuildNamelist qw(setup_logic_ed);
 
-  my $opts = { ed_mode => 1, };
+  my $opts = { ed_mode => 1, bgc => "default" };
   my $nl_flags = { crop => "off", }; # the setup_cmdl_ed_mode code requires this logic
 
+  # include bgc because they have mutually exclusive functionality that needs to be tested
+  CLMBuildNamelist::setup_cmdl_bgc($opts, $nl_flags, $self->{definition}, $self->{defaults}, $self->{nl}, $self->{cfg},$self->{physv});
   CLMBuildNamelist::setup_cmdl_ed_mode($opts, $nl_flags, $self->{definition}, $self->{defaults}, $self->{nl}, $self->{physv});
-  my $group = $self->{definition}->get_group_name("use_century_decomp");
+  $nl_flags->{"use_ed"} = $self->{nl}->get_value("use_ed");
+
+  CLMBuildNamelist::setup_logic_ed($self->{test_files}, $nl_flags, $self->{definition}, $self->{defaults}, $self->{nl}, $self->{physv});
   my $result = $self->{nl}->get_variable_value($group, "use_century_decomp");
   is($result, '.true.' ) || diag($msg);
+  
 }
 
 # Test 2: use_vertsoilc is default with ed_mode
@@ -173,7 +183,7 @@ sub test_ed_mode__use_ed_spit_fire_false : Tests {
 
 }
 
-# 8: test that use_ed_spit_fire = false generates a false
+# 8: test that use_versoilc = false generates a false
 sub test_ed_mode__use_vertsoilc_false : Tests {
     my $self = shift;
 
