@@ -2777,7 +2777,7 @@ sub setup_logic_ed {
     #                                                                                                                                                            
     my ($test_files, $nl_flags, $definition, $defaults, $nl, $physv) = @_;
 
-    if ($physv->as_long() >= $physv->as_long("clm4_5")) {
+    if ($physv->as_long() >= $physv->as_long("clm4_5") && value_is_true( $nl_flags->{'use_ed'})  ) {
 	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_vertsoilc', 'use_ed'=>$nl_flags->{'use_ed'} );
 	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_century_decomp', 'use_ed'=>$nl_flags->{'use_ed'} );
  	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_ed_spit_fire', 'use_ed'=>$nl_flags->{'use_ed'} );
