@@ -56,7 +56,7 @@ contains
 
     !zero fire things
     currentPatch => currentSite%youngest_patch
-    temporary_SF_switch = 0
+    temporary_SF_switch = 1
     do while(associated(currentPatch))
        currentPatch%frac_burnt = 0.0_r8
        currentPatch%AB         = 0.0_r8
