@@ -1616,11 +1616,11 @@ lnd/clm2/surfdata_map/surfdata_ne30np4_simyr1850_c141219.nc</fsurdat>
 <!-- Defaults for use_ed = .true.               -->
 <!-- =========================================  -->
 
-<use_vertsoilc use_ed=".true."> .true. </use_vertsoilc>
-<use_century_decomp use_ed=".true."> .true. </use_century_decomp>
-<use_ed_spit_fire use_ed=".true."> .true. </use_ed_spit_fire>
-<use_lch4 use_ed=".true."> .false. </use_lch4>
-<use_nitrif_denitrif use_ed=".true."> .false. </use_nitrif_denitrif>
+<use_vertsoilc use_ed=".true.">.true.</use_vertsoilc>
+<use_century_decomp use_ed=".true.">.true.</use_century_decomp>
+<use_ed_spit_fire use_ed=".true.">.true.</use_ed_spit_fire>
+<use_lch4 use_ed=".true.">.false.</use_lch4>
+<use_nitrif_denitrif use_ed=".true.">.false.</use_nitrif_denitrif>
 
 
 </namelist_defaults>
