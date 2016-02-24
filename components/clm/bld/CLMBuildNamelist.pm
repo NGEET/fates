@@ -777,6 +777,9 @@ sub setup_cmdl_ed_mode {
 	  }
       }
 
+#      add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_vertsoilc', 'use_ed'=>$nl_flags->{'use_ed'} );
+
+
     } else {
 	# we only dis-allow ed_spit_fire with non-ed runs
        $var = "use_ed_spit_fire";
@@ -2777,7 +2780,7 @@ sub setup_logic_ed {
     if ($physv->as_long() >= $physv->as_long("clm4_5")) {
 	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_vertsoilc', 'use_ed'=>$nl_flags->{'use_ed'} );
 	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_century_decomp', 'use_ed'=>$nl_flags->{'use_ed'} );
-	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_ed_spit_fire', 'use_ed'=>$nl_flags->{'use_ed'} );
+ 	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_ed_spit_fire', 'use_ed'=>$nl_flags->{'use_ed'} );
 	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_lch4', 'use_ed'=>$nl_flags->{'use_ed'} );
 	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_nitrif_denitrif', 'use_ed'=>$nl_flags->{'use_ed'} );
     }
@@ -2889,6 +2892,7 @@ sub add_default {
     $var = $1;
   }
   # Query the definition to find which group the variable belongs to.  Exit if not found.
+
   my $group = $definition->get_group_name($var);
   unless ($group) {
     my $fname = $definition->get_file_name();
@@ -2909,6 +2913,7 @@ sub add_default {
     # in %settings to the get_value method to be used as attributes that are matched
     # when looking for default values.
     else {
+
       $val = $defaults->get_value($var, \%settings);
 
       # Truncate model_version appropriately
