@@ -1,5 +1,7 @@
 use_cn            = .false. 
 use_ed_spit_fire  = .false.
+use_vertsoilc     = .false.
+use_century_decomp = .false.
 finidat           = ''
 hist_mfilt        = 365
 hist_nhtfrq       = -24
