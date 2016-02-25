@@ -13,7 +13,7 @@ use parent qw(Test::Class);
 # Common test fixture for all tests:
 #
 #-------------------------------------------------------------------------------
-sub startup : Test(startup => 3) {
+sub startup : Test(startup => 4) {
   my $self = shift;
   # provide common fixture for all tests, only created once at the
   # start of the tests.
