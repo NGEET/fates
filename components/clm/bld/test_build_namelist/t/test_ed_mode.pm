@@ -202,7 +202,7 @@ sub test_ed_mode__use_ed_spit_fire_false : Tests {
 
     my $msg = "Tests that use_ed_spit_fire can be turned to false.\n";
 
-    my $opts = { ed_mode => 1, };
+    my $opts = { ed_mode => 1, bgc => "default"};
     my $nl_flags = { crop => "off", };
 
     my $group = $self->{definition}->get_group_name("use_ed_spit_fire");
