@@ -16,6 +16,8 @@ module EDCLMLinkMod
   use CanopyStateType  , only : canopystate_type
   use clm_varctl       , only : use_vertsoilc
   use EDParamsMod      , only : ED_val_ag_biomass
+  use SoilBiogeochemCarbonFluxType    , only : soilbiogeochem_carbonflux_type
+  use clm_time_manager , only : get_step_size
 
   !
   implicit none
@@ -123,6 +125,11 @@ module EDCLMLinkMod
      real(r8), pointer, private :: croot_prof_col(:,:)              !(1/m) profile of coarse roots                         
      real(r8), pointer, private :: stem_prof_col(:,:)               !(1/m) profile of leaves                         
 
+     ! summary carbon fluxes at the column level
+     real(r8), pointer,  public :: nep_col(:)                       ! [gC/m2/s] Net ecosystem production, i.e. fast-timescale carbon balance that does not include disturbance
+     real(r8), pointer,  public :: nbp_col(:)                       ! [gC/m2/s] Net biosphere production, i.e. slow-timescale carbon balance that integrates to total carbon change
+     real(r8), pointer,  public :: npp_hifreq_col(:)              ! [gC/m2/s] Net primary production at the fast timescale, aggregated to the column level
+
    contains
 
      ! Public routines
@@ -130,6 +137,7 @@ module EDCLMLinkMod
      procedure , public  :: Restart
      procedure , public  :: SetValues
      procedure , public  :: ed_clm_link
+     procedure , public  :: Summary
 
      ! Private routines
      procedure , private :: ed_clm_leaf_area_profile
@@ -238,6 +246,10 @@ contains
     allocate(this%froot_prof_col             (begc:endc,1:numpft_ed,1:nlevdecomp_full)); this%froot_prof_col             (:,:,:) = nan
     allocate(this%croot_prof_col             (begc:endc,1:nlevdecomp_full))            ; this%croot_prof_col             (:,:) = nan
     allocate(this%stem_prof_col              (begc:endc,1:nlevdecomp_full))            ; this%stem_prof_col              (:,:) = nan
+
+    allocate(this%nep_col                    (begc:endc))            ; this%nep_col                   (:) = nan
+    allocate(this%nbp_col                    (begc:endc))            ; this%nbp_col                   (:) = nan
+    allocate(this%npp_hifreq_col             (begc:endc))            ; this%npp_hifreq_col            (:) = nan
 
     allocate(this%ed_gpp_gd_scpf       (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_gpp_gd_scpf        (:,:) = 0.0_r8
     allocate(this%ed_npp_totl_gd_scpf  (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_npp_totl_gd_scpf   (:,:) = 0.0_r8
@@ -475,6 +487,21 @@ contains
     call hist_addfld1d (fname='NPP', units='gC/m^2/s', &
          avgflag='A', long_name='net primary production', &
          ptr_patch=this%npp_patch)
+
+    this%nep_col(begc:endc) = spval
+    call hist_addfld1d (fname='NEP', units='gC/m^2/s', &
+         avgflag='A', long_name='net ecosystem production', &
+         ptr_col=this%nep_col)
+
+    this%nbp_col(begc:endc) = spval
+    call hist_addfld1d (fname='NBP', units='gC/m^2/s', &
+         avgflag='A', long_name='net biosphere production', &
+         ptr_col=this%nbp_col)
+
+    this%npp_hifreq_col(begc:endc) = spval
+    call hist_addfld1d (fname='NPP at high frequency', units='gC/m^2/s', &
+         avgflag='A', long_name='net primary production at high frequency', &
+         ptr_col=this%npp_hifreq_col)
 
     !!! carbon fluxes into soil grid (dimensioned depth x column)
     call hist_addfld_decomp (fname='ED_c_to_litr_lab_c',  units='gC/m^2/s', type2d='levdcmp', &
@@ -2184,7 +2211,64 @@ contains
 
    end associate
  end subroutine flux_into_litter_pools
+
+  !------------------------------------------------------------------------
      
+ subroutine Summary(this, bounds, numsoilc, filter_soilc, num_soilp, filter_soilp, &
+      ed_allsites_inst, soilbiogeochem_carbonflux_inst)
+
+   ! Summarize the combined production and decomposition fluxes into net fluxes
+   ! Written by Charlie Koven, Feb 2016
+
+    type(bounds_type)                       , intent(in)    :: bounds  
+    integer                                 , intent(in)    :: num_soilc         ! number of soil columns in filter
+    integer                                 , intent(in)    :: filter_soilc(:)   ! filter for soil columns
+    integer                                 , intent(in)    :: num_soilp         ! number of soil patches in filter
+    integer                                 , intent(in)    :: filter_soilp(:)   ! filter for soil patches
+    type(ed_site_type)                      , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+    type(soilbiogeochem_carbonflux_type)    , intent(inout) :: soilbiogeochem_carbonflux_inst
+
+    real(r8) :: npp_hifreq_col(bounds%begc:bounds%endc  ! column-level, high frequency NPP
+    real(r8) :: dt ! radiation time step (seconds)
+
+    associate(& 
+    hr            => soilbiogeochem_carbonflux_inst%hr_col      & ! Output:  (gC/m2/s) total heterotrophic respiration
+    npp_hifreq    => this%npp_hifreq_col
+    nep           => this%nep_col
+    nbp           => this%nbp_col
+    )
+
+      ! set time steps
+      dt = real( get_step_size(), r8 )
+
+      do c = bounds%begc,bounds%endc
+         npp_hifreq(c) = 0._r8
+      end do
+
+      do g = bounds%begg,bounds%endg
+         if (firstsoilpatch(g) >= 0 .and. ed_allsites_inst(g)%istheresoil) then 
+            currentPatch => ed_allsites_inst(g)%oldest_patch
+            do while(associated(currentPatch))
+               cs => currentpatch%siteptr
+               cc = cs%clmcolumn
+               currentCohort => currentPatch%tallest
+               do while(associated(currentCohort))  
+                  npp_hifreq(cc) = npp_hifreq(cc) + currentpatch%npp_clm * 1e3 / ( AREA * dt)
+               enddo !currentCohort
+               currentPatch => currentPatch%younger
+            end do !currentPatch
+         end if
+      end do
+
+    ! calculate NEP and NBP fluxes.
+    !!!! CDK FEB/26/2016: THIS IS IMPORTANT AND NEEDS TO CHANGE AS IT IS ONLY A PLACEHOLDER.  
+    !!!! NEP AND NBP ARE BOTH THE SAME RIGHT NOW BECAUSE I DON'T KNOW HOW TO ADD IN THE FIRE, DISTURBANCE, ETC FLUXES INTO THE NBP FLUX YET
+    do fc = 1,num_soilc
+       c = filter_soilc(fc)
+       nep(c) = npp_hifreq(c) - hr(c)
+       nbp(c) = npp_hifreq(c) - hr(c)
+    end do
+
 
      
 end module EDCLMLinkMod
