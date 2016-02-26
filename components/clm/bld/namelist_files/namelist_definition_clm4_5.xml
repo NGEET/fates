@@ -427,13 +427,13 @@ Requires the CN model to work (either CN or CNDV).
 <entry id="use_vertsoilc" type="logical" category="bgc"
        group="clm_inparm" valid_values="" value=".false.">
 Turn on vertical soil carbon.
-Requires the CN model to work (either CN or CNDV).
+Requires the CN or ED model to work (either CN or CNDV).
 </entry>
 
 <entry id="use_century_decomp" type="logical" category="bgc"
        group="clm_inparm" valid_values="" value=".false.">
 Use parameters for decomposition from the CENTURY Carbon model
-Requires the CN model to work (either CN or CNDV).
+Requires the CN or ED model to work (either CN or CNDV).
 </entry>
 
 <entry id="use_extralakelayers" type="logical" category="physics"
