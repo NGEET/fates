@@ -159,7 +159,9 @@ OPTIONS
                               (can ONLY be turned on when BGC type is 'cn' or 'bgc')
                               This turns on the namelist variable: use_cndv
      -ed_mode                 Turn ED (Ecosystem Demography) : [on | off] (default is off)
-                              Sets the namelist variable use_ed and use_spit_fire.
+                              Sets the namelist variable use_ed, checks for use_spit_fire, 
+                              use_vertsoilc, use_century_decomp and use_lch4
+			      Also specifies defaults for these
      -glc_present             Set to true if the glc model is present (not sglc).
                               This is used for error-checking, to make sure other options are
                               set appropriately.
@@ -730,7 +732,6 @@ sub setup_cmdl_ed_mode {
     $var = "use_ed";
     $nl_flags->{$var} = ".false.";
     if ($nl_flags->{'ed_mode'} eq 1) {
-      message("Using ED (Ecosystem Demography).");
       $val = ".true.";
       $nl_flags->{$var} = $val;
     }
@@ -745,13 +746,42 @@ sub setup_cmdl_ed_mode {
         fatal_error("$var has a value ($val) that is NOT valid. Valid values are: @valid_values\n");
       }
 
-      $var = "use_ed_spit_fire";
-      $nl->set_variable_value($group, $var, $val);
-      if ( ! $definition->is_valid_value($var, $val) ) {
-        my @valid_values   = $definition->get_valid_values( $var );
-        fatal_error("$var has a value ($val) that is NOT valid. Valid values are: @valid_values\n");
+      # This section is a place-holder to test for modules that are not allowed with ED
+      # the defaults which are set in the logic section of the namelist builder will
+      # automatically set these correctly (well that is the assumption), but here we
+      # want to set a catch to fail and warn users if they explicitly set incompatible user namelist
+      # options
+      
+#      my $var = "use_somevar";
+#      $val = $nl_flags->{$var};
+#      if ( defined($nl->get_value($var))  ) {
+#	  if ( $nl->get_value($var) == ".true." ) { 
+#	      fatal_error("$var was set to .true., which is incompatible when -ed_mode option is used.\n");
+#	  }
+#      }
+
+      
+      # The following variables may be set by the user and are compatible with use_ed
+      # no need to set defaults, covered in a different routine
+      my @list  = (  "use_ed_spit_fire", "use_vertsoilc", "use_century_decomp", "use_lch4" );
+      foreach my $var ( @list ) {
+	  if ( defined($nl->get_value($var))  ) {
+	      $nl_flags->{$var} = $nl->get_value($var);
+	      $val = $nl_flags->{$var};
+	      my $group = $definition->get_group_name($var);
+	      $nl->set_variable_value($group, $var, $val);
+	      if (  ! $definition->is_valid_value( $var, $val ) ) {
+		  my @valid_values   = $definition->get_valid_values( $var );
+		  fatal_error("$var has a value ($val) that is NOT valid. Valid values are: @valid_values\n");
+	      }
+	  }
       }
+
+#      add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_vertsoilc', 'use_ed'=>$nl_flags->{'use_ed'} );
+
+
     } else {
+	# we only dis-allow ed_spit_fire with non-ed runs
        $var = "use_ed_spit_fire";
        if ( defined($nl->get_value($var)) ) {
            fatal_error("$var is being set, but can ONLY be set when -ed_mode option is used.\n");
@@ -771,6 +801,7 @@ sub setup_cmdl_bgc {
 
   $val = $opts->{$var};
   $nl_flags->{'bgc_mode'} = $val;
+
   if ( $physv->as_long() == $physv->as_long("clm4_0") ) {
     if ( $nl_flags->{'bgc_mode'} ne "default" ) {
       fatal_error("-bgc option used with clm4_0 physics. -bgc can ONLY be used with clm4_5/clm5_0 physics");
@@ -802,29 +833,32 @@ sub setup_cmdl_bgc {
     if ( defined($nl->get_value("use_cn")) && ($nl_flags->{'use_cn'} ne $nl->get_value("use_cn")) ) {
       fatal_error("The namelist variable use_cn is inconsistent with the -bgc option");
     }
-    # If the variable has already been set use it, if not set to the value defined by the bgc_mode
-    my @list  = (  "use_lch4", "use_nitrif_denitrif", "use_vertsoilc", "use_century_decomp" );
-    my $ndiff = 0;
-    foreach my $var ( @list ) {
-       if ( ! defined($nl->get_value($var))  ) {
-          $nl_flags->{$var} = $setting;
-       } else {
-          if ( $nl->get_value($var) ne $setting ) {
-             $ndiff += 1;
-          }
-          $nl_flags->{$var} = $nl->get_value($var);
-       }
-       $val = $nl_flags->{$var};
-       my $group = $definition->get_group_name($var);
-       $nl->set_variable_value($group, $var, $val);
-       if (  ! $definition->is_valid_value( $var, $val ) ) {
-         my @valid_values   = $definition->get_valid_values( $var );
-         fatal_error("$var has a value ($val) that is NOT valid. Valid values are: @valid_values\n");
-       }
-    }
-    # If all the variables are different report it as an error
-    if ( $ndiff == ($#list + 1) ) {
-       fatal_error("You are contradicting the -bgc setting with the namelist variables: @list" );
+
+    if ( $opts->{"ed_mode"} != 1) {
+	# If the variable has already been set use it, if not set to the value defined by the bgc_mode
+	my @list  = (  "use_lch4", "use_nitrif_denitrif", "use_vertsoilc", "use_century_decomp" );
+	my $ndiff = 0;
+	foreach my $var ( @list ) {
+	    if ( ! defined($nl->get_value($var))  ) {
+		$nl_flags->{$var} = $setting;
+	    } else {
+		if ( $nl->get_value($var) ne $setting ) {
+		    $ndiff += 1;
+		}
+		$nl_flags->{$var} = $nl->get_value($var);
+	    }
+	    $val = $nl_flags->{$var};
+	    my $group = $definition->get_group_name($var);
+	    $nl->set_variable_value($group, $var, $val);
+	    if (  ! $definition->is_valid_value( $var, $val ) ) {
+		my @valid_values   = $definition->get_valid_values( $var );
+		fatal_error("$var has a value ($val) that is NOT valid. Valid values are: @valid_values\n");
+	    }
+	}
+	# If all the variables are different report it as an error
+	if ( $ndiff == ($#list + 1) ) {
+	    fatal_error("You are contradicting the -bgc setting with the namelist variables: @list" );
+	}
     }
 
     # Now set use_cn
@@ -1427,6 +1461,7 @@ sub process_namelist_inline_logic {
   setup_logic_supplemental_nitrogen($opts->{'test'}, $nl_flags, $definition, $defaults, $nl, $physv);
   setup_logic_snowpack($opts->{'test'}, $nl_flags, $definition, $defaults, $nl, $physv);
   setup_logic_atm_forcing($opts->{'test'}, $nl_flags, $definition, $defaults, $nl, $physv);
+  setup_logic_ed($opts->{'test'}, $nl_flags, $definition, $defaults, $nl, $physv);
 
   #########################################
   # namelist group: clm_humanindex_inparm #
@@ -2736,6 +2771,23 @@ sub setup_logic_atm_forcing {
 
 #-------------------------------------------------------------------------------
 
+sub setup_logic_ed {
+    #
+    # Set some default options related to Ecosystem Demography
+    #                                                                                                                                                            
+    my ($test_files, $nl_flags, $definition, $defaults, $nl, $physv) = @_;
+
+    if ($physv->as_long() >= $physv->as_long("clm4_5") && value_is_true( $nl_flags->{'use_ed'})  ) {
+	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_vertsoilc', 'use_ed'=>$nl_flags->{'use_ed'} );
+	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_century_decomp', 'use_ed'=>$nl_flags->{'use_ed'} );
+ 	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_ed_spit_fire', 'use_ed'=>$nl_flags->{'use_ed'} );
+	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_lch4', 'use_ed'=>$nl_flags->{'use_ed'} );
+	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_nitrif_denitrif', 'use_ed'=>$nl_flags->{'use_ed'} );
+    }
+}
+
+#-------------------------------------------------------------------------------                     
+
 sub write_output_files {
   my ($opts, $nl_flags, $defaults, $nl, $physv) = @_;
 
@@ -2840,6 +2892,7 @@ sub add_default {
     $var = $1;
   }
   # Query the definition to find which group the variable belongs to.  Exit if not found.
+
   my $group = $definition->get_group_name($var);
   unless ($group) {
     my $fname = $definition->get_file_name();
@@ -2860,6 +2913,7 @@ sub add_default {
     # in %settings to the get_value method to be used as attributes that are matched
     # when looking for default values.
     else {
+
       $val = $defaults->get_value($var, \%settings);
 
       # Truncate model_version appropriately

@@ -845,7 +845,7 @@ CAM[45]%L60  => CAM with 60 layers and full gravity wave spectrum:
 <CLM_BLDNML_OPTS compset="_CLM45%[^_]*BGCDV"     >-bgc bgc -dynamic_vegetation</CLM_BLDNML_OPTS>
 <CLM_BLDNML_OPTS compset="_CLM45%[^_]*CNDV-CROP" >-bgc cn -dynamic_vegetation -crop</CLM_BLDNML_OPTS>
 <CLM_BLDNML_OPTS compset="_CLM45%[^_]*BGCDV-CROP">-bgc bgc -dynamic_vegetation -crop</CLM_BLDNML_OPTS>
-<CLM_BLDNML_OPTS compset="_CLM45%[^_]*ED"        >-ed_mode</CLM_BLDNML_OPTS>
+<CLM_BLDNML_OPTS compset="_CLM45%[^_]*ED"        >-ed_mode -no-megan</CLM_BLDNML_OPTS>
 
 <CLM_BLDNML_OPTS compset="_CLM50%[^_]*SP"        >-bgc sp</CLM_BLDNML_OPTS>
 <CLM_BLDNML_OPTS compset="_CLM50%[^_]*BGC"       >-bgc bgc</CLM_BLDNML_OPTS>
