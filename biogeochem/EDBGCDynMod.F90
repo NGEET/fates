@@ -27,7 +27,7 @@ module EDBGCDynMod
   use atm2lndType                     , only : atm2lnd_type
   use SoilStateType                   , only : soilstate_type
   use ch4Mod                          , only : ch4_type
-
+  use EDtypesMod                      , only : ed_site_type
 
   ! public :: EDBGCDynInit         ! BGC dynamics: initialization
   public :: EDBGCDyn             ! BGC Dynamics
@@ -270,10 +270,12 @@ contains
        soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst, &
        c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
        c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
-       soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst)
+       soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst, &
+       ed_clm_inst, ed_allsites_inst)
     !
     ! !DESCRIPTION:
     ! Call to all CN and SoilBiogeochem summary routines
+    ! also aggregate production and decomposition fluxes to whole-ecosystem balance fluxes
     !
     ! !USES:
     use clm_varpar                        , only: ndecomp_cascade_transitions
@@ -294,6 +296,8 @@ contains
     type(soilbiogeochem_carbonstate_type)   , intent(inout) :: c14_soilbiogeochem_carbonstate_inst
     type(soilbiogeochem_nitrogenflux_type)  , intent(inout) :: soilbiogeochem_nitrogenflux_inst
     type(soilbiogeochem_nitrogenstate_type) , intent(inout) :: soilbiogeochem_nitrogenstate_inst
+    type(ed_clm_type)                       , intent(inout) :: ed_clm_inst
+    type(ed_site_type)      , intent(inout), target :: ed_allsites_inst( bounds%begg: )
     !
     ! !LOCAL VARIABLES:
     integer :: begc,endc
@@ -341,8 +345,11 @@ contains
     ! call soilbiogeochem_nitrogenflux_inst%Summary(bounds, num_soilc, filter_soilc)
 
     ! ----------------------------------------------
-    ! ed veg carbon state summary
+    ! ed veg carbon flux summary
     ! ----------------------------------------------
+    
+    call ed_clm_inst%Summary(bounds, numsoilc, filter_soilc, num_soilp, filter_soilp, &
+         ed_allsites_inst(bounds%begg:bounds%endg), soilbiogeochem_carbonflux_inst)
 
     ! ----------------------------------------------
     ! ed veg carbon/nitrogen flux summary
