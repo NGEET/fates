@@ -499,9 +499,9 @@ contains
          ptr_col=this%nbp_col)
 
     this%npp_hifreq_col(begc:endc) = spval
-    call hist_addfld1d (fname='NPP at high frequency', units='gC/m^2/s', &
+    call hist_addfld1d (fname='NPP_hifreq', units='gC/m^2/s', &
          avgflag='A', long_name='net primary production at high frequency', &
-         ptr_col=this%npp_hifreq_col)
+         ptr_col=this%npp_hifreq_col,default='inactive')
 
     !!! carbon fluxes into soil grid (dimensioned depth x column)
     call hist_addfld_decomp (fname='ED_c_to_litr_lab_c',  units='gC/m^2/s', type2d='levdcmp', &
@@ -518,15 +518,15 @@ contains
 
     call hist_addfld_decomp (fname='leaf_prof',  units='1/m', type2d='levdcmp', &
          avgflag='A', long_name='leaf_prof', &
-         ptr_col=this%leaf_prof_col)
+         ptr_col=this%leaf_prof_col,default='inactive')
 
     call hist_addfld_decomp (fname='croot_prof',  units='1/m', type2d='levdcmp', &
          avgflag='A', long_name='croot_prof', &
-         ptr_col=this%croot_prof_col)
+         ptr_col=this%croot_prof_col,default='inactive')
 
     call hist_addfld_decomp (fname='stem_prof',  units='1/m', type2d='levdcmp', &
          avgflag='A', long_name='stem_prof', &
-         ptr_col=this%stem_prof_col)
+         ptr_col=this%stem_prof_col,default='inactive')
 
     
       ! Carbon Flux (grid dimension x scpf)
@@ -2219,64 +2219,82 @@ contains
 
    ! Summarize the combined production and decomposition fluxes into net fluxes
    ! Written by Charlie Koven, Feb 2016
+   !
+   ! !USES: 
+   use ColumnType           , only : col
+   use LandunitType         , only : lun
+   use landunit_varcon      , only : istsoil
 
-    class(ed_clm_type)                              :: this  
-    type(bounds_type)                       , intent(in)    :: bounds  
-    integer                                 , intent(in)    :: num_soilc         ! number of soil columns in filter
-    integer                                 , intent(in)    :: filter_soilc(:)   ! filter for soil columns
-    integer                                 , intent(in)    :: num_soilp         ! number of soil patches in filter
-    integer                                 , intent(in)    :: filter_soilp(:)   ! filter for soil patches
-    type(ed_site_type)                      , intent(inout), target :: ed_allsites_inst( bounds%begg: )
-    type(soilbiogeochem_carbonflux_type)    , intent(inout) :: soilbiogeochem_carbonflux_inst
-
-    real(r8) :: npp_hifreq_col(bounds%begc:bounds%endc)  ! column-level, high frequency NPP
-    real(r8) :: dt ! radiation time step (seconds)
-    integer :: c, g, cc, fc
-    type(ed_site_type), pointer :: cs
-    type (ed_patch_type)  , pointer :: currentPatch
-    type (ed_cohort_type) , pointer :: currentCohort
-
-    associate(& 
-    hr            => soilbiogeochem_carbonflux_inst%hr_col,      & ! Output:  (gC/m2/s) total heterotrophic respiration
-    npp_hifreq    => this%npp_hifreq_col,      &
-    nep           => this%nep_col,      &
-    nbp           => this%nbp_col      &
-    )
-
-      ! set time steps
-      dt = real( get_step_size(), r8 )
-
-      do c = bounds%begc,bounds%endc
-         npp_hifreq(c) = 0._r8
-      end do
-
-      do g = bounds%begg,bounds%endg
-         if (ed_allsites_inst(g)%istheresoil) then 
-            currentPatch => ed_allsites_inst(g)%oldest_patch
-            do while(associated(currentPatch))
-               cs => currentPatch%siteptr
-               cc = cs%clmcolumn
-               currentCohort => currentPatch%tallest
-               do while(associated(currentCohort))  
-                  npp_hifreq(cc) = npp_hifreq(cc) + currentCohort%npp_clm * 1e3 * currentCohort%n / ( AREA * dt)
-               enddo !currentCohort
-               currentPatch => currentPatch%younger
-            end do !currentPatch
-         end if
-      end do
-
-    ! calculate NEP and NBP fluxes.
-    !!!! CDK FEB/26/2016: THIS IS IMPORTANT AND NEEDS TO CHANGE AS IT IS ONLY A PLACEHOLDER.  
-    !!!! NEP AND NBP ARE BOTH THE SAME RIGHT NOW BECAUSE I DON'T KNOW HOW TO ADD IN THE FIRE, DISTURBANCE, ETC FLUXES INTO THE NBP FLUX YET
-    do fc = 1,num_soilc
-       c = filter_soilc(fc)
-       nep(c) = npp_hifreq(c) - hr(c)
-       nbp(c) = npp_hifreq(c) - hr(c)
-    end do
-
-    end associate
-
-end subroutine Summary
-
+   class(ed_clm_type)                              :: this  
+   type(bounds_type)                       , intent(in)    :: bounds  
+   integer                                 , intent(in)    :: num_soilc         ! number of soil columns in filter
+   integer                                 , intent(in)    :: filter_soilc(:)   ! filter for soil columns
+   integer                                 , intent(in)    :: num_soilp         ! number of soil patches in filter
+   integer                                 , intent(in)    :: filter_soilp(:)   ! filter for soil patches
+   type(ed_site_type)                      , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+   type(soilbiogeochem_carbonflux_type)    , intent(inout) :: soilbiogeochem_carbonflux_inst
+   
+   real(r8) :: npp_hifreq_col(bounds%begc:bounds%endc)  ! column-level, high frequency NPP
+   real(r8) :: dt ! radiation time step (seconds)
+   integer :: c, g, cc, fc, l
+   type(ed_site_type), pointer :: cs
+   type (ed_patch_type)  , pointer :: currentPatch
+   type (ed_cohort_type) , pointer :: currentCohort
+   integer  :: firstsoilpatch(bounds%begg:bounds%endg) ! the first patch in this gridcell that is soil and thus bare... 
+   
+   associate(& 
+        hr            => soilbiogeochem_carbonflux_inst%hr_col,      & ! Output:  (gC/m2/s) total heterotrophic respiration
+        npp_hifreq    => this%npp_hifreq_col,      &
+        nep           => this%nep_col,      &
+        nbp           => this%nbp_col      &
+        )
      
+     ! set time steps
+     dt = real( get_step_size(), r8 )
+     
+     do c = bounds%begc,bounds%endc
+        npp_hifreq(c) = 0._r8
+     end do
+     
+     ! retrieve the first soil patch associated with each gridcell. 
+     ! make sure we only get the first patch value for places which have soil. 
+     firstsoilpatch(bounds%begg:bounds%endg) = -999
+     do c = bounds%begc,bounds%endc
+        g = col%gridcell(c)
+        l = col%landunit(c)
+        if (lun%itype(l) == istsoil .and. col%itype(c) == istsoil) then 
+           firstsoilpatch(g) = col%patchi(c)
+        endif
+     enddo
+     
+     do g = bounds%begg,bounds%endg
+        if (firstsoilpatch(g) >= 0 .and. ed_allsites_inst(g)%istheresoil) then 
+           currentPatch => ed_allsites_inst(g)%oldest_patch
+           do while(associated(currentPatch))
+              cs => currentPatch%siteptr
+              cc = cs%clmcolumn
+              currentCohort => currentPatch%tallest
+              do while(associated(currentCohort))  
+                 npp_hifreq(cc) = npp_hifreq(cc) + currentCohort%npp_clm * 1e3 * currentCohort%n / ( AREA * dt)
+                 currentCohort => currentCohort%shorter
+              enddo !currentCohort
+              currentPatch => currentPatch%younger
+           end do !currentPatch
+        end if
+     end do
+     
+     ! calculate NEP and NBP fluxes.
+     !!!! CDK FEB/26/2016: THIS IS IMPORTANT AND NEEDS TO CHANGE AS IT IS ONLY A PLACEHOLDER.  
+     !!!! NEP AND NBP ARE BOTH THE SAME RIGHT NOW BECAUSE I DON'T KNOW HOW TO ADD IN THE FIRE, DISTURBANCE, ETC FLUXES INTO THE NBP FLUX YET
+     do fc = 1,num_soilc
+        c = filter_soilc(fc)
+        nep(c) = npp_hifreq(c) - hr(c)
+        nbp(c) = npp_hifreq(c) - hr(c)
+     end do
+      
+   end associate
+   
+ end subroutine Summary
+  
+  
 end module EDCLMLinkMod
