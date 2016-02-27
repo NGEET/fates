@@ -348,7 +348,7 @@ contains
     ! ed veg carbon flux summary
     ! ----------------------------------------------
     
-    call ed_clm_inst%Summary(bounds, numsoilc, filter_soilc, num_soilp, filter_soilp, &
+    call ed_clm_inst%Summary(bounds, num_soilc, filter_soilc, num_soilp, filter_soilp, &
          ed_allsites_inst(bounds%begg:bounds%endg), soilbiogeochem_carbonflux_inst)
 
     ! ----------------------------------------------
