@@ -2214,12 +2214,13 @@ contains
 
   !------------------------------------------------------------------------
      
- subroutine Summary(this, bounds, numsoilc, filter_soilc, num_soilp, filter_soilp, &
+ subroutine Summary(this, bounds, num_soilc, filter_soilc, num_soilp, filter_soilp, &
       ed_allsites_inst, soilbiogeochem_carbonflux_inst)
 
    ! Summarize the combined production and decomposition fluxes into net fluxes
    ! Written by Charlie Koven, Feb 2016
 
+    class(ed_clm_type)                              :: this  
     type(bounds_type)                       , intent(in)    :: bounds  
     integer                                 , intent(in)    :: num_soilc         ! number of soil columns in filter
     integer                                 , intent(in)    :: filter_soilc(:)   ! filter for soil columns
@@ -2228,14 +2229,18 @@ contains
     type(ed_site_type)                      , intent(inout), target :: ed_allsites_inst( bounds%begg: )
     type(soilbiogeochem_carbonflux_type)    , intent(inout) :: soilbiogeochem_carbonflux_inst
 
-    real(r8) :: npp_hifreq_col(bounds%begc:bounds%endc  ! column-level, high frequency NPP
+    real(r8) :: npp_hifreq_col(bounds%begc:bounds%endc)  ! column-level, high frequency NPP
     real(r8) :: dt ! radiation time step (seconds)
+    integer :: c, g, cc, fc
+    type(ed_site_type), pointer :: cs
+    type (ed_patch_type)  , pointer :: currentPatch
+    type (ed_cohort_type) , pointer :: currentCohort
 
     associate(& 
-    hr            => soilbiogeochem_carbonflux_inst%hr_col      & ! Output:  (gC/m2/s) total heterotrophic respiration
-    npp_hifreq    => this%npp_hifreq_col
-    nep           => this%nep_col
-    nbp           => this%nbp_col
+    hr            => soilbiogeochem_carbonflux_inst%hr_col,      & ! Output:  (gC/m2/s) total heterotrophic respiration
+    npp_hifreq    => this%npp_hifreq_col,      &
+    nep           => this%nep_col,      &
+    nbp           => this%nbp_col      &
     )
 
       ! set time steps
@@ -2246,14 +2251,14 @@ contains
       end do
 
       do g = bounds%begg,bounds%endg
-         if (firstsoilpatch(g) >= 0 .and. ed_allsites_inst(g)%istheresoil) then 
+         if (ed_allsites_inst(g)%istheresoil) then 
             currentPatch => ed_allsites_inst(g)%oldest_patch
             do while(associated(currentPatch))
-               cs => currentpatch%siteptr
+               cs => currentPatch%siteptr
                cc = cs%clmcolumn
                currentCohort => currentPatch%tallest
                do while(associated(currentCohort))  
-                  npp_hifreq(cc) = npp_hifreq(cc) + currentpatch%npp_clm * 1e3 / ( AREA * dt)
+                  npp_hifreq(cc) = npp_hifreq(cc) + currentCohort%npp_clm * 1e3 * currentCohort%n / ( AREA * dt)
                enddo !currentCohort
                currentPatch => currentPatch%younger
             end do !currentPatch
@@ -2269,6 +2274,9 @@ contains
        nbp(c) = npp_hifreq(c) - hr(c)
     end do
 
+    end associate
+
+end subroutine Summary
 
      
 end module EDCLMLinkMod
