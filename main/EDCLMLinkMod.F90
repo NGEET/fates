@@ -2228,6 +2228,7 @@ contains
    use ColumnType           , only : col
    use LandunitType         , only : lun
    use landunit_varcon      , only : istsoil
+   use shr_const_mod, only: SHR_CONST_CDAY
 
    class(ed_clm_type)                              :: this  
    type(bounds_type)                       , intent(in)    :: bounds  
