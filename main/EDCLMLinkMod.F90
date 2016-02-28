@@ -128,7 +128,9 @@ module EDCLMLinkMod
      ! summary carbon fluxes at the column level
      real(r8), pointer,  public :: nep_col(:)                       ! [gC/m2/s] Net ecosystem production, i.e. fast-timescale carbon balance that does not include disturbance
      real(r8), pointer,  public :: nbp_col(:)                       ! [gC/m2/s] Net biosphere production, i.e. slow-timescale carbon balance that integrates to total carbon change
-     real(r8), pointer,  public :: npp_hifreq_col(:)              ! [gC/m2/s] Net primary production at the fast timescale, aggregated to the column level
+     real(r8), pointer,  public :: npp_hifreq_col(:)                ! [gC/m2/s] Net primary production at the fast timescale, aggregated to the column level
+     real(r8), pointer,  public :: fire_c_to_atm_col(:)             ! [gC/m2/s] total fire carbon loss to atmosphere
+     
 
    contains
 
@@ -250,6 +252,7 @@ contains
     allocate(this%nep_col                    (begc:endc))            ; this%nep_col                   (:) = nan
     allocate(this%nbp_col                    (begc:endc))            ; this%nbp_col                   (:) = nan
     allocate(this%npp_hifreq_col             (begc:endc))            ; this%npp_hifreq_col            (:) = nan
+    allocate(this%fire_c_to_atm_col          (begc:endc))            ; this%fire_c_to_atm_col         (:) = nan
 
     allocate(this%ed_gpp_gd_scpf       (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_gpp_gd_scpf        (:,:) = 0.0_r8
     allocate(this%ed_npp_totl_gd_scpf  (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_npp_totl_gd_scpf   (:,:) = 0.0_r8
@@ -388,10 +391,6 @@ contains
          avgflag='A', long_name='spitfire fuel surface/volume ', &
          ptr_patch=this%fire_fuel_sav_patch, set_lake=0._r8, set_urb=0._r8)
 
-    call hist_addfld1d (fname='TFC_ROS', units='m',  &
-         avgflag='A', long_name='spitfire fuel surface/volume ', &
-         ptr_patch=this%TFC_ROS_patch, set_lake=0._r8, set_urb=0._r8)
-
     call hist_addfld1d (fname='SUM_FUEL', units=' KgC m-2 y-1',  &
          avgflag='A', long_name='Litter flux in leaves', &
          ptr_patch=this%sum_fuel_patch, set_lake=0._r8, set_urb=0._r8)
@@ -492,6 +491,11 @@ contains
     call hist_addfld1d (fname='NEP', units='gC/m^2/s', &
          avgflag='A', long_name='net ecosystem production', &
          ptr_col=this%nep_col)
+
+    this%fire_c_to_atm_col(begc:endc) = spval
+    call hist_addfld1d (fname='Fire_Closs', units='gC/m^2/s', &
+         avgflag='A', long_name='ED/SPitfire Carbon loss to atmosphere', &
+         ptr_col=this%fire_c_to_atm_col)
 
     this%nbp_col(begc:endc) = spval
     call hist_addfld1d (fname='NBP', units='gC/m^2/s', &
@@ -2246,14 +2250,17 @@ contains
         hr            => soilbiogeochem_carbonflux_inst%hr_col,      & ! Output:  (gC/m2/s) total heterotrophic respiration
         npp_hifreq    => this%npp_hifreq_col,      &
         nep           => this%nep_col,      &
+        fire_c_to_atm => this%fire_c_to_atm_col,      &
         nbp           => this%nbp_col      &
         )
      
      ! set time steps
      dt = real( get_step_size(), r8 )
      
+     ! zero npp first
      do c = bounds%begc,bounds%endc
         npp_hifreq(c) = 0._r8
+        fire_c_to_atm(c) = 0._r8
      end do
      
      ! retrieve the first soil patch associated with each gridcell. 
@@ -2269,6 +2276,11 @@ contains
      
      do g = bounds%begg,bounds%endg
         if (firstsoilpatch(g) >= 0 .and. ed_allsites_inst(g)%istheresoil) then 
+           ! first map ed site-level fire fluxes to clm column fluxes
+           cc = ed_allsites_inst(g)%clmcolumn
+           fire_c_to_atm(cc) = ed_allsites_inst(g)%total_burn_flux_to_atm / ( AREA * SHR_CONST_CDAY * 1.e3_r8)
+           
+           ! second map ed cohort-level npp fluxes to clm column fluxes
            currentPatch => ed_allsites_inst(g)%oldest_patch
            do while(associated(currentPatch))
               cs => currentPatch%siteptr
@@ -2284,12 +2296,10 @@ contains
      end do
      
      ! calculate NEP and NBP fluxes.
-     !!!! CDK FEB/26/2016: THIS IS IMPORTANT AND NEEDS TO CHANGE AS IT IS ONLY A PLACEHOLDER.  
-     !!!! NEP AND NBP ARE BOTH THE SAME RIGHT NOW BECAUSE I DON'T KNOW HOW TO ADD IN THE FIRE, DISTURBANCE, ETC FLUXES INTO THE NBP FLUX YET
      do fc = 1,num_soilc
         c = filter_soilc(fc)
         nep(c) = npp_hifreq(c) - hr(c)
-        nbp(c) = npp_hifreq(c) - hr(c)
+        nbp(c) = npp_hifreq(c) - ( hr(c) + fire_c_to_atm(c) )
      end do
       
    end associate
