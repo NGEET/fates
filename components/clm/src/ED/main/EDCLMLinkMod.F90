@@ -17,6 +17,7 @@ module EDCLMLinkMod
   use clm_varctl       , only : use_vertsoilc
   use EDParamsMod      , only : ED_val_ag_biomass
   use SoilBiogeochemCarbonFluxType    , only : soilbiogeochem_carbonflux_type
+  use SoilBiogeochemCarbonStatetype   , only : soilbiogeochem_carbonstate_type
   use clm_time_manager , only : get_step_size
 
   !
@@ -127,10 +128,18 @@ module EDCLMLinkMod
 
      ! summary carbon fluxes at the column level
      real(r8), pointer,  public :: nep_col(:)                       ! [gC/m2/s] Net ecosystem production, i.e. fast-timescale carbon balance that does not include disturbance
+     real(r8), pointer,  public :: nep_timeintegrated_col(:)                       ! [gC/m2/s] Net ecosystem production, i.e. fast-timescale carbon balance that does not include disturbance
      real(r8), pointer,  public :: nbp_col(:)                       ! [gC/m2/s] Net biosphere production, i.e. slow-timescale carbon balance that integrates to total carbon change
      real(r8), pointer,  public :: npp_hifreq_col(:)                ! [gC/m2/s] Net primary production at the fast timescale, aggregated to the column level
      real(r8), pointer,  public :: fire_c_to_atm_col(:)             ! [gC/m2/s] total fire carbon loss to atmosphere
      
+     ! summary carbon states at the column level
+     real(r8), pointer,  public :: totecosysc_col(:)                ! [gC/m2] Total ecosystem carbon at the column level, including vegetation, CWD, litter, and soil pools
+     real(r8), pointer,  public :: totecosysc_old_col(:)            ! [gC/m2] Total ecosystem C at the column level from last call to balance check
+     real(r8), pointer,  public :: biomass_stock_col(:)             ! [gC/m2] total biomass at the column level in gC / m2
+     real(r8), pointer,  public :: ed_litter_stock_col(:)           ! [gC/m2] ED litter at the column level in gC / m2
+     real(r8), pointer,  public :: cwd_stock_col(:)                 ! [gC/m2] ED CWD at the column level in gC / m2
+     real(r8), pointer,  public :: seed_stock_col(:)                ! [gC/m2] ED seed mass carbon at the column level in gC / m2
 
    contains
 
@@ -139,6 +148,8 @@ module EDCLMLinkMod
      procedure , public  :: Restart
      procedure , public  :: SetValues
      procedure , public  :: ed_clm_link
+     procedure , public  :: Summary
+     procedure , public  :: ED_BGC_Carbon_Balancecheck
      procedure , public  :: Summary
 
      ! Private routines
@@ -250,9 +261,17 @@ contains
     allocate(this%stem_prof_col              (begc:endc,1:nlevdecomp_full))            ; this%stem_prof_col              (:,:) = nan
 
     allocate(this%nep_col                    (begc:endc))            ; this%nep_col                   (:) = nan
+    allocate(this%nep_timeintegrated_col     (begc:endc))            ; this%nep_timeintegrated_col    (:) = nan
     allocate(this%nbp_col                    (begc:endc))            ; this%nbp_col                   (:) = nan
     allocate(this%npp_hifreq_col             (begc:endc))            ; this%npp_hifreq_col            (:) = nan
     allocate(this%fire_c_to_atm_col          (begc:endc))            ; this%fire_c_to_atm_col         (:) = nan
+
+    allocate(this%totecosysc_col             (begc:endc))            ; this%totecosysc_col            (:) = nan
+    allocate(this%totecosysc_old_col         (begc:endc))            ; this%totecosysc_old_col        (:) = nan
+    allocate(this%biomass_stock_col          (begc:endc))            ; this%biomass_stock_col         (:) = nan
+    allocate(this%ed_litter_stock_col        (begc:endc))            ; this%ed_litter_stock_col       (:) = nan
+    allocate(this%cwd_stock_col              (begc:endc))            ; this%cwd_stock_col             (:) = nan
+    allocate(this%seed_stock_col             (begc:endc))            ; this%seed_stock_col            (:) = nan    
 
     allocate(this%ed_gpp_gd_scpf       (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_gpp_gd_scpf        (:,:) = 0.0_r8
     allocate(this%ed_npp_totl_gd_scpf  (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_npp_totl_gd_scpf   (:,:) = 0.0_r8
@@ -336,15 +355,15 @@ contains
          ptr_patch=this%PFTbiomass_patch, set_lake=0._r8, set_urb=0._r8)
 
     call hist_addfld2d (fname='PFTleafbiomass',  units='kgC/m2', type2d='levgrnd', &
-         avgflag='A', long_name='total PFT level biomass', &
+         avgflag='A', long_name='total PFT level leaf biomass', &
          ptr_patch=this%PFTleafbiomass_patch, set_lake=0._r8, set_urb=0._r8)
 
     call hist_addfld2d (fname='PFTstorebiomass',  units='kgC/m2', type2d='levgrnd', &
-         avgflag='A', long_name='total PFT level biomass', &
+         avgflag='A', long_name='total PFT level stored biomass', &
          ptr_patch=this%PFTstorebiomass_patch, set_lake=0._r8, set_urb=0._r8)
 
-    call hist_addfld2d (fname='PFTnindivs',  units='kgC/m2', type2d='levgrnd', &
-         avgflag='A', long_name='total PFT level biomass', &
+    call hist_addfld2d (fname='PFTnindivs',  units='indiv / m2', type2d='levgrnd', &
+         avgflag='A', long_name='total PFT level number of individuals', &
          ptr_patch=this%PFTnindivs_patch, set_lake=0._r8, set_urb=0._r8)
 
     call hist_addfld1d (fname='FIRE_NESTEROV_INDEX', units='none',  &
@@ -506,6 +525,31 @@ contains
     call hist_addfld1d (fname='NPP_hifreq', units='gC/m^2/s', &
          avgflag='A', long_name='net primary production at high frequency', &
          ptr_col=this%npp_hifreq_col,default='inactive')
+
+    this%totecosysc_col(begc:endc) = spval
+    call hist_addfld1d (fname='TOTECOSYSC', units='gC/m^2', &
+         avgflag='A', long_name='total ecosystem carbon', &
+         ptr_col=this%totecosysc_col)
+
+    this%biomass_stock_col(begc:endc) = spval
+    call hist_addfld1d (fname='BIOMASS_STOCK_COL', units='gC/m^2', &
+         avgflag='A', long_name='total ED biomass carbon at the column level', &
+         ptr_col=this%biomass_stock_col)
+
+    this%ed_litter_stock_col(begc:endc) = spval
+    call hist_addfld1d (fname='ED_LITTER_STOCK_COL', units='gC/m^2', &
+         avgflag='A', long_name='total ED litter carbon at the column level', &
+         ptr_col=this%ed_litter_stock_col)
+
+    this%cwd_stock_col(begc:endc) = spval
+    call hist_addfld1d (fname='CWD_STOCK_COL', units='gC/m^2', &
+         avgflag='A', long_name='total CWD carbon at the column level', &
+         ptr_col=this%cwd_stock_col)
+
+    this%seed_stock_col(begc:endc) = spval
+    call hist_addfld1d (fname='SEED_STOCK_COL', units='gC/m^2', &
+         avgflag='A', long_name='total seed carbon at the column level', &
+         ptr_col=this%seed_stock_col)
 
     !!! carbon fluxes into soil grid (dimensioned depth x column)
     call hist_addfld_decomp (fname='ED_c_to_litr_lab_c',  units='gC/m^2/s', type2d='levdcmp', &
@@ -669,6 +713,16 @@ contains
     !      dim1name='pft', long_name='', units='', &
     !      interpinic_flag='interp', readvar=readvar, data=this%livestemn_patch) 
 
+    ptr1d => this%nep_timeintegrated_col(:)
+    call restartvar(ncid=ncid, flag=flag, varname='nep_timeintegrated_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+
+    ptr1d => this%totecosysc_old_col(:)
+    call restartvar(ncid=ncid, flag=flag, varname='totecosysc_old_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+    
     if (use_vertsoilc) then
        ptr2d => this%ED_c_to_litr_lab_c_col
        call restartvar(ncid=ncid, flag=flag, varname='ED_c_to_litr_lab_c_col', xtype=ncd_double,  &
@@ -2218,8 +2272,9 @@ contains
 
   !------------------------------------------------------------------------
      
- subroutine Summary(this, bounds, num_soilc, filter_soilc, num_soilp, filter_soilp, &
-      ed_allsites_inst, soilbiogeochem_carbonflux_inst)
+ subroutine Summary(this, bounds, num_soilc, filter_soilc, &
+      ed_allsites_inst, soilbiogeochem_carbonflux_inst, &
+      soilbiogeochem_carbonstate_inst)
 
    ! Summarize the combined production and decomposition fluxes into net fluxes
    ! Written by Charlie Koven, Feb 2016
@@ -2229,16 +2284,19 @@ contains
    use LandunitType         , only : lun
    use landunit_varcon      , only : istsoil
    use shr_const_mod, only: SHR_CONST_CDAY
-
-   class(ed_clm_type)                              :: this  
+   !
+   implicit none   
+   !
+   ! !ARGUMENTS    
+   class(ed_clm_type)                                      :: this  
    type(bounds_type)                       , intent(in)    :: bounds  
    integer                                 , intent(in)    :: num_soilc         ! number of soil columns in filter
    integer                                 , intent(in)    :: filter_soilc(:)   ! filter for soil columns
-   integer                                 , intent(in)    :: num_soilp         ! number of soil patches in filter
-   integer                                 , intent(in)    :: filter_soilp(:)   ! filter for soil patches
    type(ed_site_type)                      , intent(inout), target :: ed_allsites_inst( bounds%begg: )
    type(soilbiogeochem_carbonflux_type)    , intent(inout) :: soilbiogeochem_carbonflux_inst
-   
+   type(soilbiogeochem_carbonstate_type)   , intent(inout) :: soilbiogeochem_carbonstate_inst
+   !
+   ! !LOCAL VARIABLES:
    real(r8) :: npp_hifreq_col(bounds%begc:bounds%endc)  ! column-level, high frequency NPP
    real(r8) :: dt ! radiation time step (seconds)
    integer :: c, g, cc, fc, l
@@ -2248,20 +2306,34 @@ contains
    integer  :: firstsoilpatch(bounds%begg:bounds%endg) ! the first patch in this gridcell that is soil and thus bare... 
    
    associate(& 
-        hr            => soilbiogeochem_carbonflux_inst%hr_col,      & ! Output:  (gC/m2/s) total heterotrophic respiration
+        hr            => soilbiogeochem_carbonflux_inst%hr_col,      & ! (gC/m2/s) total heterotrophic respiration
+        totsomc       => soilbiogeochem_carbonstate_inst%totsomc_col, & ! (gC/m2) total soil organic matter carbon
+        totlitc       => soilbiogeochem_carbonstate_inst%totlitc_col, & ! (gC/m2) total litter carbon in BGC pools
         npp_hifreq    => this%npp_hifreq_col,      &
         nep           => this%nep_col,      &
         fire_c_to_atm => this%fire_c_to_atm_col,      &
-        nbp           => this%nbp_col      &
+        nbp           => this%nbp_col,      &
+        totecosysc    => this%totecosysc_col,      &
+        biomass_stock => this%biomass_stock_col,      &    ! total biomass in gC / m2
+        ed_litter_stock    => this%ed_litter_stock_col,      & ! ED litter in gC / m2
+        cwd_stock     => this%cwd_stock_col,      &        ! total CWD in gC / m2
+        seed_stock    => this%seed_stock_col      &        ! total seed mass in gC / m2
         )
      
      ! set time steps
      dt = real( get_step_size(), r8 )
      
-     ! zero npp first
+     ! zero variables first
      do c = bounds%begc,bounds%endc
+        ! summary flux variables
         npp_hifreq(c) = 0._r8
         fire_c_to_atm(c) = 0._r8
+
+        ! summary stock variables
+        ed_litter_stock(c) = 0._r8
+        cwd_stock(c) = 0._r8
+        seed_stock(c) = 0._r8
+        biomass_stock(c) = 0._r8
      end do
      
      ! retrieve the first soil patch associated with each gridcell. 
@@ -2277,18 +2349,31 @@ contains
      
      do g = bounds%begg,bounds%endg
         if (firstsoilpatch(g) >= 0 .and. ed_allsites_inst(g)%istheresoil) then 
-           ! first map ed site-level fire fluxes to clm column fluxes
            cc = ed_allsites_inst(g)%clmcolumn
+
+           ! map ed site-level fire fluxes to clm column fluxes
            fire_c_to_atm(cc) = ed_allsites_inst(g)%total_burn_flux_to_atm / ( AREA * SHR_CONST_CDAY * 1.e3_r8)
-           
-           ! second map ed cohort-level npp fluxes to clm column fluxes
+
            currentPatch => ed_allsites_inst(g)%oldest_patch
            do while(associated(currentPatch))
-              cs => currentPatch%siteptr
-              cc = cs%clmcolumn
+
+              ! map litter, CWD, and seed pools to column level
+              cwd_stock(cc) = cwd_stock(cc) + (currentPatch%area / AREA) * (sum(currentPatch%cwd_ag)+ &
+                   sum(currentPatch%cwd_bg)
+              ed_litter_stock(cc) = ed_litter_stock(cc) + (currentPatch%area / AREA) * &
+                   (sum(currentPatch%leaf_litter)+sum(currentPatch%root_litter))
+              seed_stock(cc)   = seed_stock(cc)   + (currentPatch%area / AREA) * sum(currentPatch%seed_bank)
+
               currentCohort => currentPatch%tallest
               do while(associated(currentCohort))  
+
+                 ! map ed cohort-level npp fluxes to clm column fluxes
                  npp_hifreq(cc) = npp_hifreq(cc) + currentCohort%npp_clm * 1e3 * currentCohort%n / ( AREA * dt)
+
+                 ! map biomass pools to column level
+                 biomass_stock(cc) =  biomass_stock(cc) + (currentCohort%bdead + currentCohort%balive + &
+                      currentCohort%bstore) * currentCohort%n / AREA
+
                  currentCohort => currentCohort%shorter
               enddo !currentCohort
               currentPatch => currentPatch%younger
@@ -2303,9 +2388,101 @@ contains
         nbp(c) = npp_hifreq(c) - ( hr(c) + fire_c_to_atm(c) )
      end do
       
+     ! calculate total stocks
+     do fc = 1,num_soilc
+        c = filter_soilc(fc)
+
+        totecosysc(c) = totsomc(c) + totlitc(c) + &  ! BGC stocks
+             ed_litter_stock(c) + cwd_stock(c) + seed_stock(c) + biomass_stock(c) ! ED stocks
+     end do
+
    end associate
    
  end subroutine Summary
-  
+
+
+ subroutine ED_BGC_Carbon_Balancecheck(this, bounds, num_soilc, filter_soilc, &
+      ed_allsites_inst)  
+
+   ! Integrate in time the fluxes into and out of the ecosystem, and compare these on a daily timestep
+   ! to the chagne in carbon stocks of the ecosystem
+   !
+   ! Written by Charlie Koven, Feb 2016
+   !
+   ! !USES: 
+   use clm_time_manager       , only : is_beg_curr_day, get_step_size, get_nstep
+   !
+   implicit none   
+   !
+   ! !ARGUMENTS    
+   class(ed_clm_type)                                      :: this  
+   type(bounds_type)                       , intent(in)    :: bounds  
+   integer                                 , intent(in)    :: num_soilc         ! number of soil columns in filter
+   integer                                 , intent(in)    :: filter_soilc(:)   ! filter for soil columns
+   !
+   ! !LOCAL VARIABLES:
+   real(r8) :: dtime                                     ! land model time step (sec)
+   real(r8) :: nstep                                     ! model timestep
+   real(r8) :: nbp_integrated(bounds%begc:bounds%endc)   ! total net biome production integrated
+   real(r8) :: error_tolerance = 1.e-6_r8
+
+   associate(& 
+        nep                 => this%nep_col,                 &
+        nep_timeintegrated  => this%nep_timeintegrated_col,  &
+        fire_c_to_atm       => this%fire_c_to_atm_col,       &
+        totecosysc_old      => this%totecosysc_old_col,      &
+        totecosysc          => this%totecosysc_col           &
+        )
+
+     dtime = get_step_size()
+     nstep = get_nstep()
+
+     if (nstep .eq. 1) then
+        ! when starting up the model, initialize the integrator variables
+        do fc = 1,num_soilc
+           c = filter_soilc(fc)
+           totecosysc_old(c) = totecosysc(c)
+           nep_timeintegrated(c) = 0._r8
+        end do
+     endif
+
+     if ( .not. is_beg_curr_day() ) then
+        ! on CLM (half-hourly) timesteps, integrate the NEP fluxes        
+        do fc = 1,num_soilc
+           c = filter_soilc(fc)
+           nep_timeintegrated(c) = nep_timeintegrated(c) + nep(c) * dtime
+        end do
+     else
+        ! on ED (daily) timesteps, first integrate the NEP fluxes and add in the daily disturbance flux
+        do fc = 1,num_soilc
+           c = filter_soilc(fc)
+           nep_timeintegrated(c) = nep_timeintegrated(c) + nep(c) * dtime
+           nbp_integrated(c) = nep_timeintegrated(c) + fire_c_to_atm(c) * SHR_CONST_CDAY
+        end do
+
+        ! next compare the change in carbon and calculate the error
+        do fc = 1,num_soilc
+           c = filter_soilc(fc)
+           error(c) = totecosysc_old(c) - totecosysc(c) - nbp_integrated(c)
+        end do
+        
+        ! for now, rather than crashing the model, lets just report the largest error to see what we're up against
+        !
+        ! RETURN TO THIS LATER AND ADD A CRASHER IF BALANCE EXCEEDS THRESHOLD
+        !
+        write(iulog,*) 'ED_BGC_Carbon_Balancecheck: max carbon balance error (gC / m2 / day): ', max(abs(error(:)))
+
+        ! reset the C stock and flux integrators
+        do fc = 1,num_soilc
+           c = filter_soilc(fc)
+           totecosysc_old(c) = totecosysc(c)
+           nep_timeintegrated(c) = 0._r8
+        end do
+
+    endif
+
+  end associate
+
+ end subroutine ED_BGC_Carbon_Balancecheck
   
 end module EDCLMLinkMod
