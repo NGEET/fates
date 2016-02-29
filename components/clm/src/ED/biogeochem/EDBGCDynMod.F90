@@ -363,8 +363,7 @@ contains
     ! calculate balance checks on entire carbon cycle (ED + BGC)
     ! ----------------------------------------------
 
-    call ed_clm_inst%ED_BGC_Carbon_Balancecheck(bounds, num_soilc, filter_soilc, &
-         ed_allsites_inst(bounds%begg:bounds%endg))
+    call ed_clm_inst%ED_BGC_Carbon_Balancecheck(bounds, num_soilc, filter_soilc)
          
     call t_stopf('BGCsum')
 

@@ -897,7 +897,7 @@ contains
     end do
 
     ! coarse woody debris carbon
-    if (.not use_ed ) then
+    if (.not. use_ed ) then
        do fc = 1,num_soilc
           c = filter_soilc(fc)
           this%cwdc_col(c) = 0._r8
