@@ -350,7 +350,7 @@ contains
     real(r8) :: frac  ! relativised stored carbohydrate
 
     ! 'Background' mortality (can vary as a function of density as in ED1.0 and ED2.0, but doesn't here for tractability) 
-    bmort = 0.014_r8 
+    bmort = EDecophyscon%b_mort(cohort_in%pft) !0.014_r8 
    
     ! Proxy for hydraulic failure induced mortality. 
     if(cohort_in%patchptr%btran_ft(cohort_in%pft) <= 0.000001_r8)then 
