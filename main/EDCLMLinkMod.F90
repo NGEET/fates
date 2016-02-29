@@ -150,7 +150,6 @@ module EDCLMLinkMod
      procedure , public  :: ed_clm_link
      procedure , public  :: Summary
      procedure , public  :: ED_BGC_Carbon_Balancecheck
-     procedure , public  :: Summary
 
      ! Private routines
      procedure , private :: ed_clm_leaf_area_profile
@@ -1956,12 +1955,13 @@ contains
     use EDTypesMod, only : AREA, numpft_ed
     use SoilBiogeochemVerticalProfileMod, only: exponential_rooting_profile, pftspecific_rootingprofile, rootprof_exp, surfprof_exp
     use pftconMod, only : pftcon
-    use shr_const_mod, only: SHR_CONST_CDAY
+
     use clm_varcon, only : zisoi, dzsoi_decomp, zsoi
     use ColumnType  , only : col
     use abortutils  , only : endrun
     use shr_log_mod , only : errMsg => shr_log_errMsg    
     use EDParamsMod, only : ED_val_ag_biomass
+    use shr_const_mod, only: SHR_CONST_CDAY
     !
     implicit none   
     !
@@ -2359,7 +2359,7 @@ contains
 
               ! map litter, CWD, and seed pools to column level
               cwd_stock(cc) = cwd_stock(cc) + (currentPatch%area / AREA) * (sum(currentPatch%cwd_ag)+ &
-                   sum(currentPatch%cwd_bg)
+                   sum(currentPatch%cwd_bg))
               ed_litter_stock(cc) = ed_litter_stock(cc) + (currentPatch%area / AREA) * &
                    (sum(currentPatch%leaf_litter)+sum(currentPatch%root_litter))
               seed_stock(cc)   = seed_stock(cc)   + (currentPatch%area / AREA) * sum(currentPatch%seed_bank)
@@ -2401,8 +2401,7 @@ contains
  end subroutine Summary
 
 
- subroutine ED_BGC_Carbon_Balancecheck(this, bounds, num_soilc, filter_soilc, &
-      ed_allsites_inst)  
+ subroutine ED_BGC_Carbon_Balancecheck(this, bounds, num_soilc, filter_soilc)  
 
    ! Integrate in time the fluxes into and out of the ecosystem, and compare these on a daily timestep
    ! to the chagne in carbon stocks of the ecosystem
@@ -2411,6 +2410,7 @@ contains
    !
    ! !USES: 
    use clm_time_manager       , only : is_beg_curr_day, get_step_size, get_nstep
+   use shr_const_mod, only: SHR_CONST_CDAY
    !
    implicit none   
    !
@@ -2424,7 +2424,10 @@ contains
    real(r8) :: dtime                                     ! land model time step (sec)
    real(r8) :: nstep                                     ! model timestep
    real(r8) :: nbp_integrated(bounds%begc:bounds%endc)   ! total net biome production integrated
+   real(r8) :: error(bounds%begc:bounds%endc)
    real(r8) :: error_tolerance = 1.e-6_r8
+   real(r8) :: max_error
+   integer  :: fc,c
 
    associate(& 
         nep                 => this%nep_col,                 &
@@ -2470,7 +2473,14 @@ contains
         !
         ! RETURN TO THIS LATER AND ADD A CRASHER IF BALANCE EXCEEDS THRESHOLD
         !
-        write(iulog,*) 'ED_BGC_Carbon_Balancecheck: max carbon balance error (gC / m2 / day): ', max(abs(error(:)))
+        max_error = 0._r8
+        do fc = 1,num_soilc
+           c = filter_soilc(fc)
+           if (abs(error(c)) .gt. max_error) then
+              max_error = abs(error(c))
+           endif
+        end do
+        write(iulog,*) 'ED_BGC_Carbon_Balancecheck: max carbon balance error (gC / m2 / day): ', max_error
 
         ! reset the C stock and flux integrators
         do fc = 1,num_soilc
