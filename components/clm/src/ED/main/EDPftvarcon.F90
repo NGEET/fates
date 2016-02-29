@@ -132,9 +132,10 @@ contains
 
     call ncd_io('sapwood_ratio',EDPftvarcon_inst%sapwood_ratio, 'read', ncid,  readvar=readv)
     if   ( .not. readv) call endrun(trim(subname)// ' ERROR : error in reading in pft data')
-    
-    call ncd_io('dbh2h_m',EDPftvarcon_inst%dbh2h_m, 'read', ncid,  readvar=readv)
-    if   ( .not. readv) call endrun(trim(subname)// ' ERROR : error in reading in pft data')   
+ 
+! HOLDING ON SEW ENSITIVITY-ANALYSIS PARAMETERS UNTIL MACHINE CONFIGS SET RGK/CX
+!    call ncd_io('dbh2h_m',EDPftvarcon_inst%dbh2h_m, 'read', ncid,  readvar=readv)
+!    if   ( .not. readv) call endrun(trim(subname)// ' ERROR : error in reading in pft data')   
 
   end subroutine EDpftconrd
 
