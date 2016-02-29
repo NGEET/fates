@@ -8,26 +8,26 @@ module purge
 module use /usr/projects/climate/SHARED_CLIMATE/modulefiles/all
 
 if ( $COMPILER == "intel" ) then
-	module load intel/13.1.3
+   module load intel/13.1.3
 endif
 
 if ( $COMPILER == "pgi" ) then
-	# 13.10 is too old to support
-	# PGI support is currently disabled until we have access to a newer version
-	# (i.e. 14.10)
-	module load pgi/13.10
+   # 13.10 is too old to support
+   # PGI support is currently disabled until we have access to a newer version
+   # (i.e. 14.10)
+   module load pgi/13.10
 endif
 
 if ( $COMPILER == "gnu" ) then
-	module load gcc/4.8.2
+   module load gcc/4.8.2
 endif
 
 if ( $MPILIB == "openmpi" ) then
-	module load openmpi/1.6.5
+   module load openmpi/1.6.5
 endif
 
 if ( $MPILIB == "mvapich" ) then
-	module load mvapich2/1.8
+   module load mvapich2/1.8
 endif
 
 module load netcdf/4.4.0
@@ -40,5 +40,5 @@ if ( $COMPILER == "gnu" && $MPILIB == "openmpi" ) then
 endif
 
 if ( $?PERL ) then
-	printenv
+   printenv
 endif
