@@ -345,16 +345,27 @@ contains
     ! call soilbiogeochem_nitrogenflux_inst%Summary(bounds, num_soilc, filter_soilc)
 
     ! ----------------------------------------------
-    ! ed veg carbon flux summary
+    ! ed veg carbon state and flux summary
     ! ----------------------------------------------
     
-    call ed_clm_inst%Summary(bounds, num_soilc, filter_soilc, num_soilp, filter_soilp, &
-         ed_allsites_inst(bounds%begg:bounds%endg), soilbiogeochem_carbonflux_inst)
+    call ed_clm_inst%Summary(bounds, num_soilc, filter_soilc, &
+         ed_allsites_inst(bounds%begg:bounds%endg), &
+         soilbiogeochem_carbonflux_inst, &
+         soilbiogeochem_carbonstate_inst)
 
     ! ----------------------------------------------
-    ! ed veg carbon/nitrogen flux summary
+    ! ed veg nitrogen flux summary
     ! ----------------------------------------------
 
+    ! TBD...
+
+    ! ----------------------------------------------
+    ! calculate balance checks on entire carbon cycle (ED + BGC)
+    ! ----------------------------------------------
+
+    call ed_clm_inst%ED_BGC_Carbon_Balancecheck(bounds, num_soilc, filter_soilc, &
+         ed_allsites_inst(bounds%begg:bounds%endg))
+         
     call t_stopf('BGCsum')
 
   end subroutine EDBGCDynSummary
