@@ -309,13 +309,13 @@ contains
     a = -68.0_r8
     b = 638.0_r8
     c = -0.001_r8
-    coldday = 5.0_r8
+    coldday = 5.0_r8    !ed_ph_chiltemp
 
     mindayson = 30
      
     !Parameters from SDGVM model of senesence
     ncolddayslim = 5
-    cold_t   = 7.5_r8
+    cold_t   = 7.5_r8  ! ed_ph_coldtemp
 
     t  = udata%time_period
     temp_in_C = t_veg24(currentSite%oldest_patch%clm_pno-1) - tfrz
