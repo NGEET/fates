@@ -2422,7 +2422,7 @@ contains
    !
    ! !LOCAL VARIABLES:
    real(r8) :: dtime                                     ! land model time step (sec)
-   real(r8) :: nstep                                     ! model timestep
+   integer  :: nstep                                     ! model timestep
    real(r8) :: nbp_integrated(bounds%begc:bounds%endc)   ! total net biome production integrated
    real(r8) :: error(bounds%begc:bounds%endc)
    real(r8) :: error_tolerance = 1.e-6_r8
@@ -2440,13 +2440,13 @@ contains
      dtime = get_step_size()
      nstep = get_nstep()
 
-     if (nstep .eq. 1) then
+     if (nstep .le. 1) then
         ! when starting up the model, initialize the integrator variables
         do fc = 1,num_soilc
            c = filter_soilc(fc)
            totecosysc_old(c) = totecosysc(c)
            nep_timeintegrated(c) = 0._r8
-        end do
+        end do        
      endif
 
      if ( .not. is_beg_curr_day() ) then
