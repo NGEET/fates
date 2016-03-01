@@ -93,7 +93,7 @@ contains
   subroutine accumulateAndExtract( this, bounds,     &
        t_ref2m_patch,    &
        gridcell, latdeg, &
-       day, month, secs )
+       month, day, secs )
     !
     ! start formal argument list --
     ! group formal (dummy) arguments by use/similarity
@@ -165,6 +165,8 @@ contains
     call update_accum_field  ( trim(this%accString), rbufslp, get_nstep() )
     call extract_accum_field ( trim(this%accString), this%ED_GDD_patch, get_nstep() )
 
+    if (this%DEBUG) write(iulog,*) 'MM-DD-SSSS',month,'-',day,'-',secs
+    if (this%DEBUG) write(iulog,*) 'cd_status:',this%phen_cd_status_patch(:)
     if (this%DEBUG) write(iulog,*) 'ED_GDD accumAndExtract ', this%ED_GDD_patch
 
     deallocate(rbufslp)
