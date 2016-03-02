@@ -551,26 +551,32 @@ contains
          ptr_col=this%seed_stock_col)
 
     !!! carbon fluxes into soil grid (dimensioned depth x column)
+    this%ED_c_to_litr_lab_c_col(begc:endc,1:nlevdecomp_full) = spval
     call hist_addfld_decomp (fname='ED_c_to_litr_lab_c',  units='gC/m^2/s', type2d='levdcmp', &
          avgflag='A', long_name='ED_c_to_litr_lab_c', &
          ptr_col=this%ED_c_to_litr_lab_c_col)
 
+    this%ED_c_to_litr_cel_c_col(begc:endc,1:nlevdecomp_full) = spval
     call hist_addfld_decomp (fname='ED_c_to_litr_cel_c',  units='gC/m^2/s', type2d='levdcmp', &
          avgflag='A', long_name='ED_c_to_litr_cel_c', &
          ptr_col=this%ED_c_to_litr_cel_c_col)
 
+    this%ED_c_to_litr_lig_c_col(begc:endc,1:nlevdecomp_full) = spval
     call hist_addfld_decomp (fname='ED_c_to_litr_lig_c',  units='gC/m^2/s', type2d='levdcmp', &
          avgflag='A', long_name='ED_c_to_litr_lig_c', &
          ptr_col=this%ED_c_to_litr_lig_c_col)
 
+    this%leaf_prof_col(begc:endc,1:nlevdecomp_full) = spval
     call hist_addfld_decomp (fname='leaf_prof',  units='1/m', type2d='levdcmp', &
          avgflag='A', long_name='leaf_prof', &
          ptr_col=this%leaf_prof_col,default='inactive')
 
+    this%croot_prof_col(begc:endc,1:nlevdecomp_full) = spval
     call hist_addfld_decomp (fname='croot_prof',  units='1/m', type2d='levdcmp', &
          avgflag='A', long_name='croot_prof', &
          ptr_col=this%croot_prof_col,default='inactive')
 
+    this%stem_prof_col(begc:endc,1:nlevdecomp_full) = spval
     call hist_addfld_decomp (fname='stem_prof',  units='1/m', type2d='levdcmp', &
          avgflag='A', long_name='stem_prof', &
          ptr_col=this%stem_prof_col,default='inactive')
@@ -2094,7 +2100,7 @@ contains
                   end do
                else
                   ! if fully frozen, or no roots, put everything in the top layer
-                  froot_prof(c,ft,1) = 1./dzsoi_decomp(1)
+                  froot_prof(c,ft,1) = 1._r8/dzsoi_decomp(1)
                endif
             end do
             !
@@ -2109,8 +2115,12 @@ contains
                end do
             else
                ! if fully frozen, or no roots, put everything in the top layer
-               leaf_prof(c,1) = 1./dzsoi_decomp(1)
-               stem_prof(c,1) = 1./dzsoi_decomp(1)
+               leaf_prof(c,1) = 1._r8/dzsoi_decomp(1)
+               stem_prof(c,1) = 1._r8/dzsoi_decomp(1)
+               do j = 2, nlevdecomp
+                  leaf_prof(c,j) = 0._r8
+                  stem_prof(c,j) = 0._r8
+               end do
             endif
          end do
          
@@ -2266,6 +2276,12 @@ contains
      ! write(iulog,*)'cdk ED_c_to_litr_lab_c: ', ED_c_to_litr_lab_c
      ! write(iulog,*)'cdk ED_c_to_litr_cel_c: ', ED_c_to_litr_cel_c    
      ! write(iulog,*)'cdk ED_c_to_litr_lig_c: ', ED_c_to_litr_lig_c
+     ! write(iulog,*)'cdk nlevdecomp_full,  bounds%begc, bounds%endc: ', nlevdecomp_full, bounds%begc, bounds%endc
+     ! write(iulog,*)'cdk leaf_prof: ', leaf_prof
+     ! write(iulog,*)'cdk stem_prof: ', stem_prof    
+     ! write(iulog,*)'cdk froot_prof: ', froot_prof
+     ! write(iulog,*)'cdk croot_prof_perpatch: ', croot_prof_perpatch
+     ! write(iulog,*)'cdk croot_prof: ', croot_prof
 
    end associate
  end subroutine flux_into_litter_pools
