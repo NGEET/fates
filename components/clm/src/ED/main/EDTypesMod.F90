@@ -69,6 +69,9 @@ module EDTypesMod
   real(r8), parameter :: min_npm2       = 1.0d-5   ! minimum cohort number density per m2 before termination
   real(r8), parameter :: min_patch_area = 0.001_r8 ! smallest allowable patch area before termination
   real(r8), parameter :: min_nppatch    = 1.0d-8   ! minimum number of cohorts per patch (min_npm2*min_patch_area)
+  real(r8), parameter :: min_n_safemath = 1.0d-15  ! in some cases, we want to immediately remove super small
+                                                   ! number densities of cohorts to prevent FPEs, this is usually
+                                                   ! just relevant in the first day after recruitment
 
   character*4 yearchar                    
 
