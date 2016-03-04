@@ -13,7 +13,7 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : fusetol, nclmax
   use EDtypesMod            , only : ncwd, numcohortsperpatch, udata
   use EDtypesMod            , only : sclass_ed,nlevsclass_ed,AREA
-  use EDtypesMod            , only : min_npm2, min_nppatch
+  use EDtypesMod            , only : min_npm2, min_nppatch, min_n_safemath
   !
   implicit none
   private
@@ -489,48 +489,55 @@ contains
        nextc      => currentCohort%shorter    
        terminate = 0 
 
-       ! Not enough n or dbh
-       if  (currentCohort%n/currentPatch%area <= min_npm2 .or.	&  !
-            currentCohort%n <= min_nppatch .or. &
-            (currentCohort%dbh < 0.00001_r8.and.currentCohort%bstore < 0._r8) ) then 
-          terminate = 1
-
-          if ( DEBUG ) then
-             write(iulog,*) 'terminating cohorts 1',currentCohort%n/currentPatch%area,currentCohort%dbh
-          endif
-
+       ! Check if number density is so low is breaks math
+       if (currentcohort%n <  min_n_safemath) then
+         terminate = 1
+	 if ( DEBUG ) then
+             write(iulog,*) 'terminating cohorts 0',currentCohort%n/currentPatch%area,currentCohort%dbh
+         endif
        endif
 
-       ! In the third canopy layer
-       if (currentCohort%canopy_layer > NCLMAX) then 
-          terminate = 1
+       ! The rest of these are only allowed if we are not dealing with a recruit
+       if (.not.currentCohort%isnew) then
 
-          if ( DEBUG ) then
-            write(iulog,*) 'terminating cohorts 2', currentCohort%canopy_layer
-          endif
+         ! Not enough n or dbh
+         if  (currentCohort%n/currentPatch%area <= min_npm2 .or.	&  !
+              currentCohort%n <= min_nppatch .or. &
+              (currentCohort%dbh < 0.00001_r8.and.currentCohort%bstore < 0._r8) ) then 
+            terminate = 1
 
-       endif
+            if ( DEBUG ) then
+               write(iulog,*) 'terminating cohorts 1',currentCohort%n/currentPatch%area,currentCohort%dbh
+            endif
+         endif
 
-       ! live biomass pools are terminally depleted
-       if (currentCohort%balive < 1e-10_r8 .or. currentCohort%bstore < 1e-10_r8) then 
-          terminate = 1  
+         ! In the third canopy layer
+         if (currentCohort%canopy_layer > NCLMAX) then 
+           terminate = 1
+           if ( DEBUG ) then
+             write(iulog,*) 'terminating cohorts 2', currentCohort%canopy_layer
+           endif
+         endif
 
-          if ( DEBUG ) then
-            write(iulog,*) 'terminating cohorts 3', currentCohort%balive,currentCohort%bstore
-          endif
+         ! live biomass pools are terminally depleted
+         if (currentCohort%balive < 1e-10_r8 .or. currentCohort%bstore < 1e-10_r8) then 
+            terminate = 1  
+            if ( DEBUG ) then
+              write(iulog,*) 'terminating cohorts 3', currentCohort%balive,currentCohort%bstore
+            endif
+         endif
 
-       endif
-
-       ! Total cohort biomass is negative
-       if (currentCohort%balive+currentCohort%bdead+currentCohort%bstore < 0._r8) then
-          terminate = 1
-
-          if ( DEBUG ) then
-            write(iulog,*) 'terminating cohorts 4', currentCohort%balive, currentCohort%bstore, currentCohort%bdead, &
+         ! Total cohort biomass is negative
+         if (currentCohort%balive+currentCohort%bdead+currentCohort%bstore < 0._r8) then
+            terminate = 1
+            if ( DEBUG ) then
+            write(iulog,*) 'terminating cohorts 4', currentCohort%balive, &
+                           currentCohort%bstore, currentCohort%bdead, &
                            currentCohort%balive+currentCohort%bdead+&
                            currentCohort%bstore, currentCohort%n
-          endif
+            endif
 
+         endif
        endif
 
        if (terminate == 1) then 
