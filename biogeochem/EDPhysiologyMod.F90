@@ -16,7 +16,6 @@ module EDPhysiologyMod
   use EDEcophysContype    , only : EDecophyscon
   use EDCohortDynamicsMod , only : allocate_live_biomass, zero_cohort
   use EDCohortDynamicsMod , only : create_cohort, fuse_cohorts, sort_cohorts
-  use EDCohortDynamicsMod , only : npha_term
   use EDPhenologyType     , only : ed_phenology_type
   use EDTypesMod          , only : dg_sf, dinc_ed, external_recruitment
   use EDTypesMod          , only : ncwd, nlevcan_ed, n_sub, numpft_ed, senes

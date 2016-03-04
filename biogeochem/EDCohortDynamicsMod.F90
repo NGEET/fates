@@ -647,19 +647,6 @@ contains
 			          ( currentCohort%isnew .and. nextc%isnew ) ) then
 
                          newn = currentCohort%n + nextc%n
-                         if ( newn < npha_term ) then
-                               ! This is the rare case where the combined number
-                               ! density of both cohorts is so small, and we
-                               ! have not terminated them yet, that they could
-                               ! generate div0s.  
-			       write(iulog,*) 'Somehow a small number density is present during'
-			       write(iulog,*) 'cohort fusion. A call to termination should had'
-			       write(iulog,*) 'preceded this to filter out plants with low enough'
-			       write(iulog,*) 'number densities to make them irrelevant'
-			       stop ! TO DO: add our own error handling and ED logs 
-                         end if
- 
-
                          fusion_took_place = 1         
                              
 
