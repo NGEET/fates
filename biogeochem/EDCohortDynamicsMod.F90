@@ -13,6 +13,7 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : fusetol, nclmax
   use EDtypesMod            , only : ncwd, numcohortsperpatch, udata
   use EDtypesMod            , only : sclass_ed,nlevsclass_ed,AREA
+  use EDtypesMod            , only : min_npm2, min_nppatch
   !
   implicit none
   private
@@ -30,10 +31,6 @@ module EDCohortDynamicsMod
   public :: allocate_live_biomass
 
   logical, parameter :: DEBUG  = .false. ! local debug flag
-
-  real(r8), parameter :: npha_term = 1.0d-2  ! minimum number density per hectare
-  real(r8), parameter :: npm2_term = 1.0d-6  ! minimum number density per m2
-
 
   ! 10/30/09: Created by Rosie Fisher
   !-------------------------------------------------------------------------------------!
@@ -493,8 +490,8 @@ contains
        terminate = 0 
 
        ! Not enough n or dbh
-       if  (currentCohort%n/currentPatch%area <= npm2_term .or.	&  ! since area is < 10k, this will never trigger?
-            currentCohort%n <= npha_term .or. &
+       if  (currentCohort%n/currentPatch%area <= min_npm2 .or.	&  !
+            currentCohort%n <= min_nppatch .or. &
             (currentCohort%dbh < 0.00001_r8.and.currentCohort%bstore < 0._r8) ) then 
           terminate = 1
 

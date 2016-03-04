@@ -65,6 +65,11 @@ module EDTypesMod
   integer , parameter :: N_HITE_BINS          = 60         ! no. of hite bins used to distribute LAI
   integer , parameter :: N_DBH_BINS           = 5          ! no. of dbh bins used when comparing patches
 
+
+  real(r8), parameter :: min_npm2       = 1.0d-5   ! minimum cohort number density per m2 before termination
+  real(r8), parameter :: min_patch_area = 0.001_r8 ! smallest allowable patch area before termination
+  real(r8), parameter :: min_nppatch    = 1.0d-8   ! minimum number of cohorts per patch (min_npm2*min_patch_area)
+
   character*4 yearchar                    
 
   !the lower limit of the size classes of ED cohorts
