@@ -14,7 +14,9 @@ module EDPhysiologyMod
   use WaterstateType      , only : waterstate_type
   use pftconMod           , only : pftcon
   use EDEcophysContype    , only : EDecophyscon
-  use EDCohortDynamicsMod , only : allocate_live_biomass, zero_cohort, create_cohort, fuse_cohorts, sort_cohorts
+  use EDCohortDynamicsMod , only : allocate_live_biomass, zero_cohort
+  use EDCohortDynamicsMod , only : create_cohort, fuse_cohorts, sort_cohorts
+  use EDCohortDynamicsMod , only : npha_term
   use EDPhenologyType     , only : ed_phenology_type
   use EDTypesMod          , only : dg_sf, dinc_ed, external_recruitment
   use EDTypesMod          , only : ncwd, nlevcan_ed, n_sub, numpft_ed, senes
@@ -1016,7 +1018,9 @@ contains
           cohortstatus = currentPatch%siteptr%dstatus
        endif
 
-       if (temp_cohort%n > 0.0_r8)then
+       ! Temporary Solution, if we terminate a cohort, we should still
+       ! still send the carbon into the soil pool
+       if (temp_cohort%n >= npha_term )then
 
           if ( DEBUG ) write(iulog,*) 'EDPhysiologyMod.F90 call create_cohort '
 
