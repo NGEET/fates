@@ -31,6 +31,10 @@ module EDCohortDynamicsMod
 
   logical, parameter :: DEBUG  = .false. ! local debug flag
 
+  real(r8), parameter :: npha_term = 1.0d-2  ! minimum number density per hectare
+  real(r8), parameter :: npm2_term = 1.0d-6  ! minimum number density per m2
+
+
   ! 10/30/09: Created by Rosie Fisher
   !-------------------------------------------------------------------------------------!
 
@@ -489,8 +493,9 @@ contains
        terminate = 0 
 
        ! Not enough n or dbh
-       if (currentCohort%n/currentPatch%area <= 0.00001_r8 .or. currentCohort%dbh <  &
-            0.00001_r8.and.currentCohort%bstore < 0._r8) then
+       if  (currentCohort%n/currentPatch%area <= npm2_term .or.	&  ! since area is < 10k, this will never trigger?
+            currentCohort%n <= npha_term .or. &
+            (currentCohort%dbh < 0.00001_r8.and.currentCohort%bstore < 0._r8) ) then 
           terminate = 1
 
           if ( DEBUG ) then
@@ -644,8 +649,22 @@ contains
                          if( (.not.(currentCohort%isnew) .and. .not.(nextc%isnew) ) .or. & 
 			          ( currentCohort%isnew .and. nextc%isnew ) ) then
 
+                         newn = currentCohort%n + nextc%n
+                         if ( newn < npha_term ) then
+                               ! This is the rare case where the combined number
+                               ! density of both cohorts is so small, and we
+                               ! have not terminated them yet, that they could
+                               ! generate div0s.  
+			       write(iulog,*) 'Somehow a small number density is present during'
+			       write(iulog,*) 'cohort fusion. A call to termination should had'
+			       write(iulog,*) 'preceded this to filter out plants with low enough'
+			       write(iulog,*) 'number densities to make them irrelevant'
+			       stop ! TO DO: add our own error handling and ED logs 
+                         end if
+ 
+
                          fusion_took_place = 1         
-                         newn = currentCohort%n + nextc%n    ! sum individuals in both cohorts.     
+                             
 
                          currentCohort%balive    = (currentCohort%n*currentCohort%balive    + nextc%n*nextc%balive)/newn
                          currentCohort%bdead     = (currentCohort%n*currentCohort%bdead     + nextc%n*nextc%bdead)/newn
