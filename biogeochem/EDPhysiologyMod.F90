@@ -1017,24 +1017,9 @@ contains
           cohortstatus = currentPatch%siteptr%dstatus
        endif
 
-!       ! Temporary Solution, if we terminate a cohort, we should still
-!       ! still send the carbon into the soil pool
-!       if (temp_cohort%n >= npha_term )then
-!
-!          if ( DEBUG ) write(iulog,*) 'EDPhysiologyMod.F90 call create_cohort '
-!
-!          call create_cohort(currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-!               temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore,  &
-!               temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, currentPatch%NCL_p)
-!
-!       endif
-
     enddo  !pft loop
 
     deallocate(temp_cohort) ! delete temporary cohort
-
-!    call fuse_cohorts(currentPatch)
-!    call sort_cohorts(currentPatch)
 
   end subroutine recruitment
 
