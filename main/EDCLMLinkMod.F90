@@ -19,6 +19,7 @@ module EDCLMLinkMod
   use SoilBiogeochemCarbonFluxType    , only : soilbiogeochem_carbonflux_type
   use SoilBiogeochemCarbonStatetype   , only : soilbiogeochem_carbonstate_type
   use clm_time_manager , only : get_step_size
+  use shr_const_mod, only: SHR_CONST_CDAY
 
   !
   implicit none
@@ -76,14 +77,14 @@ module EDCLMLinkMod
      real(r8), pointer, private  :: ED_bleaf_patch             (:)   ! kGC/m2 Total leaf biomass.   
      real(r8), pointer, private  :: ED_biomass_patch           (:)   ! kGC/m2 Total biomass.        
 
-     real(r8), pointer, private  :: storvegc_patch             (:)   ! (gC/m2) stored vegetation carbon, excluding cpool
-     real(r8), pointer, private  :: dispvegc_patch             (:)   ! (gC/m2) displayed veg carbon, excluding storage and cpool
-     real(r8), pointer, private  :: leafc_patch                (:)   ! (gC/m2) leaf C
-     real(r8), pointer, private  :: livestemc_patch            (:)   ! (gC/m2) live stem C
-     real(r8), pointer, private  :: deadstemc_patch            (:)   ! (gC/m2) dead stem C
-     real(r8), pointer, private  :: livestemn_patch            (:)   ! (gN/m2) live stem N
-     real(r8), pointer, private  :: npp_patch                  (:)   ! (gC/m2/s) patch net primary production
+     ! real(r8), pointer, private  :: storvegc_patch             (:)   ! (gC/m2) stored vegetation carbon, excluding cpool
+     ! real(r8), pointer, private  :: dispvegc_patch             (:)   ! (gC/m2) displayed veg carbon, excluding storage and cpool
+     ! real(r8), pointer, private  :: leafc_patch                (:)   ! (gC/m2) leaf C
+     ! real(r8), pointer, private  :: livestemc_patch            (:)   ! (gC/m2) live stem C
+     ! real(r8), pointer, private  :: deadstemc_patch            (:)   ! (gC/m2) dead stem C
+     ! real(r8), pointer, private  :: livestemn_patch            (:)   ! (gN/m2) live stem N
 
+     real(r8), pointer, private  :: npp_patch                  (:)   ! (gC/m2/s) patch net primary production
      real(r8), pointer, private  :: gpp_patch                  (:)   ! (gC/m2/s) patch gross primary production 
      
      real(r8), pointer :: ed_gpp_gd_scpf          (:,:)   ! [kg/m2/yr] gross primary production
@@ -156,7 +157,7 @@ module EDCLMLinkMod
      procedure , private :: ed_update_history_variables
      procedure , private :: InitAllocate 
      procedure , private :: InitHistory
-     procedure , private :: InitCold    
+!     procedure , private :: InitCold    
      procedure , private :: flux_into_litter_pools
 
   end type ed_clm_type
@@ -179,7 +180,7 @@ contains
 
     call this%InitAllocate(bounds)
     call this%InitHistory(bounds)
-    call this%InitCold(bounds)
+    !call this%InitCold(bounds)
 
   end subroutine Init
 
@@ -240,12 +241,12 @@ contains
     allocate(this%ED_bleaf_patch             (begp:endp))            ; this%ED_bleaf_patch             (:) = 0.0_r8    
     allocate(this%ED_biomass_patch           (begp:endp))            ; this%ED_biomass_patch           (:) = 0.0_r8    
 
-    allocate(this%storvegc_patch             (begp:endp))            ; this%storvegc_patch             (:) = nan
-    allocate(this%dispvegc_patch             (begp:endp))            ; this%dispvegc_patch             (:) = nan
-    allocate(this%leafc_patch                (begp:endp))            ; this%leafc_patch                (:) = nan
-    allocate(this%livestemc_patch            (begp:endp))            ; this%livestemc_patch            (:) = nan
-    allocate(this%deadstemc_patch            (begp:endp))            ; this%deadstemc_patch            (:) = nan
-    allocate(this%livestemn_patch            (begp:endp))            ; this%livestemn_patch            (:) = nan
+    ! allocate(this%storvegc_patch             (begp:endp))            ; this%storvegc_patch             (:) = nan
+    ! allocate(this%dispvegc_patch             (begp:endp))            ; this%dispvegc_patch             (:) = nan
+    ! allocate(this%leafc_patch                (begp:endp))            ; this%leafc_patch                (:) = nan
+    ! allocate(this%livestemc_patch            (begp:endp))            ; this%livestemc_patch            (:) = nan
+    ! allocate(this%deadstemc_patch            (begp:endp))            ; this%deadstemc_patch            (:) = nan
+    ! allocate(this%livestemn_patch            (begp:endp))            ; this%livestemn_patch            (:) = nan
 
     allocate(this%gpp_patch                  (begp:endp))            ; this%gpp_patch                  (:) = nan
     allocate(this%npp_patch                  (begp:endp))            ; this%npp_patch                  (:) = nan
@@ -349,15 +350,15 @@ contains
          avgflag='A', long_name='Scaling factor between tree basal area and canopy area', &
          ptr_patch=this%canopy_spread_patch, set_lake=0._r8, set_urb=0._r8)   
 
-    call hist_addfld2d (fname='PFTbiomass',  units='kgC/m2', type2d='levgrnd', &
+    call hist_addfld2d (fname='PFTbiomass',  units='gC/m2', type2d='levgrnd', &
          avgflag='A', long_name='total PFT level biomass', &
          ptr_patch=this%PFTbiomass_patch, set_lake=0._r8, set_urb=0._r8)
 
-    call hist_addfld2d (fname='PFTleafbiomass',  units='kgC/m2', type2d='levgrnd', &
+    call hist_addfld2d (fname='PFTleafbiomass',  units='gC/m2', type2d='levgrnd', &
          avgflag='A', long_name='total PFT level leaf biomass', &
          ptr_patch=this%PFTleafbiomass_patch, set_lake=0._r8, set_urb=0._r8)
 
-    call hist_addfld2d (fname='PFTstorebiomass',  units='kgC/m2', type2d='levgrnd', &
+    call hist_addfld2d (fname='PFTstorebiomass',  units='gC/m2', type2d='levgrnd', &
          avgflag='A', long_name='total PFT level stored biomass', &
          ptr_patch=this%PFTstorebiomass_patch, set_lake=0._r8, set_urb=0._r8)
 
@@ -409,55 +410,55 @@ contains
          avgflag='A', long_name='spitfire fuel surface/volume ', &
          ptr_patch=this%fire_fuel_sav_patch, set_lake=0._r8, set_urb=0._r8)
 
-    call hist_addfld1d (fname='SUM_FUEL', units=' KgC m-2 y-1',  &
-         avgflag='A', long_name='Litter flux in leaves', &
+    call hist_addfld1d (fname='SUM_FUEL', units='gC m-2',  &
+         avgflag='A', long_name='total ground fuel related to ros (omits 1000hr fuels)', &
          ptr_patch=this%sum_fuel_patch, set_lake=0._r8, set_urb=0._r8)
 
-    call hist_addfld1d (fname='LITTER_IN', units=' KgC m-2 y-1',  &
+    call hist_addfld1d (fname='LITTER_IN', units='gC m-2 s-1',  &
          avgflag='A', long_name='Litter flux in leaves', &
          ptr_patch=this%litter_in_patch, set_lake=0._r8, set_urb=0._r8)
 
-    call hist_addfld1d (fname='LITTER_OUT', units=' KgC m-2 y-1',  &
+    call hist_addfld1d (fname='LITTER_OUT', units='gC m-2 s-1',  &
          avgflag='A', long_name='Litter flux out leaves', &
          ptr_patch=this%litter_out_patch, set_lake=0._r8, set_urb=0._r8)
 
-    call hist_addfld1d (fname='SEED_BANK', units=' KgC m-2',  &
+    call hist_addfld1d (fname='SEED_BANK', units='gC m-2',  &
          avgflag='A', long_name='Total Seed Mass of all PFTs', &
          ptr_patch=this%seed_bank_patch, set_lake=0._r8, set_urb=0._r8)
 
-    call hist_addfld1d (fname='SEEDS_IN', units=' KgC m-2 y-1',  &
+    call hist_addfld1d (fname='SEEDS_IN', units='gC m-2 s-1',  &
          avgflag='A', long_name='Seed Production Rate', &
          ptr_patch=this%seeds_in_patch, set_lake=0._r8, set_urb=0._r8)
 
-    call hist_addfld1d (fname='SEED_GERMINATION', units=' KgC m-2 y-1',  &
+    call hist_addfld1d (fname='SEED_GERMINATION', units='gC m-2 s-1',  &
          avgflag='A', long_name='Seed mass converted into new cohorts', &
          ptr_patch=this%seed_germination_patch, set_lake=0._r8, set_urb=0._r8)
 
-    call hist_addfld1d (fname='SEED_DECAY', units=' KgC m-2 y-1',  &
+    call hist_addfld1d (fname='SEED_DECAY', units='gC m-2 s-1',  &
          avgflag='A', long_name='Seed mass decay', &
          ptr_patch=this%seed_decay_patch, set_lake=0._r8, set_urb=0._r8)              
 
-    call hist_addfld1d (fname='ED_bstore', units=' KgC m-2',  &
+    call hist_addfld1d (fname='ED_bstore', units='gC m-2',  &
          avgflag='A', long_name='ED stored biomass', &
          ptr_patch=this%ED_bstore_patch, set_lake=0._r8, set_urb=0._r8)
 
-    call hist_addfld1d (fname='ED_bdead', units=' KgC m-2',  &
+    call hist_addfld1d (fname='ED_bdead', units='gC m-2',  &
          avgflag='A', long_name='ED dead biomass', &
          ptr_patch=this%ED_bdead_patch, set_lake=0._r8, set_urb=0._r8)
 
-    call hist_addfld1d (fname='ED_balive', units=' KgC m-2',  &
+    call hist_addfld1d (fname='ED_balive', units='gC m-2',  &
          avgflag='A', long_name='ED live biomass', &
          ptr_patch=this%ED_balive_patch, set_lake=0._r8, set_urb=0._r8)
 
-    call hist_addfld1d (fname='ED_bleaf', units=' KgC m-2',  &
+    call hist_addfld1d (fname='ED_bleaf', units='gC m-2',  &
          avgflag='A', long_name='ED leaf biomass', &
          ptr_patch=this%ED_bleaf_patch, set_lake=0._r8, set_urb=0._r8)
 
-    call hist_addfld1d (fname='ED_biomass', units=' KgC m-2',  &
+    call hist_addfld1d (fname='ED_biomass', units='gC m-2',  &
          avgflag='A', long_name='ED total biomass', &
          ptr_patch=this%ED_biomass_patch, set_lake=0._r8, set_urb=0._r8)
 
-    call hist_addfld1d (fname='RB', units=' s m-1',  &
+    call hist_addfld1d (fname='RB', units='s m-1',  &
          avgflag='A', long_name='leaf boundary resistance', &
          ptr_patch=this%rb_patch, set_lake=0._r8, set_urb=0._r8)
 
@@ -465,35 +466,35 @@ contains
          avgflag='A', long_name='potential evap', &
          ptr_patch=this%efpot_patch, set_lake=0._r8, set_urb=0._r8)
 
-    this%dispvegc_patch(begp:endp) = spval
-    call hist_addfld1d (fname='DISPVEGC', units='gC/m^2', &
-         avgflag='A', long_name='displayed veg carbon, excluding storage and cpool', &
-         ptr_patch=this%dispvegc_patch)
+    ! this%dispvegc_patch(begp:endp) = spval
+    ! call hist_addfld1d (fname='DISPVEGC', units='gC/m^2', &
+    !      avgflag='A', long_name='displayed veg carbon, excluding storage and cpool', &
+    !      ptr_patch=this%dispvegc_patch)
 
-    this%storvegc_patch(begp:endp) = spval
-    call hist_addfld1d (fname='STORVEGC', units='gC/m^2', &
-         avgflag='A', long_name='stored vegetation carbon, excluding cpool', &
-         ptr_patch=this%storvegc_patch)
+    ! this%storvegc_patch(begp:endp) = spval
+    ! call hist_addfld1d (fname='STORVEGC', units='gC/m^2', &
+    !      avgflag='A', long_name='stored vegetation carbon, excluding cpool', &
+    !      ptr_patch=this%storvegc_patch)
 
-    this%leafc_patch(begp:endp) = spval
-    call hist_addfld1d (fname='LEAFC', units='gC/m^2', &
-         avgflag='A', long_name='leaf C', &
-         ptr_patch=this%leafc_patch)
+    ! this%leafc_patch(begp:endp) = spval
+    ! call hist_addfld1d (fname='LEAFC', units='gC/m^2', &
+    !      avgflag='A', long_name='leaf C', &
+    !      ptr_patch=this%leafc_patch)
 
-    this%livestemc_patch(begp:endp) = spval
-    call hist_addfld1d (fname='LIVESTEMC', units='gC/m^2', &
-         avgflag='A', long_name='live stem C', &
-         ptr_patch=this%livestemc_patch)
+    ! this%livestemc_patch(begp:endp) = spval
+    ! call hist_addfld1d (fname='LIVESTEMC', units='gC/m^2', &
+    !      avgflag='A', long_name='live stem C', &
+    !      ptr_patch=this%livestemc_patch)
 
-    this%deadstemc_patch(begp:endp) = spval
-    call hist_addfld1d (fname='DEADSTEMC', units='gC/m^2', &
-         avgflag='A', long_name='dead stem C', &
-         ptr_patch=this%deadstemc_patch)
+    ! this%deadstemc_patch(begp:endp) = spval
+    ! call hist_addfld1d (fname='DEADSTEMC', units='gC/m^2', &
+    !      avgflag='A', long_name='dead stem C', &
+    !      ptr_patch=this%deadstemc_patch)
 
-    this%livestemn_patch(begp:endp) = spval
-    call hist_addfld1d (fname='LIVESTEMN', units='gN/m^2', &
-         avgflag='A', long_name='live stem N', &
-         ptr_patch=this%livestemn_patch)
+    ! this%livestemn_patch(begp:endp) = spval
+    ! call hist_addfld1d (fname='LIVESTEMN', units='gN/m^2', &
+    !      avgflag='A', long_name='live stem N', &
+    !      ptr_patch=this%livestemn_patch)
 
     this%gpp_patch(begp:endp) = spval
     call hist_addfld1d (fname='GPP', units='gC/m^2/s', &
@@ -656,26 +657,25 @@ contains
   end subroutine InitHistory
 
   !-----------------------------------------------------------------------
-  subroutine InitCold(this, bounds)
-    !
-    ! !DESCRIPTION:
-    ! Initialize relevant time varying variables
-    !
-    ! !ARGUMENTS:
-    class (ed_clm_type) :: this
-    type(bounds_type), intent(in) :: bounds  
-    !
-    ! !LOCAL VARIABLES:
-    integer :: p
-    !-----------------------------------------------------------------------
+  ! subroutine InitCold(this, bounds)
+  !   !
+  !   ! !DESCRIPTION:
+  !   ! Initialize relevant time varying variables
+  !   !
+  !   ! !ARGUMENTS:
+  !   class (ed_clm_type) :: this
+  !   type(bounds_type), intent(in) :: bounds  
+  !   !
+  !   ! !LOCAL VARIABLES:
+  !   integer :: p
+  !   !-----------------------------------------------------------------------
 
-    do p = bounds%begp,bounds%endp
-       this%dispvegc_patch(p) = 0._r8 
-       this%storvegc_patch(p) = 0._r8 
-    end do
+  !   ! do p = bounds%begp,bounds%endp
+  !   !    this%dispvegc_patch(p) = 0._r8 
+  !   !    this%storvegc_patch(p) = 0._r8 
+  !   ! end do
 
-  end subroutine InitCold
-
+  ! end subroutine InitCold
   !-----------------------------------------------------------------------
   subroutine Restart ( this,  bounds, ncid, flag )
     !
@@ -1342,16 +1342,16 @@ contains
                         write(iulog,*) 'EDCLMLinkMod II ',p,ED_bstore(p)
                      endif
 
-                     ED_bleaf(p)           = ED_bleaf(p)           + n_density * currentCohort%bl 
-                     ED_bstore(p)          = ED_bstore(p)          + n_density * currentCohort%bstore 
-                     ED_biomass(p)         = ED_biomass(p)         + n_density * currentCohort%b 
-                     ED_bdead(p)           = ED_bdead(p)           + n_density * currentCohort%bdead 
-                     ED_balive(p)          = ED_balive(p)          + n_density * currentCohort%balive
-                     npp(p)                = npp(p)                + n_density * currentCohort%npp 
-                     gpp(p)                = gpp(p)                + n_density * currentCohort%gpp   
-                     PFTbiomass(p,ft)      = PFTbiomass(p,ft)      + n_density * currentCohort%b
-                     PFTleafbiomass(p,ft)  = PFTleafbiomass(p,ft)  + n_density * currentCohort%bl
-                     PFTstorebiomass(p,ft) = PFTstorebiomass(p,ft) + n_density * currentCohort%bstore
+                     ED_bleaf(p)           = ED_bleaf(p)           + n_density * currentCohort%bl       * 1.e3_r8
+                     ED_bstore(p)          = ED_bstore(p)          + n_density * currentCohort%bstore   * 1.e3_r8
+                     ED_biomass(p)         = ED_biomass(p)         + n_density * currentCohort%b        * 1.e3_r8
+                     ED_bdead(p)           = ED_bdead(p)           + n_density * currentCohort%bdead    * 1.e3_r8
+                     ED_balive(p)          = ED_balive(p)          + n_density * currentCohort%balive   * 1.e3_r8
+                     npp(p)                = npp(p)                + n_density * currentCohort%npp      * 1.e3_r8 / (365. * SHR_CONST_CDAY)
+                     gpp(p)                = gpp(p)                + n_density * currentCohort%gpp      * 1.e3_r8 / (365. * SHR_CONST_CDAY)
+                     PFTbiomass(p,ft)      = PFTbiomass(p,ft)      + n_density * currentCohort%b        * 1.e3_r8
+                     PFTleafbiomass(p,ft)  = PFTleafbiomass(p,ft)  + n_density * currentCohort%bl       * 1.e3_r8
+                     PFTstorebiomass(p,ft) = PFTstorebiomass(p,ft) + n_density * currentCohort%bstore   * 1.e3_r8
                      PFTnindivs(p,ft)      = PFTnindivs(p,ft)      + currentCohort%n 
                     
                      dbh = currentCohort%dbh !-0.5*(1./365.25)*currentCohort%ddbhdt
@@ -1426,13 +1426,13 @@ contains
                   fire_fuel_eff_moist(p)  = currentPatch%fuel_eff_moist
                   fire_fuel_sav(p)        = currentPatch%fuel_sav
                   fire_fuel_mef(p)        = currentPatch%fuel_mef                          
-                  sum_fuel(p)             = currentPatch%sum_fuel                         
-                  litter_in(p)            = sum(currentPatch%CWD_AG_in) +sum(currentPatch%leaf_litter_in)
-                  litter_out(p)           = sum(currentPatch%CWD_AG_out)+sum(currentPatch%leaf_litter_out)
-                  seed_bank(p)            = sum(currentPatch%seed_bank)
-                  seeds_in(p)             = sum(currentPatch%seeds_in)
-                  seed_decay(p)           = sum(currentPatch%seed_decay)
-                  seed_germination(p)     = sum(currentPatch%seed_germination)
+                  sum_fuel(p)             = currentPatch%sum_fuel * 1.e3_r8
+                  litter_in(p)            = (sum(currentPatch%CWD_AG_in) +sum(currentPatch%leaf_litter_in)) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY
+                  litter_out(p)           = (sum(currentPatch%CWD_AG_out)+sum(currentPatch%leaf_litter_out)) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY
+                  seed_bank(p)            = sum(currentPatch%seed_bank) * 1.e3_r8
+                  seeds_in(p)             = sum(currentPatch%seeds_in) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY
+                  seed_decay(p)           = sum(currentPatch%seed_decay) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY
+                  seed_germination(p)     = sum(currentPatch%seed_germination) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY
                   canopy_spread(p)        = currentPatch%spread(1) 
                   area_plant(p)           = currentPatch%total_canopy_area /currentPatch%area
                   area_trees(p)           = currentPatch%total_tree_area   /currentPatch%area
@@ -1967,7 +1967,6 @@ contains
     use abortutils  , only : endrun
     use shr_log_mod , only : errMsg => shr_log_errMsg    
     use EDParamsMod, only : ED_val_ag_biomass
-    use shr_const_mod, only: SHR_CONST_CDAY
     !
     implicit none   
     !
@@ -2299,7 +2298,6 @@ contains
    use ColumnType           , only : col
    use LandunitType         , only : lun
    use landunit_varcon      , only : istsoil
-   use shr_const_mod, only: SHR_CONST_CDAY
    !
    implicit none   
    !
@@ -2375,10 +2373,10 @@ contains
 
               ! map litter, CWD, and seed pools to column level
               cwd_stock(cc) = cwd_stock(cc) + (currentPatch%area / AREA) * (sum(currentPatch%cwd_ag)+ &
-                   sum(currentPatch%cwd_bg))
+                   sum(currentPatch%cwd_bg)) * 1.e3_r8
               ed_litter_stock(cc) = ed_litter_stock(cc) + (currentPatch%area / AREA) * &
-                   (sum(currentPatch%leaf_litter)+sum(currentPatch%root_litter))
-              seed_stock(cc)   = seed_stock(cc)   + (currentPatch%area / AREA) * sum(currentPatch%seed_bank)
+                   (sum(currentPatch%leaf_litter)+sum(currentPatch%root_litter)) * 1.e3_r8
+              seed_stock(cc)   = seed_stock(cc)   + (currentPatch%area / AREA) * sum(currentPatch%seed_bank) * 1.e3_r8
 
               currentCohort => currentPatch%tallest
               do while(associated(currentCohort))  
@@ -2388,7 +2386,7 @@ contains
 
                  ! map biomass pools to column level
                  biomass_stock(cc) =  biomass_stock(cc) + (currentCohort%bdead + currentCohort%balive + &
-                      currentCohort%bstore) * currentCohort%n / AREA
+                      currentCohort%bstore) * currentCohort%n * 1.e3_r8 / AREA
 
                  currentCohort => currentCohort%shorter
               enddo !currentCohort
