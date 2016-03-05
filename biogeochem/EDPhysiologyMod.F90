@@ -1017,8 +1017,7 @@ contains
           cohortstatus = currentPatch%siteptr%dstatus
        endif
 
-
-       if (temp_cohort%n >= 0.0_r8 )then
+       if (temp_cohort%n > 0.0_r8 )then
            if ( DEBUG ) write(iulog,*) 'EDPhysiologyMod.F90 call create_cohort '
            call create_cohort(currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                 temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore,  &
