@@ -43,8 +43,8 @@ OPTIONS
                               	      0 = silent						    
                               	      1 = regular						    
                               	      2 = verbose						    
-     -caseroot                     CASEROOT directory variable
-     -scriptsroot                  SCRIPTSROOT directory variable
+     -caseroot                     CASEROOT pathname
+     -cimeroot                     CIMEROOT pathname
      -simyr <year>                 Starting year to simulate (default 2000)
      -inst_string                  INST_STRING variable
 
@@ -85,7 +85,7 @@ my $outdirname = "$cwd";                  # Default name of output directory nam
 my %opts = ( help        => 0,
 	     silent      => 0,
 	     caseroot    => 0,
-	     scriptsroot => 0,
+	     cimeroot    => 0,
              simyr       => 2000,
 	     inst_string => 0,
 	    );
@@ -97,7 +97,7 @@ GetOptions(
     "print=i"       => \$opts{'print'},
     "simyr=i"       => \$opts{'simyr'},
     "caseroot=s"    => \$opts{'caseroot'},
-    "scriptsroot=s" => \$opts{'scriptsroot'},
+    "cimeroot=s"    => \$opts{'cimeroot'},
     "inst_string=s" => \$opts{'inst_string'},	   
 )  or usage();
 
@@ -118,7 +118,7 @@ my $print = $opts{'print'};
 my $eol = "\n";
 
 my $CASEROOT    = $opts{'caseroot'}; 
-my $SCRIPTSROOT = $opts{'scriptsroot'};       
+my $CIMEROOT    = $opts{'cimeroot'};       
 my $INST_STRING = $opts{'inst_string'}; 
 
 if ($print>=2) { print "Setting rtm configuration script directory to $cfgdir$eol"; }
@@ -144,15 +144,7 @@ EOF
 # Make sure we can find required perl modules, definition, and defaults files.
 # Look for them under the directory that contains the configure script.
 
-my $cesmroot = abs_path( "$cfgdir/../../../");
-my $perl5dir = "$cesmroot/cime/utils/perl5lib";
-
-# The root directory to cesm utils Tools
-
-my $SetupTools_dir = "$cesmroot/cime/scripts/Tools";
-(-f "$SetupTools_dir/SetupTools.pm")  or
-    fatal_error("Cannot find perl module \"SetupTools.pm\" in directory\n" .
-                "\"$SetupTools_dir\" \n");
+my $perl5dir = "$CIMEROOT/utils/perl5lib";
 
 # The Build::Config module provides utilities to access the configuration information
 # in the config_cache.xml file
@@ -197,14 +189,14 @@ EOF
 if ($print>=2) { print "Using namelist defaults file $nl_defaults_file$eol"; }
 
 #-----------------------------------------------------------------------------------------------
-my @dirs = ( "$cfgdir/..", "$perl5dir", "$SetupTools_dir" );
-unshift @INC, "$CASEROOT/Tools", @dirs;
+my @dirs = ( "$cfgdir/..", "$perl5dir");
+unshift @INC, @dirs;
 
 require Build::Config;
 require Build::NamelistDefinition;
 require Build::NamelistDefaults;
 require Build::Namelist;
-require SetupTools;
+require Config::SetupTools;
 
 #-----------------------------------------------------------------------------------------------
 # Create a configuration object from the RTM config_cache.xml file. 
@@ -284,12 +276,7 @@ my $ROF_GRID        = $xmlvars{'ROF_GRID'};
 my $LND_GRID        = $xmlvars{'LND_GRID'};
 my $ROF_NCPL        = $xmlvars{'ROF_NCPL'};
 
-(-d $DIN_LOC_ROOT)  or  die <<"EOF";
-** $ProgName - CCSM inputdata root is not a directory: \"$DIN_LOC_ROOT\" **
-EOF
-if ($print>=2) { 
-    print "CESM inputdata root directory: $DIN_LOC_ROOT \n"; 
-}
+if ($print>=2) { print "Inputdata root directory: $DIN_LOC_ROOT \n";}
 
 ####################################
 # namelist group: rtm_inparm       #
@@ -377,7 +364,7 @@ sub add_default {
 # ***** N.B. ***** This routine assumes the following variables are in package main::
 #  $definition        -- the namelist definition object
 #  $defaults          -- the namelist defaults object
-#  $DIN_LOC_ROOT      -- CESM inputdata root directory
+#  $DIN_LOC_ROOT      -- inputdata root directory
 
     my $nl = shift;     # namelist object
     my $var = shift;    # name of namelist variable
@@ -434,7 +421,7 @@ sub add_default {
 
        # The default values for input pathnames are relative.  If the namelist
        # variable is defined to be an absolute pathname, then prepend
-       # the CESM inputdata root directory.
+       # the inputdata root directory.
        if (not defined $opts{'no_abspath'}) {
 	   if (defined $opts{'set_abspath'}) {
 	       $val = set_abs_filepath($val, $opts{'set_abspath'});

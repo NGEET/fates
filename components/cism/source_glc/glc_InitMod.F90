@@ -60,7 +60,7 @@
 ! !IROUTINE: glc_initialize
 ! !INTERFACE:
 
- subroutine glc_initialize(errorCode)
+ subroutine glc_initialize(EClock, errorCode)
 
 ! !DESCRIPTION:
 !  This routine is the initialization driver that initializes a glc run 
@@ -87,12 +87,14 @@
    use glc_time_management, only: init_time1, init_time2, dtt, ihour
    use glimmer_log
    use glc_route_ice_runoff, only: set_routing
-   use glc_history, only : glc_history_init
+   use glc_history, only : glc_history_init, glc_history_write
    use glc_indexing_info, only : glc_indexing_init, nx, ny
    use shr_file_mod, only : shr_file_getunit, shr_file_freeunit
+   use esmf, only : ESMF_Clock
 
 ! !INPUT/OUTPUT PARAMETERS:
 
+   type(ESMF_Clock),     intent(in)    :: EClock
    integer (i4), intent(inout) :: &
       errorCode              ! Returns an error code if any init fails
 
@@ -330,6 +332,17 @@
 !-----------------------------------------------------------------------
 
    call glc_history_init()
+
+!-----------------------------------------------------------------------
+!
+!  do initial history output
+!
+!-----------------------------------------------------------------------
+
+   if (.not. cesm_restart) then
+      ! TODO loop over instances
+      call glc_history_write(ice_sheet%instances(1), EClock, force_write=.true.)
+   end if
    
 !-----------------------------------------------------------------------
 !

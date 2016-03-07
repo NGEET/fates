@@ -4,6 +4,171 @@ This file describes what main-trunk tags were created and why
 
 ================================================================================
 Originator: sacks
+Date: Sept 23, 2015
+Model: cism
+Version: cism2_1_05
+One-line summary: Amend ChangeLog for cism2_1_04
+
+Purpose of changes:
+
+   Amend ChangeLog for cism2_1_04
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+========= Note that a test failed
+M       ChangeLog
+
+Summary of testing: NONE
+
+Externals used for testing: N/A
+
+cism tag used for baseline comparisons: N/A
+
+Any other externals that differed in baseline: N/A
+
+================================================================================
+Originator: mvertens (brought to trunk by sacks)
+Date: Sept 23, 2015
+Model: cism
+Version: cism2_1_04
+One-line summary: Updates for cime3
+
+Purpose of changes:
+
+   Rework of directory structure and build scripts to work with cime3
+   (de-CESMization of CIME).
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+D       cimetest/testmods_dirs/cism/oneway/README
+D       cimetest/testmods_dirs/cism/oneway/xmlchange_cmnds
+D       cimetest/testmods_dirs/cism/oneway
+D       cimetest/testmods_dirs/cism/trilinos/README
+D       cimetest/testmods_dirs/cism/trilinos/user_nl_cism
+D       cimetest/testmods_dirs/cism/trilinos/include_user_mods
+D       cimetest/testmods_dirs/cism/trilinos/shell_commands
+D       cimetest/testmods_dirs/cism/trilinos
+D       cimetest/testmods_dirs/cism/apply_to_multiinstance/README
+D       cimetest/testmods_dirs/cism/apply_to_multiinstance/shell_commands
+D       cimetest/testmods_dirs/cism/apply_to_multiinstance
+D       cimetest/testmods_dirs/cism/override_glc_frac/include_user_mods
+D       cimetest/testmods_dirs/cism/override_glc_frac/user_nl_cism
+D       cimetest/testmods_dirs/cism/override_glc_frac
+D       cimetest/testmods_dirs/cism/test_coupling/user_nl_cism
+D       cimetest/testmods_dirs/cism/test_coupling/include_user_mods
+D       cimetest/testmods_dirs/cism/test_coupling
+D       cimetest/testmods_dirs/cism
+D       cimetest/testmods_dirs
+D       cimetest/testlist_cism.xml
+D       cimetest
+D       bld/cism.buildlib
+D       bld/cism.buildnml
+D       bld/user_nl_cism
+D       bld/cism.template
+M       bld/README.build-namelist
+M       bld/build-namelist
+A       cime_config/cism.template
+A       cime_config/buildlib
+A       cime_config/buildnml
+A       cime_config/config_component.xml
+A       cime_config/config_pes.xml
+A       cime_config/config_compsets.xml
+A       cime_config/testdefs/testmods_dirs/cism/oneway/xmlchange_cmnds
+A       cime_config/testdefs/testmods_dirs/cism/oneway/README
+A       cime_config/testdefs/testmods_dirs/cism/oneway
+A       cime_config/testdefs/testmods_dirs/cism/trilinos/user_nl_cism
+A       cime_config/testdefs/testmods_dirs/cism/trilinos/include_user_mods
+A       cime_config/testdefs/testmods_dirs/cism/trilinos/shell_commands
+A       cime_config/testdefs/testmods_dirs/cism/trilinos/README
+A       cime_config/testdefs/testmods_dirs/cism/trilinos
+A       cime_config/testdefs/testmods_dirs/cism/apply_to_multiinstance/README
+A       cime_config/testdefs/testmods_dirs/cism/apply_to_multiinstance/shell_commands
+A       cime_config/testdefs/testmods_dirs/cism/apply_to_multiinstance
+A       cime_config/testdefs/testmods_dirs/cism/override_glc_frac/user_nl_cism
+A       cime_config/testdefs/testmods_dirs/cism/override_glc_frac/include_user_mods
+A       cime_config/testdefs/testmods_dirs/cism/override_glc_frac
+A       cime_config/testdefs/testmods_dirs/cism/test_coupling/user_nl_cism
+A       cime_config/testdefs/testmods_dirs/cism/test_coupling/include_user_mods
+A       cime_config/testdefs/testmods_dirs/cism/test_coupling
+A       cime_config/testdefs/testmods_dirs/cism
+A       cime_config/testdefs/testmods_dirs
+A       cime_config/testdefs/testlist_cism.xml
+A       cime_config/testdefs
+A       cime_config/user_nl_cism
+A       cime_config
+
+
+Summary of testing:
+
+   Ran full yellowstone aux_glc test suite. All tests passed, EXCEPT:
+
+   CFAIL ERS_Ly20_E.f09_g16_gl5.TGHIST.yellowstone_intel
+   - Failed because single-processor tests are now using mpi-serial, which is
+   incompatible with ESMF. Waiting on a resolution of this (either go back to
+   using a real mpi library for single-processor tests, or else change this test
+   to explicitly specify a MPI library).
+
+Externals used for testing:
+
+cime                               https://github.com/CESM-Development/cime/tags/cime3.0.5
+components/cam                     https://svn-ccsm-models.cgd.ucar.edu/cam1/branch_tags/cime_refactor_tags/cime_refactor_n03_cam5_4_11/components/cam
+components/clm                     https://svn-ccsm-models.cgd.ucar.edu/clm2/branch_tags/cime_refactor_tags/cime_refactor_n02_clm4_5_1_r119/components/clm
+components/cice                    https://svn-ccsm-models.cgd.ucar.edu/cice/trunk_tags/cice5_20150921
+components/pop                     https://svn-ccsm-models.cgd.ucar.edu/pop2/branch_tags/cime_refactor_tags/cime_refactor_n02_cesm_pop_2_1_20150810
+components/cism                    https://svn-ccsm-models.cgd.ucar.edu/glc/branch_tags/cime_refactor_tags/cime_refactor_n02_cism2_1_03
+components/aquap                   https://svn-ccsm-models.cgd.ucar.edu/aquap/branch_tags/cime_refactor_tags/cime_refactor_n01_aquap_150301
+components/rtm                     https://svn-ccsm-models.cgd.ucar.edu/rivrtm/branch_tags/cime_refactor_tags/cime_refactor_n01_rtm1_0_52
+components/ww3                     https://svn-ccsm-models.cgd.ucar.edu/ww3/branch_tags/cime_refactor_tags/cime_refactor_n01_ww3_150311
+
+
+cism tag used for baseline comparisons: cism2_1_03
+
+Any other externals that differed in baseline: baseline used cesm1_4_beta07
+
+================================================================================
+Originator: sacks
+Date: Sept 13, 2015
+Model: cism
+Version: cism2_1_03
+One-line summary: Write history file at initialization
+
+Purpose of changes:
+
+   Write a history file giving the initial state, in any run that is NOT a
+   restart run.
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+M       drivers/cpl/glc_comp_mct.F90
+M       drivers/cpl/glc_comp_esmf.F90
+M       source_glc/history_tape_base.F90
+M       source_glc/glc_history.F90
+M       source_glc/glc_InitMod.F90
+
+Summary of testing:
+
+   Ran full yellowstone aux_glc test suite. All tests passed.
+
+Externals used for testing: cesm1_4_beta07
+
+cism tag used for baseline comparisons: cism2_1_02
+
+Any other externals that differed in baseline: none
+
+================================================================================
+Originator: sacks
 Date: Aug 4, 2015
 Model: cism
 Version: cism2_1_02

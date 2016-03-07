@@ -1,4 +1,54 @@
 ===============================================================
+Tag name:  rtm1_0_53
+Originator(s): mvertens
+Date: Sept 20, 2015
+One-line Summary: Updated trunk to be compatible with cime3.0.3 and later APIs
+
+Migrated the following branch to the trunk
+  https://svn-ccsm-models.cgd.ucar.edu/rivrtm/branch_tags/cime_refactor_tags/cime_refactor_n01_rtm1_0_52
+
+The results are bfb with cesm1_4_alpha07e baselines
+	
+D       bld/rtm.buildlib
+D       bld/rtm.buildnml
+M       bld/build-namelist
+D       bld/user_nl_rtm
+M       bld/namelist_files/namelist_defaults_rtm.xml
+A  +    cime_config
+A  +    cime_config/testdefs
+A  +    cime_config/testdefs/testmods_dirs
+A  +    cime_config/testdefs/testmods_dirs/rtm
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnFloodOnEffvelOff
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnFloodOnEffvelOff/user_nl_rtm
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnFloodOnEffvelOn
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnFloodOnEffvelOn/user_nl_rtm
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnIceOff
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnIceOff/user_nl_rtm
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOff
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOff/user_nl_rtm
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnIceOn
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnIceOn/user_nl_rtm
+A  +    cime_config/testdefs/testlist_rtm.xml
+A  +    cime_config/buildlib
+A  +    cime_config/buildnml
+A  +    cime_config/config_component.xml
+A  +    cime_config/user_nl_rtm
+D       cimetest
+D       cimetest/testmods_dirs
+D       cimetest/testmods_dirs/rtm
+D       cimetest/testmods_dirs/rtm/rtmOnFloodOnEffvelOff
+D       cimetest/testmods_dirs/rtm/rtmOnFloodOnEffvelOff/user_nl_rtm
+D       cimetest/testmods_dirs/rtm/rtmOnFloodOnEffvelOn
+D       cimetest/testmods_dirs/rtm/rtmOnFloodOnEffvelOn/user_nl_rtm
+D       cimetest/testmods_dirs/rtm/rtmOnIceOff
+D       cimetest/testmods_dirs/rtm/rtmOnIceOff/user_nl_rtm
+D       cimetest/testmods_dirs/rtm/rtmOff
+D       cimetest/testmods_dirs/rtm/rtmOff/user_nl_rtm
+D       cimetest/testmods_dirs/rtm/rtmOnIceOn
+D       cimetest/testmods_dirs/rtm/rtmOnIceOn/user_nl_rtm
+D       cimetest/testlist_rtm.xml
+	
+===============================================================
 Tag name:  rtm1_0_52
 Originator(s): erik
 Date: Aug 19, 2015
