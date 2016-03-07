@@ -105,13 +105,16 @@ for dir in ${dirs[*]}; do
    cd $dir
    if [[ "$dir" =~ gen_domain ]]; then
       export CIMEROOT=$CESM_ROOT/cime
-      cmd="$CESM_ROOT/cime/machines/configure -cimeroot $CIMEROOT -mach $machine -compiler $compiler"
+      cmd="$CESM_ROOT/cime/tools/configure -cimeroot $CIMEROOT -mach $machine -compiler $compiler"
       echo "$cmd"
       $cmd
       if [ $? != 0 ]; then
          echo "Problem with configure: $?"
          exit -1
       fi
+      cmd="ln -s $dirs/Macros.make $dirs/Macros"
+      echo "$cmd"
+      $cmd
    fi
    $gmake clean
    cmd="$gmake OPT=TRUE SMP=TRUE -j $parcmp $toolsmake"

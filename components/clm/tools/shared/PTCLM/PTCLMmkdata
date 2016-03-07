@@ -76,7 +76,7 @@ if sys.version_info < (2, 4):
     error( "The version of Python being used is too old for PTCLMmkdata" )
 
 
-svnurl="$HeadURL: https://svn-ccsm-models.cgd.ucar.edu/PTCLM/trunk_tags/PTCLM2_150826/PTCLMmkdata $"
+svnurl="$HeadURL: https://svn-ccsm-models.cgd.ucar.edu/PTCLM/trunk_tags/PTCLM2_151009/PTCLMmkdata $"
 if   ( svnurl.split('/')[4] == "trunk"       ):
    svnvers="PTCLM_trunk"
 elif ( svnurl.split('/')[4] == "trunk_tags"  ):
@@ -155,7 +155,7 @@ indatgengroup.add_option("--map_gdate", dest="map_gdate", default=sdate, \
 indatgengroup.add_option("--mksurfdata_opts", dest="mksurfdata_opts", help = \
                   "Options to send directly to mksurfdata_map",\
                    default="")
-versiongroup  = OptionGroup( parser, "Main Script Version Id: $Id: PTCLMmkdata 72597 2015-08-26 19:50:37Z erik $ Scripts URL: "+svnurl )
+versiongroup  = OptionGroup( parser, "Main Script Version Id: $Id: PTCLMmkdata 73988 2015-10-09 15:43:49Z erik $ Scripts URL: "+svnurl )
 parser.add_option_group(versiongroup)
 
 (options, args) = parser.parse_args()
@@ -279,7 +279,7 @@ def find_filename_created( wildcard, desc ):
         # If NOT debug mode, get the filename from a directory listing
         stdout   = os.popen( "ls -1t1 "+wildcard+" | head -1" );
         filename = stdout.read().rstrip( );
-        if ( not os.path.exists( filename) ): error( "filename does NOT exist" )
+        if ( not os.path.exists( filename) ): error( "filename does NOT exist:"+wildcard )
      else:
         # For debug mode, create a file with current date replacing any wildcards
         filename = wildcard.replace( "*", options.sdate )
@@ -628,7 +628,7 @@ system(clm_tools+"/"+options.clmphysvers+"/mksurfdata_map/mksurfdata.pl "+mksurf
 surffile  = find_filename_created( data_dir+"/surfdata_"+clmres+"*_simyr"+sim_year+"_*.nc",  "surface file"     )
 logfile   = find_filename_created( data_dir+"/surfdata_"+clmres+"*_simyr"+sim_year+"_*.log", "surface log file" )
 if ( sim_year_range != "constant" ):
-   landuse_timeseries_file = find_filename_created( data_dir+"/landuse.timeseries_"+clmres+"_"+landuse_timeseries_type+"_simyr"+actual_sim_year_range+"_*.nc", "landuse_timeseries_file" )
+   landuse_timeseries_file = find_filename_created( data_dir+"/landuse.timeseries_"+clmres+"_"+landuse_timeseries_type+"*_simyr"+actual_sim_year_range+"_*.nc", "landuse_timeseries_file" )
 # rename files with clm version in the filename
 mkopts = ""
 if (options.pftgrid         == True):  mkopts += "_pftgrd"

@@ -4,6 +4,20 @@ This file describes changes made to the PTCLM tool
 
 ================================================================================        
 Originator: erik
+Date: Oct/09/2015
+Tag: PTCLM2_151009
+One-line: 
+Testing:  Standard PTCLM test script on yellowstone, and test_driver.sh in clm4_5_3_r136
+Known Bugs: RF-Bra will work even without --donot_use_tower_yrs since it doesn't
+            check for valid values
+
+M       buildtools --- Add softlink to Macros.make so can build gen_domain with
+                       cime4.0.1
+M       PTCLMmkdata -- Add a wildcard for PFT number in landuse timeseries file
+                       print out wildcard when file isn't found.
+
+================================================================================        
+Originator: erik
 Date: Aug/26/2015
 Tag: PTCLM2_150826
 One-line: Allow for pft??_ in surface dataset filename
