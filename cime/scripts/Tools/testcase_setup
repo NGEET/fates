@@ -146,7 +146,8 @@ my $batchmaker = Batch::BatchFactory::getBatchMaker( caseroot => $caseroot,
 						     machroot => $machdir,
                                                      machine  => $mach,        
 						     compiler => $compiler,
-                                                     threaded => $build_threaded);
+                                                     threaded => $build_threaded,
+                                                     job => 'test');
 
 my $batchdirectives = $batchmaker->getBatchDirectives();
                                                      
@@ -175,7 +176,7 @@ print $testfh " $eol cd $caseroot  $eol";
 my $testcase_interp = <<END_INTERP;
 
     source .env_mach_specific.csh
-
+    setenv CIMEROOT `./xmlquery CIMEROOT -value`
     # valid test output states are:  
     #   PASS      Test passed
     #   FAIL      Test failed

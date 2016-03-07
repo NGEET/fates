@@ -1,4 +1,5 @@
 #!/bin/csh -f
+setenv CIMEROOT `./xmlquery CIMEROOT    -value`
 
 ./Tools/check_lockedfiles || exit -1
 
@@ -155,7 +156,7 @@ set NTASKS_CPL  = `./xmlquery NTASKS_CPL	-value`
 ./case_setup -clean -testmode
 ./case_setup
 
-./$CASE.cleanbuild
+./$CASE.clean_build
 
 ./$CASE.build
 if ($status != 0) then

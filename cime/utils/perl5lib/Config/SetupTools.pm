@@ -175,6 +175,7 @@ sub set_compiler
 	    my $xml = XML::LibXML->new( no_blanks => 1)->parse_file($file);
 	    my @nodes = $xml->findnodes(".//compiler");
 	    foreach my $node (@nodes) {
+		next if ($node->nodeType() == XML_COMMENT_NODE);
 		my $COMPILER = $node->getAttribute('COMPILER');
 		my $MACH     = $node->getAttribute('MACH');
 		my $OS       = $node->getAttribute('OS');
@@ -187,11 +188,7 @@ sub set_compiler
 		next if (defined $MPILIB   && $MPILIB   ne $mpilib  );
 		
 		# compiler settings comprises child xml nodes
-		if ($node->nodeType() == XML_COMMENT_NODE) {
-		    # do nothing
-		} else {
-		    push (@compiler_settings ,$node->childNodes());
-		}
+		push (@compiler_settings ,$node->childNodes());
 	    }
 	}	
     }
@@ -543,7 +540,8 @@ sub _resolveValues
     # the value can come from the 
     if($value =~ /(\$[\w_]+)/)
     {
-	$logger->debug( "in _resolveValues: value: $value\n");
+# too noisy
+#	$logger->debug( "in _resolveValues: value: $value\n");
 	my $unresolved = $1;
 	
 	#print "need to resolve: $unresolved\n";
@@ -562,7 +560,8 @@ sub _resolveValues
 		    my $rid = $r->getAttribute('id');
 		    my $rvalue = $r->getAttribute('value');
 		    $value =~ s/\$$needed/$rvalue/g;
-		    $logger->debug( "value after substitution: $value\n");
+# too noisy
+#		    $logger->debug( "value after substitution: $value\n");
 		}
 	    }
 	}
@@ -586,7 +585,8 @@ sub _resolveValues
     }
     else
     {
-	$logger->debug( "returning $value\n");
+# too verbose
+#	$logger->debug( "returning $value\n");
 	return $value;
     }
 }

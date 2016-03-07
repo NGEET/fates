@@ -39,6 +39,7 @@ module RunoffMod
      real(r8), pointer :: fluxout(:,:)    => null() ! RTM cell tracer outlflux (m3/s)
      real(r8), pointer :: fthresh(:)      => null() ! RTM water flood threshold
      real(r8), pointer :: flood(:)        => null() ! RTM water (flood) sent back to clm (mm/s)
+     real(r8), pointer :: runoffdto(:)    => null() ! RTM water sent directly to ocean (mm/s)
 
      !    - global 
      integer , pointer :: mask(:)         => null() ! mask of cell 0=none, 1=lnd, 2=ocn
@@ -107,6 +108,7 @@ contains
              runoff%gindex(begr:endr),            &
              runoff%fthresh(begr:endr),           &
              runoff%flood(begr:endr),             &
+             runoff%runoffdto(begr:endr),         &
              stat=ier)
     if (ier /= 0) then
        write(iulog,*)'Rtmini ERROR allocation of runoff local arrays'
@@ -126,6 +128,7 @@ contains
     runoff%gindex(:)       = ispval
     runoff%fthresh(:)      = spval
     runoff%flood(:)        = 0._r8
+    runoff%runoffdto(:)    = 0._r8
 
   end subroutine RunoffInit
 
@@ -160,6 +163,7 @@ contains
     if (associated(runoff%gindex)) deallocate(runoff%gindex)
     if (associated(runoff%fthresh)) deallocate(runoff%fthresh)
     if (associated(runoff%flood)) deallocate(runoff%flood)
+    if (associated(runoff%runoffdto)) deallocate(runoff%runoffdto)
 
   end subroutine RunoffFinalize
 

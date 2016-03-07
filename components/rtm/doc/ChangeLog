@@ -1,4 +1,21 @@
 ===============================================================
+Tag name:  rtm1_0_54
+Originator(s): andre
+Date: Oct 13, 2015
+One-line Summary: Direct to ocean runoff from Sean Swenson
+
+Testing against branch based on clm4_5_3_r135:
+
+  SMS_D_Ld3.f10_f10.ICRUCLM50BGC.yellowstone_intel.clm-default
+  ERS_D_Ld5.f10_f10.ICRUCLM50BGC.yellowstone_intel.clm-default
+
+  Not expected to be bit for bit with previous tag.
+
+  src/riverroute/RtmHistFlds.F90
+  src/riverroute/RunoffMod.F90
+  src/cpl/rof_import_export.F90
+
+===============================================================
 Tag name:  rtm1_0_53
 Originator(s): mvertens
 Date: Sept 20, 2015

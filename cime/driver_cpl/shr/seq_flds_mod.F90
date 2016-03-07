@@ -1439,6 +1439,14 @@ module seq_flds_mod
      attname  = 'Flrl_rofsub'
      call metadata_set(attname, longname, stdname, units)
 
+     call seq_flds_add(l2x_fluxes,'Flrl_rofdto')
+     call seq_flds_add(x2r_fluxes,'Flrl_rofdto')
+     longname = 'Water flux from land direct to ocean'
+     stdname  = 'water_flux_direct_to_ocean'
+     units    = 'kg m-2 s-1'
+     attname  = 'Flrl_rofdto'
+     call metadata_set(attname, longname, stdname, units)
+
      call seq_flds_add(l2x_fluxes,'Flrl_rofi')
      call seq_flds_add(x2r_fluxes,'Flrl_rofi')
      longname = 'Water flux from land (frozen)'
