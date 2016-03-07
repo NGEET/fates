@@ -1,6 +1,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! WARNING: this file was automatically generated on
-! Fri, 03 Apr 2015 18:33:13 +0000
+! Thu, 24 Sep 2015 19:35:31 +0000
 ! from ncdf_template.F90.in
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -579,6 +579,7 @@ contains
 
        !print *, 'possible forcing times', ic%times
 
+       ic%nc%just_processed = .true. ! until we find an acceptable time, set this to true which will prevent the file from being read.
        ! Find the current time in the file
        do t = ic%nt, 1, -1  ! look through the time array backwards
           if ( ic%times(t) <= model%numerics%time + eps) then
@@ -586,18 +587,19 @@ contains
 
             ! Set the desired time to be read
             ic%current_time = t
+            ic%nc%just_processed = .false.  ! set this to false so file will be read.
             !print *, 'time, forcing index, forcing time', model%numerics%time, ic%current_time, ic%times(ic%current_time)
             exit  ! once we find the time, exit the loop
           endif
-       end do
-
-       ! read all forcing fields present in this file for the time specified above
-       ic%nc%just_processed = .false.  ! set this to false so it will be re-processed every time through - this ensures info gets written to the log, and that time levels don't get skipped.
-       call glad_io_readall(data, model, filetype=1)
+          end do  ! if we get to end of loop without exiting, then this file will not be read at this time.
 
        ! move on to the next forcing file
        ic=>ic%next
     end do
+
+    ! Now that we've updated metadata for each forcing file, actually perform the read.
+    ! This call will only read forcing files where just_processed=.false.
+    call glad_io_readall(data, model, filetype=1)
 
   end subroutine glad_read_forcing
 

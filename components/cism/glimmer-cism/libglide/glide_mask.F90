@@ -65,7 +65,6 @@ contains
 
     ! local variables
     integer ew,ns
-    real(dp), parameter :: con = - rhoi / rhoo
     logical :: exec_serial_flag
 
     !Note - This array may not be needed, at least in parallel.
@@ -131,7 +130,7 @@ contains
     endwhere
 
     !Identify points where the ice is floating or where there is open ocean
-    where (topg - eus < con * thck)
+    where (topg - eus < (-rhoi/rhoo) * thck)
         mask = ior(mask, GLIDE_MASK_OCEAN)   ! GLIDE_MASK_OCEAN = 8
     elsewhere
         mask = ior(mask, GLIDE_MASK_LAND)    ! GLIDE_MASK_LAND = 4

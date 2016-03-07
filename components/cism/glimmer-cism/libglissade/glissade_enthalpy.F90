@@ -652,9 +652,7 @@ contains
     real(dp), intent(in), dimension(:) :: stagsigma ! staggered vertical coordinate
                                                     ! (defined at layer midpoints)
 
-    real(dp), parameter :: fact = - grav * rhoi * pmlt * thk0
-
-    pmptemp(:) = fact * thck * stagsigma(:)
+    pmptemp(:) = - grav * rhoi * pmlt * thk0 * thck * stagsigma(:)
 
   end subroutine glissade_calcpmpt
 
@@ -668,9 +666,7 @@ contains
     real(dp), intent(out) :: pmptemp_bed ! pressure melting point temp at bed (deg C)
     real(dp), intent(in) :: thck         ! ice thickness
 
-    real(dp), parameter :: fact = - grav * rhoi * pmlt * thk0
-
-    pmptemp_bed = fact * thck 
+    pmptemp_bed = - grav * rhoi * pmlt * thk0 * thck 
 
   end subroutine glissade_calcpmpt_bed
 

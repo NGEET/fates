@@ -104,8 +104,6 @@ contains
     allocate(model%tempwk%initadvt(model%general%upn,model%general%ewn,model%general%nsn))
 
     allocate(model%tempwk%inittemp(model%general%upn,model%general%ewn,model%general%nsn))
-      !WHL - Moved dissip to model%temper and allocated in glide_types.
-!!    allocate(model%tempwk%dissip(model%general%upn,model%general%ewn,model%general%nsn))
     allocate(model%tempwk%compheat(model%general%upn,model%general%ewn,model%general%nsn))
     model%tempwk%compheat = 0.0d0
     allocate(model%tempwk%dups(model%general%upn,3))
@@ -1113,9 +1111,7 @@ contains
     real(dp), intent(in) :: thck
     real(dp),intent(in),dimension(:) :: sigma
 
-    real(dp), parameter :: fact = - grav * rhoi * pmlt * thk0
-
-    pmptemp(:) = fact * thck * sigma(:)
+    pmptemp(:) = - grav * rhoi * pmlt * thk0 * thck * sigma(:)
 
   end subroutine calcpmpt
 
@@ -1151,9 +1147,7 @@ contains
     real(dp), intent(out) :: pmptemp
     real(dp), intent(in) :: thck
 
-    real(dp), parameter :: fact = - grav * rhoi * pmlt * thk0
-
-    pmptemp = fact * thck 
+    pmptemp = - grav * rhoi * pmlt * thk0 * thck 
 
   end subroutine calcpmptb
 
@@ -1198,7 +1192,6 @@ contains
     ! Internal variables
     !------------------------------------------------------------------------------------
 
-    real(dp), parameter :: fact = grav * rhoi * pmlt * thk0
     real(dp), parameter :: contemp = -5.0d0
     real(dp) :: default_flwa
     real(dp),dimension(4) :: arrfact
@@ -1243,7 +1236,7 @@ contains
             ! Calculate the corrected temperature
 
             do up = 1, upn
-              tempcor(up) = min(0.0d0, temp(up,ew,ns) + thck(ew,ns) * fact * sigma(up))
+              tempcor(up) = min(0.0d0, temp(up,ew,ns) + thck(ew,ns) * grav * rhoi * pmlt * thk0 * sigma(up))
               tempcor(up) = max(-50.0d0, tempcor(up))
             enddo
 

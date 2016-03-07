@@ -81,6 +81,7 @@ contains
 
   subroutine calcbwat(model, which, bmlt, bwat, bwatflx, thck, topg, btem, floater, wphi)
     ! Driver for updating basal hydrology
+    !TODO - Upgrade calcbwat for Glissade?  Currently this subroutine is a mix of old Glide and newer Glissade code.
 
     use parallel
     use glimmer_paramets, only : thk0
@@ -105,25 +106,34 @@ contains
 
     real(dp), parameter :: const_bwat = 10.d0   ! constant value for basal water depth (m)
 
-    ! Variables used by BWATER_OCEAN_PENETRATION
-    real(dp), allocatable, dimension(:,:) :: Haf  !< Floatation thickness (m)
-    real(dp), allocatable, dimension(:,:) :: Fp   !< function that controls ocean pressure transition
-    real(dp) :: ocean_p
-
     real(dp),  dimension(:,:), allocatable :: N_capped  ! version of effective pressure capped at 0x and 1x overburden
 
+    integer,  dimension(:,:), allocatable :: ice_mask  ! = 1 where ice is present (thck > thklim), else = 0
+                                                       !TODO - Compute ice_mask using glissade_get_masks
+
+    ! Variables used by BWATER_OCEAN_PENETRATION
+    real(dp) :: ocean_p   ! exponent in effective pressure parameterization, 0 <= ocean_p <= 1
+    real(dp) :: f_pattyn  ! rhoo*(eus-topg)/(rhoi*thck)
+                          ! = 1 at grounding line, < 1 for grounded ice, > 1 for floating ice
+    real(dp) :: f_pattyn_capped   ! f_pattyn capped to lie in range [0,1]
+   
     c_effective_pressure = 0.0d0       ! For now estimated with c/w
     c_flux_to_depth = 1./(1.8d-3*12.0d0)  ! 
     p_flux_to_depth = 2.0d0            ! exponent on the depth
     q_flux_to_depth = 1.0d0            ! exponent on the potential gradient
 
+    ! TODO - Should halo updates for thck and topg be done before calling calcbwat?
+    !        If not, they need to be done here so that the effective pressure will be correct in halo cells
+    call parallel_halo(thck)
+    call parallel_halo(topg)
+
     select case (which)
 
-    ! which = BWATER_NONE Nothing, basal water depth = 0.
-    ! which = BWATER_LOCAL Completely local, bwat_new = c1 * melt_rate + c2 * bwat_old
-    ! which = BWATER_FLUX Flux based calculation
-    ! which = BWATER_BASAL_PROC, till water content in the basal processes module
-    ! which = BWATER_OCEAN_PENETRATION, effective pressure from ocean penetration parameterization (Leguy et al 2014)
+    ! BWATER_NONE:              Nothing, basal water depth = 0.
+    ! BWATER_LOCAL:             Completely local, bwat_new = c1 * melt_rate + c2 * bwat_old
+    ! BWATER_FLUX:              Flux-based calculation
+    ! BWATER_BASAL_PROC:        Till water content in the basal processes module
+    ! BWATER_OCEAN_PENETRATION: Effective pressure from ocean penetration parameterization (Leguy et al 2014)
 
     case(BWATER_LOCAL)
 
@@ -132,8 +142,6 @@ contains
        !              c(3) =  1.0d0 + 0.5d0 * model%tempwk%dt_wat * model%paramets%hydtim
 
        do t_wat = 1, model%tempwk%nwat
-
-          !LOOP - For glissade, loop should be over locally owned cells (ilo:ihi,jo:jhi).
 
           do ns = 1,model%general%nsn
              do ew = 1,model%general%ewn
@@ -193,14 +201,35 @@ contains
 
     case(BWATER_OCEAN_PENETRATION)
 
-            allocate(Haf(model%general%ewn,model%general%nsn))
-            allocate(Fp(model%general%ewn,model%general%nsn))
-            ocean_p = model%paramets%p_ocean_penetration
-            Haf = max(f * (topg*thk0 - model%climate%eus*thk0), 0.0d0)
-            Fp = max( (1.0d0 - Haf / (thck*thk0)), 0.0d0 )**ocean_p
-            model%basal_physics%effecpress = rhoi * grav * thck*thk0 * Fp
-            deallocate(Haf)
-            deallocate(Fp)
+       ocean_p = model%paramets%p_ocean_penetration
+
+         !WHL - Reorganized the calculation a bit; the older version is commented out here
+!!       allocate(Haf(model%general%ewn,model%general%nsn))
+!!       allocate(Fp(model%general%ewn,model%general%nsn))
+!!       Haf = max(rhoo/rhoi*(model%climate%eus - topg)*thk0, 0.0d0)
+!!       Fp = max( (1.0d0 - Haf / (thck*thk0)), 0.0d0 )**ocean_p
+!!       model%basal_physics%effecpress = rhoi * grav * thck*thk0 * Fp
+!!       deallocate(Haf)
+!!       deallocate(Fp)
+
+       if (ocean_p > 0.d0) then
+          do ns = 1, model%general%nsn
+             do ew = 1, model%general%ewn
+                f_pattyn = rhoo*(model%climate%eus-topg(ew,ns)) / (rhoi*thck(ew,ns))   ! > 1 for floating, < 1 for grounded
+                f_pattyn_capped = max( min(f_pattyn,1.d0), 0.d0)    ! capped to lie in the range [0,1]
+                model%basal_physics%effecpress(ew,ns) = rhoi*grav*(thck(ew,ns)*thk0) * (1.d0 - f_pattyn_capped)**ocean_p
+             enddo
+          enddo
+       else    ! ocean_p = 0
+          ! Note(WHL): The following formula yields N = rhoi*grav*H for floating ice (f_pattyn_capped = 1). 
+          !            Equivalently, we are defining 0^0 = 1 for purposes of the Leguy et al. effective pressure parameterization.
+          !            This is OK for the Schoof basal friction law provided that the resulting beta is multiplied by f_ground,
+          !             where f_ground is the fraction of floating ice at a vertex, with f_ground = 0 if all four neighbor cells are floating.
+          !            If we were to set N = 0 where f_pattyn_capped = 1 (i.e., defining 0^0 = 0), then we would have a 
+          !             sudden sharp increase in N_stag (the effective pressure at the vertex) when f_pattyn_capped at a cell center 
+          !             falls from 1 to a value slightly below 1.  This sudden increase would occur despite the use of a GLP. 
+          model%basal_physics%effecpress = rhoi*grav*(thck*thk0)
+       endif
 
     case default   ! includes BWATER_NONE
 
@@ -215,27 +244,42 @@ contains
                   model%general%ewn, &
                   model%general%nsn)
 
-    ! Stagger effective pressure if a friction law will need it.  cases BWATER_OCEAN_PENETRATION, BWATER_SHEET calculate it, but it may also be passed in as data or forcing.
-    ! cap the staggered effective pressure at 0x and 1x overburden pressure to avoid strange values going to the friction laws
+    ! Cap the staggered effective pressure at 0x and 1x overburden pressure to avoid strange values going to the friction laws.
+    !TODO - Remove capping for Coulomb cases, since the effective pressure is already capped above (by capping f_pattyn)?
+
     if ( (model%options%which_ho_babc == HO_BABC_POWERLAW) .or. &
-         (model%options%which_ho_babc == HO_BABC_COULOMB_FRICTION) ) then
+         (model%options%which_ho_babc == HO_BABC_COULOMB_FRICTION) .or. &
+         (model%options%which_ho_babc == HO_BABC_COULOMB_CONST_BASAL_FLWA) ) then
 
         allocate(N_capped(model%general%ewn,model%general%nsn))
 
         where (model%basal_physics%effecpress < 0.0d0)
-              N_capped = 0.0d0
-        else where (model%basal_physics%effecpress > rhoi * grav * model%geometry%thck * thk0)
-              N_capped = rhoi * grav * model%geometry%thck * thk0
-        else where
-              N_capped = model%basal_physics%effecpress
+           N_capped = 0.0d0
+        elsewhere (model%basal_physics%effecpress > rhoi * grav * thck*thk0)
+           N_capped = rhoi * grav * thck*thk0
+        elsewhere
+           N_capped = model%basal_physics%effecpress
         end where
-        call glissade_stagger(model%general%ewn, model%general%nsn,            &
-                              N_capped, model%basal_physics%effecpress_stag,   &
-                              model%geometry%thkmask, stagger_margin_in=1)  ! only use values where there is ice
+
+        ! Stagger effective pressure if a friction law will need it.  
+        ! Cases BWATER_OCEAN_PENETRATION, BWATER_SHEET calculate it, but it may also be passed in as data or forcing.
+
+        allocate(ice_mask(model%general%ewn,model%general%nsn))
+        where(thck > model%numerics%thklim)
+           ice_mask = 1
+        elsewhere
+           ice_mask = 0
+        endwhere
+
+        ! stagger_margin_in = 1: Interpolate values from cells to vertices only where there is ice
+        call glissade_stagger(model%general%ewn,       model%general%nsn,                     &
+                              N_capped,                model%basal_physics%effecpress_stag,   &
+                              ice_mask,                stagger_margin_in = 1)  
 
         deallocate(N_capped)
-    endif
+        deallocate(ice_mask)
 
+    endif  ! which_ho_babc
 
   contains
 

@@ -1058,10 +1058,8 @@ contains
     real(dp), intent(in)                  :: eus  !> global sea level
     real(dp), intent(out), dimension(:,:) :: lsrf !> Lower ice surface elevation
 
-    real(dp), parameter :: con = - rhoi / rhoo
-
-    where (topg - eus < con * thck)
-       lsrf = con * thck
+    where (topg - eus < (-rhoi/rhoo) * thck)
+       lsrf = (-rhoi/rhoo) * thck
     elsewhere
        lsrf = topg
     end where

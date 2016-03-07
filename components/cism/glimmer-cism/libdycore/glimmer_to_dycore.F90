@@ -334,7 +334,7 @@ module glimmer_to_dycore
     var_name = 'acab_tavg'//char(0)       
     call dycore_set_ptr_double_var(model%climate%acab_tavg,var_name,dtype_name,dycore_model_index)
     var_name = 'calving'//char(0)       
-    call dycore_set_ptr_double_var(model%climate%calving,var_name,dtype_name,dycore_model_index)
+    call dycore_set_ptr_double_var(model%calving%calving_thck,var_name,dtype_name,dycore_model_index)
       
     call gtd_set_dim_info(shape(model%climate%acab),dim_info)
     ! print *,"In climate set, dim_info: ",dim_info

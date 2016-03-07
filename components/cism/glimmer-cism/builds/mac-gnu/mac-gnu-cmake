@@ -1,8 +1,6 @@
 # run this script by typing: source mac-gnu-cmake
 # After this script completes, type: make -j 8
 
-# This script is also used by mac-gnu-build-and-test.csh.
-
 # This cmake configuration script builds cism_driver on a Mac using the Gnu compiler suite.
 # If Trilinos is used, it relies on a build of Trilinos located in $CISM_TRILINOS_DIR (set below).
 # If BISICLES is used, it relies on a build of BISICLES located in $BISICLES_INTERFACE_DIR (set below).
@@ -46,7 +44,7 @@ cmake \
   -D CISM_ENABLE_BISICLES=OFF \
   -D CISM_ENABLE_FELIX=OFF \
 \
-  -D CISM_USE_TRILINOS:BOOL=OFF \
+  -D CISM_USE_TRILINOS:BOOL=${CISM_USE_TRILINOS:=OFF} \
   -D CISM_MPI_MODE:BOOL=ON \
   -D CISM_SERIAL_MODE:BOOL=OFF \
 \

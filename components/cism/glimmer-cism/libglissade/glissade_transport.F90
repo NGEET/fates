@@ -48,14 +48,12 @@
     implicit none
     save
     private
-    public :: glissade_transport_driver, glissade_check_cfl, ntracer
+
+    public :: glissade_transport_driver, glissade_check_cfl, &
+              glissade_transport_setup_tracers, glissade_transport_finish_tracers
 
     logical, parameter ::  &
          prescribed_area = .false.  ! if true, prescribe the area fluxed across each edge
-
-    integer :: &
-         ntracer = 1   ! number of tracers to transport (just temperature if ntracer = 1)
-                       ! can be set to a different value in glissade.F90
 
 !=======================================================================
 
@@ -63,15 +61,236 @@
 
 !=======================================================================
 !
-    subroutine glissade_transport_driver(dt,                   &
-                                         dx,       dy,         &
-                                         nx,       ny,         &
-                                         nlyr,     sigma,      &
-                                         ntracer,              &
-                                         uvel,     vvel,       &
-                                         thck,                 &
-                                         acab,     bmlt,       &
-                                         temp,     age,        &
+    subroutine glissade_transport_setup_tracers(model,        &
+                                                transport_tracers_in)
+      
+      ! This subroutine copies all the 3D tracer fields into a single array for transport.
+      ! It also does halo updates for tracers.
+
+      use glide_types
+
+      type(glide_global_type), intent(inout) :: model   ! derived type holding ice-sheet info
+
+      logical, intent(in), optional ::  &
+           transport_tracers_in
+
+      integer :: nlyr    ! number of layers = upn-1
+
+      integer :: k, nt
+
+      logical :: transport_tracers
+
+      integer :: i, j, nx, ny
+
+      nx = model%general%ewn
+      ny = model%general%nsn
+      nlyr = model%general%upn - 1
+
+      if (present(transport_tracers_in)) then
+         transport_tracers = transport_tracers_in
+      else
+         transport_tracers = .true.  ! transport tracers by default
+      endif
+
+      if (.not.associated(model%geometry%tracers)) then
+
+         ! first call; need to count tracers and allocate the tracer array
+
+         model%geometry%ntracers = 0
+
+         if (model%options%whichtemp == TEMP_PROGNOSTIC .or.  &
+             model%options%whichtemp == TEMP_ENTHALPY) then
+            model%geometry%ntracers = model%geometry%ntracers + 1
+         endif
+
+         if (model%options%whichcalving == CALVING_DAMAGE) then
+            model%geometry%ntracers = model%geometry%ntracers + 1
+         endif
+
+         if (model%options%which_ho_ice_age == HO_ICE_AGE_COMPUTE) then
+            model%geometry%ntracers = model%geometry%ntracers + 1
+         endif
+
+         ! add more tracers here, if desired
+
+         ! make sure there is at least one tracer
+         model%geometry%ntracers = max(model%geometry%ntracers,1)
+
+         ! allocate and initialize tracer arrays
+         allocate(model%geometry%tracers(nx,ny,model%geometry%ntracers,nlyr))
+         allocate(model%geometry%tracers_usrf(nx,ny,model%geometry%ntracers))
+         allocate(model%geometry%tracers_lsrf(nx,ny,model%geometry%ntracers))         
+
+         model%geometry%tracers(:,:,:,:) = 0.0d0
+         model%geometry%tracers_usrf(:,:,:) = 0.0d0
+         model%geometry%tracers_lsrf(:,:,:) = 0.0d0
+
+      endif   ! not(associated(model%geometry%tracers))
+
+      ! fill the tracer array
+
+      if (transport_tracers) then
+
+         nt = 0
+
+         ! start with temperature/enthalpy
+         ! Note: temp/enthalpy values at upper surface (k=0) and lower surface (k=upn) are not transported,
+         !       but these values are applied to new accumulation at either surface (in glissade_add_smb)
+
+         if (model%options%whichtemp == TEMP_PROGNOSTIC) then
+            nt = nt + 1
+            call parallel_halo(model%temper%temp)
+            do k = 1, nlyr
+               model%geometry%tracers(:,:,nt,k) = model%temper%temp(k,:,:)
+            enddo
+            model%geometry%tracers_usrf(:,:,nt) = model%temper%temp(0,:,:)
+            model%geometry%tracers_lsrf(:,:,nt) = model%temper%temp(nlyr+1,:,:)
+
+         elseif (model%options%whichtemp == TEMP_ENTHALPY) then
+            nt = nt + 1
+            call parallel_halo(model%temper%enthalpy)
+            do k = 1, nlyr
+               model%geometry%tracers(:,:,nt,k) = model%temper%enthalpy(k,:,:)
+            enddo
+            model%geometry%tracers_usrf(:,:,nt) = model%temper%enthalpy(0,:,:)
+            model%geometry%tracers_lsrf(:,:,nt) = model%temper%enthalpy(nlyr+1,:,:)
+         endif
+
+         ! damage parameter for prognostic calving scheme
+         if (model%options%whichcalving == CALVING_DAMAGE) then
+            nt = nt + 1
+            call parallel_halo(model%calving%damage)
+            do k = 1, nlyr
+               model%geometry%tracers(:,:,nt,k) = model%calving%damage(k,:,:)
+            enddo
+
+            !Note: The damage for surface accumulation is set to the damage in layer 1,
+            !       and the damage for basal freeze-on is set to the damage in layer nlyr.
+            !      In other words, if the ice is damaged, then new snow/ice will not heal it,
+            !       and if the ice is undamaged, new snow/ice will not increase the damage.
+            !      This approach was suggested by Jeremy Bassis (8/4/15). Other hypotheses may be tested later.
+
+            model%geometry%tracers_usrf(:,:,nt) = model%geometry%tracers(:,:,nt,1)
+            model%geometry%tracers_lsrf(:,:,nt) = model%geometry%tracers(:,:,nt,nlyr)
+
+         endif
+         
+         ! ice age parameter
+         if (model%options%which_ho_ice_age == HO_ICE_AGE_COMPUTE) then
+            nt = nt + 1
+            call parallel_halo(model%geometry%ice_age)
+            do k = 1, nlyr
+               model%geometry%tracers(:,:,nt,k) = model%geometry%ice_age(k,:,:)
+            enddo
+
+            ! Note: Upper surface accumulation has age = 0.
+            !       Basal freeze-on, however, is assigned the same age as the bottom layer.
+            !        This is based partly on the fact that it may originate from old melted ice.
+            !        Also, the 2nd order vertical remapping constructs a gradient based on this value.
+            !        A lower surface value of zero will likely lead to a poor approximation of the gradient.
+            
+            model%geometry%tracers_usrf(:,:,nt) = 0.0d0
+            model%geometry%tracers_lsrf(:,:,nt) = model%geometry%tracers(:,:,nt,nlyr)
+            
+         endif
+
+         ! add more tracers here, if desired
+
+      endif  ! transport_tracers
+
+    end subroutine glissade_transport_setup_tracers
+
+!=======================================================================
+
+    subroutine glissade_transport_finish_tracers(model)
+
+      ! This subroutine copies the 3D tracer fields from a single tracer transport array
+      !  back to individual tracer arrays.
+      ! It also does halo updates for tracers.
+
+      use glide_types
+
+      type(glide_global_type), intent(inout) :: model   ! derived type holding ice-sheet info
+
+      integer :: k, nt
+      integer :: nlyr ! number of vertical layers = upn-1
+
+      !WHL - debug
+      integer :: i, j, nx, ny
+      nx = model%general%ewn
+      ny = model%general%nsn
+
+      nlyr = model%general%upn - 1
+
+      nt = 0
+
+      ! start with temperature or enthapy, depending on model%options%whichtemp
+
+      if (model%options%whichtemp == TEMP_PROGNOSTIC) then
+         nt = nt+1
+         do k = 1, nlyr
+            model%temper%temp(k,:,:) = model%geometry%tracers(:,:,nt,k)
+         enddo
+         call parallel_halo(model%temper%temp)
+      elseif (model%options%whichtemp == TEMP_ENTHALPY) then
+         nt = nt+1
+         do k = 1, nlyr
+            model%temper%enthalpy(k,:,:) = model%geometry%tracers(:,:,nt,k)
+         enddo
+         call parallel_halo(model%temper%enthalpy)
+      endif
+
+      ! damage parameter for prognostic calving scheme
+      if (model%options%whichcalving == CALVING_DAMAGE) then
+         nt = nt + 1
+         do k = 1, nlyr
+            model%calving%damage(k,:,:) = model%geometry%tracers(:,:,nt,k) 
+         enddo
+         call parallel_halo(model%calving%damage)
+
+         !WHL - debug
+!         print*, 'Remap finish: new damage tracer'
+!         do k = 1, nlyr, nlyr-1
+!            print*, 'k =', k
+!!            do j = ny, 1, -1
+!            do j = ny-4, ny-12, -1
+!               write(6,'(i6)',advance='no') j
+!               do i = 4, nx/4
+!                  write(6,'(f10.6)',advance='no') model%geometry%tracers(i,j,nt,k)
+!               enddo
+!               write(6,*) ' '
+!            enddo
+!         enddo
+
+      endif
+
+      ! ice age parameter
+      if (model%options%which_ho_ice_age == HO_ICE_AGE_COMPUTE) then
+         nt = nt + 1
+         do k = 1, nlyr
+            model%geometry%ice_age(k,:,:) = model%geometry%tracers(:,:,nt,k)
+         enddo
+         call parallel_halo(model%geometry%ice_age)
+      endif
+      
+      ! add more tracers here, if desired
+
+      !TODO - Do tracer halo updates here instead of at the end of glissade_transport_driver?
+
+    end subroutine glissade_transport_finish_tracers
+
+!=======================================================================
+
+    subroutine glissade_transport_driver(dt,                         &
+                                         dx,           dy,           &
+                                         nx,           ny,           &
+                                         nlyr,         sigma,        &
+                                         uvel,         vvel,         &
+                                         thck,                       &
+                                         acab,         bmlt,         &
+                                         ntracers,     tracers,      &
+                                         tracers_usrf, tracers_lsrf, &
+                                         vert_remap_accuracy,        &
                                          upwind_transport_in)
 
 
@@ -91,45 +310,47 @@
       !
       ! input/output arguments
 
-      real(dp), intent(in) ::     &
+      real(dp), intent(in) ::  &
          dt,                   &! time step (s)
          dx, dy                 ! gridcell dimensions (m)
                                 ! (cells assumed to be rectangular)
 
       integer, intent(in) ::   &
          nx, ny,               &! horizontal array size
-         nlyr,                 &! number of vertical layers
-         ntracer                ! number of tracers
+         nlyr                   ! number of vertical layers
 
-      real(dp), intent(in), dimension(nlyr+1) :: &
+      real(dp), dimension(nlyr+1), intent(in) ::  &
          sigma                  ! layer interfaces in sigma coordinates
                                 ! top sfc = 0, bottom sfc = 1
 
-      real(dp), intent(in), dimension(nlyr+1,nx-1,ny-1) :: &
+      real(dp), dimension(nlyr+1,nx-1,ny-1), intent(in) ::  &
          uvel, vvel             ! horizontal velocity components (m/s)
                                 ! (defined at horiz cell corners, vertical interfaces)
 
-      real(dp), intent(inout), dimension(nx,ny) :: &
+      real(dp), dimension(nx,ny), intent(inout) ::  &
          thck                   ! ice thickness (m), defined at horiz cell centers
 
-      real(dp), intent(in), dimension(nx,ny) :: &
+      real(dp), dimension(nx,ny), intent(in) ::  &
          acab,    &             ! surface mass balance (m/s)
                                 ! (defined at horiz cell centers)
          bmlt                   ! basal melt rate (m/s)
                                 ! positive for melting, negative for freeze-on
                                 ! (defined at horiz cell centers)
 
-      !NOTE: For the enthalpy scheme, the variable called temp is really the enthalpy.
-      ! Note vertical dimension; includes surface and bed.
-      ! (Surface and bed values are not transported.)
-      real(dp), intent(inout), dimension(0:nlyr+1,nx,ny), optional :: &
-         temp                   ! ice temperature (or enthalpy)
-                                ! (defined at horiz cell centers, vertical layer midpts)
-                                
+      integer, intent(in) ::  &
+         ntracers               ! number of tracers to be transported
+      
+      !TODO - Make the tracer arrays optional arguments?
+      real(dp), dimension(nx,ny,ntracers,nlyr), intent(inout) ::  &
+         tracers                ! set of 3D tracer arrays, packed into a 4D array
 
-      !TODO - Compute the ice age tracer; currently ice age = 0
-      real(dp), intent(inout), dimension(nlyr,nx,ny), optional :: &
-         age                    ! ice age
+      real(dp), dimension(nx,ny,ntracers), intent(in) :: &
+         tracers_usrf,         &! tracer values associated with accumulation at upper surface
+         tracers_lsrf           ! tracer values associated with freeze-on at lower surface
+
+      integer, intent(in) ::  &
+         vert_remap_accuracy    ! order of accuracy for vertical remapping
+                                ! HO_VERTICAL_REMAP_FIRST_ORDER or HO_VERTICAL_REMAP_SECOMD_ORDER
 
       logical, intent(in), optional ::  &
          upwind_transport_in    ! if true, do first-order upwind transport
@@ -150,13 +371,6 @@
 
       real(dp), dimension (nx,ny,nlyr) ::     &
          thck_layer        ! ice layer thickness (m)
-
-      real(dp), dimension (nx,ny,ntracer,nlyr) ::     &
-         tracer            ! tracer values
-
-      real(dp), dimension (nx,ny) ::     &
-         tsfc,            &! surface temperature, temp(0,:,:)
-         tbed              ! basal temperature, temp(nlyr+1,:,:)
 
       integer ::     &
          icells            ! number of cells with ice
@@ -187,7 +401,7 @@
          msum_init,      &! initial global ice mass
          msum_final       ! final global ice mass
 
-      real(dp), dimension(ntracer) ::     &
+      real(dp), dimension(ntracers) ::     &
          mtsum_init,     &! initial global ice mass*tracer
          mtsum_final      ! final global ice mass*tracer
 
@@ -208,6 +422,10 @@
 
       logical ::     &
          upwind_transport    ! if true, do first-order upwind transport
+
+      !WHL - debug
+!!      print*, ' '
+!!      print*, 'In transport_driver: ntracers, nlyr =', ntracers, nlyr
 
       !-------------------------------------------------------------------
       ! Initialize
@@ -236,44 +454,12 @@
       !-------------------------------------------------------------------
 
       !-------------------------------------------------------------------
-      ! Fill thickness and tracer arrays.
-      ! Assume that temperature (if present) is tracer 1, and age (if present)
-      !  is tracer 2.  Add more tracers as needed.
-      ! If no tracers are present, then only the ice thickness is transported.
-      !  In this case we define a dummy tracer array, since glissade_horizontal_remap
-      !  requires that a tracer array be passed in.
+      ! Fill layer thickness array.
       !-------------------------------------------------------------------
 
       do k = 1, nlyr
-
          thck_layer(:,:,k) = thck(:,:) * (sigma(k+1) - sigma(k))
-
-         if (present(temp)) then
-            tracer(:,:,1,k) = temp(k,:,:)
-         else
-            tracer(:,:,1,k) = 0.d0    ! dummy array
-         endif
-
-         if (present(age) .and. ntracer >= 2) then
-            tracer(:,:,2,k) = age(k,:,:)
-         endif
-
-         ! Other tracer fields could be added here
-
       enddo
-
-    !-------------------------------------------------------------------
-    ! Set surface and basal temperatures.
-    ! Note: If the enthalpy is passed in, then tsfc and tbed are enthalpy values.
-    !-------------------------------------------------------------------
-
-      if (present(temp)) then
-         tsfc(:,:) = temp(0,:,:)
-         tbed(:,:) = temp(nlyr+1,:,:)
-      else
-         tsfc(:,:) = 0.d0
-         tbed(:,:) = 0.d0
-      endif
 
     !-------------------------------------------------------------------
     ! Compute initial values of globally conserved quantities (optional)
@@ -282,15 +468,15 @@
       if (conservation_check) then
 
          call sum_mass_and_tracers(nx,                ny,              &
-                                   nlyr,              ntracer,         &
+                                   nlyr,              ntracers,        &
                                    nhalo,                              &
                                    thck_layer(:,:,:), msum_init,       &
-                                   tracer(:,:,:,:),   mtsum_init(:))
+                                   tracers(:,:,:,:),  mtsum_init(:))
       endif
 
       if (upwind_transport) then
 
-         allocate (worku(nx,ny,0:ntracer))
+         allocate (worku(nx,ny,0:ntracers))
 
          do k = 1, nlyr
 
@@ -315,36 +501,36 @@
             ! Fill work array for transport
 
             worku(:,:,0) = thck_layer(:,:,k)
-            do nt = 1, ntracer
-               worku(:,:,nt) = thck_layer(:,:,k) * tracer(:,:,nt,k)
+            do nt = 1, ntracers
+               worku(:,:,nt) = thck_layer(:,:,k) * tracers(:,:,nt,k)
             enddo
 
             !-----------------------------------------------------------------
             ! Upwind transport
             !-----------------------------------------------------------------
  
-            do nt = 0, ntracer
+            do nt = 0, ntracers
                call upwind_field (nx,             ny,                  &
                                   ilo, ihi,       jlo, jhi,            &
                                   dx,             dy,                  &
                                   dt,             worku(:,:,nt),       &
                                   uee(:,:),       vnn    (:,:))
-            enddo   ! ntracer
+            enddo   ! ntracers
 
             ! Recompute thickness and tracers
 
             thck_layer(:,:,k) = worku(:,:,0)
-            do nt = 1, ntracer
+            do nt = 1, ntracers
                do j = jlo, jhi
                do i = ilo, ihi
                   if (thck_layer(i,j,k) > puny) then
-                     tracer(i,j,nt,k) = worku(i,j,nt) / thck_layer(i,j,k)
+                     tracers(i,j,nt,k) = worku(i,j,nt) / thck_layer(i,j,k)
                   else
-                     tracer(i,j,nt,k) = 0.d0
+                     tracers(i,j,nt,k) = 0.d0
                   endif
                enddo   ! i
                enddo   ! j
-            enddo      ! ntracer
+            enddo      ! ntracers
 
          enddo         ! nlyr
 
@@ -363,6 +549,17 @@
                                nhalo,        icells,             &
                                indxi(:),     indxj(:),           &
                                thck(:,:),    thck_mask(:,:))
+
+      !WHL - debug
+!      k = 2
+!      write(6,*) 'Before remapping, tracer, k =', k
+!      do j = ny, 1, -1
+!         write(6,'(i6)',advance='no') j
+!         do i = 5, nx-5
+!            write(6,'(f8.3)',advance='no') tracers(i,j,1,k)
+!         enddo
+!         write(6,*) ' '
+!      enddo
 
       !-------------------------------------------------------------------
       ! Remap ice thickness and tracers; loop over layers
@@ -399,6 +596,19 @@
 
             endif
 
+            !WHL - debug
+!!            if (k==1) then
+!               print*, ' '
+!               print*, 'Calling glissade_horizontal_remap, layer =', k
+!               do j = ny-4, ny-12, -1
+!                  write(6,'(i6)',advance='no') j
+!                  do i = 4, nx/4
+!                     write(6,'(f10.6)',advance='no') tracers(i,j,1,k)  ! assume damage is tracer 1
+!                  enddo
+!                  write(6,*) ' '
+!               enddo
+!!            endif
+
          !-------------------------------------------------------------------
          ! Main remapping routine: Step ice thickness and tracers forward in time.
          !-------------------------------------------------------------------
@@ -406,12 +616,25 @@
             call glissade_horizontal_remap (dt,                                  &
                                             dx,                dy,               &
                                             nx,                ny,               &
-                                            ntracer,           nhalo,            &
+                                            ntracers,          nhalo,            &
                                             thck_mask(:,:),    icells,           &
                                             indxi(:),          indxj(:),         &
                                             uvel_layer(:,:),   vvel_layer(:,:),  &
-                                            thck_layer(:,:,k), tracer(:,:,:,k),  &
+                                            thck_layer(:,:,k), tracers(:,:,:,k), &
                                             edgearea_e(:,:),   edgearea_n(:,:))
+
+            !WHL - debug
+!!            if (k==1) then
+!               print*, ' '
+!               print*, 'Called glissade_horizontal_remap, layer =', k
+!               do j = ny-4, ny-12, -1
+!                  write(6,'(i6)',advance='no') j
+!                  do i = 4, nx/4
+!                     write(6,'(f10.6)',advance='no') tracers(i,j,1,k)  ! assume damage is tracer 1
+!                  enddo
+!                  write(6,*) ' '
+!               enddo
+!!            endif
 
          enddo    ! nlyr
 
@@ -430,17 +653,17 @@
          ! Assume gridcells of equal area, ice of uniform density.
 
          call sum_mass_and_tracers(nx,                ny,              &
-                                   nlyr,              ntracer,         &
+                                   nlyr,              ntracers,        &
                                    nhalo,                              &
                                    thck_layer(:,:,:), msum_final,      &
-                                   tracer(:,:,:,:),   mtsum_final(:))
+                                   tracers(:,:,:,:),  mtsum_final(:))
 
          ! Check conservation
 
          if (main_task) then
             call global_conservation (msum_init,     msum_final,      &
                                       errflag,       melt_potential,  &
-                                      ntracer,                        &
+                                      ntracers,                       &
                                       mtsum_init,    mtsum_final)
             if (errflag) then
                write(message,*) 'WARNING: Conservation error in glissade_horizontal_remap'
@@ -454,6 +677,10 @@
 
       endif      ! conservation_check
 
+      !TODO - Move glissade_add_smb to a different module?
+      !       This might make it easier to handle new tracer sources (damage, ice age).
+      !       May need to pass tracer sources to glissade_add_smb
+      !       (though this may be easy if new ice has zero damage, zero age).
       !-------------------------------------------------------------------
       ! Add the mass balance at the surface and bed.
       ! The reason to do this now rather than at the beginning of the
@@ -469,16 +696,30 @@
       ! TODO: Pass the melt potential back to the climate model as a heat flux?
       !-------------------------------------------------------------------
 
-      call glissade_add_smb(nx,       ny,         &
-                            nlyr,     ntracer,    &
-                            nhalo,    dt,         &
-                            thck_layer(:,:,:),    &
-                            tracer(:,:,:,:),      &
-                            acab(:,:),            &
-                            tsfc(:,:),            &
-                            bmlt(:,:),            &
-                            tbed(:,:),            &
+      call glissade_add_smb(nx,       ny,          &
+                            nlyr,     ntracers,    &
+                            nhalo,    dt,          &
+                            thck_layer(:,:,:),     &
+                            tracers(:,:,:,:),      &
+                            tracers_usrf(:,:,:),   &
+                            tracers_lsrf(:,:,:),   &
+                            acab(:,:),             &
+                            bmlt(:,:),             &
                             melt_potential )
+
+!      print*, ' '
+!      print*, 'Called glissade_add_smb'
+!      do k = 1, nlyr
+!         print*, ' '
+!         print*, 'k =', k
+!         do j = ny-4, ny-12, -1
+!            write(6,'(i6)',advance='no') j
+!            do i = 4, nx/4
+!               write(6,'(f10.6)',advance='no') tracers(i,j,1,k)  ! assume damage is tracer 1
+!            enddo
+!            write(6,*) ' '
+!         enddo
+!      enddo
 
       !-------------------------------------------------------------------
       ! Next conservation check: Check that mass is conserved, allowing
@@ -503,10 +744,10 @@
          ! Compute new global mass and mass*tracer
 
          call sum_mass_and_tracers(nx,                ny,              &
-                                   nlyr,              ntracer,         &
+                                   nlyr,              ntracers,        &
                                    nhalo,                              &
                                    thck_layer(:,:,:), msum_final,      &
-                                   tracer(:,:,:,:),   mtsum_final(:))
+                                   tracers(:,:,:,:),  mtsum_final(:))
 
          ! Check mass conservation
 
@@ -528,11 +769,15 @@
       ! Interpolate tracers back to sigma coordinates 
       !-------------------------------------------------------------------
 
-      call glissade_vertical_remap(nx,                ny,      &
-                                   nlyr,              ntracer, &
-                                   sigma(:),                   &
-                                   thck_layer(:,:,:),          &
-                                   tracer(:,:,:,:) )
+      call glissade_vertical_remap(nx,                ny,       &
+                                   nlyr,              nhalo,    &
+                                   sigma(:),                    &
+                                   thck_layer(:,:,:),           &
+                                   ntracers, &
+                                   tracers(:,:,:,:),            &
+                                   tracers_usrf(:,:,:),         &
+                                   tracers_lsrf(:,:,:),         &
+                                   vert_remap_accuracy)
 
       !-------------------------------------------------------------------
       ! Final conservation check: Check that mass and mass*tracers are exactly 
@@ -548,17 +793,17 @@
          mtsum_init(:) = mtsum_final(:)   ! mtsum_final computed above after glissade_add_smb
  
          call sum_mass_and_tracers(nx,                ny,              &
-                                   nlyr,              ntracer,         &
+                                   nlyr,              ntracers,        &
                                    nhalo,                              &
                                    thck_layer(:,:,:), msum_final,      &
-                                   tracer(:,:,:,:),   mtsum_final(:))
+                                   tracers(:,:,:,:),  mtsum_final(:))
 
          ! Check conservation
 
          if (main_task) then
             call global_conservation (msum_init,     msum_final,  &
                                       errflag,       0.d0,        &  ! ignore melt potential for this check
-                                      ntracer,                    &
+                                      ntracers,                   &
                                       mtsum_init,    mtsum_final)
             if (errflag) then
                write(message,*) 'WARNING: Conservation error in glissade_vertical_remap'
@@ -571,38 +816,16 @@
       endif      ! conservation_check
 
       !-------------------------------------------------------------------
-      ! Halo updates for thickness and tracer arrays
-      !
-      ! Note: Cannot pass the full 3D array to parallel_halo, because that
-      !       subroutine assumes that k is the first rather than third index. 
-      !-------------------------------------------------------------------
-
-      do k = 1, nlyr
-
-         call parallel_halo(thck_layer(:,:,k))
-
-         do nt = 1, ntracer
-            call parallel_halo(tracer(:,:,nt,k))
-         enddo
-
-      enddo
-
-      !-------------------------------------------------------------------
-      ! Recompute thickness, temperature and other tracers.
+      ! Recompute thickness and do a halo update
+      ! Note: Halo updates for tracers are done in glissade_transport_tracer_finish.
       !-------------------------------------------------------------------
 
       thck(:,:) = 0.d0
-
       do k = 1, nlyr
-
          thck(:,:) = thck(:,:) + thck_layer(:,:,k)
-
-         if (present(temp)) temp(k,:,:) = tracer(:,:,1,k)
-         if (present(age) .and. ntracer >= 2) age(k,:,:) = tracer(:,:,2,k)
-
-         ! Could add more tracer fields here
-
       enddo
+
+      call parallel_halo(thck)
 
     end subroutine glissade_transport_driver
 
@@ -722,6 +945,8 @@
       ! Estimate diffusivity using the relation that the 2-d flux Q=-D grad h and Q=UH, 
       ! where h is surface elevation, D is diffusivity, U is 2-d velocity vector, and H is thickness
       ! Solving for D = UH/-grad h
+      !TODO - Modify this loop to consider only grounded ice.  The diffusive CFL computed for floating ice
+      !       usually is unnecessarily small for HO problems.
 
       allowable_dt_diff = 1.0d20  ! start with a huge value
       indices_diff(:) = 1 ! Initialize these to something, on the off-chance they never get set... (e.g., no ice on this processor)
@@ -774,7 +999,7 @@
           call broadcast(indices_adv(3), proc=procnum)
           ! indices_adv now has i,j on the global grid for the limiting proc's location
 
-          write(dt_string,'(f12.5)') allowable_dt_adv
+          write(dt_string,'(f12.6)') allowable_dt_adv
           write(xpos_string,'(i12)') indices_adv(2)
           write(ypos_string,'(i12)') indices_adv(3)
           write(message,*) 'Advective CFL violation!  Maximum allowable time step for advective CFL condition is ' &
@@ -795,7 +1020,7 @@
           call broadcast(indices_diff(2), proc=procnum)
           ! indices_diff now has i,j on the global grid for the limiting proc's location
 
-          write(dt_string,'(f12.5)') allowable_dt_diff
+          write(dt_string,'(f12.6)') allowable_dt_diff
           write(xpos_string,'(i12)') indices_diff(1)
           write(ypos_string,'(i12)') indices_diff(2)
           write(message,*) 'Diffusive CFL violation!  Maximum allowable time step for diffusive CFL condition is ' &
@@ -967,12 +1192,12 @@
 
 !----------------------------------------------------------------------
 
-    subroutine glissade_add_smb(nx,         ny,         &
-                                nlyr,       ntracer,    &
-                                nhalo,      dt,         &
-                                thck_layer, tracer,     &
-                                acab,       tsfc,       &
-                                bmlt,       tbed,       &
+    subroutine glissade_add_smb(nx,          ny,          &
+                                nlyr,        ntracer,     &
+                                nhalo,       dt,          &
+                                thck_layer,  tracer,      &
+                                tracer_usrf, tracer_lsrf, &
+                                acab,        bmlt,        &
                                 melt_potential)
 
       ! Adjust the layer thickness based on the surface and basal mass balance
@@ -992,7 +1217,11 @@
          thck_layer             ! ice layer thickness
 
       real(dp), dimension (nx,ny,ntracer,nlyr), intent(inout) ::     &
-         tracer                 ! tracer values
+         tracer                 ! 3D tracer values
+
+      real(dp), dimension (nx,ny,ntracer), intent(in) ::     &
+         tracer_usrf,          &! tracer values associated with accumulation at upper surface
+         tracer_lsrf            ! tracer values associated with freeze-on at lower surface
 
       real(dp), intent(in), dimension(nx,ny) :: &
          acab                   ! surface mass balance (m/s)
@@ -1005,14 +1234,6 @@
          melt_potential   ! total thickness (m) of additional ice that could be melted
                           ! by available acab/bmlt in columns that are completely melted
 
-      ! Note: If enthalpy is passed in, then tsfc and tbed are enthalpies.
-
-      real(dp), intent(in), dimension(nx,ny) :: &
-         tsfc                   ! surface temperature (deg C)
-
-      real(dp), intent(in), dimension(nx,ny) :: &
-         tbed                   ! basal temperature (deg C)
-
       ! Local variables
 
       real(dp), dimension(nx,ny,ntracer,nlyr) ::  &
@@ -1021,7 +1242,7 @@
       real(dp) :: sfc_accum, sfc_ablat  ! surface accumulation/ablation, from acab
       real(dp) :: bed_accum, bed_ablat  ! bed accumulation/ablation, from bmlt
 
-      integer :: i, j, k
+      integer :: i, j, k, nt
 
       character(len=100) :: message
 
@@ -1036,6 +1257,7 @@
             bed_accum = 0.d0
             bed_ablat = 0.d0
             
+            !TODO - Modify comments
             ! Add surface accumulation/ablation to ice thickness
             ! Also modify tracers conservatively.
             ! Assume tracer(:,:,1,:) is temperature and is always present
@@ -1045,20 +1267,14 @@
 
                sfc_accum = acab(i,j)*dt
 
-               ! temperature of top layer
-               if (ntracer >= 1) then
-                  thck_tracer(i,j,1,1) = thck_layer(i,j,1) * tracer(i,j,1,1)  &
-                                       + sfc_accum * tsfc(i,j)
-               endif
+               ! adjust mass-tracer product for the top layer
 
-               ! ice age (= 0 for new accumulation)
-               if (ntracer >= 2) then  
-                  thck_tracer(i,j,2,1) = thck_layer(i,j,1) * tracer(i,j,2,1) 
-                                     ! + sfc_accum * 0.d0
+               do nt = 1, ntracer  !TODO - Put this loop on the outside for speedup?
 
-                  !TODO - Add other tracers here, as needed
+                  thck_tracer(i,j,nt,1) = thck_layer(i,j,1) * tracer(i,j,nt,1)  &
+                                        + sfc_accum * tracer_usrf(i,j,nt)
 
-               endif
+               enddo  ! ntracer
 
                ! new top layer thickess
                thck_layer(i,j,1) = thck_layer(i,j,1) + sfc_accum
@@ -1066,7 +1282,7 @@
                ! new tracer values in top layer
                tracer(i,j,:,1) = thck_tracer(i,j,:,1) / thck_layer(i,j,1)
 
-            elseif (acab(i,j) < 0.d0) then   ! ablation in one or mor layers            
+            elseif (acab(i,j) < 0.d0) then   ! ablation in one or more layers            
 
                ! reduce ice thickness (tracer values will not change)
 
@@ -1101,19 +1317,14 @@
 
                bed_accum = -bmlt(i,j)*dt
 
-               ! temperature of bottom layer
-               if (ntracer >= 1) then
-                  thck_tracer(i,j,1,nlyr) = thck_layer(i,j,nlyr) * tracer(i,j,1,nlyr)  &
-                                          + bed_accum * tbed(i,j)
-               endif
+               ! adjust mass-tracer product for the bottom layer
 
-               ! ice age (= 0 for new accumulation)
-               if (ntracer >= 2) then  
-                  thck_tracer(i,j,2,nlyr) = thck_layer(i,j,nlyr) * tracer(i,j,2,nlyr) 
-                                        ! + bed_accum * 0.d0
+               do nt = 1, ntracer  !TODO - Put this loop on the outside for speedup?
 
-                  !TODO - Add other tracers here, as needed
-               endif
+                  thck_tracer(i,j,nt,nlyr) = thck_layer(i,j,nlyr) * tracer(i,j,nt,nlyr)  &
+                                           + bed_accum * tracer_lsrf(i,j,nlyr)
+
+               enddo  ! ntracer
 
                ! new bottom layer thickess
                thck_layer(i,j,nlyr) = thck_layer(i,j,nlyr) + bed_accum
@@ -1148,26 +1359,28 @@
          enddo   ! i
       enddo      ! j
 
-      call global_sum(melt_potential)
+      call global_sum(melt_potential)  !TODO - May want to remove this global sum for large runs, if melt_potential is not used
 
     end subroutine glissade_add_smb
 
 !----------------------------------------------------------------------
 
-    subroutine glissade_vertical_remap(nx,       ny,        &
-                                       nlyr,     ntracer,   &
-                                       sigma,    hlyr,      &
-                                       trcr)
+    subroutine glissade_vertical_remap(nx,        ny,        &
+                                       nlyr,      nhalo,     &
+                                       sigma,     hlyr,      &
+                                       ntracer,   trcr,      &
+                                       trcr_usrf, trcr_lsrf, &
+                                       vert_remap_accuracy)
  
     ! Conservative remapping of tracer fields from one set of vertical 
-    ! coordinates to another.  The remapping is first-order accurate.
+    ! coordinates to another.  The remapping can be chosen to be first-order 
+    ! or second-order accurate.
     !
-    ! Note: The cost of this subroutine scales as nlyr; 
-    !       a previous version scaled as nlyr^2.
-    !
-    ! TODO - Add a 2nd-order accurate vertical remapping scheme?
+    ! Note: The cost of this subroutine scales as nlyr; a previous version scaled as nlyr^2.
     !
     ! Author: William Lipscomb, LANL
+
+    use glide_types, only: HO_VERTICAL_REMAP_SECOND_ORDER
 
     implicit none
  
@@ -1176,6 +1389,7 @@
     integer, intent(in) ::  &
          nx, ny,     &! number of cells in EW and NS directions
          nlyr,       &! number of vertical layers
+         nhalo,      &! number of halo rows
          ntracer      ! number of tracer fields
 
     real(dp), dimension (nx, ny, nlyr), intent(inout) ::  &
@@ -1187,109 +1401,258 @@
     real(dp), dimension (nx, ny, ntracer, nlyr), intent(inout) ::   &
          trcr         ! tracer field to be remapped
                       ! tracer(k) = value at midpoint of layer k
- 
+
+    real(dp), dimension (nx, ny, ntracer), intent(in), optional ::   &
+         trcr_usrf,  &! tracer field at upper surface
+         trcr_lsrf    ! tracer field at lower surface
+
+    integer, intent(in) ::  &
+         vert_remap_accuracy    ! order of accuracy for vertical remapping
+                                ! HO_VERTICAL_REMAP_FIRST_ORDER or HO_VERTICAL_REMAP_SECOMD_ORDER
+
     ! local variables
  
-    integer :: i, j, k, k1, k2, nt
+    integer :: i, j, k, k1, k2
  
-    real(dp), dimension (nlyr+1) ::  &
+    real(dp), dimension(nlyr+1) ::  &
          z1,        &! layer interfaces in old coordinate system
-                     ! z1(1) = 0. = value at top surface
+                     ! z1(1) = 0. = value at upper surface
                      ! z1(k) = value at top of layer k
-                     ! z1(nlyr+1) = value at bottom surface (= 1 in sigma coordinates)
+                     ! z1(nlyr+1) = value at lower surface (= 1 in sigma coordinates)
          z2          ! layer interfaces in new coordinate system
+
+    real(dp), dimension(0:nlyr+1) ::  &
+         zmid        ! layer midpoints in old coordinate system
+                     ! zmid(0) = value at upper surface
+                     ! zmid(nlyr+1) = value at lower surface
 
     real(dp) ::        &
          thck,      &! total thickness
          rthck       ! reciprocal of total thickness
  
     real(dp), dimension(ntracer,nlyr) ::       &
-         htsum        ! sum of thickness*tracer in a layer         
+         gradt,     &! gradient of a tracer within a layer
+         htsum       ! sum of thickness*tracer in a layer         
 
-    real(dp) :: zlo, zhi, hovlp
+    real(dp), dimension(ntracer) ::  &
+         tm1, tp1,       &! tracer values in layer k-1 and k+1
+         tmax, tmin,     &! max/min tracer value in a layer and its neighbors
+         tzmax, tzmin,   &! max/min value of reconstructed tracer in a layer (relative to midpt value)
+         wk1, wk2         ! work arrays
 
-    do j = 1, ny
-       do i = 1, nx
+    real(dp) :: zlo, zhi, dz, zav, hovlp
+
+    character(len=100) :: message
+
+    !WHL - debug
+    integer :: nt
+!    integer, parameter :: itest = 14, jtest = 33
+!    print*, 'Vertical remap: itest, jtest =', itest, jtest
+!    print*, 'max, min(age):', maxval(trcr(:,:,nt,:)), minval(trcr(:,:,nt,:))
+!    print*, 'vert_remap_accuracy =', vert_remap_accuracy
+!    print*, 'HO_VERTICAL_REMAP_SECOND_ORDER =', HO_VERTICAL_REMAP_SECOND_ORDER
+
+    do j = 1+nhalo, ny-nhalo
+       do i = 1+nhalo, nx-nhalo
 
           !-----------------------------------------------------------------
-          ! Compute total thickness and reciprocal thickness
+          ! Compute total thickness
           !-----------------------------------------------------------------
-
+          
           thck = 0.d0
           do k = 1, nlyr
              thck = thck + hlyr(i,j,k)
           enddo
+          
+          !-----------------------------------------------------------------
+          ! If thck > 0, do vertical remapping of tracers
+          !-----------------------------------------------------------------
 
           if (thck > 0.d0) then
+
+             !-----------------------------------------------------------------
+             ! Determine vertical coordinate z1, given input layer thicknesses.
+             ! These are the coordinates from which we start.
+             !-----------------------------------------------------------------
+
              rthck = 1.d0/thck
-          else
-             rthck = 0.d0
-          endif
 
-          !-----------------------------------------------------------------
-          ! Determine vertical coordinate z1, given input layer thicknesses.
-          ! These are the coordinates from which we start.
-          !-----------------------------------------------------------------
-
-          z1(1) = 0.d0
-          do k = 2, nlyr
-             z1(k) = z1(k-1) +  hlyr(i,j,k-1)*rthck 
-          enddo
-          z1(nlyr+1) = 1.d0
+             z1(1) = 0.d0
+             do k = 2, nlyr
+                z1(k) = z1(k-1) +  hlyr(i,j,k-1)*rthck 
+             enddo
+             z1(nlyr+1) = 1.d0
                        
-          !-----------------------------------------------------------------
-          ! Set vertical coordinate z2, given sigma.
-          ! These are the coordinates to which we remap in the vertical.
-          !-----------------------------------------------------------------
+             !-----------------------------------------------------------------
+             ! Compute layer midpoints for z1. Tracers are located at midpoints.
+             !-----------------------------------------------------------------
 
-          z2(1) = 0.d0
-          do k = 2, nlyr
-             z2(k) = sigma(k)
-          enddo
-          z2(nlyr+1) = 1.d0
-
-          !-----------------------------------------------------------------
-          ! Compute new layer thicknesses (z2 coordinates)
-          !-----------------------------------------------------------------
-
-          do k = 1, nlyr
-             hlyr(i,j,k) = (z2(k+1) - z2(k)) * thck
-          enddo
-
-          !-----------------------------------------------------------------
-          ! Compute sum of h*T for each new layer (k2) by integrating
-          ! over the regions of overlap with old layers (k1).
-          !-----------------------------------------------------------------
+             zmid(0) = 0.0d0
+             do k = 1, nlyr
+                zmid(k) = 0.5d0 * (z1(k) + z1(k+1))
+             enddo
+             zmid(nlyr+1) = z1(nlyr+1)
+                
+             !-----------------------------------------------------------------
+             ! Compute vertical coordinate z2, given sigma.
+             ! These are the coordinates to which we remap in the vertical.
+             !-----------------------------------------------------------------
              
-          htsum(:,:) = 0.d0
-          k1 = 1
-          k2 = 1
-          do while (k1 <= nlyr .and. k2 <= nlyr)
-             zhi = min (z1(k1+1), z2(k2+1)) 
-             zlo = max (z1(k1),   z2(k2))
-             hovlp = max (zhi-zlo, 0.d0) * thck
-             htsum(:,k2) = htsum(:,k2) +  trcr(i,j,:,k1) * hovlp
-             if (z1(k1+1) > z2(k2+1)) then
-                k2 = k2 + 1
-             else
-                k1 = k1 + 1
-             endif
-          enddo
+             z2(1) = 0.d0
+             do k = 2, nlyr
+                z2(k) = sigma(k)
+             enddo
+             z2(nlyr+1) = 1.d0
 
-          do k = 1, nlyr
-             if (hlyr(i,j,k) > 0.d0) then
-                trcr(i,j,:,k) = htsum(:,k) / hlyr(i,j,k)
-             else
-                trcr(i,j,:,k) = 0.d0
+             !-----------------------------------------------------------------
+             ! Compute new layer thicknesses (z2 coordinates)
+             !-----------------------------------------------------------------
+             
+             do k = 1, nlyr
+                hlyr(i,j,k) = (z2(k+1) - z2(k)) * thck
+             enddo
+             
+             !-----------------------------------------------------------------
+             ! For second-order remapping: Compute tracer gradients in each layer.
+             !                             Limit the gradients to preserve monotonicity.
+             ! For first-order remapping:  Set the gradients to zero.
+             !-----------------------------------------------------------------
+
+             if (vert_remap_accuracy == HO_VERTICAL_REMAP_SECOND_ORDER) then
+             
+                do k = 1, nlyr
+                   
+                   ! Load values in layers above and below
+                   
+                   if (k > 1) then
+                      tm1(:) = trcr(i,j,:,k-1)
+                   else
+                      if (present(trcr_usrf)) then
+                         tm1(:) = trcr_usrf(i,j,:)
+                      else
+                         tm1(:) = trcr(i,j,:,1)
+                      endif
+                   endif
+                   
+                   if (k < nlyr) then
+                      tp1(:) = trcr(i,j,:,k+1)
+                   else
+                      if (present(trcr_lsrf)) then
+                         tp1(:) = trcr_lsrf(i,j,:)
+                      else
+                         tp1(:) = trcr(i,j,:,nlyr)
+                      endif
+                   endif
+                   
+                   ! Compute unlimited gradient
+                   
+                   dz = zmid(k+1) - zmid(k-1)
+                   if (dz > 0.0d0) then
+                      gradt(:,k) = (tp1(:) - tm1(:)) / dz
+                   else
+                      gradt(:,k) = 0.0d0
+                   endif
+
+                   ! Find the max and min deviations of tracer values in layer k-1, k, k+1
+                   ! from the value in layer k
+                   tmax(:) = max(tm1(:),trcr(i,j,:,k),tp1(:)) - trcr(i,j,:,k)
+                   tmin(:) = min(tm1(:),trcr(i,j,:,k),tp1(:)) - trcr(i,j,:,k)
+                
+                   ! Find the max and min tracer deviations in this layer, given the unlimited gradient
+                   wk1(:) = gradt(:,k) * (z1(k+1) - zmid(k))
+                   wk2(:) = gradt(:,k) * (z1(k) - zmid(k))
+                   tzmax(:) = max(wk1(:), wk2(:))
+                   tzmin(:) = min(wk1(:), wk2(:))
+
+                   ! Limit the gradient
+                   
+                   where (abs(tzmin) > 0.0d0)
+                      wk1 = max(0.0d0, tmin/tzmin)
+                   elsewhere
+                      wk1 = 1.0d0
+                   endwhere
+                   
+                   where (abs(tzmax) > 0.0d0)
+                      wk2 = max(0.0d0, tmax/tzmax)
+                   elsewhere
+                      wk2 = 1.0d0
+                   endwhere
+                   
+                   gradt(:,k) = gradt(:,k) * min(1.0d0, wk1(:), wk2(:))
+                
+                enddo   ! k
+                
+             else   ! first-order vertical remapping
+                
+                gradt(:,:) = 0.0d0
+                
              endif
-          enddo    ! k
+
+             !-----------------------------------------------------------------
+             ! Compute sum of h*T for each new layer (k2) by integrating
+             ! over the regions of overlap with old layers (k1).
+             !
+             ! The basic formula is as follows:
+             !
+             ! int_zlo^zhi [T(z) dz] = int_zlo^zhi [Tmid + gradT*(z - zmid)] dz
+             !                       = dz * [Tmid + gradT*(zav - zmid)]
+             ! where dz = zhi - zlo, zav = (zhi+zlo)/2, Tmid = midpoint tracer value
+             !
+             ! For first-order remapping, gradT = 0.
+             !-----------------------------------------------------------------
           
+             htsum(:,:) = 0.d0
+             k1 = 1
+             k2 = 1
+             do while (k1 <= nlyr .and. k2 <= nlyr)
+                zhi = min (z1(k1+1), z2(k2+1))
+                zlo = max (z1(k1),   z2(k2))
+                zav = 0.5d0 * (zlo + zhi)
+                hovlp = max (zhi-zlo, 0.d0) * thck
+                htsum(:,k2) = htsum(:,k2)   &
+                            + hovlp * (trcr(i,j,:,k1) + gradt(:,k1) * (zav - zmid(k1)))
+                if (z1(k1+1) > z2(k2+1)) then
+                   k2 = k2 + 1
+                else
+                   k1 = k1 + 1
+                endif
+             enddo
+          
+             ! compute new tracer values
+             ! Note: Since thck > 0, must have hlyr > 0 for all k
+             
+             do k = 1, nlyr
+                trcr(i,j,:,k) = htsum(:,k) / hlyr(i,j,k)
+             enddo
+
+          else   ! thck = 0.0
+
+             trcr(i,j,:,:) = 0.d0
+
+          endif  ! thck > 0
+             
        enddo       ! i
     enddo          ! j
+
+    !WHL - debug - check for NaNs
+    !TODO - Remove this check when satisfied the 2nd order remapping is working
+    do k = 1, nlyr
+       do nt = 1, ntracer
+          do j = 1, ny
+             do i = 1, nx
+                if (trcr(i,j,nt,k) /= trcr(i,j,nt,k)) then
+                   write(message,*) 'ERROR: Vertical remap, i, j, k, hlyr, temp:', i, j, k, hlyr(i,j,k), trcr(i,j,nt,k)
+                   call write_log(trim(message), GM_FATAL) 
+                endif
+             enddo
+          enddo
+       enddo
+    enddo
 
     end subroutine glissade_vertical_remap
 
 !=======================================================================
+
 
     subroutine upwind_field (nx,       ny,         &
                              ilo, ihi, jlo, jhi,   &

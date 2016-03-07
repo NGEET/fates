@@ -104,8 +104,12 @@ module parallel
 
   integer,save :: ewlb,ewub,nslb,nsub
   integer,save :: east,north,south,west
+  integer,save :: ewtasks,nstasks
 
-  !WHL - added global boundary conditions
+  !Note: Currently, periodic_bc is always T, since periodic BCs are always applied.
+  !      Outflow BCs require some additional operations on scalars after periodic BCs are applied.
+  !      No-penetration BCs are enforced by setting velocity masks, without altering halo updates.
+
   ! global boundary conditions
   logical,save :: periodic_bc  ! doubly periodic                       
   logical,save :: outflow_bc   ! if true, set scalars in global halo to zero
@@ -1423,18 +1427,19 @@ contains
      distributed_isparallel = .true.
   end function distributed_isparallel
 
-  !WHL - added global boundary conditions
-  subroutine distributed_grid(ewn, nsn, nhalo_in, periodic_bc_in, outflow_bc_in)
+
+  subroutine distributed_grid(ewn,      nsn,        &
+                              nhalo_in, outflow_bc_in)
+                              
 
     implicit none
     integer, intent(inout) :: ewn, nsn        ! global grid dimensions
     integer, intent(in), optional :: nhalo_in ! number of rows of halo cells
-    logical, intent(in), optional :: periodic_bc_in ! true for periodic global BCs
     logical, intent(in), optional :: outflow_bc_in  ! true for outflow global BCs
                                                     ! (scalars in global halo set to zero)
 
     integer :: best,i,j,metric
-    integer :: ewrank,ewtasks,nsrank,nstasks
+    integer :: ewrank,nsrank
     real(8) :: rewtasks,rnstasks
 
     ! begin
@@ -1551,19 +1556,17 @@ contains
         call parallel_stop(__FILE__, __LINE__)
     endif
 
-    !WHL - added global boundary conditions
-
-    periodic_bc = .true.  ! this is the default
-    outflow_bc = .false.
+    ! set periodic BC as the default
+    ! Note: Currently, it is not strictly necessary to set periodic_bc = T, because 
+    !       all halo updates carried out for periodic BC are also carried out for other BCs.
+    !       (Outflow BCs simply add some additional operations on scalars.)
+    !       But setting it here as the default in case that changes.
+    periodic_bc = .true.  
 
     if (present(outflow_bc_in)) then
        outflow_bc = outflow_bc_in
-       if (outflow_bc) periodic_bc = .false.
-    endif
-
-    if (present(periodic_bc_in)) then
-       periodic_bc = periodic_bc_in 
-       if (periodic_bc) outflow_bc = .false.
+    else
+       outflow_bc = .false.
     endif
 
     ! Print grid geometry
@@ -3307,7 +3310,7 @@ contains
           a(:,:lhalo) = 0
        endif
 
-    endif   ! open BC
+    endif   ! outflow_bc
 
   end subroutine parallel_halo_integer_2d
 
@@ -3383,7 +3386,7 @@ contains
           a(:,:lhalo) = .false.
        endif
 
-    endif   ! open BC
+    endif   ! outflow BC
 
   end subroutine parallel_halo_logical_2d
 
@@ -3459,7 +3462,7 @@ contains
           a(:,:lhalo) = 0.
        endif
 
-    endif   ! open BC
+    endif   ! outflow BC
 
   end subroutine parallel_halo_real4_2d
 
@@ -3554,7 +3557,7 @@ contains
     endif
 
     if (outflow_bc) then   ! set values in global halo to zero
-                        ! interior halo cells should not be affected
+                           ! interior halo cells should not be affected
 
        if (this_rank >= east) then  ! at east edge of global domain
           a(local_ewn-uhalo+1:,:) = 0.d0
@@ -3572,7 +3575,7 @@ contains
           a(:,:lhalo) = 0.d0
        endif
 
-    endif   ! open BC
+    endif   ! outflow BC
 
   end subroutine parallel_halo_real8_2d
 
@@ -3650,7 +3653,7 @@ contains
           a(:,:,:lhalo) = 0.d0
        endif
 
-    endif   ! outflow BC
+    endif   ! outflow_bc
 
   end subroutine parallel_halo_real8_3d
 
@@ -4528,6 +4531,40 @@ contains
 
   end subroutine parallel_velo_halo
 
+  subroutine staggered_no_penetration_mask(umask, vmask)
+
+    implicit none
+    integer,dimension(:,:) :: umask, vmask  ! mask set to 1 wherever the outflow velocity should be zero
+
+    ! initialize the no-penetration masks to 0
+    umask(:,:) = 0
+    vmask(:,:) = 0
+
+    if (this_rank >= east) then  ! at east edge of global domain
+       ! set u velocity mask = 1 at the east global boundary and vertices eastward
+       umask(local_ewn-uhalo:,:) = 1
+    endif
+
+    if (this_rank <= west) then  ! at west edge of global domain
+       ! set u velocity mask = 1 at the west global boundary and vertices westward
+       umask(:lhalo,:) = 1
+    endif
+    
+    if (this_rank >= north) then  ! at north edge of global domain
+       ! set v velocity mask = 1 at the north global boundary and vertices northward
+       vmask(:,local_nsn-uhalo:) = 1
+    endif
+
+    if (this_rank <= south) then  ! at south edge of global domain
+       ! set v velocity mask = 1 at the south global boundary and vertices southward
+       vmask(:,:lhalo) = 1
+    endif
+
+    call staggered_parallel_halo(umask)
+    call staggered_parallel_halo(vmask)
+
+  end subroutine staggered_no_penetration_mask
+
 
   subroutine staggered_parallel_halo_extrapolate_integer_2d(a)
 
@@ -5163,7 +5200,7 @@ contains
 
   end subroutine staggered_parallel_halo_real8_3d
 
-!WHL - New subroutine for 4D arrays.
+
   subroutine staggered_parallel_halo_real8_4d(a)
 
     use mpi_mod

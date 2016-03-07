@@ -135,8 +135,8 @@ contains
     use glimmer_global, only : msg_length
     use parallel
     implicit none
-    integer,intent(in),optional          :: type    !< Type of error to be generated (see list above).
     character(len=*),intent(in)          :: message !< message to be written
+    integer,intent(in),optional          :: type    !< Type of error to be generated (see list above).
     character(len=*),intent(in),optional :: file    !< the name of the file which triggered the message
     integer,intent(in),optional          :: line    !< the line number at the which the message was triggered
 
@@ -167,16 +167,19 @@ contains
     if (main_task) write(glimmer_unit,*) trim(msg)
 
     ! and maybe to std out
+    ! Note: Messages are written only from the main task, unless the error is fatal.
+    !       For fatal errors, a message is also written from the task where the error occurred.
     if (local_type /= 0) then
-       if ((main_task).and.(gm_show(local_type))) write(*,*) trim(msg)
+       if ( (main_task .and. gm_show(local_type)) .or. local_type == GM_FATAL) write(*,*) trim(msg)
     end if
 
     ! stop logging if we encountered a fatal error
     if (local_type == GM_FATAL) then
-       if (main_task) write(*,*) "Fatal error encountered, exiting..."
+       write(*,*) "Exiting with fatal error: this_rank =", this_rank
        call close_log
        call parallel_stop(__FILE__, __LINE__)
     end if
+
   end subroutine write_log
 
   !> start a new section
@@ -199,7 +202,7 @@ contains
     if (main_task) write(unit=glimmer_unit,fmt="(a,a4,'-',a2,'-',a2,' ',a2,':',a2,':',a6)") ' Finished logging at ',&
          date(1:4),date(5:6),date(7:8),time(1:2),time(3:4),time(5:10)
     call write_log_div
-    
+
     if (main_task) close(glimmer_unit)
   end subroutine close_log
 

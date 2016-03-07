@@ -17,9 +17,9 @@ my $LND_GRID            = `./xmlquery LND_GRID          -value`;
 my $NINST_GLC           = `./xmlquery NINST_GLC         -value`;
 my $RUNDIR              = `./xmlquery RUNDIR            -value`;
 
-my @dirs = ("${CIMEROOT}/utils/perl5lib/Config");
+my @dirs = ("${CIMEROOT}/utils/perl5lib");
 unshift @INC, @dirs;
-require SetupTools;
+require Config::SetupTools;
 my $sysmod; 
 
 if (! -d "$CASEROOT/Buildconf/cismconf" ) {

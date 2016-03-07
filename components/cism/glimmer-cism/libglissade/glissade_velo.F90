@@ -76,6 +76,7 @@ contains
          !-------------------------------------------------------------------
          ! Compute mask for staggered grid. This is needed as an input to calcbeta
          ! (which used to be called here but now is called from glissade_velo_higher_solve).
+         ! TODO - Remove the use of stagmask in the Glissade solver?
          !-------------------------------------------------------------------
 
          call glide_set_mask(model%numerics,                                     &
@@ -89,14 +90,6 @@ contains
             !        before calling glissade_velo_higher_solve.
             !       These updates are done in subroutine glissade_diagnostic_variable_solve
             !        in module glissade.F90.
-
-            ! Note: Instead of assuming that kinbcmask is periodic, we extrapolate
-            !       the kinbcmask into the global halo region
-            !       (and also into the north and east rows of the global domain,
-            !       which are not included on the global staggered grid).
-            !TODO - Move this call to glissade_velo_higher_solve?
-
-            call staggered_parallel_halo_extrapolate (model%velocity%kinbcmask)  ! = 1 for Dirichlet BCs
 
             call t_startf('glissade_velo_higher_solver')
             call glissade_velo_higher_solve(model,                                             &

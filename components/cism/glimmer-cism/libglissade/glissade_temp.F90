@@ -1540,9 +1540,7 @@ contains
     real(dp), intent(in), dimension(:) :: stagsigma ! staggered vertical coordinate
                                                     ! (defined at layer midpoints)
 
-    real(dp), parameter :: fact = - grav * rhoi * pmlt * thk0
-
-    pmptemp(:) = fact * thck * stagsigma(:)
+    pmptemp(:) = - grav * rhoi * pmlt * thk0 * thck * stagsigma(:)
 
   end subroutine glissade_calcpmpt
 
@@ -1580,9 +1578,7 @@ contains
     real(dp), intent(out) :: pmptemp_bed ! pressure melting point temp at bed (deg C)
     real(dp), intent(in) :: thck         ! ice thickness
 
-    real(dp), parameter :: fact = - grav * rhoi * pmlt * thk0
-
-    pmptemp_bed = fact * thck 
+    pmptemp_bed = - grav * rhoi * pmlt * thk0 * thck 
 
   end subroutine glissade_calcpmpt_bed
 
@@ -1649,8 +1645,6 @@ contains
     integer :: ew, ns, up, ewn, nsn, uflwa
     real(dp) :: tempcor
 
-    real(dp), parameter :: fact = grav * rhoi * pmlt * thk0
-
     real(dp),dimension(4), parameter ::  &
        arrfact = (/ arrmlh / vis0,      &   ! Value of A when T* is above -263K
                     arrmll / vis0,      &   ! Value of A when T* is below -263K
@@ -1692,7 +1686,7 @@ contains
 
                   ! Calculate the corrected temperature
 
-                  tempcor = min(0.0d0, temp(up,ew,ns) + thck(ew,ns)*fact*stagsigma(up))
+                  tempcor = min(0.0d0, temp(up,ew,ns) + thck(ew,ns)*grav*rhoi*pmlt*thk0*stagsigma(up))
                   tempcor = max(-50.0d0, tempcor)
 
                   ! Calculate Glen's A (including flow enhancement factor)
