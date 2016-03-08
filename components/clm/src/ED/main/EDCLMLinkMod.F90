@@ -2474,14 +2474,19 @@ contains
      ! (i.e. ED reconciles it instantly, while BGC reconciles it incrementally over the subsequent day)
      ! calculate the total ED -> BGC flux and keep track of the last day's info for balance checking purposes
      if ( is_beg_curr_day() ) then
-        do fc = 1,num_soilc
-           c = filter_soilc(fc)
-           ed_to_bgc_last_edts(c) = ed_to_bgc_this_edts(c)
+        !
+        do g = bounds%begg,bounds%endg
+           if (firstsoilpatch(g) >= 0 .and. ed_allsites_inst(g)%istheresoil) then 
+              cc = ed_allsites_inst(g)%clmcolumn
+              ed_to_bgc_last_edts(cc) = ed_to_bgc_this_edts(cc)
+           endif
         end do
         !
-        do fc = 1,num_soilc
-           c = filter_soilc(fc)
-           ed_to_bgc_this_edts(c) = 0._r8
+        do g = bounds%begg,bounds%endg
+           if (firstsoilpatch(g) >= 0 .and. ed_allsites_inst(g)%istheresoil) then 
+              cc = ed_allsites_inst(g)%clmcolumn
+              ed_to_bgc_this_edts(cc) = 0._r8
+           endif
         end do
         !
         do g = bounds%begg,bounds%endg
@@ -2490,9 +2495,9 @@ contains
               currentPatch => ed_allsites_inst(g)%oldest_patch
               do while(associated(currentPatch))
                  !
-                 ed_to_bgc_this_edts(cc) = ed_to_bgc_this_edts(cc) + (sum(currentpatch%CWD_AG_out(:)) + sum(currentpatch%CWD_BG_out(:)) + &
-                      + sum(currentpatch%seed_decay(:)) + sum(currentpatch%leaf_litter_out(:)) + sum(currentpatch%root_litter_out(:))) &
-                      * currentpatch%area/AREA * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY)
+                 ed_to_bgc_this_edts(cc) = ed_to_bgc_this_edts(cc) + (sum(currentPatch%CWD_AG_out) + sum(currentPatch%CWD_BG_out) + &
+                      + sum(currentPatch%seed_decay) + sum(currentPatch%leaf_litter_out) + sum(currentPatch%root_litter_out)) &
+                      * ( currentPatch%area/AREA ) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
                  !
                  currentPatch => currentPatch%younger
               end do !currentPatch
