@@ -18,7 +18,7 @@ module EDCLMLinkMod
   use EDParamsMod      , only : ED_val_ag_biomass
   use SoilBiogeochemCarbonFluxType    , only : soilbiogeochem_carbonflux_type
   use SoilBiogeochemCarbonStatetype   , only : soilbiogeochem_carbonstate_type
-  use clm_time_manager , only : get_step_size
+  use clm_time_manager       , only : is_beg_curr_day, get_step_size, get_nstep
   use shr_const_mod, only: SHR_CONST_CDAY
 
   !
@@ -130,6 +130,8 @@ module EDCLMLinkMod
      ! summary carbon fluxes at the column level
      real(r8), pointer,  public :: nep_col(:)                       ! [gC/m2/s] Net ecosystem production, i.e. fast-timescale carbon balance that does not include disturbance
      real(r8), pointer,  public :: nep_timeintegrated_col(:)                       ! [gC/m2/s] Net ecosystem production, i.e. fast-timescale carbon balance that does not include disturbance
+     real(r8), pointer,  public :: npp_timeintegrated_col(:)                       ! [gC/m2/s] Net primary production, time integrated at column level for carbon balance checking
+     real(r8), pointer,  public :: hr_timeintegrated_col(:)                        ! [gC/m2/s] heterotrophic respiration, time integrated for carbon balance checking
      real(r8), pointer,  public :: nbp_col(:)                       ! [gC/m2/s] Net biosphere production, i.e. slow-timescale carbon balance that integrates to total carbon change
      real(r8), pointer,  public :: npp_hifreq_col(:)                ! [gC/m2/s] Net primary production at the fast timescale, aggregated to the column level
      real(r8), pointer,  public :: fire_c_to_atm_col(:)             ! [gC/m2/s] total fire carbon loss to atmosphere
@@ -139,6 +141,10 @@ module EDCLMLinkMod
      ! summary carbon states at the column level
      real(r8), pointer,  public :: totecosysc_col(:)                ! [gC/m2] Total ecosystem carbon at the column level, including vegetation, CWD, litter, and soil pools
      real(r8), pointer,  public :: totecosysc_old_col(:)            ! [gC/m2] Total ecosystem C at the column level from last call to balance check
+     real(r8), pointer,  public :: totedc_col(:)                    ! [gC/m2] Total ED carbon at the column level, including vegetation, CWD, seeds, and ED litter
+     real(r8), pointer,  public :: totedc_old_col(:)                ! [gC/m2] Total ED C at the column level from last call to balance check
+     real(r8), pointer,  public :: totbgcc_col(:)                   ! [gC/m2] Total BGC carbon at the column level, including litter, and soil pools
+     real(r8), pointer,  public :: totbgcc_old_col(:)               ! [gC/m2] Total BGC C at the column level from last call to balance check
      real(r8), pointer,  public :: biomass_stock_col(:)             ! [gC/m2] total biomass at the column level in gC / m2
      real(r8), pointer,  public :: ed_litter_stock_col(:)           ! [gC/m2] ED litter at the column level in gC / m2
      real(r8), pointer,  public :: cwd_stock_col(:)                 ! [gC/m2] ED CWD at the column level in gC / m2
@@ -267,12 +273,19 @@ contains
 
     allocate(this%nep_col                    (begc:endc))            ; this%nep_col                   (:) = nan
     allocate(this%nep_timeintegrated_col     (begc:endc))            ; this%nep_timeintegrated_col    (:) = nan
+    allocate(this%npp_timeintegrated_col     (begc:endc))            ; this%npp_timeintegrated_col    (:) = nan
+    allocate(this%hr_timeintegrated_col     (begc:endc))            ; this%hr_timeintegrated_col    (:) = nan
+
     allocate(this%nbp_col                    (begc:endc))            ; this%nbp_col                   (:) = nan
     allocate(this%npp_hifreq_col             (begc:endc))            ; this%npp_hifreq_col            (:) = nan
     allocate(this%fire_c_to_atm_col          (begc:endc))            ; this%fire_c_to_atm_col         (:) = nan
 
     allocate(this%totecosysc_col             (begc:endc))            ; this%totecosysc_col            (:) = nan
     allocate(this%totecosysc_old_col         (begc:endc))            ; this%totecosysc_old_col        (:) = nan
+    allocate(this%totedc_col             (begc:endc))            ; this%totedc_col            (:) = nan
+    allocate(this%totedc_old_col         (begc:endc))            ; this%totedc_old_col        (:) = nan
+    allocate(this%totbgcc_col             (begc:endc))            ; this%totbgcc_col            (:) = nan
+    allocate(this%totbgcc_old_col         (begc:endc))            ; this%totbgcc_old_col        (:) = nan
     allocate(this%biomass_stock_col          (begc:endc))            ; this%biomass_stock_col         (:) = nan
     allocate(this%ed_litter_stock_col        (begc:endc))            ; this%ed_litter_stock_col       (:) = nan
     allocate(this%cwd_stock_col              (begc:endc))            ; this%cwd_stock_col             (:) = nan
@@ -728,8 +741,28 @@ contains
          dim1name='column', long_name='', units='', &
          interpinic_flag='interp', readvar=readvar, data=ptr1d) 
 
+    ptr1d => this%npp_timeintegrated_col(:)
+    call restartvar(ncid=ncid, flag=flag, varname='npp_timeintegrated_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+
+    ptr1d => this%hr_timeintegrated_col(:)
+    call restartvar(ncid=ncid, flag=flag, varname='hr_timeintegrated_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+
     ptr1d => this%totecosysc_old_col(:)
     call restartvar(ncid=ncid, flag=flag, varname='totecosysc_old_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+    
+    ptr1d => this%totedc_old_col(:)
+    call restartvar(ncid=ncid, flag=flag, varname='totedc_old_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+    
+    ptr1d => this%totbgcc_old_col(:)
+    call restartvar(ncid=ncid, flag=flag, varname='totbgcc_old_col', xtype=ncd_double,  &
          dim1name='column', long_name='', units='', &
          interpinic_flag='interp', readvar=readvar, data=ptr1d) 
     
@@ -2269,6 +2302,12 @@ contains
                     ED_c_to_litr_lab_c(cc,j) = ED_c_to_litr_lab_c(cc,j) + currentpatch%root_litter_out(ft) * pftcon%fr_flab(ft) * currentpatch%area/AREA * froot_prof(cc,ft,j)
                     ED_c_to_litr_cel_c(cc,j) = ED_c_to_litr_cel_c(cc,j) + currentpatch%root_litter_out(ft) * pftcon%fr_fcel(ft) * currentpatch%area/AREA * froot_prof(cc,ft,j)
                     ED_c_to_litr_lig_c(cc,j) = ED_c_to_litr_lig_c(cc,j) + currentpatch%root_litter_out(ft) * pftcon%fr_flig(ft) * currentpatch%area/AREA * froot_prof(cc,ft,j)
+                    !
+                    !! and seed_decay too.  for now, use the same lability fractions as for leaf litter
+                    ED_c_to_litr_lab_c(cc,j) = ED_c_to_litr_lab_c(cc,j) + currentpatch%seed_decay(ft) * pftcon%lf_flab(ft) * currentpatch%area/AREA * leaf_prof(cc,j)
+                    ED_c_to_litr_cel_c(cc,j) = ED_c_to_litr_cel_c(cc,j) + currentpatch%seed_decay(ft) * pftcon%lf_fcel(ft) * currentpatch%area/AREA * leaf_prof(cc,j)
+                    ED_c_to_litr_lig_c(cc,j) = ED_c_to_litr_lig_c(cc,j) + currentpatch%seed_decay(ft) * pftcon%lf_flig(ft) * currentpatch%area/AREA * leaf_prof(cc,j)
+                    !
                  enddo
               end do
               
@@ -2343,6 +2382,8 @@ contains
         fire_c_to_atm => this%fire_c_to_atm_col,      &
         nbp           => this%nbp_col,      &
         totecosysc    => this%totecosysc_col,      &
+        totedc    => this%totedc_col,      &
+        totbgcc    => this%totbgcc_col,      &
         biomass_stock => this%biomass_stock_col,      &    ! total biomass in gC / m2
         ed_litter_stock    => this%ed_litter_stock_col,      & ! ED litter in gC / m2
         cwd_stock     => this%cwd_stock_col,      &        ! total CWD in gC / m2
@@ -2422,9 +2463,11 @@ contains
      ! calculate total stocks
      do fc = 1,num_soilc
         c = filter_soilc(fc)
+        
+        totedc(c) = ed_litter_stock(c) + cwd_stock(c) + seed_stock(c) + biomass_stock(c) ! ED stocks
+        totbgcc(c) = totsomc(c) + totlitc(c)  ! BGC stocks
+        totecosysc(c) = totedc(c) + totbgcc(c)
 
-        totecosysc(c) = totsomc(c) + totlitc(c) + &  ! BGC stocks
-             ed_litter_stock(c) + cwd_stock(c) + seed_stock(c) + biomass_stock(c) ! ED stocks
      end do
 
      ! in ED timesteps, because of offset between when ED and BGC reconcile the gain and loss of litterfall carbon,
@@ -2447,8 +2490,8 @@ contains
               currentPatch => ed_allsites_inst(g)%oldest_patch
               do while(associated(currentPatch))
                  !
-                 ed_to_bgc_this_edts(c) = ed_to_bgc_this_edts(c) + (currentpatch%CWD_AG_out(c) + currentpatch%CWD_BG_out(c) + &
-                      sum(currentpatch%leaf_litter_out(:)) + sum(currentpatch%root_litter_out(:))) &
+                 ed_to_bgc_this_edts(cc) = ed_to_bgc_this_edts(cc) + (sum(currentpatch%CWD_AG_out(:)) + sum(currentpatch%CWD_BG_out(:)) + &
+                      + sum(currentpatch%seed_decay(:)) + sum(currentpatch%leaf_litter_out(:)) + sum(currentpatch%root_litter_out(:))) &
                       * currentpatch%area/AREA * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY)
                  !
                  currentPatch => currentPatch%younger
@@ -2462,7 +2505,7 @@ contains
  end subroutine Summary
 
 
- subroutine ED_BGC_Carbon_Balancecheck(this, bounds, num_soilc, filter_soilc)  
+ subroutine ED_BGC_Carbon_Balancecheck(this, bounds, num_soilc, filter_soilc, soilbiogeochem_carbonflux_inst)  
 
    ! Integrate in time the fluxes into and out of the ecosystem, and compare these on a daily timestep
    ! to the chagne in carbon stocks of the ecosystem
@@ -2470,8 +2513,6 @@ contains
    ! Written by Charlie Koven, Feb 2016
    !
    ! !USES: 
-   use clm_time_manager       , only : is_beg_curr_day, get_step_size, get_nstep
-   use shr_const_mod, only: SHR_CONST_CDAY
    !
    implicit none   
    !
@@ -2480,22 +2521,35 @@ contains
    type(bounds_type)                       , intent(in)    :: bounds  
    integer                                 , intent(in)    :: num_soilc         ! number of soil columns in filter
    integer                                 , intent(in)    :: filter_soilc(:)   ! filter for soil columns
+   type(soilbiogeochem_carbonflux_type)    , intent(inout) :: soilbiogeochem_carbonflux_inst
    !
    ! !LOCAL VARIABLES:
    real(r8) :: dtime                                     ! land model time step (sec)
    integer  :: nstep                                     ! model timestep
    real(r8) :: nbp_integrated(bounds%begc:bounds%endc)   ! total net biome production integrated
-   real(r8) :: error(bounds%begc:bounds%endc)
+   real(r8) :: error_total(bounds%begc:bounds%endc)
+   real(r8) :: error_ed(bounds%begc:bounds%endc)
+   real(r8) :: error_bgc(bounds%begc:bounds%endc)
    real(r8) :: error_tolerance = 1.e-6_r8
-   real(r8) :: max_error
+   real(r8) :: max_error_ed
+   real(r8) :: max_error_bgc
+   real(r8) :: max_error_total
    integer  :: fc,c
 
    associate(& 
         nep                 => this%nep_col,                 &
         nep_timeintegrated  => this%nep_timeintegrated_col,  &
+        hr                  => soilbiogeochem_carbonflux_inst%hr_col,      &
+        hr_timeintegrated   => this%hr_timeintegrated_col,  &
+        npp_hifreq          => this%npp_hifreq_col,      &
+        npp_timeintegrated  => this%npp_timeintegrated_col,  &
         fire_c_to_atm       => this%fire_c_to_atm_col,       &
         totecosysc_old      => this%totecosysc_old_col,      &
         totecosysc          => this%totecosysc_col,          &
+        totedc_old          => this%totedc_old_col,      &
+        totedc              => this%totedc_col,          &
+        totbgcc_old         => this%totbgcc_old_col,      &
+        totbgcc             => this%totbgcc_col,          &
         ed_to_bgc_this_edts => this%ed_to_bgc_this_edts_col, &
         ed_to_bgc_last_edts => this%ed_to_bgc_last_edts_col  &
         )
@@ -2508,7 +2562,11 @@ contains
         do fc = 1,num_soilc
            c = filter_soilc(fc)
            totecosysc_old(c) = totecosysc(c)
+           totedc_old(c) = totedc(c)
+           totbgcc_old(c) = totbgcc(c)
            nep_timeintegrated(c) = 0._r8
+           hr_timeintegrated(c) = 0._r8
+           npp_timeintegrated(c) = 0._r8
            !
            ! also initialize the ed-BGC flux variables
            ed_to_bgc_this_edts(c) = 0._r8
@@ -2521,45 +2579,51 @@ contains
         do fc = 1,num_soilc
            c = filter_soilc(fc)
            nep_timeintegrated(c) = nep_timeintegrated(c) + nep(c) * dtime
+           hr_timeintegrated(c) = hr_timeintegrated(c) + hr(c) * dtime
+           npp_timeintegrated(c) = npp_timeintegrated(c) + npp_hifreq(c) * dtime
         end do
      else
         ! on ED (daily) timesteps, first integrate the NEP fluxes and add in the daily disturbance flux
         do fc = 1,num_soilc
            c = filter_soilc(fc)
            nep_timeintegrated(c) = nep_timeintegrated(c) + nep(c) * dtime
-           nbp_integrated(c) = nep_timeintegrated(c) + fire_c_to_atm(c) * SHR_CONST_CDAY
-        end do
-
-        ! adjust the nbp to take into account the fact that ED litter stocks reflect today's changes while BGC reflects yesterday's
-        do fc = 1,num_soilc
-           c = filter_soilc(fc)
-           nbp_integrated(c) = nbp_integrated(c) - (ed_to_bgc_this_edts(c) - ed_to_bgc_last_edts(c)) * SHR_CONST_CDAY
+           hr_timeintegrated(c) = hr_timeintegrated(c) + hr(c) * dtime
+           npp_timeintegrated(c) = npp_timeintegrated(c) + npp_hifreq(c) * dtime
+           nbp_integrated(c) = nep_timeintegrated(c) - fire_c_to_atm(c) * SHR_CONST_CDAY
         end do
 
         ! next compare the change in carbon and calculate the error
         do fc = 1,num_soilc
            c = filter_soilc(fc)
-           error(c) = totecosysc(c) - totecosysc_old(c) - nbp_integrated(c)
+           error_ed(c) = totedc(c) - totedc_old(c) - (npp_timeintegrated(c) - ed_to_bgc_this_edts(c)* SHR_CONST_CDAY - fire_c_to_atm(c) * SHR_CONST_CDAY)
+           error_bgc(c) = totbgcc(c) - totbgcc_old(c) - (ed_to_bgc_last_edts(c)* SHR_CONST_CDAY - hr_timeintegrated(c))
+           error_total(c) = totecosysc(c) - totecosysc_old(c) - (nbp_integrated(c) + ed_to_bgc_last_edts(c)* SHR_CONST_CDAY - ed_to_bgc_this_edts(c)* SHR_CONST_CDAY)
         end do
         
         ! for now, rather than crashing the model, lets just report the largest error to see what we're up against
         !
         ! RETURN TO THIS LATER AND ADD A CRASHER IF BALANCE EXCEEDS THRESHOLD
         !
-        max_error = 0._r8
+        max_error_total = 0._r8
         do fc = 1,num_soilc
            c = filter_soilc(fc)
-           if (abs(error(c)) .gt. max_error) then
-              max_error = abs(error(c))
+           if (abs(error_total(c)) .gt. max_error_total) then
+              max_error_ed = abs(error_ed(c))
+              max_error_bgc = abs(error_bgc(c))
+              max_error_total = abs(error_total(c))
            endif
         end do
-        write(iulog,*) 'ED_BGC_Carbon_Balancecheck: max carbon balance error (gC / m2 / day): ', max_error
+        write(iulog,*) 'ED_BGC_Carbon_Balancecheck: max_error_ed, max_error_bgc, max_error_total (gC / m2 / day): ', max_error_ed, max_error_bgc, max_error_total
 
         ! reset the C stock and flux integrators
         do fc = 1,num_soilc
            c = filter_soilc(fc)
            totecosysc_old(c) = totecosysc(c)
+           totedc_old(c)     = totedc(c)
+           totbgcc_old(c)    = totbgcc(c)
            nep_timeintegrated(c) = 0._r8
+           npp_timeintegrated(c) = 0._r8
+           hr_timeintegrated(c) = 0._r8
         end do
 
     endif
