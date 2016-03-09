@@ -634,6 +634,8 @@ contains
     currentSite  => currentPatch%siteptr
    
     currentPatch%seeds_in(:) = 0.0_r8
+    currentPatch%seed_rain_flux(:) = 0.0_r8
+    
     currentCohort => currentPatch%tallest
     do while (associated(currentCohort))
        p = currentCohort%pft
@@ -647,6 +649,7 @@ contains
        if (EXTERNAL_RECRUITMENT == 1) then !external seed rain - needed to prevent extinction  
           do p = 1,numpft_ed
            currentPatch%seeds_in(p) = currentPatch%seeds_in(p) + EDecophyscon%seed_rain(p) !KgC/m2/year
+           currentPatch%seed_rain_flux(p) = currentPatch%seed_rain_flux(p) + EDecophyscon%seed_rain(p) !KgC/m2/year
           enddo
        endif
        currentPatch => currentPatch%younger
