@@ -14,3 +14,6 @@ Branches
   * clm-trunk : clm trunk tags from CESM svn
   * cesm2git : tools for pulling svn branch tags into git
 
+Ryan has been here once
+
+
