@@ -137,6 +137,7 @@ module EDCLMLinkMod
      real(r8), pointer,  public :: fire_c_to_atm_col(:)             ! [gC/m2/s] total fire carbon loss to atmosphere
      real(r8), pointer,  public :: ed_to_bgc_this_edts_col(:)       ! [gC/m2/s] total flux of carbon from ED to BGC models on current ED timestep
      real(r8), pointer,  public :: ed_to_bgc_last_edts_col(:)       ! [gC/m2/s] total flux of carbon from ED to BGC models on prior ED timestep
+     real(r8), pointer,  public :: seed_rain_flux_col(:)            ! [gC/m2/s] total flux of carbon from seed rain
      
      ! summary carbon states at the column level
      real(r8), pointer,  public :: totecosysc_col(:)                ! [gC/m2] Total ecosystem carbon at the column level, including vegetation, CWD, litter, and soil pools
@@ -270,6 +271,7 @@ contains
 
     allocate(this%ed_to_bgc_this_edts_col    (begc:endc))            ; this%ed_to_bgc_this_edts_col   (:) = nan
     allocate(this%ed_to_bgc_last_edts_col    (begc:endc))            ; this%ed_to_bgc_last_edts_col   (:) = nan
+    allocate(this%seed_rain_flux_col         (begc:endc))            ; this%seed_rain_flux_col        (:) = nan
 
     allocate(this%nep_col                    (begc:endc))            ; this%nep_col                   (:) = nan
     allocate(this%nep_timeintegrated_col     (begc:endc))            ; this%nep_timeintegrated_col    (:) = nan
@@ -773,6 +775,11 @@ contains
     
     ptr1d => this%ed_to_bgc_last_edts_col(:)
     call restartvar(ncid=ncid, flag=flag, varname='ed_to_bgc_last_edts_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+
+    ptr1d => this%seed_rain_flux_col(:)
+    call restartvar(ncid=ncid, flag=flag, varname='seed_rain_flux_col', xtype=ncd_double,  &
          dim1name='column', long_name='', units='', &
          interpinic_flag='interp', readvar=readvar, data=ptr1d) 
     
@@ -2389,7 +2396,8 @@ contains
         cwd_stock     => this%cwd_stock_col,      &        ! total CWD in gC / m2
         seed_stock    => this%seed_stock_col,     &        ! total seed mass in gC / m2
         ed_to_bgc_this_edts           => this%ed_to_bgc_this_edts_col,      &
-        ed_to_bgc_last_edts           => this%ed_to_bgc_last_edts_col      &
+        ed_to_bgc_last_edts           => this%ed_to_bgc_last_edts_col,      &
+        seed_rain_flux                => this%seed_rain_flux_col
         )
      
      ! set time steps
@@ -2486,6 +2494,7 @@ contains
            if (firstsoilpatch(g) >= 0 .and. ed_allsites_inst(g)%istheresoil) then 
               cc = ed_allsites_inst(g)%clmcolumn
               ed_to_bgc_this_edts(cc) = 0._r8
+              seed_rain_flux(cc) = 0._r8
            endif
         end do
         !
@@ -2498,6 +2507,8 @@ contains
                  ed_to_bgc_this_edts(cc) = ed_to_bgc_this_edts(cc) + (sum(currentPatch%CWD_AG_out) + sum(currentPatch%CWD_BG_out) + &
                       + sum(currentPatch%seed_decay) + sum(currentPatch%leaf_litter_out) + sum(currentPatch%root_litter_out)) &
                       * ( currentPatch%area/AREA ) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
+                 !
+                 seed_rain_flux(cc) = seed_rain_flux(cc) + sum(currentPatch%seed_rain_flux) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
                  !
                  currentPatch => currentPatch%younger
               end do !currentPatch
@@ -2556,7 +2567,8 @@ contains
         totbgcc_old         => this%totbgcc_old_col,      &
         totbgcc             => this%totbgcc_col,          &
         ed_to_bgc_this_edts => this%ed_to_bgc_this_edts_col, &
-        ed_to_bgc_last_edts => this%ed_to_bgc_last_edts_col  &
+        ed_to_bgc_last_edts => this%ed_to_bgc_last_edts_col, &
+        seed_rain_flux      => this%seed_rain_flux_col  &
         )
 
      dtime = get_step_size()
@@ -2594,13 +2606,13 @@ contains
            nep_timeintegrated(c) = nep_timeintegrated(c) + nep(c) * dtime
            hr_timeintegrated(c) = hr_timeintegrated(c) + hr(c) * dtime
            npp_timeintegrated(c) = npp_timeintegrated(c) + npp_hifreq(c) * dtime
-           nbp_integrated(c) = nep_timeintegrated(c) - fire_c_to_atm(c) * SHR_CONST_CDAY
+           nbp_integrated(c) = nep_timeintegrated(c) - fire_c_to_atm(c) * SHR_CONST_CDAY + seed_rain_flux(c)* SHR_CONST_CDAY
         end do
 
         ! next compare the change in carbon and calculate the error
         do fc = 1,num_soilc
            c = filter_soilc(fc)
-           error_ed(c) = totedc(c) - totedc_old(c) - (npp_timeintegrated(c) - ed_to_bgc_this_edts(c)* SHR_CONST_CDAY - fire_c_to_atm(c) * SHR_CONST_CDAY)
+           error_ed(c) = totedc(c) - totedc_old(c) - (npp_timeintegrated(c) + seed_rain_flux(c)* SHR_CONST_CDAY - ed_to_bgc_this_edts(c)* SHR_CONST_CDAY - fire_c_to_atm(c) * SHR_CONST_CDAY)
            error_bgc(c) = totbgcc(c) - totbgcc_old(c) - (ed_to_bgc_last_edts(c)* SHR_CONST_CDAY - hr_timeintegrated(c))
            error_total(c) = totecosysc(c) - totecosysc_old(c) - (nbp_integrated(c) + ed_to_bgc_last_edts(c)* SHR_CONST_CDAY - ed_to_bgc_this_edts(c)* SHR_CONST_CDAY)
         end do

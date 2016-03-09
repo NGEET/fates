@@ -290,6 +290,7 @@ module EDTypesMod
      real(r8) :: seed_decay(numpft_ed)                             ! seed decay in KgC/m2/year
      real(r8) :: seed_germination(numpft_ed)                       ! germination rate of seed pool in KgC/m2/year
      real(r8) :: dseed_dt(numpft_ed)
+     real(r8) :: seed_rain_flux(numpft_ed)                         ! flux of seeds from exterior KgC/m2/year (needed for C balance purposes)
 
      ! PHOTOSYNTHESIS       
      real(r8) ::  psn_z(nclmax,numpft_ed,nlevcan_ed)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
