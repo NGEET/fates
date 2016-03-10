@@ -151,6 +151,11 @@ module EDCLMLinkMod
      real(r8), pointer,  public :: cwd_stock_col(:)                 ! [gC/m2] ED CWD at the column level in gC / m2
      real(r8), pointer,  public :: seed_stock_col(:)                ! [gC/m2] ED seed mass carbon at the column level in gC / m2
 
+     ! carbon balance errors.  at some point we'll reduce these to close to zero and delete, but for now we'll just keep[ track of them
+     real(r8), pointer,  public :: cbalance_error_ed_col(:)         ! [gC/m2/s]  total carbon balance error for the ED side
+     real(r8), pointer,  public :: cbalance_error_bgc_col(:)        ! [gC/m2/s]  total carbon balance error for the BGC side
+     real(r8), pointer,  public :: cbalance_error_total_col(:)      ! [gC/m2/s]  total carbon balance error for the whole thing
+
    contains
 
      ! Public routines
@@ -291,7 +296,11 @@ contains
     allocate(this%biomass_stock_col          (begc:endc))            ; this%biomass_stock_col         (:) = nan
     allocate(this%ed_litter_stock_col        (begc:endc))            ; this%ed_litter_stock_col       (:) = nan
     allocate(this%cwd_stock_col              (begc:endc))            ; this%cwd_stock_col             (:) = nan
-    allocate(this%seed_stock_col             (begc:endc))            ; this%seed_stock_col            (:) = nan    
+    allocate(this%seed_stock_col             (begc:endc))            ; this%seed_stock_col            (:) = nan
+
+    allocate(this%cbalance_error_ed_col      (begc:endc))            ; this%cbalance_error_ed_col     (:) = nan    
+    allocate(this%cbalance_error_bgc_col     (begc:endc))            ; this%cbalance_error_bgc_col    (:) = nan    
+    allocate(this%cbalance_error_total_col   (begc:endc))            ; this%cbalance_error_total_col  (:) = nan    
 
     allocate(this%ed_gpp_gd_scpf       (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_gpp_gd_scpf        (:,:) = 0.0_r8
     allocate(this%ed_npp_totl_gd_scpf  (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_npp_totl_gd_scpf   (:,:) = 0.0_r8
@@ -551,6 +560,21 @@ contains
          avgflag='A', long_name='total ecosystem carbon', &
          ptr_col=this%totecosysc_col)
 
+    this%cbalance_error_ed_col(begc:endc) = spval
+    call hist_addfld1d (fname='CBALANCE_ERROR_ED', units='gC/m^2/s', &
+         avgflag='A', long_name='total carbon balance error on ED side', &
+         ptr_col=this%cbalance_error_ed_col)
+
+    this%cbalance_error_bgc_col(begc:endc) = spval
+    call hist_addfld1d (fname='CBALANCE_ERROR_BGC', units='gC/m^2/s', &
+         avgflag='A', long_name='total carbon balance error on BGC side', &
+         ptr_col=this%cbalance_error_bgc_col)
+
+    this%cbalance_error_total_col(begc:endc) = spval
+    call hist_addfld1d (fname='CBALANCE_ERROR_TOTAL', units='gC/m^2/s', &
+         avgflag='A', long_name='total carbon balance error total', &
+         ptr_col=this%cbalance_error_total_col)
+
     this%biomass_stock_col(begc:endc) = spval
     call hist_addfld1d (fname='BIOMASS_STOCK_COL', units='gC/m^2', &
          avgflag='A', long_name='total ED biomass carbon at the column level', &
@@ -755,6 +779,21 @@ contains
 
     ptr1d => this%totecosysc_old_col(:)
     call restartvar(ncid=ncid, flag=flag, varname='totecosysc_old_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+    
+    ptr1d => this%cbalance_error_ed_col(:)
+    call restartvar(ncid=ncid, flag=flag, varname='cbalance_error_ed_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+    
+    ptr1d => this%cbalance_error_bgc_col(:)
+    call restartvar(ncid=ncid, flag=flag, varname='cbalance_error_bgc_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+    
+    ptr1d => this%cbalance_error_total_col(:)
+    call restartvar(ncid=ncid, flag=flag, varname='cbalance_error_total_col', xtype=ncd_double,  &
          dim1name='column', long_name='', units='', &
          interpinic_flag='interp', readvar=readvar, data=ptr1d) 
     
@@ -2397,7 +2436,7 @@ contains
         seed_stock    => this%seed_stock_col,     &        ! total seed mass in gC / m2
         ed_to_bgc_this_edts           => this%ed_to_bgc_this_edts_col,      &
         ed_to_bgc_last_edts           => this%ed_to_bgc_last_edts_col,      &
-        seed_rain_flux                => this%seed_rain_flux_col
+        seed_rain_flux                => this%seed_rain_flux_col            &
         )
      
      ! set time steps
@@ -2568,7 +2607,10 @@ contains
         totbgcc             => this%totbgcc_col,          &
         ed_to_bgc_this_edts => this%ed_to_bgc_this_edts_col, &
         ed_to_bgc_last_edts => this%ed_to_bgc_last_edts_col, &
-        seed_rain_flux      => this%seed_rain_flux_col  &
+        seed_rain_flux      => this%seed_rain_flux_col,  &
+        cbalance_error_ed   => this%cbalance_error_ed_col,   &
+        cbalance_error_bgc  => this%cbalance_error_bgc_col,  &
+        cbalance_error_total=> this%cbalance_error_total_col &
         )
 
      dtime = get_step_size()
@@ -2588,6 +2630,10 @@ contains
            ! also initialize the ed-BGC flux variables
            ed_to_bgc_this_edts(c) = 0._r8
            ed_to_bgc_last_edts(c) = 0._r8
+           !
+           cbalance_error_ed(c) = 0._r8
+           cbalance_error_bgc(c) = 0._r8
+           cbalance_error_total(c) = 0._r8
         end do        
      endif
 
@@ -2616,21 +2662,29 @@ contains
            error_bgc(c) = totbgcc(c) - totbgcc_old(c) - (ed_to_bgc_last_edts(c)* SHR_CONST_CDAY - hr_timeintegrated(c))
            error_total(c) = totecosysc(c) - totecosysc_old(c) - (nbp_integrated(c) + ed_to_bgc_last_edts(c)* SHR_CONST_CDAY - ed_to_bgc_this_edts(c)* SHR_CONST_CDAY)
         end do
+        !
+        ! put in consistent flux units and send to history so we can keep track of the errors
+        do fc = 1,num_soilc
+           c = filter_soilc(fc)
+           cbalance_error_ed(c) = error_ed(c) / SHR_CONST_CDAY
+           cbalance_error_bgc(c) = error_bgc(c) / SHR_CONST_CDAY
+           cbalance_error_total(c) = error_total(c) / SHR_CONST_CDAY
+        end do
         
         ! for now, rather than crashing the model, lets just report the largest error to see what we're up against
         !
         ! RETURN TO THIS LATER AND ADD A CRASHER IF BALANCE EXCEEDS THRESHOLD
         !
-        max_error_total = 0._r8
-        do fc = 1,num_soilc
-           c = filter_soilc(fc)
-           if (abs(error_total(c)) .gt. max_error_total) then
-              max_error_ed = abs(error_ed(c))
-              max_error_bgc = abs(error_bgc(c))
-              max_error_total = abs(error_total(c))
-           endif
-        end do
-        write(iulog,*) 'ED_BGC_Carbon_Balancecheck: max_error_ed, max_error_bgc, max_error_total (gC / m2 / day): ', max_error_ed, max_error_bgc, max_error_total
+        ! max_error_total = 0._r8
+        ! do fc = 1,num_soilc
+        !    c = filter_soilc(fc)
+        !    if (abs(error_total(c)) .gt. max_error_total) then
+        !       max_error_ed = abs(error_ed(c))
+        !       max_error_bgc = abs(error_bgc(c))
+        !       max_error_total = abs(error_total(c))
+        !    endif
+        ! end do
+        ! write(iulog,*) 'ED_BGC_Carbon_Balancecheck: max_error_ed, max_error_bgc, max_error_total (gC / m2 / day): ', max_error_ed, max_error_bgc, max_error_total
 
         ! reset the C stock and flux integrators
         do fc = 1,num_soilc
