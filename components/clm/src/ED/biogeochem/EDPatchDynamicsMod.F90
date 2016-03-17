@@ -11,6 +11,7 @@ module EDPatchDynamicsMod
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
   use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, numpft_ed, area, dbhmax, numPatchesPerGridCell
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type, udata
+  use EDTypesMod           , only : min_patch_area
   !
   implicit none
   private
@@ -26,6 +27,7 @@ module EDPatchDynamicsMod
   public :: set_patchno
 
   private:: fuse_2_patches
+
 
   ! 10/30/09: Created by Rosie Fisher
   ! ============================================================================
@@ -1285,7 +1287,7 @@ contains
     !fuse patches if one of them is very small.... 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch)) 
-       if(currentPatch%area <= 0.001_r8)then
+       if(currentPatch%area <= min_patch_area)then
           if(associated(currentPatch%older).and.currentPatch%patchno /= currentSite%youngest_patch%patchno)then
             ! Do not force the fusion of the youngest patch to its neighbour. 
             ! This is only really meant for very old patches. 

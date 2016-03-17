@@ -14,7 +14,8 @@ module EDPhysiologyMod
   use WaterstateType      , only : waterstate_type
   use pftconMod           , only : pftcon
   use EDEcophysContype    , only : EDecophyscon
-  use EDCohortDynamicsMod , only : allocate_live_biomass, zero_cohort, create_cohort, fuse_cohorts, sort_cohorts
+  use EDCohortDynamicsMod , only : allocate_live_biomass, zero_cohort
+  use EDCohortDynamicsMod , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDPhenologyType     , only : ed_phenology_type
   use EDTypesMod          , only : dg_sf, dinc_ed, external_recruitment
   use EDTypesMod          , only : ncwd, nlevcan_ed, n_sub, numpft_ed, senes
@@ -1016,22 +1017,16 @@ contains
           cohortstatus = currentPatch%siteptr%dstatus
        endif
 
-       if (temp_cohort%n > 0.0_r8)then
-
-          if ( DEBUG ) write(iulog,*) 'EDPhysiologyMod.F90 call create_cohort '
-
-          call create_cohort(currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-               temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore,  &
-               temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, currentPatch%NCL_p)
-
+       if (temp_cohort%n > 0.0_r8 )then
+           if ( DEBUG ) write(iulog,*) 'EDPhysiologyMod.F90 call create_cohort '
+           call create_cohort(currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
+                temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore,  &
+                temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, currentPatch%NCL_p)
        endif
 
     enddo  !pft loop
 
     deallocate(temp_cohort) ! delete temporary cohort
-
-    call fuse_cohorts(currentPatch)
-    call sort_cohorts(currentPatch)
 
   end subroutine recruitment
 
