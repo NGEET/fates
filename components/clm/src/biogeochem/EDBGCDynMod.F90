@@ -1,6 +1,8 @@
 module EDBGCDynMod
 
-! Interface from ED calls to CLM belowground biogeochemistry module
+! This module creates a pathway to call the belowground biogeochemistry code as driven by the ED vegetation model 
+! but bypassing the aboveground CN vegetation code.  It is modeled after the CNDriverMod in its call sequence and 
+! functionality.
 
   use shr_kind_mod                    , only : r8 => shr_kind_r8
   use clm_varctl                      , only : use_c13, use_c14, use_ed
