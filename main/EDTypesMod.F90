@@ -298,6 +298,7 @@ module EDTypesMod
      real(r8) :: seed_decay(numpft_ed)                             ! seed decay in KgC/m2/year
      real(r8) :: seed_germination(numpft_ed)                       ! germination rate of seed pool in KgC/m2/year
      real(r8) :: dseed_dt(numpft_ed)
+     real(r8) :: seed_rain_flux(numpft_ed)                         ! flux of seeds from exterior KgC/m2/year (needed for C balance purposes)
 
      ! PHOTOSYNTHESIS       
      real(r8) ::  psn_z(nclmax,numpft_ed,nlevcan_ed)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
@@ -421,13 +422,14 @@ module EDTypesMod
      integer  ::  dleafondate                                  ! doy of leaf on drought:-
      integer  ::  dleafoffdate                                 ! doy of leaf on drought:-
      real(r8) ::  water_memory(10)                             ! last 10 days of soil moisture memory...
-     real(r8) ::  cwd_ag_burned(ncwd)
-     real(r8) :: leaf_litter_burned(numpft_ed)
 
      ! FIRE 
      real(r8) ::  acc_ni                                       ! daily nesterov index accumulating over time.
      real(r8) ::  ab                                           ! daily burnt area: m2
      real(r8) ::  frac_burnt                                   ! fraction of soil burnt in this day.
+     real(r8) ::  total_burn_flux_to_atm                       ! total carbon burnt to the atmosphere in this day. KgC/site
+     real(r8) ::  cwd_ag_burned(ncwd)
+     real(r8) ::  leaf_litter_burned(numpft_ed)
 
   end type ed_site_type
 
