@@ -1092,9 +1092,9 @@ sub setup_cmdl_bgc_spinup {
       my @valid_values   = $definition->get_valid_values( $var );
       fatal_error("$var has an invalid value ($val). Valid values are: @valid_values\n");
     }
-    if ( $nl_flags->{'bgc_spinup'} eq "on" && $nl_flags->{'use_cn'} ne ".true.") {
-      fatal_error("$var can not be '$nl_flags->{'bgc_spinup'}' if CN is turned off (use_cn=$nl_flags->{'use_cn'}).");
-    }
+    # if ( $nl_flags->{'bgc_spinup'} eq "on" && $nl_flags->{'use_cn'} ne ".true.") {
+    #   fatal_error("$var can not be '$nl_flags->{'bgc_spinup'}' if CN is turned off (use_cn=$nl_flags->{'use_cn'}).");
+    # }
     if ( $nl->get_value("spinup_state") eq 0 && $nl_flags->{'bgc_spinup'} eq "on" ) {
       fatal_error("Namelist spinup_state contradicts the command line option bgc_spinup" );
     }
