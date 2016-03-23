@@ -704,7 +704,7 @@ contains
 
        if (use_ed) then
           call ed_clm_inst%SetValues( bounds_clump, 0._r8 )
-          end if
+       end if
 
        ! Dry Deposition of chemical tracers (Wesely (1998) parameterizaion)
           
@@ -790,6 +790,23 @@ contains
              end if
 
           end if
+
+    if ( use_ed  .and. is_beg_curr_day() ) then ! run ED at the start of each day
+
+       if ( masterproc ) then
+          write(iulog,*)  'clm: calling ED model ', get_nstep()
+       end if
+
+       call ed_driver( bounds_clump,                               &
+            ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), &
+            ed_clm_inst, ed_phenology_inst,                        &
+            atm2lnd_inst, soilstate_inst, temperature_inst,        &
+            waterstate_inst, canopystate_inst)
+
+       call setFilters( bounds_clump, glc2lnd_inst%icemask_grc )
+
+    end if ! use_ed branch
+
 
        ! ============================================================================
        ! Check the energy and water balance and also carbon and nitrogen balance
@@ -960,17 +977,9 @@ contains
     ! ============================================================================
 
 
-    !
-    ! TODO(SPM,012715) - XIX Note to CSEG.  I had to put this logical block around
-    ! this call as it was updating the history buffer prematurely when ED was
-    ! running and happened to be restarted on the same timestep as a history
-    ! write
-    !
-    if (.not. use_ed) then
-      call t_startf('hbuf')
-      call hist_update_hbuf(bounds_proc)
-      call t_stopf('hbuf')
-    end if
+    call t_startf('hbuf')
+    call hist_update_hbuf(bounds_proc)
+    call t_stopf('hbuf')
 
     ! ============================================================================
     ! Call dv (dynamic vegetation) at last time step of year
@@ -1011,52 +1020,6 @@ contains
     ! Call ED model on daily timestep
     ! ============================================================================
     
-    if ( use_ed  .and. is_beg_curr_day() ) then ! run ED at the start of each day
-
-       if ( masterproc ) then
-          write(iulog,*)  'clm: calling ED model ', get_nstep()
-       end if
-
-       !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
-       do nc = 1, nclumps
-
-          call get_clump_bounds(nc, bounds_clump)
-
-          call ed_driver( bounds_clump,                               &
-               ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), &
-               ed_clm_inst, ed_phenology_inst,                        &
-               atm2lnd_inst, soilstate_inst, temperature_inst,        &
-               waterstate_inst, canopystate_inst)
-
-          ! 
-          ! TODO(SPM, 012715) - see note XIX above regarding hbuf updates 
-          !
-          call t_startf('hbuf')
-          call hist_update_hbuf(bounds_proc)
-          call t_stopf('hbuf')
-
-          call setFilters( bounds_clump, glc2lnd_inst%icemask_grc )
-
-          !reset surface albedo fluxes in case there is a mismatch between elai and canopy absorbtion. 
-          call SurfaceAlbedo(bounds_clump,                            &
-               filter_inactive_and_active(nc)%num_nourbanc,           &
-               filter_inactive_and_active(nc)%nourbanc,               &
-               filter_inactive_and_active(nc)%num_nourbanp,           &
-               filter_inactive_and_active(nc)%nourbanp,               &
-               filter_inactive_and_active(nc)%num_urbanc,             &
-               filter_inactive_and_active(nc)%urbanc,                 &
-               filter_inactive_and_active(nc)%num_urbanp,             & 
-               filter_inactive_and_active(nc)%urbanp,                 &
-               nextsw_cday, declinp1,                                 &
-               ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), &
-               aerosol_inst, canopystate_inst, waterstate_inst,       &
-               lakestate_inst, temperature_inst, surfalb_inst)
-
-       end do
-       !$OMP END PARALLEL DO
-
-    end if ! use_ed branch
-
     ! ============================================================================
     ! History/Restart output
     ! ============================================================================
