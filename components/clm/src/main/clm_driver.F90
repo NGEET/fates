@@ -81,6 +81,7 @@ module clm_driver
   use PatchType              , only : patch                
   use clm_instMod
   use clm_initializeMod      , only : soil_water_retention_curve
+  use EDBGCDynMod            , only : EDBGCDyn, EDBGCDynSummary
   !
   ! !PUBLIC TYPES:
   implicit none
@@ -675,6 +676,7 @@ contains
                c13_cnveg_carbonflux_inst, c13_cnveg_carbonstate_inst,                   &
                c14_cnveg_carbonflux_inst, c14_cnveg_carbonstate_inst,                   &
                cnveg_nitrogenflux_inst, cnveg_nitrogenstate_inst,                       &
+               ed_clm_inst,                                                             &
                soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,         &
                c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
                c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
@@ -690,6 +692,32 @@ contains
                   filter(nc)%num_soilp, filter(nc)%soilp, &
                cnveg_state_inst, cnveg_carbonflux_inst)
           call t_stopf('ecosysdyn')
+
+       elseif (use_ed) then
+
+          ! call EDBGCDyn(bounds_clump, &
+          !      filter(nc)%num_soilc, filter(nc)%soilc, &
+          !      ed_clm_inst, &
+          !      soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,         &
+          !      c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
+          !      c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
+          !      soilbiogeochem_state_inst,                                               &
+          !      soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst)
+ 
+          call EDBGCDyn(bounds_clump,                                                              &
+               filter(nc)%num_soilc, filter(nc)%soilc,                                             &
+               filter(nc)%num_soilp, filter(nc)%soilp,                                             &
+               filter(nc)%num_pcropp, filter(nc)%pcropp, doalb,                                    &
+               cnveg_state_inst,                                                                   &
+               cnveg_carbonflux_inst, cnveg_carbonstate_inst,                                      &
+               ed_clm_inst,                                                                        &
+               soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,                    &
+               soilbiogeochem_state_inst,                                                          &
+               soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,                &
+               c13_soilbiogeochem_carbonstate_inst, c13_soilbiogeochem_carbonflux_inst,            &
+               c14_soilbiogeochem_carbonstate_inst, c14_soilbiogeochem_carbonflux_inst,            &
+               atm2lnd_inst, waterstate_inst, waterflux_inst,                                      &
+               canopystate_inst, soilstate_inst, temperature_inst, crop_inst, ch4_inst)
 
        end if
 
@@ -791,22 +819,33 @@ contains
 
           end if
 
-    if ( use_ed  .and. is_beg_curr_day() ) then ! run ED at the start of each day
 
-       if ( masterproc ) then
-          write(iulog,*)  'clm: calling ED model ', get_nstep()
-       end if
+          if ( use_ed ) then
+             call EDBGCDynSummary(bounds_clump,                                             &
+                   filter(nc)%num_soilc, filter(nc)%soilc,                                  &
+                   filter(nc)%num_soilp, filter(nc)%soilp,                                  &
+                   soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,         &
+                   c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
+                   c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
+                   soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,     &
+                   ed_clm_inst, ed_allsites_inst(bounds_clump%begg:bounds_clump%endg))
+          end if
 
-       call ed_driver( bounds_clump,                               &
-            ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), &
-            ed_clm_inst, ed_phenology_inst,                        &
-            atm2lnd_inst, soilstate_inst, temperature_inst,        &
-            waterstate_inst, canopystate_inst)
-
-       call setFilters( bounds_clump, glc2lnd_inst%icemask_grc )
-
-    end if ! use_ed branch
-
+          if ( use_ed  .and. is_beg_curr_day() ) then ! run ED at the start of each day
+             
+             if ( masterproc ) then
+                write(iulog,*)  'clm: calling ED model ', get_nstep()
+             end if
+             
+             call ed_driver( bounds_clump,                               &
+                   ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), &
+                   ed_clm_inst, ed_phenology_inst,                        &
+                   atm2lnd_inst, soilstate_inst, temperature_inst,        &
+                   waterstate_inst, canopystate_inst)
+             
+             call setFilters( bounds_clump, glc2lnd_inst%icemask_grc )
+             
+          end if ! use_ed branch
 
        ! ============================================================================
        ! Check the energy and water balance and also carbon and nitrogen balance
