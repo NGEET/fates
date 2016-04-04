@@ -693,32 +693,6 @@ contains
                cnveg_state_inst, cnveg_carbonflux_inst)
           call t_stopf('ecosysdyn')
 
-!       elseif (use_ed) then
-
-          ! call EDBGCDyn(bounds_clump, &
-          !      filter(nc)%num_soilc, filter(nc)%soilc, &
-          !      ed_clm_inst, &
-          !      soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,         &
-          !      c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
-          !      c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
-          !      soilbiogeochem_state_inst,                                               &
-          !      soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst)
- 
-!          call EDBGCDyn(bounds_clump,                                                              &
-!               filter(nc)%num_soilc, filter(nc)%soilc,                                             &
-!               filter(nc)%num_soilp, filter(nc)%soilp,                                             &
-!               filter(nc)%num_pcropp, filter(nc)%pcropp, doalb,                                    &
-!               cnveg_state_inst,                                                                   &
-!               cnveg_carbonflux_inst, cnveg_carbonstate_inst,                                      &
-!               ed_clm_inst,                                                                        &
-!               soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,                    &
-!               soilbiogeochem_state_inst,                                                          &
-!               soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,                &
-!               c13_soilbiogeochem_carbonstate_inst, c13_soilbiogeochem_carbonflux_inst,            &
-!               c14_soilbiogeochem_carbonstate_inst, c14_soilbiogeochem_carbonflux_inst,            &
-!               atm2lnd_inst, waterstate_inst, waterflux_inst,                                      &
-!               canopystate_inst, soilstate_inst, temperature_inst, crop_inst, ch4_inst)
-
        end if
 
                 ! Prescribed biogeography - prescribed canopy structure, some prognostic carbon fluxes
