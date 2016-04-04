@@ -45,7 +45,7 @@ module clm_driver
   use SurfaceAlbedoMod       , only : SurfaceAlbedo
   use UrbanAlbedoMod         , only : UrbanAlbedo
   !
-  use SurfaceRadiationMod    , only : SurfaceRadiation
+  use SurfaceRadiationMod    , only : SurfaceRadiation, CanopySunShadeFracs
   use UrbanRadiationMod      , only : UrbanRadiation
   !
   use CNDriverMod            , only : CNDriverNoLeaching, CNDriverLeaching, CNDriverSummary
@@ -61,6 +61,8 @@ module clm_driver
   use DUSTMod                , only : DustDryDep, DustEmission
   use VOCEmissionMod         , only : VOCEmission
   use EDMainMod              , only : ed_driver
+  use clmed_interfaceMod     , only : CLMEDInterf_CanopySunShadeFracs
+  use EDTypesMod             , only : ed_allsites_inst  ! Won't be necessary for long
   !
   use filterMod              , only : setFilters
   !
@@ -383,12 +385,38 @@ contains
 
        ! Surface Radiation primarily for non-urban columns 
 
+       ! Most of the surface radiation calculations are agnostic to the forest-model
+       ! but the calculations of the fractions of sunlit and shaded canopies 
+       ! are specific, calculate them first
+       if(use_ed) then
+          call CLMEDInterf_CanopySunShadeFracs(atm2lnd_inst%forc_solad_grc,         &
+                                               atm2lnd_inst%forc_solai_grc,         &
+                                               filter(nc)%nourbanp,filter(nc)%num_nourbanp,         &
+                                               canopystate_inst%fsun_patch)
+
+       else
+          call CanopySunShadeFracs(surfalb_inst%tlai_z_patch,                                       &
+                                   surfalb_inst%fsun_z_patch,                                       &   
+                                   canopystate_inst%elai_patch,                                     &
+                                   atm2lnd_inst%forc_solad_grc,atm2lnd_inst%forc_solai_grc,         &
+                                   surfalb_inst%fabd_sun_z_patch,surfalb_inst%fabd_sha_z_patch,     &
+                                   surfalb_inst%fabi_sun_z_patch,surfalb_inst%fabi_sha_z_patch,     &
+                                   surfalb_inst%nrad_patch,                                         &
+                                   filter(nc)%nourbanp,filter(nc)%num_nourbanp,                     &
+                                   solarabs_inst%parsun_z_patch,solarabs_inst%parsha_z_patch,       &
+                                   canopystate_inst%laisun_patch,canopystate_inst%laisha_patch,     &
+                                   canopystate_inst%laisun_z_patch,canopystate_inst%laisha_z_patch, &
+                                   canopystate_inst%fsun_patch)
+       end if
+       
+
+
        call SurfaceRadiation(bounds_clump,                                 &
             filter(nc)%num_nourbanp, filter(nc)%nourbanp,                  &
-            filter(nc)%num_urbanp, filter(nc)%urbanp,                &
+            filter(nc)%num_urbanp, filter(nc)%urbanp,                      &
             filter(nc)%num_urbanc, filter(nc)%urbanc,                      &
-            ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), atm2lnd_inst, &
-            waterstate_inst, canopystate_inst, surfalb_inst, solarabs_inst, surfrad_inst)
+            atm2lnd_inst, waterstate_inst, canopystate_inst, surfalb_inst, &
+            solarabs_inst, surfrad_inst)
 
        ! Surface Radiation for only urban columns
 

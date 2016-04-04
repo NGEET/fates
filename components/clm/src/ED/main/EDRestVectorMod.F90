@@ -1823,14 +1823,15 @@ contains
   !--------------------------------------------!
 
   !-------------------------------------------------------------------------------!
-  subroutine EDRest ( bounds, ncid, flag, ed_allsites_inst, ed_clm_inst, ed_phenology_inst, &
-       waterstate_inst, canopystate_inst )
+  subroutine EDRest ( bounds, ncid, flag, ed_clm_inst, ed_phenology_inst, &
+        waterstate_inst, canopystate_inst )
     !
     ! !DESCRIPTION:
     ! Read/write ED restart data
     ! EDRest called from restFileMod.F90
     !
     ! !USES:
+    use EDTypesMod   , only : ed_allsites_inst
     use ncdio_pio    , only : file_desc_t
     use EDCLMLinkMod , only : ed_clm_type
     !
@@ -1838,7 +1839,6 @@ contains
     type(bounds_type)       , intent(in)            :: bounds  ! bounds
     type(file_desc_t)       , intent(inout)         :: ncid    ! netcdf id
     character(len=*)        , intent(in)            :: flag    !'read' or 'write'
-    type(ed_site_type)      , intent(inout), target :: ed_allsites_inst( bounds%begg: )
     type(ed_clm_type)       , intent(inout)         :: ed_clm_inst
     type(ed_phenology_type) , intent(inout)         :: ed_phenology_inst
     type(waterstate_type)   , intent(inout)         :: waterstate_inst

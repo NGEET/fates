@@ -295,7 +295,7 @@ contains
     use restFileMod           , only : restFile_read, restFile_write 
     use ndepStreamMod         , only : ndep_init, ndep_interp
     use CNDriverMod           , only : CNDriverInit 
-    use EDInitMod             , only : ed_init  
+    use clmed_interfaceMod    , only : CLMEDInterf_ed_init
     use LakeCon               , only : LakeConInit 
     use SatellitePhenologyMod , only : SatellitePhenologyInit, readAnnualVegetation, interpMonthlyVeg
     use SnowSnicarMod         , only : SnowAge_init, SnowOptics_init
@@ -690,8 +690,10 @@ contains
        !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
        do nc = 1, nclumps
           call get_clump_bounds(nc, bounds_clump)
-          call ed_init( bounds_clump, ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), ed_clm_inst, &
-               ed_phenology_inst, waterstate_inst, canopystate_inst)
+
+          !!!! ed_clm_inst needs to be moved out of this routine
+          call CLMEDInterf_ed_init(bounds_clump, ed_clm_inst, &
+                ed_phenology_inst, waterstate_inst, canopystate_inst)
        end do
        !$OMP END PARALLEL DO
     end if

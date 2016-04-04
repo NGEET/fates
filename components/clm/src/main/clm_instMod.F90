@@ -13,6 +13,7 @@ module clm_instMod
   use clm_varcon      , only : h2osno_max, bdsno, c13ratio, c14ratio
   use landunit_varcon , only : istice, istice_mec, istsoil
   use perf_mod        , only : t_startf, t_stopf
+  
 
   !-----------------------------------------
   ! Constants
@@ -73,7 +74,7 @@ module clm_instMod
   use LandunitType                    , only : lun                
   use ColumnType                      , only : col                
   use PatchType                       , only : patch                
-  use EDTypesMod                      , only : ed_site_type
+  use clmed_interfaceMod              , only : CLMEDInterf_AllocateAllSites
   use EDPhenologyType                 , only : ed_phenology_type
   use EDCLMLinkMod                    , only : ed_clm_type
   use SoilWaterRetentionCurveMod      , only : soil_water_retention_curve_type
@@ -150,7 +151,6 @@ module clm_instMod
   type(drydepvel_type)                    :: drydepvel_inst
 
   ! ED types passed in from top level
-  type(ed_site_type), allocatable, target :: ed_allsites_inst(:)
   type(ed_phenology_type)                 :: ed_phenology_inst
   type(ed_clm_type)                       :: ed_clm_inst
   !
@@ -425,8 +425,10 @@ contains
     ! if use_ed is true, then the actual memory for all of the ED data structures
     ! is allocated in the call to EDInitMod - called from clm_initialize
     ! NOTE (SPM, 10-27-2015) ... check on deallocation of ed_allsites_inst
+    ! NOTE (RGK, 04-04-2016) : Move allocation of ed_allsites_inst to the CLMEDInterface,
+    ! variables memory is now defined in EDTypes
 
-    allocate (ed_allsites_inst(bounds%begg:bounds%endg))
+    call CLMEDInterf_AllocateAllSites(bounds,use_ed)
     if (use_ed) then
        call ed_clm_inst%Init(bounds)
        call ed_phenology_inst%Init(bounds)
@@ -568,7 +570,7 @@ contains
 
     if (use_ed) then
        call ED_Phenology_inst%restart(bounds, ncid, flag=flag)
-       call EDRest ( bounds, ncid, flag, ed_allsites_inst(bounds%begg:bounds%endg), &
+       call EDRest ( bounds, ncid, flag, &
             ed_clm_inst, ed_phenology_inst, waterstate_inst, canopystate_inst )
        call ed_clm_inst%Restart(bounds, ncid, flag=flag)
     end if

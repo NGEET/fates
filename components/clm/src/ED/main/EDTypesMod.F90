@@ -449,6 +449,14 @@ module EDTypesMod
 
   public :: ed_hist_scpfmaps
 
+  !*******************************************************************
+  ! define the root of ED's linked list memory hierarchy
+  !*******************************************************************
+
+  type(ed_site_type), allocatable, target :: ed_allsites_inst(:)
+
+
+
 contains
 
   !-------------------------------------------------------------------------------------!
