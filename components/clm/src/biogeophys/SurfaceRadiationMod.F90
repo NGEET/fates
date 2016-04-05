@@ -300,7 +300,7 @@ contains
   end subroutine InitCold
   
  
-  subroutine CanopySunShadeFracs(tlai_z, fsun_z, elai,                                 &
+  subroutine CanopySunShadeFracs(bounds,tlai_z, fsun_z, elai,                                 &
                                  forc_solad, forc_solai,                               &
                                  fabd_sun_z, fabd_sha_z, fabi_sun_z, fabi_sha_z,       &
                                  nrad,                                                 &
@@ -310,7 +310,7 @@ contains
                                  laisun_z, laisha_z,                   &
                                  fsun)
 
-     ! ------------------------------------------------------------------------------------
+    ! ------------------------------------------------------------------------------------
     ! This subroutine calculates and returns patch vectors of
     ! 
     ! 1) absorbed PAR for sunlit leaves in canopy layer
@@ -332,36 +332,37 @@ contains
     implicit none
 
     ! Arguments (in)
+    type(bounds_type)      , intent(in)            :: bounds  
 
     ! tlai increment for canopy layer
-    real(r8),intent(in),dimension(:,:)  :: tlai_z          ! => surfalb_inst%tlai_z_patch       
+    real(r8),intent(in),dimension(bounds%begp:,:)  :: tlai_z          ! => surfalb_inst%tlai_z_patch       
 
     ! sunlit fraction of canopy layer
-    real(r8),intent(in),dimension(:,:)  :: fsun_z          ! => surfalb_inst%fsun_z_patch
+    real(r8),intent(in),dimension(bounds%begp:,:)  :: fsun_z          ! => surfalb_inst%fsun_z_patch
 
     ! one-sided leaf area index with burying by snow
-    real(r8),intent(in),dimension(:)    :: elai            ! => canopystate_inst%elai_patch     
+    real(r8),intent(in),dimension(bounds%begp:)    :: elai            ! => canopystate_inst%elai_patch     
 
     ! direct beam radiation (W/m**2) 
-    real(r8),intent(in),dimension(:,:)  :: forc_solad      ! =>    atm2lnd_inst%forc_solad_grc
+    real(r8),intent(in),dimension(bounds%begg:,:)  :: forc_solad      ! =>    atm2lnd_inst%forc_solad_grc
 
     ! diffuse radiation (W/m**2)
-    real(r8),intent(in),dimension(:,:)  :: forc_solai      ! =>    atm2lnd_inst%forc_solai_grc
+    real(r8),intent(in),dimension(bounds%begg:,:)  :: forc_solai      ! =>    atm2lnd_inst%forc_solai_grc
 
     ! absorbed sunlit leaf direct  PAR (per unit lai+sai) for each canopy layer
-    real(r8),intent(in),dimension(:,:)  :: fabd_sun_z      ! =>    surfalb_inst%fabd_sun_z_patch
+    real(r8),intent(in),dimension(bounds%begp:,:)  :: fabd_sun_z      ! =>    surfalb_inst%fabd_sun_z_patch
     
     ! absorbed shaded leaf direct  PAR (per unit lai+sai) for each canopy layer
-    real(r8),intent(in),dimension(:,:)  :: fabd_sha_z      ! =>    surfalb_inst%fabd_sha_z_patch
+    real(r8),intent(in),dimension(bounds%begp:,:)  :: fabd_sha_z      ! =>    surfalb_inst%fabd_sha_z_patch
 
     ! absorbed sunlit leaf diffuse PAR (per unit lai+sai) for each canopy layer
-    real(r8),intent(in),dimension(:,:)  :: fabi_sun_z      ! =>    surfalb_inst%fabi_sun_z_patch
+    real(r8),intent(in),dimension(bounds%begp:,:)  :: fabi_sun_z      ! =>    surfalb_inst%fabi_sun_z_patch
 
     ! absorbed shaded leaf diffuse PAR (per unit lai+sai) for each canopy layer
-    real(r8),intent(in),dimension(:,:)  :: fabi_sha_z       ! =>    surfalb_inst%fabi_sha_z_patch
+    real(r8),intent(in),dimension(bounds%begp:,:)  :: fabi_sha_z       ! =>    surfalb_inst%fabi_sha_z_patch
          
     ! number of canopy layers, above snow for radiative transfer
-    integer, intent(in),dimension(:)    :: nrad            ! => surfalb_inst%nrad_patch         
+    integer, intent(in),dimension(bounds%begp:)    :: nrad            ! => surfalb_inst%nrad_patch         
 
     ! patch filter for non-urban points
     integer, intent(in),dimension(:)    :: filter_nourbanp
@@ -374,25 +375,25 @@ contains
     !                   (allow them to be passed in)
 
     ! absorbed PAR for sunlit leaves in canopy layer
-    real(r8),intent(inout),dimension(:,:)  :: parsun_z  ! => solarabs_inst%parsun_z_patch  
+    real(r8),intent(inout),dimension(bounds%begp:,:)  :: parsun_z  ! => solarabs_inst%parsun_z_patch  
 
     ! absorbed PAR for shaded leaves in canopy layer
-    real(r8),intent(inout),dimension(:,:)  :: parsha_z  ! => solarabs_inst%parsha_z_patch     
+    real(r8),intent(inout),dimension(bounds%begp:,:)  :: parsha_z  ! => solarabs_inst%parsha_z_patch     
 
     ! sunlit leaf area
-    real(r8),intent(inout),dimension(:)    :: laisun    ! => canopystate_inst%laisun_patch   
+    real(r8),intent(inout),dimension(bounds%begp:)    :: laisun    ! => canopystate_inst%laisun_patch   
 
     ! shaded  leaf area
-    real(r8),intent(inout),dimension(:)    :: laisha    ! => canopystate_inst%laisha_patch  
+    real(r8),intent(inout),dimension(bounds%begp:)    :: laisha    ! => canopystate_inst%laisha_patch  
 
     ! sunlit leaf area for canopy layer
-    real(r8),intent(inout),dimension(:,:)  :: laisun_z  ! => canopystate_inst%laisun_z_patch 
+    real(r8),intent(inout),dimension(bounds%begp:,:)  :: laisun_z  ! => canopystate_inst%laisun_z_patch 
 
     ! shaded leaf area for canopy layer
-    real(r8),intent(inout),dimension(:,:)  :: laisha_z  ! => canopystate_inst%laisha_z_patch 
+    real(r8),intent(inout),dimension(bounds%begp:,:)  :: laisha_z  ! => canopystate_inst%laisha_z_patch 
 
     ! sunlit fraction of canopy
-    real(r8),intent(inout),dimension(:)    :: fsun      ! => canopystate_inst%fsun_patch      
+    real(r8),intent(inout),dimension(bounds%begp:)    :: fsun      ! => canopystate_inst%fsun_patch      
     
   
     ! local variables

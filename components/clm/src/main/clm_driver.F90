@@ -399,7 +399,7 @@ contains
                                                canopystate_inst%fsun_patch)
 
        else
-          call CanopySunShadeFracs(surfalb_inst%tlai_z_patch,                                       &
+          call CanopySunShadeFracs(bounds_clump,surfalb_inst%tlai_z_patch,                          &
                                    surfalb_inst%fsun_z_patch,                                       &   
                                    canopystate_inst%elai_patch,                                     &
                                    atm2lnd_inst%forc_solad_grc,atm2lnd_inst%forc_solai_grc,         &
