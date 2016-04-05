@@ -14,7 +14,8 @@ module EDPhysiologyMod
   use WaterstateType      , only : waterstate_type
   use pftconMod           , only : pftcon
   use EDEcophysContype    , only : EDecophyscon
-  use EDCohortDynamicsMod , only : allocate_live_biomass, zero_cohort, create_cohort, fuse_cohorts, sort_cohorts
+  use EDCohortDynamicsMod , only : allocate_live_biomass, zero_cohort
+  use EDCohortDynamicsMod , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDPhenologyType     , only : ed_phenology_type
   use EDTypesMod          , only : dg_sf, dinc_ed, external_recruitment
   use EDTypesMod          , only : ncwd, nlevcan_ed, n_sub, numpft_ed, senes
@@ -124,15 +125,14 @@ contains
        currentPatch%droot_litter_dt(p) = currentPatch%root_litter_in(p) - currentPatch%root_litter_out(p) 
     enddo
 
-    currentPatch%leaf_litter_in(:)  = 0.0_r8
-    currentPatch%root_litter_in(:)  = 0.0_r8
-    currentPatch%leaf_litter_out(:) = 0.0_r8
-    currentPatch%root_litter_out(:) = 0.0_r8
-
-    currentPatch%CWD_AG_in(:)       = 0.0_r8
-    currentPatch%cwd_bg_in(:)       = 0.0_r8
-    currentPatch%CWD_AG_out(:)      = 0.0_r8
-    currentPatch%cwd_bg_out(:)      = 0.0_r8
+    ! currentPatch%leaf_litter_in(:)  = 0.0_r8
+    ! currentPatch%root_litter_in(:)  = 0.0_r8
+    ! currentPatch%leaf_litter_out(:) = 0.0_r8
+    ! currentPatch%root_litter_out(:) = 0.0_r8
+    ! currentPatch%CWD_AG_in(:)       = 0.0_r8
+    ! currentPatch%cwd_bg_in(:)       = 0.0_r8
+    ! currentPatch%CWD_AG_out(:)      = 0.0_r8
+    ! currentPatch%cwd_bg_out(:)      = 0.0_r8
 
   end subroutine non_canopy_derivs
 
@@ -635,6 +635,8 @@ contains
     currentSite  => currentPatch%siteptr
    
     currentPatch%seeds_in(:) = 0.0_r8
+    currentPatch%seed_rain_flux(:) = 0.0_r8
+    
     currentCohort => currentPatch%tallest
     do while (associated(currentCohort))
        p = currentCohort%pft
@@ -648,6 +650,7 @@ contains
        if (EXTERNAL_RECRUITMENT == 1) then !external seed rain - needed to prevent extinction  
           do p = 1,numpft_ed
            currentPatch%seeds_in(p) = currentPatch%seeds_in(p) + EDecophyscon%seed_rain(p) !KgC/m2/year
+           currentPatch%seed_rain_flux(p) = currentPatch%seed_rain_flux(p) + EDecophyscon%seed_rain(p) !KgC/m2/year
           enddo
        endif
        currentPatch => currentPatch%younger
@@ -1016,22 +1019,16 @@ contains
           cohortstatus = currentPatch%siteptr%dstatus
        endif
 
-       if (temp_cohort%n > 0.0_r8)then
-
-          if ( DEBUG ) write(iulog,*) 'EDPhysiologyMod.F90 call create_cohort '
-
-          call create_cohort(currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-               temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore,  &
-               temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, currentPatch%NCL_p)
-
+       if (temp_cohort%n > 0.0_r8 )then
+           if ( DEBUG ) write(iulog,*) 'EDPhysiologyMod.F90 call create_cohort '
+           call create_cohort(currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
+                temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore,  &
+                temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, currentPatch%NCL_p)
        endif
 
     enddo  !pft loop
 
     deallocate(temp_cohort) ! delete temporary cohort
-
-    call fuse_cohorts(currentPatch)
-    call sort_cohorts(currentPatch)
 
   end subroutine recruitment
 
@@ -1255,5 +1252,7 @@ contains
          currentPatch%area *udata%deltat!kgC/site/day
 
   end subroutine cwd_out
+
+
 
 end module EDPhysiologyMod
