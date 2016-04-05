@@ -530,13 +530,6 @@ contains
      !
      integer, parameter :: noonsec   = isecspday / 2 ! seconds at local noon
      !
-     !ED specific variables 
-     real(r8)                  :: errsol(bounds%begp:bounds%endp) ! solar radiation error Wm-2
-     real(r8)                  :: sunlai                          ! intermediate for calculating canopy fsun
-     real(r8)                  :: shalai                          ! intermediate for calculating canopy fsha
-     integer                   :: CL                              ! Canopy Layer index
-     integer                   :: FT                              ! clm patch index
-     real                      :: gaib, rib                       ! for debugging
      !------------------------------------------------------------------------------
 
      associate(                                                     & 

@@ -387,10 +387,14 @@ contains
 
        ! Most of the surface radiation calculations are agnostic to the forest-model
        ! but the calculations of the fractions of sunlit and shaded canopies 
-       ! are specific, calculate them first
+       ! are specific, calculate them first.
+       ! The nourbanp filter is set in dySubgrid_driver (earlier in this call)
+       ! over the patch index range defined by bounds_clump%begp:bounds_proc%endp
+
        if(use_ed) then
-          call CLMEDInterf_CanopySunShadeFracs(atm2lnd_inst%forc_solad_grc,         &
-                                               atm2lnd_inst%forc_solai_grc,         &
+          call CLMEDInterf_CanopySunShadeFracs(bounds_clump,                                        &
+                                               atm2lnd_inst%forc_solad_grc,                         &
+                                               atm2lnd_inst%forc_solai_grc,                         &
                                                filter(nc)%nourbanp,filter(nc)%num_nourbanp,         &
                                                canopystate_inst%fsun_patch)
 
