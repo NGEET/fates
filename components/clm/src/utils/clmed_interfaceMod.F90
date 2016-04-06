@@ -29,6 +29,10 @@ module clmed_interfaceMod
    use WaterStateType    , only : waterstate_type
    use CanopyStateType   , only : canopystate_type
    use clm_varctl        , only : iulog
+   use atm2lndType       , only : atm2lnd_type
+   use SurfaceAlbedoType , only : surfalb_type
+   use SolarAbsorbedType , only : solarabs_type
+
    
    ! Used ED Modules
    use EDtypesMod            , only : ed_patch_type, ed_site_type, numpft_ed
@@ -126,9 +130,9 @@ contains
    ! -------------------------------------------------------------------------------------
 
   
-   subroutine CLMEDInterf_CanopySunShadeFracs(bounds,forc_solad, forc_solai,  &
-                                              filter_nourbanp, num_nourbanp,  fsun)      
-      
+   subroutine CLMEDInterf_CanopySunShadeFracs(filter_nourbanp, num_nourbanp, &
+                                              atm2lnd_inst,canopystate_inst)
+
 
       ! ----------------------------------------------------------------------------------
       ! This interface function is a wrapper call on ED_SunShadeFracs. The only
@@ -140,23 +144,17 @@ contains
 
       ! Input Arguments
 
-      type(bounds_type)       , intent(in)            :: bounds  ! clump bounds
-
-      ! direct beam radiation (W/m**2) ! => atm2lnd_inst%forc_solad_grc
-      real(r8),intent(in) :: forc_solad(bounds%begg:,:)
-      
-      ! diffuse radiation (W/m**2)     ! => atm2lnd_inst%forc_solai_grc
-      real(r8),intent(in) :: forc_solai(bounds%begg:,:)
-      
       ! patch filter for non-urban points
-      integer, intent(in),dimension(:)    :: filter_nourbanp
+      integer, intent(in),dimension(:)     :: filter_nourbanp
 
       ! number of patches in non-urban points in patch  filter
-      integer, intent(in)                 :: num_nourbanp       
+      integer, intent(in)                  :: num_nourbanp       
 
-      ! Output Arguments to CLM
-      ! sunlit fraction of canopy  ! => canopystate_inst%fsun_patch  
-      real(r8),intent(inout) :: fsun(bounds%begp:)
+      ! direct and diffuse downwelling radiation (W/m2)
+      type(atm2lnd_type),intent(in)        :: atm2lnd_inst
+
+      ! Input/Output Arguments to CLM
+      type(canopystate_type),intent(inout) :: canopystate_inst
 
       ! Local Variables
       integer  :: fp                          ! non-urban filter patch index
@@ -165,24 +163,24 @@ contains
       integer, parameter :: ipar = 1          ! The band index for PAR
       type(ed_patch_type), pointer :: cpatch  ! c"urrent" patch
 
-      ! global ed_allsites_inst(g) should be allocated begg:endg
-      ! if this run is using clumps (SMP?) the patch%gricell pointers
-      ! should reflect that.
+      associate( forc_solad => atm2lnd_inst%forc_solad_grc, &
+                 forc_solai => atm2lnd_inst%forc_solai_grc, &
+                 fsun       => canopystate_inst%fsun_patch)
       
-      do fp = 1,num_nourbanp
-         
-         p = filter_nourbanp(fp)
-         g = patch%gridcell(p)
+        do fp = 1,num_nourbanp
+           
+           p = filter_nourbanp(fp)
+           g = patch%gridcell(p)
+           
+           if ( patch%is_veg(p) ) then 
+              cpatch => map_clmpatch_to_edpatch(ed_allsites_inst(g), p) 
+              
+              call ED_SunShadeFracs(cpatch,forc_solad(g,ipar),forc_solai(g,ipar),fsun(p))
 
-         if ( patch%is_veg(p) ) then 
-            cpatch => map_clmpatch_to_edpatch(ed_allsites_inst(g), p) 
-            
-            call ED_SunShadeFracs(cpatch,forc_solad(g,ipar),forc_solai(g,ipar),fsun(p))
-            
-
-         endif
-         
-      end do
+           endif
+           
+        end do
+      end associate
       return
    end subroutine CLMEDInterf_CanopySunShadeFracs
 

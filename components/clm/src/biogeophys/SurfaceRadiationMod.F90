@@ -299,16 +299,10 @@ contains
     
   end subroutine InitCold
   
- 
-  subroutine CanopySunShadeFracs(bounds,tlai_z, fsun_z, elai,                                 &
-                                 forc_solad, forc_solai,                               &
-                                 fabd_sun_z, fabd_sha_z, fabi_sun_z, fabi_sha_z,       &
-                                 nrad,                                                 &
-                                 filter_nourbanp, num_nourbanp,                        &
-                                 parsun_z, parsha_z,                                   &
-                                 laisun, laisha,                                       &
-                                 laisun_z, laisha_z,                   &
-                                 fsun)
+
+  subroutine CanopySunShadeFracs(filter_nourbanp, num_nourbanp,  &
+                                 atm2lnd_inst, surfalb_inst,     &
+                                 canopystate_inst, solarabs_inst)
 
     ! ------------------------------------------------------------------------------------
     ! This subroutine calculates and returns patch vectors of
@@ -332,123 +326,85 @@ contains
     implicit none
 
     ! Arguments (in)
-    type(bounds_type)      , intent(in)            :: bounds  
 
-    ! tlai increment for canopy layer
-    real(r8),intent(in),dimension(bounds%begp:,:)  :: tlai_z          ! => surfalb_inst%tlai_z_patch       
+    integer, intent(in),dimension(:)      :: filter_nourbanp    ! patch filter for non-urban points
+    integer, intent(in)                   :: num_nourbanp       ! size of the nonurban filter
+    type(atm2lnd_type), intent(in)        :: atm2lnd_inst
+    type(surfalb_type), intent(in)        :: surfalb_inst
 
-    ! sunlit fraction of canopy layer
-    real(r8),intent(in),dimension(bounds%begp:,:)  :: fsun_z          ! => surfalb_inst%fsun_z_patch
-
-    ! one-sided leaf area index with burying by snow
-    real(r8),intent(in),dimension(bounds%begp:)    :: elai            ! => canopystate_inst%elai_patch     
-
-    ! direct beam radiation (W/m**2) 
-    real(r8),intent(in),dimension(bounds%begg:,:)  :: forc_solad      ! =>    atm2lnd_inst%forc_solad_grc
-
-    ! diffuse radiation (W/m**2)
-    real(r8),intent(in),dimension(bounds%begg:,:)  :: forc_solai      ! =>    atm2lnd_inst%forc_solai_grc
-
-    ! absorbed sunlit leaf direct  PAR (per unit lai+sai) for each canopy layer
-    real(r8),intent(in),dimension(bounds%begp:,:)  :: fabd_sun_z      ! =>    surfalb_inst%fabd_sun_z_patch
-    
-    ! absorbed shaded leaf direct  PAR (per unit lai+sai) for each canopy layer
-    real(r8),intent(in),dimension(bounds%begp:,:)  :: fabd_sha_z      ! =>    surfalb_inst%fabd_sha_z_patch
-
-    ! absorbed sunlit leaf diffuse PAR (per unit lai+sai) for each canopy layer
-    real(r8),intent(in),dimension(bounds%begp:,:)  :: fabi_sun_z      ! =>    surfalb_inst%fabi_sun_z_patch
-
-    ! absorbed shaded leaf diffuse PAR (per unit lai+sai) for each canopy layer
-    real(r8),intent(in),dimension(bounds%begp:,:)  :: fabi_sha_z       ! =>    surfalb_inst%fabi_sha_z_patch
-         
-    ! number of canopy layers, above snow for radiative transfer
-    integer, intent(in),dimension(bounds%begp:)    :: nrad            ! => surfalb_inst%nrad_patch         
-
-    ! patch filter for non-urban points
-    integer, intent(in),dimension(:)    :: filter_nourbanp
-
-    ! size of the non-urban filter
-    integer, intent(in)                 :: num_nourbanp
-
-    ! Arguments (inout) (the urban portions of these are set somewhere else)
-    !                   (since we want to preserve those entries, we)
-    !                   (allow them to be passed in)
-
-    ! absorbed PAR for sunlit leaves in canopy layer
-    real(r8),intent(inout),dimension(bounds%begp:,:)  :: parsun_z  ! => solarabs_inst%parsun_z_patch  
-
-    ! absorbed PAR for shaded leaves in canopy layer
-    real(r8),intent(inout),dimension(bounds%begp:,:)  :: parsha_z  ! => solarabs_inst%parsha_z_patch     
-
-    ! sunlit leaf area
-    real(r8),intent(inout),dimension(bounds%begp:)    :: laisun    ! => canopystate_inst%laisun_patch   
-
-    ! shaded  leaf area
-    real(r8),intent(inout),dimension(bounds%begp:)    :: laisha    ! => canopystate_inst%laisha_patch  
-
-    ! sunlit leaf area for canopy layer
-    real(r8),intent(inout),dimension(bounds%begp:,:)  :: laisun_z  ! => canopystate_inst%laisun_z_patch 
-
-    ! shaded leaf area for canopy layer
-    real(r8),intent(inout),dimension(bounds%begp:,:)  :: laisha_z  ! => canopystate_inst%laisha_z_patch 
-
-    ! sunlit fraction of canopy
-    real(r8),intent(inout),dimension(bounds%begp:)    :: fsun      ! => canopystate_inst%fsun_patch      
-    
+    ! Arguments (inout)
+    type(canopystate_type), intent(inout) :: canopystate_inst
+    type(solarabs_type), intent(inout)    :: solarabs_inst
   
     ! local variables
-
     integer           :: fp                         ! non-urban filter patch index
     integer           :: p                          ! patch index
     integer           :: g                          ! gridcell index
     integer           :: iv                         ! canopy layer index
     integer,parameter :: ipar = 1                   ! The band index for PAR
-
-
-    do fp = 1,num_nourbanp
-       
-       p = filter_nourbanp(fp)
-
-       do iv = 1, nrad(p)
-          parsun_z(p,iv) = 0._r8
-          parsha_z(p,iv) = 0._r8
-          laisun_z(p,iv) = 0._r8
-          laisha_z(p,iv) = 0._r8
-       end do
-
-       ! Loop over patches to calculate laisun_z and laisha_z for each layer.
-       ! Derive canopy laisun, laisha, and fsun from layer sums.
-       ! If sun/shade big leaf code, nrad=1 and fsun_z(p,1) and tlai_z(p,1) from
-       ! SurfaceAlbedo is canopy integrated so that layer value equals canopy value.
-       
-       laisun(p) = 0._r8
-       laisha(p) = 0._r8
-       do iv = 1, nrad(p)
-          laisun_z(p,iv) = tlai_z(p,iv) * fsun_z(p,iv)
-          laisha_z(p,iv) = tlai_z(p,iv) * (1._r8 - fsun_z(p,iv))
-          laisun(p) = laisun(p) + laisun_z(p,iv) 
-          laisha(p) = laisha(p) + laisha_z(p,iv) 
-       end do
-       if (elai(p) > 0._r8) then
-          fsun(p) = laisun(p) / elai(p)
-       else
-          fsun(p) = 0._r8
-       end if
-
-       ! Absorbed PAR profile through canopy
-       ! If sun/shade big leaf code, nrad=1 and fluxes from SurfaceAlbedo
-       ! are canopy integrated so that layer values equal big leaf values.
-
-       g = patch%gridcell(p)
-       
-       do iv = 1, nrad(p)
-          parsun_z(p,iv) = forc_solad(g,ipar)*fabd_sun_z(p,iv) + forc_solai(g,ipar)*fabi_sun_z(p,iv)
-          parsha_z(p,iv) = forc_solad(g,ipar)*fabd_sha_z(p,iv) + forc_solai(g,ipar)*fabi_sha_z(p,iv)
-       end do
-       
-    end do ! end of fp = 1,num_nourbanp loop
-
-    return
+    
+    associate( tlai_z  => surfalb_inst%tlai_z_patch, &    ! tlai increment for canopy layer
+          fsun_z      => surfalb_inst%fsun_z_patch, &     ! sunlit fraction of canopy layer
+          elai        => canopystate_inst%elai_patch, &   ! one-sided leaf area index 
+          forc_solad  => atm2lnd_inst%forc_solad_grc, &   ! direct beam radiation (W/m**2)
+          forc_solai  => atm2lnd_inst%forc_solai_grc, &   ! diffuse radiation (W/m**2)
+          fabd_sun_z  => surfalb_inst%fabd_sun_z_patch, & ! absorbed sunlit leaf direct PAR
+          fabd_sha_z  => surfalb_inst%fabd_sha_z_patch, & ! absorbed shaded leaf direct PAR
+          fabi_sun_z  => surfalb_inst%fabi_sun_z_patch, & ! absorbed sunlit leaf diffuse PAR
+          fabi_sha_z  => surfalb_inst%fabi_sha_z_patch, & ! absorbed shaded leaf diffuse PAR
+          nrad        => surfalb_inst%nrad_patch, &       ! number of canopy layers
+          parsun_z    => solarabs_inst%parsun_z_patch, &  ! absorbed PAR for sunlit leaves
+          parsha_z    => solarabs_inst%parsha_z_patch, &  ! absorbed PAR for shaded leaves
+          laisun      => canopystate_inst%laisun_patch, & ! sunlit leaf area
+          laisha      => canopystate_inst%laisha_patch, & ! shaded  leaf area
+          laisun_z    => canopystate_inst%laisun_z_patch, & ! sunlit leaf area for canopy layer
+          laisha_z    => canopystate_inst%laisha_z_patch, & ! shaded leaf area for canopy layer
+          fsun        => canopystate_inst%fsun_patch)       ! sunlit fraction of canopy
+     
+     do fp = 1,num_nourbanp
+        
+        p = filter_nourbanp(fp)
+        
+        do iv = 1, nrad(p)
+           parsun_z(p,iv) = 0._r8
+           parsha_z(p,iv) = 0._r8
+           laisun_z(p,iv) = 0._r8
+           laisha_z(p,iv) = 0._r8
+        end do
+        
+        ! Loop over patches to calculate laisun_z and laisha_z for each layer.
+        ! Derive canopy laisun, laisha, and fsun from layer sums.
+        ! If sun/shade big leaf code, nrad=1 and fsun_z(p,1) and tlai_z(p,1) from
+        ! SurfaceAlbedo is canopy integrated so that layer value equals canopy value.
+        
+        laisun(p) = 0._r8
+        laisha(p) = 0._r8
+        do iv = 1, nrad(p)
+           laisun_z(p,iv) = tlai_z(p,iv) * fsun_z(p,iv)
+           laisha_z(p,iv) = tlai_z(p,iv) * (1._r8 - fsun_z(p,iv))
+           laisun(p) = laisun(p) + laisun_z(p,iv) 
+           laisha(p) = laisha(p) + laisha_z(p,iv) 
+        end do
+        if (elai(p) > 0._r8) then
+           fsun(p) = laisun(p) / elai(p)
+        else
+           fsun(p) = 0._r8
+        end if
+        
+        ! Absorbed PAR profile through canopy
+        ! If sun/shade big leaf code, nrad=1 and fluxes from SurfaceAlbedo
+        ! are canopy integrated so that layer values equal big leaf values.
+        
+        g = patch%gridcell(p)
+        
+        do iv = 1, nrad(p)
+           parsun_z(p,iv) = forc_solad(g,ipar)*fabd_sun_z(p,iv) + forc_solai(g,ipar)*fabi_sun_z(p,iv)
+           parsha_z(p,iv) = forc_solad(g,ipar)*fabd_sha_z(p,iv) + forc_solai(g,ipar)*fabi_sha_z(p,iv)
+        end do
+        
+     end do ! end of fp = 1,num_nourbanp loop
+   end associate
+   return
  end subroutine CanopySunShadeFracs
  
   !------------------------------------------------------------------------------

@@ -392,25 +392,14 @@ contains
        ! over the patch index range defined by bounds_clump%begp:bounds_proc%endp
 
        if(use_ed) then
-          call CLMEDInterf_CanopySunShadeFracs(bounds_clump,                                        &
-                                               atm2lnd_inst%forc_solad_grc,                         &
-                                               atm2lnd_inst%forc_solai_grc,                         &
-                                               filter(nc)%nourbanp,filter(nc)%num_nourbanp,         &
-                                               canopystate_inst%fsun_patch)
+          call CLMEDInterf_CanopySunShadeFracs(filter(nc)%nourbanp,                 &
+                                               filter(nc)%num_nourbanp,             &
+                                               atm2lnd_inst, canopystate_inst)
 
        else
-          call CanopySunShadeFracs(bounds_clump,surfalb_inst%tlai_z_patch,                          &
-                                   surfalb_inst%fsun_z_patch,                                       &   
-                                   canopystate_inst%elai_patch,                                     &
-                                   atm2lnd_inst%forc_solad_grc,atm2lnd_inst%forc_solai_grc,         &
-                                   surfalb_inst%fabd_sun_z_patch,surfalb_inst%fabd_sha_z_patch,     &
-                                   surfalb_inst%fabi_sun_z_patch,surfalb_inst%fabi_sha_z_patch,     &
-                                   surfalb_inst%nrad_patch,                                         &
-                                   filter(nc)%nourbanp,filter(nc)%num_nourbanp,                     &
-                                   solarabs_inst%parsun_z_patch,solarabs_inst%parsha_z_patch,       &
-                                   canopystate_inst%laisun_patch,canopystate_inst%laisha_patch,     &
-                                   canopystate_inst%laisun_z_patch,canopystate_inst%laisha_z_patch, &
-                                   canopystate_inst%fsun_patch)
+          call CanopySunShadeFracs(filter(nc)%nourbanp,filter(nc)%num_nourbanp,     &
+                                   atm2lnd_inst, surfalb_inst, canopystate_inst,    &
+                                   solarabs_inst)
        end if
        
 
