@@ -32,7 +32,6 @@ module clmed_interfaceMod
    
    ! Used ED Modules
    use EDtypesMod            , only : ed_patch_type, ed_site_type, numpft_ed
-   use EDtypesMod            , only : ed_allsites_inst
    use EDtypesMod            , only : map_clmpatch_to_edpatch
    use EDCLMLinkMod          , only : ed_clm_type
    use EDPhenologyType       , only : ed_phenology_type
@@ -42,6 +41,18 @@ module clmed_interfaceMod
    implicit none
    
    
+   !-------------------------------------------------------------------------------------
+   ! define the root of ED's linked list memory hierarchy, note that its class
+   ! is defined in EDTypes, yet the actual variable is defined in this module. This
+   ! variable also restricted to this module.
+   !-------------------------------------------------------------------------------------
+
+   type(ed_site_type), allocatable, target :: ed_allsites_inst(:)
+   
+   ! Eventually, ed_allsites_inst should be private
+   
+   public :: ed_allsites_inst
+
 contains
    
    

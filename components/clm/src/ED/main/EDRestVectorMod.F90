@@ -1831,7 +1831,7 @@ contains
     ! EDRest called from restFileMod.F90
     !
     ! !USES:
-    use EDTypesMod   , only : ed_allsites_inst
+    use clmed_interfaceMod , only : ed_allsites_inst
     use ncdio_pio    , only : file_desc_t
     use EDCLMLinkMod , only : ed_clm_type
     !

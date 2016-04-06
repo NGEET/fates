@@ -62,7 +62,7 @@ module clm_driver
   use VOCEmissionMod         , only : VOCEmission
   use EDMainMod              , only : ed_driver
   use clmed_interfaceMod     , only : CLMEDInterf_CanopySunShadeFracs
-  use EDTypesMod             , only : ed_allsites_inst  ! Won't be necessary for long
+  use clmed_interfaceMod     , only : ed_allsites_inst  ! Won't be necessary for long
   !
   use filterMod              , only : setFilters
   !
