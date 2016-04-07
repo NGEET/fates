@@ -47,10 +47,8 @@ module glissade_calving
 
   !WHL - debug
   logical, parameter :: verbose_calving = .false.
-!!  logical, parameter :: verbose_calving = .true.
-  integer, parameter :: jtest = 3
-!!  logical, parameter :: remove_floating_islands = .false.  ! seems to be working, but turn off for now
-  logical, parameter :: remove_floating_islands = .true.  ! seems to be working, but turn off for now
+!!  logical, parameter :: remove_floating_islands = .false.
+  logical, parameter :: remove_floating_islands = .true.
 
 contains
 
@@ -59,6 +57,7 @@ contains
   subroutine glissade_calve_ice(which_calving,     calving_domain,   &
                                 thck,              relx,             &
                                 topg,              eus,              &
+                                thklim,              &
                                 marine_limit,        &
                                 calving_fraction,    &    
                                 calving_timescale,   &
@@ -94,6 +93,7 @@ contains
     real(dp), dimension(:,:), intent(in)    :: relx              !> relaxed bedrock topography
     real(dp), dimension(:,:), intent(in)    :: topg              !> present bedrock topography
     real(dp), intent(in)                    :: eus               !> eustatic sea level
+    real(dp), intent(in)                    :: thklim            !> minimum thickness for dynamically active ice
     real(dp), intent(in)                    :: marine_limit      !> lower limit on topography elevation at marine edge before ice calves
     real(dp), intent(in)                    :: calving_fraction  !> fraction of ice lost at marine edge when calving; 
                                                                  !> used with which_ho_calving = CALVING_FLOAT_FRACTION
@@ -145,20 +145,19 @@ contains
 
     integer :: iplot1, iplot2
 
+    integer, parameter :: &
+         itest = 1, jtest = 1, rtest = -999  ! diagnostic point
+
     !default
 !    iplot1 = nx-20
 !    iplot2 = nx-1
-    ! other useful limits
-    iplot1 = 600
-    iplot2 = 609
-
-    !WHL - debug
-    if (verbose_calving .and. main_task) then
-       print*, 'In glissade_calve_ice, which_calving =', which_calving
-    endif
 
     ! initialize
     calving_thck(:,:) = 0.d0
+
+    if (which_calving == CALVING_NONE) then  ! do nothing
+       return
+    endif
 
     nx = size(thck,1)
     ny = size(thck,2)
@@ -170,14 +169,13 @@ contains
 
     !WHL - debug
     if (verbose_calving .and. main_task) then
-       j = jtest
-       print*, 'Starting glissade_calve_ice: j =', j
+       print*, 'In glissade_calve_ice'
        print*, 'which_calving =', which_calving
        print*, 'calving_domain =', calving_domain
-       print*, 'i, relx, topg, thck, usfc:'
-       do i = iplot1, iplot2
-          print*, i, relx(i,j)*thk0, topg(i,j)*thk0, thck(i,j)*thk0, (topg(i,j) + thck(i,j))*thk0
-       enddo
+!       print*, 'i, relx, topg, thck, usfc:'
+!       do i = iplot1, iplot2
+!          print*, i, relx(i,j)*thk0, topg(i,j)*thk0, thck(i,j)*thk0, (topg(i,j) + thck(i,j))*thk0
+!       enddo
     endif
 
     ! Set the thickness fraction to be removed in each calving cell
@@ -216,11 +214,7 @@ contains
     !       The calving front retreats when active floating ice thins to become inactive, removing protection
     !        from previously protected cells.
 
-    if (which_calving == CALVING_NONE) then
-
-       ! do nothing
-
-    elseif (which_calving == CALVING_THCK_THRESHOLD) then  ! calve floating ice thinner than calving_minthck
+    if (which_calving == CALVING_THCK_THRESHOLD) then  ! calve floating ice thinner than calving_minthck
                                                            ! (if more than one cell away from the actice ice margin)
        ! get masks
        ! Note: Floating ice is considered active only if thck > calving_minthck
@@ -265,6 +259,50 @@ contains
                                      thklim_ground, thklim_float,  &
                                      cell_mask)
        
+       if (verbose_calving .and. this_rank==rtest) then
+
+          print*, ' '
+          print*, 'thck field, itest, jtest, rank =', itest, jtest, rtest
+          do j = jtest+2, jtest-2, -1
+             write(6,'(i6)',advance='no') j
+             do i = itest-2, itest+2
+                write(6,'(e10.3)',advance='no') thck(i,j)
+             enddo
+             write(6,*) ' '
+          enddo
+
+          print*, ' '
+          print*, 'is_active, itest, jtest, rank =', itest, jtest, rtest
+          do j = jtest+2, jtest-2, -1
+             write(6,'(i6)',advance='no') j
+             do i = itest-2, itest+2
+                write(6,'(L5)',advance='no') mask_is_active_ice(cell_mask(i,j))
+             enddo
+             write(6,*) ' '
+          enddo
+
+          print*, ' '
+          print*, 'is_floating, itest, jtest, rank =', itest, jtest, rtest
+          do j = jtest+2, jtest-2, -1
+             write(6,'(i6)',advance='no') j
+             do i = itest-2, itest+2
+                write(6,'(L5)',advance='no') mask_is_floating_ice(cell_mask(i,j))
+             enddo
+             write(6,*) ' '
+          enddo
+
+          print*, ' '
+          print*, 'is_margin, itest, jtest, rank =', itest, jtest, rtest
+          do j = jtest+2, jtest-2, -1
+             write(6,'(i6)',advance='no') j
+             do i = itest-2, itest+2
+                write(6,'(L5)',advance='no') mask_is_margin(cell_mask(i,j))
+             enddo
+             write(6,*) ' '
+          enddo
+
+       endif
+
        ! set the calving-law mask
        ! Note: Cells that meet the calving-law criteria will be calved provided they also lie in the calving domain,
        !       as determined below.
@@ -277,6 +315,9 @@ contains
              do i = 1, nx
                 if (mask_is_floating_ice(cell_mask(i,j))) then
                    calving_law_mask(i,j) = .true.
+                   if (verbose_calving .and. i==itest .and. j==jtest .and. this_rank==rtest) then
+                      print*, 'Calve floating ice: task, i, j, thck =', this_rank, i, j, thck(i,j)
+                   endif
                 else
                    calving_law_mask(i,j) = .false.
                 endif
@@ -391,6 +432,12 @@ contains
                                                               !WHL - Could modify to include grounded marine cells at margin
           do j = 1, ny
              do i = 1, nx
+
+                if (verbose_calving .and. i==itest .and. j==jtest .and. this_rank==rtest) then
+                   print*, 'task, i, j, is_active, is_floating, is_margin:',  &
+                        this_rank, i, j, mask_is_active_ice(cell_mask(i,j)), mask_is_floating_ice(cell_mask(i,j)), mask_is_margin(cell_mask(i,j))
+                endif
+
                 if (mask_is_floating_ice(cell_mask(i,j)) .and. mask_is_margin(cell_mask(i,j))) then
                    calving_domain_mask(i,j) = .true.
                 else
@@ -521,23 +568,28 @@ contains
              if (calving_law_mask(i,j) .and. calving_domain_mask(i,j)) then
                 calving_thck(i,j) = float_fraction_calve * thck(i,j)
                 thck(i,j) = thck(i,j) - calving_thck(i,j)
-                !WHL - Also handle tracers?  E.g., set damage(:,i,j) = 0.d0?
-             endif
+                !WHL TODO - Also handle tracers?  E.g., set damage(:,i,j) = 0.d0?
+ 
+                if (verbose_calving .and. this_rank==rtest) then
+                   print*, 'Calve ice: task, i, j, calving_thck =', this_rank, i, j, calving_thck(i,j)
+                endif
+
+            endif
           enddo
        enddo
 
     endif   ! which_calving
 
     !WHL - debug
-    if (verbose_calving .and. main_task) then
-       j = jtest
-       print*, 'Calved ice: j =', j
-       print*, 'i, relx, topg, thck, usfc, calving_law_mask, calving_domain_mask:'
-       do i = iplot1, iplot2
-          print*, i, relx(i,j)*thk0, topg(i,j)*thk0, thck(i,j)*thk0, (topg(i,j) + thck(i,j))*thk0, &
-                  calving_law_mask(i,j), calving_domain_mask(i,j)
-       enddo
-    endif
+!    if (verbose_calving .and. main_task) then
+!       j = jtest
+!       print*, 'Calved ice: j =', j
+!       print*, 'i, relx, topg, thck, usfc, calving_law_mask, calving_domain_mask:'
+!       do i = iplot1, iplot2
+!          print*, i, relx(i,j)*thk0, topg(i,j)*thk0, thck(i,j)*thk0, (topg(i,j) + thck(i,j))*thk0, &
+!                  calving_law_mask(i,j), calving_domain_mask(i,j)
+!       enddo
+!    endif
 
     ! Remove any floating ice islands.
     ! Typically these will be removed by the calving scheme above, but if not, 
@@ -550,7 +602,6 @@ contains
 
     if (remove_floating_islands) then
 
-       !WHL - debug
        if (verbose_calving .and. main_task) then
           print*, 'Remove floating islands'
        endif
@@ -558,7 +609,7 @@ contains
        call glissade_remove_floating_islands(&
             thck,              relx,        &
             topg,              eus,         &
-            calving_thck)
+            thklim,            calving_thck)
 
     endif
 
@@ -568,13 +619,12 @@ contains
     deallocate (calving_domain_mask)
 
   end subroutine glissade_calve_ice
-
 !---------------------------------------------------------------------------
 
   subroutine glissade_remove_floating_islands(&
        thck,              relx,        &
        topg,              eus,         &
-       calving_thck)
+       thklim,            calving_thck)
 
     ! Remove any floating ice islands. 
         
@@ -594,7 +644,9 @@ contains
     real(dp), dimension(:,:), intent(in)    :: relx              !> relaxed bedrock topography
     real(dp), dimension(:,:), intent(in)    :: topg              !> present bedrock topography
     real(dp), intent(in)                    :: eus               !> eustatic sea level
-    real(dp), dimension(:,:), intent(out)   :: calving_thck      !> thickness lost due to calving in each grid cell
+    real(dp), intent(in)                    :: thklim            !> minimum thickness for dynamically active ice
+    real(dp), dimension(:,:), intent(inout) :: calving_thck      !> thickness lost due to calving in each grid cell
+                                                                 !> on output, includes ice in floating islands
 
     integer :: nx, ny      ! horizontal grid dimensions
 
@@ -615,13 +667,13 @@ contains
     allocate (color(nx,ny))
 
     ! calculate masks
-    ! Use thickness limit of 0.0 instead of thklim so as to remove any ice in floating
-    !  islands, not just dynamically active ice
+    ! Note: A limit of 0.0 does not work because it counts very thin floating cells as active.
+    !       Then the algorithm can fail to identify floating regions that are dynamically isolated.
 
     call glissade_calculate_masks(nx,            ny,            &
                                   thck,                         &
                                   topg,          eus,           &
-                                  0.0d0,         0.0d0,         &  ! thklim_ground = thklim_float = 0 
+                                  thklim,        thklim,        &  ! thklim_ground = thklim_float = thklim
                                   cell_mask)
 
     ! initialize
@@ -629,7 +681,7 @@ contains
 
     do j = 1, ny
        do i = 1, nx
-          if (mask_is_active_ice(cell_mask(i,j))) then  ! mask_is_ice also would work here
+          if (mask_is_active_ice(cell_mask(i,j))) then
              color(i,j) = initial_color
           else
              color(i,j) = boundary_color
@@ -720,7 +772,7 @@ contains
        do i = 1, nx
           if (color(i,j) == initial_color) then
              !WHL - debug
-             print*, 'Remove floating island: rank, i, j =', this_rank, i, j
+             print*, 'Remove floating island: task, i, j =', this_rank, i, j
              calving_thck(i,j) = thck(i,j)
              thck(i,j) = 0.0d0
              !WHL - Also handle tracers?  E.g., set damage(:,i,j) = 0.d0?

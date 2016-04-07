@@ -271,8 +271,6 @@ module glissade_remap
       ! flux across each edge, based on an idea developed by Mats Bentsen.
       !
 
-      use parallel
-
       ! input/output arguments
 
       real(dp), intent(in) ::     &
@@ -1151,7 +1149,8 @@ module glissade_remap
          ump,  vmp        ! corrected velocity at midpoint
 
       integer ::   &
-         istop, jstop     ! indices of grid cell where model aborts 
+         istop, jstop, &             ! local indices of grid cell where model aborts 
+         istop_global, jstop_global  ! global indices of grid cell where model aborts
 
       character(len=100) :: message
 
@@ -1202,6 +1201,9 @@ module glissade_remap
       !       For now, just print an error message locally.
 
       if (l_stop) then
+         call parallel_globalindex(istop, jstop, istop_global, jstop_global)
+         call broadcast(istop_global, proc=this_rank)
+         call broadcast(istop_global, proc=this_rank)
          i = istop
          j = jstop
 !         write (message,*) 'Process:',this_rank
@@ -1218,6 +1220,7 @@ module glissade_remap
 !         call write_log(message)
          write (6,*) 'Process:', this_rank
          write (6,*) 'Remap, departure points out of bounds:, local i, j =', i, j
+         write (6,*) 'Global i, j =', istop_global, jstop_global
          write (6,*) 'dpx, dpy =', dpx(i,j), dpy(i,j)
          write (6,*) 'uvel, vvel =', uvel(i,j), vvel(i,j)
          write (6,*) 'htn(i,j), htn(i+1,j) =', htn(i,j), htn(i+1,j)

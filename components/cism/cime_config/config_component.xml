@@ -43,6 +43,18 @@
     <desc>Version of CISM physics/dynamics to use</desc>
   </entry>
 
+  <entry id="CISM_EVOLVE">
+     <type>logical</type>
+     <valid_values>TRUE,FALSE</valid_values>
+     <default_value>TRUE</default_value>
+     <values>
+        <value compset="_CISM[^_]*%NOEVOLVE">FALSE</value>
+     </values>
+     <group>run_component_cism</group>
+     <file>env_run.xml</file>
+     <desc>Whether CISM ice evolution is on or off</desc>
+  </entry>
+
   <entry id="CISM_OBSERVED_IC">
     <type>logical</type>
     <valid_values>TRUE,FALSE</valid_values>

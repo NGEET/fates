@@ -357,7 +357,7 @@ ifndef CISM_LIBDIR
 endif
 
 INCLDIR +=	-I$(SHAREDPATH)/include -I$(CIMEROOT)/share/csm_share/shr \
-		-I$(CIMEROOT)/share/csm_share/include
+		-I$(CIMEROOT)/share/csm_share/include -I$(CIMEROOT)/share/shr_RandNum/include
 #
 # Use the MCT dir for the cache for all configure calls because it is the first one 
 #
@@ -528,6 +528,7 @@ CMAKE_OPTS += -D CMAKE_Fortran_FLAGS:STRING="$(FFLAGS) $(INCLDIR)" \
               -D CMAKE_VERBOSE_MAKEFILE:BOOL=ON \
               -D NETCDF_DIR:STRING=$(NETCDF_PATH) \
               -D GPTL_PATH:STRING=$(SHAREDPATH) \
+              -D PIO_ENABLE_TESTS:BOOL=OFF \
               -D USER_CMAKE_MODULE_PATH:STRING=$(CIMEROOT)/externals/CMake
 
 ifdef PNETCDF_PATH

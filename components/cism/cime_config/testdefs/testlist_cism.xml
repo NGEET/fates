@@ -39,6 +39,7 @@
       <test name="SMS_D">
         <machine compiler="gnu" testtype="aux_glc">yellowstone</machine>
         <machine compiler="pgi" testtype="aux_glc">yellowstone</machine>
+        <machine compiler="gnu" testtype="prealpha" comment="Include a single-processor test, because cime changes sometimes break single-processor runs">yellowstone</machine>
       </test>
     </grid>
     <grid name="f09_g16_gl5">
@@ -98,17 +99,17 @@
         <machine compiler="intel" testtype="aux_glc" comment="needs to be at least 2 years for there to be enough cpl fields for the cpl log comparison to work">yellowstone</machine>
       </test>
       <test name="SMS_D_Ly1">
-        <machine compiler="pgi" testtype="prebeta" comment="included simply to have a test on hopper">hopper</machine>
         <machine compiler="pgi" testtype="prebeta" testmods="cism/trilinos">titan</machine>
         <machine compiler="intel" testtype="aux_glc">yellowstone</machine>
         <machine compiler="intel" testtype="aux_glc" testmods="cism/trilinos">yellowstone</machine>
-        <machine compiler="intel" testtype="prealpha">yellowstone</machine>
         <machine compiler="intel" testtype="prebeta" testmods="cism/trilinos">yellowstone</machine>
       </test>
     </grid>
     <grid name="f09_g16_gl4">
-      <test name="SMS_Ly1">
-        <machine compiler="intel" testtype="aux_glc" comment="include one short test of the typical production resolution for CISM2">yellowstone</machine>
+      <test name="ERS_Ly3">
+        <machine compiler="pgi" testtype="prebeta" comment="included simply to have a test on hopper">hopper</machine>
+        <machine compiler="intel" testtype="aux_glc" comment="include one test of the typical production resolution for CISM2">yellowstone</machine>
+        <machine compiler="intel" testtype="prealpha">yellowstone</machine>
       </test>
     </grid>
   </compset>

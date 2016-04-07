@@ -263,8 +263,8 @@ subroutine glam_velo_solver(ewn,      nsn,    upn,  &
                             whichresid,             &
                             whichnonlinear,         &
                             whichsparse,            &
-                            beta,                   &
-                            beta_external,          &
+                            beta,                   &   ! beta weighted by f_ground
+                            beta_external,          &   ! fixed, external beta
                             beta_const,             &
                             mintauf,                &
                             bwat,                   &
@@ -296,6 +296,8 @@ subroutine glam_velo_solver(ewn,      nsn,    upn,  &
   real(dp), dimension(:,:,:), intent(inout) :: btraction            ! consistent basal traction array
   real(dp), dimension(:,:,:), intent(in)  :: flwa                   ! flow law rate factor
 
+  !NOTE: The Glissade solver refers to the internally computed beta as 'beta_internal' and the external beta as 'beta'.
+  !      Rather than replace 'beta' everywhere by 'beta_internal', I have kept the original Glam notation.
   real(dp), dimension(:,:),   intent(inout)  :: beta  ! basal traction coefficient, computed in calcbeta
   real(dp), dimension(:,:),   intent(in)  :: beta_external  ! basal traction coefficient, read from external file
   real(dp), dimension(:,:),   intent(in)  :: mintauf  ! specified basal yield stress, used in calcbeta (if specified in config file)
@@ -977,9 +979,9 @@ subroutine JFNK_velo_solver  (model,umask)
   whichsparse = model%options%which_ho_sparse
   whichnonlinear = model%options%which_ho_nonlinear
 
-  !Note: The beta passed into the solver is equal to model%velocity%beta
-  beta => model%velocity%beta(:,:)
-  beta_external => model%velocity%beta_external(:,:)
+  !Note: The external beta passed into the solver is equal to model%velocity%beta
+  beta => model%velocity%beta_internal(:,:)
+  beta_external => model%velocity%beta(:,:)
   beta_const => model%paramets%ho_beta_const
   mintauf => model%basalproc%mintauf(:,:)   
   bwat => model%temper%bwat(:,:)
@@ -2286,9 +2288,9 @@ end subroutine reset_effstrmin
   d2usrfdew2 => fptr%geomderv%d2usrfdew2(:,:)
   d2usrfdns2 => fptr%geomderv%d2usrfdns2(:,:)
 
-  !Note: The beta passed into the solver is equal to model%velocity%beta
-  beta => fptr%velocity%beta(:,:)
-  beta_external => fptr%velocity%beta_external(:,:)
+  !Note: The external beta passed into the solver is equal to model%velocity%beta
+  beta => fptr%velocity%beta_internal(:,:)
+  beta_external => fptr%velocity%beta(:,:)
   beta_const => fptr%paramets%ho_beta_const
   mintauf => fptr%basalproc%mintauf(:,:)
   bwat => fptr%temper%bwat(:,:)
@@ -3131,8 +3133,7 @@ subroutine findcoefstr(ewn,  nsn,   upn,            &
   !       so we have its value in all neighbors of locally owned velocity points.
 
   ! Compute or prescribe the basal traction coefficient 'beta'
-  ! Note: The initial value of model%velocity%beta can change depending on
-  !       the value of model%options%which_ho_babc.
+  ! This is called 'beta_internal' in Glissade, but is still 'beta' in Glam.
 
   ! Note: Arguments must be converted to dimensional units
 

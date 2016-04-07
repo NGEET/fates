@@ -1,6 +1,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! WARNING: this file was automatically generated on
-! Thu, 24 Sep 2015 19:35:31 +0000
+! Thu, 12 Nov 2015 02:48:46 +0000
 ! from ncdf_template.F90.in
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -481,6 +481,28 @@ contains
        end if
      else
      call write_log('Variable beta was specified for output but it is inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
+     end if
+     end if
+
+    !     beta_internal -- weighted higher-order bed stress coefficient
+    pos = index(NCO%vars,' beta_internal ')
+    status = parallel_inq_varid(NCO%id,'beta_internal',varid)
+    if (pos.ne.0) then
+      NCO%vars(pos+1:pos+13) = '             '
+    end if
+    if (pos.ne.0 .and. status.eq.nf90_enotvar) then
+    if (is_enabled(data%velocity%beta_internal)) then
+       call write_log('Creating variable beta_internal')
+       status = parallel_def_var(NCO%id,'beta_internal',get_xtype(outfile,NF90_FLOAT),(/x0_dimid, y0_dimid, time_dimid/),varid)
+       call nc_errorhandle(__FILE__,__LINE__,status)
+       status = parallel_put_att(NCO%id, varid, 'scale_factor',(scale_beta))
+       status = parallel_put_att(NCO%id, varid, 'long_name', 'weighted higher-order bed stress coefficient')
+       status = parallel_put_att(NCO%id, varid, 'units', 'Pa yr/m')
+       if (glimmap_allocated(model%projection)) then
+          status = parallel_put_att(NCO%id, varid, 'grid_mapping',glimmer_nc_mapvarname)
+       end if
+     else
+     call write_log('Variable beta_internal was specified for output but it is inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
      end if
      end if
 
@@ -1046,6 +1068,28 @@ contains
      end if
      end if
 
+    !     f_flotation -- flotation function
+    pos = index(NCO%vars,' f_flotation ')
+    status = parallel_inq_varid(NCO%id,'f_flotation',varid)
+    if (pos.ne.0) then
+      NCO%vars(pos+1:pos+11) = '           '
+    end if
+    if (pos.ne.0 .and. status.eq.nf90_enotvar) then
+    if (is_enabled(data%geometry%f_flotation)) then
+       call write_log('Creating variable f_flotation')
+       status = parallel_def_var(NCO%id,'f_flotation',get_xtype(outfile,NF90_FLOAT),(/x1_dimid, y1_dimid, time_dimid/),varid)
+       call nc_errorhandle(__FILE__,__LINE__,status)
+       status = parallel_put_att(NCO%id, varid, 'long_name', 'flotation function')
+       status = parallel_put_att(NCO%id, varid, 'units', 'unitless')
+       if (glimmap_allocated(model%projection)) then
+          status = parallel_put_att(NCO%id, varid, 'grid_mapping',glimmer_nc_mapvarname)
+          status = parallel_put_att(NCO%id, varid, 'coordinates', 'lon lat')
+       end if
+     else
+     call write_log('Variable f_flotation was specified for output but it is inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
+     end if
+     end if
+
     !     f_ground -- grounded ice fraction
     pos = index(NCO%vars,' f_ground ')
     status = parallel_inq_varid(NCO%id,'f_ground',varid)
@@ -1066,28 +1110,6 @@ contains
        end if
      else
      call write_log('Variable f_ground was specified for output but it is inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
-     end if
-     end if
-
-    !     f_pattyn -- Pattyn flotation function
-    pos = index(NCO%vars,' f_pattyn ')
-    status = parallel_inq_varid(NCO%id,'f_pattyn',varid)
-    if (pos.ne.0) then
-      NCO%vars(pos+1:pos+8) = '        '
-    end if
-    if (pos.ne.0 .and. status.eq.nf90_enotvar) then
-    if (is_enabled(data%geometry%f_pattyn)) then
-       call write_log('Creating variable f_pattyn')
-       status = parallel_def_var(NCO%id,'f_pattyn',get_xtype(outfile,NF90_FLOAT),(/x1_dimid, y1_dimid, time_dimid/),varid)
-       call nc_errorhandle(__FILE__,__LINE__,status)
-       status = parallel_put_att(NCO%id, varid, 'long_name', 'Pattyn flotation function')
-       status = parallel_put_att(NCO%id, varid, 'units', 'unitless')
-       if (glimmap_allocated(model%projection)) then
-          status = parallel_put_att(NCO%id, varid, 'grid_mapping',glimmer_nc_mapvarname)
-          status = parallel_put_att(NCO%id, varid, 'coordinates', 'lon lat')
-       end if
-     else
-     call write_log('Variable f_pattyn was specified for output but it is inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
      end if
      end if
 
@@ -2509,6 +2531,13 @@ contains
        call nc_errorhandle(__FILE__,__LINE__,status)
     end if
 
+    status = parallel_inq_varid(NCO%id,'beta_internal',varid)
+    if (status .eq. nf90_noerr) then
+       status = distributed_put_var(NCO%id, varid, &
+            data%velocity%beta_internal, (/1,1,outfile%timecounter/))
+       call nc_errorhandle(__FILE__,__LINE__,status)
+    end if
+
     status = parallel_inq_varid(NCO%id,'bfricflx',varid)
     if (status .eq. nf90_noerr) then
        status = distributed_put_var(NCO%id, varid, &
@@ -2694,17 +2723,17 @@ contains
        call nc_errorhandle(__FILE__,__LINE__,status)
     end if
 
+    status = parallel_inq_varid(NCO%id,'f_flotation',varid)
+    if (status .eq. nf90_noerr) then
+       status = distributed_put_var(NCO%id, varid, &
+            data%geometry%f_flotation, (/1,1,outfile%timecounter/))
+       call nc_errorhandle(__FILE__,__LINE__,status)
+    end if
+
     status = parallel_inq_varid(NCO%id,'f_ground',varid)
     if (status .eq. nf90_noerr) then
        status = distributed_put_var(NCO%id, varid, &
             data%geometry%f_ground, (/1,1,outfile%timecounter/))
-       call nc_errorhandle(__FILE__,__LINE__,status)
-    end if
-
-    status = parallel_inq_varid(NCO%id,'f_pattyn',varid)
-    if (status .eq. nf90_noerr) then
-       status = distributed_put_var(NCO%id, varid, &
-            data%geometry%f_pattyn, (/1,1,outfile%timecounter/))
        call nc_errorhandle(__FILE__,__LINE__,status)
     end if
 
@@ -4845,6 +4874,28 @@ contains
     data%velocity%beta = inarray/(scale_beta)
   end subroutine glide_set_beta
 
+  subroutine glide_get_beta_internal(data,outarray)
+    use glimmer_scales
+    use glimmer_paramets
+    use glide_types
+    implicit none
+    type(glide_global_type) :: data
+    real(dp), dimension(:,:), intent(out) :: outarray
+
+    outarray = (scale_beta)*(data%velocity%beta_internal)
+  end subroutine glide_get_beta_internal
+
+  subroutine glide_set_beta_internal(data,inarray)
+    use glimmer_scales
+    use glimmer_paramets
+    use glide_types
+    implicit none
+    type(glide_global_type) :: data
+    real(dp), dimension(:,:), intent(in) :: inarray
+
+    data%velocity%beta_internal = inarray/(scale_beta)
+  end subroutine glide_set_beta_internal
+
   subroutine glide_get_bfricflx(data,outarray)
     use glimmer_scales
     use glimmer_paramets
@@ -5274,6 +5325,28 @@ contains
     data%climate%eus = inarray/(thk0)
   end subroutine glide_set_eus
 
+  subroutine glide_get_f_flotation(data,outarray)
+    use glimmer_scales
+    use glimmer_paramets
+    use glide_types
+    implicit none
+    type(glide_global_type) :: data
+    real(dp), dimension(:,:), intent(out) :: outarray
+
+    outarray = data%geometry%f_flotation
+  end subroutine glide_get_f_flotation
+
+  subroutine glide_set_f_flotation(data,inarray)
+    use glimmer_scales
+    use glimmer_paramets
+    use glide_types
+    implicit none
+    type(glide_global_type) :: data
+    real(dp), dimension(:,:), intent(in) :: inarray
+
+    data%geometry%f_flotation = inarray
+  end subroutine glide_set_f_flotation
+
   subroutine glide_get_f_ground(data,outarray)
     use glimmer_scales
     use glimmer_paramets
@@ -5295,28 +5368,6 @@ contains
 
     data%geometry%f_ground = inarray
   end subroutine glide_set_f_ground
-
-  subroutine glide_get_f_pattyn(data,outarray)
-    use glimmer_scales
-    use glimmer_paramets
-    use glide_types
-    implicit none
-    type(glide_global_type) :: data
-    real(dp), dimension(:,:), intent(out) :: outarray
-
-    outarray = data%geometry%f_pattyn
-  end subroutine glide_get_f_pattyn
-
-  subroutine glide_set_f_pattyn(data,inarray)
-    use glimmer_scales
-    use glimmer_paramets
-    use glide_types
-    implicit none
-    type(glide_global_type) :: data
-    real(dp), dimension(:,:), intent(in) :: inarray
-
-    data%geometry%f_pattyn = inarray
-  end subroutine glide_set_f_pattyn
 
   subroutine glide_get_gravity(data,outarray)
     use glimmer_scales
