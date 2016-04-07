@@ -539,13 +539,25 @@ for mct, etc.
   <ADD_GPTL_CPPDEFS> -DHAVE_PAPI </ADD_GPTL_CPPDEFS>
 </compiler>
 
+<!-- <compiler COMPILER="intel" MACH="lawrencium-lr2"> -->
+<!--   <ADD_SLIBS> -lnetcdff -lnetcdf -mkl</ADD_SLIBS> -->
+<!--   <GPTL_CPPDEFS> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY </GPTL_CPPDEFS> -->
+<!-- </compiler> -->
+
+<!-- <compiler COMPILER="intel" MACH="lawrencium-lr3"> -->
+<!--   <ADD_SLIBS> -lnetcdff -lnetcdf -mkl</ADD_SLIBS> -->
+<!--   <GPTL_CPPDEFS> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY </GPTL_CPPDEFS> -->
+<!-- </compiler> -->
+
 <compiler COMPILER="intel" MACH="lawrencium-lr2">
   <ADD_SLIBS> -lnetcdff -lnetcdf -mkl</ADD_SLIBS>
+  <ADD_FFLAGS> -ftrapuv </ADD_FFLAGS>
   <GPTL_CPPDEFS> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY </GPTL_CPPDEFS>
 </compiler>
 
 <compiler COMPILER="intel" MACH="lawrencium-lr3">
   <ADD_SLIBS> -lnetcdff -lnetcdf -mkl</ADD_SLIBS>
+  <ADD_FFLAGS> -ftrapuv </ADD_FFLAGS>
   <GPTL_CPPDEFS> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY </GPTL_CPPDEFS>
 </compiler>
 
