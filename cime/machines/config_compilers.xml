@@ -541,15 +541,15 @@ for mct, etc.
 
 <compiler COMPILER="intel" MACH="lawrencium-lr2">
   <ADD_SLIBS> -lnetcdff -lnetcdf -mkl</ADD_SLIBS>
-  <ADD_FFLAGS> -ftrapuv </ADD_FFLAGS>
-  <ADD_CFLAGS> -ftrapuv </ADD_CFLAGS>
+  <ADD_FFLAGS DEBUG="TRUE"> -ftrapuv </ADD_FFLAGS>
+  <ADD_CFLAGS DEBUG="TRUE"> -ftrapuv </ADD_CFLAGS>
   <GPTL_CPPDEFS> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY </GPTL_CPPDEFS>
 </compiler>
 
 <compiler COMPILER="intel" MACH="lawrencium-lr3">
   <ADD_SLIBS> -lnetcdff -lnetcdf -mkl</ADD_SLIBS>
-  <ADD_FFLAGS> -ftrapuv </ADD_FFLAGS>
-  <ADD_CFLAGS> -ftrapuv </ADD_CFLAGS>
+  <ADD_FFLAGS DEBUG="TRUE"> -ftrapuv </ADD_FFLAGS>
+  <ADD_CFLAGS DEBUG="TRUE"> -ftrapuv </ADD_CFLAGS>
   <GPTL_CPPDEFS> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY </GPTL_CPPDEFS>
 </compiler>
 
