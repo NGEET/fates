@@ -76,7 +76,7 @@ if sys.version_info < (2, 4):
     error( "The version of Python being used is too old for PTCLMmkdata" )
 
 
-svnurl="$HeadURL: https://svn-ccsm-models.cgd.ucar.edu/PTCLM/trunk_tags/PTCLM2_151009/PTCLMmkdata $"
+svnurl="$HeadURL: https://svn-ccsm-models.cgd.ucar.edu/PTCLM/trunk_tags/PTCLM2_160127a/PTCLMmkdata $"
 if   ( svnurl.split('/')[4] == "trunk"       ):
    svnvers="PTCLM_trunk"
 elif ( svnurl.split('/')[4] == "trunk_tags"  ):
