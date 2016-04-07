@@ -190,7 +190,7 @@ contains
                    currentCohort%leaf_cost = currentCohort%leaf_cost * (ED_val_grperc(1) + 1._r8)
                 else !evergreen costs
                    currentCohort%leaf_cost = 1.0_r8/(pftcon%slatop(currentCohort%pft)* &
-                        pftcon%leaf_long(currentCohort%pft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1 
+                        pftcon%leaf_long(currentCohort%pft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
                    currentCohort%leaf_cost = currentCohort%leaf_cost + 1.0_r8/(pftcon%slatop(currentCohort%pft)*1000.0_r8) * &
                         pftcon%froot_leaf(currentCohort%pft) / EDecophyscon%root_long(currentCohort%pft)
                    currentCohort%leaf_cost = currentCohort%leaf_cost * (ED_val_grperc(1) + 1._r8)
@@ -215,10 +215,11 @@ contains
              endif !leaf activity? 
           enddo !z
           if (currentCohort%NV.gt.2)then
-             write(iulog,*) 'nv>4',currentCohort%year_net_uptake(1:6),currentCohort%leaf_cost,&
-             currentCohort%canopy_trim
+             ! leaf_cost may be uninitialized, removing its diagnostic from the log
+             ! to allow checking with fpe_traps (RGK)
+             write(iulog,*) 'nv>4',currentCohort%year_net_uptake(1:6),currentCohort%canopy_trim
           endif
-       
+
           currentCohort%year_net_uptake(:) = 999.0_r8
           if (trimmed == 0.and.currentCohort%canopy_trim < 1.0_r8)then
              currentCohort%canopy_trim = currentCohort%canopy_trim + inc

@@ -1056,7 +1056,7 @@ contains
     real(r8) :: delt                        ! delt associated with subcycling
     real(r8) :: delt_rtm                    ! real value of rtm_tstep
     integer , save :: nsub_save             ! previous nsub
-    real(r8), save :: delt_save             ! previous delt
+    real(r8), save :: delt_save = -99999.999 ! previous delt
     logical , save :: first_time = .true.   ! first time flag (for backwards compatibility)
     character(len=256) :: filer             ! restart file name
     integer,parameter  :: dbug = 1          ! local debug flag
