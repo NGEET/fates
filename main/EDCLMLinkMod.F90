@@ -88,9 +88,6 @@ module EDCLMLinkMod
      real(r8), pointer, private  :: npp_patch                  (:)   ! (gC/m2/s) patch net primary production
      real(r8), pointer, private  :: gpp_patch                  (:)   ! (gC/m2/s) patch gross primary production 
      real(r8), pointer, private  :: ar_patch                   (:)   ! (gC/m2/s) patch autotrophic respiration
-     real(r8), pointer, private  :: root_resp_patch            (:)   ! (gC/m2/s) patch root respitation
-     real(r8), pointer, private  :: stem_resp_patch            (:)   ! (gC/m2/s) patch stem respiration
-     real(r8), pointer, private  :: leaf_resp_patch            (:)   ! (gC/m2/s) patch leaf respiration
      real(r8), pointer, private  :: maint_resp_patch           (:)   ! (gC/m2/s) patch maintenance respiration
      real(r8), pointer, private  :: growth_resp_patch          (:)   ! (gC/m2/s) patch growth respiration
      
@@ -273,9 +270,6 @@ contains
     allocate(this%gpp_patch                  (begp:endp))            ; this%gpp_patch                  (:) = nan
     allocate(this%npp_patch                  (begp:endp))            ; this%npp_patch                  (:) = nan
     allocate(this%ar_patch                   (begp:endp))            ; this%ar_patch                   (:) = nan
-    allocate(this%root_resp_patch            (begp:endp))            ; this%root_resp_patch            (:) = nan
-    allocate(this%stem_resp_patch            (begp:endp))            ; this%stem_resp_patch            (:) = nan
-    allocate(this%leaf_resp_patch            (begp:endp))            ; this%leaf_resp_patch            (:) = nan
     allocate(this%maint_resp_patch           (begp:endp))            ; this%maint_resp_patch           (:) = nan
     allocate(this%growth_resp_patch          (begp:endp))            ; this%growth_resp_patch          (:) = nan
 
@@ -519,32 +513,17 @@ contains
          avgflag='A', long_name='net primary production', &
          ptr_patch=this%npp_patch)
 
-    this%npp_patch(begp:endp) = spval
+    this%ar_patch(begp:endp) = spval
     call hist_addfld1d (fname='AR', units='gC/m^2/s', &
          avgflag='A', long_name='autotrophic respiration', &
          ptr_patch=this%ar_patch)
 
-    this%npp_patch(begp:endp) = spval
-    call hist_addfld1d (fname='ROOT_RESP', units='gC/m^2/s', &
-         avgflag='A', long_name='root respiration', &
-         ptr_patch=this%root_resp_patch)
-
-    this%npp_patch(begp:endp) = spval
-    call hist_addfld1d (fname='STEM_RESP', units='gC/m^2/s', &
-         avgflag='A', long_name='stem respiration', &
-         ptr_patch=this%stem_resp_patch)
-
-    this%npp_patch(begp:endp) = spval
-    call hist_addfld1d (fname='LEAF_RESP', units='gC/m^2/s', &
-         avgflag='A', long_name='leaf respiration', &
-         ptr_patch=this%leaf_resp_patch)
-
-    this%npp_patch(begp:endp) = spval
+    this%growth_resp_patch(begp:endp) = spval
     call hist_addfld1d (fname='GROWTH_RESP', units='gC/m^2/s', &
          avgflag='A', long_name='growth respiration', &
          ptr_patch=this%growth_resp_patch)
 
-    this%npp_patch(begp:endp) = spval
+    this%maint_resp_patch(begp:endp) = spval
     call hist_addfld1d (fname='MAINT_RESP', units='gC/m^2/s', &
          avgflag='A', long_name='maintenance respiration', &
          ptr_patch=this%maint_resp_patch)
@@ -2427,7 +2406,7 @@ contains
    ! !LOCAL VARIABLES:
    real(r8) :: npp_hifreq_col(bounds%begc:bounds%endc)  ! column-level, high frequency NPP
    real(r8) :: dt ! radiation time step (seconds)
-   integer :: c, g, cc, fc, l
+   integer :: c, g, cc, fc, l, p, pp
    type(ed_site_type), pointer :: cs
    type (ed_patch_type)  , pointer :: currentPatch
    type (ed_cohort_type) , pointer :: currentCohort
@@ -2438,6 +2417,11 @@ contains
         totsomc       => soilbiogeochem_carbonstate_inst%totsomc_col, & ! (gC/m2) total soil organic matter carbon
         totlitc       => soilbiogeochem_carbonstate_inst%totlitc_col, & ! (gC/m2) total litter carbon in BGC pools
         npp_hifreq    => this%npp_hifreq_col,      &
+        npp           => this%npp_patch, &
+        gpp           => this%gpp_patch, &
+        ar            => this%ar_patch, &
+        groth_resp    => this%growth_resp_patch, &
+        maint_resp    => this%maint_resp_patch, &                
         nep           => this%nep_col,      &
         fire_c_to_atm => this%fire_c_to_atm_col,      &
         nbp           => this%nbp_col,      &
@@ -2457,6 +2441,7 @@ contains
      dt = real( get_step_size(), r8 )
      
      ! zero variables first
+     ! column variables
      do c = bounds%begc,bounds%endc
         ! summary flux variables
         npp_hifreq(c) = 0._r8
@@ -2467,6 +2452,15 @@ contains
         cwd_stock(c) = 0._r8
         seed_stock(c) = 0._r8
         biomass_stock(c) = 0._r8
+     end do
+
+     ! patch variables
+     do p = bounds%begp,bounds%endp
+        npp(p) = 0._r8
+        gpp(p) = 0._r8
+        ar(p) = 0._r8
+        growth_resp(p) = 0._r8
+        maint_resp(p) = 0._r8
      end do
      
      ! retrieve the first soil patch associated with each gridcell. 
@@ -2490,6 +2484,8 @@ contains
            currentPatch => ed_allsites_inst(g)%oldest_patch
            do while(associated(currentPatch))
 
+              pp = currentPatch%clm_pno
+              
               ! map litter, CWD, and seed pools to column level
               cwd_stock(cc) = cwd_stock(cc) + (currentPatch%area / AREA) * (sum(currentPatch%cwd_ag)+ &
                    sum(currentPatch%cwd_bg)) * 1.e3_r8
@@ -2498,7 +2494,14 @@ contains
               seed_stock(cc)   = seed_stock(cc)   + (currentPatch%area / AREA) * sum(currentPatch%seed_bank) * 1.e3_r8
 
               currentCohort => currentPatch%tallest
-              do while(associated(currentCohort))  
+              do while(associated(currentCohort))
+
+                 ! map ed cohort-level fluxes to clm patch fluxes
+                 npp(pp) = npp(pp) + currentCohort%npp_clm * 1e3 * currentCohort%n / (currentPatch%area * dt)
+                 gpp(pp) = gpp(pp) + currentCohort%gpp_clm * 1e3 * currentCohort%n / (currentPatch%area * dt)
+                 ar(pp) = ar(pp) + currentCohort%resp_clm * 1e3 * currentCohort%n / (currentPatch%area * dt)
+                 growth_resp(pp) = growth_resp(pp) + currentCohort%resp_g * 1e3 * currentCohort%n / (currentPatch%area * dt)
+                 maint_resp(pp) = maint_resp(pp) + currentCohort%resp_m * 1e3 * currentCohort%n / (currentPatch%area * dt)
 
                  ! map ed cohort-level npp fluxes to clm column fluxes
                  npp_hifreq(cc) = npp_hifreq(cc) + currentCohort%npp_clm * 1e3 * currentCohort%n / ( AREA * dt)
