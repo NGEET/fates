@@ -1225,7 +1225,7 @@ contains
     integer  :: G,p,ft
     integer  :: firstsoilpatch(bounds%begg:bounds%endg)
     real(r8) :: n_density   ! individual of cohort per m2.
-    real(r8) :: n_perm2     ! individuals per m2 for the whole grid cell
+    real(r8) :: n_perm2     ! individuals per m2 for the whole column
     real(r8) :: dbh         ! actual dbh used to identify relevant size class
     integer  :: scpf        ! size class x pft index
     integer  :: sc
@@ -1409,9 +1409,16 @@ contains
                   do while(associated(currentCohort))
                      !accumulate into history variables. 
                      ft = currentCohort%pft
-                     if(currentPatch%area>0._r8)then
-                        n_density = currentCohort%n/currentPatch%area
-			n_perm2   = currentCohort%n/AREA   ! plant density using whole area (for grid cell averages)
+
+                     if ((currentPatch%area .gt. 0._r8) .and. (currentPatch%total_canopy_area .gt. 0._r8)) then
+
+                        ! for quantities that are at the CLM patch level, because of the way that CLM patches are weighted for radiative purposes
+                        ! this # density needs to be over either ED patch canopy area or ED patch total area, whichever is less
+                        n_density = currentCohort%n/min(currentPatch%area,currentPatch%total_canopy_area) 
+
+                        ! for quantities that are natively at column level, calculate plant density using whole area
+			n_perm2   = currentCohort%n/AREA   
+
                      else
                         n_density = 0.0_r8
 			n_perm2   = 0.0_r8
@@ -2382,7 +2389,7 @@ contains
    use ColumnType           , only : col
    use LandunitType         , only : lun
    use landunit_varcon      , only : istsoil
-   use subgridAveMod        , only : p2c
+   !use subgridAveMod        , only : p2c
    !
    implicit none   
    !
@@ -2403,6 +2410,7 @@ contains
    type (ed_cohort_type) , pointer :: currentCohort
    integer  :: firstsoilpatch(bounds%begg:bounds%endg) ! the first patch in this gridcell that is soil and thus bare... 
    real(r8) :: n_density   ! individual of cohort per m2.
+   real(r8) :: n_perm2     ! individuals per m2 of the whole column
    
    associate(& 
         hr            => soilbiogeochem_carbonflux_inst%hr_col,      & ! (gC/m2/s) total heterotrophic respiration
@@ -2488,12 +2496,21 @@ contains
               currentCohort => currentPatch%tallest
               do while(associated(currentCohort))
                  
-                 if(currentPatch%area>0._r8)then
-                    n_density = currentCohort%n/currentPatch%area
+
+                 if ((currentPatch%area .gt. 0._r8) .and. (currentPatch%total_canopy_area .gt. 0._r8)) then
+                    
+                    ! for quantities that are at the CLM patch level, because of the way that CLM patches are weighted for radiative purposes
+                    ! this # density needs to be over either ED patch canopy area or ED patch total area, whichever is less
+                    n_density = currentCohort%n/min(currentPatch%area,currentPatch%total_canopy_area) 
+                    
+                    ! for quantities that are natively at column level or higher, calculate plant density using whole area (for grid cell averages)
+                    n_perm2   = currentCohort%n/AREA   
+                    
                  else
                     n_density = 0.0_r8
+                    n_perm2   = 0.0_r8
                  endif
-              
+                 
                  ! map ed cohort-level fluxes to clm patch fluxes
                  npp(pp) = npp(pp) + currentCohort%npp_clm * 1.e3_r8 * n_density / dt
                  gpp(pp) = gpp(pp) + currentCohort%gpp_clm * 1.e3_r8 * n_density / dt
@@ -2502,11 +2519,11 @@ contains
                  maint_resp(pp) = maint_resp(pp) + currentCohort%resp_m * 1.e3_r8 * n_density / dt
 
                  ! map ed cohort-level npp fluxes to clm column fluxes
-                 !npp_col(cc) = npp_col(cc) + currentCohort%npp_clm * 1.e3_r8 * currentCohort%n / ( AREA * dt)
+                 npp_col(cc) = npp_col(cc) + currentCohort%npp_clm * n_perm2 * 1.e3_r8 /dt
 
                  ! map biomass pools to column level
                  biomass_stock(cc) =  biomass_stock(cc) + (currentCohort%bdead + currentCohort%balive + &
-                      currentCohort%bstore) * currentCohort%n * 1.e3_r8 / AREA
+                      currentCohort%bstore) * n_perm2 * 1.e3_r8
 
                  currentCohort => currentCohort%shorter
               enddo !currentCohort
@@ -2515,7 +2532,7 @@ contains
         end if
      end do
 
-     call p2c(bounds,num_soilc, filter_soilc, npp(bounds%begp:bounds%endp), npp_col(bounds%begc:bounds%endc))
+     !call p2c(bounds,num_soilc, filter_soilc, npp(bounds%begp:bounds%endp), npp_col(bounds%begc:bounds%endc))
      
      ! calculate NEP and NBP fluxes.
      do fc = 1,num_soilc
