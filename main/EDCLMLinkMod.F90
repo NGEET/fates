@@ -2540,16 +2540,20 @@ contains
                     n_perm2   = 0.0_r8
                  endif
                  
-                 ! map ed cohort-level fluxes to clm patch fluxes
-                 npp(pp) = npp(pp) + currentCohort%npp_clm * 1.e3_r8 * n_density / dt
-                 gpp(pp) = gpp(pp) + currentCohort%gpp_clm * 1.e3_r8 * n_density / dt
-                 ar(pp) = ar(pp) + currentCohort%resp_clm * 1.e3_r8 * n_density / dt
-                 growth_resp(pp) = growth_resp(pp) + currentCohort%resp_g * 1.e3_r8 * n_density / dt
-                 maint_resp(pp) = maint_resp(pp) + currentCohort%resp_m * 1.e3_r8 * n_density / dt
+                 if ( .not. currentCohort%isnew ) then
 
-                 ! map ed cohort-level npp fluxes to clm column fluxes
-                 npp_col(cc) = npp_col(cc) + currentCohort%npp_clm * n_perm2 * 1.e3_r8 /dt
+                    ! map ed cohort-level fluxes to clm patch fluxes
+                    npp(pp) = npp(pp) + currentCohort%npp_clm * 1.e3_r8 * n_density / dt
+                    gpp(pp) = gpp(pp) + currentCohort%gpp_clm * 1.e3_r8 * n_density / dt
+                    ar(pp) = ar(pp) + currentCohort%resp_clm * 1.e3_r8 * n_density / dt
+                    growth_resp(pp) = growth_resp(pp) + currentCohort%resp_g * 1.e3_r8 * n_density / dt
+                    maint_resp(pp) = maint_resp(pp) + currentCohort%resp_m * 1.e3_r8 * n_density / dt
+                    
+                    ! map ed cohort-level npp fluxes to clm column fluxes
+                    npp_col(cc) = npp_col(cc) + currentCohort%npp_clm * n_perm2 * 1.e3_r8 /dt
 
+                 endif
+                 
                  ! map biomass pools to column level
                  biomass_stock(cc) =  biomass_stock(cc) + (currentCohort%bdead + currentCohort%balive + &
                       currentCohort%bstore) * n_perm2 * 1.e3_r8
