@@ -161,6 +161,10 @@ module EDCLMLinkMod
      real(r8), pointer,  private :: cbalance_error_bgc_col(:)        ! [gC/m2/s]  total carbon balance error for the BGC side
      real(r8), pointer,  private :: cbalance_error_total_col(:)      ! [gC/m2/s]  total carbon balance error for the whole thing
 
+     ! ED patch/cohort data
+     real(r8), pointer,  private :: ed_npatches_col(:)               ! [#] the number of patches per ED site
+     real(r8), pointer,  private :: ed_ncohorts_col(:)               ! [#] the number of cohorts per ED site     
+
    contains
 
      ! Public routines
@@ -309,6 +313,9 @@ contains
     allocate(this%cbalance_error_ed_col      (begc:endc))            ; this%cbalance_error_ed_col     (:) = nan    
     allocate(this%cbalance_error_bgc_col     (begc:endc))            ; this%cbalance_error_bgc_col    (:) = nan    
     allocate(this%cbalance_error_total_col   (begc:endc))            ; this%cbalance_error_total_col  (:) = nan    
+
+    allocate(this%ed_npatches_col            (begc:endc))            ; this%ed_npatches_col           (:) = nan    
+    allocate(this%ed_ncohorts_col            (begc:endc))            ; this%ed_ncohorts_col           (:) = nan    
 
     allocate(this%ed_gpp_gd_scpf       (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_gpp_gd_scpf        (:,:) = 0.0_r8
     allocate(this%ed_npp_totl_gd_scpf  (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_npp_totl_gd_scpf   (:,:) = 0.0_r8
@@ -690,6 +697,16 @@ contains
     call hist_addfld2d (fname='ED_M5_GD_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
           avgflag='A', long_name='fire mortality count by patch and pft/size', &
           ptr_gcell=this%ed_m5_gd_scpf, default='inactive')
+
+    this%ed_npatches_col(begc:endc) = spval
+    call hist_addfld1d (fname='ED_NPATCHES', units='unitless', &
+         avgflag='A', long_name='ED total number of patches per site', &
+         ptr_col=this%ed_npatches_col)
+
+    this%ed_ncohorts_col(begc:endc) = spval
+    call hist_addfld1d (fname='ED_NCOHORTS', units='unitless', &
+         avgflag='A', long_name='ED total number of cohorts per site', &
+         ptr_col=this%ed_ncohorts_col)
 
   end subroutine InitHistory
 
@@ -1222,7 +1239,7 @@ contains
     type(canopystate_type)  , intent(inout)         :: canopystate_inst
     !
     ! !LOCAL VARIABLES:
-    integer  :: G,p,ft
+    integer  :: G,p,ft,c
     integer  :: firstsoilpatch(bounds%begg:bounds%endg)
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
@@ -1277,6 +1294,9 @@ contains
          ed_npp_agsw_scpf     => this%ed_npp_agsw_gd_scpf        , &
          ed_npp_agdw_scpf     => this%ed_npp_agdw_gd_scpf        , &
          ed_npp_stor_scpf     => this%ed_npp_stor_gd_scpf        , &
+
+         ed_npatches          => this%ed_npatches_col            , &
+         ed_ncohorts          => this%ed_ncohorts_col            , &
 
          ed_ddbh_gd_scpf        => this%ed_ddbh_gd_scpf          , &
          ed_ba_gd_scpf          => this%ed_ba_gd_scpf            , &
@@ -1352,6 +1372,9 @@ contains
       ed_m4_gd_scpf(:,:)   = 0.0_r8
       ed_m5_gd_scpf(:,:)   = 0.0_r8
 
+      ed_npatches(:)      = 0._r8
+      ed_ncohorts(:)      = 0._r8
+      
       do g = bounds%begg,bounds%endg
 
          if (firstsoilpatch(g) >= 0 .and. ed_allsites_inst(g)%istheresoil) then 
@@ -1399,16 +1422,22 @@ contains
             !this should probably be site level. 
             phen_cd_status(firstsoilpatch(g))       = ed_allsites_inst(g)%status
 
+            c = ed_allsites_inst(g)%clmcolumn
+
             currentPatch => ed_allsites_inst(g)%oldest_patch
             do while(associated(currentPatch))
 
                if(currentPatch%patchno  <= numpft - numcft)then !don't expand into crop patches.   
                   p = currentPatch%clm_pno
 
+                  ed_npatches(c) = ed_npatches(c) + 1._r8
+
                   currentCohort => currentPatch%shortest
                   do while(associated(currentCohort))
                      !accumulate into history variables. 
                      ft = currentCohort%pft
+
+                     ed_ncohorts(c) = ed_ncohorts(c) + 1._r8                     
 
                      if ((currentPatch%area .gt. 0._r8) .and. (currentPatch%total_canopy_area .gt. 0._r8)) then
 
