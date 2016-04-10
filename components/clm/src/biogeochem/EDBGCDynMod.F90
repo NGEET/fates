@@ -350,7 +350,7 @@ contains
     ! ed veg carbon state and flux summary
     ! ----------------------------------------------
     
-    call ed_clm_inst%Summary(bounds, num_soilc, filter_soilc, &
+    call ed_clm_inst%Summary2(bounds, num_soilc, filter_soilc, &
          ed_allsites_inst(bounds%begg:bounds%endg), &
          soilbiogeochem_carbonflux_inst, &
          soilbiogeochem_carbonstate_inst)

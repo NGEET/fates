@@ -172,7 +172,8 @@ module EDCLMLinkMod
      procedure , public  :: Restart
      procedure , public  :: SetValues
      procedure , public  :: ed_clm_link
-     procedure , public  :: Summary
+     procedure , public  :: Summary2
+     procedure , public  :: Summary1     
      procedure , public  :: ED_BGC_Carbon_Balancecheck
 
      ! Private routines
@@ -2406,13 +2407,13 @@ contains
  end subroutine flux_into_litter_pools
 
   !------------------------------------------------------------------------
-     
- subroutine Summary(this, bounds, num_soilc, filter_soilc, &
-      ed_allsites_inst, soilbiogeochem_carbonflux_inst, &
-      soilbiogeochem_carbonstate_inst)
+ subroutine Summary1(this, bounds, ed_allsites_inst)
 
-   ! Summarize the combined production and decomposition fluxes into net fluxes
-   ! Written by Charlie Koven, Feb 2016
+   ! Summarize the fast production inputs from fluxes per ED individual to fluxes per CLM patch and column
+   ! Must be called between calculation of productivity fluxes and daily ED calls
+   ! (since daily ED calls reorganize the patch / cohort structure)
+
+   ! Written By Charlie Koven, April 2016
    !
    ! !USES: 
    use ColumnType           , only : col
@@ -2425,9 +2426,133 @@ contains
    ! !ARGUMENTS    
    class(ed_clm_type)                                      :: this  
    type(bounds_type)                       , intent(in)    :: bounds  
+   type(ed_site_type)                      , intent(in), target :: ed_allsites_inst( bounds%begg: )
+   !
+   ! !LOCAL VARIABLES:
+   real(r8) :: dt ! radiation time step (seconds)
+   integer :: c, g, cc, fc, l, p, pp
+   type (ed_patch_type)  , pointer :: currentPatch
+   type (ed_cohort_type) , pointer :: currentCohort
+   integer  :: firstsoilpatch(bounds%begg:bounds%endg) ! the first patch in this gridcell that is soil and thus bare... 
+   real(r8) :: n_density   ! individual of cohort per m2.
+   real(r8) :: n_perm2     ! individuals per m2 of the whole column
+
+   associate(& 
+        npp_col       => this%npp_col,      &
+        npp           => this%npp_patch, &
+        gpp           => this%gpp_patch, &
+        ar            => this%ar_patch, &
+        growth_resp   => this%growth_resp_patch, &
+        maint_resp    => this%maint_resp_patch, &                
+        )
+     
+     ! set time steps
+     dt = real( get_step_size(), r8 )
+     
+     ! zero variables first
+     ! column variables
+     do c = bounds%begc,bounds%endc
+        ! summary flux variables
+        npp_col(c) = 0._r8
+     end do
+
+     ! patch variables
+     do p = bounds%begp,bounds%endp
+        npp(p) = 0._r8
+        gpp(p) = 0._r8
+        ar(p) = 0._r8
+        growth_resp(p) = 0._r8
+        maint_resp(p) = 0._r8
+     end do
+     
+     ! retrieve the first soil patch associated with each gridcell. 
+     ! make sure we only get the first patch value for places which have soil. 
+     firstsoilpatch(bounds%begg:bounds%endg) = -999
+     do c = bounds%begc,bounds%endc
+        g = col%gridcell(c)
+        l = col%landunit(c)
+        if (lun%itype(l) == istsoil .and. col%itype(c) == istsoil) then 
+           firstsoilpatch(g) = col%patchi(c)
+        endif
+     enddo
+     
+     do g = bounds%begg,bounds%endg
+        if (firstsoilpatch(g) >= 0 .and. ed_allsites_inst(g)%istheresoil) then 
+           cc = ed_allsites_inst(g)%clmcolumn
+
+           currentPatch => ed_allsites_inst(g)%oldest_patch
+           do while(associated(currentPatch))
+
+              pp = currentPatch%clm_pno
+
+              currentCohort => currentPatch%tallest
+              do while(associated(currentCohort))
+
+                 if ((currentPatch%area .gt. 0._r8) .and. (currentPatch%total_canopy_area .gt. 0._r8)) then
+                    
+                    ! for quantities that are at the CLM patch level, because of the way that CLM patches are weighted for radiative purposes
+                    ! this # density needs to be over either ED patch canopy area or ED patch total area, whichever is less
+                    n_density = currentCohort%n/min(currentPatch%area,currentPatch%total_canopy_area) 
+                    
+                    ! for quantities that are natively at column level or higher, calculate plant density using whole area (for grid cell averages)
+                    n_perm2   = currentCohort%n/AREA   
+                    
+                 else
+                    n_density = 0.0_r8
+                    n_perm2   = 0.0_r8
+                 endif
+                 
+                 if ( .not. currentCohort%isnew ) then
+
+                    ! map ed cohort-level fluxes to clm patch fluxes
+                    npp(pp) = npp(pp) + currentCohort%npp_clm * 1.e3_r8 * n_density / dt
+                    gpp(pp) = gpp(pp) + currentCohort%gpp_clm * 1.e3_r8 * n_density / dt
+                    ar(pp) = ar(pp) + currentCohort%resp_clm * 1.e3_r8 * n_density / dt
+                    growth_resp(pp) = growth_resp(pp) + currentCohort%resp_g * 1.e3_r8 * n_density / dt
+                    maint_resp(pp) = maint_resp(pp) + currentCohort%resp_m * 1.e3_r8 * n_density / dt
+                    
+                    ! map ed cohort-level npp fluxes to clm column fluxes
+                    npp_col(cc) = npp_col(cc) + currentCohort%npp_clm * n_perm2 * 1.e3_r8 /dt
+
+                 endif
+                 
+                 currentCohort => currentCohort%shorter
+              enddo !currentCohort
+              currentPatch => currentPatch%younger
+           end do !currentPatch
+        end if
+     end do
+
+     ! leaving this as a comment here.  it should produce same answer for npp_col as above,
+     ! so it may be useful to try as a check to make sure machinery is working proerly
+     !call p2c(bounds,num_soilc, filter_soilc, npp(bounds%begp:bounds%endp), npp_col(bounds%begc:bounds%endc))
+
+ end subroutine Summary1
+   
+  !------------------------------------------------------------------------
+ subroutine Summary2(this, bounds, num_soilc, filter_soilc, &
+      ed_allsites_inst, soilbiogeochem_carbonflux_inst, &
+      soilbiogeochem_carbonstate_inst)
+
+   ! Summarize the combined production and decomposition fluxes into net fluxes
+   ! This is done on the fast timestep, and to be called after both daily ED calls and fast BGC calls
+   ! Does not include summarization of fast-timestsp productivity calls because these must be summarized prior to daily ED calls
+   !
+   ! Written by Charlie Koven, Feb 2016
+   !
+   ! !USES: 
+   use ColumnType           , only : col
+   use LandunitType         , only : lun
+   use landunit_varcon      , only : istsoil
+   !
+   implicit none   
+   !
+   ! !ARGUMENTS    
+   class(ed_clm_type)                                      :: this  
+   type(bounds_type)                       , intent(in)    :: bounds  
    integer                                 , intent(in)    :: num_soilc         ! number of soil columns in filter
    integer                                 , intent(in)    :: filter_soilc(:)   ! filter for soil columns
-   type(ed_site_type)                      , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+   type(ed_site_type)                      , intent(in), target :: ed_allsites_inst( bounds%begg: )
    type(soilbiogeochem_carbonflux_type)    , intent(inout) :: soilbiogeochem_carbonflux_inst
    type(soilbiogeochem_carbonstate_type)   , intent(inout) :: soilbiogeochem_carbonstate_inst
    !
@@ -2438,7 +2563,6 @@ contains
    type (ed_patch_type)  , pointer :: currentPatch
    type (ed_cohort_type) , pointer :: currentCohort
    integer  :: firstsoilpatch(bounds%begg:bounds%endg) ! the first patch in this gridcell that is soil and thus bare... 
-   real(r8) :: n_density   ! individual of cohort per m2.
    real(r8) :: n_perm2     ! individuals per m2 of the whole column
    
    associate(& 
@@ -2446,11 +2570,6 @@ contains
         totsomc       => soilbiogeochem_carbonstate_inst%totsomc_col, & ! (gC/m2) total soil organic matter carbon
         totlitc       => soilbiogeochem_carbonstate_inst%totlitc_col, & ! (gC/m2) total litter carbon in BGC pools
         npp_col       => this%npp_col,      &
-        npp           => this%npp_patch, &
-        gpp           => this%gpp_patch, &
-        ar            => this%ar_patch, &
-        growth_resp   => this%growth_resp_patch, &
-        maint_resp    => this%maint_resp_patch, &                
         nep           => this%nep_col,      &
         fire_c_to_atm => this%fire_c_to_atm_col,      &
         nbp           => this%nbp_col,      &
@@ -2481,15 +2600,6 @@ contains
         cwd_stock(c) = 0._r8
         seed_stock(c) = 0._r8
         biomass_stock(c) = 0._r8
-     end do
-
-     ! patch variables
-     do p = bounds%begp,bounds%endp
-        npp(p) = 0._r8
-        gpp(p) = 0._r8
-        ar(p) = 0._r8
-        growth_resp(p) = 0._r8
-        maint_resp(p) = 0._r8
      end do
      
      ! retrieve the first soil patch associated with each gridcell. 
@@ -2525,34 +2635,8 @@ contains
               currentCohort => currentPatch%tallest
               do while(associated(currentCohort))
                  
-
-                 if ((currentPatch%area .gt. 0._r8) .and. (currentPatch%total_canopy_area .gt. 0._r8)) then
-                    
-                    ! for quantities that are at the CLM patch level, because of the way that CLM patches are weighted for radiative purposes
-                    ! this # density needs to be over either ED patch canopy area or ED patch total area, whichever is less
-                    n_density = currentCohort%n/min(currentPatch%area,currentPatch%total_canopy_area) 
-                    
-                    ! for quantities that are natively at column level or higher, calculate plant density using whole area (for grid cell averages)
-                    n_perm2   = currentCohort%n/AREA   
-                    
-                 else
-                    n_density = 0.0_r8
-                    n_perm2   = 0.0_r8
-                 endif
-                 
-                 if ( .not. currentCohort%isnew ) then
-
-                    ! map ed cohort-level fluxes to clm patch fluxes
-                    npp(pp) = npp(pp) + currentCohort%npp_clm * 1.e3_r8 * n_density / dt
-                    gpp(pp) = gpp(pp) + currentCohort%gpp_clm * 1.e3_r8 * n_density / dt
-                    ar(pp) = ar(pp) + currentCohort%resp_clm * 1.e3_r8 * n_density / dt
-                    growth_resp(pp) = growth_resp(pp) + currentCohort%resp_g * 1.e3_r8 * n_density / dt
-                    maint_resp(pp) = maint_resp(pp) + currentCohort%resp_m * 1.e3_r8 * n_density / dt
-                    
-                    ! map ed cohort-level npp fluxes to clm column fluxes
-                    npp_col(cc) = npp_col(cc) + currentCohort%npp_clm * n_perm2 * 1.e3_r8 /dt
-
-                 endif
+                 ! for quantities that are natively at column level or higher, calculate plant density using whole area (for grid cell averages)
+                 n_perm2   = currentCohort%n/AREA                    
                  
                  ! map biomass pools to column level
                  biomass_stock(cc) =  biomass_stock(cc) + (currentCohort%bdead + currentCohort%balive + &
@@ -2565,8 +2649,6 @@ contains
         end if
      end do
 
-     !call p2c(bounds,num_soilc, filter_soilc, npp(bounds%begp:bounds%endp), npp_col(bounds%begc:bounds%endc))
-     
      ! calculate NEP and NBP fluxes.
      do fc = 1,num_soilc
         c = filter_soilc(fc)
@@ -2624,7 +2706,7 @@ contains
 
    end associate
    
- end subroutine Summary
+ end subroutine Summary2
 
 
  subroutine ED_BGC_Carbon_Balancecheck(this, bounds, num_soilc, filter_soilc, soilbiogeochem_carbonflux_inst)  

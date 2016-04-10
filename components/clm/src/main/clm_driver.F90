@@ -444,6 +444,13 @@ contains
             humanindex_inst, soil_water_retention_curve, cnveg_nitrogenstate_inst) 
        call t_stopf('canflux')
 
+       if (use_ed) then
+          ! if ED enabled, summarize productivity fluxes onto CLM history file structure
+          call t_startf('edclmsummary1')
+          call ed_clm_inst%Summary1( bounds_clump, ed_allsites_inst(bounds_clump%begg:bounds_clump%endg))
+          call t_stopf('edclmsummary1')
+       endif
+       
        ! Fluxes for all urban landunits
 
        call t_startf('uflux')
