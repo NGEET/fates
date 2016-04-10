@@ -2443,7 +2443,7 @@ contains
         gpp           => this%gpp_patch, &
         ar            => this%ar_patch, &
         growth_resp   => this%growth_resp_patch, &
-        maint_resp    => this%maint_resp_patch, &                
+        maint_resp    => this%maint_resp_patch &                
         )
      
      ! set time steps
@@ -2527,6 +2527,7 @@ contains
      ! so it may be useful to try as a check to make sure machinery is working proerly
      !call p2c(bounds,num_soilc, filter_soilc, npp(bounds%begp:bounds%endp), npp_col(bounds%begc:bounds%endc))
 
+   end associate
  end subroutine Summary1
    
   !------------------------------------------------------------------------
