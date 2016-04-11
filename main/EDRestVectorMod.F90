@@ -59,7 +59,7 @@ module EDRestVectorMod
      real(r8), pointer :: resp_clm(:) 
      integer,  pointer :: pft(:) 
      integer,  pointer :: status_coh(:)
-     logical,  pointer :: isnew(:)
+     integer,  pointer :: isnew(:)
      !
      ! patch level restart vars
      ! indexed by ncwd
@@ -346,7 +346,7 @@ contains
       allocate(new%isnew &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
       SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
-      new%isnew(:) = .true.
+      new%isnew(:) = 1
 
       ! 
       ! some patch level variables that are required on restart
@@ -581,7 +581,7 @@ contains
     ! implement VectorIO
     !
     ! !USES:
-    use ncdio_pio  , only : file_desc_t, ncd_int, ncd_double
+    use ncdio_pio  , only : file_desc_t, ncd_int, ncd_double, ncd_log
     use restUtilMod, only : restartvar
     use clm_varcon,  only : nameg, nameCohort
     use spmdMod,     only : iam
@@ -725,7 +725,7 @@ contains
          interpinic_flag='interp', data=this%status_coh, &
          readvar=readvar)
 
-    call restartvar(ncid=ncid, flag=flag, varname='isnew', xtype=ncd_log,  &
+    call restartvar(ncid=ncid, flag=flag, varname='ed_isnew', xtype=ncd_int,  &
          dim1name=dimName, &
          long_name='ed cohort - isnew', units='unitless', &
          interpinic_flag='interp', data=this%isnew, &
@@ -1321,7 +1321,11 @@ contains
                 this%resp_clm(countCohort)     = currentCohort%resp_clm
                 this%pft(countCohort)          = currentCohort%pft
                 this%status_coh(countCohort)   = currentCohort%status_coh
-                this%isnew(countCohort)        = currentCohort%isnew
+                if ( currentCohort%isnew ) then
+                   this%isnew(countCohort)        = 1
+                else
+                   this%isnew(countCohort)        = 0
+                endif
 
                 if (this%DEBUG) then
                    write(iulog,*) 'CLTV offsetNumCohorts II ',countCohort, &
@@ -1710,7 +1714,7 @@ contains
                 currentCohort%resp_clm = this%resp_clm(countCohort)
                 currentCohort%pft = this%pft(countCohort)
                 currentCohort%status_coh = this%status_coh(countCohort)
-                currentCohort%isnew = this%isnew(countCohort)
+                currentCohort%isnew = ( this%isnew(countCohort) .eq. 1 )
 
                 if (this%DEBUG) then
                    write(iulog,*) 'CVTL II ',countCohort, &
