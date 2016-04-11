@@ -59,6 +59,7 @@ module EDRestVectorMod
      real(r8), pointer :: resp_clm(:) 
      integer,  pointer :: pft(:) 
      integer,  pointer :: status_coh(:)
+     logical,  pointer :: isnew(:)
      !
      ! patch level restart vars
      ! indexed by ncwd
@@ -179,6 +180,7 @@ contains
     deallocate(this%resp_clm )
     deallocate(this%pft )
     deallocate(this%status_coh )
+    deallocate(this%isnew )
     deallocate(this%cwd_ag )
     deallocate(this%cwd_bg )
     deallocate(this%leaf_litter )
@@ -340,6 +342,11 @@ contains
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
       SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
       new%status_coh(:) = 0
+
+      allocate(new%isnew &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%isnew(:) = .true.
 
       ! 
       ! some patch level variables that are required on restart
@@ -718,6 +725,12 @@ contains
          interpinic_flag='interp', data=this%status_coh, &
          readvar=readvar)
 
+    call restartvar(ncid=ncid, flag=flag, varname='isnew', xtype=ncd_log,  &
+         dim1name=dimName, &
+         long_name='ed cohort - isnew', units='unitless', &
+         interpinic_flag='interp', data=this%isnew, &
+         readvar=readvar)
+
     !
     ! patch level vars
     !
@@ -948,6 +961,8 @@ contains
          this%pft(iSta:iSto)
     write(iulog,*) trim(methodName)//' :: status_coh ', &
          this%status_coh(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: isnew ', &
+         this%isnew(iSta:iSto)
 
     write(iulog,*) trim(methodName)//' :: cwd_ag ', &
          this%cwd_ag(iSta:iSto)
@@ -1070,6 +1085,7 @@ contains
                 write(iulog,*) trim(methodName)//' resp_clm '     ,totalCohorts,currentCohort%resp_clm
                 write(iulog,*) trim(methodName)//' pft '          ,totalCohorts,currentCohort%pft
                 write(iulog,*) trim(methodName)//' status_coh '   ,totalCohorts,currentCohort%status_coh
+                write(iulog,*) trim(methodName)//' isnew '        ,totalCohorts,currentCohort%isnew
 
                 numCohort = numCohort + 1
 
@@ -1192,6 +1208,7 @@ contains
                 write(iulog,*) trim(methodName)//' resp_clm     ',currentCohort%resp_clm
                 write(iulog,*) trim(methodName)//' pft          ',currentCohort%pft
                 write(iulog,*) trim(methodName)//' status_coh   ',currentCohort%status_coh
+                write(iulog,*) trim(methodName)//' isnew        ',currentCohort%isnew
 
                 currentCohort => currentCohort%taller
              enddo ! currentCohort do while
@@ -1304,6 +1321,7 @@ contains
                 this%resp_clm(countCohort)     = currentCohort%resp_clm
                 this%pft(countCohort)          = currentCohort%pft
                 this%status_coh(countCohort)   = currentCohort%status_coh
+                this%isnew(countCohort)        = currentCohort%isnew
 
                 if (this%DEBUG) then
                    write(iulog,*) 'CLTV offsetNumCohorts II ',countCohort, &
@@ -1692,6 +1710,7 @@ contains
                 currentCohort%resp_clm = this%resp_clm(countCohort)
                 currentCohort%pft = this%pft(countCohort)
                 currentCohort%status_coh = this%status_coh(countCohort)
+                currentCohort%isnew = this%isnew(countCohort)
 
                 if (this%DEBUG) then
                    write(iulog,*) 'CVTL II ',countCohort, &
