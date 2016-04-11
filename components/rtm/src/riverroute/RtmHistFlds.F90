@@ -83,10 +83,6 @@ contains
          avgflag='A', long_name='RTM flooding flux', &
          ptr_rof=runoff%flood, default='inactive')
 
-    call RtmHistAddfld (fname='RUNOFF_DTO', units='mm/s',  &
-         avgflag='A', long_name='direct to ocean runoff', &
-         ptr_rof=runoff%runoffdto, default='inactive')
-
     ! Print masterlist of history fields
 
     call RtmHistPrintflds()

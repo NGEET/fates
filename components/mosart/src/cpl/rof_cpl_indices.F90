@@ -81,7 +81,7 @@ contains
     index_x2r_Flrl_rofsur = mct_avect_indexra(avtmp,'Flrl_rofsur') !'Flrl_rofsur')
     index_x2r_Flrl_rofgwl = mct_avect_indexra(avtmp,'Flrl_rofgwl')
     index_x2r_Flrl_rofsub = mct_avect_indexra(avtmp,'Flrl_rofsub')
-    index_x2r_Flrl_rofdto = mct_avect_indexra(avtmp,'Flrl_rofdto')
+    index_x2r_Flrl_rofdto = mct_avect_indexra(avtmp,'Flrl_rofdto',perrwith='quiet')
     index_x2r_Flrl_rofi   = mct_avect_indexra(avtmp,'Flrl_rofi')
 
     nflds_x2r = mct_avect_nRattr(avtmp)

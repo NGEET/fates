@@ -16,6 +16,7 @@ module RtmVar
   real(r8), public, parameter :: spval    = 1.e36_r8        ! special value for real data
   integer , public, parameter :: ispval   = -9999           ! special value for int data
   real(r8) :: re = SHR_CONST_REARTH*0.001_r8                ! radius of earth (km)
+  logical , public :: barrier_timers = .false.              ! barrier timers
 
   ! Run control variables
   character(len=256), public :: caseid  = ' '          ! case id
@@ -27,6 +28,13 @@ module RtmVar
   logical, public :: brnch_retain_casename = .false.   ! true => allow case name to remain the same for branch run
                                                        ! by default this is not allowed
   logical, public :: noland = .false.                  ! true => no valid land points -- do NOT run
+  character(len=32) , public :: decomp_option          ! decomp option
+  character(len=32) , public :: bypass_routing_option  ! bypass routing model method
+  character(len=32) , public :: qgwl_runoff_option     ! method for handling qgwl runoff
+  character(len=32) , public :: smat_option            ! smatrix multiply option (opt, Xonly, Yonly)
+                                                       ! opt   = XandY in MCT
+                                                       ! Xonly = Xonly in MCT, should be bfb on different pe counts
+                                                       ! Yonly = Yonly in MCT
   character(len=256), public :: hostname = ' '         ! Hostname of machine running on
   character(len=256), public :: username = ' '         ! username of user running program
   character(len=256), public :: version  = " "         ! version of program

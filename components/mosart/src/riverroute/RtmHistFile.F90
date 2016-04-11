@@ -8,7 +8,8 @@ module RtmHistFile
 ! !USES:
   use shr_kind_mod  , only : r8 => shr_kind_r8
   use shr_sys_mod   , only : shr_sys_flush, shr_sys_abort
-  use RunoffMod     , only : rtmCTL
+  use shr_log_mod   , only : errMsg => shr_log_errMsg
+  use RunoffMod     , only : rtmCTL, Tunit
   use RtmVar        , only : rtmlon, rtmlat, spval, ispval, secspday, frivinp_rtm, &   
                              iulog, nsrest, caseid, inst_suffix, nsrStartup, nsrBranch, & 
                              ctitle, version, hostname, username, conventions, source
@@ -91,6 +92,9 @@ module RtmHistFile
 ! !PRIVATE TYPES:
 ! Constants
 !
+  integer, parameter :: max_length_filename = 128 ! max length of a filename. on most linux systems this
+                                                  ! is 255. But this can't be increased until all hard
+                                                  ! coded values throughout the i/o stack are updated.
   integer, parameter :: max_chars = 128        ! max chars for char variables
 !
 ! Subscript dimensions
@@ -158,7 +162,7 @@ module RtmHistFile
 !
 ! Other variables
 !
-  character(len=max_chars) :: locfnh(max_tapes)  ! local history file names
+  character(len=max_length_filename) :: locfnh(max_tapes)  ! local history file names
   character(len=max_chars) :: locfnhr(max_tapes) ! local history restart file names
   logical :: htapes_defined = .false.            ! flag indicates history contents have been defined
 !
@@ -809,6 +813,14 @@ contains
             long_name='runoff coordinate longitude', units='degrees_east', ncid=nfid(t))
        call ncd_defvar(varname='lat', xtype=tape(t)%ncprec, dim1name='lat', &
             long_name='runoff coordinate latitude', units='degrees_north', ncid=nfid(t))
+       call ncd_defvar(varname='mask', xtype=ncd_int, dim1name='lon', dim2name='lat', &
+            long_name='runoff mask', units='unitless', ncid=nfid(t))
+       call ncd_defvar(varname='area', xtype=tape(t)%ncprec, dim1name='lon', dim2name='lat', &
+            long_name='runoff grid area', units='m2', ncid=nfid(t))
+       call ncd_defvar(varname='areatotal', xtype=tape(t)%ncprec, dim1name='lon', dim2name='lat', &
+            long_name='basin upstream areatotal', units='m2', ncid=nfid(t))
+       call ncd_defvar(varname='areatotal2', xtype=tape(t)%ncprec, dim1name='lon', dim2name='lat', &
+            long_name='computed basin upstream areatotal', units='m2', ncid=nfid(t))
 
     else if (mode == 'write') then
 
@@ -837,6 +849,14 @@ contains
 
        call ncd_io(varname='lon', data=rtmCTL%rlon, ncid=nfid(t), flag='write')
        call ncd_io(varname='lat', data=rtmCTL%rlat, ncid=nfid(t), flag='write')
+       call ncd_io(flag='write', varname='mask', dim1name='allrof', &
+           data=rtmCTL%mask, ncid=nfid(t))
+       call ncd_io(flag='write', varname='area', dim1name='allrof', &
+           data=rtmCTL%area, ncid=nfid(t))
+       call ncd_io(flag='write', varname='areatotal', dim1name='allrof', &
+           data=Tunit%areatotal, ncid=nfid(t))
+       call ncd_io(flag='write', varname='areatotal2', dim1name='allrof', &
+           data=Tunit%areatotal2, ncid=nfid(t))
 
     endif
 
@@ -1178,7 +1198,7 @@ contains
           ! Create the restart history filename and open it
           !
           write(hnum,'(i1.1)') t-1
-          locfnhr(t) = "./" // trim(caseid) //".rtm"// trim(inst_suffix) &
+          locfnhr(t) = "./" // trim(caseid) //".mosart"// trim(inst_suffix) &
                         // ".rh" // hnum //"."// trim(rdate) //".nc"
           call htape_create( t, histrest=.true. )
           !
@@ -1590,7 +1610,7 @@ contains
 
 !-----------------------------------------------------------------------
 
-  character(len=256) function set_hist_filename (hist_freq, rtmhist_mfilt, hist_file)
+  character(len=max_length_filename) function set_hist_filename (hist_freq, rtmhist_mfilt, hist_file)
 
     ! Determine history dataset filenames.
     
@@ -1607,6 +1627,7 @@ contains
     integer :: mon                    !month (1 -> 12)
     integer :: yr                     !year (0 -> ...)
     integer :: sec                    !seconds into current day
+    integer :: filename_length
     character(len=*),parameter :: subname = 'set_hist_filename'
     
     if (hist_freq == 0 .and. rtmhist_mfilt == 1) then   !monthly
@@ -1617,9 +1638,24 @@ contains
        write(cdate,'(i4.4,"-",i2.2,"-",i2.2,"-",i5.5)') yr,mon,day,sec
     endif
     write(hist_index,'(i1.1)') hist_file - 1
-    set_hist_filename = "./"//trim(caseid)//".rtm"//trim(inst_suffix)//&
+    set_hist_filename = "./"//trim(caseid)//".mosart"//trim(inst_suffix)//&
                         ".h"//hist_index//"."//trim(cdate)//".nc"
 
+   ! check to see if the concatenated filename exceeded the
+   ! length. Simplest way to do this is ensure that the file
+   ! extension is '.nc'.
+   filename_length = len_trim(set_hist_filename)
+   if (set_hist_filename(filename_length-2:filename_length) /= '.nc') then
+      write(iulog, '(a,a,a,a,a)') 'ERROR: ', subname, &
+           ' : expected file extension ".nc", received extension "', &
+           set_hist_filename(filename_length-2:filename_length), '"'
+      write(iulog, '(a,a,a,a,a)') 'ERROR: ', subname, &
+           ' : filename : "', set_hist_filename, '"'
+      write(iulog, '(a,a,a,i3,a,i3)') 'ERROR: ', subname, &
+           ' Did the constructed filename exceed the maximum length? : filename length = ', &
+           filename_length, ', max length = ', max_length_filename
+      call shr_sys_abort(errMsg(__FILE__, __LINE__))
+   end if
   end function set_hist_filename
 
 !------------------------------------------------------------------------
@@ -1689,21 +1725,21 @@ contains
 
     if (present(default)) then
        if (trim(default) == 'inactive') return
-    else
-       ! Look through master list for input field name.
-       ! When found, set active flag for that tape to true.
-       found = .false.
-       do f = 1,nfmaster
-          if (trim(fname) == trim(masterlist(f)%field%name)) then
-             masterlist(f)%actflag(1) = .true.
-             found = .true.
-             exit
-          end if
-       end do
-       if (.not. found) then
-          write(iulog,*) trim(subname),' ERROR: field=', fname, ' not found'
-          call shr_sys_abort()
+    endif
+
+    ! Look through master list for input field name.
+    ! When found, set active flag for that tape to true.
+    found = .false.
+    do f = 1,nfmaster
+       if (trim(fname) == trim(masterlist(f)%field%name)) then
+          masterlist(f)%actflag(1) = .true.
+          found = .true.
+          exit
        end if
+    end do
+    if (.not. found) then
+       write(iulog,*) trim(subname),' ERROR: field=', fname, ' not found'
+       call shr_sys_abort()
     end if
 
   end subroutine RtmHistAddfld
