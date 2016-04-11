@@ -37,8 +37,6 @@ module EDCLMLinkMod
      real(r8), pointer, private  :: area_plant_patch           (:) 
      real(r8), pointer, private  :: area_trees_patch           (:) 
      real(r8), pointer, private  :: canopy_spread_patch        (:) 
-     real(r8), pointer, private  :: canopy_closure_patch       (:)
-     real(r8), pointer, private  :: canopy_closure_col         (:)
      real(r8), pointer, private  :: PFTbiomass_patch           (:,:) ! total biomass of each patch
      real(r8), pointer, private  :: PFTleafbiomass_patch       (:,:) ! total biomass of each patch   
      real(r8), pointer, private  :: PFTstorebiomass_patch      (:,:) ! total biomass of each patch   
@@ -237,8 +235,6 @@ contains
     allocate(this%canopy_spread_patch        (begp:endp))            ; this%canopy_spread_patch        (:) = 0.0_r8    
     allocate(this%area_plant_patch           (begp:endp))            ; this%area_plant_patch           (:) = 0.0_r8    
     allocate(this%area_trees_patch           (begp:endp))            ; this%area_trees_patch           (:) = 0.0_r8    
-    allocate(this%canopy_closure_patch       (begp:endp))            ; this%canopy_closure_patch       (:) = 0.0_r8    
-    allocate(this%canopy_closure_col         (begc:endc))            ; this%canopy_closure_col         (:) = 0.0_r8    
     allocate(this%PFTbiomass_patch           (begp:endp,1:nlevgrnd)) ; this%PFTbiomass_patch           (:,:) = 0.0_r8    
     allocate(this%PFTleafbiomass_patch       (begp:endp,1:nlevgrnd)) ; this%PFTleafbiomass_patch       (:,:) = 0.0_r8    
     allocate(this%PFTstorebiomass_patch      (begp:endp,1:nlevgrnd)) ; this%PFTstorebiomass_patch      (:,:) = 0.0_r8    
@@ -398,14 +394,6 @@ contains
     call hist_addfld1d (fname='CANOPY_SPREAD', units='none',  &   
          avgflag='A', long_name='Scaling factor between tree basal area and canopy area', &
          ptr_patch=this%canopy_spread_patch, set_lake=0._r8, set_urb=0._r8)   
-
-    call hist_addfld1d (fname='CANOPY_CLOSURE', units='m2/m2',  &
-         avgflag='A', long_name='fraction of patch area that is closed canopy', &
-         ptr_patch=this%canopy_closure_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='CANOPY_CLOSURE_COL', units='m2/m2',  &
-         avgflag='A', long_name='fraction of column area that is closed canopy', &
-         ptr_col=this%canopy_closure_col, set_lake=0._r8, set_urb=0._r8, default='inactive')
 
     call hist_addfld2d (fname='PFTbiomass',  units='gC/m2', type2d='levgrnd', &
          avgflag='A', long_name='total PFT level biomass', &
@@ -1256,6 +1244,7 @@ contains
     integer  :: firstsoilpatch(bounds%begg:bounds%endg)
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
+    real(r8) :: patch_scaling_scalar ! ratio of canopy to patch area for counteracting patch scaling
     real(r8) :: dbh         ! actual dbh used to identify relevant size class
     integer  :: scpf        ! size class x pft index
     integer  :: sc
@@ -1269,8 +1258,6 @@ contains
          PFTstorebiomass      => this%PFTstorebiomass_patch      , & ! Output:
          PFTnindivs           => this%PFTnindivs_patch           , & ! Output:
          area_plant           => this%area_plant_patch           , & ! Output:
-         canopy_closure_patch => this%canopy_closure_patch       , & ! Output:
-         canopy_closure_col   => this%canopy_closure_col         , & ! Output:
          area_trees           => this%area_trees_patch           , & ! Output:
          nesterov_fire_danger => this%nesterov_fire_danger_patch , & ! Output:
          spitfire_ROS         => this%spitfire_ROS_patch         , & ! Output:
@@ -1390,9 +1377,6 @@ contains
       ed_npatches(:)      = 0._r8
       ed_ncohorts(:)      = 0._r8
 
-      canopy_closure_patch(:) = 0._r8
-      canopy_closure_col(:) = 0._r8
-
       do g = bounds%begg,bounds%endg
 
          if (firstsoilpatch(g) >= 0 .and. ed_allsites_inst(g)%istheresoil) then 
@@ -1449,11 +1433,6 @@ contains
                   p = currentPatch%clm_pno
 
                   ed_npatches(c) = ed_npatches(c) + 1._r8
-
-                  if ( (currentPatch%total_canopy_area .gt. 0._r8) .and. (currentPatch%area .gt. 0._r8) ) then
-                     canopy_closure_patch(p) = 1._r8  ! since patch weighting is defined as per canopy area, this simplifies to 1
-                     canopy_closure_col(c) = canopy_closure_col(c) + min(currentPatch%total_canopy_area, currentPatch%area)/AREA  ! should give the same answer as previous
-                  endif
 
                   currentCohort => currentPatch%shortest
                   do while(associated(currentCohort))
@@ -1552,6 +1531,14 @@ contains
                   !Patch specific variables that are already calculated
 
                   !These things are all duplicated. Should they all be converted to LL or array structures RF? 
+
+                  ! define scalar to counteract the patch albedo scaling logic for conserved quantities
+                  if (currentPatch%area .gt. 0._r8) then
+                     patch_scaling_scalar  = min(1._r8, currentPatch%area / currentPatch%total_canopy_area)
+                  else
+                     patch_scaling_scalar = 0._r8
+                  endif
+
                   nesterov_fire_danger(p) = ed_allsites_inst(g)%acc_NI 
                   spitfire_ROS(p)         = currentPatch%ROS_front 
                   TFC_ROS(p)              = currentPatch%TFC_ROS
@@ -1563,16 +1550,16 @@ contains
                   fire_fuel_eff_moist(p)  = currentPatch%fuel_eff_moist
                   fire_fuel_sav(p)        = currentPatch%fuel_sav
                   fire_fuel_mef(p)        = currentPatch%fuel_mef                          
-                  sum_fuel(p)             = currentPatch%sum_fuel * 1.e3_r8
-                  litter_in(p)            = (sum(currentPatch%CWD_AG_in) +sum(currentPatch%leaf_litter_in)) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY
-                  litter_out(p)           = (sum(currentPatch%CWD_AG_out)+sum(currentPatch%leaf_litter_out)) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY
-                  seed_bank(p)            = sum(currentPatch%seed_bank) * 1.e3_r8
-                  seeds_in(p)             = sum(currentPatch%seeds_in) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY
-                  seed_decay(p)           = sum(currentPatch%seed_decay) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY
-                  seed_germination(p)     = sum(currentPatch%seed_germination) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY
+                  sum_fuel(p)             = currentPatch%sum_fuel * 1.e3_r8 * patch_scaling_scalar
+                  litter_in(p)            = (sum(currentPatch%CWD_AG_in) +sum(currentPatch%leaf_litter_in)) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
+                  litter_out(p)           = (sum(currentPatch%CWD_AG_out)+sum(currentPatch%leaf_litter_out)) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
+                  seed_bank(p)            = sum(currentPatch%seed_bank) * 1.e3_r8 * patch_scaling_scalar
+                  seeds_in(p)             = sum(currentPatch%seeds_in) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
+                  seed_decay(p)           = sum(currentPatch%seed_decay) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
+                  seed_germination(p)     = sum(currentPatch%seed_germination) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
                   canopy_spread(p)        = currentPatch%spread(1) 
-                  area_plant(p)           = currentPatch%total_canopy_area /currentPatch%area
-                  area_trees(p)           = currentPatch%total_tree_area   /currentPatch%area
+                  area_plant(p)           = 1._r8
+                  area_trees(p)           = currentPatch%total_tree_area   / min(currentPatch%total_canopy_area,currentPatch%area)
                   phen_cd_status(p)       = ed_allsites_inst(g)%status
                   if(associated(currentPatch%tallest))then
                      trimming(p)          = currentPatch%tallest%canopy_trim                
