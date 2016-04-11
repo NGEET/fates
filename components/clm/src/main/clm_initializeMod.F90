@@ -621,10 +621,6 @@ contains
 
     call canopystate_inst%initAccVars(bounds_proc)
 
-    if (use_cndv) then
-       call dgvs_inst%initAccVars(bounds_proc)
-    end if
-
     call bgc_vegetation_inst%initAccVars(bounds_proc)
 
     if (crop_prog) then
