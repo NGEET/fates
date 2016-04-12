@@ -446,9 +446,9 @@ contains
 
        if (use_ed) then
           ! if ED enabled, summarize productivity fluxes onto CLM history file structure
-          call t_startf('edclmsummary1')
-          call ed_clm_inst%Summary1( bounds_clump, ed_allsites_inst(bounds_clump%begg:bounds_clump%endg))
-          call t_stopf('edclmsummary1')
+          call t_startf('edclmsumprodfluxes')
+          call ed_clm_inst%SummarizeProductivityFluxes( bounds_clump, ed_allsites_inst(bounds_clump%begg:bounds_clump%endg))
+          call t_stopf('edclmsumprodfluxes')
        endif
        
        ! Fluxes for all urban landunits
