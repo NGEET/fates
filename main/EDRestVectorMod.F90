@@ -19,6 +19,10 @@ module EDRestVectorMod
   implicit none
   private
   !
+  ! integer constants for storing logical data
+  integer, parameter :: old_cohort = 0
+  integer, parameter :: new_cohort = 1  
+  !
   ! ED cohort data as a type of vectors
   !
   type, public :: EDRestartVectorClass
@@ -346,7 +350,7 @@ contains
       allocate(new%isnew &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
       SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
-      new%isnew(:) = 1
+      new%isnew(:) = new_cohort
 
       ! 
       ! some patch level variables that are required on restart
@@ -1322,9 +1326,9 @@ contains
                 this%pft(countCohort)          = currentCohort%pft
                 this%status_coh(countCohort)   = currentCohort%status_coh
                 if ( currentCohort%isnew ) then
-                   this%isnew(countCohort)        = 1
+                   this%isnew(countCohort)        = new_cohort
                 else
-                   this%isnew(countCohort)        = 0
+                   this%isnew(countCohort)        = old_cohort
                 endif
 
                 if (this%DEBUG) then
@@ -1714,7 +1718,7 @@ contains
                 currentCohort%resp_clm = this%resp_clm(countCohort)
                 currentCohort%pft = this%pft(countCohort)
                 currentCohort%status_coh = this%status_coh(countCohort)
-                currentCohort%isnew = ( this%isnew(countCohort) .eq. 1 )
+                currentCohort%isnew = ( this%isnew(countCohort) .eq. new_cohort )
 
                 if (this%DEBUG) then
                    write(iulog,*) 'CVTL II ',countCohort, &
