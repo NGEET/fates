@@ -172,8 +172,8 @@ module EDCLMLinkMod
      procedure , public  :: Restart
      procedure , public  :: SetValues
      procedure , public  :: ed_clm_link
-     procedure , public  :: Summary2
-     procedure , public  :: Summary1     
+     procedure , public  :: SummarizeNetFluxes
+     procedure , public  :: SummarizeProductivityFluxes     
      procedure , public  :: ED_BGC_Carbon_Balancecheck
 
      ! Private routines
@@ -2416,7 +2416,7 @@ contains
  end subroutine flux_into_litter_pools
 
   !------------------------------------------------------------------------
- subroutine Summary1(this, bounds, ed_allsites_inst)
+ subroutine SummarizeProductivityFluxes(this, bounds, ed_allsites_inst)
 
    ! Summarize the fast production inputs from fluxes per ED individual to fluxes per CLM patch and column
    ! Must be called between calculation of productivity fluxes and daily ED calls
@@ -2537,10 +2537,10 @@ contains
      !call p2c(bounds,num_soilc, filter_soilc, npp(bounds%begp:bounds%endp), npp_col(bounds%begc:bounds%endc))
 
    end associate
- end subroutine Summary1
+ end subroutine SummarizeProductivityFluxes
    
   !------------------------------------------------------------------------
- subroutine Summary2(this, bounds, num_soilc, filter_soilc, &
+ subroutine SummarizeNetFluxes(this, bounds, num_soilc, filter_soilc, &
       ed_allsites_inst, soilbiogeochem_carbonflux_inst, &
       soilbiogeochem_carbonstate_inst)
 
@@ -2715,7 +2715,7 @@ contains
 
    end associate
    
- end subroutine Summary2
+ end subroutine SummarizeNetFluxes
 
 
  subroutine ED_BGC_Carbon_Balancecheck(this, bounds, num_soilc, filter_soilc, soilbiogeochem_carbonflux_inst)  
