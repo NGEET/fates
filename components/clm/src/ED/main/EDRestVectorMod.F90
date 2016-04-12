@@ -585,7 +585,7 @@ contains
     ! implement VectorIO
     !
     ! !USES:
-    use ncdio_pio  , only : file_desc_t, ncd_int, ncd_double, ncd_log
+    use ncdio_pio  , only : file_desc_t, ncd_int, ncd_double
     use restUtilMod, only : restartvar
     use clm_varcon,  only : nameg, nameCohort
     use spmdMod,     only : iam
