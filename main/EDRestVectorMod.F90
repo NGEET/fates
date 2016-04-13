@@ -60,6 +60,20 @@ module EDRestVectorMod
      real(r8), pointer :: n(:) 
      real(r8), pointer :: gpp_acc(:) 
      real(r8), pointer :: npp_acc(:) 
+     real(r8), pointer :: gpp(:) 
+     real(r8), pointer :: npp(:) 
+     real(r8), pointer :: npp_leaf(:) 
+     real(r8), pointer :: npp_froot(:) 
+     real(r8), pointer :: npp_bsw(:) 
+     real(r8), pointer :: npp_bdead(:) 
+     real(r8), pointer :: npp_bseed(:) 
+     real(r8), pointer :: npp_store(:) 
+     real(r8), pointer :: bmort(:) 
+     real(r8), pointer :: hmort(:) 
+     real(r8), pointer :: cmort(:) 
+     real(r8), pointer :: imort(:) 
+     real(r8), pointer :: fmort(:) 
+     real(r8), pointer :: ddbhdt(:) 
      real(r8), pointer :: resp_clm(:) 
      integer,  pointer :: pft(:) 
      integer,  pointer :: status_coh(:)
@@ -181,6 +195,20 @@ contains
     deallocate(this%n )
     deallocate(this%gpp_acc )
     deallocate(this%npp_acc )
+    deallocate(this%gpp )
+    deallocate(this%npp )
+    deallocate(this%npp_leaf )
+    deallocate(this%npp_froot )
+    deallocate(this%npp_bsw )
+    deallocate(this%npp_bdead )
+    deallocate(this%npp_bseed )
+    deallocate(this%npp_store )
+    deallocate(this%bmort )
+    deallocate(this%hmort )
+    deallocate(this%cmort )
+    deallocate(this%imort )
+    deallocate(this%fmort )
+    deallocate(this%ddbhdt )
     deallocate(this%resp_clm )
     deallocate(this%pft )
     deallocate(this%status_coh )
@@ -331,6 +359,76 @@ contains
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
       SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
       new%npp_acc(:) = 0.0_r8
+
+      allocate(new%gpp &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%gpp(:) = 0.0_r8
+
+      allocate(new%npp &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%npp(:) = 0.0_r8
+
+      allocate(new%npp_leaf &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%npp_leaf(:) = 0.0_r8
+
+      allocate(new%npp_froot &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%npp_froot(:) = 0.0_r8
+
+      allocate(new%npp_bsw &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%npp_bsw(:) = 0.0_r8
+
+      allocate(new%npp_bdead &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%npp_bdead(:) = 0.0_r8
+
+      allocate(new%npp_bseed &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%npp_bseed(:) = 0.0_r8
+
+      allocate(new%npp_store &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%npp_store(:) = 0.0_r8
+
+      allocate(new%bmort &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%bmort(:) = 0.0_r8
+
+      allocate(new%hmort &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%hmort(:) = 0.0_r8
+
+      allocate(new%cmort &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%cmort(:) = 0.0_r8
+
+      allocate(new%imort &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%imort(:) = 0.0_r8
+
+      allocate(new%fmort &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%fmort(:) = 0.0_r8
+
+      allocate(new%ddbhdt &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%ddbhdt(:) = 0.0_r8
 
       allocate(new%resp_clm &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
@@ -711,6 +809,90 @@ contains
          interpinic_flag='interp', data=this%npp_acc, &
          readvar=readvar)
 
+    call restartvar(ncid=ncid, flag=flag, varname='ed_gpp', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed cohort - gpp', units='unitless', &
+         interpinic_flag='interp', data=this%gpp, &
+         readvar=readvar)
+
+    call restartvar(ncid=ncid, flag=flag, varname='ed_npp', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed cohort - npp', units='unitless', &
+         interpinic_flag='interp', data=this%npp, &
+         readvar=readvar)
+
+    call restartvar(ncid=ncid, flag=flag, varname='ed_npp_leaf', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed cohort - npp_leaf', units='unitless', &
+         interpinic_flag='interp', data=this%npp_leaf, &
+         readvar=readvar)
+
+    call restartvar(ncid=ncid, flag=flag, varname='ed_npp_froot', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed cohort - npp_froot', units='unitless', &
+         interpinic_flag='interp', data=this%npp_froot, &
+         readvar=readvar)
+
+    call restartvar(ncid=ncid, flag=flag, varname='ed_npp_bsw', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed cohort - npp_bsw', units='unitless', &
+         interpinic_flag='interp', data=this%npp_bsw, &
+         readvar=readvar)
+
+    call restartvar(ncid=ncid, flag=flag, varname='ed_npp_bdead', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed cohort - npp_bdead', units='unitless', &
+         interpinic_flag='interp', data=this%npp_bdead, &
+         readvar=readvar)
+
+    call restartvar(ncid=ncid, flag=flag, varname='ed_npp_bseed', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed cohort - npp_bseed', units='unitless', &
+         interpinic_flag='interp', data=this%npp_bseed, &
+         readvar=readvar)
+
+    call restartvar(ncid=ncid, flag=flag, varname='ed_npp_store', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed cohort - npp_store', units='unitless', &
+         interpinic_flag='interp', data=this%npp_store, &
+         readvar=readvar)
+
+    call restartvar(ncid=ncid, flag=flag, varname='ed_bmort', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed cohort - bmort', units='unitless', &
+         interpinic_flag='interp', data=this%bmort, &
+         readvar=readvar)
+
+    call restartvar(ncid=ncid, flag=flag, varname='ed_hmort', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed cohort - hmort', units='unitless', &
+         interpinic_flag='interp', data=this%hmort, &
+         readvar=readvar)
+
+    call restartvar(ncid=ncid, flag=flag, varname='ed_cmort', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed cohort - cmort', units='unitless', &
+         interpinic_flag='interp', data=this%cmort, &
+         readvar=readvar)
+
+    call restartvar(ncid=ncid, flag=flag, varname='ed_imort', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed cohort - imort', units='unitless', &
+         interpinic_flag='interp', data=this%imort, &
+         readvar=readvar)
+
+    call restartvar(ncid=ncid, flag=flag, varname='ed_fmort', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed cohort - fmort', units='unitless', &
+         interpinic_flag='interp', data=this%fmort, &
+         readvar=readvar)
+
+    call restartvar(ncid=ncid, flag=flag, varname='ed_ddbhdt', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed cohort - ddbhdt', units='unitless', &
+         interpinic_flag='interp', data=this%ddbhdt, &
+         readvar=readvar)
+
     call restartvar(ncid=ncid, flag=flag, varname='ed_resp_clm', xtype=ncd_double,  &
          dim1name=dimName, &
          long_name='ed cohort - resp_clm', units='unitless', &
@@ -958,6 +1140,34 @@ contains
          this%gpp_acc(iSta:iSto)
     write(iulog,*) trim(methodName)//' :: npp_acc ', &
          this%npp_acc(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: gpp ', &
+         this%gpp(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: npp ', &
+         this%npp(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: npp_leaf ', &
+         this%npp_leaf(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: npp_froot ', &
+         this%npp_froot(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: npp_bsw ', &
+         this%npp_bsw(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: npp_bdead ', &
+         this%npp_bdead(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: npp_bseed ', &
+         this%npp_bseed(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: npp_store ', &
+         this%npp_store(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: bmort ', &
+         this%bmort(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: hmort ', &
+         this%hmort(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: cmort ', &
+         this%cmort(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: imort ', &
+         this%imort(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: fmort ', &
+         this%fmort(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: ddbhdt ', &
+         this%ddbhdt(iSta:iSto)
     write(iulog,*) trim(methodName)//' :: resp_clm ', &
          this%resp_clm(iSta:iSto)
 
@@ -1086,6 +1296,20 @@ contains
                 write(iulog,*) trim(methodName)//' n '            ,totalCohorts,currentCohort%n
                 write(iulog,*) trim(methodName)//' gpp_acc '      ,totalCohorts,currentCohort%gpp_acc
                 write(iulog,*) trim(methodName)//' npp_acc '      ,totalCohorts,currentCohort%npp_acc
+                write(iulog,*) trim(methodName)//' gpp '      ,totalCohorts,currentCohort%gpp
+                write(iulog,*) trim(methodName)//' npp '      ,totalCohorts,currentCohort%npp
+                write(iulog,*) trim(methodName)//' npp_leaf '      ,totalCohorts,currentCohort%npp_leaf
+                write(iulog,*) trim(methodName)//' npp_froot '      ,totalCohorts,currentCohort%npp_froot
+                write(iulog,*) trim(methodName)//' npp_bsw '      ,totalCohorts,currentCohort%npp_bsw
+                write(iulog,*) trim(methodName)//' npp_bdead '      ,totalCohorts,currentCohort%npp_bdead
+                write(iulog,*) trim(methodName)//' npp_bseed '      ,totalCohorts,currentCohort%npp_bseed
+                write(iulog,*) trim(methodName)//' npp_store '      ,totalCohorts,currentCohort%npp_store
+                write(iulog,*) trim(methodName)//' bmort '      ,totalCohorts,currentCohort%bmort
+                write(iulog,*) trim(methodName)//' hmort '      ,totalCohorts,currentCohort%hmort
+                write(iulog,*) trim(methodName)//' cmort '      ,totalCohorts,currentCohort%cmort
+                write(iulog,*) trim(methodName)//' imort '      ,totalCohorts,currentCohort%imort
+                write(iulog,*) trim(methodName)//' fmort '      ,totalCohorts,currentCohort%fmort
+                write(iulog,*) trim(methodName)//' ddbhdt '      ,totalCohorts,currentCohort%ddbhdt
                 write(iulog,*) trim(methodName)//' resp_clm '     ,totalCohorts,currentCohort%resp_clm
                 write(iulog,*) trim(methodName)//' pft '          ,totalCohorts,currentCohort%pft
                 write(iulog,*) trim(methodName)//' status_coh '   ,totalCohorts,currentCohort%status_coh
@@ -1209,6 +1433,20 @@ contains
                 write(iulog,*) trim(methodName)//' n            ',currentCohort%n
                 write(iulog,*) trim(methodName)//' gpp_acc      ',currentCohort%gpp_acc
                 write(iulog,*) trim(methodName)//' npp_acc      ',currentCohort%npp_acc
+                write(iulog,*) trim(methodName)//' gpp      ',currentCohort%gpp
+                write(iulog,*) trim(methodName)//' npp      ',currentCohort%npp
+                write(iulog,*) trim(methodName)//' npp_leaf      ',currentCohort%npp_leaf
+                write(iulog,*) trim(methodName)//' npp_froot      ',currentCohort%npp_froot
+                write(iulog,*) trim(methodName)//' npp_bsw      ',currentCohort%npp_bsw
+                write(iulog,*) trim(methodName)//' npp_bdead      ',currentCohort%npp_bdead
+                write(iulog,*) trim(methodName)//' npp_bseed      ',currentCohort%npp_bseed
+                write(iulog,*) trim(methodName)//' npp_store      ',currentCohort%npp_store
+                write(iulog,*) trim(methodName)//' bmort      ',currentCohort%bmort
+                write(iulog,*) trim(methodName)//' hmort      ',currentCohort%hmort
+                write(iulog,*) trim(methodName)//' cmort      ',currentCohort%cmort
+                write(iulog,*) trim(methodName)//' imort      ',currentCohort%imort
+                write(iulog,*) trim(methodName)//' fmort      ',currentCohort%fmort
+                write(iulog,*) trim(methodName)//' ddbhdt      ',currentCohort%ddbhdt
                 write(iulog,*) trim(methodName)//' resp_clm     ',currentCohort%resp_clm
                 write(iulog,*) trim(methodName)//' pft          ',currentCohort%pft
                 write(iulog,*) trim(methodName)//' status_coh   ',currentCohort%status_coh
@@ -1322,6 +1560,20 @@ contains
                 this%n(countCohort)            = currentCohort%n
                 this%gpp_acc(countCohort)      = currentCohort%gpp_acc
                 this%npp_acc(countCohort)      = currentCohort%npp_acc
+                this%gpp(countCohort)      = currentCohort%gpp
+                this%npp(countCohort)      = currentCohort%npp
+                this%npp_leaf(countCohort)      = currentCohort%npp_leaf
+                this%npp_froot(countCohort)      = currentCohort%npp_froot
+                this%npp_bsw(countCohort)      = currentCohort%npp_bsw
+                this%npp_bdead(countCohort)      = currentCohort%npp_bdead
+                this%npp_bseed(countCohort)      = currentCohort%npp_bseed
+                this%npp_store(countCohort)      = currentCohort%npp_store
+                this%bmort(countCohort)      = currentCohort%bmort
+                this%hmort(countCohort)      = currentCohort%hmort
+                this%cmort(countCohort)      = currentCohort%cmort
+                this%imort(countCohort)      = currentCohort%imort
+                this%fmort(countCohort)      = currentCohort%fmort
+                this%ddbhdt(countCohort)      = currentCohort%ddbhdt
                 this%resp_clm(countCohort)     = currentCohort%resp_clm
                 this%pft(countCohort)          = currentCohort%pft
                 this%status_coh(countCohort)   = currentCohort%status_coh
@@ -1715,6 +1967,20 @@ contains
                 currentCohort%n = this%n(countCohort)
                 currentCohort%gpp_acc = this%gpp_acc(countCohort)
                 currentCohort%npp_acc = this%npp_acc(countCohort)
+                currentCohort%gpp = this%gpp(countCohort)
+                currentCohort%npp = this%npp(countCohort)
+                currentCohort%npp_leaf = this%npp_leaf(countCohort)
+                currentCohort%npp_froot = this%npp_froot(countCohort)
+                currentCohort%npp_bsw = this%npp_bsw(countCohort)
+                currentCohort%npp_bdead = this%npp_bdead(countCohort)
+                currentCohort%npp_bseed = this%npp_bseed(countCohort)
+                currentCohort%npp_store = this%npp_store(countCohort)
+                currentCohort%bmort = this%bmort(countCohort)
+                currentCohort%hmort = this%hmort(countCohort)
+                currentCohort%cmort = this%cmort(countCohort)
+                currentCohort%imort = this%imort(countCohort)
+                currentCohort%fmort = this%fmort(countCohort)
+                currentCohort%ddbhdt = this%ddbhdt(countCohort)
                 currentCohort%resp_clm = this%resp_clm(countCohort)
                 currentCohort%pft = this%pft(countCohort)
                 currentCohort%status_coh = this%status_coh(countCohort)
