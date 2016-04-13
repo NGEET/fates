@@ -49,6 +49,7 @@
       <value mach="pleiades.*">netcdf</value>
       <value mach="hobart" compiler="pgi">netcdf</value>
       <value mpilib="mpi-serial">netcdf</value>
+      <value compset="CLM45%ED">netcdf</value>
     </values>
   </entry>
 
