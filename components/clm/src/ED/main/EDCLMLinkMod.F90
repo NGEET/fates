@@ -84,8 +84,12 @@ module EDCLMLinkMod
      ! real(r8), pointer, private  :: deadstemc_patch            (:)   ! (gC/m2) dead stem C
      ! real(r8), pointer, private  :: livestemn_patch            (:)   ! (gN/m2) live stem N
 
+     ! vegetation carbon fluxes at the patch scale
      real(r8), pointer, private  :: npp_patch                  (:)   ! (gC/m2/s) patch net primary production
      real(r8), pointer, private  :: gpp_patch                  (:)   ! (gC/m2/s) patch gross primary production 
+     real(r8), pointer, private  :: ar_patch                   (:)   ! (gC/m2/s) patch autotrophic respiration
+     real(r8), pointer, private  :: maint_resp_patch           (:)   ! (gC/m2/s) patch maintenance respiration
+     real(r8), pointer, private  :: growth_resp_patch          (:)   ! (gC/m2/s) patch growth respiration
      
      real(r8), pointer :: ed_gpp_gd_scpf          (:,:)   ! [kg/m2/yr] gross primary production
      real(r8), pointer :: ed_npp_totl_gd_scpf     (:,:)   ! [kg/m2/yr] net primary production (npp)
@@ -118,43 +122,48 @@ module EDCLMLinkMod
      real(r8), pointer :: ed_m5_gd_scpf                 (:,:) ! [Stems/ha/yr] Mean Fire Mortality
 
      ! litterfall fluxes of C from ED patches to BGC columns
-
      real(r8), pointer,  public :: ED_c_to_litr_lab_c_col(:,:)      !total labile    litter coming from ED. gC/m3/s
      real(r8), pointer,  public :: ED_c_to_litr_cel_c_col(:,:)      !total cellulose litter coming from ED. gC/m3/s
      real(r8), pointer,  public :: ED_c_to_litr_lig_c_col(:,:)      !total lignin    litter coming from ED. gC/m3/s
+
+     ! profiles for vertically disaggregating litterfall fluxes
      real(r8), pointer, private :: leaf_prof_col(:,:)               !(1/m) profile of leaves                         
      real(r8), pointer, private :: froot_prof_col(:,:,:)            !(1/m) profile of fine roots                     
      real(r8), pointer, private :: croot_prof_col(:,:)              !(1/m) profile of coarse roots                         
      real(r8), pointer, private :: stem_prof_col(:,:)               !(1/m) profile of leaves                         
 
      ! summary carbon fluxes at the column level
-     real(r8), pointer,  public :: nep_col(:)                       ! [gC/m2/s] Net ecosystem production, i.e. fast-timescale carbon balance that does not include disturbance
-     real(r8), pointer,  public :: nep_timeintegrated_col(:)                       ! [gC/m2/s] Net ecosystem production, i.e. fast-timescale carbon balance that does not include disturbance
-     real(r8), pointer,  public :: npp_timeintegrated_col(:)                       ! [gC/m2/s] Net primary production, time integrated at column level for carbon balance checking
-     real(r8), pointer,  public :: hr_timeintegrated_col(:)                        ! [gC/m2/s] heterotrophic respiration, time integrated for carbon balance checking
-     real(r8), pointer,  public :: nbp_col(:)                       ! [gC/m2/s] Net biosphere production, i.e. slow-timescale carbon balance that integrates to total carbon change
-     real(r8), pointer,  public :: npp_hifreq_col(:)                ! [gC/m2/s] Net primary production at the fast timescale, aggregated to the column level
-     real(r8), pointer,  public :: fire_c_to_atm_col(:)             ! [gC/m2/s] total fire carbon loss to atmosphere
-     real(r8), pointer,  public :: ed_to_bgc_this_edts_col(:)       ! [gC/m2/s] total flux of carbon from ED to BGC models on current ED timestep
-     real(r8), pointer,  public :: ed_to_bgc_last_edts_col(:)       ! [gC/m2/s] total flux of carbon from ED to BGC models on prior ED timestep
-     real(r8), pointer,  public :: seed_rain_flux_col(:)            ! [gC/m2/s] total flux of carbon from seed rain
+     real(r8), pointer,  private :: nep_col(:)                       ! [gC/m2/s] Net ecosystem production, i.e. fast-timescale carbon balance that does not include disturbance
+     real(r8), pointer,  private :: nep_timeintegrated_col(:)                       ! [gC/m2/s] Net ecosystem production, i.e. fast-timescale carbon balance that does not include disturbance
+     real(r8), pointer,  private :: npp_timeintegrated_col(:)                       ! [gC/m2/s] Net primary production, time integrated at column level for carbon balance checking
+     real(r8), pointer,  private :: hr_timeintegrated_col(:)                        ! [gC/m2/s] heterotrophic respiration, time integrated for carbon balance checking
+     real(r8), pointer,  private :: nbp_col(:)                       ! [gC/m2/s] Net biosphere production, i.e. slow-timescale carbon balance that integrates to total carbon change
+     real(r8), pointer,  private :: npp_col(:)                ! [gC/m2/s] Net primary production at the fast timescale, aggregated to the column level
+     real(r8), pointer,  private :: fire_c_to_atm_col(:)             ! [gC/m2/s] total fire carbon loss to atmosphere
+     real(r8), pointer,  private :: ed_to_bgc_this_edts_col(:)       ! [gC/m2/s] total flux of carbon from ED to BGC models on current ED timestep
+     real(r8), pointer,  private :: ed_to_bgc_last_edts_col(:)       ! [gC/m2/s] total flux of carbon from ED to BGC models on prior ED timestep
+     real(r8), pointer,  private :: seed_rain_flux_col(:)            ! [gC/m2/s] total flux of carbon from seed rain
      
      ! summary carbon states at the column level
-     real(r8), pointer,  public :: totecosysc_col(:)                ! [gC/m2] Total ecosystem carbon at the column level, including vegetation, CWD, litter, and soil pools
-     real(r8), pointer,  public :: totecosysc_old_col(:)            ! [gC/m2] Total ecosystem C at the column level from last call to balance check
-     real(r8), pointer,  public :: totedc_col(:)                    ! [gC/m2] Total ED carbon at the column level, including vegetation, CWD, seeds, and ED litter
-     real(r8), pointer,  public :: totedc_old_col(:)                ! [gC/m2] Total ED C at the column level from last call to balance check
-     real(r8), pointer,  public :: totbgcc_col(:)                   ! [gC/m2] Total BGC carbon at the column level, including litter, and soil pools
-     real(r8), pointer,  public :: totbgcc_old_col(:)               ! [gC/m2] Total BGC C at the column level from last call to balance check
-     real(r8), pointer,  public :: biomass_stock_col(:)             ! [gC/m2] total biomass at the column level in gC / m2
-     real(r8), pointer,  public :: ed_litter_stock_col(:)           ! [gC/m2] ED litter at the column level in gC / m2
-     real(r8), pointer,  public :: cwd_stock_col(:)                 ! [gC/m2] ED CWD at the column level in gC / m2
-     real(r8), pointer,  public :: seed_stock_col(:)                ! [gC/m2] ED seed mass carbon at the column level in gC / m2
+     real(r8), pointer,  private :: totecosysc_col(:)                ! [gC/m2] Total ecosystem carbon at the column level, including vegetation, CWD, litter, and soil pools
+     real(r8), pointer,  private :: totecosysc_old_col(:)            ! [gC/m2] Total ecosystem C at the column level from last call to balance check
+     real(r8), pointer,  private :: totedc_col(:)                    ! [gC/m2] Total ED carbon at the column level, including vegetation, CWD, seeds, and ED litter
+     real(r8), pointer,  private :: totedc_old_col(:)                ! [gC/m2] Total ED C at the column level from last call to balance check
+     real(r8), pointer,  private :: totbgcc_col(:)                   ! [gC/m2] Total BGC carbon at the column level, including litter, and soil pools
+     real(r8), pointer,  private :: totbgcc_old_col(:)               ! [gC/m2] Total BGC C at the column level from last call to balance check
+     real(r8), pointer,  private :: biomass_stock_col(:)             ! [gC/m2] total biomass at the column level in gC / m2
+     real(r8), pointer,  private :: ed_litter_stock_col(:)           ! [gC/m2] ED litter at the column level in gC / m2
+     real(r8), pointer,  private :: cwd_stock_col(:)                 ! [gC/m2] ED CWD at the column level in gC / m2
+     real(r8), pointer,  private :: seed_stock_col(:)                ! [gC/m2] ED seed mass carbon at the column level in gC / m2
 
      ! carbon balance errors.  at some point we'll reduce these to close to zero and delete, but for now we'll just keep[ track of them
-     real(r8), pointer,  public :: cbalance_error_ed_col(:)         ! [gC/m2/s]  total carbon balance error for the ED side
-     real(r8), pointer,  public :: cbalance_error_bgc_col(:)        ! [gC/m2/s]  total carbon balance error for the BGC side
-     real(r8), pointer,  public :: cbalance_error_total_col(:)      ! [gC/m2/s]  total carbon balance error for the whole thing
+     real(r8), pointer,  private :: cbalance_error_ed_col(:)         ! [gC/m2/s]  total carbon balance error for the ED side
+     real(r8), pointer,  private :: cbalance_error_bgc_col(:)        ! [gC/m2/s]  total carbon balance error for the BGC side
+     real(r8), pointer,  private :: cbalance_error_total_col(:)      ! [gC/m2/s]  total carbon balance error for the whole thing
+
+     ! ED patch/cohort data
+     real(r8), pointer,  private :: ed_npatches_col(:)               ! [#] the number of patches per ED site
+     real(r8), pointer,  private :: ed_ncohorts_col(:)               ! [#] the number of cohorts per ED site     
 
    contains
 
@@ -163,7 +172,8 @@ module EDCLMLinkMod
      procedure , public  :: Restart
      procedure , public  :: SetValues
      procedure , public  :: ed_clm_link
-     procedure , public  :: Summary
+     procedure , public  :: SummarizeNetFluxes
+     procedure , public  :: SummarizeProductivityFluxes     
      procedure , public  :: ED_BGC_Carbon_Balancecheck
 
      ! Private routines
@@ -264,6 +274,9 @@ contains
 
     allocate(this%gpp_patch                  (begp:endp))            ; this%gpp_patch                  (:) = nan
     allocate(this%npp_patch                  (begp:endp))            ; this%npp_patch                  (:) = nan
+    allocate(this%ar_patch                   (begp:endp))            ; this%ar_patch                   (:) = nan
+    allocate(this%maint_resp_patch           (begp:endp))            ; this%maint_resp_patch           (:) = nan
+    allocate(this%growth_resp_patch          (begp:endp))            ; this%growth_resp_patch          (:) = nan
 
     allocate(this%ED_c_to_litr_lab_c_col     (begc:endc,1:nlevdecomp_full))            ; this%ED_c_to_litr_lab_c_col     (:,:) = nan
     allocate(this%ED_c_to_litr_cel_c_col     (begc:endc,1:nlevdecomp_full))            ; this%ED_c_to_litr_cel_c_col     (:,:) = nan
@@ -284,7 +297,7 @@ contains
     allocate(this%hr_timeintegrated_col     (begc:endc))            ; this%hr_timeintegrated_col    (:) = nan
 
     allocate(this%nbp_col                    (begc:endc))            ; this%nbp_col                   (:) = nan
-    allocate(this%npp_hifreq_col             (begc:endc))            ; this%npp_hifreq_col            (:) = nan
+    allocate(this%npp_col                    (begc:endc))            ; this%npp_col                   (:) = nan
     allocate(this%fire_c_to_atm_col          (begc:endc))            ; this%fire_c_to_atm_col         (:) = nan
 
     allocate(this%totecosysc_col             (begc:endc))            ; this%totecosysc_col            (:) = nan
@@ -301,6 +314,9 @@ contains
     allocate(this%cbalance_error_ed_col      (begc:endc))            ; this%cbalance_error_ed_col     (:) = nan    
     allocate(this%cbalance_error_bgc_col     (begc:endc))            ; this%cbalance_error_bgc_col    (:) = nan    
     allocate(this%cbalance_error_total_col   (begc:endc))            ; this%cbalance_error_total_col  (:) = nan    
+
+    allocate(this%ed_npatches_col            (begc:endc))            ; this%ed_npatches_col           (:) = nan    
+    allocate(this%ed_ncohorts_col            (begc:endc))            ; this%ed_ncohorts_col           (:) = nan    
 
     allocate(this%ed_gpp_gd_scpf       (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_gpp_gd_scpf        (:,:) = 0.0_r8
     allocate(this%ed_npp_totl_gd_scpf  (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_npp_totl_gd_scpf   (:,:) = 0.0_r8
@@ -495,36 +511,6 @@ contains
          avgflag='A', long_name='potential evap', &
          ptr_patch=this%efpot_patch, set_lake=0._r8, set_urb=0._r8)
 
-    ! this%dispvegc_patch(begp:endp) = spval
-    ! call hist_addfld1d (fname='DISPVEGC', units='gC/m^2', &
-    !      avgflag='A', long_name='displayed veg carbon, excluding storage and cpool', &
-    !      ptr_patch=this%dispvegc_patch)
-
-    ! this%storvegc_patch(begp:endp) = spval
-    ! call hist_addfld1d (fname='STORVEGC', units='gC/m^2', &
-    !      avgflag='A', long_name='stored vegetation carbon, excluding cpool', &
-    !      ptr_patch=this%storvegc_patch)
-
-    ! this%leafc_patch(begp:endp) = spval
-    ! call hist_addfld1d (fname='LEAFC', units='gC/m^2', &
-    !      avgflag='A', long_name='leaf C', &
-    !      ptr_patch=this%leafc_patch)
-
-    ! this%livestemc_patch(begp:endp) = spval
-    ! call hist_addfld1d (fname='LIVESTEMC', units='gC/m^2', &
-    !      avgflag='A', long_name='live stem C', &
-    !      ptr_patch=this%livestemc_patch)
-
-    ! this%deadstemc_patch(begp:endp) = spval
-    ! call hist_addfld1d (fname='DEADSTEMC', units='gC/m^2', &
-    !      avgflag='A', long_name='dead stem C', &
-    !      ptr_patch=this%deadstemc_patch)
-
-    ! this%livestemn_patch(begp:endp) = spval
-    ! call hist_addfld1d (fname='LIVESTEMN', units='gN/m^2', &
-    !      avgflag='A', long_name='live stem N', &
-    !      ptr_patch=this%livestemn_patch)
-
     this%gpp_patch(begp:endp) = spval
     call hist_addfld1d (fname='GPP', units='gC/m^2/s', &
          avgflag='A', long_name='gross primary production', &
@@ -534,6 +520,21 @@ contains
     call hist_addfld1d (fname='NPP', units='gC/m^2/s', &
          avgflag='A', long_name='net primary production', &
          ptr_patch=this%npp_patch)
+
+    this%ar_patch(begp:endp) = spval
+    call hist_addfld1d (fname='AR', units='gC/m^2/s', &
+         avgflag='A', long_name='autotrophic respiration', &
+         ptr_patch=this%ar_patch)
+
+    this%growth_resp_patch(begp:endp) = spval
+    call hist_addfld1d (fname='GROWTH_RESP', units='gC/m^2/s', &
+         avgflag='A', long_name='growth respiration', &
+         ptr_patch=this%growth_resp_patch)
+
+    this%maint_resp_patch(begp:endp) = spval
+    call hist_addfld1d (fname='MAINT_RESP', units='gC/m^2/s', &
+         avgflag='A', long_name='maintenance respiration', &
+         ptr_patch=this%maint_resp_patch)
 
     this%nep_col(begc:endc) = spval
     call hist_addfld1d (fname='NEP', units='gC/m^2/s', &
@@ -550,10 +551,10 @@ contains
          avgflag='A', long_name='net biosphere production', &
          ptr_col=this%nbp_col)
 
-    this%npp_hifreq_col(begc:endc) = spval
-    call hist_addfld1d (fname='NPP_hifreq', units='gC/m^2/s', &
-         avgflag='A', long_name='net primary production at high frequency', &
-         ptr_col=this%npp_hifreq_col,default='inactive')
+    this%npp_col(begc:endc) = spval
+    call hist_addfld1d (fname='NPP_column', units='gC/m^2/s', &
+         avgflag='A', long_name='net primary production on column level', &
+         ptr_col=this%npp_col,default='inactive')
 
     this%totecosysc_col(begc:endc) = spval
     call hist_addfld1d (fname='TOTECOSYSC', units='gC/m^2', &
@@ -697,6 +698,16 @@ contains
     call hist_addfld2d (fname='ED_M5_GD_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
           avgflag='A', long_name='fire mortality count by patch and pft/size', &
           ptr_gcell=this%ed_m5_gd_scpf, default='inactive')
+
+    this%ed_npatches_col(begc:endc) = spval
+    call hist_addfld1d (fname='ED_NPATCHES', units='unitless', &
+         avgflag='A', long_name='ED total number of patches per site', &
+         ptr_col=this%ed_npatches_col)
+
+    this%ed_ncohorts_col(begc:endc) = spval
+    call hist_addfld1d (fname='ED_NCOHORTS', units='unitless', &
+         avgflag='A', long_name='ED total number of cohorts per site', &
+         ptr_col=this%ed_ncohorts_col)
 
   end subroutine InitHistory
 
@@ -1229,10 +1240,11 @@ contains
     type(canopystate_type)  , intent(inout)         :: canopystate_inst
     !
     ! !LOCAL VARIABLES:
-    integer  :: G,p,ft
+    integer  :: G,p,ft,c
     integer  :: firstsoilpatch(bounds%begg:bounds%endg)
     real(r8) :: n_density   ! individual of cohort per m2.
-    real(r8) :: n_perm2     ! individuals per m2 for the whole grid cell
+    real(r8) :: n_perm2     ! individuals per m2 for the whole column
+    real(r8) :: patch_scaling_scalar ! ratio of canopy to patch area for counteracting patch scaling
     real(r8) :: dbh         ! actual dbh used to identify relevant size class
     integer  :: scpf        ! size class x pft index
     integer  :: sc
@@ -1274,9 +1286,6 @@ contains
          
          phen_cd_status       => ed_phenology_inst%phen_cd_status_patch , & ! InOut:
          
-         gpp                  => this%gpp_patch                  , & ! Output: 
-         npp                  => this%npp_patch                  , & ! Output:
-    
          ed_gpp_scpf          => this%ed_gpp_gd_scpf             , &
          ed_npp_totl_scpf     => this%ed_npp_totl_gd_scpf        , &
          ed_npp_leaf_scpf     => this%ed_npp_leaf_gd_scpf        , &
@@ -1287,6 +1296,9 @@ contains
          ed_npp_agsw_scpf     => this%ed_npp_agsw_gd_scpf        , &
          ed_npp_agdw_scpf     => this%ed_npp_agdw_gd_scpf        , &
          ed_npp_stor_scpf     => this%ed_npp_stor_gd_scpf        , &
+
+         ed_npatches          => this%ed_npatches_col            , &
+         ed_ncohorts          => this%ed_ncohorts_col            , &
 
          ed_ddbh_gd_scpf        => this%ed_ddbh_gd_scpf          , &
          ed_ba_gd_scpf          => this%ed_ba_gd_scpf            , &
@@ -1316,8 +1328,6 @@ contains
       PFTleafbiomass(:,:)     = 0.0_r8 
       PFTstorebiomass(:,:)    = 0.0_r8
       PFTnindivs(:,:)         = 0.0_r8
-      gpp(:)                  = 0.0_r8
-      npp(:)                  = 0.0_r8  
       area_plant(:)           = 0.0_r8       
       area_trees(:)           = 0.0_r8        
       nesterov_fire_danger(:) = 0.0_r8
@@ -1364,6 +1374,9 @@ contains
       ed_m4_gd_scpf(:,:)   = 0.0_r8
       ed_m5_gd_scpf(:,:)   = 0.0_r8
 
+      ed_npatches(:)      = 0._r8
+      ed_ncohorts(:)      = 0._r8
+
       do g = bounds%begg,bounds%endg
 
          if (firstsoilpatch(g) >= 0 .and. ed_allsites_inst(g)%istheresoil) then 
@@ -1378,8 +1391,6 @@ contains
             PFTleafbiomass(firstsoilpatch(g),:)     = 0.0_r8 
             PFTstorebiomass(firstsoilpatch(g),:)    = 0.0_r8
             PFTnindivs(firstsoilpatch(g),:)         = 0.0_r8
-            gpp(firstsoilpatch(g))                  = 0.0_r8
-            npp(firstsoilpatch(g))                  = 0.0_r8  
             area_plant(firstsoilpatch(g))           = 0.0_r8       
             area_trees(firstsoilpatch(g))           = 0.0_r8        
             nesterov_fire_danger(firstsoilpatch(g)) = 0.0_r8
@@ -1413,19 +1424,32 @@ contains
             !this should probably be site level. 
             phen_cd_status(firstsoilpatch(g))       = ed_allsites_inst(g)%status
 
+            c = ed_allsites_inst(g)%clmcolumn
+
             currentPatch => ed_allsites_inst(g)%oldest_patch
             do while(associated(currentPatch))
 
                if(currentPatch%patchno  <= numpft - numcft)then !don't expand into crop patches.   
                   p = currentPatch%clm_pno
 
+                  ed_npatches(c) = ed_npatches(c) + 1._r8
+
                   currentCohort => currentPatch%shortest
                   do while(associated(currentCohort))
                      !accumulate into history variables. 
                      ft = currentCohort%pft
-                     if(currentPatch%area>0._r8)then
-                        n_density = currentCohort%n/currentPatch%area
-			n_perm2   = currentCohort%n/AREA   ! plant density using whole area (for grid cell averages)
+
+                     ed_ncohorts(c) = ed_ncohorts(c) + 1._r8                     
+
+                     if ((currentPatch%area .gt. 0._r8) .and. (currentPatch%total_canopy_area .gt. 0._r8)) then
+
+                        ! for quantities that are at the CLM patch level, because of the way that CLM patches are weighted for radiative purposes
+                        ! this # density needs to be over either ED patch canopy area or ED patch total area, whichever is less
+                        n_density = currentCohort%n/min(currentPatch%area,currentPatch%total_canopy_area) 
+
+                        ! for quantities that are natively at column level, calculate plant density using whole area
+			n_perm2   = currentCohort%n/AREA   
+
                      else
                         n_density = 0.0_r8
 			n_perm2   = 0.0_r8
@@ -1441,8 +1465,6 @@ contains
                      ED_biomass(p)         = ED_biomass(p)         + n_density * currentCohort%b        * 1.e3_r8
                      ED_bdead(p)           = ED_bdead(p)           + n_density * currentCohort%bdead    * 1.e3_r8
                      ED_balive(p)          = ED_balive(p)          + n_density * currentCohort%balive   * 1.e3_r8
-                     npp(p)                = npp(p)                + n_density * currentCohort%npp      * 1.e3_r8 / (365. * SHR_CONST_CDAY)
-                     gpp(p)                = gpp(p)                + n_density * currentCohort%gpp      * 1.e3_r8 / (365. * SHR_CONST_CDAY)
                      PFTbiomass(p,ft)      = PFTbiomass(p,ft)      + n_density * currentCohort%b        * 1.e3_r8
                      PFTleafbiomass(p,ft)  = PFTleafbiomass(p,ft)  + n_density * currentCohort%bl       * 1.e3_r8
                      PFTstorebiomass(p,ft) = PFTstorebiomass(p,ft) + n_density * currentCohort%bstore   * 1.e3_r8
@@ -1509,6 +1531,14 @@ contains
                   !Patch specific variables that are already calculated
 
                   !These things are all duplicated. Should they all be converted to LL or array structures RF? 
+
+                  ! define scalar to counteract the patch albedo scaling logic for conserved quantities
+                  if (currentPatch%area .gt. 0._r8) then
+                     patch_scaling_scalar  = min(1._r8, currentPatch%area / currentPatch%total_canopy_area)
+                  else
+                     patch_scaling_scalar = 0._r8
+                  endif
+
                   nesterov_fire_danger(p) = ed_allsites_inst(g)%acc_NI 
                   spitfire_ROS(p)         = currentPatch%ROS_front 
                   TFC_ROS(p)              = currentPatch%TFC_ROS
@@ -1520,16 +1550,16 @@ contains
                   fire_fuel_eff_moist(p)  = currentPatch%fuel_eff_moist
                   fire_fuel_sav(p)        = currentPatch%fuel_sav
                   fire_fuel_mef(p)        = currentPatch%fuel_mef                          
-                  sum_fuel(p)             = currentPatch%sum_fuel * 1.e3_r8
-                  litter_in(p)            = (sum(currentPatch%CWD_AG_in) +sum(currentPatch%leaf_litter_in)) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY
-                  litter_out(p)           = (sum(currentPatch%CWD_AG_out)+sum(currentPatch%leaf_litter_out)) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY
-                  seed_bank(p)            = sum(currentPatch%seed_bank) * 1.e3_r8
-                  seeds_in(p)             = sum(currentPatch%seeds_in) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY
-                  seed_decay(p)           = sum(currentPatch%seed_decay) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY
-                  seed_germination(p)     = sum(currentPatch%seed_germination) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY
+                  sum_fuel(p)             = currentPatch%sum_fuel * 1.e3_r8 * patch_scaling_scalar
+                  litter_in(p)            = (sum(currentPatch%CWD_AG_in) +sum(currentPatch%leaf_litter_in)) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
+                  litter_out(p)           = (sum(currentPatch%CWD_AG_out)+sum(currentPatch%leaf_litter_out)) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
+                  seed_bank(p)            = sum(currentPatch%seed_bank) * 1.e3_r8 * patch_scaling_scalar
+                  seeds_in(p)             = sum(currentPatch%seeds_in) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
+                  seed_decay(p)           = sum(currentPatch%seed_decay) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
+                  seed_germination(p)     = sum(currentPatch%seed_germination) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
                   canopy_spread(p)        = currentPatch%spread(1) 
-                  area_plant(p)           = currentPatch%total_canopy_area /currentPatch%area
-                  area_trees(p)           = currentPatch%total_tree_area   /currentPatch%area
+                  area_plant(p)           = 1._r8
+                  area_trees(p)           = currentPatch%total_tree_area   / min(currentPatch%total_canopy_area,currentPatch%area)
                   phen_cd_status(p)       = ed_allsites_inst(g)%status
                   if(associated(currentPatch%tallest))then
                      trimming(p)          = currentPatch%tallest%canopy_trim                
@@ -2386,12 +2416,138 @@ contains
  end subroutine flux_into_litter_pools
 
   !------------------------------------------------------------------------
+ subroutine SummarizeProductivityFluxes(this, bounds, ed_allsites_inst)
+
+   ! Summarize the fast production inputs from fluxes per ED individual to fluxes per CLM patch and column
+   ! Must be called between calculation of productivity fluxes and daily ED calls
+   ! (since daily ED calls reorganize the patch / cohort structure)
+
+   ! Written By Charlie Koven, April 2016
+   !
+   ! !USES: 
+   use ColumnType           , only : col
+   use LandunitType         , only : lun
+   use landunit_varcon      , only : istsoil
+   !use subgridAveMod        , only : p2c
+   !
+   implicit none   
+   !
+   ! !ARGUMENTS    
+   class(ed_clm_type)                                      :: this  
+   type(bounds_type)                       , intent(in)    :: bounds  
+   type(ed_site_type)                      , intent(in), target :: ed_allsites_inst( bounds%begg: )
+   !
+   ! !LOCAL VARIABLES:
+   real(r8) :: dt ! radiation time step (seconds)
+   integer :: c, g, cc, fc, l, p, pp
+   type (ed_patch_type)  , pointer :: currentPatch
+   type (ed_cohort_type) , pointer :: currentCohort
+   integer  :: firstsoilpatch(bounds%begg:bounds%endg) ! the first patch in this gridcell that is soil and thus bare... 
+   real(r8) :: n_density   ! individual of cohort per m2.
+   real(r8) :: n_perm2     ! individuals per m2 of the whole column
+
+   associate(& 
+        npp_col       => this%npp_col,      &
+        npp           => this%npp_patch, &
+        gpp           => this%gpp_patch, &
+        ar            => this%ar_patch, &
+        growth_resp   => this%growth_resp_patch, &
+        maint_resp    => this%maint_resp_patch &                
+        )
      
- subroutine Summary(this, bounds, num_soilc, filter_soilc, &
+     ! set time steps
+     dt = real( get_step_size(), r8 )
+     
+     ! zero variables first
+     ! column variables
+     do c = bounds%begc,bounds%endc
+        ! summary flux variables
+        npp_col(c) = 0._r8
+     end do
+
+     ! patch variables
+     do p = bounds%begp,bounds%endp
+        npp(p) = 0._r8
+        gpp(p) = 0._r8
+        ar(p) = 0._r8
+        growth_resp(p) = 0._r8
+        maint_resp(p) = 0._r8
+     end do
+     
+     ! retrieve the first soil patch associated with each gridcell. 
+     ! make sure we only get the first patch value for places which have soil. 
+     firstsoilpatch(bounds%begg:bounds%endg) = -999
+     do c = bounds%begc,bounds%endc
+        g = col%gridcell(c)
+        l = col%landunit(c)
+        if (lun%itype(l) == istsoil .and. col%itype(c) == istsoil) then 
+           firstsoilpatch(g) = col%patchi(c)
+        endif
+     enddo
+     
+     do g = bounds%begg,bounds%endg
+        if (firstsoilpatch(g) >= 0 .and. ed_allsites_inst(g)%istheresoil) then 
+           cc = ed_allsites_inst(g)%clmcolumn
+
+           currentPatch => ed_allsites_inst(g)%oldest_patch
+           do while(associated(currentPatch))
+
+              pp = currentPatch%clm_pno
+
+              currentCohort => currentPatch%tallest
+              do while(associated(currentCohort))
+
+                 if ((currentPatch%area .gt. 0._r8) .and. (currentPatch%total_canopy_area .gt. 0._r8)) then
+                    
+                    ! for quantities that are at the CLM patch level, because of the way that CLM patches are weighted for radiative purposes
+                    ! this # density needs to be over either ED patch canopy area or ED patch total area, whichever is less
+                    n_density = currentCohort%n/min(currentPatch%area,currentPatch%total_canopy_area) 
+                    
+                    ! for quantities that are natively at column level or higher, calculate plant density using whole area (for grid cell averages)
+                    n_perm2   = currentCohort%n/AREA   
+                    
+                 else
+                    n_density = 0.0_r8
+                    n_perm2   = 0.0_r8
+                 endif
+                 
+                 if ( .not. currentCohort%isnew ) then
+
+                    ! map ed cohort-level fluxes to clm patch fluxes
+                    npp(pp) = npp(pp) + currentCohort%npp_clm * 1.e3_r8 * n_density / dt
+                    gpp(pp) = gpp(pp) + currentCohort%gpp_clm * 1.e3_r8 * n_density / dt
+                    ar(pp) = ar(pp) + currentCohort%resp_clm * 1.e3_r8 * n_density / dt
+                    growth_resp(pp) = growth_resp(pp) + currentCohort%resp_g * 1.e3_r8 * n_density / dt
+                    maint_resp(pp) = maint_resp(pp) + currentCohort%resp_m * 1.e3_r8 * n_density / dt
+                    
+                    ! map ed cohort-level npp fluxes to clm column fluxes
+                    npp_col(cc) = npp_col(cc) + currentCohort%npp_clm * n_perm2 * 1.e3_r8 /dt
+
+                 endif
+                 
+                 currentCohort => currentCohort%shorter
+              enddo !currentCohort
+              currentPatch => currentPatch%younger
+           end do !currentPatch
+        end if
+     end do
+
+     ! leaving this as a comment here.  it should produce same answer for npp_col as above,
+     ! so it may be useful to try as a check to make sure machinery is working proerly
+     !call p2c(bounds,num_soilc, filter_soilc, npp(bounds%begp:bounds%endp), npp_col(bounds%begc:bounds%endc))
+
+   end associate
+ end subroutine SummarizeProductivityFluxes
+   
+  !------------------------------------------------------------------------
+ subroutine SummarizeNetFluxes(this, bounds, num_soilc, filter_soilc, &
       ed_allsites_inst, soilbiogeochem_carbonflux_inst, &
       soilbiogeochem_carbonstate_inst)
 
    ! Summarize the combined production and decomposition fluxes into net fluxes
+   ! This is done on the fast timestep, and to be called after both daily ED calls and fast BGC calls
+   ! Does not include summarization of fast-timestsp productivity calls because these must be summarized prior to daily ED calls
+   !
    ! Written by Charlie Koven, Feb 2016
    !
    ! !USES: 
@@ -2406,24 +2562,24 @@ contains
    type(bounds_type)                       , intent(in)    :: bounds  
    integer                                 , intent(in)    :: num_soilc         ! number of soil columns in filter
    integer                                 , intent(in)    :: filter_soilc(:)   ! filter for soil columns
-   type(ed_site_type)                      , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+   type(ed_site_type)                      , intent(in), target :: ed_allsites_inst( bounds%begg: )
    type(soilbiogeochem_carbonflux_type)    , intent(inout) :: soilbiogeochem_carbonflux_inst
    type(soilbiogeochem_carbonstate_type)   , intent(inout) :: soilbiogeochem_carbonstate_inst
    !
    ! !LOCAL VARIABLES:
-   real(r8) :: npp_hifreq_col(bounds%begc:bounds%endc)  ! column-level, high frequency NPP
    real(r8) :: dt ! radiation time step (seconds)
-   integer :: c, g, cc, fc, l
+   integer :: c, g, cc, fc, l, p, pp
    type(ed_site_type), pointer :: cs
    type (ed_patch_type)  , pointer :: currentPatch
    type (ed_cohort_type) , pointer :: currentCohort
    integer  :: firstsoilpatch(bounds%begg:bounds%endg) ! the first patch in this gridcell that is soil and thus bare... 
+   real(r8) :: n_perm2     ! individuals per m2 of the whole column
    
    associate(& 
         hr            => soilbiogeochem_carbonflux_inst%hr_col,      & ! (gC/m2/s) total heterotrophic respiration
         totsomc       => soilbiogeochem_carbonstate_inst%totsomc_col, & ! (gC/m2) total soil organic matter carbon
         totlitc       => soilbiogeochem_carbonstate_inst%totlitc_col, & ! (gC/m2) total litter carbon in BGC pools
-        npp_hifreq    => this%npp_hifreq_col,      &
+        npp_col       => this%npp_col,      &
         nep           => this%nep_col,      &
         fire_c_to_atm => this%fire_c_to_atm_col,      &
         nbp           => this%nbp_col,      &
@@ -2443,9 +2599,9 @@ contains
      dt = real( get_step_size(), r8 )
      
      ! zero variables first
+     ! column variables
      do c = bounds%begc,bounds%endc
         ! summary flux variables
-        npp_hifreq(c) = 0._r8
         fire_c_to_atm(c) = 0._r8
 
         ! summary stock variables
@@ -2476,6 +2632,8 @@ contains
            currentPatch => ed_allsites_inst(g)%oldest_patch
            do while(associated(currentPatch))
 
+              pp = currentPatch%clm_pno
+
               ! map litter, CWD, and seed pools to column level
               cwd_stock(cc) = cwd_stock(cc) + (currentPatch%area / AREA) * (sum(currentPatch%cwd_ag)+ &
                    sum(currentPatch%cwd_bg)) * 1.e3_r8
@@ -2484,14 +2642,14 @@ contains
               seed_stock(cc)   = seed_stock(cc)   + (currentPatch%area / AREA) * sum(currentPatch%seed_bank) * 1.e3_r8
 
               currentCohort => currentPatch%tallest
-              do while(associated(currentCohort))  
-
-                 ! map ed cohort-level npp fluxes to clm column fluxes
-                 npp_hifreq(cc) = npp_hifreq(cc) + currentCohort%npp_clm * 1e3 * currentCohort%n / ( AREA * dt)
-
+              do while(associated(currentCohort))
+                 
+                 ! for quantities that are natively at column level or higher, calculate plant density using whole area (for grid cell averages)
+                 n_perm2   = currentCohort%n/AREA                    
+                 
                  ! map biomass pools to column level
                  biomass_stock(cc) =  biomass_stock(cc) + (currentCohort%bdead + currentCohort%balive + &
-                      currentCohort%bstore) * currentCohort%n * 1.e3_r8 / AREA
+                      currentCohort%bstore) * n_perm2 * 1.e3_r8
 
                  currentCohort => currentCohort%shorter
               enddo !currentCohort
@@ -2499,12 +2657,12 @@ contains
            end do !currentPatch
         end if
      end do
-     
+
      ! calculate NEP and NBP fluxes.
      do fc = 1,num_soilc
         c = filter_soilc(fc)
-        nep(c) = npp_hifreq(c) - hr(c)
-        nbp(c) = npp_hifreq(c) - ( hr(c) + fire_c_to_atm(c) )
+        nep(c) = npp_col(c) - hr(c)
+        nbp(c) = npp_col(c) - ( hr(c) + fire_c_to_atm(c) )
      end do
       
      ! calculate total stocks
@@ -2557,7 +2715,7 @@ contains
 
    end associate
    
- end subroutine Summary
+ end subroutine SummarizeNetFluxes
 
 
  subroutine ED_BGC_Carbon_Balancecheck(this, bounds, num_soilc, filter_soilc, soilbiogeochem_carbonflux_inst)  
@@ -2596,7 +2754,7 @@ contains
         nep_timeintegrated  => this%nep_timeintegrated_col,  &
         hr                  => soilbiogeochem_carbonflux_inst%hr_col,      &
         hr_timeintegrated   => this%hr_timeintegrated_col,  &
-        npp_hifreq          => this%npp_hifreq_col,      &
+        npp_col          => this%npp_col,      &
         npp_timeintegrated  => this%npp_timeintegrated_col,  &
         fire_c_to_atm       => this%fire_c_to_atm_col,       &
         totecosysc_old      => this%totecosysc_old_col,      &
@@ -2643,7 +2801,7 @@ contains
            c = filter_soilc(fc)
            nep_timeintegrated(c) = nep_timeintegrated(c) + nep(c) * dtime
            hr_timeintegrated(c) = hr_timeintegrated(c) + hr(c) * dtime
-           npp_timeintegrated(c) = npp_timeintegrated(c) + npp_hifreq(c) * dtime
+           npp_timeintegrated(c) = npp_timeintegrated(c) + npp_col(c) * dtime
         end do
      else
         ! on ED (daily) timesteps, first integrate the NEP fluxes and add in the daily disturbance flux
@@ -2651,7 +2809,7 @@ contains
            c = filter_soilc(fc)
            nep_timeintegrated(c) = nep_timeintegrated(c) + nep(c) * dtime
            hr_timeintegrated(c) = hr_timeintegrated(c) + hr(c) * dtime
-           npp_timeintegrated(c) = npp_timeintegrated(c) + npp_hifreq(c) * dtime
+           npp_timeintegrated(c) = npp_timeintegrated(c) + npp_col(c) * dtime
            nbp_integrated(c) = nep_timeintegrated(c) - fire_c_to_atm(c) * SHR_CONST_CDAY + seed_rain_flux(c)* SHR_CONST_CDAY
         end do
 
