@@ -1312,7 +1312,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(ed_site_type),  pointer :: currentSite
-    type(ed_patch_type), pointer :: currentPatch
+    type(ed_patch_type), pointer :: currentPatch, tmpptr
     real(r8) areatot ! variable for checking whether the total patch area is wrong. 
     !---------------------------------------------------------------------
  
@@ -1324,14 +1324,22 @@ contains
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch)) 
        if(currentPatch%area <= min_patch_area)then
-          if(associated(currentPatch%older).and.currentPatch%patchno /= currentSite%youngest_patch%patchno)then
+          if ( currentPatch%patchno /= currentSite%youngest_patch%patchno) then
             ! Do not force the fusion of the youngest patch to its neighbour. 
             ! This is only really meant for very old patches. 
-             write(iulog,*) 'fusing patches because one is too small',currentPatch%area, currentPatch%lai, &
-                  currentPatch%older%area,currentPatch%older%lai,currentPatch%seed_bank(1)
-             call fuse_2_patches(currentPatch%older, currentPatch)
-             write(iulog,*) 'after fusion',currentPatch%area,currentPatch%seed_bank(1)
-           endif
+             if(associated(currentPatch%older) )then
+                write(iulog,*) 'fusing to older patch because this one is too small',currentPatch%area, currentPatch%lai, &
+                     currentPatch%older%area,currentPatch%older%lai,currentPatch%seed_bank(1)
+                call fuse_2_patches(currentPatch%older, currentPatch)
+                write(iulog,*) 'after fusion to older patch',currentPatch%area,currentPatch%seed_bank(1)
+             else
+                write(iulog,*) 'fusing to younger patch because oldest one is too small',currentPatch%area, currentPatch%lai
+                tmpptr => currentPatch%younger
+                call fuse_2_patches(currentPatch, currentPatch%younger)
+                write(iulog,*) 'after fusion to younger patch'
+                currentPatch => tmpptr
+             endif
+          endif
        endif
 
        currentPatch => currentPatch%older
