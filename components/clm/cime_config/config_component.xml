@@ -21,6 +21,12 @@
     </values>
   </entry>
 
+  <entry id="PIO_REARRANGER">
+    <values>
+      <value compset="_CLM45%ED" >1</value>
+    </values>
+  </entry>
+
   <entry id="CLM_CONFIG_OPTS" >
     <type>char</type>
     <default_value></default_value>
