@@ -158,7 +158,7 @@ end
   nc = addfile( outfilename, "w" );
   nc@history = ldate+": create using mkscripgrid.ncl";
   nc@comment = "Ocean is assumed to non-existant at this point";
-  nc@Version = "$HeadURL: https://svn-ccsm-models.cgd.ucar.edu/clm2/trunk_tags/clm4_5_8_r177/components/clm/tools/shared/mkmapgrids/mkscripgrid.ncl $";
+  nc@Version = "$HeadURL: https://svn-ccsm-models.cgd.ucar.edu/clm2/trunk_tags/clm4_5_8_r178/components/clm/tools/shared/mkmapgrids/mkscripgrid.ncl $";
   nc@Revision = "$Id: mkscripgrid.ncl 72547 2015-08-25 16:28:29Z erik $";
   if ( printn )then
     print( "================================================================================================" );
