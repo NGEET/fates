@@ -151,8 +151,11 @@ module clm_instMod
   type(drydepvel_type)                    :: drydepvel_inst
 
   ! ED types passed in from top level
-  type(ed_phenology_type)                 :: ed_phenology_inst
-  type(ed_clm_type)                       :: ed_clm_inst
+!  type(ed_phenology_type)                 :: ed_phenology_inst
+!  type(ed_clm_type)                       :: ed_clm_inst
+
+  type(clm_ed_interface_type),allocatable :: clm_ed
+
   !
   public :: clm_instInit
   public :: clm_instRest
@@ -175,15 +178,18 @@ contains
     use initVerticalMod                    , only : initVertical
     use accumulMod                         , only : print_accum_fields 
     use SoilWaterRetentionCurveFactoryMod  , only : create_soil_water_retention_curve
+    use decompMod                          , only : get_proc_bounds, get_proc_clumps
     !
     ! !ARGUMENTS    
     type(bounds_type), intent(in) :: bounds  ! processor bounds
     !
     ! !LOCAL VARIABLES:
     integer               :: c,l,g
+    integer               :: nclumps,nc
     integer               :: begp, endp
     integer               :: begc, endc
     integer               :: begl, endl
+    type(bounds_type)     :: bounds_clump
     real(r8), allocatable :: h2osno_col(:)
     real(r8), allocatable :: snow_depth_col(:)
 
@@ -428,12 +434,19 @@ contains
     ! NOTE (RGK, 04-04-2016) : Move allocation of ed_allsites_inst to the CLMEDInterface,
     ! variables memory is now defined in EDTypes
 
-    call CLMEDInterf_AllocateAllSites(bounds,use_ed)
-    if (use_ed) then
-       call ed_clm_inst%Init(bounds)
-       call ed_phenology_inst%Init(bounds)
-       call EDecophysconInit( EDpftvarcon_inst, numpft)
+    if(use_ed)then
+
+       nclumps = get_proc_clumps()
+       allocate(clm_ed(nclumps))
+       do nc = 1,nclumps
+          call get_clump_bounds(nc, bounds_clump)
+          clm_ed(nc)%Init(bounds_clump)
+       end do
+
+      call EDecophysconInit( EDpftvarcon_inst, numpft)
+
     end if
+
 
     deallocate (h2osno_col)
     deallocate (snow_depth_col)

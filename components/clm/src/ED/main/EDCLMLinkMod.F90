@@ -31,7 +31,9 @@ module EDCLMLinkMod
   real(r8), public :: cwd_fcel_ed  
   real(r8), public :: cwd_flig_ed
 
-  type, public :: ed_clm_type
+
+  ! Types for communicating with the driving land model (DLM)
+  type, public :: dlm_type
 
      real(r8), pointer, private  :: trimming_patch             (:) 
      real(r8), pointer, private  :: area_plant_patch           (:) 

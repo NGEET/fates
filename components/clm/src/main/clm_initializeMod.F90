@@ -21,7 +21,7 @@ module clm_initializeMod
   use ColumnType      , only : col           ! instance          
   use PatchType       , only : patch         ! instance            
   use EDVecCohortType , only : ed_vec_cohort ! instance, used for domain decomp
-  use clm_instMod   
+  use clm_instMod       
   ! 
   implicit none
   public   ! By default everything is public 
@@ -614,9 +614,9 @@ contains
     call atm2lnd_inst%initAccVars(bounds_proc)
     call temperature_inst%initAccVars(bounds_proc)
 
-    if ( use_ed) then
-       call ed_phenology_inst%initAccVars(bounds_proc)
-    end if
+!    if ( use_ed) then
+!       call ed_phenology_inst%initAccVars(bounds_proc)
+!    end if
 
     call canopystate_inst%initAccVars(bounds_proc)
 
@@ -690,10 +690,9 @@ contains
        !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
        do nc = 1, nclumps
           call get_clump_bounds(nc, bounds_clump)
-
-          !!!! ed_clm_inst needs to be moved out of this routine
-          call CLMEDInterf_ed_init(bounds_clump, ed_clm_inst, &
-                ed_phenology_inst, waterstate_inst, canopystate_inst)
+          ! Initialize the 
+          clm_ed(nc)%StateInit(bounds_clump)
+          clm_ed(nc)%DLMInit(bounds_clump,waterstate_inst,canopystate_inst)
        end do
        !$OMP END PARALLEL DO
     end if

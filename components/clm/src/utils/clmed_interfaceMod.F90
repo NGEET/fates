@@ -32,7 +32,7 @@ module clmed_interfaceMod
    use atm2lndType       , only : atm2lnd_type
    use SurfaceAlbedoType , only : surfalb_type
    use SolarAbsorbedType , only : solarabs_type
-
+   use clm_time_manager  , only : is_restart
    
    ! Used ED Modules
    use EDtypesMod            , only : ed_patch_type, ed_site_type, numpft_ed
@@ -45,25 +45,55 @@ module clmed_interfaceMod
    implicit none
    
    
-   !-------------------------------------------------------------------------------------
-   ! define the root of ED's linked list memory hierarchy, note that its class
-   ! is defined in EDTypes, yet the actual variable is defined in this module. This
-   ! variable also restricted to this module.
-   !-------------------------------------------------------------------------------------
 
-   type(ed_site_type), allocatable, target :: ed_allsites_inst(:)
-   
-   ! Eventually, ed_allsites_inst should be private
-   
-   public :: ed_allsites_inst
+   type, public :: lsm_ed_interface_type
+
+      private
+
+      ! Previously many of these sub-classes had "ed_" naming conventions
+      ! These prefixes are now implied as part of the lsm_ed_interface_type
+      ! and are no longer necessary
+
+      ! This is the root of the ED hierarchy of instantaneous state variables
+      ! ie the root of the linked lists. Each path list is currently associated
+      ! with a grid-cell, this is intended to be migrated to columns
+
+      ! prev:  type(ed_site_type)::ed_allsites_inst
+      type(ed_site_type), allocatable :: site_inst(:)
+
+      
+      ! These are the communicator variables that are populated by ED, and are
+      ! usefull to a calling model.  In this case DLM means "Driving Land Model"
+      
+      ! prev:  type(ed_clm_type)::ed_clm_inst
+      type(dlm_type)    :: dlm_inst   
+
+      
+      ! These are phenology relevant variables (strange how phenology gets
+      ! its own subclass)
+
+      ! prev: type(ed_phenology_type)::ed_phenology_inst
+      type(phen_type)   :: phen_inst  
+
+   contains
+
+      procedure, public :: Init
+      procedure, public :: AllocateEDSites
+      procedure, public :: CanopySunShadeFracs
+
+   end type lsm_ed_interface_type
+
+
+   ! FOR CLM: type lsm_ed_interface_type describes "clm_ed", which is defined in clm_instMod
+   ! FOR ALM: NA
 
 contains
+
    
-   
-   subroutine CLMEDInterf_AllocateAllSites(bounds,use_ed)
-   
+   subroutine Init(this,bounds)
+
       ! ---------------------------------------------------------------------------------
-      ! This subroutine allocates the ed_allsites_inst global.
+      ! This initializes the lsm_ed_interface_type 
       !
       ! ed_allsites_inst is the root of the ED state hierarchy (instantaneous info on 
       ! the state of the ecosystem).  As such, it governs the connection points between
@@ -81,25 +111,97 @@ contains
       implicit none
 
       ! Input Arguments
-      type(bounds_type),intent(in)    :: bounds 
-      logical, intent(in)             :: use_ed   ! does the model want ed turned on?
+      class(lsm_ed_interface_type), intent(inout) :: this
+      type(bounds_type),intent(in)                :: bounds 
 
-      allocate (ed_allsites_inst(bounds%begg:bounds%endg))
+      
+      ! Initialize the mapping elements between ED and the DLM
 
-!      if (use_ed) then
-!         call ed_clm_inst%Init(bounds)
-!         call ed_phenology_inst%Init(bounds)
-!         call EDecophysconInit( EDpftvarcon_inst, numpft)
-!      end if
+      ! ed_bounds = func(bounds)
+
+      ! These bounds are for a single clump (thread)
+      allocate (this%ed_site_inst(bounds%begg:bounds%endg))
+
+      ! Initialize the ed_communicators with the DLM
+      ! This involves to stages
+      ! 1) allocate the vectors dlm_inst
+      ! 2) add the history variables defined in clm_inst to the history machinery
+      this%dlm_inst%Init(bounds)
+      
+      ! Initialize ED phenology variables
+      ! This also involves two stages
+      ! 1) allocate the vectors in phen_inst
+      ! 2) add the phenology history variables to the history machinery
+      this%phen_inst%Init(bounds)
+
+
+   end subroutine Init
+
+
+   subroutine StateInit(self,bounds_clump)
+
+      
+      ! CLM:  called from initialize2()
+      ! ALM:  ??
+
+      ! Input Arguments
+      class(lsm_ed_interface_type), intent(inout) :: this
+      type(bounds_type),intent(in)                :: bounds_clump
+
+      ! locals
+      integer :: g
+
+      ! It is assumed that bounds is bounds_clump
+
+      if ( .not. is_restart() ) then
+
+         ! Initialize  (THIS ROUTINE CALLS CLM STUFF-MIGRATE CODE TO HERE)
+         call ed_init_sites( bounds_clump, self%sites_inst(bounds_clump%begg:bounds_clump%endg) )
+
+         do g = bounds%begg,bounds%endg
+            if (this%sites_inst(g)%istheresoil) then
+               call ed_update_site(this%sites_inst(g))
+            end if
+         end do
+      endif
+      
+
+
+   end subroutine StateInit
+
+
+   subroutine DLMInit(self,bounds,waterstate_inst, canopystate_inst)
+
+      ! CLM:  called from initialize2()
+      ! ALM:  ??
+
+      ! Input Arguments
+      class(lsm_ed_interface_type), intent(inout) :: this
+      type(bounds_type),intent(in)                :: bounds_clump
+      type(waterstate_type)   , intent(inout)     :: waterstate_inst
+      type(canopystate_type)  , intent(inout)     :: canopystate_inst
+
+      if ( .not. is_restart() ) then
+
+       self%dlm_link%ed_clm_link( bounds,                                     &
+                                  self%sites_inst(bounds%begg:bounds%endg),   &
+                                  self%phen_inst,                             &
+                                  waterstate_inst,                            &
+                                  canopystate_inst)
+    endif
+
+   subroutine AllocateEDSites(this,bounds)
+   
+
 
       
       return
-   end subroutine CLMEDInterf_AllocateAllSites
+   end subroutine AllocateEDSites
 
    ! -------------------------------------------------------------------------------------
     
-
-   subroutine CLMEDInterf_ed_init(bounds, ed_clm_inst, ed_phenology_inst,  &
+   !CLMEDInterf_ed_init
+   subroutine InitializeED(this,bounds, ed_clm_inst, ed_phenology_inst,  &
                                   waterstate_inst, canopystate_inst   )
 
       ! ----------------------------------------------------------------------------------
@@ -112,6 +214,7 @@ contains
       
       implicit none
       ! !ARGUMENTS    
+      class(lsm_ed_interface_type), intent(inout)     :: this
       type(bounds_type)       , intent(in)            :: bounds  ! clump bounds
       type(ed_clm_type)       , intent(inout)         :: ed_clm_inst
       type(ed_phenology_type) , intent(inout)         :: ed_phenology_inst
@@ -124,13 +227,29 @@ contains
       call ed_init( bounds, ed_allsites_inst(bounds%begg:bounds%endg), ed_clm_inst, &
             ed_phenology_inst, waterstate_inst, canopystate_inst)
 
+
+      
+
+
       return
-   end subroutine CLMEDInterf_ed_init
+   end subroutine InitializeED
 
    ! -------------------------------------------------------------------------------------
 
+   subroutine InitEDSubTypes(this,bounds)
+
+      class(lsm_ed_interface_type), intent(inout)     :: this
+
+
+      this%phen_inst%initAccVars(bounds)
+
+
+
+   end subroutine InitEDTypes
+
+
   
-   subroutine CLMEDInterf_CanopySunShadeFracs(filter_nourbanp, num_nourbanp, &
+   subroutine CanopySunShadeFracs(this,filter_nourbanp, num_nourbanp, &
                                               atm2lnd_inst,canopystate_inst)
 
 
@@ -143,7 +262,8 @@ contains
       implicit none
 
       ! Input Arguments
-
+      class(lsm_ed_interface_type), intent(inout) :: this
+      
       ! patch filter for non-urban points
       integer, intent(in),dimension(:)     :: filter_nourbanp
 
@@ -173,7 +293,7 @@ contains
            g = patch%gridcell(p)
            
            if ( patch%is_veg(p) ) then 
-              cpatch => map_clmpatch_to_edpatch(ed_allsites_inst(g), p) 
+              cpatch => map_clmpatch_to_edpatch(this%ed_allsites_inst(g), p) 
               
               call ED_SunShadeFracs(cpatch,forc_solad(g,ipar),forc_solai(g,ipar),fsun(p))
 
@@ -182,7 +302,10 @@ contains
         end do
       end associate
       return
-   end subroutine CLMEDInterf_CanopySunShadeFracs
+   end subroutine CanopySunShadeFracs
 
-   
+
+
+
+
 end module clmed_interfaceMod
