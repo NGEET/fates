@@ -578,10 +578,22 @@ contains
     end if
 
     if (use_ed) then
-       call ED_Phenology_inst%restart(bounds, ncid, flag=flag)
-       call EDRest ( bounds, ncid, flag, &
-            ed_clm_inst, ed_phenology_inst, waterstate_inst, canopystate_inst )
-       call ed_clm_inst%Restart(bounds, ncid, flag=flag)
+       ! There are concerns that NETCDF is not threadsafe, so it
+       ! cannot handle multiple open files on one node.  So we are not
+       ! forking the reads
+       do nc = 1, nclumps
+          call clm_fates(nc)%phen_inst%restart(bounds, ncid, flag=flag)
+          call clm_fates(nc)%edrest( bounds, ncid, flag, &
+                                     waterstate_inst, canopystate_inst)
+          call clm_fates(nc)%ed_clm_inst%Restart(bounds, ncid, flag=flag)
+
+          ! WORKING TOWARDS:
+          ! call clm_fates(nc)%restart()
+
+          !       call ED_Phenology_inst%restart(bounds, ncid, flag=flag)
+          !          call EDRest ( bounds, ncid, flag, &
+          !            ed_clm_inst, ed_phenology_inst, waterstate_inst, canopystate_inst )
+          !       call ed_clm_inst%Restart(bounds, ncid, flag=flag)
     end if
 
   end subroutine clm_instRest

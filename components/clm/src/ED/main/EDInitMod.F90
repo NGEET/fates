@@ -30,7 +30,6 @@ module EDInitMod
 
   logical   ::  DEBUG = .false.
 
-  public  :: ed_init
   public  :: ed_init_sites
   public  :: zero_site
 

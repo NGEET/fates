@@ -33,7 +33,7 @@ module EDCLMLinkMod
 
 
   ! Types for communicating with the driving land model (DLM)
-  type, public :: dlm_type
+  type, public :: ed_clm_type
 
      real(r8), pointer, private  :: trimming_patch             (:) 
      real(r8), pointer, private  :: area_plant_patch           (:) 
@@ -176,7 +176,7 @@ module EDCLMLinkMod
 !     procedure , private :: InitCold    
      procedure , private :: flux_into_litter_pools
 
-  end type dlm_type
+  end type ed_clm_type
   
   ! 10/30/09: Created by Rosie Fisher
   !-----------------------------------------------------------------------

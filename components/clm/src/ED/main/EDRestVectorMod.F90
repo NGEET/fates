@@ -1823,7 +1823,7 @@ contains
   !--------------------------------------------!
 
   !-------------------------------------------------------------------------------!
-  subroutine EDRest ( bounds, ncid, flag, ed_clm_inst, ed_phenology_inst, &
+  subroutine EDRest ( bounds, ed_allsites_inst, ncid, flag, ed_clm_inst, ed_phenology_inst, &
         waterstate_inst, canopystate_inst )
     !
     ! !DESCRIPTION:
@@ -1831,13 +1831,14 @@ contains
     ! EDRest called from restFileMod.F90
     !
     ! !USES:
-    use clmed_interfaceMod , only : ed_allsites_inst
+
     use ncdio_pio    , only : file_desc_t
     use EDCLMLinkMod , only : ed_clm_type
     !
     ! !ARGUMENTS:
     type(bounds_type)       , intent(in)            :: bounds  ! bounds
     type(file_desc_t)       , intent(inout)         :: ncid    ! netcdf id
+    type(ed_site_type)      , intent(inout)         :: ed_allsites_inst
     character(len=*)        , intent(in)            :: flag    !'read' or 'write'
     type(ed_clm_type)       , intent(inout)         :: ed_clm_inst
     type(ed_phenology_type) , intent(inout)         :: ed_phenology_inst
