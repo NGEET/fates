@@ -60,9 +60,9 @@ module clm_driver
   use ch4Mod                 , only : ch4
   use DUSTMod                , only : DustDryDep, DustEmission
   use VOCEmissionMod         , only : VOCEmission
-  use EDMainMod              , only : ed_driver
-  use clmed_interfaceMod     , only : CLMEDInterf_CanopySunShadeFracs
-  use clmed_interfaceMod     , only : ed_allsites_inst  ! Won't be necessary for long
+!  use EDMainMod              , only : ed_driver
+  use clm_instMod            , only : clm_fates
+
   !
   use filterMod              , only : setFilters
   !
@@ -392,10 +392,10 @@ contains
        ! over the patch index range defined by bounds_clump%begp:bounds_proc%endp
 
        if(use_ed) then
-          call CLMEDInterf_CanopySunShadeFracs(filter(nc)%nourbanp,                 &
-                                               filter(nc)%num_nourbanp,             &
-                                               atm2lnd_inst, canopystate_inst)
-
+          call clm_fates(nc)%canopy_sunshade_fracs(filter(nc)%nourbanp,             &
+               filter(nc)%num_nourbanp,                                             &
+               atm2lnd_inst, canopystate_inst)
+          
        else
           call CanopySunShadeFracs(filter(nc)%nourbanp,filter(nc)%num_nourbanp,     &
                                    atm2lnd_inst, surfalb_inst, canopystate_inst,    &
@@ -458,7 +458,7 @@ contains
        call t_startf('canflux')
        call CanopyFluxes(bounds_clump,                                                   &
             filter(nc)%num_exposedvegp, filter(nc)%exposedvegp,                             &
-            ed_allsites_inst(bounds_clump%begg:bounds_clump%endg),                          &
+            clm_fates(nc)%ed_allsites_inst(bounds_clump%begg:bounds_clump%endg),            &
             atm2lnd_inst, canopystate_inst, cnveg_state_inst,                               &
             energyflux_inst, frictionvel_inst, soilstate_inst, solarabs_inst, surfalb_inst, &
             temperature_inst, waterflux_inst, waterstate_inst, ch4_inst, ozone_inst, photosyns_inst, &
@@ -697,7 +697,7 @@ contains
                c13_cnveg_carbonflux_inst, c13_cnveg_carbonstate_inst,                   &
                c14_cnveg_carbonflux_inst, c14_cnveg_carbonstate_inst,                   &
                cnveg_nitrogenflux_inst, cnveg_nitrogenstate_inst,                       &
-               ed_clm_inst,                                                             &
+               clm_fates(nc)%fates2dlm_inst,                                                             &
                soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,         &
                c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
                c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
@@ -723,10 +723,10 @@ contains
                waterstate_inst, canopystate_inst)
              end if
 
-       ! Ecosystem demography
-
+       ! Zero some of the FATES->CLM communicators
        if (use_ed) then
-          call ed_clm_inst%SetValues( bounds_clump, 0._r8 )
+          call clm_fates(nc)%set_fates2dlm_inst(bounds_clump,0._r8)
+          !fates2clm_inst%SetValues( bounds_clump, 0._r8 )
        end if
 
        ! Dry Deposition of chemical tracers (Wesely (1998) parameterizaion)
@@ -822,11 +822,9 @@ contains
              write(iulog,*)  'clm: calling ED model ', get_nstep()
           end if
           
-          call ed_driver( bounds_clump,                               &
-                ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), &
-                ed_clm_inst, ed_phenology_inst,                        &
-                atm2lnd_inst, soilstate_inst, temperature_inst,        &
-                waterstate_inst, canopystate_inst)
+          call clm_fates(nc)%dynamics_driv( bounds_clump,                              &
+               atm2lnd_inst, soilstate_inst, temperature_inst,                         &
+               waterstate_inst, canopystate_inst)
           
           call setFilters( bounds_clump, glc2lnd_inst%icemask_grc )
           
@@ -841,7 +839,7 @@ contains
                 filter(nc)%num_pcropp, filter(nc)%pcropp, doalb,                                    &
                 cnveg_state_inst,                                                                   &
                 cnveg_carbonflux_inst, cnveg_carbonstate_inst,                                      &
-                ed_clm_inst,                                                                        &
+                clm_fates(nc)%fates2dlm_inst,                                                       &
                 soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,                    &
                 soilbiogeochem_state_inst,                                                          &
                 soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,                &
@@ -858,7 +856,8 @@ contains
                 c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
                 c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
                 soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,     &
-                ed_clm_inst, ed_allsites_inst(bounds_clump%begg:bounds_clump%endg))
+                clm_fates(nc)%fates2dlm_inst,                                            &
+                clm_fates(nc)%ed_allsites_inst(bounds_clump%begg:bounds_clump%endg))
        end if
 
 
@@ -917,7 +916,7 @@ contains
                filter_inactive_and_active(nc)%num_urbanp,       &
                filter_inactive_and_active(nc)%urbanp,           &
                nextsw_cday, declinp1,                           &
-               ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), &
+               clm_fates(nc)%ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), &
                aerosol_inst, canopystate_inst, waterstate_inst, &
                lakestate_inst, temperature_inst, surfalb_inst)
           call t_stopf('surfalb')
@@ -1000,7 +999,7 @@ contains
        call canopystate_inst%UpdateAccVars(bounds_proc)
 
        if (use_ed) then
-          call ed_phenology_inst%accumulateAndExtract(bounds_proc, &
+          call clm_fates(nc)%phen_inst%accumulateAndExtract(bounds_proc, &
                temperature_inst%t_ref2m_patch(bounds_proc%begp:bounds_proc%endp), &
                patch%gridcell(bounds_proc%begp:bounds_proc%endp), &
                grc%latdeg(bounds_proc%begg:bounds_proc%endg), &

@@ -176,8 +176,8 @@ module EDCLMLinkMod
 !     procedure , private :: InitCold    
      procedure , private :: flux_into_litter_pools
 
-  end type ed_clm_type
-
+  end type dlm_type
+  
   ! 10/30/09: Created by Rosie Fisher
   !-----------------------------------------------------------------------
 

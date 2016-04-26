@@ -295,12 +295,12 @@ contains
     use restFileMod           , only : restFile_read, restFile_write 
     use ndepStreamMod         , only : ndep_init, ndep_interp
     use CNDriverMod           , only : CNDriverInit 
-    use clmed_interfaceMod    , only : CLMEDInterf_ed_init
     use LakeCon               , only : LakeConInit 
     use SatellitePhenologyMod , only : SatellitePhenologyInit, readAnnualVegetation, interpMonthlyVeg
     use SnowSnicarMod         , only : SnowAge_init, SnowOptics_init
     use lnd2atmMod            , only : lnd2atm_minimal
     use NutrientCompetitionFactoryMod, only : create_nutrient_competition_method
+    use clm_instMod           , only : clm_fates
     !
     ! !ARGUMENTS    
     !
@@ -614,9 +614,16 @@ contains
     call atm2lnd_inst%initAccVars(bounds_proc)
     call temperature_inst%initAccVars(bounds_proc)
 
-!    if ( use_ed) then
-!       call ed_phenology_inst%initAccVars(bounds_proc)
-!    end if
+    ! Initialize FATES phenology accumulators
+    !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
+    if (use_ed) then
+       !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
+       do nc = 1, nclumps
+          call get_clump_bounds(nc, bounds_clump)
+          call clm_fates(nc)%phen_accvars_init(bounds_clump)
+       end do
+    end if
+    !$OMP END PARALLEL DO
 
     call canopystate_inst%initAccVars(bounds_proc)
 
@@ -686,13 +693,12 @@ contains
     ! Initialise the ED model state structure
     ! --------------------------------------------------------------
    
-    if ( use_ed ) then
+    if ( use_ed .and. .not.is_restart() ) then
        !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
        do nc = 1, nclumps
           call get_clump_bounds(nc, bounds_clump)
-          ! Initialize the 
-          clm_ed(nc)%StateInit(bounds_clump)
-          clm_ed(nc)%DLMInit(bounds_clump,waterstate_inst,canopystate_inst)
+          clm_fates(nc)%site_init(bounds_clump)
+          clm_fates(nc)%fates2dlm_init(bounds_clump,waterstate_inst,canopystate_inst)
        end do
        !$OMP END PARALLEL DO
     end if

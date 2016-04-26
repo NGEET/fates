@@ -74,9 +74,7 @@ module clm_instMod
   use LandunitType                    , only : lun                
   use ColumnType                      , only : col                
   use PatchType                       , only : patch                
-  use clmed_interfaceMod              , only : CLMEDInterf_AllocateAllSites
-  use EDPhenologyType                 , only : ed_phenology_type
-  use EDCLMLinkMod                    , only : ed_clm_type
+  use clmed_interfaceMod              , only : dlm_fates_interface_type
   use SoilWaterRetentionCurveMod      , only : soil_water_retention_curve_type
   use NutrientCompetitionMethodMod    , only : nutrient_competition_method_type
   !
@@ -150,11 +148,7 @@ module clm_instMod
   type(vocemis_type)                      :: vocemis_inst
   type(drydepvel_type)                    :: drydepvel_inst
 
-  ! ED types passed in from top level
-!  type(ed_phenology_type)                 :: ed_phenology_inst
-!  type(ed_clm_type)                       :: ed_clm_inst
-
-  type(clm_ed_interface_type),allocatable :: clm_ed
+  type(dlm_fates_interface_type),allocatable :: clm_fates
 
   !
   public :: clm_instInit
@@ -433,14 +427,16 @@ contains
     ! NOTE (SPM, 10-27-2015) ... check on deallocation of ed_allsites_inst
     ! NOTE (RGK, 04-04-2016) : Move allocation of ed_allsites_inst to the CLMEDInterface,
     ! variables memory is now defined in EDTypes
+    ! NOTE (RGK, 04-25-2016) : Updating names, ED is now FATES and ED is part of FATES
+    !                          Incrementally changing to FATES
 
     if(use_ed)then
 
        nclumps = get_proc_clumps()
-       allocate(clm_ed(nclumps))
+       allocate(clm_fates(nclumps))
        do nc = 1,nclumps
           call get_clump_bounds(nc, bounds_clump)
-          clm_ed(nc)%Init(bounds_clump)
+          clm_fates(nc)%Init(bounds_clump)
        end do
 
       call EDecophysconInit( EDpftvarcon_inst, numpft)
