@@ -31,7 +31,9 @@ module clmfates_interfaceMod
    use SurfaceAlbedoType , only : surfalb_type
    use SolarAbsorbedType , only : solarabs_type
    use clm_time_manager  , only : is_restart
-   
+   use ncdio_pio         , only : file_desc_t
+
+
    ! Used ED Modules
    use EDtypesMod            , only : ed_patch_type, ed_site_type, numpft_ed
    use EDtypesMod            , only : map_clmpatch_to_edpatch
@@ -91,6 +93,7 @@ module clmfates_interfaceMod
      procedure, public :: site_init            
      procedure, public :: fates2dlm_init
      procedure, public :: phen_accvars_init
+     procedure, public :: restart
      
      ! Run-time procedures
      procedure, public :: dynamics_driv         ! the daily FATES timestep driver
@@ -154,7 +157,7 @@ contains
   
   ! -----------------------------------------------------------------------------------
   
-  subroutine site_init(self,bounds_clump)
+  subroutine site_init(this,bounds_clump)
     
     
     ! CLM:  called from initialize2()
@@ -171,7 +174,7 @@ contains
     
     ! Initialize  (INTERF-TODO THIS ROUTINE CALLS CLM STUFF-MIGRATE CODE TO HERE)
     call ed_init_sites( bounds_clump,                                               &
-         self%site_inst(bounds_clump%begg:bounds_clump%endg) )
+         this%site_inst(bounds_clump%begg:bounds_clump%endg) )
     
     do g = bounds_clump%begg,bounds_clump%endg
        if (this%site_inst(g)%istheresoil) then
@@ -184,7 +187,7 @@ contains
   
   ! -----------------------------------------------------------------------------------
   
-  subroutine fates2dlm_init(self,bounds_clump,waterstate_inst, canopystate_inst)
+  subroutine fates2dlm_init(this,bounds_clump,waterstate_inst, canopystate_inst)
     
     ! CLM:  called from initialize2()
     ! ALM:  ??
@@ -195,9 +198,9 @@ contains
     type(waterstate_type)   , intent(inout)     :: waterstate_inst
     type(canopystate_type)  , intent(inout)     :: canopystate_inst
     
-    call self%fates2dlm_inst%ed_clm_link( bounds_clump,    &
-         self%site_inst(bounds_clump%begg:bounds_clump%endg),    &
-         self%phen_inst,                             &
+    call this%fates2dlm_inst%ed_clm_link( bounds_clump,    &
+         this%site_inst(bounds_clump%begg:bounds_clump%endg),    &
+         this%phen_inst,                             &
          waterstate_inst,                            &
          canopystate_inst)
     
@@ -219,11 +222,11 @@ contains
     implicit none
     class(lsm_ed_interface_type), intent(inout) :: this
     type(bounds_type),intent(in)                :: bounds_clump
-    type(atm2lnd_type)      , intent(in)            :: atm2lnd_inst
-    type(soilstate_type)    , intent(in)            :: soilstate_inst
-    type(temperature_type)  , intent(in)            :: temperature_inst
-    type(waterstate_type)   , intent(inout)         :: waterstate_inst
-    type(canopystate_type)  , intent(inout)         :: canopystate_inst
+    type(atm2lnd_type)      , intent(in)        :: atm2lnd_inst
+    type(soilstate_type)    , intent(in)        :: soilstate_inst
+    type(temperature_type)  , intent(in)        :: temperature_inst
+    type(waterstate_type)   , intent(inout)     :: waterstate_inst
+    type(canopystate_type)  , intent(inout)     :: canopystate_inst
 
     ! INTERF-TODO: REMOVE ED_DRIVER ARGUMENTS OF CLM STUCTURED TYPES AND
     ! REPLACE THEM WITH FATES_BC TYPES WITH A BOUNDS MAPPING SCHEME
@@ -268,6 +271,31 @@ contains
     return
   end subroutine phen_accvars_init
   
+  ! -------------------------------------------------------------------------------------
+
+  subroutine restart(this,bounds_clump, ncid, flag, waterstate_inst, canopystate_inst )
+     
+    implicit none
+    class(lsm_ed_interface_type), intent(inout) :: this
+    type(bounds_type),intent(in)                :: bounds_clump
+    type(file_desc_t)       , intent(inout)     :: ncid    ! netcdf id
+    character(len=*)        , intent(in)        :: flag    !'read' or 'write'
+    type(waterstate_type)   , intent(inout)     :: waterstate_inst
+    type(canopystate_type)  , intent(inout)     :: canopystate_inst
+
+    call this%phen_inst%restart(bounds_clump, ncid, flag=flag)
+    call EDRest( bounds_clump, this%site_inst(bounds_clump%begg:bounds_clump%endg), &
+                 ncid, flag, waterstate_inst, canopystate_inst)
+
+    call this%ed_clm_inst%Restart(bounds_clump, ncid, flag=flag)
+
+    return
+ end subroutine restart
+
+
+
+
+
   ! ---------------------------------------------------------------------------------------
   
   subroutine canopy_sunshade_fracs(this,filter_nourbanp, num_nourbanp, &

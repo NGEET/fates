@@ -172,7 +172,7 @@ contains
     use initVerticalMod                    , only : initVertical
     use accumulMod                         , only : print_accum_fields 
     use SoilWaterRetentionCurveFactoryMod  , only : create_soil_water_retention_curve
-    use decompMod                          , only : get_proc_bounds, get_proc_clumps
+    use decompMod                          , only : get_proc_bounds, get_proc_clumps, get_clump_bounds
     !
     ! !ARGUMENTS    
     type(bounds_type), intent(in) :: bounds  ! processor bounds
@@ -487,14 +487,22 @@ contains
     use ncdio_pio       , only : file_desc_t
     use EDRestVectorMod , only : EDRest
     use UrbanParamsType , only : IsSimpleBuildTemp, IsProgBuildTemp
+    use decompMod       , only : get_proc_bounds, get_proc_clumps, get_clump_bounds
+
     !
     ! !DESCRIPTION:
     ! Define/write/read CLM restart file.
     !
     ! !ARGUMENTS:
     type(bounds_type) , intent(in)    :: bounds          
+    
     type(file_desc_t) , intent(inout) :: ncid ! netcdf id
     character(len=*)  , intent(in)    :: flag ! 'define', 'write', 'read' 
+
+    ! Local variables
+    integer                           :: nc, nclumps
+    type(bounds_type)                 :: bounds_clump
+
     !-----------------------------------------------------------------------
 
     call atm2lnd_inst%restart (bounds, ncid, flag=flag)
@@ -581,19 +589,12 @@ contains
        ! There are concerns that NETCDF is not threadsafe, so it
        ! cannot handle multiple open files on one node.  So we are not
        ! forking the reads
+       nclumps = get_proc_clumps()
        do nc = 1, nclumps
-          call clm_fates(nc)%phen_inst%restart(bounds, ncid, flag=flag)
-          call clm_fates(nc)%edrest( bounds, ncid, flag, &
-                                     waterstate_inst, canopystate_inst)
-          call clm_fates(nc)%ed_clm_inst%Restart(bounds, ncid, flag=flag)
+          call get_clump_bounds(nc, bounds_clump)
+          call clm_fates(nc)%restart(bounds_clump, ncid, flag, &
+                waterstate_inst, canopystate_inst)
 
-          ! WORKING TOWARDS:
-          ! call clm_fates(nc)%restart()
-
-          !       call ED_Phenology_inst%restart(bounds, ncid, flag=flag)
-          !          call EDRest ( bounds, ncid, flag, &
-          !            ed_clm_inst, ed_phenology_inst, waterstate_inst, canopystate_inst )
-          !       call ed_clm_inst%Restart(bounds, ncid, flag=flag)
     end if
 
   end subroutine clm_instRest
