@@ -11,6 +11,15 @@ module clmfates_interfaceMod
    ! either native type arrays (int,real,log, etc) or packed into ED boundary condition
    ! structures.
    !
+   ! Note that CLM/ALM does use Shared Memory Parallelism (SMP), where processes such as the
+   ! update of state variables are forked.  However, IO is not assumed to be threadsafe
+   ! and therefore memory spaces reserved for IO must be continuous vectors, and moreover
+   ! they must be pushed/pulled from history IO for each individual bounds_proc memory space
+   ! as a unit.
+   ! Therefore, the state variables in the clm_fates communicator is vectorized by
+   ! threadcount, and the IO communication arrays are not.
+   !
+   !
    ! Conventions:
    ! keep line widths within 90 spaces
    !
@@ -43,9 +52,34 @@ module clmfates_interfaceMod
    
    implicit none
 
+
+   type, public :: state_thread_type
+
+      integer :: gr_ompoff ! SMP offset index for the thread's grid point
+      integer :: lu_ompoff ! SMP offset index for the thread's landunit
+      integer :: cl_ompoff ! SMP offset index for the thread's column
+      integer :: pa_ompoff ! SMP offset index for the thread's patch
+      integer :: co_ompoff ! SMP offset index for the thread's cohort
+      
+      ! This is the root of the ED/FATES hierarchy of instantaneous state variables
+      ! ie the root of the linked lists. Each path list is currently associated
+      ! with a grid-cell, this is intended to be migrated to columns
+      ! prev:  type(ed_site_type)::ed_allsites_inst
+      type(ed_site_type), allocatable :: site_inst(:)
+      
+      contains
+
+         
+
+
+
+   end type state_thread_type
+
+
+
    type, public :: dlm_fates_interface_type
       
-      private
+!      private
       
       ! Change in naming conventions:
       ! Previously, many of these sub-classes had "ed_" naming conventions
@@ -56,13 +90,7 @@ module clmfates_interfaceMod
       ! 2) the submodules and memory structurs do not need to have the name
       ! of the FATES model, as it is now implied as part of this interface.
 
-
-      ! This is the root of the ED/FATES hierarchy of instantaneous state variables
-      ! ie the root of the linked lists. Each path list is currently associated
-      ! with a grid-cell, this is intended to be migrated to columns
-      ! prev:  type(ed_site_type)::ed_allsites_inst
-      type(ed_site_type), allocatable :: site_inst(:)
-
+      type(state_thread_type), allocatable :: thread (:)
       
       ! These are the communicator variables that are populated by ED/FATES, and are
       ! usefull to a calling model.  In this case DLM means "Driving Land Model"
@@ -73,7 +101,7 @@ module clmfates_interfaceMod
       ! These are phenology relevant variables (strange how phenology gets
       ! its own subclass)
       ! prev: type(ed_phenology_type)::ed_phenology_inst
-      type(phen_type)   :: phen_inst  
+      type(ed_phenology_type)   :: phen_inst  
 
 
       ! INTERF-TODO: we will need a new bounding type (maybe?)
@@ -97,7 +125,7 @@ module clmfates_interfaceMod
      
      ! Run-time procedures
      procedure, public :: dynamics_driv         ! the daily FATES timestep driver
-     procedure, public :: set_fates2dlm_inst    ! wrapper for fates2clm_inst%SetValues
+     procedure, public :: set_fates2dlm_inst    ! wrapper for fates2dlm_inst%SetValues
      procedure, public :: canopy_sunshade_fracs ! wrapper to calculate sun/shade fracs
      
   end type dlm_fates_interface_type
@@ -112,25 +140,25 @@ contains
   subroutine init(this,bounds_clump)
     
     ! ---------------------------------------------------------------------------------
-    ! This initializes the lsm_ed_interface_type 
+    ! This initializes the dlm_fates_interface_type 
     !
-    ! ed_allsites_inst is the root of the ED state hierarchy (instantaneous info on 
+    ! site_inst is the root of the ED state hierarchy (instantaneous info on 
     ! the state of the ecosystem).  As such, it governs the connection points between
     ! the host (which also dictates its allocation) and its patch structures.
     !
-    ! ed_allsites_inst may associate with different scales in different models. In
+    ! site_inst may associate with different scales in different models. In
     ! CLM, it is being designed to relate to column scale.
     !
     ! This global may become relegated to this module. 
     !
-    ! Note: CLM/ALM currently wants ed_allsites_inst to be allocated even if ed
+    ! Note: CLM/ALM currently wants site_inst to be allocated even if ed
     ! is not turned on
     ! ---------------------------------------------------------------------------------
     
     implicit none
     
     ! Input Arguments
-    class(lsm_ed_interface_type), intent(inout) :: this
+    class(dlm_fates_interface_type), intent(inout) :: this
     type(bounds_type),intent(in)                :: bounds_clump 
     
     
@@ -144,13 +172,13 @@ contains
     ! This involves to stages
     ! 1) allocate the vectors dlm_inst
     ! 2) add the history variables defined in clm_inst to the history machinery
-    this%fates2dlm_inst%Init(bounds_clump)
+    call this%fates2dlm_inst%Init(bounds_clump)
     
     ! Initialize ED phenology variables
     ! This also involves two stages
     ! 1) allocate the vectors in phen_inst
     ! 2) add the phenology history variables to the history machinery
-    this%phen_inst%Init(bounds_clump)
+    call this%phen_inst%Init(bounds_clump)
     
     
   end subroutine init
@@ -164,7 +192,7 @@ contains
     ! ALM:  ??
     
     ! Input Arguments
-    class(lsm_ed_interface_type), intent(inout) :: this
+    class(dlm_fates_interface_type), intent(inout) :: this
     type(bounds_type),intent(in)                :: bounds_clump
     
     ! locals
@@ -187,13 +215,13 @@ contains
   
   ! -----------------------------------------------------------------------------------
   
-  subroutine fates2dlm_init(this,bounds_clump,waterstate_inst, canopystate_inst)
+  subroutine fates2dlm_link(this,bounds_clump,waterstate_inst, canopystate_inst)
     
     ! CLM:  called from initialize2()
     ! ALM:  ??
     
     ! Input Arguments
-    class(lsm_ed_interface_type), intent(inout) :: this
+    class(dlm_fates_interface_type), intent(inout) :: this
     type(bounds_type),intent(in)                :: bounds_clump
     type(waterstate_type)   , intent(inout)     :: waterstate_inst
     type(canopystate_type)  , intent(inout)     :: canopystate_inst
@@ -206,7 +234,7 @@ contains
     
       
     return
-  end subroutine fates2dlm_init
+  end subroutine fates2dlm_link
   
   ! -------------------------------------------------------------------------------------
   
@@ -220,7 +248,7 @@ contains
     ! to process array bounding information 
     
     implicit none
-    class(lsm_ed_interface_type), intent(inout) :: this
+    class(dlm_fates_interface_type), intent(inout) :: this
     type(bounds_type),intent(in)                :: bounds_clump
     type(atm2lnd_type)      , intent(in)        :: atm2lnd_inst
     type(soilstate_type)    , intent(in)        :: soilstate_inst
@@ -233,8 +261,8 @@ contains
     
     ! RENAME TO fates_driver()
     call ed_driver( bounds_clump,                                                       &
-         this%ed_allsites_inst(bounds_clump%begg:bounds_clump%endg),                    &
-         this%dlm_inst,                                                                 &
+         this%site_inst(bounds_clump%begg:bounds_clump%endg),                           &
+         this%fates2dlm_inst,                                                           &
          this%phen_inst,                                                                &
          atm2lnd_inst, soilstate_inst, temperature_inst,                                &
          waterstate_inst, canopystate_inst)
@@ -249,11 +277,11 @@ contains
     ! This is a simple wrapper to flush some FATES -> CLM communicators
 
     implicit none
-    class(lsm_ed_interface_type), intent(inout) :: this
+    class(dlm_fates_interface_type), intent(inout) :: this
     type(bounds_type),intent(in)                :: bounds_clump
     real(r8),intent(in) :: setval_scalar      ! This value will flush all 
     
-    call this%fates2clm_inst%SetValues( bounds_clump, setval_scalar )
+    call this%fates2dlm_inst%SetValues( bounds_clump, setval_scalar )
 
 
   end subroutine set_fates2dlm_inst
@@ -263,7 +291,7 @@ contains
   subroutine phen_accvars_init(this,bounds_clump)
 
     implicit none
-    class(lsm_ed_interface_type), intent(inout) :: this
+    class(dlm_fates_interface_type), intent(inout) :: this
     type(bounds_type),intent(in)                :: bounds_clump
 
     call this%phen_inst%initAccVars(bounds_clump)
@@ -276,7 +304,7 @@ contains
   subroutine restart(this,bounds_clump, ncid, flag, waterstate_inst, canopystate_inst )
      
     implicit none
-    class(lsm_ed_interface_type), intent(inout) :: this
+    class(dlm_fates_interface_type), intent(inout) :: this
     type(bounds_type),intent(in)                :: bounds_clump
     type(file_desc_t)       , intent(inout)     :: ncid    ! netcdf id
     character(len=*)        , intent(in)        :: flag    !'read' or 'write'
@@ -287,7 +315,7 @@ contains
     call EDRest( bounds_clump, this%site_inst(bounds_clump%begg:bounds_clump%endg), &
                  ncid, flag, waterstate_inst, canopystate_inst)
 
-    call this%ed_clm_inst%Restart(bounds_clump, ncid, flag=flag)
+    call this%fates2dlm_inst%Restart(bounds_clump, ncid, flag=flag)
 
     return
  end subroutine restart
@@ -310,7 +338,7 @@ contains
       implicit none
 
       ! Input Arguments
-      class(lsm_ed_interface_type), intent(inout) :: this
+      class(dlm_fates_interface_type), intent(inout) :: this
       
       ! patch filter for non-urban points
       integer, intent(in),dimension(:)     :: filter_nourbanp
@@ -341,12 +369,12 @@ contains
            g = patch%gridcell(p)
            
            if ( patch%is_veg(p) ) then 
-              cpatch => map_clmpatch_to_edpatch(this%ed_allsites_inst(g), p) 
+              cpatch => map_clmpatch_to_edpatch(this%site_inst(g), p) 
               
               call ED_SunShadeFracs(cpatch,forc_solad(g,ipar),forc_solai(g,ipar),fsun(p))
 
            endif
-           
+
         end do
       end associate
       return

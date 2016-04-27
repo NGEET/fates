@@ -74,7 +74,7 @@ module clm_instMod
   use LandunitType                    , only : lun                
   use ColumnType                      , only : col                
   use PatchType                       , only : patch                
-  use clmed_interfaceMod              , only : dlm_fates_interface_type
+  use clmfates_interfaceMod           , only : dlm_fates_interface_type
   use SoilWaterRetentionCurveMod      , only : soil_water_retention_curve_type
   use NutrientCompetitionMethodMod    , only : nutrient_competition_method_type
   !
@@ -148,7 +148,8 @@ module clm_instMod
   type(vocemis_type)                      :: vocemis_inst
   type(drydepvel_type)                    :: drydepvel_inst
 
-  type(dlm_fates_interface_type),allocatable :: clm_fates
+  ! FATES
+  type(dlm_fates_interface_type)          :: clm_fates
 
   !
   public :: clm_instInit
@@ -436,7 +437,7 @@ contains
        allocate(clm_fates(nclumps))
        do nc = 1,nclumps
           call get_clump_bounds(nc, bounds_clump)
-          clm_fates(nc)%Init(bounds_clump)
+          call clm_fates(nc)%Init(bounds_clump)
        end do
 
       call EDecophysconInit( EDpftvarcon_inst, numpft)
@@ -459,9 +460,12 @@ contains
     call atm2lnd_inst%InitAccBuffer(bounds)
 
     call temperature_inst%InitAccBuffer(bounds)
-
+    
     if (use_ed) then
-       call ed_phenology_inst%initAccBuffer(bounds)
+       do nc = 1,nclumps
+          call get_clump_bounds(nc, bounds_clump)
+          call clm_fates(nc)%phen_inst%initAccBuffer(bounds_clump)
+       end do
     endif
 
     call canopystate_inst%InitAccBuffer(bounds)
@@ -592,12 +596,11 @@ contains
        nclumps = get_proc_clumps()
        do nc = 1, nclumps
           call get_clump_bounds(nc, bounds_clump)
-          call clm_fates(nc)%restart(bounds_clump, ncid, flag, &
-                waterstate_inst, canopystate_inst)
-
+          call clm_fates(nc)%restart(bounds_clump, ncid, flag, waterstate_inst, canopystate_inst)
+       end do
     end if
 
-  end subroutine clm_instRest
+ end subroutine clm_instRest
 
 end module clm_instMod
 

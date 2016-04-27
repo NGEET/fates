@@ -1838,7 +1838,7 @@ contains
     ! !ARGUMENTS:
     type(bounds_type)       , intent(in)            :: bounds  ! bounds
     type(file_desc_t)       , intent(inout)         :: ncid    ! netcdf id
-    type(ed_site_type)      , intent(inout)         :: ed_allsites_inst
+    type(ed_site_type)      , intent(inout)         :: ed_allsites_inst(bounds%begg:)
     character(len=*)        , intent(in)            :: flag    !'read' or 'write'
     type(ed_clm_type)       , intent(inout)         :: ed_clm_inst
     type(ed_phenology_type) , intent(inout)         :: ed_phenology_inst

@@ -60,7 +60,6 @@ module clm_driver
   use ch4Mod                 , only : ch4
   use DUSTMod                , only : DustDryDep, DustEmission
   use VOCEmissionMod         , only : VOCEmission
-!  use EDMainMod              , only : ed_driver
   use clm_instMod            , only : clm_fates
 
   !
@@ -857,7 +856,7 @@ contains
                 c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
                 soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,     &
                 clm_fates(nc)%fates2dlm_inst,                                            &
-                clm_fates(nc)%ed_allsites_inst(bounds_clump%begg:bounds_clump%endg))
+                clm_fates(nc)%site_inst(bounds_clump%begg:bounds_clump%endg))
        end if
 
 
@@ -916,7 +915,7 @@ contains
                filter_inactive_and_active(nc)%num_urbanp,       &
                filter_inactive_and_active(nc)%urbanp,           &
                nextsw_cday, declinp1,                           &
-               clm_fates(nc)%ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), &
+               clm_fates(nc)%site_inst(bounds_clump%begg:bounds_clump%endg), &
                aerosol_inst, canopystate_inst, waterstate_inst, &
                lakestate_inst, temperature_inst, surfalb_inst)
           call t_stopf('surfalb')
@@ -999,11 +998,14 @@ contains
        call canopystate_inst%UpdateAccVars(bounds_proc)
 
        if (use_ed) then
-          call clm_fates(nc)%phen_inst%accumulateAndExtract(bounds_proc, &
-               temperature_inst%t_ref2m_patch(bounds_proc%begp:bounds_proc%endp), &
-               patch%gridcell(bounds_proc%begp:bounds_proc%endp), &
-               grc%latdeg(bounds_proc%begg:bounds_proc%endg), &
-               mon, day, sec)
+          do nc = 1,nclumps
+             call get_clump_bounds(nc, bounds_clump)
+             call clm_fates(nc)%phen_inst%accumulateAndExtract(bounds_proc, &
+                   temperature_inst%t_ref2m_patch(bounds_proc%begp:bounds_proc%endp), &
+                   patch%gridcell(bounds_proc%begp:bounds_proc%endp), &
+                   grc%latdeg(bounds_proc%begg:bounds_proc%endg), &
+                   mon, day, sec)
+          end do
        endif
 
           if (use_cndv) then

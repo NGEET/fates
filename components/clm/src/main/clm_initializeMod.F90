@@ -279,7 +279,7 @@ contains
     use clm_varorb            , only : eccen, mvelpp, lambm0, obliqr
     use clm_time_manager      , only : get_step_size, get_curr_calday
     use clm_time_manager      , only : get_curr_date, get_nstep, advance_timestep 
-    use clm_time_manager      , only : timemgr_init, timemgr_restart_io, timemgr_restart
+    use clm_time_manager      , only : timemgr_init, timemgr_restart_io, timemgr_restart, is_restart
     use C14BombSpikeMod       , only : C14_init_BombSpike, use_c14_bombspike 
     use DaylengthMod          , only : InitDaylength, daylength
     use decompMod             , only : get_proc_clumps, get_proc_bounds, get_clump_bounds, bounds_type
@@ -615,16 +615,15 @@ contains
     call temperature_inst%initAccVars(bounds_proc)
 
     ! Initialize FATES phenology accumulators
-    !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
     if (use_ed) then
        !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
        do nc = 1, nclumps
           call get_clump_bounds(nc, bounds_clump)
           call clm_fates(nc)%phen_accvars_init(bounds_clump)
        end do
+       !$OMP END PARALLEL DO
     end if
-    !$OMP END PARALLEL DO
-
+    
     call canopystate_inst%initAccVars(bounds_proc)
 
     if (use_cndv) then
@@ -697,8 +696,9 @@ contains
        !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
        do nc = 1, nclumps
           call get_clump_bounds(nc, bounds_clump)
-          clm_fates(nc)%site_init(bounds_clump)
-          clm_fates(nc)%fates2dlm_init(bounds_clump,waterstate_inst,canopystate_inst)
+          call clm_fates(nc)%site_init(bounds_clump)
+          ! INTERF-TODO: THIS NEXT CALL MAY DO NETCDF IO/ MAY NOT BE THREADSAFE
+          call clm_fates(nc)%fates2dlm_link(bounds_clump,waterstate_inst,canopystate_inst)
        end do
        !$OMP END PARALLEL DO
     end if
