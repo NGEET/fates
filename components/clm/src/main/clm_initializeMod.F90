@@ -616,12 +616,8 @@ contains
 
     ! Initialize FATES phenology accumulators
     if (use_ed) then
-       !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
-       do nc = 1, nclumps
-          call get_clump_bounds(nc, bounds_clump)
-          call clm_fates(nc)%phen_accvars_init(bounds_clump)
-       end do
-       !$OMP END PARALLEL DO
+       ! (RGK) I AM NOT GIVING THIS A WRAPPER BECAUSE IT WILL BE DEPRECATED SOON
+       call clm_fates%phen_inst%initAccVars(bounds_proc)
     end if
     
     call canopystate_inst%initAccVars(bounds_proc)
@@ -696,11 +692,11 @@ contains
        !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
        do nc = 1, nclumps
           call get_clump_bounds(nc, bounds_clump)
-          call clm_fates(nc)%site_init(bounds_clump)
-          ! INTERF-TODO: THIS NEXT CALL MAY DO NETCDF IO/ MAY NOT BE THREADSAFE
-          call clm_fates(nc)%fates2dlm_link(bounds_clump,waterstate_inst,canopystate_inst)
+          call clm_fates%thread(nc)%site_init(bounds_clump)
+          call clm_fates%fates2dlm_link(bounds_clump,nc,waterstate_inst,canopystate_inst)
        end do
        !$OMP END PARALLEL DO
+       
     end if
 
     ! topo_glc_mec was allocated in initialize1, but needed to be kept around through

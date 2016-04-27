@@ -391,7 +391,7 @@ contains
        ! over the patch index range defined by bounds_clump%begp:bounds_proc%endp
 
        if(use_ed) then
-          call clm_fates(nc)%canopy_sunshade_fracs(filter(nc)%nourbanp,             &
+          call clm_fates%thread(nc)%canopy_sunshade_fracs(filter(nc)%nourbanp,      &
                filter(nc)%num_nourbanp,                                             &
                atm2lnd_inst, canopystate_inst)
           
@@ -457,7 +457,7 @@ contains
        call t_startf('canflux')
        call CanopyFluxes(bounds_clump,                                                   &
             filter(nc)%num_exposedvegp, filter(nc)%exposedvegp,                             &
-            clm_fates(nc)%ed_allsites_inst(bounds_clump%begg:bounds_clump%endg),            &
+            clm_fates%thread(nc)%site_inst(bounds_clump%begg:bounds_clump%endg),            &
             atm2lnd_inst, canopystate_inst, cnveg_state_inst,                               &
             energyflux_inst, frictionvel_inst, soilstate_inst, solarabs_inst, surfalb_inst, &
             temperature_inst, waterflux_inst, waterstate_inst, ch4_inst, ozone_inst, photosyns_inst, &
@@ -696,7 +696,7 @@ contains
                c13_cnveg_carbonflux_inst, c13_cnveg_carbonstate_inst,                   &
                c14_cnveg_carbonflux_inst, c14_cnveg_carbonstate_inst,                   &
                cnveg_nitrogenflux_inst, cnveg_nitrogenstate_inst,                       &
-               clm_fates(nc)%fates2dlm_inst,                                                             &
+               clm_fates%fates2dlm_inst,                                                             &
                soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,         &
                c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
                c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
@@ -724,8 +724,7 @@ contains
 
        ! Zero some of the FATES->CLM communicators
        if (use_ed) then
-          call clm_fates(nc)%set_fates2dlm_inst(bounds_clump,0._r8)
-          !fates2clm_inst%SetValues( bounds_clump, 0._r8 )
+          call clm_fates%fates2dlm_inst%SetValues(bounds_clump,0._r8)
        end if
 
        ! Dry Deposition of chemical tracers (Wesely (1998) parameterizaion)
@@ -821,8 +820,8 @@ contains
              write(iulog,*)  'clm: calling ED model ', get_nstep()
           end if
           
-          call clm_fates(nc)%dynamics_driv( bounds_clump,                              &
-               atm2lnd_inst, soilstate_inst, temperature_inst,                         &
+          call clm_fates%dynamics_driv( nc, bounds_clump,                        &
+               atm2lnd_inst, soilstate_inst, temperature_inst,                   &
                waterstate_inst, canopystate_inst)
           
           call setFilters( bounds_clump, glc2lnd_inst%icemask_grc )
@@ -838,7 +837,7 @@ contains
                 filter(nc)%num_pcropp, filter(nc)%pcropp, doalb,                                    &
                 cnveg_state_inst,                                                                   &
                 cnveg_carbonflux_inst, cnveg_carbonstate_inst,                                      &
-                clm_fates(nc)%fates2dlm_inst,                                                       &
+                clm_fates%fates2dlm_inst,                                                           &
                 soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,                    &
                 soilbiogeochem_state_inst,                                                          &
                 soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,                &
@@ -855,8 +854,8 @@ contains
                 c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
                 c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
                 soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,     &
-                clm_fates(nc)%fates2dlm_inst,                                            &
-                clm_fates(nc)%site_inst(bounds_clump%begg:bounds_clump%endg))
+                clm_fates%fates2dlm_inst,                                            &
+                clm_fates%thread(nc)%site_inst(bounds_clump%begg:bounds_clump%endg))
        end if
 
 
@@ -915,7 +914,7 @@ contains
                filter_inactive_and_active(nc)%num_urbanp,       &
                filter_inactive_and_active(nc)%urbanp,           &
                nextsw_cday, declinp1,                           &
-               clm_fates(nc)%site_inst(bounds_clump%begg:bounds_clump%endg), &
+               clm_fates%thread(nc)%site_inst(bounds_clump%begg:bounds_clump%endg), &
                aerosol_inst, canopystate_inst, waterstate_inst, &
                lakestate_inst, temperature_inst, surfalb_inst)
           call t_stopf('surfalb')
@@ -989,7 +988,7 @@ contains
     ! use_ed) then statement ... double check if this is required and why
 
     if (nstep > 0) then
-          call t_startf('accum')
+       call t_startf('accum')
 
        call atm2lnd_inst%UpdateAccVars(bounds_proc)
 
@@ -998,34 +997,31 @@ contains
        call canopystate_inst%UpdateAccVars(bounds_proc)
 
        if (use_ed) then
-          do nc = 1,nclumps
-             call get_clump_bounds(nc, bounds_clump)
-             call clm_fates(nc)%phen_inst%accumulateAndExtract(bounds_proc, &
-                   temperature_inst%t_ref2m_patch(bounds_proc%begp:bounds_proc%endp), &
-                   patch%gridcell(bounds_proc%begp:bounds_proc%endp), &
-                   grc%latdeg(bounds_proc%begg:bounds_proc%endg), &
-                   mon, day, sec)
-          end do
+          call clm_fates%phen_inst%accumulateAndExtract(bounds_proc, &
+                temperature_inst%t_ref2m_patch(bounds_proc%begp:bounds_proc%endp), &
+                patch%gridcell(bounds_proc%begp:bounds_proc%endp), &
+                grc%latdeg(bounds_proc%begg:bounds_proc%endg), &
+                mon, day, sec)
        endif
 
-          if (use_cndv) then
-             ! COMPILER_BUG(wjs, 2014-11-30, pgi 14.7) For pgi 14.7 to be happy when
-             ! compiling this threaded, I needed to change the dummy arguments to be
-             ! pointers, and get rid of the explicit bounds in the subroutine call.
-             ! call dgvs_inst%UpdateAccVars(bounds_proc, &
-             !      t_a10_patch=temperature_inst%t_a10_patch(bounds_proc%begp:bounds_proc%endp), &
-             !      t_ref2m_patch=temperature_inst%t_ref2m_patch(bounds_proc%begp:bounds_proc%endp))
-             call dgvs_inst%UpdateAccVars(bounds_proc, &
-                  t_a10_patch=temperature_inst%t_a10_patch, &
+       if (use_cndv) then
+          ! COMPILER_BUG(wjs, 2014-11-30, pgi 14.7) For pgi 14.7 to be happy when
+          ! compiling this threaded, I needed to change the dummy arguments to be
+          ! pointers, and get rid of the explicit bounds in the subroutine call.
+          ! call dgvs_inst%UpdateAccVars(bounds_proc, &
+          !      t_a10_patch=temperature_inst%t_a10_patch(bounds_proc%begp:bounds_proc%endp), &
+          !      t_ref2m_patch=temperature_inst%t_ref2m_patch(bounds_proc%begp:bounds_proc%endp))
+          call dgvs_inst%UpdateAccVars(bounds_proc, &
+                t_a10_patch=temperature_inst%t_a10_patch, &
                   t_ref2m_patch=temperature_inst%t_ref2m_patch)
-          end if
+       end if
 
-          if (crop_prog) then
+       if (crop_prog) then
           call crop_inst%CropUpdateAccVars(bounds_proc, &
-               temperature_inst%t_ref2m_patch, temperature_inst%t_soisno_col, cnveg_state_inst)
-          end if
-
-          call t_stopf('accum')
+                temperature_inst%t_ref2m_patch, temperature_inst%t_soisno_col, cnveg_state_inst)
+       end if
+       
+       call t_stopf('accum')
     end if
 
     ! ============================================================================

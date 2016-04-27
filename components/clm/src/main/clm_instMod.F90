@@ -433,11 +433,12 @@ contains
 
     if(use_ed)then
 
+       call clm_fates%Init(bounds)
        nclumps = get_proc_clumps()
-       allocate(clm_fates(nclumps))
+       allocate(clm_fates%thread(nclumps))
        do nc = 1,nclumps
           call get_clump_bounds(nc, bounds_clump)
-          call clm_fates(nc)%Init(bounds_clump)
+          call clm_fates%thread(nc)%thread_init(bounds_clump)
        end do
 
       call EDecophysconInit( EDpftvarcon_inst, numpft)
@@ -462,10 +463,7 @@ contains
     call temperature_inst%InitAccBuffer(bounds)
     
     if (use_ed) then
-       do nc = 1,nclumps
-          call get_clump_bounds(nc, bounds_clump)
-          call clm_fates(nc)%phen_inst%initAccBuffer(bounds_clump)
-       end do
+       call clm_fates%phen_inst%initAccBuffer(bounds)
     endif
 
     call canopystate_inst%InitAccBuffer(bounds)
@@ -590,14 +588,26 @@ contains
     end if
 
     if (use_ed) then
+
        ! There are concerns that NETCDF is not threadsafe, so it
        ! cannot handle multiple open files on one node.  So we are not
        ! forking the reads
+       call clm_fates%phen_inst%restart(bounds, ncid, flag)
        nclumps = get_proc_clumps()
        do nc = 1, nclumps
           call get_clump_bounds(nc, bounds_clump)
-          call clm_fates(nc)%restart(bounds_clump, ncid, flag, waterstate_inst, canopystate_inst)
+
+          call clm_fates%thread(nc)%thread_restart(bounds_clump,ncid, flag )
+
+          if ( trim(flag) == 'read' ) then
+
+             call clm_fates%fates2dlm_link(bounds_clump, nc, waterstate_inst, canopystate_inst)
+
+          end if
        end do
+
+       call clm_fates%fates2dlm_inst%restart(bounds, ncid, flag)
+
     end if
 
  end subroutine clm_instRest

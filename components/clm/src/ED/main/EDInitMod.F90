@@ -20,7 +20,6 @@ module EDInitMod
   use EDGrowthFunctionsMod      , only : bdead, bleaf, dbh
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDPatchDynamicsMod        , only : create_patch
-  use EDMainMod                 , only : ed_update_site
   use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type, area
   use EDTypesMod                , only : cohorts_per_gcell, ncwd, numpft_ed, udata
   use EDCLMLinkMod              , only : ed_clm_type
