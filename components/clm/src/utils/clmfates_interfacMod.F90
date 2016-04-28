@@ -265,7 +265,7 @@ contains
       return
    end subroutine canopy_sunshade_fracs
     
-  subroutine init(this,bounds_proc)
+   subroutine init(this,bounds_proc)
     
     ! ---------------------------------------------------------------------------------
     ! This initializes the dlm_fates_interface_type 

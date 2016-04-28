@@ -426,25 +426,25 @@ contains
     ! if use_ed is true, then the actual memory for all of the ED data structures
     ! is allocated in the call to EDInitMod - called from clm_initialize
     ! NOTE (SPM, 10-27-2015) ... check on deallocation of ed_allsites_inst
-    ! NOTE (RGK, 04-04-2016) : Move allocation of ed_allsites_inst to the CLMEDInterface,
-    ! variables memory is now defined in EDTypes
-    ! NOTE (RGK, 04-25-2016) : Updating names, ED is now FATES and ED is part of FATES
-    !                          Incrementally changing to FATES
+    ! NOTE (RGK, 04-25-2016) : Updating names, ED is now part of FATES
+    !                          Incrementally changing to ED names to FATES
 
-    if(use_ed)then
+    ! INTERF-TODO: we should not be allocating thread and sites when ed
+    ! is not on, but until canopyfluxes and surfaceabledo are teased apart, the
+    ! allocation needs to happen so that it can be passed as an argument (RGK)
+    
+    nclumps = get_proc_clumps()
+    allocate(clm_fates%thread(nclumps))
+    do nc = 1,nclumps
+       call get_clump_bounds(nc, bounds_clump)
+       call clm_fates%thread(nc)%thread_init(bounds_clump)
+    end do
 
+    if( use_ed )then
        call clm_fates%Init(bounds)
-       nclumps = get_proc_clumps()
-       allocate(clm_fates%thread(nclumps))
-       do nc = 1,nclumps
-          call get_clump_bounds(nc, bounds_clump)
-          call clm_fates%thread(nc)%thread_init(bounds_clump)
-       end do
-
-      call EDecophysconInit( EDpftvarcon_inst, numpft)
-
+       call EDecophysconInit( EDpftvarcon_inst, numpft )
     end if
-
+    
 
     deallocate (h2osno_col)
     deallocate (snow_depth_col)
