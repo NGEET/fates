@@ -93,7 +93,7 @@ contains
   subroutine accumulateAndExtract( this, bounds,     &
        t_ref2m_patch,    &
        gridcell, latdeg, &
-       day, month, secs )
+       month, day, secs )
     !
     ! start formal argument list --
     ! group formal (dummy) arguments by use/similarity
@@ -131,7 +131,7 @@ contains
 
     ! Accumulate and extract GDD0 for ED
     do p = bounds%begp,bounds%endp
-      
+     
        g = gridcell(p)
 
        if (latdeg(g) >= 0._r8) then
@@ -143,8 +143,8 @@ contains
        ! FIX(RF,032414) - is this accumulation a bug in the normal phenology code,
        ! as it means to count from november but ctually counts from january?
        if ( month==m .and. day==calParams%firstDayOfMonth .and. secs==get_step_size() ) then
-          rbufslp(p) = accumResetVal ! reset ED_GDD
-       else
+          rbufslp(p) = accumResetVal ! reset ED_GDD0
+        else
           rbufslp(p) = max(0._r8, min(this%checkRefVal, t_ref2m_patch(p)-SHR_CONST_TKFRZ)) &
                * get_step_size()/SHR_CONST_CDAY
        end if
@@ -165,6 +165,8 @@ contains
     call update_accum_field  ( trim(this%accString), rbufslp, get_nstep() )
     call extract_accum_field ( trim(this%accString), this%ED_GDD_patch, get_nstep() )
 
+    if (this%DEBUG) write(iulog,*) 'MM-DD-SSSS',month,'-',day,'-',secs
+    if (this%DEBUG) write(iulog,*) 'cd_status:',this%phen_cd_status_patch(:)
     if (this%DEBUG) write(iulog,*) 'ED_GDD accumAndExtract ', this%ED_GDD_patch
 
     deallocate(rbufslp)

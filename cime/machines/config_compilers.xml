@@ -541,17 +541,22 @@ for mct, etc.
 
 <compiler COMPILER="intel" MACH="lawrencium-lr2">
   <ADD_SLIBS> -lnetcdff -lnetcdf -mkl</ADD_SLIBS>
+  <ADD_FFLAGS DEBUG="TRUE"> -ftrapuv </ADD_FFLAGS>
+  <ADD_CFLAGS DEBUG="TRUE"> -ftrapuv </ADD_CFLAGS>
   <GPTL_CPPDEFS> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY </GPTL_CPPDEFS>
 </compiler>
 
 <compiler COMPILER="intel" MACH="lawrencium-lr3">
   <ADD_SLIBS> -lnetcdff -lnetcdf -mkl</ADD_SLIBS>
+  <ADD_FFLAGS DEBUG="TRUE"> -ftrapuv </ADD_FFLAGS>
+  <ADD_CFLAGS DEBUG="TRUE"> -ftrapuv </ADD_CFLAGS>
   <GPTL_CPPDEFS> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY </GPTL_CPPDEFS>
 </compiler>
 
 <compiler COMPILER="gnu" MACH="eddi">
   <NETCDF_PATH>$(NETCDF_HOME)</NETCDF_PATH>
   <ADD_CPPDEFS> -DLinux -DCPRGNU </ADD_CPPDEFS>
+  <ADD_FFLAGS DEBUG="TRUE"> -ffpe-trap=invalid,zero,overflow </ADD_FFLAGS>  <!---finit-integer=0-->
   <ADD_SLIBS> -L${NETCDF_PATH}/lib/ -lnetcdff -lnetcdf -lcurl -llapack -lblas</ADD_SLIBS>
   <GPTL_CPPDEFS> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY </GPTL_CPPDEFS>
   <ESMF_LIBDIR></ESMF_LIBDIR>

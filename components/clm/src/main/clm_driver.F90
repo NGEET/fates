@@ -464,6 +464,13 @@ contains
             humanindex_inst, soil_water_retention_curve, cnveg_nitrogenstate_inst) 
        call t_stopf('canflux')
 
+       if (use_ed) then
+          ! if ED enabled, summarize productivity fluxes onto CLM history file structure
+          call t_startf('edclmsumprodfluxes')
+          call ed_clm_inst%SummarizeProductivityFluxes( bounds_clump, ed_allsites_inst(bounds_clump%begg:bounds_clump%endg))
+          call t_stopf('edclmsumprodfluxes')
+       endif
+       
        ! Fluxes for all urban landunits
 
        call t_startf('uflux')
@@ -997,6 +1004,7 @@ contains
        call canopystate_inst%UpdateAccVars(bounds_proc)
 
        if (use_ed) then
+          call get_curr_date(yr, mon, day, sec)
           call clm_fates%phen_inst%accumulateAndExtract(bounds_proc, &
                 temperature_inst%t_ref2m_patch(bounds_proc%begp:bounds_proc%endp), &
                 patch%gridcell(bounds_proc%begp:bounds_proc%endp), &
