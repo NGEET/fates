@@ -2,26 +2,30 @@ module clmfates_interfaceMod
    
    ! -------------------------------------------------------------------------------------
    ! This module contains various functions and definitions to aid in the
-   ! coupling of the FATES library with the (CLM)/ALM/ATS/etc model driver.  
+   ! coupling of the FATES library with the CLM/ALM/ATS/etc model driver.  
    ! All connections between the two models should occur in this file alone.  
    ! 
    ! This is also the only location where CLM code is allowed to see FATES memory 
    ! structures.
-   ! The routines here, that call FATES library routines, will only pass CLM arguments as
+   ! The routines here, that call FATES library routines, will not pass any types defined
+   ! by the driving land model (DLM).
+   ! 
    ! either native type arrays (int,real,log, etc) or packed into ED boundary condition
    ! structures.
    !
-   ! Note that CLM/ALM does use Shared Memory Parallelism (SMP), where processes such as the
-   ! update of state variables are forked.  However, IO is not assumed to be threadsafe
-   ! and therefore memory spaces reserved for IO must be continuous vectors, and moreover
-   ! they must be pushed/pulled from history IO for each individual bounds_proc memory space
-   ! as a unit.
+   ! Note that CLM/ALM does use Shared Memory Parallelism (SMP), where processes such as 
+   ! the update of state variables are forked.  However, IO is not assumed to be 
+   ! threadsafe and therefore memory spaces reserved for IO must be continuous vectors,
+   ! and moreover they must be pushed/pulled from history IO for each individual 
+   ! bounds_proc memory space as a unit.
+   !
    ! Therefore, the state variables in the clm_fates communicator is vectorized by
    ! threadcount, and the IO communication arrays are not.
    !
    !
    ! Conventions:
    ! keep line widths within 90 spaces
+   ! DLM acronym = Driving Land Model
    !
    ! -------------------------------------------------------------------------------------
 
@@ -59,17 +63,15 @@ module clmfates_interfaceMod
 
    type, public :: fates_thread_type
       
-      integer :: gr_ompoff ! SMP offset index for the thread's grid point
-      integer :: lu_ompoff ! SMP offset index for the thread's landunit
-      integer :: cl_ompoff ! SMP offset index for the thread's column
-      integer :: pa_ompoff ! SMP offset index for the thread's patch
-      integer :: co_ompoff ! SMP offset index for the thread's cohort
-      
       ! This is the root of the ED/FATES hierarchy of instantaneous state variables
       ! ie the root of the linked lists. Each path list is currently associated
       ! with a grid-cell, this is intended to be migrated to columns
       ! prev:  type(ed_site_type)::ed_allsites_inst
       type(ed_site_type), allocatable :: site_inst(:)
+      
+      ! INTERF-TODO ADD THE DLM->FATES BOUNDARY CONDITION CLASS
+      ! These are boundary condition variables populated by the DLM
+      ! type(fates_bc_type) :: dlm2fates
       
    contains
 
@@ -78,8 +80,8 @@ module clmfates_interfaceMod
       procedure, public :: thread_clean
       procedure, public :: site_init
       procedure, public :: thread_restart
-      
       procedure, public :: canopy_sunshade_fracs
+
    end type fates_thread_type
    
    ! ------------------------------------------------------------------------------------
@@ -88,18 +90,16 @@ module clmfates_interfaceMod
       
       !      private
       
-      ! Change in naming conventions:
-      ! Previously, many of these sub-classes had "ed_" naming conventions
-      ! However, 
-      ! 1) the model has gone through a name change and is now called
-      ! FATES (however, FATES will continue to use core ED (Moorcroft et al. 2001)
-      ! mechanics.
-      ! 2) the submodules and memory structurs do not need to have the name
-      ! of the FATES model, as it is now implied as part of this interface.
+
+      ! See above for descriptions of the sub-types populated
+      ! by thread.  This type is somewhat self-explanatory, in that it simply
+      ! breaks up memory and process by thread.  Each thread will have its
+      ! own list of sites, and boundary conditions for those sites
 
       type(fates_thread_type), allocatable :: thread (:)
       
-      ! These are the communicator variables that are populated by ED/FATES, and are
+      ! fates2dlm_inst (previously called "clm_ed_inst") contains types and variables
+      ! that are passed back to the driving land model, ie fates-to-dlm.  
       ! usefull to a calling model.  In this case DLM means "Driving Land Model"
       ! prev:  type(ed_clm_type)::ed_clm_inst
       type(ed_clm_type) :: fates2dlm_inst   
@@ -108,6 +108,7 @@ module clmfates_interfaceMod
       ! These are phenology relevant variables (strange how phenology gets
       ! its own subclass)
       ! prev: type(ed_phenology_type)::ed_phenology_inst
+      ! SOON TO BE DEPRECATED - PHENOLOGY TO BE MOVED INTO ed_sites(:)
       type(ed_phenology_type)   :: phen_inst  
 
 
@@ -122,7 +123,6 @@ module clmfates_interfaceMod
 
 
    contains
-     
 
      procedure, public :: init
      procedure, public :: fates2dlm_link
@@ -130,15 +130,11 @@ module clmfates_interfaceMod
      
   end type dlm_fates_interface_type
 
-
-  ! FOR CLM: type dlm_fates_interface_type describes "clm_fates"
-  !          which is defined in clm_instMod
-  ! FOR ALM: type dlm_fates_interface_type describes ?
-
 contains
 
    subroutine thread_init(this,bounds_clump)
       
+
       implicit none
       
       ! Input Arguments
@@ -154,7 +150,9 @@ contains
       return
    end subroutine thread_init
 
-   ! INTERF-TODO: THIS ROUTINE IS NOT CALLED YET...
+   ! ------------------------------------------------------------------------------------
+
+   ! INTERF-TODO: THIS IS A PLACE-HOLDER ROUTINE, NOT CALLED YET...
    subroutine thread_clean(this,bounds_clump)
       
       implicit none
@@ -170,6 +168,8 @@ contains
       
       return
    end subroutine thread_clean
+
+   ! ------------------------------------------------------------------------------------
    
    subroutine site_init(this,bounds_clump)
          
@@ -178,12 +178,10 @@ contains
       
       ! Input Arguments
       class(fates_thread_type), intent(inout) :: this
-      type(bounds_type),intent(in)                :: bounds_clump
+      type(bounds_type),intent(in)            :: bounds_clump
       
       ! locals
       integer :: g
-      
-      ! It is assumed that bounds is bounds_clump
       
       ! Initialize  (INTERF-TODO THIS ROUTINE CALLS CLM STUFF-MIGRATE CODE TO HERE)
       call ed_init_sites( bounds_clump,                                               &
@@ -198,6 +196,8 @@ contains
       return
    end subroutine site_init
    
+   ! ------------------------------------------------------------------------------------
+
    subroutine thread_restart(this, bounds_clump, ncid, flag )
       
       implicit none
@@ -211,6 +211,7 @@ contains
       return
    end subroutine thread_restart
    
+   ! ------------------------------------------------------------------------------------
    
    subroutine canopy_sunshade_fracs(this,filter_nourbanp, num_nourbanp, &
          atm2lnd_inst,canopystate_inst)

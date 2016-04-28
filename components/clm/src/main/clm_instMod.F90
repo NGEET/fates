@@ -442,6 +442,9 @@ contains
 
     if( use_ed )then
        call clm_fates%Init(bounds)
+
+       ! INTERF-TODO: AT SOME POINT WE MAY HAVE FATES DOING ITS OWN PARAMETER
+       ! READS, AND THIS CALL WILL BE EMBEDDED IN THE FATES SIDE OF INTERFACE
        call EDecophysconInit( EDpftvarcon_inst, numpft )
     end if
     
