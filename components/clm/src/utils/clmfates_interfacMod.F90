@@ -187,6 +187,7 @@ contains
       call ed_init_sites( bounds_clump,                                               &
             this%site_inst(bounds_clump%begg:bounds_clump%endg) )
       
+      ! INTERF-TODO: WHEN WE MOVE TO COLUMNS, THIS WILL BE UNNECESSARY
       do g = bounds_clump%begg,bounds_clump%endg
          if (this%site_inst(g)%istheresoil) then
             call ed_update_site(this%site_inst(g))
