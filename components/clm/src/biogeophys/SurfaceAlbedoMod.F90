@@ -26,7 +26,7 @@ module SurfaceAlbedoMod
   use LandunitType      , only : lun                
   use ColumnType        , only : col                
   use PatchType         , only : patch                
-  use EDSurfaceAlbedoMod, only : ED_Norman_Radiation
+  
   use CanopyHydrologyMod, only : IsSnowvegFlagOn, IsSnowvegFlagOnRad
   !
   implicit none
@@ -203,7 +203,7 @@ contains
     use abortutils         , only : endrun
     use clm_varctl         , only : subgridflag, use_snicar_frc, use_ed
     use EDTypesMod         , only : ed_site_type
-    use EDSurfaceAlbedoMod
+    use EDSurfaceRadiationMod, only : ED_Norman_Radiation
     !
     ! !ARGUMENTS:
     type(bounds_type)      , intent(in)            :: bounds             ! bounds
