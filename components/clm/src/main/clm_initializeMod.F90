@@ -21,7 +21,7 @@ module clm_initializeMod
   use ColumnType      , only : col           ! instance          
   use PatchType       , only : patch         ! instance            
   use EDVecCohortType , only : ed_vec_cohort ! instance, used for domain decomp
-  use clm_instMod   
+  use clm_instMod       
   ! 
   implicit none
   public   ! By default everything is public 
@@ -203,6 +203,7 @@ contains
     call patch%Init(bounds_proc%begp, bounds_proc%endp)
 
     if ( use_ed ) then
+       ! INTERF-TODO:  THIS GUY NEEDS TO BE MOVED TO THE INTERFACE
        call ed_vec_cohort%Init(bounds_proc%begCohort,bounds_proc%endCohort)
     end if
 
@@ -279,7 +280,7 @@ contains
     use clm_varorb            , only : eccen, mvelpp, lambm0, obliqr
     use clm_time_manager      , only : get_step_size, get_curr_calday
     use clm_time_manager      , only : get_curr_date, get_nstep, advance_timestep 
-    use clm_time_manager      , only : timemgr_init, timemgr_restart_io, timemgr_restart
+    use clm_time_manager      , only : timemgr_init, timemgr_restart_io, timemgr_restart, is_restart
     use C14BombSpikeMod       , only : C14_init_BombSpike, use_c14_bombspike 
     use DaylengthMod          , only : InitDaylength, daylength
     use decompMod             , only : get_proc_clumps, get_proc_bounds, get_clump_bounds, bounds_type
@@ -295,12 +296,12 @@ contains
     use restFileMod           , only : restFile_read, restFile_write 
     use ndepStreamMod         , only : ndep_init, ndep_interp
     use CNDriverMod           , only : CNDriverInit 
-    use EDInitMod             , only : ed_init  
     use LakeCon               , only : LakeConInit 
     use SatellitePhenologyMod , only : SatellitePhenologyInit, readAnnualVegetation, interpMonthlyVeg
     use SnowSnicarMod         , only : SnowAge_init, SnowOptics_init
     use lnd2atmMod            , only : lnd2atm_minimal
     use NutrientCompetitionFactoryMod, only : create_nutrient_competition_method
+    use clm_instMod           , only : clm_fates
     !
     ! !ARGUMENTS    
     !
@@ -614,10 +615,12 @@ contains
     call atm2lnd_inst%initAccVars(bounds_proc)
     call temperature_inst%initAccVars(bounds_proc)
 
-    if ( use_ed) then
-       call ed_phenology_inst%initAccVars(bounds_proc)
+    ! Initialize FATES phenology accumulators
+    if (use_ed) then
+       ! (RGK) I AM NOT GIVING THIS A WRAPPER BECAUSE IT WILL BE DEPRECATED SOON
+       call clm_fates%phen_inst%initAccVars(bounds_proc)
     end if
-
+    
     call canopystate_inst%initAccVars(bounds_proc)
 
     if (use_cndv) then
@@ -686,14 +689,19 @@ contains
     ! Initialise the ED model state structure
     ! --------------------------------------------------------------
    
-    if ( use_ed ) then
+    if ( use_ed .and. .not.is_restart() ) then
        !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
        do nc = 1, nclumps
           call get_clump_bounds(nc, bounds_clump)
-          call ed_init( bounds_clump, ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), ed_clm_inst, &
-               ed_phenology_inst, waterstate_inst, canopystate_inst)
+
+          ! INTERF-TODO: THIS CALL SHOULD NOT CALL FATES(NC) DIRECTLY
+          ! BUT IT SHOULD PASS bounds_clump TO A CLM_FATES WRAPPER
+          ! WHICH WILL IN TURN PASS A FATES API DEFINED BOUNDS TO SITE_INIT
+          call clm_fates%fates(nc)%site_init(bounds_clump)
+          call clm_fates%fates2hlm_link(bounds_clump,nc,waterstate_inst,canopystate_inst)
        end do
        !$OMP END PARALLEL DO
+       
     end if
 
     ! topo_glc_mec was allocated in initialize1, but needed to be kept around through

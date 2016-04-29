@@ -192,7 +192,7 @@ contains
 
   end subroutine clean
 
-  subroutine init(this, bounds)
+  subroutine Init(this, bounds)
 
     class(ed_phenology_type), intent(inout) :: this
     type(bounds_type), intent(in) :: bounds
@@ -200,7 +200,7 @@ contains
     call this%initAllocate ( bounds )
     call this%initHistory ()
 
-  end subroutine init
+ end subroutine init
 
   !------------------------------------------------------------------------
   subroutine initAllocate(this, bounds)

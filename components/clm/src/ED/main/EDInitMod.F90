@@ -20,7 +20,6 @@ module EDInitMod
   use EDGrowthFunctionsMod      , only : bdead, bleaf, dbh
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDPatchDynamicsMod        , only : create_patch
-  use EDMainMod                 , only : ed_update_site
   use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type, area
   use EDTypesMod                , only : cohorts_per_gcell, ncwd, numpft_ed, udata
   use EDCLMLinkMod              , only : ed_clm_type
@@ -30,7 +29,6 @@ module EDInitMod
 
   logical   ::  DEBUG = .false.
 
-  public  :: ed_init
   public  :: ed_init_sites
   public  :: zero_site
 
@@ -42,53 +40,55 @@ module EDInitMod
 contains
 
   ! ============================================================================
-  subroutine ed_init( bounds, ed_allsites_inst, ed_clm_inst, &
-       ed_phenology_inst, waterstate_inst, canopystate_inst)
-    !
-    ! !DESCRIPTION:
-    ! use ed_allsites_inst at the top level, then pass it through arg. list.  then we can
-    ! actually use intents
-    !
-    ! !USES: 
-    !
-    ! !ARGUMENTS    
-    type(bounds_type)       , intent(in)            :: bounds  ! clump bounds
-    type(ed_site_type)      , intent(inout), target :: ed_allsites_inst( bounds%begg: )
-    type(ed_clm_type)       , intent(inout)         :: ed_clm_inst
-    type(ed_phenology_type) , intent(inout)         :: ed_phenology_inst
-    type(waterstate_type)   , intent(inout)         :: waterstate_inst
-    type(canopystate_type)  , intent(inout)         :: canopystate_inst
-    !
-    ! !LOCAL VARIABLES:
-    integer :: g
-    !----------------------------------------------------------------------
 
-    if (masterproc) then
-       if (DEBUG) then
-          write(iulog,*) 'ED: restart ? = ' ,is_restart()
-          write(iulog,*) 'ED_Mod.F90 :: SPITFIRE_SWITCH (use_ed_spit_fire) ', &
-                          use_ed_spit_fire
-          write(iulog,*) 'ED_Mod.F90 :: cohorts_per_gcell ',cohorts_per_gcell
-       end if
-    end if
+  !! REMOVING INTERF-TODO  (RGK)
+  !!subroutine ed_init( bounds, ed_allsites_inst, ed_clm_inst, &
+  !!  ed_phenology_inst, waterstate_inst, canopystate_inst)
+  !!!
+  !!  ! !DESCRIPTION:
+  !!  ! use ed_allsites_inst at the top level, then pass it through arg. list.  then we can
+  !!  ! actually use intents
+  !!  !
+  !!  ! !USES: 
+  !!  !
+  !!  ! !ARGUMENTS    
+  !!  type(bounds_type)       , intent(in)            :: bounds  ! clump bounds
+  !!  type(ed_site_type)      , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+  !!  type(ed_clm_type)       , intent(inout)         :: ed_clm_inst
+  !!  type(ed_phenology_type) , intent(inout)         :: ed_phenology_inst
+  !!  type(waterstate_type)   , intent(inout)         :: waterstate_inst
+  !!  type(canopystate_type)  , intent(inout)         :: canopystate_inst
+  !!  !
+  !!  ! !LOCAL VARIABLES:
+  !!  integer :: g
+  !!  !----------------------------------------------------------------------
 
-    !
-    ! don't call this if we are restarting
-    !
-    if ( .not. is_restart() ) then
-       call ed_init_sites( bounds, ed_allsites_inst(bounds%begg:bounds%endg))
+  !!if (masterproc) then
+  !!     if (DEBUG) then
+  !!        write(iulog,*) 'ED: restart ? = ' ,is_restart()
+  !!        write(iulog,*) 'ED_Mod.F90 :: SPITFIRE_SWITCH (use_ed_spit_fire) ', &
+  !!                        use_ed_spit_fire
+  !!        write(iulog,*) 'ED_Mod.F90 :: cohorts_per_gcell ',cohorts_per_gcell
+  !!     end if
+  !!  end if
 
-       do g = bounds%begg,bounds%endg
-          if (ed_allsites_inst(g)%istheresoil) then
-             call ed_update_site(ed_allsites_inst(g))
-          end if
-       end do
+  !!  !
+  !!  ! don't call this if we are restarting
+  !!  !
+  !!  if ( .not. is_restart() ) then
+  !!     call ed_init_sites( bounds, ed_allsites_inst(bounds%begg:bounds%endg))
 
-       call ed_clm_inst%ed_clm_link( bounds, ed_allsites_inst(bounds%begg:bounds%endg), &
-            ed_phenology_inst, waterstate_inst, canopystate_inst)
-    endif
+  !!     do g = bounds%begg,bounds%endg
+  !!        if (ed_allsites_inst(g)%istheresoil) then
+  !!           call ed_update_site(ed_allsites_inst(g))
+  !!        end if
+  !!     end do
 
-  end subroutine ed_init
+  !!     call ed_clm_inst%ed_clm_link( bounds, ed_allsites_inst(bounds%begg:bounds%endg), &
+  !!          ed_phenology_inst, waterstate_inst, canopystate_inst)
+  !!  endif
+
+!!  end subroutine ed_init
 
   ! ============================================================================
   subroutine ed_init_sites( bounds, ed_allsites_inst )

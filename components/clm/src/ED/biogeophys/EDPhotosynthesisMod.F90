@@ -49,6 +49,7 @@ contains
     use EDSharedParamsMod , only : EDParamsShareInst
     use EDTypesMod        , only : numpft_ed, dinc_ed
     use EDtypesMod        , only : ed_patch_type, ed_cohort_type, ed_site_type, numpft_ed, map_clmpatch_to_edpatch
+
     use EDEcophysContype  , only : EDecophyscon
     !
     ! !ARGUMENTS:

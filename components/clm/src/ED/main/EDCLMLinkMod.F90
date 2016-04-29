@@ -31,6 +31,8 @@ module EDCLMLinkMod
   real(r8), public :: cwd_fcel_ed  
   real(r8), public :: cwd_flig_ed
 
+
+  ! Types for communicating with the driving land model (DLM)
   type, public :: ed_clm_type
 
      real(r8), pointer, private  :: trimming_patch             (:) 
@@ -185,7 +187,7 @@ module EDCLMLinkMod
      procedure , private :: flux_into_litter_pools
 
   end type ed_clm_type
-
+  
   ! 10/30/09: Created by Rosie Fisher
   !-----------------------------------------------------------------------
 
