@@ -391,8 +391,10 @@ contains
        ! over the patch index range defined by bounds_clump%begp:bounds_proc%endp
 
        if(use_ed) then
-          call clm_fates%thread(nc)%canopy_sunshade_fracs(filter(nc)%nourbanp,      &
-               filter(nc)%num_nourbanp,                                             &
+          ! INTERF-TODO: FATES(NC) SHOULD ONLY BE VISIBLE TO THE INTERFACE
+          ! AND ONLY FATES API DEFINED TYPES SHOULD BE PASSED TO IT
+          call clm_fates%fates(nc)%canopy_sunshade_fracs(filter(nc)%nourbanp,      &
+               filter(nc)%num_nourbanp,                                            &
                atm2lnd_inst, canopystate_inst)
           
        else
@@ -455,9 +457,13 @@ contains
        ! and leaf water change by evapotranspiration
 
        call t_startf('canflux')
+
+       ! INTERF-TODO: FATES(NC) SHOULD ONLY BE VISIBLE TO THE INTERFACE
+       ! AND ONLY FATES API DEFINED TYPES SHOULD BE PASSED TO IT
+       ! NEEDS A WRAPPER
        call CanopyFluxes(bounds_clump,                                                   &
             filter(nc)%num_exposedvegp, filter(nc)%exposedvegp,                             &
-            clm_fates%thread(nc)%site_inst(bounds_clump%begg:bounds_clump%endg),            &
+            clm_fates%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg),            &
             atm2lnd_inst, canopystate_inst, cnveg_state_inst,                               &
             energyflux_inst, frictionvel_inst, soilstate_inst, solarabs_inst, surfalb_inst, &
             temperature_inst, waterflux_inst, waterstate_inst, ch4_inst, ozone_inst, photosyns_inst, &
@@ -467,8 +473,8 @@ contains
        if (use_ed) then
           ! if ED enabled, summarize productivity fluxes onto CLM history file structure
           call t_startf('edclmsumprodfluxes')
-          call clm_fates%fates2dlm_inst%SummarizeProductivityFluxes( bounds_clump, &
-                clm_fates%thread(nc)%site_inst(bounds_clump%begg:bounds_clump%endg))
+          call clm_fates%fates2hlm_inst%SummarizeProductivityFluxes( bounds_clump, &
+                clm_fates%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg))
           call t_stopf('edclmsumprodfluxes')
        endif
        
@@ -704,7 +710,7 @@ contains
                c13_cnveg_carbonflux_inst, c13_cnveg_carbonstate_inst,                   &
                c14_cnveg_carbonflux_inst, c14_cnveg_carbonstate_inst,                   &
                cnveg_nitrogenflux_inst, cnveg_nitrogenstate_inst,                       &
-               clm_fates%fates2dlm_inst,                                                             &
+               clm_fates%fates2hlm_inst,                                                             &
                soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,         &
                c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
                c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
@@ -732,7 +738,7 @@ contains
 
        ! Zero some of the FATES->CLM communicators
        if (use_ed) then
-          call clm_fates%fates2dlm_inst%SetValues(bounds_clump,0._r8)
+          call clm_fates%fates2hlm_inst%SetValues(bounds_clump,0._r8)
        end if
 
        ! Dry Deposition of chemical tracers (Wesely (1998) parameterizaion)
@@ -827,7 +833,10 @@ contains
           if ( masterproc ) then
              write(iulog,*)  'clm: calling ED model ', get_nstep()
           end if
-          
+
+          ! INTERF-TODO: FATES(NC) SHOULD ONLY BE VISIBLE TO THE INTERFACE
+          ! AND ONLY FATES API DEFINED TYPES SHOULD BE PASSED TO IT
+          ! NEEDS A WRAPPER
           call clm_fates%dynamics_driv( nc, bounds_clump,                        &
                atm2lnd_inst, soilstate_inst, temperature_inst,                   &
                waterstate_inst, canopystate_inst)
@@ -845,7 +854,7 @@ contains
                 filter(nc)%num_pcropp, filter(nc)%pcropp, doalb,                                    &
                 cnveg_state_inst,                                                                   &
                 cnveg_carbonflux_inst, cnveg_carbonstate_inst,                                      &
-                clm_fates%fates2dlm_inst,                                                           &
+                clm_fates%fates2hlm_inst,                                                           &
                 soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,                    &
                 soilbiogeochem_state_inst,                                                          &
                 soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,                &
@@ -862,8 +871,8 @@ contains
                 c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
                 c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
                 soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,     &
-                clm_fates%fates2dlm_inst,                                            &
-                clm_fates%thread(nc)%site_inst(bounds_clump%begg:bounds_clump%endg))
+                clm_fates%fates2hlm_inst,                                            &
+                clm_fates%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg))
        end if
 
 
@@ -922,7 +931,7 @@ contains
                filter_inactive_and_active(nc)%num_urbanp,       &
                filter_inactive_and_active(nc)%urbanp,           &
                nextsw_cday, declinp1,                           &
-               clm_fates%thread(nc)%site_inst(bounds_clump%begg:bounds_clump%endg), &
+               clm_fates%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg), &
                aerosol_inst, canopystate_inst, waterstate_inst, &
                lakestate_inst, temperature_inst, surfalb_inst)
           call t_stopf('surfalb')

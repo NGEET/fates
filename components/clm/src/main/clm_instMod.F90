@@ -74,7 +74,7 @@ module clm_instMod
   use LandunitType                    , only : lun                
   use ColumnType                      , only : col                
   use PatchType                       , only : patch                
-  use clmfates_interfaceMod           , only : dlm_fates_interface_type
+  use CLMFatesInterfaceMod            , only : hlm_fates_interface_type
   use SoilWaterRetentionCurveMod      , only : soil_water_retention_curve_type
   use NutrientCompetitionMethodMod    , only : nutrient_competition_method_type
   !
@@ -149,7 +149,7 @@ module clm_instMod
   type(drydepvel_type)                    :: drydepvel_inst
 
   ! FATES
-  type(dlm_fates_interface_type)          :: clm_fates
+  type(hlm_fates_interface_type)          :: clm_fates
 
   !
   public :: clm_instInit
@@ -434,10 +434,13 @@ contains
     ! allocation needs to happen so that it can be passed as an argument (RGK)
     
     nclumps = get_proc_clumps()
-    allocate(clm_fates%thread(nclumps))
+    allocate(clm_fates%fates(nclumps))
     do nc = 1,nclumps
        call get_clump_bounds(nc, bounds_clump)
-       call clm_fates%thread(nc)%thread_init(bounds_clump)
+       ! INTERF-TODO: THIS CALL SHOULD NOT CALL FATES(NC) DIRECTLY
+       ! BUT IT SHOULD PASS bounds_clump TO A CLM_FATES WRAPPER
+       ! WHICH WILL IN TURN PASS A FATES API DEFINED BOUNDS TO FATES_INIT
+       call clm_fates%fates(nc)%fates_init(bounds_clump)
     end do
 
     if( use_ed )then
@@ -600,16 +603,22 @@ contains
        do nc = 1, nclumps
           call get_clump_bounds(nc, bounds_clump)
 
-          call clm_fates%thread(nc)%thread_restart(bounds_clump,ncid, flag )
+          ! INTERF-TODO: THIS CALL SHOULD NOT CALL FATES(NC) DIRECTLY
+          ! BUT IT SHOULD PASS bounds_clump TO A CLM_FATES WRAPPER
+          ! WHICH WILL IN TURN PASS A FATES API DEFINED BOUNDS TO FATES_INIT
+          ! WE ARE NOT READY FOR THAT YET AS fates_restart FUNCTIONS STILL
+          ! CALL CLM STUFF
+          call clm_fates%fates(nc)%fates_restart(bounds_clump,ncid, flag )
+
 
           if ( trim(flag) == 'read' ) then
 
-             call clm_fates%fates2dlm_link(bounds_clump, nc, waterstate_inst, canopystate_inst)
+             call clm_fates%fates2hlm_link(bounds_clump, nc, waterstate_inst, canopystate_inst)
 
           end if
        end do
 
-       call clm_fates%fates2dlm_inst%restart(bounds, ncid, flag)
+       call clm_fates%fates2hlm_inst%restart(bounds, ncid, flag)
 
     end if
 

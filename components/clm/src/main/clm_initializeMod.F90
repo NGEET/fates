@@ -203,6 +203,7 @@ contains
     call patch%Init(bounds_proc%begp, bounds_proc%endp)
 
     if ( use_ed ) then
+       ! INTERF-TODO:  THIS GUY NEEDS TO BE MOVED TO THE INTERFACE
        call ed_vec_cohort%Init(bounds_proc%begCohort,bounds_proc%endCohort)
     end if
 
@@ -692,8 +693,12 @@ contains
        !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
        do nc = 1, nclumps
           call get_clump_bounds(nc, bounds_clump)
-          call clm_fates%thread(nc)%site_init(bounds_clump)
-          call clm_fates%fates2dlm_link(bounds_clump,nc,waterstate_inst,canopystate_inst)
+
+          ! INTERF-TODO: THIS CALL SHOULD NOT CALL FATES(NC) DIRECTLY
+          ! BUT IT SHOULD PASS bounds_clump TO A CLM_FATES WRAPPER
+          ! WHICH WILL IN TURN PASS A FATES API DEFINED BOUNDS TO SITE_INIT
+          call clm_fates%fates(nc)%site_init(bounds_clump)
+          call clm_fates%fates2hlm_link(bounds_clump,nc,waterstate_inst,canopystate_inst)
        end do
        !$OMP END PARALLEL DO
        
