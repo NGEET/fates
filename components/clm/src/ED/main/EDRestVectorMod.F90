@@ -626,8 +626,7 @@ contains
   end subroutine setVectors
 
   !-------------------------------------------------------------------------------!
-  subroutine getVectors( this, bounds, ed_allsites_inst, ed_clm_inst, &
-       ed_phenology_inst, waterstate_inst, canopystate_inst)
+  subroutine getVectors( this, bounds, ed_allsites_inst )
     !
     ! !DESCRIPTION:
     ! implement getVectors
@@ -642,10 +641,8 @@ contains
     class(EDRestartVectorClass) , intent(inout)         :: this
     type(bounds_type)           , intent(in)            :: bounds 
     type(ed_site_type)          , intent(inout), target :: ed_allsites_inst( bounds%begg: )
-    type(ed_clm_type)           , intent(inout)         :: ed_clm_inst
-    type(ed_phenology_type)     , intent(inout)         :: ed_phenology_inst
-    type(waterstate_type)       , intent(inout)         :: waterstate_inst
-    type(canopystate_type)      , intent(inout)         :: canopystate_inst
+
+
     !
     ! !LOCAL VARIABLES:
     integer :: g
@@ -665,8 +662,8 @@ contains
        end if
     end do
 
-    call ed_clm_inst%ed_clm_link( bounds, ed_allsites_inst(bounds%begg:bounds%endg), &
-         ed_phenology_inst, waterstate_inst, canopystate_inst)
+!    call ed_clm_inst%ed_clm_link( bounds, ed_allsites_inst(bounds%begg:bounds%endg), &
+!         ed_phenology_inst, waterstate_inst, canopystate_inst)
 
     if (this%DEBUG) then
        call this%printIoInfoLL ( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
@@ -2116,26 +2113,22 @@ contains
   !--------------------------------------------!
 
   !-------------------------------------------------------------------------------!
-  subroutine EDRest ( bounds, ncid, flag, ed_allsites_inst, ed_clm_inst, ed_phenology_inst, &
-       waterstate_inst, canopystate_inst )
+  subroutine EDRest ( bounds, ed_allsites_inst, ncid, flag )
     !
     ! !DESCRIPTION:
     ! Read/write ED restart data
     ! EDRest called from restFileMod.F90
     !
     ! !USES:
+
     use ncdio_pio    , only : file_desc_t
     use EDCLMLinkMod , only : ed_clm_type
     !
     ! !ARGUMENTS:
     type(bounds_type)       , intent(in)            :: bounds  ! bounds
     type(file_desc_t)       , intent(inout)         :: ncid    ! netcdf id
+    type(ed_site_type)      , intent(inout)         :: ed_allsites_inst(bounds%begg:)
     character(len=*)        , intent(in)            :: flag    !'read' or 'write'
-    type(ed_site_type)      , intent(inout), target :: ed_allsites_inst( bounds%begg: )
-    type(ed_clm_type)       , intent(inout)         :: ed_clm_inst
-    type(ed_phenology_type) , intent(inout)         :: ed_phenology_inst
-    type(waterstate_type)   , intent(inout)         :: waterstate_inst
-    type(canopystate_type)  , intent(inout)         :: canopystate_inst
     !
     ! !LOCAL VARIABLES:
     type(EDRestartVectorClass) :: ervc
@@ -2156,8 +2149,7 @@ contains
     call ervc%doVectorIO( ncid, flag )
 
     if ( flag == 'read' ) then
-       call ervc%getVectors( bounds, ed_allsites_inst(bounds%begg:bounds%endg), ed_clm_inst, &
-            ed_phenology_inst, waterstate_inst, canopystate_inst)
+       call ervc%getVectors( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
     endif
 
     call ervc%deleteEDRestartVectorClass ()
