@@ -1,0 +1,29 @@
+#! /bin/csh -f
+
+# -------------------------------------------------------------------------
+# eddi.lbl.gov
+# eddi is a linux PC workstation that does not use module environments
+# -------------------------------------------------------------------------
+
+set CESM_REPO = `./xmlquery CCSM_REPOTAG -value`
+
+if($status == 0) then
+  set COMPILER            = `./xmlquery  COMPILER          -value`
+  set MPILIB              = `./xmlquery  MPILIB            -value`
+  set DEBUG               = `./xmlquery  DEBUG             -value`
+  set OS                  = `./xmlquery  OS                -value`
+  set PROJECT             = `./xmlquery  PROJECT           -value`
+else
+  echo $0 using settings from environment:
+endif
+
+echo "COMPILER=$COMPILER"
+echo "MPILIB=$MPILIB"
+echo "DEBUG=$DEBUG"
+echo "OS=$OS"
+echo "PROJECT=$PROJECT"
+
+#limit coredumpsize unlimited
+if ( $?PERL ) then
+  printenv
+endif

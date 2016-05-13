@@ -11,6 +11,7 @@ module EDPatchDynamicsMod
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
   use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, numpft_ed, area, dbhmax, numPatchesPerGridCell
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type, udata
+  use EDTypesMod           , only : min_patch_area
   !
   implicit none
   private
@@ -26,6 +27,7 @@ module EDPatchDynamicsMod
   public :: set_patchno
 
   private:: fuse_2_patches
+
 
   ! 10/30/09: Created by Rosie Fisher
   ! ============================================================================
@@ -198,8 +200,11 @@ contains
 
     ! calculate area of disturbed land, in this timestep, by summing contributions from each existing patch. 
     currentPatch => currentSite%youngest_patch
+
+    ! zero site-level fire fluxes
     currentSite%cwd_ag_burned       = 0.0_r8
     currentSite%leaf_litter_burned  = 0.0_r8
+    currentSite%total_burn_flux_to_atm = 0.0_r8    
 
     site_areadis = 0.0_r8
     do while(associated(currentPatch))
@@ -546,12 +551,14 @@ contains
           burned_litter = new_patch%cwd_ag(c) * patch_site_areadis/new_patch%area * currentPatch%burnt_frac_litter(c+1) !kG/m2/day
           new_patch%cwd_ag(c) = new_patch%cwd_ag(c) - burned_litter
           currentSite%flux_out = currentSite%flux_out + burned_litter * new_patch%area !kG/site/day
+          currentSite%total_burn_flux_to_atm = currentSite%total_burn_flux_to_atm + burned_litter * new_patch%area !kG/site/day
        enddo
 
        do p = 1,numpft_ed
           burned_litter = new_patch%leaf_litter(p) * patch_site_areadis/new_patch%area * currentPatch%burnt_frac_litter(dg_sf)
           new_patch%leaf_litter(p) = new_patch%leaf_litter(p) - burned_litter
-          currentSite%flux_out = currentSite%flux_out + burned_litter * new_patch%area !kG/site/dat
+          currentSite%flux_out = currentSite%flux_out + burned_litter * new_patch%area !kG/site/day
+          currentSite%total_burn_flux_to_atm = currentSite%total_burn_flux_to_atm + burned_litter * new_patch%area !kG/site/day
       enddo
 
        !************************************/     
@@ -613,6 +620,8 @@ contains
                      SF_val_CWD_frac(c) * bstem * currentCohort%cfa
                 currentSite%flux_out  = currentSite%flux_out + dead_tree_density * &
                      AREA * SF_val_CWD_frac(c) * bstem * currentCohort%cfa
+                currentSite%total_burn_flux_to_atm  = currentSite%total_burn_flux_to_atm + dead_tree_density * &
+                     AREA * SF_val_CWD_frac(c) * bstem * currentCohort%cfa
 
              enddo
              
@@ -622,6 +631,8 @@ contains
                 currentSite%leaf_litter_burned(p) = currentSite%leaf_litter_burned(p) + &
                      dead_tree_density * currentCohort%bl * currentCohort%cfa
                 currentSite%flux_out  = currentSite%flux_out + &
+                     dead_tree_density * AREA * currentCohort%bl * currentCohort%cfa
+                currentSite%total_burn_flux_to_atm  = currentSite%total_burn_flux_to_atm + &
                      dead_tree_density * AREA * currentCohort%bl * currentCohort%cfa
 
              enddo
@@ -652,6 +663,8 @@ contains
              currentCohort%bl     = max(0.00001_r8,   currentCohort%bl - burned_leaves)
              !KgC/gridcell/day
              currentSite%flux_out = currentSite%flux_out + burned_leaves * currentCohort%n * &
+                  patch_site_areadis/currentPatch%area * AREA 
+             currentSite%total_burn_flux_to_atm = currentSite%total_burn_flux_to_atm+ burned_leaves * currentCohort%n * &
                   patch_site_areadis/currentPatch%area * AREA 
 
           endif
@@ -1111,7 +1124,7 @@ contains
        if(nopatches > maxpatch)then
           iterate = 1
           profiletol = profiletol * 1.1_r8
-          write(iulog,*) 'maxpatch exceeded, triggering patch fusion iteration.',profiletol,nopatches
+
           !---------------------------------------------------------------------!
           ! Making profile tolerance larger means that more fusion will happen  !
           !---------------------------------------------------------------------!        
@@ -1285,7 +1298,7 @@ contains
     !fuse patches if one of them is very small.... 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch)) 
-       if(currentPatch%area <= 0.001_r8)then
+       if(currentPatch%area <= min_patch_area)then
           if(associated(currentPatch%older).and.currentPatch%patchno /= currentSite%youngest_patch%patchno)then
             ! Do not force the fusion of the youngest patch to its neighbour. 
             ! This is only really meant for very old patches. 

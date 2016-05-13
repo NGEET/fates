@@ -45,7 +45,7 @@ module clm_driver
   use SurfaceAlbedoMod       , only : SurfaceAlbedo
   use UrbanAlbedoMod         , only : UrbanAlbedo
   !
-  use SurfaceRadiationMod    , only : SurfaceRadiation
+  use SurfaceRadiationMod    , only : SurfaceRadiation, CanopySunShadeFracs
   use UrbanRadiationMod      , only : UrbanRadiation
   !
   use CNDriverMod            , only : CNDriverNoLeaching, CNDriverLeaching, CNDriverSummary
@@ -60,7 +60,8 @@ module clm_driver
   use ch4Mod                 , only : ch4
   use DUSTMod                , only : DustDryDep, DustEmission
   use VOCEmissionMod         , only : VOCEmission
-  use EDMainMod              , only : ed_driver
+  use clm_instMod            , only : clm_fates
+
   !
   use filterMod              , only : setFilters
   !
@@ -81,6 +82,7 @@ module clm_driver
   use PatchType              , only : patch                
   use clm_instMod
   use clm_initializeMod      , only : soil_water_retention_curve
+  use EDBGCDynMod            , only : EDBGCDyn, EDBGCDynSummary
   !
   ! !PUBLIC TYPES:
   implicit none
@@ -382,12 +384,33 @@ contains
 
        ! Surface Radiation primarily for non-urban columns 
 
+       ! Most of the surface radiation calculations are agnostic to the forest-model
+       ! but the calculations of the fractions of sunlit and shaded canopies 
+       ! are specific, calculate them first.
+       ! The nourbanp filter is set in dySubgrid_driver (earlier in this call)
+       ! over the patch index range defined by bounds_clump%begp:bounds_proc%endp
+
+       if(use_ed) then
+          ! INTERF-TODO: FATES(NC) SHOULD ONLY BE VISIBLE TO THE INTERFACE
+          ! AND ONLY FATES API DEFINED TYPES SHOULD BE PASSED TO IT
+          call clm_fates%fates(nc)%canopy_sunshade_fracs(filter(nc)%nourbanp,      &
+               filter(nc)%num_nourbanp,                                            &
+               atm2lnd_inst, canopystate_inst)
+          
+       else
+          call CanopySunShadeFracs(filter(nc)%nourbanp,filter(nc)%num_nourbanp,     &
+                                   atm2lnd_inst, surfalb_inst, canopystate_inst,    &
+                                   solarabs_inst)
+       end if
+       
+
+
        call SurfaceRadiation(bounds_clump,                                 &
             filter(nc)%num_nourbanp, filter(nc)%nourbanp,                  &
-            filter(nc)%num_urbanp, filter(nc)%urbanp,                &
+            filter(nc)%num_urbanp, filter(nc)%urbanp,                      &
             filter(nc)%num_urbanc, filter(nc)%urbanc,                      &
-            ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), atm2lnd_inst, &
-            waterstate_inst, canopystate_inst, surfalb_inst, solarabs_inst, surfrad_inst)
+            atm2lnd_inst, waterstate_inst, canopystate_inst, surfalb_inst, &
+            solarabs_inst, surfrad_inst)
 
        ! Surface Radiation for only urban columns
 
@@ -434,15 +457,27 @@ contains
        ! and leaf water change by evapotranspiration
 
        call t_startf('canflux')
+
+       ! INTERF-TODO: FATES(NC) SHOULD ONLY BE VISIBLE TO THE INTERFACE
+       ! AND ONLY FATES API DEFINED TYPES SHOULD BE PASSED TO IT
+       ! NEEDS A WRAPPER
        call CanopyFluxes(bounds_clump,                                                   &
             filter(nc)%num_exposedvegp, filter(nc)%exposedvegp,                             &
-            ed_allsites_inst(bounds_clump%begg:bounds_clump%endg),                          &
+            clm_fates%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg),            &
             atm2lnd_inst, canopystate_inst, cnveg_state_inst,                               &
             energyflux_inst, frictionvel_inst, soilstate_inst, solarabs_inst, surfalb_inst, &
             temperature_inst, waterflux_inst, waterstate_inst, ch4_inst, ozone_inst, photosyns_inst, &
             humanindex_inst, soil_water_retention_curve, cnveg_nitrogenstate_inst) 
        call t_stopf('canflux')
 
+       if (use_ed) then
+          ! if ED enabled, summarize productivity fluxes onto CLM history file structure
+          call t_startf('edclmsumprodfluxes')
+          call clm_fates%fates2hlm_inst%SummarizeProductivityFluxes( bounds_clump, &
+                clm_fates%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg))
+          call t_stopf('edclmsumprodfluxes')
+       endif
+       
        ! Fluxes for all urban landunits
 
        call t_startf('uflux')
@@ -675,6 +710,7 @@ contains
                c13_cnveg_carbonflux_inst, c13_cnveg_carbonstate_inst,                   &
                c14_cnveg_carbonflux_inst, c14_cnveg_carbonstate_inst,                   &
                cnveg_nitrogenflux_inst, cnveg_nitrogenstate_inst,                       &
+               clm_fates%fates2hlm_inst,                                                             &
                soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,         &
                c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
                c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
@@ -700,11 +736,10 @@ contains
                waterstate_inst, canopystate_inst)
              end if
 
-       ! Ecosystem demography
-
+       ! Zero some of the FATES->CLM communicators
        if (use_ed) then
-          call ed_clm_inst%SetValues( bounds_clump, 0._r8 )
-          end if
+          call clm_fates%fates2hlm_inst%SetValues(bounds_clump,0._r8)
+       end if
 
        ! Dry Deposition of chemical tracers (Wesely (1998) parameterizaion)
           
@@ -754,7 +789,7 @@ contains
        !   vegetation structure (LAI, SAI, height)
        ! ============================================================================
 
-          if (use_cn) then
+       if (use_cn) then
 
           ! Update the nitrogen leaching rate as a function of soluble mineral N 
           ! and total soil water outflow.
@@ -765,31 +800,82 @@ contains
                waterstate_inst, waterflux_inst,                   &
                cnveg_nitrogenflux_inst, cnveg_nitrogenstate_inst, &
                SoilBiogeochem_nitrogenflux_inst, SoilBiogeochem_nitrogenstate_inst)
-
+          
           ! Call to all CN summary routines
           
           call  CNDriverSummary(bounds_clump,                                           &
-                  filter(nc)%num_soilc, filter(nc)%soilc,               &
-                  filter(nc)%num_soilp, filter(nc)%soilp,               &
-               cnveg_state_inst, cnveg_carbonflux_inst, cnveg_carbonstate_inst, &
-               c13_cnveg_carbonflux_inst, c13_cnveg_carbonstate_inst, &
-               c14_cnveg_carbonflux_inst, c14_cnveg_carbonstate_inst, &
-               cnveg_nitrogenflux_inst, cnveg_nitrogenstate_inst, &
-               soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst, &
-               c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
-               c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
-               soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst)
+                filter(nc)%num_soilc, filter(nc)%soilc,               &
+                filter(nc)%num_soilp, filter(nc)%soilp,               &
+                cnveg_state_inst, cnveg_carbonflux_inst, cnveg_carbonstate_inst, &
+                c13_cnveg_carbonflux_inst, c13_cnveg_carbonstate_inst, &
+                c14_cnveg_carbonflux_inst, c14_cnveg_carbonstate_inst, &
+                cnveg_nitrogenflux_inst, cnveg_nitrogenstate_inst, &
+                soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst, &
+                c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
+                c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
+                soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst)
 
           ! On the radiation time step, use C state variables to calculate
           ! vegetation structure (LAI, SAI, height)
 
-             if (doalb) then   
-                call CNVegStructUpdate(filter(nc)%num_soilp, filter(nc)%soilp, &
-                  waterstate_inst, frictionvel_inst, dgvs_inst, cnveg_state_inst, &
-                  cnveg_carbonstate_inst, canopystate_inst)
-             end if
-
+          if (doalb) then   
+             call CNVegStructUpdate(filter(nc)%num_soilp, filter(nc)%soilp, &
+                   waterstate_inst, frictionvel_inst, dgvs_inst, cnveg_state_inst, &
+                   cnveg_carbonstate_inst, canopystate_inst)
           end if
+
+       end if
+
+          
+
+       if ( use_ed  .and. is_beg_curr_day() ) then ! run ED at the start of each day
+          
+          if ( masterproc ) then
+             write(iulog,*)  'clm: calling ED model ', get_nstep()
+          end if
+
+          ! INTERF-TODO: FATES(NC) SHOULD ONLY BE VISIBLE TO THE INTERFACE
+          ! AND ONLY FATES API DEFINED TYPES SHOULD BE PASSED TO IT
+          ! NEEDS A WRAPPER
+          call clm_fates%dynamics_driv( nc, bounds_clump,                        &
+               atm2lnd_inst, soilstate_inst, temperature_inst,                   &
+               waterstate_inst, canopystate_inst)
+          
+          call setFilters( bounds_clump, glc2lnd_inst%icemask_grc )
+          
+       end if ! use_ed branch
+       
+       
+       if ( use_ed ) then
+          
+          call EDBGCDyn(bounds_clump,                                                              &
+                filter(nc)%num_soilc, filter(nc)%soilc,                                             &
+                filter(nc)%num_soilp, filter(nc)%soilp,                                             &
+                filter(nc)%num_pcropp, filter(nc)%pcropp, doalb,                                    &
+                cnveg_state_inst,                                                                   &
+                cnveg_carbonflux_inst, cnveg_carbonstate_inst,                                      &
+                clm_fates%fates2hlm_inst,                                                           &
+                soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,                    &
+                soilbiogeochem_state_inst,                                                          &
+                soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,                &
+                c13_soilbiogeochem_carbonstate_inst, c13_soilbiogeochem_carbonflux_inst,            &
+                c14_soilbiogeochem_carbonstate_inst, c14_soilbiogeochem_carbonflux_inst,            &
+                atm2lnd_inst, waterstate_inst, waterflux_inst,                                      &
+                canopystate_inst, soilstate_inst, temperature_inst, crop_inst, ch4_inst)
+          
+          
+          call EDBGCDynSummary(bounds_clump,                                             &
+                filter(nc)%num_soilc, filter(nc)%soilc,                                  &
+                filter(nc)%num_soilp, filter(nc)%soilp,                                  &
+                soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,         &
+                c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
+                c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
+                soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,     &
+                clm_fates%fates2hlm_inst,                                            &
+                clm_fates%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg))
+       end if
+
+
 
        ! ============================================================================
        ! Check the energy and water balance and also carbon and nitrogen balance
@@ -845,7 +931,7 @@ contains
                filter_inactive_and_active(nc)%num_urbanp,       &
                filter_inactive_and_active(nc)%urbanp,           &
                nextsw_cday, declinp1,                           &
-               ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), &
+               clm_fates%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg), &
                aerosol_inst, canopystate_inst, waterstate_inst, &
                lakestate_inst, temperature_inst, surfalb_inst)
           call t_stopf('surfalb')
@@ -919,7 +1005,7 @@ contains
     ! use_ed) then statement ... double check if this is required and why
 
     if (nstep > 0) then
-          call t_startf('accum')
+       call t_startf('accum')
 
        call atm2lnd_inst%UpdateAccVars(bounds_proc)
 
@@ -928,31 +1014,32 @@ contains
        call canopystate_inst%UpdateAccVars(bounds_proc)
 
        if (use_ed) then
-          call ed_phenology_inst%accumulateAndExtract(bounds_proc, &
-               temperature_inst%t_ref2m_patch(bounds_proc%begp:bounds_proc%endp), &
-               patch%gridcell(bounds_proc%begp:bounds_proc%endp), &
-               grc%latdeg(bounds_proc%begg:bounds_proc%endg), &
-               mon, day, sec)
+          call get_curr_date(yr, mon, day, sec)
+          call clm_fates%phen_inst%accumulateAndExtract(bounds_proc, &
+                temperature_inst%t_ref2m_patch(bounds_proc%begp:bounds_proc%endp), &
+                patch%gridcell(bounds_proc%begp:bounds_proc%endp), &
+                grc%latdeg(bounds_proc%begg:bounds_proc%endg), &
+                mon, day, sec)
        endif
 
-          if (use_cndv) then
-             ! COMPILER_BUG(wjs, 2014-11-30, pgi 14.7) For pgi 14.7 to be happy when
-             ! compiling this threaded, I needed to change the dummy arguments to be
-             ! pointers, and get rid of the explicit bounds in the subroutine call.
-             ! call dgvs_inst%UpdateAccVars(bounds_proc, &
-             !      t_a10_patch=temperature_inst%t_a10_patch(bounds_proc%begp:bounds_proc%endp), &
-             !      t_ref2m_patch=temperature_inst%t_ref2m_patch(bounds_proc%begp:bounds_proc%endp))
-             call dgvs_inst%UpdateAccVars(bounds_proc, &
-                  t_a10_patch=temperature_inst%t_a10_patch, &
+       if (use_cndv) then
+          ! COMPILER_BUG(wjs, 2014-11-30, pgi 14.7) For pgi 14.7 to be happy when
+          ! compiling this threaded, I needed to change the dummy arguments to be
+          ! pointers, and get rid of the explicit bounds in the subroutine call.
+          ! call dgvs_inst%UpdateAccVars(bounds_proc, &
+          !      t_a10_patch=temperature_inst%t_a10_patch(bounds_proc%begp:bounds_proc%endp), &
+          !      t_ref2m_patch=temperature_inst%t_ref2m_patch(bounds_proc%begp:bounds_proc%endp))
+          call dgvs_inst%UpdateAccVars(bounds_proc, &
+                t_a10_patch=temperature_inst%t_a10_patch, &
                   t_ref2m_patch=temperature_inst%t_ref2m_patch)
-          end if
+       end if
 
-          if (crop_prog) then
+       if (crop_prog) then
           call crop_inst%CropUpdateAccVars(bounds_proc, &
-               temperature_inst%t_ref2m_patch, temperature_inst%t_soisno_col, cnveg_state_inst)
-          end if
-
-          call t_stopf('accum')
+                temperature_inst%t_ref2m_patch, temperature_inst%t_soisno_col, cnveg_state_inst)
+       end if
+       
+       call t_stopf('accum')
     end if
 
     ! ============================================================================
@@ -960,17 +1047,9 @@ contains
     ! ============================================================================
 
 
-    !
-    ! TODO(SPM,012715) - XIX Note to CSEG.  I had to put this logical block around
-    ! this call as it was updating the history buffer prematurely when ED was
-    ! running and happened to be restarted on the same timestep as a history
-    ! write
-    !
-    if (.not. use_ed) then
-      call t_startf('hbuf')
-      call hist_update_hbuf(bounds_proc)
-      call t_stopf('hbuf')
-    end if
+    call t_startf('hbuf')
+    call hist_update_hbuf(bounds_proc)
+    call t_stopf('hbuf')
 
     ! ============================================================================
     ! Call dv (dynamic vegetation) at last time step of year
@@ -1011,52 +1090,6 @@ contains
     ! Call ED model on daily timestep
     ! ============================================================================
     
-    if ( use_ed  .and. is_beg_curr_day() ) then ! run ED at the start of each day
-
-       if ( masterproc ) then
-          write(iulog,*)  'clm: calling ED model ', get_nstep()
-       end if
-
-       !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
-       do nc = 1, nclumps
-
-          call get_clump_bounds(nc, bounds_clump)
-
-          call ed_driver( bounds_clump,                               &
-               ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), &
-               ed_clm_inst, ed_phenology_inst,                        &
-               atm2lnd_inst, soilstate_inst, temperature_inst,        &
-               waterstate_inst, canopystate_inst)
-
-          ! 
-          ! TODO(SPM, 012715) - see note XIX above regarding hbuf updates 
-          !
-          call t_startf('hbuf')
-          call hist_update_hbuf(bounds_proc)
-          call t_stopf('hbuf')
-
-          call setFilters( bounds_clump, glc2lnd_inst%icemask_grc )
-
-          !reset surface albedo fluxes in case there is a mismatch between elai and canopy absorbtion. 
-          call SurfaceAlbedo(bounds_clump,                            &
-               filter_inactive_and_active(nc)%num_nourbanc,           &
-               filter_inactive_and_active(nc)%nourbanc,               &
-               filter_inactive_and_active(nc)%num_nourbanp,           &
-               filter_inactive_and_active(nc)%nourbanp,               &
-               filter_inactive_and_active(nc)%num_urbanc,             &
-               filter_inactive_and_active(nc)%urbanc,                 &
-               filter_inactive_and_active(nc)%num_urbanp,             & 
-               filter_inactive_and_active(nc)%urbanp,                 &
-               nextsw_cday, declinp1,                                 &
-               ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), &
-               aerosol_inst, canopystate_inst, waterstate_inst,       &
-               lakestate_inst, temperature_inst, surfalb_inst)
-
-       end do
-       !$OMP END PARALLEL DO
-
-    end if ! use_ed branch
-
     ! ============================================================================
     ! History/Restart output
     ! ============================================================================
