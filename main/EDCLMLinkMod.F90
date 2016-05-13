@@ -1040,12 +1040,13 @@ contains
 
       clmpatch%is_veg(begp:endp)        = .false. 
       clmpatch%is_bareground(begp:endp) = .false. 
+
       tlai(begp:endp)                   = 0.0_r8    
-      elai(firstsoilpatch(g))           = 0.0_r8
-      tsai(firstsoilpatch(g))           = 0.0_r8
-      esai(firstsoilpatch(g))           = 0.0_r8
       htop(begp:endp)                   = 0.0_r8      
       hbot(begp:endp)                   = 0.0_r8   
+      elai(begp:endp)                   = 0.0_r8
+      tsai(begp:endp)                   = 0.0_r8
+      esai(begp:endp)                   = 0.0_r8
 
       do g = begg,endg
 
@@ -1056,9 +1057,9 @@ contains
             ! Zero the bare ground tile BGC variables.
             ! ============================================================================
 
-            tlai(firstsoilpatch(g)) = 0.0_r8    
-            htop(firstsoilpatch(g)) = 0.0_r8      
-            hbot(firstsoilpatch(g)) = 0.0_r8      
+            !tlai(firstsoilpatch(g)) = 0.0_r8    ! This is redundant (test removal, RGK)
+            !htop(firstsoilpatch(g)) = 0.0_r8    ! This is redundant (test removal, RGK)
+            !hbot(firstsoilpatch(g)) = 0.0_r8    ! This is redundant (test removal, RGK)
 
             patchn = 0
             total_bare_ground = 0.0_r8
