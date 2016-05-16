@@ -986,6 +986,8 @@ contains
     real(r8) :: canopy_leaf_area                        ! total amount of leaf area in the vegetated area. m2.  
     integer  :: sitecolumn(bounds%begg:bounds%endg)
     logical  :: istheresoil(bounds%begg:bounds%endg) 
+    integer  :: begp_fp, endp_fp                        ! Valid range of patch indices that are associated with 
+                                                        ! FATES (F) for each parent (P) iteration (grid/column)
     !----------------------------------------------------------------------
 
     if ( DEBUG ) then
@@ -1034,20 +1036,6 @@ contains
          endif
       enddo
 
-      ! ============================================================================
-      ! Zero the whole variable so we dont have ghost values when patch number declines.
-      ! ============================================================================
-
-      clmpatch%is_veg(begp:endp)        = .false. 
-      clmpatch%is_bareground(begp:endp) = .false. 
-
-      tlai(begp:endp)                   = 0.0_r8    
-      htop(begp:endp)                   = 0.0_r8      
-      hbot(begp:endp)                   = 0.0_r8   
-      elai(begp:endp)                   = 0.0_r8
-      tsai(begp:endp)                   = 0.0_r8
-      esai(begp:endp)                   = 0.0_r8
-
       do g = begg,endg
 
          if(firstsoilpatch(g) >= 0.and.ed_allsites_inst(g)%istheresoil)then 
@@ -1055,7 +1043,24 @@ contains
 
             ! ============================================================================
             ! Zero the bare ground tile BGC variables.
+            ! Valid Range for zero'ing here is the soil_patch and non crop patches
+            ! If the crops are not turned on, don't worry, they were zero'd once and should
+            ! not change again (RGK).
+            ! firstsoilpatch(g) + numpft - numcft
             ! ============================================================================
+
+            begp_fp = firstsoilpatch(g)
+            endp_fp = firstsoilpatch(g) + numpft - numcft
+            
+            clmpatch%is_veg(begp_fp:endp_fp)        = .false. 
+            clmpatch%is_bareground(begp_fp:endp_fp) = .false. 
+            tlai(begp_fp:endp_fp)                   = 0.0_r8    
+            htop(begp_fp:endp_fp)                   = 0.0_r8      
+            hbot(begp_fp:endp_fp)                   = 0.0_r8   
+            elai(begp_fp:endp_fp)                   = 0.0_r8
+            tsai(begp_fp:endp_fp)                   = 0.0_r8
+            esai(begp_fp:endp_fp)                   = 0.0_r8
+
 
             patchn = 0
             total_bare_ground = 0.0_r8
