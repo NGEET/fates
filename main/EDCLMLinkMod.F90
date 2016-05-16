@@ -1057,10 +1057,6 @@ contains
             ! Zero the bare ground tile BGC variables.
             ! ============================================================================
 
-            !tlai(firstsoilpatch(g)) = 0.0_r8    ! This is redundant (test removal, RGK)
-            !htop(firstsoilpatch(g)) = 0.0_r8    ! This is redundant (test removal, RGK)
-            !hbot(firstsoilpatch(g)) = 0.0_r8    ! This is redundant (test removal, RGK)
-
             patchn = 0
             total_bare_ground = 0.0_r8
             total_patch_area = 0._r8 
