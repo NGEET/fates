@@ -1158,6 +1158,9 @@ contains
     type (ed_cohort_type), pointer :: storebigcohort  
     integer :: c,p !counters for pft and litter size class. 
     integer :: tnull,snull  ! are the tallest and shortest cohorts associated?
+    type(ed_patch_type), pointer :: youngerp   ! pointer to the patch younger than donor
+    type(ed_patch_type), pointer :: olderp     ! pointer to the patch older than donor
+    type(ed_site_type),  pointer :: csite      ! pointer to the donor patch's site
     !---------------------------------------------------------------------
 
     !area weighted average of ages & litter & seed bank
@@ -1253,24 +1256,46 @@ contains
 
     call patch_pft_size_profile(rp) ! Recalculate the patch size profile for the resulting patch
 
-    ! FIX(SPM,032414) dangerous code here.  Passing in dp as a pointer allows the code below
-    ! to effect the currentPatch that is the actual argument when in reality, dp should be 
-    ! intent in only with these pointers being set on the actual argument
-    ! outside of this routine (in fuse_patches).  basically this should be split
-    ! into a copy, then change pointers, then delete.
+    ! Define some aliases for the donor patches younger and older neighbors
+    ! which may or may not exist.  After we set them, we will remove the donor
+    ! And then we will go about re-setting the map.
+    csite => dp%siteptr
+    if(associated(dp%older))then
+       olderp => dp%older
+    else
+       olderp => null()
+    end if
+    if(associated(dp%younger))then
+       youngerp => dp%younger
+    else
+       youngerp => null()
+    end if
 
-    if(associated(dp%younger)) then 
-       dp%younger%older => dp%older
-    else 
-       dp%siteptr%youngest_patch => dp%older !youngest
-    endif
-    if(associated(dp%older)) then 
-       dp%older%younger => dp%younger
-    else 
-       dp%siteptr%oldest_patch => dp%younger  !oldest
-    endif
-
+    ! We have no need for the dp pointer anymore, we have passed on it's legacy
     deallocate(dp)
+
+
+    if(associated(youngerp))then
+       ! Update the younger patch's new older patch (because it isn't dp anymore)
+       youngerp%older => olderp
+    else
+       ! There was no younger patch than dp, so the head of the young order needs
+       ! to be set, and it is set as the patch older than dp.  That patch
+       ! already knows it's older patch (so no need to set or change it)
+       csite%youngest_patch => olderp
+    end if
+
+    
+    if(associated(olderp))then
+       ! Update the older patch's new younger patch (becuase it isn't dp anymore)
+       olderp%younger => youngerp
+    else
+       ! There was no patch older than dp, so the head of the old patch order needs
+       ! to be set, and it is set as the patch younger than dp.  That patch already
+       ! knows it's younger patch, no need to set
+       csite%oldest_patch => youngerp
+    end if
+
 
   end subroutine fuse_2_patches
 
@@ -1287,7 +1312,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(ed_site_type),  pointer :: currentSite
-    type(ed_patch_type), pointer :: currentPatch
+    type(ed_patch_type), pointer :: currentPatch, tmpptr
     real(r8) areatot ! variable for checking whether the total patch area is wrong. 
     !---------------------------------------------------------------------
  
@@ -1299,15 +1324,22 @@ contains
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch)) 
        if(currentPatch%area <= min_patch_area)then
-          if(associated(currentPatch%older).and.currentPatch%patchno /= currentSite%youngest_patch%patchno)then
+          if ( currentPatch%patchno /= currentSite%youngest_patch%patchno) then
             ! Do not force the fusion of the youngest patch to its neighbour. 
             ! This is only really meant for very old patches. 
-             write(iulog,*) 'fusing patches because one is too small',currentPatch%area, currentPatch%lai, &
-                  currentPatch%older%area,currentPatch%older%lai,currentPatch%seed_bank(1)
-             call fuse_2_patches(currentPatch%older, currentPatch)
-             deallocate(currentPatch%older)
-             write(iulog,*) 'after fusion',currentPatch%area,currentPatch%seed_bank(1)
-           endif
+             if(associated(currentPatch%older) )then
+                write(iulog,*) 'fusing to older patch because this one is too small',currentPatch%area, currentPatch%lai, &
+                     currentPatch%older%area,currentPatch%older%lai,currentPatch%seed_bank(1)
+                call fuse_2_patches(currentPatch%older, currentPatch)
+                write(iulog,*) 'after fusion to older patch',currentPatch%area,currentPatch%seed_bank(1)
+             else
+                write(iulog,*) 'fusing to younger patch because oldest one is too small',currentPatch%area, currentPatch%lai
+                tmpptr => currentPatch%younger
+                call fuse_2_patches(currentPatch, currentPatch%younger)
+                write(iulog,*) 'after fusion to younger patch'
+                currentPatch => tmpptr
+             endif
+          endif
        endif
 
        currentPatch => currentPatch%older
