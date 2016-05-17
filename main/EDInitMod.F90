@@ -63,7 +63,7 @@ contains
     ! INITIALISE THE SITE STRUCTURES
     !
     ! Makes unique cohort identifiers. Needs zeroing at beginning of run.
-    udata%cohort_number = 0
+!    udata%cohort_number = 0
 
     do g = bounds%begg,bounds%endg
        ! zero the site

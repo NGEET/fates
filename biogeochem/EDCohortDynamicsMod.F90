@@ -10,8 +10,8 @@ module EDCohortDynamicsMod
   use EDEcophysContype      , only : EDecophyscon
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDTypesMod            , only : fusetol, nclmax
-  use EDtypesMod            , only : ncwd, numcohortsperpatch, udata
+  use EDTypesMod            , only : fusetol, nclmax, udata
+  use EDtypesMod            , only : ncwd, numcohortsperpatch
   use EDtypesMod            , only : sclass_ed,nlevsclass_ed,AREA
   use EDtypesMod            , only : min_npm2, min_nppatch, min_n_safemath
   !
@@ -68,7 +68,6 @@ contains
     !----------------------------------------------------------------------
 
     allocate(new_cohort)
-    udata%cohort_number = udata%cohort_number + 1 !give each cohort a unique number for checking cohort fusing routine.
     
     call nan_cohort(new_cohort)  ! Make everything in the cohort not-a-number
     call zero_cohort(new_cohort) ! Zero things that need to be zeroed. 
@@ -77,7 +76,7 @@ contains
     ! Define cohort state variable
     !**********************/
  
-    new_cohort%indexnumber  = udata%cohort_number
+!    new_cohort%indexnumber  = udata%cohort_number
     new_cohort%siteptr      => patchptr%siteptr
     new_cohort%patchptr     => patchptr
     new_cohort%pft          = pft     
@@ -613,7 +612,6 @@ contains
     iterate = 1
     fusion_took_place = 0   
     currentPatch => patchptr
-   ! maxcohorts =  currentPatch%NCL_p * numCohortsPerPatch
     maxcohorts = numCohortsPerPatch
   
     !---------------------------------------------------------------------!
@@ -624,8 +622,13 @@ contains
 
          currentCohort => currentPatch%tallest
 
-         !CHANGED FROM C VERSION  loop from tallest to smallest, fusing if they are similar
-         do while (currentCohort%indexnumber /= currentPatch%shortest%indexnumber)  
+         ! The following logic continues the loop while the current cohort is not the shortest cohort
+         ! if they point to the same target (ie equivalence), then the loop ends.
+         ! This loop is different than the simple "continue while associated" loop in that
+         ! it omits the last cohort (because it has already been compared by that point)
+
+         do while ( .not.associated(currentCohort,currentPatch%shortest) )
+
           nextc => currentPatch%tallest
 
           do while (associated(nextc))
@@ -636,7 +639,9 @@ contains
 
              if (diff < dynamic_fusion_tolerance) then
 
-                if (currentCohort%indexnumber /= nextc%indexnumber) then
+                ! Don't fuse a cohort with itself!
+                if (.not.associated(currentCohort,nextc) ) then
+!                if (currentCohort%indexnumber /= nextc%indexnumber) then
 
                    if (currentCohort%pft == nextc%pft) then              
 
@@ -981,9 +986,9 @@ contains
     o => currentCohort
     n => copyc
 
-    udata%cohort_number = udata%cohort_number + 1
-    n%indexnumber = udata%cohort_number
-
+!    udata%cohort_number = udata%cohort_number + 1
+    !n%indexnumber = udata%cohort_number
+    
     ! VEGETATION STRUCTURE
     n%pft             = o%pft
     n%n               = o%n                         
