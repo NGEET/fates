@@ -21,7 +21,7 @@ module FatesInterfaceMod
    ! ------------------------------------------------------------------------------------
 
    use EDtypesMod            , only : ed_patch_type, ed_site_type, numpft_ed
-   use EDtypesMod            , only : map_clmpatch_to_edpatch, userdata
+   use EDtypesMod            , only : map_clmpatch_to_edpatch
    use EDSurfaceRadiationMod , only : ED_SunShadeFracs
    use EDInitMod             , only : ed_init_sites
    use EDMainMod             , only : ed_update_site
