@@ -10,8 +10,8 @@ module EDCohortDynamicsMod
   use EDEcophysContype      , only : EDecophyscon
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDTypesMod            , only : fusetol, nclmax, udata
-  use EDtypesMod            , only : ncwd, numcohortsperpatch
+  use EDTypesMod            , only : fusetol, nclmax
+  use EDtypesMod            , only : ncwd, numcohortsperpatch, udata
   use EDtypesMod            , only : sclass_ed,nlevsclass_ed,AREA
   use EDtypesMod            , only : min_npm2, min_nppatch, min_n_safemath
   !
@@ -68,7 +68,8 @@ contains
     !----------------------------------------------------------------------
 
     allocate(new_cohort)
-    
+    udata%cohort_number = udata%cohort_number + 1  !give each cohort a unique number for checking cohort fusing routine.
+
     call nan_cohort(new_cohort)  ! Make everything in the cohort not-a-number
     call zero_cohort(new_cohort) ! Zero things that need to be zeroed. 
 
@@ -76,7 +77,7 @@ contains
     ! Define cohort state variable
     !**********************/
  
-!    new_cohort%indexnumber  = udata%cohort_number
+    new_cohort%indexnumber  = udata%cohort_number
     new_cohort%siteptr      => patchptr%siteptr
     new_cohort%patchptr     => patchptr
     new_cohort%pft          = pft     
@@ -641,7 +642,6 @@ contains
 
                 ! Don't fuse a cohort with itself!
                 if (.not.associated(currentCohort,nextc) ) then
-!                if (currentCohort%indexnumber /= nextc%indexnumber) then
 
                    if (currentCohort%pft == nextc%pft) then              
 
@@ -986,8 +986,8 @@ contains
     o => currentCohort
     n => copyc
 
-!    udata%cohort_number = udata%cohort_number + 1
-    !n%indexnumber = udata%cohort_number
+    udata%cohort_number = udata%cohort_number + 1
+    n%indexnumber       = udata%cohort_number
     
     ! VEGETATION STRUCTURE
     n%pft             = o%pft

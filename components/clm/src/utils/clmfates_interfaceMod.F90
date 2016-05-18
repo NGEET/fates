@@ -195,7 +195,6 @@ contains
       type(canopystate_type)  , intent(inout)        :: canopystate_inst
 
       ! !LOCAL VARIABLES:
-      integer  :: n_sub                    ! local counterpart to udata%n_sub
       real(r8) :: dayDiff                  ! day of run
       integer  :: dayDiffInt               ! integer of day of run
       integer  :: g                        ! gridcell  
@@ -223,11 +222,10 @@ contains
       call this%fates2hlm_inst%SetValues( bounds_clump, 0._r8 )
 
       ! timing statements. 
-      n_sub = get_days_per_year()
-      udata%n_sub = n_sub
-      udata%deltat = 1.0_r8/dble(n_sub) !for working out age of patches in years        
+      udata%n_sub = get_days_per_year()
+            udata%deltat = 1.0_r8/dble(udata%n_sub) !for working out age of patches in years        
       if(udata%time_period == 0)then             
-         udata%time_period = n_sub
+         udata%time_period = udata%n_sub
       endif
       
       call get_curr_date(yr, mon, day, sec)
@@ -238,7 +236,7 @@ contains
       call timemgr_datediff(nbdate, 0, ncdate, sec, dayDiff)
       
       dayDiffInt = floor(dayDiff)
-      udata%time_period = mod( dayDiffInt , n_sub )
+      udata%time_period = mod( dayDiffInt , udata%n_sub )
       
 
       ! TODO-INTEF: PROCEDURE FOR CONVERTING CLM/ALM FIELDS TO MODEL BOUNDARY
@@ -260,7 +258,7 @@ contains
       ! link to CLM/ALM structures
       call this%fates2hlm_inst%ed_clm_link( bounds_clump,                  &
             this%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg),     &
-            this%phen_inst,                                      &
+            this%phen_inst,                                                &
             waterstate_inst,                                               &
             canopystate_inst)
 
