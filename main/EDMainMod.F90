@@ -5,7 +5,7 @@ module EDMainMod
   ! ============================================================================
 
   use shr_kind_mod         , only : r8 => shr_kind_r8
-  use spmdMod              , only : masterproc
+  
   use decompMod            , only : bounds_type
   use clm_varctl           , only : iulog
   use atm2lndType          , only : atm2lnd_type
@@ -16,7 +16,7 @@ module EDMainMod
   use EDPatchDynamicsMod   , only : disturbance_rates, fuse_patches, spawn_patches, terminate_patches
   use EDPhysiologyMod      , only : canopy_derivs, non_canopy_derivs, phenology, recruitment, trim_canopy
   use SFMainMod            , only : fire_model
-  use EDtypesMod           , only : ncwd, n_sub, numpft_ed, udata
+  use EDtypesMod           , only : ncwd, numpft_ed, udata
   use EDtypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDPhenologyType      , only : ed_phenology_type
   use EDCLMLinkMod         , only : ed_clm_type
@@ -26,11 +26,11 @@ module EDMainMod
 
   !
   ! !PUBLIC MEMBER FUNCTIONS:
-  public  :: ed_driver
+  public  :: ed_ecosystem_dynamics
   public  :: ed_update_site
   !
   ! !PRIVATE MEMBER FUNCTIONS:
-  private :: ed_ecosystem_dynamics
+  
   private :: ed_integrate_state_variables
   private :: ed_total_balance_check
   
@@ -41,83 +41,6 @@ module EDMainMod
 
 contains
 
-  !-----------------------------------------------------------------------
-  subroutine ed_driver( bounds, ed_allsites_inst, ed_clm_inst, ed_phenology_inst, &
-       atm2lnd_inst, soilstate_inst, temperature_inst, waterstate_inst, canopystate_inst)
-    !
-    ! !DESCRIPTION:
-    ! Main ed model routine containing gridcell loop   
-    !
-    ! !USES:
-    use clm_time_manager     , only : get_days_per_year, get_curr_date
-    use clm_time_manager     , only : get_ref_date, timemgr_datediff 
-    use CanopySTateType      , only : canopystate_type
-    !
-    ! !ARGUMENTS:
-    type(bounds_type)       , intent(in)            :: bounds           
-    type(ed_site_type)      , intent(inout), target :: ed_allsites_inst( bounds%begg: )
-    type(ed_clm_type)       , intent(inout)         :: ed_clm_inst
-    type(ed_phenology_type) , intent(inout)         :: ed_phenology_inst
-    type(atm2lnd_type)      , intent(in)            :: atm2lnd_inst
-    type(soilstate_type)    , intent(in)            :: soilstate_inst
-    type(temperature_type)  , intent(in)            :: temperature_inst
-    type(waterstate_type)   , intent(inout)         :: waterstate_inst
-    type(canopystate_type)  , intent(inout)         :: canopystate_inst
-    !
-    ! !LOCAL VARIABLES:
-    type(ed_site_type), pointer :: currentSite
-    real(r8) :: dayDiff                  ! day of run
-    integer  :: dayDiffInt               ! integer of day of run
-    integer  :: g                        ! gridcell  
-    integer  :: yr                       ! year (0, ...)
-    integer  :: mon                      ! month (1, ..., 12)
-    integer  :: day                      ! day of month (1, ..., 31)
-    integer  :: sec                      ! seconds of the day
-    integer  :: ncdate                   ! current date
-    integer  :: nbdate                   ! base date (reference date)
-    !-----------------------------------------------------------------------
-
-    call ed_clm_inst%SetValues( bounds, 0._r8 )
-
-    ! timing statements. 
-    n_sub = get_days_per_year()
-    udata%deltat = 1.0_r8/n_sub !for working out age of patches in years        
-    if(udata%time_period == 0)then             
-       udata%time_period = n_sub
-    endif
-    
-    call get_curr_date(yr, mon, day, sec)
-    ncdate = yr*10000 + mon*100 + day
-    call get_ref_date(yr, mon, day, sec)
-    nbdate = yr*10000 + mon*100 + day
-
-    call timemgr_datediff(nbdate, 0, ncdate, sec, dayDiff)
-
-    dayDiffInt = floor(dayDiff)
-    udata%time_period = mod( dayDiffInt , n_sub )
-
-    ! where most things happen
-    do g = bounds%begg,bounds%endg
-       if (ed_allsites_inst(g)%istheresoil) then
-          currentSite => ed_allsites_inst(g)
-          call ed_ecosystem_dynamics(currentSite, &
-               ed_clm_inst, ed_phenology_inst, atm2lnd_inst, &
-               soilstate_inst, temperature_inst, waterstate_inst)
-
-          call ed_update_site( ed_allsites_inst(g))
-       endif
-    enddo
-
-    ! link to CLM structures
-    call ed_clm_inst%ed_clm_link( bounds, ed_allsites_inst(bounds%begg:bounds%endg),  &
-         ed_phenology_inst, waterstate_inst, canopystate_inst)
-
-    if (masterproc) then
-      write(iulog, *) 'clm: leaving ED model', bounds%begg, bounds%endg, dayDiffInt
-    end if
-
-  end subroutine ed_driver
-
   !-------------------------------------------------------------------------------!
   subroutine ed_ecosystem_dynamics(currentSite, &
        ed_clm_inst, ed_phenology_inst, atm2lnd_inst, &
@@ -127,7 +50,7 @@ contains
     !  Core of ed model, calling all subsequent vegetation dynamics routines         
     !
     ! !ARGUMENTS:
-    type(ed_site_type)      , intent(inout), pointer :: currentSite
+    type(ed_site_type)      , intent(inout), target  :: currentSite
     type(ed_phenology_type) , intent(in)             :: ed_phenology_inst
     type(ed_clm_type)       , intent(in)             :: ed_clm_inst
     type(atm2lnd_type)      , intent(in)             :: atm2lnd_inst
@@ -221,10 +144,10 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type)     , intent(in) :: currentSite
-    type(soilstate_type)   , intent(in) :: soilstate_inst
-    type(temperature_type) , intent(in) :: temperature_inst
-    type(waterstate_type)  , intent(in) :: waterstate_inst
+    type(ed_site_type)     , intent(in)    :: currentSite
+    type(soilstate_type)   , intent(in)    :: soilstate_inst
+    type(temperature_type) , intent(in)    :: temperature_inst
+    type(waterstate_type)  , intent(in)    :: waterstate_inst
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type)  , pointer :: currentPatch
@@ -418,7 +341,7 @@ contains
     enddo
 
     ! FIX(RF,032414). This needs to be monthly, not annual
-    if((udata%time_period == N_SUB-1))then 
+    if((udata%time_period == udata%n_sub-1))then 
        write(iulog,*) 'calling trim canopy' 
        call trim_canopy(currentSite)  
     endif
