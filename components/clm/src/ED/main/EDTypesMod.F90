@@ -14,7 +14,7 @@ module EDTypesMod
 
   ! MODEL PARAMETERS
   real(r8)            :: timestep_secs                     ! subdaily timestep in seconds (e.g. 1800 or 3600) 
-  integer             :: n_sub                             ! num of substeps in year 
+  
   real(r8), parameter :: AREA                 = 10000.0_r8 ! Notional area of simulated forest m2
   integer  doy
 
@@ -438,13 +438,15 @@ module EDTypesMod
   !************************************
 
   type userdata
-     integer  ::   cohort_number            ! Counts up the number of cohorts which have been made. 
+     integer  ::   cohort_number            ! Counts up the number of cohorts which have been made.
+     integer  ::   n_sub                    ! num of substeps in year 
      real(r8) ::   deltat                   ! fraction of year used for each timestep (1/N_SUB)
      integer  ::   time_period              ! Within year timestep (1:N_SUB) day of year
      integer  ::   restart_year             ! Which year of simulation are we starting in? 
   end type userdata
 
-  type(userdata), public, target :: udata
+
+  type(userdata), public, target :: udata   ! THIS WAS NOT THREADSAFE
   !-------------------------------------------------------------------------------------!
 
   public :: ed_hist_scpfmaps

@@ -18,7 +18,7 @@ module EDPhysiologyMod
   use EDCohortDynamicsMod , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDPhenologyType     , only : ed_phenology_type
   use EDTypesMod          , only : dg_sf, dinc_ed, external_recruitment
-  use EDTypesMod          , only : ncwd, nlevcan_ed, n_sub, numpft_ed, senes
+  use EDTypesMod          , only : ncwd, nlevcan_ed, numpft_ed, senes
   use EDTypesMod          , only : ed_site_type, ed_patch_type, ed_cohort_type
 
   implicit none
@@ -250,7 +250,7 @@ contains
     use EDTypesMod, only : udata
     !
     ! !ARGUMENTS:
-    type(ed_site_type)      , intent(inout), pointer:: currentSite
+    type(ed_site_type)      , intent(inout), target :: currentSite
     type(ed_phenology_type) , intent(in)            :: ed_phenology_inst
     type(temperature_type)  , intent(in)            :: temperature_inst
     type(waterstate_type)   , intent(in)            :: waterstate_inst
@@ -504,7 +504,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type), intent(inout), pointer:: currentSite
+    type(ed_site_type), intent(inout), target :: currentSite
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type) , pointer :: currentPatch     
@@ -771,9 +771,9 @@ contains
     ! NPP 
     if ( DEBUG ) write(iulog,*) 'EDphys 716 ',currentCohort%npp_acc
 
-    currentCohort%npp  = currentCohort%npp_acc  * N_SUB   !Link to CLM. convert from kgC/indiv/day into kgC/indiv/year
-    currentCohort%gpp  = currentCohort%gpp_acc  * N_SUB   !Link to CLM. convert from kgC/indiv/day into kgC/indiv/year
-    currentCohort%resp = currentCohort%resp_acc * N_SUB   !Link to CLM. convert from kgC/indiv/day into kgC/indiv/year
+    currentCohort%npp  = currentCohort%npp_acc  * udata%n_sub   !Link to CLM. convert from kgC/indiv/day into kgC/indiv/year
+    currentCohort%gpp  = currentCohort%gpp_acc  * udata%n_sub   !Link to CLM. convert from kgC/indiv/day into kgC/indiv/year
+    currentCohort%resp = currentCohort%resp_acc * udata%n_sub   !Link to CLM. convert from kgC/indiv/day into kgC/indiv/year
 
     currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
 
