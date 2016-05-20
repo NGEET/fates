@@ -67,7 +67,7 @@ contains
     use clm_varpar,  only : nlevcan_ed
     use EDParamsMod, only : ED_val_comp_excln, ED_val_ag_biomass
     use SFParamsMod, only : SF_val_cwd_frac
-    use EDtypesMod , only : ncwd
+    use EDtypesMod , only : ncwd, min_patch_area
     !
     ! !ARGUMENTS    
     type(ed_site_type) , intent(inout), target   :: currentSite
@@ -99,12 +99,15 @@ contains
 
     new_total_area_check = 0._r8
     do while (associated(currentPatch)) ! Patch loop    
+
+       if (currentPatch%area .gt. min_patch_area) then  ! avoid numerical weirdness that shouldn't be happening anyway
+
        excess_area = 1.0_r8   
         
        ! Does any layer have excess area in it? Keep going until it does not...
        
        do while(excess_area > 0.000001_r8)
-          
+
           ! Calculate the area currently in each canopy layer. 
           z = 1 
           arealayer = 0.0_r8
@@ -554,6 +557,11 @@ contains
        if(promswitch == 1)then 
          ! write(iulog,*) 'end patch loop',currentSite%clmgcell
        endif
+
+       else !terminate  logic to only do if patch_area_sufficiently large
+          write(iulog,*) 'canopy_structure: patch area too small.', currentPatch%area
+       end if 
+       
 
        currentPatch => currentPatch%younger
     enddo !patch  
