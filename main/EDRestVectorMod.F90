@@ -634,7 +634,6 @@ contains
     ! !USES:
     use clm_time_manager , only : get_nstep
     use EDCLMLinkMod     , only : ed_clm_type
-    use EDInitMod        , only : ed_init_sites
     use EDMainMod        , only : ed_update_site
     !
     ! !ARGUMENTS:
@@ -661,9 +660,6 @@ contains
           call ed_update_site( ed_allsites_inst(g) )
        end if
     end do
-
-!    call ed_clm_inst%ed_clm_link( bounds, ed_allsites_inst(bounds%begg:bounds%endg), &
-!         ed_phenology_inst, waterstate_inst, canopystate_inst)
 
     if (this%DEBUG) then
        call this%printIoInfoLL ( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
