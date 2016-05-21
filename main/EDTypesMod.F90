@@ -412,9 +412,9 @@ module EDTypesMod
      real(r8) ::  disturbance_rate                             ! site total dist rate
 
      ! PHENOLOGY 
+     real(r8) ::  ED_GDD_site                                  ! ED Phenology growing degree days.
      integer  ::  status                                       ! are leaves in this pixel on or off for cold decid
      integer  ::  dstatus                                      ! are leaves in this pixel on or off for drought decid
-     real(r8) ::  gdd                                          ! growing degree days: deg C. 
      real(r8) ::  ncd                                          ! no chilling days:-
      real(r8) ::  last_n_days(senes)                           ! record of last 10 days temperature for senescence model. deg C
      integer  ::  leafondate                                   ! doy of leaf on:-
