@@ -27,7 +27,6 @@ module EDPhysiologyMod
   public :: non_canopy_derivs
   public :: trim_canopy
   public :: phenology_gdd_increment
-  public :: phenology
   public :: phenology_leafonoff
   public :: Growth_Derivatives
   public :: recruitment
@@ -351,6 +350,12 @@ contains
           ncolddays = ncolddays + 1
        endif
     enddo
+
+    ! Here is where we do the GDD accumulation calculation
+
+    ! first accumulate the GDD
+
+    ! if date corresponds to year crossing date, (Jan 1 in NH, July 1 in SH), reset GDD to zero
 
     timesinceleafoff = modelday - currentSite%leafoffdate
     !LEAF ON: COLD DECIDUOUS. Needs to

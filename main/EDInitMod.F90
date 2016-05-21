@@ -15,7 +15,6 @@ module EDInitMod
   use WaterStateType            , only : waterstate_type
   use GridcellType              , only : grc
   use pftconMod                 , only : pftcon
-  use EDPhenologyType           , only : ed_phenology_type
   use EDEcophysConType          , only : EDecophyscon
   use EDGrowthFunctionsMod      , only : bdead, bleaf, dbh
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
