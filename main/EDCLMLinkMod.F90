@@ -1286,8 +1286,6 @@ contains
          ED_balive            => this%ED_balive_patch            , & ! InOut:
          ED_bstore            => this%ED_bstore_patch            , & ! InOut:
          
-         phen_cd_status       => ed_phenology_inst%phen_cd_status_patch , & ! InOut:
-         
          ed_gpp_scpf          => this%ed_gpp_gd_scpf             , &
          ed_npp_totl_scpf     => this%ed_npp_totl_gd_scpf        , &
          ed_npp_leaf_scpf     => this%ed_npp_leaf_gd_scpf        , &
@@ -1354,7 +1352,6 @@ contains
       ED_bleaf(:)             = 0.0_r8
       ED_bstore(:)            = 0.0_r8
       ED_balive(:)            = 0.0_r8
-      phen_cd_status(:)       = 2
 
       ed_gpp_scpf(:,:)      = 0.0_r8
       ed_npp_totl_scpf(:,:) = 0.0_r8
@@ -1423,8 +1420,6 @@ contains
             esai(firstsoilpatch(g))                 = 0.0_r8
             ED_bleaf(firstsoilpatch(g))             = 0.0_r8
             sum_fuel(firstsoilpatch(g))             = 0.0_r8
-            !this should probably be site level. 
-            phen_cd_status(firstsoilpatch(g))       = ed_allsites_inst(g)%status
 
             c = ed_allsites_inst(g)%clmcolumn
 
@@ -1562,7 +1557,6 @@ contains
                   canopy_spread(p)        = currentPatch%spread(1) 
                   area_plant(p)           = 1._r8
                   area_trees(p)           = currentPatch%total_tree_area   / min(currentPatch%total_canopy_area,currentPatch%area)
-                  phen_cd_status(p)       = ed_allsites_inst(g)%status
                   if(associated(currentPatch%tallest))then
                      trimming(p)          = currentPatch%tallest%canopy_trim                
                   else

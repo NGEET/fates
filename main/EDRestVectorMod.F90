@@ -1762,7 +1762,6 @@ contains
        ed_allsites_inst(g)%istheresoil = .true. ! if we are dealing with ED data there will always be soil
        ed_allsites_inst(g)%lat = grc%latdeg(g)
        ed_allsites_inst(g)%lon = grc%londeg(g)
-       ed_allsites_inst(g)%gdd = 0.0_r8
        ed_allsites_inst(g)%ncd = 0.0_r8
 
        ! then this site has soil and should be set here

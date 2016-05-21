@@ -16,7 +16,6 @@ module EDPhysiologyMod
   use EDEcophysContype    , only : EDecophyscon
   use EDCohortDynamicsMod , only : allocate_live_biomass, zero_cohort
   use EDCohortDynamicsMod , only : create_cohort, fuse_cohorts, sort_cohorts
-  use EDPhenologyType     , only : ed_phenology_type
   use EDTypesMod          , only : dg_sf, dinc_ed, external_recruitment
   use EDTypesMod          , only : ncwd, nlevcan_ed, numpft_ed, senes
   use EDTypesMod          , only : ed_site_type, ed_patch_type, ed_cohort_type
@@ -27,6 +26,7 @@ module EDPhysiologyMod
   public :: canopy_derivs
   public :: non_canopy_derivs
   public :: trim_canopy
+  public :: phenology_gdd_increment
   public :: phenology
   public :: phenology_leafonoff
   public :: Growth_Derivatives
@@ -238,7 +238,7 @@ contains
   end subroutine trim_canopy
 
   ! ============================================================================
-  subroutine phenology( currentSite, ed_phenology_inst, temperature_inst, waterstate_inst)
+  subroutine phenology( currentSite, temperature_inst, waterstate_inst)
     !
     ! !DESCRIPTION:
     ! Phenology. 
@@ -251,13 +251,12 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type)      , intent(inout), target :: currentSite
-    type(ed_phenology_type) , intent(in)            :: ed_phenology_inst
     type(temperature_type)  , intent(in)            :: temperature_inst
     type(waterstate_type)   , intent(in)            :: waterstate_inst
     !
     ! !LOCAL VARIABLES:
     real(r8), pointer :: t_veg24(:) 
-    real(r8), pointer :: ED_GDD_patch(:)     
+    real(r8), pointer :: ED_GDD_site(:)     
     integer  :: g            ! grid point  
     integer  :: t            ! day of year
     integer  :: ncolddays    ! no days underneath the threshold for leaf drop
@@ -286,7 +285,7 @@ contains
     !------------------------------------------------------------------------
 
     t_veg24       => temperature_inst%t_veg24_patch ! Input:  [real(r8) (:)]  avg pft vegetation temperature for last 24 hrs    
-    ED_GDD_patch  => ed_phenology_inst%ED_GDD_patch ! Input:  [real(r8) (:)]  growing deg. days base 0 deg C (ddays)
+    ED_GDD_site  => currentSite%ED_GDD_site ! Input:  [real(r8) (:)]  growing deg. days base 0 deg C (ddays)
 
 
     g = currentSite%clmgcell
@@ -358,7 +357,7 @@ contains
     !1) have exceeded the growing degree day threshold 
     !2) The leaves should not be on already
     !3) There should have been at least on chilling day in the counting period.  
-    if (ED_GDD_patch(currentSite%oldest_patch%clm_pno) > gdd_threshold)then
+    if (ED_GDD_site(currentSite) > gdd_threshold)then
        if (currentSite%status == 1) then
           if (currentSite%ncd >= 1) then
              currentSite%status = 2     !alter status of site to 'leaves on'
