@@ -14,7 +14,6 @@ module EDRestVectorMod
   use EDTypesMod      , only : area, cohorts_per_gcell, numpft_ed, numWaterMem, nclmax, numCohortsPerPatch
   use EDTypesMod      , only : ncwd, invalidValue, nlevcan_ed
   use EDTypesMod      , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDPhenologyType , only : ed_phenology_type
   !
   implicit none
   private

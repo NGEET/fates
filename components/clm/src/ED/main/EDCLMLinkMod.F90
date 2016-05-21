@@ -949,14 +949,13 @@ contains
   end subroutine SetValues
 
   !-----------------------------------------------------------------------
-  subroutine ed_clm_link( this, bounds, ed_allsites_inst, ed_phenology_inst, &
+  subroutine ed_clm_link( this, bounds, ed_allsites_inst, &
        waterstate_inst, canopystate_inst)
     !
     ! !USES: 
     use landunit_varcon      , only : istsoil
     use EDGrowthFunctionsMod , only : tree_lai, c_area
     use EDEcophysConType     , only : EDecophyscon
-    use EDPhenologyType      , only : ed_phenology_type
     use EDtypesMod           , only : area
     use PatchType            , only : clmpatch => patch
     use ColumnType           , only : col
@@ -969,7 +968,6 @@ contains
     class(ed_clm_type)                              :: this
     type(bounds_type)       , intent(in)            :: bounds  
     type(ed_site_type)      , intent(inout), target :: ed_allsites_inst( bounds%begg: )
-    type(ed_phenology_type) , intent(inout)         :: ed_phenology_inst
     type(waterstate_type)   , intent(inout)         :: waterstate_inst
     type(canopystate_type)  , intent(inout)         :: canopystate_inst
     !
@@ -1216,7 +1214,7 @@ contains
            canopystate_inst)
 
       call this%ed_update_history_variables(bounds, ed_allsites_inst(begg:endg), &
-           firstsoilpatch, ed_Phenology_inst, canopystate_inst)
+           firstsoilpatch, canopystate_inst)
 
     end associate
 
@@ -1224,10 +1222,9 @@ contains
 
   !-----------------------------------------------------------------------
   subroutine ed_update_history_variables( this, bounds, ed_allsites_inst, &
-       firstsoilpatch, ed_Phenology_inst, canopystate_inst)
+       firstsoilpatch, canopystate_inst)
     !
     ! !USES: 
-    use EDPhenologyType  , only : ed_phenology_type
     use CanopyStateType  , only : canopystate_type
     use PatchType        , only : clmpatch => patch
     use pftconMod        , only : pftcon
@@ -1238,7 +1235,6 @@ contains
     type(ed_site_type)      , intent(inout), target :: ed_allsites_inst( bounds%begg: )
     type(ed_patch_type)     , pointer               :: currentPatch
     type(ed_cohort_type)    , pointer               :: currentCohort
-    type(ed_phenology_type) , intent(inout)         :: ed_phenology_inst
     type(canopystate_type)  , intent(inout)         :: canopystate_inst
     !
     ! !LOCAL VARIABLES:
