@@ -40,6 +40,7 @@ module CLMFatesInterfaceMod
    use TemperatureType   , only : temperature_type
    use SoilStateType     , only : soilstate_type
    use clm_varctl        , only : iulog
+   use clm_varpar        , only : numpft
    use atm2lndType       , only : atm2lnd_type
    use SurfaceAlbedoType , only : surfalb_type
    use SolarAbsorbedType , only : solarabs_type
@@ -48,6 +49,7 @@ module CLMFatesInterfaceMod
    use clm_time_manager  , only : get_days_per_year, get_curr_date
    use clm_time_manager  , only : get_ref_date, timemgr_datediff 
    use spmdMod           , only : masterproc
+   use decompMod         , only : get_proc_bounds, get_proc_clumps, get_clump_bounds
 
    ! Used FATES Modules
    use FatesInterfaceMod     , only : fates_interface_type
@@ -56,7 +58,8 @@ module CLMFatesInterfaceMod
    use EDTypesMod            , only : udata
    use EDMainMod             , only : ed_ecosystem_dynamics
    use EDMainMod             , only : ed_update_site
-
+   use EDPftVarcon           , only : EDpftvarcon_inst
+   use EDEcophysConType      , only : EDecophysconInit
    implicit none
 
    type, public :: hlm_fates_interface_type
@@ -71,11 +74,11 @@ module CLMFatesInterfaceMod
 
       type(fates_interface_type), allocatable :: fates (:)
       
-      ! fates2hlm_inst (previously called "clm_ed_inst") contains types and variables
+      ! fates2hlm (previously called "clm_ed_inst") contains types and variables
       ! that are passed back to the driving land model, ie fates-to-hlm.  
       ! usefull to a calling model.  In this case HLM means "Hosting Land Model"
       ! prev:  type(ed_clm_type)::ed_clm_inst
-      type(ed_clm_type) :: fates2hlm_inst   
+      type(ed_clm_type) :: fates2hlm  
 
       
       ! These are phenology relevant variables (strange how phenology gets
@@ -105,7 +108,7 @@ module CLMFatesInterfaceMod
 
 contains
    
-   subroutine init(this,bounds_proc)
+   subroutine init(this,bounds_proc, use_ed)
       
       ! ---------------------------------------------------------------------------------
       ! This initializes the dlm_fates_interface_type 
@@ -128,24 +131,48 @@ contains
       ! Input Arguments
       class(hlm_fates_interface_type), intent(inout) :: this
       type(bounds_type),intent(in)                   :: bounds_proc
-      
-      
-      ! Initialize the FATES communicators with the HLM
-      ! This involves to stages
-      ! 1) allocate the vectors hlm_inst
-      ! 2) add the history variables defined in clm_inst to the history machinery
-      call this%fates2hlm_inst%Init(bounds_proc)
-      
-      ! Initialize ED phenology variables
-      ! This also involves two stages
-      ! 1) allocate the vectors in phen_inst
-      ! 2) add the phenology history variables to the history machinery
-      call this%phen_inst%Init(bounds_proc)
-      
-      ! ---------------------------------------------------------------------------------
-      ! Initialization of the state-threads is handled by the calling subroutine
-      ! clm_instInit
-      ! ---------------------------------------------------------------------------------
+      logical,intent(in)                             :: use_ed   ! NEEDS TO BE PASSED (FOR NOW)
+                                                                 ! BC THE FATES SITE VECTORS
+                                                                 ! NEED TO BE GENERATED
+                                                                 ! FOR NON-ED AS WELL.  SO
+                                                                 ! ONLY PART OF THIS MAY BE OPERATIVE
+      ! local variables
+      integer                                        :: nclumps   ! Number of threads
+      integer                                        :: nc        ! thread index
+      type(bounds_type)                              :: bounds_clump
+
+      if (use_ed) then
+         
+         ! Initialize the FATES communicators with the HLM
+         ! This involves to stages
+         ! 1) allocate the vectors
+         ! 2) add the history variables defined in clm_inst to the history machinery
+         call this%fates2hlm%Init(bounds_proc)
+         
+         ! Initialize ED phenology variables
+         ! This also involves two stages
+         ! 1) allocate the vectors in phen_inst
+         ! 2) add the phenology history variables to the history machinery
+         call this%phen_inst%Init(bounds_proc)
+         
+         
+         call EDecophysconInit( EDpftvarcon_inst, numpft )
+
+      end if
+         
+
+      nclumps = get_proc_clumps()
+      allocate(this%fates(nclumps))
+
+      do nc = 1,nclumps
+         call get_clump_bounds(nc, bounds_clump)
+         ! INTERF-TODO: BOUNDS CLUMP SHOULD NOT BE PASSED TO THE FATES PUBLIC
+         ! WILL REQUIRE MAPPING PRIOR TO THIS STEP AND EITHER A FATES-BOUNDS 
+         ! OR NATIVE TYPE SHOULD BE PASSED, ALL THAT HAPPENS IN THIS CALL IS ALLOCATION
+         ! OF SITES()
+         call this%fates(nc)%init(bounds_clump)
+      end do
+
       
    end subroutine init
    
@@ -163,7 +190,7 @@ contains
       type(canopystate_type)  , intent(inout)        :: canopystate_inst
       integer, intent(in)                            :: nc
       
-      call this%fates2hlm_inst%ed_clm_link( bounds_clump,                  &
+      call this%fates2hlm%ed_clm_link( bounds_clump,                  &
             this%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg), &
             this%phen_inst,                                                &
             waterstate_inst,                                               &
@@ -219,7 +246,7 @@ contains
       ! ---------------------------------------------------------------------------------
       
 
-      call this%fates2hlm_inst%SetValues( bounds_clump, 0._r8 )
+      call this%fates2hlm%SetValues( bounds_clump, 0._r8 )
 
       ! timing statements. 
       udata%n_sub = get_days_per_year()
@@ -246,9 +273,9 @@ contains
       ! where most things happen
       do g = bounds_clump%begg,bounds_clump%endg
          if (this%fates(nc)%sites(g)%istheresoil) then
-            call ed_ecosystem_dynamics(this%fates(nc)%sites(g), &
-                  this%fates2hlm_inst,  &
-                  this%phen_inst, atm2lnd_inst, &
+            call ed_ecosystem_dynamics(this%fates(nc)%sites(g),    &
+                  this%fates2hlm,                                  &
+                  this%phen_inst, atm2lnd_inst,                    &
                   soilstate_inst, temperature_inst, waterstate_inst)
             
             call ed_update_site(this%fates(nc)%sites(g))
@@ -256,7 +283,7 @@ contains
       enddo
 
       ! link to CLM/ALM structures
-      call this%fates2hlm_inst%ed_clm_link( bounds_clump,                  &
+      call this%fates2hlm%ed_clm_link( bounds_clump,                  &
             this%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg),     &
             this%phen_inst,                                                &
             waterstate_inst,                                               &
@@ -274,7 +301,7 @@ contains
    
    ! ------------------------------------------------------------------------------------
    !  THESE WRAPPERS MAY COME IN HANDY, KEEPING FOR NOW
-   !  subroutine set_fates2hlm_inst(this,bounds_clump, setval_scalar) 
+   !  subroutine set_fates2hlm(this,bounds_clump, setval_scalar) 
    !
    !    ! This is a simple wrapper to flush some FATES -> CLM communicators
    !
@@ -283,8 +310,8 @@ contains
    !    type(bounds_type),intent(in)                :: bounds_clump
    !    real(r8),intent(in) :: setval_scalar      ! This value will flush all 
    !    
-   !    call this%fates2hlm_inst%SetValues( bounds_clump, setval_scalar )
-   !  end subroutine set_fates2hlm_inst
+   !    call this%fates2hlm%SetValues( bounds_clump, setval_scalar )
+   !  end subroutine set_fates2hlm
    ! ------------------------------------------------------------------------------------
    !  subroutine phen_accvars_init(this,bounds_clump)
    !
