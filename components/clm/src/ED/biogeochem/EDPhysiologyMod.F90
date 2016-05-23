@@ -255,7 +255,6 @@ contains
     !
     ! !LOCAL VARIABLES:
     real(r8), pointer :: t_veg24(:) 
-    real(r8), pointer :: ED_GDD_site(:)     
     integer  :: g            ! grid point  
     integer  :: t            ! day of year
     integer  :: ncolddays    ! no days underneath the threshold for leaf drop
@@ -361,7 +360,7 @@ contains
     !
     ! accumulate the GDD using daily mean temperatures
     if (t_veg24(currentSite%oldest_patch%clm_pno-1) .gt. tfrz) then
-       currentSite%ED_GDD_site = ED_currentSite%ED_GDD_site + t_veg24(currentSite%oldest_patch%clm_pno-1) - tfrz
+       currentSite%ED_GDD_site = currentSite%ED_GDD_site + t_veg24(currentSite%oldest_patch%clm_pno-1) - tfrz
     endif
     
 
@@ -370,7 +369,7 @@ contains
     !1) have exceeded the growing degree day threshold 
     !2) The leaves should not be on already
     !3) There should have been at least on chilling day in the counting period.  
-    if (ED_currentSite%ED_GDD_site > gdd_threshold)then
+    if (currentSite%ED_GDD_site > gdd_threshold)then
        if (currentSite%status == 1) then
           if (currentSite%ncd >= 1) then
              currentSite%status = 2     !alter status of site to 'leaves on'
