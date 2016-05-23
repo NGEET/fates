@@ -26,7 +26,7 @@ module EDPhysiologyMod
   public :: canopy_derivs
   public :: non_canopy_derivs
   public :: trim_canopy
-  public :: phenology_gdd_increment
+  public :: phenology
   public :: phenology_leafonoff
   public :: Growth_Derivatives
   public :: recruitment
@@ -274,7 +274,8 @@ contains
     real(r8) :: a,b,c        ! params of leaf-pn model from botta et al. 2000. 
     real(r8) :: cold_t       ! threshold below which cold days are counted 
     real(r8) :: coldday      ! definition of a 'chilling day' for botta model 
-    real(r8) :: ncdstart     ! beginning of counting period for growing degree days.
+    integer  :: ncdstart     ! beginning of counting period for chilling degree days.
+    integer  :: gddstart     ! beginning of counting period for growing degree days.
     real(r8) :: drought_threshold
     real(r8) :: off_time     ! minimum number of days between leaf off and leaf on for drought phenology 
     real(r8) :: temp_in_C    ! daily averaged temperature in celcius
@@ -284,8 +285,6 @@ contains
     !------------------------------------------------------------------------
 
     t_veg24       => temperature_inst%t_veg24_patch ! Input:  [real(r8) (:)]  avg pft vegetation temperature for last 24 hrs    
-    ED_GDD_site  => currentSite%ED_GDD_site ! Input:  [real(r8) (:)]  growing deg. days base 0 deg C (ddays)
-
 
     g = currentSite%clmgcell
 
@@ -323,9 +322,11 @@ contains
 
     !Zero growing degree and chilling day counters
     if (currentSite%lat > 0)then
-       ncdstart = 270._r8; !Northern Hemisphere begining November
+       ncdstart = 270  !Northern Hemisphere begining November
+       gddstart = 1    !Northern Hemisphere begining January
     else
-       ncdstart = 120._r8;  !Southern Hemisphere beginning May
+       ncdstart = 120  !Southern Hemisphere beginning May
+       gddstart = 181  !Northern Hemisphere begining July
     endif
     
     ! FIX(SPM,032414) - this will only work for the first year, no?
@@ -352,17 +353,24 @@ contains
     enddo
 
     ! Here is where we do the GDD accumulation calculation
-
-    ! first accumulate the GDD
-
-    ! if date corresponds to year crossing date, (Jan 1 in NH, July 1 in SH), reset GDD to zero
+    !
+    ! reset GDD on set dates
+    if (t == gddstart)then
+       currentSite%ED_GDD_site = 0._r8
+    endif
+    !
+    ! accumulate the GDD using daily mean temperatures
+    if (t_veg24(currentSite%oldest_patch%clm_pno-1) .gt. tfrz) then
+       currentSite%ED_GDD_site = ED_currentSite%ED_GDD_site + t_veg24(currentSite%oldest_patch%clm_pno-1) - tfrz
+    endif
+    
 
     timesinceleafoff = modelday - currentSite%leafoffdate
     !LEAF ON: COLD DECIDUOUS. Needs to
     !1) have exceeded the growing degree day threshold 
     !2) The leaves should not be on already
     !3) There should have been at least on chilling day in the counting period.  
-    if (ED_GDD_site(currentSite) > gdd_threshold)then
+    if (ED_currentSite%ED_GDD_site > gdd_threshold)then
        if (currentSite%status == 1) then
           if (currentSite%ncd >= 1) then
              currentSite%status = 2     !alter status of site to 'leaves on'
