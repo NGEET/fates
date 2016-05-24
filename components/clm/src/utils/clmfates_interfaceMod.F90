@@ -50,6 +50,9 @@ module CLMFatesInterfaceMod
    use clm_time_manager  , only : get_ref_date, timemgr_datediff 
    use spmdMod           , only : masterproc
    use decompMod         , only : get_proc_bounds, get_proc_clumps, get_clump_bounds
+   use ColumnType        , only : col
+   use LandunitType      , only : lun
+   use landunit_varcon   , only : istsoil
 
    ! Used FATES Modules
    use FatesInterfaceMod     , only : fates_interface_type
@@ -61,6 +64,18 @@ module CLMFatesInterfaceMod
    use EDPftVarcon           , only : EDpftvarcon_inst
    use EDEcophysConType      , only : EDecophysconInit
    implicit none
+
+   type, private :: f2hmap_type
+
+      ! This is the associated column index of each FATES site
+      integer, allocatable :: fcolumn (:) 
+
+      ! This is the associated site index of any HLM columns
+      ! This vector may be sparse, and non-sites have index 0
+      integer, allocatable :: hsites  (:)
+
+   end type f2hmap_type
+   
 
    type, public :: hlm_fates_interface_type
       
@@ -74,10 +89,18 @@ module CLMFatesInterfaceMod
 
       type(fates_interface_type), allocatable :: fates (:)
       
+
+      ! This memory structure is used to map fates sites
+      ! into the host model.  Currently, the FATES site
+      ! and its column number matching are its only members
+
+      type(f2hmap_type), allocatable  :: f2hmap(:)
+
       ! fates2hlm (previously called "clm_ed_inst") contains types and variables
       ! that are passed back to the driving land model, ie fates-to-hlm.  
       ! usefull to a calling model.  In this case HLM means "Hosting Land Model"
       ! prev:  type(ed_clm_type)::ed_clm_inst
+
       type(ed_clm_type) :: fates2hlm  
 
       
@@ -139,6 +162,9 @@ contains
       ! local variables
       integer                                        :: nclumps   ! Number of threads
       integer                                        :: nc        ! thread index
+      integer                                        :: s         ! FATES site index
+      integer                                        :: c         ! HLM column index
+      integer, allocatable                           :: collist (:)
       type(bounds_type)                              :: bounds_clump
 
       if (use_ed) then
@@ -163,14 +189,50 @@ contains
 
       nclumps = get_proc_clumps()
       allocate(this%fates(nclumps))
+      allocate(this%f2hmap(nclumps))
 
       do nc = 1,nclumps
+         
          call get_clump_bounds(nc, bounds_clump)
-         ! INTERF-TODO: BOUNDS CLUMP SHOULD NOT BE PASSED TO THE FATES PUBLIC
-         ! WILL REQUIRE MAPPING PRIOR TO THIS STEP AND EITHER A FATES-BOUNDS 
-         ! OR NATIVE TYPE SHOULD BE PASSED, ALL THAT HAPPENS IN THIS CALL IS ALLOCATION
-         ! OF SITES()
-         call this%fates(nc)%init(bounds_clump)
+         nmaxcol = bounds_clump%endc - bounds_clump%begc + 1
+         allocate(collist(1:nmaxcol))
+         
+         ! Allocate the mapping that points columns to FATES sites, 0 is NA
+         allocate(self%f2hmap(nc)%hsites(bounds_clump%begc:bounds_clump%endc))
+
+         ! Initialize all columns with a zero index, which indicates no FATES site
+         self%f2hmap(nc)%hsites(:) = 0
+
+         s = 0
+         do c = bounds_clump%begc,bounds_clump%endc
+            l = col%landunit(c)
+               
+            ! These are the key constraints that determine if this column
+            ! will have a FATES site associated with it
+            if (col%active(c) .and. lun%itype(l) == istsoil ) then 
+               s = s + 1
+               collist(s) = c
+               self%f2hmap(nc)%hsites(c) = s
+            endif
+            
+         enddo
+         
+         ! Allocate vectors that match FATES sites with HLM columns
+         allocate(self%f2hmap(nc)%fcolumn(s))
+
+         ! Assign the h2hmap indexing
+         self%f2hmap(nc)%column(1:s)         =  collist(1:s)
+         
+         ! Deallocate the temporary arrays
+         deallocate(collist)
+         
+         ! Set the number of FATES sites
+         this%fates(nc)%nsites = s
+
+         ! Allocate the FATES sites
+         allocate (this%fates(nc)%sites(s))
+
+!         call this%fates(nc)%init()
       end do
 
       
@@ -191,7 +253,7 @@ contains
       integer, intent(in)                            :: nc
       
       call this%fates2hlm%ed_clm_link( bounds_clump,                  &
-            this%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg), &
+            this%fates(nc)%sites, &
             this%phen_inst,                                                &
             waterstate_inst,                                               &
             canopystate_inst)
@@ -271,20 +333,21 @@ contains
 
 
       ! where most things happen
-      do g = bounds_clump%begg,bounds_clump%endg
-         if (this%fates(nc)%sites(g)%istheresoil) then
-            call ed_ecosystem_dynamics(this%fates(nc)%sites(g),    &
+      do s = 1,this%fates(nc)%nsites
+
+!         if (this%fates(nc)%sites(g)%istheresoil) then
+            call ed_ecosystem_dynamics(this%fates(nc)%sites(s),    &
                   this%fates2hlm,                                  &
                   this%phen_inst, atm2lnd_inst,                    &
                   soilstate_inst, temperature_inst, waterstate_inst)
             
-            call ed_update_site(this%fates(nc)%sites(g))
-         endif
+            call ed_update_site(this%fates(nc)%sites(s))
+!         endif
       enddo
 
       ! link to CLM/ALM structures
       call this%fates2hlm%ed_clm_link( bounds_clump,                  &
-            this%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg),     &
+            this%fates(nc)%sites,     &
             this%phen_inst,                                                &
             waterstate_inst,                                               &
             canopystate_inst)

@@ -33,6 +33,9 @@ module FatesInterfaceMod
       ! ie the root of the linked lists. Each path list is currently associated
       ! with a grid-cell, this is intended to be migrated to columns
       ! prev:  type(ed_site_type)::ed_allsites_inst
+
+      integer                         :: nsites
+
       type(ed_site_type), allocatable :: sites(:)
       
       ! INTERF-TODO ADD THE DLM->FATES BOUNDARY CONDITION CLASS
@@ -52,25 +55,24 @@ module FatesInterfaceMod
 
 contains
 
-   subroutine init(this,bounds_clump)
-
-      implicit none
-      
-      ! Input Arguments
-      class(fates_interface_type), intent(inout) :: this
-
-      ! INTERF-TODO:  AS THE FATES PUBLIC API- BOUNDS CLUMP WILL NOT BE ALLOWED
-      ! IN HERE FOR MUCH LONGER.
-      type(bounds_type),intent(in)            :: bounds_clump 
-      
-      
-      ! Initialize the mapping elements between FATES and the DLM
-      
-      ! These bounds are for a single clump (thread)
-      allocate (this%sites(bounds_clump%begg:bounds_clump%endg))
-      
-      return
-   end subroutine init
+!   subroutine init(this,bounds_clump)
+!
+!      implicit none
+!      
+!      ! Input Arguments
+!      class(fates_interface_type), intent(inout) :: this
+!
+!      ! INTERF-TODO:  AS THE FATES PUBLIC API- BOUNDS CLUMP WILL NOT BE ALLOWED
+!      ! IN HERE FOR MUCH LONGER.
+!      type(bounds_type),intent(in)            :: bounds_clump 
+!      
+!      ! Initialize the mapping elements between FATES and the DLM
+!      
+!      ! These bounds are for a single clump (thread)
+!      allocate (this%sites(this%nsites))
+!      
+!      return
+!   end subroutine init
    
    ! ------------------------------------------------------------------------------------
 
@@ -93,18 +95,45 @@ contains
 
    ! ------------------------------------------------------------------------------------
 
-   subroutine site_init(this,bounds_clump)
+   subroutine site_init(this,fcolumn,bounds_clump)
          
       ! Input Arguments
       class(fates_interface_type), intent(inout) :: this
       type(bounds_type),intent(in)               :: bounds_clump
       
       ! locals
+      integer :: s
+      integer :: c
       integer :: g
       
       ! Initialize  (INTERF-TODO THIS ROUTINE CALLS CLM STUFF-MIGRATE CODE TO HERE)
-      call ed_init_sites( bounds_clump,                                               &
-            this%sites(bounds_clump%begg:bounds_clump%endg) )
+!      call ed_init_sites( bounds_clump,                                               &
+!            this%sites(bounds_clump%begg:bounds_clump%endg) )
+
+      do s = 1:this%nsites
+
+         call zero_site(this%sites(s))
+         
+         c = fcolumn(s)
+         g = gridcell(c)
+
+         this%sites(s)%lat = grc%latdeg(g)  
+         this%sites(s)%lon = grc%londeg(g)
+
+      end do
+
+      do g = bounds%begg,bounds%endg
+       ! zero the site
+       call zero_site(ed_allsites_inst(g))
+
+       !create clm mapping to ED structure
+       ed_allsites_inst(g)%clmgcell = g 
+       ed_allsites_inst(g)%lat      = grc%latdeg(g)  
+       ed_allsites_inst(g)%lon      = grc%londeg(g)
+    enddo
+
+
+
       
       ! INTERF-TODO: WHEN WE MOVE TO COLUMNS, THIS WILL BE UNNECESSARY
       do g = bounds_clump%begg,bounds_clump%endg
