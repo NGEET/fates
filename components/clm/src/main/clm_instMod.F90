@@ -23,7 +23,6 @@ module clm_instMod
   use UrbanParamsType                    , only : IsSimpleBuildTemp, IsProgBuildTemp
   use SoilBiogeochemDecompCascadeConType , only : decomp_cascade_con
   use CNDVType                           , only : dgv_ecophyscon     ! Constants 
-  use EDEcophysConType                   , only : EDecophyscon       ! ED Constants
 
   !-----------------------------------------
   ! Definition of component types 
@@ -168,12 +167,11 @@ contains
     use SoilBiogeochemDecompCascadeBGCMod  , only : init_decompcascade_bgc
     use SoilBiogeochemDecompCascadeCNMod   , only : init_decompcascade_cn
     use SoilBiogeochemDecompCascadeContype , only : init_decomp_cascade_constants
-    use EDEcophysConType                   , only : EDecophysconInit 
-    use EDPftVarcon                        , only : EDpftvarcon_inst
+    
     use initVerticalMod                    , only : initVertical
     use accumulMod                         , only : print_accum_fields 
     use SoilWaterRetentionCurveFactoryMod  , only : create_soil_water_retention_curve
-    use decompMod                          , only : get_proc_bounds, get_proc_clumps, get_clump_bounds
+    use decompMod                          , only : get_proc_bounds
     !
     ! !ARGUMENTS    
     type(bounds_type), intent(in) :: bounds  ! processor bounds
@@ -429,27 +427,7 @@ contains
     ! NOTE (RGK, 04-25-2016) : Updating names, ED is now part of FATES
     !                          Incrementally changing to ED names to FATES
 
-    ! INTERF-TODO: we should not be allocating thread and sites when ed
-    ! is not on, but until canopyfluxes and surfaceabledo are teased apart, the
-    ! allocation needs to happen so that it can be passed as an argument (RGK)
-    
-    nclumps = get_proc_clumps()
-    allocate(clm_fates%fates(nclumps))
-    do nc = 1,nclumps
-       call get_clump_bounds(nc, bounds_clump)
-       ! INTERF-TODO: THIS CALL SHOULD NOT CALL FATES(NC) DIRECTLY
-       ! BUT IT SHOULD PASS bounds_clump TO A CLM_FATES WRAPPER
-       ! WHICH WILL IN TURN PASS A FATES API DEFINED BOUNDS TO FATES_INIT
-       call clm_fates%fates(nc)%fates_init(bounds_clump)
-    end do
-
-    if( use_ed )then
-       call clm_fates%Init(bounds)
-
-       ! INTERF-TODO: AT SOME POINT WE MAY HAVE FATES DOING ITS OWN PARAMETER
-       ! READS, AND THIS CALL WILL BE EMBEDDED IN THE FATES SIDE OF INTERFACE
-       call EDecophysconInit( EDpftvarcon_inst, numpft )
-    end if
+    call clm_fates%Init(bounds,use_ed)
     
 
     deallocate (h2osno_col)
@@ -613,7 +591,7 @@ contains
           end if
        end do
 
-       call clm_fates%fates2hlm_inst%restart(bounds, ncid, flag)
+       call clm_fates%fates2hlm%restart(bounds, ncid, flag)
 
     end if
 
