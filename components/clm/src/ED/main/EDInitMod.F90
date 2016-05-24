@@ -140,84 +140,82 @@ contains
   end subroutine zero_site
 
   ! ============================================================================
-  subroutine set_site_properties( bounds, ed_allsites_inst )
+  subroutine set_site_properties( sites, nsites)
     !
     ! !DESCRIPTION:
     !
     ! !USES:
     !
     ! !ARGUMENTS    
-    type(bounds_type)  , intent(in)            :: bounds  
-    type(ed_site_type) , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+
+    type(ed_site_type) , intent(inout), target :: sites
     !
     ! !LOCAL VARIABLES:
-    integer  :: i,g !beginning and end of these data clumps.
-    real(r8) :: leafon   (bounds%begg:bounds%endg)
-    real(r8) :: leafoff  (bounds%begg:bounds%endg)
-    real(r8) :: stat     (bounds%begg:bounds%endg)
-    real(r8) :: NCD      (bounds%begg:bounds%endg)
-    real(r8) :: GDD      (bounds%begg:bounds%endg)
-    real(r8) :: dstat    (bounds%begg:bounds%endg)
-    real(r8) :: acc_NI   (bounds%begg:bounds%endg)
-    real(r8) :: watermem (bounds%begg:bounds%endg)
-    integer  :: dleafoff (bounds%begg:bounds%endg)
-    integer  :: dleafon  (bounds%begg:bounds%endg)
+    integer  :: s
+    real(r8) :: leafon
+    real(r8) :: leafoff
+    real(r8) :: stat
+    real(r8) :: NCD
+    real(r8) :: GDD
+    real(r8) :: dstat
+    real(r8) :: acc_NI
+    real(r8) :: watermem
+    integer  :: dleafoff
+    integer  :: dleafon
     !----------------------------------------------------------------------
 
     if ( .not. is_restart() ) then
        !initial guess numbers for site condition.
-       do i = bounds%begg,bounds%endg
-          NCD(i)      = 0.0_r8
-          GDD(i)      = 30.0_r8
-          leafon(i)   = 100.0_r8
-          leafoff(i)  = 300.0_r8
-          stat(i)     = 2
-          acc_NI(i)   = 0.0_r8
-          dstat(i)    = 2
-          dleafoff(i) = 300
-          dleafon(i)  = 100
-          watermem(i) = 0.5_r8
+       NCD      = 0.0_r8
+       GDD      = 30.0_r8
+       leafon   = 100.0_r8
+       leafoff  = 300.0_r8
+       stat     = 2
+       acc_NI   = 0.0_r8
+       dstat    = 2
+       dleafoff = 300
+       dleafon  = 100
+       watermem = 0.5_r8
        enddo
     else ! assignements for restarts
-       do i = bounds%begg,bounds%endg
-          NCD(i)      = 1.0_r8 ! NCD should be 1 on restart
-          !GDD(i)     = 0.0_r8
-          leafon(i)   = 0.0_r8
-          leafoff(i)  = 0.0_r8
-          stat(i)     = 1
-          acc_NI(i)   = 0.0_r8
-          dstat(i)    = 2
-          dleafoff(i) = 300
-          dleafon(i)  = 100
-          watermem(i) = 0.5_r8
-       enddo
+       NCD      = 1.0_r8 ! NCD should be 1 on restart
+       !GDD(i)     = 0.0_r8
+       leafon   = 0.0_r8
+       leafoff  = 0.0_r8
+       stat     = 1
+       acc_NI   = 0.0_r8
+       dstat    = 2
+       dleafoff = 300
+       dleafon  = 100
+       watermem = 0.5_r8
     endif
 
-    do g = bounds%begg,bounds%endg
-       ed_allsites_inst(g)%gdd          = GDD(g)
-       ed_allsites_inst(g)%ncd          = NCD(g)
-       ed_allsites_inst(g)%leafondate   = leafon(g)
-       ed_allsites_inst(g)%leafoffdate  = leafoff(g)
-       ed_allsites_inst(g)%dleafoffdate = dleafoff(g)
-       ed_allsites_inst(g)%dleafondate  = dleafon(g)
+    do s = 1,nsites
+       sites(s)%gdd          = GDD
+       sites(s)%ncd          = NCD
+       sites(s)%leafondate   = leafon
+       sites(s)%leafoffdate  = leafoff
+       sites(s)%dleafoffdate = dleafoff
+       sites(s)%dleafondate  = dleafon
 
        if ( .not. is_restart() ) then
-          ed_allsites_inst(g)%water_memory(1:10) = watermem(g)
+          sites(s)%water_memory(1:10) = watermem
        end if
 
-       ed_allsites_inst(g)%status = stat(g)
+       sites(s)%status = stat
        !start off with leaves off to initialise
-       ed_allsites_inst(g)%dstatus= dstat(g)
+       sites(s)%dstatus= dstat
+       
+       sites(s)%acc_NI     = acc_NI(s)
+       sites(s)%frac_burnt = 0.0_r8
+       sites(s)%old_stock  = 0.0_r8
+    end do
 
-       ed_allsites_inst(g)%acc_NI     = acc_NI(g)
-       ed_allsites_inst(g)%frac_burnt = 0.0_r8
-       ed_allsites_inst(g)%old_stock  = 0.0_r8
-    enddo
-
+    return
   end subroutine set_site_properties
 
   ! ============================================================================
-  subroutine init_patches( bounds, ed_allsites_inst )
+  subroutine init_patches( sites, nsites)
     !
     ! !DESCRIPTION:
     !initialize patches on new ground
@@ -226,11 +224,10 @@ contains
     use EDParamsMod ,  only : ED_val_maxspread
     !
     ! !ARGUMENTS    
-    type(bounds_type)  , intent(in)    :: bounds 
-    type(ed_site_type) , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+    type(ed_site_type) , intent(inout), target :: sites
     !
     ! !LOCAL VARIABLES:
-    integer  :: g
+    integer  :: s
     real(r8) :: cwd_ag_local(ncwd)
     real(r8) :: cwd_bg_local(ncwd)
     real(r8) :: spread_local(nclmax)
@@ -250,27 +247,26 @@ contains
     age                  = 0.0_r8
 
     !FIX(SPM,032414) clean this up...inits out of this loop
-    do g = bounds%begg,bounds%endg
+    do s = 1, nsites
 
        allocate(newp)
-!       call zero_patch(newp) !Note (mv,11-04-2014, this is a bug fix - this line was missing)
 
        newp%patchno = 1
        newp%younger => null()
        newp%older   => null()
 
-       ed_allsites_inst(g)%youngest_patch => newp
-       ed_allsites_inst(g)%youngest_patch => newp
-       ed_allsites_inst(g)%oldest_patch   => newp
+       sites(s)%youngest_patch => newp
+       sites(s)%youngest_patch => newp
+       sites(s)%oldest_patch   => newp
 
        ! make new patch...
-       call create_patch(ed_allsites_inst(g), newp, age, AREA, &
+       call create_patch(sites(s), newp, age, AREA, &
             spread_local, cwd_ag_local, cwd_bg_local, leaf_litter_local,  &
             root_litter_local, seed_bank_local) 
-
+       
        call init_cohorts(newp)
 
-    enddo !gridcells
+    enddo
 
   end subroutine init_patches
 
