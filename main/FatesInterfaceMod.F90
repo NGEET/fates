@@ -95,11 +95,12 @@ contains
 
    ! ------------------------------------------------------------------------------------
 
-   subroutine site_init(this,fcolumn,bounds_clump)
+   subroutine init_coldstart(this,fcolumn)
          
       ! Input Arguments
       class(fates_interface_type), intent(inout) :: this
-      type(bounds_type),intent(in)               :: bounds_clump
+      integer                                    :: fcolumn(this%nsites)
+!      type(bounds_type),intent(in)               :: bounds_clump
       
       ! locals
       integer :: s
@@ -110,7 +111,7 @@ contains
 !      call ed_init_sites( bounds_clump,                                               &
 !            this%sites(bounds_clump%begg:bounds_clump%endg) )
 
-      do s = 1:this%nsites
+      do s = 1,this%nsites
 
          call zero_site(this%sites(s))
          
@@ -122,24 +123,13 @@ contains
 
       end do
 
-      do g = bounds%begg,bounds%endg
-       ! zero the site
-       call zero_site(ed_allsites_inst(g))
+      call set_site_properties(this%sites,this%nsites)
 
-       !create clm mapping to ED structure
-       ed_allsites_inst(g)%clmgcell = g 
-       ed_allsites_inst(g)%lat      = grc%latdeg(g)  
-       ed_allsites_inst(g)%lon      = grc%londeg(g)
-    enddo
+      call init_patches(this%sites, this%nsites)
 
 
-
-      
-      ! INTERF-TODO: WHEN WE MOVE TO COLUMNS, THIS WILL BE UNNECESSARY
-      do g = bounds_clump%begg,bounds_clump%endg
-         if (this%sites(g)%istheresoil) then
-            call ed_update_site(this%sites(g))
-         end if
+      do s = 1,this%nsites
+         call ed_update_site(this%sites(s))
       end do
       
       return
