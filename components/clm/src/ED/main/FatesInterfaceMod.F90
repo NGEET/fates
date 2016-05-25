@@ -99,18 +99,13 @@ contains
          
       ! Input Arguments
       class(fates_interface_type), intent(inout) :: this
-      integer                                    :: fcolumn(this%nsites)
-!      type(bounds_type),intent(in)               :: bounds_clump
+      integer, intent(in)                        :: fcolumn(this%nsites)
       
       ! locals
       integer :: s
       integer :: c
       integer :: g
       
-      ! Initialize  (INTERF-TODO THIS ROUTINE CALLS CLM STUFF-MIGRATE CODE TO HERE)
-!      call ed_init_sites( bounds_clump,                                               &
-!            this%sites(bounds_clump%begg:bounds_clump%endg) )
-
       do s = 1,this%nsites
 
          call zero_site(this%sites(s))
@@ -127,17 +122,16 @@ contains
 
       call init_patches(this%sites, this%nsites)
 
-
       do s = 1,this%nsites
          call ed_update_site(this%sites(s))
       end do
       
       return
-   end subroutine site_init
+   end subroutine init_coldstart
    
    ! ------------------------------------------------------------------------------------
    
-   subroutine fates_restart(this, bounds_clump, ncid, flag )
+   subroutine init_restart(this, bounds_clump, ncid, flag )
       
       implicit none
       class(fates_interface_type), intent(inout)  :: this
@@ -145,10 +139,10 @@ contains
       type(file_desc_t)       , intent(inout)     :: ncid    ! netcdf id
       character(len=*)        , intent(in)        :: flag    !'read' or 'write'
       
-      call EDRest( bounds_clump, this%sites(bounds_clump%begg:bounds_clump%endg), &
+      call EDRest( bounds_clump, this%sites, this%nsites,
             ncid, flag )
       return
-   end subroutine fates_restart
+   end subroutine init_restart
 
    ! ------------------------------------------------------------------------------------
    

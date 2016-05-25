@@ -24,9 +24,9 @@ module EDTypesMod
   ! for setting number of patches per gridcell and number of cohorts per patch
   ! for I/O and converting to a vector
 
-  integer, parameter :: numPatchesPerGridCell = 10          !
+  integer, parameter :: numPatchesPerGridCol  = 10          !
   integer, parameter :: numCohortsPerPatch    = 160         !
-  integer, parameter :: cohorts_per_gcell     = 1600        ! This is the max number of individual items one can store per 
+  integer, parameter :: cohorts_per_col       = 1600        ! This is the max number of individual items one can store per 
 
                                                            ! each grid cell and effects the striding in the ED restart 
                                                            ! data as some fields are arrays where each array is
@@ -233,7 +233,7 @@ module EDTypesMod
 
      !INDICES
      integer  :: patchno                                           ! unique number given to each new patch created for tracking
-     integer  :: clm_pno                                           ! clm patch number (index of p vector)
+!     integer  :: clm_pno                                           ! clm patch number (index of p vector)
 
      ! PATCH INFO
      real(r8) ::  age                                              ! average patch age: years                   
@@ -396,9 +396,6 @@ module EDTypesMod
      ! INDICES 
      real(r8) ::  lat                                          ! latitude:  degrees 
      real(r8) ::  lon                                          ! longitude: degrees 
-     integer  ::  clmgcell                                     ! gridcell index
-     integer  ::  clmcolumn                                    ! column index (assuming there is only one soil column in each gcell.
-     logical  ::  istheresoil                                  ! are there any soil columns, or is this all ice/rocks/lakes?
 
      ! CARBON BALANCE       
      real(r8) ::  flux_in                                      ! for carbon balance purpose. C coming into biomass pool:  KgC/site

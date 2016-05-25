@@ -11,7 +11,7 @@ module EDRestVectorMod
   use CanopyStateType , only : canopystate_type
   use WaterStateType  , only : waterstate_type
   use pftconMod       , only : pftcon
-  use EDTypesMod      , only : area, cohorts_per_gcell, numpft_ed, numWaterMem, nclmax, numCohortsPerPatch
+  use EDTypesMod      , only : area, cohorts_per_col, numpft_ed, numWaterMem, nclmax, numCohortsPerPatch
   use EDTypesMod      , only : ncwd, invalidValue, nlevcan_ed
   use EDTypesMod      , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDPhenologyType , only : ed_phenology_type
@@ -39,8 +39,8 @@ module EDRestVectorMod
 
      ! required to map cohorts and patches to/fro
      ! vectors/LinkedLists
-     integer,  pointer :: cellWithPatch(:)
-     integer,  pointer :: numPatchesPerCell(:)
+     integer,  pointer :: colWithPatch(:)
+     integer,  pointer :: numPatchesPerCol(:)
      integer,  pointer :: cohortsPerPatch(:)
      !
      ! cohort data
@@ -177,8 +177,8 @@ contains
     class(EDRestartVectorClass), intent(inout)      :: this
     !
     ! !LOCAL VARIABLES:
-    deallocate(this%cellWithPatch )
-    deallocate(this%numPatchesPerCell )
+    deallocate(this%colWithPatch )
+    deallocate(this%numPatchesPerCol )
     deallocate(this%cohortsPerPatch )
     deallocate(this%balive )
     deallocate(this%bdead )
@@ -270,15 +270,15 @@ contains
       ! cohort level variables that are required on restart
       !
 
-      allocate(new%cellWithPatch &
-           (bounds%begg:bounds%endg), stat=retVal)
+      allocate(new%colWithPatch &
+           (bounds%begc:bounds%endc), stat=retVal)
       SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
-      new%cellWithPatch(:) = 0
+      new%colWithPatch(:) = 0
 
-      allocate(new%numPatchesPerCell &
-           (bounds%begg:bounds%endg), stat=retVal)
+      allocate(new%numPatchesPerCol &
+           (bounds%begc:bounds%endc), stat=retVal)
       SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
-      new%numPatchesPerCell(:) = invalidValue
+      new%numPatchesPerCol(:) = invalidValue
 
       allocate(new%cohortsPerPatch &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
@@ -592,7 +592,7 @@ contains
   end function newEDRestartVectorClass
 
   !-------------------------------------------------------------------------------!
-  subroutine setVectors( this, bounds, ed_allsites_inst )
+  subroutine setVectors( this, bounds, sites )
     !
     ! !DESCRIPTION:
     ! implement setVectors
@@ -603,7 +603,7 @@ contains
     ! !ARGUMENTS:
     class(EDRestartVectorClass) , intent(inout)      :: this
     type(bounds_type)           , intent(in)         :: bounds 
-    type(ed_site_type)          , intent(in), target :: ed_allsites_inst( bounds%begg: )
+    type(ed_site_type)          , intent(in), target :: sites(:)
     !
     ! !LOCAL VARIABLES:
     !-----------------------------------------------------------------------
@@ -611,22 +611,22 @@ contains
     if ( masterproc ) write(iulog,*) 'edtime setVectors ',get_nstep()
 
     !if (this%DEBUG) then
-       !call this%printIoInfoLL ( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
-       !call this%printDataInfoLL ( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
+    !  call this%printIoInfoLL ( bounds, sites, nsites )
+    !  call this%printDataInfoLL ( bounds, sites, nsites )
     !end if
 
-    call this%convertCohortListToVector ( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
+    call this%convertCohortListToVector ( bounds, sites )
 
     if (this%DEBUG) then
-       call this%printIoInfoLL ( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
-       call this%printDataInfoLL ( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
+       call this%printIoInfoLL ( bounds, sites, nsites )
+       call this%printDataInfoLL ( bounds, sites, nsites )
        call this%printDataInfoVector (  )
     end if
 
   end subroutine setVectors
 
   !-------------------------------------------------------------------------------!
-  subroutine getVectors( this, bounds, ed_allsites_inst )
+  subroutine getVectors( this, bounds, sites, nsites)
     !
     ! !DESCRIPTION:
     ! implement getVectors
@@ -639,31 +639,30 @@ contains
     ! !ARGUMENTS:
     class(EDRestartVectorClass) , intent(inout)         :: this
     type(bounds_type)           , intent(in)            :: bounds 
-    type(ed_site_type)          , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+    type(ed_site_type)          , intent(inout), target :: sites(:)
+    integer                     , intent(in)            :: nsites
 
 
     !
     ! !LOCAL VARIABLES:
-    integer :: g
+    integer :: s
     !-----------------------------------------------------------------------
 
     if (this%DEBUG) then
        write(iulog,*) 'edtime getVectors ',get_nstep()
     end if
 
-    call this%createPatchCohortStructure ( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
+    call this%createPatchCohortStructure ( bounds, sites )
 
-    call this%convertCohortVectorToList ( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
+    call this%convertCohortVectorToList ( bounds, sites )
 
-    do g = bounds%begg,bounds%endg
-       if (ed_allsites_inst(g)%istheresoil) then
-          call ed_update_site( ed_allsites_inst(g) )
-       end if
+    do s = 1,nsites
+       call ed_update_site( sites(s) )
     end do
 
     if (this%DEBUG) then
-       call this%printIoInfoLL ( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
-       call this%printDataInfoLL ( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
+       call this%printIoInfoLL ( bounds, sites )
+       call this%printDataInfoLL ( bounds, sites )
        call this%printDataInfoVector (  )
     end if
 
@@ -678,7 +677,7 @@ contains
     ! !USES:
     use ncdio_pio  , only : file_desc_t, ncd_int, ncd_double
     use restUtilMod, only : restartvar
-    use clm_varcon,  only : nameg, nameCohort
+    use clm_varcon,  only : namec, nameCohort
     use spmdMod,     only : iam
     !
     ! !ARGUMENTS:
@@ -694,21 +693,21 @@ contains
     !
     ! cohort level vars
     !
-    call restartvar(ncid=ncid, flag=flag, varname='ed_io_cellWithPatch', xtype=ncd_int,  &
-         dim1name=nameg, &
-         long_name='1 if a gridcell has a patch', units='1=true,0=false', &
-         interpinic_flag='interp', data=this%cellWithPatch, &
+    call restartvar(ncid=ncid, flag=flag, varname='ed_io_colWithPatch', xtype=ncd_int,  &
+         dim1name=namec, &
+         long_name='1 if a column has a patch', units='1=true,0=false', &
+         interpinic_flag='interp', data=this%colWithPatch, &
          readvar=readvar)
 
-    call restartvar(ncid=ncid, flag=flag, varname='ed_io_numPatchesPerCell', xtype=ncd_int,  &
-         dim1name=nameg, &
-         long_name='works with ed_cellWithPatch.  num patches per gridcell', units='unitless', &
-         interpinic_flag='interp', data=this%numPatchesPerCell, &
+    call restartvar(ncid=ncid, flag=flag, varname='ed_io_numPatchesPerCol', xtype=ncd_int,  &
+         dim1name=namec, &
+         long_name='works with ed_colWithPatch.  num patches per column', units='unitless', &
+         interpinic_flag='interp', data=this%numPatchesPerCol, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_io_cohortsPerPatch', xtype=ncd_int,  &
          dim1name=dimName, &
-         long_name='list of cohorts per patch.  indexed by numPatchesPerCell', units='unitless', &
+         long_name='list of cohorts per patch.  indexed by numPatchesPerCol', units='unitless', &
          interpinic_flag='interp', data=this%cohortsPerPatch, &
          readvar=readvar)
 
@@ -1227,7 +1226,7 @@ contains
   end subroutine printDataInfoVector
 
   !-------------------------------------------------------------------------------!
-  subroutine printDataInfoLL( this, bounds, ed_allsites_inst ) 
+  subroutine printDataInfoLL( this, bounds, sites, nsites ) 
     !
     ! !DESCRIPTION:
     ! counts the total number of cohorts over all p levels (ed_patch_type) so we
@@ -1238,12 +1237,13 @@ contains
     ! !ARGUMENTS:
     class(EDRestartVectorClass) , intent(inout)      :: this
     type(bounds_type)           , intent(in)         :: bounds 
-    type(ed_site_type)          , intent(in), target :: ed_allsites_inst( bounds%begg: )
+    type(ed_site_type)          , intent(in), target :: sites
+    integer                     , intent(in)         :: nsites
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type),  pointer :: currentPatch
     type (ed_cohort_type), pointer :: currentCohort
-    integer :: g
+    integer :: s
     integer :: totalCohorts
     integer :: numCohort
     integer :: numPatches,totPatchCount
@@ -1255,11 +1255,9 @@ contains
 
     write(iulog,*) 'vecLenStart ',this%vectorLengthStart
 
-    g = bounds%begg
-    do while(g <= bounds%endg)
+    do s = 1,nsites
 
-       if (ed_allsites_inst(g)%istheresoil) then
-          currentPatch => ed_allsites_inst(g)%oldest_patch
+       currentPatch => sites(s)%oldest_patch
 
           numPatches = 1
 
@@ -1289,20 +1287,20 @@ contains
                 write(iulog,*) trim(methodName)//' n '            ,totalCohorts,currentCohort%n
                 write(iulog,*) trim(methodName)//' gpp_acc '      ,totalCohorts,currentCohort%gpp_acc
                 write(iulog,*) trim(methodName)//' npp_acc '      ,totalCohorts,currentCohort%npp_acc
-                write(iulog,*) trim(methodName)//' gpp '      ,totalCohorts,currentCohort%gpp
-                write(iulog,*) trim(methodName)//' npp '      ,totalCohorts,currentCohort%npp
-                write(iulog,*) trim(methodName)//' npp_leaf '      ,totalCohorts,currentCohort%npp_leaf
-                write(iulog,*) trim(methodName)//' npp_froot '      ,totalCohorts,currentCohort%npp_froot
+                write(iulog,*) trim(methodName)//' gpp '          ,totalCohorts,currentCohort%gpp
+                write(iulog,*) trim(methodName)//' npp '          ,totalCohorts,currentCohort%npp
+                write(iulog,*) trim(methodName)//' npp_leaf '     ,totalCohorts,currentCohort%npp_leaf
+                write(iulog,*) trim(methodName)//' npp_froot '    ,totalCohorts,currentCohort%npp_froot
                 write(iulog,*) trim(methodName)//' npp_bsw '      ,totalCohorts,currentCohort%npp_bsw
-                write(iulog,*) trim(methodName)//' npp_bdead '      ,totalCohorts,currentCohort%npp_bdead
-                write(iulog,*) trim(methodName)//' npp_bseed '      ,totalCohorts,currentCohort%npp_bseed
-                write(iulog,*) trim(methodName)//' npp_store '      ,totalCohorts,currentCohort%npp_store
-                write(iulog,*) trim(methodName)//' bmort '      ,totalCohorts,currentCohort%bmort
-                write(iulog,*) trim(methodName)//' hmort '      ,totalCohorts,currentCohort%hmort
-                write(iulog,*) trim(methodName)//' cmort '      ,totalCohorts,currentCohort%cmort
-                write(iulog,*) trim(methodName)//' imort '      ,totalCohorts,currentCohort%imort
-                write(iulog,*) trim(methodName)//' fmort '      ,totalCohorts,currentCohort%fmort
-                write(iulog,*) trim(methodName)//' ddbhdt '      ,totalCohorts,currentCohort%ddbhdt
+                write(iulog,*) trim(methodName)//' npp_bdead '    ,totalCohorts,currentCohort%npp_bdead
+                write(iulog,*) trim(methodName)//' npp_bseed '    ,totalCohorts,currentCohort%npp_bseed
+                write(iulog,*) trim(methodName)//' npp_store '    ,totalCohorts,currentCohort%npp_store
+                write(iulog,*) trim(methodName)//' bmort '        ,totalCohorts,currentCohort%bmort
+                write(iulog,*) trim(methodName)//' hmort '        ,totalCohorts,currentCohort%hmort
+                write(iulog,*) trim(methodName)//' cmort '        ,totalCohorts,currentCohort%cmort
+                write(iulog,*) trim(methodName)//' imort '        ,totalCohorts,currentCohort%imort
+                write(iulog,*) trim(methodName)//' fmort '        ,totalCohorts,currentCohort%fmort
+                write(iulog,*) trim(methodName)//' ddbhdt '       ,totalCohorts,currentCohort%ddbhdt
                 write(iulog,*) trim(methodName)//' resp_clm '     ,totalCohorts,currentCohort%resp_clm
                 write(iulog,*) trim(methodName)//' pft '          ,totalCohorts,currentCohort%pft
                 write(iulog,*) trim(methodName)//' status_coh '   ,totalCohorts,currentCohort%status_coh
@@ -1313,8 +1311,8 @@ contains
                 currentCohort => currentCohort%taller
              enddo ! currentCohort do while
 
-             write(iulog,*) trim(methodName)//': numpatches for gcell ',&
-                  ed_allsites_inst(g)%clmgcell, numPatches
+             write(iulog,*) trim(methodName)//': numpatches for col ',&
+                  numPatches
 
              write(iulog,*) trim(methodName)//': patches and cohorts ',&
                   totPatchCount,numCohort
@@ -1335,15 +1333,15 @@ contains
              write(iulog,*) trim(methodName)//' fabi_sun_z (sum) '     ,sum(currentPatch%fabi_sun_z)
              write(iulog,*) trim(methodName)//' fabd_sha_z (sum) '     ,sum(currentPatch%fabd_sha_z)
              write(iulog,*) trim(methodName)//' fabi_sha_z (sum) '     ,sum(currentPatch%fabi_sha_z)
-             write(iulog,*) trim(methodName)//' old_stock '      ,ed_allsites_inst(g)%old_stock
-             write(iulog,*) trim(methodName)//' cd_status '      ,ed_allsites_inst(g)%status
-             write(iulog,*) trim(methodName)//' dd_status '      ,ed_allsites_inst(g)%dstatus
-             write(iulog,*) trim(methodName)//' ncd '            ,ed_allsites_inst(g)%ncd
-             write(iulog,*) trim(methodName)//' leafondate '     ,ed_allsites_inst(g)%leafondate
-             write(iulog,*) trim(methodName)//' leafoffdate '    ,ed_allsites_inst(g)%leafoffdate
-             write(iulog,*) trim(methodName)//' dleafondate '    ,ed_allsites_inst(g)%dleafondate
-             write(iulog,*) trim(methodName)//' dleafoffdate '   ,ed_allsites_inst(g)%dleafoffdate
-             write(iulog,*) trim(methodName)//' acc_NI'          ,ed_allsites_inst(g)%acc_NI
+             write(iulog,*) trim(methodName)//' old_stock '      ,sites(s)%old_stock
+             write(iulog,*) trim(methodName)//' cd_status '      ,sites(s)%status
+             write(iulog,*) trim(methodName)//' dd_status '      ,sites(s)%dstatus
+             write(iulog,*) trim(methodName)//' ncd '            ,sites(s)%ncd
+             write(iulog,*) trim(methodName)//' leafondate '     ,sites(s)%leafondate
+             write(iulog,*) trim(methodName)//' leafoffdate '    ,sites(s)%leafoffdate
+             write(iulog,*) trim(methodName)//' dleafondate '    ,sites(s)%dleafondate
+             write(iulog,*) trim(methodName)//' dleafoffdate '   ,sites(s)%dleafoffdate
+             write(iulog,*) trim(methodName)//' acc_NI'          ,sites(s)%acc_NI
    
 
              currentPatch => currentPatch%younger
@@ -1351,10 +1349,8 @@ contains
              totPatchCount = totPatchCount + 1
              numPatches = numPatches + 1
           enddo ! currentPatch do while
-       endif
 
-       write(iulog,*) trim(methodName)//' water_memory ',ed_allsites_inst(g)%water_memory(1)
-       g = g + 1
+       write(iulog,*) trim(methodName)//' water_memory ',sites(s)%water_memory(1)
 
     enddo
 
@@ -1363,7 +1359,7 @@ contains
   end subroutine printDataInfoLL
 
   !-------------------------------------------------------------------------------!
-  subroutine printIoInfoLL( this, bounds, ed_allsites_inst ) 
+  subroutine printIoInfoLL( this, bounds, sites, nsites, fcolumn ) 
     !!
     ! !DESCRIPTION:
     ! for debugging.  prints some IO info regarding cohorts/patches
@@ -1374,12 +1370,14 @@ contains
     ! !ARGUMENTS:
     class(EDRestartVectorClass) , intent(inout)      :: this
     type(bounds_type)           , intent(in)         :: bounds 
-    type(ed_site_type)          , intent(in), target :: ed_allsites_inst( bounds%begg: )
+    type(ed_site_type)          , intent(in), target :: sites
+    integer                     , intent(in)         :: nsites
+    integer, intent(in)                              :: fcolumn(this%nsites)
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type),  pointer :: currentPatch
     type (ed_cohort_type), pointer :: currentCohort
-    integer g
+    integer s
     integer totalCohorts
     integer numCohort
     integer numPatches,totPatchCount
@@ -1391,79 +1389,76 @@ contains
 
     write(iulog,*) 'vecLenStart ',this%vectorLengthStart
 
-    g = bounds%begg
-    do while(g <= bounds%endg)
+    do s=1,nsites
+       
+       currentPatch => sites(s)%oldest_patch
 
-       if (ed_allsites_inst(g)%istheresoil) then
-          currentPatch => ed_allsites_inst(g)%oldest_patch
+       numPatches = 1
 
-          numPatches = 1
+       do while(associated(currentPatch))
+          currentCohort => currentPatch%shortest
+          
+          write(iulog,*) trim(methodName)//': found column with patch(s) ',fcolumn(s)
+          
+          numCohort = 0
+          
+          do while(associated(currentCohort))  
+             
+             totalCohorts = totalCohorts + 1
+             numCohort = numCohort + 1
+             
+             write(iulog,*) trim(methodName)//' balive       ',numCohort,currentCohort%balive
+             write(iulog,*) trim(methodName)//' bdead        ',currentCohort%bdead
+             write(iulog,*) trim(methodName)//' bl           ',currentCohort%bl
+             write(iulog,*) trim(methodName)//' br           ',currentCohort%br
+             write(iulog,*) trim(methodName)//' bstore       ',currentCohort%bstore
+             write(iulog,*) trim(methodName)//' canopy_layer ',currentCohort%canopy_layer
+             write(iulog,*) trim(methodName)//' canopy_trim  ',currentCohort%canopy_trim
+             write(iulog,*) trim(methodName)//' dbh          ',currentCohort%dbh
+             write(iulog,*) trim(methodName)//' hite         ',currentCohort%hite
+             write(iulog,*) trim(methodName)//' laimemory    ',currentCohort%laimemory
+             write(iulog,*) trim(methodName)//' leaf_md      ',currentCohort%leaf_md
+             write(iulog,*) trim(methodName)//' root_md      ',currentCohort%root_md
+             write(iulog,*) trim(methodName)//' n            ',currentCohort%n
+             write(iulog,*) trim(methodName)//' gpp_acc      ',currentCohort%gpp_acc
+             write(iulog,*) trim(methodName)//' npp_acc      ',currentCohort%npp_acc
+             write(iulog,*) trim(methodName)//' gpp      ',currentCohort%gpp
+             write(iulog,*) trim(methodName)//' npp      ',currentCohort%npp
+             write(iulog,*) trim(methodName)//' npp_leaf      ',currentCohort%npp_leaf
+             write(iulog,*) trim(methodName)//' npp_froot      ',currentCohort%npp_froot
+             write(iulog,*) trim(methodName)//' npp_bsw      ',currentCohort%npp_bsw
+             write(iulog,*) trim(methodName)//' npp_bdead      ',currentCohort%npp_bdead
+             write(iulog,*) trim(methodName)//' npp_bseed      ',currentCohort%npp_bseed
+             write(iulog,*) trim(methodName)//' npp_store      ',currentCohort%npp_store
+             write(iulog,*) trim(methodName)//' bmort      ',currentCohort%bmort
+             write(iulog,*) trim(methodName)//' hmort      ',currentCohort%hmort
+             write(iulog,*) trim(methodName)//' cmort      ',currentCohort%cmort
+             write(iulog,*) trim(methodName)//' imort      ',currentCohort%imort
+             write(iulog,*) trim(methodName)//' fmort      ',currentCohort%fmort
+             write(iulog,*) trim(methodName)//' ddbhdt      ',currentCohort%ddbhdt
+             write(iulog,*) trim(methodName)//' resp_clm     ',currentCohort%resp_clm
+             write(iulog,*) trim(methodName)//' pft          ',currentCohort%pft
+             write(iulog,*) trim(methodName)//' status_coh   ',currentCohort%status_coh
+             write(iulog,*) trim(methodName)//' isnew        ',currentCohort%isnew
+             
+             currentCohort => currentCohort%taller
+          enddo ! currentCohort do while
+          
+          write(iulog,*) trim(methodName)//': numpatches for column ',numPatches
+          write(iulog,*) trim(methodName)//': patches and cohorts ',totPatchCount,numCohort
 
-          do while(associated(currentPatch))
-             currentCohort => currentPatch%shortest
+          currentPatch => currentPatch%younger
 
-             write(iulog,*) trim(methodName)//': found gcell with patch(s) ',g
-
-             numCohort = 0
-
-             do while(associated(currentCohort))  
-
-                totalCohorts = totalCohorts + 1
-                numCohort = numCohort + 1
-
-                write(iulog,*) trim(methodName)//' balive       ',numCohort,currentCohort%balive
-                write(iulog,*) trim(methodName)//' bdead        ',currentCohort%bdead
-                write(iulog,*) trim(methodName)//' bl           ',currentCohort%bl
-                write(iulog,*) trim(methodName)//' br           ',currentCohort%br
-                write(iulog,*) trim(methodName)//' bstore       ',currentCohort%bstore
-                write(iulog,*) trim(methodName)//' canopy_layer ',currentCohort%canopy_layer
-                write(iulog,*) trim(methodName)//' canopy_trim  ',currentCohort%canopy_trim
-                write(iulog,*) trim(methodName)//' dbh          ',currentCohort%dbh
-                write(iulog,*) trim(methodName)//' hite         ',currentCohort%hite
-                write(iulog,*) trim(methodName)//' laimemory    ',currentCohort%laimemory
-                write(iulog,*) trim(methodName)//' leaf_md      ',currentCohort%leaf_md
-                write(iulog,*) trim(methodName)//' root_md      ',currentCohort%root_md
-                write(iulog,*) trim(methodName)//' n            ',currentCohort%n
-                write(iulog,*) trim(methodName)//' gpp_acc      ',currentCohort%gpp_acc
-                write(iulog,*) trim(methodName)//' npp_acc      ',currentCohort%npp_acc
-                write(iulog,*) trim(methodName)//' gpp      ',currentCohort%gpp
-                write(iulog,*) trim(methodName)//' npp      ',currentCohort%npp
-                write(iulog,*) trim(methodName)//' npp_leaf      ',currentCohort%npp_leaf
-                write(iulog,*) trim(methodName)//' npp_froot      ',currentCohort%npp_froot
-                write(iulog,*) trim(methodName)//' npp_bsw      ',currentCohort%npp_bsw
-                write(iulog,*) trim(methodName)//' npp_bdead      ',currentCohort%npp_bdead
-                write(iulog,*) trim(methodName)//' npp_bseed      ',currentCohort%npp_bseed
-                write(iulog,*) trim(methodName)//' npp_store      ',currentCohort%npp_store
-                write(iulog,*) trim(methodName)//' bmort      ',currentCohort%bmort
-                write(iulog,*) trim(methodName)//' hmort      ',currentCohort%hmort
-                write(iulog,*) trim(methodName)//' cmort      ',currentCohort%cmort
-                write(iulog,*) trim(methodName)//' imort      ',currentCohort%imort
-                write(iulog,*) trim(methodName)//' fmort      ',currentCohort%fmort
-                write(iulog,*) trim(methodName)//' ddbhdt      ',currentCohort%ddbhdt
-                write(iulog,*) trim(methodName)//' resp_clm     ',currentCohort%resp_clm
-                write(iulog,*) trim(methodName)//' pft          ',currentCohort%pft
-                write(iulog,*) trim(methodName)//' status_coh   ',currentCohort%status_coh
-                write(iulog,*) trim(methodName)//' isnew        ',currentCohort%isnew
-
-                currentCohort => currentCohort%taller
-             enddo ! currentCohort do while
-
-             write(iulog,*) trim(methodName)//': numpatches for gcell ',ed_allsites_inst(g)%clmgcell, numPatches
-             write(iulog,*) trim(methodName)//': patches and cohorts ',totPatchCount,numCohort
-
-             currentPatch => currentPatch%younger
-
-             totPatchCount = totPatchCount + 1
-             numPatches = numPatches + 1
-          enddo ! currentPatch do while
-       endif
-       g = g + 1
+          totPatchCount = totPatchCount + 1
+          numPatches = numPatches + 1
+       enddo ! currentPatch do while
     enddo
-
+    
+    return
   end subroutine printIoInfoLL
 
   !-------------------------------------------------------------------------------!
-  subroutine convertCohortListToVector( this, bounds, ed_allsites_inst ) 
+  subroutine convertCohortListToVector( this, bounds, sites, nsites, fcolumn ) 
     !
     ! !DESCRIPTION:
     ! counts the total number of cohorts over all p levels (ed_patch_type) so we
@@ -1475,12 +1470,14 @@ contains
     ! !ARGUMENTS:
     class(EDRestartVectorClass) , intent(inout)      :: this
     type(bounds_type)           , intent(in)         :: bounds 
-    type(ed_site_type)          , intent(in), target :: ed_allsites_inst( bounds%begg: )
+    type(ed_site_type)          , intent(in), target :: sites(nsites)
+    integer                     , intent(in)         :: nsites
+    integer                     , intent(in)         :: fcolumn(nsites)
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type), pointer  :: currentPatch
     type (ed_cohort_type), pointer :: currentCohort
-    integer ::  g
+    integer ::  s
     integer ::  totalCohorts ! number of cohorts starting from 1
     integer ::  countCohort  ! number of cohorts starting from
     ! vectorLengthStart
@@ -1506,80 +1503,88 @@ contains
     countWaterMem       = this%vectorLengthStart
     countSunZ           = this%vectorLengthStart
 
-    g = bounds%begg
-    do while(g <= bounds%endg)
 
-       if (ed_allsites_inst(g)%istheresoil)then
+    do s = 1,nsites
 
-          currentPatch => ed_allsites_inst(g)%oldest_patch
+       ! Calculate the offsets
 
-          ! new grid cell, reset num patches
-          numPatches = 0
+       incrementOffset     = this%vectorLengthStart + (fcolumn(s)-1)*cohorts_per_col
+       countCohort         = this%vectorLengthStart + (fcolumn(s)-1)*cohorts_per_col
+       countPft            = this%vectorLengthStart + (fcolumn(s)-1)*cohorts_per_col
+       countNcwd           = this%vectorLengthStart + (fcolumn(s)-1)*cohorts_per_col
+       countNclmax         = this%vectorLengthStart + (fcolumn(s)-1)*cohorts_per_col
+       countWaterMem       = this%vectorLengthStart + (fcolumn(s)-1)*cohorts_per_col
+       countSunZ           = this%vectorLengthStart + (fcolumn(s)-1)*cohorts_per_col
+       
+       currentPatch => sites(s)%oldest_patch
 
-          do while(associated(currentPatch))
+       ! new column, reset num patches
+       numPatches = 0
 
-             ! found patch, increment
-             numPatches = numPatches + 1
-
-             currentCohort => currentPatch%shortest
-
-             ! new patch, reset num cohorts
-             numCohort = 0
-
-             do while(associated(currentCohort))
-
-                ! found cohort, increment
-                numCohort        = numCohort    + 1
-                totalCohorts     = totalCohorts + 1
-
-                if (this%DEBUG) then
-                   write(iulog,*) 'CLTV countCohort ', countCohort
-                   write(iulog,*) 'CLTV vecLenStart ', this%vectorLengthStart
-                   write(iulog,*) 'CLTV vecLenStop  ', this%vectorLengthStop
-                endif
-
-                this%balive(countCohort)       = currentCohort%balive
-                this%bdead(countCohort)        = currentCohort%bdead
-                this%bl(countCohort)           = currentCohort%bl
-                this%br(countCohort)           = currentCohort%br
-                this%bstore(countCohort)       = currentCohort%bstore
-                this%canopy_layer(countCohort) = currentCohort%canopy_layer
-                this%canopy_trim(countCohort)  = currentCohort%canopy_trim
-                this%dbh(countCohort)          = currentCohort%dbh
-                this%hite(countCohort)         = currentCohort%hite
-                this%laimemory(countCohort)    = currentCohort%laimemory
-                this%leaf_md(countCohort)      = currentCohort%leaf_md
-                this%root_md(countCohort)      = currentCohort%root_md
-                this%n(countCohort)            = currentCohort%n
-                this%gpp_acc(countCohort)      = currentCohort%gpp_acc
-                this%npp_acc(countCohort)      = currentCohort%npp_acc
-                this%gpp(countCohort)      = currentCohort%gpp
-                this%npp(countCohort)      = currentCohort%npp
-                this%npp_leaf(countCohort)      = currentCohort%npp_leaf
-                this%npp_froot(countCohort)      = currentCohort%npp_froot
-                this%npp_bsw(countCohort)      = currentCohort%npp_bsw
-                this%npp_bdead(countCohort)      = currentCohort%npp_bdead
-                this%npp_bseed(countCohort)      = currentCohort%npp_bseed
-                this%npp_store(countCohort)      = currentCohort%npp_store
-                this%bmort(countCohort)      = currentCohort%bmort
-                this%hmort(countCohort)      = currentCohort%hmort
-                this%cmort(countCohort)      = currentCohort%cmort
-                this%imort(countCohort)      = currentCohort%imort
-                this%fmort(countCohort)      = currentCohort%fmort
-                this%ddbhdt(countCohort)      = currentCohort%ddbhdt
-                this%resp_clm(countCohort)     = currentCohort%resp_clm
-                this%pft(countCohort)          = currentCohort%pft
-                this%status_coh(countCohort)   = currentCohort%status_coh
-                if ( currentCohort%isnew ) then
-                   this%isnew(countCohort)        = new_cohort
-                else
-                   this%isnew(countCohort)        = old_cohort
-                endif
-
-                if (this%DEBUG) then
-                   write(iulog,*) 'CLTV offsetNumCohorts II ',countCohort, &
-                        numCohort
-                endif
+       do while(associated(currentPatch))
+          
+          ! found patch, increment
+          numPatches = numPatches + 1
+          
+          currentCohort => currentPatch%shortest
+          
+          ! new patch, reset num cohorts
+          numCohort = 0
+          
+          do while(associated(currentCohort))
+             
+             ! found cohort, increment
+             numCohort        = numCohort    + 1
+             totalCohorts     = totalCohorts + 1
+             
+             if (this%DEBUG) then
+                write(iulog,*) 'CLTV countCohort ', countCohort
+                write(iulog,*) 'CLTV vecLenStart ', this%vectorLengthStart
+                write(iulog,*) 'CLTV vecLenStop  ', this%vectorLengthStop
+             endif
+                
+             this%balive(countCohort)       = currentCohort%balive
+             this%bdead(countCohort)        = currentCohort%bdead
+             this%bl(countCohort)           = currentCohort%bl
+             this%br(countCohort)           = currentCohort%br
+             this%bstore(countCohort)       = currentCohort%bstore
+             this%canopy_layer(countCohort) = currentCohort%canopy_layer
+             this%canopy_trim(countCohort)  = currentCohort%canopy_trim
+             this%dbh(countCohort)          = currentCohort%dbh
+             this%hite(countCohort)         = currentCohort%hite
+             this%laimemory(countCohort)    = currentCohort%laimemory
+             this%leaf_md(countCohort)      = currentCohort%leaf_md
+             this%root_md(countCohort)      = currentCohort%root_md
+             this%n(countCohort)            = currentCohort%n
+             this%gpp_acc(countCohort)      = currentCohort%gpp_acc
+             this%npp_acc(countCohort)      = currentCohort%npp_acc
+             this%gpp(countCohort)      = currentCohort%gpp
+             this%npp(countCohort)      = currentCohort%npp
+             this%npp_leaf(countCohort)      = currentCohort%npp_leaf
+             this%npp_froot(countCohort)      = currentCohort%npp_froot
+             this%npp_bsw(countCohort)      = currentCohort%npp_bsw
+             this%npp_bdead(countCohort)      = currentCohort%npp_bdead
+             this%npp_bseed(countCohort)      = currentCohort%npp_bseed
+             this%npp_store(countCohort)      = currentCohort%npp_store
+             this%bmort(countCohort)      = currentCohort%bmort
+             this%hmort(countCohort)      = currentCohort%hmort
+             this%cmort(countCohort)      = currentCohort%cmort
+             this%imort(countCohort)      = currentCohort%imort
+             this%fmort(countCohort)      = currentCohort%fmort
+             this%ddbhdt(countCohort)      = currentCohort%ddbhdt
+             this%resp_clm(countCohort)     = currentCohort%resp_clm
+             this%pft(countCohort)          = currentCohort%pft
+             this%status_coh(countCohort)   = currentCohort%status_coh
+             if ( currentCohort%isnew ) then
+                this%isnew(countCohort)        = new_cohort
+             else
+                this%isnew(countCohort)        = old_cohort
+             endif
+             
+             if (this%DEBUG) then
+                write(iulog,*) 'CLTV offsetNumCohorts II ',countCohort, &
+                      numCohort
+             endif
 
                 countCohort = countCohort + 1
 
@@ -1610,7 +1615,7 @@ contains
 
              if (this%DEBUG) then
                 write(iulog,*) 'offsetNumCohorts III ' &
-                     ,countCohort,cohorts_per_gcell, numCohort
+                     ,countCohort,cohorts_per_col, numCohort
              endif
              !
              ! deal with patch level fields of arrays here
@@ -1657,7 +1662,7 @@ contains
              if (this%DEBUG) write(iulog,*) 'CLTV countSunZ 2 ',countSunZ
 
              ! set numpatches for this gcell
-             this%numPatchesPerCell( ed_allsites_inst(g)%clmgcell )  = numPatches
+             this%numPatchesPerCol( ed_allsites_inst(g)%clmgcell )  = numPatches
 
              incrementOffset = incrementOffset + numCohortsPerPatch
 
@@ -1672,7 +1677,7 @@ contains
 
              if (this%DEBUG) then
                 write(iulog,*) 'CLTV incrementOffset ', incrementOffset
-                write(iulog,*) 'CLTV cohorts_per_gcell ', cohorts_per_gcell
+                write(iulog,*) 'CLTV cohorts_per_col ', cohorts_per_col
                 write(iulog,*) 'CLTV numCohort ', numCohort
                 write(iulog,*) 'CLTV totalCohorts ', totalCohorts
              end if
@@ -1682,7 +1687,7 @@ contains
           enddo ! currentPatch do while
 
           ! set which gridcells have patches/cohorts
-          this%cellWithPatch( ed_allsites_inst(g)%clmgcell )  = 1
+          this%colWithPatch( ed_allsites_inst(g)%clmgcell )  = 1
 
           do i = 1,numWaterMem ! numWaterMem currently 10
              this%water_memory( countWaterMem ) = ed_allsites_inst(g)%water_memory(i)
@@ -1751,7 +1756,7 @@ contains
     do g = bounds%begg, bounds%endg
 
        if (this%DEBUG) then
-          write(iulog,*) 'cellWithPatch ',this%cellWithPatch(g),this%numPatchesPerCell(g)
+          write(iulog,*) 'colWithPatch ',this%colWithPatch(g),this%numPatchesPerCol(g)
        end if
 
        call zero_site( ed_allsites_inst(g) )
@@ -1766,7 +1771,7 @@ contains
        ed_allsites_inst(g)%ncd = 0.0_r8
 
        ! then this site has soil and should be set here
-       do patchIdx = 1,this%numPatchesPerCell(g)
+       do patchIdx = 1,this%numPatchesPerCol(g)
 
           if (this%DEBUG) then
              write(iulog,*) 'create patch ',patchIdx
@@ -2019,7 +2024,7 @@ contains
 
              if (this%DEBUG) then
                 write(iulog,*) 'CVTL III ' &
-                     ,countCohort,cohorts_per_gcell, numCohort
+                     ,countCohort,cohorts_per_col, numCohort
              endif
              !
              ! deal with patch level fields of arrays here
@@ -2076,7 +2081,7 @@ contains
 
              if (this%DEBUG) then
                 write(iulog,*) 'CVTL incrementOffset ', incrementOffset
-                write(iulog,*) 'CVTL cohorts_per_gcell ', cohorts_per_gcell
+                write(iulog,*) 'CVTL cohorts_per_col ', cohorts_per_col
                 write(iulog,*) 'CVTL numCohort ', numCohort
                 write(iulog,*) 'CVTL totalCohorts ', totalCohorts
              end if
@@ -2109,7 +2114,7 @@ contains
   !--------------------------------------------!
 
   !-------------------------------------------------------------------------------!
-  subroutine EDRest ( bounds, ed_allsites_inst, ncid, flag )
+  subroutine EDRest ( bounds, sites, nsites, ncid, flag )
     !
     ! !DESCRIPTION:
     ! Read/write ED restart data
@@ -2123,7 +2128,8 @@ contains
     ! !ARGUMENTS:
     type(bounds_type)       , intent(in)            :: bounds  ! bounds
     type(file_desc_t)       , intent(inout)         :: ncid    ! netcdf id
-    type(ed_site_type)      , intent(inout)         :: ed_allsites_inst(bounds%begg:)
+    type(ed_site_type)      , intent(inout)         :: sites   ! The site vector
+    integer                 , intent(in)            :: nsites  ! Size of the site vector
     character(len=*)        , intent(in)            :: flag    !'read' or 'write'
     !
     ! !LOCAL VARIABLES:
@@ -2139,13 +2145,13 @@ contains
     end if
 
     if ( flag == 'write' ) then
-       call ervc%setVectors( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
+       call ervc%setVectors( bounds, sites) )
     endif
 
     call ervc%doVectorIO( ncid, flag )
 
     if ( flag == 'read' ) then
-       call ervc%getVectors( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
+       call ervc%getVectors( bounds, sites, nsites )
     endif
 
     call ervc%deleteEDRestartVectorClass ()

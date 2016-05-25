@@ -43,7 +43,7 @@ contains
     use clm_instur      , only : wt_lunit, urban_valid, wt_glc_mec
     use landunit_varcon , only : istsoil, istcrop, istice, istice_mec, istdlak, istwet
     use landunit_varcon , only : isturb_tbd, isturb_hd, isturb_md
-    use EDtypesMod      , only : cohorts_per_gcell
+    use EDtypesMod      , only : cohorts_per_col
     !
     ! !ARGUMENTS
     integer , intent(in)  :: gi                     ! grid cell index
@@ -76,7 +76,7 @@ contains
     ! Initialize patches, columns and landunits counters for gridcell
     ! -------------------------------------------------------------------------
 
-    ipatches    = 0
+    ipatches = 0
     icols    = 0
     ilunits  = 0
     icohorts = 0
@@ -98,10 +98,7 @@ contains
 
     ipatches = ipatches + npatches_per_lunit
 
-    !
-    ! number of cohorts per gridcell set here.
-    !
-    icohorts = icohorts + cohorts_per_gcell
+
 
     if (present(nveg )) nveg  = npatches_per_lunit
 
@@ -248,6 +245,19 @@ contains
        ipatches = ipatches + npatches_per_lunit
     end if
     if (present(ncrop )) ncrop  = npatches_per_lunit
+    
+
+    ! -------------------------------------------------------------------------
+    ! Number of cohorts is set here
+    ! ED cohorts (via FATES) populate all natural vegetation columns.
+    ! Current implementations mostly assume that only one column contains
+    ! natural vegetation, which is synonomous with the soil column. 
+    ! For restart output however, we will allocate the cohort vector space
+    ! based on all columns.
+    ! -------------------------------------------------------------------------
+    icohorts = icohorts + icols*cohorts_per_col
+
+
 
     ! -------------------------------------------------------------------------
     ! Determine return arguments

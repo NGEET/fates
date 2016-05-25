@@ -228,24 +228,24 @@ contains
     ! !DESCRIPTION: 
     ! Set gridcell decomposition for cohorts
     !
-    use EDTypesMod      , only : cohorts_per_gcell
+    use EDTypesMod      , only : cohorts_per_col
     use EDVecCohortType , only : ed_vec_cohort
     !
     ! !ARGUMENTS:
     type(bounds_type), intent(in)    :: bounds_clump  
     !
     ! !LOCAL VARIABLES:
-    integer c, gi
+    integer c, ci
     !------------------------------------------------------------------------
 
-    gi = bounds_clump%begg
+    ci = bounds_clump%begc
 
     do c = bounds_clump%begCohort, bounds_clump%endCohort
 
-       ed_vec_cohort%gridcell(c) = gi
-       if ( mod(c, cohorts_per_gcell ) == 0 ) gi = gi + 1
-
-     end do
+       ed_vec_cohort%column(c) = ci
+       if ( mod(c, cohorts_per_col ) == 0 ) ci = ci + 1
+       
+    end do
 
   end subroutine set_cohort_decomp
 

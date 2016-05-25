@@ -41,57 +41,57 @@ contains
 
   ! ============================================================================
 
-  subroutine ed_init_sites( bounds, ed_allsites_inst )
-    !
-    ! !DESCRIPTION:
-    ! Intialize all ED sites
-    !
-    ! !USES: 
-    use ColumnType      , only : col
-    use landunit_varcon , only : istsoil
-    !
-    ! !ARGUMENTS    
-    type(bounds_type)  , intent(in)            :: bounds
-    type(ed_site_type) , intent(inout), target :: ed_allsites_inst( bounds%begg: )
-    !
-    ! !LOCAL VARIABLES:
-    integer  :: g,l,c
-    logical  :: istheresoil(bounds%begg:bounds%endg) 
-    !----------------------------------------------------------------------
+!  subroutine ed_init_sites( bounds, ed_allsites_inst )
+!    !
+!    ! !DESCRIPTION:
+!    ! Intialize all ED sites
+!    !
+!    ! !USES: 
+!    use ColumnType      , only : col
+!    use landunit_varcon , only : istsoil
+!    !
+!    ! !ARGUMENTS    
+!    type(bounds_type)  , intent(in)            :: bounds
+!    type(ed_site_type) , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+!    !
+!    ! !LOCAL VARIABLES:
+!    integer  :: g,l,c
+!    logical  :: istheresoil(bounds%begg:bounds%endg) 
+!    !----------------------------------------------------------------------
+!
+!    !
+!    ! INITIALISE THE SITE STRUCTURES
+!    !
+!    ! Makes unique cohort identifiers. Needs zeroing at beginning of run.
+!    udata%cohort_number = 0
+!
+!    do g = bounds%begg,bounds%endg
+!       ! zero the site
+!       call zero_site(ed_allsites_inst(g))
+!
+!       !create clm mapping to ED structure
+!       ed_allsites_inst(g)%clmgcell = g 
+!       ed_allsites_inst(g)%lat      = grc%latdeg(g)  
+!       ed_allsites_inst(g)%lon      = grc%londeg(g)
+!    enddo
 
-    !
-    ! INITIALISE THE SITE STRUCTURES
-    !
-    ! Makes unique cohort identifiers. Needs zeroing at beginning of run.
-    udata%cohort_number = 0
-
-    do g = bounds%begg,bounds%endg
-       ! zero the site
-       call zero_site(ed_allsites_inst(g))
-
-       !create clm mapping to ED structure
-       ed_allsites_inst(g)%clmgcell = g 
-       ed_allsites_inst(g)%lat      = grc%latdeg(g)  
-       ed_allsites_inst(g)%lon      = grc%londeg(g)
-    enddo
-
-    istheresoil(bounds%begg:bounds%endg) = .false.
-    do c = bounds%begc,bounds%endc
-       g = col%gridcell(c)   
-       if (col%itype(c) == istsoil) then  
-          istheresoil(g) = .true.
-       endif
-       ed_allsites_inst(g)%istheresoil = istheresoil(g)
-    enddo
-
-    call set_site_properties( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )     
-
-    ! on restart, this functionality is handled in EDRestVectorMod::createPatchCohortStructure
-    !if (.not. is_restart() ) then
-    call init_patches( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
-    !endif
-
-  end subroutine ed_init_sites
+!    istheresoil(bounds%begg:bounds%endg) = .false.
+!    do c = bounds%begc,bounds%endc
+!       g = col%gridcell(c)   
+!       if (col%itype(c) == istsoil) then  
+!          istheresoil(g) = .true.
+!       endif
+!       ed_allsites_inst(g)%istheresoil = istheresoil(g)
+!    enddo
+!
+!    call set_site_properties( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )     
+!
+!    ! on restart, this functionality is handled in EDRestVectorMod::createPatchCohortStructure
+!    !if (.not. is_restart() ) then
+!    call init_patches( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
+!    !endif
+!
+!  end subroutine ed_init_sites
 
   ! ============================================================================
   subroutine zero_site( site_in )
@@ -149,6 +149,7 @@ contains
     ! !ARGUMENTS    
 
     type(ed_site_type) , intent(inout), target :: sites
+    integer, intent(in)                        :: nsites
     !
     ! !LOCAL VARIABLES:
     integer  :: s
@@ -225,6 +226,7 @@ contains
     !
     ! !ARGUMENTS    
     type(ed_site_type) , intent(inout), target :: sites
+    integer, intent(in)                        :: nsites
     !
     ! !LOCAL VARIABLES:
     integer  :: s
