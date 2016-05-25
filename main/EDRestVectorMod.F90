@@ -592,7 +592,7 @@ contains
   end function newEDRestartVectorClass
 
   !-------------------------------------------------------------------------------!
-  subroutine setVectors( this, bounds, sites )
+  subroutine setVectors( this, bounds, sites, nsites, fcolumn )
     !
     ! !DESCRIPTION:
     ! implement setVectors
@@ -603,7 +603,9 @@ contains
     ! !ARGUMENTS:
     class(EDRestartVectorClass) , intent(inout)      :: this
     type(bounds_type)           , intent(in)         :: bounds 
-    type(ed_site_type)          , intent(in), target :: sites(:)
+    type(ed_site_type)          , intent(in), target :: sites(nsites)
+    integer                     , intent(in)         :: nsites
+    integer                     , intent(in)         :: fcolumn(nsites)
     !
     ! !LOCAL VARIABLES:
     !-----------------------------------------------------------------------
@@ -615,10 +617,10 @@ contains
     !  call this%printDataInfoLL ( bounds, sites, nsites )
     !end if
 
-    call this%convertCohortListToVector ( bounds, sites )
+    call this%convertCohortListToVector ( bounds, sites, nsites, fcolumn )
 
     if (this%DEBUG) then
-       call this%printIoInfoLL ( bounds, sites, nsites )
+       call this%printIoInfoLL ( bounds, sites, nsites, fcolumn )
        call this%printDataInfoLL ( bounds, sites, nsites )
        call this%printDataInfoVector (  )
     end if
@@ -626,7 +628,7 @@ contains
   end subroutine setVectors
 
   !-------------------------------------------------------------------------------!
-  subroutine getVectors( this, bounds, sites, nsites)
+  subroutine getVectors( this, bounds, sites, nsites, fcolumn)
     !
     ! !DESCRIPTION:
     ! implement getVectors
@@ -639,8 +641,9 @@ contains
     ! !ARGUMENTS:
     class(EDRestartVectorClass) , intent(inout)         :: this
     type(bounds_type)           , intent(in)            :: bounds 
-    type(ed_site_type)          , intent(inout), target :: sites(:)
+    type(ed_site_type)          , intent(inout), target :: sites(nsites)
     integer                     , intent(in)            :: nsites
+    integer                     , intent(in)            :: fcolumn(nsites)
 
 
     !
@@ -652,7 +655,7 @@ contains
        write(iulog,*) 'edtime getVectors ',get_nstep()
     end if
 
-    call this%createPatchCohortStructure ( bounds, sites )
+    call this%createPatchCohortStructure ( bounds, sites, nsites )
 
     call this%convertCohortVectorToList ( bounds, sites )
 
@@ -661,8 +664,8 @@ contains
     end do
 
     if (this%DEBUG) then
-       call this%printIoInfoLL ( bounds, sites )
-       call this%printDataInfoLL ( bounds, sites )
+       call this%printIoInfoLL ( bounds, sites, nsites, fcolumn )
+       call this%printDataInfoLL ( bounds, sites, nsites )
        call this%printDataInfoVector (  )
     end if
 
@@ -1237,7 +1240,7 @@ contains
     ! !ARGUMENTS:
     class(EDRestartVectorClass) , intent(inout)      :: this
     type(bounds_type)           , intent(in)         :: bounds 
-    type(ed_site_type)          , intent(in), target :: sites
+    type(ed_site_type)          , intent(in), target :: sites(nsites)
     integer                     , intent(in)         :: nsites
     !
     ! !LOCAL VARIABLES:
@@ -1370,9 +1373,9 @@ contains
     ! !ARGUMENTS:
     class(EDRestartVectorClass) , intent(inout)      :: this
     type(bounds_type)           , intent(in)         :: bounds 
-    type(ed_site_type)          , intent(in), target :: sites
+    type(ed_site_type)          , intent(in), target :: sites(nsites)
     integer                     , intent(in)         :: nsites
-    integer, intent(in)                              :: fcolumn(this%nsites)
+    integer                     , intent(in)         :: fcolumn(nsites)
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type),  pointer :: currentPatch
@@ -1495,27 +1498,28 @@ contains
 
     totalCohorts = 0
 
-    incrementOffset     = this%vectorLengthStart
-    countCohort         = this%vectorLengthStart
-    countPft            = this%vectorLengthStart
-    countNcwd           = this%vectorLengthStart
-    countNclmax         = this%vectorLengthStart
-    countWaterMem       = this%vectorLengthStart
-    countSunZ           = this%vectorLengthStart
-
+    if(fcolumn(1).eq.bounds%begc .and. &
+          (fcolumn(1)-1)*cohorts_per_col.ne.(bounds%begCohort-1)) then
+        write(iulog,*) 'fcolumn(1) in this clump points to the first column of the clump'
+        write(iulog,*) 'but the assumption on first cohort index does not jive'
+        call endrun(msg=errMsg(__FILE__, __LINE__))
+    end if
 
     do s = 1,nsites
-
-       ! Calculate the offsets
-
-       incrementOffset     = this%vectorLengthStart + (fcolumn(s)-1)*cohorts_per_col
-       countCohort         = this%vectorLengthStart + (fcolumn(s)-1)*cohorts_per_col
-       countPft            = this%vectorLengthStart + (fcolumn(s)-1)*cohorts_per_col
-       countNcwd           = this%vectorLengthStart + (fcolumn(s)-1)*cohorts_per_col
-       countNclmax         = this%vectorLengthStart + (fcolumn(s)-1)*cohorts_per_col
-       countWaterMem       = this%vectorLengthStart + (fcolumn(s)-1)*cohorts_per_col
-       countSunZ           = this%vectorLengthStart + (fcolumn(s)-1)*cohorts_per_col
        
+       ! Calculate the offsets
+       ! fcolumn is the global column index of the current site.
+       ! For the first site, if that site aligns with the first column index
+       ! in the clump, than the offset should be be equal to begCohort
+
+       incrementOffset     = (fcolumn(s)-1)*cohorts_per_col + 1
+       countCohort         = (fcolumn(s)-1)*cohorts_per_col + 1
+       countPft            = (fcolumn(s)-1)*cohorts_per_col + 1
+       countNcwd           = (fcolumn(s)-1)*cohorts_per_col + 1
+       countNclmax         = (fcolumn(s)-1)*cohorts_per_col + 1
+       countWaterMem       = (fcolumn(s)-1)*cohorts_per_col + 1
+       countSunZ           = (fcolumn(s)-1)*cohorts_per_col + 1
+
        currentPatch => sites(s)%oldest_patch
 
        ! new column, reset num patches
@@ -1585,131 +1589,128 @@ contains
                 write(iulog,*) 'CLTV offsetNumCohorts II ',countCohort, &
                       numCohort
              endif
-
-                countCohort = countCohort + 1
-
-                currentCohort => currentCohort%taller
-
-             enddo ! currentCohort do while
-
-
-             !
-             ! deal with patch level fields here
-             !
-             this%livegrass(incrementOffset)   = currentPatch%livegrass
-             this%age(incrementOffset)         = currentPatch%age
-             this%areaRestart(incrementOffset) = currentPatch%area
-             this%old_stock(incrementOffset)   = ed_allsites_inst(g)%old_stock
-             this%cd_status(incrementOffset)   = ed_allsites_inst(g)%status
-             this%dd_status(incrementOffset)   = ed_allsites_inst(g)%dstatus
-             this%ncd(incrementOffset)         = ed_allsites_inst(g)%ncd 
-             this%leafondate(incrementOffset)  = ed_allsites_inst(g)%leafondate
-             this%leafoffdate(incrementOffset) = ed_allsites_inst(g)%leafoffdate
-             this%dleafondate(incrementOffset) = ed_allsites_inst(g)%dleafondate
-             this%dleafoffdate(incrementOffset)= ed_allsites_inst(g)%dleafoffdate
-             this%acc_NI(incrementOffset)      = ed_allsites_inst(g)%acc_NI
              
+             countCohort = countCohort + 1
              
-             ! set cohorts per patch for IO
-             this%cohortsPerPatch( incrementOffset ) = numCohort
+             currentCohort => currentCohort%taller
+             
+          enddo ! currentCohort do while
 
-             if (this%DEBUG) then
-                write(iulog,*) 'offsetNumCohorts III ' &
-                     ,countCohort,cohorts_per_col, numCohort
-             endif
-             !
-             ! deal with patch level fields of arrays here
-             !
-             ! these are arrays of length numpft_ed, each patch contains one
-             ! vector so we increment 
-             do i = 1,numpft_ed ! numpft_ed currently 2
-                this%leaf_litter(countPft)    = currentPatch%leaf_litter(i)
-                this%root_litter(countPft)    = currentPatch%root_litter(i)
-                this%leaf_litter_in(countPft) = currentPatch%leaf_litter_in(i)
-                this%root_litter_in(countPft) = currentPatch%root_litter_in(i)
-                this%seed_bank(countPft)      = currentPatch%seed_bank(i)
-                countPft = countPft + 1
-             end do
-
-             do i = 1,ncwd ! ncwd currently 4
-                this%cwd_ag(countNcwd) = currentPatch%cwd_ag(i)
-                this%cwd_bg(countNcwd) = currentPatch%cwd_bg(i)
-                countNcwd = countNcwd + 1
-             end do
-
-             do i = 1,nclmax ! nclmax currently 2
-                this%spread(countNclmax)         = currentPatch%spread(i)
-                countNclmax = countNclmax + 1
-             end do
-
-             if (this%DEBUG) write(iulog,*) 'CLTV countSunZ 1 ',countSunZ
-
-             if (this%DEBUG) write(iulog,*) 'CLTV 1186 ',nlevcan_ed,numpft_ed,nclmax
-
-             do k = 1,nlevcan_ed ! nlevcan_ed currently 40
-                do j = 1,numpft_ed ! numpft_ed currently 2
-                   do i = 1,nclmax ! nclmax currently 2
-                      this%f_sun(countSunZ)       = currentPatch%f_sun(i,j,k)
-                      this%fabd_sun_z(countSunZ)  = currentPatch%fabd_sun_z(i,j,k)
-                      this%fabi_sun_z(countSunZ)  = currentPatch%fabi_sun_z(i,j,k)
-                      this%fabd_sha_z(countSunZ)  = currentPatch%fabd_sha_z(i,j,k)
-                      this%fabi_sha_z(countSunZ)  = currentPatch%fabi_sha_z(i,j,k)
-                      countSunZ = countSunZ + 1
-                   end do
+          !
+          ! deal with patch level fields here
+          !
+          this%livegrass(incrementOffset)   = currentPatch%livegrass
+          this%age(incrementOffset)         = currentPatch%age
+          this%areaRestart(incrementOffset) = currentPatch%area
+          
+          this%old_stock(incrementOffset)   = sites(s)%old_stock
+          this%cd_status(incrementOffset)   = sites(s)%status
+          this%dd_status(incrementOffset)   = sites(s)%dstatus
+          this%ncd(incrementOffset)         = sites(s)%ncd 
+          this%leafondate(incrementOffset)  = sites(s)%leafondate
+          this%leafoffdate(incrementOffset) = sites(s)%leafoffdate
+          this%dleafondate(incrementOffset) = sites(s)%dleafondate
+          this%dleafoffdate(incrementOffset)= sites(s)%dleafoffdate
+          this%acc_NI(incrementOffset)      = sites(s)%acc_NI
+          
+          
+          ! set cohorts per patch for IO
+          this%cohortsPerPatch( incrementOffset ) = numCohort
+          
+          if (this%DEBUG) then
+             write(iulog,*) 'offsetNumCohorts III ' &
+                   ,countCohort,cohorts_per_col, numCohort
+          endif
+          !
+          ! deal with patch level fields of arrays here
+          !
+          ! these are arrays of length numpft_ed, each patch contains one
+          ! vector so we increment 
+          do i = 1,numpft_ed 
+             this%leaf_litter(countPft)    = currentPatch%leaf_litter(i)
+             this%root_litter(countPft)    = currentPatch%root_litter(i)
+             this%leaf_litter_in(countPft) = currentPatch%leaf_litter_in(i)
+             this%root_litter_in(countPft) = currentPatch%root_litter_in(i)
+             this%seed_bank(countPft)      = currentPatch%seed_bank(i)
+             countPft = countPft + 1
+          end do
+          
+          do i = 1,ncwd ! ncwd currently 4
+             this%cwd_ag(countNcwd) = currentPatch%cwd_ag(i)
+             this%cwd_bg(countNcwd) = currentPatch%cwd_bg(i)
+             countNcwd = countNcwd + 1
+          end do
+          
+          do i = 1,nclmax ! nclmax currently 2
+             this%spread(countNclmax)         = currentPatch%spread(i)
+             countNclmax = countNclmax + 1
+          end do
+          
+          if (this%DEBUG) write(iulog,*) 'CLTV countSunZ 1 ',countSunZ
+          
+          if (this%DEBUG) write(iulog,*) 'CLTV 1186 ',nlevcan_ed,numpft_ed,nclmax
+          
+          do k = 1,nlevcan_ed ! nlevcan_ed currently 40
+             do j = 1,numpft_ed ! numpft_ed currently 2
+                do i = 1,nclmax ! nclmax currently 2
+                   this%f_sun(countSunZ)       = currentPatch%f_sun(i,j,k)
+                   this%fabd_sun_z(countSunZ)  = currentPatch%fabd_sun_z(i,j,k)
+                   this%fabi_sun_z(countSunZ)  = currentPatch%fabi_sun_z(i,j,k)
+                   this%fabd_sha_z(countSunZ)  = currentPatch%fabd_sha_z(i,j,k)
+                   this%fabi_sha_z(countSunZ)  = currentPatch%fabi_sha_z(i,j,k)
+                   countSunZ = countSunZ + 1
                 end do
              end do
-
-             if (this%DEBUG) write(iulog,*) 'CLTV countSunZ 2 ',countSunZ
-
-             ! set numpatches for this gcell
-             this%numPatchesPerCol( ed_allsites_inst(g)%clmgcell )  = numPatches
-
-             incrementOffset = incrementOffset + numCohortsPerPatch
-
-             ! reset counters so that they are all advanced evenly. Currently
-             ! the offset is 10, the max of numpft_ed, ncwd, nclmax,
-             ! countWaterMem and the number of allowed cohorts per patch
-             countPft      = incrementOffset
-             countNcwd     = incrementOffset
-             countNclmax   = incrementOffset
-             countCohort   = incrementOffset
-             countSunZ     = incrementOffset
-
-             if (this%DEBUG) then
-                write(iulog,*) 'CLTV incrementOffset ', incrementOffset
-                write(iulog,*) 'CLTV cohorts_per_col ', cohorts_per_col
-                write(iulog,*) 'CLTV numCohort ', numCohort
-                write(iulog,*) 'CLTV totalCohorts ', totalCohorts
-             end if
-
-             currentPatch => currentPatch%younger
-
-          enddo ! currentPatch do while
-
-          ! set which gridcells have patches/cohorts
-          this%colWithPatch( ed_allsites_inst(g)%clmgcell )  = 1
-
-          do i = 1,numWaterMem ! numWaterMem currently 10
-             this%water_memory( countWaterMem ) = ed_allsites_inst(g)%water_memory(i)
-             countWaterMem = countWaterMem + 1
           end do
-
-          countWaterMem = incrementOffset
-
-       endif ! is there soil check
-
-       g = g + 1
-
+          
+          if (this%DEBUG) write(iulog,*) 'CLTV countSunZ 2 ',countSunZ
+          
+          incrementOffset = incrementOffset + numCohortsPerPatch
+          
+          ! reset counters so that they are all advanced evenly. Currently
+          ! the offset is 10, the max of numpft_ed, ncwd, nclmax,
+          ! countWaterMem and the number of allowed cohorts per patch
+          countPft      = incrementOffset
+          countNcwd     = incrementOffset
+          countNclmax   = incrementOffset
+          countCohort   = incrementOffset
+          countSunZ     = incrementOffset
+          
+          if (this%DEBUG) then
+             write(iulog,*) 'CLTV incrementOffset ', incrementOffset
+             write(iulog,*) 'CLTV cohorts_per_col ', cohorts_per_col
+             write(iulog,*) 'CLTV numCohort ', numCohort
+             write(iulog,*) 'CLTV totalCohorts ', totalCohorts
+          end if
+          
+          currentPatch => currentPatch%younger
+          
+       enddo ! currentPatch do while
+       
+       ! set numpatches for this gcell
+       this%numPatchesPerCol(fcolumn(s))  = numPatches
+       
+       ! set which columns have patches/cohorts (seems redundant given numPatchesPerCol)
+       this%colWithPatch(fcolumn(s)) = 1
+       
+       do i = 1,numWaterMem ! numWaterMem currently 10
+          this%water_memory( countWaterMem ) = sites(s)%water_memory(i)
+          countWaterMem = countWaterMem + 1
+       end do
+       
+       countWaterMem = incrementOffset
+       
     enddo
-
+    
     if (this%DEBUG) then
        write(iulog,*) 'CLTV total cohorts ',totalCohorts
     end if
-
-  end subroutine convertCohortListToVector
+    
+    return
+ end subroutine convertCohortListToVector
 
   !-------------------------------------------------------------------------------!
-  subroutine createPatchCohortStructure( this, bounds, ed_allsites_inst ) 
+  subroutine createPatchCohortStructure( this, bounds, sites, nsites, fcolumn ) 
     !
     ! !DESCRIPTION:
     ! counts the total number of cohorts over all p levels (ed_patch_type) so we
@@ -1723,11 +1724,14 @@ contains
     use EDParamsMod        ,  only : ED_val_maxspread
     use EDPatchDynamicsMod ,  only : create_patch
     use GridcellType       ,  only : grc
+    use ColumnType         ,  only : col
     !
     ! !ARGUMENTS:
     class(EDRestartVectorClass) , intent(inout)         :: this
     type(bounds_type)           , intent(in)            :: bounds 
-    type(ed_site_type)          , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+    type(ed_site_type)          , intent(inout), target :: sites(nsites)
+    integer                     , intent(in)            :: nsites
+    integer                     , intent(in)            :: fcolumn(nsites)
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type) , pointer  :: newp
@@ -1737,10 +1741,13 @@ contains
     real(r8) :: seed_bank_local(numpft_ed)
     real(r8) :: age !notional age of this patch
     integer  :: cohortstatus
-    integer  :: g,patchIdx,currIdx, fto, ft
+    integer  :: s  ! site index
+    integer  :: c  ! column index
+    integer  :: g  ! grid index
+    integer  :: patchIdx,currIdx, fto, ft
     !-----------------------------------------------------------------------
 
-    currIdx = this%vectorLengthStart
+   
 
     cwd_ag_local      = 0.0_r8 !ED_val_init_litter   !arbitrary value for litter pools. kgC m-2           ! 
     cwd_bg_local      = 0.0_r8 !ED_val_init_litter
@@ -1753,25 +1760,29 @@ contains
     ! loop over model grid cells and create patch/cohort structure based on
     ! restart data
     !
-    do g = bounds%begg, bounds%endg
+    do s = 1,nsites
+
+       c = fcolumn(s)
+       g = col%gridcell(c)
+
+       currIdx = (c-1)*cohorts_per_col + 1  ! global cohort index at the head of the column
 
        if (this%DEBUG) then
-          write(iulog,*) 'colWithPatch ',this%colWithPatch(g),this%numPatchesPerCol(g)
+          write(iulog,*) 'colWithPatch ',this%colWithPatch(c),this%numPatchesPerCol(c)
        end if
 
-       call zero_site( ed_allsites_inst(g) )
+       call zero_site( sites(s) )
        !
        ! set a few items that are necessary on restart for ED but not on the 
        ! restart file
        !
-       ed_allsites_inst(g)%istheresoil = .true. ! if we are dealing with ED data there will always be soil
-       ed_allsites_inst(g)%lat = grc%latdeg(g)
-       ed_allsites_inst(g)%lon = grc%londeg(g)
-       ed_allsites_inst(g)%gdd = 0.0_r8
-       ed_allsites_inst(g)%ncd = 0.0_r8
+       sites(s)%lat = grc%latdeg(g)
+       sites(s)%lon = grc%londeg(g)
+       sites(s)%gdd = 0.0_r8
+       sites(s)%ncd = 0.0_r8
 
        ! then this site has soil and should be set here
-       do patchIdx = 1,this%numPatchesPerCol(g)
+       do patchIdx = 1,this%numPatchesPerCol(c)
 
           if (this%DEBUG) then
              write(iulog,*) 'create patch ',patchIdx
@@ -1783,11 +1794,11 @@ contains
           call zero_patch(newp)
 
           ! make new patch
-          call create_patch(ed_allsites_inst(g), newp, age, area, &
+          call create_patch(sites(s), newp, age, area, &
                spread_local, cwd_ag_local, cwd_bg_local,  &
                leaf_litter_local, root_litter_local, seed_bank_local) 
 
-          newp%siteptr => ed_allsites_inst(g)
+          newp%siteptr => sites(s)
 
           ! give this patch a unique patch number
           newp%patchno = patchIdx
@@ -1840,31 +1851,31 @@ contains
 
              if (this%DEBUG) write(iulog,*) 'patchIdx = 1 ',patchIdx
 
-             ed_allsites_inst(g)%youngest_patch         => newp                   
-             ed_allsites_inst(g)%oldest_patch           => newp                        
-             ed_allsites_inst(g)%youngest_patch%younger => null()
-             ed_allsites_inst(g)%youngest_patch%older   => null()
-             ed_allsites_inst(g)%oldest_patch%younger   => null()
-             ed_allsites_inst(g)%oldest_patch%older     => null()
+             sites(s)%youngest_patch         => newp                   
+             sites(s)%oldest_patch           => newp                        
+             sites(s)%youngest_patch%younger => null()
+             sites(s)%youngest_patch%older   => null()
+             sites(s)%oldest_patch%younger   => null()
+             sites(s)%oldest_patch%older     => null()
 
           else if (patchIdx == 2) then ! add second patch to list
 
              if (this%DEBUG) write(iulog,*) 'patchIdx = 2 ',patchIdx
 
-             ed_allsites_inst(g)%youngest_patch         => newp
-             ed_allsites_inst(g)%youngest_patch%younger => null()
-             ed_allsites_inst(g)%youngest_patch%older   => ed_allsites_inst(g)%oldest_patch
-             ed_allsites_inst(g)%oldest_patch%younger   => ed_allsites_inst(g)%youngest_patch
-             ed_allsites_inst(g)%oldest_patch%older     => null()
+             sites(s)%youngest_patch         => newp
+             sites(s)%youngest_patch%younger => null()
+             sites(s)%youngest_patch%older   => sites(s)%oldest_patch
+             sites(s)%oldest_patch%younger   => sites(s)%youngest_patch
+             sites(s)%oldest_patch%older     => null()
 
           else ! more than 2 patches, insert patch into youngest slot
 
              if (this%DEBUG) write(iulog,*) 'patchIdx > 2 ',patchIdx
 
-             newp%older                                 => ed_allsites_inst(g)%youngest_patch
-             ed_allsites_inst(g)%youngest_patch%younger => newp
-             newp%younger                               => null()
-             ed_allsites_inst(g)%youngest_patch         => newp
+             newp%older                      => sites(s)%youngest_patch
+             sites(s)%youngest_patch%younger => newp
+             newp%younger                    => null()
+             sites(s)%youngest_patch         => newp
 
           endif
 
@@ -1872,12 +1883,12 @@ contains
 
        enddo ! ends loop over patchIdx
 
-    enddo ! ends loop over g
+    enddo ! ends loop over s
 
   end subroutine createPatchCohortStructure
 
   !-------------------------------------------------------------------------------!
-  subroutine convertCohortVectorToList( this, bounds, ed_allsites_inst ) 
+  subroutine convertCohortVectorToList( this, bounds, sites, nsites, fcolumn ) 
     !
     ! !DESCRIPTION:
     ! counts the total number of cohorts over all p levels (ed_patch_type) so we
@@ -1889,7 +1900,10 @@ contains
     ! !ARGUMENTS:
     class(EDRestartVectorClass) , intent(inout)         :: this
     type(bounds_type)           , intent(in)            :: bounds 
-    type(ed_site_type)          , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+    type(ed_site_type)          , intent(inout), target :: sites(nsites)
+    integer                     , intent(in)            :: nsites
+    integer                     , intent(in)            :: fcolumn(nsites)
+
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type), pointer :: currentPatch
@@ -2114,7 +2128,7 @@ contains
   !--------------------------------------------!
 
   !-------------------------------------------------------------------------------!
-  subroutine EDRest ( bounds, sites, nsites, ncid, flag )
+  subroutine EDRest ( bounds, sites, nsites, fcolumn, ncid, flag )
     !
     ! !DESCRIPTION:
     ! Read/write ED restart data
@@ -2128,8 +2142,9 @@ contains
     ! !ARGUMENTS:
     type(bounds_type)       , intent(in)            :: bounds  ! bounds
     type(file_desc_t)       , intent(inout)         :: ncid    ! netcdf id
-    type(ed_site_type)      , intent(inout)         :: sites   ! The site vector
-    integer                 , intent(in)            :: nsites  ! Size of the site vector
+    type(ed_site_type)      , intent(inout)         :: sites(nsites)   ! The site vector
+    integer                 , intent(in)            :: nsites
+    integer                 , intent(in)            :: fcolumn(nsites)
     character(len=*)        , intent(in)            :: flag    !'read' or 'write'
     !
     ! !LOCAL VARIABLES:
@@ -2145,7 +2160,7 @@ contains
     end if
 
     if ( flag == 'write' ) then
-       call ervc%setVectors( bounds, sites) )
+       call ervc%setVectors( bounds, sites, nsites, fcolumn )
     endif
 
     call ervc%doVectorIO( ncid, flag )
