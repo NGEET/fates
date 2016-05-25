@@ -86,7 +86,7 @@ contains
     allocate(this%wtlunit     (begc:endc))                     ; this%wtlunit     (:)   = nan
     allocate(this%patchi      (begc:endc))                     ; this%patchi      (:)   = ispval
     allocate(this%patchf      (begc:endc))                     ; this%patchf      (:)   = ispval
-    allocate(this%npatches     (begc:endc))                     ; this%npatches     (:)   = ispval
+    allocate(this%npatches     (begc:endc))                    ; this%npatches     (:)   = ispval
     allocate(this%itype       (begc:endc))                     ; this%itype       (:)   = ispval
     allocate(this%active      (begc:endc))                     ; this%active      (:)   = .false.
 

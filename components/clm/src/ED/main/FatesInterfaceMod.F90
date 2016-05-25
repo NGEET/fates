@@ -18,6 +18,7 @@ module FatesInterfaceMod
    use atm2lndType       , only : atm2lnd_type
    use ncdio_pio         , only : file_desc_t
    use PatchType         , only : patch
+   use ColumnType        , only : col
    ! ------------------------------------------------------------------------------------
 
    use EDtypesMod            , only : ed_patch_type, ed_site_type, numpft_ed
@@ -111,7 +112,7 @@ contains
          call zero_site(this%sites(s))
          
          c = fcolumn(s)
-         g = gridcell(c)
+         g = col%gridcell(c)  ! TODO-INTERF: col% and grc% should not be accessible here
 
          this%sites(s)%lat = grc%latdeg(g)  
          this%sites(s)%lon = grc%londeg(g)
