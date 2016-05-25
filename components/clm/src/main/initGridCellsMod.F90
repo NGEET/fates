@@ -103,7 +103,8 @@ contains
     ! Cohort layout
     ! Array index:   1   2   3   4   5   6   7   8   9  10  11  12
     ! ------------------------------------------------------------
-    ! Gridcell:      1   1   2   2   3   3   1   1   2   2   3   3
+    ! Gridcell:      1   1   1   1   2   2   2   2   3   3   3   3
+    ! Column:        1   1   2   2   3   3   4   4   5   5   6   6   
     ! Cohort:        1   2   1   2   1   2   1   2   1   2   1   2
 
     nclumps = get_proc_clumps()
