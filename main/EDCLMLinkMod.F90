@@ -966,7 +966,9 @@ contains
     ! !ARGUMENTS    
     class(ed_clm_type)                              :: this
     type(bounds_type)       , intent(in)            :: bounds  
-    type(ed_site_type)      , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+    type(ed_site_type)      , intent(inout), target :: sites(nsites)
+    integer                 , intent(in)            :: nsites
+    integer                 , intent(in)            :: fcolumn(nsites)
     type(waterstate_type)   , intent(inout)         :: waterstate_inst
     type(canopystate_type)  , intent(inout)         :: canopystate_inst
     !
@@ -1008,36 +1010,37 @@ contains
 
       ! determine if gridcell is soil 
 
-      istheresoil(begg:endg) = .false.
-      do c = begc,endc
-         g = col%gridcell(c)   
-         l = col%landunit(c)
-
-         if (lun%itype(l) == istsoil .and. col%itype(c) == istsoil) then  
-            istheresoil(g) = .true.
-         endif
-         ed_allsites_inst(g)%istheresoil = istheresoil(g)
-      enddo
-
+!      istheresoil(begg:endg) = .false.
+!      do c = begc,endc
+!         g = col%gridcell(c)   
+!         l = col%landunit(c)
+!
+!         if (lun%itype(l) == istsoil .and. col%itype(c) == istsoil) then  
+!            istheresoil(g) = .true.
+!         endif
+!         ed_allsites_inst(g)%istheresoil = istheresoil(g)
+!      enddo
       ! retrieve the first soil patch associated with each gridcell. 
       ! make sure we only get the first patch value for places which have soil. 
+!      firstsoilpatch(begg:endg) = -999
+!      do c = begc,endc
+!         g = col%gridcell(c)
+!         l = col%landunit(c)
+!         if (lun%itype(l) == istsoil .and. col%itype(c) == istsoil) then 
+!            firstsoilpatch(g) = col%patchi(c)
+!            sitecolumn(g) = c
+!         endif
+!      enddo
+!      do g = begg,endg
+!         if(firstsoilpatch(g) >= 0.and.ed_allsites_inst(g)%istheresoil)then 
+!            ed_allsites_inst(g)%clmcolumn = sitecolumn(g)
 
-      firstsoilpatch(begg:endg) = -999
-      do c = begc,endc
-         g = col%gridcell(c)
-         l = col%landunit(c)
 
-         if (lun%itype(l) == istsoil .and. col%itype(c) == istsoil) then 
-            firstsoilpatch(g) = col%patchi(c)
-            sitecolumn(g) = c
-         endif
-      enddo
+      do s = 1,nsites
 
-      do g = begg,endg
 
-         if(firstsoilpatch(g) >= 0.and.ed_allsites_inst(g)%istheresoil)then 
-            ed_allsites_inst(g)%clmcolumn = sitecolumn(g)
-
+         c = fcolumn(s)
+         
             ! ============================================================================
             ! Zero the bare ground tile BGC variables.
             ! Valid Range for zero'ing here is the soil_patch and non crop patches
@@ -1046,8 +1049,8 @@ contains
             ! firstsoilpatch(g) + numpft - numcft
             ! ============================================================================
 
-            begp_fp = firstsoilpatch(g)
-            endp_fp = firstsoilpatch(g) + numpft - numcft
+            begp_fp = col%patchi(c)
+            endp_fp = col%patchi(c) + numpft - numcft
             
             clmpatch%is_veg(begp_fp:endp_fp)        = .false. 
             clmpatch%is_bareground(begp_fp:endp_fp) = .false. 
@@ -1063,16 +1066,23 @@ contains
             total_bare_ground = 0.0_r8
             total_patch_area = 0._r8 
 
-            currentPatch => ed_allsites_inst(g)%oldest_patch
+            currentPatch => sites(s)%oldest_patch
             do while(associated(currentPatch))
                patchn = patchn + 1
                currentPatch%patchno = patchn
 
                if (patchn <= numpft - numcft)then !don't expand into crop patches.   
 
-                  currentPatch%clm_pno = firstsoilpatch(g) + patchn !the first 'soil' patch is unvegetated...      
+                  currentPatch%clm_pno = col%patchi(c) + patchn !the first 'soil' patch is unvegetated...      
+
+                  ! INTERF-TODO:  currentPatch%clm_pno should be removed (FATES internal variable with CLM iformation)
+
                   p = currentPatch%clm_pno
-                  c = clmpatch%column(p)
+
+                  if(c .ne. clmpatch%column(p))then
+                     ! ERROR AND EXIT()
+                  end if
+
                   clmpatch%is_veg(p) = .true. !this .is. a tile filled with vegetation... 
                   
                   call currentPatch%set_root_fraction()
@@ -1171,36 +1181,39 @@ contains
                   ! currentPatch%total_canopy_area/currentPatch%area is fraction of this patch cover by plants 
                   ! currentPatch%area/AREA is the fraction of the soil covered by this patch. 
 
+                  ! INTERF-TODO: clmpatch%wt_ed should also be removed, and perhaps replaced with something
+                  ! like clm_fates%xxxx(p)
+
                   clmpatch%wt_ed(p) = min(1.0_r8,(currentPatch%total_canopy_area/currentPatch%area)) * &
                        (currentPatch%area/AREA)
                   currentPatch%bare_frac_area = (1.0_r8 - min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)) * &
                        (currentPatch%area/AREA)                 
-
+                  
                   if ( DEBUG ) then
                      write(iulog, *) 'EDCLMLinkMod bare frac', currentPatch%bare_frac_area
                   end if
                   total_patch_area = total_patch_area + clmpatch%wt_ed(p) + currentPatch%bare_frac_area
                   total_bare_ground = total_bare_ground + currentPatch%bare_frac_area
                   currentCohort=> currentPatch%tallest
-
+                  
                else
                   write(iulog,*) 'ED: too many patches' 
                end if ! patchn<15
-
+               
                currentPatch => currentPatch%younger
             end do !patch loop
-
+            
             if((total_patch_area-1.0_r8)>1e-9)then
                write(iulog,*) 'total area is wrong in CLMEDLINK',total_patch_area
             endif
-
+            
             !loop round all and zero the remaining empty vegetation patches 
-            do p = firstsoilpatch(g)+patchn+1,firstsoilpatch(g)+numpft   
+            do p = col%patchi(c)+patchn+1,col%patchi(c)+numpft   
                clmpatch%wt_ed(p) = 0.0_r8
             enddo
 
             !set the area of the bare ground patch. 
-            p = firstsoilpatch(g) 
+            p = col%patchi(c)
             clmpatch%wt_ed(p) = total_bare_ground
             clmpatch%is_bareground = .true.
          endif ! are there any soil patches?    
