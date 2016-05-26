@@ -132,7 +132,7 @@ contains
    
    ! ------------------------------------------------------------------------------------
    
-   subroutine init_restart(this, bounds_clump, ncid, flag )
+   subroutine init_restart(this, bounds_clump, ncid, flag, fcolumn )
       
       implicit none
       class(fates_interface_type), intent(inout)  :: this
@@ -140,8 +140,7 @@ contains
       type(file_desc_t)       , intent(inout)     :: ncid    ! netcdf id
       character(len=*)        , intent(in)        :: flag    !'read' or 'write'
       
-      call EDRest( bounds_clump, this%sites, this%nsites,
-            ncid, flag )
+      call EDRest( bounds_clump, this%sites, this%nsites, fcolumn, ncid, flag )
       return
    end subroutine init_restart
 

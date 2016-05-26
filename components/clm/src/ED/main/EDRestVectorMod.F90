@@ -12,6 +12,7 @@ module EDRestVectorMod
   use EDTypesMod      , only : area, cohorts_per_col, numpft_ed, numWaterMem, nclmax, numCohortsPerPatch
   use EDTypesMod      , only : ncwd, invalidValue, nlevcan_ed
   use EDTypesMod      , only : ed_site_type, ed_patch_type, ed_cohort_type
+  use abortutils      , only : endrun
   !
   implicit none
   private
@@ -267,7 +268,6 @@ contains
            (bounds%begc:bounds%endc), stat=retVal)
       SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
       new%numPatchesPerCol(:) = invalidValue
-
       
       allocate(new%old_stock &
            (bounds%begc:bounds%endc), stat=retVal)
@@ -1399,7 +1399,7 @@ contains
 
     write(iulog,*) 'vecLenStart ',this%vectorLengthStart
 
-    do s=1,nsites
+    do s = 1,nsites
        
        currentPatch => sites(s)%oldest_patch
 
@@ -1506,8 +1506,8 @@ contains
     totalCohorts = 0
 
     if(fcolumn(1).eq.bounds%begc .and. &
-          (fcolumn(1)-1)*cohorts_per_col.ne.(bounds%begCohort-1)) then
-        write(iulog,*) 'fcolumn(1) in this clump points to the first column of the clump'
+          (fcolumn(1)-1)*cohorts_per_col+1.ne.bounds%begCohort) then
+        write(iulog,*) 'fcolumn(1) in this clump, points to the first column of the clump'
         write(iulog,*) 'but the assumption on first cohort index does not jive'
         call endrun(msg=errMsg(__FILE__, __LINE__))
     end if
@@ -1783,7 +1783,23 @@ contains
        sites(s)%gdd = 0.0_r8
        sites(s)%ncd = 0.0_r8
 
-       ! then this site has soil and should be set here
+       if (this%numPatchesPerCol(c)<0 .or. this%numPatchesPerCol(c)>10000) then
+          write(iulog,*) 'a column was expected to contain a valid number of patches'
+          write(iulog,*) '0 is a valid number, but this column seems uninitialized',this%numPatchesPerCol(c)
+          call endrun(msg=errMsg(__FILE__, __LINE__))
+       end if
+
+       ! This site may have some patches on it, but lets initialize it with null pointers
+       ! just in-case there are no patches
+
+       sites(s)%youngest_patch         => null()                 
+       sites(s)%oldest_patch           => null()
+       sites(s)%youngest_patch%younger => null()
+       sites(s)%youngest_patch%older   => null()
+       sites(s)%oldest_patch%younger   => null()
+       sites(s)%oldest_patch%older     => null()
+
+
        do patchIdx = 1,this%numPatchesPerCol(c)
 
           if (this%DEBUG) then
@@ -1887,7 +1903,7 @@ contains
 
     enddo ! ends loop over s
 
-  end subroutine createPatchCohortStructure
+ end subroutine createPatchCohortStructure
 
   !-------------------------------------------------------------------------------!
   subroutine convertCohortVectorToList( this, bounds, sites, nsites, fcolumn ) 

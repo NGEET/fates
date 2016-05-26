@@ -461,9 +461,9 @@ contains
        ! INTERF-TODO: FATES(NC) SHOULD ONLY BE VISIBLE TO THE INTERFACE
        ! AND ONLY FATES API DEFINED TYPES SHOULD BE PASSED TO IT
        ! NEEDS A WRAPPER
-       call CanopyFluxes(bounds_clump,                                                   &
+       call CanopyFluxes(bounds_clump,                                                      &
             filter(nc)%num_exposedvegp, filter(nc)%exposedvegp,                             &
-            clm_fates%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg),            &
+            clm_fates%fates(nc)%sites,                                                      &
             atm2lnd_inst, canopystate_inst, cnveg_state_inst,                               &
             energyflux_inst, frictionvel_inst, soilstate_inst, solarabs_inst, surfalb_inst, &
             temperature_inst, waterflux_inst, waterstate_inst, ch4_inst, ozone_inst, photosyns_inst, &

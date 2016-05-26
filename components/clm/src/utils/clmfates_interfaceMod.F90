@@ -74,6 +74,10 @@ module CLMFatesInterfaceMod
       ! This vector may be sparse, and non-sites have index 0
       integer, allocatable :: hsites  (:)
 
+      !
+
+
+
    end type f2hmap_type
    
 
@@ -221,7 +225,7 @@ contains
          allocate(self%f2hmap(nc)%fcolumn(s))
 
          ! Assign the h2hmap indexing
-         self%f2hmap(nc)%column(1:s)         =  collist(1:s)
+         self%f2hmap(nc)%fcolumn(1:s)         =  collist(1:s)
          
          ! Deallocate the temporary arrays
          deallocate(collist)
@@ -362,6 +366,51 @@ contains
       return
    end subroutine dynamics_driv
    
+
+   ! ------------------------------------------------------------------------------------
+
+   subroutine init_restart(this, ncid, flag, waterstate_inst, canopystate_inst )
+
+      implicit none
+
+      ! Arguments
+      class(hlm_fates_interface_type), intent(inout) :: this
+      type(file_desc_t)              , intent(inout) :: ncid    ! netcdf id
+      character(len=*)               , intent(in)    :: flag    !'read' or 'write'
+      type(waterstate_type)          , intent(in)    :: waterstate_inst
+      type(canopystate_type)         , intent(in)    :: canopystate_inst
+
+      ! Locals
+      type(bounds_type) :: bounds_clump
+      integer           :: nc
+      integer           :: nclumps
+
+      nclumps = get_proc_clumps()
+      do nc = 1, nclumps
+         call get_clump_bounds(nc, bounds_clump)
+
+         call EDRest( bounds_clump, this%fates(nc)%sites, this%fates(nc)%nsites, &
+               this%f2hmap(nc)%fcolumn, ncid, flag )
+
+         if ( trim(flag) == 'read' ) then
+            
+            call this%fates2hlm%ed_clm_link( bounds_clump,                       &
+                  this%fates(nc)%sites,                                          &
+                  this%phen_inst,                                                &
+                  waterstate_inst,                                               &
+                  canopystate_inst)
+
+
+         end if
+      end do
+
+      call clm_fates%fates2hlm%restart(bounds, ncid, flag)
+      
+      return
+   end subroutine init_restart
+
+
+
    ! ------------------------------------------------------------------------------------
    !  THESE WRAPPERS MAY COME IN HANDY, KEEPING FOR NOW
    !  subroutine set_fates2hlm(this,bounds_clump, setval_scalar) 
