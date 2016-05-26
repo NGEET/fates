@@ -445,10 +445,6 @@ contains
     call atm2lnd_inst%InitAccBuffer(bounds)
 
     call temperature_inst%InitAccBuffer(bounds)
-    
-    if (use_ed) then
-       call clm_fates%phen_inst%initAccBuffer(bounds)
-    endif
 
     call canopystate_inst%InitAccBuffer(bounds)
 
@@ -572,11 +568,6 @@ contains
     end if
 
     if (use_ed) then
-
-       ! There are concerns that NETCDF is not threadsafe, so it
-       ! cannot handle multiple open files on one node.  So we are not
-       ! forking the reads
-       call clm_fates%phen_inst%restart(bounds, ncid, flag)
 
        ! Bounds are not passed to FATES init_restart because
        ! we call a loop on clumps within this subroutine anyway

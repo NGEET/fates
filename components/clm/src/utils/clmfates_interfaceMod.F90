@@ -57,7 +57,6 @@ module CLMFatesInterfaceMod
    ! Used FATES Modules
    use FatesInterfaceMod     , only : fates_interface_type
    use EDCLMLinkMod          , only : ed_clm_type
-   use EDPhenologyType       , only : ed_phenology_type
    use EDTypesMod            , only : udata
    use EDMainMod             , only : ed_ecosystem_dynamics
    use EDMainMod             , only : ed_update_site
@@ -108,13 +107,6 @@ module CLMFatesInterfaceMod
       type(ed_clm_type) :: fates2hlm  
 
       
-      ! These are phenology relevant variables (strange how phenology gets
-      ! its own subclass)
-      ! prev: type(ed_phenology_type)::ed_phenology_inst
-      ! SOON TO BE DEPRECATED - PHENOLOGY TO BE MOVED INTO ed_sites(:)
-      type(ed_phenology_type)   :: phen_inst  
-
-
       ! INTERF-TODO: we will need a new bounding type (maybe?)
       ! depending on how we structure the memory
       ! We will likely have a fates_bcs (boundary conditions) type
@@ -178,14 +170,7 @@ contains
          ! 1) allocate the vectors
          ! 2) add the history variables defined in clm_inst to the history machinery
          call this%fates2hlm%Init(bounds_proc)
-         
-         ! Initialize ED phenology variables
-         ! This also involves two stages
-         ! 1) allocate the vectors in phen_inst
-         ! 2) add the phenology history variables to the history machinery
-         call this%phen_inst%Init(bounds_proc)
-         
-         
+                  
          call EDecophysconInit( EDpftvarcon_inst, numpft )
 
       end if
@@ -242,29 +227,6 @@ contains
       
    end subroutine init
    
-   ! ------------------------------------------------------------------------------------
-   
-   subroutine fates2hlm_link(this, bounds_clump, nc, waterstate_inst, canopystate_inst)
-      
-      ! CLM:  called from initialize2()
-      ! ALM:  ??
-      
-      ! Input Arguments
-      class(hlm_fates_interface_type), intent(inout) :: this
-      type(bounds_type),intent(in)                   :: bounds_clump
-      type(waterstate_type)   , intent(inout)        :: waterstate_inst
-      type(canopystate_type)  , intent(inout)        :: canopystate_inst
-      integer, intent(in)                            :: nc
-      
-      call this%fates2hlm%ed_clm_link( bounds_clump,                  &
-            this%fates(nc)%sites, &
-            this%phen_inst,                                                &
-            waterstate_inst,                                               &
-            canopystate_inst)
-      
-      
-      return
-   end subroutine fates2hlm_link
   
    ! ------------------------------------------------------------------------------------
    
@@ -342,7 +304,7 @@ contains
 !         if (this%fates(nc)%sites(g)%istheresoil) then
             call ed_ecosystem_dynamics(this%fates(nc)%sites(s),    &
                   this%fates2hlm,                                  &
-                  this%phen_inst, atm2lnd_inst,                    &
+                  atm2lnd_inst,                                    &
                   soilstate_inst, temperature_inst, waterstate_inst)
             
             call ed_update_site(this%fates(nc)%sites(s))
@@ -352,7 +314,6 @@ contains
       ! link to CLM/ALM structures
       call this%fates2hlm%ed_clm_link( bounds_clump,                  &
             this%fates(nc)%sites,     &
-            this%phen_inst,                                                &
             waterstate_inst,                                               &
             canopystate_inst)
 
@@ -396,7 +357,6 @@ contains
             
             call this%fates2hlm%ed_clm_link( bounds_clump,                       &
                   this%fates(nc)%sites,                                          &
-                  this%phen_inst,                                                &
                   waterstate_inst,                                               &
                   canopystate_inst)
 
@@ -430,8 +390,6 @@ contains
    !    implicit none
    !    class(hlm_fates_interface_type), intent(inout) :: this
    !    type(bounds_type),intent(in)                :: bounds_clump
-   !
-   !    call this%phen_inst%initAccVars(bounds_clump)
    !
    !    return
    !  end subroutine phen_accvars_init

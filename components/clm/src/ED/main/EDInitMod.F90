@@ -15,7 +15,6 @@ module EDInitMod
   use WaterStateType            , only : waterstate_type
   use GridcellType              , only : grc
   use pftconMod                 , only : pftcon
-  use EDPhenologyType           , only : ed_phenology_type
   use EDEcophysConType          , only : EDecophyscon
   use EDGrowthFunctionsMod      , only : bdead, bleaf, dbh
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
@@ -124,7 +123,7 @@ contains
     ! PHENOLOGY 
     site_in%status           = 0    ! are leaves in this pixel on or off?
     site_in%dstatus          = 0
-    site_in%gdd              = nan  ! growing degree days
+    site_in%ED_GDD_site      = nan  ! growing degree days
     site_in%ncd              = nan  ! no chilling days
     site_in%last_n_days(:)   = 999  ! record of last 10 days temperature for senescence model.
     site_in%leafondate       = 999  ! doy of leaf on
@@ -179,8 +178,9 @@ contains
        watermem = 0.5_r8
        enddo
     else ! assignements for restarts
+
        NCD      = 1.0_r8 ! NCD should be 1 on restart
-       !GDD(i)     = 0.0_r8
+       GDD(i)     = 0.0_r8
        leafon   = 0.0_r8
        leafoff  = 0.0_r8
        stat     = 1
@@ -192,12 +192,12 @@ contains
     endif
 
     do s = 1,nsites
-       sites(s)%gdd          = GDD
        sites(s)%ncd          = NCD
        sites(s)%leafondate   = leafon
        sites(s)%leafoffdate  = leafoff
        sites(s)%dleafoffdate = dleafoff
        sites(s)%dleafondate  = dleafon
+       sites(s)%ED_GDD_site  = GDD
 
        if ( .not. is_restart() ) then
           sites(s)%water_memory(1:10) = watermem

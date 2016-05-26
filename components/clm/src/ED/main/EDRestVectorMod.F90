@@ -13,6 +13,7 @@ module EDRestVectorMod
   use EDTypesMod      , only : ncwd, invalidValue, nlevcan_ed
   use EDTypesMod      , only : ed_site_type, ed_patch_type, ed_cohort_type
   use abortutils      , only : endrun
+
   !
   implicit none
   private
@@ -111,6 +112,7 @@ module EDRestVectorMod
      real(r8), pointer :: old_stock(:) 
      real(r8), pointer :: cd_status(:) 
      real(r8), pointer :: dd_status(:)
+     real(r8), pointer :: ED_GDD_site(:)
      real(r8), pointer :: ncd(:)   
      real(r8), pointer :: leafondate(:)   
      real(r8), pointer :: leafoffdate(:)   
@@ -229,6 +231,7 @@ contains
     deallocate(this%old_stock )
     deallocate(this%cd_status )
     deallocate(this%dd_status )
+    deallocate(this%ED_GDD_site )
     deallocate(this%ncd )
     deallocate(this%leafondate )
     deallocate(this%leafoffdate )
@@ -295,25 +298,30 @@ contains
       SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
       new%leafondate(:) = 0_r8
       
-       allocate(new%leafoffdate &
+      allocate(new%leafoffdate &
            (bounds%begc:bounds%endc), stat=retVal)
       SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
       new%leafoffdate(:) = 0_r8     
- 
-       allocate(new%dleafondate &
+      
+      allocate(new%dleafondate &
            (bounds%begc:bounds%endc), stat=retVal)
       SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
       new%dleafondate(:) = 0_r8
       
-       allocate(new%dleafoffdate &
+      allocate(new%dleafoffdate &
            (bounds%begc:bounds%endc), stat=retVal)
       SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
       new%dleafoffdate(:) = 0_r8        
 
-     allocate(new%acc_NI &
+      allocate(new%acc_NI &
            (bounds%begc:bounds%endc), stat=retVal)
       SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
       new%acc_NI(:) = 0_r8        
+
+      allocate(new%ED_GDD_site &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%ED_GDD_site(:) = 0_r8  
 
 
       ! cohort level variables
@@ -583,7 +591,6 @@ contains
       SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
       new%water_memory(:) = 0.0_r8
     
-
 
     end associate
 
@@ -1076,10 +1083,6 @@ contains
          interpinic_flag='interp', data=this%water_memory, &
          readvar=readvar)
 
-
-         
-
-
   end subroutine doVectorIO
 
   !-------------------------------------------------------------------------------!
@@ -1214,12 +1217,14 @@ contains
     write(iulog,*) trim(methodName)//' :: water_memory ', &
          this%water_memory(iSta:iSto)
  
-   write(iulog,*) trim(methodName)//' :: old_stock ', &
+    write(iulog,*) trim(methodName)//' :: old_stock ', &
          this%old_stock(iSta:iSta)
     write(iulog,*) trim(methodName)//' :: cd_status', &
          this%cd_status(iSta:iSta)
     write(iulog,*) trim(methodName)//' :: dd_status', &
-         this%cd_status(iSta:iSta)  
+         this%cd_status(iSta:iSto)  
+    write(iulog,*) trim(methodName)//' :: ED_GDD_site', &
+         this%ED_GDD_site(iSta:iSto)  
     write(iulog,*) trim(methodName)//' :: ncd', &
          this%ncd(iSta:iSta)   
     write(iulog,*) trim(methodName)//' :: leafondate', &
@@ -1273,8 +1278,6 @@ contains
 
           do while(associated(currentPatch))
              currentCohort => currentPatch%shortest
-
-             write(iulog,*) trim(methodName)//':: found gcell with patch(s) ',g
 
              numCohort = 0
 
@@ -1343,6 +1346,7 @@ contains
              write(iulog,*) trim(methodName)//' fabi_sun_z (sum) '     ,sum(currentPatch%fabi_sun_z)
              write(iulog,*) trim(methodName)//' fabd_sha_z (sum) '     ,sum(currentPatch%fabd_sha_z)
              write(iulog,*) trim(methodName)//' fabi_sha_z (sum) '     ,sum(currentPatch%fabi_sha_z)
+
              write(iulog,*) trim(methodName)//' old_stock '      ,sites(s)%old_stock
              write(iulog,*) trim(methodName)//' cd_status '      ,sites(s)%status
              write(iulog,*) trim(methodName)//' dd_status '      ,sites(s)%dstatus
@@ -1352,7 +1356,7 @@ contains
              write(iulog,*) trim(methodName)//' dleafondate '    ,sites(s)%dleafondate
              write(iulog,*) trim(methodName)//' dleafoffdate '   ,sites(s)%dleafoffdate
              write(iulog,*) trim(methodName)//' acc_NI'          ,sites(s)%acc_NI
-   
+             write(iulog,*) trim(methodName)//' ED_GDD_site '    ,sites(s)%ED_GDD_site
 
              currentPatch => currentPatch%younger
 
@@ -1512,6 +1516,7 @@ contains
         call endrun(msg=errMsg(__FILE__, __LINE__))
     end if
 
+
     do s = 1,nsites
        
        ! Calculate the offsets
@@ -1545,7 +1550,7 @@ contains
           numCohort = 0
           
           do while(associated(currentCohort))
-             
+
              ! found cohort, increment
              numCohort        = numCohort    + 1
              totalCohorts     = totalCohorts + 1
@@ -1611,9 +1616,6 @@ contains
           this%livegrass(incrementOffset)   = currentPatch%livegrass
           this%age(incrementOffset)         = currentPatch%age
           this%areaRestart(incrementOffset) = currentPatch%area
-          
-          
-          
           
           ! set cohorts per patch for IO
           this%cohortsPerPatch( incrementOffset ) = numCohort
@@ -1697,6 +1699,7 @@ contains
        this%dleafondate(c)  = sites(s)%dleafondate
        this%dleafoffdate(c) = sites(s)%dleafoffdate
        this%acc_NI(c)       = sites(s)%acc_NI
+       this%ED_GDD_site(c)  = sites(s)%ED_GDD_site
        
        ! set numpatches for this column
        this%numPatchesPerCol(c)  = numPatches
@@ -1778,9 +1781,9 @@ contains
        ! set a few items that are necessary on restart for ED but not on the 
        ! restart file
        !
+
        sites(s)%lat = grc%latdeg(g)
        sites(s)%lon = grc%londeg(g)
-       sites(s)%gdd = 0.0_r8
        sites(s)%ncd = 0.0_r8
 
        if (this%numPatchesPerCol(c)<0 .or. this%numPatchesPerCol(c)>10000) then
@@ -1798,7 +1801,6 @@ contains
        sites(s)%youngest_patch%older   => null()
        sites(s)%oldest_patch%younger   => null()
        sites(s)%oldest_patch%older     => null()
-
 
        do patchIdx = 1,this%numPatchesPerCol(c)
 
@@ -2126,7 +2128,7 @@ contains
        sites(s)%dleafondate    = this%dleafondate(c)
        sites(s)%dleafoffdate   = this%dleafoffdate(c)
        sites(s)%acc_NI         = this%acc_NI(c)
-
+       sites(s)%ED_GDD_site    = this%ED_GDD_site(c)
        
     enddo
 
