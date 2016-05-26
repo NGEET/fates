@@ -948,14 +948,13 @@ contains
   end subroutine SetValues
 
   !-----------------------------------------------------------------------
-  subroutine ed_clm_link( this, bounds, sites, nsites, fcolumn, ed_phenology_inst, &
-       waterstate_inst, canopystate_inst)
+
+  subroutine ed_clm_link( this, bounds, sites, nsites, fcolumn, waterstate_inst, canopystate_inst)
     !
     ! !USES: 
     use landunit_varcon      , only : istsoil
     use EDGrowthFunctionsMod , only : tree_lai, c_area
     use EDEcophysConType     , only : EDecophyscon
-    use EDPhenologyType      , only : ed_phenology_type
     use EDtypesMod           , only : area
     use PatchType            , only : clmpatch => patch
     use ColumnType           , only : col
@@ -968,7 +967,6 @@ contains
     class(ed_clm_type)                              :: this
     type(bounds_type)       , intent(in)            :: bounds  
     type(ed_site_type)      , intent(inout), target :: ed_allsites_inst( bounds%begg: )
-    type(ed_phenology_type) , intent(inout)         :: ed_phenology_inst
     type(waterstate_type)   , intent(inout)         :: waterstate_inst
     type(canopystate_type)  , intent(inout)         :: canopystate_inst
     !
@@ -1215,7 +1213,7 @@ contains
            canopystate_inst)
 
       call this%ed_update_history_variables(bounds, ed_allsites_inst(begg:endg), &
-           firstsoilpatch, ed_Phenology_inst, canopystate_inst)
+           firstsoilpatch, canopystate_inst)
 
     end associate
 
@@ -1223,10 +1221,9 @@ contains
 
   !-----------------------------------------------------------------------
   subroutine ed_update_history_variables( this, bounds, ed_allsites_inst, &
-       firstsoilpatch, ed_Phenology_inst, canopystate_inst)
+       firstsoilpatch, canopystate_inst)
     !
     ! !USES: 
-    use EDPhenologyType  , only : ed_phenology_type
     use CanopyStateType  , only : canopystate_type
     use PatchType        , only : clmpatch => patch
     use pftconMod        , only : pftcon
@@ -1237,7 +1234,6 @@ contains
     type(ed_site_type)      , intent(inout), target :: ed_allsites_inst( bounds%begg: )
     type(ed_patch_type)     , pointer               :: currentPatch
     type(ed_cohort_type)    , pointer               :: currentCohort
-    type(ed_phenology_type) , intent(inout)         :: ed_phenology_inst
     type(canopystate_type)  , intent(inout)         :: canopystate_inst
     !
     ! !LOCAL VARIABLES:
@@ -1284,8 +1280,6 @@ contains
          ED_bleaf             => this%ED_bleaf_patch             , & ! InOut:
          ED_balive            => this%ED_balive_patch            , & ! InOut:
          ED_bstore            => this%ED_bstore_patch            , & ! InOut:
-         
-         phen_cd_status       => ed_phenology_inst%phen_cd_status_patch , & ! InOut:
          
          ed_gpp_scpf          => this%ed_gpp_col_scpf             , &
          ed_npp_totl_scpf     => this%ed_npp_totl_col_scpf        , &
@@ -1353,7 +1347,6 @@ contains
       ED_bleaf(:)             = 0.0_r8
       ED_bstore(:)            = 0.0_r8
       ED_balive(:)            = 0.0_r8
-      phen_cd_status(:)       = 2
 
       ed_gpp_scpf(:,:)      = 0.0_r8
       ed_npp_totl_scpf(:,:) = 0.0_r8
@@ -1422,8 +1415,6 @@ contains
             esai(firstsoilpatch(g))                 = 0.0_r8
             ED_bleaf(firstsoilpatch(g))             = 0.0_r8
             sum_fuel(firstsoilpatch(g))             = 0.0_r8
-            !this should probably be site level. 
-            phen_cd_status(firstsoilpatch(g))       = ed_allsites_inst(g)%status
 
             c = ed_allsites_inst(g)%clmcolumn
 
@@ -1561,7 +1552,6 @@ contains
                   canopy_spread(p)        = currentPatch%spread(1) 
                   area_plant(p)           = 1._r8
                   area_trees(p)           = currentPatch%total_tree_area   / min(currentPatch%total_canopy_area,currentPatch%area)
-                  phen_cd_status(p)       = ed_allsites_inst(g)%status
                   if(associated(currentPatch%tallest))then
                      trimming(p)          = currentPatch%tallest%canopy_trim                
                   else
