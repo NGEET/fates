@@ -91,35 +91,35 @@ module EDCLMLinkMod
      real(r8), pointer, private  :: maint_resp_patch           (:)   ! (gC/m2/s) patch maintenance respiration
      real(r8), pointer, private  :: growth_resp_patch          (:)   ! (gC/m2/s) patch growth respiration
      
-     real(r8), pointer :: ed_gpp_gd_scpf          (:,:)   ! [kg/m2/yr] gross primary production
-     real(r8), pointer :: ed_npp_totl_gd_scpf     (:,:)   ! [kg/m2/yr] net primary production (npp)
-     real(r8), pointer :: ed_npp_leaf_gd_scpf     (:,:)   ! [kg/m2/yr] npp flux into leaf pool
-     real(r8), pointer :: ed_npp_seed_gd_scpf     (:,:)   ! [kg/m2/yr] npp flux into flower,fruit,nut,seed
-     real(r8), pointer :: ed_npp_fnrt_gd_scpf     (:,:)   ! [kg/m2/yr] npp flux into fine roots
-     real(r8), pointer :: ed_npp_bgsw_gd_scpf     (:,:)   ! [kg/m2/yr] npp flux into below ground sapwood
-     real(r8), pointer :: ed_npp_bgdw_gd_scpf     (:,:)   ! [kg/m2/yr] npp flux into below ground structural (dead) wood
-     real(r8), pointer :: ed_npp_agsw_gd_scpf     (:,:)   ! [kg/m2/yr] npp flux into above ground sapwood
-     real(r8), pointer :: ed_npp_agdw_gd_scpf     (:,:)   ! [kg/m2/yr] npp flux into below ground structural (dead) wood
-     real(r8), pointer :: ed_npp_stor_gd_scpf     (:,:)   ! [kg/m2/yr] npp flux through the storage pool
-     real(r8), pointer :: ed_litt_leaf_gd_scpf    (:,:)   ! [kg/m2/yr] carbon flux of live leaves to litter
-     real(r8), pointer :: ed_litt_fnrt_gd_scpf    (:,:)   ! [kg/m2/yr] carbon flux of fine roots to litter
-     real(r8), pointer :: ed_litt_sawd_gd_scpf    (:,:)   ! [kg/m2/yr] carbon flux of sapwood to litter (above+below)
-     real(r8), pointer :: ed_litt_ddwd_gd_scpf    (:,:)   ! [kg/m2/yr] carbon flux of dead wood (above+below) to litter
-     real(r8), pointer :: ed_r_leaf_gd_scpf       (:,:)   ! [kg/m2/yr] total leaf respiration 
-     real(r8), pointer :: ed_r_stem_gd_scpf       (:,:)   ! [kg/m2/yr] total above ground live wood (stem) respiration
-     real(r8), pointer :: ed_r_root_gd_scpf       (:,:)   ! [kg/m2/yr] total below ground live wood (root) respiration
-     real(r8), pointer :: ed_r_stor_gd_scpf       (:,:)   ! [kg/m2/yr] total storage respiration
+     real(r8), pointer :: ed_gpp_col_scpf          (:,:)   ! [kg/m2/yr] gross primary production
+     real(r8), pointer :: ed_npp_totl_col_scpf     (:,:)   ! [kg/m2/yr] net primary production (npp)
+     real(r8), pointer :: ed_npp_leaf_col_scpf     (:,:)   ! [kg/m2/yr] npp flux into leaf pool
+     real(r8), pointer :: ed_npp_seed_col_scpf     (:,:)   ! [kg/m2/yr] npp flux into flower,fruit,nut,seed
+     real(r8), pointer :: ed_npp_fnrt_col_scpf     (:,:)   ! [kg/m2/yr] npp flux into fine roots
+     real(r8), pointer :: ed_npp_bgsw_col_scpf     (:,:)   ! [kg/m2/yr] npp flux into below ground sapwood
+     real(r8), pointer :: ed_npp_bgdw_col_scpf     (:,:)   ! [kg/m2/yr] npp flux into below ground structural (dead) wood
+     real(r8), pointer :: ed_npp_agsw_col_scpf     (:,:)   ! [kg/m2/yr] npp flux into above ground sapwood
+     real(r8), pointer :: ed_npp_agdw_col_scpf     (:,:)   ! [kg/m2/yr] npp flux into below ground structural (dead) wood
+     real(r8), pointer :: ed_npp_stor_col_scpf     (:,:)   ! [kg/m2/yr] npp flux through the storage pool
+     real(r8), pointer :: ed_litt_leaf_col_scpf    (:,:)   ! [kg/m2/yr] carbon flux of live leaves to litter
+     real(r8), pointer :: ed_litt_fnrt_col_scpf    (:,:)   ! [kg/m2/yr] carbon flux of fine roots to litter
+     real(r8), pointer :: ed_litt_sawd_col_scpf    (:,:)   ! [kg/m2/yr] carbon flux of sapwood to litter (above+below)
+     real(r8), pointer :: ed_litt_ddwd_col_scpf    (:,:)   ! [kg/m2/yr] carbon flux of dead wood (above+below) to litter
+     real(r8), pointer :: ed_r_leaf_col_scpf       (:,:)   ! [kg/m2/yr] total leaf respiration 
+     real(r8), pointer :: ed_r_stem_col_scpf       (:,:)   ! [kg/m2/yr] total above ground live wood (stem) respiration
+     real(r8), pointer :: ed_r_root_col_scpf       (:,:)   ! [kg/m2/yr] total below ground live wood (root) respiration
+     real(r8), pointer :: ed_r_stor_col_scpf       (:,:)   ! [kg/m2/yr] total storage respiration
 
      ! Carbon State Variables for direct comparison to inventory - dimensions: (disturbance patch, pft x size)
 
-     real(r8), pointer :: ed_ddbh_gd_scpf               (:,:) ! [cm/yr] diameter increment
-     real(r8), pointer :: ed_ba_gd_scpf                 (:,:) ! [m2/ha] basal area
-     real(r8), pointer :: ed_np_gd_scpf                 (:,:) ! [/m2] number of plants
-     real(r8), pointer :: ed_m1_gd_scpf                 (:,:) ! [Stems/ha/yr] Mean Background Mortality
-     real(r8), pointer :: ed_m2_gd_scpf                 (:,:) ! [Stems/ha/yr] Mean Hydraulic Mortaliry
-     real(r8), pointer :: ed_m3_gd_scpf                 (:,:) ! [Stems/ha/yr] Mean Carbon Starvation Mortality
-     real(r8), pointer :: ed_m4_gd_scpf                 (:,:) ! [Stems/ha/yr] Mean Impact Mortality
-     real(r8), pointer :: ed_m5_gd_scpf                 (:,:) ! [Stems/ha/yr] Mean Fire Mortality
+     real(r8), pointer :: ed_ddbh_col_scpf               (:,:) ! [cm/yr] diameter increment
+     real(r8), pointer :: ed_ba_col_scpf                 (:,:) ! [m2/ha] basal area
+     real(r8), pointer :: ed_np_col_scpf                 (:,:) ! [/m2] number of plants
+     real(r8), pointer :: ed_m1_col_scpf                 (:,:) ! [Stems/ha/yr] Mean Background Mortality
+     real(r8), pointer :: ed_m2_col_scpf                 (:,:) ! [Stems/ha/yr] Mean Hydraulic Mortaliry
+     real(r8), pointer :: ed_m3_col_scpf                 (:,:) ! [Stems/ha/yr] Mean Carbon Starvation Mortality
+     real(r8), pointer :: ed_m4_col_scpf                 (:,:) ! [Stems/ha/yr] Mean Impact Mortality
+     real(r8), pointer :: ed_m5_col_scpf                 (:,:) ! [Stems/ha/yr] Mean Fire Mortality
 
      ! litterfall fluxes of C from ED patches to BGC columns
      real(r8), pointer,  public :: ED_c_to_litr_lab_c_col(:,:)      !total labile    litter coming from ED. gC/m3/s
@@ -228,7 +228,6 @@ contains
 
     begp = bounds%begp; endp = bounds%endp
     begc = bounds%begc; endc = bounds%endc
-    begg = bounds%begg; endg = bounds%endg
 
 
     allocate(this%trimming_patch             (begp:endp))            ; this%trimming_patch             (:) = 0.0_r8    
@@ -318,34 +317,34 @@ contains
     allocate(this%ed_npatches_col            (begc:endc))            ; this%ed_npatches_col           (:) = nan    
     allocate(this%ed_ncohorts_col            (begc:endc))            ; this%ed_ncohorts_col           (:) = nan    
 
-    allocate(this%ed_gpp_gd_scpf       (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_gpp_gd_scpf        (:,:) = 0.0_r8
-    allocate(this%ed_npp_totl_gd_scpf  (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_npp_totl_gd_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_npp_leaf_gd_scpf  (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_npp_leaf_gd_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_npp_seed_gd_scpf  (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_npp_seed_gd_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_npp_fnrt_gd_scpf  (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_npp_fnrt_gd_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_npp_bgsw_gd_scpf  (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_npp_bgsw_gd_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_npp_bgdw_gd_scpf  (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_npp_bgdw_gd_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_npp_agsw_gd_scpf  (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_npp_agsw_gd_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_npp_agdw_gd_scpf  (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_npp_agdw_gd_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_npp_stor_gd_scpf  (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_npp_stor_gd_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_litt_leaf_gd_scpf (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_litt_leaf_gd_scpf  (:,:) = 0.0_r8
-    allocate(this%ed_litt_fnrt_gd_scpf (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_litt_fnrt_gd_scpf  (:,:) = 0.0_r8
-    allocate(this%ed_litt_sawd_gd_scpf (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_litt_sawd_gd_scpf  (:,:) = 0.0_r8
-    allocate(this%ed_litt_ddwd_gd_scpf (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_litt_ddwd_gd_scpf  (:,:) = 0.0_r8
-    allocate(this%ed_r_leaf_gd_scpf    (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_r_leaf_gd_scpf     (:,:) = 0.0_r8
-    allocate(this%ed_r_stem_gd_scpf    (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_r_stem_gd_scpf     (:,:) = 0.0_r8
-    allocate(this%ed_r_root_gd_scpf    (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_r_root_gd_scpf     (:,:) = 0.0_r8
-    allocate(this%ed_r_stor_gd_scpf    (begg:endg,1:nlevsclass_ed*mxpft)); this%ed_r_stor_gd_scpf     (:,:) = 0.0_r8
+    allocate(this%ed_gpp_col_scpf       (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_gpp_col_scpf        (:,:) = 0.0_r8
+    allocate(this%ed_npp_totl_col_scpf  (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_npp_totl_col_scpf   (:,:) = 0.0_r8
+    allocate(this%ed_npp_leaf_col_scpf  (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_npp_leaf_col_scpf   (:,:) = 0.0_r8
+    allocate(this%ed_npp_seed_col_scpf  (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_npp_seed_col_scpf   (:,:) = 0.0_r8
+    allocate(this%ed_npp_fnrt_col_scpf  (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_npp_fnrt_col_scpf   (:,:) = 0.0_r8
+    allocate(this%ed_npp_bgsw_col_scpf  (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_npp_bgsw_col_scpf   (:,:) = 0.0_r8
+    allocate(this%ed_npp_bgdw_col_scpf  (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_npp_bgdw_col_scpf   (:,:) = 0.0_r8
+    allocate(this%ed_npp_agsw_col_scpf  (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_npp_agsw_col_scpf   (:,:) = 0.0_r8
+    allocate(this%ed_npp_agdw_col_scpf  (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_npp_agdw_col_scpf   (:,:) = 0.0_r8
+    allocate(this%ed_npp_stor_col_scpf  (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_npp_stor_col_scpf   (:,:) = 0.0_r8
+    allocate(this%ed_litt_leaf_col_scpf (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_litt_leaf_col_scpf  (:,:) = 0.0_r8
+    allocate(this%ed_litt_fnrt_col_scpf (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_litt_fnrt_col_scpf  (:,:) = 0.0_r8
+    allocate(this%ed_litt_sawd_col_scpf (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_litt_sawd_col_scpf  (:,:) = 0.0_r8
+    allocate(this%ed_litt_ddwd_col_scpf (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_litt_ddwd_col_scpf  (:,:) = 0.0_r8
+    allocate(this%ed_r_leaf_col_scpf    (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_r_leaf_col_scpf     (:,:) = 0.0_r8
+    allocate(this%ed_r_stem_col_scpf    (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_r_stem_col_scpf     (:,:) = 0.0_r8
+    allocate(this%ed_r_root_col_scpf    (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_r_root_col_scpf     (:,:) = 0.0_r8
+    allocate(this%ed_r_stor_col_scpf    (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_r_stor_col_scpf     (:,:) = 0.0_r8
 
     ! Carbon State Variables for direct comparison to inventory - dimensions: (disturbance patch, pft x size)
-    allocate(this%ed_ddbh_gd_scpf (begg:endg,1:nlevsclass_ed*mxpft)) ; this%ed_ddbh_gd_scpf (:,:) = 0.0_r8
-    allocate(this%ed_ba_gd_scpf   (begg:endg,1:nlevsclass_ed*mxpft)) ; this%ed_ba_gd_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_np_gd_scpf   (begg:endg,1:nlevsclass_ed*mxpft)) ; this%ed_np_gd_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_m1_gd_scpf   (begg:endg,1:nlevsclass_ed*mxpft)) ; this%ed_m1_gd_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_m2_gd_scpf   (begg:endg,1:nlevsclass_ed*mxpft)) ; this%ed_m2_gd_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_m3_gd_scpf   (begg:endg,1:nlevsclass_ed*mxpft)) ; this%ed_m3_gd_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_m4_gd_scpf   (begg:endg,1:nlevsclass_ed*mxpft)) ; this%ed_m4_gd_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_m5_gd_scpf   (begg:endg,1:nlevsclass_ed*mxpft)) ; this%ed_m5_gd_scpf   (:,:) = 0.0_r8
+    allocate(this%ed_ddbh_col_scpf (begc:endc,1:nlevsclass_ed*mxpft)) ; this%ed_ddbh_col_scpf (:,:) = 0.0_r8
+    allocate(this%ed_ba_col_scpf   (begc:endc,1:nlevsclass_ed*mxpft)) ; this%ed_ba_col_scpf   (:,:) = 0.0_r8
+    allocate(this%ed_np_col_scpf   (begc:endc,1:nlevsclass_ed*mxpft)) ; this%ed_np_col_scpf   (:,:) = 0.0_r8
+    allocate(this%ed_m1_col_scpf   (begc:endc,1:nlevsclass_ed*mxpft)) ; this%ed_m1_col_scpf   (:,:) = 0.0_r8
+    allocate(this%ed_m2_col_scpf   (begc:endc,1:nlevsclass_ed*mxpft)) ; this%ed_m2_col_scpf   (:,:) = 0.0_r8
+    allocate(this%ed_m3_col_scpf   (begc:endc,1:nlevsclass_ed*mxpft)) ; this%ed_m3_col_scpf   (:,:) = 0.0_r8
+    allocate(this%ed_m4_col_scpf   (begc:endc,1:nlevsclass_ed*mxpft)) ; this%ed_m4_col_scpf   (:,:) = 0.0_r8
+    allocate(this%ed_m5_col_scpf   (begc:endc,1:nlevsclass_ed*mxpft)) ; this%ed_m5_col_scpf   (:,:) = 0.0_r8
 
   end subroutine InitAllocate
 
@@ -631,73 +630,73 @@ contains
       ! Carbon Flux (grid dimension x scpf)
     ! ==============================================================
 
-    call hist_addfld2d (fname='ED_GPP_GD_SCPF',units='kgC/m2/yr',type2d='levscpf',&
+    call hist_addfld2d (fname='ED_GPP_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&
           avgflag='A', long_name='gross primary production',     &
-          ptr_gcell=this%ed_gpp_gd_scpf,default='inactive')
+          ptr_gcell=this%ed_gpp_col_scpf,default='inactive')
 
-    call hist_addfld2d (fname='ED_NPP_LEAF_GD_SCPF',units='kgC/m2/yr',type2d='levscpf',&
+    call hist_addfld2d (fname='ED_NPP_LEAF_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&
           avgflag='A', long_name='NPP flux into leaves',               &
-          ptr_gcell=this%ed_npp_leaf_gd_scpf,default='inactive')
+          ptr_gcell=this%ed_npp_leaf_col_scpf,default='inactive')
 
-    call hist_addfld2d (fname='ED_NPP_SEED_GD_SCPF',units='kgC/m2/yr',type2d='levscpf',&
+    call hist_addfld2d (fname='ED_NPP_SEED_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&
           avgflag='A', long_name='NPP flux into seeds',                &
-          ptr_gcell=this%ed_npp_seed_gd_scpf,default='inactive')
+          ptr_gcell=this%ed_npp_seed_col_scpf,default='inactive')
 
-    call hist_addfld2d (fname='ED_NPP_FNRT_GD_SCPF',units='kgC/m2/yr',type2d='levscpf',&
+    call hist_addfld2d (fname='ED_NPP_FNRT_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&
           avgflag='A', long_name='NPP flux into fine roots',           &
-          ptr_gcell=this%ed_npp_fnrt_gd_scpf,default='inactive')
+          ptr_gcell=this%ed_npp_fnrt_col_scpf,default='inactive')
 
-    call hist_addfld2d (fname='ED_NPP_BGSW_GD_SCPF',units='kgC/m2/yr',type2d='levscpf',&
+    call hist_addfld2d (fname='ED_NPP_BGSW_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&
           avgflag='A', long_name='NPP flux into below-ground sapwood', &
-          ptr_gcell=this%ed_npp_bgsw_gd_scpf,default='inactive')
+          ptr_gcell=this%ed_npp_bgsw_col_scpf,default='inactive')
 
-    call hist_addfld2d (fname='ED_NPP_BGDW_GD_SCPF',units='kgC/m2/yr',type2d='levscpf',&
+    call hist_addfld2d (fname='ED_NPP_BGDW_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&
           avgflag='A', long_name='NPP flux into below-ground deadwood', &
-          ptr_gcell=this%ed_npp_bgdw_gd_scpf,default='inactive')
+          ptr_gcell=this%ed_npp_bgdw_col_scpf,default='inactive')
 
-    call hist_addfld2d (fname='ED_NPP_AGSW_GD_SCPF',units='kgC/m2/yr',type2d='levscpf',&
+    call hist_addfld2d (fname='ED_NPP_AGSW_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&
           avgflag='A', long_name='NPP flux into above-ground sapwood',  &
-          ptr_gcell=this%ed_npp_agsw_gd_scpf,default='inactive')
+          ptr_gcell=this%ed_npp_agsw_col_scpf,default='inactive')
 
-    call hist_addfld2d ( fname = 'ED_NPP_AGDW_GD_SCPF', units='kgC/m2/yr',type2d='levscpf',&
+    call hist_addfld2d ( fname = 'ED_NPP_AGDW_COL_SCPF', units='kgC/m2/yr',type2d='levscpf',&
           avgflag='A', long_name='NPP flux into above-ground deadwood', &
-          ptr_gcell=this%ed_npp_agdw_gd_scpf,default='inactive')
+          ptr_gcell=this%ed_npp_agdw_col_scpf,default='inactive')
 
-    call hist_addfld2d ( fname = 'ED_NPP_STOR_GD_SCPF', units='kgC/m2/yr',type2d='levscpf',&
+    call hist_addfld2d ( fname = 'ED_NPP_STOR_COL_SCPF', units='kgC/m2/yr',type2d='levscpf',&
           avgflag='A', long_name='NPP flux into storage',          &
-          ptr_gcell=this%ed_npp_stor_gd_scpf,default='inactive')
+          ptr_gcell=this%ed_npp_stor_col_scpf,default='inactive')
 
-    call hist_addfld2d (fname='ED_DDBH_GD_SCPF', units = 'cm/yr/ha', type2d = 'levscpf', &
+    call hist_addfld2d (fname='ED_DDBH_COL_SCPF', units = 'cm/yr/ha', type2d = 'levscpf', &
           avgflag='A', long_name='diameter growth increment and pft/size', &
-          ptr_gcell=this%ed_ddbh_gd_scpf, default='inactive')
+          ptr_gcell=this%ed_ddbh_col_scpf, default='inactive')
 
-    call hist_addfld2d (fname='ED_BA_GD_SCPF',units = 'm2/ha', type2d = 'levscpf', &
+    call hist_addfld2d (fname='ED_BA_COL_SCPF',units = 'm2/ha', type2d = 'levscpf', &
           avgflag='A', long_name='basal area by patch and pft/size', &
-          ptr_gcell=this%ed_ba_gd_scpf, default='inactive')
+          ptr_gcell=this%ed_ba_col_scpf, default='inactive')
 
-     call hist_addfld2d (fname='ED_NPLANT_GD_SCPF',units = 'N/ha', type2d = 'levscpf', &
+     call hist_addfld2d (fname='ED_NPLANT_COL_SCPF',units = 'N/ha', type2d = 'levscpf', &
           avgflag='A', long_name='stem number density by patch and pft/size', &
-          ptr_gcell=this%ed_np_gd_scpf, default='inactive')
+          ptr_gcell=this%ed_np_col_scpf, default='inactive')
 
-    call hist_addfld2d (fname='ED_M1_GD_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
+    call hist_addfld2d (fname='ED_M1_COL_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
           avgflag='A', long_name='background mortality count by patch and pft/size', &
-          ptr_gcell=this%ed_m1_gd_scpf, default='inactive')
+          ptr_gcell=this%ed_m1_col_scpf, default='inactive')
 
-    call hist_addfld2d (fname='ED_M2_GD_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
+    call hist_addfld2d (fname='ED_M2_COL_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
           avgflag='A', long_name='hydraulic mortality count by patch and pft/size', &
-          ptr_gcell=this%ed_m2_gd_scpf, default='inactive')
+          ptr_gcell=this%ed_m2_col_scpf, default='inactive')
 
-    call hist_addfld2d (fname='ED_M3_GD_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
+    call hist_addfld2d (fname='ED_M3_COL_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
           avgflag='A', long_name='carbon starvation mortality count by patch and pft/size', &
-          ptr_gcell=this%ed_m3_gd_scpf, default='inactive')
+          ptr_gcell=this%ed_m3_col_scpf, default='inactive')
 
-    call hist_addfld2d (fname='ED_M4_GD_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
+    call hist_addfld2d (fname='ED_M4_COL_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
           avgflag='A', long_name='impact mortality count by patch and pft/size', &
-          ptr_gcell=this%ed_m4_gd_scpf, default='inactive')
+          ptr_gcell=this%ed_m4_col_scpf, default='inactive')
 
-    call hist_addfld2d (fname='ED_M5_GD_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
+    call hist_addfld2d (fname='ED_M5_COL_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
           avgflag='A', long_name='fire mortality count by patch and pft/size', &
-          ptr_gcell=this%ed_m5_gd_scpf, default='inactive')
+          ptr_gcell=this%ed_m5_col_scpf, default='inactive')
 
     this%ed_npatches_col(begc:endc) = spval
     call hist_addfld1d (fname='ED_NPATCHES', units='unitless', &
@@ -949,7 +948,7 @@ contains
   end subroutine SetValues
 
   !-----------------------------------------------------------------------
-  subroutine ed_clm_link( this, bounds, ed_allsites_inst, ed_phenology_inst, &
+  subroutine ed_clm_link( this, bounds, sites, nsites, fcolumn, ed_phenology_inst, &
        waterstate_inst, canopystate_inst)
     !
     ! !USES: 
@@ -1288,28 +1287,28 @@ contains
          
          phen_cd_status       => ed_phenology_inst%phen_cd_status_patch , & ! InOut:
          
-         ed_gpp_scpf          => this%ed_gpp_gd_scpf             , &
-         ed_npp_totl_scpf     => this%ed_npp_totl_gd_scpf        , &
-         ed_npp_leaf_scpf     => this%ed_npp_leaf_gd_scpf        , &
-         ed_npp_seed_scpf     => this%ed_npp_seed_gd_scpf        , &
-         ed_npp_fnrt_scpf     => this%ed_npp_fnrt_gd_scpf        , &
-         ed_npp_bgsw_scpf     => this%ed_npp_bgsw_gd_scpf        , &
-         ed_npp_bgdw_scpf     => this%ed_npp_bgdw_gd_scpf        , &
-         ed_npp_agsw_scpf     => this%ed_npp_agsw_gd_scpf        , &
-         ed_npp_agdw_scpf     => this%ed_npp_agdw_gd_scpf        , &
-         ed_npp_stor_scpf     => this%ed_npp_stor_gd_scpf        , &
+         ed_gpp_scpf          => this%ed_gpp_col_scpf             , &
+         ed_npp_totl_scpf     => this%ed_npp_totl_col_scpf        , &
+         ed_npp_leaf_scpf     => this%ed_npp_leaf_col_scpf        , &
+         ed_npp_seed_scpf     => this%ed_npp_seed_col_scpf        , &
+         ed_npp_fnrt_scpf     => this%ed_npp_fnrt_col_scpf        , &
+         ed_npp_bgsw_scpf     => this%ed_npp_bgsw_col_scpf        , &
+         ed_npp_bgdw_scpf     => this%ed_npp_bgdw_col_scpf        , &
+         ed_npp_agsw_scpf     => this%ed_npp_agsw_col_scpf        , &
+         ed_npp_agdw_scpf     => this%ed_npp_agdw_col_scpf        , &
+         ed_npp_stor_scpf     => this%ed_npp_stor_col_scpf        , &
 
          ed_npatches          => this%ed_npatches_col            , &
          ed_ncohorts          => this%ed_ncohorts_col            , &
 
-         ed_ddbh_gd_scpf        => this%ed_ddbh_gd_scpf          , &
-         ed_ba_gd_scpf          => this%ed_ba_gd_scpf            , &
-         ed_np_gd_scpf          => this%ed_np_gd_scpf            , &
-         ed_m1_gd_scpf          => this%ed_m1_gd_scpf            , &
-         ed_m2_gd_scpf          => this%ed_m2_gd_scpf            , &
-         ed_m3_gd_scpf          => this%ed_m3_gd_scpf            , &
-         ed_m4_gd_scpf          => this%ed_m4_gd_scpf            , &
-         ed_m5_gd_scpf          => this%ed_m5_gd_scpf            , &        
+         ed_ddbh_col_scpf        => this%ed_ddbh_col_scpf          , &
+         ed_ba_col_scpf          => this%ed_ba_col_scpf            , &
+         ed_np_col_scpf          => this%ed_np_col_scpf            , &
+         ed_m1_col_scpf          => this%ed_m1_col_scpf            , &
+         ed_m2_col_scpf          => this%ed_m2_col_scpf            , &
+         ed_m3_col_scpf          => this%ed_m3_col_scpf            , &
+         ed_m4_col_scpf          => this%ed_m4_col_scpf            , &
+         ed_m5_col_scpf          => this%ed_m5_col_scpf            , &        
      
          tlai                 => canopystate_inst%tlai_patch     , & ! InOut:
          elai                 => canopystate_inst%elai_patch     , & ! InOut:
@@ -1367,14 +1366,14 @@ contains
       ed_npp_agdw_scpf(:,:) = 0.0_r8
       ed_npp_stor_scpf(:,:) = 0.0_r8
 
-      ed_ddbh_gd_scpf(:,:) = 0.0_r8
-      ed_ba_gd_scpf(:,:)   = 0.0_r8
-      ed_np_gd_scpf(:,:)   = 0.0_r8
-      ed_m1_gd_scpf(:,:)   = 0.0_r8
-      ed_m2_gd_scpf(:,:)   = 0.0_r8
-      ed_m3_gd_scpf(:,:)   = 0.0_r8
-      ed_m4_gd_scpf(:,:)   = 0.0_r8
-      ed_m5_gd_scpf(:,:)   = 0.0_r8
+      ed_ddbh_col_scpf(:,:) = 0.0_r8
+      ed_ba_col_scpf(:,:)   = 0.0_r8
+      ed_np_col_scpf(:,:)   = 0.0_r8
+      ed_m1_col_scpf(:,:)   = 0.0_r8
+      ed_m2_col_scpf(:,:)   = 0.0_r8
+      ed_m3_col_scpf(:,:)   = 0.0_r8
+      ed_m4_col_scpf(:,:)   = 0.0_r8
+      ed_m5_col_scpf(:,:)   = 0.0_r8
 
       ed_npatches(:)      = 0._r8
       ed_ncohorts(:)      = 0._r8
@@ -1503,25 +1502,25 @@ contains
                         ! Woody State Variables (basal area and number density and mortality)
                         if (pftcon%woody(ft) == 1) then
 
-                           ed_m1_gd_scpf(g,scpf) = ed_m1_gd_scpf(g,scpf) + currentcohort%bmort*n_perm2*AREA
-                           ed_m2_gd_scpf(g,scpf) = ed_m2_gd_scpf(g,scpf) + currentcohort%hmort*n_perm2*AREA
-                           ed_m3_gd_scpf(g,scpf) = ed_m3_gd_scpf(g,scpf) + currentcohort%cmort*n_perm2*AREA
-                           ed_m4_gd_scpf(g,scpf) = ed_m4_gd_scpf(g,scpf) + currentcohort%imort*n_perm2*AREA
-                           ed_m5_gd_scpf(g,scpf) = ed_m5_gd_scpf(g,scpf) + currentcohort%fmort*n_perm2*AREA
+                           ed_m1_col_scpf(g,scpf) = ed_m1_col_scpf(g,scpf) + currentcohort%bmort*n_perm2*AREA
+                           ed_m2_col_scpf(g,scpf) = ed_m2_col_scpf(g,scpf) + currentcohort%hmort*n_perm2*AREA
+                           ed_m3_col_scpf(g,scpf) = ed_m3_col_scpf(g,scpf) + currentcohort%cmort*n_perm2*AREA
+                           ed_m4_col_scpf(g,scpf) = ed_m4_col_scpf(g,scpf) + currentcohort%imort*n_perm2*AREA
+                           ed_m5_col_scpf(g,scpf) = ed_m5_col_scpf(g,scpf) + currentcohort%fmort*n_perm2*AREA
 
                            ! basal area  [m2/ha]
-                           ed_ba_gd_scpf(g,scpf) = ed_ba_gd_scpf(g,scpf) + &
+                           ed_ba_col_scpf(g,scpf) = ed_ba_col_scpf(g,scpf) + &
                                  0.25*3.14159*((dbh/100.0)**2.0)*n_perm2*AREA
 
                            ! number density [/ha]
-                           ed_np_gd_scpf(g,scpf) = ed_np_gd_scpf(g,scpf) + AREA*n_perm2
+                           ed_np_col_scpf(g,scpf) = ed_np_col_scpf(g,scpf) + AREA*n_perm2
 
                            ! Growth Incrments must have NaN check and woody check
                            if(currentCohort%ddbhdt == currentCohort%ddbhdt) then
-                              ed_ddbh_gd_scpf(g,scpf) = ed_ddbh_gd_scpf(g,scpf) + &
+                              ed_ddbh_col_scpf(g,scpf) = ed_ddbh_col_scpf(g,scpf) + &
                                     currentCohort%ddbhdt*n_perm2*AREA
                            else
-                              ed_ddbh_gd_scpf(g,scpf) = -999.9
+                              ed_ddbh_col_scpf(g,scpf) = -999.9
                            end if
                         end if
 
