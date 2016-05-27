@@ -474,7 +474,7 @@ contains
           ! if ED enabled, summarize productivity fluxes onto CLM history file structure
           call t_startf('edclmsumprodfluxes')
           call clm_fates%fates2hlm%SummarizeProductivityFluxes( bounds_clump, &
-                clm_fates%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg))
+                clm_fates%fates(nc)%sites,clm_fates%fates(nc)%nsites )
           call t_stopf('edclmsumprodfluxes')
        endif
        
