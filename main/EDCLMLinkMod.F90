@@ -20,6 +20,7 @@ module EDCLMLinkMod
   use SoilBiogeochemCarbonStatetype   , only : soilbiogeochem_carbonstate_type
   use clm_time_manager       , only : is_beg_curr_day, get_step_size, get_nstep
   use shr_const_mod, only: SHR_CONST_CDAY
+  use abortutils      , only : endrun
 
   !
   implicit none
@@ -978,13 +979,10 @@ contains
     integer  :: g,l,p,c
     integer  :: ft                                      ! plant functional type
     integer  :: patchn                                  ! identification number for each patch. 
-    integer  :: firstsoilpatch(bounds%begg:bounds%endg) ! the first patch in this gridcell that is soil and thus bare... 
     real(r8) :: total_bare_ground                       ! sum of the bare fraction in all pfts.
     real(r8) :: total_patch_area                               
     real(r8) :: coarse_wood_frac  
     real(r8) :: canopy_leaf_area                        ! total amount of leaf area in the vegetated area. m2.  
-    integer  :: sitecolumn(bounds%begg:bounds%endg)
-    logical  :: istheresoil(bounds%begg:bounds%endg) 
     integer  :: begp_fp, endp_fp                        ! Valid range of patch indices that are associated with 
                                                         ! FATES (F) for each parent (P) iteration (grid/column)
     !----------------------------------------------------------------------
@@ -1008,225 +1006,196 @@ contains
          endp => bounds%endp                   &
          )
 
-      ! determine if gridcell is soil 
-
-!      istheresoil(begg:endg) = .false.
-!      do c = begc,endc
-!         g = col%gridcell(c)   
-!         l = col%landunit(c)
-!
-!         if (lun%itype(l) == istsoil .and. col%itype(c) == istsoil) then  
-!            istheresoil(g) = .true.
-!         endif
-!         ed_allsites_inst(g)%istheresoil = istheresoil(g)
-!      enddo
-      ! retrieve the first soil patch associated with each gridcell. 
-      ! make sure we only get the first patch value for places which have soil. 
-!      firstsoilpatch(begg:endg) = -999
-!      do c = begc,endc
-!         g = col%gridcell(c)
-!         l = col%landunit(c)
-!         if (lun%itype(l) == istsoil .and. col%itype(c) == istsoil) then 
-!            firstsoilpatch(g) = col%patchi(c)
-!            sitecolumn(g) = c
-!         endif
-!      enddo
-!      do g = begg,endg
-!         if(firstsoilpatch(g) >= 0.and.ed_allsites_inst(g)%istheresoil)then 
-!            ed_allsites_inst(g)%clmcolumn = sitecolumn(g)
-
 
       do s = 1,nsites
 
-
          c = fcolumn(s)
          
-            ! ============================================================================
-            ! Zero the bare ground tile BGC variables.
-            ! Valid Range for zero'ing here is the soil_patch and non crop patches
-            ! If the crops are not turned on, don't worry, they were zero'd once and should
-            ! not change again (RGK).
-            ! firstsoilpatch(g) + numpft - numcft
-            ! ============================================================================
+         ! ============================================================================
+         ! Zero the bare ground tile BGC variables.
+         ! Valid Range for zero'ing here is the soil_patch and non crop patches
+         ! If the crops are not turned on, don't worry, they were zero'd once and should
+         ! not change again (RGK).
+         ! firstsoilpatch(g) + numpft - numcft
+         ! ============================================================================
+         
+         begp_fp = col%patchi(c)
+         endp_fp = col%patchi(c) + numpft - numcft
+         
+         clmpatch%is_veg(begp_fp:endp_fp)        = .false. 
+         clmpatch%is_bareground(begp_fp:endp_fp) = .false. 
 
-            begp_fp = col%patchi(c)
-            endp_fp = col%patchi(c) + numpft - numcft
+         tlai(begp_fp:endp_fp)                   = 0.0_r8    
+         htop(begp_fp:endp_fp)                   = 0.0_r8      
+         hbot(begp_fp:endp_fp)                   = 0.0_r8   
+         elai(begp_fp:endp_fp)                   = 0.0_r8
+         tsai(begp_fp:endp_fp)                   = 0.0_r8
+         esai(begp_fp:endp_fp)                   = 0.0_r8
+         
+         
+         patchn = 0
+         total_bare_ground = 0.0_r8
+         total_patch_area = 0._r8 
+
+         currentPatch => sites(s)%oldest_patch
+         do while(associated(currentPatch))
+            patchn = patchn + 1
+            currentPatch%patchno = patchn
             
-            clmpatch%is_veg(begp_fp:endp_fp)        = .false. 
-            clmpatch%is_bareground(begp_fp:endp_fp) = .false. 
-            tlai(begp_fp:endp_fp)                   = 0.0_r8    
-            htop(begp_fp:endp_fp)                   = 0.0_r8      
-            hbot(begp_fp:endp_fp)                   = 0.0_r8   
-            elai(begp_fp:endp_fp)                   = 0.0_r8
-            tsai(begp_fp:endp_fp)                   = 0.0_r8
-            esai(begp_fp:endp_fp)                   = 0.0_r8
+            if (patchn <= numpft - numcft)then !don't expand into crop patches.   
 
+               currentPatch%clm_pno = col%patchi(c) + patchn !the first 'soil' patch is unvegetated...      
+               
+               ! INTERF-TODO:  currentPatch%clm_pno should be removed (FATES internal variable with CLM iformation)
+               
+               p = col%patchi(c) + patchn
+               
+               if(c .ne. clmpatch%column(p))then
+                  write(iulog,*) ' fcolumn(s) does not match clmpatch%column(p)'
+                  call endrun(msg=errMsg(__FILE__, __LINE__))
+               end if
 
-            patchn = 0
-            total_bare_ground = 0.0_r8
-            total_patch_area = 0._r8 
+               clmpatch%is_veg(p) = .true. !this .is. a tile filled with vegetation... 
+               
+               call currentPatch%set_root_fraction()
 
-            currentPatch => sites(s)%oldest_patch
-            do while(associated(currentPatch))
-               patchn = patchn + 1
-               currentPatch%patchno = patchn
+               !zero cohort-summed variables. 
+               currentPatch%total_canopy_area = 0.0_r8
+               currentPatch%total_tree_area = 0.0_r8
+               currentPatch%lai = 0.0_r8
+               canopy_leaf_area = 0.0_r8
 
-               if (patchn <= numpft - numcft)then !don't expand into crop patches.   
-
-                  currentPatch%clm_pno = col%patchi(c) + patchn !the first 'soil' patch is unvegetated...      
-
-                  ! INTERF-TODO:  currentPatch%clm_pno should be removed (FATES internal variable with CLM iformation)
-
-                  p = currentPatch%clm_pno
-
-                  if(c .ne. clmpatch%column(p))then
-                     ! ERROR AND EXIT()
-                  end if
-
-                  clmpatch%is_veg(p) = .true. !this .is. a tile filled with vegetation... 
-                  
-                  call currentPatch%set_root_fraction()
-
-                  !zero cohort-summed variables. 
-                  currentPatch%total_canopy_area = 0.0_r8
-                  currentPatch%total_tree_area = 0.0_r8
-                  currentPatch%lai = 0.0_r8
-                  canopy_leaf_area = 0.0_r8
-
-                  !update cohort quantitie s                                  
-                  currentCohort => currentPatch%shortest
-                  do while(associated(currentCohort))
+               !update cohort quantitie s                                  
+               currentCohort => currentPatch%shortest
+               do while(associated(currentCohort))
      
-                     ft = currentCohort%pft
-                     currentCohort%livestemn = currentCohort%bsw  / pftcon%leafcn(currentCohort%pft)
+                  ft = currentCohort%pft
+                  currentCohort%livestemn = currentCohort%bsw  / pftcon%leafcn(currentCohort%pft)
+                  
+                  currentCohort%livecrootn = 0.0_r8
 
-                     currentCohort%livecrootn = 0.0_r8
-
-                     if (pftcon%woody(ft) == 1) then
-                        coarse_wood_frac = 0.5_r8
-                     else
-                        coarse_wood_frac = 0.0_r8
-                     end if
-
-                     if ( DEBUG ) then
-                        write(iulog,*) 'EDCLMLink 618 ',currentCohort%livecrootn
-                        write(iulog,*) 'EDCLMLink 619 ',currentCohort%br
-                        write(iulog,*) 'EDCLMLink 620 ',coarse_wood_frac
-                        write(iulog,*) 'EDCLMLink 621 ',pftcon%leafcn(ft)
-                     endif
-
-                     currentCohort%livecrootn = currentCohort%br * coarse_wood_frac / pftcon%leafcn(ft)
-
-                     if ( DEBUG ) write(iulog,*) 'EDCLMLink 625 ',currentCohort%livecrootn
-
-                     currentCohort%b = currentCohort%balive+currentCohort%bdead+currentCohort%bstore
-                     currentCohort%treelai = tree_lai(currentCohort)
-                     ! Why is currentCohort%c_area used and then reset in the
-                     ! following line?
-                     canopy_leaf_area = canopy_leaf_area + currentCohort%treelai *currentCohort%c_area
-                     currentCohort%c_area = c_area(currentCohort)
-
-                     if(currentCohort%canopy_layer==1)then
-                        currentPatch%total_canopy_area = currentPatch%total_canopy_area + currentCohort%c_area
-                        if(pftcon%woody(ft)==1)then
-                           currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
-                        endif
-                     endif
-
-                     ! Check for erroneous zero values. 
-                     if(currentCohort%dbh <= 0._r8 .or. currentCohort%n == 0._r8)then
-                        write(iulog,*) 'ED: dbh or n is zero in clmedlink', currentCohort%dbh,currentCohort%n
-                     endif
-                     if(currentCohort%pft == 0.or.currentCohort%canopy_trim <= 0._r8)then
-                        write(iulog,*) 'ED: PFT or trim is zero in clmedlink',currentCohort%pft,currentCohort%canopy_trim
-                     endif
-                     if(currentCohort%balive <= 0._r8)then
-                        write(iulog,*) 'ED: balive is zero in clmedlink',currentCohort%balive
-                     endif
-
-                     currentCohort => currentCohort%taller
-
-                  enddo ! ends 'do while(associated(currentCohort))
-
-                  if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
-                     write(iulog,*) 'ED: canopy area bigger than area',currentPatch%total_canopy_area ,currentPatch%area
-                     currentPatch%total_canopy_area = currentPatch%area
-                  endif
-
-                  ! PASS BACK PATCH-LEVEL QUANTITIES THAT ARE NEEDED BY THE CLM CODE
-                  if (associated(currentPatch%tallest)) then
-                     htop(p) = currentPatch%tallest%hite
+                  if (pftcon%woody(ft) == 1) then
+                     coarse_wood_frac = 0.5_r8
                   else
-                     ! FIX(RF,040113) - should this be a parameter for the minimum possible vegetation height?
-                     htop(p) = 0.1_r8
-                  endif
-
-                  hbot(p) = max(0._r8, min(0.2_r8, htop(p)- 1.0_r8))
-
-                  ! leaf area index: of .only. the areas with some vegetation on them, as the non-vegetated areas 
-                  ! are merged into the bare ground fraction. This introduces a degree of unrealism, 
-                  ! which could be fixed if the surface albedo routine took account of the possibiltiy of bare 
-                  ! ground mixed with trees. 
-
-                  if(currentPatch%total_canopy_area > 0)then;
-                     tlai(p) = canopy_leaf_area/currentPatch%total_canopy_area 
-                  else
-                     tlai(p) = 0.0_r8
-                  endif
-
-
-                  ! We are assuming here that grass is all located underneath tree canopies. 
-                  ! The alternative is to assume it is all spatial distinct from tree canopies.
-                  ! In which case, the bare area would have to be reduced by the grass area...
-                  ! currentPatch%total_canopy_area/currentPatch%area is fraction of this patch cover by plants 
-                  ! currentPatch%area/AREA is the fraction of the soil covered by this patch. 
-
-                  ! INTERF-TODO: clmpatch%wt_ed should also be removed, and perhaps replaced with something
-                  ! like clm_fates%xxxx(p)
-
-                  clmpatch%wt_ed(p) = min(1.0_r8,(currentPatch%total_canopy_area/currentPatch%area)) * &
-                       (currentPatch%area/AREA)
-                  currentPatch%bare_frac_area = (1.0_r8 - min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)) * &
-                       (currentPatch%area/AREA)                 
+                     coarse_wood_frac = 0.0_r8
+                  end if
                   
                   if ( DEBUG ) then
-                     write(iulog, *) 'EDCLMLinkMod bare frac', currentPatch%bare_frac_area
-                  end if
-                  total_patch_area = total_patch_area + clmpatch%wt_ed(p) + currentPatch%bare_frac_area
-                  total_bare_ground = total_bare_ground + currentPatch%bare_frac_area
-                  currentCohort=> currentPatch%tallest
+                     write(iulog,*) 'EDCLMLink 618 ',currentCohort%livecrootn
+                     write(iulog,*) 'EDCLMLink 619 ',currentCohort%br
+                     write(iulog,*) 'EDCLMLink 620 ',coarse_wood_frac
+                     write(iulog,*) 'EDCLMLink 621 ',pftcon%leafcn(ft)
+                  endif
+
+                  currentCohort%livecrootn = currentCohort%br * coarse_wood_frac / pftcon%leafcn(ft)
+
+                  if ( DEBUG ) write(iulog,*) 'EDCLMLink 625 ',currentCohort%livecrootn
+
+                  currentCohort%b = currentCohort%balive+currentCohort%bdead+currentCohort%bstore
+                  currentCohort%treelai = tree_lai(currentCohort)
+                  ! Why is currentCohort%c_area used and then reset in the
+                  ! following line?
+                  canopy_leaf_area = canopy_leaf_area + currentCohort%treelai *currentCohort%c_area
+                  currentCohort%c_area = c_area(currentCohort)
                   
+                  if(currentCohort%canopy_layer==1)then
+                     currentPatch%total_canopy_area = currentPatch%total_canopy_area + currentCohort%c_area
+                     if(pftcon%woody(ft)==1)then
+                        currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
+                     endif
+                  endif
+
+                  ! Check for erroneous zero values. 
+                  if(currentCohort%dbh <= 0._r8 .or. currentCohort%n == 0._r8)then
+                     write(iulog,*) 'ED: dbh or n is zero in clmedlink', currentCohort%dbh,currentCohort%n
+                  endif
+                  if(currentCohort%pft == 0.or.currentCohort%canopy_trim <= 0._r8)then
+                     write(iulog,*) 'ED: PFT or trim is zero in clmedlink',currentCohort%pft,currentCohort%canopy_trim
+                  endif
+                  if(currentCohort%balive <= 0._r8)then
+                     write(iulog,*) 'ED: balive is zero in clmedlink',currentCohort%balive
+                  endif
+
+                  currentCohort => currentCohort%taller
+                  
+               enddo ! ends 'do while(associated(currentCohort))
+
+               if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
+                  write(iulog,*) 'ED: canopy area bigger than area',currentPatch%total_canopy_area ,currentPatch%area
+                  currentPatch%total_canopy_area = currentPatch%area
+               endif
+
+               ! PASS BACK PATCH-LEVEL QUANTITIES THAT ARE NEEDED BY THE CLM CODE
+               if (associated(currentPatch%tallest)) then
+                  htop(p) = currentPatch%tallest%hite
                else
-                  write(iulog,*) 'ED: too many patches' 
-               end if ! patchn<15
+                  ! FIX(RF,040113) - should this be a parameter for the minimum possible vegetation height?
+                  htop(p) = 0.1_r8
+               endif
+
+               hbot(p) = max(0._r8, min(0.2_r8, htop(p)- 1.0_r8))
+
+               ! leaf area index: of .only. the areas with some vegetation on them, as the non-vegetated areas 
+               ! are merged into the bare ground fraction. This introduces a degree of unrealism, 
+               ! which could be fixed if the surface albedo routine took account of the possibiltiy of bare 
+               ! ground mixed with trees. 
                
-               currentPatch => currentPatch%younger
-            end do !patch loop
+               if(currentPatch%total_canopy_area > 0)then;
+                  tlai(p) = canopy_leaf_area/currentPatch%total_canopy_area 
+               else
+                  tlai(p) = 0.0_r8
+               endif
+
+
+               ! We are assuming here that grass is all located underneath tree canopies. 
+               ! The alternative is to assume it is all spatial distinct from tree canopies.
+               ! In which case, the bare area would have to be reduced by the grass area...
+               ! currentPatch%total_canopy_area/currentPatch%area is fraction of this patch cover by plants 
+               ! currentPatch%area/AREA is the fraction of the soil covered by this patch. 
+
+
+               clmpatch%wt_ed(p) = min(1.0_r8,(currentPatch%total_canopy_area/currentPatch%area)) * &
+                     (currentPatch%area/AREA)
+               currentPatch%bare_frac_area = (1.0_r8 - min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)) * &
+                     (currentPatch%area/AREA)                 
+                  
+               if ( DEBUG ) then
+                  write(iulog, *) 'EDCLMLinkMod bare frac', currentPatch%bare_frac_area
+               end if
+
+               total_patch_area = total_patch_area + clmpatch%wt_ed(p) + currentPatch%bare_frac_area
+               total_bare_ground = total_bare_ground + currentPatch%bare_frac_area
+                  
+            else
+               write(iulog,*) 'ED: too many patches' 
+            end if ! patchn<15
+               
+            currentPatch => currentPatch%younger
+         end do !patch loop
             
-            if((total_patch_area-1.0_r8)>1e-9)then
-               write(iulog,*) 'total area is wrong in CLMEDLINK',total_patch_area
-            endif
+         if((total_patch_area-1.0_r8)>1e-9)then
+            write(iulog,*) 'total area is wrong in CLMEDLINK',total_patch_area
+         endif
             
-            !loop round all and zero the remaining empty vegetation patches 
-            do p = col%patchi(c)+patchn+1,col%patchi(c)+numpft   
-               clmpatch%wt_ed(p) = 0.0_r8
-            enddo
+         ! loop round all and zero the remaining empty vegetation patches 
+         ! while ED's domain of influence only extends to non-crop patches
+         ! wt_ed should not be non-zero anwhere but ED patches, so this loop is ok
+         do p = col%patchi(c)+patchn+1,col%patchi(c)+numpft   
+            clmpatch%wt_ed(p) = 0.0_r8
+         enddo
 
-            !set the area of the bare ground patch. 
-            p = col%patchi(c)
-            clmpatch%wt_ed(p) = total_bare_ground
-            clmpatch%is_bareground = .true.
-         endif ! are there any soil patches?    
+         !set the area of the bare ground patch. 
+         p = col%patchi(c)
+         clmpatch%wt_ed(p) = total_bare_ground
+         clmpatch%is_bareground = .true.
+            
+         call this%ed_clm_leaf_area_profile(sites(s), c, waterstate_inst, canopystate_inst ) 
+         
+      end do ! column loop
 
-         call this%ed_clm_leaf_area_profile(ed_allsites_inst(g), waterstate_inst, canopystate_inst ) 
-
-      end do !grid loop
-
-      call this%flux_into_litter_pools(bounds, ed_allsites_inst(begg:endg), firstsoilpatch, &
-           canopystate_inst)
-
-      call this%ed_update_history_variables(bounds, ed_allsites_inst(begg:endg), &
-           firstsoilpatch, canopystate_inst)
+      call this%flux_into_litter_pools(bounds, sites(:), fcolumns(:), firstsoilpatch, canopystate_inst)
+      
+      call this%ed_update_history_variables(bounds, sites(:), fcolumns(:), firstsoilpatch, canopystate_inst)
 
     end associate
 
@@ -1586,7 +1555,7 @@ contains
   end subroutine ed_update_history_variables
 
   !------------------------------------------------------------------------
-  subroutine ed_clm_leaf_area_profile( this, currentSite, waterstate_inst, canopystate_inst )
+  subroutine ed_clm_leaf_area_profile( this, currentSite, colindex, waterstate_inst, canopystate_inst )
     !
     ! !DESCRIPTION:
     ! Load LAI in each layer into array to send to CLM
@@ -1602,6 +1571,7 @@ contains
     ! !ARGUMENTS    
     class(ed_clm_type)                     :: this  
     type(ed_site_type)     , intent(inout) :: currentSite
+    integer                , intent(in)    :: c           ! ALM/CLM column index of this site
     type(waterstate_type)  , intent(inout) :: waterstate_inst
     type(canopystate_type) , intent(inout) :: canopystate_inst
     !
@@ -1613,8 +1583,8 @@ contains
     integer  :: ft                       ! Plant functional type index. 
     integer  :: iv                       ! Vertical leaf layer index   
     integer  :: L                        ! Canopy layer index
-    integer  :: P                        ! clm patch index  
-    integer  :: C                        ! column index
+    integer  :: p                        ! clm patch index  
+
     real(r8) :: tlai_temp                ! calculation of tlai to check this method
     real(r8) :: elai_temp                ! make a new elai based on the layer-by-layer snow coverage.
     real(r8) :: tsai_temp                !
@@ -1652,55 +1622,54 @@ contains
       ! leaf area index above it, irrespective of PFT identity... 
       ! Each leaf is defined by how deep in the canopy it is, in terms of LAI units.  (FIX(RF,032414), GB)
 
-      if (currentSite%istheresoil)then
+      currentPatch => currentSite%oldest_patch   ! ed patch
+      p            =  col%patchi(c)              ! CLM/ALM equivalent patch
+
+      do while(associated(currentPatch))
+         p = p + 1                               ! First CLM/ALM patch is non-veg
+
+         !Calculate tree and canopy areas. 
+         currentPatch%canopy_area = 0._r8
+         currentPatch%canopy_layer_lai(:) = 0._r8
+         NC = 0
+         currentCohort => currentPatch%shortest
+         do while(associated(currentCohort))       
+            currentCohort%c_area = c_area(currentCohort)
+            currentPatch%canopy_area = currentPatch%canopy_area + currentCohort%c_area
+            NC = NC+1
+            currentCohort => currentCohort%taller    
+         enddo
+         ! if plants take up all the tile, then so does the canopy.  
+         currentPatch%canopy_area = min(currentPatch%canopy_area,currentPatch%area) 
          
-         currentPatch => currentSite%oldest_patch   ! ed patch
-         p = currentPatch%clm_pno                   ! index for clm patch
-
-         do while(associated(currentPatch))
-
-            !Calculate tree and canopy areas. 
-            currentPatch%canopy_area = 0._r8
-            currentPatch%canopy_layer_lai(:) = 0._r8
-            NC = 0
-            currentCohort => currentPatch%shortest
-            do while(associated(currentCohort))       
-               currentCohort%c_area = c_area(currentCohort)
-               currentPatch%canopy_area = currentPatch%canopy_area + currentCohort%c_area
-               NC = NC+1
-               currentCohort => currentCohort%taller    
+         !calculate tree lai and sai.
+         currentPatch%ncan(:,:) = 0 
+         currentPatch%nrad(:,:) = 0 
+         currentPatch%lai = 0._r8
+         currentCohort => currentPatch%shortest
+         do while(associated(currentCohort)) 
+            currentCohort%treelai = tree_lai(currentCohort)    
+            currentCohort%treesai = tree_sai(currentCohort)
+            currentCohort%lai =  currentCohort%treelai *currentCohort%c_area/currentPatch%canopy_area 
+            currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/currentPatch%canopy_area  
+            !Calculate the LAI plus SAI in each canopy storey. 
+            currentCohort%NV =  ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)  
+            
+            currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft) = &
+                  max(currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft),currentCohort%NV)
+            currentPatch%lai = currentPatch%lai +currentCohort%lai
+            
+            do L = 1,nclmax-1
+               if(currentCohort%canopy_layer == L)then
+                  currentPatch%canopy_layer_lai(L) = currentPatch%canopy_layer_lai(L) + currentCohort%lai + &
+                        currentCohort%sai
+               endif
             enddo
-            ! if plants take up all the tile, then so does the canopy.  
-            currentPatch%canopy_area = min(currentPatch%canopy_area,currentPatch%area) 
-
-            !calculate tree lai and sai.
-            currentPatch%ncan(:,:) = 0 
-            currentPatch%nrad(:,:) = 0 
-            currentPatch%lai = 0._r8
-            currentCohort => currentPatch%shortest
-            do while(associated(currentCohort)) 
-               currentCohort%treelai = tree_lai(currentCohort)    
-               currentCohort%treesai = tree_sai(currentCohort)
-               currentCohort%lai =  currentCohort%treelai *currentCohort%c_area/currentPatch%canopy_area 
-               currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/currentPatch%canopy_area  
-               !Calculate the LAI plus SAI in each canopy storey. 
-               currentCohort%NV =  CEILING((currentCohort%treelai+currentCohort%treesai)/dinc_ed)  
-
-               currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft) = &
-                    max(currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft),currentCohort%NV)
-               currentPatch%lai = currentPatch%lai +currentCohort%lai
-
-               do L = 1,nclmax-1
-                  if(currentCohort%canopy_layer == L)then
-                     currentPatch%canopy_layer_lai(L) = currentPatch%canopy_layer_lai(L) + currentCohort%lai + &
-                          currentCohort%sai
-                  endif
-               enddo
-
-               currentCohort => currentCohort%taller 
-
-            enddo !currentCohort
-            currentPatch%nrad = currentPatch%ncan
+            
+            currentCohort => currentCohort%taller 
+            
+         enddo !currentCohort
+         currentPatch%nrad = currentPatch%ncan
 
             if(smooth_leaf_distribution == 1)then
                ! we are going to ignore the concept of canopy layers, and put all of the leaf area into height banded bins. 
@@ -1721,7 +1690,9 @@ contains
                      maxh(iv) = (iv)*dh
                   endif
                enddo
-               c = clmpatch%column(currentPatch%clm_pno)
+
+               !c = clmpatch%column(currentPatch%clm_pno)
+
                currentCohort => currentPatch%shortest
                do while(associated(currentCohort))  
                   ft = currentCohort%pft
@@ -1825,7 +1796,16 @@ contains
                   if(currentCohort%NV > currentPatch%nrad(L,ft))then
                      write(iulog,*) 'ED: issue with NV',currentCohort%NV,currentCohort%pft,currentCohort%canopy_layer
                   endif
-                  c = clmpatch%column(currentPatch%clm_pno)
+
+                  ! c = clmpatch%column(currentPatch%clm_pno)
+                  ! INTERF-TODO: REMOVE THIS AT SOME POINT, THIS SANITY CHECK IS NOT NEEDED WHEN THE
+                  ! COLUMNIZATION IS COMPLETE
+                  if( clmpatch%column(currentPatch%clm_pno) .ne. c .or. currentPatch%clm_pno .ne. p )then
+                     ! ERROR
+                     write(iulog,*) ' clmpatch%column(currentPatch%clm_pno) .ne. c .or. currentPatch%clm_pno .ne. p '
+                     call endrun(msg=errMsg(__FILE__, __LINE__))
+                  end if
+
 
                   !Whole layers.  Make a weighted average of the leaf area in each layer before dividing it by the total area. 
                   !fill up layer for whole layers.  FIX(RF,032414)- for debugging jan 2012
