@@ -273,7 +273,7 @@ contains
        c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
        c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
        soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst, &
-       ed_clm_inst, ed_allsites_inst)
+       ed_clm_inst, sites, nsites, fcolumn)
     !
     ! !DESCRIPTION:
     ! Call to all CN and SoilBiogeochem summary routines
@@ -299,7 +299,9 @@ contains
     type(soilbiogeochem_nitrogenflux_type)  , intent(inout) :: soilbiogeochem_nitrogenflux_inst
     type(soilbiogeochem_nitrogenstate_type) , intent(inout) :: soilbiogeochem_nitrogenstate_inst
     type(ed_clm_type)                       , intent(inout) :: ed_clm_inst
-    type(ed_site_type)      , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+    type(ed_site_type)                      , intent(inout), target :: sites(nsites)
+    integer                                 , intent(in)    :: nsites
+    integer                                 , intent(in)    :: fcolumn(nsites)
     !
     ! !LOCAL VARIABLES:
     integer :: begc,endc
@@ -351,7 +353,7 @@ contains
     ! ----------------------------------------------
     
     call ed_clm_inst%SummarizeNetFluxes(bounds, num_soilc, filter_soilc, &
-         ed_allsites_inst(bounds%begg:bounds%endg), &
+         sites(:), nsites, fcolumn(:),   &
          soilbiogeochem_carbonflux_inst, &
          soilbiogeochem_carbonstate_inst)
 
