@@ -233,7 +233,9 @@ module EDTypesMod
 
      !INDICES
      integer  :: patchno                                           ! unique number given to each new patch created for tracking
-!     integer  :: clm_pno                                           ! clm patch number (index of p vector)
+
+     ! INTERF-TODO: THIS VARIABLE SHOULD BE REMOVED
+     integer  :: clm_pno                                           ! clm patch number (index of p vector)
 
      ! PATCH INFO
      real(r8) ::  age                                              ! average patch age: years                   

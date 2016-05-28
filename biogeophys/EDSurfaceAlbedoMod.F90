@@ -33,7 +33,7 @@ contains
    
    subroutine ED_Norman_Radiation (bounds, &
          filter_vegsol, num_vegsol, filter_nourbanp, num_nourbanp, &
-         coszen, ed_allsites_inst, surfalb_inst)
+         coszen, sites, nsites, fcolumn, surfalb_inst)
       !
       ! !DESCRIPTION:
       ! Two-stream fluxes for canopy radiative transfer
@@ -62,7 +62,9 @@ contains
       integer            , intent(in)            :: filter_nourbanp(:)     ! patch filter for non-urban points
       integer            , intent(in)            :: num_nourbanp           ! number of patches in non-urban filter
       real(r8)           , intent(in)            :: coszen( bounds%begp: ) ! cosine solar zenith angle for next time step [pft]
-      type(ed_site_type) , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+      type(ed_site_type)     , intent(inout), target :: sites(nsites)      ! FATES site vector
+      integer                , intent(in)            :: nsites             
+      integer                , intent(in)            :: fcolumn(nsites)
       type(surfalb_type) , intent(inout)         :: surfalb_inst 
       !
       ! !LOCAL VARIABLES:
@@ -70,7 +72,7 @@ contains
       ! ED/NORMAN RADIATION DECS
       ! ============================================================================
       type (ed_patch_type) , pointer :: currentPatch
-      integer  :: radtype, L, ft, g ,j
+      integer  :: radtype, L, ft, j
       integer  :: iter                                          ! Iteration index
       integer  :: irep                                          ! Flag to exit iteration loop
       real(r8) :: sb
