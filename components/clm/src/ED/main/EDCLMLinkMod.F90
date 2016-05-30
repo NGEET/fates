@@ -1525,7 +1525,7 @@ contains
                   patch_scaling_scalar = 0._r8
                endif
 
-               nesterov_fire_danger(p) = ed_allsites_inst(g)%acc_NI 
+               nesterov_fire_danger(p) = sites(s)%acc_NI 
                spitfire_ROS(p)         = currentPatch%ROS_front 
                TFC_ROS(p)              = currentPatch%TFC_ROS
                effect_wspeed(p)        = currentPatch%effect_wspeed
@@ -2670,36 +2670,31 @@ end subroutine SummarizeProductivityFluxes
      ! calculate the total ED -> BGC flux and keep track of the last day's info for balance checking purposes
      if ( is_beg_curr_day() ) then
         !
-        do g = bounds%begg,bounds%endg
-           if (firstsoilpatch(g) >= 0 .and. ed_allsites_inst(g)%istheresoil) then 
-              cc = ed_allsites_inst(g)%clmcolumn
-              ed_to_bgc_last_edts(cc) = ed_to_bgc_this_edts(cc)
-           endif
+        do s = 1,nsites
+           c = fcolumn(s)
+           ed_to_bgc_last_edts(c) = ed_to_bgc_this_edts(c)
         end do
         !
-        do g = bounds%begg,bounds%endg
-           if (firstsoilpatch(g) >= 0 .and. ed_allsites_inst(g)%istheresoil) then 
-              cc = ed_allsites_inst(g)%clmcolumn
-              ed_to_bgc_this_edts(cc) = 0._r8
-              seed_rain_flux(cc) = 0._r8
-           endif
+        do s = 1,nsites
+           c = fcolumn(s)
+           ed_to_bgc_this_edts(c) = 0._r8
+           seed_rain_flux(c) = 0._r8
         end do
         !
-        do g = bounds%begg,bounds%endg
-           if (firstsoilpatch(g) >= 0 .and. ed_allsites_inst(g)%istheresoil) then 
-              cc = ed_allsites_inst(g)%clmcolumn
-              currentPatch => ed_allsites_inst(g)%oldest_patch
-              do while(associated(currentPatch))
-                 !
-                 ed_to_bgc_this_edts(cc) = ed_to_bgc_this_edts(cc) + (sum(currentPatch%CWD_AG_out) + sum(currentPatch%CWD_BG_out) + &
-                      + sum(currentPatch%seed_decay) + sum(currentPatch%leaf_litter_out) + sum(currentPatch%root_litter_out)) &
-                      * ( currentPatch%area/AREA ) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
-                 !
-                 seed_rain_flux(cc) = seed_rain_flux(cc) + sum(currentPatch%seed_rain_flux) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
-                 !
-                 currentPatch => currentPatch%younger
-              end do !currentPatch
-           end if
+        do s = 1,nsites
+           c = fcolumn(s)
+
+           currentPatch => sites(s)%oldest_patch
+           do while(associated(currentPatch))
+              !
+              ed_to_bgc_this_edts(c) = ed_to_bgc_this_edts(c) + (sum(currentPatch%CWD_AG_out) + sum(currentPatch%CWD_BG_out) + &
+                   + sum(currentPatch%seed_decay) + sum(currentPatch%leaf_litter_out) + sum(currentPatch%root_litter_out)) &
+                   * ( currentPatch%area/AREA ) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
+              !
+              seed_rain_flux(c) = seed_rain_flux(c) + sum(currentPatch%seed_rain_flux) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
+              !
+              currentPatch => currentPatch%younger
+           end do !currentPatch
         end do
      endif
 

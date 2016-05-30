@@ -174,7 +174,7 @@ contains
         num_urbanc   , filter_urbanc,  &
         num_urbanp   , filter_urbanp,  &
         nextsw_cday  , declinp1,       &
-        sites, nsites, fcolumn,        &  ! FATES STUFF
+        sites, nsites, fcolumn, hsites,  &  ! FATES STUFF
         aerosol_inst, canopystate_inst, waterstate_inst, &
         lakestate_inst, temperature_inst, surfalb_inst)
     !
@@ -221,6 +221,7 @@ contains
     type(ed_site_type)     , intent(inout), target :: sites(nsites)      ! FATES site vector
     integer                , intent(in)            :: nsites             
     integer                , intent(in)            :: fcolumn(nsites)
+    integer                , intent(in)            :: hsites(bounds%begc:bounds:endc)
     type(aerosol_type)     , intent(in)            :: aerosol_inst
     type(canopystate_type) , intent(in)            :: canopystate_inst
     type(waterstate_type)  , intent(in)            :: waterstate_inst
@@ -921,7 +922,7 @@ contains
           
        call ED_Norman_Radiation (bounds, &
             filter_vegsol, num_vegsol, filter_nourbanp, num_nourbanp, &
-            coszen_patch(bounds%begp:bounds%endp), sites, nsites, fcolumn, & 
+            coszen_patch(bounds%begp:bounds%endp), sites, nsites, fcolumn, hsites, & 
             surfalb_inst)
 
     else

@@ -76,7 +76,7 @@ contains
 
   !------------------------------------------------------------------------------
   subroutine CanopyFluxes(bounds,  num_exposedvegp, filter_exposedvegp, &
-       ed_allsites_inst,  atm2lnd_inst, canopystate_inst, cnveg_state_inst,            &
+       sites, nsites, fcolumn,  atm2lnd_inst, canopystate_inst, cnveg_state_inst,            &
        energyflux_inst, frictionvel_inst, soilstate_inst, solarabs_inst, surfalb_inst, &
        temperature_inst, waterflux_inst, waterstate_inst, ch4_inst, ozone_inst, photosyns_inst, &
        humanindex_inst, soil_water_retention_curve, cnveg_nitrogenstate_inst) 

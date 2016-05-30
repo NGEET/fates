@@ -933,9 +933,11 @@ contains
                filter_inactive_and_active(nc)%num_urbanp,       &
                filter_inactive_and_active(nc)%urbanp,           &
                nextsw_cday, declinp1,                           &
-               clm_fates%fates(nc)%sites,                       &
+               clm_fates%fates(nc)%sites, clm_fates%fates(nc)%nsites,     &
+               clm_fates%f2hmap(nc)%fcolumn, clm_fates%f2hmap(nc)%hsites, &
                aerosol_inst, canopystate_inst, waterstate_inst, &
                lakestate_inst, temperature_inst, surfalb_inst)
+
 
           ! INTERF-TOD: THIS ACTUALLY WON'T BE TO BAD TO PULL OUT
           ! ED_Norman_Radiation() is the last thing called

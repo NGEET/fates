@@ -33,7 +33,7 @@ contains
    
    subroutine ED_Norman_Radiation (bounds, &
          filter_vegsol, num_vegsol, filter_nourbanp, num_nourbanp, &
-         coszen, sites, nsites, fcolumn, surfalb_inst)
+         coszen, sites, nsites, fcolumn, hsites, surfalb_inst)
       !
       ! !DESCRIPTION:
       ! Two-stream fluxes for canopy radiative transfer
@@ -56,16 +56,17 @@ contains
       use SurfaceAlbedoType , only : surfalb_type
       !
       ! !ARGUMENTS:
-      type(bounds_type)  , intent(in)            :: bounds                 ! bounds
-      integer            , intent(in)            :: filter_vegsol(:)       ! filter for vegetated pfts with coszen>0
-      integer            , intent(in)            :: num_vegsol             ! number of vegetated pfts where coszen>0
-      integer            , intent(in)            :: filter_nourbanp(:)     ! patch filter for non-urban points
-      integer            , intent(in)            :: num_nourbanp           ! number of patches in non-urban filter
-      real(r8)           , intent(in)            :: coszen( bounds%begp: ) ! cosine solar zenith angle for next time step [pft]
+      type(bounds_type)  , intent(in)                :: bounds                 ! bounds
+      integer            , intent(in)                :: filter_vegsol(:)       ! filter for vegetated pfts with coszen>0
+      integer            , intent(in)                :: num_vegsol             ! number of vegetated pfts where coszen>0
+      integer            , intent(in)                :: filter_nourbanp(:)     ! patch filter for non-urban points
+      integer            , intent(in)                :: num_nourbanp           ! number of patches in non-urban filter
+      real(r8)           , intent(in)                :: coszen( bounds%begp: ) ! cosine solar zenith angle for next time step [pft]
       type(ed_site_type)     , intent(inout), target :: sites(nsites)      ! FATES site vector
       integer                , intent(in)            :: nsites             
       integer                , intent(in)            :: fcolumn(nsites)
-      type(surfalb_type) , intent(inout)         :: surfalb_inst 
+      integer                , intent(in)            :: hsites(bounds_clump%begc:bounds_clump%endc)
+      type(surfalb_type) , intent(inout)             :: surfalb_inst 
       !
       ! !LOCAL VARIABLES:
       ! ============================================================================
@@ -158,8 +159,9 @@ contains
       do fp = 1,num_nourbanp
          p = filter_nourbanp(fp)
          if (patch%is_veg(p)) then
-            g = patch%gridcell(p)
-            currentPatch => map_clmpatch_to_edpatch(ed_allsites_inst(g), p) 
+            c = patch%column(p)
+            s = hsites(c)
+            currentPatch => map_clmpatch_to_edpatch(sites(s), p) 
             currentPatch%f_sun      (:,:,:) = 0._r8
             currentPatch%fabd_sun_z (:,:,:) = 0._r8
             currentPatch%fabd_sha_z (:,:,:) = 0._r8
@@ -179,7 +181,6 @@ contains
       do fp = 1,num_vegsol
          p = filter_vegsol(fp)
          c = patch%column(p)
-         g = patch%gridcell(p)
 
          weighted_dir_tr(:)   = 0._r8
          weighted_dif_down(:) = 0._r8
@@ -203,7 +204,10 @@ contains
 
          if (patch%is_veg(p)) then ! We have vegetation...
 
-            currentPatch => map_clmpatch_to_edpatch(ed_allsites_inst(g), p) 
+            
+            ! INTERF-TODO: 
+            s = hsites(c)
+            currentPatch => map_clmpatch_to_edpatch(sites(s), p) 
 
             if (associated(currentPatch))then
                !zero all of the matrices used here to reduce potential for errors.
