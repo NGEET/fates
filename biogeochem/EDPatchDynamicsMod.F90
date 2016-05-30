@@ -1427,7 +1427,7 @@ contains
   end subroutine patch_pft_size_profile
 
   ! ============================================================================
-  function countPatches( bounds, ed_allsites_inst ) result ( totNumPatches ) 
+  function countPatches( bounds, sites, nsites ) result ( totNumPatches ) 
     !
     ! !DESCRIPTION:
     !  Loop over all Patches to count how many there are
@@ -1439,24 +1439,22 @@ contains
     !
     ! !ARGUMENTS:
     type(bounds_type)  , intent(in)            :: bounds
-    type(ed_site_type) , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+    type(ed_site_type) , intent(inout), target :: sites(nsites)
+    integer,             intent(in)            :: nsites
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type), pointer :: currentPatch
-    integer :: g              ! gridcell
     integer :: totNumPatches  ! total number of patches.  
     !---------------------------------------------------------------------
 
     totNumPatches = 0
 
-    do g = bounds%begg,bounds%endg
-       if (ed_allsites_inst(g)%istheresoil) then
-          currentPatch => ed_allsites_inst(g)%oldest_patch
-          do while(associated(currentPatch))
-             totNumPatches = totNumPatches + 1
-             currentPatch => currentPatch%younger
-          enddo
-       endif
+    do s = 1,nsites
+       currentPatch => sites(s)%oldest_patch
+       do while(associated(currentPatch))
+          totNumPatches = totNumPatches + 1
+          currentPatch => currentPatch%younger
+       enddo
     enddo
 
    end function countPatches
