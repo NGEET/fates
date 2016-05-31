@@ -463,7 +463,9 @@ contains
        ! NEEDS A WRAPPER
        call CanopyFluxes(bounds_clump,                                                      &
             filter(nc)%num_exposedvegp, filter(nc)%exposedvegp,                             &
-            clm_fates%fates(nc)%sites,                                                      &
+            clm_fates%fates(nc)%sites,                                                      & 
+            clm_fates%fates(nc)%nsites,                                                     &
+            clm_fates%f2hmap(nc)%hsites,                                                    &
             atm2lnd_inst, canopystate_inst, cnveg_state_inst,                               &
             energyflux_inst, frictionvel_inst, soilstate_inst, solarabs_inst, surfalb_inst, &
             temperature_inst, waterflux_inst, waterstate_inst, ch4_inst, ozone_inst, photosyns_inst, &

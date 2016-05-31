@@ -27,7 +27,7 @@ module EDCohortDynamicsMod
   public :: sort_cohorts
   public :: copy_cohort
   public :: count_cohorts
-  public :: countCohorts
+!  public :: countCohorts
   public :: allocate_live_biomass
 
   logical, parameter :: DEBUG  = .false. ! local debug flag

@@ -221,7 +221,7 @@ contains
     type(ed_site_type)     , intent(inout), target :: sites(nsites)      ! FATES site vector
     integer                , intent(in)            :: nsites             
     integer                , intent(in)            :: fcolumn(nsites)
-    integer                , intent(in)            :: hsites(bounds%begc:bounds:endc)
+    integer                , intent(in)            :: hsites(bounds%begc:bounds%endc)
     type(aerosol_type)     , intent(in)            :: aerosol_inst
     type(canopystate_type) , intent(in)            :: canopystate_inst
     type(waterstate_type)  , intent(in)            :: waterstate_inst
@@ -922,7 +922,8 @@ contains
           
        call ED_Norman_Radiation (bounds, &
             filter_vegsol, num_vegsol, filter_nourbanp, num_nourbanp, &
-            coszen_patch(bounds%begp:bounds%endp), sites, nsites, fcolumn, hsites, & 
+            coszen_patch(bounds%begp:bounds%endp), sites(:), nsites, &
+            fcolumn, hsites(bounds%begc:bounds%endc), & 
             surfalb_inst)
 
     else
