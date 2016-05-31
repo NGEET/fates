@@ -20,7 +20,7 @@ contains
  
   !---------------------------------------------------------
   subroutine Photosynthesis_ED (bounds, fn, filterp, esat_tv, eair, oair, cair, &
-       rb, dayl_factor, ed_allsites_inst, &
+       rb, dayl_factor, sites, nsites, hsites, &
        atm2lnd_inst, temperature_inst, canopystate_inst, photosyns_inst)
     !
     ! !DESCRIPTION:
@@ -61,7 +61,9 @@ contains
     real(r8)               , intent(in)            :: cair( bounds%begp: )        ! Atmospheric CO2 partial pressure (Pa)
     real(r8)               , intent(inout)         :: rb( bounds%begp: )          ! boundary layer resistance (s/m)
     real(r8)               , intent(in)            :: dayl_factor( bounds%begp: ) ! scalar (0-1) for daylength
-    type(ed_site_type)     , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+    type(ed_site_type)     , intent(inout), target :: sites(nsites)
+    integer                , intent(in)            :: nsites
+    integer                , intent(in)            :: hsites(bounds%begc:bounds%endc)
     type(atm2lnd_type)     , intent(in)            :: atm2lnd_inst
     type(temperature_type) , intent(in)            :: temperature_inst
     type(canopystate_type) , intent(inout)         :: canopystate_inst
@@ -145,7 +147,7 @@ contains
     real(r8) :: theta_ip                          ! empirical curvature parameter for ap photosynthesis co-limitation
 
     ! Other
-    integer  :: c,CL,f,g,iv,j,p,ps,ft             ! indices
+    integer  :: c,CL,f,s,iv,j,p,ps,ft             ! indices
     integer  :: NCL_p                             ! number of canopy layers in patch
     real(r8) :: cf                                ! s m**2/umol -> s/m
     real(r8) :: rsmax0                            ! maximum stomatal resistance [s/m]
@@ -323,10 +325,11 @@ contains
          gccanopy(p)  = 0._r8  
 
          if (patch%is_veg(p)) then
-            g = patch%gridcell(p)
-            c = patch%column(p)
 
-            currentPatch => map_clmpatch_to_edpatch(ed_allsites_inst(g), p) 
+            c = patch%column(p)
+            s = hsites(c)
+
+            currentPatch => map_clmpatch_to_edpatch(sites(s), p) 
 
             currentPatch%ncan(:,:) = 0
             !redo the canopy structure algorithm to get round a bug that is happening for site 125, FT13. 
@@ -401,10 +404,11 @@ contains
       do f = 1,fn
          p = filterp(f)
          c = patch%column(p)
+         s = hsites(c)
 
          if (patch%is_veg(p)) then
-            g = patch%gridcell(p)
-            currentPatch => map_clmpatch_to_edpatch(ed_allsites_inst(g), p) 
+
+            currentPatch => map_clmpatch_to_edpatch(sites(s), p) 
 
             do FT = 1,numpft_ed
                if (nint(c3psn(FT)) == 1)then

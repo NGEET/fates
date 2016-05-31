@@ -10,7 +10,7 @@ module EDCLMLinkMod
   use decompMod        , only : bounds_type
   use clm_varpar       , only : nclmax, nlevcan_ed, numpft, numcft, mxpft
   use clm_varctl       , only : iulog 
-
+  use ColumnType       , only : col
   use EDtypesMod       , only : ed_site_type, ed_cohort_type, ed_patch_type, ncwd
   use EDtypesMod       , only : sclass_ed, nlevsclass_ed, AREA
   use CanopyStateType  , only : canopystate_type
@@ -21,6 +21,7 @@ module EDCLMLinkMod
   use clm_time_manager       , only : is_beg_curr_day, get_step_size, get_nstep
   use shr_const_mod, only: SHR_CONST_CDAY
   use abortutils      , only : endrun
+  use shr_log_mod     , only : errMsg => shr_log_errMsg    
 
   !
   implicit none
@@ -958,7 +959,6 @@ contains
     use EDEcophysConType     , only : EDecophyscon
     use EDtypesMod           , only : area
     use PatchType            , only : clmpatch => patch
-    use ColumnType           , only : col
     use LandunitType         , only : lun
     use pftconMod            , only : pftcon
     use CanopyStateType      , only : canopystate_type
@@ -976,7 +976,7 @@ contains
     ! !LOCAL VARIABLES:
     type (ed_patch_type)  , pointer :: currentPatch
     type (ed_cohort_type) , pointer :: currentCohort
-    integer  :: g,l,p,c
+    integer  :: g,l,p,c,s
     integer  :: ft                                      ! plant functional type
     integer  :: patchn                                  ! identification number for each patch. 
     real(r8) :: total_bare_ground                       ! sum of the bare fraction in all pfts.
@@ -1202,13 +1202,13 @@ contains
   end subroutine ed_clm_link
 
   !-----------------------------------------------------------------------
-  subroutine ed_update_history_variables( this, bounds, sites, nsites, fcolumn, 
-       firstsoilpatch, canopystate_inst)
+  subroutine ed_update_history_variables( this, bounds, sites, nsites, fcolumn, canopystate_inst)
     !
     ! !USES: 
     use CanopyStateType  , only : canopystate_type
     use PatchType        , only : clmpatch => patch
     use pftconMod        , only : pftcon
+
     !
     ! !ARGUMENTS:
     class(ed_clm_type)                              ::  this
@@ -1221,7 +1221,7 @@ contains
     type(canopystate_type)  , intent(inout)         :: canopystate_inst
     !
     ! !LOCAL VARIABLES:
-    integer  :: p,ft,c
+    integer  :: p,ft,c,s
 !    integer  :: firstsoilpatch(bounds%begg:bounds%endg)
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
@@ -1587,7 +1587,7 @@ contains
     ! !ARGUMENTS    
     class(ed_clm_type)                     :: this  
     type(ed_site_type)     , intent(inout) :: currentSite
-    integer                , intent(in)    :: c           ! ALM/CLM column index of this site
+    integer                , intent(in)    :: colindex      ! ALM/CLM column index of this site
     type(waterstate_type)  , intent(inout) :: waterstate_inst
     type(canopystate_type) , intent(inout) :: canopystate_inst
     !
@@ -1639,7 +1639,8 @@ contains
       ! Each leaf is defined by how deep in the canopy it is, in terms of LAI units.  (FIX(RF,032414), GB)
 
       currentPatch => currentSite%oldest_patch   ! ed patch
-      p            =  col%patchi(c)              ! CLM/ALM equivalent patch
+      p            =  col%patchi(colindex)       ! first patch of the column of interest, for vegetated
+                                                 ! columns this is the non-veg patch
 
       do while(associated(currentPatch))
          p = p + 1                               ! First CLM/ALM patch is non-veg, increment at loop start
@@ -1738,15 +1739,15 @@ contains
                      !snow burial
                      fraction_exposed = 1.0_r8 !default. 
 
-                     snowdp(c) = snow_depth(c) * frac_sno_eff(c)
-                     if(snowdp(c) > maxh(iv))then
+                     snowdp(colindex) = snow_depth(colindex) * frac_sno_eff(colindex)
+                     if(snowdp(colindex) > maxh(iv))then
                         fraction_exposed = 0._r8
                      endif
-                     if(snowdp(c) < minh(iv))then
+                     if(snowdp(colindex) < minh(iv))then
                         fraction_exposed = 1._r8
                      endif
-                     if(snowdp(c) >= minh(iv).and.snowdp(c) <= maxh(iv))then !only partly hidden... 
-                        fraction_exposed =  max(0._r8,(min(1.0_r8,(snowdp(c)-minh(iv))/dh)))
+                     if(snowdp(colindex) >= minh(iv).and.snowdp(colindex) <= maxh(iv))then !only partly hidden... 
+                        fraction_exposed =  max(0._r8,(min(1.0_r8,(snowdp(colindex)-minh(iv))/dh)))
                      endif
 
                      ! no m2 of leaf per m2 of ground in each height class
@@ -1816,9 +1817,9 @@ contains
                   ! c = clmpatch%column(currentPatch%clm_pno)
                   ! INTERF-TODO: REMOVE THIS AT SOME POINT, THIS SANITY CHECK IS NOT NEEDED WHEN THE
                   ! COLUMNIZATION IS COMPLETE
-                  if( clmpatch%column(currentPatch%clm_pno) .ne. c .or. currentPatch%clm_pno .ne. p )then
+                  if( clmpatch%column(currentPatch%clm_pno) .ne. colindex .or. currentPatch%clm_pno .ne. p )then
                      ! ERROR
-                     write(iulog,*) ' clmpatch%column(currentPatch%clm_pno) .ne. c .or. currentPatch%clm_pno .ne. p '
+                     write(iulog,*) ' clmpatch%column(currentPatch%clm_pno) .ne. colindex .or. currentPatch%clm_pno .ne. p '
                      call endrun(msg=errMsg(__FILE__, __LINE__))
                   end if
 
@@ -1841,15 +1842,15 @@ contains
                      layer_bottom_hite = currentCohort%hite-(((iv+1)/currentCohort%NV) * currentCohort%hite * &
                           EDecophyscon%crown(currentCohort%pft)) ! pftcon%vertical_canopy_frac(ft))
                      fraction_exposed = 1.0_r8 !default. 
-                     snowdp(c) = snow_depth(c) * frac_sno_eff(c)
-                     if(snowdp(c) > layer_top_hite)then
+                     snowdp(colindex) = snow_depth(colindex) * frac_sno_eff(colindex)
+                     if(snowdp(colindex) > layer_top_hite)then
                         fraction_exposed = 0._r8
                      endif
-                     if(snowdp(c) <= layer_bottom_hite)then
+                     if(snowdp(colindex) <= layer_bottom_hite)then
                         fraction_exposed = 1._r8
                      endif
-                     if(snowdp(c) > layer_bottom_hite.and.snowdp(c) <= layer_top_hite)then !only partly hidden... 
-                        fraction_exposed =  max(0._r8,(min(1.0_r8,(snowdp(c)-layer_bottom_hite)/ &
+                     if(snowdp(colindex) > layer_bottom_hite.and.snowdp(colindex) <= layer_top_hite)then !only partly hidden... 
+                        fraction_exposed =  max(0._r8,(min(1.0_r8,(snowdp(colindex)-layer_bottom_hite)/ &
                              (layer_top_hite-layer_bottom_hite ))))
                      endif
 
@@ -1874,14 +1875,14 @@ contains
                   fraction_exposed = 1.0_r8 !default. 
 
                   fraction_exposed = 1.0_r8 !default. 
-                  if(snowdp(c) > layer_top_hite)then
+                  if(snowdp(colindex) > layer_top_hite)then
                      fraction_exposed = 0._r8
                   endif
-                  if(snowdp(c) <= layer_bottom_hite)then
+                  if(snowdp(colindex) <= layer_bottom_hite)then
                      fraction_exposed = 1._r8
                   endif
-                  if(snowdp(c) > layer_bottom_hite.and.snowdp(c) <= layer_top_hite)then !only partly hidden... 
-                     fraction_exposed =  max(0._r8,(min(1.0_r8,(snowdp(c)-layer_bottom_hite) / &
+                  if(snowdp(colindex) > layer_bottom_hite.and.snowdp(colindex) <= layer_top_hite)then !only partly hidden... 
+                     fraction_exposed =  max(0._r8,(min(1.0_r8,(snowdp(colindex)-layer_bottom_hite) / &
                           (layer_top_hite-layer_bottom_hite ))))
                   endif
 
@@ -1973,7 +1974,7 @@ contains
                if(abs(tlai(p)-tlai_temp) > 0.0001_r8) then
 
                   write(iulog,*) 'ED: error with tlai calcs',&
-                       NC,currentSite%clmgcell, abs(tlai(p)-tlai_temp), tlai_temp,tlai(p)
+                       NC,colindex, abs(tlai(p)-tlai_temp), tlai_temp,tlai(p)
 
                   do L = 1,currentPatch%NCL_p
                      write(iulog,*) 'ED: carea profile',L,currentPatch%canopy_area_profile(L,1,1:currentPatch%nrad(L,1))
@@ -2024,7 +2025,7 @@ contains
 
                   if(abs(sum(currentPatch%canopy_area_profile(L,1:numpft_ed,1))) > 1.00001)then
                      write(iulog,*) 'ED: canopy-area-profile wrong',sum(currentPatch%canopy_area_profile(L,1:numpft_ed,1)), &
-                          currentSite%clmgcell,currentPatch%patchno,L
+                          colindex,currentPatch%patchno,L
                      write(iulog,*) 'ED: areas',currentPatch%canopy_area_profile(L,1:2,1),currentPatch%patchno
 
                      currentCohort => currentPatch%shortest
@@ -2086,9 +2087,6 @@ contains
     use pftconMod, only : pftcon
 
     use clm_varcon, only : zisoi, dzsoi_decomp, zsoi
-    use ColumnType  , only : col
-    use abortutils  , only : endrun
-    use shr_log_mod , only : errMsg => shr_log_errMsg    
     use EDParamsMod, only : ED_val_ag_biomass
     !
     implicit none   
@@ -2105,7 +2103,7 @@ contains
     type (ed_patch_type)  , pointer :: currentPatch
     type (ed_cohort_type) , pointer :: currentCohort
     type(ed_site_type), pointer :: cs
-    integer c,p,ci,j,g
+    integer c,p,ci,j,s
     real(r8) time_convert    ! from year to seconds
     real(r8) mass_convert    ! ED uses kg, CLM uses g
     integer           :: begp,endp
@@ -2421,7 +2419,7 @@ contains
     end subroutine flux_into_litter_pools
 
   !------------------------------------------------------------------------
- subroutine SummarizeProductivityFluxes(this, bounds, sites, nsites)
+ subroutine SummarizeProductivityFluxes(this, bounds, sites, nsites, fcolumn)
 
    ! Summarize the fast production inputs from fluxes per ED individual to fluxes per CLM patch and column
    ! Must be called between calculation of productivity fluxes and daily ED calls
@@ -2430,7 +2428,6 @@ contains
    ! Written By Charlie Koven, April 2016
    !
    ! !USES: 
-   use ColumnType           , only : col
    use LandunitType         , only : lun
    use landunit_varcon      , only : istsoil
    !use subgridAveMod        , only : p2c
@@ -2442,10 +2439,11 @@ contains
    type(bounds_type)                       , intent(in)    :: bounds  
    type(ed_site_type)                      , intent(in), target :: sites(nsites)
    integer                                 , intent(in)         :: nsites
+   integer                                 , intent(in)         :: fcolumn(nsites)
    !
    ! !LOCAL VARIABLES:
    real(r8) :: dt ! radiation time step (seconds)
-   integer :: c, fc, l, p
+   integer :: c, fc, l, p, s
    type (ed_patch_type)  , pointer :: currentPatch
    type (ed_cohort_type) , pointer :: currentCohort
    integer  :: firstsoilpatch(bounds%begg:bounds%endg) ! the first patch in this gridcell that is soil and thus bare... 
@@ -2515,7 +2513,7 @@ contains
                  ! map ed cohort-level fluxes to clm patch fluxes
                  npp(p) = npp(p) + currentCohort%npp_clm * 1.e3_r8 * n_density / dt
                  gpp(p) = gpp(p) + currentCohort%gpp_clm * 1.e3_r8 * n_density / dt
-                 ar(p) = ar(pp) + currentCohort%resp_clm * 1.e3_r8 * n_density / dt
+                 ar(p) = ar(p) + currentCohort%resp_clm * 1.e3_r8 * n_density / dt
                  growth_resp(p) = growth_resp(p) + currentCohort%resp_g * 1.e3_r8 * n_density / dt
                  maint_resp(p) = maint_resp(p) + currentCohort%resp_m * 1.e3_r8 * n_density / dt
                  
@@ -2550,7 +2548,6 @@ end subroutine SummarizeProductivityFluxes
    ! Written by Charlie Koven, Feb 2016
    !
    ! !USES: 
-   use ColumnType           , only : col
    use LandunitType         , only : lun
    use landunit_varcon      , only : istsoil
    !
@@ -2569,7 +2566,7 @@ end subroutine SummarizeProductivityFluxes
    !
    ! !LOCAL VARIABLES:
    real(r8) :: dt ! radiation time step (seconds)
-   integer :: c, g, cc, fc, l, p, pp
+   integer :: c, s, cc, fc, l, p, pp
    type(ed_site_type), pointer :: cs
    type (ed_patch_type)  , pointer :: currentPatch
    type (ed_cohort_type) , pointer :: currentCohort

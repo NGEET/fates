@@ -19,12 +19,12 @@ module FatesInterfaceMod
    use ncdio_pio         , only : file_desc_t
    use PatchType         , only : patch
    use ColumnType        , only : col
+   use GridCellType      , only : grc
    ! ------------------------------------------------------------------------------------
 
    use EDtypesMod            , only : ed_patch_type, ed_site_type, numpft_ed
    use EDtypesMod            , only : map_clmpatch_to_edpatch
    use EDSurfaceRadiationMod , only : ED_SunShadeFracs
-   use EDInitMod             , only : ed_init_sites
    use EDMainMod             , only : ed_update_site
    use EDRestVectorMod       , only : EDRest
    
