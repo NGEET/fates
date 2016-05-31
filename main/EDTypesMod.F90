@@ -24,7 +24,7 @@ module EDTypesMod
   ! for setting number of patches per gridcell and number of cohorts per patch
   ! for I/O and converting to a vector
 
-  integer, parameter :: numPatchesPerGridCol  = 10          !
+  integer, parameter :: numPatchesPerCol      = 10          !
   integer, parameter :: numCohortsPerPatch    = 160         !
   integer, parameter :: cohorts_per_col       = 1600        ! This is the max number of individual items one can store per 
 

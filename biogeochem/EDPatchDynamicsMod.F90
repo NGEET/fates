@@ -9,7 +9,7 @@ module EDPatchDynamicsMod
   use clm_varctl           , only : iulog 
   use pftconMod            , only : pftcon
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
-  use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, numpft_ed, area, dbhmax, numPatchesPerGridCell
+  use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, numpft_ed, area, dbhmax, numPatchesPerCol
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type, udata
   use EDTypesMod           , only : min_patch_area
   !
@@ -1014,7 +1014,7 @@ contains
     !---------------------------------------------------------------------
 
     !maxpatch = 4  
-    maxpatch = numPatchesPerGridCell
+    maxpatch = numPatchesPerCol
 
     currentSite => csite 
 
@@ -1353,7 +1353,7 @@ contains
        areatot = areatot + currentPatch%area
        currentPatch => currentPatch%younger
        if((areatot-area) > 0.0000001_r8)then
-          write(iulog,*) 'ED: areatot too large. end terminate', areatot,currentSite%clmgcell
+          write(iulog,*) 'ED: areatot too large. end terminate', areatot
        endif
     enddo
 
@@ -1445,6 +1445,7 @@ contains
     ! !LOCAL VARIABLES:
     type (ed_patch_type), pointer :: currentPatch
     integer :: totNumPatches  ! total number of patches.  
+    integer :: s
     !---------------------------------------------------------------------
 
     totNumPatches = 0

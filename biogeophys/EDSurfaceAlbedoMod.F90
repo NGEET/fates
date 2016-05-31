@@ -65,7 +65,7 @@ contains
       type(ed_site_type)     , intent(inout), target :: sites(nsites)      ! FATES site vector
       integer                , intent(in)            :: nsites             
       integer                , intent(in)            :: fcolumn(nsites)
-      integer                , intent(in)            :: hsites(bounds_clump%begc:bounds_clump%endc)
+      integer                , intent(in)            :: hsites(bounds%begc:bounds%endc)
       type(surfalb_type) , intent(inout)             :: surfalb_inst 
       !
       ! !LOCAL VARIABLES:
@@ -113,7 +113,7 @@ contains
       real(r8) :: denom
       real(r8) :: lai_reduction(2)
 
-      integer  :: fp,p,c,iv        ! array indices
+      integer  :: fp,p,c,iv,s      ! array indices
       integer  :: ib               ! waveband number
       real(r8) :: cosz             ! 0.001 <= coszen <= 1.000
       real(r8) :: chil(bounds%begp:bounds%endp)    ! -0.4 <= xl <= 0.6
@@ -245,7 +245,7 @@ contains
                         end do !iv
                      end do !ft
                   end do !L
-                  g = currentPatch%siteptr%clmgcell
+!                  g = currentPatch%siteptr%clmgcell
 
                   do radtype = 1,2 !do this once for one unit of diffuse, and once for one unit of direct radiation
                      do ib = 1,numrad
@@ -822,7 +822,7 @@ contains
                            error = abs(currentPatch%sabs_dir(ib)-(currentPatch%tr_soil_dir(ib)*(1.0_r8-albgrd(c,ib))+ &
                                  currentPatch%tr_soil_dir_dif(ib)*(1.0_r8-albgri(c,ib))))
                            if ( abs(error) > 0.0001)then
-                              write(iulog,*)'dir ground absorption error',p,g,error,currentPatch%sabs_dir(ib), &
+                              write(iulog,*)'dir ground absorption error',p,c,error,currentPatch%sabs_dir(ib), &
                                     currentPatch%tr_soil_dir(ib)* &
                                     (1.0_r8-albgrd(c,ib)),currentPatch%NCL_p,ib,sum(ftweight(1,:,1))
                               write(iulog,*) 'albedos',currentPatch%sabs_dir(ib) ,currentPatch%tr_soil_dir(ib), &
@@ -837,7 +837,7 @@ contains
                         else
                            if ( abs(currentPatch%sabs_dif(ib)-(currentPatch%tr_soil_dif(ib) * &
                                  (1.0_r8-albgri(c,ib)))) > 0.0001)then
-                              write(iulog,*)'dif ground absorption error',p,g,currentPatch%sabs_dif(ib) , &
+                              write(iulog,*)'dif ground absorption error',p,c,currentPatch%sabs_dif(ib) , &
                                     (currentPatch%tr_soil_dif(ib)* &
                                     (1.0_r8-albgri(c,ib))),currentPatch%NCL_p,ib,sum(ftweight(1,:,1))
                            endif

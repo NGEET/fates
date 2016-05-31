@@ -660,9 +660,9 @@ contains
        write(iulog,*) 'edtime getVectors ',get_nstep()
     end if
 
-    call this%createPatchCohortStructure ( bounds, sites, nsites )
+    call this%createPatchCohortStructure ( bounds, sites, nsites, fcolumn )
 
-    call this%convertCohortVectorToList ( bounds, sites )
+    call this%convertCohortVectorToList ( bounds, sites , nsites, fcolumn)
 
     do s = 1,nsites
        call ed_update_site( sites(s) )
@@ -1928,7 +1928,7 @@ contains
     ! !LOCAL VARIABLES:
     type (ed_patch_type), pointer :: currentPatch
     type (ed_cohort_type),pointer :: currentCohort
-    integer :: g, c, s
+    integer :: c, s
     integer :: totalCohorts ! number of cohorts starting from 0
     integer :: countCohort  ! number of cohorts starting from
     ! vectorLengthStart
@@ -1948,7 +1948,6 @@ contains
     do s = 1,nsites
        
        c = fcolumn(s)
-       g = col%gridcell(c)
 
        incrementOffset     = (c-1)*cohorts_per_col + 1
        countCohort         = (c-1)*cohorts_per_col + 1

@@ -20,7 +20,7 @@ module EDInitMod
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDPatchDynamicsMod        , only : create_patch
   use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type, area
-  use EDTypesMod                , only : cohorts_per_gcell, ncwd, numpft_ed, udata
+  use EDTypesMod                , only : cohorts_per_col, ncwd, numpft_ed, udata
   use EDCLMLinkMod              , only : ed_clm_type
 
   implicit none
@@ -28,11 +28,10 @@ module EDInitMod
 
   logical   ::  DEBUG = .false.
 
-  public  :: ed_init_sites
   public  :: zero_site
-
-  private :: set_site_properties
-  private :: init_patches
+  public  :: init_patches
+  public  :: set_site_properties
+  
   private :: init_cohorts
   ! ============================================================================
 
@@ -40,59 +39,6 @@ contains
 
   ! ============================================================================
 
-!  subroutine ed_init_sites( bounds, ed_allsites_inst )
-!    !
-!    ! !DESCRIPTION:
-!    ! Intialize all ED sites
-!    !
-!    ! !USES: 
-!    use ColumnType      , only : col
-!    use landunit_varcon , only : istsoil
-!    !
-!    ! !ARGUMENTS    
-!    type(bounds_type)  , intent(in)            :: bounds
-!    type(ed_site_type) , intent(inout), target :: ed_allsites_inst( bounds%begg: )
-!    !
-!    ! !LOCAL VARIABLES:
-!    integer  :: g,l,c
-!    logical  :: istheresoil(bounds%begg:bounds%endg) 
-!    !----------------------------------------------------------------------
-!
-!    !
-!    ! INITIALISE THE SITE STRUCTURES
-!    !
-!    ! Makes unique cohort identifiers. Needs zeroing at beginning of run.
-!    udata%cohort_number = 0
-!
-!    do g = bounds%begg,bounds%endg
-!       ! zero the site
-!       call zero_site(ed_allsites_inst(g))
-!
-!       !create clm mapping to ED structure
-!       ed_allsites_inst(g)%clmgcell = g 
-!       ed_allsites_inst(g)%lat      = grc%latdeg(g)  
-!       ed_allsites_inst(g)%lon      = grc%londeg(g)
-!    enddo
-
-!    istheresoil(bounds%begg:bounds%endg) = .false.
-!    do c = bounds%begc,bounds%endc
-!       g = col%gridcell(c)   
-!       if (col%itype(c) == istsoil) then  
-!          istheresoil(g) = .true.
-!       endif
-!       ed_allsites_inst(g)%istheresoil = istheresoil(g)
-!    enddo
-!
-!    call set_site_properties( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )     
-!
-!    ! on restart, this functionality is handled in EDRestVectorMod::createPatchCohortStructure
-!    !if (.not. is_restart() ) then
-!    call init_patches( bounds, ed_allsites_inst(bounds%begg:bounds%endg) )
-!    !endif
-!
-!  end subroutine ed_init_sites
-
-  ! ============================================================================
   subroutine zero_site( site_in )
     !
     ! !DESCRIPTION:
@@ -112,9 +58,6 @@ contains
     ! INDICES 
     site_in%lat              = nan
     site_in%lon              = nan
-    site_in%clmgcell         = 0
-    site_in%clmcolumn        = 0
-    site_in%istheresoil      = .false.
 
     ! DISTURBANCE
     site_in%disturbance_rate = 0._r8  ! site level disturbance rates from mortality and fire.
@@ -147,7 +90,7 @@ contains
     !
     ! !ARGUMENTS    
 
-    type(ed_site_type) , intent(inout), target :: sites
+    type(ed_site_type) , intent(inout), target :: sites(nsites)
     integer, intent(in)                        :: nsites
     !
     ! !LOCAL VARIABLES:
@@ -176,11 +119,11 @@ contains
        dleafoff = 300
        dleafon  = 100
        watermem = 0.5_r8
-       enddo
+
     else ! assignements for restarts
 
        NCD      = 1.0_r8 ! NCD should be 1 on restart
-       GDD(i)     = 0.0_r8
+       GDD      = 0.0_r8
        leafon   = 0.0_r8
        leafoff  = 0.0_r8
        stat     = 1
@@ -207,7 +150,7 @@ contains
        !start off with leaves off to initialise
        sites(s)%dstatus= dstat
        
-       sites(s)%acc_NI     = acc_NI(s)
+       sites(s)%acc_NI     = acc_NI
        sites(s)%frac_burnt = 0.0_r8
        sites(s)%old_stock  = 0.0_r8
     end do
@@ -225,7 +168,7 @@ contains
     use EDParamsMod ,  only : ED_val_maxspread
     !
     ! !ARGUMENTS    
-    type(ed_site_type) , intent(inout), target :: sites
+    type(ed_site_type) , intent(inout), target :: sites(nsites)
     integer, intent(in)                        :: nsites
     !
     ! !LOCAL VARIABLES:
