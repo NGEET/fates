@@ -27,6 +27,7 @@ module FatesInterfaceMod
    use EDSurfaceRadiationMod , only : ED_SunShadeFracs
    use EDMainMod             , only : ed_update_site
    use EDRestVectorMod       , only : EDRest
+   use EDInitMod             , only : zero_site, set_site_properties, init_patches
    
    type, public :: fates_interface_type
       
@@ -46,10 +47,9 @@ module FatesInterfaceMod
    contains
       
       ! Procedures for initializing FATES threaded memory and communicators
-      procedure, public :: init
       procedure, public :: fates_clean
-      procedure, public :: site_init
-      procedure, public :: fates_restart
+      procedure, public :: init_coldstart
+!      procedure, public :: init_restart
       procedure, public :: canopy_sunshade_fracs
 
    end type fates_interface_type
@@ -132,17 +132,18 @@ contains
    
    ! ------------------------------------------------------------------------------------
    
-   subroutine init_restart(this, bounds_clump, ncid, flag, fcolumn )
-      
-      implicit none
-      class(fates_interface_type), intent(inout)  :: this
-      type(bounds_type),intent(in)                :: bounds_clump
-      type(file_desc_t)       , intent(inout)     :: ncid    ! netcdf id
-      character(len=*)        , intent(in)        :: flag    !'read' or 'write'
-      
-      call EDRest( bounds_clump, this%sites, this%nsites, fcolumn, ncid, flag )
-      return
-   end subroutine init_restart
+!   subroutine init_restart(this, bounds_clump, ncid, flag, fcolumn )
+!      
+!      implicit none
+!      class(fates_interface_type), intent(inout)  :: this
+!      type(bounds_type),intent(in)                :: bounds_clump
+!      type(file_desc_t)       , intent(inout)     :: ncid    ! netcdf id
+!      integer                 , intent(in)        :: fcolumn(this%nsites)
+!      character(len=*)        , intent(in)        :: flag    !'read' or 'write'
+!      
+!      call EDRest( bounds_clump, this%sites, this%nsites, fcolumn, ncid, flag )
+!      return
+!   end subroutine init_restart
 
    ! ------------------------------------------------------------------------------------
    

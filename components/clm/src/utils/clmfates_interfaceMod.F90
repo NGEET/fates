@@ -62,6 +62,7 @@ module CLMFatesInterfaceMod
    use EDMainMod             , only : ed_update_site
    use EDPftVarcon           , only : EDpftvarcon_inst
    use EDEcophysConType      , only : EDecophysconInit
+   use EDRestVectorMod       , only : EDRest
    implicit none
 
    type, private :: f2hmap_type
@@ -120,7 +121,7 @@ module CLMFatesInterfaceMod
    contains
       
       procedure, public :: init
-      procedure, public :: fates2hlm_link
+      procedure, public :: init_restart
       procedure, public :: dynamics_driv
       
    end type hlm_fates_interface_type
@@ -160,8 +161,10 @@ contains
       integer                                        :: nc        ! thread index
       integer                                        :: s         ! FATES site index
       integer                                        :: c         ! HLM column index
+      integer                                        :: l         ! HLM LU index
       integer, allocatable                           :: collist (:)
       type(bounds_type)                              :: bounds_clump
+      integer                                        :: nmaxcol
 
       if (use_ed) then
          
@@ -187,10 +190,10 @@ contains
          allocate(collist(1:nmaxcol))
          
          ! Allocate the mapping that points columns to FATES sites, 0 is NA
-         allocate(self%f2hmap(nc)%hsites(bounds_clump%begc:bounds_clump%endc))
+         allocate(this%f2hmap(nc)%hsites(bounds_clump%begc:bounds_clump%endc))
 
          ! Initialize all columns with a zero index, which indicates no FATES site
-         self%f2hmap(nc)%hsites(:) = 0
+         this%f2hmap(nc)%hsites(:) = 0
 
          s = 0
          do c = bounds_clump%begc,bounds_clump%endc
@@ -201,16 +204,16 @@ contains
             if (col%active(c) .and. lun%itype(l) == istsoil ) then 
                s = s + 1
                collist(s) = c
-               self%f2hmap(nc)%hsites(c) = s
+               this%f2hmap(nc)%hsites(c) = s
             endif
             
          enddo
          
          ! Allocate vectors that match FATES sites with HLM columns
-         allocate(self%f2hmap(nc)%fcolumn(s))
+         allocate(this%f2hmap(nc)%fcolumn(s))
 
          ! Assign the h2hmap indexing
-         self%f2hmap(nc)%fcolumn(1:s)         =  collist(1:s)
+         this%f2hmap(nc)%fcolumn(1:s)         =  collist(1:s)
          
          ! Deallocate the temporary arrays
          deallocate(collist)
@@ -252,7 +255,7 @@ contains
       ! !LOCAL VARIABLES:
       real(r8) :: dayDiff                  ! day of run
       integer  :: dayDiffInt               ! integer of day of run
-      integer  :: g                        ! gridcell  
+      integer  :: s                        ! site
       integer  :: yr                       ! year (0, ...)
       integer  :: mon                      ! month (1, ..., 12)
       integer  :: day                      ! day of month (1, ..., 31)
@@ -312,9 +315,11 @@ contains
       enddo
 
       ! link to CLM/ALM structures
-      call this%fates2hlm%ed_clm_link( bounds_clump,                  &
-            this%fates(nc)%sites,     &
-            waterstate_inst,                                               &
+      call this%fates2hlm%ed_clm_link( bounds_clump,               &
+            this%fates(nc)%sites,                                  &
+            this%fates(nc)%nsites,                                 &
+            this%f2hmap(nc)%fcolumn,                               &
+            waterstate_inst,                                       &
             canopystate_inst)
 
 
@@ -338,8 +343,8 @@ contains
       class(hlm_fates_interface_type), intent(inout) :: this
       type(file_desc_t)              , intent(inout) :: ncid    ! netcdf id
       character(len=*)               , intent(in)    :: flag    !'read' or 'write'
-      type(waterstate_type)          , intent(in)    :: waterstate_inst
-      type(canopystate_type)         , intent(in)    :: canopystate_inst
+      type(waterstate_type)          , intent(inout) :: waterstate_inst
+      type(canopystate_type)         , intent(inout) :: canopystate_inst
 
       ! Locals
       type(bounds_type) :: bounds_clump
@@ -350,13 +355,17 @@ contains
       do nc = 1, nclumps
          call get_clump_bounds(nc, bounds_clump)
 
-         call EDRest( bounds_clump, this%fates(nc)%sites, this%fates(nc)%nsites, &
-               this%f2hmap(nc)%fcolumn, ncid, flag )
+         call EDRest( bounds_clump,                                              &
+                      this%fates(nc)%sites,                                      &
+                      this%fates(nc)%nsites,                                     &
+                      this%f2hmap(nc)%fcolumn, ncid, flag )
 
          if ( trim(flag) == 'read' ) then
             
             call this%fates2hlm%ed_clm_link( bounds_clump,                       &
                   this%fates(nc)%sites,                                          &
+                  this%fates(nc)%nsites,                                         &
+                  this%f2hmap(nc)%fcolumn,                                       &
                   waterstate_inst,                                               &
                   canopystate_inst)
 
@@ -364,7 +373,7 @@ contains
          end if
       end do
 
-      call clm_fates%fates2hlm%restart(bounds, ncid, flag)
+      call this%fates2hlm%restart(bounds_clump, ncid, flag)
       
       return
    end subroutine init_restart

@@ -691,8 +691,16 @@ contains
           ! INTERF-TODO: THIS CALL SHOULD NOT CALL FATES(NC) DIRECTLY
           ! BUT IT SHOULD PASS bounds_clump TO A CLM_FATES WRAPPER
           ! WHICH WILL IN TURN PASS A FATES API DEFINED BOUNDS TO SITE_INIT
-          call clm_fates%fates(nc)%site_init(bounds_clump)
-          call clm_fates%fates2hlm_link(bounds_clump,nc,waterstate_inst,canopystate_inst)
+          ! IE CREATE  clm_fates%init_coldstart()
+          call clm_fates%fates(nc)%init_coldstart(clm_fates%f2hmap(nc)%fcolumn )
+
+          call clm_fates%fates2hlm%ed_clm_link( bounds_clump,           &
+            clm_fates%fates(nc)%sites,                                  &
+            clm_fates%fates(nc)%nsites,                                 &
+            clm_fates%f2hmap(nc)%fcolumn,                               &
+            waterstate_inst,                                            &
+            canopystate_inst)
+
        end do
        !$OMP END PARALLEL DO
        
