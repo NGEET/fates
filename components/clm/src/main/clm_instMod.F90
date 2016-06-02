@@ -428,7 +428,7 @@ contains
     !                          Incrementally changing to ED names to FATES
 
     call clm_fates%Init(bounds,use_ed)
-    
+    call clm_fates%init_allocate()
 
     deallocate (h2osno_col)
     deallocate (snow_depth_col)

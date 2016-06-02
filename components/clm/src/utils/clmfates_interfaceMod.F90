@@ -53,6 +53,8 @@ module CLMFatesInterfaceMod
    use ColumnType        , only : col
    use LandunitType      , only : lun
    use landunit_varcon   , only : istsoil
+   use abortutils      , only : endrun
+   use shr_log_mod     , only : errMsg => shr_log_errMsg    
 
    ! Used FATES Modules
    use FatesInterfaceMod     , only : fates_interface_type
@@ -118,13 +120,22 @@ module CLMFatesInterfaceMod
       !      type(fates_bounds_type) :: bound_fate
 
 
+     
+
    contains
       
       procedure, public :: init
+      procedure, public :: init_allocate
+      procedure, public :: check_hlm_active
       procedure, public :: init_restart
       procedure, public :: dynamics_driv
       
+     
+
    end type hlm_fates_interface_type
+
+
+   logical :: DEBUG  = .true.
 
 contains
    
@@ -158,13 +169,6 @@ contains
                                                                  ! ONLY PART OF THIS MAY BE OPERATIVE
       ! local variables
       integer                                        :: nclumps   ! Number of threads
-      integer                                        :: nc        ! thread index
-      integer                                        :: s         ! FATES site index
-      integer                                        :: c         ! HLM column index
-      integer                                        :: l         ! HLM LU index
-      integer, allocatable                           :: collist (:)
-      type(bounds_type)                              :: bounds_clump
-      integer                                        :: nmaxcol
 
       if (use_ed) then
          
@@ -178,15 +182,53 @@ contains
 
       end if
          
+      if(DEBUG)then
+         write(iulog,*) 'Entering clm_fates%init'
+      end if
+
 
       nclumps = get_proc_clumps()
       allocate(this%fates(nclumps))
       allocate(this%f2hmap(nclumps))
 
+      if(DEBUG)then
+         write(iulog,*) 'clm_fates%init():  allocating for ',nclumps,' threads'
+      end if
+
+
+   end subroutine init
+
+
+   subroutine init_allocate(this)
+      
+      implicit none
+      
+      ! Input Arguments
+      class(hlm_fates_interface_type), intent(inout) :: this
+      ! local variables
+      integer                                        :: nclumps   ! Number of threads
+      integer                                        :: nc        ! thread index
+      integer                                        :: s         ! FATES site index
+      integer                                        :: c         ! HLM column index
+      integer                                        :: l         ! HLM LU index
+      integer, allocatable                           :: collist (:)
+      type(bounds_type)                              :: bounds_clump
+      integer                                        :: nmaxcol
+
+      if(DEBUG)then
+         write(iulog,*) 'Entering clm_fates%init_allocate'
+      end if
+
+      nclumps = get_proc_clumps()
       do nc = 1,nclumps
          
          call get_clump_bounds(nc, bounds_clump)
          nmaxcol = bounds_clump%endc - bounds_clump%begc + 1
+
+         if(DEBUG)then
+            write(iulog,*) 'clm_fates%init(): thread',nc,': allocating ',nmaxcol,' column space'
+         end if
+
          allocate(collist(1:nmaxcol))
          
          ! Allocate the mapping that points columns to FATES sites, 0 is NA
@@ -201,7 +243,16 @@ contains
                
             ! These are the key constraints that determine if this column
             ! will have a FATES site associated with it
-            if (col%active(c) .and. lun%itype(l) == istsoil ) then 
+            
+            if(DEBUG)then
+               write(iulog,*) 'clm_fates%init(): thread',nc,': found column',c,'with lu',l
+               write(iulog,*) '  LU type:', lun%itype(l)
+            end if
+
+            ! INTERF-TODO: WE HAVE NOT FILTERED OUT FATES SITES ON INACTIVE COLUMNS.. YET
+            ! NEED A RUN-TIME ROUTINE THAT CLEARS AND REWRITES THE SITE LIST
+
+            if (lun%itype(l) == istsoil ) then
                s = s + 1
                collist(s) = c
                this%f2hmap(nc)%hsites(c) = s
@@ -209,6 +260,10 @@ contains
             
          enddo
          
+         if(DEBUG)then
+            write(iulog,*) 'clm_fates%init(): thread',nc,': allocated ',s,' sites'
+         end if
+
          ! Allocate vectors that match FATES sites with HLM columns
          allocate(this%f2hmap(nc)%fcolumn(s))
 
@@ -228,11 +283,50 @@ contains
       end do
 
       
-   end subroutine init
+   end subroutine init_allocate
    
   
    ! ------------------------------------------------------------------------------------
    
+
+   subroutine check_hlm_active(this, nc, bounds_clump)
+
+      
+      implicit none
+      class(hlm_fates_interface_type), intent(inout) :: this
+      integer                                        :: nc
+      type(bounds_type),intent(in)                   :: bounds_clump
+      
+      ! local variables
+      integer :: c
+
+      ! FATES-TODO: THIS SHOULD BE CHANGED TO DO RE-ALLOCATION
+      ! INSTEAD OF FAILURE
+      
+      do c = bounds_clump%begc,bounds_clump%endc
+
+         ! FATES ACTIVE BUT HLM IS NOT
+         if(this%f2hmap(nc)%hsites(c)>0 .and. .not.col%active(c)) then
+
+            
+            write(iulog,*) 'INACTIVE COLUMN WITH ACTIVE FATES SITE'
+            write(iulog,*) 'c = ',c
+            call endrun(msg=errMsg(__FILE__, __LINE__))
+
+         elseif (this%f2hmap(nc)%hsites(c)==0 .and. col%active(c)) then
+            
+            write(iulog,*) 'ACTIVE COLUMN WITH INACTIVE FATES SITE'
+            write(iulog,*) 'c = ',c
+            call endrun(msg=errMsg(__FILE__, __LINE__))
+         end if
+      end do
+
+
+
+   end subroutine check_hlm_active
+
+   ! ------------------------------------------------------------------------------------
+
    subroutine dynamics_driv(this, nc, bounds_clump,      &
          atm2lnd_inst, soilstate_inst, temperature_inst, &
          waterstate_inst, canopystate_inst)

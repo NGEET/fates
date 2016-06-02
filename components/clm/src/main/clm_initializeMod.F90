@@ -481,6 +481,9 @@ contains
        call SatellitePhenologyInit(bounds_proc)
     end if
 
+
+    
+
     ! ------------------------------------------------------------------------
     ! On restart only - process the history namelist. 
     ! ------------------------------------------------------------------------

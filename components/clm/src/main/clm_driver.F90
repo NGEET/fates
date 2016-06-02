@@ -839,9 +839,9 @@ contains
              write(iulog,*)  'clm: calling ED model ', get_nstep()
           end if
 
-          ! INTERF-TODO: FATES(NC) SHOULD ONLY BE VISIBLE TO THE INTERFACE
-          ! AND ONLY FATES API DEFINED TYPES SHOULD BE PASSED TO IT
-          ! NEEDS A WRAPPER
+          
+          call clm_fates%check_hlm_active(nc, bounds_clump)
+
           call clm_fates%dynamics_driv( nc, bounds_clump,                        &
                atm2lnd_inst, soilstate_inst, temperature_inst,                   &
                waterstate_inst, canopystate_inst)
@@ -944,7 +944,7 @@ contains
                lakestate_inst, temperature_inst, surfalb_inst)
 
 
-          ! INTERF-TOD: THIS ACTUALLY WON'T BE TO BAD TO PULL OUT
+          ! INTERF-TOD: THIS ACTUALLY WON'T BE TO HARD TO PULL OUT
           ! ED_Norman_Radiation() is the last thing called
           ! in SurfaceAlbedo, we can simply remove it
           ! The clm_fates interfac called below will split
@@ -1098,10 +1098,6 @@ contains
        call t_stopf('d2dgvm')
     end if
 
-    ! ============================================================================
-    ! Call ED model on daily timestep
-    ! ============================================================================
-    
     ! ============================================================================
     ! History/Restart output
     ! ============================================================================
