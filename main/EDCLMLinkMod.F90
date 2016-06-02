@@ -1409,7 +1409,6 @@ contains
 
             ! INTERF-TODO: THIS LOGIC SHOULDN'T BE NECESSARY, SHOULD BE CHECKED AT THE BEGINNING
             ! OF LINKING, ONCE
-
             ! %patchno is the local index of the ED/FATES patches, starting at 1
             if(currentPatch%patchno  <= numpft - numcft)then !don't expand into crop patches.   
 
@@ -1421,6 +1420,7 @@ contains
                currentCohort => currentPatch%shortest
                do while(associated(currentCohort))
                   !accumulate into history variables. 
+
                   ft = currentCohort%pft
 
                   ed_ncohorts(c) = ed_ncohorts(c) + 1._r8
@@ -1517,9 +1517,9 @@ contains
                !Patch specific variables that are already calculated
                
                !These things are all duplicated. Should they all be converted to LL or array structures RF? 
-               
                ! define scalar to counteract the patch albedo scaling logic for conserved quantities
-               if (currentPatch%area .gt. 0._r8) then
+
+               if (currentPatch%area .gt. 0._r8 .and. currentPatch%total_canopy_area .gt.0 ) then
                   patch_scaling_scalar  = min(1._r8, currentPatch%area / currentPatch%total_canopy_area)
                else
                   patch_scaling_scalar = 0._r8
@@ -1545,7 +1545,11 @@ contains
                seed_germination(p)     = sum(currentPatch%seed_germination) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
                canopy_spread(p)        = currentPatch%spread(1) 
                area_plant(p)           = 1._r8
-               area_trees(p)           = currentPatch%total_tree_area   / min(currentPatch%total_canopy_area,currentPatch%area)
+               if (min(currentPatch%total_canopy_area,currentPatch%area)>0.0_r8) then
+                  area_trees(p)           = currentPatch%total_tree_area   / min(currentPatch%total_canopy_area,currentPatch%area)
+               else
+                  area_trees(p)           = 0.0_r8
+               end if
                if(associated(currentPatch%tallest))then
                   trimming(p)          = currentPatch%tallest%canopy_trim                
                else
