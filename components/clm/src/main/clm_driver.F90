@@ -839,8 +839,8 @@ contains
              write(iulog,*)  'clm: calling ED model ', get_nstep()
           end if
 
-          
-          call clm_fates%check_hlm_active(nc, bounds_clump)
+          ! INTERF-TODO: THIS CHECK WILL BE TURNED ON IN FUTURE VERSION
+!          call clm_fates%check_hlm_active(nc, bounds_clump)
 
           call clm_fates%dynamics_driv( nc, bounds_clump,                        &
                atm2lnd_inst, soilstate_inst, temperature_inst,                   &
