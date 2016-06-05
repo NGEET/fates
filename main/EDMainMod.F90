@@ -410,8 +410,12 @@ contains
     error           = abs(net_flux - change_in_stock)   
 
     if ( abs(error) > 10e-6 ) then
-       write(iulog,*) 'total error:in,out,net,dstock,error',call_index, currentSite%flux_in, & 
-            currentSite%flux_out,net_flux,change_in_stock,error
+       write(iulog,*) 'total error: call index: ',call_index, &
+                      'in:  ',currentSite%flux_in,   &
+                      'out: ',currentSite%flux_out,  &
+                      'net: ',net_flux,              &
+                      'dstock: ',change_in_stock,    &
+                      'error=net_flux-dstock:', error
        write(iulog,*) 'biomass,litter,seeds', biomass_stock,litter_stock,seed_stock
        write(iulog,*) 'lat lon',currentSite%lat,currentSite%lon
     endif
