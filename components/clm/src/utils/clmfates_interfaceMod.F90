@@ -76,10 +76,6 @@ module CLMFatesInterfaceMod
       ! This vector may be sparse, and non-sites have index 0
       integer, allocatable :: hsites  (:)
 
-      !
-
-
-
    end type f2hmap_type
    
 
@@ -130,7 +126,7 @@ module CLMFatesInterfaceMod
       procedure, public :: init_restart
       procedure, public :: init_coldstart
       procedure, public :: dynamics_driv
-      
+      procedure, public :: canopy_sunshade_fracs
      
 
    end type hlm_fates_interface_type
@@ -447,23 +443,25 @@ contains
 
       nclumps = get_proc_clumps()
       do nc = 1, nclumps
-         call get_clump_bounds(nc, bounds_clump)
-
-         call EDRest( bounds_clump,                                              &
-                      this%fates(nc)%sites,                                      &
-                      this%fates(nc)%nsites,                                     &
-                      this%f2hmap(nc)%fcolumn, ncid, flag )
-
-         if ( trim(flag) == 'read' ) then
+         if (this%fates(nc)%nsites>0) then
+            call get_clump_bounds(nc, bounds_clump)
             
-            call this%fates2hlm%ed_clm_link( bounds_clump,                       &
-                  this%fates(nc)%sites,                                          &
-                  this%fates(nc)%nsites,                                         &
-                  this%f2hmap(nc)%fcolumn,                                       &
-                  waterstate_inst,                                               &
-                  canopystate_inst)
+            call EDRest( bounds_clump,                                              &
+                 this%fates(nc)%sites,                                      &
+                 this%fates(nc)%nsites,                                     &
+                 this%f2hmap(nc)%fcolumn, ncid, flag )
+            
+            if ( trim(flag) == 'read' ) then
+               
+               call this%fates2hlm%ed_clm_link( bounds_clump,                       &
+                    this%fates(nc)%sites,                                          &
+                    this%fates(nc)%nsites,                                         &
+                    this%f2hmap(nc)%fcolumn,                                       &
+                    waterstate_inst,                                               &
+                    canopystate_inst)
+               
 
-
+            end if
          end if
       end do
 
@@ -496,7 +494,7 @@ contains
            do s = 1,this%nsites
               call zero_site(this%fates(nc)%sites(s))
               c = this%fates(nc)%fcolumn(s)
-              g = col%gridcell(c)  ! TODO-INTERF: col% and grc% should not be accessible here
+              g = col%gridcell(c)
               this%fates(nc)%sites(s)%lat = grc%latdeg(g)  
               this%fates(nc)%sites(s)%lon = grc%londeg(g)
            end do
@@ -519,6 +517,80 @@ contains
      end do
      return
    end subroutine init_coldstart
+
+   ! ------------------------------------------------------------------------------------
+   
+   subroutine canopy_sunshade_fracs(this,nc,filter_nourbanp, num_nourbanp, &
+         atm2lnd_inst,canopystate_inst)
+         
+      
+      ! This interface function is a wrapper call on ED_SunShadeFracs. The only
+      ! returned variable is a patch vector, fsun_patch, which describes the fraction
+      ! of the canopy that is exposed to sun.
+      
+      implicit none
+      
+      ! Input Arguments
+      class(fates_interface_type), intent(inout) :: this
+
+      integer, intent(in)                  :: nc
+      
+      ! patch filter for non-urban points
+      integer, intent(in),dimension(:)     :: filter_nourbanp
+      
+      ! number of patches in non-urban points in patch  filter
+      integer, intent(in)                  :: num_nourbanp       
+      
+      ! direct and diffuse downwelling radiation (W/m2)
+      type(atm2lnd_type),intent(in)        :: atm2lnd_inst
+      
+      ! Input/Output Arguments to CLM
+      type(canopystate_type),intent(inout) :: canopystate_inst
+      
+      ! Local Variables
+      integer  :: fp                          ! non-urban filter patch index
+      integer  :: p                           ! patch index
+      integer  :: g                           ! grid cell index
+      integer  :: c                           ! column index (HLM native index)
+      integer  :: s                           ! site index  (FATES native index)
+      integer, parameter :: ipar = 1          ! The band index for PAR
+      type(ed_patch_type), pointer :: cpatch  ! c"urrent" patch
+      
+      associate( forc_solad => atm2lnd_inst%forc_solad_grc, &
+                 forc_solai => atm2lnd_inst%forc_solai_grc, &
+                 fsun       => canopystate_inst%fsun_patch)
+        
+        do fp = 1,num_nourbanp
+           
+           p = filter_nourbanp(fp)
+           g = patch%gridcell(p)
+           c = patch%column(p)
+           s = this%f2hmap(nc)%hsites(c)
+           
+           if ( patch%is_veg(p) ) then 
+              
+              ! ed_clm_link should be responsibe for setting is_veg
+              ! so this condition should prevent a non-site from
+              ! emerging here.  Lets do a sanity check anyway
+
+              if( s<1 .or. s>this%nsites)then
+                 write(iulog,*) 'There is a disconnect between the is_veg filter'
+                 write(iulog,*) 'set in ed_clm_link, and the allocation of sites'
+                 write(iulog,*) 'Perhaps is_veg is being set in a rogue location?'
+                 call endrun(msg=errMsg(__FILE__, __LINE__))
+              end if
+              
+              cpatch => map_clmpatch_to_edpatch(this%fates(nc)%sites(s), p) 
+              
+              call ED_SunShadeFracs(cpatch,forc_solad(g,ipar),forc_solai(g,ipar),fsun(p))
+              
+           endif
+           
+        end do
+      end associate
+      return
+   end subroutine canopy_sunshade_fracs
+   
 
 
 

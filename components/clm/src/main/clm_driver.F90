@@ -393,8 +393,8 @@ contains
        if(use_ed) then
           ! INTERF-TODO: FATES(NC) SHOULD ONLY BE VISIBLE TO THE INTERFACE
           ! AND ONLY FATES API DEFINED TYPES SHOULD BE PASSED TO IT
-          call clm_fates%fates(nc)%canopy_sunshade_fracs(filter(nc)%nourbanp,      &
-               filter(nc)%num_nourbanp,                                            &
+          call clm_fates%canopy_sunshade_fracs(nc,filter(nc)%nourbanp,      &
+               filter(nc)%num_nourbanp,                                     &
                atm2lnd_inst, canopystate_inst)
           
        else
