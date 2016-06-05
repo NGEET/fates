@@ -391,8 +391,7 @@ contains
        ! over the patch index range defined by bounds_clump%begp:bounds_proc%endp
 
        if(use_ed) then
-          ! INTERF-TODO: FATES(NC) SHOULD ONLY BE VISIBLE TO THE INTERFACE
-          ! AND ONLY FATES API DEFINED TYPES SHOULD BE PASSED TO IT
+
           call clm_fates%canopy_sunshade_fracs(nc,filter(nc)%nourbanp,      &
                filter(nc)%num_nourbanp,                                     &
                atm2lnd_inst, canopystate_inst)

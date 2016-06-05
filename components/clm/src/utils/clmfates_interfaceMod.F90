@@ -50,6 +50,7 @@ module CLMFatesInterfaceMod
    use clm_time_manager  , only : get_ref_date, timemgr_datediff 
    use spmdMod           , only : masterproc
    use decompMod         , only : get_proc_bounds, get_proc_clumps, get_clump_bounds
+   use GridCellType      , only : grc
    use ColumnType        , only : col
    use LandunitType      , only : lun
    use landunit_varcon   , only : istsoil
@@ -60,11 +61,18 @@ module CLMFatesInterfaceMod
    use FatesInterfaceMod     , only : fates_interface_type
    use EDCLMLinkMod          , only : ed_clm_type
    use EDTypesMod            , only : udata
+   use EDTypesMod            , only : ed_patch_type
+   use EDtypesMod            , only : map_clmpatch_to_edpatch
    use EDMainMod             , only : ed_ecosystem_dynamics
    use EDMainMod             , only : ed_update_site
+   use EDInitMod             , only : zero_site
+   use EDInitMod             , only : init_patches
+   use EDInitMod             , only : set_site_properties
    use EDPftVarcon           , only : EDpftvarcon_inst
    use EDEcophysConType      , only : EDecophysconInit
    use EDRestVectorMod       , only : EDRest
+   use EDSurfaceRadiationMod , only : ED_SunShadeFracs
+
    implicit none
 
    type, private :: f2hmap_type
@@ -262,6 +270,10 @@ contains
          end if
 
          ! Allocate vectors that match FATES sites with HLM columns
+         ! RGK: Sites and fcolumns are forced as args during clm_driv() as of 6/4/2016
+         ! We may have to give these a dummy allocation of 1, which should
+         ! not be a problem since we always iterate on nsites.
+
          allocate(this%f2hmap(nc)%fcolumn(s))
 
          ! Assign the h2hmap indexing
@@ -470,10 +482,12 @@ contains
       return
    end subroutine init_restart
 
-   subroutine init_coldstart(this)
+   subroutine init_coldstart(this, waterstate_inst, canopystate_inst)
 
      ! Arguments
      class(hlm_fates_interface_type), intent(inout) :: this
+     type(waterstate_type)          , intent(inout) :: waterstate_inst
+     type(canopystate_type)         , intent(inout) :: canopystate_inst
 
      ! locals
      integer                                        :: nclumps
@@ -484,16 +498,21 @@ contains
      integer :: c
      integer :: g
 
+
+     ! INTERF-TODO:  I DONT SEE ANY REASON WE CAN'T FORK THE THREADS
+     ! HERE... (RGK). FORKING WILL BE TESTED AFTER STABLE COLUMNIZATION
+     ! COMPLETED
+
      nclumps = get_proc_clumps()
      do nc = 1, nclumps
 
-        if (clm_fates%fates(nc)%nsites>0) then
+        if ( this%fates(nc)%nsites>0 ) then
 
            call get_clump_bounds(nc, bounds_clump)
 
-           do s = 1,this%nsites
+           do s = 1,this%fates(nc)%nsites
               call zero_site(this%fates(nc)%sites(s))
-              c = this%fates(nc)%fcolumn(s)
+              c = this%f2hmap(nc)%fcolumn(s)
               g = col%gridcell(c)
               this%fates(nc)%sites(s)%lat = grc%latdeg(g)  
               this%fates(nc)%sites(s)%lon = grc%londeg(g)
@@ -531,8 +550,8 @@ contains
       implicit none
       
       ! Input Arguments
-      class(fates_interface_type), intent(inout) :: this
-
+      class(hlm_fates_interface_type), intent(inout) :: this
+      
       integer, intent(in)                  :: nc
       
       ! patch filter for non-urban points
@@ -554,7 +573,8 @@ contains
       integer  :: c                           ! column index (HLM native index)
       integer  :: s                           ! site index  (FATES native index)
       integer, parameter :: ipar = 1          ! The band index for PAR
-      type(ed_patch_type), pointer :: cpatch  ! c"urrent" patch
+      type(ed_patch_type), pointer :: cpatch  ! c"urrent" patch  INTERF-TODO: SHOULD
+                                              ! BE HIDDEN AS A FATES PRIVATE
       
       associate( forc_solad => atm2lnd_inst%forc_solad_grc, &
                  forc_solai => atm2lnd_inst%forc_solai_grc, &
@@ -573,7 +593,7 @@ contains
               ! so this condition should prevent a non-site from
               ! emerging here.  Lets do a sanity check anyway
 
-              if( s<1 .or. s>this%nsites)then
+              if( s < 1 .or. s > this%fates(nc)%nsites )then
                  write(iulog,*) 'There is a disconnect between the is_veg filter'
                  write(iulog,*) 'set in ed_clm_link, and the allocation of sites'
                  write(iulog,*) 'Perhaps is_veg is being set in a rogue location?'
