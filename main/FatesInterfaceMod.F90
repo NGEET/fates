@@ -96,42 +96,6 @@ contains
 
    ! ------------------------------------------------------------------------------------
 
-   subroutine init_coldstart(this,fcolumn)
-         
-      ! Input Arguments
-      class(fates_interface_type), intent(inout) :: this
-      integer, intent(in)                        :: fcolumn(this%nsites)
-      
-      ! locals
-      integer :: s
-      integer :: c
-      integer :: g
-      
-      do s = 1,this%nsites
-
-         call zero_site(this%sites(s))
-         
-         c = fcolumn(s)
-         g = col%gridcell(c)  ! TODO-INTERF: col% and grc% should not be accessible here
-
-         this%sites(s)%lat = grc%latdeg(g)  
-         this%sites(s)%lon = grc%londeg(g)
-
-      end do
-
-      call set_site_properties(this%sites,this%nsites)
-
-      call init_patches(this%sites, this%nsites)
-
-      do s = 1,this%nsites
-         call ed_update_site(this%sites(s))
-      end do
-      
-      return
-   end subroutine init_coldstart
-   
-   ! ------------------------------------------------------------------------------------
-   
 !   subroutine init_restart(this, bounds_clump, ncid, flag, fcolumn )
 !      
 !      implicit none

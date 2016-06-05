@@ -132,6 +132,7 @@ contains
        dleafoff = 300
        dleafon  = 100
        watermem = 0.5_r8
+
     endif
 
     do s = 1,nsites
