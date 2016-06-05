@@ -13,21 +13,10 @@ module FatesInterfaceMod
    ! Used CLM Modules
    ! INTERF-TODO:  NO CLM MODULES SHOULD BE ACCESSIBLE BY THE FATES
    ! PUBLIC API!!!!
-   use decompMod         , only : bounds_type
-   use CanopyStateType   , only : canopystate_type
-   use atm2lndType       , only : atm2lnd_type
-   use ncdio_pio         , only : file_desc_t
-   use PatchType         , only : patch
-   use ColumnType        , only : col
-   use GridCellType      , only : grc
    ! ------------------------------------------------------------------------------------
 
-   use EDtypesMod            , only : ed_patch_type, ed_site_type, numpft_ed
-   use EDtypesMod            , only : map_clmpatch_to_edpatch
-   use EDSurfaceRadiationMod , only : ED_SunShadeFracs
-   use EDMainMod             , only : ed_update_site
-   use EDRestVectorMod       , only : EDRest
-   use EDInitMod             , only : zero_site, set_site_properties, init_patches
+   use EDtypesMod            , only : ed_site_type
+   
    
    type, public :: fates_interface_type
       
@@ -53,64 +42,24 @@ module FatesInterfaceMod
 
 contains
 
-!   subroutine init(this,bounds_clump)
-!
-!      implicit none
-!      
-!      ! Input Arguments
-!      class(fates_interface_type), intent(inout) :: this
-!
-!      ! INTERF-TODO:  AS THE FATES PUBLIC API- BOUNDS CLUMP WILL NOT BE ALLOWED
-!      ! IN HERE FOR MUCH LONGER.
-!      type(bounds_type),intent(in)            :: bounds_clump 
-!      
-!      ! Initialize the mapping elements between FATES and the DLM
-!      
-!      ! These bounds are for a single clump (thread)
-!      allocate (this%sites(this%nsites))
-!      
-!      return
-!   end subroutine init
-   
    ! ------------------------------------------------------------------------------------
 
    ! INTERF-TODO: THIS IS A PLACE-HOLDER ROUTINE, NOT CALLED YET...
-   subroutine fates_clean(this,bounds_clump)
+   subroutine fates_clean(this)
       
       implicit none
       
       ! Input Arguments
       class(fates_interface_type), intent(inout) :: this
-      type(bounds_type),intent(in)               :: bounds_clump 
       
       ! Incrementally walk through linked list and deallocate
+      
+      
       
       ! Deallocate the site list
       deallocate (this%sites)
       
       return
    end subroutine fates_clean
-
-   ! ------------------------------------------------------------------------------------
-
-!   subroutine init_restart(this, bounds_clump, ncid, flag, fcolumn )
-!      
-!      implicit none
-!      class(fates_interface_type), intent(inout)  :: this
-!      type(bounds_type),intent(in)                :: bounds_clump
-!      type(file_desc_t)       , intent(inout)     :: ncid    ! netcdf id
-!      integer                 , intent(in)        :: fcolumn(this%nsites)
-!      character(len=*)        , intent(in)        :: flag    !'read' or 'write'
-!      
-!      call EDRest( bounds_clump, this%sites, this%nsites, fcolumn, ncid, flag )
-!      return
-!   end subroutine init_restart
-
-   ! ------------------------------------------------------------------------------------
-   
-
-
-   
-
 
 end module FatesInterfaceMod
