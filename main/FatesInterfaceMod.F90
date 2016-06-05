@@ -47,10 +47,7 @@ module FatesInterfaceMod
    contains
       
       ! Procedures for initializing FATES threaded memory and communicators
-      procedure, public :: fates_clean
-      procedure, public :: init_coldstart
-!      procedure, public :: init_restart
-      procedure, public :: canopy_sunshade_fracs
+!      procedure, public :: fates_clean
 
    end type fates_interface_type
 
@@ -111,62 +108,7 @@ contains
 
    ! ------------------------------------------------------------------------------------
    
-   subroutine canopy_sunshade_fracs(this ,filter_nourbanp, num_nourbanp, &
-         atm2lnd_inst,canopystate_inst)
-         
-      
-      ! TODO-INTERF: THIS ROUTINE NEEDS TO BE WRAPPED BY A CLM_FATES CALL
-      !              IN THAT CALL THE BOUNDARY CONDITIONS SHOULD BE PREPPED
-      !              SO THAT THIS CALL DOES NOT HAVE CLM TYPES HERE
 
-      ! This interface function is a wrapper call on ED_SunShadeFracs. The only
-      ! returned variable is a patch vector, fsun_patch, which describes the fraction
-      ! of the canopy that is exposed to sun.
-      
-      implicit none
-      
-      ! Input Arguments
-      class(fates_interface_type), intent(inout) :: this
-      
-      ! patch filter for non-urban points
-      integer, intent(in),dimension(:)     :: filter_nourbanp
-      
-      ! number of patches in non-urban points in patch  filter
-      integer, intent(in)                  :: num_nourbanp       
-      
-      ! direct and diffuse downwelling radiation (W/m2)
-      type(atm2lnd_type),intent(in)        :: atm2lnd_inst
-      
-      ! Input/Output Arguments to CLM
-      type(canopystate_type),intent(inout) :: canopystate_inst
-      
-      ! Local Variables
-      integer  :: fp                          ! non-urban filter patch index
-      integer  :: p                           ! patch index
-      integer  :: g                           ! grid cell index
-      integer, parameter :: ipar = 1          ! The band index for PAR
-      type(ed_patch_type), pointer :: cpatch  ! c"urrent" patch
-      
-      associate( forc_solad => atm2lnd_inst%forc_solad_grc, &
-                 forc_solai => atm2lnd_inst%forc_solai_grc, &
-                 fsun       => canopystate_inst%fsun_patch)
-        
-        do fp = 1,num_nourbanp
-           
-           p = filter_nourbanp(fp)
-           g = patch%gridcell(p)
-           
-           if ( patch%is_veg(p) ) then 
-              cpatch => map_clmpatch_to_edpatch(this%sites(g), p) 
-              
-              call ED_SunShadeFracs(cpatch,forc_solad(g,ipar),forc_solai(g,ipar),fsun(p))
-              
-           endif
-           
-        end do
-      end associate
-      return
-   end subroutine canopy_sunshade_fracs
 
    
 
