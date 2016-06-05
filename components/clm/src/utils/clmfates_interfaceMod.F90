@@ -128,6 +128,7 @@ module CLMFatesInterfaceMod
       procedure, public :: init_allocate
       procedure, public :: check_hlm_active
       procedure, public :: init_restart
+      procedure, public :: init_coldstart
       procedure, public :: dynamics_driv
       
      
@@ -398,14 +399,13 @@ contains
       ! where most things happen
       do s = 1,this%fates(nc)%nsites
 
-!         if (this%fates(nc)%sites(g)%istheresoil) then
             call ed_ecosystem_dynamics(this%fates(nc)%sites(s),    &
                   this%fates2hlm,                                  &
                   atm2lnd_inst,                                    &
                   soilstate_inst, temperature_inst, waterstate_inst)
             
             call ed_update_site(this%fates(nc)%sites(s))
-!         endif
+
       enddo
 
       ! link to CLM/ALM structures
@@ -471,6 +471,54 @@ contains
       
       return
    end subroutine init_restart
+
+   subroutine init_coldstart(this)
+
+     ! Arguments
+     class(hlm_fates_interface_type), intent(inout) :: this
+
+     ! locals
+     integer                                        :: nclumps
+     integer                                        :: nc
+     type(bounds_type)                              :: bounds_clump
+     ! locals
+     integer :: s
+     integer :: c
+     integer :: g
+
+     nclumps = get_proc_clumps()
+     do nc = 1, nclumps
+
+        if (clm_fates%fates(nc)%nsites>0) then
+
+           call get_clump_bounds(nc, bounds_clump)
+
+           do s = 1,this%nsites
+              call zero_site(this%fates(nc)%sites(s))
+              c = this%fates(nc)%fcolumn(s)
+              g = col%gridcell(c)  ! TODO-INTERF: col% and grc% should not be accessible here
+              this%fates(nc)%sites(s)%lat = grc%latdeg(g)  
+              this%fates(nc)%sites(s)%lon = grc%londeg(g)
+           end do
+           
+           call set_site_properties(this%fates(nc)%sites, this%fates(nc)%nsites)
+           
+           call init_patches(this%fates(nc)%sites, this%fates(nc)%nsites)
+
+           do s = 1,this%fates(nc)%nsites
+              call ed_update_site(this%fates(nc)%sites(s))
+           end do
+           
+           call this%fates2hlm%ed_clm_link( bounds_clump,           &
+                this%fates(nc)%sites,                               &
+                this%fates(nc)%nsites,                              &
+                this%f2hmap(nc)%fcolumn,                            &
+                waterstate_inst,                                    &
+                canopystate_inst)
+        end if
+     end do
+     return
+   end subroutine init_coldstart
 
 
 

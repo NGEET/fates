@@ -695,7 +695,7 @@ contains
           ! BUT IT SHOULD PASS bounds_clump TO A CLM_FATES WRAPPER
           ! WHICH WILL IN TURN PASS A FATES API DEFINED BOUNDS TO SITE_INIT
           ! IE CREATE  clm_fates%init_coldstart()
-          call clm_fates%fates(nc)%init_coldstart(clm_fates%f2hmap(nc)%fcolumn )
+          call clm_fates%init_coldstart()  fates(nc)%init_coldstart(clm_fates%f2hmap(nc)%fcolumn )
 
           call clm_fates%fates2hlm%ed_clm_link( bounds_clump,           &
             clm_fates%fates(nc)%sites,                                  &
