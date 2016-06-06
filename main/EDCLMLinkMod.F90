@@ -1194,9 +1194,8 @@ contains
       end do ! column loop
 
       call this%flux_into_litter_pools(bounds, sites(:), nsites, fcolumn(:), canopystate_inst)
-      
       call this%ed_update_history_variables(bounds, sites(:), nsites, fcolumn(:), canopystate_inst)
-
+      
     end associate
 
   end subroutine ed_clm_link
