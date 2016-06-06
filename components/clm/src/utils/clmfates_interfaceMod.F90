@@ -288,7 +288,13 @@ contains
          ! Allocate the FATES sites
          allocate (this%fates(nc)%sites(s))
 
-!         call this%fates(nc)%init()
+         if( this%fates(nc)%nsites == 0 ) then
+            write(iulog,*) 'Clump ',nc,' had no valid FATES sites'
+            write(iulog,*) 'This will likely cause problems until code is improved'
+            call endrun(msg=errMsg(__FILE__, __LINE__))
+         end if
+         
+
       end do
 
       
