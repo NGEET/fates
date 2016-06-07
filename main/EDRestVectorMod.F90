@@ -1792,15 +1792,9 @@ contains
           call endrun(msg=errMsg(__FILE__, __LINE__))
        end if
 
-       ! This site may have some patches on it, but lets initialize it with null pointers
-       ! just in-case there are no patches
-
+       ! Initialize the site pointers to null
        sites(s)%youngest_patch         => null()                 
        sites(s)%oldest_patch           => null()
-       sites(s)%youngest_patch%younger => null()
-       sites(s)%youngest_patch%older   => null()
-       sites(s)%oldest_patch%younger   => null()
-       sites(s)%oldest_patch%older     => null()
 
        do patchIdx = 1,this%numPatchesPerCol(c)
 
