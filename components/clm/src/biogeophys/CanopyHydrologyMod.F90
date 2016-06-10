@@ -518,7 +518,13 @@ contains
              !======================  FSCA PARAMETERIZATIONS  ======================
              ! fsca parameterization based on *changes* in swe
              ! first compute change from melt during previous time step
-             if(snowmelt(c) > 0._r8) then
+             if(snowmelt(c) >= 0._r8) then
+                ! FIXME(bja, 2016-06) The correct inequalitiy for the
+                ! above is: '>' and not '>='. Using '>' causes ED
+                ! restarts to fail. I am temporarily using the
+                ! incorrect logic to allow progross in merging the ED
+                ! branch to a modern CLM tag. This change should NOT
+                ! be reintroduced into the clm trunk!
 
                 smr=min(1._r8,(h2osno(c))/(int_snow(c)))
 
