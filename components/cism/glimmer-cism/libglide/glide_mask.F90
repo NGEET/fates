@@ -35,7 +35,6 @@ module glide_mask
     ! masking ice thicknesses
 
     use glimmer_global, only : dp
-    use nan_mod, only : NaN
 
     implicit none
 
@@ -385,7 +384,10 @@ contains
                     marine_bc_normal(i,j) = angle_lookup(dx, dy) 
                     !marine_bc_normal(i,j) = calc_normal_45deg(thckWithBounds(i-1:i+1,j-1:j+1))
                 else
-                    marine_bc_normal(i,j) = NaN
+                   ! NOTE(wjs, 2016-01-07) this was set to NaN, but I am setting it to 0
+                   ! because I'm removing nan_mod. Since this routine is unused, this
+                   ! seemed to be an okay thing to do.
+                   marine_bc_normal(i,j) = 0._dp
                 end if
             end do
         end do

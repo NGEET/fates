@@ -105,7 +105,6 @@ cmake \
   -D CISM_Fortran_FLAGS:STRING="-O2 -DNO_RESCALE -ffree-line-length-none " \
   -D CISM_EXTRA_LIBS:STRING="-L$PETSC_DIR/lib -lpetsc -lHYPRE -lparmetis -lmetis  -lpthread -ldl" \
   -D BISICLES_LIB_SUBDIR=libgnu \
-  -D CISM_GNU:BOOL=ON \
   -D BISICLES_INTERFACE_DIR=$PWD/../../../BISICLES/CISM-interface/interface \
   -D CISM_MPI_LIBS:STRING="mpichf90" \
   -D CISM_STATIC_LINKING:BOOL=ON \

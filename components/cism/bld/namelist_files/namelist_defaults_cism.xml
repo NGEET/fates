@@ -35,11 +35,17 @@ attributes to express the dependency.
 
 <ice_flux_routing>ocn</ice_flux_routing>
 
+<zero_gcm_fluxes glc_two_way_coupling="TRUE" cism_evolve="TRUE">.false.</zero_gcm_fluxes>
+<zero_gcm_fluxes glc_two_way_coupling="FALSE" cism_evolve="TRUE">.true.</zero_gcm_fluxes>
+<zero_gcm_fluxes glc_two_way_coupling="TRUE" cism_evolve="FALSE">.true.</zero_gcm_fluxes>
+<zero_gcm_fluxes glc_two_way_coupling="FALSE" cism_evolve="FALSE">.true.</zero_gcm_fluxes>
+
 <!-- =============================================================  -->
 <!-- group: cism_history                                            -->
 <!-- =============================================================  -->
 
-<cesm_history_vars>'acab artm thk usurf topg uvel vvel uflx vflx temp bmlt bwat'</cesm_history_vars>
+<cesm_history_vars cism_phys="cism1">'acab artm thk usurf topg uvel vvel uflx vflx temp bmlt bwat'</cesm_history_vars>
+<cesm_history_vars cism_phys="cism2">'acab artm thk usurf topg uvel vvel temp bmlt bwat beta_internal'</cesm_history_vars>
 
 <history_option>nyears</history_option>
 
@@ -53,7 +59,8 @@ attributes to express the dependency.
 
 <stop_option>never</stop_option>
 
-<allow_leapyear>.false.</allow_leapyear>
+<allow_leapyear>.true.</allow_leapyear>
+<allow_leapyear calendar="NO_LEAP">.false.</allow_leapyear>
 
 <!-- =============================================================  -->
 <!-- group: glc_override_nml                                        -->
@@ -61,7 +68,9 @@ attributes to express the dependency.
 
 <enable_frac_overrides>.false.</enable_frac_overrides>
 
-<override_delay>0</override_delay>
+<decrease_override_delay>0</decrease_override_delay>
+<increase_override_delay>0</increase_override_delay>
+<rearrange_override_delay>0</rearrange_override_delay>
 
 <decrease_frac>0.0</decrease_frac>
 
@@ -116,11 +125,6 @@ attributes to express the dependency.
 <evolve_ice cism_evolve="FALSE">0</evolve_ice>
 
 <test_coupling>.false.</test_coupling>
-
-<zero_gcm_fluxes glc_two_way_coupling="TRUE" cism_evolve="TRUE">0</zero_gcm_fluxes>
-<zero_gcm_fluxes glc_two_way_coupling="FALSE" cism_evolve="TRUE">1</zero_gcm_fluxes>
-<zero_gcm_fluxes glc_two_way_coupling="TRUE" cism_evolve="FALSE">1</zero_gcm_fluxes>
-<zero_gcm_fluxes glc_two_way_coupling="FALSE" cism_evolve="FALSE">1</zero_gcm_fluxes>
 
 <!-- =============================================================  -->
 <!-- group: cism.config: projection                                 -->

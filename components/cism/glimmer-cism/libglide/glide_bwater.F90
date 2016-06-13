@@ -79,7 +79,7 @@ contains
 
 
 
-  subroutine calcbwat(model, which, bmlt, bwat, bwatflx, thck, topg, btem, floater, wphi)
+  subroutine calcbwat(model, which, bmlt_ground, bwat, bwatflx, thck, topg, btem, floater, wphi)
     ! Driver for updating basal hydrology
     !TODO - Upgrade calcbwat for Glissade?  Currently this subroutine is a mix of old Glide and newer Glissade code.
 
@@ -92,9 +92,11 @@ contains
 
     type(glide_global_type),intent(inout) :: model
     integer, intent(in) :: which
-    real(dp), dimension(:,:), intent(inout) :: bwat, wphi, bwatflx
-    real(dp), dimension(:,:), intent(in) :: bmlt, thck, topg, btem
+    real(dp), dimension(:,:), intent(inout) :: bwat, bwatflx
+    real(dp), dimension(:,:), intent(in) :: bmlt_ground, thck, topg, btem
     logical, dimension(:,:), intent(in) :: floater
+    ! wphi needs to be declared a pointer because it may be null in the caller
+    real(dp), dimension(:,:), intent(inout), pointer :: wphi
 
     real(dp), dimension(2), parameter :: &
          blim = (/ 0.00001 / thk0, 0.001 / thk0 /)
@@ -147,7 +149,7 @@ contains
              do ew = 1,model%general%ewn
 
                 if (model%numerics%thklim < thck(ew,ns) .and. .not. floater(ew,ns)) then
-                   bwat(ew,ns) = (model%tempwk%c(1) * bmlt(ew,ns) + model%tempwk%c(2) * bwat(ew,ns)) / &
+                   bwat(ew,ns) = (model%tempwk%c(1) * bmlt_ground(ew,ns) + model%tempwk%c(2) * bwat(ew,ns)) / &
                         model%tempwk%c(3)
                    if (bwat(ew,ns) < blim(1)) then
                       bwat(ew,ns) = 0.0d0
@@ -185,7 +187,7 @@ contains
 
        call effective_pressure(bwat,c_effective_pressure,N)
        call pressure_wphi(thck,topg,N,wphi,model%numerics%thklim,floater)
-       call route_basal_water(wphi,bmlt,model%numerics%dew,model%numerics%dns,bwatflx,lakes)
+       call route_basal_water(wphi,bmlt_ground,model%numerics%dew,model%numerics%dns,bwatflx,lakes)
        call flux_to_depth(bwatflx,wphi,c_flux_to_depth,p_flux_to_depth,q_flux_to_depth,model%numerics%dew,model%numerics%dns,bwat)
 
     case(BWATER_CONST)
@@ -249,7 +251,8 @@ contains
 
     if ( (model%options%which_ho_babc == HO_BABC_POWERLAW) .or. &
          (model%options%which_ho_babc == HO_BABC_COULOMB_FRICTION) .or. &
-         (model%options%which_ho_babc == HO_BABC_COULOMB_CONST_BASAL_FLWA) ) then
+         (model%options%which_ho_babc == HO_BABC_COULOMB_CONST_BASAL_FLWA) .or. &
+         (model%options%which_ho_babc == HO_BABC_COULOMB_POWERLAW_TSAI) ) then
 
         allocate(N_capped(model%general%ewn,model%general%nsn))
 

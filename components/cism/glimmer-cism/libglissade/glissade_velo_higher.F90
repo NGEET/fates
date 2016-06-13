@@ -703,10 +703,11 @@
        stagwbndsigma            ! stagsigma augmented by sigma = 0 and 1 at upper and lower surfaces
 
     real(dp)  ::   & 
-       thklim, &                ! minimum ice thickness for active cells (m)
-       max_slope, &             ! maximum slope allowed for surface gradient computations (unitless)
-       eus,  &                  ! eustatic sea level (m), = 0. by default
-       ho_beta_const,  &        ! constant beta value (Pa/(m/yr)) for whichbabc = HO_BABC_CONSTANT
+       thklim,               &  ! minimum ice thickness for active cells (m)
+       max_slope,            &  ! maximum slope allowed for surface gradient computations (unitless)
+       eus,                  &  ! eustatic sea level (m), = 0. by default
+       ho_beta_const,        &  ! constant beta value (Pa/(m/yr)) for whichbabc = HO_BABC_CONSTANT
+       beta_grounded_min,    &  ! minimum beta value (Pa/(m/yr)) for grounded ice
        efvs_constant            ! constant efvs value (Pa yr) for whichefvs = HO_EFVS_CONSTANT
 
     real(dp), dimension(:,:), pointer ::  &
@@ -1053,7 +1054,8 @@
      thklim    = model%numerics%thklim
      max_slope = model%paramets%max_slope
      eus       = model%climate%eus
-     ho_beta_const = model%paramets%ho_beta_const
+     ho_beta_const = model%velocity%ho_beta_const
+     beta_grounded_min = model%velocity%beta_grounded_min
      efvs_constant = model%paramets%efvs_constant
  
      whichbabc            = model%options%which_ho_babc
@@ -1085,6 +1087,7 @@
                                           flwa,    efvs,          &
                                           bwat,    mintauf,       &
                                           ho_beta_const,          &
+                                          beta_grounded_min,      &
                                           btractx, btracty,       &
                                           uvel,    vvel,          &
                                           uvel_2d, vvel_2d)
@@ -1466,8 +1469,8 @@
     ! Three options for whichflotation_function (applies to whichground = 0 or 1):
     ! (0) HO_FLOTATION_FUNCTION_PATTYN:         f = (-rhow*b/rhoi*H) = f_pattyn; <=1 for grounded, > 1 for floating
     ! (1) HO_FLOTATION_FUNCTION_INVERSE_PATTYN: f = (rhoi*H)/(-rhow*b) = 1/f_pattyn; >=1 for grounded, < 1 for floating
-    ! (2) HO_FLOTATION_FUNCTION_OCEAN_CAVITY:   f = -rhow*b - rhoi*H = ocean cavity thickness; <=0 for grounded, > 0 for floating
-
+    ! (2) HO_FLOTATION_FUNCTION_LINEAR:         f = -rhow*b - rhoi*H; <= 0 for grounded, > 0 for floating
+    !
     ! f_flotation is not needed in further calculations but is output as a diagnostic.
     !------------------------------------------------------------------------------
 
@@ -2110,7 +2113,7 @@
        !     were assumed to be independent of velocity.  Computing beta here,
        !     however, allows for more general sliding laws.
        ! (2) The units of the input arguments in calcbeta are assumed to be the
-       !       same as the Glissade units.
+       !     same as the Glissade units.
        ! (3) The computed beta (called beta_internal) is weighted by f_ground, 
        !     the grounded fraction at each vertex.  With a GLP, f_ground is 
        !     between 0 and 1 for vertices adjacent to the GL, allowing for a smooth 
@@ -2213,7 +2216,8 @@
                       beta*tau0/(vel0*scyr),            &  ! external beta (intent in)
                       beta_internal,                    &  ! beta weighted by f_ground (intent out)
                       f_ground,                         &
-                      pmp_mask)                            ! needed for HO_BABC_BETA_TPMP option
+                      pmp_mask,                         &  ! needed for HO_BABC_BETA_TPMP option
+                      beta_grounded_min)
 
        call staggered_parallel_halo(beta_internal)
 
@@ -2736,7 +2740,7 @@
                                                 Auu,             Auv,               &
                                                 Avu,             Avv,               &
                                                 bu,              bv)
-          call t_startf('glissade_dirichlet_3d')
+          call t_stopf('glissade_dirichlet_3d')
           
           !---------------------------------------------------------------------------
           ! Halo updates for matrices
@@ -3666,13 +3670,14 @@
 
 !****************************************************************************
 
-  subroutine glissade_velo_higher_scale_input(dx,      dy,             &
-                                              thck,    usrf,           &
+  subroutine glissade_velo_higher_scale_input(dx,      dy,            &
+                                              thck,    usrf,          &
                                               topg,                   &
-                                              eus,     thklim,         &
-                                              flwa,    efvs,           &
-                                              bwat,    mintauf,        &
+                                              eus,     thklim,        &
+                                              flwa,    efvs,          &
+                                              bwat,    mintauf,       &
                                               ho_beta_const,          &
+                                              beta_grounded_min,      &
                                               btractx, btracty,       &
                                               uvel,    vvel,          &
                                               uvel_2d, vvel_2d)
@@ -3693,7 +3698,8 @@
     real(dp), intent(inout) ::   &
        eus,  &                 ! eustatic sea level (= 0 by default)
        thklim,  &              ! minimum ice thickness for active cells
-       ho_beta_const           ! constant beta value (Pa/(m/yr)) for whichbabc = HO_BABC_CONSTANT
+       ho_beta_const, &        ! constant beta value (Pa/(m/yr)) for whichbabc = HO_BABC_CONSTANT
+       beta_grounded_min       ! minimum beta value (Pa/(m/yr)) for grounded ice
 
     real(dp), dimension(:,:,:), intent(inout) ::  &
        flwa,   &               ! flow factor in units of Pa^(-n) yr^(-1)
@@ -3731,8 +3737,9 @@
     ! mintauf: rescale from dimensionless to Pa
     mintauf = mintauf * tau0
 
-    ! ho_beta_const: rescale from dimensionless to Pa/(m/yr)
+    ! beta_parameters: rescale from dimensionless to Pa/(m/yr)
     ho_beta_const = ho_beta_const * tau0/(vel0*scyr)
+    beta_grounded_min = beta_grounded_min * tau0/(vel0*scyr)
 
     ! basal traction: rescale from dimensionless to Pa
     btractx = btractx * tau0
@@ -4164,8 +4171,10 @@
                       kNode = k + kshift(7,n)
          
                       ! Add the ds/dx and ds/dy terms to the load vector for this node                   
-                      loadu(kNode,iNode,jNode) = loadu(kNode,iNode,jNode) - rhoi*grav * wqp_3d(p) * detJ/vol0 * dsdx_qp * phi_3d(n,p)
-                      loadv(kNode,iNode,jNode) = loadv(kNode,iNode,jNode) - rhoi*grav * wqp_3d(p) * detJ/vol0 * dsdy_qp * phi_3d(n,p)
+                      loadu(kNode,iNode,jNode) = loadu(kNode,iNode,jNode) - &
+                           rhoi*grav * wqp_3d(p) * detJ/vol0 * dsdx_qp * phi_3d(n,p)
+                      loadv(kNode,iNode,jNode) = loadv(kNode,iNode,jNode) - &
+                           rhoi*grav * wqp_3d(p) * detJ/vol0 * dsdy_qp * phi_3d(n,p)
 
                       if (verbose_load .and. this_rank==rtest .and. i==itest .and. j==jtest .and. k==ktest .and. p==ptest) then
                          print*, ' '

@@ -193,7 +193,7 @@ contains
        if (calving_timescale == 0.0d0) then  ! calve the entire column for eligible columns (this is the default)
           float_fraction_calve = 1.0d0
        else  ! calve a fraction of the column based on the calving time scale
-          float_fraction_calve = max(dt/calving_timescale, 1.0d0)
+          float_fraction_calve = min(dt/calving_timescale, 1.0d0)
        endif
        
     endif
@@ -435,7 +435,8 @@ contains
 
                 if (verbose_calving .and. i==itest .and. j==jtest .and. this_rank==rtest) then
                    print*, 'task, i, j, is_active, is_floating, is_margin:',  &
-                        this_rank, i, j, mask_is_active_ice(cell_mask(i,j)), mask_is_floating_ice(cell_mask(i,j)), mask_is_margin(cell_mask(i,j))
+                        this_rank, i, j, mask_is_active_ice(cell_mask(i,j)), &
+                        mask_is_floating_ice(cell_mask(i,j)), mask_is_margin(cell_mask(i,j))
                 endif
 
                 if (mask_is_floating_ice(cell_mask(i,j)) .and. mask_is_margin(cell_mask(i,j))) then
@@ -485,7 +486,8 @@ contains
 
                 do j = 1, ny
                    do i = 1, nx
-                      if (mask_is_floating_ice(cell_mask(i,j)) .and. mask_is_margin(cell_mask(i,j)) .and. calving_law_mask(i,j)) then
+                      if (mask_is_floating_ice(cell_mask(i,j)) .and. mask_is_margin(cell_mask(i,j)) &
+                           .and. calving_law_mask(i,j)) then
                          if (color(i,j) /= boundary_color .and. color(i,j) /= fill_color) then
                             ! assign the fill color to this cell, and recursively fill neighbor cells
                             call glissade_fill(nx,  ny,  i,  j,  color)

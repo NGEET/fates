@@ -395,6 +395,9 @@ add_default($nl, 'stop_option');
 add_default($nl, 'paramfile', 'noprepend'=>'1' );
 add_default($nl, 'cism_debug');
 add_default($nl, 'ice_flux_routing');
+add_default($nl, 'zero_gcm_fluxes',
+            'glc_two_way_coupling'=>"$GLC_TWO_WAY_COUPLING",
+            'cism_evolve'=>"$CISM_EVOLVE");
 
 my $hotstart;
 if ($RUN_TYPE eq 'startup') {
@@ -434,7 +437,9 @@ if (!($nl->get_value('history_option') =~ /coupler/)) {
 
 add_default($nl, 'enable_frac_overrides');
 if ($nl->get_value('enable_frac_overrides') =~ $TRUE) {
-   add_default($nl, 'override_delay');
+   add_default($nl, 'decrease_override_delay');
+   add_default($nl, 'increase_override_delay');
+   add_default($nl, 'rearrange_override_delay');
    add_default($nl, 'decrease_frac');
    add_default($nl, 'increase_frac');
    add_default($nl, 'rearrange_freq');
@@ -475,9 +480,6 @@ print $fh "\n[GLAD climate]\n";
 add_default($nl, 'evolve_ice',
             'cism_evolve'=>"$CISM_EVOLVE");
 add_default($nl, 'test_coupling');
-add_default($nl, 'zero_gcm_fluxes',
-            'glc_two_way_coupling'=>"$GLC_TWO_WAY_COUPLING",
-            'cism_evolve'=>"$CISM_EVOLVE");
 $nl->write_cism_config($fh, "cism_config_climate");
 
 print $fh "\n[projection]\n";
@@ -964,10 +966,10 @@ sub check_consistency {
 # ----------------------------------------------------------------------
 
     if ($nl->get_value('evolve_ice') == 0) {
-       if ($nl->get_value('zero_gcm_fluxes') == 0) {
-          print "$ProgName: ERROR: for evolve_ice = 0, you must also set zero_gcm_fluxes = 1\n";
+       if ($nl->get_value('zero_gcm_fluxes') =~ $FALSE) {
+          print "$ProgName: ERROR: for evolve_ice = 0, you must also set zero_gcm_fluxes = .true.\n";
           print "(This is because evolve_ice = 0 implies that there will be no fluxes,\n";
-          print "and you must explicitly set zero_gcm_fluxes = 1 for the sake of logic\n";
+          print "and you must explicitly set zero_gcm_fluxes = .true. for the sake of logic\n";
           print "that depends on whether these fluxes will be zero - particularly, the creation\n";
           print "of icemask_coupled_fluxes used by CLM).\n";
           $num_errors += 1;

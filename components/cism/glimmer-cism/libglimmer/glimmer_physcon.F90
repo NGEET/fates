@@ -36,7 +36,7 @@ module glimmer_physcon
 
 #ifdef CCSMCOUPLED 
 
-  !Note: These CESM values are current as of September 2015.  I don't think they change often.
+  !Note: These CESM values are current as of September 2015.
   use shr_const_mod, only: pi=>     SHR_CONST_PI,&       ! 3.14159265358979323846
                            rhoi=>   SHR_CONST_RHOICE,&   ! 0.917e3
                            rhoo=>   SHR_CONST_RHOSW,&    ! 1.026e3
@@ -72,9 +72,9 @@ module glimmer_physcon
   real(dp),parameter :: scyr = 31536000.d0       !< Number of seconds in a year of exactly 365 days
   real(dp),parameter :: rhom = 3300.0d0          !< The density of magma(?) (kg m<SUP>-3</SUP>) 
   real(dp),parameter :: rhos = 2600.0d0          !< The density of solid till (kg m$^{-3}$) 
-  integer, parameter :: gn = 3                   !< The power dependency of Glenn's flow law.
-  real(dp),parameter :: actenh = 139.0d3         !< Activation energy in Glenn's flow law for \f$T^{*}\geq263\f$K. (J mol<SUP>-1</SUP>)
-  real(dp),parameter :: actenl = 60.0d3          !< Activation energy in Glenn's flow law for \f$T^{*}<263\f$K. (J mol<SUP>-1</SUP>)  
+  integer, parameter :: gn = 3                   !< The power dependency of Glen's flow law.
+  real(dp),parameter :: actenh = 139.0d3         !< Activation energy in Glen's flow law for \f$T^{*}\geq263\f$K. (J mol<SUP>-1</SUP>)
+  real(dp),parameter :: actenl = 60.0d3          !< Activation energy in Glen's flow law for \f$T^{*}<263\f$K. (J mol<SUP>-1</SUP>)  
   real(dp),parameter :: arrmlh = 1.733d3         !< Constant of proportionality in Arrhenius relation
                                                  !< in \texttt{patebudd}, for \f$T^{*}\geq263\f$K.
                                                  !< (Pa<SUP>-3</SUP> s<SUP>-1</SUP>) 

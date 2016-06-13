@@ -52,8 +52,10 @@
   ! [6] no slip everywhere (using Dirichlet BC rather than large beta)
   ! [7] treat beta value as till yield stress (in Pa) using Newton-type iteration (in devel.)
   ! [8] set beta as prescribed for ISMIP-HOM test C (serial only)
-  ! [9] power law that used effective pressure
-  ! [10] Coulomb friction law
+  ! [9] power law that uses effective pressure
+  ! [10] Coulomb friction law of Schoof (2005)
+  ! [11] Coulomb friction law of Schoof (2005) with prescribed value of A = flwa at bed
+  ! [12] Friction law of Tsai et al. (2015): minimum of power-law stress and Coulomb stress
 
   ! TODO - Renumber HO_BABC options so that, for example, the no-slip options have small numbers?
   !-----------------------------------------------------------------------------
@@ -84,7 +86,8 @@ contains
                        mask,          beta_external, &
                        beta,                         &
                        f_ground,                     &
-                       pmp_mask)
+                       pmp_mask,                     &
+                       beta_grounded_min)
 
   ! subroutine to calculate map of beta sliding parameter, based on 
   ! user input ("whichbabc" flag, from config file as "which_ho_babc").
@@ -110,7 +113,7 @@ contains
   real(dp), intent(in), dimension(:,:)    :: mintauf            ! till yield stress (Pa)
   real(dp), intent(in)                    :: beta_const         ! spatially uniform beta (Pa yr/m)
   type(glide_basal_physics), intent(in)   :: basal_physics      ! basal physics object
-  real(dp), intent(in), dimension(:,:)    :: flwa_basal         ! flwa for the basal ice layer (Pa^{-3} yr^{-1}
+  real(dp), intent(in), dimension(:,:)    :: flwa_basal         ! flwa for the basal ice layer (Pa^{-3} yr^{-1})
   real(dp), intent(in), dimension(:,:)    :: thck               ! ice thickness
   integer,  intent(in), dimension(:,:)    :: mask               ! staggered grid mask
   real(dp), intent(in), dimension(:,:)    :: beta_external      ! fixed beta read from external file (Pa yr/m)
@@ -118,12 +121,11 @@ contains
                                                                 ! Note: This is beta_internal in glissade
   real(dp), intent(in), dimension(:,:), optional :: f_ground    ! grounded ice fraction, 0 <= f_ground <= 1
   integer,  intent(in), dimension(:,:), optional :: pmp_mask    ! = 1 where bed is at pressure melting point, elsewhere = 0
+  real(dp), intent(in), optional          :: beta_grounded_min  ! minimum beta value for grounded ice (Pa m^{-1} yr)
 
   ! Local variables
 
   real(dp) :: smallnum = 1.0d-2  ! m/yr
-
-  integer :: ew, ns
 
   ! SFP added for making beta a function of basal water flux 
   real(dp), dimension(:,:), allocatable :: unstagbeta
@@ -133,24 +135,31 @@ contains
   real(dp) :: omega     ! frequency of beta field
   real(dp) :: dx, dy
   integer :: ilo, ihi, jlo, jhi  ! limits of beta field for ISHOM C case
-  integer :: i, j
+  integer :: ew, ns
 
   ! variables for power law
-  real(dp) :: p, q
+  real(dp) :: powerlaw_p, powerlaw_q
 
   ! variables for Coulomb friction law
-  real(dp) :: Coulomb_C   ! friction coefficient
-  real(dp) :: lambda_max  ! wavelength of bedrock bumps at subgrid scale
-  real(dp) :: m_max       ! maximum bed obstacle slope
-  real(dp), dimension(size(beta,1), size(beta,2)) :: big_lambda       ! bed rock characteristics
-  real(dp), dimension(size(beta,1), size(beta,2)) :: speed            ! ice speed, sqrt(uvel^2 + vvel^2) 
+  real(dp) :: Coulomb_C   ! friction coefficient (unitless)
+  real(dp) :: lambda_max  ! wavelength of bedrock bumps at subgrid scale (m)
+  real(dp) :: m_max       ! maximum bed obstacle slope (unitless)
+  real(dp), dimension(size(beta,1), size(beta,2)) :: big_lambda       ! bedrock characteristics
+  real(dp), dimension(size(beta,1), size(beta,2)) :: speed            ! ice speed, sqrt(uvel^2 + vvel^2), m/yr 
   integer,  dimension(size(thck,1), size(thck,2)) :: imask            ! ice grid mask  1=ice, 0=no ice
   real(dp), dimension(size(beta,1), size(beta,2)) :: flwa_basal_stag  ! flwa for the basal ice layer on the staggered grid
-                                                                      ! NOTE: Units are Pa^{-n} yr^{-1}
+                                                                      ! Note: Units are Pa^{-n} yr^{-1}
+  ! variables for Tsai et al. parameterization
+  real(dp) :: taub_powerlaw  ! basal shear stress given by a power law as in Tsai et al. (2015)
+  real(dp) :: taub_Coulomb   ! basal shear stress given by Coulomb friction as in Tsai et al. (2015)
+
   character(len=300) :: message
 
-  real(dp), parameter :: beta_grounded_min = 10.d0    ! minimum beta for grounded ice (Pa yr/m)
-                                                      ! TODO - Add beta_grounded_min to the parameters in glide_types?
+  !WHL - debug - for diagnostic output
+  integer, parameter :: itest = 450, jtest = 3
+!  integer, parameter :: itest = 560, jtest = 3
+!  integer, parameter :: itest = 1120, jtest = 3
+
   select case(whichbabc)
 
     case(HO_BABC_CONSTANT)  ! spatially uniform value; useful for debugging and test cases
@@ -251,11 +260,11 @@ contains
        
        ! Prescribe beta as in Pattyn et al., The Cryosphere, 2008
        beta(:,:) = 0.d0
-       do j = jlo, jhi
-          do i = ilo, ihi
-             dx = dew * (i-ilo)
-             dy = dns * (j-jlo)
-             beta(i,j) = 1000.d0 + 1000.d0 * sin(omega*dx) * sin(omega*dy)
+       do ns = jlo, jhi
+          do ew = ilo, ihi
+             dx = dew * (ew-ilo)
+             dy = dns * (ns-jlo)
+             beta(ew,ns) = 1000.d0 + 1000.d0 * sin(omega*dx) * sin(omega*dy)
           enddo
        enddo
 
@@ -278,18 +287,20 @@ contains
     case(HO_BABC_POWERLAW)   ! A power law that uses effective pressure
        ! See Cuffey & Paterson, Physics of Glaciers, 4th Ed. (2010), p. 240, eq. 7.17
        ! This is based on Weertman's classic sliding relation (1957) augmented by the bed-separation index described by Bindschadler (1983)
-       !   ub = k Taub^p N^-q
-       ! rearranging for Taub gives:
-       !   Taub = k^(-1/p) ub^(1/p) N^(q/p)
+       !   ub = k taub^p N^-q
+       ! rearranging for taub gives:
+       !   taub = k^(-1/p) ub^(1/p) N^(q/p)
 
        ! p and q should be _positive_ exponents
-       ! TODO: p, q could be turned into config parameters instead of hard-coded
+       ! TODO: powerlaw_p and powerlaw_q could be turned into config parameters instead of hard-coded
        ! If p/=1, this is nonlinear in velocity
        ! Cuffey & Paterson recommend p=3 and q=1, and k dependent on thermal & mechanical properties of ice and inversely on bed roughness.   
-       p = 3.0d0; q = 1.0d0
+       powerlaw_p = 3.0d0
+       powerlaw_q = 1.0d0
 
-       beta = basal_physics%friction_powerlaw_k**(-1.0d0/p) * basal_physics%effecpress_stag**(q/p)    &
-              * dsqrt( thisvel(:,:)**2 + othervel(:,:)**2 )**(1.0d0/p-1.0d0)
+       beta(:,:) = basal_physics%friction_powerlaw_k**(-1.0d0/powerlaw_p) &
+            * basal_physics%effecpress_stag(:,:)**(powerlaw_q/powerlaw_p) &
+            * dsqrt( thisvel(:,:)**2 + othervel(:,:)**2 )**(1.0d0/powerlaw_p-1.0d0)
 
     case(HO_BABC_COULOMB_FRICTION, HO_BABC_COULOMB_CONST_BASAL_FLWA)
 
@@ -297,7 +308,7 @@ contains
       ! Coulomb sliding law: Schoof 2005 PRS, eqn. 6.2  (see also Pimentel, Flowers & Schoof 2010 JGR)
 
       ! Set up parameters needed for the friction law
-      m_max = basal_physics%Coulomb_Bump_max_slope       ! maximum bed obstacle slope(unitless)
+      m_max = basal_physics%Coulomb_bump_max_slope       ! maximum bed obstacle slope(unitless)
       lambda_max = basal_physics%Coulomb_bump_wavelength ! wavelength of bedrock bumps (m)
       Coulomb_C = basal_physics%Coulomb_C                ! basal shear stress factor (Pa (m^-1 y)^1/3)
 
@@ -333,14 +344,61 @@ contains
 
       ! Compute beta
       ! gn = Glen's n from physcon module
-      speed = dsqrt(thisvel**2 + othervel**2 + smallnum**2)
-      beta = Coulomb_C * basal_physics%C_space_factor_stag * basal_physics%effecpress_stag * speed**(1.0d0/gn - 1.0d0) * &
-             (speed + basal_physics%effecpress_stag**gn * big_lambda)**(-1.0d0/gn)
+      speed(:,:) = dsqrt(thisvel(:,:)**2 + othervel(:,:)**2 + smallnum**2)
+      beta(:,:) = Coulomb_C * basal_physics%C_space_factor_stag(:,:) * &
+           basal_physics%effecpress_stag(:,:) * speed(:,:)**(1.0d0/gn - 1.0d0) * &
+           (speed(:,:) + basal_physics%effecpress_stag(:,:)**gn * big_lambda)**(-1.0d0/gn)
 
       ! Limit for numerical stability
       where (beta > 1.0d8)
          beta = 1.0d8
       end where
+
+      !WHL - debug - Write values along a flowline
+!      write(6,*) ' '
+!      write(6,*) 'Apply Coulomb friction: i, j, speed, beta, taub:'
+!      ns = jtest
+!      do ew = itest, itest+15
+!         write(6,*) ew, ns, speed(ew,ns), beta(ew,ns), beta(ew,ns)*speed(ew,ns)
+!      enddo
+
+    case(HO_BABC_COULOMB_POWERLAW_TSAI)
+
+      ! Basal stress representation based on Tsai et al. (2015)
+      ! The basal stress is the minimum of two values:
+      ! (1) power law:          tau_b = powerlaw_C * |u_b|^(1/powerlaw_m)
+      ! (2) Coulomb friction:   tau_b = Coulomb_C * N
+      !                             N = effective pressure = rhoi*g*(H - H_f)
+      !                           H_f = flotation thickness = (rhow/rhoi)*(eus-topg)
+      ! This value of N is obtained by setting basal_water = BWATER_OCEAN_PENETRATION = 4 with p_ocean_penetration = 1.0 in the config file.
+      ! The other parameters (powerlaw_C, powerlaw_m and Coulomb_C) can also be set in the config file. 
+
+       !WHL - debug - write out basal stresses
+!       write(6,*) ' '
+!!       write(6,*) 'powerlaw_C, powerlaw_m, Coulomb_C =', basal_physics%powerlaw_C, basal_physics%powerlaw_m, basal_physics%Coulomb_C
+!       write(6,*) 'Apply Tsai parameterization: i, j, speed, beta, taub, taub_powerlaw, taub_Coulomb, effecpress:'
+
+       do ns = 1, nsn-1
+          do ew = 1, ewn-1
+             
+             speed(ew,ns) = dsqrt(thisvel(ew,ns)**2 + othervel(ew,ns)**2 + smallnum**2)
+
+             taub_powerlaw = basal_physics%powerlaw_C * speed(ew,ns)**(1.d0/basal_physics%powerlaw_m)
+             taub_Coulomb  = basal_physics%Coulomb_C * basal_physics%effecpress_stag(ew,ns)
+
+             if (taub_Coulomb <= taub_powerlaw) then   ! apply Coulomb stress, which is smaller
+                beta(ew,ns) = taub_Coulomb / speed(ew,ns)
+             else  ! apply power-law stress
+                beta(ew,ns) = taub_powerlaw / speed(ew,ns)
+             endif
+
+!             !WHL - debug - Write values along a flowline
+!             if (ns == jtest .and. ew >= itest .and. ew <= itest+15) then
+!                write(6,*) ew, ns, speed(ew,ns), beta(ew,ns), speed(ew,ns)*beta(ew,ns), taub_powerlaw, taub_Coulomb, basal_physics%effecpress_stag(ew,ns)
+!             endif
+
+          enddo   ! ew
+       enddo   ! ns
 
     case default
        ! do nothing
@@ -358,16 +416,7 @@ contains
 
    if (present(f_ground)) then   ! Multiply beta by grounded ice fraction
 
-      do ns = 1, nsn-1
-         do ew = 1, ewn-1 
-            beta(ew,ns) = beta(ew,ns) * f_ground(ew,ns)
-            ! Make sure beta > 0 for grounded ice
-            if (f_ground(ew,ns) > 0.d0 .and. beta(ew,ns) == 0.d0) then
-!!               print*, 'Reset beta: ew, ns, f_ground, beta:', ew, ns, f_ground(ew,ns), beta(ew,ns)
-               beta(ew,ns) = beta_grounded_min
-            endif
-         end do
-      end do
+      beta(:,:) = beta(:,:) * f_ground(:,:)
 
    else    ! set beta = 0 where Glide mask says the ice is floating
 
@@ -380,6 +429,25 @@ contains
       end do
 
    endif   ! present(f_ground)
+
+   ! For beta close to 0 beneath grounded ice, it is possible to generate unrealistically fast flow.
+   ! This could happen, for example, when reading beta from an external file.
+   ! To prevent this, set beta to a minimum value beneath grounded ice.
+   ! The default value of beta_grounded_min = 0.0, in which case this loop has no effect.
+   ! However, beta_grounded_min can be set to a nonzero value in the config file.
+  
+   if (present(f_ground) .and. present(beta_grounded_min)) then
+
+      do ns = 1, nsn-1
+         do ew = 1, ewn-1
+            if (f_ground(ew,ns) > 0.d0 .and. beta(ew,ns) < beta_grounded_min) then
+               beta(ew,ns) = beta_grounded_min
+!!               print*, 'Reset beta: ew, ns, f_ground, beta:', ew, ns, f_ground(ew,ns), beta(ew,ns)
+            endif
+         enddo
+      enddo
+
+   endif   ! present(f_ground) and present(beta_grounded_min)
 
    ! Bug check: Make sure beta >= 0
    ! This check will find negative values as well as NaNs

@@ -56,6 +56,16 @@ ice: all solid ice goes to the sea ice component
 Default: ocn
 </entry>
 
+<entry
+id="zero_gcm_fluxes"
+type="logical"
+category="cism"
+group="cism_params"
+valid_values="" >
+If true, zero out all fluxes sent to the GCM
+Default: Depends on GLC_TWO_WAY_COUPLING xml variable
+</entry>
+
 <!-- =============================================================  -->
 <!-- group: cism_history                                            -->
 <!-- =============================================================  -->
@@ -136,7 +146,7 @@ group="time_manager_nml"
 valid_values="" >
 Whether leap years are enabled in the GLC time manager.
 CAUTION: Leap years don't work correctly with GLC time steps longer than a few months.
-Default: .false.
+Default: .false. for NO_LEAP calendar, .true. otherwise
 </entry>
 
 <entry id="iyear0" 
@@ -225,11 +235,27 @@ ONLY MEANT FOR TESTING - SHOULD NOT BE USED FOR SCIENCE RUNS.
 Default: .false.
 </entry>
 
-<entry id="override_delay"
+<entry id="decrease_override_delay"
 type="integer"
 category="overrides"
 group="glc_override_nml" >
-Time delay before beginning any overrides (days).
+Time delay before beginning decrease_frac overrides (days).
+Default: 0 (start overrides at beginning of run)
+</entry>
+
+<entry id="increase_override_delay"
+type="integer"
+category="overrides"
+group="glc_override_nml" >
+Time delay before beginning increase_frac overrides (days).
+Default: 0 (start overrides at beginning of run)
+</entry>
+
+<entry id="rearrange_override_delay"
+type="integer"
+category="overrides"
+group="glc_override_nml" >
+Time delay before beginning rearrange_freq overrides (days).
 Default: 0 (start overrides at beginning of run)
 </entry>
 
@@ -360,17 +386,6 @@ valid_values="">
 If this is set to true, it sets the mass balance timestep to 1 day.
 This means the ice dynamics is called after one day of climate simulation.
 THIS IS ONLY FOR TESTING OF COUPLING PROCEDURES, NOT TO BE USED FOR SCIENCE.
-</entry>
-
-<entry
-id="zero_gcm_fluxes"
-type="integer"
-category="cism_config_climate"
-group="cism_config_climate"
-valid_values="0,1" >
-0: Send true fluxes to the GCM
-1: Zero out all fluxes sent to the GCM
-Default: Depends on GLC_TWO_WAY_COUPLING xml variable
 </entry>
 
 <!-- =============================================================  -->
@@ -907,6 +922,15 @@ Optional periodic offset for ismip-hom and similar tests
 May be needed to ensure continuous ice geometry at the edges of the
 global domain
 Default: 0.
+</entry>
+
+<entry
+id="ho_beta_const"
+type="real"
+category="cism_config_parameters"
+group="cism_config_parameters" >
+Spatially uniform beta for higher-order dycores (Pa yr m-1)
+Default: (use hard-coded default)
 </entry>
 
 <!-- =============================================================  -->

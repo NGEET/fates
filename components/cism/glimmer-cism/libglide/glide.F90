@@ -513,11 +513,10 @@ contains
 
           ! Calculate basal melt rate --------------------------------------------------
           ! Note: For the initial state, we won't have values for ubas/vbas (unless they were 
-          ! supplied in the input file) to get an initial guess of sliding heating.
-          ! We could iterate on this, but for simplicity that is not done.
+          !       supplied in the input file) to get an initial guess of sliding heating.
+          !       We could iterate on this, but for simplicity that is not done.
 
           call glide_calcbmlt(model, &
-!!                              model%options%which_bmelt, & 
                               model%temper%temp, &
                               model%geometry%thck, &
                               model%geomderv%stagthck, &
@@ -525,13 +524,13 @@ contains
                               model%geomderv%dusrfdns, &
                               model%velocity%ubas, &
                               model%velocity%vbas, &
-                              model%temper%bmlt, &
+                              model%temper%bmlt_ground, &
                               GLIDE_IS_FLOAT(model%geometry%thkmask))
 
           ! Note: calcbwat computes stagbwat
           call calcbwat(model, &
                         model%options%whichbwat, &
-                        model%temper%bmlt, &
+                        model%temper%bmlt_ground, &
                         model%temper%bwat, &
                         model%temper%bwatflx, &
                         model%geometry%thck, &
@@ -795,7 +794,7 @@ contains
        ! Update hydrology, if needed ------------------------------------------------
        call calcbwat(model, &
                      model%options%whichbwat, &
-                     model%temper%bmlt, &
+                     model%temper%bmlt_ground, &
                      model%temper%bwat, &
                      model%temper%bwatflx, &
                      model%geometry%thck, &

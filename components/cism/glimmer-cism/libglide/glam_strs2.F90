@@ -982,7 +982,7 @@ subroutine JFNK_velo_solver  (model,umask)
   !Note: The external beta passed into the solver is equal to model%velocity%beta
   beta => model%velocity%beta_internal(:,:)
   beta_external => model%velocity%beta(:,:)
-  beta_const => model%paramets%ho_beta_const
+  beta_const => model%velocity%ho_beta_const
   mintauf => model%basalproc%mintauf(:,:)   
   bwat => model%temper%bwat(:,:)
   basal_physics = model%basal_physics
@@ -2291,7 +2291,7 @@ end subroutine reset_effstrmin
   !Note: The external beta passed into the solver is equal to model%velocity%beta
   beta => fptr%velocity%beta_internal(:,:)
   beta_external => fptr%velocity%beta(:,:)
-  beta_const => fptr%paramets%ho_beta_const
+  beta_const => fptr%velocity%ho_beta_const
   mintauf => fptr%basalproc%mintauf(:,:)
   bwat => fptr%temper%bwat(:,:)
   basal_physics = fptr%basal_physics

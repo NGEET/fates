@@ -65,7 +65,7 @@ CONTAINS
     use glc_ensemble       , only : set_inst_vars, write_inst_vars, get_inst_name
     use glc_files          , only : set_filenames, ionml_filename
     use glc_coupling_flags , only : has_ocn_coupling, has_ice_coupling
-    use glc_indexing_info  , only : nx_tot, ny_tot, npts
+    use glc_indexing  , only : nx_tot, ny_tot, npts
     
     ! input/output parameters:
 
@@ -415,7 +415,7 @@ subroutine glc_setgsmap_mct( mpicom_g, GLCID, gsMap_g )
   
   ! Initialize MCT global seg map
   
-  use glc_indexing_info, only : local_indices, global_indices, nx, ny, npts
+  use glc_indexing, only : local_to_global_indices
 
   integer        , intent(in)  :: mpicom_g
   integer        , intent(in)  :: GLCID
@@ -423,8 +423,6 @@ subroutine glc_setgsmap_mct( mpicom_g, GLCID, gsMap_g )
 
   ! Local Variables
 
-  integer,allocatable :: gindex(:)
-  integer :: i, j, n
   integer :: ier
 
   !--- formats ---
@@ -432,18 +430,7 @@ subroutine glc_setgsmap_mct( mpicom_g, GLCID, gsMap_g )
   character(*), parameter :: subName = "(glc_SetgsMap_mct) "
   !-------------------------------------------------------------------
 
-  allocate(gindex(npts))
-
-  do j = 1,ny
-     do i = 1,nx
-        n = local_indices(i,j)
-        gindex(n) = global_indices(i,j)
-     enddo
-  enddo
-
-  call mct_gsMap_init( gsMap_g, gindex, mpicom_g, GLCID )
-
-  deallocate(gindex)
+  call mct_gsMap_init( gsMap_g, local_to_global_indices(), mpicom_g, GLCID )
 
 end subroutine glc_SetgsMap_mct
 
@@ -451,7 +438,7 @@ end subroutine glc_SetgsMap_mct
 
   subroutine glc_domain_mct( gsMap_g, dom_g )
 
-    use glc_indexing_info, only : npts, nx, ny, local_indices
+    use glc_indexing, only : npts, nx, ny, spatial_to_vector
     use glad_main, only : glad_get_lat_lon, glad_get_areas
     
     !-------------------------------------------------------------------
@@ -460,7 +447,7 @@ end subroutine glc_SetgsMap_mct
 
     ! Local Variables
 
-    integer :: i,j,n            ! index
+    integer :: i,n                ! index
     real(r8), pointer :: data(:)  ! temporary
     integer , pointer :: idata(:) ! temporary
     real(r8), allocatable :: lats(:,:)  ! latitude of each point (degrees)
@@ -499,30 +486,16 @@ end subroutine glc_SetgsMap_mct
     call glad_get_lat_lon(ice_sheet, instance_index = 1, &
          lats = lats, lons = lons)
     call glad_get_areas(ice_sheet, instance_index = 1, areas = areas)
-    
-    do j = 1,ny
-       do i = 1,nx
-          n = local_indices(i,j)
-          data(n) = lons(i,j)
-       end do
-    end do
+
+    call spatial_to_vector(lons, data)
     call mct_gGrid_importRattr(dom_g,"lon",data,npts) 
 
-    do j = 1,ny
-       do i = 1,nx
-          n = local_indices(i,j)
-          data(n) = lats(i,j)
-       end do
-    end do
+    call spatial_to_vector(lats, data)
     call mct_gGrid_importRattr(dom_g,"lat",data,npts) 
 
-    do j = 1,ny
-       do i = 1,nx
-          n = local_indices(i,j)
-          ! convert from m^2 to radians^2
-          data(n) = areas(i,j)/(radius*radius)
-       end do
-    end do
+    call spatial_to_vector(areas, data)
+    ! convert from m^2 to radians^2
+    data = data/(radius*radius)
     call mct_gGrid_importRattr(dom_g,"area",data,npts) 
 
     ! For now, assume mask and frac are 1 everywhere. This may need to be changed in the

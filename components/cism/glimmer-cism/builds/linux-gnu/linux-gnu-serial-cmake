@@ -51,8 +51,6 @@ cmake \
   -D CISM_USE_DEFAULT_IO:BOOL=OFF \
   -D CISM_USE_CISM_FRONT_END:BOOL=ON \
 \
-  -D CISM_GNU=ON \
-\
   -D CISM_NETCDF_DIR="/usr" \
   -D CISM_NETCDF_LIBS="netcdff" \
 \

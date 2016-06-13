@@ -605,7 +605,7 @@ contains
                       model%velowk,                               &
                       model%velocity%wgrd(model%general%upn,:,:), &
                       model%geometry%thck,                        &
-                      model%temper%bmlt,                          &
+                      model%temper%bmlt_ground,                   &
                       model%velocity%wvel)
 
      case(VERTINT_KINEMATIC_BC)     ! Vertical integration constrained so kinematic upper BC obeyed.
@@ -617,7 +617,7 @@ contains
                       model%velowk,                               &
                       model%velocity%wgrd(model%general%upn,:,:), &
                       model%geometry%thck,                        &
-                      model%temper%  bmlt,                        &
+                      model%temper%bmlt_ground,                   &
                       model%velocity%wvel)
 
         call chckwvel(model%numerics,                             &
@@ -1066,7 +1066,7 @@ contains
 
        do ns = 1,nsn-1
           do ew = 1,ewn-1
-             stagbmlt = 0.25d0*sum(model%temper%bmlt(ew:ew+1,ns:ns+1))
+             stagbmlt = 0.25d0*sum(model%temper%bmlt_ground(ew:ew+1,ns:ns+1))
              
              if (stagbmlt > 0.0d0) then
                 btrc(ew,ns) = min(model%velowk%btrac_max, &

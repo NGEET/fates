@@ -343,11 +343,12 @@
           enddo
        enddo
 
-    elseif (whichflotation_function == HO_FLOTATION_FUNCTION_OCEAN_CAVITY) then
+    elseif (whichflotation_function == HO_FLOTATION_FUNCTION_LINEAR) then
 
        ! grounded if f_flotation <= 0, else floating
-       ! if positive, f_flotation is the thickness of the ocean cavity beneath the ice shelf
-
+       ! If > 0, f_flotation is the thickness of the ocean cavity beneath the ice shelf.
+       ! This function (unlike PATTYN and INVERSE_PATTYN) is linear in both thck and topg.
+ 
        do j = 1, ny
           do i = 1, nx
              if (ice_mask(i,j) == 1) then
@@ -411,7 +412,7 @@
              enddo
           enddo
 
-       elseif (whichflotation_function == HO_FLOTATION_FUNCTION_OCEAN_CAVITY) then
+       elseif (whichflotation_function == HO_FLOTATION_FUNCTION_LINEAR) then
        
           ! grounded if stagf_flotation <= 0, else floating
 
@@ -461,7 +462,7 @@
              enddo
           enddo
           
-       elseif (whichflotation_function == HO_FLOTATION_FUNCTION_OCEAN_CAVITY) then
+       elseif (whichflotation_function == HO_FLOTATION_FUNCTION_LINEAR) then
 
           ! grounded if f_flotation <= 0, else floating
 
@@ -839,7 +840,7 @@
                          f_ground(i,j) = 0.d0
                       endif
                       
-                   elseif (whichflotation_function == HO_FLOTATION_FUNCTION_OCEAN_CAVITY) then
+                   elseif (whichflotation_function == HO_FLOTATION_FUNCTION_LINEAR) then
 
                       if (stagf_flotation(i,j) <= 0.d0) then
                          f_ground(i,j) = 1.d0

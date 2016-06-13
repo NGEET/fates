@@ -25,8 +25,11 @@
   <compset name="IGCLM45IS2">
     <grid name="T31_g37_gl20">
       <test name="SMS_D">
-        <machine compiler="gnu" testtype="aux_glc" testmods="cism/test_coupling">yellowstone</machine>
-        <machine compiler="gnu" testtype="prealpha" testmods="cism/test_coupling">yellowstone</machine>
+        <machine compiler="gnu" testtype="aux_glc" testmods="cism/test_coupling" comment="Basically duplicates a similar test on hobart_nag; I want a version on yellowstone so we do not need to do baseline comparisons on hobart">yellowstone</machine>
+      </test>
+      <test name="SMS_D_Ld5_P24x1">
+        <machine compiler="nag" testtype="aux_glc" testmods="cism/test_coupling" comment="IG nag debug test, to check logic for fields sent from glc to lnd">hobart</machine>
+        <machine compiler="nag" testtype="prealpha" testmods="cism/test_coupling">hobart</machine>
       </test>
     </grid>
   </compset>
@@ -46,6 +49,9 @@
       <test name="SMS_D">
         <machine compiler="intel" testtype="aux_glc">yellowstone</machine>
       </test>
+      <test name="SMS_D_Ly3">
+        <machine compiler="nag" testtype="aux_glc" comment="multi-year nag debug test of CISM1">hobart</machine>
+      </test>
     </grid>
   </compset>
   <compset name="TG1850">
@@ -58,13 +64,14 @@
         <machine compiler="intel" testtype="prebeta">yellowstone</machine>
       </test>
       <test name="ERS_Ly20">
-        <machine compiler="gnu" testtype="aux_glc" testmods="cism/oneway">yellowstone</machine>
+        <machine compiler="gnu" testtype="aux_glc" testmods="cism/oneway" comment="(3-3-16) can probably be removed, just keeping the new CISM2 oneway test; but I am keeping this one for now, since I am doing rework related to the one-way coupling">yellowstone</machine>
       </test>
     </grid>
   </compset>
   <compset name="TG1850IS2">
     <grid name="f09_g16_gl20">
       <test name="ERS_Ly11">
+        <machine compiler="gnu" testtype="aux_glc" testmods="cism/oneway" comment="(3-3-16) identical to an existing non-oneway test, which generates some non-zero runoff fluxes">yellowstone</machine>
         <machine compiler="gnu" testtype="aux_glc">yellowstone</machine>
       </test>
       <test name="SMS_D_Ly1">
@@ -74,8 +81,8 @@
   </compset>
   <compset name="TGHIST">
     <grid name="f09_g16_gl5">
-      <test name="ERS_Ly20_E">
-        <machine compiler="intel" testtype="aux_glc">yellowstone</machine>
+      <test name="ERS_Ly20_E_Mmpich2">
+        <machine compiler="intel" testtype="aux_glc" comment="need to specify mpi library because ESMF is not built with mpi-serial">yellowstone</machine>
       </test>
       <test name="PEA_P1">
         <machine compiler="pgi" testtype="aux_glc">yellowstone</machine>
@@ -104,12 +111,18 @@
         <machine compiler="intel" testtype="aux_glc" testmods="cism/trilinos">yellowstone</machine>
         <machine compiler="intel" testtype="prebeta" testmods="cism/trilinos">yellowstone</machine>
       </test>
+      <test name="SMS_D_Ly3_P24x1">
+        <machine compiler="nag" testtype="aux_glc" comment="multi-year nag debug test of CISM2 at coarse resolution">hobart</machine>
+      </test>
     </grid>
     <grid name="f09_g16_gl4">
       <test name="ERS_Ly3">
         <machine compiler="pgi" testtype="prebeta" comment="included simply to have a test on hopper">hopper</machine>
         <machine compiler="intel" testtype="aux_glc" comment="include one test of the typical production resolution for CISM2">yellowstone</machine>
         <machine compiler="intel" testtype="prealpha">yellowstone</machine>
+      </test>
+      <test name="SMS_D_Ly1_P24x1">
+        <machine compiler="nag" testtype="aux_glc" comment="short nag debug test of CISM2 at production resolution, to test options specific to the production resolution (currently, which_ho_babc differs at the production resolution)">hobart</machine>
       </test>
     </grid>
   </compset>
