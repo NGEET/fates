@@ -1106,9 +1106,6 @@ contains
             subgrid_type='pft', numlev=1, init_value=SHR_CONST_TKFRZ)
     end if
 
-<<<<<<< HEAD
-    if ( crop_prog )then
-=======
     if ( use_ed ) then
 
        call init_accum_field (name='ED_GDD0', units='K', &
@@ -1118,7 +1115,6 @@ contains
     end if
 
     if ( use_crop )then
->>>>>>> 17ae361c
 
        ! All GDD summations are relative to the planting date (Kucharik & Brye 2003)
        call init_accum_field (name='GDD0', units='K', &
@@ -1222,16 +1218,12 @@ contains
        this%t_ref2m_min_inst_u_patch(begp:endp) =  spval
     end if
 
-<<<<<<< HEAD
-    if ( crop_prog ) then
-=======
     if ( use_ed ) then
        call extract_accum_field ('ED_GDD0', rbufslp, nstep)
        this%gdd0_patch(begp:endp) = rbufslp(begp:endp)
     end if
 
     if ( use_crop ) then
->>>>>>> 17ae361c
 
        call extract_accum_field ('GDD0', rbufslp, nstep)
        this%gdd0_patch(begp:endp) = rbufslp(begp:endp)
