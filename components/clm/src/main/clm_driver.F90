@@ -391,10 +391,9 @@ contains
        ! over the patch index range defined by bounds_clump%begp:bounds_proc%endp
 
        if(use_ed) then
-          ! INTERF-TODO: FATES(NC) SHOULD ONLY BE VISIBLE TO THE INTERFACE
-          ! AND ONLY FATES API DEFINED TYPES SHOULD BE PASSED TO IT
-          call clm_fates%fates(nc)%canopy_sunshade_fracs(filter(nc)%nourbanp,      &
-               filter(nc)%num_nourbanp,                                            &
+
+          call clm_fates%canopy_sunshade_fracs(nc,filter(nc)%nourbanp,      &
+               filter(nc)%num_nourbanp,                                     &
                atm2lnd_inst, canopystate_inst)
           
        else
@@ -461,9 +460,11 @@ contains
        ! INTERF-TODO: FATES(NC) SHOULD ONLY BE VISIBLE TO THE INTERFACE
        ! AND ONLY FATES API DEFINED TYPES SHOULD BE PASSED TO IT
        ! NEEDS A WRAPPER
-       call CanopyFluxes(bounds_clump,                                                   &
+       call CanopyFluxes(bounds_clump,                                                      &
             filter(nc)%num_exposedvegp, filter(nc)%exposedvegp,                             &
-            clm_fates%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg),            &
+            clm_fates%fates(nc)%sites,                                                      & 
+            clm_fates%fates(nc)%nsites,                                                     &
+            clm_fates%f2hmap(nc)%hsites,                                                    &
             atm2lnd_inst, canopystate_inst, cnveg_state_inst,                               &
             energyflux_inst, frictionvel_inst, soilstate_inst, solarabs_inst, surfalb_inst, &
             temperature_inst, waterflux_inst, waterstate_inst, ch4_inst, ozone_inst, photosyns_inst, &
@@ -473,8 +474,11 @@ contains
        if (use_ed) then
           ! if ED enabled, summarize productivity fluxes onto CLM history file structure
           call t_startf('edclmsumprodfluxes')
+          ! INTERF-TODO: THIS NEEDS A WRAPPER call clm_fates%sumprod(bounds_clump)
           call clm_fates%fates2hlm%SummarizeProductivityFluxes( bounds_clump, &
-                clm_fates%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg))
+                clm_fates%fates(nc)%sites,                                    &
+                clm_fates%fates(nc)%nsites,                                   &
+                clm_fates%f2hmap(nc)%fcolumn)
           call t_stopf('edclmsumprodfluxes')
        endif
        
@@ -834,9 +838,9 @@ contains
              write(iulog,*)  'clm: calling ED model ', get_nstep()
           end if
 
-          ! INTERF-TODO: FATES(NC) SHOULD ONLY BE VISIBLE TO THE INTERFACE
-          ! AND ONLY FATES API DEFINED TYPES SHOULD BE PASSED TO IT
-          ! NEEDS A WRAPPER
+          ! INTERF-TODO: THIS CHECK WILL BE TURNED ON IN FUTURE VERSION
+!          call clm_fates%check_hlm_active(nc, bounds_clump)
+
           call clm_fates%dynamics_driv( nc, bounds_clump,                        &
                atm2lnd_inst, soilstate_inst, temperature_inst,                   &
                waterstate_inst, canopystate_inst)
@@ -848,13 +852,13 @@ contains
        
        if ( use_ed ) then
           
-          call EDBGCDyn(bounds_clump,                                                              &
+          call EDBGCDyn(bounds_clump,                                                               &
                 filter(nc)%num_soilc, filter(nc)%soilc,                                             &
                 filter(nc)%num_soilp, filter(nc)%soilp,                                             &
                 filter(nc)%num_pcropp, filter(nc)%pcropp, doalb,                                    &
                 cnveg_state_inst,                                                                   &
                 cnveg_carbonflux_inst, cnveg_carbonstate_inst,                                      &
-                clm_fates%fates2hlm,                                                           &
+                clm_fates%fates2hlm,                                                                &
                 soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,                    &
                 soilbiogeochem_state_inst,                                                          &
                 soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,                &
@@ -871,8 +875,10 @@ contains
                 c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
                 c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
                 soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,     &
-                clm_fates%fates2hlm,                                            &
-                clm_fates%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg))
+                clm_fates%fates2hlm,                                                     &
+                clm_fates%fates(nc)%sites,                                               &
+                clm_fates%fates(nc)%nsites,                                              &
+                clm_fates%f2hmap(nc)%fcolumn )
        end if
 
 
@@ -931,9 +937,23 @@ contains
                filter_inactive_and_active(nc)%num_urbanp,       &
                filter_inactive_and_active(nc)%urbanp,           &
                nextsw_cday, declinp1,                           &
-               clm_fates%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg), &
+               clm_fates%fates(nc)%sites, clm_fates%fates(nc)%nsites,     &
+               clm_fates%f2hmap(nc)%fcolumn, clm_fates%f2hmap(nc)%hsites, &
                aerosol_inst, canopystate_inst, waterstate_inst, &
                lakestate_inst, temperature_inst, surfalb_inst)
+
+
+          ! INTERF-TOD: THIS ACTUALLY WON'T BE TO HARD TO PULL OUT
+          ! ED_Norman_Radiation() is the last thing called
+          ! in SurfaceAlbedo, we can simply remove it
+          ! The clm_fates interfac called below will split
+          ! ED norman radiation into two parts
+          ! the calculation of values relevant to FATES
+          ! and then the transfer back to CLM/ALM memory stucts
+          
+          !call clm_fates%radiation()
+
+
           call t_stopf('surfalb')
 
           ! Albedos for urban columns
@@ -1077,10 +1097,6 @@ contains
        call t_stopf('d2dgvm')
     end if
 
-    ! ============================================================================
-    ! Call ED model on daily timestep
-    ! ============================================================================
-    
     ! ============================================================================
     ! History/Restart output
     ! ============================================================================

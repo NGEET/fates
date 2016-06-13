@@ -481,6 +481,9 @@ contains
        call SatellitePhenologyInit(bounds_proc)
     end if
 
+
+    
+
     ! ------------------------------------------------------------------------
     ! On restart only - process the history namelist. 
     ! ------------------------------------------------------------------------
@@ -684,17 +687,8 @@ contains
     ! --------------------------------------------------------------
    
     if ( use_ed .and. .not.is_restart() ) then
-       !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
-       do nc = 1, nclumps
-          call get_clump_bounds(nc, bounds_clump)
 
-          ! INTERF-TODO: THIS CALL SHOULD NOT CALL FATES(NC) DIRECTLY
-          ! BUT IT SHOULD PASS bounds_clump TO A CLM_FATES WRAPPER
-          ! WHICH WILL IN TURN PASS A FATES API DEFINED BOUNDS TO SITE_INIT
-          call clm_fates%fates(nc)%site_init(bounds_clump)
-          call clm_fates%fates2hlm_link(bounds_clump,nc,waterstate_inst,canopystate_inst)
-       end do
-       !$OMP END PARALLEL DO
+       call clm_fates%init_coldstart(waterstate_inst,canopystate_inst)
        
     end if
 

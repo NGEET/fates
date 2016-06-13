@@ -25,7 +25,7 @@ module EDBtranMod
 contains 
 
   !------------------------------------------------------------------------------
-  subroutine btran_ed( bounds, p, ed_allsites_inst, &
+  subroutine btran_ed( bounds, p, sites, nsites, hsites, &
        soilstate_inst, waterstate_inst, temperature_inst, energyflux_inst)
     !
     ! !DESCRIPTION:
@@ -49,7 +49,9 @@ contains
     ! !ARGUMENTS    
     type(bounds_type)      , intent(in)            :: bounds  ! clump bounds
     integer                , intent(in)            :: p       ! patch/'p'
-    type(ed_site_type)     , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+    type(ed_site_type)     , intent(inout), target :: sites(nsites)
+    integer                , intent(in)            :: nsites
+    integer                , intent(in)            :: hsites(bounds%begc:bounds%endc)
     type(soilstate_type)   , intent(inout)         :: soilstate_inst
     type(waterstate_type)  , intent(in)            :: waterstate_inst
     type(temperature_type) , intent(in)            :: temperature_inst
@@ -57,7 +59,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer :: iv !leaf layer
-    integer :: g  !gridcell
+    integer :: s  !site
     integer :: c  !column
     integer :: j  !soil layer
     integer :: ft ! plant functional type index
@@ -140,9 +142,10 @@ contains
       if (patch%is_veg(p)) then
 
          c = patch%column(p)
-         g = patch%gridcell(p)
+         s = hsites(c)
          
-         currentPatch => map_clmpatch_to_edpatch(ed_allsites_inst(g), p) 
+         currentPatch => map_clmpatch_to_edpatch(sites(s), p) 
+
          do FT = 1,numpft_ed
             currentPatch%btran_ft(FT) = 0.0_r8
             do j = 1,nlevgrnd

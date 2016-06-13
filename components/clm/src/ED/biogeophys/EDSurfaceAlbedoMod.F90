@@ -33,7 +33,7 @@ contains
    
    subroutine ED_Norman_Radiation (bounds, &
          filter_vegsol, num_vegsol, filter_nourbanp, num_nourbanp, &
-         coszen, ed_allsites_inst, surfalb_inst)
+         coszen, sites, nsites, fcolumn, hsites, surfalb_inst)
       !
       ! !DESCRIPTION:
       ! Two-stream fluxes for canopy radiative transfer
@@ -56,21 +56,24 @@ contains
       use SurfaceAlbedoType , only : surfalb_type
       !
       ! !ARGUMENTS:
-      type(bounds_type)  , intent(in)            :: bounds                 ! bounds
-      integer            , intent(in)            :: filter_vegsol(:)       ! filter for vegetated pfts with coszen>0
-      integer            , intent(in)            :: num_vegsol             ! number of vegetated pfts where coszen>0
-      integer            , intent(in)            :: filter_nourbanp(:)     ! patch filter for non-urban points
-      integer            , intent(in)            :: num_nourbanp           ! number of patches in non-urban filter
-      real(r8)           , intent(in)            :: coszen( bounds%begp: ) ! cosine solar zenith angle for next time step [pft]
-      type(ed_site_type) , intent(inout), target :: ed_allsites_inst( bounds%begg: )
-      type(surfalb_type) , intent(inout)         :: surfalb_inst 
+      type(bounds_type)  , intent(in)                :: bounds                 ! bounds
+      integer            , intent(in)                :: filter_vegsol(:)       ! filter for vegetated pfts with coszen>0
+      integer            , intent(in)                :: num_vegsol             ! number of vegetated pfts where coszen>0
+      integer            , intent(in)                :: filter_nourbanp(:)     ! patch filter for non-urban points
+      integer            , intent(in)                :: num_nourbanp           ! number of patches in non-urban filter
+      real(r8)           , intent(in)                :: coszen( bounds%begp: ) ! cosine solar zenith angle for next time step [pft]
+      type(ed_site_type)     , intent(inout), target :: sites(nsites)      ! FATES site vector
+      integer                , intent(in)            :: nsites             
+      integer                , intent(in)            :: fcolumn(nsites)
+      integer                , intent(in)            :: hsites(bounds%begc:bounds%endc)
+      type(surfalb_type) , intent(inout)             :: surfalb_inst 
       !
       ! !LOCAL VARIABLES:
       ! ============================================================================
       ! ED/NORMAN RADIATION DECS
       ! ============================================================================
       type (ed_patch_type) , pointer :: currentPatch
-      integer  :: radtype, L, ft, g ,j
+      integer  :: radtype, L, ft, j
       integer  :: iter                                          ! Iteration index
       integer  :: irep                                          ! Flag to exit iteration loop
       real(r8) :: sb
@@ -110,7 +113,7 @@ contains
       real(r8) :: denom
       real(r8) :: lai_reduction(2)
 
-      integer  :: fp,p,c,iv        ! array indices
+      integer  :: fp,p,c,iv,s      ! array indices
       integer  :: ib               ! waveband number
       real(r8) :: cosz             ! 0.001 <= coszen <= 1.000
       real(r8) :: chil(bounds%begp:bounds%endp)    ! -0.4 <= xl <= 0.6
@@ -156,8 +159,9 @@ contains
       do fp = 1,num_nourbanp
          p = filter_nourbanp(fp)
          if (patch%is_veg(p)) then
-            g = patch%gridcell(p)
-            currentPatch => map_clmpatch_to_edpatch(ed_allsites_inst(g), p) 
+            c = patch%column(p)
+            s = hsites(c)
+            currentPatch => map_clmpatch_to_edpatch(sites(s), p) 
             currentPatch%f_sun      (:,:,:) = 0._r8
             currentPatch%fabd_sun_z (:,:,:) = 0._r8
             currentPatch%fabd_sha_z (:,:,:) = 0._r8
@@ -177,7 +181,6 @@ contains
       do fp = 1,num_vegsol
          p = filter_vegsol(fp)
          c = patch%column(p)
-         g = patch%gridcell(p)
 
          weighted_dir_tr(:)   = 0._r8
          weighted_dif_down(:) = 0._r8
@@ -201,7 +204,10 @@ contains
 
          if (patch%is_veg(p)) then ! We have vegetation...
 
-            currentPatch => map_clmpatch_to_edpatch(ed_allsites_inst(g), p) 
+            
+            ! INTERF-TODO: 
+            s = hsites(c)
+            currentPatch => map_clmpatch_to_edpatch(sites(s), p) 
 
             if (associated(currentPatch))then
                !zero all of the matrices used here to reduce potential for errors.
@@ -239,7 +245,7 @@ contains
                         end do !iv
                      end do !ft
                   end do !L
-                  g = currentPatch%siteptr%clmgcell
+!                  g = currentPatch%siteptr%clmgcell
 
                   do radtype = 1,2 !do this once for one unit of diffuse, and once for one unit of direct radiation
                      do ib = 1,numrad
@@ -816,7 +822,7 @@ contains
                            error = abs(currentPatch%sabs_dir(ib)-(currentPatch%tr_soil_dir(ib)*(1.0_r8-albgrd(c,ib))+ &
                                  currentPatch%tr_soil_dir_dif(ib)*(1.0_r8-albgri(c,ib))))
                            if ( abs(error) > 0.0001)then
-                              write(iulog,*)'dir ground absorption error',p,g,error,currentPatch%sabs_dir(ib), &
+                              write(iulog,*)'dir ground absorption error',p,c,error,currentPatch%sabs_dir(ib), &
                                     currentPatch%tr_soil_dir(ib)* &
                                     (1.0_r8-albgrd(c,ib)),currentPatch%NCL_p,ib,sum(ftweight(1,:,1))
                               write(iulog,*) 'albedos',currentPatch%sabs_dir(ib) ,currentPatch%tr_soil_dir(ib), &
@@ -831,7 +837,7 @@ contains
                         else
                            if ( abs(currentPatch%sabs_dif(ib)-(currentPatch%tr_soil_dif(ib) * &
                                  (1.0_r8-albgri(c,ib)))) > 0.0001)then
-                              write(iulog,*)'dif ground absorption error',p,g,currentPatch%sabs_dif(ib) , &
+                              write(iulog,*)'dif ground absorption error',p,c,currentPatch%sabs_dif(ib) , &
                                     (currentPatch%tr_soil_dif(ib)* &
                                     (1.0_r8-albgri(c,ib))),currentPatch%NCL_p,ib,sum(ftweight(1,:,1))
                            endif

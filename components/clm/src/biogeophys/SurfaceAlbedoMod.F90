@@ -174,7 +174,8 @@ contains
         num_urbanc   , filter_urbanc,  &
         num_urbanp   , filter_urbanp,  &
         nextsw_cday  , declinp1,       &
-        ed_allsites_inst, aerosol_inst, canopystate_inst, waterstate_inst, &
+        sites, nsites, fcolumn, hsites,  &  ! FATES STUFF
+        aerosol_inst, canopystate_inst, waterstate_inst, &
         lakestate_inst, temperature_inst, surfalb_inst)
     !
     ! !DESCRIPTION:
@@ -217,7 +218,10 @@ contains
     integer                , intent(in)            :: filter_urbanp(:)   ! patch filter for rban points
     real(r8)               , intent(in)            :: nextsw_cday        ! calendar day at Greenwich (1.00, ..., days/year)
     real(r8)               , intent(in)            :: declinp1           ! declination angle (radians) for next time step
-    type(ed_site_type)     , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+    type(ed_site_type)     , intent(inout), target :: sites(nsites)      ! FATES site vector
+    integer                , intent(in)            :: nsites             
+    integer                , intent(in)            :: fcolumn(nsites)
+    integer                , intent(in)            :: hsites(bounds%begc:bounds%endc)
     type(aerosol_type)     , intent(in)            :: aerosol_inst
     type(canopystate_type) , intent(in)            :: canopystate_inst
     type(waterstate_type)  , intent(in)            :: waterstate_inst
@@ -918,7 +922,8 @@ contains
           
        call ED_Norman_Radiation (bounds, &
             filter_vegsol, num_vegsol, filter_nourbanp, num_nourbanp, &
-            coszen_patch(bounds%begp:bounds%endp), ed_allsites_inst(bounds%begg:bounds%endg), &
+            coszen_patch(bounds%begp:bounds%endp), sites(:), nsites, &
+            fcolumn, hsites(bounds%begc:bounds%endc), & 
             surfalb_inst)
 
     else

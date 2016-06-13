@@ -166,7 +166,7 @@ contains
        currentPatch%age = currentPatch%age + udata%deltat
        ! FIX(SPM,032414) valgrind 'Conditional jump or move depends on uninitialised value'
        if( currentPatch%age  <  0._r8 )then
-          write(iulog,*) 'negative patch age?',currentSite%clmgcell, currentPatch%age, &
+          write(iulog,*) 'negative patch age?',currentPatch%age, &
                currentPatch%patchno,currentPatch%area
        endif
 
@@ -384,28 +384,25 @@ contains
     litter_stock    = 0.0_r8
     seed_stock      = 0.0_r8
 
-    if (currentSite%istheresoil) then
-       currentPatch => currentSite%oldest_patch 
-       do while(associated(currentPatch))
+    currentPatch => currentSite%oldest_patch 
+    do while(associated(currentPatch))
 
-          litter_stock = litter_stock + currentPatch%area * (sum(currentPatch%cwd_ag)+ &
-               sum(currentPatch%cwd_bg)+sum(currentPatch%leaf_litter)+sum(currentPatch%root_litter))
-          seed_stock   = seed_stock   + currentPatch%area * sum(currentPatch%seed_bank)
-          currentCohort => currentPatch%tallest;
+       litter_stock = litter_stock + currentPatch%area * (sum(currentPatch%cwd_ag)+ &
+             sum(currentPatch%cwd_bg)+sum(currentPatch%leaf_litter)+sum(currentPatch%root_litter))
+       seed_stock   = seed_stock   + currentPatch%area * sum(currentPatch%seed_bank)
+       currentCohort => currentPatch%tallest;
+       
+       do while(associated(currentCohort))
+          
+          biomass_stock =  biomass_stock + (currentCohort%bdead + currentCohort%balive + &
+                currentCohort%bstore) * currentCohort%n
+          currentCohort => currentCohort%shorter;
+          
+       enddo !end cohort loop 
 
-          do while(associated(currentCohort))
+       currentPatch => currentPatch%younger
 
-             biomass_stock =  biomass_stock + (currentCohort%bdead + currentCohort%balive + &
-                  currentCohort%bstore) * currentCohort%n
-             currentCohort => currentCohort%shorter;
-
-          enddo !end cohort loop 
-
-          currentPatch => currentPatch%younger
-
-       enddo !end patch loop
-
-    endif
+    enddo !end patch loop
 
     total_stock     = biomass_stock + seed_stock +litter_stock
     change_in_stock = total_stock - currentSite%old_stock  
@@ -413,8 +410,12 @@ contains
     error           = abs(net_flux - change_in_stock)   
 
     if ( abs(error) > 10e-6 ) then
-       write(iulog,*) 'total error:in,out,net,dstock,error',call_index, currentSite%flux_in, & 
-            currentSite%flux_out,net_flux,change_in_stock,error
+       write(iulog,*) 'total error: call index: ',call_index, &
+                      'in:  ',currentSite%flux_in,   &
+                      'out: ',currentSite%flux_out,  &
+                      'net: ',net_flux,              &
+                      'dstock: ',change_in_stock,    &
+                      'error=net_flux-dstock:', error
        write(iulog,*) 'biomass,litter,seeds', biomass_stock,litter_stock,seed_stock
        write(iulog,*) 'lat lon',currentSite%lat,currentSite%lon
     endif
@@ -423,6 +424,6 @@ contains
     currentSite%flux_out  = 0.0_r8  
     currentSite%old_stock = total_stock
 
-  end subroutine ed_total_balance_check
+ end subroutine ed_total_balance_check
 
 end module EDMainMod

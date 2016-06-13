@@ -23,7 +23,7 @@ module CanopyFluxesMod
   use PhotosynthesisMod     , only : Photosynthesis, PhotosynthesisTotal, Fractionation
   use EDPhotosynthesisMod   , only : Photosynthesis_ED
   use EDAccumulateFluxesMod , only : AccumulateFluxes_ED
-  use EDBtranMod            , only : Btran_ED
+  use EDBtranMod            , only : btran_ed
   use SoilMoistStressMod    , only : calc_effective_soilporosity, calc_volumetric_h2oliq
   use SoilMoistStressMod    , only : calc_root_moist_stress, set_perchroot_opt
   use SimpleMathMod         , only : array_div_vector
@@ -75,9 +75,9 @@ module CanopyFluxesMod
 contains
 
   !------------------------------------------------------------------------------
-  subroutine CanopyFluxes(bounds,  num_exposedvegp, filter_exposedvegp, &
-       ed_allsites_inst,  atm2lnd_inst, canopystate_inst, cnveg_state_inst,            &
-       energyflux_inst, frictionvel_inst, soilstate_inst, solarabs_inst, surfalb_inst, &
+  subroutine CanopyFluxes(bounds,  num_exposedvegp, filter_exposedvegp,                  &
+       sites, nsites, hsites, atm2lnd_inst, canopystate_inst, cnveg_state_inst, &
+       energyflux_inst, frictionvel_inst, soilstate_inst, solarabs_inst, surfalb_inst,   &
        temperature_inst, waterflux_inst, waterstate_inst, ch4_inst, ozone_inst, photosyns_inst, &
        humanindex_inst, soil_water_retention_curve, cnveg_nitrogenstate_inst) 
     !
@@ -124,10 +124,12 @@ contains
     use CNVegNitrogenStateType, only : cnveg_nitrogenstate_type
     !
     ! !ARGUMENTS:
-    type(bounds_type)         , intent(in)    :: bounds 
+    type(bounds_type)                      , intent(in)            :: bounds 
     integer                                , intent(in)            :: num_exposedvegp        ! number of points in filter_exposedvegp
     integer                                , intent(in)            :: filter_exposedvegp(:)  ! patch filter for non-snow-covered veg
-    type(ed_site_type)                     , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+    type(ed_site_type)                     , intent(inout), target :: sites(nsites)
+    integer                                , intent(in)            :: nsites
+    integer                                , intent(in)            :: hsites(bounds%begc:bounds%endc)
     type(atm2lnd_type)                     , intent(in)            :: atm2lnd_inst
     type(canopystate_type)                 , intent(inout)         :: canopystate_inst
     type(cnveg_state_type)                 , intent(in)            :: cnveg_state_inst
@@ -498,7 +500,7 @@ contains
 
          do f = 1, fn
             p = filterp(f)
-            call btran_ed(bounds, p, ed_allsites_inst(begg:endg), &
+            call btran_ed(bounds, p, sites, nsites, hsites(bounds%begc:bounds%endc), &
                  soilstate_inst, waterstate_inst, temperature_inst, energyflux_inst)
          enddo
 
@@ -742,7 +744,8 @@ contains
             call Photosynthesis_ED (bounds, fn, filterp, &
                  svpts(begp:endp), eah(begp:endp), o2(begp:endp), &
                  co2(begp:endp), rb(begp:endp), dayl_factor(begp:endp), &
-                 ed_allsites_inst(begg:endg), atm2lnd_inst, temperature_inst, canopystate_inst, photosyns_inst)
+                 sites(:), nsites, hsites(bounds%begc:bounds%endc), &
+                 atm2lnd_inst, temperature_inst, canopystate_inst, photosyns_inst)
 
             ! zero all of these things, not just the ones in the filter. 
             do p = bounds%begp,bounds%endp 
@@ -1162,7 +1165,11 @@ contains
          end if
 
          if ( use_ed ) then
-            call AccumulateFluxes_ED(bounds, p, ed_allsites_inst(begg:endg), photosyns_inst)
+
+            ! TODO-INTERF: THIS CALL IS ONLY FOR ED STUFF, EASILY REMOVED
+            ! AND CALLED OUTSIDE OF THIS SUBROUTINE
+            call AccumulateFluxes_ED(bounds, p, sites(:),nsites, &
+                  hsites(bounds%begc:bounds%endc), photosyns_inst)
          end if
 
       end do
