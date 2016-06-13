@@ -338,8 +338,8 @@
       real(dp), dimension(nx,ny), intent(in) ::  &
          acab,    &             ! surface mass balance (m/s)
                                 ! (defined at horiz cell centers)
-         bmlt                   ! basal melt rate (m/s)
-                                ! positive for melting, negative for freeze-on
+         bmlt                   ! basal melt rate (m/s); positive for melting, negative for freeze-on
+                                ! includes melting for both grounded and floating ice
                                 ! (defined at horiz cell centers)
 
       integer, intent(in) ::  &
@@ -1008,7 +1008,8 @@
           write(xpos_string,'(i12)') indices_adv(2)
           write(ypos_string,'(i12)') indices_adv(3)
           write(message,*) 'Advective CFL violation!  Maximum allowable time step for advective CFL condition is ' &
-               // trim(adjustl(dt_string)) // ' yr, limited by global position i=' // trim(adjustl(xpos_string)) // ' j=' //trim(adjustl(ypos_string))
+               // trim(adjustl(dt_string)) // ' yr, limited by global position i=' &
+               // trim(adjustl(xpos_string)) // ' j=' //trim(adjustl(ypos_string))
           ! Write a warning first before throwing a fatal error so we can also check the diffusive CFL before aborting
           call write_log(trim(message),GM_WARNING)      
       endif
@@ -1029,10 +1030,12 @@
           write(xpos_string,'(i12)') indices_diff(1)
           write(ypos_string,'(i12)') indices_diff(2)
           write(message,*) 'Diffusive CFL violation!  Maximum allowable time step for diffusive CFL condition is ' &
-               // trim(adjustl(dt_string)) // ' yr, limited by global position i=' // trim(adjustl(xpos_string)) // ' j=' //trim(adjustl(ypos_string))
+               // trim(adjustl(dt_string)) // ' yr, limited by global position i=' &
+               // trim(adjustl(xpos_string)) // ' j=' //trim(adjustl(ypos_string))
           ! Diffusive CFL violation is just a warning (because it may be overly restrictive as currently formulated)
           call write_log(trim(message),GM_WARNING)    
-          write(message,*) '(Note the currently implemented diffusive CFL calculation may be overly restrictive for higher-order dycores.)'
+          write(message,*) &
+               '(Note the currently implemented diffusive CFL calculation may be overly restrictive for higher-order dycores.)'
           call write_log(trim(message))
       endif
 

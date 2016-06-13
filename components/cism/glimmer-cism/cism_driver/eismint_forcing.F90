@@ -380,7 +380,8 @@ contains
        ! EISMINT-1 fixed margin
        model%climate%acab(:,:) = eismint_climate%nmsb(1)
        if (eismint_climate%period .ne. 0.d0) then
-          model%climate%acab(:,:) = model%climate%acab(:,:) + eismint_climate%mb_amplitude * sin(2.d0*pi*time/eismint_climate%period)/ (acc0 * scyr)
+          model%climate%acab(:,:) = model%climate%acab(:,:) + eismint_climate%mb_amplitude * &
+               sin(2.d0*pi*time/eismint_climate%period)/ (acc0 * scyr)
 !          model%climate%acab(:,:) = model%climate%acab(:,:) + climate%mb_amplitude * sin(2.d0*pi*time/climate%period) / scale_acab
        end if
 

@@ -511,7 +511,9 @@ contains
 
           ew=1
           if (model%geometry%thck_index(ew,ns) /= 0) then
-             call sparse_insert_val(model%solver_data%matrix, model%geometry%thck_index(ew,ns), model%geometry%thck_index(ew,ns), 1d0)
+             call sparse_insert_val(model%solver_data%matrix, &
+                  model%geometry%thck_index(ew,ns), &
+                  model%geometry%thck_index(ew,ns), 1d0)
              !EIB! old way
              !call putpcgc(model%solver_data,1.0d0, model%geometry%thck_index(ew,ns), model%geometry%thck_index(ew,ns))
              if (calc_rhs) then
@@ -522,7 +524,9 @@ contains
 
           ew=model%general%ewn
           if (model%geometry%thck_index(ew,ns) /= 0) then
-             call sparse_insert_val(model%solver_data%matrix, model%geometry%thck_index(ew,ns), model%geometry%thck_index(ew,ns), 1d0)
+             call sparse_insert_val(model%solver_data%matrix, &
+                  model%geometry%thck_index(ew,ns), &
+                  model%geometry%thck_index(ew,ns), 1d0)
              !EIB! old way
              !call putpcgc(model%solver_data,1.0d0, model%geometry%thck_index(ew,ns), model%geometry%thck_index(ew,ns))
              if (calc_rhs) then
@@ -600,11 +604,16 @@ contains
       integer, intent(in) :: nsm,ns,nsp  ! ns index to lower, central, upper node
 
       !fill matrix using the new API
-      call sparse_insert_val(model%solver_data%matrix, model%geometry%thck_index(ew,ns), model%geometry%thck_index(ewm,ns), sumd(1)) ! point (ew-1,ns)
-      call sparse_insert_val(model%solver_data%matrix, model%geometry%thck_index(ew,ns), model%geometry%thck_index(ewp,ns), sumd(2)) ! point (ew+1,ns)
-      call sparse_insert_val(model%solver_data%matrix, model%geometry%thck_index(ew,ns), model%geometry%thck_index(ew,nsm), sumd(3)) ! point (ew,ns-1)
-      call sparse_insert_val(model%solver_data%matrix, model%geometry%thck_index(ew,ns), model%geometry%thck_index(ew,nsp), sumd(4)) ! point (ew,ns+1)
-      call sparse_insert_val(model%solver_data%matrix, model%geometry%thck_index(ew,ns), model%geometry%thck_index(ew,ns),  1d0 + sumd(5))! point (ew,ns)
+      call sparse_insert_val(model%solver_data%matrix, model%geometry%thck_index(ew,ns), &
+           model%geometry%thck_index(ewm,ns), sumd(1)) ! point (ew-1,ns)
+      call sparse_insert_val(model%solver_data%matrix, model%geometry%thck_index(ew,ns), &
+           model%geometry%thck_index(ewp,ns), sumd(2)) ! point (ew+1,ns)
+      call sparse_insert_val(model%solver_data%matrix, model%geometry%thck_index(ew,ns), &
+           model%geometry%thck_index(ew,nsm), sumd(3)) ! point (ew,ns-1)
+      call sparse_insert_val(model%solver_data%matrix, model%geometry%thck_index(ew,ns), &
+           model%geometry%thck_index(ew,nsp), sumd(4)) ! point (ew,ns+1)
+      call sparse_insert_val(model%solver_data%matrix, model%geometry%thck_index(ew,ns), &
+           model%geometry%thck_index(ew,ns),  1d0 + sumd(5))! point (ew,ns)
 
     !EIB! old way
       ! fill sparse matrix
@@ -634,7 +643,7 @@ contains
          if (model%options%basal_mbal==1) then   ! basal melt rate included in continuity equation
              model%solver_data%rhsd(model%geometry%thck_index(ew,ns)) =                     &
                    model%solver_data%rhsd(model%geometry%thck_index(ew,ns))                 &
-                 - model%temper%bmlt(ew,ns) * model%numerics%dt  ! basal melt is positive for mass loss
+                 - model%temper%bmlt_ground(ew,ns) * model%numerics%dt  ! basal melt is positive for mass loss
          end if
 
       end if   ! calc_rhs
@@ -905,7 +914,7 @@ contains
                          model%numerics%dew,                 &
                          model%numerics%dns )
                     !EIB! gc2 acab input, not sure why the difference
-                    !model%climate%acab(:,ns)-real(model%options%basal_mbal)*real(model%temper%bmlt(:,ns),sp),           &
+                    !model%climate%acab(:,ns)-real(model%options%basal_mbal)*real(model%temper%bmlt_ground(:,ns),sp),           &
 
           call tridiag(model%thckwk%alpha(1:n),    &
                        model%thckwk%beta(1:n),     &
@@ -934,7 +943,7 @@ contains
                          model%numerics%dns,                 &
                          model%numerics%dew )
                       !EIB! again, input difference
-                      !model%climate%acab(ew, :)-real(model%options%basal_mbal)*real(model%temper%bmlt(ew, :),sp),          &
+                      !model%climate%acab(ew, :)-real(model%options%basal_mbal)*real(model%temper%bmlt_ground(ew, :),sp),          &
                       
           call tridiag(model%thckwk%alpha(1:n),    &
                        model%thckwk%beta(1:n),     &

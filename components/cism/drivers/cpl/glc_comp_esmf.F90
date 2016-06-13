@@ -102,7 +102,7 @@ CONTAINS
     use glc_ensemble       , only : set_inst_vars, write_inst_vars, get_inst_name
     use glc_files          , only : set_filenames, ionml_filename
     use glc_coupling_flags , only : has_ocn_coupling, has_ice_coupling
-    use glc_indexing_info  , only : nx_tot, ny_tot, npts_tot
+    use glc_indexing  , only : nx_tot, ny_tot, npts_tot
     
     !-----------------------------------------------------------------------
     ! !DESCRIPTION:
@@ -547,7 +547,7 @@ CONTAINS
     ! Initialize global index space array
     
     use glc_broadcast, only: broadcast_scalar
-    use glc_indexing_info, only : local_indices, global_indices, nx, ny, npts
+    use glc_indexing, only : local_to_global_indices
 
     !-------------------------------------------------------------------
     ! Arguments
@@ -558,8 +558,6 @@ CONTAINS
     type(ESMF_DistGrid) :: glc_DistGrid_esmf  ! Resulting distributed grid
 
     ! Local Variables
-    integer,allocatable :: gindex(:)
-    integer :: i, j, n
     integer :: ier
 
     !--- formats ---
@@ -567,18 +565,8 @@ CONTAINS
     character(*), parameter :: subName = "(glc_DistGrid_esmf) "
     !-------------------------------------------------------------------
 
-    allocate(gindex(npts))
-    do j = 1,ny
-       do i = 1,nx
-          n = local_indices(i,j)
-          gindex(n) = global_indices(i,j)
-       enddo
-    enddo
-       
-    glc_DistGrid_esmf = mct2esmf_init(gindex, rc=rc)
+    glc_DistGrid_esmf = mct2esmf_init(local_to_global_indices(), rc=rc)
     if (rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
-
-    deallocate(gindex)
 
   end function glc_DistGrid_esmf
 
@@ -587,7 +575,7 @@ CONTAINS
   subroutine glc_domain_esmf( dom, rc )
 
     !-------------------------------------------------------------------
-    use glc_indexing_info, only : nx, ny, local_indices
+    use glc_indexing, only : nx, ny, spatial_to_vector
     use glad_main, only : glad_get_lat_lon, glad_get_areas
     
     implicit none
@@ -595,7 +583,6 @@ CONTAINS
     integer, intent(out)                :: rc
 
     ! Local Variables
-    integer :: j,i,n
     integer :: klon,klat,karea,kmask,kfrac ! domain fields
     real(R8), pointer :: fptr(:,:)
     real(r8), allocatable :: lats(:,:)  ! latitude of each point (degrees)
@@ -640,21 +627,16 @@ CONTAINS
     
     fptr(:,:) = -9999.0_R8
     fptr(kmask,:) = -0.0_R8
-    do j = 1,ny
-       do i = 1,nx
-          n = local_indices(i,j)
-          fptr(klon , n) = lons(i,j)
-          fptr(klat , n) = lats(i,j)
+    call spatial_to_vector(lons, fptr(klon,:))
+    call spatial_to_vector(lats, fptr(klat,:))
+    call spatial_to_vector(areas, fptr(karea,:))
+    ! convert from m^2 to radians^2
+    fptr(karea,:) = fptr(karea,:)/(radius*radius)
 
-          ! convert from m^2 to radians^2
-          fptr(karea, n) = areas(i,j)/(radius*radius)
-
-          ! For now, assume mask and frac are 1 everywhere. This may need to be changed
-          ! in the future.
-          fptr(kmask, n) = 1._r8
-          fptr(kfrac, n) = 1._r8
-       end do
-    end do
+    ! For now, assume mask and frac are 1 everywhere. This may need to be changed
+    ! in the future.
+    fptr(kmask, :) = 1._r8
+    fptr(kfrac, :) = 1._r8
 
     deallocate(lats)
     deallocate(lons)

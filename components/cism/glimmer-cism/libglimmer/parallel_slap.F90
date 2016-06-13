@@ -27,6 +27,7 @@
 module parallel
 
   use netcdf
+  use glimmer_global, only : dp, sp
   implicit none
 
   !NOTE: The glam/glissade dycore currently requires nhalo = 2,
@@ -79,43 +80,43 @@ module parallel
 
   ! JEFF Declarations for undistributed variables on main_task.
   ! Later move to separate module?  These are only temporary until code is completely distributed.
-  real(8),dimension(:,:,:),allocatable :: gathered_efvs  ! Output var from glam_velo_fordsiapstr(), used often
-  real(8),dimension(:,:,:),allocatable :: gathered_efvs2  ! Variable for testing that scatter/gather are inverses
-  real(8),dimension(:,:,:),allocatable :: gathered_uvel  ! Output var from glam_velo_fordsiapstr(), used often
-  real(8),dimension(:,:,:),allocatable :: gathered_vvel  ! Output var from glam_velo_fordsiapstr(), used often
-  real(8),dimension(:,:),allocatable :: gathered_uflx    ! Output var from glam_velo_fordsiapstr(), used often
-  real(8),dimension(:,:),allocatable :: gathered_vflx    ! Output var from glam_velo_fordsiapstr(), used often
-  real(8),dimension(:,:,:),allocatable :: gathered_velnorm  ! Variable calculated in run_ho_diagnostic(), is this used?
-  real(8),dimension(:,:),allocatable :: gathered_thck    ! Used in horizontal_remap_in()
-  real(8),dimension(:,:),allocatable :: gathered_stagthck ! Used in horizontal_remap_in()
-  real(4),dimension(:,:),allocatable :: gathered_acab    ! Used in horizontal_remap_in()
-  real(8),dimension(:,:,:),allocatable :: gathered_temp  ! Used in horizontal_remap_in()
-  real(8),dimension(:,:),allocatable :: gathered_dusrfdew  ! Used in glide_stress()
-  real(8),dimension(:,:),allocatable :: gathered_dusrfdns  ! Used in glide_stress()
-  real(8),dimension(:,:),allocatable :: gathered_dthckdew  ! Used in glide_stress()
-  real(8),dimension(:,:),allocatable :: gathered_dthckdns  ! Used in glide_stress()
-  real(8),dimension(:,:,:),allocatable :: gathered_tauxx   ! Calculated in glide_stress()
-  real(8),dimension(:,:,:),allocatable :: gathered_tauyy   ! Calculated in glide_stress()
-  real(8),dimension(:,:,:),allocatable :: gathered_tauxy   ! Calculated in glide_stress()
-  real(8),dimension(:,:,:),allocatable :: gathered_tauscalar   ! Calculated in glide_stress()
-  real(8),dimension(:,:,:),allocatable :: gathered_tauxz   ! Calculated in glide_stress()
-  real(8),dimension(:,:,:),allocatable :: gathered_tauyz   ! Calculated in glide_stress()
-  real(8),dimension(:,:),allocatable :: gathered_topg  ! Bedrock topology, Used in glide_set_mask()
+  real(dp),dimension(:,:,:),allocatable :: gathered_efvs  ! Output var from glam_velo_fordsiapstr(), used often
+  real(dp),dimension(:,:,:),allocatable :: gathered_efvs2  ! Variable for testing that scatter/gather are inverses
+  real(dp),dimension(:,:,:),allocatable :: gathered_uvel  ! Output var from glam_velo_fordsiapstr(), used often
+  real(dp),dimension(:,:,:),allocatable :: gathered_vvel  ! Output var from glam_velo_fordsiapstr(), used often
+  real(dp),dimension(:,:),allocatable :: gathered_uflx    ! Output var from glam_velo_fordsiapstr(), used often
+  real(dp),dimension(:,:),allocatable :: gathered_vflx    ! Output var from glam_velo_fordsiapstr(), used often
+  real(dp),dimension(:,:,:),allocatable :: gathered_velnorm  ! Variable calculated in run_ho_diagnostic(), is this used?
+  real(dp),dimension(:,:),allocatable :: gathered_thck    ! Used in horizontal_remap_in()
+  real(dp),dimension(:,:),allocatable :: gathered_stagthck ! Used in horizontal_remap_in()
+  real(sp),dimension(:,:),allocatable :: gathered_acab    ! Used in horizontal_remap_in()
+  real(dp),dimension(:,:,:),allocatable :: gathered_temp  ! Used in horizontal_remap_in()
+  real(dp),dimension(:,:),allocatable :: gathered_dusrfdew  ! Used in glide_stress()
+  real(dp),dimension(:,:),allocatable :: gathered_dusrfdns  ! Used in glide_stress()
+  real(dp),dimension(:,:),allocatable :: gathered_dthckdew  ! Used in glide_stress()
+  real(dp),dimension(:,:),allocatable :: gathered_dthckdns  ! Used in glide_stress()
+  real(dp),dimension(:,:,:),allocatable :: gathered_tauxx   ! Calculated in glide_stress()
+  real(dp),dimension(:,:,:),allocatable :: gathered_tauyy   ! Calculated in glide_stress()
+  real(dp),dimension(:,:,:),allocatable :: gathered_tauxy   ! Calculated in glide_stress()
+  real(dp),dimension(:,:,:),allocatable :: gathered_tauscalar   ! Calculated in glide_stress()
+  real(dp),dimension(:,:,:),allocatable :: gathered_tauxz   ! Calculated in glide_stress()
+  real(dp),dimension(:,:,:),allocatable :: gathered_tauyz   ! Calculated in glide_stress()
+  real(dp),dimension(:,:),allocatable :: gathered_topg  ! Bedrock topology, Used in glide_set_mask()
   integer,dimension(:,:),allocatable :: gathered_thkmask  ! Calculated in glide_set_mask()
-  real(8),dimension(:,:),allocatable :: gathered_marine_bc_normal  ! Calculated in glide_marine_margin_normal()
-  real(8),dimension(:,:,:),allocatable :: gathered_surfvel   ! Used in calc_gline_flux()
-  real(8),dimension(:,:),allocatable :: gathered_gline_flux   ! Calculated in calc_gline_flux()
-  real(8),dimension(:,:),allocatable :: gathered_ubas   ! Used in calc_gline_flux()
-  real(8),dimension(:,:),allocatable :: gathered_vbas   ! Used in calc_gline_flux()
-  real(8),dimension(:,:),allocatable :: gathered_relx   ! Used in glide_marinlim()
-  real(8),dimension(:,:,:),allocatable :: gathered_flwa   ! Used in glide_marinlim()
-  real(4),dimension(:,:),allocatable :: gathered_calving   ! Used in glide_marinlim()
-  real(4),dimension(:,:),allocatable :: gathered_backstress   ! Used in glide_marinlim()
-  real(8),dimension(:,:),allocatable :: gathered_usrf   ! Used in glide_marinlim()
+  real(dp),dimension(:,:),allocatable :: gathered_marine_bc_normal  ! Calculated in glide_marine_margin_normal()
+  real(dp),dimension(:,:,:),allocatable :: gathered_surfvel   ! Used in calc_gline_flux()
+  real(dp),dimension(:,:),allocatable :: gathered_gline_flux   ! Calculated in calc_gline_flux()
+  real(dp),dimension(:,:),allocatable :: gathered_ubas   ! Used in calc_gline_flux()
+  real(dp),dimension(:,:),allocatable :: gathered_vbas   ! Used in calc_gline_flux()
+  real(dp),dimension(:,:),allocatable :: gathered_relx   ! Used in glide_marinlim()
+  real(dp),dimension(:,:,:),allocatable :: gathered_flwa   ! Used in glide_marinlim()
+  real(sp),dimension(:,:),allocatable :: gathered_calving   ! Used in glide_marinlim()
+  real(sp),dimension(:,:),allocatable :: gathered_backstress   ! Used in glide_marinlim()
+  real(dp),dimension(:,:),allocatable :: gathered_usrf   ! Used in glide_marinlim()
   logical,dimension(:,:),allocatable :: gathered_backstressmap ! Used in glide_marinlim()
-  real(8),dimension(:,:),allocatable :: gathered_tau_x   ! Calculated in calc_basal_shear()
-  real(8),dimension(:,:),allocatable :: gathered_tau_y   ! Calculated in calc_basal_shear()
-  real(8),dimension(:,:),allocatable :: gathered_lsrf   ! Used in glide_marinlim()
+  real(dp),dimension(:,:),allocatable :: gathered_tau_x   ! Calculated in calc_basal_shear()
+  real(dp),dimension(:,:),allocatable :: gathered_tau_y   ! Calculated in calc_basal_shear()
+  real(dp),dimension(:,:),allocatable :: gathered_lsrf   ! Used in glide_marinlim()
 
   interface broadcast
      module procedure broadcast_character
@@ -317,24 +318,24 @@ contains
 
   subroutine broadcast_real4(r, proc)
     implicit none
-    real(4) :: r
+    real(sp) :: r
     integer, intent(in), optional :: proc  ! optional argument indicating which processor to broadcast from - not relevant to serial version
   end subroutine broadcast_real4
 
   subroutine broadcast_real4_1d(a, proc)
-    real(4),dimension(:) :: a
+    real(sp),dimension(:) :: a
     integer, intent(in), optional :: proc  ! optional argument indicating which processor to broadcast from - not relevant to serial version
   end subroutine broadcast_real4_1d
 
   subroutine broadcast_real8(r, proc)
     implicit none
-    real(8) :: r
+    real(dp) :: r
     integer, intent(in), optional :: proc  ! optional argument indicating which processor to broadcast from - not relevant to serial version
   end subroutine broadcast_real8
 
   subroutine broadcast_real8_1d(a, proc)
     implicit none
-    real(8),dimension(:) :: a
+    real(dp),dimension(:) :: a
     integer, intent(in), optional :: proc  ! optional argument indicating which processor to broadcast from - not relevant to serial version
   end subroutine broadcast_real8_1d
 
@@ -377,7 +378,7 @@ contains
     implicit none
     integer :: distributed_get_var_real4_1d,ncid,varid
     integer,dimension(:) :: start
-    real(4),dimension(:) :: values
+    real(sp),dimension(:) :: values
 
     integer :: status, x1id, y1id
     integer :: ilo, ihi
@@ -410,7 +411,7 @@ contains
     implicit none
     integer :: distributed_get_var_real4_2d,ncid,varid
     integer,dimension(:) :: start
-    real(4),dimension(:,:) :: values
+    real(sp),dimension(:,:) :: values
 
     integer :: ilo, ihi, jlo, jhi
 
@@ -446,7 +447,7 @@ contains
     implicit none
     integer :: distributed_get_var_real8_1d,ncid,varid
     integer,dimension(:) :: start
-    real(8),dimension(:) :: values
+    real(dp),dimension(:) :: values
 
     integer :: status, x1id, y1id
     integer :: ilo, ihi
@@ -478,7 +479,7 @@ contains
     implicit none
     integer :: distributed_get_var_real8_2d,ncid,varid
     integer,dimension(:) :: start
-    real(8),dimension(:,:) :: values
+    real(dp),dimension(:,:) :: values
 
     integer :: ilo, ihi, jlo, jhi
 
@@ -512,7 +513,7 @@ contains
     implicit none
     integer :: distributed_get_var_real8_3d,ncid,varid
     integer,dimension(:) :: start
-    real(8),dimension(:,:,:) :: values
+    real(dp),dimension(:,:,:) :: values
 
     integer :: ilo, ihi, jlo, jhi
 
@@ -702,8 +703,8 @@ contains
     ! If global_values is allocated, then it will be deallocated and reallocated.  It will be unused on other nodes.
     ! Variables are assumed to lie on the scalar grid (at cell centers).
     implicit none
-    real(4),dimension(:,:),intent(in) :: values
-    real(4),dimension(:,:),allocatable,intent(inout) :: global_values
+    real(sp),dimension(:,:),intent(in) :: values
+    real(sp),dimension(:,:),allocatable,intent(inout) :: global_values
 
     if (allocated(global_values)) then
        deallocate(global_values)
@@ -724,8 +725,8 @@ contains
     ! If global_values is allocated, then it will be deallocated and reallocated.  It will be unused on other nodes.
     ! Variables are assumed to lie on the scalar grid (at cell centers).
     implicit none
-    real(4),dimension(:,:,:),intent(in) :: values
-    real(4),dimension(:,:,:),allocatable,intent(inout) :: global_values
+    real(sp),dimension(:,:,:),intent(in) :: values
+    real(sp),dimension(:,:,:),allocatable,intent(inout) :: global_values
     integer,optional,intent(in) :: ld1, ud1
 
     integer :: d1l,d1u
@@ -763,8 +764,8 @@ contains
     ! If global_values is allocated, then it will be deallocated and reallocated.  It will be unused on other nodes.
     ! Variables are assumed to lie on the scalar grid (at cell centers).
     implicit none
-    real(8),dimension(:,:),intent(in) :: values
-    real(8),dimension(:,:),allocatable,intent(inout) :: global_values
+    real(dp),dimension(:,:),intent(in) :: values
+    real(dp),dimension(:,:),allocatable,intent(inout) :: global_values
 
     if (allocated(global_values)) then
        deallocate(global_values)
@@ -785,8 +786,8 @@ contains
     ! If global_values is allocated, then it will be deallocated and reallocated.  It will be unused on other nodes.
     ! Variables are assumed to lie on the scalar grid (at cell centers).
     implicit none
-    real(8),dimension(:,:,:),intent(in) :: values
-    real(8),dimension(:,:,:),allocatable,intent(inout) :: global_values
+    real(dp),dimension(:,:,:),intent(in) :: values
+    real(dp),dimension(:,:,:),allocatable,intent(inout) :: global_values
     integer,optional,intent(in) :: ld1, ud1
 
     integer :: d1l,d1u
@@ -864,7 +865,7 @@ contains
   subroutine distributed_print_real8_2d(name,values)
     implicit none
     character(*) :: name
-    real(8),dimension(:,:) :: values
+    real(dp),dimension(:,:) :: values
 
     integer,parameter :: u = 33
     character(3) :: ts
@@ -893,7 +894,7 @@ contains
   subroutine distributed_print_real8_3d(name,values)
     implicit none
     character(*) :: name
-    real(8),dimension(:,:,:) :: values
+    real(dp),dimension(:,:,:) :: values
 
     integer,parameter :: u = 33
     character(3) :: ts
@@ -958,7 +959,7 @@ contains
     implicit none
     integer :: distributed_put_var_real4_1d,ncid,varid
     integer,dimension(:),optional :: start
-    real(4),dimension(:) :: values
+    real(sp),dimension(:) :: values
 
     integer :: status, x0id, x1id, y0id, y1id
     integer :: ilo, ihi
@@ -1003,7 +1004,7 @@ contains
     implicit none
     integer :: distributed_put_var_real4_2d,ncid,varid
     integer,dimension(:) :: start
-    real(4),dimension(:,:) :: values
+    real(sp),dimension(:,:) :: values
 
     integer :: ilo,ihi,jlo,jhi
 
@@ -1037,7 +1038,7 @@ contains
     implicit none
     integer :: distributed_put_var_real8_1d,ncid,varid
     integer,dimension(:),optional :: start
-    real(8),dimension(:) :: values
+    real(dp),dimension(:) :: values
 
     integer :: status, x0id, x1id, y0id, y1id
     integer :: ilo, ihi
@@ -1082,7 +1083,7 @@ contains
     implicit none
     integer :: distributed_put_var_real8_2d,ncid,varid
     integer,dimension(:) :: start
-    real(8),dimension(:,:) :: values
+    real(dp),dimension(:,:) :: values
 
     integer :: ilo,ihi,jlo,jhi
 
@@ -1118,7 +1119,7 @@ contains
     implicit none
     integer :: distributed_put_var_real8_3d,ncid,varid
     integer,dimension(:) :: start
-    real(8),dimension(:,:,:) :: values
+    real(dp),dimension(:,:,:) :: values
 
     integer :: ilo,ihi,jlo,jhi
 
@@ -1183,8 +1184,8 @@ contains
     ! global_values = reference to allocateable array into which the main_task holds the variable.
     ! global_values is deallocated at the end.
     implicit none
-    real(4),dimension(:,:),intent(inout) :: values  ! populated from values on main_task
-    real(4),dimension(:,:),allocatable,intent(inout) :: global_values  ! only used on main_task
+    real(sp),dimension(:,:),intent(inout) :: values  ! populated from values on main_task
+    real(sp),dimension(:,:),allocatable,intent(inout) :: global_values  ! only used on main_task
 
     values(1+lhalo:local_ewn-uhalo, 1+lhalo:local_nsn-uhalo) = global_values(:,:)
 
@@ -1199,8 +1200,8 @@ contains
     ! NOTE: The horizontal dimensions are assumed to be the second and third dimensions.
     !       Variables are assumed to lie on the scalar grid (at cell centers).
     implicit none
-    real(4),dimension(:,:,:),intent(inout) :: values  ! populated from values on main_task
-    real(4),dimension(:,:,:),allocatable,intent(inout) :: global_values  ! only used on main_task
+    real(sp),dimension(:,:,:),intent(inout) :: values  ! populated from values on main_task
+    real(sp),dimension(:,:,:),allocatable,intent(inout) :: global_values  ! only used on main_task
 
     values(:, 1+lhalo:local_ewn-uhalo, 1+lhalo:local_nsn-uhalo) = global_values(:,:,:)
 
@@ -1214,8 +1215,8 @@ contains
     ! global_values is deallocated at the end.
     ! Variables are assumed to lie on the scalar grid (at cell centers).
     implicit none
-    real(8),dimension(:,:),intent(inout) :: values  ! populated from values on main_task
-    real(8),dimension(:,:),allocatable,intent(inout) :: global_values  ! only used on main_task
+    real(dp),dimension(:,:),intent(inout) :: values  ! populated from values on main_task
+    real(dp),dimension(:,:),allocatable,intent(inout) :: global_values  ! only used on main_task
 
     values(1+lhalo:local_ewn-uhalo, 1+lhalo:local_nsn-uhalo) = global_values(:,:)
 
@@ -1230,8 +1231,8 @@ contains
     ! NOTE: The horizontal dimensions are assumed to be the second and third dimensions.
     !       Variables are assumed to lie on the scalar grid (at cell centers).
     implicit none
-    real(8),dimension(:,:,:),intent(inout) :: values  ! populated from values on main_task
-    real(8),dimension(:,:,:),allocatable,intent(inout) :: global_values  ! only used on main_task
+    real(dp),dimension(:,:,:),intent(inout) :: values  ! populated from values on main_task
+    real(dp),dimension(:,:,:),allocatable,intent(inout) :: global_values  ! only used on main_task
     logical,optional :: deallocflag
     logical :: deallocmem
 
@@ -1250,12 +1251,12 @@ contains
 
   subroutine global_sum_real8_scalar(x)
     implicit none
-    real(8) :: x
+    real(dp) :: x
   end subroutine global_sum_real8_scalar
 
   subroutine global_sum_real8_1d(x)
     implicit none
-    real(8),dimension(:) :: x
+    real(dp),dimension(:) :: x
   end subroutine global_sum_real8_1d
 
   subroutine not_parallel(file,line)
@@ -1288,8 +1289,8 @@ contains
 
   subroutine parallel_convert_haloed_to_nonhaloed_real4_2d(input_with_halo, output_no_halo)
     ! Given an input array that has halo cells, return an output array without halo cells
-    real(4),dimension(:,:), intent(in)  :: input_with_halo
-    real(4),dimension(:,:), intent(out) :: output_no_halo
+    real(sp),dimension(:,:), intent(in)  :: input_with_halo
+    real(sp),dimension(:,:), intent(out) :: output_no_halo
 
     if (size(input_with_halo,1) /= local_ewn .or. size(input_with_halo,2) /= local_nsn) then
        write(*,*) "Unexpected size for input_with_halo: ", &
@@ -1312,8 +1313,8 @@ contains
 
   subroutine parallel_convert_haloed_to_nonhaloed_real8_2d(input_with_halo, output_no_halo)
     ! Given an input array that has halo cells, return an output array without halo cells
-    real(8),dimension(:,:), intent(in)  :: input_with_halo
-    real(8),dimension(:,:), intent(out) :: output_no_halo
+    real(dp),dimension(:,:), intent(in)  :: input_with_halo
+    real(dp),dimension(:,:), intent(out) :: output_no_halo
 
     if (size(input_with_halo,1) /= local_ewn .or. size(input_with_halo,2) /= local_nsn) then
        write(*,*) "Unexpected size for input_with_halo: ", &
@@ -1336,8 +1337,8 @@ contains
 
   subroutine parallel_convert_nonhaloed_to_haloed_real4_2d(input_no_halo, output_with_halo)
     ! Given an input array without halo cells, return an output array with halo cells
-    real(4),dimension(:,:), intent(in)  :: input_no_halo
-    real(4),dimension(:,:), intent(out) :: output_with_halo
+    real(sp),dimension(:,:), intent(in)  :: input_no_halo
+    real(sp),dimension(:,:), intent(out) :: output_with_halo
     
     if (size(input_no_halo,1) /= own_ewn .or. size(input_no_halo,2) /= own_nsn) then
        write(*,*) "Unexpected size for input_no_halo: ", &
@@ -1362,8 +1363,8 @@ contains
 
   subroutine parallel_convert_nonhaloed_to_haloed_real8_2d(input_no_halo, output_with_halo)
     ! Given an input array without halo cells, return an output array with halo cells
-    real(8),dimension(:,:), intent(in)  :: input_no_halo
-    real(8),dimension(:,:), intent(out) :: output_with_halo
+    real(dp),dimension(:,:), intent(in)  :: input_no_halo
+    real(dp),dimension(:,:), intent(out) :: output_with_halo
     
     if (size(input_no_halo,1) /= own_ewn .or. size(input_no_halo,2) /= own_nsn) then
        write(*,*) "Unexpected size for input_no_halo: ", &
@@ -1467,7 +1468,7 @@ contains
     implicit none
     integer :: ncid,parallel_get_att_real4,varid
     character(len=*) :: name
-    real(4) :: values
+    real(sp) :: values
     ! begin
     if (main_task) parallel_get_att_real4 = &
          nf90_get_att(ncid,varid,name,values)
@@ -1477,7 +1478,7 @@ contains
     implicit none
     integer :: ncid,parallel_get_att_real4_1d,varid
     character(len=*) :: name
-    real(4),dimension(:) :: values
+    real(sp),dimension(:) :: values
     ! begin
     if (main_task) parallel_get_att_real4_1d = &
          nf90_get_att(ncid,varid,name,values)
@@ -1487,7 +1488,7 @@ contains
     implicit none
     integer :: ncid,parallel_get_att_real8,varid
     character(len=*) :: name
-    real(8) :: values
+    real(dp) :: values
     ! begin
     if (main_task) parallel_get_att_real8 = &
          nf90_get_att(ncid,varid,name,values)
@@ -1497,7 +1498,7 @@ contains
     implicit none
     integer :: ncid,parallel_get_att_real8_1d,varid
     character(len=*) :: name
-    real(8),dimension(:) :: values
+    real(dp),dimension(:) :: values
     ! begin
     if (main_task) parallel_get_att_real8_1d = &
          nf90_get_att(ncid,varid,name,values)
@@ -1515,7 +1516,7 @@ contains
   function parallel_get_var_real4_1d(ncid,varid,values)
     implicit none
     integer :: ncid,parallel_get_var_real4_1d,varid
-    real(4),dimension(:) :: values
+    real(sp),dimension(:) :: values
     ! begin
     if (main_task) parallel_get_var_real4_1d = &
          nf90_get_var(ncid,varid,values)
@@ -1524,7 +1525,7 @@ contains
   function parallel_get_var_real8_1d(ncid,varid,values)
     implicit none
     integer :: ncid,parallel_get_var_real8_1d,varid
-    real(8),dimension(:) :: values
+    real(dp),dimension(:) :: values
     ! begin
     if (main_task) parallel_get_var_real8_1d = &
          nf90_get_var(ncid,varid,values)
@@ -1629,8 +1630,9 @@ contains
 
     ! unknown grid
     if (size(a,1)/=local_ewn .or. size(a,2)/=local_nsn) then
-         write(*,*) "Unknown Grid: Size a=(", size(a,1), ",", size(a,2), ") and local_ewn and local_nsn = ", local_ewn, ",", local_nsn
-         call parallel_stop(__FILE__,__LINE__)
+       write(*,*) "Unknown Grid: Size a=(", size(a,1), ",", size(a,2), ") and local_ewn and local_nsn = ", &
+            local_ewn, ",", local_nsn
+       call parallel_stop(__FILE__,__LINE__)
     endif
 
     if (outflow_bc) then
@@ -1674,7 +1676,8 @@ contains
 
     ! unknown grid
     if (size(a,1)/=local_ewn .or. size(a,2)/=local_nsn) then
-       write(*,*) "Unknown Grid: Size a=(", size(a,1), ",", size(a,2), ") and local_ewn and local_nsn = ", local_ewn, ",", local_nsn
+       write(*,*) "Unknown Grid: Size a=(", size(a,1), ",", size(a,2), ") and local_ewn and local_nsn = ", &
+            local_ewn, ",", local_nsn
        call parallel_stop(__FILE__,__LINE__)
     endif
 
@@ -1705,12 +1708,12 @@ contains
   subroutine parallel_halo_real4_2d(a)
 
     implicit none
-    real(4),dimension(:,:) :: a
+    real(sp),dimension(:,:) :: a
 
-    real(4),dimension(lhalo,local_nsn-lhalo-uhalo) :: ecopy
-    real(4),dimension(uhalo,local_nsn-lhalo-uhalo) :: wcopy
-    real(4),dimension(local_ewn,lhalo) :: ncopy
-    real(4),dimension(local_ewn,uhalo) :: scopy
+    real(sp),dimension(lhalo,local_nsn-lhalo-uhalo) :: ecopy
+    real(sp),dimension(uhalo,local_nsn-lhalo-uhalo) :: wcopy
+    real(sp),dimension(local_ewn,lhalo) :: ncopy
+    real(sp),dimension(local_ewn,uhalo) :: scopy
 
     ! begin
 
@@ -1719,7 +1722,8 @@ contains
 
     ! unknown grid
     if (size(a,1)/=local_ewn .or. size(a,2)/=local_nsn) then
-       write(*,*) "Unknown Grid: Size a=(", size(a,1), ",", size(a,2), ") and local_ewn and local_nsn = ", local_ewn, ",", local_nsn
+       write(*,*) "Unknown Grid: Size a=(", size(a,1), ",", size(a,2), ") and local_ewn and local_nsn = ", &
+            local_ewn, ",", local_nsn
        call parallel_stop(__FILE__,__LINE__)
     endif
 
@@ -1752,17 +1756,17 @@ contains
     !WHL - added optional arguments for periodic offsets, to support ismip-hom test cases
 
     implicit none
-    real(8),dimension(:,:) :: a
-    real(8), intent(in), optional :: &
+    real(dp),dimension(:,:) :: a
+    real(dp), intent(in), optional :: &
        periodic_offset_ew,  &! offset halo values by this amount
                              ! if positive, the offset is positive for W halo, negative for E halo 
        periodic_offset_ns    ! offset halo values by this amount
                              ! if positive, the offset is positive for S halo, negative for N halo
 
-    real(8),dimension(lhalo,local_nsn-lhalo-uhalo) :: ecopy
-    real(8),dimension(uhalo,local_nsn-lhalo-uhalo) :: wcopy
-    real(8),dimension(local_ewn,lhalo) :: ncopy
-    real(8),dimension(local_ewn,uhalo) :: scopy
+    real(dp),dimension(lhalo,local_nsn-lhalo-uhalo) :: ecopy
+    real(dp),dimension(uhalo,local_nsn-lhalo-uhalo) :: wcopy
+    real(dp),dimension(local_ewn,lhalo) :: ncopy
+    real(dp),dimension(local_ewn,uhalo) :: scopy
 
     ! begin
 
@@ -1771,7 +1775,8 @@ contains
 
     ! unknown grid
     if (size(a,1)/=local_ewn .or. size(a,2)/=local_nsn) then
-         write(*,*) "Unknown Grid: Size a=(", size(a,1), ",", size(a,2), ") and local_ewn and local_nsn = ", local_ewn, ",", local_nsn
+       write(*,*) "Unknown Grid: Size a=(", size(a,1), ",", size(a,2), ") and local_ewn and local_nsn = ", &
+            local_ewn, ",", local_nsn
          call parallel_stop(__FILE__,__LINE__)
     endif
 
@@ -1818,12 +1823,12 @@ contains
   subroutine parallel_halo_real8_3d(a)
 
     implicit none
-    real(8),dimension(:,:,:) :: a
+    real(dp),dimension(:,:,:) :: a
 
-    real(8),dimension(size(a,1),lhalo,local_nsn-lhalo-uhalo) :: ecopy
-    real(8),dimension(size(a,1),uhalo,local_nsn-lhalo-uhalo) :: wcopy
-    real(8),dimension(size(a,1),local_ewn,lhalo) :: ncopy
-    real(8),dimension(size(a,1),local_ewn,uhalo) :: scopy
+    real(dp),dimension(size(a,1),lhalo,local_nsn-lhalo-uhalo) :: ecopy
+    real(dp),dimension(size(a,1),uhalo,local_nsn-lhalo-uhalo) :: wcopy
+    real(dp),dimension(size(a,1),local_ewn,lhalo) :: ncopy
+    real(dp),dimension(size(a,1),local_ewn,uhalo) :: scopy
 
     ! begin
 
@@ -1832,7 +1837,8 @@ contains
 
     ! unknown grid
     if (size(a,2)/=local_ewn .or. size(a,3)/=local_nsn) then
-         write(*,*) "Unknown Grid: Size a=(", size(a,2), ",", size(a,3), ") and local_ewn and local_nsn = ", local_ewn, ",", local_nsn
+       write(*,*) "Unknown Grid: Size a=(", size(a,2), ",", size(a,3), ") and local_ewn and local_nsn = ", &
+            local_ewn, ",", local_nsn
          call parallel_stop(__FILE__,__LINE__)
     endif
 
@@ -1868,14 +1874,14 @@ contains
 
   function parallel_halo_verify_real8_2d(a)
     implicit none
-    real(8),dimension(:,:) :: a
+    real(dp),dimension(:,:) :: a
     logical :: parallel_halo_verify_real8_2d
     parallel_halo_verify_real8_2d = .true.
   end function parallel_halo_verify_real8_2d
 
   function parallel_halo_verify_real8_3d(a)
     implicit none
-    real(8),dimension(:,:,:) :: a
+    real(dp),dimension(:,:,:) :: a
     logical :: parallel_halo_verify_real8_3d
     parallel_halo_verify_real8_3d = .true.
   end function parallel_halo_verify_real8_3d
@@ -2053,7 +2059,7 @@ contains
   subroutine parallel_print_real8_2d(name,values)
     implicit none
     character(*) :: name
-    real(8),dimension(:,:) :: values
+    real(dp),dimension(:,:) :: values
     
     integer,parameter :: u = 33
     integer :: i,j
@@ -2071,7 +2077,7 @@ contains
   subroutine parallel_print_real8_3d(name,values)
     implicit none
     character(*) :: name
-    real(8),dimension(:,:,:) :: values
+    real(dp),dimension(:,:,:) :: values
     
     integer,parameter :: u = 33
     integer :: i,j
@@ -2099,7 +2105,7 @@ contains
     implicit none
     integer :: ncid,parallel_put_att_real4,varid
     character(len=*) :: name
-    real(4) :: values
+    real(sp) :: values
     ! begin
     if (main_task) parallel_put_att_real4 = nf90_put_att(ncid,varid,name,values)
     call broadcast(parallel_put_att_real4)
@@ -2109,7 +2115,7 @@ contains
     implicit none
     integer :: ncid,parallel_put_att_real4_1d,varid
     character(len=*) :: name
-    real(4),dimension(:) :: values
+    real(sp),dimension(:) :: values
     ! begin
     if (main_task) parallel_put_att_real4_1d = nf90_put_att(ncid,varid,name,values)
     call broadcast(parallel_put_att_real4_1d)
@@ -2119,7 +2125,7 @@ contains
     implicit none
     integer :: ncid,parallel_put_att_real8,varid
     character(len=*) :: name
-    real(8) :: values
+    real(dp) :: values
     ! begin
     if (main_task) parallel_put_att_real8 = nf90_put_att(ncid,varid,name,values)
     call broadcast(parallel_put_att_real8)
@@ -2129,7 +2135,7 @@ contains
     implicit none
     integer :: ncid,parallel_put_att_real8_1d,varid
     character(len=*) :: name
-    real(8),dimension(:) :: values
+    real(dp),dimension(:) :: values
     ! begin
     if (main_task) parallel_put_att_real8_1d = nf90_put_att(ncid,varid,name,values)
     call broadcast(parallel_put_att_real8_1d)
@@ -2139,7 +2145,7 @@ contains
     implicit none
     integer :: ncid,parallel_put_var_real4,varid
     integer,dimension(:) :: start
-    real(4) :: values
+    real(sp) :: values
     ! begin
     if (main_task) parallel_put_var_real4 = &
          nf90_put_var(ncid,varid,values,start)
@@ -2150,7 +2156,7 @@ contains
     implicit none
     integer :: ncid,parallel_put_var_real8,varid
     integer,dimension(:) :: start
-    real(8) :: values
+    real(dp) :: values
     ! begin
     if (main_task) parallel_put_var_real8 = &
          nf90_put_var(ncid,varid,values,start)
@@ -2161,7 +2167,7 @@ contains
     implicit none
     integer :: ncid,parallel_put_var_real8_1d,varid
     integer,dimension(:),optional :: start
-    real(8),dimension(:) :: values
+    real(dp),dimension(:) :: values
     ! begin
     if (main_task) then
        if (present(start)) then
@@ -2198,7 +2204,7 @@ contains
     ! Sum x across all of the nodes.
     ! In parallel_slap mode just return x.
     implicit none
-    real(4) :: x, parallel_reduce_sum_real4
+    real(sp) :: x, parallel_reduce_sum_real4
 
     parallel_reduce_sum_real4 = x
     return
@@ -2208,7 +2214,7 @@ contains
     ! Sum x across all of the nodes.
     ! In parallel_slap mode just return x.
     implicit none
-    real(8) :: x, parallel_reduce_sum_real8
+    real(dp) :: x, parallel_reduce_sum_real8
 
     parallel_reduce_sum_real8 = x
     return
@@ -2218,8 +2224,8 @@ contains
     ! Sum x across all of the nodes.
     ! In parallel_slap mode just return x.
     implicit none
-    real(8) :: x(:)
-    real(8), dimension(size(x)) :: parallel_reduce_sum_real8_nvar
+    real(dp) :: x(:)
+    real(dp), dimension(size(x)) :: parallel_reduce_sum_real8_nvar
 
     parallel_reduce_sum_real8_nvar(:) = x(:)
     return
@@ -2242,7 +2248,7 @@ contains
     ! Max x across all of the nodes.
     ! In parallel_slap mode just return x.
     implicit none
-    real(4) :: x, parallel_reduce_max_real4
+    real(sp) :: x, parallel_reduce_max_real4
 
     parallel_reduce_max_real4 = x
     return
@@ -2252,7 +2258,7 @@ contains
     ! Max x across all of the nodes.
     ! In parallel_slap mode just return x.
     implicit none
-    real(8) :: x, parallel_reduce_max_real8
+    real(dp) :: x, parallel_reduce_max_real8
 
     parallel_reduce_max_real8 = x
     return
@@ -2277,8 +2283,8 @@ contains
     ! Max x across all of the nodes and its proc number
     ! In parallel_slap mode just return x.
     implicit none
-    real(4), intent(in) :: xin         ! variable to reduce
-    real(4), intent(out) :: xout       ! value resulting from the reduction
+    real(sp), intent(in) :: xin         ! variable to reduce
+    real(sp), intent(out) :: xout       ! value resulting from the reduction
     integer, intent(out) :: xprocout   ! processor on which reduced value occurs
 
     xout = xin
@@ -2289,8 +2295,8 @@ contains
     ! Max x across all of the nodes and its proc number
     ! In parallel_slap mode just return x.
     implicit none
-    real(8), intent(in) :: xin         ! variable to reduce
-    real(8), intent(out) :: xout       ! value resulting from the reduction
+    real(dp), intent(in) :: xin         ! variable to reduce
+    real(dp), intent(out) :: xout       ! value resulting from the reduction
     integer, intent(out) :: xprocout   ! processor on which reduced value occurs
 
     xout = xin
@@ -2314,7 +2320,7 @@ contains
     ! Min x across all of the nodes.
     ! In parallel_slap mode just return x.
     implicit none
-    real(4) :: x, parallel_reduce_min_real4
+    real(sp) :: x, parallel_reduce_min_real4
 
     parallel_reduce_min_real4 = x
     return
@@ -2324,7 +2330,7 @@ contains
     ! Min x across all of the nodes.
     ! In parallel_slap mode just return x.
     implicit none
-    real(8) :: x, parallel_reduce_min_real8
+    real(dp) :: x, parallel_reduce_min_real8
 
     parallel_reduce_min_real8 = x
     return
@@ -2349,8 +2355,8 @@ contains
     ! Min x across all of the nodes and its proc number
     ! In parallel_slap mode just return x.
     implicit none
-    real(4), intent(in) :: xin         ! variable to reduce
-    real(4), intent(out) :: xout       ! value resulting from the reduction
+    real(sp), intent(in) :: xin         ! variable to reduce
+    real(sp), intent(out) :: xout       ! value resulting from the reduction
     integer, intent(out) :: xprocout   ! processor on which reduced value occurs
 
     xout = xin
@@ -2361,8 +2367,8 @@ contains
     ! Min x across all of the nodes and its proc number
     ! In parallel_slap mode just return x.
     implicit none
-    real(8), intent(in) :: xin         ! variable to reduce
-    real(8), intent(out) :: xout       ! value resulting from the reduction
+    real(dp), intent(in) :: xin         ! variable to reduce
+    real(dp), intent(out) :: xout       ! value resulting from the reduction
     integer, intent(out) :: xprocout   ! processor on which reduced value occurs
 
     xout = xin
@@ -2373,7 +2379,7 @@ contains
   subroutine parallel_show_minmax(label,values)
     implicit none
     character(*) :: label
-    real(8),dimension(:,:,:) :: values
+    real(dp),dimension(:,:,:) :: values
     ! begin
     print *,label,minval(values),maxval(values)
   end subroutine parallel_show_minmax
@@ -2468,7 +2474,7 @@ contains
   subroutine staggered_parallel_halo_extrapolate_real8_2d(a)
 
     implicit none
-    real(8),dimension(:,:) :: a
+    real(dp),dimension(:,:) :: a
     integer :: i, j
 
     ! begin
@@ -2594,12 +2600,12 @@ contains
   subroutine staggered_parallel_halo_real8_2d(a)
 
     implicit none
-    real(8),dimension(:,:) :: a
+    real(dp),dimension(:,:) :: a
 
-    real(8),dimension(staggered_lhalo,size(a,2)-staggered_lhalo-staggered_uhalo) :: ecopy
-    real(8),dimension(staggered_uhalo,size(a,2)-staggered_lhalo-staggered_uhalo) :: wcopy
-    real(8),dimension(size(a,1),staggered_lhalo) :: ncopy
-    real(8),dimension(size(a,1),staggered_uhalo) :: scopy
+    real(dp),dimension(staggered_lhalo,size(a,2)-staggered_lhalo-staggered_uhalo) :: ecopy
+    real(dp),dimension(staggered_uhalo,size(a,2)-staggered_lhalo-staggered_uhalo) :: wcopy
+    real(dp),dimension(size(a,1),staggered_lhalo) :: ncopy
+    real(dp),dimension(size(a,1),staggered_uhalo) :: scopy
 
     ! begin
 
@@ -2635,12 +2641,12 @@ contains
   subroutine staggered_parallel_halo_real8_3d(a)
 
     implicit none
-    real(8),dimension(:,:,:) :: a
+    real(dp),dimension(:,:,:) :: a
 
-    real(8),dimension(size(a,1),staggered_lhalo,size(a,3)-staggered_lhalo-staggered_uhalo) :: ecopy
-    real(8),dimension(size(a,1),staggered_uhalo,size(a,3)-staggered_lhalo-staggered_uhalo) :: wcopy
-    real(8),dimension(size(a,1),size(a,2),staggered_lhalo) :: ncopy
-    real(8),dimension(size(a,1),size(a,2),staggered_uhalo) :: scopy
+    real(dp),dimension(size(a,1),staggered_lhalo,size(a,3)-staggered_lhalo-staggered_uhalo) :: ecopy
+    real(dp),dimension(size(a,1),staggered_uhalo,size(a,3)-staggered_lhalo-staggered_uhalo) :: wcopy
+    real(dp),dimension(size(a,1),size(a,2),staggered_lhalo) :: ncopy
+    real(dp),dimension(size(a,1),size(a,2),staggered_uhalo) :: scopy
 
     ! begin
 
@@ -2683,12 +2689,12 @@ contains
     ! The first dimension holds matrix elements for a single row.
 
     implicit none
-    real(8),dimension(:,:,:,:) :: a
+    real(dp),dimension(:,:,:,:) :: a
 
-    real(8),dimension(size(a,1),size(a,2),staggered_lhalo,size(a,4)-staggered_lhalo-staggered_uhalo) :: ecopy
-    real(8),dimension(size(a,1),size(a,2),staggered_uhalo,size(a,4)-staggered_lhalo-staggered_uhalo) :: wcopy
-    real(8),dimension(size(a,1),size(a,2),size(a,3),staggered_lhalo) :: ncopy
-    real(8),dimension(size(a,1),size(a,2),size(a,3),staggered_uhalo) :: scopy
+    real(dp),dimension(size(a,1),size(a,2),staggered_lhalo,size(a,4)-staggered_lhalo-staggered_uhalo) :: ecopy
+    real(dp),dimension(size(a,1),size(a,2),staggered_uhalo,size(a,4)-staggered_lhalo-staggered_uhalo) :: wcopy
+    real(dp),dimension(size(a,1),size(a,2),size(a,3),staggered_lhalo) :: ncopy
+    real(dp),dimension(size(a,1),size(a,2),size(a,3),staggered_uhalo) :: scopy
 
     ! begin
 

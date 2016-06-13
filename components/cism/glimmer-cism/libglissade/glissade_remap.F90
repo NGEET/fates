@@ -513,7 +513,8 @@ module glissade_remap
       if (l_stop) then
          write(message,*) 'Aborting (task = ',this_rank,')'
          call write_log(message)
-         write(message,*) 'Incremental remapping scheme failed. A CFL violation has likely occurred. See the log file for more information.'
+         write(message,*) &
+              'Incremental remapping scheme failed. A CFL violation has likely occurred. See the log file for more information.'
          call write_log(message,GM_FATAL)
       endif
 

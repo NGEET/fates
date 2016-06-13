@@ -404,6 +404,26 @@ coordinates:   lon lat
 #average:       1
 load:          1
 
+[flux_correction]
+dimensions:    time, y1, x1
+units:         meter/year
+long_name:     flux correction applied in addition to acab
+data:          data%climate%flux_correction
+factor:        scale_acab
+standard_name: land_ice_surface_specific_mass_balance_flux_correction
+coordinates:   lon lat
+load:          1
+
+[no_advance_mask]
+dimensions:    time, y1, x1
+units:         1
+long_name:     cells where advance is not allowed
+data:          data%climate%no_advance_mask
+type:          int
+standard_name: land_ice_no_advance_mask
+coordinates:   lon lat
+load:          1
+
 #WHL: scale_bflux = -1, to reverse sign convention from + up to + down
 [bheatflx]
 dimensions:    time, y1, x1
@@ -414,16 +434,36 @@ factor:        scale_bflx
 load:          1
 coordinates:   lon lat
 
-[bmlt]
+[bmlt_ground]
 dimensions:    time, y1, x1
 units:         meter/year
-long_name:     basal melt rate
-data:          data%temper%bmlt
+long_name:     basal melt rate for grounded ice
+data:          data%temper%bmlt_ground
 factor:        scale_acab
-standard_name: land_ice_basal_melt_rate
+standard_name: land_ice_basal_melt_rate_grounded
 load:          1
 coordinates:   lon lat
 #average:       1
+
+[bmlt_float]
+dimensions:    time, y1, x1
+units:         meter/year
+long_name:     basal melt rate for floating ice
+data:          data%temper%bmlt_float
+factor:        scale_acab
+standard_name: land_ice_basal_melt_rate_floating
+load:          1
+coordinates:   lon lat
+#average:       1
+
+[bmlt_float_mask]
+dimensions:    time, y1, x1
+units:         meter/year
+long_name:     mask for basal melting of floating ice
+data:          data%temper%bmlt_float_mask
+standard_name: land_ice_basal_melt_rate_floating_mask
+load:          1
+coordinates:   lon lat
 
 [bfricflx]
 dimensions:    time, y1, x1

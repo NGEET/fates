@@ -15,6 +15,8 @@ module glc_route_ice_runoff
 
 ! !USES:
 
+#include "shr_assert.h"
+  use shr_log_mod, only : errMsg => shr_log_errMsg
   use glc_kinds_mod
   use glc_constants, only: stdout
   use glc_exit_mod
@@ -96,12 +98,12 @@ contains
 
 ! !INPUT PARAMETERS:
 
-    real(r8), intent(in)  :: rofi          ! total solid ice runoff computed by glc for one grid cell
+    real(r8), intent(in)  :: rofi(:,:) ! total solid ice runoff computed by glc for all grid cells
 
 ! !OUTPUT PARAMETERS:
 
-    real(r8), intent(out) :: rofi_to_ocn   ! ice runoff to send to ocean
-    real(r8), intent(out) :: rofi_to_ice   ! ice runoff to send to sea ice
+    real(r8), intent(out) :: rofi_to_ocn(:,:) ! ice runoff to send to ocean
+    real(r8), intent(out) :: rofi_to_ice(:,:) ! ice runoff to send to sea ice
 
 !EOP
 !-----------------------------------------------------------------------
@@ -111,6 +113,9 @@ contains
     character(len=*), parameter :: subname = 'route_ice_runoff'
 
 !-----------------------------------------------------------------------
+
+    SHR_ASSERT_ALL((ubound(rofi_to_ocn) == ubound(rofi)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(rofi_to_ice) == ubound(rofi)), errMsg(__FILE__, __LINE__))
 
     select case (routing)
     case (ROUTING_TO_OCEAN)

@@ -686,7 +686,6 @@ contains
     !> \end{itemize}
 
     use parallel, only : main_task, distributed_gather_var
-    use nan_mod , only : NaN
 
     ! Arguments
 
@@ -709,7 +708,7 @@ contains
     
     allocate(ncells(size(global,1), size(global,2)))
     
-    global(:,:) = NaN
+    global(:,:) = 0.d0
 
     if (present(mask)) then
        tempmask = mask
@@ -728,7 +727,6 @@ contains
 
        nxl_full = size(local_fulldomain,1)
        nyl_full = size(local_fulldomain,2)
-       global(:,:) = 0.d0
        ncells(:,:) = 0.d0
        
        do i=1,nxl_full
@@ -777,7 +775,6 @@ contains
     !> \end{itemize}
 
     use parallel, only : main_task, distributed_gather_var
-    use nan_mod , only : NaN
 
     ! Arguments
 
@@ -797,7 +794,7 @@ contains
 
     ! Beginning of code
 
-    global = NaN
+    global = 0.d0
 
     if (present(mask)) then
        tempmask = mask
@@ -815,7 +812,6 @@ contains
 
        nxl_full = size(local_fulldomain,1)
        nyl_full = size(local_fulldomain,2)
-       global = 0.d0
 
        do i=1,nxl_full
           do j=1,nyl_full
@@ -847,7 +843,6 @@ contains
     !> \end{itemize}
 
     use parallel, only : main_task, distributed_gather_var
-    use nan_mod , only : NaN
 
     ! Arguments
 
@@ -867,7 +862,7 @@ contains
 
     ! Beginning of code
 
-    global = NaN
+    global(:,:) = 0.d0
 
     if (present(mask)) then
        tempmask = mask
@@ -885,7 +880,6 @@ contains
 
        nxl_full = size(local_fulldomain,1)
        nyl_full = size(local_fulldomain,2)
-       global(:,:) = 0.d0
 
        ! Set topography value in global cells for which the mask exists, to a very high value.
        ! This should be reduced on the next swing through the loop.

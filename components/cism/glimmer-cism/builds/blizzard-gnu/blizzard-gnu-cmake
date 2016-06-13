@@ -43,8 +43,6 @@ cmake \
   -D CISM_USE_GPTL_INSTRUMENTATION:BOOL=ON \
   -D CISM_COUPLED:BOOL=OFF \
 \
-  -D CISM_GNU=ON \
-\
   -D CISM_TRILINOS_DIR=/opt/trilinos-11.4.1_GNU4.8.3 \
   -D CISM_HDF5_LIB_DIR=/opt/hdf5_gcc4.8.3 \
   -D CISM_NETCDF_DIR=/opt/netcdf4.3.2_gcc4.8.3 \

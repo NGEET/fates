@@ -27,6 +27,7 @@
 module parallel
 
   use netcdf
+  use glimmer_global, only : dp, sp
   implicit none
 
   ! Information on the local & global bounds of an array
@@ -129,43 +130,43 @@ module parallel
 
   ! JEFF Declarations for undistributed variables on main_task.
   ! Later move to separate module?  These are only temporary until code is completely distributed.
-  real(8),dimension(:,:,:),allocatable :: gathered_efvs  ! Output var from glam_velo_fordsiapstr(), used often
-  real(8),dimension(:,:,:),allocatable :: gathered_efvs2  ! Variable for testing that scatter/gather are inverses
-  real(8),dimension(:,:,:),allocatable :: gathered_uvel  ! Output var from glam_velo_fordsiapstr(), used often
-  real(8),dimension(:,:,:),allocatable :: gathered_vvel  ! Output var from glam_velo_fordsiapstr(), used often
-  real(8),dimension(:,:),allocatable :: gathered_uflx    ! Output var from glam_velo_fordsiapstr(), used often
-  real(8),dimension(:,:),allocatable :: gathered_vflx    ! Output var from glam_velo_fordsiapstr(), used often
-  real(8),dimension(:,:,:),allocatable :: gathered_velnorm  ! Variable calculated in run_ho_diagnostic(), is this used?
-  real(8),dimension(:,:),allocatable :: gathered_thck    ! Used in horizontal_remap_in()
-  real(8),dimension(:,:),allocatable :: gathered_stagthck ! Used in horizontal_remap_in()
-  real(4),dimension(:,:),allocatable :: gathered_acab    ! Used in horizontal_remap_in()
-  real(8),dimension(:,:,:),allocatable :: gathered_temp  ! Used in horizontal_remap_in()
-  real(8),dimension(:,:),allocatable :: gathered_dusrfdew  ! Used in glide_stress()
-  real(8),dimension(:,:),allocatable :: gathered_dusrfdns  ! Used in glide_stress()
-  real(8),dimension(:,:),allocatable :: gathered_dthckdew  ! Used in glide_stress()
-  real(8),dimension(:,:),allocatable :: gathered_dthckdns  ! Used in glide_stress()
-  real(8),dimension(:,:,:),allocatable :: gathered_tauxx   ! Calculated in glide_stress()
-  real(8),dimension(:,:,:),allocatable :: gathered_tauyy   ! Calculated in glide_stress()
-  real(8),dimension(:,:,:),allocatable :: gathered_tauxy   ! Calculated in glide_stress()
-  real(8),dimension(:,:,:),allocatable :: gathered_tauscalar   ! Calculated in glide_stress()
-  real(8),dimension(:,:,:),allocatable :: gathered_tauxz   ! Calculated in glide_stress()
-  real(8),dimension(:,:,:),allocatable :: gathered_tauyz   ! Calculated in glide_stress()
-  real(8),dimension(:,:),allocatable :: gathered_topg  ! Bedrock topology, Used in glide_set_mask()
+  real(dp),dimension(:,:,:),allocatable :: gathered_efvs  ! Output var from glam_velo_fordsiapstr(), used often
+  real(dp),dimension(:,:,:),allocatable :: gathered_efvs2  ! Variable for testing that scatter/gather are inverses
+  real(dp),dimension(:,:,:),allocatable :: gathered_uvel  ! Output var from glam_velo_fordsiapstr(), used often
+  real(dp),dimension(:,:,:),allocatable :: gathered_vvel  ! Output var from glam_velo_fordsiapstr(), used often
+  real(dp),dimension(:,:),allocatable :: gathered_uflx    ! Output var from glam_velo_fordsiapstr(), used often
+  real(dp),dimension(:,:),allocatable :: gathered_vflx    ! Output var from glam_velo_fordsiapstr(), used often
+  real(dp),dimension(:,:,:),allocatable :: gathered_velnorm  ! Variable calculated in run_ho_diagnostic(), is this used?
+  real(dp),dimension(:,:),allocatable :: gathered_thck    ! Used in horizontal_remap_in()
+  real(dp),dimension(:,:),allocatable :: gathered_stagthck ! Used in horizontal_remap_in()
+  real(sp),dimension(:,:),allocatable :: gathered_acab    ! Used in horizontal_remap_in()
+  real(dp),dimension(:,:,:),allocatable :: gathered_temp  ! Used in horizontal_remap_in()
+  real(dp),dimension(:,:),allocatable :: gathered_dusrfdew  ! Used in glide_stress()
+  real(dp),dimension(:,:),allocatable :: gathered_dusrfdns  ! Used in glide_stress()
+  real(dp),dimension(:,:),allocatable :: gathered_dthckdew  ! Used in glide_stress()
+  real(dp),dimension(:,:),allocatable :: gathered_dthckdns  ! Used in glide_stress()
+  real(dp),dimension(:,:,:),allocatable :: gathered_tauxx   ! Calculated in glide_stress()
+  real(dp),dimension(:,:,:),allocatable :: gathered_tauyy   ! Calculated in glide_stress()
+  real(dp),dimension(:,:,:),allocatable :: gathered_tauxy   ! Calculated in glide_stress()
+  real(dp),dimension(:,:,:),allocatable :: gathered_tauscalar   ! Calculated in glide_stress()
+  real(dp),dimension(:,:,:),allocatable :: gathered_tauxz   ! Calculated in glide_stress()
+  real(dp),dimension(:,:,:),allocatable :: gathered_tauyz   ! Calculated in glide_stress()
+  real(dp),dimension(:,:),allocatable :: gathered_topg  ! Bedrock topology, Used in glide_set_mask()
   integer,dimension(:,:),allocatable :: gathered_thkmask  ! Calculated in glide_set_mask()
-  real(8),dimension(:,:),allocatable :: gathered_marine_bc_normal  ! Calculated in glide_marine_margin_normal()
-  real(8),dimension(:,:,:),allocatable :: gathered_surfvel   ! Used in calc_gline_flux()
-  real(8),dimension(:,:),allocatable :: gathered_gline_flux   ! Calculated in calc_gline_flux()
-  real(8),dimension(:,:),allocatable :: gathered_ubas   ! Used in calc_gline_flux()
-  real(8),dimension(:,:),allocatable :: gathered_vbas   ! Used in calc_gline_flux()
-  real(8),dimension(:,:),allocatable :: gathered_relx   ! Used in glide_marinlim()
-  real(8),dimension(:,:,:),allocatable :: gathered_flwa   ! Used in glide_marinlim()
-  real(4),dimension(:,:),allocatable :: gathered_calving   ! Used in glide_marinlim()
-  real(4),dimension(:,:),allocatable :: gathered_backstress   ! Used in glide_marinlim()
-  real(8),dimension(:,:),allocatable :: gathered_usrf   ! Used in glide_marinlim()
+  real(dp),dimension(:,:),allocatable :: gathered_marine_bc_normal  ! Calculated in glide_marine_margin_normal()
+  real(dp),dimension(:,:,:),allocatable :: gathered_surfvel   ! Used in calc_gline_flux()
+  real(dp),dimension(:,:),allocatable :: gathered_gline_flux   ! Calculated in calc_gline_flux()
+  real(dp),dimension(:,:),allocatable :: gathered_ubas   ! Used in calc_gline_flux()
+  real(dp),dimension(:,:),allocatable :: gathered_vbas   ! Used in calc_gline_flux()
+  real(dp),dimension(:,:),allocatable :: gathered_relx   ! Used in glide_marinlim()
+  real(dp),dimension(:,:,:),allocatable :: gathered_flwa   ! Used in glide_marinlim()
+  real(sp),dimension(:,:),allocatable :: gathered_calving   ! Used in glide_marinlim()
+  real(sp),dimension(:,:),allocatable :: gathered_backstress   ! Used in glide_marinlim()
+  real(dp),dimension(:,:),allocatable :: gathered_usrf   ! Used in glide_marinlim()
   logical,dimension(:,:),allocatable :: gathered_backstressmap ! Used in glide_marinlim()
-  real(8),dimension(:,:),allocatable :: gathered_tau_x   ! Calculated in calc_basal_shear()
-  real(8),dimension(:,:),allocatable :: gathered_tau_y   ! Calculated in calc_basal_shear()
-  real(8),dimension(:,:),allocatable :: gathered_lsrf   ! Used in glide_marinlim()
+  real(dp),dimension(:,:),allocatable :: gathered_tau_x   ! Calculated in calc_basal_shear()
+  real(dp),dimension(:,:),allocatable :: gathered_tau_y   ! Calculated in calc_basal_shear()
+  real(dp),dimension(:,:),allocatable :: gathered_lsrf   ! Used in glide_marinlim()
 
   interface broadcast
      module procedure broadcast_character
@@ -410,7 +411,7 @@ contains
     use mpi_mod
     implicit none
     integer :: ierror
-    real(4) :: r
+    real(sp) :: r
     integer, intent(in), optional :: proc  ! optional argument indicating which processor to broadcast from
     integer :: source ! local variable indicating which processor to broadcast from
     ! begin
@@ -425,7 +426,7 @@ contains
   subroutine broadcast_real4_1d(a, proc)
     use mpi_mod
     implicit none
-    real(4),dimension(:) :: a
+    real(sp),dimension(:) :: a
     integer :: ierror
     integer, intent(in), optional :: proc  ! optional argument indicating which processor to broadcast from
     integer :: source ! local variable indicating which processor to broadcast from
@@ -442,7 +443,7 @@ contains
     use mpi_mod
     implicit none
     integer :: ierror
-    real(8) :: r
+    real(dp) :: r
     integer, intent(in), optional :: proc  ! optional argument indicating which processor to broadcast from
     integer :: source ! local variable indicating which processor to broadcast from
     ! begin
@@ -457,7 +458,7 @@ contains
   subroutine broadcast_real8_1d(a, proc)
     use mpi_mod
     implicit none
-    real(8),dimension(:) :: a
+    real(dp),dimension(:) :: a
     integer :: ierror
     integer, intent(in), optional :: proc  ! optional argument indicating which processor to broadcast from
     integer :: source ! local variable indicating which processor to broadcast from
@@ -652,13 +653,13 @@ contains
 
     use mpi_mod
     implicit none
-    real(4),dimension(:,:),intent(in) :: values
-    real(4),dimension(:,:),allocatable,intent(inout) :: global_values
+    real(sp),dimension(:,:),intent(in) :: values
+    real(sp),dimension(:,:),allocatable,intent(inout) :: global_values
 
     integer :: i,ierror,j,k
     integer,dimension(:),allocatable :: displs,recvcounts
-    real(4),dimension(:),allocatable :: recvbuf
-    real(4),dimension(:,:),allocatable :: sendbuf
+    real(sp),dimension(:),allocatable :: recvbuf
+    real(sp),dimension(:,:),allocatable :: sendbuf
 
     if (uhalo==0 .and. size(values,1)==local_ewn-1) then
        ! Fixing this would require some generalization as is done for distributed_put_var
@@ -735,14 +736,14 @@ contains
 
     use mpi_mod
     implicit none
-    real(4),dimension(:,:,:),intent(in) :: values
-    real(4),dimension(:,:,:),allocatable,intent(inout) :: global_values
+    real(sp),dimension(:,:,:),intent(in) :: values
+    real(sp),dimension(:,:,:),allocatable,intent(inout) :: global_values
     integer,optional,intent(in) :: ld1, ud1
 
     integer :: i,ierror,j,k,d1l,d1u
     integer,dimension(:),allocatable :: displs,recvcounts
-    real(4),dimension(:),allocatable :: recvbuf
-    real(4),dimension(:,:,:),allocatable :: sendbuf
+    real(sp),dimension(:),allocatable :: recvbuf
+    real(sp),dimension(:,:,:),allocatable :: sendbuf
 
     if (uhalo==0 .and. size(values,1)==local_ewn-1) then
        ! Fixing this would require some generalization as is done for distributed_put_var
@@ -837,13 +838,13 @@ contains
 
     use mpi_mod
     implicit none
-    real(8),dimension(:,:),intent(in) :: values
-    real(8),dimension(:,:),allocatable,intent(inout) :: global_values
+    real(dp),dimension(:,:),intent(in) :: values
+    real(dp),dimension(:,:),allocatable,intent(inout) :: global_values
 
     integer :: i,ierror,j,k
     integer,dimension(:),allocatable :: displs,recvcounts
-    real(8),dimension(:),allocatable :: recvbuf
-    real(8),dimension(:,:),allocatable :: sendbuf
+    real(dp),dimension(:),allocatable :: recvbuf
+    real(dp),dimension(:,:),allocatable :: sendbuf
 
     if (uhalo==0 .and. size(values,1)==local_ewn-1) then
        ! Fixing this would require some generalization as is done for distributed_put_var
@@ -920,14 +921,14 @@ contains
 
     use mpi_mod
     implicit none
-    real(8),dimension(:,:,:),intent(in) :: values
-    real(8),dimension(:,:,:),allocatable,intent(inout) :: global_values
+    real(dp),dimension(:,:,:),intent(in) :: values
+    real(dp),dimension(:,:,:),allocatable,intent(inout) :: global_values
     integer,optional,intent(in) :: ld1, ud1
 
     integer :: i,ierror,j,k,d1l,d1u
     integer,dimension(:),allocatable :: displs,recvcounts
-    real(8),dimension(:),allocatable :: recvbuf
-    real(8),dimension(:,:,:),allocatable :: sendbuf
+    real(dp),dimension(:),allocatable :: recvbuf
+    real(dp),dimension(:,:,:),allocatable :: sendbuf
 
     if (uhalo==0 .and. size(values,1)==local_ewn-1) then
        ! Fixing this would require some generalization as is done for distributed_put_var
@@ -1087,13 +1088,13 @@ contains
     implicit none
     integer :: distributed_get_var_real4_1d,ncid,varid
     integer,dimension(:) :: start
-    real(4),dimension(:) :: values
+    real(sp),dimension(:) :: values
 
     integer :: i,ierror,myn,status,x1id,y1id
     integer,dimension(2) :: mybounds
     integer,dimension(:),allocatable :: displs,sendcounts
     integer,dimension(:,:),allocatable :: bounds
-    real(4),dimension(:),allocatable :: global_values,sendbuf
+    real(sp),dimension(:),allocatable :: global_values,sendbuf
 
     ! begin
 
@@ -1152,14 +1153,14 @@ contains
     implicit none
     integer :: distributed_get_var_real4_2d,ncid,varid
     integer,dimension(:) :: start
-    real(4),dimension(:,:) :: values
+    real(sp),dimension(:,:) :: values
 
     integer :: ew,i,ierror,ns
     integer,dimension(4) :: mybounds
     integer,dimension(:),allocatable :: displs,sendcounts
     integer,dimension(:,:),allocatable :: bounds
-    real(4),dimension(:),allocatable :: sendbuf
-    real(4),dimension(:,:),allocatable :: global_values,recvbuf
+    real(sp),dimension(:),allocatable :: sendbuf
+    real(sp),dimension(:,:),allocatable :: global_values,recvbuf
 
     ! begin
 
@@ -1222,13 +1223,13 @@ contains
     implicit none
     integer :: distributed_get_var_real8_1d,ncid,varid
     integer,dimension(:) :: start
-    real(8),dimension(:) :: values
+    real(dp),dimension(:) :: values
 
     integer :: i,ierror,myn,status,x1id,y1id
     integer,dimension(2) :: mybounds
     integer,dimension(:),allocatable :: displs,sendcounts
     integer,dimension(:,:),allocatable :: bounds
-    real(8),dimension(:),allocatable :: global_values,sendbuf
+    real(dp),dimension(:),allocatable :: global_values,sendbuf
 
     ! begin
 
@@ -1287,14 +1288,14 @@ contains
     implicit none
     integer :: distributed_get_var_real8_2d,ncid,varid
     integer,dimension(:) :: start
-    real(8),dimension(:,:) :: values
+    real(dp),dimension(:,:) :: values
 
     integer :: ew,i,ierror,ns
     integer,dimension(4) :: mybounds
     integer,dimension(:),allocatable :: displs,sendcounts
     integer,dimension(:,:),allocatable :: bounds
-    real(8),dimension(:),allocatable :: sendbuf
-    real(8),dimension(:,:),allocatable :: global_values,recvbuf
+    real(dp),dimension(:),allocatable :: sendbuf
+    real(dp),dimension(:,:),allocatable :: global_values,recvbuf
 
     ! begin
 
@@ -1356,14 +1357,14 @@ contains
     implicit none
     integer :: distributed_get_var_real8_3d,ncid,varid
     integer,dimension(:) :: start
-    real(8),dimension(:,:,:) :: values
+    real(dp),dimension(:,:,:) :: values
 
     integer :: ew,i,ierror,ns
     integer,dimension(4) :: mybounds
     integer,dimension(:),allocatable :: displs,sendcounts
     integer,dimension(:,:),allocatable :: bounds
-    real(8),dimension(:),allocatable :: sendbuf
-    real(8),dimension(:,:,:),allocatable :: global_values,recvbuf
+    real(dp),dimension(:),allocatable :: sendbuf
+    real(dp),dimension(:,:,:),allocatable :: global_values,recvbuf
 
     ! begin
 
@@ -1440,7 +1441,7 @@ contains
 
     integer :: best,i,j,metric
     integer :: ewrank,nsrank
-    real(8) :: rewtasks,rnstasks
+    real(dp) :: rewtasks,rnstasks
 
     ! begin
 
@@ -1500,7 +1501,7 @@ contains
     ! (There are ProcsEW processors per row.)
     global_col_offset = 0
     do ewrank=0,mod(this_rank, ProcsEW)-1
-      rewtasks = 1/real(ewtasks,8)
+      rewtasks = 1/real(ewtasks,dp)
       ewlb = nint(ewrank*global_ewn*rewtasks)+1
       ewub = nint((ewrank+1)*global_ewn*rewtasks)
       own_ewn = ewub-ewlb+1
@@ -1511,7 +1512,7 @@ contains
     ! (Integer division required for this_rank/ProcsEW)
     global_row_offset = 0
     do nsrank=0,(this_rank/ProcsEW)-1
-      rnstasks = 1/real(nstasks,8)
+      rnstasks = 1/real(nstasks,dp)
       nslb = nint(nsrank*global_nsn*rnstasks)+1
       nsub = nint((nsrank+1)*global_nsn*rnstasks)
       own_nsn = nsub-nslb+1
@@ -1520,7 +1521,7 @@ contains
 
     ! Set local processor's grid indices, including halo offsets
     ewrank = mod(this_rank,ewtasks)
-    rewtasks = 1/real(ewtasks,8)
+    rewtasks = 1/real(ewtasks,dp)
     ewlb = nint(ewrank*global_ewn*rewtasks)+1-lhalo
     ewub = nint((ewrank+1)*global_ewn*rewtasks)+uhalo
     local_ewn = ewub-ewlb+1
@@ -1528,7 +1529,7 @@ contains
     ewn = local_ewn
 
     nsrank = this_rank/ewtasks
-    rnstasks = 1/real(nstasks,8)
+    rnstasks = 1/real(nstasks,dp)
     nslb = nint(nsrank*global_nsn*rnstasks)+1-lhalo
     nsub = nint((nsrank+1)*global_nsn*rnstasks)+uhalo
     local_nsn = nsub-nslb+1
@@ -1721,7 +1722,7 @@ contains
     use mpi_mod
     implicit none
     character(*) :: name
-    real(8),dimension(:,:) :: values
+    real(dp),dimension(:,:) :: values
 
     integer,parameter :: u = 33
     character(3) :: ts
@@ -1729,8 +1730,8 @@ contains
     integer,dimension(4) :: mybounds
     integer,dimension(:),allocatable :: displs,recvcounts
     integer,dimension(:,:),allocatable :: bounds
-    real(8),dimension(:),allocatable :: recvbuf
-    real(8),dimension(:,:),allocatable :: global_values,sendbuf
+    real(dp),dimension(:),allocatable :: recvbuf
+    real(dp),dimension(:,:),allocatable :: global_values,sendbuf
 
     ! begin
 
@@ -1805,7 +1806,7 @@ contains
     use mpi_mod
     implicit none
     character(*) :: name
-    real(8),dimension(:,:,:) :: values
+    real(dp),dimension(:,:,:) :: values
 
     integer,parameter :: u = 33
     character(3) :: ts
@@ -1813,8 +1814,8 @@ contains
     integer,dimension(4) :: mybounds
     integer,dimension(:),allocatable :: displs,recvcounts
     integer,dimension(:,:),allocatable :: bounds
-    real(8),dimension(:),allocatable :: recvbuf
-    real(8),dimension(:,:,:),allocatable :: global_values,sendbuf
+    real(dp),dimension(:),allocatable :: recvbuf
+    real(dp),dimension(:,:,:),allocatable :: global_values,sendbuf
 
     ! begin
 
@@ -1957,14 +1958,14 @@ contains
     implicit none
     integer :: distributed_put_var_real4_1d,ncid,varid
     integer,dimension(:),optional :: start
-    real(4),dimension(:) :: values
+    real(sp),dimension(:) :: values
 
     integer :: i,ierror,myn,status,x0id,x1id,y0id,y1id
 
     integer,dimension(2) :: mybounds
     integer,dimension(:),allocatable :: displs,recvcounts
     integer,dimension(:,:),allocatable :: bounds
-    real(4),dimension(:),allocatable :: global_values,recvbuf
+    real(sp),dimension(:),allocatable :: global_values,recvbuf
 
     ! begin
 
@@ -2042,15 +2043,15 @@ contains
     implicit none
     integer :: distributed_put_var_real4_2d,ncid,varid
     integer,dimension(:) :: start
-    real(4),dimension(:,:) :: values
+    real(sp),dimension(:,:) :: values
 
     type(bounds_info_type) :: bounds_info
     integer :: i,ierror
     integer,dimension(4) :: mybounds
     integer,dimension(:),allocatable :: displs,recvcounts
     integer,dimension(:,:),allocatable :: bounds
-    real(4),dimension(:),allocatable :: recvbuf
-    real(4),dimension(:,:),allocatable :: global_values,sendbuf
+    real(sp),dimension(:),allocatable :: recvbuf
+    real(sp),dimension(:,:),allocatable :: global_values,sendbuf
 
     ! begin
 
@@ -2109,14 +2110,14 @@ contains
     implicit none
     integer :: distributed_put_var_real8_1d,ncid,varid
     integer,dimension(:),optional :: start
-    real(8),dimension(:) :: values
+    real(dp),dimension(:) :: values
 
     integer :: i,ierror,myn,status,x0id,x1id,y0id,y1id
 
     integer,dimension(2) :: mybounds
     integer,dimension(:),allocatable :: displs,recvcounts
     integer,dimension(:,:),allocatable :: bounds
-    real(8),dimension(:),allocatable :: global_values,recvbuf
+    real(dp),dimension(:),allocatable :: global_values,recvbuf
 
     ! begin
 
@@ -2194,15 +2195,15 @@ contains
     implicit none
     integer :: distributed_put_var_real8_2d,ncid,varid
     integer,dimension(:) :: start
-    real(8),dimension(:,:) :: values
+    real(dp),dimension(:,:) :: values
 
     type(bounds_info_type) :: bounds_info
     integer :: i,ierror
     integer,dimension(4) :: mybounds
     integer,dimension(:),allocatable :: displs,recvcounts
     integer,dimension(:,:),allocatable :: bounds
-    real(8),dimension(:),allocatable :: recvbuf
-    real(8),dimension(:,:),allocatable :: global_values,sendbuf
+    real(dp),dimension(:),allocatable :: recvbuf
+    real(dp),dimension(:,:),allocatable :: global_values,sendbuf
 
     ! begin
 
@@ -2259,15 +2260,15 @@ contains
     implicit none
     integer :: distributed_put_var_real8_3d,ncid,varid
     integer,dimension(:) :: start
-    real(8),dimension(:,:,:) :: values
+    real(dp),dimension(:,:,:) :: values
 
     type(bounds_info_type) :: bounds_info
     integer :: i,ierror,nz
     integer,dimension(4) :: mybounds
     integer,dimension(:),allocatable :: displs,recvcounts
     integer,dimension(:,:),allocatable :: bounds
-    real(8),dimension(:),allocatable :: recvbuf
-    real(8),dimension(:,:,:),allocatable :: global_values,sendbuf
+    real(dp),dimension(:),allocatable :: recvbuf
+    real(dp),dimension(:,:,:),allocatable :: global_values,sendbuf
 
     ! begin
 
@@ -2469,13 +2470,13 @@ contains
     ! global_values is deallocated at the end.
     use mpi_mod
     implicit none
-    real(4),dimension(:,:),intent(inout) :: values  ! populated from values on main_task
-    real(4),dimension(:,:),allocatable,intent(inout) :: global_values  ! only used on main_task
+    real(sp),dimension(:,:),intent(inout) :: values  ! populated from values on main_task
+    real(sp),dimension(:,:),allocatable,intent(inout) :: global_values  ! only used on main_task
 
     integer :: i,ierror,j,k
     integer,dimension(:),allocatable :: displs,sendcounts
-    real(4),dimension(:),allocatable :: sendbuf
-    real(4),dimension(:,:),allocatable :: recvbuf
+    real(sp),dimension(:),allocatable :: sendbuf
+    real(sp),dimension(:,:),allocatable :: recvbuf
 
     if (uhalo==0 .and. size(values,1)==local_ewn-1) then
        ! Fixing this would require some generalization as is done for distributed_put_var
@@ -2539,13 +2540,13 @@ contains
     ! global_values is deallocated at the end.
     use mpi_mod
     implicit none
-    real(4),dimension(:,:,:),intent(inout) :: values  ! populated from values on main_task
-    real(4),dimension(:,:,:),allocatable,intent(inout) :: global_values  ! only used on main_task
+    real(sp),dimension(:,:,:),intent(inout) :: values  ! populated from values on main_task
+    real(sp),dimension(:,:,:),allocatable,intent(inout) :: global_values  ! only used on main_task
 
     integer :: i,ierror,j,k
     integer,dimension(:),allocatable :: displs,sendcounts
-    real(4),dimension(:),allocatable :: sendbuf
-    real(4),dimension(:,:,:),allocatable :: recvbuf
+    real(sp),dimension(:),allocatable :: sendbuf
+    real(sp),dimension(:,:,:),allocatable :: recvbuf
 
     if (uhalo==0 .and. size(values,1)==local_ewn-1) then
        ! Fixing this would require some generalization as is done for distributed_put_var
@@ -2611,13 +2612,13 @@ contains
     ! global_values is deallocated at the end.
     use mpi_mod
     implicit none
-    real(8),dimension(:,:),intent(inout) :: values  ! populated from values on main_task
-    real(8),dimension(:,:),allocatable,intent(inout) :: global_values  ! only used on main_task
+    real(dp),dimension(:,:),intent(inout) :: values  ! populated from values on main_task
+    real(dp),dimension(:,:),allocatable,intent(inout) :: global_values  ! only used on main_task
 
     integer :: i,ierror,j,k
     integer,dimension(:),allocatable :: displs,sendcounts
-    real(8),dimension(:),allocatable :: sendbuf
-    real(8),dimension(:,:),allocatable :: recvbuf
+    real(dp),dimension(:),allocatable :: sendbuf
+    real(dp),dimension(:,:),allocatable :: recvbuf
 
     if (uhalo==0 .and. size(values,1)==local_ewn-1) then
        ! Fixing this would require some generalization as is done for distributed_put_var
@@ -2681,15 +2682,15 @@ contains
     ! global_values is deallocated at the end.
     use mpi_mod
     implicit none
-    real(8),dimension(:,:,:),intent(inout) :: values  ! populated from values on main_task
-    real(8),dimension(:,:,:),allocatable,intent(inout) :: global_values  ! only used on main_task
+    real(dp),dimension(:,:,:),intent(inout) :: values  ! populated from values on main_task
+    real(dp),dimension(:,:,:),allocatable,intent(inout) :: global_values  ! only used on main_task
     logical,optional :: deallocflag
     logical :: deallocmem
 
     integer :: i,ierror,j,k
     integer,dimension(:),allocatable :: displs,sendcounts
-    real(8),dimension(:),allocatable :: sendbuf
-    real(8),dimension(:,:,:),allocatable :: recvbuf
+    real(dp),dimension(:),allocatable :: sendbuf
+    real(dp),dimension(:,:,:),allocatable :: recvbuf
 
     if (uhalo==0 .and. size(values,1)==local_ewn-1) then
        ! Fixing this would require some generalization as is done for distributed_put_var
@@ -2799,10 +2800,10 @@ contains
   subroutine global_sum_real8_scalar(x)
     use mpi_mod
     implicit none
-    real(8) :: x
+    real(dp) :: x
     
     integer :: ierror
-    real(8) :: sum
+    real(dp) :: sum
     ! begin
     call mpi_allreduce(x,sum,1,mpi_real8,mpi_sum,comm,ierror)
     x = sum
@@ -2811,10 +2812,10 @@ contains
   subroutine global_sum_real8_1d(x)
     use mpi_mod
     implicit none
-    real(8),dimension(:) :: x
+    real(dp),dimension(:) :: x
     
     integer :: ierror
-    real(8),dimension(size(x)) :: sum
+    real(dp),dimension(size(x)) :: sum
     ! begin
     call mpi_allreduce(x,sum,size(x),mpi_real8,mpi_sum,comm,ierror)
     x(:) = sum(:)
@@ -2857,8 +2858,8 @@ contains
 
   subroutine parallel_convert_haloed_to_nonhaloed_real4_2d(input_with_halo, output_no_halo)
     ! Given an input array that has halo cells, return an output array without halo cells
-    real(4),dimension(:,:), intent(in)  :: input_with_halo
-    real(4),dimension(:,:), intent(out) :: output_no_halo
+    real(sp),dimension(:,:), intent(in)  :: input_with_halo
+    real(sp),dimension(:,:), intent(out) :: output_no_halo
 
     if (size(input_with_halo,1) /= local_ewn .or. size(input_with_halo,2) /= local_nsn) then
        write(*,*) "Unexpected size for input_with_halo: ", &
@@ -2881,8 +2882,8 @@ contains
 
   subroutine parallel_convert_haloed_to_nonhaloed_real8_2d(input_with_halo, output_no_halo)
     ! Given an input array that has halo cells, return an output array without halo cells
-    real(8),dimension(:,:), intent(in)  :: input_with_halo
-    real(8),dimension(:,:), intent(out) :: output_no_halo
+    real(dp),dimension(:,:), intent(in)  :: input_with_halo
+    real(dp),dimension(:,:), intent(out) :: output_no_halo
 
     if (size(input_with_halo,1) /= local_ewn .or. size(input_with_halo,2) /= local_nsn) then
        write(*,*) "Unexpected size for input_with_halo: ", &
@@ -2905,8 +2906,8 @@ contains
 
   subroutine parallel_convert_nonhaloed_to_haloed_real4_2d(input_no_halo, output_with_halo)
     ! Given an input array without halo cells, return an output array with halo cells
-    real(4),dimension(:,:), intent(in)  :: input_no_halo
-    real(4),dimension(:,:), intent(out) :: output_with_halo
+    real(sp),dimension(:,:), intent(in)  :: input_no_halo
+    real(sp),dimension(:,:), intent(out) :: output_with_halo
     
     if (size(input_no_halo,1) /= own_ewn .or. size(input_no_halo,2) /= own_nsn) then
        write(*,*) "Unexpected size for input_no_halo: ", &
@@ -2931,8 +2932,8 @@ contains
 
   subroutine parallel_convert_nonhaloed_to_haloed_real8_2d(input_no_halo, output_with_halo)
     ! Given an input array without halo cells, return an output array with halo cells
-    real(8),dimension(:,:), intent(in)  :: input_no_halo
-    real(8),dimension(:,:), intent(out) :: output_with_halo
+    real(dp),dimension(:,:), intent(in)  :: input_no_halo
+    real(dp),dimension(:,:), intent(out) :: output_with_halo
     
     if (size(input_no_halo,1) /= own_ewn .or. size(input_no_halo,2) /= own_nsn) then
        write(*,*) "Unexpected size for input_no_halo: ", &
@@ -3030,7 +3031,7 @@ contains
     implicit none
     integer :: ncid,parallel_get_att_real4,varid
     character(len=*) :: name
-    real(4) :: values
+    real(sp) :: values
     ! begin
     if (main_task) parallel_get_att_real4 = &
          nf90_get_att(ncid,varid,name,values)
@@ -3042,7 +3043,7 @@ contains
     implicit none
     integer :: ncid,parallel_get_att_real4_1d,varid
     character(len=*) :: name
-    real(4),dimension(:) :: values
+    real(sp),dimension(:) :: values
     ! begin
     if (main_task) parallel_get_att_real4_1d = &
          nf90_get_att(ncid,varid,name,values)
@@ -3054,7 +3055,7 @@ contains
     implicit none
     integer :: ncid,parallel_get_att_real8,varid
     character(len=*) :: name
-    real(8) :: values
+    real(dp) :: values
     ! begin
     if (main_task) parallel_get_att_real8 = &
          nf90_get_att(ncid,varid,name,values)
@@ -3066,7 +3067,7 @@ contains
     implicit none
     integer :: ncid,parallel_get_att_real8_1d,varid
     character(len=*) :: name
-    real(8),dimension(:) :: values
+    real(dp),dimension(:) :: values
     ! begin
     if (main_task) parallel_get_att_real8_1d = &
          nf90_get_att(ncid,varid,name,values)
@@ -3088,7 +3089,7 @@ contains
   function parallel_get_var_real4_1d(ncid,varid,values)
     implicit none
     integer :: ncid,parallel_get_var_real4_1d,varid
-    real(4),dimension(:) :: values
+    real(sp),dimension(:) :: values
     ! begin
     if (main_task) parallel_get_var_real4_1d = &
          nf90_get_var(ncid,varid,values)
@@ -3099,7 +3100,7 @@ contains
   function parallel_get_var_real8_1d(ncid,varid,values)
     implicit none
     integer :: ncid,parallel_get_var_real8_1d,varid
-    real(8),dimension(:) :: values
+    real(dp),dimension(:) :: values
     ! begin
     if (main_task) parallel_get_var_real8_1d = &
          nf90_get_var(ncid,varid,values)
@@ -3256,8 +3257,9 @@ contains
 
     ! unknown grid
     if (size(a,1)/=local_ewn.or.size(a,2)/=local_nsn) then
-         write(*,*) "Unknown Grid: Size a=(", size(a,1), ",", size(a,2), ") and local_ewn and local_nsn = ", local_ewn, ",", local_nsn
-         call parallel_stop(__FILE__,__LINE__)
+       write(*,*) "Unknown Grid: Size a=(", size(a,1), ",", size(a,2), ") and local_ewn and local_nsn = ", &
+            local_ewn, ",", local_nsn
+       call parallel_stop(__FILE__,__LINE__)
     endif
 
     ! unstaggered grid
@@ -3332,8 +3334,9 @@ contains
 
     ! unknown grid
     if (size(a,1)/=local_ewn.or.size(a,2)/=local_nsn) then
-         write(*,*) "Unknown Grid: Size a=(", size(a,1), ",", size(a,2), ") and local_ewn and local_nsn = ", local_ewn, ",", local_nsn
-         call parallel_stop(__FILE__,__LINE__)
+       write(*,*) "Unknown Grid: Size a=(", size(a,1), ",", size(a,2), ") and local_ewn and local_nsn = ", &
+            local_ewn, ",", local_nsn
+       call parallel_stop(__FILE__,__LINE__)
     endif
 
     ! unstaggered grid
@@ -3393,13 +3396,13 @@ contains
   subroutine parallel_halo_real4_2d(a)
     use mpi_mod
     implicit none
-    real(4),dimension(:,:) :: a
+    real(sp),dimension(:,:) :: a
 
     integer :: erequest,ierror,nrequest,srequest,wrequest
-    real(4),dimension(lhalo,local_nsn-lhalo-uhalo) :: esend,wrecv
-    real(4),dimension(uhalo,local_nsn-lhalo-uhalo) :: erecv,wsend
-    real(4),dimension(local_ewn,lhalo) :: nsend,srecv
-    real(4),dimension(local_ewn,uhalo) :: nrecv,ssend
+    real(sp),dimension(lhalo,local_nsn-lhalo-uhalo) :: esend,wrecv
+    real(sp),dimension(uhalo,local_nsn-lhalo-uhalo) :: erecv,wsend
+    real(sp),dimension(local_ewn,lhalo) :: nsend,srecv
+    real(sp),dimension(local_ewn,uhalo) :: nrecv,ssend
 
     ! begin
 
@@ -3408,8 +3411,9 @@ contains
 
     ! unknown grid
     if (size(a,1)/=local_ewn.or.size(a,2)/=local_nsn) then
-         write(*,*) "Unknown Grid: Size a=(", size(a,1), ",", size(a,2), ") and local_ewn and local_nsn = ", local_ewn, ",", local_nsn
-         call parallel_stop(__FILE__,__LINE__)
+       write(*,*) "Unknown Grid: Size a=(", size(a,1), ",", size(a,2), ") and local_ewn and local_nsn = ", &
+            local_ewn, ",", local_nsn
+       call parallel_stop(__FILE__,__LINE__)
     endif
 
     ! unstaggered grid
@@ -3473,18 +3477,18 @@ contains
 
     use mpi_mod
     implicit none
-    real(8),dimension(:,:) :: a
-    real(8), intent(in), optional :: &
+    real(dp),dimension(:,:) :: a
+    real(dp), intent(in), optional :: &
        periodic_offset_ew,  &! offset halo values by this amount
                              ! if positive, the offset is positive for W halo, negative for E halo
        periodic_offset_ns    ! offset halo values by this amount
                              ! if positive, the offset is positive for S halo, negative for N halo
     
     integer :: erequest,ierror,nrequest,srequest,wrequest
-    real(8),dimension(lhalo,local_nsn-lhalo-uhalo) :: esend,wrecv
-    real(8),dimension(uhalo,local_nsn-lhalo-uhalo) :: erecv,wsend
-    real(8),dimension(local_ewn,lhalo) :: nsend,srecv
-    real(8),dimension(local_ewn,uhalo) :: nrecv,ssend
+    real(dp),dimension(lhalo,local_nsn-lhalo-uhalo) :: esend,wrecv
+    real(dp),dimension(uhalo,local_nsn-lhalo-uhalo) :: erecv,wsend
+    real(dp),dimension(local_ewn,lhalo) :: nsend,srecv
+    real(dp),dimension(local_ewn,uhalo) :: nrecv,ssend
 
     ! begin
 
@@ -3493,8 +3497,9 @@ contains
 
     ! unknown grid
     if (size(a,1)/=local_ewn.or.size(a,2)/=local_nsn) then
-         write(*,*) "Unknown Grid: Size a=(", size(a,1), ",", size(a,2), ") and local_ewn and local_nsn = ", local_ewn, ",", local_nsn
-         call parallel_stop(__FILE__,__LINE__)
+       write(*,*) "Unknown Grid: Size a=(", size(a,1), ",", size(a,2), ") and local_ewn and local_nsn = ", &
+            local_ewn, ",", local_nsn
+       call parallel_stop(__FILE__,__LINE__)
     endif
 
     ! unstaggered grid
@@ -3583,13 +3588,13 @@ contains
 
     use mpi_mod
     implicit none
-    real(8),dimension(:,:,:) :: a
+    real(dp),dimension(:,:,:) :: a
 
     integer :: erequest,ierror,one,nrequest,srequest,wrequest
-    real(8),dimension(size(a,1),lhalo,local_nsn-lhalo-uhalo) :: esend,wrecv
-    real(8),dimension(size(a,1),uhalo,local_nsn-lhalo-uhalo) :: erecv,wsend
-    real(8),dimension(size(a,1),local_ewn,lhalo) :: nsend,srecv
-    real(8),dimension(size(a,1),local_ewn,uhalo) :: nrecv,ssend
+    real(dp),dimension(size(a,1),lhalo,local_nsn-lhalo-uhalo) :: esend,wrecv
+    real(dp),dimension(size(a,1),uhalo,local_nsn-lhalo-uhalo) :: erecv,wsend
+    real(dp),dimension(size(a,1),local_ewn,lhalo) :: nsend,srecv
+    real(dp),dimension(size(a,1),local_ewn,uhalo) :: nrecv,ssend
 
     ! begin
 
@@ -3727,13 +3732,13 @@ contains
   function parallel_halo_verify_real8_2d(a)
     use mpi_mod
     implicit none
-    real(8),dimension(:,:) :: a
+    real(dp),dimension(:,:) :: a
     
     integer :: erequest,ierror,nrequest,srequest,wrequest
-    real(8),dimension(lhalo,local_nsn-lhalo-uhalo) :: esend,wrecv
-    real(8),dimension(uhalo,local_nsn-lhalo-uhalo) :: erecv,wsend
-    real(8),dimension(local_ewn,lhalo) :: nsend,srecv
-    real(8),dimension(local_ewn,uhalo) :: nrecv,ssend
+    real(dp),dimension(lhalo,local_nsn-lhalo-uhalo) :: esend,wrecv
+    real(dp),dimension(uhalo,local_nsn-lhalo-uhalo) :: erecv,wsend
+    real(dp),dimension(local_ewn,lhalo) :: nsend,srecv
+    real(dp),dimension(local_ewn,uhalo) :: nrecv,ssend
     logical :: notverify_flag
     logical :: parallel_halo_verify_real8_2d
 
@@ -3791,13 +3796,13 @@ contains
   function parallel_halo_verify_real8_3d(a)
     use mpi_mod
     implicit none
-    real(8),dimension(:,:,:) :: a
+    real(dp),dimension(:,:,:) :: a
     
     integer :: erequest,ierror,one,nrequest,srequest,wrequest
-    real(8),dimension(size(a,1),lhalo,local_nsn-lhalo-uhalo) :: esend,wrecv
-    real(8),dimension(size(a,1),uhalo,local_nsn-lhalo-uhalo) :: erecv,wsend
-    real(8),dimension(size(a,1),local_ewn,lhalo) :: nsend,srecv
-    real(8),dimension(size(a,1),local_ewn,uhalo) :: nrecv,ssend
+    real(dp),dimension(size(a,1),lhalo,local_nsn-lhalo-uhalo) :: esend,wrecv
+    real(dp),dimension(size(a,1),uhalo,local_nsn-lhalo-uhalo) :: erecv,wsend
+    real(dp),dimension(size(a,1),local_ewn,lhalo) :: nsend,srecv
+    real(dp),dimension(size(a,1),local_ewn,uhalo) :: nrecv,ssend
     logical :: notverify_flag
     logical :: parallel_halo_verify_real8_3d
 
@@ -3995,7 +4000,7 @@ contains
   subroutine parallel_print_all(name,values)
     implicit none
     character(*) :: name
-    real(8),dimension(:,:,:) :: values
+    real(dp),dimension(:,:,:) :: values
 
     integer,parameter :: u = 33
     integer :: i,j,t
@@ -4049,7 +4054,7 @@ contains
   subroutine parallel_print_real8_2d(name,values)
     implicit none
     character(*) :: name
-    real(8),dimension(:,:) :: values
+    real(dp),dimension(:,:) :: values
 
     integer,parameter :: u = 33
     character(3) :: ts
@@ -4074,7 +4079,7 @@ contains
   subroutine parallel_print_real8_3d(name,values)
     implicit none
     character(*) :: name
-    real(8),dimension(:,:,:) :: values
+    real(dp),dimension(:,:,:) :: values
 
     integer,parameter :: u = 33
     character(3) :: ts
@@ -4109,7 +4114,7 @@ contains
     implicit none
     integer :: ncid,parallel_put_att_real4,varid
     character(len=*) :: name
-    real(4) :: values
+    real(sp) :: values
     ! begin
     if (main_task) parallel_put_att_real4 = nf90_put_att(ncid,varid,name,values)
     call broadcast(parallel_put_att_real4)
@@ -4119,7 +4124,7 @@ contains
     implicit none
     integer :: ncid,parallel_put_att_real4_1d,varid
     character(len=*) :: name
-    real(4),dimension(:) :: values
+    real(sp),dimension(:) :: values
     ! begin
     if (main_task) parallel_put_att_real4_1d = nf90_put_att(ncid,varid,name,values)
     call broadcast(parallel_put_att_real4_1d)
@@ -4129,7 +4134,7 @@ contains
     implicit none
     integer :: ncid,parallel_put_att_real8,varid
     character(len=*) :: name
-    real(8) :: values
+    real(dp) :: values
     ! begin
     if (main_task) parallel_put_att_real8 = nf90_put_att(ncid,varid,name,values)
     call broadcast(parallel_put_att_real8)
@@ -4139,7 +4144,7 @@ contains
     implicit none
     integer :: ncid,parallel_put_att_real8_1d,varid
     character(len=*) :: name
-    real(8),dimension(:) :: values
+    real(dp),dimension(:) :: values
     ! begin
     if (main_task) parallel_put_att_real8_1d = nf90_put_att(ncid,varid,name,values)
     call broadcast(parallel_put_att_real8_1d)
@@ -4149,7 +4154,7 @@ contains
     implicit none
     integer :: ncid,parallel_put_var_real4,varid
     integer,dimension(:) :: start
-    real(4) :: values
+    real(sp) :: values
     ! begin
     if (main_task) parallel_put_var_real4 = &
          nf90_put_var(ncid,varid,values,start)
@@ -4160,7 +4165,7 @@ contains
     implicit none
     integer :: ncid,parallel_put_var_real8,varid
     integer,dimension(:) :: start
-    real(8) :: values
+    real(dp) :: values
     ! begin
     if (main_task) parallel_put_var_real8 = &
          nf90_put_var(ncid,varid,values,start)
@@ -4171,7 +4176,7 @@ contains
     implicit none
     integer :: ncid,parallel_put_var_real8_1d,varid
     integer,dimension(:),optional :: start
-    real(8),dimension(:) :: values
+    real(dp),dimension(:) :: values
     ! begin
     if (main_task) then
        if (present(start)) then
@@ -4210,9 +4215,9 @@ contains
   function parallel_reduce_sum_real4(x)
     use mpi_mod
     implicit none
-    real(4) :: x
+    real(sp) :: x
     integer :: ierror
-    real(4) :: recvbuf,sendbuf, parallel_reduce_sum_real4
+    real(sp) :: recvbuf,sendbuf, parallel_reduce_sum_real4
     ! begin
     sendbuf = x
     call mpi_allreduce(sendbuf,recvbuf,1,mpi_real4,mpi_sum,comm,ierror)
@@ -4223,9 +4228,9 @@ contains
   function parallel_reduce_sum_real8(x)
     use mpi_mod
     implicit none
-    real(8) :: x
+    real(dp) :: x
     integer :: ierror
-    real(8) :: recvbuf,sendbuf, parallel_reduce_sum_real8
+    real(dp) :: recvbuf,sendbuf, parallel_reduce_sum_real8
     ! begin
     sendbuf = x
     call mpi_allreduce(sendbuf,recvbuf,1,mpi_real8,mpi_sum,comm,ierror)
@@ -4236,9 +4241,9 @@ contains
   function parallel_reduce_sum_real8_nvar(x)
     use mpi_mod
     implicit none
-    real(8) :: x(:)
+    real(dp) :: x(:)
     integer :: ierror, nvar
-    real(8), dimension(size(x)) :: recvbuf,sendbuf, parallel_reduce_sum_real8_nvar
+    real(dp), dimension(size(x)) :: recvbuf,sendbuf, parallel_reduce_sum_real8_nvar
     ! begin
     nvar = size(x)
     sendbuf = x
@@ -4267,10 +4272,10 @@ contains
   function parallel_reduce_max_real4(x)
     use mpi_mod
     implicit none
-    real(4) :: x
+    real(sp) :: x
 
     integer :: ierror
-    real(4) :: recvbuf,sendbuf, parallel_reduce_max_real4
+    real(sp) :: recvbuf,sendbuf, parallel_reduce_max_real4
     ! begin
     sendbuf = x
     call mpi_allreduce(sendbuf,recvbuf,1,mpi_real4,mpi_max,comm,ierror)
@@ -4281,10 +4286,10 @@ contains
   function parallel_reduce_max_real8(x)
     use mpi_mod
     implicit none
-    real(8) :: x
+    real(dp) :: x
 
     integer :: ierror
-    real(8) :: recvbuf,sendbuf, parallel_reduce_max_real8
+    real(dp) :: recvbuf,sendbuf, parallel_reduce_max_real8
     ! begin
     sendbuf = x
     call mpi_allreduce(sendbuf,recvbuf,1,mpi_real8,mpi_max,comm,ierror)
@@ -4315,12 +4320,12 @@ contains
   subroutine parallel_reduce_maxloc_real4(xin, xout, xprocout)
     use mpi_mod
     implicit none
-    real(4), intent(in) :: xin         ! variable to reduce
-    real(4), intent(out) :: xout       ! value resulting from the reduction
+    real(sp), intent(in) :: xin         ! variable to reduce
+    real(sp), intent(out) :: xout       ! value resulting from the reduction
     integer, intent(out) :: xprocout   ! processor on which reduced value occurs
 
     integer :: ierror
-    real(4), dimension(2,1) :: recvbuf, sendbuf
+    real(sp), dimension(2,1) :: recvbuf, sendbuf
     ! begin
     sendbuf(1,1) = xin
     sendbuf(2,1) = this_rank  ! This is the processor number associated with the value x (coerced to a real)
@@ -4332,12 +4337,12 @@ contains
   subroutine parallel_reduce_maxloc_real8(xin, xout, xprocout)
     use mpi_mod
     implicit none
-    real(8), intent(in) :: xin         ! variable to reduce
-    real(8), intent(out) :: xout       ! value resulting from the reduction
+    real(dp), intent(in) :: xin         ! variable to reduce
+    real(dp), intent(out) :: xout       ! value resulting from the reduction
     integer, intent(out) :: xprocout   ! processor on which reduced value occurs
 
     integer :: ierror
-    real(8), dimension(2,1) :: recvbuf, sendbuf
+    real(dp), dimension(2,1) :: recvbuf, sendbuf
     ! begin
     sendbuf(1,1) = xin
     sendbuf(2,1) = this_rank  ! This is the processor number associated with the value x (coerced to a real)
@@ -4366,10 +4371,10 @@ contains
   function parallel_reduce_min_real4(x)
     use mpi_mod
     implicit none
-    real(4) :: x
+    real(sp) :: x
 
     integer :: ierror
-    real(4) :: recvbuf,sendbuf, parallel_reduce_min_real4
+    real(sp) :: recvbuf,sendbuf, parallel_reduce_min_real4
     ! begin
     sendbuf = x
     call mpi_allreduce(sendbuf,recvbuf,1,mpi_real4,mpi_min,comm,ierror)
@@ -4380,10 +4385,10 @@ contains
   function parallel_reduce_min_real8(x)
     use mpi_mod
     implicit none
-    real(8) :: x
+    real(dp) :: x
 
     integer :: ierror
-    real(8) :: recvbuf,sendbuf, parallel_reduce_min_real8
+    real(dp) :: recvbuf,sendbuf, parallel_reduce_min_real8
     ! begin
     sendbuf = x
     call mpi_allreduce(sendbuf,recvbuf,1,mpi_real8,mpi_min,comm,ierror)
@@ -4414,12 +4419,12 @@ contains
   subroutine parallel_reduce_minloc_real4(xin, xout, xprocout)
     use mpi_mod
     implicit none
-    real(4), intent(in) :: xin         ! variable to reduce
-    real(4), intent(out) :: xout       ! value resulting from the reduction
+    real(sp), intent(in) :: xin         ! variable to reduce
+    real(sp), intent(out) :: xout       ! value resulting from the reduction
     integer, intent(out) :: xprocout   ! processor on which reduced value occurs
 
     integer :: ierror
-    real(4), dimension(2,1) :: recvbuf, sendbuf
+    real(sp), dimension(2,1) :: recvbuf, sendbuf
     ! begin
     sendbuf(1,1) = xin
     sendbuf(2,1) = this_rank  ! This is the processor number associated with the value x (coerced to a real)
@@ -4431,12 +4436,12 @@ contains
   subroutine parallel_reduce_minloc_real8(xin, xout, xprocout)
     use mpi_mod
     implicit none
-    real(8), intent(in) :: xin         ! variable to reduce
-    real(8), intent(out) :: xout       ! value resulting from the reduction
+    real(dp), intent(in) :: xin         ! variable to reduce
+    real(dp), intent(out) :: xout       ! value resulting from the reduction
     integer, intent(out) :: xprocout   ! processor on which reduced value occurs
 
     integer :: ierror
-    real(8), dimension(2,1) :: recvbuf, sendbuf
+    real(dp), dimension(2,1) :: recvbuf, sendbuf
     ! begin
     sendbuf(1,1) = xin
     sendbuf(2,1) = this_rank  ! This is the processor number associated with the value x (coerced to a real)
@@ -4457,10 +4462,10 @@ contains
     use mpi_mod
     implicit none
     character(*) :: label
-    real(8),dimension(:,:,:) :: values
+    real(dp),dimension(:,:,:) :: values
     
     integer :: ierror
-    real(8) :: allmin,allmax,mymin,mymax
+    real(dp) :: allmin,allmax,mymin,mymax
     ! begin
     mymin = minval(values(:,1+lhalo:size(values,2)-uhalo,&
          1+lhalo:size(values,3)-uhalo))
@@ -4497,11 +4502,11 @@ contains
   subroutine parallel_velo_halo(a)
     use mpi_mod
     implicit none
-    real(8),dimension(:,:) :: a
+    real(dp),dimension(:,:) :: a
 
     integer :: ierror,nrequest,erequest
-    real(8),dimension(size(a,2)-lhalo-uhalo+1) :: wsend,erecv
-    real(8),dimension(size(a,1)-lhalo) :: ssend,nrecv
+    real(dp),dimension(size(a,2)-lhalo-uhalo+1) :: wsend,erecv
+    real(dp),dimension(size(a,1)-lhalo) :: ssend,nrecv
 
     ! begin
     if (size(a,1)/=local_ewn-1.or.size(a,2)/=local_nsn-1) &
@@ -4626,7 +4631,7 @@ contains
   subroutine staggered_parallel_halo_extrapolate_real8_2d(a)
 
     implicit none
-    real(8),dimension(:,:) :: a
+    real(dp),dimension(:,:) :: a
     integer :: i, j
 
     ! begin
@@ -4939,7 +4944,7 @@ contains
 
     use mpi_mod
     implicit none
-    real(8),dimension(:,:) :: a
+    real(dp),dimension(:,:) :: a
 
     ! Implements a staggered grid halo update.
     ! As the grid is staggered, the array 'a' is one smaller in both dimensions than an unstaggered array.
@@ -4955,14 +4960,14 @@ contains
 
     ! integer :: erequest,ierror,one,nrequest,srequest,wrequest
     integer :: ierror,nrequest,srequest,erequest,wrequest
-!    real(8),dimension(staggered_whalo,size(a,2)-staggered_shalo-staggered_nhalo) :: esend,wrecv
-!    real(8),dimension(staggered_ehalo,size(a,2)-staggered_shalo-staggered_nhalo) :: erecv,wsend
-!    real(8),dimension(size(a,1),staggered_shalo) :: nsend,srecv
-!    real(8),dimension(size(a,1),staggered_nhalo) :: nrecv,ssend
-    real(8),dimension(staggered_lhalo,size(a,2)-staggered_lhalo-staggered_uhalo) :: esend,wrecv
-    real(8),dimension(staggered_uhalo,size(a,2)-staggered_lhalo-staggered_uhalo) :: erecv,wsend
-    real(8),dimension(size(a,1),staggered_lhalo) :: nsend,srecv
-    real(8),dimension(size(a,1),staggered_uhalo) :: nrecv,ssend
+!    real(dp),dimension(staggered_whalo,size(a,2)-staggered_shalo-staggered_nhalo) :: esend,wrecv
+!    real(dp),dimension(staggered_ehalo,size(a,2)-staggered_shalo-staggered_nhalo) :: erecv,wsend
+!    real(dp),dimension(size(a,1),staggered_shalo) :: nsend,srecv
+!    real(dp),dimension(size(a,1),staggered_nhalo) :: nrecv,ssend
+    real(dp),dimension(staggered_lhalo,size(a,2)-staggered_lhalo-staggered_uhalo) :: esend,wrecv
+    real(dp),dimension(staggered_uhalo,size(a,2)-staggered_lhalo-staggered_uhalo) :: erecv,wsend
+    real(dp),dimension(size(a,1),staggered_lhalo) :: nsend,srecv
+    real(dp),dimension(size(a,1),staggered_uhalo) :: nrecv,ssend
 
     !WHL - I defined a logical variable to determine whether or not to fill halo cells
     !      at the edge of the global domain.  I am setting it to true by default to support
@@ -5072,7 +5077,7 @@ contains
 
     use mpi_mod
     implicit none
-    real(8),dimension(:,:,:) :: a
+    real(dp),dimension(:,:,:) :: a
 
     ! Implements a staggered grid halo update for a 3D field.
     ! As the grid is staggered, the array 'a' is one smaller in both dimensions than an unstaggered array.
@@ -5090,14 +5095,14 @@ contains
     ! integer :: erequest,ierror,one,nrequest,srequest,wrequest
     integer :: ierror,nrequest,srequest,erequest,wrequest
 
-!    real(8),dimension(size(a,1),staggered_whalo,size(a,3)-staggered_shalo-staggered_nhalo) :: esend,wrecv
-!    real(8),dimension(size(a,1),staggered_ehalo,size(a,3)-staggered_shalo-staggered_nhalo) :: erecv,wsend
-!    real(8),dimension(size(a,1),size(a,2),staggered_shalo) :: nsend,srecv
-!    real(8),dimension(size(a,1),size(a,2),staggered_nhalo) :: nrecv,ssend
-    real(8),dimension(size(a,1),staggered_lhalo,size(a,3)-staggered_lhalo-staggered_uhalo) :: esend,wrecv
-    real(8),dimension(size(a,1),staggered_uhalo,size(a,3)-staggered_lhalo-staggered_uhalo) :: erecv,wsend
-    real(8),dimension(size(a,1),size(a,2),staggered_lhalo) :: nsend,srecv
-    real(8),dimension(size(a,1),size(a,2),staggered_uhalo) :: nrecv,ssend
+!    real(dp),dimension(size(a,1),staggered_whalo,size(a,3)-staggered_shalo-staggered_nhalo) :: esend,wrecv
+!    real(dp),dimension(size(a,1),staggered_ehalo,size(a,3)-staggered_shalo-staggered_nhalo) :: erecv,wsend
+!    real(dp),dimension(size(a,1),size(a,2),staggered_shalo) :: nsend,srecv
+!    real(dp),dimension(size(a,1),size(a,2),staggered_nhalo) :: nrecv,ssend
+    real(dp),dimension(size(a,1),staggered_lhalo,size(a,3)-staggered_lhalo-staggered_uhalo) :: esend,wrecv
+    real(dp),dimension(size(a,1),staggered_uhalo,size(a,3)-staggered_lhalo-staggered_uhalo) :: erecv,wsend
+    real(dp),dimension(size(a,1),size(a,2),staggered_lhalo) :: nsend,srecv
+    real(dp),dimension(size(a,1),size(a,2),staggered_uhalo) :: nrecv,ssend
 
     !WHL - I defined a logical variable to determine whether or not to fill halo cells
     !      at the edge of the global domain.  I am setting it to true by default to support
@@ -5205,7 +5210,7 @@ contains
 
     use mpi_mod
     implicit none
-    real(8),dimension(:,:,:,:) :: a
+    real(dp),dimension(:,:,:,:) :: a
 
     ! Implements a staggered grid halo update for a 4D field.
     ! This subroutine is used for the 4D arrays that hold matrix entries.
@@ -5226,12 +5231,12 @@ contains
     ! integer :: erequest,ierror,one,nrequest,srequest,wrequest
     integer :: ierror,nrequest,srequest,erequest,wrequest
 
-    real(8),dimension(size(a,1),size(a,2), &
+    real(dp),dimension(size(a,1),size(a,2), &
                       staggered_lhalo,size(a,4)-staggered_lhalo-staggered_uhalo) :: esend,wrecv
-    real(8),dimension(size(a,1),size(a,2), &
+    real(dp),dimension(size(a,1),size(a,2), &
                       staggered_uhalo,size(a,4)-staggered_lhalo-staggered_uhalo) :: erecv,wsend
-    real(8),dimension(size(a,1),size(a,2),size(a,3),staggered_lhalo) :: nsend,srecv
-    real(8),dimension(size(a,1),size(a,2),size(a,3),staggered_uhalo) :: nrecv,ssend
+    real(dp),dimension(size(a,1),size(a,2),size(a,3),staggered_lhalo) :: nsend,srecv
+    real(dp),dimension(size(a,1),size(a,2),size(a,3),staggered_uhalo) :: nrecv,ssend
 
     !WHL - I defined a logical variable to determine whether or not to fill halo cells
     !      at the edge of the global domain.  I am setting it to true by default to support
@@ -5613,7 +5618,7 @@ contains
 !
 ! !INPUT PARAMETERS: 
 !
-      real(4),               intent(in)  :: sendbuf(*)
+      real(sp),               intent(in)  :: sendbuf(*)
       integer,               intent(in)  :: sendcnt
       integer,               intent(in)  :: sendtype
       integer, dimension(:), intent(in)  :: recvcnts
@@ -5625,11 +5630,11 @@ contains
 
 ! !OUTPUT PARAMETERS: 
 !
-      real(4),               intent(out) :: recvbuf(*)
+      real(sp),               intent(out) :: recvbuf(*)
 
 !EOP ___________________________________________________________________
 
-   real(4) :: signal
+   real(sp) :: signal
    logical :: fc_gather         ! use explicit flow control?
    integer :: gather_block_size ! number of preposted receive requests
 
@@ -5746,7 +5751,7 @@ contains
 !
 ! !INPUT PARAMETERS: 
 !
-      real(8),               intent(in)  :: sendbuf(*)
+      real(dp),               intent(in)  :: sendbuf(*)
       integer,               intent(in)  :: sendcnt
       integer,               intent(in)  :: sendtype
       integer, dimension(:), intent(in)  :: recvcnts
@@ -5758,11 +5763,11 @@ contains
 
 ! !OUTPUT PARAMETERS: 
 !
-      real(8),               intent(out) :: recvbuf(*)
+      real(dp),               intent(out) :: recvbuf(*)
 
 !EOP ___________________________________________________________________
 
-   real(8) :: signal
+   real(dp) :: signal
    logical :: fc_gather         ! use explicit flow control?
    integer :: gather_block_size ! number of preposted receive requests
 

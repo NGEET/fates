@@ -514,10 +514,12 @@ contains
     ! Note on units: model%temper%bmlt has dimensionless units of ice thickness per unit time
     !                Multiply by thk0/tim0 to convert to meters ice per second
     !                Multiply by rhoi to convert to kg/m^2/s water equiv.
+    ! Note: This is basal melting for grounded ice only.
+    !       Basal melting for floating ice will typically be an input from the coupler, not an output.
 
     ! Convert to kg/m^2/s
     rofl_tavg(:,:) = rofl_tavg(:,:)  &
-                   + model%temper%bmlt(:,:) * thk0/tim0 * rhoi
+                   + model%temper%bmlt_ground(:,:) * thk0/tim0 * rhoi
 
     !--------------------------------------------------------------------
     ! Accumulate basal heat flux

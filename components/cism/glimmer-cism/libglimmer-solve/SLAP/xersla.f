@@ -31,7 +31,7 @@ c***routines called  (none)
 c***end prologue  xerabt
       dimension messg(nmessg)
 c***first executable statement  xerabt
-      call exit(1)
+      stop 1
       end
 *deck xerctl
       subroutine xerctl(messg1,nmessg,nerr,level,kontrl)

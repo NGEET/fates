@@ -4,6 +4,310 @@ This file describes what main-trunk tags were created and why
 
 ================================================================================
 Originator: sacks
+Date: May 19, 2016
+Model: cism
+Version: cism2_1_17
+One-line summary: Split override_delay into 3 separate options
+
+Purpose of changes:
+
+   Split override_delay into 3 separate options: increase, decrease and
+   rearrange override delays. This allows us to do tests like: increase glacier
+   area to 100% over 5 days, then wait 5 days, then decrease glacier area to 0%
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/): none
+
+List all modified files, and describe the changes:
+
+M       bld/build-namelist
+M       bld/namelist_files/namelist_defaults_cism.xml
+M       bld/namelist_files/namelist_definition_cism.xml
+M       cime_config/testdefs/testmods_dirs/cism/override_glc_frac/user_nl_cism
+M       source_glc/glc_override_frac.F90
+
+Summary of testing:
+
+   Ran full aux_glc test suite: yellowstone & hobart. All tests passed.
+
+Externals used for testing: cesm1_5_beta05
+
+cism tag used for baseline comparisons: cism2_1_16
+
+Any other externals that differed in baseline: none
+
+================================================================================
+Originator: sacks
+Date: April 12, 2016
+Model: cism
+Version: cism2_1_16
+One-line summary: Make allow_leapyear depend on CALENDAR
+
+Purpose of changes:
+
+   Logic for allow_leapyear setting in cism_in was wrong. This tag fixes it.
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+   1562: should allow_leapyear default be based on CALENDAR?
+
+List all modified files, and describe the changes:
+
+M       bld/namelist_files/namelist_defaults_cism.xml
+M       bld/namelist_files/namelist_definition_cism.xml
+
+Summary of testing:
+
+   Ran aux_glc test suite on yellowstone - NOT on hobart. All tests passed.
+
+Externals used for testing: cesm1_5_beta05
+
+cism tag used for baseline comparisons: cism2_1_15
+
+Any other externals that differed in baseline: none
+
+================================================================================
+Originator: sacks
+Date: March 5, 2016
+Model: cism
+Version: cism2_1_15
+One-line summary: Set glcocn_present and glcice_present to false for one-way-coupling
+
+Purpose of changes:
+
+   For one-way coupling (with zero_gcm_fluxes = .true.), fluxes sent to ocn and
+   ice are all zero. Thus, there is no reason for the coupler to do glc -> ocn
+   or glc -> ice mapping. By setting glcocn_present and glcice_present to
+   .false. in this case, we make it easier for users to run a one-way-coupled
+   case with some new ocean grid, for which they do not have glc -> ocn mapping
+   files.
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+M       drivers/cpl/glc_coupling_flags.F90
+
+Summary of testing:
+
+   Ran full aux_glc test suite: yellowstone & hobart. All tests passed.
+
+   Also ran the following tests, with comparison against cesm1_5_beta05 (using
+   cism2_1_13 but with glimmer-cism at the head of piscees/develop):
+
+   SMS_Ld5.T31_g37_gl20.B1850C5L45BGCRG2.yellowstone_intel.allactive-cism-test_coupling
+   - passes and bit-for-bit
+
+   SMS_D_Ld5.T31_g37_gl20.B1850C5L45BGCRG2.yellowstone_intel.allactive-cism-test_coupling
+   with zero_gcm_fluxes
+   - passes and bit-for-bit
+
+   SMS_D_Ld5.T31_g37_gl20.B1850C5L45BGCRG2.yellowstone_intel.allactive-cism-test_coupling
+   with zero_gcm_fluxes, and in my new code, removed all instances of
+   GLC2OCN_RMAPNAME from config_grids.xml (resulting in glc2ocn_rmapname =
+   idmap)
+   - passes and bit-for-bit
+
+Externals used for testing: cesm1_5_beta05
+
+cism tag used for baseline comparisons: cism2_1_14
+
+Any other externals that differed in baseline: none
+
+================================================================================
+Originator: sacks
+Date: March 4, 2016
+Model: cism
+Version: cism2_1_14
+One-line summary: Move zero_gcm_fluxes handling to GLC
+
+Purpose of changes:
+
+   Previously, CISM (particularly glad) was responsible for handling
+   zero_gcm_fluxes: zeroing out flux variables and setting
+   icemask_coupled_fluxes. I have now moved that handling into the GLC layer.
+
+   The main motivation for doing this is that, in the next tag, I plan to add
+   more logic based on zero_gcm_fluxes: has_ocn_coupling and has_ice_coupling
+   will be false if zero_gcm_fluxes is true. It will be easier to make sure
+   everything is done consistently if all of the zero_gcm_fluxes handling is
+   moved into GLC. Specifically, it seems this will make it less likely that we
+   would set has_ocn_coupling and has_ice_coupling to false when they should
+   really be true for some reason.
+
+   Possible downside: If we have multiple ice instances (e.g., Greenland +
+   Antarctica): Previously, I think I had been imagining that we would have one
+   cism.config for each of them, but potentially only a single cism_in file. But
+   if we want zero_gcm_fluxes to be able to differ for each instance, then we
+   would need to have separate cism_in files for each instance (or have an array
+   of zero_gcm_fluxes values in the single cism_in file). I'll need to come back
+   to this.
+
+
+   Also refactored the setting of indexing-related stuff: Moved behavior into
+   glc_indexing.F90
+
+   Also updated CISM external to match latest version of piscees/develop.
+
+Changes answers relative to previous tag: YES
+   Roundoff-level changes just in the acab field in the cism history file. I
+   have confirmed that these changes are due to previous changes in
+   piscees/develop, not due to the changes in this refactoring.
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+*** Renamed, and moved behavior into here
+D       source_glc/glc_indexing_info.F90
+A       source_glc/glc_indexing.F90
+
+M       drivers/cpl/glc_comp_mct.F90
+M       drivers/cpl/glc_comp_esmf.F90
+M       drivers/cpl/glc_import_export.F90
+M       bld/namelist_files/namelist_defaults_cism.xml
+M       bld/namelist_files/namelist_definition_cism.xml
+M       bld/build-namelist
+M       source_glc/glc_route_ice_runoff.F90
+M       source_glc/glc_InitMod.F90
+M       source_glc/glc_RunMod.F90
+M       source_glc/glc_fields.F90
+M       source_glc/glc_constants.F90
+
+*** Updates needed for moving zero_gcm_fluxes into GLC. While I was at it,
+    updated to latest version of piscees/develop.
+M       SVN_EXTERNAL_DIRECTORIES
+
+*** Added a one-way coupling test with CISM2, to make sure logic works in
+    parallel cases
+M       cime_config/testdefs/testlist_cism.xml
+
+Summary of testing:
+
+   Ran full aux_glc test suite: yellowstone & hobart. All tests passed.
+
+   CME_Ly3.f09_g16_gl20.TGRCP85IS2.yellowstone_intel CFAILed as part of a test
+   suite, but passed when run alone (with build on login node) - chalking it up
+   to a cime issue
+
+Externals used for testing: cesm1_5_beta05
+
+cism tag used for baseline comparisons: cism2_1_13
+
+Any other externals that differed in baseline: none
+
+================================================================================
+Originator: sacks
+Date: Jan 13, 2016
+Model: cism
+Version: cism2_1_13
+One-line summary: Clean up ChangeLog entry for last tag
+
+Purpose of changes:
+
+   Just minor ChangeLog cleanup
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+M       ChangeLog
+
+Summary of testing: NONE
+
+Externals used for testing: N/A
+
+cism tag used for baseline comparisons: N/A
+
+Any other externals that differed in baseline: N/A
+
+================================================================================
+Originator: sacks
+Date: Jan 12, 2016
+Model: cism
+Version: cism2_1_12
+One-line summary: Port CISM to NAG
+
+Purpose of changes:
+
+   Port CISM to NAG
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+*** Point to new external, which is ported to NAG
+M       SVN_EXTERNAL_DIRECTORIES
+
+*** Introduce hobart_nag tests, and fix test that has been CFAILing for a while
+M       cime_config/testdefs/testlist_cism.xml
+
+Summary of testing:
+
+   Ran full aux_glc test suite: yellowstone & hobart. All tests passed.
+
+Externals used for testing: cesm1_5_beta04, with cime at branch cism_nag_port
+(git describe: cime4.3.10-3-g3de3528)
+
+cism tag used for baseline comparisons: cism2_1_11
+
+Any other externals that differed in baseline: cime may have been the version
+out-of-the-box in cesm1_5_beta04
+
+================================================================================
+Originator: sacks
+Date: Jan 7, 2016
+Model: cism
+Version: cism2_1_11
+One-line summary: Update external, tweak some namelist items
+
+Purpose of changes:
+
+(1) Update to latest version of piscees/develop
+
+(2) For cism2, exclude uflx and vflx history fields (these aren't set)
+
+(3) For cism2, include beta_internal history field
+
+(4) Add ho_beta_const to namelist_definition, so it can be changed via
+    user_nl_cism
+
+
+Changes answers relative to previous tag: NO
+   however, there are namelist changes
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+M       bld/namelist_files/namelist_defaults_cism.xml
+M       bld/namelist_files/namelist_definition_cism.xml
+M       SVN_EXTERNAL_DIRECTORIES
+
+Summary of testing:
+
+   Ran full yellowstone aux_glc test suite. All tests passed, EXCEPT this
+   expected failure:
+
+   CFAIL ERS_Ly20_E.f09_g16_gl5.TGHIST.yellowstone_intel
+
+Externals used for testing: cesm1_5_beta02, but with cime at
+1e5b15f424d9d7bc57ef5158c3da7bcc0ef02fc3 (return_reverted_drv branch)
+
+cism tag used for baseline comparisons: cism2_1_10
+
+Any other externals that differed in baseline: none
+
+================================================================================
+Originator: sacks
 Date: Nov 13, 2015
 Model: cism
 Version: cism2_1_10

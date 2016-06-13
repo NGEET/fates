@@ -368,13 +368,14 @@ contains
     endif
 
     ! mean basal melting rate (positive for ice loss)
- 
+    ! TODO - Separate into bmlt_ground and bmlt_float?
+
     mean_bmlt = 0.d0
     do j = lhalo+1, nsn-uhalo
        do i = lhalo+1, ewn-uhalo
           if (model%geometry%thck(i,j) * thk0 > minthick) then
-             mean_bmlt = mean_bmlt + model%temper%bmlt(i,j)  &
-                                   * model%numerics%dew * model%numerics%dns
+             mean_bmlt = mean_bmlt + (model%temper%bmlt_ground(i,j) + model%temper%bmlt_float(i,j))  &
+                                    * model%numerics%dew * model%numerics%dns
           endif
        enddo
     enddo
@@ -595,7 +596,7 @@ contains
           relx_diag = model%isostasy%relx(i,j)*thk0
           artm_diag = model%climate%artm(i,j)
           acab_diag = model%climate%acab(i,j) * thk0*scyr/tim0
-          bmlt_diag = model%temper%bmlt(i,j) * thk0*scyr/tim0
+          bmlt_diag = (model%temper%bmlt_ground(i,j) + model%temper%bmlt_float(i,j)) * thk0*scyr/tim0
           bwat_diag = model%temper%bwat(i,j) * thk0
           bheatflx_diag = model%temper%bheatflx(i,j)
        
