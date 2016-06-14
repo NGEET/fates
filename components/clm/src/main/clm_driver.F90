@@ -845,7 +845,7 @@ contains
                atm2lnd_inst, soilstate_inst, temperature_inst,                   &
                waterstate_inst, canopystate_inst)
           
-          call setFilters( bounds_clump, glc2lnd_inst%icemask_grc )
+          call setFilters( bounds_clump, glc2lnd_inst%icemask_grc(bounds_clump%begg:bounds_clump%endg ))
           
        end if ! use_ed branch
        
