@@ -1093,10 +1093,10 @@ contains
 
                   currentCohort%b = currentCohort%balive+currentCohort%bdead+currentCohort%bstore
                   currentCohort%treelai = tree_lai(currentCohort)
-                  ! Why is currentCohort%c_area used and then reset in the
-                  ! following line?
-                  canopy_leaf_area = canopy_leaf_area + currentCohort%treelai *currentCohort%c_area
+
                   currentCohort%c_area = c_area(currentCohort)
+                  canopy_leaf_area = canopy_leaf_area + currentCohort%treelai *currentCohort%c_area
+                  
                   
                   if(currentCohort%canopy_layer==1)then
                      currentPatch%total_canopy_area = currentPatch%total_canopy_area + currentCohort%c_area
