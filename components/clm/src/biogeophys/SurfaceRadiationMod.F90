@@ -566,14 +566,13 @@ contains
                       do iv = 1, currentPatch%nrad(CL,ft) !NORMAL CASE. 
                          ! FIX(SPM,040114) - existing comment
                          ! ** Should this be elai or tlai? Surely we only do radiation for elai? 
-                         write(*,*) 'snow',c
-                         write(*,*) 'snow2',snow_depth(c)
-                         if(snow_depth(c).gt.currentPatch%layer_height_profile(CL,ft,iv))then                        
+                         
+                         if(snow_depth(c)*frac_sno_eff(c).gt.currentPatch%layer_height_profile(CL,ft,iv))then                        
                          fraction_exposed = 0.0_r8
                          else
                          fraction_exposed = 1.0_r8
                          endif
-                         write(*,*) 'fraction exposed',c,fraction_exposed
+                        
                          currentPatch%elai_profile(CL,ft,iv) = currentPatch%tlai_profile(CL,ft,iv) *  fraction_exposed
                          currentPatch%esai_profile(CL,ft,iv) = currentPatch%tsai_profile(CL,ft,iv) *  fraction_exposed
                          currentPatch%ed_laisun_z(CL,ft,iv) = currentPatch%elai_profile(CL,ft,iv) * &
