@@ -1264,7 +1264,9 @@ contains
     real(r8) :: min_chite                ! bottom of cohort canopy  (m)
     real(r8) :: max_chite                ! top of cohort canopy      (m)
     real(r8) :: lai                      ! summed lai for checking m2 m-2
+    real(r8) :: snow_depth_col           ! averaged snow over whole columb
     integer  :: NC                       ! number of cohorts, for bug fixing. 
+    
     !----------------------------------------------------------------------
 
     smooth_leaf_distribution = 0
@@ -1383,19 +1385,18 @@ contains
                           currentCohort%sai
 
                      !snow burial
-                     fraction_exposed = 1.0_r8 !default. 
-
-                     snowdp(c) = snow_depth(c) * frac_sno_eff(c)
-                     if(snowdp(c) > maxh(iv))then
+!write(*,*) 'calc snow'
+                     snow_depth_col = snow_depth(c) * frac_sno_eff(c)
+                     if(snow_depth_col  > maxh(iv))then
                         fraction_exposed = 0._r8
                      endif
-                     if(snowdp(c) < minh(iv))then
-                        fraction_exposed = 1._r8
+                     if(snow_depth_col < minh(iv))then
+                       fraction_exposed = 1._r8
                      endif
-                     if(snowdp(c) >= minh(iv).and.snowdp(c) <= maxh(iv))then !only partly hidden... 
-                        fraction_exposed =  max(0._r8,(min(1.0_r8,(snowdp(c)-minh(iv))/dh)))
+                     if(snow_depth_col>= minh(iv).and.snow_depth_col <= maxh(iv))then !only partly hidden... 
+                        fraction_exposed =  max(0._r8,(min(1.0_r8,(snow_depth_col-minh(iv))/dh)))
                      endif
-
+                     fraction_exposed = 1.0_r8
                      ! no m2 of leaf per m2 of ground in each height class
                      ! FIX(SPM,032414) these should be uncommented this and double check
 
@@ -1434,7 +1435,8 @@ contains
                currentPatch%tlai_profile = 0._r8
                currentPatch%tsai_profile = 0._r8  
                currentPatch%elai_profile = 0._r8
-               currentPatch%esai_profile = 0._r8  
+               currentPatch%esai_profile = 0._r8 
+               currentPatch%layer_height_profile = 0._r8
                currentPatch%canopy_area_profile(:,:,:) = 0._r8       
                currentPatch%ncan(:,:) = 0 
                currentPatch%nrad(:,:) = 0 
@@ -1465,13 +1467,6 @@ contains
                   !fill up layer for whole layers.  FIX(RF,032414)- for debugging jan 2012
                   do iv = 1,currentCohort%NV-1 
 
-                     currentPatch%tlai_profile(L,ft,iv) = currentPatch%tlai_profile(L,ft,iv)+ dinc_ed * fleaf * &
-                          currentCohort%c_area/currentPatch%total_canopy_area
-                     currentPatch%tsai_profile(L,ft,iv) = currentPatch%tsai_profile(L,ft,iv)+ dinc_ed * (1._r8 - fleaf) * &
-                          currentCohort%c_area/currentPatch%total_canopy_area
-                     currentPatch%canopy_area_profile(L,ft,iv) =  min(1.0_r8,currentPatch%canopy_area_profile(L,ft,iv) + &
-                          currentCohort%c_area/currentPatch%total_canopy_area)
-
                      ! what is the height of this layer? (for snow burial purposes...)  
                      ! pftcon%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile. 
                      layer_top_hite = currentCohort%hite-((iv/currentCohort%NV) * currentCohort%hite * &
@@ -1479,28 +1474,43 @@ contains
                      layer_bottom_hite = currentCohort%hite-(((iv+1)/currentCohort%NV) * currentCohort%hite * &
                           EDecophyscon%crown(currentCohort%pft)) ! pftcon%vertical_canopy_frac(ft))
                      fraction_exposed = 1.0_r8 !default. 
-                     snowdp(c) = snow_depth(c) * frac_sno_eff(c)
-                     if(snowdp(c) > layer_top_hite)then
-                        fraction_exposed = 0._r8
-                     endif
-                     if(snowdp(c) <= layer_bottom_hite)then
-                        fraction_exposed = 1._r8
-                     endif
-                     if(snowdp(c) > layer_bottom_hite.and.snowdp(c) <= layer_top_hite)then !only partly hidden... 
-                        fraction_exposed =  max(0._r8,(min(1.0_r8,(snowdp(c)-layer_bottom_hite)/ &
-                             (layer_top_hite-layer_bottom_hite ))))
-                     endif
 
+                 
+                     write(*,*) 'calc snow 2', c, snow_depth(c) , frac_sno_eff(c)
+              
+      !  snow_depth_col = snow_depth(c) ! * frac_sno_eff(c)
+      !               if(snow_depth_col  > layer_top_hite)then
+      !                  fraction_exposed = 0._r8
+      !               endif
+      !               if(snow_depth_col < layer_bottom_hite)then
+      !                 fraction_exposed = 1._r8
+      !               endif
+      !               if(snow_depth_col>= layer_bottom_hite.and.snow_depth_col <= layer_top_hite)then !only partly hidden...                        
+ 	!		              fraction_exposed =  max(0._r8,(min(1.0_r8,(snow_depth_col-layer_bottom_hite)/ &
+   !                          (layer_top_hite-layer_bottom_hite ))))
+   !                  endif
+fraction_exposed =1.0_r8
+
+                     currentPatch%tlai_profile(L,ft,iv) = currentPatch%tlai_profile(L,ft,iv)+ dinc_ed * fleaf * &
+                          currentCohort%c_area/currentPatch%total_canopy_area
+                     currentPatch%elai_profile(L,ft,iv) = currentPatch%elai_profile(L,ft,iv)+ dinc_ed * fleaf * &
+                          currentCohort%c_area/currentPatch%total_canopy_area * fraction_exposed
+                     
+                     currentPatch%tsai_profile(L,ft,iv) = currentPatch%tsai_profile(L,ft,iv)+ dinc_ed * (1._r8 - fleaf) * &
+                          currentCohort%c_area/currentPatch%total_canopy_area
+                     currentPatch%esai_profile(L,ft,iv) = currentPatch%esai_profile(L,ft,iv)+ dinc_ed * (1._r8 - fleaf) * &
+                          currentCohort%c_area/currentPatch%total_canopy_area * fraction_exposed
+                     
+                     currentPatch%canopy_area_profile(L,ft,iv) =  min(1.0_r8,currentPatch%canopy_area_profile(L,ft,iv) + &
+                          currentCohort%c_area/currentPatch%total_canopy_area)
+                     currentPatch%layer_height_profile(L,ft,iv) = currentPatch%layer_height_profile(L,ft,iv) + (dinc_ed * fleaf * &
+                          currentCohort%c_area/currentPatch%total_canopy_area *(layer_top_hite+layer_bottom_hite)/2.0_r8) !average height of layer. 
+                     
+                    write(*,*) 'LHP', currentPatch%layer_height_profile(L,ft,iv)
                      if ( DEBUG ) write(iulog,*) 'EDCLMLink 1246 ', currentPatch%elai_profile(1,ft,iv)
 
-                     currentPatch%elai_profile(L,ft,iv) =  currentPatch%tlai_profile(L,ft,iv) *fraction_exposed
-
-                     if ( DEBUG ) write(iulog,*) 'EDCLMLink 1250 ', currentPatch%elai_profile(1,ft,iv)
-
-                     !here we are assuming that the stem and leaf area indices have the same profile... 
-                     currentPatch%esai_profile(L,ft,iv) =  currentPatch%tsai_profile(L,ft,iv) *fraction_exposed 
                   end do
-
+                  
                   !Bottom layer
                   iv = currentCohort%NV
                   ! pftcon%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile.
@@ -1511,17 +1521,22 @@ contains
                        EDecophyscon%crown(currentCohort%pft))
                   fraction_exposed = 1.0_r8 !default. 
 
-                  fraction_exposed = 1.0_r8 !default. 
-                  if(snowdp(c) > layer_top_hite)then
-                     fraction_exposed = 0._r8
-                  endif
-                  if(snowdp(c) <= layer_bottom_hite)then
-                     fraction_exposed = 1._r8
-                  endif
-                  if(snowdp(c) > layer_bottom_hite.and.snowdp(c) <= layer_top_hite)then !only partly hidden... 
-                     fraction_exposed =  max(0._r8,(min(1.0_r8,(snowdp(c)-layer_bottom_hite) / &
-                          (layer_top_hite-layer_bottom_hite ))))
-                  endif
+!write(*,*) 'calc snow 3', snow_depth(c) , frac_sno_eff(c)
+
+ snow_depth_col = snow_depth(c) * frac_sno_eff(c)
+                     if(snow_depth_col  > layer_top_hite)then
+                        fraction_exposed = 0._r8
+                     endif
+                     if(snow_depth_col < layer_bottom_hite)then
+                       fraction_exposed = 1._r8
+ 
+                    endif
+                     if(snow_depth_col>= layer_bottom_hite.and.snow_depth_col <= layer_top_hite)then !only partly hidden...                                   
+                        fraction_exposed =  max(0._r8,(min(1.0_r8,(snow_depth_col-layer_bottom_hite)/ &
+                             (layer_top_hite-layer_bottom_hite ))))
+                     endif
+fraction_exposed= 1.0_r8
+
 
                   remainder = (currentCohort%treelai + currentCohort%treesai) - (dinc_ed*(currentCohort%NV-1))
                   if(remainder > 1.0_r8)then
@@ -1532,20 +1547,20 @@ contains
 
                   currentPatch%tlai_profile(L,ft,iv) =  currentPatch%tlai_profile(L,ft,iv)+ remainder * fleaf * &
                        currentCohort%c_area/currentPatch%total_canopy_area
-
+                  currentPatch%elai_profile(L,ft,iv) = currentPatch%elai_profile(L,ft,iv) + remainder * fleaf * &
+                       currentCohort%c_area/currentPatch%total_canopy_area * fraction_exposed
                   !assumes that fleaf is unchanging FIX(RF,032414)
 
                   currentPatch%tsai_profile(L,ft,iv) =  currentPatch%tsai_profile(L,ft,iv)+  remainder * &
                        (1.0_r8-fleaf) * currentCohort%c_area/currentPatch%total_canopy_area
-
-                  if ( DEBUG ) write(iulog,*) 'EDCLMLink 1293 ', currentPatch%elai_profile(L,ft,iv)
-
-                  currentPatch%elai_profile(L,ft,iv) =  currentPatch%tlai_profile(L,ft,iv) *fraction_exposed
-                  currentPatch%esai_profile(L,ft,iv) =  currentPatch%tsai_profile(L,ft,iv) *fraction_exposed
-
+                  currentPatch%esai_profile(L,ft,iv) = currentPatch%esai_profile(L,ft,iv)+  remainder * &
+                       (1.0_r8-fleaf) * currentCohort%c_area/currentPatch%total_canopy_area * fraction_exposed
+                  
                   currentPatch%canopy_area_profile(L,ft,iv) = min(1.0_r8,currentPatch%canopy_area_profile(L,ft,iv) + &
                        currentCohort%c_area/currentPatch%total_canopy_area)
-
+                  currentPatch%layer_height_profile(L,ft,iv) = currentPatch%layer_height_profile(L,ft,iv) + (remainder * fleaf * &
+                       currentCohort%c_area/currentPatch%total_canopy_area*(layer_top_hite+layer_bottom_hite)/2.0_r8)
+                        write(*,*) 'LHP', currentPatch%layer_height_profile(L,ft,iv)
                   if(currentCohort%dbh <= 0._r8.or.currentCohort%n == 0._r8)then
                      write(iulog,*) 'ED: dbh or n is zero in clmedlink', currentCohort%dbh,currentCohort%n
                   endif
@@ -1575,13 +1590,15 @@ contains
                              currentPatch%canopy_area_profile(L,ft,iv)
                         currentPatch%esai_profile(L,ft,iv) = currentPatch%esai_profile(L,ft,iv) / &
                              currentPatch%canopy_area_profile(L,ft,iv)
+                     currentPatch%layer_height_profile(L,ft,iv) = currentPatch%layer_height_profile(L,ft,iv) &
+                     /currentPatch%tlai_profile(L,ft,iv)
                      enddo
 
                      currentPatch%tlai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevcan_ed) = 0._r8
                      currentPatch%tsai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevcan_ed) = 0._r8
                      currentPatch%elai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevcan_ed) = 0._r8 
                      currentPatch%esai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevcan_ed) = 0._r8
-
+                     
                   enddo
                enddo
 

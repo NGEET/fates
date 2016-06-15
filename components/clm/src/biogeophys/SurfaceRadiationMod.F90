@@ -385,6 +385,7 @@ contains
      integer                   :: CL                              ! Canopy Layer index
      integer                   :: FT                              ! clm patch index
      real                      :: gaib, rib                       ! for debugging
+     real                      :: fraction_exposed
      type (ed_patch_type),  pointer :: currentPatch               ! Import fapar matrix for each patch from ED data structure.
      !------------------------------------------------------------------------------
 
@@ -486,7 +487,9 @@ contains
           fsds_sno_vd     =>    surfrad_inst%fsds_sno_vd_patch    , & ! Output: [real(r8) (:)   ] incident visible, direct radiation on snow (for history files) (patch) [W/m2]
           fsds_sno_nd     =>    surfrad_inst%fsds_sno_nd_patch    , & ! Output: [real(r8) (:)   ] incident near-IR, direct radiation on snow (for history files) (patch) [W/m2]
           fsds_sno_vi     =>    surfrad_inst%fsds_sno_vi_patch    , & ! Output: [real(r8) (:)   ] incident visible, diffuse radiation on snow (for history files) (patch) [W/m2]
-          fsds_sno_ni     =>    surfrad_inst%fsds_sno_ni_patch      & ! Output: [real(r8) (:)   ] incident near-IR, diffuse radiation on snow (for history files) (patch) [W/m2]
+          fsds_sno_ni     =>    surfrad_inst%fsds_sno_ni_patch    ,  & ! Output: [real(r8) (:)   ] incident near-IR, diffuse radiation on snow (for history files) (patch) [W/m2]
+         frac_sno_eff     => waterstate_inst%frac_sno_eff_col          & !Input: 
+  
           )
 
        ! Determine seconds off current time step
@@ -547,7 +550,7 @@ contains
        do fp = 1,num_nourbanp
           p = filter_nourbanp(fp)
           g = patch%gridcell(p)
-
+          c = patch%column(p)
           if( use_ed )then
 
              ! currentPatch%f_sun is calculated in the surface_albedo routine...
@@ -557,13 +560,22 @@ contains
                 shalai = 0._r8
 
                 currentPatch => map_clmpatch_to_edpatch(ed_allsites_inst(g), p) 
-
+                
                 do CL = 1, currentPatch%NCL_p
                    do FT = 1,numpft_ed
                       do iv = 1, currentPatch%nrad(CL,ft) !NORMAL CASE. 
                          ! FIX(SPM,040114) - existing comment
                          ! ** Should this be elai or tlai? Surely we only do radiation for elai? 
-
+                         write(*,*) 'snow',c
+                         write(*,*) 'snow2',snow_depth(c)
+                         if(snow_depth(c).gt.currentPatch%layer_height_profile(CL,ft,iv))then                        
+                         fraction_exposed = 0.0_r8
+                         else
+                         fraction_exposed = 1.0_r8
+                         endif
+                         write(*,*) 'fraction exposed',c,fraction_exposed
+                         currentPatch%elai_profile(CL,ft,iv) = currentPatch%tlai_profile(CL,ft,iv) *  fraction_exposed
+                         currentPatch%esai_profile(CL,ft,iv) = currentPatch%tsai_profile(CL,ft,iv) *  fraction_exposed
                          currentPatch%ed_laisun_z(CL,ft,iv) = currentPatch%elai_profile(CL,ft,iv) * &
                               currentPatch%f_sun(CL,ft,iv)
 
