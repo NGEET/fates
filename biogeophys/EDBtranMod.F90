@@ -121,10 +121,7 @@ contains
 
          sucsat      => soilstate_inst%sucsat_col         , & ! Input:  [real(r8) (:,:) ]  minimum soil suction (mm) 
          watsat      => soilstate_inst%watsat_col         , & ! Input:  [real(r8) (:,:) ]  volumetric soil water at saturation (porosity)
-         watdry      => soilstate_inst%watdry_col         , & ! Input:  [real(r8) (:,:) ]  btran parameter for btran=0
-         watopt      => soilstate_inst%watopt_col         , & ! Input:  [real(r8) (:,:) ]  btran parameter for btran = 1
          bsw         => soilstate_inst%bsw_col            , & ! Input:  [real(r8) (:,:) ]  Clapp and Hornberger "b" 
-         soilbeta    => soilstate_inst%soilbeta_col       , & ! Input:  [real(r8) (:)   ]  soil wetness relative to field capacity 
          sand        => soilstate_inst%sandfrac_patch     , & ! Input:  [real(r8) (:)   ]  % sand of soil 
          rootr       => soilstate_inst%rootr_patch        , & ! Output: [real(r8) (:,:) ]  Fraction of water uptake in each layer
 
@@ -135,7 +132,6 @@ contains
          t_soisno    => temperature_inst%t_soisno_col     , & ! Input:  [real(r8) (:,:) ]  soil temperature (Kelvin)
 
          btran       => energyflux_inst%btran_patch       , & ! Output: [real(r8) (:)   ]  transpiration wetness factor (0 to 1)
-         btran2      => energyflux_inst%btran2_patch      , & ! Output: [real(r8) (:)   ] 
          rresis      => energyflux_inst%rresis_patch        & ! Output: [real(r8) (:,:) ]  root resistance by layer (0-1)  (nlevgrnd) 
          )
    
@@ -172,8 +168,6 @@ contains
                end if
             end do !j
 
-            btran(p) = currentPatch%btran_ft(1) !FIX(RF,032414) for TRF where is this used?
-
             ! Normalize root resistances to get layer contribution to ET 
             do j = 1,nlevgrnd    
                if (currentPatch%btran_ft(FT)  >  0.0_r8) then
@@ -196,7 +190,6 @@ contains
 
          do j = 1,nlevgrnd       
             rootr(p,j) = 0._r8
-            btran(p) = 0.0_r8
             do FT = 1,numpft_ed
                if(sum(pftgs) > 0._r8)then !prevent problem with the first timestep - might fail
                   !bit-retart test as a result? FIX(RF,032414)  
