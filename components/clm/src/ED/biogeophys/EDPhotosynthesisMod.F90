@@ -59,7 +59,7 @@ contains
     real(r8)               , intent(in)            :: eair( bounds%begp: )        ! vapor pressure of canopy air (Pa)
     real(r8)               , intent(in)            :: oair( bounds%begp: )        ! Atmospheric O2 partial pressure (Pa)
     real(r8)               , intent(in)            :: cair( bounds%begp: )        ! Atmospheric CO2 partial pressure (Pa)
-    real(r8)               , intent(inout)         :: rb( bounds%begp: )          ! boundary layer resistance (s/m)
+    real(r8)               , intent(in)            :: rb( bounds%begp: )          ! boundary layer resistance (s/m)
     real(r8)               , intent(in)            :: dayl_factor( bounds%begp: ) ! scalar (0-1) for daylength
     type(ed_site_type)     , intent(inout), target :: sites(nsites)
     integer                , intent(in)            :: nsites

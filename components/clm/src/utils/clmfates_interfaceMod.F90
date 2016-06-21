@@ -40,29 +40,36 @@ module CLMFatesInterfaceMod
    use TemperatureType   , only : temperature_type
    use SoilStateType     , only : soilstate_type
    use clm_varctl        , only : iulog
-   use clm_varpar        , only : numpft
+   use clm_varpar        , only : numpft,            &
+                                  numrad
    use atm2lndType       , only : atm2lnd_type
    use SurfaceAlbedoType , only : surfalb_type
    use SolarAbsorbedType , only : solarabs_type
    use clm_time_manager  , only : is_restart
    use ncdio_pio         , only : file_desc_t
-   use clm_time_manager  , only : get_days_per_year, get_curr_date
-   use clm_time_manager  , only : get_ref_date, timemgr_datediff 
+   use clm_time_manager  , only : get_days_per_year, &
+                                  get_curr_date
+   use clm_time_manager  , only : get_ref_date,      &
+                                  timemgr_datediff 
    use spmdMod           , only : masterproc
-   use decompMod         , only : get_proc_bounds, get_proc_clumps, get_clump_bounds
+   use decompMod         , only : get_proc_bounds,   &
+                                  get_proc_clumps,   &
+                                  get_clump_bounds
    use GridCellType      , only : grc
    use ColumnType        , only : col
    use LandunitType      , only : lun
    use landunit_varcon   , only : istsoil
-   use abortutils      , only : endrun
-   use shr_log_mod     , only : errMsg => shr_log_errMsg    
+   use abortutils        , only : endrun
+   use shr_log_mod       , only : errMsg => shr_log_errMsg    
 
    ! Used FATES Modules
-   use FatesInterfaceMod     , only : fates_interface_type
+   use FatesInterfaceMod     , only : fates_interface_type, &
+                                      fates_dims
    use EDCLMLinkMod          , only : ed_clm_type
    use EDTypesMod            , only : udata
    use EDTypesMod            , only : ed_patch_type
    use EDtypesMod            , only : map_clmpatch_to_edpatch
+   use EDtypesMod            , only : numPatchesPerCol
    use EDMainMod             , only : ed_ecosystem_dynamics
    use EDMainMod             , only : ed_update_site
    use EDInitMod             , only : zero_site
@@ -113,19 +120,6 @@ module CLMFatesInterfaceMod
 
       type(ed_clm_type) :: fates2hlm  
 
-      
-      ! INTERF-TODO: we will need a new bounding type (maybe?)
-      ! depending on how we structure the memory
-      ! We will likely have a fates_bcs (boundary conditions) type
-      ! And this type could take many forms, but probably be pointers
-      ! to various CLM/ALM/ATS/etc types
-      ! This is a structure of pointers that maps between
-      ! the calling model and the fates model
-      !      type(fates_bounds_type) :: bound_fate
-
-
-     
-
    contains
       
       procedure, public :: init
@@ -135,7 +129,6 @@ module CLMFatesInterfaceMod
       procedure, public :: init_coldstart
       procedure, public :: dynamics_driv
       procedure, public :: canopy_sunshade_fracs
-     
 
    end type hlm_fates_interface_type
 
@@ -144,6 +137,8 @@ module CLMFatesInterfaceMod
 
 contains
    
+   ! ====================================================================================
+
    subroutine init(this,bounds_proc, use_ed)
       
       ! ---------------------------------------------------------------------------------
@@ -196,14 +191,39 @@ contains
       allocate(this%fates(nclumps))
       allocate(this%f2hmap(nclumps))
 
+
+      ! Initialize dimenion information
+      ! This mostly copies and compares global variables in clm_varpar
+      ! and FatesInterfaceMod
+      call init_fates_dimensions()
+
+
+
       if(DEBUG)then
          write(iulog,*) 'clm_fates%init():  allocating for ',nclumps,' threads'
       end if
 
-
+      return
    end subroutine init
 
+   ! ====================================================================================
 
+   subroutine init_fates_dimensions()
+      
+      use clm_varpar    , only : numpft,        &
+                                 numrad
+
+      implicit none
+      
+      ! The number of SW bands is taken from the host/driver
+      fates_dims%numSwBands = numrad
+
+
+   end subroutine init_fates_dimensions
+
+
+   ! ====================================================================================
+   
    subroutine init_allocate(this)
       
       implicit none
@@ -287,6 +307,23 @@ contains
 
          ! Allocate the FATES sites
          allocate (this%fates(nc)%sites(s))
+
+         ! Allocate the FATES boundary arrays (in)
+         allocate(this%fates(nc)%bc_in(s))
+
+         ! Allocate the FATES boundary arrays (out)
+         allocate(this%fates(nc)%bc_out(s))
+
+         ! Allocate and Initialize the Boundary Condition Arrays
+         ! These are staticaly allocated at maximums, so
+         ! No information about the patch or cohort
+         ! structure is needed at this step
+         
+         do s = 1, this%fates(nc)%nsites
+            call this%fates(nc)%allocate_bcs(s)
+            call this%fates(nc)%zero_bcs(s)
+         end do
+
 
          if( this%fates(nc)%nsites == 0 ) then
             write(iulog,*) 'Clump ',nc,' had no valid FATES sites'
@@ -573,12 +610,15 @@ contains
       type(canopystate_type),intent(inout) :: canopystate_inst
       
       ! Local Variables
-      integer  :: fp                          ! non-urban filter patch index
-      integer  :: p                           ! patch index
-      integer  :: g                           ! grid cell index
-      integer  :: c                           ! column index (HLM native index)
-      integer  :: s                           ! site index  (FATES native index)
-      integer, parameter :: ipar = 1          ! The band index for PAR
+      integer  :: p                           ! global index of the host patch
+      integer  :: g                           ! global index of the host gridcell
+      integer  :: c                           ! global index of the host column
+
+      integer  :: s                           ! FATES site index
+      integer  :: ifp                         ! FATEs patch index
+                                              ! this is the order increment of patch
+                                              ! on the site
+      
       type(ed_patch_type), pointer :: cpatch  ! c"urrent" patch  INTERF-TODO: SHOULD
                                               ! BE HIDDEN AS A FATES PRIVATE
       
@@ -586,33 +626,54 @@ contains
                  forc_solai => atm2lnd_inst%forc_solai_grc, &
                  fsun       => canopystate_inst%fsun_patch)
         
-        do fp = 1,num_nourbanp
-           
-           p = filter_nourbanp(fp)
-           g = patch%gridcell(p)
-           c = patch%column(p)
-           s = this%f2hmap(nc)%hsites(c)
-           
-           if ( patch%is_veg(p) ) then 
-              
-              ! ed_clm_link should be responsibe for setting is_veg
-              ! so this condition should prevent a non-site from
-              ! emerging here.  Lets do a sanity check anyway
+        ! -------------------------------------------------------------------------------
+        ! Convert input BC's
+        ! The sun-shade calculations are performed only on FATES patches
+        ! -------------------------------------------------------------------------------
 
-              if( s < 1 .or. s > this%fates(nc)%nsites )then
-                 write(iulog,*) 'There is a disconnect between the is_veg filter'
-                 write(iulog,*) 'set in ed_clm_link, and the allocation of sites'
-                 write(iulog,*) 'Perhaps is_veg is being set in a rogue location?'
-                 call endrun(msg=errMsg(__FILE__, __LINE__))
-              end if
-              
-              cpatch => map_clmpatch_to_edpatch(this%fates(nc)%sites(s), p) 
-              
-              call ED_SunShadeFracs(cpatch,forc_solad(g,ipar),forc_solai(g,ipar),fsun(p))
-              
-           endif
+        do s = 1, this%fates(nc)%nsites
+           c = this%f2hmap(nc)%fcolumn(s)
            
+           do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
+           !do ifp = 1, this%fates(nc)%bc_in(s)%npatches
+              
+              p = ifp+col%patchi(c)
+              g = col%gridcell(c)
+
+              this%fates(nc)%bc_in(s)%solad_pa(ifp,:) = forc_solad(g,:)
+              this%fates(nc)%bc_in(s)%solai_pa(ifp,:) = forc_solai(g,:)
+
+           end do
         end do
+
+        ! -------------------------------------------------------------------------------
+        ! Call FATES public function to calculate internal sun/shade structures
+        ! as well as total patch sun/shade fraction output boundary condition
+        ! -------------------------------------------------------------------------------
+
+        call ED_SunShadeFracs(this%fates(nc)%sites,  &
+                              this%fates(nc)%nsites, &
+                              this%fates(nc)%bc_in,  &
+                              this%fates(nc)%bc_out)
+
+        ! -------------------------------------------------------------------------------
+        ! Transfer the FATES output boundary condition for canopy sun/shade fraction
+        ! to the HLM
+        ! -------------------------------------------------------------------------------
+
+        do s = 1, this%fates(nc)%nsites
+           c = this%f2hmap(nc)%fcolumn(s)
+           do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
+!           do ifp = 1, this%fates(nc)%bc_in(s)%npatches
+              
+              p = ifp+col%patchi(c)
+              g = col%gridcell(c)
+              
+              fsun(p) = this%fates(nc)%bc_out(s)%fsun_pa(ifp)
+
+           end do
+        end do
+
       end associate
       return
    end subroutine canopy_sunshade_fracs

@@ -1256,6 +1256,7 @@ contains
          write(iulog,*) 'energy balance in canopy ',p,', err=',err(p)
       end do
 
+      ! INTERF-TODO: NOT CLEAR WHY WE ZERO THESE FOR ED AND NOT NON-ED
       if ( use_ed ) then      
          ! zero all of the array,  not just the ones in the filter. 
          do p = bounds%begp,bounds%endp 
