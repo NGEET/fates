@@ -108,6 +108,37 @@
 	  <module>load compiler/gnu/4.4.7</module>
   	</block>
   </machine>
+
+  <machine mach="lawrencium-lr2">
+     <module_system>module</module_system>
+     <block>
+        <module>purge</module>
+        <module>load cmake</module>
+        <module>load perl xml-libxml switch</module>
+     </block>
+     <block compiler="intel">
+        <block>load intel/2015.6.233</block>
+        <block>load openmpi</block>
+        <block>load netcdf/4.4.0-intel-p</block>
+        <block>load mkl</block>
+     </block>
+  </machine>
+
+  <machine mach="lawrencium-lr3">
+     <module_system>module</module_system>
+     <block>
+        <module>purge</module>
+        <module>load cmake</module>
+        <module>load perl xml-libxml switch</module>
+     </block>
+     <block compiler="intel">
+        <block>load intel/2015.6.233</block>
+        <block>load openmpi</block>
+        <block>load netcdf/4.4.0-intel-p</block>
+        <block>load mkl</block>
+     </block>
+  </machine>
+
   <machine mach="mira">
     <module_system>soft</module_system>
     <init_path lang="perl">. /etc/profile.d/00softenv.sh</init_path>
