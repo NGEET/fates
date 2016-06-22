@@ -1,22 +1,18 @@
 module EDBtranMod
+   
+   !-------------------------------------------------------------------------------------
+   ! Description:
+   ! 
+   ! ------------------------------------------------------------------------------------
 
-  !------------------------------------------------------------------------------
-  ! !DESCRIPTION:
-  ! This routine accumulates NPP, GPP and respiration of each cohort over the course of each 24 hour period. 
-  ! The fluxes are stored per cohort, and the npp_clm (etc) fluxes are calcualted in EDPhotosynthesis
-  ! This routine cannot be in EDPhotosynthesis because EDPhotosynthesis is a loop and therefore would
-  ! erroneously add these things up multiple times. 
-  ! Rosie Fisher. March 2014. 
-  !
-  ! !USES:
   use pftconMod        , only : pftcon
   use EDTypesMod       , only : ed_patch_type, ed_cohort_type, numpft_ed
   use EDEcophysContype , only : EDecophyscon
   !
   implicit none
   private
-  !
-  public :: BTRAN_ED
+
+  public :: btran_ed
   !
   type(ed_cohort_type), pointer  :: currentCohort ! current cohort
   type(ed_patch_type) , pointer  :: currentPatch ! current patch
@@ -25,37 +21,21 @@ module EDBtranMod
 contains 
 
   !------------------------------------------------------------------------------
-  subroutine btran_ed( bounds, p, sites, nsites, hsites, &
-       soilstate_inst, waterstate_inst, temperature_inst, energyflux_inst)
-    !
-    ! !DESCRIPTION:
-    !
-    ! !USES:
+  subroutine btran_ed( sites, nsites, bc_in, bc_out)
+
+
     use shr_kind_mod       , only : r8 => shr_kind_r8
-    use shr_const_mod      , only : shr_const_pi  
-    use decompMod          , only : bounds_type
-    use clm_varpar         , only : nlevgrnd
-    use clm_varctl         , only : iulog
-    use clm_varcon         , only : tfrz, denice, denh2o
-    use SoilStateType      , only : soilstate_type
-    use WaterStateType     , only : waterstate_type
-    use TemperatureType    , only : temperature_type
-    use EnergyFluxType     , only : energyflux_type
-    use GridcellType       , only : grc
-    use ColumnType         , only : col
-    use PatchType          , only : patch
-    use EDTypesMod         , only : ed_site_type, map_clmpatch_to_edpatch 
-    !
-    ! !ARGUMENTS    
-    type(bounds_type)      , intent(in)            :: bounds  ! clump bounds
-    integer                , intent(in)            :: p       ! patch/'p'
-    type(ed_site_type)     , intent(inout), target :: sites(nsites)
-    integer                , intent(in)            :: nsites
-    integer                , intent(in)            :: hsites(bounds%begc:bounds%endc)
-    type(soilstate_type)   , intent(inout)         :: soilstate_inst
-    type(waterstate_type)  , intent(in)            :: waterstate_inst
-    type(temperature_type) , intent(in)            :: temperature_inst
-    type(energyflux_type)  , intent(inout)         :: energyflux_inst
+    use EDtypesMod        , only  : ed_patch_type, ed_site_type
+    use FatesInterfaceMod , only  : bc_in_type, &
+                                    bc_out_type
+
+    ! Arguments
+
+    type(ed_site_type),intent(inout),target :: sites(nsites)
+    integer,intent(in)                      :: nsites
+    type(bc_in_type),intent(in)             :: bc_in(nsites)
+    type(bc_out_type),intent(out)           :: bc_out(nsites)
+
     !
     ! !LOCAL VARIABLES:
     integer :: iv !leaf layer
@@ -63,6 +43,11 @@ contains
     integer :: c  !column
     integer :: j  !soil layer
     integer :: ft ! plant functional type index
+    
+    
+    ! The root effective root fraction for different pfts and soil layers
+    real(r8) :: rootr(numpft_ed,nlevgrnd)
+    
     !----------------------------------------------------------------------
 
     ! Inputs to model from CLM. To be read in through an input file for the purposes of this program.      
@@ -113,38 +98,94 @@ contains
     real(r8) :: temprootr                   
     !------------------------------------------------------------------------------
 
-    associate(& 
-         dz          => col%dz                            , & ! Input:  [real(r8) (:,:) ]  layer depth (m)
 
-         smpso       => pftcon%smpso                      , & ! Input:  soil water potential at full stomatal opening (mm)
-         smpsc       => pftcon%smpsc                      , & ! Input:  soil water potential at full stomatal closure (mm)
+    do s = 1,nsites
+       
+       ifp = 0
+       cpatch => sites(s)%oldest_patch
+       do while (associated(cpatch))                 
+          ifp=ifp+1
+          
+          do FT = 1,numpft_ed
+             currentPatch%btran_ft(FT) = 0.0_r8
+             do j = 1,nlevgrnd
+                
+                if(bc_in(s)%smp_sl(j) > -900.0_r8 ) then  ! The flag for frozen or no water is -999
+                   
+                   smp_node = max(smpsc(FT), bc_in(s)%smp_sl(j))
+                   
+                   rresis_ft = min( (bc_in(s)%eff_porosity_sl(j)/bc_in(s)%watsat(j))*               &
+                         (smp_node - smpsc(FT)) / (smpso(FT) - smpsc(FT)), 1._r8)
 
-         sucsat      => soilstate_inst%sucsat_col         , & ! Input:  [real(r8) (:,:) ]  minimum soil suction (mm) 
-         watsat      => soilstate_inst%watsat_col         , & ! Input:  [real(r8) (:,:) ]  volumetric soil water at saturation (porosity)
-         bsw         => soilstate_inst%bsw_col            , & ! Input:  [real(r8) (:,:) ]  Clapp and Hornberger "b" 
-         sand        => soilstate_inst%sandfrac_patch     , & ! Input:  [real(r8) (:)   ]  % sand of soil 
-         rootr       => soilstate_inst%rootr_patch        , & ! Output: [real(r8) (:,:) ]  Fraction of water uptake in each layer
 
-         h2osoi_ice  => waterstate_inst%h2osoi_ice_col    , & ! Input:  [real(r8) (:,:) ]  ice lens (kg/m2)
-         h2osoi_vol  => waterstate_inst%h2osoi_vol_col    , & ! Input:  [real(r8) (:,:) ]  volumetric soil water (0<=h2osoi_vol<=watsat) [m3/m3] 
-         h2osoi_liq  => waterstate_inst%h2osoi_liq_col    , & ! Input:  [real(r8) (:,:) ]  liquid water (kg/m2) 
+                   currentPatch%rootr_ft(FT,j) = currentPatch%rootfr_ft(FT,j)*rresis_ft
 
-         t_soisno    => temperature_inst%t_soisno_col     , & ! Input:  [real(r8) (:,:) ]  soil temperature (Kelvin)
+                   ! root water uptake is not linearly proportional to root density,
+                   ! to allow proper deep root funciton. Replace with equations from SPA/Newman. FIX(RF,032414)
+                   ! currentPatch%rootr_ft(FT,j) = currentPatch%rootfr_ft(FT,j)**0.3*rresis_FT(FT,j)/ &
+                   ! sum(currentPatch%rootfr_ft(FT,1:nlevgrnd)**0.3)
+                   currentPatch%btran_ft(FT) = currentPatch%btran_ft(FT) + currentPatch%rootr_ft(FT,j)
 
-         btran       => energyflux_inst%btran_patch       , & ! Output: [real(r8) (:)   ]  transpiration wetness factor (0 to 1)
-         rresis      => energyflux_inst%rresis_patch        & ! Output: [real(r8) (:,:) ]  root resistance by layer (0-1)  (nlevgrnd) 
-         )
-   
-      if (patch%is_veg(p)) then
+                else
+                   currentPatch%rootr_ft(FT,j) = 0._r8
+                end if
 
-         c = patch%column(p)
-         s = hsites(c)
+            end do !j
+
+            ! Normalize root resistances to get layer contribution to ET
+            do j = 1,nlevgrnd    
+               if (currentPatch%btran_ft(FT)  >  0.0_r8) then
+                  currentPatch%rootr_ft(FT,j) = currentPatch%rootr_ft(FT,j)/currentPatch%btran_ft(FT)
+               else
+                  currentPatch%rootr_ft(FT,j) = 0._r8
+               end if
+            end do
+
+         end do !PFT
+
+         ! PFT-averaged point level root fraction for extraction purposese.
+         ! This probably needs to be weighted by actual transpiration from each pft. FIX(RF,032414).
+         pftgs(:) = 0._r8
+         currentCohort => currentPatch%tallest
+         do while(associated(currentCohort))
+            pftgs(currentCohort%pft) = pftgs(currentCohort%pft) + currentCohort%gscan * currentCohort%n    
+            currentCohort => currentCohort%shorter
+         enddo
+
+
+         ! Process the boundary output, this is necessary for calculating the soil-moisture
+         ! sink term across the different layers in driver/host.  Photosynthesis will
+         ! pass the host a total transpiration for the patch.  This needs rootr to be
+         ! distributed over the soil layers.
+
+         do j = 1,nlevgrnd
+            bc_out(s)%rootr_pa(ifp,j) = 0._r8
+            do FT = 1,numpft_ed
+               if(sum(pftgs) > 0._r8)then !prevent problem with the first timestep - might fail
+                  !bit-retart test as a result? FIX(RF,032414)  
+                  bc_out(s)%rootr_pa(ifp,j) = bc_out(s)%rootr_pa(ifp,j) + &
+                                              currentPatch%rootr_ft(FT,j) * pftgs(ft)/sum(pftgs)
+               else
+                  bc_out(s)%rootr_pa(ifp,j) = bc_out(s)%rootr_pa(ifp,j) + &
+                                              currentPatch%rootr_ft(FT,j) * 1./numpft_ed
+               end if
+            enddo
+         enddo
          
-         currentPatch => map_clmpatch_to_edpatch(sites(s), p) 
 
-         do FT = 1,numpft_ed
-            currentPatch%btran_ft(FT) = 0.0_r8
-            do j = 1,nlevgrnd
+
+         cpatch => cpatch%younger
+      end do
+          
+   end do
+   
+
+
+
+         
+ do FT = 1,numpft_ed
+             currentPatch%btran_ft(FT) = 0.0_r8
+             do j = 1,nlevgrnd
 
                !Root resistance factors
                vol_ice = min(watsat(c,j), h2osoi_ice(c,j)/(dz(c,j)*denice))
@@ -199,6 +240,7 @@ contains
                end if
             enddo
          enddo
+         
 
 
          !---------------------------------------------------------------------------------------
