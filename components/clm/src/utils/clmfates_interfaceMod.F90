@@ -501,14 +501,14 @@ contains
          if (this%fates(nc)%nsites>0) then
             call get_clump_bounds(nc, bounds_clump)
             
-            call EDRest( bounds_clump,                                              &
-                 this%fates(nc)%sites,                                      &
-                 this%fates(nc)%nsites,                                     &
+            call EDRest( bounds_clump,                                             &
+                 this%fates(nc)%sites,                                             &
+                 this%fates(nc)%nsites,                                            &
                  this%f2hmap(nc)%fcolumn, ncid, flag )
             
             if ( trim(flag) == 'read' ) then
                
-               call this%fates2hlm%ed_clm_link( bounds_clump,                       &
+               call this%fates2hlm%ed_clm_link( bounds_clump,                      &
                     this%fates(nc)%sites,                                          &
                     this%fates(nc)%nsites,                                         &
                     this%f2hmap(nc)%fcolumn,                                       &
@@ -524,6 +524,8 @@ contains
       
       return
    end subroutine init_restart
+
+   ! ====================================================================================
 
    subroutine init_coldstart(this, waterstate_inst, canopystate_inst)
 
@@ -580,10 +582,9 @@ contains
      return
    end subroutine init_coldstart
 
-   ! ------------------------------------------------------------------------------------
+   ! ======================================================================================
    
-   subroutine canopy_sunshade_fracs(this,nc,filter_nourbanp, num_nourbanp, &
-         atm2lnd_inst,canopystate_inst)
+   subroutine wrap_sunfrac(this,nc,atm2lnd_inst,canopystate_inst)
          
       
       ! This interface function is a wrapper call on ED_SunShadeFracs. The only
@@ -596,12 +597,6 @@ contains
       class(hlm_fates_interface_type), intent(inout) :: this
       
       integer, intent(in)                  :: nc
-      
-      ! patch filter for non-urban points
-      integer, intent(in),dimension(:)     :: filter_nourbanp
-      
-      ! number of patches in non-urban points in patch  filter
-      integer, intent(in)                  :: num_nourbanp       
       
       ! direct and diffuse downwelling radiation (W/m2)
       type(atm2lnd_type),intent(in)        :: atm2lnd_inst
@@ -676,8 +671,120 @@ contains
 
       end associate
       return
-   end subroutine canopy_sunshade_fracs
+   end subroutine wrap_sunfrac
    
+   ! ====================================================================================
+   
+   subroutine wrap_btran(nc,soilstate_inst, waterstate_inst, &
+                         temperature_inst, energyflux_inst)
+      
+      ! ---------------------------------------------------------------------------------
+      ! This subroutine calculates btran for FATES, this will be an input boundary
+      ! condition for FATES photosynthesis/transpiration.
+      !
+      ! This subroutine also calculates rootr, rresis
+      ! 
+      ! ---------------------------------------------------------------------------------
+      
+      implicit none
+      
+      ! Arguments
+      class(hlm_fates_interface_type), intent(inout) :: this
+      integer                , intent(in)            :: nc
+      type(soilstate_type)   , intent(inout)         :: soilstate_inst
+      type(waterstate_type)  , intent(in)            :: waterstate_inst
+      type(temperature_type) , intent(in)            :: temperature_inst
+      type(energyflux_type)  , intent(inout)         :: energyflux_inst
+
+      ! local variables
+      real(r8)                                       :: smp_node ! Soil suction potential, negative, [mm]
+      
+      
+      associate(& 
+         dz          => col%dz                            , & ! Input:  [real(r8) (:,:) ]  layer depth (m)
+         smpso       => pftcon%smpso                      , & ! Input:  soil water potential at full stomatal opening (mm)
+         smpsc       => pftcon%smpsc                      , & ! Input:  soil water potential at full stomatal closure (mm)
+         sucsat      => soilstate_inst%sucsat_col         , & ! Input:  [real(r8) (:,:) ]  minimum soil suction (mm) 
+         watsat      => soilstate_inst%watsat_col         , & ! Input:  [real(r8) (:,:) ]  volumetric soil water at saturation (porosity)
+         bsw         => soilstate_inst%bsw_col            , & ! Input:  [real(r8) (:,:) ]  Clapp and Hornberger "b" 
+         sand        => soilstate_inst%sandfrac_patch     , & ! Input:  [real(r8) (:)   ]  % sand of soil 
+         rootr       => soilstate_inst%rootr_patch        , & ! Output: [real(r8) (:,:) ]  Fraction of water uptake in each layer
+         eff_porosity  => soilstate_inst%eff_porosity_col , & ! Input:  [real(r8) (:,:) ]  effective porosity = porosity - vol_ice       
+         h2osoi_ice  => waterstate_inst%h2osoi_ice_col    , & ! Input:  [real(r8) (:,:) ]  ice lens (kg/m2)
+         h2osoi_vol  => waterstate_inst%h2osoi_vol_col    , & ! Input:  [real(r8) (:,:) ]  volumetric soil water (0<=h2osoi_vol<=watsat) [m3/m3] 
+         h2osoi_liq  => waterstate_inst%h2osoi_liq_col    , & ! Input:  [real(r8) (:,:) ]  liquid water (kg/m2) 
+         t_soisno    => temperature_inst%t_soisno_col     , & ! Input:  [real(r8) (:,:) ]  soil temperature (Kelvin)
+         btran       => energyflux_inst%btran_patch       , & ! Output: [real(r8) (:)   ]  transpiration wetness factor (0 to 1)
+         rresis      => energyflux_inst%rresis_patch        & ! Output: [real(r8) (:,:) ]  root resistance by layer (0-1)  (nlevgrnd) 
+         )
+         
+
+        ! -------------------------------------------------------------------------------
+        ! Convert input BC's
+        ! -------------------------------------------------------------------------------
+        
+        do s = 1, this%fates(nc)%nsites
+           c = this%f2hmap(nc)%fcolumn(s)
+           
+           do j = 1,nlevgrnd
+              
+              if (h2osoi_liqvol(c,j) .le. 0._r8 .or. t_soisno(c,j) .le. tfrz-2._r8) then
+                 
+                 this%fates(nc)%bc_in(s)%smp_sl(j)          = -9999.9_r8
+                 this%fates(nc)%bc_in(s)%eff_porosity_sl(j) = -9999.9_r8
+                 this%fates(nc)%bc_in(s)%watsat_sl(j)       = -9999.9_r8
+                 
+              else
+                 s_node = max(h2osoi_liqvol(c,j)/eff_porosity(c,j),0.01_r8)
+                 call soil_water_retention_curve%soil_suction(sucsat(c,j), s_node, bsw(c,j), smp_node)
+                 
+                 this%fates(nc)%bc_in(s)%smp_sl(j)          = smp_node
+                 this%fates(nc)%bc_in(s)%eff_porosity_sl(j) = eff_porosity(c,j)
+                 this%fates(nc)%bc_in(s)%watsat_sl(j)       = watsat(c,j)
+                 
+              end if
+              
+           end do
+        end do
+        
+        ! -------------------------------------------------------------------------------
+        ! Call a FATES public function.
+        ! This will calculate internals, as well as output boundary conditions: 
+        ! btran, rresis, rootr
+        ! -------------------------------------------------------------------------------
+
+        call btran_ed(this%fates(nc)%sites,  &
+                      this%fates(nc)%nsites, &
+                      this%fates(nc)%bc_in,  &
+                      this%fates(nc)%bc_out)
+
+
+        ! -------------------------------------------------------------------------------
+        ! Convert output BC's
+        ! -------------------------------------------------------------------------------
+
+
+        do s = 1, this%fates(nc)%nsites
+           c = this%f2hmap(nc)%fcolumn(s)
+           
+           do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
+              
+              p = ifp+col%patchi(c)
+              
+              do j = 1,nlevgrnd
+                 
+                 rresis(p,j) = this%fates(nc)%bc_out(s)%rresis_pa(ifp,j)
+                 rootr(p,j)  = this%fates(nc)%bc_out(s)%rootr_pa(ifp,j)
+                 btran(p,j)  = this%fates(nc)%bc_out(s)%btran_pa(ifp,j)
+
+              end do
+
+           end do
+        end do
+      
+        return
+   end subroutine wrap_btran
+
 
 
 

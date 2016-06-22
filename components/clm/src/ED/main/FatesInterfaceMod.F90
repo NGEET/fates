@@ -18,7 +18,7 @@ module FatesInterfaceMod
    use EDtypesMod            , only : ed_site_type,      &
                                       numPatchesPerCol
    use shr_kind_mod          , only : r8 => shr_kind_r8  ! INTERF-TODO: REMOVE THIS
-   
+   use clm_varpar            , only : nlevgrnd
    
    ! ------------------------------------------------------------------------------------
    ! Certain dimension information used by FATES is dictated by the the driver
@@ -32,8 +32,7 @@ module FatesInterfaceMod
       integer :: numSWBands   ! Maximum number of broad-bands in the short-wave radiation
                               ! specturm to track 
                               ! (typically 2 as a default, VIS/NIR, in ED variants <2016)
-      
-      
+
    end type fates_dims_type
 
 
@@ -53,12 +52,20 @@ module FatesInterfaceMod
       ! The actual number of FATES' ED patches
       integer :: npatches
 
-      ! Downwelling direct beam radiation (patch,broad-band) [W/m2?]
-      real(r8),allocatable :: solad_pa(:,:)  
+      ! Downwelling direct beam radiation (patch,broad-band) [W/m2]
+      real(r8), allocatable :: solad_pa(:,:)  
 
       ! Downwelling diffuse (I-ndirect) radiation (patch,broad-band) [W/m2]
-      real(r8),allocatable :: solai_pa(:,:)
+      real(r8), allocatable :: solai_pa(:,:)
 
+      ! Soil suction potential of layers in each site, negative, [mm]
+      real(r8), allocatable :: smp_sl(:)
+
+      ! Effective porosity = porosity - vol_ic, of layers in each site [-]
+      real(r8), allocatable :: eff_porosity_sl(:)
+
+      ! volumetric soil water at saturation (porosity)
+      real(r8), allocatable :: watsat_sl(:)
 
    end type bc_in_type
 
@@ -67,6 +74,18 @@ module FatesInterfaceMod
 
       ! Sunlit fraction of the canopy for this patch [0-1]
       real(r8),allocatable :: fsun_pa(:)
+
+      ! Root soil water stress (resistance) by layer 
+      ! (diagnostic, should not be used by HLM)
+      real(r8),allocatable :: rresis_pa(:,:)
+      
+      ! Effective fraction of roots in each soil layer 
+      ! (diagnostic, should not be used by HLM)
+      real(r8), allocatable :: rootr_pa(:,:)
+
+      ! Integrated (vertically) transpiration wetness factor (0 to 1) 
+      ! (diagnostic, should not be used by HLM)
+      real(r8), allocatable :: btran_pa(:)
 
    end type bc_out_type
 
@@ -151,12 +170,25 @@ contains
       
       ! Allocate input boundaries
       
+      ! Radiation
       allocate(this%bc_in(s)%solad_pa(numPatchesPerCol,fates_dims%numSWBands))
       allocate(this%bc_in(s)%solai_pa(numPatchesPerCol,fates_dims%numSWBands))
+
+      ! Hydrology
+      allocate(this%bc_in(s)%smp_sl(nlevgrnd))
+      allocate(this%bc_in(s)%eff_porosity_sl(nlevgrnd))
+      allocate(this%bc_in(s)%watsat_sl(nlevgrnd))
       
       ! Allocate output boundaries
-      
+
+      ! Radiation
       allocate(this%bc_out(s)%fsun_pa(numPatchesPerCol))
+      
+      ! Hydrology
+      allocate(this%bc_out(s)%rresis_pa(numPatchesPerCol,nlevgrnd))
+      allocate(this%bc_out(s)%rootr_pa(numPatchesPerCol,nlevgrnd))
+      allocate(this%bc_out(s)%btran_pa(numPatchesPerCol))
+
 
       return
    end subroutine allocate_bcs
@@ -171,13 +203,18 @@ contains
 
       ! Input boundaries
 
-      this%bc_in(s)%solad_pa(:,:) = 0.0_r8
-      this%bc_in(s)%solai_pa(:,:) = 0.0_r8
+      this%bc_in(s)%solad_pa(:,:)      = 0.0_r8
+      this%bc_in(s)%solai_pa(:,:)      = 0.0_r8
+      this%bc_in(s)%smp_sl(:)          = 0.0_r8
+      this%bc_in(s)%eff_porosity_sl(:) = 0.0_r8
+      this%bc_in(s)%watsat_sl(:)       = 0.0_r8
       
       ! Output boundaries
       
       this%bc_out(s)%fsun_pa(:) = 0.0_r8
-
+      this%bc_out(s)%rresis_pa(:) = 0.0_r8
+      this%bc_out(s)%rootr_pa(:) = 0.0_r8
+      this%bc_out(s)%btran_pa(:) = 0.0_r8
 
       return
    end subroutine zero_bcs
