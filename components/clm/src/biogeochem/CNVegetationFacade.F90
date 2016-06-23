@@ -92,13 +92,17 @@ module CNVegetationFacade
   ! !PUBLIC TYPES:
 
   type, public :: cn_vegetation_type
-     private
-
+     ! FIXME(bja, 2016-06) These need to be public for use when ED is
+     ! turned on. Should either be moved out of here or create some ED
+     ! version of the facade....
      type(cnveg_state_type)         :: cnveg_state_inst
      type(cnveg_carbonstate_type)   :: cnveg_carbonstate_inst
+     type(cnveg_carbonflux_type)    :: cnveg_carbonflux_inst
+
+     !X!private
+
      type(cnveg_carbonstate_type)   :: c13_cnveg_carbonstate_inst
      type(cnveg_carbonstate_type)   :: c14_cnveg_carbonstate_inst
-     type(cnveg_carbonflux_type)    :: cnveg_carbonflux_inst
      type(cnveg_carbonflux_type)    :: c13_cnveg_carbonflux_inst
      type(cnveg_carbonflux_type)    :: c14_cnveg_carbonflux_inst
      type(cnveg_nitrogenstate_type) :: cnveg_nitrogenstate_inst
@@ -573,7 +577,7 @@ contains
        num_soilc, filter_soilc, &
        num_soilp, filter_soilp, &
        num_pcropp, filter_pcropp, &
-       doalb, &
+       doalb, ed_clm_inst, &
        soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,         &
        c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
        c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
@@ -590,6 +594,8 @@ contains
     ! Should only be called if use_cn is true
     !
     ! !USES:
+    use EDCLMLinkMod                    , only : ed_clm_type
+
     !
     ! !ARGUMENTS:
     class(cn_vegetation_type)               , intent(inout) :: this
@@ -601,6 +607,7 @@ contains
     integer                                 , intent(in)    :: num_pcropp        ! number of prog. crop patches in filter
     integer                                 , intent(in)    :: filter_pcropp(:)  ! filter for prognostic crop patches
     logical                                 , intent(in)    :: doalb             ! true = surface albedo calculation time step
+    type(ed_clm_type)                    , intent(in)    :: ed_clm_inst     
     type(soilbiogeochem_state_type)         , intent(inout) :: soilbiogeochem_state_inst
     type(soilbiogeochem_carbonflux_type)    , intent(inout) :: soilbiogeochem_carbonflux_inst
     type(soilbiogeochem_carbonstate_type)   , intent(inout) :: soilbiogeochem_carbonstate_inst
@@ -640,6 +647,7 @@ contains
          this%cnveg_nitrogenflux_inst, this%cnveg_nitrogenstate_inst,                       &
          this%c_products_inst, this%c13_products_inst, this%c14_products_inst,    &
          this%n_products_inst,                                                    &
+         ed_clm_inst, &
          soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,         &
          c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
          c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &

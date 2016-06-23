@@ -370,7 +370,7 @@ contains
          end do
       end do
 
-      if (use_cn) then
+!      if (use_cn) then
          ! Update soilpsi.
          ! ZMS: Note this could be merged with the following loop updating smp_l in the future.
          do j = 1, nlevgrnd
@@ -394,7 +394,7 @@ contains
                end if
             end do
          end do
-      end if
+!      end if
 
       ! Update smp_l for history and for ch4Mod.
       ! ZMS: Note, this form, which seems to be the same as used in SoilWater, DOES NOT distinguish between
@@ -412,7 +412,7 @@ contains
          end do
       end do
 
-      if (use_cn) then
+ !     if (use_cn) then
          ! Available soil water up to a depth of 0.05 m.
          ! Potentially available soil water (=whc) up to a depth of 0.05 m.
          ! Water content as fraction of whc up to a depth of 0.05 m.
@@ -474,7 +474,7 @@ contains
             end if
             wf2(c) = tsw/stsw
          end do
-      end if
+  !    end if
 
       ! top-layer diagnostics
       do fc = 1, num_snowc

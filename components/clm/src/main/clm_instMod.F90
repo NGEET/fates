@@ -325,7 +325,7 @@ contains
 
     call drydepvel_inst%Init(bounds)
 
-    if (use_cn) then
+    if (use_cn .or. use_ed ) then
 
        ! Initialize soilbiogeochem_state_inst
 
@@ -342,7 +342,7 @@ contains
           call init_decompcascade_cn(bounds, soilbiogeochem_state_inst)
        end if
 
-       ! Initalize soilbiogeochem carbon and nitrogen types
+       ! Initalize soilbiogeochem carbon types
 
        call soilbiogeochem_carbonstate_inst%Init(bounds, carbon_type='c12', ratio=1._r8)
        if (use_c13) then
@@ -353,10 +353,6 @@ contains
           call c14_soilbiogeochem_carbonstate_inst%Init(bounds, carbon_type='c14', ratio=c14ratio, &
                c12_soilbiogeochem_carbonstate_inst=soilbiogeochem_carbonstate_inst)
        end if
-       call soilbiogeochem_nitrogenstate_inst%Init(bounds, &
-            soilbiogeochem_carbonstate_inst%decomp_cpools_vr_col(begc:endc,1:nlevdecomp_full,1:ndecomp_pools), &
-            soilbiogeochem_carbonstate_inst%decomp_cpools_col(begc:endc,1:ndecomp_pools),  &
-            soilbiogeochem_carbonstate_inst%decomp_cpools_1m_col(begc:endc, 1:ndecomp_pools))
 
        call soilbiogeochem_carbonflux_inst%Init(bounds, carbon_type='c12') 
        if (use_c13) then
@@ -365,6 +361,18 @@ contains
        if (use_c14) then
           call c14_soilbiogeochem_carbonflux_inst%Init(bounds, carbon_type='c14')
        end if
+
+    end if
+
+    if ( use_cn ) then 
+
+       ! Initalize soilbiogeochem nitrogen types
+
+       call soilbiogeochem_nitrogenstate_inst%Init(bounds, &
+            soilbiogeochem_carbonstate_inst%decomp_cpools_vr_col(begc:endc,1:nlevdecomp_full,1:ndecomp_pools), &
+            soilbiogeochem_carbonstate_inst%decomp_cpools_col(begc:endc,1:ndecomp_pools),  &
+            soilbiogeochem_carbonstate_inst%decomp_cpools_1m_col(begc:endc, 1:ndecomp_pools))
+
        call soilbiogeochem_nitrogenflux_inst%Init(bounds) 
 
     end if ! end of if use_cn 
@@ -488,7 +496,7 @@ contains
        call ch4_inst%restart(bounds, ncid, flag=flag)
     end if
 
-    if (use_cn) then
+    if (use_cn .or. use_ed) then
 
        call soilbiogeochem_state_inst%restart(bounds, ncid, flag=flag)
        call soilbiogeochem_carbonstate_inst%restart(bounds, ncid, flag=flag, carbon_type='c12')
@@ -501,6 +509,9 @@ contains
                c12_soilbiogeochem_carbonstate_inst=soilbiogeochem_carbonstate_inst)
        end if
        call soilbiogeochem_carbonflux_inst%restart(bounds, ncid, flag=flag)
+    endif
+    if ( use_cn ) then
+       
        call soilbiogeochem_nitrogenstate_inst%restart(bounds, ncid, flag=flag)
        call soilbiogeochem_nitrogenflux_inst%restart(bounds, ncid, flag=flag)
 
@@ -513,6 +524,7 @@ contains
        call ED_Phenology_inst%restart(bounds, ncid, flag=flag)
        call EDRest ( bounds, ncid, flag, ed_allsites_inst(bounds%begg:bounds%endg), &
             ed_clm_inst, ed_phenology_inst, waterstate_inst, canopystate_inst )
+       call ed_clm_inst%Restart(bounds, ncid, flag=flag)
     end if
 
   end subroutine clm_instRest

@@ -1105,9 +1105,9 @@ sub setup_cmdl_bgc_spinup {
       my @valid_values   = $definition->get_valid_values( $var );
       fatal_error("$var has an invalid value ($val). Valid values are: @valid_values\n");
     }
-    if ( $nl_flags->{'bgc_spinup'} eq "on" && $nl_flags->{'use_cn'} ne ".true.") {
-      fatal_error("$var can not be '$nl_flags->{'bgc_spinup'}' if CN is turned off (use_cn=$nl_flags->{'use_cn'}).");
-    }
+    # if ( $nl_flags->{'bgc_spinup'} eq "on" && $nl_flags->{'use_cn'} ne ".true.") {
+    #   fatal_error("$var can not be '$nl_flags->{'bgc_spinup'}' if CN is turned off (use_cn=$nl_flags->{'use_cn'}).");
+    # }
     if ( $nl->get_value("spinup_state") eq 0 && $nl_flags->{'bgc_spinup'} eq "on" ) {
       fatal_error("Namelist spinup_state contradicts the command line option bgc_spinup" );
     }
@@ -2399,8 +2399,13 @@ sub setup_logic_bgc_shared {
 
   if ( $physv->as_long() >= $physv->as_long("clm4_5")) {
     if ( $nl_flags->{'bgc_mode'} ne "sp" ) {
-      add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'decomp_depth_efolding', 'phys'=>$physv->as_string() );
       add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'constrain_stress_deciduous_onset', 'phys'=>$physv->as_string() );
+    }
+    # FIXME(bja, 201606) the logic around ed / bgc_mode /
+    # use_century_decomp is confusing and messed up. This is a hack
+    # workaround.
+    if ($nl_flags->{'use_century_decomp'} == '.true.') {
+      add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'decomp_depth_efolding', 'phys'=>$physv->as_string() );
     }
 
   }

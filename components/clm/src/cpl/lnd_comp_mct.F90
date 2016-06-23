@@ -347,7 +347,6 @@ contains
     !---------------------------------------------------------------------------
 
     ! Determine processor bounds
-    write(iulog,*) 'in run_mct'
     call get_proc_bounds(bounds)
 
 #if (defined _MEMTRACE)

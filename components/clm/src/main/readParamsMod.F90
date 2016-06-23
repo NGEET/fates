@@ -71,8 +71,11 @@ contains
        call SFParamsRead(ncid)
     end if
 
+    if (use_ed .or. use_cn) then
+       call CNParamsReadShared(ncid, NLFilename_in)  ! this is called CN params but really is for the soil biogeochem parameters
+    end if
+
     if (use_cn) then
-       call CNParamsReadShared(ncid, NLFilename_in)
        call nutrient_competition_method%readParams(ncid)
        call readCNGapMortParams(ncid)
        call readCNMRespParams(ncid)
