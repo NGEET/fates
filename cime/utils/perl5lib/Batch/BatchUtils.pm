@@ -212,7 +212,12 @@ sub submitSingleJob()
 
     eval {
 	open (my $RUN, "-|", $runcmd) or $logger->logdie ("job submission failed, $!");
-	$output = <$RUN>;
+	#X# $output = <$RUN>;
+	foreach (<$RUN>) {
+	    chomp;
+	    print "$_\n";
+	    $output .= $_;
+	}
 	close $RUN or $logger->logdie( "job submission failed: |$?|, |$!|");
     };
     my $exitstatus = ($?>>8);
