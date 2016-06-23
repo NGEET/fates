@@ -733,7 +733,7 @@ contains
                                   nextc%n*nextc%year_net_uptake(i))/newn                
                             endif
                          enddo
-
+                         
                          currentCohort%n = newn     
                          !remove fused cohort from the list
                          nextc%taller%shorter => nextnextc        
