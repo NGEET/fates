@@ -176,14 +176,15 @@ contains
     currentPatch => currentSite%oldest_patch
     do while (associated(currentPatch))
 
-       ! kills cohorts that are too small
-       call terminate_cohorts(currentPatch)       
-
        ! puts cohorts in right order
        call sort_cohorts(currentPatch)            
 
        ! fuses similar cohorts
        call fuse_cohorts(currentPatch)            
+
+       ! kills cohorts that are too small
+       call terminate_cohorts(currentPatch)
+
 
        currentPatch => currentPatch%younger
     enddo
