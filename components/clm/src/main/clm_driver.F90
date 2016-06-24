@@ -102,6 +102,7 @@ contains
     ! the calling tree is given in the description of this module.
     !
     ! !USES:
+    use clm_time_manager, only : get_curr_date    
     !
     ! !ARGUMENTS:
     implicit none
@@ -982,6 +983,8 @@ contains
        call waterflux_inst%UpdateAccVars(bounds_proc)
 
        if (use_ed) then
+       
+          call get_curr_date(yr, mon, day, sec)	
           call ed_phenology_inst%accumulateAndExtract(bounds_proc, &
                temperature_inst%t_ref2m_patch(bounds_proc%begp:bounds_proc%endp), &
                patch%gridcell(bounds_proc%begp:bounds_proc%endp), &
