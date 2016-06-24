@@ -139,6 +139,10 @@
      </block>
   </machine>
 
+  <machine mach="eddi">
+     <module_system></module_system>
+  </machine>
+
   <machine mach="conejo">
      <module_system>module</module_system>
      <block>
