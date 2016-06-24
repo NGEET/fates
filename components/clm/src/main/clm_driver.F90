@@ -701,32 +701,6 @@ contains
 
           call t_stopf('ecosysdyn')
 
-       elseif (use_ed) then
-
-          ! call EDBGCDyn(bounds_clump, &
-          !      filter(nc)%num_soilc, filter(nc)%soilc, &
-          !      ed_clm_inst, &
-          !      soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,         &
-          !      c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
-          !      c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
-          !      soilbiogeochem_state_inst,                                               &
-          !      soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst)
- 
-          call EDBGCDyn(bounds_clump,                                                              &
-               filter(nc)%num_soilc, filter(nc)%soilc,                                             &
-               filter(nc)%num_soilp, filter(nc)%soilp,                                             &
-               filter(nc)%num_pcropp, filter(nc)%pcropp, doalb,                                    &
-               bgc_vegetation_inst%cnveg_carbonflux_inst, &
-               bgc_vegetation_inst%cnveg_carbonstate_inst, &
-               ed_clm_inst,                                                                        &
-               soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,                    &
-               soilbiogeochem_state_inst,                                                          &
-               soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,                &
-               c13_soilbiogeochem_carbonstate_inst, c13_soilbiogeochem_carbonflux_inst,            &
-               c14_soilbiogeochem_carbonstate_inst, c14_soilbiogeochem_carbonflux_inst,            &
-               atm2lnd_inst, waterstate_inst, waterflux_inst,                                      &
-               canopystate_inst, soilstate_inst, temperature_inst, crop_inst, ch4_inst)
-
        end if
 
                 ! Prescribed biogeography - prescribed canopy structure, some prognostic carbon fluxes
@@ -786,16 +760,53 @@ contains
 
        end if
 
+       if ( use_ed  .and. is_beg_curr_day() ) then ! run ED at the start of each day
+          
+          if ( masterproc ) then
+             write(iulog,*)  'clm: calling ED model ', get_nstep()
+          end if
+          
+          call ed_driver( bounds_clump,                               &
+                ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), &
+                ed_clm_inst, ed_phenology_inst,                        &
+                atm2lnd_inst, soilstate_inst, temperature_inst,        &
+                waterstate_inst, canopystate_inst)
+          
+          ! TODO(wjs, 2016-04-01) I think this setFilters call should be replaced by a
+          ! call to reweight_wrapup, if it's needed at all.
+          call setFilters( bounds_clump, glc_behavior )
+          
+       end if ! use_ed branch
+       
+       
        if ( use_ed ) then
-         call EDBGCDynSummary(bounds_clump,                                             &
-               filter(nc)%num_soilc, filter(nc)%soilc,                                  &
-               filter(nc)%num_soilp, filter(nc)%soilp,                                  &
-               soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,         &
-               c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
-               c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
-               soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,     &
-               ed_clm_inst, ed_allsites_inst(bounds_clump%begg:bounds_clump%endg))
+          
+          call EDBGCDyn(bounds_clump,                                                              &
+               filter(nc)%num_soilc, filter(nc)%soilc,                                             &
+               filter(nc)%num_soilp, filter(nc)%soilp,                                             &
+               filter(nc)%num_pcropp, filter(nc)%pcropp, doalb,                                    &
+               bgc_vegetation_inst%cnveg_carbonflux_inst, &
+               bgc_vegetation_inst%cnveg_carbonstate_inst, &
+               ed_clm_inst,                                                                        &
+               soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,                    &
+               soilbiogeochem_state_inst,                                                          &
+               soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,                &
+               c13_soilbiogeochem_carbonstate_inst, c13_soilbiogeochem_carbonflux_inst,            &
+               c14_soilbiogeochem_carbonstate_inst, c14_soilbiogeochem_carbonflux_inst,            &
+               atm2lnd_inst, waterstate_inst, waterflux_inst,                                      &
+               canopystate_inst, soilstate_inst, temperature_inst, crop_inst, ch4_inst)
+
+          call EDBGCDynSummary(bounds_clump,                                             &
+                filter(nc)%num_soilc, filter(nc)%soilc,                                  &
+                filter(nc)%num_soilp, filter(nc)%soilp,                                  &
+                soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,         &
+                c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
+                c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
+                soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,     &
+                ed_clm_inst, ed_allsites_inst(bounds_clump%begg:bounds_clump%endg))
        end if
+
+
 
        ! ============================================================================
        ! Check the energy and water balance and also carbon and nitrogen balance
@@ -1001,17 +1012,9 @@ contains
     ! ============================================================================
 
 
-    !
-    ! TODO(SPM,012715) - XIX Note to CSEG.  I had to put this logical block around
-    ! this call as it was updating the history buffer prematurely when ED was
-    ! running and happened to be restarted on the same timestep as a history
-    ! write
-    !
-    if (.not. use_ed) then
-      call t_startf('hbuf')
-      call hist_update_hbuf(bounds_proc)
-      call t_stopf('hbuf')
-    end if
+    call t_startf('hbuf')
+    call hist_update_hbuf(bounds_proc)
+    call t_stopf('hbuf')
 
     ! ============================================================================
     ! Call dv (dynamic vegetation)
@@ -1030,60 +1033,6 @@ contains
        !$OMP END PARALLEL DO
        call t_stopf('endTSdynveg')
     end if
-
-    ! ============================================================================
-    ! Call ED model on daily timestep
-    ! ============================================================================
-    
-    if ( use_ed  .and. is_beg_curr_day() ) then ! run ED at the start of each day
-
-       call t_startf('ED')
-       if ( masterproc ) then
-          write(iulog,*)  'clm: calling ED model ', get_nstep()
-       end if
-
-       !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
-       do nc = 1, nclumps
-
-          call get_clump_bounds(nc, bounds_clump)
-
-          call ed_driver( bounds_clump,                               &
-               ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), &
-               ed_clm_inst, ed_phenology_inst,                        &
-               atm2lnd_inst, soilstate_inst, temperature_inst,        &
-               waterstate_inst, canopystate_inst)
-
-          ! 
-          ! TODO(SPM, 012715) - see note XIX above regarding hbuf updates 
-          !
-          call t_startf('hbuf')
-          call hist_update_hbuf(bounds_proc)
-          call t_stopf('hbuf')
-
-          ! TODO(wjs, 2016-04-01) I think this setFilters call should be replaced by a
-          ! call to reweight_wrapup, if it's needed at all.
-          call setFilters( bounds_clump, glc_behavior )
-
-          !reset surface albedo fluxes in case there is a mismatch between elai and canopy absorbtion. 
-          call SurfaceAlbedo(bounds_clump,                            &
-               filter_inactive_and_active(nc)%num_nourbanc,           &
-               filter_inactive_and_active(nc)%nourbanc,               &
-               filter_inactive_and_active(nc)%num_nourbanp,           &
-               filter_inactive_and_active(nc)%nourbanp,               &
-               filter_inactive_and_active(nc)%num_urbanc,             &
-               filter_inactive_and_active(nc)%urbanc,                 &
-               filter_inactive_and_active(nc)%num_urbanp,             & 
-               filter_inactive_and_active(nc)%urbanp,                 &
-               nextsw_cday, declinp1,                                 &
-               ed_allsites_inst(bounds_clump%begg:bounds_clump%endg), &
-               aerosol_inst, canopystate_inst, waterstate_inst,       &
-               lakestate_inst, temperature_inst, surfalb_inst)
-
-       end do
-       !$OMP END PARALLEL DO
-
-       call t_stopf('ED')
-    end if ! use_ed branch
 
     ! ============================================================================
     ! History/Restart output
