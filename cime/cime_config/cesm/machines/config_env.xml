@@ -139,6 +139,52 @@
      </block>
   </machine>
 
+  <machine mach="conejo">
+     <module_system>module</module_system>
+     <block>
+        <module>load netcdf/4.4.0</module>
+        <module>load parallel-netcdf/1.5.0</module>
+        <module>load cmake/3.0.0</module>
+        <module>load mkl/11.2.3</module> 
+        <module>load totalview</module>
+     </block>
+     <block compiler="intel">
+        <module>load intel/15.0.5</module>
+     </block>
+     <block compiler="gnu">
+        <module>load gnu/4.8.2</module>
+     </block>
+     <block mpilib="openmpi">
+        <module>load openmpi/1.6.5</module>
+     </block>
+     <block mpilib="mvapich">
+        <module>load mvapich2/1.8</module>
+     </block>
+  </machine>
+
+  <machine mach="wolf">
+     <module_system>module</module_system>
+     <block>
+        <module>load netcdf/4.4.0</module>
+        <module>load parallel-netcdf/1.5.0</module>
+        <module>load cmake/3.0.0</module>
+        <module>load mkl/11.2.3</module> 
+        <module>load totalview</module>
+     </block>
+     <block compiler="intel">
+        <module>load intel/13.1.3</module>
+     </block>
+     <block compiler="gnu">
+        <module>load gnu/4.8.2</module>
+     </block>
+     <block mpilib="openmpi">
+        <module>load openmpi/1.6.5</module>
+     </block>
+     <block mpilib="mvapich">
+        <module>load mvapich2/1.8</module>
+     </block>
+  </machine>
+
   <machine mach="mira">
     <module_system>soft</module_system>
     <init_path lang="perl">. /etc/profile.d/00softenv.sh</init_path>

@@ -650,8 +650,7 @@ contains
 			 ! to fuse with other new cohorts to keep the total number of cohorts
 			 ! down.
 
-                         if( (.not.(currentCohort%isnew) .and. .not.(nextc%isnew) ) .or. & 
-			          ( currentCohort%isnew .and. nextc%isnew ) ) then
+                         if( .not.(currentCohort%isnew) .and. .not.(nextc%isnew) ) then
 
                          newn = currentCohort%n + nextc%n
                          fusion_took_place = 1         
