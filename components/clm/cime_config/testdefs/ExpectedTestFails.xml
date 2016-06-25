@@ -16,17 +16,4 @@
    <entry bugz="2256" >RUN ERP_Ly5.1x1_numaIA.ICRUCLM50BGCCROP.hobart_nag.clm-monthly</entry>
    <entry bugz="2256" >RUN ERP_Ld5_P24x1.f10_f10.I1850CLM45BGC.hobart_nag.clm-default</entry>
 
-    <entry>FAIL ERS_D_Ld5.f19_g16.ICLM45ED.yellowstone_pgi.clm-edTest.clm2.h0.nc : test compare clm2.h0 (.base and .rest files)</entry>
-    <entry>FAIL ERS_D_Ld5.f19_g16.ICLM45ED.yellowstone_pgi.clm-edTest.cpl.hi.nc : test compare cpl.hi (.base and .rest files)</entry>
-    <entry>FAIL ERS_D_Ld5.f09_g16.ICLM45ED.yellowstone_pgi.clm-edTest.clm2.h0.nc : test compare clm2.h0 (.base and .rest files)</entry>
-    <entry>FAIL ERS_D_Ld5.f09_g16.ICLM45ED.yellowstone_pgi.clm-edTest.cpl.hi.nc : test compare cpl.hi (.base and .rest files)</entry>
-    <entry>FAIL ERS_D_Ld5.f19_g16.ICLM45ED.yellowstone_gnu.clm-edTest.clm2.h0.nc : test compare clm2.h0 (.base and .rest files)</entry>
-    <entry>FAIL ERS_D_Ld5.f19_g16.ICLM45ED.yellowstone_gnu.clm-edTest.cpl.hi.nc : test compare cpl.hi (.base and .rest files)</entry>
-    <entry>FAIL ERS_D_Ld5.f09_g16.ICLM45ED.yellowstone_gnu.clm-edTest.clm2.h0.nc : test compare clm2.h0 (.base and .rest files)</entry>
-    <entry>FAIL ERS_D_Ld5.f09_g16.ICLM45ED.yellowstone_gnu.clm-edTest.cpl.hi.nc : test compare cpl.hi (.base and .rest files)</entry>
-    <entry>FAIL ERS_D_Ld5.f19_g16.ICLM45ED.yellowstone_intel.clm-edTest.clm2.h0.nc : test compare clm2.h0 (.base and .rest files)</entry>
-    <entry>FAIL ERS_D_Ld5.f19_g16.ICLM45ED.yellowstone_intel.clm-edTest.cpl.hi.nc : test compare cpl.hi (.base and .rest files)</entry>
-    <entry>FAIL ERS_D_Ld5.f09_g16.ICLM45ED.yellowstone_intel.clm-edTest.clm2.h0.nc : test compare clm2.h0 (.base and .rest files)</entry>
-    <entry>FAIL ERS_D_Ld5.f09_g16.ICLM45ED.yellowstone_intel.clm-edTest.cpl.hi.nc : test compare cpl.hi (.base and .rest files)</entry>
-
 </expectedFails> 
