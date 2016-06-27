@@ -45,16 +45,17 @@ module CLMFatesInterfaceMod
    use SolarAbsorbedType , only : solarabs_type
    use clm_time_manager  , only : is_restart
    use ncdio_pio         , only : file_desc_t
-
+   use clm_time_manager  , only : get_days_per_year, get_curr_date
+   use clm_time_manager  , only : get_ref_date, timemgr_datediff 
+   use spmdMod           , only : masterproc
 
    ! Used FATES Modules
    use FatesInterfaceMod     , only : fates_interface_type
    use EDCLMLinkMod          , only : ed_clm_type
    use EDPhenologyType       , only : ed_phenology_type
-   
-   use EDMainMod             , only : ed_driver
-   
-  
+   use EDTypesMod            , only : udata
+   use EDMainMod             , only : ed_ecosystem_dynamics
+   use EDMainMod             , only : ed_update_site
 
    implicit none
 
@@ -192,6 +193,19 @@ contains
       integer                 , intent(in)           :: nc
       type(waterstate_type)   , intent(inout)        :: waterstate_inst
       type(canopystate_type)  , intent(inout)        :: canopystate_inst
+
+      ! !LOCAL VARIABLES:
+      real(r8) :: dayDiff                  ! day of run
+      integer  :: dayDiffInt               ! integer of day of run
+      integer  :: g                        ! gridcell  
+      integer  :: yr                       ! year (0, ...)
+      integer  :: mon                      ! month (1, ..., 12)
+      integer  :: day                      ! day of month (1, ..., 31)
+      integer  :: sec                      ! seconds of the day
+      integer  :: ncdate                   ! current date
+      integer  :: nbdate                   ! base date (reference date)
+      !-----------------------------------------------------------------------
+
       
       ! ---------------------------------------------------------------------------------
       ! INTERF-TODO: REMOVE ED_DRIVER ARGUMENTS OF CLM STUCTURED TYPES AND
@@ -204,13 +218,56 @@ contains
       !                               this%fates(nc)%fatesbc)
       ! ---------------------------------------------------------------------------------
       
+
+      call this%fates2hlm_inst%SetValues( bounds_clump, 0._r8 )
+
+      ! timing statements. 
+      udata%n_sub = get_days_per_year()
+            udata%deltat = 1.0_r8/dble(udata%n_sub) !for working out age of patches in years        
+      if(udata%time_period == 0)then             
+         udata%time_period = udata%n_sub
+      endif
       
-      call ed_driver( bounds_clump,                                        &
+      call get_curr_date(yr, mon, day, sec)
+      ncdate = yr*10000 + mon*100 + day
+      call get_ref_date(yr, mon, day, sec)
+      nbdate = yr*10000 + mon*100 + day
+      
+      call timemgr_datediff(nbdate, 0, ncdate, sec, dayDiff)
+      
+      dayDiffInt = floor(dayDiff)
+      udata%time_period = mod( dayDiffInt , udata%n_sub )
+      
+
+      ! TODO-INTEF: PROCEDURE FOR CONVERTING CLM/ALM FIELDS TO MODEL BOUNDARY
+      ! CONDITIONS. IE. 
+
+
+      ! where most things happen
+      do g = bounds_clump%begg,bounds_clump%endg
+         if (this%fates(nc)%sites(g)%istheresoil) then
+            call ed_ecosystem_dynamics(this%fates(nc)%sites(g), &
+                  this%fates2hlm_inst,  &
+                  this%phen_inst, atm2lnd_inst, &
+                  soilstate_inst, temperature_inst, waterstate_inst)
+            
+            call ed_update_site(this%fates(nc)%sites(g))
+         endif
+      enddo
+
+      ! link to CLM/ALM structures
+      call this%fates2hlm_inst%ed_clm_link( bounds_clump,                  &
             this%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg),     &
-            this%fates2hlm_inst,                                           &
             this%phen_inst,                                                &
-            atm2lnd_inst, soilstate_inst, temperature_inst,                &
-            waterstate_inst, canopystate_inst)
+            waterstate_inst,                                               &
+            canopystate_inst)
+
+
+      if (masterproc) then
+         write(iulog, *) 'clm: leaving ED model', bounds_clump%begg, &
+                                                  bounds_clump%endg, dayDiffInt
+      end if
+
       
       return
    end subroutine dynamics_driv
