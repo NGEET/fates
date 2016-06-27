@@ -42,7 +42,7 @@ module FatesInterfaceMod
    contains
       
       ! Procedures for initializing FATES threaded memory and communicators
-      procedure, public :: fates_init
+      procedure, public :: init
       procedure, public :: fates_clean
       procedure, public :: site_init
       procedure, public :: fates_restart
@@ -52,7 +52,7 @@ module FatesInterfaceMod
 
 contains
 
-   subroutine fates_init(this,bounds_clump)
+   subroutine init(this,bounds_clump)
 
       implicit none
       
@@ -70,7 +70,7 @@ contains
       allocate (this%sites(bounds_clump%begg:bounds_clump%endg))
       
       return
-   end subroutine fates_init
+   end subroutine init
    
    ! ------------------------------------------------------------------------------------
 
