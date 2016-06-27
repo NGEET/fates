@@ -488,7 +488,7 @@ contains
        if (use_ed) then
           ! if ED enabled, summarize productivity fluxes onto CLM history file structure
           call t_startf('edclmsumprodfluxes')
-          call clm_fates%fates2hlm_inst%SummarizeProductivityFluxes( bounds_clump, &
+          call clm_fates%fates2hlm%SummarizeProductivityFluxes( bounds_clump, &
                 clm_fates%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg))
           call t_stopf('edclmsumprodfluxes')
        endif
@@ -725,7 +725,7 @@ contains
                   filter(nc)%num_soilc, filter(nc)%soilc,                       &
                   filter(nc)%num_soilp, filter(nc)%soilp,                       &
                   filter(nc)%num_pcropp, filter(nc)%pcropp, doalb,              &
-                  clm_fates%fates2hlm_inst, &
+               clm_fates%fates2hlm, &
                soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,         &
                c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
                c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
@@ -751,7 +751,7 @@ contains
 
        ! Zero some of the FATES->CLM communicators
        if (use_ed) then
-          call clm_fates%fates2hlm_inst%SetValues(bounds_clump,0._r8)
+          call clm_fates%fates2hlm%SetValues(bounds_clump,0._r8)
        end if
 
        ! Dry Deposition of chemical tracers (Wesely (1998) parameterizaion)
@@ -824,7 +824,7 @@ contains
                filter(nc)%num_pcropp, filter(nc)%pcropp, doalb,                                    &
                bgc_vegetation_inst%cnveg_carbonflux_inst, &
                bgc_vegetation_inst%cnveg_carbonstate_inst, &
-                clm_fates%fates2hlm_inst, &
+                clm_fates%fates2hlm, &
                soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,                    &
                soilbiogeochem_state_inst,                                                          &
                soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,                &
@@ -840,7 +840,7 @@ contains
                 c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
                 c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
                 soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,     &
-                clm_fates%fates2hlm_inst,                                            &
+                clm_fates%fates2hlm,                                            &
                 clm_fates%fates(nc)%sites(bounds_clump%begg:bounds_clump%endg))
        end if
 
