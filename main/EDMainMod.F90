@@ -18,7 +18,6 @@ module EDMainMod
   use SFMainMod            , only : fire_model
   use EDtypesMod           , only : ncwd, numpft_ed, udata
   use EDtypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDPhenologyType      , only : ed_phenology_type
   use EDCLMLinkMod         , only : ed_clm_type
 
   implicit none
@@ -43,7 +42,7 @@ contains
 
   !-------------------------------------------------------------------------------!
   subroutine ed_ecosystem_dynamics(currentSite, &
-       ed_clm_inst, ed_phenology_inst, atm2lnd_inst, &
+       ed_clm_inst, atm2lnd_inst, &
        soilstate_inst, temperature_inst, waterstate_inst)
     !
     ! !DESCRIPTION:
@@ -51,7 +50,6 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type)      , intent(inout), target  :: currentSite
-    type(ed_phenology_type) , intent(in)             :: ed_phenology_inst
     type(ed_clm_type)       , intent(in)             :: ed_clm_inst
     type(atm2lnd_type)      , intent(in)             :: atm2lnd_inst
     type(soilstate_type)    , intent(in)             :: soilstate_inst
@@ -71,7 +69,7 @@ contains
    
     call ed_total_balance_check(currentSite, 0)
     
-    call phenology(currentSite, ed_phenology_inst, temperature_inst, waterstate_inst)
+    call phenology(currentSite, temperature_inst, waterstate_inst)
 
     call fire_model(currentSite, atm2lnd_inst, temperature_inst)
 

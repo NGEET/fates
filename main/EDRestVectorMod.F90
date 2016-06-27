@@ -14,7 +14,6 @@ module EDRestVectorMod
   use EDTypesMod      , only : area, cohorts_per_gcell, numpft_ed, numWaterMem, nclmax, numCohortsPerPatch
   use EDTypesMod      , only : ncwd, invalidValue, nlevcan_ed
   use EDTypesMod      , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDPhenologyType , only : ed_phenology_type
   !
   implicit none
   private
@@ -114,6 +113,7 @@ module EDRestVectorMod
      real(r8), pointer :: old_stock(:) 
      real(r8), pointer :: cd_status(:) 
      real(r8), pointer :: dd_status(:)
+     real(r8), pointer :: ED_GDD_site(:)
      real(r8), pointer :: ncd(:)   
      real(r8), pointer :: leafondate(:)   
      real(r8), pointer :: leafoffdate(:)   
@@ -233,6 +233,7 @@ contains
     deallocate(this%old_stock )
     deallocate(this%cd_status )
     deallocate(this%dd_status )
+    deallocate(this%ED_GDD_site )
     deallocate(this%ncd )
     deallocate(this%leafondate )
     deallocate(this%leafoffdate )
@@ -556,6 +557,11 @@ contains
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
       SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
       new%dd_status(:) = 0_r8
+ 
+       allocate(new%ED_GDD_site &
+           (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%ED_GDD_site(:) = 0_r8
  
       allocate(new%ncd &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
@@ -1038,7 +1044,12 @@ contains
          interpinic_flag='interp', data=this%dd_status, &
          readvar=readvar)         
          
- 
+    call restartvar(ncid=ncid, flag=flag, varname='ed_ED_GDD_site', xtype=ncd_double,  &
+         dim1name=dimName, &
+         long_name='ed accumulated GDDs', units='unitless', &
+         interpinic_flag='interp', data=this%ED_GDD_site, &
+         readvar=readvar)         
+          
     call restartvar(ncid=ncid, flag=flag, varname='ed_chilling_days', xtype=ncd_double,  &
          dim1name=dimName, &
          long_name='ed chilling day counter', units='unitless', &
@@ -1211,6 +1222,8 @@ contains
          this%cd_status(iSta:iSto)
     write(iulog,*) trim(methodName)//' :: dd_status', &
          this%cd_status(iSta:iSto)  
+    write(iulog,*) trim(methodName)//' :: ED_GDD_site', &
+         this%ED_GDD_site(iSta:iSto)  
     write(iulog,*) trim(methodName)//' :: ncd', &
          this%ncd(iSta:iSto)   
     write(iulog,*) trim(methodName)//' :: leafondate', &
@@ -1338,6 +1351,7 @@ contains
              write(iulog,*) trim(methodName)//' old_stock '      ,ed_allsites_inst(g)%old_stock
              write(iulog,*) trim(methodName)//' cd_status '      ,ed_allsites_inst(g)%status
              write(iulog,*) trim(methodName)//' dd_status '      ,ed_allsites_inst(g)%dstatus
+             write(iulog,*) trim(methodName)//' ED_GDD_site '      ,ed_allsites_inst(g)%ED_GDD_site
              write(iulog,*) trim(methodName)//' ncd '            ,ed_allsites_inst(g)%ncd
              write(iulog,*) trim(methodName)//' leafondate '     ,ed_allsites_inst(g)%leafondate
              write(iulog,*) trim(methodName)//' leafoffdate '    ,ed_allsites_inst(g)%leafoffdate
@@ -1597,6 +1611,7 @@ contains
              this%old_stock(incrementOffset)   = ed_allsites_inst(g)%old_stock
              this%cd_status(incrementOffset)   = ed_allsites_inst(g)%status
              this%dd_status(incrementOffset)   = ed_allsites_inst(g)%dstatus
+             this%ED_GDD_site(incrementOffset)   = ed_allsites_inst(g)%ED_GDD_site
              this%ncd(incrementOffset)         = ed_allsites_inst(g)%ncd 
              this%leafondate(incrementOffset)  = ed_allsites_inst(g)%leafondate
              this%leafoffdate(incrementOffset) = ed_allsites_inst(g)%leafoffdate
@@ -1762,7 +1777,6 @@ contains
        ed_allsites_inst(g)%istheresoil = .true. ! if we are dealing with ED data there will always be soil
        ed_allsites_inst(g)%lat = grc%latdeg(g)
        ed_allsites_inst(g)%lon = grc%londeg(g)
-       ed_allsites_inst(g)%gdd = 0.0_r8
        ed_allsites_inst(g)%ncd = 0.0_r8
 
        ! then this site has soil and should be set here
@@ -2008,6 +2022,7 @@ contains
              ed_allsites_inst(g)%old_stock  = this%old_stock(incrementOffset)
              ed_allsites_inst(g)%status     = this%cd_status(incrementOffset)
              ed_allsites_inst(g)%dstatus    = this%dd_status(incrementOffset)
+             ed_allsites_inst(g)%ED_GDD_site    = this%ED_GDD_site(incrementOffset)
              ed_allsites_inst(g)%ncd        = this%ncd(incrementOffset)
              ed_allsites_inst(g)%leafondate     = this%leafondate(incrementOffset)
              ed_allsites_inst(g)%leafoffdate    = this%leafoffdate(incrementOffset)
