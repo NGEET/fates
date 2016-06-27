@@ -579,12 +579,6 @@ contains
     call temperature_inst%initAccVars(bounds_proc)
     call waterflux_inst%initAccVars(bounds_proc)
 
-    ! Initialize FATES phenology accumulators
-    if (use_ed) then
-       ! (RGK) I AM NOT GIVING THIS A WRAPPER BECAUSE IT WILL BE DEPRECATED SOON
-       call clm_fates%phen_inst%initAccVars(bounds_proc)
-    end if
-    
     call canopystate_inst%initAccVars(bounds_proc)
 
     call bgc_vegetation_inst%initAccVars(bounds_proc)

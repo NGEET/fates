@@ -1019,15 +1019,6 @@ contains
 
        call waterflux_inst%UpdateAccVars(bounds_proc)
 
-       if (use_ed) then       
-          call get_curr_date(yr, mon, day, sec)	
-          call clm_fates%phen_inst%accumulateAndExtract(bounds_proc, &
-                temperature_inst%t_ref2m_patch(bounds_proc%begp:bounds_proc%endp), &
-                patch%gridcell(bounds_proc%begp:bounds_proc%endp), &
-                grc%latdeg(bounds_proc%begg:bounds_proc%endg), &
-                mon, day, sec)
-       endif
-
        ! COMPILER_BUG(wjs, 2014-11-30, pgi 14.7) For pgi 14.7 to be happy when
        ! compiling this threaded, I needed to change the dummy arguments to be
        ! pointers, and get rid of the explicit bounds in the subroutine call.

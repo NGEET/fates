@@ -414,10 +414,6 @@ contains
     
     call waterflux_inst%InitAccBuffer(bounds)
 
-    if (use_ed) then
-       call clm_fates%phen_inst%initAccBuffer(bounds)
-    endif
-
     call canopystate_inst%InitAccBuffer(bounds)
 
     call bgc_vegetation_inst%InitAccBuffer(bounds)
@@ -531,7 +527,6 @@ contains
        ! There are concerns that NETCDF is not threadsafe, so it
        ! cannot handle multiple open files on one node.  So we are not
        ! forking the reads
-       call clm_fates%phen_inst%restart(bounds, ncid, flag)
        nclumps = get_proc_clumps()
        do nc = 1, nclumps
           call get_clump_bounds(nc, bounds_clump)
