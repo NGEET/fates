@@ -1927,7 +1927,7 @@ contains
        do nt = 1,nt_rtm
           budget_volume = (budget_terms( 2,nt) - budget_terms( 1,nt)) / delt_coupling
           budget_input  = (budget_terms(13,nt) + budget_terms(14,nt) + &
-                           budget_terms(15,nt) + budget_terms(16,nt))
+                           budget_terms(15,nt))
           budget_output = (budget_terms(18,nt) + budget_terms(19,nt) + &
                            budget_terms(21,nt))
           budget_total  = budget_volume - budget_input + budget_output
@@ -1955,7 +1955,7 @@ contains
           do nt = 1,nt_rtm
             budget_volume = (budget_global( 2,nt) - budget_global( 1,nt))
             budget_input  = (budget_global(13,nt) + budget_global(14,nt) + &
-                             budget_global(15,nt) + budget_global(16,nt))
+                             budget_global(15,nt))
             budget_output = (budget_global(18,nt) + budget_global(19,nt) + &
                              budget_global(21,nt))
             budget_total  = budget_volume - budget_input + budget_output

@@ -1075,6 +1075,7 @@ contains
 
     delt_rtm = rtm_tstep*1.0_r8
     if (first_time) then
+       delt_save    = delt_rtm
        if (masterproc) write(iulog,*) trim(subname),': rtm act timestep ~ ',delt_rtm
        first_time = .false.
     end if

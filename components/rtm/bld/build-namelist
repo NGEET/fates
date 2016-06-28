@@ -272,6 +272,7 @@ foreach my $attr (keys %xmlvars) {
 my $DIN_LOC_ROOT    = $xmlvars{'DIN_LOC_ROOT'};
 my $RTM_MODE        = $xmlvars{'RTM_MODE'};
 my $RTM_FLOOD_MODE  = $xmlvars{'RTM_FLOOD_MODE'};
+my $CLM_ACCEL       = $xmlvars{'CLM_ACCELERATED_SPINUP'};
 my $ROF_GRID        = $xmlvars{'ROF_GRID'};
 my $LND_GRID        = $xmlvars{'LND_GRID'};
 my $ROF_NCPL        = $xmlvars{'ROF_NCPL'};
@@ -287,15 +288,14 @@ if ($ROF_GRID eq "null") {
 	die "$ProgName ERROR:: ROF_GRID null RTM_MODE not NULL.\n";
     }
 }
+add_default($nl, 'rtm_mode', 'RTM_MODE'=>$RTM_MODE, 
+            'CLM_ACCELERATED_SPINUP'=>$CLM_ACCEL );
+my $rtm_mode = $nl->get_value( "rtm_mode" );
 
-if ($RTM_MODE eq "NULL") {
-    add_default($nl, 'rtm_mode', 'val'=>"$RTM_MODE");
-}
-else {
+if ($rtm_mode =~ /ACTIVE/ ) {
     # Set Initial conditions if there is a file for this grid and sim-yr
     add_default($nl, 'finidat_rtm' , 'rof_grid'=>$ROF_GRID, 'simyr'=>$opts{'simyr'}, 'nofail'=>1 );
 
-    add_default($nl, 'rtm_mode', 'val'=>"$RTM_MODE");
     add_default($nl, 'flood_mode', 'val'=>"$RTM_FLOOD_MODE");
     add_default($nl, 'frivinp_rtm' , 'rof_grid'=>$ROF_GRID );
     add_default($nl, 'ice_runoff'  , 'lnd_grid'=>$LND_GRID );
