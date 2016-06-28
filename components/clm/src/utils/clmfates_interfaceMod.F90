@@ -38,10 +38,13 @@ module CLMFatesInterfaceMod
    use WaterStateType    , only : waterstate_type
    use CanopyStateType   , only : canopystate_type
    use TemperatureType   , only : temperature_type
+   use EnergyFluxType    , only : energyflux_type
    use SoilStateType     , only : soilstate_type
    use clm_varctl        , only : iulog
+   use clm_varcon        , only : tfrz
    use clm_varpar        , only : numpft,            &
-                                  numrad
+                                  numrad,            &
+                                  nlevgrnd
    use atm2lndType       , only : atm2lnd_type
    use SurfaceAlbedoType , only : surfalb_type
    use SolarAbsorbedType , only : solarabs_type
@@ -64,7 +67,10 @@ module CLMFatesInterfaceMod
 
    ! Used FATES Modules
    use FatesInterfaceMod     , only : fates_interface_type, &
-                                      fates_dims
+                                      set_fates_ctrlparms,  &
+                                      allocate_bcin,        &
+                                      allocate_bcout
+
    use EDCLMLinkMod          , only : ed_clm_type
    use EDTypesMod            , only : udata
    use EDTypesMod            , only : ed_patch_type
@@ -79,6 +85,7 @@ module CLMFatesInterfaceMod
    use EDEcophysConType      , only : EDecophysconInit
    use EDRestVectorMod       , only : EDRest
    use EDSurfaceRadiationMod , only : ED_SunShadeFracs
+   use EDBtranMod            , only : btran_ed
 
    implicit none
 
@@ -128,7 +135,8 @@ module CLMFatesInterfaceMod
       procedure, public :: init_restart
       procedure, public :: init_coldstart
       procedure, public :: dynamics_driv
-      procedure, public :: canopy_sunshade_fracs
+      procedure, public :: wrap_sunfrac
+      procedure, public :: wrap_btran
 
    end type hlm_fates_interface_type
 
@@ -192,11 +200,20 @@ contains
       allocate(this%f2hmap(nclumps))
 
 
-      ! Initialize dimenion information
-      ! This mostly copies and compares global variables in clm_varpar
-      ! and FatesInterfaceMod
-      call init_fates_dimensions()
+      ! ---------------------------------------------------------------------------------
+      ! Send dimensions and other model controling parameters to FATES.  These
+      ! are obviously only those parameters that are dictated by the host
+      ! ---------------------------------------------------------------------------------
+      
+      ! Force FATES parameters that are recieve type, to the unset value
+      call set_fates_ctrlparms('flush_to_unset')
+      
+      ! Send parameters individually
+      call set_fates_ctrlparms('num_sw_bbands',numrad)
+      call set_fates_ctrlparms('num_lev_ground',nlevgrnd)
 
+      ! Check through FATES parameters to see if all have been set
+      call set_fates_ctrlparms('check_allset')
 
 
       if(DEBUG)then
@@ -205,22 +222,6 @@ contains
 
       return
    end subroutine init
-
-   ! ====================================================================================
-
-   subroutine init_fates_dimensions()
-      
-      use clm_varpar    , only : numpft,        &
-                                 numrad
-
-      implicit none
-      
-      ! The number of SW bands is taken from the host/driver
-      fates_dims%numSwBands = numrad
-
-
-   end subroutine init_fates_dimensions
-
 
    ! ====================================================================================
    
@@ -306,13 +307,13 @@ contains
          this%fates(nc)%nsites = s
 
          ! Allocate the FATES sites
-         allocate (this%fates(nc)%sites(s))
+         allocate (this%fates(nc)%sites(this%fates(nc)%nsites))
 
          ! Allocate the FATES boundary arrays (in)
-         allocate(this%fates(nc)%bc_in(s))
+         allocate(this%fates(nc)%bc_in(this%fates(nc)%nsites))
 
          ! Allocate the FATES boundary arrays (out)
-         allocate(this%fates(nc)%bc_out(s))
+         allocate(this%fates(nc)%bc_out(this%fates(nc)%nsites))
 
          ! Allocate and Initialize the Boundary Condition Arrays
          ! These are staticaly allocated at maximums, so
@@ -320,7 +321,8 @@ contains
          ! structure is needed at this step
          
          do s = 1, this%fates(nc)%nsites
-            call this%fates(nc)%allocate_bcs(s)
+            call allocate_bcin(this%fates(nc)%bc_in(s))
+            call allocate_bcout(this%fates(nc)%bc_out(s))
             call this%fates(nc)%zero_bcs(s)
          end do
 
@@ -628,12 +630,12 @@ contains
 
         do s = 1, this%fates(nc)%nsites
            c = this%f2hmap(nc)%fcolumn(s)
-           
+           g = col%gridcell(c)
+
            do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
            !do ifp = 1, this%fates(nc)%bc_in(s)%npatches
-              
+
               p = ifp+col%patchi(c)
-              g = col%gridcell(c)
 
               this%fates(nc)%bc_in(s)%solad_pa(ifp,:) = forc_solad(g,:)
               this%fates(nc)%bc_in(s)%solai_pa(ifp,:) = forc_solai(g,:)
@@ -675,17 +677,20 @@ contains
    
    ! ====================================================================================
    
-   subroutine wrap_btran(nc,soilstate_inst, waterstate_inst, &
-                         temperature_inst, energyflux_inst)
+   subroutine wrap_btran(this,nc,soilstate_inst, waterstate_inst, &
+                         temperature_inst, energyflux_inst,  &
+                         soil_water_retention_curve)
       
       ! ---------------------------------------------------------------------------------
       ! This subroutine calculates btran for FATES, this will be an input boundary
       ! condition for FATES photosynthesis/transpiration.
       !
-      ! This subroutine also calculates rootr, rresis
+      ! This subroutine also calculates rootr
       ! 
       ! ---------------------------------------------------------------------------------
-      
+
+      use SoilWaterRetentionCurveMod, only : soil_water_retention_curve_type
+
       implicit none
       
       ! Arguments
@@ -695,29 +700,29 @@ contains
       type(waterstate_type)  , intent(in)            :: waterstate_inst
       type(temperature_type) , intent(in)            :: temperature_inst
       type(energyflux_type)  , intent(inout)         :: energyflux_inst
+      class(soil_water_retention_curve_type), intent(in) :: soil_water_retention_curve
 
       ! local variables
-      real(r8)                                       :: smp_node ! Soil suction potential, negative, [mm]
-      
+      real(r8) :: smp_node ! Soil suction potential, negative, [mm]
+      real(r8) :: s_node
+      integer  :: s
+      integer  :: c
+      integer  :: j
+      integer  :: ifp
+      integer  :: p
       
       associate(& 
-         dz          => col%dz                            , & ! Input:  [real(r8) (:,:) ]  layer depth (m)
-         smpso       => pftcon%smpso                      , & ! Input:  soil water potential at full stomatal opening (mm)
-         smpsc       => pftcon%smpsc                      , & ! Input:  soil water potential at full stomatal closure (mm)
-         sucsat      => soilstate_inst%sucsat_col         , & ! Input:  [real(r8) (:,:) ]  minimum soil suction (mm) 
-         watsat      => soilstate_inst%watsat_col         , & ! Input:  [real(r8) (:,:) ]  volumetric soil water at saturation (porosity)
-         bsw         => soilstate_inst%bsw_col            , & ! Input:  [real(r8) (:,:) ]  Clapp and Hornberger "b" 
-         sand        => soilstate_inst%sandfrac_patch     , & ! Input:  [real(r8) (:)   ]  % sand of soil 
-         rootr       => soilstate_inst%rootr_patch        , & ! Output: [real(r8) (:,:) ]  Fraction of water uptake in each layer
-         eff_porosity  => soilstate_inst%eff_porosity_col , & ! Input:  [real(r8) (:,:) ]  effective porosity = porosity - vol_ice       
-         h2osoi_ice  => waterstate_inst%h2osoi_ice_col    , & ! Input:  [real(r8) (:,:) ]  ice lens (kg/m2)
-         h2osoi_vol  => waterstate_inst%h2osoi_vol_col    , & ! Input:  [real(r8) (:,:) ]  volumetric soil water (0<=h2osoi_vol<=watsat) [m3/m3] 
-         h2osoi_liq  => waterstate_inst%h2osoi_liq_col    , & ! Input:  [real(r8) (:,:) ]  liquid water (kg/m2) 
-         t_soisno    => temperature_inst%t_soisno_col     , & ! Input:  [real(r8) (:,:) ]  soil temperature (Kelvin)
-         btran       => energyflux_inst%btran_patch       , & ! Output: [real(r8) (:)   ]  transpiration wetness factor (0 to 1)
-         rresis      => energyflux_inst%rresis_patch        & ! Output: [real(r8) (:,:) ]  root resistance by layer (0-1)  (nlevgrnd) 
+         sucsat      => soilstate_inst%sucsat_col           , & ! Input:  [real(r8) (:,:) ]  minimum soil suction (mm) 
+         watsat      => soilstate_inst%watsat_col           , & ! Input:  [real(r8) (:,:) ]  volumetric soil water at saturation (porosity)
+         bsw         => soilstate_inst%bsw_col              , & ! Input:  [real(r8) (:,:) ]  Clapp and Hornberger "b" 
+         eff_porosity => soilstate_inst%eff_porosity_col    , & ! Input:  [real(r8) (:,:) ]  effective porosity = porosity - vol_ice       
+         t_soisno    => temperature_inst%t_soisno_col       , & ! Input:  [real(r8) (:,:) ]  soil temperature (Kelvin)
+         h2osoi_liqvol => waterstate_inst%h2osoi_liqvol_col , & ! Input: [real(r8) (:,:) ]  liquid volumetric moisture, will be used for BeTR
+         btran       => energyflux_inst%btran_patch         , & ! Output: [real(r8) (:)   ]  transpiration wetness factor (0 to 1) 
+         btran2       => energyflux_inst%btran2_patch       , & ! Output: [real(r8) (:)   ]  
+         rresis      => energyflux_inst%rresis_patch        , & ! Output: [real(r8) (:,:) ]  root resistance by layer (0-1)  (nlevgrnd) 
+         rootr       => soilstate_inst%rootr_patch          & ! Output: [real(r8) (:,:) ]  Fraction of water uptake in each layer
          )
-         
 
         ! -------------------------------------------------------------------------------
         ! Convert input BC's
@@ -730,17 +735,18 @@ contains
               
               if (h2osoi_liqvol(c,j) .le. 0._r8 .or. t_soisno(c,j) .le. tfrz-2._r8) then
                  
-                 this%fates(nc)%bc_in(s)%smp_sl(j)          = -9999.9_r8
-                 this%fates(nc)%bc_in(s)%eff_porosity_sl(j) = -9999.9_r8
-                 this%fates(nc)%bc_in(s)%watsat_sl(j)       = -9999.9_r8
-                 
+                 this%fates(nc)%bc_in(s)%smp_sl(j)           =  -9999.9_r8
+                 this%fates(nc)%bc_in(s)%eff_porosity_sl(j)  = -9999.9_r8
+                 this%fates(nc)%bc_in(s)%watsat_sl(j)        = -9999.9_r8
+                 this%fates(nc)%bc_in(s)%active_uptake_sl(j) = .false.
               else
                  s_node = max(h2osoi_liqvol(c,j)/eff_porosity(c,j),0.01_r8)
                  call soil_water_retention_curve%soil_suction(sucsat(c,j), s_node, bsw(c,j), smp_node)
                  
-                 this%fates(nc)%bc_in(s)%smp_sl(j)          = smp_node
-                 this%fates(nc)%bc_in(s)%eff_porosity_sl(j) = eff_porosity(c,j)
-                 this%fates(nc)%bc_in(s)%watsat_sl(j)       = watsat(c,j)
+                 this%fates(nc)%bc_in(s)%smp_sl(j)           = smp_node
+                 this%fates(nc)%bc_in(s)%eff_porosity_sl(j)  = eff_porosity(c,j)
+                 this%fates(nc)%bc_in(s)%watsat_sl(j)        = watsat(c,j)
+                 this%fates(nc)%bc_in(s)%active_uptake_sl(j) = .true.
                  
               end if
               
@@ -750,7 +756,7 @@ contains
         ! -------------------------------------------------------------------------------
         ! Call a FATES public function.
         ! This will calculate internals, as well as output boundary conditions: 
-        ! btran, rresis, rootr
+        ! btran, rootr
         ! -------------------------------------------------------------------------------
 
         call btran_ed(this%fates(nc)%sites,  &
@@ -773,16 +779,28 @@ contains
               
               do j = 1,nlevgrnd
                  
-                 rresis(p,j) = this%fates(nc)%bc_out(s)%rresis_pa(ifp,j)
+                 ! For CLM/ALM this wrapper provides return variables that should
+                 ! be similar to that of calc_root_moist_stress().  However,
+                 ! CLM/ALM-FATES simulations will no make use of rresis, btran or btran2
+                 ! outside of FATES. We do not have code in place to calculate btran2 or
+                 ! rresis right now, so we force to bad.  We have btran calculated so we
+                 ! pass it in case people want diagnostics.  rootr is actually the only
+                 ! variable that will be used, as it is needed to help distribute the
+                 ! the transpiration sink to the appropriate layers. (RGK)
+
+                 rresis(p,j) = -999.9  ! We do not really calculate this (correctly)
+                                       ! it should not thought of as valid output 
+                                       ! until we decide to.
                  rootr(p,j)  = this%fates(nc)%bc_out(s)%rootr_pa(ifp,j)
-                 btran(p,j)  = this%fates(nc)%bc_out(s)%btran_pa(ifp,j)
+                 btran(p)    = this%fates(nc)%bc_out(s)%btran_pa(ifp)
+                 btran2(p)   = -999.9  ! Not available, force to nonsense
 
               end do
 
            end do
         end do
-      
-        return
+      end associate
+      return
    end subroutine wrap_btran
 
 

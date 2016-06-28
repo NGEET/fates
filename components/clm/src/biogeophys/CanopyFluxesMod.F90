@@ -528,8 +528,22 @@ contains
       !set up perchroot options
       call set_perchroot_opt(perchroot, perchroot_alt)
 
-      !calculate root moisture stress
-      call calc_root_moist_stress(bounds,     &
+      ! --------------------------------------------------------------------------
+      ! if this is a FATES simulation
+      ! calc_root_moist_stress already calculated root soil water stress 'rresis'
+      ! this is the input boundary condition to calculate the transpiration
+      ! wetness factor btran and the root weighting factors for FATES.  These
+      ! values require knowledge of the belowground root structure.
+      ! --------------------------------------------------------------------------
+      
+      if(use_ed)then
+         call clm_fates%wrap_btran(nc,soilstate_inst, waterstate_inst, &
+               temperature_inst, energyflux_inst, soil_water_retention_curve)
+         
+      else
+         
+         !calculate root moisture stress
+         call calc_root_moist_stress(bounds,     &
             nlevgrnd = nlevgrnd,               &
             fn = fn,                           &
             filterp = filterp,                 &
@@ -540,17 +554,7 @@ contains
             waterstate_inst=waterstate_inst,   &
               soil_water_retention_curve=soil_water_retention_curve)
 
-      ! --------------------------------------------------------------------------
-      ! if this is a FATES simulation
-      ! calc_root_moist_stress already calculated root soil water stress 'rresis'
-      ! this is the input boundary condition to calculate the transpiration
-      ! wetness factor btran and the root weighting factors for FATES.  These
-      ! values require knowledge of the belowground root structure.
-      ! --------------------------------------------------------------------------
-
-      if(use_ed)then
-         call clm_fates%wrap_btran(nc,soilstate_inst, waterstate_inst, &
-               temperature_inst, energyflux_inst)
+     
       end if
 
       ! Modify aerodynamic parameters for sparse/dense canopy (X. Zeng)
@@ -744,7 +748,8 @@ contains
             call Photosynthesis_ED (bounds, fn, filterp, &
                  svpts(begp:endp), eah(begp:endp), o2(begp:endp), &
                  co2(begp:endp), rb(begp:endp), dayl_factor(begp:endp), &
-                 sites(:), nsites, hsites(bounds%begc:bounds%endc), &
+                 clm_fates%fates(nc)%sites(:), clm_fates%fates(nc)%nsites, &
+                 clm_fates%f2hmap(nc)%hsites(bounds%begc:bounds%endc), &
                  atm2lnd_inst, temperature_inst, canopystate_inst, photosyns_inst)
 
             ! zero all of these things, not just the ones in the filter. 
@@ -1168,8 +1173,11 @@ contains
 
             ! TODO-INTERF: THIS CALL IS ONLY FOR ED STUFF, EASILY REMOVED
             ! AND CALLED OUTSIDE OF THIS SUBROUTINE
-            call AccumulateFluxes_ED(bounds, p, sites(:),nsites, &
-                  hsites(bounds%begc:bounds%endc), photosyns_inst)
+            call AccumulateFluxes_ED(bounds, p,   &
+                  clm_fates%fates(nc)%sites(:),   &
+                  clm_fates%fates(nc)%nsites,     &
+                  clm_fates%f2hmap(nc)%hsites(bounds%begc:bounds%endc), &
+                  photosyns_inst)
          end if
 
       end do

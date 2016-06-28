@@ -962,16 +962,16 @@ contains
     
     use clm_varctl        , only : iulog
     
+    implicit none
+
     ! Arguments
-    
     type(ed_site_type),intent(inout),target :: sites(nsites)
     integer,intent(in)                      :: nsites
     type(bc_in_type),intent(in)             :: bc_in(nsites)
-    type(bc_out_type),intent(out)           :: bc_out(nsites)
+    type(bc_out_type),intent(inout)         :: bc_out(nsites)
     
 
     ! locals
-
     type (ed_patch_type),pointer :: cpatch   ! c"urrent" patch
     real(r8)          :: sunlai
     real(r8)          :: shalai
@@ -983,20 +983,24 @@ contains
     
 
     do s = 1,nsites
-       
+
        ifp = 0
        cpatch => sites(s)%oldest_patch
+
        do while (associated(cpatch))                 
           
           ifp=ifp+1
-
+          
+          if( DEBUG ) write(iulog,*) 'edsurfRad_5600',ifp,s,cpatch%NCL_p,numpft_ed
+          
           ! zero out various datas
           cpatch%ed_parsun_z(:,:,:) = 0._r8
           cpatch%ed_parsha_z(:,:,:) = 0._r8
           cpatch%ed_laisun_z(:,:,:) = 0._r8     
           cpatch%ed_laisha_z(:,:,:) = 0._r8
-          
+
           bc_out(s)%fsun_pa(ifp) = 0._r8
+
           sunlai  = 0._r8
           shalai  = 0._r8
 
@@ -1009,6 +1013,9 @@ contains
           
           do CL = 1, cpatch%NCL_p
              do FT = 1,numpft_ed
+
+                if( DEBUG ) write(iulog,*) 'edsurfRad_5601',CL,FT,cpatch%nrad(CL,ft)
+                
                 do iv = 1, cpatch%nrad(CL,ft) !NORMAL CASE. 
                    
                    ! FIX(SPM,040114) - existing comment
