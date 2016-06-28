@@ -16,26 +16,12 @@ module FatesInterfaceMod
    ! ------------------------------------------------------------------------------------
 
    use EDtypesMod            , only : ed_site_type,      &
-                                      numPatchesPerCol
+                                      numPatchesPerCol,  &
+                                      ctrl_parms
+
    use shr_kind_mod          , only : r8 => shr_kind_r8  ! INTERF-TODO: REMOVE THIS
    use clm_varpar            , only : nlevgrnd
    
-   ! ------------------------------------------------------------------------------------
-   ! Certain dimension information used by FATES is dictated by the the driver
-   ! or the host model, or perhaps may be some compromise between what FATES will want
-   ! in a best-case scenario and what space the driver/host will allow based on its
-   ! memory constraints (most-likely due to IO)
-   ! ------------------------------------------------------------------------------------
-   
-   type, private :: fates_dims_type
-      
-      integer :: numSWBands   ! Maximum number of broad-bands in the short-wave radiation
-                              ! specturm to track 
-                              ! (typically 2 as a default, VIS/NIR, in ED variants <2016)
-
-   end type fates_dims_type
-
-
 
    ! ------------------------------------------------------------------------------------
    ! Notes on types
@@ -67,6 +53,11 @@ module FatesInterfaceMod
       ! volumetric soil water at saturation (porosity)
       real(r8), allocatable :: watsat_sl(:)
 
+      ! If there is no liquid volume of water in a soil layer, or
+      ! if the layer is 2 degrees below freezing, the layer will not
+      ! be deemed active for water uptake via transpiration and photosynthesis
+      logical, allocatable :: active_uptake_sl(:)
+
    end type bc_in_type
 
 
@@ -77,7 +68,8 @@ module FatesInterfaceMod
 
       ! Root soil water stress (resistance) by layer 
       ! (diagnostic, should not be used by HLM)
-      real(r8),allocatable :: rresis_pa(:,:)
+!      real(r8),allocatable :: rresis_pa(:,:)   ! not used by host, not calculated
+                                                ! yet by FATES
       
       ! Effective fraction of roots in each soil layer 
       ! (diagnostic, should not be used by HLM)
@@ -117,19 +109,12 @@ module FatesInterfaceMod
 
    contains
       
-      procedure, public :: allocate_bcs
       procedure, public :: zero_bcs
 
    end type fates_interface_type
 
-   ! ------------------------------------------------------------------------------------
-   ! Dimension information is independent of which clump it is on
-   ! and since these are typically read only variables and never updated on the clump
-   ! we need not attach these to the threaded instances of the fates_interface_type
-   ! ------------------------------------------------------------------------------------
-   
-   type(fates_dims_type) :: fates_dims
-
+  
+   public :: set_fates_ctrlparms
 
 
 contains
@@ -158,40 +143,49 @@ contains
    ! ====================================================================================
    
 
-   subroutine allocate_bcs(this,s)
+   subroutine allocate_bcin(bc_in)
       
       ! ---------------------------------------------------------------------------------
       ! Allocate and Initialze the FATES boundary condition vectors
       ! ---------------------------------------------------------------------------------
-
+      
       implicit none
-      class(fates_interface_type), intent(inout) :: this
-      integer, intent(in) :: s
+      type(bc_in_type), intent(inout) :: bc_in
       
       ! Allocate input boundaries
       
       ! Radiation
-      allocate(this%bc_in(s)%solad_pa(numPatchesPerCol,fates_dims%numSWBands))
-      allocate(this%bc_in(s)%solai_pa(numPatchesPerCol,fates_dims%numSWBands))
-
-      ! Hydrology
-      allocate(this%bc_in(s)%smp_sl(nlevgrnd))
-      allocate(this%bc_in(s)%eff_porosity_sl(nlevgrnd))
-      allocate(this%bc_in(s)%watsat_sl(nlevgrnd))
-      
-      ! Allocate output boundaries
-
-      ! Radiation
-      allocate(this%bc_out(s)%fsun_pa(numPatchesPerCol))
+      allocate(bc_in%solad_pa(numPatchesPerCol,ctrl_parms%numSWBands))
+      allocate(bc_in%solai_pa(numPatchesPerCol,ctrl_parms%numSWBands))
       
       ! Hydrology
-      allocate(this%bc_out(s)%rresis_pa(numPatchesPerCol,nlevgrnd))
-      allocate(this%bc_out(s)%rootr_pa(numPatchesPerCol,nlevgrnd))
-      allocate(this%bc_out(s)%btran_pa(numPatchesPerCol))
-
-
+      allocate(bc_in%smp_sl(ctrl_parms%numlevgrnd))
+      allocate(bc_in%eff_porosity_sl(ctrl_parms%numlevgrnd))
+      allocate(bc_in%watsat_sl(ctrl_parms%numlevgrnd))
+      allocate(bc_in%active_uptake_sl(ctrl_parms%numlevgrnd))
+      
       return
-   end subroutine allocate_bcs
+   end subroutine allocate_bcin
+   
+   subroutine allocate_bcout(bc_out)
+
+      ! ---------------------------------------------------------------------------------
+      ! Allocate and Initialze the FATES boundary condition vectors
+      ! ---------------------------------------------------------------------------------
+      
+      implicit none
+      type(bc_out_type), intent(inout) :: bc_out
+      
+      
+      ! Radiation
+      allocate(bc_out%fsun_pa(numPatchesPerCol))
+      
+      ! Hydrology
+      allocate(bc_out%rootr_pa(numPatchesPerCol,ctrl_parms%numlevgrnd))
+      allocate(bc_out%btran_pa(numPatchesPerCol))
+      
+      return
+   end subroutine allocate_bcout
 
    ! ====================================================================================
 
@@ -203,21 +197,110 @@ contains
 
       ! Input boundaries
 
-      this%bc_in(s)%solad_pa(:,:)      = 0.0_r8
-      this%bc_in(s)%solai_pa(:,:)      = 0.0_r8
-      this%bc_in(s)%smp_sl(:)          = 0.0_r8
-      this%bc_in(s)%eff_porosity_sl(:) = 0.0_r8
-      this%bc_in(s)%watsat_sl(:)       = 0.0_r8
+      this%bc_in(s)%solad_pa(:,:)       = 0.0_r8
+      this%bc_in(s)%solai_pa(:,:)       = 0.0_r8
+      this%bc_in(s)%smp_sl(:)           = 0.0_r8
+      this%bc_in(s)%eff_porosity_sl(:)  = 0.0_r8
+      this%bc_in(s)%watsat_sl(:)        = 0.0_r8
+      this%bc_in(s)%active_uptake_sl(:) = .false.
       
       ! Output boundaries
       
-      this%bc_out(s)%fsun_pa(:) = 0.0_r8
-      this%bc_out(s)%rresis_pa(:) = 0.0_r8
-      this%bc_out(s)%rootr_pa(:) = 0.0_r8
-      this%bc_out(s)%btran_pa(:) = 0.0_r8
+      this%bc_out(s)%fsun_pa(:)     = 0.0_r8
+      this%bc_out(s)%rootr_pa(:,:)  = 0.0_r8
+      this%bc_out(s)%btran_pa(:)    = 0.0_r8
 
       return
    end subroutine zero_bcs
+   
+   ! ==================================================================================== 
+
+   subroutine set_fates_ctrlparms(tag,dimval)
+      
+      ! ---------------------------------------------------------------------------------
+      ! INTERF-TODO:  NEED ALLOWANCES FOR REAL AND CHARACTER ARGS..
+      ! Certain model control parameters and dimensions used by FATES are dictated by 
+      ! the the driver or the host mode. To see which parameters should be filled here
+      ! please also look at the ctrl_parms_type in FATESTYpeMod, in the section listing
+      ! components dictated by the host model.
+      !
+      ! Some important points:
+      ! 1. Calls to this function are likely from the clm_fates module in the HLM.
+      ! 2. The calls should be preceeded by a flush function.
+      ! 3. All values in ctrl_parm (FATESTypesMod.F90) that are classified as 
+      !    'dictated by the HLM' must be listed in this subroutine
+      ! 4. Should look like this:
+      ! 
+      ! call set_fates_ctrlparms('flush_to_unset')
+      ! call set_fates_ctrlparms('num_sw_bbands',numrad)  ! or other variable
+      ! ...
+      ! call set_fates_ctrlparms('num_lev_ground',nlevgrnd)   ! or other variable
+      ! call set_fates_ctrlparms('check_allset') 
+      !
+      ! RGK-2016
+      ! ---------------------------------------------------------------------------------
+      
+      ! Arguments
+      integer, optional, intent(in)  :: dimval
+      character(len=*),intent(in)    :: tag
+      
+      ! local variables
+      logical              :: all_set
+      integer,  parameter  :: unset_int = -999
+      real(r8), parameter  :: unset_double = -999.9
+      
+      select case (trim(tag))
+      case('flush_to_unset')
+
+         write(*,*) 'Flushing FATES control parameters prior to transfer from host'
+         ctrl_parms%numSwBands = unset_int
+         ctrl_parms%numlevgrnd = unset_int
+
+      case('check_allset')
+         
+         if(ctrl_parms%numSWBands .eq. unset_int) then
+            write(*,*) 'FATES dimension/parameter unset: num_sw_rad_bbands'
+            ! INTERF-TODO: FATES NEEDS INTERNAL end_run
+            ! end_run('MESSAGE')
+         end if
+         
+         if(ctrl_parms%numlevgrnd .eq. unset_int) then
+            write(*,*) 'FATES dimension/parameter unset: numlevground'
+            ! INTERF-TODO: FATES NEEDS INTERNAL end_run
+            ! end_run('MESSAGE')
+         end if
+
+         write(*,*) 'Checked. All control parameters sent to FATES.'
+         
+      case default
+
+         if(present(dimval))then
+            select case (trim(tag))
+               
+            case('num_sw_bbands')
+               
+               ctrl_parms%numSwBands = dimval
+               write(*,*) 'Transfering num_sw_bbands = ',dimval,' to FATES'
+               
+            case('num_lev_ground')
+               
+               ctrl_parms%numlevgrnd = dimval
+               write(*,*) 'Transfering num_lev_ground = ',dimval,' to FATES'
+               
+            case default
+               write(*,*) 'tag not recognized:',trim(tag)
+               ! end_run
+            end select
+         else
+            write(*,*) 'no value was provided for the tag'
+         end if
+         
+      end select
+      
+      
+      return
+   end subroutine set_fates_ctrlparms
+
 
 
 end module FatesInterfaceMod
