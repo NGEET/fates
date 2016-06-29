@@ -27,7 +27,7 @@ module EDCohortDynamicsMod
   public :: sort_cohorts
   public :: copy_cohort
   public :: count_cohorts
-  public :: countCohorts
+!  public :: countCohorts
   public :: allocate_live_biomass
 
   logical, parameter :: DEBUG  = .false. ! local debug flag
@@ -1137,46 +1137,46 @@ contains
   end function count_cohorts
 
   !-------------------------------------------------------------------------------------!
-  function countCohorts( bounds, ed_allsites_inst ) result ( totNumCohorts ) 
+!  function countCohorts( bounds, ed_allsites_inst ) result ( totNumCohorts ) 
     !
     ! !DESCRIPTION:
     !  counts the total number of cohorts over all p levels (ed_patch_type) so we
     ! can allocate vectors, copy from LL -> vector and read/write restarts.
     !
     ! !USES:
-    use decompMod, only : bounds_type
+!    use decompMod, only : bounds_type
     !
     ! !ARGUMENTS    
-    type(bounds_type)  , intent(in)            :: bounds 
-    type(ed_site_type) , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+!    type(bounds_type)  , intent(in)            :: bounds 
+!    type(ed_site_type) , intent(inout), target :: ed_allsites_inst( bounds%begg: )
     !
     ! !LOCAL VARIABLES:
-    type (ed_patch_type)  , pointer :: currentPatch
-    type (ed_cohort_type) , pointer :: currentCohort
-    integer :: g, totNumCohorts
-    logical :: error
+!    type (ed_patch_type)  , pointer :: currentPatch
+!    type (ed_cohort_type) , pointer :: currentCohort
+!    integer :: g, totNumCohorts
+!    logical :: error
     !----------------------------------------------------------------------
 
-    totNumCohorts = 0
+!    totNumCohorts = 0
 
-    do g = bounds%begg,bounds%endg
+!    do g = bounds%begg,bounds%endg
 
-       if (ed_allsites_inst(g)%istheresoil) then   
+!       if (ed_allsites_inst(g)%istheresoil) then   
 
-          currentPatch => ed_allsites_inst(g)%oldest_patch
-          do while(associated(currentPatch))
+!          currentPatch => ed_allsites_inst(g)%oldest_patch
+!          do while(associated(currentPatch))
 
-             currentCohort => currentPatch%shortest
-             do while(associated(currentCohort))        
-                totNumCohorts = totNumCohorts + 1
-                currentCohort => currentCohort%taller
-             enddo !currentCohort
-             currentPatch => currentPatch%younger
-          end do
+!             currentCohort => currentPatch%shortest
+!             do while(associated(currentCohort))        
+!                totNumCohorts = totNumCohorts + 1
+!                currentCohort => currentCohort%taller
+!             enddo !currentCohort
+!             currentPatch => currentPatch%younger
+!          end do
 
-       end if
-    end do
+!       end if
+!    end do
 
-  end function countCohorts
+!  end function countCohorts
 
 end module EDCohortDynamicsMod
