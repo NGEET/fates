@@ -77,7 +77,6 @@ contains
 
     call subgrid_get_info_natveg(gi, ncohorts_temp, npatches_temp, ncols_temp, nlunits_temp)
     call accumulate_counters()
-    ncohorts = ncohorts + ncohorts_temp
 
     call subgrid_get_info_urban_tbd(gi, npatches_temp, ncols_temp, nlunits_temp)
     call accumulate_counters()
@@ -103,6 +102,8 @@ contains
 
     call subgrid_get_info_crop(gi, npatches_temp, ncols_temp, nlunits_temp)
     call accumulate_counters()
+
+    ncohorts = ncols*cohorts_per_col
 
   contains
     subroutine accumulate_counters
