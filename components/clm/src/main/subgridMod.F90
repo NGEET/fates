@@ -125,7 +125,7 @@ contains
     !
     ! !USES
     use clm_varpar, only : natpft_size
-    use EDtypesMod, only : cohorts_per_gcell
+    use EDtypesMod, only : cohorts_per_col
     !
     ! !ARGUMENTS:
     integer, intent(in)  :: gi        ! grid cell index
@@ -150,7 +150,16 @@ contains
     nlunits = 1
     ncols = 1
 
-    ncohorts = cohorts_per_gcell
+    ! -------------------------------------------------------------------------
+    ! Number of cohorts is set here
+    ! ED cohorts (via FATES) populate all natural vegetation columns.
+    ! Current implementations mostly assume that only one column contains
+    ! natural vegetation, which is synonomous with the soil column. 
+    ! For restart output however, we will allocate the cohort vector space
+    ! based on all columns.
+    ! -------------------------------------------------------------------------
+    ncohorts = ncohorts + ncols*cohorts_per_col
+
 
   end subroutine subgrid_get_info_natveg
 

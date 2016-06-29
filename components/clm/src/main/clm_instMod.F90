@@ -394,7 +394,7 @@ contains
     !                          Incrementally changing to ED names to FATES
 
     call clm_fates%Init(bounds,use_ed)
-    
+    call clm_fates%init_allocate()
 
     deallocate (h2osno_col)
     deallocate (snow_depth_col)
@@ -524,29 +524,9 @@ contains
 
     if (use_ed) then
 
-       ! There are concerns that NETCDF is not threadsafe, so it
-       ! cannot handle multiple open files on one node.  So we are not
-       ! forking the reads
-       nclumps = get_proc_clumps()
-       do nc = 1, nclumps
-          call get_clump_bounds(nc, bounds_clump)
-
-          ! INTERF-TODO: THIS CALL SHOULD NOT CALL FATES(NC) DIRECTLY
-          ! BUT IT SHOULD PASS bounds_clump TO A CLM_FATES WRAPPER
-          ! WHICH WILL IN TURN PASS A FATES API DEFINED BOUNDS TO FATES_INIT
-          ! WE ARE NOT READY FOR THAT YET AS fates_restart FUNCTIONS STILL
-          ! CALL CLM STUFF
-          call clm_fates%fates(nc)%fates_restart(bounds_clump,ncid, flag )
-
-
-          if ( trim(flag) == 'read' ) then
-
-             call clm_fates%fates2hlm_link(bounds_clump, nc, waterstate_inst, canopystate_inst)
-
-          end if
-       end do
-
-       call clm_fates%fates2hlm%restart(bounds, ncid, flag)
+       ! Bounds are not passed to FATES init_restart because
+       ! we call a loop on clumps within this subroutine anyway
+       call clm_fates%init_restart(ncid,flag, waterstate_inst, canopystate_inst)
 
     end if
 
