@@ -9,7 +9,7 @@ module EDPatchDynamicsMod
   use clm_varctl           , only : iulog 
   use pftconMod            , only : pftcon
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
-  use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, numpft_ed, area, dbhmax, numPatchesPerGridCell
+  use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, numpft_ed, area, dbhmax, numPatchesPerCol
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type, udata
   use EDTypesMod           , only : min_patch_area
   !
@@ -1014,7 +1014,7 @@ contains
     !---------------------------------------------------------------------
 
     !maxpatch = 4  
-    maxpatch = numPatchesPerGridCell
+    maxpatch = numPatchesPerCol
 
     currentSite => csite 
 
@@ -1353,7 +1353,7 @@ contains
        areatot = areatot + currentPatch%area
        currentPatch => currentPatch%younger
        if((areatot-area) > 0.0000001_r8)then
-          write(iulog,*) 'ED: areatot too large. end terminate', areatot,currentSite%clmgcell
+          write(iulog,*) 'ED: areatot too large. end terminate', areatot
        endif
     enddo
 
@@ -1427,7 +1427,7 @@ contains
   end subroutine patch_pft_size_profile
 
   ! ============================================================================
-  function countPatches( bounds, ed_allsites_inst ) result ( totNumPatches ) 
+  function countPatches( bounds, sites, nsites ) result ( totNumPatches ) 
     !
     ! !DESCRIPTION:
     !  Loop over all Patches to count how many there are
@@ -1439,24 +1439,23 @@ contains
     !
     ! !ARGUMENTS:
     type(bounds_type)  , intent(in)            :: bounds
-    type(ed_site_type) , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+    type(ed_site_type) , intent(inout), target :: sites(nsites)
+    integer,             intent(in)            :: nsites
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type), pointer :: currentPatch
-    integer :: g              ! gridcell
     integer :: totNumPatches  ! total number of patches.  
+    integer :: s
     !---------------------------------------------------------------------
 
     totNumPatches = 0
 
-    do g = bounds%begg,bounds%endg
-       if (ed_allsites_inst(g)%istheresoil) then
-          currentPatch => ed_allsites_inst(g)%oldest_patch
-          do while(associated(currentPatch))
-             totNumPatches = totNumPatches + 1
-             currentPatch => currentPatch%younger
-          enddo
-       endif
+    do s = 1,nsites
+       currentPatch => sites(s)%oldest_patch
+       do while(associated(currentPatch))
+          totNumPatches = totNumPatches + 1
+          currentPatch => currentPatch%younger
+       enddo
     enddo
 
    end function countPatches

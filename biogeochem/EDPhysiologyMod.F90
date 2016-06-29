@@ -247,6 +247,7 @@ contains
     use clm_time_manager, only : get_days_per_year, get_curr_date
     use clm_time_manager, only : get_ref_date, timemgr_datediff 
     use EDTypesMod, only : udata
+    use PatchType , only : patch   
     !
     ! !ARGUMENTS:
     type(ed_site_type)      , intent(inout), target :: currentSite
@@ -255,7 +256,6 @@ contains
     !
     ! !LOCAL VARIABLES:
     real(r8), pointer :: t_veg24(:) 
-    integer  :: g            ! grid point  
     integer  :: t            ! day of year
     integer  :: ncolddays    ! no days underneath the threshold for leaf drop
     integer  :: ncolddayslim ! critical no days underneath the threshold for leaf drop
@@ -268,6 +268,8 @@ contains
     integer  :: mon                      ! month (1, ..., 12)
     integer  :: day                      ! day of month (1, ..., 31)
     integer  :: sec                      ! seconds of the day
+    integer  :: patchi                   ! the first CLM/ALM patch index of the associated column
+    integer  :: coli                     ! the CLM/ALM column index of the associated site
 
     real(r8) :: gdd_threshold
     real(r8) :: a,b,c        ! params of leaf-pn model from botta et al. 2000. 
@@ -283,10 +285,13 @@ contains
 
     !------------------------------------------------------------------------
 
+    ! INTERF-TODO: THIS IS A BAND-AID, AS I WAS HOPING TO REMOVE CLM_PNO
+    ! ALREADY REMOVED currentSite%clmcolumn, hence the need for these
+
+    patchi = currentSite%oldest_patch%clm_pno-1
+    coli   = patch%column(patchi)
+
     t_veg24       => temperature_inst%t_veg24_patch ! Input:  [real(r8) (:)]  avg pft vegetation temperature for last 24 hrs    
-
-    g = currentSite%clmgcell
-
 
     call get_curr_date(yr, mon, day, sec)
     curdate = yr*10000 + mon*100 + day
@@ -315,7 +320,7 @@ contains
     cold_t   = 7.5_r8  ! ed_ph_coldtemp
 
     t  = udata%time_period
-    temp_in_C = t_veg24(currentSite%oldest_patch%clm_pno-1) - tfrz
+    temp_in_C = t_veg24(patchi) - tfrz
 
     !-----------------Cold Phenology--------------------!              
 
@@ -359,7 +364,7 @@ contains
     endif
     !
     ! accumulate the GDD using daily mean temperatures
-    if (t_veg24(currentSite%oldest_patch%clm_pno-1) .gt. tfrz) then
+    if (t_veg24(patchi) .gt. tfrz) then
        currentSite%ED_GDD_site = currentSite%ED_GDD_site + t_veg24(currentSite%oldest_patch%clm_pno-1) - tfrz
     endif
     
@@ -437,7 +442,7 @@ contains
     ! distinction actually matter??).... 
 
     !Accumulate surface water memory of last 10 days.
-    currentSite%water_memory(1) = waterstate_inst%h2osoi_vol_col(currentSite%clmcolumn,1) 
+    currentSite%water_memory(1) = waterstate_inst%h2osoi_vol_col(coli,1) 
     do i = 1,9 !shift memory along one
        currentSite%water_memory(11-i) = currentSite%water_memory(10-i)
     enddo
@@ -1140,6 +1145,7 @@ contains
     ! !USES:
     use shr_const_mod      , only : SHR_CONST_PI, SHR_CONST_TKFRZ
     use EDSharedParamsMod  , only : EDParamsShareInst
+    use PatchType , only : patch 
     !
     ! !ARGUMENTS    
     type(ed_patch_type)    , intent(inout) :: currentPatch
@@ -1165,8 +1171,9 @@ contains
 
     catanf_30 = catanf(30._r8)
     
-    c = currentPatch%siteptr%clmcolumn
+!    c = currentPatch%siteptr%clmcolumn
     p = currentPatch%clm_pno
+    c = patch%column(p)
     
     ! set "froz_q10" parameter
     froz_q10  = EDParamsShareInst%froz_q10  
