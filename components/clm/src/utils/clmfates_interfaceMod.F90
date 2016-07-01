@@ -637,8 +637,8 @@ contains
 
               p = ifp+col%patchi(c)
 
-              this%fates(nc)%bc_in(s)%solad_pa(ifp,:) = forc_solad(g,:)
-              this%fates(nc)%bc_in(s)%solai_pa(ifp,:) = forc_solai(g,:)
+              this%fates(nc)%bc_in(s)%solad_parb(ifp,:) = forc_solad(g,:)
+              this%fates(nc)%bc_in(s)%solai_parb(ifp,:) = forc_solai(g,:)
 
            end do
         end do
@@ -732,23 +732,15 @@ contains
            c = this%f2hmap(nc)%fcolumn(s)
            
            do j = 1,nlevgrnd
+
+              s_node = max(h2osoi_liqvol(c,j)/eff_porosity(c,j),0.01_r8)
+              call soil_water_retention_curve%soil_suction(sucsat(c,j), s_node, bsw(c,j), smp_node)
               
-              if (h2osoi_liqvol(c,j) .le. 0._r8 .or. t_soisno(c,j) .le. tfrz-2._r8) then
-                 
-                 this%fates(nc)%bc_in(s)%smp_sl(j)           =  -9999.9_r8
-                 this%fates(nc)%bc_in(s)%eff_porosity_sl(j)  = -9999.9_r8
-                 this%fates(nc)%bc_in(s)%watsat_sl(j)        = -9999.9_r8
-                 this%fates(nc)%bc_in(s)%active_uptake_sl(j) = .false.
-              else
-                 s_node = max(h2osoi_liqvol(c,j)/eff_porosity(c,j),0.01_r8)
-                 call soil_water_retention_curve%soil_suction(sucsat(c,j), s_node, bsw(c,j), smp_node)
-                 
-                 this%fates(nc)%bc_in(s)%smp_sl(j)           = smp_node
-                 this%fates(nc)%bc_in(s)%eff_porosity_sl(j)  = eff_porosity(c,j)
-                 this%fates(nc)%bc_in(s)%watsat_sl(j)        = watsat(c,j)
-                 this%fates(nc)%bc_in(s)%active_uptake_sl(j) = .true.
-                 
-              end if
+              this%fates(nc)%bc_in(s)%tempk_gl(j)         = t_soisno(c,j)
+              this%fates(nc)%bc_in(s)%h2o_liqvol_gl(j)    = h2osoi_liqvol(c,j)
+              this%fates(nc)%bc_in(s)%smp_gl(j)           = smp_node
+              this%fates(nc)%bc_in(s)%eff_porosity_gl(j)  = eff_porosity(c,j)
+              this%fates(nc)%bc_in(s)%watsat_gl(j)        = watsat(c,j)
               
            end do
         end do
@@ -791,7 +783,7 @@ contains
                  rresis(p,j) = -999.9  ! We do not really calculate this (correctly)
                                        ! it should not thought of as valid output 
                                        ! until we decide to.
-                 rootr(p,j)  = this%fates(nc)%bc_out(s)%rootr_pa(ifp,j)
+                 rootr(p,j)  = this%fates(nc)%bc_out(s)%rootr_pagl(ifp,j)
                  btran(p)    = this%fates(nc)%bc_out(s)%btran_pa(ifp)
                  btran2(p)   = -999.9  ! Not available, force to nonsense
 
