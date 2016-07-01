@@ -1065,21 +1065,21 @@ contains
                   
                   if ( DEBUG ) then
                      write(iulog,*) 'edsurfRad 653 ', cpatch%ed_parsun_z(CL,ft,iv)
-                     write(iulog,*) 'edsurfRad 654 ', bc_in(s)%solad_pa(ifp,ipar)
-                     write(iulog,*) 'edsurfRad 655 ', bc_in(s)%solai_pa(ifp,ipar)
+                     write(iulog,*) 'edsurfRad 654 ', bc_in(s)%solad_parb(ifp,ipar)
+                     write(iulog,*) 'edsurfRad 655 ', bc_in(s)%solai_parb(ifp,ipar)
                      write(iulog,*) 'edsurfRad 656 ', cpatch%fabd_sun_z(CL,ft,iv)
                      write(iulog,*) 'edsurfRad 657 ', cpatch%fabi_sun_z(CL,ft,iv)
                   endif
                   
                   cpatch%ed_parsun_z(CL,ft,iv) = &
-                        bc_in(s)%solad_pa(ifp,ipar)*cpatch%fabd_sun_z(CL,ft,iv) + &
-                        bc_in(s)%solai_pa(ifp,ipar)*cpatch%fabi_sun_z(CL,ft,iv) 
+                        bc_in(s)%solad_parb(ifp,ipar)*cpatch%fabd_sun_z(CL,ft,iv) + &
+                        bc_in(s)%solai_parb(ifp,ipar)*cpatch%fabi_sun_z(CL,ft,iv) 
                   
                   if ( DEBUG )write(iulog,*) 'edsurfRad 663 ', cpatch%ed_parsun_z(CL,ft,iv)
                   
                   cpatch%ed_parsha_z(CL,ft,iv) = &
-                        bc_in(s)%solad_pa(ifp,ipar)*cpatch%fabd_sha_z(CL,ft,iv) + &
-                        bc_in(s)%solai_pa(ifp,ipar)*cpatch%fabi_sha_z(CL,ft,iv)          
+                        bc_in(s)%solad_parb(ifp,ipar)*cpatch%fabd_sha_z(CL,ft,iv) + &
+                        bc_in(s)%solai_parb(ifp,ipar)*cpatch%fabi_sha_z(CL,ft,iv)          
                   
                   if ( DEBUG ) write(iulog,*) 'edsurfRad 669 ', cpatch%ed_parsha_z(CL,ft,iv)
                   
