@@ -6,6 +6,7 @@ module EDBtranMod
    ! ------------------------------------------------------------------------------------
    
    use pftconMod         , only : pftcon
+   use clm_varcon        , only : tfrz
    use EDTypesMod        , only : ed_site_type,       &
                                   ed_patch_type,      &
                                   ed_cohort_type,     &
@@ -34,11 +35,11 @@ contains
       ! ---------------------------------------------------------------------------------
       ! Calculate the transpiration wetness function (BTRAN) and the root uptake
       ! distribution (ROOTR).
-      ! Boundary conditions in: bc_in(s)%eff_porosity_sl(j)    unfrozen porosity
-      !                         bc_in(s)%watsat_sl(j)          porosity
-      !                         bc_in(s)%active_uptake_sl(j)   frozen/not frozen
-      !                         bc_in(s)%smp_sl(j)             suction
-      ! Boundary conditions out: bc_out(s)%rootr_pa            root uptake distribution
+      ! Boundary conditions in: bc_in(s)%eff_porosity_gl(j)    unfrozen porosity
+      !                         bc_in(s)%watsat_gl(j)          porosity
+      !                         bc_in(s)%active_uptake_gl(j)   frozen/not frozen
+      !                         bc_in(s)%smp_gl(j)             suction
+      ! Boundary conditions out: bc_out(s)%rootr_pagl          root uptake distribution
       !                          bc_out(s)%btran_pa            wetness factor
       ! ---------------------------------------------------------------------------------
 
@@ -86,12 +87,12 @@ contains
                     
                     ! Calculations are only relevant where liquid water exists
                     ! see clm_fates%wrap_btran for calculation with CLM/ALM
-                    
-                    if( bc_in(s)%active_uptake_sl(j) ) then 
+
+                    if ( bc_in(s)%h2o_liqvol_gl(j) .gt. 0._r8 .and. bc_in(s)%tempk_gl(j) .gt. tfrz-2._r8) then
                        
-                       smp_node = max(smpsc(ft), bc_in(s)%smp_sl(j))
+                       smp_node = max(smpsc(ft), bc_in(s)%smp_gl(j))
                        
-                       rresis  = min( (bc_in(s)%eff_porosity_sl(j)/bc_in(s)%watsat_sl(j))*               &
+                       rresis  = min( (bc_in(s)%eff_porosity_gl(j)/bc_in(s)%watsat_gl(j))*               &
                              (smp_node - smpsc(ft)) / (smpso(ft) - smpsc(ft)), 1._r8)
                        
                        cpatch%rootr_ft(ft,j) = cpatch%rootfr_ft(ft,j)*rresis
@@ -134,14 +135,14 @@ contains
               ! distributed over the soil layers.
               
               do j = 1,numlevgrnd
-                 bc_out(s)%rootr_pa(ifp,j) = 0._r8
+                 bc_out(s)%rootr_pagl(ifp,j) = 0._r8
                  do ft = 1,numpft_ed
                     if(sum(pftgs) > 0._r8)then !prevent problem with the first timestep - might fail
                        !bit-retart test as a result? FIX(RF,032414)  
-                       bc_out(s)%rootr_pa(ifp,j) = bc_out(s)%rootr_pa(ifp,j) + &
+                       bc_out(s)%rootr_pagl(ifp,j) = bc_out(s)%rootr_pagl(ifp,j) + &
                              cpatch%rootr_ft(ft,j) * pftgs(ft)/sum(pftgs)
                     else
-                       bc_out(s)%rootr_pa(ifp,j) = bc_out(s)%rootr_pa(ifp,j) + &
+                       bc_out(s)%rootr_pagl(ifp,j) = bc_out(s)%rootr_pagl(ifp,j) + &
                              cpatch%rootr_ft(ft,j) * 1./numpft_ed
                     end if
                  enddo
@@ -160,12 +161,12 @@ contains
               
              
 
-              temprootr = sum(bc_out(s)%rootr_pa(ifp,:))
+              temprootr = sum(bc_out(s)%rootr_pagl(ifp,:))
               if(temprootr /= 1.0_r8)then
                  write(iulog,*) 'error with rootr in canopy fluxes',temprootr
                  if(temprootr > 0._r8)then
                     do j = 1,numlevgrnd
-                       bc_out(s)%rootr_pa(ifp,j) = bc_out(s)%rootr_pa(ifp,j)/temprootr
+                       bc_out(s)%rootr_pagl(ifp,j) = bc_out(s)%rootr_pagl(ifp,j)/temprootr
                     enddo
                  end if
               end if

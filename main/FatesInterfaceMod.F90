@@ -31,6 +31,9 @@ module FatesInterfaceMod
    ! or alias other variables, ALLOCATABLES cannnot.  According to S. Lionel 
    ! (Intel-Forum Post), ALLOCATABLES are better perfomance wise as long as they point 
    ! to contiguous memory spaces and do not alias other variables, the case here.
+   ! Naming conventions:   _gl  means ground layer dimensions
+   !                       _pa  means patch dimensions
+   !                       _rb  means radiation band
    ! ------------------------------------------------------------------------------------
    
    type, public :: bc_in_type
@@ -38,25 +41,27 @@ module FatesInterfaceMod
       ! The actual number of FATES' ED patches
       integer :: npatches
 
-      ! Downwelling direct beam radiation (patch,broad-band) [W/m2]
-      real(r8), allocatable :: solad_pa(:,:)  
+      ! Downwelling direct beam radiation (patch,radiation-band) [W/m2]
+      real(r8), allocatable :: solad_parb(:,:)  
 
-      ! Downwelling diffuse (I-ndirect) radiation (patch,broad-band) [W/m2]
-      real(r8), allocatable :: solai_pa(:,:)
+      ! Downwelling diffuse (I-ndirect) radiation (patch,radiation-band) [W/m2]
+      real(r8), allocatable :: solai_parb(:,:)
 
       ! Soil suction potential of layers in each site, negative, [mm]
-      real(r8), allocatable :: smp_sl(:)
+      real(r8), allocatable :: smp_gl(:)
 
       ! Effective porosity = porosity - vol_ic, of layers in each site [-]
-      real(r8), allocatable :: eff_porosity_sl(:)
+      real(r8), allocatable :: eff_porosity_gl(:)
 
       ! volumetric soil water at saturation (porosity)
-      real(r8), allocatable :: watsat_sl(:)
+      real(r8), allocatable :: watsat_gl(:)
 
-      ! If there is no liquid volume of water in a soil layer, or
-      ! if the layer is 2 degrees below freezing, the layer will not
-      ! be deemed active for water uptake via transpiration and photosynthesis
-      logical, allocatable :: active_uptake_sl(:)
+      ! Temperature of ground layers [K]
+      real(r8), allocatable :: tempk_gl(:)
+
+      ! Liquid volume in ground layer
+      real(r8), allocatable :: h2o_liqvol_gl(:)
+
 
    end type bc_in_type
 
@@ -66,14 +71,8 @@ module FatesInterfaceMod
       ! Sunlit fraction of the canopy for this patch [0-1]
       real(r8),allocatable :: fsun_pa(:)
 
-      ! Root soil water stress (resistance) by layer 
-      ! (diagnostic, should not be used by HLM)
-!      real(r8),allocatable :: rresis_pa(:,:)   ! not used by host, not calculated
-                                                ! yet by FATES
-      
       ! Effective fraction of roots in each soil layer 
-      ! (diagnostic, should not be used by HLM)
-      real(r8), allocatable :: rootr_pa(:,:)
+      real(r8), allocatable :: rootr_pagl(:,:)
 
       ! Integrated (vertically) transpiration wetness factor (0 to 1) 
       ! (diagnostic, should not be used by HLM)
@@ -155,14 +154,15 @@ contains
       ! Allocate input boundaries
       
       ! Radiation
-      allocate(bc_in%solad_pa(numPatchesPerCol,ctrl_parms%numSWBands))
-      allocate(bc_in%solai_pa(numPatchesPerCol,ctrl_parms%numSWBands))
+      allocate(bc_in%solad_parb(numPatchesPerCol,ctrl_parms%numSWBands))
+      allocate(bc_in%solai_parb(numPatchesPerCol,ctrl_parms%numSWBands))
       
       ! Hydrology
-      allocate(bc_in%smp_sl(ctrl_parms%numlevgrnd))
-      allocate(bc_in%eff_porosity_sl(ctrl_parms%numlevgrnd))
-      allocate(bc_in%watsat_sl(ctrl_parms%numlevgrnd))
-      allocate(bc_in%active_uptake_sl(ctrl_parms%numlevgrnd))
+      allocate(bc_in%smp_gl(ctrl_parms%numlevgrnd))
+      allocate(bc_in%eff_porosity_gl(ctrl_parms%numlevgrnd))
+      allocate(bc_in%watsat_gl(ctrl_parms%numlevgrnd))
+      allocate(bc_in%tempk_gl(ctrl_parms%numlevgrnd))
+      allocate(bc_in%h2o_liqvol_gl(ctrl_parms%numlevgrnd))
       
       return
    end subroutine allocate_bcin
@@ -181,8 +181,9 @@ contains
       allocate(bc_out%fsun_pa(numPatchesPerCol))
       
       ! Hydrology
-      allocate(bc_out%rootr_pa(numPatchesPerCol,ctrl_parms%numlevgrnd))
+      allocate(bc_out%rootr_pagl(numPatchesPerCol,ctrl_parms%numlevgrnd))
       allocate(bc_out%btran_pa(numPatchesPerCol))
+      
       
       return
    end subroutine allocate_bcout
@@ -197,18 +198,19 @@ contains
 
       ! Input boundaries
 
-      this%bc_in(s)%solad_pa(:,:)       = 0.0_r8
-      this%bc_in(s)%solai_pa(:,:)       = 0.0_r8
-      this%bc_in(s)%smp_sl(:)           = 0.0_r8
-      this%bc_in(s)%eff_porosity_sl(:)  = 0.0_r8
-      this%bc_in(s)%watsat_sl(:)        = 0.0_r8
-      this%bc_in(s)%active_uptake_sl(:) = .false.
+      this%bc_in(s)%solad_parb(:,:)     = 0.0_r8
+      this%bc_in(s)%solai_parb(:,:)     = 0.0_r8
+      this%bc_in(s)%smp_gl(:)           = 0.0_r8
+      this%bc_in(s)%eff_porosity_gl(:)  = 0.0_r8
+      this%bc_in(s)%watsat_gl(:)        = 0.0_r8
+      this%bc_in(s)%tempk_gl(:)         = 0.0_r8
+      this%bc_in(s)%h2o_liqvol_gl(:)    = 0.0_r8
       
       ! Output boundaries
       
-      this%bc_out(s)%fsun_pa(:)     = 0.0_r8
-      this%bc_out(s)%rootr_pa(:,:)  = 0.0_r8
-      this%bc_out(s)%btran_pa(:)    = 0.0_r8
+      this%bc_out(s)%fsun_pa(:)      = 0.0_r8
+      this%bc_out(s)%rootr_pagl(:,:) = 0.0_r8
+      this%bc_out(s)%btran_pa(:)     = 0.0_r8
 
       return
    end subroutine zero_bcs
