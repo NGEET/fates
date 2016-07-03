@@ -85,7 +85,8 @@ module CLMFatesInterfaceMod
    use EDEcophysConType      , only : EDecophysconInit
    use EDRestVectorMod       , only : EDRest
    use EDSurfaceRadiationMod , only : ED_SunShadeFracs
-   use EDBtranMod            , only : btran_ed
+   use EDBtranMod            , only : btran_ed, &
+                                      get_active_suction_layers
 
    implicit none
 
@@ -733,20 +734,44 @@ contains
            
            do j = 1,nlevgrnd
 
-              s_node = max(h2osoi_liqvol(c,j)/eff_porosity(c,j),0.01_r8)
-              call soil_water_retention_curve%soil_suction(sucsat(c,j), s_node, bsw(c,j), smp_node)
-              
               this%fates(nc)%bc_in(s)%tempk_gl(j)         = t_soisno(c,j)
               this%fates(nc)%bc_in(s)%h2o_liqvol_gl(j)    = h2osoi_liqvol(c,j)
-              this%fates(nc)%bc_in(s)%smp_gl(j)           = smp_node
               this%fates(nc)%bc_in(s)%eff_porosity_gl(j)  = eff_porosity(c,j)
               this%fates(nc)%bc_in(s)%watsat_gl(j)        = watsat(c,j)
-              
+
+           end do
+        end do
+
+        ! -------------------------------------------------------------------------------
+        ! This function evaluates the ground layer to determine if
+        ! root water uptake can happen, and soil suction should even
+        ! be calculated.  We ask FATES for a boundary condition output
+        ! logical because we don't want science calculations in the interface
+        ! yet... hydrology (suction calculation) is provided by the host
+        ! so we need fates to tell us where to calculate suction
+        ! but not calculate it itself. Yeah, complicated, but thats life.
+        ! -------------------------------------------------------------------------------
+        call get_active_suction_layers(this%fates(nc)%sites,  &
+                                       this%fates(nc)%nsites, &
+                                       this%fates(nc)%bc_in,  &
+                                       this%fates(nc)%bc_out)
+
+        ! Now that the active layers of water uptake have been decided by fates
+        ! Calculate the suction that is passed back to fates
+
+        do s = 1, this%fates(nc)%nsites
+           c = this%f2hmap(nc)%fcolumn(s)
+           do j = 1,nlevgrnd
+              if(this%fates(nc)%bc_out(s)%active_suction_gl(j)) then
+                 s_node = max(h2osoi_liqvol(c,j)/eff_porosity(c,j),0.01_r8)
+                 call soil_water_retention_curve%soil_suction(sucsat(c,j), s_node, bsw(c,j), smp_node)
+                 this%fates(nc)%bc_in(s)%smp_gl(j)           = smp_node
+              end if
            end do
         end do
         
         ! -------------------------------------------------------------------------------
-        ! Call a FATES public function.
+        ! Suction and active uptake layers calculated, lets calculate uptake (btran)
         ! This will calculate internals, as well as output boundary conditions: 
         ! btran, rootr
         ! -------------------------------------------------------------------------------

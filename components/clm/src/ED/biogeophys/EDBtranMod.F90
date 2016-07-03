@@ -22,15 +22,58 @@ module EDBtranMod
    private
    
    public :: btran_ed
-   !
-   type(ed_cohort_type), pointer  :: currentCohort ! current cohort
-   type(ed_patch_type) , pointer  :: currentPatch ! current patch
+   public :: get_active_suction_layers
    
 contains 
    
-   ! ====================================================================================
+  ! ====================================================================================
 
-   subroutine btran_ed( sites, nsites, bc_in, bc_out)
+  logical function check_layer_water(h2o_liq_vol, tempk)
+    
+    implicit none
+    ! Arguments
+    real(r8) :: h2o_liq_vol
+    real(r8) :: tempk
+
+    if ( h2o_liq_vol .gt. 0._r8 .and. tempk .gt. tfrz-2._r8) then
+       check_layer_water = .true.
+    else
+       check_layer_water = .false.
+    end if
+    return
+  end function check_layer_water
+
+  ! =====================================================================================
+  
+  subroutine get_active_suction_layers(sites,nsites,bc_in,bc_out)
+    
+    ! Arguments
+    
+    type(ed_site_type),intent(inout),target :: sites(nsites)
+    integer,intent(in)                      :: nsites
+    type(bc_in_type),intent(in)             :: bc_in(nsites)
+    type(bc_out_type),intent(inout)         :: bc_out(nsites)
+    
+    ! !LOCAL VARIABLES:
+    integer  :: s                 ! site
+    integer  :: j                 ! soil layer
+    !------------------------------------------------------------------------------
+    
+    associate(                                 &
+         numlevgrnd => ctrl_parms%numlevgrnd  )
+      
+      do s = 1,nsites
+         do j = 1,numlevgrnd
+            bc_out(s)%active_suction_gl(j) = check_layer_water(bc_in(s)%h2o_liqvol_gl(j),bc_in(s)%tempk_gl(j) )
+         end do
+      end do
+      
+    end associate
+  end subroutine get_active_suction_layers
+  
+  ! =====================================================================================
+
+  subroutine btran_ed( sites, nsites, bc_in, bc_out)
       
       ! ---------------------------------------------------------------------------------
       ! Calculate the transpiration wetness function (BTRAN) and the root uptake
@@ -42,8 +85,6 @@ contains
       ! Boundary conditions out: bc_out(s)%rootr_pagl          root uptake distribution
       !                          bc_out(s)%btran_pa            wetness factor
       ! ---------------------------------------------------------------------------------
-
-
       
       ! Arguments
       
@@ -55,6 +96,7 @@ contains
       !
       ! !LOCAL VARIABLES:
       type(ed_patch_type),pointer             :: cpatch ! Current Patch Pointer
+      type(ed_cohort_type),pointer            :: ccohort ! Current cohort pointer
       integer  :: s                 ! site
       integer  :: j                 ! soil layer
       integer  :: ifp               ! patch vector index for the site
@@ -88,7 +130,7 @@ contains
                     ! Calculations are only relevant where liquid water exists
                     ! see clm_fates%wrap_btran for calculation with CLM/ALM
 
-                    if ( bc_in(s)%h2o_liqvol_gl(j) .gt. 0._r8 .and. bc_in(s)%tempk_gl(j) .gt. tfrz-2._r8) then
+                    if ( check_layer_water(bc_in(s)%h2o_liqvol_gl(j),bc_in(s)%tempk_gl(j)) )  then
                        
                        smp_node = max(smpsc(ft), bc_in(s)%smp_gl(j))
                        
@@ -123,10 +165,10 @@ contains
               ! PFT-averaged point level root fraction for extraction purposese.
               ! This probably needs to be weighted by actual transpiration from each pft. FIX(RF,032414).
               pftgs(:) = 0._r8
-              currentCohort => cpatch%tallest
-              do while(associated(currentCohort))
-                 pftgs(currentCohort%pft) = pftgs(currentCohort%pft) + currentCohort%gscan * currentCohort%n    
-                 currentCohort => currentCohort%shorter
+              ccohort => cpatch%tallest
+              do while(associated(ccohort))
+                 pftgs(ccohort%pft) = pftgs(ccohort%pft) + ccohort%gscan * ccohort%n    
+                 ccohort => ccohort%shorter
               enddo
               
               ! Process the boundary output, this is necessary for calculating the soil-moisture
