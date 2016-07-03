@@ -71,6 +71,11 @@ module FatesInterfaceMod
       ! Sunlit fraction of the canopy for this patch [0-1]
       real(r8),allocatable :: fsun_pa(:)
 
+      ! Logical stating whether a ground layer can have water uptake by plants
+      ! The only condition right now is that liquid water exists
+      ! The name (suction) is used to indicate that soil suction should be calculated
+      logical, allocatable :: active_suction_gl(:)
+
       ! Effective fraction of roots in each soil layer 
       real(r8), allocatable :: rootr_pagl(:,:)
 
@@ -181,6 +186,7 @@ contains
       allocate(bc_out%fsun_pa(numPatchesPerCol))
       
       ! Hydrology
+      allocate(bc_out%active_suction_gl(ctrl_parms%numlevgrnd))
       allocate(bc_out%rootr_pagl(numPatchesPerCol,ctrl_parms%numlevgrnd))
       allocate(bc_out%btran_pa(numPatchesPerCol))
       
@@ -207,7 +213,7 @@ contains
       this%bc_in(s)%h2o_liqvol_gl(:)    = 0.0_r8
       
       ! Output boundaries
-      
+      this%bc_out(s)%active_suction_gl(:) = .false.
       this%bc_out(s)%fsun_pa(:)      = 0.0_r8
       this%bc_out(s)%rootr_pagl(:,:) = 0.0_r8
       this%bc_out(s)%btran_pa(:)     = 0.0_r8
