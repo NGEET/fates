@@ -161,6 +161,7 @@
    <batch_system MACH="lawrencium-lr2" version="x.y">
      <directives>
        <directive>--partition=lr2</directive>
+       <directive>--qos=lr_normal</directive>
        <directive>--account={{ project }}</directive>
        <directive>--exclusive</directive>
      </directives>
@@ -169,6 +170,7 @@
    <batch_system MACH="lawrencium-lr3" version="x.y">
      <directives>
        <directive>--partition=lr3</directive>
+       <directive>--qos=lr_normal</directive>
        <directive>--account={{ project }}</directive>
        <directive>--exclusive</directive>
      </directives>
