@@ -32,13 +32,14 @@ contains
     
     implicit none
     ! Arguments
-    real(r8) :: h2o_liq_vol
-    real(r8) :: tempk
-
-    if ( h2o_liq_vol .gt. 0._r8 .and. tempk .gt. tfrz-2._r8) then
-       check_layer_water = .true.
-    else
-       check_layer_water = .false.
+    real(r8),intent(in) :: h2o_liq_vol
+    real(r8),intent(in) :: tempk
+    
+    check_layer_water = .false.
+    if ( h2o_liq_vol .gt. 0._r8 ) then
+       if ( tempk .gt. tfrz-2._r8) then
+          check_layer_water = .true.
+       end if
     end if
     return
   end function check_layer_water
@@ -64,7 +65,7 @@ contains
       
       do s = 1,nsites
          do j = 1,numlevgrnd
-            bc_out(s)%active_suction_gl(j) = check_layer_water(bc_in(s)%h2o_liqvol_gl(j),bc_in(s)%tempk_gl(j) )
+            bc_out(s)%active_suction_gl(j) = check_layer_water( bc_in(s)%h2o_liqvol_gl(j),bc_in(s)%tempk_gl(j) )
          end do
       end do
       
