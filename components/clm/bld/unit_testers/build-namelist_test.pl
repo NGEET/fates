@@ -497,7 +497,7 @@ my %failtest = (
                                      GLC_TWO_WAY_COUPLING=>"TRUE",
                                      conopts=>"-phys clm4_0",
                                    },
-     "useEDContradict"           =>{ options=>"-ed_mode -envxml_dir .",
+     "useEDContradict"           =>{ options=>"-bgc ed -envxml_dir .",
                                      namelst=>"use_ed=.false.",
                                      GLC_TWO_WAY_COUPLING=>"FALSE",
                                      conopts=>"-phys clm4_5",
@@ -507,7 +507,7 @@ my %failtest = (
                                      GLC_TWO_WAY_COUPLING=>"FALSE",
                                      conopts=>"-phys clm4_5",
                                    },
-     "useEDclm40"                =>{ options=>"-ed_mode -envxml_dir .",
+     "useEDclm40"                =>{ options=>"-bgc ed -envxml_dir .",
                                      namelst=>"",
                                      GLC_TWO_WAY_COUPLING=>"FALSE",
                                      conopts=>"-phys clm4_0",
@@ -517,7 +517,7 @@ my %failtest = (
                                      GLC_TWO_WAY_COUPLING=>"FALSE",
                                      conopts=>"-phys clm4_5",
                                    },
-     "useMEGANwithED"            =>{ options=>"-ed_mode -envxml_dir . -megan",
+     "useMEGANwithED"            =>{ options=>"-bgc ed -envxml_dir . -megan",
                                      namelst=>"",
                                      GLC_TWO_WAY_COUPLING=>"FALSE",
                                      conopts=>"-phys clm4_5",
@@ -841,7 +841,7 @@ foreach my $phys ( "clm4_5", 'clm5_0' ) {
   # Run ED mode for several resolutions
   $mode = "${phys}-ED";
   system( "../configure -s -phys ".$phys );
-  my $clmoptions = "-bgc cn -envxml_dir . -ed_mode -no-megan";
+  my $clmoptions = "-bgc ed -envxml_dir . -no-megan";
   my @clmres = ( "1x1_brazil", "5x5_amazon", "10x15", "1.9x2.5" );
   foreach my $res ( @clmres ) {
      $options = "-res $res";
