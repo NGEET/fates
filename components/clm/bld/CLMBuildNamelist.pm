@@ -816,9 +816,9 @@ sub setup_cmdl_bgc {
 
     # now set the actual name list variables based on the bgc alias
     my $setting = ".false.";
-    if ($nl_flags->{$var} eq "cn") {
+    if ($nl_flags->{$var} eq "cn" ) {
       $nl_flags->{'use_cn'} = ".true.";
-    } elsif ($nl_flags->{$var} eq "bgc") {
+    } elsif ($nl_flags->{$var} eq "bgc" || $nl_flags->{$var} eq "ed") {
       $nl_flags->{'use_cn'} = ".true.";
       $setting = ".true.";
     } else {
@@ -828,7 +828,7 @@ sub setup_cmdl_bgc {
       fatal_error("The namelist variable use_cn is inconsistent with the -bgc option");
     }
 
-    if ($nl_flags->{$var} ne "ed") {
+    {
 	# If the variable has already been set use it, if not set to the value defined by the bgc_mode
 	my @list  = (  "use_lch4", "use_nitrif_denitrif", "use_vertsoilc", "use_century_decomp" );
 	my $ndiff = 0;
@@ -2549,7 +2549,7 @@ sub setup_logic_nitrogen_deposition {
                 'bgc'=>$nl_flags->{'bgc_mode'}, 'rcp'=>$nl_flags->{'rcp'},
                 'hgrid'=>"1.9x2.5" );
 
-  } elsif ( $physv->as_long() >= $physv->as_long("clm4_5") && $nl_flags->{'bgc_mode'} ne "sp" && $nl_flags->{'bgc_mode'} ne "ed" ) {
+  } elsif ( $physv->as_long() >= $physv->as_long("clm4_5") && $nl_flags->{'bgc_mode'} ne "sp" ) {
     add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'ndepmapalgo', 'phys'=>$nl_flags->{'phys'},
                 'use_cn'=>$nl_flags->{'use_cn'}, 'hgrid'=>$nl_flags->{'res'} );
     add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'stream_year_first_ndep', 'phys'=>$nl_flags->{'phys'},
