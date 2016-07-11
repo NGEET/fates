@@ -609,6 +609,51 @@
       <env name="OMP_STACKSIZE">64M</env>
     </environment_variables>
   </machine>
+
+  <machine MACH="eddi">
+    <DESC>eddi linux PC</DESC>
+    <OS>LINUX</OS>            
+    <COMPILERS>gnu</COMPILERS>
+    <MPILIBS>openmpi,mpi-serial</MPILIBS>
+    <CESMSCRATCHROOT>/home/lbleco/cesm</CESMSCRATCHROOT>
+    <RUNDIR>$CESMSCRATCHROOT/$CASE/run</RUNDIR>
+    <EXEROOT>$CESMSCRATCHROOT/$CASE/bld</EXEROOT>
+    <DIN_LOC_ROOT>$CESMSCRATCHROOT/cesm_input_datasets/</DIN_LOC_ROOT>
+    <DIN_LOC_ROOT_CLMFORC>$DIN_LOC_ROOT/atm/datm7</DIN_LOC_ROOT_CLMFORC>
+    <DOUT_S_ROOT>$CESMSCRATCHROOT/cesm_archive/$CASE</DOUT_S_ROOT>
+    <DOUT_L_MSROOT>csm/$CASE</DOUT_L_MSROOT>
+    <CCSM_BASELINE>$CESMSCRATCHROOT/cesm_baselines</CCSM_BASELINE>
+    <CCSM_CPRNC>$CESMSCRATCHROOT/cesm_tools/cprnc/cprnc</CCSM_CPRNC>
+    <BATCHQUERY>squeue</BATCHQUERY>
+    <BATCHREDIRECT></BATCHREDIRECT>
+    <BATCHSUBMIT>sbatch</BATCHSUBMIT>
+    <SUPPORTED_BY>rgknox-that-weird-a-with-circle-dot-lbl-dot-guvment</SUPPORTED_BY>
+    <GMAKE_J>1</GMAKE_J>
+    <MAX_TASKS_PER_NODE>4</MAX_TASKS_PER_NODE>
+    <PES_PER_NODE>4</PES_PER_NODE>
+    <batch_system type="slurm" version="2.6.5">
+        <queues>
+           <queue walltimemin="0" walltimemax="72:00:00" jobmin="0" jobmax="64" default="true">normal</queue>
+        </queues>
+        <walltimes>
+           <walltime default="true">11:59:00</walltime>
+        </walltimes>
+     </batch_system>
+     <mpirun mpilib="mpi-serial">
+        <executable>mpirun</executable>
+        <arguments>
+           <arg name="num_tasks">-np {{ num_tasks }}</arg>
+           <arg name="tasks_per_node"> -npernode {{ tasks_per_node }}</arg>
+        </arguments>
+     </mpirun>
+     <mpirun mpilib="default">
+        <executable>mpirun</executable>
+        <arguments>
+           <arg name="num_tasks">-np {{ num_tasks }}</arg>
+           <arg name="tasks_per_node"> -npernode {{ tasks_per_node }}</arg>
+        </arguments>
+     </mpirun>
+  </machine>
   
   <machine MACH="lawrencium-lr3">
      <DESC>Lawrencium LR3 cluster at LBL, OS is Linux (intel), batch system is SLURM</DESC>

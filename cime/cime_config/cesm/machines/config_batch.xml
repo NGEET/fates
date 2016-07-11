@@ -33,16 +33,6 @@
     </directives>
   </batch_system>
 
-  <batch_system type="eddi" version="x.y">
-    <batch_query args=""></batch_query>
-    <batch_submit></batch_submit>
-    <batch_redirect></batch_redirect>
-    <batch_directive></batch_directive>
-    <directives>
-      <directive name=""></directive>
-    </directives>
-  </batch_system>
-  
   <batch_system MACH="wolf" version="x.y">
     <batch_directive>#MSUB</batch_directive>
     <directives>
@@ -158,6 +148,13 @@
      </directives>
    </batch_system>
 
+
+   <batch_system MACH="eddi" version="x.y">
+     <directives>
+       <directive>--partition=normal</directive>
+     </directives>
+   </batch_system>
+   
    <batch_system MACH="lawrencium-lr2" version="x.y">
      <directives>
        <directive>--partition=lr2</directive>
