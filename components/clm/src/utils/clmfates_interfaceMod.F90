@@ -464,7 +464,7 @@ contains
          if (this%fates(nc)%nsites>0) then
             call get_clump_bounds(nc, bounds_clump)
             
-            call EDRest( bounds_clump,                                              &
+            call EDRest( bounds_clump,                                      &
                  this%fates(nc)%sites,                                      &
                  this%fates(nc)%nsites,                                     &
                  this%f2hmap(nc)%fcolumn, ncid, flag )
