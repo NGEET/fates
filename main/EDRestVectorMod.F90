@@ -627,7 +627,10 @@ contains
     if (this%DEBUG) then
        call this%printIoInfoLL ( bounds, sites, nsites, fcolumn )
        call this%printDataInfoLL ( bounds, sites, nsites )
-       call this%printDataInfoVector (  )
+
+       ! RGK: Commenting this out because it is calling several
+       ! variables over the wrong indices
+!       call this%printDataInfoVector (  )
     end if
 
   end subroutine setVectors
@@ -649,8 +652,6 @@ contains
     type(ed_site_type)          , intent(inout), target :: sites(nsites)
     integer                     , intent(in)            :: nsites
     integer                     , intent(in)            :: fcolumn(nsites)
-
-
     !
     ! !LOCAL VARIABLES:
     integer :: s
@@ -695,281 +696,296 @@ contains
     !
     ! !LOCAL VARIABLES:
     logical             :: readvar
-    character(len=16)   :: dimName  = trim(nameCohort)
+    character(len=16)   :: coh_dimName  = trim(nameCohort)
+    character(len=16)   :: col_dimName  = trim(namec)
     !-----------------------------------------------------------------------
 
+
+    if(this%DEBUG) then
+       write(iulog,*) 'flag:',flag
+       write(iulog,*) 'dimname:',col_dimName
+       write(iulog,*) 'readvar:',readvar
+       write(iulog,*) 'associated?',associated(this%numPatchesPerCol)
+       write(iulog,*) ''
+       write(iulog,*) 'col size:',size(this%numPatchesPerCol)
+       write(iulog,*) 'col lbound:',lbound(this%numPatchesPerCol)
+       write(iulog,*) 'col ubound:',ubound(this%numPatchesPerCol)
+       
+       write(iulog,*) 'coh size:',size(this%cohortsPerPatch)
+       write(iulog,*) 'coh lbound:',lbound(this%cohortsPerPatch)
+       write(iulog,*) 'coh ubound:',ubound(this%cohortsPerPatch)
+       write(iulog,*) ''
+    end if
+    
     call restartvar(ncid=ncid, flag=flag, varname='ed_io_numPatchesPerCol', xtype=ncd_int,  &
-         dim1name=namec, &
+         dim1name=col_dimName, &
          long_name='Num patches per column', units='unitless', &
          interpinic_flag='interp', data=this%numPatchesPerCol, &
          readvar=readvar)
-
+    
     call restartvar(ncid=ncid, flag=flag, varname='ed_old_stock', xtype=ncd_double,  &
-         dim1name=namec, &
+         dim1name=col_dimName, &
          long_name='ed cohort - old_stock', units='unitless', &
          interpinic_flag='interp', data=this%old_stock, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_cd_status', xtype=ncd_double,  &
-         dim1name=namec, &
+         dim1name=col_dimName, &
          long_name='ed cold dec status', units='unitless', &
          interpinic_flag='interp', data=this%cd_status, &
          readvar=readvar)
-         
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_dd_status', xtype=ncd_double,  &
-         dim1name=namec, &
+         dim1name=col_dimName, &
          long_name='ed drought dec status', units='unitless', &
          interpinic_flag='interp', data=this%dd_status, &
          readvar=readvar)         
-         
- 
+
     call restartvar(ncid=ncid, flag=flag, varname='ed_chilling_days', xtype=ncd_double,  &
-         dim1name=namec, &
+         dim1name=col_dimName, &
          long_name='ed chilling day counter', units='unitless', &
          interpinic_flag='interp', data=this%ncd, &
          readvar=readvar)       
 
-
     call restartvar(ncid=ncid, flag=flag, varname='ed_leafondate', xtype=ncd_double,  &
-         dim1name=namec, &
+         dim1name=col_dimName, &
          long_name='ed leafondate', units='unitless', &
          interpinic_flag='interp', data=this%leafondate, &
          readvar=readvar)         
-                   
+     
     call restartvar(ncid=ncid, flag=flag, varname='ed_leafoffdate', xtype=ncd_double,  &
-         dim1name=namec, &
+         dim1name=col_dimName, &
          long_name='ed leafoffdate', units='unitless', &
          interpinic_flag='interp', data=this%leafoffdate, &
          readvar=readvar) 
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_dleafondate', xtype=ncd_double,  &
-         dim1name=namec, &
+         dim1name=col_dimName, &
          long_name='ed dleafondate', units='unitless', &
          interpinic_flag='interp', data=this%dleafondate, &
          readvar=readvar)         
                    
     call restartvar(ncid=ncid, flag=flag, varname='ed_dleafoffdate', xtype=ncd_double,  &
-         dim1name=namec, &
+         dim1name=col_dimName, &
          long_name='ed dleafoffdate', units='unitless', &
          interpinic_flag='interp', data=this%dleafoffdate, &
          readvar=readvar) 
-                   
+     
     call restartvar(ncid=ncid, flag=flag, varname='ed_acc_NI', xtype=ncd_double,  &
-         dim1name=namec, &
+         dim1name=col_dimName, &
          long_name='ed nesterov index', units='unitless', &
          interpinic_flag='interp', data=this%acc_NI, &
          readvar=readvar) 
 
-
-
-    !
-    ! cohort level vars
-    !
-
-
-
-
-    call restartvar(ncid=ncid, flag=flag, varname='ed_io_cohortsPerPatch', xtype=ncd_int,  &
-         dim1name=dimName, &
-         long_name='list of cohorts per patch.  indexed by numPatchesPerCol', units='unitless', &
-         interpinic_flag='interp', data=this%cohortsPerPatch, &
-         readvar=readvar)
+    call restartvar(ncid=ncid, flag=flag, varname='ed_gdd_site', xtype=ncd_double,  &
+         dim1name=col_dimName, &
+         long_name='ed GDD site', units='unitless', &
+         interpinic_flag='interp', data=this%ED_GDD_site, &
+         readvar=readvar) 
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_balive', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort ed_balive', units='unitless', &
          interpinic_flag='interp', data=this%balive, &
          readvar=readvar)
 
+    !
+    ! cohort level vars
+    !
+    call restartvar(ncid=ncid, flag=flag, varname='ed_io_cohortsPerPatch', xtype=ncd_int,  &
+         dim1name=coh_dimName, &
+         long_name='cohorts per patch, indexed by numPatchesPerCol', units='unitless', &
+         interpinic_flag='interp', data=this%cohortsPerPatch, &
+         readvar=readvar)
+
     call restartvar(ncid=ncid, flag=flag, varname='ed_bdead', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - bdead', units='unitless', &
          interpinic_flag='interp', data=this%bdead, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_bl', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - bl', units='unitless', &
          interpinic_flag='interp', data=this%bl, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_br', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - br', units='unitless', &
          interpinic_flag='interp', data=this%br, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_bstore', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - bstore', units='unitless', &
          interpinic_flag='interp', data=this%bstore, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_canopy_layer', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - canopy_layer', units='unitless', &
          interpinic_flag='interp', data=this%canopy_layer, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_canopy_trim', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - canopy_trim', units='unitless', &
          interpinic_flag='interp', data=this%canopy_trim, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_dbh', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - dbh', units='unitless', &
          interpinic_flag='interp', data=this%dbh, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_hite', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - hite', units='unitless', &
          interpinic_flag='interp', data=this%hite, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_laimemory', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - laimemory', units='unitless', &
          interpinic_flag='interp', data=this%laimemory, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_leaf_md', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - leaf_md', units='unitless', &
          interpinic_flag='interp', data=this%leaf_md, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_root_md', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - root_md', units='unitless', &
          interpinic_flag='interp', data=this%root_md, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_n', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - n', units='unitless', &
          interpinic_flag='interp', data=this%n, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_gpp_acc', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - gpp_acc', units='unitless', &
          interpinic_flag='interp', data=this%gpp_acc, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_npp_acc', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - npp_acc', units='unitless', &
          interpinic_flag='interp', data=this%npp_acc, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_gpp', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - gpp', units='unitless', &
          interpinic_flag='interp', data=this%gpp, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_npp', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - npp', units='unitless', &
          interpinic_flag='interp', data=this%npp, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_npp_leaf', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - npp_leaf', units='unitless', &
          interpinic_flag='interp', data=this%npp_leaf, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_npp_froot', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - npp_froot', units='unitless', &
          interpinic_flag='interp', data=this%npp_froot, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_npp_bsw', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - npp_bsw', units='unitless', &
          interpinic_flag='interp', data=this%npp_bsw, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_npp_bdead', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - npp_bdead', units='unitless', &
          interpinic_flag='interp', data=this%npp_bdead, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_npp_bseed', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - npp_bseed', units='unitless', &
          interpinic_flag='interp', data=this%npp_bseed, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_npp_store', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - npp_store', units='unitless', &
          interpinic_flag='interp', data=this%npp_store, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_bmort', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - bmort', units='unitless', &
          interpinic_flag='interp', data=this%bmort, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_hmort', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - hmort', units='unitless', &
          interpinic_flag='interp', data=this%hmort, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_cmort', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - cmort', units='unitless', &
          interpinic_flag='interp', data=this%cmort, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_imort', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - imort', units='unitless', &
          interpinic_flag='interp', data=this%imort, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_fmort', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - fmort', units='unitless', &
          interpinic_flag='interp', data=this%fmort, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_ddbhdt', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - ddbhdt', units='unitless', &
          interpinic_flag='interp', data=this%ddbhdt, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_resp_clm', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - resp_clm', units='unitless', &
          interpinic_flag='interp', data=this%resp_clm, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_pft', xtype=ncd_int,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - pft', units='unitless', &
          interpinic_flag='interp', data=this%pft, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_status_coh', xtype=ncd_int,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - status_coh', units='unitless', &
          interpinic_flag='interp', data=this%status_coh, &
          readvar=readvar)
-
+    
     call restartvar(ncid=ncid, flag=flag, varname='ed_isnew', xtype=ncd_int,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - isnew', units='unitless', &
          interpinic_flag='interp', data=this%isnew, &
          readvar=readvar)
@@ -979,97 +995,97 @@ contains
     !
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_cwd_ag', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed patch - cwd_ag', units='unitless', &
          interpinic_flag='interp', data=this%cwd_ag, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_cwd_bg', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed patch - cwd_bg', units='unitless', &
          interpinic_flag='interp', data=this%cwd_bg, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_leaf_litter', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed patch - leaf_litter', units='unitless', &
          interpinic_flag='interp', data=this%leaf_litter, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_root_litter', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed patch - root_litter', units='unitless', &
          interpinic_flag='interp', data=this%root_litter, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_leaf_litter_in', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed patch - leaf_litter_in', units='unitless', &
          interpinic_flag='interp', data=this%leaf_litter_in, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_root_litter_in', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed patch - root_litter_in', units='unitless', &
          interpinic_flag='interp', data=this%root_litter_in, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_seed_bank', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed patch - seed_bank', units='unitless', &
          interpinic_flag='interp', data=this%seed_bank, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_spread', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed patch - spread', units='unitless', &
          interpinic_flag='interp', data=this%spread, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_livegrass', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed patch - livegrass', units='unitless', &
          interpinic_flag='interp', data=this%livegrass, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_age', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed patch - age', units='unitless', &
          interpinic_flag='interp', data=this%age, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_area', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed patch - area', units='unitless', &
          interpinic_flag='interp', data=this%areaRestart, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_f_sun', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed patch - f_sun', units='unitless', &
          interpinic_flag='interp', data=this%f_sun, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_fabd_sun_z', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed patch - fabd_sun_z', units='unitless', &
          interpinic_flag='interp', data=this%fabd_sun_z, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_fabi_sun_z', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed patch - fabi_sun_z', units='unitless', &
          interpinic_flag='interp', data=this%fabi_sun_z, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_fabd_sha_z', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed patch - fabd_sha_z', units='unitless', &
          interpinic_flag='interp', data=this%fabd_sha_z, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_fabi_sha_z', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed patch - fabi_sha_z', units='unitless', &
          interpinic_flag='interp', data=this%fabi_sha_z, &
          readvar=readvar)
@@ -1078,7 +1094,7 @@ contains
     !
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_water_memory', xtype=ncd_double,  &
-         dim1name=dimName, &
+         dim1name=coh_dimName, &
          long_name='ed cohort - water_memory', units='unitless', &
          interpinic_flag='interp', data=this%water_memory, &
          readvar=readvar)
@@ -1509,12 +1525,12 @@ contains
 
     totalCohorts = 0
 
-    if(fcolumn(1).eq.bounds%begc .and. &
-          (fcolumn(1)-1)*cohorts_per_col+1.ne.bounds%begCohort) then
-        write(iulog,*) 'fcolumn(1) in this clump, points to the first column of the clump'
-        write(iulog,*) 'but the assumption on first cohort index does not jive'
-        call endrun(msg=errMsg(__FILE__, __LINE__))
-    end if
+!    if(fcolumn(1).eq.bounds%begc .and. &
+!          (fcolumn(1)-1)*cohorts_per_col+1.ne.bounds%begCohort) then
+!        write(iulog,*) 'fcolumn(1) in this clump, points to the first column of the clump'
+!        write(iulog,*) 'but the assumption on first cohort index does not jive'
+!        call endrun(msg=errMsg(__FILE__, __LINE__))
+!    end if
 
 
     do s = 1,nsites
@@ -1526,13 +1542,21 @@ contains
        
        c = fcolumn(s)
 
-       incrementOffset     = (c-1)*cohorts_per_col + 1
-       countCohort         = (c-1)*cohorts_per_col + 1
-       countPft            = (c-1)*cohorts_per_col + 1
-       countNcwd           = (c-1)*cohorts_per_col + 1
-       countNclmax         = (c-1)*cohorts_per_col + 1
-       countWaterMem       = (c-1)*cohorts_per_col + 1
-       countSunZ           = (c-1)*cohorts_per_col + 1
+!       incrementOffset     = (c-1)*cohorts_per_col + 1
+!       countCohort         = (c-1)*cohorts_per_col + 1
+!       countPft            = (c-1)*cohorts_per_col + 1
+!       countNcwd           = (c-1)*cohorts_per_col + 1
+!       countNclmax         = (c-1)*cohorts_per_col + 1
+!       countWaterMem       = (c-1)*cohorts_per_col + 1
+!       countSunZ           = (c-1)*cohorts_per_col + 1
+
+       incrementOffset     = bounds%begCohort+(s-1)*cohorts_per_col + 1
+       countCohort         = bounds%begCohort+(s-1)*cohorts_per_col + 1
+       countPft            = bounds%begCohort+(s-1)*cohorts_per_col + 1
+       countNcwd           = bounds%begCohort+(s-1)*cohorts_per_col + 1
+       countNclmax         = bounds%begCohort+(s-1)*cohorts_per_col + 1
+       countWaterMem       = bounds%begCohort+(s-1)*cohorts_per_col + 1
+       countSunZ           = bounds%begCohort+(s-1)*cohorts_per_col + 1
 
        currentPatch => sites(s)%oldest_patch
 
@@ -1773,8 +1797,9 @@ contains
 
        c = fcolumn(s)
        g = col%gridcell(c)
-
-       currIdx = (c-1)*cohorts_per_col + 1  ! global cohort index at the head of the column
+       
+       currIdx = bounds%begCohort + (s-1)*cohorts_per_col + 1
+!       currIdx = (c-1)*cohorts_per_col + 1  ! global cohort index at the head of the column
 
        call zero_site( sites(s) )
        !
@@ -1943,13 +1968,21 @@ contains
        
        c = fcolumn(s)
 
-       incrementOffset     = (c-1)*cohorts_per_col + 1
-       countCohort         = (c-1)*cohorts_per_col + 1
-       countPft            = (c-1)*cohorts_per_col + 1
-       countNcwd           = (c-1)*cohorts_per_col + 1
-       countNclmax         = (c-1)*cohorts_per_col + 1
-       countWaterMem       = (c-1)*cohorts_per_col + 1
-       countSunZ           = (c-1)*cohorts_per_col + 1
+!       incrementOffset     = (c-1)*cohorts_per_col + 1
+!       countCohort         = (c-1)*cohorts_per_col + 1
+!       countPft            = (c-1)*cohorts_per_col + 1
+!       countNcwd           = (c-1)*cohorts_per_col + 1
+!       countNclmax         = (c-1)*cohorts_per_col + 1
+!       countWaterMem       = (c-1)*cohorts_per_col + 1
+!       countSunZ           = (c-1)*cohorts_per_col + 1
+
+       incrementOffset     = bounds%begCohort+(s-1)*cohorts_per_col + 1
+       countCohort         = bounds%begCohort+(s-1)*cohorts_per_col + 1
+       countPft            = bounds%begCohort+(s-1)*cohorts_per_col + 1
+       countNcwd           = bounds%begCohort+(s-1)*cohorts_per_col + 1
+       countNclmax         = bounds%begCohort+(s-1)*cohorts_per_col + 1
+       countWaterMem       = bounds%begCohort+(s-1)*cohorts_per_col + 1
+       countSunZ           = bounds%begCohort+(s-1)*cohorts_per_col + 1
 
        currentPatch => sites(s)%oldest_patch
        
@@ -2157,10 +2190,12 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(EDRestartVectorClass) :: ervc
+
     !-----------------------------------------------------------------------
     !
     ! Note: ed_allsites_inst already exists and is allocated in clm_instInit
     !
+
     ervc = newEDRestartVectorClass( bounds )
 
     if (ervc%DEBUG) then
