@@ -1,4 +1,28 @@
 ===============================================================
+Tag name:  rtm1_0_56
+Originator(s): erik
+Date: Apr 14, 2016
+One-line Summary: Turn off for CLM_ACCELERATED_SPINUP="on" and fix a few bugs
+
+Have RTM react to CLM_ACCELERATED_SPINUP setting from CLM and turn itself off
+by default if it's "on".
+
+Also fix following bugs:
+
+1674 -- assumes history files are no_leap calendar
+2230 -- for RTM delt_save not initialized
+
+M       bld/build-namelist ---- Check CLM_ACCELERATED_SPINUP, read do_rtm from
+           defaults file and check based on CLM_ACCELERATED_SPINUP and MOSART_MODE
+M       bld/namelist_files/namelist_defaults_rtm.xml  - add do_rtm settings
+M       src/riverroute/RtmHistFile.F90 -- Increase filename length to 255
+           check calendar type before writing to history file
+M       src/riverroute/RtmIO.F90 -------- initialize delt_save (2230)
+M       src/riverroute/RtmMod.F90 ------- Increase string length to 255
+M       src/riverroute/RtmRestFile.F90 -- Increase string length to 255
+M       src/riverroute/RtmTimeManager.F90 Add NO_LEAP_C and GREGORIAN_C as public constants (2307)
+
+===============================================================
 Tag name:  rtm1_0_55
 Originator(s): andre
 Date: Oct 13, 2015

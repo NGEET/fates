@@ -16,6 +16,10 @@ for the CLM data in the CESM distribution
 
 <!-- Default rtm namelist -->
 
+<rtm_mode RTM_MODE="ACTIVE" CLM_ACCELERATED_SPINUP="off" >ACTIVE</rtm_mode>
+<rtm_mode                   CLM_ACCELERATED_SPINUP="on"  >NULL</rtm_mode>
+<rtm_mode RTM_MODE="NULL"                                >NULL</rtm_mode>
+
 <ice_runoff lnd_grid="48x96">.false.</ice_runoff>
 <ice_runoff lnd_grid="T31"  >.false.</ice_runoff>
 <ice_runoff                 >.true.</ice_runoff>

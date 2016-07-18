@@ -93,10 +93,10 @@ module RtmHistFile
 ! !PRIVATE TYPES:
 ! Constants
 !
-  integer, parameter :: max_length_filename = 128 ! max length of a filename. on most linux systems this
+  integer, parameter :: max_length_filename = 255 ! max length of a filename. on most linux systems this
                                                   ! is 255. But this can't be increased until all hard
                                                   ! coded values throughout the i/o stack are updated.
-  integer, parameter :: max_chars = 128        ! max chars for char variables
+  integer, parameter :: max_chars = 255        ! max chars for char variables
 !
 ! Subscript dimensions
 !
@@ -769,6 +769,8 @@ contains
 
     ! !DESCRIPTION:
     ! Write time constant values to primary history tape.
+    ! !USES:
+    use RtmTimeManager, only : get_calendar, NO_LEAP_C, GREGORIAN_C
 
     ! !ARGUMENTS:
     implicit none
@@ -797,6 +799,8 @@ contains
     character(len=max_chars) :: long_name ! variable long name
     character(len=max_namlen):: varname   ! variable name
     character(len=max_namlen):: units     ! variable units
+    character(len=max_namlen):: cal       ! calendar type from time-manager
+    character(len=max_namlen):: caldesc   ! calendar description to put on file
     character(len=256):: str              ! global attribute string
     integer :: status
     logical, save :: writeTC = .true. ! true => write out time-constant data
@@ -820,7 +824,13 @@ contains
        str = 'days since ' // basedate // " " // basesec
        call ncd_defvar(nfid(t), 'time', tape(t)%ncprec, 1, dim1id, varid, &
             long_name='time',units=str) 
-       call ncd_putatt(nfid(t), varid, 'calendar', 'noleap')
+       cal = get_calendar()
+       if (      trim(cal) == NO_LEAP_C   )then
+          caldesc = "noleap"
+       else if ( trim(cal) == GREGORIAN_C )then
+          caldesc = "gregorian"
+       end if
+       call ncd_putatt(nfid(t), varid, 'calendar', caldesc)
        call ncd_putatt(nfid(t), varid, 'bounds', 'time_bounds')
 
        dim1id(1) = time_dimid
