@@ -62,6 +62,9 @@ module FatesInterfaceMod
       ! Liquid volume in ground layer
       real(r8), allocatable :: h2o_liqvol_gl(:)
 
+      ! Site level filter for uptake response functions
+      logical               :: filter_btran
+
 
    end type bc_in_type
 

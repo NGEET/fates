@@ -22,6 +22,7 @@ module CLMFatesInterfaceMod
    ! Therefore, the state variables in the clm_fates communicator is vectorized by
    ! threadcount, and the IO communication arrays are not.
    !
+   ! INTERF-TODO: NEED AN INVALID R8 SETTING FOR FATES
    !
    ! Conventions:
    ! keep line widths within 90 spaces
@@ -252,10 +253,6 @@ contains
          call get_clump_bounds(nc, bounds_clump)
          nmaxcol = bounds_clump%endc - bounds_clump%begc + 1
 
-         if(DEBUG)then
-            write(iulog,*) 'clm_fates%init(): thread',nc,': allocating ',nmaxcol,' column space'
-         end if
-
          allocate(collist(1:nmaxcol))
          
          ! Allocate the mapping that points columns to FATES sites, 0 is NA
@@ -271,10 +268,7 @@ contains
             ! These are the key constraints that determine if this column
             ! will have a FATES site associated with it
             
-            if(DEBUG)then
-               write(iulog,*) 'clm_fates%init(): thread',nc,': found column',c,'with lu',l
-               write(iulog,*) '  LU type:', lun%itype(l)
-            end if
+            
 
             ! INTERF-TODO: WE HAVE NOT FILTERED OUT FATES SITES ON INACTIVE COLUMNS.. YET
             ! NEED A RUN-TIME ROUTINE THAT CLEARS AND REWRITES THE SITE LIST
@@ -283,10 +277,14 @@ contains
                s = s + 1
                collist(s) = c
                this%f2hmap(nc)%hsites(c) = s
+               if(DEBUG)then
+                  write(iulog,*) 'clm_fates%init(): thread',nc,': found column',c,'with lu',l
+                  write(iulog,*) 'LU type:', lun%itype(l)
+               end if
             endif
             
          enddo
-         
+
          if(DEBUG)then
             write(iulog,*) 'clm_fates%init(): thread',nc,': allocated ',s,' sites'
          end if
@@ -678,7 +676,7 @@ contains
    
    ! ====================================================================================
    
-   subroutine wrap_btran(this,nc,soilstate_inst, waterstate_inst, &
+   subroutine wrap_btran(this,nc,fn,filterc,soilstate_inst, waterstate_inst, &
                          temperature_inst, energyflux_inst,  &
                          soil_water_retention_curve)
       
@@ -697,6 +695,9 @@ contains
       ! Arguments
       class(hlm_fates_interface_type), intent(inout) :: this
       integer                , intent(in)            :: nc
+      integer                , intent(in)            :: fn
+      integer                , intent(in)            :: filterc(fn) ! This is a list of
+                                                                        ! columns with exposed veg
       type(soilstate_type)   , intent(inout)         :: soilstate_inst
       type(waterstate_type)  , intent(in)            :: waterstate_inst
       type(temperature_type) , intent(in)            :: temperature_inst
@@ -727,19 +728,48 @@ contains
 
         ! -------------------------------------------------------------------------------
         ! Convert input BC's
+        ! Critical step: a filter is being passed in that dictates which columns have
+        ! exposed vegetation (above snow).  This is necessary, because various hydrologic
+        ! variables like h2osoi_liqvol are not calculated and will have uninitialized
+        ! values outside this list.
+        !
+        ! bc_in(s)%filter_btran      (this is in, but is also used in this subroutine)
+        !
+        ! We also filter a second time within this list by determining which soil layers
+        ! have conditions for active uptake based on soil moisture and temperature. This
+        ! must be determined by FATES (science stuff).  But the list of layers and patches
+        ! needs to be passed back to the interface, because it then needs to request
+        ! suction on these layers via CLM/ALM functions.  We cannot wide-swath calculate
+        ! this on all layers, because values with no moisture or low temps will generate
+        ! unstable values and cause sigtraps.
         ! -------------------------------------------------------------------------------
         
         do s = 1, this%fates(nc)%nsites
            c = this%f2hmap(nc)%fcolumn(s)
-           
-           do j = 1,nlevgrnd
 
-              this%fates(nc)%bc_in(s)%tempk_gl(j)         = t_soisno(c,j)
-              this%fates(nc)%bc_in(s)%h2o_liqvol_gl(j)    = h2osoi_liqvol(c,j)
-              this%fates(nc)%bc_in(s)%eff_porosity_gl(j)  = eff_porosity(c,j)
-              this%fates(nc)%bc_in(s)%watsat_gl(j)        = watsat(c,j)
+           print*,"col-site-structure",nc,s,c
 
-           end do
+
+
+           ! Check to see if this column is in the exposed veg filter
+           if( any(filterc==c) )then
+              
+              this%fates(nc)%bc_in(s)%filter_btran = .true.
+              do j = 1,nlevgrnd
+                 this%fates(nc)%bc_in(s)%tempk_gl(j)         = t_soisno(c,j)
+                 this%fates(nc)%bc_in(s)%h2o_liqvol_gl(j)    = h2osoi_liqvol(c,j)
+                 this%fates(nc)%bc_in(s)%eff_porosity_gl(j)  = eff_porosity(c,j)
+                 this%fates(nc)%bc_in(s)%watsat_gl(j)        = watsat(c,j)
+              end do
+
+           else
+              this%fates(nc)%bc_in(s)%filter_btran = .false.
+              this%fates(nc)%bc_in(s)%tempk_gl(:)         = -999._r8
+              this%fates(nc)%bc_in(s)%h2o_liqvol_gl(:)    = -999._r8
+              this%fates(nc)%bc_in(s)%eff_porosity_gl(:)  = -999._r8
+              this%fates(nc)%bc_in(s)%watsat_gl(:)        = -999._r8
+           end if
+
         end do
 
         ! -------------------------------------------------------------------------------
@@ -758,6 +788,7 @@ contains
 
         ! Now that the active layers of water uptake have been decided by fates
         ! Calculate the suction that is passed back to fates
+        ! Note that the filter_btran is unioned with active_suction_gl
 
         do s = 1, this%fates(nc)%nsites
            c = this%f2hmap(nc)%fcolumn(s)
@@ -784,36 +815,32 @@ contains
 
         ! -------------------------------------------------------------------------------
         ! Convert output BC's
+        ! For CLM/ALM this wrapper provides return variables that should
+        ! be similar to that of calc_root_moist_stress().  However,
+        ! CLM/ALM-FATES simulations will no make use of rresis, btran or btran2
+        ! outside of FATES. We do not have code in place to calculate btran2 or
+        ! rresis right now, so we force to bad.  We have btran calculated so we
+        ! pass it in case people want diagnostics.  rootr is actually the only
+        ! variable that will be used, as it is needed to help distribute the
+        ! the transpiration sink to the appropriate layers. (RGK)
         ! -------------------------------------------------------------------------------
 
-
         do s = 1, this%fates(nc)%nsites
-           c = this%f2hmap(nc)%fcolumn(s)
            
+           c = this%f2hmap(nc)%fcolumn(s)
            do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
               
               p = ifp+col%patchi(c)
               
               do j = 1,nlevgrnd
                  
-                 ! For CLM/ALM this wrapper provides return variables that should
-                 ! be similar to that of calc_root_moist_stress().  However,
-                 ! CLM/ALM-FATES simulations will no make use of rresis, btran or btran2
-                 ! outside of FATES. We do not have code in place to calculate btran2 or
-                 ! rresis right now, so we force to bad.  We have btran calculated so we
-                 ! pass it in case people want diagnostics.  rootr is actually the only
-                 ! variable that will be used, as it is needed to help distribute the
-                 ! the transpiration sink to the appropriate layers. (RGK)
-
-                 rresis(p,j) = -999.9  ! We do not really calculate this (correctly)
-                                       ! it should not thought of as valid output 
-                                       ! until we decide to.
+                 rresis(p,j) = -999.9  ! We do not calculate this correctly
+                 ! it should not thought of as valid output until we decide to.
                  rootr(p,j)  = this%fates(nc)%bc_out(s)%rootr_pagl(ifp,j)
                  btran(p)    = this%fates(nc)%bc_out(s)%btran_pa(ifp)
                  btran2(p)   = -999.9  ! Not available, force to nonsense
-
+                 
               end do
-
            end do
         end do
       end associate

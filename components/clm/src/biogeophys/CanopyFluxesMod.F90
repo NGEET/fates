@@ -530,6 +530,10 @@ contains
 
       ! --------------------------------------------------------------------------
       ! if this is a FATES simulation
+      ! ask fates to calculate btran functions and distribution of uptake
+      ! this will require boundary conditions from CLM, boundary conditions which
+      ! may only be available from a smaller subset of patches that meet the
+      ! exposed veg.  
       ! calc_root_moist_stress already calculated root soil water stress 'rresis'
       ! this is the input boundary condition to calculate the transpiration
       ! wetness factor btran and the root weighting factors for FATES.  These
@@ -537,7 +541,7 @@ contains
       ! --------------------------------------------------------------------------
       
       if(use_ed)then
-         call clm_fates%wrap_btran(nc,soilstate_inst, waterstate_inst, &
+         call clm_fates%wrap_btran(nc, fn, filterc_tmp(1:fn), soilstate_inst, waterstate_inst, &
                temperature_inst, energyflux_inst, soil_water_retention_curve)
          
       else

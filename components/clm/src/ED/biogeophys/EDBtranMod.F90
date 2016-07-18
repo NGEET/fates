@@ -36,6 +36,7 @@ contains
     real(r8),intent(in) :: tempk
     
     check_layer_water = .false.
+
     if ( h2o_liq_vol .gt. 0._r8 ) then
        if ( tempk .gt. tfrz-2._r8) then
           check_layer_water = .true.
@@ -64,9 +65,13 @@ contains
          numlevgrnd => ctrl_parms%numlevgrnd  )
       
       do s = 1,nsites
-         do j = 1,numlevgrnd
-            bc_out(s)%active_suction_gl(j) = check_layer_water( bc_in(s)%h2o_liqvol_gl(j),bc_in(s)%tempk_gl(j) )
-         end do
+         if (bc_in(s)%filter_btran) then
+            do j = 1,numlevgrnd
+               bc_out(s)%active_suction_gl(j) = check_layer_water( bc_in(s)%h2o_liqvol_gl(j),bc_in(s)%tempk_gl(j) )
+            end do
+         else
+            bc_out(s)%active_suction_gl(:) = .false.
+         end if
       end do
       
     end associate
@@ -116,7 +121,9 @@ contains
             )
         
         do s = 1,nsites
-           
+
+           bc_out(s)%rootr_pagl(:,:) = 0._r8
+
            ifp = 0
            cpatch => sites(s)%oldest_patch
            do while (associated(cpatch))                 
@@ -130,13 +137,13 @@ contains
                     
                     ! Calculations are only relevant where liquid water exists
                     ! see clm_fates%wrap_btran for calculation with CLM/ALM
-
+                    
                     if ( check_layer_water(bc_in(s)%h2o_liqvol_gl(j),bc_in(s)%tempk_gl(j)) )  then
                        
                        smp_node = max(smpsc(ft), bc_in(s)%smp_gl(j))
                        
                        rresis  = min( (bc_in(s)%eff_porosity_gl(j)/bc_in(s)%watsat_gl(j))*               &
-                             (smp_node - smpsc(ft)) / (smpso(ft) - smpsc(ft)), 1._r8)
+                            (smp_node - smpsc(ft)) / (smpso(ft) - smpsc(ft)), 1._r8)
                        
                        cpatch%rootr_ft(ft,j) = cpatch%rootfr_ft(ft,j)*rresis
                        
@@ -183,10 +190,10 @@ contains
                     if(sum(pftgs) > 0._r8)then !prevent problem with the first timestep - might fail
                        !bit-retart test as a result? FIX(RF,032414)  
                        bc_out(s)%rootr_pagl(ifp,j) = bc_out(s)%rootr_pagl(ifp,j) + &
-                             cpatch%rootr_ft(ft,j) * pftgs(ft)/sum(pftgs)
+                            cpatch%rootr_ft(ft,j) * pftgs(ft)/sum(pftgs)
                     else
                        bc_out(s)%rootr_pagl(ifp,j) = bc_out(s)%rootr_pagl(ifp,j) + &
-                             cpatch%rootr_ft(ft,j) * 1./numpft_ed
+                            cpatch%rootr_ft(ft,j) * 1./numpft_ed
                     end if
                  enddo
               enddo
@@ -202,11 +209,9 @@ contains
                  end if
               enddo
               
-             
-
               temprootr = sum(bc_out(s)%rootr_pagl(ifp,:))
-              if(temprootr /= 1.0_r8)then
-                 write(iulog,*) 'error with rootr in canopy fluxes',temprootr
+              if(abs(1.0_r8-temprootr) > 1.0e-9_r8)then
+                 write(iulog,*) 'error with rootr in canopy fluxes',temprootr,sum(pftgs),sum(cpatch%rootr_ft(1:2,:),dim=2)
                  if(temprootr > 0._r8)then
                     do j = 1,numlevgrnd
                        bc_out(s)%rootr_pagl(ifp,j) = bc_out(s)%rootr_pagl(ifp,j)/temprootr
@@ -216,11 +221,13 @@ contains
               
               cpatch => cpatch%younger
            end do
+        
+
         end do
         
       end associate
       
-   end subroutine btran_ed
+    end subroutine btran_ed
 
    ! =========================================================================================
 
