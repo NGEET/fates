@@ -1,4 +1,4 @@
-use_cn            = .false. 
+use_cn            = .true. 
 use_century_decomp = .true.
 use_vertsoilc    = .true.
 finidat           = ''
