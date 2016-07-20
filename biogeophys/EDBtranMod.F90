@@ -210,13 +210,11 @@ contains
               enddo
               
               temprootr = sum(bc_out(s)%rootr_pagl(ifp,:))
-              if(abs(1.0_r8-temprootr) > 1.0e-9_r8)then
+              if(abs(1.0_r8-temprootr) > 1.0e-10_r8 .and. temprootr > 1.0e-10_r8)then
                  write(iulog,*) 'error with rootr in canopy fluxes',temprootr,sum(pftgs),sum(cpatch%rootr_ft(1:2,:),dim=2)
-                 if(temprootr > 0._r8)then
-                    do j = 1,numlevgrnd
-                       bc_out(s)%rootr_pagl(ifp,j) = bc_out(s)%rootr_pagl(ifp,j)/temprootr
-                    enddo
-                 end if
+                 do j = 1,numlevgrnd
+                    bc_out(s)%rootr_pagl(ifp,j) = bc_out(s)%rootr_pagl(ifp,j)/temprootr
+                 enddo
               end if
               
               cpatch => cpatch%younger
