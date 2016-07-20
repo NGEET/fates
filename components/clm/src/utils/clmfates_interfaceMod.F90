@@ -143,7 +143,7 @@ module CLMFatesInterfaceMod
    end type hlm_fates_interface_type
 
 
-   logical :: DEBUG  = .true.
+   logical :: DEBUG  = .false.
 
 contains
    
@@ -746,10 +746,6 @@ contains
         
         do s = 1, this%fates(nc)%nsites
            c = this%f2hmap(nc)%fcolumn(s)
-
-           print*,"col-site-structure",nc,s,c
-
-
 
            ! Check to see if this column is in the exposed veg filter
            if( any(filterc==c) )then
