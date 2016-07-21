@@ -33,16 +33,6 @@
     </directives>
   </batch_system>
 
-  <batch_system type="eddi" version="x.y">
-    <batch_query args=""></batch_query>
-    <batch_submit></batch_submit>
-    <batch_redirect></batch_redirect>
-    <batch_directive></batch_directive>
-    <directives>
-      <directive name=""></directive>
-    </directives>
-  </batch_system>
-  
   <batch_system MACH="wolf" version="x.y">
     <batch_directive>#MSUB</batch_directive>
     <directives>
@@ -128,8 +118,6 @@
     </submit_args>
     <directives>
       <directive> -N {{ job_id }}</directive>
-      <directive> -q {{ queue }}</directive>
-      <directive> -l walltime={{ wall_time }}</directive>
       <directive default="n"> -r {{ rerunnable }} </directive>
       <!-- <directive> -j oe {{ output_error_path }} </directive> -->
       <directive> -j oe </directive>
@@ -158,9 +146,17 @@
      </directives>
    </batch_system>
 
+
+   <batch_system MACH="eddi" version="x.y">
+     <directives>
+       <directive>--partition=normal</directive>
+     </directives>
+   </batch_system>
+   
    <batch_system MACH="lawrencium-lr2" version="x.y">
      <directives>
        <directive>--partition=lr2</directive>
+       <directive>--qos=lr_normal</directive>
        <directive>--account={{ project }}</directive>
        <directive>--exclusive</directive>
      </directives>
@@ -169,6 +165,7 @@
    <batch_system MACH="lawrencium-lr3" version="x.y">
      <directives>
        <directive>--partition=lr3</directive>
+       <directive>--qos=lr_normal</directive>
        <directive>--account={{ project }}</directive>
        <directive>--exclusive</directive>
      </directives>
@@ -209,14 +206,6 @@
       <directive default="/bin/bash" > -S {{ shell }}  </directive>
     </directives>
   </batch_system>
-
-    <!-- edison is PBS -->
-    <batch_system MACH="edison" version="x.y">
-      <directives>
-	    <directive>-l mppwidth={{ mppwidth }}</directive>
-        <directive default="/bin/bash" > -S {{ shell }} </directive>
-      </directives>
-    </batch_system> 
 
     <!-- eos is PBS -->
     <batch_system MACH="eos" version="x.y">

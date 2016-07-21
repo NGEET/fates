@@ -379,7 +379,7 @@ contains
     integer :: nt,nv,n          ! indices
     real(r8) , pointer :: dfld(:) ! temporary array
     character(len=32)  :: vname,uname
-    character(len=128) :: lname
+    character(len=255) :: lname
     !-----------------------------------------------------------------------
 
     do nv = 1,4

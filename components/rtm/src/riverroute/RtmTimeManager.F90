@@ -35,11 +35,16 @@ module RtmTimeManager
       is_last_step,             &! return true on last timestep
       is_restart                 ! return true if this is a restart run
 
+! Public parameter data
+   character(len=*), public, parameter :: NO_LEAP_C   = 'NO_LEAP'
+   character(len=*), public, parameter :: GREGORIAN_C = 'GREGORIAN'
+
+
 ! Private module data
 
 ! Private data for input
 
-   character(len=ESMF_MAXSTR), save :: calendar   = 'NO_LEAP'     ! Calendar to use in date calculations ('NO_LEAP' or 'GREGORIAN')
+   character(len=ESMF_MAXSTR), save :: calendar   = NO_LEAP_C     ! Calendar to use in date calculations
    integer,  parameter :: uninit_int = -999999999
    real(r8), parameter :: uninit_r8  = -999999999.0
 
@@ -356,9 +361,9 @@ subroutine timemgr_restart(ncid, flag)
   else if (flag == 'read' .or. flag == 'write') then
      if (flag== 'write') then
         cal = to_upper(calendar)
-        if ( trim(cal) == 'NO_LEAP' ) then
+        if ( trim(cal) == NO_LEAP_C ) then
            rst_caltype = noleap
-        else if ( trim(cal) == 'GREGORIAN' ) then
+        else if ( trim(cal) == GREGORIAN_C ) then
            rst_caltype = gregorian
         else
            call shr_sys_abort(sub//'ERROR: unrecognized calendar specified= '//trim(calendar))
@@ -373,9 +378,9 @@ subroutine timemgr_restart(ncid, flag)
      end if
      if (flag == 'read') then
         if ( rst_caltype == noleap ) then
-           calendar = 'NO_LEAP'
+           calendar = NO_LEAP_C
         else if ( rst_caltype == gregorian ) then
-           calendar = 'GREGORIAN'
+           calendar = GREGORIAN_C
         else
            write(iulog,*)sub,': unrecognized calendar type in restart file: ',rst_caltype
            call shr_sys_abort( sub//'ERROR: bad calendar type in restart file')
@@ -598,9 +603,9 @@ subroutine init_calendar( )
   !---------------------------------------------------------------------------------
 
   caltmp = to_upper(calendar)
-  if ( trim(caltmp) == 'NO_LEAP' ) then
+  if ( trim(caltmp) == NO_LEAP_C ) then
      cal_type = ESMF_CALKIND_NOLEAP
-  else if ( trim(caltmp) == 'GREGORIAN' ) then
+  else if ( trim(caltmp) == GREGORIAN_C ) then
      cal_type = ESMF_CALKIND_GREGORIAN
   else
      write(iulog,*)sub,': unrecognized calendar specified: ',calendar
