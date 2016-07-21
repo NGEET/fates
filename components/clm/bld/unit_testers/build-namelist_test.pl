@@ -123,9 +123,9 @@ my $testType="namelistTest";
 #
 # Figure out number of tests that will run
 #
-my $ntests = 352;
+my $ntests = 425;
 if ( defined($opts{'compare'}) ) {
-   $ntests += 195;
+   $ntests += 243;
 }
 plan( tests=>$ntests );
 
@@ -497,22 +497,27 @@ my %failtest = (
                                      GLC_TWO_WAY_COUPLING=>"TRUE",
                                      conopts=>"-phys clm4_0",
                                    },
-     "useEDContradict"           =>{ options=>"-bgc ed -envxml_dir .",
+     "useEDContradict"           =>{ options=>"-bgc ed -envxml_dir . -no-megan",
                                      namelst=>"use_ed=.false.",
                                      GLC_TWO_WAY_COUPLING=>"FALSE",
                                      conopts=>"-phys clm4_5",
                                    },
-     "useEDContradict2"          =>{ options=>"-envxml_dir .",
+     "useEDContradict2"          =>{ options=>"-envxml_dir . -no-megan",
                                      namelst=>"use_ed=.true.",
                                      GLC_TWO_WAY_COUPLING=>"FALSE",
                                      conopts=>"-phys clm4_5",
                                    },
-     "useEDclm40"                =>{ options=>"-bgc ed -envxml_dir .",
+     "useEDWCN"                  =>{ options=>"-bgc ed -envxml_dir . -no-megan",
+                                     namelst=>"use_cn=.true.",
+                                     GLC_TWO_WAY_COUPLING=>"FALSE",
+                                     conopts=>"-phys clm5_0",
+                                   },
+     "useEDclm40"                =>{ options=>"-bgc ed -envxml_dir . -no-megan",
                                      namelst=>"",
                                      GLC_TWO_WAY_COUPLING=>"FALSE",
                                      conopts=>"-phys clm4_0",
                                    },
-     "usespitfireButNOTED"       =>{ options=>"-envxml_dir .",
+     "usespitfireButNOTED"       =>{ options=>"-envxml_dir . -no-megan",
                                      namelst=>"use_ed_spit_fire=.true.",
                                      GLC_TWO_WAY_COUPLING=>"FALSE",
                                      conopts=>"-phys clm4_5",
@@ -838,27 +843,30 @@ foreach my $phys ( "clm4_5", 'clm5_0' ) {
      $cfiles->copyfiles( "$options", $mode );
   }
   &cleanup();
-  # Run ED mode for several resolutions
+  # Run ED mode for several resolutions and configurations
   $mode = "${phys}-ED";
   system( "../configure -s -phys ".$phys );
   my $clmoptions = "-bgc ed -envxml_dir . -no-megan";
   my @clmres = ( "1x1_brazil", "5x5_amazon", "10x15", "1.9x2.5" );
   foreach my $res ( @clmres ) {
      $options = "-res $res";
-     &make_env_run( );
-     eval{ system( "$bldnml $options $clmoptions  > $tempfile 2>&1 " ); };
-     is( $@, '', "$options" );
-     $cfiles->checkfilesexist( "$options", $mode );
-     system( "diff lnd_in lnd_in.default.standard" );
-     $cfiles->shownmldiff( "default", "standard" );
-     if ( defined($opts{'compare'}) ) {
-        $cfiles->doNOTdodiffonfile( "$tempfile", "$options", $mode );
-        $cfiles->comparefiles( "$options", $mode, $opts{'compare'} );
+     my @edoptions = ( "-use_case 1850_control", "", "-namelist \"&a use_lch4=.true.,use_nitrif_denitrif=.true./\"", "-bgc_spinup on" );
+     foreach my $edop (@edoptions ) {
+        &make_env_run( );
+        eval{ system( "$bldnml $options $clmoptions $edop  > $tempfile 2>&1 " ); };
+        is( $@, '', "$options $edop" );
+        $cfiles->checkfilesexist( "$options $edop", $mode );
+        system( "diff lnd_in lnd_in.default.standard" );
+        $cfiles->shownmldiff( "default", "standard" );
+        if ( defined($opts{'compare'}) ) {
+           $cfiles->doNOTdodiffonfile( "$tempfile", "$options $edop", $mode );
+           $cfiles->comparefiles( "$options $edop", $mode, $opts{'compare'} );
+        }
+        if ( defined($opts{'generate'}) ) {
+           $cfiles->copyfiles( "$options $edop", $mode );
+        }
+        &cleanup();
      }
-     if ( defined($opts{'generate'}) ) {
-        $cfiles->copyfiles( "$options", $mode );
-     }
-     &cleanup();
   }
 }
 &cleanup();
