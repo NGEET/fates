@@ -1532,9 +1532,6 @@ contains
 !        call endrun(msg=errMsg(__FILE__, __LINE__))
 !    end if
 
-    if(nsites>0)then
-       
-
 
     do s = 1,nsites
        
