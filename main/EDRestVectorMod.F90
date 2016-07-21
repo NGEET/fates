@@ -1532,6 +1532,9 @@ contains
 !        call endrun(msg=errMsg(__FILE__, __LINE__))
 !    end if
 
+    if(nsites>0)then
+       
+
 
     do s = 1,nsites
        
@@ -1550,13 +1553,13 @@ contains
 !       countWaterMem       = (c-1)*cohorts_per_col + 1
 !       countSunZ           = (c-1)*cohorts_per_col + 1
 
-       incrementOffset     = bounds%begCohort+(s-1)*cohorts_per_col + 1
-       countCohort         = bounds%begCohort+(s-1)*cohorts_per_col + 1
-       countPft            = bounds%begCohort+(s-1)*cohorts_per_col + 1
-       countNcwd           = bounds%begCohort+(s-1)*cohorts_per_col + 1
-       countNclmax         = bounds%begCohort+(s-1)*cohorts_per_col + 1
-       countWaterMem       = bounds%begCohort+(s-1)*cohorts_per_col + 1
-       countSunZ           = bounds%begCohort+(s-1)*cohorts_per_col + 1
+       incrementOffset     = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
+       countCohort         = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
+       countPft            = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
+       countNcwd           = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
+       countNclmax         = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
+       countWaterMem       = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
+       countSunZ           = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
 
        currentPatch => sites(s)%oldest_patch
 
@@ -1795,14 +1798,20 @@ contains
     !
     do s = 1,nsites
 
+
+       if( (s-1) .ne. (c-bounds%begc) ) then
+          write(iulog,*) 'NAT COLUMNS REALLY ARENT MONOTONICALLY INCREASING'
+          write(iulog,*) s,c,bounds%begc,s-1,c-bounds%begc
+       end if
+
        c = fcolumn(s)
        g = col%gridcell(c)
        
-       currIdx = bounds%begCohort + (s-1)*cohorts_per_col + 1
+       currIdx = bounds%begCohort + (c-bounds%begc)*cohorts_per_col + 1
 !       currIdx = (c-1)*cohorts_per_col + 1  ! global cohort index at the head of the column
 
        call zero_site( sites(s) )
-       !
+       ! 
        ! set a few items that are necessary on restart for ED but not on the 
        ! restart file
        !
@@ -1968,21 +1977,14 @@ contains
        
        c = fcolumn(s)
 
-!       incrementOffset     = (c-1)*cohorts_per_col + 1
-!       countCohort         = (c-1)*cohorts_per_col + 1
-!       countPft            = (c-1)*cohorts_per_col + 1
-!       countNcwd           = (c-1)*cohorts_per_col + 1
-!       countNclmax         = (c-1)*cohorts_per_col + 1
-!       countWaterMem       = (c-1)*cohorts_per_col + 1
-!       countSunZ           = (c-1)*cohorts_per_col + 1
+       incrementOffset = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
 
-       incrementOffset     = bounds%begCohort+(s-1)*cohorts_per_col + 1
-       countCohort         = bounds%begCohort+(s-1)*cohorts_per_col + 1
-       countPft            = bounds%begCohort+(s-1)*cohorts_per_col + 1
-       countNcwd           = bounds%begCohort+(s-1)*cohorts_per_col + 1
-       countNclmax         = bounds%begCohort+(s-1)*cohorts_per_col + 1
-       countWaterMem       = bounds%begCohort+(s-1)*cohorts_per_col + 1
-       countSunZ           = bounds%begCohort+(s-1)*cohorts_per_col + 1
+       countCohort     = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
+       countPft        = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
+       countNcwd       = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
+       countNclmax     = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
+       countWaterMem   = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
+       countSunZ       = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
 
        currentPatch => sites(s)%oldest_patch
        
