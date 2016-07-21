@@ -225,6 +225,8 @@ contains
       end if
 
       nclumps = get_proc_clumps()
+
+      !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,maxcol,s,c,l,collist)
       do nc = 1,nclumps
          
          call get_clump_bounds(nc, bounds_clump)
@@ -293,10 +295,9 @@ contains
             write(iulog,*) 'This will likely cause problems until code is improved'
             call endrun(msg=errMsg(__FILE__, __LINE__))
          end if
-         
 
       end do
-
+      !$OMP END PARALLEL DO
       
    end subroutine init_allocate
    
@@ -460,6 +461,7 @@ contains
       integer           :: nclumps
 
       nclumps = get_proc_clumps()
+      !$OMP PARALLEL DO PRIVATE (nc,bounds_clump)
       do nc = 1, nclumps
          if (this%fates(nc)%nsites>0) then
             call get_clump_bounds(nc, bounds_clump)
@@ -481,9 +483,9 @@ contains
 
             end if
          end if
+         call this%fates2hlm%restart(bounds_clump, ncid, flag)
       end do
-
-      call this%fates2hlm%restart(bounds_clump, ncid, flag)
+      !$OMP END PARALLEL DO
       
       return
    end subroutine init_restart
@@ -505,13 +507,11 @@ contains
      integer :: g
 
 
-     ! INTERF-TODO:  I DONT SEE ANY REASON WE CAN'T FORK THE THREADS
-     ! HERE... (RGK). FORKING WILL BE TESTED AFTER STABLE COLUMNIZATION
-     ! COMPLETED
-
      nclumps = get_proc_clumps()
-     do nc = 1, nclumps
 
+     !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,s,c,g)
+     do nc = 1, nclumps
+        
         if ( this%fates(nc)%nsites>0 ) then
 
            call get_clump_bounds(nc, bounds_clump)
@@ -540,6 +540,7 @@ contains
                 canopystate_inst)
         end if
      end do
+     !$OMP END PARALLEL DO
      return
    end subroutine init_coldstart
 
