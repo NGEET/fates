@@ -226,7 +226,7 @@ contains
 
       nclumps = get_proc_clumps()
 
-      !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,maxcol,s,c,l,collist)
+      !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,nmaxcol,s,c,l,collist)
       do nc = 1,nclumps
          
          call get_clump_bounds(nc, bounds_clump)
