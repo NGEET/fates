@@ -850,7 +850,7 @@ foreach my $phys ( "clm4_5", 'clm5_0' ) {
   my @clmres = ( "1x1_brazil", "5x5_amazon", "10x15", "1.9x2.5" );
   foreach my $res ( @clmres ) {
      $options = "-res $res";
-     my @edoptions = ( "-use_case 1850_control", "", "-namelist \"&a use_lch4=.true.,use_nitrif_denitrif=.true./\"", "-bgc_spinup on" );
+     my @edoptions = ( "-use_case 2000_control", "", "-namelist \"&a use_lch4=.true.,use_nitrif_denitrif=.true./\"", "-bgc_spinup on" );
      foreach my $edop (@edoptions ) {
         &make_env_run( );
         eval{ system( "$bldnml $options $clmoptions $edop  > $tempfile 2>&1 " ); };
