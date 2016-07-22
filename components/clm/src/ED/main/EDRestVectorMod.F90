@@ -1795,13 +1795,12 @@ contains
     !
     do s = 1,nsites
 
-
+       c = fcolumn(s)
        if( (s-1) .ne. (c-bounds%begc) ) then
           write(iulog,*) 'NAT COLUMNS REALLY ARENT MONOTONICALLY INCREASING'
           write(iulog,*) s,c,bounds%begc,s-1,c-bounds%begc
        end if
 
-       c = fcolumn(s)
        g = col%gridcell(c)
        
        currIdx = bounds%begCohort + (c-bounds%begc)*cohorts_per_col + 1
