@@ -392,9 +392,7 @@ contains
 
        if(use_ed) then
 
-          call clm_fates%canopy_sunshade_fracs(nc,filter(nc)%nourbanp,      &
-               filter(nc)%num_nourbanp,                                     &
-               atm2lnd_inst, canopystate_inst)
+          call clm_fates%wrap_sunfrac(nc,atm2lnd_inst, canopystate_inst)
           
        else
           call CanopySunShadeFracs(filter(nc)%nourbanp,filter(nc)%num_nourbanp,     &
@@ -457,14 +455,9 @@ contains
 
        call t_startf('canflux')
 
-       ! INTERF-TODO: FATES(NC) SHOULD ONLY BE VISIBLE TO THE INTERFACE
-       ! AND ONLY FATES API DEFINED TYPES SHOULD BE PASSED TO IT
-       ! NEEDS A WRAPPER
        call CanopyFluxes(bounds_clump,                                                      &
             filter(nc)%num_exposedvegp, filter(nc)%exposedvegp,                             &
-            clm_fates%fates(nc)%sites,                                                      & 
-            clm_fates%fates(nc)%nsites,                                                     &
-            clm_fates%f2hmap(nc)%hsites,                                                    &
+            clm_fates,nc,                                                                   &
             atm2lnd_inst, canopystate_inst, cnveg_state_inst,                               &
             energyflux_inst, frictionvel_inst, soilstate_inst, solarabs_inst, surfalb_inst, &
             temperature_inst, waterflux_inst, waterstate_inst, ch4_inst, ozone_inst, photosyns_inst, &
