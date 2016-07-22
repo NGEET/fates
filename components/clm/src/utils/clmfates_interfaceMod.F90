@@ -75,7 +75,7 @@ module CLMFatesInterfaceMod
 
    implicit none
 
-   type, private :: f2hmap_type
+   type, public :: f2hmap_type
 
       ! This is the associated column index of each FATES site
       integer, allocatable :: fcolumn (:) 
