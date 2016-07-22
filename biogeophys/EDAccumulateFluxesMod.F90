@@ -55,6 +55,11 @@ contains
          psncanopy => photosyns_inst%psncanopy_patch   & ! Output: [real(r8) (:,:)] canopy scale photosynthesis umol CO2 /m**2/ s
          )
 
+
+      ! INTERF-TODO:  WHY IS THIS BEING UPDATED?
+      ! IT IS JUST GOING TO BE ZEROED A THE END OF THE FUNCTION
+      ! THAT CALLS THIS SUBROUTINE (CANOPYFLUXES), AND IT WON'T
+      ! BE USED BETWEEN NOW AND THEN
       fpsn(p) = psncanopy(p)
 
       if (patch%is_veg(p)) then

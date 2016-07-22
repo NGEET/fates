@@ -70,7 +70,7 @@ contains
   end subroutine canopy_derivs
 
   ! ============================================================================
-  subroutine non_canopy_derivs( currentPatch, temperature_inst, soilstate_inst, waterstate_inst)
+  subroutine non_canopy_derivs( currentPatch, temperature_inst )
     !
     ! !DESCRIPTION:
     ! Returns time differentials of the state vector
@@ -80,8 +80,6 @@ contains
     ! !ARGUMENTS    
     type(ed_patch_type)    , intent(inout) :: currentPatch
     type(temperature_type) , intent(in)    :: temperature_inst
-    type(soilstate_type)   , intent(in)    :: soilstate_inst
-    type(waterstate_type)  , intent(in)    :: waterstate_inst
     !
     ! !LOCAL VARIABLES:
     integer c,p
@@ -108,7 +106,7 @@ contains
 
     ! update fragmenting pool fluxes
     call cwd_input(currentPatch)
-    call cwd_out( currentPatch, temperature_inst, soilstate_inst, waterstate_inst)
+    call cwd_out( currentPatch, temperature_inst)
 
     do p = 1,numpft_ed
        currentPatch%dseed_dt(p) = currentPatch%seeds_in(p) - currentPatch%seed_decay(p) - currentPatch%seed_germination(p)
@@ -244,7 +242,7 @@ contains
     !
     ! !USES:
     use clm_varcon, only : tfrz
-    use clm_time_manager, only : get_days_per_year, get_curr_date
+    use clm_time_manager, only : get_curr_date
     use clm_time_manager, only : get_ref_date, timemgr_datediff 
     use EDTypesMod, only : udata
     use PatchType , only : patch   
@@ -1145,7 +1143,7 @@ contains
     ! !USES:
     use shr_const_mod      , only : SHR_CONST_PI, SHR_CONST_TKFRZ
     use EDSharedParamsMod  , only : EDParamsShareInst
-    use PatchType , only : patch 
+
     !
     ! !ARGUMENTS    
     type(ed_patch_type)    , intent(inout) :: currentPatch
@@ -1154,7 +1152,7 @@ contains
     ! !LOCAL VARIABLES:
     logical  :: use_century_tfunc = .false.
     type(ed_site_type), pointer :: currentSite
-    integer  :: c,p,j
+    integer  :: p,j
     real(r8) :: t_scalar
     real(r8) :: w_scalar
     real(r8) :: catanf                ! hyperbolic temperature function from CENTURY
@@ -1173,7 +1171,6 @@ contains
     
 !    c = currentPatch%siteptr%clmcolumn
     p = currentPatch%clm_pno
-    c = patch%column(p)
     
     ! set "froz_q10" parameter
     froz_q10  = EDParamsShareInst%froz_q10  
@@ -1204,7 +1201,7 @@ contains
   end subroutine fragmentation_scaler
   
   ! ============================================================================
-  subroutine cwd_out( currentPatch, temperature_inst, soilstate_inst, waterstate_inst)
+  subroutine cwd_out( currentPatch, temperature_inst )
     !
     ! !DESCRIPTION:
     ! Simple CWD fragmentation Model
@@ -1217,8 +1214,6 @@ contains
     ! !ARGUMENTS    
     type(ed_patch_type)    , intent(inout), target :: currentPatch
     type(temperature_type) , intent(in)            :: temperature_inst
-    type(soilstate_type)   , intent(in)            :: soilstate_inst
-    type(waterstate_type)  , intent(in)            :: waterstate_inst
     !
     ! !LOCAL VARIABLES:
     type(ed_site_type), pointer :: currentSite
