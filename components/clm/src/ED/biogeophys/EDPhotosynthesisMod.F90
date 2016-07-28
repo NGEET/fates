@@ -95,10 +95,12 @@ contains
     real(r8) :: kc( bounds%begp:bounds%endp )     ! Michaelis-Menten constant for CO2 (Pa)
     real(r8) :: ko( bounds%begp:bounds%endp )     ! Michaelis-Menten constant for O2 (Pa)
     real(r8) :: co2_cp( bounds%begp:bounds%endp ) ! CO2 compensation point (Pa)
+
+    ! ---------------------------------------------------------------
+    ! TO-DO: bbbopt is slated to be transferred to the parameter file
+    ! ----------------------------------------------------------------
     real(r8) :: bbbopt(psn_type)                  ! Ball-Berry minimum leaf conductance, unstressed (umol H2O/m**2/s)
     real(r8) :: bbb(mxpft)                        ! Ball-Berry minimum leaf conductance (umol H2O/m**2/s)
-    real(r8) :: mbbopt(psn_type)                  ! Ball-Berry slope of conductance-photosynthesis relationship, unstressed
-    real(r8) :: mbb(mxpft)                        ! Ball-Berry slope of conductance-photosynthesis relationship
 
     real(r8) :: kn(mxpft)                         ! leaf nitrogen decay coefficient
     real(r8) :: vcmax25top(mxpft)                 ! canopy top: maximum rate of carboxylation at 25C (umol CO2/m**2/s)
@@ -306,12 +308,11 @@ contains
       qe(1) = 0._r8
       theta_cj(1) = 0.98_r8
       bbbopt(1) = 10000._r8
-      mbbopt(1) = 9._r8
 
       qe(2) = 0.05_r8
       theta_cj(2) = 0.80_r8
       bbbopt(2) = 40000._r8
-      mbbopt(2) = 4._r8
+
 
       do f = 1,fn
          p = filterp(f)
@@ -355,17 +356,6 @@ contains
                enddo !ft
             enddo !CL
 
-            ! Soil water stress applied to Ball-Berry parameters
-            do FT = 1,numpft_ed
-               if (nint(c3psn(FT)) == 1)then
-                  ps = 1
-               else
-                  ps = 2
-               end if
-               bbb(FT) = max (bbbopt(ps)*currentPatch%btran_ft(FT), 1._r8)
-
-               mbb(FT) = bb_slope(ft) ! mbbopt(ps)
-            end do
 
             ! kc, ko, currentPatch, from: Bernacchi et al (2001) Plant, Cell and Environment 24:253-259
             !
@@ -410,25 +400,24 @@ contains
 
             currentPatch => map_clmpatch_to_edpatch(sites(s), p) 
 
-            do FT = 1,numpft_ed
+            NCL_p = currentPatch%NCL_p
+
+            do FT = 1,numpft_ed !calculate patch and pft specific propserties at canopy top. 
+
                if (nint(c3psn(FT)) == 1)then
                   ps = 1
                else
                   ps = 2
                end if
                bbb(FT) = max (bbbopt(ps)*currentPatch%btran_ft(FT), 1._r8)
-               mbb(FT) = mbbopt(ps)
 
+               ! THIS CALL APPEARS TO BE REDUNDANT WITH LINE 650 (RGK)
                if (nint(c3psn(FT)) == 1)then
                   ci(:,FT,:) = 0.7_r8 * cair(p)
                else
                   ci(:,FT,:) = 0.4_r8 * cair(p)
                end if
-            enddo
 
-            NCL_p = currentPatch%NCL_p
-
-            do FT = 1,numpft_ed !calculate patch and pft specific propserties at canopy top. 
 
                ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
                lnc(FT) = 1._r8 / (slatop(FT) * leafcn(FT))
@@ -647,6 +636,8 @@ contains
                                  je = min(r1,r2)
 
                                  ! Iterative loop for ci beginning with initial guess
+                                 ! THIS CALL APPEARS TO BE REDUNDANT WITH LINE 423 (RGK)
+                                 
                                  if (nint(c3psn(FT)) == 1)then
                                     ci(cl,ft,iv) = 0.7_r8 * cair(p)
                                  else
@@ -719,8 +710,8 @@ contains
                                     cs = cair(p) - 1.4_r8/gb_mol * an(cl,ft,iv) * forc_pbot(c)
                                     cs = max(cs,1.e-06_r8)
                                     aquad = cs
-                                    bquad = cs*(gb_mol - bbb(FT)) - mbb(FT)*an(cl,ft,iv)*forc_pbot(c)
-                                    cquad = -gb_mol*(cs*bbb(FT) + mbb(FT)*an(cl,ft,iv)*forc_pbot(c)*ceair/esat_tv(p))
+                                    bquad = cs*(gb_mol - bbb(FT)) - bb_slope(ft)*an(cl,ft,iv)*forc_pbot(c)
+                                    cquad = -gb_mol*(cs*bbb(FT) + bb_slope(ft)*an(cl,ft,iv)*forc_pbot(c)*ceair/esat_tv(p))
                                     call quadratic (aquad, bquad, cquad, r1, r2)
                                     gs_mol = max(r1,r2)
 
@@ -788,7 +779,7 @@ contains
 
                                  ! Compare with Ball-Berry model: gs_mol = m * an * hs/cs p + b
                                  hs = (gb_mol*ceair + gs_mol*esat_tv(p)) / ((gb_mol+gs_mol)*esat_tv(p))
-                                 gs_mol_err = mbb(FT)*max(an(cl,ft,iv), 0._r8)*hs/cs*forc_pbot(c) + bbb(FT)
+                                 gs_mol_err = bb_slope(ft)*max(an(cl,ft,iv), 0._r8)*hs/cs*forc_pbot(c) + bbb(FT)
 
                                  if (abs(gs_mol-gs_mol_err) > 1.e-01_r8) then
                                     write (iulog,*) 'CF: Ball-Berry error check - stomatal conductance error:'
