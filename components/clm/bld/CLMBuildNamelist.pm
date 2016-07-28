@@ -1,5 +1,3 @@
-#-----------------------------------------------------------------------------------------------
-#
 # build-namelist
 #
 # This script builds the namelists for CLM
@@ -101,6 +99,9 @@ OPTIONS
                                          use_century_decomp=true, use_nitrif_denitrif=true, and use_lch4=true)
                                     This toggles on the namelist variables:
                                           use_cn, use_lch4, use_nitrif_denitrif, use_vertsoilc, use_century_decomp
+                                ed    = Ecosystem Demography with below ground BGC
+                                    This toggles on the namelist variables:
+                                          use_cn, use_lch4, use_nitrif_denitrif, use_vertsoilc, use_century_decomp
 
      -bgc_spinup "on|off"     CLM 4.5 Only. For CLM 4.0, spinup is controlled from configure.
                               Turn on given spinup mode for BGC setting of CN
@@ -158,10 +159,6 @@ OPTIONS
      -dynamic_vegetation      Toggle for dynamic vegetation model. (default is off)
                               (can ONLY be turned on when BGC type is 'cn' or 'bgc')
                               This turns on the namelist variable: use_cndv
-     -ed_mode                 Turn ED (Ecosystem Demography) : [on | off] (default is off)
-                              Sets the namelist variable use_ed, checks for use_spit_fire, 
-                              use_vertsoilc, use_century_decomp and use_lch4
-			      Also specifies defaults for these
      -glc_present             Set to true if the glc model is present (not sglc).
                               This is used for error-checking, to make sure other options are
                               set appropriately.
@@ -274,7 +271,6 @@ sub process_commandline {
                bgc                   => "default",
                crop                  => 0,
                dynamic_vegetation    => 0,
-               ed_mode               => 0,
                envxml_dir            => ".",
                vichydro              => 0,
                maxpft                => "default",
@@ -317,7 +313,6 @@ sub process_commandline {
              "bgc=s"                     => \$opts{'bgc'},
              "crop"                      => \$opts{'crop'},
              "dynamic_vegetation"        => \$opts{'dynamic_vegetation'},
-             "ed_mode"                   => \$opts{'ed_mode'},
              "vichydro"                  => \$opts{'vichydro'},
              "maxpft=i"                  => \$opts{'maxpft'},
              "v|verbose"                 => \$opts{'verbose'},
@@ -717,35 +712,17 @@ sub setup_cmdl_ed_mode {
   my ($opts, $nl_flags, $definition, $defaults, $nl, $physv) = @_;
 
   my $val;
-  my $var = "ed_mode";
-
-  $val = $opts->{$var};
-  $nl_flags->{'ed_mode'} = $val;
+  my $var = "bgc_mode";
 
   if ( $physv->as_long() == $physv->as_long("clm4_0") || $nl_flags->{'crop'} eq "on" ) {
-    if ( $nl_flags->{'ed_mode'} == 1 ) {
+    if ( $nl_flags->{$var} eq "ed" ) {
        # ED is not a clm4_0 option and should not be used with crop and not with clm4_0
        fatal_error("** Cannot turn ed mode on with crop or with clm4_0 physics.\n" );
     }
   } else {
 
     $var = "use_ed";
-    $nl_flags->{$var} = ".false.";
-    if ($nl_flags->{'ed_mode'} eq 1) {
-      $val = ".true.";
-      $nl_flags->{$var} = $val;
-    }
-    if ( defined($nl->get_value($var)) && $nl->get_value($var) ne $val ) {
-      fatal_error("$var is inconsistent with the commandline setting of -ed_mode");
-    }
     if ( $nl_flags->{$var} eq ".true." ) {
-      my $group = $definition->get_group_name($var);
-      $nl->set_variable_value($group, $var, $val);
-      if (  ! $definition->is_valid_value( $var, $val ) ) {
-        my @valid_values   = $definition->get_valid_values( $var );
-        fatal_error("$var has a value ($val) that is NOT valid. Valid values are: @valid_values\n");
-      }
-
       # This section is a place-holder to test for modules that are not allowed with ED
       # the defaults which are set in the logic section of the namelist builder will
       # automatically set these correctly (well that is the assumption), but here we
@@ -756,7 +733,7 @@ sub setup_cmdl_ed_mode {
 #      $val = $nl_flags->{$var};
 #      if ( defined($nl->get_value($var))  ) {
 #	  if ( $nl->get_value($var) == ".true." ) { 
-#	      fatal_error("$var was set to .true., which is incompatible when -ed_mode option is used.\n");
+#	      fatal_error("$var was set to .true., which is incompatible when -bgc ed option is used.\n");
 #	  }
 #      }
 
@@ -784,7 +761,7 @@ sub setup_cmdl_ed_mode {
 	# we only dis-allow ed_spit_fire with non-ed runs
        $var = "use_ed_spit_fire";
        if ( defined($nl->get_value($var)) ) {
-           fatal_error("$var is being set, but can ONLY be set when -ed_mode option is used.\n");
+           fatal_error("$var is being set, but can ONLY be set when -bgc ed option is used.\n");
        }
     }
   }
@@ -821,28 +798,37 @@ sub setup_cmdl_bgc {
     verbose_message("Using $nl_flags->{$var} for bgc.");
 
     # now set the actual name list variables based on the bgc alias
-    my $setting = ".false.";
-    if ($nl_flags->{$var} eq "cn") {
+    if ($nl_flags->{$var} eq "cn" ) {
       $nl_flags->{'use_cn'} = ".true.";
-    } elsif ($nl_flags->{$var} eq "bgc") {
+      $nl_flags->{'use_ed'} = ".false.";
+    } elsif ($nl_flags->{$var} eq "bgc" ) {
       $nl_flags->{'use_cn'} = ".true.";
-      $setting = ".true.";
+      $nl_flags->{'use_ed'} = ".false.";
+    } elsif ($nl_flags->{$var} eq "ed" ) {
+      $nl_flags->{'use_cn'} = ".false.";
+      $nl_flags->{'use_ed'} = ".true.";
     } else {
       $nl_flags->{'use_cn'} = ".false.";
+      $nl_flags->{'use_ed'} = ".false.";
     }
     if ( defined($nl->get_value("use_cn")) && ($nl_flags->{'use_cn'} ne $nl->get_value("use_cn")) ) {
       fatal_error("The namelist variable use_cn is inconsistent with the -bgc option");
     }
+    if ( defined($nl->get_value("use_ed")) && ($nl_flags->{'use_ed'} ne $nl->get_value("use_ed")) ) {
+      fatal_error("The namelist variable use_ed is inconsistent with the -bgc option");
+    }
 
-    if ( $opts->{"ed_mode"} != 1) {
+    {
 	# If the variable has already been set use it, if not set to the value defined by the bgc_mode
 	my @list  = (  "use_lch4", "use_nitrif_denitrif", "use_vertsoilc", "use_century_decomp" );
 	my $ndiff = 0;
+        my %settings = ( 'bgc_mode'=>$nl_flags->{'bgc_mode'} );
 	foreach my $var ( @list ) {
+            my $default_setting = $defaults->get_value($var, \%settings );
 	    if ( ! defined($nl->get_value($var))  ) {
-		$nl_flags->{$var} = $setting;
+		$nl_flags->{$var} = $default_setting;
 	    } else {
-		if ( $nl->get_value($var) ne $setting ) {
+		if ( $nl->get_value($var) ne $default_setting ) {
 		    $ndiff += 1;
 		}
 		$nl_flags->{$var} = $nl->get_value($var);
@@ -861,14 +847,15 @@ sub setup_cmdl_bgc {
 	}
     }
 
-    # Now set use_cn
-    $var = "use_cn";
-    $val = $nl_flags->{'use_cn'};
-    $group = $definition->get_group_name($var);
-    $nl->set_variable_value($group, $var, $val);
-    if (  ! $definition->is_valid_value( $var, $val ) ) {
-      my @valid_values   = $definition->get_valid_values( $var );
-      fatal_error("$var has a value ($val) that is NOT valid. Valid values are: @valid_values\n");
+    # Now set use_cn and use_ed
+    foreach $var ( "use_cn", "use_ed" ) {
+       $val = $nl_flags->{$var};
+       $group = $definition->get_group_name($var);
+       $nl->set_variable_value($group, $var, $val);
+       if (  ! $definition->is_valid_value( $var, $val ) ) {
+         my @valid_values   = $definition->get_valid_values( $var );
+         fatal_error("$var has a value ($val) that is NOT valid. Valid values are: @valid_values\n");
+       }
     }
   }
 } # end bgc
@@ -1092,9 +1079,9 @@ sub setup_cmdl_bgc_spinup {
       my @valid_values   = $definition->get_valid_values( $var );
       fatal_error("$var has an invalid value ($val). Valid values are: @valid_values\n");
     }
-    # if ( $nl_flags->{'bgc_spinup'} eq "on" && $nl_flags->{'use_cn'} ne ".true.") {
-    #   fatal_error("$var can not be '$nl_flags->{'bgc_spinup'}' if CN is turned off (use_cn=$nl_flags->{'use_cn'}).");
-    # }
+    if ( $nl_flags->{'bgc_spinup'} eq "on" && (not value_is_true( $nl_flags->{'use_cn'} ))  && (not value_is_true($nl_flags->{'use_ed'})) ) {
+      fatal_error("$var can not be '$nl_flags->{'bgc_spinup'}' if neither CN nor ED is turned on (use_cn=$nl_flags->{'use_cn'}, use_ed=$nl_flags->{'use_ed'}).");
+    }
     if ( $nl->get_value("spinup_state") eq 0 && $nl_flags->{'bgc_spinup'} eq "on" ) {
       fatal_error("Namelist spinup_state contradicts the command line option bgc_spinup" );
     }
@@ -2295,7 +2282,7 @@ sub setup_logic_supplemental_nitrogen {
   #
   my ($test_files, $nl_flags, $definition, $defaults, $nl, $physv) = @_;
 
-  if ( $nl_flags->{'bgc_mode'} ne "sp" && $nl_flags->{'use_crop'} eq ".true." ) {
+  if ( $nl_flags->{'bgc_mode'} ne "sp" && $nl_flags->{'bgc_mode'} ne "ed" && $nl_flags->{'use_crop'} eq ".true." ) {
     add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl,
                 'suplnitro', 'use_cn'=>$nl_flags->{'use_cn'}, 'use_crop'=>$nl_flags->{'use_crop'});
   }
@@ -2352,8 +2339,10 @@ sub setup_logic_methane {
   my ($test_files, $nl_flags, $definition, $defaults, $nl) = @_;
 
   if ( $nl_flags->{'use_lch4'}  eq '.true.' ) {
-    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'fin_use_fsat' );
-    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_aereoxid_prog' );
+    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'fin_use_fsat',
+                'use_cn'=>$nl_flags->{'use_cn'}, 'use_ed'=>$nl_flags->{'use_ed'} );
+    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_aereoxid_prog',
+                'use_cn'=>$nl_flags->{'use_cn'}, 'use_ed'=>$nl_flags->{'use_ed'} );
     #
     # Check if use_aereoxid_prog is set.  If no, then read value of aereoxid from
     # parameters file
@@ -2480,7 +2469,7 @@ sub setup_logic_c_isotope {
 
   my $use_c13 = $nl->get_value('use_c13');
   my $use_c14 = $nl->get_value('use_c14');
-  if ( $nl_flags->{'bgc_mode'} ne "sp" ) {
+  if ( $nl_flags->{'bgc_mode'} ne "sp" && $nl_flags->{'bgc_mode'} ne "ed" ) {
     if ( $nl_flags->{'use_crop'} eq ".true." ) {
       if ( defined($use_c13) ||
            defined($use_c14) ||
@@ -2555,7 +2544,7 @@ sub setup_logic_nitrogen_deposition {
                 'bgc'=>$nl_flags->{'bgc_mode'}, 'rcp'=>$nl_flags->{'rcp'},
                 'hgrid'=>"1.9x2.5" );
 
-  } elsif ( $physv->as_long() >= $physv->as_long("clm4_5") && $nl_flags->{'bgc_mode'} ne "sp" ) {
+  } elsif ( $physv->as_long() >= $physv->as_long("clm4_5") && $nl_flags->{'bgc_mode'} =~/cn|bgc/ ) {
     add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'ndepmapalgo', 'phys'=>$nl_flags->{'phys'},
                 'use_cn'=>$nl_flags->{'use_cn'}, 'hgrid'=>$nl_flags->{'res'} );
     add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'stream_year_first_ndep', 'phys'=>$nl_flags->{'phys'},
@@ -2593,7 +2582,7 @@ sub setup_logic_popd_streams {
   my ($test_files, $nl_flags, $definition, $defaults, $nl, $physv) = @_;
 
   if ( $physv->as_long() >= $physv->as_long("clm4_5") ) {
-    if ( $nl_flags->{'bgc_mode'} ne "sp" ) {
+    if ( $nl_flags->{'bgc_mode'} ne "sp" && $nl_flags->{'bgc_mode'} ne "ed" ) {
       add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'popdensmapalgo', 'hgrid'=>$nl_flags->{'res'} );
       add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'stream_year_first_popdens', 'phys'=>$nl_flags->{'phys'},
                   'use_cn'=>$nl_flags->{'use_cn'}, 'sim_year'=>$nl_flags->{'sim_year'},
@@ -2630,7 +2619,7 @@ sub setup_logic_lightning_streams {
   my ($test_files, $nl_flags, $definition, $defaults, $nl, $physv) = @_;
 
   if ( $physv->as_long() >= $physv->as_long("clm4_5") ) {
-    if ( $nl_flags->{'bgc_mode'} ne "sp" ) {
+    if ( $nl_flags->{'bgc_mode'} ne "sp" && $nl_flags->{'bgc_mode'} ne "ed" ) {
       add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'lightngmapalgo', 'use_cn'=>$nl_flags->{'use_cn'},
                   'hgrid'=>$nl_flags->{'res'} );
       add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'stream_year_first_lightng', 'use_cn'=>$nl_flags->{'use_cn'},
@@ -2685,7 +2674,7 @@ sub setup_logic_megan {
   if ($opts->{'megan'} ) {
     if ( value_is_true( $nl_flags->{'use_ed'} ) ) {
        fatal_error("MEGAN can NOT be on when ED is also on.\n" . 
-                   "   Use the '-no-megan' option when '-ed_mode' is activated");
+                   "   Use the '-no-megan' option when '-bgc ed' is activated");
     }
     add_default($opts->{'test'}, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'megan_specifier');
     check_megan_spec( $nl, $definition );
@@ -2778,11 +2767,7 @@ sub setup_logic_ed {
     my ($test_files, $nl_flags, $definition, $defaults, $nl, $physv) = @_;
 
     if ($physv->as_long() >= $physv->as_long("clm4_5") && value_is_true( $nl_flags->{'use_ed'})  ) {
-	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_vertsoilc', 'use_ed'=>$nl_flags->{'use_ed'} );
-	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_century_decomp', 'use_ed'=>$nl_flags->{'use_ed'} );
  	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_ed_spit_fire', 'use_ed'=>$nl_flags->{'use_ed'} );
-	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_lch4', 'use_ed'=>$nl_flags->{'use_ed'} );
-	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_nitrif_denitrif', 'use_ed'=>$nl_flags->{'use_ed'} );
     }
 }
 
