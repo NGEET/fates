@@ -17,7 +17,9 @@ module EDSurfaceRadiationMod
   use shr_log_mod       , only : errMsg => shr_log_errMsg
   use decompMod         , only : bounds_type
   use clm_varpar        , only : numrad, nclmax
-
+  use FatesInterfaceMod , only : bc_in_type, &
+                                 bc_out_type
+  
   implicit none
 
   private
@@ -28,7 +30,11 @@ module EDSurfaceRadiationMod
   
   real(r8), public  :: albice(numrad) = &       ! albedo land ice by waveband (1=vis, 2=nir)
         (/ 0.80_r8, 0.55_r8 /)
-  
+
+  ! INTERF-TODO: THIS NEEDS SOME CONSISTENCY AND SHOULD BE SET IN THE INTERFACE
+  ! WITH OTHER DIMENSIONS
+  integer, parameter :: ipar = 1          ! The band index for PAR
+
 contains
    
    subroutine ED_Norman_Radiation (bounds, &
@@ -950,85 +956,100 @@ contains
     end associate
  end subroutine ED_Norman_Radiation
 
+ ! ======================================================================================
 
-subroutine ED_SunShadeFracs(cpatch,forc_par_d,forc_par_i,fsun)
+ subroutine ED_SunShadeFracs(sites,nsites,bc_in,bc_out)
+    
+    use clm_varctl        , only : iulog
+    
+    implicit none
 
+    ! Arguments
+    type(ed_site_type),intent(inout),target :: sites(nsites)
+    integer,intent(in)                      :: nsites
+    type(bc_in_type),intent(in)             :: bc_in(nsites)
+    type(bc_out_type),intent(inout)         :: bc_out(nsites)
+    
 
-   use clm_varctl        , only : iulog
+    ! locals
+    type (ed_patch_type),pointer :: cpatch   ! c"urrent" patch
+    real(r8)          :: sunlai
+    real(r8)          :: shalai
+    integer           :: CL
+    integer           :: FT
+    integer           :: iv
+    integer           :: s
+    integer           :: ifp
+    
 
-      ! Arguments In
-      
-      real(r8),intent(in)   :: forc_par_d
-      real(r8),intent(in)   :: forc_par_i
+    do s = 1,nsites
 
-      ! Arguments inout
-      type (ed_patch_type),intent(inout), target :: cpatch   ! c"urrent" patch
+       ifp = 0
+       cpatch => sites(s)%oldest_patch
 
+       do while (associated(cpatch))                 
+          
+          ifp=ifp+1
+          
+          if( DEBUG ) write(iulog,*) 'edsurfRad_5600',ifp,s,cpatch%NCL_p,numpft_ed
+          
+          ! zero out various datas
+          cpatch%ed_parsun_z(:,:,:) = 0._r8
+          cpatch%ed_parsha_z(:,:,:) = 0._r8
+          cpatch%ed_laisun_z(:,:,:) = 0._r8     
+          cpatch%ed_laisha_z(:,:,:) = 0._r8
 
-      ! Arguments Out
-      real(r8),intent(out) :: fsun
+          bc_out(s)%fsun_pa(ifp) = 0._r8
 
-      ! locals
-      real(r8)          :: sunlai
-      real(r8)          :: shalai
-      integer           :: CL
-      integer           :: FT
-      integer           :: iv
+          sunlai  = 0._r8
+          shalai  = 0._r8
 
+          ! Loop over patches to calculate laisun_z and laisha_z for each layer.
+          ! Derive canopy laisun, laisha, and fsun from layer sums.
+          ! If sun/shade big leaf code, nrad=1 and fsun_z(p,1) and tlai_z(p,1) from
+          ! SurfaceAlbedo is canopy integrated so that layer value equals canopy value.
+          
+          ! cpatch%f_sun is calculated in the surface_albedo routine...
+          
+          do CL = 1, cpatch%NCL_p
+             do FT = 1,numpft_ed
 
-      ! zero out various datas
-      cpatch%ed_parsun_z(:,:,:) = 0._r8
-      cpatch%ed_parsha_z(:,:,:) = 0._r8
-      cpatch%ed_laisun_z(:,:,:) = 0._r8     
-      cpatch%ed_laisha_z(:,:,:) = 0._r8
-
-      fsun    = 0._r8
-      sunlai  = 0._r8
-      shalai  = 0._r8
-      
-      ! Loop over patches to calculate laisun_z and laisha_z for each layer.
-      ! Derive canopy laisun, laisha, and fsun from layer sums.
-      ! If sun/shade big leaf code, nrad=1 and fsun_z(p,1) and tlai_z(p,1) from
-      ! SurfaceAlbedo is canopy integrated so that layer value equals canopy value.
-      
-      ! cpatch%f_sun is calculated in the surface_albedo routine...
-      
-      do CL = 1, cpatch%NCL_p
-         do FT = 1,numpft_ed
-            do iv = 1, cpatch%nrad(CL,ft) !NORMAL CASE. 
-               
-               ! FIX(SPM,040114) - existing comment
-               ! ** Should this be elai or tlai? Surely we only do radiation for elai? 
-                  
-               cpatch%ed_laisun_z(CL,ft,iv) = cpatch%elai_profile(CL,ft,iv) * &
-                    cpatch%f_sun(CL,ft,iv)
-               
-               if ( DEBUG ) write(iulog,*) 'edsurfRad 570 ',cpatch%elai_profile(CL,ft,iv)
-               if ( DEBUG ) write(iulog,*) 'edsurfRad 571 ',cpatch%f_sun(CL,ft,iv)
-               
-               cpatch%ed_laisha_z(CL,ft,iv) = cpatch%elai_profile(CL,ft,iv) * &
-                    (1._r8 - cpatch%f_sun(CL,ft,iv))
-               
-            end do
-            
-            !needed for the VOC emissions, etc. 
-            sunlai = sunlai + sum(cpatch%ed_laisun_z(CL,ft,1:cpatch%nrad(CL,ft)))
-            shalai = shalai + sum(cpatch%ed_laisha_z(CL,ft,1:cpatch%nrad(CL,ft)))
-            
-         end do
-         end do
-         
-         if(sunlai+shalai > 0._r8)then
-            fsun = sunlai / (sunlai+shalai) 
-         else
-            fsun = 0._r8
-         endif
-         
-         if(fsun > 1._r8)then
-            write(iulog,*) 'too much leaf area in profile', fsun, &
-                 cpatch%lai,sunlai,shalai
-         endif
-         
+                if( DEBUG ) write(iulog,*) 'edsurfRad_5601',CL,FT,cpatch%nrad(CL,ft)
+                
+                do iv = 1, cpatch%nrad(CL,ft) !NORMAL CASE. 
+                   
+                   ! FIX(SPM,040114) - existing comment
+                   ! ** Should this be elai or tlai? Surely we only do radiation for elai? 
+                   
+                   cpatch%ed_laisun_z(CL,ft,iv) = cpatch%elai_profile(CL,ft,iv) * &
+                         cpatch%f_sun(CL,ft,iv)
+                   
+                   if ( DEBUG ) write(iulog,*) 'edsurfRad 570 ',cpatch%elai_profile(CL,ft,iv)
+                   if ( DEBUG ) write(iulog,*) 'edsurfRad 571 ',cpatch%f_sun(CL,ft,iv)
+                   
+                   cpatch%ed_laisha_z(CL,ft,iv) = cpatch%elai_profile(CL,ft,iv) * &
+                         (1._r8 - cpatch%f_sun(CL,ft,iv))
+                   
+                end do
+                
+                !needed for the VOC emissions, etc. 
+                sunlai = sunlai + sum(cpatch%ed_laisun_z(CL,ft,1:cpatch%nrad(CL,ft)))
+                shalai = shalai + sum(cpatch%ed_laisha_z(CL,ft,1:cpatch%nrad(CL,ft)))
+                
+             end do
+          end do
+          
+          if(sunlai+shalai > 0._r8)then
+             bc_out(s)%fsun_pa(ifp) = sunlai / (sunlai+shalai) 
+          else
+             bc_out(s)%fsun_pa(ifp) = 0._r8
+          endif
+          
+          if(bc_out(s)%fsun_pa(ifp) > 1._r8)then
+             write(iulog,*) 'too much leaf area in profile',  bc_out(s)%fsun_pa(ifp), &
+                   cpatch%lai,sunlai,shalai
+          endif
+          
          ! Absorbed PAR profile through canopy
          ! If sun/shade big leaf code, nrad=1 and fluxes from SurfaceAlbedo
          ! are canopy integrated so that layer values equal big leaf values.
@@ -1044,21 +1065,21 @@ subroutine ED_SunShadeFracs(cpatch,forc_par_d,forc_par_i,fsun)
                   
                   if ( DEBUG ) then
                      write(iulog,*) 'edsurfRad 653 ', cpatch%ed_parsun_z(CL,ft,iv)
-                     write(iulog,*) 'edsurfRad 654 ', forc_par_d
-                     write(iulog,*) 'edsurfRad 655 ', forc_par_i
+                     write(iulog,*) 'edsurfRad 654 ', bc_in(s)%solad_parb(ifp,ipar)
+                     write(iulog,*) 'edsurfRad 655 ', bc_in(s)%solai_parb(ifp,ipar)
                      write(iulog,*) 'edsurfRad 656 ', cpatch%fabd_sun_z(CL,ft,iv)
                      write(iulog,*) 'edsurfRad 657 ', cpatch%fabi_sun_z(CL,ft,iv)
                   endif
                   
                   cpatch%ed_parsun_z(CL,ft,iv) = &
-                       forc_par_d*cpatch%fabd_sun_z(CL,ft,iv) + &
-                       forc_par_i*cpatch%fabi_sun_z(CL,ft,iv) 
+                        bc_in(s)%solad_parb(ifp,ipar)*cpatch%fabd_sun_z(CL,ft,iv) + &
+                        bc_in(s)%solai_parb(ifp,ipar)*cpatch%fabi_sun_z(CL,ft,iv) 
                   
                   if ( DEBUG )write(iulog,*) 'edsurfRad 663 ', cpatch%ed_parsun_z(CL,ft,iv)
                   
                   cpatch%ed_parsha_z(CL,ft,iv) = &
-                       forc_par_d*cpatch%fabd_sha_z(CL,ft,iv) + &
-                       forc_par_i*cpatch%fabi_sha_z(CL,ft,iv)          
+                        bc_in(s)%solad_parb(ifp,ipar)*cpatch%fabd_sha_z(CL,ft,iv) + &
+                        bc_in(s)%solai_parb(ifp,ipar)*cpatch%fabi_sha_z(CL,ft,iv)          
                   
                   if ( DEBUG ) write(iulog,*) 'edsurfRad 669 ', cpatch%ed_parsha_z(CL,ft,iv)
                   
@@ -1066,9 +1087,14 @@ subroutine ED_SunShadeFracs(cpatch,forc_par_d,forc_par_i,fsun)
             end do !FT
          end do !CL
          
-         return
-
-      end subroutine ED_SunShadeFracs
+         cpatch => cpatch%younger
+      enddo
+      
+      
+   enddo
+   return
+   
+end subroutine ED_SunShadeFracs
 
 
 !      ! MOVE TO THE INTERFACE

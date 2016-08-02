@@ -106,6 +106,28 @@ module EDTypesMod
   integer , allocatable :: pft_levscpf_ed(:)
   integer , allocatable :: scls_levscpf_ed(:) 
 
+  
+
+  type, public :: ctrl_parms_type
+     
+
+     ! These parameters are dictated by FATES internals
+
+     
+
+
+     ! These parameters are dictated by the host model or driver
+
+     integer :: numSWBands   ! Maximum number of broad-bands in the short-wave radiation
+                             ! specturm to track 
+                             ! (typically 2 as a default, VIS/NIR, in ED variants <2016)
+     
+     integer :: numlevgrnd   ! Number of soil layers
+
+  end type ctrl_parms_type
+  
+  type(ctrl_parms_type), public :: ctrl_parms
+
 
   !************************************
   !** COHORT type structure          **

@@ -6,7 +6,6 @@ module EDMainMod
 
   use shr_kind_mod         , only : r8 => shr_kind_r8
   
-  use decompMod            , only : bounds_type
   use clm_varctl           , only : iulog
   use atm2lndType          , only : atm2lnd_type
   use SoilStateType        , only : soilstate_type  
@@ -77,7 +76,7 @@ contains
     call disturbance_rates(currentSite)
 
     ! Integrate state variables from annual rates to daily timestep
-    call ed_integrate_state_variables(currentSite, soilstate_inst, temperature_inst, waterstate_inst) 
+    call ed_integrate_state_variables(currentSite, temperature_inst ) 
 
     !******************************************************************************
     ! Reproduction, Recruitment and Cohort Dynamics : controls cohort organisation 
@@ -134,7 +133,7 @@ contains
   end subroutine ed_ecosystem_dynamics
 
   !-------------------------------------------------------------------------------!
-  subroutine ed_integrate_state_variables(currentSite, soilstate_inst, temperature_inst, waterstate_inst)
+  subroutine ed_integrate_state_variables(currentSite, temperature_inst )
     !
     ! !DESCRIPTION:
     ! FIX(SPM,032414) refactor so everything goes through interface
@@ -143,9 +142,7 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type)     , intent(in)    :: currentSite
-    type(soilstate_type)   , intent(in)    :: soilstate_inst
     type(temperature_type) , intent(in)    :: temperature_inst
-    type(waterstate_type)  , intent(in)    :: waterstate_inst
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type)  , pointer :: currentPatch
@@ -217,7 +214,7 @@ contains
           write(6,*)'DEBUG18: calling non_canopy_derivs with pno= ',currentPatch%clm_pno
        endif
 
-       call non_canopy_derivs( currentPatch, temperature_inst, soilstate_inst, waterstate_inst )
+       call non_canopy_derivs( currentPatch, temperature_inst )
 
        !update state variables simultaneously according to derivatives for this time period. 
        do p = 1,numpft_ed
