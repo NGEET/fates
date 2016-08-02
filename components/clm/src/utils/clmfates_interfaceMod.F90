@@ -22,6 +22,7 @@ module CLMFatesInterfaceMod
    ! Therefore, the state variables in the clm_fates communicator is vectorized by
    ! threadcount, and the IO communication arrays are not.
    !
+   ! INTERF-TODO: NEED AN INVALID R8 SETTING FOR FATES
    !
    ! Conventions:
    ! keep line widths within 90 spaces
@@ -38,31 +39,44 @@ module CLMFatesInterfaceMod
    use WaterStateType    , only : waterstate_type
    use CanopyStateType   , only : canopystate_type
    use TemperatureType   , only : temperature_type
+   use EnergyFluxType    , only : energyflux_type
    use SoilStateType     , only : soilstate_type
    use clm_varctl        , only : iulog
-   use clm_varpar        , only : numpft
+   use clm_varcon        , only : tfrz
+   use clm_varpar        , only : numpft,            &
+                                  numrad,            &
+                                  nlevgrnd
    use atm2lndType       , only : atm2lnd_type
    use SurfaceAlbedoType , only : surfalb_type
    use SolarAbsorbedType , only : solarabs_type
    use clm_time_manager  , only : is_restart
    use ncdio_pio         , only : file_desc_t
-   use clm_time_manager  , only : get_days_per_year, get_curr_date
-   use clm_time_manager  , only : get_ref_date, timemgr_datediff 
+   use clm_time_manager  , only : get_days_per_year, &
+                                  get_curr_date
+   use clm_time_manager  , only : get_ref_date,      &
+                                  timemgr_datediff 
    use spmdMod           , only : masterproc
-   use decompMod         , only : get_proc_bounds, get_proc_clumps, get_clump_bounds
+   use decompMod         , only : get_proc_bounds,   &
+                                  get_proc_clumps,   &
+                                  get_clump_bounds
    use GridCellType      , only : grc
    use ColumnType        , only : col
    use LandunitType      , only : lun
    use landunit_varcon   , only : istsoil
-   use abortutils      , only : endrun
-   use shr_log_mod     , only : errMsg => shr_log_errMsg    
+   use abortutils        , only : endrun
+   use shr_log_mod       , only : errMsg => shr_log_errMsg    
 
    ! Used FATES Modules
-   use FatesInterfaceMod     , only : fates_interface_type
+   use FatesInterfaceMod     , only : fates_interface_type, &
+                                      set_fates_ctrlparms,  &
+                                      allocate_bcin,        &
+                                      allocate_bcout
+
    use EDCLMLinkMod          , only : ed_clm_type
    use EDTypesMod            , only : udata
    use EDTypesMod            , only : ed_patch_type
    use EDtypesMod            , only : map_clmpatch_to_edpatch
+   use EDtypesMod            , only : numPatchesPerCol
    use EDMainMod             , only : ed_ecosystem_dynamics
    use EDMainMod             , only : ed_update_site
    use EDInitMod             , only : zero_site
@@ -72,6 +86,8 @@ module CLMFatesInterfaceMod
    use EDEcophysConType      , only : EDecophysconInit
    use EDRestVectorMod       , only : EDRest
    use EDSurfaceRadiationMod , only : ED_SunShadeFracs
+   use EDBtranMod            , only : btran_ed, &
+                                      get_active_suction_layers
 
    implicit none
 
@@ -113,19 +129,6 @@ module CLMFatesInterfaceMod
 
       type(ed_clm_type) :: fates2hlm  
 
-      
-      ! INTERF-TODO: we will need a new bounding type (maybe?)
-      ! depending on how we structure the memory
-      ! We will likely have a fates_bcs (boundary conditions) type
-      ! And this type could take many forms, but probably be pointers
-      ! to various CLM/ALM/ATS/etc types
-      ! This is a structure of pointers that maps between
-      ! the calling model and the fates model
-      !      type(fates_bounds_type) :: bound_fate
-
-
-     
-
    contains
       
       procedure, public :: init
@@ -134,16 +137,18 @@ module CLMFatesInterfaceMod
       procedure, public :: init_restart
       procedure, public :: init_coldstart
       procedure, public :: dynamics_driv
-      procedure, public :: canopy_sunshade_fracs
-     
+      procedure, public :: wrap_sunfrac
+      procedure, public :: wrap_btran
 
    end type hlm_fates_interface_type
 
 
-   logical :: DEBUG  = .true.
+   logical :: DEBUG  = .false.
 
 contains
    
+   ! ====================================================================================
+
    subroutine init(this,bounds_proc, use_ed)
       
       ! ---------------------------------------------------------------------------------
@@ -196,14 +201,32 @@ contains
       allocate(this%fates(nclumps))
       allocate(this%f2hmap(nclumps))
 
+
+      ! ---------------------------------------------------------------------------------
+      ! Send dimensions and other model controling parameters to FATES.  These
+      ! are obviously only those parameters that are dictated by the host
+      ! ---------------------------------------------------------------------------------
+      
+      ! Force FATES parameters that are recieve type, to the unset value
+      call set_fates_ctrlparms('flush_to_unset')
+      
+      ! Send parameters individually
+      call set_fates_ctrlparms('num_sw_bbands',numrad)
+      call set_fates_ctrlparms('num_lev_ground',nlevgrnd)
+
+      ! Check through FATES parameters to see if all have been set
+      call set_fates_ctrlparms('check_allset')
+
+
       if(DEBUG)then
          write(iulog,*) 'clm_fates%init():  allocating for ',nclumps,' threads'
       end if
 
-
+      return
    end subroutine init
 
-
+   ! ====================================================================================
+   
    subroutine init_allocate(this)
       
       implicit none
@@ -232,10 +255,6 @@ contains
          call get_clump_bounds(nc, bounds_clump)
          nmaxcol = bounds_clump%endc - bounds_clump%begc + 1
 
-         if(DEBUG)then
-            write(iulog,*) 'clm_fates%init(): thread',nc,': allocating ',nmaxcol,' column space'
-         end if
-
          allocate(collist(1:nmaxcol))
          
          ! Allocate the mapping that points columns to FATES sites, 0 is NA
@@ -251,10 +270,7 @@ contains
             ! These are the key constraints that determine if this column
             ! will have a FATES site associated with it
             
-            if(DEBUG)then
-               write(iulog,*) 'clm_fates%init(): thread',nc,': found column',c,'with lu',l
-               write(iulog,*) '  LU type:', lun%itype(l)
-            end if
+            
 
             ! INTERF-TODO: WE HAVE NOT FILTERED OUT FATES SITES ON INACTIVE COLUMNS.. YET
             ! NEED A RUN-TIME ROUTINE THAT CLEARS AND REWRITES THE SITE LIST
@@ -263,10 +279,14 @@ contains
                s = s + 1
                collist(s) = c
                this%f2hmap(nc)%hsites(c) = s
+               if(DEBUG)then
+                  write(iulog,*) 'clm_fates%init(): thread',nc,': found column',c,'with lu',l
+                  write(iulog,*) 'LU type:', lun%itype(l)
+               end if
             endif
             
          enddo
-         
+
          if(DEBUG)then
             write(iulog,*) 'clm_fates%init(): thread',nc,': allocated ',s,' sites'
          end if
@@ -288,7 +308,25 @@ contains
          this%fates(nc)%nsites = s
 
          ! Allocate the FATES sites
-         allocate (this%fates(nc)%sites(s))
+         allocate (this%fates(nc)%sites(this%fates(nc)%nsites))
+
+         ! Allocate the FATES boundary arrays (in)
+         allocate(this%fates(nc)%bc_in(this%fates(nc)%nsites))
+
+         ! Allocate the FATES boundary arrays (out)
+         allocate(this%fates(nc)%bc_out(this%fates(nc)%nsites))
+
+         ! Allocate and Initialize the Boundary Condition Arrays
+         ! These are staticaly allocated at maximums, so
+         ! No information about the patch or cohort
+         ! structure is needed at this step
+         
+         do s = 1, this%fates(nc)%nsites
+            call allocate_bcin(this%fates(nc)%bc_in(s))
+            call allocate_bcout(this%fates(nc)%bc_out(s))
+            call this%fates(nc)%zero_bcs(s)
+         end do
+
 
          if( this%fates(nc)%nsites == 0 ) then
             write(iulog,*) 'Clump ',nc,' had no valid FATES sites'
@@ -466,14 +504,14 @@ contains
          if (this%fates(nc)%nsites>0) then
             call get_clump_bounds(nc, bounds_clump)
             
-            call EDRest( bounds_clump,                                      &
-                 this%fates(nc)%sites,                                      &
-                 this%fates(nc)%nsites,                                     &
+            call EDRest( bounds_clump,                                             &
+                 this%fates(nc)%sites,                                             &
+                 this%fates(nc)%nsites,                                            &
                  this%f2hmap(nc)%fcolumn, ncid, flag )
             
             if ( trim(flag) == 'read' ) then
                
-               call this%fates2hlm%ed_clm_link( bounds_clump,                       &
+               call this%fates2hlm%ed_clm_link( bounds_clump,                      &
                     this%fates(nc)%sites,                                          &
                     this%fates(nc)%nsites,                                         &
                     this%f2hmap(nc)%fcolumn,                                       &
@@ -489,6 +527,8 @@ contains
       
       return
    end subroutine init_restart
+
+   ! ====================================================================================
 
    subroutine init_coldstart(this, waterstate_inst, canopystate_inst)
 
@@ -544,10 +584,9 @@ contains
      return
    end subroutine init_coldstart
 
-   ! ------------------------------------------------------------------------------------
+   ! ======================================================================================
    
-   subroutine canopy_sunshade_fracs(this,nc,filter_nourbanp, num_nourbanp, &
-         atm2lnd_inst,canopystate_inst)
+   subroutine wrap_sunfrac(this,nc,atm2lnd_inst,canopystate_inst)
          
       
       ! This interface function is a wrapper call on ED_SunShadeFracs. The only
@@ -561,12 +600,6 @@ contains
       
       integer, intent(in)                  :: nc
       
-      ! patch filter for non-urban points
-      integer, intent(in),dimension(:)     :: filter_nourbanp
-      
-      ! number of patches in non-urban points in patch  filter
-      integer, intent(in)                  :: num_nourbanp       
-      
       ! direct and diffuse downwelling radiation (W/m2)
       type(atm2lnd_type),intent(in)        :: atm2lnd_inst
       
@@ -574,12 +607,15 @@ contains
       type(canopystate_type),intent(inout) :: canopystate_inst
       
       ! Local Variables
-      integer  :: fp                          ! non-urban filter patch index
-      integer  :: p                           ! patch index
-      integer  :: g                           ! grid cell index
-      integer  :: c                           ! column index (HLM native index)
-      integer  :: s                           ! site index  (FATES native index)
-      integer, parameter :: ipar = 1          ! The band index for PAR
+      integer  :: p                           ! global index of the host patch
+      integer  :: g                           ! global index of the host gridcell
+      integer  :: c                           ! global index of the host column
+
+      integer  :: s                           ! FATES site index
+      integer  :: ifp                         ! FATEs patch index
+                                              ! this is the order increment of patch
+                                              ! on the site
+      
       type(ed_patch_type), pointer :: cpatch  ! c"urrent" patch  INTERF-TODO: SHOULD
                                               ! BE HIDDEN AS A FATES PRIVATE
       
@@ -587,37 +623,227 @@ contains
                  forc_solai => atm2lnd_inst%forc_solai_grc, &
                  fsun       => canopystate_inst%fsun_patch)
         
-        do fp = 1,num_nourbanp
-           
-           p = filter_nourbanp(fp)
-           g = patch%gridcell(p)
-           c = patch%column(p)
-           s = this%f2hmap(nc)%hsites(c)
-           
-           if ( patch%is_veg(p) ) then 
-              
-              ! ed_clm_link should be responsibe for setting is_veg
-              ! so this condition should prevent a non-site from
-              ! emerging here.  Lets do a sanity check anyway
+        ! -------------------------------------------------------------------------------
+        ! Convert input BC's
+        ! The sun-shade calculations are performed only on FATES patches
+        ! -------------------------------------------------------------------------------
 
-              if( s < 1 .or. s > this%fates(nc)%nsites )then
-                 write(iulog,*) 'There is a disconnect between the is_veg filter'
-                 write(iulog,*) 'set in ed_clm_link, and the allocation of sites'
-                 write(iulog,*) 'Perhaps is_veg is being set in a rogue location?'
-                 call endrun(msg=errMsg(__FILE__, __LINE__))
+        do s = 1, this%fates(nc)%nsites
+           c = this%f2hmap(nc)%fcolumn(s)
+           g = col%gridcell(c)
+
+           do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
+           !do ifp = 1, this%fates(nc)%bc_in(s)%npatches
+
+              p = ifp+col%patchi(c)
+
+              this%fates(nc)%bc_in(s)%solad_parb(ifp,:) = forc_solad(g,:)
+              this%fates(nc)%bc_in(s)%solai_parb(ifp,:) = forc_solai(g,:)
+
+           end do
+        end do
+
+        ! -------------------------------------------------------------------------------
+        ! Call FATES public function to calculate internal sun/shade structures
+        ! as well as total patch sun/shade fraction output boundary condition
+        ! -------------------------------------------------------------------------------
+
+        call ED_SunShadeFracs(this%fates(nc)%sites,  &
+                              this%fates(nc)%nsites, &
+                              this%fates(nc)%bc_in,  &
+                              this%fates(nc)%bc_out)
+
+        ! -------------------------------------------------------------------------------
+        ! Transfer the FATES output boundary condition for canopy sun/shade fraction
+        ! to the HLM
+        ! -------------------------------------------------------------------------------
+
+        do s = 1, this%fates(nc)%nsites
+           c = this%f2hmap(nc)%fcolumn(s)
+           do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
+!           do ifp = 1, this%fates(nc)%bc_in(s)%npatches
+              
+              p = ifp+col%patchi(c)
+              g = col%gridcell(c)
+              
+              fsun(p) = this%fates(nc)%bc_out(s)%fsun_pa(ifp)
+
+           end do
+        end do
+
+      end associate
+      return
+   end subroutine wrap_sunfrac
+   
+   ! ====================================================================================
+   
+   subroutine wrap_btran(this,nc,fn,filterc,soilstate_inst, waterstate_inst, &
+                         temperature_inst, energyflux_inst,  &
+                         soil_water_retention_curve)
+      
+      ! ---------------------------------------------------------------------------------
+      ! This subroutine calculates btran for FATES, this will be an input boundary
+      ! condition for FATES photosynthesis/transpiration.
+      !
+      ! This subroutine also calculates rootr
+      ! 
+      ! ---------------------------------------------------------------------------------
+
+      use SoilWaterRetentionCurveMod, only : soil_water_retention_curve_type
+
+      implicit none
+      
+      ! Arguments
+      class(hlm_fates_interface_type), intent(inout) :: this
+      integer                , intent(in)            :: nc
+      integer                , intent(in)            :: fn
+      integer                , intent(in)            :: filterc(fn) ! This is a list of
+                                                                        ! columns with exposed veg
+      type(soilstate_type)   , intent(inout)         :: soilstate_inst
+      type(waterstate_type)  , intent(in)            :: waterstate_inst
+      type(temperature_type) , intent(in)            :: temperature_inst
+      type(energyflux_type)  , intent(inout)         :: energyflux_inst
+      class(soil_water_retention_curve_type), intent(in) :: soil_water_retention_curve
+
+      ! local variables
+      real(r8) :: smp_node ! Soil suction potential, negative, [mm]
+      real(r8) :: s_node
+      integer  :: s
+      integer  :: c
+      integer  :: j
+      integer  :: ifp
+      integer  :: p
+      
+      associate(& 
+         sucsat      => soilstate_inst%sucsat_col           , & ! Input:  [real(r8) (:,:) ]  minimum soil suction (mm) 
+         watsat      => soilstate_inst%watsat_col           , & ! Input:  [real(r8) (:,:) ]  volumetric soil water at saturation (porosity)
+         bsw         => soilstate_inst%bsw_col              , & ! Input:  [real(r8) (:,:) ]  Clapp and Hornberger "b" 
+         eff_porosity => soilstate_inst%eff_porosity_col    , & ! Input:  [real(r8) (:,:) ]  effective porosity = porosity - vol_ice       
+         t_soisno    => temperature_inst%t_soisno_col       , & ! Input:  [real(r8) (:,:) ]  soil temperature (Kelvin)
+         h2osoi_liqvol => waterstate_inst%h2osoi_liqvol_col , & ! Input: [real(r8) (:,:) ]  liquid volumetric moisture, will be used for BeTR
+         btran       => energyflux_inst%btran_patch         , & ! Output: [real(r8) (:)   ]  transpiration wetness factor (0 to 1) 
+         btran2       => energyflux_inst%btran2_patch       , & ! Output: [real(r8) (:)   ]  
+         rresis      => energyflux_inst%rresis_patch        , & ! Output: [real(r8) (:,:) ]  root resistance by layer (0-1)  (nlevgrnd) 
+         rootr       => soilstate_inst%rootr_patch          & ! Output: [real(r8) (:,:) ]  Fraction of water uptake in each layer
+         )
+
+        ! -------------------------------------------------------------------------------
+        ! Convert input BC's
+        ! Critical step: a filter is being passed in that dictates which columns have
+        ! exposed vegetation (above snow).  This is necessary, because various hydrologic
+        ! variables like h2osoi_liqvol are not calculated and will have uninitialized
+        ! values outside this list.
+        !
+        ! bc_in(s)%filter_btran      (this is in, but is also used in this subroutine)
+        !
+        ! We also filter a second time within this list by determining which soil layers
+        ! have conditions for active uptake based on soil moisture and temperature. This
+        ! must be determined by FATES (science stuff).  But the list of layers and patches
+        ! needs to be passed back to the interface, because it then needs to request
+        ! suction on these layers via CLM/ALM functions.  We cannot wide-swath calculate
+        ! this on all layers, because values with no moisture or low temps will generate
+        ! unstable values and cause sigtraps.
+        ! -------------------------------------------------------------------------------
+        
+        do s = 1, this%fates(nc)%nsites
+           c = this%f2hmap(nc)%fcolumn(s)
+
+           ! Check to see if this column is in the exposed veg filter
+           if( any(filterc==c) )then
+              
+              this%fates(nc)%bc_in(s)%filter_btran = .true.
+              do j = 1,nlevgrnd
+                 this%fates(nc)%bc_in(s)%tempk_gl(j)         = t_soisno(c,j)
+                 this%fates(nc)%bc_in(s)%h2o_liqvol_gl(j)    = h2osoi_liqvol(c,j)
+                 this%fates(nc)%bc_in(s)%eff_porosity_gl(j)  = eff_porosity(c,j)
+                 this%fates(nc)%bc_in(s)%watsat_gl(j)        = watsat(c,j)
+              end do
+
+           else
+              this%fates(nc)%bc_in(s)%filter_btran = .false.
+              this%fates(nc)%bc_in(s)%tempk_gl(:)         = -999._r8
+              this%fates(nc)%bc_in(s)%h2o_liqvol_gl(:)    = -999._r8
+              this%fates(nc)%bc_in(s)%eff_porosity_gl(:)  = -999._r8
+              this%fates(nc)%bc_in(s)%watsat_gl(:)        = -999._r8
+           end if
+
+        end do
+
+        ! -------------------------------------------------------------------------------
+        ! This function evaluates the ground layer to determine if
+        ! root water uptake can happen, and soil suction should even
+        ! be calculated.  We ask FATES for a boundary condition output
+        ! logical because we don't want science calculations in the interface
+        ! yet... hydrology (suction calculation) is provided by the host
+        ! so we need fates to tell us where to calculate suction
+        ! but not calculate it itself. Yeah, complicated, but thats life.
+        ! -------------------------------------------------------------------------------
+        call get_active_suction_layers(this%fates(nc)%sites,  &
+                                       this%fates(nc)%nsites, &
+                                       this%fates(nc)%bc_in,  &
+                                       this%fates(nc)%bc_out)
+
+        ! Now that the active layers of water uptake have been decided by fates
+        ! Calculate the suction that is passed back to fates
+        ! Note that the filter_btran is unioned with active_suction_gl
+
+        do s = 1, this%fates(nc)%nsites
+           c = this%f2hmap(nc)%fcolumn(s)
+           do j = 1,nlevgrnd
+              if(this%fates(nc)%bc_out(s)%active_suction_gl(j)) then
+                 s_node = max(h2osoi_liqvol(c,j)/eff_porosity(c,j),0.01_r8)
+                 call soil_water_retention_curve%soil_suction(c,j,s_node, soilstate_inst, smp_node)
+                 this%fates(nc)%bc_in(s)%smp_gl(j)           = smp_node
               end if
-              
-              cpatch => map_clmpatch_to_edpatch(this%fates(nc)%sites(s), p) 
-              
-              call ED_SunShadeFracs(cpatch,forc_solad(g,ipar),forc_solai(g,ipar),fsun(p))
-              
-           endif
+           end do
+        end do
+        
+        ! -------------------------------------------------------------------------------
+        ! Suction and active uptake layers calculated, lets calculate uptake (btran)
+        ! This will calculate internals, as well as output boundary conditions: 
+        ! btran, rootr
+        ! -------------------------------------------------------------------------------
+
+        call btran_ed(this%fates(nc)%sites,  &
+                      this%fates(nc)%nsites, &
+                      this%fates(nc)%bc_in,  &
+                      this%fates(nc)%bc_out)
+
+
+        ! -------------------------------------------------------------------------------
+        ! Convert output BC's
+        ! For CLM/ALM this wrapper provides return variables that should
+        ! be similar to that of calc_root_moist_stress().  However,
+        ! CLM/ALM-FATES simulations will no make use of rresis, btran or btran2
+        ! outside of FATES. We do not have code in place to calculate btran2 or
+        ! rresis right now, so we force to bad.  We have btran calculated so we
+        ! pass it in case people want diagnostics.  rootr is actually the only
+        ! variable that will be used, as it is needed to help distribute the
+        ! the transpiration sink to the appropriate layers. (RGK)
+        ! -------------------------------------------------------------------------------
+
+        do s = 1, this%fates(nc)%nsites
            
+           c = this%f2hmap(nc)%fcolumn(s)
+           do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
+              
+              p = ifp+col%patchi(c)
+              
+              do j = 1,nlevgrnd
+                 
+                 rresis(p,j) = -999.9  ! We do not calculate this correctly
+                 ! it should not thought of as valid output until we decide to.
+                 rootr(p,j)  = this%fates(nc)%bc_out(s)%rootr_pagl(ifp,j)
+                 btran(p)    = this%fates(nc)%bc_out(s)%btran_pa(ifp)
+                 btran2(p)   = -999.9  ! Not available, force to nonsense
+                 
+              end do
+           end do
         end do
       end associate
       return
-   end subroutine canopy_sunshade_fracs
-   
+   end subroutine wrap_btran
+
 
 
 

@@ -1516,6 +1516,8 @@ contains
          p = filterp(f)
          g = patch%gridcell(p)
 
+         ! INTERFACE-TODO: EDACCUMULATEFLUXES PERFORMS AN ALTERNATIVE TO THIS
+         ! THEY SHOULD BE IN-LINE SOMEWHERE
          if (.not. use_ed) then
             fpsn(p)    = psnsun(p)   *laisun(p) + psnsha(p)   *laisha(p)
             fpsn_wc(p) = psnsun_wc(p)*laisun(p) + psnsha_wc(p)*laisha(p)

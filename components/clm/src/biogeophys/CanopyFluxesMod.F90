@@ -74,7 +74,7 @@ contains
 
   !------------------------------------------------------------------------------
   subroutine CanopyFluxes(bounds,  num_exposedvegp, filter_exposedvegp,                  &
-       sites, nsites, hsites, atm2lnd_inst, canopystate_inst, &
+       clm_fates, nc, atm2lnd_inst, canopystate_inst,                                    &
        energyflux_inst, frictionvel_inst, soilstate_inst, solarabs_inst, surfalb_inst,   &
        temperature_inst, waterflux_inst, waterstate_inst, ch4_inst, ozone_inst, photosyns_inst, &
        humanindex_inst, soil_water_retention_curve, &
@@ -115,6 +115,7 @@ contains
     use clm_varcon         , only : c14ratio
     use perf_mod           , only : t_startf, t_stopf
     use QSatMod            , only : QSat
+    use CLMFatesInterfaceMod, only : hlm_fates_interface_type
     use FrictionVelocityMod, only : FrictionVelocity, MoninObukIni
     use HumanIndexMod      , only : calc_human_stress_indices, Wet_Bulb, Wet_BulbS, HeatIndex, AppTemp, &
                                     swbgt, hmdex, dis_coi, dis_coiS, THIndex, &
@@ -125,9 +126,8 @@ contains
     type(bounds_type)                      , intent(in)            :: bounds 
     integer                                , intent(in)            :: num_exposedvegp        ! number of points in filter_exposedvegp
     integer                                , intent(in)            :: filter_exposedvegp(:)  ! patch filter for non-snow-covered veg
-    type(ed_site_type)                     , intent(inout), target :: sites(nsites)
-    integer                                , intent(in)            :: nsites
-    integer                                , intent(in)            :: hsites(bounds%begc:bounds%endc)
+    type(hlm_fates_interface_type)         , intent(inout)         :: clm_fates
+    integer                                , intent(in)            :: nc ! clump index
     type(atm2lnd_type)                     , intent(in)            :: atm2lnd_inst
     type(canopystate_type)                 , intent(inout)         :: canopystate_inst
     type(energyflux_type)                  , intent(inout)         :: energyflux_inst
@@ -496,63 +496,71 @@ contains
 
       rb1(begp:endp) = 0._r8
 
-      ! FIX(FIX(SPM,032414),032414) refactor this...
-      if ( use_ed ) then  
+      !assign the temporary filter
+      do f = 1, fn
+         p = filterp(f)
+         filterc_tmp(f)=patch%column(p)
+      enddo
+      
+      !compute effective soil porosity
+      call calc_effective_soilporosity(bounds,                          &
+            ubj = nlevgrnd,                                              &
+            numf = fn,                                                   &
+            filter = filterc_tmp(1:fn),                                  &
+            watsat = watsat(bounds%begc:bounds%endc, 1:nlevgrnd),        &
+            h2osoi_ice = h2osoi_ice(bounds%begc:bounds%endc,1:nlevgrnd), &
+            denice = denice,                                             &
+            eff_por=eff_porosity(bounds%begc:bounds%endc, 1:nlevgrnd) )
+      
+      !compute volumetric liquid water content
+      jtop(bounds%begc:bounds%endc) = 1
+      
+      call calc_volumetric_h2oliq(bounds,                                    &
+            jtop = jtop(bounds%begc:bounds%endc),                             &
+            lbj = 1,                                                          &
+            ubj = nlevgrnd,                                                   &
+            numf = fn,                                                        &
+            filter = filterc_tmp(1:fn),                                       &
+            eff_porosity = eff_porosity(bounds%begc:bounds%endc, 1:nlevgrnd), &
+            h2osoi_liq = h2osoi_liq(bounds%begc:bounds%endc, 1:nlevgrnd),     &
+            denh2o = denh2o,                                                  &
+            vol_liq = h2osoi_liqvol(bounds%begc:bounds%endc, 1:nlevgrnd) )
+      
+      !set up perchroot options
+      call set_perchroot_opt(perchroot, perchroot_alt)
 
-         do f = 1, fn
-            p = filterp(f)
-            call btran_ed(bounds, p, sites, nsites, hsites(bounds%begc:bounds%endc), &
-                 soilstate_inst, waterstate_inst, temperature_inst, energyflux_inst)
-         enddo
-
+      ! --------------------------------------------------------------------------
+      ! if this is a FATES simulation
+      ! ask fates to calculate btran functions and distribution of uptake
+      ! this will require boundary conditions from CLM, boundary conditions which
+      ! may only be available from a smaller subset of patches that meet the
+      ! exposed veg.  
+      ! calc_root_moist_stress already calculated root soil water stress 'rresis'
+      ! this is the input boundary condition to calculate the transpiration
+      ! wetness factor btran and the root weighting factors for FATES.  These
+      ! values require knowledge of the belowground root structure.
+      ! --------------------------------------------------------------------------
+      
+      if(use_ed)then
+         call clm_fates%wrap_btran(nc, fn, filterc_tmp(1:fn), soilstate_inst, waterstate_inst, &
+               temperature_inst, energyflux_inst, soil_water_retention_curve)
+         
       else
-
-         !assign the temporary filter
-         do f = 1, fn
-            p = filterp(f)
-            filterc_tmp(f)=patch%column(p)
-         enddo
-
-         !compute effective soil porosity
-         call calc_effective_soilporosity(bounds,                          &
-              ubj = nlevgrnd,                                              &
-              numf = fn,                                                   &
-              filter = filterc_tmp(1:fn),                                  &
-              watsat = watsat(bounds%begc:bounds%endc, 1:nlevgrnd),        &
-              h2osoi_ice = h2osoi_ice(bounds%begc:bounds%endc,1:nlevgrnd), &
-              denice = denice,                                             &
-              eff_por=eff_porosity(bounds%begc:bounds%endc, 1:nlevgrnd) )
-
-         !compute volumetric liquid water content
-         jtop(bounds%begc:bounds%endc) = 1
-
-         call calc_volumetric_h2oliq(bounds,                                    &
-              jtop = jtop(bounds%begc:bounds%endc),                             &
-              lbj = 1,                                                          &
-              ubj = nlevgrnd,                                                   &
-              numf = fn,                                                        &
-              filter = filterc_tmp(1:fn),                                       &
-              eff_porosity = eff_porosity(bounds%begc:bounds%endc, 1:nlevgrnd), &
-              h2osoi_liq = h2osoi_liq(bounds%begc:bounds%endc, 1:nlevgrnd),     &
-              denh2o = denh2o,                                                  &
-              vol_liq = h2osoi_liqvol(bounds%begc:bounds%endc, 1:nlevgrnd) )
-
-         !set up perchroot options
-         call set_perchroot_opt(perchroot, perchroot_alt)
-
+         
          !calculate root moisture stress
          call calc_root_moist_stress(bounds,     &
-              nlevgrnd = nlevgrnd,               &
-              fn = fn,                           &
-              filterp = filterp,                 &
-              canopystate_inst=canopystate_inst, &
-              energyflux_inst=energyflux_inst,   &
-              soilstate_inst=soilstate_inst,     &
-              temperature_inst=temperature_inst, &
-              waterstate_inst=waterstate_inst,   &
+            nlevgrnd = nlevgrnd,               &
+            fn = fn,                           &
+            filterp = filterp,                 &
+            canopystate_inst=canopystate_inst, &
+            energyflux_inst=energyflux_inst,   &
+            soilstate_inst=soilstate_inst,     &
+            temperature_inst=temperature_inst, &
+            waterstate_inst=waterstate_inst,   &
               soil_water_retention_curve=soil_water_retention_curve)
 
-      end if !use_ed
+     
+      end if
 
       ! Modify aerodynamic parameters for sparse/dense canopy (X. Zeng)
       do f = 1, fn
@@ -745,7 +753,8 @@ contains
             call Photosynthesis_ED (bounds, fn, filterp, &
                  svpts(begp:endp), eah(begp:endp), o2(begp:endp), &
                  co2(begp:endp), rb(begp:endp), dayl_factor(begp:endp), &
-                 sites(:), nsites, hsites(bounds%begc:bounds%endc), &
+                 clm_fates%fates(nc)%sites(:), clm_fates%fates(nc)%nsites, &
+                 clm_fates%f2hmap(nc)%hsites(bounds%begc:bounds%endc), &
                  atm2lnd_inst, temperature_inst, canopystate_inst, photosyns_inst)
 
             ! zero all of these things, not just the ones in the filter. 
@@ -1174,8 +1183,11 @@ contains
 
             ! TODO-INTERF: THIS CALL IS ONLY FOR ED STUFF, EASILY REMOVED
             ! AND CALLED OUTSIDE OF THIS SUBROUTINE
-            call AccumulateFluxes_ED(bounds, p, sites(:),nsites, &
-                  hsites(bounds%begc:bounds%endc), photosyns_inst)
+            call AccumulateFluxes_ED(bounds, p,   &
+                  clm_fates%fates(nc)%sites(:),   &
+                  clm_fates%fates(nc)%nsites,     &
+                  clm_fates%f2hmap(nc)%hsites(bounds%begc:bounds%endc), &
+                  photosyns_inst)
          end if
 
       end do
@@ -1262,6 +1274,7 @@ contains
          write(iulog,*) 'energy balance in canopy ',p,', err=',err(p)
       end do
 
+      ! INTERF-TODO: NOT CLEAR WHY WE ZERO THESE FOR ED AND NOT NON-ED
       if ( use_ed ) then      
          ! zero all of the array,  not just the ones in the filter. 
          do p = bounds%begp,bounds%endp 
