@@ -41,11 +41,17 @@ module FatesInterfaceMod
       ! The actual number of FATES' ED patches
       integer :: npatches
 
+      ! Radiation variables for calculating sun/shade fractions
+      ! ---------------------------------------------------------------------------------
+
       ! Downwelling direct beam radiation (patch,radiation-band) [W/m2]
       real(r8), allocatable :: solad_parb(:,:)  
 
       ! Downwelling diffuse (I-ndirect) radiation (patch,radiation-band) [W/m2]
       real(r8), allocatable :: solai_parb(:,:)
+
+      ! Hydrology variables for BTRAN
+      ! ---------------------------------------------------------------------------------
 
       ! Soil suction potential of layers in each site, negative, [mm]
       real(r8), allocatable :: smp_gl(:)
@@ -64,6 +70,47 @@ module FatesInterfaceMod
 
       ! Site level filter for uptake response functions
       logical               :: filter_btran
+
+      ! Photosynthesis variables
+      ! ---------------------------------------------------------------------------------
+
+      ! Patch level filter flag for photosynthesis calculations
+      ! has a short memory, flags:
+      ! 1 = patch has not been called
+      ! 2 = patch is currently marked for photosynthesis
+      ! 3 = patch has been called for photosynthesis at least once
+      integer, allocatable  :: filter_photo_pa(:)
+
+      ! atmospheric pressure (Pa)
+      real(r8)              :: forc_pbot             
+
+      ! daylength scaling factor (0-1)
+      real(r8), allocatable :: dayl_factor_pa(:)
+      
+      ! saturation vapor pressure at t_veg (Pa)
+      real(r8), allocatable :: esat_tv_pa(:)
+
+      ! vapor pressure of canopy air (Pa)
+      real(r8), allocatable :: eair_pa(:)
+
+      ! Atmospheric O2 partial pressure (Pa)
+      real(r8), allocatable :: oair_pa(:)
+
+      ! Atmospheric CO2 partial pressure (Pa)
+      real(r8), allocatable :: cair_pa(:)
+
+      ! boundary layer resistance (s/m)
+      real(r8), allocatable :: rb_pa(:)
+
+      ! vegetation temperature (Kelvin)
+      real(r8), allocatable :: t_veg_pa(:)
+             
+      ! air temperature at agcm reference height (kelvin)
+      real(r8), allocatable :: tgcm_pa(:)
+
+      ! soil temperature (Kelvin)
+      real(r8), allocatable :: t_soisno_gl(:)
+
 
 
    end type bc_in_type
@@ -171,7 +218,19 @@ contains
       allocate(bc_in%watsat_gl(ctrl_parms%numlevgrnd))
       allocate(bc_in%tempk_gl(ctrl_parms%numlevgrnd))
       allocate(bc_in%h2o_liqvol_gl(ctrl_parms%numlevgrnd))
-      
+
+      ! Photosynthesis
+      allocate(bc_in%filter_photo_pa(numPatchesPerCol))
+      allocate(bc_in%dayl_factor_pa(numPatchesPerCol))
+      allocate(bc_in%esat_tv_pa(numPatchesPerCol))
+      allocate(bc_in%eair_pa(numPatchesPerCol))
+      allocate(bc_in%oair_pa(numPatchesPerCol))
+      allocate(bc_in%cair_pa(numPatchesPerCol))
+      allocate(bc_in%rb_pa(numPatchesPerCol))
+      allocate(bc_in%t_veg_pa(numPatchesPerCol))
+      allocate(bc_in%tgcm_pa(numPatchesPerCol))
+      allocate(bc_in%t_soisno_gl(ctrl_parms%numlevgrnd))
+
       return
    end subroutine allocate_bcin
    

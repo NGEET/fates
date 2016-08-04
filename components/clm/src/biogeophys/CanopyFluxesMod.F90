@@ -22,7 +22,6 @@ module CanopyFluxesMod
   use pftconMod             , only : ntrp_soybean, nirrig_trp_soybean
   use decompMod             , only : bounds_type
   use PhotosynthesisMod     , only : Photosynthesis, PhotoSynthesisHydraulicStress, PhotosynthesisTotal, Fractionation
-  use EDPhotosynthesisMod   , only : Photosynthesis_ED
   use EDAccumulateFluxesMod , only : AccumulateFluxes_ED
   use EDBtranMod            , only : btran_ed
   use SoilMoistStressMod    , only : calc_effective_soilporosity, calc_volumetric_h2oliq
@@ -759,11 +758,9 @@ contains
 
             call t_startf('edpsn')
             ! FIX(FIX(SPM,032414),032414) Photo*_ED will need refactoring
-            call Photosynthesis_ED (bounds, fn, filterp, &
+            call clm_fates%wrap_photosynthesis(nc, bounds, fn, filterp(1:fn), &
                  svpts(begp:endp), eah(begp:endp), o2(begp:endp), &
                  co2(begp:endp), rb(begp:endp), dayl_factor(begp:endp), &
-                 clm_fates%fates(nc)%sites(:), clm_fates%fates(nc)%nsites, &
-                 clm_fates%f2hmap(nc)%hsites(bounds%begc:bounds%endc), &
                  atm2lnd_inst, temperature_inst, canopystate_inst, photosyns_inst)
 
             ! zero all of these things, not just the ones in the filter. 

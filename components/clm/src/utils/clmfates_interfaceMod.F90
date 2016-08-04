@@ -41,6 +41,7 @@ module CLMFatesInterfaceMod
    use TemperatureType   , only : temperature_type
    use EnergyFluxType    , only : energyflux_type
    use SoilStateType     , only : soilstate_type
+   use PhotosynthesisMod     , only : photosyns_type
    use clm_varctl        , only : iulog
    use clm_varcon        , only : tfrz
    use clm_varpar        , only : numpft,            &
@@ -88,6 +89,7 @@ module CLMFatesInterfaceMod
    use EDSurfaceRadiationMod , only : ED_SunShadeFracs
    use EDBtranMod            , only : btran_ed, &
                                       get_active_suction_layers
+   use EDPhotosynthesisMod   , only : Photosynthesis_ED
 
    implicit none
 
@@ -139,6 +141,7 @@ module CLMFatesInterfaceMod
       procedure, public :: dynamics_driv
       procedure, public :: wrap_sunfrac
       procedure, public :: wrap_btran
+      procedure, public :: wrap_photosynthesis
 
    end type hlm_fates_interface_type
 
@@ -844,8 +847,117 @@ contains
       return
    end subroutine wrap_btran
 
+   ! ====================================================================================
+   
+   subroutine wrap_photosynthesis(this, nc, bounds, fn, filterp, &
+         esat_tv, eair, oair, cair, rb, dayl_factor,             &
+         atm2lnd_inst, temperature_inst, canopystate_inst, photosyns_inst)
+      !
+    ! !DESCRIPTION:
+    ! Leaf photosynthesis and stomatal conductance calculation as described by
+    ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 and extended to
+    ! a multi-layer canopy
+    !
+    ! !USES:
+    use shr_log_mod       , only : errMsg => shr_log_errMsg
+    use abortutils        , only : endrun
+    use decompMod         , only : bounds_type
+    use clm_time_manager  , only : get_step_size
+    use clm_varcon        , only : rgas, tfrz, namep  
+    use clm_varpar        , only : nlevcan_ed, nclmax, nlevsoi, mxpft
+    use clm_varctl        , only : iulog
+    use pftconMod         , only : pftcon
+    use perf_mod          , only : t_startf, t_stopf
+    use PatchType         , only : patch
+    use quadraticMod      , only : quadratic
+    use EDParamsMod       , only : ED_val_grperc
+    use EDSharedParamsMod , only : EDParamsShareInst
+    use EDTypesMod        , only : numpft_ed, dinc_ed
+    use EDtypesMod        , only : ed_patch_type, ed_cohort_type, ed_site_type, numpft_ed, numPatchesPerCol
+    use EDEcophysContype  , only : EDecophyscon
+   
+    !
+    ! !ARGUMENTS:
+    class(hlm_fates_interface_type), intent(inout) :: this
+    integer                , intent(in)            :: nc                          ! clump index
+    type(bounds_type)      , intent(in)            :: bounds
+    integer                , intent(in)            :: fn                          ! size of pft filter
+    integer                , intent(in)            :: filterp(fn)                 ! pft filter
+    real(r8)               , intent(in)            :: esat_tv(bounds%begp: )      ! saturation vapor pressure at t_veg (Pa)
+    real(r8)               , intent(in)            :: eair( bounds%begp: )        ! vapor pressure of canopy air (Pa)
+    real(r8)               , intent(in)            :: oair( bounds%begp: )        ! Atmospheric O2 partial pressure (Pa)
+    real(r8)               , intent(in)            :: cair( bounds%begp: )        ! Atmospheric CO2 partial pressure (Pa)
+    real(r8)               , intent(in)            :: rb( bounds%begp: )          ! boundary layer resistance (s/m)
+    real(r8)               , intent(in)            :: dayl_factor( bounds%begp: ) ! scalar (0-1) for daylength
+    type(atm2lnd_type)     , intent(in)            :: atm2lnd_inst
+    type(temperature_type) , intent(in)            :: temperature_inst
+    type(canopystate_type) , intent(inout)         :: canopystate_inst
+    type(photosyns_type)   , intent(inout)         :: photosyns_inst
 
+    integer                                        :: s,c,p,ifp,j,ip
+    real(r8)                                       :: dtime
 
+    call t_startf('edpsn')
+    associate(&
+          t_soisno  => temperature_inst%t_soisno_col , &
+          t_veg     => temperature_inst%t_veg_patch  , &
+          tgcm      => temperature_inst%thm_patch    , &
+          forc_pbot => atm2lnd_inst%forc_pbot_downscaled_col )
+      
+      do s = 1, this%fates(nc)%nsites
+         
+         c = this%f2hmap(nc)%fcolumn(s)
+         
+         do j = 1,nlevsoi
+            this%fates(nc)%bc_in(s)%t_soisno_gl(j)   = t_soisno(c,j)  ! soil temperature (Kelvin)
+         end do
+         this%fates(nc)%bc_in(s)%forc_pbot           = forc_pbot(c)   ! atmospheric pressure (Pa)
+
+         do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
+            
+            p = ifp+col%patchi(c)
+
+            ! Check to see if this patch is in the filter
+            ! Note that this filter is most likely changing size, and getting smaller
+            ! and smaller as more patch have converged on solution
+            if( any(filterp==p) )then
+
+               ! This filter is flushed to 1 before the canopyflux stability iterator
+               ! It is set to status 2 if it is an active patch within the iterative loop
+               ! After photosynthesis is called, it is upgraded to 3 if it was called.
+               ! After all iterations we can evaluate which patches have a final flag
+               ! of 3 to check if we missed any.
+
+               this%fates(nc)%bc_in(s)%filter_photo_pa(ifp) = 2
+               this%fates(nc)%bc_in(s)%dayl_factor_pa(ifp) = dayl_factor(p) ! scalar (0-1) for daylength
+               this%fates(nc)%bc_in(s)%esat_tv_pa(ifp)     = esat_tv(p)     ! saturation vapor pressure at t_veg (Pa)
+               this%fates(nc)%bc_in(s)%eair_pa(ifp)        = eair(p)        ! vapor pressure of canopy air (Pa)
+               this%fates(nc)%bc_in(s)%oair_pa(ifp)        = oair(p)        ! Atmospheric O2 partial pressure (Pa)
+               this%fates(nc)%bc_in(s)%cair_pa(ifp)        = cair(p)        ! Atmospheric CO2 partial pressure (Pa)
+               this%fates(nc)%bc_in(s)%rb_pa(ifp)          = rb(p)          ! boundary layer resistance (s/m)
+               this%fates(nc)%bc_in(s)%t_veg_pa(ifp)       = t_veg(p)       ! vegetation temperature (Kelvin)     
+               this%fates(nc)%bc_in(s)%tgcm_pa(ifp)        = tgcm(p)        ! air temperature at agcm reference height (kelvin)
+            else
+               this%fates(nc)%bc_in(s)%filter_photo_pa(ifp) = 1
+            end if
+         end do
+      end do
+
+      dtime = get_step_size()
+      
+      ! Call photosynthesis
+      
+      call  Photosynthesis_ED (this%fates(nc)%sites,  &
+                               this%fates(nc)%nsites, &
+                               this%f2hmap(nc)%fcolumn,&
+                               this%fates(nc)%bc_in,  &
+                               this%fates(nc)%bc_out, &
+                               canopystate_inst,      &
+                               photosyns_inst)
+    end associate
+    call t_stopf('edpsn')
+    return
+ end subroutine wrap_photosynthesis
 
    ! ------------------------------------------------------------------------------------
    !  THESE WRAPPERS MAY COME IN HANDY, KEEPING FOR NOW
