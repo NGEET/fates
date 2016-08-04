@@ -6,11 +6,13 @@ module CNVegNitrogenStateType
   use shr_infnan_mod                     , only : isnan => shr_infnan_isnan, nan => shr_infnan_nan, assignment(=)
   use shr_log_mod                        , only : errMsg => shr_log_errMsg
   use clm_varpar                         , only : ndecomp_cascade_transitions, ndecomp_pools, nlevcan
-  use clm_varpar                         , only : nlevdecomp_full, nlevdecomp, crop_prog
+  use clm_varpar                         , only : nlevdecomp_full, nlevdecomp
   use clm_varcon                         , only : spval, ispval, dzsoi_decomp, zisoi
   use landunit_varcon                    , only : istcrop, istsoil 
   use clm_varctl                         , only : use_nitrif_denitrif, use_vertsoilc, use_century_decomp
   use clm_varctl                         , only : iulog, override_bgc_restart_mismatch_dump
+  use clm_varctl                         , only : use_crop
+  use CNSharedParamsMod                  , only : use_fun
   use decompMod                          , only : bounds_type
   use pftconMod                          , only : npcropmin, noveg, pftcon
   use SoilBiogeochemDecompCascadeConType , only : decomp_cascade_con
@@ -19,10 +21,16 @@ module CNVegNitrogenStateType
   use LandunitType                       , only : lun                
   use ColumnType                         , only : col                
   use PatchType                          , only : patch                
-  ! 
+  use dynPatchStateUpdaterMod, only : patch_state_updater_type
+  use CNSpeciesMod   , only : CN_SPECIES_N
+  use CNVegComputeSeedMod, only : ComputeSeedAmounts
+  !
   ! !PUBLIC TYPES:
   implicit none
+
   private
+
+
   !
   type, public :: cnveg_nitrogenstate_type
 
@@ -32,6 +40,8 @@ module CNVegNitrogenStateType
      real(r8), pointer :: leafn_patch              (:) ! (gN/m2) leaf N 
      real(r8), pointer :: leafn_storage_patch      (:) ! (gN/m2) leaf N storage
      real(r8), pointer :: leafn_xfer_patch         (:) ! (gN/m2) leaf N transfer
+     real(r8), pointer :: leafn_storage_xfer_acc_patch (:) ! (gN/m2) Accmulated leaf N transfer
+     real(r8), pointer :: storage_ndemand_patch        (:) ! (gN/m2) N demand during the offset period 
      real(r8), pointer :: frootn_patch             (:) ! (gN/m2) fine root N
      real(r8), pointer :: frootn_storage_patch     (:) ! (gN/m2) fine root N storage
      real(r8), pointer :: frootn_xfer_patch        (:) ! (gN/m2) fine root N transfer
@@ -53,9 +63,8 @@ module CNVegNitrogenStateType
 
      ! wood product pools, for dynamic landcover
      real(r8), pointer :: seedn_col                (:) ! (gN/m2) column-level pool for seeding new Patches
-     real(r8), pointer :: prod10n_col              (:) ! (gN/m2) wood product N pool, 10-year lifespan
-     real(r8), pointer :: prod100n_col             (:) ! (gN/m2) wood product N pool, 100-year lifespan
-     real(r8), pointer :: totprodn_col             (:) ! (gN/m2) total wood product N
+     real(r8), pointer :: dyn_nbal_adjustments_col(:) ! (gN/m2) adjustments to each column made in this timestep via dynamic column area adjustments (note: this variable only makes sense at the column-level: it is meaningless if averaged to the gridcell-level)
+     real(r8), pointer :: dyn_nbal_adjustments_veg_plus_soil_col(:) ! (gN/m2) sum of veg's dyn_nbal_adjustments_col and soil's dyn_nbal_adjustments_col
 
      ! summary (diagnostic) state variables, not involved in mass balance
      real(r8), pointer :: dispvegn_patch           (:) ! (gN/m2) displayed veg nitrogen, excluding storage
@@ -63,7 +72,8 @@ module CNVegNitrogenStateType
      real(r8), pointer :: totvegn_patch            (:) ! (gN/m2) total vegetation nitrogen
      real(r8), pointer :: totvegn_col              (:) ! (gN/m2) total vegetation nitrogen (p2c)
      real(r8), pointer :: totn_patch               (:) ! (gN/m2) total patch-level nitrogen
-     real(r8), pointer :: totn_col                 (:) ! (gN/m2) total column nitrogen, incl veg   
+     real(r8), pointer :: totn_p2c_col             (:) ! (gN/m2) totn_patch averaged to col
+     real(r8), pointer :: totn_col                 (:) ! (gN/m2) total column nitrogen, incl veg
      real(r8), pointer :: totecosysn_col           (:) ! (gN/m2) total ecosystem nitrogen, incl veg  
 
    contains
@@ -73,12 +83,18 @@ module CNVegNitrogenStateType
      procedure , public  :: SetValues
      procedure , public  :: ZeroDWT
      procedure , public  :: Summary => Summary_nitrogenstate
+     procedure , public  :: DynamicPatchAdjustments   ! adjust state variables when patch areas change
+     procedure , public  :: DynamicColumnAdjustments  ! adjust state variables when column areas change
      procedure , private :: InitAllocate 
      procedure , private :: InitHistory  
      procedure , private :: InitCold     
 
   end type cnveg_nitrogenstate_type
   !------------------------------------------------------------------------
+
+  ! !PRIVATE DATA:
+  character(len=*), parameter :: filename = &
+       __FILE__
 
 contains
 
@@ -122,6 +138,8 @@ contains
     allocate(this%leafn_patch              (begp:endp)) ; this%leafn_patch              (:) = nan
     allocate(this%leafn_storage_patch      (begp:endp)) ; this%leafn_storage_patch      (:) = nan     
     allocate(this%leafn_xfer_patch         (begp:endp)) ; this%leafn_xfer_patch         (:) = nan     
+    allocate(this%leafn_storage_xfer_acc_patch  (begp:endp)) ; this%leafn_storage_xfer_acc_patch         (:) = nan
+    allocate(this%storage_ndemand_patch    (begp:endp)) ; this%storage_ndemand_patch    (:) = nan
     allocate(this%frootn_patch             (begp:endp)) ; this%frootn_patch             (:) = nan
     allocate(this%frootn_storage_patch     (begp:endp)) ; this%frootn_storage_patch     (:) = nan     
     allocate(this%frootn_xfer_patch        (begp:endp)) ; this%frootn_xfer_patch        (:) = nan     
@@ -146,10 +164,10 @@ contains
     allocate(this%totn_patch               (begp:endp)) ; this%totn_patch               (:) = nan
 
     allocate(this%seedn_col                (begc:endc)) ; this%seedn_col                (:) = nan
-    allocate(this%prod10n_col              (begc:endc)) ; this%prod10n_col              (:) = nan
-    allocate(this%prod100n_col             (begc:endc)) ; this%prod100n_col             (:) = nan
-    allocate(this%totprodn_col             (begc:endc)) ; this%totprodn_col             (:) = nan
+    allocate(this%dyn_nbal_adjustments_col (begc:endc)) ; this%dyn_nbal_adjustments_col (:) = nan
+    allocate(this%dyn_nbal_adjustments_veg_plus_soil_col(begc:endc)); this%dyn_nbal_adjustments_veg_plus_soil_col(:) = nan
     allocate(this%totvegn_col              (begc:endc)) ; this%totvegn_col              (:) = nan
+    allocate(this%totn_p2c_col             (begc:endc)) ; this%totn_p2c_col             (:) = nan
     allocate(this%totn_col                 (begc:endc)) ; this%totn_col                 (:) = nan
     allocate(this%totecosysn_col           (begc:endc)) ; this%totecosysn_col           (:) = nan
 
@@ -184,7 +202,7 @@ contains
     ! patch state variables 
     !-------------------------------
     
-    if (crop_prog) then
+    if (use_crop) then
        this%grainn_patch(begp:endp) = spval
        call hist_addfld1d (fname='GRAINN', units='gN/m^2', &
             avgflag='A', long_name='grain N', &
@@ -205,6 +223,18 @@ contains
     call hist_addfld1d (fname='LEAFN_XFER', units='gN/m^2', &
          avgflag='A', long_name='leaf N transfer', &
          ptr_patch=this%leafn_xfer_patch)     
+
+    if ( use_fun ) then
+       this%leafn_storage_xfer_acc_patch(begp:endp) = spval
+       call hist_addfld1d (fname='LEAFN_STORAGE_XFER_ACC', units='gN/m^2', &
+            avgflag='A', long_name='Accmulated leaf N transfer', &
+            ptr_patch=this%leafn_storage_xfer_acc_patch, default='inactive')
+
+       this%storage_ndemand_patch(begp:endp)        = spval
+       call hist_addfld1d (fname='STORAGE_NDEMAND', units='gN/m^2', &
+            avgflag='A', long_name='N demand during the offset period', &
+            ptr_patch=this%storage_ndemand_patch, default='inactive')
+    end if
 
     this%frootn_patch(begp:endp) = spval
     call hist_addfld1d (fname='FROOTN', units='gN/m^2', &
@@ -325,30 +355,29 @@ contains
          avgflag='A', long_name='pool for seeding new patches', &
          ptr_col=this%seedn_col)
 
-    this%prod10n_col(begc:endc) = spval
-    call hist_addfld1d (fname='PROD10N', units='gN/m^2', &
-         avgflag='A', long_name='10-yr wood product N', &
-         ptr_col=this%prod10n_col)
-
-    this%prod100n_col(begc:endc) = spval
-    call hist_addfld1d (fname='PROD100N', units='gN/m^2', &
-         avgflag='A', long_name='100-yr wood product N', &
-         ptr_col=this%prod100n_col)
-
-    this%totprodn_col(begc:endc) = spval
-    call hist_addfld1d (fname='TOTPRODN', units='gN/m^2', &
-         avgflag='A', long_name='total wood product N', &
-         ptr_col=this%totprodn_col)
-
     this%totecosysn_col(begc:endc) = spval
     call hist_addfld1d (fname='TOTECOSYSN', units='gN/m^2', &
-         avgflag='A', long_name='total ecosystem N', &
+         avgflag='A', long_name='total ecosystem N, excluding product pools', &
          ptr_col=this%totecosysn_col)
 
     this%totn_col(begc:endc) = spval
     call hist_addfld1d (fname='TOTCOLN', units='gN/m^2', &
-         avgflag='A', long_name='total column-level N', &
+         avgflag='A', long_name='total column-level N, excluding product pools', &
          ptr_col=this%totn_col)
+
+    this%dyn_nbal_adjustments_col(begc:endc) = spval
+    call hist_addfld1d (fname='DYN_COL_VEG_ADJUSTMENTS_N', units='gN/m^2', &
+         avgflag='SUM', &
+         long_name='Adjustments in vegetation nitrogen due to dynamic column areas; &
+         &only makes sense at the column level: should not be averaged to gridcell', &
+         ptr_col=this%dyn_nbal_adjustments_col, default='inactive')
+
+    this%dyn_nbal_adjustments_veg_plus_soil_col(begc:endc) = spval
+    call hist_addfld1d (fname='DYN_COL_VEG_PLUS_SOIL_ADJUSTMENTS_N', units='gN/m^2', &
+         avgflag='SUM', &
+         long_name='Adjustments in vegetation + soil nitrogen due to dynamic column areas; &
+         &only makes sense at the column level: should not be averaged to gridcell', &
+         ptr_col=this%dyn_nbal_adjustments_veg_plus_soil_col, default='inactive')
 
   end subroutine InitHistory
 
@@ -377,11 +406,11 @@ contains
     integer :: special_patch (bounds%endp-bounds%begp+1) ! special landunit filter - patches
     !------------------------------------------------------------------------
 
-    SHR_ASSERT_ALL((ubound(leafc_patch)          == (/bounds%endp/)),                               errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(leafc_storage_patch)  == (/bounds%endp/)),                               errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(frootc_patch)         == (/bounds%endp/)),                               errMsg(__FILE__, __LINE__))   
-    SHR_ASSERT_ALL((ubound(frootc_storage_patch) == (/bounds%endp/)),                               errMsg(__FILE__, __LINE__))   
-    SHR_ASSERT_ALL((ubound(deadstemc_patch)      == (/bounds%endp/)),                               errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(leafc_patch)          == (/bounds%endp/)), errMsg(filename, __LINE__))
+    SHR_ASSERT_ALL((ubound(leafc_storage_patch)  == (/bounds%endp/)), errMsg(filename, __LINE__))
+    SHR_ASSERT_ALL((ubound(frootc_patch)         == (/bounds%endp/)), errMsg(filename, __LINE__))   
+    SHR_ASSERT_ALL((ubound(frootc_storage_patch) == (/bounds%endp/)), errMsg(filename, __LINE__))   
+    SHR_ASSERT_ALL((ubound(deadstemc_patch)      == (/bounds%endp/)), errMsg(filename, __LINE__))
 
     ! Set column filters
 
@@ -431,7 +460,11 @@ contains
           end if
 
           this%leafn_xfer_patch(p)        = 0._r8
-          if ( crop_prog )then
+
+          this%leafn_storage_xfer_acc_patch(p)        = 0._r8
+          this%storage_ndemand_patch(p)   = 0._r8
+
+          if ( use_crop )then
              this%grainn_patch(p)         = 0._r8
              this%grainn_storage_patch(p) = 0._r8
              this%grainn_xfer_patch(p)    = 0._r8
@@ -482,12 +515,10 @@ contains
 
           ! dynamic landcover state variables
           this%seedn_col(c)      = 0._r8
-          this%prod10n_col(c)    = 0._r8
-          this%prod100n_col(c)   = 0._r8
-          this%totprodn_col(c)   = 0._r8
 
           ! total nitrogen pools
           this%totecosysn_col(c) = 0._r8
+          this%totn_p2c_col(c)   = 0._r8
           this%totn_col(c)       = 0._r8
        end if
     end do
@@ -498,9 +529,6 @@ contains
     do fc = 1,num_special_col
        c = special_col(fc)
        this%seedn_col(c)    = 0._r8
-       this%prod10n_col(c)  = 0._r8	  
-       this%prod100n_col(c) = 0._r8	  
-       this%totprodn_col(c) = 0._r8	  
     end do
 
     ! initialize fields for special filters
@@ -520,6 +548,9 @@ contains
     ! !USES:
     use restUtilMod
     use ncdio_pio
+    use clm_varctl             , only : spinup_state, use_cndv
+    use clm_time_manager       , only : get_nstep
+
     !
     ! !ARGUMENTS:
     class (cnveg_nitrogenstate_type) :: this
@@ -532,6 +563,13 @@ contains
     logical            :: readvar
     real(r8), pointer  :: ptr1d(:)   ! temp. pointers for slicing larger arrays
     character(len=128) :: varname    ! temporary
+    logical            :: exit_spinup  = .false.
+    logical            :: enter_spinup = .false.
+    integer            :: idata
+
+    ! spinup state as read from restart file, for determining whether to enter or exit spinup mode.
+    integer            :: restart_file_spinup_state
+
     !------------------------------------------------------------------------
 
     !--------------------------------
@@ -549,6 +587,17 @@ contains
     call restartvar(ncid=ncid, flag=flag, varname='leafn_xfer', xtype=ncd_double,  &
          dim1name='pft', long_name='', units='', &
          interpinic_flag='interp', readvar=readvar, data=this%leafn_xfer_patch) 
+
+     if ( use_fun ) then
+        call restartvar(ncid=ncid, flag=flag, varname='leafn_storage_xfer_acc', xtype=ncd_double,  &
+             dim1name='pft', long_name='', units='', &
+            interpinic_flag='interp', readvar=readvar, data=this%leafn_storage_xfer_acc_patch)
+    
+        call restartvar(ncid=ncid, flag=flag, varname='storage_ndemand', xtype=ncd_double,  &
+             dim1name='pft', long_name='', units='', &
+             interpinic_flag='interp', readvar=readvar, data=this%storage_ndemand_patch)
+     end if
+
 
     call restartvar(ncid=ncid, flag=flag, varname='frootn', xtype=ncd_double,  &
          dim1name='pft', long_name='', units='', &
@@ -622,7 +671,7 @@ contains
          dim1name='pft', long_name='', units='', &
          interpinic_flag='interp', readvar=readvar, data=this%ntrunc_patch) 
 
-    if (crop_prog) then
+    if (use_crop) then
        call restartvar(ncid=ncid, flag=flag,  varname='grainn', xtype=ncd_double,  &
             dim1name='pft',    long_name='grain N', units='gN/m2', &
             interpinic_flag='interp', readvar=readvar, data=this%grainn_patch)
@@ -644,17 +693,48 @@ contains
          dim1name='column', long_name='', units='', &
          interpinic_flag='interp', readvar=readvar, data=this%seedn_col) 
 
-    call restartvar(ncid=ncid, flag=flag, varname='prod10n', xtype=ncd_double,  &
-         dim1name='column', long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=this%prod10n_col) 
-
-    call restartvar(ncid=ncid, flag=flag, varname='prod100n', xtype=ncd_double,  &
-         dim1name='column', long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=this%prod100n_col) 
-
     call restartvar(ncid=ncid, flag=flag, varname='totcoln', xtype=ncd_double,  &
          dim1name='column', long_name='', units='', &
          interpinic_flag='interp', readvar=readvar, data=this%totn_col) 
+
+    if (flag == 'read') then
+       call restartvar(ncid=ncid, flag=flag, varname='spinup_state', xtype=ncd_int, &
+         long_name='Spinup state of the model that wrote this restart file: ' &
+         // ' 0 = normal model mode, 1 = AD spinup', units='', &
+         interpinic_flag='copy', readvar=readvar,  data=idata)
+
+       if (readvar) then
+          restart_file_spinup_state = idata
+       else
+          restart_file_spinup_state = spinup_state
+          if ( masterproc ) then
+             write(iulog,*) ' CNRest: WARNING!  Restart file does not contain info ' &
+                   // ' on spinup state used to generate the restart file. '
+             write(iulog,*) '   Assuming the same as current setting: ', spinup_state
+          end if
+       end if
+    end if
+
+    if (flag == 'read' .and. spinup_state /= restart_file_spinup_state .and. .not. use_cndv) then
+       if (spinup_state <= 1 .and. restart_file_spinup_state == 2 ) then
+          if ( masterproc ) write(iulog,*) ' CNRest: taking Dead wood N pools out of AD spinup mode'
+          exit_spinup = .true.
+          if ( masterproc ) write(iulog, *) 'Multiplying stemn and crootn by 10 for exit spinup '
+          do i = bounds%begp,bounds%endp
+             this%deadstemn_patch(i) = this%deadstemn_patch(i) * 10._r8
+             this%deadcrootn_patch(i) = this%deadcrootn_patch(i) * 10._r8
+          end do
+       else if (spinup_state == 2 .and. restart_file_spinup_state <= 1 ) then
+          if ( masterproc ) write(iulog,*) ' CNRest: taking Dead wood N pools into AD spinup mode'
+          enter_spinup = .true.
+          if ( masterproc ) write(iulog, *) 'Dividing stemn and crootn by 10 for enter spinup '
+          do i = bounds%begp,bounds%endp
+             this%deadstemn_patch(i) = this%deadstemn_patch(i) / 10._r8
+             this%deadcrootn_patch(i) = this%deadcrootn_patch(i) / 10._r8
+          end do
+       endif
+
+    end if
 
   end subroutine Restart
 
@@ -686,6 +766,7 @@ contains
        this%leafn_patch(i)              = value_patch
        this%leafn_storage_patch(i)      = value_patch
        this%leafn_xfer_patch(i)         = value_patch
+       this%leafn_storage_xfer_acc_patch(i) = value_patch
        this%frootn_patch(i)             = value_patch
        this%frootn_storage_patch(i)     = value_patch
        this%frootn_xfer_patch(i)        = value_patch
@@ -710,7 +791,7 @@ contains
        this%totn_patch(i)               = value_patch
     end do
 
-    if ( crop_prog )then
+    if ( use_crop )then
        do fi = 1,num_patch
           i = filter_patch(fi)
           this%grainn_patch(i)          = value_patch
@@ -723,6 +804,8 @@ contains
        i = filter_column(fi)
 
        this%totecosysn_col(i) = value_column
+       this%totvegn_col(i)    = value_column
+       this%totn_p2c_col(i)   = value_column
        this%totn_col(i)       = value_column
     end do
 
@@ -752,7 +835,8 @@ contains
   end subroutine ZeroDwt
 
   !-----------------------------------------------------------------------
-  subroutine Summary_nitrogenstate(this, bounds, num_soilc, filter_soilc, num_soilp, filter_soilp,&
+  subroutine Summary_nitrogenstate(this, bounds, num_allc, filter_allc, &
+       num_soilc, filter_soilc, num_soilp, filter_soilp,&
        soilbiogeochem_nitrogenstate_inst)
     !
     ! !USES:
@@ -762,6 +846,8 @@ contains
     ! !ARGUMENTS:
     class(cnveg_nitrogenstate_type)                      :: this
     type(bounds_type)                       , intent(in) :: bounds  
+    integer                                 , intent(in) :: num_allc        ! number of columns in allc filter
+    integer                                 , intent(in) :: filter_allc(:)  ! filter for all active columns
     integer                                 , intent(in) :: num_soilc       ! number of soil columns in filter
     integer                                 , intent(in) :: filter_soilc(:) ! filter for soil columns
     integer                                 , intent(in) :: num_soilp       ! number of soil patches in filter
@@ -769,7 +855,7 @@ contains
     type(soilbiogeochem_nitrogenstate_type) , intent(in) :: soilbiogeochem_nitrogenstate_inst
     !
     ! !LOCAL VARIABLES:
-    integer  :: c,p,j,k,l   ! indices
+    integer  :: c,p,j,k,l ! indices
     integer  :: fp,fc       ! lake filter indices
     real(r8) :: maxdepth    ! depth to integrate soil variables
     !-----------------------------------------------------------------------
@@ -780,7 +866,8 @@ contains
     
     do fp = 1,num_soilp
        p = filter_soilp(fp)
-
+         
+	      
        ! displayed vegetation nitrogen, excluding storage (DISPVEGN)
        this%dispvegn_patch(p) = &
             this%leafn_patch(p)      + &
@@ -807,7 +894,7 @@ contains
             this%npool_patch(p)              + &
             this%retransn_patch(p)
 
-       if ( crop_prog .and. patch%itype(p) >= npcropmin )then
+       if ( use_crop .and. patch%itype(p) >= npcropmin )then
           this%dispvegn_patch(p) = &
                this%dispvegn_patch(p) + &
                this%grainn_patch(p)
@@ -827,7 +914,7 @@ contains
        this%totn_patch(p) = &
             this%totvegn_patch(p) + &
             this%ntrunc_patch(p)
-
+            
     end do
 
     ! --------------------------------------------
@@ -840,14 +927,10 @@ contains
 
     call p2c(bounds, num_soilc, filter_soilc, &
          this%totn_patch(bounds%begp:bounds%endp), &
-         this%totn_col(bounds%begc:bounds%endc))
+         this%totn_p2c_col(bounds%begc:bounds%endc))
 
-    ! total wood product nitrogen
-    do fc = 1,num_soilc
-       c = filter_soilc(fc)
-       this%totprodn_col(c) = &
-            this%prod10n_col(c) + &
-            this%prod100n_col(c)	 
+    do fc = 1,num_allc
+       c = filter_allc(fc)
 
        ! total ecosystem nitrogen, including veg (TOTECOSYSN)
        this%totecosysn_col(c) =    &
@@ -855,21 +938,265 @@ contains
             soilbiogeochem_nitrogenstate_inst%totlitn_col(c) + &
             soilbiogeochem_nitrogenstate_inst%totsomn_col(c) + &
             soilbiogeochem_nitrogenstate_inst%sminn_col(c)   + &
-            this%totprodn_col(c)                             + &
             this%totvegn_col(c)                              
 
        ! total column nitrogen, including patch (TOTCOLN)
 
-       this%totn_col(c) = this%totn_col(c)                   + &
+       this%totn_col(c) = this%totn_p2c_col(c)               + &
             soilbiogeochem_nitrogenstate_inst%cwdn_col(c)    + &
             soilbiogeochem_nitrogenstate_inst%totlitn_col(c) + &
             soilbiogeochem_nitrogenstate_inst%totsomn_col(c) + &
             soilbiogeochem_nitrogenstate_inst%sminn_col(c)   + &
-            this%totprodn_col(c)                             + &
             this%seedn_col(c)                                + &
             soilbiogeochem_nitrogenstate_inst%ntrunc_col(c)
+
+       this%dyn_nbal_adjustments_veg_plus_soil_col(c) = &
+            this%dyn_nbal_adjustments_col(c) + &
+            soilbiogeochem_nitrogenstate_inst%dyn_nbal_adjustments_col(c)
     end do
+    
+    
+    
 
   end subroutine Summary_nitrogenstate
+
+  !-----------------------------------------------------------------------
+  subroutine DynamicPatchAdjustments(this, bounds, &
+       num_soilp_with_inactive, filter_soilp_with_inactive, &
+       patch_state_updater, &
+       leafc_seed, deadstemc_seed, &
+       conv_nflux, product_nflux, &
+       dwt_frootn_to_litter, &
+       dwt_livecrootn_to_litter, &
+       dwt_deadcrootn_to_litter, &
+       dwt_leafn_seed, &
+       dwt_deadstemn_seed)
+    !
+    ! !DESCRIPTION:
+    ! Adjust state variables and compute associated fluxes when patch areas change due to
+    ! dynamic landuse
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS:
+    class(cnveg_nitrogenstate_type) , intent(inout) :: this
+    type(bounds_type)               , intent(in)    :: bounds
+    integer                         , intent(in)    :: num_soilp_with_inactive ! number of points in filter
+    integer                         , intent(in)    :: filter_soilp_with_inactive(:) ! soil patch filter that includes inactive points
+    type(patch_state_updater_type)  , intent(in)    :: patch_state_updater
+    real(r8)                        , intent(in)    :: leafc_seed  ! seed amount for leaf C
+    real(r8)                        , intent(in)    :: deadstemc_seed ! seed amount for deadstem C
+    real(r8)                        , intent(inout) :: conv_nflux( bounds%begp: )  ! patch-level conversion N flux to atm
+    real(r8)                        , intent(inout) :: product_nflux( bounds%begp: ) ! patch-level product N flux
+    real(r8)                        , intent(inout) :: dwt_frootn_to_litter( bounds%begp: ) ! patch-level fine root N to litter
+    real(r8)                        , intent(inout) :: dwt_livecrootn_to_litter( bounds%begp: ) ! patch-level live coarse root N to litter
+    real(r8)                        , intent(inout) :: dwt_deadcrootn_to_litter( bounds%begp: ) ! patch-level live coarse root N to litter
+    real(r8)                        , intent(inout) :: dwt_leafn_seed( bounds%begp: ) ! patch-level mass gain due to seeding of new area: leaf N
+    real(r8)                        , intent(inout) :: dwt_deadstemn_seed( bounds%begp: ) ! patch-level mass gain due to seeding of new area: deadstem N
+    !
+    ! !LOCAL VARIABLES:
+    integer :: begp, endp
+
+    logical  :: old_weight_was_zero(bounds%begp:bounds%endp)
+    logical  :: patch_grew(bounds%begp:bounds%endp)
+
+    ! The following are only set for growing patches:
+    real(r8) :: seed_leafn_patch(bounds%begp:bounds%endp)
+    real(r8) :: seed_leafn_storage_patch(bounds%begp:bounds%endp)
+    real(r8) :: seed_leafn_xfer_patch(bounds%begp:bounds%endp)
+    real(r8) :: seed_deadstemn_patch(bounds%begp:bounds%endp)
+
+    character(len=*), parameter :: subname = 'DynamicPatchAdjustments'
+    !-----------------------------------------------------------------------
+
+    begp = bounds%begp
+    endp = bounds%endp
+
+    SHR_ASSERT_ALL((ubound(conv_nflux) == (/endp/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(product_nflux) == (/endp/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(dwt_frootn_to_litter) == (/endp/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(dwt_livecrootn_to_litter) == (/endp/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(dwt_deadcrootn_to_litter) == (/endp/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(dwt_leafn_seed) == (/endp/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(dwt_deadstemn_seed) == (/endp/)), errMsg(__FILE__, __LINE__))
+
+    old_weight_was_zero = patch_state_updater%old_weight_was_zero(bounds)
+    patch_grew = patch_state_updater%patch_grew(bounds)
+
+    call ComputeSeedAmounts(bounds, &
+         num_soilp_with_inactive, filter_soilp_with_inactive, &
+         species = CN_SPECIES_N, &
+         leafc_seed = leafc_seed, &
+         deadstemc_seed = deadstemc_seed, &
+         leaf_patch = this%leafn_patch(begp:endp), &
+         leaf_storage_patch = this%leafn_storage_patch(begp:endp), &
+         leaf_xfer_patch = this%leafn_xfer_patch(begp:endp), &
+
+         ! Calculations only needed for patches that grew:
+         compute_here_patch = patch_grew(begp:endp), &
+
+         ! For patches that previously had zero area, ignore the current state for the
+         ! sake of computing leaf proportions:
+         ignore_current_state_patch = old_weight_was_zero(begp:endp), &
+
+         seed_leaf_patch = seed_leafn_patch(begp:endp), &
+         seed_leaf_storage_patch = seed_leafn_storage_patch(begp:endp), &
+         seed_leaf_xfer_patch = seed_leafn_xfer_patch(begp:endp), &
+         seed_deadstem_patch = seed_deadstemn_patch(begp:endp))
+
+    call update_patch_state( &
+         var = this%leafn_patch(begp:endp), &
+         flux_out = conv_nflux(begp:endp), &
+         seed = seed_leafn_patch(begp:endp), &
+         seed_addition = dwt_leafn_seed(begp:endp))
+
+    call update_patch_state( &
+         var = this%leafn_storage_patch(begp:endp), &
+         flux_out = conv_nflux(begp:endp), &
+         seed = seed_leafn_storage_patch(begp:endp), &
+         seed_addition = dwt_leafn_seed(begp:endp))
+
+    call update_patch_state( &
+         var = this%leafn_xfer_patch(begp:endp), &
+         flux_out = conv_nflux(begp:endp), &
+         seed = seed_leafn_xfer_patch(begp:endp), &
+         seed_addition = dwt_leafn_seed(begp:endp))
+
+    call update_patch_state( &
+         var = this%frootn_patch(begp:endp), &
+         flux_out = dwt_frootn_to_litter(begp:endp))
+
+    call update_patch_state( &
+         var = this%frootn_storage_patch(begp:endp), &
+         flux_out = conv_nflux(begp:endp))
+
+    call update_patch_state( &
+         var = this%frootn_xfer_patch(begp:endp), &
+         flux_out = conv_nflux(begp:endp))
+
+    call update_patch_state( &
+         var = this%livestemn_patch(begp:endp), &
+         flux_out = conv_nflux(begp:endp))
+
+    call update_patch_state( &
+         var = this%livestemn_storage_patch(begp:endp), &
+         flux_out = conv_nflux(begp:endp))
+
+    call update_patch_state( &
+         var = this%livestemn_xfer_patch(begp:endp), &
+         flux_out = conv_nflux(begp:endp))
+
+    call patch_state_updater%update_patch_state_partition_flux_by_type(bounds, &
+         num_soilp_with_inactive, filter_soilp_with_inactive, &
+         flux1_fraction_by_pft_type = pftcon%pconv, &
+         var = this%deadstemn_patch(begp:endp), &
+         flux1_out = conv_nflux(begp:endp), &
+         flux2_out = product_nflux(begp:endp), &
+         seed = seed_deadstemn_patch(begp:endp), &
+         seed_addition = dwt_deadstemn_seed(begp:endp))
+
+    call update_patch_state( &
+         var = this%deadstemn_storage_patch(begp:endp), &
+         flux_out = conv_nflux(begp:endp))
+
+    call update_patch_state( &
+         var = this%deadstemn_xfer_patch(begp:endp), &
+         flux_out = conv_nflux(begp:endp))
+
+    call update_patch_state( &
+         var = this%livecrootn_patch(begp:endp), &
+         flux_out = dwt_livecrootn_to_litter(begp:endp))
+
+    call update_patch_state( &
+         var = this%livecrootn_storage_patch(begp:endp), &
+         flux_out = conv_nflux(begp:endp))
+
+    call update_patch_state( &
+         var = this%livecrootn_xfer_patch(begp:endp), &
+         flux_out = conv_nflux(begp:endp))
+
+    call update_patch_state( &
+         var = this%deadcrootn_patch(begp:endp), &
+         flux_out = dwt_deadcrootn_to_litter(begp:endp))
+
+    call update_patch_state( &
+         var = this%deadcrootn_storage_patch(begp:endp), &
+         flux_out = conv_nflux(begp:endp))
+
+    call update_patch_state( &
+         var = this%deadcrootn_xfer_patch(begp:endp), &
+         flux_out = conv_nflux(begp:endp))
+
+    call update_patch_state( &
+         var = this%retransn_patch(begp:endp), &
+         flux_out = conv_nflux(begp:endp))
+
+    call update_patch_state( &
+         var = this%npool_patch(begp:endp), &
+         flux_out = conv_nflux(begp:endp))
+
+    call update_patch_state( &
+         var = this%ntrunc_patch(begp:endp), &
+         flux_out = conv_nflux(begp:endp))
+
+    ! The following are summary diagnostic variables, not involved in mass balance.
+    ! Hence, they do not have associated fluxes for area decreases.
+
+    call update_patch_state( &
+         var = this%dispvegn_patch(begp:endp))
+
+    call update_patch_state( &
+         var = this%storvegn_patch(begp:endp))
+
+    call update_patch_state( &
+         var = this%totvegn_patch(begp:endp))
+
+    call update_patch_state( &
+         var = this%totn_patch(begp:endp))
+
+  contains
+    subroutine update_patch_state(var, flux_out, seed, seed_addition)
+      ! Wraps call to update_patch_state, in order to remove duplication
+      real(r8), intent(inout) :: var( bounds%begp: )
+      real(r8), intent(inout), optional :: flux_out( bounds%begp: )
+      real(r8), intent(in), optional :: seed( bounds%begp: )
+      real(r8), intent(inout), optional :: seed_addition( bounds%begp: )
+      
+      call patch_state_updater%update_patch_state(bounds, &
+         num_soilp_with_inactive, filter_soilp_with_inactive, &
+         var = var, &
+         flux_out = flux_out, &
+         seed = seed, &
+         seed_addition = seed_addition)
+    end subroutine update_patch_state
+
+
+  end subroutine DynamicPatchAdjustments
+
+  !-----------------------------------------------------------------------
+  subroutine DynamicColumnAdjustments(this, bounds, column_state_updater)
+    !
+    ! !DESCRIPTION:
+    ! Adjust state variables when column areas change due to dynamic landuse
+    !
+    ! !USES:
+    use dynColumnStateUpdaterMod, only : column_state_updater_type
+    !
+    ! !ARGUMENTS:
+    class(cnveg_nitrogenstate_type) , intent(inout) :: this
+    type(bounds_type)               , intent(in)    :: bounds
+    type(column_state_updater_type) , intent(in)    :: column_state_updater
+    !
+    ! !LOCAL VARIABLES:
+
+    character(len=*), parameter :: subname = 'DynamicColumnAdjustments'
+    !-----------------------------------------------------------------------
+
+    call column_state_updater%update_column_state_no_special_handling( &
+         bounds = bounds, &
+         var    = this%seedn_col(bounds%begc:bounds%endc), &
+         adjustment = this%dyn_nbal_adjustments_col(bounds%begc:bounds%endc))
+
+  end subroutine DynamicColumnAdjustments
 
 end module CNVegNitrogenStateType

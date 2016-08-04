@@ -9,12 +9,12 @@ module surfrdMod
   use shr_kind_mod    , only : r8 => shr_kind_r8
   use shr_log_mod     , only : errMsg => shr_log_errMsg
   use abortutils      , only : endrun
-  use clm_varpar      , only : nlevsoifl, numpft, numcft
+  use clm_varpar      , only : nlevsoifl, numpft
   use landunit_varcon , only : numurbl
   use clm_varcon      , only : grlnd
   use clm_varctl      , only : iulog, scmlat, scmlon, single_column
-  use clm_varctl      , only : create_glacier_mec_landunit, use_cndv
-  use surfrdUtilsMod  , only : check_sums_equal_1
+  use clm_varctl      , only : create_glacier_mec_landunit, use_cndv, use_crop
+  use surfrdUtilsMod  , only : check_sums_equal_1, collapse_crop_types
   use ncdio_pio       , only : file_desc_t, var_desc_t, ncd_pio_openfile, ncd_pio_closefile
   use ncdio_pio       , only : ncd_io, check_var, ncd_inqfdims, check_dim, ncd_inqdid
   use pio
@@ -27,7 +27,6 @@ module surfrdMod
   ! !PUBLIC MEMBER FUNCTIONS:
   public :: surfrd_get_globmask  ! Reads global land mask (needed for setting domain decomp)
   public :: surfrd_get_grid      ! Read grid/ladnfrac data into domain (after domain decomp)
-  public :: surfrd_get_topo      ! Read grid topography into domain (after domain decomp)
   public :: surfrd_get_data      ! Read surface dataset and determine subgrid weights
   !
   ! !PRIVATE MEMBER FUNCTIONS:
@@ -148,7 +147,6 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(file_desc_t) :: ncid               ! netcdf id
-    type(file_desc_t) :: ncidg              ! netCDF id for glcmask
     type(var_desc_t)  :: vardesc            ! variable descriptor
     integer :: beg                          ! local beg index
     integer :: end                          ! local end index
@@ -274,116 +272,7 @@ contains
 
     call ncd_pio_closefile(ncid)
 
-    if (present(glcfilename)) then
-       if (masterproc) then
-          if (glcfilename == ' ') then
-             write(iulog,*) trim(subname),' ERROR: glc filename must be specified '
-             call endrun(msg=errMsg(__FILE__, __LINE__))
-          endif
-       end if
-       call getfil( glcfilename, locfn, 0 )
-       call ncd_pio_openfile (ncidg, trim(locfn), 0)
-
-       ldomain%glcmask(:) = 0
-       call ncd_io(ncid=ncidg, varname='GLCMASK', flag='read', data=ldomain%glcmask, &
-            dim1name=grlnd, readvar=readvar)
-       if (.not. readvar) call endrun( msg=' ERROR: GLCMASK NOT in file'//errMsg(__FILE__, __LINE__))
-
-       ! Make sure the glc mask is a subset of the land mask
-       do n = begg,endg
-          if (ldomain%glcmask(n)==1 .and. ldomain%mask(n)==0) then
-             write(iulog,*)trim(subname),&
-                  'initialize1: landmask/glcmask mismatch'
-             write(iulog,*)trim(subname),&
-                  'glc requires input where landmask = 0, gridcell index', n
-             call endrun(msg=errMsg(__FILE__, __LINE__))
-          endif
-       enddo
-       call ncd_pio_closefile(ncidg)
-    endif   ! present(glcfilename)
-
   end subroutine surfrd_get_grid
-
-  !-----------------------------------------------------------------------
-  subroutine surfrd_get_topo(domain,filename)
-    !
-    ! !DESCRIPTION:
-    ! Read the topo dataset grid related information:
-    ! Assume domain has already been initialized and read
-    !
-    ! !USES:
-    use domainMod , only : domain_type
-    use fileutils , only : getfil
-    !
-    ! !ARGUMENTS:
-    type(domain_type),intent(inout) :: domain   ! domain to init
-    character(len=*) ,intent(in)    :: filename ! grid filename
-    !
-    ! !LOCAL VARIABLES:
-    type(file_desc_t) :: ncid      ! netcdf file id
-    integer :: n                   ! indices
-    integer :: ni,nj,ns            ! size of grid on file
-    integer :: dimid,varid         ! netCDF id's
-    integer :: ier                 ! error status
-    real(r8):: eps = 1.0e-12_r8             ! lat/lon error tolerance
-    integer :: beg,end                      ! local beg,end indices
-    logical             :: isgrid2d         ! true => file is 2d lat/lon
-    real(r8),pointer    :: lonc(:),latc(:)  ! local lat/lon
-    character(len=256)  :: locfn            ! local file name
-    logical :: readvar                      ! is variable on file
-    character(len=32) :: subname = 'surfrd_get_topo'     ! subroutine name
-!-----------------------------------------------------------------------
-
-    if (masterproc) then
-       if (filename == ' ') then
-          write(iulog,*) trim(subname),' ERROR: filename must be specified '
-          call endrun(msg=errMsg(__FILE__, __LINE__))
-       else
-          write(iulog,*) 'Attempting to read lnd topo from flndtopo ',trim(filename)
-       endif
-    end if
-
-    call getfil( filename, locfn, 0 )
-    call ncd_pio_openfile (ncid, trim(locfn), 0)
-    call ncd_inqfdims(ncid, isgrid2d, ni, nj, ns)
-
-    if (domain%ns /= ns) then
-       write(iulog,*) trim(subname),' ERROR: topo file mismatch ns',&
-            domain%ns,ns
-       call endrun(msg=errMsg(__FILE__, __LINE__))
-    endif
-    
-    beg = domain%nbeg
-    end = domain%nend
-
-    allocate(latc(beg:end),lonc(beg:end))
-
-    call ncd_io(ncid=ncid, varname='LONGXY', flag='read', data=lonc, &
-         dim1name=grlnd, readvar=readvar)
-    if (.not. readvar) call endrun( msg=' ERROR: LONGXY  NOT on topodata file'//errMsg(__FILE__, __LINE__))
-
-    call ncd_io(ncid=ncid, varname='LATIXY', flag='read', data=latc, &
-         dim1name=grlnd, readvar=readvar)
-    if (.not. readvar) call endrun( msg=' ERROR: LONGXY  NOT on topodata file'//errMsg(__FILE__, __LINE__))
-
-    do n = beg,end
-       if (abs(latc(n)-domain%latc(n)) > eps .or. &
-           abs(lonc(n)-domain%lonc(n)) > eps) then
-          write(iulog,*) trim(subname),' ERROR: topo file mismatch lat,lon',latc(n),&
-               domain%latc(n),lonc(n),domain%lonc(n),eps
-          call endrun(msg=errMsg(__FILE__, __LINE__))
-       endif
-    enddo
-
-    call ncd_io(ncid=ncid, varname='TOPO', flag='read', data=domain%topo, &
-         dim1name=grlnd, readvar=readvar)
-    if (.not. readvar) call endrun( msg=' ERROR: LONGXY  NOT on topodata file'//errMsg(__FILE__, __LINE__))
-
-    deallocate(latc,lonc)
-
-    call ncd_pio_closefile(ncid)
-
-  end subroutine surfrd_get_topo
 
   !-----------------------------------------------------------------------
   subroutine surfrd_get_data (begg, endg, ldomain, lfsurdat)
@@ -715,12 +604,9 @@ contains
     ! Determine weight arrays for non-dynamic landuse mode
     !
     ! !USES:
-    use clm_varctl      , only : irrigate
-    use clm_varpar      , only : natpft_lb, natpft_ub, natpft_size, cft_lb, cft_ub, cft_size
-    use clm_varpar      , only : crop_prog
+    use clm_varpar      , only : natpft_lb, natpft_ub, natpft_size, cft_size
     use clm_instur      , only : wt_lunit, wt_nat_patch, wt_cft
     use landunit_varcon , only : istsoil, istcrop
-    use pftconMod       , only : nc3crop, nc3irrig, npcropmax, pftcon
     !
     ! !ARGUMENTS:
     integer, intent(in) :: begg, endg
@@ -796,61 +682,8 @@ contains
     end if
 
 
-    ! If no irrigation, merge irrigated CFTs with rainfed
-    
-    if (crop_prog .and. .not. irrigate) then
-       if (masterproc) then
-          write(iulog,*) trim(subname)//' crop=.T. and irrigate=.F., so merging irrigated pfts with rainfed'
-       end if
-
-       if (cft_size <= 0) then
-          call endrun( msg='ERROR: Trying to merge irrigated CFTs with rainfed, but cft_size <= 0'//&
-               errMsg(__FILE__, __LINE__))
-       end if
-
-       do nl = begg,endg
-          ! Left Hand Side: merged rainfed+irrigated crop pfts from nc3crop to
-          !                 npcropmax-1, stride 2
-          ! Right Hand Side: rainfed crop pfts from nc3crop to npcropmax-1,
-          !                  stride 2
-          ! plus             irrigated crop pfts from nc3irrig to npcropmax,
-          !                  stride 2
-          ! where stride 2 means "every other"
-          wt_cft(nl, nc3crop:npcropmax-1:2) = &
-               wt_cft(nl, nc3crop:npcropmax-1:2) + wt_cft(nl, nc3irrig:npcropmax:2)
-          wt_cft(nl, nc3irrig:npcropmax:2)  = 0._r8
-       end do
-
-       call check_sums_equal_1(wt_cft, begg, 'wt_cft', subname)
-    end if
-
-    ! Now merge CFTs into the list of crops that the CLM knows how to model
-    if (crop_prog) then
-       if (masterproc) then
-          write(iulog, *) trim(subname) // ' merging wheat, barley, and rye into temperate cereals'
-          write(iulog, *) trim(subname) // ' clm knows how to model corn, temperate cereals, and soybean'
-          write(iulog, *) trim(subname) // ' all other crops are lumped with the generic crop pft'
-       end if
-
-       if (cft_size <= 0) then
-          call endrun( msg=trim(subname) // &
-               'ERROR: Trying to manipulate CFT list, but cft_size <= 0' // &
-               errMsg(__FILE__, __LINE__))
-       end if
-
-       do nl = begg, endg
-          do m = 1, npcropmax
-             if (m /= pftcon%mergetoclmpft(m)) then
-                ! merge wt_cft(nl,m) into wt_cft(nl,mergetoclmpft(m)) and
-                ! reset wt_cft(nl,m) to zero
-                wt_cft(nl, pftcon%mergetoclmpft(m)) = wt_cft(nl, pftcon%mergetoclmpft(m)) + wt_cft(nl, m)
-                wt_cft(nl, m) = 0._r8
-             end if
-          end do
-
-       end do
-
-       call check_sums_equal_1(wt_cft, begg, 'wt_cft', subname)
+    if (use_crop) then
+       call collapse_crop_types(wt_cft(begg:endg, :), begg, endg, verbose=.true.)
     end if
 
   end subroutine surfrd_veg_all

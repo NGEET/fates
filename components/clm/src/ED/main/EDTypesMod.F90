@@ -108,7 +108,7 @@ module EDTypesMod
 
   
 
-  type, private :: ctrl_parms_type
+  type, public :: ctrl_parms_type
      
 
      ! These parameters are dictated by FATES internals
@@ -279,7 +279,7 @@ module EDTypesMod
      real(r8) ::  elai_profile(nclmax,numpft_ed,nlevcan_ed)        ! exposed leaf area in each canopy layer, pft, and leaf layer. m2/m2
      real(r8) ::  tsai_profile(nclmax,numpft_ed,nlevcan_ed)        ! total   stem area in each canopy layer, pft, and leaf layer. m2/m2
      real(r8) ::  esai_profile(nclmax,numpft_ed,nlevcan_ed)        ! exposed stem area in each canopy layer, pft, and leaf layer. m2/m2
-
+     real(r8) ::  layer_height_profile(nclmax,numpft_ed,nlevcan_ed)
      real(r8) ::  canopy_area_profile(nclmax,numpft_ed,nlevcan_ed) ! fraction of canopy in each canopy 
      ! layer, pft, and leaf layer:-
      integer  ::  present(nclmax,numpft_ed)                        ! is there any of this pft in this canopy layer?      

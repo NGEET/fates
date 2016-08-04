@@ -91,7 +91,7 @@ module CLMFatesInterfaceMod
 
    implicit none
 
-   type, private :: f2hmap_type
+   type, public :: f2hmap_type
 
       ! This is the associated column index of each FATES site
       integer, allocatable :: fcolumn (:) 
@@ -248,6 +248,8 @@ contains
       end if
 
       nclumps = get_proc_clumps()
+
+      !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,nmaxcol,s,c,l,collist)
       do nc = 1,nclumps
          
          call get_clump_bounds(nc, bounds_clump)
@@ -331,10 +333,9 @@ contains
             write(iulog,*) 'This will likely cause problems until code is improved'
             call endrun(msg=errMsg(__FILE__, __LINE__))
          end if
-         
 
       end do
-
+      !$OMP END PARALLEL DO
       
    end subroutine init_allocate
    
@@ -498,6 +499,7 @@ contains
       integer           :: nclumps
 
       nclumps = get_proc_clumps()
+      !$OMP PARALLEL DO PRIVATE (nc,bounds_clump)
       do nc = 1, nclumps
          if (this%fates(nc)%nsites>0) then
             call get_clump_bounds(nc, bounds_clump)
@@ -519,9 +521,9 @@ contains
 
             end if
          end if
+         call this%fates2hlm%restart(bounds_clump, ncid, flag)
       end do
-
-      call this%fates2hlm%restart(bounds_clump, ncid, flag)
+      !$OMP END PARALLEL DO
       
       return
    end subroutine init_restart
@@ -545,13 +547,11 @@ contains
      integer :: g
 
 
-     ! INTERF-TODO:  I DONT SEE ANY REASON WE CAN'T FORK THE THREADS
-     ! HERE... (RGK). FORKING WILL BE TESTED AFTER STABLE COLUMNIZATION
-     ! COMPLETED
-
      nclumps = get_proc_clumps()
-     do nc = 1, nclumps
 
+     !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,s,c,g)
+     do nc = 1, nclumps
+        
         if ( this%fates(nc)%nsites>0 ) then
 
            call get_clump_bounds(nc, bounds_clump)
@@ -580,6 +580,7 @@ contains
                 canopystate_inst)
         end if
      end do
+     !$OMP END PARALLEL DO
      return
    end subroutine init_coldstart
 
@@ -791,7 +792,7 @@ contains
            do j = 1,nlevgrnd
               if(this%fates(nc)%bc_out(s)%active_suction_gl(j)) then
                  s_node = max(h2osoi_liqvol(c,j)/eff_porosity(c,j),0.01_r8)
-                 call soil_water_retention_curve%soil_suction(sucsat(c,j), s_node, bsw(c,j), smp_node)
+                 call soil_water_retention_curve%soil_suction(c,j,s_node, soilstate_inst, smp_node)
                  this%fates(nc)%bc_in(s)%smp_gl(j)           = smp_node
               end if
            end do

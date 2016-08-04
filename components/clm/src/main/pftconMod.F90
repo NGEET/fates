@@ -8,8 +8,8 @@ module pftconMod
   ! !USES:
   use shr_kind_mod, only : r8 => shr_kind_r8
   use abortutils  , only : endrun
-  use clm_varpar  , only : mxpft, numrad, ivis, inir
-  use clm_varctl  , only : iulog, use_cndv, use_vertsoilc
+  use clm_varpar  , only : mxpft, numrad, ivis, inir, cft_lb, cft_ub
+  use clm_varctl  , only : iulog, use_cndv, use_vertsoilc, use_crop
   !
   ! !PUBLIC TYPES:
   implicit none
@@ -96,9 +96,14 @@ module pftconMod
   integer :: ntrp_soybean           !value for tropical soybean (rf)
   integer :: nirrig_trp_soybean     !value for tropical soybean (ir)
   integer :: npcropmax              ! value for last prognostic crop in list
-  integer :: npcropmaxknown         ! value for last one clm knows how to model
   integer :: nc3crop                ! value for generic crop (rf)
   integer :: nc3irrig               ! value for irrigated generic crop (ir)
+
+  ! Number of crop functional types actually used in the model. This includes each CFT for
+  ! which is_pft_known_to_model is true. Note that this includes irrigated crops even if
+  ! irrigation is turned off in this run: it just excludes crop types that aren't handled
+  ! at all, as given by the mergetoclmpft list.
+  integer :: num_cfts_known_to_model
 
   ! !PUBLIC TYPES:
   type, public :: pftcon_type
@@ -139,6 +144,16 @@ module pftconMod
      real(r8), allocatable :: rootprof_beta (:)   ! CLM rooting distribution parameter for C and N inputs [unitless]
 
      !  crop
+
+     ! These arrays give information about the merge of unused crop types to the types CLM
+     ! knows about. mergetoclmpft(m) gives the crop type that CLM uses to simulate input
+     ! type m (and mergetoclmpft(m) == m implies that CLM simulates crop type m
+     ! directly). is_pft_known_to_model(m) is true if CLM simulates crop type m, and false
+     ! otherwise. Note that these do NOT relate to whether irrigation is on or off in a
+     ! given simulation - that is handled separately.
+     integer , allocatable :: mergetoclmpft         (:)
+     logical , allocatable :: is_pft_known_to_model (:)
+
      real(r8), allocatable :: graincn       (:)   ! grain C:N (gC/gN)
      real(r8), allocatable :: mxtmp         (:)   ! parameter used in accFlds
      real(r8), allocatable :: baset         (:)   ! parameter used in accFlds
@@ -157,7 +172,6 @@ module pftconMod
      real(r8), allocatable :: hybgdd        (:)   ! parameter used in CNPhenology
      real(r8), allocatable :: lfemerg       (:)   ! parameter used in CNPhenology
      real(r8), allocatable :: grnfill       (:)   ! parameter used in CNPhenology
-     integer , allocatable :: mergetoclmpft (:)   ! parameter used in surfrdMod
      integer , allocatable :: mxmat         (:)   ! parameter used in CNPhenology
      integer , allocatable :: mnNHplantdate (:)   ! minimum planting date for NorthHemisphere (YYYYMMDD)
      integer , allocatable :: mxNHplantdate (:)   ! maximum planting date for NorthHemisphere (YYYYMMDD)
@@ -207,10 +221,6 @@ module pftconMod
      real(r8), allocatable :: ffrootcn      (:)   ! C:N during grain fill; fine root
      real(r8), allocatable :: fstemcn       (:)   ! C:N during grain fill; stem
 
-     real(r8), allocatable :: i_vc          (:)   
-     real(r8), allocatable :: s_vc          (:)   
-     real(r8), allocatable :: i_vca         (:)   
-     real(r8), allocatable :: s_vca         (:)   
      real(r8), allocatable :: i_vcad        (:)   
      real(r8), allocatable :: s_vcad        (:)   
      real(r8), allocatable :: i_flnr        (:)   
@@ -222,12 +232,38 @@ module pftconMod
      real(r8), allocatable :: pftpar29      (:)   ! max coldest monthly mean temperature
      real(r8), allocatable :: pftpar30      (:)   ! min growing degree days (>= 5 deg C)
      real(r8), allocatable :: pftpar31      (:)   ! upper limit of temperature of the warmest month (twmax)
+     
+     ! pft parameters for FUN
+     real(r8), allocatable :: a_fix         (:)   ! A BNF parameter
+     real(r8), allocatable :: b_fix         (:)   ! A BNF parameter
+     real(r8), allocatable :: c_fix         (:)   ! A BNF parameter
+     real(r8), allocatable :: s_fix         (:)   ! A BNF parameter
+     real(r8), allocatable :: akc_active    (:)   ! A mycorrhizal uptake parameter
+     real(r8), allocatable :: akn_active    (:)   ! A mycorrhizal uptake parameter
+     real(r8), allocatable :: ekc_active    (:)   ! A mycorrhizal uptake parameter
+     real(r8), allocatable :: ekn_active    (:)   ! A mycorrhizal uptake parameter
+     real(r8), allocatable :: kc_nonmyc     (:)   ! A non-mycorrhizal uptake parameter
+     real(r8), allocatable :: kn_nonmyc     (:)   ! A non-mycorrhizal uptake parameter
+     real(r8), allocatable :: kr_resorb     (:)   ! A retrasnlcation parameter
+     real(r8), allocatable :: perecm        (:)   ! The fraction of ECM-associated PFT 
+     real(r8), allocatable :: fun_cn_flex_a (:)   ! Parameter a of FUN-flexcn link code (def 5)
+     real(r8), allocatable :: fun_cn_flex_b (:)   ! Parameter b of FUN-flexcn link code (def 200)
+     real(r8), allocatable :: fun_cn_flex_c (:)   ! Parameter b of FUN-flexcn link code (def 80)         
+     real(r8), allocatable :: FUN_fracfixers(:)   ! Fraction of C that can be used for fixation.    
+
+
+     ! pft parameters for dynamic root code
+     real(r8), allocatable :: root_dmx(:)     !maximum root depth
 
    contains
 
      procedure, public  :: Init
+     procedure, public  :: InitForTesting ! version of Init meant for unit testing
+     procedure, public  :: Clean
      procedure, private :: InitAllocate   
      procedure, private :: InitRead
+     procedure, private :: set_is_pft_known_to_model   ! Set is_pft_known_to_model based on mergetoclmpft
+     procedure, private :: set_num_cfts_known_to_model ! Set the module-level variable, num_cfts_known_to_model
 
   end type pftcon_type
 
@@ -257,6 +293,20 @@ contains
 
   end subroutine Init
 
+  !------------------------------------------------------------------------
+  subroutine InitForTesting(this)
+    ! Version of Init meant for unit testing
+    !
+    ! Allocate arrays, but don't try to read from file.
+    !
+    ! Values can then be set by tests as needed
+
+    class(pftcon_type) :: this
+
+    call this%InitAllocate()
+
+  end subroutine InitForTesting
+
   !-----------------------------------------------------------------------
   subroutine InitAllocate (this)
     !
@@ -284,7 +334,8 @@ contains
     allocate( this%roota_par     (0:mxpft) )   
     allocate( this%rootb_par     (0:mxpft) )   
     allocate( this%crop          (0:mxpft) )        
-    allocate( this%mergetoclmpft (0:mxpft) )   
+    allocate( this%mergetoclmpft (0:mxpft) )
+    allocate( this%is_pft_known_to_model  (0:mxpft) )
     allocate( this%irrigated     (0:mxpft) )   
     allocate( this%smpso         (0:mxpft) )       
     allocate( this%smpsc         (0:mxpft) )       
@@ -338,7 +389,7 @@ contains
     allocate( this%fr_flab       (0:mxpft) )      
     allocate( this%fr_fcel       (0:mxpft) )      
     allocate( this%fr_flig       (0:mxpft) )      
-    allocate( this%leaf_long     (0:mxpft) )   
+    allocate( this%leaf_long     (0:mxpft) )
     allocate( this%evergreen     (0:mxpft) )    
     allocate( this%stress_decid  (0:mxpft) ) 
     allocate( this%season_decid  (0:mxpft) ) 
@@ -364,10 +415,6 @@ contains
     allocate( this%fleafcn       (0:mxpft) )  
     allocate( this%ffrootcn      (0:mxpft) ) 
     allocate( this%fstemcn       (0:mxpft) )  
-    allocate( this%i_vc          (0:mxpft) )
-    allocate( this%s_vc          (0:mxpft) )
-    allocate( this%i_vca         (0:mxpft) )
-    allocate( this%s_vca         (0:mxpft) )
     allocate( this%i_vcad        (0:mxpft) )
     allocate( this%s_vcad        (0:mxpft) )
     allocate( this%i_flnr        (0:mxpft) )
@@ -377,7 +424,25 @@ contains
     allocate( this%pftpar29      (0:mxpft) )   
     allocate( this%pftpar30      (0:mxpft) )   
     allocate( this%pftpar31      (0:mxpft) )   
-
+    allocate( this%a_fix         (0:mxpft) )
+    allocate( this%b_fix         (0:mxpft) )
+    allocate( this%c_fix         (0:mxpft) )
+    allocate( this%s_fix         (0:mxpft) )
+    allocate( this%akc_active    (0:mxpft) )
+    allocate( this%akn_active    (0:mxpft) )
+    allocate( this%ekc_active    (0:mxpft) )
+    allocate( this%ekn_active    (0:mxpft) )  
+    allocate( this%kc_nonmyc     (0:mxpft) )
+    allocate( this%kn_nonmyc     (0:mxpft) )
+    allocate( this%kr_resorb     (0:mxpft) )
+    allocate( this%perecm        (0:mxpft) )
+    allocate( this%root_dmx      (0:mxpft) )
+    allocate( this%fun_cn_flex_a (0:mxpft) )
+    allocate( this%fun_cn_flex_b (0:mxpft) )
+    allocate( this%fun_cn_flex_c (0:mxpft) )
+    allocate( this%FUN_fracfixers(0:mxpft) )
+    
+ 
   end subroutine InitAllocate
 
   !-----------------------------------------------------------------------
@@ -391,7 +456,7 @@ contains
     use fileutils   , only : getfil
     use ncdio_pio   , only : ncd_io, ncd_pio_closefile, ncd_pio_openfile, file_desc_t
     use ncdio_pio   , only : ncd_inqdid, ncd_inqdlen
-    use clm_varctl  , only : paramfile, use_ed, use_flexibleCN
+    use clm_varctl  , only : paramfile, use_ed, use_flexibleCN, use_dynroot
     use spmdMod     , only : masterproc
     use EDPftvarcon , only : EDpftconrd
     !
@@ -671,6 +736,54 @@ contains
     call ncd_io('pftpar31', this%pftpar31, 'read', ncid, readvar=readv, posNOTonfile=.true.)  
     if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
 
+    call ncd_io('a_fix', this%a_fix, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
+   
+    call ncd_io('b_fix', this%b_fix, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
+    
+    call ncd_io('c_fix', this%c_fix, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
+    
+    call ncd_io('s_fix', this%s_fix, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
+
+    call ncd_io('akc_active', this%akc_active, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
+
+    call ncd_io('akn_active', this%akn_active, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
+
+    call ncd_io('ekc_active', this%ekc_active, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
+
+    call ncd_io('ekn_active', this%ekn_active, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
+
+    call ncd_io('kc_nonmyc', this%kc_nonmyc, 'read', ncid, readvar=readv,   posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
+   
+    call ncd_io('kn_nonmyc', this%kn_nonmyc, 'read', ncid, readvar=readv,   posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
+
+    call ncd_io('kr_resorb', this%kr_resorb, 'read', ncid, readvar=readv,   posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
+
+    call ncd_io('perecm', this%perecm, 'read', ncid, readvar=readv,         posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
+
+    call ncd_io('fun_cn_flex_a', this%fun_cn_flex_a, 'read', ncid, readvar=readv,         posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
+
+    call ncd_io('fun_cn_flex_b', this%fun_cn_flex_b, 'read', ncid, readvar=readv,         posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
+
+    call ncd_io('fun_cn_flex_c', this%fun_cn_flex_c, 'read', ncid, readvar=readv,         posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
+  
+    call ncd_io('FUN_fracfixers', this%FUN_fracfixers, 'read', ncid, readvar=readv,         posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
+
     call ncd_io('fertnitro', this%fertnitro, 'read', ncid, readvar=readv, posNOTonfile=.true.)
     if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
 
@@ -683,10 +796,8 @@ contains
     call ncd_io('fstemcn', this%fstemcn, 'read', ncid, readvar=readv, posNOTonfile=.true.)
     if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
 
-    if (use_vertsoilc) then
-       call ncd_io('rootprof_beta', this%rootprof_beta, 'read', ncid, readvar=readv, posNOTonfile=.true.)
-       if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
-    end if
+    call ncd_io('rootprof_beta', this%rootprof_beta, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
 
     call ncd_io('pconv', this%pconv, 'read', ncid, readvar=readv)  
     if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
@@ -841,18 +952,6 @@ contains
     ! clm 5 nitrogen variables
     !
     if (use_flexibleCN) then
-       call ncd_io('i_vc', this%i_vc, 'read', ncid, readvar=readv) 
-       if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__)) 
-       
-       call ncd_io('s_vc', this%s_vc, 'read', ncid, readvar=readv) 
-       if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__)) 
-
-       call ncd_io('i_vca', this%i_vca, 'read', ncid, readvar=readv) 
-       if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__)) 
-       
-       call ncd_io('s_vca', this%s_vca, 'read', ncid, readvar=readv) 
-       if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__)) 
-       
        call ncd_io('i_vcad', this%i_vcad, 'read', ncid, readvar=readv) 
        if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__)) 
        
@@ -873,7 +972,14 @@ contains
        ! The following sets the module variable EDpftcon_inst in EDPftcon
        call EDpftconrd ( ncid )
     endif
-       
+    !
+    ! Dynamic Root variables for crops
+    !
+    if ( use_crop .and. use_dynroot )then
+       call ncd_io('root_dmx', this%root_dmx, 'read', ncid, readvar=readv)
+       if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
+    end if
+   
     call ncd_pio_closefile(ncid)
 
     do i = 0, mxpft
@@ -969,7 +1075,9 @@ contains
     ntree                = nbrdlf_dcd_brl_tree  ! value for last type of tree
     npcropmin            = ntmp_corn            ! first prognostic crop
     npcropmax            = mxpft                ! last prognostic crop in list
-    npcropmaxknown = maxval(this%mergetoclmpft) ! & last one that clm knows how to model
+
+    call this%set_is_pft_known_to_model()
+    call this%set_num_cfts_known_to_model()
 
     if (use_cndv) then
        this%fcur(:) = this%fcurdv(:)
@@ -1037,6 +1145,208 @@ contains
     end if
 
   end subroutine InitRead
+
+  !-----------------------------------------------------------------------
+  subroutine set_is_pft_known_to_model(this)
+    !
+    ! !DESCRIPTION:
+    ! Set is_pft_known_to_model based on mergetoclmpft
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS:
+    class(pftcon_type), intent(inout) :: this
+    !
+    ! !LOCAL VARIABLES:
+    integer :: m, merge_type
+
+    character(len=*), parameter :: subname = 'set_is_pft_known_to_model'
+    !-----------------------------------------------------------------------
+
+    this%is_pft_known_to_model(:) = .false.
+
+    ! NOTE(wjs, 2015-10-04) Currently, type 0 has mergetoclmpft = _FillValue in the file,
+    ! so we can't handle it in the general loop below. But CLM always uses type 0, so
+    ! handle it specially here.
+    this%is_pft_known_to_model(0) = .true.
+
+    ! NOTE(wjs, 2015-10-04) Currently, mergetoclmpft is only used for crop types.
+    ! However, we handle it more generally here (treating ALL pft types), in case its use
+    ! is ever extended to work with non-crop types as well.
+    do m = 1, mxpft
+       merge_type = this%mergetoclmpft(m)
+       this%is_pft_known_to_model(merge_type) = .true.
+    end do
+
+  end subroutine set_is_pft_known_to_model
+
+  !-----------------------------------------------------------------------
+  subroutine set_num_cfts_known_to_model(this)
+    !
+    ! !DESCRIPTION:
+    ! Set the module-level variable, num_cfts_known_to_model
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS:
+    class(pftcon_type), intent(in) :: this
+    !
+    ! !LOCAL VARIABLES:
+    integer :: m
+
+    character(len=*), parameter :: subname = 'set_num_cfts_known_to_model'
+    !-----------------------------------------------------------------------
+
+    num_cfts_known_to_model = 0
+    do m = cft_lb, cft_ub
+       if (this%is_pft_known_to_model(m)) then
+          num_cfts_known_to_model = num_cfts_known_to_model + 1
+       end if
+    end do
+
+  end subroutine set_num_cfts_known_to_model
+
+  !-----------------------------------------------------------------------
+  subroutine Clean(this)
+    !
+    ! !DESCRIPTION:
+    ! Deallocate memory
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS:
+    class(pftcon_type), intent(inout) :: this
+    !
+    ! !LOCAL VARIABLES:
+
+    character(len=*), parameter :: subname = 'Clean'
+    !-----------------------------------------------------------------------
+
+    deallocate( this%noveg)
+    deallocate( this%tree)
+
+    deallocate( this%dleaf)
+    deallocate( this%c3psn)
+    deallocate( this%xl)
+    deallocate( this%rhol)
+    deallocate( this%rhos)
+    deallocate( this%taul)
+    deallocate( this%taus)
+    deallocate( this%z0mr)
+    deallocate( this%displar)
+    deallocate( this%roota_par)
+    deallocate( this%rootb_par)
+    deallocate( this%crop)
+    deallocate( this%mergetoclmpft)
+    deallocate( this%is_pft_known_to_model)
+    deallocate( this%irrigated)
+    deallocate( this%smpso)
+    deallocate( this%smpsc)
+    deallocate( this%fnitr)
+    deallocate( this%slatop)
+    deallocate( this%dsladlai)
+    deallocate( this%leafcn)
+    deallocate( this%flnr)
+    deallocate( this%woody)
+    deallocate( this%lflitcn)
+    deallocate( this%frootcn)
+    deallocate( this%livewdcn)
+    deallocate( this%deadwdcn)
+    deallocate( this%grperc)
+    deallocate( this%grpnow)
+    deallocate( this%rootprof_beta)
+    deallocate( this%graincn)
+    deallocate( this%mxtmp)
+    deallocate( this%baset)
+    deallocate( this%declfact)
+    deallocate( this%bfact)
+    deallocate( this%aleaff)
+    deallocate( this%arootf)
+    deallocate( this%astemf)
+    deallocate( this%arooti)
+    deallocate( this%fleafi)
+    deallocate( this%allconsl)
+    deallocate( this%allconss)
+    deallocate( this%ztopmx)
+    deallocate( this%laimx)
+    deallocate( this%gddmin)
+    deallocate( this%hybgdd)
+    deallocate( this%lfemerg)
+    deallocate( this%grnfill)
+    deallocate( this%mxmat)
+    deallocate( this%mnNHplantdate)
+    deallocate( this%mxNHplantdate)
+    deallocate( this%mnSHplantdate)
+    deallocate( this%mxSHplantdate)
+    deallocate( this%planttemp)
+    deallocate( this%minplanttemp)
+    deallocate( this%froot_leaf)
+    deallocate( this%stem_leaf)
+    deallocate( this%croot_stem)
+    deallocate( this%flivewd)
+    deallocate( this%fcur)
+    deallocate( this%fcurdv)
+    deallocate( this%lf_flab)
+    deallocate( this%lf_fcel)
+    deallocate( this%lf_flig)
+    deallocate( this%fr_flab)
+    deallocate( this%fr_fcel)
+    deallocate( this%fr_flig)
+    deallocate( this%leaf_long)
+    deallocate( this%evergreen)
+    deallocate( this%stress_decid)
+    deallocate( this%season_decid)
+    deallocate( this%dwood)
+    deallocate( this%pconv)
+    deallocate( this%pprod10)
+    deallocate( this%pprod100)
+    deallocate( this%pprodharv10)
+    deallocate( this%cc_leaf)
+    deallocate( this%cc_lstem)
+    deallocate( this%cc_dstem)
+    deallocate( this%cc_other)
+    deallocate( this%fm_leaf)
+    deallocate( this%fm_lstem)
+    deallocate( this%fm_dstem)
+    deallocate( this%fm_other)
+    deallocate( this%fm_root)
+    deallocate( this%fm_lroot)
+    deallocate( this%fm_droot)
+    deallocate( this%fsr_pft)
+    deallocate( this%fd_pft)
+    deallocate( this%fertnitro)
+    deallocate( this%fleafcn)
+    deallocate( this%ffrootcn)
+    deallocate( this%fstemcn)
+    deallocate( this%i_vcad)
+    deallocate( this%s_vcad)
+    deallocate( this%i_flnr)
+    deallocate( this%s_flnr)
+    deallocate( this%pftpar20)
+    deallocate( this%pftpar28)
+    deallocate( this%pftpar29)
+    deallocate( this%pftpar30)
+    deallocate( this%pftpar31)
+    deallocate( this%a_fix)
+    deallocate( this%b_fix)
+    deallocate( this%c_fix)
+    deallocate( this%s_fix)
+    deallocate( this%akc_active)
+    deallocate( this%akn_active)
+    deallocate( this%ekc_active)
+    deallocate( this%ekn_active)
+    deallocate( this%kc_nonmyc)
+    deallocate( this%kn_nonmyc)
+    deallocate( this%kr_resorb)
+    deallocate( this%perecm)
+    deallocate( this%root_dmx)
+    deallocate( this%fun_cn_flex_a)
+    deallocate( this%fun_cn_flex_b)
+    deallocate( this%fun_cn_flex_c)
+    deallocate( this%FUN_fracfixers)
+    
+  end subroutine Clean
+
 
 end module pftconMod
 

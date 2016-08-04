@@ -130,15 +130,8 @@ module glad_main
   !   rofi = ice runoff (i.e., calving) (kg/m^2/s)
   !   rofl = liquid runoff (i.e., basal melting; the land model handles sfc runoff) (kg/m^2/s)
   !   ice_sheet_grid_mask = mask of ice sheet grid coverage
-  !   icemask_coupled_fluxes = mask of ice sheet grid coverage where we are potentially
-  !     sending non-zero fluxes
-  !
-  ! Note about ice_sheet_grid_mask and icemask_coupled_fluxes: ice_sheet_grid_mask is
-  ! non-zero wherever CISM is operating - i.e., grid cells with icesheet or bare land (but
-  ! not ocean). icemask_coupled_fluxes is similar, but is 0 for icesheet instances that
-  ! have zero_gcm_fluxes = .true. Thus, icemask_coupled_fluxes can be used to determine
-  ! the regions of the world in which CISM is operating and potentially sending non-zero
-  ! fluxes to the climate model.
+  !      ice_sheet_grid_mask is non-zero wherever CISM is operating - i.e., grid cells with
+  !      icesheet or bare land (but not ocean).
   !
   ! The land model has the option to update its ice coverage and surface elevation, given
   ! the fields returned from Glad.
@@ -329,7 +322,6 @@ contains
                                       ice_covered,    topo,                  &
                                       rofi,           rofl,           hflx,  &
                                       ice_sheet_grid_mask,                   &
-                                      icemask_coupled_fluxes,                &
                                       output_flag)
 
     ! Get initial outputs for one instance. See above for documentation of the full
@@ -348,7 +340,6 @@ contains
     real(dp),dimension(:,:),intent(out) :: rofi         ! output ice runoff (kg/m^2/s = mm H2O/s)
     real(dp),dimension(:,:),intent(out) :: rofl         ! output liquid runoff (kg/m^2/s = mm H2O/s)
     real(dp),dimension(:,:),intent(out) :: ice_sheet_grid_mask !mask of ice sheet grid coverage
-    real(dp),dimension(:,:),intent(out) :: icemask_coupled_fluxes !mask of ice sheet grid coverage where we are potentially sending non-zero fluxes
     
     logical,                  optional,intent(out) :: output_flag !> Flag to show output set (provided for consistency)
 
@@ -356,7 +347,7 @@ contains
 
     call glad_set_output_fields(params%instances(instance_index), &
          ice_covered, topo, rofi, rofl, hflx, &
-         ice_sheet_grid_mask, icemask_coupled_fluxes)
+         ice_sheet_grid_mask)
     
     if (present(output_flag)) output_flag = .true.
 
@@ -544,7 +535,6 @@ contains
                       ice_covered,    topo,                  &
                       rofi,           rofl,           hflx,  &
                       ice_sheet_grid_mask,                   &
-                      icemask_coupled_fluxes,                &
                       output_flag,    ice_tstep)
 
     ! Main Glad subroutine for GCM coupling.
@@ -582,7 +572,6 @@ contains
     real(dp),dimension(:,:),intent(inout) :: rofi         ! output ice runoff (kg/m^2/s = mm H2O/s)
     real(dp),dimension(:,:),intent(inout) :: rofl         ! output liquid runoff (kg/m^2/s = mm H2O/s)
     real(dp),dimension(:,:),intent(inout) :: ice_sheet_grid_mask !mask of ice sheet grid coverage
-    real(dp),dimension(:,:),intent(inout) :: icemask_coupled_fluxes !mask of ice sheet grid coverage where we are potentially sending non-zero fluxes
 
     logical,optional,intent(out)   :: output_flag     ! Set true if outputs are set
     logical,optional,intent(out)   :: ice_tstep       ! Set when an ice dynamic timestep has been done
@@ -687,7 +676,7 @@ contains
 
           call glad_set_output_fields(params%instances(instance_index), &
                ice_covered, topo, rofi, rofl, hflx, &
-               ice_sheet_grid_mask, icemask_coupled_fluxes)
+               ice_sheet_grid_mask)
           
 
           ! Set flag
@@ -750,8 +739,7 @@ contains
   subroutine glad_set_output_fields(instance,        &
                                     ice_covered,    topo,                  &
                                     rofi,           rofl,           hflx,  &
-                                    ice_sheet_grid_mask,                   &
-                                    icemask_coupled_fluxes)
+                                    ice_sheet_grid_mask)
 
     ! Sets output fields for this instance.
     !
@@ -772,7 +760,6 @@ contains
     real(dp),dimension(:,:),intent(out) :: rofi         ! output ice runoff (kg/m^2/s = mm H2O/s)
     real(dp),dimension(:,:),intent(out) :: rofl         ! output liquid runoff (kg/m^2/s = mm H2O/s)
     real(dp),dimension(:,:),intent(out) :: ice_sheet_grid_mask !mask of ice sheet grid coverage
-    real(dp),dimension(:,:),intent(out) :: icemask_coupled_fluxes !mask of ice sheet grid coverage where we are potentially sending non-zero fluxes
     
     ! Internal variables -----------------------------------------------------------------------
 
@@ -781,11 +768,7 @@ contains
     ! temporary versions of output fields with halo cells
     real(dp),dimension(:,:),allocatable :: ice_covered_haloed
     real(dp),dimension(:,:),allocatable :: topo_haloed
-    real(dp),dimension(:,:),allocatable :: hflx_haloed
-    real(dp),dimension(:,:),allocatable :: rofi_haloed
-    real(dp),dimension(:,:),allocatable :: rofl_haloed
     real(dp),dimension(:,:),allocatable :: ice_sheet_grid_mask_haloed
-    real(dp),dimension(:,:),allocatable :: icemask_coupled_fluxes_haloed
 
     ! Begin subroutine code --------------------------------------------------------------------
 
@@ -794,34 +777,17 @@ contains
 
     allocate(ice_covered_haloed(ewn,nsn))
     allocate(topo_haloed(ewn,nsn))
-    allocate(hflx_haloed(ewn,nsn))
-    allocate(rofi_haloed(ewn,nsn))
-    allocate(rofl_haloed(ewn,nsn))
     allocate(ice_sheet_grid_mask_haloed(ewn,nsn))
-    allocate(icemask_coupled_fluxes_haloed(ewn,nsn))
     
     call set_output_states(instance, &
          ice_covered_haloed, topo_haloed, ice_sheet_grid_mask_haloed)
 
-    if (instance%zero_gcm_fluxes == ZERO_GCM_FLUXES_TRUE) then
-       icemask_coupled_fluxes_haloed(:,:) = 0.d0
-       hflx_haloed(:,:) = 0.d0
-       rofi_haloed(:,:) = 0.d0
-       rofl_haloed(:,:) = 0.d0
-    else
-       icemask_coupled_fluxes_haloed(:,:) = ice_sheet_grid_mask_haloed(:,:)
-       hflx_haloed(:,:) = instance%hflx_tavg(:,:)
-       rofi_haloed(:,:) = instance%rofi_tavg(:,:)
-       rofl_haloed(:,:) = instance%rofl_tavg(:,:)
-    end if
-
     call parallel_convert_haloed_to_nonhaloed(ice_covered_haloed, ice_covered)
     call parallel_convert_haloed_to_nonhaloed(topo_haloed, topo)
-    call parallel_convert_haloed_to_nonhaloed(hflx_haloed, hflx)
-    call parallel_convert_haloed_to_nonhaloed(rofi_haloed, rofi)
-    call parallel_convert_haloed_to_nonhaloed(rofl_haloed, rofl)
+    call parallel_convert_haloed_to_nonhaloed(instance%hflx_tavg, hflx)
+    call parallel_convert_haloed_to_nonhaloed(instance%rofi_tavg, rofi)
+    call parallel_convert_haloed_to_nonhaloed(instance%rofl_tavg, rofl)
     call parallel_convert_haloed_to_nonhaloed(ice_sheet_grid_mask_haloed, ice_sheet_grid_mask)
-    call parallel_convert_haloed_to_nonhaloed(icemask_coupled_fluxes_haloed, icemask_coupled_fluxes)
 
   end subroutine glad_set_output_fields
   

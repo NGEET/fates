@@ -12,7 +12,8 @@ module clm_varcon
                            SHR_CONST_LATSUB,SHR_CONST_LATICE,SHR_CONST_RHOFW, &
                            SHR_CONST_RHOICE,SHR_CONST_TKFRZ,SHR_CONST_REARTH, &
                            SHR_CONST_PDB, SHR_CONST_PI, SHR_CONST_CDAY,       &
-                           SHR_CONST_RGAS, SHR_CONST_PSTD
+                           SHR_CONST_RGAS, SHR_CONST_PSTD,                    &
+                           SHR_CONST_MWDAIR, SHR_CONST_MWWV
   use clm_varpar   , only: numrad, nlevgrnd, nlevlak, nlevdecomp_full
   use clm_varpar   , only: ngases
   use clm_varpar   , only: nlayer
@@ -45,6 +46,7 @@ module clm_varcon
   real(r8), parameter :: e_ice=6.0                          ! soil ice impedance factor
   real(r8), parameter :: pc = 0.4                           ! threshold probability
   real(r8), parameter :: mu = 0.13889                       ! connectivity exponent 
+  real(r8), parameter :: secsphr = 3600._r8                 ! Seconds in an hour
   real(r8) :: grav   = SHR_CONST_G                          ! gravity constant [m/s2]
   real(r8) :: sb     = SHR_CONST_STEBOL                     ! stefan-boltzmann constant  [W/m2/K4]
   real(r8) :: vkc    = SHR_CONST_KARMAN                     ! von Karman constant [-]
@@ -61,6 +63,11 @@ module clm_varcon
   real(r8) :: denice = SHR_CONST_RHOICE                     ! density of ice [kg/m3]
   real(r8) :: rgas   = SHR_CONST_RGAS                       ! universal gas constant [J/K/kmole]
   real(r8) :: pstd   = SHR_CONST_PSTD                       ! standard pressure [Pa]
+
+  ! TODO(wjs, 2016-04-08) The following should be used in place of hard-coded constants
+  ! of 0.622 and 0.378 (which is 1 - 0.622) in various places in the code:
+  real(r8), parameter :: wv_to_dair_weight_ratio = SHR_CONST_MWWV/SHR_CONST_MWDAIR ! ratio of molecular weight of water vapor to that of dry air [-]
+
   real(r8) :: tkair  = 0.023_r8                             ! thermal conductivity of air   [W/m/K]
   real(r8) :: tkice  = 2.290_r8                             ! thermal conductivity of ice   [W/m/K]
   real(r8) :: tkwat  = 0.57_r8                              ! thermal conductivity of water [W/m/K]
@@ -76,13 +83,30 @@ module clm_varcon
   real(r8) :: re = SHR_CONST_REARTH*0.001_r8                ! radius of earth (km)
 
   real(r8), public, parameter :: degpsec = 15._r8/3600.0_r8 ! Degree's earth rotates per second
-  real(r8), public, parameter ::  secspday= SHR_CONST_CDAY  ! Seconds per day
+  real(r8), public, parameter :: secspday= SHR_CONST_CDAY   ! Seconds per day
   integer,  public, parameter :: isecspday= secspday        ! Integer seconds per day
-  real(r8), public, parameter ::  spval = 1.e36_r8          ! special value for real data
-  integer , public, parameter :: ispval = -9999             ! special value for int data 
-                                                            ! (keep this negative to avoid conflicts with possible valid values)
 
+  integer, public, parameter  :: fun_period  = 1            ! A FUN parameter, and probably needs to be changed for testing
+  real(r8),public, parameter  :: smallValue  = 1.e-12_r8    ! A small values used by FUN
+
+  ! ------------------------------------------------------------------------
+  ! Special value flags
+  ! ------------------------------------------------------------------------
+
+  ! NOTE(wjs, 2015-11-23) The presence / absence of spval should be static in time for
+  ! multi-level fields.  i.e., if a given level & column has spval at initialization, it
+  ! should remain spval throughout the run (e.g., indicating that this level is not valid
+  ! for this column type); similarly, if it starts as a valid value, it should never
+  ! become spval. This is needed for init_interp to work correctly on multi-level fields.
+  ! For more details, see the note near the top of initInterpMultilevelInterp.
+  real(r8), public, parameter ::  spval = 1.e36_r8          ! special value for real data
+
+  ! Keep this negative to avoid conflicts with possible valid values
+  integer , public, parameter :: ispval = -9999             ! special value for int data
+
+  ! ------------------------------------------------------------------------
   ! These are tunable constants from clm2_3
+  ! ------------------------------------------------------------------------
 
   real(r8) :: zlnd = 0.01_r8        ! Roughness length for soil [m]
   real(r8) :: zsno = 0.0024_r8      ! Roughness length for snow [m]
@@ -96,11 +120,31 @@ module clm_varcon
 
   real(r8) :: thk_bedrock = 3.0_r8  ! thermal conductivity of 'typical' saturated granitic rock 
                                     ! (Clauser and Huenges, 1995)(W/m/K)
+  real(r8) :: csol_bedrock = 2.0e6_r8 ! vol. heat capacity of granite/sandstone  J/(m3 K)(Shabbir, 2000) !scs
+  real(r8), parameter :: zmin_bedrock = 0.4_r8 ! minimum soil depth [m]
 
   !!! C13
   real(r8), parameter :: preind_atm_del13c = -6.0   ! preindustrial value for atmospheric del13C
   real(r8), parameter :: preind_atm_ratio = SHR_CONST_PDB + (preind_atm_del13c * SHR_CONST_PDB)/1000.0  ! 13C/12C
   real(r8) :: c13ratio = preind_atm_ratio/(1.0+preind_atm_ratio) ! 13C/(12+13)C preind atmosphere
+
+   ! typical del13C for C3 photosynthesis (permil, relative to PDB)
+  real(r8), parameter :: c3_del13c = -28._r8
+
+  ! typical del13C for C4 photosynthesis (permil, relative to PDB)
+  real(r8), parameter :: c4_del13c = -13._r8
+
+  ! isotope ratio (13c/12c) for C3 photosynthesis
+  real(r8), parameter :: c3_r1 = SHR_CONST_PDB + ((c3_del13c*SHR_CONST_PDB)/1000._r8)
+
+  ! isotope ratio (13c/[12c+13c]) for C3 photosynthesis
+  real(r8), parameter :: c3_r2 = c3_r1/(1._r8 + c3_r1)
+
+  ! isotope ratio (13c/12c) for C4 photosynthesis  
+  real(r8), parameter :: c4_r1 = SHR_CONST_PDB + ((c4_del13c*SHR_CONST_PDB)/1000._r8)
+
+  ! isotope ratio (13c/[12c+13c]) for C4 photosynthesis
+  real(r8), parameter :: c4_r2 = c4_r1/(1._r8 + c4_r1)
 
   !!! C14
   real(r8) :: c14ratio = 1.e-12_r8

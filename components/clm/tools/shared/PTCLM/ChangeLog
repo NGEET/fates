@@ -3,6 +3,42 @@ This file describes changes made to the PTCLM tool
 ================================================================================        
 
 ================================================================================        
+Originator: sacks
+Date: Jan/27/2016
+Tag: PTCLM2_160127a
+One-line: Fix typos for building on geyser and pronghorn
+Testing:  NONE (but will run test_driver.sh from CLM)
+Known Bugs: RF-Bra will work even without --donot_use_tower_yrs since it doesn't
+            check for valid values
+
+M       buildtools --- Fix typos for geyser and pronghorn
+
+================================================================================        
+Originator: sacks
+Date: Jan/27/2016
+Tag: PTCLM2_160127
+One-line: Build on pronghorn same as for yellowstone
+Testing:  NONE (but will run test_driver.sh from CLM)
+Known Bugs: RF-Bra will work even without --donot_use_tower_yrs since it doesn't
+            check for valid values
+
+M       buildtools --- Extend conditional to apply to pronghorn
+
+================================================================================        
+Originator: erik
+Date: Oct/09/2015
+Tag: PTCLM2_151009
+One-line: 
+Testing:  Standard PTCLM test script on yellowstone, and test_driver.sh in clm4_5_3_r136
+Known Bugs: RF-Bra will work even without --donot_use_tower_yrs since it doesn't
+            check for valid values
+
+M       buildtools --- Add softlink to Macros.make so can build gen_domain with
+                       cime4.0.1
+M       PTCLMmkdata -- Add a wildcard for PFT number in landuse timeseries file
+                       print out wildcard when file isn't found.
+
+================================================================================        
 Originator: erik
 Date: Aug/26/2015
 Tag: PTCLM2_150826

@@ -7,12 +7,13 @@ module CNVegCarbonFluxType
   ! !USES:
   use shr_kind_mod                       , only : r8 => shr_kind_r8
   use shr_infnan_mod                     , only : nan => shr_infnan_nan, assignment(=)
+  use shr_log_mod                        , only : errMsg => shr_log_errMsg
   use decompMod                          , only : bounds_type
   use SoilBiogeochemDecompCascadeConType , only : decomp_cascade_con
   use clm_varpar                         , only : ndecomp_cascade_transitions, ndecomp_pools
-  use clm_varpar                         , only : crop_prog, nlevdecomp_full, nlevgrnd, nlevdecomp
+  use clm_varpar                         , only : nlevdecomp_full, nlevgrnd, nlevdecomp
   use clm_varcon                         , only : spval, dzsoi_decomp
-  use clm_varctl                         , only : use_cndv, use_c13
+  use clm_varctl                         , only : use_cndv, use_c13, use_nitrif_denitrif, use_crop
   use landunit_varcon                    , only : istsoil, istcrop, istdlak 
   use pftconMod                          , only : npcropmin
   use LandunitType                       , only : lun                
@@ -57,8 +58,6 @@ module CNVegCarbonFluxType
      real(r8), pointer :: hrv_livestemc_to_litter_patch             (:)     ! live stem C harvest mortality (gC/m2/s)
      real(r8), pointer :: hrv_livestemc_storage_to_litter_patch     (:)     ! live stem C storage harvest mortality (gC/m2/s)
      real(r8), pointer :: hrv_livestemc_xfer_to_litter_patch        (:)     ! live stem C transfer harvest mortality (gC/m2/s)
-     real(r8), pointer :: hrv_deadstemc_to_prod10c_patch            (:)     ! dead stem C harvest to 10-year product pool (gC/m2/s)
-     real(r8), pointer :: hrv_deadstemc_to_prod100c_patch           (:)     ! dead stem C harvest to 100-year product pool (gC/m2/s)
      real(r8), pointer :: hrv_deadstemc_storage_to_litter_patch     (:)     ! dead stem C storage harvest mortality (gC/m2/s)
      real(r8), pointer :: hrv_deadstemc_xfer_to_litter_patch        (:)     ! dead stem C transfer harvest mortality (gC/m2/s)
      real(r8), pointer :: hrv_livecrootc_to_litter_patch            (:)     ! live coarse root C harvest mortality (gC/m2/s)
@@ -126,11 +125,21 @@ module CNVegCarbonFluxType
 
      ! leaf and fine root litterfall fluxes                          
      real(r8), pointer :: leafc_to_litter_patch                     (:)     ! leaf C litterfall (gC/m2/s)
+     real(r8), pointer :: leafc_to_litter_fun_patch                 (:)     ! leaf C litterfall used by FUN (gC/m2/s)
      real(r8), pointer :: frootc_to_litter_patch                    (:)     ! fine root C litterfall (gC/m2/s)
      real(r8), pointer :: livestemc_to_litter_patch                 (:)     ! live stem C litterfall (gC/m2/s)
      real(r8), pointer :: grainc_to_food_patch                      (:)     ! grain C to food for prognostic crop(gC/m2/s)
 
-     ! maintenance respiration fluxes                          
+     ! maintenance respiration fluxes     
+     real(r8), pointer :: cpool_to_resp_patch                       (:)     ! CNflex excess C maintenance respiration (gC/m2/s)
+     real(r8), pointer :: cpool_to_leafc_resp_patch                 (:)     ! CNflex excess C maintenance respiration (gC/m2/s)
+     real(r8), pointer :: cpool_to_leafc_storage_resp_patch         (:)     ! CNflex excess C maintenance respiration (gC/m2/s)
+     real(r8), pointer :: cpool_to_frootc_resp_patch                (:)     ! CNflex excess C maintenance respiration (gC/m2/s)
+     real(r8), pointer :: cpool_to_frootc_storage_resp_patch        (:)     ! CNflex excess C maintenance respiration (gC/m2/s)
+     real(r8), pointer :: cpool_to_livecrootc_resp_patch            (:)     ! CNflex excess C maintenance respiration (gC/m2/s)
+     real(r8), pointer :: cpool_to_livecrootc_storage_resp_patch    (:)     ! CNflex excess C maintenance respiration (gC/m2/s)
+     real(r8), pointer :: cpool_to_livestemc_resp_patch             (:)     ! CNflex excess C maintenance respiration (gC/m2/s)
+     real(r8), pointer :: cpool_to_livestemc_storage_resp_patch     (:)     ! CNflex excess C maintenance respiration (gC/m2/s)
      real(r8), pointer :: leaf_mr_patch                             (:)     ! leaf maintenance respiration (gC/m2/s)
      real(r8), pointer :: froot_mr_patch                            (:)     ! fine root maintenance respiration (gC/m2/s)
      real(r8), pointer :: livestem_mr_patch                         (:)     ! live stem maintenance respiration (gC/m2/s)
@@ -228,8 +237,8 @@ module CNVegCarbonFluxType
      real(r8), pointer :: harvest_c_to_litr_cel_c_col               (:,:)   ! C fluxes associated with harvest to litter cellulose pool (gC/m3/s)
      real(r8), pointer :: harvest_c_to_litr_lig_c_col               (:,:)   ! C fluxes associated with harvest to litter lignin pool (gC/m3/s)
      real(r8), pointer :: harvest_c_to_cwdc_col                     (:,:)   ! C fluxes associated with harvest to CWD pool (gC/m3/s)
-     real(r8), pointer :: hrv_deadstemc_to_prod10c_col              (:)     ! dead stem C harvest mortality to 10-year product pool (gC/m2/s)        
-     real(r8), pointer :: hrv_deadstemc_to_prod100c_col             (:)     ! dead stem C harvest mortality to 100-year product pool (gC/m2/s)        
+     real(r8), pointer :: grainc_to_cropprodc_patch                 (:)     ! grain C to crop product pool (gC/m2/s)
+     real(r8), pointer :: grainc_to_cropprodc_col                   (:)     ! grain C to crop product pool (gC/m2/s)
 
      ! fire fluxes
      real(r8), pointer :: m_decomp_cpools_to_fire_vr_col            (:,:,:) ! vertically-resolved decomposing C fire loss (gC/m3/s)
@@ -242,19 +251,14 @@ module CNVegCarbonFluxType
      real(r8), pointer :: dwt_seedc_to_leaf_col                     (:)     ! (gC/m2/s) seed source to patch-level
      real(r8), pointer :: dwt_seedc_to_deadstem_col                 (:)     ! (gC/m2/s) seed source to patch-level
      real(r8), pointer :: dwt_conv_cflux_col                        (:)     ! (gC/m2/s) conversion C flux (immediate loss to atm)
-     real(r8), pointer :: dwt_prod10c_gain_col                      (:)     ! (gC/m2/s) addition to 10-yr wood product pool
-     real(r8), pointer :: dwt_prod100c_gain_col                     (:)     ! (gC/m2/s) addition to 100-yr wood product pool
+     real(r8), pointer :: dwt_productc_gain_patch                   (:)     ! (gC/m2/s) addition to wood product pools; although this is a patch-level flux, it is expressed per unit COLUMN area
+     real(r8), pointer :: dwt_productc_gain_col                     (:)     ! (gC/m2/s) addition to wood product pools
      real(r8), pointer :: dwt_frootc_to_litr_met_c_col              (:,:)   ! (gC/m3/s) fine root to litter due to landcover change
      real(r8), pointer :: dwt_frootc_to_litr_cel_c_col              (:,:)   ! (gC/m3/s) fine root to litter due to landcover change
      real(r8), pointer :: dwt_frootc_to_litr_lig_c_col              (:,:)   ! (gC/m3/s) fine root to litter due to landcover change
      real(r8), pointer :: dwt_livecrootc_to_cwdc_col                (:,:)   ! (gC/m3/s) live coarse root to CWD due to landcover change
      real(r8), pointer :: dwt_deadcrootc_to_cwdc_col                (:,:)   ! (gC/m3/s) dead coarse root to CWD due to landcover change
      real(r8), pointer :: dwt_closs_col                             (:)     ! (gC/m2/s) total carbon loss from product pools and conversion
-
-     ! wood product pool loss fluxes
-     real(r8), pointer :: prod10c_loss_col                          (:)     ! (gC/m2/s) decomposition loss from 10-yr wood product pool
-     real(r8), pointer :: prod100c_loss_col                         (:)     ! (gC/m2/s) decomposition loss from 100-yr wood product pool
-     real(r8), pointer :: product_closs_col                         (:)     ! (gC/m2/s) total wood product carbon loss
 
      ! summary (diagnostic) flux variables, not involved in mass balance
      real(r8), pointer :: gpp_before_downreg_patch                  (:)     ! (gC/m2/s) gross primary production before down regulation
@@ -319,13 +323,33 @@ module CNVegCarbonFluxType
 
      ! Summary C fluxes. 
      real(r8), pointer :: nep_col        (:) ! (gC/m2/s) net ecosystem production, excludes fire, landuse, and harvest flux, positive for sink
-     real(r8), pointer :: nbp_col        (:) ! (gC/m2/s) net biome production, includes fire, landuse, and harvest flux, positive for sink  
-     real(r8), pointer :: nee_col        (:) ! (gC/m2/s) net ecosystem exchange of carbon, includes fire, landuse, harvest, and hrv_xsmrpool flux, positive for source 
+     real(r8), pointer :: nbp_col        (:) ! (gC/m2/s) net biome production, includes fire, excludes landuse and harvest flux, positive for sink  
+     real(r8), pointer :: nee_col        (:) ! (gC/m2/s) net ecosystem exchange of carbon, includes fire and hrv_xsmrpool, excludes landuse and harvest flux, positive for source 
+     real(r8), pointer :: net_carbon_exchange_grc(:) ! (gC/m2/s) net carbon exchange between land and atmosphere, includes fire, landuse, harvest and hrv_xsmrpool flux, positive for source
 
      ! Dynamic landcover fluxnes
-     real(r8), pointer :: landuptake_col (:) ! (gC/m2/s) nee-landuseflux
-     real(r8), pointer :: landuseflux_col(:) ! (gC/m2/s) dwt_closs+product_closs
-
+     real(r8), pointer :: landuseflux_grc(:) ! (gC/m2/s) dwt_closs+product_closs
+     real(r8), pointer :: npp_Nactive_patch                         (:)     ! C used by mycorrhizal uptake    (gC/m2/s)
+     real(r8), pointer :: npp_burnedoff_patch                       (:)     ! C that cannot be used for N uptake   (gC/m2/s)
+     real(r8), pointer :: npp_Nnonmyc_patch                         (:)     ! C used by non-myc uptake        (gC/m2/s)
+     real(r8), pointer :: npp_Nam_patch                             (:)     ! C used by AM plant              (gC/m2/s)
+     real(r8), pointer :: npp_Necm_patch                            (:)     ! C used by ECM plant             (gC/m2/s)
+     real(r8), pointer :: npp_Nactive_no3_patch                     (:)     ! C used by mycorrhizal uptake    (gC/m2/s)
+     real(r8), pointer :: npp_Nactive_nh4_patch                     (:)     ! C used by mycorrhizal uptake    (gC/m2/s)
+     real(r8), pointer :: npp_Nnonmyc_no3_patch                     (:)     ! C used by non-myc               (gC/m2/s)
+     real(r8), pointer :: npp_Nnonmyc_nh4_patch                     (:)     ! C used by non-myc               (gC/m2/s)
+     real(r8), pointer :: npp_Nam_no3_patch                         (:)     ! C used by AM plant              (gC/m2/s)
+     real(r8), pointer :: npp_Nam_nh4_patch                         (:)     ! C used by AM plant              (gC/m2/s)
+     real(r8), pointer :: npp_Necm_no3_patch                        (:)     ! C used by ECM plant             (gC/m2/s)
+     real(r8), pointer :: npp_Necm_nh4_patch                        (:)     ! C used by ECM plant             (gC/m2/s)
+     real(r8), pointer :: npp_Nfix_patch                            (:)     ! C used by Symbiotic BNF         (gC/m2/s)
+     real(r8), pointer :: npp_Nretrans_patch                        (:)     ! C used by retranslocation       (gC/m2/s)
+     real(r8), pointer :: npp_Nuptake_patch                         (:)     ! Total C used by N uptake in FUN (gC/m2/s)
+     real(r8), pointer :: npp_growth_patch                         (:)     ! Total C u for growth in FUN      (gC/m2/s)   
+     real(r8), pointer :: leafc_change_patch                        (:)     ! Total used C from leaves        (gC/m2/s)
+     real(r8), pointer :: soilc_change_patch                        (:)     ! Total used C from soil          (gC/m2/s)
+ 
+!     real(r8), pointer :: soilc_change_col                          (:)     ! Total used C from soil          (gC/m2/s)
    contains
 
      procedure , public  :: Init   
@@ -365,10 +389,12 @@ contains
     ! !LOCAL VARIABLES:
     integer           :: begp,endp
     integer           :: begc,endc
+    integer           :: begg,endg
     !------------------------------------------------------------------------
 
     begp = bounds%begp; endp = bounds%endp
     begc = bounds%begc; endc = bounds%endc
+    begg = bounds%begg; endg = bounds%endg
 
     allocate(this%m_leafc_to_litter_patch                   (begp:endp)) ; this%m_leafc_to_litter_patch                   (:) = nan
     allocate(this%m_frootc_to_litter_patch                  (begp:endp)) ; this%m_frootc_to_litter_patch                  (:) = nan
@@ -399,8 +425,6 @@ contains
     allocate(this%hrv_livestemc_to_litter_patch             (begp:endp)) ; this%hrv_livestemc_to_litter_patch             (:) = nan
     allocate(this%hrv_livestemc_storage_to_litter_patch     (begp:endp)) ; this%hrv_livestemc_storage_to_litter_patch     (:) = nan
     allocate(this%hrv_livestemc_xfer_to_litter_patch        (begp:endp)) ; this%hrv_livestemc_xfer_to_litter_patch        (:) = nan
-    allocate(this%hrv_deadstemc_to_prod10c_patch            (begp:endp)) ; this%hrv_deadstemc_to_prod10c_patch            (:) = nan
-    allocate(this%hrv_deadstemc_to_prod100c_patch           (begp:endp)) ; this%hrv_deadstemc_to_prod100c_patch           (:) = nan
     allocate(this%hrv_deadstemc_storage_to_litter_patch     (begp:endp)) ; this%hrv_deadstemc_storage_to_litter_patch     (:) = nan
     allocate(this%hrv_deadstemc_xfer_to_litter_patch        (begp:endp)) ; this%hrv_deadstemc_xfer_to_litter_patch        (:) = nan
     allocate(this%hrv_livecrootc_to_litter_patch            (begp:endp)) ; this%hrv_livecrootc_to_litter_patch            (:) = nan
@@ -461,7 +485,17 @@ contains
     allocate(this%livecrootc_xfer_to_livecrootc_patch       (begp:endp)) ; this%livecrootc_xfer_to_livecrootc_patch       (:) = nan
     allocate(this%deadcrootc_xfer_to_deadcrootc_patch       (begp:endp)) ; this%deadcrootc_xfer_to_deadcrootc_patch       (:) = nan
     allocate(this%leafc_to_litter_patch                     (begp:endp)) ; this%leafc_to_litter_patch                     (:) = nan
+    allocate(this%leafc_to_litter_fun_patch                 (begp:endp)) ; this%leafc_to_litter_fun_patch                 (:) = nan
     allocate(this%frootc_to_litter_patch                    (begp:endp)) ; this%frootc_to_litter_patch                    (:) = nan
+    allocate(this%cpool_to_resp_patch                       (begp:endp)) ; this%cpool_to_resp_patch                       (:) = nan
+    allocate(this%cpool_to_leafc_resp_patch                 (begp:endp)) ; this%cpool_to_leafc_resp_patch                 (:) = nan
+    allocate(this%cpool_to_leafc_storage_resp_patch         (begp:endp)) ; this%cpool_to_leafc_storage_resp_patch         (:) = nan
+    allocate(this%cpool_to_frootc_resp_patch                (begp:endp)) ; this%cpool_to_frootc_resp_patch                (:) = nan
+    allocate(this%cpool_to_frootc_storage_resp_patch        (begp:endp)) ; this%cpool_to_frootc_storage_resp_patch        (:) = nan
+    allocate(this%cpool_to_livecrootc_resp_patch            (begp:endp)) ; this%cpool_to_livecrootc_resp_patch            (:) = nan
+    allocate(this%cpool_to_livecrootc_storage_resp_patch    (begp:endp)) ; this%cpool_to_livecrootc_storage_resp_patch    (:) = nan
+    allocate(this%cpool_to_livestemc_resp_patch             (begp:endp)) ; this%cpool_to_livestemc_resp_patch             (:) = nan
+    allocate(this%cpool_to_livestemc_storage_resp_patch     (begp:endp)) ; this%cpool_to_livestemc_storage_resp_patch     (:) = nan
     allocate(this%leaf_mr_patch                             (begp:endp)) ; this%leaf_mr_patch                             (:) = nan
     allocate(this%froot_mr_patch                            (begp:endp)) ; this%froot_mr_patch                            (:) = nan
     allocate(this%livestem_mr_patch                         (begp:endp)) ; this%livestem_mr_patch                         (:) = nan
@@ -579,33 +613,24 @@ contains
     allocate(this%dwt_seedc_to_leaf_col             (begc:endc))                  ; this%dwt_seedc_to_leaf_col     (:)  =nan
     allocate(this%dwt_seedc_to_deadstem_col         (begc:endc))                  ; this%dwt_seedc_to_deadstem_col (:)  =nan
     allocate(this%dwt_conv_cflux_col                (begc:endc))                  ; this%dwt_conv_cflux_col        (:)  =nan
-    allocate(this%dwt_prod10c_gain_col              (begc:endc))                  ; this%dwt_prod10c_gain_col      (:)  =nan
-    allocate(this%dwt_prod100c_gain_col             (begc:endc))                  ; this%dwt_prod100c_gain_col     (:)  =nan
-    allocate(this%prod10c_loss_col                  (begc:endc))                  ; this%prod10c_loss_col          (:)  =nan
-    allocate(this%prod100c_loss_col                 (begc:endc))                  ; this%prod100c_loss_col         (:)  =nan
-    allocate(this%product_closs_col                 (begc:endc))                  ; this%product_closs_col         (:)  =nan
+    allocate(this%dwt_productc_gain_patch           (begp:endp))                  ; this%dwt_productc_gain_patch   (:)  =nan
+    allocate(this%dwt_productc_gain_col             (begc:endc))                  ; this%dwt_productc_gain_col     (:)  =nan
 
     allocate(this%cwdc_hr_col                       (begc:endc))                  ; this%cwdc_hr_col               (:)  =nan
     allocate(this%cwdc_loss_col                     (begc:endc))                  ; this%cwdc_loss_col             (:)  =nan
     allocate(this%litterc_loss_col                  (begc:endc))                  ; this%litterc_loss_col          (:)  =nan
 
-    allocate(this%hrv_deadstemc_to_prod10c_col(begc:endc))                                                    
-    this%hrv_deadstemc_to_prod10c_col(:)= nan
+    allocate(this%grainc_to_cropprodc_patch(begp:endp))
+    this%grainc_to_cropprodc_patch(:) = nan
 
-    allocate(this%hrv_deadstemc_to_prod100c_col(begc:endc))                                                   
-    this%hrv_deadstemc_to_prod100c_col(:)= nan
+    allocate(this%grainc_to_cropprodc_col(begc:endc))
+    this%grainc_to_cropprodc_col(:) = nan
 
     allocate(this%m_decomp_cpools_to_fire_vr_col(begc:endc,1:nlevdecomp_full,1:ndecomp_pools))                
     this%m_decomp_cpools_to_fire_vr_col(:,:,:)= nan
 
     allocate(this%m_decomp_cpools_to_fire_col(begc:endc,1:ndecomp_pools))                                     
     this%m_decomp_cpools_to_fire_col(:,:)= nan
-
-    allocate(this%hrv_deadstemc_to_prod10c_col(begc:endc))                                                    
-    this%hrv_deadstemc_to_prod10c_col(:)= nan
-
-    allocate(this%hrv_deadstemc_to_prod100c_col(begc:endc))                                                   
-    this%hrv_deadstemc_to_prod100c_col(:)= nan
 
     allocate(this%m_decomp_cpools_to_fire_vr_col(begc:endc,1:nlevdecomp_full,1:ndecomp_pools))                
     this%m_decomp_cpools_to_fire_vr_col(:,:,:)= nan
@@ -650,8 +675,27 @@ contains
     allocate(this%nep_col                 (begc:endc)) ; this%nep_col                 (:) = nan
     allocate(this%nbp_col                 (begc:endc)) ; this%nbp_col                 (:) = nan
     allocate(this%nee_col                 (begc:endc)) ; this%nee_col                 (:) = nan
-    allocate(this%landuptake_col          (begc:endc)) ; this%landuptake_col          (:) = nan
-    allocate(this%landuseflux_col         (begc:endc)) ; this%landuseflux_col         (:) = nan
+    allocate(this%net_carbon_exchange_grc (begg:endg)) ; this%net_carbon_exchange_grc (:) = nan
+    allocate(this%landuseflux_grc         (begg:endg)) ; this%landuseflux_grc         (:) = nan
+    allocate(this%npp_Nactive_patch       (begp:endp)) ; this%npp_Nactive_patch       (:) = nan
+    allocate(this%npp_burnedoff_patch     (begp:endp)) ; this%npp_burnedoff_patch     (:) = nan
+    allocate(this%npp_Nnonmyc_patch       (begp:endp)) ; this%npp_Nnonmyc_patch       (:) = nan
+    allocate(this%npp_Nam_patch           (begp:endp)) ; this%npp_Nam_patch           (:) = nan
+    allocate(this%npp_Necm_patch          (begp:endp)) ; this%npp_Necm_patch          (:) = nan
+    allocate(this%npp_Nactive_no3_patch   (begp:endp)) ; this%npp_Nactive_no3_patch   (:) = nan
+    allocate(this%npp_Nactive_nh4_patch   (begp:endp)) ; this%npp_Nactive_nh4_patch   (:) = nan
+    allocate(this%npp_Nnonmyc_no3_patch   (begp:endp)) ; this%npp_Nnonmyc_no3_patch   (:) = nan
+    allocate(this%npp_Nnonmyc_nh4_patch   (begp:endp)) ; this%npp_Nnonmyc_nh4_patch   (:) = nan
+    allocate(this%npp_Nam_no3_patch       (begp:endp)) ; this%npp_Nam_no3_patch       (:) = nan
+    allocate(this%npp_Nam_nh4_patch       (begp:endp)) ; this%npp_Nam_nh4_patch       (:) = nan
+    allocate(this%npp_Necm_no3_patch      (begp:endp)) ; this%npp_Necm_no3_patch      (:) = nan
+    allocate(this%npp_Necm_nh4_patch      (begp:endp)) ; this%npp_Necm_nh4_patch      (:) = nan
+    allocate(this%npp_Nfix_patch          (begp:endp)) ; this%npp_Nfix_patch          (:) = nan
+    allocate(this%npp_Nretrans_patch      (begp:endp)) ; this%npp_Nretrans_patch      (:) = nan
+    allocate(this%npp_Nuptake_patch       (begp:endp)) ; this%npp_Nuptake_patch       (:) = nan
+    allocate(this%npp_growth_patch       (begp:endp)) ; this%npp_growth_patch       (:) = nan
+    allocate(this%leafc_change_patch      (begp:endp)) ; this%leafc_change_patch      (:) = nan
+    allocate(this%soilc_change_patch      (begp:endp)) ; this%soilc_change_patch      (:) = nan
 
   end subroutine InitAllocate; 
 
@@ -664,6 +708,7 @@ contains
     ! !USES:
     use clm_varpar , only : nlevdecomp, nlevdecomp_full, nlevgrnd
     use clm_varctl , only : hist_wrtch4diag
+    use CNSharedParamsMod, only: use_fun
     use histFileMod, only : hist_addfld1d, hist_addfld2d, hist_addfld_decomp 
     !
     ! !ARGUMENTS:
@@ -677,6 +722,7 @@ contains
     character(10)     :: active
     integer           :: begp,endp
     integer           :: begc,endc
+    integer           :: begg,endg
     character(24)     :: fieldname
     character(100)    :: longname
     real(r8), pointer :: data1dptr(:)   ! temp. pointer for slicing larger arrays
@@ -685,6 +731,7 @@ contains
 
     begp = bounds%begp; endp = bounds%endp
     begc = bounds%begc; endc = bounds%endc
+    begg = bounds%begg; endg = bounds%endg
 
     if (nlevdecomp > 1) then
        vr_suffix = "_vr"
@@ -698,7 +745,7 @@ contains
 
     if (carbon_type == 'c12') then
 
-       if (crop_prog) then
+       if (use_crop) then
           this%grainc_to_food_patch(begp:endp) = spval
           call hist_addfld1d (fname='GRAINC_TO_FOOD', units='gC/m^2/s', &
                avgflag='A', long_name='grain C to food', &
@@ -1097,11 +1144,22 @@ contains
             avgflag='A', long_name='leaf C litterfall', &
             ptr_patch=this%leafc_to_litter_patch, default='inactive')
 
+       if ( use_fun ) then
+          this%leafc_to_litter_fun_patch(begp:endp) = spval
+          call hist_addfld1d (fname='LEAFC_TO_LITTER_FUN', units='gC/m^2/s', &
+               avgflag='A', long_name='leaf C litterfall used by FUN', &
+               ptr_patch=this%leafc_to_litter_fun_patch)
+       end if
+
        this%frootc_to_litter_patch(begp:endp) = spval
        call hist_addfld1d (fname='FROOTC_TO_LITTER', units='gC/m^2/s', &
             avgflag='A', long_name='fine root C litterfall', &
             ptr_patch=this%frootc_to_litter_patch, default='inactive')
-
+            
+       this%cpool_to_resp_patch(begp:endp) = spval
+       call hist_addfld1d (fname='EXCESSC_MR', units='gC/m^2/s', &
+            avgflag='A', long_name='excess C maintenance respiration', &
+            ptr_patch=this%cpool_to_resp_patch, default='inactive')
        this%leaf_mr_patch(begp:endp) = spval
        call hist_addfld1d (fname='LEAF_MR', units='gC/m^2/s', &
             avgflag='A', long_name='leaf maintenance respiration', &
@@ -1436,6 +1494,110 @@ contains
         call hist_addfld1d (fname='PFT_FIRE_CLOSS', units='gC/m^2/s', &
              avgflag='A', long_name='total patch-level fire C loss for non-peat fires outside land-type converted region', &
              ptr_patch=this%fire_closs_patch)
+
+        if ( use_fun ) then
+          this%npp_Nactive_patch(begp:endp)  = spval
+          call hist_addfld1d (fname='NPP_NACTIVE', units='gC/m^2/s',     &
+               avgflag='A', long_name='Mycorrhizal N uptake used C',     &
+               ptr_patch=this%npp_Nactive_patch)
+
+          ! BUG(wjs, 2016-04-13, bugz 2292) This field has a threading bug. Making it
+          ! inactive for now.
+          this%npp_burnedoff_patch(begp:endp)  = spval
+          call hist_addfld1d (fname='NPP_BURNEDOFF', units='gC/m^2/s',     &
+               avgflag='A', long_name='C that cannot be used for N uptake',     &
+               ptr_patch=this%npp_burnedoff_patch, default='inactive')
+  
+          this%npp_Nnonmyc_patch(begp:endp)  = spval
+          call hist_addfld1d (fname='NPP_NNONMYC', units='gC/m^2/s',     &
+               avgflag='A', long_name='Non-mycorrhizal N uptake used C', &
+               ptr_patch=this%npp_Nnonmyc_patch)
+
+          this%npp_Nam_patch(begp:endp)      = spval
+          call hist_addfld1d (fname='NPP_NAM', units='gC/m^2/s',         &
+               avgflag='A', long_name='AM-associated N uptake used C',   &
+               ptr_patch=this%npp_Nam_patch)
+
+          this%npp_Necm_patch(begp:endp)     = spval
+          call hist_addfld1d (fname='NPP_NECM', units='gC/m^2/s',        &
+               avgflag='A', long_name='ECM-associated N uptake used C',  &
+               ptr_patch=this%npp_Necm_patch)
+
+          if (use_nitrif_denitrif) then
+             this%npp_Nactive_no3_patch(begp:endp)  = spval
+             call hist_addfld1d (fname='NPP_NACTIVE_NO3', units='gC/m^2/s', &
+                  avgflag='A', long_name='Mycorrhizal N uptake used C',     &
+                  ptr_patch=this%npp_Nactive_no3_patch)
+
+             this%npp_Nactive_nh4_patch(begp:endp)  = spval
+             call hist_addfld1d (fname='NPP_NACTIVE_NH4', units='gC/m^2/s', &
+                  avgflag='A', long_name='Mycorrhizal N uptake use C',      &
+                  ptr_patch=this%npp_Nactive_nh4_patch)
+
+             this%npp_Nnonmyc_no3_patch(begp:endp)  = spval
+             call hist_addfld1d (fname='NPP_NNONMYC_NO3', units='gC/m^2/s', &
+                  avgflag='A', long_name='Non-mycorrhizal N uptake use C',  &
+                  ptr_patch=this%npp_Nnonmyc_no3_patch)
+
+             this%npp_Nnonmyc_nh4_patch(begp:endp)  = spval
+             call hist_addfld1d (fname='NPP_NNONMYC_NH4', units='gC/m^2/s', &
+                  avgflag='A', long_name='Non-mycorrhizal N uptake use C',  &
+                  ptr_patch=this%npp_Nnonmyc_nh4_patch)
+
+             this%npp_Nam_no3_patch(begp:endp)      = spval
+             call hist_addfld1d (fname='NPP_NAM_NO3', units='gC/m^2/s',     &
+                  avgflag='A', long_name='AM-associated N uptake use C',    &
+                  ptr_patch=this%npp_Nam_no3_patch)
+
+             this%npp_Nam_nh4_patch(begp:endp)      = spval
+             call hist_addfld1d (fname='NPP_NAM_NH4', units='gC/m^2/s',     &
+                  avgflag='A', long_name='AM-associated N uptake use C',    &
+                  ptr_patch=this%npp_Nam_nh4_patch)
+
+             this%npp_Necm_no3_patch(begp:endp)     = spval
+             call hist_addfld1d (fname='NPP_NECM_NO3', units='gC/m^2/s',    &
+                  avgflag='A', long_name='ECM-associated N uptake used C',  &
+                  ptr_patch=this%npp_Necm_no3_patch)
+
+             this%npp_Necm_nh4_patch(begp:endp)     = spval
+             call hist_addfld1d (fname='NPP_NECM_NH4', units='gC/m^2/s',     &
+                  avgflag='A', long_name='ECM-associated N uptake use C',    &
+                  ptr_patch=this%npp_Necm_nh4_patch)
+          end if
+
+          this%npp_Nfix_patch(begp:endp)     = spval
+          call hist_addfld1d (fname='NPP_NFIX', units='gC/m^2/s',         &
+               avgflag='A', long_name='Symbiotic BNF uptake used C',      &
+               ptr_patch=this%npp_Nfix_patch)
+
+          this%npp_Nretrans_patch(begp:endp) = spval
+          call hist_addfld1d (fname='NPP_NRETRANS', units='gC/m^2/s',     &
+              avgflag='A', long_name='Retranslocated N uptake flux',      &
+              ptr_patch=this%npp_Nretrans_patch)
+
+          this%npp_Nuptake_patch(begp:endp) = spval
+          call hist_addfld1d (fname='NPP_NUPTAKE', units='gC/m^2/s',      &
+               avgflag='A', long_name='Total C used by N uptake in FUN',  &
+               ptr_patch=this%npp_Nuptake_patch)
+
+    this%npp_growth_patch(begp:endp) = spval
+          call hist_addfld1d (fname='NPP_GROWTH', units='gC/m^2/s',      &
+               avgflag='A', long_name='Total C used for growth in FUN',  &
+               ptr_patch=this%npp_growth_patch)
+
+
+
+          this%leafc_change_patch(begp:endp) = spval
+          call hist_addfld1d (fname='LEAFC_CHANGE', units='gC/m^2/s',     &
+               avgflag='A', long_name='C change in leaf',                 &
+               ptr_patch=this%leafc_change_patch)
+
+          this%soilc_change_patch(begp:endp) = spval
+          call hist_addfld1d (fname='SOILC_CHANGE', units='gC/m^2/s',     &
+               avgflag='A', long_name='C change in soil',                 &
+               ptr_patch=this%soilc_change_patch)
+      end if
+! FUN Ends 
 
     end if  ! end of if-c12
 
@@ -2602,26 +2764,6 @@ contains
             avgflag='A', long_name='conversion C flux (immediate loss to atm)', &
             ptr_col=this%dwt_conv_cflux_col)
 
-       this%dwt_prod10c_gain_col(begc:endc) = spval
-       call hist_addfld1d (fname='DWT_PROD10C_GAIN', units='gC/m^2/s', &
-            avgflag='A', long_name='landcover change-driven addition to 10-yr wood product pool', &
-            ptr_col=this%dwt_prod10c_gain_col)
-
-       this%prod10c_loss_col(begc:endc) = spval
-       call hist_addfld1d (fname='PROD10C_LOSS', units='gC/m^2/s', &
-            avgflag='A', long_name='loss from 10-yr wood product pool', &
-            ptr_col=this%prod10c_loss_col)
-
-       this%dwt_prod100c_gain_col(begc:endc) = spval
-       call hist_addfld1d (fname='DWT_PROD100C_GAIN', units='gC/m^2/s', &
-            avgflag='A', long_name='landcover change-driven addition to 100-yr wood product pool', &
-            ptr_col=this%dwt_prod100c_gain_col)
-
-       this%prod100c_loss_col(begc:endc) = spval
-       call hist_addfld1d (fname='PROD100C_LOSS', units='gC/m^2/s', &
-            avgflag='A', long_name='loss from 100-yr wood product pool', &
-            ptr_col=this%prod100c_loss_col)
-
        this%dwt_frootc_to_litr_met_c_col(begc:endc,:) = spval
        call hist_addfld_decomp (fname='DWT_FROOTC_TO_LITR_MET_C', units='gC/m^2/s',  type2d='levdcmp', &
             avgflag='A', long_name='fine root to litter due to landcover change', &
@@ -2651,11 +2793,6 @@ contains
        call hist_addfld1d (fname='DWT_CLOSS', units='gC/m^2/s', &
             avgflag='A', long_name='total carbon loss from land cover conversion', &
             ptr_col=this%dwt_closs_col)
-
-       this%product_closs_col(begc:endc) = spval
-       call hist_addfld1d (fname='PRODUCT_CLOSS', units='gC/m^2/s', &
-            avgflag='A', long_name='total carbon loss from wood product pools', &
-            ptr_col=this%product_closs_col)
 
         this%sr_col(begc:endc) = spval
         call hist_addfld1d (fname='SR', units='gC/m^2/s', &
@@ -2704,27 +2841,28 @@ contains
 
        this%nbp_col(begc:endc) = spval
        call hist_addfld1d (fname='NBP', units='gC/m^2/s', &
-            avgflag='A', long_name='net biome production, includes fire, landuse, and harvest flux, positive for sink', &
+            avgflag='A', long_name='net biome production, includes fire, excludes landuse and harvest flux, positive for sink', &
             ptr_col=this%nbp_col)
 
        this%nee_col(begc:endc) = spval
        call hist_addfld1d (fname='NEE', units='gC/m^2/s', &
-            avgflag='A', long_name='net ecosystem exchange of carbon, includes fire, landuse,'&
-            //' harvest, and hrv_xsmrpool flux, positive for source', &
+            avgflag='A', long_name='net ecosystem exchange of carbon, includes fire and hrv_xsmrpool,'&
+            //' excludes landuse and harvest flux, positive for source', &
             ptr_col=this%nee_col)
 
-       this%landuptake_col(begc:endc) = spval
-       call hist_addfld1d (fname='LAND_UPTAKE', units='gC/m^2/s', &
-            avgflag='A', long_name='NEE minus LAND_USE_FLUX, negative for update', &
-            ptr_col=this%landuptake_col)
+       this%net_carbon_exchange_grc(begg:endg) = spval
+       call hist_addfld1d (fname='NET_CARBON_EXCHANGE', units='gC/m^2/s', &
+            avgflag='A', long_name='net carbon exchange between land and atmosphere, includes fire, landuse,'&
+            //' harvest and hrv_xsmrpool flux, positive for source', &
+            ptr_gcell=this%net_carbon_exchange_grc)
 
-       this%landuseflux_col(begc:endc) = spval
+       this%landuseflux_grc(begg:endg) = spval
        call hist_addfld1d (fname='LAND_USE_FLUX', units='gC/m^2/s', &
-            avgflag='A', long_name='total C emitted from land cover conversion and wood product pools', &
-            ptr_col=this%landuseflux_col)
+            avgflag='A', &
+            long_name='total C emitted from land cover conversion and wood and grain product pools (NOTE: not a net value)', &
+            ptr_gcell=this%landuseflux_grc)
 
-    end if
-
+   end if
     !-------------------------------
     ! C13 flux variables - column 
     !-------------------------------
@@ -2768,26 +2906,6 @@ contains
             avgflag='A', long_name='C13 conversion C flux (immediate loss to atm)', &
             ptr_col=this%dwt_conv_cflux_col)
 
-       this%dwt_prod10c_gain_col(begc:endc) = spval
-       call hist_addfld1d (fname='C13_DWT_PROD10C_GAIN', units='gC13/m^2/s', &
-            avgflag='A', long_name='C13 addition to 10-yr wood product pool', &
-            ptr_col=this%dwt_prod10c_gain_col)
-
-       this%prod10c_loss_col(begc:endc) = spval
-       call hist_addfld1d (fname='C13_PROD10C_LOSS', units='gC13/m^2/s', &
-            avgflag='A', long_name='C13 loss from 10-yr wood product pool', &
-            ptr_col=this%prod10c_loss_col)
-
-       this%dwt_prod100c_gain_col(begc:endc) = spval
-       call hist_addfld1d (fname='C13_DWT_PROD100C_GAIN', units='gC13/m^2/s', &
-            avgflag='A', long_name='C13 addition to 100-yr wood product pool', &
-            ptr_col=this%dwt_prod100c_gain_col)
-
-       this%prod100c_loss_col(begc:endc) = spval
-       call hist_addfld1d (fname='C13_PROD100C_LOSS', units='gC13/m^2/s', &
-            avgflag='A', long_name='C13 loss from 100-yr wood product pool', &
-            ptr_col=this%prod100c_loss_col)
-
        this%dwt_frootc_to_litr_met_c_col(begc:endc,:) = spval
        call hist_addfld_decomp (fname='C13_DWT_FROOTC_TO_LITR_MET_C', units='gC13/m^2/s',  type2d='levdcmp', &
             avgflag='A', long_name='C13 fine root to litter due to landcover change', &
@@ -2817,11 +2935,6 @@ contains
        call hist_addfld1d (fname='C13_DWT_CLOSS', units='gC13/m^2/s', &
             avgflag='A', long_name='C13 total carbon loss from land cover conversion', &
             ptr_col=this%dwt_closs_col)
-
-       this%product_closs_col(begc:endc) = spval
-       call hist_addfld1d (fname='C13_PRODUCT_CLOSS', units='gC13/m^2/s', &
-            avgflag='A', long_name='C13 total carbon loss from wood product pools', &
-            ptr_col=this%product_closs_col)
 
         this%sr_col(begc:endc) = spval
         call hist_addfld1d (fname='C13_SR', units='gC13/m^2/s', &
@@ -2908,26 +3021,6 @@ contains
             avgflag='A', long_name='C14 conversion C flux (immediate loss to atm)', &
             ptr_col=this%dwt_conv_cflux_col)
 
-       this%dwt_prod10c_gain_col(begc:endc) = spval
-       call hist_addfld1d (fname='C14_DWT_PROD10C_GAIN', units='gC14/m^2/s', &
-            avgflag='A', long_name='C14 addition to 10-yr wood product pool', &
-            ptr_col=this%dwt_prod10c_gain_col)
-
-       this%prod10c_loss_col(begc:endc) = spval
-       call hist_addfld1d (fname='C14_PROD10C_LOSS', units='gC14/m^2/s', &
-            avgflag='A', long_name='C14 loss from 10-yr wood product pool', &
-            ptr_col=this%prod10c_loss_col)
-
-       this%dwt_prod100c_gain_col(begc:endc) = spval
-       call hist_addfld1d (fname='C14_DWT_PROD100C_GAIN', units='gC14/m^2/s', &
-            avgflag='A', long_name='C14 addition to 100-yr wood product pool', &
-            ptr_col=this%dwt_prod100c_gain_col)
-
-       this%prod100c_loss_col(begc:endc) = spval
-       call hist_addfld1d (fname='C14_PROD100C_LOSS', units='gC14/m^2/s', &
-            avgflag='A', long_name='C14 loss from 100-yr wood product pool', &
-            ptr_col=this%prod100c_loss_col)
-
        this%dwt_frootc_to_litr_met_c_col(begc:endc,:) = spval
        call hist_addfld_decomp (fname='C14_DWT_FROOTC_TO_LITR_MET_C', units='gC14/m^2/s',  type2d='levdcmp', &
             avgflag='A', long_name='C14 fine root to litter due to landcover change', &
@@ -2957,11 +3050,6 @@ contains
        call hist_addfld1d (fname='C14_DWT_CLOSS', units='gC14/m^2/s', &
             avgflag='A', long_name='C14 total carbon loss from land cover conversion', &
             ptr_col=this%dwt_closs_col)
-
-       this%product_closs_col(begc:endc) = spval
-       call hist_addfld1d (fname='C14_PRODUCT_CLOSS', units='gC14/m^2/s', &
-            avgflag='A', long_name='C14 total carbon loss from wood product pools', &
-            ptr_col=this%product_closs_col)
 
         this%sr_col(begc:endc) = spval
         call hist_addfld1d (fname='C14_SR', units='gC14/m^2/s', &
@@ -3057,6 +3145,7 @@ contains
           this%plant_calloc_patch(p)          = spval
           this%prev_leafc_to_litter_patch(p)  = spval
           this%prev_frootc_to_litter_patch(p) = spval
+          this%leafc_to_litter_fun_patch(p)   = spval
           if ( use_c13 ) then
              this%xsmrpool_c13ratio_patch(p)  = spval
           endif
@@ -3066,6 +3155,7 @@ contains
           this%xsmrpool_recover_patch(p)      = 0._r8
           this%excess_cflux_patch(p)          = 0._r8
           this%prev_leafc_to_litter_patch(p)  = 0._r8
+          this%leafc_to_litter_fun_patch(p)   = 0._r8 
           this%prev_frootc_to_litter_patch(p) = 0._r8
           this%plant_calloc_patch(p)          = 0._r8
        end if
@@ -3080,10 +3170,7 @@ contains
           this%dwt_seedc_to_leaf_col(c)     = 0._r8
           this%dwt_seedc_to_deadstem_col(c) = 0._r8
           this%dwt_conv_cflux_col(c)        = 0._r8
-          this%dwt_prod10c_gain_col(c)      = 0._r8
-          this%dwt_prod100c_gain_col(c)     = 0._r8
-          this%prod10c_loss_col(c)          = 0._r8
-          this%prod100c_loss_col(c)         = 0._r8
+          this%dwt_productc_gain_col(c)     = 0._r8
           do j = 1, nlevdecomp_full
              this%dwt_frootc_to_litr_met_c_col(c,j) = 0._r8
              this%dwt_frootc_to_litr_cel_c_col(c,j) = 0._r8
@@ -3100,8 +3187,6 @@ contains
     do fc = 1,num_special_col
        c = special_col(fc)
        this%dwt_closs_col(c)   = 0._r8
-       this%landuseflux_col(c) = 0._r8
-       this%landuptake_col(c)  = 0._r8
     end do
 
     do p = bounds%begp,bounds%endp
@@ -3155,6 +3240,7 @@ contains
     use clm_time_manager , only : is_restart
     use clm_varcon       , only : c13ratio, c14ratio
     use clm_varctl       , only : use_lch4
+    use CNSharedParamsMod, only : use_fun
     use restUtilMod
     use ncdio_pio
     !
@@ -3169,7 +3255,7 @@ contains
     logical :: readvar      ! determine if variable is on initial file
     !------------------------------------------------------------------------
 
-    if (crop_prog) then
+    if (use_crop) then
 
        call restartvar(ncid=ncid, flag=flag,  varname='grainc_xfer_to_grainc', xtype=ncd_double,  &
             dim1name='pft', &
@@ -3283,6 +3369,13 @@ contains
          long_name='', units='', &
          interpinic_flag='interp', readvar=readvar, data=this%annsum_litfall_patch)
 
+    if ( use_fun ) then
+       call restartvar(ncid=ncid, flag=flag, varname='leafc_to_litter_fun', xtype=ncd_double,  &
+            dim1name='pft', &
+            long_name='', units='', &
+            interpinic_flag='interp', readvar=readvar, data=this%leafc_to_litter_fun_patch)
+    end if
+
   end subroutine Restart
 
   !-----------------------------------------------------------------------
@@ -3339,8 +3432,6 @@ contains
        this%hrv_livestemc_to_litter_patch(i)             = value_patch         
        this%hrv_livestemc_storage_to_litter_patch(i)     = value_patch 
        this%hrv_livestemc_xfer_to_litter_patch(i)        = value_patch    
-       this%hrv_deadstemc_to_prod10c_patch(i)            = value_patch        
-       this%hrv_deadstemc_to_prod100c_patch(i)           = value_patch       
        this%hrv_deadstemc_storage_to_litter_patch(i)     = value_patch 
        this%hrv_deadstemc_xfer_to_litter_patch(i)        = value_patch    
        this%hrv_livecrootc_to_litter_patch(i)            = value_patch        
@@ -3405,6 +3496,15 @@ contains
        this%deadcrootc_xfer_to_deadcrootc_patch(i)       = value_patch
        this%leafc_to_litter_patch(i)                     = value_patch
        this%frootc_to_litter_patch(i)                    = value_patch
+       this%cpool_to_resp_patch(i)                       = value_patch
+       this%cpool_to_leafc_resp_patch(i)                 = value_patch
+       this%cpool_to_leafc_storage_resp_patch(i)         = value_patch
+       this%cpool_to_frootc_resp_patch(i)                = value_patch
+       this%cpool_to_frootc_storage_resp_patch(i)        = value_patch
+       this%cpool_to_livecrootc_resp_patch(i)            = value_patch
+       this%cpool_to_livecrootc_storage_resp_patch(i)    = value_patch
+       this%cpool_to_livestemc_resp_patch(i)             = value_patch
+       this%cpool_to_livestemc_storage_resp_patch(i)     = value_patch
        this%leaf_mr_patch(i)                             = value_patch
        this%froot_mr_patch(i)                            = value_patch
        this%livestem_mr_patch(i)                         = value_patch
@@ -3473,9 +3573,11 @@ contains
        this%leafc_loss_patch(i)                          = value_patch
        this%woodc_alloc_patch(i)                         = value_patch
        this%woodc_loss_patch(i)                          = value_patch
+
+       this%grainc_to_cropprodc_patch(i)                 = value_patch
     end do
 
-    if ( crop_prog )then
+    if ( use_crop )then
        do fi = 1,num_patch
           i = filter_patch(fi)
           this%xsmrpool_to_atm_patch(i)         = value_patch
@@ -3536,11 +3638,7 @@ contains
     do fi = 1,num_column
        i = filter_column(fi)
 
-       this%hrv_deadstemc_to_prod10c_col(i)  = value_column        
-       this%hrv_deadstemc_to_prod100c_col(i) = value_column  
-       this%prod10c_loss_col(i)              = value_column
-       this%prod100c_loss_col(i)             = value_column
-       this%product_closs_col(i)             = value_column
+       this%grainc_to_cropprodc_col(i)       = value_column
        this%cwdc_hr_col(i)                   = value_column
        this%cwdc_loss_col(i)                 = value_column
        this%litterc_loss_col(i)              = value_column
@@ -3562,6 +3660,25 @@ contains
        this%cinputs_patch(i)       = value_patch
        this%coutputs_patch(i)      = value_patch
        this%fire_closs_patch(i)    = value_patch
+       this%npp_Nactive_patch(i)     = value_patch
+       this%npp_burnedoff_patch(i)     = value_patch
+       this%npp_Nnonmyc_patch(i)     = value_patch
+       this%npp_Nam_patch(i)         = value_patch
+       this%npp_Necm_patch(i)        = value_patch
+       this%npp_Nactive_no3_patch(i) = value_patch
+       this%npp_Nactive_nh4_patch(i) = value_patch
+       this%npp_Nnonmyc_no3_patch(i) = value_patch
+       this%npp_Nnonmyc_nh4_patch(i) = value_patch
+       this%npp_Nam_no3_patch(i)     = value_patch
+       this%npp_Nam_nh4_patch(i)     = value_patch
+       this%npp_Necm_no3_patch(i)    = value_patch
+       this%npp_Necm_nh4_patch(i)    = value_patch
+       this%npp_Nfix_patch(i)        = value_patch
+       this%npp_Nretrans_patch(i)    = value_patch
+       this%npp_Nuptake_patch(i)     = value_patch
+       this%npp_growth_patch(i)      = value_patch
+       this%leafc_change_patch(i)    = value_patch
+       this%soilc_change_patch(i)    = value_patch
     end do
 
     do fi = 1,num_column
@@ -3587,6 +3704,7 @@ contains
        this%nep_col(i)                 = value_column
        this%nbp_col(i)                 = value_column
        this%nee_col(i)                 = value_column
+
     end do
 
   end subroutine SetValues
@@ -3605,15 +3723,13 @@ contains
     integer  :: c, j          ! indices
     !-----------------------------------------------------------------------
 
-    ! set column-level conversion and product pool fluxes
-    ! to 0 at the beginning of every timestep
+    ! set conversion and product pool fluxes to 0 at the beginning of every timestep
 
     do c = bounds%begc,bounds%endc
        this%dwt_seedc_to_leaf_col(c)        = 0._r8
        this%dwt_seedc_to_deadstem_col(c)    = 0._r8
        this%dwt_conv_cflux_col(c)           = 0._r8
-       this%dwt_prod10c_gain_col(c)         = 0._r8
-       this%dwt_prod100c_gain_col(c)        = 0._r8
+       this%dwt_productc_gain_col(c)        = 0._r8
     end do
 
     do j = 1, nlevdecomp_full
@@ -3632,7 +3748,8 @@ contains
   subroutine Summary_carbonflux(this, &
        bounds, num_soilc, filter_soilc, num_soilp, filter_soilp, &
        isotope, soilbiogeochem_hr_col, soilbiogeochem_lithr_col, &
-       soilbiogeochem_decomp_cascade_ctransfer_col)
+       soilbiogeochem_decomp_cascade_ctransfer_col, &
+       product_closs_grc)
     !
     ! !DESCRIPTION:
     ! Perform patch and column-level carbon summary calculations
@@ -3640,9 +3757,10 @@ contains
     ! !USES:
     use clm_time_manager                   , only: get_step_size
     use clm_varcon                         , only: secspday
-    use clm_varctl                         , only: nfix_timeconst   
-    use subgridAveMod                      , only: p2c
+    use clm_varctl                         , only: nfix_timeconst, carbon_resp_opt
+    use subgridAveMod                      , only: p2c, c2g
     use SoilBiogeochemDecompCascadeConType , only: decomp_cascade_con
+    use CNSharedParamsMod                  , only: use_fun
     !
     ! !ARGUMENTS:
     class(cnveg_carbonflux_type)   :: this
@@ -3655,13 +3773,18 @@ contains
     real(r8)          , intent(in) :: soilbiogeochem_hr_col(bounds%begc:)
     real(r8)          , intent(in) :: soilbiogeochem_lithr_col(bounds%begc:)
     real(r8)          , intent(in) :: soilbiogeochem_decomp_cascade_ctransfer_col(bounds%begc:,1:)
+    real(r8)          , intent(in) :: product_closs_grc(bounds%begg:)
     !
     ! !LOCAL VARIABLES:
-    integer  :: c,p,j,k,l       ! indices
+    integer  :: c,p,j,k,l,g     ! indices
     integer  :: fp,fc           ! lake filter indices
     real(r8) :: nfixlags, dtime ! temp variables for making lagged npp
     real(r8) :: maxdepth        ! depth to integrate soil variables
+    real(r8) :: dwt_closs_grc(bounds%begg:bounds%endg)  ! dwt_closs_col averaged to gridcell
+    real(r8) :: nee_grc(bounds%begg:bounds%endg)        ! nee_col averaged to gridcell
     !-----------------------------------------------------------------------
+
+    SHR_ASSERT_ALL((ubound(product_closs_grc) == (/bounds%endg/)), errMsg(__FILE__, __LINE__))
 
     ! calculate patch-level summary carbon fluxes and states
 
@@ -3681,7 +3804,16 @@ contains
             this%froot_mr_patch(p)    + &
             this%livestem_mr_patch(p) + &
             this%livecroot_mr_patch(p)
-       if ( crop_prog .and. patch%itype(p) >= npcropmin )then
+
+       if (carbon_resp_opt == 1) then
+          this%mr_patch(p)  = &
+               this%cpool_to_resp_patch(p)     + &
+               this%leaf_mr_patch(p)     + &
+               this%froot_mr_patch(p)    + &
+               this%livestem_mr_patch(p) + &
+               this%livecroot_mr_patch(p)
+       end if
+       if ( use_crop .and. patch%itype(p) >= npcropmin )then
           this%mr_patch(p) = &
                this%mr_patch(p) + &
                this%grain_mr_patch(p)
@@ -3697,10 +3829,11 @@ contains
             this%cpool_deadstem_gr_patch(p)  + &
             this%cpool_livecroot_gr_patch(p) + &
             this%cpool_deadcroot_gr_patch(p)
-       if ( crop_prog .and. patch%itype(p) >= npcropmin )then
+       if ( use_crop .and. patch%itype(p) >= npcropmin )then
           this%current_gr_patch(p) = this%current_gr_patch(p) + &
                this%cpool_grain_gr_patch(p)
        end if
+
 
        ! transfer GR is respired this time step for transfer growth displayed in this timestep
        this%transfer_gr_patch(p) = &
@@ -3710,7 +3843,7 @@ contains
             this%transfer_deadstem_gr_patch(p)  + &
             this%transfer_livecroot_gr_patch(p) + &
             this%transfer_deadcroot_gr_patch(p)
-       if ( crop_prog .and. patch%itype(p) >= npcropmin )then
+       if ( use_crop .and. patch%itype(p) >= npcropmin )then
           this%transfer_gr_patch(p) = this%transfer_gr_patch(p) + &
                this%transfer_grain_gr_patch(p)
        end if
@@ -3724,7 +3857,7 @@ contains
             this%cpool_livecroot_storage_gr_patch(p) + &
             this%cpool_deadcroot_storage_gr_patch(p)
 
-       if ( crop_prog .and. patch%itype(p) >= npcropmin )then
+       if ( use_crop .and. patch%itype(p) >= npcropmin )then
           this%storage_gr_patch(p) = this%storage_gr_patch(p) + &
                this%cpool_grain_storage_gr_patch(p)
        end if
@@ -3736,26 +3869,30 @@ contains
             this%storage_gr_patch(p)
 
        ! autotrophic respiration (AR) adn 
-       if ( crop_prog .and. patch%itype(p) >= npcropmin )then
+       if ( use_crop .and. patch%itype(p) >= npcropmin )then
           this%ar_patch(p) =           &
                this%mr_patch(p)      + &
                this%gr_patch(p)      + &
                this%xsmrpool_to_atm_patch(p) ! xsmr... is -ve (slevis)
-       else
-          this%ar_patch(p) =           &
-               this%mr_patch(p)      + &
-               this%gr_patch(p)
+       else         
+             this%ar_patch(p) =           &
+                  this%mr_patch(p)      + &
+                  this%gr_patch(p)         
        end if
-
+       
+       if (use_fun) then
+          this%ar_patch(p) = this%ar_patch(p) + this%soilc_change_patch(p)
+       end if
+      
        ! gross primary production (GPP)
        this%gpp_patch(p) = &
             this%psnsun_to_cpool_patch(p) + &
             this%psnshade_to_cpool_patch(p)
 
-       ! net primary production (NPP)
+       ! net primary production (NPP)      
        this%npp_patch(p) =      &
-            this%gpp_patch(p) - &
-            this%ar_patch(p)
+               this%gpp_patch(p) - &
+               this%ar_patch(p)     
 
        ! root respiration (RR)
        this%rr_patch(p) =         &
@@ -3790,7 +3927,7 @@ contains
             this%cpool_to_deadstemc_patch(p)              + &
             this%deadstemc_xfer_to_deadstemc_patch(p)
 
-       if ( crop_prog .and. patch%itype(p) >= npcropmin )then
+       if ( use_crop .and. patch%itype(p) >= npcropmin )then
           this%agnpp_patch(p) =      &
                this%agnpp_patch(p) + &
                this%cpool_to_grainc_patch(p)            + &
@@ -3877,7 +4014,7 @@ contains
             this%hrv_gresp_storage_to_litter_patch(p)         + &
             this%hrv_gresp_xfer_to_litter_patch(p)
 
-       if ( crop_prog .and. patch%itype(p) >= npcropmin )then
+       if ( use_crop .and. patch%itype(p) >= npcropmin )then
           this%litfall_patch(p) =      &
                this%litfall_patch(p) + &
                this%livestemc_to_litter_patch(p)          + &
@@ -3892,12 +4029,6 @@ contains
                this%leafc_to_litter_patch(p) + &
                this%frootc_to_litter_patch(p)
        end if
-
-       ! patch-level wood harvest
-
-       this%wood_harvestc_patch(p) = &
-            this%hrv_deadstemc_to_prod10c_patch(p) + &
-            this%hrv_deadstemc_to_prod100c_patch(p)
 
        ! patch-level carbon losses to fire changed by F. Li and S. Levis
 
@@ -3975,8 +4106,7 @@ contains
             this%hrv_livestemc_to_litter_patch(p)          + &
             this%hrv_livestemc_storage_to_litter_patch(p)  + &
             this%hrv_livestemc_xfer_to_litter_patch(p)     + &
-            this%hrv_deadstemc_to_prod10c_patch(p)         + &
-            this%hrv_deadstemc_to_prod100c_patch(p)        + &
+            this%wood_harvestc_patch(p)                    + &
             this%hrv_deadstemc_storage_to_litter_patch(p)  + &
             this%hrv_deadstemc_xfer_to_litter_patch(p)     + &
             this%hrv_livecrootc_to_litter_patch(p)         + &
@@ -3997,10 +4127,6 @@ contains
     call p2c(bounds, num_soilc, filter_soilc, &
          this%hrv_xsmrpool_to_atm_patch(bounds%begp:bounds%endp), &
          this%hrv_xsmrpool_to_atm_col(bounds%begc:bounds%endc))
-
-    call p2c(bounds, num_soilc, filter_soilc, &
-         this%wood_harvestc_patch(bounds%begp:bounds%endp), &
-         this%wood_harvestc_col(bounds%begc:bounds%endc))
 
     call p2c(bounds, num_soilc, filter_soilc, &
          this%fire_closs_patch(bounds%begp:bounds%endp), &
@@ -4073,11 +4199,6 @@ contains
             this%litfire_col(c) + &
             this%somfire_col(c) 
 
-       ! total wood product loss
-       this%product_closs_col(c) = &
-            this%prod10c_loss_col(c) + &
-            this%prod100c_loss_col(c) 
-
        ! carbon losses to fire, including patch losses
        this%fire_closs_col(c) = this%fire_closs_p2c_col(c) 
        do l = 1, ndecomp_pools
@@ -4109,33 +4230,41 @@ contains
             this%gpp_col(c) - &
             this%er_col(c)
 
-       ! net biome production of carbon, includes depletion from: fire flux, 
-       ! landcover change flux, and loss from wood products pools, positive for sink (NBP)
+       ! net biome production of carbon, includes depletion from fire flux,
+       ! positive for sink (NBP)
        this%nbp_col(c) =  &
             this%nep_col(c)        - &
-            this%fire_closs_col(c) - &
-            this%dwt_closs_col(c)  - &
-            this%product_closs_col(c)
+            this%fire_closs_col(c)
 
-       ! net ecosystem exchange of carbon, includes fire flux, landcover change flux, loss
-       ! from wood products pools, and hrv_xsmrpool flux, positive for source (NEE)
+       ! net ecosystem exchange of carbon, includes fire flux and hrv_xsmrpool flux,
+       ! positive for source (NEE)
        this%nee_col(c) = &
             -this%nep_col(c)          + &
             this%fire_closs_col(c)    + &
-            this%dwt_closs_col(c)     + &
-            this%product_closs_col(c) + &
             this%hrv_xsmrpool_to_atm_col(c)
 
-       ! land use flux 
-       this%landuseflux_col(c) =    &
-            this%dwt_closs_col(c) + &
-            this%product_closs_col(c)
+    end do
 
-       ! land uptake flux
-       this%landuptake_col(c) = &
-            this%nee_col(c) -   &
-            this%landuseflux_col(c)
+    call c2g( bounds = bounds, &
+         carr = this%dwt_closs_col(bounds%begc:bounds%endc), &
+         garr = dwt_closs_grc(bounds%begg:bounds%endg), &
+         c2l_scale_type = 'unity', &
+         l2g_scale_type = 'unity')
 
+    call c2g( bounds = bounds, &
+         carr = this%nee_col(bounds%begc:bounds%endc), &
+         garr = nee_grc(bounds%begg:bounds%endg), &
+         c2l_scale_type = 'unity', &
+         l2g_scale_type = 'unity')
+
+    do g = bounds%begg, bounds%endg
+       this%landuseflux_grc(g) = &
+            dwt_closs_grc(g)   + &
+            product_closs_grc(g)
+
+       this%net_carbon_exchange_grc(g) = &
+            nee_grc(g)                 + &
+            this%landuseflux_grc(g)
     end do
 
     ! coarse woody debris C loss

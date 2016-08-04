@@ -1,4 +1,119 @@
 ===============================================================
+Tag name:  rtm1_0_56
+Originator(s): erik
+Date: Apr 14, 2016
+One-line Summary: Turn off for CLM_ACCELERATED_SPINUP="on" and fix a few bugs
+
+Have RTM react to CLM_ACCELERATED_SPINUP setting from CLM and turn itself off
+by default if it's "on".
+
+Also fix following bugs:
+
+1674 -- assumes history files are no_leap calendar
+2230 -- for RTM delt_save not initialized
+
+M       bld/build-namelist ---- Check CLM_ACCELERATED_SPINUP, read do_rtm from
+           defaults file and check based on CLM_ACCELERATED_SPINUP and MOSART_MODE
+M       bld/namelist_files/namelist_defaults_rtm.xml  - add do_rtm settings
+M       src/riverroute/RtmHistFile.F90 -- Increase filename length to 255
+           check calendar type before writing to history file
+M       src/riverroute/RtmIO.F90 -------- initialize delt_save (2230)
+M       src/riverroute/RtmMod.F90 ------- Increase string length to 255
+M       src/riverroute/RtmRestFile.F90 -- Increase string length to 255
+M       src/riverroute/RtmTimeManager.F90 Add NO_LEAP_C and GREGORIAN_C as public constants (2307)
+
+===============================================================
+Tag name:  rtm1_0_55
+Originator(s): andre
+Date: Oct 13, 2015
+One-line Summary: negative runoff remove direct to ocean runoff from Sean Swenson
+
+- Remove directo to ocean runnoff (Sean Swenson)
+- add error checking on history file name length.
+- add default test mod with hourly output from rtm
+
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnFloodOnEffvelOff/include_user_mods
+A  +    cime_config/testdefs/testmods_dirs/rtm/default
+A  +    cime_config/testdefs/testmods_dirs/rtm/default/user_nl_rtm
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnFloodOnEffvelOn/include_user_mods
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnIceOff/include_user_mods
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOff/include_user_mods
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnIceOn/include_user_mods
+M       cime_config/testdefs/testlist_rtm.xml
+M       src/riverroute/RtmHistFlds.F90
+M       src/riverroute/RtmHistFile.F90
+M       src/riverroute/RunoffMod.F90
+M       src/cpl/rtm_cpl_indices.F90
+M       src/cpl/rof_import_export.F90
+
+===============================================================
+Tag name:  rtm1_0_54
+Originator(s): andre
+Date: Oct 13, 2015
+One-line Summary: Direct to ocean runoff from Sean Swenson
+
+Testing against branch based on clm4_5_3_r135:
+
+  SMS_D_Ld3.f10_f10.ICRUCLM50BGC.yellowstone_intel.clm-default
+  ERS_D_Ld5.f10_f10.ICRUCLM50BGC.yellowstone_intel.clm-default
+
+  Not expected to be bit for bit with previous tag.
+
+  src/riverroute/RtmHistFlds.F90
+  src/riverroute/RunoffMod.F90
+  src/cpl/rof_import_export.F90
+
+===============================================================
+Tag name:  rtm1_0_53
+Originator(s): mvertens
+Date: Sept 20, 2015
+One-line Summary: Updated trunk to be compatible with cime3.0.3 and later APIs
+
+Migrated the following branch to the trunk
+  https://svn-ccsm-models.cgd.ucar.edu/rivrtm/branch_tags/cime_refactor_tags/cime_refactor_n01_rtm1_0_52
+
+The results are bfb with cesm1_4_alpha07e baselines
+	
+D       bld/rtm.buildlib
+D       bld/rtm.buildnml
+M       bld/build-namelist
+D       bld/user_nl_rtm
+M       bld/namelist_files/namelist_defaults_rtm.xml
+A  +    cime_config
+A  +    cime_config/testdefs
+A  +    cime_config/testdefs/testmods_dirs
+A  +    cime_config/testdefs/testmods_dirs/rtm
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnFloodOnEffvelOff
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnFloodOnEffvelOff/user_nl_rtm
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnFloodOnEffvelOn
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnFloodOnEffvelOn/user_nl_rtm
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnIceOff
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnIceOff/user_nl_rtm
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOff
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOff/user_nl_rtm
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnIceOn
+A  +    cime_config/testdefs/testmods_dirs/rtm/rtmOnIceOn/user_nl_rtm
+A  +    cime_config/testdefs/testlist_rtm.xml
+A  +    cime_config/buildlib
+A  +    cime_config/buildnml
+A  +    cime_config/config_component.xml
+A  +    cime_config/user_nl_rtm
+D       cimetest
+D       cimetest/testmods_dirs
+D       cimetest/testmods_dirs/rtm
+D       cimetest/testmods_dirs/rtm/rtmOnFloodOnEffvelOff
+D       cimetest/testmods_dirs/rtm/rtmOnFloodOnEffvelOff/user_nl_rtm
+D       cimetest/testmods_dirs/rtm/rtmOnFloodOnEffvelOn
+D       cimetest/testmods_dirs/rtm/rtmOnFloodOnEffvelOn/user_nl_rtm
+D       cimetest/testmods_dirs/rtm/rtmOnIceOff
+D       cimetest/testmods_dirs/rtm/rtmOnIceOff/user_nl_rtm
+D       cimetest/testmods_dirs/rtm/rtmOff
+D       cimetest/testmods_dirs/rtm/rtmOff/user_nl_rtm
+D       cimetest/testmods_dirs/rtm/rtmOnIceOn
+D       cimetest/testmods_dirs/rtm/rtmOnIceOn/user_nl_rtm
+D       cimetest/testlist_rtm.xml
+	
+===============================================================
 Tag name:  rtm1_0_52
 Originator(s): erik
 Date: Aug 19, 2015

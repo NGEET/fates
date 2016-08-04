@@ -31,7 +31,6 @@ module VOCEmissionMod
   use TemperatureType    , only : temperature_type
   use PatchType          , only : patch                
   !
-  ! !PUBLIC TYPES:
   implicit none
   private 
   !
@@ -195,7 +194,7 @@ contains
 
           call hist_addfld1d ( fname='MEG_'//trim(meg_cmp%name), units='kg/m2/sec',  &
                avgflag='A', long_name='MEGAN flux', &
-               ptr_patch=meg_out(imeg)%flux_out, set_lake=0._r8, set_urb=0._r8, default='inactive' )
+               ptr_patch=meg_out(imeg)%flux_out, set_lake=0._r8, set_urb=0._r8 )
 
           meg_cmp => meg_cmp%next_megcomp
        enddo
@@ -609,7 +608,7 @@ contains
 
              if ( (gamma >=0.0_r8) .and. (gamma< 100._r8) ) then
 
-                vocflx_meg(imeg) = epsilon * gamma * megemis_units_factor / meg_cmp%molec_weight ! moles/m2/sec
+                vocflx_meg(imeg) =  meg_cmp%coeff * epsilon * gamma * megemis_units_factor / meg_cmp%molec_weight ! moles/m2/sec
 
                 ! assign to arrays for history file output (not weighted by landfrac)
                 meg_out(imeg)%flux_out(p) = meg_out(imeg)%flux_out(p) &

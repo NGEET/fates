@@ -34,9 +34,12 @@ module unittestSubgridMod
   ! In the teardown for a test, the following should be done:
   ! 
   ! (1) call unittest_subgrid_teardown
+  !
+  !    Note: This can be done conditionally based on whether unittest_subgrid_needs_teardown
+  !    is true.
 
   use shr_kind_mod , only : r8 => shr_kind_r8
-  use decompMod    , only : bounds_type
+  use decompMod    , only : bounds_type, BOUNDS_LEVEL_PROC
   use GridcellType , only : grc                
   use LandunitType , only : lun                
   use ColumnType   , only : col                
@@ -58,12 +61,17 @@ module unittestSubgridMod
   public :: unittest_add_landunit        ! add a landunit
   public :: unittest_add_column          ! add a column
   public :: unittest_add_patch           ! add a patch
+  public :: get_ltype_special            ! get a landunit type corresponding to a special landunit
 
   ! bounds info, which can be passed to routines that need it
   ! Note that the end indices here (endg, endl, endc, endp) will be the final indices in
   ! use, in contrast to the module-level endg, endl, etc., which give the final indices
   ! of the allocated arrays.
   type(bounds_type), public, protected :: bounds
+
+  ! Whether subgrid stuff has been initialized. A teardown method can test against this
+  ! to determine whether unittest_subgrid_teardown is needed.
+  logical, public, protected :: unittest_subgrid_needs_teardown = .false.
   
   ! Indices of last grid cell / landunit / column / patch added
   integer, public, protected :: gi
@@ -72,7 +80,7 @@ module unittestSubgridMod
   integer, public, protected :: pi
 
   ! Maximum array sizes at each level
-  integer, parameter, public :: numg = 3
+  integer, parameter, public :: numg = 6
   integer, parameter, public :: numl = 30
   integer, parameter, public :: numc = 50
   integer, parameter, public :: nump = 100
@@ -132,6 +140,8 @@ contains
     ! Initialize other variables needed for the subgrid setup
     
     natpft_lb = 0
+
+    unittest_subgrid_needs_teardown = .true.
     
   end subroutine unittest_subgrid_setup_start
 
@@ -183,8 +193,13 @@ contains
     bounds%begp = begp
     bounds%endp = pi
 
-    ! Currently, not setting bounds%level and bounds%clump_index
-    
+    ! Some routines want a proc-level bounds. So for now, just making bounds be
+    ! proc-level. In the future, we may need both a proc-level and clumps-level bounds
+    ! object (if other routines want a clump-level bounds). (For the sake of unit
+    ! testing, proc-level and clump-level bounds objects can probably be the same except
+    ! for bounds%level and bounds%clump_index.)
+    bounds%level = BOUNDS_LEVEL_PROC
+
   end subroutine set_bounds
 
 
@@ -242,6 +257,8 @@ contains
     call patch%clean
 
     call reset_nlevsno()
+
+    unittest_subgrid_needs_teardown = .false.
 
   end subroutine unittest_subgrid_teardown
 
@@ -366,6 +383,44 @@ contains
     patch%active(pi) = .true.
 
   end subroutine unittest_add_patch
+
+  !-----------------------------------------------------------------------
+  function get_ltype_special() result(ltype)
+    !
+    ! !DESCRIPTION:
+    ! Returns a landunit type corresponding to a special landunit
+    !
+    ! !USES:
+    use landunit_varcon, only : max_lunit, landunit_is_special
+    !
+    ! !ARGUMENTS:
+    integer :: ltype  ! function result
+    !
+    ! !LOCAL VARIABLES:
+    integer :: ltype_test
+    logical :: found
+
+    character(len=*), parameter :: subname = 'get_ltype_special'
+    !-----------------------------------------------------------------------
+
+    found = .false.
+    ltype_test = 1
+    do while (ltype_test <= max_lunit .and. .not. found)
+       if (landunit_is_special(ltype_test)) then
+          ltype = ltype_test
+          found = .true.
+       else
+          ltype_test = ltype_test + 1
+       end if
+    end do
+
+    if (.not. found) then
+       print *, subname//' ERROR: cannot find a special landunit'
+       stop
+    end if
+
+  end function get_ltype_special
+
 
   subroutine init_nlevsno()
     ! Initialize nlevsno to a reasonable value, if it is not already set

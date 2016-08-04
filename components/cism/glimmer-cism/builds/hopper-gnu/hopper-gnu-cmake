@@ -7,8 +7,7 @@
 # of Trilinos, but does need a BISICLES build located in BISICLES_INTERFACE_DIR
 # (currently set to /global/u2/d/dmartin/BISICLES/code/interface)
 
-
-# This script should be run from the builds/hopper-pgi subdirectory
+# This script should be run from the builds/hopper-gnu subdirectory
 # of the main seacism repository (reflected in the two instances
 # of "../.." below).
 
@@ -29,36 +28,34 @@ echo Run this script by typing: source hopper-gnu-cmake
 echo
 
 module unload cmake
-module unload hdf5 
+module unload hdf5
 module unload hdf5-parallel cray-hdf5-parallel
 module unload netcdf cray-netcdf-hdf5parallel
 module unload python
 module unload cray-shmem
 module unload cray-mpich2
-module unload boost gcc
+module unload cray-mpich
+module unload boost
+module unload gcc
 module unload PrgEnv-cray PrgEnv-gnu PrgEnv-intel PrgEnv-pathscale PrgEnv-pgi
+module unload craype
 
-module load modules/3.2.6.6
-module load cmake/2.8.10.2
-module load PrgEnv-gnu/4.2.34
-module load gcc/4.8.1
-module load cray-shmem/6.0.1
-module load cray-mpich/6.0.1
-module load cray-hdf5-parallel/1.8.11
-module load cray-netcdf-hdf5parallel
-module load python/2.7.5
-module load boost
-
-module load torque/4.2.3.h5_notcpretry
-
-#temporary fix for HDF5 error:
-#module swap gcc gcc/4.7.2
+module load modules/3.2.10.2
+module load cmake/3.1.3
+module load PrgEnv-gnu/5.2.40
+module load gcc/4.9.2
+module load cray-shmem/7.1.1
+module load cray-mpich/7.1.1
+module load cray-netcdf-hdf5parallel/4.3.2
+module load cray-parallel-netcdf/1.5.0
+module load python/2.7.9
+module load boost/1.57
 
 module list
 
 # remove old build data:
-rm ./CMakeCache.txt
-rm -r ./CMakeFiles
+rm -rf ./CMakeCache.txt
+rm -rf ./CMakeFiles
 
 # run a script that creates some CISM source files:
 #pushd .
@@ -84,13 +81,14 @@ cmake \
   -D ALBANY_FELIX_DYCORE:BOOL=OFF \
 \
   -D CISM_TRILINOS_DIR=/project/projectdirs/piscees/trilinos/trilinos-albany-build/install \
-  -D CISM_TRILINOS_GPTL_DIR=/project/projectdirs/piscees/cism_gptl/Trilinos/hopper-gnu-cism-albany-ci-nophal/install \
+  -D CISM_TRILINOS_GPTL_DIR=/project/projectdirs/piscees/cism_gptl/Trilinos-11.12.1/hopper-gnu-ci-nophal/install \
   -D CISM_TRILINOS_ALBANY_DIR=/project/projectdirs/piscees/trilinos/trilinos-albany-build/install \
-  -D CISM_NETCDF_DIR=/opt/cray/netcdf-hdf5parallel/4.3.0/GNU/48 \
-  -D CISM_HDF5_LIB_DIR=/opt/cray/hdf5/1.8.11/GNU/48/lib \
-  -D CISM_MPI_BASE_DIR=/opt/cray/mpt/6.0.1/gni/mpich2-gnu/48 \
 \
-  -D CISM_GPTL_DIR=/project/projectdirs/piscees/cism_gptl/libgptl/libgptl-hopper-gnu_4.8.1 \
+  -D CISM_NETCDF_DIR=$NETCDF_DIR \
+  -D CISM_HDF5_LIB_DIR=$HDF5_DIR \
+  -D CISM_MPI_BASE_DIR=$MPICH_DIR \
+\
+  -D CISM_GPTL_DIR=/project/projectdirs/piscees/cism_gptl/libgptl/libgptl-hopper-gnu \
 \
   -D CMAKE_INSTALL_PREFIX:PATH=$PWD/install \
   -D CMAKE_VERBOSE_MAKEFILE:BOOL=ON \
@@ -101,26 +99,19 @@ cmake \
   -D CMAKE_Fortran_COMPILER=ftn \
 \
 \
-  -D CMAKE_CXX_FLAGS:STRING="-O2  -DH5_USE_16_API" \
-  -D CISM_Fortran_FLAGS:STRING="-O2 -ffree-line-length-none " \
+  -D CMAKE_CXX_FLAGS:STRING="-O2 -fopenmp" \
+  -D CISM_Fortran_FLAGS:STRING="-O2 -fopenmp -ffree-line-length-none " \
   -D BISICLES_LIB_SUBDIR=libgnu \
-  -D CISM_GNU:BOOL=ON \
   -D BISICLES_INTERFACE_DIR=$PWD/../../../BISICLES/CISM-interface/interface \
   -D CISM_MPI_LIBS:STRING="mpichf90" \
   -D CISM_STATIC_LINKING:BOOL=ON \
   ../..
 
 
-# Note: last argument above  "../.."  is path to top seacism directory
-
-# ADD: 
-
-#  -D CMAKE_PREFIX_PATH="/opt/cray/hdf5/1.8.8/pgi/119;/opt/cray/hdf5-parallel/1.8.8/pgi/119" \
-
-#  -D TPL_ENABLE_MPI:BOOL=ON \
-
-
-#  -D CISM_HDF5_LIB_DIR=/opt/cray/hdf5-parallel/1.8.8/pgi/119/lib \
-#  -D CISM_HDF5_LIBS="-lhdf5_pgi_parallel -lz" \
-
+#  Explicit paths to libs after mid-March 2015 upgrade; NERSC help recommended replacing with
+#  the generic env var names used above instead.
+#
+#  -D CISM_NETCDF_DIR=/opt/cray/netcdf-hdf5parallel/4.3.2/GNU/49 \
+#  -D CISM_HDF5_LIB_DIR=/opt/cray/hdf5/1.8.13/GNU/49/lib \
+#  -D CISM_MPI_BASE_DIR=/opt/cray/mpt/7.1.1/gni/mpich2-gnu/49 \  
 

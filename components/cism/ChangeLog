@@ -4,6 +4,732 @@ This file describes what main-trunk tags were created and why
 
 ================================================================================
 Originator: sacks
+Date: May 19, 2016
+Model: cism
+Version: cism2_1_17
+One-line summary: Split override_delay into 3 separate options
+
+Purpose of changes:
+
+   Split override_delay into 3 separate options: increase, decrease and
+   rearrange override delays. This allows us to do tests like: increase glacier
+   area to 100% over 5 days, then wait 5 days, then decrease glacier area to 0%
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/): none
+
+List all modified files, and describe the changes:
+
+M       bld/build-namelist
+M       bld/namelist_files/namelist_defaults_cism.xml
+M       bld/namelist_files/namelist_definition_cism.xml
+M       cime_config/testdefs/testmods_dirs/cism/override_glc_frac/user_nl_cism
+M       source_glc/glc_override_frac.F90
+
+Summary of testing:
+
+   Ran full aux_glc test suite: yellowstone & hobart. All tests passed.
+
+Externals used for testing: cesm1_5_beta05
+
+cism tag used for baseline comparisons: cism2_1_16
+
+Any other externals that differed in baseline: none
+
+================================================================================
+Originator: sacks
+Date: April 12, 2016
+Model: cism
+Version: cism2_1_16
+One-line summary: Make allow_leapyear depend on CALENDAR
+
+Purpose of changes:
+
+   Logic for allow_leapyear setting in cism_in was wrong. This tag fixes it.
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+   1562: should allow_leapyear default be based on CALENDAR?
+
+List all modified files, and describe the changes:
+
+M       bld/namelist_files/namelist_defaults_cism.xml
+M       bld/namelist_files/namelist_definition_cism.xml
+
+Summary of testing:
+
+   Ran aux_glc test suite on yellowstone - NOT on hobart. All tests passed.
+
+Externals used for testing: cesm1_5_beta05
+
+cism tag used for baseline comparisons: cism2_1_15
+
+Any other externals that differed in baseline: none
+
+================================================================================
+Originator: sacks
+Date: March 5, 2016
+Model: cism
+Version: cism2_1_15
+One-line summary: Set glcocn_present and glcice_present to false for one-way-coupling
+
+Purpose of changes:
+
+   For one-way coupling (with zero_gcm_fluxes = .true.), fluxes sent to ocn and
+   ice are all zero. Thus, there is no reason for the coupler to do glc -> ocn
+   or glc -> ice mapping. By setting glcocn_present and glcice_present to
+   .false. in this case, we make it easier for users to run a one-way-coupled
+   case with some new ocean grid, for which they do not have glc -> ocn mapping
+   files.
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+M       drivers/cpl/glc_coupling_flags.F90
+
+Summary of testing:
+
+   Ran full aux_glc test suite: yellowstone & hobart. All tests passed.
+
+   Also ran the following tests, with comparison against cesm1_5_beta05 (using
+   cism2_1_13 but with glimmer-cism at the head of piscees/develop):
+
+   SMS_Ld5.T31_g37_gl20.B1850C5L45BGCRG2.yellowstone_intel.allactive-cism-test_coupling
+   - passes and bit-for-bit
+
+   SMS_D_Ld5.T31_g37_gl20.B1850C5L45BGCRG2.yellowstone_intel.allactive-cism-test_coupling
+   with zero_gcm_fluxes
+   - passes and bit-for-bit
+
+   SMS_D_Ld5.T31_g37_gl20.B1850C5L45BGCRG2.yellowstone_intel.allactive-cism-test_coupling
+   with zero_gcm_fluxes, and in my new code, removed all instances of
+   GLC2OCN_RMAPNAME from config_grids.xml (resulting in glc2ocn_rmapname =
+   idmap)
+   - passes and bit-for-bit
+
+Externals used for testing: cesm1_5_beta05
+
+cism tag used for baseline comparisons: cism2_1_14
+
+Any other externals that differed in baseline: none
+
+================================================================================
+Originator: sacks
+Date: March 4, 2016
+Model: cism
+Version: cism2_1_14
+One-line summary: Move zero_gcm_fluxes handling to GLC
+
+Purpose of changes:
+
+   Previously, CISM (particularly glad) was responsible for handling
+   zero_gcm_fluxes: zeroing out flux variables and setting
+   icemask_coupled_fluxes. I have now moved that handling into the GLC layer.
+
+   The main motivation for doing this is that, in the next tag, I plan to add
+   more logic based on zero_gcm_fluxes: has_ocn_coupling and has_ice_coupling
+   will be false if zero_gcm_fluxes is true. It will be easier to make sure
+   everything is done consistently if all of the zero_gcm_fluxes handling is
+   moved into GLC. Specifically, it seems this will make it less likely that we
+   would set has_ocn_coupling and has_ice_coupling to false when they should
+   really be true for some reason.
+
+   Possible downside: If we have multiple ice instances (e.g., Greenland +
+   Antarctica): Previously, I think I had been imagining that we would have one
+   cism.config for each of them, but potentially only a single cism_in file. But
+   if we want zero_gcm_fluxes to be able to differ for each instance, then we
+   would need to have separate cism_in files for each instance (or have an array
+   of zero_gcm_fluxes values in the single cism_in file). I'll need to come back
+   to this.
+
+
+   Also refactored the setting of indexing-related stuff: Moved behavior into
+   glc_indexing.F90
+
+   Also updated CISM external to match latest version of piscees/develop.
+
+Changes answers relative to previous tag: YES
+   Roundoff-level changes just in the acab field in the cism history file. I
+   have confirmed that these changes are due to previous changes in
+   piscees/develop, not due to the changes in this refactoring.
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+*** Renamed, and moved behavior into here
+D       source_glc/glc_indexing_info.F90
+A       source_glc/glc_indexing.F90
+
+M       drivers/cpl/glc_comp_mct.F90
+M       drivers/cpl/glc_comp_esmf.F90
+M       drivers/cpl/glc_import_export.F90
+M       bld/namelist_files/namelist_defaults_cism.xml
+M       bld/namelist_files/namelist_definition_cism.xml
+M       bld/build-namelist
+M       source_glc/glc_route_ice_runoff.F90
+M       source_glc/glc_InitMod.F90
+M       source_glc/glc_RunMod.F90
+M       source_glc/glc_fields.F90
+M       source_glc/glc_constants.F90
+
+*** Updates needed for moving zero_gcm_fluxes into GLC. While I was at it,
+    updated to latest version of piscees/develop.
+M       SVN_EXTERNAL_DIRECTORIES
+
+*** Added a one-way coupling test with CISM2, to make sure logic works in
+    parallel cases
+M       cime_config/testdefs/testlist_cism.xml
+
+Summary of testing:
+
+   Ran full aux_glc test suite: yellowstone & hobart. All tests passed.
+
+   CME_Ly3.f09_g16_gl20.TGRCP85IS2.yellowstone_intel CFAILed as part of a test
+   suite, but passed when run alone (with build on login node) - chalking it up
+   to a cime issue
+
+Externals used for testing: cesm1_5_beta05
+
+cism tag used for baseline comparisons: cism2_1_13
+
+Any other externals that differed in baseline: none
+
+================================================================================
+Originator: sacks
+Date: Jan 13, 2016
+Model: cism
+Version: cism2_1_13
+One-line summary: Clean up ChangeLog entry for last tag
+
+Purpose of changes:
+
+   Just minor ChangeLog cleanup
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+M       ChangeLog
+
+Summary of testing: NONE
+
+Externals used for testing: N/A
+
+cism tag used for baseline comparisons: N/A
+
+Any other externals that differed in baseline: N/A
+
+================================================================================
+Originator: sacks
+Date: Jan 12, 2016
+Model: cism
+Version: cism2_1_12
+One-line summary: Port CISM to NAG
+
+Purpose of changes:
+
+   Port CISM to NAG
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+*** Point to new external, which is ported to NAG
+M       SVN_EXTERNAL_DIRECTORIES
+
+*** Introduce hobart_nag tests, and fix test that has been CFAILing for a while
+M       cime_config/testdefs/testlist_cism.xml
+
+Summary of testing:
+
+   Ran full aux_glc test suite: yellowstone & hobart. All tests passed.
+
+Externals used for testing: cesm1_5_beta04, with cime at branch cism_nag_port
+(git describe: cime4.3.10-3-g3de3528)
+
+cism tag used for baseline comparisons: cism2_1_11
+
+Any other externals that differed in baseline: cime may have been the version
+out-of-the-box in cesm1_5_beta04
+
+================================================================================
+Originator: sacks
+Date: Jan 7, 2016
+Model: cism
+Version: cism2_1_11
+One-line summary: Update external, tweak some namelist items
+
+Purpose of changes:
+
+(1) Update to latest version of piscees/develop
+
+(2) For cism2, exclude uflx and vflx history fields (these aren't set)
+
+(3) For cism2, include beta_internal history field
+
+(4) Add ho_beta_const to namelist_definition, so it can be changed via
+    user_nl_cism
+
+
+Changes answers relative to previous tag: NO
+   however, there are namelist changes
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+M       bld/namelist_files/namelist_defaults_cism.xml
+M       bld/namelist_files/namelist_definition_cism.xml
+M       SVN_EXTERNAL_DIRECTORIES
+
+Summary of testing:
+
+   Ran full yellowstone aux_glc test suite. All tests passed, EXCEPT this
+   expected failure:
+
+   CFAIL ERS_Ly20_E.f09_g16_gl5.TGHIST.yellowstone_intel
+
+Externals used for testing: cesm1_5_beta02, but with cime at
+1e5b15f424d9d7bc57ef5158c3da7bcc0ef02fc3 (return_reverted_drv branch)
+
+cism tag used for baseline comparisons: cism2_1_10
+
+Any other externals that differed in baseline: none
+
+================================================================================
+Originator: sacks
+Date: Nov 13, 2015
+Model: cism
+Version: cism2_1_10
+One-line summary: Update external, change some higher-order config settings
+
+Purpose of changes:
+
+   Update to a version of CISM and config setting changes which, together, allow
+   for long runs of CISM2.
+
+Changes answers relative to previous tag: YES
+
+   Changes answers for all CISM2 runs (but not CISM1)
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+========= Point to Bill Lipscomb's branch (not yet merged to 'develop')
+M       SVN_EXTERNAL_DIRECTORIES
+
+========= New config settings, and changed defaults for others
+M       bld/build-namelist
+M       bld/namelist_files/namelist_defaults_cism.xml
+M       bld/namelist_files/namelist_definition_cism.xml
+
+========= In aux_glc test list, change 1-year SMS test of 4-km CISM2 to 3-year
+          ERS test: performance of CISM2 has improved so that this is feasible
+          (just about 2-min run time). Also add 4-km tests back to prealpha /
+          prebeta test suites.
+M       cime_config/testdefs/testlist_cism.xml
+
+Summary of testing:
+
+   Ran full yellowstone aux_glc test suite. All tests passed, EXCEPT this
+   expected failure:
+
+   CFAIL ERS_Ly20_E.f09_g16_gl5.TGHIST.yellowstone_intel.GC.1113-0634.intel
+
+Externals used for testing: cesm1_5_beta02, but with cime at
+1e5b15f424d9d7bc57ef5158c3da7bcc0ef02fc3 (return_reverted_drv branch)
+
+cism tag used for baseline comparisons: cism2_1_08
+
+Any other externals that differed in baseline: cime at slightly different version
+
+================================================================================
+Originator: sacks
+Date: Nov 8, 2015
+Model: cism
+Version: cism2_1_09
+One-line summary: Add a single-processor TG test to the prealpha test suite
+
+Purpose of changes:
+
+   I realized we don't have any single-processor TG tests in the prealpha or
+   prebeta test suites, and recent CIME changes have broken these.
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+M       cime_config/testdefs/testlist_cism.xml
+
+Summary of testing: NONE
+
+Externals used for testing: N/A
+
+cism tag used for baseline comparisons: N/A
+
+Any other externals that differed in baseline: N/A
+
+================================================================================
+Originator: sacks
+Date: Oct 15, 2015
+Model: cism
+Version: cism2_1_08
+One-line summary: Add a compset option for turning off ice evolution
+
+Purpose of changes:
+
+   Allow turning off ice evolution (setting evolve_ice to 0 and zero_gcm_fluxes
+   to 1) via a compset option (CISM1%NOEVOLVE or CISM2%NOEVOLVE in the compset
+   long name). The purpose of this is to provide out-of-the-box settings for the
+   CESM2-dev compset, without needing to use a user_mods_dir.
+
+   Longer-term, I have been planning to rework the possible out-of-the-box
+   options, as part of turning CISM on by default. So, longer-term, I should
+   either:
+
+   (1) Back this out, replacing it with whatever my new scheme is
+
+   OR
+
+   (2) Keep something essentially like this long-term, as the mechanism to turn
+   ice evolution on/off. In this case, I should probably make the default to NOT
+   evolve, and then allow CISM%EVOLVE in the name. (or maybe require explicitly
+   setting CISM%EVOLVE or NOEVOLVE in the compset long name???)
+
+   I think my earlier thinking was to not make the setting of ice evolution be a
+   compset-level option (because this is simple enough to change after setting
+   up a compset), but now that I have this compset-level thing in place, I *may*
+   want to revisit that thinking.
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+========= Main change described here
+M       bld/namelist_files/namelist_defaults_cism.xml
+M       bld/build-namelist
+M       cime_config/config_component.xml
+
+========= Unrelated change: fix for cime3
+M       cime_config/buildnml
+
+Summary of testing:
+
+   Ran full yellowstone aux_glc test suite. All tests passed, EXCEPT these
+   expected failures:
+
+   CFAIL ERS_Ly20_E.f09_g16_gl5.TGHIST.yellowstone_intel
+   - See note under cism2_1_04
+
+   RUN SMS_Ly1.f09_g16_gl4.TGIS2.yellowstone_intel
+   - 4km Greenland runs are now dying due to a CFL violation
+
+   RUN ERS_Ly11.f09_g16_gl20.TG1850IS2.yellowstone_gnu.GC.1015-1613.gnu 
+   - Dies with MCT attribute array length mismatch error, which has been fixed
+   in a more recent cime tag than the one used here
+
+
+Externals used for testing:
+cime                               https://github.com/CESM-Development/cime/tags/cime3.0.5
+components/cam                     https://svn-ccsm-models.cgd.ucar.edu/cam1/branch_tags/cime_refactor_tags/cime_refactor_n03_cam5_4_11/components/cam
+components/clm                     https://svn-ccsm-models.cgd.ucar.edu/clm2/branch_tags/cime_refactor_tags/cime_refactor_n02_clm4_5_1_r119/components/clm
+components/cice                    https://svn-ccsm-models.cgd.ucar.edu/cice/trunk_tags/cice5_20150921
+components/pop                     https://svn-ccsm-models.cgd.ucar.edu/pop2/branch_tags/cime_refactor_tags/cime_refactor_n02_cesm_pop_2_1_20150810
+components/aquap                   https://svn-ccsm-models.cgd.ucar.edu/aquap/branch_tags/cime_refactor_tags/cime_refactor_n01_aquap_150301
+components/rtm                     https://svn-ccsm-models.cgd.ucar.edu/rivrtm/branch_tags/cime_refactor_tags/cime_refactor_n01_rtm1_0_52
+components/ww3                     https://svn-ccsm-models.cgd.ucar.edu/ww3/branch_tags/cime_refactor_tags/cime_refactor_n01_ww3_150311
+
+
+cism tag used for baseline comparisons: cism2_1_06
+
+Any other externals that differed in baseline: (same)
+
+================================================================================
+Originator: sacks
+Date: Sept 25, 2015
+Model: cism
+Version: cism2_1_07
+One-line summary: Remove failing tests from prealpha / prebeta test lists
+
+Purpose of changes:
+
+   4km CISM2 tests are currently failing. Thus, temporarily replace them with
+   20-km tests. I am using _D tests for the replacement tests so that the
+   replacement tests match tests that I have in the aux_glc test suite.
+
+Changes answers relative to previous tag:
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+M       cime_config/testdefs/testlist_cism.xml
+
+prealpha:
+6c6
+< SMS_Ly1.f09_g16_gl4.TGIS2.yellowstone_intel # include one short test of the typical production resolution for CISM2
+---
+> SMS_D_Ly1.f09_g16_gl20.TGIS2.yellowstone_intel
+
+prebeta:
+8c8
+< SMS_Ly1.f09_g16_gl4.TGIS2.hopper_pgi # included simply to have a test on hopper
+---
+> SMS_D_Ly1.f09_g16_gl20.TGIS2.hopper_pgi # included simply to have a test on hopper
+
+
+Summary of testing: NONE
+
+Externals used for testing: N/A
+
+cism tag used for baseline comparisons: N/A
+
+Any other externals that differed in baseline: N/A
+
+================================================================================
+Originator: sacks
+Date: Sept 25, 2015
+Model: cism
+Version: cism2_1_06
+One-line summary: Update external, change some higher-order config settings
+
+Purpose of changes:
+
+   This brings in a version of the CISM code with extensive changes, largely
+   from Bill Lipscomb to fix problems with glissade and make it more robust. The
+   version we had previously been pointing to was about 10 months out-of-date
+   with respect to the PISCEES repository. The new version is up-to-date with
+   'develop' in the PISCEES repository.
+
+   In addition, this changes some higher-order config settings - both adding
+   some new options and changing default values for some options, to values
+   suggested by Steve Price, Lauren Vargo and Jeremy Fyke.
+
+   Finally, this fixes a bug in the cismIO generation script.
+
+Changes answers relative to previous tag: YES
+
+   Changes answers for CISM1 as well as CISM2 compsets
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+M       bld/build-namelist
+M       bld/namelist_files/namelist_defaults_cism.xml
+M       bld/namelist_files/namelist_definition_cism.xml
+M       cime_config/cism.template
+
+M       SVN_EXTERNAL_DIRECTORIES
+   move_glint_to_cpl_n02 -> cism2_150925
+
+Summary of testing:
+
+   Ran full yellowstone aux_glc test suite. All tests passed, EXCEPT:
+
+   CFAIL ERS_Ly20_E.f09_g16_gl5.TGHIST.yellowstone_intel
+   - See note under cism2_1_04
+
+   RUN SMS_Ly1.f09_g16_gl4.TGIS2.yellowstone_intel
+   - 4km Greenland runs are now dying due to a CFL violation
+
+Externals used for testing:
+cime                               https://github.com/CESM-Development/cime/tags/cime3.0.5
+components/cam                     https://svn-ccsm-models.cgd.ucar.edu/cam1/branch_tags/cime_refactor_tags/cime_refactor_n03_cam5_4_11/components/cam
+components/clm                     https://svn-ccsm-models.cgd.ucar.edu/clm2/branch_tags/cime_refactor_tags/cime_refactor_n02_clm4_5_1_r119/components/clm
+components/cice                    https://svn-ccsm-models.cgd.ucar.edu/cice/trunk_tags/cice5_20150921
+components/pop                     https://svn-ccsm-models.cgd.ucar.edu/pop2/branch_tags/cime_refactor_tags/cime_refactor_n02_cesm_pop_2_1_20150810
+components/aquap                   https://svn-ccsm-models.cgd.ucar.edu/aquap/branch_tags/cime_refactor_tags/cime_refactor_n01_aquap_150301
+components/rtm                     https://svn-ccsm-models.cgd.ucar.edu/rivrtm/branch_tags/cime_refactor_tags/cime_refactor_n01_rtm1_0_52
+components/ww3                     https://svn-ccsm-models.cgd.ucar.edu/ww3/branch_tags/cime_refactor_tags/cime_refactor_n01_ww3_150311
+
+
+cism tag used for baseline comparisons: cism2_1_04
+
+Any other externals that differed in baseline: none
+
+================================================================================
+Originator: sacks
+Date: Sept 23, 2015
+Model: cism
+Version: cism2_1_05
+One-line summary: Amend ChangeLog for cism2_1_04
+
+Purpose of changes:
+
+   Amend ChangeLog for cism2_1_04
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+========= Note that a test failed
+M       ChangeLog
+
+Summary of testing: NONE
+
+Externals used for testing: N/A
+
+cism tag used for baseline comparisons: N/A
+
+Any other externals that differed in baseline: N/A
+
+================================================================================
+Originator: mvertens (brought to trunk by sacks)
+Date: Sept 23, 2015
+Model: cism
+Version: cism2_1_04
+One-line summary: Updates for cime3
+
+Purpose of changes:
+
+   Rework of directory structure and build scripts to work with cime3
+   (de-CESMization of CIME).
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+D       cimetest/testmods_dirs/cism/oneway/README
+D       cimetest/testmods_dirs/cism/oneway/xmlchange_cmnds
+D       cimetest/testmods_dirs/cism/oneway
+D       cimetest/testmods_dirs/cism/trilinos/README
+D       cimetest/testmods_dirs/cism/trilinos/user_nl_cism
+D       cimetest/testmods_dirs/cism/trilinos/include_user_mods
+D       cimetest/testmods_dirs/cism/trilinos/shell_commands
+D       cimetest/testmods_dirs/cism/trilinos
+D       cimetest/testmods_dirs/cism/apply_to_multiinstance/README
+D       cimetest/testmods_dirs/cism/apply_to_multiinstance/shell_commands
+D       cimetest/testmods_dirs/cism/apply_to_multiinstance
+D       cimetest/testmods_dirs/cism/override_glc_frac/include_user_mods
+D       cimetest/testmods_dirs/cism/override_glc_frac/user_nl_cism
+D       cimetest/testmods_dirs/cism/override_glc_frac
+D       cimetest/testmods_dirs/cism/test_coupling/user_nl_cism
+D       cimetest/testmods_dirs/cism/test_coupling/include_user_mods
+D       cimetest/testmods_dirs/cism/test_coupling
+D       cimetest/testmods_dirs/cism
+D       cimetest/testmods_dirs
+D       cimetest/testlist_cism.xml
+D       cimetest
+D       bld/cism.buildlib
+D       bld/cism.buildnml
+D       bld/user_nl_cism
+D       bld/cism.template
+M       bld/README.build-namelist
+M       bld/build-namelist
+A       cime_config/cism.template
+A       cime_config/buildlib
+A       cime_config/buildnml
+A       cime_config/config_component.xml
+A       cime_config/config_pes.xml
+A       cime_config/config_compsets.xml
+A       cime_config/testdefs/testmods_dirs/cism/oneway/xmlchange_cmnds
+A       cime_config/testdefs/testmods_dirs/cism/oneway/README
+A       cime_config/testdefs/testmods_dirs/cism/oneway
+A       cime_config/testdefs/testmods_dirs/cism/trilinos/user_nl_cism
+A       cime_config/testdefs/testmods_dirs/cism/trilinos/include_user_mods
+A       cime_config/testdefs/testmods_dirs/cism/trilinos/shell_commands
+A       cime_config/testdefs/testmods_dirs/cism/trilinos/README
+A       cime_config/testdefs/testmods_dirs/cism/trilinos
+A       cime_config/testdefs/testmods_dirs/cism/apply_to_multiinstance/README
+A       cime_config/testdefs/testmods_dirs/cism/apply_to_multiinstance/shell_commands
+A       cime_config/testdefs/testmods_dirs/cism/apply_to_multiinstance
+A       cime_config/testdefs/testmods_dirs/cism/override_glc_frac/user_nl_cism
+A       cime_config/testdefs/testmods_dirs/cism/override_glc_frac/include_user_mods
+A       cime_config/testdefs/testmods_dirs/cism/override_glc_frac
+A       cime_config/testdefs/testmods_dirs/cism/test_coupling/user_nl_cism
+A       cime_config/testdefs/testmods_dirs/cism/test_coupling/include_user_mods
+A       cime_config/testdefs/testmods_dirs/cism/test_coupling
+A       cime_config/testdefs/testmods_dirs/cism
+A       cime_config/testdefs/testmods_dirs
+A       cime_config/testdefs/testlist_cism.xml
+A       cime_config/testdefs
+A       cime_config/user_nl_cism
+A       cime_config
+
+
+Summary of testing:
+
+   Ran full yellowstone aux_glc test suite. All tests passed, EXCEPT:
+
+   CFAIL ERS_Ly20_E.f09_g16_gl5.TGHIST.yellowstone_intel
+   - Failed because single-processor tests are now using mpi-serial, which is
+   incompatible with ESMF. Waiting on a resolution of this (either go back to
+   using a real mpi library for single-processor tests, or else change this test
+   to explicitly specify a MPI library).
+
+Externals used for testing:
+
+cime                               https://github.com/CESM-Development/cime/tags/cime3.0.5
+components/cam                     https://svn-ccsm-models.cgd.ucar.edu/cam1/branch_tags/cime_refactor_tags/cime_refactor_n03_cam5_4_11/components/cam
+components/clm                     https://svn-ccsm-models.cgd.ucar.edu/clm2/branch_tags/cime_refactor_tags/cime_refactor_n02_clm4_5_1_r119/components/clm
+components/cice                    https://svn-ccsm-models.cgd.ucar.edu/cice/trunk_tags/cice5_20150921
+components/pop                     https://svn-ccsm-models.cgd.ucar.edu/pop2/branch_tags/cime_refactor_tags/cime_refactor_n02_cesm_pop_2_1_20150810
+components/cism                    https://svn-ccsm-models.cgd.ucar.edu/glc/branch_tags/cime_refactor_tags/cime_refactor_n02_cism2_1_03
+components/aquap                   https://svn-ccsm-models.cgd.ucar.edu/aquap/branch_tags/cime_refactor_tags/cime_refactor_n01_aquap_150301
+components/rtm                     https://svn-ccsm-models.cgd.ucar.edu/rivrtm/branch_tags/cime_refactor_tags/cime_refactor_n01_rtm1_0_52
+components/ww3                     https://svn-ccsm-models.cgd.ucar.edu/ww3/branch_tags/cime_refactor_tags/cime_refactor_n01_ww3_150311
+
+
+cism tag used for baseline comparisons: cism2_1_03
+
+Any other externals that differed in baseline: baseline used cesm1_4_beta07
+
+================================================================================
+Originator: sacks
+Date: Sept 13, 2015
+Model: cism
+Version: cism2_1_03
+One-line summary: Write history file at initialization
+
+Purpose of changes:
+
+   Write a history file giving the initial state, in any run that is NOT a
+   restart run.
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+M       drivers/cpl/glc_comp_mct.F90
+M       drivers/cpl/glc_comp_esmf.F90
+M       source_glc/history_tape_base.F90
+M       source_glc/glc_history.F90
+M       source_glc/glc_InitMod.F90
+
+Summary of testing:
+
+   Ran full yellowstone aux_glc test suite. All tests passed.
+
+Externals used for testing: cesm1_4_beta07
+
+cism tag used for baseline comparisons: cism2_1_02
+
+Any other externals that differed in baseline: none
+
+================================================================================
+Originator: sacks
 Date: Aug 4, 2015
 Model: cism
 Version: cism2_1_02

@@ -51,9 +51,6 @@ module glad_type
                                                ! (hold the ice state fixed at initial condition)
   integer, parameter :: EVOLVE_ICE_TRUE  = 1   ! let the ice sheet evolve
 
-  integer, parameter :: ZERO_GCM_FLUXES_FALSE = 0 ! send true fluxes to the GCM
-  integer, parameter :: ZERO_GCM_FLUXES_TRUE  = 1 ! zero out all fluxes sent to the GCM
-
   !TODO - Add other Glad options here to avoid hardwiring of case numbers?
 
   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -98,14 +95,6 @@ module glad_type
      !> \item[1] The ice sheet can evolve
 
      logical :: test_coupling = .false.
-
-     integer :: zero_gcm_fluxes = ZERO_GCM_FLUXES_FALSE
-     
-     !> Whether to zero out the fluxes (e.g., calving flux) sent to the GCM
-     !> \begin{description}
-     !> \item[0] send true fluxes to the GCM
-     !> \item[1] zero out all fluxes sent to the GCM
-     !> \end{description}
 
      ! Latitude & longitude of model grid points
      real(dp), dimension(:,:), pointer :: lat(:,:) => null()
@@ -207,7 +196,6 @@ contains
        call GetValue(section,'test_coupling',instance%test_coupling)       
        call GetValue(section,'mbal_accum_time',mbal_time_temp)
        call GetValue(section,'ice_tstep_multiply',instance%ice_tstep_multiply)
-       call GetValue(section,'zero_gcm_fluxes',instance%zero_gcm_fluxes)
     end if
 
     if (mbal_time_temp > 0.0) then
@@ -306,9 +294,6 @@ contains
     end if
 
     write(message,*) 'ice_tstep_multiply:',instance%ice_tstep_multiply
-    call write_log(message)
-
-    write(message,*) 'zero_gcm_fluxes: ', instance%zero_gcm_fluxes
     call write_log(message)
 
   end subroutine glad_i_printconfig

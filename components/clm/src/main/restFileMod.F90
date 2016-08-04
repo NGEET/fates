@@ -5,21 +5,25 @@ module restFileMod
   ! Reads from or writes to/ the CLM restart file.
   !
   ! !USES:
+#include "shr_assert.h"
   use shr_kind_mod     , only : r8 => shr_kind_r8
-  use decompMod        , only : bounds_type
+  use decompMod        , only : bounds_type, get_proc_clumps, get_clump_bounds
+  use decompMod        , only : BOUNDS_LEVEL_PROC
   use spmdMod          , only : masterproc, mpicom
   use abortutils       , only : endrun
   use shr_log_mod      , only : errMsg => shr_log_errMsg
   use clm_time_manager , only : timemgr_restart_io, get_nstep
-  use subgridRestMod   , only : SubgridRest, subgridRest_read_cleanup
+  use subgridRestMod   , only : subgridRestWrite, subgridRestRead, subgridRest_read_cleanup
   use accumulMod       , only : accumulRest
   use clm_instMod      , only : clm_instRest
   use histFileMod      , only : hist_restart_ncd
-  use clm_varctl       , only : create_glacier_mec_landunit, iulog, use_ed 
+  use clm_varctl       , only : create_glacier_mec_landunit, iulog, use_ed, use_hydrstress
   use clm_varcon       , only : nameg, namel, namec, namep, nameCohort
   use ncdio_pio        , only : file_desc_t, ncd_pio_createfile, ncd_pio_openfile, ncd_global
   use ncdio_pio        , only : ncd_pio_closefile, ncd_defdim, ncd_putatt, ncd_enddef, check_dim
   use ncdio_pio        , only : check_att, ncd_getatt
+  use glcBehaviorMod   , only : glc_behavior_type
+  use reweightMod      , only : reweight_wrapup
   !
   ! !PUBLIC TYPES:
   implicit none
@@ -34,7 +38,8 @@ module restFileMod
   public :: restFile_filename        ! Sets restart filename
   !
   ! !PRIVATE MEMBER FUNCTIONS:
-  private :: restFile_read_pfile     
+  private :: restFile_set_derived       ! On a read, set variables derived from others
+  private :: restFile_read_pfile
   private :: restFile_write_pfile       ! Writes restart pointer file
   private :: restFile_closeRestart      ! Close restart file and write restart pointer file
   private :: restFile_dimset
@@ -45,7 +50,6 @@ module restFileMod
   private :: restFile_enddef
   private :: restFile_check_consistency   ! Perform consistency checks on the restart file
   private :: restFile_read_consistency_nl ! Read namelist associated with consistency checks
-  private :: restFile_check_fsurdat       ! Check consistency of fsurdat on the restart file
   private :: restFile_check_year          ! Check consistency of year on the restart file
   !
   ! !PRIVATE TYPES: None
@@ -87,7 +91,7 @@ contains
 
     call timemgr_restart_io(ncid, flag='define')
 
-    call SubgridRest(bounds, ncid, flag='define' )
+    call subgridRestWrite(bounds, ncid, flag='define' )
 
     call accumulRest( ncid, flag='define' )
 
@@ -103,7 +107,7 @@ contains
     
     call timemgr_restart_io( ncid, flag='write' )
 
-    call SubgridRest(bounds, ncid, flag='write' )
+    call subgridRestWrite(bounds, ncid, flag='write' )
 
     call accumulRest( ncid, flag='write' )
 
@@ -130,19 +134,30 @@ contains
   end subroutine restFile_write
 
   !-----------------------------------------------------------------------
-  subroutine restFile_read( bounds, file )
+  subroutine restFile_read( bounds_proc, file, glc_behavior )
     !
     ! !DESCRIPTION:
     ! Read a CLM restart file.
     !
     ! !ARGUMENTS:
-    type(bounds_type) , intent(in) :: bounds          
+    type(bounds_type) , intent(in) :: bounds_proc      ! processor-level bounds
     character(len=*)  , intent(in) :: file             ! output netcdf restart file
+    type(glc_behavior_type), intent(in) :: glc_behavior
     !
     ! !LOCAL VARIABLES:
-    type(file_desc_t) :: ncid ! netcdf id
-    integer :: i              ! index
+    type(file_desc_t) :: ncid    ! netcdf id
+    integer           :: i       ! index
+    integer           :: nclumps ! number of clumps on this processor
+    integer           :: nc      ! clump index
+    type(bounds_type) :: bounds_clump
+
+    character(len=*), parameter :: subname = 'restFile_read'
     !-----------------------------------------------------------------------
+
+    ! The provided bounds need to be proc-level bounds. This is in part because of logic
+    ! below that divides this into clump-level bounds for the sake of reweight_wrapup.
+    ! But it *MAY* also be necessary to have proc-level bounds for these i/o routines.
+    SHR_ASSERT(bounds_proc%level == BOUNDS_LEVEL_PROC, subname // ': argument must be PROC-level bounds')
 
     ! Open file
 
@@ -152,17 +167,34 @@ contains
 
     call restFile_dimcheck( ncid )
 
-    call SubgridRest(bounds, ncid, flag='read')
+    call subgridRestRead(bounds_proc, ncid)
+
+    ! Now that we have updated subgrid information, update the filters, active flags,
+    ! etc. accordingly. We do these updates as soon as possible so that the updated
+    ! filters and active flags are available to other restart routines - e.g., for the
+    ! sake of subgridAveMod calls like c2g.
+    !
+    ! The reweight_wrapup call needs to be done inside a clump loop, so we set that up
+    ! here.
+    nclumps = get_proc_clumps()
+    !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
+    do nc = 1, nclumps
+       call get_clump_bounds(nc, bounds_clump)
+       call reweight_wrapup(bounds_clump, glc_behavior)
+    end do
+    !$OMP END PARALLEL DO
 
     call accumulRest( ncid, flag='read' )
 
-    call clm_instRest( bounds, ncid, flag='read' )
+    call clm_instRest( bounds_proc, ncid, flag='read' )
 
-    call hist_restart_ncd (bounds, ncid, flag='read' )
+    call restFile_set_derived(bounds_proc, glc_behavior)
+
+    call hist_restart_ncd (bounds_proc, ncid, flag='read' )
 
     ! Do error checking on file
     
-    call restFile_check_consistency(bounds, ncid)
+    call restFile_check_consistency(bounds_proc, ncid)
 
     ! Close file 
 
@@ -240,6 +272,34 @@ contains
     end if
 
   end subroutine restFile_getfile
+
+  !-----------------------------------------------------------------------
+  subroutine restFile_set_derived(bounds, glc_behavior)
+    !
+    ! !DESCRIPTION:
+    ! Upon a restart read, set variables that are not on the restart file, but can be
+    ! derived from variables that are on the restart file.
+    !
+    ! This should be called after variables are read from the restart file.
+    !
+    ! !USES:
+    !
+    ! NOTE(wjs, 2016-04-05) Is it an architectural violation to use topo_inst directly
+    ! here? I can't see a good way around it.
+    use clm_instMod, only : topo_inst
+    !
+    ! !ARGUMENTS:
+    type(bounds_type), intent(in) :: bounds
+    type(glc_behavior_type), intent(in) :: glc_behavior
+    !
+    ! !LOCAL VARIABLES:
+
+    character(len=*), parameter :: subname = 'restFile_set_derived'
+    !-----------------------------------------------------------------------
+
+    call glc_behavior%update_glc_classes(bounds, topo_inst%topo_col(bounds%begc:bounds%endc))
+
+  end subroutine restFile_set_derived
 
   !-----------------------------------------------------------------------
   subroutine restFile_read_pfile( pnamer )
@@ -420,7 +480,7 @@ contains
     use clm_varctl           , only : conventions, source
     use dynSubgridControlMod , only : get_flanduse_timeseries
     use clm_varpar           , only : numrad, nlevlak, nlevsno, nlevgrnd, nlevurb, nlevcan
-    use clm_varpar           , only : cft_lb, cft_ub, maxpatch_glcmec
+    use clm_varpar           , only : maxpatch_glcmec, nvegwcs
     use decompMod            , only : get_proc_global
     !
     ! !ARGUMENTS:
@@ -459,6 +519,9 @@ contains
     call ncd_defdim(ncid , 'levtot'  , nlevsno+nlevgrnd, dimid)
     call ncd_defdim(ncid , 'numrad'  , numrad         ,  dimid)
     call ncd_defdim(ncid , 'levcan'  , nlevcan        ,  dimid)
+    if ( use_hydrstress ) then
+      call ncd_defdim(ncid , 'vegwcs'  , nvegwcs        ,  dimid)
+    end if
     call ncd_defdim(ncid , 'string_length', 64        ,  dimid)
     if (create_glacier_mec_landunit) then
        call ncd_defdim(ncid , 'glc_nec', maxpatch_glcmec, dimid)
@@ -527,7 +590,7 @@ contains
     ! Add global metadata defining column types
     !
     ! !USES:
-    use column_varcon, only : icol_roof, icol_sunwall, icol_shadewall, icol_road_imperv, icol_road_perv
+    use column_varcon, only : write_coltype_metadata
     !
     ! !ARGUMENTS:
     type(file_desc_t), intent(inout) :: ncid ! local file id
@@ -538,22 +601,7 @@ contains
     character(len=*), parameter :: subname = 'restFile_add_icol_metadata'
     !-----------------------------------------------------------------------
     
-    ! Unlike ilun and ipft, the column names currently do not exist in column_varcon.
-    ! This is partly because of the trickiness of encoding column values for crop &
-    ! icemec.
-
-    call ncd_putatt(ncid, ncd_global, att_prefix // 'vegetated_or_bare_soil', 1) 
-    call ncd_putatt(ncid, ncd_global, att_prefix // 'crop'                  , 2) 
-    call ncd_putatt(ncid, ncd_global, att_prefix // 'crop_noncompete'       , '2*100+m, m=cft_lb,cft_ub')
-    call ncd_putatt(ncid, ncd_global, att_prefix // 'landice'               , 3) 
-    call ncd_putatt(ncid, ncd_global, att_prefix // 'landice_multiple_elevation_classes', '4*100+m, m=1,glcnec')  
-    call ncd_putatt(ncid, ncd_global, att_prefix // 'deep_lake'             , 5) 
-    call ncd_putatt(ncid, ncd_global, att_prefix // 'wetland'               , 6) 
-    call ncd_putatt(ncid, ncd_global, att_prefix // 'urban_roof'            , icol_roof)
-    call ncd_putatt(ncid, ncd_global, att_prefix // 'urban_sunwall'         , icol_sunwall)
-    call ncd_putatt(ncid, ncd_global, att_prefix // 'urban_shadewall'       , icol_shadewall)
-    call ncd_putatt(ncid, ncd_global, att_prefix // 'urban_impervious_road' , icol_road_imperv)
-    call ncd_putatt(ncid, ncd_global, att_prefix // 'urban_pervious_road'   , icol_road_perv)
+    call write_coltype_metadata(att_prefix, ncid)
 
   end subroutine restFile_add_icol_metadata
 
@@ -608,6 +656,7 @@ contains
     integer :: numc      ! total number of columns across all processors
     integer :: nump      ! total number of pfts across all processors
     integer :: numCohort ! total number of cohorts across all processors
+    character(len=:), allocatable :: msg  ! diagnostic message
     character(len=32) :: subname='restFile_dimcheck' ! subroutine name
     !-----------------------------------------------------------------------
 
@@ -615,11 +664,20 @@ contains
 
     if ( .not. single_column .or. nsrest /= nsrStartup )then
        call get_proc_global(ng=numg, nl=numl, nc=numc, np=nump, nCohorts=numCohort)
-       call check_dim(ncid, nameg, numg)
-       call check_dim(ncid, namel, numl)
-       call check_dim(ncid, namec, numc)
-       call check_dim(ncid, namep, nump)
-       if ( use_ed ) call check_dim(ncid, nameCohort  , numCohort)
+       msg = 'Did you mean to set use_init_interp = .true. in user_nl_clm?' // &
+            new_line('x') // &
+            '(Setting use_init_interp = .true. is needed when doing a' // &
+            new_line('x') // &
+            'transient run with crops using an initial conditions file from a non-transient run,' // &
+            new_line('x') // &
+            'or a non-transient run with crops using an initial conditions file from a transient run,' // &
+            new_line('x') // &
+            'or when running a resolution or configuration that differs from the initial conditions.)'
+       call check_dim(ncid, nameg, numg, msg=msg)
+       call check_dim(ncid, namel, numl, msg=msg)
+       call check_dim(ncid, namec, numc, msg=msg)
+       call check_dim(ncid, namep, nump, msg=msg)
+       if ( use_ed ) call check_dim(ncid, nameCohort  , numCohort, msg=msg)
     end if
     call check_dim(ncid, 'levsno'  , nlevsno)
     call check_dim(ncid, 'levgrnd' , nlevgrnd)
@@ -672,7 +730,6 @@ contains
     type(file_desc_t), intent(inout) :: ncid    ! netcdf id
     !
     ! !LOCAL VARIABLES:
-    logical :: check_finidat_fsurdat_consistency ! whether to check consistency between fsurdat on finidat file and current fsurdat
     logical :: check_finidat_year_consistency    ! whether to check consistency between year on finidat file and current year
     logical :: check_finidat_pct_consistency     ! whether to check consistency between pct_pft on finidat file and surface dataset
     
@@ -680,13 +737,8 @@ contains
     !-----------------------------------------------------------------------
     
     call restFile_read_consistency_nl( &
-         check_finidat_fsurdat_consistency, &
          check_finidat_year_consistency, &
          check_finidat_pct_consistency)
-
-    if (check_finidat_fsurdat_consistency) then
-       call restFile_check_fsurdat(ncid)
-    end if
 
     if (check_finidat_year_consistency) then
        call restFile_check_year(ncid)
@@ -700,7 +752,6 @@ contains
 
   !-----------------------------------------------------------------------
   subroutine restFile_read_consistency_nl( &
-       check_finidat_fsurdat_consistency, &
        check_finidat_year_consistency, &
        check_finidat_pct_consistency)
 
@@ -715,7 +766,6 @@ contains
     use shr_mpi_mod    , only : shr_mpi_bcast
     !
     ! !ARGUMENTS:
-    logical, intent(out) :: check_finidat_fsurdat_consistency
     logical, intent(out) :: check_finidat_year_consistency
     logical, intent(out) :: check_finidat_pct_consistency
     !
@@ -727,12 +777,10 @@ contains
     !-----------------------------------------------------------------------
 
     namelist /finidat_consistency_checks/ &
-         check_finidat_fsurdat_consistency, &
          check_finidat_year_consistency, &
          check_finidat_pct_consistency
 
     ! Set default namelist values
-    check_finidat_fsurdat_consistency = .true.
     check_finidat_year_consistency = .true.
     check_finidat_pct_consistency = .true.
 
@@ -746,12 +794,13 @@ contains
           if (nml_error /= 0) then
              call endrun(msg='ERROR reading finidat_consistency_checks namelist'//errMsg(__FILE__, __LINE__))
           end if
+       else
+          call endrun(msg='ERROR finding finidat_consistency_checks namelist'//errMsg(__FILE__, __LINE__))
        end if
        close(nu_nml)
        call relavu( nu_nml )
     endif
 
-    call shr_mpi_bcast (check_finidat_fsurdat_consistency, mpicom)
     call shr_mpi_bcast (check_finidat_year_consistency, mpicom)
     call shr_mpi_bcast (check_finidat_pct_consistency, mpicom)
 
@@ -763,64 +812,6 @@ contains
     end if
 
   end subroutine restFile_read_consistency_nl
-
-  !-----------------------------------------------------------------------
-  subroutine restFile_check_fsurdat(ncid)
-    !
-    ! !DESCRIPTION:
-    ! Check consistency of the fsurdat value on the restart file and the current fsurdat
-    !
-    ! !USES:
-    use fileutils            , only : get_filename
-    use clm_varctl           , only : fname_len, fsurdat
-    use dynSubgridControlMod , only : get_flanduse_timeseries
-    !
-    ! !ARGUMENTS:
-    type(file_desc_t), intent(inout) :: ncid    ! netcdf id
-    !
-    ! !LOCAL VARIABLES:
-    character(len=fname_len) :: fsurdat_rest  ! fsurdat from the restart file (includes full path)
-    character(len=fname_len) :: filename_cur  ! current fsurdat file name
-    character(len=fname_len) :: filename_rest ! fsurdat file name from restart file (does NOT include full path)
-    
-    character(len=*), parameter :: subname = 'restFile_check_fsurdat'
-    !-----------------------------------------------------------------------
-    
-    ! Only do this check for a transient run. The problem with doing this check for a non-
-    ! transient run is the transition from transient to non-transient: It is legitimate to
-    ! run with an 1850 surface dataset and a pftdyn file, then use the restart file from
-    ! that run to start a present-day (non-transient) run, which would use a 2000 surface
-    ! dataset.
-    if (get_flanduse_timeseries() /= ' ') then
-       call ncd_getatt(ncid, NCD_GLOBAL, 'surface_dataset', fsurdat_rest)
-
-       ! Compare file names, ignoring path
-       filename_cur = get_filename(fsurdat)
-       filename_rest = get_filename(fsurdat_rest)
-
-       if (filename_rest /= filename_cur) then
-          if (masterproc) then
-             write(iulog,*) 'ERROR: Initial conditions file (finidat) was generated from a different surface dataset'
-             write(iulog,*) 'than the one being used for the current simulation (fsurdat).'
-             write(iulog,*) 'Current fsurdat: ', trim(filename_cur)
-             write(iulog,*) 'Surface dataset used to generate initial conditions file: ', trim(filename_rest)
-             write(iulog,*)
-             write(iulog,*) 'Possible solutions to this problem:'
-             write(iulog,*) '(1) Make sure you are using the correct surface dataset and initial conditions file'
-             write(iulog,*) '(2) If you generated the surface dataset and/or initial conditions file yourself,'
-             write(iulog,*) '    then you may need to manually change the surface_dataset global attribute on the'
-             write(iulog,*) '    initial conditions file (e.g., using ncatted)'
-             write(iulog,*) '(3) If you are confident that you are using the correct surface dataset and initial conditions file,'
-             write(iulog,*) '    yet are still experiencing this error, then you can bypass this check by setting:'
-             write(iulog,*) '      check_finidat_fsurdat_consistency = .false.'
-             write(iulog,*) '    in user_nl_clm'
-             write(iulog,*) ' '
-          end if
-          call endrun(msg=errMsg(__FILE__, __LINE__))
-       end if
-    end if
-
-  end subroutine restFile_check_fsurdat
 
   !-----------------------------------------------------------------------
   subroutine restFile_check_year(ncid)

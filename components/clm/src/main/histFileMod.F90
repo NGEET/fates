@@ -34,6 +34,8 @@ module histFileMod
   integer , public, parameter :: max_tapes = 6          ! max number of history tapes
   integer , public, parameter :: max_flds = 2500        ! max number of history fields
   integer , public, parameter :: max_namlen = 64        ! maximum number of characters for field name
+  integer , public, parameter :: scale_type_strlen = 32 ! maximum number of characters for scale types
+  integer , private, parameter :: avgflag_strlen = 3 ! maximum number of characters for avgflag
 
   ! Possible ways to treat multi-layer snow fields at times when no snow is present in a
   ! given layer. Note that the public parameters are the only ones that can be used by
@@ -62,7 +64,7 @@ module histFileMod
        hist_dov2xy(max_tapes) = (/.true.,(.true.,ni=2,max_tapes)/) ! namelist: true=> do grid averaging
   integer, public :: &
        hist_nhtfrq(max_tapes) = (/0, (-24, ni=2,max_tapes)/)        ! namelist: history write freq(0=monthly)
-  character(len=1), public :: &
+  character(len=avgflag_strlen), public :: &
        hist_avgflag_pertape(max_tapes) = (/(' ',ni=1,max_tapes)/)   ! namelist: per tape averaging flag
   character(len=max_namlen), public :: &
        hist_type1d_pertape(max_tapes)  = (/(' ',ni=1,max_tapes)/)   ! namelist: per tape type1d
@@ -120,6 +122,7 @@ module histFileMod
   private :: htape_addfld              ! Add a field to the active list for a history tape
   private :: htape_create              ! Define contents of history file t
   private :: htape_add_ltype_metadata  ! Add global metadata defining landunit types
+  private :: htape_add_ctype_metadata  ! Add global metadata defining column types
   private :: htape_add_natpft_metadata ! Add global metadata defining natpft types
   private :: htape_add_cft_metadata    ! Add global metadata defining cft types
   private :: htape_timeconst           ! Write time constant values to history tape
@@ -137,11 +140,15 @@ module histFileMod
   private :: getflag                   ! Retrieve flag
   private :: pointer_index             ! Track data pointer indices
   private :: max_nFields               ! The max number of fields on any tape
+  private :: avgflag_valid             ! Whether a given avgflag is a valid option
   !
   ! !PRIVATE TYPES:
   ! Constants
   !
-  integer, parameter :: max_chars = 128        ! max chars for char variables
+  integer, parameter :: max_length_filename = 199 ! max length of a filename. on most linux systems this
+                                                  ! is 255. But this can't be increased until all hard
+                                                  ! coded values throughout the i/o stack are updated.
+  integer, parameter :: max_chars = 199        ! max chars for char variables
   integer, parameter :: max_subs = 100         ! max number of subscripts
   integer            :: num_subs = 0           ! actual number of subscripts
   character(len=32)  :: subs_name(max_subs)    ! name of subscript
@@ -162,21 +169,21 @@ module histFileMod
      integer :: num1d_out                      ! size of hbuf first dimension (all nodes)
      integer :: num2d                          ! size of hbuf second dimension (e.g. number of vertical levels)
      integer :: hpindex                        ! history pointer index 
-     character(len=8) :: p2c_scale_type        ! scale factor when averaging patch to column
-     character(len=8) :: c2l_scale_type        ! scale factor when averaging column to landunit
-     character(len=8) :: l2g_scale_type        ! scale factor when averaging landunit to gridcell
+     character(len=scale_type_strlen) :: p2c_scale_type       ! scale factor when averaging patch to column
+     character(len=scale_type_strlen) :: c2l_scale_type       ! scale factor when averaging column to landunit
+     character(len=scale_type_strlen) :: l2g_scale_type       ! scale factor when averaging landunit to gridcell
      integer :: no_snow_behavior               ! for multi-layer snow fields, flag saying how to treat times when a given snow layer is absent
   end type field_info
 
   type master_entry
      type (field_info)  :: field               ! field information
      logical            :: actflag(max_tapes)  ! active/inactive flag
-     character(len=1)   :: avgflag(max_tapes)  ! time averaging flag ("X","A","M" or "I",)
+     character(len=avgflag_strlen) :: avgflag(max_tapes)  ! time averaging flag ("X","A","M","I","SUM")
   end type master_entry
 
   type history_entry
      type (field_info) :: field                ! field information
-     character(len=1)  :: avgflag              ! time averaging flag
+     character(len=avgflag_strlen) :: avgflag  ! time averaging flag
      real(r8), pointer :: hbuf(:,:)            ! history buffer (dimensions: dim1d x num2d)
      integer , pointer :: nacs(:,:)            ! accumulation counter (dimensions: dim1d x num2d)
   end type history_entry
@@ -221,8 +228,8 @@ module histFileMod
   !
   ! Other variables
   !
-  character(len=max_chars) :: locfnh(max_tapes)  ! local history file names
-  character(len=max_chars) :: locfnhr(max_tapes) ! local history restart file names
+  character(len=max_length_filename) :: locfnh(max_tapes)  ! local history file names
+  character(len=max_length_filename) :: locfnhr(max_tapes) ! local history restart file names
   logical :: htapes_defined = .false.            ! flag indicates history contents have been defined
   !
   ! NetCDF  Id's
@@ -288,7 +295,7 @@ contains
     character(len=*), intent(in)  :: type2d           ! 2d output type
     integer         , intent(in)  :: num2d            ! size of second dimension (e.g. number of vertical levels)
     character(len=*), intent(in)  :: units            ! units of field
-    character(len=1), intent(in)  :: avgflag          ! time averaging flag
+    character(len=*), intent(in)  :: avgflag          ! time averaging flag
     character(len=*), intent(in)  :: long_name        ! long name of field
     integer         , intent(in)  :: hpindex          ! data type index for history buffer output
     character(len=*), intent(in)  :: p2c_scale_type   ! scale type for subgrid averaging of pfts to column
@@ -307,6 +314,11 @@ contains
     type(bounds_type) :: bounds                  
     character(len=*),parameter :: subname = 'masterlist_addfld'
     !------------------------------------------------------------------------
+
+    if (.not. avgflag_valid(avgflag, blank_valid=.true.)) then
+       write(iulog,*) trim(subname),' ERROR: unknown averaging flag=', avgflag
+       call endrun(msg=errMsg(__FILE__, __LINE__))
+    end if
 
     ! Determine bounds
 
@@ -489,7 +501,7 @@ contains
     ! !ARGUMENTS:
     character(len=*), intent(in) :: name          ! field name
     integer, intent(in) :: tape_index             ! history tape index
-    character(len=1), intent(in), optional :: avgflag  ! time averaging flag
+    character(len=*), intent(in), optional :: avgflag  ! time averaging flag
     !
     ! !LOCAL VARIABLES:
     integer :: f            ! field index
@@ -505,9 +517,7 @@ contains
     end if
 
     if (present(avgflag)) then
-       if ( avgflag /= ' ' .and. &
-            avgflag /= 'A' .and. avgflag /= 'I' .and. &
-            avgflag /= 'X' .and. avgflag /= 'M') then
+       if (.not. avgflag_valid(avgflag, blank_valid=.true.)) then
           write(iulog,*) trim(subname),' ERROR: unknown averaging flag=', avgflag
           call endrun(msg=errMsg(__FILE__, __LINE__))
        endif
@@ -547,26 +557,18 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer :: f                     ! field index
-    character(len=1) :: avgflag      ! lcl equiv of hist_avgflag_pertape(t)
+    character(len=avgflag_strlen) :: avgflag      ! local equiv of hist_avgflag_pertape(t)
     character(len=*),parameter :: subname = 'masterlist_change_timeavg'
     !-----------------------------------------------------------------------
 
     avgflag = hist_avgflag_pertape(t)
+    if (.not. avgflag_valid(avgflag, blank_valid = .false.)) then
+       write(iulog,*) trim(subname),' ERROR: unknown avgflag=',avgflag
+       call endrun(msg=errMsg(__FILE__, __LINE__))
+    end if
 
     do f = 1,nfmaster
-       select case (avgflag)
-       case ('A')
-          masterlist(f)%avgflag(t) = avgflag
-       case ('I')
-          masterlist(f)%avgflag(t) = avgflag
-       case ('X')
-          masterlist(f)%avgflag(t) = avgflag
-       case ('M')
-          masterlist(f)%avgflag(t) = avgflag
-       case default
-          write(iulog,*) trim(subname),' ERROR: unknown avgflag=',avgflag
-          call endrun(msg=errMsg(__FILE__, __LINE__))
-       end select
+       masterlist(f)%avgflag(t) = avgflag
     end do
 
   end subroutine masterlist_change_timeavg
@@ -587,7 +589,7 @@ contains
     integer :: ff                           ! index into include, exclude and fprec list
     character(len=max_namlen) :: name       ! field name portion of fincl (i.e. no avgflag separator)
     character(len=max_namlen) :: mastername ! name from masterlist field
-    character(len=1)  :: avgflag            ! averaging flag
+    character(len=avgflag_strlen) :: avgflag ! averaging flag
     character(len=1)  :: prec_acc           ! history buffer precision flag
     character(len=1)  :: prec_wrt           ! history buffer write precision flag
     type (history_entry) :: tmp             ! temporary used for swapping
@@ -809,7 +811,7 @@ contains
     ! !ARGUMENTS:
     integer, intent(in) :: t                 ! history tape index
     integer, intent(in) :: f                 ! field index from master field list
-    character(len=1), intent(in) :: avgflag  ! time averaging flag
+    character(len=*), intent(in) :: avgflag  ! time averaging flag
     !
     ! !LOCAL VARIABLES:
     integer :: n                    ! field index on defined tape
@@ -933,15 +935,16 @@ contains
     ! Set time averaging flag based on masterlist setting or
     ! override the default averaging flag with namelist setting
 
-    select case (avgflag)
-    case (' ')
-       tape(t)%hlist(n)%avgflag = masterlist(f)%avgflag(t)
-    case ('A','I','X','M')
-       tape(t)%hlist(n)%avgflag = avgflag
-    case default
+    if (.not. avgflag_valid(avgflag, blank_valid=.true.)) then
        write(iulog,*) trim(subname),' ERROR: unknown avgflag=', avgflag
        call endrun(msg=errMsg(__FILE__, __LINE__))
-    end select
+    end if
+
+    if (avgflag == ' ') then
+       tape(t)%hlist(n)%avgflag = masterlist(f)%avgflag(t)
+    else
+       tape(t)%hlist(n)%avgflag = avgflag
+    end if
 
   end subroutine htape_addfld
 
@@ -1007,10 +1010,10 @@ contains
     logical  :: map2gcell               ! true => map clm pointer field to gridcell
     character(len=8)  :: type1d         ! 1d clm pointerr type   ["gridcell","landunit","column","pft"]
     character(len=8)  :: type1d_out     ! 1d history buffer type ["gridcell","landunit","column","pft"]
-    character(len=1)  :: avgflag        ! time averaging flag
-    character(len=8)  :: p2c_scale_type ! scale type for subgrid averaging of pfts to column
-    character(len=8)  :: c2l_scale_type ! scale type for subgrid averaging of columns to landunits
-    character(len=8)  :: l2g_scale_type ! scale type for subgrid averaging of landunits to gridcells
+    character(len=avgflag_strlen) :: avgflag ! time averaging flag
+    character(len=scale_type_strlen)  :: p2c_scale_type ! scale type for subgrid averaging of pfts to column
+    character(len=scale_type_strlen)  :: c2l_scale_type ! scale type for subgrid averaging of columns to landunits
+    character(len=scale_type_strlen) :: l2g_scale_type ! scale type for subgrid averaging of landunits to gridcells
     real(r8), pointer :: hbuf(:,:)      ! history buffer
     integer , pointer :: nacs(:,:)      ! accumulation counter
     real(r8), pointer :: field(:)       ! clm 1d pointer field
@@ -1079,7 +1082,7 @@ contains
              end if
              nacs(k,1) = 1
           end do
-       case ('A') ! Time average
+       case ('A', 'SUM') ! Time average / sum
           do k = bounds%begg,bounds%endg
              if (field_gcell(k) /= spval) then
                 if (nacs(k,1) == 0) hbuf(k,1) = 0._r8
@@ -1149,7 +1152,7 @@ contains
              end if
              nacs(k,1) = 1
           end do
-       case ('A') ! Time average
+       case ('A', 'SUM') ! Time average / sum
           ! create mappings for array slice pointers (which go from 1 to size(field) rather than beg1d to end1d)
           if ( end1d .eq. ubound(field,1) ) then
              k_offset = 0
@@ -1248,10 +1251,10 @@ contains
     logical  :: map2gcell               ! true => map clm pointer field to gridcell
     character(len=8)  :: type1d         ! 1d clm pointerr type   ["gridcell","landunit","column","pft"]
     character(len=8)  :: type1d_out     ! 1d history buffer type ["gridcell","landunit","column","pft"]
-    character(len=1)  :: avgflag        ! time averaging flag
-    character(len=8)  :: p2c_scale_type ! scale type for subgrid averaging of pfts to column
-    character(len=8)  :: c2l_scale_type ! scale type for subgrid averaging of columns to landunits
-    character(len=8)  :: l2g_scale_type ! scale type for subgrid averaging of landunits to gridcells
+    character(len=avgflag_strlen) :: avgflag ! time averaging flag
+    character(len=scale_type_strlen) :: p2c_scale_type ! scale type for subgrid averaging of pfts to column
+    character(len=scale_type_strlen) :: c2l_scale_type ! scale type for subgrid averaging of columns to landunits
+    character(len=scale_type_strlen) :: l2g_scale_type ! scale type for subgrid averaging of landunits to gridcells
     integer  :: no_snow_behavior        ! for multi-layer snow fields, behavior to use when a given layer is absent
     real(r8), pointer :: hbuf(:,:)      ! history buffer
     integer , pointer :: nacs(:,:)      ! accumulation counter
@@ -1259,7 +1262,7 @@ contains
     logical           :: field_allocated! whether 'field' was allocated here
     logical , pointer :: active(:)      ! flag saying whether each point is active (used for type1d = landunit/column/pft) 
                                         !(this refers to a point being active, NOT a history field being active)
-    real(r8) :: field_gcell(bounds%begg:bounds%endg,num2d) ! gricell level field (used if mapping to gridcell is done)
+    real(r8) :: field_gcell(bounds%begg:bounds%endg,num2d) ! gridcell level field (used if mapping to gridcell is done)
     character(len=*),parameter :: subname = 'hist_update_hbuf_field_2d'
     !-----------------------------------------------------------------------
 
@@ -1346,7 +1349,7 @@ contains
                 nacs(k,j) = 1
              end do
           end do
-       case ('A') ! Time average
+       case ('A', 'SUM') ! Time average / sum
           do j = 1,num2d
              do k = bounds%begg,bounds%endg
                 if (field_gcell(k,j) /= spval) then
@@ -1428,7 +1431,7 @@ contains
                 nacs(k,j) = 1
              end do
           end do
-       case ('A') ! Time average
+       case ('A', 'SUM') ! Time average / sum
           do j = 1,num2d
              do k = beg1d,end1d
                 valid = .true.
@@ -1574,15 +1577,16 @@ contains
 
        num_snow_layers = abs(snl(c))
        num_nonexistent_layers = num_levels - num_snow_layers
-       
+      
        ! Fill output field appropriately for each layer
        ! When only a subset of snow layers exist, it is the LAST num_snow_layers that exist
+       ! Levels are rearranged such that the top snow layer (surface layer) becomes level 1, etc.
 
-       do level = 1, num_nonexistent_layers
+       do level = num_levels, (num_levels-num_nonexistent_layers+1), -1
           field_out(point, level) = no_snow_val
        end do
-       do level = (num_nonexistent_layers + 1), num_levels
-          field_out(point, level) = field_in(point, level)
+       do level = (num_levels-num_nonexistent_layers), 1, -1
+          field_out(point, level) = field_in(point, level+num_nonexistent_layers)
        end do
           
     end do
@@ -1610,7 +1614,7 @@ contains
     logical :: aflag               ! averaging flag
     integer :: beg1d_out,end1d_out ! hbuf 1d beginning and ending indices
     integer :: num2d               ! hbuf size of second dimension (e.g. number of vertical levels)
-    character(len=1)  :: avgflag   ! averaging flag
+    character(len=avgflag_strlen)  :: avgflag   ! averaging flag
     real(r8), pointer :: hbuf(:,:) ! history buffer
     integer , pointer :: nacs(:,:) ! accumulation counter
     character(len=*),parameter :: subname = 'hfields_normalize'
@@ -1673,8 +1677,9 @@ contains
     ! wrapper calls to define the history file contents.
     !
     ! !USES:
-    use clm_varpar      , only : nlevgrnd, nlevsno, nlevlak, nlevurb, numrad, nlevcan, mxpft
+    use clm_varpar      , only : nlevgrnd, nlevsno, nlevlak, nlevurb, numrad, nlevcan, nvegwcs
     use clm_varpar      , only : natpft_size, cft_size, maxpatch_glcmec, nlevdecomp_full
+    use clm_varpar      , only : mxpft
     use landunit_varcon , only : max_lunit
     use clm_varctl      , only : caseid, ctitle, fsurdat, finidat, paramfile
     use clm_varctl      , only : version, hostname, username, conventions, source
@@ -1710,7 +1715,6 @@ contains
     character(len=256) :: name     ! name of attribute
     character(len=256) :: units    ! units of attribute
     character(len=256) :: str      ! global attribute string
-    character(len=  1) :: avgflag  ! time averaging flag
     character(len=*),parameter :: subname = 'htape_create'
     !-----------------------------------------------------------------------
 
@@ -1820,7 +1824,9 @@ contains
     call ncd_defdim(lnfid, 'levsno' , nlevsno , dimid)
     call ncd_defdim(lnfid, 'ltype', max_lunit, dimid)
     call ncd_defdim(lnfid, 'nlevcan',nlevcan, dimid)
+    call ncd_defdim(lnfid, 'nvegwcs',nvegwcs, dimid)
     call htape_add_ltype_metadata(lnfid)
+    call htape_add_ctype_metadata(lnfid)
     call ncd_defdim(lnfid, 'natpft', natpft_size, dimid)
     if (cft_size > 0) then
        call ncd_defdim(lnfid, 'cft', cft_size, dimid)
@@ -1837,6 +1843,7 @@ contains
        call ncd_defdim(lnfid, subs_name(n), subs_dim(n), dimid)
     end do
     call ncd_defdim(lnfid, 'string_length', 8, strlen_dimid)
+    call ncd_defdim(lnfid, 'scale_type_string_length', scale_type_strlen, dimid)
     call ncd_defdim( lnfid, 'levdcmp', nlevdecomp_full, dimid)
     
     if(use_ed)then
@@ -1890,6 +1897,28 @@ contains
     end do
 
   end subroutine htape_add_ltype_metadata
+
+  !-----------------------------------------------------------------------
+  subroutine htape_add_ctype_metadata(lnfid)
+    !
+    ! !DESCRIPTION:
+    ! Add global metadata defining column types
+    !
+    ! !USES:
+    use column_varcon, only : write_coltype_metadata
+    !
+    ! !ARGUMENTS:
+    type(file_desc_t), intent(inout) :: lnfid ! local file id
+    !
+    ! !LOCAL VARIABLES:
+    character(len=*), parameter :: att_prefix = 'ctype_'  ! prefix for attributes
+
+    character(len=*), parameter :: subname = 'htape_add_ctype_metadata'
+    !-----------------------------------------------------------------------
+
+    call write_coltype_metadata(att_prefix, lnfid)
+
+  end subroutine htape_add_ctype_metadata
 
   !-----------------------------------------------------------------------
   subroutine htape_add_natpft_metadata(lnfid)
@@ -1983,7 +2012,7 @@ contains
     character(len=max_chars) :: long_name ! variable long name
     character(len=max_namlen):: varname   ! variable name
     character(len=max_namlen):: units     ! variable units
-    character(len=8) :: l2g_scale_type    ! scale type for subgrid averaging of landunits to grid cells
+    character(len=scale_type_strlen) :: l2g_scale_type    ! scale type for subgrid averaging of landunits to grid cells
     !
     real(r8), pointer :: histi(:,:)       ! temporary
     real(r8), pointer :: histo(:,:)       ! temporary
@@ -2436,17 +2465,6 @@ contains
               missing_value=spval, fill_value=spval)
        end if
        if (ldomain%isgrid2d) then
-          call ncd_defvar(varname='topo', xtype=tape(t)%ncprec, &
-              dim1name='lon', dim2name='lat',&
-              long_name='grid cell topography', units='m', ncid=nfid(t), &
-              missing_value=spval, fill_value=spval)
-       else
-          call ncd_defvar(varname='topo', xtype=tape(t)%ncprec, &
-              dim1name=grlnd, &
-              long_name='grid cell topography', units='m', ncid=nfid(t), &
-              missing_value=spval, fill_value=spval)
-       end if
-       if (ldomain%isgrid2d) then
           call ncd_defvar(varname='landfrac', xtype=tape(t)%ncprec, &
               dim1name='lon', dim2name='lat', &
               long_name='land fraction', ncid=nfid(t), &
@@ -2477,6 +2495,17 @@ contains
           call ncd_defvar(varname='pftmask' , xtype=ncd_int, &
               dim1name=grlnd, &
               long_name='pft real/fake mask (0.=fake and 1.=real)', ncid=nfid(t), &
+              imissing_value=ispval, ifill_value=ispval)
+       end if
+       if (ldomain%isgrid2d) then
+          call ncd_defvar(varname='nbedrock' , xtype=ncd_int, &
+              dim1name='lon', dim2name='lat', &
+              long_name='index of shallowest bedrock layer', ncid=nfid(t), &
+              imissing_value=ispval, ifill_value=ispval)
+       else
+          call ncd_defvar(varname='nbedrock' , xtype=ncd_int, &
+              dim1name=grlnd, &
+              long_name='index of shallowest bedrock layer', ncid=nfid(t), &
               imissing_value=ispval, ifill_value=ispval)
        end if
 
@@ -2496,6 +2525,7 @@ contains
        call ncd_io(varname='landfrac', data=ldomain%frac, dim1name=grlnd, ncid=nfid(t), flag='write')
        call ncd_io(varname='landmask', data=ldomain%mask, dim1name=grlnd, ncid=nfid(t), flag='write')
        call ncd_io(varname='pftmask' , data=ldomain%pftm, dim1name=grlnd, ncid=nfid(t), flag='write')
+       call ncd_io(varname='nbedrock' , data=grc%nbedrock, dim1name=grlnd, ncid=nfid(t), flag='write')
 
     end if  ! (define/write mode
 
@@ -2524,7 +2554,7 @@ contains
     integer :: num2d                     ! hbuf second dimension size
     integer :: nt                        ! time index
     integer :: ier                       ! error status
-    character(len=1)         :: avgflag  ! time averaging flag
+    character(len=avgflag_strlen) :: avgflag  ! time averaging flag
     character(len=max_chars) :: long_name! long name
     character(len=max_chars) :: units    ! units
     character(len=max_namlen):: varname  ! variable name
@@ -2577,6 +2607,8 @@ contains
              avgstr = 'maximum'
           case ('M')
              avgstr = 'minimum'
+          case ('SUM')
+             avgstr = 'sum'
           case default
              write(iulog,*) trim(subname),' ERROR: unknown time averaging flag (avgflag)=',avgflag
              call endrun(msg=errMsg(__FILE__, __LINE__))
@@ -2767,6 +2799,9 @@ contains
           call ncd_defvar(varname='cols1d_wtlunit', xtype=ncd_double, dim1name=namec, &
                long_name='column weight relative to corresponding landunit', ncid=ncid)
 
+          call ncd_defvar(varname='cols1d_itype_col', xtype=ncd_int, dim1name=namec, &
+               long_name='column type (see global attributes)', ncid=ncid)
+
           call ncd_defvar(varname='cols1d_itype_lunit', xtype=ncd_int, dim1name=namec, &
                long_name='column landunit type (vegetated,urban,lake,wetland,glacier or glacier_mec)', &
                   ncid=ncid)
@@ -2810,6 +2845,9 @@ contains
 
           call ncd_defvar(varname='pfts1d_itype_veg', xtype=ncd_int, dim1name=namep, &
                long_name='pft vegetation type', ncid=ncid)
+
+          call ncd_defvar(varname='pfts1d_itype_col', xtype=ncd_int, dim1name=namep, &
+               long_name='pft column type (see global attributes)', ncid=ncid)
 
           call ncd_defvar(varname='pfts1d_itype_lunit', xtype=ncd_int, dim1name=namep, &
                long_name='pft landunit type (vegetated,urban,lake,wetland,glacier or glacier_mec)',  &
@@ -2903,10 +2941,13 @@ contains
        ! ----------------------------------------------------------------
        call ncd_io(varname='cols1d_wtgcell', data=col%wtgcell , dim1name=namec, ncid=ncid, flag='write')
        call ncd_io(varname='cols1d_wtlunit', data=col%wtlunit , dim1name=namec, ncid=ncid, flag='write')
+       call ncd_io(varname='cols1d_itype_col', data=col%itype , dim1name=namec, ncid=ncid, flag='write')
+
        do c = bounds%begc,bounds%endc
          icarr(c) = lun%itype(col%landunit(c))
        enddo
        call ncd_io(varname='cols1d_itype_lunit', data=icarr    , dim1name=namec, ncid=ncid, flag='write')
+
        call ncd_io(varname='cols1d_active' , data=col%active  , dim1name=namec, ncid=ncid, flag='write')
 
        ! Write patch info
@@ -2938,9 +2979,15 @@ contains
        call ncd_io(varname='pfts1d_itype_veg', data=patch%itype   , dim1name=namep, ncid=ncid, flag='write')
 
        do p = bounds%begp,bounds%endp
+          iparr(p) = col%itype(patch%column(p))
+       end do
+       call ncd_io(varname='pfts1d_itype_col', data=iparr         , dim1name=namep, ncid=ncid, flag='write')
+
+       do p = bounds%begp,bounds%endp
           iparr(p) = lun%itype(patch%landunit(p))
        enddo
        call ncd_io(varname='pfts1d_itype_lunit', data=iparr      , dim1name=namep, ncid=ncid, flag='write')
+
        call ncd_io(varname='pfts1d_active'   , data=patch%active  , dim1name=namep, ncid=ncid, flag='write')
 
        deallocate(rgarr,rlarr,rcarr,rparr)
@@ -3217,7 +3264,10 @@ contains
     character(len=max_namlen),allocatable :: tname(:)
     character(len=max_chars), allocatable :: tunits(:),tlongname(:)
     character(len=8), allocatable :: tmpstr(:,:)
-    character(len=1), allocatable :: tavgflag(:)
+    character(len=scale_type_strlen), allocatable :: p2c_scale_type(:)
+    character(len=scale_type_strlen), allocatable :: c2l_scale_type(:)
+    character(len=scale_type_strlen), allocatable :: l2g_scale_type(:)
+    character(len=avgflag_strlen), allocatable :: tavgflag(:)
     integer :: start(2)
 
     character(len=1)   :: hnum                   ! history file index
@@ -3389,7 +3439,7 @@ contains
           !
           call ncd_defdim( ncid_hist(t), 'fname_lenp2'  , max_namlen+2, dimid)
           call ncd_defdim( ncid_hist(t), 'fname_len'    , max_namlen  , dimid)
-          call ncd_defdim( ncid_hist(t), 'len1'         , 1           , dimid)
+          call ncd_defdim( ncid_hist(t), 'avgflag_len'  , avgflag_strlen, dimid)
           call ncd_defdim( ncid_hist(t), 'scalar'       , 1           , dimid)
           call ncd_defdim( ncid_hist(t), 'max_chars'    , max_chars   , dimid)
           call ncd_defdim( ncid_hist(t), 'max_nflds'    , max_nflds   ,  dimid)   
@@ -3444,8 +3494,8 @@ contains
 
           call ncd_defvar(ncid=ncid_hist(t), varname='avgflag', xtype=ncd_char, &
                long_name="Averaging flag", &
-               units="A=Average, X=Maximum, M=Minimum, I=Instantaneous", &
-               dim1name='len1', dim2name='max_nflds' )
+               units="A=Average, X=Maximum, M=Minimum, I=Instantaneous, SUM=Sum", &
+               dim1name='avgflag_len', dim2name='max_nflds' )
           call ncd_defvar(ncid=ncid_hist(t), varname='name', xtype=ncd_char, &
                long_name="Fieldnames",  &
                dim1name='fname_len', dim2name='max_nflds' )
@@ -3466,13 +3516,13 @@ contains
                dim1name='string_length', dim2name='max_nflds' )
           call ncd_defvar(ncid=ncid_hist(t), varname='p2c_scale_type', xtype=ncd_char, &
                long_name="PFT to column scale type", &
-               dim1name='string_length', dim2name='max_nflds' )
+               dim1name='scale_type_string_length', dim2name='max_nflds' )
           call ncd_defvar(ncid=ncid_hist(t), varname='c2l_scale_type', xtype=ncd_char, &
                long_name="column to landunit scale type", &
-               dim1name='string_length', dim2name='max_nflds' )
+               dim1name='scale_type_string_length', dim2name='max_nflds' )
           call ncd_defvar(ncid=ncid_hist(t), varname='l2g_scale_type', xtype=ncd_char, &
                long_name="landunit to gridpoint scale type", &
-               dim1name='string_length', dim2name='max_nflds' )
+               dim1name='scale_type_string_length', dim2name='max_nflds' )
 
           call ncd_enddef(ncid_hist(t))
 
@@ -3544,8 +3594,10 @@ contains
           call ncd_io('mfilt',   tape(t)%mfilt,   'write', ncid_hist(t) )
           call ncd_io('ncprec',  tape(t)%ncprec,  'write', ncid_hist(t) )
           call ncd_io('begtime',      tape(t)%begtime, 'write', ncid_hist(t) )
-          allocate(tmpstr(tape(t)%nflds,6 ),tname(tape(t)%nflds), &
-                   tavgflag(tape(t)%nflds),tunits(tape(t)%nflds),tlongname(tape(t)%nflds))
+          allocate(tmpstr(tape(t)%nflds,3 ),tname(tape(t)%nflds), &
+               tavgflag(tape(t)%nflds),tunits(tape(t)%nflds),tlongname(tape(t)%nflds), &
+               p2c_scale_type(tape(t)%nflds), c2l_scale_type(tape(t)%nflds), &
+               l2g_scale_type(tape(t)%nflds))
           do f=1,tape(t)%nflds
              tname(f)  = tape(t)%hlist(f)%field%name
              tunits(f) = tape(t)%hlist(f)%field%units
@@ -3554,9 +3606,9 @@ contains
              tmpstr(f,2) = tape(t)%hlist(f)%field%type1d_out
              tmpstr(f,3) = tape(t)%hlist(f)%field%type2d
              tavgflag(f) = tape(t)%hlist(f)%avgflag
-             tmpstr(f,4) = tape(t)%hlist(f)%field%p2c_scale_type
-             tmpstr(f,5) = tape(t)%hlist(f)%field%c2l_scale_type
-             tmpstr(f,6) = tape(t)%hlist(f)%field%l2g_scale_type
+             p2c_scale_type(f) = tape(t)%hlist(f)%field%p2c_scale_type
+             c2l_scale_type(f) = tape(t)%hlist(f)%field%c2l_scale_type
+             l2g_scale_type(f) = tape(t)%hlist(f)%field%l2g_scale_type
           end do
           call ncd_io( 'name', tname, 'write',ncid_hist(t))
           call ncd_io('long_name', tlongname, 'write', ncid_hist(t))
@@ -3565,10 +3617,11 @@ contains
           call ncd_io('type1d_out', tmpstr(:,2), 'write', ncid_hist(t))
           call ncd_io('type2d', tmpstr(:,3), 'write', ncid_hist(t))
           call ncd_io('avgflag',tavgflag , 'write', ncid_hist(t))
-          call ncd_io('p2c_scale_type', tmpstr(:,4), 'write', ncid_hist(t))
-          call ncd_io('c2l_scale_type', tmpstr(:,5), 'write', ncid_hist(t))
-          call ncd_io('l2g_scale_type', tmpstr(:,6), 'write', ncid_hist(t))
+          call ncd_io('p2c_scale_type', p2c_scale_type, 'write', ncid_hist(t))
+          call ncd_io('c2l_scale_type', c2l_scale_type, 'write', ncid_hist(t))
+          call ncd_io('l2g_scale_type', l2g_scale_type, 'write', ncid_hist(t))
           deallocate(tname,tlongname,tunits,tmpstr,tavgflag)
+          deallocate(p2c_scale_type, c2l_scale_type, l2g_scale_type)
        enddo       
        deallocate(itemp)
 
@@ -4013,7 +4066,7 @@ contains
    end subroutine list_index
 
    !-----------------------------------------------------------------------
-   character(len=256) function set_hist_filename (hist_freq, hist_mfilt, hist_file)
+   character(len=max_length_filename) function set_hist_filename (hist_freq, hist_mfilt, hist_file)
      !
      ! !DESCRIPTION:
      ! Determine history dataset filenames.
@@ -4029,12 +4082,13 @@ contains
      !
      ! !LOCAL VARIABLES:
      !EOP
-     character(len=256) :: cdate       !date char string
+     character(len=max_chars) :: cdate !date char string
      character(len=  1) :: hist_index  !p,1 or 2 (currently)
      integer :: day                    !day (1 -> 31)
      integer :: mon                    !month (1 -> 12)
      integer :: yr                     !year (0 -> ...)
      integer :: sec                    !seconds into current day
+     integer :: filename_length
      character(len=*),parameter :: subname = 'set_hist_filename'
      !-----------------------------------------------------------------------
 
@@ -4049,6 +4103,21 @@ contains
    set_hist_filename = "./"//trim(caseid)//".clm2"//trim(inst_suffix)//&
                        ".h"//hist_index//"."//trim(cdate)//".nc"
 
+   ! check to see if the concatenated filename exceeded the
+   ! length. Simplest way to do this is ensure that the file
+   ! extension is '.nc'.
+   filename_length = len_trim(set_hist_filename)
+   if (set_hist_filename(filename_length-2:filename_length) /= '.nc') then
+      write(iulog, '(a,a,a,a,a)') 'ERROR: ', subname, &
+           ' : expected file extension ".nc", received extension "', &
+           set_hist_filename(filename_length-2:filename_length), '"'
+      write(iulog, '(a,a,a,a,a)') 'ERROR: ', subname, &
+           ' : filename : "', set_hist_filename, '"'
+      write(iulog, '(a,a,a,i3,a,i3)') 'ERROR: ', subname, &
+           ' Did the constructed filename exceed the maximum length? : filename length = ', &
+           filename_length, ', max length = ', max_length_filename
+      call endrun(msg=errMsg(__FILE__, __LINE__))
+   end if
   end function set_hist_filename
 
   !-----------------------------------------------------------------------
@@ -4071,7 +4140,7 @@ contains
     ! !ARGUMENTS:
     character(len=*), intent(in)           :: fname          ! field name
     character(len=*), intent(in)           :: units          ! units of field
-    character(len=1), intent(in)           :: avgflag        ! time averaging flag
+    character(len=*), intent(in)           :: avgflag        ! time averaging flag
     character(len=*), intent(in)           :: long_name      ! long name of field
     character(len=*), optional, intent(in) :: type1d_out     ! output type (from data type)
     real(r8)        , optional, pointer    :: ptr_gcell(:)   ! pointer to gridcell array
@@ -4096,9 +4165,9 @@ contains
     integer :: hpindex                 ! history buffer pointer index
     character(len=8) :: l_type1d       ! 1d data type
     character(len=8) :: l_type1d_out   ! 1d output type
-    character(len=8) :: scale_type_p2c ! scale type for subgrid averaging of pfts to column
-    character(len=8) :: scale_type_c2l ! scale type for subgrid averaging of columns to landunits
-    character(len=8) :: scale_type_l2g ! scale type for subgrid averaging of landunits to gridcells
+    character(len=scale_type_strlen) :: scale_type_p2c ! scale type for subgrid averaging of pfts to column
+    character(len=scale_type_strlen) :: scale_type_c2l ! scale type for subgrid averaging of columns to landunits
+    character(len=scale_type_strlen) :: scale_type_l2g ! scale type for subgrid averaging of landunits to gridcells
     type(bounds_type):: bounds         ! boudns 
     character(len=16):: l_default      ! local version of 'default'
     character(len=*),parameter :: subname = 'hist_addfld1d'
@@ -4288,7 +4357,7 @@ contains
     ! initial or branch run to initialize the actual history tapes.
     !
     ! !USES:
-    use clm_varpar      , only : nlevgrnd, nlevsno, nlevlak, numrad, nlevdecomp_full, nlevcan
+    use clm_varpar      , only : nlevgrnd, nlevsno, nlevlak, numrad, nlevdecomp_full, nlevcan, nvegwcs
     use clm_varpar      , only : natpft_size, cft_size, maxpatch_glcmec, mxpft
     use landunit_varcon , only : max_lunit
     !
@@ -4296,7 +4365,7 @@ contains
     character(len=*), intent(in) :: fname                      ! field name
     character(len=*), intent(in) :: type2d                     ! 2d output type
     character(len=*), intent(in) :: units                      ! units of field
-    character(len=1), intent(in) :: avgflag                    ! time averaging flag
+    character(len=*), intent(in) :: avgflag                    ! time averaging flag
     character(len=*), intent(in) :: long_name                  ! long name of field
     character(len=*), optional, intent(in) :: type1d_out       ! output type (from data type)
     real(r8)        , optional, pointer    :: ptr_atm(:,:)     ! pointer to atm array
@@ -4322,9 +4391,9 @@ contains
     integer :: hpindex                 ! history buffer index
     character(len=8) :: l_type1d         ! 1d data type
     character(len=8) :: l_type1d_out     ! 1d output type
-    character(len=8) :: scale_type_p2c ! scale type for subgrid averaging of pfts to column
-    character(len=8) :: scale_type_c2l ! scale type for subgrid averaging of columns to landunits
-    character(len=8) :: scale_type_l2g ! scale type for subgrid averaging of landunits to gridcells
+    character(len=scale_type_strlen) :: scale_type_p2c ! scale type for subgrid averaging of pfts to column
+    character(len=scale_type_strlen) :: scale_type_c2l ! scale type for subgrid averaging of columns to landunits
+    character(len=scale_type_strlen) :: scale_type_l2g ! scale type for subgrid averaging of landunits to gridcells
     type(bounds_type):: bounds          
     character(len=16):: l_default      ! local version of 'default'
     character(len=*),parameter :: subname = 'hist_addfld2d'
@@ -4405,10 +4474,12 @@ contains
        num2d = nlevsno
     case ('nlevcan')
         num2d = nlevcan 
+    case ('nvegwcs')
+        num2d = nvegwcs
     case default
        write(iulog,*) trim(subname),' ERROR: unsupported 2d type ',type2d, &
           ' currently supported types for multi level fields are: ', &
-          '[levgrnd,levlak,numrad,levdcmp,levtrc,ltype,natpft,cft,glc_nec,elevclas,levsno]'
+          '[levgrnd,levlak,numrad,levdcmp,levtrc,ltype,natpft,cft,glc_nec,elevclas,levsno,nvegwcs]'
        call endrun(msg=errMsg(__FILE__, __LINE__))
     end select
 
@@ -4565,11 +4636,12 @@ contains
   end subroutine hist_addfld2d
 
   !-----------------------------------------------------------------------
-  subroutine hist_addfld_decomp (fname, type2d, units, avgflag, long_name, ptr_col, ptr_patch, default)
+  subroutine hist_addfld_decomp (fname, type2d, units, avgflag, long_name, ptr_col, &
+       ptr_patch, l2g_scale_type, default)
 
     !
     ! !USES:
-    use clm_varpar  , only : nlevdecomp_full, crop_prog
+    use clm_varpar  , only : nlevdecomp_full
     use clm_varctl  , only : iulog
     use abortutils  , only : endrun
     use shr_log_mod , only : errMsg => shr_log_errMsg
@@ -4578,10 +4650,11 @@ contains
     character(len=*), intent(in) :: fname                    ! field name
     character(len=*), intent(in) :: type2d                   ! 2d output type
     character(len=*), intent(in) :: units                    ! units of field
-    character(len=1), intent(in) :: avgflag                  ! time averaging flag
+    character(len=*), intent(in) :: avgflag                  ! time averaging flag
     character(len=*), intent(in) :: long_name                ! long name of field
     real(r8)        , optional, pointer    :: ptr_col(:,:)   ! pointer to column array
     real(r8)        , optional, pointer    :: ptr_patch(:,:)   ! pointer to patch array
+    character(len=*), optional, intent(in) :: l2g_scale_type ! scale type for subgrid averaging of landunits to gridcells
     character(len=*), optional, intent(in) :: default        ! if set to 'inactive, field will not appear on primary tape
     !
     ! !LOCAL VARIABLES:
@@ -4595,23 +4668,23 @@ contains
           if ( nlevdecomp_full > 1 ) then
              call hist_addfld2d (fname=trim(fname), units=units, type2d=type2d, &
                   avgflag=avgflag, long_name=long_name, &
-                  ptr_col=ptr_col, default=default)
+                  ptr_col=ptr_col, l2g_scale_type=l2g_scale_type, default=default)
           else
              ptr_1d => ptr_col(:,1)
              call hist_addfld1d (fname=trim(fname), units=units, &
                   avgflag=avgflag, long_name=long_name, &
-                  ptr_col=ptr_1d, default=default)
+                  ptr_col=ptr_1d, l2g_scale_type=l2g_scale_type, default=default)
           endif
        else
           if ( nlevdecomp_full > 1 ) then
              call hist_addfld2d (fname=trim(fname), units=units, type2d=type2d, &
                   avgflag=avgflag, long_name=long_name, &
-                  ptr_col=ptr_col)
+                  ptr_col=ptr_col, l2g_scale_type=l2g_scale_type)
           else
              ptr_1d => ptr_col(:,1)
              call hist_addfld1d (fname=trim(fname), units=units, &
                   avgflag=avgflag, long_name=long_name, &
-                  ptr_col=ptr_1d)
+                  ptr_col=ptr_1d, l2g_scale_type=l2g_scale_type)
           endif
        endif
 
@@ -4622,23 +4695,23 @@ contains
           if ( nlevdecomp_full > 1 ) then
              call hist_addfld2d (fname=trim(fname), units=units, type2d=type2d, &
                   avgflag=avgflag, long_name=long_name, &
-                  ptr_patch=ptr_patch, default=default)
+                  ptr_patch=ptr_patch, l2g_scale_type=l2g_scale_type, default=default)
           else
              ptr_1d => ptr_patch(:,1)
              call hist_addfld1d (fname=trim(fname), units=units, &
                   avgflag=avgflag, long_name=long_name, &
-                  ptr_patch=ptr_1d, default=default)
+                  ptr_patch=ptr_1d, l2g_scale_type=l2g_scale_type, default=default)
           endif
        else
           if ( nlevdecomp_full > 1 ) then
              call hist_addfld2d (fname=trim(fname), units=units, type2d=type2d, &
                   avgflag=avgflag, long_name=long_name, &
-                  ptr_patch=ptr_patch)
+                  ptr_patch=ptr_patch, l2g_scale_type=l2g_scale_type)
           else
              ptr_1d => ptr_patch(:,1)
              call hist_addfld1d (fname=trim(fname), units=units, &
                   avgflag=avgflag, long_name=long_name, &
-                  ptr_patch=ptr_1d)
+                  ptr_patch=ptr_1d, l2g_scale_type=l2g_scale_type)
           endif
        endif
 
@@ -4765,6 +4838,42 @@ contains
     endif
     
   end subroutine hist_do_disp
+
+  !-----------------------------------------------------------------------
+  function avgflag_valid(avgflag, blank_valid) result(valid)
+    !
+    ! !DESCRIPTION:
+    ! Returns true if the given avgflag is a valid option, false if not
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS:
+    logical :: valid  ! function result
+    character(len=*), intent(in) :: avgflag
+    logical, intent(in) :: blank_valid  ! whether ' ' is a valid avgflag in this context
+    !
+    ! !LOCAL VARIABLES:
+
+    character(len=*), parameter :: subname = 'avgflag_valid'
+    !-----------------------------------------------------------------------
+
+    ! This initial check is mainly here to catch the possibility that someone has added a
+    ! new "valid" avgflag option that exceeds avgflag_strlen
+    if (len_trim(avgflag) > avgflag_strlen) then
+       valid = .false.
+
+    else if (avgflag == ' ' .and. blank_valid) then
+       valid = .true.
+    else if (avgflag == 'A' .or. avgflag == 'I' .or. &
+         avgflag == 'X' .or. avgflag == 'M' .or. &
+         avgflag == 'SUM') then
+       valid = .true.
+    else
+       valid = .false.
+    end if
+
+  end function avgflag_valid
+
 
 end module histFileMod
 

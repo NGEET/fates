@@ -27,6 +27,10 @@
 <histavg_ymd>$AVGHIST_DATE</histavg_ymd>
 <max_cplstep_time>0.0</max_cplstep_time>
 
+<barrier_option>$BARRIER_OPTION</barrier_option>
+<barrier_n>$BARRIER_N</barrier_n>
+<barrier_ymd>$BARRIER_DATE</barrier_ymd>
+
 <!-- =========================================  -->
 <!--- seq_infodata_inparm                       -->
 <!-- =========================================  -->
@@ -76,6 +80,8 @@
 <wv_sat_use_tables>.false.</wv_sat_use_tables>
 <wv_sat_table_spacing>1.0D0</wv_sat_table_spacing>
 
+<tfreeze_option>minus1p8</tfreeze_option>
+
 <timing_dir>./timing</timing_dir>
 
 <tchkpt_dir>./timing/checkpoints</tchkpt_dir>
@@ -99,8 +105,6 @@
 
 <info_debug>$INFO_DBUG</info_debug>
 <cpl_decomp>$CPL_DECOMP</cpl_decomp>
-<flux_epbal>$CPL_EPBAL</flux_epbal>
-<flux_albav>.$CPL_ALBAV.</flux_albav> 
 <wall_time_limit>-1.0</wall_time_limit> 
 <force_stop_at>month</force_stop_at> 
 <flux_diurnal>.false.</flux_diurnal> 
@@ -151,6 +155,7 @@
 <pio_typename         >$PIO_TYPENAME</pio_typename>
 <pio_debug_level      >$PIO_DEBUG_LEVEL</pio_debug_level>
 <pio_blocksize        >$PIO_BLOCKSIZE</pio_blocksize>
+<pio_rearranger>$PIO_REARRANGER</pio_rearranger>
 <pio_buffer_size_limit>$PIO_BUFFER_SIZE_LIMIT</pio_buffer_size_limit>
 <pio_async_interface PIO_ASYNC_INTERFACE="TRUE">.true.</pio_async_interface>
 <pio_async_interface PIO_ASYNC_INTERFACE="FALSE">.false.</pio_async_interface>
@@ -230,5 +235,11 @@
 <ocn2wav_smaptype BFBFLAG="TRUE">X</ocn2wav_smaptype>
 <ice2wav_smaptype BFBFLAG="TRUE">X</ice2wav_smaptype>
 <ocn2wav_smaptype BFBFLAG="TRUE">X</ocn2wav_smaptype>
+
+
+<!-- =========================================  -->
+<!--- drv_flds_in fields                        -->
+<!-- =========================================  -->
+<drv_flds_in_files>Buildconf/camconf/drv_flds_in,Buildconf/clmconf/drv_flds_in</drv_flds_in_files>
 
 </namelist_defaults>

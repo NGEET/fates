@@ -13,6 +13,7 @@ module lnd2atmType
   use clm_varcon    , only : spval
   use clm_varctl    , only : use_lch4
   use shr_megan_mod , only : shr_megan_mechcomps_n
+  use shr_fire_emis_mod,only : shr_fire_emis_mechcomps_n
   use seq_drydep_mod, only : n_drydep, drydep_method, DD_XLND
   !
   ! !PUBLIC TYPES:
@@ -41,16 +42,24 @@ module lnd2atmType
      real(r8), pointer :: eflx_lwrad_out_grc (:)   => null() ! IR (longwave) radiation (W/m**2)
      real(r8), pointer :: qflx_evap_tot_grc  (:)   => null() ! qflx_evap_soi + qflx_evap_can + qflx_tran_veg
      real(r8), pointer :: fsa_grc            (:)   => null() ! solar rad absorbed (total) (W/m**2)
-     real(r8), pointer :: nee_grc            (:)   => null() ! net CO2 flux (kg CO2/m**2/s) [+ to atm]
+     real(r8), pointer :: net_carbon_exchange_grc(:) => null() ! net CO2 flux (kg CO2/m**2/s) [+ to atm]
      real(r8), pointer :: nem_grc            (:)   => null() ! gridcell average net methane correction to CO2 flux (g C/m^2/s)
      real(r8), pointer :: ram1_grc           (:)   => null() ! aerodynamical resistance (s/m)
      real(r8), pointer :: fv_grc             (:)   => null() ! friction velocity (m/s) (for dust model)
      real(r8), pointer :: flxdst_grc         (:,:) => null() ! dust flux (size bins)
      real(r8), pointer :: ddvel_grc          (:,:) => null() ! dry deposition velocities
      real(r8), pointer :: flxvoc_grc         (:,:) => null() ! VOC flux (size bins)
+     real(r8), pointer :: fireflx_grc        (:,:) => null() ! Wild Fire Emissions
+     real(r8), pointer :: fireztop_grc       (:)   => null() ! Wild Fire Emissions vertical distribution top
      real(r8), pointer :: flux_ch4_grc       (:)   => null() ! net CH4 flux (kg C/m**2/s) [+ to atm]
      ! lnd->rof
-     real(r8), pointer :: qflx_rofliq_grc    (:)   => null() ! rof liq forcing
+     real(r8), pointer :: qflx_rofliq_grc         (:)   => null() ! rof liq forcing
+     real(r8), pointer :: qflx_rofliq_qsur_grc    (:)   => null() ! rof liq -- surface runoff component
+     real(r8), pointer :: qflx_rofliq_qsub_grc    (:)   => null() ! rof liq -- subsurface runoff component
+     real(r8), pointer :: qflx_rofliq_qgwl_grc    (:)   => null() ! rof liq -- glacier, wetland and lakes water balance residual component
+     real(r8), pointer :: qflx_rofliq_h2osfc_grc  (:)   => null() ! rof liq -- surface water runoff component
+     real(r8), pointer :: qflx_rofliq_drain_perched_grc    (:)   => null() ! rof liq -- perched water table runoff component
+     real(r8), pointer :: qflx_rofliq_irrig_grc   (:)   => null() ! rof liq -- irrigation runoff component (negative)
      real(r8), pointer :: qflx_rofice_grc    (:)   => null() ! rof ice forcing
 
    contains
@@ -108,17 +117,29 @@ contains
     allocate(this%eflx_lh_tot_grc    (begg:endg))            ; this%eflx_lh_tot_grc    (:)   =ival
     allocate(this%qflx_evap_tot_grc  (begg:endg))            ; this%qflx_evap_tot_grc  (:)   =ival
     allocate(this%fsa_grc            (begg:endg))            ; this%fsa_grc            (:)   =ival
-    allocate(this%nee_grc            (begg:endg))            ; this%nee_grc            (:)   =ival
+    allocate(this%net_carbon_exchange_grc(begg:endg))        ; this%net_carbon_exchange_grc(:) =ival
     allocate(this%nem_grc            (begg:endg))            ; this%nem_grc            (:)   =ival
     allocate(this%ram1_grc           (begg:endg))            ; this%ram1_grc           (:)   =ival
     allocate(this%fv_grc             (begg:endg))            ; this%fv_grc             (:)   =ival
     allocate(this%flxdst_grc         (begg:endg,1:ndst))     ; this%flxdst_grc         (:,:) =ival
     allocate(this%flux_ch4_grc       (begg:endg))            ; this%flux_ch4_grc       (:)   =ival
     allocate(this%qflx_rofliq_grc    (begg:endg))            ; this%qflx_rofliq_grc    (:)   =ival
+    allocate(this%qflx_rofliq_qsur_grc    (begg:endg))       ; this%qflx_rofliq_qsur_grc    (:)   =ival
+    allocate(this%qflx_rofliq_qsub_grc    (begg:endg))       ; this%qflx_rofliq_qsub_grc    (:)   =ival
+    allocate(this%qflx_rofliq_qgwl_grc    (begg:endg))       ; this%qflx_rofliq_qgwl_grc    (:)   =ival
+    allocate(this%qflx_rofliq_h2osfc_grc  (begg:endg))       ; this%qflx_rofliq_h2osfc_grc    (:)   =ival
+    allocate(this%qflx_rofliq_drain_perched_grc    (begg:endg))       ; this%qflx_rofliq_drain_perched_grc    (:)   =ival
+    allocate(this%qflx_rofliq_irrig_grc   (begg:endg))       ; this%qflx_rofliq_irrig_grc    (:)   =ival
     allocate(this%qflx_rofice_grc    (begg:endg))            ; this%qflx_rofice_grc    (:)   =ival
 
     if (shr_megan_mechcomps_n>0) then
        allocate(this%flxvoc_grc(begg:endg,1:shr_megan_mechcomps_n));  this%flxvoc_grc(:,:)=ival
+    endif
+    if (shr_fire_emis_mechcomps_n>0) then
+       allocate(this%fireflx_grc(begg:endg,1:shr_fire_emis_mechcomps_n))
+       this%fireflx_grc = ival
+       allocate(this%fireztop_grc(begg:endg))
+       this%fireztop_grc = ival
     endif
     if ( n_drydep > 0 .and. drydep_method == DD_XLND )then
        allocate(this%ddvel_grc(begg:endg,1:n_drydep)); this%ddvel_grc(:,:)=ival
@@ -155,10 +176,17 @@ contains
          ptr_lnd=this%qflx_rofliq_grc)
 
     this%qflx_rofice_grc(begg:endg) = 0._r8
-    call hist_addfld1d (fname='QSNWCPICE_TO_COUPLER',  units='mm/s',  &
+    call hist_addfld1d (fname='QRUNOFF_ICE_TO_COUPLER',  units='mm/s',  &
          avgflag='A', &
-         long_name='excess snowfall due to snow capping sent to coupler (includes corrections for land use change)', &
+         long_name='total ice runoff sent to coupler (includes corrections for land use change)', &
          ptr_lnd=this%qflx_rofice_grc)
+
+    this%net_carbon_exchange_grc(begg:endg) = spval
+    call hist_addfld1d(fname='FCO2', units='kgCO2/m2/s', &
+         avgflag='A', &
+         long_name='CO2 flux to atmosphere (+ to atm)', &
+         ptr_lnd=this%net_carbon_exchange_grc, &
+         default='inactive')
 
     if (use_lch4) then
        this%flux_ch4_grc(begg:endg) = 0._r8
@@ -168,7 +196,7 @@ contains
 
        this%nem_grc(begg:endg) = spval
        call hist_addfld1d (fname='NEM', units='gC/m2/s', &
-            avgflag='A', long_name='Gridcell net adjustment to NEE passed to atm. for methane production', &
+            avgflag='A', long_name='Gridcell net adjustment to net carbon exchange passed to atm. for methane production', &
             ptr_lnd=this%nem_grc)
     end if
 

@@ -7,11 +7,11 @@ module clm_initializeMod
   use shr_sys_mod     , only : shr_sys_flush
   use shr_log_mod     , only : errMsg => shr_log_errMsg
   use spmdMod         , only : masterproc
-  use decompMod       , only : bounds_type, get_proc_bounds 
+  use decompMod       , only : bounds_type, get_proc_bounds, get_proc_clumps, get_clump_bounds
   use abortutils      , only : endrun
   use clm_varctl      , only : nsrest, nsrStartup, nsrContinue, nsrBranch, is_cold_start
   use clm_varctl      , only : create_glacier_mec_landunit, iulog
-  use clm_varctl      , only : use_lch4, use_cn, use_cndv, use_voc, use_c13, use_c14, use_ed
+  use clm_varctl      , only : use_lch4, use_cn, use_cndv, use_c13, use_c14, use_ed
   use clm_instur      , only : wt_lunit, urban_valid, wt_nat_patch, wt_cft, wt_glc_mec, topo_glc_mec
   use perf_mod        , only : t_startf, t_stopf
   use readParamsMod   , only : readParameters
@@ -20,6 +20,8 @@ module clm_initializeMod
   use LandunitType    , only : lun           ! instance          
   use ColumnType      , only : col           ! instance          
   use PatchType       , only : patch         ! instance            
+  use reweightMod     , only : reweight_wrapup
+  use filterMod       , only : allocFilters, filter
   use EDVecCohortType , only : ed_vec_cohort ! instance, used for domain decomp
   use clm_instMod       
   ! 
@@ -42,17 +44,17 @@ contains
     use clm_varpar       , only: clm_varpar_init, natpft_lb, natpft_ub, cft_lb, cft_ub, maxpatch_glcmec
     use clm_varcon       , only: clm_varcon_init
     use landunit_varcon  , only: landunit_varcon_init, max_lunit, istice_mec
-    use column_varcon    , only: col_itype_to_icemec_class
-    use clm_varctl       , only: fsurdat, fatmlndfrc, flndtopo, fglcmask, noland, version  
+    use clm_varctl       , only: fsurdat, fatmlndfrc, noland, version  
     use pftconMod        , only: pftcon       
     use decompInitMod    , only: decompInit_lnd, decompInit_clumps, decompInit_glcp
     use domainMod        , only: domain_check, ldomain, domain_init
-    use surfrdMod        , only: surfrd_get_globmask, surfrd_get_grid, surfrd_get_topo, surfrd_get_data 
-    use controlMod       , only: control_init, control_print
+    use surfrdMod        , only: surfrd_get_globmask, surfrd_get_grid, surfrd_get_data 
+    use controlMod       , only: control_init, control_print, NLFilename
     use ncdio_pio        , only: ncd_pio_init
     use initGridCellsMod , only: initGridCells
     use ch4varcon        , only: ch4conrd
     use UrbanParamsType  , only: UrbanInput, IsSimpleBuildTemp
+    use dynSubgridControlMod, only: dynSubgridControl_init
     !
     ! !LOCAL VARIABLES:
     integer           :: ier                     ! error status
@@ -60,8 +62,10 @@ contains
     integer           :: nl                      ! gdc and glo lnd indices
     integer           :: ns, ni, nj              ! global grid sizes
     integer           :: begg, endg              ! processor bounds
-    integer           :: icemec_class            ! current icemec class (1..maxpatch_glcmec)
     type(bounds_type) :: bounds_proc             
+    type(bounds_type) :: bounds_clump
+    integer           :: nclumps                 ! number of clumps on this processor
+    integer           :: nc                      ! clump index
     integer ,pointer  :: amask(:)                ! global land mask
     character(len=32) :: subname = 'initialize1' ! subroutine name
     !-----------------------------------------------------------------------
@@ -87,6 +91,8 @@ contains
     call ncd_pio_init()
 
     if (masterproc) call control_print()
+
+    call dynSubgridControl_init(NLFilename)
 
     ! ------------------------------------------------------------------------
     ! Read in global land grid and land mask (amask)- needed to set decomposition
@@ -130,7 +136,7 @@ contains
        call shr_sys_flush(iulog)
     endif
     if (create_glacier_mec_landunit) then
-       call surfrd_get_grid(begg, endg, ldomain, fatmlndfrc, fglcmask)
+       call surfrd_get_grid(begg, endg, ldomain, fatmlndfrc)
     else
        call surfrd_get_grid(begg, endg, ldomain, fatmlndfrc)
     endif
@@ -139,15 +145,8 @@ contains
     endif
     ldomain%mask = 1  !!! TODO - is this needed?
 
-    ! Get topo if appropriate (set ldomain%topo)
-
-    if (flndtopo /= " ") then
-       if (masterproc) then
-          write(iulog,*) 'Attempting to read atm topo from ',trim(flndtopo)
-          call shr_sys_flush(iulog)
-       endif
-       call surfrd_get_topo(ldomain, flndtopo)  
-    endif
+    ! Initialize glc behavior
+    call glc_behavior%Init(begg, endg, NLFilename)
 
     ! Initialize urban model input (initialize urbinp data structure)
     ! This needs to be called BEFORE the call to surfrd_get_data since
@@ -182,11 +181,7 @@ contains
     ! Determine decomposition of subgrid scale landunits, columns, patches
     ! ------------------------------------------------------------------------
 
-    if (create_glacier_mec_landunit) then
-       call decompInit_clumps(ns, ni, nj, ldomain%glcmask)
-    else
-       call decompInit_clumps(ns, ni, nj)
-    endif
+    call decompInit_clumps(ns, ni, nj, glc_behavior)
 
     ! *** Get ALL processor bounds - for gridcells, landunit, columns and patches ***
 
@@ -210,15 +205,23 @@ contains
     ! Build hierarchy and topological info for derived types
     ! This is needed here for the following call to decompInit_glcp
 
-    call initGridCells()
+    call initGridCells(glc_behavior)
 
     ! Set global seg maps for gridcells, landlunits, columns and patches
 
-    if (create_glacier_mec_landunit) then
-       call decompInit_glcp(ns, ni, nj, ldomain%glcmask)
-    else
-       call decompInit_glcp(ns, ni, nj)
-    endif
+    call decompInit_glcp(ns, ni, nj, glc_behavior)
+
+    ! Set filters
+
+    call allocFilters()
+
+    nclumps = get_proc_clumps()
+    !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
+    do nc = 1, nclumps
+       call get_clump_bounds(nc, bounds_clump)
+       call reweight_wrapup(bounds_clump, glc_behavior)
+    end do
+    !$OMP END PARALLEL DO
 
     ! ------------------------------------------------------------------------
     ! Remainder of initialization1
@@ -240,25 +243,6 @@ contains
 
     call t_stopf('clm_init1')
 
-    ! initialize glc_topo
-    ! TODO - does this belong here?
-    do c = bounds_proc%begc, bounds_proc%endc
-       l = col%landunit(c)
-       g = col%gridcell(c)
-
-       if (lun%itype(l) == istice_mec) then
-          ! For ice_mec landunits, initialize glc_topo based on surface dataset; this
-          ! will get overwritten in the run loop by values sent from CISM
-          icemec_class = col_itype_to_icemec_class(col%itype(c))
-          col%glc_topo(c) = topo_glc_mec(g, icemec_class)
-       else
-          ! For other landunits, arbitrarily initialize glc_topo to 0 m; for landunits
-          ! where this matters, this will get overwritten in the run loop by values sent
-          ! from CISM
-          col%glc_topo(c) = 0._r8
-       end if
-    end do
-
   end subroutine initialize1
 
 
@@ -273,22 +257,20 @@ contains
     use shr_scam_mod          , only : shr_scam_getCloseLatLon
     use seq_drydep_mod        , only : n_drydep, drydep_method, DD_XLND
     use accumulMod            , only : print_accum_fields 
-    use clm_varpar            , only : nlevsno, crop_prog
+    use clm_varpar            , only : nlevsno
     use clm_varcon            , only : spval
     use clm_varctl            , only : finidat, finidat_interp_source, finidat_interp_dest, fsurdat
     use clm_varctl            , only : use_century_decomp, single_column, scmlat, scmlon, use_cn, use_ed
+    use clm_varctl            , only : use_crop
     use clm_varorb            , only : eccen, mvelpp, lambm0, obliqr
     use clm_time_manager      , only : get_step_size, get_curr_calday
     use clm_time_manager      , only : get_curr_date, get_nstep, advance_timestep 
     use clm_time_manager      , only : timemgr_init, timemgr_restart_io, timemgr_restart, is_restart
     use C14BombSpikeMod       , only : C14_init_BombSpike, use_c14_bombspike 
     use DaylengthMod          , only : InitDaylength, daylength
-    use decompMod             , only : get_proc_clumps, get_proc_bounds, get_clump_bounds, bounds_type
     use dynSubgridDriverMod   , only : dynSubgrid_init
     use fileutils             , only : getfil
-    use filterMod             , only : allocFilters, filter
     use initInterpMod         , only : initInterp
-    use reweightMod           , only : reweight_wrapup
     use subgridWeightsMod     , only : init_subgrid_weights_mod
     use histFileMod           , only : hist_htapes_build, htapes_fieldlist, hist_printflds
     use histFileMod           , only : hist_addfld1d, hist_addfld2d, no_snow_normal
@@ -301,6 +283,7 @@ contains
     use SnowSnicarMod         , only : SnowAge_init, SnowOptics_init
     use lnd2atmMod            , only : lnd2atm_minimal
     use NutrientCompetitionFactoryMod, only : create_nutrient_competition_method
+    use controlMod            , only : NLFilename
     use clm_instMod           , only : clm_fates
     !
     ! !ARGUMENTS    
@@ -350,8 +333,9 @@ contains
     ! Read in parameters files
     ! ------------------------------------------------------------------------
 
+    call clm_instReadNML( NLFilename )
     allocate(nutrient_competition_method, &
-         source=create_nutrient_competition_method())
+         source=create_nutrient_competition_method(bounds_proc))
 
     if (use_cn .or. use_ed) then
        call readParameters(nutrient_competition_method)
@@ -419,7 +403,7 @@ contains
 
     ! First put in history calls for subgrid data structures - these cannot appear in the
     ! module for the subgrid data definition due to circular dependencies that are introduced
-    
+
     data2dptr => col%dz(:,-nlevsno+1:0)
     col%dz(bounds_proc%begc:bounds_proc%endc,:) = spval
     call hist_addfld2d (fname='SNO_Z', units='m', type2d='levsno',  &
@@ -458,7 +442,7 @@ contains
 
     call t_startf('init_dyn_subgrid')
     call init_subgrid_weights_mod(bounds_proc)
-    call dynSubgrid_init(bounds_proc, dgvs_inst)
+    call dynSubgrid_init(bounds_proc)
     call t_stopf('init_dyn_subgrid')
 
     ! ------------------------------------------------------------------------
@@ -466,7 +450,10 @@ contains
     ! ------------------------------------------------------------------------
 
     if (use_cn) then
-       call CNDriverInit(bounds_proc)
+       call bgc_vegetation_inst%Init2(bounds_proc, NLFilename)
+
+       ! NOTE(wjs, 2016-02-23) Maybe the rest of the body of this conditional should also
+       ! be moved into bgc_vegetation_inst%Init2
 
        if (n_drydep > 0 .and. drydep_method == DD_XLND) then
           ! Must do this also when drydeposition is used so that estimates of monthly 
@@ -520,7 +507,7 @@ contains
              write(iulog,*)'Reading initial conditions from ',trim(finidat)
           end if
           call getfil( finidat, fnamer, 0 )
-          call restFile_read(bounds_proc, fnamer)
+          call restFile_read(bounds_proc, fnamer, glc_behavior)
        end if
 
     else if ((nsrest == nsrContinue) .or. (nsrest == nsrBranch)) then
@@ -528,17 +515,9 @@ contains
        if (masterproc) then
           write(iulog,*)'Reading restart file ',trim(fnamer)
        end if
-       call restFile_read(bounds_proc, fnamer)
+       call restFile_read(bounds_proc, fnamer, glc_behavior)
 
     end if
-
-    ! ------------------------------------------------------------------------
-    ! Initialize filters and weights
-    ! ------------------------------------------------------------------------
-    
-    call t_startf('init_filters')
-    call allocFilters()
-    call t_stopf('init_filters')
 
     ! ------------------------------------------------------------------------
     ! If appropriate, create interpolated initial conditions
@@ -552,14 +531,6 @@ contains
                'finidat and finidat_interp_source cannot both be non-blank')
        end if
 
-       !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
-       do nc = 1, nclumps
-          call get_clump_bounds(nc, bounds_clump)
-          call reweight_wrapup(bounds_clump, &
-               glc2lnd_inst%icemask_grc(bounds_clump%begg:bounds_clump%endg))
-       end do
-       !$OMP END PARALLEL DO
-
        ! Create new template file using cold start
        call restFile_write(bounds_proc, finidat_interp_dest)
 
@@ -568,7 +539,7 @@ contains
        call initInterp(filei=fnamer, fileo=finidat_interp_dest, bounds=bounds_proc)
 
        ! Read new interpolated conditions file back in
-       call restFile_read(bounds_proc, finidat_interp_dest)
+       call restFile_read(bounds_proc, finidat_interp_dest, glc_behavior)
 
        ! Reset finidat to now be finidat_interp_dest 
        ! (to be compatible with routines still using finidat)
@@ -576,21 +547,13 @@ contains
 
     end if
 
-    !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
-    do nc = 1, nclumps
-       call get_clump_bounds(nc, bounds_clump)
-       call reweight_wrapup(bounds_clump, &
-            glc2lnd_inst%icemask_grc(bounds_clump%begg:bounds_clump%endg))
-    end do
-    !$OMP END PARALLEL DO
-
     ! ------------------------------------------------------------------------
     ! Initialize nitrogen deposition
     ! ------------------------------------------------------------------------
 
     if (use_cn) then
        call t_startf('init_ndep')
-       call ndep_init(bounds_proc)
+       call ndep_init(bounds_proc, NLFilename)
        call ndep_interp(bounds_proc, atm2lnd_inst)
        call t_stopf('init_ndep')
     end if
@@ -617,14 +580,13 @@ contains
 
     call atm2lnd_inst%initAccVars(bounds_proc)
     call temperature_inst%initAccVars(bounds_proc)
+    call waterflux_inst%initAccVars(bounds_proc)
 
     call canopystate_inst%initAccVars(bounds_proc)
 
-    if (use_cndv) then
-       call dgvs_inst%initAccVars(bounds_proc)
-    end if
+    call bgc_vegetation_inst%initAccVars(bounds_proc)
 
-    if (crop_prog) then
+    if (use_crop) then
        call crop_inst%initAccVars(bounds_proc)
     end if
 
@@ -667,7 +629,8 @@ contains
           call t_startf('init_lnd2glc')
           call lnd2glc_inst%update_lnd2glc(bounds_clump,       &
                filter(nc)%num_do_smb_c, filter(nc)%do_smb_c,   &
-               temperature_inst, waterflux_inst, init=.true.)
+               temperature_inst, waterflux_inst, topo_inst, &
+               init=.true.)
           call t_stopf('init_lnd2glc')
        end do
        !$OMP END PARALLEL DO

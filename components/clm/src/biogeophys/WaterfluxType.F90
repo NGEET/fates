@@ -11,7 +11,8 @@ module WaterfluxType
   use decompMod      , only : bounds_type
   use LandunitType   , only : lun                
   use ColumnType     , only : col                
-  use PatchType      , only : patch                
+  use PatchType      , only : patch   
+  use CNSharedParamsMod           , only : use_fun             
   !
   implicit none
   private
@@ -39,10 +40,12 @@ module WaterfluxType
      real(r8), pointer :: qflx_evap_tot_col        (:)   ! col col_qflx_evap_soi + col_qflx_evap_veg + qflx_tran_veg
      real(r8), pointer :: qflx_evap_grnd_patch     (:)   ! patch ground surface evaporation rate (mm H2O/s) [+]
      real(r8), pointer :: qflx_evap_grnd_col       (:)   ! col ground surface evaporation rate (mm H2O/s) [+]
-     real(r8), pointer :: qflx_snwcp_liq_patch     (:)   ! patch excess rainfall due to snow capping (mm H2O /s)
-     real(r8), pointer :: qflx_snwcp_liq_col       (:)   ! col excess rainfall due to snow capping (mm H2O /s)
-     real(r8), pointer :: qflx_snwcp_ice_patch     (:)   ! patch excess snowfall due to snow capping (mm H2O /s)
-     real(r8), pointer :: qflx_snwcp_ice_col       (:)   ! col excess snowfall due to snow capping (mm H2O /s)
+
+    ! In the snow capping parametrization excess mass above h2osno_max is removed.  A breakdown of mass into liquid 
+    ! and solid fluxes is done, these are represented by qflx_snwcp_liq_col and qflx_snwcp_ice_col. 
+     real(r8), pointer :: qflx_snwcp_liq_col       (:)   ! col excess liquid h2o due to snow capping (outgoing) (mm H2O /s)
+     real(r8), pointer :: qflx_snwcp_ice_col       (:)   ! col excess solid h2o due to snow capping (outgoing) (mm H2O /s)
+
      real(r8), pointer :: qflx_tran_veg_patch      (:)   ! patch vegetation transpiration (mm H2O/s) (+ = to atm)
      real(r8), pointer :: qflx_tran_veg_col        (:)   ! col vegetation transpiration (mm H2O/s) (+ = to atm)
      real(r8), pointer :: qflx_dew_snow_patch      (:)   ! patch surface dew added to snow pack (mm H2O /s) [+]
@@ -82,6 +85,8 @@ module WaterfluxType
      real(r8), pointer :: qflx_runoff_col          (:)   ! col total runoff (qflx_drain+qflx_surf+qflx_qrgwl) (mm H2O /s)
      real(r8), pointer :: qflx_runoff_r_col        (:)   ! col Rural total runoff (qflx_drain+qflx_surf+qflx_qrgwl) (mm H2O /s)
      real(r8), pointer :: qflx_runoff_u_col        (:)   ! col urban total runoff (qflx_drain+qflx_surf) (mm H2O /s) 
+     real(r8), pointer :: qflx_ice_runoff_snwcp_col(:)   ! col solid runoff from snow capping (mm H2O /s)
+     real(r8), pointer :: qflx_ice_runoff_xs_col   (:)   ! col solid runoff from excess ice in soil (mm H2O /s)
      real(r8), pointer :: qflx_rsub_sat_col        (:)   ! col soil saturation excess [mm/s]
      real(r8), pointer :: qflx_snofrz_lyr_col      (:,:) ! col snow freezing rate (positive definite) (col,lyr) [kg m-2 s-1]
      real(r8), pointer :: qflx_snofrz_col          (:)   ! col column-integrated snow freezing rate (positive definite) (col) [kg m-2 s-1]
@@ -95,14 +100,22 @@ module WaterfluxType
      ! Dynamic land cover change
      real(r8), pointer :: qflx_liq_dynbal_grc      (:)   ! grc liq dynamic land cover change conversion runoff flux
      real(r8), pointer :: qflx_ice_dynbal_grc      (:)   ! grc ice dynamic land cover change conversion runoff flux
+     ! ET accumulation
+     real(r8), pointer :: AnnEt                    (:)   ! Annual average ET flux mmH20/s
+
 
    contains
  
+     
+     
      procedure, public  :: Init
-     procedure, public  :: Restart
-     procedure, private :: InitAllocate
-     procedure, private :: InitHistory
-     procedure, private :: InitCold
+     procedure, public  :: Restart      
+     procedure, private :: InitAllocate 
+     procedure, private :: InitHistory  
+     procedure, private :: InitCold     
+     procedure, public  :: InitAccBuffer
+     procedure, public  :: InitAccVars
+     procedure, public  :: UpdateAccVars
 
   end type waterflux_type
   !------------------------------------------------------------------------
@@ -148,8 +161,6 @@ contains
     allocate(this%qflx_rain_grnd_patch     (begp:endp))              ; this%qflx_rain_grnd_patch     (:)   = nan
     allocate(this%qflx_snow_grnd_patch     (begp:endp))              ; this%qflx_snow_grnd_patch     (:)   = nan
     allocate(this%qflx_sub_snow_patch      (begp:endp))              ; this%qflx_sub_snow_patch      (:)   = 0.0_r8
-    allocate(this%qflx_snwcp_liq_patch     (begp:endp))              ; this%qflx_snwcp_liq_patch     (:)   = nan
-    allocate(this%qflx_snwcp_ice_patch     (begp:endp))              ; this%qflx_snwcp_ice_patch     (:)   = nan
     allocate(this%qflx_tran_veg_patch      (begp:endp))              ; this%qflx_tran_veg_patch      (:)   = nan
 
     allocate(this%qflx_snowindunload_patch (begp:endp))              ; this%qflx_snowindunload_patch (:)   = nan
@@ -210,6 +221,8 @@ contains
     allocate(this%qflx_runoff_col          (begc:endc))              ; this%qflx_runoff_col          (:)   = nan
     allocate(this%qflx_runoff_r_col        (begc:endc))              ; this%qflx_runoff_r_col        (:)   = nan
     allocate(this%qflx_runoff_u_col        (begc:endc))              ; this%qflx_runoff_u_col        (:)   = nan
+    allocate(this%qflx_ice_runoff_snwcp_col(begc:endc))              ; this%qflx_ice_runoff_snwcp_col(:)   = nan
+    allocate(this%qflx_ice_runoff_xs_col   (begc:endc))              ; this%qflx_ice_runoff_xs_col   (:)   = nan
     allocate(this%qflx_rsub_sat_col        (begc:endc))              ; this%qflx_rsub_sat_col        (:)   = nan
     allocate(this%qflx_glcice_col          (begc:endc))              ; this%qflx_glcice_col          (:)   = nan
     allocate(this%qflx_glcice_frz_col      (begc:endc))              ; this%qflx_glcice_frz_col      (:)   = nan
@@ -219,6 +232,7 @@ contains
 
     allocate(this%qflx_liq_dynbal_grc      (begg:endg))              ; this%qflx_liq_dynbal_grc      (:)   = nan
     allocate(this%qflx_ice_dynbal_grc      (begg:endg))              ; this%qflx_ice_dynbal_grc      (:)   = nan
+    allocate(this%AnnET                    (begc:endc))              ; this%AnnET                    (:)   = nan
 
   end subroutine InitAllocate
 
@@ -357,11 +371,6 @@ contains
          avgflag='A', long_name='canopy transpiration', &
          ptr_patch=this%qflx_tran_veg_patch, set_lake=0._r8, c2l_scale_type='urbanf')
 
-    this%qflx_snwcp_liq_patch(begp:endp) = spval
-    call hist_addfld1d (fname='QSNWCPLIQ', units='mm H2O/s', &
-         avgflag='A', long_name='excess rainfall due to snow capping', &
-         ptr_patch=this%qflx_snwcp_liq_patch, c2l_scale_type='urbanf', default='inactive')
-
     this%qflx_snowindunload_patch(begp:endp) = spval
     call hist_addfld1d (fname='QSNOWINDUNLOAD', units='mm/s',  &
          avgflag='A', long_name='canopy snow wind unloading', &
@@ -371,12 +380,15 @@ contains
     call hist_addfld1d (fname='QSNOTEMPUNLOAD', units='mm/s',  &
          avgflag='A', long_name='canopy snow temp unloading', &
          ptr_patch=this%qflx_snotempunload_patch, set_lake=0._r8, c2l_scale_type='urbanf')
-		 
-    ! Use qflx_snwcp_ice_col rather than qflx_snwcp_ice_patch, because the column version 
-    ! is the final version, which includes some  additional corrections beyond the patch-level version
-    this%qflx_snwcp_ice_patch(begp:endp) = spval
+
+    this%qflx_snwcp_liq_col(begc:endc) = spval
+    call hist_addfld1d (fname='QSNWCPLIQ', units='mm H2O/s', &
+         avgflag='A', long_name='excess liquid h2o due to snow capping not including correction for land use change', &
+         ptr_col=this%qflx_snwcp_liq_col, c2l_scale_type='urbanf')
+
+    this%qflx_snwcp_ice_col(begc:endc) = spval
     call hist_addfld1d (fname='QSNWCPICE', units='mm H2O/s', &
-         avgflag='A', long_name='excess snowfall due to snow capping not including correction for land use change', &
+         avgflag='A', long_name='excess solid h2o due to snow capping not including correction for land use change', &
          ptr_col=this%qflx_snwcp_ice_col, c2l_scale_type='urbanf')
 
     if (use_cn) then
@@ -465,8 +477,126 @@ contains
     call hist_addfld1d (fname='SNOW_SINKS',  units='mm/s',  &
          avgflag='A', long_name='snow sinks (liquid water)', &
          ptr_col=this%snow_sinks_col, c2l_scale_type='urbanf')
+         
+    this%AnnET(begc:endc) = spval
+    call hist_addfld1d (fname='AnnET',  units='mm/s',  &
+         avgflag='A', long_name='Annual ET', &
+         ptr_col=this%AnnET, c2l_scale_type='urbanf', default='inactive')
 
   end subroutine InitHistory
+  
+  
+  
+   !-----------------------------------------------------------------------
+    subroutine InitAccBuffer (this, bounds)
+    !
+    ! !DESCRIPTION:
+    ! Initialize accumulation buffer for all required module accumulated fields
+    ! This routine set defaults values that are then overwritten by the
+    ! restart file for restart or branch runs
+    !
+    ! !USES 
+    use clm_varcon  , only : spval
+    use accumulMod  , only : init_accum_field
+    !
+    ! !ARGUMENTS:
+    class(waterflux_type) :: this
+    type(bounds_type), intent(in) :: bounds  
+    !---------------------------------------------------------------------
+
+    if (use_fun) then
+   
+       call init_accum_field (name='AnnET', units='MM H2O/S', &
+            desc='365-day running mean of total ET', accum_type='runmean', accum_period=-365, &
+            subgrid_type='column', numlev=1, init_value=0._r8)
+
+    end if
+
+  end subroutine InitAccBuffer
+
+  !-----------------------------------------------------------------------
+    !
+     subroutine InitAccVars (this, bounds)
+    ! !DESCRIPTION:
+    ! Initialize module variables that are associated with
+    ! time accumulated fields. This routine is called for both an initial run
+    ! and a restart run (and must therefore must be called after the restart file 
+    ! is read in and the accumulation buffer is obtained)
+    !
+    ! !USES 
+    use accumulMod       , only : extract_accum_field
+    use clm_time_manager , only : get_nstep
+    !
+    ! !ARGUMENTS:
+    class(waterflux_type) :: this
+    type(bounds_type), intent(in) :: bounds  
+    !
+    ! !LOCAL VARIABLES:
+    integer  :: begc, endc
+    integer  :: nstep
+    integer  :: ier
+    real(r8), pointer :: rbufslp(:)  ! temporary
+    !---------------------------------------------------------------------
+    begc = bounds%begc; endc = bounds%endc
+
+    ! Allocate needed dynamic memory for single level patch field
+    allocate(rbufslp(begc:endc), stat=ier)
+
+    ! Determine time step
+    nstep = get_nstep()
+
+    if (use_fun) then
+       call extract_accum_field ('AnnET', rbufslp, nstep)
+       this%qflx_evap_tot_col(begc:endc) = rbufslp(begc:endc)
+    end if
+
+    deallocate(rbufslp)
+
+  end subroutine InitAccVars
+  
+  
+  !-----------------------------------------------------------------------
+  subroutine UpdateAccVars (this, bounds)
+    !
+    ! USES
+    use clm_time_manager, only : get_nstep
+    use accumulMod      , only : update_accum_field, extract_accum_field
+    !
+    ! !ARGUMENTS:
+    class(waterflux_type)                 :: this
+    type(bounds_type)      , intent(in) :: bounds  
+    !
+    ! !LOCAL VARIABLES:
+    integer :: g,c,p                     ! indices
+    integer :: dtime                     ! timestep size [seconds]
+    integer :: nstep                     ! timestep number
+    integer :: ier                       ! error status
+    integer :: begc, endc
+    real(r8), pointer :: rbufslp(:)      ! temporary single level - patch level
+    !---------------------------------------------------------------------
+
+    begc = bounds%begc; endc = bounds%endc
+
+    nstep = get_nstep()
+
+    ! Allocate needed dynamic memory for single level patch field
+
+    allocate(rbufslp(begc:endc), stat=ier)
+    
+    do c = begc,endc
+       rbufslp(c) = this%qflx_evap_tot_col(c)
+    end do
+    if (use_fun) then
+       ! Accumulate and extract AnnET (accumulates total ET as 365-day running mean)
+       call update_accum_field  ('AnnET', rbufslp, nstep)
+       call extract_accum_field ('AnnET', this%AnnET, nstep)
+    
+    end if
+
+    deallocate(rbufslp)
+    
+  end subroutine UpdateAccVars
+
 
   !-----------------------------------------------------------------------
   subroutine InitCold(this, bounds)
@@ -493,6 +623,12 @@ contains
     this%qflx_h2osfc_surf_col(bounds%begc:bounds%endc) = 0._r8
     this%qflx_snow_drain_col(bounds%begc:bounds%endc)  = 0._r8
 
+    ! This variable only gets set in the hydrology filter; need to initialize it to 0 for
+    ! the sake of columns outside this filter
+    this%qflx_ice_runoff_xs_col(bounds%begc:bounds%endc) = 0._r8
+
+    this%AnnEt(bounds%begc:bounds%endc)                 = 0._r8
+  
     ! needed for CNNLeaching 
     do c = bounds%begc, bounds%endc
        l = col%landunit(c)
@@ -539,6 +675,17 @@ contains
        ! initial run, not restart: initialize qflx_snow_drain to zero
        this%qflx_snow_drain_col(bounds%begc:bounds%endc) = 0._r8
     endif
+    
+    
+    call restartvar(ncid=ncid, flag=flag, varname='AnnET', xtype=ncd_double,  &
+         dim1name='column', &
+         long_name='Annual ET ', units='mm/s', &
+         interpinic_flag='interp', readvar=readvar, data=this%AnnET)
+    if (flag == 'read' .and. .not. readvar) then
+       ! initial run, not restart: initialize qflx_snow_drain to zero
+       this%AnnET(bounds%begc:bounds%endc) = 0._r8
+    endif
+   
 
   end subroutine Restart
 

@@ -701,7 +701,7 @@ contains
     integer :: status              ! error status 
     integer :: lxtype              ! local external type (in case logical variable)
     type(var_desc_t)   :: vardesc  ! local vardesc
-    character(len=128) :: dimname  ! temporary
+    character(len=255) :: dimname  ! temporary
     character(len=256) :: str      ! temporary
     character(len=*),parameter :: subname='ncd_defvar_bynf' ! subroutine name
     !-----------------------------------------------------------------------

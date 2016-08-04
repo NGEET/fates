@@ -122,7 +122,7 @@ contains
     integer             :: g                        ! index
     real(r8), pointer   :: wtpatch_time1(:,:)       ! weight of each pft in each grid cell at first time
     logical             :: readvar                  ! whether variable was read
-    real(r8), parameter :: tol = 1.e-13_r8          ! tolerance for checking equality
+    real(r8), parameter :: tol = 1.e-6_r8           ! tolerance for checking equality
 
     character(len=*), parameter :: subname = 'dynpft_check_consistency'
     !-----------------------------------------------------------------------
@@ -210,6 +210,8 @@ contains
           if (nml_error /= 0) then
              call endrun(msg='ERROR reading dynpft_consistency_checks namelist'//errMsg(__FILE__, __LINE__))
           end if
+       else
+          call endrun(msg='ERROR finding dynpft_consistency_checks namelist'//errMsg(__FILE__, __LINE__))
        end if
        close(nu_nml)
        call relavu( nu_nml )

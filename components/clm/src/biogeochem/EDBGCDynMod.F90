@@ -41,7 +41,6 @@ contains
   !-----------------------------------------------------------------------
   subroutine EDBGCDyn(bounds,                                                    &
        num_soilc, filter_soilc, num_soilp, filter_soilp, num_pcropp, filter_pcropp, doalb, &
-       cnveg_state_inst,                                                                   &
        cnveg_carbonflux_inst, cnveg_carbonstate_inst,                                      &
        ed_clm_inst,                                                                        &
        soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,                    &
@@ -56,7 +55,7 @@ contains
 
     !
     ! !USES:
-    use clm_varpar                        , only: crop_prog, nlevgrnd, nlevdecomp_full 
+    use clm_varpar                        , only: nlevgrnd, nlevdecomp_full 
     use clm_varpar                        , only: nlevdecomp, ndecomp_cascade_transitions, ndecomp_pools
     use subgridAveMod                     , only: p2c
     use CropType                          , only: crop_type
@@ -64,10 +63,8 @@ contains
     use CNMRespMod                        , only: CNMResp
     use CNPhenologyMod                    , only: CNPhenology
     use CNGRespMod                        , only: CNGResp
-    use CNFireMod                         , only: CNFireArea, CNFireFluxes
     use CNCIsoFluxMod                     , only: CIsoFlux1, CIsoFlux2, CIsoFlux2h, CIsoFlux3
     use CNC14DecayMod                     , only: C14Decay
-    use CNWoodProductsMod                 , only: CNWoodProducts
     use CNCStateUpdate1Mod                , only: CStateUpdate1,CStateUpdate0
     use CNCStateUpdate2Mod                , only: CStateUpdate2, CStateUpdate2h
     use CNCStateUpdate3Mod                , only: CStateUpdate3
@@ -94,7 +91,6 @@ contains
     integer                                 , intent(in)    :: num_pcropp        ! number of prog. crop patches in filter
     integer                                 , intent(in)    :: filter_pcropp(:)  ! filter for prognostic crop patches
     logical                                 , intent(in)    :: doalb             ! true = surface albedo calculation time step
-    type(cnveg_state_type)                  , intent(inout) :: cnveg_state_inst
     type(cnveg_carbonflux_type)             , intent(inout) :: cnveg_carbonflux_inst
     type(cnveg_carbonstate_type)            , intent(inout) :: cnveg_carbonstate_inst
     type(ed_clm_type)                       , intent(inout) :: ed_clm_inst
@@ -241,7 +237,7 @@ contains
 
     ! Update all prognostic carbon state variables (except for gap-phase mortality and fire fluxes)
     call CStateUpdate1( num_soilc, filter_soilc, num_soilp, filter_soilp, &
-         cnveg_state_inst, cnveg_carbonflux_inst, cnveg_carbonstate_inst, &
+         crop_inst, cnveg_carbonflux_inst, cnveg_carbonstate_inst, &
          ed_clm_inst,                                                     &
          soilbiogeochem_carbonflux_inst)
 

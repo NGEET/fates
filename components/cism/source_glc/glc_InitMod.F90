@@ -27,7 +27,7 @@
                                   iyear,  imonth,  iday,  elapsed_days,   &
                                   ihour,  iminute, isecond, nsteps_total, &
                                   ymd2eday, eday2ymd, runtype
-   use glc_constants, only: nml_in, stdout
+   use glc_constants, only: nml_in, stdout, zero_gcm_fluxes
    use glc_io,        only: glc_io_read_restart_time
    use glc_files,     only: nml_filename
    use glc_exit_mod
@@ -60,7 +60,7 @@
 ! !IROUTINE: glc_initialize
 ! !INTERFACE:
 
- subroutine glc_initialize(errorCode)
+ subroutine glc_initialize(EClock, errorCode)
 
 ! !DESCRIPTION:
 !  This routine is the initialization driver that initializes a glc run 
@@ -79,7 +79,7 @@
    use glc_fields, only: glc_allocate_fields, ice_sheet,   &
                          tsfc, qsmb,       &
                          ice_covered, topo,   rofi,   rofl,  hflx,  &
-                         ice_sheet_grid_mask, icemask_coupled_fluxes
+                         ice_sheet_grid_mask
 
    use glc_override_frac, only: init_glc_frac_overrides
    use glc_constants
@@ -87,12 +87,14 @@
    use glc_time_management, only: init_time1, init_time2, dtt, ihour
    use glimmer_log
    use glc_route_ice_runoff, only: set_routing
-   use glc_history, only : glc_history_init
-   use glc_indexing_info, only : glc_indexing_init, nx, ny
+   use glc_history, only : glc_history_init, glc_history_write
+   use glc_indexing, only : glc_indexing_init, nx, ny
    use shr_file_mod, only : shr_file_getunit, shr_file_freeunit
+   use esmf, only : ESMF_Clock
 
 ! !INPUT/OUTPUT PARAMETERS:
 
+   type(ESMF_Clock),     intent(in)    :: EClock
    integer (i4), intent(inout) :: &
       errorCode              ! Returns an error code if any init fails
 
@@ -138,7 +140,7 @@
   
   integer, parameter :: days_in_year = 365
   
-  namelist /cism_params/  paramfile, cism_debug, ice_flux_routing
+  namelist /cism_params/  paramfile, cism_debug, ice_flux_routing, zero_gcm_fluxes
  
 !-----------------------------------------------------------------------
 !  initialize return flag
@@ -206,7 +208,12 @@
    call broadcast_scalar(paramfile,         master_task)
    call broadcast_scalar(cism_debug,        master_task)
    call broadcast_scalar(ice_flux_routing,  master_task)
+   call broadcast_scalar(zero_gcm_fluxes,   master_task)
    call set_routing(ice_flux_routing)
+
+   if (my_task == master_task) then
+      write(stdout,*) 'zero_gcm_fluxes: ', zero_gcm_fluxes
+   end if
 
    if (verbose .and. my_task==master_task) then
       write (stdout,*) 'paramfile =   ', paramfile
@@ -290,8 +297,7 @@
                                 rofi = rofi, &
                                 rofl = rofl, &
                                 hflx = hflx, &
-                                ice_sheet_grid_mask = ice_sheet_grid_mask, &
-                                icemask_coupled_fluxes = icemask_coupled_fluxes)
+                                ice_sheet_grid_mask = ice_sheet_grid_mask)
   
   call glad_initialization_wrapup(ice_sheet)
 
@@ -330,6 +336,17 @@
 !-----------------------------------------------------------------------
 
    call glc_history_init()
+
+!-----------------------------------------------------------------------
+!
+!  do initial history output
+!
+!-----------------------------------------------------------------------
+
+   if (.not. cesm_restart) then
+      ! TODO loop over instances
+      call glc_history_write(ice_sheet%instances(1), EClock, force_write=.true.)
+   end if
    
 !-----------------------------------------------------------------------
 !

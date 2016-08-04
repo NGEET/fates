@@ -5,23 +5,25 @@ module lnd2atmMod
   ! Handle lnd2atm mapping
   !
   ! !USES:
+#include "shr_assert.h"
   use shr_kind_mod         , only : r8 => shr_kind_r8
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
   use shr_log_mod          , only : errMsg => shr_log_errMsg
   use shr_megan_mod        , only : shr_megan_mechcomps_n
+  use shr_fire_emis_mod    , only : shr_fire_emis_mechcomps_n
   use clm_varpar           , only : numrad, ndst, nlevgrnd !ndst = number of dust bins.
   use clm_varcon           , only : rair, grav, cpair, hfus, tfrz, spval
-  use clm_varctl           , only : iulog, use_c13, use_cn, use_lch4, use_voc
+  use clm_varctl           , only : iulog, use_lch4, use_voc
   use seq_drydep_mod       , only : n_drydep, drydep_method, DD_XLND
   use decompMod            , only : bounds_type
   use subgridAveMod        , only : p2g, c2g 
   use lnd2atmType          , only : lnd2atm_type
   use atm2lndType          , only : atm2lnd_type
   use ch4Mod               , only : ch4_type
-  use CNVegCarbonFluxType  , only : cnveg_carbonflux_type
   use DUSTMod              , only : dust_type
   use DryDepVelocity       , only : drydepvel_type
   use VocEmissionMod       , only : vocemis_type
+  use CNFireEmissionsMod   , only : fireemis_type
   use EnergyFluxType       , only : energyflux_type
   use FrictionVelocityMod  , only : frictionvel_type
   use SolarAbsorbedType    , only : solarabs_type
@@ -29,6 +31,7 @@ module lnd2atmMod
   use TemperatureType      , only : temperature_type
   use WaterFluxType        , only : waterflux_type
   use WaterstateType       , only : waterstate_type
+  use IrrigationMod        , only : irrigation_type 
   use GridcellType         , only : grc                
   !
   ! !PUBLIC TYPES:
@@ -108,15 +111,17 @@ contains
   !------------------------------------------------------------------------
   subroutine lnd2atm(bounds, &
        atm2lnd_inst, surfalb_inst, temperature_inst, frictionvel_inst, &
-       waterstate_inst, waterflux_inst, energyflux_inst,               &
-       solarabs_inst, cnveg_carbonflux_inst, drydepvel_inst,  &
-       vocemis_inst, dust_inst, ch4_inst, lnd2atm_inst) 
+       waterstate_inst, waterflux_inst, irrigation_inst, energyflux_inst, &
+       solarabs_inst, drydepvel_inst,  &
+       vocemis_inst, fireemis_inst, dust_inst, ch4_inst, lnd2atm_inst, &
+       net_carbon_exchange_grc) 
     !
     ! !DESCRIPTION:
     ! Compute lnd2atm_inst component of gridcell derived type
     !
     ! !USES:
     use ch4varcon  , only : ch4offline
+    use ColumnType , only : col
     !
     ! !ARGUMENTS:
     type(bounds_type)           , intent(in)    :: bounds  
@@ -126,23 +131,28 @@ contains
     type(frictionvel_type)      , intent(in)    :: frictionvel_inst
     type(waterstate_type)       , intent(inout) :: waterstate_inst
     type(waterflux_type)        , intent(in)    :: waterflux_inst
+    type(irrigation_type)       , intent(in)    :: irrigation_inst
     type(energyflux_type)       , intent(in)    :: energyflux_inst
     type(solarabs_type)         , intent(in)    :: solarabs_inst
-    type(cnveg_carbonflux_type) , intent(in)    :: cnveg_carbonflux_inst
     type(drydepvel_type)        , intent(in)    :: drydepvel_inst
     type(vocemis_type)          , intent(in)    :: vocemis_inst
+    type(fireemis_type)         , intent(in)    :: fireemis_inst
     type(dust_type)             , intent(in)    :: dust_inst
     type(ch4_type)              , intent(in)    :: ch4_inst
     type(lnd2atm_type)          , intent(inout) :: lnd2atm_inst 
+    real(r8)                    , intent(in)    :: net_carbon_exchange_grc( bounds%begg: )  ! net carbon exchange between land and atmosphere, positive for source (gC/m2/s)
     !
     ! !LOCAL VARIABLES:
-    integer :: g             ! index
+    integer  :: c, g  ! indices
+    real(r8) :: qflx_ice_runoff_col(bounds%begc:bounds%endc) ! total column-level ice runoff
     real(r8), parameter :: amC   = 12.0_r8 ! Atomic mass number for Carbon
     real(r8), parameter :: amO   = 16.0_r8 ! Atomic mass number for Oxygen
     real(r8), parameter :: amCO2 = amC + 2.0_r8*amO ! Atomic mass number for CO2
     ! The following converts g of C to kg of CO2
     real(r8), parameter :: convertgC2kgCO2 = 1.0e-3_r8 * (amCO2/amC)
     !------------------------------------------------------------------------
+
+    SHR_ASSERT_ALL((ubound(net_carbon_exchange_grc) == (/bounds%endg/)), errMsg(__FILE__, __LINE__))
 
     !----------------------------------------------------
     ! lnd -> atm
@@ -216,31 +226,25 @@ contains
          lnd2atm_inst%eflx_lh_tot_grc      (bounds%begg:bounds%endg), &
          p2c_scale_type='unity', c2l_scale_type= 'urbanf', l2g_scale_type='unity')
 
-    if (use_cn) then
-       call c2g(bounds, &
-            cnveg_carbonflux_inst%nee_col(bounds%begc:bounds%endc), &
-            lnd2atm_inst%nee_grc         (bounds%begg:bounds%endg), &
-            c2l_scale_type= 'unity', l2g_scale_type='unity')
-
-       if (use_lch4) then
-          if (.not. ch4offline) then
-             ! Adjust flux of CO2 by the net conversion of mineralizing C to CH4
-             do g = bounds%begg,bounds%endg
-                ! nem is in g C/m2/sec
-                lnd2atm_inst%nee_grc(g) = lnd2atm_inst%nee_grc(g) + lnd2atm_inst%nem_grc(g) 
-             end do
-          end if
+    do g = bounds%begg, bounds%endg
+       lnd2atm_inst%net_carbon_exchange_grc(g) = &
+            net_carbon_exchange_grc(g)
+    end do
+    if (use_lch4) then
+       if (.not. ch4offline) then
+          ! Adjust flux of CO2 by the net conversion of mineralizing C to CH4
+          do g = bounds%begg,bounds%endg
+             ! nem is in g C/m2/sec
+             lnd2atm_inst%net_carbon_exchange_grc(g) = &
+                  lnd2atm_inst%net_carbon_exchange_grc(g) + lnd2atm_inst%nem_grc(g)
+          end do
        end if
-
-       ! Convert from gC/m2/s to kgCO2/m2/s
-       do g = bounds%begg,bounds%endg
-          lnd2atm_inst%nee_grc(g) = lnd2atm_inst%nee_grc(g)*convertgC2kgCO2
-       end do
-    else
-       do g = bounds%begg,bounds%endg
-          lnd2atm_inst%nee_grc(g) = 0._r8
-       end do
     end if
+    ! Convert from gC/m2/s to kgCO2/m2/s
+    do g = bounds%begg,bounds%endg
+       lnd2atm_inst%net_carbon_exchange_grc(g) = &
+            lnd2atm_inst%net_carbon_exchange_grc(g)*convertgC2kgCO2
+    end do
 
     ! drydepvel
     if ( n_drydep > 0 .and. drydep_method == DD_XLND ) then
@@ -257,6 +261,18 @@ contains
             lnd2atm_inst%flxvoc_grc  (bounds%begg:bounds%endg,:), &
             p2c_scale_type='unity', c2l_scale_type= 'unity', l2g_scale_type='unity')
     end if
+
+    ! fire emissions fluxes
+     if (shr_fire_emis_mechcomps_n>0) then
+        call p2g(bounds, shr_fire_emis_mechcomps_n, &
+            -fireemis_inst%fireflx_patch(bounds%begp:bounds%endp,:), &
+             lnd2atm_inst%fireflx_grc   (bounds%begg:bounds%endg,:), &
+             p2c_scale_type='unity', c2l_scale_type= 'unity', l2g_scale_type='unity')
+        call p2g(bounds, &
+             fireemis_inst%ztop_patch (bounds%begp:bounds%endp), &
+             lnd2atm_inst%fireztop_grc(bounds%begg:bounds%endg), &
+             p2c_scale_type='unity', c2l_scale_type= 'unity', l2g_scale_type='unity')
+     endif
 
     ! dust emission flux
     call p2g(bounds, ndst, &
@@ -286,8 +302,48 @@ contains
     enddo
 
     call c2g( bounds, &
-         waterflux_inst%qflx_snwcp_ice_col(bounds%begc:bounds%endc),  &
-         lnd2atm_inst%qflx_rofice_grc     (bounds%begg:bounds%endg),  & 
+         waterflux_inst%qflx_surf_col (bounds%begc:bounds%endc), &
+         lnd2atm_inst%qflx_rofliq_qsur_grc   (bounds%begg:bounds%endg), &
+         c2l_scale_type= 'urbanf', l2g_scale_type='unity' )
+
+    call c2g( bounds, &
+         waterflux_inst%qflx_drain_col (bounds%begc:bounds%endc), &
+         lnd2atm_inst%qflx_rofliq_qsub_grc   (bounds%begg:bounds%endg), &
+         c2l_scale_type= 'urbanf', l2g_scale_type='unity' )
+
+    call c2g( bounds, &
+         waterflux_inst%qflx_qrgwl_col (bounds%begc:bounds%endc), &
+         lnd2atm_inst%qflx_rofliq_qgwl_grc   (bounds%begg:bounds%endg), &
+         c2l_scale_type= 'urbanf', l2g_scale_type='unity' )
+
+    do g = bounds%begg, bounds%endg
+       lnd2atm_inst%qflx_rofliq_qgwl_grc(g) = lnd2atm_inst%qflx_rofliq_qgwl_grc(g) - waterflux_inst%qflx_liq_dynbal_grc(g)
+    enddo
+
+    call c2g( bounds, &
+         waterflux_inst%qflx_h2osfc_surf_col (bounds%begc:bounds%endc), &
+         lnd2atm_inst%qflx_rofliq_h2osfc_grc(bounds%begg:bounds%endg), &
+         c2l_scale_type= 'urbanf', l2g_scale_type='unity' )
+
+    call c2g( bounds, &
+         waterflux_inst%qflx_drain_perched_col (bounds%begc:bounds%endc), &
+         lnd2atm_inst%qflx_rofliq_drain_perched_grc(bounds%begg:bounds%endg), &
+         c2l_scale_type= 'urbanf', l2g_scale_type='unity' )
+
+    call c2g( bounds, &
+         irrigation_inst%qflx_irrig_col (bounds%begc:bounds%endc), &
+         lnd2atm_inst%qflx_rofliq_irrig_grc(bounds%begg:bounds%endg), &
+         c2l_scale_type= 'urbanf', l2g_scale_type='unity' )
+
+    do c = bounds%begc, bounds%endc
+       if (col%active(c)) then
+          qflx_ice_runoff_col(c) = waterflux_inst%qflx_ice_runoff_snwcp_col(c) + &
+               waterflux_inst%qflx_ice_runoff_xs_col(c)
+       end if
+    end do
+    call c2g( bounds, &
+         qflx_ice_runoff_col(bounds%begc:bounds%endc),  &
+         lnd2atm_inst%qflx_rofice_grc(bounds%begg:bounds%endg),  & 
          c2l_scale_type= 'urbanf', l2g_scale_type='unity' )
     do g = bounds%begg, bounds%endg
        lnd2atm_inst%qflx_rofice_grc(g) = lnd2atm_inst%qflx_rofice_grc(g) - waterflux_inst%qflx_ice_dynbal_grc(g)          

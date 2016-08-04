@@ -103,10 +103,12 @@ contains
        atm2lnd_inst%forc_flood_grc(g)   = -x2l(index_x2l_Flrr_flood,i)  
 
        atm2lnd_inst%volr_grc(g)   = x2l(index_x2l_Flrr_volr,i) * (ldomain%area(g) * 1.e6_r8)
+       atm2lnd_inst%volrmch_grc(g)= x2l(index_x2l_Flrr_volrmch,i) * (ldomain%area(g) * 1.e6_r8)
 
        ! Determine required receive fields
 
        atm2lnd_inst%forc_hgt_grc(g)                  = x2l(index_x2l_Sa_z,i)         ! zgcmxy  Atm state m
+       atm2lnd_inst%forc_topo_grc(g)                 = x2l(index_x2l_Sa_topo,i)      ! Atm surface height (m)
        atm2lnd_inst%forc_u_grc(g)                    = x2l(index_x2l_Sa_u,i)         ! forc_uxy  Atm state m/s
        atm2lnd_inst%forc_v_grc(g)                    = x2l(index_x2l_Sa_v,i)         ! forc_vxy  Atm state m/s
        atm2lnd_inst%forc_solad_grc(g,2)              = x2l(index_x2l_Faxa_swndr,i)   ! forc_sollxy  Atm flux  W/m^2
@@ -185,7 +187,19 @@ contains
           e = esati(tdc(forc_t))
        end if
        qsat           = 0.622_r8*e / (forc_pbot - 0.378_r8*e)
+
+!modify specific humidity if precip occurs
+       if(1==2) then
+          if((forc_rainc+forc_rainl) > 0._r8) then
+             forc_q = 0.95_r8*qsat
+             !           forc_q = qsat
+             atm2lnd_inst%forc_q_not_downscaled_grc(g) = forc_q
+          endif
+       endif
+
        atm2lnd_inst%forc_rh_grc(g) = 100.0_r8*(forc_q / qsat)
+
+
        ! Make sure relative humidity is properly bounded
        ! atm2lnd_inst%forc_rh_grc(g) = min( 100.0_r8, atm2lnd_inst%forc_rh_grc(g) )
        ! atm2lnd_inst%forc_rh_grc(g) = max(   0.0_r8, atm2lnd_inst%forc_rh_grc(g) )
@@ -236,6 +250,7 @@ contains
     use clm_time_manager   , only : get_nstep, get_step_size  
     use seq_drydep_mod     , only : n_drydep
     use shr_megan_mod      , only : shr_megan_mechcomps_n
+    use shr_fire_emis_mod  , only : shr_fire_emis_mechcomps_n
     !
     ! !ARGUMENTS:
     implicit none
@@ -275,7 +290,7 @@ contains
        l2x(index_l2x_Fall_evap,i)   = -lnd2atm_inst%qflx_evap_tot_grc(g)
        l2x(index_l2x_Fall_swnet,i)  =  lnd2atm_inst%fsa_grc(g)
        if (index_l2x_Fall_fco2_lnd /= 0) then
-          l2x(index_l2x_Fall_fco2_lnd,i) = -lnd2atm_inst%nee_grc(g)  
+          l2x(index_l2x_Fall_fco2_lnd,i) = -lnd2atm_inst%net_carbon_exchange_grc(g)  
        end if
 
        ! Additional fields for DUST, PROGSSLT, dry-deposition and VOC
@@ -301,6 +316,14 @@ contains
                -lnd2atm_inst%flxvoc_grc(g,:shr_megan_mechcomps_n)
        end if
 
+
+       ! for fire emis fluxes
+       if (index_l2x_Fall_flxfire  /= 0 ) then
+          l2x(index_l2x_Fall_flxfire:index_l2x_Fall_flxfire+shr_fire_emis_mechcomps_n-1,i) = &
+               -lnd2atm_inst%fireflx_grc(g,:shr_fire_emis_mechcomps_n)
+          l2x(index_l2x_Sl_ztopfire,i) = lnd2atm_inst%fireztop_grc(g)
+       end if
+
        if (index_l2x_Fall_methane /= 0) then
           l2x(index_l2x_Fall_methane,i) = -lnd2atm_inst%flux_ch4_grc(g) 
        endif
@@ -308,7 +331,19 @@ contains
        ! sign convention is positive downward with 
        ! hierarchy of atm/glc/lnd/rof/ice/ocn.  so water sent from land to rof is positive
 
-       l2x(index_l2x_Flrl_rofl,i) = lnd2atm_inst%qflx_rofliq_grc(g)
+       !  surface runoff is the sum of qflx_over, qflx_h2osfc_surf, and qflx_irrig
+       l2x(index_l2x_Flrl_rofsur,i) = lnd2atm_inst%qflx_rofliq_qsur_grc(g) &
+            + lnd2atm_inst%qflx_rofliq_h2osfc_grc(g)
+
+       !  subsurface runoff is the sum of qflx_drain and qflx_perched_drain
+       l2x(index_l2x_Flrl_rofsub,i) = lnd2atm_inst%qflx_rofliq_qsub_grc(g) &
+            + lnd2atm_inst%qflx_rofliq_drain_perched_grc(g) &
+            - lnd2atm_inst%qflx_rofliq_irrig_grc(g)
+
+       ! qgwl sent individually to coupler
+       l2x(index_l2x_Flrl_rofgwl,i) = lnd2atm_inst%qflx_rofliq_qgwl_grc(g)
+
+       ! ice  sent individually to coupler
        l2x(index_l2x_Flrl_rofi,i) = lnd2atm_inst%qflx_rofice_grc(g)
 
        ! glc coupling

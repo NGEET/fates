@@ -12,20 +12,23 @@ module initVerticalMod
   use shr_sys_mod       , only : shr_sys_abort
   use decompMod         , only : bounds_type
   use spmdMod           , only : masterproc
-  use clm_varpar        , only : more_vertlayers, nlevsno, nlevgrnd, nlevlak
+  use clm_varpar        , only : nlevsno, nlevgrnd, nlevlak
   use clm_varpar        , only : toplev_equalspace, nlev_equalspace
   use clm_varpar        , only : nlevsoi, nlevsoifl, nlevurb 
   use clm_varctl        , only : fsurdat, iulog
-  use clm_varctl        , only : use_vancouver, use_mexicocity
-  use clm_varctl        , only : use_vertsoilc, use_extralakelayers, use_ed
-  use clm_varcon        , only : zlak, dzlak, zsoi, dzsoi, zisoi, dzsoi_decomp, spval, grlnd 
-  use column_varcon     , only : icol_roof, icol_sunwall, icol_shadewall, icol_road_perv, icol_road_imperv
+  use clm_varctl        , only : use_vancouver, use_mexicocity, use_vertsoilc, use_extralakelayers
+  use clm_varctl        , only : use_bedrock, soil_layerstruct
+  use clm_varctl        , only : use_ed
+  use clm_varcon        , only : zlak, dzlak, zsoi, dzsoi, zisoi, dzsoi_decomp, spval, ispval, grlnd 
+  use column_varcon     , only : icol_roof, icol_sunwall, icol_shadewall, is_hydrologically_active
   use landunit_varcon   , only : istdlak, istice_mec
   use fileutils         , only : getfil
   use LandunitType      , only : lun                
+  use GridcellType      , only : grc                
   use ColumnType        , only : col                
   use SnowHydrologyMod  , only : InitSnowLayers             
   use EDTypesMod        , only : ed_hist_scpfmaps
+  use abortUtils        , only : endrun    
   use ncdio_pio
   !
   ! !PUBLIC TYPES:
@@ -35,12 +38,73 @@ module initVerticalMod
   !
   ! !PUBLIC MEMBER FUNCTIONS:
   public :: initVertical
+  ! !PRIVATE MEMBER FUNCTIONS:
+  private :: ReadNL
+  private :: hasBedrock  ! true if the given column type includes bedrock layers
+  !
+
+  !
   !------------------------------------------------------------------------
 
 contains
 
   !------------------------------------------------------------------------
+  subroutine ReadNL( )
+    !
+    ! !DESCRIPTION:
+    ! Read namelist for SoilStateType
+    !
+    ! !USES:
+    use shr_mpi_mod    , only : shr_mpi_bcast
+    use shr_log_mod    , only : errMsg => shr_log_errMsg
+    use fileutils      , only : getavu, relavu, opnfil
+    use clm_nlUtilsMod , only : find_nlgroup_name
+    use clm_varctl     , only : iulog
+    use spmdMod        , only : mpicom, masterproc
+    use controlMod     , only : NLFilename
+    !
+    ! !ARGUMENTS:
+    !
+    ! !LOCAL VARIABLES:
+    integer :: ierr                 ! error code
+    integer :: unitn                ! unit for namelist file
+    character(len=32) :: subname = 'InitVertical_readnl'  ! subroutine name
+    !-----------------------------------------------------------------------
+
+    character(len=*), parameter :: nl_name  = 'clm_inparm'  ! Namelist name
+                                                                      
+    ! MUST agree with name in namelist and read
+    namelist /clm_inparm/ use_bedrock
+
+    ! preset values
+
+    use_bedrock = .false.
+
+    if ( masterproc )then
+
+       unitn = getavu()
+       write(iulog,*) 'Read in '//nl_name//' namelist'
+       call opnfil (NLFilename, unitn, 'F')
+       call find_nlgroup_name(unitn, nl_name, status=ierr)
+       if (ierr == 0) then
+          read(unit=unitn, nml=clm_inparm, iostat=ierr)
+          if (ierr /= 0) then
+             call endrun(msg="ERROR reading '//nl_name//' namelist"//errmsg(__FILE__, __LINE__))
+          end if
+       else
+          call endrun(msg="ERROR finding '//nl_name//' namelist"//errmsg(__FILE__, __LINE__))
+       end if
+       call relavu( unitn )
+
+    end if
+
+    call shr_mpi_bcast(use_bedrock, mpicom)
+
+  end subroutine ReadNL
+
+  !------------------------------------------------------------------------
   subroutine initVertical(bounds, snow_depth, thick_wall, thick_roof)
+    use clm_varcon, only : zmin_bedrock
     !
     ! !ARGUMENTS:
     type(bounds_type)   , intent(in)    :: bounds
@@ -62,6 +126,7 @@ contains
     integer               :: ier               ! error status
     real(r8)              :: scalez = 0.025_r8 ! Soil layer thickness discretization (m)
     real(r8)              :: thick_equal = 0.2
+    real(r8) ,pointer     :: zbedrock_in(:)   ! read in - z_bedrock
     real(r8) ,pointer     :: lakedepth_in(:)   ! read in - lakedepth 
     real(r8), allocatable :: zurb_wall(:,:)    ! wall (layer node depth)
     real(r8), allocatable :: zurb_roof(:,:)    ! roof (layer node depth)
@@ -72,7 +137,27 @@ contains
     real(r8)              :: depthratio        ! ratio of lake depth to standard deep lake depth 
     integer               :: begc, endc
     integer               :: begl, endl
-    integer               :: ipft, isc
+    integer               :: jmin_bedrock
+
+    ! Possible values for levgrnd_class. The important thing is that, for a given column,
+    ! layers that are fundamentally different (e.g., soil vs bedrock) have different
+    ! values. This information is used in the vertical interpolation in init_interp.
+    !
+    ! IMPORTANT: These values should not be changed lightly. e.g., try to avoid changing
+    ! the values assigned to LEVGRND_CLASS_STANDARD, LEVGRND_CLASS_DEEP_BEDROCK, etc.  The
+    ! problem with changing these is that init_interp expects that layers with a value of
+    ! (e.g.) 1 on the source file correspond to layers with a value of 1 on the
+    ! destination file. So if you change the values of these constants, you either need to
+    ! adequately inform users of this change, or build in some translation mechanism in
+    ! init_interp (such as via adding more metadata to the restart file on the meaning of
+    ! these different values).
+    !
+    ! The distinction between "shallow" and "deep" bedrock is not made explicitly
+    ! elsewhere. But, since these classes have somewhat different behavior, they are
+    ! distinguished explicitly here.
+    integer, parameter :: LEVGRND_CLASS_STANDARD        = 1
+    integer, parameter :: LEVGRND_CLASS_DEEP_BEDROCK    = 2
+    integer, parameter :: LEVGRND_CLASS_SHALLOW_BEDROCK = 3
     !------------------------------------------------------------------------
 
     begc = bounds%begc; endc= bounds%endc
@@ -87,16 +172,6 @@ contains
     call getfil (fsurdat, locfn, 0)
     call ncd_pio_openfile (ncid, locfn, 0)
 
-    call ncd_inqdlen(ncid, dimid, nlevsoifl, name='nlevsoi')
-    if ( .not. more_vertlayers )then
-       if ( nlevsoifl /= nlevsoi )then
-          call shr_sys_abort(' ERROR: Number of soil layers on file does NOT match the number being used'//&
-               errMsg(__FILE__, __LINE__))
-       end if
-    else
-       ! read in layers, interpolate to high resolution grid later
-    end if
-
     ! --------------------------------------------------------------------
     ! Define layer structure for soil, lakes, urban walls and roof 
     ! Vertical profile of snow is not initialized here - but below
@@ -104,10 +179,27 @@ contains
     
     ! Soil layers and interfaces (assumed same for all non-lake patches)
     ! "0" refers to soil surface and "nlevsoi" refers to the bottom of model soil
-    
-    if ( more_vertlayers )then
-       ! replace standard exponential grid with a grid that starts out exponential, 
-       ! then has several evenly spaced layers, then finishes off exponential. 
+
+    if ( soil_layerstruct == '10SL_3.5m' ) then 
+       do j = 1, nlevgrnd
+          zsoi(j) = scalez*(exp(0.5_r8*(j-0.5_r8))-1._r8)    !node depths
+       enddo
+
+       dzsoi(1) = 0.5_r8*(zsoi(1)+zsoi(2))             !thickness b/n two interfaces
+       do j = 2,nlevgrnd-1
+          dzsoi(j)= 0.5_r8*(zsoi(j+1)-zsoi(j-1))
+       enddo
+       dzsoi(nlevgrnd) = zsoi(nlevgrnd)-zsoi(nlevgrnd-1)
+
+       zisoi(0) = 0._r8
+       do j = 1, nlevgrnd-1
+          zisoi(j) = 0.5_r8*(zsoi(j)+zsoi(j+1))         !interface depths
+       enddo
+       zisoi(nlevgrnd) = zsoi(nlevgrnd) + 0.5_r8*dzsoi(nlevgrnd)
+
+    else if ( soil_layerstruct == '23SL_3.5m' )then
+       ! Soil layer structure that starts with standard exponential
+       ! and then has several evenly spaced layers, then finishes off exponential. 
        ! this allows the upper soil to behave as standard, but then continues 
        ! with higher resolution to a deeper depth, so that, for example, permafrost
        ! dynamics are not lost due to an inability to resolve temperature, moisture, 
@@ -123,43 +215,80 @@ contains
        do j = toplev_equalspace + nlev_equalspace +1, nlevgrnd
           zsoi(j) = scalez*(exp(0.5_r8*((j - nlev_equalspace)-0.5_r8))-1._r8) + nlev_equalspace * thick_equal
        enddo
-    else
 
+       dzsoi(1) = 0.5_r8*(zsoi(1)+zsoi(2))             !thickness b/n two interfaces
+       do j = 2,nlevgrnd-1
+          dzsoi(j)= 0.5_r8*(zsoi(j+1)-zsoi(j-1))
+       enddo
+       dzsoi(nlevgrnd) = zsoi(nlevgrnd)-zsoi(nlevgrnd-1)
+
+       zisoi(0) = 0._r8
+       do j = 1, nlevgrnd-1
+       zisoi(j) = 0.5_r8*(zsoi(j)+zsoi(j+1))         !interface depths
+       enddo
+       zisoi(nlevgrnd) = zsoi(nlevgrnd) + 0.5_r8*dzsoi(nlevgrnd)
+
+    else if ( soil_layerstruct == '49SL_10m' ) then
+       !scs: 10 meter soil column, nlevsoi set to 49 in clm_varpar
+       do j = 1,10
+          dzsoi(j)= 1.e-2_r8     !10mm layers
+       enddo
+       do j = 11,19
+          dzsoi(j)= 1.e-1_r8     !100 mm layers
+       enddo
+       do j = 20,nlevsoi+1       !300 mm layers
+          dzsoi(j)= 3.e-1_r8
+       enddo
+       do j = nlevsoi+2,nlevgrnd !10 meter bedrock layers
+          dzsoi(j)= 10._r8
+       enddo
+       
+       zisoi(0) = 0._r8
+       do j = 1,nlevgrnd
+          zisoi(j)= sum(dzsoi(1:j))
+       enddo
+       
        do j = 1, nlevgrnd
-          zsoi(j) = scalez*(exp(0.5_r8*(j-0.5_r8))-1._r8)    !node depths
+          zsoi(j) = 0.5*(zisoi(j-1) + zisoi(j))
+       enddo
+
+    else if ( soil_layerstruct == '20SL_8.5m' ) then
+       do j = 1,4
+          dzsoi(j)= j*0.02_r8          ! linear increase in layer thickness of 2cm each layer
+       enddo
+       do j = 5,13
+          dzsoi(j)= dzsoi(4)+(j-4)*0.04_r8      ! linear increase in layer thickness of 2cm each layer
+       enddo
+       do j = 14,nlevsoi       
+          dzsoi(j)= dzsoi(13)+(j-13)*0.10_r8     ! linear increase in layer thickness of 2cm each layer
+       enddo
+       do j = nlevsoi+1,nlevgrnd !bedrock layers
+          dzsoi(j)= dzsoi(nlevsoi)+(((j-nlevsoi)*25._r8)**1.5_r8)/100._r8  ! bedrock layers
+       enddo
+       
+       zisoi(0) = 0._r8
+       do j = 1,nlevgrnd
+          zisoi(j)= sum(dzsoi(1:j))
+       enddo
+       
+       do j = 1, nlevgrnd
+          zsoi(j) = 0.5*(zisoi(j-1) + zisoi(j))
        enddo
     end if
 
-    dzsoi(1) = 0.5_r8*(zsoi(1)+zsoi(2))             !thickness b/n two interfaces
-    do j = 2,nlevgrnd-1
-       dzsoi(j)= 0.5_r8*(zsoi(j+1)-zsoi(j-1))
-    enddo
-    dzsoi(nlevgrnd) = zsoi(nlevgrnd)-zsoi(nlevgrnd-1)
-
-    zisoi(0) = 0._r8
-    do j = 1, nlevgrnd-1
-       zisoi(j) = 0.5_r8*(zsoi(j)+zsoi(j+1))         !interface depths
-    enddo
-    zisoi(nlevgrnd) = zsoi(nlevgrnd) + 0.5_r8*dzsoi(nlevgrnd)
+    ! define a vertical grid spacing such that it is the normal dzsoi if
+    ! nlevdecomp =nlevgrnd, or else 1 meter
+    if (use_vertsoilc) then
+       dzsoi_decomp = dzsoi            !thickness b/n two interfaces
+    else
+       dzsoi_decomp(1) = 1.
+    end if
 
     if (masterproc) then
        write(iulog, *) 'zsoi', zsoi(:) 
        write(iulog, *) 'zisoi: ', zisoi(:)
        write(iulog, *) 'dzsoi: ', dzsoi(:)
-    end if
-
-    ! define a vertical grid spacing such that it is the normal dzsoi if nlevdecomp =nlevgrnd, or else 1 meter
-    if (use_vertsoilc) then
-       dzsoi_decomp(1) = 0.5_r8*(zsoi(1)+zsoi(2))             !thickness b/n two interfaces
-       do j = 2,nlevgrnd-1
-          dzsoi_decomp(j)= 0.5_r8*(zsoi(j+1)-zsoi(j-1))
-       enddo
-       dzsoi_decomp(nlevgrnd) = zsoi(nlevgrnd)-zsoi(nlevgrnd-1)
-    else
-       dzsoi_decomp(1) = 1.
-    end if
-    if (masterproc) then
-       write(iulog, *) 'dzsoi_decomp', dzsoi_decomp(:) 
+       write(iulog, *) 'dzsoi_decomp: ',dzsoi_decomp
     end if
 
     if (nlevurb > 0) then
@@ -345,6 +474,53 @@ contains
     end if
 
     !-----------------------------------------------
+    ! Set index defining depth to bedrock
+    !-----------------------------------------------
+
+    allocate(zbedrock_in(bounds%begg:bounds%endg))
+    if (use_bedrock) then
+       call ncd_io(ncid=ncid, varname='zbedrock', flag='read', data=zbedrock_in, dim1name=grlnd, readvar=readvar)
+       if (.not. readvar) then
+          if (masterproc) then
+             call endrun( 'ERROR:: zbedrock not found on surface data set, and use_bedrock is true.'//errmsg(__FILE__, __LINE__) )
+          end if
+       end if
+
+    !  if use_bedrock = false, set zbedrock to lowest layer bottom interface
+    else
+       if (masterproc) write(iulog,*) 'not using use_bedrock!!'
+       zbedrock_in(:) = zisoi(nlevsoi)
+    endif
+
+    !  determine minimum index of minimum soil depth
+    jmin_bedrock = 3
+    do j = 3,nlevsoi 
+       if (zisoi(j-1) < zmin_bedrock .and. zisoi(j) >= zmin_bedrock) then
+          jmin_bedrock = j
+       endif
+    enddo
+
+    if (masterproc) write(iulog,*) 'jmin_bedrock: ', jmin_bedrock
+
+    !  Determine gridcell bedrock index
+    do g = bounds%begg,bounds%endg
+       grc%nbedrock(g) = nlevsoi
+       do j = jmin_bedrock,nlevsoi 
+          if (zisoi(j-1) < zbedrock_in(g) .and. zisoi(j) >= zbedrock_in(g)) then
+             grc%nbedrock(g) = j
+          end if
+       end do
+    end do
+
+    !  Set column bedrock index
+    do c = begc, endc
+       g = col%gridcell(c)
+       col%nbedrock(c) = grc%nbedrock(g) 
+    end do
+
+    deallocate(zbedrock_in)
+
+    !-----------------------------------------------
     ! Set lake levels and layers (no interfaces)
     !-----------------------------------------------
 
@@ -461,6 +637,37 @@ contains
        end if
     end do
 
+    ! ------------------------------------------------------------------------
+    ! Set classes of layers
+    ! ------------------------------------------------------------------------
+
+    do c = bounds%begc, bounds%endc
+       l = col%landunit(c)
+       if (hasBedrock(col_itype=col%itype(c), lun_itype=lun%itype(l))) then
+          ! NOTE(wjs, 2015-10-17) We are assuming that points with bedrock have both
+          ! "shallow" and "deep" bedrock. Currently, this is not true for lake columns:
+          ! lakes do not distinguish between "shallow" bedrock and "normal" soil.
+          ! However, that was just due to an oversight that is supposed to be corrected
+          ! soon; so to keep things simple we assume that any point with bedrock
+          ! potentially has both shallow and deep bedrock.
+          col%levgrnd_class(c, 1:col%nbedrock(c)) = LEVGRND_CLASS_STANDARD
+          if (col%nbedrock(c) < nlevsoi) then
+             col%levgrnd_class(c, (col%nbedrock(c) + 1) : nlevsoi) = LEVGRND_CLASS_SHALLOW_BEDROCK
+          end if
+          col%levgrnd_class(c, (nlevsoi + 1) : nlevgrnd) = LEVGRND_CLASS_DEEP_BEDROCK
+       else
+          col%levgrnd_class(c, 1:nlevgrnd) = LEVGRND_CLASS_STANDARD
+       end if
+    end do
+
+    do j = 1, nlevgrnd
+       do c = bounds%begc, bounds%endc
+          if (col%z(c,j) == spval) then
+             col%levgrnd_class(c,j) = ispval
+          end if
+       end do
+    end do
+
     !-----------------------------------------------
     ! Set cold-start values for snow levels, snow layers and snow interfaces 
     !-----------------------------------------------
@@ -525,5 +732,64 @@ contains
     call ncd_pio_closefile(ncid)
 
   end subroutine initVertical
+
+  !-----------------------------------------------------------------------
+  logical function hasBedrock(col_itype, lun_itype)
+    !
+    ! !DESCRIPTION:
+    ! Returns true if the given column type has a representation of bedrock - i.e., a set
+    ! of layers at the bottom of the column that are treated fundamentally differently
+    ! from the upper layers.
+    !
+    ! !USES:
+    use landunit_varcon, only : istice, istice_mec, isturb_MIN, isturb_MAX
+    use column_varcon  , only : icol_road_perv, is_hydrologically_active
+    !
+    ! !ARGUMENTS:
+    integer, intent(in) :: col_itype  ! col%itype value
+    integer, intent(in) :: lun_itype  ! lun%itype value for the landunit on which this column sits
+    ! If we had an easy way to figure out which landunit a column was on based on
+    ! col_itype (which would be very helpful!), then we wouldn't need lun_itype.
+    !
+    ! !LOCAL VARIABLES:
+
+    character(len=*), parameter :: subname = 'hasBedrock'
+    !-----------------------------------------------------------------------
+
+    ! TODO(wjs, 2015-10-17) I don't like that the logic here implicitly duplicates logic
+    ! elsewhere in the code. For example, if there were a change in the lake code so that
+    ! it no longer treated the bottom layers as bedrock, then that change would need to be
+    ! reflected here. One solution would be to set some has_bedrock flag in one central
+    ! place, and then have the science code use that. But that could get messy in the
+    ! science code. Another solution would be to decentralize the definition of
+    ! hasBedrock, so that (for example) the lake code itself sets the value for lun_itype
+    ! == istdlak - that way, hasBedrock(lake) would be more likely to get updated
+    ! correctly if the lake logic changes.
+
+    if (lun_itype == istice .or. lun_itype == istice_mec) then
+       hasBedrock = .false.
+    else if (lun_itype >= isturb_MIN .and. lun_itype <= isturb_MAX) then
+       if (col_itype == icol_road_perv) then
+          hasBedrock = .true.
+       else
+          hasBedrock = .false.
+       end if
+    else
+       hasBedrock = .true.
+    end if
+
+    ! As an independent check of the above logic, assert that, at the very least, any
+    ! hydrologically-active column is given hasBedrock = .true. This is to try to catch
+    ! problems with new column types being added that aren't handled properly by the
+    ! above logic, since (as noted in the todo note above) there is some implicit
+    ! duplication of logic between this routine and other parts of the code, which is
+    ! dangerous. For example, if a new "urban lawn" type is added, then it should have
+    ! hasBedrock = .true. - and this omission will hopefully be caught by this assertion.
+    if (is_hydrologically_active(col_itype=col_itype, lun_itype=lun_itype)) then
+       SHR_ASSERT(hasBedrock, "hasBedrock should be true for all hydrologically-active columns")
+    end if
+
+  end function hasBedrock
+
 
 end module initVerticalMod

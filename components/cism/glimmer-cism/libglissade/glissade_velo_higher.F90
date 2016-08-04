@@ -75,7 +75,8 @@
 
     use glissade_velo_higher_pcg, only:   &
          pcg_solver_standard_3d,   pcg_solver_standard_2d,  &
-         pcg_solver_chrongear_3d,  pcg_solver_chrongear_2d
+         pcg_solver_chrongear_3d,  pcg_solver_chrongear_2d, &
+         matvec_multiply_structured_3d
 
 #ifdef TRILINOS
     use glissade_velo_higher_trilinos, only: &
@@ -144,6 +145,12 @@
        dphi_dyr_3d,    &    ! dphi/dy for reference hexahedral element, evaluated at quad pts
        dphi_dzr_3d          ! dphi/dy for reference hexahedral element, evaluated at quad pts
 
+    real(dp), dimension(nNodesPerElement_3d) ::   & 
+       phi_3d_ctr,         &! trilinear basis function, evaluated at cell ctr
+       dphi_dxr_3d_ctr,    &! dphi/dx for reference hexahedral element, evaluated at cell ctr
+       dphi_dyr_3d_ctr,    &! dphi/dy for reference hexahedral element, evaluated at cell ctr
+       dphi_dzr_3d_ctr      ! dphi/dz for reference hexahedral element, evaluated at cell ctr
+
     real(dp), dimension(nQuadPoints_3d) ::  &
        xqp_3d, yqp_3d, zqp_3d,  &! quad pt coordinates in reference element
        wqp_3d                    ! quad pt weights
@@ -196,6 +203,8 @@
 !    logical :: verbose_residual = .true.
     logical :: verbose_state = .false.
 !    logical :: verbose_state = .true.
+    logical :: verbose_velo = .false.
+!    logical :: verbose_velo = .true.
     logical :: verbose_id = .false.
 !    logical :: verbose_id = .true.
     logical :: verbose_load = .false.
@@ -222,6 +231,12 @@
 !    logical :: verbose_dirichlet= .true.
     logical :: verbose_L1L2 = .false.
 !    logical :: verbose_L1L2 = .true.
+    logical :: verbose_diva = .false.
+!    logical :: verbose_diva = .true.
+    logical :: verbose_glp = .false.
+!    logical :: verbose_glp = .true.
+    logical :: verbose_pcg = .false.
+!    logical :: verbose_pcg = .true.
 
     integer :: itest, jtest    ! coordinates of diagnostic point
     integer :: rtest           ! task number for processor containing diagnostic point
@@ -234,6 +249,13 @@
 !    logical, parameter :: write_matrix = .true.
     character(*), parameter :: matrix_label = 'label_here'  ! choose an appropriate label
 
+    !WHL - debug for efvs
+    real(dp), dimension(nNodesPerElement_3d, nQuadPoints_2d) ::   & 
+       phi_3d_vav,         &! vertical avg of phi_3d
+       dphi_dxr_3d_vav,    &! vertical avg of dphi_dxr_3d
+       dphi_dyr_3d_vav,    &! vertical avg of dphi_dyr_3d
+       dphi_dzr_3d_vav      ! vertical avg of dphi_dzr_3d
+
     contains
 
 !****************************************************************************
@@ -245,7 +267,8 @@
     !----------------------------------------------------------------
 
     integer :: i, j, k, m, n, p
-    real(dp) :: xctr, yctr
+    integer :: pplus
+    real(dp) :: xctr, yctr, zctr
     real(dp) :: sumx, sumy, sumz
 
     !----------------------------------------------------------------
@@ -364,6 +387,49 @@
        endif
 
     enddo   ! nQuadPoints_3d
+
+    ! Evaluate trilinear basis functions and their derivatives at cell center
+    ! Full formulas are not really needed at (x,y,z) = (0,0,0), but are included for completeness
+
+    xctr = 0.d0
+    yctr = 0.d0
+    zctr = 0.d0
+
+    phi_3d_ctr(1) = (1.d0 - xctr) * (1.d0 - yctr) * (1.d0 - zctr) / 8.d0
+    phi_3d_ctr(2) = (1.d0 + xctr) * (1.d0 - yctr) * (1.d0 - zctr) / 8.d0
+    phi_3d_ctr(3) = (1.d0 + xctr) * (1.d0 + yctr) * (1.d0 - zctr) / 8.d0
+    phi_3d_ctr(4) = (1.d0 - xctr) * (1.d0 + yctr) * (1.d0 - zctr) / 8.d0
+    phi_3d_ctr(5) = (1.d0 - xctr) * (1.d0 - yctr) * (1.d0 + zctr) / 8.d0
+    phi_3d_ctr(6) = (1.d0 + xctr) * (1.d0 - yctr) * (1.d0 + zctr) / 8.d0
+    phi_3d_ctr(7) = (1.d0 + xctr) * (1.d0 + yctr) * (1.d0 + zctr) / 8.d0
+    phi_3d_ctr(8) = (1.d0 - xctr) * (1.d0 + yctr) * (1.d0 + zctr) / 8.d0
+    
+    dphi_dxr_3d_ctr(1) = -(1.d0 - yctr) * (1.d0 - zctr) / 8.d0 
+    dphi_dxr_3d_ctr(2) =  (1.d0 - yctr) * (1.d0 - zctr) / 8.d0 
+    dphi_dxr_3d_ctr(3) =  (1.d0 + yctr) * (1.d0 - zctr) / 8.d0 
+    dphi_dxr_3d_ctr(4) = -(1.d0 + yctr) * (1.d0 - zctr) / 8.d0
+    dphi_dxr_3d_ctr(5) = -(1.d0 - yctr) * (1.d0 + zctr) / 8.d0 
+    dphi_dxr_3d_ctr(6) =  (1.d0 - yctr) * (1.d0 + zctr) / 8.d0 
+    dphi_dxr_3d_ctr(7) =  (1.d0 + yctr) * (1.d0 + zctr) / 8.d0 
+    dphi_dxr_3d_ctr(8) = -(1.d0 + yctr) * (1.d0 + zctr) / 8.d0
+    
+    dphi_dyr_3d_ctr(1) = -(1.d0 - xctr) * (1.d0 - zctr) / 8.d0 
+    dphi_dyr_3d_ctr(2) = -(1.d0 + xctr) * (1.d0 - zctr) / 8.d0 
+    dphi_dyr_3d_ctr(3) =  (1.d0 + xctr) * (1.d0 - zctr) / 8.d0 
+    dphi_dyr_3d_ctr(4) =  (1.d0 - xctr) * (1.d0 - zctr) / 8.d0 
+    dphi_dyr_3d_ctr(5) = -(1.d0 - xctr) * (1.d0 + zctr) / 8.d0 
+    dphi_dyr_3d_ctr(6) = -(1.d0 + xctr) * (1.d0 + zctr) / 8.d0 
+    dphi_dyr_3d_ctr(7) =  (1.d0 + xctr) * (1.d0 + zctr) / 8.d0 
+    dphi_dyr_3d_ctr(8) =  (1.d0 - xctr) * (1.d0 + zctr) / 8.d0 
+    
+    dphi_dzr_3d_ctr(1) = -(1.d0 - xctr) * (1.d0 - yctr) / 8.d0 
+    dphi_dzr_3d_ctr(2) = -(1.d0 + xctr) * (1.d0 - yctr) / 8.d0 
+    dphi_dzr_3d_ctr(3) = -(1.d0 + xctr) * (1.d0 + yctr) / 8.d0 
+    dphi_dzr_3d_ctr(4) = -(1.d0 - xctr) * (1.d0 + yctr) / 8.d0 
+    dphi_dzr_3d_ctr(5) =  (1.d0 - xctr) * (1.d0 - yctr) / 8.d0 
+    dphi_dzr_3d_ctr(6) =  (1.d0 + xctr) * (1.d0 - yctr) / 8.d0 
+    dphi_dzr_3d_ctr(7) =  (1.d0 + xctr) * (1.d0 + yctr) / 8.d0 
+    dphi_dzr_3d_ctr(8) =  (1.d0 - xctr) * (1.d0 + yctr) / 8.d0 
 
     ! Identity matrix
     identity3(1,:) = (/ 1.d0, 0.d0, 0.d0 /)
@@ -558,6 +624,22 @@
        enddo
     enddo
 
+    !WHL - debug for efvs
+
+    ! Evaluate vertical averages of dphi_dxr_3d, dphi_dyr_3d and dphi_dzr_3d at each 2d quad pts.
+    ! Using these instead of the full 3d basis functions can result in similar accuracy with
+    !  only half as many QP computations.
+
+    do p = 1, nQuadPoints_2d
+       pplus = p + nQuadPoints_3d/2  ! p + 4 for hexahedra
+       do n = 1, nNodesPerElement_3d
+          phi_3d_vav(n,p) = 0.5d0 * (phi_3d(n,p) + phi_3d(n,pplus))
+          dphi_dxr_3d_vav(n,p) = 0.5d0 * (dphi_dxr_3d(n,p) + dphi_dxr_3d(n,pplus))
+          dphi_dyr_3d_vav(n,p) = 0.5d0 * (dphi_dyr_3d(n,p) + dphi_dyr_3d(n,pplus))
+          dphi_dzr_3d_vav(n,p) = 0.5d0 * (dphi_dzr_3d(n,p) + dphi_dzr_3d(n,pplus))
+       enddo
+    enddo
+
   end subroutine glissade_velo_higher_init
 
 !****************************************************************************
@@ -580,6 +662,7 @@
     !----------------------------------------------------------------
 
     use glissade_basal_traction, only: calcbeta
+    use glissade_therm, only: glissade_pressure_melting_point
 
     !----------------------------------------------------------------
     ! Input-output arguments
@@ -615,12 +698,16 @@
                                 ! assumed to have the same value for each grid cell
 
     real(dp), dimension(:), pointer :: &
-       sigma                    ! vertical sigma coordinate, [0,1]
+       sigma,                 & ! vertical sigma coordinate at layer interfaces, [0,1]
+       stagsigma,             & ! staggered vertical sigma coordinate at layer midpoints
+       stagwbndsigma            ! stagsigma augmented by sigma = 0 and 1 at upper and lower surfaces
 
     real(dp)  ::   & 
-       thklim, &                ! minimum ice thickness for active cells (m)
-       eus,  &                  ! eustatic sea level (m), = 0. by default
-       ho_beta_const,  &        ! constant beta value (Pa/(m/yr)) for whichbabc = HO_BABC_CONSTANT
+       thklim,               &  ! minimum ice thickness for active cells (m)
+       max_slope,            &  ! maximum slope allowed for surface gradient computations (unitless)
+       eus,                  &  ! eustatic sea level (m), = 0. by default
+       ho_beta_const,        &  ! constant beta value (Pa/(m/yr)) for whichbabc = HO_BABC_CONSTANT
+       beta_grounded_min,    &  ! minimum beta value (Pa/(m/yr)) for grounded ice
        efvs_constant            ! constant efvs value (Pa yr) for whichefvs = HO_EFVS_CONSTANT
 
     real(dp), dimension(:,:), pointer ::  &
@@ -630,21 +717,28 @@
        bwat,                 &  ! basal water depth (m)
        mintauf,              &  ! till yield stress (Pa)
        beta,                 &  ! basal traction parameter (Pa/(m/yr))
+       beta_internal,        &  ! beta field weighted by f_ground (such that beta = 0 beneath floating ice)
        bfricflx,             &  ! basal heat flux from friction (W/m^2) 
+       f_flotation,          &  ! flotation function = (rhoi*thck) / (-rhoo*(topg-eus)) by default
+                                ! used to be f_pattyn = -rhoo*(topg-eus) / (rhoi*thck)
        f_ground                 ! grounded ice fraction, 0 <= f_ground <= 1
 
+    !TODO - Remove dependence on stagmask?  Currently it is needed for input to calcbeta.
     integer, dimension(:,:), pointer ::   &
        stagmask                 ! mask on staggered grid
 
     real(dp), dimension(:,:,:), pointer ::  &
        uvel, vvel,  &           ! velocity components (m/yr)
+       temp,   &                ! ice temperature (deg C)
        flwa,   &                ! flow factor in units of Pa^(-n) yr^(-1)
        efvs,   &                ! effective viscosity (Pa yr)
        resid_u, resid_v,   &    ! u and v components of residual Ax - b (Pa/m)
        bu, bv                   ! right-hand-side vector b, divided into 2 parts
 
     real(dp), dimension(:,:), pointer ::  &
-       btractx, btracty         ! components of basal traction (Pa)
+       uvel_2d, vvel_2d,       &! 2D velocity field; solution for SSA, L1L2 and DIVA 
+       btractx, btracty,       &! components of basal traction (Pa)
+       taudx, taudy             ! components of driving stress (Pa)
 
     real(dp), dimension(:,:,:), pointer ::  &
        tau_xz, tau_yz,         &! vertical components of stress tensor (Pa)
@@ -652,8 +746,9 @@
        tau_eff                  ! effective stress (Pa)
 
     integer,  dimension(:,:), pointer ::   &
-       kinbcmask                ! = 1 at vertices where u = v = 0 (Dirichlet BC)
-                                ! = 0 elsewhere
+       kinbcmask,              &! = 1 at vertices where u and v are prescribed from input data (Dirichlet BC), = 0 elsewhere
+       umask_no_penetration,   &! = 1 at vertices along east/west global boundary where uvel = 0, = 0 elsewhere
+       vmask_no_penetration     ! = 1 at vertices along north/south global boundary where vvel = 0, = 0 elsewhere
 
     integer ::   &
        whichbabc, &             ! option for basal boundary condition
@@ -675,8 +770,13 @@
                                 ! 1 = include ice-covered and/or land cells
                                 ! 2 = include ice-covered cells only
        whichassemble_beta,  &   ! 0 = standard finite element assembly
-                                ! 1 = apply local beta value at each vertex
+                                ! 1 = apply local value of beta at each vertex
+       whichassemble_taud,  &   ! 0 = standard finite element assembly
+                                ! 1 = apply local value of driving stress at each vertex
+       whichassemble_bfric, &   ! 0 = standard finite element assembly
+                                ! 1 = apply local value of basal friction at each vertex
        whichground,  &          ! option for computing grounded fraction of each cell
+       whichflotation_function,&! option for computing flotation function at and near each vertex
        maxiter_nonlinear        ! maximum number of nonlinear iterations
 
     !--------------------------------------------------------
@@ -690,18 +790,27 @@
     !--------------------------------------------------------
 
     real(dp), dimension(nx-1,ny-1) :: &
-       xVertex, yVertex       ! x and y coordinates of each vertex (m)
-
-    real(dp), dimension(nx-1,ny-1) ::   &
+       xVertex, yVertex,    & ! x and y coordinates of each vertex (m)
        stagusrf,            & ! upper surface averaged to vertices (m)
        stagthck,            & ! ice thickness averaged to vertices (m)
-       dusrf_dx, dusrf_dy     ! gradient of upper surface elevation (m/m)
+       dusrf_dx, dusrf_dy,  & ! gradient of upper surface elevation (m/m)
+       ubas, vbas             ! basal ice velocity (m/yr); input to calcbeta 
 
     integer, dimension(nx,ny) ::     &
        ice_mask,             &! = 1 for cells where ice is present (thk > thklim), else = 0
        floating_mask,        &! = 1 for cells where ice is present and is floating
        ocean_mask,           &! = 1 for cells where topography is below sea level and ice is absent
        land_mask              ! = 1 for cells where topography is above sea level
+
+    real(dp), dimension(nx,ny) ::  &
+       bedpmp                 ! basal pressure melting point temperature (deg C)
+
+    real(dp), dimension(nx-1,ny-1) :: &
+       stagbedtemp,         & ! basal ice temperature averaged to vertices (deg C)
+       stagbedpmp             ! bedpmp averaged to vertices (deg C)    
+
+    integer, dimension(nx-1,ny-1) :: &
+       pmp_mask               ! = 1 where bed is at pressure melting point, elsewhere = 0
 
     logical, dimension(nx,ny) ::     &
        active_cell            ! true for active cells (thck > thklim and border locally owned vertices)
@@ -721,8 +830,9 @@
                                     !       whereas bu and bv can be set each nonlinear iteration to account 
                                     !       for inhomogeneous Dirichlet BC
   
-    logical, dimension(nz,nx-1,ny-1) ::    &
-       umask_dirichlet        ! Dirichlet mask for velocity (if true, u = v = 0)
+    integer, dimension(nz,nx-1,ny-1) ::    &
+       umask_dirichlet,     & ! Dirichlet mask for u component of velocity, = 1 for prescribed velo, else = 0
+       vmask_dirichlet        ! Dirichlet mask for v component of velocity, = 1 for prescribed velo, else = 0
 
     real(dp) :: &
        resid_velo,          & ! quantity related to velocity convergence
@@ -739,7 +849,7 @@
 
     integer ::  & 
        counter,         & ! outer (nonlinear) iteration counter
-       niters             ! linear iteration count from sparse_easy_solve
+       niters             ! linear iteration count
 
     integer :: nNonzeros  ! number of nonzero matrix entries
 
@@ -795,12 +905,11 @@
        matrix_order,    & ! order of matrix = number of rows
        max_nonzeros       ! upper bound for number of nonzero entries in sparse matrix
 
-    ! The following arrays are used for a 2D matrix solve 
-    ! (which_ho_approx = HO_APPROX_SSA or HO_APPROX_L1L2)
+    ! The following arrays are used for a 2D matrix solve (SSA, L1L2 or DIVA)
 
     logical ::  &
-       solve_2d           ! if true, solve 2D matrix (SSA or L1L2)
-                          ! else solve 3D matrix (SIA or BP)
+       solve_2d           ! if true, solve a 2D matrix)
+                          ! else solve a 3D matrix (SIA, BP)
 
     integer ::            &
        nVerticesSolve     ! number of vertices where we solve for velocity
@@ -810,10 +919,6 @@
     
     integer, dimension((nx-1)*(ny-1)) ::   &
        iVertexIndex, jVertexIndex   ! i and j indices of vertices
-
-    real(dp), dimension(nx-1,ny-1) ::  &
-       uvel_2d, vvel_2d   ! components of 2D velocity solution
-                          ! (= basal velocity, for the 3D solution)
 
     real(dp), dimension(:,:,:), allocatable ::  &
        Auu_2d, Auv_2d,   &! assembled stiffness matrix, divided into 4 parts
@@ -834,8 +939,28 @@
        Afill_2d           ! true wherever the matrix value is potentially nonzero
                           ! 2D Trilinos only
 
+    ! The following are used for the depth-integrated viscosity solve
+    real(dp), dimension(:,:), allocatable :: &
+       beta_eff,            &! effective beta, defined by Goldberg (2011) eq. 41
+                             ! beta*u_b = beta_eff*u_av
+       omega,               &! double integral, defined by Goldberg (2011) eq. 35
+                             ! Note: omega here is equal to Goldberg's omega/H
+       stag_omega            ! omega interpolated to staggered grid
+
+    real(dp), dimension(:,:,:), allocatable :: &
+       omega_k,             &! single integral, defined by Goldberg (2011) eq. 32
+       stag_omega_k          ! omega_k interpolated to staggered grid
+
+    real(dp), dimension(:,:,:,:), allocatable :: &
+       efvs_qp_3d            ! effective viscosity at each QP of each layer of each cell
+
+    integer, parameter :: &
+       diva_level_index = 0  ! level for which the DIVA scheme finds the 2D velocity
+                             ! 0 = mean, 1 = upper surface
+                             ! Results are not very sensitive to this choice                     
+    real(dp) :: dsigma
     real(dp) :: maxbeta, minbeta
-    integer :: i, j, k, m, n, r
+    integer :: i, j, k, m, n, p, r
     integer :: iA, jA, kA
     real(dp) :: maxthck, maxusrf
     logical, parameter :: test_matrix = .false.
@@ -845,6 +970,9 @@
     ! for trilinos test problem
     logical, parameter :: test_trilinos = .false.
 !    logical, parameter :: test_trilinos = .true.
+
+    ! for diagnostic prints
+    integer, parameter :: xmax_print = 20
 
     call t_startf('glissade_vhs_init')
     rtest = -999
@@ -879,23 +1007,30 @@
      dx = model%numerics%dew
      dy = model%numerics%dns
 
+     !TODO - Remove (:), (:,:) and (:,:,:) from pointer targets?
      sigma    => model%numerics%sigma(:)
+     stagsigma=> model%numerics%stagsigma(:)
+     stagwbndsigma=> model%numerics%stagwbndsigma(:)
      thck     => model%geometry%thck(:,:)
      usrf     => model%geometry%usrf(:,:)
      topg     => model%geometry%topg(:,:)
-     f_ground => model%geometry%f_ground(:,:)
      stagmask => model%geometry%stagmask(:,:)
+     f_ground => model%geometry%f_ground(:,:)
+     f_flotation => model%geometry%f_flotation(:,:)
 
+     temp     => model%temper%temp
      flwa     => model%temper%flwa(:,:,:)
      efvs     => model%stress%efvs(:,:,:)
      beta     => model%velocity%beta(:,:)
+     beta_internal => model%velocity%beta_internal(:,:)
      bfricflx => model%temper%bfricflx(:,:)
      bwat     => model%temper%bwat(:,:)
      mintauf  => model%basalproc%mintauf(:,:)
 
      uvel     => model%velocity%uvel(:,:,:)
      vvel     => model%velocity%vvel(:,:,:)
-
+     uvel_2d  => model%velocity%uvel_2d(:,:)
+     vvel_2d  => model%velocity%vvel_2d(:,:)
      resid_u  => model%velocity%resid_u(:,:,:)
      resid_v  => model%velocity%resid_v(:,:,:)
      bu       => model%velocity%rhs_u(:,:,:)
@@ -903,6 +1038,8 @@
 
      btractx  => model%stress%btractx(:,:)
      btracty  => model%stress%btracty(:,:)
+     taudx    => model%stress%taudx(:,:)
+     taudy    => model%stress%taudy(:,:)
      tau_xz   => model%stress%tau%xz(:,:,:)
      tau_yz   => model%stress%tau%yz(:,:,:)
      tau_xx   => model%stress%tau%xx(:,:,:)
@@ -911,10 +1048,14 @@
      tau_eff  => model%stress%tau%scalar(:,:,:)
 
      kinbcmask => model%velocity%kinbcmask(:,:)
+     umask_no_penetration => model%velocity%umask_no_penetration(:,:)
+     vmask_no_penetration => model%velocity%vmask_no_penetration(:,:)
 
-     thklim = model%numerics%thklim
-     eus    = model%climate%eus
-     ho_beta_const = model%paramets%ho_beta_const
+     thklim    = model%numerics%thklim
+     max_slope = model%paramets%max_slope
+     eus       = model%climate%eus
+     ho_beta_const = model%velocity%ho_beta_const
+     beta_grounded_min = model%velocity%beta_grounded_min
      efvs_constant = model%paramets%efvs_constant
  
      whichbabc            = model%options%which_ho_babc
@@ -923,11 +1064,14 @@
      whichsparse          = model%options%which_ho_sparse
      whichapprox          = model%options%which_ho_approx
      whichprecond         = model%options%which_ho_precond
+     maxiter_nonlinear    = model%options%glissade_maxiter
      whichgradient        = model%options%which_ho_gradient
      whichgradient_margin = model%options%which_ho_gradient_margin
      whichassemble_beta   = model%options%which_ho_assemble_beta
+     whichassemble_taud   = model%options%which_ho_assemble_taud
+     whichassemble_bfric  = model%options%which_ho_assemble_bfric
      whichground          = model%options%which_ho_ground
-     maxiter_nonlinear    = model%options%glissade_maxiter
+     whichflotation_function = model%options%which_ho_flotation_function
 
     !--------------------------------------------------------
     ! Convert input variables to appropriate units for this solver.
@@ -936,14 +1080,17 @@
     !--------------------------------------------------------
 
 !pw call t_startf('glissade_velo_higher_scale_input')
-    call glissade_velo_higher_scale_input(dx,     dy,            &
-                                          thck,   usrf,          &
-                                          topg,                  &
-                                          eus,    thklim,        &
-                                          flwa,   efvs,          &
-                                          bwat,   mintauf,       &
-                                          beta,   ho_beta_const, &
-                                          uvel,   vvel)
+    call glissade_velo_higher_scale_input(dx,      dy,            &
+                                          thck,    usrf,          &
+                                          topg,                   &
+                                          eus,     thklim,        &
+                                          flwa,    efvs,          &
+                                          bwat,    mintauf,       &
+                                          ho_beta_const,          &
+                                          beta_grounded_min,      &
+                                          btractx, btracty,       &
+                                          uvel,    vvel,          &
+                                          uvel_2d, vvel_2d)
 !pw call t_stopf('glissade_velo_higher_scale_input')
 
     ! Set volume scale
@@ -961,26 +1108,26 @@
        if (main_task) print*, 'Solving shallow-shelf approximation'
 
     elseif (whichapprox == HO_APPROX_L1L2) then  ! L1L2
-!!       if (verbose .and. main_task) print*, 'Solving shallow-shelf approximation'
+!!       if (verbose .and. main_task) print*, 'Solving depth-integrated L1L2 approximation'
        if (main_task) print*, 'Solving depth-integrated L1L2 approximation'
+
+    elseif (whichapprox == HO_APPROX_DIVA) then  ! DIVA, based on Goldberg (2011)
+!!       if (verbose .and. main_task) print*, 'Solving depth-integrated viscosity approximation'
+       if (main_task) print*, 'Solving depth-integrated viscosity approximation'
 
     else   ! Blatter-Pattyn higher-order 
 !!       if (verbose .and. main_task) print*, 'Solving Blatter-Pattyn higher-order approximation'
        if (main_task) print*, 'Solving Blatter-Pattyn higher-order approximation'
     endif
 
-    ! initialize 2D velocity to basal 3D velocity
-    uvel_2d(:,:) = uvel(nz,:,:)
-    vvel_2d(:,:) = vvel(nz,:,:)
-
-    if (whichapprox == HO_APPROX_SSA .or. whichapprox == HO_APPROX_L1L2) then  ! 2D assemble/solve
+    if (whichapprox==HO_APPROX_SSA .or. whichapprox==HO_APPROX_L1L2 .or. whichapprox==HO_APPROX_DIVA) then
        solve_2d = .true.
-    else   ! 3D assemble/solve
+    else   ! 3D solve
        solve_2d = .false.
     endif
 
     if (solve_2d) then
-       ! allocate 2D arrays needed for the SSA or L1L2 solve
+       ! allocate arrays needed for a 2D solve
        allocate(Auu_2d(nNodeNeighbors_2d,nx-1,ny-1))
        allocate(Auv_2d(nNodeNeighbors_2d,nx-1,ny-1))
        allocate(Avu_2d(nNodeNeighbors_2d,nx-1,ny-1))
@@ -993,14 +1140,41 @@
        allocate(vsav_2d(nx-1,ny-1))
        allocate(resid_u_2d(nx-1,ny-1))
        allocate(resid_v_2d(nx-1,ny-1))
-    endif
-
-    if (.not.solve_2d) then
-       ! These are big, so do not allocate them for a 2D solve
+    else
+       ! These are big, so do not allocate them for the 2D solve
        allocate(Auu(nNodeNeighbors_3d,nz,nx-1,ny-1))
        allocate(Auv(nNodeNeighbors_3d,nz,nx-1,ny-1))
        allocate(Avu(nNodeNeighbors_3d,nz,nx-1,ny-1))
        allocate(Avv(nNodeNeighbors_3d,nz,nx-1,ny-1))
+    endif
+
+    if (whichapprox == HO_APPROX_DIVA) then
+       allocate(beta_eff(nx-1,ny-1))
+       allocate(omega(nx,ny))
+       allocate(omega_k(nz,nx,ny))
+       allocate(stag_omega(nx-1,ny-1))
+       allocate(stag_omega_k(nz,nx-1,ny-1))
+       allocate(efvs_qp_3d(nz-1,nQuadPoints_2d,nx,ny))
+       beta_eff(:,:) = 0.d0
+       omega(:,:) = 0.d0
+       omega_k(:,:,:) = 0.d0
+       stag_omega(:,:) = 0.d0
+       stag_omega_k(:,:,:) = 0.d0
+       ! Note: Initializing efvs_qp as efvs is a reasonable first guess that allows us to
+       !       write efvs to the restart file instead of efvs_qp (which is 4x larger).
+       do p = 1, nQuadPoints_2d
+          efvs_qp_3d(:,p,:,:) = efvs(:,:,:)
+       enddo
+    endif
+
+    if (whichapprox /= HO_APPROX_DIVA) then
+       ! Set the 2D velocity to the velocity at the bed
+       ! Note: For L1L2 and SSA, this is the 2D velocity solution from the previous solve.
+       !       For DIVA, the velocity solution from the previous solve is typically the
+       !        mean velocity, which cannot be extracted exactly from the 3D velocity field
+       !        and must be stored in a separate array.
+       uvel_2d(:,:) = uvel(nz,:,:)
+       vvel_2d(:,:) = vvel(nz,:,:)
     endif
 
     if (test_matrix) then
@@ -1094,41 +1268,178 @@
     !------------------------------------------------------------------------------
 
     ! initialize
-    umask_dirichlet(:,:,:) = .false.   
+    umask_dirichlet(:,:,:) = 0 
+    vmask_dirichlet(:,:,:) = 0   
 
-    if (whichbabc == HO_BABC_NO_SLIP) then
-       ! Impose zero sliding everywhere at the bed.
-       umask_dirichlet(nz,:,:) = .true.    ! u = v = 0 at bed
+    if (whichbabc == HO_BABC_NO_SLIP .and. whichapprox /= HO_APPROX_DIVA) then
+       ! Impose zero sliding everywhere at the bed
+       ! Note: For the DIVA case, this BC is handled by setting beta_eff = 1/omega
+       !TODO - Allow application of no-slip BC at selected basal nodes instead of all nodes?
+       umask_dirichlet(nz,:,:) = 1    ! u = v = 0 at bed
+       vmask_dirichlet(nz,:,:) = 1
     endif
+       
+    ! Set mask in columns identified in kinbcmask, typically read from file at initialization.
+    ! Note: Assuming there is no vertical shear at these points, the bed velocity is the same
+    !       as the velocity throughout the column.  This allows us to use the 3D umask_dirichlet
+    !       and vmask_dirichlet with a 2D solver.
+    ! TODO: Support Dirichlet condition with vertical shear for L1L2 and DIVA?
+    !
+    ! For a no-penetration global BC, set umask_dirichlet = 0 and uvel = 0.d0 along east/west global boundaries,
+    !  and set vmask_dirichlet = 0 and vvel = 0.d0 along north/south global boundaries (based on umask_no_penetration
+    !  and vmask_no_penetration, which are computed at initialization). 
+    !
+    ! For a 2D solve, initialize uvel_2d and vvel_2d at Dirichlet points to the bed velocity.
 
-    ! set mask in columns identified in kinbcmask, typically read from file at initialization
-    do j = 1,ny-1
+    do j = 1, ny-1
        do i = 1, nx-1
+
+          ! if kinbcmask = 1, set Dirichlet masks for both uvel and vvel
           if (kinbcmask(i,j) == 1) then
-             umask_dirichlet(:,i,j) = .true.
+             umask_dirichlet(:,i,j) = 1
+             vmask_dirichlet(:,i,j) = 1
+             if (solve_2d) then
+                uvel_2d(i,j) = uvel(nz,i,j)
+                vvel_2d(i,j) = vvel(nz,i,j)
+             endif
           endif
+
+          ! for the no-penetration global BC, prescribe zero outflow velocities
+          ! (v = 0 at N/S boundaries, u = 0 at E/W boundaries)
+          ! for other global BCs (periodic and outflow), umask_no_penetration = vmask_no_penetration = 0 everywhere
+
+          if (umask_no_penetration(i,j) == 1) then
+             umask_dirichlet(:,i,j) = 1
+             uvel(:,i,j) = 0.d0
+             if (solve_2d) uvel_2d(i,j) = 0.d0
+          endif
+
+          if (vmask_no_penetration(i,j) == 1) then
+             vmask_dirichlet(:,i,j) = 1
+             vvel(:,i,j) = 0.d0
+             if (solve_2d) vvel_2d(i,j) = 0.d0
+          endif
+
        enddo
     enddo
 
+    !Note: The following halo updates are not needed here, provided that kinbcmask,
+    !      umask_no_penetration and vmask_no_penetration receive halo updates
+    !      (as done in glissade_initialise)
+!    call staggered_parallel_halo(umask_dirichlet)
+!    call staggered_parallel_halo(vmask_dirichlet)
+
     if (verbose_dirichlet .and. this_rank==rtest) then
+
        print*, ' '
-       print*, 'umask_dirichlet, k = 1 and nz, j =', jtest
-       j = jtest
-       do i = 1, nx-1
-          write(6,'(i4,2L3)') i, umask_dirichlet(1,i,j), umask_dirichlet(nz,i,j)
+       print*, 'kinbcmask:'
+       write(6,'(a6)',advance='no')'        '
+       do i = 1, xmax_print
+          write(6,'(i6)',advance='no') i
+       enddo
+       write(6,*) ' '
+       do j = ny-1, 1, -1
+          write(6,'(i6)',advance='no') j
+          do i = 1, xmax_print
+             write(6,'(i6)',advance='no') kinbcmask(i,j)
+          enddo
+          write(6,*) ' '
        enddo
 
        print*, ' '
-       print*, 'uvel, k = 1 and nz, j =', jtest
-       do i = 1, nx-1
-          write(6,'(i4,2f12.6)') i, uvel(1,i,j), uvel(nz,i,j)
+       print*, 'umask_no_penetration:'
+       write(6,'(a6)',advance='no')'        '
+       do i = 1, xmax_print
+          write(6,'(i6)',advance='no') i
+       enddo
+       write(6,*) ' '
+       do j = ny-1, 1, -1
+          write(6,'(i6)',advance='no') j
+          do i = 1, xmax_print
+             write(6,'(i6)',advance='no') umask_no_penetration(i,j)
+          enddo
+          write(6,*) ' '
        enddo
 
        print*, ' '
-       print*, 'vvel, k = 1 and nz, j =', jtest
-       do i = 1, nx-1
-          write(6,'(i4,2f12.6)') i, vvel(1,i,j), vvel(nz,i,j)
+       print*, 'vmask_no_penetration:'
+       write(6,'(a6)',advance='no')'        '
+       do i = 1, xmax_print
+          write(6,'(i6)',advance='no') i
        enddo
+       write(6,*) ' '
+       do j = ny-1, 1, -1
+          write(6,'(i6)',advance='no') j
+          do i = 1, xmax_print
+             write(6,'(i6)',advance='no') vmask_no_penetration(i,j)
+          enddo
+          write(6,*) ' '
+       enddo
+
+       print*, ' '
+       print*, 'umask_dirichlet, k = 1:'
+       write(6,'(a6)',advance='no') '        '
+       do i = 1, xmax_print
+          write(6,'(i6)',advance='no') i
+       enddo
+       write(6,*) ' '
+       do j = ny-1, 1, -1
+          write(6,'(i6)',advance='no') j
+          do i = 1, xmax_print
+             write(6,'(i6)',advance='no') umask_dirichlet(1,i,j)
+          enddo
+          write(6,*) ' '
+       enddo
+
+       print*, ' '
+       print*, 'vmask_dirichlet, k = 1:'
+       write(6,'(a6)',advance='no') '        '
+       do i = 1, xmax_print
+          write(6,'(i6)',advance='no') i
+       enddo
+       write(6,*) ' '
+       do j = ny-1, 1, -1
+          write(6,'(i6)',advance='no') j
+          do i = 1, xmax_print
+             write(6,'(i6)',advance='no') vmask_dirichlet(1,i,j)
+          enddo
+          write(6,*) ' '
+       enddo
+
+       print*, ' '
+       print*, 'uvel, k = 1:'
+       write(6,'(a10)',advance='no') '          '
+!!       do i = 1, xmax_print
+       do i = itest-3, itest+3
+          write(6,'(i10)',advance='no') i
+       enddo
+       write(6,*) ' '
+       do j = ny-1, 1, -1
+          write(6,'(i10)',advance='no') j
+!!       do i = 1, xmax_print
+          do i = itest-3, itest+3
+             write(6,'(f10.3)',advance='no') uvel(1,i,j)
+          enddo
+          write(6,*) ' '
+       enddo
+
+       print*, ' '
+       print*, 'vvel, k = 1:'
+       write(6,'(a10)',advance='no') '          '
+!!       do i = 1, xmax_print
+       do i = itest-3, itest+3
+          write(6,'(i10)',advance='no') i
+       enddo
+       write(6,*) ' '
+       do j = ny-1, 1, -1
+          write(6,'(i10)',advance='no') j
+!!       do i = 1, xmax_print
+          do i = itest-3, itest+3
+             write(6,'(f10.3)',advance='no') vvel(1,i,j)
+          enddo
+          write(6,*) ' '
+       enddo
+
     endif   ! verbose_dirichlet
 
     !------------------------------------------------------------------------------
@@ -1150,34 +1461,25 @@
     ! (requires that thck and topg are up to date in halo cells).
     ! This is used below to compute the basal stress BC.
     !
-    ! Three cases for whichground:
+    ! Three options for whichground:
     ! (0) HO_GROUND_NO_GLP: f_ground = 0 or 1 based on flotation criterion
-    ! (1) HO_GROUND_GLP: 0 <= f_ground <= 1 based on grounding-line parameterization
-    ! (2) HO_GROUND_ALL: f_ground = 1 for all cells with ice
+    ! (1) HO_GROUND_GLP:    0 <= f_ground <= 1 based on grounding-line parameterization
+    ! (2) HO_GROUND_ALL:    f_ground = 1 for all cells with ice
     !
-    ! f_ground is set to a non-physical value of -1 in cells without ice
+    ! Three options for whichflotation_function (applies to whichground = 0 or 1):
+    ! (0) HO_FLOTATION_FUNCTION_PATTYN:         f = (-rhow*b/rhoi*H) = f_pattyn; <=1 for grounded, > 1 for floating
+    ! (1) HO_FLOTATION_FUNCTION_INVERSE_PATTYN: f = (rhoi*H)/(-rhow*b) = 1/f_pattyn; >=1 for grounded, < 1 for floating
+    ! (2) HO_FLOTATION_FUNCTION_LINEAR:         f = -rhow*b - rhoi*H; <= 0 for grounded, > 0 for floating
     !
-    ! NOTE: The grounding line scheme is not yet scientifically supported;
-    !       fground is computed here but is not used in matrix assembly.
-    ! TODO - Incorporate fground in matrix assembly.
+    ! f_flotation is not needed in further calculations but is output as a diagnostic.
     !------------------------------------------------------------------------------
 
-    call glissade_grounded_fraction(nx,          ny,           &
-                                    thck,        topg,         &
-                                    eus,         ice_mask,     &
-                                    whichground, f_ground)
-
-    if (verbose_state .and. this_rank==rtest) then
-       print*, ' '
-       print*, 'f_ground, rank =', rtest
-       do j = ny, 1, -1
-          do i = 1, nx
-             write(6,'(f5.2)',advance='no') f_ground(i,j)
-          enddo
-          print*, ' '
-       enddo
-    endif
-
+    call glissade_grounded_fraction(nx,          ny,                      &
+                                    thck,        topg,                    &
+                                    eus,         ice_mask,                &
+                                    whichground, whichflotation_function, &
+                                    f_ground,    f_flotation)
+    
     !------------------------------------------------------------------------------
     ! Compute ice thickness and upper surface on staggered grid
     ! (requires that thck and usrf are up to date in halo cells).
@@ -1204,19 +1506,27 @@
     !  if we have ice-covered floating cells next to ice-free ocean cells,
     !  because the gradient will be too big.
     ! Setting gradient_margin_in = 1 uses any available ice-covered cells
-    !  and/or land cells to compute the gradient.  Requires a land mask.
+    !  and/or land cells to compute the gradient.  Requires passing in the surface
+    !  elevation and a land mask.
     !  This is appropriate for both land-based problems and problems
     !  with ice shelves.  It is the default setting.
     ! Setting gradient_margin_in = 2 uses only ice-covered cells to compute
     !  the gradient.  This is appropriate for problems with ice shelves, but is
     !  is less accurate than options 0 or 1 for land-based problems (e.g., Halfar SIA).
     !
+    ! Passing in max_slope ensures that the surface elevation gradient on the edge
+    !  between two cells does not exceed a prescribed value.
+    ! Although slope-limiting is not very physical, it helps prevent CFL violations
+    !  in regions of steep coastal topography. Some input Greenland data sets have
+    !  slopes of up to ~0.3 between adjacent grid cells, leading to very large velocities
+    !  even with a no-slip basal boundary condition. 
+    !
     ! Both the centered and upstream gradients are 2nd order accurate in space.
     ! The upstream gradient may be preferable for evolution problems using 
     !  whichapprox = HO_APPROX_BP or HO_APPROX_SIA, because in these cases
     !  the centered gradient fails to cancel checkerboard noise.
     ! The L1L2 solver computes 3D velocities in a way that damps checkerboard noise,
-    !  so a centered difference works well (and for the Halfar problem is more 
+    !  so a centered difference should work well (and for the Halfar problem is more 
     !  accurate than upstream).
     !------------------------------------------------------------------------------
 
@@ -1230,25 +1540,81 @@
                                        dusrf_dx,         dusrf_dy,   &
                                        ice_mask,                     &
                                        gradient_margin_in = whichgradient_margin, &
-                                       land_mask = land_mask)
+                                       usrf = usrf,                  &
+                                       land_mask = land_mask,        &
+                                       max_slope = max_slope)
 
     else          ! 2nd order upstream
 
-       call glissade_upstream_gradient(nx,             ny,         &
-                                       dx,             dy,         &
-                                       usrf,                       &
-                                       dusrf_dx,       dusrf_dy,   &
-                                       ice_mask,                   &
-                                       accuracy_flag_in = 2,       &
+       call glissade_upstream_gradient(nx,             ny,           &
+                                       dx,             dy,           &
+                                       usrf,                         &
+                                       dusrf_dx,       dusrf_dy,     &
+                                       ice_mask,                     &
+                                       accuracy_flag_in = 2,         &
                                        gradient_margin_in = whichgradient_margin, &
-                                       land_mask = land_mask)
+                                       usrf = usrf,                  &
+                                       land_mask = land_mask,        &
+                                       max_slope = max_slope)
 
     endif   ! whichgradient
 
 !pw call t_stopf('glissade_gradient')
 
-    if (verbose_gridop .and. this_rank==rtest) then
+    if (verbose_glp .and. this_rank==rtest) then
+       print*, 'effecpress_stag, rank =', rtest
+       do j = jtest+1, jtest-1, -1
+          write(6,'(a5)',advance='no') '    '
+          do i = itest-3, itest+3
+             write(6,'(f10.0)',advance='no') model%basal_physics%effecpress_stag(i,j)
+          enddo
+          print*, ' '
+       enddo       
+       print*, ' '
+       print*, 'usrf, rank =', rtest
+       do j = jtest+1, jtest-1, -1
+          do i = itest-3, itest+3
+             write(6,'(f10.2)',advance='no') usrf(i,j)
+          enddo
+          print*, ' '
+       enddo       
+       print*, ' '
+       print*, 'thck, rank =', rtest
+       do j = jtest+1, jtest-1, -1
+          do i = itest-3, itest+3
+             write(6,'(f10.2)',advance='no') thck(i,j)
+          enddo
+          print*, ' '
+       enddo       
+       print*, ' '
+       print*, 'f_flotation, rank =', rtest
+       do j = jtest+1, jtest-1, -1
+          do i = itest-3, itest+3
+             write(6,'(f10.4)',advance='no') f_flotation(i,j)
+          enddo
+          print*, ' '
+       enddo       
+       print*, ' '
+       print*, 'f_ground, rank =', rtest
+       do j = jtest+1, jtest-1, -1
+          write(6,'(a5)',advance='no') '    '
+          do i = itest-3, itest+3
+             write(6,'(f10.4)',advance='no') f_ground(i,j)
+          enddo
+          print*, ' '
+       enddo
+       print*, ' '
+       print*, 'dusrf_dx, rank =', rtest
+       do j = jtest+1, jtest-1, -1
+          write(6,'(a5)',advance='no') '    '
+          do i = itest-3, itest+3
+             write(6,'(f10.4)',advance='no') dusrf_dx(i,j)
+          enddo
+          print*, ' '
+       enddo       
+    endif
 
+    if (verbose_gridop .and. this_rank==rtest) then
        print*, ' '
        print*, 'thck:'
        do j = ny, 1, -1
@@ -1257,7 +1623,6 @@
           enddo
           print*, ' '
        enddo
-
        print*, ' '
        print*, 'stagthck, rank =',rtest
        do j = ny-1, 1, -1
@@ -1266,7 +1631,6 @@
           enddo
           print*, ' '
        enddo
-
        print*, ' '
        print*, 'usrf:'
        do j = ny, 1, -1
@@ -1275,7 +1639,6 @@
           enddo
           print*, ' '
        enddo
-
        print*, ' '
        print*, 'dusrf_dx:'
        do j = ny-1, 1, -1
@@ -1284,7 +1647,6 @@
           enddo
           print*, ' '
        enddo
-
        print*, ' '
        print*, 'dusrf_dy:'
        do j = ny-1, 1, -1
@@ -1318,6 +1680,20 @@
                              iNodeIndex,   jNodeIndex,  kNodeIndex, &
                              iVertexIndex, jVertexIndex)
 !pw call t_stopf('glissade_get_vertex_geom')
+
+    ! Zero out the velocity for inactive vertices
+    do j = nhalo+1, ny-nhalo    ! locally owned vertices only
+       do i = nhalo+1, nx-nhalo
+          if (.not.active_vertex(i,j)) then
+             uvel(:,i,j) = 0.d0
+             vvel(:,i,j) = 0.d0
+             if (solve_2d) then
+                uvel_2d(i,j) = 0.d0
+                vvel_2d(i,j) = 0.d0
+             endif
+          endif
+       enddo
+    enddo
 
     ! Assign the appropriate local ID to vertices and nodes in the halo.
     ! NOTE: This works for single-processor runs with periodic BCs
@@ -1459,17 +1835,60 @@
 #endif
 
     !------------------------------------------------------------------------------
-    ! Initialize the basal traction parameter beta.
-    ! Note: beta is either read from an external file, or computed by calling calcbeta below.
-    !       For external beta (HO_BABC_EXTERNAL_BETA), we should not reinitialize here.
-    !       For a no-slip boundary condition (HO_BABC_NO_SLIP), beta is not computed,
-    !        so beta = 0 will be written to output.
+    ! Initialize the basal traction parameter, beta_internal.
+    ! Note: If beta is read from an external file, the external value should not be changed.
+    !        This value is saved in model%velocity%beta.
+    !       The glissade solver uses a beta field weighted by f_ground.
+    !        This field is stored in model%velocity%beta_internal and can change over time.
+    !       For a no-slip boundary condition (HO_BABC_NO_SLIP), beta_internal is not computed,
+    !        so beta_internal = 0 will be written to output.
     !------------------------------------------------------------------------------
 
-    if (whichbabc /= HO_BABC_EXTERNAL_BETA) then
-       beta(:,:) = 0.d0
-    endif
+    beta_internal(:,:) = 0.d0
+
+    !------------------------------------------------------------------------------
+    ! For the HO_BABC_BETA_TPMP option (lower beta where the bed is at the pressure melting point),
+    ! compute the bed temperature and the bed pressure-melting-point temperature at vertices.
+    !------------------------------------------------------------------------------
+  
+    if (whichbabc == HO_BABC_BETA_TPMP) then
+
+       ! interpolate bed temperature to vertices
+       ! For stagger_margin_in = 1, only ice-covered cells are included in the interpolation
+
+       call glissade_stagger(nx,           ny,           &
+                             temp(nz,:,:), stagbedtemp,  &
+                             ice_mask,     stagger_margin_in = 1)
        
+       ! compute pressure melting point temperature at bed
+       do j = 1, ny
+          do i = 1, nx
+             if (ice_mask(i,j) == 1) then
+                call glissade_pressure_melting_point(thck(i,j), bedpmp(i,j))
+             else
+                bedpmp(i,j) = 0.d0
+             endif
+          enddo
+       enddo
+
+       ! interpolate bed pmp temperature to vertices
+       call glissade_stagger(nx,           ny,           &
+                             bedpmp(:,:),  stagbedpmp(:,:), &
+                             ice_mask,     stagger_margin_in = 1)
+
+       ! compute a pmp mask at vertices; this mask is passed to calcbeta below
+       where (abs(stagbedpmp - stagbedtemp) < 1.d-3 .and. active_vertex)
+          pmp_mask = 1
+       elsewhere
+          pmp_mask = 0
+       endwhere
+
+    else    ! not HO_BABC_BETA_TPMP
+
+       pmp_mask(:,:) = 0
+
+    endif
+
     !------------------------------------------------------------------------------
     ! Compute the factor A^(-1/n) appearing in the expression for effective viscosity.
     ! This factor is often denoted as B in the literature.
@@ -1480,7 +1899,7 @@
     flwafact(:,:,:) = 0.d0
 
     ! Loop over all cells that border locally owned vertices
-    !TODO - Simply compute for all cells?  We should have flwa for all cells.
+    !TODO - Simply compute flwafact for all cells?  We should have flwa for all cells.
 
     do j = 1+nhalo, ny-nhalo+1
        do i = 1+nhalo, nx-nhalo+1
@@ -1548,7 +1967,7 @@
     resid_velo = 1.d0
 
     L2_norm   = 1.0d20      ! arbitrary large value
-    L2_target = 1.0d-4      
+    L2_target = 1.0d-4
 
     !WHL: For standard test cases (dome, circular shelf), a relative target of 1.0d-7 is 
     !     roughly as stringent as an absolute target of 1.0d-4.
@@ -1580,9 +1999,60 @@
                              xVertex,          yVertex,         &
                              stagusrf,         stagthck,        &
                              dusrf_dx,         dusrf_dy,        &
+                             whichassemble_taud,                &
                              loadu,            loadv)
        
     call t_stopf('glissade_load_vector_gravity')
+
+    ! Compute components of gravitational driving stress
+    taudx(:,:) = 0.d0
+    taudy(:,:) = 0.d0
+    do j = 1, ny-1
+       do i = 1, nx-1
+          do k = 1, nz
+             taudx(i,j) = taudx(i,j) + loadu(k,i,j)
+             taudy(i,j) = taudy(i,j) + loadv(k,i,j)
+          enddo
+       enddo
+    enddo
+    taudx(:,:) = taudx(:,:) * vol0/(dx*dy)  ! convert from model units to Pa
+    taudy(:,:) = taudy(:,:) * vol0/(dx*dy)
+
+    if (verbose_glp .and. this_rank==rtest) then
+       ! Note: The first of these quantities is the load vector on the rhs of the matrix
+       !       The second is the value that would go on the rhs by simply taking rho*g*H*ds/dx.
+       !       These will not agree exactly because of the way H is handled in FE assembly,
+       !        but they should be close if which_ho_assemble_taud = HO_ASSEMBLE_TAUD_LOCAL.
+       !       If which_ho_assemble_taud = HO_ASSEMBLE_TAUD_STANDARD, they can differ substantially.
+
+       print*, ' '
+       print*, 'vert sum of grav load vector, rank =', rtest
+       do j = jtest+1, jtest-1, -1
+          write(6,'(a5)',advance='no') '    '
+          do i = itest-3, itest+3
+             write(6,'(f10.0)',advance='no') taudx(i,j)
+          enddo
+          print*, ' '
+       enddo
+       print*, ' '
+       print*, 'rho*g*H*ds/dx, rank =', rtest
+       do j = jtest+1, jtest-1, -1
+          write(6,'(a5)',advance='no') '    '
+          do i = itest-3, itest+3
+             write(6,'(f10.0)',advance='no') -rhoi*grav*stagthck(i,j)*dusrf_dx(i,j)
+          enddo
+          print*, ' '
+       enddo
+       print*, ' '
+       print*, 'Starting uvel_2d, rank =', rtest
+       do j = jtest+1, jtest-1, -1
+          write(6,'(a5)',advance='no') '    '
+          do i = itest-3, itest+3
+             write(6,'(f10.2)',advance='no') uvel_2d(i,j)
+          enddo
+          print*, ' '
+       enddo       
+    endif
 
     !------------------------------------------------------------------------------
     ! Lateral pressure at vertical ice edge
@@ -1638,53 +2108,287 @@
        !---------------------------------------------------------------------------
        ! Compute or prescribe the basal traction field 'beta'.
        !
-       ! Note: We could compute beta before the main outer loop if beta
-       !       were assumed to be independent of velocity.  Computing beta here,
-       !       however, allows for more general sliding laws.
-       ! Note: The input value of model%velocity%beta can change depending on
-       !       the value of model%options%which_ho_babc.
-       ! Note: The units of the input arguments in calcbeta are assumed to be the
-       !       same as the Glissade units.
+       ! Notes:
+       ! (1) We could compute beta before the main outer loop if beta
+       !     were assumed to be independent of velocity.  Computing beta here,
+       !     however, allows for more general sliding laws.
+       ! (2) The units of the input arguments in calcbeta are assumed to be the
+       !     same as the Glissade units.
+       ! (3) The computed beta (called beta_internal) is weighted by f_ground, 
+       !     the grounded fraction at each vertex.  With a GLP, f_ground is 
+       !     between 0 and 1 for vertices adjacent to the GL, allowing for a smooth 
+       !     change in beta as the GL advances and retreats.
+       ! (4) The basal velocity is a required input to calcbeta.  
+       !     DIVA does not compute the basal velocity in the 2D matrix solve, 
+       !     but computes the 3D velocity after each iteration so that
+       !     uvel/vvel(nz,:,:) are available here.
+       ! (5) For which_ho_babc = HO_BABC_EXTERNAL_BETA, beta is passed in
+       !     with dimensionless Glimmer units. Rather than incur roundoff errors by
+       !     repeatedly multiplying and dividing by scaling constants, the conversion
+       !     to Pa yr/m is done here in the argument list.
        !-------------------------------------------------------------------
 
-       ! For 3D solve, copy basal velocity into uvel_2d and vvel_2d
-       if (.not. solve_2d) then
-          uvel_2d(:,:) = uvel(nz,:,:)
-          vvel_2d(:,:) = vvel(nz,:,:)
+       if (whichapprox == HO_APPROX_SSA .or. whichapprox == HO_APPROX_L1L2) then
+          ubas(:,:) = uvel_2d(:,:)
+          vbas(:,:) = vvel_2d(:,:)
+       else  ! 3D solve or DIVA
+          ubas(:,:) = uvel(nz,:,:)
+          vbas(:,:) = vvel(nz,:,:)
        endif
+
+!!       if (verbose_beta .and. this_rank==rtest) then
+       if (verbose_beta .and. this_rank==rtest .and. mod(counter,5)==0) then
+
+          print*, ' '
+          print*, 'Before calcbeta, counter =', counter
+          print*, ' '
+          print*, 'usrf field, itest, jtest, rank =', itest, jtest, rtest
+!!          do j = ny-1, 1, -1
+          do j = jtest+3, jtest-3, -1
+             write(6,'(i6)',advance='no') j
+!!             do i = 1, nx-1
+             do i = itest-3, itest+3
+                write(6,'(f10.3)',advance='no') usrf(i,j)
+             enddo
+             write(6,*) ' '
+          enddo          
+
+          print*, ' '
+          print*, 'thck field, itest, jtest, rank =', itest, jtest, rtest
+!!          do j = ny-1, 1, -1
+          do j = jtest+3, jtest-3, -1
+             write(6,'(i6)',advance='no') j
+!!             do i = 1, nx-1
+             do i = itest-3, itest+3
+                write(6,'(f10.3)',advance='no') thck(i,j)
+             enddo
+             write(6,*) ' '
+          enddo
+
+          print*, ' '
+          print*, 'topg field, itest, jtest, rank =', itest, jtest, rtest
+!!          do j = ny-1, 1, -1
+          do j = jtest+3, jtest-3, -1
+             write(6,'(i6)',advance='no') j
+!!             do i = 1, nx-1
+             do i = itest-3, itest+3
+                write(6,'(f10.3)',advance='no') topg(i,j)
+             enddo
+             write(6,*) ' '
+          enddo          
+
+          print*, ' '
+          print*, 'f_flotation, itest, jtest, rank =', itest, jtest, rtest
+!!          do j = ny-1, 1, -1
+          do j = jtest+3, jtest-3, -1
+             write(6,'(i6)',advance='no') j
+!!             do i = 1, nx-1
+             do i = itest-3, itest+3
+                write(6,'(e10.3)',advance='no') f_flotation(i,j)
+             enddo
+             write(6,*) ' '
+          enddo          
+
+          print*, ' '
+          print*, 'f_ground field, itest, jtest, rank =', itest, jtest, rtest
+!!          do j = ny-1, 1, -1
+          do j = jtest+3, jtest-3, -1
+             write(6,'(i6)',advance='no') j
+!!             do i = 1, nx-1
+             do i = itest-3, itest+3
+                write(6,'(f10.3)',advance='no') f_ground(i,j)
+             enddo
+             write(6,*) ' '
+          enddo          
+
+       endif  ! verbose_beta
 
        call calcbeta (whichbabc,                        &
                       dx,            dy,                &
                       nx,            ny,                &
-                      uvel_2d,       vvel_2d,           &
+                      ubas,          vbas,              &
                       bwat,          ho_beta_const,     &
                       mintauf,                          &
                       model%basal_physics,              &
                       flwa(nz-1,:,:),                   &  ! basal flwa layer
                       thck,                             &
-                      stagmask,      beta)
+                      stagmask,                         &
+                      beta*tau0/(vel0*scyr),            &  ! external beta (intent in)
+                      beta_internal,                    &  ! beta weighted by f_ground (intent out)
+                      f_ground,                         &
+                      pmp_mask,                         &  ! needed for HO_BABC_BETA_TPMP option
+                      beta_grounded_min)
 
-       call staggered_parallel_halo(beta)
+       call staggered_parallel_halo(beta_internal)
 
        if (verbose_beta) then
-          maxbeta = maxval(beta(:,:))
+          maxbeta = maxval(beta_internal(:,:))
           maxbeta = parallel_reduce_max(maxbeta)
-          minbeta = minval(beta(:,:))
+          minbeta = minval(beta_internal(:,:))
           minbeta = parallel_reduce_min(minbeta)
        endif
 
        if (verbose_beta .and. main_task) then
           print*, ' '
-          print*, 'beta field, rank =', rtest
-          do j = ny-1, 1, -1
-             do i = 1, nx-1
-                write(6,'(e10.3)',advance='no') beta(i,j)
+          print*, 'max, min beta (Pa/(m/yr)) =', maxbeta, minbeta
+       endif
+
+!!       if (verbose_beta .and. this_rank==rtest) then
+       if (verbose_beta .and. this_rank==rtest .and. mod(counter,5)==0) then
+
+          print*, ' '
+          print*, 'Weighted beta field, itest, jtest, rank =', itest, jtest, rtest
+!!          do j = ny-1, 1, -1
+          do j = jtest+3, jtest-3, -1
+             write(6,'(i6)',advance='no') j
+!!             do i = 1, nx-1
+             do i = itest-3, itest+3
+                write(6,'(e10.3)',advance='no') beta_internal(i,j)
              enddo
              write(6,*) ' '
           enddo          
+
           print*, ' '
-          print*, 'max, min beta (Pa/(m/yr)) =', maxbeta, minbeta
-       endif
+          print*, 'Basal uvel field, itest, jtest, rank =', itest, jtest, rtest
+!!          do j = ny-1, 1, -1
+          do j = jtest+3, jtest-3, -1
+             write(6,'(i6)',advance='no') j
+!!             do i = 1, nx-1
+             do i = itest-3, itest+3
+                write(6,'(e10.3)',advance='no') uvel(nz,i,j)
+             enddo
+             write(6,*) ' '
+          enddo          
+
+          print*, ' '
+          print*, 'Basal vvel field, itest, jtest, rank =', itest, jtest, rtest
+!!          do j = ny-1, 1, -1
+          do j = jtest+3, jtest-3, -1
+             write(6,'(i6)',advance='no') j
+!!             do i = 1, nx-1
+             do i = itest-3, itest+3
+                write(6,'(e10.3)',advance='no') vvel(nz,i,j)
+             enddo
+             write(6,*) ' '
+          enddo          
+
+          !TODO - Remove the remaining verbose_beta diagnostics?
+          !       They are not specific to beta but are useful for diagnosing CFL issues.
+          print*, ' '
+          print*, 'Sfc uvel field, itest, jtest, rank =', itest, jtest, rtest
+!!          do j = ny-1, 1, -1
+          do j = jtest+3, jtest-3, -1
+             write(6,'(i6)',advance='no') j
+!!             do i = 1, nx-1
+             do i = itest-3, itest+3
+                write(6,'(e10.3)',advance='no') uvel(1,i,j)
+             enddo
+             write(6,*) ' '
+          enddo          
+
+          print*, ' '
+          print*, 'Sfc vvel field, itest, jtest, rank =', itest, jtest, rtest
+!!          do j = ny-1, 1, -1
+          do j = jtest+3, jtest-3, -1
+             write(6,'(i6)',advance='no') j
+!!             do i = 1, nx-1
+             do i = itest-3, itest+3
+                write(6,'(e10.3)',advance='no') vvel(1,i,j)
+             enddo
+             write(6,*) ' '
+          enddo          
+
+          print*, ' '
+          print*, 'dusrf/dx field, itest, jtest, rank =', itest, jtest, rtest
+!!          do j = ny-1, 1, -1
+          do j = jtest+3, jtest-3, -1
+             write(6,'(i6)',advance='no') j
+!!             do i = 1, nx-1
+             do i = itest-3, itest+3
+                write(6,'(f10.5)',advance='no') dusrf_dx(i,j)
+             enddo
+             write(6,*) ' '
+          enddo          
+
+          print*, ' '
+          print*, 'dusrf_dy field, itest, jtest, rank =', itest, jtest, rtest
+!!          do j = ny-1, 1, -1
+          do j = jtest+3, jtest-3, -1
+             write(6,'(i6)',advance='no') j
+!!             do i = 1, nx-1
+             do i = itest-3, itest+3
+                write(6,'(f10.5)',advance='no') dusrf_dy(i,j)
+             enddo
+             write(6,*) ' '
+          enddo          
+
+          if (whichbabc == HO_BABC_BETA_TPMP) then
+
+             print*, ' '
+             print*, 'stagbedtemp, itest, jtest, rank =', itest, jtest, rtest
+!!             do j = ny-1, 1, -1
+             do j = jtest+3, jtest-3, -1
+                write(6,'(i6)',advance='no') j
+!!                do i = 1, nx-1
+                do i = itest-3, itest+3
+                   write(6,'(f10.3)',advance='no') stagbedtemp(i,j)
+                enddo
+                write(6,*) ' '
+             enddo             
+
+             print*, ' '
+             print*, 'stagbedpmp, itest, jtest, rank =', itest, jtest, rtest
+!!             do j = ny-1, 1, -1
+             do j = jtest+3, jtest-3, -1
+                write(6,'(i6)',advance='no') j
+!!                do i = 1, nx-1
+                do i = itest-3, itest+3
+                   write(6,'(f10.3)',advance='no') stagbedpmp(i,j)
+                enddo
+                write(6,*) ' '
+             enddo             
+
+             print*, ' '
+             print*, 'pmp_mask, itest, jtest, rank =', itest, jtest, rtest
+!!             do j = ny-1, 1, -1
+             do j = jtest+3, jtest-3, -1
+                write(6,'(i6)',advance='no') j
+!!                do i = 1, nx-1
+                do i = itest-3, itest+3
+                   write(6,'(i10)',advance='no') pmp_mask(i,j)
+                enddo
+                write(6,*) ' '
+             enddo             
+
+          endif  ! HO_BABC_BETA_TPMP
+
+          if (whichbabc == HO_BABC_YIELD_PICARD) then
+             print*, ' '
+             print*, 'mintauf field, rank =', rtest
+             do j = ny-1, 1, -1
+                write(6,'(i6)',advance='no') j
+                do i = 1, nx-1
+                   write(6,'(e10.3)',advance='no') mintauf(i,j)
+                enddo
+                write(6,*) ' '
+             enddo
+          endif
+
+          if (whichbabc == HO_BABC_COULOMB_FRICTION .or. &
+              whichbabc == HO_BABC_COULOMB_CONST_BASAL_FLWA) then
+             print*, ' '
+             print*, 'C_space_factor_stag, itest, rank =', itest, rtest
+             do j = ny-1, 1, -1
+                write(6,'(i6)',advance='no') j
+!!                do i = 1, nx-1
+                do i = itest-4, itest+4
+                   write(6,'(f10.3)',advance='no') model%basal_physics%C_space_factor_stag(i,j)
+                enddo
+                write(6,*) ' '
+             enddo
+          endif
+
+       endif   ! verbose_beta
 
        !-------------------------------------------------------------------
        ! Assemble the linear system Ax = b
@@ -1696,36 +2400,141 @@
        
        if (solve_2d) then  ! assemble 2D matrix
 
+          call t_startf('glissade_assemble_2d')
+
           ! save current velocity
           usav_2d(:,:) = uvel_2d(:,:)
           vsav_2d(:,:) = vvel_2d(:,:)
 
+          if (whichapprox==HO_APPROX_DIVA .and. verbose_diva .and. this_rank==rtest) then
+             i = itest
+             j = jtest
+             print*, ' '
+             print*, 'i, j, uvel_2d, vvel_2d, beta_eff, btractx, btracty:',  &
+                      i, j, uvel_2d(i,j), vvel_2d(i,j), beta_eff(i,j), btractx(i,j), btracty(i,j)
+          endif
+
+          ! Assemble the matrix
+          !TODO - Different calls for SSA, L1L2 and DIVA?
+          
           call assemble_stiffness_matrix_2d(nx,               ny,              &
-                                            nz,               sigma,           &
+                                            nz,                                &
+                                            sigma,            stagsigma,       &
                                             nhalo,            active_cell,     &
                                             xVertex,          yVertex,         &
                                             uvel_2d,          vvel_2d,         &
                                             stagusrf,         stagthck,        &
-                                            dusrf_dx,         dusrf_dy,        &
                                             flwa,             flwafact,        &
                                             whichapprox,                       &
                                             whichefvs,        efvs_constant,   &
                                             efvs,                              &
                                             Auu_2d,           Auv_2d,          &
-                                            Avu_2d,           Avv_2d)
-             
-          if (verbose_matrix .and. this_rank==rtest) print*, 'Assembled the stiffness matrix'
+                                            Avu_2d,           Avv_2d,          &
+                                            dusrf_dx,         dusrf_dy,        &
+                                            thck,                              &          
+                                            btractx,          btracty,         &
+                                            omega_k,          omega,   &
+                                            efvs_qp_3d)
 
-          !---------------------------------------------------------------------------
-          ! Incorporate basal sliding boundary conditions
-          !---------------------------------------------------------------------------
+          if (whichapprox == HO_APPROX_DIVA) then
 
-          call basal_sliding_bc(nx,                ny,              &
-                                nNodeNeighbors_2d, nhalo,           &
-                                active_cell,       beta,            &
-                                xVertex,           yVertex,         &
-                                whichassemble_beta,                 &
-                                Auu_2d,            Avv_2d)
+             ! Halo update for omega
+             ! This is needed so that beta_eff, computed below, will be correct in halos
+
+             call parallel_halo(omega)
+
+             ! Interpolate the appropriate integral
+             if (diva_level_index == 0) then   ! solving for 2D mean velocity field
+
+                ! Interpolate omega to the staggered grid
+                call glissade_stagger(nx,           ny,                       &
+                                      omega(:,:),   stag_omega(:,:),  &
+                                      ice_mask,     stagger_margin_in = 1)
+
+             else  ! solving for the velocity at level k (k = 1 at upper surface)
+
+                k = diva_level_index
+
+                call parallel_halo(omega_k(k,:,:))
+
+                call glissade_stagger(nx,              ny,                           &
+                                      omega_k(k,:,:),  stag_omega(:,:),  &
+                                      ice_mask,        stagger_margin_in = 1)
+                
+             endif
+                
+             !-------------------------------------------------------------------
+             ! Compute effective beta based on Goldberg (2011) eq. 40 and 41
+             !
+             ! If solving for the depth-integrated velocity u_mean:
+             !
+             !       beta_eff * u_mean = beta * u_b
+             !
+             ! where beta_eff = beta / (1 + beta*omega)
+             !          omega = int_b^z {[(s-z)/H]^2 * 1/efvs * dz}
+             !   
+             ! If solving for the surface velocity u_sfc:
+             !
+             !       beta_eff * u_sfc = beta * u_b
+             !
+             ! where beta_eff = beta / (1 + beta*omega_1)
+             !        omega_1 = int_b^s {[(s-z)/H] * 1/efvs * dz}
+             !                = omega_k for k = 1
+             !
+             ! To implement a no-slip basal BC, set beta_eff = 1/omega
+             !--------------------------------------------------------------------
+    
+             beta_eff(:,:) = 0.d0
+
+             if (whichbabc == HO_BABC_NO_SLIP) then
+                where (stag_omega > 0.d0) beta_eff = 1.d0 / stag_omega
+             else   ! slip allowed at bed
+                beta_eff(:,:) = beta_internal(:,:) / (1.d0 + beta_internal(:,:)*stag_omega(:,:))
+             endif
+
+             if (verbose_diva .and. this_rank==rtest) then
+                i = itest
+                j = jtest
+                print*, ' '
+                print*, 'uvel, F2, beta_eff, btractx:', uvel_2d(i,j), stag_omega(i,j), beta_eff(i,j), btractx(i,j)
+                print*, 'vvel, btracty:', vvel_2d(i,j), btracty(i,j)
+                print*, ' '
+                print*, 'beta_eff:'
+!!                do j = ny-1, 1, -1
+!!                   do i = 1, nx-1
+                do j = jtest-5, jtest+5, -1
+                   do i = itest-5, itest+5
+                      write(6,'(e10.3)',advance='no') beta_eff(i,j)
+                   enddo
+                   write(6,*) ' '
+                enddo
+             endif
+
+             ! Incorporate basal sliding boundary conditions, based on beta_eff
+
+             call basal_sliding_bc(nx,                ny,              &
+                                   nNodeNeighbors_2d, nhalo,           &
+                                   active_cell,       beta_eff,        &
+                                   xVertex,           yVertex,         &
+                                   whichassemble_beta,                 &
+                                   Auu_2d,            Avv_2d)
+
+          else    ! L1L2, SSA
+
+             ! Incorporate basal sliding boundary conditions, based on beta_internal
+
+             call basal_sliding_bc(nx,                ny,              &
+                                   nNodeNeighbors_2d, nhalo,           &
+                                   active_cell,       beta_internal,   &
+                                   xVertex,           yVertex,         &
+                                   whichassemble_beta,                 &
+                                   Auu_2d,            Avv_2d)
+
+          endif    ! whichapprox (SSA, L1L2, DIVA)
+
+          call t_stopf('glissade_assemble_2d')
+
+          if (verbose_matrix .and. this_rank==rtest) print*, 'Assembled the 2D stiffness matrix'
 
           !---------------------------------------------------------------------------
           ! Set rhs to the load vector
@@ -1737,19 +2546,25 @@
 
           !---------------------------------------------------------------------------
           ! Incorporate Dirichlet boundary conditions (prescribed uvel and vvel)
+          ! Note: With a no-slip BC, umask_dirichlet(nz,:,:) = vmask_dirichlet(nz,:,:) = .true., 
+          !        except for the DIVA scheme.
+          !       For DIVA, the no-slip BC is enforced by setting beta_eff = 1/omega.
           !---------------------------------------------------------------------------
 
           if (verbose_dirichlet .and. main_task) then
              print*, 'Call Dirichlet_bc'
           endif
 
-          call dirichlet_boundary_conditions_2d(nx,              ny,                      &
-                                                nhalo,                                    &
-                                                active_vertex,   umask_dirichlet(nz,:,:), &
-                                                uvel_2d,         vvel_2d,                 &
-                                                Auu_2d,          Auv_2d,                  &
-                                                Avu_2d,          Avv_2d,                  &
-                                                bu_2d,           bv_2d)
+          call t_startf('glissade_dirichlet_2d')
+          call dirichlet_boundary_conditions_2d(nx,                       ny,                      &
+                                                nhalo,                                             &
+                                                active_vertex,                                     &
+                                                umask_dirichlet(nz,:,:),  vmask_dirichlet(nz,:,:), &
+                                                uvel_2d,                  vvel_2d,                 &
+                                                Auu_2d,                   Auv_2d,                  &
+                                                Avu_2d,                   Avv_2d,                  &
+                                                bu_2d,                    bv_2d)
+          call t_stopf('glissade_dirichlet_2d')
 
           !---------------------------------------------------------------------------
           ! Halo updates for matrices
@@ -1824,15 +2639,30 @@
           if (verbose_matrix .and. this_rank==rtest) then
              i = itest
              j = jtest
-             r = rtest
              print*, ' '
-             print*, 'i,j =', i, j
+             print*, 'After assembly and BC, i, j =', i, j
              print*, 'Auu_2d sum =', sum(Auu_2d(:,i,j))
              print*, 'Auv_2d sum =', sum(Auv_2d(:,i,j))
              print*, 'Avu_2d sum =', sum(Avu_2d(:,i,j))
              print*, 'Avv_2d sum =', sum(Avv_2d(:,i,j))
 
+             m = indxA_2d(0,0)  ! diag entry
              print*, ' '
+             print*, 'Matrix row properties, j =', j
+             print*, ' '
+             print*, 'i, diag, max, min, sum:'
+!!             do i = 1, nx-1
+             do i = itest-3, itest+3
+                print*, ' '
+                write(6,'(a8, i4, 4f20.8)') 'Auu_2d:', i, Auu_2d(m,i,j), maxval(Auu_2d(:,i,j)), &
+                                                   minval(Auu_2d(:,i,j)),   sum(Auu_2d(:,i,j))
+                write(6,'(a8, i4, 4f20.8)') 'Auv_2d:', i, Auv_2d(m,i,j), maxval(Auv_2d(:,i,j)), &
+                                                   minval(Auv_2d(:,i,j)),   sum(Auv_2d(:,i,j))
+             enddo
+
+             i = itest
+             j = jtest
+             print*, 'i, j =', i, j
              print*, 'iA, jA, Auu_2d, Auv_2d, Avu_2d, Avv_2d:'
              do jA = -1, 1
                 do iA = -1, 1
@@ -1840,23 +2670,9 @@
                    print*, iA, jA, Auu_2d(m,i,j), Auv_2d(m,i,j), Avu_2d(m,i,j), Avv_2d(m,i,j) 
                 enddo
              enddo
-             
+             print*, ' '
              print*, 'bu_2d =', bu_2d(i,j)
              print*, 'bv_2d =', bv_2d(i,j)
-             
-             j = jtest
-             m = indxA_2d(0,0)  ! diag entry
-             print*, ' '
-             print*, 'Matrix row properties, j =', j
-             print*, ' '
-             print*, 'i, diag, max, min, sum:'
-             do i = 1, nx-1
-                print*, ' '
-                write(6,'(a4, i4, 4f16.8)') 'Auu_2d:', i, Auu_2d(m,i,j), maxval(Auu_2d(:,i,j)), &
-                                                   minval(Auu_2d(:,i,j)),   sum(Auu_2d(:,i,j))
-                write(6,'(a4, i4, 4f16.8)') 'Auv_2d:', i, Auv_2d(m,i,j), maxval(Auv_2d(:,i,j)), &
-                                                   minval(Auv_2d(:,i,j)),   sum(Auv_2d(:,i,j))
-             enddo
              
           endif  ! verbose_matrix
 
@@ -1870,8 +2686,7 @@
           ! Assemble the stiffness matrix A
           !---------------------------------------------------------------------------
 
-          call t_startf('glissade_assemble_stiffness_mat')
-
+          call t_startf('glissade_assemble_3d')
           call assemble_stiffness_matrix_3d(nx,               ny,              &
                                             nz,               sigma,           &
                                             nhalo,            active_cell,     &
@@ -1883,20 +2698,19 @@
                                             efvs_constant,                     &
                                             Auu,              Auv,             &
                                             Avu,              Avv)
+          call t_stopf('glissade_assemble_3d')
           
-          call t_stopf('glissade_assemble_stiffness_mat')
-       
-          if (verbose_matrix .and. this_rank==rtest) print*, 'Assembled the stiffness matrix'
+          if (verbose_matrix .and. this_rank==rtest) print*, 'Assembled the 3D stiffness matrix'
 
           !---------------------------------------------------------------------------
-          ! Incorporate basal sliding boundary conditions
+          ! Incorporate basal sliding boundary conditions, based on beta_internal
           !---------------------------------------------------------------------------
 
           if (whichbabc /= HO_BABC_NO_SLIP) then
 
              call basal_sliding_bc(nx,                  ny,              &
                                    nNodeNeighbors_3d,   nhalo,           &
-                                   active_cell,         beta,            &
+                                   active_cell,         beta_internal,   &
                                    xVertex,             yVertex,         &
                                    whichassemble_beta,                   &
                                    Auu(:,nz,:,:),       Avv(:,nz,:,:))
@@ -1917,14 +2731,17 @@
 
           if (verbose_dirichlet .and. main_task) print*, 'Call Dirichlet_bc'
 
+          call t_startf('glissade_dirichlet_3d')
           call dirichlet_boundary_conditions_3d(nx,              ny,                &
                                                 nz,              nhalo,             &
-                                                active_vertex,   umask_dirichlet,   &
+                                                active_vertex,                      &
+                                                umask_dirichlet, vmask_dirichlet,   &
                                                 uvel,            vvel,              &
                                                 Auu,             Auv,               &
                                                 Avu,             Avv,               &
                                                 bu,              bv)
-
+          call t_stopf('glissade_dirichlet_3d')
+          
           !---------------------------------------------------------------------------
           ! Halo updates for matrices
           !
@@ -1939,7 +2756,7 @@
           !  is communicated to processor A.  If these values are slightly different, 
           !  they will be reconciled by the subroutine check_symmetry_assembled_matrix.
           !---------------------------------------------------------------------------
-     
+          
           call t_startf('glissade_halo_Axxs')
           call staggered_parallel_halo(Auu(:,:,:,:))
           call staggered_parallel_halo(Auv(:,:,:,:))
@@ -2050,7 +2867,7 @@
              
           endif  ! verbose_matrix
 
-       endif  ! whichapprox
+       endif  ! assemble 2d or 3d matrix
 
        !---------------------------------------------------------------------------
        ! If the matrix has no nonzero entries, then set velocities to zero and exit the solver.
@@ -2072,11 +2889,13 @@
                                                  topg,                   &
                                                  flwa,    efvs,          &
                                                  bwat,    mintauf,       &
-                                                 beta,                   &
+                                                 beta_internal,          &
                                                  resid_u, resid_v,       &
                                                  bu,      bv,            &
                                                  uvel,    vvel,          &
+                                                 uvel_2d, vvel_2d,       &
                                                  btractx, btracty,       &
+                                                 taudx,   taudy,         &
                                                  tau_xz,  tau_yz,        &
                                                  tau_xx,  tau_yy,        &
                                                  tau_xy,  tau_eff)
@@ -2091,13 +2910,18 @@
        ! Solve the 2D or 3D matrix system.
        !---------------------------------------------------------------------------
 
-       ! First handle a possible problem case: 
-       ! Set uvel_2d = vvel_2d = 0 for the case of a Dirichlet no-slip basal BC and a 2D solve.
-       ! (This could be the case if solving a no-slip problem with L1L2.)
+       !---------------------------------------------------------------------------
+       ! First, handle a possible problem case: Set uvel_2d = vvel_2d = 0 for the case 
+       !  of a Dirichlet no-slip basal BC and a 2D L1L2 solve.
+       ! It would be pointless to apply the SSA to a no-slip problem, but this case
+       !  is included for completeness.
+       ! Note: DIVA computes a nonzero 2D velocity with a no-slip BC.
+       !---------------------------------------------------------------------------
 
-       if (whichbabc == HO_BABC_NO_SLIP .and. solve_2d) then
+       if ((whichapprox==HO_APPROX_L1L2 .or. whichapprox==HO_APPROX_SSA) .and. &
+              whichbabc==HO_BABC_NO_SLIP) then
 
-          ! zero out
+          ! zero out velocity and related fields
           uvel_2d(:,:) = 0.d0
           vvel_2d(:,:) = 0.d0
           resid_u_2d(:,:) = 0.d0
@@ -2150,7 +2974,7 @@
                                              uvel_2d,      vvel_2d,       &
                                              whichprecond, err,           &
                                              niters,                      &
-                                             itest, jtest, rtest)
+                                             itest, jtest, rtest, verbose_pcg)
 
              else   ! use standard PCG algorithm
              
@@ -2163,7 +2987,7 @@
                                             uvel_2d,      vvel_2d,       &
                                             whichprecond, err,           &
                                             niters,                      &
-                                            itest, jtest, rtest)
+                                            itest, jtest, rtest, verbose_pcg)
 
              endif  ! whichsparse
 
@@ -2201,7 +3025,7 @@
                                              uvel,         vvel,          &
                                              whichprecond, err,           &
                                              niters,                      &
-                                             itest, jtest, rtest)
+                                             itest, jtest, rtest, verbose_pcg)
 
              else   ! use standard PCG algorithm
              
@@ -2214,17 +3038,13 @@
                                             uvel,         vvel,          &
                                             whichprecond, err,           &
                                             niters,                      &
-                                            itest, jtest, rtest)
+                                            itest, jtest, rtest, verbose_pcg)
 
              endif   ! whichsparse
 
           endif      ! whichapprox
 
           call t_stopf('glissade_pcg_slv_struct')
-
-          if (verbose .and. main_task) then
-             print*, 'Solved the linear system, niters, err =', niters, err
-          endif
 
 #ifdef TRILINOS
        elseif (whichsparse == HO_SPARSE_TRILINOS) then   ! solve with Trilinos
@@ -2420,10 +3240,6 @@
                                  err,    niters, whichsparse)
           call t_stopf('glissade_easy_slv')
 
-          if (main_task) then
-             print*, 'Solved the linear system using SLAP, niters, err =', niters, err
-          endif
-
           !------------------------------------------------------------------------
           ! Put the velocity solution back into the uvel and vvel arrays
           !------------------------------------------------------------------------
@@ -2452,6 +3268,13 @@
 
        endif   ! whichsparse 
 
+       if (whichsparse /= HO_SPARSE_TRILINOS) then
+          ! niters isn't set when using the trilinos solver
+          if (main_task) then
+             print*, 'Solved the linear system, niters, err =', niters, err
+          endif
+       end if
+
        if (solve_2d) then
 
           !------------------------------------------------------------------------
@@ -2463,7 +3286,7 @@
           call staggered_parallel_halo(vvel_2d)
           call t_stopf('glissade_halo_xvel')
 
-          if (verbose_state .and. this_rank==rtest) then
+          if (verbose_velo .and. this_rank==rtest) then
              i = itest
              j = jtest
              print*, ' '
@@ -2493,14 +3316,14 @@
           call staggered_parallel_halo(vvel)
           call t_stopf('glissade_halo_xvel')
           
-          if (verbose_state .and. this_rank==rtest) then
+          if (verbose_velo .and. this_rank==rtest) then
              i = itest
              j = jtest
              print*, ' '
              print*, 'rank, i, j:', this_rank, i, j
              print*, 'k, uvel, vvel:'
              do k = 1, nz
-                print*, uvel(k,i,j), vvel(k,i,j)
+                print*, k, uvel(k,i,j), vvel(k,i,j)
              enddo
              print*, ' '
           endif
@@ -2519,7 +3342,47 @@
        endif ! 2D or 3D solve
 
        !---------------------------------------------------------------------------
-       ! Write diagnostics (iteration number, max residual, and location of max residual.
+       ! Some calculations specific to the DIVA scheme
+       !---------------------------------------------------------------------------
+
+       if (whichapprox == HO_APPROX_DIVA) then
+
+          ! Compute the components of basal traction, based on Goldberg (2011) eq. 38-39
+          ! These are needed to compute the effective viscosity on the next iteration
+
+          btractx(:,:) = beta_eff(:,:) * uvel_2d(:,:)
+          btracty(:,:) = beta_eff(:,:) * vvel_2d(:,:)
+
+          ! Interpolate omega_k to the staggered grid
+
+          do k = 1, nz
+             call glissade_stagger(nx,              ny,                           &
+                                   omega_k(k,:,:),  stag_omega_k(k,:,:),  &
+                                   ice_mask,        stagger_margin_in = 1)
+          enddo
+
+          ! Compute the new 3D velocity field
+          ! NOTE: The full velocity field is not needed to update efvs and solve 
+          !       again for uvel_2d and vvel_2D.  However, the basal velocity
+          !       may be needed as an input to calcbeta.  It is possible to
+          !       compute the basal velocity without computing the full column
+          !       velocity, but it is simpler just to compute over the full column.
+
+          call compute_3d_velocity_diva(nx,              ny,                   &
+                                        nz,              sigma,                &
+                                        active_vertex,   diva_level_index,     &
+                                        stag_omega_k,    stag_omega,           &
+                                        btractx,         btracty,              &
+                                        uvel_2d,         vvel_2d,              &
+                                        uvel,            vvel)
+
+          call staggered_parallel_halo(uvel)
+          call staggered_parallel_halo(vvel)
+
+       endif   ! DIVA
+
+       !---------------------------------------------------------------------------
+       ! Write diagnostics (iteration number, max residual, and residual target
        !---------------------------------------------------------------------------
 
        if (main_task) then
@@ -2551,18 +3414,38 @@
 
     call t_stopf('glissade_vhs_nonlinear_loop')
 
-    if (counter < maxiter_nonlinear) converged_soln = .true.
-
-    if (verbose .and. converged_soln) then
+    if (counter < maxiter_nonlinear) then
+       converged_soln = .true.
+!!       if (verbose .and. main_task) then
        if (main_task) then
           print*, ' '
           print*, 'GLISSADE SOLUTION HAS CONVERGED, outer counter =', counter
        endif
+    else
+       converged_soln = .false.
+!!       if (verbose .and. main_task) then
+       if (main_task) then
+          print*, ' '
+          print*, 'GLISSADE SOLUTION HAS NOT CONVERGED: counter, err =', counter, L2_norm
+          !WHL - debug
+!!          stop
+       endif
+    endif
+
+    if (verbose_glp .and. this_rank==rtest) then 
+       print*, ' '
+       print*, 'beta_internal, rank =', rtest
+       do j = jtest+1, jtest-1, -1
+          do i = itest-3, itest+3
+             write(6,'(f10.2)',advance='no') beta_internal(i,j)
+          enddo
+          print*, ' '
+       enddo       
     endif
 
     !------------------------------------------------------------------------------
     ! After a 2D solve, fill in the full 3D velocity arrays.
-    ! This is a simple copy for SSA, but a fairly complex calculation for L1L2. 
+    ! This is a simple copy for SSA, but required vertical integrals for L1L2 and DIVA. 
     ! Note: We store redundant 3D residual info rather than creating a separate 2D residual array.
     !------------------------------------------------------------------------------
 
@@ -2592,16 +3475,55 @@
                                      nhalo,                             &
                                      ice_mask,         land_mask,       &
                                      active_cell,      active_vertex,   &
+                                     umask_dirichlet(nz,:,:),           &
+                                     vmask_dirichlet(nz,:,:),           &
                                      xVertex,          yVertex,         &
                                      thck,             stagthck,        &
                                      usrf,                              &
                                      dusrf_dx,         dusrf_dy,        &
                                      flwa,             efvs,            &
                                      whichgradient_margin,              &
+                                     max_slope,                         &
                                      uvel,             vvel)
 
        call staggered_parallel_halo(uvel)
        call staggered_parallel_halo(vvel)
+
+    elseif (whichapprox == HO_APPROX_DIVA) then
+
+       do k = 1, nz
+          resid_u(k,:,:) = resid_u_2d(:,:)
+          resid_v(k,:,:) = resid_v_2d(:,:)
+       enddo
+
+       !WHL - Commented out because the 3D velocity is now computed after each iteration.
+
+!       ! Interpolate omega_k to the staggered grid
+
+!       do k = 1, nz
+!          call glissade_stagger(nx,              ny,                           &
+!                                omega_k(k,:,:),  stag_omega_k(k,:,:),  &
+!                                ice_mask,        stagger_margin_in = 1)
+!       enddo
+
+!       call compute_3d_velocity_diva(nx,              ny,                   &
+!                                     nz,              sigma,                &
+!                                     active_vertex,   diva_level_index,     &
+!                                     stag_omega_k,    stag_omega,           &
+!                                     btractx,         btracty,              &
+!                                     uvel_2d,         vvel_2d,              &
+!                                     uvel,            vvel)
+
+!       call staggered_parallel_halo(uvel)
+!       call staggered_parallel_halo(vvel)
+
+       if (verbose_diva .and. this_rank==rtest) then
+          print*, 'Computed 3D velocity, DIVA'
+          i = itest
+          j = jtest
+          print*, ' '
+          print*, 'i, j, beta, beta_eff:', i, j, beta_internal(i,j), beta_eff(i,j)
+       endif
 
     endif   ! whichapprox
 
@@ -2631,21 +3553,38 @@
                                         nhalo,         active_cell,   &
                                         xVertex,       yVertex,       &
                                         uvel(nz,:,:),  vvel(nz,:,:),  &
-                                        beta,          bfricflx)
-                                        
+                                        beta_internal, whichassemble_bfric,  &
+                                        bfricflx)
+                         
+    !WHL - debug
+    if (verbose_bfric .and. this_rank==rtest) then
+       print*, ' '
+       print*, 'Basal friction, itest, jtest, rank =', itest, jtest, rtest
+!!          do j = ny-1, 1, -1
+       do j = jtest+3, jtest-3, -1
+          write(6,'(i6)',advance='no') j
+!!             do i = 1, nx-1
+          do i = itest-3, itest+3
+             write(6,'(e10.3)',advance='no') bfricflx(i,j)
+          enddo
+          write(6,*) ' '
+       enddo
+    endif
+
     !------------------------------------------------------------------------------
     ! Compute the components of basal traction.
     !------------------------------------------------------------------------------
 
-    btractx(:,:) = beta(:,:) * uvel(nz,:,:)
-    btracty(:,:) = beta(:,:) * vvel(nz,:,:)
+    btractx(:,:) = beta_internal(:,:) * uvel(nz,:,:)
+    btracty(:,:) = beta_internal(:,:) * vvel(nz,:,:)
 
-    if (verbose_state .and. this_rank==rtest) then
+    ! Debug prints
+    if (verbose_velo .and. this_rank==rtest) then
        print*, ' '
        print*, 'uvel, k=1 (m/yr):'
        do j = ny-nhalo, nhalo+1, -1
           do i = nhalo+1, nx-nhalo
-             write(6,'(f12.7)',advance='no') uvel(1,i,j)
+             write(6,'(f8.2)',advance='no') uvel(1,i,j)
           enddo
           print*, ' '
        enddo
@@ -2654,7 +3593,7 @@
        print*, 'vvel, k=1 (m/yr):'
        do j = ny-nhalo, nhalo+1, -1
           do i = nhalo+1, nx-nhalo
-             write(6,'(f12.7)',advance='no') vvel(1,i,j)
+             write(6,'(f8.2)',advance='no') vvel(1,i,j)
           enddo
           print*, ' '
        enddo       
@@ -2669,7 +3608,8 @@
        do k = 1, nz
           print*, k, uvel(k,i,j), vvel(k,i,j)
        enddo
-    endif
+       if (solve_2d) print*, '2D velo:', uvel_2d(i,j), vvel_2d(i,j)
+    endif  ! verbose_velo
 
     !------------------------------------------------------------------------------
     ! Clean up
@@ -2713,11 +3653,13 @@
                                            topg,                   &
                                            flwa,    efvs,          &
                                            bwat,    mintauf,       &
-                                           beta,                   &
+                                           beta_internal,          &
                                            resid_u, resid_v,       &
                                            bu,      bv,            &
                                            uvel,    vvel,          &
+                                           uvel_2d, vvel_2d,       &
                                            btractx, btracty,       &
+                                           taudx,   taudy,         &
                                            tau_xz,  tau_yz,        &
                                            tau_xx,  tau_yy,        &
                                            tau_xy,  tau_eff)
@@ -2728,14 +3670,17 @@
 
 !****************************************************************************
 
-  subroutine glissade_velo_higher_scale_input(dx,     dy,             &
-                                              thck,   usrf,           &
+  subroutine glissade_velo_higher_scale_input(dx,      dy,            &
+                                              thck,    usrf,          &
                                               topg,                   &
-                                              eus,    thklim,         &
-                                              flwa,   efvs,           &
-                                              bwat,   mintauf,        &
-                                              beta,   ho_beta_const,  &
-                                              uvel,   vvel)
+                                              eus,     thklim,        &
+                                              flwa,    efvs,          &
+                                              bwat,    mintauf,       &
+                                              ho_beta_const,          &
+                                              beta_grounded_min,      &
+                                              btractx, btracty,       &
+                                              uvel,    vvel,          &
+                                              uvel_2d, vvel_2d)
 
     !--------------------------------------------------------
     ! Convert input variables (generally dimensionless)
@@ -2753,7 +3698,8 @@
     real(dp), intent(inout) ::   &
        eus,  &                 ! eustatic sea level (= 0 by default)
        thklim,  &              ! minimum ice thickness for active cells
-       ho_beta_const           ! constant beta value (Pa/(m/yr)) for whichbabc = HO_BABC_CONSTANT
+       ho_beta_const, &        ! constant beta value (Pa/(m/yr)) for whichbabc = HO_BABC_CONSTANT
+       beta_grounded_min       ! minimum beta value (Pa/(m/yr)) for grounded ice
 
     real(dp), dimension(:,:,:), intent(inout) ::  &
        flwa,   &               ! flow factor in units of Pa^(-n) yr^(-1)
@@ -2762,10 +3708,11 @@
     real(dp), dimension(:,:), intent(inout)  ::  &
        bwat,  &                ! basal water depth (m)
        mintauf, &              ! till yield stress (Pa)
-       beta                    ! basal traction parameter (Pa/(m/yr))
+       btractx, btracty,  &    ! components of basal traction (Pa)
+       uvel_2d, vvel_2d        ! components of 2D velocity (m/yr)
 
     real(dp), dimension(:,:,:), intent(inout) ::  &
-       uvel, vvel              ! velocity components (m/yr)
+       uvel, vvel              ! components of 3D velocity (m/yr)
 
     ! grid cell dimensions: rescale from dimensionless to m
     dx = dx * len0
@@ -2790,13 +3737,19 @@
     ! mintauf: rescale from dimensionless to Pa
     mintauf = mintauf * tau0
 
-    ! beta: rescale from dimensionless to Pa/(m/yr)
-    beta = beta * tau0/(vel0*scyr)
+    ! beta_parameters: rescale from dimensionless to Pa/(m/yr)
     ho_beta_const = ho_beta_const * tau0/(vel0*scyr)
+    beta_grounded_min = beta_grounded_min * tau0/(vel0*scyr)
+
+    ! basal traction: rescale from dimensionless to Pa
+    btractx = btractx * tau0
+    btracty = btracty * tau0
 
     ! ice velocity: rescale from dimensionless to m/yr
     uvel = uvel * (vel0*scyr)
     vvel = vvel * (vel0*scyr)
+    uvel_2d = uvel_2d * (vel0*scyr)
+    vvel_2d = vvel_2d * (vel0*scyr)
 
   end subroutine glissade_velo_higher_scale_input
 
@@ -2806,11 +3759,13 @@
                                                topg,                    &
                                                flwa,    efvs,           &                                       
                                                bwat,    mintauf,        &
-                                               beta,                    &
+                                               beta_internal,           &
                                                resid_u, resid_v,        &
                                                bu,      bv,             &
                                                uvel,    vvel,           &
+                                               uvel_2d, vvel_2d,        &
                                                btractx, btracty,        &
+                                               taudx,   taudy,          &
                                                tau_xz,  tau_yz,         &
                                                tau_xx,  tau_yy,         &
                                                tau_xy,  tau_eff)
@@ -2832,15 +3787,17 @@
     real(dp), dimension(:,:), intent(inout)  ::  &
        bwat,  &                 ! basal water depth (m)
        mintauf,  &              ! till yield stress (Pa)
-       beta                     ! basal traction parameter (Pa/(m/yr))
+       beta_internal            ! basal traction parameter (Pa/(m/yr))
 
     real(dp), dimension(:,:,:), intent(inout) ::  &
-       uvel, vvel,    &         ! velocity components (m/yr)
+       uvel, vvel,    &         ! components of 3D velocity (m/yr)
        resid_u, resid_v,  &     ! components of residual Ax - b (Pa/m)
        bu, bv                   ! components of b in Ax = b (Pa/m)
 
     real(dp), dimension(:,:), intent(inout) ::  &
-       btractx, btracty         ! components of basal traction (Pa)
+       uvel_2d, vvel_2d,       &! components of 2D velocity (m/yr)
+       btractx, btracty,       &! components of basal traction (Pa)
+       taudx,   taudy           ! components of driving stress (Pa)
 
     real(dp), dimension(:,:,:), intent(inout) ::  &
        tau_xz, tau_yz,         &! vertical components of stress tensor (Pa)
@@ -2864,12 +3821,14 @@
     ! Convert mintauf from Pa to dimensionless units
     mintauf = mintauf / tau0
 
-    ! Convert beta from Pa/(m/yr) to dimensionless units
-    beta = beta / (tau0/(vel0*scyr))
+    ! Convert beta_internal from Pa/(m/yr) to dimensionless units
+    beta_internal = beta_internal / (tau0/(vel0*scyr))
 
     ! Convert velocity from m/yr to dimensionless units
     uvel = uvel / (vel0*scyr)
     vvel = vvel / (vel0*scyr)
+    uvel_2d = uvel_2d / (vel0*scyr)
+    vvel_2d = vvel_2d / (vel0*scyr)
 
     ! Convert residual and rhs from Pa/m to dimensionless units
     resid_u = resid_u / (tau0/len0)
@@ -2880,6 +3839,8 @@
     ! Convert stresses from Pa to dimensionless units
     btractx = btractx/tau0
     btracty = btracty/tau0
+    taudx   = taudx/tau0
+    taudy   = taudy/tau0
     tau_xz  = tau_xz/tau0
     tau_yz  = tau_yz/tau0
     tau_xx  = tau_xx/tau0
@@ -3051,6 +4012,7 @@
                                  xVertex,          yVertex,         &
                                  stagusrf,         stagthck,        &
                                  dusrf_dx,         dusrf_dy,        &
+                                 whichassemble_taud,                &
                                  loadu,            loadv)
 
     integer, intent(in) ::      &
@@ -3075,6 +4037,10 @@
     real(dp), dimension(nx-1,ny-1), intent(in) ::  &
        dusrf_dx,       &  ! upper surface elevation gradient on staggered grid (m/m)
        dusrf_dy
+
+    integer, intent(in) :: &
+       whichassemble_taud   ! = 0 for standard finite element computation of driving stress terms
+                            ! = 1 for computation that uses only the local value of the driving stress at each node
 
     real(dp), dimension(nz,nx-1,ny-1), intent(inout) ::  &
        loadu, loadv       ! load vector, divided into u and v components
@@ -3155,44 +4121,71 @@
                                                        dphi_dx_3d(:),    dphi_dy_3d(:),    dphi_dz_3d(:),     &
                                                        detJ , i, j, k, p   )
 
-                ! Evaluate dsdx and dsdy at this quadrature point
- 
-                dsdx_qp = 0.d0
-                dsdy_qp = 0.d0
-
-                do n = 1, nNodesPerElement_3d
-                   dsdx_qp = dsdx_qp + phi_3d(n,p) * dsdx(n)
-                   dsdy_qp = dsdy_qp + phi_3d(n,p) * dsdy(n)
-                enddo
-
-                if (verbose_load .and. this_rank==rtest .and. i==itest .and. j==jtest .and. k==ktest) then
-                   print*, ' '
-                   print*, 'Increment load vector, i, j, k, p =', i, j, k, p
-                   print*, 'ds/dx, ds/dy =', dsdx_qp, dsdy_qp
-                   print*, 'detJ/vol0 =', detJ/vol0
-                   print*, 'detJ/vol0* (ds/dx, ds/dy) =', detJ/vol0*dsdx_qp, detJ/vol0*dsdy_qp
-                endif
-
                 ! Increment the load vector with the gravitational contribution from this quadrature point
+                ! The standard finite-element treatment (HO_ASSEMBLE_TAUD_STANDARD) is to take a 
+                !  phi-weighted sum over neighboring vertices.
+                ! For local driving stress (HO_ASSEMBLE_TAUD_LOCAL), use the value at the nearest vertex.
+                ! (Note that vertex numbering is the same as QP numbering, CCW from 1 to 4 on bottom face and from 5 to 8 on top face.)
 
-                do n = 1, nNodesPerElement_3d
+                if (whichassemble_taud == HO_ASSEMBLE_TAUD_LOCAL) then
 
-                   ! Determine (k,i,j) for this node
-                   iNode = i + ishift(7,n)
-                   jNode = j + jshift(7,n)
-                   kNode = k + kshift(7,n)
+                   ! Determine (k,i,j) for the node nearest to this quadrature point
+                   iNode = i + ishift(7,p)
+                   jNode = j + jshift(7,p)
+                   kNode = k + kshift(7,p)
          
-                   loadu(kNode,iNode,jNode) = loadu(kNode,iNode,jNode) - rhoi*grav * wqp_3d(p) * detJ/vol0 * dsdx_qp * phi_3d(n,p)
-                   loadv(kNode,iNode,jNode) = loadv(kNode,iNode,jNode) - rhoi*grav * wqp_3d(p) * detJ/vol0 * dsdy_qp * phi_3d(n,p)
+                   ! Add the ds/dx and ds/dy terms to the load vector for this node                   
+                   loadu(kNode,iNode,jNode) = loadu(kNode,iNode,jNode) - rhoi*grav * detJ/vol0 * dsdx(p)
+                   loadv(kNode,iNode,jNode) = loadv(kNode,iNode,jNode) - rhoi*grav * detJ/vol0 * dsdy(p)
 
                    if (verbose_load .and. this_rank==rtest .and. i==itest .and. j==jtest .and. k==ktest .and. p==ptest) then
                       print*, ' '
-                      print*, 'n, phi_3d(n), delta(loadu), delta(loadv):', n, phi_3d(n,p), &
-                               rhoi*grav*wqp_3d(p)*detJ/vol0 * dsdx_qp * phi_3d(n,p), &
-                               rhoi*grav*wqp_3d(p)*detJ/vol0 * dsdy_qp * phi_3d(n,p)
+                      print*, 'n, delta(loadu), delta(loadv):', n, rhoi*grav*detJ/vol0 * dsdx_qp, &
+                                                                   rhoi*grav*detJ/vol0 * dsdy_qp
                    endif
 
-                enddo   ! nNodesPerElement_3d
+                else   ! standard FE assembly (HO_ASSEMBLE_TAUD_STANDARD)
+
+                   ! Evaluate dsdx and dsdy at this quadrature point
+                   dsdx_qp = 0.d0
+                   dsdy_qp = 0.d0
+                   do n = 1, nNodesPerElement_3d
+                      dsdx_qp = dsdx_qp + phi_3d(n,p) * dsdx(n)
+                      dsdy_qp = dsdy_qp + phi_3d(n,p) * dsdy(n)
+                   enddo
+
+                   if (verbose_load .and. this_rank==rtest .and. i==itest .and. j==jtest .and. k==ktest) then
+                      print*, ' '
+                      print*, 'Increment load vector, i, j, k, p =', i, j, k, p
+                      print*, 'ds/dx, ds/dy =', dsdx_qp, dsdy_qp
+                      print*, 'detJ/vol0 =', detJ/vol0
+                      print*, 'detJ/vol0* (ds/dx, ds/dy) =', detJ/vol0*dsdx_qp, detJ/vol0*dsdy_qp
+                   endif
+
+                   ! Loop over the nodes of the element
+                   do n = 1, nNodesPerElement_3d
+
+                      ! Determine (k,i,j) for this node
+                      iNode = i + ishift(7,n)
+                      jNode = j + jshift(7,n)
+                      kNode = k + kshift(7,n)
+         
+                      ! Add the ds/dx and ds/dy terms to the load vector for this node                   
+                      loadu(kNode,iNode,jNode) = loadu(kNode,iNode,jNode) - &
+                           rhoi*grav * wqp_3d(p) * detJ/vol0 * dsdx_qp * phi_3d(n,p)
+                      loadv(kNode,iNode,jNode) = loadv(kNode,iNode,jNode) - &
+                           rhoi*grav * wqp_3d(p) * detJ/vol0 * dsdy_qp * phi_3d(n,p)
+
+                      if (verbose_load .and. this_rank==rtest .and. i==itest .and. j==jtest .and. k==ktest .and. p==ptest) then
+                         print*, ' '
+                         print*, 'n, phi_3d(n), delta(loadu), delta(loadv):', n, phi_3d(n,p), &
+                                  rhoi*grav*wqp_3d(p)*detJ/vol0 * dsdx_qp * phi_3d(n,p), &
+                                  rhoi*grav*wqp_3d(p)*detJ/vol0 * dsdy_qp * phi_3d(n,p)
+                      endif
+
+                   enddo   ! nNodesPerElement_3d
+
+                endif   ! whichassemble_taud
 
              enddo      ! nQuadPoints_3d
 
@@ -3746,8 +4739,11 @@
 
     do j = nhalo+1, ny-nhalo+1
     do i = nhalo+1, nx-nhalo+1
-       
+
        if (active_cell(i,j)) then
+
+          !WHL - debug
+!!          print*, 'i, j:', i, j
 
           do k = 1, nz-1    ! loop over elements in this column 
                             ! assume k increases from upper surface to bed
@@ -3847,7 +4843,8 @@
           enddo   ! nz  (loop over elements in this column)
 
           if (verbose_efvs .and. this_rank==rtest .and. i==itest .and. j==jtest) then
-             print*, 'i, j =', i, j
+             print*, ' '
+             print*, 'Assembled 3D matrix, i, j =', i, j
              print*, 'k, efvs:'
              do k = 1, nz-1
                 print*, k, efvs(k,i,j)
@@ -3864,27 +4861,30 @@
 !****************************************************************************
 
   subroutine assemble_stiffness_matrix_2d(nx,               ny,              &
-                                          nz,               sigma,           &
+                                          nz,                                &
+                                          sigma,            stagsigma,       &
                                           nhalo,            active_cell,     &
                                           xVertex,          yVertex,         &
-                                          uvel,             vvel,            &
+                                          uvel_2d,          vvel_2d,         &
                                           stagusrf,         stagthck,        &
-                                          dusrf_dx,         dusrf_dy,        &
                                           flwa,             flwafact,        &
                                           whichapprox,                       &
                                           whichefvs,        efvs_constant,   &
                                           efvs,                              &
                                           Auu,              Auv,             &
-                                          Avu,              Avv)
-
+                                          Avu,              Avv,             &
+                                          dusrf_dx,         dusrf_dy,        &
+                                          thck,                              &
+                                          btractx,          btracty,         &
+                                          omega_k,          omega,   &
+                                          efvs_qp_3d)
+  
     !----------------------------------------------------------------
     ! Assemble the stiffness matrix A in the linear system Ax = b.
     ! This subroutine is called for each nonlinear iteration if
     !  we are iterating on the effective viscosity.
-    ! A can be based on either the shallow-shelf approximation or 
-    !  the higher-order, vertically integrated L1L2 approximation 
-    !  (Schoof and Hindmarsh, 2010).  The main difference between SSA and
-    !  L1L2 is in the computation of the effective viscosity.
+    ! The matrix A can be based on the shallow-shelf approximation or 
+    !  the depth-integrated L1L2 approximation (Schoof and Hindmarsh, 2010).
     !----------------------------------------------------------------
  
     !----------------------------------------------------------------
@@ -3900,6 +4900,9 @@
     real(dp), dimension(nz), intent(in) ::    &
        sigma              ! sigma vertical coordinate
 
+    real(dp), dimension(nz-1), intent(in) ::    &
+       stagsigma          ! staggered sigma vertical coordinate
+
     logical, dimension(nx,ny), intent(in) ::  &
        active_cell        ! true if cell contains ice and borders a locally owned vertex
 
@@ -3907,15 +4910,11 @@
        xVertex, yVertex   ! x and y coordinates of vertices
 
     real(dp), dimension(nx-1,ny-1), intent(in) ::  &
-       uvel, vvel         ! velocity components (m/yr)
+       uvel_2d, vvel_2d   ! 2D velocity components (m/yr)
 
     real(dp), dimension(nx-1,ny-1), intent(in) ::  &
        stagusrf,       &  ! upper surface elevation on staggered grid (m)
        stagthck           ! ice thickness on staggered grid (m)
-
-    real(dp), dimension(nx-1,ny-1), intent(in) ::  &
-       dusrf_dx,       &  ! upper surface elevation gradient on staggered grid (m/m)
-       dusrf_dy           ! needed for L1L2 only
 
     !TODO - Pass in flwa and compute flwafact here?
     real(dp), dimension(nz-1,nx,ny), intent(in) ::  &
@@ -3936,6 +4935,30 @@
     real(dp), dimension(nNodeNeighbors_2d,nx-1,ny-1), intent(out) ::  &
        Auu, Auv,    &     ! assembled stiffness matrix, divided into 4 parts
        Avu, Avv                                    
+
+    ! The following optional arguments are used for the L1L2 approximation only
+
+    real(dp), dimension(nx-1,ny-1), intent(in), optional ::  &
+       dusrf_dx,       &  ! upper surface elevation gradient on staggered grid (m/m)
+       dusrf_dy           ! needed for L1L2 assembly only
+
+    ! The following optional arguments are used for DIVA only
+
+    real(dp), dimension(nx,ny), intent(in), optional ::   &
+       thck               ! ice thickness (m)
+
+    real(dp), dimension(nx-1,ny-1), intent(in), optional ::   &
+       btractx, btracty         ! components of basal traction (Pa)
+
+    real(dp), dimension(nz,nx,ny), intent(out), optional :: &
+       omega_k            ! single integral, defined by Goldberg (2011) eq. 32
+
+    real(dp), dimension(nx,ny), intent(out), optional :: &
+       omega              ! double integral, defined by Goldberg (2011) eq. 35
+                          ! Note: omega here = Goldberg's omega/H
+
+    real(dp), dimension(nz-1,nQuadPoints_2d,nx,ny), intent(inout), optional ::  &
+       efvs_qp_3d         ! effective viscosity (Pa yr)
 
     !---------------------------------------------------------
     ! Local variables
@@ -3975,22 +4998,22 @@
                           ! Kvu may not be needed if matrix is symmetric, but is included for now
 
     real(dp), dimension(nNodesPerElement_2d) ::     &
-       x, y,            & ! Cartesian coordinates of nodes
-       u, v,            & ! u and v at nodes
-       h,               & ! thickness at nodes
-       s,               & ! upper surface elevation at nodes
-       dsdx, dsdy         ! upper surface elevation gradient at nodes (L1L2 only)
-  
+       x, y,            & ! Cartesian coordinates of vertices
+       u, v,            & ! depth-integrated mean velocity at vertices (m/yr)
+       h,               & ! thickness at vertices (m)
+       s,               & ! upper surface elevation at vertices (m)
+       bx, by,          & ! basal traction at vertices (Pa) (DIVA only)
+       dsdx, dsdy         ! upper surface elevation gradient at vertices (m/m) (L1L2 only)
+
     real(dp), dimension(nQuadPoints_2d) ::    &
        efvs_qp_vertavg    ! vertically averaged effective viscosity at a quad pt
 
-    ! these are for L1L2 only
+    real(dp) ::         &
+       h_qp               ! thickness at a quad pt
+
     real(dp), dimension(nz-1,nQuadPoints_2d) ::    &
        efvs_qp            ! effective viscosity at each layer in a cell column
                           ! corresponding to a quad pt
-
-    real(dp) ::         &
-       h_qp               ! thickness at a quad pt
 
     logical, parameter ::   &
        check_symmetry_element = .true.  ! if true, then check symmetry of element matrix
@@ -4038,8 +5061,8 @@
           Kvu(:,:) = 0.d0
           Kvv(:,:) = 0.d0
   
-          ! compute spatial coordinates, velocity, and upper surface elevation for each node
-
+          ! Compute spatial coordinates, velocity, thickness and surface elevation for each vertex
+          ! Also compute surface elevation gradient (for L1L2) and basal traction (for DIVA)
           do n = 1, nNodesPerElement_2d
 
              ! Determine (i,j) for this vertex
@@ -4050,16 +5073,24 @@
 
              x(n) = xVertex(iVertex,jVertex)
              y(n) = yVertex(iVertex,jVertex)
-             u(n) = uvel(iVertex,jVertex)
-             v(n) = vvel(iVertex,jVertex)
+             u(n) = uvel_2d(iVertex,jVertex)
+             v(n) = vvel_2d(iVertex,jVertex)
              s(n) = stagusrf(iVertex,jVertex)
              h(n) = stagthck(iVertex,jVertex)
-             dsdx(n) = dusrf_dx(iVertex,jVertex)
-             dsdy(n) = dusrf_dy(iVertex,jVertex)
+             if (present(dusrf_dx) .and. present(dusrf_dy)) then  ! L1L2
+                dsdx(n) = dusrf_dx(iVertex,jVertex)
+                dsdy(n) = dusrf_dy(iVertex,jVertex)
+             endif
+             if (present(btractx) .and. present(btracty)) then    ! DIVA
+                bx(n) = btractx(iVertex,jVertex)
+                by(n) = btracty(iVertex,jVertex)
+             endif
 
              if (verbose_matrix .and. this_rank==rtest .and. i==itest .and. j==jtest) then
+                print*, ' '
                 print*, 'i, j, n, x, y:', i, j, n, x(n), y(n)
-                print*, 's, u, v:', s(n), u(n), v(n)
+                print*, 's, h, u, v:', s(n), h(n), u(n), v(n)
+                if (present(btractx) .and. present(btracty)) print*, 'bx, by:', bx(n), by(n)
              endif
 
           enddo   ! vertices per element
@@ -4072,19 +5103,16 @@
 
              !WHL - Pass in i, j and p to the following subroutines for debugging
 
-!          call t_startf('glissade_basis_function_derivs')
              call get_basis_function_derivatives_2d(x(:),             y(:),          &
                                                     dphi_dxr_2d(:,p), dphi_dyr_2d(:,p), &
                                                     dphi_dx_2d(:),    dphi_dy_2d(:),    &
                                                     detJ(p) , i, j, p)
              dphi_dz_2d(:) = 0.d0
-!          call t_stopf('glissade_basis_function_derivs')
-
-!          call t_startf('glissade_effective_viscosity')
 
              if (whichapprox == HO_APPROX_L1L2) then
 
                 ! Compute effective viscosity for each layer at this quadrature point
+                !TODO - sigma -> stagsigma for L1L2 viscosity?
                 call compute_effective_viscosity_L1L2(whichefvs,            efvs_constant,     &
                                                       nz,                   sigma,             &
                                                       nNodesPerElement_2d,  phi_2d(:,p),       &
@@ -4102,6 +5130,33 @@
                    efvs_qp_vertavg(p) = efvs_qp_vertavg(p) + efvs_qp(k,p) * (sigma(k+1) - sigma(k))
                 enddo
 
+             elseif (whichapprox == HO_APPROX_DIVA) then
+
+                ! Copy efvs_qp from global array to local column array
+                efvs_qp(:,:) = efvs_qp_3d(:,:,i,j)
+
+                ! Compute effective viscosity for each layer at this quadrature point
+                ! Note: efvs_qp_3d is intent(inout); old value is used to compute new value
+                call compute_effective_viscosity_diva(whichefvs,            efvs_constant,     &
+                                                      nz,                   stagsigma,         &
+                                                      nNodesPerElement_2d,  phi_2d(:,p),       &
+                                                      dphi_dx_2d(:),        dphi_dy_2d(:),     &
+                                                      u(:),                 v(:),              & 
+                                                      bx(:),                by(:),             &
+                                                      h(:),                                    &
+                                                      flwa(:,i,j),          flwafact(:,i,j),   &
+                                                      efvs_qp(:,p),                            &
+                                                      i, j, p)
+
+                !WHL - Copy local efvs_qp to the global array
+                efvs_qp_3d(:,:,i,j) = efvs_qp(:,:)
+
+                ! Compute vertical average of effective viscosity
+                efvs_qp_vertavg(p) = 0.d0
+                do k = 1, nz-1
+                   efvs_qp_vertavg(p) = efvs_qp_vertavg(p) + efvs_qp(k,p)*(sigma(k+1) - sigma(k))
+                enddo
+
              else     ! SSA
 
                 ! Compute vertically averaged effective viscosity at this quadrature point
@@ -4117,8 +5172,6 @@
 
              endif    ! whichapprox
 
-!          call t_stopf('glissade_effective_viscosity')
-
              ! Compute ice thickness at this quadrature point
 
              h_qp = 0.d0
@@ -4130,7 +5183,6 @@
              ! Note: The effective viscosity is multiplied by thickness since the equation to be solved
              !       is vertically integrated.
 
-!          call t_startf('glissade_increment_element_stiffness')
              call compute_element_matrix(whichapprox,     nNodesPerElement_2d,               & 
                                          wqp_2d(p),       detJ(p),                           &
                                          h_qp*efvs_qp_vertavg(p),                            &
@@ -4138,12 +5190,21 @@
                                          Kuu(:,:),        Kuv(:,:),                          &
                                          Kvu(:,:),        Kvv(:,:),                          &
                                          i, j, 1, p )
-!          call t_stopf('glissade_increment_element_stiffness')
 
           enddo   ! nQuadPoints_2d
 
+          if (whichapprox == HO_APPROX_DIVA) then
+
+             ! Compute vertical integrals needed for the 2D solve and 3D velocity reconstruction
+             call compute_integrals_diva(nz,               sigma,                &
+                                         thck(i,j),        efvs_qp(:,:),  &
+                                         omega_k(:,i,j),   omega(i,j),           &
+                                         i, j)
+
+          endif
+
           ! Compute average of effective viscosity over quad points
-          ! For L1L2 there is a different efvs in each layer.
+          ! For L1L2 and DIVA there is a different efvs in each layer.
           ! For SSA, simply write the vertical average value to each layer.
 
           efvs(:,i,j) = 0.d0
@@ -4159,8 +5220,6 @@
                                                 Kuu, Kuv, Kvu, Kvv)
           endif
 
-!          call t_startf('glissade_element_to_global')
-
           ! Sum the terms of element matrix K into the dense assembled matrix A
 
           call element_to_global_matrix_2d(nx,           ny,        &
@@ -4170,10 +5229,9 @@
                                            Auu,          Auv,       &
                                            Avu,          Avv)
 
-!          call t_stopf('glissade_element_to_global')
-
           if (verbose_efvs .and. this_rank==rtest .and. i==itest .and. j==jtest) then
-             print*, 'i, j =', i, j
+             print*, ' '
+             print*, 'Assembled 2D matrix, i, j =', i, j
              print*, 'k, efvs:'
              do k = 1, nz-1
                 print*, k, efvs(k,i,j)
@@ -4189,18 +5247,252 @@
 
 !****************************************************************************
 
+! For now, passing in i and j for debugging
+
+  subroutine compute_integrals_diva(nz,        sigma,         & 
+                                    thck,      efvs_qp,       &
+                                    omega_k,   omega,   i, j)
+
+    !----------------------------------------------------------------
+    ! Compute some integrals used by the DIVA solver to relate velocities
+    ! in different parts of the column:
+    !
+    !    F1(z) = int_b^z {[(s-z)/H] * 1/efvs * dz}
+    !    F2    = int_b^s {[(s-z)/H]^2 * 1/efvs * dz}
+    !          = int_b^s {F1(z)/H * dz}
+    !
+    ! Because efvs is highly nonlinear and appears in the denominator,
+    ! it should be more accurate to compute the integral at each quadrature
+    ! point and then average to the cell center, rather than average efvs 
+    ! to the cell center and then integrate.
+    !----------------------------------------------------------------
+
+    !----------------------------------------------------------------
+    ! Input-output arguments
+    !----------------------------------------------------------------
+
+    integer, intent(in) ::    &
+       nz                 ! number of vertical levels at which velocity is computed
+
+    real(dp), dimension(nz), intent(in) ::    &
+       sigma              ! sigma vertical coordinate
+
+    real(dp), intent(in) ::  &
+       thck               ! ice thickness (m)
+
+    real(dp), dimension(nz-1,nQuadPoints_2d), intent(in) ::  &
+       efvs_qp            ! effective viscosity (Pa yr) at each quad point in each layer
+
+    real(dp), dimension(nz), intent(out) :: &
+       omega_k            ! single integral, defined by Goldberg (2011) eq. 32
+
+    real(dp), intent(out) :: &
+       omega              ! double integral, defined by Goldberg (2011) eq. 35
+                          ! Note: omega here = Goldberg's omega/H
+
+    integer, intent(in) :: i, j   ! temporary, for debugging
+
+    !---------------------------------------------------------
+    ! Local variables
+    !---------------------------------------------------------
+
+    integer :: k, p
+
+    real(dp), dimension(nz,nQuadPoints_2d) :: &
+       omega_kp   ! omega_k in a column associated with a quad point
+
+    real(dp) :: &
+       layer_avg, dz, depth
+
+    !WHL - debug
+    real(dp), dimension(nz) :: fact_k
+
+    omega_k(:) = 0.d0
+    omega = 0.d0
+
+    ! Compute omega_k in the vertical column at each quad point
+    do p = 1, nQuadPoints_2d
+       omega_kp(nz,p) = 0.d0
+       do k = nz-1, 1, -1
+!!          depth = 0.5d0*(sigma(k)+sigma(k+1))/thck
+          depth = 0.5d0*(sigma(k)+sigma(k+1))   ! depth/thck
+          dz = (sigma(k+1)-sigma(k)) * thck
+          omega_kp(k,p) = omega_kp(k+1,p) + depth/efvs_qp(k,p) * dz
+       enddo
+    enddo
+
+    ! Average from quad points to the cell center
+    do k = 1, nz
+       omega_k(k) = sum(omega_kp(k,:)) / nQuadPoints_2d
+    enddo
+
+    ! Integrate omega_k in the vertical to obtain omega
+    omega = 0.d0
+    do k = 1, nz-1
+       layer_avg = 0.5d0*(omega_k(k) + omega_k(k+1))
+!!       dz = (sigma(k+1)-sigma(k)) * thck 
+       dz = sigma(k+1)-sigma(k)  ! dz/thck
+       omega = omega + layer_avg * dz
+    enddo
+             
+    if (verbose_diva .and. this_rank==rtest .and. i==itest .and. j==jtest) then
+       print*, ' '
+       print*, 'DIVA integrals, i, j =', i, j
+       print*, 'k, integral_k:'
+       do k = 1, nz
+          print*, k, omega_k(k)
+       enddo
+       print*, 'omega =', omega
+    endif
+
+    !TODO - Test results further with this integral
+    !Note - The following code computes the integral Arthern-style.
+    !       The resulting omega can vary by ~50%, but code answers change little.
+
+    do p = 1, nQuadPoints_2d
+       omega_kp(nz,p) = 0.d0
+       do k = 1, nz-1
+          depth = 0.5d0*(sigma(k)+sigma(k+1))   ! depth/thck
+          dz = (sigma(k+1)-sigma(k)) * thck
+          omega_kp(k,p) = omega_kp(k+1,p) + depth**2/efvs_qp(k,p) * dz
+       enddo
+    enddo
+
+    ! Average from quad points to the cell center
+    do k = 1, nz
+       fact_k(k) = sum(omega_kp(k,:)) / nQuadPoints_2d
+    enddo
+!!    omega = fact_k(1)  ! Uncomment to use Arthern value of omega
+    
+!    if (verbose_diva .and. this_rank==rtest .and. i==itest .and. j==jtest) then
+!       print*, ' '
+!       print*, 'Arthern integrals, i, j =', i, j
+!       print*, 'k, fact_k:'
+!       do k = 1, nz
+!          print*, k, fact_k(k)
+!       enddo
+!       print*, 'omega =', omega
+!    endif
+
+  end subroutine compute_integrals_diva
+
+!****************************************************************************
+
+  subroutine compute_3d_velocity_diva(nx,               ny,                 &
+                                      nz,               sigma,              &
+                                      active_vertex,    diva_level_index,   &  
+                                      stag_omega_k,     stag_omega,         &
+                                      btractx,          btracty,            &
+                                      uvel_2d,          vvel_2d,            &
+                                      uvel,             vvel)
+    
+    !----------------------------------------------------------------
+    ! Compute the 3D velocity field for the DIVA scheme,
+    ! given the 2D velocity solution and the 3D effective viscosity.
+    !----------------------------------------------------------------
+
+    !----------------------------------------------------------------
+    ! Input-output arguments
+    !----------------------------------------------------------------
+
+    integer, intent(in) ::      &
+       nx, ny,                  &    ! horizontal grid dimensions
+       nz                            ! number of vertical levels at which velocity is computed
+
+    real(dp), dimension(nz), intent(in) ::    &
+       sigma              ! sigma vertical coordinate
+
+    logical, dimension(nx-1,ny-1), intent(in) ::  &
+       active_vertex      ! true for vertices of active cells
+
+    integer, intent(in) ::   &
+       diva_level_index   ! level for which the DIVA scheme finds the 2D velocity
+                          ! 0 = mean, 1 = upper surface
+
+    real(dp), dimension(nz,nx-1,ny-1), intent(in) ::  &
+       stag_omega_k       ! single integral, defined by Goldberg eq. 32 (m^2/(Pa yr))
+                          ! interpolated to staggered grid
+
+    real(dp), dimension(nx-1,ny-1), intent(in) ::  &
+       stag_omega,       &! double integral, defined by Goldberg eq. 35 (m^2/(Pa yr))
+                          ! interpolated to staggered grid
+                          ! Note: omega here = Goldberg's omega/H
+       btractx, btracty, &! components of basal traction (Pa)
+       uvel_2d, vvel_2d   ! depth-integrated mean velocity; solution of 2D velocity solve (m/yr)
+                            
+    real(dp), dimension(nz,nx-1,ny-1), intent(inout) ::  &
+       uvel, vvel         ! 3D velocity components (m/yr)
+
+    ! Local variables
+
+    integer :: i, j, k
+
+    real(dp), dimension(nx-1,ny-1) ::  &
+         stag_integral         ! integral that relates bed velocity to uvel_2d/vvel_2d
+                               ! = stag_omega for diva_level_index = 0
+                               ! = stag_omega_k(k,:,:) for other values of diva_level_index
+
+    ! Identify the appropriate integral for relating uvel_2d/vvel_2d to the bed velocity
+
+    if (diva_level_index == 0) then  ! solved for mean velocity
+       stag_integral(:,:) = stag_omega(:,:)
+    else
+       k = diva_level_index
+       stag_integral(:,:) = stag_omega_k(k,:,:)
+    endif
+
+    !----------------------------------------------------------------
+    ! Compute the 3D velocity field
+    !----------------------------------------------------------------
+
+    do j = 1, ny-1
+       do i = 1, nx-1
+          if (active_vertex(i,j)) then
+
+             ! basal velocity (Goldberg eq. 34)
+             uvel(nz,i,j) = uvel_2d(i,j) - btractx(i,j)*stag_integral(i,j) 
+             vvel(nz,i,j) = vvel_2d(i,j) - btracty(i,j)*stag_integral(i,j) 
+         
+             ! vertical velocity profile (Goldberg eq. 32)
+             do k = 1, nz-1
+                uvel(k,i,j) = uvel(nz,i,j) + btractx(i,j)*stag_omega_k(k,i,j)
+                vvel(k,i,j) = vvel(nz,i,j) + btracty(i,j)*stag_omega_k(k,i,j)
+             enddo
+
+          endif   ! active_vertex
+       enddo      ! i
+    enddo         ! j
+
+    if (verbose_diva .and. this_rank==rtest) then
+       print*, ' '
+       i = itest
+       j = jtest
+       print*, 'Computed 3D velocities, i, j =', i, j
+       print*, 'k, uvel, vvel:'
+       do k = 1, nz
+          print*, k, uvel(k,i,j), vvel(k,i,j)
+       enddo
+       print*, ' '
+    endif
+       
+  end subroutine compute_3d_velocity_diva
+
+!****************************************************************************
+
   subroutine compute_3d_velocity_L1L2(nx,               ny,              &
                                       nz,               sigma,           &
                                       dx,               dy,              &
                                       nhalo,                             &
                                       ice_mask,         land_mask,       &
                                       active_cell,      active_vertex,   &
+                                      umask_dirichlet,  vmask_dirichlet, &
                                       xVertex,          yVertex,         &
                                       thck,             stagthck,        &
                                       usrf,                              &
                                       dusrf_dx,         dusrf_dy,        &
                                       flwa,             efvs,            &
                                       whichgradient_margin,              &
+                                      max_slope,                         &
                                       uvel,             vvel)
 
     !----------------------------------------------------------------
@@ -4237,6 +5529,10 @@
     real(dp), dimension(nx-1,ny-1), intent(in) ::   &
        xVertex, yVertex   ! x and y coordinates of vertices
 
+    integer, dimension(nx-1,ny-1), intent(in) ::  &
+       umask_dirichlet,  &! Dirichlet mask for u velocity, = 1 for prescribed velo, else = 0
+       vmask_dirichlet    ! Dirichlet mask for v velocity, = 1 for prescribed velo, else = 0
+
     real(dp), dimension(nx,ny), intent(in) ::  &
        thck,             &! ice thickness at cell centers (m)
        usrf               ! upper surface elevation at cell centers (m)
@@ -4255,6 +5551,9 @@
                                 ! 0 = include all neighbor cells in gradient calculation
                                 ! 1 = include ice-covered and/or land cells
                                 ! 2 = include ice-covered cells only
+
+    real(dp), intent(in) ::  &
+       max_slope          ! maximum slope allowed for surface gradient computations (unitless)
 
     real(dp), dimension(nz,nx-1,ny-1), intent(inout) ::  &
        uvel, vvel         ! velocity components (m/yr)
@@ -4304,9 +5603,11 @@
                                  ! = tau_parallel^2 + tau_perp^2 for L1L2
        fact                      ! factor in velocity integral
 
-    real(dp), dimension(nx-1,ny-1) ::  &
-       dusrf_dx_edge,         &  ! upper surface elevation gradient at cell edges (m/m)
-       dusrf_dy_edge
+    real(dp), dimension(nx-1,ny) ::  &
+       dusrf_dx_edge             ! x gradient of upper surface elevation at cell edges (m/m)
+
+    real(dp), dimension(nx,ny-1) ::  &
+       dusrf_dy_edge             ! y gradient of upper surface elevation at cell edges (m/m)
 
     integer :: i, j, k, n
 
@@ -4548,13 +5849,14 @@
        uedge(:,:) = 0.d0
        vedge(:,:) = 0.d0
 
-       call glissade_edge_gradient(nx,               ny,                &
-                                   dx,               dy,                &
-                                   usrf,                                &
-                                   dusrf_dx_edge,    dusrf_dy_edge,     &
-                                   gradient_margin_in = whichgradient_margin, &
-                                   ice_mask = ice_mask,                 &
-                                   land_mask = land_mask)
+       call glissade_gradient_at_edges(nx,               ny,                &
+                                       dx,               dy,                &
+                                       usrf,                                &
+                                       dusrf_dx_edge,    dusrf_dy_edge,     &
+                                       gradient_margin_in = whichgradient_margin, &
+                                       ice_mask = ice_mask,                 &
+                                       land_mask = land_mask,               &
+                                       max_slope = max_slope)
     endif
 
     if (verbose_L1L2 .and. this_rank==rtest) then
@@ -4630,16 +5932,27 @@
           ! Average edge velocities to vertices and add to ubas                                                                                                   
           ! Do this for locally owned vertices only
           ! (Halo update is done at a higher level after returning)
-
+          ! Note: Currently do not support Dirichlet BC with depth-varying velocity
+          
           do j = nhalo+1, ny-nhalo
           do i = nhalo+1, nx-nhalo
 
-             uvel(k,i,j) = uvel(nz,i,j) + (uedge(i,j) + uedge(i,j+1)) / 2.d0
-             vvel(k,i,j) = vvel(nz,i,j) + (vedge(i,j) + vedge(i+1,j)) / 2.d0
+             if (umask_dirichlet(i,j) == 1) then
+                uvel(k,i,j) = uvel(nz,i,j)
+             else
+                uvel(k,i,j) = uvel(nz,i,j) + (uedge(i,j) + uedge(i,j+1)) / 2.d0
+             endif
+
+             if (vmask_dirichlet(i,j) == 1) then
+                vvel(k,i,j) = vvel(nz,i,j)
+             else
+                vvel(k,i,j) = vvel(nz,i,j) + (vedge(i,j) + vedge(i+1,j)) / 2.d0
+             endif
 
              if (verbose_L1L2 .and. this_rank==rtest .and. i==itest .and. j==jtest) then
                 print*, k, uvel(k,i,j), vvel(k,i,j)
              endif
+
           enddo
           enddo
 
@@ -4651,8 +5964,6 @@
 
              if (active_vertex(i,j)) then
 
-                ! compute velocity components at this level
-
                 tau_eff_sq = stagtau_parallel_sq(i,j)   &
                            + tau_xz(k,i,j)**2 + tau_yz(k,i,j)**2
 
@@ -4660,8 +5971,19 @@
                 !       only for gn = 3 (in which case (n-1)/2 = 1).
                 fact = 2.d0 * stagflwa(i,j) * tau_eff_sq**((gn-1.d0)/2.d0) * (sigma(k+1) - sigma(k))*stagthck(i,j)
 
-                uvel(k,i,j) = uvel(k+1,i,j) + fact * tau_xz(k,i,j)
-                vvel(k,i,j) = vvel(k+1,i,j) + fact * tau_yz(k,i,j)
+                ! reset velocity to prescribed basal value if Dirichlet condition applies
+                ! else compute velocity at this level 
+                if (umask_dirichlet(i,j) == 1) then
+                   uvel(k,i,j) = uvel(nz,i,j)
+                else
+                   uvel(k,i,j) = uvel(k+1,i,j) + fact * tau_xz(k,i,j)
+                endif
+
+                if (vmask_dirichlet(i,j) == 1) then
+                   vvel(k,i,j) = vvel(nz,i,j)
+                else
+                   vvel(k,i,j) = vvel(k+1,i,j) + fact * tau_yz(k,i,j)
+                endif
 
                 if (verbose_L1L2 .and. this_rank==rtest .and. i==itest .and. j==jtest) then
                    print*, k, uvel(k,i,j), vvel(k,i,j)
@@ -5079,7 +6401,8 @@
                                             nhalo,         active_cell,   &
                                             xVertex,       yVertex,       &
                                             uvel,          vvel,          &
-                                            beta,          bfricflx)
+                                            beta,          whichassemble_bfric,  &
+                                            bfricflx)
 
     !----------------------------------------------------------------
     ! Compute the heat flux due to basal friction, given the 2D basal
@@ -5093,6 +6416,16 @@
     ! The frictional heat flux (W/m^2) is given by q_b = tau_b * u_b,
     ! where tau_b and u_b are the magnitudes of the basal stress
     ! and velocity (e.g., Cuffey & Paterson, p. 418).
+    !
+    ! Note: There is a choice of two methods for this calculation:
+    !       (0) a finite-element method, summing over beta*(u^2 + v^2) at quadrature points
+    !       (1) a simple method, computing beta*(u^2 + v^2) at vertices
+    !       Method (0) should formally be more accurate, at least where the flow is smooth.
+    !       However, it can lead to inaccurate and hugely excessive frictional fluxes where
+    !        the flow transitions steeply from high beta/low velo to low beta/high velo
+    !        (e.g., at the edge of fjords). In this case there are QPs with relatively
+    !        high velocity combined with large beta. 
+    !       To choose method (1), set which_ho_assemble_bfric = 1 in the config file.
     !----------------------------------------------------------------
 
     !----------------------------------------------------------------
@@ -5112,6 +6445,11 @@
     real(dp), dimension(nx-1,ny-1), intent(in) :: &
        uvel, vvel,          & ! basal velocity components at each vertex (m/yr)
        beta                   ! basal traction parameter (Pa/(m/yr))
+                              ! typically = beta_internal (beta weighted by f_ground)
+
+    integer, intent(in) ::  &
+       whichassemble_bfric    ! = 0 for standard finite element computation of basal friction
+                              ! = 1 for computation that uses only the local value of the basal friction at each vertex
 
     real(dp), dimension(nx,ny), intent(out) :: &
        bfricflx               ! basal heat flux from friction (W/m^2)
@@ -5133,78 +6471,110 @@
        beta_qp,         & ! beta at quadrature points
        sum_wqp            ! sum of weighting factors
 
+    logical, parameter :: bfricflx_finite_element = .false.  ! if true, do a finite-element summation
+                                                             ! if false, take beta*(u^2 + v^2) at active vertices
+                                                             ! (see comments above)
     ! initialize
     bfricflx(:,:) = 0.d0
 
-    ! Loop over local cells
-    do j = nhalo+1, ny-nhalo
-    do i = nhalo+1, nx-nhalo
+    if (whichassemble_bfric == HO_ASSEMBLE_BFRIC_STANDARD) then
+
+       ! do finite-element calculation (can be inaccurate at sharp transitions in beta and velocity)
+
+       ! Loop over local cells
+       do j = nhalo+1, ny-nhalo
+          do i = nhalo+1, nx-nhalo
        
-       if (active_cell(i,j)) then   ! ice is present
+             if (active_cell(i,j)) then   ! ice is present
 
-          ! Load x and y coordinates, basal velocity, and beta at cell vertices
+                ! Load x and y coordinates, basal velocity, and beta at cell vertices
 
-          do n = 1, nNodesPerElement_2d
+                do n = 1, nNodesPerElement_2d
 
-             ! Determine (i,j) for this vertex
-             ! The reason for the '3' is that node 3, in the NE corner of the grid cell, has index (i,j).
-             ! Indices for other nodes are computed relative to this vertex.
-             iVertex = i + ishift(3,n)
-             jVertex = j + jshift(3,n)
+                   ! Determine (i,j) for this vertex
+                   ! The reason for the '3' is that node 3, in the NE corner of the grid cell, has index (i,j).
+                   ! Indices for other nodes are computed relative to this vertex.
+                   iVertex = i + ishift(3,n)
+                   jVertex = j + jshift(3,n)
+                   
+                   x(n) = xVertex(iVertex,jVertex)
+                   y(n) = yVertex(iVertex,jVertex)
+                   u(n) = uvel(iVertex,jVertex)
+                   v(n) = vvel(iVertex,jVertex)
+                   b(n) = beta(iVertex,jVertex)
+                   
+                enddo
 
-             x(n) = xVertex(iVertex,jVertex)
-             y(n) = yVertex(iVertex,jVertex)
-             u(n) = uvel(iVertex,jVertex)
-             v(n) = vvel(iVertex,jVertex)
-             b(n) = beta(iVertex,jVertex)
+                sum_wqp = 0.d0
 
-          enddo
+                ! loop over quadrature points
+                do p = 1, nQuadPoints_2d
+                   
+                   ! Evaluate u, v and beta at this quadrature point
+                   
+                   u_qp = 0.d0
+                   v_qp = 0.d0
+                   beta_qp = 0.d0
+                   do n = 1, nNodesPerElement_2d
+                      u_qp = u_qp + phi_2d(n,p) * u(n)
+                      v_qp = v_qp + phi_2d(n,p) * v(n)
+                      beta_qp = beta_qp + phi_2d(n,p) * b(n)
+                   enddo
+                   
+                   ! Increment basal frictional heating
+                   
+                   bfricflx(i,j) = bfricflx(i,j) + wqp_2d(p) * beta_qp * (u_qp**2 + v_qp**2)
+                   sum_wqp = sum_wqp + wqp_2d(p)
+                   
+                   if (verbose_bfric .and. this_rank==rtest .and. i==itest .and. j==jtest) then
+                      print*, ' '
+                      print*, 'Increment basal friction heating, i, j, p =', i, j, p
+                      print*, 'u, v, beta_qp =', u_qp, v_qp, beta_qp
+                      print*, 'local increment =', beta_qp * (u_qp**2 + v_qp**2) / scyr
+                   endif
+                   
+                enddo   ! nQuadPoints_2d
+                
+                ! Scale the result:
+                ! Divide by sum_wqp to get average of beta*(u^2 + v^2) over cell
+                ! Divide by scyr to convert Pa m/yr to Pa m/s = W/m^2
+                
+                bfricflx(i,j) = bfricflx(i,j) / (sum_wqp * scyr)
+                
+                if (verbose_bfric .and. this_rank==rtest .and. i==itest .and. j==jtest) then
+                   print*, ' '
+                   print*, 'i, j, bfricflx:', i, j, bfricflx(i,j)
+                   print*, 'beta, uvel, vvel:', beta(i,j), uvel(i,j), vvel(i,j)
+                endif
+                
+             endif      ! active_cell
+             
+          enddo         ! i
+       enddo            ! j
+       
+    else   ! whichassemble_bfric = HO_ASSEMBLE_BFRIC_LOCAL; local calculation at active vertices
 
-          sum_wqp = 0.d0
+       ! Loop over local vertices
+       do j = nhalo+1, ny-nhalo
+          do i = nhalo+1, nx-nhalo
+       
+             if (active_cell(i,j)) then   ! ice is present
 
-          ! loop over quadrature points
-          do p = 1, nQuadPoints_2d
+                bfricflx(i,j) = beta(i,j) * (uvel(i,j)**2 + vvel(i,j)**2)
+                bfricflx(i,j) = bfricflx(i,j) / scyr   ! convert Pa m/yr to Pa m/s = W/m^2
 
-             ! Evaluate u, v and beta at this quadrature point
+                if (verbose_bfric .and. this_rank==rtest .and. i==itest .and. j==jtest) then
+                   print*, ' '
+                   print*, 'i, j, bfricflx:', i, j, bfricflx(i,j)
+                   print*, 'beta, uvel, vvel:', beta(i,j), uvel(i,j), vvel(i,j)
+                endif
+                
+             endif      ! active_cell
+             
+          enddo         ! i
+       enddo            ! j
 
-             u_qp = 0.d0
-             v_qp = 0.d0
-             beta_qp = 0.d0
-             do n = 1, nNodesPerElement_2d
-                u_qp = u_qp + phi_2d(n,p) * u(n)
-                v_qp = v_qp + phi_2d(n,p) * v(n)
-                beta_qp = beta_qp + phi_2d(n,p) * b(n)
-             enddo
-
-             ! Increment basal frictional heating
-
-             bfricflx(i,j) = bfricflx(i,j) + wqp_2d(p) * beta_qp * (u_qp**2 + v_qp**2)
-             sum_wqp = sum_wqp + wqp_2d(p)
-
-             if (verbose_bfric .and. this_rank==rtest .and. i==itest .and. j==jtest) then
-                print*, ' '
-                print*, 'Increment basal friction heating, i, j, p =', i, j, p
-                print*, 'u, v, beta_qp =', u_qp, v_qp, beta_qp
-                print*, 'local increment =', beta_qp * (u_qp**2 + v_qp**2) / scyr
-             endif
-
-          enddo   ! nQuadPoints_2d
-
-          ! Scale the result:
-          ! Divide by sum_wqp to get average of beta*(u^2 + v^2) over cell
-          ! Divide by scyr to convert Pa m/yr to Pa m/s = W/m^2
-
-          bfricflx(i,j) = bfricflx(i,j) / (sum_wqp * scyr) 
-
-          if (verbose_bfric .and. this_rank==rtest .and. i==itest .and. j==jtest) then
-             print*, ' '
-             print*, 'i, j, bfricflx:', i, j, bfricflx(i,j)
-          endif
-
-       endif      ! active_cell
-
-    enddo         ! i
-    enddo         ! j
+    endif  ! whichassemble_bfric
 
     ! halo update
     call parallel_halo(bfricflx)
@@ -5498,7 +6868,9 @@
                                            ! GLAM uses 1.d-20 s^{-1} for minimum effective strain rate
        effstrain_min = 1.d-8,     &! minimum value of effective strain rate, yr^{-1}
                                    ! Mauro Perego suggests 1.d-8 yr^{-1}
-       p_effstr = (1.d0 - real(gn,dp)) / real(gn,dp)    ! exponent (1-n)/n in effective viscosity relation
+       p_effstr  = (1.d0 - real(gn,dp))/real(gn,dp),  &! exponent (1-n)/n in effective viscosity relation
+       p2_effstr = p_effstr/2                          ! exponent (1-n)/(2n) in effective viscosity relation
+
                                                                
     !----------------------------------------------------------------
     ! Local variables
@@ -5512,6 +6884,8 @@
         
     integer :: n
 
+    real(dp), parameter :: p2 = -1.d0/3.d0
+  
     select case(whichefvs)
 
     case(HO_EFVS_CONSTANT)
@@ -5602,11 +6976,11 @@
        ! Compute effective viscosity (PGB 2012, eq. 4)
        ! Units: flwafact has units Pa yr^{1/n}
        !        effstrain has units yr^{-1}
-       !        p_effstr = (1-n)/n 
-       !                 = -2/3 for n=3
+       !        p2_effstr = (1-n)/(2n) 
+       !                  = -1/3 for n=3
        ! Thus efvs has units Pa yr
  
-       efvs = flwafact * effstrainsq**(0.5d0*p_effstr)
+       efvs = flwafact * effstrainsq**p2_effstr
 
        if (verbose_efvs .and. this_rank==rtest .and. i==itest .and. j==jtest .and. k==ktest .and. p==ptest) then
           print*, ' '
@@ -5775,14 +7149,15 @@
        effstrain = sqrt(effstrainsq)
 
        if (verbose_efvs .and. this_rank==rtest .and. i==itest .and. j==jtest .and. p==ptest) then
-          print*, 'effstrain (yr-1) =', effstrain
+          print*, ' '
+          print*, 'i, j, p, effstrain (yr-1):', i, j, p, effstrain
           print*, 'du_dx, du_dy =', du_dx, du_dy
           print*, 'dv_dx, dv_dy =', dv_dx, dv_dy
           print*, 'ds_dx, ds_dy =', ds_dx, ds_dy
-          print*, 'n, phi, dphi_dx, dphi_dy:'
-          do n = 1, nNodesPerElement_2d
-             print*, n, phi(n), dphi_dx(n), dphi_dy(n)
-          enddo
+!          print*, 'n, phi, dphi_dx, dphi_dy:'
+!          do n = 1, nNodesPerElement_2d
+!             print*, n, phi(n), dphi_dx(n), dphi_dy(n)
+!          enddo
        endif
 
        !---------------------------------------------------------------------------
@@ -5821,6 +7196,7 @@
        !  the same size. 
        !---------------------------------------------------------------------------
        !TODO - Code an iterative solution for tau_parallel, for n /= 3.
+       !TODO - Replace sigma with stagsigma?  Not sure if depth should be at layer midpt or base
 
        do k = 1, nz-1   ! loop over layers
           depth = thck * sigma(k+1)
@@ -5855,6 +7231,252 @@
     end select
 
   end subroutine compute_effective_viscosity_L1L2
+
+!****************************************************************************
+
+  subroutine compute_effective_viscosity_diva(whichefvs,        efvs_constant,      &
+                                              nz,               stagsigma,          &
+                                              nNodesPerElement, phi,                &
+                                              dphi_dx,          dphi_dy,            &
+                                              uvel,             vvel,               &
+                                              btractx,          btracty,            &
+                                              stagthck,                             &
+                                              flwa,             flwafact,           &
+                                              efvs,                                 &
+                                              i, j, p )
+    
+    ! Compute the effective viscosity at each layer of an ice column corresponding
+    !  to a particular quadrature point, based on the depth-integrated formulation.
+    ! See Goldberg(2011) for details.
+
+    integer, intent(in) :: i, j, p
+
+    !----------------------------------------------------------------
+    ! Input-output arguments
+    !----------------------------------------------------------------
+
+    integer, intent(in) :: &
+       whichefvs          ! method for computing effective viscosity
+                          ! 0 = constant value
+                          ! 1 = proportional to flow factor
+                          ! 2 = nonlinear function of effective strain rate 
+
+    real(dp), intent(in) :: &
+       efvs_constant      ! constant value of effective viscosity (Pa yr)
+                          ! (used for option HO_EFVS_CONSTANT)
+
+    integer, intent(in) ::  &
+       nz,               &! number of vertical levels at which velocity is computed
+                          ! Note: The number of layers (or elements in a column) is nz-1
+       nNodesPerElement   ! number of nodes per element, = 4 for 2D rectangular faces
+
+    real(dp), dimension(nz-1), intent(in) ::    &
+       stagsigma          ! staggered sigma vertical coordinate
+
+    real(dp), dimension(nNodesPerElement), intent(in) ::  &
+       phi,           &   ! basic functions at this quadrature point
+       dphi_dx, dphi_dy   ! derivatives of basis functions at this quadrature point
+
+    real(dp), dimension(nNodesPerElement), intent(in) ::  &
+       uvel, vvel,       &! current guess for depth_integrated mean velocity at cell vertices (m/yr)
+       btractx, btracty, &! components of basal traction (Pa)
+       stagthck           ! ice thickness at vertices
+
+    real(dp), dimension(nz-1), intent(in) ::  &
+       flwa,             &! temperature-based flow factor A at each layer of this cell column
+                          ! units: Pa^{-n} yr^{-1}
+       flwafact           ! temperature-based flow factor for this element, 0.5 * A^{-1/n}
+                          ! units: Pa yr^{1/n}  (used for option HO_EFVS_FLOWFACT)
+
+    !WHL - intent(out) if solving cubic, but (inout) if using old efvs in calculation
+    real(dp), dimension(nz-1), intent(inout) ::   &
+       efvs               ! effective viscosity of each layer corresponding to this quadrature point (Pa yr)
+
+    !----------------------------------------------------------------
+    ! Local parameters
+    !----------------------------------------------------------------
+
+    real(dp), parameter ::   &
+!!       effstrain_min = 1.d-20*scyr,     &! minimum value of effective strain rate (yr^{-1})
+                                           ! GLAM uses 1.d-20 s^{-1} for minimum effective strain rate
+       effstrain_min = 1.d-8,     &! minimum value of effective strain rate (yr^{-1})
+                                   ! Mauro Perego suggests 1.d-8 yr^{-1}
+       p_effstr  = (1.d0 - real(gn,dp))/real(gn,dp), &! exponent (1-n)/n in effective viscosity relation
+       p2_effstr = p_effstr/2                         ! exponent (1-n)/(2n) in effective viscosity relation
+                                                               
+    !----------------------------------------------------------------
+    ! Local variables
+    !----------------------------------------------------------------
+
+    real(dp) ::            &
+       du_dx, du_dy,       & ! horizontal strain rate components at this quadrature point (yr^{-1})
+       dv_dx, dv_dy,       &
+       taux,  tauy,        & ! basal shear stress components at this QP (Pa)
+       thck,               & ! ice thickness (m) at this QP
+       effstrain,          & ! effective strain rate at QP  (yr^{-1})
+       effstrainsq,        & ! square of effective strain rate
+       depth                 ! distance (m) from surface to layer k at this QP 
+
+    real(dp) :: facta, factb, a, b, c, rootA, rootB   ! terms in cubic equation
+
+    integer :: n, k
+    real(dp) :: du_dz, dv_dz
+
+    !WHL - For ISMIP-HOM, the cubic solve is not robust.  It leads to oscillations
+    !      in successive iterations between uvel_2d/vvel_2d and btractx/btracty
+    !TODO - Remove the cubic solve for efvs, unless we find a way to make it robust?
+    logical, parameter :: cubic = .false.
+
+    select case(whichefvs)
+
+    case(HO_EFVS_CONSTANT)
+
+       ! Steve Price recommends 10^6 to 10^7 Pa yr
+       ! ISMIP-HOM Test F requires 2336041.42829 Pa yr; this is the default value set in glide_types.F90
+       efvs(:) = efvs_constant
+
+       if (verbose_efvs .and. this_rank==rtest .and. i==itest .and. j==jtest) then
+          print*, 'Set efvs = constant (Pa yr):', efvs
+       endif
+
+    case(HO_EFVS_FLOWFACT)      ! set the effective viscosity to a multiple of the flow factor, 0.5*A^(-1/n)
+                
+       ! Set the effective strain rate (s^{-1}) based on typical velocity and length scales
+       !
+       ! Units: flwafact has units Pa yr^{1/n}
+       !        effstrain has units yr^{-1}
+       !        p_effstr = (1-n)/n 
+       !                 = -2/3 for n=3
+       ! Thus efvs has units Pa yr
+   
+       effstrain = vel_scale/len_scale * scyr  ! typical strain rate, yr^{-1}
+       efvs(:) = flwafact(:) * effstrain**p_effstr  
+
+       if (verbose_efvs .and. this_rank==rtest .and. i==itest .and. j==jtest) then
+          print*, 'flwafact, effstrain (yr-1), efvs (Pa yr)=', flwafact, effstrain, efvs
+       endif
+
+    case(HO_EFVS_NONLINEAR)    ! compute effective viscosity based on effective strain rate
+
+       du_dx = 0.d0
+       du_dy = 0.d0
+       dv_dx = 0.d0
+       dv_dy = 0.d0
+       thck  = 0.d0
+       taux  = 0.d0
+       tauy  = 0.d0
+
+       do n = 1, nNodesPerElement
+
+          du_dx = du_dx + dphi_dx(n)*uvel(n)
+          du_dy = du_dy + dphi_dy(n)*uvel(n)
+
+          dv_dx = dv_dx + dphi_dx(n)*vvel(n)
+          dv_dy = dv_dy + dphi_dy(n)*vvel(n)
+
+          taux = taux + phi(n)*btractx(n)
+          tauy = tauy + phi(n)*btracty(n)
+
+          thck = thck + phi(n)*stagthck(n)
+
+       enddo
+
+    if (cubic) then
+
+       ! Compute effective strain rate (squared) at this quadrature point
+
+       effstrainsq = effstrain_min**2          &
+                   + du_dx**2 + dv_dy**2 + du_dx*dv_dy + 0.25d0*(dv_dx + du_dy)**2
+
+       if (verbose_efvs .and. this_rank==rtest .and. i==itest .and. j==jtest .and. p==ptest) then
+          print*, ' '
+          print*, 'i, j, p, effstrain (yr-1):', i, j, p, sqrt(effstrainsq)
+          print*, 'du_dx, du_dy =', du_dx, du_dy
+          print*, 'dv_dx, dv_dy =', dv_dx, dv_dy
+          print*, 'btractx, btracty =',  btractx, btracty
+          print*, 'taux, tauy =', taux, tauy
+       endif
+
+       !---------------------------------------------------------------------------
+       ! Solve for efvs in the relation
+       !
+       ! efvs = 1/2 * A^(-1/n) * [effstrainsq + (1/4)*(u_z^2 + v_z^2)]^[(1-n)/(2n)]
+       !
+       ! where effstrainsq = du_dx**2 + dv_dy**2 + du_dx*dv_dy + (1/4)*(dv_dx + du_dy)**2
+       !                     + small regularization term
+       !       u_z = tau_x*(s-z) / (H*efvs)
+       !       v_z = tau_y*(s-z) / (H*efvs)
+       !
+       !       tau_x = beta*u_b = beta_eff*u
+       !       tau_y = beta*v_b = beta_eff*v
+       !
+       !       (u,v) is the depth-averaged mean velocity
+       !
+       ! For n = 3, this relation can be written as a cubic equation of the form
+       !
+       !       x^3 + a*x + b = 0,
+       !
+       ! where x = efvs
+       !       a = [(tau_x^2 + tau_y^2)*(s-z)^2 / (4*H^2*effstrainsq) >= 0
+       !       b = -1/(8*A*effstrainsq) < 0
+       !
+       ! See comments in compute_effective_viscosity_L1L2 for more details on the cubic solve.
+       !
+       ! NOTE: This scheme does not reliably converge.
+       !
+       !       The problem is that taux and tauy are proportional to beta_eff, which is
+       !        a function of the old viscosity.  Mixing the old and new viscosity in the
+       !        expression for vertical shear can lead to oscillations.
+       !---------------------------------------------------------------------------
+
+       facta = (taux**2 + tauy**2) / (4.d0 * thck**2 * effstrainsq)
+       factb = -1.d0 / (8.d0 * effstrainsq)
+       do k = 1, nz-1   ! loop over layers
+          depth = thck * stagsigma(k)
+          a = facta * depth**2
+          b = factb / flwa(k)
+          c = sqrt(b**2/4.d0 + a**3/27.d0)
+          rootA = (-b/2.d0 + c)**(1.d0/3.d0)
+          if (a**3/(27.d0) > 1.d-6 * (b**2/4.d0)) then
+             rootB = -(b/2.d0 + c)**(1.d0/3.d0)
+          else    ! b/2 + c is small; compute solution to first order without subtracting two large, nearly equal numbers
+             rootB = -a / (3.d0*(abs(b))**(1.d0/3.d0))
+          endif
+          efvs(k) = rootA + rootB
+
+          if (verbose_efvs .and. this_rank==rtest .and. i==itest .and. j==jtest .and. k==ktest .and. p==ptest) then
+             print*, ' '
+             print*, 'i, j, k, p, depth =', i, j, k, p, depth
+             print*, 'a, b, c:', a, b, c
+             print*, '-b/2 + c, -b/2 - c:', -b/2 + c, -b/2 - c
+             print*, 'roots A, B:', rootA, rootB
+             print*, 'flwa:', flwa(k)
+             effstrain = sqrt(effstrainsq)
+             print*, 'flwafact, effstrain, efvs_SSA, efvs:', flwafact(k), effstrain,  &
+                                                             flwafact(k)*effstrain**(-2.d0/3.d0), efvs(k)
+          endif
+
+       enddo   ! k
+
+    else  ! solve for efvs, using the old value of efvs to estimate the vertical strain rates
+
+       do k = 1, nz-1   ! loop over layers
+          if (efvs(k)==0.d0) then
+             efvs(k) = flwafact(k) * effstrain_min**p_effstr  ! efvs associated with minimum strain rate
+          endif
+          du_dz = taux * stagsigma(k) / efvs(k)   ! old value of efvs on RHS
+          dv_dz = tauy * stagsigma(k) / efvs(k)
+          effstrainsq = effstrain_min**2          &
+                      + du_dx**2 + dv_dy**2 + du_dx*dv_dy + 0.25d0*(dv_dx + du_dy)**2  &
+                      + 0.25d0 * (du_dz**2 + dv_dz**2)
+          efvs(k) = flwafact(k) * effstrainsq**p2_effstr
+       enddo
+
+    endif   ! cubic
+
+    end select
+
+  end subroutine compute_effective_viscosity_diva
 
 !****************************************************************************
 
@@ -6126,7 +7748,12 @@
     ! Assume a sliding law of the form:
     !   tau_x = -beta*u
     !   tau_y = -beta*v
-    ! where beta is defined at vertices.
+    ! where beta is defined at vertices (and beta may depend
+    ! on the velocity from a previous iteration).
+    !
+    ! Note: The input beta field should already have been weighted by f_ground. We should have
+    !       beta = 0 for floating ice (f_ground = 0). If using a GLP, then beta will
+    !       have less than its full value for partially floating ice (0 < f_ground < 1). 
     !------------------------------------------------------------------------
 
     integer, intent(in) ::      &
@@ -6140,6 +7767,8 @@
 
     real(dp), dimension(nx-1,ny-1), intent(in) ::    &
        beta                          ! basal traction field (Pa/(m/yr)) at cell vertices
+                                     ! typically = beta_internal (beta weighted by f_ground)
+                                     ! = beta_eff for DIVA
 
     real(dp), dimension(nx-1,ny-1), intent(in) ::   &
        xVertex, yVertex     ! x and y coordinates of vertices
@@ -6203,7 +7832,6 @@
           y(3) = yVertex(i,j)
           y(4) = yVertex(i-1,j)
 
-          !TODO - For GLP, let b = beta * fground, where fground is the fractional area for the node in question
           b(1) = beta(i-1,j-1)
           b(2) = beta(i,j-1)
           b(3) = beta(i,j)
@@ -6249,7 +7877,7 @@
              Kuu(:,:) = 0.d0
 
              if (whichassemble_beta == HO_ASSEMBLE_BETA_LOCAL) then  ! Use the value at the nearest vertex
-                                                   ! Then Kuu is diagonal, so friction at a vertex depends only on beta at that vertex
+                                      ! Then Kuu is diagonal, so the traction parameter at a vertex depends only on beta at that vertex
                 Kuu(p,p) = beta_qp * (detJ/vol0)   
 
              else
@@ -6337,7 +7965,8 @@
 
   subroutine dirichlet_boundary_conditions_3d(nx,              ny,               &
                                               nz,              nhalo,            &
-                                              active_vertex,   umask_dirichlet,  &
+                                              active_vertex,                     &
+                                              umask_dirichlet, vmask_dirichlet,  &
                                               uvel,            vvel,             &
                                               Auu,             Auv,              &
                                               Avu,             Avv,              &
@@ -6362,8 +7991,9 @@
     logical, dimension(nx-1,ny-1), intent(in) ::  &
        active_vertex       ! true for active vertices (vertices of active cells)
 
-    logical, dimension(nz,nx-1,ny-1), intent(in) ::  &
-       umask_dirichlet     ! Dirichlet mask for velocity (if true, u is prescribed)
+      integer, dimension(nz,nx-1,ny-1), intent(in) ::  &
+       umask_dirichlet,   &! Dirichlet mask for u velocity (if true, u is prescribed)
+       vmask_dirichlet     ! Dirichlet mask for v velocity (if true, v is prescribed)
 
     real(dp), dimension(nz,nx-1,ny-1), intent(in) ::  &
        uvel, vvel          ! velocity components
@@ -6391,10 +8021,14 @@
         do i = nhalo, nx-nhalo+1
           if (active_vertex(i,j)) then
              do k = 1, nz
-                if (umask_dirichlet(k,i,j)) then
+
+                if (umask_dirichlet(k,i,j) == 1) then
+
+                   ! set the rhs to the prescribed velocity
+                   bu(k,i,j) = uvel(k,i,j)
 
                    ! loop through matrix values in the rows associated with this node
-                   ! (Auu/Auv contain one row, Avu/Avv contain a second row)
+                   ! (Auu contains one row, Avu contains a second row)
                    do kA = -1,1
                    do jA = -1,1
                    do iA = -1,1
@@ -6407,17 +8041,17 @@
 
                          if (iA==0 .and. jA==0 .and. kA==0) then  ! main diagonal
 
-                            ! Set Auu = Avv = 1 on the main diagonal
+                            ! Set Auu = 1 on the main diagonal
+                            ! Set Auv term = 0; this term is off-diagonal for the fully assembled matrix
+                            ! Set Avu term = 0 to preserve matrix symmetry (given that Auv term = 0)
                             m = indxA_3d(0,0,0)
                             Auu(m,k,i,j) = 1.d0
                             Auv(m,k,i,j) = 0.d0
                             Avu(m,k,i,j) = 0.d0
-                            Avv(m,k,i,j) = 1.d0
 
-                            ! Set the rhs to the prescribed velocity
-                            ! This will force u = uvel, v = vvel for this node
-                            bu(k,i,j) = uvel(k,i,j)
-                            bv(k,i,j) = vvel(k,i,j)
+                            !TODO - Set bu above, outside iA/jA loop
+                            ! Set the rhs to the prescribed velocity, forcing u = prescribed uvel for this vertex
+!!                            bu(k,i,j) = uvel(k,i,j)
                             
                          else     ! not on the diagonal
 
@@ -6425,27 +8059,21 @@
                             m = indxA_3d(iA,jA,kA)
                             Auu(m, k, i, j) = 0.d0
                             Auv(m, k, i, j) = 0.d0
-                            Avu(m, k, i, j) = 0.d0
-                            Avv(m, k, i, j) = 0.d0
 
                             ! Shift terms associated with this velocity to the rhs.
                             ! Note: The remaining operations do not change the answer, but do restore symmetry to the matrix.
                             m = indxA_3d(-iA,-jA,-kA)
 
-                            if (.not. umask_dirichlet(k+kA, i+iA, j+jA)) then
-                               bu(k+kA, i+iA, j+jA) = bu(k+kA, i+iA, j+jA)   &
-                                                    - Auu(m, k+kA, i+iA, j+jA) * uvel(k,i,j)   &
-                                                    - Auv(m, k+kA, i+iA, j+jA) * vvel(k,i,j)
-                               bv(k+kA, i+iA, j+jA) = bv(k+kA, i+iA, j+jA)   &
-                                                    - Avu(m, k+kA, i+iA, j+jA) * uvel(k,i,j)   &
-                                                    - Avv(m, k+kA, i+iA, j+jA) * vvel(k,i,j)
-
-                               ! Zero out non-diagonal matrix terms in the columns associated with this node
-                               m = indxA_3d(-iA,-jA,-kA)
+                            if (umask_dirichlet(k+kA, i+iA, j+jA) /= 1) then
+                               ! Move (Auu term) * uvel to rhs
+                               bu(k+kA, i+iA, j+jA) = bu(k+kA, i+iA, j+jA) - Auu(m, k+kA, i+iA, j+jA) * uvel(k,i,j) 
                                Auu(m, k+kA, i+iA, j+jA) = 0.d0
-                               Auv(m, k+kA, i+iA, j+jA) = 0.d0
+                            endif
+
+                            if (vmask_dirichlet(k+kA, i+iA, j+jA) /= 1) then
+                               ! Move (Avu term) * uvel to rhs
+                               bv(k+kA, i+iA, j+jA) = bv(k+kA, i+iA, j+jA) - Avu(m, k+kA, i+iA, j+jA) * uvel(k,i,j)
                                Avu(m, k+kA, i+iA, j+jA) = 0.d0
-                               Avv(m, k+kA, i+iA, j+jA) = 0.d0
                             endif
 
                          endif  ! on the diagonal
@@ -6457,6 +8085,72 @@
                   enddo        ! jA
 
                 endif    ! umask_dirichlet
+
+                if (vmask_dirichlet(k,i,j) == 1) then
+
+                   ! set the rhs to the prescribed velocity
+                   bv(k,i,j) = vvel(k,i,j)
+
+                   ! loop through matrix values in the rows associated with this node
+                   ! (Auu contains one row, Avu contains a second row)
+                   do kA = -1,1
+                   do jA = -1,1
+                   do iA = -1,1
+
+                      if ( (k+kA >= 1 .and. k+kA <= nz)         &
+                                      .and.                     &
+                           (i+iA >= 1 .and. i+iA <= nx-1)       &
+                                      .and.                     &
+                           (j+jA >= 1 .and. j+jA <= ny-1) ) then
+
+                         if (iA==0 .and. jA==0 .and. kA==0) then  ! main diagonal
+
+                            ! Set Avv = 1 on the main diagonal
+                            ! Set Avu term = 0; this term is off-diagonal for the fully assembled matrix
+                            ! Set Auv term = 0 to preserve matrix symmetry (given that Avu term = 0)
+                            m = indxA_3d(0,0,0)
+
+                            Auv(m,k,i,j) = 0.d0
+                            Avu(m,k,i,j) = 0.d0
+                            Avv(m,k,i,j) = 1.d0
+
+                            !TODO - Set bv above, outside iA/jA loop
+                            ! Set the rhs to the prescribed velocity, forcing v = prescribed vvel for this node
+!!                            bv(k,i,j) = vvel(k,i,j)
+                            
+                         else     ! not on the diagonal
+
+                            ! Zero out non-diagonal matrix terms in the rows associated with this node
+                            m = indxA_3d(iA,jA,kA)
+                            Avu(m, k, i, j) = 0.d0
+                            Avv(m, k, i, j) = 0.d0
+
+                            ! Shift terms associated with this velocity to the rhs.
+                            ! Note: The remaining operations do not change the answer, but do restore symmetry to the matrix.
+                            m = indxA_3d(-iA,-jA,-kA)
+
+                            if (umask_dirichlet(k+kA, i+iA, j+jA) /= 1) then
+                               ! Move (Auv term) * vvel to rhs
+                               bu(k+kA, i+iA, j+jA) = bu(k+kA, i+iA, j+jA) - Auv(m, k+kA, i+iA, j+jA) * vvel(k,i,j)
+                               Auv(m, k+kA, i+iA, j+jA) = 0.d0
+                            endif
+
+                            if (vmask_dirichlet(k+kA, i+iA, j+jA) /= 1) then
+                               ! Move (Avv term) * vvel to rhs
+                               bv(k+kA, i+iA, j+jA) = bv(k+kA, i+iA, j+jA) - Avv(m, k+kA, i+iA, j+jA) * vvel(k,i,j)
+                               Avv(m, k+kA, i+iA, j+jA) = 0.d0
+                            endif
+
+                         endif  ! on the diagonal
+
+                     endif     ! i+iA, j+jA, and k+kA in bounds
+
+                  enddo        ! kA
+                  enddo        ! iA
+                  enddo        ! jA
+
+                endif    ! vmask_dirichlet
+
              enddo       ! k
           endif          ! active_vertex
        enddo             ! i
@@ -6468,7 +8162,8 @@
 
   subroutine dirichlet_boundary_conditions_2d(nx,              ny,               &
                                               nhalo,                             &
-                                              active_vertex,   umask_dirichlet,  &
+                                              active_vertex,                     &
+                                              umask_dirichlet, vmask_dirichlet,  &
                                               uvel,            vvel,             &
                                               Auu,             Auv,              &
                                               Avu,             Avv,              &
@@ -6492,8 +8187,9 @@
     logical, dimension(nx-1,ny-1), intent(in) ::  &
        active_vertex       ! true for active vertices (vertices of active cells)
 
-    logical, dimension(nx-1,ny-1), intent(in) ::  &
-       umask_dirichlet     ! Dirichlet mask for velocity (if true, u is prescribed)
+    integer, dimension(nx-1,ny-1), intent(in) ::  &
+       umask_dirichlet,   &! Dirichlet mask for velocity (if true, u is prescribed)
+       vmask_dirichlet     ! Dirichlet mask for velocity (if true, v is prescribed)
 
     real(dp), dimension(nx-1,ny-1), intent(in) ::  &
        uvel, vvel          ! velocity components
@@ -6511,7 +8207,7 @@
     
     integer :: i, j     ! Cartesian indices of nodes
     integer :: iA, jA   ! i and j offsets of neighboring nodes 
-    integer :: m
+    integer :: m, m2
 
     ! Loop over all vertices that border locally owned vertices.
     ! Locally owned vertices are (nhalo+1:nx-nhalo, nhalo+1:ny-nhalo)
@@ -6520,10 +8216,14 @@
      do j = nhalo, ny-nhalo+1
         do i = nhalo, nx-nhalo+1
           if (active_vertex(i,j)) then
-             if (umask_dirichlet(i,j)) then
 
-                ! loop through matrix values in the rows associated with this node
-                ! (Auu/Auv contain one row, Avu/Avv contain a second row)
+             if (umask_dirichlet(i,j) == 1) then
+
+                ! set the rhs to the prescribed velocity
+                bu(i,j) = uvel(i,j)
+
+                ! loop through matrix values in the rows associated with this vertex
+                ! (Auu contains one row, Avu contains a second row)
                 do jA = -1,1
                 do iA = -1,1
 
@@ -6533,45 +8233,39 @@
 
                       if (iA==0 .and. jA==0) then  ! main diagonal
 
-                         ! Set Auu = Avv = 1 on the main diagonal
+                         ! Set Auu = 1 on the main diagonal
+                         ! Set Auv term = 0; this term is off-diagonal for the fully assembled matrix
+                         ! Set Avu term = 0 to preserve matrix symmetry (given that Auv term = 0)
                          m = indxA_2d(0,0)
                          Auu(m,i,j) = 1.d0
                          Auv(m,i,j) = 0.d0
                          Avu(m,i,j) = 0.d0
-                         Avv(m,i,j) = 1.d0
 
-                         ! Set the rhs to the prescribed velocity
-                         ! This will force u = uvel, v = vvel for this node
-                         bu(i,j) = uvel(i,j)
-                         bv(i,j) = vvel(i,j)
+                         !TODO - Set bu above, outside iA/jA loop
+                         ! Set the rhs to the prescribed velocity, forcing u = prescribed uvel for this vertex
+!!                         bu(i,j) = uvel(i,j)
                             
                       else     ! not on the diagonal
 
-                         ! Zero out non-diagonal matrix terms in the rows associated with this node
+                         ! Zero out non-diagonal matrix terms in the row associated with this vertex
                          m = indxA_2d(iA,jA)
                          Auu(m, i, j) = 0.d0
                          Auv(m, i, j) = 0.d0
-                         Avu(m, i, j) = 0.d0
-                         Avv(m, i, j) = 0.d0
 
                          ! Shift terms associated with this velocity to the rhs.
                          ! Note: The remaining operations do not change the answer, but do restore symmetry to the matrix.
                          m = indxA_2d(-iA,-jA)
 
-                         if (.not. umask_dirichlet(i+iA, j+jA)) then
-                            bu(i+iA, j+jA) = bu(i+iA, j+jA)   &
-                                           - Auu(m, i+iA, j+jA) * uvel(i,j)   &
-                                           - Auv(m, i+iA, j+jA) * vvel(i,j)
-                            bv(i+iA, j+jA) = bv(i+iA, j+jA)   &
-                                           - Avu(m, i+iA, j+jA) * uvel(i,j)   &
-                                           - Avv(m, i+iA, j+jA) * vvel(i,j)
-
-                            ! Zero out non-diagonal matrix terms in the columns associated with this node
-                            m = indxA_2d(-iA,-jA)
+                         if (umask_dirichlet(i+iA, j+jA) /= 1) then
+                            ! Move (Auu term) * uvel to rhs
+                            bu(i+iA, j+jA) = bu(i+iA, j+jA) - Auu(m, i+iA, j+jA) * uvel(i,j)
                             Auu(m, i+iA, j+jA) = 0.d0
-                            Auv(m, i+iA, j+jA) = 0.d0
+                         endif
+
+                         if (vmask_dirichlet(i+iA, j+jA) /= 1) then
+                            ! Move (Avu term) * uvel to rhs
+                            bv(i+iA, j+jA) = bv(i+iA, j+jA) - Avu(m, i+iA, j+jA) * uvel(i,j)
                             Avu(m, i+iA, j+jA) = 0.d0
-                            Avv(m, i+iA, j+jA) = 0.d0
                          endif
 
                       endif  ! on the diagonal
@@ -6582,6 +8276,67 @@
                 enddo    ! jA
 
              endif       ! umask_dirichlet
+
+             if (vmask_dirichlet(i,j) == 1) then
+
+                ! set the rhs to the prescribed velocity
+                bv(i,j) = vvel(i,j)
+
+                ! loop through matrix values in the rows associated with this vertex
+                ! (Auv contains one row, Avv contains a second row)
+                do jA = -1,1
+                do iA = -1,1
+
+                   if ( (i+iA >= 1 .and. i+iA <= nx-1)       &
+                                   .and.                     &
+                        (j+jA >= 1 .and. j+jA <= ny-1) ) then
+
+                      if (iA==0 .and. jA==0) then  ! main diagonal
+
+                         ! Set Avv = 1 on the main diagonal
+                         ! Set Avu term = 0; this term is off-diagonal for the fully assembled matrix
+                         ! Set Auv term = 0 to preserve matrix symmetry (given that Avu term = 0)
+                         m = indxA_2d(0,0)
+                         Auv(m,i,j) = 0.d0
+                         Avu(m,i,j) = 0.d0
+                         Avv(m,i,j) = 1.d0
+
+                         !TODO - Set bv above, outside iA/jA loop
+                         ! Set the rhs to the prescribed velocity, forcing v = prescribed vvel for this vertex
+!!                         bv(i,j) = vvel(i,j)
+                            
+                      else     ! not on the diagonal
+
+                         ! Zero out non-diagonal matrix terms in the rows associated with this vertex
+                         m = indxA_2d(iA,jA)
+                         Avu(m, i, j) = 0.d0
+                         Avv(m, i, j) = 0.d0
+
+                         ! Shift terms associated with this velocity to the rhs.
+                         ! Note: The remaining operations do not change the answer, but do restore symmetry to the matrix.
+                         m = indxA_2d(-iA,-jA)
+
+                         if (umask_dirichlet(i+iA, j+jA) /= 1) then
+                            ! Move (Auv term) * vvel to rhs
+                            bu(i+iA, j+jA) = bu(i+iA, j+jA) - Auv(m, i+iA, j+jA) * vvel(i,j)
+                            Auv(m, i+iA, j+jA) = 0.d0
+                         endif
+
+                         if (vmask_dirichlet(i+iA, j+jA) /= 1) then
+                            ! Move (Avv term) * vvel to rhs
+                            bv(i+iA, j+jA) = bv(i+iA, j+jA) - Avv(m, i+iA, j+jA) * vvel(i,j)
+                            Avv(m, i+iA, j+jA) = 0.d0                                           
+                         endif
+
+                      endif  ! on the diagonal
+
+                   endif     ! i+iA and j+jA in bounds
+
+                enddo    ! iA
+                enddo    ! jA
+
+             endif       ! vmask_dirichlet
+
           endif          ! active_vertex
        enddo             ! i
     enddo                ! j
@@ -6646,6 +8401,7 @@
     resid_u(:,:,:) = 0.d0
     resid_v(:,:,:) = 0.d0
 
+    !TODO - Replace the following by a call to matvec_multiply_structured_3d
     ! Loop over locally owned vertices
 
     do j = nhalo+1, ny-nhalo
@@ -6871,6 +8627,9 @@
        print*, 'u,  v :', uvel(i,j), vvel(i,j)
        print*, 'bu, bv:', bu(i,j), bv(i,j)
        print*, 'resid_u, resid_v:', resid_u(i,j), resid_v(i,j)
+       print*, ' '
+       print*, 'maxval/minval(resid_u) =', maxval(resid_u), minval(resid_u)
+       print*, 'maxval/minval(resid_v) =', maxval(resid_v), minval(resid_v)
     endif
 
     if (present(L2_norm_relative)) then   ! compute L2_norm relative to rhs
@@ -7992,7 +9751,90 @@
     close(15)
 
   end subroutine write_matrix_elements_2d
-  
+
+!****************************************************************************
+
+  subroutine compress_3d_to_2d(nx,        ny,      nz,  &
+                               Auu,       Auv,          &
+                               Avu,       Avv,          &
+                               bu,        bv,           &
+                               Auu_2d,    Auv_2d,       &
+                               Avu_2d,    Avv_2d,       &
+                               bu_2d,     bv_2d)
+
+    !----------------------------------------------------------------
+    ! Form the 2D matrix and rhs by combining terms from the 3D matrix and rhs.
+    ! This combination is based on the assumption of no vertical shear;
+    !  i.e., uvel and vvel have the same value at each level in a given column.
+    !----------------------------------------------------------------
+
+    !----------------------------------------------------------------
+    ! Input-output arguments
+    !----------------------------------------------------------------
+
+    integer, intent(in) ::   &
+       nx, ny,               &  ! horizontal grid dimensions
+       nz                       ! number of vertical levels where velocity is computed
+
+    real(dp), dimension(nNodeNeighbors_3d,nz,nx-1,ny-1), intent(in) ::  &
+       Auu, Auv,    &     ! assembled 3D stiffness matrix, divided into 4 parts
+       Avu, Avv           
+                          
+    real(dp), dimension(nz,nx-1,ny-1), intent(in) ::  &
+       bu, bv             ! assembled 3D rhs vector, divided into 2 parts
+                          
+    real(dp), dimension(nNodeNeighbors_2d,nx-1,ny-1), intent(out) ::  &
+       Auu_2d, Auv_2d,   &! assembled 2D (SSA) stiffness matrix, divided into 4 parts
+       Avu_2d, Avv_2d           
+                          
+    real(dp), dimension(nx-1,ny-1), intent(out) ::  &
+       bu_2d, bv_2d       ! assembled 2D (SSA) rhs vector, divided into 2 parts
+                          
+    !----------------------------------------------------------------
+    ! Local variables
+    !----------------------------------------------------------------
+
+    integer :: i, j, k, iA, jA, kA, m, m2
+
+    ! Initialize 2D matrix and rhs
+
+    Auu_2d(:,:,:) = 0.d0
+    Auv_2d(:,:,:) = 0.d0
+    Avu_2d(:,:,:) = 0.d0
+    Avv_2d(:,:,:) = 0.d0
+    bu_2d(:,:) = 0.d0
+    bv_2d(:,:) = 0.d0
+
+    ! Form 2D matrix and rhs
+
+    do j = 1, ny-1
+       do i = 1, nx-1
+          do k = 1, nz
+
+             ! matrix
+             do kA = -1,1
+                do jA = -1,1
+                   do iA = -1,1
+                      m = indxA_3d(iA,jA,kA)
+                      m2 = indxA_2d(iA,jA)
+                      Auu_2d(m2,i,j) = Auu_2d(m2,i,j) + Auu(m,k,i,j)
+                      Auv_2d(m2,i,j) = Auv_2d(m2,i,j) + Auv(m,k,i,j)
+                      Avu_2d(m2,i,j) = Avu_2d(m2,i,j) + Avu(m,k,i,j)
+                      Avv_2d(m2,i,j) = Avv_2d(m2,i,j) + Avv(m,k,i,j)
+                   enddo   ! iA
+                enddo      ! jA
+             enddo         ! kA
+
+             ! rhs
+             bu_2d(i,j) = bu_2d(i,j) + bu(k,i,j)
+             bv_2d(i,j) = bv_2d(i,j) + bv(k,i,j)
+
+          enddo            ! k
+       enddo               ! i
+    enddo                  ! j
+
+  end subroutine compress_3d_to_2d
+
 !****************************************************************************
 
   end module glissade_velo_higher

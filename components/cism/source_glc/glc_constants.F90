@@ -53,6 +53,13 @@
                           ! set in glc_cpl_indices_set
 
    !-----------------------------------------------------------------
+   ! other info controlling this run
+   !-----------------------------------------------------------------
+
+  logical :: &
+       zero_gcm_fluxes = .false.  ! If true, zero out all fluxes sent to the coupler
+
+   !-----------------------------------------------------------------
    !  common formats for formatted output
    !-----------------------------------------------------------------
 

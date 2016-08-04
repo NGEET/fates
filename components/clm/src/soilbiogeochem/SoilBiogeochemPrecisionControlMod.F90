@@ -33,6 +33,7 @@ contains
     ! !USES:
     use clm_varctl , only : iulog, use_c13, use_c14, use_nitrif_denitrif, use_cn
     use clm_varpar , only : nlevdecomp
+    use CNSharedParamsMod, only: use_fun
     !
     ! !ARGUMENTS:
     integer                                 , intent(in)    :: num_soilc       ! number of soil columns in filter
@@ -132,29 +133,31 @@ contains
 
       end do   ! end of column loop
 
+     if(.not.use_fun)then
       if (use_nitrif_denitrif) then
          ! remove small negative perturbations for stability purposes, if any should arise.
-
+        
          do fc = 1,num_soilc
             c = filter_soilc(fc)
             do j = 1,nlevdecomp
                if (abs(ns%smin_no3_vr_col(c,j)) < ncrit/1e4_r8) then
                   if ( ns%smin_no3_vr_col(c,j)  < 0._r8 ) then
-                     write(iulog, *) '-10^-12 < smin_no3 < 0. resetting to zero.'
-                     write(iulog, *) 'smin_no3_vr_col(c,j), c, j: ', ns%smin_no3_vr_col(c,j), c, j
+                     !write(iulog, *) '-10^-12 < smin_no3 < 0. resetting to zero.'
+                     !write(iulog, *) 'smin_no3_vr_col(c,j), c, j: ', ns%smin_no3_vr_col(c,j), c, j
                      ns%smin_no3_vr_col(c,j) = 0._r8
                   endif
                end if
                if (abs(ns%smin_nh4_vr_col(c,j)) < ncrit/1e4_r8) then
                   if ( ns%smin_nh4_vr_col(c,j)  < 0._r8 ) then
-                     write(iulog, *) '-10^-12 < smin_nh4 < 0. resetting to zero.'
-                     write(iulog, *) 'smin_nh4_vr_col(c,j), c, j: ', ns%smin_nh4_vr_col(c,j), c, j
+                     !write(iulog, *) '-10^-12 < smin_nh4 < 0. resetting to zero.'
+                     !write(iulog, *) 'smin_nh4_vr_col(c,j), c, j: ', ns%smin_nh4_vr_col(c,j), c, j
                      ns%smin_nh4_vr_col(c,j) = 0._r8
                   endif
                end if
             end do
          end do
       endif
+     endif
 
     end associate
 

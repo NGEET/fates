@@ -34,6 +34,7 @@ module CNNDynamicsMod
   public :: CNNFixation
   public :: CNNFert
   public :: CNSoyfix
+  public :: CNFreeLivingFixation
   !-----------------------------------------------------------------------
 
 contains
@@ -49,6 +50,8 @@ contains
     ! This could be updated later to divide the inputs between mineral N absorbed
     ! directly into the canopy and mineral N entering the soil pool.
     !
+    ! !USES:
+    use CNSharedParamsMod    , only: use_fun
     ! !ARGUMENTS:
     type(bounds_type)        , intent(in)    :: bounds  
     type(atm2lnd_type)       , intent(in)    :: atm2lnd_inst
@@ -67,11 +70,46 @@ contains
       do c = bounds%begc, bounds%endc
          g = col%gridcell(c)
          ndep_to_sminn(c) = forc_ndep(g)
+
       end do
 
     end associate
 
   end subroutine CNNDeposition
+
+  !-----------------------------------------------------------------------
+  subroutine CNFreeLivingFixation(num_soilc, filter_soilc, &
+       waterflux_inst, soilbiogeochem_nitrogenflux_inst)
+
+
+    use clm_time_manager , only : get_days_per_year, get_step_size
+    use shr_sys_mod      , only : shr_sys_flush
+    use clm_varcon       , only : secspday, spval
+ 
+    integer                                , intent(in)    :: num_soilc       ! number of soil columns in filter                                                                                                                     
+    integer                                , intent(in)    :: filter_soilc(:) ! filter for soil columns                                                                                                                                  
+   
+    type(soilbiogeochem_nitrogenflux_type) , intent(inout) :: soilbiogeochem_nitrogenflux_inst 
+    type(waterflux_type)                   , intent(inout) :: waterflux_inst 
+    !
+    ! !LOCAL VARIABLES:                                                                                                                                                                                                           
+    integer  :: c,fc            !indices     
+    real(r8) :: dayspyr      ! days per year 
+    real(r8) :: secs_per_year  !seconds per year   
+
+       associate(  AnnET          => waterflux_inst%AnnET,  ffix_to_sminn  => soilbiogeochem_nitrogenflux_inst%ffix_to_sminn_col ) 
+       
+       dayspyr = get_days_per_year()
+       secs_per_year = dayspyr*24_r8*3600_r8
+
+       do fc = 1,num_soilc
+           c = filter_soilc(fc)
+          ffix_to_sminn(c) = (0.0006_r8*(max(0._r8,AnnET(c))*secs_per_year) + 0.0117_r8 )/secs_per_year !(units g N m-2 s-1)  
+
+       end do
+
+  end associate
+  end subroutine CNFreeLivingFixation
 
   !-----------------------------------------------------------------------
   subroutine CNNFixation(num_soilc, filter_soilc, &
@@ -86,6 +124,7 @@ contains
     use clm_time_manager , only : get_days_per_year, get_step_size
     use shr_sys_mod      , only : shr_sys_flush
     use clm_varcon       , only : secspday, spval
+    use CNSharedParamsMod    , only: use_fun
     !
     ! !ARGUMENTS:
     integer                                , intent(in)    :: num_soilc       ! number of soil columns in filter
@@ -131,6 +170,9 @@ contains
             nfix_to_sminn(c) = max(0._r8,t)
          end do
       endif
+      if(use_fun)then
+        nfix_to_sminn(c) = 0.0_r8
+      end if
 
     end associate
 
@@ -213,9 +255,9 @@ contains
          wf               =>  waterstate_inst%wf_col                      ,         & ! Input:  [real(r8) (:) ]  soil water as frac. of whc for top 0.5 m          
 
          hui              =>  crop_inst%gddplant_patch                    ,         & ! Input:  [real(r8) (:) ]  gdd since planting (gddplant)                    
+         croplive         =>  crop_inst%croplive_patch                    ,         & ! Input:  [logical  (:) ]  true if planted and not harvested                  
 
          gddmaturity      =>  cnveg_state_inst%gddmaturity_patch          ,         & ! Input:  [real(r8) (:) ]  gdd needed to harvest                             
-         croplive         =>  cnveg_state_inst%croplive_patch             ,         & ! Input:  [logical  (:) ]  true if planted and not harvested                  
 
          plant_ndemand    =>  cnveg_nitrogenflux_inst%plant_ndemand_patch ,         & ! Input:  [real(r8) (:) ]  N flux required to support initial GPP (gN/m2/s)  
          soyfixn          =>  cnveg_nitrogenflux_inst%soyfixn_patch       ,         & ! Output: [real(r8) (:) ]  nitrogen fixed to each soybean crop               

@@ -162,7 +162,7 @@ contains
     ! create new netCDF file
     !WHL - Changed the following line to support large netCDF output files
 !!    status = parallel_create(process_path(NCO%filename),NF90_CLOBBER,NCO%id)
-    status = parallel_create(process_path(NCO%filename), or(NF90_CLOBBER,NF90_64BIT_OFFSET), NCO%id)
+    status = parallel_create(process_path(NCO%filename), ior(NF90_CLOBBER,NF90_64BIT_OFFSET), NCO%id)
     call nc_errorhandle(__FILE__,__LINE__,status)
     call write_log_div
     write(message,*) 'Opening file ',trim(process_path(NCO%filename)),' for output; '

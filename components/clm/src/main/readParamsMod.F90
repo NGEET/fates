@@ -31,6 +31,7 @@ contains
     use CNSharedParamsMod                 , only : CNParamsReadShared
     use CNGapMortalityMod                 , only : readCNGapMortParams                    => readParams
     use CNMRespMod                        , only : readCNMRespParams                      => readParams
+    use CNFUNMod                          , only : readCNFUNParams                        => readParams
     use CNPhenologyMod                    , only : readCNPhenolParams                     => readParams
     use SoilBiogeochemCompetitionMod      , only : readSoilBiogeochemCompetitionParams    => readParams
     use SoilBiogeochemNLeachingMod        , only : readSoilBiogeochemNLeachingParams      => readParams
@@ -42,6 +43,7 @@ contains
     use SoilBiogeochemDecompCascadeCNMod  , only : readSoilBiogeochemDecompCnParams       => readParams
     use ch4Mod                            , only : readCH4Params                          => readParams
     use NutrientCompetitionMethodMod      , only : nutrient_competition_method_type
+    use clm_varctl,                         only : NLFilename_in
     !
     ! !ARGUMENTS:
     class(nutrient_competition_method_type), intent(in) :: nutrient_competition_method
@@ -70,13 +72,14 @@ contains
     end if
 
     if (use_ed .or. use_cn) then
-       call CNParamsReadShared(ncid)  ! this is called CN params but really is for the soil biogeochem parameters
+       call CNParamsReadShared(ncid, NLFilename_in)  ! this is called CN params but really is for the soil biogeochem parameters
     end if
 
     if (use_cn) then
        call nutrient_competition_method%readParams(ncid)
        call readCNGapMortParams(ncid)
        call readCNMRespParams(ncid)
+       call readCNFUNParams(ncid)
        call readCNPhenolParams(ncid)
     end if
 

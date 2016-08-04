@@ -23,7 +23,6 @@ module WaterstateType
   ! !PUBLIC TYPES:
   type, public :: waterstate_type
 
-     logical , pointer :: do_capsnow_col         (:)   ! col true => do snow capping
      real(r8), pointer :: snow_depth_col         (:)   ! col snow height of snow covered area (m)
      real(r8), pointer :: snow_persistence_col   (:)   ! col length of time that ground has had non-zero snow thickness (sec)
      real(r8), pointer :: snowdp_col             (:)   ! col area-averaged snow height (m)
@@ -165,7 +164,6 @@ contains
     begl = bounds%begl; endl= bounds%endl
     begg = bounds%begg; endg= bounds%endg
 
-    allocate(this%do_capsnow_col         (begc:endc))                   
     allocate(this%snow_depth_col         (begc:endc))                     ; this%snow_depth_col         (:)   = nan
     allocate(this%snow_persistence_col   (begc:endc))                     ; this%snow_persistence_col   (:)   = nan
     allocate(this%snowdp_col             (begc:endc))                     ; this%snowdp_col             (:)   = nan
@@ -244,7 +242,7 @@ contains
     use shr_infnan_mod , only : nan => shr_infnan_nan, assignment(=)
     use clm_varctl     , only : create_glacier_mec_landunit, use_cn, use_lch4
     use clm_varctl     , only : hist_wrtch4diag
-    use clm_varpar     , only : nlevsno, crop_prog 
+    use clm_varpar     , only : nlevsno
     use histFileMod    , only : hist_addfld1d, hist_addfld2d, no_snow_normal, no_snow_zero
     !
     ! !ARGUMENTS:
@@ -536,6 +534,7 @@ contains
     use clm_varcon      , only : denice, denh2o, spval, sb, bdsno 
     use clm_varcon      , only : h2osno_max, zlnd, tfrz, spval, pc
     use clm_varctl      , only : fsurdat, iulog
+    use clm_varctl        , only : use_bedrock
     use spmdMod         , only : masterproc
     use abortutils      , only : endrun
     use fileutils       , only : getfil
@@ -559,6 +558,7 @@ contains
     character(len=256) :: locfn       
     real(r8)           :: snowbd      ! temporary calculation of snow bulk density (kg/m3)
     real(r8)           :: fmelt       ! snowbd/100
+    integer            :: nbedrock
     !-----------------------------------------------------------------------
 
     SHR_ASSERT_ALL((ubound(h2osno_input_col)     == (/bounds%endc/))          , errMsg(__FILE__, __LINE__))
@@ -668,7 +668,12 @@ contains
             if (lun%itype(l) == istsoil .or. lun%itype(l) == istcrop) then
                nlevs = nlevgrnd
                do j = 1, nlevs
-                  if (j > nlevsoi) then
+                  if (use_bedrock) then
+                     nbedrock = col%nbedrock(c)
+                  else
+                     nbedrock = nlevsoi
+                  endif
+                  if (j > nbedrock) then
                      this%h2osoi_vol_col(c,j) = 0.0_r8
                   else
                      this%h2osoi_vol_col(c,j) = 0.15_r8
@@ -761,13 +766,15 @@ contains
 
       do c = bounds%begc, bounds%endc
          do j = 1,nlevgrnd
-            if (t_soisno_col(c,j) <= tfrz) then
-               this%h2osoi_ice_col(c,j) = col%dz(c,j)*denice*this%h2osoi_vol_col(c,j)
-               this%h2osoi_liq_col(c,j) = 0._r8
-            else
-               this%h2osoi_ice_col(c,j) = 0._r8
-               this%h2osoi_liq_col(c,j) = col%dz(c,j)*denh2o*this%h2osoi_vol_col(c,j)
-            endif
+            if (this%h2osoi_vol_col(c,j) /= spval) then
+               if (t_soisno_col(c,j) <= tfrz) then
+                  this%h2osoi_ice_col(c,j) = col%dz(c,j)*denice*this%h2osoi_vol_col(c,j)
+                  this%h2osoi_liq_col(c,j) = 0._r8
+               else
+                  this%h2osoi_ice_col(c,j) = 0._r8
+                  this%h2osoi_liq_col(c,j) = col%dz(c,j)*denh2o*this%h2osoi_vol_col(c,j)
+               endif
+            end if
          end do
       end do
 

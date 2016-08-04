@@ -12,10 +12,13 @@ module atm2lndMod
   use shr_log_mod    , only : errMsg => shr_log_errMsg
   use clm_varpar     , only : numrad, ndst, nlevgrnd !ndst = number of dust bins.
   use clm_varcon     , only : rair, grav, cpair, hfus, tfrz, denh2o, spval
+  use clm_varcon     , only : wv_to_dair_weight_ratio
   use clm_varctl     , only : iulog, use_c13, use_cn, use_lch4, iulog
   use abortutils     , only : endrun
   use decompMod      , only : bounds_type
   use atm2lndType    , only : atm2lnd_type
+  use TopoMod        , only : topo_type
+  use filterColMod   , only : filter_col_type
   use LandunitType   , only : lun                
   use ColumnType     , only : col                
   !
@@ -33,6 +36,7 @@ module atm2lndMod
   public :: sens_heat_from_precip_conversion  ! Compute sensible heat flux needed to compensate for rain-snow conversion
   !
   ! !PRIVATE MEMBER FUNCTIONS:
+  private :: rhos  ! calculate atmospheric density
   private :: repartition_rain_snow_one_col ! Re-partition precipitation for a single column
   private :: downscale_longwave          ! Downscale longwave radiation from gridcell to column
   private :: build_normalization         ! Compute normalization factors so that downscaled fields are conservative
@@ -42,43 +46,47 @@ module atm2lndMod
 contains
 
   !-----------------------------------------------------------------------
-  subroutine downscale_forcings(bounds,num_do_smb_c,filter_do_smb_c, &
-       atm2lnd_inst, eflx_sh_precip_conversion)
+  subroutine downscale_forcings(bounds, &
+       topo_inst, atm2lnd_inst, eflx_sh_precip_conversion)
     !
     ! !DESCRIPTION:
     ! Downscale atmospheric forcing fields from gridcell to column.
+    !
+    ! Downscaling is done based on the difference between each CLM column's elevation and
+    ! the atmosphere's surface elevation (which is the elevation at which the atmospheric
+    ! forcings are valid).
     !
     ! Note that the downscaling procedure can result in changes in grid cell mean values
     ! compared to what was provided by the atmosphere. We conserve fluxes of mass and
     ! energy, but allow states such as temperature to differ.
     !
-    ! For most variables, downscaling is done over columns defined by filter_do_smb_c. But
-    ! we also do direct copies of gridcell-level forcings into column-level forcings over
-    ! all other active columns. In addition, precipitation (rain vs. snow partitioning)
-    ! is adjusted everywhere.
+    ! For most variables, downscaling is done over columns defined by
+    ! topo_inst%DownscaleFilterc. But we also do direct copies of gridcell-level forcings
+    ! into column-level forcings over all other active columns. In addition, precipitation
+    ! (rain vs. snow partitioning) is adjusted everywhere.
     !
     ! !USES:
     use clm_varcon      , only : rair, cpair, grav, lapse_glcmec
     use landunit_varcon , only : istice_mec 
-    use domainMod       , only : ldomain
     use QsatMod         , only : Qsat
     !
     ! !ARGUMENTS:
     type(bounds_type)  , intent(in)    :: bounds  
-    integer            , intent(in)    :: num_do_smb_c       ! number of columns in filter_do_smb_c
-    integer            , intent(in)    :: filter_do_smb_c(:) ! filter_do_smb_c giving columns over which downscaling should be done   
+    class(topo_type)   , intent(in)    :: topo_inst
     type(atm2lnd_type) , intent(inout) :: atm2lnd_inst
     real(r8)           , intent(out)   :: eflx_sh_precip_conversion(bounds%begc:) ! sensible heat flux from precipitation conversion (W/m**2) [+ to atm]
     !
     ! !LOCAL VARIABLES:
     integer :: g, l, c, fc         ! indices
     integer :: clo, cc
+    type(filter_col_type) :: downscale_filter_c
 
     ! temporaries for topo downscaling
-    real(r8) :: hsurf_g,hsurf_c,Hbot
-    real(r8) :: zbot_g, tbot_g, pbot_g, thbot_g, qbot_g, qs_g, es_g
-    real(r8) :: zbot_c, tbot_c, pbot_c, thbot_c, qbot_c, qs_c, es_c
-    real(r8) :: egcm_c, rhos_c
+    real(r8) :: hsurf_g,hsurf_c
+    real(r8) :: Hbot, zbot
+    real(r8) :: tbot_g, pbot_g, thbot_g, qbot_g, qs_g, es_g, rhos_g
+    real(r8) :: tbot_c, pbot_c, thbot_c, qbot_c, qs_c, es_c, rhos_c
+    real(r8) :: rhos_c_estimate, rhos_g_estimate
     real(r8) :: dum1,   dum2
 
     character(len=*), parameter :: subname = 'downscale_forcings'
@@ -87,6 +95,12 @@ contains
     SHR_ASSERT_ALL((ubound(eflx_sh_precip_conversion) == (/bounds%endc/)), errMsg(__FILE__, __LINE__))
 
     associate(&
+         ! Gridcell-level metadata:
+         forc_topo_g  => atm2lnd_inst%forc_topo_grc                , & ! Input:  [real(r8) (:)]  atmospheric surface height (m)
+
+         ! Column-level metadata:
+         topo_c       => topo_inst%topo_col                        , & ! Input:  [real(r8) (:)] column surface height (m)
+
          ! Gridcell-level non-downscaled fields:
          forc_t_g     => atm2lnd_inst%forc_t_not_downscaled_grc    , & ! Input:  [real(r8) (:)]  atmospheric temperature (Kelvin)        
          forc_th_g    => atm2lnd_inst%forc_th_not_downscaled_grc   , & ! Input:  [real(r8) (:)]  atmospheric potential temperature (Kelvin)
@@ -115,25 +129,27 @@ contains
          end if
       end do
 
+      downscale_filter_c = topo_inst%DownscaleFilterc(bounds)
+
       ! Downscale forc_t, forc_th, forc_q, forc_pbot, and forc_rho to columns.
       ! For glacier_mec columns the downscaling is based on surface elevation.
       ! For other columns the downscaling is a simple copy (above).
-      do fc = 1, num_do_smb_c
-         c = filter_do_smb_c(fc)
+      do fc = 1, downscale_filter_c%num
+         c = downscale_filter_c%indices(fc)
          l = col%landunit(c)
          g = col%gridcell(c)
 
          ! This is a simple downscaling procedure 
          ! Note that forc_hgt, forc_u, and forc_v are not downscaled.
 
-         hsurf_g = ldomain%topo(g)                       ! gridcell sfc elevation
-         hsurf_c = col%glc_topo(c)                       ! column sfc elevation
+         hsurf_g = forc_topo_g(g)                        ! gridcell sfc elevation
+         hsurf_c = topo_c(c)                             ! column sfc elevation
          tbot_g  = forc_t_g(g)                           ! atm sfc temp
          thbot_g = forc_th_g(g)                          ! atm sfc pot temp
          qbot_g  = forc_q_g(g)                           ! atm sfc spec humid
          pbot_g  = forc_pbot_g(g)                        ! atm sfc pressure
-         zbot_g  = atm2lnd_inst%forc_hgt_grc(g)          ! atm ref height
-         zbot_c  = zbot_g
+         rhos_g  = forc_rho_g(g)                         ! atm density
+         zbot    = atm2lnd_inst%forc_hgt_grc(g)          ! atm ref height
          tbot_c  = tbot_g-lapse_glcmec*(hsurf_c-hsurf_g) ! sfc temp for column
          Hbot    = rair*0.5_r8*(tbot_g+tbot_c)/grav      ! scale ht at avg temp
          pbot_c  = pbot_g*exp(-(hsurf_c-hsurf_g)/Hbot)   ! column sfc press
@@ -144,25 +160,38 @@ contains
          ! thbot_c = tbot_c * (p0/pbot_c)^(rair/cpair)
          ! 
          ! Note that pressure is related to scale height as:
-         ! pbot_c = p0 * exp(-zbot_c/H)
+         ! pbot_c = p0 * exp(-zbot/H)
          !
          ! Using Hbot in place of H, we get:
-         ! pbot_c = p0 * exp(-zbot_c/Hbot)
+         ! pbot_c = p0 * exp(-zbot/Hbot)
          !
          ! Plugging this in to the textbook definition, then manipulating, we get:
-         ! thbot_c = tbot_c * (p0/(p0*exp(-zbot_c/Hbot)))^(rair/cpair)
-         !         = tbot_c * (1/exp(-zbot_c/Hbot))^(rair/cpair)
-         !         = tbot_c * (exp(zbot_c/Hbot))^(rair/cpair)
-         !         = tbot_c * exp((zbot_c/Hbot) * (rair/cpair))
+         ! thbot_c = tbot_c * (p0/(p0*exp(-zbot/Hbot)))^(rair/cpair)
+         !         = tbot_c * (1/exp(-zbot/Hbot))^(rair/cpair)
+         !         = tbot_c * (exp(zbot/Hbot))^(rair/cpair)
+         !         = tbot_c * exp((zbot/Hbot) * (rair/cpair))
+         !
+         ! But we want everything expressed in delta form, resulting in:
+         ! thbot_c = thbot_g + (tbot_c - tbot_g)*exp((zbot/Hbot)*(rair/cpair))
 
-         thbot_c= tbot_c*exp((zbot_c/Hbot)*(rair/cpair))  ! pot temp calc
+         thbot_c= thbot_g + (tbot_c - tbot_g)*exp((zbot/Hbot)*(rair/cpair))  ! pot temp calc
 
          call Qsat(tbot_g,pbot_g,es_g,dum1,qs_g,dum2)
          call Qsat(tbot_c,pbot_c,es_c,dum1,qs_c,dum2)
 
          qbot_c = qbot_g*(qs_c/qs_g)
-         egcm_c = qbot_c*pbot_c/(0.622+0.378*qbot_c)
-         rhos_c = (pbot_c-0.378*egcm_c) / (rair*tbot_c)
+
+         ! For forc_rho_c: We could simply set:
+         !
+         !    rhos_c = rhos(pbot_c, egcm_c, tbot_c)
+         !
+         ! However, we want forc_rho_c to be identical to forc_rho_g when topo_c equals
+         ! forc_topo_g. So we compute our own version of forc_rho_g using the rhos
+         ! function, and then multiply forc_rho_g by the ratio of (computed column-level
+         ! rho) to (computed gridcell-level rho).
+         rhos_c_estimate = rhos(qbot=qbot_c, pbot=pbot_c, tbot=tbot_c)
+         rhos_g_estimate = rhos(qbot=qbot_g, pbot=pbot_g, tbot=tbot_g)
+         rhos_c = rhos_g * (rhos_c_estimate / rhos_g_estimate)
 
          forc_t_c(c)    = tbot_c
          forc_th_c(c)   = thbot_c
@@ -175,7 +204,7 @@ contains
       call partition_precip(bounds, atm2lnd_inst, &
            eflx_sh_precip_conversion(bounds%begc:bounds%endc))
 
-      call downscale_longwave(bounds, num_do_smb_c, filter_do_smb_c, atm2lnd_inst)
+      call downscale_longwave(bounds, downscale_filter_c, topo_inst, atm2lnd_inst)
 
       call check_downscale_consistency(bounds, atm2lnd_inst)
 
@@ -184,13 +213,39 @@ contains
   end subroutine downscale_forcings
 
   !-----------------------------------------------------------------------
+  pure function rhos(qbot, pbot, tbot)
+    !
+    ! !DESCRIPTION:
+    ! Compute atmospheric density (kg/m**3)
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS:
+    real(r8) :: rhos  ! function result: atmospheric density (kg/m**3)
+    real(r8), intent(in) :: qbot  ! atmospheric specific humidity (kg/kg)
+    real(r8), intent(in) :: pbot  ! atmospheric pressure (Pa)
+    real(r8), intent(in) :: tbot  ! atmospheric temperature (K)
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: egcm
+
+    character(len=*), parameter :: subname = 'rhos'
+    !-----------------------------------------------------------------------
+
+    egcm = qbot*pbot / &
+         (wv_to_dair_weight_ratio + (1._r8 - wv_to_dair_weight_ratio)*qbot)
+    rhos = (pbot - (1._r8 - wv_to_dair_weight_ratio)*egcm) / (rair*tbot)
+    
+  end function rhos
+
+  !-----------------------------------------------------------------------
   subroutine partition_precip(bounds, atm2lnd_inst, eflx_sh_precip_conversion)
     !
     ! !DESCRIPTION:
     ! Partition precipitation into rain/snow based on temperature.
     !
     ! Note that, unlike the other downscalings done here, this is currently applied over
-    ! all points - not just those within the do_smb filter.
+    ! all points - not just those within the downscale filter.
     !
     ! !USES:
     use clm_varctl      , only : repartition_rain_snow
@@ -326,23 +381,23 @@ contains
 
 
   !-----------------------------------------------------------------------
-  subroutine downscale_longwave(bounds, num_do_smb_c, filter_do_smb_c, atm2lnd_inst)
+  subroutine downscale_longwave(bounds, downscale_filter_c, &
+       topo_inst, atm2lnd_inst)
     !
     ! !DESCRIPTION:
     ! Downscale longwave radiation from gridcell to column
     ! Must be done AFTER temperature downscaling
     !
     ! !USES:
-    use domainMod       , only : ldomain
     use landunit_varcon , only : istice_mec 
     use clm_varcon      , only : lapse_glcmec
     use clm_varctl      , only : glcmec_downscale_longwave
     !
     ! !ARGUMENTS:
-    type(bounds_type)  , intent(in)    :: bounds  
-    integer            , intent(in)    :: num_do_smb_c       ! number of columns in filter_do_smb_c
-    integer            , intent(in)    :: filter_do_smb_c(:) ! filter_do_smb_c giving columns over which downscaling should be done (currently glcmec columns)
-    type(atm2lnd_type) , intent(inout) :: atm2lnd_inst
+    type(bounds_type)     , intent(in)    :: bounds
+    type(filter_col_type) , intent(in)    :: downscale_filter_c
+    class(topo_type)      , intent(in)    :: topo_inst
+    type(atm2lnd_type)    , intent(inout) :: atm2lnd_inst
     !
     ! !LOCAL VARIABLES:
     integer  :: c,l,g,fc     ! indices
@@ -358,6 +413,12 @@ contains
     !-----------------------------------------------------------------------
 
     associate(&
+         ! Gridcell-level metadata:
+         forc_topo_g  => atm2lnd_inst%forc_topo_grc                , & ! Input:  [real(r8) (:)]  atmospheric surface height (m)
+
+         ! Column-level metadata:
+         topo_c       => topo_inst%topo_col                        , & ! Input:  [real(r8) (:)] column surface height (m)
+
          ! Gridcell-level fields:
          forc_t_g     => atm2lnd_inst%forc_t_not_downscaled_grc    , & ! Input:  [real(r8) (:)]  atmospheric temperature (Kelvin)        
          forc_lwrad_g => atm2lnd_inst%forc_lwrad_not_downscaled_grc, & ! Input:  [real(r8) (:)]  downward longwave (W/m**2)
@@ -386,13 +447,13 @@ contains
          end do
 
          ! Do the downscaling
-         do fc = 1, num_do_smb_c
-            c = filter_do_smb_c(fc)
+         do fc = 1, downscale_filter_c%num
+            c = downscale_filter_c%indices(fc)
             l = col%landunit(c)
             g = col%gridcell(c)
 
-            hsurf_g = ldomain%topo(g)
-            hsurf_c = col%glc_topo(c)
+            hsurf_g = forc_topo_g(g)
+            hsurf_c = topo_c(c)
 
             ! Here we assume that deltaLW = (dLW/dT)*(dT/dz)*deltaz
             ! We get dLW/dT = 4*eps*sigma*T^3 = 4*LW/T from the Stefan-Boltzmann law,
@@ -421,8 +482,8 @@ contains
               sum_wts=sum_wts_g(bounds%begg:bounds%endg), &
               norms=lwrad_norm_g(bounds%begg:bounds%endg))
 
-         do fc = 1, num_do_smb_c
-            c = filter_do_smb_c(fc)
+         do fc = 1, downscale_filter_c%num
+            c = downscale_filter_c%indices(fc)
             l = col%landunit(c)
             g = col%gridcell(c)
 

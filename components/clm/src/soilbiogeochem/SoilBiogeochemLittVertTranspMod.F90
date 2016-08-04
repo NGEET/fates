@@ -16,6 +16,9 @@ module SoilBiogeochemLittVertTranspMod
   use SoilBiogeochemNitrogenFluxType     , only : soilbiogeochem_nitrogenflux_type
   use SoilBiogeochemNitrogenStateType    , only : soilbiogeochem_nitrogenstate_type
   use SoilBiogeochemDecompCascadeConType , only : decomp_cascade_con
+  use ColumnType                         , only : col                
+  use GridcellType                       , only : grc
+  use SoilBiogeochemStateType            , only : get_spinup_latitude_term
   !
   implicit none
   private
@@ -56,6 +59,7 @@ contains
     !
     ! read in parameters
     !
+
      tString='som_diffus'
      call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
      if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
@@ -98,6 +102,9 @@ contains
     use clm_varpar       , only : nlevdecomp, ndecomp_pools, nlevdecomp_full
     use clm_varcon       , only : zsoi, dzsoi_decomp, zisoi
     use TridiagonalMod   , only : Tridiagonal
+    use ColumnType       , only : col
+    use clm_varctl       , only : use_bedrock
+
     !
     ! !ARGUMENTS:
     type(bounds_type)                       , intent(in)    :: bounds 
@@ -191,21 +198,31 @@ contains
                  ( max(altmax(c), altmax_lastyear(c)) > 0._r8) ) then
                ! use mixing profile modified slightly from Koven et al. (2009): constant through active layer, linear decrease from base of active layer to zero at a fixed depth
                do j = 1,nlevdecomp+1
-                  if ( zisoi(j) < max(altmax(c), altmax_lastyear(c)) ) then
-                     som_diffus_coef(c,j) = cryoturb_diffusion_k 
-                     som_adv_coef(c,j) = 0._r8
-                  else
-                     som_diffus_coef(c,j) = max(cryoturb_diffusion_k * & 
+                  if ( j <= col%nbedrock(c)+1 ) then
+                     if ( zisoi(j) < max(altmax(c), altmax_lastyear(c)) ) then
+                        som_diffus_coef(c,j) = cryoturb_diffusion_k 
+                        som_adv_coef(c,j) = 0._r8
+                     else
+                        som_diffus_coef(c,j) = max(cryoturb_diffusion_k * & 
                           ( 1._r8 - ( zisoi(j) - max(altmax(c), altmax_lastyear(c)) ) / &
-                          ( max_depth_cryoturb - max(altmax(c), altmax_lastyear(c)) ) ), 0._r8)  ! go linearly to zero between ALT and max_depth_cryoturb
+                          ( min(max_depth_cryoturb, zisoi(col%nbedrock(c)+1)) - max(altmax(c), altmax_lastyear(c)) ) ), 0._r8)  ! go linearly to zero between ALT and max_depth_cryoturb
+                        som_adv_coef(c,j) = 0._r8
+                     endif
+                  else
                      som_adv_coef(c,j) = 0._r8
+                     som_diffus_coef(c,j) = 0._r8
                   endif
                end do
             elseif (  max(altmax(c), altmax_lastyear(c)) > 0._r8 ) then
                ! constant advection, constant diffusion
                do j = 1,nlevdecomp+1
-                  som_adv_coef(c,j) = som_adv_flux 
-                  som_diffus_coef(c,j) = som_diffus
+                  if ( j <= col%nbedrock(c)+1 ) then
+                     som_adv_coef(c,j) = som_adv_flux 
+                     som_diffus_coef(c,j) = som_diffus
+                  else
+                     som_adv_coef(c,j) = 0._r8
+                     som_diffus_coef(c,j) = 0._r8
+                  endif
                end do
             else
                ! completely frozen soils--no mixing
@@ -266,19 +283,23 @@ contains
 
             do s = 1, ndecomp_pools
 
-               if ( spinup_state .eq. 1 ) then
-                  ! increase transport (both advection and diffusion) by the same factor as accelerated decomposition for a given pool
-                  spinup_term = spinup_factor(s)
-               else
-                  spinup_term = 1.
-               endif
-
                if ( .not. is_cwd(s) ) then
 
                   do j = 1,nlevdecomp+1
                      do fc = 1, num_soilc
                         c = filter_soilc (fc)
                         !
+                        if ( spinup_state >= 1 ) then
+                           ! increase transport (both advection and diffusion) by the same factor as accelerated decomposition for a given pool
+                           spinup_term = spinup_factor(s)
+                        else
+                           spinup_term = 1._r8
+                        endif
+
+                        if (abs(spinup_term - 1._r8) > .000001_r8 ) then
+                           spinup_term = spinup_term * get_spinup_latitude_term(grc%latdeg(col%gridcell(c)))
+                        endif
+
                         if ( abs(som_adv_coef(c,j)) * spinup_term < epsilon ) then
                            adv_flux(c,j) = epsilon
                         else
@@ -299,7 +320,7 @@ contains
                   do fc = 1, num_soilc ! dummy terms here
                      c = filter_soilc (fc)
                      conc_trcr(c,0) = 0._r8
-                     conc_trcr(c,nlevdecomp+1) = 0._r8
+                     conc_trcr(c,col%nbedrock(c)+1:nlevdecomp+1) = 0._r8
                   end do
 
 
@@ -308,6 +329,7 @@ contains
                         c = filter_soilc (fc)
 
                         conc_trcr(c,j) = conc_ptr(c,j,s)
+                  
                         ! dz_tracer below is the difference between gridcell edges  (dzsoi_decomp)
                         ! dz_node_tracer is difference between cell centers 
 
@@ -325,7 +347,7 @@ contains
                            f_p1(c,j) = adv_flux(c,j+1)
                            pe_m1(c,j) = 0._r8
                            pe_p1(c,j) = f_p1(c,j) / d_p1_zp1(c,j) ! Peclet #
-                        elseif (j == nlevdecomp+1) then
+                        elseif (j >= col%nbedrock(c)+1) then
                            ! At the bottom, assume no gradient in d_z (i.e., they're the same)
                            w_m1 = (zisoi(j-1) - zsoi(j-1)) / dz_node(j)
                            if ( diffus(c,j) > 0._r8 .and. diffus(c,j-1) > 0._r8) then
@@ -422,7 +444,6 @@ contains
                        r_tri(bounds%begc:bounds%endc, :), &
                        conc_trcr(bounds%begc:bounds%endc,0:nlevdecomp+1))
 
-
                   ! add post-transport concentration to calculate tendency term
                   do fc = 1, num_soilc
                      c = filter_soilc (fc)
@@ -432,13 +453,19 @@ contains
                      end do
                   end do
 
-
                else
                   ! for CWD pools, just add
                   do j = 1,nlevdecomp
                      do fc = 1, num_soilc
                         c = filter_soilc (fc)
                         conc_trcr(c,j) = conc_ptr(c,j,s) + source(c,j,s)
+                        if (j > col%nbedrock(c) .and. source(c,j,s) > 0._r8) then 
+                           write(iulog,*) 'source >0',c,j,s,source(c,j,s)
+                        end if
+                        if (j > col%nbedrock(c) .and. conc_ptr(c,j,s) > 0._r8) then
+                           write(iulog,*) 'conc_ptr >0',c,j,s,conc_ptr(c,j,s)
+                        end if
+
                      end do
                   end do
 
@@ -448,6 +475,12 @@ contains
                   do fc = 1, num_soilc
                      c = filter_soilc (fc)
                      conc_ptr(c,j,s) = conc_trcr(c,j) 
+                     ! Correct for small amounts of carbon that leak into bedrock
+                     if (j > col%nbedrock(c)) then 
+                        conc_ptr(c,col%nbedrock(c),s) = conc_ptr(c,col%nbedrock(c),s) + &
+                           conc_trcr(c,j) * (dzsoi_decomp(j) / dzsoi_decomp(col%nbedrock(c)))
+                        conc_ptr(c,j,s) = 0._r8
+                     end if
                   end do
                end do
 

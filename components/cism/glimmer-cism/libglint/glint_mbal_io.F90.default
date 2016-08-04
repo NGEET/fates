@@ -1,6 +1,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! WARNING: this file was automatically generated on
-! Fri, 03 Apr 2015 18:33:13 +0000
+! Fri, 04 Mar 2016 17:13:38 +0000
 ! from ncdf_template.F90.in
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -48,7 +48,8 @@ module glint_mbal_io
 
   implicit none
 
-  private :: get_xtype, is_enabled, is_enabled_0dint, is_enabled_1dint, is_enabled_2dint, is_enabled_0dreal, is_enabled_1dreal, is_enabled_2dreal, is_enabled_3dreal
+  private :: get_xtype, is_enabled, is_enabled_0dint, is_enabled_1dint, &
+       is_enabled_2dint, is_enabled_0dreal, is_enabled_1dreal, is_enabled_2dreal, is_enabled_3dreal
 
   character(310), save :: restart_variable_list=''    ! list of variables needed for a restart
 !TODO change 310 to a variable - see glimmer_ncdf.F90 in the definition for type glimmer_nc_stat for other instances of this value.
@@ -244,7 +245,8 @@ contains
     ! Now apply necessary changes if the file is a restart file.
     if (NCO%restartfile) then
        if ((len_trim(NCO%vars) + len_trim(restart_variable_list) + 2) >= len(NCO%vars) ) then
-          call write_log('Adding restart variables has made the list of output variables too long for file ' // NCO%filename, GM_FATAL)
+          call write_log('Adding restart variables has made the list of output variables too long for file ' // NCO%filename, &
+               GM_FATAL)
        else
           ! Expand the restart variable list 
           ! Need to maintain a space at beginning and end of list
@@ -292,83 +294,117 @@ contains
     !     level -- sigma layers
     if (.not.outfile%append) then
        call write_log('Creating variable level')
-       status = parallel_def_var(NCO%id,'level',get_xtype(outfile,NF90_FLOAT),(/level_dimid/),varid)
+       status = parallel_def_var(NCO%id,'level',get_xtype(outfile,NF90_FLOAT), &
+            (/level_dimid/),varid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       status = parallel_put_att(NCO%id, varid, 'formula_terms', 'sigma: level topo: topg thick: thk')
-       status = parallel_put_att(NCO%id, varid, 'long_name', 'sigma layers')
-       status = parallel_put_att(NCO%id, varid, 'standard_name', 'land_ice_sigma_coordinate')
-       status = parallel_put_att(NCO%id, varid, 'units', '1')
+       status = parallel_put_att(NCO%id, varid, 'formula_terms', &
+            'sigma: level topo: topg thick: thk')
+       status = parallel_put_att(NCO%id, varid, 'long_name', &
+            'sigma layers')
+       status = parallel_put_att(NCO%id, varid, 'standard_name', &
+            'land_ice_sigma_coordinate')
+       status = parallel_put_att(NCO%id, varid, 'units', &
+            '1')
      end if
 
     !     lithoz -- vertical coordinate of lithosphere layer
     if (.not.outfile%append) then
        call write_log('Creating variable lithoz')
-       status = parallel_def_var(NCO%id,'lithoz',get_xtype(outfile,NF90_FLOAT),(/lithoz_dimid/),varid)
+       status = parallel_def_var(NCO%id,'lithoz',get_xtype(outfile,NF90_FLOAT), &
+            (/lithoz_dimid/),varid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       status = parallel_put_att(NCO%id, varid, 'long_name', 'vertical coordinate of lithosphere layer')
-       status = parallel_put_att(NCO%id, varid, 'units', 'meter')
+       status = parallel_put_att(NCO%id, varid, 'long_name', &
+            'vertical coordinate of lithosphere layer')
+       status = parallel_put_att(NCO%id, varid, 'units', &
+            'meter')
      end if
 
     !     staglevel -- stag sigma layers
     if (.not.outfile%append) then
        call write_log('Creating variable staglevel')
-       status = parallel_def_var(NCO%id,'staglevel',get_xtype(outfile,NF90_FLOAT),(/staglevel_dimid/),varid)
+       status = parallel_def_var(NCO%id,'staglevel',get_xtype(outfile,NF90_FLOAT), &
+            (/staglevel_dimid/),varid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       status = parallel_put_att(NCO%id, varid, 'positive', 'down')
-       status = parallel_put_att(NCO%id, varid, 'long_name', 'stag sigma layers')
-       status = parallel_put_att(NCO%id, varid, 'standard_name', 'land_ice_stag_sigma_coordinate')
-       status = parallel_put_att(NCO%id, varid, 'units', '1')
+       status = parallel_put_att(NCO%id, varid, 'positive', &
+            'down')
+       status = parallel_put_att(NCO%id, varid, 'long_name', &
+            'stag sigma layers')
+       status = parallel_put_att(NCO%id, varid, 'standard_name', &
+            'land_ice_stag_sigma_coordinate')
+       status = parallel_put_att(NCO%id, varid, 'units', &
+            '1')
      end if
 
     !     stagwbndlevel -- stag sigma layers with boundaries
     if (.not.outfile%append) then
        call write_log('Creating variable stagwbndlevel')
-       status = parallel_def_var(NCO%id,'stagwbndlevel',get_xtype(outfile,NF90_FLOAT),(/stagwbndlevel_dimid/),varid)
+       status = parallel_def_var(NCO%id,'stagwbndlevel',get_xtype(outfile,NF90_FLOAT), &
+            (/stagwbndlevel_dimid/),varid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       status = parallel_put_att(NCO%id, varid, 'positive', 'down')
-       status = parallel_put_att(NCO%id, varid, 'long_name', 'stag sigma layers with boundaries')
-       status = parallel_put_att(NCO%id, varid, 'standard_name', 'land_ice_stag_sigma_coordinate_with_bnd')
-       status = parallel_put_att(NCO%id, varid, 'units', '1')
+       status = parallel_put_att(NCO%id, varid, 'positive', &
+            'down')
+       status = parallel_put_att(NCO%id, varid, 'long_name', &
+            'stag sigma layers with boundaries')
+       status = parallel_put_att(NCO%id, varid, 'standard_name', &
+            'land_ice_stag_sigma_coordinate_with_bnd')
+       status = parallel_put_att(NCO%id, varid, 'units', &
+            '1')
      end if
 
     !     x0 -- Cartesian x-coordinate, velocity grid
     if (.not.outfile%append) then
        call write_log('Creating variable x0')
-       status = parallel_def_var(NCO%id,'x0',get_xtype(outfile,NF90_FLOAT),(/x0_dimid/),varid)
+       status = parallel_def_var(NCO%id,'x0',get_xtype(outfile,NF90_FLOAT), &
+            (/x0_dimid/),varid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       status = parallel_put_att(NCO%id, varid, 'long_name', 'Cartesian x-coordinate, velocity grid')
-       status = parallel_put_att(NCO%id, varid, 'standard_name', 'projection_x_coordinate')
-       status = parallel_put_att(NCO%id, varid, 'units', 'meter')
+       status = parallel_put_att(NCO%id, varid, 'long_name', &
+            'Cartesian x-coordinate, velocity grid')
+       status = parallel_put_att(NCO%id, varid, 'standard_name', &
+            'projection_x_coordinate')
+       status = parallel_put_att(NCO%id, varid, 'units', &
+            'meter')
      end if
 
     !     x1 -- Cartesian x-coordinate
     if (.not.outfile%append) then
        call write_log('Creating variable x1')
-       status = parallel_def_var(NCO%id,'x1',get_xtype(outfile,NF90_FLOAT),(/x1_dimid/),varid)
+       status = parallel_def_var(NCO%id,'x1',get_xtype(outfile,NF90_FLOAT), &
+            (/x1_dimid/),varid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       status = parallel_put_att(NCO%id, varid, 'long_name', 'Cartesian x-coordinate')
-       status = parallel_put_att(NCO%id, varid, 'standard_name', 'projection_x_coordinate')
-       status = parallel_put_att(NCO%id, varid, 'units', 'meter')
+       status = parallel_put_att(NCO%id, varid, 'long_name', &
+            'Cartesian x-coordinate')
+       status = parallel_put_att(NCO%id, varid, 'standard_name', &
+            'projection_x_coordinate')
+       status = parallel_put_att(NCO%id, varid, 'units', &
+            'meter')
      end if
 
     !     y0 -- Cartesian y-coordinate, velocity grid
     if (.not.outfile%append) then
        call write_log('Creating variable y0')
-       status = parallel_def_var(NCO%id,'y0',get_xtype(outfile,NF90_FLOAT),(/y0_dimid/),varid)
+       status = parallel_def_var(NCO%id,'y0',get_xtype(outfile,NF90_FLOAT), &
+            (/y0_dimid/),varid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       status = parallel_put_att(NCO%id, varid, 'long_name', 'Cartesian y-coordinate, velocity grid')
-       status = parallel_put_att(NCO%id, varid, 'standard_name', 'projection_y_coordinate')
-       status = parallel_put_att(NCO%id, varid, 'units', 'meter')
+       status = parallel_put_att(NCO%id, varid, 'long_name', &
+            'Cartesian y-coordinate, velocity grid')
+       status = parallel_put_att(NCO%id, varid, 'standard_name', &
+            'projection_y_coordinate')
+       status = parallel_put_att(NCO%id, varid, 'units', &
+            'meter')
      end if
 
     !     y1 -- Cartesian y-coordinate
     if (.not.outfile%append) then
        call write_log('Creating variable y1')
-       status = parallel_def_var(NCO%id,'y1',get_xtype(outfile,NF90_FLOAT),(/y1_dimid/),varid)
+       status = parallel_def_var(NCO%id,'y1',get_xtype(outfile,NF90_FLOAT), &
+            (/y1_dimid/),varid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       status = parallel_put_att(NCO%id, varid, 'long_name', 'Cartesian y-coordinate')
-       status = parallel_put_att(NCO%id, varid, 'standard_name', 'projection_y_coordinate')
-       status = parallel_put_att(NCO%id, varid, 'units', 'meter')
+       status = parallel_put_att(NCO%id, varid, 'long_name', &
+            'Cartesian y-coordinate')
+       status = parallel_put_att(NCO%id, varid, 'standard_name', &
+            'projection_y_coordinate')
+       status = parallel_put_att(NCO%id, varid, 'units', &
+            'meter')
      end if
 
     !     instant_ablt -- instantaneous ablation
@@ -380,16 +416,20 @@ contains
     if (pos.ne.0 .and. status.eq.nf90_enotvar) then
     if (is_enabled(data%mbal_accum%ablt)) then
        call write_log('Creating variable instant_ablt')
-       status = parallel_def_var(NCO%id,'instant_ablt',get_xtype(outfile,NF90_FLOAT),(/x1_dimid, y1_dimid, time_dimid/),varid)
+       status = parallel_def_var(NCO%id,'instant_ablt',get_xtype(outfile,NF90_FLOAT), &
+            (/x1_dimid, y1_dimid, time_dimid/),varid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       status = parallel_put_att(NCO%id, varid, 'long_name', 'instantaneous ablation')
-       status = parallel_put_att(NCO%id, varid, 'units', 'meter')
+       status = parallel_put_att(NCO%id, varid, 'long_name', &
+            'instantaneous ablation')
+       status = parallel_put_att(NCO%id, varid, 'units', &
+            'meter')
        if (glimmap_allocated(model%projection)) then
           status = parallel_put_att(NCO%id, varid, 'grid_mapping',glimmer_nc_mapvarname)
           status = parallel_put_att(NCO%id, varid, 'coordinates', 'lon lat')
        end if
      else
-     call write_log('Variable instant_ablt was specified for output but it is inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
+     call write_log('Variable instant_ablt was specified for output but it is &
+          &inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
      end if
      end if
 
@@ -402,16 +442,20 @@ contains
     if (pos.ne.0 .and. status.eq.nf90_enotvar) then
     if (is_enabled(data%mbal_accum%acab)) then
        call write_log('Creating variable instant_acab')
-       status = parallel_def_var(NCO%id,'instant_acab',get_xtype(outfile,NF90_FLOAT),(/x1_dimid, y1_dimid, time_dimid/),varid)
+       status = parallel_def_var(NCO%id,'instant_acab',get_xtype(outfile,NF90_FLOAT), &
+            (/x1_dimid, y1_dimid, time_dimid/),varid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       status = parallel_put_att(NCO%id, varid, 'long_name', 'instantaneous mass-balance')
-       status = parallel_put_att(NCO%id, varid, 'units', 'meter')
+       status = parallel_put_att(NCO%id, varid, 'long_name', &
+            'instantaneous mass-balance')
+       status = parallel_put_att(NCO%id, varid, 'units', &
+            'meter')
        if (glimmap_allocated(model%projection)) then
           status = parallel_put_att(NCO%id, varid, 'grid_mapping',glimmer_nc_mapvarname)
           status = parallel_put_att(NCO%id, varid, 'coordinates', 'lon lat')
        end if
      else
-     call write_log('Variable instant_acab was specified for output but it is inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
+     call write_log('Variable instant_acab was specified for output but it is &
+          &inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
      end if
      end if
 
@@ -424,16 +468,20 @@ contains
     if (pos.ne.0 .and. status.eq.nf90_enotvar) then
     if (is_enabled(data%mbal_accum%artm)) then
        call write_log('Creating variable instant_artm')
-       status = parallel_def_var(NCO%id,'instant_artm',get_xtype(outfile,NF90_FLOAT),(/x1_dimid, y1_dimid, time_dimid/),varid)
+       status = parallel_def_var(NCO%id,'instant_artm',get_xtype(outfile,NF90_FLOAT), &
+            (/x1_dimid, y1_dimid, time_dimid/),varid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       status = parallel_put_att(NCO%id, varid, 'long_name', 'instantaneous air temperature')
-       status = parallel_put_att(NCO%id, varid, 'units', 'degC')
+       status = parallel_put_att(NCO%id, varid, 'long_name', &
+            'instantaneous air temperature')
+       status = parallel_put_att(NCO%id, varid, 'units', &
+            'degC')
        if (glimmap_allocated(model%projection)) then
           status = parallel_put_att(NCO%id, varid, 'grid_mapping',glimmer_nc_mapvarname)
           status = parallel_put_att(NCO%id, varid, 'coordinates', 'lon lat')
        end if
      else
-     call write_log('Variable instant_artm was specified for output but it is inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
+     call write_log('Variable instant_artm was specified for output but it is &
+          &inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
      end if
      end if
 
@@ -446,16 +494,20 @@ contains
     if (pos.ne.0 .and. status.eq.nf90_enotvar) then
     if (is_enabled(data%mbal_accum%humidity)) then
        call write_log('Creating variable instant_humidity')
-       status = parallel_def_var(NCO%id,'instant_humidity',get_xtype(outfile,NF90_FLOAT),(/x1_dimid, y1_dimid, time_dimid/),varid)
+       status = parallel_def_var(NCO%id,'instant_humidity',get_xtype(outfile,NF90_FLOAT), &
+            (/x1_dimid, y1_dimid, time_dimid/),varid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       status = parallel_put_att(NCO%id, varid, 'long_name', 'instantaneous humidity')
-       status = parallel_put_att(NCO%id, varid, 'units', '1')
+       status = parallel_put_att(NCO%id, varid, 'long_name', &
+            'instantaneous humidity')
+       status = parallel_put_att(NCO%id, varid, 'units', &
+            '1')
        if (glimmap_allocated(model%projection)) then
           status = parallel_put_att(NCO%id, varid, 'grid_mapping',glimmer_nc_mapvarname)
           status = parallel_put_att(NCO%id, varid, 'coordinates', 'lon lat')
        end if
      else
-     call write_log('Variable instant_humidity was specified for output but it is inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
+     call write_log('Variable instant_humidity was specified for output but it is &
+          &inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
      end if
      end if
 
@@ -468,16 +520,20 @@ contains
     if (pos.ne.0 .and. status.eq.nf90_enotvar) then
     if (is_enabled(data%mbal_accum%lwdown)) then
        call write_log('Creating variable instant_lwdown')
-       status = parallel_def_var(NCO%id,'instant_lwdown',get_xtype(outfile,NF90_FLOAT),(/x1_dimid, y1_dimid, time_dimid/),varid)
+       status = parallel_def_var(NCO%id,'instant_lwdown',get_xtype(outfile,NF90_FLOAT), &
+            (/x1_dimid, y1_dimid, time_dimid/),varid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       status = parallel_put_att(NCO%id, varid, 'long_name', 'instantaneous lw down')
-       status = parallel_put_att(NCO%id, varid, 'units', 'W/m2')
+       status = parallel_put_att(NCO%id, varid, 'long_name', &
+            'instantaneous lw down')
+       status = parallel_put_att(NCO%id, varid, 'units', &
+            'W/m2')
        if (glimmap_allocated(model%projection)) then
           status = parallel_put_att(NCO%id, varid, 'grid_mapping',glimmer_nc_mapvarname)
           status = parallel_put_att(NCO%id, varid, 'coordinates', 'lon lat')
        end if
      else
-     call write_log('Variable instant_lwdown was specified for output but it is inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
+     call write_log('Variable instant_lwdown was specified for output but it is &
+          &inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
      end if
      end if
 
@@ -490,16 +546,20 @@ contains
     if (pos.ne.0 .and. status.eq.nf90_enotvar) then
     if (is_enabled(data%mbal_accum%prcp)) then
        call write_log('Creating variable instant_prcp')
-       status = parallel_def_var(NCO%id,'instant_prcp',get_xtype(outfile,NF90_FLOAT),(/x1_dimid, y1_dimid, time_dimid/),varid)
+       status = parallel_def_var(NCO%id,'instant_prcp',get_xtype(outfile,NF90_FLOAT), &
+            (/x1_dimid, y1_dimid, time_dimid/),varid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       status = parallel_put_att(NCO%id, varid, 'long_name', 'instantaneous precip')
-       status = parallel_put_att(NCO%id, varid, 'units', 'meter')
+       status = parallel_put_att(NCO%id, varid, 'long_name', &
+            'instantaneous precip')
+       status = parallel_put_att(NCO%id, varid, 'units', &
+            'meter')
        if (glimmap_allocated(model%projection)) then
           status = parallel_put_att(NCO%id, varid, 'grid_mapping',glimmer_nc_mapvarname)
           status = parallel_put_att(NCO%id, varid, 'coordinates', 'lon lat')
        end if
      else
-     call write_log('Variable instant_prcp was specified for output but it is inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
+     call write_log('Variable instant_prcp was specified for output but it is &
+          &inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
      end if
      end if
 
@@ -512,16 +572,20 @@ contains
     if (pos.ne.0 .and. status.eq.nf90_enotvar) then
     if (is_enabled(data%mbal_accum%psurf)) then
        call write_log('Creating variable instant_psurf')
-       status = parallel_def_var(NCO%id,'instant_psurf',get_xtype(outfile,NF90_FLOAT),(/x1_dimid, y1_dimid, time_dimid/),varid)
+       status = parallel_def_var(NCO%id,'instant_psurf',get_xtype(outfile,NF90_FLOAT), &
+            (/x1_dimid, y1_dimid, time_dimid/),varid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       status = parallel_put_att(NCO%id, varid, 'long_name', 'instantaneous surface pressure')
-       status = parallel_put_att(NCO%id, varid, 'units', 'Pa')
+       status = parallel_put_att(NCO%id, varid, 'long_name', &
+            'instantaneous surface pressure')
+       status = parallel_put_att(NCO%id, varid, 'units', &
+            'Pa')
        if (glimmap_allocated(model%projection)) then
           status = parallel_put_att(NCO%id, varid, 'grid_mapping',glimmer_nc_mapvarname)
           status = parallel_put_att(NCO%id, varid, 'coordinates', 'lon lat')
        end if
      else
-     call write_log('Variable instant_psurf was specified for output but it is inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
+     call write_log('Variable instant_psurf was specified for output but it is &
+          &inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
      end if
      end if
 
@@ -534,16 +598,20 @@ contains
     if (pos.ne.0 .and. status.eq.nf90_enotvar) then
     if (is_enabled(data%mbal_accum%siced)) then
        call write_log('Creating variable instant_siced')
-       status = parallel_def_var(NCO%id,'instant_siced',get_xtype(outfile,NF90_FLOAT),(/x1_dimid, y1_dimid, time_dimid/),varid)
+       status = parallel_def_var(NCO%id,'instant_siced',get_xtype(outfile,NF90_FLOAT), &
+            (/x1_dimid, y1_dimid, time_dimid/),varid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       status = parallel_put_att(NCO%id, varid, 'long_name', 'superimposed ice depth')
-       status = parallel_put_att(NCO%id, varid, 'units', 'meter')
+       status = parallel_put_att(NCO%id, varid, 'long_name', &
+            'superimposed ice depth')
+       status = parallel_put_att(NCO%id, varid, 'units', &
+            'meter')
        if (glimmap_allocated(model%projection)) then
           status = parallel_put_att(NCO%id, varid, 'grid_mapping',glimmer_nc_mapvarname)
           status = parallel_put_att(NCO%id, varid, 'coordinates', 'lon lat')
        end if
      else
-     call write_log('Variable instant_siced was specified for output but it is inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
+     call write_log('Variable instant_siced was specified for output but it is &
+          &inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
      end if
      end if
 
@@ -556,16 +624,20 @@ contains
     if (pos.ne.0 .and. status.eq.nf90_enotvar) then
     if (is_enabled(data%mbal_accum%snowd)) then
        call write_log('Creating variable instant_snowd')
-       status = parallel_def_var(NCO%id,'instant_snowd',get_xtype(outfile,NF90_FLOAT),(/x1_dimid, y1_dimid, time_dimid/),varid)
+       status = parallel_def_var(NCO%id,'instant_snowd',get_xtype(outfile,NF90_FLOAT), &
+            (/x1_dimid, y1_dimid, time_dimid/),varid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       status = parallel_put_att(NCO%id, varid, 'long_name', 'snow depth')
-       status = parallel_put_att(NCO%id, varid, 'units', 'meter')
+       status = parallel_put_att(NCO%id, varid, 'long_name', &
+            'snow depth')
+       status = parallel_put_att(NCO%id, varid, 'units', &
+            'meter')
        if (glimmap_allocated(model%projection)) then
           status = parallel_put_att(NCO%id, varid, 'grid_mapping',glimmer_nc_mapvarname)
           status = parallel_put_att(NCO%id, varid, 'coordinates', 'lon lat')
        end if
      else
-     call write_log('Variable instant_snowd was specified for output but it is inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
+     call write_log('Variable instant_snowd was specified for output but it is &
+          &inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
      end if
      end if
 
@@ -578,16 +650,20 @@ contains
     if (pos.ne.0 .and. status.eq.nf90_enotvar) then
     if (is_enabled(data%mbal_accum%swdown)) then
        call write_log('Creating variable instant_swdown')
-       status = parallel_def_var(NCO%id,'instant_swdown',get_xtype(outfile,NF90_FLOAT),(/x1_dimid, y1_dimid, time_dimid/),varid)
+       status = parallel_def_var(NCO%id,'instant_swdown',get_xtype(outfile,NF90_FLOAT), &
+            (/x1_dimid, y1_dimid, time_dimid/),varid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       status = parallel_put_att(NCO%id, varid, 'long_name', 'instantaneous sw down')
-       status = parallel_put_att(NCO%id, varid, 'units', 'W/m2')
+       status = parallel_put_att(NCO%id, varid, 'long_name', &
+            'instantaneous sw down')
+       status = parallel_put_att(NCO%id, varid, 'units', &
+            'W/m2')
        if (glimmap_allocated(model%projection)) then
           status = parallel_put_att(NCO%id, varid, 'grid_mapping',glimmer_nc_mapvarname)
           status = parallel_put_att(NCO%id, varid, 'coordinates', 'lon lat')
        end if
      else
-     call write_log('Variable instant_swdown was specified for output but it is inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
+     call write_log('Variable instant_swdown was specified for output but it is &
+          &inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
      end if
      end if
 
@@ -600,16 +676,20 @@ contains
     if (pos.ne.0 .and. status.eq.nf90_enotvar) then
     if (is_enabled(data%mbal_accum%xwind)) then
        call write_log('Creating variable instant_xwind')
-       status = parallel_def_var(NCO%id,'instant_xwind',get_xtype(outfile,NF90_FLOAT),(/x1_dimid, y1_dimid, time_dimid/),varid)
+       status = parallel_def_var(NCO%id,'instant_xwind',get_xtype(outfile,NF90_FLOAT), &
+            (/x1_dimid, y1_dimid, time_dimid/),varid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       status = parallel_put_att(NCO%id, varid, 'long_name', 'instantaneous x-wind')
-       status = parallel_put_att(NCO%id, varid, 'units', 'm/s')
+       status = parallel_put_att(NCO%id, varid, 'long_name', &
+            'instantaneous x-wind')
+       status = parallel_put_att(NCO%id, varid, 'units', &
+            'm/s')
        if (glimmap_allocated(model%projection)) then
           status = parallel_put_att(NCO%id, varid, 'grid_mapping',glimmer_nc_mapvarname)
           status = parallel_put_att(NCO%id, varid, 'coordinates', 'lon lat')
        end if
      else
-     call write_log('Variable instant_xwind was specified for output but it is inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
+     call write_log('Variable instant_xwind was specified for output but it is &
+          &inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
      end if
      end if
 
@@ -622,16 +702,20 @@ contains
     if (pos.ne.0 .and. status.eq.nf90_enotvar) then
     if (is_enabled(data%mbal_accum%ywind)) then
        call write_log('Creating variable instant_ywind')
-       status = parallel_def_var(NCO%id,'instant_ywind',get_xtype(outfile,NF90_FLOAT),(/x1_dimid, y1_dimid, time_dimid/),varid)
+       status = parallel_def_var(NCO%id,'instant_ywind',get_xtype(outfile,NF90_FLOAT), &
+            (/x1_dimid, y1_dimid, time_dimid/),varid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       status = parallel_put_att(NCO%id, varid, 'long_name', 'instantaneous y-wind')
-       status = parallel_put_att(NCO%id, varid, 'units', 'm/s')
+       status = parallel_put_att(NCO%id, varid, 'long_name', &
+            'instantaneous y-wind')
+       status = parallel_put_att(NCO%id, varid, 'units', &
+            'm/s')
        if (glimmap_allocated(model%projection)) then
           status = parallel_put_att(NCO%id, varid, 'grid_mapping',glimmer_nc_mapvarname)
           status = parallel_put_att(NCO%id, varid, 'coordinates', 'lon lat')
        end if
      else
-     call write_log('Variable instant_ywind was specified for output but it is inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
+     call write_log('Variable instant_ywind was specified for output but it is &
+          &inappropriate for your config settings.  It will be excluded from the output.', GM_WARNING)
      end if
      end if
 
@@ -914,6 +998,7 @@ contains
 
        !print *, 'possible forcing times', ic%times
 
+       ic%nc%just_processed = .true. ! until we find an acceptable time, set this to true which will prevent the file from being read.
        ! Find the current time in the file
        do t = ic%nt, 1, -1  ! look through the time array backwards
           if ( ic%times(t) <= model%numerics%time + eps) then
@@ -921,18 +1006,19 @@ contains
 
             ! Set the desired time to be read
             ic%current_time = t
+            ic%nc%just_processed = .false.  ! set this to false so file will be read.
             !print *, 'time, forcing index, forcing time', model%numerics%time, ic%current_time, ic%times(ic%current_time)
             exit  ! once we find the time, exit the loop
           endif
-       end do
-
-       ! read all forcing fields present in this file for the time specified above
-       ic%nc%just_processed = .false.  ! set this to false so it will be re-processed every time through - this ensures info gets written to the log, and that time levels don't get skipped.
-       call glint_mbal_io_readall(data, model, filetype=1)
+          end do  ! if we get to end of loop without exiting, then this file will not be read at this time.
 
        ! move on to the next forcing file
        ic=>ic%next
     end do
+
+    ! Now that we've updated metadata for each forcing file, actually perform the read.
+    ! This call will only read forcing files where just_processed=.false.
+    call glint_mbal_io_readall(data, model, filetype=1)
 
   end subroutine glint_mbal_read_forcing
 

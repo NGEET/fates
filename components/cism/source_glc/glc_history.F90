@@ -38,7 +38,7 @@ module glc_history
   ! that case, we should replace this scalar variable with an array. We would also need
   ! to modify the code in this module to read namelist options for all history tapes, and
   ! then have a loop that creates all history tape objects. Note that the history tape
-  ! index should be come a field in teh history tape class; this is needed to create
+  ! index should become a field in the history tape class; this is needed to create
   ! unique time flags for each history tape (and possibly other things).
   class(history_tape_base_type), allocatable :: history_tape
 
@@ -91,13 +91,16 @@ contains
   end subroutine glc_history_init
 
   !-----------------------------------------------------------------------
-  subroutine glc_history_write(instance, EClock)
+  subroutine glc_history_write(instance, EClock, force_write)
     !
     ! !DESCRIPTION:
     ! Write a CISM history file, if it's time to do so.
     !
     ! This routine should be called every time step. It will return without doing
     ! anything if it isn't yet time to write a history file.
+    !
+    ! If force_write is present and true, then a history file is written regardless of
+    ! the check for whether it's time to do so.
     !
     ! !USES:
     use glad_type, only : glad_instance
@@ -106,9 +109,10 @@ contains
     ! !ARGUMENTS:
     type(glad_instance), intent(inout) :: instance
     type(ESMF_Clock),     intent(in)    :: EClock
+    logical, intent(in), optional :: force_write
     !-----------------------------------------------------------------------
 
-    call history_tape%write_history(instance, EClock)
+    call history_tape%write_history(instance, EClock, force_write)
     
   end subroutine glc_history_write
 

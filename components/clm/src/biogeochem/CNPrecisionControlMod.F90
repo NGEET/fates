@@ -17,6 +17,11 @@ module CNPrecisionControlMod
   !
   ! !PUBLIC MEMBER FUNCTIONS:
   public:: CNPrecisionControl
+
+  ! !PUBLIC DATA:
+  real(r8), public, parameter :: ccrit = 1.e-8_r8         ! critical carbon state value for truncation (gC/m2)
+  real(r8), public, parameter :: ncrit = 1.e-8_r8         ! critical nitrogen state value for truncation (gN/m2)
+  real(r8), public, parameter :: n_min = 0.000000001_r8   ! Minimum Nitrogen value to use when calculating CN ratio (gN/m2)
   !----------------------------------------------------------------------- 
 
 contains
@@ -30,8 +35,7 @@ contains
     ! Force leaf and deadstem c and n to 0 if they get too small.
     !
     ! !USES:
-    use clm_varctl , only : iulog, use_c13, use_c14
-    use clm_varpar , only : crop_prog
+    use clm_varctl , only : iulog, use_c13, use_c14, use_crop
     use pftconMod  , only : nc3crop
     !
     ! !ARGUMENTS:
@@ -49,8 +53,6 @@ contains
     real(r8):: pc13     ! truncation terms for patch-level corrections
     real(r8):: pc14     ! truncation terms for patch-level corrections
     real(r8):: cc14     ! truncation terms for column-level corrections
-    real(r8):: ccrit    ! critical carbon state value for truncation
-    real(r8):: ncrit    ! critical nitrogen state value for truncation
     !-----------------------------------------------------------------------
 
     ! cnveg_carbonstate_inst%cpool_patch                     Output:  [real(r8) (:)     ]  (gC/m2) temporary photosynthate C pool            
@@ -111,12 +113,6 @@ contains
          c13cs  => c13_cnveg_carbonstate_inst          , &
          c14cs  => c14_cnveg_carbonstate_inst            &
          )
-
-      ! set the critical carbon state value for truncation (gC/m2)
-      ccrit = 1.e-8_r8
-
-      ! set the critical nitrogen state value for truncation (gN/m2)
-      ncrit = 1.e-8_r8
 
       ! patch loop
       do fp = 1,num_soilp
@@ -240,7 +236,7 @@ contains
             endif
          end if
 
-         if ( crop_prog .and. patch%itype(p) >= nc3crop )then
+         if ( use_crop .and. patch%itype(p) >= nc3crop )then
             ! grain C and N
             if (abs(cs%grainc_patch(p)) < ccrit) then
                pc = pc + cs%grainc_patch(p)
@@ -527,7 +523,7 @@ contains
             endif
          end if
 
-         if ( crop_prog .and. patch%itype(p) >= nc3crop )then
+         if ( use_crop .and. patch%itype(p) >= nc3crop )then
             ! xsmrpool (C only)
             if (abs(cs%xsmrpool_patch(p)) < ccrit) then
                pc = pc + cs%xsmrpool_patch(p)

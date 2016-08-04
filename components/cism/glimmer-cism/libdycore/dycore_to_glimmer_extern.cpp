@@ -155,8 +155,9 @@ void dycore_delete_model_(int * model_index)
 
   clear_entry = *model_index;
   dycore_registry(0,1,model_index,&dtg,-1,clear_entry);
-  //  reg_index = dycore_registry(0,1,model_index,&dtg,-1);
-  //  dtg -> deleteDyCore();   
+  //reg_index = dycore_registry(0,1,model_index,&dtg,-1);
+  // dtg->deleteDyCore is called when the registry is cleared above
+  //dtg -> deleteDyCore();   
 }
 
 void dycore_set_ptr_double_var_(double *var, char *var_name,
