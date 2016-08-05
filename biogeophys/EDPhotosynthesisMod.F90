@@ -43,9 +43,6 @@ contains
     use clm_varpar        , only : nlevcan_ed, nclmax, nlevsoi, mxpft
     use clm_varctl        , only : iulog
     use pftconMod         , only : pftcon
-    use perf_mod          , only : t_startf, t_stopf
-    use PatchType         , only : patch
-    use quadraticMod      , only : quadratic
     use EDParamsMod       , only : ED_val_grperc
     use EDSharedParamsMod , only : EDParamsShareInst
     use EDTypesMod        , only : numpft_ed, dinc_ed 
@@ -53,10 +50,6 @@ contains
     use EDtypesMod        , only : ed_patch_type, ed_cohort_type, ed_site_type, numpft_ed
     use EDEcophysContype  , only : EDecophyscon
     use FatesInterfaceMod , only : bc_in_type,bc_out_type
-    use ColumnType        , only : col
-!    use clm_time_manager  , only : get_step_size
-    use CanopyStateType   , only : canopystate_type
-
 
 
     !
@@ -202,22 +195,6 @@ contains
     real(r8) :: rscanopy
     real(r8) :: elai
 
-    ! FIX(SPM, 040714) [I]- these should be proper functions...
-    real(r8) :: ft1    ! photosynthesis temperature response (statement function)
-    real(r8) :: fth    ! photosynthesis temperature inhibition (statement function)
-    real(r8) :: fth25  ! scaling factor for photosynthesis temperature inhibition (statement function)
-    ! ... get rid of function statements [I]
-    !------------------------------------------------------------------------------
-
-    !
-    ! FIX(SPM, 040714) [I]- these should be proper functions...Jinyun might be doing this in his refactor...check.
-    !
-    ! Temperature and soil water response functions
-    ft1(tl,ha) = exp( ha / (rgas*1.e-3_r8*(tfrz+25._r8)) * (1._r8 - (tfrz+25._r8)/tl) )
-    fth(tl,hd,se,cc2) = cc2 / ( 1._r8 + exp( (-hd+se*tl) / (rgas*1.e-3_r8*tl) ) )
-    fth25(hd,se) = 1._r8 + exp( (-hd+se*(tfrz+25._r8)) / (rgas*1.e-3_r8*(tfrz+25._r8)) )
-    ! ... get rid of function statements [I]
-
     associate(                                                &
          c3psn     => pftcon%c3psn                          , & ! photosynthetic pathway: 0. = c4, 1. = c3
          slatop    => pftcon%slatop                         , & ! specific leaf area at top of canopy, projected area basis [m^2/gC]
@@ -275,10 +252,10 @@ contains
       tpuse   = 490._r8
       lmrse   = 490._r8
 
-      vcmaxc = fth25(vcmaxhd, vcmaxse)
-      jmaxc  = fth25(jmaxhd, jmaxse)
-      tpuc   = fth25(tpuhd, tpuse)
-      lmrc   = fth25(lmrhd, lmrse)
+      vcmaxc = fth25_f(vcmaxhd, vcmaxse)
+      jmaxc  = fth25_f(jmaxhd, jmaxse)
+      tpuc   = fth25_f(tpuhd, tpuse)
+      lmrc   = fth25_f(lmrhd, lmrse)
 
       ! Miscellaneous parameters, from Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593
 
@@ -355,9 +332,9 @@ contains
                cp25 = 0.5_r8 * bc_in(s)%oair_pa(ifp) / sco
                
                if(bc_in(s)%t_veg_pa(ifp).gt.150_r8.and.bc_in(s)%t_veg_pa(ifp).lt.350_r8)then
-                  kc(ifp) = kc25 * ft1(bc_in(s)%t_veg_pa(ifp), kcha)
-                  ko(ifp) = ko25 * ft1(bc_in(s)%t_veg_pa(ifp), koha)
-                  co2_cp(ifp) = cp25 * ft1(bc_in(s)%t_veg_pa(ifp), cpha)
+                  kc(ifp) = kc25 * ft1_f(bc_in(s)%t_veg_pa(ifp), kcha)
+                  ko(ifp) = ko25 * ft1_f(bc_in(s)%t_veg_pa(ifp), koha)
+                  co2_cp(ifp) = cp25 * ft1_f(bc_in(s)%t_veg_pa(ifp), cpha)
                else
                   kc(ifp) = 1
                   ko(ifp) = 1
@@ -380,8 +357,6 @@ contains
 
             if(bc_in(s)%filter_photo_pa(ifp)==2)then
             
-               call t_startf('edfluxes')
-
                NCL_p = currentPatch%NCL_p
                
                do FT = 1,numpft_ed !calculate patch and pft specific propserties at canopy top. 
@@ -491,7 +466,7 @@ contains
                            lmr25 = lmr25top(FT) * nscaler
                            
                            if (nint(c3psn(FT)) == 1)then
-                              lmr_z(CL,FT,iv) = lmr25 * ft1(bc_in(s)%t_veg_pa(ifp), lmrha) * fth(bc_in(s)%t_veg_pa(ifp), lmrhd, lmrse, lmrc)
+                              lmr_z(CL,FT,iv) = lmr25 * ft1_f(bc_in(s)%t_veg_pa(ifp), lmrha) * fth_f(bc_in(s)%t_veg_pa(ifp), lmrhd, lmrse, lmrc)
                            else
                               lmr_z(CL,FT,iv) = lmr25 * 2._r8**((bc_in(s)%t_veg_pa(ifp)-(tfrz+25._r8))/10._r8)
                               lmr_z(CL,FT,iv) = lmr_z(CL,FT,iv) / (1._r8 + exp( 1.3_r8*(bc_in(s)%t_veg_pa(ifp)-(tfrz+55._r8)) ))
@@ -509,9 +484,9 @@ contains
                               kp25 = kp25top(FT) * nscaler
                               
                               ! Adjust for temperature
-                              vcmax_z(CL,FT,iv) = vcmax25 * ft1(bc_in(s)%t_veg_pa(ifp), vcmaxha) * fth(bc_in(s)%t_veg_pa(ifp), vcmaxhd, vcmaxse, vcmaxc)
-                              jmax_z(CL,FT,iv)  = jmax25 * ft1(bc_in(s)%t_veg_pa(ifp), jmaxha) * fth(bc_in(s)%t_veg_pa(ifp), jmaxhd, jmaxse, jmaxc)
-                              tpu_z(CL,FT,iv)   = tpu25 * ft1(bc_in(s)%t_veg_pa(ifp), tpuha) * fth(bc_in(s)%t_veg_pa(ifp), tpuhd, tpuse, tpuc)
+                              vcmax_z(CL,FT,iv) = vcmax25 * ft1_f(bc_in(s)%t_veg_pa(ifp), vcmaxha) * fth_f(bc_in(s)%t_veg_pa(ifp), vcmaxhd, vcmaxse, vcmaxc)
+                              jmax_z(CL,FT,iv)  = jmax25 * ft1_f(bc_in(s)%t_veg_pa(ifp), jmaxha) * fth_f(bc_in(s)%t_veg_pa(ifp), jmaxhd, jmaxse, jmaxc)
+                              tpu_z(CL,FT,iv)   = tpu25 * ft1_f(bc_in(s)%t_veg_pa(ifp), tpuha) * fth_f(bc_in(s)%t_veg_pa(ifp), tpuhd, tpuse, tpuc)
 
                               if (nint(c3psn(FT))  /=  1) then
                                  vcmax_z(CL,FT,iv) = vcmax25 * 2._r8**((bc_in(s)%t_veg_pa(ifp)-(tfrz+25._r8))/10._r8)
@@ -784,9 +759,6 @@ contains
                end do  ! PFT loop
             end do  !canopy layer
 
-            call t_stopf('edfluxes')
-            call t_startf('edunpack')
-
             !==============================================================================!
             ! Unpack fluxes from arrays into cohorts
             !==============================================================================!
@@ -798,7 +770,6 @@ contains
                currentCohort => currentPatch%tallest  ! Cohort loop
 
                do while (associated(currentCohort)) ! Cohort loop
-                  call t_startf('edfluxunpack1')
 
                   if(currentCohort%n > 0._r8)then   
 
@@ -868,9 +839,6 @@ contains
                      currentCohort%rd       = currentCohort%rd      + lmr_z(cl,ft,currentCohort%nv)    * &
                           currentPatch%elai_profile(cl,ft,currentCohort%nv) * laifrac * tree_area 
 
-                     call t_stopf('edfluxunpack1')      
-                     call t_startf('edfluxunpack2')
-
                      !------------------------------------------------------------------------------
                      ! Calculate Whole Plant Respiration (this doesn't really need to be in this iteration at all, surely?)    
                      ! Leaf respn needs to be in the sub-layer loop to account for changing N through canopy. 
@@ -929,8 +897,6 @@ contains
                         currentCohort%froot_mr  =  currentCohort%froot_mr /1000.0_r8
                      enddo
 
-                     call t_stopf('edfluxunpack2')
-                     call t_startf('edfluxunpack3')
                      ! convert gpp and resp from umol/indiv/s-1 to kgC/indiv/s-1  = X * 12 *10-6 * 10-3
                      !currentCohort%resp_m  = currentCohort%rd      * 12.0E-9
 
@@ -1013,14 +979,140 @@ contains
 
          currentPatch => currentPatch%younger
 
-         call t_stopf('edfluxunpack3')
-         call t_stopf('edunpack')  
       end do
       
    end do !site loop
    
  end associate
-
+ 
 end subroutine Photosynthesis_ED
+
+! =======================================================================================
+
+function ft1_f(tl, ha) result(ans)
+   !
+   !!DESCRIPTION:
+    ! photosynthesis temperature response
+    !
+    ! !REVISION HISTORY
+    ! Jinyun Tang separated it out from Photosynthesis, Feb. 07/2013
+    ! 7/23/16: Copied over from CLM by Ryan Knox
+    !
+    !!USES
+    use clm_varcon  , only : rgas, tfrz
+    !
+    ! !ARGUMENTS:
+    real(r8), intent(in) :: tl  ! leaf temperature in photosynthesis temperature function (K)
+    real(r8), intent(in) :: ha  ! activation energy in photosynthesis temperature function (J/mol)
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: ans
+    !-------------------------------------------------------------------------------
+
+    ans = exp( ha / (rgas*1.e-3_r8*(tfrz+25._r8)) * (1._r8 - (tfrz+25._r8)/tl) )
+
+    return
+  end function ft1_f
+
+  ! =====================================================================================
+  
+  function fth_f(tl,hd,se,scaleFactor) result(ans)
+    !
+    !!DESCRIPTION:
+    !photosynthesis temperature inhibition
+    !
+    ! !REVISION HISTORY
+    ! Jinyun Tang separated it out from Photosynthesis, Feb. 07/2013
+    ! 7/23/16: Copied over from CLM by Ryan Knox
+    !
+    use clm_varcon  , only : rgas, tfrz
+    !
+    ! !ARGUMENTS:
+    real(r8), intent(in) :: tl  ! leaf temperature in photosynthesis temperature function (K)
+    real(r8), intent(in) :: hd  ! deactivation energy in photosynthesis temperature function (J/mol)
+    real(r8), intent(in) :: se  ! entropy term in photosynthesis temperature function (J/mol/K)
+    real(r8), intent(in) :: scaleFactor  ! scaling factor for high temperature inhibition (25 C = 1.0)
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: ans
+    !-------------------------------------------------------------------------------
+
+    ans = scaleFactor / ( 1._r8 + exp( (-hd+se*tl) / (rgas*1.e-3_r8*tl) ) )
+
+    return
+  end function fth_f
+
+  ! =====================================================================================
+
+  function fth25_f(hd,se)result(ans)
+    !
+    !!DESCRIPTION:
+    ! scaling factor for photosynthesis temperature inhibition
+    !
+    ! !REVISION HISTORY:
+    ! Jinyun Tang separated it out from Photosynthesis, Feb. 07/2013
+    ! 7/23/16: Copied over from CLM by Ryan Knox
+    !
+    !!USES
+    use clm_varcon  , only : rgas, tfrz
+    !
+    ! !ARGUMENTS:
+    real(r8), intent(in) :: hd    ! deactivation energy in photosynthesis temperature function (J/mol)
+    real(r8), intent(in) :: se    ! entropy term in photosynthesis temperature function (J/mol/K)
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: ans
+    !-------------------------------------------------------------------------------
+
+    ans = 1._r8 + exp( (-hd+se*(tfrz+25._r8)) / (rgas*1.e-3_r8*(tfrz+25._r8)) )
+
+    return
+  end function fth25_f
+  
+  ! =====================================================================================
+  
+  subroutine quadratic_f (a, b, c, r1, r2)
+     !
+     ! !DESCRIPTION:
+     !==============================================================================!
+     !----------------- Solve quadratic equation for its two roots -----------------!
+     !==============================================================================!
+     ! Solution from Press et al (1986) Numerical Recipes: The Art of Scientific
+     ! Computing (Cambridge University Press, Cambridge), pp. 145.
+     !
+     ! !REVISION HISTORY:
+     ! 4/5/10: Adapted from /home/bonan/ecm/psn/An_gs_iterative.f90 by Keith Oleson
+     ! 7/23/16: Copied over from CLM by Ryan Knox
+     !
+     ! !USES:
+     implicit none
+     !
+     ! !ARGUMENTS:
+     real(r8), intent(in)  :: a,b,c       ! Terms for quadratic equation
+     real(r8), intent(out) :: r1,r2       ! Roots of quadratic equation
+     !
+     ! !LOCAL VARIABLES:
+     real(r8) :: q                        ! Temporary term for quadratic solution
+     !------------------------------------------------------------------------------
+    
+     if (a == 0._r8) then
+        write (iulog,*) 'Quadratic solution error: a = ',a
+        call endrun(msg=errmsg(__FILE__, __LINE__))
+     end if
+   
+     if (b >= 0._r8) then
+        q = -0.5_r8 * (b + sqrt(b*b - 4._r8*a*c))
+     else
+        q = -0.5_r8 * (b - sqrt(b*b - 4._r8*a*c))
+     end if
+   
+     r1 = q / a
+     if (q /= 0._r8) then
+        r2 = c / q
+     else
+        r2 = 1.e36_r8
+     end if
+     
+   end subroutine quadratic_f
 
 end module EDPhotosynthesisMod
