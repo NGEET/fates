@@ -1038,6 +1038,9 @@ contains
                 
              end do
           end do
+
+          bc_out(s)%laisun_pa(ifp) = sunlai
+          bc_out(s)%laisha_pa(ifp) = shalai
           
           if(sunlai+shalai > 0._r8)then
              bc_out(s)%fsun_pa(ifp) = sunlai / (sunlai+shalai) 
