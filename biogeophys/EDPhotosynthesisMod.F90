@@ -26,7 +26,7 @@ module EDPhotosynthesisMod
 contains
  
   !---------------------------------------------------------
-   subroutine Photosynthesis_ED (sites,nsites,fcolumn,bc_in,bc_out,canopystate_inst)
+   subroutine Photosynthesis_ED (sites,nsites,fcolumn,bc_in,bc_out,dtime,canopystate_inst)
 
 
     !
@@ -39,8 +39,6 @@ contains
     use shr_kind_mod      , only : r8 => shr_kind_r8
     use shr_log_mod       , only : errMsg => shr_log_errMsg
     use abortutils        , only : endrun
-    use decompMod         , only : bounds_type
-    use clm_time_manager  , only : get_step_size
     use clm_varcon        , only : rgas, tfrz, namep  
     use clm_varpar        , only : nlevcan_ed, nclmax, nlevsoi, mxpft
     use clm_varctl        , only : iulog
@@ -51,13 +49,15 @@ contains
     use EDParamsMod       , only : ED_val_grperc
     use EDSharedParamsMod , only : EDParamsShareInst
     use EDTypesMod        , only : numpft_ed, dinc_ed 
-    use EDtypesMod            , only : numPatchesPerCol
+    use EDtypesMod        , only : numPatchesPerCol
     use EDtypesMod        , only : ed_patch_type, ed_cohort_type, ed_site_type, numpft_ed
     use EDEcophysContype  , only : EDecophyscon
     use FatesInterfaceMod , only : bc_in_type,bc_out_type
     use ColumnType        , only : col
+!    use clm_time_manager  , only : get_step_size
     use CanopyStateType   , only : canopystate_type
-    
+
+
 
     !
     ! !ARGUMENTS:
@@ -66,8 +66,8 @@ contains
     type(bc_in_type),intent(in)             :: bc_in(nsites)
     type(bc_out_type),intent(inout)         :: bc_out(nsites)
     integer,intent(in)                      :: fcolumn(nsites)
-
-    type(canopystate_type) , intent(in)     :: canopystate_inst      !LAI
+    real(r8),intent(in)                     :: dtime
+    type(canopystate_type)  , intent(inout)         :: canopystate_inst
 
     !
     ! !CALLED FROM:
@@ -151,7 +151,7 @@ contains
     real(r8) :: theta_ip                          ! empirical curvature parameter for ap photosynthesis co-limitation
 
     ! Other
-    integer  :: c,CL,f,s,iv,j,clmp,ps,ft,ifp         ! indices
+    integer  :: c,CL,f,s,iv,j,ps,ft,ifp         ! indices
     integer  :: NCL_p                             ! number of canopy layers in patch
     real(r8) :: cf                                ! s m**2/umol -> s/m
     real(r8) :: rsmax0                            ! maximum stomatal resistance [s/m]
@@ -202,14 +202,13 @@ contains
     real(r8) :: tree_area
     real(r8) :: gs_cohort
     real(r8) :: rscanopy
+    real(r8) :: elai
 
     ! FIX(SPM, 040714) [I]- these should be proper functions...
     real(r8) :: ft1    ! photosynthesis temperature response (statement function)
     real(r8) :: fth    ! photosynthesis temperature inhibition (statement function)
     real(r8) :: fth25  ! scaling factor for photosynthesis temperature inhibition (statement function)
     ! ... get rid of function statements [I]
-
-    real(r8) dtime ! stepsize in seconds
     !------------------------------------------------------------------------------
 
     !
@@ -228,13 +227,8 @@ contains
          woody     => pftcon%woody                          , & ! Is vegetation woody or not? 
          fnitr     => pftcon%fnitr                          , & ! foliage nitrogen limitation factor (-)
          leafcn    => pftcon%leafcn                         , & ! leaf C:N (gC/gN)
-         bb_slope  => EDecophyscon%BB_slope                 , & ! slope of BB relationship
-         elai      => canopystate_inst%elai_patch           , & ! Input:  [real(r8) (:)   ]  one-sided leaf area index with burying by snow
-         tlai      => canopystate_inst%tlai_patch)              ! Input:  [real(r8) (:)   ]  one-sided leaf area index
-
-
-      !set timestep
-      dtime = get_step_size()
+         elai_clm      => canopystate_inst%elai_patch           , &
+         bb_slope  => EDecophyscon%BB_slope                 )   ! slope of BB relationship
 
       ! Assign local pointers to derived type members (gridcell-level)
       dr(1) = 0.025_r8; dr(2) = 0.015_r8
@@ -310,8 +304,6 @@ contains
          currentpatch => sites(s)%oldest_patch
          do while (associated(currentpatch))  
             ifp = ifp+1
-
-            clmp = col%patchi(c)+ifp
 
             bc_out(s)%psncanopy_pa(ifp) = 0._r8
             bc_out(s)%lmrcanopy_pa(ifp) = 0._r8
@@ -390,8 +382,7 @@ contains
          currentpatch => sites(s)%oldest_patch
          do while (associated(currentpatch))  
             ifp = ifp+1
-            clmp = col%patchi(c)+ifp
-            
+
             if(bc_in(s)%filter_photo_pa(ifp)==2)then
             
                call t_startf('edfluxes')
@@ -769,8 +760,8 @@ contains
                                  ! Make sure iterative solution is correct
                                  if (gs_mol < 0._r8) then
                                     write (iulog,*)'Negative stomatal conductance:'
-                                    write (iulog,*)'clmp,iv,gs_mol= ',clmp,iv,gs_mol
-                                    call endrun(decomp_index=clmp, clmlevel=namep, msg=errmsg(__FILE__, __LINE__))
+                                    write (iulog,*)'ifp,iv,gs_mol= ',ifp,iv,gs_mol
+                                    call endrun(msg=errmsg(__FILE__, __LINE__))
                                  end if
 
                                  ! Compare with Ball-Berry model: gs_mol = m * an * hs/cs p + b
@@ -1003,21 +994,32 @@ contains
 
                enddo  ! end cohort loop.   
             end if !count_cohorts is more than zero.
+            
+            elai = 0._r8
+            do CL = 1,currentPatch%NCL_p
+               do ft = 1,numpft_ed
+                  elai = elai + sum(currentPatch%canopy_area_profile(CL,ft,1:currentPatch%nrad(CL,ft)) * &
+                       currentPatch%elai_profile(CL,ft,1:currentPatch%nrad(CL,ft)))
+               enddo
+            enddo
+            elai = max(0.1_r8,elai)
+
+            if( abs(elai-elai_clm(ifp+col%patchi(c)))>0.001_r8   )then
+               print*,ifp,elai,elai_clm(ifp+col%patchi(c))
+               stop
+            end if
 
             bc_out(s)%psncanopy_pa(ifp) = bc_out(s)%psncanopy_pa(ifp) / currentPatch%area
             bc_out(s)%lmrcanopy_pa(ifp) = bc_out(s)%lmrcanopy_pa(ifp) / currentPatch%area
-            if(bc_out(s)%gccanopy_pa(ifp) > 1._r8/rsmax0.and.elai(clmp) > 0.0_r8)then
-               rscanopy  = (1.0_r8/bc_out(s)%gccanopy_pa(ifp))-bc_in(s)%rb_pa(ifp)/elai(clmp) ! this needs to be resistance per unit leaf area. 
+            if(bc_out(s)%gccanopy_pa(ifp) > 1._r8/rsmax0.and.elai_clm(ifp+col%patchi(c)) > 0.0_r8)then
+               rscanopy  = (1.0_r8/bc_out(s)%gccanopy_pa(ifp))-bc_in(s)%rb_pa(ifp)  ! this needs to be resistance per unit leaf area. 
             else
                rscanopy = rsmax0
             end if
+            bc_out(s)%rssun_pa(ifp) = (bc_out(s)%laisun_pa(ifp)+bc_out(s)%laisha_pa(ifp))*(bc_in(s)%rb_pa(ifp)+rscanopy)/elai_clm(ifp+col%patchi(c)) - bc_in(s)%rb_pa(ifp)
+            bc_out(s)%rssha_pa(ifp) = bc_out(s)%rssun_pa(ifp)
             bc_out(s)%gccanopy_pa(ifp)  = 1.0_r8/rscanopy*cf/1000 !convert into umol m02 s-1 then mmol m-2 s-1. 
-         else
-            rscanopy = rsmax0
          end if
-
-         bc_out(s)%rssun_pa(ifp) = (bc_out(s)%laisun_pa(ifp)+bc_out(s)%laisha_pa(ifp))*(bc_in(s)%rb_pa(ifp)+rscanopy)/elai(clmp) - bc_in(s)%rb_pa(ifp)
-         bc_out(s)%rssha_pa(ifp) = bc_out(s)%rssun_pa(ifp)
 
          currentPatch => currentPatch%younger
 
