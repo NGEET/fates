@@ -124,6 +124,8 @@ module EDTypesMod
      
      integer :: numlevgrnd   ! Number of soil layers
 
+     integer :: numlevdecomp_full  ! Number of soil layers for the purposes of biogeochemistry; can be either 1 or the total number of soil layers
+
   end type ctrl_parms_type
   
   type(ctrl_parms_type), public :: ctrl_parms
