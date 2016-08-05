@@ -903,10 +903,10 @@ contains
           t_veg     => temperature_inst%t_veg_patch  , &
           tgcm      => temperature_inst%thm_patch    , &
           forc_pbot => atm2lnd_inst%forc_pbot_downscaled_col, &
-          rscanopy  => canopystate_inst%rscanopy_patch, &
-          gccanopy  => canopystate_inst%gccanopy_patch, &
-          lmrcanopy => photosyns_inst%lmrcanopy_patch, &
-          psncanopy => photosyns_inst%psncanopy_patch)
+          rscanopy  => canopystate_inst%rscanopy_patch) !, &
+!          gccanopy  => canopystate_inst%gccanopy_patch, &
+!          lmrcanopy => photosyns_inst%lmrcanopy_patch, &
+!          psncanopy => photosyns_inst%psncanopy_patch)
       
       do s = 1, this%fates(nc)%nsites
          
@@ -961,9 +961,9 @@ contains
       do ifp = 1,fn
          p = filterp(ifp)
          rscanopy(p) =  2.e4_r8
-         gccanopy(p) =  2.e4_r8
-         psncanopy(p) =  2.e4_r8
-         lmrcanopy(p) =  2.e4_r8
+!         gccanopy(p) =  2.e4_r8
+!         psncanopy(p) =  2.e4_r8
+!         lmrcanopy(p) =  2.e4_r8
       end do
 
       do s = 1, this%fates(nc)%nsites
@@ -975,9 +975,9 @@ contains
                p = ifp+col%patchi(c)
                
                rscanopy(p) = this%fates(nc)%bc_out(s)%rscanopy_pa(ifp)
-               gccanopy(p) = this%fates(nc)%bc_out(s)%gccanopy_pa(ifp)
-               psncanopy(p) = this%fates(nc)%bc_out(s)%psncanopy_pa(ifp)
-               lmrcanopy(p) = this%fates(nc)%bc_out(s)%lmrcanopy_pa(ifp)
+!               gccanopy(p) = this%fates(nc)%bc_out(s)%gccanopy_pa(ifp)
+!               psncanopy(p) = this%fates(nc)%bc_out(s)%psncanopy_pa(ifp)
+!               lmrcanopy(p) = this%fates(nc)%bc_out(s)%lmrcanopy_pa(ifp)
             end if
          end do
       end do
