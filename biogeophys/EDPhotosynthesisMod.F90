@@ -26,8 +26,8 @@ module EDPhotosynthesisMod
 contains
  
   !---------------------------------------------------------
-   subroutine Photosynthesis_ED (sites,nsites,fcolumn,bc_in,bc_out,  &
-                                 canopystate_inst, photosyns_inst)
+   subroutine Photosynthesis_ED (sites,nsites,fcolumn,bc_in,bc_out,canopystate_inst)
+
 
     !
     ! !DESCRIPTION:
@@ -46,10 +46,6 @@ contains
     use clm_varctl        , only : iulog
     use pftconMod         , only : pftcon
     use perf_mod          , only : t_startf, t_stopf
-    use atm2lndType       , only : atm2lnd_type
-    use CanopyStateType   , only : canopystate_type
-    use PhotosynthesisMod , only : photosyns_type
-    use TemperatureType   , only : temperature_type
     use PatchType         , only : patch
     use quadraticMod      , only : quadratic
     use EDParamsMod       , only : ED_val_grperc
@@ -60,6 +56,9 @@ contains
     use EDEcophysContype  , only : EDecophyscon
     use FatesInterfaceMod , only : bc_in_type,bc_out_type
     use ColumnType        , only : col
+    use CanopyStateType   , only : canopystate_type
+    
+
     !
     ! !ARGUMENTS:
     type(ed_site_type),intent(inout),target :: sites(nsites)
@@ -67,8 +66,9 @@ contains
     type(bc_in_type),intent(in)             :: bc_in(nsites)
     type(bc_out_type),intent(inout)         :: bc_out(nsites)
     integer,intent(in)                      :: fcolumn(nsites)
-    type(canopystate_type) , intent(inout)         :: canopystate_inst
-    type(photosyns_type)   , intent(inout)         :: photosyns_inst
+
+    type(canopystate_type) , intent(in)     :: canopystate_inst      !LAI
+
     !
     ! !CALLED FROM:
     ! subroutine CanopyFluxes 
@@ -227,18 +227,13 @@ contains
          woody     => pftcon%woody                          , & ! Is vegetation woody or not? 
          fnitr     => pftcon%fnitr                          , & ! foliage nitrogen limitation factor (-)
          leafcn    => pftcon%leafcn                         , & ! leaf C:N (gC/gN)
-
          bb_slope  => EDecophyscon%BB_slope                 , & ! slope of BB relationship
+         elai      => canopystate_inst%elai_patch           , & ! Input:  [real(r8) (:)   ]  one-sided leaf area index with burying by snow
+         tlai      => canopystate_inst%tlai_patch)              ! Input:  [real(r8) (:)   ]  one-sided leaf area index
 
-         psncanopy => photosyns_inst%psncanopy_patch        , & ! Output: [real(r8) (:,:) ]  canopy scale photosynthesis umol CO2 /m**2/ s
-         lmrcanopy => photosyns_inst%lmrcanopy_patch        , & ! Output: [real(r8) (:,:) ]  canopy scale leaf maintenance respiration umol CO2 /m**2/ s
-
-         elai      => canopystate_inst%elai_patch           , & ! Input:  [real(r8) (:)   ]  one-sided leaf area index with burying by snow                        
-         tlai      => canopystate_inst%tlai_patch           , & ! Input:  [real(r8) (:)   ]  one-sided leaf area index
-
-         rscanopy  => canopystate_inst%rscanopy_patch       , & ! Output: [real(r8) (:,:) ]  canopy resistance s/m  
-         gccanopy  => canopystate_inst%gccanopy_patch         & ! Output: [real(r8) (:,:) ]  canopy conductance mmol m-2 s-1
-         )
+!         rscanopy  => canopystate_inst%rscanopy_patch       , & ! Output: [real(r8) (:,:) ]  canopy resistance s/m  
+!         gccanopy  => canopystate_inst%gccanopy_patch         & ! Output: [real(r8) (:,:) ]  canopy conductance mmol m-2 s-1
+!         )
 
       !set timestep
       dtime = get_step_size()
@@ -320,10 +315,10 @@ contains
 
             clmp = col%patchi(c)+ifp
 
-            psncanopy(clmp) = 0._r8
-            lmrcanopy(clmp) = 0._r8
-            rscanopy(clmp)  = 0._r8
-            gccanopy(clmp)  = 0._r8  
+            bc_out(s)%psncanopy_pa(ifp) = 0._r8
+            bc_out(s)%lmrcanopy_pa(ifp) = 0._r8
+            bc_out(s)%rscanopy_pa(ifp)  = 0._r8
+            bc_out(s)%gccanopy_pa(ifp)  = 0._r8  
             
 
             ! Patch level filter flag for photosynthesis calculations
@@ -1001,27 +996,27 @@ contains
                      currentCohort%ts_net_uptake(1:currentCohort%nv) = 0._r8    
                   end if !pft<0 n<0
 
-                  psncanopy(clmp) = psncanopy(clmp) + currentCohort%gpp_clm
-                  lmrcanopy(clmp) = lmrcanopy(clmp) + currentCohort%resp_m
+                  bc_out(s)%psncanopy_pa(ifp) = bc_out(s)%psncanopy_pa(ifp) + currentCohort%gpp_clm
+                  bc_out(s)%lmrcanopy_pa(ifp) = bc_out(s)%lmrcanopy_pa(ifp) + currentCohort%resp_m
                   ! accumulate cohort level canopy conductances over whole area before dividing by total area.  
-                  gccanopy(clmp)  = gccanopy(clmp) + currentCohort%gscan * currentCohort%n /currentPatch%total_canopy_area  
+                  bc_out(s)%gccanopy_pa(ifp)  = bc_out(s)%gccanopy_pa(ifp) + currentCohort%gscan * currentCohort%n /currentPatch%total_canopy_area  
 
                   currentCohort => currentCohort%shorter
 
                enddo  ! end cohort loop.   
             end if !count_cohorts is more than zero.
 
-            psncanopy(clmp) = psncanopy(clmp) / currentPatch%area
-            lmrcanopy(clmp) = lmrcanopy(clmp) / currentPatch%area
-            if(gccanopy(clmp) > 1._r8/rsmax0.and.elai(clmp) > 0.0_r8)then
-               rscanopy(clmp)  = (1.0_r8/gccanopy(clmp))-bc_in(s)%rb_pa(ifp)/elai(clmp) ! this needs to be resistance per unit leaf area.  
+            bc_out(s)%psncanopy_pa(ifp) = bc_out(s)%psncanopy_pa(ifp) / currentPatch%area
+            bc_out(s)%lmrcanopy_pa(ifp) = bc_out(s)%lmrcanopy_pa(ifp) / currentPatch%area
+            if(bc_out(s)%gccanopy_pa(ifp) > 1._r8/rsmax0.and.elai(clmp) > 0.0_r8)then
+               bc_out(s)%rscanopy_pa(ifp)  = (1.0_r8/bc_out(s)%gccanopy_pa(ifp))-bc_in(s)%rb_pa(ifp)/elai(clmp) ! this needs to be resistance per unit leaf area.  
             else
-               rscanopy(clmp) = rsmax0
+               bc_out(s)%rscanopy_pa(ifp) = rsmax0
             end if
-            gccanopy(clmp)  = 1.0_r8/rscanopy(clmp) *cf /1000 !convert into umol m02 s-1 then mmol m-2 s-1. 
+            bc_out(s)%gccanopy_pa(ifp)  = 1.0_r8/bc_out(s)%rscanopy_pa(ifp) *cf /1000 !convert into umol m02 s-1 then mmol m-2 s-1. 
 
          else
-            rscanopy(clmp) = rsmax0  
+            bc_out(s)%rscanopy_pa(ifp) = rsmax0  
          end if
 
          currentPatch => currentPatch%younger
