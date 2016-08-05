@@ -340,15 +340,15 @@ contains
 
     ! CARBON FLUXES 
     currentCohort%gpp                = nan ! GPP:  kgC/indiv/year
-    currentCohort%gpp_clm            = nan ! GPP:  kgC/indiv/timestep
+    currentCohort%gpp_tstep            = nan ! GPP:  kgC/indiv/timestep
     currentCohort%gpp_acc            = nan ! GPP:  kgC/indiv/day         
     currentCohort%npp                = nan ! NPP:  kgC/indiv/year
-    currentCohort%npp_clm            = nan ! NPP:  kGC/indiv/timestep
+    currentCohort%npp_tstep            = nan ! NPP:  kGC/indiv/timestep
     currentCohort%npp_acc            = nan ! NPP:  kgC/indiv/day  
     currentCohort%year_net_uptake(:) = nan ! Net uptake of individual leaf layers kgC/m2/year
     currentCohort%ts_net_uptake(:)   = nan ! Net uptake of individual leaf layers kgC/m2/s
     currentCohort%resp               = nan ! RESP: kgC/indiv/year
-    currentCohort%resp_clm           = nan ! RESP: kgC/indiv/timestep
+    currentCohort%resp_tstep           = nan ! RESP: kgC/indiv/timestep
     currentCohort%resp_acc           = nan ! RESP: kGC/cohort/day
 
     currentCohort%npp_leaf  = nan
@@ -432,9 +432,9 @@ contains
     currentcohort%npp_acc            = 0._r8
     currentcohort%gpp_acc            = 0._r8
     currentcohort%resp_acc           = 0._r8
-    currentcohort%npp_clm            = 0._r8
-    currentcohort%gpp_clm            = 0._r8
-    currentcohort%resp_clm           = 0._r8
+    currentcohort%npp_tstep            = 0._r8
+    currentcohort%gpp_tstep            = 0._r8
+    currentcohort%resp_tstep           = 0._r8
     currentcohort%resp               = 0._r8
     currentcohort%carbon_balance     = 0._r8
     currentcohort%leaf_litter        = 0._r8
@@ -1017,15 +1017,15 @@ contains
     ! CARBON FLUXES 
     n%gpp             = o%gpp
     n%gpp_acc         = o%gpp_acc
-    n%gpp_clm         = o%gpp_clm
+    n%gpp_tstep         = o%gpp_tstep
     n%npp             = o%npp
-    n%npp_clm         = o%npp_clm
+    n%npp_tstep         = o%npp_tstep
 
     if ( DEBUG ) write(iulog,*) 'EDcohortDyn Ia ',o%npp_acc
     if ( DEBUG ) write(iulog,*) 'EDcohortDyn Ib ',o%resp_acc
 
     n%npp_acc         = o%npp_acc
-    n%resp_clm        = o%resp_clm
+    n%resp_tstep        = o%resp_tstep
     n%resp_acc        = o%resp_acc
     n%resp            = o%resp
     n%year_net_uptake = o%year_net_uptake
