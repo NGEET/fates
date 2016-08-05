@@ -71,6 +71,7 @@ module SoilBiogeochemDecompCascadeBGCMod
 
      real(r8) :: k_frag_bgc   !fragmentation rate for CWD
      real(r8) :: minpsi_bgc   !minimum soil water potential for heterotrophic resp
+     real(r8) :: maxpsi_bgc   !maximum soil water potential for heterotrophic resp
      
      integer  :: nsompools = 3
 
@@ -200,6 +201,11 @@ contains
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
     if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
     params_inst%minpsi_bgc=tempr 
+
+    tString='maxpsi_hr'
+    call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    params_inst%maxpsi_bgc=tempr 
 
     tString='cwd_flig'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
@@ -642,7 +648,8 @@ contains
     catanf(t1) = 11.75_r8 +(29.7_r8 / SHR_CONST_PI) * atan( SHR_CONST_PI * 0.031_r8  * ( t1 - 15.4_r8 ))
 
     associate(                                                           &
-         sucsat         => soilstate_inst%sucsat_col                   , & ! Input:  [real(r8) (:,:)   ]  minimum soil suction (mm)                              
+         minpsi         => params_inst%minpsi_bgc                      , & ! Input:  [real(r8)         ]  minimum soil suction (mm)
+         maxpsi         => params_inst%maxpsi_bgc                      , & ! Input:  [real(r8)         ]  maximum soil suction (mm)
          soilpsi        => soilstate_inst%soilpsi_col                  , & ! Input:  [real(r8) (:,:)   ]  soil water potential in each soil layer (MPa)          
 
          alt_indx       => canopystate_inst%alt_indx_col               , & ! Input:  [integer  (:)     ]  current depth of thaw                                     
@@ -853,7 +860,6 @@ contains
             do fc = 1,num_soilc
                c = filter_soilc(fc)
                if (j==1) w_scalar(c,:) = 0._r8
-               maxpsi = sucsat(c,j) * (-9.8e-6_r8)
                psi = min(soilpsi(c,j),maxpsi)
                ! decomp only if soilpsi is higher than minpsi
                if (psi > minpsi) then
@@ -948,7 +954,6 @@ contains
          do j = 1,nlevdecomp
             do fc = 1,num_soilc
                c = filter_soilc(fc)
-               maxpsi = sucsat(c,j) * (-9.8e-6_r8)
                psi = min(soilpsi(c,j),maxpsi)
                ! decomp only if soilpsi is higher than minpsi
                if (psi > minpsi) then
