@@ -953,7 +953,7 @@ contains
                                this%f2hmap(nc)%fcolumn,&
                                this%fates(nc)%bc_in,  &
                                this%fates(nc)%bc_out, &
-                               canopystate_inst)
+                               dtime, canopystate_inst)
 
       ! Perform a double check to see if all patches on naturally vegetated columns
       ! were activated for photosynthesis
