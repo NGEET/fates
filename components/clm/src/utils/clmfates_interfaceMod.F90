@@ -624,8 +624,10 @@ contains
       
       associate( forc_solad => atm2lnd_inst%forc_solad_grc, &
                  forc_solai => atm2lnd_inst%forc_solai_grc, &
-                 fsun       => canopystate_inst%fsun_patch)
-        
+                 fsun       => canopystate_inst%fsun_patch, &
+                 laisun     => canopystate_inst%laisun_patch, &               
+                 laisha     => canopystate_inst%laisha_patch )
+
         ! -------------------------------------------------------------------------------
         ! Convert input BC's
         ! The sun-shade calculations are performed only on FATES patches
@@ -664,13 +666,10 @@ contains
         do s = 1, this%fates(nc)%nsites
            c = this%f2hmap(nc)%fcolumn(s)
            do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
-!           do ifp = 1, this%fates(nc)%bc_in(s)%npatches
-              
               p = ifp+col%patchi(c)
-              g = col%gridcell(c)
-              
-              fsun(p) = this%fates(nc)%bc_out(s)%fsun_pa(ifp)
-
+              fsun(p)   = this%fates(nc)%bc_out(s)%fsun_pa(ifp)
+              laisun(p) = this%fates(nc)%bc_out(s)%laisun_pa(ifp)
+              laisha(p) = this%fates(nc)%bc_out(s)%laisha_pa(ifp)
            end do
         end do
 
@@ -894,7 +893,7 @@ contains
     type(canopystate_type) , intent(inout)         :: canopystate_inst
     type(photosyns_type)   , intent(inout)         :: photosyns_inst
 
-    integer                                        :: s,c,p,ifp,j,ip
+    integer                                        :: s,c,p,ifp,j,icp
     real(r8)                                       :: dtime
 
     call t_startf('edpsn')
@@ -903,10 +902,8 @@ contains
           t_veg     => temperature_inst%t_veg_patch  , &
           tgcm      => temperature_inst%thm_patch    , &
           forc_pbot => atm2lnd_inst%forc_pbot_downscaled_col, &
-          rscanopy  => canopystate_inst%rscanopy_patch) !, &
-!          gccanopy  => canopystate_inst%gccanopy_patch, &
-!          lmrcanopy => photosyns_inst%lmrcanopy_patch, &
-!          psncanopy => photosyns_inst%psncanopy_patch)
+          rssun     => photosyns_inst%rssun_patch  , &
+          rssha     => photosyns_inst%rssha_patch)
       
       do s = 1, this%fates(nc)%nsites
          
@@ -958,29 +955,35 @@ contains
                                this%fates(nc)%bc_out, &
                                canopystate_inst)
 
-      do ifp = 1,fn
-         p = filterp(ifp)
-         rscanopy(p) =  2.e4_r8
-!         gccanopy(p) =  2.e4_r8
-!         psncanopy(p) =  2.e4_r8
-!         lmrcanopy(p) =  2.e4_r8
+      ! Perform a double check to see if all patches on naturally vegetated columns
+      ! were activated for photosynthesis
+      ! ---------------------------------------------------------------------------------
+      do icp = 1,fn
+         p = filterp(icp)
+         c = patch%column(p)
+         s = this%f2hmap(nc)%hsites(c)
+         ! do if structure here and only pass natveg columns
+         ifp = p-col%patchi(c)
+         if(this%fates(nc)%bc_in(s)%filter_photo_pa(ifp) /= 2)then
+            write(iulog,*) 'Not all patches on the natveg column in the photosynthesis'
+            write(iulog,*) 'filter ran photosynthesis'
+            call endrun(msg=errMsg(__FILE__, __LINE__))
+         else
+            rssun(p) = this%fates(nc)%bc_out(s)%rssun_pa(ifp)
+            rssha(p) = this%fates(nc)%bc_out(s)%rssha_pa(ifp)
+         end if
       end do
-
-      do s = 1, this%fates(nc)%nsites
-               
-         c = this%f2hmap(nc)%fcolumn(s)
-
-         do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
-            if( this%fates(nc)%bc_in(s)%filter_photo_pa(ifp) == 2 ) then
-               p = ifp+col%patchi(c)
-               
-               rscanopy(p) = this%fates(nc)%bc_out(s)%rscanopy_pa(ifp)
-!               gccanopy(p) = this%fates(nc)%bc_out(s)%gccanopy_pa(ifp)
-!               psncanopy(p) = this%fates(nc)%bc_out(s)%psncanopy_pa(ifp)
-!               lmrcanopy(p) = this%fates(nc)%bc_out(s)%lmrcanopy_pa(ifp)
-            end if
-         end do
-      end do
+      
+      !do s = 1, this%fates(nc)%nsites
+      !   c = this%f2hmap(nc)%fcolumn(s)
+      !   do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
+      !      if( this%fates(nc)%bc_in(s)%filter_photo_pa(ifp) == 2 ) then
+      !         p = ifp+col%patchi(c)
+      !         rssun(p) = this%fates(nc)%bc_out(s)%rssun_pa(ifp)
+      !         rssha(p) = this%fates(nc)%bc_out(s)%rssha_pa(ifp)
+      !      end if
+      !   end do
+      !end do
 
     end associate
     call t_stopf('edpsn')

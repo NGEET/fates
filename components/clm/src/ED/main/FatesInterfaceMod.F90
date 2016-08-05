@@ -121,6 +121,12 @@ module FatesInterfaceMod
       ! Sunlit fraction of the canopy for this patch [0-1]
       real(r8),allocatable :: fsun_pa(:)
 
+      ! Sunlit canopy LAI
+      real(r8),allocatable :: laisun_pa(:)
+      
+      ! Shaded canopy LAI
+      real(r8),allocatable :: laisha_pa(:)
+      
       ! Logical stating whether a ground layer can have water uptake by plants
       ! The only condition right now is that liquid water exists
       ! The name (suction) is used to indicate that soil suction should be calculated
@@ -133,9 +139,19 @@ module FatesInterfaceMod
       ! (diagnostic, should not be used by HLM)
       real(r8), allocatable :: btran_pa(:)
 
-      real(r8), allocatable :: rscanopy_pa(:)
+      ! Sunlit canopy resistance [s/m]
+      real(r8), allocatable :: rssun_pa(:)
+
+      ! Shaded canopy resistance [s/m]
+      real(r8), allocatable :: rssha_pa(:)
+
+      ! Canopy conductance [mmol m-2 s-1]
       real(r8), allocatable :: gccanopy_pa(:)
+
+      ! patch sunlit leaf photosynthesis (umol CO2 /m**2/ s)
       real(r8), allocatable :: psncanopy_pa(:)
+
+      ! patch sunlit leaf maintenance respiration rate (umol CO2/m**2/s) 
       real(r8), allocatable :: lmrcanopy_pa(:)
 
 
@@ -252,6 +268,8 @@ contains
       
       ! Radiation
       allocate(bc_out%fsun_pa(numPatchesPerCol))
+      allocate(bc_out%laisun_pa(numPatchesPerCol))
+      allocate(bc_out%laisha_pa(numPatchesPerCol))
       
       ! Hydrology
       allocate(bc_out%active_suction_gl(ctrl_parms%numlevgrnd))
@@ -259,7 +277,8 @@ contains
       allocate(bc_out%btran_pa(numPatchesPerCol))
       
       ! Photosynthesis
-      allocate(bc_out%rscanopy_pa(numPatchesPerCol))
+      allocate(bc_out%rssun_pa(numPatchesPerCol))
+      allocate(bc_out%rssha_pa(numPatchesPerCol))
       allocate(bc_out%gccanopy_pa(numPatchesPerCol))
       allocate(bc_out%lmrcanopy_pa(numPatchesPerCol))
       allocate(bc_out%psncanopy_pa(numPatchesPerCol))
@@ -288,13 +307,16 @@ contains
       ! Output boundaries
       this%bc_out(s)%active_suction_gl(:) = .false.
       this%bc_out(s)%fsun_pa(:)      = 0.0_r8
+      this%bc_out(s)%laisun_pa(:)    = 0.0_r8
+      this%bc_out(s)%laisha_pa(:)    = 0.0_r8
       this%bc_out(s)%rootr_pagl(:,:) = 0.0_r8
       this%bc_out(s)%btran_pa(:)     = 0.0_r8
 
-      this%bc_out(s)%rscanopy_pa(:)   = 0.0_r8
-      this%bc_out(s)%gccanopy_pa(:)   = 0.0_r8
-      this%bc_out(s)%psncanopy_pa(:)   = 0.0_r8
-      this%bc_out(s)%lmrcanopy_pa(:)   = 0.0_r8
+      this%bc_out(s)%rssun_pa(:)     = 0.0_r8
+      this%bc_out(s)%rssha_pa(:)     = 0.0_r8
+      this%bc_out(s)%gccanopy_pa(:)  = 0.0_r8
+      this%bc_out(s)%psncanopy_pa(:) = 0.0_r8
+      this%bc_out(s)%lmrcanopy_pa(:) = 0.0_r8
 
       return
    end subroutine zero_bcs

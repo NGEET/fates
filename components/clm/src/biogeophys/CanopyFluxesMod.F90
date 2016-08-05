@@ -755,7 +755,6 @@ contains
          end do
 
          if ( use_ed ) then      
-
             
             ! FIX(FIX(SPM,032414),032414) Photo*_ED will need refactoring
             call clm_fates%wrap_photosynthesis(nc, bounds, fn, filterp(1:fn), &
@@ -765,13 +764,13 @@ contains
 
             ! zero all of these things, not just the ones in the filter. 
             do p = bounds%begp,bounds%endp 
-               photosyns_inst%rssun_patch(p)    = 0._r8
-               photosyns_inst%rssha_patch(p)    = 0._r8
+!               photosyns_inst%rssun_patch(p)    = 0._r8
+!               photosyns_inst%rssha_patch(p)    = 0._r8
                photosyns_inst%psnsun_patch(p)   = 0._r8
                photosyns_inst%psnsha_patch(p)   = 0._r8
                photosyns_inst%fpsn_patch(p)     = 0._r8
-               canopystate_inst%laisun_patch(p) = 0._r8
-               canopystate_inst%laisha_patch(p) = 0._r8
+!               canopystate_inst%laisun_patch(p) = 0._r8
+!               canopystate_inst%laisha_patch(p) = 0._r8
             enddo
 
             
@@ -854,32 +853,16 @@ contains
 
             ! Fraction of potential evaporation from leaf
 
-            if ( use_ed ) then
-               
-               if (fdry(p)  >  0._r8) then
-                  rppdry  = fdry(p)*rb(p)/(rb(p)+rscanopy(p))
-               else
-                  rppdry = 0._r8
-               end if
-               if (use_lch4) then
-                  ! Calculate canopy conductance for methane / oxygen (e.g. stomatal conductance & leaf bdy cond)
-                  canopy_cond(p) = 1.0_r8/(rb(p)+rscanopy(p))
-               end if
-
-            else ! NOT use_ed
-
-               if (fdry(p) > 0._r8) then
-                  rppdry  = fdry(p)*rb(p)*(laisun(p)/(rb(p)+rssun(p)) + laisha(p)/(rb(p)+rssha(p)))/elai(p)
-               else
-                  rppdry = 0._r8
-               end if
-
-               ! Calculate canopy conductance for methane / oxygen (e.g. stomatal conductance & leaf bdy cond)
-               if (use_lch4) then
-                  canopy_cond(p) = (laisun(p)/(rb(p)+rssun(p)) + laisha(p)/(rb(p)+rssha(p)))/max(elai(p), 0.01_r8)
-               end if
-
-            end if ! end of if use_ed         
+            if (fdry(p) > 0._r8) then
+               rppdry  = fdry(p)*rb(p)*(laisun(p)/(rb(p)+rssun(p)) + laisha(p)/(rb(p)+rssha(p)))/elai(p)
+            else
+               rppdry = 0._r8
+            end if
+            
+            ! Calculate canopy conductance for methane / oxygen (e.g. stomatal conductance & leaf bdy cond)
+            if (use_lch4) then
+               canopy_cond(p) = (laisun(p)/(rb(p)+rssun(p)) + laisha(p)/(rb(p)+rssha(p)))/max(elai(p), 0.01_r8)
+            end if
 
             efpot = forc_rho(c)*wtl*(qsatl(p)-qaf(p))
 
@@ -1324,13 +1307,13 @@ contains
       if ( use_ed ) then      
          ! zero all of the array,  not just the ones in the filter. 
          do p = bounds%begp,bounds%endp 
-            photosyns_inst%rssun_patch(p)    = 0._r8
-            photosyns_inst%rssha_patch(p)    = 0._r8
+!            photosyns_inst%rssun_patch(p)    = 0._r8
+!            photosyns_inst%rssha_patch(p)    = 0._r8
             photosyns_inst%psnsun_patch(p)   = 0._r8
             photosyns_inst%psnsha_patch(p)   = 0._r8
             photosyns_inst%fpsn_patch(p)     = 0._r8
-            canopystate_inst%laisun_patch(p) = 0._r8
-            canopystate_inst%laisha_patch(p) = 0._r8
+!            canopystate_inst%laisun_patch(p) = 0._r8
+!            canopystate_inst%laisha_patch(p) = 0._r8
          enddo
       end if
 

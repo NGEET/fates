@@ -201,6 +201,7 @@ contains
     real(r8) :: coarse_wood_frac                  ! amount of woody biomass that is coarse... 
     real(r8) :: tree_area
     real(r8) :: gs_cohort
+    real(r8) :: rscanopy
 
     ! FIX(SPM, 040714) [I]- these should be proper functions...
     real(r8) :: ft1    ! photosynthesis temperature response (statement function)
@@ -231,9 +232,6 @@ contains
          elai      => canopystate_inst%elai_patch           , & ! Input:  [real(r8) (:)   ]  one-sided leaf area index with burying by snow
          tlai      => canopystate_inst%tlai_patch)              ! Input:  [real(r8) (:)   ]  one-sided leaf area index
 
-!         rscanopy  => canopystate_inst%rscanopy_patch       , & ! Output: [real(r8) (:,:) ]  canopy resistance s/m  
-!         gccanopy  => canopystate_inst%gccanopy_patch         & ! Output: [real(r8) (:,:) ]  canopy conductance mmol m-2 s-1
-!         )
 
       !set timestep
       dtime = get_step_size()
@@ -317,9 +315,9 @@ contains
 
             bc_out(s)%psncanopy_pa(ifp) = 0._r8
             bc_out(s)%lmrcanopy_pa(ifp) = 0._r8
-            bc_out(s)%rscanopy_pa(ifp)  = 0._r8
+            bc_out(s)%rssun_pa(ifp)     = 0._r8
+            bc_out(s)%rssha_pa(ifp)     = 0._r8
             bc_out(s)%gccanopy_pa(ifp)  = 0._r8  
-            
 
             ! Patch level filter flag for photosynthesis calculations
             ! has a short memory, flags:
@@ -1009,15 +1007,17 @@ contains
             bc_out(s)%psncanopy_pa(ifp) = bc_out(s)%psncanopy_pa(ifp) / currentPatch%area
             bc_out(s)%lmrcanopy_pa(ifp) = bc_out(s)%lmrcanopy_pa(ifp) / currentPatch%area
             if(bc_out(s)%gccanopy_pa(ifp) > 1._r8/rsmax0.and.elai(clmp) > 0.0_r8)then
-               bc_out(s)%rscanopy_pa(ifp)  = (1.0_r8/bc_out(s)%gccanopy_pa(ifp))-bc_in(s)%rb_pa(ifp)/elai(clmp) ! this needs to be resistance per unit leaf area.  
+               rscanopy  = (1.0_r8/bc_out(s)%gccanopy_pa(ifp))-bc_in(s)%rb_pa(ifp)/elai(clmp) ! this needs to be resistance per unit leaf area. 
             else
-               bc_out(s)%rscanopy_pa(ifp) = rsmax0
+               rscanopy = rsmax0
             end if
-            bc_out(s)%gccanopy_pa(ifp)  = 1.0_r8/bc_out(s)%rscanopy_pa(ifp) *cf /1000 !convert into umol m02 s-1 then mmol m-2 s-1. 
-
+            bc_out(s)%gccanopy_pa(ifp)  = 1.0_r8/rscanopy*cf/1000 !convert into umol m02 s-1 then mmol m-2 s-1. 
          else
-            bc_out(s)%rscanopy_pa(ifp) = rsmax0  
+            rscanopy = rsmax0
          end if
+
+         bc_out(s)%rssun_pa(ifp) = (bc_out(s)%laisun_pa(ifp)+bc_out(s)%laisha_pa(ifp))*(bc_in(s)%rb_pa(ifp)+rscanopy)/elai(clmp) - bc_in(s)%rb_pa(ifp)
+         bc_out(s)%rssha_pa(ifp) = bc_out(s)%rssun_pa(ifp)
 
          currentPatch => currentPatch%younger
 
