@@ -2529,14 +2529,14 @@ fraction_exposed= 1.0_r8
               if ( .not. currentCohort%isnew ) then
                  
                  ! map ed cohort-level fluxes to clm patch fluxes
-                 npp(p) = npp(p) + currentCohort%npp_clm * 1.e3_r8 * n_density / dt
-                 gpp(p) = gpp(p) + currentCohort%gpp_clm * 1.e3_r8 * n_density / dt
-                 ar(p) = ar(p) + currentCohort%resp_clm * 1.e3_r8 * n_density / dt
+                 npp(p) = npp(p) + currentCohort%npp_tstep * 1.e3_r8 * n_density / dt
+                 gpp(p) = gpp(p) + currentCohort%gpp_tstep * 1.e3_r8 * n_density / dt
+                 ar(p) = ar(p) + currentCohort%resp_tstep * 1.e3_r8 * n_density / dt
                  growth_resp(p) = growth_resp(p) + currentCohort%resp_g * 1.e3_r8 * n_density / dt
                  maint_resp(p) = maint_resp(p) + currentCohort%resp_m * 1.e3_r8 * n_density / dt
                  
                  ! map ed cohort-level npp fluxes to clm column fluxes
-                 npp_col(c) = npp_col(c) + currentCohort%npp_clm * n_perm2 * 1.e3_r8 /dt
+                 npp_col(c) = npp_col(c) + currentCohort%npp_tstep * n_perm2 * 1.e3_r8 /dt
                  
               endif
               

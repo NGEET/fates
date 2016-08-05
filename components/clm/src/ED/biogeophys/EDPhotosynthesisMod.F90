@@ -46,11 +46,10 @@ contains
     use EDParamsMod       , only : ED_val_grperc
     use EDSharedParamsMod , only : EDParamsShareInst
     use EDTypesMod        , only : numpft_ed, dinc_ed 
-    use EDtypesMod        , only : numPatchesPerCol
     use EDtypesMod        , only : ed_patch_type, ed_cohort_type, ed_site_type, numpft_ed
     use EDEcophysContype  , only : EDecophyscon
     use FatesInterfaceMod , only : bc_in_type,bc_out_type
-
+    use EDtypesMod        , only : numpatchespercol
 
     !
     ! !ARGUMENTS:
@@ -589,7 +588,7 @@ contains
                                  aquad = theta_psii
                                  bquad = -(qabs + jmax_z(cl,ft,iv))
                                  cquad = qabs * jmax_z(cl,ft,iv)
-                                 call quadratic (aquad, bquad, cquad, r1, r2)
+                                 call quadratic_f (aquad, bquad, cquad, r1, r2)
                                  je = min(r1,r2)
 
                                  ! Iterative loop for ci beginning with initial guess
@@ -646,13 +645,13 @@ contains
                                     aquad = theta_cj(ps)
                                     bquad = -(ac + aj)
                                     cquad = ac * aj
-                                    call quadratic (aquad, bquad, cquad, r1, r2)
+                                    call quadratic_f (aquad, bquad, cquad, r1, r2)
                                     ai = min(r1,r2)
 
                                     aquad = theta_ip
                                     bquad = -(ai + ap)
                                     cquad = ai * ap
-                                    call quadratic (aquad, bquad, cquad, r1, r2)
+                                    call quadratic_f (aquad, bquad, cquad, r1, r2)
                                     ag(cl,ft,iv) = min(r1,r2)
 
                                     ! Net carbon assimilation. Exit iteration if an < 0
@@ -669,7 +668,7 @@ contains
                                     aquad = cs
                                     bquad = cs*(gb_mol - bbb(FT)) - bb_slope(ft)*an(cl,ft,iv)*bc_in(s)%forc_pbot
                                     cquad = -gb_mol*(cs*bbb(FT) + bb_slope(ft)*an(cl,ft,iv)*bc_in(s)%forc_pbot*ceair/bc_in(s)%esat_tv_pa(ifp))
-                                    call quadratic (aquad, bquad, cquad, r1, r2)
+                                    call quadratic_f (aquad, bquad, cquad, r1, r2)
                                     gs_mol = max(r1,r2)
 
                                     ! Derive new estimate for ci
@@ -774,9 +773,9 @@ contains
                   if(currentCohort%n > 0._r8)then   
 
                      ! Zero cohort flux accumulators.
-                     currentCohort%npp_clm  = 0.0_r8
-                     currentCohort%resp_clm = 0.0_r8
-                     currentCohort%gpp_clm  = 0.0_r8
+                     currentCohort%npp_tstep  = 0.0_r8
+                     currentCohort%resp_tstep = 0.0_r8
+                     currentCohort%gpp_tstep  = 0.0_r8
                      currentCohort%rd       = 0.0_r8
                      currentCohort%resp_m   = 0.0_r8
 
@@ -788,7 +787,7 @@ contains
                      !------------------------------------------------------------------------------
                      ! Convert from umolC/m2leaf/s to umolC/indiv/s ( x canopy area x 1m2 leaf area). 
                      tree_area = currentCohort%c_area/currentCohort%n
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 816 ', currentCohort%gpp_clm
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 816 ', currentCohort%gpp_tstep
                      if ( DEBUG ) write(iulog,*) 'EDPhoto 817 ', currentPatch%psn_z(cl,ft,1:currentCohort%nv-1)
                      if ( DEBUG ) write(iulog,*) 'EDPhoto 818 ', cl
                      if ( DEBUG ) write(iulog,*) 'EDPhoto 819 ', ft
@@ -797,7 +796,7 @@ contains
 
                      if (currentCohort%nv > 1) then !is there canopy, and are the leaves on?
 
-                        currentCohort%gpp_clm  = sum(currentPatch%psn_z(cl,ft,1:currentCohort%nv-1) * &
+                        currentCohort%gpp_tstep  = sum(currentPatch%psn_z(cl,ft,1:currentCohort%nv-1) * &
                              currentPatch%elai_profile(cl,ft,1:currentCohort%nv-1)) * tree_area
 
                         currentCohort%rd       = sum(lmr_z(cl,ft,1:currentCohort%nv-1)    * &
@@ -808,14 +807,14 @@ contains
 
                      else
 
-                        currentCohort%gpp_clm = 0.0_r8 
+                        currentCohort%gpp_tstep = 0.0_r8 
                         currentCohort%rd = 0.0_r8 
                         currentCohort%gscan = 0.0_r8 
                         currentCohort%ts_net_uptake(:) = 0.0_r8
 
                      end if
 
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 832 ', currentCohort%gpp_clm
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 832 ', currentCohort%gpp_tstep
 
                      laifrac = (currentCohort%treelai+currentCohort%treesai)-(currentCohort%nv-1)*dinc_ed
 
@@ -823,7 +822,7 @@ contains
                      currentCohort%gscan = currentCohort%gscan+gs_cohort
 
                      if ( DEBUG ) then
-                        write(iulog,*) 'EDPhoto 868 ', currentCohort%gpp_clm
+                        write(iulog,*) 'EDPhoto 868 ', currentCohort%gpp_tstep
                         write(iulog,*) 'EDPhoto 869 ',  currentPatch%psn_z(cl,ft,currentCohort%nv)
                         write(iulog,*) 'EDPhoto 870 ',  currentPatch%elai_profile(cl,ft,currentCohort%nv)
                         write(iulog,*) 'EDPhoto 871 ',  laifrac
@@ -831,7 +830,7 @@ contains
                         write(iulog,*) 'EDPhoto 873 ',  currentCohort%nv, cl, ft
                      endif
 
-                     currentCohort%gpp_clm  = currentCohort%gpp_clm + currentPatch%psn_z(cl,ft,currentCohort%nv) * &
+                     currentCohort%gpp_tstep  = currentCohort%gpp_tstep + currentPatch%psn_z(cl,ft,currentCohort%nv) * &
                           currentPatch%elai_profile(cl,ft,currentCohort%nv) * laifrac * tree_area
 
                      if ( DEBUG ) write(iulog,*) 'EDPhoto 843 ', currentCohort%rd
@@ -906,7 +905,7 @@ contains
                      if ( DEBUG ) write(iulog,*) 'EDPhoto 907 ', currentCohort%livecroot_mr
                      if ( DEBUG ) write(iulog,*) 'EDPhoto 908 ', currentCohort%froot_mr
 
-                     currentCohort%gpp_clm = currentCohort%gpp_clm * 12.0E-9    
+                     currentCohort%gpp_tstep = currentCohort%gpp_tstep * 12.0E-9    
                      ! add on whole plant respiration values in kgC/indiv/s-1  
                      currentCohort%resp_m = currentCohort%livestem_mr + currentCohort%livecroot_mr + currentCohort%froot_mr
                      ! no drought response * (1.0_r8 - currentPatch%btran_ft(currentCohort%pft)*pftcon%resp_drought_response(FT))   
@@ -914,15 +913,15 @@ contains
 
                      ! convert from kgC/indiv/s to kgC/indiv/timestep       
                      currentCohort%resp_m   = currentCohort%resp_m  * dtime 
-                     currentCohort%gpp_clm  = currentCohort%gpp_clm * dtime          
+                     currentCohort%gpp_tstep  = currentCohort%gpp_tstep * dtime          
 
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 911 ', currentCohort%gpp_clm
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 912 ', currentCohort%resp_clm
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 911 ', currentCohort%gpp_tstep
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 912 ', currentCohort%resp_tstep
                      if ( DEBUG ) write(iulog,*) 'EDPhoto 913 ', currentCohort%resp_m
 
-                     currentCohort%resp_g   = ED_val_grperc(1) * (max(0._r8,currentCohort%gpp_clm - currentCohort%resp_m))
-                     currentCohort%resp_clm = currentCohort%resp_m + currentCohort%resp_g ! kgC/indiv/ts    
-                     currentCohort%npp_clm  = currentCohort%gpp_clm - currentCohort%resp_clm  ! kgC/indiv/ts
+                     currentCohort%resp_g   = ED_val_grperc(1) * (max(0._r8,currentCohort%gpp_tstep - currentCohort%resp_m))
+                     currentCohort%resp_tstep = currentCohort%resp_m + currentCohort%resp_g ! kgC/indiv/ts    
+                     currentCohort%npp_tstep  = currentCohort%gpp_tstep - currentCohort%resp_tstep  ! kgC/indiv/ts
 
                      !------------------------------------------------------------------------------
                      ! Remove whole plant respiration from net uptake.  (kgC/indiv/ts)
@@ -934,19 +933,19 @@ contains
                         ! + currentCohort%froot_mr))/(currentCohort%treelai*currentCohort%c_area/currentCohort%n)
                         ! enddo
                      else !lai<0   
-                        currentCohort%gpp_clm = 0._r8
+                        currentCohort%gpp_tstep = 0._r8
                         currentCohort%resp_m = 0._r8
                         currentCohort%gscan = 0._r8
                      end if
                   else !pft<0 n<0
                      write(iulog,*) 'CF: pft 0 or n 0',currentCohort%pft,currentCohort%n,currentCohort%indexnumber
-                     currentCohort%gpp_clm = 0._r8
+                     currentCohort%gpp_tstep = 0._r8
                      currentCohort%resp_m  = 0._r8
                      currentCohort%gscan   = 0._r8   
                      currentCohort%ts_net_uptake(1:currentCohort%nv) = 0._r8    
                   end if !pft<0 n<0
 
-                  bc_out(s)%psncanopy_pa(ifp) = bc_out(s)%psncanopy_pa(ifp) + currentCohort%gpp_clm
+                  bc_out(s)%psncanopy_pa(ifp) = bc_out(s)%psncanopy_pa(ifp) + currentCohort%gpp_tstep
                   bc_out(s)%lmrcanopy_pa(ifp) = bc_out(s)%lmrcanopy_pa(ifp) + currentCohort%resp_m
                   ! accumulate cohort level canopy conductances over whole area before dividing by total area.  
                   bc_out(s)%gccanopy_pa(ifp)  = bc_out(s)%gccanopy_pa(ifp) + currentCohort%gscan * currentCohort%n /currentPatch%total_canopy_area  

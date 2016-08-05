@@ -41,9 +41,10 @@ module CLMFatesInterfaceMod
    use TemperatureType   , only : temperature_type
    use EnergyFluxType    , only : energyflux_type
    use SoilStateType     , only : soilstate_type
-   use PhotosynthesisMod     , only : photosyns_type
-   use clm_varctl        , only : iulog
+   use PhotosynthesisMod , only : photosyns_type
+   use clm_varctl        , only : iulog, use_ed
    use clm_varcon        , only : tfrz
+   use clm_varcon        , only : spval
    use clm_varpar        , only : numpft,            &
                                   numrad,            &
                                   nlevgrnd
@@ -90,6 +91,7 @@ module CLMFatesInterfaceMod
    use EDBtranMod            , only : btran_ed, &
                                       get_active_suction_layers
    use EDPhotosynthesisMod   , only : Photosynthesis_ED
+   use EDAccumulateFluxesMod , only : AccumulateFluxes_ED
 
    implicit none
 
@@ -142,6 +144,8 @@ module CLMFatesInterfaceMod
       procedure, public :: wrap_sunfrac
       procedure, public :: wrap_btran
       procedure, public :: wrap_photosynthesis
+      procedure, public :: wrap_accumulatefluxes
+      procedure, public :: prep_canopyfluxes
 
    end type hlm_fates_interface_type
 
@@ -677,6 +681,35 @@ contains
       return
    end subroutine wrap_sunfrac
    
+   ! ===================================================================================
+
+   subroutine prep_canopyfluxes(this, nc, fn, filterp, photosyns_inst)
+
+     ! ----------------------------------------------------------------------
+     ! the main function for calculating photosynthesis is called within a
+     ! loop based on convergence.  Some intitializations, including 
+     ! canopy resistance must be intitialized before the loop
+     ! ----------------------------------------------------------------------
+    
+     ! Arguments
+     class(hlm_fates_interface_type), intent(inout) :: this
+     integer, intent(in)                            :: nc
+     integer, intent(in)                            :: fn
+     integer, intent(in)                            :: filterp(fn)
+     type(photosyns_type),intent(inout)             :: photosyns_inst
+     ! locals
+     integer                                        :: f,p,c,s
+     ! parameters
+     integer,parameter                              :: rsmax0 = 2.e4_r8
+
+     if (.not.use_ed) return
+     
+     do s = 1, this%fates(nc)%nsites
+        ! filter flag == 1 means that this patch has not been called for photosynthesis
+        this%fates(nc)%bc_in(s)%filter_photo_pa(:) = 1
+     end do
+  end subroutine prep_canopyfluxes
+
    ! ====================================================================================
    
    subroutine wrap_btran(this,nc,fn,filterc,soilstate_inst, waterstate_inst, &
@@ -851,13 +884,7 @@ contains
    subroutine wrap_photosynthesis(this, nc, bounds, fn, filterp, &
          esat_tv, eair, oair, cair, rb, dayl_factor,             &
          atm2lnd_inst, temperature_inst, canopystate_inst, photosyns_inst)
-      !
-    ! !DESCRIPTION:
-    ! Leaf photosynthesis and stomatal conductance calculation as described by
-    ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 and extended to
-    ! a multi-layer canopy
-    !
-    ! !USES:
+   
     use shr_log_mod       , only : errMsg => shr_log_errMsg
     use abortutils        , only : endrun
     use decompMod         , only : bounds_type
@@ -903,7 +930,9 @@ contains
           tgcm      => temperature_inst%thm_patch    , &
           forc_pbot => atm2lnd_inst%forc_pbot_downscaled_col, &
           rssun     => photosyns_inst%rssun_patch  , &
-          rssha     => photosyns_inst%rssha_patch)
+          rssha     => photosyns_inst%rssha_patch,   &
+          psnsun    => photosyns_inst%psnsun_patch,  &
+          psnsha    => photosyns_inst%psnsha_patch)
       
       do s = 1, this%fates(nc)%nsites
          
@@ -938,8 +967,6 @@ contains
                this%fates(nc)%bc_in(s)%rb_pa(ifp)          = rb(p)          ! boundary layer resistance (s/m)
                this%fates(nc)%bc_in(s)%t_veg_pa(ifp)       = t_veg(p)       ! vegetation temperature (Kelvin)     
                this%fates(nc)%bc_in(s)%tgcm_pa(ifp)        = tgcm(p)        ! air temperature at agcm reference height (kelvin)
-            else
-               this%fates(nc)%bc_in(s)%filter_photo_pa(ifp) = 1
             end if
          end do
       end do
@@ -968,26 +995,54 @@ contains
             write(iulog,*) 'filter ran photosynthesis'
             call endrun(msg=errMsg(__FILE__, __LINE__))
          else
+            this%fates(nc)%bc_in(s)%filter_photo_pa(ifp) = 3
             rssun(p) = this%fates(nc)%bc_out(s)%rssun_pa(ifp)
             rssha(p) = this%fates(nc)%bc_out(s)%rssha_pa(ifp)
+            
+            ! These fields are marked with a bad-value flag
+            photosyns_inst%psnsun_patch(p)   = spval
+            photosyns_inst%psnsha_patch(p)   = spval
          end if
       end do
       
-      !do s = 1, this%fates(nc)%nsites
-      !   c = this%f2hmap(nc)%fcolumn(s)
-      !   do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
-      !      if( this%fates(nc)%bc_in(s)%filter_photo_pa(ifp) == 2 ) then
-      !         p = ifp+col%patchi(c)
-      !         rssun(p) = this%fates(nc)%bc_out(s)%rssun_pa(ifp)
-      !         rssha(p) = this%fates(nc)%bc_out(s)%rssha_pa(ifp)
-      !      end if
-      !   end do
-      !end do
-
     end associate
     call t_stopf('edpsn')
     return
  end subroutine wrap_photosynthesis
+
+ ! ======================================================================================
+
+ subroutine wrap_accumulatefluxes(this, nc, fn, filterp)
+    
+    ! !ARGUMENTS:
+    class(hlm_fates_interface_type), intent(inout) :: this
+    integer                , intent(in)            :: nc                   ! clump index
+    integer                , intent(in)            :: fn                          ! size of pft filter
+    integer                , intent(in)            :: filterp(fn)                 ! pft filter
+
+    integer                                        :: s,c,p,ifp,icp
+
+    ! Run a check on the filter
+    do icp = 1,fn
+       p = filterp(icp)
+       c = patch%column(p)
+       s = this%f2hmap(nc)%hsites(c)
+       ifp = p-col%patchi(c)
+       if(this%fates(nc)%bc_in(s)%filter_photo_pa(ifp) /= 3)then
+          call endrun(msg=errMsg(__FILE__, __LINE__))
+       end if
+    end do
+
+    call  AccumulateFluxes_ED(this%fates(nc)%sites,  &
+                               this%fates(nc)%nsites, &
+                               this%fates(nc)%bc_in,  &
+                               this%fates(nc)%bc_out)
+
+    return
+
+ end subroutine wrap_accumulatefluxes
+
+
 
    ! ------------------------------------------------------------------------------------
    !  THESE WRAPPERS MAY COME IN HANDY, KEEPING FOR NOW
@@ -1002,15 +1057,6 @@ contains
    !    
    !    call this%fates2hlm%SetValues( bounds_clump, setval_scalar )
    !  end subroutine set_fates2hlm
-   ! ------------------------------------------------------------------------------------
-   !  subroutine phen_accvars_init(this,bounds_clump)
-   !
-   !    implicit none
-   !    class(hlm_fates_interface_type), intent(inout) :: this
-   !    type(bounds_type),intent(in)                :: bounds_clump
-   !
-   !    return
-   !  end subroutine phen_accvars_init
    ! ------------------------------------------------------------------------------------
     
 end module CLMFatesInterfaceMod

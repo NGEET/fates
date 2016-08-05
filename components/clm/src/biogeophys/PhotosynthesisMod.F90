@@ -472,8 +472,6 @@ contains
     do p = bounds%begp,bounds%endp
        l = patch%landunit(p)
 
-!       this%lmrcanopy_patch(p) =  0.0_r8
-
        this%alphapsnsun_patch(p) = spval
        this%alphapsnsha_patch(p) = spval
 
