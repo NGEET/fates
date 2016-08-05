@@ -26,7 +26,7 @@ module EDPhotosynthesisMod
 contains
  
   !---------------------------------------------------------
-   subroutine Photosynthesis_ED (sites,nsites,fcolumn,bc_in,bc_out,dtime,canopystate_inst)
+   subroutine Photosynthesis_ED (sites,nsites,bc_in,bc_out,dtime)
 
 
     !
@@ -65,9 +65,7 @@ contains
     integer,intent(in)                      :: nsites
     type(bc_in_type),intent(in)             :: bc_in(nsites)
     type(bc_out_type),intent(inout)         :: bc_out(nsites)
-    integer,intent(in)                      :: fcolumn(nsites)
     real(r8),intent(in)                     :: dtime
-    type(canopystate_type)  , intent(inout)         :: canopystate_inst
 
     !
     ! !CALLED FROM:
@@ -227,7 +225,6 @@ contains
          woody     => pftcon%woody                          , & ! Is vegetation woody or not? 
          fnitr     => pftcon%fnitr                          , & ! foliage nitrogen limitation factor (-)
          leafcn    => pftcon%leafcn                         , & ! leaf C:N (gC/gN)
-         elai_clm      => canopystate_inst%elai_patch           , &
          bb_slope  => EDecophyscon%BB_slope                 )   ! slope of BB relationship
 
       ! Assign local pointers to derived type members (gridcell-level)
@@ -299,7 +296,6 @@ contains
 
       do s = 1,nsites
 
-         c = fcolumn(s)
          ifp = 0
          currentpatch => sites(s)%oldest_patch
          do while (associated(currentpatch))  
@@ -378,7 +374,6 @@ contains
          ! cumulative lai at the midpoint of the layer
          
          ifp = 0
-         c = fcolumn(s)
          currentpatch => sites(s)%oldest_patch
          do while (associated(currentpatch))  
             ifp = ifp+1
@@ -1004,19 +999,14 @@ contains
             enddo
             elai = max(0.1_r8,elai)
 
-            if( abs(elai-elai_clm(ifp+col%patchi(c)))>0.001_r8   )then
-               print*,ifp,elai,elai_clm(ifp+col%patchi(c))
-               stop
-            end if
-
             bc_out(s)%psncanopy_pa(ifp) = bc_out(s)%psncanopy_pa(ifp) / currentPatch%area
             bc_out(s)%lmrcanopy_pa(ifp) = bc_out(s)%lmrcanopy_pa(ifp) / currentPatch%area
-            if(bc_out(s)%gccanopy_pa(ifp) > 1._r8/rsmax0.and.elai_clm(ifp+col%patchi(c)) > 0.0_r8)then
-               rscanopy  = (1.0_r8/bc_out(s)%gccanopy_pa(ifp))-bc_in(s)%rb_pa(ifp)  ! this needs to be resistance per unit leaf area. 
+            if(bc_out(s)%gccanopy_pa(ifp) > 1._r8/rsmax0 .and. elai > 0.0_r8)then
+               rscanopy  = (1.0_r8/bc_out(s)%gccanopy_pa(ifp))-bc_in(s)%rb_pa(ifp)/elai  ! this needs to be resistance per unit leaf area. 
             else
                rscanopy = rsmax0
             end if
-            bc_out(s)%rssun_pa(ifp) = (bc_out(s)%laisun_pa(ifp)+bc_out(s)%laisha_pa(ifp))*(bc_in(s)%rb_pa(ifp)+rscanopy)/elai_clm(ifp+col%patchi(c)) - bc_in(s)%rb_pa(ifp)
+            bc_out(s)%rssun_pa(ifp) = (bc_out(s)%laisun_pa(ifp)+bc_out(s)%laisha_pa(ifp))*(bc_in(s)%rb_pa(ifp)+rscanopy)/elai - bc_in(s)%rb_pa(ifp)
             bc_out(s)%rssha_pa(ifp) = bc_out(s)%rssun_pa(ifp)
             bc_out(s)%gccanopy_pa(ifp)  = 1.0_r8/rscanopy*cf/1000 !convert into umol m02 s-1 then mmol m-2 s-1. 
          end if
