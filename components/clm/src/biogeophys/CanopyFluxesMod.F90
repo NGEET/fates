@@ -756,7 +756,7 @@ contains
 
          if ( use_ed ) then      
 
-            call t_startf('edpsn')
+            
             ! FIX(FIX(SPM,032414),032414) Photo*_ED will need refactoring
             call clm_fates%wrap_photosynthesis(nc, bounds, fn, filterp(1:fn), &
                  svpts(begp:endp), eah(begp:endp), o2(begp:endp), &
@@ -774,7 +774,7 @@ contains
                canopystate_inst%laisha_patch(p) = 0._r8
             enddo
 
-            call t_stopf('edpsn')
+            
 
          else ! not use_ed
 

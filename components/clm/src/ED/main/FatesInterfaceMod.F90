@@ -133,6 +133,12 @@ module FatesInterfaceMod
       ! (diagnostic, should not be used by HLM)
       real(r8), allocatable :: btran_pa(:)
 
+      real(r8), allocatable :: rscanopy_pa(:)
+      real(r8), allocatable :: gccanopy_pa(:)
+      real(r8), allocatable :: psncanopy_pa(:)
+      real(r8), allocatable :: lmrcanopy_pa(:)
+
+
    end type bc_out_type
 
 
@@ -252,7 +258,12 @@ contains
       allocate(bc_out%rootr_pagl(numPatchesPerCol,ctrl_parms%numlevgrnd))
       allocate(bc_out%btran_pa(numPatchesPerCol))
       
-      
+      ! Photosynthesis
+      allocate(bc_out%rscanopy_pa(numPatchesPerCol))
+      allocate(bc_out%gccanopy_pa(numPatchesPerCol))
+      allocate(bc_out%lmrcanopy_pa(numPatchesPerCol))
+      allocate(bc_out%psncanopy_pa(numPatchesPerCol))
+
       return
    end subroutine allocate_bcout
 
@@ -279,6 +290,11 @@ contains
       this%bc_out(s)%fsun_pa(:)      = 0.0_r8
       this%bc_out(s)%rootr_pagl(:,:) = 0.0_r8
       this%bc_out(s)%btran_pa(:)     = 0.0_r8
+
+      this%bc_out(s)%rscanopy_pa(:)   = 0.0_r8
+      this%bc_out(s)%gccanopy_pa(:)   = 0.0_r8
+      this%bc_out(s)%psncanopy_pa(:)   = 0.0_r8
+      this%bc_out(s)%lmrcanopy_pa(:)   = 0.0_r8
 
       return
    end subroutine zero_bcs

@@ -902,7 +902,11 @@ contains
           t_soisno  => temperature_inst%t_soisno_col , &
           t_veg     => temperature_inst%t_veg_patch  , &
           tgcm      => temperature_inst%thm_patch    , &
-          forc_pbot => atm2lnd_inst%forc_pbot_downscaled_col )
+          forc_pbot => atm2lnd_inst%forc_pbot_downscaled_col, &
+          rscanopy  => canopystate_inst%rscanopy_patch, &
+          gccanopy  => canopystate_inst%gccanopy_patch, &
+          lmrcanopy => photosyns_inst%lmrcanopy_patch, &
+          psncanopy => photosyns_inst%psncanopy_patch)
       
       do s = 1, this%fates(nc)%nsites
          
@@ -952,8 +956,32 @@ contains
                                this%f2hmap(nc)%fcolumn,&
                                this%fates(nc)%bc_in,  &
                                this%fates(nc)%bc_out, &
-                               canopystate_inst,      &
-                               photosyns_inst)
+                               canopystate_inst)
+
+      do ifp = 1,fn
+         p = filterp(ifp)
+         rscanopy(p) =  2.e4_r8
+         gccanopy(p) =  2.e4_r8
+         psncanopy(p) =  2.e4_r8
+         lmrcanopy(p) =  2.e4_r8
+      end do
+
+      do s = 1, this%fates(nc)%nsites
+               
+         c = this%f2hmap(nc)%fcolumn(s)
+
+         do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
+            if( this%fates(nc)%bc_in(s)%filter_photo_pa(ifp) == 2 ) then
+               p = ifp+col%patchi(c)
+               
+               rscanopy(p) = this%fates(nc)%bc_out(s)%rscanopy_pa(ifp)
+               gccanopy(p) = this%fates(nc)%bc_out(s)%gccanopy_pa(ifp)
+               psncanopy(p) = this%fates(nc)%bc_out(s)%psncanopy_pa(ifp)
+               lmrcanopy(p) = this%fates(nc)%bc_out(s)%lmrcanopy_pa(ifp)
+            end if
+         end do
+      end do
+
     end associate
     call t_stopf('edpsn')
     return
