@@ -65,6 +65,9 @@ module FatesInterfaceMod
       ! Site level filter for uptake response functions
       logical               :: filter_btran
 
+      ! the index of the deepest model soil level where roots may be, due to permafrost or bedrock constraints
+      integer  :: max_rooting_depth_index_col
+
 
    end type bc_in_type
 
@@ -85,6 +88,12 @@ module FatesInterfaceMod
       ! Integrated (vertically) transpiration wetness factor (0 to 1) 
       ! (diagnostic, should not be used by HLM)
       real(r8), allocatable :: btran_pa(:)
+
+     ! litterfall fluxes of C from ED patches to BGC columns
+     real(r8), allocatable :: ED_c_to_litr_lab_c_col(:)      !total labile    litter coming from ED. gC/m3/s
+     real(r8), allocatable :: ED_c_to_litr_cel_c_col(:)      !total cellulose litter coming from ED. gC/m3/s
+     real(r8), allocatable :: ED_c_to_litr_lig_c_col(:)      !total lignin    litter coming from ED. gC/m3/s
+
 
    end type bc_out_type
 
@@ -192,7 +201,12 @@ contains
       allocate(bc_out%active_suction_gl(ctrl_parms%numlevgrnd))
       allocate(bc_out%rootr_pagl(numPatchesPerCol,ctrl_parms%numlevgrnd))
       allocate(bc_out%btran_pa(numPatchesPerCol))
-      
+
+      allocate(bc_out%ED_c_to_litr_lab_c_col(ctrl_parms%numlevdecomp_full))        
+      allocate(bc_out%ED_c_to_litr_cel_c_col(ctrl_parms%numlevdecomp_full))
+      allocate(bc_out%ED_c_to_litr_lig_c_col(ctrl_parms%numlevdecomp_full))
+
+
       
       return
    end subroutine allocate_bcout
@@ -214,12 +228,16 @@ contains
       this%bc_in(s)%watsat_gl(:)        = 0.0_r8
       this%bc_in(s)%tempk_gl(:)         = 0.0_r8
       this%bc_in(s)%h2o_liqvol_gl(:)    = 0.0_r8
+      this%bc_in(s)%max_rooting_depth_index_col = 0
       
       ! Output boundaries
       this%bc_out(s)%active_suction_gl(:) = .false.
       this%bc_out(s)%fsun_pa(:)      = 0.0_r8
       this%bc_out(s)%rootr_pagl(:,:) = 0.0_r8
       this%bc_out(s)%btran_pa(:)     = 0.0_r8
+      this%bc_out(s)%ED_c_to_litr_lab_c_col(:) = 0.0_r8
+      this%bc_out(s)%ED_c_to_litr_cel_c_col(:, = 0.0_r8
+      this%bc_out(s)%ED_c_to_litr_lig_c_col(:) = 0.0_r8
 
       return
    end subroutine zero_bcs
@@ -266,6 +284,7 @@ contains
          write(*,*) 'Flushing FATES control parameters prior to transfer from host'
          ctrl_parms%numSwBands = unset_int
          ctrl_parms%numlevgrnd = unset_int
+         ctrl_parms%numlevdecomp_full = unset_int
 
       case('check_allset')
          
@@ -277,6 +296,12 @@ contains
          
          if(ctrl_parms%numlevgrnd .eq. unset_int) then
             write(*,*) 'FATES dimension/parameter unset: numlevground'
+            ! INTERF-TODO: FATES NEEDS INTERNAL end_run
+            ! end_run('MESSAGE')
+         end if
+
+         if(ctrl_parms%numlevdecomp_full .eq. unset_int) then
+            write(*,*) 'FATES dimension/parameter unset: numlevdecomp_full'
             ! INTERF-TODO: FATES NEEDS INTERNAL end_run
             ! end_run('MESSAGE')
          end if
@@ -297,6 +322,11 @@ contains
                
                ctrl_parms%numlevgrnd = dimval
                write(*,*) 'Transfering num_lev_ground = ',dimval,' to FATES'
+               
+            case('num_levdecomp_full')
+               
+               ctrl_parms%numlevdecomp_full = dimval
+               write(*,*) 'Transfering num_levdecomp_full = ',dimval,' to FATES'
                
             case default
                write(*,*) 'tag not recognized:',trim(tag)
