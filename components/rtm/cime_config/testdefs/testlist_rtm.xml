@@ -35,10 +35,6 @@
       </test>
     </grid>
     <grid name="f19_g16">
-      <test name="ERP_D_E_Ld5">
-        <machine compiler="intel" testtype="aux_clm_ys_intel" testmods="rtm/rtmOnIceOff">edison</machine>
-        <machine compiler="intel" testtype="aux_clm45" testmods="rtm/rtmOnIceOff">yellowstone</machine>
-      </test>
       <test name="ERP_Ld5">
         <machine compiler="intel" testtype="aux_clm_ys_pgi" testmods="rtm/rtmOnFloodOnEffvelOff">edison</machine>
         <machine compiler="intel" testtype="aux_clm_ys_pgi" testmods="rtm/rtmOnIceOn">edison</machine>
