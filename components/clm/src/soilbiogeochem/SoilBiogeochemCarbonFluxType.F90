@@ -10,7 +10,9 @@ module SoilBiogeochemCarbonFluxType
   use ch4varcon                          , only : allowlakeprod
   use SoilBiogeochemDecompCascadeConType , only : decomp_cascade_con
   use ColumnType                         , only : col                
-  use LandunitType                       , only : lun                
+  use LandunitType                       , only : lun
+  use clm_varctl                         , only : use_ed
+  
   ! 
   ! !PUBLIC TYPES:
   implicit none
@@ -45,6 +47,11 @@ module SoilBiogeochemCarbonFluxType
      real(r8), pointer :: lithr_col                                 (:)     ! (gC/m2/s) litter heterotrophic respiration 
      real(r8), pointer :: somhr_col                                 (:)     ! (gC/m2/s) soil organic matter heterotrophic res   
      real(r8), pointer :: soilc_change_col                          (:)     ! (gC/m2/s) FUN used soil C
+
+     ! fluxes to receive carbon inputs from FATES
+     real(r8), pointer :: FATES_c_to_litr_lab_c_col                 (:)     ! total labile    litter coming from ED. gC/m3/s
+     real(r8), pointer :: FATES_c_to_litr_cel_c_col                 (:)     ! total cellulose    litter coming from ED. gC/m3/s
+     real(r8), pointer :: FATES_c_to_litr_lig_c_col                 (:)     ! total lignin    litter coming from ED. gC/m3/s
 
    contains
 
@@ -128,6 +135,20 @@ contains
      allocate(this%lithr_col               (begc:endc)) ; this%lithr_col               (:) = nan
      allocate(this%somhr_col               (begc:endc)) ; this%somhr_col               (:) = nan
      allocate(this%soilc_change_col        (begc:endc)) ; this%soilc_change_col        (:) = nan
+
+     if ( use_ed ) then
+
+        allocate(this%FATES_c_to_litr_lab_c_col(begc:endc,1:nlevdecomp_full))
+        this%FATES_c_to_litr_lab_c_col(begc:endc,1:nlevdecomp_full) = nan
+        
+        allocate(this%FATES_c_to_litr_cel_c_col(begc:endc,1:nlevdecomp_full))
+        this%FATES_c_to_litr_cel_c_col(begc:endc,1:nlevdecomp_full) = nan
+        
+        allocate(this%FATES_c_to_litr_lig_c_col(begc:endc,1:nlevdecomp_full))
+        this%FATES_c_to_litr_lig_c_col(begc:endc,1:nlevdecomp_full) = nan
+
+     endif
+     
    end subroutine InitAllocate 
 
    !------------------------------------------------------------------------
@@ -527,6 +548,23 @@ contains
        end if
     end do
 
+    if ( use_ed ) then
+
+       hist_addfld_decomp(fname='FATES_c_to_litr_lab_c_col', units='gC/m^3/s',  type2d='levdcmp', &
+                   avgflag='A', long_name='litter labile carbon flux from FATES to BGC', &
+                   ptr_col=FATES_c_to_litr_lab_c_col)
+
+       hist_addfld_decomp(fname='FATES_c_to_litr_cel_c_col', units='gC/m^3/s',  type2d='levdcmp', &
+                   avgflag='A', long_name='litter celluluse carbon flux from FATES to BGC', &
+                   ptr_col=FATES_c_to_litr_cel_c_col)
+
+       hist_addfld_decomp(fname='FATES_c_to_litr_lig_c_col', units='gC/m^3/s',  type2d='levdcmp', &
+                   avgflag='A', long_name='litter lignin carbon flux from FATES to BGC', &
+                   ptr_col=FATES_c_to_litr_lig_c_col)
+
+     endif
+
+
   end subroutine InitHistory
 
   !-----------------------------------------------------------------------
@@ -639,6 +677,15 @@ contains
        this%soilc_change_col(i)  = value_column
     end do
 
+    if ( use_ed ) then
+       do fi = 1,num_column
+          i = filter_column(fi)
+          FATES_c_to_litr_lab_c_col(i) = value_column
+          FATES_c_to_litr_cel_c_col(i) = value_column
+          FATES_c_to_litr_lig_c_col(i) = value_column          
+       end do
+    end if
+    
   end subroutine SetValues
 
   !-----------------------------------------------------------------------

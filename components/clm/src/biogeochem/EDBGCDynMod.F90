@@ -238,7 +238,6 @@ contains
     ! Update all prognostic carbon state variables (except for gap-phase mortality and fire fluxes)
     call CStateUpdate1( num_soilc, filter_soilc, num_soilp, filter_soilp, &
          crop_inst, cnveg_carbonflux_inst, cnveg_carbonstate_inst, &
-         ed_clm_inst,                                                     &
          soilbiogeochem_carbonflux_inst)
 
     call t_stopf('BNGCUpdate1')

@@ -89,10 +89,10 @@ module FatesInterfaceMod
       ! (diagnostic, should not be used by HLM)
       real(r8), allocatable :: btran_pa(:)
 
-     ! litterfall fluxes of C from ED patches to BGC columns
-     real(r8), allocatable :: ED_c_to_litr_lab_c_col(:)      !total labile    litter coming from ED. gC/m3/s
-     real(r8), allocatable :: ED_c_to_litr_cel_c_col(:)      !total cellulose litter coming from ED. gC/m3/s
-     real(r8), allocatable :: ED_c_to_litr_lig_c_col(:)      !total lignin    litter coming from ED. gC/m3/s
+     ! litterfall fluxes of C from FATES patches to BGC columns
+     real(r8), allocatable :: FATES_c_to_litr_lab_c_col(:)      !total labile    litter coming from ED. gC/m3/s
+     real(r8), allocatable :: FATES_c_to_litr_cel_c_col(:)      !total cellulose litter coming from ED. gC/m3/s
+     real(r8), allocatable :: FATES_c_to_litr_lig_c_col(:)      !total lignin    litter coming from ED. gC/m3/s
 
 
    end type bc_out_type
@@ -202,9 +202,9 @@ contains
       allocate(bc_out%rootr_pagl(numPatchesPerCol,ctrl_parms%numlevgrnd))
       allocate(bc_out%btran_pa(numPatchesPerCol))
 
-      allocate(bc_out%ED_c_to_litr_lab_c_col(ctrl_parms%numlevdecomp_full))        
-      allocate(bc_out%ED_c_to_litr_cel_c_col(ctrl_parms%numlevdecomp_full))
-      allocate(bc_out%ED_c_to_litr_lig_c_col(ctrl_parms%numlevdecomp_full))
+      allocate(bc_out%FATES_c_to_litr_lab_c_col(ctrl_parms%numlevdecomp_full))        
+      allocate(bc_out%FATES_c_to_litr_cel_c_col(ctrl_parms%numlevdecomp_full))
+      allocate(bc_out%FATES_c_to_litr_lig_c_col(ctrl_parms%numlevdecomp_full))
 
 
       
@@ -235,9 +235,9 @@ contains
       this%bc_out(s)%fsun_pa(:)      = 0.0_r8
       this%bc_out(s)%rootr_pagl(:,:) = 0.0_r8
       this%bc_out(s)%btran_pa(:)     = 0.0_r8
-      this%bc_out(s)%ED_c_to_litr_lab_c_col(:) = 0.0_r8
-      this%bc_out(s)%ED_c_to_litr_cel_c_col(:, = 0.0_r8
-      this%bc_out(s)%ED_c_to_litr_lig_c_col(:) = 0.0_r8
+      this%bc_out(s)%FATES_c_to_litr_lab_c_col(:) = 0.0_r8
+      this%bc_out(s)%FATES_c_to_litr_cel_c_col(:, = 0.0_r8
+      this%bc_out(s)%FATES_c_to_litr_lig_c_col(:) = 0.0_r8
 
       return
    end subroutine zero_bcs

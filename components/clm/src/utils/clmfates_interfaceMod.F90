@@ -461,6 +461,9 @@ contains
 
       enddo
 
+      call wrap_litter_fluxout(this, nc, bounds_clump, canopystate_inst)
+      
+      
       ! link to CLM/ALM structures
       call this%fates2hlm%ed_clm_link( bounds_clump,               &
             this%fates(nc)%sites,                                  &
@@ -844,6 +847,44 @@ contains
       return
    end subroutine wrap_btran
 
+
+   subroutine wrap_litter_fluxout(this, nc, bounds_clump, canopystate_inst)
+     
+      implicit none
+      
+      ! Arguments
+      class(hlm_fates_interface_type), intent(inout) :: this
+      integer                , intent(in)            :: nc
+      type(bounds_type),intent(in)                   :: bounds_clump
+      type(canopystate_type)         , intent(inout) :: canopystate_inst
+
+      ! local variables
+      integer :: s, c,
+      
+      
+      ! process needed input boundary conditions to define rooting profiles
+      ! call subroutine to aggregate ED litter output fluxes and package them for handing across interface
+      ! process output into the dimensions that the BGC model wants (column, depth, and litter fractions)
+
+      do s = 1, this%fates(nc)%nsites
+         c = this%f2hmap(nc)%fcolumn(s)
+
+         this%fates(nc)%bc_in(s)%max_rooting_depth_index_col = canopystate_inst%altmax_lastyear_indx_col(c)
+      end do
+
+      call flux_into_litter_pools(this%fates(nc)%sites,  &
+                                  this%fates(nc)%nsites, &
+                                  this%fates(nc)%bc_in,  &
+                                  this%fates(nc)%bc_out)
+      
+      do s = 1, this%fates(nc)%nsites
+         c = this%f2hmap(nc)%fcolumn(s)
+
+         this%fates(nc)%bc_in(s)%max_rooting_depth_index_col = canopystate_inst%altmax_lastyear_indx_col(c)
+      end do
+
+
+   end subroutine wrap_litter_fluxout(this, nc, bounds_clump, canopystate_inst)
 
 
 
