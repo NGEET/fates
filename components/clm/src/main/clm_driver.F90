@@ -303,10 +303,10 @@ contains
     ! ============================================================================
 
     if (use_cn) then
-       call t_startf('ndep_interp')
+       call t_startf('bgc_interp')
        call ndep_interp(bounds_proc, atm2lnd_inst)
        call bgc_vegetation_inst%InterpFileInputs(bounds_proc)
-       call t_stopf('ndep_interp')
+       call t_stopf('bgc_interp')
     end if
 
     ! ============================================================================
@@ -344,11 +344,8 @@ contains
             topo_inst, atm2lnd_inst, &
             eflx_sh_precip_conversion = energyflux_inst%eflx_sh_precip_conversion_col(bounds_clump%begc:bounds_clump%endc))
 
-       call t_stopf('drvinit')
-
        ! Update filters that depend on variables set in clm_drv_init
        
-       call t_startf('irrigation')
        call setExposedvegpFilter(bounds_clump, &
             canopystate_inst%frac_veg_nosno_patch(bounds_clump%begp:bounds_clump%endp))
 
@@ -356,7 +353,7 @@ contains
 
        call irrigation_inst%ApplyIrrigation(bounds_clump, &
             volr = atm2lnd_inst%volr_grc(bounds_clump%begg:bounds_clump%endg))
-       call t_stopf('irrigation')
+       call t_stopf('drvinit')
 
        ! ============================================================================
        ! Canopy Hydrology
@@ -682,6 +679,7 @@ contains
        ! ============================================================================
        ! ! Fraction of soil covered by snow (Z.-L. Yang U. Texas)
        ! ============================================================================
+       call t_startf('snow_init')
 
        do c = bounds_clump%begc,bounds_clump%endc
           l = col%landunit(c)
@@ -699,7 +697,6 @@ contains
        ! Note the snow filters here do not include lakes
        ! TODO: move this up
 
-       call t_startf('snow_init')
        call SnowAge_grain(bounds_clump,                 &
             filter(nc)%num_snowc, filter(nc)%snowc,     &
             filter(nc)%num_nosnowc, filter(nc)%nosnowc, &
@@ -928,7 +925,6 @@ contains
                aerosol_inst, canopystate_inst, waterstate_inst, &
                lakestate_inst, temperature_inst, surfalb_inst)
 
-
           ! INTERF-TOD: THIS ACTUALLY WON'T BE TO HARD TO PULL OUT
           ! ED_Norman_Radiation() is the last thing called
           ! in SurfaceAlbedo, we can simply remove it
@@ -939,12 +935,11 @@ contains
           
           !call clm_fates%radiation()
 
-
           call t_stopf('surfalb')
 
           ! Albedos for urban columns
           if (filter_inactive_and_active(nc)%num_urbanl > 0) then
-             call t_startf('urbsurfalb')
+             call t_startf('urbalb')
              call UrbanAlbedo(bounds_clump,                  &
                   filter_inactive_and_active(nc)%num_urbanl, &
                   filter_inactive_and_active(nc)%urbanl,     &
@@ -954,7 +949,7 @@ contains
                   filter_inactive_and_active(nc)%urbanp,     &
                   waterstate_inst, urbanparams_inst,         &
                   solarabs_inst, surfalb_inst)
-             call t_stopf('urbsurfalb')
+             call t_stopf('urbalb')
           end if
 
        end if
