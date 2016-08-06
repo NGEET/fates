@@ -37,43 +37,24 @@ module EDSurfaceRadiationMod
 
 contains
    
-   subroutine ED_Norman_Radiation (bounds, &
-         filter_vegsol, num_vegsol, filter_nourbanp, num_nourbanp, &
-         coszen, sites, nsites, fcolumn, hsites, surfalb_inst)
+  subroutine ED_Norman_Radiation (sites, nsites, bc_in, bc_out)
       !
-      ! !DESCRIPTION:
-      ! Two-stream fluxes for canopy radiative transfer
-      ! Use two-stream approximation of Dickinson (1983) Adv Geophysics
-      ! 25:305-353 and Sellers (1985) Int J Remote Sensing 6:1335-1372
-      ! to calculate fluxes absorbed by vegetation, reflected by vegetation,
-      ! and transmitted through vegetation for unit incoming direct or diffuse
-      ! flux given an underlying surface with known albedo.
-      ! Calculate sunlit and shaded fluxes as described by
-      ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 and extended to
-      ! a multi-layer canopy to calculate APAR profile
+
       !
       ! !USES:
       use clm_varctl        , only : iulog
       use pftconMod         , only : pftcon
       use EDtypesMod        , only : ed_patch_type, numpft_ed, nlevcan_ed
       use EDTypesMod        , only : ed_site_type
-                                                              ! in this routine in the future
-      use PatchType         , only : patch  
-      use SurfaceAlbedoType , only : surfalb_type
-      !
+
+
       ! !ARGUMENTS:
-      type(bounds_type)  , intent(in)                :: bounds                 ! bounds
-      integer            , intent(in)                :: filter_vegsol(:)       ! filter for vegetated pfts with coszen>0
-      integer            , intent(in)                :: num_vegsol             ! number of vegetated pfts where coszen>0
-      integer            , intent(in)                :: filter_nourbanp(:)     ! patch filter for non-urban points
-      integer            , intent(in)                :: num_nourbanp           ! number of patches in non-urban filter
-      real(r8)           , intent(in)                :: coszen( bounds%begp: ) ! cosine solar zenith angle for next time step [pft]
-      type(ed_site_type)     , intent(inout), target :: sites(nsites)      ! FATES site vector
-      integer                , intent(in)            :: nsites             
-      integer                , intent(in)            :: fcolumn(nsites)
-      integer                , intent(in)            :: hsites(bounds%begc:bounds%endc)
-      type(surfalb_type) , intent(inout)             :: surfalb_inst 
-      !
+      
+      type(ed_site_type), intent(inout), target :: sites(nsites)      ! FATES site vector
+      integer,            intent(in)            :: nsites 
+      type(bc_in_type),   intent(in)            :: bc_in(nsites)
+      type(bc_out_type),  intent(inout)         :: bc_out(nsites)
+
       ! !LOCAL VARIABLES:
       ! ============================================================================
       ! ED/NORMAN RADIATION DECS
@@ -134,8 +115,8 @@ contains
             taus         =>    pftcon%taus                     , & ! Input:  [real(r8) (:)   ] stem transmittance: 1=vis, 2=nir
             xl           =>    pftcon%xl                       , & ! Input:  [real(r8) (:)   ] ecophys const - leaf/stem orientation index
             
-            albgrd       =>    surfalb_inst%albgrd_col         , & ! Input:  [real(r8) (:,:) ] ground albedo (direct) (column-level)
-            albgri       =>    surfalb_inst%albgri_col         , & ! Input:  [real(r8) (:,:) ] ground albedo (diffuse)(column-level)
+!            albgrd       =>    surfalb_inst%albgrd_col         , & ! Input:  [real(r8) (:,:) ] ground albedo (direct) (column-level)
+!            albgri       =>    surfalb_inst%albgri_col         , & ! Input:  [real(r8) (:,:) ] ground albedo (diffuse)(column-level)
 
             albd         =>    surfalb_inst%albd_patch         , & ! Output: [real(r8) (:,:) ] surface albedo (direct)
             albi         =>    surfalb_inst%albi_patch         , & ! Output: [real(r8) (:,:) ] surface albedo (diffuse)
@@ -148,7 +129,6 @@ contains
             ftdd         =>    surfalb_inst%ftdd_patch         , & ! Output: [real(r8) (:,:) ] down direct flux below canopy per unit direct flx
             ftid         =>    surfalb_inst%ftid_patch         , & ! Output: [real(r8) (:,:) ] down diffuse flux below canopy per unit direct flx
             ftii         =>    surfalb_inst%ftii_patch         , & ! Output: [real(r8) (:,:) ] down diffuse flux below canopy per unit diffuse flx
-            nrad         =>    surfalb_inst%nrad_patch         , & ! Input:  [integer  (:)   ] number of canopy layers, above snow for radiative transfer
             fabd_sun_z   =>    surfalb_inst%fabd_sun_z_patch   , & ! Output: [real(r8) (:,:) ] absorbed sunlit leaf direct  PAR (per unit lai+sai) for each canopy layer
             fabd_sha_z   =>    surfalb_inst%fabd_sha_z_patch   , & ! Output: [real(r8) (:,:) ] absorbed shaded leaf direct  PAR (per unit lai+sai) for each canopy layer
             fabi_sun_z   =>    surfalb_inst%fabi_sun_z_patch   , & ! Output: [real(r8) (:,:) ] absorbed sunlit leaf diffuse PAR (per unit lai+sai) for each canopy layer
@@ -228,8 +208,8 @@ contains
                   fabd(p,:) = 0.0_r8
                   fabi(p,:) = 0.0_r8
                   do ib = 1,numrad
-                     albd(p,ib) = albgrd(c,ib) 
-                     albd(p,ib) = albgri(c,ib)
+                     albd(p,ib) = bc_in(s)%albgr_dir_rb(ib)  !albgrd(c,ib) 
+                     albd(p,ib) = bc_in(s)%albgr_dif_rb(ib)  !albgri(c,ib)
                      ftdd(p,ib)= 1.0_r8
                      ftid(p,ib)= 1.0_r8
                      ftii(p,ib)= 1.0_r8

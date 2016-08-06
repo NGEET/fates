@@ -87,7 +87,7 @@ module CLMFatesInterfaceMod
    use EDPftVarcon           , only : EDpftvarcon_inst
    use EDEcophysConType      , only : EDecophysconInit
    use EDRestVectorMod       , only : EDRest
-   use EDSurfaceRadiationMod , only : ED_SunShadeFracs
+   use EDSurfaceRadiationMod , only : ED_SunShadeFracs, ED_Norman_Radiation
    use EDBtranMod            , only : btran_ed, &
                                       get_active_suction_layers
    use EDPhotosynthesisMod   , only : Photosynthesis_ED
@@ -146,6 +146,7 @@ module CLMFatesInterfaceMod
       procedure, public :: wrap_photosynthesis
       procedure, public :: wrap_accumulatefluxes
       procedure, public :: prep_canopyfluxes
+      procedure, public :: wrap_caonpy_radiation
 
    end type hlm_fates_interface_type
 
@@ -1052,17 +1053,19 @@ contains
     ! Arguments
 
     class(hlm_fates_interface_type), intent(inout) :: this
-    type(bounds_type)  , intent(in)                :: bounds                        ! bounds
-    integer            , intent(in)                :: filter_vegsol(num_vegsol)     ! filter for vegetated pfts with coszen>0
-    integer            , intent(in)                :: num_vegsol                    ! number of vegetated pfts where coszen>0
-    integer            , intent(in)                :: filter_nourbanp(num_nourbanp) ! patch filter for non-urban points
-    integer            , intent(in)                :: num_nourbanp                  ! number of patches in non-urban filter
-    real(r8)           , intent(in)                :: coszen( bounds%begp: )        ! cosine solar zenith angle for next time step [pft]
-    type(ed_site_type)     , intent(inout), target :: sites(nsites)                 ! FATES site vector
-    integer                , intent(in)            :: nsites             
-    integer                , intent(in)            :: fcolumn(nsites)
-    integer                , intent(in)            :: hsites(bounds%begc:bounds%endc)
-    type(surfalb_type) , intent(inout)             :: surfalb_inst 
+    ! filter for vegetated pfts with coszen>0
+    integer            , intent(in)            :: filter_vegsol(num_vegsol)    
+    integer            , intent(in)            :: num_vegsol                 
+    ! patch filter for non-urban points
+    integer            , intent(in)            :: filter_nourbanp(num_nourbanp) 
+    integer            , intent(in)            :: num_nourbanp                  
+    ! cosine solar zenith angle for next time step
+    real(r8)           , intent(in)            :: coszen( bounds%begp: )        
+    type(ed_site_type) , intent(inout), target :: sites(nsites)
+    integer            , intent(in)            :: nsites             
+    integer            , intent(in)            :: fcolumn(nsites)
+    integer            , intent(in)            :: hsites(bounds%begc:bounds%endc)
+    type(surfalb_type) , intent(inout)         :: surfalb_inst 
     
 
     do s = 1, this%fates(nc)%nsites
@@ -1076,7 +1079,8 @@ contains
     
              this%fates(nc)%bc_in(s)%filter_vegzen_pa(ifp) = .true.
              this%fates(nc)%bc_in(s)%coszen_pa(ifp) = coszen(p)
-             
+             this%fates(nc)%bc_in(s)%albgr_dir_rb(:) = surfalb_inst%albgrd_col(c,:)
+             this%fates(nc)%bc_in(s)%albgr_dif_rb(:) = surfalb_inst%albgri_col(c,:)
 
           else
              
@@ -1091,7 +1095,7 @@ contains
                              this%fates(nc)%nsites, &
                              this%fates(nc)%bc_in,  &
                              this%fates(nc)%bc_out, &
-                             coszen)
+                             surfalb_inst)
 
     
 
