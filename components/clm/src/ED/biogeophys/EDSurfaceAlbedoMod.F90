@@ -89,8 +89,8 @@ contains
       real(r8) :: k_dir(numpft_ed)                              ! Direct beam extinction coefficient
       real(r8) :: tr_dir_z(nclmax,numpft_ed,nlevcan_ed)         ! Exponential transmittance of direct beam radiation through a single layer
       real(r8) :: tr_dif_z(nclmax,numpft_ed,nlevcan_ed)         ! Exponential transmittance of diffuse radiation through a single layer
-      real(r8) :: forc_dir(bounds%begp:bounds%endp,numrad)
-      real(r8) :: forc_dif(bounds%begp:bounds%endp,numrad)
+      real(r8) :: forc_dir(numPatchesPerCol,numrad)
+      real(r8) :: forc_dif(numPatchesPerCol,numrad)
       real(r8) :: weighted_dir_tr(nclmax)
       real(r8) :: weighted_fsun(nclmax)
       real(r8) :: weighted_dif_ratio(nclmax,numrad)
@@ -102,33 +102,30 @@ contains
       real(r8) :: Dif_dn(nclmax,numpft_ed,nlevcan_ed)           ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
       real(r8) :: Dif_up(nclmax,numpft_ed,nlevcan_ed)           ! Upward diffuse flux above canopy layer J (W/m**2 ground area)
       real(r8) :: lai_change(nclmax,numpft_ed,nlevcan_ed)       ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
-
       real(r8) :: f_not_abs(numpft_ed,numrad)                   ! Fraction reflected + transmitted. 1-absorbtion.
-      real(r8) :: tolerance
       real(r8) :: Abs_dir_z(numpft_ed,nlevcan_ed)
       real(r8) :: Abs_dif_z(numpft_ed,nlevcan_ed)
       real(r8) :: abs_rad(numrad)                               !radiation absorbed by soil
       real(r8) :: tr_soili                                      ! Radiation transmitted to the soil surface.
       real(r8) :: tr_soild                                      ! Radiation transmitted to the soil surface.
-      real(r8) :: phi1b(bounds%begp:bounds%endp,numpft_ed)      ! Radiation transmitted to the soil surface.
-      real(r8) :: phi2b(bounds%begp:bounds%endp,numpft_ed)
+      real(r8) :: phi1b(numPatchesPerCol,numpft_ed)      ! Radiation transmitted to the soil surface.
+      real(r8) :: phi2b(numPatchesPerCol,numpft_ed)
       real(r8) :: laisum                                        ! cumulative lai+sai for canopy layer (at middle of layer)
-
       real(r8) :: angle
+
+      real(r8),parameter :: tolerance = 0.000000001_r8
       real(r8), parameter :: pi   = 3.141592654                 ! PI
+
       real(r8) :: denom
       real(r8) :: lai_reduction(2)
 
       integer  :: fp,p,c,iv,s      ! array indices
       integer  :: ib               ! waveband number
       real(r8) :: cosz             ! 0.001 <= coszen <= 1.000
-      real(r8) :: chil(bounds%begp:bounds%endp)    ! -0.4 <= xl <= 0.6
-      real(r8) :: gdir(bounds%begp:bounds%endp)    ! leaf projection in solar direction (0 to 1)
-      !-----------------------------------------------------------------------
+      real(r8) :: chil(numPatchesPerCol)     ! -0.4 <= xl <= 0.6
+      real(r8) :: gdir(numPatchesPerCol)    ! leaf projection in solar direction (0 to 1)
 
-      ! Enforce expected array sizes
-      ! What is this about? (FIX(RF,032414))
-      SHR_ASSERT_ALL((ubound(coszen) == (/bounds%endp/)),         errMsg(__FILE__, __LINE__))
+      !-----------------------------------------------------------------------
 
       associate(&
             rhol         =>    pftcon%rhol                     , & ! Input:  [real(r8) (:)   ] leaf reflectance: 1=vis, 2=nir
@@ -139,6 +136,7 @@ contains
             
             albgrd       =>    surfalb_inst%albgrd_col         , & ! Input:  [real(r8) (:,:) ] ground albedo (direct) (column-level)
             albgri       =>    surfalb_inst%albgri_col         , & ! Input:  [real(r8) (:,:) ] ground albedo (diffuse)(column-level)
+
             albd         =>    surfalb_inst%albd_patch         , & ! Output: [real(r8) (:,:) ] surface albedo (direct)
             albi         =>    surfalb_inst%albi_patch         , & ! Output: [real(r8) (:,:) ] surface albedo (diffuse)
             fabd         =>    surfalb_inst%fabd_patch         , & ! Output: [real(r8) (:,:) ] flux absorbed by canopy per unit direct flux
@@ -158,56 +156,55 @@ contains
             fsun_z       =>    surfalb_inst%fsun_z_patch         & ! Output: [real(r8) (:,:) ] sunlit fraction of canopy layer
             )
 
+        ! -------------------------------------------------------------------------------
         ! TODO (mv, 2014-10-29) the filter here is different than below 
         ! this is needed to have the VOC's be bfb - this needs to be
         ! re-examined int he future
+        ! RGK,2016-08-06: FATES is still incompatible with VOC emission module
+        ! -------------------------------------------------------------------------------
 
-      do fp = 1,num_nourbanp
-         p = filter_nourbanp(fp)
-         if (patch%is_veg(p)) then
-            c = patch%column(p)
-            s = hsites(c)
-            currentPatch => map_clmpatch_to_edpatch(sites(s), p) 
-            currentPatch%f_sun      (:,:,:) = 0._r8
-            currentPatch%fabd_sun_z (:,:,:) = 0._r8
-            currentPatch%fabd_sha_z (:,:,:) = 0._r8
-            currentPatch%fabi_sun_z (:,:,:) = 0._r8
-            currentPatch%fabi_sha_z (:,:,:) = 0._r8
-            currentPatch%fabd       (:)     = 0._r8
-            currentPatch%fabi       (:)     = 0._r8
-         end if
-      end do
 
-      !================================================================
-      ! NORMAN RADIATION CODE
-      ! ============================================================================
-      ! FIX(SPM,032414) refactor this...too long for one routine.
-      tolerance = 0.000000001_r8 ! FIX(SPM,032414) make this a param
+        do s = 1, this%fates(nc)%nsites
 
-      do fp = 1,num_vegsol
-         p = filter_vegsol(fp)
-         c = patch%column(p)
+           ifp = 0
+           currentpatch => sites(s)%oldest_patch
+           do while (associated(currentpatch))  
+              ifp = ifp+1
+              
+              currentPatch%f_sun      (:,:,:) = 0._r8
+              currentPatch%fabd_sun_z (:,:,:) = 0._r8
+              currentPatch%fabd_sha_z (:,:,:) = 0._r8
+              currentPatch%fabi_sun_z (:,:,:) = 0._r8
+              currentPatch%fabi_sha_z (:,:,:) = 0._r8
+              currentPatch%fabd       (:)     = 0._r8
+              currentPatch%fabi       (:)     = 0._r8
 
-         weighted_dir_tr(:)   = 0._r8
-         weighted_dif_down(:) = 0._r8
-         weighted_dif_up(:)   = 0._r8
-         albd(p,:)            = 0._r8
-         albi(p,:)            = 0._r8
-         fabi(p,:)            = 0._r8
-         fabd(p,:)            = 0._r8           
-         tr_dir_z(:,:,:)      = 0._r8
-         tr_dif_z(:,:,:)      = 0._r8
-         ftweight(:,:,:)      = 0._r8
-         lai_change(:,:,:)    = 0._r8
-         Dif_up(:,:,:)        = 0._r8
-         Dif_dn(:,:,:)        = 0._r8
-         refl_dif(:,:,:,:)    = 0.0_r8
-         tran_dif(:,:,:,:)    = 0.0_r8
-         dif_ratio(:,:,:,:)   = 0.0_r8
-         ftdd(p,:)            = 1._r8
-         ftid(p,:)            = 1._r8
-         ftii(p,:)            = 1._r8
+              if(bc_in(s)%filter_vegzen_pa(ifp))then
 
+                 ! PREVIOUSLY FILTERING ON veg_sol
+                 !      do fp = 1,num_vegsol
+                 !      p = filter_vegsol(fp)
+
+                 weighted_dir_tr(:)   = 0._r8
+                 weighted_dif_down(:) = 0._r8
+                 weighted_dif_up(:)   = 0._r8
+                 albd(p,:)            = 0._r8
+                 albi(p,:)            = 0._r8
+                 fabi(p,:)            = 0._r8
+                 fabd(p,:)            = 0._r8           
+                 tr_dir_z(:,:,:)      = 0._r8
+                 tr_dif_z(:,:,:)      = 0._r8
+                 ftweight(:,:,:)      = 0._r8
+                 lai_change(:,:,:)    = 0._r8
+                 Dif_up(:,:,:)        = 0._r8
+                 Dif_dn(:,:,:)        = 0._r8
+                 refl_dif(:,:,:,:)    = 0.0_r8
+                 tran_dif(:,:,:,:)    = 0.0_r8
+                 dif_ratio(:,:,:,:)   = 0.0_r8
+                 ftdd(p,:)            = 1._r8
+                 ftid(p,:)            = 1._r8
+                 ftii(p,:)            = 1._r8
+         
          if (patch%is_veg(p)) then ! We have vegetation...
 
             
@@ -286,7 +283,7 @@ contains
                      !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
                      ! Direct beam extinction coefficient, k_dir. PFT specific.
                      !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
-                     cosz = max(0.001_r8, coszen(p)) !copied from previous radiation code...
+                     cosz = max(0.001_r8, bc_in(s)%coszen_pa(ifp)) !copied from previous radiation code...
                      do ft = 1,numpft_ed
                         sb = (90._r8 - (acos(cosz)*180/pi)) * (pi / 180._r8)
                         chil(p) = xl(ft) !min(max(xl(ft), -0.4_r8), 0.6_r8 )

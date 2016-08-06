@@ -1042,7 +1042,63 @@ contains
 
  end subroutine wrap_accumulatefluxes
 
+ ! ======================================================================================
 
+ subroutine wrap_canopy_radiation(this, bounds, &
+         filter_vegsol, num_vegsol, filter_nourbanp, num_nourbanp, &
+         coszen, sites, nsites, fcolumn, hsites, surfalb_inst)
+
+
+    ! Arguments
+
+    class(hlm_fates_interface_type), intent(inout) :: this
+    type(bounds_type)  , intent(in)                :: bounds                        ! bounds
+    integer            , intent(in)                :: filter_vegsol(num_vegsol)     ! filter for vegetated pfts with coszen>0
+    integer            , intent(in)                :: num_vegsol                    ! number of vegetated pfts where coszen>0
+    integer            , intent(in)                :: filter_nourbanp(num_nourbanp) ! patch filter for non-urban points
+    integer            , intent(in)                :: num_nourbanp                  ! number of patches in non-urban filter
+    real(r8)           , intent(in)                :: coszen( bounds%begp: )        ! cosine solar zenith angle for next time step [pft]
+    type(ed_site_type)     , intent(inout), target :: sites(nsites)                 ! FATES site vector
+    integer                , intent(in)            :: nsites             
+    integer                , intent(in)            :: fcolumn(nsites)
+    integer                , intent(in)            :: hsites(bounds%begc:bounds%endc)
+    type(surfalb_type) , intent(inout)             :: surfalb_inst 
+    
+
+    do s = 1, this%fates(nc)%nsites
+
+       c = this%f2hmap(nc)%fcolumn(s)
+       do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
+          
+          p = ifp+col%patchi(c)
+          
+          if( any(filter_vegsol==p) )then
+    
+             this%fates(nc)%bc_in(s)%filter_vegzen_pa(ifp) = .true.
+             this%fates(nc)%bc_in(s)%coszen_pa(ifp) = coszen(p)
+             
+
+          else
+             
+             this%fates(nc)%bc_in(s)%filter_vegzen_pa(ifp) = .false.
+
+          end if
+
+       end do
+    end do
+
+    call ED_Norman_Radiation(this%fates(nc)%sites,  &
+                             this%fates(nc)%nsites, &
+                             this%fates(nc)%bc_in,  &
+                             this%fates(nc)%bc_out, &
+                             coszen)
+
+    
+
+
+
+    return
+ end subroutine wrap_canopy_radiation
 
    ! ------------------------------------------------------------------------------------
    !  THESE WRAPPERS MAY COME IN HANDY, KEEPING FOR NOW

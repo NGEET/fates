@@ -920,11 +920,17 @@ contains
 
     if (use_ed) then
           
-       call ED_Norman_Radiation (bounds, &
+       call clm_fates%wrap_canopy_radiation(bounds, &
             filter_vegsol, num_vegsol, filter_nourbanp, num_nourbanp, &
             coszen_patch(bounds%begp:bounds%endp), sites(:), nsites, &
             fcolumn, hsites(bounds%begc:bounds%endc), & 
             surfalb_inst)
+
+!       call ED_Norman_Radiation (bounds, &
+!            filter_vegsol, num_vegsol, filter_nourbanp, num_nourbanp, &
+!            coszen_patch(bounds%begp:bounds%endp), sites(:), nsites, &
+!            fcolumn, hsites(bounds%begc:bounds%endc), & 
+!            surfalb_inst)
 
     else
 
