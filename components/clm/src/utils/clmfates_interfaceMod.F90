@@ -1061,7 +1061,18 @@ contains
     type(surfalb_type) , intent(inout)         :: surfalb_inst 
     
     ! locals
-    integer :: s,c,ifp,p
+    integer                                    :: s,c,p,ifp,icp
+
+    associate(&
+         albgrd_col   =>    surfalb_inst%albgrd_col         , &
+         albgri_col   =>    surfalb_inst%albgri_col         , &
+         albd         =>    surfalb_inst%albd_patch         , &
+         albi         =>    surfalb_inst%albi_patch         , &
+         fabd         =>    surfalb_inst%fabd_patch         , &
+         fabi         =>    surfalb_inst%fabi_patch         , &
+         ftdd         =>    surfalb_inst%ftdd_patch         , &
+         ftid         =>    surfalb_inst%ftid_patch         , &
+         ftii         =>    surfalb_inst%ftii_patch)
 
     do s = 1, this%fates(nc)%nsites
 
@@ -1074,8 +1085,8 @@ contains
     
              this%fates(nc)%bc_in(s)%filter_vegzen_pa(ifp) = .true.
              this%fates(nc)%bc_in(s)%coszen_pa(ifp)  = coszen(p)
-             this%fates(nc)%bc_in(s)%albgr_dir_rb(:) = surfalb_inst%albgrd_col(c,:)
-             this%fates(nc)%bc_in(s)%albgr_dif_rb(:) = surfalb_inst%albgri_col(c,:)
+             this%fates(nc)%bc_in(s)%albgr_dir_rb(:) = albgrd_col(c,:)
+             this%fates(nc)%bc_in(s)%albgr_dif_rb(:) = albgri_col(c,:)
 
           else
              
@@ -1088,14 +1099,33 @@ contains
 
     call ED_Norman_Radiation(this%fates(nc)%sites,  &
                              this%fates(nc)%nsites, &
-                             this%f2hmap(nc)%fcolumn,&
                              this%fates(nc)%bc_in,  &
-                             this%fates(nc)%bc_out, &
-                             surfalb_inst)
-
+                             this%fates(nc)%bc_out)
     
+    ! Pass FATES BC's back to HLM
+    ! -----------------------------------------------------------------------------------
+    do icp = 1,num_vegsol
+       p = filter_vegsol(icp)
+       c = patch%column(p)
+       s = this%f2hmap(nc)%hsites(c)
+       ! do if structure here and only pass natveg columns
+       ifp = p-col%patchi(c)
 
-
+       if(.not.this%fates(nc)%bc_in(s)%filter_vegzen_pa(ifp) )then
+          write(iulog,*) 'Not all patches on the natveg column were passed to canrad'
+          call endrun(msg=errMsg(__FILE__, __LINE__))
+       else
+          albd(p,:) = this%fates(nc)%bc_out(s)%albd_parb(ifp,:)
+          albi(p,:) = this%fates(nc)%bc_out(s)%albi_parb(ifp,:)
+          fabd(p,:) = this%fates(nc)%bc_out(s)%fabd_parb(ifp,:)
+          fabi(p,:) = this%fates(nc)%bc_out(s)%fabi_parb(ifp,:)
+          ftdd(p,:) = this%fates(nc)%bc_out(s)%ftdd_parb(ifp,:)
+          ftid(p,:) = this%fates(nc)%bc_out(s)%ftid_parb(ifp,:)
+          ftii(p,:) = this%fates(nc)%bc_out(s)%ftii_parb(ifp,:)
+       end if
+    end do
+    
+  end associate
 
     return
  end subroutine wrap_canopy_radiation
