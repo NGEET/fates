@@ -173,7 +173,30 @@ module FatesInterfaceMod
       ! patch sunlit leaf maintenance respiration rate (umol CO2/m**2/s) 
       real(r8), allocatable :: lmrcanopy_pa(:)
 
+      ! Canopy Radiation Boundaries
+      ! ---------------------------------------------------------------------------------
+      
+      ! Surface albedo (direct) (HLMs use this for atm coupling and balance checks)
+      real(r8), allocatable :: albd_parb(:,:)
+      
+      ! Surface albedo (diffuse) (HLMs use this for atm coupling and balance checks)
+      real(r8), allocatable :: albi_parb(:,:)                 
+      
+      ! Flux absorbed by canopy per unit direct flux (HLMs use this for balance checks)
+      real(r8), allocatable :: fabd_parb(:,:) 
+      
+      ! Flux absorbed by canopy per unit diffuse flux (HLMs use this for balance checks)
+      real(r8), allocatable :: fabi_parb(:,:)
 
+      ! Down direct flux below canopy per unit direct flx (HLMs use this for balance checks)
+      real(r8), allocatable :: ftdd_parb(:,:)
+
+      ! Down diffuse flux below canopy per unit direct flx (HLMs use this for balance checks)
+      real(r8), allocatable :: ftid_parb(:,:)
+      
+      ! Down diffuse flux below canopy per unit diffuse flx (HLMs use this for balance checks)
+      real(r8), allocatable :: ftii_parb(:,:)
+      
    end type bc_out_type
 
 
@@ -307,6 +330,15 @@ contains
       allocate(bc_out%gccanopy_pa(numPatchesPerCol))
       allocate(bc_out%lmrcanopy_pa(numPatchesPerCol))
       allocate(bc_out%psncanopy_pa(numPatchesPerCol))
+      
+      ! Canopy Radiation
+      allocate(bc_out%albd_parb(numPatchesPerCol,ctrl_parms%numSWBands))
+      allocate(bc_out%albi_parb(numPatchesPerCol,ctrl_parms%numSWBands))
+      allocate(bc_out%fabd_parb(numPatchesPerCol,ctrl_parms%numSWBands))
+      allocate(bc_out%fabi_parb(numPatchesPerCol,ctrl_parms%numSWBands))
+      allocate(bc_out%ftdd_parb(numPatchesPerCol,ctrl_parms%numSWBands))
+      allocate(bc_out%ftid_parb(numPatchesPerCol,ctrl_parms%numSWBands))
+      allocate(bc_out%ftii_parb(numPatchesPerCol,ctrl_parms%numSWBands))
 
       return
    end subroutine allocate_bcout
@@ -348,8 +380,16 @@ contains
       this%bc_out(s)%psncanopy_pa(:) = 0.0_r8
       this%bc_out(s)%lmrcanopy_pa(:) = 0.0_r8
 
+      this%bc_out(s)%albd_parb(:,:) = 0.0_r8
+      this%bc_out(s)%albi_parb(:,:) = 0.0_r8
+      this%bc_out(s)%fabd_parb(:,:) = 0.0_r8
+      this%bc_out(s)%fabi_parb(:,:) = 0.0_r8
+      this%bc_out(s)%ftdd_parb(:,:) = 0.0_r8
+      this%bc_out(s)%ftid_parb(:,:) = 0.0_r8
+      this%bc_out(s)%ftii_parb(:,:) = 0.0_r8
+      
       return
-   end subroutine zero_bcs
+    end subroutine zero_bcs
    
    ! ==================================================================================== 
 
