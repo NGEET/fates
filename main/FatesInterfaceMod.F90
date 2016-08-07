@@ -111,6 +111,25 @@ module FatesInterfaceMod
       ! soil temperature (Kelvin)
       real(r8), allocatable :: t_soisno_gl(:)
 
+      ! Canopy Radiation Boundaries
+      ! ---------------------------------------------------------------------------------
+      
+      ! Filter for vegetation patches with a positive zenith angle (daylight)
+      logical, allocatable :: filter_vegzen_pa(:)
+
+      ! Cosine of the zenith angle (0-1), by patch
+      ! Note RGK: It does not seem like the code would currently generate
+      !           different zenith angles for different patches (nor should it)
+      !           I am leaving it at this scale for simplicity.  Patches should
+      !           have no spacially variable information
+      real(r8), allocatable :: coszen_pa(:)
+      
+      ! Abledo of the ground for direct radiation, by site broadband (0-1)
+      real(r8), allocatable :: albgr_dir_rb(:)
+
+      ! Albedo of the ground for diffuse radiation, by site broadband (0-1)
+      real(r8), allocatable :: albgr_dif_rb(:)
+      
 
 
    end type bc_in_type
@@ -253,6 +272,12 @@ contains
       allocate(bc_in%tgcm_pa(numPatchesPerCol))
       allocate(bc_in%t_soisno_gl(ctrl_parms%numlevgrnd))
 
+      ! Canopy Radiation
+      allocate(bc_in%filter_vegzen_pa(numPatchesPerCol))
+      allocate(bc_in%coszen_pa(numPatchesPerCol))
+      allocate(bc_in%albgr_dir_rb(ctrl_parms%numSWBands))
+      allocate(bc_in%albgr_dif_rb(ctrl_parms%numSWBands))
+
       return
    end subroutine allocate_bcin
    
@@ -303,6 +328,11 @@ contains
       this%bc_in(s)%watsat_gl(:)        = 0.0_r8
       this%bc_in(s)%tempk_gl(:)         = 0.0_r8
       this%bc_in(s)%h2o_liqvol_gl(:)    = 0.0_r8
+
+      this%bc_in(s)%filter_vegzen_pa(:) = .false.
+      this%bc_in(s)%coszen_pa(:)        = 0.0_r8
+      this%bc_in(s)%albgr_dir_rb(:)     = 0.0_r8
+      this%bc_in(s)%albgr_dif_rb(:)     = 0.0_r8
       
       ! Output boundaries
       this%bc_out(s)%active_suction_gl(:) = .false.
