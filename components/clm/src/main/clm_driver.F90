@@ -914,6 +914,7 @@ contains
           ! Albedos for non-urban columns
           call t_startf('surfalb')
           call SurfaceAlbedo(bounds_clump,                      &
+               nc,                                              &
                filter_inactive_and_active(nc)%num_nourbanc,     &
                filter_inactive_and_active(nc)%nourbanc,         &
                filter_inactive_and_active(nc)%num_nourbanp,     &
@@ -923,8 +924,7 @@ contains
                filter_inactive_and_active(nc)%num_urbanp,       &
                filter_inactive_and_active(nc)%urbanp,           &
                nextsw_cday, declinp1,                           &
-               clm_fates%fates(nc)%sites, clm_fates%fates(nc)%nsites,     &
-               clm_fates%f2hmap(nc)%fcolumn, clm_fates%f2hmap(nc)%hsites, &
+               clm_fates,                                       &
                aerosol_inst, canopystate_inst, waterstate_inst, &
                lakestate_inst, temperature_inst, surfalb_inst)
 

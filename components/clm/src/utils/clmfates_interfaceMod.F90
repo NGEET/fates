@@ -146,7 +146,7 @@ module CLMFatesInterfaceMod
       procedure, public :: wrap_photosynthesis
       procedure, public :: wrap_accumulatefluxes
       procedure, public :: prep_canopyfluxes
-      procedure, public :: wrap_caonpy_radiation
+      procedure, public :: wrap_canopy_radiation
 
    end type hlm_fates_interface_type
 
@@ -1045,28 +1045,23 @@ contains
 
  ! ======================================================================================
 
- subroutine wrap_canopy_radiation(this, bounds, &
-         filter_vegsol, num_vegsol, filter_nourbanp, num_nourbanp, &
-         coszen, sites, nsites, fcolumn, hsites, surfalb_inst)
+ subroutine wrap_canopy_radiation(this, bounds_clump, nc, &
+         filter_vegsol, num_vegsol, coszen, surfalb_inst)
 
 
     ! Arguments
-
     class(hlm_fates_interface_type), intent(inout) :: this
+    type(bounds_type),  intent(in)             :: bounds_clump
     ! filter for vegetated pfts with coszen>0
+    integer            , intent(in)            :: nc ! clump index
     integer            , intent(in)            :: filter_vegsol(num_vegsol)    
     integer            , intent(in)            :: num_vegsol                 
-    ! patch filter for non-urban points
-    integer            , intent(in)            :: filter_nourbanp(num_nourbanp) 
-    integer            , intent(in)            :: num_nourbanp                  
     ! cosine solar zenith angle for next time step
-    real(r8)           , intent(in)            :: coszen( bounds%begp: )        
-    type(ed_site_type) , intent(inout), target :: sites(nsites)
-    integer            , intent(in)            :: nsites             
-    integer            , intent(in)            :: fcolumn(nsites)
-    integer            , intent(in)            :: hsites(bounds%begc:bounds%endc)
+    real(r8)           , intent(in)            :: coszen( bounds_clump%begp: )        
     type(surfalb_type) , intent(inout)         :: surfalb_inst 
     
+    ! locals
+    integer :: s,c,ifp,p
 
     do s = 1, this%fates(nc)%nsites
 
@@ -1078,7 +1073,7 @@ contains
           if( any(filter_vegsol==p) )then
     
              this%fates(nc)%bc_in(s)%filter_vegzen_pa(ifp) = .true.
-             this%fates(nc)%bc_in(s)%coszen_pa(ifp) = coszen(p)
+             this%fates(nc)%bc_in(s)%coszen_pa(ifp)  = coszen(p)
              this%fates(nc)%bc_in(s)%albgr_dir_rb(:) = surfalb_inst%albgrd_col(c,:)
              this%fates(nc)%bc_in(s)%albgr_dif_rb(:) = surfalb_inst%albgri_col(c,:)
 
@@ -1093,6 +1088,7 @@ contains
 
     call ED_Norman_Radiation(this%fates(nc)%sites,  &
                              this%fates(nc)%nsites, &
+                             this%f2hmap(nc)%fcolumn,&
                              this%fates(nc)%bc_in,  &
                              this%fates(nc)%bc_out, &
                              surfalb_inst)
