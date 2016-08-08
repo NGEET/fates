@@ -40,7 +40,7 @@ contains
     use shr_log_mod       , only : errMsg => shr_log_errMsg
     use abortutils        , only : endrun
     use clm_varcon        , only : rgas, tfrz, namep  
-    use clm_varpar        , only : nlevcan_ed, nclmax, nlevsoi, mxpft
+    use clm_varpar        , only : nlevsoi, mxpft
     use clm_varctl        , only : iulog
     use pftconMod         , only : pftcon
     use EDParamsMod       , only : ED_val_grperc
@@ -49,7 +49,7 @@ contains
     use EDtypesMod        , only : ed_patch_type, ed_cohort_type, ed_site_type, numpft_ed
     use EDEcophysContype  , only : EDecophyscon
     use FatesInterfaceMod , only : bc_in_type,bc_out_type
-    use EDtypesMod        , only : numpatchespercol
+    use EDtypesMod        , only : numpatchespercol, cp_nlevcan, cp_nclmax
 
     !
     ! !ARGUMENTS:
@@ -73,15 +73,15 @@ contains
 
     !
     ! Leaf photosynthesis parameters
-    real(r8) :: vcmax_z(nclmax,mxpft,nlevcan_ed)  ! maximum rate of carboxylation (umol co2/m**2/s)
-    real(r8) :: jmax_z(nclmax,mxpft,nlevcan_ed)   ! maximum electron transport rate (umol electrons/m**2/s)
-    real(r8) :: tpu_z(nclmax,mxpft,nlevcan_ed)    ! triose phosphate utilization rate (umol CO2/m**2/s)
-    real(r8) :: kp_z(nclmax,mxpft,nlevcan_ed)     ! initial slope of CO2 response curve (C4 plants)
-    real(r8) :: lmr_z(nclmax,mxpft,nlevcan_ed)    ! initial slope of CO2 response curve (C4 plants)
-    real(r8) :: rs_z(nclmax,mxpft,nlevcan_ed)     ! stomatal resistance s/m
-    real(r8) :: gs_z(nclmax,mxpft,nlevcan_ed)     ! stomatal conductance m/s
+    real(r8) :: vcmax_z(cp_nclmax,mxpft,cp_nlevcan)  ! maximum rate of carboxylation (umol co2/m**2/s)
+    real(r8) :: jmax_z(cp_nclmax,mxpft,cp_nlevcan)   ! maximum electron transport rate (umol electrons/m**2/s)
+    real(r8) :: tpu_z(cp_nclmax,mxpft,cp_nlevcan)    ! triose phosphate utilization rate (umol CO2/m**2/s)
+    real(r8) :: kp_z(cp_nclmax,mxpft,cp_nlevcan)     ! initial slope of CO2 response curve (C4 plants)
+    real(r8) :: lmr_z(cp_nclmax,mxpft,cp_nlevcan)    ! initial slope of CO2 response curve (C4 plants)
+    real(r8) :: rs_z(cp_nclmax,mxpft,cp_nlevcan)     ! stomatal resistance s/m
+    real(r8) :: gs_z(cp_nclmax,mxpft,cp_nlevcan)     ! stomatal conductance m/s
 
-    real(r8) :: ci(nclmax,mxpft,nlevcan_ed)       ! intracellular leaf CO2 (Pa)
+    real(r8) :: ci(cp_nclmax,mxpft,cp_nlevcan)       ! intracellular leaf CO2 (Pa)
     real(r8) :: lnc(mxpft)                        ! leaf N concentration (gN leaf/m^2)
         
     real(r8) :: kc( numpatchespercol )            ! Michaelis-Menten constant for CO2 (Pa)
@@ -172,9 +172,9 @@ contains
     real(r8) :: ac                                ! Rubisco-limited gross photosynthesis (umol CO2/m**2/s)
     real(r8) :: aj                                ! RuBP-limited gross photosynthesis (umol CO2/m**2/s)
     real(r8) :: ap                                ! product-limited (C3) or CO2-limited (C4) gross photosynthesis (umol CO2/m**2/s)
-    real(r8) :: ag(nclmax,mxpft,nlevcan_ed)       ! co-limited gross leaf photosynthesis (umol CO2/m**2/s)
-    real(r8) :: an(nclmax,mxpft,nlevcan_ed)       ! net leaf photosynthesis (umol CO2/m**2/s)
-    real(r8) :: an_av(nclmax,mxpft,nlevcan_ed)    ! net leaf photosynthesis (umol CO2/m**2/s) averaged over sun and shade leaves.  
+    real(r8) :: ag(cp_nclmax,mxpft,cp_nlevcan)       ! co-limited gross leaf photosynthesis (umol CO2/m**2/s)
+    real(r8) :: an(cp_nclmax,mxpft,cp_nlevcan)       ! net leaf photosynthesis (umol CO2/m**2/s)
+    real(r8) :: an_av(cp_nclmax,mxpft,cp_nlevcan)    ! net leaf photosynthesis (umol CO2/m**2/s) averaged over sun and shade leaves.  
     real(r8) :: ai                                ! intermediate co-limited photosynthesis (umol CO2/m**2/s)
 
     real(r8) :: laican                            ! canopy sum of lai_z
@@ -303,7 +303,7 @@ contains
                enddo !cohort   
 
                currentPatch%nrad = currentPatch%ncan
-               do CL = 1,nclmax
+               do CL = 1,cp_nclmax
                   do ft = 1,numpft_ed
                      currentPatch%present(CL,ft) = 0
                      do iv = 1, currentPatch%nrad(CL,ft);
@@ -433,7 +433,7 @@ contains
                         if(currentPatch%canopy_area_profile(CL,FT,iv)>0._r8.and.currentPatch%present(CL,FT) /= 1)then
                            write(iulog,*) 'CF: issue with present structure',CL,FT,iv, &
                                  currentPatch%canopy_area_profile(CL,FT,iv),currentPatch%present(CL,FT), &
-                                 currentPatch%nrad(CL,FT),currentPatch%ncl_p,nclmax
+                                 currentPatch%nrad(CL,FT),currentPatch%ncl_p,cp_nclmax
                            currentPatch%present(CL,FT) = 1
                         end if
                      enddo

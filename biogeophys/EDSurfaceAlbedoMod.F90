@@ -15,11 +15,11 @@ module EDSurfaceRadiationMod
   use EDtypesMod        , only : numPatchesPerCol
   use shr_kind_mod      , only : r8 => shr_kind_r8
   use shr_log_mod       , only : errMsg => shr_log_errMsg
-  use decompMod         , only : bounds_type
-  use clm_varpar        , only : numrad, nclmax
-  use ColumnType        , only : col
   use FatesInterfaceMod , only : bc_in_type, &
                                  bc_out_type
+  use EDTypesMod        , only : cp_numSWb, &        ! Actual number of SW radiation bands
+                                 cp_maxSWb, &        ! maximum number of SW bands (for scratch)
+                                 cp_nclmax           ! control parameter, number of SW bands
   
   implicit none
 
@@ -29,7 +29,7 @@ module EDSurfaceRadiationMod
   
   logical :: DEBUG = .false.  ! for debugging this module
   
-  real(r8), public  :: albice(numrad) = &       ! albedo land ice by waveband (1=vis, 2=nir)
+  real(r8), public  :: albice(cp_maxSWb) = &       ! albedo land ice by waveband (1=vis, 2=nir)
         (/ 0.80_r8, 0.55_r8 /)
 
   ! INTERF-TODO: THIS NEEDS SOME CONSISTENCY AND SHOULD BE SET IN THE INTERFACE
@@ -45,7 +45,7 @@ contains
       ! !USES:
       use clm_varctl        , only : iulog
       use pftconMod         , only : pftcon
-      use EDtypesMod        , only : ed_patch_type, numpft_ed, nlevcan_ed
+      use EDtypesMod        , only : ed_patch_type, numpft_ed, cp_nlevcan
       use EDTypesMod        , only : ed_site_type
 
 
@@ -68,27 +68,27 @@ contains
       real(r8) :: sb
       real(r8) :: error                                         ! Error check
       real(r8) :: down_rad, up_rad                              ! Iterative solution do Dif_dn and Dif_up
-      real(r8) :: ftweight(nclmax,numpft_ed,nlevcan_ed)
+      real(r8) :: ftweight(cp_nclmax,numpft_ed,cp_nlevcan)
       real(r8) :: k_dir(numpft_ed)                              ! Direct beam extinction coefficient
-      real(r8) :: tr_dir_z(nclmax,numpft_ed,nlevcan_ed)         ! Exponential transmittance of direct beam radiation through a single layer
-      real(r8) :: tr_dif_z(nclmax,numpft_ed,nlevcan_ed)         ! Exponential transmittance of diffuse radiation through a single layer
-      real(r8) :: forc_dir(numPatchesPerCol,numrad)
-      real(r8) :: forc_dif(numPatchesPerCol,numrad)
-      real(r8) :: weighted_dir_tr(nclmax)
-      real(r8) :: weighted_fsun(nclmax)
-      real(r8) :: weighted_dif_ratio(nclmax,numrad)
-      real(r8) :: weighted_dif_down(nclmax)
-      real(r8) :: weighted_dif_up(nclmax)
-      real(r8) :: refl_dif(nclmax,numpft_ed,nlevcan_ed,numrad)  ! Term for diffuse radiation reflected by laye
-      real(r8) :: tran_dif(nclmax,numpft_ed,nlevcan_ed,numrad)  ! Term for diffuse radiation transmitted by layer
-      real(r8) :: dif_ratio(nclmax,numpft_ed,nlevcan_ed,numrad) ! Ratio of upward to forward diffuse fluxes
-      real(r8) :: Dif_dn(nclmax,numpft_ed,nlevcan_ed)           ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
-      real(r8) :: Dif_up(nclmax,numpft_ed,nlevcan_ed)           ! Upward diffuse flux above canopy layer J (W/m**2 ground area)
-      real(r8) :: lai_change(nclmax,numpft_ed,nlevcan_ed)       ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
-      real(r8) :: f_not_abs(numpft_ed,numrad)                   ! Fraction reflected + transmitted. 1-absorbtion.
-      real(r8) :: Abs_dir_z(numpft_ed,nlevcan_ed)
-      real(r8) :: Abs_dif_z(numpft_ed,nlevcan_ed)
-      real(r8) :: abs_rad(numrad)                               !radiation absorbed by soil
+      real(r8) :: tr_dir_z(cp_nclmax,numpft_ed,cp_nlevcan)         ! Exponential transmittance of direct beam radiation through a single layer
+      real(r8) :: tr_dif_z(cp_nclmax,numpft_ed,cp_nlevcan)         ! Exponential transmittance of diffuse radiation through a single layer
+      real(r8) :: forc_dir(numPatchesPerCol,cp_maxSWb)
+      real(r8) :: forc_dif(numPatchesPerCol,cp_maxSWb)
+      real(r8) :: weighted_dir_tr(cp_nclmax)
+      real(r8) :: weighted_fsun(cp_nclmax)
+      real(r8) :: weighted_dif_ratio(cp_nclmax,cp_maxSWb)
+      real(r8) :: weighted_dif_down(cp_nclmax)
+      real(r8) :: weighted_dif_up(cp_nclmax)
+      real(r8) :: refl_dif(cp_nclmax,numpft_ed,cp_nlevcan,cp_maxSWb)  ! Term for diffuse radiation reflected by laye
+      real(r8) :: tran_dif(cp_nclmax,numpft_ed,cp_nlevcan,cp_maxSWb)  ! Term for diffuse radiation transmitted by layer
+      real(r8) :: dif_ratio(cp_nclmax,numpft_ed,cp_nlevcan,cp_maxSWb) ! Ratio of upward to forward diffuse fluxes
+      real(r8) :: Dif_dn(cp_nclmax,numpft_ed,cp_nlevcan)           ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
+      real(r8) :: Dif_up(cp_nclmax,numpft_ed,cp_nlevcan)           ! Upward diffuse flux above canopy layer J (W/m**2 ground area)
+      real(r8) :: lai_change(cp_nclmax,numpft_ed,cp_nlevcan)       ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
+      real(r8) :: f_not_abs(numpft_ed,cp_maxSWb)                   ! Fraction reflected + transmitted. 1-absorbtion.
+      real(r8) :: Abs_dir_z(numpft_ed,cp_nlevcan)
+      real(r8) :: Abs_dif_z(numpft_ed,cp_nlevcan)
+      real(r8) :: abs_rad(cp_maxSWb)                               !radiation absorbed by soil
       real(r8) :: tr_soili                                      ! Radiation transmitted to the soil surface.
       real(r8) :: tr_soild                                      ! Radiation transmitted to the soil surface.
       real(r8) :: phi1b(numPatchesPerCol,numpft_ed)      ! Radiation transmitted to the soil surface.
@@ -175,7 +175,7 @@ contains
                     ! no radiation is absorbed  
                     bc_out(s)%fabd_parb(ifp,:) = 0.0_r8
                     bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
-                    do ib = 1,numrad
+                    do ib = 1,cp_numSWb
                        bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dir_rb(ib)
                        bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dif_rb(ib)
                        bc_out(s)%ftdd_parb(ifp,ib)= 1.0_r8
@@ -185,7 +185,7 @@ contains
                  else
                     
                     ! Is this pft/canopy layer combination present in this patch?
-                    do L = 1,nclmax
+                    do L = 1,cp_nclmax
                        do ft = 1,numpft_ed
                           currentPatch%present(L,ft) = 0
                           do  iv = 1, currentPatch%nrad(L,ft)
@@ -198,7 +198,7 @@ contains
                     end do !L
 
                     do radtype = 1,2 !do this once for one unit of diffuse, and once for one unit of direct radiation
-                       do ib = 1,numrad
+                       do ib = 1,cp_numSWb
                           if (radtype == 1) then
                              ! Set the hypothetical driving radiation. We do this once for a single unit of direct and
                              ! once for a single unit of diffuse radiation.
@@ -247,7 +247,7 @@ contains
                        do L = 1,currentPatch%NCL_p !start at the top canopy layer (1 is the top layer.)
                           weighted_dir_tr(L) = 0.0_r8
                           weighted_fsun(L) = 0._r8
-                          weighted_dif_ratio(L,1:numrad) = 0._r8
+                          weighted_dif_ratio(L,1:cp_numSWb) = 0._r8
                           !Each canopy layer (canopy, understorey) has multiple 'parallel' pft's
                           do ft =1,numpft_ed
                              if (currentPatch%present(L,ft) == 1)then !only do calculation if there are the appropriate leaves.
@@ -387,7 +387,7 @@ contains
                                 ! Iterative solution do scattering
                                 !==============================================================================!
                                 
-                                do ib = 1,numrad !vis, nir
+                                do ib = 1,cp_numSWb !vis, nir
                                    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
                                    ! Leaf scattering coefficient and terms do diffuse radiation reflected
                                    ! and transmitted by a layer
@@ -424,12 +424,12 @@ contains
                                    end do
                                    weighted_dif_ratio(L,ib) = weighted_dif_ratio(L,ib) + dif_ratio(L,ft,1,ib) * ftweight(L,ft,1)
                                    !instance where the first layer ftweight is used a proxy for the whole column. FTWA
-                                end do!numrad
+                                end do!cp_numSWb
                              endif ! currentPatch%present
                           end do!ft
                        end do!L
                        
-                       do ib = 1,numrad
+                       do ib = 1,cp_numSWb
                           Dif_dn(:,:,:) = 0.00_r8
                           Dif_up(:,:,:) = 0.00_r8
                           do L = 1, currentPatch%NCL_p !work down from the top of the canopy.
@@ -888,7 +888,7 @@ contains
                              
                           end if
                           
-                       end do !numrad
+                       end do !cp_numSWb
                        
                     enddo ! rad-type
                  endif ! is there vegetation? 

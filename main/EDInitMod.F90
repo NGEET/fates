@@ -8,7 +8,7 @@ module EDInitMod
   use spmdMod                   , only : masterproc
   use decompMod                 , only : bounds_type
   use abortutils                , only : endrun
-  use clm_varpar                , only : nclmax
+  use EDTypesMod                , only : cp_nclmax
   use clm_varctl                , only : iulog, use_ed_spit_fire 
   use clm_time_manager          , only : is_restart
   use CanopyStateType           , only : canopystate_type
@@ -176,7 +176,7 @@ contains
     integer  :: s
     real(r8) :: cwd_ag_local(ncwd)
     real(r8) :: cwd_bg_local(ncwd)
-    real(r8) :: spread_local(nclmax)
+    real(r8) :: spread_local(cp_nclmax)
     real(r8) :: leaf_litter_local(numpft_ed)
     real(r8) :: root_litter_local(numpft_ed)
     real(r8) :: seed_bank_local(numpft_ed)
