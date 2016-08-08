@@ -964,6 +964,39 @@ contains
             enddo
             elai = max(0.1_r8,elai)
 
+            !----------------------------------------------------------------------------
+            ! modification to output boundary (RGK 8-6-2016)
+            ! The HLMs ALM/CLM use canopy resistance (rscanopy) to calculate
+            ! rppdry, an intermediary towards transpiration and latent heat flux.
+            ! CLM/ALM, when FATES is not turned on, expect a slightly different format to
+            ! rscanopy, which includes having sunlit and shaded components, and how it is
+            ! normalized by those leaf areas (variables: rssun, rssha).  To simplify and 
+            ! streamline the interface, and remove the necessity in CanopyFluxesMod to 
+            ! process the resistance in in different ways for FATES and non-FATES, we can 
+            ! simply convert to their format by passing rssun and rssha.
+            !
+            ! The key is equate our two methods of solving for rppdry, and calculate rssun
+            ! and rssha in terms of rscanopy:
+            !
+            ! FATES existing  way:
+            ! 
+            ! rppdry_old = fdry*rb/(rb+rscanopy)
+            ! 
+            ! CLM/ALM way:
+            !
+            ! rppdry_new = fdry * rb*(laisun/(rb+rssun) + laisha/(rb+rssha ))/elai
+            ! 
+            ! By equating the two, and assuming that rssun = rssha, we can solve for rssun 
+            ! and rssha in terms of rscanopy, so that we can use the CLM system and get
+            ! the same rppdry:
+            !
+            ! rppdry_new = fdry * rb*( (laisun+laisha)/(rb+rssun) )/elai
+            ! 
+            ! simple mathematical manipulations:
+            ! 
+            ! rssun = rssha = (laisun+laisha)*(rb+rscanopy)/elai - rb
+            ! ---------------------------------------------------------------------------
+
             bc_out(s)%psncanopy_pa(ifp) = bc_out(s)%psncanopy_pa(ifp) / currentPatch%area
             bc_out(s)%lmrcanopy_pa(ifp) = bc_out(s)%lmrcanopy_pa(ifp) / currentPatch%area
             if(bc_out(s)%gccanopy_pa(ifp) > 1._r8/rsmax0 .and. elai > 0.0_r8)then
