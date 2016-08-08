@@ -1308,7 +1308,7 @@ contains
     type (ed_patch_type)  , pointer :: currentPatch
     type (ed_cohort_type) , pointer :: currentCohort
     type(ed_site_type), pointer :: cs
-    integer c,p,ci,j,s
+    integer p,ci,j,s
     real(r8) time_convert    ! from year to seconds
     real(r8) mass_convert    ! ED uses kg, CLM uses g
     integer           :: begp,endp

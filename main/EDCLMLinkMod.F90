@@ -587,36 +587,21 @@ contains
          avgflag='A', long_name='total seed carbon at the column level', &
          ptr_col=this%seed_stock_col)
 
-    !!! carbon fluxes into soil grid (dimensioned depth x column)
-    this%ED_c_to_litr_lab_c_col(begc:endc,1:nlevdecomp_full) = spval
-    call hist_addfld_decomp (fname='ED_c_to_litr_lab_c',  units='gC/m^2/s', type2d='levdcmp', &
-         avgflag='A', long_name='ED_c_to_litr_lab_c', &
-         ptr_col=this%ED_c_to_litr_lab_c_col)
 
-    this%ED_c_to_litr_cel_c_col(begc:endc,1:nlevdecomp_full) = spval
-    call hist_addfld_decomp (fname='ED_c_to_litr_cel_c',  units='gC/m^2/s', type2d='levdcmp', &
-         avgflag='A', long_name='ED_c_to_litr_cel_c', &
-         ptr_col=this%ED_c_to_litr_cel_c_col)
+    ! this%leaf_prof_col(begc:endc,1:nlevdecomp_full) = spval
+    ! call hist_addfld_decomp (fname='leaf_prof',  units='1/m', type2d='levdcmp', &
+    !      avgflag='A', long_name='leaf_prof', &
+    !      ptr_col=this%leaf_prof_col,default='inactive')
 
-    this%ED_c_to_litr_lig_c_col(begc:endc,1:nlevdecomp_full) = spval
-    call hist_addfld_decomp (fname='ED_c_to_litr_lig_c',  units='gC/m^2/s', type2d='levdcmp', &
-         avgflag='A', long_name='ED_c_to_litr_lig_c', &
-         ptr_col=this%ED_c_to_litr_lig_c_col)
+    ! this%croot_prof_col(begc:endc,1:nlevdecomp_full) = spval
+    ! call hist_addfld_decomp (fname='croot_prof',  units='1/m', type2d='levdcmp', &
+    !      avgflag='A', long_name='croot_prof', &
+    !      ptr_col=this%croot_prof_col,default='inactive')
 
-    this%leaf_prof_col(begc:endc,1:nlevdecomp_full) = spval
-    call hist_addfld_decomp (fname='leaf_prof',  units='1/m', type2d='levdcmp', &
-         avgflag='A', long_name='leaf_prof', &
-         ptr_col=this%leaf_prof_col,default='inactive')
-
-    this%croot_prof_col(begc:endc,1:nlevdecomp_full) = spval
-    call hist_addfld_decomp (fname='croot_prof',  units='1/m', type2d='levdcmp', &
-         avgflag='A', long_name='croot_prof', &
-         ptr_col=this%croot_prof_col,default='inactive')
-
-    this%stem_prof_col(begc:endc,1:nlevdecomp_full) = spval
-    call hist_addfld_decomp (fname='stem_prof',  units='1/m', type2d='levdcmp', &
-         avgflag='A', long_name='stem_prof', &
-         ptr_col=this%stem_prof_col,default='inactive')
+    ! this%stem_prof_col(begc:endc,1:nlevdecomp_full) = spval
+    ! call hist_addfld_decomp (fname='stem_prof',  units='1/m', type2d='levdcmp', &
+    !      avgflag='A', long_name='stem_prof', &
+    !      ptr_col=this%stem_prof_col,default='inactive')
 
     
       ! Carbon Flux (grid dimension x scpf)
@@ -824,91 +809,6 @@ contains
          dim1name='column', long_name='', units='', &
          interpinic_flag='interp', readvar=readvar, data=ptr1d) 
     
-    if (use_vertsoilc) then
-       ptr2d => this%ED_c_to_litr_lab_c_col
-       call restartvar(ncid=ncid, flag=flag, varname='ED_c_to_litr_lab_c_col', xtype=ncd_double,  &
-            dim1name='column', dim2name='levgrnd', switchdim=.true., &
-            long_name='', units='', &
-            interpinic_flag='interp', readvar=readvar, data=ptr2d) 
-
-       ptr2d => this%ED_c_to_litr_cel_c_col
-       call restartvar(ncid=ncid, flag=flag, varname='ED_c_to_litr_cel_c_col', xtype=ncd_double,  &
-            dim1name='column', dim2name='levgrnd', switchdim=.true., &
-            long_name='', units='', &
-            interpinic_flag='interp', readvar=readvar, data=ptr2d) 
-
-       ptr2d => this%ED_c_to_litr_lig_c_col
-       call restartvar(ncid=ncid, flag=flag, varname='ED_c_to_litr_lig_c_col', xtype=ncd_double,  &
-            dim1name='column', dim2name='levgrnd', switchdim=.true., &
-            long_name='', units='', &
-            interpinic_flag='interp', readvar=readvar, data=ptr2d) 
-
-       ! ptr2d => this%leaf_prof_col
-       ! call restartvar(ncid=ncid, flag=flag, varname='leaf_prof_col', xtype=ncd_double,  &
-       !      dim1name='column', dim2name='levgrnd', switchdim=.true., &
-       !      long_name='', units='', &
-       !      interpinic_flag='interp', readvar=readvar, data=ptr2d) 
-
-       ! ptr2d => this%croot_prof_col
-       ! call restartvar(ncid=ncid, flag=flag, varname='croot_prof_col', xtype=ncd_double,  &
-       !      dim1name='column', dim2name='levgrnd', switchdim=.true., &
-       !      long_name='', units='', &
-       !      interpinic_flag='interp', readvar=readvar, data=ptr2d) 
-       
-       ! ptr2d => this%stem_prof_col
-       ! call restartvar(ncid=ncid, flag=flag, varname='stem_prof_col', xtype=ncd_double,  &
-       !      dim1name='column', dim2name='levgrnd', switchdim=.true., &
-       !      long_name='', units='', &
-       !      interpinic_flag='interp', readvar=readvar, data=ptr2d) 
-
-       ! do k = 1, numpft_ed
-       !    write(istr1,"(I3.3)") k
-       !    ptr2d => this%froot_prof_col(:,k,:)
-       !    call restartvar(ncid=ncid, flag=flag, varname='froot_prof_col_PFT'//istr1, xtype=ncd_double,  &
-       !         dim1name='column', dim2name='levgrnd', switchdim=.true., &
-       !         long_name='', units='', &
-       !         interpinic_flag='interp', readvar=readvar, data=ptr2d) 
-       ! end do
-    else
-       ptr1d => this%ED_c_to_litr_lab_c_col(:,1)
-       call restartvar(ncid=ncid, flag=flag, varname='ED_c_to_litr_lab_c_col', xtype=ncd_double,  &
-            dim1name='column', long_name='', units='', &
-            interpinic_flag='interp', readvar=readvar, data=ptr1d) 
-
-       ptr1d => this%ED_c_to_litr_cel_c_col(:,1)
-       call restartvar(ncid=ncid, flag=flag, varname='ED_c_to_litr_cel_c_col', xtype=ncd_double,  &
-            dim1name='column', long_name='', units='', &
-            interpinic_flag='interp', readvar=readvar, data=ptr1d) 
-
-       ptr1d => this%ED_c_to_litr_lig_c_col(:,1)
-       call restartvar(ncid=ncid, flag=flag, varname='ED_c_to_litr_lig_c_col', xtype=ncd_double,  &
-            dim1name='column', long_name='', units='', &
-            interpinic_flag='interp', readvar=readvar, data=ptr1d) 
-
-       ! ptr1d => this%leaf_prof_col(:,1)
-       ! call restartvar(ncid=ncid, flag=flag, varname='leaf_prof_col', xtype=ncd_double,  &
-       !      dim1name='column', long_name='', units='', &
-       !      interpinic_flag='interp', readvar=readvar, data=ptr1d) 
-
-       ! ptr1d => this%croot_prof_col(:,1)
-       ! call restartvar(ncid=ncid, flag=flag, varname='croot_prof_col', xtype=ncd_double,  &
-       !      dim1name='column', long_name='', units='', &
-       !      interpinic_flag='interp', readvar=readvar, data=ptr1d) 
-       
-       ! ptr1d => this%stem_prof_col(:,1)
-       ! call restartvar(ncid=ncid, flag=flag, varname='stem_prof_col', xtype=ncd_double,  &
-       !      dim1name='column', long_name='', units='', &
-       !      interpinic_flag='interp', readvar=readvar, data=ptr1d) 
-
-       ! do k = 1, numpft_ed
-       !    write(istr1,"(I3.3)") k
-       !    ptr1d => this%froot_prof_col(:,k,1)
-       !    call restartvar(ncid=ncid, flag=flag, varname='froot_prof_col_PFT'//istr1, xtype=ncd_double,  &
-       !         dim1name='column', long_name='', units='', &
-       !         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
-       ! end do
-    end if
-
 
   end subroutine Restart
 
