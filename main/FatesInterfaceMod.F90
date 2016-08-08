@@ -202,12 +202,11 @@ contains
       allocate(bc_out%rootr_pagl(numPatchesPerCol,ctrl_parms%numlevgrnd))
       allocate(bc_out%btran_pa(numPatchesPerCol))
 
+      ! biogeochemistry
       allocate(bc_out%FATES_c_to_litr_lab_c_col(ctrl_parms%numlevdecomp_full))        
       allocate(bc_out%FATES_c_to_litr_cel_c_col(ctrl_parms%numlevdecomp_full))
       allocate(bc_out%FATES_c_to_litr_lig_c_col(ctrl_parms%numlevdecomp_full))
 
-
-      
       return
    end subroutine allocate_bcout
 
@@ -236,7 +235,7 @@ contains
       this%bc_out(s)%rootr_pagl(:,:) = 0.0_r8
       this%bc_out(s)%btran_pa(:)     = 0.0_r8
       this%bc_out(s)%FATES_c_to_litr_lab_c_col(:) = 0.0_r8
-      this%bc_out(s)%FATES_c_to_litr_cel_c_col(:, = 0.0_r8
+      this%bc_out(s)%FATES_c_to_litr_cel_c_col(:) = 0.0_r8
       this%bc_out(s)%FATES_c_to_litr_lig_c_col(:) = 0.0_r8
 
       return
