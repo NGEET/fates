@@ -1318,10 +1318,10 @@ contains
     integer           :: begp,endp
     integer           :: begc,endc                                    !bounds 
     !------------------------------------------------------------------------
-    real(r8) :: cinput_rootfr(1:nsites, 1:numpft_ed, 1:nlevdecomp_full)      ! column by pft root fraction used for calculating inputs
+    real(r8) :: cinput_rootfr(1:numpft_ed, 1:nlevdecomp_full)      ! column by pft root fraction used for calculating inputs
     real(r8) :: croot_prof_perpatch(1:nlevdecomp_full)
     real(r8) :: surface_prof(1:nlevdecomp_full)
-    integer  :: ft, lev
+    integer  :: ft
     real(r8) :: rootfr_tot(1:numpft_ed), biomass_bg_ft(1:numpft_ed)
     real(r8) :: surface_prof_tot, leaf_prof_sum, stem_prof_sum, froot_prof_sum, biomass_bg_tot
     real(r8) :: delta
@@ -1342,8 +1342,8 @@ contains
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       ! first calculate vertical profiles
       ! define two types of profiles: 
-      ! (1) a surface profile, for leaves and stem inputs, which is the same for each pft but differs from one column to the next to avoid inputting any C into permafrost
-      ! (2) a fine root profile, which is indexed by both column and pft, differs for each pft and also from one column to the next to avoid inputting any C into permafrost
+      ! (1) a surface profile, for leaves and stem inputs, which is the same for each pft but differs from one site to the next to avoid inputting any C into permafrost or bedrock
+      ! (2) a fine root profile, which is indexed by both site and pft, differs for each pft and also from one site to the next to avoid inputting any C into permafrost or bedrock
       ! (3) a coarse root profile, which is the root-biomass=weighted average of the fine root profiles
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -1361,45 +1361,45 @@ contains
          croot_prof(1:nsites, :)     = 0._r8
          stem_prof(1:nsites, :)      = 0._r8
          
-         cinput_rootfr(1:nsites, 1:numpft_ed, :)     = 0._r8
-         
-         do s = 1,nsites
+         cinput_rootfr(1:numpft_ed, :)     = 0._r8
             
-            ! calculate pft-specific rooting profiles in the absence of permafrost limitations
-            if ( exponential_rooting_profile ) then
-               if ( .not. pftspecific_rootingprofile ) then
-                  ! define rooting profile from exponential parameters
-                  do ft = 1, numpft_ed
-                     do j = 1, nlevdecomp
-                        cinput_rootfr(s,ft,j) = exp(-rootprof_exp * zsoi(j)) / dzsoi_decomp(j)
-                     end do
-                  end do
-               else
-                  ! use beta distribution parameter from Jackson et al., 1996
-                  do ft = 1, numpft_ed
-                     do j = 1, nlevdecomp
-                        cinput_rootfr(s,ft,j) = ( pftcon%rootprof_beta(ft) ** (zisoi(j-1)*100._r8) - &
-                             pftcon%rootprof_beta(ft) ** (zisoi(j)*100._r8) ) &
-                             / dzsoi_decomp(j)
-                     end do
-                  end do
-               endif
-            else
-               do ft = 1,numpft_ed 
+         ! calculate pft-specific rooting profiles in the absence of permafrost or bedrock limitations
+         if ( exponential_rooting_profile ) then
+            if ( .not. pftspecific_rootingprofile ) then
+               ! define rooting profile from exponential parameters
+               do ft = 1, numpft_ed
                   do j = 1, nlevdecomp
-                     ! use standard CLM root fraction profiles;
-                     cinput_rootfr(s,ft,j) =  ( .5_r8*( &
-                          exp(-pftcon%roota_par(ft) * zisoi(lev-1))  &
-                          + exp(-pftcon%rootb_par(ft) * zisoi(lev-1))  &
-                          - exp(-pftcon%roota_par(ft) * zisoi(lev))    &
-                          - exp(-pftcon%rootb_par(ft) * zisoi(lev))))  / dzsoi_decomp(j)
+                     cinput_rootfr(ft,j) = exp(-rootprof_exp * zsoi(j)) / dzsoi_decomp(j)
+                  end do
+               end do
+            else
+               ! use beta distribution parameter from Jackson et al., 1996
+               do ft = 1, numpft_ed
+                  do j = 1, nlevdecomp
+                     cinput_rootfr(ft,j) = ( pftcon%rootprof_beta(ft) ** (zisoi(j-1)*100._r8) - &
+                          pftcon%rootprof_beta(ft) ** (zisoi(j)*100._r8) ) &
+                          / dzsoi_decomp(j)
                   end do
                end do
             endif
+         else
+            do ft = 1,numpft_ed 
+               do j = 1, nlevdecomp
+                  ! use standard CLM root fraction profiles;
+                  cinput_rootfr(ft,j) =  ( .5_r8*( &
+                       exp(-pftcon%roota_par(ft) * zisoi(j-1))  &
+                       + exp(-pftcon%rootb_par(ft) * zisoi(j-1))  &
+                       - exp(-pftcon%roota_par(ft) * zisoi(j))    &
+                       - exp(-pftcon%rootb_par(ft) * zisoi(j))))  / dzsoi_decomp(j)
+               end do
+            end do
+         endif
+         !
+
+         do s = 1,nsites
             !
-            !
-            ! now add permafrost constraint: integrate rootfr over active layer of soil column,
-            ! truncate below permafrost table where present, and rescale so that integral = 1
+            ! now add permafrost constraint: integrate rootfr over active layer of soil site,
+            ! truncate below permafrost or bedrock table where present, and rescale so that integral = 1
             do ft = 1,numpft_ed 
                rootfr_tot(ft) = 0._r8
             end do
@@ -1410,7 +1410,7 @@ contains
             end do
             do ft = 1,numpft_ed 
                do j = 1, min(max(bc_in(s)%max_rooting_depth_index_col, 1), nlevdecomp)
-                  rootfr_tot(ft) = rootfr_tot(ft) + cinput_rootfr(s,ft,j) * dzsoi_decomp(j)
+                  rootfr_tot(ft) = rootfr_tot(ft) + cinput_rootfr(ft,j) * dzsoi_decomp(j)
                end do
             end do
             !
@@ -1420,7 +1420,7 @@ contains
                   ! where there is not permafrost extending to the surface, integrate the profiles over the active layer
                   ! this is equivalent to integrating over all soil layers outside of permafrost regions
                   do j = 1, min(max(bc_in(s)%max_rooting_depth_index_col, 1), nlevdecomp)
-                     froot_prof(s,ft,j) = cinput_rootfr(s,ft,j) / rootfr_tot(ft)
+                     froot_prof(s,ft,j) = cinput_rootfr(ft,j) / rootfr_tot(ft)
                   end do
                else
                   ! if fully frozen, or no roots, put everything in the top layer
@@ -1489,13 +1489,13 @@ contains
          end do
       end do
       
-      ! zero the column-level C input variables
+      ! zero the site-level C input variables
       do s = 1, nsites
          do j = 1, nlevdecomp
             bc_out(s)%FATES_c_to_litr_lab_c_col(j) = 0._r8
             bc_out(s)%FATES_c_to_litr_cel_c_col(j) = 0._r8
             bc_out(s)%FATES_c_to_litr_lig_c_col(j) = 0._r8
-            !croot_prof(s,j)         = 0._r8
+            croot_prof(s,j)         = 0._r8
          end do
       end do
 
@@ -1510,9 +1510,6 @@ contains
          currentPatch => sites(s)%oldest_patch
          
          do while(associated(currentPatch))
-            
-            !             cs => currentpatch%siteptr
-            !              cc = cs%clmcolumn
             
             ! the CWD pools lose information about which PFT they came from; for the stems this doesn't matter as they all have the same profile, 
             ! however for the coarse roots they may have different profiles.  to approximately recover this information, loop over all cohorts in patch 
