@@ -6,12 +6,12 @@ module EDCanopyStructureMod
   ! ============================================================================
 
   use shr_kind_mod          , only : r8 => shr_kind_r8;
-  use clm_varpar            , only : nclmax
   use clm_varctl            , only : iulog
   use pftconMod             , only : pftcon
   use EDGrowthFunctionsMod  , only : c_area
   use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type, ncwd
+  use EDtypesMod            , only : cp_nclmax
 
   implicit none
   private
@@ -64,10 +64,10 @@ contains
     ! Sorts out cohorts into canopy and understorey layers...                              
     !
     ! !USES:
-    use clm_varpar,  only : nlevcan_ed
+
     use EDParamsMod, only : ED_val_comp_excln, ED_val_ag_biomass
     use SFParamsMod, only : SF_val_cwd_frac
-    use EDtypesMod , only : ncwd, min_patch_area
+    use EDtypesMod , only : ncwd, min_patch_area, cp_nlevcan
     !
     ! !ARGUMENTS    
     type(ed_site_type) , intent(inout), target   :: currentSite
@@ -81,10 +81,10 @@ contains
     real(r8) :: cc_loss
     real(r8) :: lossarea
     real(r8) :: newarea
-    real(r8) :: arealayer(nlevcan_ed) ! Amount of plant area currently in each canopy layer
-    real(r8) :: sumdiff(nlevcan_ed)   ! The total of the exclusion weights for all cohorts in layer z 
+    real(r8) :: arealayer(cp_nlevcan) ! Amount of plant area currently in each canopy layer
+    real(r8) :: sumdiff(cp_nlevcan)   ! The total of the exclusion weights for all cohorts in layer z 
     real(r8) :: weight                ! The amount of the total lost area that comes from this cohort
-    real(r8) :: sum_weights(nlevcan_ed)
+    real(r8) :: sum_weights(cp_nlevcan)
     real(r8) :: new_total_area_check
     real(r8) :: missing_area, promarea,cc_gain,sumgain
     integer  :: promswitch,lower_cohort_switch
@@ -126,7 +126,7 @@ contains
              z = z + 1
           endif
 
-          currentPatch%NCL_p = min(nclmax,z)   ! Set current canopy layer occupancy indicator.  
+          currentPatch%NCL_p = min(cp_nclmax,z)   ! Set current canopy layer occupancy indicator.  
 
           do i = 1,z ! Loop around the currently occupied canopy layers. 
              
@@ -187,7 +187,7 @@ contains
                          currentCohort%dbh = currentCohort%dbh 
                          copyc%dbh = copyc%dbh !+ 0.000000000001_r8
                          !kill the ones which go into canopy layers that are not allowed... (default nclmax=2) 
-                         if(i+1 > nclmax)then 
+                         if(i+1 > cp_nclmax)then 
                            !put the litter from the terminated cohorts into the fragmenting pools
                           ! write(iulog,*) '3rd canopy layer'
                             do c=1,ncwd
@@ -232,8 +232,8 @@ contains
                          currentCohort%canopy_layer = i + 1 !the whole cohort becomes demoted
                          sumloss = sumloss + currentCohort%c_area 
 
-                         !kill the ones which go into canopy layers that are not allowed... (default nclmax=2) 
-                         if(i+1 > nclmax)then  
+                         !kill the ones which go into canopy layers that are not allowed... (default cp_nclmax=2) 
+                         if(i+1 > cp_nclmax)then  
                            !put the litter from the terminated cohorts into the fragmenting pools
                             do c=1,ncwd
 
@@ -305,7 +305,7 @@ contains
                 excess_area = arealayer(j)-currentPatch%area
              endif
           enddo
-          currentPatch%ncl_p = min(z,nclmax)
+          currentPatch%ncl_p = min(z,cp_nclmax)
 
        enddo !is there still excess area in any layer?      
 
@@ -507,7 +507,7 @@ contains
                 endif
              endif
           enddo
-          currentPatch%ncl_p = min(z,nclmax)
+          currentPatch%ncl_p = min(z,cp_nclmax)
           if(promswitch == 1)then
             ! write(iulog,*) 'missingarea loop',arealayer(1:3),currentPatch%patchno,missing_area,z
           endif
@@ -579,7 +579,7 @@ contains
     !  Calculates the spatial spread of tree canopies based on canopy closure.                             
     !
     ! !USES:
-    use clm_varpar  , only : nlevcan_ed
+    use EDTypesMod  , only : cp_nlevcan
     use EDParamsMod , only : ED_val_maxspread, ED_val_minspread 
     !
     ! !ARGUMENTS    
@@ -588,7 +588,7 @@ contains
     ! !LOCAL VARIABLES:
     type (ed_cohort_type), pointer :: currentCohort
     type (ed_patch_type) , pointer :: currentPatch
-    real(r8) :: arealayer(nlevcan_ed) ! Amount of canopy in each layer. 
+    real(r8) :: arealayer(cp_nlevcan) ! Amount of canopy in each layer. 
     real(r8) :: inc                   ! Arbitrary daily incremental change in canopy area 
     integer  :: z
     !----------------------------------------------------------------------
@@ -611,7 +611,7 @@ contains
        enddo
 
        !If the canopy area is approaching closure, squash the tree canopies and make them taller and thinner
-       do z = 1,nclmax  
+       do z = 1,cp_nclmax  
          
           if(arealayer(z)/currentPatch%area > 0.9_r8)then
              currentPatch%spread(z) = currentPatch%spread(z) - inc

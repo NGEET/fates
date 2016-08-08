@@ -10,7 +10,7 @@ module EDCohortDynamicsMod
   use EDEcophysContype      , only : EDecophyscon
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDTypesMod            , only : fusetol, nclmax
+  use EDTypesMod            , only : fusetol, cp_nclmax
   use EDtypesMod            , only : ncwd, numcohortsperpatch, udata
   use EDtypesMod            , only : sclass_ed,nlevsclass_ed,AREA
   use EDtypesMod            , only : min_npm2, min_nppatch, min_n_safemath
@@ -512,7 +512,7 @@ contains
          endif
 
          ! In the third canopy layer
-         if (currentCohort%canopy_layer > NCLMAX) then 
+         if (currentCohort%canopy_layer > cp_nclmax ) then 
            terminate = 1
            if ( DEBUG ) then
              write(iulog,*) 'terminating cohorts 2', currentCohort%canopy_layer
@@ -584,7 +584,7 @@ contains
     ! Join similar cohorts to reduce total number            
     !
     ! !USES:
-    use clm_varpar  , only :  nlevcan_ed
+    use EDTypesMod  , only :  cp_nlevcan
     !
     ! !ARGUMENTS    
     type (ed_patch_type), intent(inout), target :: patchptr
@@ -729,7 +729,7 @@ contains
                          currentCohort%npp_bseed = (currentCohort%n*currentCohort%npp_bseed + nextc%n*nextc%npp_bseed)/newn
                          currentCohort%npp_store = (currentCohort%n*currentCohort%npp_store + nextc%n*nextc%npp_store)/newn
 
-                         do i=1, nlevcan_ed     
+                         do i=1, cp_nlevcan     
                             if (currentCohort%year_net_uptake(i) == 999._r8 .or. nextc%year_net_uptake(i) == 999._r8) then
                                currentCohort%year_net_uptake(i) = min(nextc%year_net_uptake(i),currentCohort%year_net_uptake(i))
                             else

@@ -8,11 +8,11 @@ module EDCLMLinkMod
   use shr_kind_mod     , only : r8 => shr_kind_r8
   use shr_infnan_mod, only : isnan => shr_infnan_isnan
   use decompMod        , only : bounds_type
-  use clm_varpar       , only : nclmax, nlevcan_ed, numpft, numcft, mxpft
+  use clm_varpar       , only : numpft, numcft, mxpft
   use clm_varctl       , only : iulog 
   use ColumnType       , only : col
   use EDtypesMod       , only : ed_site_type, ed_cohort_type, ed_patch_type, ncwd
-  use EDtypesMod       , only : sclass_ed, nlevsclass_ed, AREA
+  use EDtypesMod       , only : sclass_ed, nlevsclass_ed, AREA, cp_nclmax, cp_nlevcan
   use CanopyStateType  , only : canopystate_type
   use clm_varctl       , only : use_vertsoilc
   use EDParamsMod      , only : ED_val_ag_biomass
@@ -1681,7 +1681,7 @@ contains
                   max(currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft),currentCohort%NV)
             currentPatch%lai = currentPatch%lai +currentCohort%lai
             
-            do L = 1,nclmax-1
+            do L = 1,cp_nclmax-1
                if(currentCohort%canopy_layer == L)then
                   currentPatch%canopy_layer_lai(L) = currentPatch%canopy_layer_lai(L) + currentCohort%lai + &
                         currentCohort%sai
@@ -1958,10 +1958,10 @@ fraction_exposed= 1.0_r8
                      /currentPatch%tlai_profile(L,ft,iv)
                      enddo
 
-                     currentPatch%tlai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevcan_ed) = 0._r8
-                     currentPatch%tsai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevcan_ed) = 0._r8
-                     currentPatch%elai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevcan_ed) = 0._r8 
-                     currentPatch%esai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevcan_ed) = 0._r8
+                     currentPatch%tlai_profile(L,ft,currentPatch%nrad(L,ft)+1: cp_nlevcan) = 0._r8
+                     currentPatch%tsai_profile(L,ft,currentPatch%nrad(L,ft)+1: cp_nlevcan) = 0._r8
+                     currentPatch%elai_profile(L,ft,currentPatch%nrad(L,ft)+1: cp_nlevcan) = 0._r8 
+                     currentPatch%esai_profile(L,ft,currentPatch%nrad(L,ft)+1: cp_nlevcan) = 0._r8
                      
                   enddo
                enddo
