@@ -1,4 +1,12 @@
 ===============================================================
+Tag name:  rtm1_0_57
+Originator(s): erik
+Date: Jul 01, 2016
+One-line Summary: Remove ESMF test
+
+M       cime_config/testdefs/testlist_rtm.xml
+
+===============================================================
 Tag name:  rtm1_0_56
 Originator(s): erik
 Date: Apr 14, 2016
