@@ -1,4 +1,188 @@
 ===============================================================
+Tag name:  clm4_5_9_r186
+Originator(s):  sacks (Bill Sacks)
+Date: Wed Jul 13 07:17:04 MDT 2016
+One-line Summary: Initialize biogeochem balance checks AFTER column area updates
+
+Purpose of changes
+------------------
+
+Reworking the conservation of patch-level CN variables with dynamic landunits
+will make the column-level CN balance checks very tricky to determine, as they
+were written before - where the starting point for the comparison was determined
+before all of the area adjustments (i.e., the dyn subgrid stuff). This becomes
+much more straightforward if the initialization of the balance checks is done
+after the dyn subgrid stuff is complete. This tag makes that change.
+
+In order to accomplish that, we need to re-compute the CN state summaries after
+the dyn subgrid stuff is complete - near the beginning of the time step. We
+still need the summary routine at the end of the time step for the sake of
+diagnostics (e.g., history output). So now we call the summary routines twice
+for states. We do NOT need to call the flux summary routines at the beginning of
+the time step - and doing so doesn't really make sense (how do you summarize
+fluxes that haven't yet been computed) - so I have split the top-level summary
+routine into a SummarizeStates and SummarizeFluxes.
+
+I also reworked the ch4 balance check similarly, in order to be consistent with
+the CN balance checks.
+
+Longer-term, we'll add another set of balance checks that operate on
+gridcell-level quantities, which WILL cover the dyn subgrid stuff. So the
+overall sequence will look like:
+
+   Initialize gridcell-level balance checks
+   Dyn subgrid stuff (adjust patch, column, landunit areas, and do associated
+      state updates)
+   Initialize column-level balance checks
+   Science routines
+   Check column-level balance
+   Check gridcell-level balance
+
+
+
+Notes of particular relevance for users
+---------------------------------------
+
+Caveats for users (e.g., need to interpolate initial conditions): none
+
+Changes to CLM's user interface (e.g., new/renamed XML or namelist variables): none
+
+Changes made to namelist defaults (e.g., changed parameter values): none
+
+Changes to the datasets (e.g., parameter, surface or initial files): none
+
+Substantial timing or memory changes: none
+
+Notes of particular relevance for developers: (including Code reviews and testing)
+---------------------------------------------
+
+Caveats for developers (e.g., code that is duplicated that requires double maintenance): none
+
+Changes to tests or testing: none
+
+Code reviewed by: self
+
+CLM testing:
+
+ [PASS means all tests PASS and OK means tests PASS other than expected fails.]
+
+  build-namelist tests:
+
+    yellowstone - not run
+
+  unit-tests (components/clm/src):
+
+    yellowstone - pass
+
+  tools-tests (components/clm/test/tools):
+
+    yellowstone - not run
+
+  PTCLM testing (components/clm/tools/shared/PTCLM/test):
+
+     yellowstone - not run
+
+  regular tests (aux_clm40, aux_clm45):
+
+    yellowstone_intel - ok
+    yellowstone_pgi - ok
+    yellowstone_gnu (clm45 only) - ok
+    hobart_nag - ok
+
+ok means tests pass, some answers change as noted below
+
+CLM tag used for the baseline comparisons: clm4_5_9_r185
+
+
+Answer changes
+--------------
+
+Changes answers relative to baseline: YES
+
+  If a tag changes answers relative to baseline comparison the
+  following should be filled in (otherwise remove this section):
+
+  Summarize any changes to answers, i.e.,
+    - what code configurations: CLM45/CLM50 runs with BGC that involve changes
+      in subgrid areas (including HIST, RCP, DV and IG cases)
+    - what platforms/compilers: all
+    - nature of change (roundoff; larger than roundoff/same climate; new climate): 
+      Not investigated closely; expected to be larger than roundoff / same climate
+
+      Answer changes come from the fact that some code (e.g., the fire code)
+      uses the summarized state variables. Previously, this code was using the
+      state summaries from the previous time step. With this change, the code is
+      now using the updated state summaries. These updated state summaries can
+      differ from the ones computed at the end of the last time step if subgrid
+      areas have changed.
+
+   If bitwise differences were observed, how did you show they were no worse
+   than roundoff? N/A
+
+   If this tag changes climate describe the run(s) done to evaluate the new
+   climate (put details of the simulations in the experiment database)
+       - casename: N/A
+
+   URL for LMWG diagnostics output used to validate new climate: N/A
+	
+
+Detailed list of changes
+------------------------
+
+List any svn externals directories updated (cime, rtm, mosart, cism, etc.): none
+
+List all files eliminated: none
+
+List all files added and what they do: none
+
+List all existing files that have been modified, and describe the changes:
+
+========= Move initialization of CN and ch4 balance checks to AFTER dyn subgrid
+M       components/clm/src/main/clm_driver.F90
+M       components/clm/src/biogeochem/CNVegetationFacade.F90
+
+========= Split the CNDriverSummary into separate SummarizeStates and
+          SummarizeFluxes: Only SummarizeStates needs to be done near the start
+          of the time step. Also move calls to PrecisionControl to a higher
+          level, since these aren't needed in the initial call to
+          SummarizeStates.
+M       components/clm/src/biogeochem/CNDriverMod.F90
+
+========= Change which terms (from transient landcover) are included in the
+          balance checks, due to new placement in the driver sequence
+M       components/clm/src/biogeochem/CNBalanceCheckMod.F90
+M       components/clm/src/biogeochem/CNVegCarbonFluxType.F90
+M       components/clm/src/biogeochem/CNVegNitrogenFluxType.F90
+M       components/clm/src/biogeochem/dynConsBiogeochemMod.F90
+
+========= Rework timing of ch4 balance check initialization, too, for
+          consistency
+M       components/clm/src/biogeochem/ch4Mod.F90
+
+========= Remove some variables from Restart, now that we call the Summary
+          routines early in the time step. Also no longer update summary
+          diagnostic variables in DynamicPatchAdjustments
+M       components/clm/src/soilbiogeochem/SoilBiogeochemCarbonStateType.F90
+M       components/clm/src/soilbiogeochem/SoilBiogeochemNitrogenStateType.F90
+M       components/clm/src/biogeochem/CNVegNitrogenStateType.F90
+M       components/clm/src/biogeochem/CNVegCarbonStateType.F90
+
+========= No longer need to do p2c of totvegc in fire code: this is done in the
+          initial call to the summary routines
+M       components/clm/src/biogeochem/CNFireLi2014Mod.F90
+M       components/clm/src/biogeochem/CNFireLi2016Mod.F90
+M       components/clm/src/biogeochem/CNFireNoFireMod.F90
+
+========= Replace __FILE__ with filename parameter to avoid too-long lines with pgi
+M       components/clm/src/soilbiogeochem/SoilBiogeochemNitrifDenitrifMod.F90
+
+========= Remove
+          SMS_Lm25.f19_g16.ICLM45BGCCROP.yellowstone_gnu.clm-cropMonthOutput:
+          baseline comparisons have been passing for me recently
+M       components/clm/cime_config/testdefs/ExpectedTestFails.xml
+
+===============================================================
+===============================================================
 Tag name:  clm4_5_9_r185
 Originator(s):  sacks (Bill Sacks)
 Date:  Thu Jul  7 13:54:09 MDT 2016
