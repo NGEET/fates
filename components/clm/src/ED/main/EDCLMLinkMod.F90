@@ -2130,7 +2130,7 @@ fraction_exposed= 1.0_r8
     real(r8) :: cinput_rootfr(bounds%begc:bounds%endc, 1:numpft_ed, 1:nlevdecomp_full)      ! column by pft root fraction used for calculating inputs
     real(r8) :: croot_prof_perpatch(1:nlevdecomp_full)
     real(r8) :: surface_prof(1:nlevdecomp_full)
-    integer  :: ft, lev
+    integer  :: ft
     real(r8) :: rootfr_tot(1:numpft_ed), biomass_bg_ft(1:numpft_ed)
     real(r8) :: surface_prof_tot, leaf_prof_sum, stem_prof_sum, froot_prof_sum, biomass_bg_tot
     real(r8) :: delta
@@ -2205,10 +2205,10 @@ fraction_exposed= 1.0_r8
                   do j = 1, nlevdecomp
                      ! use standard CLM root fraction profiles;
                      cinput_rootfr(c,ft,j) =  ( .5_r8*( &
-                          exp(-pftcon%roota_par(ft) * col%zi(c,lev-1))  &
-                          + exp(-pftcon%rootb_par(ft) * col%zi(c,lev-1))  &
-                          - exp(-pftcon%roota_par(ft) * col%zi(c,lev))    &
-                          - exp(-pftcon%rootb_par(ft) * col%zi(c,lev))))  / dzsoi_decomp(j)
+                          exp(-pftcon%roota_par(ft) * col%zi(c,j-1))  &
+                          + exp(-pftcon%rootb_par(ft) * col%zi(c,j-1))  &
+                          - exp(-pftcon%roota_par(ft) * col%zi(c,j))    &
+                          - exp(-pftcon%rootb_par(ft) * col%zi(c,j))))  / dzsoi_decomp(j)
                   end do
                end do
             endif
