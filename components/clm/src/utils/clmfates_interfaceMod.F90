@@ -49,6 +49,7 @@ module CLMFatesInterfaceMod
    use atm2lndType       , only : atm2lnd_type
    use SurfaceAlbedoType , only : surfalb_type
    use SolarAbsorbedType , only : solarabs_type
+   use SoilBiogeochemCarbonFluxType, only : soilbiogeochem_carbonflux_type
    use clm_time_manager  , only : is_restart
    use ncdio_pio         , only : file_desc_t
    use clm_time_manager  , only : get_days_per_year, &
@@ -139,6 +140,7 @@ module CLMFatesInterfaceMod
       procedure, public :: dynamics_driv
       procedure, public :: wrap_sunfrac
       procedure, public :: wrap_btran
+      procedure, private :: wrap_litter_fluxout
 
    end type hlm_fates_interface_type
 
@@ -383,7 +385,7 @@ contains
 
    subroutine dynamics_driv(this, nc, bounds_clump,      &
          atm2lnd_inst, soilstate_inst, temperature_inst, &
-         waterstate_inst, canopystate_inst)
+         waterstate_inst, canopystate_inst, soilbiogeochem_carbonflux_inst)
     
       ! This wrapper is called daily from clm_driver
       ! This wrapper calls ed_driver, which is the daily dynamics component of FATES
@@ -399,6 +401,7 @@ contains
       integer                 , intent(in)           :: nc
       type(waterstate_type)   , intent(inout)        :: waterstate_inst
       type(canopystate_type)  , intent(inout)        :: canopystate_inst
+      type(soilbiogeochem_carbonflux_type), intent(out) :: soilbiogeochem_carbonflux_inst
 
       ! !LOCAL VARIABLES:
       real(r8) :: dayDiff                  ! day of run
@@ -461,7 +464,7 @@ contains
 
       enddo
 
-      call wrap_litter_fluxout(this, nc, bounds_clump, canopystate_inst)
+      call wrap_litter_fluxout(this, nc, bounds_clump, canopystate_inst, soilbiogeochem_carbonflux_inst)
       
       
       ! link to CLM/ALM structures
@@ -848,7 +851,7 @@ contains
    end subroutine wrap_btran
 
 
-   subroutine wrap_litter_fluxout(this, nc, bounds_clump, canopystate_inst)
+   subroutine wrap_litter_fluxout(this, nc, bounds_clump, canopystate_inst, soilbiogeochem_carbonflux_inst)
      
       implicit none
       
@@ -857,9 +860,10 @@ contains
       integer                , intent(in)            :: nc
       type(bounds_type),intent(in)                   :: bounds_clump
       type(canopystate_type)         , intent(inout) :: canopystate_inst
+      type(soilbiogeochem_carbonflux_type), intent(out) :: soilbiogeochem_carbonflux_inst
 
       ! local variables
-      integer :: s, c,
+      integer :: s, c
       
       
       ! process needed input boundary conditions to define rooting profiles
@@ -880,7 +884,10 @@ contains
       do s = 1, this%fates(nc)%nsites
          c = this%f2hmap(nc)%fcolumn(s)
 
-         this%fates(nc)%bc_in(s)%max_rooting_depth_index_col = canopystate_inst%altmax_lastyear_indx_col(c)
+         soilbiogeochem_carbonflux_inst%FATES_c_to_litr_lab_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_lab_c_col(:)
+         soilbiogeochem_carbonflux_inst%FATES_c_to_litr_cel_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_cel_c_col(:)
+         soilbiogeochem_carbonflux_inst%FATES_c_to_litr_lig_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_lig_c_col(:)
+         
       end do
 
 

@@ -140,9 +140,9 @@ contains
          do j = 1,nlevdecomp
             do fc = 1,num_soilc
                c = filter_soilc(fc)
-               cf_soil%decomp_cpools_sourcesink_col(c,j,i_met_lit) = cf_soil%ED_c_to_litr_lab_c_col(c,j) * dt
-               cf_soil%decomp_cpools_sourcesink_col(c,j,i_cel_lit) = cf_soil%ED_c_to_litr_cel_c_col(c,j) * dt
-               cf_soil%decomp_cpools_sourcesink_col(c,j,i_lig_lit) = cf_soil%ED_c_to_litr_lig_c_col(c,j) * dt
+               cf_soil%decomp_cpools_sourcesink_col(c,j,i_met_lit) = cf_soil%FATES_c_to_litr_lab_c_col(c,j) * dt
+               cf_soil%decomp_cpools_sourcesink_col(c,j,i_cel_lit) = cf_soil%FATES_c_to_litr_cel_c_col(c,j) * dt
+               cf_soil%decomp_cpools_sourcesink_col(c,j,i_lig_lit) = cf_soil%FATES_c_to_litr_lig_c_col(c,j) * dt
             end do
          end do
       endif

@@ -137,15 +137,16 @@ contains
      allocate(this%soilc_change_col        (begc:endc)) ; this%soilc_change_col        (:) = nan
 
      if ( use_ed ) then
+        ! initialize these variables to be zero rather than a bad number since they are not zeroed every timestep (due to a need for them to persist)
 
         allocate(this%FATES_c_to_litr_lab_c_col(begc:endc,1:nlevdecomp_full))
-        this%FATES_c_to_litr_lab_c_col(begc:endc,1:nlevdecomp_full) = nan
+        this%FATES_c_to_litr_lab_c_col(begc:endc,1:nlevdecomp_full) = 0._r8
         
         allocate(this%FATES_c_to_litr_cel_c_col(begc:endc,1:nlevdecomp_full))
-        this%FATES_c_to_litr_cel_c_col(begc:endc,1:nlevdecomp_full) = nan
+        this%FATES_c_to_litr_cel_c_col(begc:endc,1:nlevdecomp_full) = 0._r8
         
         allocate(this%FATES_c_to_litr_lig_c_col(begc:endc,1:nlevdecomp_full))
-        this%FATES_c_to_litr_lig_c_col(begc:endc,1:nlevdecomp_full) = nan
+        this%FATES_c_to_litr_lig_c_col(begc:endc,1:nlevdecomp_full) = 0._r8
 
      endif
      
@@ -612,8 +613,51 @@ contains
     character(len=*)  , intent(in)        :: flag   !'read', 'write', 'define'
     !-----------------------------------------------------------------------
 
-    ! Nothing for now
-
+    !
+    ! if  FATES is enabled, need to restart the variables used to transfer from FATES to CLM as they
+    ! are persistent between daily FATES dynamics calls and half-hourly CLM timesteps
+    !
+    if ( use_ed ) then
+       
+       if (use_vertsoilc) then
+          ptr2d => this%FATES_c_to_litr_lab_c_col
+          call restartvar(ncid=ncid, flag=flag, varname='FATES_c_to_litr_lab_c_col', xtype=ncd_double,  &
+               dim1name='column', dim2name='levgrnd', switchdim=.true., &
+               long_name='', units='', &
+               interpinic_flag='interp', readvar=readvar, data=ptr2d) 
+          
+          ptr2d => this%FATES_c_to_litr_cel_c_col
+          call restartvar(ncid=ncid, flag=flag, varname='FATES_c_to_litr_cel_c_col', xtype=ncd_double,  &
+               dim1name='column', dim2name='levgrnd', switchdim=.true., &
+               long_name='', units='', &
+               interpinic_flag='interp', readvar=readvar, data=ptr2d) 
+          
+          ptr2d => this%FATES_c_to_litr_lig_c_col
+          call restartvar(ncid=ncid, flag=flag, varname='FATES_c_to_litr_lig_c_col', xtype=ncd_double,  &
+               dim1name='column', dim2name='levgrnd', switchdim=.true., &
+               long_name='', units='', &
+               interpinic_flag='interp', readvar=readvar, data=ptr2d) 
+          
+       else
+          ptr1d => this%FATES_c_to_litr_lab_c_col(:,1)
+          call restartvar(ncid=ncid, flag=flag, varname='FATES_c_to_litr_lab_c_col', xtype=ncd_double,  &
+               dim1name='column', long_name='', units='', &
+               interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+          
+          ptr1d => this%FATES_c_to_litr_cel_c_col(:,1)
+          call restartvar(ncid=ncid, flag=flag, varname='FATES_c_to_litr_cel_c_col', xtype=ncd_double,  &
+               dim1name='column', long_name='', units='', &
+               interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+          
+          ptr1d => this%FATES_c_to_litr_lig_c_col(:,1)
+          call restartvar(ncid=ncid, flag=flag, varname='FATES_c_to_litr_lig_c_col', xtype=ncd_double,  &
+               dim1name='column', long_name='', units='', &
+               interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+          
+       end if
+       
+    end if
+    
   end subroutine Restart
 
   !-----------------------------------------------------------------------
@@ -677,14 +721,7 @@ contains
        this%soilc_change_col(i)  = value_column
     end do
 
-    if ( use_ed ) then
-       do fi = 1,num_column
-          i = filter_column(fi)
-          FATES_c_to_litr_lab_c_col(i) = value_column
-          FATES_c_to_litr_cel_c_col(i) = value_column
-          FATES_c_to_litr_lig_c_col(i) = value_column          
-       end do
-    end if
+    ! NOTE: do not zero the ED to BGC C flux variables since they need to persist from the daily ED timestep s to the half-hourly BGC timesteps.  I.e. FATES_c_to_litr_lab_c_col, FATES_c_to_litr_cel_c_col, FATES_c_to_litr_lig_c_col
     
   end subroutine SetValues
 
