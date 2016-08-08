@@ -137,7 +137,8 @@ module CNVegNitrogenFluxType
      real(r8), pointer :: frootn_to_litter_patch                    (:)     ! patch fine root N litterfall (gN/m2/s)
 
      ! allocation fluxes
-     real(r8), pointer :: retransn_to_npool_patch                   (:)     ! patch deployment of retranslocated N (gN/m2/s)       
+     real(r8), pointer :: retransn_to_npool_patch                   (:)     ! patch deployment of retranslocated N (gN/m2/s)  
+     real(r8), pointer :: free_retransn_to_npool_patch              (:)     ! patch deployment of free retranslocated N (gN/m2/s)           
      real(r8), pointer :: sminn_to_npool_patch                      (:)     ! patch deployment of soil mineral N uptake (gN/m2/s)
      real(r8), pointer :: npool_to_grainn_patch                     (:)     ! patch allocation to grain N for prognostic crop (gN/m2/s)
      real(r8), pointer :: npool_to_grainn_storage_patch             (:)     ! patch allocation to grain N storage for prognostic crop (gN/m2/s)
@@ -193,13 +194,17 @@ module CNVegNitrogenFluxType
      real(r8), pointer :: dwt_seedn_to_deadstem_col                 (:)     ! col (gN/m2/s) seed source to patch-level
      real(r8), pointer :: dwt_conv_nflux_col                        (:)     ! col (gN/m2/s) conversion N flux (immediate loss to atm)
      real(r8), pointer :: dwt_productn_gain_patch                   (:)     ! patch (gN/m2/s) addition to 10-yr wood product pool; even though this is a patch-level flux, it is expressed per unit COLUMN area
-     real(r8), pointer :: dwt_productn_gain_col                     (:)     ! col (gN/m2/s) addition to 10-yr wood product pool
      real(r8), pointer :: dwt_frootn_to_litr_met_n_col              (:,:)   ! col (gN/m3/s) fine root to litter due to landcover change
      real(r8), pointer :: dwt_frootn_to_litr_cel_n_col              (:,:)   ! col (gN/m3/s) fine root to litter due to landcover change
      real(r8), pointer :: dwt_frootn_to_litr_lig_n_col              (:,:)   ! col (gN/m3/s) fine root to litter due to landcover change
      real(r8), pointer :: dwt_livecrootn_to_cwdn_col                (:,:)   ! col (gN/m3/s) live coarse root to CWD due to landcover change
      real(r8), pointer :: dwt_deadcrootn_to_cwdn_col                (:,:)   ! col (gN/m3/s) dead coarse root to CWD due to landcover change
      real(r8), pointer :: dwt_nloss_col                             (:)     ! col (gN/m2/s) total nitrogen loss from product pools and conversion
+
+     ! FIXME(wjs, 2016-07-08) Remove these once we update column states immediately after
+     ! dyn_cnbal_patch
+     real(r8), pointer :: dwt_to_litrn_col(:)
+     real(r8), pointer :: dwt_seedn_col(:)
 
      ! Misc
      real(r8), pointer :: plant_ndemand_patch                       (:)     ! N flux required to support initial GPP (gN/m2/s)
@@ -373,6 +378,7 @@ contains
     allocate(this%frootn_to_retransn_patch                  (begp:endp)) ; this%frootn_to_retransn_patch                  (:) = nan
     allocate(this%frootn_to_litter_patch                    (begp:endp)) ; this%frootn_to_litter_patch                    (:) = nan
     allocate(this%retransn_to_npool_patch                   (begp:endp)) ; this%retransn_to_npool_patch                   (:) = nan
+    allocate(this%free_retransn_to_npool_patch              (begp:endp)) ; this%free_retransn_to_npool_patch              (:) = nan
     allocate(this%sminn_to_npool_patch                      (begp:endp)) ; this%sminn_to_npool_patch                      (:) = nan
 
     allocate(this%npool_to_leafn_patch                      (begp:endp)) ; this%npool_to_leafn_patch                      (:) = nan
@@ -424,7 +430,6 @@ contains
     allocate(this%dwt_seedn_to_deadstem_col    (begc:endc))                   ; this%dwt_seedn_to_deadstem_col    (:)   = nan
     allocate(this%dwt_conv_nflux_col           (begc:endc))                   ; this%dwt_conv_nflux_col           (:)   = nan
     allocate(this%dwt_productn_gain_patch      (begp:endp))                   ; this%dwt_productn_gain_patch      (:)   = nan
-    allocate(this%dwt_productn_gain_col        (begc:endc))                   ; this%dwt_productn_gain_col        (:)   = nan
     allocate(this%dwt_nloss_col                (begc:endc))                   ; this%dwt_nloss_col                (:)   = nan
     allocate(this%wood_harvestn_col            (begc:endc))                   ; this%wood_harvestn_col            (:)   = nan
 
@@ -433,6 +438,9 @@ contains
     allocate(this%dwt_frootn_to_litr_lig_n_col (begc:endc,1:nlevdecomp_full)) ; this%dwt_frootn_to_litr_lig_n_col (:,:) = nan
     allocate(this%dwt_livecrootn_to_cwdn_col   (begc:endc,1:nlevdecomp_full)) ; this%dwt_livecrootn_to_cwdn_col   (:,:) = nan
     allocate(this%dwt_deadcrootn_to_cwdn_col   (begc:endc,1:nlevdecomp_full)) ; this%dwt_deadcrootn_to_cwdn_col   (:,:) = nan
+
+    allocate(this%dwt_to_litrn_col(begc:endc)); this%dwt_to_litrn_col(:) = nan
+    allocate(this%dwt_seedn_col(begc:endc)); this%dwt_seedn_col(:) = nan
 
     allocate(this%m_decomp_npools_to_fire_vr_col    (begc:endc,1:nlevdecomp_full,1:ndecomp_pools))
     allocate(this%m_decomp_npools_to_fire_col       (begc:endc,1:ndecomp_pools                  ))
@@ -775,7 +783,7 @@ contains
     this%leafn_to_litter_patch(begp:endp) = spval
     call hist_addfld1d (fname='LEAFN_TO_LITTER', units='gN/m^2/s', &
          avgflag='A', long_name='leaf N litterfall', &
-         ptr_patch=this%leafn_to_litter_patch, default='inactive')
+         ptr_patch=this%leafn_to_litter_patch)
 
     this%leafn_to_retransn_patch(begp:endp) = spval
     call hist_addfld1d (fname='LEAFN_TO_RETRANSN', units='gN/m^2/s', &
@@ -791,6 +799,11 @@ contains
     call hist_addfld1d (fname='RETRANSN_TO_NPOOL', units='gN/m^2/s', &
          avgflag='A', long_name='deployment of retranslocated N', &
          ptr_patch=this%retransn_to_npool_patch)
+         
+    this%free_retransn_to_npool_patch(begp:endp) = spval
+    call hist_addfld1d (fname='FREE_RETRANSN_TO_NPOOL', units='gN/m^2/s', &
+         avgflag='A', long_name='deployment of retranslocated N', &
+         ptr_patch=this%free_retransn_to_npool_patch)
 
     this%sminn_to_npool_patch(begp:endp) = spval
     call hist_addfld1d (fname='SMINN_TO_NPOOL', units='gN/m^2/s', &
@@ -1590,6 +1603,7 @@ contains
        this%leafn_to_retransn_patch(i)                   = value_patch
        this%frootn_to_litter_patch(i)                    = value_patch
        this%retransn_to_npool_patch(i)                   = value_patch
+       this%free_retransn_to_npool_patch(i)              = value_patch
        this%sminn_to_npool_patch(i)                      = value_patch
        this%npool_to_leafn_patch(i)                      = value_patch
        this%npool_to_leafn_storage_patch(i)              = value_patch
@@ -1710,7 +1724,8 @@ contains
        this%dwt_seedn_to_leaf_col(c)     = 0._r8
        this%dwt_seedn_to_deadstem_col(c) = 0._r8
        this%dwt_conv_nflux_col(c)        = 0._r8
-       this%dwt_productn_gain_col(c)     = 0._r8
+       this%dwt_to_litrn_col(c) = 0._r8
+       this%dwt_seedn_col(c) = 0._r8
     end do
 
     do j = 1, nlevdecomp_full
@@ -1753,7 +1768,8 @@ contains
        ! total N deployment (from sminn and retranslocated N pool) (NDEPLOY)
        this%ndeploy_patch(p) = &
             this%sminn_to_npool_patch(p) + &
-            this%retransn_to_npool_patch(p)
+            this%retransn_to_npool_patch(p) + &
+            this%free_retransn_to_npool_patch(p)  
 
        ! total patch-level fire N losses
        this%fire_nloss_patch(p) = &

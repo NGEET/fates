@@ -993,7 +993,6 @@ contains
     !
     ! !USES:
     use subgridAveMod   , only : p2g, c2g, l2g
-    use landunit_varcon , only : istice_mec
     use decompMod       , only : BOUNDS_LEVEL_PROC
     !
     ! !ARGUMENTS:
@@ -1232,7 +1231,6 @@ contains
     !
     ! !USES:
     use subgridAveMod   , only : p2g, c2g, l2g
-    use landunit_varcon , only : istice_mec
     use decompMod       , only : BOUNDS_LEVEL_PROC
     !
     ! !ARGUMENTS:
