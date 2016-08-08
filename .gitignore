@@ -13,6 +13,9 @@
 build/
 CMakeFiles/
 
+# don't ignore cism build utilities directory
+!components/cism/**/build
+
 # build output
 *.o
 *.mod
