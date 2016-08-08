@@ -36,8 +36,6 @@ module clm_varpar
   integer, parameter :: nlevcan     =   1     ! number of leaf layers in canopy layer
   integer, parameter :: nvegwcs     =   4     ! number of vegetation water conductance segments
   !ED variables
-  integer, parameter :: nlevcan_ed  =   40    ! number of leaf layers in canopy layer
-  integer, parameter :: nclmax      =   2     ! max number of canopy layers
   integer, parameter :: numwat      =   5     ! number of water types (soil, ice, 2 lakes, wetland)
   integer, parameter :: numrad      =   2     ! number of solar radiation bands: vis, nir
   integer, parameter :: ivis        =   1     ! index for visible band

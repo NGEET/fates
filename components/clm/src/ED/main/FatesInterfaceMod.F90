@@ -17,10 +17,13 @@ module FatesInterfaceMod
 
    use EDtypesMod            , only : ed_site_type,      &
                                       numPatchesPerCol,  &
-                                      ctrl_parms
+                                      cp_nclmax,         &
+                                      cp_numSWb,         &
+                                      cp_numlevgrnd,     &
+                                      cp_maxSWb
 
    use shr_kind_mod          , only : r8 => shr_kind_r8  ! INTERF-TODO: REMOVE THIS
-   use clm_varpar            , only : nlevgrnd
+
    
 
    ! ------------------------------------------------------------------------------------
@@ -273,15 +276,15 @@ contains
       ! Allocate input boundaries
       
       ! Radiation
-      allocate(bc_in%solad_parb(numPatchesPerCol,ctrl_parms%numSWBands))
-      allocate(bc_in%solai_parb(numPatchesPerCol,ctrl_parms%numSWBands))
+      allocate(bc_in%solad_parb(numPatchesPerCol,cp_numSWb))
+      allocate(bc_in%solai_parb(numPatchesPerCol,cp_numSWb))
       
       ! Hydrology
-      allocate(bc_in%smp_gl(ctrl_parms%numlevgrnd))
-      allocate(bc_in%eff_porosity_gl(ctrl_parms%numlevgrnd))
-      allocate(bc_in%watsat_gl(ctrl_parms%numlevgrnd))
-      allocate(bc_in%tempk_gl(ctrl_parms%numlevgrnd))
-      allocate(bc_in%h2o_liqvol_gl(ctrl_parms%numlevgrnd))
+      allocate(bc_in%smp_gl(cp_numlevgrnd))
+      allocate(bc_in%eff_porosity_gl(cp_numlevgrnd))
+      allocate(bc_in%watsat_gl(cp_numlevgrnd))
+      allocate(bc_in%tempk_gl(cp_numlevgrnd))
+      allocate(bc_in%h2o_liqvol_gl(cp_numlevgrnd))
 
       ! Photosynthesis
       allocate(bc_in%filter_photo_pa(numPatchesPerCol))
@@ -293,13 +296,13 @@ contains
       allocate(bc_in%rb_pa(numPatchesPerCol))
       allocate(bc_in%t_veg_pa(numPatchesPerCol))
       allocate(bc_in%tgcm_pa(numPatchesPerCol))
-      allocate(bc_in%t_soisno_gl(ctrl_parms%numlevgrnd))
+      allocate(bc_in%t_soisno_gl(cp_numlevgrnd))
 
       ! Canopy Radiation
       allocate(bc_in%filter_vegzen_pa(numPatchesPerCol))
       allocate(bc_in%coszen_pa(numPatchesPerCol))
-      allocate(bc_in%albgr_dir_rb(ctrl_parms%numSWBands))
-      allocate(bc_in%albgr_dif_rb(ctrl_parms%numSWBands))
+      allocate(bc_in%albgr_dir_rb(cp_numSWb))
+      allocate(bc_in%albgr_dif_rb(cp_numSWb))
 
       return
    end subroutine allocate_bcin
@@ -320,8 +323,8 @@ contains
       allocate(bc_out%laisha_pa(numPatchesPerCol))
       
       ! Hydrology
-      allocate(bc_out%active_suction_gl(ctrl_parms%numlevgrnd))
-      allocate(bc_out%rootr_pagl(numPatchesPerCol,ctrl_parms%numlevgrnd))
+      allocate(bc_out%active_suction_gl(cp_numlevgrnd))
+      allocate(bc_out%rootr_pagl(numPatchesPerCol,cp_numlevgrnd))
       allocate(bc_out%btran_pa(numPatchesPerCol))
       
       ! Photosynthesis
@@ -332,13 +335,13 @@ contains
       allocate(bc_out%psncanopy_pa(numPatchesPerCol))
       
       ! Canopy Radiation
-      allocate(bc_out%albd_parb(numPatchesPerCol,ctrl_parms%numSWBands))
-      allocate(bc_out%albi_parb(numPatchesPerCol,ctrl_parms%numSWBands))
-      allocate(bc_out%fabd_parb(numPatchesPerCol,ctrl_parms%numSWBands))
-      allocate(bc_out%fabi_parb(numPatchesPerCol,ctrl_parms%numSWBands))
-      allocate(bc_out%ftdd_parb(numPatchesPerCol,ctrl_parms%numSWBands))
-      allocate(bc_out%ftid_parb(numPatchesPerCol,ctrl_parms%numSWBands))
-      allocate(bc_out%ftii_parb(numPatchesPerCol,ctrl_parms%numSWBands))
+      allocate(bc_out%albd_parb(numPatchesPerCol,cp_numSWb))
+      allocate(bc_out%albi_parb(numPatchesPerCol,cp_numSWb))
+      allocate(bc_out%fabd_parb(numPatchesPerCol,cp_numSWb))
+      allocate(bc_out%fabi_parb(numPatchesPerCol,cp_numSWb))
+      allocate(bc_out%ftdd_parb(numPatchesPerCol,cp_numSWb))
+      allocate(bc_out%ftid_parb(numPatchesPerCol,cp_numSWb))
+      allocate(bc_out%ftii_parb(numPatchesPerCol,cp_numSWb))
 
       return
    end subroutine allocate_bcout
@@ -431,23 +434,33 @@ contains
       case('flush_to_unset')
 
          write(*,*) 'Flushing FATES control parameters prior to transfer from host'
-         ctrl_parms%numSwBands = unset_int
-         ctrl_parms%numlevgrnd = unset_int
+         cp_numSwb     = unset_int
+         cp_numlevgrnd = unset_int
 
       case('check_allset')
          
-         if(ctrl_parms%numSWBands .eq. unset_int) then
+         if(cp_numSWb .eq. unset_int) then
             write(*,*) 'FATES dimension/parameter unset: num_sw_rad_bbands'
             ! INTERF-TODO: FATES NEEDS INTERNAL end_run
             ! end_run('MESSAGE')
          end if
-         
-         if(ctrl_parms%numlevgrnd .eq. unset_int) then
+
+         if(cp_numSWb > cp_maxSWb) then
+            write(*,*) 'FATES sets a maximum number of shortwave bands'
+            write(*,*) 'for some scratch-space, cp_maxSWb'
+            write(*,*) 'it defaults to 2, but can be increased as needed'
+            write(*,*) 'your driver or host model is intending to drive'
+            write(*,*) 'FATES with:',cp_numSWb,' bands.'
+            write(*,*) 'please increase cp_maxSWb in EDTypes to match'
+            write(*,*) 'or exceed this value'
+            ! end_run('MESSAGE')
+         end if
+
+         if(cp_numlevgrnd .eq. unset_int) then
             write(*,*) 'FATES dimension/parameter unset: numlevground'
             ! INTERF-TODO: FATES NEEDS INTERNAL end_run
             ! end_run('MESSAGE')
          end if
-
          write(*,*) 'Checked. All control parameters sent to FATES.'
          
       case default
@@ -457,12 +470,12 @@ contains
                
             case('num_sw_bbands')
                
-               ctrl_parms%numSwBands = dimval
+               cp_numSwb = dimval
                write(*,*) 'Transfering num_sw_bbands = ',dimval,' to FATES'
                
             case('num_lev_ground')
                
-               ctrl_parms%numlevgrnd = dimval
+               cp_numlevgrnd = dimval
                write(*,*) 'Transfering num_lev_ground = ',dimval,' to FATES'
                
             case default

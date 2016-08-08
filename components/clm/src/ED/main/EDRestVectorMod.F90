@@ -9,8 +9,8 @@ module EDRestVectorMod
   use spmdMod         , only : masterproc
   use decompMod       , only : bounds_type
   use pftconMod       , only : pftcon
-  use EDTypesMod      , only : area, cohorts_per_col, numpft_ed, numWaterMem, nclmax, numCohortsPerPatch
-  use EDTypesMod      , only : ncwd, invalidValue, nlevcan_ed
+  use EDTypesMod      , only : area, cohorts_per_col, numpft_ed, numWaterMem, cp_nclmax, numCohortsPerPatch
+  use EDTypesMod      , only : ncwd, invalidValue, cp_nlevcan
   use EDTypesMod      , only : ed_site_type, ed_patch_type, ed_cohort_type
   use abortutils      , only : endrun
 
@@ -1495,7 +1495,7 @@ contains
     ! can allocate vectors, copy from LL -> vector and read/write restarts.
     !
     ! !USES:
-    use clm_varpar, only : nclmax
+    use EDTypesMod, only : cp_nclmax
     !
     ! !ARGUMENTS:
     class(EDRestartVectorClass) , intent(inout)      :: this
@@ -1668,18 +1668,18 @@ contains
              countNcwd = countNcwd + 1
           end do
           
-          do i = 1,nclmax ! nclmax currently 2
+          do i = 1,cp_nclmax ! cp_nclmax currently 2
              this%spread(countNclmax)         = currentPatch%spread(i)
              countNclmax = countNclmax + 1
           end do
           
           if (this%DEBUG) write(iulog,*) 'CLTV countSunZ 1 ',countSunZ
           
-          if (this%DEBUG) write(iulog,*) 'CLTV 1186 ',nlevcan_ed,numpft_ed,nclmax
+          if (this%DEBUG) write(iulog,*) 'CLTV 1186 ',cp_nlevcan,numpft_ed,cp_nclmax
           
-          do k = 1,nlevcan_ed ! nlevcan_ed currently 40
+          do k = 1,cp_nlevcan ! cp_nlevcan currently 40
              do j = 1,numpft_ed ! numpft_ed currently 2
-                do i = 1,nclmax ! nclmax currently 2
+                do i = 1,cp_nclmax ! cp_nclmax currently 2
                    this%f_sun(countSunZ)       = currentPatch%f_sun(i,j,k)
                    this%fabd_sun_z(countSunZ)  = currentPatch%fabd_sun_z(i,j,k)
                    this%fabi_sun_z(countSunZ)  = currentPatch%fabi_sun_z(i,j,k)
@@ -1695,7 +1695,7 @@ contains
           incrementOffset = incrementOffset + numCohortsPerPatch
           
           ! reset counters so that they are all advanced evenly. Currently
-          ! the offset is 10, the max of numpft_ed, ncwd, nclmax,
+          ! the offset is 10, the max of numpft_ed, ncwd, cp_nclmax,
           ! countWaterMem and the number of allowed cohorts per patch
           countPft      = incrementOffset
           countNcwd     = incrementOffset
@@ -1769,7 +1769,7 @@ contains
     ! !LOCAL VARIABLES:
     type (ed_patch_type) , pointer  :: newp
     type(ed_cohort_type), allocatable :: temp_cohort
-    real(r8) :: cwd_ag_local(ncwd),cwd_bg_local(ncwd),spread_local(nclmax)
+    real(r8) :: cwd_ag_local(ncwd),cwd_bg_local(ncwd),spread_local(cp_nclmax)
     real(r8) :: leaf_litter_local(numpft_ed),root_litter_local(numpft_ed)
     real(r8) :: seed_bank_local(numpft_ed)
     real(r8) :: age !notional age of this patch
@@ -1835,7 +1835,6 @@ contains
 
           ! create patch
           allocate(newp)    
-          call zero_patch(newp)
 
           ! make new patch
           call create_patch(sites(s), newp, age, area, &
@@ -1939,7 +1938,6 @@ contains
     ! can allocate vectors, copy from LL -> vector and read/write restarts.
     !
     ! !USES:
-    use clm_varpar, only : nclmax
     !
     ! !ARGUMENTS:
     class(EDRestartVectorClass) , intent(inout)         :: this
@@ -2096,16 +2094,16 @@ contains
              countNcwd = countNcwd + 1
           end do
           
-          do i = 1,nclmax ! nclmax currently 2
+          do i = 1,cp_nclmax ! cp_nclmax currently 2
              currentPatch%spread(i) = this%spread(countNclmax) 
              countNclmax  = countNclmax + 1
           end do
           
           if (this%DEBUG) write(iulog,*) 'CVTL countSunZ 1 ',countSunZ
           
-          do k = 1,nlevcan_ed ! nlevcan_ed currently 40
+          do k = 1,cp_nlevcan ! cp_nlevcan currently 40
              do j = 1,numpft_ed ! numpft_ed currently 2
-                do i = 1,nclmax ! nclmax currently 2
+                do i = 1,cp_nclmax ! cp_nclmax currently 2
                    currentPatch%f_sun(i,j,k)      = this%f_sun(countSunZ) 
                    currentPatch%fabd_sun_z(i,j,k) = this%fabd_sun_z(countSunZ) 
                    currentPatch%fabi_sun_z(i,j,k) = this%fabi_sun_z(countSunZ) 

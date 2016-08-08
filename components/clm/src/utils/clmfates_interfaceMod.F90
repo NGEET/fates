@@ -77,7 +77,6 @@ module CLMFatesInterfaceMod
    use EDCLMLinkMod          , only : ed_clm_type
    use EDTypesMod            , only : udata
    use EDTypesMod            , only : ed_patch_type
-   use EDtypesMod            , only : map_clmpatch_to_edpatch
    use EDtypesMod            , only : numPatchesPerCol
    use EDMainMod             , only : ed_ecosystem_dynamics
    use EDMainMod             , only : ed_update_site
@@ -891,7 +890,7 @@ contains
     use decompMod         , only : bounds_type
     use clm_time_manager  , only : get_step_size
     use clm_varcon        , only : rgas, tfrz, namep  
-    use clm_varpar        , only : nlevcan_ed, nclmax, nlevsoi, mxpft
+    use clm_varpar        , only : nlevsoi, mxpft
     use clm_varctl        , only : iulog
     use pftconMod         , only : pftcon
     use perf_mod          , only : t_startf, t_stopf
@@ -1064,15 +1063,15 @@ contains
     integer                                    :: s,c,p,ifp,icp
 
     associate(&
-         albgrd_col   =>    surfalb_inst%albgrd_col         , &
-         albgri_col   =>    surfalb_inst%albgri_col         , &
-         albd         =>    surfalb_inst%albd_patch         , &
-         albi         =>    surfalb_inst%albi_patch         , &
-         fabd         =>    surfalb_inst%fabd_patch         , &
-         fabi         =>    surfalb_inst%fabi_patch         , &
-         ftdd         =>    surfalb_inst%ftdd_patch         , &
-         ftid         =>    surfalb_inst%ftid_patch         , &
-         ftii         =>    surfalb_inst%ftii_patch)
+         albgrd_col   =>    surfalb_inst%albgrd_col         , & !in
+         albgri_col   =>    surfalb_inst%albgri_col         , & !in
+         albd         =>    surfalb_inst%albd_patch         , & !out
+         albi         =>    surfalb_inst%albi_patch         , & !out
+         fabd         =>    surfalb_inst%fabd_patch         , & !out
+         fabi         =>    surfalb_inst%fabi_patch         , & !out
+         ftdd         =>    surfalb_inst%ftdd_patch         , & !out
+         ftid         =>    surfalb_inst%ftid_patch         , & !out
+         ftii         =>    surfalb_inst%ftii_patch)            !out
 
     do s = 1, this%fates(nc)%nsites
 
