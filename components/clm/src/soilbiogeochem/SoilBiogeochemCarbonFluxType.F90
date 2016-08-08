@@ -49,9 +49,9 @@ module SoilBiogeochemCarbonFluxType
      real(r8), pointer :: soilc_change_col                          (:)     ! (gC/m2/s) FUN used soil C
 
      ! fluxes to receive carbon inputs from FATES
-     real(r8), pointer :: FATES_c_to_litr_lab_c_col                 (:)     ! total labile    litter coming from ED. gC/m3/s
-     real(r8), pointer :: FATES_c_to_litr_cel_c_col                 (:)     ! total cellulose    litter coming from ED. gC/m3/s
-     real(r8), pointer :: FATES_c_to_litr_lig_c_col                 (:)     ! total lignin    litter coming from ED. gC/m3/s
+     real(r8), pointer :: FATES_c_to_litr_lab_c_col                 (:,:)   ! total labile    litter coming from ED. gC/m3/s
+     real(r8), pointer :: FATES_c_to_litr_cel_c_col                 (:,:)   ! total cellulose    litter coming from ED. gC/m3/s
+     real(r8), pointer :: FATES_c_to_litr_lig_c_col                 (:,:)   ! total lignin    litter coming from ED. gC/m3/s
 
    contains
 
@@ -551,17 +551,17 @@ contains
 
     if ( use_ed ) then
 
-       hist_addfld_decomp(fname='FATES_c_to_litr_lab_c_col', units='gC/m^3/s',  type2d='levdcmp', &
+       call hist_addfld_decomp(fname='FATES_c_to_litr_lab_c', units='gC/m^3/s',  type2d='levdcmp', &
                    avgflag='A', long_name='litter labile carbon flux from FATES to BGC', &
-                   ptr_col=FATES_c_to_litr_lab_c_col)
+                   ptr_col=this%FATES_c_to_litr_lab_c_col)
 
-       hist_addfld_decomp(fname='FATES_c_to_litr_cel_c_col', units='gC/m^3/s',  type2d='levdcmp', &
+       call hist_addfld_decomp(fname='FATES_c_to_litr_cel_c', units='gC/m^3/s',  type2d='levdcmp', &
                    avgflag='A', long_name='litter celluluse carbon flux from FATES to BGC', &
-                   ptr_col=FATES_c_to_litr_cel_c_col)
+                   ptr_col=this%FATES_c_to_litr_cel_c_col)
 
-       hist_addfld_decomp(fname='FATES_c_to_litr_lig_c_col', units='gC/m^3/s',  type2d='levdcmp', &
+       call hist_addfld_decomp(fname='FATES_c_to_litr_lig_c', units='gC/m^3/s',  type2d='levdcmp', &
                    avgflag='A', long_name='litter lignin carbon flux from FATES to BGC', &
-                   ptr_col=FATES_c_to_litr_lig_c_col)
+                   ptr_col=this%FATES_c_to_litr_lig_c_col)
 
      endif
 
@@ -605,12 +605,18 @@ contains
     ! !USES:
     use restUtilMod
     use ncdio_pio
+    use clm_varctl, only : use_vertsoilc
     !
     ! !ARGUMENTS:
     class(soilbiogeochem_carbonflux_type) :: this
     type(bounds_type) , intent(in)        :: bounds  
     type(file_desc_t) , intent(inout)     :: ncid   ! netcdf id
     character(len=*)  , intent(in)        :: flag   !'read', 'write', 'define'
+    !
+    ! local vars
+    real(r8), pointer :: ptr1d(:)   ! temp. pointers for slicing larger arrays
+    real(r8), pointer :: ptr2d(:,:) ! temp. pointers for slicing larger arrays
+    logical  :: readvar
     !-----------------------------------------------------------------------
 
     !

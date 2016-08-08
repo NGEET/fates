@@ -111,7 +111,7 @@ contains
 
          cf_veg                => cnveg_carbonflux_inst                    , & ! Output:
          cs_veg                => cnveg_carbonstate_inst                   , & ! Output:
-         cf_soil               => soilbiogeochem_carbonflux_inst           , & ! Output:
+         cf_soil               => soilbiogeochem_carbonflux_inst             & ! Output:
          )
 
       ! set time steps

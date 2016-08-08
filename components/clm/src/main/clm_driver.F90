@@ -56,8 +56,6 @@ module clm_driver
   use ch4Mod                 , only : ch4, ch4_init_balance_check
   use DUSTMod                , only : DustDryDep, DustEmission
   use VOCEmissionMod         , only : VOCEmission
-  use clm_instMod            , only : clm_fates
-
   !
   use filterMod              , only : setFilters
   !
@@ -722,7 +720,6 @@ contains
                   filter(nc)%num_soilc, filter(nc)%soilc,                       &
                   filter(nc)%num_soilp, filter(nc)%soilp,                       &
                   filter(nc)%num_pcropp, filter(nc)%pcropp, doalb,              &
-               clm_fates%fates2hlm, &
                soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,         &
                c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
                c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &

@@ -45,7 +45,7 @@ module CLMFatesInterfaceMod
    use clm_varcon        , only : tfrz
    use clm_varpar        , only : numpft,            &
                                   numrad,            &
-                                  nlevgrnd
+                                  nlevgrnd, nlevdecomp_full
    use atm2lndType       , only : atm2lnd_type
    use SurfaceAlbedoType , only : surfalb_type
    use SolarAbsorbedType , only : solarabs_type
@@ -89,6 +89,7 @@ module CLMFatesInterfaceMod
    use EDSurfaceRadiationMod , only : ED_SunShadeFracs
    use EDBtranMod            , only : btran_ed, &
                                       get_active_suction_layers
+   use EDPhysiologyMod       , only: flux_into_litter_pools
 
    implicit none
 
@@ -215,6 +216,7 @@ contains
       ! Send parameters individually
       call set_fates_ctrlparms('num_sw_bbands',numrad)
       call set_fates_ctrlparms('num_lev_ground',nlevgrnd)
+      call set_fates_ctrlparms('num_levdecomp_full',nlevdecomp_full)
 
       ! Check through FATES parameters to see if all have been set
       call set_fates_ctrlparms('check_allset')
@@ -891,7 +893,7 @@ contains
       end do
 
 
-   end subroutine wrap_litter_fluxout(this, nc, bounds_clump, canopystate_inst)
+   end subroutine wrap_litter_fluxout
 
 
 
