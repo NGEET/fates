@@ -2146,7 +2146,8 @@ fraction_exposed= 1.0_r8
 
     ! NOTE(bja, 201608) as of clm4_5_10_r187 rootprof_beta is now a
     ! two dimensional array with the second dimension being water,1,
-    ! or carbon,2,.
+    ! or carbon,2,. These are currently hard coded, but may be
+    ! overwritten by the namelist.
     integer, parameter :: rooting_profile_varindex_water = 1
 
     
