@@ -748,10 +748,12 @@ contains
                spinup_geogterm_l23(c) = 1._r8
             endif
             !
-            if ( abs(spinup_factor(i_cwd) - 1._r8) .gt. .000001_r8) then
-               spinup_geogterm_cwd(c) = spinup_factor(i_cwd) * get_spinup_latitude_term(grc%latdeg(col%gridcell(c)))
-            else
-               spinup_geogterm_cwd(c) = 1._r8
+            if ( .not. use_ed ) then
+               if ( abs(spinup_factor(i_cwd) - 1._r8) .gt. .000001_r8) then
+                  spinup_geogterm_cwd(c) = spinup_factor(i_cwd) * get_spinup_latitude_term(grc%latdeg(col%gridcell(c)))
+               else
+                  spinup_geogterm_cwd(c) = 1._r8
+               endif
             endif
             !
             if ( abs(spinup_factor(i_soil1) - 1._r8) .gt. .000001_r8) then
@@ -1050,20 +1052,20 @@ contains
          end do
       end if
 
-      ! do the same for cwd, but only if ed is not enabled (because ED handles CWD on its own structure
+      ! do the same for cwd, but only if ed is not enabled, because ED handles CWD on its own structure
       if (.not. use_ed) then
          if (use_vertsoilc) then
             do j = 1,nlevdecomp
                do fc = 1,num_soilc
                   c = filter_soilc(fc)
-                  decomp_k(c,j,i_cwd)   = k_frag  * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j)
+                  decomp_k(c,j,i_cwd)   = k_frag  * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j) * spinup_geogterm_cwd(c)
                end do
             end do
          else
             do j = 1,nlevdecomp
                do fc = 1,num_soilc
                   c = filter_soilc(fc)
-                  decomp_k(c,j,i_cwd)   = k_frag  * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j)
+                  decomp_k(c,j,i_cwd)   = k_frag  * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j) * spinup_geogterm_cwd(c)
                end do
             end do
          end if
