@@ -79,13 +79,6 @@ module EDCLMLinkMod
      real(r8), pointer, private  :: ED_bleaf_patch             (:)   ! kGC/m2 Total leaf biomass.   
      real(r8), pointer, private  :: ED_biomass_patch           (:)   ! kGC/m2 Total biomass.        
 
-     ! real(r8), pointer, private  :: storvegc_patch             (:)   ! (gC/m2) stored vegetation carbon, excluding cpool
-     ! real(r8), pointer, private  :: dispvegc_patch             (:)   ! (gC/m2) displayed veg carbon, excluding storage and cpool
-     ! real(r8), pointer, private  :: leafc_patch                (:)   ! (gC/m2) leaf C
-     ! real(r8), pointer, private  :: livestemc_patch            (:)   ! (gC/m2) live stem C
-     ! real(r8), pointer, private  :: deadstemc_patch            (:)   ! (gC/m2) dead stem C
-     ! real(r8), pointer, private  :: livestemn_patch            (:)   ! (gN/m2) live stem N
-
      ! vegetation carbon fluxes at the patch scale
      real(r8), pointer, private  :: npp_patch                  (:)   ! (gC/m2/s) patch net primary production
      real(r8), pointer, private  :: gpp_patch                  (:)   ! (gC/m2/s) patch gross primary production 
@@ -122,12 +115,6 @@ module EDCLMLinkMod
      real(r8), pointer :: ed_m3_col_scpf                 (:,:) ! [Stems/ha/yr] Mean Carbon Starvation Mortality
      real(r8), pointer :: ed_m4_col_scpf                 (:,:) ! [Stems/ha/yr] Mean Impact Mortality
      real(r8), pointer :: ed_m5_col_scpf                 (:,:) ! [Stems/ha/yr] Mean Fire Mortality
-
-     ! profiles for vertically disaggregating litterfall fluxes
-     real(r8), pointer, private :: leaf_prof_col(:,:)               !(1/m) profile of leaves                         
-     real(r8), pointer, private :: froot_prof_col(:,:,:)            !(1/m) profile of fine roots                     
-     real(r8), pointer, private :: croot_prof_col(:,:)              !(1/m) profile of coarse roots                         
-     real(r8), pointer, private :: stem_prof_col(:,:)               !(1/m) profile of leaves                         
 
      ! summary carbon fluxes at the column level
      real(r8), pointer,  private :: nep_col(:)                       ! [gC/m2/s] Net ecosystem production, i.e. fast-timescale carbon balance that does not include disturbance
@@ -260,23 +247,11 @@ contains
     allocate(this%ED_bleaf_patch             (begp:endp))            ; this%ED_bleaf_patch             (:) = 0.0_r8    
     allocate(this%ED_biomass_patch           (begp:endp))            ; this%ED_biomass_patch           (:) = 0.0_r8    
 
-    ! allocate(this%storvegc_patch             (begp:endp))            ; this%storvegc_patch             (:) = nan
-    ! allocate(this%dispvegc_patch             (begp:endp))            ; this%dispvegc_patch             (:) = nan
-    ! allocate(this%leafc_patch                (begp:endp))            ; this%leafc_patch                (:) = nan
-    ! allocate(this%livestemc_patch            (begp:endp))            ; this%livestemc_patch            (:) = nan
-    ! allocate(this%deadstemc_patch            (begp:endp))            ; this%deadstemc_patch            (:) = nan
-    ! allocate(this%livestemn_patch            (begp:endp))            ; this%livestemn_patch            (:) = nan
-
     allocate(this%gpp_patch                  (begp:endp))            ; this%gpp_patch                  (:) = nan
     allocate(this%npp_patch                  (begp:endp))            ; this%npp_patch                  (:) = nan
     allocate(this%ar_patch                   (begp:endp))            ; this%ar_patch                   (:) = nan
     allocate(this%maint_resp_patch           (begp:endp))            ; this%maint_resp_patch           (:) = nan
     allocate(this%growth_resp_patch          (begp:endp))            ; this%growth_resp_patch          (:) = nan
-
-    allocate(this%leaf_prof_col              (begc:endc,1:nlevdecomp_full))            ; this%leaf_prof_col              (:,:) = nan
-    allocate(this%froot_prof_col             (begc:endc,1:numpft_ed,1:nlevdecomp_full)); this%froot_prof_col             (:,:,:) = nan
-    allocate(this%croot_prof_col             (begc:endc,1:nlevdecomp_full))            ; this%croot_prof_col             (:,:) = nan
-    allocate(this%stem_prof_col              (begc:endc,1:nlevdecomp_full))            ; this%stem_prof_col              (:,:) = nan
 
     allocate(this%ed_to_bgc_this_edts_col    (begc:endc))            ; this%ed_to_bgc_this_edts_col   (:) = nan
     allocate(this%ed_to_bgc_last_edts_col    (begc:endc))            ; this%ed_to_bgc_last_edts_col   (:) = nan
@@ -587,22 +562,6 @@ contains
          avgflag='A', long_name='total seed carbon at the column level', &
          ptr_col=this%seed_stock_col)
 
-
-    ! this%leaf_prof_col(begc:endc,1:nlevdecomp_full) = spval
-    ! call hist_addfld_decomp (fname='leaf_prof',  units='1/m', type2d='levdcmp', &
-    !      avgflag='A', long_name='leaf_prof', &
-    !      ptr_col=this%leaf_prof_col,default='inactive')
-
-    ! this%croot_prof_col(begc:endc,1:nlevdecomp_full) = spval
-    ! call hist_addfld_decomp (fname='croot_prof',  units='1/m', type2d='levdcmp', &
-    !      avgflag='A', long_name='croot_prof', &
-    !      ptr_col=this%croot_prof_col,default='inactive')
-
-    ! this%stem_prof_col(begc:endc,1:nlevdecomp_full) = spval
-    ! call hist_addfld_decomp (fname='stem_prof',  units='1/m', type2d='levdcmp', &
-    !      avgflag='A', long_name='stem_prof', &
-    !      ptr_col=this%stem_prof_col,default='inactive')
-
     
       ! Carbon Flux (grid dimension x scpf)
     ! ==============================================================
@@ -732,22 +691,6 @@ contains
     ! character(LEN=3)   :: istr1
     ! integer            :: k
     !------------------------------------------------------------------------
-
-    ! call restartvar(ncid=ncid, flag=flag, varname='leafc', xtype=ncd_double,  &
-    !      dim1name='pft', long_name='', units='', &
-    !      interpinic_flag='interp', readvar=readvar, data=this%leafc_patch) 
-
-    ! call restartvar(ncid=ncid, flag=flag, varname='livestemc', xtype=ncd_double,  &
-    !      dim1name='pft', long_name='', units='', &
-    !      interpinic_flag='interp', readvar=readvar, data=this%livestemc_patch) 
-
-    ! call restartvar(ncid=ncid, flag=flag, varname='deadstemc', xtype=ncd_double,  &
-    !      dim1name='pft', long_name='', units='', &
-    !      interpinic_flag='interp', readvar=readvar, data=this%deadstemc_patch)
-
-    ! call restartvar(ncid=ncid, flag=flag, varname='livestemn', xtype=ncd_double,  &
-    !      dim1name='pft', long_name='', units='', &
-    !      interpinic_flag='interp', readvar=readvar, data=this%livestemn_patch) 
 
     ptr1d => this%nep_timeintegrated_col(:)
     call restartvar(ncid=ncid, flag=flag, varname='nep_timeintegrated_col', xtype=ncd_double,  &
