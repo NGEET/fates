@@ -45,7 +45,8 @@ module CNDriverMod
   public :: CNDriverInit         ! Ecosystem dynamics: initialization
   public :: CNDriverNoLeaching   ! Ecosystem dynamics: phenology, vegetation, before doing N leaching
   public :: CNDriverLeaching     ! Ecosystem dynamics: phenology, vegetation, doing N leaching
-  public :: CNDriverSummary      ! Ecosystem dynamics: summary
+  public :: CNDriverSummarizeStates
+  public :: CNDriverSummarizeFluxes
   !-----------------------------------------------------------------------
 
 contains
@@ -197,7 +198,7 @@ contains
     !integer  , intent(in)    :: altmax_lastyear_indx_col(bounds%begc:)  ! frost table depth (m)
 
     associate(                                                                    &
-         rootfr_patch              => soilstate_inst%rootfr_patch               , & ! fraction of roots in each soil layer  (nlevgrnd)
+         crootfr_patch             => soilstate_inst%crootfr_patch              , & ! fraction of roots for carbon in each soil layer  (nlevgrnd)
          altmax_lastyear_indx_col  => canopystate_inst%altmax_lastyear_indx_col , & ! frost table depth (m)
          laisun                    => canopystate_inst%laisun_patch             , & ! Input:  [real(r8) (:)   ]  sunlit projected leaf area index        
          laisha                    => canopystate_inst%laisha_patch             , & ! Input:  [real(r8) (:)   ]  shaded projected leaf area index        
@@ -504,7 +505,7 @@ contains
 
     if ( use_nguardrail ) then
        call t_startf('CNPrecisionControl')
-       call CNPrecisionControl(num_soilp, filter_soilp, &
+       call CNPrecisionControl(bounds, num_soilp, filter_soilp, &
             cnveg_carbonstate_inst, c13_cnveg_carbonstate_inst, &
             c14_cnveg_carbonstate_inst, cnveg_nitrogenstate_inst)
        call t_stopf('CNPrecisionControl')
@@ -558,7 +559,7 @@ contains
 
     if ( use_nguardrail ) then
        call t_startf('CNPrecisionControl')
-       call CNPrecisionControl(num_soilp, filter_soilp, &
+       call CNPrecisionControl(bounds, num_soilp, filter_soilp, &
             cnveg_carbonstate_inst, c13_cnveg_carbonstate_inst, &
             c14_cnveg_carbonstate_inst, cnveg_nitrogenstate_inst)
        call t_stopf('CNPrecisionControl')
@@ -683,7 +684,7 @@ contains
 
     if ( use_nguardrail ) then
        call t_startf('CNPrecisionControl')
-       call CNPrecisionControl(num_soilp, filter_soilp, &
+       call CNPrecisionControl(bounds, num_soilp, filter_soilp, &
             cnveg_carbonstate_inst, c13_cnveg_carbonstate_inst, &
             c14_cnveg_carbonstate_inst, cnveg_nitrogenstate_inst)
        call t_stopf('CNPrecisionControl')
@@ -790,7 +791,7 @@ contains
 
     if ( use_nguardrail ) then
        call t_startf('CNPrecisionControl')
-       call CNPrecisionControl(num_soilp, filter_soilp, &
+       call CNPrecisionControl(bounds, num_soilp, filter_soilp, &
             cnveg_carbonstate_inst, c13_cnveg_carbonstate_inst, &
             c14_cnveg_carbonstate_inst, cnveg_nitrogenstate_inst)
        call t_stopf('CNPrecisionControl')
@@ -850,25 +851,19 @@ contains
   end subroutine CNDriverLeaching
 
   !-----------------------------------------------------------------------
-  subroutine CNDriverSummary(bounds, num_allc, filter_allc, &
+  subroutine CNDriverSummarizeStates(bounds, num_allc, filter_allc, &
        num_soilc, filter_soilc, num_soilp, filter_soilp, &
-       cnveg_state_inst, cnveg_carbonflux_inst, cnveg_carbonstate_inst, &
-       c13_cnveg_carbonflux_inst, c13_cnveg_carbonstate_inst, &
-       c14_cnveg_carbonflux_inst, c14_cnveg_carbonstate_inst, &
-       cnveg_nitrogenflux_inst, cnveg_nitrogenstate_inst, &
-       c_products_inst, c13_products_inst, c14_products_inst, &
-       soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst, &
-       c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
-       c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
-       soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst)
+       cnveg_carbonstate_inst, c13_cnveg_carbonstate_inst, c14_cnveg_carbonstate_inst, &
+       cnveg_nitrogenstate_inst, &
+       soilbiogeochem_carbonstate_inst, &
+       c13_soilbiogeochem_carbonstate_inst, &
+       c14_soilbiogeochem_carbonstate_inst, &
+       soilbiogeochem_nitrogenstate_inst)
     !
     ! !DESCRIPTION:
-    ! Call to all CN and SoilBiogeochem summary routines
+    ! Call to all CN and SoilBiogeochem summary routines, for state variables
     !
     ! !USES:
-    use clm_varpar                        , only: ndecomp_cascade_transitions
-    use CNPrecisionControlMod             , only: CNPrecisionControl
-    use SoilBiogeochemPrecisionControlMod , only: SoilBiogeochemPrecisionControl
     !
     ! !ARGUMENTS:
     type(bounds_type)                       , intent(in)    :: bounds  
@@ -878,55 +873,24 @@ contains
     integer                                 , intent(in)    :: filter_soilc(:)   ! filter for soil columns
     integer                                 , intent(in)    :: num_soilp         ! number of soil patches in filter
     integer                                 , intent(in)    :: filter_soilp(:)   ! filter for soil patches
-    type(cnveg_state_type)                  , intent(inout) :: cnveg_state_inst
-    type(cnveg_carbonflux_type)             , intent(inout) :: cnveg_carbonflux_inst
     type(cnveg_carbonstate_type)            , intent(inout) :: cnveg_carbonstate_inst
-    type(cnveg_carbonflux_type)             , intent(inout) :: c13_cnveg_carbonflux_inst
     type(cnveg_carbonstate_type)            , intent(inout) :: c13_cnveg_carbonstate_inst
-    type(cnveg_carbonflux_type)             , intent(inout) :: c14_cnveg_carbonflux_inst
     type(cnveg_carbonstate_type)            , intent(inout) :: c14_cnveg_carbonstate_inst
-    type(cnveg_nitrogenflux_type)           , intent(inout) :: cnveg_nitrogenflux_inst
     type(cnveg_nitrogenstate_type)          , intent(inout) :: cnveg_nitrogenstate_inst
-    type(cn_products_type)                  , intent(in)    :: c_products_inst
-    type(cn_products_type)                  , intent(in)    :: c13_products_inst
-    type(cn_products_type)                  , intent(in)    :: c14_products_inst
-    type(soilbiogeochem_carbonflux_type)    , intent(inout) :: soilbiogeochem_carbonflux_inst
     type(soilbiogeochem_carbonstate_type)   , intent(inout) :: soilbiogeochem_carbonstate_inst
-    type(soilbiogeochem_carbonflux_type)    , intent(inout) :: c13_soilbiogeochem_carbonflux_inst
     type(soilbiogeochem_carbonstate_type)   , intent(inout) :: c13_soilbiogeochem_carbonstate_inst
-    type(soilbiogeochem_carbonflux_type)    , intent(inout) :: c14_soilbiogeochem_carbonflux_inst
     type(soilbiogeochem_carbonstate_type)   , intent(inout) :: c14_soilbiogeochem_carbonstate_inst
-    type(soilbiogeochem_nitrogenflux_type)  , intent(inout) :: soilbiogeochem_nitrogenflux_inst
     type(soilbiogeochem_nitrogenstate_type) , intent(inout) :: soilbiogeochem_nitrogenstate_inst
     !
     ! !LOCAL VARIABLES:
     integer :: begc,endc
-    integer :: begg,endg
+
+    character(len=*), parameter :: subname = 'CNDriverSummarizeStates'
     !-----------------------------------------------------------------------
-  
+
     begc = bounds%begc; endc= bounds%endc
-    begg = bounds%begg; endg = bounds%endg
-
-    ! Call to all summary routines
-
-
-    ! Set controls on very low values in critical state variables 
-
-    call t_startf('CNPrecisionControl')
-    call CNPrecisionControl(num_soilp, filter_soilp, &
-         cnveg_carbonstate_inst, c13_cnveg_carbonstate_inst, &
-         c14_cnveg_carbonstate_inst, cnveg_nitrogenstate_inst)
-    call t_stopf('CNPrecisionControl')
-
-    call t_startf('SoilBiogeochemPrecisionControl')
-    call SoilBiogeochemPrecisionControl(num_soilc, filter_soilc,  &
-         soilbiogeochem_carbonstate_inst, c13_soilbiogeochem_carbonstate_inst, &
-         c14_soilbiogeochem_carbonstate_inst,soilbiogeochem_nitrogenstate_inst)
-    call t_stopf('SoilBiogeochemPrecisionControl')
 
     call t_startf('CNsum')
-    ! Note - all summary updates to cnveg_carbonstate_inst and cnveg_carbonflux_inst are done in 
-    ! soilbiogeochem_carbonstate_inst%summary and CNVeg_carbonstate_inst%summary
 
     ! ----------------------------------------------
     ! soilbiogeochem carbon/nitrogen state summary
@@ -940,19 +904,6 @@ contains
        call c14_soilbiogeochem_carbonstate_inst%summary(bounds, num_allc, filter_allc)
     end if
     call soilbiogeochem_nitrogenstate_inst%summary(bounds, num_allc, filter_allc)
-
-    ! ----------------------------------------------
-    ! soilbiogeochem carbon/nitrogen flux summary
-    ! ----------------------------------------------
-
-    call soilbiogeochem_carbonflux_inst%Summary(bounds, num_soilc, filter_soilc)
-    if ( use_c13 ) then
-       call c13_soilbiogeochem_carbonflux_inst%Summary(bounds, num_soilc, filter_soilc)
-    end if
-    if ( use_c14 ) then
-       call c14_soilbiogeochem_carbonflux_inst%Summary(bounds, num_soilc, filter_soilc)
-    end if
-    call soilbiogeochem_nitrogenflux_inst%Summary(bounds, num_soilc, filter_soilc)
 
     ! ----------------------------------------------
     ! cnveg carbon/nitrogen state summary
@@ -990,6 +941,70 @@ contains
          num_soilc, filter_soilc, num_soilp, filter_soilp, &
          soilbiogeochem_nitrogenstate_inst)
 
+    call t_stopf('CNsum')
+
+  end subroutine CNDriverSummarizeStates
+
+  !-----------------------------------------------------------------------
+  subroutine CNDriverSummarizeFluxes(bounds, &
+       num_soilc, filter_soilc, num_soilp, filter_soilp, &
+       cnveg_carbonflux_inst, c13_cnveg_carbonflux_inst, c14_cnveg_carbonflux_inst, &
+       cnveg_nitrogenflux_inst, &
+       c_products_inst, c13_products_inst, c14_products_inst, &
+       soilbiogeochem_carbonflux_inst, &
+       c13_soilbiogeochem_carbonflux_inst, &
+       c14_soilbiogeochem_carbonflux_inst, &
+       soilbiogeochem_nitrogenflux_inst)
+    !
+    ! !DESCRIPTION:
+    ! Call to all CN and SoilBiogeochem summary routines, for state variables
+    !
+    ! !USES:
+    use clm_varpar                        , only: ndecomp_cascade_transitions
+    !
+    ! !ARGUMENTS:
+    type(bounds_type)                       , intent(in)    :: bounds  
+    integer                                 , intent(in)    :: num_soilc         ! number of soil columns in filter
+    integer                                 , intent(in)    :: filter_soilc(:)   ! filter for soil columns
+    integer                                 , intent(in)    :: num_soilp         ! number of soil patches in filter
+    integer                                 , intent(in)    :: filter_soilp(:)   ! filter for soil patches
+    type(cnveg_carbonflux_type)             , intent(inout) :: cnveg_carbonflux_inst
+    type(cnveg_carbonflux_type)             , intent(inout) :: c13_cnveg_carbonflux_inst
+    type(cnveg_carbonflux_type)             , intent(inout) :: c14_cnveg_carbonflux_inst
+    type(cnveg_nitrogenflux_type)           , intent(inout) :: cnveg_nitrogenflux_inst
+    type(cn_products_type)                  , intent(in)    :: c_products_inst
+    type(cn_products_type)                  , intent(in)    :: c13_products_inst
+    type(cn_products_type)                  , intent(in)    :: c14_products_inst
+    type(soilbiogeochem_carbonflux_type)    , intent(inout) :: soilbiogeochem_carbonflux_inst
+    type(soilbiogeochem_carbonflux_type)    , intent(inout) :: c13_soilbiogeochem_carbonflux_inst
+    type(soilbiogeochem_carbonflux_type)    , intent(inout) :: c14_soilbiogeochem_carbonflux_inst
+    type(soilbiogeochem_nitrogenflux_type)  , intent(inout) :: soilbiogeochem_nitrogenflux_inst
+    !
+    ! !LOCAL VARIABLES:
+    integer :: begc,endc
+    integer :: begg,endg
+
+    character(len=*), parameter :: subname = 'CNDriverSummarizeFluxes'
+    !-----------------------------------------------------------------------
+
+    begc = bounds%begc; endc= bounds%endc
+    begg = bounds%begg; endg = bounds%endg
+
+    call t_startf('CNsum')
+
+    ! ----------------------------------------------
+    ! soilbiogeochem carbon/nitrogen flux summary
+    ! ----------------------------------------------
+
+    call soilbiogeochem_carbonflux_inst%Summary(bounds, num_soilc, filter_soilc)
+    if ( use_c13 ) then
+       call c13_soilbiogeochem_carbonflux_inst%Summary(bounds, num_soilc, filter_soilc)
+    end if
+    if ( use_c14 ) then
+       call c14_soilbiogeochem_carbonflux_inst%Summary(bounds, num_soilc, filter_soilc)
+    end if
+    call soilbiogeochem_nitrogenflux_inst%Summary(bounds, num_soilc, filter_soilc)
+
     ! ----------------------------------------------
     ! cnveg carbon/nitrogen flux summary
     ! ----------------------------------------------
@@ -1026,6 +1041,6 @@ contains
 
     call t_stopf('CNsum')
 
-  end subroutine CNDriverSummary
+  end subroutine CNDriverSummarizeFluxes
 
 end  module CNDriverMod

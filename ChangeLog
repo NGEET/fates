@@ -1,4 +1,991 @@
 ===============================================================
+Tag name:  clm4_5_11_r188
+Originator(s):  erik (Erik Kluzek)
+Date: Fri Aug  5 13:53:01 MDT 2016
+One-line Summary: A set of small answer changing issues for both clm45 and clm50
+
+Purpose of changes
+------------------
+
+Changes to CLM45 and CLM50:
+
+Some adjustments to methane output (for both CLM45BGC) and CLM50BGC from Xiyan Xu. This calculates 
+finundated from before snow, and rather than multiplying m_tiller by LAI it multiples by a constant four.
+
+Update Li2014 FireFluxes subroutine for spinupstate=2 capability (so can be shared). Changes to
+roundoff, while also allowing spinupstate==2 and fixing bug 2243 to deal with deadstem for CLM45 
+from Charlie Koven.
+
+Carbon and Nitrogen state missing accounting of of live to dead from fire in StateUpdate3.
+
+Nitrogen uptake code error from Xiaojuan Yang and Charlie Koven. This is dependent on use_nitrif_denitrif=T
+so will only affect CLM45BGC/CLM50BGC, but not SP or CN alone simualtions. This is for the 2nd pass at 
+Nitrogen uptake.
+
+Issue with carbon Isotopes. Brett Raczka and Henrique Duarte at Univ. Utah have identified a bug in the 
+CLM4.5 C isotope code, in which isotope ratios are not stabilizing when fire turns on.  Turning off the 
+fire code produces reasonable isotope ratios.  We've identified that the problem is that the variables 
+for the fire fluxes associated with the new fire code were never copied over into CNCIsoFluxMod.F90. Fix
+from Charlie Koven, and Brett verified it worked in his version. Also update the C14 half-life value. Used
+to be the Libbey value, now use the updated one.
+
+Changes to CLM50 only:
+
+Remove discontiniues in new CLM50 snow density. Also if wind is zero (< 0.1m/s), wind_dependent_snowdensity
+is increase is also zero. Some changes to fire injection height for fire-emissions from Simone Tilmes, and a unit-conversion
+error fix from Fang Li.
+
+Summary:
+
+ciso errors bug 2116 (isotopes both clm45/clm5)
+Bug 2224 N uptake code clm45/clm50BGC
+Transfer of live to dead bug 2264 clm45/clm5)
+2326 for shade part clm5
+snow density discontinuities (2328) clm5
+Methane change on mechanges branch clm45/clm5 2338
+2340 Fire emission change from Simone clm5
+Units conversion error in CNfire-emissions bug 2342 clm5
+
+Bugs fixed or introduced
+------------------------
+
+Bugs fixed (include bugzilla ID):
+
+2116  C isotope (13C and 14C) errors in fire code
+2141  Precision of constants in SoilTemperature.F90 is not double
+2224  plant N uptake second pass error 
+2243  Deadstem not taken into account in fire-fluxes for clm4_5 (koven) (FOR CLM45 SIDE)
+2264  Fire is missing accounting of C/N for transfer of live to dead
+2326  Bad multiplication of btran for soybean or nbrdlf_dcd_tmp_shrub with CNDV in CanopyFluxes
+2328  Discontinuities in new CLM50 snow density formulation
+2338  Use the pre-snow values to calculate finundated, and use constant for m_tiller rather than elai
+2340  Adjustments to fire-emission from Simone Tilmes
+2342  Units conversion error in CNfire-emissions
+
+Known bugs introduced in this tag (include bugzilla ID): 
+
+2332  fire_emiss tests don't work (cime issue)
+
+Notes of particular relevance for users
+---------------------------------------
+
+Caveats for users: None
+
+Changes to CLM's user interface: None
+
+Changes made to namelist defaults: None
+
+Changes to the datasets: None
+
+Substantial timing or memory changes: None
+
+Notes of particular relevance for developers: (including Code reviews and testing)
+---------------------------------------------
+
+Caveats for developers:  None
+
+Changes to tests or testing: None
+
+Code reviewed by: self,fangli,slater,stilmes,koven
+
+CLM testing: regular
+
+ [PASS means all tests PASS and OK means tests PASS other than expected fails.]
+
+  build-namelist tests:
+
+    yellowstone - PASS
+
+  unit-tests (components/clm/src):
+
+    yellowstone - PASS
+
+  regular tests (aux_clm40, aux_clm45):
+
+    yellowstone_intel - OK
+    yellowstone_pgi - OK
+    yellowstone_gnu (clm45 only) - OK
+    hobart_nag - PASS
+
+CLM tag used for the baseline comparisons:  clm4_5_10_r187
+
+
+Answer changes
+--------------
+
+Changes answers relative to baseline:   Yes! for clm4_5 and clm5_0
+
+  Summarize any changes to answers, i.e.,
+    - what code configurations: clm4_5 BGC and CN compsets and Carbon isotopes 
+                                clm5_0 all (BGC, CN, SP)
+                                any fire-emission
+    - what platforms/compilers: All
+    - nature of change: similar climate
+
+Detailed list of changes
+------------------------
+
+List any svn externals directories updated (cime, rtm, mosart, cism, etc.): cime
+   Add changes to cime branch tag to be able to run on hobart
+
+   cime to clm4_5_11_r188_cime4.5.14
+
+List all files eliminated: None
+
+List all files added and what they do: Add unit tests for new snow bulk density
+
+   M components/clm/src/biogeophys/test/SnowHydrology_test/test_SnowHydrology_newSnowBulkDensity.pf
+
+List all existing files that have been modified, and describe the changes:
+
+   M components/clm/src/biogeochem/CNNStateUpdate3Mod.F90 - Subtract live to dead from fire Nitrogen for 
+        live/dead and stem/root (both CLM45CN/BGC and CLM50CN/BGC)
+   M components/clm/src/biogeochem/CNC14DecayMod.F90 ------ Adjust C14 half-life from Libby 5568 to 5730 a
+       more recent value used (this affects both clm45 and clm50 when use_c14 is on)
+   M components/clm/src/biogeochem/ch4Mod.F90 ------------- Calculate finundated from before snowfall, and don't multiply
+        m_tiller by LAI, but by 4.0.
+   M components/clm/src/biogeochem/CNCStateUpdate3Mod.F90 - Subtract live to dead from fire Nitrogen for 
+        live/dead and stem/root (both CLM45CN/BGC and CLM50CN/BGC)
+   M components/clm/src/biogeochem/CNCIsoFluxMod.F90 ------ Missing isotope flux calculations (changes for CLM45/50 with c13/c14)
+   M components/clm/src/biogeochem/CNFireEmissionsMod.F90 - Changes from Simone Tilmes adjusting the fire
+        injection heights for different PFTS and also use indices rather than hard-coded magic integers
+   M components/clm/src/biogeochem/CNFireLi2014Mod.F90 ---- Use same version of FireFluxes as in Li2016, 
+        so can use spinup_state==2 and apply a previous bug-fix (). Outside of that answers are roundoff
+        different. And this allows the base version of the subroutine to be used for both Li2014 and Li2016
+        to reduce code duplication.
+
+   M components/clm/src/biogeophys/CanopyFluxesMod.F90 ---- Remove 2nd adjustment to btran for soybean 
+        and nbrdlf_dcd_tmp_shrub for CNDV (both clm45crop/cndv and clm50crop/cndv)
+   M components/clm/src/biogeophys/SnowHydrologyMod.F90 --- Make new snow bulk density continuous (only CLM50)
+        add unit-test function: SnowHydrologySetControlForTesting. Apply new wind dependent density increase
+        only for wind > 0.1m/sec (so no density increase at zero wind)
+
+   M components/clm/src/soilbiogeochem/SoilBiogeochemCompetitionMod.F90 --- Bug 2224
+
+   M components/clm/src/biogeophys/test/SnowHydrology_test/CMakeLists.txt - add tests for snow density
+
+===============================================================
+===============================================================
+Tag name:  clm4_5_10_r187
+Originator(s):  erik (Erik Kluzek)
+Date: Tue Jul 26 21:45:51 MDT 2016
+One-line Summary: Some CLM45/50 changes: seperate carbon and water root profile, turn off undercanopystability, 
+                  really turn PHS on, LUNA predict sunlit fraction N fractionation
+
+Purpose of changes
+------------------
+
+   Seperate the carbon and water fine root profiles and have namelist control over them. This removes the duplicated
+   code in soilbiogeochem that replicated the Jackson-1996 profile. Also remove several soilbiogeochem specific namelist
+   control items over the root profile.
+
+   CLM50 changes: 
+        Change water fine root profile to Jackson-1996 with rootprof_beta adjusted for water (dlawren)
+        Turn off under canopy stability term that decreases csoilc by Sakaguchi&Zeng, 2008 (swensosc)
+        When fun on -- add cpool_to_leafc to leafc_to_litter and cpool_to_frootc to frootc_to_litter (rfisher)
+        Really turn Plant Hydrallic Stress on (erik)
+        Have LUNA predict the scaling of Vcmax/Jmax/tpu-25 for canopy sunlight/shaded average in Photosynthesis (rfisher)
+
+   CLM45 changes:  Water fine root profile was used rather than carbon profile (used in soilbiogeochem) in CNMResp and in ch4Mod
+     The profile used was zeng_2001, it's now Jackson_1996. You can duplicate the old answers if you use zeng-2001 for CNMResp
+     and ch4Mod, but Jackson-1996 for soilbiogeochem.
+
+
+Bugs fixed or introduced
+------------------------
+
+Bugs fixed (include bugzilla ID): 2337, 2334, 2331, 2311
+   2337 Methane and maintenance respiration using water root profile rather than carbon root profile
+   2334	Plant hydraulic stress not turned on by default in clm4_5_9_r184
+   2331 many build-namelist tests fail when comparing a tag against itself
+   2311 Move mbbopt to params file
+
+Known bugs introduced in this tag (include bugzilla ID): 2339
+   2339 croofr and rootfr profiles are time constant but default output to history
+
+
+Notes of particular relevance for users
+---------------------------------------
+
+Caveats for users (e.g., need to interpolate initial conditions): None
+
+Changes to CLM's user interface (e.g., new/renamed XML or namelist variables): Namelist items added and removed
+        Add: rooting_profile_method_water, rooting_profile_method_carbon, rooting_profile_varindex_water,
+             rooting_profile_varindex_carbon, and use_undercanopy_stability
+        Remove: pftspecific_rootingprofile, exponential_rooting_profile, and rootprof_exp
+
+Changes made to namelist defaults (e.g., changed parameter values):
+        set: rooting_profile_method_carbon = Jackson1996 (both clm50 and clm45)
+             rooting_profile_method_water  = Zeng_2001 (clm45), Jackson1996 (clm50)
+             use_undercanopy_stability     = .true. (clm45),   .false. (clm50)
+
+Changes to the datasets (e.g., parameter, surface or initial files):
+   New params files (with 2D rootprof_beta)
+
+Substantial timing or memory changes: None
+
+Notes of particular relevance for developers: (including Code reviews and testing)
+---------------------------------------------
+
+Caveats for developers (e.g., code that is duplicated that requires double maintenance): None
+
+Changes to tests or testing: tests with dynroots need to explicitly turn PHS off
+
+Code reviewed by: self, dlawren, rfisher
+
+CLM testing: regular
+
+ [PASS means all tests PASS and OK means tests PASS other than expected fails.]
+
+  build-namelist tests:
+
+    yellowstone - OK (83 compare tests FAIL, because of namelist changes)
+
+  unit-tests (components/clm/src):
+
+    yellowstone - PASS
+
+  regular tests (aux_clm40, aux_clm45):
+
+    yellowstone_intel -  OK
+    yellowstone_pgi -  OK
+    yellowstone_gnu (clm45 only) -  OK
+    hobart_nag - PASS
+
+CLM tag used for the baseline comparisons:  clm4_5_9_r186
+
+
+Answer changes
+--------------
+
+Changes answers relative to baseline: CLM45BGC and all CLM50
+
+  Summarize any changes to answers, i.e.,
+    - what code configurations: CLM45BGC and all CLM50 compsets
+    - what platforms/compilers: All
+    - nature of change: CLM45 
+         CLM50 
+
+   If this tag changes climate describe the run(s) done to evaluate the new
+   climate (put details of the simulations in the experiment database)
+       - casename: rfisher    respmods_n31_clm4_5_9_r185_00
+
+Detailed list of changes
+------------------------
+
+List any svn externals directories updated (cime, rtm, mosart, cism, etc.): None
+
+List all files eliminated: None
+
+List all files added and what they do: None
+
+List all existing files that have been modified, and describe the changes:
+
+   M components/clm/bld/unit_testers/NMLTest/CompFiles.pm --- Fix bug comparison to same version (2331)
+
+   M components/clm/bld/namelist_files/namelist_definition_clm4_5.xml -- Remove: rooting_profile_method
+        Add: rooting_profile_method_water, rooting_profile_method_carbon, rooting_profile_varindex_water,
+             rooting_profile_varindex_carbon, and use_undercanopy_stability
+        Remove: pftspecific_rootingprofile, exponential_rooting_profile, and rootprof_exp     
+   M components/clm/bld/namelist_files/namelist_defaults_clm4_5.xml -- new param files, 
+        set: rooting_profile_method_carbon, rooting_profile_method_water, and use_undercanopy_stability
+   M components/clm/bld/namelist_files/namelist_defaults_drydep.xml -- Update to use 79 PFT megan factors file
+
+   M components/clm/cime_config/testdefs/testmods_dirs/clm/clm50dynroots/user_nl_clm --- add use_hydrstress = .false.
+   M components/clm/cime_config/testdefs/testmods_dirs/clm/cropMonthOutput/user_nl_clm - add use_hydrstress = .false.
+
+   M components/clm/bld/CLMBuildNamelist.pm --- Pass use_ed to use_hydrstress default (2334), add setup_logic_canopyfluxes
+       namelist, change rooting_profile_method to rooting_profile_method_water/carbon, canopyfluxes_inparm namelist group.
+
+   M components/clm/src/biogeochem/CNMRespMod.F90 ------ Use carbon fine root profile (crootfr_patch) rather than water profile (2337)
+   M components/clm/src/biogeochem/CNFUNMod.F90 -------- Use carbon fine root profile (crootfr_patch) rather than water profile
+   M components/clm/src/biogeochem/CNDriverMod.F90 ----- Use carbon fine root profile (crootfr_patch) rather than water profile
+   M components/clm/src/biogeochem/ch4Mod.F90 ---------- Use carbon fine root profile (crootfr_patch) rather than water profile (2337)
+   M components/clm/src/biogeochem/CNPhenologyMod.F90 -- When fun on -- add cpool_to_leafc to leafc_to_litter and
+        cpool_to_frootc to frootc_to_litter from Rosie Fisher
+   M components/clm/src/biogeochem/VOCEmissionMod.F90 -- Have factors handle new PFT size
+   M components/clm/src/biogeochem/MEGANFactorsMod.F90 - Read mxpft PFT's from emissions file, check that number PFT's is as expected
+   M components/clm/src/main/controlMod.F90 ------------ Remove exponential_rooting_profile, rootprof_exp, surfprof_exp, pftspecific_rootingprofile
+        Add CanopyFluxesReadNML call
+   M components/clm/src/main/pftconMod.F90 ------------- rootprof_beta is 2D with nvariants as 2nd dimension
+   M components/clm/src/main/clm_varpar.F90 ------------ Add nvariants=2 for variants of PFT constants
+   M components/clm/src/biogeophys/LunaMod.F90 --------- Make LUNA predict sunlit fraction N fractionation, scale in PhotosynthesisMod
+   M components/clm/src/biogeophys/PhotosynthesisMod.F90 --------- Implement scaling of Vcmax/Jmax/tpu/25 from sunlit average to shaded canopy 
+         average value (both PHS and non-PHS versions), read mbbopt from params file in PHS section (2311)
+   M components/clm/src/biogeophys/SoilStateType.F90 ------------- Add crootfr_patch for carbon and initialize. rootfr_patch is for water
+         write out crootfr and rootfr to history (this should be cleaned up to be only for first history file as it's an unchanging
+         constant profile)
+   M components/clm/src/biogeophys/CanopyFluxesMod.F90 ----------- Add CanopyFluxesReadNML with canopyfluxes_inparm namelist
+         and set use_undercanopy_stability in it, decrease csoilc as in in Sakaguchi&Zeng, 2008 if on
+   M components/clm/src/biogeophys/SoilStateInitTimeConstMod.F90 - Initialize crootfr
+   M components/clm/src/biogeophys/RootBiophysMod.F90 ------------ Add water and carbon versions of rooting_profile_method
+        and add water and carbon rooting_profile_varindx for variant index of rootprof_beta to use from params file, make
+        m_to_cm and beta double precision, pass 'water' or 'carbon' to init_vegrootfr, varindx for carbon is 2 and 1 for water.
+       default rooting method is zen_2001 for water and jackson_1996 for carbon.
+   M components/clm/src/biogeophys/SurfaceRadiationMod.F90 ------- Remove unused single precision reals
+   M components/clm/src/soilbiogeochem/SoilBiogeochemVerticalProfileMod.F90 - Use crootfr_patch to set cinput_rootfr, remove
+      version of jackson_1996 carbon root profile that was in here. Also remove: exponential_rooting_profile, pftspecific_rootingprofile,
+      and rootprof_exp
+
+===============================================================
+===============================================================
+Tag name:  clm4_5_9_r186
+Originator(s):  sacks (Bill Sacks)
+Date: Wed Jul 13 07:17:04 MDT 2016
+One-line Summary: Initialize biogeochem balance checks AFTER column area updates
+
+Purpose of changes
+------------------
+
+Reworking the conservation of patch-level CN variables with dynamic landunits
+will make the column-level CN balance checks very tricky to determine, as they
+were written before - where the starting point for the comparison was determined
+before all of the area adjustments (i.e., the dyn subgrid stuff). This becomes
+much more straightforward if the initialization of the balance checks is done
+after the dyn subgrid stuff is complete. This tag makes that change.
+
+In order to accomplish that, we need to re-compute the CN state summaries after
+the dyn subgrid stuff is complete - near the beginning of the time step. We
+still need the summary routine at the end of the time step for the sake of
+diagnostics (e.g., history output). So now we call the summary routines twice
+for states. We do NOT need to call the flux summary routines at the beginning of
+the time step - and doing so doesn't really make sense (how do you summarize
+fluxes that haven't yet been computed) - so I have split the top-level summary
+routine into a SummarizeStates and SummarizeFluxes.
+
+I also reworked the ch4 balance check similarly, in order to be consistent with
+the CN balance checks.
+
+Longer-term, we'll add another set of balance checks that operate on
+gridcell-level quantities, which WILL cover the dyn subgrid stuff. So the
+overall sequence will look like:
+
+   Initialize gridcell-level balance checks
+   Dyn subgrid stuff (adjust patch, column, landunit areas, and do associated
+      state updates)
+   Initialize column-level balance checks
+   Science routines
+   Check column-level balance
+   Check gridcell-level balance
+
+
+
+Notes of particular relevance for users
+---------------------------------------
+
+Caveats for users (e.g., need to interpolate initial conditions): none
+
+Changes to CLM's user interface (e.g., new/renamed XML or namelist variables): none
+
+Changes made to namelist defaults (e.g., changed parameter values): none
+
+Changes to the datasets (e.g., parameter, surface or initial files): none
+
+Substantial timing or memory changes: none
+
+Notes of particular relevance for developers: (including Code reviews and testing)
+---------------------------------------------
+
+Caveats for developers (e.g., code that is duplicated that requires double maintenance): none
+
+Changes to tests or testing: none
+
+Code reviewed by: self
+
+CLM testing:
+
+ [PASS means all tests PASS and OK means tests PASS other than expected fails.]
+
+  build-namelist tests:
+
+    yellowstone - not run
+
+  unit-tests (components/clm/src):
+
+    yellowstone - pass
+
+  tools-tests (components/clm/test/tools):
+
+    yellowstone - not run
+
+  PTCLM testing (components/clm/tools/shared/PTCLM/test):
+
+     yellowstone - not run
+
+  regular tests (aux_clm40, aux_clm45):
+
+    yellowstone_intel - ok
+    yellowstone_pgi - ok
+    yellowstone_gnu (clm45 only) - ok
+    hobart_nag - ok
+
+ok means tests pass, some answers change as noted below
+
+CLM tag used for the baseline comparisons: clm4_5_9_r185
+
+
+Answer changes
+--------------
+
+Changes answers relative to baseline: YES
+
+  If a tag changes answers relative to baseline comparison the
+  following should be filled in (otherwise remove this section):
+
+  Summarize any changes to answers, i.e.,
+    - what code configurations: CLM45/CLM50 runs with BGC that involve changes
+      in subgrid areas (including HIST, RCP, DV and IG cases)
+    - what platforms/compilers: all
+    - nature of change (roundoff; larger than roundoff/same climate; new climate): 
+      Not investigated closely; expected to be larger than roundoff / same climate
+
+      Answer changes come from the fact that some code (e.g., the fire code)
+      uses the summarized state variables. Previously, this code was using the
+      state summaries from the previous time step. With this change, the code is
+      now using the updated state summaries. These updated state summaries can
+      differ from the ones computed at the end of the last time step if subgrid
+      areas have changed.
+
+   If bitwise differences were observed, how did you show they were no worse
+   than roundoff? N/A
+
+   If this tag changes climate describe the run(s) done to evaluate the new
+   climate (put details of the simulations in the experiment database)
+       - casename: N/A
+
+   URL for LMWG diagnostics output used to validate new climate: N/A
+	
+
+Detailed list of changes
+------------------------
+
+List any svn externals directories updated (cime, rtm, mosart, cism, etc.): none
+
+List all files eliminated: none
+
+List all files added and what they do: none
+
+List all existing files that have been modified, and describe the changes:
+
+========= Move initialization of CN and ch4 balance checks to AFTER dyn subgrid
+M       components/clm/src/main/clm_driver.F90
+M       components/clm/src/biogeochem/CNVegetationFacade.F90
+
+========= Split the CNDriverSummary into separate SummarizeStates and
+          SummarizeFluxes: Only SummarizeStates needs to be done near the start
+          of the time step. Also move calls to PrecisionControl to a higher
+          level, since these aren't needed in the initial call to
+          SummarizeStates.
+M       components/clm/src/biogeochem/CNDriverMod.F90
+
+========= Change which terms (from transient landcover) are included in the
+          balance checks, due to new placement in the driver sequence
+M       components/clm/src/biogeochem/CNBalanceCheckMod.F90
+M       components/clm/src/biogeochem/CNVegCarbonFluxType.F90
+M       components/clm/src/biogeochem/CNVegNitrogenFluxType.F90
+M       components/clm/src/biogeochem/dynConsBiogeochemMod.F90
+
+========= Rework timing of ch4 balance check initialization, too, for
+          consistency
+M       components/clm/src/biogeochem/ch4Mod.F90
+
+========= Remove some variables from Restart, now that we call the Summary
+          routines early in the time step. Also no longer update summary
+          diagnostic variables in DynamicPatchAdjustments
+M       components/clm/src/soilbiogeochem/SoilBiogeochemCarbonStateType.F90
+M       components/clm/src/soilbiogeochem/SoilBiogeochemNitrogenStateType.F90
+M       components/clm/src/biogeochem/CNVegNitrogenStateType.F90
+M       components/clm/src/biogeochem/CNVegCarbonStateType.F90
+
+========= No longer need to do p2c of totvegc in fire code: this is done in the
+          initial call to the summary routines
+M       components/clm/src/biogeochem/CNFireLi2014Mod.F90
+M       components/clm/src/biogeochem/CNFireLi2016Mod.F90
+M       components/clm/src/biogeochem/CNFireNoFireMod.F90
+
+========= Replace __FILE__ with filename parameter to avoid too-long lines with pgi
+M       components/clm/src/soilbiogeochem/SoilBiogeochemNitrifDenitrifMod.F90
+
+========= Remove
+          SMS_Lm25.f19_g16.ICLM45BGCCROP.yellowstone_gnu.clm-cropMonthOutput:
+          baseline comparisons have been passing for me recently
+M       components/clm/cime_config/testdefs/ExpectedTestFails.xml
+
+===============================================================
+===============================================================
+Tag name:  clm4_5_9_r185
+Originator(s):  sacks (Bill Sacks)
+Date:  Thu Jul  7 13:54:09 MDT 2016
+One-line Summary: Revert glacial melt behavior to the old treatment for mountain glaciers
+
+Purpose of changes
+------------------
+
+The primary change in this tag is reverting glacial melt behavior to the old
+scheme (i.e., the scheme used in standard glacier landunits) for mountain
+glaciers: The old scheme involves glacial melt remaining in place until it
+refreezes (thus, not generating any runoff), whereas the new scheme involves
+glacial melt running off and being replaced by ice from below (generating
+positive liquid runoff and negative ice runoff).
+
+The main motivation for this change is that mountain glaciers were generating
+substantial negative ice runoff in coupled cases when using the new scheme. This
+is presumably because CAM's topographic height is significantly lower than the
+real-world topographic height in mountainous regions, so mountain glaciers were
+seeing too-warm temperatures. The LIWG, in consultation with members of the
+LMWG, decided to revert mountain glaciers to their old behavior to avoid
+detrimentally impacting a coupled simulation. Because the LIWG is not currently
+concerned with the SMB of mountain glaciers - and because mountain glacier SMB
+cannot be realistically simulated yet anyway - this reversion was not considered
+a problem from their perspective.
+
+To accomplish this, this tag introduces a new namelist variable,
+glacier_region_melt_behavior. Like glacier_region_behavior, this keys off of the
+GLACIER_REGION field on the surface dataset. Thus, different melt behavior can
+be used for each glacier region. By default, Greenland and Antarctica use the
+new (glc_mec) behavior ('replaced_by_ice'), whereas other regions use the old
+behavior ('remains_in_place').
+
+For glacier columns that use the 'remains_in_place' melt behavior, we do NOT
+compute surface mass balance (SMB). This is because the negative component of
+SMB is non-sensical in those columns. To make this clear, the QICE, QICE_FRZ and
+QICE_MELT diagnostic fields are filled with missing values in the
+'remains_in_place' region. (However, the qice fields sent to the coupler, along
+with QICE_FORC, are 0 in that region - giving the values that are actually sent
+to the coupler.)
+
+Note that this means that different glacier regions now have different
+physics. And, in order to compute SMB, you would need to change the melt
+behavior, thus significantly changing the behavior of mountain glaciers.
+
+This tag also refactors the code that computes glacier surface mass balance so
+that this is centralized in one module: GlacierSurfaceMassBalanceMod.F90.
+
+Other behavior changes in this tag are:
+
+(1) The subgrid snow parameterization (subgrid topographic variability) now
+    differentiates between 'single_at_atm_topo' istice_mec columns and other
+    istice_mec columns. Previously, istice_mec columns were treated differently
+    from others because they already have some representation of subgrid
+    variability. However, 'single_at_atm_topo' columns should be treated more
+    like other columns, because they do not allow for this elevation class
+    variability; this has been fixed here.
+
+(2) Vegetated SMB is computed for all grid cells where we compute glacier
+    SMB. Previously vegetated SMB was only generated in the 'virtual' glacier
+    region, but that added complexity to the code logic without having a good
+    reason (as far as I can tell). This change just affects the lnd -> glc
+    fields for elevation class 0 (changing where these are valid, rather than
+    being set to 0): it does not affect the evolution of CLM.
+
+(3) Adds some error checking for the glacier_region_behavior namelist item as
+    well as for the new glacier_region_melt_behavior namelist item.
+
+Between the primary change in this tag and the change in (1), it is now possible
+to make the evolution of glacier_mec landunits exactly match the evolution of
+standard glacier landunits - by using a glacier_region_behavior of
+'single_at_atm_topo' and a glacier_region_melt_behavior of 'remains_in_place'.
+
+
+Notes of particular relevance for users
+---------------------------------------
+
+Caveats for users (e.g., need to interpolate initial conditions):
+- Surface mass balance (SMB) is no longer computed for mountain glaciers. In
+  order to compute SMB, you would need to change the
+  glacier_region_melt_behavior, which will change behavior significantly for
+  mountain glaciers.
+
+Changes to CLM's user interface (e.g., new/renamed XML or namelist variables):
+- New namelist variable, glacier_region_melt_behavior - as described above. This
+  variable and glacier_region_behavior both appear in the default namelist for
+  all clm45/clm50 cases, but only affect the operation of CLM if running with
+  glc_mec (i.e., a case with CISM).
+
+Changes made to namelist defaults (e.g., changed parameter values): none
+
+Changes to the datasets (e.g., parameter, surface or initial files): none
+
+Substantial timing or memory changes: none
+
+Notes of particular relevance for developers: (including Code reviews and testing)
+---------------------------------------------
+
+Caveats for developers: none
+
+Changes to tests or testing: none
+
+Code reviewed by: self
+
+CLM testing:
+
+ [PASS means all tests PASS and OK means tests PASS other than expected fails.]
+
+  build-namelist tests:
+
+    yellowstone - ok (tests pass, expected differences from baseline; but see
+    bug 2331)
+
+  unit-tests (components/clm/src):
+
+    yellowstone - pass
+
+  tools-tests (components/clm/test/tools):
+
+    yellowstone - not run
+
+  PTCLM testing (components/clm/tools/shared/PTCLM/test):
+
+     yellowstone - not run
+
+  regular tests (aux_clm40, aux_clm45):
+
+    yellowstone_intel - ok
+    yellowstone_pgi - ok
+    yellowstone_gnu (clm45 only) - ok
+    hobart_nag - ok
+
+  ok means tests pass, some answer changes as noted below
+
+In addition, ran 100-year runs to confirm that glc_mec (istice_mec) landunits
+can now be made to operate exactly the same as standard glacier (istice) with
+the appropriate namelist settings:
+
+  IG run: 1850_DATM%QIA_CLM50%BGC_SICE_SOCN_RTM_CISM1_SWAV
+  I run: 1850_DATM%QIA_CLM50%BGC_SICE_SOCN_RTM_SGLC_SWAV
+
+  For the IG run, put the following in user_nl_clm:
+
+      glacier_region_behavior = 'single_at_atm_topo','single_at_atm_topo','single_at_atm_topo'
+      glacier_region_melt_behavior = 'remains_in_place','remains_in_place','remains_in_place'
+
+  and with the following sourceMods to allow running an IG compset with
+  single_at_atm_topo & remains_in_place behavior over Greenland (because we
+  currently cannot run with SGLC with glc_mec):
+
+     --- ../../../components/clm/src/cpl/lnd_import_export.F90    2016-07-01 06:11:13.117799391 -0600
+     +++ SourceMods/src.clm/lnd_import_export.F90    2016-07-04 09:58:37.130458468 -0600
+     @@ -228,8 +228,8 @@
+                   glc2lnd_inst%topo_grc(g,num)  = x2l(index_x2l_Sg_topo(num),i)
+                   glc2lnd_inst%hflx_grc(g,num)  = x2l(index_x2l_Flgg_hflx(num),i)
+                end do
+     -          glc2lnd_inst%icemask_grc(g)  = x2l(index_x2l_Sg_icemask,i)
+     -          glc2lnd_inst%icemask_coupled_fluxes_grc(g)  = x2l(index_x2l_Sg_icemask_coupled_fluxes,i)
+     +          glc2lnd_inst%icemask_grc(g)  = 0._r8
+     +          glc2lnd_inst%icemask_coupled_fluxes_grc(g)  = 0._r8
+             end if
+
+          end do
+
+  Both run at T31_g37 for 100 years; compared last CLM and RTM history files;
+  these were bit-for-bit except for expected differences in PCT_LANDUNIT
+
+  Also ran similar sets of runs, but with all temperatures increased by 10 deg
+  (along with setting initial glacier h2osno to 0) or decreased by 10 deg (along
+  with setting initial glacier h2osno to 10000) to try to make sure we're
+  exercising both glacier increases and decreases (though I didn't confirm that
+  we're definitely exercising increases and decreases in those). Ran those hot &
+  cold runs with both CLM50 and CLM45.
+
+CLM tag used for the baseline comparisons: clm4_5_9_r184
+
+
+Answer changes
+--------------
+
+Changes answers relative to baseline: YES
+
+  If a tag changes answers relative to baseline comparison the
+  following should be filled in (otherwise remove this section):
+
+  Summarize any changes to answers, i.e.,
+    - what code configurations: CLM45/CLM50 with glc_mec (i.e., compsets with CISM)
+    - what platforms/compilers: all
+    - nature of change (roundoff; larger than roundoff/same climate; new climate): 
+      expected to be new climate, at least regionally - but not investigated closely
+
+      Answers change over glaciers outside of Greenland and Antarctica (i.e.,
+      mountain glaciers). In addition, fields sent to coupler are now present
+      for elevation class 0 (bare ground) over Antarctica.
+
+   If bitwise differences were observed, how did you show they were no worse
+   than roundoff? N/A
+
+   If this tag changes climate describe the run(s) done to evaluate the new
+   climate (put details of the simulations in the experiment database)
+       - casename: N/A
+
+   URL for LMWG diagnostics output used to validate new climate: N/A
+	
+
+Detailed list of changes
+------------------------
+
+List any svn externals directories updated (cime, rtm, mosart, cism, etc.): none
+
+List all files eliminated: none
+
+List all files added and what they do:
+
+========= Consolidate code that computes glacier surface mass balance. This code
+          was primarily taken from SoilTemperatureMod and HydrologyDrainageMod,
+          with some other code also removed from BalanceCheckMod and
+          clm_driver. Relevant fluxes have also been moved here (from
+          WaterfluxType)
+A       components/clm/src/biogeophys/GlacierSurfaceMassBalanceMod.F90
+
+List all existing files that have been modified, and describe the changes:
+
+========= Add new glacier_region_melt_behavior namelist item; always add
+          glacier_region_behavior and glacier_region_melt_behavior to namelist,
+          so error checks pass (these currently aren't needed in cases without
+          CISM, but will always be needed soon, once glc_mec becomes the only
+          glacier option - so it seemed reasonable to go ahead and always add
+          them to the namelist)
+M       components/clm/bld/CLMBuildNamelist.pm
+M       components/clm/bld/namelist_files/namelist_defaults_clm4_5.xml
+M       components/clm/bld/namelist_files/namelist_definition_clm4_5.xml
+
+========= Add differentiation on glacier_region_melt_behavior, add an
+          'allow_multiple_columns_grc' flag that can be used elsewhere, improve
+          error checking, and some other tweaks
+M       components/clm/src/main/glcBehaviorMod.F90
+M       components/clm/src/main/test/glcBehavior_test/test_glcBehavior.pf
+
+========= Move code out, into new GlacierSurfaceMassBalanceMod
+M       components/clm/src/biogeophys/BalanceCheckMod.F90
+M       components/clm/src/biogeophys/HydrologyDrainageMod.F90
+M       components/clm/src/biogeophys/SoilTemperatureMod.F90
+M       components/clm/src/biogeophys/WaterfluxType.F90
+
+========= Call new routines, move initialization to 0 out of clm_drv_init into
+          new GlacierSurfaceMassBalanceMod
+M       components/clm/src/main/clm_driver.F90
+
+========= Change do_smb filter: (1) only includes points where
+          melt_replaced_by_ice is true; (2) includes vegetated points for the
+          same grid cells as glacier points, rather than using the
+          has_virtual_columns mask
+M       components/clm/src/main/filterMod.F90
+
+========= For glc_mec columns: Subgrid topographic variability depends on
+          whether a gridcell allows multiple elevation classes
+M       components/clm/src/main/initVerticalMod.F90
+
+========= Add new glacier_smb_inst, and pass it where needed
+M       components/clm/src/main/clm_instMod.F90
+M       components/clm/src/main/clm_initializeMod.F90
+M       components/clm/src/main/lnd2glcMod.F90
+
+========= Do some additional error checking
+M       components/clm/src/main/glc2lndMod.F90
+
+========= Build new code for unit tests
+M       components/clm/src/biogeophys/CMakeLists.txt
+
+========= Unrelated change: do necessary teardown
+M       components/clm/src/dyn_subgrid/test/dynPatchStateUpdater_test/test_patch_state_updater.pf
+
+========= Just remove unneeded use statements
+M       components/clm/src/biogeochem/DUSTMod.F90
+M       components/clm/src/biogeophys/EnergyFluxType.F90
+M       components/clm/src/biogeophys/HydrologyNoDrainageMod.F90
+M       components/clm/src/biogeophys/SnowHydrologyMod.F90
+M       components/clm/src/main/atm2lndMod.F90
+M       components/clm/src/main/histFileMod.F90
+
+========= Remove a bunch of tests that no longer fail (due to changes in r184 or
+          earlier) or have been removed from the test list; also change bug
+          associated with one test
+M       components/clm/cime_config/testdefs/ExpectedTestFails.xml
+
+===============================================================
+===============================================================
+Tag name:  clm4_5_9_r184
+Originator(s):  erik (Erik Kluzek)
+Date: Wed Jul  6 14:55:45 MDT 2016
+One-line Summary: CLM50 changes: Atkin form of lmr changed, new parameters and files, turn PHS on by default, new 
+                  cold snow density, reseed at exit AD spinup, fix fire bug, fix npool and cpool errors
+
+Purpose of changes
+------------------
+
+The CLM50 Atkin method of leaf maintenence respiration was changed by Dr. Rosie Fisher according to communication with Atkin.
+New parameter file for CLM50 with new parameters. Plant Hydraulic Stress is now on by default for CLM50. New formulation
+for snow density below -15C from Dr. Andrew Slater and Dr. David Lawrence. If plants are dead at the exit AD spinup stage, reseed.
+Fix a fire bug which allowed negative nitrogen pools. Fix some npool and cpool errors.
+
+Work on CNFUNMod, correct indentation, and headers and comments. Remove unused arrays. Initialize arrays in filter loops. Do
+some changes to increase performance. Make logic for CNPrecisionControl into three subroutines, when especially negative abort.
+
+ -- Changes from Rosie Fisher to remove leaf_acc term, and implement changes to the Atkin form of lmr25top based on personal communication
+with Atkin.
+ -- new params file
+ -- Read in PHS parameters from PFT params file.
+ -- CNPrecisionControl modularization
+ -- new method for snow density and a change to how wind_dependent_snow_density is done for clm5.0. upplim_destruct_metamorph and
+ -- overburden_compress_tfactor for clm5
+ -- Put mbbopt on params file and use it
+ -- removed deciduous retranslocation adjustment to plant_ndemand to fix cpool error
+ -- Checkin Keith's changes to reseed Carbon for forests if in spinup mode and returning to regular mode, this should help in making it so
+ -- that you can always use spunup initial conditions rather than always having to do a cold start
+ -- Some FUN optimization.
+ -- Set barriers, ATM_PIO_TYPENAME
+ -- removed deciduous retranslocation adjustment to plant_ndemand to fix cpool error
+ -- If leafn small set leaf-CN and storage_leaf-CN to missing value in NutrientCompetitionFlexibleCNMod
+ -- add in free N flux direct to npool
+ -- Move update of grainn_to_food side by side to grainc_to_food with the same equation, from Rosie and Keith (bug 2327)
+ -- fire (bug 2314)
+ -- soybean CNDV shrub (bug 2326)
+
+
+Bugs fixed or introduced
+------------------------
+
+Bugs fixed (include bugzilla ID): 2255, 2314, 2326, 2327
+
+   2327 Change location of where grainn_to_food is updated for CROP
+   2326 Bad multiplication of btran for soybean or nbrdlf_dcd_tmp_shrub with CNDV in CanopyFluxes (partial see below)
+   2314 Negative carbon pools due to issue in fire model
+   2255 bug in soil resistance, likely causes crop soil resistance to remain unset
+
+Known bugs introduced in this tag (include bugzilla ID): 2326, 2328, 2330
+  2330 Issue with frootc/frootn for C4 crops
+  2328 Discontinuities in new CLM50 snow density formulation
+  The issue that created the need for bug 2326 was removed for both CLM45 and CLM50 in this tag
+ (The same code was left in the CLM40 version)
+
+
+Notes of particular relevance for users
+---------------------------------------
+
+Caveats for users: None
+
+Changes to CLM's user interface (e.g., new/renamed XML or namelist variables):
+   New namelist items: ncrit, ccrit, nnegcrit, cnegcrit,
+           baseflow_scalar, denitrif_respiration_coefficient/exponent (and nitrconc), lotmp_snowdensity_method,
+           upplim_destruct_metamorph, overburden_compress_Tfactor, min_wind_snowcompact,  remove leaf_acc
+
+Changes made to namelist defaults: Set new namelist items, update CLM50 params file
+
+Changes to the datasets: CLM50 params file with updated parameters
+
+Substantial timing or memory changes: CLM50BGC is a good bit faster
+
+Notes of particular relevance for developers: (including Code reviews and testing)
+---------------------------------------------
+
+Caveats for developers:  Now reading some mxpft dimensioned arrays in local readParams
+   SnowHydrologyMod parameters should go into a params_type
+
+Changes to tests or testing: None
+
+Code reviewed by: self,oleson,rfisher,dlawren,aslater@cu.edu,lifang
+
+CLM testing: regular
+
+ [PASS means all tests PASS and OK means tests PASS other than expected fails.]
+
+  build-namelist tests:
+
+    yellowstone - OK (78 compare tests FAIL because of namelist changes)
+
+  unit-tests (components/clm/src):
+
+    yellowstone - PASS
+
+  regular tests (aux_clm40, aux_clm45):
+
+    yellowstone_intel - OK
+    yellowstone_pgi -   OK
+    yellowstone_gnu (clm45 only) - OK
+    hobart_nag -  PASS
+
+CLM tag used for the baseline comparisons:  clm4_5_9_r183
+
+
+Answer changes
+--------------
+
+Changes answers relative to baseline: Yes for CLM50 and CLM45CROP
+
+  Summarize any changes to answers, i.e.,
+    - what code configurations: CLM50 or CLM45CROP
+    - what platforms/compilers: All
+    - nature of change: 
+        CLM50 ------ Modified climate
+        CLM45CROP -- soybean results and grainn_to_food (all CFTS) will be different
+
+   If this tag changes climate describe the run(s) done to evaluate the new
+   climate (put details of the simulations in the experiment database)
+       - casename:  rfisher: respmods_n30_clm4_5_8_r182_4x5_bareground_AD_1 (has some other SourceMods too)
+
+Detailed list of changes
+------------------------
+
+List any svn externals directories updated (cime, rtm, mosart, cism, etc.): None
+
+List all files eliminated:
+
+   D components/clm/bld/namelist_files/namelist_definition_drv_flds.xml
+
+List all files added and what they do: None
+
+List all existing files that have been modified, and describe the changes:
+
+   M components/clm/src/main/clm_initializeMod.F90 ------------ Always call readParameters
+   M components/clm/src/main/controlMod.F90 ------------------- Add calls to: soilHydReadNML, nitrifReadNML, CNPrecisionControlReadNML
+   M components/clm/src/main/clm_driver.F90 ------------------- Work with timing calls
+   M components/clm/src/main/pftconMod.F90 -------------------- Read in mbbopt
+   M components/clm/src/main/readParamsMod.F90 ---------------- Add some comments, pass in photosyns_inst and call it's readParams
+   M components/clm/src/biogeophys/SoilWaterMovementMod.F90 --- Use Photosyns_inst->params_inst%psi_soil_ref in place of -50000
+   M components/clm/src/biogeophys/SoilHydrologyMod.F90 ------- Add soilHydReadNML, read in baseflow_scalar
+   M components/clm/src/biogeophys/SnowHydrologyMod.F90 ------- New namelist items: lotmp_snowdensity_method, 
+          upplim_destruct_metamorph, overburden_compress_Tfactor, min_wind_snowcompact, new_snowdensity method has
+          lower density for < -15C, change to wind_dependent_snow_density
+   M components/clm/src/biogeophys/PhotosynthesisMod.F90 ------ New parameters for Plant Hydralic Stress: krmax, kmax, 
+           psi50, psi_soil_ref, lmr_intercept_atkin, remove leaf_acc. Add: allocParams, readParams methods
+           remove mbbopt and move into pftcon. Atkin method of leaf respiration modified per communication with Atkin.
+   M components/clm/src/biogeophys/SurfaceResistanceMod.F90 --- Properly use land-unit rather than column (bug 2255)
+   M components/clm/src/biogeophys/CanopyFluxesMod.F90 -------- Remove multiplication of btran for soybean or nbrdlf_dcd_tmp_shrub
+           for CNDV, inside the ITERATION loop (bug 2326). This means the reason that brought this code is no longer addressed.
+   M components/clm/src/soilbiogeochem/SoilBiogeochemNitrifDenitrifMod.F90 --- Add nitrifReadNML, read in:
+           denitrif_respiration_coefficient, denitrif_respiration_exponent, denitrif_nitrateconc_coefficient,
+           denitrif_nitrateconc_exponent. Remove k_nitr_max
+   M components/clm/src/soilbiogeochem/SoilBiogeochemDecompCascadeBGCMod.F90 - Remove hardwired minpsi
+   M components/clm/src/biogeochem/CNFireBaseMod.F90 --------- Multiply several terms by (1-cc_other) (bug 2314)
+   M components/clm/src/biogeochem/CNPrecisionControlMod.F90 - Add CNPrecisionControlReadNML, cnegcrit, nnegcrit
+           do actual truncation inside new subroutines: TruncateCandNStates, TruncateCState, TruncateNState
+           Die if C or N is very negative < cnegcrit or < nnegcrit (currently set to very large negative numbers -60 and -6)
+   M components/clm/src/biogeochem/NutrientCompetitionFlexibleCNMod.F90 Set actual_storage_leafcn to missing value if
+           leafn_storage is zero. actual_leafcn to missing if leafn is < n_min, remove modification of plant_ndemand if FUN off
+   M components/clm/src/biogeochem/CNVegCarbonStateType.F90 - Reseed if plants are dead and going from Accel. Decomp. to regular mode
+   M components/clm/src/biogeochem/CNNStateUpdate1Mod.F90 --- Add handling of npool and retransn
+   M components/clm/src/biogeochem/CNFUNMod.F90 ------------- Add more comments, correct indentation, speed up, and remove
+           extra garbage, use filters to zero out arrays
+           add free_Nretrans and fraction of N retranslocation which is automatic/free
+   M components/clm/src/biogeochem/CNVegNitrogenFluxType.F90  Add free_retransn_to_npool_patch, write out to history, write
+           LEAFN_TO_LITTER to history by default
+   M components/clm/src/biogeochem/CNDriverMod.F90 ----------- Pass bounds to CNPrecisionControl
+   M components/clm/src/biogeochem/CNPhenologyMod.F90 -------- grainn_to_food modified to be similar to Carbon version (bug 2327)
+           for FUN leafn_to_retransn is paid_retransn_to_npool plus free_retransn_to_npool
+
+   M components/clm/bld/unit_testers/build-namelist_test.pl ----------- Add in new tests for new parameters
+   M components/clm/bld/namelist_files/namelist_definition_clm4_5.xml - New namelist items: ncrit, ccrit, nnegcrit, cnegcrit,
+           baseflow_scalar, denitrif_respiration_coefficient/exponent (and nitrconc), lotmp_snowdensity_method,
+           upplim_destruct_metamorph, overburden_compress_Tfactor, min_wind_snowcompact,  remove leaf_acc
+   M components/clm/bld/namelist_files/namelist_defaults_clm4_5.xml --- Add CPOOL to history for clm_accelerated_spinup
+           remove leaf_acc, set: lotmp_snowdensity_method, upplim_destruct_metamorph, overburden_compress_tfactor, new
+           params file for CLM50, set ncrit, turn use_hydrstress=T for CLM50
+   M components/clm/bld/CLMBuildNamelist.pm --------------------------- Add setup_logic_cnprec, call setup_logic_nitrif_params,
+           setup_logic_hydrology_params, add in cnprecision_inparm namelist
+
+   M components/clm/cime_config/buildnml ------------ Don't need to copy user_nl_clm to Buildconf use CASEROOT version
+           be sure to set $tuning options for build-namelist
+   M components/clm/cime_config/config_component.xml  Add BARRIER_N/OPTION, ATM_PIO_TYPENAME settings
+
+===============================================================
+===============================================================
 Tag name:  clm4_5_9_r183
 Originator(s):  erik (Erik Kluzek)
 Date: Sat Jul  2 18:23:09 MDT 2016

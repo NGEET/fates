@@ -141,7 +141,7 @@ module pftconMod
      real(r8), allocatable :: deadwdcn      (:)   ! dead wood (xylem and heartwood) C:N (gC/gN)
      real(r8), allocatable :: grperc        (:)   ! growth respiration parameter
      real(r8), allocatable :: grpnow        (:)   ! growth respiration parameter
-     real(r8), allocatable :: rootprof_beta (:)   ! CLM rooting distribution parameter for C and N inputs [unitless]
+     real(r8), allocatable :: rootprof_beta (:,:) ! CLM rooting distribution parameter for C and N inputs [unitless]
 
      !  crop
 
@@ -173,6 +173,7 @@ module pftconMod
      real(r8), allocatable :: lfemerg       (:)   ! parameter used in CNPhenology
      real(r8), allocatable :: grnfill       (:)   ! parameter used in CNPhenology
      integer , allocatable :: mxmat         (:)   ! parameter used in CNPhenology
+     real(r8), allocatable :: mbbopt        (:)   ! Ball-Berry equation slope used in Photosynthesis
      integer , allocatable :: mnNHplantdate (:)   ! minimum planting date for NorthHemisphere (YYYYMMDD)
      integer , allocatable :: mxNHplantdate (:)   ! maximum planting date for NorthHemisphere (YYYYMMDD)
      integer , allocatable :: mnSHplantdate (:)   ! minimum planting date for SouthHemisphere (YYYYMMDD)
@@ -314,6 +315,8 @@ contains
     ! Read and initialize vegetation (PFT) constants
     !
     ! !USES:
+    use clm_varpar  ,  only: nvariants
+    implicit none
     !
     ! !ARGUMENTS:
     class(pftcon_type) :: this
@@ -351,7 +354,7 @@ contains
     allocate( this%deadwdcn      (0:mxpft) )     
     allocate( this%grperc        (0:mxpft) )       
     allocate( this%grpnow        (0:mxpft) )       
-    allocate( this%rootprof_beta (0:mxpft) )
+    allocate( this%rootprof_beta (0:mxpft,nvariants) )
     allocate( this%graincn       (0:mxpft) )      
     allocate( this%mxtmp         (0:mxpft) )        
     allocate( this%baset         (0:mxpft) )        
@@ -370,6 +373,7 @@ contains
     allocate( this%hybgdd        (0:mxpft) )       
     allocate( this%lfemerg       (0:mxpft) )      
     allocate( this%grnfill       (0:mxpft) )      
+    allocate( this%mbbopt        (0:mxpft) )      
     allocate( this%mxmat         (0:mxpft) )        
     allocate( this%mnNHplantdate (0:mxpft) )
     allocate( this%mxNHplantdate (0:mxpft) )
@@ -876,6 +880,9 @@ contains
     call ncd_io('grnfill', this%grnfill, 'read', ncid, readvar=readv)  
     if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
 
+    call ncd_io('mbbopt', this%mbbopt, 'read', ncid, readvar=readv)  
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
+
     call ncd_io('mxmat', this%mxmat, 'read', ncid, readvar=readv)  
     if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(__FILE__, __LINE__))
 
@@ -1273,6 +1280,7 @@ contains
     deallocate( this%hybgdd)
     deallocate( this%lfemerg)
     deallocate( this%grnfill)
+    deallocate( this%mbbopt)
     deallocate( this%mxmat)
     deallocate( this%mnNHplantdate)
     deallocate( this%mxNHplantdate)

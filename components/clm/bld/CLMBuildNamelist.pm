@@ -1514,6 +1514,11 @@ sub process_namelist_inline_logic {
   #################################
   setup_logic_cnfire($opts->{'test'}, $nl_flags, $definition, $defaults, $nl, $physv);
 
+  ######################################
+  # namelist group: cnprecision_inparm #
+  ######################################
+  setup_logic_cnprec($opts->{'test'}, $nl_flags, $definition, $defaults, $nl, $physv);
+
   ###############################
   # namelist group: clmu_inparm #
   ###############################
@@ -1538,7 +1543,7 @@ sub process_namelist_inline_logic {
   #################################
   # namelist group: nitrif_inparm #
   #################################
-  #setup_logic_nitrif_params( $nl_flags, $definition, $defaults, $nl );  # Comment out
+  setup_logic_nitrif_params( $nl_flags, $definition, $defaults, $nl );
 
   ####################################
   # namelist group: photosyns_inparm #
@@ -1596,6 +1601,11 @@ sub process_namelist_inline_logic {
   setup_logic_soil_resis($opts->{'test'}, $nl_flags, $definition, $defaults, $nl, $physv);
 
   #############################################
+  # namelist group: canopyfluxes_inparm #
+  #############################################
+  setup_logic_canopyfluxes($opts->{'test'}, $nl_flags, $definition, $defaults, $nl, $physv);
+
+  #############################################
   # namelist group: canopyhydrology_inparm #
   #############################################
   setup_logic_canopyhydrology($opts->{'test'}, $nl_flags, $definition, $defaults, $nl, $physv);
@@ -1608,7 +1618,7 @@ sub process_namelist_inline_logic {
   ########################################
   # namelist group: soilhydrology_inparm #
   ########################################
-  #setup_logic_hydrology_params($nl_flags, $definition, $defaults, $nl);  # comment out
+  setup_logic_hydrology_params($nl_flags, $definition, $defaults, $nl);
 
   #######################################################################
   # namelist groups: clm_hydrology1_inparm and clm_soilhydrology_inparm #
@@ -1898,7 +1908,6 @@ sub setup_logic_glacier {
     }
 
     if ( $physv->as_long() >= $physv->as_long("clm4_5") ) {
-      add_default($opts->{'test'}, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'glacier_region_behavior');
       add_default($opts->{'test'}, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'glcmec_downscale_longwave');
       add_default($opts->{'test'}, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'glc_snow_persistence_max_days');
     }
@@ -1941,6 +1950,12 @@ sub setup_logic_glacier {
   }
 
   add_default($opts->{'test'}, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'albice', 'glc_nec'=>$nl_flags->{'glc_nec'});
+  if ( $physv->as_long() >= $physv->as_long("clm4_5") ) {
+     # These controls over glacier region behavior are needed even when running without glc_mec in order to satisfy some error checks in the code
+     # (And since we'll eventually move to always having glc_mec, it's not worth adding some complex logic to determine when they're really needed.)
+     add_default($opts->{'test'}, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'glacier_region_behavior');
+     add_default($opts->{'test'}, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'glacier_region_melt_behavior');
+  }
 }
 
 #-------------------------------------------------------------------------------
@@ -2004,6 +2019,16 @@ sub setup_logic_cnfire {
   }
 }
 
+#-------------------------------------------------------------------------------
+
+sub setup_logic_cnprec {
+  my ($test_files, $nl_flags, $definition, $defaults, $nl, $physv) = @_;
+
+  if ( $physv->as_long() >= $physv->as_long("clm5_0") && &value_is_true($nl->get_value('use_cn')) ) {
+     add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, 
+                 $nl, 'ncrit', 'use_cn'=>$nl_flags->{'use_cn'});
+  }
+}
 #-------------------------------------------------------------------------------
 
 sub setup_logic_humanindex {
@@ -2757,7 +2782,8 @@ sub setup_logic_hydrstress {
 
   if ( $physv->as_long() >= $physv->as_long("clm4_5") ) {
     # TODO(kwo, 2015-09) make this depend on > clm 5.0 at some point.
-    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_hydrstress' );
+    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_hydrstress',
+                'use_ed'=>$nl_flags->{'use_ed'} );
     $nl_flags->{'use_hydrstress'} = $nl->get_value('use_hydrstress');
     if ( value_is_true( $nl_flags->{'use_ed'} ) && value_is_true( $nl_flags->{'use_hydrstress'} ) ) {
        fatal_error("Cannot turn use_hydrstress on when use_ed is on\n" );
@@ -2969,8 +2995,6 @@ sub setup_logic_photosyns {
   if ( $physv->as_long() >= $physv->as_long("clm4_5") ) {
      add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, 
                  $nl, 'rootstem_acc', 'phys'=>$nl_flags->{'phys'});
-     add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, 
-                 $nl, 'leaf_acc', 'phys'=>$nl_flags->{'phys'});
      add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, 
                  $nl, 'light_inhibit', 'phys'=>$nl_flags->{'phys'});
      add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, 
@@ -3217,7 +3241,8 @@ sub setup_logic_rooting_profile {
   my ($test_files, $nl_flags, $definition, $defaults, $nl, $physv) = @_;
 
   if ( $physv->as_long() >= $physv->as_long("clm4_5") ) {
-    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'rooting_profile_method' ); 
+    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'rooting_profile_method_water' ); 
+    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'rooting_profile_method_carbon' ); 
   }
 }
 
@@ -3229,6 +3254,16 @@ sub setup_logic_soil_resis {
 
   if ( $physv->as_long() >= $physv->as_long("clm4_5") ) {
     add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'soil_resis_method' ); 
+  }
+}
+#-------------------------------------------------------------------------------
+
+sub setup_logic_canopyfluxes {
+  # 
+  my ($test_files, $nl_flags, $definition, $defaults, $nl, $physv) = @_;
+
+  if ( $physv->as_long() >= $physv->as_long("clm4_5") ) {
+    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_undercanopy_stability' ); 
   }
 }
 
@@ -3257,6 +3292,12 @@ sub setup_logic_snowpack {
     add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'nlevsno');
     add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'h2osno_max');
     add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'wind_dependent_snow_density');
+    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'lotmp_snowdensity_method');
+  }
+  # Set some defaults for only CLM5.0
+  if ($physv->as_long() >= $physv->as_long("clm5_0")) {
+    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'upplim_destruct_metamorph');
+    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'overburden_compress_tfactor');
   }
 }
 
@@ -3320,9 +3361,9 @@ sub write_output_files {
                  clm_initinterp_inparm
                  soilhydrology_inparm
                  soilwater_movement_inparm rooting_profile_inparm 
-                 soil_resis_inparm  bgc_shared
+                 soil_resis_inparm  bgc_shared canopyfluxes_inparm
                  clmu_inparm clm_soilstate_inparm clm_nitrogen clm_snowhydrology_inparm
-                 clm_glacier_behavior );
+                 cnprecision_inparm clm_glacier_behavior );
 
     #@groups = qw(clm_inparm clm_canopyhydrology_inparm clm_soilhydrology_inparm 
     #             finidat_consistency_checks dynpft_consistency_checks);

@@ -123,9 +123,45 @@ specify spatially variable soil thickness. If not present, use bottom
 of soil column (nlevsoi).
 </entry>
 
-<entry id="rooting_profile_method" type="integer" category="clm_physics"
+<entry id="rooting_profile_method_water" type="integer" category="clm_physics"
        group="rooting_profile_inparm" valid_values="0,1,2" >
-Index of rooting profile.
+Index of rooting profile for water
+
+Changes rooting profile from Zeng 2001 double exponential (0) to
+Jackson 1996 single exponential (1) to Koven uniform exponential (2).
+</entry>
+
+<entry id="rooting_profile_method_carbon" type="integer" category="clm_physics"
+       group="rooting_profile_inparm" valid_values="0,1,2" >
+Index of rooting profile for carbon
+
+Changes rooting profile from Zeng 2001 double exponential (0) to
+Jackson 1996 single exponential (1) to Koven uniform exponential (2).
+</entry>
+
+<entry id="rooting_profile_method_soilcarbon" type="integer" category="clm_physics"
+       group="rooting_profile_inparm" valid_values="0,1,2" >
+Index of rooting profile for soil carbon
+
+Changes rooting profile from Zeng 2001 double exponential (0) to
+Jackson 1996 single exponential (1) to Koven uniform exponential (2).
+</entry>
+
+<entry id="rooting_profile_varindex_water" type="integer" category="clm_physics"
+       group="rooting_profile_inparm" valid_values="1,2" >
+Variant index of rooting profile for water
+(Currently only used for Jackson 1996 method)
+</entry>
+
+<entry id="rooting_profile_varindex_carbon" type="integer" category="clm_physics"
+       group="rooting_profile_inparm" valid_values="1,2" >
+Variant index of rooting profile for carbon and soil carbon
+(Currently only used for Jackson 1996 method)
+</entry>
+
+<entry id="rooting_profile_method_carbon" type="integer" category="clm_physics"
+       group="rooting_profile_inparm" valid_values="0,1,2" >
+Index of rooting profile for carbon
 
 Changes rooting profile from Zeng 2001 double exponential (0) to
 Jackson 1996 single exponential (1) to Koven uniform exponential (2).
@@ -147,11 +183,6 @@ The method type to use for CNFire
 nofire:        Turn fire effects off
 li2014qianfrc: Reference paper Li, et. al.(2014) tuned with QIAN atmospheric forcing
 li2016crufrc:  Reference paper Li, et. al.(2016) tuned with CRU-NCEP atmospheric forcing
-</entry>
-
-<entry id="cli_scale" type="real" category="clm_physics"
-       group="lifire_inparm" >
-Global constant for deforestation fires (/day)
 </entry>
 
 <entry id="pot_hmn_ign_counts_alpha" type="real" category="clm_physics"
@@ -194,9 +225,39 @@ Saturation BTRAN for ignition (0-1)
 Critical BTRAN for ignition (0-1)
 </entry>
 
+<entry id="cli_scale" type="real" category="clm_physics"
+       group="lifire_inparm" >
+Global constant for deforestation fires (/day)
+</entry>
+
 <entry id="occur_hi_gdp_tree" type="real" category="clm_physics"
        group="lifire_inparm" >
 Fire occurance for high GDP areas that are tree dominated (fraction)
+</entry>
+
+<entry id="ncrit" type="real" category="clm_physics"
+       group="cnprecision_inparm" >
+Critical threshold for truncation of Nitrogen (truncate Nitrogen states to zero below this value)
+</entry>
+
+<entry id="ccrit" type="real" category="clm_physics"
+       group="cnprecision_inparm" >
+Critical threshold for truncation of Carbon (truncate Carbon states to zero below this value)
+</entry>
+
+<entry id="nnegcrit" type="real" category="clm_physics"
+       group="cnprecision_inparm" >
+Critical threshold of negative Nitrogen to die (abort when Nitrogen states are below this value)
+</entry>
+
+<entry id="cnegcrit" type="real" category="clm_physics"
+       group="cnprecision_inparm" >
+Critical threshold of negative Carbon to die (abort when Carbon states are below this value)
+</entry>
+
+<entry id="use_undercanopy_stability" type="logical" category="clm_physics"
+       group="canopyfluxes_inparm" valid_values="" >
+If TRUE use the undercanopy stability term used with CLM4.5 (Sakaguchi&Zeng, 2008)
 </entry>
 
 <entry id="interception_fraction" type="real" category="clm_physics"
@@ -214,13 +275,11 @@ If TRUE use clm5 equation for fraction of intercepted precipitation
 Maximum fraction of leaf that may be wet prior to drip occuring
 </entry>
 
-<!-- Comment out for now...
 <entry id="baseflow_scalar" type="real" category="clm_physics"
        group="soilhydrology_inparm" valid_values="" >
 Scalar multiplier for base flow rate
 (ONLY used if lower_boundary_condition is not aquifer or table)
 </entry>
--->
 
 <entry id="soilwater_movement_method" type="integer" category="clm_physics"
        group="soilwater_movement_inparm" valid_values="0,1" >
@@ -330,6 +389,23 @@ Allowed values are:
 Only applies when glc_nec is greater than 0.
 </entry>
 
+<entry id="glacier_region_melt_behavior" type="char*32(10)" category="clm_physics"
+       group="clm_glacier_behavior"
+       valid_values="replaced_by_ice,remains_in_place" >
+Treatment of ice melt for each glacier region (GLACIER_REGION in surface dataset).
+First item corresponds to GLACIER_REGION with ID 0 in the surface dataset,
+second to GLACIER_REGION with ID 1, etc.
+Allowed values are:
+'replaced_by_ice': any melted ice runs off and is immediately replaced by solid ice;
+   this results in positive liquid runoff and negative ice runoff
+'remains_in_place': any melted ice remains in place as liquid until it refreezes;
+   thus, ice melt does not result in any runoff
+IMPORTANT NOTE: Regions with the 'remains_in_place' behavior also do not
+generate generate SMB (because negative SMB would be pretty much meaningless in
+those regions). Thus, you cannot use this behavior where GLC is operating.
+Only applies when glc_nec is greater than 0.
+</entry>
+
 <entry id="glc_snow_persistence_max_days" type="integer" category="clm_physics"
        group="clm_inparm" valid_values="" >
 Number of days before one considers the perennially snow-covered point 'land ice'
@@ -355,12 +431,6 @@ CN Maintenence Respiration base rate for roots
 <entry id="rootstem_acc" type="logical" category="clm_physics"
        group="photosyns_inparm" >
 Switch to turn on root and stem respiratory acclimation
-Atkin, Fisher et al. (2008) and Lombardozzi et al. (2015)
-</entry>
-
-<entry id="leaf_acc" type="logical" category="clm_physics"
-       group="photosyns_inparm" >
-Switch to turn on leaf respiratory acclimation
 Atkin, Fisher et al. (2008) and Lombardozzi et al. (2015)
 </entry>
 
@@ -661,7 +731,6 @@ Nitrification/denitrification splits the prognostic mineral N pool into two
 Requires the CN model to work (either CN or CNDV).
 </entry>
 
-<!-- Comment out for now
 <entry id="denitrif_respiration_coefficient" type="real" category="bgc"
        group="nitrif_inparm" valid_values="" >
 Multiplier for heterotrophic respiration for max denitrification rates
@@ -691,7 +760,6 @@ Exponent power for nitrate concentrationfor max denitrification rates
 Maximum nitrification rate constant (1/s)
 (ONLY used if use_nitrif_denitrif is enabled)
 </entry>
--->
 
 <entry id="use_vertsoilc" type="logical" category="bgc"
        group="clm_inparm" valid_values="" value=".false.">
@@ -1453,22 +1521,6 @@ separate q10 for frozen soil respiration rates.  default to same as above zero r
 
 <!-- rooting parameters    -->
 
-<entry id="pftspecific_rootingprofile" type="logical" category="clm_vertcn"
-       group="clm_inparm" valid_values="" >
-If TRUE, rooting profile depends on specific PFT
-</entry>
-
-<entry id="exponential_rooting_profile" type="logical" category="clm_vertcn"
-       group="clm_inparm" valid_values="" >
-If true, use a single exponential function to define the profile for distributing C and N from belowground components (following Jackson et al., 1999). If False, use the default CLM rootfrac double exponential for distributing C and N from belowground components.
-(EXPERIMENTAL and NOT tested)
-</entry>
-
-<entry id="rootprof_exp" type="real" category="clm_vertcn"
-       group="clm_inparm" valid_values="" >
-If pftspecific_rootingprofile is set to false, this sets a single exponential profile over which to distribute C and N coming from root pools (leaves, stem, grain).
-</entry>
-
 <entry id="hist_wrtch4diag" type="logical" category="history"
        group="clm_inparm" valid_values="" >
 If TRUE, add extra diagnostics for methane model to the history files
@@ -1818,6 +1870,28 @@ Changes in this value should possibly be accompanied by changes in:
        group="clm_snowhydrology_inparm" valid_values="" >
 If TRUE, the density of new snow depends on wind speed, and there is also
 wind-dependent snow compaction.
+</entry>
+
+<entry id="lotmp_snowdensity_method" type="char*25" category="clm_physics"
+       group="clm_snowhydrology_inparm"    valid_values="Slater2017,TruncatedAnderson1976" >
+Snow density method to use for low temperatures (below -15C)
+TruncatedAnderson1976 -- Truncate the Anderson-1976 equation at the value for -15C
+Slater2017 ------------- Use equation from Slater that increases snow density for very cold temperatures  (Arctic, Antarctic)
+</entry>
+
+<entry id="upplim_destruct_metamorph" type="real" category="clm_physics"
+       group="clm_snowhydrology_inparm"   >
+Upper Limit on Destructive Metamorphism Compaction [kg/m3]
+</entry>
+
+<entry id="overburden_compress_Tfactor" type="real" category="clm_physics"
+       group="clm_snowhydrology_inparm"   >
+Snow compaction overburden exponential factor (1/K)
+</entry>
+
+<entry id="min_wind_snowcompact" type="real" category="clm_physics"
+       group="clm_snowhydrology_inparm"   >
+Minimum wind speed tht results in compaction (m/s)
 </entry>
 
 <!-- ========================================================================================  -->
