@@ -10,15 +10,16 @@ module EDSurfaceRadiationMod
 
 #include "shr_assert.h"
    
-  use EDtypesMod        , only : ed_patch_type, ed_site_type
-  use EDtypesMod        , only : numpft_ed
-  use EDTypesMod        , only : map_clmpatch_to_edpatch
-  use shr_kind_mod      , only : r8 => shr_kind_r8
-  use shr_log_mod       , only : errMsg => shr_log_errMsg
-  use decompMod         , only : bounds_type
-  use clm_varpar        , only : numrad, nclmax
-  use FatesInterfaceMod , only : bc_in_type, &
-                                 bc_out_type
+  use EDtypesMod           , only : ed_patch_type, ed_site_type
+  use EDtypesMod           , only : numpft_ed
+  use EDTypesMod           , only : map_clmpatch_to_edpatch
+  use shr_kind_mod         , only : r8 => shr_kind_r8
+  use shr_log_mod          , only : errMsg => shr_log_errMsg
+  use decompMod            , only : bounds_type
+  use clm_varpar           , only : numrad, nclmax
+  use EDCanopyStructureMod , only : calc_areaindex
+  use FatesInterfaceMod    , only : bc_in_type, &
+                                    bc_out_type
   
   implicit none
 
@@ -975,6 +976,7 @@ contains
     type (ed_patch_type),pointer :: cpatch   ! c"urrent" patch
     real(r8)          :: sunlai
     real(r8)          :: shalai
+    real(r8)          :: elai
     integer           :: CL
     integer           :: FT
     integer           :: iv
@@ -1038,9 +1040,6 @@ contains
                 
              end do
           end do
-
-          bc_out(s)%laisun_pa(ifp) = sunlai
-          bc_out(s)%laisha_pa(ifp) = shalai
           
           if(sunlai+shalai > 0._r8)then
              bc_out(s)%fsun_pa(ifp) = sunlai / (sunlai+shalai) 
@@ -1052,7 +1051,12 @@ contains
              write(iulog,*) 'too much leaf area in profile',  bc_out(s)%fsun_pa(ifp), &
                    cpatch%lai,sunlai,shalai
           endif
-          
+
+          elai = calc_areaindex(cpatch,'elai')
+
+          bc_out(s)%laisun_pa(ifp) = elai*bc_out(s)%fsun_pa(ifp)
+          bc_out(s)%laisha_pa(ifp) = elai*(1.0_r8-bc_out(s)%fsun_pa(ifp))
+
          ! Absorbed PAR profile through canopy
          ! If sun/shade big leaf code, nrad=1 and fluxes from SurfaceAlbedo
          ! are canopy integrated so that layer values equal big leaf values.
