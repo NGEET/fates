@@ -22,6 +22,7 @@ module EDCLMLinkMod
   use shr_const_mod, only: SHR_CONST_CDAY
   use abortutils      , only : endrun
   use shr_log_mod     , only : errMsg => shr_log_errMsg    
+  use EDCanopyStructureMod, only : calc_areaindex
 
   !
   implicit none
@@ -1968,22 +1969,24 @@ fraction_exposed= 1.0_r8
 
                !what is the resultant leaf area? 
 
+
+
                tlai_temp = 0._r8
-               elai_temp = 0._r8
-               tsai_temp = 0._r8
-               esai_temp = 0._r8
+!               elai_temp = 0._r8
+!               tsai_temp = 0._r8
+!               esai_temp = 0._r8
 
                do L = 1,currentPatch%NCL_p
                   do ft = 1,numpft_ed
 
                      tlai_temp = tlai_temp + sum(currentPatch%canopy_area_profile(L,ft,1:currentPatch%nrad(L,ft)) * &
                           currentPatch%tlai_profile(L,ft,1:currentPatch%nrad(L,ft)))
-                     elai_temp = elai_temp + sum(currentPatch%canopy_area_profile(L,ft,1:currentPatch%nrad(L,ft)) * &
-                          currentPatch%elai_profile(L,ft,1:currentPatch%nrad(L,ft)))
-                     tsai_temp = tsai_temp + sum(currentPatch%canopy_area_profile(L,ft,1:currentPatch%nrad(L,ft)) * &
-                          currentPatch%tsai_profile(L,ft,1:currentPatch%nrad(L,ft)))
-                     esai_temp = esai_temp + sum(currentPatch%canopy_area_profile(L,ft,1:currentPatch%nrad(L,ft)) * &
-                          currentPatch%esai_profile(L,ft,1:currentPatch%nrad(L,ft)))
+ !                    elai_temp = elai_temp + sum(currentPatch%canopy_area_profile(L,ft,1:currentPatch%nrad(L,ft)) * &
+ !                         currentPatch%elai_profile(L,ft,1:currentPatch%nrad(L,ft)))
+ !                    tsai_temp = tsai_temp + sum(currentPatch%canopy_area_profile(L,ft,1:currentPatch%nrad(L,ft)) * &
+ !                         currentPatch%tsai_profile(L,ft,1:currentPatch%nrad(L,ft)))
+ !                    esai_temp = esai_temp + sum(currentPatch%canopy_area_profile(L,ft,1:currentPatch%nrad(L,ft)) * &
+ !                         currentPatch%esai_profile(L,ft,1:currentPatch%nrad(L,ft)))
                   enddo
                enddo
 
@@ -2001,11 +2004,10 @@ fraction_exposed= 1.0_r8
 
                endif
 
-               elai(p) = max(0.1_r8,elai_temp)
-               tlai(p) = max(0.1_r8,tlai_temp)
-               esai(p) = max(0.1_r8,esai_temp)
-               tsai(p) = max(0.1_r8,tsai_temp)
-
+               elai(p) = calc_areaindex(currentPatch,'elai')
+               tlai(p) = calc_areaindex(currentPatch,'tlai')
+               esai(p) = calc_areaindex(currentPatch,'esai')
+               tsai(p) = calc_areaindex(currentPatch,'tsai')
 
                ! Fraction of vegetation free of snow. What does this do? Is it right? 
                if ((elai(p) + esai(p)) > 0._r8) then

@@ -50,6 +50,7 @@ contains
     use EDEcophysContype  , only : EDecophyscon
     use FatesInterfaceMod , only : bc_in_type,bc_out_type
     use EDtypesMod        , only : numpatchespercol
+    use EDCanopyStructureMod,only: calc_areaindex
 
     !
     ! !ARGUMENTS:
@@ -948,21 +949,17 @@ contains
                   bc_out(s)%psncanopy_pa(ifp) = bc_out(s)%psncanopy_pa(ifp) + currentCohort%gpp_tstep
                   bc_out(s)%lmrcanopy_pa(ifp) = bc_out(s)%lmrcanopy_pa(ifp) + currentCohort%resp_m
                   ! accumulate cohort level canopy conductances over whole area before dividing by total area.  
-                  bc_out(s)%gccanopy_pa(ifp)  = bc_out(s)%gccanopy_pa(ifp) + currentCohort%gscan * currentCohort%n /currentPatch%total_canopy_area  
+                  bc_out(s)%gccanopy_pa(ifp)  = bc_out(s)%gccanopy_pa(ifp) + currentCohort%gscan * &
+                        currentCohort%n /currentPatch%total_canopy_area  
 
                   currentCohort => currentCohort%shorter
 
                enddo  ! end cohort loop.   
             end if !count_cohorts is more than zero.
             
-            elai = 0._r8
-            do CL = 1,currentPatch%NCL_p
-               do ft = 1,numpft_ed
-                  elai = elai + sum(currentPatch%canopy_area_profile(CL,ft,1:currentPatch%nrad(CL,ft)) * &
-                       currentPatch%elai_profile(CL,ft,1:currentPatch%nrad(CL,ft)))
-               enddo
-            enddo
-            elai = max(0.1_r8,elai)
+            
+            elai = calc_areaindex(currentPatch,'elai')
+
 
             !----------------------------------------------------------------------------
             ! modification to output boundary (RGK 8-6-2016)
@@ -1004,8 +1001,8 @@ contains
             else
                rscanopy = rsmax0
             end if
-            bc_out(s)%rssun_pa(ifp) = (bc_out(s)%laisun_pa(ifp)+bc_out(s)%laisha_pa(ifp))*(bc_in(s)%rb_pa(ifp)+rscanopy)/elai - bc_in(s)%rb_pa(ifp)
-            bc_out(s)%rssha_pa(ifp) = bc_out(s)%rssun_pa(ifp)
+            bc_out(s)%rssun_pa(ifp) = rscanopy
+            bc_out(s)%rssha_pa(ifp) = rscanopy
             bc_out(s)%gccanopy_pa(ifp)  = 1.0_r8/rscanopy*cf/1000 !convert into umol m02 s-1 then mmol m-2 s-1. 
          end if
 
