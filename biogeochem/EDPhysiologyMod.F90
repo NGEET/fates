@@ -1288,7 +1288,7 @@ contains
     
     use clm_varpar, only : mxpft,nlevdecomp, nlevdecomp_full
     use EDTypesMod, only : AREA, numpft_ed
-    use SoilBiogeochemVerticalProfileMod, only: exponential_rooting_profile, pftspecific_rootingprofile, rootprof_exp, surfprof_exp
+    use SoilBiogeochemVerticalProfileMod, only: surfprof_exp
     use EDCLMLinkMod, only: cwd_fcel_ed, cwd_flig_ed
     use pftconMod, only : pftcon
     use shr_const_mod, only: SHR_CONST_CDAY
@@ -1325,6 +1325,25 @@ contains
     real(r8) :: rootfr_tot(1:numpft_ed), biomass_bg_ft(1:numpft_ed)
     real(r8) :: surface_prof_tot, leaf_prof_sum, stem_prof_sum, froot_prof_sum, biomass_bg_tot
     real(r8) :: delta
+
+    ! NOTE(bja, 201608) these were removed from clm in clm4_5_10_r187
+    logical, parameter :: exponential_rooting_profile = .true.
+    logical, parameter :: pftspecific_rootingprofile = .true.
+
+    ! NOTE(bja, 201608) as of clm4_5_10_r187 rootprof_exp is now a
+    ! private function level parameter in RootBiophysMod.F90::exponential_rootfr()
+    real(r8), parameter :: rootprof_exp  = 3.  ! how steep profile is
+    ! for root C inputs (1/ e-folding depth) (1/m)
+
+    ! NOTE(bja, 201608) as of clm4_5_10_r187 rootprof_beta is now a
+    ! two dimensional array with the second dimension being water,1,
+    ! or carbon,2,. These are currently hard coded, but may be
+    ! overwritten by the namelist.
+
+    ! Note cdk 2016/08 we actually want to use the carbon index here rather than the water index.  
+    ! Doing so will be answer changing though so perhaps easiest to do this in steps.
+    integer, parameter :: rooting_profile_varindex_water = 1
+
     real(r8) :: leaf_prof(1:nsites, 1:nlevdecomp)
     real(r8) :: froot_prof(1:nsites,  1:numpft_ed, 1:nlevdecomp)
     real(r8) :: croot_prof(1:nsites, 1:nlevdecomp)
@@ -1376,8 +1395,8 @@ contains
                ! use beta distribution parameter from Jackson et al., 1996
                do ft = 1, numpft_ed
                   do j = 1, nlevdecomp
-                     cinput_rootfr(ft,j) = ( pftcon%rootprof_beta(ft) ** (zisoi(j-1)*100._r8) - &
-                          pftcon%rootprof_beta(ft) ** (zisoi(j)*100._r8) ) &
+                     cinput_rootfr(ft,j) = ( pftcon%rootprof_beta(ft, rooting_profile_varindex_water) ** (zisoi(j-1)*100._r8) - &
+                          pftcon%rootprof_beta(ft, rooting_profile_varindex_water) ** (zisoi(j)*100._r8) ) &
                           / dzsoi_decomp(j)
                   end do
                end do
