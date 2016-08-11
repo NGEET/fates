@@ -12,12 +12,16 @@ module EDCanopyStructureMod
   use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type, ncwd
   use EDtypesMod            , only : cp_nclmax
+  use EDtypesMod            , only : numpft_ed
+  use shr_log_mod           , only : errMsg => shr_log_errMsg
+  use abortutils            , only : endrun
 
   implicit none
   private
 
   public :: canopy_structure
   public :: canopy_spread
+  public :: calc_areaindex
 
   ! 10/30/09: Created by Rosie Fisher
   ! ============================================================================
@@ -634,5 +638,70 @@ contains
     enddo !currentPatch
 
   end subroutine canopy_spread
+
+  ! =====================================================================================
+
+  function calc_areaindex(cpatch,ai_type) result(ai)
+
+     ! ----------------------------------------------------------------------------------
+     ! This subroutine calculates the exposed leaf area index of a patch
+     ! this is the square meters of leaf per square meter of ground area
+     ! It does so by integrating over the depth and functional type profile of leaf area
+     ! which are per area of crown.  This value has to be scaled by crown area to convert
+     ! to ground area.
+     ! ----------------------------------------------------------------------------------
+     
+     ! Arguments
+     type(ed_patch_type),intent(in), target :: cpatch
+     character(len=*),intent(in)            :: ai_type
+
+     integer :: cl,ft
+     real(r8) :: ai
+     ! TODO: THIS MIN LAI IS AN ARTIFACT FROM TESTING LONG-AGO AND SHOULD BE REMOVED
+     ! THIS HAS BEEN KEPT THUS FAR TO MAINTAIN B4B IN TESTING OTHER COMMITS
+     real(r8),parameter :: ai_min = 0.1_r8
+     real(r8),pointer   :: ai_profile
+
+     ai = 0._r8
+     if     (trim(ai_type) == 'elai') then
+        do cl = 1,cpatch%NCL_p
+           do ft = 1,numpft_ed
+              ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
+                    cpatch%elai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
+           enddo
+        enddo
+     elseif (trim(ai_type) == 'tlai') then
+        do cl = 1,cpatch%NCL_p
+           do ft = 1,numpft_ed
+              ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
+                    cpatch%tlai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
+           enddo
+        enddo
+     elseif (trim(ai_type) == 'esai') then
+         do cl = 1,cpatch%NCL_p
+           do ft = 1,numpft_ed
+              ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
+                    cpatch%esai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
+           enddo
+        enddo
+     elseif (trim(ai_type) == 'tsai') then
+        do cl = 1,cpatch%NCL_p
+           do ft = 1,numpft_ed
+              ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
+                    cpatch%tsai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
+           enddo
+        enddo
+     else
+        write(iulog,*) 'Unsupported area index sent to calc_areaindex'
+        call endrun(msg=errMsg(__FILE__, __LINE__))
+     end if
+     
+     ai = max(ai_min,ai)
+          
+     return
+
+  end function calc_areaindex
+
+
 
 end module EDCanopyStructureMod

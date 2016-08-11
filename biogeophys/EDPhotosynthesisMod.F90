@@ -50,6 +50,8 @@ contains
     use EDEcophysContype  , only : EDecophyscon
     use FatesInterfaceMod , only : bc_in_type,bc_out_type
     use EDtypesMod        , only : numpatchespercol, cp_nlevcan, cp_nclmax
+    use EDCanopyStructureMod,only: calc_areaindex
+
 
     !
     ! !ARGUMENTS:
@@ -948,54 +950,16 @@ contains
                   bc_out(s)%psncanopy_pa(ifp) = bc_out(s)%psncanopy_pa(ifp) + currentCohort%gpp_tstep
                   bc_out(s)%lmrcanopy_pa(ifp) = bc_out(s)%lmrcanopy_pa(ifp) + currentCohort%resp_m
                   ! accumulate cohort level canopy conductances over whole area before dividing by total area.  
-                  bc_out(s)%gccanopy_pa(ifp)  = bc_out(s)%gccanopy_pa(ifp) + currentCohort%gscan * currentCohort%n /currentPatch%total_canopy_area  
+                  bc_out(s)%gccanopy_pa(ifp)  = bc_out(s)%gccanopy_pa(ifp) + currentCohort%gscan * &
+                        currentCohort%n /currentPatch%total_canopy_area  
 
                   currentCohort => currentCohort%shorter
 
                enddo  ! end cohort loop.   
             end if !count_cohorts is more than zero.
             
-            elai = 0._r8
-            do CL = 1,currentPatch%NCL_p
-               do ft = 1,numpft_ed
-                  elai = elai + sum(currentPatch%canopy_area_profile(CL,ft,1:currentPatch%nrad(CL,ft)) * &
-                       currentPatch%elai_profile(CL,ft,1:currentPatch%nrad(CL,ft)))
-               enddo
-            enddo
-            elai = max(0.1_r8,elai)
-
-            !----------------------------------------------------------------------------
-            ! modification to output boundary (RGK 8-6-2016)
-            ! The HLMs ALM/CLM use canopy resistance (rscanopy) to calculate
-            ! rppdry, an intermediary towards transpiration and latent heat flux.
-            ! CLM/ALM, when FATES is not turned on, expect a slightly different format to
-            ! rscanopy, which includes having sunlit and shaded components, and how it is
-            ! normalized by those leaf areas (variables: rssun, rssha).  To simplify and 
-            ! streamline the interface, and remove the necessity in CanopyFluxesMod to 
-            ! process the resistance in in different ways for FATES and non-FATES, we can 
-            ! simply convert to their format by passing rssun and rssha.
-            !
-            ! The key is equate our two methods of solving for rppdry, and calculate rssun
-            ! and rssha in terms of rscanopy:
-            !
-            ! FATES existing  way:
-            ! 
-            ! rppdry_old = fdry*rb/(rb+rscanopy)
-            ! 
-            ! CLM/ALM way:
-            !
-            ! rppdry_new = fdry * rb*(laisun/(rb+rssun) + laisha/(rb+rssha ))/elai
-            ! 
-            ! By equating the two, and assuming that rssun = rssha, we can solve for rssun 
-            ! and rssha in terms of rscanopy, so that we can use the CLM system and get
-            ! the same rppdry:
-            !
-            ! rppdry_new = fdry * rb*( (laisun+laisha)/(rb+rssun) )/elai
-            ! 
-            ! simple mathematical manipulations:
-            ! 
-            ! rssun = rssha = (laisun+laisha)*(rb+rscanopy)/elai - rb
-            ! ---------------------------------------------------------------------------
+            
+            elai = calc_areaindex(currentPatch,'elai')
 
             bc_out(s)%psncanopy_pa(ifp) = bc_out(s)%psncanopy_pa(ifp) / currentPatch%area
             bc_out(s)%lmrcanopy_pa(ifp) = bc_out(s)%lmrcanopy_pa(ifp) / currentPatch%area
@@ -1004,8 +968,8 @@ contains
             else
                rscanopy = rsmax0
             end if
-            bc_out(s)%rssun_pa(ifp) = (bc_out(s)%laisun_pa(ifp)+bc_out(s)%laisha_pa(ifp))*(bc_in(s)%rb_pa(ifp)+rscanopy)/elai - bc_in(s)%rb_pa(ifp)
-            bc_out(s)%rssha_pa(ifp) = bc_out(s)%rssun_pa(ifp)
+            bc_out(s)%rssun_pa(ifp) = rscanopy
+            bc_out(s)%rssha_pa(ifp) = rscanopy
             bc_out(s)%gccanopy_pa(ifp)  = 1.0_r8/rscanopy*cf/1000 !convert into umol m02 s-1 then mmol m-2 s-1. 
          end if
 
