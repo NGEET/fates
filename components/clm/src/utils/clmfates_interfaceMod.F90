@@ -45,10 +45,11 @@ module CLMFatesInterfaceMod
    use clm_varcon        , only : tfrz
    use clm_varpar        , only : numpft,            &
                                   numrad,            &
-                                  nlevgrnd
+                                  nlevgrnd, nlevdecomp_full
    use atm2lndType       , only : atm2lnd_type
    use SurfaceAlbedoType , only : surfalb_type
    use SolarAbsorbedType , only : solarabs_type
+   use SoilBiogeochemCarbonFluxType, only : soilbiogeochem_carbonflux_type
    use clm_time_manager  , only : is_restart
    use ncdio_pio         , only : file_desc_t
    use clm_time_manager  , only : get_days_per_year, &
@@ -88,6 +89,7 @@ module CLMFatesInterfaceMod
    use EDSurfaceRadiationMod , only : ED_SunShadeFracs
    use EDBtranMod            , only : btran_ed, &
                                       get_active_suction_layers
+   use EDPhysiologyMod       , only: flux_into_litter_pools
 
    implicit none
 
@@ -139,6 +141,7 @@ module CLMFatesInterfaceMod
       procedure, public :: dynamics_driv
       procedure, public :: wrap_sunfrac
       procedure, public :: wrap_btran
+      procedure, private :: wrap_litter_fluxout
 
    end type hlm_fates_interface_type
 
@@ -213,6 +216,7 @@ contains
       ! Send parameters individually
       call set_fates_ctrlparms('num_sw_bbands',numrad)
       call set_fates_ctrlparms('num_lev_ground',nlevgrnd)
+      call set_fates_ctrlparms('num_levdecomp_full',nlevdecomp_full)
 
       ! Check through FATES parameters to see if all have been set
       call set_fates_ctrlparms('check_allset')
@@ -383,7 +387,7 @@ contains
 
    subroutine dynamics_driv(this, nc, bounds_clump,      &
          atm2lnd_inst, soilstate_inst, temperature_inst, &
-         waterstate_inst, canopystate_inst)
+         waterstate_inst, canopystate_inst, soilbiogeochem_carbonflux_inst)
     
       ! This wrapper is called daily from clm_driver
       ! This wrapper calls ed_driver, which is the daily dynamics component of FATES
@@ -399,6 +403,7 @@ contains
       integer                 , intent(in)           :: nc
       type(waterstate_type)   , intent(inout)        :: waterstate_inst
       type(canopystate_type)  , intent(inout)        :: canopystate_inst
+      type(soilbiogeochem_carbonflux_type), intent(out) :: soilbiogeochem_carbonflux_inst
 
       ! !LOCAL VARIABLES:
       real(r8) :: dayDiff                  ! day of run
@@ -461,6 +466,9 @@ contains
 
       enddo
 
+      call wrap_litter_fluxout(this, nc, bounds_clump, canopystate_inst, soilbiogeochem_carbonflux_inst)
+      
+      
       ! link to CLM/ALM structures
       call this%fates2hlm%ed_clm_link( bounds_clump,               &
             this%fates(nc)%sites,                                  &
@@ -844,6 +852,48 @@ contains
       return
    end subroutine wrap_btran
 
+
+   subroutine wrap_litter_fluxout(this, nc, bounds_clump, canopystate_inst, soilbiogeochem_carbonflux_inst)
+     
+      implicit none
+      
+      ! Arguments
+      class(hlm_fates_interface_type), intent(inout) :: this
+      integer                , intent(in)            :: nc
+      type(bounds_type),intent(in)                   :: bounds_clump
+      type(canopystate_type)         , intent(inout) :: canopystate_inst
+      type(soilbiogeochem_carbonflux_type), intent(out) :: soilbiogeochem_carbonflux_inst
+
+      ! local variables
+      integer :: s, c
+      
+      
+      ! process needed input boundary conditions to define rooting profiles
+      ! call subroutine to aggregate ED litter output fluxes and package them for handing across interface
+      ! process output into the dimensions that the BGC model wants (column, depth, and litter fractions)
+
+      do s = 1, this%fates(nc)%nsites
+         c = this%f2hmap(nc)%fcolumn(s)
+
+         this%fates(nc)%bc_in(s)%max_rooting_depth_index_col = canopystate_inst%altmax_lastyear_indx_col(c)
+      end do
+
+      call flux_into_litter_pools(this%fates(nc)%sites,  &
+                                  this%fates(nc)%nsites, &
+                                  this%fates(nc)%bc_in,  &
+                                  this%fates(nc)%bc_out)
+      
+      do s = 1, this%fates(nc)%nsites
+         c = this%f2hmap(nc)%fcolumn(s)
+
+         soilbiogeochem_carbonflux_inst%FATES_c_to_litr_lab_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_lab_c_col(:)
+         soilbiogeochem_carbonflux_inst%FATES_c_to_litr_cel_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_cel_c_col(:)
+         soilbiogeochem_carbonflux_inst%FATES_c_to_litr_lig_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_lig_c_col(:)
+         
+      end do
+
+
+   end subroutine wrap_litter_fluxout
 
 
 
