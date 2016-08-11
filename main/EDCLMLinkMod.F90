@@ -22,6 +22,7 @@ module EDCLMLinkMod
   use shr_const_mod, only: SHR_CONST_CDAY
   use abortutils      , only : endrun
   use shr_log_mod     , only : errMsg => shr_log_errMsg    
+  use EDCanopyStructureMod, only : calc_areaindex
 
   !
   implicit none
@@ -1968,22 +1969,24 @@ fraction_exposed= 1.0_r8
 
                !what is the resultant leaf area? 
 
+
+
                tlai_temp = 0._r8
-               elai_temp = 0._r8
-               tsai_temp = 0._r8
-               esai_temp = 0._r8
+!               elai_temp = 0._r8
+!               tsai_temp = 0._r8
+!               esai_temp = 0._r8
 
                do L = 1,currentPatch%NCL_p
                   do ft = 1,numpft_ed
 
                      tlai_temp = tlai_temp + sum(currentPatch%canopy_area_profile(L,ft,1:currentPatch%nrad(L,ft)) * &
                           currentPatch%tlai_profile(L,ft,1:currentPatch%nrad(L,ft)))
-                     elai_temp = elai_temp + sum(currentPatch%canopy_area_profile(L,ft,1:currentPatch%nrad(L,ft)) * &
-                          currentPatch%elai_profile(L,ft,1:currentPatch%nrad(L,ft)))
-                     tsai_temp = tsai_temp + sum(currentPatch%canopy_area_profile(L,ft,1:currentPatch%nrad(L,ft)) * &
-                          currentPatch%tsai_profile(L,ft,1:currentPatch%nrad(L,ft)))
-                     esai_temp = esai_temp + sum(currentPatch%canopy_area_profile(L,ft,1:currentPatch%nrad(L,ft)) * &
-                          currentPatch%esai_profile(L,ft,1:currentPatch%nrad(L,ft)))
+ !                    elai_temp = elai_temp + sum(currentPatch%canopy_area_profile(L,ft,1:currentPatch%nrad(L,ft)) * &
+ !                         currentPatch%elai_profile(L,ft,1:currentPatch%nrad(L,ft)))
+ !                    tsai_temp = tsai_temp + sum(currentPatch%canopy_area_profile(L,ft,1:currentPatch%nrad(L,ft)) * &
+ !                         currentPatch%tsai_profile(L,ft,1:currentPatch%nrad(L,ft)))
+ !                    esai_temp = esai_temp + sum(currentPatch%canopy_area_profile(L,ft,1:currentPatch%nrad(L,ft)) * &
+ !                         currentPatch%esai_profile(L,ft,1:currentPatch%nrad(L,ft)))
                   enddo
                enddo
 
@@ -2001,11 +2004,10 @@ fraction_exposed= 1.0_r8
 
                endif
 
-               elai(p) = max(0.1_r8,elai_temp)
-               tlai(p) = max(0.1_r8,tlai_temp)
-               esai(p) = max(0.1_r8,esai_temp)
-               tsai(p) = max(0.1_r8,tsai_temp)
-
+               elai(p) = calc_areaindex(currentPatch,'elai')
+               tlai(p) = calc_areaindex(currentPatch,'tlai')
+               esai(p) = calc_areaindex(currentPatch,'esai')
+               tsai(p) = calc_areaindex(currentPatch,'tsai')
 
                ! Fraction of vegetation free of snow. What does this do? Is it right? 
                if ((elai(p) + esai(p)) > 0._r8) then
@@ -2101,7 +2103,7 @@ fraction_exposed= 1.0_r8
     use SFParamsMod, only: SF_val_max_decomp
     use clm_varpar, only : mxpft,nlevdecomp, nlevdecomp_full
     use EDTypesMod, only : AREA, numpft_ed
-    use SoilBiogeochemVerticalProfileMod, only: exponential_rooting_profile, pftspecific_rootingprofile, rootprof_exp, surfprof_exp
+    use SoilBiogeochemVerticalProfileMod, only: surfprof_exp
     use pftconMod, only : pftcon
 
     use clm_varcon, only : zisoi, dzsoi_decomp, zsoi
@@ -2134,6 +2136,22 @@ fraction_exposed= 1.0_r8
     real(r8) :: rootfr_tot(1:numpft_ed), biomass_bg_ft(1:numpft_ed)
     real(r8) :: surface_prof_tot, leaf_prof_sum, stem_prof_sum, froot_prof_sum, biomass_bg_tot
     real(r8) :: delta
+
+    ! NOTE(bja, 201608) these were removed from clm in clm4_5_10_r187
+    logical, parameter :: exponential_rooting_profile = .true.
+    logical, parameter :: pftspecific_rootingprofile = .true.
+
+    ! NOTE(bja, 201608) as of clm4_5_10_r187 rootprof_exp is now a
+    ! private function level parameter in RootBiophysMod.F90::exponential_rootfr()
+    real(r8), parameter :: rootprof_exp  = 3.  ! how steep profile is
+    ! for root C inputs (1/ e-folding depth) (1/m)
+
+    ! NOTE(bja, 201608) as of clm4_5_10_r187 rootprof_beta is now a
+    ! two dimensional array with the second dimension being water,1,
+    ! or carbon,2,. These are currently hard coded, but may be
+    ! overwritten by the namelist.
+    integer, parameter :: rooting_profile_varindex_water = 1
+
     
     begp = bounds%begp; endp = bounds%endp
     begc = bounds%begc; endc = bounds%endc
@@ -2194,8 +2212,8 @@ fraction_exposed= 1.0_r8
                   ! use beta distribution parameter from Jackson et al., 1996
                   do ft = 1, numpft_ed
                      do j = 1, nlevdecomp
-                        cinput_rootfr(c,ft,j) = ( pftcon%rootprof_beta(ft) ** (zisoi(j-1)*100._r8) - &
-                             pftcon%rootprof_beta(ft) ** (zisoi(j)*100._r8) ) &
+                        cinput_rootfr(c,ft,j) = ( pftcon%rootprof_beta(ft, rooting_profile_varindex_water) ** (zisoi(j-1)*100._r8) - &
+                             pftcon%rootprof_beta(ft, rooting_profile_varindex_water) ** (zisoi(j)*100._r8) ) &
                              / dzsoi_decomp(j)
                      end do
                   end do
@@ -2204,6 +2222,7 @@ fraction_exposed= 1.0_r8
                do ft = 1,numpft_ed 
                   do j = 1, nlevdecomp
                      ! use standard CLM root fraction profiles;
+                     ! THESE LEV's SHOULD BE FIXED (RGK)
                      cinput_rootfr(c,ft,j) =  ( .5_r8*( &
                           exp(-pftcon%roota_par(ft) * col%zi(c,lev-1))  &
                           + exp(-pftcon%rootb_par(ft) * col%zi(c,lev-1))  &
