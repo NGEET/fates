@@ -17,9 +17,7 @@ module CanopyFluxesMod
                                      use_luna, use_hydrstress
   use clm_varpar            , only : nlevgrnd, nlevsno
   use clm_varcon            , only : namep 
-  use pftconMod             , only : nbrdlf_dcd_tmp_shrub, pftcon
-  use pftconMod             , only : ntmp_soybean, nirrig_tmp_soybean
-  use pftconMod             , only : ntrp_soybean, nirrig_trp_soybean
+  use pftconMod             , only : pftcon
   use decompMod             , only : bounds_type
   use PhotosynthesisMod     , only : Photosynthesis, PhotoSynthesisHydraulicStress, PhotosynthesisTotal, Fractionation
   use EDAccumulateFluxesMod , only : AccumulateFluxes_ED
@@ -54,7 +52,8 @@ module CanopyFluxesMod
   implicit none
   !
   ! !PUBLIC MEMBER FUNCTIONS:
-  public :: CanopyFluxes
+  public :: CanopyFluxesReadNML     ! Read in namelist settings
+  public :: CanopyFluxes            ! Calculate canopy fluxes
   !
   ! !PUBLIC DATA MEMBERS:
   ! true => btran is based only on unfrozen soil levels
@@ -66,11 +65,68 @@ module CanopyFluxesMod
   !
   ! !PRIVATE DATA MEMBERS:
   ! Snow in vegetation canopy namelist options.
-  logical, private :: snowveg_on     = .false.  ! snowveg_flag = 'ON'
-  logical, private :: snowveg_onrad  = .true.   ! snowveg_flag = 'ON_RAD'
+  logical, private :: snowveg_on     = .false.                ! snowveg_flag = 'ON'
+  logical, private :: snowveg_onrad  = .true.                 ! snowveg_flag = 'ON_RAD'
+  logical, private :: use_undercanopy_stability = .true.      ! use undercanopy stability term or not
   !------------------------------------------------------------------------------
 
 contains
+
+  !------------------------------------------------------------------------
+  subroutine CanopyFluxesReadNML(NLFilename)
+    !
+    ! !DESCRIPTION:
+    ! Read the namelist for Canopy Fluxes
+    !
+    ! !USES:
+    use fileutils      , only : getavu, relavu, opnfil
+    use shr_nl_mod     , only : shr_nl_find_group_name
+    use spmdMod        , only : masterproc, mpicom
+    use shr_mpi_mod    , only : shr_mpi_bcast
+    use clm_varctl     , only : iulog
+    !
+    ! !ARGUMENTS:
+    character(len=*), intent(IN) :: NLFilename ! Namelist filename
+    !
+    ! !LOCAL VARIABLES:
+    integer :: ierr                 ! error code
+    integer :: unitn                ! unit for namelist file
+
+    character(len=*), parameter :: subname = 'CanopyFluxeseadNML'
+    character(len=*), parameter :: nmlname = 'canopyfluxes_inparm'
+    !-----------------------------------------------------------------------
+
+    namelist /canopyfluxes_inparm/ use_undercanopy_stability
+
+    ! Initialize options to default values, in case they are not specified in
+    ! the namelist
+
+    if (masterproc) then
+       unitn = getavu()
+       write(iulog,*) 'Read in '//nmlname//'  namelist'
+       call opnfil (NLFilename, unitn, 'F')
+       call shr_nl_find_group_name(unitn, nmlname, status=ierr)
+       if (ierr == 0) then
+          read(unitn, nml=canopyfluxes_inparm, iostat=ierr)
+          if (ierr /= 0) then
+             call endrun(msg="ERROR reading "//nmlname//"namelist"//errmsg(__FILE__, __LINE__))
+          end if
+       else
+          call endrun(msg="ERROR could NOT find "//nmlname//"namelist"//errmsg(__FILE__, __LINE__))
+       end if
+       call relavu( unitn )
+    end if
+
+    call shr_mpi_bcast (use_undercanopy_stability, mpicom)
+
+    if (masterproc) then
+       write(iulog,*) ' '
+       write(iulog,*) nmlname//' settings:'
+       write(iulog,nml=canopyfluxes_inparm)
+       write(iulog,*) ' '
+    end if
+
+  end subroutine CanopyFluxesReadNML
 
   !------------------------------------------------------------------------------
   subroutine CanopyFluxes(bounds,  num_exposedvegp, filter_exposedvegp,                  &
@@ -735,7 +791,7 @@ contains
 
             !! modify csoilc value (0.004) if the under-canopy is in stable condition
 
-            if ( (taf(p) - t_grnd(c) ) > 0._r8) then
+            if (use_undercanopy_stability .and. (taf(p) - t_grnd(c) ) > 0._r8) then
                ! decrease the value of csoilc by dividing it with (1+gamma*min(S, 10.0))
                ! ria ("gmanna" in Sakaguchi&Zeng, 2008) is a constant (=0.5)
                ricsoilc = csoilc / (1.00_r8 + ria*min( ri, 10.0_r8) )
@@ -758,31 +814,6 @@ contains
             svpts(p) = el(p)                         ! pa
             eah(p) = forc_pbot(c) * qaf(p) / 0.622_r8   ! pa
             rhaf(p) = eah(p)/svpts(p)
-         end do
-
-         ! Modification for shrubs proposed by X.D.Z 
-         ! Equivalent modification for soy following AgroIBIS
-         ! NOTE: the following block of code was moved out of Photosynthesis subroutine and 
-         ! into here by M. Vertenstein on 4/6/2014 as part of making the photosynthesis
-         ! routine a separate module. This move was also suggested by S. Levis in the previous
-         ! version of the code. 
-         ! BUG MV 4/7/2014 - is this the correct place to have it in the iteration? 
-         ! THIS SHOULD BE MOVED OUT OF THE ITERATION but will change answers -
-         
-         ! NOTE: KO 6/22/2016  Btran using plant hydraulic stress is not available yet.
-         !         But will this section be moved?
-         do f = 1, fn
-            p = filterp(f)
-            c = patch%column(p)
-            if (use_cndv) then
-               if (patch%itype(p) == nbrdlf_dcd_tmp_shrub) then
-                  btran(p) = min(1._r8, btran(p) * 3.33_r8)
-               end if
-            end if
-            if (patch%itype(p) == ntmp_soybean .or. patch%itype(p) == nirrig_tmp_soybean .or. &
-                patch%itype(p) == ntrp_soybean .or. patch%itype(p) == nirrig_trp_soybean) then
-               btran(p) = min(1._r8, btran(p) * 1.25_r8)
-            end if
          end do
 
          if ( use_ed ) then      
@@ -815,21 +846,6 @@ contains
                     atm2lnd_inst, canopystate_inst, solarabs_inst, surfalb_inst, photosyns_inst, &
                     phase='sun')
             endif
-
-           !KO This should be OK for plant hydraulic stress since final btran has been calculated
-            do f = 1, fn
-               p = filterp(f)
-               c = patch%column(p)
-               if (use_cndv) then
-                  if (patch%itype(p) == nbrdlf_dcd_tmp_shrub) then
-                     btran(p) = min(1._r8, btran(p) * 3.33_r8)
-                  end if
-               end if
-            if (patch%itype(p) == ntmp_soybean .or. patch%itype(p) == nirrig_tmp_soybean .or. &
-                patch%itype(p) == ntrp_soybean .or. patch%itype(p) == nirrig_trp_soybean) then
-                  btran(p) = min(1._r8, btran(p) * 1.25_r8)
-               end if
-            end do
 
             if ( .not.(use_hydrstress) ) then
                call Photosynthesis (bounds, fn, filterp, &

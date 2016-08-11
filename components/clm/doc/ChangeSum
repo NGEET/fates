@@ -1,6 +1,14 @@
 Tag                   Who      Date  Summary
 ============================================================================================================================
-   clm4_5_9_r183     erik 07/02/2016 Decomposition is not water limited after reaching a field capacity parameter (maxpsi_hr) rather than only at soil saturation
+  clm4_5_11_r188     erik 08/05/2016 A set of small answer changing issues for both clm45 and clm50
+  clm4_5_10_r187     erik 07/26/2016 CLM45/50 changes: seperate carbon and water root profile, turn off undercanopystability, 
+                                     really turn PHS on, LUNA predict sunlit fraction N fractionation
+   clm4_5_9_r186    sacks 07/13/2016 Initialize biogeochem balance checks AFTER column area updates
+   clm4_5_9_r185    sacks 07/07/2016 Revert glacial melt behavior to the old treatment for mountain glaciers
+   clm4_5_9_r184     erik 07/06/2016 CLM50 changes: Atkin form of lmr changed, new parameters and files, turn PHS on by default, 
+                                     new cold snow density, reseed at exit AD spinup, fix fire bug, fix npool and cpool errors
+   clm4_5_9_r183     erik 07/02/2016 Decomposition is not water limited after reaching a field capacity parameter (maxpsi_hr) 
+                                     rather than only at soil saturation
    clm4_5_8_r182     erik 06/24/2016 Bring in option for plant hydraulic stress for clm50
    clm4_5_8_r181     erik 06/17/2016 Update cime version which fixes several issues and changes answers
    clm4_5_8_r180    sacks 06/06/2016 Refactor dyn_cnbal_patch

@@ -921,6 +921,7 @@ contains
     type (ed_patch_type),pointer :: cpatch   ! c"urrent" patch
     real(r8)          :: sunlai
     real(r8)          :: shalai
+    real(r8)          :: elai
     integer           :: CL
     integer           :: FT
     integer           :: iv
@@ -984,9 +985,6 @@ contains
                 
              end do
           end do
-
-          bc_out(s)%laisun_pa(ifp) = sunlai
-          bc_out(s)%laisha_pa(ifp) = shalai
           
           if(sunlai+shalai > 0._r8)then
              bc_out(s)%fsun_pa(ifp) = sunlai / (sunlai+shalai) 
@@ -998,7 +996,12 @@ contains
              write(iulog,*) 'too much leaf area in profile',  bc_out(s)%fsun_pa(ifp), &
                    cpatch%lai,sunlai,shalai
           endif
-          
+
+          elai = calc_areaindex(cpatch,'elai')
+
+          bc_out(s)%laisun_pa(ifp) = elai*bc_out(s)%fsun_pa(ifp)
+          bc_out(s)%laisha_pa(ifp) = elai*(1.0_r8-bc_out(s)%fsun_pa(ifp))
+
          ! Absorbed PAR profile through canopy
          ! If sun/shade big leaf code, nrad=1 and fluxes from SurfaceAlbedo
          ! are canopy integrated so that layer values equal big leaf values.
