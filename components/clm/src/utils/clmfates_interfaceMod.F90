@@ -41,8 +41,10 @@ module CLMFatesInterfaceMod
    use TemperatureType   , only : temperature_type
    use EnergyFluxType    , only : energyflux_type
    use SoilStateType     , only : soilstate_type
-   use clm_varctl        , only : iulog
+   use PhotosynthesisMod , only : photosyns_type
+   use clm_varctl        , only : iulog, use_ed
    use clm_varcon        , only : tfrz
+   use clm_varcon        , only : spval
    use clm_varpar        , only : numpft,            &
                                   numrad,            &
                                   nlevgrnd, nlevdecomp_full
@@ -89,6 +91,9 @@ module CLMFatesInterfaceMod
    use EDSurfaceRadiationMod , only : ED_SunShadeFracs
    use EDBtranMod            , only : btran_ed, &
                                       get_active_suction_layers
+
+   use EDPhotosynthesisMod   , only : Photosynthesis_ED
+   use EDAccumulateFluxesMod , only : AccumulateFluxes_ED
    use EDPhysiologyMod       , only: flux_into_litter_pools
 
    implicit none
@@ -133,15 +138,19 @@ module CLMFatesInterfaceMod
 
    contains
       
-      procedure, public :: init
-      procedure, public :: init_allocate
-      procedure, public :: check_hlm_active
-      procedure, public :: init_restart
-      procedure, public :: init_coldstart
-      procedure, public :: dynamics_driv
-      procedure, public :: wrap_sunfrac
-      procedure, public :: wrap_btran
+      procedure, public  :: init
+      procedure, public  :: init_allocate
+      procedure, public  :: check_hlm_active
+      procedure, public  :: init_restart
+      procedure, public  :: init_coldstart
+      procedure, public  :: dynamics_driv
+      procedure, public  :: wrap_sunfrac
+      procedure, public  :: wrap_btran
+      procedure, public  :: wrap_photosynthesis
+      procedure, public  :: wrap_accumulatefluxes
+      procedure, public  :: prep_canopyfluxes
       procedure, private :: wrap_litter_fluxout
+
 
    end type hlm_fates_interface_type
 
@@ -629,8 +638,10 @@ contains
       
       associate( forc_solad => atm2lnd_inst%forc_solad_grc, &
                  forc_solai => atm2lnd_inst%forc_solai_grc, &
-                 fsun       => canopystate_inst%fsun_patch)
-        
+                 fsun       => canopystate_inst%fsun_patch, &
+                 laisun     => canopystate_inst%laisun_patch, &               
+                 laisha     => canopystate_inst%laisha_patch )
+
         ! -------------------------------------------------------------------------------
         ! Convert input BC's
         ! The sun-shade calculations are performed only on FATES patches
@@ -669,13 +680,10 @@ contains
         do s = 1, this%fates(nc)%nsites
            c = this%f2hmap(nc)%fcolumn(s)
            do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
-!           do ifp = 1, this%fates(nc)%bc_in(s)%npatches
-              
               p = ifp+col%patchi(c)
-              g = col%gridcell(c)
-              
-              fsun(p) = this%fates(nc)%bc_out(s)%fsun_pa(ifp)
-
+              fsun(p)   = this%fates(nc)%bc_out(s)%fsun_pa(ifp)
+              laisun(p) = this%fates(nc)%bc_out(s)%laisun_pa(ifp)
+              laisha(p) = this%fates(nc)%bc_out(s)%laisha_pa(ifp)
            end do
         end do
 
@@ -683,6 +691,35 @@ contains
       return
    end subroutine wrap_sunfrac
    
+   ! ===================================================================================
+
+   subroutine prep_canopyfluxes(this, nc, fn, filterp, photosyns_inst)
+
+     ! ----------------------------------------------------------------------
+     ! the main function for calculating photosynthesis is called within a
+     ! loop based on convergence.  Some intitializations, including 
+     ! canopy resistance must be intitialized before the loop
+     ! ----------------------------------------------------------------------
+    
+     ! Arguments
+     class(hlm_fates_interface_type), intent(inout) :: this
+     integer, intent(in)                            :: nc
+     integer, intent(in)                            :: fn
+     integer, intent(in)                            :: filterp(fn)
+     type(photosyns_type),intent(inout)             :: photosyns_inst
+     ! locals
+     integer                                        :: f,p,c,s
+     ! parameters
+     integer,parameter                              :: rsmax0 = 2.e4_r8
+
+     if (.not.use_ed) return
+     
+     do s = 1, this%fates(nc)%nsites
+        ! filter flag == 1 means that this patch has not been called for photosynthesis
+        this%fates(nc)%bc_in(s)%filter_photo_pa(:) = 1
+     end do
+  end subroutine prep_canopyfluxes
+
    ! ====================================================================================
    
    subroutine wrap_btran(this,nc,fn,filterc,soilstate_inst, waterstate_inst, &
@@ -852,48 +889,212 @@ contains
       return
    end subroutine wrap_btran
 
+   ! ====================================================================================
+   
+   subroutine wrap_photosynthesis(this, nc, bounds, fn, filterp, &
+         esat_tv, eair, oair, cair, rb, dayl_factor,             &
+         atm2lnd_inst, temperature_inst, canopystate_inst, photosyns_inst)
+   
+    use shr_log_mod       , only : errMsg => shr_log_errMsg
+    use abortutils        , only : endrun
+    use decompMod         , only : bounds_type
+    use clm_time_manager  , only : get_step_size
+    use clm_varcon        , only : rgas, tfrz, namep  
+    use clm_varpar        , only : nlevcan_ed, nclmax, nlevsoi, mxpft
+    use clm_varctl        , only : iulog
+    use pftconMod         , only : pftcon
+    use perf_mod          , only : t_startf, t_stopf
+    use PatchType         , only : patch
+    use quadraticMod      , only : quadratic
+    use EDParamsMod       , only : ED_val_grperc
+    use EDSharedParamsMod , only : EDParamsShareInst
+    use EDTypesMod        , only : numpft_ed, dinc_ed
+    use EDtypesMod        , only : ed_patch_type, ed_cohort_type, ed_site_type, numpft_ed, numPatchesPerCol
+    use EDEcophysContype  , only : EDecophyscon
+   
+    !
+    ! !ARGUMENTS:
+    class(hlm_fates_interface_type), intent(inout) :: this
+    integer                , intent(in)            :: nc                          ! clump index
+    type(bounds_type)      , intent(in)            :: bounds
+    integer                , intent(in)            :: fn                          ! size of pft filter
+    integer                , intent(in)            :: filterp(fn)                 ! pft filter
+    real(r8)               , intent(in)            :: esat_tv(bounds%begp: )      ! saturation vapor pressure at t_veg (Pa)
+    real(r8)               , intent(in)            :: eair( bounds%begp: )        ! vapor pressure of canopy air (Pa)
+    real(r8)               , intent(in)            :: oair( bounds%begp: )        ! Atmospheric O2 partial pressure (Pa)
+    real(r8)               , intent(in)            :: cair( bounds%begp: )        ! Atmospheric CO2 partial pressure (Pa)
+    real(r8)               , intent(in)            :: rb( bounds%begp: )          ! boundary layer resistance (s/m)
+    real(r8)               , intent(in)            :: dayl_factor( bounds%begp: ) ! scalar (0-1) for daylength
+    type(atm2lnd_type)     , intent(in)            :: atm2lnd_inst
+    type(temperature_type) , intent(in)            :: temperature_inst
+    type(canopystate_type) , intent(inout)         :: canopystate_inst
+    type(photosyns_type)   , intent(inout)         :: photosyns_inst
 
-   subroutine wrap_litter_fluxout(this, nc, bounds_clump, canopystate_inst, soilbiogeochem_carbonflux_inst)
-     
-      implicit none
-      
-      ! Arguments
-      class(hlm_fates_interface_type), intent(inout) :: this
-      integer                , intent(in)            :: nc
-      type(bounds_type),intent(in)                   :: bounds_clump
-      type(canopystate_type)         , intent(inout) :: canopystate_inst
-      type(soilbiogeochem_carbonflux_type), intent(out) :: soilbiogeochem_carbonflux_inst
+    integer                                        :: s,c,p,ifp,j,icp
+    real(r8)                                       :: dtime
 
-      ! local variables
-      integer :: s, c
+    call t_startf('edpsn')
+    associate(&
+          t_soisno  => temperature_inst%t_soisno_col , &
+          t_veg     => temperature_inst%t_veg_patch  , &
+          tgcm      => temperature_inst%thm_patch    , &
+          forc_pbot => atm2lnd_inst%forc_pbot_downscaled_col, &
+          rssun     => photosyns_inst%rssun_patch  , &
+          rssha     => photosyns_inst%rssha_patch,   &
+          psnsun    => photosyns_inst%psnsun_patch,  &
+          psnsha    => photosyns_inst%psnsha_patch)
       
-      
-      ! process needed input boundary conditions to define rooting profiles
-      ! call subroutine to aggregate ED litter output fluxes and package them for handing across interface
-      ! process output into the dimensions that the BGC model wants (column, depth, and litter fractions)
-
       do s = 1, this%fates(nc)%nsites
-         c = this%f2hmap(nc)%fcolumn(s)
-
-         this%fates(nc)%bc_in(s)%max_rooting_depth_index_col = canopystate_inst%altmax_lastyear_indx_col(c)
-      end do
-
-      call flux_into_litter_pools(this%fates(nc)%sites,  &
-                                  this%fates(nc)%nsites, &
-                                  this%fates(nc)%bc_in,  &
-                                  this%fates(nc)%bc_out)
-      
-      do s = 1, this%fates(nc)%nsites
-         c = this%f2hmap(nc)%fcolumn(s)
-
-         soilbiogeochem_carbonflux_inst%FATES_c_to_litr_lab_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_lab_c_col(:)
-         soilbiogeochem_carbonflux_inst%FATES_c_to_litr_cel_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_cel_c_col(:)
-         soilbiogeochem_carbonflux_inst%FATES_c_to_litr_lig_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_lig_c_col(:)
          
+         c = this%f2hmap(nc)%fcolumn(s)
+         
+         do j = 1,nlevsoi
+            this%fates(nc)%bc_in(s)%t_soisno_gl(j)   = t_soisno(c,j)  ! soil temperature (Kelvin)
+         end do
+         this%fates(nc)%bc_in(s)%forc_pbot           = forc_pbot(c)   ! atmospheric pressure (Pa)
+
+         do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
+            
+            p = ifp+col%patchi(c)
+
+            ! Check to see if this patch is in the filter
+            ! Note that this filter is most likely changing size, and getting smaller
+            ! and smaller as more patch have converged on solution
+            if( any(filterp==p) )then
+
+               ! This filter is flushed to 1 before the canopyflux stability iterator
+               ! It is set to status 2 if it is an active patch within the iterative loop
+               ! After photosynthesis is called, it is upgraded to 3 if it was called.
+               ! After all iterations we can evaluate which patches have a final flag
+               ! of 3 to check if we missed any.
+
+               this%fates(nc)%bc_in(s)%filter_photo_pa(ifp) = 2
+               this%fates(nc)%bc_in(s)%dayl_factor_pa(ifp) = dayl_factor(p) ! scalar (0-1) for daylength
+               this%fates(nc)%bc_in(s)%esat_tv_pa(ifp)     = esat_tv(p)     ! saturation vapor pressure at t_veg (Pa)
+               this%fates(nc)%bc_in(s)%eair_pa(ifp)        = eair(p)        ! vapor pressure of canopy air (Pa)
+               this%fates(nc)%bc_in(s)%oair_pa(ifp)        = oair(p)        ! Atmospheric O2 partial pressure (Pa)
+               this%fates(nc)%bc_in(s)%cair_pa(ifp)        = cair(p)        ! Atmospheric CO2 partial pressure (Pa)
+               this%fates(nc)%bc_in(s)%rb_pa(ifp)          = rb(p)          ! boundary layer resistance (s/m)
+               this%fates(nc)%bc_in(s)%t_veg_pa(ifp)       = t_veg(p)       ! vegetation temperature (Kelvin)     
+               this%fates(nc)%bc_in(s)%tgcm_pa(ifp)        = tgcm(p)        ! air temperature at agcm reference height (kelvin)
+            end if
+         end do
       end do
 
+      dtime = get_step_size()
+      
+      ! Call photosynthesis
+      
+      call  Photosynthesis_ED (this%fates(nc)%sites,  &
+                               this%fates(nc)%nsites, &
+                               this%fates(nc)%bc_in,  &
+                               this%fates(nc)%bc_out, &
+                               dtime)
 
-   end subroutine wrap_litter_fluxout
+      ! Perform a double check to see if all patches on naturally vegetated columns
+      ! were activated for photosynthesis
+      ! ---------------------------------------------------------------------------------
+      do icp = 1,fn
+         p = filterp(icp)
+         c = patch%column(p)
+         s = this%f2hmap(nc)%hsites(c)
+         ! do if structure here and only pass natveg columns
+         ifp = p-col%patchi(c)
+         if(this%fates(nc)%bc_in(s)%filter_photo_pa(ifp) /= 2)then
+            write(iulog,*) 'Not all patches on the natveg column in the photosynthesis'
+            write(iulog,*) 'filter ran photosynthesis'
+            call endrun(msg=errMsg(__FILE__, __LINE__))
+         else
+            this%fates(nc)%bc_in(s)%filter_photo_pa(ifp) = 3
+            rssun(p) = this%fates(nc)%bc_out(s)%rssun_pa(ifp)
+            rssha(p) = this%fates(nc)%bc_out(s)%rssha_pa(ifp)
+            
+            ! These fields are marked with a bad-value flag
+            photosyns_inst%psnsun_patch(p)   = spval
+            photosyns_inst%psnsha_patch(p)   = spval
+         end if
+      end do
+      
+    end associate
+    call t_stopf('edpsn')
+    return
+ end subroutine wrap_photosynthesis
+
+ ! ======================================================================================
+
+ subroutine wrap_accumulatefluxes(this, nc, fn, filterp)
+    
+    ! !ARGUMENTS:
+    class(hlm_fates_interface_type), intent(inout) :: this
+    integer                , intent(in)            :: nc                   ! clump index
+    integer                , intent(in)            :: fn                   ! size of pft filter
+    integer                , intent(in)            :: filterp(fn)          ! pft filter
+
+    integer                                        :: s,c,p,ifp,icp
+
+    ! Run a check on the filter
+    do icp = 1,fn
+       p = filterp(icp)
+       c = patch%column(p)
+       s = this%f2hmap(nc)%hsites(c)
+       ifp = p-col%patchi(c)
+       if(this%fates(nc)%bc_in(s)%filter_photo_pa(ifp) /= 3)then
+          call endrun(msg=errMsg(__FILE__, __LINE__))
+       end if
+    end do
+
+    call  AccumulateFluxes_ED(this%fates(nc)%sites,  &
+                               this%fates(nc)%nsites, &
+                               this%fates(nc)%bc_in,  &
+                               this%fates(nc)%bc_out)
+
+    return
+
+ end subroutine wrap_accumulatefluxes
+
+ ! ======================================================================================
+
+ subroutine wrap_litter_fluxout(this, nc, bounds_clump, canopystate_inst, soilbiogeochem_carbonflux_inst)
+     
+    implicit none
+    
+    ! Arguments
+    class(hlm_fates_interface_type), intent(inout) :: this
+    integer                , intent(in)            :: nc
+    type(bounds_type),intent(in)                   :: bounds_clump
+    type(canopystate_type)         , intent(inout) :: canopystate_inst
+    type(soilbiogeochem_carbonflux_type), intent(out) :: soilbiogeochem_carbonflux_inst
+    
+    ! local variables
+    integer :: s, c
+    
+    
+    ! process needed input boundary conditions to define rooting profiles
+    ! call subroutine to aggregate ED litter output fluxes and package them for handing across interface
+    ! process output into the dimensions that the BGC model wants (column, depth, and litter fractions)
+    
+    do s = 1, this%fates(nc)%nsites
+       c = this%f2hmap(nc)%fcolumn(s)
+       
+       this%fates(nc)%bc_in(s)%max_rooting_depth_index_col = canopystate_inst%altmax_lastyear_indx_col(c)
+    end do
+    
+    call flux_into_litter_pools(this%fates(nc)%sites,  &
+                                this%fates(nc)%nsites, &
+                                this%fates(nc)%bc_in,  &
+                                this%fates(nc)%bc_out)
+    
+    do s = 1, this%fates(nc)%nsites
+       c = this%f2hmap(nc)%fcolumn(s)
+
+       soilbiogeochem_carbonflux_inst%FATES_c_to_litr_lab_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_lab_c_col(:)
+       soilbiogeochem_carbonflux_inst%FATES_c_to_litr_cel_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_cel_c_col(:)
+       soilbiogeochem_carbonflux_inst%FATES_c_to_litr_lig_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_lig_c_col(:)
+       
+    end do
+
+
+ end subroutine wrap_litter_fluxout
 
 
 
@@ -910,15 +1111,6 @@ contains
    !    
    !    call this%fates2hlm%SetValues( bounds_clump, setval_scalar )
    !  end subroutine set_fates2hlm
-   ! ------------------------------------------------------------------------------------
-   !  subroutine phen_accvars_init(this,bounds_clump)
-   !
-   !    implicit none
-   !    class(hlm_fates_interface_type), intent(inout) :: this
-   !    type(bounds_type),intent(in)                :: bounds_clump
-   !
-   !    return
-   !  end subroutine phen_accvars_init
    ! ------------------------------------------------------------------------------------
     
 end module CLMFatesInterfaceMod

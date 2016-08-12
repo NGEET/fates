@@ -41,11 +41,17 @@ module FatesInterfaceMod
       ! The actual number of FATES' ED patches
       integer :: npatches
 
+      ! Radiation variables for calculating sun/shade fractions
+      ! ---------------------------------------------------------------------------------
+
       ! Downwelling direct beam radiation (patch,radiation-band) [W/m2]
       real(r8), allocatable :: solad_parb(:,:)  
 
       ! Downwelling diffuse (I-ndirect) radiation (patch,radiation-band) [W/m2]
       real(r8), allocatable :: solai_parb(:,:)
+
+      ! Hydrology variables for BTRAN
+      ! ---------------------------------------------------------------------------------
 
       ! Soil suction potential of layers in each site, negative, [mm]
       real(r8), allocatable :: smp_gl(:)
@@ -65,7 +71,48 @@ module FatesInterfaceMod
       ! Site level filter for uptake response functions
       logical               :: filter_btran
 
-      ! the index of the deepest model soil level where roots may be, due to permafrost or bedrock constraints
+      ! Photosynthesis variables
+      ! ---------------------------------------------------------------------------------
+
+      ! Patch level filter flag for photosynthesis calculations
+      ! has a short memory, flags:
+      ! 1 = patch has not been called
+      ! 2 = patch is currently marked for photosynthesis
+      ! 3 = patch has been called for photosynthesis at least once
+      integer, allocatable  :: filter_photo_pa(:)
+
+      ! atmospheric pressure (Pa)
+      real(r8)              :: forc_pbot             
+
+      ! daylength scaling factor (0-1)
+      real(r8), allocatable :: dayl_factor_pa(:)
+      
+      ! saturation vapor pressure at t_veg (Pa)
+      real(r8), allocatable :: esat_tv_pa(:)
+
+      ! vapor pressure of canopy air (Pa)
+      real(r8), allocatable :: eair_pa(:)
+
+      ! Atmospheric O2 partial pressure (Pa)
+      real(r8), allocatable :: oair_pa(:)
+
+      ! Atmospheric CO2 partial pressure (Pa)
+      real(r8), allocatable :: cair_pa(:)
+
+      ! boundary layer resistance (s/m)
+      real(r8), allocatable :: rb_pa(:)
+
+      ! vegetation temperature (Kelvin)
+      real(r8), allocatable :: t_veg_pa(:)
+             
+      ! air temperature at agcm reference height (kelvin)
+      real(r8), allocatable :: tgcm_pa(:)
+
+      ! soil temperature (Kelvin)
+      real(r8), allocatable :: t_soisno_gl(:)
+
+      ! the index of the deepest model soil level where roots may be
+      ! due to permafrost or bedrock constraints
       integer  :: max_rooting_depth_index_col
 
 
@@ -77,6 +124,12 @@ module FatesInterfaceMod
       ! Sunlit fraction of the canopy for this patch [0-1]
       real(r8),allocatable :: fsun_pa(:)
 
+      ! Sunlit canopy LAI
+      real(r8),allocatable :: laisun_pa(:)
+      
+      ! Shaded canopy LAI
+      real(r8),allocatable :: laisha_pa(:)
+      
       ! Logical stating whether a ground layer can have water uptake by plants
       ! The only condition right now is that liquid water exists
       ! The name (suction) is used to indicate that soil suction should be calculated
@@ -89,11 +142,32 @@ module FatesInterfaceMod
       ! (diagnostic, should not be used by HLM)
       real(r8), allocatable :: btran_pa(:)
 
-     ! litterfall fluxes of C from FATES patches to BGC columns
-     real(r8), allocatable :: FATES_c_to_litr_lab_c_col(:)      !total labile    litter coming from ED. gC/m3/s
-     real(r8), allocatable :: FATES_c_to_litr_cel_c_col(:)      !total cellulose litter coming from ED. gC/m3/s
-     real(r8), allocatable :: FATES_c_to_litr_lig_c_col(:)      !total lignin    litter coming from ED. gC/m3/s
+      ! Sunlit canopy resistance [s/m]
+      real(r8), allocatable :: rssun_pa(:)
 
+      ! Shaded canopy resistance [s/m]
+      real(r8), allocatable :: rssha_pa(:)
+
+      ! Canopy conductance [mmol m-2 s-1]
+      real(r8), allocatable :: gccanopy_pa(:)
+
+      ! patch sunlit leaf photosynthesis (umol CO2 /m**2/ s)
+      real(r8), allocatable :: psncanopy_pa(:)
+
+      ! patch sunlit leaf maintenance respiration rate (umol CO2/m**2/s) 
+      real(r8), allocatable :: lmrcanopy_pa(:)
+
+      ! litterfall fluxes of C from FATES patches to BGC columns
+
+      ! total labile    litter coming from ED. gC/m3/s
+      real(r8), allocatable :: FATES_c_to_litr_lab_c_col(:)      
+
+      !total cellulose litter coming from ED. gC/m3/s
+      real(r8), allocatable :: FATES_c_to_litr_cel_c_col(:)      
+      
+      !total lignin    litter coming from ED. gC/m3/s
+      real(r8), allocatable :: FATES_c_to_litr_lig_c_col(:)      
+      
 
    end type bc_out_type
 
@@ -180,7 +254,19 @@ contains
       allocate(bc_in%watsat_gl(ctrl_parms%numlevgrnd))
       allocate(bc_in%tempk_gl(ctrl_parms%numlevgrnd))
       allocate(bc_in%h2o_liqvol_gl(ctrl_parms%numlevgrnd))
-      
+
+      ! Photosynthesis
+      allocate(bc_in%filter_photo_pa(numPatchesPerCol))
+      allocate(bc_in%dayl_factor_pa(numPatchesPerCol))
+      allocate(bc_in%esat_tv_pa(numPatchesPerCol))
+      allocate(bc_in%eair_pa(numPatchesPerCol))
+      allocate(bc_in%oair_pa(numPatchesPerCol))
+      allocate(bc_in%cair_pa(numPatchesPerCol))
+      allocate(bc_in%rb_pa(numPatchesPerCol))
+      allocate(bc_in%t_veg_pa(numPatchesPerCol))
+      allocate(bc_in%tgcm_pa(numPatchesPerCol))
+      allocate(bc_in%t_soisno_gl(ctrl_parms%numlevgrnd))
+
       return
    end subroutine allocate_bcin
    
@@ -196,11 +282,20 @@ contains
       
       ! Radiation
       allocate(bc_out%fsun_pa(numPatchesPerCol))
+      allocate(bc_out%laisun_pa(numPatchesPerCol))
+      allocate(bc_out%laisha_pa(numPatchesPerCol))
       
       ! Hydrology
       allocate(bc_out%active_suction_gl(ctrl_parms%numlevgrnd))
       allocate(bc_out%rootr_pagl(numPatchesPerCol,ctrl_parms%numlevgrnd))
       allocate(bc_out%btran_pa(numPatchesPerCol))
+      
+      ! Photosynthesis
+      allocate(bc_out%rssun_pa(numPatchesPerCol))
+      allocate(bc_out%rssha_pa(numPatchesPerCol))
+      allocate(bc_out%gccanopy_pa(numPatchesPerCol))
+      allocate(bc_out%lmrcanopy_pa(numPatchesPerCol))
+      allocate(bc_out%psncanopy_pa(numPatchesPerCol))
 
       ! biogeochemistry
       allocate(bc_out%FATES_c_to_litr_lab_c_col(ctrl_parms%numlevdecomp_full))        
@@ -232,11 +327,19 @@ contains
       ! Output boundaries
       this%bc_out(s)%active_suction_gl(:) = .false.
       this%bc_out(s)%fsun_pa(:)      = 0.0_r8
+      this%bc_out(s)%laisun_pa(:)    = 0.0_r8
+      this%bc_out(s)%laisha_pa(:)    = 0.0_r8
       this%bc_out(s)%rootr_pagl(:,:) = 0.0_r8
       this%bc_out(s)%btran_pa(:)     = 0.0_r8
       this%bc_out(s)%FATES_c_to_litr_lab_c_col(:) = 0.0_r8
       this%bc_out(s)%FATES_c_to_litr_cel_c_col(:) = 0.0_r8
       this%bc_out(s)%FATES_c_to_litr_lig_c_col(:) = 0.0_r8
+
+      this%bc_out(s)%rssun_pa(:)     = 0.0_r8
+      this%bc_out(s)%rssha_pa(:)     = 0.0_r8
+      this%bc_out(s)%gccanopy_pa(:)  = 0.0_r8
+      this%bc_out(s)%psncanopy_pa(:) = 0.0_r8
+      this%bc_out(s)%lmrcanopy_pa(:) = 0.0_r8
 
       return
    end subroutine zero_bcs

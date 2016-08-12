@@ -175,13 +175,13 @@ module EDTypesMod
      ! CARBON FLUXES 
      real(r8) ::  gpp                                    ! GPP:  kgC/indiv/year
      real(r8) ::  gpp_acc                                ! GPP:  kgC/indiv/day   
-     real(r8) ::  gpp_clm                                ! GPP:  kgC/indiv/timestep
+     real(r8) ::  gpp_tstep                              ! GPP:  kgC/indiv/timestep
      real(r8) ::  npp                                    ! NPP:  kgC/indiv/year
      real(r8) ::  npp_acc                                ! NPP:  kgC/indiv/day   
-     real(r8) ::  npp_clm                                ! NPP:  kgC/indiv/timestep
+     real(r8) ::  npp_tstep                              ! NPP:  kgC/indiv/timestep
      real(r8) ::  resp                                   ! Resp: kgC/indiv/year
      real(r8) ::  resp_acc                               ! Resp: kgC/indiv/day
-     real(r8) ::  resp_clm                               ! Resp: kgC/indiv/timestep
+     real(r8) ::  resp_tstep                             ! Resp: kgC/indiv/timestep
 
      real(r8) ::  npp_leaf                               ! NPP into leaves (includes replacement of turnover):  KgC/indiv/day
      real(r8) ::  npp_froot                              ! NPP into fine roots (includes replacement of turnover):  KgC/indiv/day

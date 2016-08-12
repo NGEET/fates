@@ -72,7 +72,7 @@ module EDRestVectorMod
      real(r8), pointer :: imort(:) 
      real(r8), pointer :: fmort(:) 
      real(r8), pointer :: ddbhdt(:) 
-     real(r8), pointer :: resp_clm(:) 
+     real(r8), pointer :: resp_tstep(:) 
      integer,  pointer :: pft(:) 
      integer,  pointer :: status_coh(:)
      integer,  pointer :: isnew(:)
@@ -207,7 +207,7 @@ contains
     deallocate(this%imort )
     deallocate(this%fmort )
     deallocate(this%ddbhdt )
-    deallocate(this%resp_clm )
+    deallocate(this%resp_tstep )
     deallocate(this%pft )
     deallocate(this%status_coh )
     deallocate(this%isnew )
@@ -478,10 +478,10 @@ contains
       SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
       new%ddbhdt(:) = 0.0_r8
 
-      allocate(new%resp_clm &
+      allocate(new%resp_tstep &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
       SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
-      new%resp_clm(:) = 0.0_r8
+      new%resp_tstep(:) = 0.0_r8
 
       allocate(new%pft &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
@@ -966,10 +966,10 @@ contains
          interpinic_flag='interp', data=this%ddbhdt, &
          readvar=readvar)
 
-    call restartvar(ncid=ncid, flag=flag, varname='ed_resp_clm', xtype=ncd_double,  &
+    call restartvar(ncid=ncid, flag=flag, varname='ed_resp_tstep', xtype=ncd_double,  &
          dim1name=coh_dimName, &
-         long_name='ed cohort - resp_clm', units='unitless', &
-         interpinic_flag='interp', data=this%resp_clm, &
+         long_name='ed cohort - resp_tstep', units='unitless', &
+         interpinic_flag='interp', data=this%resp_tstep, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_pft', xtype=ncd_int,  &
@@ -1188,8 +1188,8 @@ contains
          this%fmort(iSta:iSto)
     write(iulog,*) trim(methodName)//' :: ddbhdt ', &
          this%ddbhdt(iSta:iSto)
-    write(iulog,*) trim(methodName)//' :: resp_clm ', &
-         this%resp_clm(iSta:iSto)
+    write(iulog,*) trim(methodName)//' :: resp_tstep ', &
+         this%resp_tstep(iSta:iSto)
 
     write(iulog,*) trim(methodName)//' :: pft ', &
          this%pft(iSta:iSto)
@@ -1330,7 +1330,7 @@ contains
                 write(iulog,*) trim(methodName)//' imort '        ,totalCohorts,currentCohort%imort
                 write(iulog,*) trim(methodName)//' fmort '        ,totalCohorts,currentCohort%fmort
                 write(iulog,*) trim(methodName)//' ddbhdt '       ,totalCohorts,currentCohort%ddbhdt
-                write(iulog,*) trim(methodName)//' resp_clm '     ,totalCohorts,currentCohort%resp_clm
+                write(iulog,*) trim(methodName)//' resp_tstep '     ,totalCohorts,currentCohort%resp_tstep
                 write(iulog,*) trim(methodName)//' pft '          ,totalCohorts,currentCohort%pft
                 write(iulog,*) trim(methodName)//' status_coh '   ,totalCohorts,currentCohort%status_coh
                 write(iulog,*) trim(methodName)//' isnew '        ,totalCohorts,currentCohort%isnew
@@ -1466,7 +1466,7 @@ contains
              write(iulog,*) trim(methodName)//' imort      ',currentCohort%imort
              write(iulog,*) trim(methodName)//' fmort      ',currentCohort%fmort
              write(iulog,*) trim(methodName)//' ddbhdt      ',currentCohort%ddbhdt
-             write(iulog,*) trim(methodName)//' resp_clm     ',currentCohort%resp_clm
+             write(iulog,*) trim(methodName)//' resp_tstep     ',currentCohort%resp_tstep
              write(iulog,*) trim(methodName)//' pft          ',currentCohort%pft
              write(iulog,*) trim(methodName)//' status_coh   ',currentCohort%status_coh
              write(iulog,*) trim(methodName)//' isnew        ',currentCohort%isnew
@@ -1614,7 +1614,7 @@ contains
              this%imort(countCohort)      = currentCohort%imort
              this%fmort(countCohort)      = currentCohort%fmort
              this%ddbhdt(countCohort)      = currentCohort%ddbhdt
-             this%resp_clm(countCohort)     = currentCohort%resp_clm
+             this%resp_tstep(countCohort)     = currentCohort%resp_tstep
              this%pft(countCohort)          = currentCohort%pft
              this%status_coh(countCohort)   = currentCohort%status_coh
              if ( currentCohort%isnew ) then
@@ -2036,7 +2036,7 @@ contains
              currentCohort%imort = this%imort(countCohort)
              currentCohort%fmort = this%fmort(countCohort)
              currentCohort%ddbhdt = this%ddbhdt(countCohort)
-             currentCohort%resp_clm = this%resp_clm(countCohort)
+             currentCohort%resp_tstep = this%resp_tstep(countCohort)
              currentCohort%pft = this%pft(countCohort)
              currentCohort%status_coh = this%status_coh(countCohort)
              currentCohort%isnew = ( this%isnew(countCohort) .eq. new_cohort )

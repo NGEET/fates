@@ -20,7 +20,6 @@ module CanopyFluxesMod
   use pftconMod             , only : pftcon
   use decompMod             , only : bounds_type
   use PhotosynthesisMod     , only : Photosynthesis, PhotoSynthesisHydraulicStress, PhotosynthesisTotal, Fractionation
-  use EDPhotosynthesisMod   , only : Photosynthesis_ED
   use EDAccumulateFluxesMod , only : AccumulateFluxes_ED
   use EDBtranMod            , only : btran_ed
   use SoilMoistStressMod    , only : calc_effective_soilporosity, calc_volumetric_h2oliq
@@ -533,6 +532,37 @@ contains
 
       call photosyns_inst%TimeStepInit(bounds)
 
+
+      ! -----------------------------------------------------------------
+      ! Prep some IO variables and some checks on patch pointers if FATES
+      ! is running. 
+      ! Filter explanation: The patch filter in this routine identifies all
+      ! non-lake, non-urban patches that are not covered by ice. The
+      ! filter is set over a few steps:
+      !
+      ! 1a) for CN: 
+      !             clm_drv() -> 
+      !             bgc_vegetation_inst%EcosystemDynamicsPostDrainage() ->
+      !             CNVegStructUpdate()
+      !    if(elai(p)+esai(p)>0) frac_veg_nosno_alb(p) = 1
+      !    
+      ! 1b) for FATES:
+      !              clm_drv() -> 
+      !              clm_fates%dynamics_driv() -> 
+      !              ed_clm_link() -> 
+      !              ed_clm_leaf_area_profile():
+      !    if(elai(p)+esai(p)>0) frac_veg_nosno_alb(p) = 1
+      !
+      ! 2) during clm_drv()->clm_drv_init():
+      !    frac_veg_nosno_alb(p) is then combined with the active(p)
+      !    flag via union to create frac_veg_nosno_patch(p)
+      ! 3) immediately after, during clm_drv()->setExposedvegpFilter()
+      !    the list used here "exposedvegp(fe)" is incremented if 
+      !    frac_veg_nosno_patch > 0
+      ! -----------------------------------------------------------------
+
+      call clm_fates%prep_canopyfluxes(nc, fn, filterp, photosyns_inst)
+
       ! Initialize
 
       do f = 1, fn
@@ -787,28 +817,11 @@ contains
          end do
 
          if ( use_ed ) then      
-
-            call t_startf('edpsn')
-            ! FIX(FIX(SPM,032414),032414) Photo*_ED will need refactoring
-            call Photosynthesis_ED (bounds, fn, filterp, &
+            
+            call clm_fates%wrap_photosynthesis(nc, bounds, fn, filterp(1:fn), &
                  svpts(begp:endp), eah(begp:endp), o2(begp:endp), &
                  co2(begp:endp), rb(begp:endp), dayl_factor(begp:endp), &
-                 clm_fates%fates(nc)%sites(:), clm_fates%fates(nc)%nsites, &
-                 clm_fates%f2hmap(nc)%hsites(bounds%begc:bounds%endc), &
                  atm2lnd_inst, temperature_inst, canopystate_inst, photosyns_inst)
-
-            ! zero all of these things, not just the ones in the filter. 
-            do p = bounds%begp,bounds%endp 
-               photosyns_inst%rssun_patch(p)    = 0._r8
-               photosyns_inst%rssha_patch(p)    = 0._r8
-               photosyns_inst%psnsun_patch(p)   = 0._r8
-               photosyns_inst%psnsha_patch(p)   = 0._r8
-               photosyns_inst%fpsn_patch(p)     = 0._r8
-               canopystate_inst%laisun_patch(p) = 0._r8
-               canopystate_inst%laisha_patch(p) = 0._r8
-            enddo
-
-            call t_stopf('edpsn')
 
          else ! not use_ed
 
@@ -873,32 +886,16 @@ contains
 
             ! Fraction of potential evaporation from leaf
 
-            if ( use_ed ) then
-               
-               if (fdry(p)  >  0._r8) then
-                  rppdry  = fdry(p)*rb(p)/(rb(p)+rscanopy(p))
-               else
-                  rppdry = 0._r8
-               end if
-               if (use_lch4) then
-                  ! Calculate canopy conductance for methane / oxygen (e.g. stomatal conductance & leaf bdy cond)
-                  canopy_cond(p) = 1.0_r8/(rb(p)+rscanopy(p))
-               end if
-
-            else ! NOT use_ed
-
-               if (fdry(p) > 0._r8) then
-                  rppdry  = fdry(p)*rb(p)*(laisun(p)/(rb(p)+rssun(p)) + laisha(p)/(rb(p)+rssha(p)))/elai(p)
-               else
-                  rppdry = 0._r8
-               end if
-
-               ! Calculate canopy conductance for methane / oxygen (e.g. stomatal conductance & leaf bdy cond)
-               if (use_lch4) then
-                  canopy_cond(p) = (laisun(p)/(rb(p)+rssun(p)) + laisha(p)/(rb(p)+rssha(p)))/max(elai(p), 0.01_r8)
-               end if
-
-            end if ! end of if use_ed         
+            if (fdry(p) > 0._r8) then
+               rppdry  = fdry(p)*rb(p)*(laisun(p)/(rb(p)+rssun(p)) + laisha(p)/(rb(p)+rssha(p)))/elai(p)
+            else
+               rppdry = 0._r8
+            end if
+            
+            ! Calculate canopy conductance for methane / oxygen (e.g. stomatal conductance & leaf bdy cond)
+            if (use_lch4) then
+               canopy_cond(p) = (laisun(p)/(rb(p)+rssun(p)) + laisha(p)/(rb(p)+rssha(p)))/max(elai(p), 0.01_r8)
+            end if
 
             efpot = forc_rho(c)*wtl*(qsatl(p)-qaf(p))
 
@@ -1244,18 +1241,12 @@ contains
             end if
          end if
 
-         if ( use_ed ) then
-
-            ! TODO-INTERF: THIS CALL IS ONLY FOR ED STUFF, EASILY REMOVED
-            ! AND CALLED OUTSIDE OF THIS SUBROUTINE
-            call AccumulateFluxes_ED(bounds, p,   &
-                  clm_fates%fates(nc)%sites(:),   &
-                  clm_fates%fates(nc)%nsites,     &
-                  clm_fates%f2hmap(nc)%hsites(bounds%begc:bounds%endc), &
-                  photosyns_inst)
-         end if
-
       end do
+      
+      if ( use_ed ) then
+         call clm_fates%wrap_accumulatefluxes(nc,fn,filterp(1:fn))
+      end if
+
 
       ! Determine total photosynthesis
 
@@ -1339,19 +1330,6 @@ contains
          write(iulog,*) 'energy balance in canopy ',p,', err=',err(p)
       end do
 
-      ! INTERF-TODO: NOT CLEAR WHY WE ZERO THESE FOR ED AND NOT NON-ED
-      if ( use_ed ) then      
-         ! zero all of the array,  not just the ones in the filter. 
-         do p = bounds%begp,bounds%endp 
-            photosyns_inst%rssun_patch(p)    = 0._r8
-            photosyns_inst%rssha_patch(p)    = 0._r8
-            photosyns_inst%psnsun_patch(p)   = 0._r8
-            photosyns_inst%psnsha_patch(p)   = 0._r8
-            photosyns_inst%fpsn_patch(p)     = 0._r8
-            canopystate_inst%laisun_patch(p) = 0._r8
-            canopystate_inst%laisha_patch(p) = 0._r8
-         enddo
-      end if
 
     end associate
 
