@@ -126,10 +126,14 @@ module EDTypesMod
   integer :: cp_numSWb       ! Number of broad-bands in the short-wave radiation
                              ! specturm to track 
                              ! (typically 2 as a default, VIS/NIR, in ED variants <2016)
-     
+
+  
   integer :: cp_numlevgrnd   ! Number of soil layers
-  
-  
+
+  ! Number of soil layers for the purposes of biogeochemistry; can be either 1 
+  ! or the total number of soil layers
+  integer :: cp_numlevdecomp_full  
+
 
 
   !************************************
