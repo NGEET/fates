@@ -20,7 +20,8 @@ module FatesInterfaceMod
                                       cp_nclmax,         &
                                       cp_numSWb,         &
                                       cp_numlevgrnd,     &
-                                      cp_maxSWb
+                                      cp_maxSWb,         &
+                                      cp_numlevdecomp_full 
 
    use shr_kind_mod          , only : r8 => shr_kind_r8  ! INTERF-TODO: REMOVE THIS
 
@@ -133,6 +134,10 @@ module FatesInterfaceMod
       ! Albedo of the ground for diffuse radiation, by site broadband (0-1)
       real(r8), allocatable :: albgr_dif_rb(:)
       
+      ! LitterFlux Boundaries
+      ! the index of the deepest model soil level where roots may be
+      ! due to permafrost or bedrock constraints
+      integer  :: max_rooting_depth_index_col
 
 
    end type bc_in_type
@@ -199,6 +204,19 @@ module FatesInterfaceMod
       
       ! Down diffuse flux below canopy per unit diffuse flx (HLMs use this for balance checks)
       real(r8), allocatable :: ftii_parb(:,:)
+
+
+      ! litterfall fluxes of C from FATES patches to BGC columns
+
+      ! total labile    litter coming from ED. gC/m3/s
+      real(r8), allocatable :: FATES_c_to_litr_lab_c_col(:)      
+
+      !total cellulose litter coming from ED. gC/m3/s
+      real(r8), allocatable :: FATES_c_to_litr_cel_c_col(:)      
+      
+      !total lignin    litter coming from ED. gC/m3/s
+      real(r8), allocatable :: FATES_c_to_litr_lig_c_col(:)      
+
       
    end type bc_out_type
 
@@ -343,6 +361,11 @@ contains
       allocate(bc_out%ftid_parb(numPatchesPerCol,cp_numSWb))
       allocate(bc_out%ftii_parb(numPatchesPerCol,cp_numSWb))
 
+      ! biogeochemistry
+      allocate(bc_out%FATES_c_to_litr_lab_c_col(cp_numlevdecomp_full))        
+      allocate(bc_out%FATES_c_to_litr_cel_c_col(cp_numlevdecomp_full))
+      allocate(bc_out%FATES_c_to_litr_lig_c_col(cp_numlevdecomp_full))
+
       return
    end subroutine allocate_bcout
 
@@ -363,11 +386,12 @@ contains
       this%bc_in(s)%watsat_gl(:)        = 0.0_r8
       this%bc_in(s)%tempk_gl(:)         = 0.0_r8
       this%bc_in(s)%h2o_liqvol_gl(:)    = 0.0_r8
-
       this%bc_in(s)%filter_vegzen_pa(:) = .false.
       this%bc_in(s)%coszen_pa(:)        = 0.0_r8
       this%bc_in(s)%albgr_dir_rb(:)     = 0.0_r8
       this%bc_in(s)%albgr_dif_rb(:)     = 0.0_r8
+      this%bc_in(s)%max_rooting_depth_index_col = 0
+
       
       ! Output boundaries
       this%bc_out(s)%active_suction_gl(:) = .false.
@@ -376,6 +400,10 @@ contains
       this%bc_out(s)%laisha_pa(:)    = 0.0_r8
       this%bc_out(s)%rootr_pagl(:,:) = 0.0_r8
       this%bc_out(s)%btran_pa(:)     = 0.0_r8
+
+      this%bc_out(s)%FATES_c_to_litr_lab_c_col(:) = 0.0_r8
+      this%bc_out(s)%FATES_c_to_litr_cel_c_col(:) = 0.0_r8
+      this%bc_out(s)%FATES_c_to_litr_lig_c_col(:) = 0.0_r8
 
       this%bc_out(s)%rssun_pa(:)     = 0.0_r8
       this%bc_out(s)%rssha_pa(:)     = 0.0_r8
@@ -434,8 +462,11 @@ contains
       case('flush_to_unset')
 
          write(*,*) 'Flushing FATES control parameters prior to transfer from host'
+
          cp_numSwb     = unset_int
          cp_numlevgrnd = unset_int
+         cp_numlevdecomp_full = unset_int
+
 
       case('check_allset')
          
@@ -461,6 +492,13 @@ contains
             ! INTERF-TODO: FATES NEEDS INTERNAL end_run
             ! end_run('MESSAGE')
          end if
+
+         if(cp_numlevdecomp_full .eq. unset_int) then
+            write(*,*) 'FATES dimension/parameter unset: numlevdecomp_full'
+            ! INTERF-TODO: FATES NEEDS INTERNAL end_run
+            ! end_run('MESSAGE')
+         end if
+
          write(*,*) 'Checked. All control parameters sent to FATES.'
          
       case default
@@ -477,6 +515,11 @@ contains
                
                cp_numlevgrnd = dimval
                write(*,*) 'Transfering num_lev_ground = ',dimval,' to FATES'
+               
+            case('num_levdecomp_full')
+               
+               cp_numlevdecomp_full = dimval
+               write(*,*) 'Transfering num_levdecomp_full = ',dimval,' to FATES'
                
             case default
                write(*,*) 'tag not recognized:',trim(tag)
