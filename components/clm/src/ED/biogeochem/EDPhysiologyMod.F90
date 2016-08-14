@@ -1287,7 +1287,7 @@ contains
     ! This means that the state update for the litter pools and for the CWD pools occurs at different timescales. 
     
     use clm_varpar, only : mxpft,nlevdecomp
-    use EDTypesMod, only : AREA, numpft_ed, cp_nlevdecomp_full
+    use EDTypesMod, only : AREA, numpft_ed, cp_numlevdecomp_full
     use SoilBiogeochemVerticalProfileMod, only: surfprof_exp
     use EDCLMLinkMod, only: cwd_fcel_ed, cwd_flig_ed
     use pftconMod, only : pftcon
@@ -1318,9 +1318,9 @@ contains
     integer           :: begp,endp
     integer           :: begc,endc                                    !bounds 
     !------------------------------------------------------------------------
-    real(r8) :: cinput_rootfr(1:numpft_ed, 1:cp_nlevdecomp_full)      ! column by pft root fraction used for calculating inputs
-    real(r8) :: croot_prof_perpatch(1:cp_nlevdecomp_full)
-    real(r8) :: surface_prof(1:cp_nlevdecomp_full)
+    real(r8) :: cinput_rootfr(1:numpft_ed, 1:cp_numlevdecomp_full)      ! column by pft root fraction used for calculating inputs
+    real(r8) :: croot_prof_perpatch(1:cp_numlevdecomp_full)
+    real(r8) :: surface_prof(1:cp_numlevdecomp_full)
     integer  :: ft
     real(r8) :: rootfr_tot(1:numpft_ed), biomass_bg_ft(1:numpft_ed)
     real(r8) :: surface_prof_tot, leaf_prof_sum, stem_prof_sum, froot_prof_sum, biomass_bg_tot
