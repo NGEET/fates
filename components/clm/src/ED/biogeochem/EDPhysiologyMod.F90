@@ -36,6 +36,7 @@ module EDPhysiologyMod
   public :: seeds_in
   public :: seed_decay
   public :: seed_germination
+  public :: flux_into_litter_pools
 
   logical, parameter :: DEBUG  = .false. ! local debug flag
 
@@ -1268,5 +1269,369 @@ contains
   end subroutine cwd_out
 
 
+
+  subroutine flux_into_litter_pools(sites, nsites, bc_in, bc_out)
+    ! Created by Charlie Koven and Rosie Fisher, 2014-2015
+    ! take the flux out of the fragmenting litter pools and port into the decomposing litter pools. 
+    ! in this implementation, decomposing pools are assumed to be humus and non-flammable, whereas fragmenting pools
+    ! are assumed to be physically fragmenting but not respiring. This is a simplification, but allows us to 
+    ! a) reconcile the need to track both chemical fractions (lignin, cellulose, labile) and size fractions (trunk, branch, etc.)
+    ! b) to impose a realistic delay on the surge of nutrients into the litter pools when large CWD is added to the system via mortality
+    
+    ! because of the different subgrid structure, this subroutine includes the functionality that in the big-leaf BGC model, is calculated in SoilBiogeochemVerticalProfileMod
+    
+    ! The ED code is resolved at a daily timestep, but all of the CN-BGC fluxes are passed in as derivatives per second, 
+    ! and then accumulated in the CNStateUpdate routines. One way of doing this is to pass back the CN fluxes per second, 
+    ! and keep them constant for the whole day (making sure they are not overwritten.
+    ! This means that the carbon gets passed back and forth between the photosynthesis code (fast timestepping) to the ED code (slow timestepping), back to the BGC code (fast timestepping).
+    ! This means that the state update for the litter pools and for the CWD pools occurs at different timescales. 
+    
+    use clm_varpar, only : mxpft,nlevdecomp
+    use EDTypesMod, only : AREA, numpft_ed, cp_nlevdecomp_full
+    use SoilBiogeochemVerticalProfileMod, only: surfprof_exp
+    use EDCLMLinkMod, only: cwd_fcel_ed, cwd_flig_ed
+    use pftconMod, only : pftcon
+    use shr_const_mod, only: SHR_CONST_CDAY
+    use clm_varcon, only : zisoi, dzsoi_decomp, zsoi
+    use EDParamsMod, only : ED_val_ag_biomass
+    use FatesInterfaceMod, only : bc_in_type, bc_out_type
+    use clm_varctl, only : use_vertsoilc
+    use abortutils  , only : endrun
+
+    ! INTERF-TODO: remove the control parameters: exponential_rooting_profile, pftspecific_rootingprofile, rootprof_exp, surfprof_exp, zisoi, dzsoi_decomp, zsoi
+    !
+    implicit none   
+    !
+    ! !ARGUMENTS    
+    type(ed_site_type)      , intent(inout), target :: sites(nsites)
+    integer                 , intent(in)            :: nsites
+    type(bc_in_type)        , intent(in)            :: bc_in(:)
+    type(bc_out_type)       , intent(inout)           :: bc_out(:)
+    !
+    ! !LOCAL VARIABLES:
+    type (ed_patch_type)  , pointer :: currentPatch
+    type (ed_cohort_type) , pointer :: currentCohort
+    type(ed_site_type), pointer :: cs
+    integer p,ci,j,s
+    real(r8) time_convert    ! from year to seconds
+    real(r8) mass_convert    ! ED uses kg, CLM uses g
+    integer           :: begp,endp
+    integer           :: begc,endc                                    !bounds 
+    !------------------------------------------------------------------------
+    real(r8) :: cinput_rootfr(1:numpft_ed, 1:cp_nlevdecomp_full)      ! column by pft root fraction used for calculating inputs
+    real(r8) :: croot_prof_perpatch(1:cp_nlevdecomp_full)
+    real(r8) :: surface_prof(1:cp_nlevdecomp_full)
+    integer  :: ft
+    real(r8) :: rootfr_tot(1:numpft_ed), biomass_bg_ft(1:numpft_ed)
+    real(r8) :: surface_prof_tot, leaf_prof_sum, stem_prof_sum, froot_prof_sum, biomass_bg_tot
+    real(r8) :: delta
+
+    ! NOTE(bja, 201608) these were removed from clm in clm4_5_10_r187
+    logical, parameter :: exponential_rooting_profile = .true.
+    logical, parameter :: pftspecific_rootingprofile = .true.
+
+    ! NOTE(bja, 201608) as of clm4_5_10_r187 rootprof_exp is now a
+    ! private function level parameter in RootBiophysMod.F90::exponential_rootfr()
+    real(r8), parameter :: rootprof_exp  = 3.  ! how steep profile is
+    ! for root C inputs (1/ e-folding depth) (1/m)
+
+    ! NOTE(bja, 201608) as of clm4_5_10_r187 rootprof_beta is now a
+    ! two dimensional array with the second dimension being water,1,
+    ! or carbon,2,. These are currently hard coded, but may be
+    ! overwritten by the namelist.
+
+    ! Note cdk 2016/08 we actually want to use the carbon index here rather than the water index.  
+    ! Doing so will be answer changing though so perhaps easiest to do this in steps.
+    integer, parameter :: rooting_profile_varindex_water = 1
+
+    real(r8) :: leaf_prof(1:nsites, 1:nlevdecomp)
+    real(r8) :: froot_prof(1:nsites,  1:numpft_ed, 1:nlevdecomp)
+    real(r8) :: croot_prof(1:nsites, 1:nlevdecomp)
+    real(r8) :: stem_prof(1:nsites, 1:nlevdecomp)
+    
+    
+    delta = 0.001_r8    
+    !no of seconds in a year. 
+    time_convert =  365.0_r8*SHR_CONST_CDAY
+
+    ! number of grams in a kilogram
+    mass_convert = 1000._r8
+    
+      
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! first calculate vertical profiles
+      ! define two types of profiles: 
+      ! (1) a surface profile, for leaves and stem inputs, which is the same for each pft but differs from one site to the next to avoid inputting any C into permafrost or bedrock
+      ! (2) a fine root profile, which is indexed by both site and pft, differs for each pft and also from one site to the next to avoid inputting any C into permafrost or bedrock
+      ! (3) a coarse root profile, which is the root-biomass=weighted average of the fine root profiles
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      if (use_vertsoilc) then
+         
+         ! define a single shallow surface profile for surface additions (leaves, stems, and N deposition)
+         surface_prof(:) = 0._r8
+         do j = 1, nlevdecomp
+            surface_prof(j) = exp(-surfprof_exp * zsoi(j)) / dzsoi_decomp(j)
+         end do
+         
+         ! initialize profiles to zero
+         leaf_prof(1:nsites, :)      = 0._r8
+         froot_prof(1:nsites, 1:numpft_ed, :)     = 0._r8
+         croot_prof(1:nsites, :)     = 0._r8
+         stem_prof(1:nsites, :)      = 0._r8
+         
+         cinput_rootfr(1:numpft_ed, :)     = 0._r8
+            
+         ! calculate pft-specific rooting profiles in the absence of permafrost or bedrock limitations
+         if ( exponential_rooting_profile ) then
+            if ( .not. pftspecific_rootingprofile ) then
+               ! define rooting profile from exponential parameters
+               do ft = 1, numpft_ed
+                  do j = 1, nlevdecomp
+                     cinput_rootfr(ft,j) = exp(-rootprof_exp * zsoi(j)) / dzsoi_decomp(j)
+                  end do
+               end do
+            else
+               ! use beta distribution parameter from Jackson et al., 1996
+               do ft = 1, numpft_ed
+                  do j = 1, nlevdecomp
+                     cinput_rootfr(ft,j) = ( pftcon%rootprof_beta(ft, rooting_profile_varindex_water) ** (zisoi(j-1)*100._r8) - &
+                          pftcon%rootprof_beta(ft, rooting_profile_varindex_water) ** (zisoi(j)*100._r8) ) &
+                          / dzsoi_decomp(j)
+                  end do
+               end do
+            endif
+         else
+            do ft = 1,numpft_ed 
+               do j = 1, nlevdecomp
+                  ! use standard CLM root fraction profiles;
+                  cinput_rootfr(ft,j) =  ( .5_r8*( &
+                       exp(-pftcon%roota_par(ft) * zisoi(j-1))  &
+                       + exp(-pftcon%rootb_par(ft) * zisoi(j-1))  &
+                       - exp(-pftcon%roota_par(ft) * zisoi(j))    &
+                       - exp(-pftcon%rootb_par(ft) * zisoi(j))))  / dzsoi_decomp(j)
+               end do
+            end do
+         endif
+         !
+
+         do s = 1,nsites
+            !
+            ! now add permafrost constraint: integrate rootfr over active layer of soil site,
+            ! truncate below permafrost or bedrock table where present, and rescale so that integral = 1
+            do ft = 1,numpft_ed 
+               rootfr_tot(ft) = 0._r8
+            end do
+            surface_prof_tot = 0._r8
+            !
+            do j = 1, min(max(bc_in(s)%max_rooting_depth_index_col, 1), nlevdecomp)
+               surface_prof_tot = surface_prof_tot + surface_prof(j)  * dzsoi_decomp(j)
+            end do
+            do ft = 1,numpft_ed 
+               do j = 1, min(max(bc_in(s)%max_rooting_depth_index_col, 1), nlevdecomp)
+                  rootfr_tot(ft) = rootfr_tot(ft) + cinput_rootfr(ft,j) * dzsoi_decomp(j)
+               end do
+            end do
+            !
+            ! rescale the fine root profile
+            do ft = 1,numpft_ed 
+               if ( (bc_in(s)%max_rooting_depth_index_col > 0) .and. (rootfr_tot(ft) > 0._r8) ) then
+                  ! where there is not permafrost extending to the surface, integrate the profiles over the active layer
+                  ! this is equivalent to integrating over all soil layers outside of permafrost regions
+                  do j = 1, min(max(bc_in(s)%max_rooting_depth_index_col, 1), nlevdecomp)
+                     froot_prof(s,ft,j) = cinput_rootfr(ft,j) / rootfr_tot(ft)
+                  end do
+               else
+                  ! if fully frozen, or no roots, put everything in the top layer
+                  froot_prof(s,ft,1) = 1._r8/dzsoi_decomp(1)
+               endif
+            end do
+            !
+            ! rescale the shallow profiles
+            if ( (bc_in(s)%max_rooting_depth_index_col > 0) .and. (surface_prof_tot > 0._r8) ) then
+               ! where there is not permafrost extending to the surface, integrate the profiles over the active layer
+               ! this is equivalent to integrating over all soil layers outside of permafrost regions
+               do j = 1, min(max(bc_in(s)%max_rooting_depth_index_col, 1), nlevdecomp)
+                  ! set all surface processes to shallower profile
+                  leaf_prof(s,j) = surface_prof(j)/ surface_prof_tot
+                  stem_prof(s,j) = surface_prof(j)/ surface_prof_tot
+               end do
+            else
+               ! if fully frozen, or no roots, put everything in the top layer
+               leaf_prof(s,1) = 1._r8/dzsoi_decomp(1)
+               stem_prof(s,1) = 1._r8/dzsoi_decomp(1)
+               do j = 2, nlevdecomp
+                  leaf_prof(s,j) = 0._r8
+                  stem_prof(s,j) = 0._r8
+               end do
+            endif
+         end do
+         
+      else
+         
+         ! for one layer decomposition model, set profiles to unity
+         leaf_prof(1:nsites, :) = 1._r8
+         froot_prof(1:nsites, 1:numpft_ed, :) = 1._r8
+         stem_prof(1:nsites, :) = 1._r8
+         
+      end if
+      
+      ! sanity check to ensure they integrate to 1
+      do s = 1, nsites
+         ! check the leaf and stem profiles
+         leaf_prof_sum = 0._r8
+         stem_prof_sum = 0._r8
+         do j = 1, nlevdecomp
+            leaf_prof_sum = leaf_prof_sum + leaf_prof(s,j) *  dzsoi_decomp(j)
+            stem_prof_sum = stem_prof_sum + stem_prof(s,j) *  dzsoi_decomp(j)
+         end do
+         if ( ( abs(stem_prof_sum - 1._r8) > delta ) .or.  ( abs(leaf_prof_sum - 1._r8) > delta ) ) then
+            write(iulog, *) 'profile sums: ',  leaf_prof_sum, stem_prof_sum
+            write(iulog, *) 'surface_prof: ', surface_prof
+            write(iulog, *) 'surface_prof_tot: ', surface_prof_tot
+            write(iulog, *) 'leaf_prof: ',  leaf_prof(s,:)
+            write(iulog, *) 'stem_prof: ',  stem_prof(s,:)
+            write(iulog, *) 'max_rooting_depth_index_col: ', bc_in(s)%max_rooting_depth_index_col
+            write(iulog, *) 'dzsoi_decomp: ',  dzsoi_decomp            
+            call endrun()
+         endif
+         ! now check each fine root profile
+         do ft = 1,numpft_ed 
+            froot_prof_sum = 0._r8
+            do j = 1, nlevdecomp
+               froot_prof_sum = froot_prof_sum + froot_prof(s,ft,j) *  dzsoi_decomp(j)
+            end do
+            if ( ( abs(froot_prof_sum - 1._r8) > delta ) ) then
+               write(iulog, *) 'profile sums: ', froot_prof_sum
+               call endrun()
+            endif
+         end do
+      end do
+      
+      ! zero the site-level C input variables
+      do s = 1, nsites
+         do j = 1, nlevdecomp
+            bc_out(s)%FATES_c_to_litr_lab_c_col(j) = 0._r8
+            bc_out(s)%FATES_c_to_litr_cel_c_col(j) = 0._r8
+            bc_out(s)%FATES_c_to_litr_lig_c_col(j) = 0._r8
+            croot_prof(s,j)         = 0._r8
+         end do
+      end do
+
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! now disaggregate the inputs vertically, using the vertical profiles
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      do s = 1,nsites
+         
+         !      do g = bounds%begg,bounds%endg
+         !         if (firstsoilpatch(g) >= 0 .and. ed_allsites_inst(g)%istheresoil) then 
+         currentPatch => sites(s)%oldest_patch
+         
+         do while(associated(currentPatch))
+            
+            ! the CWD pools lose information about which PFT they came from; for the stems this doesn't matter as they all have the same profile, 
+            ! however for the coarse roots they may have different profiles.  to approximately recover this information, loop over all cohorts in patch 
+            ! to calculate the total root biomass in that patch of each pft, and then rescale the croot_prof as the weighted average of the froot_prof
+            biomass_bg_ft(1:numpft_ed) = 0._r8
+            currentCohort => currentPatch%tallest
+            do while(associated(currentCohort))      
+               biomass_bg_ft(currentCohort%pft) = biomass_bg_ft(currentCohort%pft) + currentCohort%b * (currentCohort%n / currentPatch%area) * (1.0_r8-ED_val_ag_biomass)
+               currentCohort => currentCohort%shorter
+            enddo !currentCohort
+            ! 
+            biomass_bg_tot = 0._r8
+            do ft = 1,numpft_ed 
+               biomass_bg_tot = biomass_bg_tot + biomass_bg_ft(ft)
+            end do
+            !         
+            do j = 1, nlevdecomp
+               ! zero this for each patch
+               croot_prof_perpatch(j) = 0._r8
+            end do
+            !
+            if ( biomass_bg_tot .gt. 0._r8) then
+               do ft = 1,numpft_ed 
+                  do j = 1, nlevdecomp
+                     croot_prof_perpatch(j) = croot_prof_perpatch(j) + froot_prof(s,ft,j) * biomass_bg_ft(ft) / biomass_bg_tot
+                  end do
+               end do
+            else ! no biomass
+               croot_prof_perpatch(1) = 1./dzsoi_decomp(1)
+            end if
+
+            !
+            ! add croot_prof as weighted average (weighted by patch area) of croot_prof_perpatch
+            do j = 1, nlevdecomp
+               croot_prof(s, j) = croot_prof(s, j) + croot_prof_perpatch(j) * currentPatch%area / AREA
+            end do
+            !
+            ! now disaggregate, vertically and by decomposition substrate type, the actual fluxes from CWD and litter pools
+            !
+            ! do c = 1, ncwd
+            !    write(iulog,*)'cdk CWD_AG_out', c, currentpatch%CWD_AG_out(c), cwd_fcel_ed, currentpatch%area/AREA
+            !    write(iulog,*)'cdk CWD_BG_out', c, currentpatch%CWD_BG_out(c), cwd_fcel_ed, currentpatch%area/AREA
+            ! end do
+            ! do ft = 1,numpft_ed
+            !    write(iulog,*)'cdk leaf_litter_out', ft, currentpatch%leaf_litter_out(ft), cwd_fcel_ed, currentpatch%area/AREA
+            !    write(iulog,*)'cdk root_litter_out', ft, currentpatch%root_litter_out(ft), cwd_fcel_ed, currentpatch%area/AREA
+            ! end do
+            ! !
+            ! CWD pools fragmenting into decomposing litter pools. 
+            do ci = 1, ncwd
+               do j = 1, nlevdecomp
+                  bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + currentpatch%CWD_AG_out(ci) * cwd_fcel_ed * currentpatch%area/AREA * stem_prof(s,j)  
+                  bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + currentpatch%CWD_AG_out(ci) * cwd_flig_ed * currentpatch%area/AREA * stem_prof(s,j)
+                  !
+                  bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + currentpatch%CWD_BG_out(ci) * cwd_fcel_ed * currentpatch%area/AREA * croot_prof_perpatch(j)
+                  bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + currentpatch%CWD_BG_out(ci) * cwd_flig_ed * currentpatch%area/AREA * croot_prof_perpatch(j)
+               end do
+            end do
+            
+            ! leaf and fine root pools. 
+            do ft = 1,numpft_ed
+               do j = 1, nlevdecomp
+                  bc_out(s)%FATES_c_to_litr_lab_c_col(j) = bc_out(s)%FATES_c_to_litr_lab_c_col(j) + currentpatch%leaf_litter_out(ft) * pftcon%lf_flab(ft) * currentpatch%area/AREA * leaf_prof(s,j)
+                  bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + currentpatch%leaf_litter_out(ft) * pftcon%lf_fcel(ft) * currentpatch%area/AREA * leaf_prof(s,j)
+                  bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + currentpatch%leaf_litter_out(ft) * pftcon%lf_flig(ft) * currentpatch%area/AREA * leaf_prof(s,j)
+                  !
+                  bc_out(s)%FATES_c_to_litr_lab_c_col(j) = bc_out(s)%FATES_c_to_litr_lab_c_col(j) + currentpatch%root_litter_out(ft) * pftcon%fr_flab(ft) * currentpatch%area/AREA * froot_prof(s,ft,j)
+                  bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + currentpatch%root_litter_out(ft) * pftcon%fr_fcel(ft) * currentpatch%area/AREA * froot_prof(s,ft,j)
+                  bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + currentpatch%root_litter_out(ft) * pftcon%fr_flig(ft) * currentpatch%area/AREA * froot_prof(s,ft,j)
+                  !
+                  !! and seed_decay too.  for now, use the same lability fractions as for leaf litter
+                  bc_out(s)%FATES_c_to_litr_lab_c_col(j) = bc_out(s)%FATES_c_to_litr_lab_c_col(j) + currentpatch%seed_decay(ft) * pftcon%lf_flab(ft) * currentpatch%area/AREA * leaf_prof(s,j)
+                  bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + currentpatch%seed_decay(ft) * pftcon%lf_fcel(ft) * currentpatch%area/AREA * leaf_prof(s,j)
+                  bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + currentpatch%seed_decay(ft) * pftcon%lf_flig(ft) * currentpatch%area/AREA * leaf_prof(s,j)
+                  !
+               enddo
+            end do
+              
+              currentPatch => currentPatch%younger
+           end do !currentPatch
+
+        end do  ! do sites(s)
+     
+        do s = 1, nsites
+           do j = 1, nlevdecomp                    
+              ! time unit conversion
+              bc_out(s)%FATES_c_to_litr_lab_c_col(j)=bc_out(s)%FATES_c_to_litr_lab_c_col(j) * mass_convert / time_convert
+              bc_out(s)%FATES_c_to_litr_cel_c_col(j)=bc_out(s)%FATES_c_to_litr_cel_c_col(j) * mass_convert / time_convert
+              bc_out(s)%FATES_c_to_litr_lig_c_col(j)=bc_out(s)%FATES_c_to_litr_lig_c_col(j) * mass_convert / time_convert
+              
+           end do
+        end do
+        
+        ! write(iulog,*)'cdk FATES_c_to_litr_lab_c: ', FATES_c_to_litr_lab_c
+        ! write_col(iulog,*)'cdk FATES_c_to_litr_cel_c: ', FATES_c_to_litr_cel_c    
+        ! write_col(iulog,*)'cdk FATES_c_to_litr_lig_c: ', FATES_c_to_litr_lig_c
+        ! write_col(iulog,*)'cdk nlevdecomp_full,  bounds%begc, bounds%endc: ', nlevdecomp_full, bounds%begc, bounds%endc
+        ! write(iulog,*)'cdk leaf_prof: ', leaf_prof
+        ! write(iulog,*)'cdk stem_prof: ', stem_prof    
+        ! write(iulog,*)'cdk froot_prof: ', froot_prof
+        ! write(iulog,*)'cdk croot_prof_perpatch: ', croot_prof_perpatch
+        ! write(iulog,*)'cdk croot_prof: ', croot_prof
+
+    end subroutine flux_into_litter_pools
 
 end module EDPhysiologyMod
