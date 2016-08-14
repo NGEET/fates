@@ -20,6 +20,8 @@ module EDSurfaceRadiationMod
   use EDTypesMod        , only : cp_numSWb, &        ! Actual number of SW radiation bands
                                  cp_maxSWb, &        ! maximum number of SW bands (for scratch)
                                  cp_nclmax           ! control parameter, number of SW bands
+  use EDCanopyStructureMod, only: calc_areaindex
+
   
   implicit none
 
