@@ -47,7 +47,9 @@ module CLMFatesInterfaceMod
    use clm_varcon        , only : spval
    use clm_varpar        , only : numpft,            &
                                   numrad,            &
-                                  nlevgrnd, nlevdecomp_full
+                                  nlevgrnd,          &
+                                  nlevdecomp,        &
+                                  nlevdecomp_full
    use atm2lndType       , only : atm2lnd_type
    use SurfaceAlbedoType , only : surfalb_type
    use SolarAbsorbedType , only : solarabs_type
@@ -224,6 +226,7 @@ contains
       ! Send parameters individually
       call set_fates_ctrlparms('num_sw_bbands',numrad)
       call set_fates_ctrlparms('num_lev_ground',nlevgrnd)
+      call set_fates_ctrlparms('num_levdecomp',nlevdecomp)
       call set_fates_ctrlparms('num_levdecomp_full',nlevdecomp_full)
 
       ! Check through FATES parameters to see if all have been set

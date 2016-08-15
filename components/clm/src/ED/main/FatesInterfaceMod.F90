@@ -21,6 +21,7 @@ module FatesInterfaceMod
                                       cp_numSWb,         &
                                       cp_numlevgrnd,     &
                                       cp_maxSWb,         &
+                                      cp_numlevdecomp,   &
                                       cp_numlevdecomp_full 
 
    use shr_kind_mod          , only : r8 => shr_kind_r8  ! INTERF-TODO: REMOVE THIS
@@ -466,6 +467,7 @@ contains
          cp_numSwb     = unset_int
          cp_numlevgrnd = unset_int
          cp_numlevdecomp_full = unset_int
+         cp_numlevdecomp      = unset_int
 
 
       case('check_allset')
@@ -499,6 +501,12 @@ contains
             ! end_run('MESSAGE')
          end if
 
+         if(cp_numlevdecomp .eq. unset_int) then
+            write(*,*) 'FATES dimension/parameter unset: numlevdecomp'
+            ! INTERF-TODO: FATES NEEDS INTERNAL end_run
+            ! end_run('MESSAGE')
+         end if
+
          write(*,*) 'Checked. All control parameters sent to FATES.'
          
       case default
@@ -520,7 +528,12 @@ contains
                
                cp_numlevdecomp_full = dimval
                write(*,*) 'Transfering num_levdecomp_full = ',dimval,' to FATES'
+            
+            case('num_levdecomp')
                
+               cp_numlevdecomp = dimval
+               write(*,*) 'Transfering num_levdecomp = ',dimval,' to FATES'
+
             case default
                write(*,*) 'tag not recognized:',trim(tag)
                ! end_run
