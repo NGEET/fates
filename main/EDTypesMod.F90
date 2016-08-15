@@ -130,10 +130,13 @@ module EDTypesMod
   
   integer :: cp_numlevgrnd   ! Number of soil layers
 
-  ! Number of soil layers for the purposes of biogeochemistry; can be either 1 
-  ! or the total number of soil layers
+  ! Number of GROUND layers for the purposes of biogeochemistry; can be either 1 
+  ! or the total number of soil layers (includes bedrock)
   integer :: cp_numlevdecomp_full  
 
+  ! Number of SOIL layers for the purposes of biogeochemistry; can be either 1 
+  ! or the total number of soil layers
+  integer :: cp_numlevdecomp
 
 
   !************************************
