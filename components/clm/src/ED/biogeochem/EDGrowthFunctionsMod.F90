@@ -10,7 +10,7 @@ module EDGrowthFunctionsMod
   use clm_varctl       , only : iulog 
   use pftconMod        , only : pftcon
   use EDEcophysContype , only : EDecophyscon
-  use EDTypesMod       , only : ed_cohort_type, nlevcan_ed, dinc_ed
+  use EDTypesMod       , only : ed_cohort_type, cp_nlevcan, dinc_ed
 
   implicit none
   private
@@ -159,10 +159,10 @@ contains
     cohort_in%treelai = tree_lai
 
     ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
-    ! at the moments nlevcan_ed default is 40, which is very large, so exceeding this would clearly illustrate a 
+    ! at the moments cp_nlevcan default is 40, which is very large, so exceeding this would clearly illustrate a 
     ! huge error 
-    if(cohort_in%treelai > nlevcan_ed*dinc_ed)then
-       write(iulog,*) 'too much lai' , cohort_in%treelai , cohort_in%pft , nlevcan_ed * dinc_ed
+    if(cohort_in%treelai > cp_nlevcan*dinc_ed)then
+       write(iulog,*) 'too much lai' , cohort_in%treelai , cohort_in%pft , cp_nlevcan * dinc_ed
     endif
 
     return
@@ -196,10 +196,10 @@ contains
     cohort_in%treesai = tree_sai
 
     ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
-    ! at the moments nlevcan_ed default is 40, which is very large, so exceeding this would clearly illustrate a 
+    ! at the moments cp_nlevcan default is 40, which is very large, so exceeding this would clearly illustrate a 
     ! huge error 
-    if(cohort_in%treesai > nlevcan_ed*dinc_ed)then
-       write(iulog,*) 'too much sai' , cohort_in%treesai , cohort_in%pft , nlevcan_ed * dinc_ed
+    if(cohort_in%treesai > cp_nlevcan*dinc_ed)then
+       write(iulog,*) 'too much sai' , cohort_in%treesai , cohort_in%pft , cp_nlevcan * dinc_ed
     endif
 
     return

@@ -17,10 +17,15 @@ module FatesInterfaceMod
 
    use EDtypesMod            , only : ed_site_type,      &
                                       numPatchesPerCol,  &
-                                      ctrl_parms
+                                      cp_nclmax,         &
+                                      cp_numSWb,         &
+                                      cp_numlevgrnd,     &
+                                      cp_maxSWb,         &
+                                      cp_numlevdecomp,   &
+                                      cp_numlevdecomp_full 
 
    use shr_kind_mod          , only : r8 => shr_kind_r8  ! INTERF-TODO: REMOVE THIS
-   use clm_varpar            , only : nlevgrnd
+
    
 
    ! ------------------------------------------------------------------------------------
@@ -111,6 +116,26 @@ module FatesInterfaceMod
       ! soil temperature (Kelvin)
       real(r8), allocatable :: t_soisno_gl(:)
 
+      ! Canopy Radiation Boundaries
+      ! ---------------------------------------------------------------------------------
+      
+      ! Filter for vegetation patches with a positive zenith angle (daylight)
+      logical, allocatable :: filter_vegzen_pa(:)
+
+      ! Cosine of the zenith angle (0-1), by patch
+      ! Note RGK: It does not seem like the code would currently generate
+      !           different zenith angles for different patches (nor should it)
+      !           I am leaving it at this scale for simplicity.  Patches should
+      !           have no spacially variable information
+      real(r8), allocatable :: coszen_pa(:)
+      
+      ! Abledo of the ground for direct radiation, by site broadband (0-1)
+      real(r8), allocatable :: albgr_dir_rb(:)
+
+      ! Albedo of the ground for diffuse radiation, by site broadband (0-1)
+      real(r8), allocatable :: albgr_dif_rb(:)
+      
+      ! LitterFlux Boundaries
       ! the index of the deepest model soil level where roots may be
       ! due to permafrost or bedrock constraints
       integer  :: max_rooting_depth_index_col
@@ -157,6 +182,31 @@ module FatesInterfaceMod
       ! patch sunlit leaf maintenance respiration rate (umol CO2/m**2/s) 
       real(r8), allocatable :: lmrcanopy_pa(:)
 
+      ! Canopy Radiation Boundaries
+      ! ---------------------------------------------------------------------------------
+      
+      ! Surface albedo (direct) (HLMs use this for atm coupling and balance checks)
+      real(r8), allocatable :: albd_parb(:,:)
+      
+      ! Surface albedo (diffuse) (HLMs use this for atm coupling and balance checks)
+      real(r8), allocatable :: albi_parb(:,:)                 
+      
+      ! Flux absorbed by canopy per unit direct flux (HLMs use this for balance checks)
+      real(r8), allocatable :: fabd_parb(:,:) 
+      
+      ! Flux absorbed by canopy per unit diffuse flux (HLMs use this for balance checks)
+      real(r8), allocatable :: fabi_parb(:,:)
+
+      ! Down direct flux below canopy per unit direct flx (HLMs use this for balance checks)
+      real(r8), allocatable :: ftdd_parb(:,:)
+
+      ! Down diffuse flux below canopy per unit direct flx (HLMs use this for balance checks)
+      real(r8), allocatable :: ftid_parb(:,:)
+      
+      ! Down diffuse flux below canopy per unit diffuse flx (HLMs use this for balance checks)
+      real(r8), allocatable :: ftii_parb(:,:)
+
+
       ! litterfall fluxes of C from FATES patches to BGC columns
 
       ! total labile    litter coming from ED. gC/m3/s
@@ -167,8 +217,8 @@ module FatesInterfaceMod
       
       !total lignin    litter coming from ED. gC/m3/s
       real(r8), allocatable :: FATES_c_to_litr_lig_c_col(:)      
-      
 
+      
    end type bc_out_type
 
 
@@ -245,15 +295,15 @@ contains
       ! Allocate input boundaries
       
       ! Radiation
-      allocate(bc_in%solad_parb(numPatchesPerCol,ctrl_parms%numSWBands))
-      allocate(bc_in%solai_parb(numPatchesPerCol,ctrl_parms%numSWBands))
+      allocate(bc_in%solad_parb(numPatchesPerCol,cp_numSWb))
+      allocate(bc_in%solai_parb(numPatchesPerCol,cp_numSWb))
       
       ! Hydrology
-      allocate(bc_in%smp_gl(ctrl_parms%numlevgrnd))
-      allocate(bc_in%eff_porosity_gl(ctrl_parms%numlevgrnd))
-      allocate(bc_in%watsat_gl(ctrl_parms%numlevgrnd))
-      allocate(bc_in%tempk_gl(ctrl_parms%numlevgrnd))
-      allocate(bc_in%h2o_liqvol_gl(ctrl_parms%numlevgrnd))
+      allocate(bc_in%smp_gl(cp_numlevgrnd))
+      allocate(bc_in%eff_porosity_gl(cp_numlevgrnd))
+      allocate(bc_in%watsat_gl(cp_numlevgrnd))
+      allocate(bc_in%tempk_gl(cp_numlevgrnd))
+      allocate(bc_in%h2o_liqvol_gl(cp_numlevgrnd))
 
       ! Photosynthesis
       allocate(bc_in%filter_photo_pa(numPatchesPerCol))
@@ -265,7 +315,13 @@ contains
       allocate(bc_in%rb_pa(numPatchesPerCol))
       allocate(bc_in%t_veg_pa(numPatchesPerCol))
       allocate(bc_in%tgcm_pa(numPatchesPerCol))
-      allocate(bc_in%t_soisno_gl(ctrl_parms%numlevgrnd))
+      allocate(bc_in%t_soisno_gl(cp_numlevgrnd))
+
+      ! Canopy Radiation
+      allocate(bc_in%filter_vegzen_pa(numPatchesPerCol))
+      allocate(bc_in%coszen_pa(numPatchesPerCol))
+      allocate(bc_in%albgr_dir_rb(cp_numSWb))
+      allocate(bc_in%albgr_dif_rb(cp_numSWb))
 
       return
    end subroutine allocate_bcin
@@ -286,8 +342,8 @@ contains
       allocate(bc_out%laisha_pa(numPatchesPerCol))
       
       ! Hydrology
-      allocate(bc_out%active_suction_gl(ctrl_parms%numlevgrnd))
-      allocate(bc_out%rootr_pagl(numPatchesPerCol,ctrl_parms%numlevgrnd))
+      allocate(bc_out%active_suction_gl(cp_numlevgrnd))
+      allocate(bc_out%rootr_pagl(numPatchesPerCol,cp_numlevgrnd))
       allocate(bc_out%btran_pa(numPatchesPerCol))
       
       ! Photosynthesis
@@ -296,11 +352,20 @@ contains
       allocate(bc_out%gccanopy_pa(numPatchesPerCol))
       allocate(bc_out%lmrcanopy_pa(numPatchesPerCol))
       allocate(bc_out%psncanopy_pa(numPatchesPerCol))
+      
+      ! Canopy Radiation
+      allocate(bc_out%albd_parb(numPatchesPerCol,cp_numSWb))
+      allocate(bc_out%albi_parb(numPatchesPerCol,cp_numSWb))
+      allocate(bc_out%fabd_parb(numPatchesPerCol,cp_numSWb))
+      allocate(bc_out%fabi_parb(numPatchesPerCol,cp_numSWb))
+      allocate(bc_out%ftdd_parb(numPatchesPerCol,cp_numSWb))
+      allocate(bc_out%ftid_parb(numPatchesPerCol,cp_numSWb))
+      allocate(bc_out%ftii_parb(numPatchesPerCol,cp_numSWb))
 
       ! biogeochemistry
-      allocate(bc_out%FATES_c_to_litr_lab_c_col(ctrl_parms%numlevdecomp_full))        
-      allocate(bc_out%FATES_c_to_litr_cel_c_col(ctrl_parms%numlevdecomp_full))
-      allocate(bc_out%FATES_c_to_litr_lig_c_col(ctrl_parms%numlevdecomp_full))
+      allocate(bc_out%FATES_c_to_litr_lab_c_col(cp_numlevdecomp_full))        
+      allocate(bc_out%FATES_c_to_litr_cel_c_col(cp_numlevdecomp_full))
+      allocate(bc_out%FATES_c_to_litr_lig_c_col(cp_numlevdecomp_full))
 
       return
    end subroutine allocate_bcout
@@ -322,7 +387,12 @@ contains
       this%bc_in(s)%watsat_gl(:)        = 0.0_r8
       this%bc_in(s)%tempk_gl(:)         = 0.0_r8
       this%bc_in(s)%h2o_liqvol_gl(:)    = 0.0_r8
+      this%bc_in(s)%filter_vegzen_pa(:) = .false.
+      this%bc_in(s)%coszen_pa(:)        = 0.0_r8
+      this%bc_in(s)%albgr_dir_rb(:)     = 0.0_r8
+      this%bc_in(s)%albgr_dif_rb(:)     = 0.0_r8
       this%bc_in(s)%max_rooting_depth_index_col = 0
+
       
       ! Output boundaries
       this%bc_out(s)%active_suction_gl(:) = .false.
@@ -331,6 +401,7 @@ contains
       this%bc_out(s)%laisha_pa(:)    = 0.0_r8
       this%bc_out(s)%rootr_pagl(:,:) = 0.0_r8
       this%bc_out(s)%btran_pa(:)     = 0.0_r8
+
       this%bc_out(s)%FATES_c_to_litr_lab_c_col(:) = 0.0_r8
       this%bc_out(s)%FATES_c_to_litr_cel_c_col(:) = 0.0_r8
       this%bc_out(s)%FATES_c_to_litr_lig_c_col(:) = 0.0_r8
@@ -341,8 +412,16 @@ contains
       this%bc_out(s)%psncanopy_pa(:) = 0.0_r8
       this%bc_out(s)%lmrcanopy_pa(:) = 0.0_r8
 
+      this%bc_out(s)%albd_parb(:,:) = 0.0_r8
+      this%bc_out(s)%albi_parb(:,:) = 0.0_r8
+      this%bc_out(s)%fabd_parb(:,:) = 0.0_r8
+      this%bc_out(s)%fabi_parb(:,:) = 0.0_r8
+      this%bc_out(s)%ftdd_parb(:,:) = 0.0_r8
+      this%bc_out(s)%ftid_parb(:,:) = 0.0_r8
+      this%bc_out(s)%ftii_parb(:,:) = 0.0_r8
+      
       return
-   end subroutine zero_bcs
+    end subroutine zero_bcs
    
    ! ==================================================================================== 
 
@@ -384,26 +463,46 @@ contains
       case('flush_to_unset')
 
          write(*,*) 'Flushing FATES control parameters prior to transfer from host'
-         ctrl_parms%numSwBands = unset_int
-         ctrl_parms%numlevgrnd = unset_int
-         ctrl_parms%numlevdecomp_full = unset_int
+
+         cp_numSwb     = unset_int
+         cp_numlevgrnd = unset_int
+         cp_numlevdecomp_full = unset_int
+         cp_numlevdecomp      = unset_int
+
 
       case('check_allset')
          
-         if(ctrl_parms%numSWBands .eq. unset_int) then
+         if(cp_numSWb .eq. unset_int) then
             write(*,*) 'FATES dimension/parameter unset: num_sw_rad_bbands'
             ! INTERF-TODO: FATES NEEDS INTERNAL end_run
             ! end_run('MESSAGE')
          end if
-         
-         if(ctrl_parms%numlevgrnd .eq. unset_int) then
+
+         if(cp_numSWb > cp_maxSWb) then
+            write(*,*) 'FATES sets a maximum number of shortwave bands'
+            write(*,*) 'for some scratch-space, cp_maxSWb'
+            write(*,*) 'it defaults to 2, but can be increased as needed'
+            write(*,*) 'your driver or host model is intending to drive'
+            write(*,*) 'FATES with:',cp_numSWb,' bands.'
+            write(*,*) 'please increase cp_maxSWb in EDTypes to match'
+            write(*,*) 'or exceed this value'
+            ! end_run('MESSAGE')
+         end if
+
+         if(cp_numlevgrnd .eq. unset_int) then
             write(*,*) 'FATES dimension/parameter unset: numlevground'
             ! INTERF-TODO: FATES NEEDS INTERNAL end_run
             ! end_run('MESSAGE')
          end if
 
-         if(ctrl_parms%numlevdecomp_full .eq. unset_int) then
+         if(cp_numlevdecomp_full .eq. unset_int) then
             write(*,*) 'FATES dimension/parameter unset: numlevdecomp_full'
+            ! INTERF-TODO: FATES NEEDS INTERNAL end_run
+            ! end_run('MESSAGE')
+         end if
+
+         if(cp_numlevdecomp .eq. unset_int) then
+            write(*,*) 'FATES dimension/parameter unset: numlevdecomp'
             ! INTERF-TODO: FATES NEEDS INTERNAL end_run
             ! end_run('MESSAGE')
          end if
@@ -417,19 +516,24 @@ contains
                
             case('num_sw_bbands')
                
-               ctrl_parms%numSwBands = dimval
+               cp_numSwb = dimval
                write(*,*) 'Transfering num_sw_bbands = ',dimval,' to FATES'
                
             case('num_lev_ground')
                
-               ctrl_parms%numlevgrnd = dimval
+               cp_numlevgrnd = dimval
                write(*,*) 'Transfering num_lev_ground = ',dimval,' to FATES'
                
             case('num_levdecomp_full')
                
-               ctrl_parms%numlevdecomp_full = dimval
+               cp_numlevdecomp_full = dimval
                write(*,*) 'Transfering num_levdecomp_full = ',dimval,' to FATES'
+            
+            case('num_levdecomp')
                
+               cp_numlevdecomp = dimval
+               write(*,*) 'Transfering num_levdecomp = ',dimval,' to FATES'
+
             case default
                write(*,*) 'tag not recognized:',trim(tag)
                ! end_run

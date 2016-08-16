@@ -47,7 +47,9 @@ module CLMFatesInterfaceMod
    use clm_varcon        , only : spval
    use clm_varpar        , only : numpft,            &
                                   numrad,            &
-                                  nlevgrnd, nlevdecomp_full
+                                  nlevgrnd,          &
+                                  nlevdecomp,        &
+                                  nlevdecomp_full
    use atm2lndType       , only : atm2lnd_type
    use SurfaceAlbedoType , only : surfalb_type
    use SolarAbsorbedType , only : solarabs_type
@@ -78,7 +80,6 @@ module CLMFatesInterfaceMod
    use EDCLMLinkMod          , only : ed_clm_type
    use EDTypesMod            , only : udata
    use EDTypesMod            , only : ed_patch_type
-   use EDtypesMod            , only : map_clmpatch_to_edpatch
    use EDtypesMod            , only : numPatchesPerCol
    use EDMainMod             , only : ed_ecosystem_dynamics
    use EDMainMod             , only : ed_update_site
@@ -88,7 +89,7 @@ module CLMFatesInterfaceMod
    use EDPftVarcon           , only : EDpftvarcon_inst
    use EDEcophysConType      , only : EDecophysconInit
    use EDRestVectorMod       , only : EDRest
-   use EDSurfaceRadiationMod , only : ED_SunShadeFracs
+   use EDSurfaceRadiationMod , only : ED_SunShadeFracs, ED_Norman_Radiation
    use EDBtranMod            , only : btran_ed, &
                                       get_active_suction_layers
 
@@ -138,19 +139,19 @@ module CLMFatesInterfaceMod
 
    contains
       
-      procedure, public  :: init
-      procedure, public  :: init_allocate
-      procedure, public  :: check_hlm_active
-      procedure, public  :: init_restart
-      procedure, public  :: init_coldstart
-      procedure, public  :: dynamics_driv
-      procedure, public  :: wrap_sunfrac
-      procedure, public  :: wrap_btran
-      procedure, public  :: wrap_photosynthesis
-      procedure, public  :: wrap_accumulatefluxes
-      procedure, public  :: prep_canopyfluxes
+      procedure, public :: init
+      procedure, public :: init_allocate
+      procedure, public :: check_hlm_active
+      procedure, public :: init_restart
+      procedure, public :: init_coldstart
+      procedure, public :: dynamics_driv
+      procedure, public :: wrap_sunfrac
+      procedure, public :: wrap_btran
+      procedure, public :: wrap_photosynthesis
+      procedure, public :: wrap_accumulatefluxes
+      procedure, public :: prep_canopyfluxes
+      procedure, public :: wrap_canopy_radiation
       procedure, private :: wrap_litter_fluxout
-
 
    end type hlm_fates_interface_type
 
@@ -225,6 +226,7 @@ contains
       ! Send parameters individually
       call set_fates_ctrlparms('num_sw_bbands',numrad)
       call set_fates_ctrlparms('num_lev_ground',nlevgrnd)
+      call set_fates_ctrlparms('num_levdecomp',nlevdecomp)
       call set_fates_ctrlparms('num_levdecomp_full',nlevdecomp_full)
 
       ! Check through FATES parameters to see if all have been set
@@ -900,7 +902,7 @@ contains
     use decompMod         , only : bounds_type
     use clm_time_manager  , only : get_step_size
     use clm_varcon        , only : rgas, tfrz, namep  
-    use clm_varpar        , only : nlevcan_ed, nclmax, nlevsoi, mxpft
+    use clm_varpar        , only : nlevsoi, mxpft
     use clm_varctl        , only : iulog
     use pftconMod         , only : pftcon
     use perf_mod          , only : t_startf, t_stopf
@@ -1054,6 +1056,93 @@ contains
 
  ! ======================================================================================
 
+ subroutine wrap_canopy_radiation(this, bounds_clump, nc, &
+         filter_vegsol, num_vegsol, coszen, surfalb_inst)
+
+
+    ! Arguments
+    class(hlm_fates_interface_type), intent(inout) :: this
+    type(bounds_type),  intent(in)             :: bounds_clump
+    ! filter for vegetated pfts with coszen>0
+    integer            , intent(in)            :: nc ! clump index
+    integer            , intent(in)            :: filter_vegsol(num_vegsol)    
+    integer            , intent(in)            :: num_vegsol                 
+    ! cosine solar zenith angle for next time step
+    real(r8)           , intent(in)            :: coszen( bounds_clump%begp: )        
+    type(surfalb_type) , intent(inout)         :: surfalb_inst 
+    
+    ! locals
+    integer                                    :: s,c,p,ifp,icp
+
+    associate(&
+         albgrd_col   =>    surfalb_inst%albgrd_col         , & !in
+         albgri_col   =>    surfalb_inst%albgri_col         , & !in
+         albd         =>    surfalb_inst%albd_patch         , & !out
+         albi         =>    surfalb_inst%albi_patch         , & !out
+         fabd         =>    surfalb_inst%fabd_patch         , & !out
+         fabi         =>    surfalb_inst%fabi_patch         , & !out
+         ftdd         =>    surfalb_inst%ftdd_patch         , & !out
+         ftid         =>    surfalb_inst%ftid_patch         , & !out
+         ftii         =>    surfalb_inst%ftii_patch)            !out
+
+    do s = 1, this%fates(nc)%nsites
+
+       c = this%f2hmap(nc)%fcolumn(s)
+       do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
+          
+          p = ifp+col%patchi(c)
+          
+          if( any(filter_vegsol==p) )then
+    
+             this%fates(nc)%bc_in(s)%filter_vegzen_pa(ifp) = .true.
+             this%fates(nc)%bc_in(s)%coszen_pa(ifp)  = coszen(p)
+             this%fates(nc)%bc_in(s)%albgr_dir_rb(:) = albgrd_col(c,:)
+             this%fates(nc)%bc_in(s)%albgr_dif_rb(:) = albgri_col(c,:)
+
+          else
+             
+             this%fates(nc)%bc_in(s)%filter_vegzen_pa(ifp) = .false.
+
+          end if
+
+       end do
+    end do
+
+    call ED_Norman_Radiation(this%fates(nc)%sites,  &
+                             this%fates(nc)%nsites, &
+                             this%fates(nc)%bc_in,  &
+                             this%fates(nc)%bc_out)
+    
+    ! Pass FATES BC's back to HLM
+    ! -----------------------------------------------------------------------------------
+    do icp = 1,num_vegsol
+       p = filter_vegsol(icp)
+       c = patch%column(p)
+       s = this%f2hmap(nc)%hsites(c)
+       ! do if structure here and only pass natveg columns
+       ifp = p-col%patchi(c)
+
+       if(.not.this%fates(nc)%bc_in(s)%filter_vegzen_pa(ifp) )then
+          write(iulog,*) 'Not all patches on the natveg column were passed to canrad'
+          call endrun(msg=errMsg(__FILE__, __LINE__))
+       else
+          albd(p,:) = this%fates(nc)%bc_out(s)%albd_parb(ifp,:)
+          albi(p,:) = this%fates(nc)%bc_out(s)%albi_parb(ifp,:)
+          fabd(p,:) = this%fates(nc)%bc_out(s)%fabd_parb(ifp,:)
+          fabi(p,:) = this%fates(nc)%bc_out(s)%fabi_parb(ifp,:)
+          ftdd(p,:) = this%fates(nc)%bc_out(s)%ftdd_parb(ifp,:)
+          ftid(p,:) = this%fates(nc)%bc_out(s)%ftid_parb(ifp,:)
+          ftii(p,:) = this%fates(nc)%bc_out(s)%ftii_parb(ifp,:)
+       end if
+    end do
+    
+  end associate
+
+    return
+ end subroutine wrap_canopy_radiation
+
+ ! ======================================================================================
+ 
  subroutine wrap_litter_fluxout(this, nc, bounds_clump, canopystate_inst, soilbiogeochem_carbonflux_inst)
      
     implicit none
@@ -1075,7 +1164,6 @@ contains
     
     do s = 1, this%fates(nc)%nsites
        c = this%f2hmap(nc)%fcolumn(s)
-       
        this%fates(nc)%bc_in(s)%max_rooting_depth_index_col = canopystate_inst%altmax_lastyear_indx_col(c)
     end do
     
@@ -1086,31 +1174,12 @@ contains
     
     do s = 1, this%fates(nc)%nsites
        c = this%f2hmap(nc)%fcolumn(s)
-
        soilbiogeochem_carbonflux_inst%FATES_c_to_litr_lab_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_lab_c_col(:)
        soilbiogeochem_carbonflux_inst%FATES_c_to_litr_cel_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_cel_c_col(:)
        soilbiogeochem_carbonflux_inst%FATES_c_to_litr_lig_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_lig_c_col(:)
-       
     end do
 
 
  end subroutine wrap_litter_fluxout
 
-
-
-   ! ------------------------------------------------------------------------------------
-   !  THESE WRAPPERS MAY COME IN HANDY, KEEPING FOR NOW
-   !  subroutine set_fates2hlm(this,bounds_clump, setval_scalar) 
-   !
-   !    ! This is a simple wrapper to flush some FATES -> CLM communicators
-   !
-   !    implicit none
-   !    class(hlm_fates_interface_type), intent(inout) :: this
-   !    type(bounds_type),intent(in)                :: bounds_clump
-   !    real(r8),intent(in) :: setval_scalar      ! This value will flush all 
-   !    
-   !    call this%fates2hlm%SetValues( bounds_clump, setval_scalar )
-   !  end subroutine set_fates2hlm
-   ! ------------------------------------------------------------------------------------
-    
 end module CLMFatesInterfaceMod

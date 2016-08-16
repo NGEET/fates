@@ -168,13 +168,13 @@ contains
   end subroutine SurfaceAlbedoInitTimeConst
 
   !-----------------------------------------------------------------------
-  subroutine SurfaceAlbedo(bounds,     &
+  subroutine SurfaceAlbedo(bounds,nc,  &
         num_nourbanc, filter_nourbanc, &
         num_nourbanp, filter_nourbanp, &
         num_urbanc   , filter_urbanc,  &
         num_urbanp   , filter_urbanp,  &
         nextsw_cday  , declinp1,       &
-        sites, nsites, fcolumn, hsites,  &  ! FATES STUFF
+        clm_fates,                     &
         aerosol_inst, canopystate_inst, waterstate_inst, &
         lakestate_inst, temperature_inst, surfalb_inst)
     !
@@ -203,11 +203,11 @@ contains
     use clm_time_manager   , only : get_nstep
     use abortutils         , only : endrun
     use clm_varctl         , only : subgridflag, use_snicar_frc, use_ed
-    use EDTypesMod         , only : ed_site_type
-    use EDSurfaceRadiationMod, only : ED_Norman_Radiation
-    !
+    use CLMFatesInterfaceMod, only : hlm_fates_interface_type
+
     ! !ARGUMENTS:
     type(bounds_type)      , intent(in)            :: bounds             ! bounds
+    integer                , intent(in)            :: nc                 ! clump index
     integer                , intent(in)            :: num_nourbanc       ! number of columns in non-urban filter
     integer                , intent(in)            :: filter_nourbanc(:) ! column filter for non-urban points
     integer                , intent(in)            :: num_nourbanp       ! number of patches in non-urban filter
@@ -218,10 +218,7 @@ contains
     integer                , intent(in)            :: filter_urbanp(:)   ! patch filter for rban points
     real(r8)               , intent(in)            :: nextsw_cday        ! calendar day at Greenwich (1.00, ..., days/year)
     real(r8)               , intent(in)            :: declinp1           ! declination angle (radians) for next time step
-    type(ed_site_type)     , intent(inout), target :: sites(nsites)      ! FATES site vector
-    integer                , intent(in)            :: nsites             
-    integer                , intent(in)            :: fcolumn(nsites)
-    integer                , intent(in)            :: hsites(bounds%begc:bounds%endc)
+    type(hlm_fates_interface_type), intent(inout)  :: clm_fates
     type(aerosol_type)     , intent(in)            :: aerosol_inst
     type(canopystate_type) , intent(in)            :: canopystate_inst
     type(waterstate_type)  , intent(in)            :: waterstate_inst
@@ -920,11 +917,9 @@ contains
 
     if (use_ed) then
           
-       call ED_Norman_Radiation (bounds, &
-            filter_vegsol, num_vegsol, filter_nourbanp, num_nourbanp, &
-            coszen_patch(bounds%begp:bounds%endp), sites(:), nsites, &
-            fcolumn, hsites(bounds%begc:bounds%endc), & 
-            surfalb_inst)
+       call clm_fates%wrap_canopy_radiation(bounds, nc, &
+            filter_vegsol, num_vegsol, &
+            coszen_patch(bounds%begp:bounds%endp), surfalb_inst)
 
     else
 

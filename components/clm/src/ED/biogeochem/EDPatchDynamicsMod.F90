@@ -11,7 +11,7 @@ module EDPatchDynamicsMod
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
   use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, numpft_ed, area, dbhmax, numPatchesPerCol
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type, udata
-  use EDTypesMod           , only : min_patch_area
+  use EDTypesMod           , only : min_patch_area, cp_numlevgrnd, cp_numSWb
   !
   implicit none
   private
@@ -168,7 +168,7 @@ contains
     ! 10) Area checked, and patchno recalculated. 
     !
     ! !USES:
-    use clm_varpar          , only : nclmax
+    use EDTypesMod          , only : cp_nclmax
     use EDParamsMod         , only : ED_val_maxspread, ED_val_understorey_death
     use EDCohortDynamicsMod , only : zero_cohort, copy_cohort, terminate_cohorts 
     !
@@ -192,7 +192,7 @@ contains
     real(r8) :: cwd_ag_local(ncwd)           ! initial value of above ground coarse woody debris. KgC/m2
     real(r8) :: cwd_bg_local(ncwd)           ! initial value of below ground coarse woody debris. KgC/m2
     real(r8) :: seed_bank_local(numpft_ed)   ! initial value of seed bank. KgC/m2
-    real(r8) :: spread_local(nclmax)         ! initial value of canopy spread parameter.no units 
+    real(r8) :: spread_local(cp_nclmax)         ! initial value of canopy spread parameter.no units 
     !---------------------------------------------------------------------
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
@@ -220,13 +220,16 @@ contains
        cwd_bg_local = 0.0_r8
        leaf_litter_local = 0.0_r8
        root_litter_local = 0.0_r8
-       spread_local(1:nclmax) = ED_val_maxspread
+       spread_local(1:cp_nclmax) = ED_val_maxspread
        age = 0.0_r8
        seed_bank_local = 0.0_r8
 
        allocate(new_patch)
 
-       call zero_patch(new_patch)
+!       This is called inside "create_patch"
+!       create_patch must first allocate some vector spaces before
+!       zero'ing can occur (RGK)
+!       call zero_patch(new_patch)
 
        call create_patch(currentSite, new_patch, age, site_areadis, &
             spread_local, cwd_ag_local, cwd_bg_local, leaf_litter_local, &
@@ -796,7 +799,6 @@ contains
     !  Set default values for creating a new patch
     !
     ! !USES:
-    use clm_varpar      , only : nlevgrnd 
     !
     ! !ARGUMENTS:
     type(ed_site_type) , intent(inout), target :: currentSite
@@ -812,6 +814,17 @@ contains
     !
     ! !LOCAL VARIABLES:
     !---------------------------------------------------------------------
+
+    allocate(new_patch%tr_soil_dir(cp_numSWb))
+    allocate(new_patch%tr_soil_dif(cp_numSWb))
+    allocate(new_patch%tr_soil_dir_dif(cp_numSWb))
+    allocate(new_patch%fab(cp_numSWb))
+    allocate(new_patch%fabd(cp_numSWb))
+    allocate(new_patch%fabi(cp_numSWb))
+    allocate(new_patch%sabs_dir(cp_numSWb))
+    allocate(new_patch%sabs_dif(cp_numSWb))
+    allocate(new_patch%rootfr_ft(numpft_ed,cp_numlevgrnd))
+    allocate(new_patch%rootr_ft(numpft_ed,cp_numlevgrnd)) 
     
     call zero_patch(new_patch) !The nan value in here is not working??
 
@@ -861,8 +874,7 @@ contains
     new_patch%leaf_litter_in(:)  = 0._r8
     new_patch%leaf_litter_out(:) = 0._r8
 
-    allocate(new_patch%rootfr_ft(numpft_ed,nlevgrnd))
-    allocate(new_patch%rootr_ft(numpft_ed,nlevgrnd)) 
+   
 
   end subroutine create_patch
 
@@ -922,7 +934,6 @@ contains
     currentPatch%tr_soil_dir(:)             = nan    ! fraction of incoming direct  radiation that is transmitted to the soil as direct
     currentPatch%tr_soil_dif(:)             = nan    ! fraction of incoming diffuse radiation that is transmitted to the soil as diffuse
     currentPatch%tr_soil_dir_dif(:)         = nan    ! fraction of incoming direct  radiation that is transmitted to the soil as diffuse
-    currentPatch%fab(:)                     = nan    ! fraction of incoming total   radiation that is absorbed by the canopy
     currentPatch%fabd(:)                    = nan    ! fraction of incoming direct  radiation that is absorbed by the canopy
     currentPatch%fabi(:)                    = nan    ! fraction of incoming diffuse radiation that is absorbed by the canopy
 
@@ -983,6 +994,7 @@ contains
     currentPatch%seeds_in(:)                = 0.0_r8
     currentPatch%seed_decay(:)              = 0.0_r8
     currentPatch%seed_germination(:)        = 0.0_r8
+
     currentPatch%fab(:)                     = 0.0_r8
     currentPatch%sabs_dir(:)                = 0.0_r8
     currentPatch%sabs_dif(:)                = 0.0_r8
@@ -1272,6 +1284,7 @@ contains
     end if
 
     ! We have no need for the dp pointer anymore, we have passed on it's legacy
+    call dealloc_patch(dp)
     deallocate(dp)
 
 
@@ -1358,6 +1371,46 @@ contains
     enddo
 
   end subroutine terminate_patches
+
+  ! =====================================================================================
+
+  subroutine dealloc_patch(cpatch)
+
+    ! This Subroutine is intended to de-allocate the allocatable memory that is pointed
+    ! to via the patch structure.  This subroutine DOES NOT deallocate the patch
+    ! structure itself.
+
+    type(ed_patch_type), target :: cpatch
+    type(ed_cohort_type), pointer :: ccohort  ! current
+    type(ed_cohort_type), pointer :: ncohort  ! next
+    
+    ! First Deallocate the cohort space
+    ! -----------------------------------------------------------------------------------
+    ccohort => cpatch%shortest
+    do while(associated(ccohort))
+       
+       ncohort => ccohort%taller
+       deallocate(ccohort)
+       ccohort => ncohort
+
+    end do
+
+    ! Secondly, and lastly, deallocate the allocatable vector spaces in the patch
+    if(allocated(cpatch%tr_soil_dir))then
+       deallocate(cpatch%tr_soil_dir)
+       deallocate(cpatch%tr_soil_dif)
+       deallocate(cpatch%tr_soil_dir_dif)
+       deallocate(cpatch%fab)
+       deallocate(cpatch%fabd)
+       deallocate(cpatch%fabi)
+       deallocate(cpatch%sabs_dir)
+       deallocate(cpatch%sabs_dif)
+       deallocate(cpatch%rootfr_ft)
+       deallocate(cpatch%rootr_ft)
+    end if
+
+    return
+  end subroutine dealloc_patch
 
   ! ============================================================================
   subroutine patch_pft_size_profile(cp_pnt)
