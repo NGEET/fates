@@ -138,6 +138,8 @@ module EDTypesMod
   ! or the total number of soil layers
   integer :: cp_numlevdecomp
 
+  character(len=16) :: cp_hlm_name
+
 
   !************************************
   !** COHORT type structure          **

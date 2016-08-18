@@ -22,7 +22,8 @@ module FatesInterfaceMod
                                       cp_numlevgrnd,     &
                                       cp_maxSWb,         &
                                       cp_numlevdecomp,   &
-                                      cp_numlevdecomp_full 
+                                      cp_numlevdecomp_full, &
+                                      cp_hlm_name
 
    use shr_kind_mod          , only : r8 => shr_kind_r8  ! INTERF-TODO: REMOVE THIS
 
@@ -425,7 +426,7 @@ contains
    
    ! ==================================================================================== 
 
-   subroutine set_fates_ctrlparms(tag,dimval)
+   subroutine set_fates_ctrlparms(tag,idimval,cdimval)
       
       ! ---------------------------------------------------------------------------------
       ! INTERF-TODO:  NEED ALLOWANCES FOR REAL AND CHARACTER ARGS..
@@ -451,8 +452,9 @@ contains
       ! ---------------------------------------------------------------------------------
       
       ! Arguments
-      integer, optional, intent(in)  :: dimval
-      character(len=*),intent(in)    :: tag
+      integer, optional, intent(in)         :: idimval
+      character(len=*),optional, intent(in) :: cdimval
+      character(len=*),intent(in)           :: tag
       
       ! local variables
       logical              :: all_set
@@ -468,7 +470,7 @@ contains
          cp_numlevgrnd = unset_int
          cp_numlevdecomp_full = unset_int
          cp_numlevdecomp      = unset_int
-
+         cp_hlm_name          = 'unset'
 
       case('check_allset')
          
@@ -507,39 +509,56 @@ contains
             ! end_run('MESSAGE')
          end if
 
+         if(trim(cp_hlm_name) .eq. 'unset') then
+            write(*,*) 'FATES dimension/parameter unset: hlm_name'
+            ! INTERF-TODO: FATES NEEDS INTERNAL end_run
+            ! end_run('MESSAGE')
+         end if
+
          write(*,*) 'Checked. All control parameters sent to FATES.'
          
       case default
 
-         if(present(dimval))then
+         if(present(idimval))then
             select case (trim(tag))
                
             case('num_sw_bbands')
                
-               cp_numSwb = dimval
-               write(*,*) 'Transfering num_sw_bbands = ',dimval,' to FATES'
+               cp_numSwb = idimval
+               write(*,*) 'Transfering num_sw_bbands = ',idimval,' to FATES'
                
             case('num_lev_ground')
                
-               cp_numlevgrnd = dimval
-               write(*,*) 'Transfering num_lev_ground = ',dimval,' to FATES'
+               cp_numlevgrnd = idimval
+               write(*,*) 'Transfering num_lev_ground = ',idimval,' to FATES'
                
             case('num_levdecomp_full')
                
-               cp_numlevdecomp_full = dimval
-               write(*,*) 'Transfering num_levdecomp_full = ',dimval,' to FATES'
+               cp_numlevdecomp_full = idimval
+               write(*,*) 'Transfering num_levdecomp_full = ',idimval,' to FATES'
             
             case('num_levdecomp')
                
-               cp_numlevdecomp = dimval
-               write(*,*) 'Transfering num_levdecomp = ',dimval,' to FATES'
+               cp_numlevdecomp = idimval
+               write(*,*) 'Transfering num_levdecomp = ',idimval,' to FATES'
 
             case default
                write(*,*) 'tag not recognized:',trim(tag)
                ! end_run
             end select
-         else
-            write(*,*) 'no value was provided for the tag'
+         end if
+         
+         if(present(cdimval))then
+            select case (trim(tag))
+               
+            case('hlm_name')
+               cp_hlm_name = trim(cdimval)
+               write(*,*) 'Transfering the HLM name = ',trim(cdimval)
+               
+            case default
+               write(*,*) 'tag not recognized:',trim(tag)
+               ! end_run
+            end select
          end if
          
       end select
