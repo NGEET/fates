@@ -21,10 +21,10 @@ Options:
     --debug             Flag to turn on debug mode so won't run, but display
                         what would happen
     --sdate=SDATE       Use entered date string in all files (use the given
-                        date string in place of the current date:150826)
+                        date string in place of the current date:160818)
     --clmnmlusecase=CLMNMLUSECASE
                         CLM namelist use case to use (default:2000_control)
-    --phys=CLMPHYSVERS  CLM physics version to use (default:clm4_5)
+    --phys=CLMPHYSVERS  CLM physics version to use (default:clm5_0)
     --list              List all valid: sites
     --mydatadir=MYDATADIR
                         Directory of where to put your data files (files will
@@ -55,4 +55,4 @@ Options:
     --mksurfdata_opts=MKSURFDATA_OPTS
                         Options to send directly to mksurfdata_map
 
-  Main Script Version Id: $Id: PTCLMmkdata 72597 2015-08-26 19:50:37Z erik $ Scripts URL: $HeadURL: https://svn-ccsm-models.cgd.ucar.edu/PTCLM/trunk_tags/PTCLM2_150826/PTCLMmkdata $:
+  Main Script Version Id: $Id: PTCLMmkdata 73988 2015-10-09 15:43:49Z erik $ Scripts URL: $HeadURL: https://svn-ccsm-models.cgd.ucar.edu/PTCLM/trunk_tags/PTCLM2_160818/PTCLMmkdata $:
