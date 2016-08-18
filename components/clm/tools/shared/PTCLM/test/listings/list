@@ -1,4 +1,4 @@
----------------- PTCLMmkdata version PTCLM2.0_PTCLM2_150826-----------------------------
+---------------- PTCLMmkdata version PTCLM2.0_PTCLM2_160818-----------------------------
 
    ../PTCLMmkdata --list --cesm_root ../../../../../.. -s test -d /glade/p/cesmdata/cseg/inputdata --debug --sdate 140204 --map_gdate 140204 
 
