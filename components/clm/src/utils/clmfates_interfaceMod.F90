@@ -76,6 +76,8 @@ module CLMFatesInterfaceMod
                                       set_fates_ctrlparms,  &
                                       allocate_bcin,        &
                                       allocate_bcout
+   
+   use HistoryIOMod          , only : fates_hio_interface_type
 
    use EDCLMLinkMod          , only : ed_clm_type
    use EDTypesMod            , only : udata
@@ -137,6 +139,9 @@ module CLMFatesInterfaceMod
 
       type(ed_clm_type) :: fates2hlm  
 
+      ! fates_hio is the interface class for the history output
+      type(fates_hio_interface_type) :: fates_hio
+
    contains
       
       procedure, public :: init
@@ -152,6 +157,7 @@ module CLMFatesInterfaceMod
       procedure, public :: prep_canopyfluxes
       procedure, public :: wrap_canopy_radiation
       procedure, private :: wrap_litter_fluxout
+      procedure, private :: init_history_io
 
    end type hlm_fates_interface_type
 
@@ -224,10 +230,11 @@ contains
       call set_fates_ctrlparms('flush_to_unset')
       
       ! Send parameters individually
-      call set_fates_ctrlparms('num_sw_bbands',numrad)
-      call set_fates_ctrlparms('num_lev_ground',nlevgrnd)
-      call set_fates_ctrlparms('num_levdecomp',nlevdecomp)
-      call set_fates_ctrlparms('num_levdecomp_full',nlevdecomp_full)
+      call set_fates_ctrlparms('num_sw_bbands',idimval=numrad)
+      call set_fates_ctrlparms('num_lev_ground',idimval=nlevgrnd)
+      call set_fates_ctrlparms('num_levdecomp',idimval=nlevdecomp)
+      call set_fates_ctrlparms('num_levdecomp_full',idimval=nlevdecomp_full)
+      call set_fates_ctrlparms('hlm_name',cdimval='CLM')
 
       ! Check through FATES parameters to see if all have been set
       call set_fates_ctrlparms('check_allset')
@@ -256,6 +263,7 @@ contains
       integer                                        :: l         ! HLM LU index
       integer, allocatable                           :: collist (:)
       type(bounds_type)                              :: bounds_clump
+      type(bounds_type)                              :: bounds_proc
       integer                                        :: nmaxcol
 
       if(DEBUG)then
@@ -352,6 +360,9 @@ contains
       end do
       !$OMP END PARALLEL DO
       
+      call get_proc_bounds(bounds_proc)
+      call this%init_history_io(bounds_proc)
+
    end subroutine init_allocate
    
   
@@ -489,6 +500,12 @@ contains
             canopystate_inst)
 
 
+      call this%fates_hio%update_history_variables( nc, &
+           this%fates(nc)%sites,       &
+           this%fates(nc)%nsites,      &
+           this%f2hmap(nc)%fcolumn)
+
+
       if (masterproc) then
          write(iulog, *) 'clm: leaving ED model', bounds_clump%begg, &
                                                   bounds_clump%endg, dayDiffInt
@@ -537,6 +554,10 @@ contains
                     waterstate_inst,                                               &
                     canopystate_inst)
                
+               call this%fates_hio%update_history_variables( nc, &
+                    this%fates(nc)%sites,       &
+                    this%fates(nc)%nsites,      &
+                    this%f2hmap(nc)%fcolumn)
 
             end if
          end if
@@ -597,6 +618,13 @@ contains
                 this%f2hmap(nc)%fcolumn,                            &
                 waterstate_inst,                                    &
                 canopystate_inst)
+
+           call this%fates_hio%update_history_variables( nc, &
+                this%fates(nc)%sites,       &
+                this%fates(nc)%nsites,      &
+                this%f2hmap(nc)%fcolumn)
+
+
         end if
      end do
      !$OMP END PARALLEL DO
@@ -1181,5 +1209,126 @@ contains
 
 
  end subroutine wrap_litter_fluxout
+
+ ! ======================================================================================
+
+ subroutine init_history_io(this,bounds_proc)
+
+   use histFileMod, only : hist_addfld1d, hist_addfld2d, hist_addfld_decomp 
+     
+   ! Arguments
+   class(hlm_fates_interface_type), intent(inout) :: this
+   type(bounds_type),intent(in)                   :: bounds_proc  ! Currently "proc"
+   
+   
+   ! Locals
+   type(bounds_type)                              :: bounds_clump
+   integer :: nvar  ! number of IO variables found
+   integer :: ivar  ! variable index 1:nvar
+   integer :: nc    ! thread counter 1:nclumps
+   integer :: nclumps ! number of threads on this proc
+   integer :: s     ! FATES site index
+   integer :: c     ! ALM/CLM column index
+   
+   ! This routine initializes the types of output variables
+   ! not the variables themselves, just the types
+   ! ---------------------------------------------------------------------------------
+   
+   !associate(hio => this%fates_hio)
+   
+   nclumps = get_proc_clumps()
+   
+   call this%fates_hio%init_iovar_dk_maps(nclumps)
+   
+   this%fates_hio%iopa_bounds%lb1 = bounds_proc%begp
+   this%fates_hio%iopa_bounds%ub1 = bounds_proc%endp
+   
+   this%fates_hio%iosi_bounds%lb1 = bounds_proc%begc
+   this%fates_hio%iosi_bounds%ub1 = bounds_proc%endc
+   
+   ! Define the bounds on the first dimension for each thread
+   ! $OMP PARALLEL DO PRIVATE (nc,bounds_clump,ityp,s,c)
+   do nc = 1,nclumps
+      
+      call get_clump_bounds(nc, bounds_clump)
+      
+      this%fates_hio%iopa_bounds%clump_lb1(nc) = bounds_clump%begp
+      this%fates_hio%iopa_bounds%clump_ub1(nc) = bounds_clump%endp
+      
+      this%fates_hio%iosi_bounds%clump_lb1(nc) = bounds_clump%begc
+      this%fates_hio%iosi_bounds%clump_ub1(nc) = bounds_clump%endc
+      
+      allocate(this%fates_hio%iovar_map(nc)%site_index(this%fates(nc)%nsites))
+      allocate(this%fates_hio%iovar_map(nc)%patch1_index(this%fates(nc)%nsites))
+      
+      do s=1,this%fates(nc)%nsites
+         c = this%f2hmap(nc)%fcolumn(s)
+         this%fates_hio%iovar_map(nc)%site_index(s)   = c
+         this%fates_hio%iovar_map(nc)%patch1_index(s) = col%patchi(c)+1
+      end do
+      
+   end do
+   !$OMP END PARALLEL DO
+   
+   ! INTERF-TODO: WE CURRENTLY POPULATE THE DIMENSION INFORMATION FOR THE VARIABLE
+   ! TYPE'S FIRST DIMENSION WITH THE BOUNDS MAP, GOOD, BUT WE SHOULD ALSO MIGRATE TO A SCHEME
+   ! WHERE ALL DIMENSIONS ARE DONE IN A SIMILAR WAY.
+   
+   call this%fates_hio%set_bounds_map_ptrs('PA_R8',this%fates_hio%iopa_bounds)
+   call this%fates_hio%set_bounds_map_ptrs('SI_R8',this%fates_hio%iosi_bounds)
+   
+   ! Determine how many of the history IO variables registered in FATES
+   ! are going to be allocated
+   
+   call this%fates_hio%define_history_vars('count',nvar)
+   this%fates_hio%n_hvars = nvar
+   
+   ! Allocate the list of history output variable objects
+   allocate(this%fates_hio%hvars(nvar))
+   
+   ! construct the object that defines all of the IO variables
+   call this%fates_hio%define_history_vars('initialize')
+   
+   do ivar = 1,nvar
+      
+      associate( vname    => this%fates_hio%hvars(ivar)%vname, &
+                 vunits   => this%fates_hio%hvars(ivar)%units,   &
+                 vlong    => this%fates_hio%hvars(ivar)%long, &
+                 vavgflag => this%fates_hio%hvars(ivar)%avgflag,  &
+                 ioname   => this%fates_hio%hvars(ivar)%iovar_dk_ptr%name )
+        
+        ! -------------------------------------------------------------------------------
+        ! Those who wish add variables that require new dimensions, please
+        ! see FatesInterfaceMod and see init_iovar_str().  This is where new output
+        ! types are set.  An output type is defined by the data type (ie r8,int,..)
+        ! and the dimensions.  Keep in mind that 3D variables (or 4D if you include time)
+        ! are not really supported in CLM/ALM right now.  There are ways around this
+        ! limitations by creating combined dimensions, for instance the size+pft dimension
+        ! "scpf"
+        ! -------------------------------------------------------------------------------
+        
+        select case(trim(ioname))
+        case('PA_R8')
+           call hist_addfld1d(fname=trim(vname),units=trim(vunits),         &
+                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+                              ptr_patch=this%fates_hio%hvars(ivar)%r81d,    &
+                              set_lake=0._r8,set_urb=0._r8)
+           
+        case('SI_R8')
+           call hist_addfld1d(fname=trim(vname),units=trim(vunits),         &
+                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+                              ptr_col=this%fates_hio%hvars(ivar)%r81d,      &
+                              set_lake=0._r8,set_urb=0._r8)
+        case default
+           write(iulog,*) 'A FATES iotype was created that was not registerred'
+           write(iulog,*) 'in CLM.:',trim(ioname)
+           call endrun(msg=errMsg(__FILE__, __LINE__))
+        end select
+          
+      end associate
+   end do
+   return
+ end subroutine init_history_io
+
 
 end module CLMFatesInterfaceMod
