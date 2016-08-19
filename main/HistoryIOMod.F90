@@ -1,23 +1,126 @@
 Module HistoryIOMod
 
   
-  use shr_kind_mod      , only : r8 => shr_kind_r8
+  use shr_kind_mod    , only : r8 => shr_kind_r8
   use clm_varctl      , only : iulog
 
   implicit none
 
-
   ! These variables hold the index of the history output structure so we don't
   ! have to constantly do name lookup when we want to populate the dataset
   ! These indices are set during "define_history_vars()" call to "set_history_var()"
-  ! during the initialize phase.
+  ! during the initialize phase.  Definitions are not provide, for an explanation of
+  ! the variable go to its registry.  (IH_ signifies "index history")
   
-  integer, private :: ind_hio_trimming_pa
-  integer, private :: ind_hio_area_plant_pa
-  integer, private :: ind_hio_area_treespread_pa
+  ! Indices to 1D Patch variables
 
- 
+  integer, private :: ih_trimming_pa
+  integer, private :: ih_area_plant_pa
+  integer, private :: ih_area_treespread_pa
+  integer, private :: ih_canopy_spread_pa
+  integer, private :: ih_nesterov_fire_danger_pa
+  integer, private :: ih_spitfire_ROS_pa
+  integer, private :: ih_effect_wspeed_pa
+  integer, private :: ih_TFC_ROS_pa
+  integer, private :: ih_fire_intensity_pa
+  integer, private :: ih_fire_area_pa
+  integer, private :: ih_scorch_height_pa
+  integer, private :: ih_fire_fuel_bulkd_pa
+  integer, private :: ih_fire_fuel_eff_moist_pa
+  integer, private :: ih_fire_fuel_sav_pa
+  integer, private :: ih_fire_fuel_mef_pa
+  integer, private :: ih_sum_fuel_pa
+  integer, private :: ih_litter_in_pa
+  integer, private :: ih_litter_out_pa
+  integer, private :: ih_efpot_pa        ! NA
+  integer, private :: ih_rb_pa           ! NA
+  integer, private :: ih_daily_temp
+  integer, private :: ih_daily_rh
+  integer, private :: ih_daily_prec
+  integer, private :: ih_seed_bank
+  integer, private :: ih_seeds_in
+  integer, private :: ih_seed_decay
+  integer, private :: ih_seed_germination
+  integer, private :: ih_bstore
+  integer, private :: ih_bdead
+  integer, private :: ih_balive
+  integer, private :: ih_bleaf
+  integer, private :: ih_biomass
+  integer, private :: ih_npp
+  integer, private :: ih_gpp
+  integer, private :: ih_autotr_resp
+  integer, private :: ih_maint_resp
+  integer, private :: ih_growth_resp
+  
+  ! Indices to (patch x pft) variables   (using nlevgrnd as surrogate)
+
+  integer, private :: ih_biomass_pa_pft
+  integer, private :: ih_leafbiomass_pa_pft
+  integer, private :: ih_storebiomass_pa_pft
+  integer, private :: ih_nindivs_pa_pft
+
+  ! Indices to (site) variables
+
+  integer, private :: ih_nep_si
+  integer, private :: ih_nep_timeintegrated_si
+  integer, private :: ih_npp_timeintegrated_si
+  integer, private :: ih_hr_timeintegrated_si
+  integer, private :: ih_nbp_si
+  integer, private :: ih_npp_si
+  integer, private :: ih_fire_c_to_atm_si
+  integer, private :: ih_ed_to_bgc_this_edts_si
+  integer, private :: ih_ed_to_bgc_last_edts_si
+  integer, private :: ih_seed_rain_flux_si
+  integer, private :: ih_totecosysc_si
+  integer, private :: ih_totecosysc_old_si
+  integer, private :: ih_totedc_si
+  integer, private :: ih_totedc_old_si
+  integer, private :: ih_totbgcc_si
+  integer, private :: ih_totbgcc_old_si
+  integer, private :: ih_biomass_stock_si
+  integer, private :: ih_ed_litter_stock_si
+  integer, private :: ih_cwd_stock_si
+  integer, private :: ih_seed_stock_si
+  integer, private :: ih_cbalance_error_ed_si
+  integer, private :: ih_cbalance_error_bgc_si
+  integer, private :: ih_cbalance_error_total_si
+  integer, private :: ih_ed_npatches_si
+  integer, private :: ih_ed_ncohorts_si
+  
+  ! Indices to (site x scpf) variables
+
+  integer, private :: ih_gpp_si_scpf
+  integer, private :: ih_npp_totl_si_scpf
+  integer, private :: ih_npp_leaf_si_scpf
+  integer, private :: ih_npp_seed_si_scpf
+  integer, private :: ih_npp_fnrt_si_scpf
+  integer, private :: ih_npp_bgsw_si_scpf
+  integer, private :: ih_npp_bgdw_si_scpf
+  integer, private :: ih_npp_agsw_si_scpf
+  integer, private :: ih_npp_agdw_si_scpf
+  integer, private :: ih_npp_stor_si_scpf
+  integer, private :: ih_litt_leaf_si_scpf
+  integer, private :: ih_litt_fnrt_si_scpf
+  integer, private :: ih_litt_sawd_si_scpf
+  integer, private :: ih_litt_ddwd_si_scpf
+  integer, private :: ih_r_leaf_si_scpf
+  integer, private :: ih_r_stem_si_scpf
+  integer, private :: ih_r_root_si_scpf
+  integer, private :: ih_r_stor_si_scpf
+
+  integer, private :: ih_ddbh_si_scpf
+  integer, private :: ih_ba_si_scpf
+  integer, private :: ih_np_si_scpf
+  integer, private :: ih_m1_si_scpf
+  integer, private :: ih_m2_si_scpf
+  integer, private :: ih_m3_si_scpf
+  integer, private :: ih_m4_si_scpf
+  integer, private :: ih_m5_si_scpf
+
+
+  ! The number of variable dim/kind types we have defined (static)
   integer, parameter                :: n_iovar_dk = 6
+
 
   ! This structure is not allocated by thread, but the upper and lower boundaries
   ! of the dimension for each thread is saved in the clump_ entry
@@ -62,6 +165,7 @@ Module HistoryIOMod
      character(len=128)   :: long
      character(len=24)    :: vtype
      character(len=1)     :: avgflag
+     real(r8)             :: flushval
      type(iovar_dimkind_type),pointer :: iovar_dk_ptr
      ! Pointers (only one of these is allocated per variable)
      real(r8), pointer     :: r81d(:)
@@ -144,48 +248,50 @@ contains
     
     ! Locals
     integer  :: s        ! The local site index
-    integer  :: io_s     ! The site index of the IO array
+    integer  :: io_si     ! The site index of the IO array
     integer  :: ipa      ! The local "I"ndex of "PA"tches 
     integer  :: io_pa    ! The patch index of the IO array
     integer  :: io_pa1   ! The first patch index in the IO array for each site
     integer  :: io_soipa 
     integer  :: lb1,ub1,lb2,ub2  ! IO array bounds for the calling thread
     integer  :: ivar             ! index of IO variable object vector
+    type(iovar_def_type),pointer :: hvar
     type(ed_patch_type),pointer :: cpatch
     
     ! ---------------------------------------------------------------------------------
-    ! Flush arrays to zero
+    ! Flush arrays to pre-defined values
     ! INTERF-TODO: We need to define a flush type, some variables may not want to
     ! average in zero's for patches that are 
     ! ---------------------------------------------------------------------------------
     do ivar=1,ubound(this%hvars,1)
-       
-       call this%get_hvar_bounds(this%hvars(ivar),nc,lb1,ub1,lb2,ub2)
-       
-       select case(trim(this%hvars(ivar)%iovar_dk_ptr%name))
+       hvar => this%hvars(ivar)
+       call this%get_hvar_bounds(hvar,nc,lb1,ub1,lb2,ub2)
+       select case(trim(hvar%iovar_dk_ptr%name))
        case('PA_R8') 
-          this%hvars(ivar)%r81d(lb1:ub1) = 0.0_r8
+          hvar%r81d(lb1:ub1) = hvar%flushval
        case('SI_R8') 
-          this%hvars(ivar)%r81d(lb1:ub1) = 0.0_r8
+          hvar%r81d(lb1:ub1) = hvar%flushval
        case('PA_GRND_R8') 
-          this%hvars(ivar)%r82d(lb1:ub1,lb2:ub2) = 0.0_r8
+          hvar%r82d(lb1:ub1,lb2:ub2) = hvar%flushval
        case('PA_SCPF_R8') 
-          this%hvars(ivar)%r82d(lb1:ub1,lb2:ub2) = 0.0_r8
+          hvar%r82d(lb1:ub1,lb2:ub2) = hvar%flushval
        case('SI_GRND_R8') 
-          this%hvars(ivar)%r82d(lb1:ub1,lb2:ub2) = 0.0_r8
+          hvar%r82d(lb1:ub1,lb2:ub2) = hvar%flushval
        case('SI_SCPF_R8') 
-          this%hvars(ivar)%r82d(lb1:ub1,lb2:ub2) = 0.0_r8
+          hvar%r82d(lb1:ub1,lb2:ub2) = hvar%flushval
+       case('PA_INT')
+          hvar%int1d(lb1:ub1) = nint(hvar%flushval)
        case default
           write(iulog,*) 'iotyp undefined while flushing history variables'
           stop
           !end_run
        end select
-       
     end do
     
-    ! Perform any special flushes
-    call this%get_hvar_bounds(this%hvars(ind_hio_trimming_pa),nc,lb1,ub1,lb2,ub2)
-    this%hvars(ind_hio_trimming_pa)%r81d(lb1:ub1) = 1.0_r8
+
+    ! Perform flushes or initializations over the FATES-only space?
+    ! ---------------------------------------------------------------------------------
+
     
     ! ---------------------------------------------------------------------------------
     ! Loop through the FATES scale hierarchy and fill the history IO arrays
@@ -193,12 +299,12 @@ contains
 
     do s = 1,nsites
        
-       io_s   = this%iovar_map(nc)%site_index(s)
+       io_si  = this%iovar_map(nc)%site_index(s)
        io_pa1 = this%iovar_map(nc)%patch1_index(s)
        io_soipa = io_pa1-1
 
-       ! TRIMMING2 (soil patch): ind_hio_trimming_pa
-       this%hvars(ind_hio_trimming_pa)%r81d(io_soipa) = 1.0_r8
+       ! TRIMMING2 (soil patch): ih_trimming_pa
+       this%hvars(ih_trimming_pa)%r81d(io_soipa) = 1.0_r8
               
        ipa = 0
        cpatch => sites(s)%oldest_patch
@@ -206,22 +312,22 @@ contains
           
           io_pa = io_pa1 + ipa
           
-          ! TRIMMING2: ind_hio_trimming_pa
+          ! ih_trimming_pa
           if(associated(cpatch%tallest))then
-             this%hvars(ind_hio_trimming_pa)%r81d(io_pa) = cpatch%tallest%canopy_trim
+             this%hvars(ih_trimming_pa)%r81d(io_pa) = cpatch%tallest%canopy_trim
           else
-             this%hvars(ind_hio_trimming_pa)%r81d(io_pa) = 0.0_r8
+             this%hvars(ih_trimming_pa)%r81d(io_pa) = 0.0_r8
           endif
           
-          ! AREA_PLANT2: ind_hio_area_plant_pa
-          this%hvars(ind_hio_area_plant_pa)%r81d(io_pa) = 1._r8
+          ! ih_area_plant_pa
+          this%hvars(ih_area_plant_pa)%r81d(io_pa) = 1._r8
           
-          ! AREA_TREES: ind_hio_area_treespread_pa
+          ! AREA_TREES: ih_area_treespread_pa
           if (min(cpatch%total_canopy_area,cpatch%area)>0.0_r8) then
-             this%hvars(ind_hio_area_treespread_pa)%r81d(io_pa) = cpatch%total_tree_area  &
+             this%hvars(ih_area_treespread_pa)%r81d(io_pa) = cpatch%total_tree_area  &
                   / min(cpatch%total_canopy_area,cpatch%area)
           else
-             this%hvars(ind_hio_area_treespread_pa)%r81d(io_pa) = 0.0_r8
+             this%hvars(ih_area_treespread_pa)%r81d(io_pa) = 0.0_r8
           end if
           
           
@@ -239,6 +345,9 @@ contains
   subroutine define_history_vars(this,callstep,nvar)
     
     ! ---------------------------------------------------------------------------------
+    ! 
+    !                    REGISTRY OF HISTORY OUTPUT VARIABLES
+    !
     ! This subroutine is called in two contexts, either in count mode or inialize mode
     ! In count mode, we just walk through the list of registerred variables, compare
     ! if the variable of interest list the current host model and add it to the count
@@ -246,7 +355,22 @@ contains
     ! has been done, we go through the list a second time populating a memory structure.
     ! This phase is the "initialize" phase.  These two phases are differntiated by the
     ! string "callstep", which should be either "count" or "initialize".
+    !
+    ! Note 1 there are different ways you can flush or initialize the output fields.
+    ! If you flush to a native type, (such as zero), the entire slab which covers
+    ! indices which may not be relevant to FATES, are flushed to this value.  So
+    ! in that case, lakes and crops that are not controlled by FATES will zero'd
+    ! and when values are scaled up to the land-grid, the zero's for non FATES will
+    ! be included.  This is good and correct if nothing is there.  
+    !
+    ! But, what if crops exist in the host model and occupy a fraction of the land-surface
+    ! shared with natural vegetation? In that case, you want to flush your arrays
+    ! with a value that the HLM treats as "do not average"
+    ! 
+    ! If your HLM makes use of, and you want, INTEGER OUTPUT, pass the flushval as
+    ! a real.  The applied flush value will use the NINT() intrinsic function
     ! ---------------------------------------------------------------------------------
+    
     class(fates_hio_interface_type)        :: this
     character(len=*),intent(in)            :: callstep  ! are we 'count'ing or 'initializ'ing?
     integer,optional,intent(out)           :: nvar      
@@ -259,20 +383,20 @@ contains
     end if
     
     ivar=0
-    call this%set_history_var(vname='TRIMMING2',units='none', &
-         long='Degree to which canopy expansion is limited by leaf economics', &
-         avgflag='A',vtype='PA_R8',hlms='CLM:ALM',ivar=ivar,               &
-         callstep=callstep,index = ind_hio_trimming_pa)
+    call this%set_history_var(vname='TRIMMING2',units='none',                   &
+         long='Degree to which canopy expansion is limited by leaf economics',  &
+         avgflag='A',vtype='PA_R8',hlms='CLM:ALM',flushval=1.0_r8, ivar=ivar,   &
+         callstep=callstep,index = ih_trimming_pa)
     
-    call this%set_history_var(vname='AREA_PLANT2',units='m2', &
-         long='area occupied by all plants', &
-         avgflag='A',vtype='PA_R8',hlms='CLM:ALM',ivar=ivar,               &
-         callstep=callstep,index = ind_hio_area_plant_pa)
+    call this%set_history_var(vname='AREA_PLANT2',units='m2',                   &
+         long='area occupied by all plants',                                    &
+         avgflag='A',vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,ivar=ivar,    &
+         callstep=callstep,index = ih_area_plant_pa)
     
-    call this%set_history_var(vname='AREA_TREES2',units='m2', &
-         long='area occupied by woody plants', &
-         avgflag='A',vtype='PA_R8',hlms='CLM:ALM',ivar=ivar,               &
-         callstep=callstep,index = ind_hio_area_treespread_pa)
+    call this%set_history_var(vname='AREA_TREES2',units='m2',                   &
+         long='area occupied by woody plants',                                  &
+         avgflag='A',vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,ivar=ivar,    &
+         callstep=callstep,index = ih_area_treespread_pa)
 
 
     ! Must be last thing before return
@@ -284,7 +408,7 @@ contains
   
   ! =====================================================================================
    
-  subroutine set_history_var(this,vname,units,long,avgflag,vtype,hlms,ivar,callstep,index)
+  subroutine set_history_var(this,vname,units,long,avgflag,vtype,hlms,flushval,ivar,callstep,index)
 
 
     use FatesUtilsMod, only : check_hlm_list
@@ -298,6 +422,7 @@ contains
     character(len=*),intent(in)  :: avgflag
     character(len=*),intent(in)  :: vtype
     character(len=*),intent(in)  :: hlms
+    real(r8),intent(in)          :: flushval ! IF THE TYPE IS AN INT WE WILL round with NINT
     character(len=*),intent(in)  :: callstep
     integer, intent(inout)       :: ivar
     integer, intent(inout)       :: index  ! This is the index for the variable of
@@ -324,6 +449,7 @@ contains
           hvar%long  = long
           hvar%vtype = vtype
           hvar%avgflag = avgflag
+          hvar%flushval = flushval
           
           ityp=this%iotype_index(trim(vtype))
           hvar%iovar_dk_ptr => this%iovar_dk(ityp)
