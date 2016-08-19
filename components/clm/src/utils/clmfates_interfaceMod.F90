@@ -1245,25 +1245,13 @@ contains
    ! PART I: Set FATES DIMENSIONING INFORMATION
    ! ------------------------------------------------------------------------------------
    
-   call this%fates_hio%init_iovar_dk_maps(nclumps)  ! BREAK THIS FUNC UP AND MOVE?
-   
-   this%fates_hio%iopa_dim%name = 'patch'
-   this%fates_hio%iopa_dim%lb = bounds_proc%begp
-   this%fates_hio%iopa_dim%ub = bounds_proc%endp
-   
-   this%fates_hio%iosi_dim%name = 'column'
-   this%fates_hio%iosi_dim%lb = bounds_proc%begc
-   this%fates_hio%iosi_dim%ub = bounds_proc%endc
+   call this%fates_hio%dim_init(this%fates_hio%iopa_dim,'patch',nclumps,bounds_proc%begp,bounds_proc%endp)
+   call this%fates_hio%dim_init(this%fates_hio%iosi_dim,'column',nclumps,bounds_proc%begc,bounds_proc%endc)
+   call this%fates_hio%dim_init(this%fates_hio%iogrnd_dim,'levgrnd',nclumps,1,nlevgrnd)
+   call this%fates_hio%dim_init(this%fates_hio%ioscpf_dim,'levscpf',nclumps,1,nlevsclass_ed*mxpft)
 
-   this%fates_hio%iogrnd_dim%name = 'levgrnd'
-   this%fates_hio%iogrnd_dim%lb = 1
-   this%fates_hio%iogrnd_dim%ub = nlevgrnd
-
-   ! SCPF AND LEVGRND NEED WORK IN ANOTHER ISSUE
-
-   this%fates_hio%ioscpf_dim%name = 'levscpf'
-   this%fates_hio%ioscpf_dim%lb = 1
-   this%fates_hio%ioscpf_dim%ub = nlevsclass_ed*mxpft
+   ! Allocate the mapping between FATES indices and the IO indices
+   allocate(this%fates_hio%iovar_map(nclumps))
 
    
    ! Define the bounds on the first dimension for each thread
@@ -1273,20 +1261,10 @@ contains
       call get_clump_bounds(nc, bounds_clump)
       
       ! thread bounds for patch
-      this%fates_hio%iopa_dim%clump_lb(nc) = bounds_clump%begp
-      this%fates_hio%iopa_dim%clump_ub(nc) = bounds_clump%endp
-      
-      ! thread bounds for site (column)
-      this%fates_hio%iosi_dim%clump_lb(nc) = bounds_clump%begc
-      this%fates_hio%iosi_dim%clump_ub(nc) = bounds_clump%endc
-      
-      ! thread bounds ground (yes this seems like overkill)
-      this%fates_hio%iogrnd_dim%clump_lb(nc) = 1
-      this%fates_hio%iogrnd_dim%clump_ub(nc) = nlevgrnd
-      
-      ! thread bounds SCPF (yes this seems like overkill)
-      this%fates_hio%ioscpf_dim%clump_lb(nc) = 1
-      this%fates_hio%ioscpf_dim%clump_ub(nc) = nlevsclass_ed*mxpft
+      call this%fates_hio%set_dim_thread_bounds(this%fates_hio%iopa_dim,nc,bounds_clump%begp,bounds_clump%endp)
+      call this%fates_hio%set_dim_thread_bounds(this%fates_hio%iosi_dim,nc,bounds_clump%begc,bounds_clump%endc)
+      call this%fates_hio%set_dim_thread_bounds(this%fates_hio%iogrnd_dim,nc,1,nlevgrnd)
+      call this%fates_hio%set_dim_thread_bounds(this%fates_hio%ioscpf_dim,nc,1,nlevsclass_ed*mxpft)
 
       ! ------------------------------------------------------------------------------------
       ! PART I.5: SET SOME INDEX MAPPINGS SPECIFICALLY FOR SITE<->COLUMN AND PATCH 
@@ -1308,6 +1286,8 @@ contains
    ! PART II: USE THE JUST DEFINED DIMENSIONS TO ASSEMBLE THE VALID IO TYPES
    ! INTERF-TODO: THESE CAN ALL BE EMBEDDED INTO A SUBROUTINE IN HISTORYIOMOD
    ! ------------------------------------------------------------------------------------
+
+   call this%fates_hio%init_iovar_dk_maps()
    
    call this%fates_hio%set_dim_ptrs(dk_name='PA_R8',idim=1,dim_target=this%fates_hio%iopa_dim)
 
