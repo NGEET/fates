@@ -16,18 +16,19 @@ Module HistoryIOMod
   integer, private :: ind_hio_area_plant_pa
   integer, private :: ind_hio_area_treespread_pa
 
-
  
-  integer, parameter                :: n_iovar_dk = 2
+  integer, parameter                :: n_iovar_dk = 6
 
-  ! This structure is allocated by thread, and there are two instances: patch and site
-  type iovar_bounds_type
-     integer :: lb1
-     integer :: ub1
-     integer,allocatable :: clump_lb1(:)  ! lower bound of thread's portion of HIO array
-     integer,allocatable :: clump_ub1(:)  ! upper bound of thread's portion of HIO array
-  end type iovar_bounds_type
-
+  ! This structure is not allocated by thread, but the upper and lower boundaries
+  ! of the dimension for each thread is saved in the clump_ entry
+  type iovar_dim_type
+     character(len=32) :: name            ! This should match the name of the dimension 
+     integer :: lb                       ! lower bound
+     integer :: ub                       ! upper bound
+     integer,allocatable :: clump_lb(:)  ! lower bound of thread's portion of HIO array
+     integer,allocatable :: clump_ub(:)  ! upper bound of thread's portion of HIO array
+  end type iovar_dim_type
+  
 
   
   ! This structure is allocated by thread, and must be calculated after the FATES
@@ -48,7 +49,8 @@ Module HistoryIOMod
      integer              :: ndims       ! number of dimensions in this IO type
      integer, allocatable :: dimsize(:)  ! The size of each dimension
      logical              :: active
-     type(iovar_bounds_type), pointer :: bounds_ptr
+     type(iovar_dim_type), pointer :: dim1_ptr
+     type(iovar_dim_type), pointer :: dim2_ptr
   end type iovar_dimkind_type
 
 
@@ -58,7 +60,7 @@ Module HistoryIOMod
      character(len=32)    :: vname
      character(len=24)    :: units
      character(len=128)   :: long
-     character(len=16)    :: vtype
+     character(len=24)    :: vtype
      character(len=1)     :: avgflag
      type(iovar_dimkind_type),pointer :: iovar_dk_ptr
      ! Pointers (only one of these is allocated per variable)
@@ -84,13 +86,22 @@ Module HistoryIOMod
      ! This is a structure that explains where FATES patch boundaries
      ! on each thread point to in the host IO array, this structure
      ! is allocated by number of threads
-     type(iovar_bounds_type) :: iopa_bounds
+     type(iovar_dim_type) :: iopa_dim
      
      ! This is a structure that explains where FATES patch boundaries
      ! on each thread point to in the host IO array, this structure
      ! is allocated by number of threads
-     type(iovar_bounds_type) :: iosi_bounds
+     type(iovar_dim_type) :: iosi_dim
      
+     ! This is a structure that contains the boundaries for the
+     ! ground level (includes rock) dimension
+     type(iovar_dim_type) :: iogrnd_dim
+
+     ! This is a structure that contains the boundaries for the
+     ! number of size-class x pft dimension
+     type(iovar_dim_type) :: ioscpf_dim
+
+
      type(iovar_map_type), pointer :: iovar_map(:)
      
    contains
@@ -100,8 +111,9 @@ Module HistoryIOMod
      procedure, public :: set_history_var
      procedure, public :: init_iovar_dk_maps
      procedure, public :: iotype_index
-     procedure, public :: set_bounds_map_ptrs
-     
+     procedure, public :: set_dim_ptrs
+     procedure, public :: get_hvar_bounds
+
   end type fates_hio_interface_type
    
 
@@ -135,8 +147,8 @@ contains
     integer  :: io_pa    ! The patch index of the IO array
     integer  :: io_pa1   ! The first patch index in the IO array for each site
     integer  :: io_soipa 
-    integer  :: lb1,ub1  ! IO array bounds for the calling thread
-    integer  :: ivar     ! index of IO variable object vector
+    integer  :: lb1,ub1,lb2,ub2  ! IO array bounds for the calling thread
+    integer  :: ivar             ! index of IO variable object vector
     type(ed_patch_type),pointer :: cpatch
     
     ! ---------------------------------------------------------------------------------
@@ -146,14 +158,21 @@ contains
     ! ---------------------------------------------------------------------------------
     do ivar=1,ubound(this%hvars,1)
        
-       lb1 = this%hvars(ivar)%iovar_dk_ptr%bounds_ptr%clump_lb1(nc)
-       ub1 = this%hvars(ivar)%iovar_dk_ptr%bounds_ptr%clump_ub1(nc)
+       call this%get_hvar_bounds(this%hvars(ivar),nc,lb1,ub1,lb2,ub2)
        
        select case(trim(this%hvars(ivar)%iovar_dk_ptr%name))
        case('PA_R8') 
           this%hvars(ivar)%r81d(lb1:ub1) = 0.0_r8
        case('SI_R8') 
           this%hvars(ivar)%r81d(lb1:ub1) = 0.0_r8
+       case('PA_GRND_R8') 
+          this%hvars(ivar)%r82d(lb1:ub1,lb2:ub2) = 0.0_r8
+       case('PA_SCPF_R8') 
+          this%hvars(ivar)%r82d(lb1:ub1,lb2:ub2) = 0.0_r8
+       case('SI_GRND_R8') 
+          this%hvars(ivar)%r82d(lb1:ub1,lb2:ub2) = 0.0_r8
+       case('SI_SCPF_R8') 
+          this%hvars(ivar)%r82d(lb1:ub1,lb2:ub2) = 0.0_r8
        case default
           write(iulog,*) 'iotyp undefined while flushing history variables'
           stop
@@ -163,16 +182,12 @@ contains
     end do
     
     ! Perform any special flushes
-
-    lb1 = this%hvars(ind_hio_trimming_pa)%iovar_dk_ptr%bounds_ptr%clump_lb1(nc)
-    ub1 = this%hvars(ind_hio_trimming_pa)%iovar_dk_ptr%bounds_ptr%clump_ub1(nc)
+    call this%get_hvar_bounds(this%hvars(ind_hio_trimming_pa),nc,lb1,ub1,lb2,ub2)
     this%hvars(ind_hio_trimming_pa)%r81d(lb1:ub1) = 1.0_r8
     
     ! ---------------------------------------------------------------------------------
     ! Loop through the FATES scale hierarchy and fill the history IO arrays
     ! ---------------------------------------------------------------------------------
-    
-
 
     do s = 1,nsites
        
@@ -247,12 +262,10 @@ contains
          avgflag='A',vtype='PA_R8',hlms='CLM:ALM',ivar=ivar,               &
          callstep=callstep,index = ind_hio_trimming_pa)
     
-    
     call this%set_history_var(vname='AREA_PLANT2',units='m2', &
          long='area occupied by all plants', &
          avgflag='A',vtype='PA_R8',hlms='CLM:ALM',ivar=ivar,               &
          callstep=callstep,index = ind_hio_area_plant_pa)
-    
     
     call this%set_history_var(vname='AREA_TREES2',units='m2', &
          long='area occupied by woody plants', &
@@ -293,7 +306,7 @@ contains
 
     ! locals
     type(iovar_def_type),pointer :: hvar
-    integer :: ub1,lb1,ub2,ub3    ! Bounds for allocating the var
+    integer :: ub1,lb1,ub2,lb2    ! Bounds for allocating the var
     integer :: ityp
     
     if( check_hlm_list(trim(hlms),trim(cp_hlm_name)) ) then
@@ -321,14 +334,21 @@ contains
           nullify(hvar%int2d)
           nullify(hvar%int3d)
           
-          lb1 = hvar%iovar_dk_ptr%bounds_ptr%lb1
-          ub1 = hvar%iovar_dk_ptr%bounds_ptr%ub1
+          call this%get_hvar_bounds(hvar,0,lb1,ub1,lb2,ub2)
           
           select case(trim(vtype))
           case('PA_R8')
              allocate(hvar%r81d(lb1:ub1))
           case('SI_R8')
              allocate(hvar%r81d(lb1:ub1))
+          case('PA_GRND_R8')
+             allocate(hvar%r82d(lb1:ub1,lb2:ub2))
+          case('PA_SCPF_R8')
+             allocate(hvar%r82d(lb1:ub1,lb2:ub2))
+          case('SI_GRND_R8')
+             allocate(hvar%r82d(lb1:ub1,lb2:ub2))
+          case('SI_SCPF_R8')
+             allocate(hvar%r82d(lb1:ub1,lb2:ub2))
           case default
              write(iulog,*) 'Incompatible vtype passed to set_history_var'
              write(iulog,*) 'vtype = ',trim(vtype),' ?'
@@ -345,6 +365,49 @@ contains
     return
   end subroutine set_history_var
   
+  ! =====================================================================================
+
+  subroutine get_hvar_bounds(this,hvar,thread,lb1,ub1,lb2,ub2)
+
+     class(fates_hio_interface_type) :: this
+     type(iovar_def_type),target,intent(in) :: hvar
+     integer,intent(in)              :: thread
+     integer,intent(out)             :: lb1
+     integer,intent(out)             :: ub1
+     integer,intent(out)             :: lb2
+     integer,intent(out)             :: ub2
+
+     ! local
+     integer :: ndims
+
+     lb1 = 0
+     ub1 = 0
+     lb2 = 0
+     ub2 = 0
+
+     ndims = hvar%iovar_dk_ptr%ndims
+
+     ! The thread = 0 case is the boundaries for the whole proc/node
+     if (thread==0) then
+        lb1 = hvar%iovar_dk_ptr%dim1_ptr%lb
+        ub1 = hvar%iovar_dk_ptr%dim1_ptr%ub
+        if(ndims>1)then
+           lb2 = hvar%iovar_dk_ptr%dim2_ptr%lb
+           ub2 = hvar%iovar_dk_ptr%dim2_ptr%ub
+        end if
+     else
+        lb1 = hvar%iovar_dk_ptr%dim1_ptr%clump_lb(thread)
+        ub1 = hvar%iovar_dk_ptr%dim1_ptr%clump_ub(thread)
+        if(ndims>1)then
+           lb2 = hvar%iovar_dk_ptr%dim2_ptr%clump_lb(thread)
+           ub2 = hvar%iovar_dk_ptr%dim2_ptr%clump_ub(thread)
+        end if
+     end if
+     
+     return
+  end subroutine get_hvar_bounds
+
+
   ! ====================================================================================
   
   subroutine init_iovar_dk_maps(this,nclumps)
@@ -374,37 +437,84 @@ contains
     integer, parameter :: unset_int = -999
     
     allocate(this%iovar_dk(n_iovar_dk))
-    print*,"1"
 
+    ! 1d Patch
     ityp = 1
     this%iovar_dk(ityp)%name  = 'PA_R8'
-    print*,"2"
     this%iovar_dk(ityp)%ndims = 1
-    print*,"3"
     allocate(this%iovar_dk(ityp)%dimsize(this%iovar_dk(ityp)%ndims))
-    print*,"4"
     this%iovar_dk(ityp)%dimsize(:) = unset_int
-    print*,"5"
     this%iovar_dk(ityp)%active = .false.  
-    print*,"6"
-    nullify(this%iovar_dk(ityp)%bounds_ptr)
-    print*,"7"
-    
+    nullify(this%iovar_dk(ityp)%dim1_ptr)
+    nullify(this%iovar_dk(ityp)%dim2_ptr)
+
+    ! 1d Site
     ityp = 2
     this%iovar_dk(ityp)%name  = 'SI_R8'
     this%iovar_dk(ityp)%ndims = 1
     allocate(this%iovar_dk(ityp)%dimsize(this%iovar_dk(ityp)%ndims))
     this%iovar_dk(ityp)%dimsize(:) = unset_int
     this%iovar_dk(ityp)%active = .false.
-    nullify(this%iovar_dk(ityp)%bounds_ptr)
+    nullify(this%iovar_dk(ityp)%dim1_ptr)
+    nullify(this%iovar_dk(ityp)%dim2_ptr)
 
-    ! Allocate bounds associated with patches
-    allocate(this%iopa_bounds%clump_lb1(nclumps))
-    allocate(this%iopa_bounds%clump_ub1(nclumps))
+    ! patch x ground
+    ityp = 3
+    this%iovar_dk(ityp)%name = 'PA_GRND_R8'
+    this%iovar_dk(ityp)%ndims = 2
+    allocate(this%iovar_dk(ityp)%dimsize(this%iovar_dk(ityp)%ndims))
+    this%iovar_dk(ityp)%dimsize(:) = unset_int
+    this%iovar_dk(ityp)%active = .false.
+    nullify(this%iovar_dk(ityp)%dim1_ptr)
+    nullify(this%iovar_dk(ityp)%dim2_ptr)
 
-    ! Allocate bounds associated with sites
-    allocate(this%iosi_bounds%clump_lb1(nclumps))
-    allocate(this%iosi_bounds%clump_ub1(nclumps))
+    ! patch x size-class/pft
+    ityp = 4
+    this%iovar_dk(ityp)%name = 'PA_SCPF_R8'
+    this%iovar_dk(ityp)%ndims = 2
+    allocate(this%iovar_dk(ityp)%dimsize(this%iovar_dk(ityp)%ndims))
+    this%iovar_dk(ityp)%dimsize(:) = unset_int
+    this%iovar_dk(ityp)%active = .false.
+    nullify(this%iovar_dk(ityp)%dim1_ptr)
+    nullify(this%iovar_dk(ityp)%dim2_ptr)
+
+    ! site x ground
+    ityp = 5
+    this%iovar_dk(ityp)%name = 'SI_GRND_R8'
+    this%iovar_dk(ityp)%ndims = 2
+    allocate(this%iovar_dk(ityp)%dimsize(this%iovar_dk(ityp)%ndims))
+    this%iovar_dk(ityp)%dimsize(:) = unset_int
+    this%iovar_dk(ityp)%active = .false.
+    nullify(this%iovar_dk(ityp)%dim1_ptr)
+    nullify(this%iovar_dk(ityp)%dim2_ptr)
+
+    ! site x size-class/pft
+    ityp = 6
+    this%iovar_dk(ityp)%name = 'SI_SCPF_R8'
+    this%iovar_dk(ityp)%ndims = 2
+    allocate(this%iovar_dk(ityp)%dimsize(this%iovar_dk(ityp)%ndims))
+    this%iovar_dk(ityp)%dimsize(:) = unset_int
+    this%iovar_dk(ityp)%active = .false.
+    nullify(this%iovar_dk(ityp)%dim1_ptr)
+    nullify(this%iovar_dk(ityp)%dim2_ptr)
+
+
+    ! Allocate thread bounds associated with patches
+    allocate(this%iopa_dim%clump_lb(nclumps))
+    allocate(this%iopa_dim%clump_ub(nclumps))
+
+    ! Allocate thread bounds associated with sites
+    allocate(this%iosi_dim%clump_lb(nclumps))
+    allocate(this%iosi_dim%clump_ub(nclumps))
+
+    ! Allocate thread bounds associated with ground levels
+    allocate(this%iogrnd_dim%clump_lb(nclumps))
+    allocate(this%iogrnd_dim%clump_ub(nclumps))
+    
+    ! Allocate thread bounds associated with size-class/pft
+    allocate(this%ioscpf_dim%clump_lb(nclumps))
+    allocate(this%ioscpf_dim%clump_ub(nclumps))
+
     
     ! Allocate the mapping between FATES indices and the IO indices
     allocate(this%iovar_map(nclumps))
@@ -414,27 +524,41 @@ contains
   
   ! ===================================================================================
   
-  subroutine set_bounds_map_ptrs(this,iovar_dk_name,map_ptr)
+  subroutine set_dim_ptrs(this,dk_name,idim,dim_target)
     
     ! arguments
     class(fates_hio_interface_type) :: this
-    character(len=*),intent(in)     :: iovar_dk_name
-    type(iovar_bounds_type),target  :: map_ptr
+    character(len=*),intent(in)     :: dk_name
+    integer,intent(in)              :: idim  ! dimension index
+    type(iovar_dim_type),target     :: dim_target
+    
     
     ! local
     integer                         :: ityp
     
-    ityp = this%iotype_index(trim(iovar_dk_name))
+    ityp = this%iotype_index(trim(dk_name))
     
-    this%iovar_dk(ityp)%bounds_ptr => map_ptr
+    ! First check to see if the dimension is allocated
+    if(this%iovar_dk(ityp)%ndims<idim)then
+       write(iulog,*)'Trying to define dimension size to a dim-type structure'
+       write(iulog,*)'but the dimension index does not exist'
+       write(iulog,*)'type: ',dk_name,' ndims: ',this%iovar_dk(ityp)%ndims,' input dim:',idim
+       stop
+       !end_run
+    end if
     
-    ! With the map, we can set the first dimension size
-    this%iovar_dk(ityp)%dimsize(1) = this%iovar_dk(ityp)%bounds_ptr%ub1 - &
-         this%iovar_dk(ityp)%bounds_ptr%lb1 + 1
+    if(idim==1) then
+       this%iovar_dk(ityp)%dim1_ptr => dim_target
+    elseif(idim==2) then
+       this%iovar_dk(ityp)%dim2_ptr => dim_target
+    end if
+
+    ! With the map, we can set the dimension size
+    this%iovar_dk(ityp)%dimsize(idim) = dim_target%ub - dim_target%lb + 1
 
     
     return
-  end subroutine set_bounds_map_ptrs
+ end subroutine set_dim_ptrs
   
   ! ====================================================================================
   
