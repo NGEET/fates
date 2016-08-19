@@ -113,6 +113,8 @@ Module HistoryIOMod
      procedure, public :: iotype_index
      procedure, public :: set_dim_ptrs
      procedure, public :: get_hvar_bounds
+     procedure, public :: dim_init
+     procedure, public :: set_dim_thread_bounds
 
   end type fates_hio_interface_type
    
@@ -410,7 +412,7 @@ contains
 
   ! ====================================================================================
   
-  subroutine init_iovar_dk_maps(this,nclumps)
+  subroutine init_iovar_dk_maps(this)
     
     ! ----------------------------------------------------------------------------------
     ! This subroutine simply initializes the structures that define the different
@@ -430,7 +432,6 @@ contains
     
     ! Arguments
     class(fates_hio_interface_type) :: this
-    integer,intent(in)              :: nclumps
        
     ! Locals
     integer            :: ityp
@@ -499,25 +500,9 @@ contains
     nullify(this%iovar_dk(ityp)%dim2_ptr)
 
 
-    ! Allocate thread bounds associated with patches
-    allocate(this%iopa_dim%clump_lb(nclumps))
-    allocate(this%iopa_dim%clump_ub(nclumps))
-
-    ! Allocate thread bounds associated with sites
-    allocate(this%iosi_dim%clump_lb(nclumps))
-    allocate(this%iosi_dim%clump_ub(nclumps))
-
-    ! Allocate thread bounds associated with ground levels
-    allocate(this%iogrnd_dim%clump_lb(nclumps))
-    allocate(this%iogrnd_dim%clump_ub(nclumps))
+   
     
-    ! Allocate thread bounds associated with size-class/pft
-    allocate(this%ioscpf_dim%clump_lb(nclumps))
-    allocate(this%ioscpf_dim%clump_ub(nclumps))
-
     
-    ! Allocate the mapping between FATES indices and the IO indices
-    allocate(this%iovar_map(nclumps))
     
     return
   end subroutine init_iovar_dk_maps
@@ -581,8 +566,43 @@ contains
     
   end function iotype_index
    
+  ! =====================================================================================
 
+  subroutine dim_init(this,iovar_dim,dim_name,nthreads,lb_in,ub_in)
 
+    ! arguments
+    class(fates_hio_interface_type) :: this
+    type(iovar_dim_type),target     :: iovar_dim
+    character(len=*),intent(in)     :: dim_name
+    integer,intent(in)              :: nthreads
+    integer,intent(in)              :: lb_in
+    integer,intent(in)              :: ub_in
+
+    allocate(iovar_dim%clump_lb(nthreads))
+    allocate(iovar_dim%clump_ub(nthreads))
+    
+    iovar_dim%name = trim(dim_name)
+    iovar_dim%lb = lb_in
+    iovar_dim%ub = ub_in
+
+    return
+  end subroutine dim_init
+
+  ! =====================================================================================
+
+  subroutine set_dim_thread_bounds(this,iovar_dim,nc,lb_in,ub_in)
+
+    class(fates_hio_interface_type) :: this
+    type(iovar_dim_type),target     :: iovar_dim
+    integer,intent(in)              :: nc    ! Thread index
+    integer,intent(in)              :: lb_in
+    integer,intent(in)              :: ub_in
+    
+    iovar_dim%clump_lb(nc) = lb_in
+    iovar_dim%clump_ub(nc) = ub_in
+
+    return
+  end subroutine set_dim_thread_bounds
 
    ! ====================================================================================
    ! DEPRECATED, TRANSITIONAL OR FUTURE CODE SECTION
