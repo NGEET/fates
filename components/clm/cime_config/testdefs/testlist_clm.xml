@@ -737,6 +737,14 @@
         <machine compiler="intel" testtype="aux_clm45" testmods="clm/edTest">yellowstone</machine>
       </test>
     </grid>
+    <grid name="f45_f45">
+      <test name="SMS_D_Ld5">
+        <machine compiler="ed" testtype="ed" testmods="clm/edTest">ed</machine>
+      </test>
+      <test name="SMS_D_Lm6">
+        <machine compiler="ed" testtype="ed" testmods="clm/edTest">ed</machine>
+      </test>
+    </grid>
     <grid name="f45_g37">
       <test name="ERS_D_Ld5">
         <machine compiler="ed" testtype="ed" testmods="clm/edTest">ed</machine>
