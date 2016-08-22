@@ -569,71 +569,71 @@ contains
 
     call hist_addfld2d (fname='ED_GPP_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&
           avgflag='A', long_name='gross primary production',     &
-          ptr_gcell=this%ed_gpp_col_scpf,default='inactive')
+          ptr_col=this%ed_gpp_col_scpf,default='inactive')
 
     call hist_addfld2d (fname='ED_NPP_LEAF_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&
           avgflag='A', long_name='NPP flux into leaves',               &
-          ptr_gcell=this%ed_npp_leaf_col_scpf,default='inactive')
+          ptr_col=this%ed_npp_leaf_col_scpf,default='inactive')
 
     call hist_addfld2d (fname='ED_NPP_SEED_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&
           avgflag='A', long_name='NPP flux into seeds',                &
-          ptr_gcell=this%ed_npp_seed_col_scpf,default='inactive')
+          ptr_col=this%ed_npp_seed_col_scpf,default='inactive')
 
     call hist_addfld2d (fname='ED_NPP_FNRT_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&
           avgflag='A', long_name='NPP flux into fine roots',           &
-          ptr_gcell=this%ed_npp_fnrt_col_scpf,default='inactive')
+          ptr_col=this%ed_npp_fnrt_col_scpf,default='inactive')
 
     call hist_addfld2d (fname='ED_NPP_BGSW_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&
           avgflag='A', long_name='NPP flux into below-ground sapwood', &
-          ptr_gcell=this%ed_npp_bgsw_col_scpf,default='inactive')
+          ptr_col=this%ed_npp_bgsw_col_scpf,default='inactive')
 
     call hist_addfld2d (fname='ED_NPP_BGDW_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&
           avgflag='A', long_name='NPP flux into below-ground deadwood', &
-          ptr_gcell=this%ed_npp_bgdw_col_scpf,default='inactive')
+          ptr_col=this%ed_npp_bgdw_col_scpf,default='inactive')
 
     call hist_addfld2d (fname='ED_NPP_AGSW_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&
           avgflag='A', long_name='NPP flux into above-ground sapwood',  &
-          ptr_gcell=this%ed_npp_agsw_col_scpf,default='inactive')
+          ptr_col=this%ed_npp_agsw_col_scpf,default='inactive')
 
     call hist_addfld2d ( fname = 'ED_NPP_AGDW_COL_SCPF', units='kgC/m2/yr',type2d='levscpf',&
           avgflag='A', long_name='NPP flux into above-ground deadwood', &
-          ptr_gcell=this%ed_npp_agdw_col_scpf,default='inactive')
+          ptr_col=this%ed_npp_agdw_col_scpf,default='inactive')
 
     call hist_addfld2d ( fname = 'ED_NPP_STOR_COL_SCPF', units='kgC/m2/yr',type2d='levscpf',&
           avgflag='A', long_name='NPP flux into storage',          &
-          ptr_gcell=this%ed_npp_stor_col_scpf,default='inactive')
+          ptr_col=this%ed_npp_stor_col_scpf,default='inactive')
 
     call hist_addfld2d (fname='ED_DDBH_COL_SCPF', units = 'cm/yr/ha', type2d = 'levscpf', &
           avgflag='A', long_name='diameter growth increment and pft/size', &
-          ptr_gcell=this%ed_ddbh_col_scpf, default='inactive')
+          ptr_col=this%ed_ddbh_col_scpf, default='inactive')
 
     call hist_addfld2d (fname='ED_BA_COL_SCPF',units = 'm2/ha', type2d = 'levscpf', &
           avgflag='A', long_name='basal area by patch and pft/size', &
-          ptr_gcell=this%ed_ba_col_scpf, default='inactive')
+          ptr_col=this%ed_ba_col_scpf, default='inactive')
 
      call hist_addfld2d (fname='ED_NPLANT_COL_SCPF',units = 'N/ha', type2d = 'levscpf', &
           avgflag='A', long_name='stem number density by patch and pft/size', &
-          ptr_gcell=this%ed_np_col_scpf, default='inactive')
+          ptr_col=this%ed_np_col_scpf, default='inactive')
 
     call hist_addfld2d (fname='ED_M1_COL_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
           avgflag='A', long_name='background mortality count by patch and pft/size', &
-          ptr_gcell=this%ed_m1_col_scpf, default='inactive')
+          ptr_col=this%ed_m1_col_scpf, default='inactive')
 
     call hist_addfld2d (fname='ED_M2_COL_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
           avgflag='A', long_name='hydraulic mortality count by patch and pft/size', &
-          ptr_gcell=this%ed_m2_col_scpf, default='inactive')
+          ptr_col=this%ed_m2_col_scpf, default='inactive')
 
     call hist_addfld2d (fname='ED_M3_COL_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
           avgflag='A', long_name='carbon starvation mortality count by patch and pft/size', &
-          ptr_gcell=this%ed_m3_col_scpf, default='inactive')
+          ptr_col=this%ed_m3_col_scpf, default='inactive')
 
     call hist_addfld2d (fname='ED_M4_COL_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
           avgflag='A', long_name='impact mortality count by patch and pft/size', &
-          ptr_gcell=this%ed_m4_col_scpf, default='inactive')
+          ptr_col=this%ed_m4_col_scpf, default='inactive')
 
     call hist_addfld2d (fname='ED_M5_COL_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
           avgflag='A', long_name='fire mortality count by patch and pft/size', &
-          ptr_gcell=this%ed_m5_col_scpf, default='inactive')
+          ptr_col=this%ed_m5_col_scpf, default='inactive')
 
     this%ed_npatches_col(begc:endc) = spval
     call hist_addfld1d (fname='ED_NPATCHES', units='unitless', &
@@ -1133,59 +1133,59 @@ contains
       ! Zero the whole variable so we dont have ghost values when patch number declines.
       ! ============================================================================
       
-      trimming(:)             = 1.0_r8 !the default value of this is 1.0, making it 0.0 means that the output is confusing. 
-      canopy_spread(:)        = 0.0_r8 
-      PFTbiomass(:,:)         = 0.0_r8
-      PFTleafbiomass(:,:)     = 0.0_r8 
-      PFTstorebiomass(:,:)    = 0.0_r8
-      PFTnindivs(:,:)         = 0.0_r8
-      area_plant(:)           = 0.0_r8       
-      area_trees(:)           = 0.0_r8        
-      nesterov_fire_danger(:) = 0.0_r8
-      spitfire_ROS(:)         = 0.0_r8
-      effect_wspeed           = 0.0_r8
-      TFC_ROS(:)              = 0.0_r8
-      fire_intensity(:)       = 0.0_r8
-      fire_area(:)            = 0.0_r8
-      scorch_height(:)        = 0.0_r8
-      fire_fuel_bulkd(:)      = 0.0_r8
-      fire_fuel_eff_moist(:)  = 0.0_r8
-      fire_fuel_sav(:)        = 0.0_r8
-      fire_fuel_mef(:)        = 0.0_r8
-      litter_in(:)            = 0.0_r8
-      litter_out(:)           = 0.0_r8
-      seed_bank(:)            = 0.0_r8          
-      seeds_in(:)             = 0.0_r8
-      seed_decay(:)           = 0.0_r8
-      seed_germination(:)     = 0.0_r8
-      ED_biomass(:)           = 0.0_r8
-      ED_bdead(:)             = 0.0_r8
-      ED_bleaf(:)             = 0.0_r8
-      ED_bstore(:)            = 0.0_r8
-      ED_balive(:)            = 0.0_r8
+      trimming(bounds%begp:bounds%endp)             = 1.0_r8 !the default value of this is 1.0, making it 0.0 means that the output is confusing. 
+      canopy_spread(bounds%begp:bounds%endp)        = 0.0_r8 
+      PFTbiomass(bounds%begp:bounds%endp,:)         = 0.0_r8
+      PFTleafbiomass(bounds%begp:bounds%endp,:)     = 0.0_r8 
+      PFTstorebiomass(bounds%begp:bounds%endp,:)    = 0.0_r8
+      PFTnindivs(bounds%begp:bounds%endp,:)         = 0.0_r8
+      area_plant(bounds%begp:bounds%endp)           = 0.0_r8       
+      area_trees(bounds%begp:bounds%endp)           = 0.0_r8        
+      nesterov_fire_danger(bounds%begp:bounds%endp) = 0.0_r8
+      spitfire_ROS(bounds%begp:bounds%endp)         = 0.0_r8
+      effect_wspeed(bounds%begp:bounds%endp)        = 0.0_r8
+      TFC_ROS(bounds%begp:bounds%endp)              = 0.0_r8
+      fire_intensity(bounds%begp:bounds%endp)       = 0.0_r8
+      fire_area(bounds%begp:bounds%endp)            = 0.0_r8
+      scorch_height(bounds%begp:bounds%endp)        = 0.0_r8
+      fire_fuel_bulkd(bounds%begp:bounds%endp)      = 0.0_r8
+      fire_fuel_eff_moist(bounds%begp:bounds%endp)  = 0.0_r8
+      fire_fuel_sav(bounds%begp:bounds%endp)        = 0.0_r8
+      fire_fuel_mef(bounds%begp:bounds%endp)        = 0.0_r8
+      litter_in(bounds%begp:bounds%endp)            = 0.0_r8
+      litter_out(bounds%begp:bounds%endp)           = 0.0_r8
+      seed_bank(bounds%begp:bounds%endp)            = 0.0_r8          
+      seeds_in(bounds%begp:bounds%endp)             = 0.0_r8
+      seed_decay(bounds%begp:bounds%endp)           = 0.0_r8
+      seed_germination(bounds%begp:bounds%endp)     = 0.0_r8
+      ED_biomass(bounds%begp:bounds%endp)           = 0.0_r8
+      ED_bdead(bounds%begp:bounds%endp)             = 0.0_r8
+      ED_bleaf(bounds%begp:bounds%endp)             = 0.0_r8
+      ED_bstore(bounds%begp:bounds%endp)            = 0.0_r8
+      ED_balive(bounds%begp:bounds%endp)            = 0.0_r8
 
-      ed_gpp_scpf(:,:)      = 0.0_r8
-      ed_npp_totl_scpf(:,:) = 0.0_r8
-      ed_npp_leaf_scpf(:,:) = 0.0_r8
-      ed_npp_seed_scpf(:,:) = 0.0_r8
-      ed_npp_fnrt_scpf(:,:) = 0.0_r8
-      ed_npp_bgsw_scpf(:,:) = 0.0_r8
-      ed_npp_bgdw_scpf(:,:) = 0.0_r8
-      ed_npp_agsw_scpf(:,:) = 0.0_r8
-      ed_npp_agdw_scpf(:,:) = 0.0_r8
-      ed_npp_stor_scpf(:,:) = 0.0_r8
+      ed_gpp_scpf(bounds%begc:bounds%endc,:)      = 0.0_r8
+      ed_npp_totl_scpf(bounds%begc:bounds%endc,:) = 0.0_r8
+      ed_npp_leaf_scpf(bounds%begc:bounds%endc,:) = 0.0_r8
+      ed_npp_seed_scpf(bounds%begc:bounds%endc,:) = 0.0_r8
+      ed_npp_fnrt_scpf(bounds%begc:bounds%endc,:) = 0.0_r8
+      ed_npp_bgsw_scpf(bounds%begc:bounds%endc,:) = 0.0_r8
+      ed_npp_bgdw_scpf(bounds%begc:bounds%endc,:) = 0.0_r8
+      ed_npp_agsw_scpf(bounds%begc:bounds%endc,:) = 0.0_r8
+      ed_npp_agdw_scpf(bounds%begc:bounds%endc,:) = 0.0_r8
+      ed_npp_stor_scpf(bounds%begc:bounds%endc,:) = 0.0_r8
 
-      ed_ddbh_col_scpf(:,:) = 0.0_r8
-      ed_ba_col_scpf(:,:)   = 0.0_r8
-      ed_np_col_scpf(:,:)   = 0.0_r8
-      ed_m1_col_scpf(:,:)   = 0.0_r8
-      ed_m2_col_scpf(:,:)   = 0.0_r8
-      ed_m3_col_scpf(:,:)   = 0.0_r8
-      ed_m4_col_scpf(:,:)   = 0.0_r8
-      ed_m5_col_scpf(:,:)   = 0.0_r8
+      ed_ddbh_col_scpf(bounds%begc:bounds%endc,:) = 0.0_r8
+      ed_ba_col_scpf(bounds%begc:bounds%endc,:)   = 0.0_r8
+      ed_np_col_scpf(bounds%begc:bounds%endc,:)   = 0.0_r8
+      ed_m1_col_scpf(bounds%begc:bounds%endc,:)   = 0.0_r8
+      ed_m2_col_scpf(bounds%begc:bounds%endc,:)   = 0.0_r8
+      ed_m3_col_scpf(bounds%begc:bounds%endc,:)   = 0.0_r8
+      ed_m4_col_scpf(bounds%begc:bounds%endc,:)   = 0.0_r8
+      ed_m5_col_scpf(bounds%begc:bounds%endc,:)   = 0.0_r8
 
-      ed_npatches(:)      = 0._r8
-      ed_ncohorts(:)      = 0._r8
+      ed_npatches(bounds%begc:bounds%endc)      = 0._r8
+      ed_ncohorts(bounds%begc:bounds%endc)      = 0._r8
 
       do s = 1,nsites
 
