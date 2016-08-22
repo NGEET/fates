@@ -268,7 +268,8 @@ contains
     
     associate( hio_trimming_pa         => this%hvars(ih_trimming_pa)%r81d, &
                hio_area_plant_pa       => this%hvars(ih_area_plant_pa)%r81d, &
-               hio_area_treespread_pa  => this%hvars(ih_area_treespread_pa)%r81d, &
+               hio_area_treespread_pa  => this%hvars(ih_area_treespread_pa)%r81d, & 
+               hio_canopy_spread_pa    => this%hvars(ih_canopy_spread_pa)%r81d, &
                hio_biomass_pa_pft      => this%hvars(ih_biomass_pa_pft)%r82d, &
                hio_leafbiomass_pa_pft  => this%hvars(ih_leafbiomass_pa_pft)%r82d, &
                hio_storebiomass_pa_pft => this%hvars(ih_storebiomass_pa_pft)%r82d, &
@@ -383,6 +384,12 @@ contains
              ccohort => ccohort%taller
           enddo ! cohort loop
           
+
+          hio_canopy_spread_pa(io_pa) = cpatch%spread(1) 
+
+
+
+
           ipa = ipa + 1
           cpatch => cpatch%younger
        end do !patch loop
