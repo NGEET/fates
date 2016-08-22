@@ -238,7 +238,8 @@ contains
     
     use EDtypesMod          , only : ed_site_type,   &
                                      ed_cohort_type, &
-                                     ed_patch_type
+                                     ed_patch_type,  &
+                                     AREA
     ! Arguments
     class(fates_hio_interface_type)                 :: this
     integer                 , intent(in)            :: nc   ! clump index
@@ -255,14 +256,29 @@ contains
     integer  :: io_soipa 
     integer  :: lb1,ub1,lb2,ub2  ! IO array bounds for the calling thread
     integer  :: ivar             ! index of IO variable object vector
+    integer  :: ft               ! functional type index
+    real(r8) :: n_density   ! individual of cohort per m2.
+    real(r8) :: n_perm2     ! individuals per m2 for the whole column
+    real(r8) :: patch_scaling_scalar ! ratio of canopy to patch area for counteracting patch scaling
+
     type(iovar_def_type),pointer :: hvar
-    type(ed_patch_type),pointer :: cpatch
+    type(ed_patch_type),pointer  :: cpatch
+    type(ed_cohort_type),pointer :: ccohort
+
     
+    associate( hio_trimming_pa         => this%hvars(ih_trimming_pa)%r81d, &
+               hio_area_plant_pa       => this%hvars(ih_area_plant_pa)%r81d, &
+               hio_area_treespread_pa  => this%hvars(ih_area_treespread_pa)%r81d, &
+               hio_biomass_pa_pft      => this%hvars(ih_biomass_pa_pft)%r82d, &
+               hio_leafbiomass_pa_pft  => this%hvars(ih_leafbiomass_pa_pft)%r82d, &
+               hio_storebiomass_pa_pft => this%hvars(ih_storebiomass_pa_pft)%r82d, &
+               hio_nindivs_pa_pft      => this%hvars(ih_nindivs_pa_pft)%r82d )
+
     ! ---------------------------------------------------------------------------------
-    ! Flush arrays to pre-defined values
-    ! INTERF-TODO: We need to define a flush type, some variables may not want to
-    ! average in zero's for patches that are 
+    ! Flush arrays to values defined by %flushval (see registry entry in
+    ! subroutine define_history_vars()
     ! ---------------------------------------------------------------------------------
+
     do ivar=1,ubound(this%hvars,1)
        hvar => this%hvars(ivar)
        call this%get_hvar_bounds(hvar,nc,lb1,ub1,lb2,ub2)
@@ -303,8 +319,10 @@ contains
        io_pa1 = this%iovar_map(nc)%patch1_index(s)
        io_soipa = io_pa1-1
 
-       ! TRIMMING2 (soil patch): ih_trimming_pa
-       this%hvars(ih_trimming_pa)%r81d(io_soipa) = 1.0_r8
+
+       ! Set trimming on the soil patch to 1.0
+       hio_trimming_pa(io_soipa) = 1.0_r8
+
               
        ipa = 0
        cpatch => sites(s)%oldest_patch
@@ -312,24 +330,58 @@ contains
           
           io_pa = io_pa1 + ipa
           
-          ! ih_trimming_pa
-          if(associated(cpatch%tallest))then
-             this%hvars(ih_trimming_pa)%r81d(io_pa) = cpatch%tallest%canopy_trim
-          else
-             this%hvars(ih_trimming_pa)%r81d(io_pa) = 0.0_r8
-          endif
-          
-          ! ih_area_plant_pa
-          this%hvars(ih_area_plant_pa)%r81d(io_pa) = 1._r8
-          
-          ! AREA_TREES: ih_area_treespread_pa
-          if (min(cpatch%total_canopy_area,cpatch%area)>0.0_r8) then
-             this%hvars(ih_area_treespread_pa)%r81d(io_pa) = cpatch%total_tree_area  &
-                  / min(cpatch%total_canopy_area,cpatch%area)
-          else
-             this%hvars(ih_area_treespread_pa)%r81d(io_pa) = 0.0_r8
-          end if
-          
+          ccohort => cpatch%shortest
+          do while(associated(ccohort))
+             
+             ft = ccohort%pft
+             
+             if ((cpatch%area .gt. 0._r8) .and. (cpatch%total_canopy_area .gt. 0._r8)) then
+                
+                ! for quantities that are at the CLM patch level, because of the way 
+                ! that CLM patches are weighted for radiative purposes this # density needs 
+                ! to be over either ED patch canopy area or ED patch total area, whichever is less
+                n_density = ccohort%n/min(cpatch%area,cpatch%total_canopy_area) 
+                
+                ! for quantities that are natively at column level, calculate plant 
+                ! density using whole area
+                n_perm2   = ccohort%n/AREA   
+                
+             else
+                n_density = 0.0_r8
+                n_perm2   = 0.0_r8
+             endif
+             
+             if(associated(cpatch%tallest))then
+                hio_trimming_pa(io_pa) = cpatch%tallest%canopy_trim
+             else
+                hio_trimming_pa(io_pa) = 0.0_r8
+             endif
+             
+             hio_area_plant_pa(io_pa) = 1.0_r8
+             
+             if (min(cpatch%total_canopy_area,cpatch%area)>0.0_r8) then
+                hio_area_treespread_pa(io_pa) = cpatch%total_tree_area  &
+                      / min(cpatch%total_canopy_area,cpatch%area)
+             else
+                hio_area_treespread_pa(io_pa) = 0.0_r8
+             end if
+             
+             
+             hio_biomass_pa_pft(io_pa,ft) = hio_biomass_pa_pft(io_pa,ft) + &
+                   n_density * ccohort%b * 1.e3_r8
+             
+             hio_leafbiomass_pa_pft(io_pa,ft) = hio_leafbiomass_pa_pft(io_pa,ft) + &
+                   n_density * ccohort%bl       * 1.e3_r8
+             
+             hio_storebiomass_pa_pft(io_pa,ft) = hio_storebiomass_pa_pft(io_pa,ft) + &
+                   n_density * ccohort%bstore   * 1.e3_r8
+             
+             hio_nindivs_pa_pft(io_pa,ft) = hio_nindivs_pa_pft(io_pa,ft) + &
+                   ccohort%n
+             
+
+             ccohort => ccohort%taller
+          enddo ! cohort loop
           
           ipa = ipa + 1
           cpatch => cpatch%younger
@@ -337,6 +389,8 @@ contains
        
     enddo ! site loop
     
+  end associate
+
     return
   end subroutine update_history_variables
   
@@ -398,6 +452,30 @@ contains
          avgflag='A',vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,ivar=ivar,    &
          callstep=callstep,index = ih_area_treespread_pa)
 
+    call this%set_history_var(vname='CANOPY_SPREAD2',units='0-1',               &
+         long='Scaling factor between tree basal area and canopy area',         &
+         avgflag='A',vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,ivar=ivar,    &
+         callstep=callstep,index = ih_canopy_spread_pa)
+
+    call this%set_history_var(vname='PFTBIOMASS2',units='gC/m2',                &
+         long='total PFT level biomass',                                        &
+         avgflag='A', vtype='PA_GRND_R8',hlms='CLM:ALM',flushval=0.0_r8,        &
+         ivar=ivar,callstep=callstep, index = ih_biomass_pa_pft )
+
+    call this%set_history_var(vname='PFTLEAFBIOMASS2', units='gC/m2',           &
+         long='total PFT level leaf biomass',                                   &
+         avgflag='A', vtype='PA_GRND_R8',hlms='CLM:ALM',flushval=0.0_r8,        &
+         ivar=ivar,callstep=callstep, index = ih_leafbiomass_pa_pft )
+
+    call this%set_history_var(vname='PFTSTOREBIOMASS2',  units='gC/m2',         &
+         long='total PFT level stored biomass',                                 &
+         avgflag='A', vtype='PA_GRND_R8',hlms='CLM:ALM',flushval=0.0_r8,        &
+         ivar=ivar,callstep=callstep, index = ih_storebiomass_pa_pft )
+
+    call this%set_history_var(vname='PFTNINDIVS2',  units='indiv / m2',         &
+         long='total PFT level number of individuals',                          &
+         avgflag='A', vtype='PA_GRND_R8',hlms='CLM:ALM',flushval=0.0_r8,        &
+         ivar=ivar,callstep=callstep, index = ih_nindivs_pa_pft )
 
     ! Must be last thing before return
     if(present(nvar)) nvar = ivar
