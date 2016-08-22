@@ -273,7 +273,19 @@ contains
                hio_biomass_pa_pft      => this%hvars(ih_biomass_pa_pft)%r82d, &
                hio_leafbiomass_pa_pft  => this%hvars(ih_leafbiomass_pa_pft)%r82d, &
                hio_storebiomass_pa_pft => this%hvars(ih_storebiomass_pa_pft)%r82d, &
-               hio_nindivs_pa_pft      => this%hvars(ih_nindivs_pa_pft)%r82d )
+               hio_nindivs_pa_pft      => this%hvars(ih_nindivs_pa_pft)%r82d, &
+               hio_nesterov_fire_danger_pa => this%hvars(ih_nesterov_fire_danger_pa)%r81d, &
+               hio_spitfire_ros_pa     => this%hvars(ih_spitfire_ROS_pa)%r81d, &
+               hio_tfc_ros_pa          => this%hvars(ih_TFC_ROS_pa)%r81d, &
+               hio_effect_wspeed_pa    => this%hvars(ih_effect_wspeed_pa)%r81d, &
+               hio_fire_intensity_pa   => this%hvars(ih_fire_intensity_pa)%r81d, &
+               hio_fire_area_pa        => this%hvars(ih_fire_area_pa)%r81d, &
+               hio_scorch_height_pa    => this%hvars(ih_scorch_height_pa)%r81d, &
+               hio_fire_fuel_bulkd_pa  => this%hvars(ih_fire_fuel_bulkd_pa)%r81d, &
+               hio_fire_fuel_eff_moist_pa => this%hvars(ih_fire_fuel_eff_moist_pa)%r81d, &
+               hio_fire_fuel_sav_pa    => this%hvars(ih_fire_fuel_sav_pa)%r81d, &
+               hio_fire_fuel_mef_pa    => this%hvars(ih_fire_fuel_mef_pa)%r81d, &
+               hio_sum_fuel_pa         => this%hvars(ih_sum_fuel_pa)%r81d )
 
     ! ---------------------------------------------------------------------------------
     ! Flush arrays to values defined by %flushval (see registry entry in
@@ -384,10 +396,30 @@ contains
              ccohort => ccohort%taller
           enddo ! cohort loop
           
+          ! Patch specific variables that are already calculated
+          ! These things are all duplicated. Should they all be converted to LL or array structures RF? 
+          ! define scalar to counteract the patch albedo scaling logic for conserved quantities
+          
+          if (cpatch%area .gt. 0._r8 .and. cpatch%total_canopy_area .gt.0 ) then
+             patch_scaling_scalar  = min(1._r8, cpatch%area / cpatch%total_canopy_area)
+          else
+             patch_scaling_scalar = 0._r8
+          endif
+          
+          hio_nesterov_fire_danger_pa(io_pa) = sites(s)%acc_NI
+          hio_spitfire_ros_pa(io_pa)         = cpatch%ROS_front 
+          hio_effect_wspeed_pa(io_pa)        = cpatch%effect_wspeed
+          hio_tfc_ros_pa(io_pa)              = cpatch%TFC_ROS
+          hio_fire_intensity_pa(io_pa)       = cpatch%FI
+          hio_fire_area_pa(io_pa)            = cpatch%frac_burnt
+          hio_scorch_height_pa(io_pa)        = cpatch%SH
+          hio_fire_fuel_bulkd_pa(io_pa)      = cpatch%fuel_bulkd
+          hio_fire_fuel_eff_moist_pa(io_pa)  = cpatch%fuel_eff_moist
+          hio_fire_fuel_sav_pa(io_pa)        = cpatch%fuel_sav
+          hio_fire_fuel_mef_pa(io_pa)        = cpatch%fuel_mef
+          hio_sum_fuel_pa(io_pa)             = cpatch%sum_fuel * 1.e3_r8 * patch_scaling_scalar
 
-          hio_canopy_spread_pa(io_pa) = cpatch%spread(1) 
-
-
+          hio_canopy_spread_pa(io_pa)        = cpatch%spread(1) 
 
 
           ipa = ipa + 1
@@ -483,6 +515,66 @@ contains
          long='total PFT level number of individuals',                          &
          avgflag='A', vtype='PA_GRND_R8',hlms='CLM:ALM',flushval=0.0_r8,        &
          ivar=ivar,callstep=callstep, index = ih_nindivs_pa_pft )
+
+    call this%set_history_var(vname='FIRE_NESTEROV_INDEX2', units='none',       &
+         long='nesterov_fire_danger index',                                     &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_nesterov_fire_danger_pa)
+
+    call this%set_history_var(vname='FIRE_ROS2', units='m/min',                 &
+         long='fire rate of spread m/min',                                      &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_spitfire_ROS_pa)
+
+    call this%set_history_var(vname='EFFECT_WSPEED2', units='none',             &
+         long ='effective windspeed for fire spread',                           &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_effect_wspeed_pa )
+
+    call this%set_history_var(vname='FIRE_TFC_ROS2', units='none',              &
+         long ='total fuel consumed',                                           &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_TFC_ROS_pa )
+
+    call this%set_history_var(vname='FIRE_INTENSITY2', units='kJ/m/s',           &
+         long='spitfire fire intensity: kJ/m/s',                                &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_fire_intensity_pa )
+
+    call this%set_history_var(vname='FIRE_AREA2', units='fraction',              &
+         long='spitfire fire area:m2',                                          &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_fire_area_pa )
+
+    call this%set_history_var(vname='SCORCH_HEIGHT2', units='m',                 &
+         long='spitfire fire area:m2',                                          &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_scorch_height_pa )
+
+    call this%set_history_var(vname='FIRE_FUEL_MEF2', units='m',                 &
+         long='spitfire fuel moisture',                                         &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_fire_fuel_mef_pa )
+
+    call this%set_history_var(vname='FIRE_FUEL_BULKD2', units='m',               &
+         long='spitfire fuel bulk density',                                     &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_fire_fuel_bulkd_pa )
+
+    call this%set_history_var(vname='FIRE_FUEL_EFF_MOIST2', units='m',           &
+         long='spitfire fuel moisture',                                         &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_fire_fuel_eff_moist_pa )
+
+    call this%set_history_var(vname='FIRE_FUEL_SAV2', units='m',                 &
+         long='spitfire fuel surface/volume ',                                  &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_fire_fuel_sav_pa )
+
+    call this%set_history_var(vname='SUM_FUEL2', units='gC m-2',                 &
+         long='total ground fuel related to ros (omits 1000hr fuels)',          &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_sum_fuel_pa )
 
     ! Must be last thing before return
     if(present(nvar)) nvar = ivar
