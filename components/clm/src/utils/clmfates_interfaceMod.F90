@@ -179,7 +179,9 @@ contains
       ! Note: CLM/ALM currently wants sites to be allocated even if ed
       ! is not turned on
       ! ---------------------------------------------------------------------------------
-      
+
+     use FatesInterfaceMod, only : FatesInterfaceInit
+
       implicit none
       
       ! Input Arguments
@@ -192,6 +194,7 @@ contains
                                                                  ! ONLY PART OF THIS MAY BE OPERATIVE
       ! local variables
       integer                                        :: nclumps   ! Number of threads
+      logical :: verbose_output
 
       if (use_ed) then
          
@@ -209,6 +212,8 @@ contains
          write(iulog,*) 'Entering clm_fates%init'
       end if
 
+      verbose_output = .false.
+      call FatesInterfaceInit(iulog, verbose_output)
 
       nclumps = get_proc_clumps()
       allocate(this%fates(nclumps))
