@@ -1119,11 +1119,6 @@ contains
          ed_m3_col_scpf          => this%ed_m3_col_scpf            , &
          ed_m4_col_scpf          => this%ed_m4_col_scpf            , &
          ed_m5_col_scpf          => this%ed_m5_col_scpf            , &        
-     
-         tlai                 => canopystate_inst%tlai_patch     , & ! InOut:
-         elai                 => canopystate_inst%elai_patch     , & ! InOut:
-         tsai                 => canopystate_inst%tsai_patch     , & ! InOut:
-         esai                 => canopystate_inst%esai_patch     , & ! InOut:
 
          begp                 => bounds%begp                     , &
          endp                 => bounds%endp                       &
@@ -1229,10 +1224,6 @@ contains
          ED_bdead(p)             = 0.0_r8
          ED_bstore(p)            = 0.0_r8
          ED_bleaf(p)             = 0.0_r8
-         elai(p)                 = 0.0_r8
-         tlai(p)                 = 0.0_r8
-         tsai(p)                 = 0.0_r8
-         esai(p)                 = 0.0_r8
          ED_bleaf(p)             = 0.0_r8
          sum_fuel(p)             = 0.0_r8
 
@@ -1479,6 +1470,12 @@ contains
       currentPatch => currentSite%oldest_patch   ! ed patch
       p            =  col%patchi(colindex)       ! first patch of the column of interest, for vegetated
                                                  ! columns this is the non-veg patch
+
+      ! Zero some soil values
+      tlai(p) = 0.0_r8
+      elai(p) = 0.0_r8
+      tsai(p) = 0.0_r8
+      esai(p) = 0.0_r8
 
       do while(associated(currentPatch))
          p = p + 1                               ! First CLM/ALM patch is non-veg, increment at loop start

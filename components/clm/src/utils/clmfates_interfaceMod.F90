@@ -1339,6 +1339,7 @@ contains
       associate( vname    => this%fates_hio%hvars(ivar)%vname, &
                  vunits   => this%fates_hio%hvars(ivar)%units,   &
                  vlong    => this%fates_hio%hvars(ivar)%long, &
+                 vdefault => this%fates_hio%hvars(ivar)%use_default, &
                  vavgflag => this%fates_hio%hvars(ivar)%avgflag,  &
                  ioname   => this%fates_hio%hvars(ivar)%iovar_dk_ptr%name )
         
@@ -1357,12 +1358,14 @@ contains
            call hist_addfld1d(fname=trim(vname),units=trim(vunits),         &
                               avgflag=trim(vavgflag),long_name=trim(vlong), &
                               ptr_patch=this%fates_hio%hvars(ivar)%r81d,    &
+                              default=trim(vdefault),                       &
                               set_lake=0._r8,set_urb=0._r8)
            
         case('SI_R8')
            call hist_addfld1d(fname=trim(vname),units=trim(vunits),         &
                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-                              ptr_col=this%fates_hio%hvars(ivar)%r81d,      &
+                              ptr_col=this%fates_hio%hvars(ivar)%r81d,      & 
+                              default=trim(vdefault),                       &
                               set_lake=0._r8,set_urb=0._r8)
 
         case('PA_GRND_R8')
@@ -1370,7 +1373,8 @@ contains
            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         & ! <--- addfld2d
                               type2d=trim(dim2name),                        & ! <--- type2d
                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-                              ptr_patch=this%fates_hio%hvars(ivar)%r82d,    &
+                              ptr_patch=this%fates_hio%hvars(ivar)%r82d,    & 
+                              default=trim(vdefault),                       &
                               set_lake=0._r8,set_urb=0._r8)
            
         case('PA_SCPF_R8')
@@ -1378,21 +1382,24 @@ contains
            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
                               type2d=trim(dim2name),                        &
                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-                              ptr_patch=this%fates_hio%hvars(ivar)%r82d,    &
+                              ptr_patch=this%fates_hio%hvars(ivar)%r82d,    & 
+                              default=trim(vdefault),                       &
                               set_lake=0._r8,set_urb=0._r8)
         case('SI_GRND_R8')
            dim2name = this%fates_hio%hvars(ivar)%iovar_dk_ptr%dim2_ptr%name
            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
                               type2d=trim(dim2name),                        &
                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-                              ptr_col=this%fates_hio%hvars(ivar)%r82d,      &
+                              ptr_col=this%fates_hio%hvars(ivar)%r82d,      & 
+                              default=trim(vdefault),                       &
                               set_lake=0._r8,set_urb=0._r8)
         case('SI_SCPF_R8')
            dim2name = this%fates_hio%hvars(ivar)%iovar_dk_ptr%dim2_ptr%name
            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
                               type2d=trim(dim2name),                        &
                               avgflag=trim(vavgflag),long_name=trim(vlong), &
-                              ptr_col=this%fates_hio%hvars(ivar)%r82d,      &
+                              ptr_col=this%fates_hio%hvars(ivar)%r82d,      & 
+                              default=trim(vdefault),                       &
                               set_lake=0._r8,set_urb=0._r8)
 
         case default
