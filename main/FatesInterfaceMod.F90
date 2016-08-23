@@ -451,7 +451,6 @@ contains
       ! RGK-2016
       ! ---------------------------------------------------------------------------------
 
-      'hio_ignore_val',rdimval=spval)
       
       ! Arguments
       integer, optional, intent(in)         :: ival
@@ -561,6 +560,7 @@ contains
          
          if(present(rval))then
             select case (trim(tag))
+            case ('hio_ignore_val')
                cp_hio_ignore_val = rval
                write(*,*) 'Transfering hio_ignore_val = ',rval,' to FATES'
             case default
