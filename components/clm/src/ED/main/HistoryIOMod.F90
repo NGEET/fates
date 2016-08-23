@@ -3,7 +3,7 @@ Module HistoryIOMod
   
   use shr_kind_mod    , only : r8 => shr_kind_r8
   use clm_varctl      , only : iulog
-  use EDTypes         , only : cp_hio_ignore_val
+  use EDTypesMod      , only : cp_hio_ignore_val
 
   implicit none
 
@@ -51,7 +51,7 @@ Module HistoryIOMod
   integer, private :: ih_btotal_pa
   integer, private :: ih_npp_pa
   integer, private :: ih_gpp_pa
-  integer, private :: ih_autotr_resp_pa
+  integer, private :: ih_aresp_pa
   integer, private :: ih_maint_resp_pa
   integer, private :: ih_growth_resp_pa
   
@@ -168,6 +168,9 @@ Module HistoryIOMod
      character(len=128)   :: long
      character(len=24)    :: vtype
      character(len=1)     :: avgflag
+     integer              :: upfreq  ! Update frequency (this is for checks and flushing)
+                                     ! 1 = dynamics step (daily)
+                                     ! 2 = rapid timestep (aka model time-step)
      real(r8)             :: flushval
      type(iovar_dimkind_type),pointer :: iovar_dk_ptr
      ! Pointers (only one of these is allocated per variable)
@@ -213,8 +216,8 @@ Module HistoryIOMod
      
    contains
      
-     procedure, public :: update_history_dyn_tscale
-     procedure, public :: update_history_rapid_tscale
+     procedure, public :: update_history_dyn
+     procedure, public :: update_history_rapid
      procedure, public :: define_history_vars
      procedure, public :: set_history_var
      procedure, public :: init_iovar_dk_maps
@@ -223,6 +226,7 @@ Module HistoryIOMod
      procedure, public :: get_hvar_bounds
      procedure, public :: dim_init
      procedure, public :: set_dim_thread_bounds
+     procedure, private :: flush_hvars
 
   end type fates_hio_interface_type
    
@@ -233,7 +237,7 @@ contains
   
   ! ====================================================================================
   
-  subroutine update_history_dyn_tscale(this,nc,sites,nsites,fcolumn)
+  subroutine update_history_dyn(this,nc,sites,nsites,fcolumn)
     
     ! ---------------------------------------------------------------------------------
     ! This is the call to update the history IO arrays that are expected to only change
@@ -304,175 +308,146 @@ contains
                hio_bleaf_pa            => this%hvars(ih_bleaf_pa)%r81d, &
                hio_btotal_pa           => this%hvars(ih_btotal_pa)%r81d )
                
+      ! ---------------------------------------------------------------------------------
+      ! Flush arrays to values defined by %flushval (see registry entry in
+      ! subroutine define_history_vars()
+      ! ---------------------------------------------------------------------------------
+      
+      call this%flush_hvars(nc,upfreq_in=1)
+      
+      ! ---------------------------------------------------------------------------------
+      ! Loop through the FATES scale hierarchy and fill the history IO arrays
+      ! ---------------------------------------------------------------------------------
+      
+      do s = 1,nsites
+         
+         io_si  = this%iovar_map(nc)%site_index(s)
+         io_pa1 = this%iovar_map(nc)%patch1_index(s)
+         io_soipa = io_pa1-1
+         
+         
+         ! Set trimming on the soil patch to 1.0
+         hio_trimming_pa(io_soipa) = 1.0_r8
+         
+         
+         ipa = 0
+         cpatch => sites(s)%oldest_patch
+         do while(associated(cpatch))
+            
+            io_pa = io_pa1 + ipa
+            
+            ccohort => cpatch%shortest
+            do while(associated(ccohort))
+               
+               ft = ccohort%pft
+               
+               if ((cpatch%area .gt. 0._r8) .and. (cpatch%total_canopy_area .gt. 0._r8)) then
+                  
+                  ! for quantities that are at the CLM patch level, because of the way 
+                  ! that CLM patches are weighted for radiative purposes this # density needs 
+                  ! to be over either ED patch canopy area or ED patch total area, whichever is less
+                  n_density = ccohort%n/min(cpatch%area,cpatch%total_canopy_area) 
+                  
+                  ! for quantities that are natively at column level, calculate plant 
+                  ! density using whole area
+                  n_perm2   = ccohort%n/AREA   
+                  
+               else
+                  n_density = 0.0_r8
+                  n_perm2   = 0.0_r8
+               endif
+               
+               if(associated(cpatch%tallest))then
+                  hio_trimming_pa(io_pa) = cpatch%tallest%canopy_trim
+               else
+                  hio_trimming_pa(io_pa) = 0.0_r8
+               endif
+               
+               hio_area_plant_pa(io_pa) = 1.0_r8
+               
+               if (min(cpatch%total_canopy_area,cpatch%area)>0.0_r8) then
+                  hio_area_treespread_pa(io_pa) = cpatch%total_tree_area  &
+                       / min(cpatch%total_canopy_area,cpatch%area)
+               else
+                  hio_area_treespread_pa(io_pa) = 0.0_r8
+               end if
+               
+               ! Update biomass components
+               hio_bleaf_pa(io_pa)  = hio_bleaf_pa(io_pa)  + n_density * ccohort%bl       * 1.e3_r8
+               hio_bstore_pa(io_pa) = hio_bstore_pa(io_pa) + n_density * ccohort%bstore   * 1.e3_r8
+               hio_btotal_pa(io_pa) = hio_btotal_pa(io_pa) + n_density * ccohort%b        * 1.e3_r8
+               hio_bdead_pa(io_pa)  = hio_bdead_pa(io_pa)  + n_density * ccohort%bdead    * 1.e3_r8
+               hio_balive_pa(io_pa) = hio_balive_pa(io_pa) + n_density * ccohort%balive   * 1.e3_r8
+               
+               ! Update PFT partitioned biomass components
+               hio_biomass_pa_pft(io_pa,ft) = hio_biomass_pa_pft(io_pa,ft) + &
+                    n_density * ccohort%b * 1.e3_r8
+               
+               hio_leafbiomass_pa_pft(io_pa,ft) = hio_leafbiomass_pa_pft(io_pa,ft) + &
+                    n_density * ccohort%bl       * 1.e3_r8
+             
+               hio_storebiomass_pa_pft(io_pa,ft) = hio_storebiomass_pa_pft(io_pa,ft) + &
+                    n_density * ccohort%bstore   * 1.e3_r8
+               
+               hio_nindivs_pa_pft(io_pa,ft) = hio_nindivs_pa_pft(io_pa,ft) + &
+                    ccohort%n
+               
+               
+               ccohort => ccohort%taller
+            enddo ! cohort loop
+            
+            ! Patch specific variables that are already calculated
+            ! These things are all duplicated. Should they all be converted to LL or array structures RF? 
+            ! define scalar to counteract the patch albedo scaling logic for conserved quantities
+            
+            if (cpatch%area .gt. 0._r8 .and. cpatch%total_canopy_area .gt.0 ) then
+               patch_scaling_scalar  = min(1._r8, cpatch%area / cpatch%total_canopy_area)
+            else
+               patch_scaling_scalar = 0._r8
+            endif
+            
+            ! Update Fire Variables
+            hio_nesterov_fire_danger_pa(io_pa) = sites(s)%acc_NI
+            hio_spitfire_ros_pa(io_pa)         = cpatch%ROS_front 
+            hio_effect_wspeed_pa(io_pa)        = cpatch%effect_wspeed
+            hio_tfc_ros_pa(io_pa)              = cpatch%TFC_ROS
+            hio_fire_intensity_pa(io_pa)       = cpatch%FI
+            hio_fire_area_pa(io_pa)            = cpatch%frac_burnt
+            hio_scorch_height_pa(io_pa)        = cpatch%SH
+            hio_fire_fuel_bulkd_pa(io_pa)      = cpatch%fuel_bulkd
+            hio_fire_fuel_eff_moist_pa(io_pa)  = cpatch%fuel_eff_moist
+            hio_fire_fuel_sav_pa(io_pa)        = cpatch%fuel_sav
+            hio_fire_fuel_mef_pa(io_pa)        = cpatch%fuel_mef
+            hio_sum_fuel_pa(io_pa)             = cpatch%sum_fuel * 1.e3_r8 * patch_scaling_scalar
+            
+            ! Update Litter Flux Variables
+            hio_litter_in_pa(io_pa)            = (sum(cpatch%CWD_AG_in) +sum(cpatch%leaf_litter_in)) &
+                 * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
+            hio_litter_out_pa(io_pa)           = (sum(cpatch%CWD_AG_out)+sum(cpatch%leaf_litter_out)) &
+                 * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
+            hio_seed_bank_pa(io_pa)            = sum(cpatch%seed_bank) * 1.e3_r8 * patch_scaling_scalar
+            hio_seeds_in_pa(io_pa)             = sum(cpatch%seeds_in) * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
+            hio_seed_decay_pa(io_pa)           = sum(cpatch%seed_decay) * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
+            hio_seed_germination_pa(io_pa)     = sum(cpatch%seed_germination) * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
 
-    ! ---------------------------------------------------------------------------------
-    ! Flush arrays to values defined by %flushval (see registry entry in
-    ! subroutine define_history_vars()
-    ! ---------------------------------------------------------------------------------
-
-    do ivar=1,ubound(this%hvars,1)
-       hvar => this%hvars(ivar)
-       call this%get_hvar_bounds(hvar,nc,lb1,ub1,lb2,ub2)
-       select case(trim(hvar%iovar_dk_ptr%name))
-       case('PA_R8') 
-          hvar%r81d(lb1:ub1) = hvar%flushval
-       case('SI_R8') 
-          hvar%r81d(lb1:ub1) = hvar%flushval
-       case('PA_GRND_R8') 
-          hvar%r82d(lb1:ub1,lb2:ub2) = hvar%flushval
-       case('PA_SCPF_R8') 
-          hvar%r82d(lb1:ub1,lb2:ub2) = hvar%flushval
-       case('SI_GRND_R8') 
-          hvar%r82d(lb1:ub1,lb2:ub2) = hvar%flushval
-       case('SI_SCPF_R8') 
-          hvar%r82d(lb1:ub1,lb2:ub2) = hvar%flushval
-       case('PA_INT')
-          hvar%int1d(lb1:ub1) = nint(hvar%flushval)
-       case default
-          write(iulog,*) 'iotyp undefined while flushing history variables'
-          stop
-          !end_run
-       end select
-    end do
-    
-
-    ! Perform flushes or initializations over the FATES-only space?
-    ! ---------------------------------------------------------------------------------
-
-    
-    ! ---------------------------------------------------------------------------------
-    ! Loop through the FATES scale hierarchy and fill the history IO arrays
-    ! ---------------------------------------------------------------------------------
-
-    do s = 1,nsites
+            
+            hio_canopy_spread_pa(io_pa)        = cpatch%spread(1) 
+            
+            
+            ipa = ipa + 1
+            cpatch => cpatch%younger
+         end do !patch loop
        
-       io_si  = this%iovar_map(nc)%site_index(s)
-       io_pa1 = this%iovar_map(nc)%patch1_index(s)
-       io_soipa = io_pa1-1
-
-
-       ! Set trimming on the soil patch to 1.0
-       hio_trimming_pa(io_soipa) = 1.0_r8
-
-              
-       ipa = 0
-       cpatch => sites(s)%oldest_patch
-       do while(associated(cpatch))
-          
-          io_pa = io_pa1 + ipa
-          
-          ccohort => cpatch%shortest
-          do while(associated(ccohort))
-             
-             ft = ccohort%pft
-             
-             if ((cpatch%area .gt. 0._r8) .and. (cpatch%total_canopy_area .gt. 0._r8)) then
-                
-                ! for quantities that are at the CLM patch level, because of the way 
-                ! that CLM patches are weighted for radiative purposes this # density needs 
-                ! to be over either ED patch canopy area or ED patch total area, whichever is less
-                n_density = ccohort%n/min(cpatch%area,cpatch%total_canopy_area) 
-                
-                ! for quantities that are natively at column level, calculate plant 
-                ! density using whole area
-                n_perm2   = ccohort%n/AREA   
-                
-             else
-                n_density = 0.0_r8
-                n_perm2   = 0.0_r8
-             endif
-             
-             if(associated(cpatch%tallest))then
-                hio_trimming_pa(io_pa) = cpatch%tallest%canopy_trim
-             else
-                hio_trimming_pa(io_pa) = 0.0_r8
-             endif
-             
-             hio_area_plant_pa(io_pa) = 1.0_r8
-             
-             if (min(cpatch%total_canopy_area,cpatch%area)>0.0_r8) then
-                hio_area_treespread_pa(io_pa) = cpatch%total_tree_area  &
-                      / min(cpatch%total_canopy_area,cpatch%area)
-             else
-                hio_area_treespread_pa(io_pa) = 0.0_r8
-             end if
-             
-             ! Update biomass components
-             hio_bleaf_pa(io_pa)  = hio_bleaf_pa(io_pa)  + n_density * ccohort%bl       * 1.e3_r8
-             hio_bstore_pa(io_pa) = hio_bstore_pa(io_pa) + n_density * ccohort%bstore   * 1.e3_r8
-             hio_btotal_pa(io_pa) = hio_btotal_pa(io_pa) + n_density * ccohort%b        * 1.e3_r8
-             hio_bdead_pa(io_pa)  = hio_bdead_pa(io_pa)  + n_density * ccohort%bdead    * 1.e3_r8
-             hio_balive_pa(io_pa) = hio_balive_pa(io_pa) + n_density * ccohort%balive   * 1.e3_r8
-
-             ! Update PFT partitioned biomass components
-             hio_biomass_pa_pft(io_pa,ft) = hio_biomass_pa_pft(io_pa,ft) + &
-                   n_density * ccohort%b * 1.e3_r8
-             
-             hio_leafbiomass_pa_pft(io_pa,ft) = hio_leafbiomass_pa_pft(io_pa,ft) + &
-                   n_density * ccohort%bl       * 1.e3_r8
-             
-             hio_storebiomass_pa_pft(io_pa,ft) = hio_storebiomass_pa_pft(io_pa,ft) + &
-                   n_density * ccohort%bstore   * 1.e3_r8
-             
-             hio_nindivs_pa_pft(io_pa,ft) = hio_nindivs_pa_pft(io_pa,ft) + &
-                   ccohort%n
-             
-
-             ccohort => ccohort%taller
-          enddo ! cohort loop
-          
-          ! Patch specific variables that are already calculated
-          ! These things are all duplicated. Should they all be converted to LL or array structures RF? 
-          ! define scalar to counteract the patch albedo scaling logic for conserved quantities
-          
-          if (cpatch%area .gt. 0._r8 .and. cpatch%total_canopy_area .gt.0 ) then
-             patch_scaling_scalar  = min(1._r8, cpatch%area / cpatch%total_canopy_area)
-          else
-             patch_scaling_scalar = 0._r8
-          endif
-          
-          ! Update Fire Variables
-          hio_nesterov_fire_danger_pa(io_pa) = sites(s)%acc_NI
-          hio_spitfire_ros_pa(io_pa)         = cpatch%ROS_front 
-          hio_effect_wspeed_pa(io_pa)        = cpatch%effect_wspeed
-          hio_tfc_ros_pa(io_pa)              = cpatch%TFC_ROS
-          hio_fire_intensity_pa(io_pa)       = cpatch%FI
-          hio_fire_area_pa(io_pa)            = cpatch%frac_burnt
-          hio_scorch_height_pa(io_pa)        = cpatch%SH
-          hio_fire_fuel_bulkd_pa(io_pa)      = cpatch%fuel_bulkd
-          hio_fire_fuel_eff_moist_pa(io_pa)  = cpatch%fuel_eff_moist
-          hio_fire_fuel_sav_pa(io_pa)        = cpatch%fuel_sav
-          hio_fire_fuel_mef_pa(io_pa)        = cpatch%fuel_mef
-          hio_sum_fuel_pa(io_pa)             = cpatch%sum_fuel * 1.e3_r8 * patch_scaling_scalar
-
-          ! Update Litter Flux Variables
-          hio_litter_in_pa(io_pa)            = (sum(cpatch%CWD_AG_in) +sum(cpatch%leaf_litter_in)) &
-                                               * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
-          hio_litter_out_pa(io_pa)           = (sum(cpatch%CWD_AG_out)+sum(cpatch%leaf_litter_out)) &
-                                                * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
-          hio_seed_bank_pa(io_pa)            = sum(cpatch%seed_bank) * 1.e3_r8 * patch_scaling_scalar
-          hio_seeds_in_pa(io_pa)             = sum(cpatch%seeds_in) * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
-          hio_seed_decay_pa(io_pa)           = sum(cpatch%seed_decay) * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
-          hio_seed_germination_pa(io_pa)     = sum(cpatch%seed_germination) * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
-
-
-          hio_canopy_spread_pa(io_pa)        = cpatch%spread(1) 
-
-
-          ipa = ipa + 1
-          cpatch => cpatch%younger
-       end do !patch loop
-       
-    enddo ! site loop
-    
-  end associate
+      enddo ! site loop
+      
+    end associate
 
     return
- end subroutine update_history_dyn_tscale
+  end subroutine update_history_dyn
  
  ! ======================================================================================
 
- subroutine update_history_rapid_tscale(this,nc,sites,nsites,fcolumn,dt_tstep)
+ subroutine update_history_rapid(this,nc,sites,nsites,fcolumn,dt_tstep)
     
     ! ---------------------------------------------------------------------------------
     ! This is the call to update the history IO arrays that are expected to only change
@@ -511,13 +486,15 @@ contains
     real(r8), parameter :: daysecs = 86400.0_r8 ! What modeler doesn't recognize 86400?
     real(r8), parameter :: yeardays = 365.0_r8  ! Should this be 365.25?
     
-    associate( hio_gpp_pa      => this%hvars(ih_gpp_pa)%r81d, &
-               hio_npp_pa      => this%hvars(ih_npp_pa)%r81d, &
-               hio_ar_pa       => this%hvars(ih_ar_pa)%r81d, &
-               hio_maint_resp  => this%hvars(ih_maint_resp_pa)%r81d, &
-               hio_growth_resp => this%hvars(ih_growth_resp_pa)%r81d )
-      
-      
+    associate( hio_gpp_pa         => this%hvars(ih_gpp_pa)%r81d, &
+               hio_npp_pa         => this%hvars(ih_npp_pa)%r81d, &
+               hio_aresp_pa       => this%hvars(ih_aresp_pa)%r81d, &
+               hio_maint_resp_pa  => this%hvars(ih_maint_resp_pa)%r81d, &
+               hio_growth_resp_pa => this%hvars(ih_growth_resp_pa)%r81d )
+
+      ! Flush the relevant history variables 
+      call this%flush_hvars(nc,upfreq_in=2)
+
       do s = 1,nsites
          
          io_si  = this%iovar_map(nc)%site_index(s)
@@ -535,7 +512,7 @@ contains
                
                ! TODO: we need a standardized logical function on this (used lots, RGK)
                if ((cpatch%area .gt. 0._r8) .and. (cpatch%total_canopy_area .gt. 0._r8)) then
-                  n_density = ccohort%n/min(currentPatch%area,currentPatch%total_canopy_area) 
+                  n_density = ccohort%n/min(cpatch%area,cpatch%total_canopy_area) 
                   n_perm2   = ccohort%n/AREA   
                else
                   n_density = 0.0_r8
@@ -549,7 +526,7 @@ contains
                         ccohort%npp_tstep * 1.e3_r8 * n_density / dt_tstep
                   hio_gpp_pa(io_pa) = hio_gpp_pa(io_pa) + &
                         ccohort%gpp_tstep * 1.e3_r8 * n_density / dt_tstep
-                  hio_ar_pa(io_pa) = hio_ar_pa(io_pa) + &
+                  hio_aresp_pa(io_pa) = hio_aresp_pa(io_pa) + &
                         ccohort%resp_tstep * 1.e3_r8 * n_density / dt_tstep
                   hio_growth_resp_pa(io_pa) = hio_growth_resp_pa(io_pa) + &
                         ccohort%resp_g * 1.e3_r8 * n_density / dt_tstep
@@ -568,7 +545,49 @@ contains
 
     end associate
  
- end subroutine update_history_rapid_tscale
+  end subroutine update_history_rapid
+
+ ! ======================================================================================
+
+ subroutine flush_hvars(this,nc,upfreq_in)
+ 
+   class(fates_hio_interface_type)        :: this
+   integer,intent(in)                     :: nc
+   integer,intent(in)                     :: upfreq_in
+
+   integer                      :: ivar
+   type(iovar_def_type),pointer :: hvar
+   integer                      :: lb1,ub1,lb2,ub2
+
+
+   do ivar=1,ubound(this%hvars,1)
+      hvar => this%hvars(ivar)
+      if (hvar%upfreq==upfreq_in) then ! Only flush variables with update on dynamics step
+         call this%get_hvar_bounds(hvar,nc,lb1,ub1,lb2,ub2)
+         select case(trim(hvar%iovar_dk_ptr%name))
+         case('PA_R8') 
+            hvar%r81d(lb1:ub1) = hvar%flushval
+         case('SI_R8') 
+            hvar%r81d(lb1:ub1) = hvar%flushval
+         case('PA_GRND_R8') 
+            hvar%r82d(lb1:ub1,lb2:ub2) = hvar%flushval
+         case('PA_SCPF_R8') 
+            hvar%r82d(lb1:ub1,lb2:ub2) = hvar%flushval
+         case('SI_GRND_R8') 
+            hvar%r82d(lb1:ub1,lb2:ub2) = hvar%flushval
+         case('SI_SCPF_R8') 
+            hvar%r82d(lb1:ub1,lb2:ub2) = hvar%flushval
+         case('PA_INT')
+            hvar%int1d(lb1:ub1) = nint(hvar%flushval)
+         case default
+            write(iulog,*) 'iotyp undefined while flushing history variables'
+            stop
+            !end_run
+         end select
+      end if
+   end do
+   
+ end subroutine flush_hvars
 
  ! ====================================================================================
   
@@ -603,8 +622,7 @@ contains
     
     class(fates_hio_interface_type)        :: this
     character(len=*),intent(in)            :: callstep  ! are we 'count'ing or 'initializ'ing?
-    integer,optional,intent(out)           :: nvar      
-    
+    integer,optional,intent(out)           :: nvar
     integer                                :: ivar
     
     if(.not. (trim(callstep).eq.'count' .or. trim(callstep).eq.'initialize') ) then
@@ -615,188 +633,188 @@ contains
     ivar=0
     call this%set_history_var(vname='TRIMMING2',units='none',                   &
          long='Degree to which canopy expansion is limited by leaf economics',  &
-         avgflag='A',vtype='PA_R8',hlms='CLM:ALM',flushval=1.0_r8, ivar=ivar,   &
-         callstep=callstep,index = ih_trimming_pa)
+         avgflag='A',vtype='PA_R8',hlms='CLM:ALM',flushval=1.0_r8, upfreq=1,    &
+         ivar=ivar, callstep=callstep,index = ih_trimming_pa)
     
     call this%set_history_var(vname='AREA_PLANT2',units='m2',                   &
          long='area occupied by all plants',                                    &
-         avgflag='A',vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,ivar=ivar,    &
-         callstep=callstep,index = ih_area_plant_pa)
+         avgflag='A',vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,    &
+         ivar=ivar, callstep=callstep,index = ih_area_plant_pa)
     
     call this%set_history_var(vname='AREA_TREES2',units='m2',                   &
          long='area occupied by woody plants',                                  &
-         avgflag='A',vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,ivar=ivar,    &
-         callstep=callstep,index = ih_area_treespread_pa)
+         avgflag='A',vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,    &
+         ivar=ivar, callstep=callstep,index = ih_area_treespread_pa)
 
     call this%set_history_var(vname='CANOPY_SPREAD2',units='0-1',               &
          long='Scaling factor between tree basal area and canopy area',         &
-         avgflag='A',vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,ivar=ivar,    &
-         callstep=callstep,index = ih_canopy_spread_pa)
+         avgflag='A',vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,    &
+         ivar=ivar, callstep=callstep,index = ih_canopy_spread_pa)
 
-    call this%set_history_var(vname='PFTBIOMASS2',units='gC/m2',                &
-         long='total PFT level biomass',                                        &
-         avgflag='A', vtype='PA_GRND_R8',hlms='CLM:ALM',flushval=0.0_r8,        &
-         ivar=ivar,callstep=callstep, index = ih_biomass_pa_pft )
+    call this%set_history_var(vname='PFTBIOMASS2',units='gC/m2',                   &
+         long='total PFT level biomass',                                           &
+         avgflag='A', vtype='PA_GRND_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, callstep=callstep, index = ih_biomass_pa_pft )
 
-    call this%set_history_var(vname='PFTLEAFBIOMASS2', units='gC/m2',           &
-         long='total PFT level leaf biomass',                                   &
-         avgflag='A', vtype='PA_GRND_R8',hlms='CLM:ALM',flushval=0.0_r8,        &
-         ivar=ivar,callstep=callstep, index = ih_leafbiomass_pa_pft )
+    call this%set_history_var(vname='PFTLEAFBIOMASS2', units='gC/m2',              &
+         long='total PFT level leaf biomass',                                      &
+         avgflag='A', vtype='PA_GRND_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, callstep=callstep, index = ih_leafbiomass_pa_pft )
 
-    call this%set_history_var(vname='PFTSTOREBIOMASS2',  units='gC/m2',         &
-         long='total PFT level stored biomass',                                 &
-         avgflag='A', vtype='PA_GRND_R8',hlms='CLM:ALM',flushval=0.0_r8,        &
-         ivar=ivar,callstep=callstep, index = ih_storebiomass_pa_pft )
+    call this%set_history_var(vname='PFTSTOREBIOMASS2',  units='gC/m2',            &
+         long='total PFT level stored biomass',                                    &
+         avgflag='A', vtype='PA_GRND_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, callstep=callstep, index = ih_storebiomass_pa_pft )
 
-    call this%set_history_var(vname='PFTNINDIVS2',  units='indiv / m2',         &
-         long='total PFT level number of individuals',                          &
-         avgflag='A', vtype='PA_GRND_R8',hlms='CLM:ALM',flushval=0.0_r8,        &
-         ivar=ivar,callstep=callstep, index = ih_nindivs_pa_pft )
+    call this%set_history_var(vname='PFTNINDIVS2',  units='indiv / m2',            &
+         long='total PFT level number of individuals',                             &
+         avgflag='A', vtype='PA_GRND_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, callstep=callstep, index = ih_nindivs_pa_pft )
 
     ! Fire Variables
 
     call this%set_history_var(vname='FIRE_NESTEROV_INDEX2', units='none',       &
          long='nesterov_fire_danger index',                                     &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_nesterov_fire_danger_pa)
 
     call this%set_history_var(vname='FIRE_ROS2', units='m/min',                 &
          long='fire rate of spread m/min',                                      &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_spitfire_ROS_pa)
 
     call this%set_history_var(vname='EFFECT_WSPEED2', units='none',             &
          long ='effective windspeed for fire spread',                           &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_effect_wspeed_pa )
 
     call this%set_history_var(vname='FIRE_TFC_ROS2', units='none',              &
          long ='total fuel consumed',                                           &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_TFC_ROS_pa )
 
-    call this%set_history_var(vname='FIRE_INTENSITY2', units='kJ/m/s',           &
+    call this%set_history_var(vname='FIRE_INTENSITY2', units='kJ/m/s',          &
          long='spitfire fire intensity: kJ/m/s',                                &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_fire_intensity_pa )
 
-    call this%set_history_var(vname='FIRE_AREA2', units='fraction',              &
+    call this%set_history_var(vname='FIRE_AREA2', units='fraction',             &
          long='spitfire fire area:m2',                                          &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_fire_area_pa )
 
-    call this%set_history_var(vname='SCORCH_HEIGHT2', units='m',                 &
+    call this%set_history_var(vname='SCORCH_HEIGHT2', units='m',                &
          long='spitfire fire area:m2',                                          &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_scorch_height_pa )
 
-    call this%set_history_var(vname='FIRE_FUEL_MEF2', units='m',                 &
+    call this%set_history_var(vname='FIRE_FUEL_MEF2', units='m',                &
          long='spitfire fuel moisture',                                         &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_fire_fuel_mef_pa )
 
-    call this%set_history_var(vname='FIRE_FUEL_BULKD2', units='m',               &
+    call this%set_history_var(vname='FIRE_FUEL_BULKD2', units='m',              &
          long='spitfire fuel bulk density',                                     &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_fire_fuel_bulkd_pa )
 
-    call this%set_history_var(vname='FIRE_FUEL_EFF_MOIST2', units='m',           &
+    call this%set_history_var(vname='FIRE_FUEL_EFF_MOIST2', units='m',          &
          long='spitfire fuel moisture',                                         &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_fire_fuel_eff_moist_pa )
 
-    call this%set_history_var(vname='FIRE_FUEL_SAV2', units='m',                 &
+    call this%set_history_var(vname='FIRE_FUEL_SAV2', units='m',                &
          long='spitfire fuel surface/volume ',                                  &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_fire_fuel_sav_pa )
 
     call this%set_history_var(vname='SUM_FUEL2', units='gC m-2',                &
          long='total ground fuel related to ros (omits 1000hr fuels)',          &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_sum_fuel_pa )
 
     ! Litter Variables
 
     call this%set_history_var(vname='LITTER_IN2', units='gC m-2 s-1',           &
          long='Litter flux in leaves',                                          &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_litter_in_pa )
 
     call this%set_history_var(vname='LITTER_OUT2', units='gC m-2 s-1',          &
          long='Litter flux out leaves',                                         & 
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_litter_out_pa )
 
     call this%set_history_var(vname='SEED_BANK2', units='gC m-2',               &
          long='Total Seed Mass of all PFTs',                                    &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_seed_bank_pa )
 
     call this%set_history_var(vname='SEEDS_IN2', units='gC m-2 s-1',            &
          long='Seed Production Rate',                                           &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_seeds_in_pa )
 
     call this%set_history_var(vname='SEED_GERMINATION2', units='gC m-2 s-1',    &
          long='Seed mass converted into new cohorts',                           &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_seed_germination_pa )
 
     call this%set_history_var(vname='SEED_DECAY2', units='gC m-2 s-1',          &
          long='Seed mass decay',                                                &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_seed_decay_pa )
     
     call this%set_history_var(vname='BSTORE2', units='gC m-2',                  &
          long='Storage biomass',                                                &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_bstore_pa )
 
     call this%set_history_var(vname='BDEAD2', units='gC m-2',                   &
          long='Dead (structural) biomass (live trees, not CWD)',                &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_bdead_pa )
 
     call this%set_history_var(vname='BALIVE2', units='gC m-2',                  &
          long='Live biomass',                                                   &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_balive_pa )
 
     call this%set_history_var(vname='BLEAF2', units='gC m-2',                   &
          long='Leaf biomass',                                                   &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_bleaf_pa )
 
     call this%set_history_var(vname='BTOTAL2', units='gC m-2',                  &
          long='Total biomass',                                                  &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_btotal_pa )
 
     
-    ! Ecosystem Carbon Fluxes (updated rapidly)
+    ! Ecosystem Carbon Fluxes (updated rapidly, upfreq=2)
     call this%set_history_var(vname='GPP2', units='gC/m^2/s',                   &
          long='gross primary production',                                       &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, !cp_hio_ignore_val,  &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=2,   &
          ivar=ivar,callstep=callstep, index = ih_gpp_pa )
 
     call this%set_history_var(vname='NPP2', units='gC/m^2/s',                   &
          long='net primary production',                                         &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, !cp_hio_ignore_val,  &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=2,   &
          ivar=ivar,callstep=callstep, index = ih_npp_pa )
 
-    call this%set_history_var(vname='AR2', units='gC/m^2/s',                    &
+    call this%set_history_var(vname='ARESP2', units='gC/m^2/s',                 &
          long='autotrophic respiration',                                        &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, !cp_hio_ignore_val,  &
-         ivar=ivar,callstep=callstep, index = ih_ar_pa )
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar,callstep=callstep, index = ih_aresp_pa )
 
     call this%set_history_var(vname='GROWTH_RESP2', units='gC/m^2/s',           &
          long='growth respiration',                                             &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, !cp_hio_ignore_val,  &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=2,   &
          ivar=ivar,callstep=callstep, index = ih_growth_resp_pa )
 
     call this%set_history_var(vname='MAINT_RESP2', units='gC/m^2/s',            &
          long='maintenance respiration',                                        &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, !cp_hio_ignore_val,  &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=2,   &
          ivar=ivar,callstep=callstep, index = ih_maint_resp_pa )
 
 
@@ -809,7 +827,8 @@ contains
   
   ! =====================================================================================
    
-  subroutine set_history_var(this,vname,units,long,avgflag,vtype,hlms,flushval,ivar,callstep,index)
+  subroutine set_history_var(this,vname,units,long,avgflag,vtype,hlms, &
+                             flushval,upfreq,ivar,callstep,index)
 
 
     use FatesUtilsMod, only : check_hlm_list
@@ -824,6 +843,7 @@ contains
     character(len=*),intent(in)  :: vtype
     character(len=*),intent(in)  :: hlms
     real(r8),intent(in)          :: flushval ! IF THE TYPE IS AN INT WE WILL round with NINT
+    integer,intent(in)           :: upfreq
     character(len=*),intent(in)  :: callstep
     integer, intent(inout)       :: ivar
     integer, intent(inout)       :: index  ! This is the index for the variable of
@@ -851,7 +871,7 @@ contains
           hvar%vtype = vtype
           hvar%avgflag = avgflag
           hvar%flushval = flushval
-          
+          hvar%upfreq = upfreq
           ityp=this%iotype_index(trim(vtype))
           hvar%iovar_dk_ptr => this%iovar_dk(ityp)
           this%iovar_dk(ityp)%active = .true.

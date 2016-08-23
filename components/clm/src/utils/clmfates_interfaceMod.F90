@@ -230,12 +230,12 @@ contains
       call set_fates_ctrlparms('flush_to_unset')
       
       ! Send parameters individually
-      call set_fates_ctrlparms('num_sw_bbands',idimval=numrad)
-      call set_fates_ctrlparms('num_lev_ground',idimval=nlevgrnd)
-      call set_fates_ctrlparms('num_levdecomp',idimval=nlevdecomp)
-      call set_fates_ctrlparms('num_levdecomp_full',idimval=nlevdecomp_full)
-      call set_fates_ctrlparms('hlm_name',cdimval='CLM')
-      call set_fates_ctrlparms('hio_ignore_val',rdimval=spval)
+      call set_fates_ctrlparms('num_sw_bbands',ival=numrad)
+      call set_fates_ctrlparms('num_lev_ground',ival=nlevgrnd)
+      call set_fates_ctrlparms('num_levdecomp',ival=nlevdecomp)
+      call set_fates_ctrlparms('num_levdecomp_full',ival=nlevdecomp_full)
+      call set_fates_ctrlparms('hlm_name',cval='CLM')
+      call set_fates_ctrlparms('hio_ignore_val',rval=spval)
 
       ! Check through FATES parameters to see if all have been set
       call set_fates_ctrlparms('check_allset')
@@ -501,7 +501,7 @@ contains
             canopystate_inst)
 
 
-      call this%fates_hio%update_history_variables( nc, &
+      call this%fates_hio%update_history_dyn( nc, &
            this%fates(nc)%sites,       &
            this%fates(nc)%nsites,      &
            this%f2hmap(nc)%fcolumn)
@@ -555,7 +555,7 @@ contains
                     waterstate_inst,                                               &
                     canopystate_inst)
                
-               call this%fates_hio%update_history_variables( nc, &
+               call this%fates_hio%update_history_dyn( nc, &
                     this%fates(nc)%sites,       &
                     this%fates(nc)%nsites,      &
                     this%f2hmap(nc)%fcolumn)
@@ -620,7 +620,7 @@ contains
                 waterstate_inst,                                    &
                 canopystate_inst)
 
-           call this%fates_hio%update_history_variables( nc, &
+           call this%fates_hio%update_history_dyn( nc, &
                 this%fates(nc)%sites,       &
                 this%fates(nc)%nsites,      &
                 this%f2hmap(nc)%fcolumn)
@@ -1054,14 +1054,17 @@ contains
  ! ======================================================================================
 
  subroutine wrap_accumulatefluxes(this, nc, fn, filterp)
-    
-    ! !ARGUMENTS:
-    class(hlm_fates_interface_type), intent(inout) :: this
-    integer                , intent(in)            :: nc                   ! clump index
-    integer                , intent(in)            :: fn                   ! size of pft filter
-    integer                , intent(in)            :: filterp(fn)          ! pft filter
 
-    integer                                        :: s,c,p,ifp,icp
+   use clm_time_manager  , only : get_step_size
+   
+   ! !ARGUMENTS:
+   class(hlm_fates_interface_type), intent(inout) :: this
+   integer                , intent(in)            :: nc                   ! clump index
+   integer                , intent(in)            :: fn                   ! size of pft filter
+   integer                , intent(in)            :: filterp(fn)          ! pft filter
+   
+   integer                                        :: s,c,p,ifp,icp
+   real(r8)                                       :: dtime
 
     ! Run a check on the filter
     do icp = 1,fn
@@ -1078,6 +1081,13 @@ contains
                                this%fates(nc)%nsites, &
                                this%fates(nc)%bc_in,  &
                                this%fates(nc)%bc_out)
+
+    dtime = get_step_size()
+    call this%fates_hio%update_history_rapid(nc, &
+                                             this%fates(nc)%sites,  &
+                                             this%fates(nc)%nsites, &
+                                             this%f2hmap(nc)%fcolumn, &
+                                             dtime)
 
     return
 
