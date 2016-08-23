@@ -138,8 +138,15 @@ module EDTypesMod
   ! or the total number of soil layers
   integer :: cp_numlevdecomp
 
+  ! This character string passed by the HLM is used during the processing of IO
+  ! data, so that FATES knows which IO variables it should prepare.  For instance
+  ! ATS, ALM and CLM will only want variables specficially packaged for them.
+  ! This string will dictate which filter is enacted.
   character(len=16) :: cp_hlm_name
 
+  ! This value can be flushed to history diagnostics, such that the
+  ! HLM will interpret that the value should not be included in the average.
+  real(r8) :: cp_hio_ignore_val
 
   !************************************
   !** COHORT type structure          **

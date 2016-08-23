@@ -426,7 +426,7 @@ contains
    
    ! ==================================================================================== 
 
-   subroutine set_fates_ctrlparms(tag,idimval,cdimval)
+   subroutine set_fates_ctrlparms(tag,ival,rval,cval)
       
       ! ---------------------------------------------------------------------------------
       ! INTERF-TODO:  NEED ALLOWANCES FOR REAL AND CHARACTER ARGS..
@@ -450,16 +450,20 @@ contains
       !
       ! RGK-2016
       ! ---------------------------------------------------------------------------------
+
+      'hio_ignore_val',rdimval=spval)
       
       ! Arguments
-      integer, optional, intent(in)         :: idimval
-      character(len=*),optional, intent(in) :: cdimval
+      integer, optional, intent(in)         :: ival
+      real(r8), optional, intent(in)        :: rval
+      character(len=*),optional, intent(in) :: cval
       character(len=*),intent(in)           :: tag
       
       ! local variables
       logical              :: all_set
       integer,  parameter  :: unset_int = -999
       real(r8), parameter  :: unset_double = -999.9
+      
       
       select case (trim(tag))
       case('flush_to_unset')
@@ -471,6 +475,7 @@ contains
          cp_numlevdecomp_full = unset_int
          cp_numlevdecomp      = unset_int
          cp_hlm_name          = 'unset'
+         cp_hio_ignore        = unset_double
 
       case('check_allset')
          
@@ -515,32 +520,38 @@ contains
             ! end_run('MESSAGE')
          end if
 
+         if( abs(cp_hio_ignore-unset_double)<1e-10 ) then
+            write(*,*) 'FATES dimension/parameter unset: hio_ignore'
+            ! INTERF-TODO: FATES NEEDS INTERNAL end_run
+            ! end_run('MESSAGE')
+         end if
+
          write(*,*) 'Checked. All control parameters sent to FATES.'
          
       case default
 
-         if(present(idimval))then
+         if(present(ival))then
             select case (trim(tag))
                
             case('num_sw_bbands')
                
-               cp_numSwb = idimval
-               write(*,*) 'Transfering num_sw_bbands = ',idimval,' to FATES'
+               cp_numSwb = ival
+               write(*,*) 'Transfering num_sw_bbands = ',ival,' to FATES'
                
             case('num_lev_ground')
                
-               cp_numlevgrnd = idimval
-               write(*,*) 'Transfering num_lev_ground = ',idimval,' to FATES'
+               cp_numlevgrnd = ival
+               write(*,*) 'Transfering num_lev_ground = ',ival,' to FATES'
                
             case('num_levdecomp_full')
                
-               cp_numlevdecomp_full = idimval
-               write(*,*) 'Transfering num_levdecomp_full = ',idimval,' to FATES'
+               cp_numlevdecomp_full = ival
+               write(*,*) 'Transfering num_levdecomp_full = ',ival,' to FATES'
             
             case('num_levdecomp')
                
-               cp_numlevdecomp = idimval
-               write(*,*) 'Transfering num_levdecomp = ',idimval,' to FATES'
+               cp_numlevdecomp = ival
+               write(*,*) 'Transfering num_levdecomp = ',ival,' to FATES'
 
             case default
                write(*,*) 'tag not recognized:',trim(tag)
@@ -548,12 +559,22 @@ contains
             end select
          end if
          
-         if(present(cdimval))then
+         if(present(rval))then
+            select case (trim(tag))
+               cp_hio_ignore_val = rval
+               write(*,*) 'Transfering hio_ignore_val = ',rval,' to FATES'
+            case default
+               write(*,*) 'tag not recognized:',trim(tag)
+               ! end_run
+            end select
+         end if
+
+         if(present(cval))then
             select case (trim(tag))
                
             case('hlm_name')
-               cp_hlm_name = trim(cdimval)
-               write(*,*) 'Transfering the HLM name = ',trim(cdimval)
+               cp_hlm_name = trim(cval)
+               write(*,*) 'Transfering the HLM name = ',trim(cval)
                
             case default
                write(*,*) 'tag not recognized:',trim(tag)
