@@ -3,7 +3,7 @@ Module HistoryIOMod
   
   use shr_kind_mod    , only : r8 => shr_kind_r8
   use clm_varctl      , only : iulog
-  
+  use EDTypes         , only : cp_hio_ignore_val
 
   implicit none
 
@@ -49,11 +49,11 @@ Module HistoryIOMod
   integer, private :: ih_balive_pa
   integer, private :: ih_bleaf_pa
   integer, private :: ih_btotal_pa
-  integer, private :: ih_npp
-  integer, private :: ih_gpp
-  integer, private :: ih_autotr_resp
-  integer, private :: ih_maint_resp
-  integer, private :: ih_growth_resp
+  integer, private :: ih_npp_pa
+  integer, private :: ih_gpp_pa
+  integer, private :: ih_autotr_resp_pa
+  integer, private :: ih_maint_resp_pa
+  integer, private :: ih_growth_resp_pa
   
   ! Indices to (patch x pft) variables   (using nlevgrnd as surrogate)
 
@@ -213,7 +213,8 @@ Module HistoryIOMod
      
    contains
      
-     procedure, public :: update_history_variables
+     procedure, public :: update_history_dyn_tscale
+     procedure, public :: update_history_rapid_tscale
      procedure, public :: define_history_vars
      procedure, public :: set_history_var
      procedure, public :: init_iovar_dk_maps
@@ -232,11 +233,11 @@ contains
   
   ! ====================================================================================
   
-  subroutine update_history_variables(this,nc,sites,nsites,fcolumn)
+  subroutine update_history_dyn_tscale(this,nc,sites,nsites,fcolumn)
     
     ! ---------------------------------------------------------------------------------
-    ! This is the main call to update the history IO arrays that are registerred with
-    ! the Host Model.
+    ! This is the call to update the history IO arrays that are expected to only change
+    ! after Ecosystem Dynamics have been processed.
     ! ---------------------------------------------------------------------------------
     
     use EDtypesMod          , only : ed_site_type,   &
@@ -467,9 +468,109 @@ contains
   end associate
 
     return
-  end subroutine update_history_variables
-  
-  ! ====================================================================================
+ end subroutine update_history_dyn_tscale
+ 
+ ! ======================================================================================
+
+ subroutine update_history_rapid_tscale(this,nc,sites,nsites,fcolumn,dt_tstep)
+    
+    ! ---------------------------------------------------------------------------------
+    ! This is the call to update the history IO arrays that are expected to only change
+    ! after Ecosystem Dynamics have been processed.
+    ! ---------------------------------------------------------------------------------
+    
+    use EDtypesMod          , only : ed_site_type,   &
+                                     ed_cohort_type, &
+                                     ed_patch_type,  &
+                                     AREA
+    ! Arguments
+    class(fates_hio_interface_type)                 :: this
+    integer                 , intent(in)            :: nc   ! clump index
+    type(ed_site_type)      , intent(inout), target :: sites(nsites)
+    integer                 , intent(in)            :: nsites
+    integer                 , intent(in)            :: fcolumn(nsites)
+    real(r8)                , intent(in)            :: dt_tstep
+    
+    ! Locals
+    integer  :: s        ! The local site index
+    integer  :: io_si     ! The site index of the IO array
+    integer  :: ipa      ! The local "I"ndex of "PA"tches 
+    integer  :: io_pa    ! The patch index of the IO array
+    integer  :: io_pa1   ! The first patch index in the IO array for each site
+    integer  :: io_soipa 
+    integer  :: lb1,ub1,lb2,ub2  ! IO array bounds for the calling thread
+    integer  :: ivar             ! index of IO variable object vector
+
+    real(r8) :: n_density   ! individual of cohort per m2.
+    real(r8) :: n_perm2     ! individuals per m2 for the whole column
+
+    type(iovar_def_type),pointer :: hvar
+    type(ed_patch_type),pointer  :: cpatch
+    type(ed_cohort_type),pointer :: ccohort
+
+    real(r8), parameter :: daysecs = 86400.0_r8 ! What modeler doesn't recognize 86400?
+    real(r8), parameter :: yeardays = 365.0_r8  ! Should this be 365.25?
+    
+    associate( hio_gpp_pa      => this%hvars(ih_gpp_pa)%r81d, &
+               hio_npp_pa      => this%hvars(ih_npp_pa)%r81d, &
+               hio_ar_pa       => this%hvars(ih_ar_pa)%r81d, &
+               hio_maint_resp  => this%hvars(ih_maint_resp_pa)%r81d, &
+               hio_growth_resp => this%hvars(ih_growth_resp_pa)%r81d )
+      
+      
+      do s = 1,nsites
+         
+         io_si  = this%iovar_map(nc)%site_index(s)
+         io_pa1 = this%iovar_map(nc)%patch1_index(s)
+         io_soipa = io_pa1-1
+         
+         ipa = 0
+         cpatch => sites(s)%oldest_patch
+         do while(associated(cpatch))
+            
+            io_pa = io_pa1 + ipa
+
+            ccohort => cpatch%shortest
+            do while(associated(ccohort))
+               
+               ! TODO: we need a standardized logical function on this (used lots, RGK)
+               if ((cpatch%area .gt. 0._r8) .and. (cpatch%total_canopy_area .gt. 0._r8)) then
+                  n_density = ccohort%n/min(currentPatch%area,currentPatch%total_canopy_area) 
+                  n_perm2   = ccohort%n/AREA   
+               else
+                  n_density = 0.0_r8
+                  n_perm2   = 0.0_r8
+               endif
+               
+               if ( .not. ccohort%isnew ) then
+                  
+                  ! scale up cohort fluxes to their patches
+                  hio_npp_pa(io_pa) = hio_npp_pa(io_pa) + &
+                        ccohort%npp_tstep * 1.e3_r8 * n_density / dt_tstep
+                  hio_gpp_pa(io_pa) = hio_gpp_pa(io_pa) + &
+                        ccohort%gpp_tstep * 1.e3_r8 * n_density / dt_tstep
+                  hio_ar_pa(io_pa) = hio_ar_pa(io_pa) + &
+                        ccohort%resp_tstep * 1.e3_r8 * n_density / dt_tstep
+                  hio_growth_resp_pa(io_pa) = hio_growth_resp_pa(io_pa) + &
+                        ccohort%resp_g * 1.e3_r8 * n_density / dt_tstep
+                  hio_maint_resp_pa(io_pa) = hio_maint_resp_pa(io_pa) + &
+                        ccohort%resp_m * 1.e3_r8 * n_density / dt_tstep
+                  
+               endif
+
+               ccohort => ccohort%taller
+            enddo ! cohort loop
+            ipa = ipa + 1
+            cpatch => cpatch%younger
+         end do !patch loop
+         
+      enddo ! site loop
+
+    end associate
+ 
+ end subroutine update_history_rapid_tscale
+
+ ! ====================================================================================
   
   subroutine define_history_vars(this,callstep,nvar)
     
@@ -670,7 +771,34 @@ contains
          long='Total biomass',                                                  &
          avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
          ivar=ivar,callstep=callstep, index = ih_btotal_pa )
+
     
+    ! Ecosystem Carbon Fluxes (updated rapidly)
+    call this%set_history_var(vname='GPP2', units='gC/m^2/s',                   &
+         long='gross primary production',                                       &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, !cp_hio_ignore_val,  &
+         ivar=ivar,callstep=callstep, index = ih_gpp_pa )
+
+    call this%set_history_var(vname='NPP2', units='gC/m^2/s',                   &
+         long='net primary production',                                         &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, !cp_hio_ignore_val,  &
+         ivar=ivar,callstep=callstep, index = ih_npp_pa )
+
+    call this%set_history_var(vname='AR2', units='gC/m^2/s',                    &
+         long='autotrophic respiration',                                        &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, !cp_hio_ignore_val,  &
+         ivar=ivar,callstep=callstep, index = ih_ar_pa )
+
+    call this%set_history_var(vname='GROWTH_RESP2', units='gC/m^2/s',           &
+         long='growth respiration',                                             &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, !cp_hio_ignore_val,  &
+         ivar=ivar,callstep=callstep, index = ih_growth_resp_pa )
+
+    call this%set_history_var(vname='MAINT_RESP2', units='gC/m^2/s',            &
+         long='maintenance respiration',                                        &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, !cp_hio_ignore_val,  &
+         ivar=ivar,callstep=callstep, index = ih_maint_resp_pa )
+
 
     ! Must be last thing before return
     if(present(nvar)) nvar = ivar
