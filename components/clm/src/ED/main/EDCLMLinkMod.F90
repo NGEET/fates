@@ -564,7 +564,7 @@ contains
          ptr_col=this%seed_stock_col)
 
     
-      ! Carbon Flux (grid dimension x scpf)
+    ! Carbon Flux (grid dimension x scpf)
     ! ==============================================================
 
     call hist_addfld2d (fname='ED_GPP_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&

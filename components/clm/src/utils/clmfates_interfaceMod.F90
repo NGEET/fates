@@ -235,6 +235,7 @@ contains
       call set_fates_ctrlparms('num_levdecomp',idimval=nlevdecomp)
       call set_fates_ctrlparms('num_levdecomp_full',idimval=nlevdecomp_full)
       call set_fates_ctrlparms('hlm_name',cdimval='CLM')
+      call set_fates_ctrlparms('hio_ignore_val',rdimval=spval)
 
       ! Check through FATES parameters to see if all have been set
       call set_fates_ctrlparms('check_allset')
