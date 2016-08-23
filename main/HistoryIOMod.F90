@@ -44,11 +44,11 @@ Module HistoryIOMod
   integer, private :: ih_seeds_in_pa
   integer, private :: ih_seed_decay_pa
   integer, private :: ih_seed_germination_pa
-  integer, private :: ih_bstore
-  integer, private :: ih_bdead
-  integer, private :: ih_balive
-  integer, private :: ih_bleaf
-  integer, private :: ih_biomass
+  integer, private :: ih_bstore_pa
+  integer, private :: ih_bdead_pa
+  integer, private :: ih_balive_pa
+  integer, private :: ih_bleaf_pa
+  integer, private :: ih_btotal_pa
   integer, private :: ih_npp
   integer, private :: ih_gpp
   integer, private :: ih_autotr_resp
@@ -296,7 +296,13 @@ contains
                hio_seed_bank_pa        => this%hvars(ih_seed_bank_pa)%r81d, &
                hio_seeds_in_pa         => this%hvars(ih_seeds_in_pa)%r81d, &
                hio_seed_decay_pa       => this%hvars(ih_seed_decay_pa)%r81d, &
-               hio_seed_germination_pa => this%hvars(ih_seed_germination_pa)%r81d )
+               hio_seed_germination_pa => this%hvars(ih_seed_germination_pa)%r81d, &
+               hio_bstore_pa           => this%hvars(ih_bstore_pa)%r81d, &
+               hio_bdead_pa            => this%hvars(ih_bdead_pa)%r81d, &
+               hio_balive_pa           => this%hvars(ih_balive_pa)%r81d, &
+               hio_bleaf_pa            => this%hvars(ih_bleaf_pa)%r81d, &
+               hio_btotal_pa           => this%hvars(ih_btotal_pa)%r81d )
+               
 
     ! ---------------------------------------------------------------------------------
     ! Flush arrays to values defined by %flushval (see registry entry in
@@ -390,7 +396,14 @@ contains
                 hio_area_treespread_pa(io_pa) = 0.0_r8
              end if
              
-             
+             ! Update biomass components
+             hio_bleaf_pa(io_pa)  = hio_bleaf_pa(io_pa)  + n_density * ccohort%bl       * 1.e3_r8
+             hio_bstore_pa(io_pa) = hio_bstore_pa(io_pa) + n_density * ccohort%bstore   * 1.e3_r8
+             hio_btotal_pa(io_pa) = hio_btotal_pa(io_pa) + n_density * ccohort%b        * 1.e3_r8
+             hio_bdead_pa(io_pa)  = hio_bdead_pa(io_pa)  + n_density * ccohort%bdead    * 1.e3_r8
+             hio_balive_pa(io_pa) = hio_balive_pa(io_pa) + n_density * ccohort%balive   * 1.e3_r8
+
+             ! Update PFT partitioned biomass components
              hio_biomass_pa_pft(io_pa,ft) = hio_biomass_pa_pft(io_pa,ft) + &
                    n_density * ccohort%b * 1.e3_r8
              
@@ -633,25 +646,30 @@ contains
          avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
          ivar=ivar,callstep=callstep, index = ih_seed_decay_pa )
     
-!    call hist_addfld1d (fname='ED_bstore', units='gC m-2',  &
-!         avgflag='A', long_name='ED stored biomass', &
-!         ptr_patch=this%ED_bstore_patch, set_lake=0._r8, set_urb=0._r8)
+    call this%set_history_var(vname='BSTORE2', units='gC m-2',                  &
+         long='Storage biomass',                                                &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_bstore_pa )
 
-!    call hist_addfld1d (fname='ED_bdead', units='gC m-2',  &
-!         avgflag='A', long_name='ED dead biomass', &
-!         ptr_patch=this%ED_bdead_patch, set_lake=0._r8, set_urb=0._r8)
+    call this%set_history_var(vname='BDEAD2', units='gC m-2',                   &
+         long='Dead (structural) biomass (live trees, not CWD)',                &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_bdead_pa )
 
-!    call hist_addfld1d (fname='ED_balive', units='gC m-2',  &
-!         avgflag='A', long_name='ED live biomass', &
-!         ptr_patch=this%ED_balive_patch, set_lake=0._r8, set_urb=0._r8)
+    call this%set_history_var(vname='BALIVE2', units='gC m-2',                  &
+         long='Live biomass',                                                   &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_balive_pa )
 
-!    call hist_addfld1d (fname='ED_bleaf', units='gC m-2',  &
-!         avgflag='A', long_name='ED leaf biomass', &
-!         ptr_patch=this%ED_bleaf_patch, set_lake=0._r8, set_urb=0._r8)
+    call this%set_history_var(vname='BLEAF2', units='gC m-2',                   &
+         long='Leaf biomass',                                                   &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_bleaf_pa )
 
-!    call hist_addfld1d (fname='ED_biomass', units='gC m-2',  &
-!         avgflag='A', long_name='ED total biomass', &
-!         ptr_patch=this%ED_biomass_patch, set_lake=0._r8, set_urb=0._r8)
+    call this%set_history_var(vname='BTOTAL2', units='gC m-2',                  &
+         long='Total biomass',                                                  &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_btotal_pa )
     
 
     ! Must be last thing before return
