@@ -3,6 +3,7 @@ Module HistoryIOMod
   
   use shr_kind_mod    , only : r8 => shr_kind_r8
   use clm_varctl      , only : iulog
+  
 
   implicit none
 
@@ -32,15 +33,17 @@ Module HistoryIOMod
   integer, private :: ih_sum_fuel_pa
   integer, private :: ih_litter_in_pa
   integer, private :: ih_litter_out_pa
+
   integer, private :: ih_efpot_pa        ! NA
   integer, private :: ih_rb_pa           ! NA
+
   integer, private :: ih_daily_temp
   integer, private :: ih_daily_rh
   integer, private :: ih_daily_prec
-  integer, private :: ih_seed_bank
-  integer, private :: ih_seeds_in
-  integer, private :: ih_seed_decay
-  integer, private :: ih_seed_germination
+  integer, private :: ih_seed_bank_pa
+  integer, private :: ih_seeds_in_pa
+  integer, private :: ih_seed_decay_pa
+  integer, private :: ih_seed_germination_pa
   integer, private :: ih_bstore
   integer, private :: ih_bdead
   integer, private :: ih_balive
@@ -265,6 +268,8 @@ contains
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
 
+    real(r8), parameter :: daysecs = 86400.0_r8 ! What modeler doesn't recognize 86400?
+    real(r8), parameter :: yeardays = 365.0_r8  ! Should this be 365.25?
     
     associate( hio_trimming_pa         => this%hvars(ih_trimming_pa)%r81d, &
                hio_area_plant_pa       => this%hvars(ih_area_plant_pa)%r81d, &
@@ -285,7 +290,13 @@ contains
                hio_fire_fuel_eff_moist_pa => this%hvars(ih_fire_fuel_eff_moist_pa)%r81d, &
                hio_fire_fuel_sav_pa    => this%hvars(ih_fire_fuel_sav_pa)%r81d, &
                hio_fire_fuel_mef_pa    => this%hvars(ih_fire_fuel_mef_pa)%r81d, &
-               hio_sum_fuel_pa         => this%hvars(ih_sum_fuel_pa)%r81d )
+               hio_sum_fuel_pa         => this%hvars(ih_sum_fuel_pa)%r81d,  &
+               hio_litter_in_pa        => this%hvars(ih_litter_in_pa)%r81d, &
+               hio_litter_out_pa       => this%hvars(ih_litter_out_pa)%r81d, &
+               hio_seed_bank_pa        => this%hvars(ih_seed_bank_pa)%r81d, &
+               hio_seeds_in_pa         => this%hvars(ih_seeds_in_pa)%r81d, &
+               hio_seed_decay_pa       => this%hvars(ih_seed_decay_pa)%r81d, &
+               hio_seed_germination_pa => this%hvars(ih_seed_germination_pa)%r81d )
 
     ! ---------------------------------------------------------------------------------
     ! Flush arrays to values defined by %flushval (see registry entry in
@@ -406,6 +417,7 @@ contains
              patch_scaling_scalar = 0._r8
           endif
           
+          ! Update Fire Variables
           hio_nesterov_fire_danger_pa(io_pa) = sites(s)%acc_NI
           hio_spitfire_ros_pa(io_pa)         = cpatch%ROS_front 
           hio_effect_wspeed_pa(io_pa)        = cpatch%effect_wspeed
@@ -418,6 +430,17 @@ contains
           hio_fire_fuel_sav_pa(io_pa)        = cpatch%fuel_sav
           hio_fire_fuel_mef_pa(io_pa)        = cpatch%fuel_mef
           hio_sum_fuel_pa(io_pa)             = cpatch%sum_fuel * 1.e3_r8 * patch_scaling_scalar
+
+          ! Update Litter Flux Variables
+          hio_litter_in_pa(io_pa)            = (sum(cpatch%CWD_AG_in) +sum(cpatch%leaf_litter_in)) &
+                                               * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
+          hio_litter_out_pa(io_pa)           = (sum(cpatch%CWD_AG_out)+sum(cpatch%leaf_litter_out)) &
+                                                * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
+          hio_seed_bank_pa(io_pa)            = sum(cpatch%seed_bank) * 1.e3_r8 * patch_scaling_scalar
+          hio_seeds_in_pa(io_pa)             = sum(cpatch%seeds_in) * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
+          hio_seed_decay_pa(io_pa)           = sum(cpatch%seed_decay) * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
+          hio_seed_germination_pa(io_pa)     = sum(cpatch%seed_germination) * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
+
 
           hio_canopy_spread_pa(io_pa)        = cpatch%spread(1) 
 
@@ -516,6 +539,8 @@ contains
          avgflag='A', vtype='PA_GRND_R8',hlms='CLM:ALM',flushval=0.0_r8,        &
          ivar=ivar,callstep=callstep, index = ih_nindivs_pa_pft )
 
+    ! Fire Variables
+
     call this%set_history_var(vname='FIRE_NESTEROV_INDEX2', units='none',       &
          long='nesterov_fire_danger index',                                     &
          avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
@@ -571,10 +596,63 @@ contains
          avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
          ivar=ivar,callstep=callstep, index = ih_fire_fuel_sav_pa )
 
-    call this%set_history_var(vname='SUM_FUEL2', units='gC m-2',                 &
+    call this%set_history_var(vname='SUM_FUEL2', units='gC m-2',                &
          long='total ground fuel related to ros (omits 1000hr fuels)',          &
          avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
          ivar=ivar,callstep=callstep, index = ih_sum_fuel_pa )
+
+    ! Litter Variables
+
+    call this%set_history_var(vname='LITTER_IN2', units='gC m-2 s-1',           &
+         long='Litter flux in leaves',                                          &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_litter_in_pa )
+
+    call this%set_history_var(vname='LITTER_OUT2', units='gC m-2 s-1',          &
+         long='Litter flux out leaves',                                         & 
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_litter_out_pa )
+
+    call this%set_history_var(vname='SEED_BANK2', units='gC m-2',               &
+         long='Total Seed Mass of all PFTs',                                    &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_seed_bank_pa )
+
+    call this%set_history_var(vname='SEEDS_IN2', units='gC m-2 s-1',            &
+         long='Seed Production Rate',                                           &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_seeds_in_pa )
+
+    call this%set_history_var(vname='SEED_GERMINATION2', units='gC m-2 s-1',    &
+         long='Seed mass converted into new cohorts',                           &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_seed_germination_pa )
+
+    call this%set_history_var(vname='SEED_DECAY2', units='gC m-2 s-1',          &
+         long='Seed mass decay',                                                &
+         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8,             &
+         ivar=ivar,callstep=callstep, index = ih_seed_decay_pa )
+    
+!    call hist_addfld1d (fname='ED_bstore', units='gC m-2',  &
+!         avgflag='A', long_name='ED stored biomass', &
+!         ptr_patch=this%ED_bstore_patch, set_lake=0._r8, set_urb=0._r8)
+
+!    call hist_addfld1d (fname='ED_bdead', units='gC m-2',  &
+!         avgflag='A', long_name='ED dead biomass', &
+!         ptr_patch=this%ED_bdead_patch, set_lake=0._r8, set_urb=0._r8)
+
+!    call hist_addfld1d (fname='ED_balive', units='gC m-2',  &
+!         avgflag='A', long_name='ED live biomass', &
+!         ptr_patch=this%ED_balive_patch, set_lake=0._r8, set_urb=0._r8)
+
+!    call hist_addfld1d (fname='ED_bleaf', units='gC m-2',  &
+!         avgflag='A', long_name='ED leaf biomass', &
+!         ptr_patch=this%ED_bleaf_patch, set_lake=0._r8, set_urb=0._r8)
+
+!    call hist_addfld1d (fname='ED_biomass', units='gC m-2',  &
+!         avgflag='A', long_name='ED total biomass', &
+!         ptr_patch=this%ED_biomass_patch, set_lake=0._r8, set_urb=0._r8)
+    
 
     ! Must be last thing before return
     if(present(nvar)) nvar = ivar
