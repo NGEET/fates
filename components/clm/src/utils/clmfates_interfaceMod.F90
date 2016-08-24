@@ -452,9 +452,6 @@ contains
       !                               this%fates(nc)%fatesbc)
       ! ---------------------------------------------------------------------------------
       
-
-      call this%fates2hlm%SetValues( bounds_clump, 0._r8 )
-
       ! timing statements. 
       udata%n_sub = get_days_per_year()
             udata%deltat = 1.0_r8/dble(udata%n_sub) !for working out age of patches in years        
@@ -1083,11 +1080,11 @@ contains
                                this%fates(nc)%bc_out)
 
     dtime = get_step_size()
-    call this%fates_hio%update_history_rapid(nc, &
-                                             this%fates(nc)%sites,  &
-                                             this%fates(nc)%nsites, &
-                                             this%f2hmap(nc)%fcolumn, &
-                                             dtime)
+    call this%fates_hio%update_history_prod(nc, &
+                               this%fates(nc)%sites,  &
+                               this%fates(nc)%nsites, &
+                               this%f2hmap(nc)%fcolumn, &
+                               dtime)
 
     return
 

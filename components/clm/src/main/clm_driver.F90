@@ -493,16 +493,6 @@ contains
        deallocate(downreg_patch, leafn_patch)
        call t_stopf('canflux')
 
-       if (use_ed) then
-          ! if ED enabled, summarize productivity fluxes onto CLM history file structure
-          call t_startf('edclmsumprodfluxes')
-          ! INTERF-TODO: THIS NEEDS A WRAPPER call clm_fates%sumprod(bounds_clump)
-          call clm_fates%fates2hlm%SummarizeProductivityFluxes( bounds_clump, &
-                clm_fates%fates(nc)%sites,                                    &
-                clm_fates%fates(nc)%nsites,                                   &
-                clm_fates%f2hmap(nc)%fcolumn)
-          call t_stopf('edclmsumprodfluxes')
-       endif
        
        ! Fluxes for all urban landunits
 
@@ -772,11 +762,6 @@ contains
           call SatellitePhenology(bounds_clump, filter(nc)%num_nolakep, filter(nc)%nolakep, &
                waterstate_inst, canopystate_inst)
           call t_stopf('SatellitePhenology')
-       end if
-
-       ! Zero some of the FATES->CLM communicators
-       if (use_ed) then
-          call clm_fates%fates2hlm%SetValues(bounds_clump,0._r8)
        end if
 
        ! Dry Deposition of chemical tracers (Wesely (1998) parameterizaion)
