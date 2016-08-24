@@ -502,8 +502,8 @@ contains
           call t_startf('edclmsumprodfluxes')
           ! INTERF-TODO: THIS NEEDS A WRAPPER call clm_fates%sumprod(bounds_clump)
           call clm_fates%fates2hlm%SummarizeProductivityFluxes( bounds_clump, &
-                clm_fates%fates(nc)%sites,                                    &
                 clm_fates%fates(nc)%nsites,                                   &
+                clm_fates%fates(nc)%sites,                                    &
                 clm_fates%f2hmap(nc)%fcolumn)
           call t_stopf('edclmsumprodfluxes')
        endif
