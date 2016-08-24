@@ -785,7 +785,7 @@ contains
 
   !-----------------------------------------------------------------------
 
-  subroutine ed_clm_link( this, bounds, sites, nsites, fcolumn, waterstate_inst, canopystate_inst)
+  subroutine ed_clm_link( this, bounds, nsites, sites, fcolumn, waterstate_inst, canopystate_inst)
     !
     ! !USES: 
     use landunit_varcon      , only : istsoil
@@ -801,8 +801,8 @@ contains
     ! !ARGUMENTS    
     class(ed_clm_type)                              :: this
     type(bounds_type)       , intent(in)            :: bounds  
-    type(ed_site_type)      , intent(inout), target :: sites(nsites)
     integer                 , intent(in)            :: nsites
+    type(ed_site_type)      , intent(inout), target :: sites(nsites)
     integer                 , intent(in)            :: fcolumn(nsites)
     type(waterstate_type)   , intent(inout)         :: waterstate_inst
     type(canopystate_type)  , intent(inout)         :: canopystate_inst
@@ -1027,14 +1027,14 @@ contains
          
       end do ! column loop
 
-      call this%ed_update_history_variables(bounds, sites(:), nsites, fcolumn(:), canopystate_inst)
+      call this%ed_update_history_variables(bounds, nsites, sites(:), fcolumn(:), canopystate_inst)
       
     end associate
 
   end subroutine ed_clm_link
 
   !-----------------------------------------------------------------------
-  subroutine ed_update_history_variables( this, bounds, sites, nsites, fcolumn, canopystate_inst)
+  subroutine ed_update_history_variables( this, bounds, nsites, sites, fcolumn, canopystate_inst)
     !
     ! !USES: 
     use CanopyStateType  , only : canopystate_type
@@ -1045,8 +1045,8 @@ contains
     ! !ARGUMENTS:
     class(ed_clm_type)                              ::  this
     type(bounds_type)       , intent(in)            :: bounds  ! clump bounds
-    type(ed_site_type)      , intent(inout), target :: sites(nsites)
     integer                 , intent(in)            :: nsites
+    type(ed_site_type)      , intent(inout), target :: sites(nsites)
     integer                 , intent(in)            :: fcolumn(nsites)
     type(ed_patch_type)     , pointer               :: currentPatch
     type(ed_cohort_type)    , pointer               :: currentCohort
@@ -1369,12 +1369,22 @@ contains
                fire_fuel_sav(p)        = currentPatch%fuel_sav
                fire_fuel_mef(p)        = currentPatch%fuel_mef                          
                sum_fuel(p)             = currentPatch%sum_fuel * 1.e3_r8 * patch_scaling_scalar
-               litter_in(p)            = (sum(currentPatch%CWD_AG_in) +sum(currentPatch%leaf_litter_in)) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
-               litter_out(p)           = (sum(currentPatch%CWD_AG_out)+sum(currentPatch%leaf_litter_out)) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
+               
+               litter_in(p) = (sum(currentPatch%CWD_AG_in) + sum(currentPatch%leaf_litter_in)) * &
+                    1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
+
+               litter_out(p) = (sum(currentPatch%CWD_AG_out) + sum(currentPatch%leaf_litter_out)) * &
+                    1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
+
                seed_bank(p)            = sum(currentPatch%seed_bank) * 1.e3_r8 * patch_scaling_scalar
-               seeds_in(p)             = sum(currentPatch%seeds_in) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
-               seed_decay(p)           = sum(currentPatch%seed_decay) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
-               seed_germination(p)     = sum(currentPatch%seed_germination) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
+
+               seeds_in(p) = sum(currentPatch%seeds_in) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
+               
+               seed_decay(p) = sum(currentPatch%seed_decay) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
+
+               seed_germination(p) = sum(currentPatch%seed_germination) * &
+                    1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
+               
                canopy_spread(p)        = currentPatch%spread(1) 
                area_plant(p)           = 1._r8
                if (min(currentPatch%total_canopy_area,currentPatch%area)>0.0_r8) then
@@ -1917,7 +1927,7 @@ fraction_exposed= 1.0_r8
 
   ! =====================================================================================
 
-  subroutine SummarizeProductivityFluxes(this, bounds, sites, nsites, fcolumn)
+  subroutine SummarizeProductivityFluxes(this, bounds, nsites, sites, fcolumn)
 
    ! Summarize the fast production inputs from fluxes per ED individual to fluxes per CLM patch and column
    ! Must be called between calculation of productivity fluxes and daily ED calls
@@ -1935,8 +1945,8 @@ fraction_exposed= 1.0_r8
    ! !ARGUMENTS    
    class(ed_clm_type)                                      :: this  
    type(bounds_type)                       , intent(in)    :: bounds  
-   type(ed_site_type)                      , intent(in), target :: sites(nsites)
    integer                                 , intent(in)         :: nsites
+   type(ed_site_type)                      , intent(in), target :: sites(nsites)
    integer                                 , intent(in)         :: fcolumn(nsites)
    !
    ! !LOCAL VARIABLES:
@@ -2036,7 +2046,7 @@ end subroutine SummarizeProductivityFluxes
    
   !------------------------------------------------------------------------
  subroutine SummarizeNetFluxes(this, bounds, num_soilc, filter_soilc, &
-      sites, nsites, fcolumn, soilbiogeochem_carbonflux_inst, &
+      nsites, sites, fcolumn, soilbiogeochem_carbonflux_inst, &
       soilbiogeochem_carbonstate_inst)
 
    ! Summarize the combined production and decomposition fluxes into net fluxes
@@ -2056,8 +2066,8 @@ end subroutine SummarizeProductivityFluxes
    type(bounds_type)                       , intent(in)    :: bounds  
    integer                                 , intent(in)    :: num_soilc         ! number of soil columns in filter
    integer                                 , intent(in)    :: filter_soilc(:)   ! filter for soil columns
-   type(ed_site_type)                      , intent(in), target :: sites(nsites)
    integer                                 , intent(in)    :: nsites
+   type(ed_site_type)                      , intent(in), target :: sites(nsites)
    integer                                 , intent(in)    :: fcolumn(nsites)
    type(soilbiogeochem_carbonflux_type)    , intent(inout) :: soilbiogeochem_carbonflux_inst
    type(soilbiogeochem_carbonstate_type)   , intent(inout) :: soilbiogeochem_carbonstate_inst
@@ -2182,9 +2192,11 @@ end subroutine SummarizeProductivityFluxes
            currentPatch => sites(s)%oldest_patch
            do while(associated(currentPatch))
               !
-              ed_to_bgc_this_edts(c) = ed_to_bgc_this_edts(c) + (sum(currentPatch%CWD_AG_out) + sum(currentPatch%CWD_BG_out) + &
-                   + sum(currentPatch%seed_decay) + sum(currentPatch%leaf_litter_out) + sum(currentPatch%root_litter_out)) &
-                   * ( currentPatch%area/AREA ) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
+              ed_to_bgc_this_edts(c) = ed_to_bgc_this_edts(c) + &
+                   (sum(currentPatch%CWD_AG_out) + sum(currentPatch%CWD_BG_out) + &
+                    sum(currentPatch%seed_decay) + sum(currentPatch%leaf_litter_out) + &
+                    sum(currentPatch%root_litter_out)) * &
+                   ( currentPatch%area/AREA ) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
               !
               seed_rain_flux(c) = seed_rain_flux(c) + sum(currentPatch%seed_rain_flux) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
               !
@@ -2296,9 +2308,17 @@ end subroutine SummarizeProductivityFluxes
         ! next compare the change in carbon and calculate the error
         do fc = 1,num_soilc
            c = filter_soilc(fc)
-           error_ed(c) = totedc(c) - totedc_old(c) - (npp_timeintegrated(c) + seed_rain_flux(c)* SHR_CONST_CDAY - ed_to_bgc_this_edts(c)* SHR_CONST_CDAY - fire_c_to_atm(c) * SHR_CONST_CDAY)
-           error_bgc(c) = totbgcc(c) - totbgcc_old(c) - (ed_to_bgc_last_edts(c)* SHR_CONST_CDAY - hr_timeintegrated(c))
-           error_total(c) = totecosysc(c) - totecosysc_old(c) - (nbp_integrated(c) + ed_to_bgc_last_edts(c)* SHR_CONST_CDAY - ed_to_bgc_this_edts(c)* SHR_CONST_CDAY)
+           error_ed(c) = totedc(c) - totedc_old(c) - &
+                (npp_timeintegrated(c) + seed_rain_flux(c) * SHR_CONST_CDAY - &
+                ed_to_bgc_this_edts(c) * SHR_CONST_CDAY - &
+                fire_c_to_atm(c) * SHR_CONST_CDAY)
+           
+           error_bgc(c) = totbgcc(c) - totbgcc_old(c) - &
+                (ed_to_bgc_last_edts(c) * SHR_CONST_CDAY - hr_timeintegrated(c))
+           
+           error_total(c) = totecosysc(c) - totecosysc_old(c) - &
+                (nbp_integrated(c) + ed_to_bgc_last_edts(c) * SHR_CONST_CDAY - &
+                ed_to_bgc_this_edts(c)* SHR_CONST_CDAY)
         end do
         !
         ! put in consistent flux units and send to history so we can keep track of the errors

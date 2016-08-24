@@ -20,7 +20,7 @@ module EDAccumulateFluxesMod
 contains
 
   !------------------------------------------------------------------------------
-  subroutine AccumulateFluxes_ED(sites, nsites, bc_in, bc_out)
+  subroutine AccumulateFluxes_ED(nsites, sites, bc_in, bc_out)
     !
     ! !DESCRIPTION:
     ! see above
@@ -32,8 +32,8 @@ contains
     use FatesInterfaceMod , only : bc_in_type,bc_out_type
     !
     ! !ARGUMENTS    
-    type(ed_site_type), intent(inout), target :: sites(nsites)
     integer,            intent(in)            :: nsites
+    type(ed_site_type), intent(inout), target :: sites(nsites)
     type(bc_in_type),   intent(in)            :: bc_in(nsites)
     type(bc_out_type),  intent(inout)         :: bc_out(nsites)
     !
