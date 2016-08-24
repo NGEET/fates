@@ -1244,15 +1244,17 @@ fraction_exposed= 1.0_r8
            
            currentCohort => currentPatch%tallest
            do while(associated(currentCohort))
-                 
-              ! for quantities that are natively at column level or higher, calculate plant density using whole area (for grid cell averages)
-              n_perm2   = currentCohort%n/AREA                    
-              
-              ! map biomass pools to column level
-              biomass_stock(c) =  biomass_stock(c) + (currentCohort%bdead + currentCohort%balive + &
-                    currentCohort%bstore) * n_perm2 * 1.e3_r8
 
-              npp_col(c) = npp_col(c) + currentCohort%npp_tstep * n_perm2 * 1.e3_r8 /dt
+              if ( .not. currentCohort%isnew ) then
+                 ! for quantities that are natively at column level or higher, calculate plant density using whole area (for grid cell averages)
+                 n_perm2   = currentCohort%n/AREA                    
+                 
+                 ! map biomass pools to column level
+                 biomass_stock(c) =  biomass_stock(c) + (currentCohort%bdead + currentCohort%balive + &
+                      currentCohort%bstore) * n_perm2 * 1.e3_r8
+                 
+                 npp_col(c) = npp_col(c) + currentCohort%npp_tstep * n_perm2 * 1.e3_r8 /dt
+              end if
 
               currentCohort => currentCohort%shorter
            enddo !currentCohort
