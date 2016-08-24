@@ -36,32 +36,6 @@ module EDCLMLinkMod
 
   type, public :: ed_clm_type
 
-     real(r8), pointer, private  :: trimming_patch             (:) 
-     real(r8), pointer, private  :: area_plant_patch           (:) 
-     real(r8), pointer, private  :: area_trees_patch           (:) 
-     real(r8), pointer, private  :: canopy_spread_patch        (:) 
-     real(r8), pointer, private  :: PFTbiomass_patch           (:,:) ! total biomass of each patch
-     real(r8), pointer, private  :: PFTleafbiomass_patch       (:,:) ! total biomass of each patch   
-     real(r8), pointer, private  :: PFTstorebiomass_patch      (:,:) ! total biomass of each patch   
-     real(r8), pointer, private  :: PFTnindivs_patch           (:,:) ! total biomass of each patch 
-
-     real(r8), pointer, private  :: nesterov_fire_danger_patch (:)   ! total biomass of each patch 
-     real(r8), pointer, private  :: spitfire_ROS_patch         (:)   ! total biomass of each patch 
-     real(r8), pointer, private  :: effect_wspeed_patch        (:)   ! total biomass of each patch 
-     real(r8), pointer, private  :: TFC_ROS_patch              (:)   ! total biomass of each patch 
-     real(r8), pointer, private  :: fire_intensity_patch       (:)   ! total biomass of each patch 
-     real(r8), pointer, private  :: fire_area_patch            (:)   ! total biomass of each patch 
-     real(r8), pointer, private  :: scorch_height_patch        (:)   ! total biomass of each patch 
-     real(r8), pointer, private  :: fire_fuel_bulkd_patch      (:)   ! total biomass of each patch 
-     real(r8), pointer, private  :: fire_fuel_eff_moist_patch  (:)   ! total biomass of each patch 
-     real(r8), pointer, private  :: fire_fuel_sav_patch        (:)   ! total biomass of each patch       
-     real(r8), pointer, private  :: fire_fuel_mef_patch        (:)   ! total biomass of each patch 
-     real(r8), pointer, private  :: sum_fuel_patch             (:)   ! total biomass of each patch 
-
-     real(r8), pointer, private  :: litter_in_patch            (:)   ! total biomass of each patch 
-     real(r8), pointer, private  :: litter_out_patch           (:)   ! total biomass of each patch    
-     real(r8), pointer, private  :: efpot_patch                (:)   ! potential transpiration
-     real(r8), pointer, private  :: rb_patch                   (:)   ! boundary layer conductance
 
      real(r8), pointer, private  :: daily_temp_patch           (:)   ! daily temperature for fire and phenology models
      real(r8), pointer, private  :: daily_rh_patch             (:)   ! daily RH for fire model
@@ -69,54 +43,24 @@ module EDCLMLinkMod
 
      !seed model. Aggregated to gridcell for now. 
 
-     real(r8), pointer, private  :: seed_bank_patch            (:)   ! kGC/m2      Mass of seeds.                 
-     real(r8), pointer, private  :: seeds_in_patch             (:)   ! kGC/m2/year Production of seed mass.       
-     real(r8), pointer, private  :: seed_decay_patch           (:)   ! kGC/m2/year Decay of seed mass.            
-     real(r8), pointer, private  :: seed_germination_patch     (:)   ! kGC/m2/year Germiantion rate of seed mass. 
+     ! RGK: LEAVING SOME OLD DEFINITIONS IN UNTIL UNIT DISCREPANCIES ARE RECTIFIED
 
-     real(r8), pointer, private  :: ED_bstore_patch            (:)   ! kGC/m2 Total stored biomass. 
-     real(r8), pointer, private  :: ED_bdead_patch             (:)   ! kGC/m2 Total dead biomass.   
-     real(r8), pointer, private  :: ED_balive_patch            (:)   ! kGC/m2 Total alive biomass.  
-     real(r8), pointer, private  :: ED_bleaf_patch             (:)   ! kGC/m2 Total leaf biomass.   
-     real(r8), pointer, private  :: ED_biomass_patch           (:)   ! kGC/m2 Total biomass.        
-
-     ! vegetation carbon fluxes at the patch scale
-     real(r8), pointer, private  :: npp_patch                  (:)   ! (gC/m2/s) patch net primary production
-     real(r8), pointer, private  :: gpp_patch                  (:)   ! (gC/m2/s) patch gross primary production 
-     real(r8), pointer, private  :: ar_patch                   (:)   ! (gC/m2/s) patch autotrophic respiration
-     real(r8), pointer, private  :: maint_resp_patch           (:)   ! (gC/m2/s) patch maintenance respiration
-     real(r8), pointer, private  :: growth_resp_patch          (:)   ! (gC/m2/s) patch growth respiration
+!     real(r8), pointer, private  :: seed_bank_patch            (:)   ! kGC/m2      Mass of seeds.                 
+!     real(r8), pointer, private  :: seeds_in_patch             (:)   ! kGC/m2/year Production of seed mass.       
+!     real(r8), pointer, private  :: seed_decay_patch           (:)   ! kGC/m2/year Decay of seed mass.            
+!     real(r8), pointer, private  :: seed_germination_patch     (:)   ! kGC/m2/year Germiantion rate of seed mass. 
+!     real(r8), pointer, private  :: ED_bstore_patch            (:)   ! kGC/m2 Total stored biomass. 
+!     real(r8), pointer, private  :: ED_bdead_patch             (:)   ! kGC/m2 Total dead biomass.   
+!     real(r8), pointer, private  :: ED_balive_patch            (:)   ! kGC/m2 Total alive biomass.  
+!     real(r8), pointer, private  :: ED_bleaf_patch             (:)   ! kGC/m2 Total leaf biomass.   
+!     real(r8), pointer, private  :: ED_biomass_patch           (:)   ! kGC/m2 Total biomass.        
+!     Vegetation carbon fluxes at the patch scale
+!     real(r8), pointer, private  :: npp_patch                  (:)   ! (gC/m2/s) patch net primary production
+!     real(r8), pointer, private  :: gpp_patch                  (:)   ! (gC/m2/s) patch gross primary production 
+!     real(r8), pointer, private  :: ar_patch                   (:)   ! (gC/m2/s) patch autotrophic respiration
+!     real(r8), pointer, private  :: maint_resp_patch           (:)   ! (gC/m2/s) patch maintenance respiration
+!     real(r8), pointer, private  :: growth_resp_patch          (:)   ! (gC/m2/s) patch growth respiration
      
-     real(r8), pointer :: ed_gpp_col_scpf          (:,:)   ! [kg/m2/yr] gross primary production
-     real(r8), pointer :: ed_npp_totl_col_scpf     (:,:)   ! [kg/m2/yr] net primary production (npp)
-     real(r8), pointer :: ed_npp_leaf_col_scpf     (:,:)   ! [kg/m2/yr] npp flux into leaf pool
-     real(r8), pointer :: ed_npp_seed_col_scpf     (:,:)   ! [kg/m2/yr] npp flux into flower,fruit,nut,seed
-     real(r8), pointer :: ed_npp_fnrt_col_scpf     (:,:)   ! [kg/m2/yr] npp flux into fine roots
-     real(r8), pointer :: ed_npp_bgsw_col_scpf     (:,:)   ! [kg/m2/yr] npp flux into below ground sapwood
-     real(r8), pointer :: ed_npp_bgdw_col_scpf     (:,:)   ! [kg/m2/yr] npp flux into below ground structural (dead) wood
-     real(r8), pointer :: ed_npp_agsw_col_scpf     (:,:)   ! [kg/m2/yr] npp flux into above ground sapwood
-     real(r8), pointer :: ed_npp_agdw_col_scpf     (:,:)   ! [kg/m2/yr] npp flux into below ground structural (dead) wood
-     real(r8), pointer :: ed_npp_stor_col_scpf     (:,:)   ! [kg/m2/yr] npp flux through the storage pool
-     real(r8), pointer :: ed_litt_leaf_col_scpf    (:,:)   ! [kg/m2/yr] carbon flux of live leaves to litter
-     real(r8), pointer :: ed_litt_fnrt_col_scpf    (:,:)   ! [kg/m2/yr] carbon flux of fine roots to litter
-     real(r8), pointer :: ed_litt_sawd_col_scpf    (:,:)   ! [kg/m2/yr] carbon flux of sapwood to litter (above+below)
-     real(r8), pointer :: ed_litt_ddwd_col_scpf    (:,:)   ! [kg/m2/yr] carbon flux of dead wood (above+below) to litter
-     real(r8), pointer :: ed_r_leaf_col_scpf       (:,:)   ! [kg/m2/yr] total leaf respiration 
-     real(r8), pointer :: ed_r_stem_col_scpf       (:,:)   ! [kg/m2/yr] total above ground live wood (stem) respiration
-     real(r8), pointer :: ed_r_root_col_scpf       (:,:)   ! [kg/m2/yr] total below ground live wood (root) respiration
-     real(r8), pointer :: ed_r_stor_col_scpf       (:,:)   ! [kg/m2/yr] total storage respiration
-
-     ! Carbon State Variables for direct comparison to inventory - dimensions: (disturbance patch, pft x size)
-
-     real(r8), pointer :: ed_ddbh_col_scpf               (:,:) ! [cm/yr] diameter increment
-     real(r8), pointer :: ed_ba_col_scpf                 (:,:) ! [m2/ha] basal area
-     real(r8), pointer :: ed_np_col_scpf                 (:,:) ! [/m2] number of plants
-     real(r8), pointer :: ed_m1_col_scpf                 (:,:) ! [Stems/ha/yr] Mean Background Mortality
-     real(r8), pointer :: ed_m2_col_scpf                 (:,:) ! [Stems/ha/yr] Mean Hydraulic Mortaliry
-     real(r8), pointer :: ed_m3_col_scpf                 (:,:) ! [Stems/ha/yr] Mean Carbon Starvation Mortality
-     real(r8), pointer :: ed_m4_col_scpf                 (:,:) ! [Stems/ha/yr] Mean Impact Mortality
-     real(r8), pointer :: ed_m5_col_scpf                 (:,:) ! [Stems/ha/yr] Mean Fire Mortality
-
      ! summary carbon fluxes at the column level
      real(r8), pointer,  private :: nep_col(:)                       ! [gC/m2/s] Net ecosystem production, i.e. fast-timescale carbon balance that does not include disturbance
      real(r8), pointer,  private :: nep_timeintegrated_col(:)                       ! [gC/m2/s] Net ecosystem production, i.e. fast-timescale carbon balance that does not include disturbance
@@ -155,18 +99,15 @@ module EDCLMLinkMod
      ! Public routines
      procedure , public  :: Init   
      procedure , public  :: Restart
-     procedure , public  :: SetValues
      procedure , public  :: ed_clm_link
      procedure , public  :: SummarizeNetFluxes
-     procedure , public  :: SummarizeProductivityFluxes     
+!     procedure , public  :: SummarizeProductivityFluxes     
      procedure , public  :: ED_BGC_Carbon_Balancecheck
 
      ! Private routines
      procedure , private :: ed_clm_leaf_area_profile
-     procedure , private :: ed_update_history_variables
      procedure , private :: InitAllocate 
      procedure , private :: InitHistory
-!     procedure , private :: InitCold    
 
   end type ed_clm_type
 
@@ -188,7 +129,6 @@ contains
 
     call this%InitAllocate(bounds)
     call this%InitHistory(bounds)
-    !call this%InitCold(bounds)
 
   end subroutine Init
 
@@ -212,47 +152,6 @@ contains
 
     begp = bounds%begp; endp = bounds%endp
     begc = bounds%begc; endc = bounds%endc
-
-
-    allocate(this%trimming_patch             (begp:endp))            ; this%trimming_patch             (:) = 0.0_r8    
-    allocate(this%canopy_spread_patch        (begp:endp))            ; this%canopy_spread_patch        (:) = 0.0_r8    
-    allocate(this%area_plant_patch           (begp:endp))            ; this%area_plant_patch           (:) = 0.0_r8    
-    allocate(this%area_trees_patch           (begp:endp))            ; this%area_trees_patch           (:) = 0.0_r8    
-    allocate(this%PFTbiomass_patch           (begp:endp,1:nlevgrnd)) ; this%PFTbiomass_patch           (:,:) = 0.0_r8    
-    allocate(this%PFTleafbiomass_patch       (begp:endp,1:nlevgrnd)) ; this%PFTleafbiomass_patch       (:,:) = 0.0_r8    
-    allocate(this%PFTstorebiomass_patch      (begp:endp,1:nlevgrnd)) ; this%PFTstorebiomass_patch      (:,:) = 0.0_r8    
-    allocate(this%PFTnindivs_patch           (begp:endp,1:nlevgrnd)) ; this%PFTnindivs_patch           (:,:) = 0.0_r8    
-    allocate(this%nesterov_fire_danger_patch (begp:endp))            ; this%nesterov_fire_danger_patch (:) = 0.0_r8    
-    allocate(this%spitfire_ROS_patch         (begp:endp))            ; this%spitfire_ROS_patch         (:) = 0.0_r8    
-    allocate(this%effect_wspeed_patch        (begp:endp))            ; this%effect_wspeed_patch        (:) = 0.0_r8    
-    allocate(this%TFC_ROS_patch              (begp:endp))            ; this%TFC_ROS_patch              (:) = 0.0_r8    
-    allocate(this%fire_intensity_patch       (begp:endp))            ; this%fire_intensity_patch       (:) = 0.0_r8    
-    allocate(this%fire_area_patch            (begp:endp))            ; this%fire_area_patch            (:) = 0.0_r8    
-    allocate(this%scorch_height_patch        (begp:endp))            ; this%scorch_height_patch        (:) = 0.0_r8    
-    allocate(this%fire_fuel_bulkd_patch      (begp:endp))            ; this%fire_fuel_bulkd_patch      (:) = 0.0_r8    
-    allocate(this%fire_fuel_eff_moist_patch  (begp:endp))            ; this%fire_fuel_eff_moist_patch  (:) = 0.0_r8    
-    allocate(this%fire_fuel_sav_patch        (begp:endp))            ; this%fire_fuel_sav_patch        (:) = 0.0_r8    
-    allocate(this%fire_fuel_mef_patch        (begp:endp))            ; this%fire_fuel_mef_patch        (:) = 0.0_r8    
-    allocate(this%sum_fuel_patch             (begp:endp))            ; this%sum_fuel_patch             (:) = 0.0_r8    
-    allocate(this%litter_in_patch            (begp:endp))            ; this%litter_in_patch            (:) = 0.0_r8    
-    allocate(this%litter_out_patch           (begp:endp))            ; this%litter_out_patch           (:) = 0.0_r8    
-    allocate(this%efpot_patch                (begp:endp))            ; this%efpot_patch                (:) = 0.0_r8    
-    allocate(this%rb_patch                   (begp:endp))            ; this%rb_patch                   (:) = 0.0_r8    
-    allocate(this%seed_bank_patch            (begp:endp))            ; this%seed_bank_patch            (:) = 0.0_r8    
-    allocate(this%seed_decay_patch           (begp:endp))            ; this%seed_decay_patch           (:) = 0.0_r8    
-    allocate(this%seeds_in_patch             (begp:endp))            ; this%seeds_in_patch             (:) = 0.0_r8    
-    allocate(this%seed_germination_patch     (begp:endp))            ; this%seed_germination_patch     (:) = 0.0_r8    
-    allocate(this%ED_bstore_patch            (begp:endp))            ; this%ED_bstore_patch            (:) = 0.0_r8    
-    allocate(this%ED_bdead_patch             (begp:endp))            ; this%ED_bdead_patch             (:) = 0.0_r8    
-    allocate(this%ED_balive_patch            (begp:endp))            ; this%ED_balive_patch            (:) = 0.0_r8    
-    allocate(this%ED_bleaf_patch             (begp:endp))            ; this%ED_bleaf_patch             (:) = 0.0_r8    
-    allocate(this%ED_biomass_patch           (begp:endp))            ; this%ED_biomass_patch           (:) = 0.0_r8    
-
-    allocate(this%gpp_patch                  (begp:endp))            ; this%gpp_patch                  (:) = nan
-    allocate(this%npp_patch                  (begp:endp))            ; this%npp_patch                  (:) = nan
-    allocate(this%ar_patch                   (begp:endp))            ; this%ar_patch                   (:) = nan
-    allocate(this%maint_resp_patch           (begp:endp))            ; this%maint_resp_patch           (:) = nan
-    allocate(this%growth_resp_patch          (begp:endp))            ; this%growth_resp_patch          (:) = nan
 
     allocate(this%ed_to_bgc_this_edts_col    (begc:endc))            ; this%ed_to_bgc_this_edts_col   (:) = nan
     allocate(this%ed_to_bgc_last_edts_col    (begc:endc))            ; this%ed_to_bgc_last_edts_col   (:) = nan
@@ -281,38 +180,6 @@ contains
     allocate(this%cbalance_error_ed_col      (begc:endc))            ; this%cbalance_error_ed_col     (:) = nan    
     allocate(this%cbalance_error_bgc_col     (begc:endc))            ; this%cbalance_error_bgc_col    (:) = nan    
     allocate(this%cbalance_error_total_col   (begc:endc))            ; this%cbalance_error_total_col  (:) = nan    
-
-    allocate(this%ed_npatches_col            (begc:endc))            ; this%ed_npatches_col           (:) = nan    
-    allocate(this%ed_ncohorts_col            (begc:endc))            ; this%ed_ncohorts_col           (:) = nan    
-
-    allocate(this%ed_gpp_col_scpf       (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_gpp_col_scpf        (:,:) = 0.0_r8
-    allocate(this%ed_npp_totl_col_scpf  (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_npp_totl_col_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_npp_leaf_col_scpf  (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_npp_leaf_col_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_npp_seed_col_scpf  (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_npp_seed_col_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_npp_fnrt_col_scpf  (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_npp_fnrt_col_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_npp_bgsw_col_scpf  (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_npp_bgsw_col_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_npp_bgdw_col_scpf  (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_npp_bgdw_col_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_npp_agsw_col_scpf  (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_npp_agsw_col_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_npp_agdw_col_scpf  (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_npp_agdw_col_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_npp_stor_col_scpf  (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_npp_stor_col_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_litt_leaf_col_scpf (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_litt_leaf_col_scpf  (:,:) = 0.0_r8
-    allocate(this%ed_litt_fnrt_col_scpf (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_litt_fnrt_col_scpf  (:,:) = 0.0_r8
-    allocate(this%ed_litt_sawd_col_scpf (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_litt_sawd_col_scpf  (:,:) = 0.0_r8
-    allocate(this%ed_litt_ddwd_col_scpf (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_litt_ddwd_col_scpf  (:,:) = 0.0_r8
-    allocate(this%ed_r_leaf_col_scpf    (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_r_leaf_col_scpf     (:,:) = 0.0_r8
-    allocate(this%ed_r_stem_col_scpf    (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_r_stem_col_scpf     (:,:) = 0.0_r8
-    allocate(this%ed_r_root_col_scpf    (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_r_root_col_scpf     (:,:) = 0.0_r8
-    allocate(this%ed_r_stor_col_scpf    (begc:endc,1:nlevsclass_ed*mxpft)); this%ed_r_stor_col_scpf     (:,:) = 0.0_r8
-
-    ! Carbon State Variables for direct comparison to inventory - dimensions: (disturbance patch, pft x size)
-    allocate(this%ed_ddbh_col_scpf (begc:endc,1:nlevsclass_ed*mxpft)) ; this%ed_ddbh_col_scpf (:,:) = 0.0_r8
-    allocate(this%ed_ba_col_scpf   (begc:endc,1:nlevsclass_ed*mxpft)) ; this%ed_ba_col_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_np_col_scpf   (begc:endc,1:nlevsclass_ed*mxpft)) ; this%ed_np_col_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_m1_col_scpf   (begc:endc,1:nlevsclass_ed*mxpft)) ; this%ed_m1_col_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_m2_col_scpf   (begc:endc,1:nlevsclass_ed*mxpft)) ; this%ed_m2_col_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_m3_col_scpf   (begc:endc,1:nlevsclass_ed*mxpft)) ; this%ed_m3_col_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_m4_col_scpf   (begc:endc,1:nlevsclass_ed*mxpft)) ; this%ed_m4_col_scpf   (:,:) = 0.0_r8
-    allocate(this%ed_m5_col_scpf   (begc:endc,1:nlevsclass_ed*mxpft)) ; this%ed_m5_col_scpf   (:,:) = 0.0_r8
 
   end subroutine InitAllocate
 
@@ -346,163 +213,6 @@ contains
     begp = bounds%begp; endp = bounds%endp
     begc = bounds%begc; endc = bounds%endc
 
-    call hist_addfld1d (fname='TRIMMING', units='none',  &
-         avgflag='A', long_name='Degree to which canopy expansion is limited by leaf economics', &
-         ptr_patch=this%trimming_patch, set_lake=0._r8, set_urb=0._r8)  
-
-    call hist_addfld1d (fname='AREA_PLANT', units='m2',  &
-         avgflag='A', long_name='area occupied by all plants', &
-         ptr_patch=this%area_plant_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='AREA_TREES', units='m2',  &
-         avgflag='A', long_name='area occupied by woody plants', &
-         ptr_patch=this%area_trees_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='CANOPY_SPREAD', units='none',  &   
-         avgflag='A', long_name='Scaling factor between tree basal area and canopy area', &
-         ptr_patch=this%canopy_spread_patch, set_lake=0._r8, set_urb=0._r8)   
-
-    call hist_addfld2d (fname='PFTbiomass',  units='gC/m2', type2d='levgrnd', &
-         avgflag='A', long_name='total PFT level biomass', &
-         ptr_patch=this%PFTbiomass_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld2d (fname='PFTleafbiomass',  units='gC/m2', type2d='levgrnd', &
-         avgflag='A', long_name='total PFT level leaf biomass', &
-         ptr_patch=this%PFTleafbiomass_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld2d (fname='PFTstorebiomass',  units='gC/m2', type2d='levgrnd', &
-         avgflag='A', long_name='total PFT level stored biomass', &
-         ptr_patch=this%PFTstorebiomass_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld2d (fname='PFTnindivs',  units='indiv / m2', type2d='levgrnd', &
-         avgflag='A', long_name='total PFT level number of individuals', &
-         ptr_patch=this%PFTnindivs_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='FIRE_NESTEROV_INDEX', units='none',  &
-         avgflag='A', long_name='nesterov_fire_danger index', &
-         ptr_patch=this%nesterov_fire_danger_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='FIRE_ROS', units='m/min',  &
-         avgflag='A', long_name='fire rate of spread m/min', &
-         ptr_patch=this%spitfire_ROS_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='EFFECT_WSPEED', units='none',  &
-         avgflag='A', long_name='effective windspeed for fire spread', &
-         ptr_patch=this%effect_wspeed_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='FIRE_TFC_ROS', units='none',  &
-         avgflag='A', long_name='total fuel consumed', &
-         ptr_patch=this%TFC_ROS_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='FIRE_INTENSITY', units='kJ/m/s',  &
-         avgflag='A', long_name='spitfire fire intensity: kJ/m/s', &
-         ptr_patch=this%fire_intensity_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='FIRE_AREA', units='fraction',  &
-         avgflag='A', long_name='spitfire fire area:m2', &
-         ptr_patch=this%fire_area_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='SCORCH_HEIGHT', units='m',  &
-         avgflag='A', long_name='spitfire fire area:m2', &
-         ptr_patch=this%scorch_height_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='fire_fuel_mef', units='m',  &
-         avgflag='A', long_name='spitfire fuel moisture', &
-         ptr_patch=this%fire_fuel_mef_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='fire_fuel_bulkd', units='m',  &
-         avgflag='A', long_name='spitfire fuel bulk density', &
-         ptr_patch=this%fire_fuel_bulkd_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='fire_fuel_eff_moist', units='m',  &
-         avgflag='A', long_name='spitfire fuel moisture', &
-         ptr_patch=this%fire_fuel_eff_moist_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='fire_fuel_sav', units='m',  &
-         avgflag='A', long_name='spitfire fuel surface/volume ', &
-         ptr_patch=this%fire_fuel_sav_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='SUM_FUEL', units='gC m-2',  &
-         avgflag='A', long_name='total ground fuel related to ros (omits 1000hr fuels)', &
-         ptr_patch=this%sum_fuel_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='LITTER_IN', units='gC m-2 s-1',  &
-         avgflag='A', long_name='Litter flux in leaves', &
-         ptr_patch=this%litter_in_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='LITTER_OUT', units='gC m-2 s-1',  &
-         avgflag='A', long_name='Litter flux out leaves', &
-         ptr_patch=this%litter_out_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='SEED_BANK', units='gC m-2',  &
-         avgflag='A', long_name='Total Seed Mass of all PFTs', &
-         ptr_patch=this%seed_bank_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='SEEDS_IN', units='gC m-2 s-1',  &
-         avgflag='A', long_name='Seed Production Rate', &
-         ptr_patch=this%seeds_in_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='SEED_GERMINATION', units='gC m-2 s-1',  &
-         avgflag='A', long_name='Seed mass converted into new cohorts', &
-         ptr_patch=this%seed_germination_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='SEED_DECAY', units='gC m-2 s-1',  &
-         avgflag='A', long_name='Seed mass decay', &
-         ptr_patch=this%seed_decay_patch, set_lake=0._r8, set_urb=0._r8)              
-
-    call hist_addfld1d (fname='ED_bstore', units='gC m-2',  &
-         avgflag='A', long_name='ED stored biomass', &
-         ptr_patch=this%ED_bstore_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='ED_bdead', units='gC m-2',  &
-         avgflag='A', long_name='ED dead biomass', &
-         ptr_patch=this%ED_bdead_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='ED_balive', units='gC m-2',  &
-         avgflag='A', long_name='ED live biomass', &
-         ptr_patch=this%ED_balive_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='ED_bleaf', units='gC m-2',  &
-         avgflag='A', long_name='ED leaf biomass', &
-         ptr_patch=this%ED_bleaf_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='ED_biomass', units='gC m-2',  &
-         avgflag='A', long_name='ED total biomass', &
-         ptr_patch=this%ED_biomass_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='RB', units='s m-1',  &
-         avgflag='A', long_name='leaf boundary resistance', &
-         ptr_patch=this%rb_patch, set_lake=0._r8, set_urb=0._r8)
-
-    call hist_addfld1d (fname='EFPOT', units='',  &
-         avgflag='A', long_name='potential evap', &
-         ptr_patch=this%efpot_patch, set_lake=0._r8, set_urb=0._r8)
-
-    this%gpp_patch(begp:endp) = spval
-    call hist_addfld1d (fname='GPP', units='gC/m^2/s', &
-         avgflag='A', long_name='gross primary production', &
-         ptr_patch=this%gpp_patch)
-
-    this%npp_patch(begp:endp) = spval
-    call hist_addfld1d (fname='NPP', units='gC/m^2/s', &
-         avgflag='A', long_name='net primary production', &
-         ptr_patch=this%npp_patch)
-
-    this%ar_patch(begp:endp) = spval
-    call hist_addfld1d (fname='AR', units='gC/m^2/s', &
-         avgflag='A', long_name='autotrophic respiration', &
-         ptr_patch=this%ar_patch)
-
-    this%growth_resp_patch(begp:endp) = spval
-    call hist_addfld1d (fname='GROWTH_RESP', units='gC/m^2/s', &
-         avgflag='A', long_name='growth respiration', &
-         ptr_patch=this%growth_resp_patch)
-
-    this%maint_resp_patch(begp:endp) = spval
-    call hist_addfld1d (fname='MAINT_RESP', units='gC/m^2/s', &
-         avgflag='A', long_name='maintenance respiration', &
-         ptr_patch=this%maint_resp_patch)
-
     this%nep_col(begc:endc) = spval
     call hist_addfld1d (fname='NEP', units='gC/m^2/s', &
          avgflag='A', long_name='net ecosystem production', &
@@ -517,11 +227,6 @@ contains
     call hist_addfld1d (fname='NBP', units='gC/m^2/s', &
          avgflag='A', long_name='net biosphere production', &
          ptr_col=this%nbp_col)
-
-    this%npp_col(begc:endc) = spval
-    call hist_addfld1d (fname='NPP_column', units='gC/m^2/s', &
-         avgflag='A', long_name='net primary production on column level', &
-         ptr_col=this%npp_col,default='inactive')
 
     this%totecosysc_col(begc:endc) = spval
     call hist_addfld1d (fname='TOTECOSYSC', units='gC/m^2', &
@@ -562,88 +267,6 @@ contains
     call hist_addfld1d (fname='SEED_STOCK_COL', units='gC/m^2', &
          avgflag='A', long_name='total seed carbon at the column level', &
          ptr_col=this%seed_stock_col)
-
-    
-    ! Carbon Flux (grid dimension x scpf)
-    ! ==============================================================
-
-    call hist_addfld2d (fname='ED_GPP_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&
-          avgflag='A', long_name='gross primary production',     &
-          ptr_gcell=this%ed_gpp_col_scpf,default='inactive')
-
-    call hist_addfld2d (fname='ED_NPP_LEAF_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&
-          avgflag='A', long_name='NPP flux into leaves',               &
-          ptr_gcell=this%ed_npp_leaf_col_scpf,default='inactive')
-
-    call hist_addfld2d (fname='ED_NPP_SEED_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&
-          avgflag='A', long_name='NPP flux into seeds',                &
-          ptr_gcell=this%ed_npp_seed_col_scpf,default='inactive')
-
-    call hist_addfld2d (fname='ED_NPP_FNRT_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&
-          avgflag='A', long_name='NPP flux into fine roots',           &
-          ptr_gcell=this%ed_npp_fnrt_col_scpf,default='inactive')
-
-    call hist_addfld2d (fname='ED_NPP_BGSW_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&
-          avgflag='A', long_name='NPP flux into below-ground sapwood', &
-          ptr_gcell=this%ed_npp_bgsw_col_scpf,default='inactive')
-
-    call hist_addfld2d (fname='ED_NPP_BGDW_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&
-          avgflag='A', long_name='NPP flux into below-ground deadwood', &
-          ptr_gcell=this%ed_npp_bgdw_col_scpf,default='inactive')
-
-    call hist_addfld2d (fname='ED_NPP_AGSW_COL_SCPF',units='kgC/m2/yr',type2d='levscpf',&
-          avgflag='A', long_name='NPP flux into above-ground sapwood',  &
-          ptr_gcell=this%ed_npp_agsw_col_scpf,default='inactive')
-
-    call hist_addfld2d ( fname = 'ED_NPP_AGDW_COL_SCPF', units='kgC/m2/yr',type2d='levscpf',&
-          avgflag='A', long_name='NPP flux into above-ground deadwood', &
-          ptr_gcell=this%ed_npp_agdw_col_scpf,default='inactive')
-
-    call hist_addfld2d ( fname = 'ED_NPP_STOR_COL_SCPF', units='kgC/m2/yr',type2d='levscpf',&
-          avgflag='A', long_name='NPP flux into storage',          &
-          ptr_gcell=this%ed_npp_stor_col_scpf,default='inactive')
-
-    call hist_addfld2d (fname='ED_DDBH_COL_SCPF', units = 'cm/yr/ha', type2d = 'levscpf', &
-          avgflag='A', long_name='diameter growth increment and pft/size', &
-          ptr_gcell=this%ed_ddbh_col_scpf, default='inactive')
-
-    call hist_addfld2d (fname='ED_BA_COL_SCPF',units = 'm2/ha', type2d = 'levscpf', &
-          avgflag='A', long_name='basal area by patch and pft/size', &
-          ptr_gcell=this%ed_ba_col_scpf, default='inactive')
-
-     call hist_addfld2d (fname='ED_NPLANT_COL_SCPF',units = 'N/ha', type2d = 'levscpf', &
-          avgflag='A', long_name='stem number density by patch and pft/size', &
-          ptr_gcell=this%ed_np_col_scpf, default='inactive')
-
-    call hist_addfld2d (fname='ED_M1_COL_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
-          avgflag='A', long_name='background mortality count by patch and pft/size', &
-          ptr_gcell=this%ed_m1_col_scpf, default='inactive')
-
-    call hist_addfld2d (fname='ED_M2_COL_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
-          avgflag='A', long_name='hydraulic mortality count by patch and pft/size', &
-          ptr_gcell=this%ed_m2_col_scpf, default='inactive')
-
-    call hist_addfld2d (fname='ED_M3_COL_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
-          avgflag='A', long_name='carbon starvation mortality count by patch and pft/size', &
-          ptr_gcell=this%ed_m3_col_scpf, default='inactive')
-
-    call hist_addfld2d (fname='ED_M4_COL_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
-          avgflag='A', long_name='impact mortality count by patch and pft/size', &
-          ptr_gcell=this%ed_m4_col_scpf, default='inactive')
-
-    call hist_addfld2d (fname='ED_M5_COL_SCPF',units = 'N/ha/yr', type2d = 'levscpf', &
-          avgflag='A', long_name='fire mortality count by patch and pft/size', &
-          ptr_gcell=this%ed_m5_col_scpf, default='inactive')
-
-    this%ed_npatches_col(begc:endc) = spval
-    call hist_addfld1d (fname='ED_NPATCHES', units='unitless', &
-         avgflag='A', long_name='ED total number of patches per site', &
-         ptr_col=this%ed_npatches_col)
-
-    this%ed_ncohorts_col(begc:endc) = spval
-    call hist_addfld1d (fname='ED_NCOHORTS', units='unitless', &
-         avgflag='A', long_name='ED total number of cohorts per site', &
-         ptr_col=this%ed_ncohorts_col)
 
   end subroutine InitHistory
 
@@ -755,33 +378,6 @@ contains
     
 
   end subroutine Restart
-
-  !-----------------------------------------------------------------------
-  subroutine SetValues( this, bounds, val)
-    !
-    ! !ARGUMENTS:
-    class (ed_clm_type)            :: this
-    type(bounds_type) , intent(in) :: bounds 
-    real(r8)          , intent(in) :: val
-    !
-    ! !LOCAL VARIABLES:
-    integer :: fi,i,j,k,l     ! loop index
-    !-----------------------------------------------------------------------
-
-    !
-    ! FIX(SPM,082714) - commenting these lines out while merging ED branch to CLM
-    ! trunk.  Commented out by RF to work out science issues
-    !
-    !this%trimming_patch        (:) = val
-    !this%canopy_spread_patch   (:) = val
-    !this%PFTbiomass_patch      (:,:) = val
-    !this%PFTleafbiomass_patch  (:,:) = val
-    !this%PFTstorebiomass_patch (:,:) = val
-    !this%PFTnindivs_patch      (:,:) = val
-    this%efpot_patch            (:) = val
-    this%rb_patch               (:) = val
-
-  end subroutine SetValues
 
   !-----------------------------------------------------------------------
 
@@ -1027,370 +623,9 @@ contains
          
       end do ! column loop
 
-      call this%ed_update_history_variables(bounds, sites(:), nsites, fcolumn(:), canopystate_inst)
-      
     end associate
 
   end subroutine ed_clm_link
-
-  !-----------------------------------------------------------------------
-  subroutine ed_update_history_variables( this, bounds, sites, nsites, fcolumn, canopystate_inst)
-    !
-    ! !USES: 
-    use CanopyStateType  , only : canopystate_type
-    use PatchType        , only : clmpatch => patch
-    use pftconMod        , only : pftcon
-
-    !
-    ! !ARGUMENTS:
-    class(ed_clm_type)                              ::  this
-    type(bounds_type)       , intent(in)            :: bounds  ! clump bounds
-    type(ed_site_type)      , intent(inout), target :: sites(nsites)
-    integer                 , intent(in)            :: nsites
-    integer                 , intent(in)            :: fcolumn(nsites)
-    type(ed_patch_type)     , pointer               :: currentPatch
-    type(ed_cohort_type)    , pointer               :: currentCohort
-    type(canopystate_type)  , intent(inout)         :: canopystate_inst
-    !
-    ! !LOCAL VARIABLES:
-    integer  :: p,ft,c,s
-!    integer  :: firstsoilpatch(bounds%begg:bounds%endg)
-    real(r8) :: n_density   ! individual of cohort per m2.
-    real(r8) :: n_perm2     ! individuals per m2 for the whole column
-    real(r8) :: patch_scaling_scalar ! ratio of canopy to patch area for counteracting patch scaling
-    real(r8) :: dbh         ! actual dbh used to identify relevant size class
-    integer  :: scpf        ! size class x pft index
-    integer  :: sc
-    !-----------------------------------------------------------------------
-
-    associate(                                                           &
-         trimming             => this%trimming_patch             , & ! Output:
-         canopy_spread        => this%canopy_spread_patch        , & ! Output:
-         PFTbiomass           => this%PFTbiomass_patch           , & ! Output:
-         PFTleafbiomass       => this%PFTleafbiomass_patch       , & ! Output:
-         PFTstorebiomass      => this%PFTstorebiomass_patch      , & ! Output:
-         PFTnindivs           => this%PFTnindivs_patch           , & ! Output:
-         area_plant           => this%area_plant_patch           , & ! Output:
-         area_trees           => this%area_trees_patch           , & ! Output:
-         nesterov_fire_danger => this%nesterov_fire_danger_patch , & ! Output:
-         spitfire_ROS         => this%spitfire_ROS_patch         , & ! Output:
-         effect_wspeed        => this%effect_wspeed_patch        , & ! Output:
-         TFC_ROS              => this%TFC_ROS_patch              , & ! Output:
-         sum_fuel             => this%sum_fuel_patch             , & ! Output:
-         fire_intensity       => this%fire_intensity_patch       , & ! Output:
-         fire_area            => this%fire_area_patch            , & ! Output:
-         scorch_height        => this%scorch_height_patch        , & ! Output:
-         fire_fuel_bulkd      => this%fire_fuel_bulkd_patch      , & ! Output:
-         fire_fuel_eff_moist  => this%fire_fuel_eff_moist_patch  , & ! Output:
-         fire_fuel_sav        => this%fire_fuel_sav_patch        , & ! Output:
-         fire_fuel_mef        => this%fire_fuel_mef_patch        , & ! Output:
-         litter_in            => this%litter_in_patch            , & ! Output:
-         litter_out           => this%litter_out_patch           , & ! Output:
-         seed_bank            => this%seed_bank_patch            , & ! Output:
-         seeds_in             => this%seeds_in_patch             , & ! Output:
-         seed_decay           => this%seed_decay_patch           , & ! Output:
-         seed_germination     => this%seed_germination_patch     , & ! Output:
-         
-         ED_biomass           => this%ED_biomass_patch           , & ! InOut:
-         ED_bdead             => this%ED_bdead_patch             , & ! InOut:
-         ED_bleaf             => this%ED_bleaf_patch             , & ! InOut:
-         ED_balive            => this%ED_balive_patch            , & ! InOut:
-         ED_bstore            => this%ED_bstore_patch            , & ! InOut:
-         
-         ed_gpp_scpf          => this%ed_gpp_col_scpf             , &
-         ed_npp_totl_scpf     => this%ed_npp_totl_col_scpf        , &
-         ed_npp_leaf_scpf     => this%ed_npp_leaf_col_scpf        , &
-         ed_npp_seed_scpf     => this%ed_npp_seed_col_scpf        , &
-         ed_npp_fnrt_scpf     => this%ed_npp_fnrt_col_scpf        , &
-         ed_npp_bgsw_scpf     => this%ed_npp_bgsw_col_scpf        , &
-         ed_npp_bgdw_scpf     => this%ed_npp_bgdw_col_scpf        , &
-         ed_npp_agsw_scpf     => this%ed_npp_agsw_col_scpf        , &
-         ed_npp_agdw_scpf     => this%ed_npp_agdw_col_scpf        , &
-         ed_npp_stor_scpf     => this%ed_npp_stor_col_scpf        , &
-
-         ed_npatches          => this%ed_npatches_col            , &
-         ed_ncohorts          => this%ed_ncohorts_col            , &
-
-         ed_ddbh_col_scpf        => this%ed_ddbh_col_scpf          , &
-         ed_ba_col_scpf          => this%ed_ba_col_scpf            , &
-         ed_np_col_scpf          => this%ed_np_col_scpf            , &
-         ed_m1_col_scpf          => this%ed_m1_col_scpf            , &
-         ed_m2_col_scpf          => this%ed_m2_col_scpf            , &
-         ed_m3_col_scpf          => this%ed_m3_col_scpf            , &
-         ed_m4_col_scpf          => this%ed_m4_col_scpf            , &
-         ed_m5_col_scpf          => this%ed_m5_col_scpf            , &        
-
-         begp                 => bounds%begp                     , &
-         endp                 => bounds%endp                       &
-         )
-
-      ! ============================================================================
-      ! Zero the whole variable so we dont have ghost values when patch number declines.
-      ! ============================================================================
-      
-      trimming(:)             = 1.0_r8 !the default value of this is 1.0, making it 0.0 means that the output is confusing. 
-      canopy_spread(:)        = 0.0_r8 
-      PFTbiomass(:,:)         = 0.0_r8
-      PFTleafbiomass(:,:)     = 0.0_r8 
-      PFTstorebiomass(:,:)    = 0.0_r8
-      PFTnindivs(:,:)         = 0.0_r8
-      area_plant(:)           = 0.0_r8       
-      area_trees(:)           = 0.0_r8        
-      nesterov_fire_danger(:) = 0.0_r8
-      spitfire_ROS(:)         = 0.0_r8
-      effect_wspeed           = 0.0_r8
-      TFC_ROS(:)              = 0.0_r8
-      fire_intensity(:)       = 0.0_r8
-      fire_area(:)            = 0.0_r8
-      scorch_height(:)        = 0.0_r8
-      fire_fuel_bulkd(:)      = 0.0_r8
-      fire_fuel_eff_moist(:)  = 0.0_r8
-      fire_fuel_sav(:)        = 0.0_r8
-      fire_fuel_mef(:)        = 0.0_r8
-      litter_in(:)            = 0.0_r8
-      litter_out(:)           = 0.0_r8
-      seed_bank(:)            = 0.0_r8          
-      seeds_in(:)             = 0.0_r8
-      seed_decay(:)           = 0.0_r8
-      seed_germination(:)     = 0.0_r8
-      ED_biomass(:)           = 0.0_r8
-      ED_bdead(:)             = 0.0_r8
-      ED_bleaf(:)             = 0.0_r8
-      ED_bstore(:)            = 0.0_r8
-      ED_balive(:)            = 0.0_r8
-
-      ed_gpp_scpf(:,:)      = 0.0_r8
-      ed_npp_totl_scpf(:,:) = 0.0_r8
-      ed_npp_leaf_scpf(:,:) = 0.0_r8
-      ed_npp_seed_scpf(:,:) = 0.0_r8
-      ed_npp_fnrt_scpf(:,:) = 0.0_r8
-      ed_npp_bgsw_scpf(:,:) = 0.0_r8
-      ed_npp_bgdw_scpf(:,:) = 0.0_r8
-      ed_npp_agsw_scpf(:,:) = 0.0_r8
-      ed_npp_agdw_scpf(:,:) = 0.0_r8
-      ed_npp_stor_scpf(:,:) = 0.0_r8
-
-      ed_ddbh_col_scpf(:,:) = 0.0_r8
-      ed_ba_col_scpf(:,:)   = 0.0_r8
-      ed_np_col_scpf(:,:)   = 0.0_r8
-      ed_m1_col_scpf(:,:)   = 0.0_r8
-      ed_m2_col_scpf(:,:)   = 0.0_r8
-      ed_m3_col_scpf(:,:)   = 0.0_r8
-      ed_m4_col_scpf(:,:)   = 0.0_r8
-      ed_m5_col_scpf(:,:)   = 0.0_r8
-
-      ed_npatches(:)      = 0._r8
-      ed_ncohorts(:)      = 0._r8
-
-      do s = 1,nsites
-
-         c = fcolumn(s)
-
-         ! ============================================================================
-         ! Zero the bare ground tile BGC variables.
-         ! ============================================================================
-         
-         p = col%patchi(c)
-         
-         ! INTERF-TODO: THIS ZERO'ING IS REDUNDANT, THE WHOLE PATCH CLUMP IS ALREADY ZERO'D
-
-         trimming(p)             = 1.0_r8 
-         canopy_spread(p)        = 0.0_r8 
-         PFTbiomass(p,:)         = 0.0_r8
-         PFTleafbiomass(p,:)     = 0.0_r8 
-         PFTstorebiomass(p,:)    = 0.0_r8
-         PFTnindivs(p,:)         = 0.0_r8
-         area_plant(p)           = 0.0_r8       
-         area_trees(p)           = 0.0_r8        
-         nesterov_fire_danger(p) = 0.0_r8
-         spitfire_ROS(p)         = 0.0_r8
-         TFC_ROS(p)              = 0.0_r8
-         effect_wspeed(p)        = 0.0_r8
-         fire_intensity(p)       = 0.0_r8
-         fire_area(p)            = 0.0_r8
-         scorch_height(p)        = 0.0_r8
-         fire_fuel_bulkd(p)      = 0.0_r8
-         fire_fuel_eff_moist(p)  = 0.0_r8
-         fire_fuel_sav(p)        = 0.0_r8
-         fire_fuel_mef(p)        = 0.0_r8
-         litter_in(p)            = 0.0_r8
-         litter_out(p)           = 0.0_r8
-         seed_bank(p)            = 0.0_r8          
-         seeds_in(p)             = 0.0_r8
-         seed_decay(p)           = 0.0_r8
-         seed_germination(p)     = 0.0_r8
-         ED_biomass(p)           = 0.0_r8
-         ED_balive(p)            = 0.0_r8
-         ED_bdead(p)             = 0.0_r8
-         ED_bstore(p)            = 0.0_r8
-         ED_bleaf(p)             = 0.0_r8
-         ED_bleaf(p)             = 0.0_r8
-         sum_fuel(p)             = 0.0_r8
-
-         currentPatch => sites(s)%oldest_patch
-         do while(associated(currentPatch))
-
-            ! INTERF-TODO: THIS LOGIC SHOULDN'T BE NECESSARY, SHOULD BE CHECKED AT THE BEGINNING
-            ! OF LINKING, ONCE
-            ! %patchno is the local index of the ED/FATES patches, starting at 1
-            if(currentPatch%patchno  <= numpft - numcft)then !don't expand into crop patches.   
-
-               ! Increment CLM/ALM patch index, first was non-veg, these are veg
-               p = p + 1
-               
-               ed_npatches(c) = ed_npatches(c) + 1._r8
-               
-               currentCohort => currentPatch%shortest
-               do while(associated(currentCohort))
-                  !accumulate into history variables. 
-
-                  ft = currentCohort%pft
-
-                  ed_ncohorts(c) = ed_ncohorts(c) + 1._r8
-
-                  if ((currentPatch%area .gt. 0._r8) .and. (currentPatch%total_canopy_area .gt. 0._r8)) then
-                     
-                     ! for quantities that are at the CLM patch level, because of the way that CLM patches are weighted for radiative purposes
-                     ! this # density needs to be over either ED patch canopy area or ED patch total area, whichever is less
-                     n_density = currentCohort%n/min(currentPatch%area,currentPatch%total_canopy_area) 
-                     
-                     ! for quantities that are natively at column level, calculate plant density using whole area
-                     n_perm2   = currentCohort%n/AREA   
-                     
-                  else
-                     n_density = 0.0_r8
-                     n_perm2   = 0.0_r8
-                  endif
-
-                  if ( DEBUG ) then
-                     write(iulog,*) 'EDCLMLinkMod I ',currentCohort%bstore
-                     write(iulog,*) 'EDCLMLinkMod II ',p,ED_bstore(p)
-                  endif
-
-                  ED_bleaf(p)           = ED_bleaf(p)           + n_density * currentCohort%bl       * 1.e3_r8
-                  ED_bstore(p)          = ED_bstore(p)          + n_density * currentCohort%bstore   * 1.e3_r8
-                  ED_biomass(p)         = ED_biomass(p)         + n_density * currentCohort%b        * 1.e3_r8
-                  ED_bdead(p)           = ED_bdead(p)           + n_density * currentCohort%bdead    * 1.e3_r8
-                  ED_balive(p)          = ED_balive(p)          + n_density * currentCohort%balive   * 1.e3_r8
-                  PFTbiomass(p,ft)      = PFTbiomass(p,ft)      + n_density * currentCohort%b        * 1.e3_r8
-                  PFTleafbiomass(p,ft)  = PFTleafbiomass(p,ft)  + n_density * currentCohort%bl       * 1.e3_r8
-                  PFTstorebiomass(p,ft) = PFTstorebiomass(p,ft) + n_density * currentCohort%bstore   * 1.e3_r8
-                  PFTnindivs(p,ft)      = PFTnindivs(p,ft)      + currentCohort%n 
-                    
-                  dbh = currentCohort%dbh !-0.5*(1./365.25)*currentCohort%ddbhdt
-                  sc  = count(dbh-sclass_ed.ge.0.0)
-                  scpf = (ft-1)*nlevsclass_ed+sc
-
-                  ! Flux Variables (must pass a NaN check on growth increment and not be recruits)
-                  if( .not.(currentCohort%isnew) ) then
-                     ed_gpp_scpf(c,scpf)      = ed_gpp_scpf(c,scpf) + n_perm2*currentCohort%gpp ! [kgC/m2/yr]
-                     ed_npp_totl_scpf(c,scpf) = ed_npp_totl_scpf(c,scpf) + currentcohort%npp*n_perm2
-                     ed_npp_leaf_scpf(c,scpf) = ed_npp_leaf_scpf(c,scpf) + currentcohort%npp_leaf*n_perm2
-                     ed_npp_fnrt_scpf(c,scpf) = ed_npp_fnrt_scpf(c,scpf) + currentcohort%npp_froot*n_perm2
-                     ed_npp_bgsw_scpf(c,scpf) = ed_npp_bgsw_scpf(c,scpf) + currentcohort%npp_bsw*(1._r8-ED_val_ag_biomass)*n_perm2
-                     ed_npp_agsw_scpf(c,scpf) = ed_npp_agsw_scpf(c,scpf) + currentcohort%npp_bsw*ED_val_ag_biomass*n_perm2
-                     ed_npp_bgdw_scpf(c,scpf) = ed_npp_bgdw_scpf(c,scpf) + currentcohort%npp_bdead*(1._r8-ED_val_ag_biomass)*n_perm2
-                     ed_npp_agdw_scpf(c,scpf) = ed_npp_agdw_scpf(c,scpf) + currentcohort%npp_bdead*ED_val_ag_biomass*n_perm2
-                     ed_npp_seed_scpf(c,scpf) = ed_npp_seed_scpf(c,scpf) + currentcohort%npp_bseed*n_perm2
-                     ed_npp_stor_scpf(c,scpf) = ed_npp_stor_scpf(c,scpf) + currentcohort%npp_store*n_perm2
-                     if( abs(currentcohort%npp-(currentcohort%npp_leaf+currentcohort%npp_froot+ &
-                                                   currentcohort%npp_bsw+currentcohort%npp_bdead+ &
-                                                   currentcohort%npp_bseed+currentcohort%npp_store))>1.e-9) then
-                        write(iulog,*) 'NPP Partitions are not balancing'
-                        write(iulog,*) 'Fractional Error: ',abs(currentcohort%npp-(currentcohort%npp_leaf+currentcohort%npp_froot+ &
-                              currentcohort%npp_bsw+currentcohort%npp_bdead+ &
-                              currentcohort%npp_bseed+currentcohort%npp_store))/currentcohort%npp
-                        write(iulog,*) 'Terms: ',currentcohort%npp,currentcohort%npp_leaf,currentcohort%npp_froot, &
-                              currentcohort%npp_bsw,currentcohort%npp_bdead, &
-                              currentcohort%npp_bseed,currentcohort%npp_store
-                        write(iulog,*) ' NPP components during FATES-HLM linking does not balance '
-                        call endrun(msg=errMsg(__FILE__, __LINE__))
-                     end if
-                     
-                     ! Woody State Variables (basal area and number density and mortality)
-                     if (pftcon%woody(ft) == 1) then
-                        
-                        ed_m1_col_scpf(c,scpf) = ed_m1_col_scpf(c,scpf) + currentcohort%bmort*n_perm2*AREA
-                        ed_m2_col_scpf(c,scpf) = ed_m2_col_scpf(c,scpf) + currentcohort%hmort*n_perm2*AREA
-                        ed_m3_col_scpf(c,scpf) = ed_m3_col_scpf(c,scpf) + currentcohort%cmort*n_perm2*AREA
-                        ed_m4_col_scpf(c,scpf) = ed_m4_col_scpf(c,scpf) + currentcohort%imort*n_perm2*AREA
-                        ed_m5_col_scpf(c,scpf) = ed_m5_col_scpf(c,scpf) + currentcohort%fmort*n_perm2*AREA
-                        
-                        ! basal area  [m2/ha]
-                        ed_ba_col_scpf(c,scpf) = ed_ba_col_scpf(c,scpf) + &
-                              0.25*3.14159*((dbh/100.0)**2.0)*n_perm2*AREA
-                        
-                        ! number density [/ha]
-                        ed_np_col_scpf(c,scpf) = ed_np_col_scpf(c,scpf) + AREA*n_perm2
-                        
-                        ! Growth Incrments must have NaN check and woody check
-                        if(currentCohort%ddbhdt == currentCohort%ddbhdt) then
-                           ed_ddbh_col_scpf(c,scpf) = ed_ddbh_col_scpf(c,scpf) + &
-                                 currentCohort%ddbhdt*n_perm2*AREA
-                        else
-                           ed_ddbh_col_scpf(c,scpf) = -999.9
-                        end if
-                     end if
-
-                  end if
-
-                  currentCohort         => currentCohort%taller
-               enddo ! cohort loop
-               
-               !Patch specific variables that are already calculated
-               
-               !These things are all duplicated. Should they all be converted to LL or array structures RF? 
-               ! define scalar to counteract the patch albedo scaling logic for conserved quantities
-
-               if (currentPatch%area .gt. 0._r8 .and. currentPatch%total_canopy_area .gt.0 ) then
-                  patch_scaling_scalar  = min(1._r8, currentPatch%area / currentPatch%total_canopy_area)
-               else
-                  patch_scaling_scalar = 0._r8
-               endif
-
-               nesterov_fire_danger(p) = sites(s)%acc_NI 
-               spitfire_ROS(p)         = currentPatch%ROS_front 
-               TFC_ROS(p)              = currentPatch%TFC_ROS
-               effect_wspeed(p)        = currentPatch%effect_wspeed
-               fire_intensity(p)       = currentPatch%FI
-               fire_area(p)            = currentPatch%frac_burnt
-               scorch_height(p)        = currentPatch%SH
-               fire_fuel_bulkd(p)      = currentPatch%fuel_bulkd
-               fire_fuel_eff_moist(p)  = currentPatch%fuel_eff_moist
-               fire_fuel_sav(p)        = currentPatch%fuel_sav
-               fire_fuel_mef(p)        = currentPatch%fuel_mef                          
-               sum_fuel(p)             = currentPatch%sum_fuel * 1.e3_r8 * patch_scaling_scalar
-               litter_in(p)            = (sum(currentPatch%CWD_AG_in) +sum(currentPatch%leaf_litter_in)) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
-               litter_out(p)           = (sum(currentPatch%CWD_AG_out)+sum(currentPatch%leaf_litter_out)) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
-               seed_bank(p)            = sum(currentPatch%seed_bank) * 1.e3_r8 * patch_scaling_scalar
-               seeds_in(p)             = sum(currentPatch%seeds_in) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
-               seed_decay(p)           = sum(currentPatch%seed_decay) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
-               seed_germination(p)     = sum(currentPatch%seed_germination) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
-               canopy_spread(p)        = currentPatch%spread(1) 
-               area_plant(p)           = 1._r8
-               if (min(currentPatch%total_canopy_area,currentPatch%area)>0.0_r8) then
-                  area_trees(p)           = currentPatch%total_tree_area   / min(currentPatch%total_canopy_area,currentPatch%area)
-               else
-                  area_trees(p)           = 0.0_r8
-               end if
-               if(associated(currentPatch%tallest))then
-                  trimming(p)          = currentPatch%tallest%canopy_trim                
-               else
-                  trimming(p)          = 0.0_r8
-               endif
-               
-            else
-               write(iulog,*) 'ED: too many patches' 
-            end if ! patchn<15
-            
-            currentPatch => currentPatch%younger
-         end do !patch loop
-
-      enddo ! site loop
-
-    end associate
-
- end subroutine ed_update_history_variables
 
   !------------------------------------------------------------------------
 
@@ -1912,127 +1147,9 @@ fraction_exposed= 1.0_r8
 
   end subroutine ed_clm_leaf_area_profile
 
-  ! =====================================================================================
-
-  subroutine SummarizeProductivityFluxes(this, bounds, sites, nsites, fcolumn)
-
-   ! Summarize the fast production inputs from fluxes per ED individual to fluxes per CLM patch and column
-   ! Must be called between calculation of productivity fluxes and daily ED calls
-   ! (since daily ED calls reorganize the patch / cohort structure)
-
-   ! Written By Charlie Koven, April 2016
-   !
-   ! !USES: 
-   use LandunitType         , only : lun
-   use landunit_varcon      , only : istsoil
-   !use subgridAveMod        , only : p2c
-   !
-   implicit none   
-   !
-   ! !ARGUMENTS    
-   class(ed_clm_type)                                      :: this  
-   type(bounds_type)                       , intent(in)    :: bounds  
-   type(ed_site_type)                      , intent(in), target :: sites(nsites)
-   integer                                 , intent(in)         :: nsites
-   integer                                 , intent(in)         :: fcolumn(nsites)
-   !
-   ! !LOCAL VARIABLES:
-   real(r8) :: dt ! radiation time step (seconds)
-   integer :: c, fc, l, p, s
-   type (ed_patch_type)  , pointer :: currentPatch
-   type (ed_cohort_type) , pointer :: currentCohort
-   integer  :: firstsoilpatch(bounds%begg:bounds%endg) ! the first patch in this gridcell that is soil and thus bare... 
-   real(r8) :: n_density   ! individual of cohort per m2.
-   real(r8) :: n_perm2     ! individuals per m2 of the whole column
-
-   associate(& 
-        npp_col       => this%npp_col,      &
-        npp           => this%npp_patch, &
-        gpp           => this%gpp_patch, &
-        ar            => this%ar_patch, &
-        growth_resp   => this%growth_resp_patch, &
-        maint_resp    => this%maint_resp_patch &                
-        )
-     
-     ! set time steps
-     dt = real( get_step_size(), r8 )
-     
-     ! zero variables first
-     ! column variables
-     do c = bounds%begc,bounds%endc
-        ! summary flux variables
-        npp_col(c) = 0._r8
-     end do
-
-     ! patch variables
-     do p = bounds%begp,bounds%endp
-        npp(p) = 0._r8
-        gpp(p) = 0._r8
-        ar(p) = 0._r8
-        growth_resp(p) = 0._r8
-        maint_resp(p) = 0._r8
-     end do
-     
-     ! retrieve the first soil patch associated with each gridcell. 
-     ! make sure we only get the first patch value for places which have soil. 
-
-     do s = 1,nsites
-     
-        c = fcolumn(s)
-        p = col%patchi(c)
-        
-        currentPatch => sites(s)%oldest_patch
-        do while(associated(currentPatch))
-           
-           p = p + 1
-           
-           currentCohort => currentPatch%tallest
-           do while(associated(currentCohort))
-              
-              if ((currentPatch%area .gt. 0._r8) .and. (currentPatch%total_canopy_area .gt. 0._r8)) then
-                 
-                 ! for quantities that are at the CLM patch level, because of the way that CLM patches are weighted for radiative purposes
-                 ! this # density needs to be over either ED patch canopy area or ED patch total area, whichever is less
-                 n_density = currentCohort%n/min(currentPatch%area,currentPatch%total_canopy_area) 
-                 
-                 ! for quantities that are natively at column level or higher, calculate plant density using whole area (for grid cell averages)
-                 n_perm2   = currentCohort%n/AREA   
-                 
-              else
-                 n_density = 0.0_r8
-                 n_perm2   = 0.0_r8
-              endif
-              
-              if ( .not. currentCohort%isnew ) then
-                 
-                 ! map ed cohort-level fluxes to clm patch fluxes
-                 npp(p) = npp(p) + currentCohort%npp_tstep * 1.e3_r8 * n_density / dt
-                 gpp(p) = gpp(p) + currentCohort%gpp_tstep * 1.e3_r8 * n_density / dt
-                 ar(p) = ar(p) + currentCohort%resp_tstep * 1.e3_r8 * n_density / dt
-                 growth_resp(p) = growth_resp(p) + currentCohort%resp_g * 1.e3_r8 * n_density / dt
-                 maint_resp(p) = maint_resp(p) + currentCohort%resp_m * 1.e3_r8 * n_density / dt
-                 
-                 ! map ed cohort-level npp fluxes to clm column fluxes
-                 npp_col(c) = npp_col(c) + currentCohort%npp_tstep * n_perm2 * 1.e3_r8 /dt
-                 
-              endif
-              
-              currentCohort => currentCohort%shorter
-           enddo !currentCohort
-           currentPatch => currentPatch%younger
-        end do !currentPatch
-   
-     end do  ! site loop
-     
-     ! leaving this as a comment here.  it should produce same answer for npp_col as above,
-     ! so it may be useful to try as a check to make sure machinery is working proerly
-     !call p2c(bounds,num_soilc, filter_soilc, npp(bounds%begp:bounds%endp), npp_col(bounds%begc:bounds%endc))
-     
-   end associate
-end subroutine SummarizeProductivityFluxes
-   
   !------------------------------------------------------------------------
- subroutine SummarizeNetFluxes(this, bounds, num_soilc, filter_soilc, &
+
+  subroutine SummarizeNetFluxes(this, bounds, num_soilc, filter_soilc, &
       sites, nsites, fcolumn, soilbiogeochem_carbonflux_inst, &
       soilbiogeochem_carbonstate_inst)
 
@@ -2102,6 +1219,7 @@ end subroutine SummarizeProductivityFluxes
         cwd_stock(c) = 0._r8
         seed_stock(c) = 0._r8
         biomass_stock(c) = 0._r8
+        npp_col(c)       = 0.0_r8
      end do
      
      do s = 1, nsites
@@ -2133,6 +1251,8 @@ end subroutine SummarizeProductivityFluxes
               ! map biomass pools to column level
               biomass_stock(c) =  biomass_stock(c) + (currentCohort%bdead + currentCohort%balive + &
                     currentCohort%bstore) * n_perm2 * 1.e3_r8
+
+              npp_col(c) = npp_col(c) + currentCohort%npp_tstep * n_perm2 * 1.e3_r8 /dt
 
               currentCohort => currentCohort%shorter
            enddo !currentCohort
@@ -2179,7 +1299,7 @@ end subroutine SummarizeProductivityFluxes
            currentPatch => sites(s)%oldest_patch
            do while(associated(currentPatch))
               !
-              ed_to_bgc_this_edts(c) = ed_to_bgc_this_edts(c) + (sum(currentPatch%CWD_AG_out) + sum(currentPatch%CWD_BG_out) + &
+              ed_to_bgc_this_edts(c) = ed_to_bgc_this_edts(c) + (sum(currentPatch%CWD_AG_out) + sum(currentPatch%CWD_BG_out) &
                    + sum(currentPatch%seed_decay) + sum(currentPatch%leaf_litter_out) + sum(currentPatch%root_litter_out)) &
                    * ( currentPatch%area/AREA ) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
               !
