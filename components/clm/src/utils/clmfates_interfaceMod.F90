@@ -1246,6 +1246,8 @@ contains
    ! This routine initializes the types of output variables
    ! not the variables themselves, just the types
    ! ---------------------------------------------------------------------------------
+
+   if(.not.use_ed) return
    
    !associate(hio => this%fates_hio)
    
@@ -1265,7 +1267,7 @@ contains
 
    
    ! Define the bounds on the first dimension for each thread
-   ! $OMP PARALLEL DO PRIVATE (nc,bounds_clump,ityp,s,c)
+   !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,ityp,s,c)
    do nc = 1,nclumps
       
       call get_clump_bounds(nc, bounds_clump)
