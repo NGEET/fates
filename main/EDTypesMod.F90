@@ -445,6 +445,7 @@ module EDTypesMod
      real(r8) ::  flux_in                                      ! for carbon balance purpose. C coming into biomass pool:  KgC/site
      real(r8) ::  flux_out                                     ! for carbon balance purpose. C leaving ED pools  KgC/site
      real(r8) ::  old_stock                                    ! for accounting purposes, remember biomass stock from last time:  KgC/site
+     real(r8) ::  npp                                          ! used for calculating NEP and NBP during BGC summarization phase
 
      ! DISTURBANCE
      real(r8) ::  disturbance_mortality                        ! site level disturbance rates from mortality.
