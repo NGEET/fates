@@ -414,7 +414,7 @@ contains
       integer                 , intent(in)           :: nc
       type(waterstate_type)   , intent(inout)        :: waterstate_inst
       type(canopystate_type)  , intent(inout)        :: canopystate_inst
-      type(soilbiogeochem_carbonflux_type), intent(out) :: soilbiogeochem_carbonflux_inst
+      type(soilbiogeochem_carbonflux_type), intent(inout) :: soilbiogeochem_carbonflux_inst
 
       ! !LOCAL VARIABLES:
       real(r8) :: dayDiff                  ! day of run
@@ -1152,7 +1152,7 @@ contains
     integer                , intent(in)            :: nc
     type(bounds_type),intent(in)                   :: bounds_clump
     type(canopystate_type)         , intent(inout) :: canopystate_inst
-    type(soilbiogeochem_carbonflux_type), intent(out) :: soilbiogeochem_carbonflux_inst
+    type(soilbiogeochem_carbonflux_type), intent(inout) :: soilbiogeochem_carbonflux_inst
     
     ! local variables
     integer :: s, c
