@@ -825,12 +825,12 @@ contains
          avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_scorch_height_pa )
 
-    call this%set_history_var(vname='FIRE_FUEL_MEF', units='m',                &
+    call this%set_history_var(vname='fire_fuel_mef', units='m',                &
          long='spitfire fuel moisture',  use_default='active',                  &
          avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_fire_fuel_mef_pa )
 
-    call this%set_history_var(vname='FIRE_FUEL_BULKD', units='m',              &
+    call this%set_history_var(vname='fire_fuel_bulkd', units='m',              &
          long='spitfire fuel bulk density',  use_default='active',              &
          avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_fire_fuel_bulkd_pa )
@@ -840,7 +840,7 @@ contains
          avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_fire_fuel_eff_moist_pa )
 
-    call this%set_history_var(vname='FIRE_FUEL_SAV', units='m',                &
+    call this%set_history_var(vname='fire_fuel_sav', units='m',                &
          long='spitfire fuel surface/volume ',  use_default='active',           &
          avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
          ivar=ivar,callstep=callstep, index = ih_fire_fuel_sav_pa )
