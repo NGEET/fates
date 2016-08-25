@@ -1267,7 +1267,7 @@ contains
 
    
    ! Define the bounds on the first dimension for each thread
-   !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,ityp,s,c)
+   !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,s,c)
    do nc = 1,nclumps
       
       call get_clump_bounds(nc, bounds_clump)
