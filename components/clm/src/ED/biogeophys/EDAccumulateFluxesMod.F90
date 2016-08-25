@@ -20,7 +20,7 @@ module EDAccumulateFluxesMod
 contains
 
   !------------------------------------------------------------------------------
-  subroutine AccumulateFluxes_ED(sites, nsites, bc_in, bc_out)
+  subroutine AccumulateFluxes_ED(sites, nsites, bc_in, bc_out, dt_time)
     !
     ! !DESCRIPTION:
     ! see above
@@ -28,7 +28,8 @@ contains
     ! !USES:
     use shr_kind_mod      , only : r8 => shr_kind_r8
     use clm_varctl        , only : iulog
-    use EDTypesMod        , only : ed_patch_type, ed_cohort_type, ed_site_type
+    use EDTypesMod        , only : ed_patch_type, ed_cohort_type, &
+                                   ed_site_type, AREA
     use FatesInterfaceMod , only : bc_in_type,bc_out_type
     !
     ! !ARGUMENTS    
@@ -36,6 +37,7 @@ contains
     integer,            intent(in)            :: nsites
     type(bc_in_type),   intent(in)            :: bc_in(nsites)
     type(bc_out_type),  intent(inout)         :: bc_out(nsites)
+    real(r8),           intent(in)            :: dt_time  ! timestep interval
     !
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer  :: ccohort ! current cohort
@@ -44,11 +46,13 @@ contains
     integer :: c  ! clm/alm column
     integer :: s  ! ed site
     integer :: ifp ! index fates patch
+    real(r8):: n_perm2
     !----------------------------------------------------------------------
     
     do s = 1, nsites
        
        ifp = 0
+       sites(s)%npp = 0.0_r8
        cpatch => sites(s)%oldest_patch
        do while (associated(cpatch))                 
           ifp = ifp+1
@@ -71,6 +75,18 @@ contains
                 ccohort%gpp_acc  = ccohort%gpp_acc  + ccohort%gpp_tstep 
                 ccohort%resp_acc = ccohort%resp_acc + ccohort%resp_tstep
                 
+                !----- THE FOLLOWING IS ONLY IMPLEMENTED TEMPORARILY FOR B4B reproducibility
+                !----- ALSO, THERE IS NO REASON TO USE THE ISNEW FLAG HERE
+                if ((cpatch%area .gt. 0._r8) .and. (cpatch%total_canopy_area .gt. 0._r8)) then
+                   n_perm2   = ccohort%n/AREA
+                else
+                   n_perm2   = 0.0_r8
+                endif
+                if ( .not. ccohort%isnew ) then
+                   sites(s)%npp = sites(s)%npp + ccohort%npp_tstep * n_perm2 * 1.e3_r8 / dt_time
+
+                endif
+
                 do iv=1,ccohort%nv
                    if(ccohort%year_net_uptake(iv) == 999._r8)then ! note that there were leaves in this layer this year. 
                       ccohort%year_net_uptake(iv) = 0._r8

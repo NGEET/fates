@@ -1074,12 +1074,14 @@ contains
        end if
     end do
 
+    dtime = get_step_size()
     call  AccumulateFluxes_ED(this%fates(nc)%sites,  &
                                this%fates(nc)%nsites, &
                                this%fates(nc)%bc_in,  &
-                               this%fates(nc)%bc_out)
+                               this%fates(nc)%bc_out, &
+                               dtime)
 
-    dtime = get_step_size()
+    
     call this%fates_hio%update_history_prod(nc, &
                                this%fates(nc)%sites,  &
                                this%fates(nc)%nsites, &

@@ -1227,6 +1227,9 @@ fraction_exposed= 1.0_r8
         c = fcolumn(s)
         p = col%patchi(c)
 
+        ! Temporary
+        npp_col(c) = sites(s)%npp
+
         ! map ed site-level fire fluxes to clm column fluxes
         fire_c_to_atm(c) = sites(s)%total_burn_flux_to_atm / ( AREA * SHR_CONST_CDAY * 1.e3_r8)
 
@@ -1244,17 +1247,26 @@ fraction_exposed= 1.0_r8
            
            currentCohort => currentPatch%tallest
            do while(associated(currentCohort))
+              ! for quantities that are natively at column level or higher, calculate plant density using whole area (for grid cell averages)
+              n_perm2   = currentCohort%n/AREA                    
+              
+              ! map biomass pools to column level
+              biomass_stock(c) =  biomass_stock(c) + (currentCohort%bdead + currentCohort%balive + &
+                   currentCohort%bstore) * n_perm2 * 1.e3_r8
 
-              if ( .not. currentCohort%isnew ) then
-                 ! for quantities that are natively at column level or higher, calculate plant density using whole area (for grid cell averages)
-                 n_perm2   = currentCohort%n/AREA                    
+ !             if ( .not. currentCohort%isnew ) then
+ !                
+                 ! The following implementation to calculation n_perm2 is necessary for b4b reproducibility
+                 ! while restructuring a large amount of code. This should be re-visited and we should be
+                 ! more consistent in how n_perm2 is calculated for different cases
+ !                if ((currentPatch%area .gt. 0._r8) .and. (currentPatch%total_canopy_area .gt. 0._r8)) then
+ !                   n_perm2   = currentCohort%n/AREA   
+ !                else
+ !                   n_perm2   = 0.0_r8
+ !                endif
                  
-                 ! map biomass pools to column level
-                 biomass_stock(c) =  biomass_stock(c) + (currentCohort%bdead + currentCohort%balive + &
-                      currentCohort%bstore) * n_perm2 * 1.e3_r8
-                 
-                 npp_col(c) = npp_col(c) + currentCohort%npp_tstep * n_perm2 * 1.e3_r8 /dt
-              end if
+ !                npp_col(c) = npp_col(c) + currentCohort%npp_tstep * n_perm2 * 1.e3_r8 /dt
+ !             end if
 
               currentCohort => currentCohort%shorter
            enddo !currentCohort
