@@ -230,7 +230,7 @@ module FatesInterfaceMod
 
       integer                         :: nsites
 
-      type(ed_site_type), allocatable :: sites(:)
+      type(ed_site_type), pointer :: sites(:)
 
       ! These are boundary conditions that the FATES models are required to be filled.  
       ! These values are filled by the driver or HLM.  Once filled, these have an 
