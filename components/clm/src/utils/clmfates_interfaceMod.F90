@@ -1255,6 +1255,19 @@ contains
 
    ! ------------------------------------------------------------------------------------
    ! PART I: Set FATES DIMENSIONING INFORMATION
+   !       
+   ! -------------------------------------------------------------------------------
+   ! Those who wish add variables that require new dimensions, please
+   ! see FATES: HistoryIOMod.F90.  Dimension types are defined at the top of the
+   ! module, and a new explicitly named instance of that type should be created.
+   ! With this new dimension, a new output type/kind can contain that dimension.
+   ! A new type/kind can be added to the iovar_dk structure, which defines its members
+   ! in created in init_iovar_dk_maps().  Make sure to increase the size of n_iovar_dk.
+   ! A type/kind of output is defined by the data type (ie r8,int,..)
+   ! and the dimensions.  Keep in mind that 3D variables (or 4D if you include time)
+   ! are not really supported in CLM/ALM right now.  There are ways around this
+   ! limitations by creating combined dimensions, for instance the size+pft dimension
+   ! "scpf"
    ! ------------------------------------------------------------------------------------
    
    call this%fates_hio%dim_init(this%fates_hio%iopa_dim,'patch',nclumps,bounds_proc%begp,bounds_proc%endp)
@@ -1344,15 +1357,7 @@ contains
                  vavgflag => this%fates_hio%hvars(ivar)%avgflag,  &
                  ioname   => this%fates_hio%hvars(ivar)%iovar_dk_ptr%name )
         
-        ! -------------------------------------------------------------------------------
-        ! Those who wish add variables that require new dimensions, please
-        ! see FatesInterfaceMod and see init_iovar_str().  This is where new output
-        ! types are set.  An output type is defined by the data type (ie r8,int,..)
-        ! and the dimensions.  Keep in mind that 3D variables (or 4D if you include time)
-        ! are not really supported in CLM/ALM right now.  There are ways around this
-        ! limitations by creating combined dimensions, for instance the size+pft dimension
-        ! "scpf"
-        ! -------------------------------------------------------------------------------
+ 
         
         select case(trim(ioname))
         case('PA_R8')
