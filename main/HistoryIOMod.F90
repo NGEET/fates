@@ -549,7 +549,7 @@ contains
     
     ! ---------------------------------------------------------------------------------
     ! This is the call to update the history IO arrays that are expected to only change
-    ! after Ecosystem Dynamics have been processed.
+    ! after rapid timescale productivity calculations (gpp and respiration).
     ! ---------------------------------------------------------------------------------
     
     use EDtypesMod          , only : ed_site_type,   &
