@@ -2180,7 +2180,7 @@ contains
     type(bounds_type)       , intent(in)            :: bounds  ! bounds
     type(file_desc_t)       , intent(inout)         :: ncid    ! netcdf id
     integer                 , intent(in)            :: nsites
-    type(ed_site_type)      , intent(inout)         :: sites(nsites)   ! The site vector
+    type(ed_site_type)      , intent(inout), target :: sites(nsites)   ! The site vector
     integer                 , intent(in)            :: fcolumn(nsites)
     character(len=*)        , intent(in)            :: flag    !'read' or 'write'
     !
