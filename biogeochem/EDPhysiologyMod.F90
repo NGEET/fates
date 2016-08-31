@@ -77,6 +77,7 @@ contains
     ! Returns time differentials of the state vector
     !
     ! !USES:
+    use EDTypesMod, only : AREA
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
@@ -637,6 +638,7 @@ contains
     !  Flux from plants into seed pool. 
     !
     ! !USES:
+    use EDTypesMod, only : AREA
     !
     ! !ARGUMENTS    
     type(ed_patch_type), intent(inout), target :: cp_pnt ! seeds go to these patches.
@@ -652,7 +654,6 @@ contains
     currentSite  => currentPatch%siteptr
    
     currentPatch%seeds_in(:) = 0.0_r8
-    currentPatch%seed_rain_flux(:) = 0.0_r8
     
     currentCohort => currentPatch%tallest
     do while (associated(currentCohort))
