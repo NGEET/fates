@@ -141,7 +141,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type)     , intent(in)    :: currentSite
+    type(ed_site_type)     , intent(inout)    :: currentSite
     type(temperature_type) , intent(in)    :: temperature_inst
     !
     ! !LOCAL VARIABLES:
@@ -157,6 +157,7 @@ contains
     small_no = 0.0000000000_r8  ! Obviously, this is arbitrary.  RF - changed to zero
 
     currentSite%dseed_dt(p) = 0._r8  ! zero the dseed_dt at the site level before looping through patches and adding the fluxes from each patch
+    currentSite%seed_rain_flux = 0._r8  
 
     currentPatch => currentSite%youngest_patch
 
