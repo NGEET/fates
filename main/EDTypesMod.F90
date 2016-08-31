@@ -328,12 +328,9 @@ module EDTypesMod
 
 
      !SEED BANK
-     real(r8) :: seed_bank(numpft_ed)                              ! seed pool in KgC/m2/year
      real(r8) :: seeds_in(numpft_ed)                               ! seed production KgC/m2/year
      real(r8) :: seed_decay(numpft_ed)                             ! seed decay in KgC/m2/year
      real(r8) :: seed_germination(numpft_ed)                       ! germination rate of seed pool in KgC/m2/year
-     real(r8) :: dseed_dt(numpft_ed)
-     real(r8) :: seed_rain_flux(numpft_ed)                         ! flux of seeds from exterior KgC/m2/year (needed for C balance purposes)
 
      ! PHOTOSYNTHESIS       
      real(r8) ::  psn_z(cp_nclmax,numpft_ed,cp_nlevcan)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
@@ -454,6 +451,11 @@ module EDTypesMod
      integer  ::  dleafondate                                  ! doy of leaf on drought:-
      integer  ::  dleafoffdate                                 ! doy of leaf on drought:-
      real(r8) ::  water_memory(10)                             ! last 10 days of soil moisture memory...
+
+     !SEED BANK
+     real(r8) :: seed_bank(numpft_ed)                              ! seed pool in KgC/m2/year
+     real(r8) :: dseed_dt(numpft_ed)
+     real(r8) :: seed_rain_flux(numpft_ed)                         ! flux of seeds from exterior KgC/m2/year (needed for C balance purposes)
 
      ! FIRE 
      real(r8) ::  acc_ni                                       ! daily nesterov index accumulating over time.
