@@ -71,7 +71,7 @@ contains
   end subroutine canopy_derivs
 
   ! ============================================================================
-  subroutine non_canopy_derivs( currentPatch, temperature_inst )
+  subroutine non_canopy_derivs( currentSite, currentPatch, temperature_inst )
     !
     ! !DESCRIPTION:
     ! Returns time differentials of the state vector
@@ -79,6 +79,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS    
+    type(ed_site_type), intent(inout), target  :: currentSite
     type(ed_patch_type)    , intent(inout) :: currentPatch
     type(temperature_type) , intent(in)    :: temperature_inst
     !
@@ -110,7 +111,7 @@ contains
     call cwd_out( currentPatch, temperature_inst)
 
     do p = 1,numpft_ed
-       currentPatch%dseed_dt(p) = currentPatch%seeds_in(p) - currentPatch%seed_decay(p) - currentPatch%seed_germination(p)
+       currentSite%dseed_dt(p) = currentSite%dseed_dt(p) + (currentPatch%seeds_in(p) - currentPatch%seed_decay(p) - currentPatch%seed_germination(p)) * currentPatch%area/AREA
     enddo   
     
     do c = 1,ncwd
@@ -666,7 +667,7 @@ contains
        if (EXTERNAL_RECRUITMENT == 1) then !external seed rain - needed to prevent extinction  
           do p = 1,numpft_ed
            currentPatch%seeds_in(p) = currentPatch%seeds_in(p) + EDecophyscon%seed_rain(p) !KgC/m2/year
-           currentPatch%seed_rain_flux(p) = currentPatch%seed_rain_flux(p) + EDecophyscon%seed_rain(p) !KgC/m2/year
+           currentPatch%siteptr%seed_rain_flux(p) = currentPatch%siteptr%seed_rain_flux(p) + EDecophyscon%seed_rain(p) * currentPatch%area/AREA !KgC/m2/year
           enddo
        endif
        currentPatch => currentPatch%younger
@@ -694,7 +695,7 @@ contains
     ! decays the seed pool according to exponential model
     ! sd_mort is in yr-1
     do p = 1,numpft_ed 
-       currentPatch%seed_decay(p) =  currentPatch%seed_bank(p) * seed_turnover
+       currentPatch%seed_decay(p) =  currentPatch%siteptr%seed_bank(p) * seed_turnover
     enddo
  
   end subroutine seed_decay
@@ -720,7 +721,7 @@ contains
     max_germination = 1.0_r8 !this is arbitrary
 
     do p = 1,numpft_ed
-       currentPatch%seed_germination(p) =  min(currentPatch%seed_bank(p) * germination_timescale,max_germination)
+       currentPatch%seed_germination(p) =  min(currentPatch%siteptr%seed_bank(p) * germination_timescale,max_germination)
     enddo
 
   end subroutine seed_germination
