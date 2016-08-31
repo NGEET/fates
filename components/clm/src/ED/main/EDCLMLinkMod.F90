@@ -67,9 +67,8 @@ module EDCLMLinkMod
      real(r8), pointer, private  :: daily_rh_patch             (:)   ! daily RH for fire model
      real(r8), pointer, private  :: daily_prec_patch           (:)   ! daily rain for fire and phenology models. 
 
-     !seed model. Aggregated to gridcell for now. 
+     real(r8), pointer, private  :: seed_bank_col              (:)   ! kGC/m2      Mass of seeds.                 
 
-     real(r8), pointer, private  :: seed_bank_patch            (:)   ! kGC/m2      Mass of seeds.                 
      real(r8), pointer, private  :: seeds_in_patch             (:)   ! kGC/m2/year Production of seed mass.       
      real(r8), pointer, private  :: seed_decay_patch           (:)   ! kGC/m2/year Decay of seed mass.            
      real(r8), pointer, private  :: seed_germination_patch     (:)   ! kGC/m2/year Germiantion rate of seed mass. 
@@ -139,7 +138,6 @@ module EDCLMLinkMod
      real(r8), pointer,  private :: biomass_stock_col(:)             ! [gC/m2] total biomass at the column level in gC / m2
      real(r8), pointer,  private :: ed_litter_stock_col(:)           ! [gC/m2] ED litter at the column level in gC / m2
      real(r8), pointer,  private :: cwd_stock_col(:)                 ! [gC/m2] ED CWD at the column level in gC / m2
-     real(r8), pointer,  private :: seed_stock_col(:)                ! [gC/m2] ED seed mass carbon at the column level in gC / m2
 
      ! carbon balance errors.  at some point we'll reduce these to close to zero and delete, but for now we'll just keep[ track of them
      real(r8), pointer,  private :: cbalance_error_ed_col(:)         ! [gC/m2/s]  total carbon balance error for the ED side
@@ -238,7 +236,6 @@ contains
     allocate(this%litter_out_patch           (begp:endp))            ; this%litter_out_patch           (:) = 0.0_r8    
     allocate(this%efpot_patch                (begp:endp))            ; this%efpot_patch                (:) = 0.0_r8    
     allocate(this%rb_patch                   (begp:endp))            ; this%rb_patch                   (:) = 0.0_r8    
-    allocate(this%seed_bank_patch            (begp:endp))            ; this%seed_bank_patch            (:) = 0.0_r8    
     allocate(this%seed_decay_patch           (begp:endp))            ; this%seed_decay_patch           (:) = 0.0_r8    
     allocate(this%seeds_in_patch             (begp:endp))            ; this%seeds_in_patch             (:) = 0.0_r8    
     allocate(this%seed_germination_patch     (begp:endp))            ; this%seed_germination_patch     (:) = 0.0_r8    
@@ -254,6 +251,7 @@ contains
     allocate(this%maint_resp_patch           (begp:endp))            ; this%maint_resp_patch           (:) = nan
     allocate(this%growth_resp_patch          (begp:endp))            ; this%growth_resp_patch          (:) = nan
 
+    allocate(this%seed_bank_col              (begc:endc))            ; this%seed_bank_col              (:) = 0.0_r8    
     allocate(this%ed_to_bgc_this_edts_col    (begc:endc))            ; this%ed_to_bgc_this_edts_col   (:) = nan
     allocate(this%ed_to_bgc_last_edts_col    (begc:endc))            ; this%ed_to_bgc_last_edts_col   (:) = nan
     allocate(this%seed_rain_flux_col         (begc:endc))            ; this%seed_rain_flux_col        (:) = nan
@@ -276,7 +274,6 @@ contains
     allocate(this%biomass_stock_col          (begc:endc))            ; this%biomass_stock_col         (:) = nan
     allocate(this%ed_litter_stock_col        (begc:endc))            ; this%ed_litter_stock_col       (:) = nan
     allocate(this%cwd_stock_col              (begc:endc))            ; this%cwd_stock_col             (:) = nan
-    allocate(this%seed_stock_col             (begc:endc))            ; this%seed_stock_col            (:) = nan
 
     allocate(this%cbalance_error_ed_col      (begc:endc))            ; this%cbalance_error_ed_col     (:) = nan    
     allocate(this%cbalance_error_bgc_col     (begc:endc))            ; this%cbalance_error_bgc_col    (:) = nan    
@@ -436,7 +433,7 @@ contains
 
     call hist_addfld1d (fname='SEED_BANK', units='gC m-2',  &
          avgflag='A', long_name='Total Seed Mass of all PFTs', &
-         ptr_patch=this%seed_bank_patch, set_lake=0._r8, set_urb=0._r8)
+         ptr_col=this%seed_bank_col, set_lake=0._r8, set_urb=0._r8)
 
     call hist_addfld1d (fname='SEEDS_IN', units='gC m-2 s-1',  &
          avgflag='A', long_name='Seed Production Rate', &
@@ -557,11 +554,6 @@ contains
     call hist_addfld1d (fname='CWD_STOCK_COL', units='gC/m^2', &
          avgflag='A', long_name='total CWD carbon at the column level', &
          ptr_col=this%cwd_stock_col)
-
-    this%seed_stock_col(begc:endc) = spval
-    call hist_addfld1d (fname='SEED_STOCK_COL', units='gC/m^2', &
-         avgflag='A', long_name='total seed carbon at the column level', &
-         ptr_col=this%seed_stock_col)
 
     
       ! Carbon Flux (grid dimension x scpf)
@@ -1086,11 +1078,12 @@ contains
          fire_fuel_mef        => this%fire_fuel_mef_patch        , & ! Output:
          litter_in            => this%litter_in_patch            , & ! Output:
          litter_out           => this%litter_out_patch           , & ! Output:
-         seed_bank            => this%seed_bank_patch            , & ! Output:
          seeds_in             => this%seeds_in_patch             , & ! Output:
          seed_decay           => this%seed_decay_patch           , & ! Output:
          seed_germination     => this%seed_germination_patch     , & ! Output:
          
+         seed_bank            => this%seed_bank_col              , & ! Output:
+
          ED_biomass           => this%ED_biomass_patch           , & ! InOut:
          ED_bdead             => this%ED_bdead_patch             , & ! InOut:
          ED_bleaf             => this%ED_bleaf_patch             , & ! InOut:
@@ -1154,7 +1147,6 @@ contains
       fire_fuel_mef(:)        = 0.0_r8
       litter_in(:)            = 0.0_r8
       litter_out(:)           = 0.0_r8
-      seed_bank(:)            = 0.0_r8          
       seeds_in(:)             = 0.0_r8
       seed_decay(:)           = 0.0_r8
       seed_germination(:)     = 0.0_r8
@@ -1220,7 +1212,6 @@ contains
          fire_fuel_mef(p)        = 0.0_r8
          litter_in(p)            = 0.0_r8
          litter_out(p)           = 0.0_r8
-         seed_bank(p)            = 0.0_r8          
          seeds_in(p)             = 0.0_r8
          seed_decay(p)           = 0.0_r8
          seed_germination(p)     = 0.0_r8
@@ -1235,6 +1226,8 @@ contains
          esai(p)                 = 0.0_r8
          ED_bleaf(p)             = 0.0_r8
          sum_fuel(p)             = 0.0_r8
+
+         seed_bank(c)            = sum(sites(s)%seed_bank) * 1.e3_r8
 
          currentPatch => sites(s)%oldest_patch
          do while(associated(currentPatch))
@@ -1371,7 +1364,6 @@ contains
                sum_fuel(p)             = currentPatch%sum_fuel * 1.e3_r8 * patch_scaling_scalar
                litter_in(p)            = (sum(currentPatch%CWD_AG_in) +sum(currentPatch%leaf_litter_in)) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
                litter_out(p)           = (sum(currentPatch%CWD_AG_out)+sum(currentPatch%leaf_litter_out)) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
-               seed_bank(p)            = sum(currentPatch%seed_bank) * 1.e3_r8 * patch_scaling_scalar
                seeds_in(p)             = sum(currentPatch%seeds_in) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
                seed_decay(p)           = sum(currentPatch%seed_decay) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
                seed_germination(p)     = sum(currentPatch%seed_germination) * 1.e3_r8 * 365.0_r8 * SHR_CONST_CDAY * patch_scaling_scalar
@@ -2085,7 +2077,7 @@ end subroutine SummarizeProductivityFluxes
         biomass_stock => this%biomass_stock_col,      &    ! total biomass in gC / m2
         ed_litter_stock    => this%ed_litter_stock_col,      & ! ED litter in gC / m2
         cwd_stock     => this%cwd_stock_col,      &        ! total CWD in gC / m2
-        seed_stock    => this%seed_stock_col,     &        ! total seed mass in gC / m2
+        seed_bank    => this%seed_bank_col,     &        ! total seed mass in gC / m2
         ed_to_bgc_this_edts           => this%ed_to_bgc_this_edts_col,      &
         ed_to_bgc_last_edts           => this%ed_to_bgc_last_edts_col,      &
         seed_rain_flux                => this%seed_rain_flux_col            &
@@ -2103,7 +2095,6 @@ end subroutine SummarizeProductivityFluxes
         ! summary stock variables
         ed_litter_stock(c) = 0._r8
         cwd_stock(c) = 0._r8
-        seed_stock(c) = 0._r8
         biomass_stock(c) = 0._r8
      end do
      
@@ -2125,7 +2116,6 @@ end subroutine SummarizeProductivityFluxes
                  sum(currentPatch%cwd_bg)) * 1.e3_r8
            ed_litter_stock(c) = ed_litter_stock(c) + (currentPatch%area / AREA) * &
                  (sum(currentPatch%leaf_litter)+sum(currentPatch%root_litter)) * 1.e3_r8
-           seed_stock(c)   = seed_stock(c)   + (currentPatch%area / AREA) * sum(currentPatch%seed_bank) * 1.e3_r8
            
            currentCohort => currentPatch%tallest
            do while(associated(currentCohort))
@@ -2154,7 +2144,7 @@ end subroutine SummarizeProductivityFluxes
      do fc = 1,num_soilc
         c = filter_soilc(fc)
         
-        totedc(c) = ed_litter_stock(c) + cwd_stock(c) + seed_stock(c) + biomass_stock(c) ! ED stocks
+        totedc(c) = ed_litter_stock(c) + cwd_stock(c) + seed_bank(c) + biomass_stock(c) ! ED stocks
         totbgcc(c) = totsomc(c) + totlitc(c)  ! BGC stocks
         totecosysc(c) = totedc(c) + totbgcc(c)
 
@@ -2173,20 +2163,19 @@ end subroutine SummarizeProductivityFluxes
         do s = 1,nsites
            c = fcolumn(s)
            ed_to_bgc_this_edts(c) = 0._r8
-           seed_rain_flux(c) = 0._r8
         end do
         !
         do s = 1,nsites
            c = fcolumn(s)
 
+           seed_rain_flux(c) = sum(sites(s)%seed_rain_flux) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
+           !
            currentPatch => sites(s)%oldest_patch
            do while(associated(currentPatch))
               !
               ed_to_bgc_this_edts(c) = ed_to_bgc_this_edts(c) + (sum(currentPatch%CWD_AG_out) + sum(currentPatch%CWD_BG_out) + &
                    + sum(currentPatch%seed_decay) + sum(currentPatch%leaf_litter_out) + sum(currentPatch%root_litter_out)) &
                    * ( currentPatch%area/AREA ) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
-              !
-              seed_rain_flux(c) = seed_rain_flux(c) + sum(currentPatch%seed_rain_flux) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
               !
               currentPatch => currentPatch%younger
            end do !currentPatch
