@@ -62,33 +62,33 @@ module EDCLMLinkMod
 !     real(r8), pointer, private  :: growth_resp_patch          (:)   ! (gC/m2/s) patch growth respiration
      
      ! summary carbon fluxes at the column level
-     real(r8), pointer,  private :: nep_col(:)                       ! [gC/m2/s] Net ecosystem production, i.e. fast-timescale carbon balance that does not include disturbance
-     real(r8), pointer,  private :: nep_timeintegrated_col(:)                       ! [gC/m2/s] Net ecosystem production, i.e. fast-timescale carbon balance that does not include disturbance
-     real(r8), pointer,  private :: npp_timeintegrated_col(:)                       ! [gC/m2/s] Net primary production, time integrated at column level for carbon balance checking
-     real(r8), pointer,  private :: hr_timeintegrated_col(:)                        ! [gC/m2/s] heterotrophic respiration, time integrated for carbon balance checking
-     real(r8), pointer,  private :: nbp_col(:)                       ! [gC/m2/s] Net biosphere production, i.e. slow-timescale carbon balance that integrates to total carbon change
-     real(r8), pointer,  private :: npp_col(:)                ! [gC/m2/s] Net primary production at the fast timescale, aggregated to the column level
-     real(r8), pointer,  private :: fire_c_to_atm_col(:)             ! [gC/m2/s] total fire carbon loss to atmosphere
-     real(r8), pointer,  private :: ed_to_bgc_this_edts_col(:)       ! [gC/m2/s] total flux of carbon from ED to BGC models on current ED timestep
-     real(r8), pointer,  private :: ed_to_bgc_last_edts_col(:)       ! [gC/m2/s] total flux of carbon from ED to BGC models on prior ED timestep
-     real(r8), pointer,  private :: seed_rain_flux_col(:)            ! [gC/m2/s] total flux of carbon from seed rain
+!     real(r8), pointer,  private :: nep_col(:)                       ! [gC/m2/s] Net ecosystem production, i.e. fast-timescale carbon balance that does not include disturbance
+!     real(r8), pointer,  private :: nep_timeintegrated_col(:)                       ! [gC/m2/s] Net ecosystem production, i.e. fast-timescale carbon balance that does not include disturbance
+!     real(r8), pointer,  private :: npp_timeintegrated_col(:)                       ! [gC/m2/s] Net primary production, time integrated at column level for carbon balance checking
+!     real(r8), pointer,  private :: hr_timeintegrated_col(:)                        ! [gC/m2/s] heterotrophic respiration, time integrated for carbon balance checking
+!     real(r8), pointer,  private :: nbp_col(:)                       ! [gC/m2/s] Net biosphere production, i.e. slow-timescale carbon balance that integrates to total carbon change
+!     real(r8), pointer,  private :: npp_col(:)                ! [gC/m2/s] Net primary production at the fast timescale, aggregated to the column level
+!     real(r8), pointer,  private :: fire_c_to_atm_col(:)             ! [gC/m2/s] total fire carbon loss to atmosphere
+!     real(r8), pointer,  private :: ed_to_bgc_this_edts_col(:)       ! [gC/m2/s] total flux of carbon from ED to BGC models on current ED timestep
+!     real(r8), pointer,  private :: ed_to_bgc_last_edts_col(:)       ! [gC/m2/s] total flux of carbon from ED to BGC models on prior ED timestep
+!     real(r8), pointer,  private :: seed_rain_flux_col(:)            ! [gC/m2/s] total flux of carbon from seed rain
      
      ! summary carbon states at the column level
-     real(r8), pointer,  private :: totecosysc_col(:)                ! [gC/m2] Total ecosystem carbon at the column level, including vegetation, CWD, litter, and soil pools
-     real(r8), pointer,  private :: totecosysc_old_col(:)            ! [gC/m2] Total ecosystem C at the column level from last call to balance check
-     real(r8), pointer,  private :: totedc_col(:)                    ! [gC/m2] Total ED carbon at the column level, including vegetation, CWD, seeds, and ED litter
-     real(r8), pointer,  private :: totedc_old_col(:)                ! [gC/m2] Total ED C at the column level from last call to balance check
-     real(r8), pointer,  private :: totbgcc_col(:)                   ! [gC/m2] Total BGC carbon at the column level, including litter, and soil pools
-     real(r8), pointer,  private :: totbgcc_old_col(:)               ! [gC/m2] Total BGC C at the column level from last call to balance check
-     real(r8), pointer,  private :: biomass_stock_col(:)             ! [gC/m2] total biomass at the column level in gC / m2
-     real(r8), pointer,  private :: ed_litter_stock_col(:)           ! [gC/m2] ED litter at the column level in gC / m2
-     real(r8), pointer,  private :: cwd_stock_col(:)                 ! [gC/m2] ED CWD at the column level in gC / m2
-     real(r8), pointer,  private :: seed_stock_col(:)                ! [gC/m2] ED seed mass carbon at the column level in gC / m2
+!     real(r8), pointer,  private :: totecosysc_col(:)                ! [gC/m2] Total ecosystem carbon at the column level, including vegetation, CWD, litter, and soil pools
+!     real(r8), pointer,  private :: totecosysc_old_col(:)            ! [gC/m2] Total ecosystem C at the column level from last call to balance check
+!     real(r8), pointer,  private :: totedc_col(:)                    ! [gC/m2] Total ED carbon at the column level, including vegetation, CWD, seeds, and ED litter
+!     real(r8), pointer,  private :: totedc_old_col(:)                ! [gC/m2] Total ED C at the column level from last call to balance check
+!     real(r8), pointer,  private :: totbgcc_col(:)                   ! [gC/m2] Total BGC carbon at the column level, including litter, and soil pools
+!     real(r8), pointer,  private :: totbgcc_old_col(:)               ! [gC/m2] Total BGC C at the column level from last call to balance check
+!     real(r8), pointer,  private :: biomass_stock_col(:)             ! [gC/m2] total biomass at the column level in gC / m2
+!     real(r8), pointer,  private :: ed_litter_stock_col(:)           ! [gC/m2] ED litter at the column level in gC / m2
+!     real(r8), pointer,  private :: cwd_stock_col(:)                 ! [gC/m2] ED CWD at the column level in gC / m2
+!     real(r8), pointer,  private :: seed_stock_col(:)                ! [gC/m2] ED seed mass carbon at the column level in gC / m2
 
      ! carbon balance errors.  at some point we'll reduce these to close to zero and delete, but for now we'll just keep[ track of them
-     real(r8), pointer,  private :: cbalance_error_ed_col(:)         ! [gC/m2/s]  total carbon balance error for the ED side
-     real(r8), pointer,  private :: cbalance_error_bgc_col(:)        ! [gC/m2/s]  total carbon balance error for the BGC side
-     real(r8), pointer,  private :: cbalance_error_total_col(:)      ! [gC/m2/s]  total carbon balance error for the whole thing
+!     real(r8), pointer,  private :: cbalance_error_ed_col(:)         ! [gC/m2/s]  total carbon balance error for the ED side
+!     real(r8), pointer,  private :: cbalance_error_bgc_col(:)        ! [gC/m2/s]  total carbon balance error for the BGC side
+!     real(r8), pointer,  private :: cbalance_error_total_col(:)      ! [gC/m2/s]  total carbon balance error for the whole thing
 
      ! ED patch/cohort data
      real(r8), pointer,  private :: ed_npatches_col(:)               ! [#] the number of patches per ED site
@@ -100,9 +100,9 @@ module EDCLMLinkMod
      procedure , public  :: Init   
      procedure , public  :: Restart
      procedure , public  :: ed_clm_link
-     procedure , public  :: SummarizeNetFluxes
+!     procedure , public  :: SummarizeNetFluxes
 !     procedure , public  :: SummarizeProductivityFluxes     
-     procedure , public  :: ED_BGC_Carbon_Balancecheck
+!     procedure , public  :: ED_BGC_Carbon_Balancecheck
 
      ! Private routines
      procedure , private :: ed_clm_leaf_area_profile
@@ -1149,9 +1149,7 @@ fraction_exposed= 1.0_r8
 
   !------------------------------------------------------------------------
 
-  subroutine SummarizeNetFluxes(this, bounds, num_soilc, filter_soilc, &
-      sites, nsites, fcolumn, soilbiogeochem_carbonflux_inst, &
-      soilbiogeochem_carbonstate_inst)
+  subroutine SummarizeNetFluxes( sites, nsites, bc_in, is_beg_day )
 
    ! Summarize the combined production and decomposition fluxes into net fluxes
    ! This is done on the fast timestep, and to be called after both daily ED calls and fast BGC calls
@@ -1160,90 +1158,46 @@ fraction_exposed= 1.0_r8
    ! Written by Charlie Koven, Feb 2016
    !
    ! !USES: 
-   use LandunitType         , only : lun
-   use landunit_varcon      , only : istsoil
+   use FatesInterfaceMod , only : bc_in_type
    !
    implicit none   
    !
    ! !ARGUMENTS    
-   class(ed_clm_type)                                      :: this  
-   type(bounds_type)                       , intent(in)    :: bounds  
-   integer                                 , intent(in)    :: num_soilc         ! number of soil columns in filter
-   integer                                 , intent(in)    :: filter_soilc(:)   ! filter for soil columns
    type(ed_site_type)                      , intent(in), target :: sites(nsites)
    integer                                 , intent(in)    :: nsites
-   integer                                 , intent(in)    :: fcolumn(nsites)
-   type(soilbiogeochem_carbonflux_type)    , intent(inout) :: soilbiogeochem_carbonflux_inst
-   type(soilbiogeochem_carbonstate_type)   , intent(inout) :: soilbiogeochem_carbonstate_inst
+   type(bc_in_type)                        , intent(in)    :: bc_in
+   logical                                 , intent(in)    :: is_beg_day
+
    !
    ! !LOCAL VARIABLES:
-   real(r8) :: dt ! radiation time step (seconds)
-   integer :: c, s, cc, fc, l, p, pp
-   type(ed_site_type), pointer :: cs
+   integer :: s
+
    type (ed_patch_type)  , pointer :: currentPatch
    type (ed_cohort_type) , pointer :: currentCohort
-!   integer  :: firstsoilpatch(bounds%begg:bounds%endg) ! the first patch in this gridcell that is soil and thus bare... 
    real(r8) :: n_perm2     ! individuals per m2 of the whole column
-   
-   associate(& 
-        hr            => soilbiogeochem_carbonflux_inst%hr_col,      & ! (gC/m2/s) total heterotrophic respiration
-        totsomc       => soilbiogeochem_carbonstate_inst%totsomc_col, & ! (gC/m2) total soil organic matter carbon
-        totlitc       => soilbiogeochem_carbonstate_inst%totlitc_col, & ! (gC/m2) total litter carbon in BGC pools
-        npp_col       => this%npp_col,      &
-        nep           => this%nep_col,      &
-        fire_c_to_atm => this%fire_c_to_atm_col,      &
-        nbp           => this%nbp_col,      &
-        totecosysc    => this%totecosysc_col,      &
-        totedc    => this%totedc_col,      &
-        totbgcc    => this%totbgcc_col,      &
-        biomass_stock => this%biomass_stock_col,      &    ! total biomass in gC / m2
-        ed_litter_stock    => this%ed_litter_stock_col,      & ! ED litter in gC / m2
-        cwd_stock     => this%cwd_stock_col,      &        ! total CWD in gC / m2
-        seed_stock    => this%seed_stock_col,     &        ! total seed mass in gC / m2
-        ed_to_bgc_this_edts           => this%ed_to_bgc_this_edts_col,      &
-        ed_to_bgc_last_edts           => this%ed_to_bgc_last_edts_col,      &
-        seed_rain_flux                => this%seed_rain_flux_col            &
-        )
      
-     ! set time steps
-     dt = real( get_step_size(), r8 )
-     
-     ! zero variables first
-     ! column variables
-     do c = bounds%begc,bounds%endc
-        ! summary flux variables
-        fire_c_to_atm(c) = 0._r8
-        
-        ! summary stock variables
-        ed_litter_stock(c) = 0._r8
-        cwd_stock(c) = 0._r8
-        seed_stock(c) = 0._r8
-        biomass_stock(c) = 0._r8
-        npp_col(c)       = 0.0_r8
-     end do
-     
-     do s = 1, nsites
+     do s = 1,nsites
 
-        c = fcolumn(s)
-        p = col%patchi(c)
-
-        ! Temporary
-        npp_col(c) = sites(s)%npp
+        sites(s)%fire_c_to_atm   = 0._r8    ! REMOVE THIS VARIABLE?
+        sites(s)%ed_litter_stock = 0._r8
+        sites(s)%cwd_stock       = 0._r8
+        sites(s)%seed_stock      = 0._r8
+        sites(s)%biomass_stock   = 0._r8
 
         ! map ed site-level fire fluxes to clm column fluxes
-        fire_c_to_atm(c) = sites(s)%total_burn_flux_to_atm / ( AREA * SHR_CONST_CDAY * 1.e3_r8)
-
+        sites(s)%fire_c_to_atm = sites(s)%total_burn_flux_to_atm / ( AREA * SHR_CONST_CDAY * 1.e3_r8)
+        
         currentPatch => sites(s)%oldest_patch
         do while(associated(currentPatch))
 
-           p = p + 1
-
            ! map litter, CWD, and seed pools to column level
-           cwd_stock(c) = cwd_stock(c) + (currentPatch%area / AREA) * (sum(currentPatch%cwd_ag)+ &
-                 sum(currentPatch%cwd_bg)) * 1.e3_r8
-           ed_litter_stock(c) = ed_litter_stock(c) + (currentPatch%area / AREA) * &
+           sites(s)%cwd_stock = sites(s)%cwd_stock + (currentPatch%area / AREA) * &
+                 (sum(currentPatch%cwd_ag) + sum(currentPatch%cwd_bg)) * 1.e3_r8
+
+           sites(s)%ed_litter_stock = sites(s)%ed_litter_stock + (currentPatch%area / AREA) * &
                  (sum(currentPatch%leaf_litter)+sum(currentPatch%root_litter)) * 1.e3_r8
-           seed_stock(c)   = seed_stock(c)   + (currentPatch%area / AREA) * sum(currentPatch%seed_bank) * 1.e3_r8
+
+           sites(s)%seed_stock = sites(s)%seed_stock + (currentPatch%area / AREA) * sum(currentPatch%seed_bank) * 1.e3_r8
            
            currentCohort => currentPatch%tallest
            do while(associated(currentCohort))
@@ -1251,85 +1205,61 @@ fraction_exposed= 1.0_r8
               n_perm2   = currentCohort%n/AREA                    
               
               ! map biomass pools to column level
-              biomass_stock(c) =  biomass_stock(c) + (currentCohort%bdead + currentCohort%balive + &
-                   currentCohort%bstore) * n_perm2 * 1.e3_r8
-
- !             if ( .not. currentCohort%isnew ) then
- !                
-                 ! The following implementation to calculation n_perm2 is necessary for b4b reproducibility
-                 ! while restructuring a large amount of code. This should be re-visited and we should be
-                 ! more consistent in how n_perm2 is calculated for different cases
- !                if ((currentPatch%area .gt. 0._r8) .and. (currentPatch%total_canopy_area .gt. 0._r8)) then
- !                   n_perm2   = currentCohort%n/AREA   
- !                else
- !                   n_perm2   = 0.0_r8
- !                endif
-                 
- !                npp_col(c) = npp_col(c) + currentCohort%npp_tstep * n_perm2 * 1.e3_r8 /dt
- !             end if
+              sites(s)%biomass_stock = sites(s)%biomass_stock + (currentCohort%bdead + currentCohort%balive + &
+                    currentCohort%bstore) * n_perm2 * 1.e3_r8
 
               currentCohort => currentCohort%shorter
            enddo !currentCohort
            currentPatch => currentPatch%younger
         end do ! patch loop
-     end do    ! site loop
-
-     ! calculate NEP and NBP fluxes.  ?????
-     do fc = 1,num_soilc
-        c = filter_soilc(fc)
-        nep(c) = npp_col(c) - hr(c)
-        nbp(c) = npp_col(c) - ( hr(c) + fire_c_to_atm(c) )
-     end do
-      
-     ! calculate total stocks
-     do fc = 1,num_soilc
-        c = filter_soilc(fc)
         
-        totedc(c) = ed_litter_stock(c) + cwd_stock(c) + seed_stock(c) + biomass_stock(c) ! ED stocks
-        totbgcc(c) = totsomc(c) + totlitc(c)  ! BGC stocks
-        totecosysc(c) = totedc(c) + totbgcc(c)
+        ! calculate NEP and NBP fluxes
+        sites(s)%nep = sites(s)%npp - bc_in(s)%tot_het_resp
+        sites(s)%nbp = sites(s)%npp - ( bc_in(s)%tot_het_resp + sites(s)%fire_c_to_atm )
+
+        ! FATES stocks
+        sites(s)%totfatesc = sites(s)%ed_litter_stock + sites(s)%cwd_stock + sites(s)%seed_stock + sites(s)%biomass_stock
+
+        ! BGC stocks (used for error checking, totlitc should be zero?)
+        sites(s)%totbgcc = bc_in(s)%tot_somc +  bc_in(s)%tot_litc
+
+        ! Total Ecosystem Carbon Stocks
+        sites(s)%totecosysc = sites(s)%totfatesc + sites(s)%totbgcc
 
      end do
-
-     ! in ED timesteps, because of offset between when ED and BGC reconcile the gain and loss of litterfall carbon,
-     ! (i.e. ED reconciles it instantly, while BGC reconciles it incrementally over the subsequent day)
+     
+     ! in FATES timesteps, because of offset between when ED and BGC reconcile the gain and loss of litterfall carbon,
+     ! (i.e. FATES reconciles it instantly, while BGC reconciles it incrementally over the subsequent day)
      ! calculate the total ED -> BGC flux and keep track of the last day's info for balance checking purposes
-     if ( is_beg_curr_day() ) then
+     if ( is_beg_day ) then
         !
         do s = 1,nsites
-           c = fcolumn(s)
-           ed_to_bgc_last_edts(c) = ed_to_bgc_this_edts(c)
-        end do
-        !
-        do s = 1,nsites
-           c = fcolumn(s)
-           ed_to_bgc_this_edts(c) = 0._r8
-           seed_rain_flux(c) = 0._r8
-        end do
-        !
-        do s = 1,nsites
-           c = fcolumn(s)
+           ! order of operations in the next to lines is quite important ;)
+           sites(s)%fates_to_bgc_last_ts = sites(s)%fates_to_bgc_this_ts
+           sites(s)%fates_to_bgc_this_ts = 0._r8
+           sites(s)%seed_rain_flux      = 0._r8
 
            currentPatch => sites(s)%oldest_patch
            do while(associated(currentPatch))
               !
-              ed_to_bgc_this_edts(c) = ed_to_bgc_this_edts(c) + (sum(currentPatch%CWD_AG_out) + sum(currentPatch%CWD_BG_out) &
-                   + sum(currentPatch%seed_decay) + sum(currentPatch%leaf_litter_out) + sum(currentPatch%root_litter_out)) &
-                   * ( currentPatch%area/AREA ) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
+              sites(s)%fates_to_bgc_this_ts = sites(s)%fates_to_bgc_this_ts + (sum(currentPatch%CWD_AG_out) + sum(currentPatch%CWD_BG_out) &
+                    + sum(currentPatch%seed_decay) + sum(currentPatch%leaf_litter_out) + sum(currentPatch%root_litter_out)) &
+                    * ( currentPatch%area/AREA ) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
               !
-              seed_rain_flux(c) = seed_rain_flux(c) + sum(currentPatch%seed_rain_flux) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
+              sites(s)%seed_rain_flux = sites(s)%seed_rain_flux + sum(currentPatch%seed_rain_flux) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
               !
               currentPatch => currentPatch%younger
            end do !currentPatch
         end do
      endif
+     
 
    end associate
    
  end subroutine SummarizeNetFluxes
 
 
- subroutine ED_BGC_Carbon_Balancecheck(this, bounds, num_soilc, filter_soilc, soilbiogeochem_carbonflux_inst)  
+ subroutine ED_BGC_Carbon_Balancecheck(sites, nsites, bc_in, is_beg_day, dtime, nstep)
 
    ! Integrate in time the fluxes into and out of the ecosystem, and compare these on a daily timestep
    ! to the chagne in carbon stocks of the ecosystem
@@ -1341,135 +1271,91 @@ fraction_exposed= 1.0_r8
    implicit none   
    !
    ! !ARGUMENTS    
-   class(ed_clm_type)                                      :: this  
-   type(bounds_type)                       , intent(in)    :: bounds  
-   integer                                 , intent(in)    :: num_soilc         ! number of soil columns in filter
-   integer                                 , intent(in)    :: filter_soilc(:)   ! filter for soil columns
-   type(soilbiogeochem_carbonflux_type)    , intent(inout) :: soilbiogeochem_carbonflux_inst
-   !
+   type(ed_site_type)                      , intent(in), target :: sites(nsites)
+   integer                                 , intent(in)    :: nsites
+   type(bc_in_type)                        , intent(in)    :: bc_in
+   logical                                 , intent(in)    :: is_beg_day
+   real(r8)                                , intent(in)    :: dtime  ! time-step length (s)
+   integer                                 , intent(in)    :: nstep  ! time-step index
+
    ! !LOCAL VARIABLES:
-   real(r8) :: dtime                                     ! land model time step (sec)
-   integer  :: nstep                                     ! model timestep
-   real(r8) :: nbp_integrated(bounds%begc:bounds%endc)   ! total net biome production integrated
-   real(r8) :: error_total(bounds%begc:bounds%endc)
-   real(r8) :: error_ed(bounds%begc:bounds%endc)
-   real(r8) :: error_bgc(bounds%begc:bounds%endc)
    real(r8) :: error_tolerance = 1.e-6_r8
-   real(r8) :: max_error_ed
-   real(r8) :: max_error_bgc
-   real(r8) :: max_error_total
-   integer  :: fc,c
+   integer  :: s
 
-   associate(& 
-        nep                 => this%nep_col,                 &
-        nep_timeintegrated  => this%nep_timeintegrated_col,  &
-        hr                  => soilbiogeochem_carbonflux_inst%hr_col,      &
-        hr_timeintegrated   => this%hr_timeintegrated_col,  &
-        npp_col          => this%npp_col,      &
-        npp_timeintegrated  => this%npp_timeintegrated_col,  &
-        fire_c_to_atm       => this%fire_c_to_atm_col,       &
-        totecosysc_old      => this%totecosysc_old_col,      &
-        totecosysc          => this%totecosysc_col,          &
-        totedc_old          => this%totedc_old_col,      &
-        totedc              => this%totedc_col,          &
-        totbgcc_old         => this%totbgcc_old_col,      &
-        totbgcc             => this%totbgcc_col,          &
-        ed_to_bgc_this_edts => this%ed_to_bgc_this_edts_col, &
-        ed_to_bgc_last_edts => this%ed_to_bgc_last_edts_col, &
-        seed_rain_flux      => this%seed_rain_flux_col,  &
-        cbalance_error_ed   => this%cbalance_error_ed_col,   &
-        cbalance_error_bgc  => this%cbalance_error_bgc_col,  &
-        cbalance_error_total=> this%cbalance_error_total_col &
-        )
+   if (nstep .le. 1) then
+      ! when starting up the model, initialize the integrator variables
+      do s = 1,nsites
+         sites(s)%totecosysc_old       = sites(s)%totecosysc
+         sites(s)%totfatesc_old        = sites(s)%totfatesc
+         sites(s)%totbgcc_old          = sites(s)%totbgcc
+         sites(s)%nep_timeintegrated   = 0._r8
+         sites(s)%hr_timeintegrated    = 0._r8
+         sites(s)%npp_timeintegrated   = 0._r8
+         !
+         ! also initialize the ed-BGC flux variables
+         sites(s)%fates_to_bgc_this_ts = 0._r8
+         sites(s)%fates_to_bgc_last_ts = 0._r8
+         !
+         sites(s)%cbal_err_fates = 0._r8
+         sites(s)%cbal_err_bgc   = 0._r8
+         sites(s)%cbal_err_tot = 0._r8
+      end do
+   endif
 
-     dtime = get_step_size()
-     nstep = get_nstep()
+   do s = 1,nsites
+      sites(s)%nep_timeintegrated = sites(s)%nep_timeintegrated + sites(s)%nep * dtime
+      sites(s)%hr_timeintegrated  = sites(s)%hr_timeintegrated  + bc_in(s)%tot_het_resp * dtime
+      sites(s)%npp_timeintegrated = sites(s)%npp_timeintegrated + sites(s)%npp * dtime
+   end do
+   
+   ! If this is on the dynamics time-step, then we calculate the balance checks
 
-     if (nstep .le. 1) then
-        ! when starting up the model, initialize the integrator variables
-        do fc = 1,num_soilc
-           c = filter_soilc(fc)
-           totecosysc_old(c) = totecosysc(c)
-           totedc_old(c) = totedc(c)
-           totbgcc_old(c) = totbgcc(c)
-           nep_timeintegrated(c) = 0._r8
-           hr_timeintegrated(c) = 0._r8
-           npp_timeintegrated(c) = 0._r8
-           !
-           ! also initialize the ed-BGC flux variables
-           ed_to_bgc_this_edts(c) = 0._r8
-           ed_to_bgc_last_edts(c) = 0._r8
-           !
-           cbalance_error_ed(c) = 0._r8
-           cbalance_error_bgc(c) = 0._r8
-           cbalance_error_total(c) = 0._r8
-        end do        
-     endif
+   if ( is_beg_day ) then
 
-     if ( .not. is_beg_curr_day() ) then
-        ! on CLM (half-hourly) timesteps, integrate the NEP fluxes        
-        do fc = 1,num_soilc
-           c = filter_soilc(fc)
-           nep_timeintegrated(c) = nep_timeintegrated(c) + nep(c) * dtime
-           hr_timeintegrated(c) = hr_timeintegrated(c) + hr(c) * dtime
-           npp_timeintegrated(c) = npp_timeintegrated(c) + npp_col(c) * dtime
-        end do
-     else
-        ! on ED (daily) timesteps, first integrate the NEP fluxes and add in the daily disturbance flux
-        do fc = 1,num_soilc
-           c = filter_soilc(fc)
-           nep_timeintegrated(c) = nep_timeintegrated(c) + nep(c) * dtime
-           hr_timeintegrated(c) = hr_timeintegrated(c) + hr(c) * dtime
-           npp_timeintegrated(c) = npp_timeintegrated(c) + npp_col(c) * dtime
-           nbp_integrated(c) = nep_timeintegrated(c) - fire_c_to_atm(c) * SHR_CONST_CDAY + seed_rain_flux(c)* SHR_CONST_CDAY
-        end do
+      do s = 1,nsites
 
-        ! next compare the change in carbon and calculate the error
-        do fc = 1,num_soilc
-           c = filter_soilc(fc)
-           error_ed(c) = totedc(c) - totedc_old(c) - (npp_timeintegrated(c) + seed_rain_flux(c)* SHR_CONST_CDAY - ed_to_bgc_this_edts(c)* SHR_CONST_CDAY - fire_c_to_atm(c) * SHR_CONST_CDAY)
-           error_bgc(c) = totbgcc(c) - totbgcc_old(c) - (ed_to_bgc_last_edts(c)* SHR_CONST_CDAY - hr_timeintegrated(c))
-           error_total(c) = totecosysc(c) - totecosysc_old(c) - (nbp_integrated(c) + ed_to_bgc_last_edts(c)* SHR_CONST_CDAY - ed_to_bgc_this_edts(c)* SHR_CONST_CDAY)
-        end do
-        !
-        ! put in consistent flux units and send to history so we can keep track of the errors
-        do fc = 1,num_soilc
-           c = filter_soilc(fc)
-           cbalance_error_ed(c) = error_ed(c) / SHR_CONST_CDAY
-           cbalance_error_bgc(c) = error_bgc(c) / SHR_CONST_CDAY
-           cbalance_error_total(c) = error_total(c) / SHR_CONST_CDAY
-        end do
-        
-        ! for now, rather than crashing the model, lets just report the largest error to see what we're up against
-        !
-        ! RETURN TO THIS LATER AND ADD A CRASHER IF BALANCE EXCEEDS THRESHOLD
-        !
-        ! max_error_total = 0._r8
-        ! do fc = 1,num_soilc
-        !    c = filter_soilc(fc)
-        !    if (abs(error_total(c)) .gt. max_error_total) then
-        !       max_error_ed = abs(error_ed(c))
-        !       max_error_bgc = abs(error_bgc(c))
-        !       max_error_total = abs(error_total(c))
-        !    endif
-        ! end do
-        ! write(iulog,*) 'ED_BGC_Carbon_Balancecheck: max_error_ed, max_error_bgc, max_error_total (gC / m2 / day): ', max_error_ed, max_error_bgc, max_error_total
+         ! NBP can only be updated when dynamics level information is available
+         sites(s)%nbp_integrated  = sites(s)%nep_timeintegrated - &
+                                    sites(s)%fire_c_to_atm * SHR_CONST_CDAY + &
+                                    sites(s)%seed_rain_flux * SHR_CONST_CDAY
 
-        ! reset the C stock and flux integrators
-        do fc = 1,num_soilc
-           c = filter_soilc(fc)
-           totecosysc_old(c) = totecosysc(c)
-           totedc_old(c)     = totedc(c)
-           totbgcc_old(c)    = totbgcc(c)
-           nep_timeintegrated(c) = 0._r8
-           npp_timeintegrated(c) = 0._r8
-           hr_timeintegrated(c) = 0._r8
-        end do
+         
+         sites(s)%cbal_err_fates = sites(s)%totfatesc(c) - & 
+                                   sites(s)%totfatesc_old(c) - &
+                                   (sites(s)%npp_timeintegrated + &
+                                   sites(s)%seed_rain_flux*SHR_CONST_CDAY - &
+                                   sites(s)%fates_to_bgc_this_ts*SHR_CONST_CDAY - &
+                                   this(s)%fire_c_to_atm*SHR_CONST_CDAY)
+         sites(s)%cbal_err_fates = sites(s)%cbal_err_fates / SHR_CONST_CDAY
+         
+         
+         sites(s)%cbal_err_bgc = this(s)%totbgcc - &
+                                 this(s)%totbgcc_old - &
+                                 (this(s)%fates_to_bgc_last_ts*SHR_CONST_CDAY - &
+                                 this(s)%hr_timeintegrated)
+         sites(s)%cbal_err_bgc = sites(s)%cbal_err_bgc / SHR_CONST_CDAY
+         
+         sites(s)%cbal_err_tot = sites(s)%totecosysc - &
+                                 sites(s)%totecosysc_old - &
+                                 (sites(s)%nbp_integrated + &
+                                 sites(s)%fates_to_bgc_last_ts*SHR_CONST_CDAY - &
+                                 sites(s)%fates_to_bgc_this_ts*SHR_CONST_CDAY)
+         sites(s)%cbal_err_tot = sites(s)%cbal_err_tot / SHR_CONST_CDAY
 
-     endif
+         ! Send the current to the previous/last
+         sites(s)%totecosysc_old = sites(s)%totecosysc
+         sites(s)%totfatesc_old  = sites(s)%totfatesc
+         sites(s)%totbgcc_old    = sites(s)%totbgcc
+         sites(s)%nep_timeintegrated = 0._r8
+         sites(s)%npp_timeintegrated = 0._r8
+         sites(s)%hr_timeintegrated = 0._r8
 
-  end associate
+      end do
+   
+   endif
 
- end subroutine ED_BGC_Carbon_Balancecheck
+ end associate
+
+end subroutine ED_BGC_Carbon_Balancecheck
   
 end module EDCLMLinkMod
