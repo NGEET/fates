@@ -81,6 +81,7 @@ module CLMFatesInterfaceMod
    use HistoryIOMod          , only : fates_hio_interface_type
 
    use EDCLMLinkMod          , only : ed_clm_type
+   use EDCLMLinkMod          , only : SummarizeNetFluxes, ED_BGC_Carbon_BalanceCheck
    use EDTypesMod            , only : udata
    use EDTypesMod            , only : ed_patch_type
    use EDtypesMod            , only : numPatchesPerCol
@@ -158,6 +159,7 @@ module CLMFatesInterfaceMod
       procedure, public :: prep_canopyfluxes
       procedure, public :: wrap_canopy_radiation
       procedure, private :: wrap_litter_fluxout
+      procedure, public  :: wrap_bgc_summary
       procedure, private :: init_history_io
 
    end type hlm_fates_interface_type
@@ -206,7 +208,7 @@ contains
          ! This involves to stages
          ! 1) allocate the vectors
          ! 2) add the history variables defined in clm_inst to the history machinery
-         call this%fates2hlm%Init(bounds_proc)
+!         call this%fates2hlm%Init(bounds_proc)
                   
          call EDecophysconInit( EDpftvarcon_inst, numpft )
 
@@ -558,7 +560,7 @@ contains
 
             end if
          end if
-         call this%fates2hlm%restart(bounds_clump, ncid, flag)
+!         call this%fates2hlm%restart(bounds_clump, ncid, flag)
       end do
       !$OMP END PARALLEL DO
       
@@ -1219,25 +1221,25 @@ contains
 
  ! ======================================================================================
 
- subroutine wrap_bgc_summary(nc, bounds_clump, num_soilc, filter_soilc, &
-                                    soilbiogeochem_carbonflux_inst,     &
-                                    soilbiogeochem_carbonstate_inst
+ subroutine wrap_bgc_summary(nc, bounds_clump, soilbiogeochem_carbonflux_inst,     &
+                                    soilbiogeochem_carbonstate_inst)
+
+   
 
     ! Arguments
     class(hlm_fates_interface_type), intent(inout)    :: this
     integer          , intent(in)                     :: nc
     type(bounds_type), intent(in)                     :: bounds_clump
-    integer          , intent(in)    :: num_soilc         ! number of soil columns in filter
-    integer          , intent(in)    :: filter_soilc(:)   ! filter for soil columns
     type(soilbiogeochem_carbonflux_type), intent()    :: soilbiogeochem_carbonflux_inst
     type(soilbiogeochem_carbonstate_type), intent()   :: soilbiogeochem_carbonstate_inst
 
+    ! locals
+    integer :: s,c
 
     associate(& 
         hr            => soilbiogeochem_carbonflux_inst%hr_col,      & ! (gC/m2/s) total heterotrophic respiration
         totsomc       => soilbiogeochem_carbonstate_inst%totsomc_col, & ! (gC/m2) total soil organic matter carbon
         totlitc       => soilbiogeochem_carbonstate_inst%totlitc_col)   ! (gC/m2) total litter carbon in BGC pools
-
 
       ! Summarize Net Fluxes
       do s = 1, this%fates(nc)%nsites
@@ -1266,8 +1268,9 @@ contains
                                this%fates(nc)%sites,  &
                                this%fates(nc)%nsites)
 
-   
-
+      
+    end associate
+    return
  end subroutine wrap_bgc_summary
 
  ! ======================================================================================

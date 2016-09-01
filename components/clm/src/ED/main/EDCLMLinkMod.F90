@@ -37,9 +37,9 @@ module EDCLMLinkMod
   type, public :: ed_clm_type
 
 
-     real(r8), pointer, private  :: daily_temp_patch           (:)   ! daily temperature for fire and phenology models
-     real(r8), pointer, private  :: daily_rh_patch             (:)   ! daily RH for fire model
-     real(r8), pointer, private  :: daily_prec_patch           (:)   ! daily rain for fire and phenology models. 
+!     real(r8), pointer, private  :: daily_temp_patch           (:)   ! daily temperature for fire and phenology models
+!     real(r8), pointer, private  :: daily_rh_patch             (:)   ! daily RH for fire model
+!     real(r8), pointer, private  :: daily_prec_patch           (:)   ! daily rain for fire and phenology models. 
 
      !seed model. Aggregated to gridcell for now. 
 
@@ -91,14 +91,14 @@ module EDCLMLinkMod
 !     real(r8), pointer,  private :: cbalance_error_total_col(:)      ! [gC/m2/s]  total carbon balance error for the whole thing
 
      ! ED patch/cohort data
-     real(r8), pointer,  private :: ed_npatches_col(:)               ! [#] the number of patches per ED site
-     real(r8), pointer,  private :: ed_ncohorts_col(:)               ! [#] the number of cohorts per ED site     
+!     real(r8), pointer,  private :: ed_npatches_col(:)               ! [#] the number of patches per ED site
+!     real(r8), pointer,  private :: ed_ncohorts_col(:)               ! [#] the number of cohorts per ED site     
 
    contains
 
      ! Public routines
-     procedure , public  :: Init   
-     procedure , public  :: Restart
+!     procedure , public  :: Init   
+!     procedure , public  :: Restart
      procedure , public  :: ed_clm_link
 !     procedure , public  :: SummarizeNetFluxes
 !     procedure , public  :: SummarizeProductivityFluxes     
@@ -117,20 +117,20 @@ module EDCLMLinkMod
 contains
 
   !------------------------------------------------------------------------
-  subroutine Init(this, bounds)
+!  subroutine Init(this, bounds)
     !
     ! !DESCRIPTION:
     ! Initialize module data structure instance
     !
     ! !ARGUMENTS:
-    class(ed_clm_type) :: this
-    type(bounds_type), intent(in) :: bounds  
+!    class(ed_clm_type) :: this
+!    type(bounds_type), intent(in) :: bounds  
     !-----------------------------------------------------------------------
 
 !    call this%InitAllocate(bounds)
 !    call this%InitHistory(bounds)
 
-  end subroutine Init
+!  end subroutine Init
 
   !------------------------------------------------------------------------
 !  subroutine InitAllocate(this, bounds)
@@ -291,93 +291,93 @@ contains
 
   ! end subroutine InitCold
   !-----------------------------------------------------------------------
-  subroutine Restart ( this,  bounds, ncid, flag )
+!  subroutine Restart ( this,  bounds, ncid, flag )
     !
     ! !DESCRIPTION: 
     ! Read/write restart data 
     !
     ! !USES:
-    use restUtilMod
-    use ncdio_pio
+!    use restUtilMod
+!    use ncdio_pio
     ! use EDtypesMod           , only : numpft_ed
 
     !
     ! !ARGUMENTS:
-    class (ed_clm_type) :: this
-    type(bounds_type) , intent(in)    :: bounds 
-    type(file_desc_t) , intent(inout) :: ncid   
-    character(len=*)  , intent(in)    :: flag   !'read' or 'write' or 'define'
+!    class (ed_clm_type) :: this
+!    type(bounds_type) , intent(in)    :: bounds 
+!    type(file_desc_t) , intent(inout) :: ncid   
+!    character(len=*)  , intent(in)    :: flag   !'read' or 'write' or 'define'
     !
     ! !LOCAL VARIABLES:
-    logical            :: readvar
-    real(r8), pointer :: ptr2d(:,:) ! temp. pointers for slicing larger arrays
-    real(r8), pointer :: ptr1d(:)   ! temp. pointers for slicing larger arrays  
+!    logical            :: readvar
+!    real(r8), pointer :: ptr2d(:,:) ! temp. pointers for slicing larger arrays
+!    real(r8), pointer :: ptr1d(:)   ! temp. pointers for slicing larger arrays  
     ! character(LEN=3)   :: istr1
     ! integer            :: k
     !------------------------------------------------------------------------
 
-    ptr1d => this%nep_timeintegrated_col(:)
-    call restartvar(ncid=ncid, flag=flag, varname='nep_timeintegrated_col', xtype=ncd_double,  &
-         dim1name='column', long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+!    ptr1d => this%nep_timeintegrated_col(:)
+!    call restartvar(ncid=ncid, flag=flag, varname='nep_timeintegrated_col', xtype=ncd_double,  &
+!         dim1name='column', long_name='', units='', &
+!         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
 
-    ptr1d => this%npp_timeintegrated_col(:)
-    call restartvar(ncid=ncid, flag=flag, varname='npp_timeintegrated_col', xtype=ncd_double,  &
-         dim1name='column', long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+!    ptr1d => this%npp_timeintegrated_col(:)
+!    call restartvar(ncid=ncid, flag=flag, varname='npp_timeintegrated_col', xtype=ncd_double,  &
+!         dim1name='column', long_name='', units='', &
+!         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
 
-    ptr1d => this%hr_timeintegrated_col(:)
-    call restartvar(ncid=ncid, flag=flag, varname='hr_timeintegrated_col', xtype=ncd_double,  &
-         dim1name='column', long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+!    ptr1d => this%hr_timeintegrated_col(:)
+!    call restartvar(ncid=ncid, flag=flag, varname='hr_timeintegrated_col', xtype=ncd_double,  &
+!         dim1name='column', long_name='', units='', &
+!         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
 
-    ptr1d => this%totecosysc_old_col(:)
-    call restartvar(ncid=ncid, flag=flag, varname='totecosysc_old_col', xtype=ncd_double,  &
-         dim1name='column', long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+!    ptr1d => this%totecosysc_old_col(:)
+!    call restartvar(ncid=ncid, flag=flag, varname='totecosysc_old_col', xtype=ncd_double,  &
+!         dim1name='column', long_name='', units='', &
+!         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
     
-    ptr1d => this%cbalance_error_ed_col(:)
-    call restartvar(ncid=ncid, flag=flag, varname='cbalance_error_ed_col', xtype=ncd_double,  &
-         dim1name='column', long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+!    ptr1d => this%cbalance_error_ed_col(:)
+!    call restartvar(ncid=ncid, flag=flag, varname='cbalance_error_ed_col', xtype=ncd_double,  &
+!         dim1name='column', long_name='', units='', &
+!         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
     
-    ptr1d => this%cbalance_error_bgc_col(:)
-    call restartvar(ncid=ncid, flag=flag, varname='cbalance_error_bgc_col', xtype=ncd_double,  &
-         dim1name='column', long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+!    ptr1d => this%cbalance_error_bgc_col(:)
+!    call restartvar(ncid=ncid, flag=flag, varname='cbalance_error_bgc_col', xtype=ncd_double,  &
+!         dim1name='column', long_name='', units='', &
+!         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
     
-    ptr1d => this%cbalance_error_total_col(:)
-    call restartvar(ncid=ncid, flag=flag, varname='cbalance_error_total_col', xtype=ncd_double,  &
-         dim1name='column', long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+!    ptr1d => this%cbalance_error_total_col(:)
+!    call restartvar(ncid=ncid, flag=flag, varname='cbalance_error_total_col', xtype=ncd_double,  &
+!         dim1name='column', long_name='', units='', &
+!         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
     
-    ptr1d => this%totedc_old_col(:)
-    call restartvar(ncid=ncid, flag=flag, varname='totedc_old_col', xtype=ncd_double,  &
-         dim1name='column', long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+!    ptr1d => this%totedc_old_col(:)
+!    call restartvar(ncid=ncid, flag=flag, varname='totedc_old_col', xtype=ncd_double,  &
+!         dim1name='column', long_name='', units='', &
+!         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
     
-    ptr1d => this%totbgcc_old_col(:)
-    call restartvar(ncid=ncid, flag=flag, varname='totbgcc_old_col', xtype=ncd_double,  &
-         dim1name='column', long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+!    ptr1d => this%totbgcc_old_col(:)
+!    call restartvar(ncid=ncid, flag=flag, varname='totbgcc_old_col', xtype=ncd_double,  &
+!         dim1name='column', long_name='', units='', &
+!         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
     
-    ptr1d => this%ed_to_bgc_this_edts_col(:)
-    call restartvar(ncid=ncid, flag=flag, varname='ed_to_bgc_this_edts_col', xtype=ncd_double,  &
-         dim1name='column', long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+!    ptr1d => this%ed_to_bgc_this_edts_col(:)
+!    call restartvar(ncid=ncid, flag=flag, varname='ed_to_bgc_this_edts_col', xtype=ncd_double,  &
+!         dim1name='column', long_name='', units='', &
+!         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
     
-    ptr1d => this%ed_to_bgc_last_edts_col(:)
-    call restartvar(ncid=ncid, flag=flag, varname='ed_to_bgc_last_edts_col', xtype=ncd_double,  &
-         dim1name='column', long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+!    ptr1d => this%ed_to_bgc_last_edts_col(:)
+!    call restartvar(ncid=ncid, flag=flag, varname='ed_to_bgc_last_edts_col', xtype=ncd_double,  &
+!         dim1name='column', long_name='', units='', &
+!         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
 
-    ptr1d => this%seed_rain_flux_col(:)
-    call restartvar(ncid=ncid, flag=flag, varname='seed_rain_flux_col', xtype=ncd_double,  &
-         dim1name='column', long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
+!    ptr1d => this%seed_rain_flux_col(:)
+!    call restartvar(ncid=ncid, flag=flag, varname='seed_rain_flux_col', xtype=ncd_double,  &
+!         dim1name='column', long_name='', units='', &
+!         interpinic_flag='interp', readvar=readvar, data=ptr1d) 
     
 
-  end subroutine Restart
+!  end subroutine Restart
 
   !-----------------------------------------------------------------------
 
@@ -1163,9 +1163,9 @@ fraction_exposed= 1.0_r8
    implicit none   
    !
    ! !ARGUMENTS    
-   type(ed_site_type)                      , intent(in), target :: sites(nsites)
+   type(ed_site_type)                      , intent(inout), target :: sites(nsites)
    integer                                 , intent(in)    :: nsites
-   type(bc_in_type)                        , intent(in)    :: bc_in
+   type(bc_in_type)                        , intent(in)    :: bc_in(nsites)
    logical                                 , intent(in)    :: is_beg_day
 
    !
@@ -1237,7 +1237,7 @@ fraction_exposed= 1.0_r8
            ! order of operations in the next to lines is quite important ;)
            sites(s)%fates_to_bgc_last_ts = sites(s)%fates_to_bgc_this_ts
            sites(s)%fates_to_bgc_this_ts = 0._r8
-           sites(s)%seed_rain_flux      = 0._r8
+           sites(s)%seed_rain_flux       = 0._r8
 
            currentPatch => sites(s)%oldest_patch
            do while(associated(currentPatch))
@@ -1253,10 +1253,8 @@ fraction_exposed= 1.0_r8
         end do
      endif
      
-
-   end associate
-   
- end subroutine SummarizeNetFluxes
+     return
+   end subroutine SummarizeNetFluxes
 
 
  subroutine ED_BGC_Carbon_Balancecheck(sites, nsites, bc_in, is_beg_day, dtime, nstep)
@@ -1267,13 +1265,14 @@ fraction_exposed= 1.0_r8
    ! Written by Charlie Koven, Feb 2016
    !
    ! !USES: 
+   use FatesInterfaceMod , only : bc_in_type
    !
    implicit none   
    !
    ! !ARGUMENTS    
-   type(ed_site_type)                      , intent(in), target :: sites(nsites)
+   type(ed_site_type)                      , intent(inout), target :: sites(nsites)
    integer                                 , intent(in)    :: nsites
-   type(bc_in_type)                        , intent(in)    :: bc_in
+   type(bc_in_type)                        , intent(in)    :: bc_in(nsites)
    logical                                 , intent(in)    :: is_beg_day
    real(r8)                                , intent(in)    :: dtime  ! time-step length (s)
    integer                                 , intent(in)    :: nstep  ! time-step index
@@ -1320,19 +1319,19 @@ fraction_exposed= 1.0_r8
                                     sites(s)%seed_rain_flux * SHR_CONST_CDAY
 
          
-         sites(s)%cbal_err_fates = sites(s)%totfatesc(c) - & 
-                                   sites(s)%totfatesc_old(c) - &
+         sites(s)%cbal_err_fates = sites(s)%totfatesc - & 
+                                   sites(s)%totfatesc_old - &
                                    (sites(s)%npp_timeintegrated + &
                                    sites(s)%seed_rain_flux*SHR_CONST_CDAY - &
                                    sites(s)%fates_to_bgc_this_ts*SHR_CONST_CDAY - &
-                                   this(s)%fire_c_to_atm*SHR_CONST_CDAY)
+                                   sites(s)%fire_c_to_atm*SHR_CONST_CDAY)
          sites(s)%cbal_err_fates = sites(s)%cbal_err_fates / SHR_CONST_CDAY
          
          
-         sites(s)%cbal_err_bgc = this(s)%totbgcc - &
-                                 this(s)%totbgcc_old - &
-                                 (this(s)%fates_to_bgc_last_ts*SHR_CONST_CDAY - &
-                                 this(s)%hr_timeintegrated)
+         sites(s)%cbal_err_bgc = sites(s)%totbgcc - &
+                                 sites(s)%totbgcc_old - &
+                                 (sites(s)%fates_to_bgc_last_ts*SHR_CONST_CDAY - &
+                                 sites(s)%hr_timeintegrated)
          sites(s)%cbal_err_bgc = sites(s)%cbal_err_bgc / SHR_CONST_CDAY
          
          sites(s)%cbal_err_tot = sites(s)%totecosysc - &
@@ -1354,8 +1353,7 @@ fraction_exposed= 1.0_r8
    
    endif
 
- end associate
-
+   return
 end subroutine ED_BGC_Carbon_Balancecheck
   
 end module EDCLMLinkMod

@@ -341,7 +341,7 @@ contains
     ! ed veg carbon state and flux summary, Nitrogen (TBD) and Balance Checks
     ! -----------------------------------------------------------------------------------
     
-    call clm_fates%wrap_bgc_summary(nc, bounds, num_soilc, filter_soilc, &
+    call clm_fates%wrap_bgc_summary(nc, bounds, &
                                     soilbiogeochem_carbonflux_inst, &
                                     soilbiogeochem_carbonstate_inst)
 
