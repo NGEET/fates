@@ -1255,6 +1255,8 @@ contains
           rp%shortest => storesmallcohort    
 
           currentCohort%patchptr => rp
+          currentCohort%siteptr  => rp%siteptr
+
           currentCohort => nextc
 
           dp%shortest => currentCohort
