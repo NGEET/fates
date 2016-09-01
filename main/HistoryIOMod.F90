@@ -88,7 +88,7 @@ Module HistoryIOMod
   integer, private :: ih_seed_stock_si
   integer, private :: ih_cbal_err_fates_si
   integer, private :: ih_cbal_err_bgc_si
-  integer, private :: ih_cbal_err_total_si
+  integer, private :: ih_cbal_err_tot_si
   integer, private :: ih_npatches_si
   integer, private :: ih_ncohorts_si
   
@@ -242,24 +242,21 @@ contains
    ! ===================================================================================
   
    subroutine update_history_cbal(this,nc,sites,nsites)
-      !ptr_col=this%seed_stock_col)
-      !ptr_col=this%cwd_stock_col)
-      !ptr_col=this%ed_litter_stock_col)
-      !ptr_col=this%biomass_stock_col)
-      !ptr_col=this%cbalance_error_total_col)
-      !ptr_col=this%cbalance_error_bgc_col)
-      !ptr_col=this%cbalance_error_ed_col)
-      ! ptr_col=this%totecosysc_col)
-      !  ptr_col=this%nbp_col)
-      !   ptr_col=this%fire_c_to_atm_col)
-      !         ptr_col=this%nep_col)
 
-      ! Locals
-      integer  :: s        ! The local site index
-      integer  :: io_si     ! The site index of the IO array
-      
-      
-      associate( hio_nep_si            => this%hvars(ih_nep_si)%r81d, &
+     use EDtypesMod          , only : ed_site_type
+     
+     ! Arguments
+     class(fates_hio_interface_type)                 :: this
+     integer                 , intent(in)            :: nc   ! clump index
+     type(ed_site_type)      , intent(inout), target :: sites(nsites)
+     integer                 , intent(in)            :: nsites
+
+     ! Locals
+     integer  :: s        ! The local site index
+     integer  :: io_si     ! The site index of the IO array
+     
+     
+     associate( hio_nep_si            => this%hvars(ih_nep_si)%r81d, &
                  hio_nbp_si            => this%hvars(ih_nbp_si)%r81d, &
                  hio_fire_c_to_atm_si  => this%hvars(ih_fire_c_to_atm_si)%r81d, &
                  hio_totecosysc_si     => this%hvars(ih_totecosysc_si)%r81d, &
