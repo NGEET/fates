@@ -1154,7 +1154,7 @@ fraction_exposed= 1.0_r8
   !------------------------------------------------------------------------
 
   subroutine SummarizeNetFluxes(this, bounds, num_soilc, filter_soilc, &
-      sites, nsites, fcolumn, soilbiogeochem_carbonflux_inst, &
+      nsites, sites, fcolumn, soilbiogeochem_carbonflux_inst, &
       soilbiogeochem_carbonstate_inst)
 
    ! Summarize the combined production and decomposition fluxes into net fluxes
