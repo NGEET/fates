@@ -846,10 +846,7 @@ contains
                 c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
                 c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
                 soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,     &
-                clm_fates%fates2hlm,                                                     &
-                clm_fates%fates(nc)%sites,                                               &
-                clm_fates%fates(nc)%nsites,                                              &
-                clm_fates%f2hmap(nc)%fcolumn )
+                clm_fates)
        end if
 
 

@@ -57,9 +57,10 @@ module CLMFatesInterfaceMod
    use clm_time_manager  , only : is_restart
    use ncdio_pio         , only : file_desc_t
    use clm_time_manager  , only : get_days_per_year, &
-                                  get_curr_date
-   use clm_time_manager  , only : get_ref_date,      &
-                                  timemgr_datediff 
+                                  get_curr_date,     &
+                                  get_ref_date,      &
+                                  timemgr_datediff,  &
+                                  is_beg_curr_day
    use spmdMod           , only : masterproc
    use decompMod         , only : get_proc_bounds,   &
                                   get_proc_clumps,   &
@@ -500,8 +501,7 @@ contains
 
       call this%fates_hio%update_history_dyn( nc, &
            this%fates(nc)%sites,       &
-           this%fates(nc)%nsites,      &
-           this%f2hmap(nc)%fcolumn)
+           this%fates(nc)%nsites) 
 
 
       if (masterproc) then
@@ -554,8 +554,7 @@ contains
                
                call this%fates_hio%update_history_dyn( nc, &
                     this%fates(nc)%sites,       &
-                    this%fates(nc)%nsites,      &
-                    this%f2hmap(nc)%fcolumn)
+                    this%fates(nc)%nsites) 
 
             end if
          end if
@@ -619,8 +618,7 @@ contains
 
            call this%fates_hio%update_history_dyn( nc, &
                 this%fates(nc)%sites,       &
-                this%fates(nc)%nsites,      &
-                this%f2hmap(nc)%fcolumn)
+                this%fates(nc)%nsites) 
 
 
         end if
@@ -1085,7 +1083,6 @@ contains
     call this%fates_hio%update_history_prod(nc, &
                                this%fates(nc)%sites,  &
                                this%fates(nc)%nsites, &
-                               this%f2hmap(nc)%fcolumn, &
                                dtime)
 
     return
@@ -1219,6 +1216,59 @@ contains
 
 
  end subroutine wrap_litter_fluxout
+
+ ! ======================================================================================
+
+ subroutine wrap_bgc_summary(nc, bounds_clump, num_soilc, filter_soilc, &
+                                    soilbiogeochem_carbonflux_inst,     &
+                                    soilbiogeochem_carbonstate_inst
+
+    ! Arguments
+    class(hlm_fates_interface_type), intent(inout)    :: this
+    integer          , intent(in)                     :: nc
+    type(bounds_type), intent(in)                     :: bounds_clump
+    integer          , intent(in)    :: num_soilc         ! number of soil columns in filter
+    integer          , intent(in)    :: filter_soilc(:)   ! filter for soil columns
+    type(soilbiogeochem_carbonflux_type), intent()    :: soilbiogeochem_carbonflux_inst
+    type(soilbiogeochem_carbonstate_type), intent()   :: soilbiogeochem_carbonstate_inst
+
+
+    associate(& 
+        hr            => soilbiogeochem_carbonflux_inst%hr_col,      & ! (gC/m2/s) total heterotrophic respiration
+        totsomc       => soilbiogeochem_carbonstate_inst%totsomc_col, & ! (gC/m2) total soil organic matter carbon
+        totlitc       => soilbiogeochem_carbonstate_inst%totlitc_col)   ! (gC/m2) total litter carbon in BGC pools
+
+
+      ! Summarize Net Fluxes
+      do s = 1, this%fates(nc)%nsites
+         c = this%f2hmap(nc)%fcolumn(s)
+         this%fates(nc)%bc_in(s)%tot_het_resp = hr(c)
+         this%fates(nc)%bc_in(s)%tot_somc     = totsomc(c)
+         this%fates(nc)%bc_in(s)%tot_litc     = totlitc(c)
+      end do
+
+      
+      call SummarizeNetFluxes(this%fates(nc)%sites,  &
+                             this%fates(nc)%nsites, &
+                             this%fates(nc)%bc_in,  &
+                             is_beg_curr_day())
+
+      
+      call ED_BGC_Carbon_Balancecheck(this%fates(nc)%sites,  &
+                                      this%fates(nc)%nsites, &
+                                      this%fates(nc)%bc_in,  &
+                                      is_beg_curr_day(),     &
+                                      get_step_size(), get_nstep() )
+
+
+      ! Update history variables that track these variables
+      call this%fates_hio%update_history_cbal(nc, &
+                               this%fates(nc)%sites,  &
+                               this%fates(nc)%nsites)
+
+   
+
+ end subroutine wrap_bgc_summary
 
  ! ======================================================================================
 
