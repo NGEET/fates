@@ -87,7 +87,7 @@ REQUIRED OPTIONS
                               "-sim_year list" to list valid simulation years
                               (default 2000)
 OPTIONS
-     -bgc "value"             Build CLM with BGC package [ sp | cn | bgc ]
+     -bgc "value"             Build CLM with BGC package [ sp | cn | bgc | ed ]
                               (default is sp).
                                 CLM Biogeochemistry mode
                                 sp    = Satellite Phenology (SP)
@@ -733,6 +733,9 @@ sub setup_cmdl_ed_mode {
        # ED is not a clm4_0 option and should not be used with crop and not with clm4_0
        fatal_error("** Cannot turn ed mode on with crop or with clm4_0 physics.\n" );
     }
+  } elsif ($nl_flags->{"bgc_mode"} eq "ed" && $nl_flags->{"use_ed"} ne ".true.") {
+    fatal_error("DEV_ERROR: internal logic error: bgc_mode = ed and use_ed = false.\n");
+    
   } else {
 
     $var = "use_ed";
