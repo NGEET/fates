@@ -231,7 +231,7 @@ module FatesInterfaceMod
 
       integer                         :: nsites
 
-      type(ed_site_type), allocatable :: sites(:)
+      type(ed_site_type), pointer :: sites(:)
 
       ! These are boundary conditions that the FATES models are required to be filled.  
       ! These values are filled by the driver or HLM.  Once filled, these have an 
@@ -254,11 +254,25 @@ module FatesInterfaceMod
 
    end type fates_interface_type
 
-  
+   public :: FatesInterfaceInit
    public :: set_fates_ctrlparms
 
 
 contains
+
+   ! ====================================================================================
+  subroutine FatesInterfaceInit(log_unit, global_verbose)
+
+    use FatesGlobals, only : FatesGlobalsInit
+
+    implicit none
+
+    integer, intent(in) :: log_unit
+    logical, intent(in) :: global_verbose
+
+    call FatesGlobalsInit(log_unit, global_verbose)
+
+  end subroutine FatesInterfaceInit
 
    ! ====================================================================================
 
@@ -451,7 +465,8 @@ contains
       ! RGK-2016
       ! ---------------------------------------------------------------------------------
 
-      
+      use FatesGlobals, only : fates_log, fates_global_verbose
+
       ! Arguments
       integer, optional, intent(in)         :: ival
       real(r8), optional, intent(in)        :: rval
@@ -466,9 +481,9 @@ contains
       
       select case (trim(tag))
       case('flush_to_unset')
-
-         write(*,*) 'Flushing FATES control parameters prior to transfer from host'
-
+         if (fates_global_verbose()) then
+            write(fates_log(), *) 'Flushing FATES control parameters prior to transfer from host'
+         end if
          cp_numSwb     = unset_int
          cp_numlevgrnd = unset_int
          cp_numlevdecomp_full = unset_int
@@ -479,53 +494,70 @@ contains
       case('check_allset')
          
          if(cp_numSWb .eq. unset_int) then
-            write(*,*) 'FATES dimension/parameter unset: num_sw_rad_bbands'
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'FATES dimension/parameter unset: num_sw_rad_bbands'
+            end if
             ! INTERF-TODO: FATES NEEDS INTERNAL end_run
             ! end_run('MESSAGE')
          end if
 
          if(cp_numSWb > cp_maxSWb) then
-            write(*,*) 'FATES sets a maximum number of shortwave bands'
-            write(*,*) 'for some scratch-space, cp_maxSWb'
-            write(*,*) 'it defaults to 2, but can be increased as needed'
-            write(*,*) 'your driver or host model is intending to drive'
-            write(*,*) 'FATES with:',cp_numSWb,' bands.'
-            write(*,*) 'please increase cp_maxSWb in EDTypes to match'
-            write(*,*) 'or exceed this value'
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'FATES sets a maximum number of shortwave bands'
+               write(fates_log(), *) 'for some scratch-space, cp_maxSWb'
+               write(fates_log(), *) 'it defaults to 2, but can be increased as needed'
+               write(fates_log(), *) 'your driver or host model is intending to drive'
+               write(fates_log(), *) 'FATES with:',cp_numSWb,' bands.'
+               write(fates_log(), *) 'please increase cp_maxSWb in EDTypes to match'
+               write(fates_log(), *) 'or exceed this value'
+            end if
             ! end_run('MESSAGE')
          end if
 
          if(cp_numlevgrnd .eq. unset_int) then
-            write(*,*) 'FATES dimension/parameter unset: numlevground'
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'FATES dimension/parameter unset: numlevground'
+            end if
             ! INTERF-TODO: FATES NEEDS INTERNAL end_run
             ! end_run('MESSAGE')
          end if
 
          if(cp_numlevdecomp_full .eq. unset_int) then
-            write(*,*) 'FATES dimension/parameter unset: numlevdecomp_full'
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'FATES dimension/parameter unset: numlevdecomp_full'
+            end if
             ! INTERF-TODO: FATES NEEDS INTERNAL end_run
             ! end_run('MESSAGE')
          end if
 
          if(cp_numlevdecomp .eq. unset_int) then
-            write(*,*) 'FATES dimension/parameter unset: numlevdecomp'
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'FATES dimension/parameter unset: numlevdecomp'
+            end if
             ! INTERF-TODO: FATES NEEDS INTERNAL end_run
             ! end_run('MESSAGE')
          end if
 
          if(trim(cp_hlm_name) .eq. 'unset') then
-            write(*,*) 'FATES dimension/parameter unset: hlm_name'
+            if (fates_global_verbose()) then
+               write(fates_log(),*) 'FATES dimension/parameter unset: hlm_name'
+            end if
             ! INTERF-TODO: FATES NEEDS INTERNAL end_run
             ! end_run('MESSAGE')
          end if
 
          if( abs(cp_hio_ignore-unset_double)<1e-10 ) then
-            write(*,*) 'FATES dimension/parameter unset: hio_ignore'
+            if (fates_global_verbose()) then
+               write(fates_log(),*) 'FATES dimension/parameter unset: hio_ignore'
+            end if
             ! INTERF-TODO: FATES NEEDS INTERNAL end_run
             ! end_run('MESSAGE')
          end if
 
-         write(*,*) 'Checked. All control parameters sent to FATES.'
+         if (fates_global_verbose()) then
+            write(fates_log(), *) 'Checked. All control parameters sent to FATES.'
+         end if
+
          
       case default
 
@@ -533,38 +565,53 @@ contains
             select case (trim(tag))
                
             case('num_sw_bbands')
-               
+
                cp_numSwb = ival
-               write(*,*) 'Transfering num_sw_bbands = ',ival,' to FATES'
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering num_sw_bbands = ',ival,' to FATES'
+               end if
                
             case('num_lev_ground')
                
                cp_numlevgrnd = ival
-               write(*,*) 'Transfering num_lev_ground = ',ival,' to FATES'
-               
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering num_lev_ground = ',ival,' to FATES'
+               end if
+
             case('num_levdecomp_full')
                
                cp_numlevdecomp_full = ival
-               write(*,*) 'Transfering num_levdecomp_full = ',ival,' to FATES'
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering num_levdecomp_full = ',ival,' to FATES'
+               end if
             
             case('num_levdecomp')
                
                cp_numlevdecomp = ival
-               write(*,*) 'Transfering num_levdecomp = ',ival,' to FATES'
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering num_levdecomp = ',ival,' to FATES'
+               end if
 
             case default
-               write(*,*) 'tag not recognized:',trim(tag)
+               if (fates_global_verbose()) then
+                  write(fates_log(), *) 'tag not recognized:',trim(tag)
+               end if
                ! end_run
             end select
+            
          end if
          
          if(present(rval))then
             select case (trim(tag))
             case ('hio_ignore_val')
                cp_hio_ignore_val = rval
-               write(*,*) 'Transfering hio_ignore_val = ',rval,' to FATES'
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hio_ignore_val = ',rval,' to FATES'
+               end if
             case default
-               write(*,*) 'tag not recognized:',trim(tag)
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'tag not recognized:',trim(tag)
+               end if
                ! end_run
             end select
          end if
@@ -574,17 +621,20 @@ contains
                
             case('hlm_name')
                cp_hlm_name = trim(cval)
-               write(*,*) 'Transfering the HLM name = ',trim(cval)
-               
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering the HLM name = ',trim(cval)
+               end if
+
             case default
-               write(*,*) 'tag not recognized:',trim(tag)
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'tag not recognized:',trim(tag)
+               end if
                ! end_run
             end select
          end if
-         
+
       end select
-      
-      
+            
       return
    end subroutine set_fates_ctrlparms
 
