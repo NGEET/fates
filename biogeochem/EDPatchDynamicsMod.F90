@@ -1456,7 +1456,7 @@ contains
   end subroutine patch_pft_size_profile
 
   ! ============================================================================
-  function countPatches( bounds, sites, nsites ) result ( totNumPatches ) 
+  function countPatches( bounds, nsites, sites ) result ( totNumPatches ) 
     !
     ! !DESCRIPTION:
     !  Loop over all Patches to count how many there are
@@ -1468,8 +1468,8 @@ contains
     !
     ! !ARGUMENTS:
     type(bounds_type)  , intent(in)            :: bounds
-    type(ed_site_type) , intent(inout), target :: sites(nsites)
     integer,             intent(in)            :: nsites
+    type(ed_site_type) , intent(inout), target :: sites(nsites)
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type), pointer :: currentPatch
