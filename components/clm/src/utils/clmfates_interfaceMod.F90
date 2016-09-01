@@ -185,7 +185,9 @@ contains
       ! Note: CLM/ALM currently wants sites to be allocated even if ed
       ! is not turned on
       ! ---------------------------------------------------------------------------------
-      
+
+     use FatesInterfaceMod, only : FatesInterfaceInit
+
       implicit none
       
       ! Input Arguments
@@ -198,6 +200,7 @@ contains
                                                                  ! ONLY PART OF THIS MAY BE OPERATIVE
       ! local variables
       integer                                        :: nclumps   ! Number of threads
+      logical :: verbose_output
 
       if (use_ed) then
          
@@ -215,6 +218,8 @@ contains
          write(iulog,*) 'Entering clm_fates%init'
       end if
 
+      verbose_output = .false.
+      call FatesInterfaceInit(iulog, verbose_output)
 
       nclumps = get_proc_clumps()
       allocate(this%fates(nclumps))
@@ -426,7 +431,7 @@ contains
       integer                 , intent(in)           :: nc
       type(waterstate_type)   , intent(inout)        :: waterstate_inst
       type(canopystate_type)  , intent(inout)        :: canopystate_inst
-      type(soilbiogeochem_carbonflux_type), intent(out) :: soilbiogeochem_carbonflux_inst
+      type(soilbiogeochem_carbonflux_type), intent(inout) :: soilbiogeochem_carbonflux_inst
 
       ! !LOCAL VARIABLES:
       real(r8) :: dayDiff                  ! day of run
@@ -491,8 +496,8 @@ contains
       
       ! link to CLM/ALM structures
       call this%fates2hlm%ed_clm_link( bounds_clump,               &
-            this%fates(nc)%sites,                                  &
             this%fates(nc)%nsites,                                 &
+            this%fates(nc)%sites,                                  &
             this%f2hmap(nc)%fcolumn,                               &
             waterstate_inst,                                       &
             canopystate_inst)
@@ -539,15 +544,15 @@ contains
             call get_clump_bounds(nc, bounds_clump)
             
             call EDRest( bounds_clump,                                             &
-                 this%fates(nc)%sites,                                             &
                  this%fates(nc)%nsites,                                            &
+                 this%fates(nc)%sites,                                             &
                  this%f2hmap(nc)%fcolumn, ncid, flag )
             
             if ( trim(flag) == 'read' ) then
                
                call this%fates2hlm%ed_clm_link( bounds_clump,                      &
-                    this%fates(nc)%sites,                                          &
                     this%fates(nc)%nsites,                                         &
+                    this%fates(nc)%sites,                                          &
                     this%f2hmap(nc)%fcolumn,                                       &
                     waterstate_inst,                                               &
                     canopystate_inst)
@@ -602,17 +607,17 @@ contains
               this%fates(nc)%sites(s)%lon = grc%londeg(g)
            end do
            
-           call set_site_properties(this%fates(nc)%sites, this%fates(nc)%nsites)
+           call set_site_properties(this%fates(nc)%nsites, this%fates(nc)%sites)
            
-           call init_patches(this%fates(nc)%sites, this%fates(nc)%nsites)
+           call init_patches(this%fates(nc)%nsites, this%fates(nc)%sites)
 
            do s = 1,this%fates(nc)%nsites
               call ed_update_site(this%fates(nc)%sites(s))
            end do
            
            call this%fates2hlm%ed_clm_link( bounds_clump,           &
-                this%fates(nc)%sites,                               &
                 this%fates(nc)%nsites,                              &
+                this%fates(nc)%sites,                               &
                 this%f2hmap(nc)%fcolumn,                            &
                 waterstate_inst,                                    &
                 canopystate_inst)
@@ -695,10 +700,10 @@ contains
         ! as well as total patch sun/shade fraction output boundary condition
         ! -------------------------------------------------------------------------------
 
-        call ED_SunShadeFracs(this%fates(nc)%sites,  &
-                              this%fates(nc)%nsites, &
-                              this%fates(nc)%bc_in,  &
-                              this%fates(nc)%bc_out)
+        call ED_SunShadeFracs(this%fates(nc)%nsites, &
+             this%fates(nc)%sites,  &
+             this%fates(nc)%bc_in,  &
+             this%fates(nc)%bc_out)
 
         ! -------------------------------------------------------------------------------
         ! Transfer the FATES output boundary condition for canopy sun/shade fraction
@@ -851,10 +856,10 @@ contains
         ! so we need fates to tell us where to calculate suction
         ! but not calculate it itself. Yeah, complicated, but thats life.
         ! -------------------------------------------------------------------------------
-        call get_active_suction_layers(this%fates(nc)%sites,  &
-                                       this%fates(nc)%nsites, &
-                                       this%fates(nc)%bc_in,  &
-                                       this%fates(nc)%bc_out)
+        call get_active_suction_layers(this%fates(nc)%nsites, &
+             this%fates(nc)%sites,  &
+             this%fates(nc)%bc_in,  &
+             this%fates(nc)%bc_out)
 
         ! Now that the active layers of water uptake have been decided by fates
         ! Calculate the suction that is passed back to fates
@@ -877,10 +882,10 @@ contains
         ! btran, rootr
         ! -------------------------------------------------------------------------------
 
-        call btran_ed(this%fates(nc)%sites,  &
-                      this%fates(nc)%nsites, &
-                      this%fates(nc)%bc_in,  &
-                      this%fates(nc)%bc_out)
+        call btran_ed(this%fates(nc)%nsites, &
+             this%fates(nc)%sites,  &
+             this%fates(nc)%bc_in,  &
+             this%fates(nc)%bc_out)
 
 
         ! -------------------------------------------------------------------------------
@@ -1013,11 +1018,11 @@ contains
       
       ! Call photosynthesis
       
-      call  Photosynthesis_ED (this%fates(nc)%sites,  &
-                               this%fates(nc)%nsites, &
-                               this%fates(nc)%bc_in,  &
-                               this%fates(nc)%bc_out, &
-                               dtime)
+      call  Photosynthesis_ED (this%fates(nc)%nsites, &
+           this%fates(nc)%sites,  &
+           this%fates(nc)%bc_in,  &
+           this%fates(nc)%bc_out, &
+           dtime)
 
       ! Perform a double check to see if all patches on naturally vegetated columns
       ! were activated for photosynthesis
@@ -1074,6 +1079,7 @@ contains
        end if
     end do
 
+
     dtime = get_step_size()
     call  AccumulateFluxes_ED(this%fates(nc)%sites,  &
                                this%fates(nc)%nsites, &
@@ -1095,7 +1101,7 @@ contains
  ! ======================================================================================
 
  subroutine wrap_canopy_radiation(this, bounds_clump, nc, &
-         filter_vegsol, num_vegsol, coszen, surfalb_inst)
+         num_vegsol, filter_vegsol, coszen, surfalb_inst)
 
 
     ! Arguments
@@ -1103,8 +1109,8 @@ contains
     type(bounds_type),  intent(in)             :: bounds_clump
     ! filter for vegetated pfts with coszen>0
     integer            , intent(in)            :: nc ! clump index
-    integer            , intent(in)            :: filter_vegsol(num_vegsol)    
     integer            , intent(in)            :: num_vegsol                 
+    integer            , intent(in)            :: filter_vegsol(num_vegsol)    
     ! cosine solar zenith angle for next time step
     real(r8)           , intent(in)            :: coszen( bounds_clump%begp: )        
     type(surfalb_type) , intent(inout)         :: surfalb_inst 
@@ -1146,10 +1152,10 @@ contains
        end do
     end do
 
-    call ED_Norman_Radiation(this%fates(nc)%sites,  &
-                             this%fates(nc)%nsites, &
-                             this%fates(nc)%bc_in,  &
-                             this%fates(nc)%bc_out)
+    call ED_Norman_Radiation(this%fates(nc)%nsites,  &
+         this%fates(nc)%sites, &
+         this%fates(nc)%bc_in,  &
+         this%fates(nc)%bc_out)
     
     ! Pass FATES BC's back to HLM
     ! -----------------------------------------------------------------------------------
@@ -1190,7 +1196,7 @@ contains
     integer                , intent(in)            :: nc
     type(bounds_type),intent(in)                   :: bounds_clump
     type(canopystate_type)         , intent(inout) :: canopystate_inst
-    type(soilbiogeochem_carbonflux_type), intent(out) :: soilbiogeochem_carbonflux_inst
+    type(soilbiogeochem_carbonflux_type), intent(inout) :: soilbiogeochem_carbonflux_inst
     
     ! local variables
     integer :: s, c
@@ -1205,10 +1211,10 @@ contains
        this%fates(nc)%bc_in(s)%max_rooting_depth_index_col = canopystate_inst%altmax_lastyear_indx_col(c)
     end do
     
-    call flux_into_litter_pools(this%fates(nc)%sites,  &
-                                this%fates(nc)%nsites, &
-                                this%fates(nc)%bc_in,  &
-                                this%fates(nc)%bc_out)
+    call flux_into_litter_pools(this%fates(nc)%nsites, &
+         this%fates(nc)%sites,  &
+         this%fates(nc)%bc_in,  &
+         this%fates(nc)%bc_out)
     
     do s = 1, this%fates(nc)%nsites
        c = this%f2hmap(nc)%fcolumn(s)

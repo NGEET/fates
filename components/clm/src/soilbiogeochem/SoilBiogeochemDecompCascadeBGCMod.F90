@@ -1054,14 +1054,16 @@ contains
             do j = 1,nlevdecomp
                do fc = 1,num_soilc
                   c = filter_soilc(fc)
-                  decomp_k(c,j,i_cwd)   = k_frag  * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j) * spinup_geogterm_cwd(c)
+                  decomp_k(c,j,i_cwd)   = k_frag  * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * &
+                       o_scalar(c,j) * spinup_geogterm_cwd(c)
                end do
             end do
          else
             do j = 1,nlevdecomp
                do fc = 1,num_soilc
                   c = filter_soilc(fc)
-                  decomp_k(c,j,i_cwd)   = k_frag  * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j) * spinup_geogterm_cwd(c)
+                  decomp_k(c,j,i_cwd)   = k_frag  * t_scalar(c,j) * w_scalar(c,j) * &
+                       o_scalar(c,j) * spinup_geogterm_cwd(c)
                end do
             end do
          end if

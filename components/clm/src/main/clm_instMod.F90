@@ -13,7 +13,7 @@ module clm_instMod
   use clm_varcon      , only : h2osno_max, bdsno, c13ratio, c14ratio
   use landunit_varcon , only : istice, istice_mec, istsoil
   use perf_mod        , only : t_startf, t_stopf
-  
+  use controlMod      , only : NLFilename
 
   !-----------------------------------------
   ! Constants
@@ -21,6 +21,7 @@ module clm_instMod
 
   use UrbanParamsType                    , only : urbanparams_type   ! Constants 
   use UrbanParamsType                    , only : IsSimpleBuildTemp, IsProgBuildTemp
+  use UrbanTimeVarType                   , only : urbantv_type
   use SoilBiogeochemDecompCascadeConType , only : decomp_cascade_con
   use CNDVType                           , only : dgv_ecophyscon     ! Constants 
 
@@ -57,6 +58,7 @@ module clm_instMod
   use WaterFluxType                   , only : waterflux_type
   use WaterStateType                  , only : waterstate_type
   use UrbanParamsType                 , only : urbanparams_type
+  use UrbanTimeVarType                , only : urbantv_type
   use HumanIndexMod                   , only : humanindex_type
   use VOCEmissionMod                  , only : vocemis_type
   use CNFireEmissionsMod              , only : fireemis_type
@@ -103,6 +105,7 @@ module clm_instMod
   type(surfrad_type)                      :: surfrad_inst
   type(temperature_type)                  :: temperature_inst
   type(urbanparams_type)                  :: urbanparams_inst
+  type(urbantv_type)                      :: urbantv_inst
   type(humanindex_type)                   :: humanindex_inst
   type(waterflux_type)                    :: waterflux_inst
   type(waterstate_type)                   :: waterstate_inst
@@ -230,6 +233,9 @@ contains
 
     call urbanparams_inst%Init(bounds)
     call humanindex_inst%Init(bounds)
+
+    ! Initialize urban time varying data
+    call urbantv_inst%Init(bounds, NLFilename)
 
     ! Initialize vertical data components 
 
@@ -369,7 +375,7 @@ contains
 
     end if
 
-    if ( use_cn ) then 
+    if ( use_cn .or. use_ed) then 
 
        ! Initalize soilbiogeochem nitrogen types
 
@@ -385,7 +391,7 @@ contains
     ! Note - always call Init for bgc_vegetation_inst: some pieces need to be initialized always
     call bgc_vegetation_inst%Init(bounds, nlfilename)
 
-    if (use_cn) then
+    if (use_cn .or. use_ed) then
        call crop_inst%Init(bounds)
     end if
 

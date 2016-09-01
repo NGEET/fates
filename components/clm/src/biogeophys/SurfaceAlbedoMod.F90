@@ -918,7 +918,7 @@ contains
     if (use_ed) then
           
        call clm_fates%wrap_canopy_radiation(bounds, nc, &
-            filter_vegsol, num_vegsol, &
+            num_vegsol, filter_vegsol, &
             coszen_patch(bounds%begp:bounds%endp), surfalb_inst)
 
     else

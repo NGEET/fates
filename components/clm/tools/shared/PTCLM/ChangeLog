@@ -3,6 +3,21 @@ This file describes changes made to the PTCLM tool
 ================================================================================        
 
 ================================================================================        
+Originator: erik
+Date: Aug/18/2016
+Tag: PTCLM2_160818
+One-line: Update compare tests, and allow clm5_0 and make it the default
+Testing:  Standard PTCLM test script on yellowstone and test_driver.sh in clm4_5_11_r189
+Known Bugs: RF-Bra will work even without --donot_use_tower_yrs since it doesn't
+            check for valid values
+
+M       PTCLMmkdata ------------- Change so can work for clm5_0 and make clm5_0 the default
+M       test/compdirs/*/run.log
+M       test/listings/help
+M       test/listings/list
+M       test/listings/sitelist
+
+================================================================================        
 Originator: sacks
 Date: Jan/27/2016
 Tag: PTCLM2_160127a

@@ -1,5 +1,84 @@
 Tag                   Who      Date  Summary
 ============================================================================================================================
+  clm4_5_12_r193    andre 08/30/2016 Bugfix in BalanceCheckMod: revert tolerance change and removal of endrun call introduced in r192
+  clm4_5_12_r192    andre 08/27/2016 ED bugfixes and initial refactoring for a standalone library
+  clm4_5_12_r191    sacks 08/21/2016 New parameterizations for snow overburden compaction and wind drift compaction
+  clm4_5_12_r190    sacks 08/20/2016 Fix snow capping bug
+  clm4_5_11_r189     erik 08/18/2016 Bring in time varying streams for urban data (currently triggers AC use)
+  clm4_5_11_r188     erik 08/05/2016 A set of small answer changing issues for both clm45 and clm50
+  clm4_5_10_r187     erik 07/26/2016 CLM45/50 changes: seperate carbon and water root profile, turn off undercanopystability, 
+                                     really turn PHS on, LUNA predict sunlit fraction N fractionation
+   clm4_5_9_r186    sacks 07/13/2016 Initialize biogeochem balance checks AFTER column area updates
+   clm4_5_9_r185    sacks 07/07/2016 Revert glacial melt behavior to the old treatment for mountain glaciers
+   clm4_5_9_r184     erik 07/06/2016 CLM50 changes: Atkin form of lmr changed, new parameters and files, turn PHS on by default, 
+                                     new cold snow density, reseed at exit AD spinup, fix fire bug, fix npool and cpool errors
+   clm4_5_9_r183     erik 07/02/2016 Decomposition is not water limited after reaching a field capacity parameter (maxpsi_hr) 
+                                     rather than only at soil saturation
+   clm4_5_8_r182     erik 06/24/2016 Bring in option for plant hydraulic stress for clm50
+   clm4_5_8_r181     erik 06/17/2016 Update cime version which fixes several issues and changes answers
+   clm4_5_8_r180    sacks 06/06/2016 Refactor dyn_cnbal_patch
+   clm4_5_8_r179    sacks 05/27/2016 Update column-level BGC state variables with dynamic landunits
+   clm4_5_8_r178    sacks 04/17/2016 Remove some consistency checks, and merge crop_prog with use_crop in code
+   clm4_5_8_r177    sacks 04/14/2016 Move CN product pools to gridcell level
+   clm4_5_8_r176    sacks 04/13/2016 Calculate active flags and filters earlier in initialization
+   clm4_5_8_r175    sacks 04/09/2016 For glc_mec, change downscaling and where SMB is computed
+   clm4_5_8_r174     erik 03/25/2016 Bring Rosie's respiration changes to the trunk
+   clm4_5_8_r173    sacks 03/17/2016 Major refactor of CN Products
+   clm4_5_8_r172    sacks 03/08/2016 Exclude land use and product pools / fluxes from CN summary diagnostics
+   clm4_5_8_r171     erik 03/02/2016 Backout COMP_RUN_BARRIERS setting, and remove all ED tests from testlist (as they all fail)
+   clm4_5_8_r170    sacks 02/28/2016 Add a wrapper for CN Vegetation
+   clm4_5_8_r169     erik 02/23/2016 Add fire several fire constants to namelist, add some new clm45/50 surface datasets
+   clm4_5_8_r168    sacks 02/20/2016 Fix zero methane production
+   clm4_5_7_r167    sacks 02/20/2016 Fix carbon isotopes in transient runs
+   clm4_5_7_r166    sacks 02/02/2016 Infrastructure for carbon and nitrogen conservation with dynamic landunits
+   clm4_5_7_r165    sacks 01/29/2016 Remove fglcmask, recreate all surface datasets
+   clm4_5_7_r164     erik 01/12/2016 Update CIME and MOSART
+   clm4_5_7_r163    sacks 12/23/2015 Improve crop performance by allocating less memory
+   clm4_5_7_r162    andre 12/18/2015 negative runoff updates.
+   clm4_5_6_r161    sacks 12/17/2015 Collapse mountain glaciers to a single elevation class
+   clm4_5_6_r160    sacks 12/11/2015 For glc_mec, get gridcell topographic height from atm
+   clm4_5_6_r159     erik 12/10/2015 Update CIME version
+   clm4_5_6_r158    andre 12/04/2015 misc clm 5.0 bugfixes
+   clm4_5_6_r157    sacks 11/27/2015 Reduce memory use for init_interp
+   clm4_5_6_r156    sacks 11/24/2015 Fix QSNWCPICE and glacial inception
+   clm4_5_6_r155     erik 11/23/2015 Bring FUN (Fixation and Uptake of Nitrogen) code option to trunk 
+                                     from Mingjie, as well as latitude varying spinup from Charlie, 
+                                     and a fix for crop with dynamic roots from Beth
+   clm4_5_6_r154    andre 11/18/2015 one year grain product pool
+   clm4_5_6_r153    sacks 11/17/2015 Fix snow cover fraction bug
+   clm4_5_5_r152    sacks 11/17/2015 Fix glc_mec energy conservation bug
+   clm4_5_4_r151     erik 11/13/2015 Fix broken r150 tag, with bgc_spinup issue in it
+   clm4_5_4_r150     erik 11/13/2015 Some needed answer changing fixes for: fire, disallow 
+                                     negative photosynthis, and reduce LAI of DBT in evergreen state
+   clm4_5_3_r149    sacks 11/08/2015 Change cold start initialization of snow pack
+   clm4_5_3_r148    sacks 11/07/2015 For CLM5, increase max snow depth to 20 m
+   clm4_5_3_r147    andre 11/05/2015 swenson bedrock and coupler runoff bugfixes
+   clm4_5_3_r146    sacks 11/04/2015 Implement vertical interpolation in init_interp
+   clm4_5_3_r145    andre 11/03/2015 update clm50 defaults, enable clm50 crop compsets
+   clm4_5_3_r144    sacks 10/27/2015 Better fix for bug that leads to infinite growth in snow depth
+   clm4_5_3_r143    andre 10/22/2015 flexibleCN and luna bugfixes.
+   clm4_5_3_r142    sacks 10/19/2015 Fix bug in initialization of 12-layer snow pack
+   clm4_5_3_r141    sacks 10/19/2015 Fix bug that leads to infinite growth in snow depth
+   clm4_5_3_r140    andre 10/15/2015 mosart direct to ocean runoff
+   clm4_5_3_r139    andre 10/13/2015 dynamic roots from Beth Drewniak
+   clm4_5_3_r138    andre 10/11/2015 new accelerated spinup and soil vertical structure
+   clm4_5_3_r137     erik 10/09/2015 Bring in changes for fire-emissions as well tuning changes to the  fire model to be used with clm5_0
+   clm4_5_3_r136    andre 10/08/2015 coupler field prep for mosart and externals update
+   clm4_5_3_r135    sacks 10/06/2015 Substantial reduction in memory allocation for prognostic crops
+   clm4_5_3_r134    sacks 10/04/2015 Fixes for transient and preindustrial crop cases
+   clm4_5_3_r133    andre 10/02/2015 Bugfix for mksurfdata_map - add file missed by clm4_5_2_r125.
+   clm4_5_3_r132    andre 10/02/2015 Modify soil BGC diffusion and cryoturbation code to allow for spatially variable soil thickness.
+   clm4_5_3_r131    sacks 09/30/2015 Bring in cime3
+   clm4_5_3_r130    andre 09/28/2015 add namelist option to reduce lake evaporation and irrigation when river water storage falls below a threshold value, and add an additional constraint on stress deciduous leaf onset.
+   clm4_5_3_r129    andre 09/25/2015 bump tag revision number because clm4_5_2_r128 was climate changing.
+   clm4_5_2_r128    andre 09/24/2015 science bugfixes (not bfb) for root fraction and bedrock thermal properties
+   clm4_5_2_r127    sacks 09/18/2015 Fix interpolation of initial conditions for glc_mec and crop <-> non-crop
+   clm4_5_2_r126    andre 09/17/2015 New decomp_depth_efolding value for clm5.0, set as a namelist parameter instead of netcdf params file.
+   clm4_5_2_r125    andre 09/15/2015 clm 50 hydrology updates.
+   clm4_5_2_r124    sacks 09/13/2015 Wind-dependent snow density
+   clm4_5_2_r123    sacks 09/10/2015 Fix some problems with pgi and nag compilers
+   clm4_5_2_r122    sacks 09/09/2015 Update to latest cime
+   clm4_5_2_r121    sacks 09/04/2015 Rework snow capping
    clm4_5_1_r120    andre 08/29/2015 CLM 5 nitrogen models Flexible CN and LUNA
    clm4_5_1_r119     erik 08/26/2015 Bring hobart/nag bug fixes to trunk, and fix a few bugs
    clm4_5_1_r118    sacks 08/05/2015 Minor rework of glc coupling fields

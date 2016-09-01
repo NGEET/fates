@@ -27,6 +27,7 @@ module clm_driver
   use BalanceCheckMod        , only : BeginWaterBalance, BalanceCheck
   !
   use CanopyTemperatureMod   , only : CanopyTemperature ! (formerly Biogeophysics1Mod)
+  use UrbanTimeVarType       , only : urbantv_type
   use SoilTemperatureMod     , only : SoilTemperature
   use LakeTemperatureMod     , only : LakeTemperature
   !
@@ -326,6 +327,9 @@ contains
        call t_stopf('bgc_interp')
     end if
 
+    ! Get time varying urban data
+    call urbantv_inst%urbantv_interp(bounds_proc)
+
     ! ============================================================================
     ! Initialize variables from previous time step, downscale atm forcings, and
     ! Determine canopy interception and precipitation onto ground surface.
@@ -493,7 +497,6 @@ contains
        deallocate(downreg_patch, leafn_patch)
        call t_stopf('canflux')
 
-       
        ! Fluxes for all urban landunits
 
        call t_startf('uflux')
@@ -585,7 +588,7 @@ contains
             filter(nc)%num_urbanl  , filter(nc)%urbanl,                                        &
             filter(nc)%num_nolakec , filter(nc)%nolakec,                                       &
             atm2lnd_inst, urbanparams_inst, canopystate_inst, waterstate_inst, waterflux_inst, &
-            solarabs_inst, soilstate_inst, energyflux_inst,  temperature_inst)
+            solarabs_inst, soilstate_inst, energyflux_inst,  temperature_inst, urbantv_inst)
 
        ! The following is called immediately after SoilTemperature so that melted ice is
        ! converted back to solid ice as soon as possible
@@ -624,7 +627,7 @@ contains
        ! Note that filter_snowc and filter_nosnowc are returned by
        ! LakeHydrology after the new snow filter is built
 
-       call t_startf('hydro without drainage')
+       call t_startf('hydro_without_drainage')
 
        call HydrologyNoDrainage(bounds_clump,                                &
             filter(nc)%num_nolakec, filter(nc)%nolakec,                      &
@@ -658,7 +661,7 @@ contains
             waterstate_inst=waterstate_inst,                               &
             aerosol_inst=aerosol_inst)                      
 
-       call t_stopf('hydro without drainage')
+       call t_stopf('hydro_without_drainage')
 
        ! ============================================================================
        ! Lake hydrology
@@ -776,7 +779,7 @@ contains
        ! Calculate soil/snow hydrology with drainage (subsurface runoff)
        ! ============================================================================
 
-       call t_startf('hydro2 drainage')
+       call t_startf('hydro2_drainage')
 
        call HydrologyDrainage(bounds_clump,                   &
             filter(nc)%num_nolakec, filter(nc)%nolakec,       &
@@ -787,7 +790,7 @@ contains
             soilhydrology_inst, soilstate_inst, waterstate_inst, waterflux_inst, &
             irrigation_inst, glacier_smb_inst)
 
-       call t_stopf('hydro2 drainage')     
+       call t_stopf('hydro2_drainage')     
 
        if (use_cn) then
 

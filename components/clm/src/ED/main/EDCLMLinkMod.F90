@@ -381,7 +381,7 @@ contains
 
   !-----------------------------------------------------------------------
 
-  subroutine ed_clm_link( this, bounds, sites, nsites, fcolumn, waterstate_inst, canopystate_inst)
+  subroutine ed_clm_link( this, bounds, nsites, sites, fcolumn, waterstate_inst, canopystate_inst)
     !
     ! !USES: 
     use landunit_varcon      , only : istsoil
@@ -397,8 +397,8 @@ contains
     ! !ARGUMENTS    
     class(ed_clm_type)                              :: this
     type(bounds_type)       , intent(in)            :: bounds  
-    type(ed_site_type)      , intent(inout), target :: sites(nsites)
     integer                 , intent(in)            :: nsites
+    type(ed_site_type)      , intent(inout), target :: sites(nsites)
     integer                 , intent(in)            :: fcolumn(nsites)
     type(waterstate_type)   , intent(inout)         :: waterstate_inst
     type(canopystate_type)  , intent(inout)         :: canopystate_inst
@@ -638,7 +638,9 @@ contains
     ! !DESCRIPTION:
     ! Load LAI in each layer into array to send to CLM
     !
-    ! !USES: 
+    ! !USES:
+    use FatesGlobals, only : fates_log
+
     use EDGrowthFunctionsMod , only : tree_lai, tree_sai, c_area 
     use EDtypesMod           , only : area, dinc_ed, hitemax, numpft_ed, n_hite_bins
     use EDEcophysConType     , only : EDecophyscon
@@ -807,7 +809,7 @@ contains
                           currentCohort%sai
 
                      !snow burial
-!write(*,*) 'calc snow'
+!write(fates_log(), *) 'calc snow'
                      snow_depth_col = snow_depth(colindex) * frac_sno_eff(colindex)
                      if(snow_depth_col  > maxh(iv))then
                         fraction_exposed = 0._r8
@@ -822,12 +824,12 @@ contains
                      ! no m2 of leaf per m2 of ground in each height class
                      ! FIX(SPM,032414) these should be uncommented this and double check
 
-                     if ( DEBUG ) write(iulog,*) 'EDCLMLink 1154 ', currentPatch%elai_profile(1,ft,iv)
+                     if ( DEBUG ) write(fates_log(), *) 'EDCLMLink 1154 ', currentPatch%elai_profile(1,ft,iv)
 
                      currentPatch%elai_profile(1,ft,iv) = currentPatch%tlai_profile(1,ft,iv) * fraction_exposed
                      currentPatch%esai_profile(1,ft,iv) = currentPatch%tsai_profile(1,ft,iv) * fraction_exposed
 
-                     if ( DEBUG ) write(iulog,*) 'EDCLMLink 1159 ', currentPatch%elai_profile(1,ft,iv)
+                     if ( DEBUG ) write(fates_log(), *) 'EDCLMLink 1159 ', currentPatch%elai_profile(1,ft,iv)
 
                   enddo ! (iv) hite bins
 
@@ -848,7 +850,7 @@ contains
                enddo
 
                if(lai > currentPatch%lai)then
-                  write(iulog,*) 'ED: problem with lai assignments'
+                  write(fates_log(), *) 'ED: problem with lai assignments'
                endif
 
 
@@ -874,14 +876,14 @@ contains
                      fleaf = currentCohort%lai / (currentCohort%lai + currentCohort%sai) 
                   else
                      fleaf = 0._r8
-                     write(iulog,*) 'ED: no stem or leaf area' ,currentCohort%pft,currentCohort%bl, &
+                     write(fates_log(), *) 'ED: no stem or leaf area' ,currentCohort%pft,currentCohort%bl, &
                           currentCohort%balive,currentCohort%treelai,currentCohort%treesai,currentCohort%dbh, &
                           currentCohort%n,currentCohort%status_coh
                   endif
                   currentPatch%ncan(L,ft) = max(currentPatch%ncan(L,ft),currentCohort%NV)  
                   currentPatch%nrad(L,ft) = currentPatch%ncan(L,ft)  !fudge - this needs to be altered for snow burial
                   if(currentCohort%NV > currentPatch%nrad(L,ft))then
-                     write(iulog,*) 'ED: issue with NV',currentCohort%NV,currentCohort%pft,currentCohort%canopy_layer
+                     write(fates_log(), *) 'ED: issue with NV',currentCohort%NV,currentCohort%pft,currentCohort%canopy_layer
                   endif
 
                   ! c = clmpatch%column(currentPatch%clm_pno)
@@ -889,7 +891,7 @@ contains
                   ! COLUMNIZATION IS COMPLETE
                   if( clmpatch%column(currentPatch%clm_pno) .ne. colindex .or. currentPatch%clm_pno .ne. p )then
                      ! ERROR
-                     write(iulog,*) ' clmpatch%column(currentPatch%clm_pno) .ne. colindex .or. currentPatch%clm_pno .ne. p '
+                     write(fates_log(), *) ' clmpatch%column(currentPatch%clm_pno) .ne. colindex .or. currentPatch%clm_pno .ne. p '
                      call endrun(msg=errMsg(__FILE__, __LINE__))
                   end if
 
@@ -905,7 +907,7 @@ contains
                      layer_bottom_hite = currentCohort%hite-(((iv+1)/currentCohort%NV) * currentCohort%hite * &
                           EDecophyscon%crown(currentCohort%pft)) ! pftcon%vertical_canopy_frac(ft))
                  
-                     write(*,*) 'calc snow 2', colindex, snow_depth(colindex) , frac_sno_eff(colindex)
+                     write(fates_log(), *) 'calc snow 2', colindex, snow_depth(colindex) , frac_sno_eff(colindex)
                      ! fraction_exposed = 1.0_r8 !default. 
               
       !  snow_depth_col = snow_depth(c) ! * frac_sno_eff(c)
@@ -936,8 +938,8 @@ fraction_exposed =1.0_r8
                      currentPatch%layer_height_profile(L,ft,iv) = currentPatch%layer_height_profile(L,ft,iv) + (dinc_ed * fleaf * &
                           currentCohort%c_area/currentPatch%total_canopy_area *(layer_top_hite+layer_bottom_hite)/2.0_r8) !average height of layer. 
                      
-                    write(*,*) 'LHP', currentPatch%layer_height_profile(L,ft,iv)
-                     if ( DEBUG ) write(iulog,*) 'EDCLMLink 1246 ', currentPatch%elai_profile(1,ft,iv)
+                    write(fates_log(), *) 'LHP', currentPatch%layer_height_profile(L,ft,iv)
+                     if ( DEBUG ) write(fates_log(), *) 'EDCLMLink 1246 ', currentPatch%elai_profile(1,ft,iv)
 
                   end do
                   
@@ -950,7 +952,7 @@ fraction_exposed =1.0_r8
                   layer_bottom_hite = currentCohort%hite-(((iv+1)/currentCohort%NV) * currentCohort%hite * &
                        EDecophyscon%crown(currentCohort%pft))
 
-!write(*,*) 'calc snow 3', snow_depth(c) , frac_sno_eff(c)
+!write(fates_log(), *) 'calc snow 3', snow_depth(c) , frac_sno_eff(c)
                    fraction_exposed = 1.0_r8 !default. 
                    snow_depth_col = snow_depth(colindex) * frac_sno_eff(colindex)
                      if(snow_depth_col  > layer_top_hite)then
@@ -969,7 +971,7 @@ fraction_exposed= 1.0_r8
 
                   remainder = (currentCohort%treelai + currentCohort%treesai) - (dinc_ed*(currentCohort%NV-1))
                   if(remainder > 1.0_r8)then
-                     write(iulog,*)'ED: issue with remainder',currentCohort%treelai,currentCohort%treesai,dinc_ed, & 
+                     write(fates_log(), *)'ED: issue with remainder',currentCohort%treelai,currentCohort%treesai,dinc_ed, & 
                           currentCohort%NV
                   endif
                   !assumes that fleaf is unchanging FIX(RF,032414)
@@ -989,15 +991,15 @@ fraction_exposed= 1.0_r8
                        currentCohort%c_area/currentPatch%total_canopy_area)
                   currentPatch%layer_height_profile(L,ft,iv) = currentPatch%layer_height_profile(L,ft,iv) + (remainder * fleaf * &
                        currentCohort%c_area/currentPatch%total_canopy_area*(layer_top_hite+layer_bottom_hite)/2.0_r8)
-                        write(*,*) 'LHP', currentPatch%layer_height_profile(L,ft,iv)
+                        write(fates_log(), *) 'LHP', currentPatch%layer_height_profile(L,ft,iv)
                   if(currentCohort%dbh <= 0._r8.or.currentCohort%n == 0._r8)then
-                     write(iulog,*) 'ED: dbh or n is zero in clmedlink', currentCohort%dbh,currentCohort%n
+                     write(fates_log(), *) 'ED: dbh or n is zero in clmedlink', currentCohort%dbh,currentCohort%n
                   endif
                   if(currentCohort%pft == 0.or.currentCohort%canopy_trim <= 0._r8)then
-                     write(iulog,*) 'ED: PFT or trim is zero in clmedlink',currentCohort%pft,currentCohort%canopy_trim
+                     write(fates_log(), *) 'ED: PFT or trim is zero in clmedlink',currentCohort%pft,currentCohort%canopy_trim
                   endif
                   if(currentCohort%balive <= 0._r8.or.currentCohort%bl < 0._r8)then
-                     write(iulog,*) 'ED: balive is zero in clmedlink',currentCohort%balive,currentCohort%bl
+                     write(fates_log(), *) 'ED: balive is zero in clmedlink',currentCohort%balive,currentCohort%bl
                   endif
 
                   currentCohort => currentCohort%taller
@@ -1013,7 +1015,7 @@ fraction_exposed= 1.0_r8
                         currentPatch%tsai_profile(L,ft,iv) = currentPatch%tsai_profile(L,ft,iv) / &
                              currentPatch%canopy_area_profile(L,ft,iv)
 
-                        if ( DEBUG ) write(iulog,*) 'EDCLMLink 1293 ', currentPatch%elai_profile(L,ft,iv)
+                        if ( DEBUG ) write(fates_log(), *) 'EDCLMLink 1293 ', currentPatch%elai_profile(L,ft,iv)
 
                         currentPatch%elai_profile(L,ft,iv) = currentPatch%elai_profile(L,ft,iv) / &
                              currentPatch%canopy_area_profile(L,ft,iv)
@@ -1058,12 +1060,12 @@ fraction_exposed= 1.0_r8
 !               p = currentPatch%clm_pno
                if(abs(tlai(p)-tlai_temp) > 0.0001_r8) then
 
-                  write(iulog,*) 'ED: error with tlai calcs',&
+                  write(fates_log(), *) 'ED: error with tlai calcs',&
                        NC,colindex, abs(tlai(p)-tlai_temp), tlai_temp,tlai(p)
 
                   do L = 1,currentPatch%NCL_p
-                     write(iulog,*) 'ED: carea profile',L,currentPatch%canopy_area_profile(L,1,1:currentPatch%nrad(L,1))
-                     write(iulog,*) 'ED: tlai profile',L,currentPatch%tlai_profile(L,1,1:currentPatch%nrad(L,1))
+                     write(fates_log(), *) 'ED: carea profile',L,currentPatch%canopy_area_profile(L,1,1:currentPatch%nrad(L,1))
+                     write(fates_log(), *) 'ED: tlai profile',L,currentPatch%tlai_profile(L,1,1:currentPatch%nrad(L,1))
                   end do
 
                endif
@@ -1084,7 +1086,7 @@ fraction_exposed= 1.0_r8
                do L = 1,currentPatch%NCL_p
                   do ft = 1,numpft_ed
                      if(currentPatch%nrad(L,ft) > 30)then
-                        write(iulog,*) 'ED: issue w/ nrad'
+                        write(fates_log(), *) 'ED: issue w/ nrad'
                      endif
                      currentPatch%present(L,ft) = 0
                      do  iv = 1, currentPatch%nrad(L,ft);
@@ -1096,30 +1098,32 @@ fraction_exposed= 1.0_r8
 
                   if ( L == 1 .and. abs(sum(currentPatch%canopy_area_profile(1,1:numpft_ed,1))) < 0.99999  &
                        .and. currentPatch%NCL_p > 1 ) then
-                     write(iulog,*) 'ED: canopy area too small',sum(currentPatch%canopy_area_profile(1,1:numpft_ed,1))
-                     write(iulog,*) 'ED: cohort areas', currentPatch%canopy_area_profile(1,1:numpft_ed,:)
+                     write(fates_log(), *) 'ED: canopy area too small',sum(currentPatch%canopy_area_profile(1,1:numpft_ed,1))
+                     write(fates_log(), *) 'ED: cohort areas', currentPatch%canopy_area_profile(1,1:numpft_ed,:)
                   endif
 
                   if (L == 1 .and. currentPatch%NCL_p > 1 .and.  &
                        abs(sum(currentPatch%canopy_area_profile(1,1:numpft_ed,1))) < 0.99999) then
-                     write(iulog,*) 'ED: not enough area in the top canopy', &
+                     write(fates_log(), *) 'ED: not enough area in the top canopy', &
                           sum(currentPatch%canopy_area_profile(L,1:numpft_ed,1)), &
                           currentPatch%canopy_area_profile(L,1:numpft_ed,1)
                   endif
 
                   if(abs(sum(currentPatch%canopy_area_profile(L,1:numpft_ed,1))) > 1.00001)then
-                     write(iulog,*) 'ED: canopy-area-profile wrong',sum(currentPatch%canopy_area_profile(L,1:numpft_ed,1)), &
-                          colindex,currentPatch%patchno,L
-                     write(iulog,*) 'ED: areas',currentPatch%canopy_area_profile(L,1:2,1),currentPatch%patchno
+                     write(fates_log(), *) 'ED: canopy-area-profile wrong', &
+                          sum(currentPatch%canopy_area_profile(L,1:numpft_ed,1)), &
+                          colindex, currentPatch%patchno, L
+                     write(fates_log(), *) 'ED: areas',currentPatch%canopy_area_profile(L,1:2,1),currentPatch%patchno
 
                      currentCohort => currentPatch%shortest
 
                      do while(associated(currentCohort))
 
                         if(currentCohort%canopy_layer==1)then
-                           write(iulog,*) 'ED: cohorts',currentCohort%dbh,currentCohort%c_area, &
+                           write(fates_log(), *) 'ED: cohorts',currentCohort%dbh,currentCohort%c_area, &
                                 currentPatch%total_canopy_area,currentPatch%area,currentPatch%canopy_area
-                           write(iulog,*) 'ED: fracarea',currentCohort%pft, currentCohort%c_area/currentPatch%total_canopy_area
+                           write(fates_log(), *) 'ED: fracarea', currentCohort%pft, &
+                                currentCohort%c_area/currentPatch%total_canopy_area
                         endif
 
                         currentCohort => currentCohort%taller  
@@ -1131,7 +1135,7 @@ fraction_exposed= 1.0_r8
                do L = 1,currentPatch%NCL_p
                   do ft = 1,numpft_ed
                      if(currentPatch%present(L,FT) > 1)then
-                        write(iulog,*) 'ED: present issue',currentPatch%clm_pno,L,ft,currentPatch%present(L,FT)
+                        write(fates_log(), *) 'ED: present issue',currentPatch%clm_pno,L,ft,currentPatch%present(L,FT)
                         currentPatch%present(L,ft) = 1
                      endif
                   enddo
@@ -1170,8 +1174,8 @@ fraction_exposed= 1.0_r8
    type(bounds_type)                       , intent(in)    :: bounds  
    integer                                 , intent(in)    :: num_soilc         ! number of soil columns in filter
    integer                                 , intent(in)    :: filter_soilc(:)   ! filter for soil columns
-   type(ed_site_type)                      , intent(in), target :: sites(nsites)
    integer                                 , intent(in)    :: nsites
+   type(ed_site_type)                      , intent(in), target :: sites(nsites)
    integer                                 , intent(in)    :: fcolumn(nsites)
    type(soilbiogeochem_carbonflux_type)    , intent(inout) :: soilbiogeochem_carbonflux_inst
    type(soilbiogeochem_carbonstate_type)   , intent(inout) :: soilbiogeochem_carbonstate_inst
@@ -1313,9 +1317,12 @@ fraction_exposed= 1.0_r8
            currentPatch => sites(s)%oldest_patch
            do while(associated(currentPatch))
               !
-              ed_to_bgc_this_edts(c) = ed_to_bgc_this_edts(c) + (sum(currentPatch%CWD_AG_out) + sum(currentPatch%CWD_BG_out) &
-                   + sum(currentPatch%seed_decay) + sum(currentPatch%leaf_litter_out) + sum(currentPatch%root_litter_out)) &
-                   * ( currentPatch%area/AREA ) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
+
+              ed_to_bgc_this_edts(c) = ed_to_bgc_this_edts(c) + &
+                   (sum(currentPatch%CWD_AG_out) + sum(currentPatch%CWD_BG_out) + &
+                    sum(currentPatch%seed_decay) + sum(currentPatch%leaf_litter_out) + &
+                    sum(currentPatch%root_litter_out)) * &
+                   ( currentPatch%area/AREA ) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
               !
               seed_rain_flux(c) = seed_rain_flux(c) + sum(currentPatch%seed_rain_flux) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
               !
@@ -1427,9 +1434,17 @@ fraction_exposed= 1.0_r8
         ! next compare the change in carbon and calculate the error
         do fc = 1,num_soilc
            c = filter_soilc(fc)
-           error_ed(c) = totedc(c) - totedc_old(c) - (npp_timeintegrated(c) + seed_rain_flux(c)* SHR_CONST_CDAY - ed_to_bgc_this_edts(c)* SHR_CONST_CDAY - fire_c_to_atm(c) * SHR_CONST_CDAY)
-           error_bgc(c) = totbgcc(c) - totbgcc_old(c) - (ed_to_bgc_last_edts(c)* SHR_CONST_CDAY - hr_timeintegrated(c))
-           error_total(c) = totecosysc(c) - totecosysc_old(c) - (nbp_integrated(c) + ed_to_bgc_last_edts(c)* SHR_CONST_CDAY - ed_to_bgc_this_edts(c)* SHR_CONST_CDAY)
+           error_ed(c) = totedc(c) - totedc_old(c) - &
+                (npp_timeintegrated(c) + seed_rain_flux(c) * SHR_CONST_CDAY - &
+                ed_to_bgc_this_edts(c) * SHR_CONST_CDAY - &
+                fire_c_to_atm(c) * SHR_CONST_CDAY)
+           
+           error_bgc(c) = totbgcc(c) - totbgcc_old(c) - &
+                (ed_to_bgc_last_edts(c) * SHR_CONST_CDAY - hr_timeintegrated(c))
+           
+           error_total(c) = totecosysc(c) - totecosysc_old(c) - &
+                (nbp_integrated(c) + ed_to_bgc_last_edts(c) * SHR_CONST_CDAY - &
+                ed_to_bgc_this_edts(c)* SHR_CONST_CDAY)
         end do
         !
         ! put in consistent flux units and send to history so we can keep track of the errors
