@@ -106,8 +106,8 @@ module EDCLMLinkMod
 
      ! Private routines
      procedure , private :: ed_clm_leaf_area_profile
-     procedure , private :: InitAllocate 
-     procedure , private :: InitHistory
+!     procedure , private :: InitAllocate 
+!     procedure , private :: InitHistory
 
   end type ed_clm_type
 
@@ -127,148 +127,148 @@ contains
     type(bounds_type), intent(in) :: bounds  
     !-----------------------------------------------------------------------
 
-    call this%InitAllocate(bounds)
-    call this%InitHistory(bounds)
+!    call this%InitAllocate(bounds)
+!    call this%InitHistory(bounds)
 
   end subroutine Init
 
   !------------------------------------------------------------------------
-  subroutine InitAllocate(this, bounds)
-    !
-    ! !USES: 
-    use shr_infnan_mod , only : nan => shr_infnan_nan, assignment(=)
-    use clm_varpar     , only : nlevgrnd, nlevdecomp_full
-    use EDtypesMod     , only : numpft_ed
-    !
-    ! !ARGUMENTS:
-    class (ed_clm_type) :: this 
-    type(bounds_type), intent(in)    :: bounds 
-    !
-    ! !LOCAL VARIABLES:
-    integer           :: begp,endp
-    integer           :: begc,endc                                    !bounds
-    integer           :: begg,endg
-    !------------------------------------------------------------------------
+!  subroutine InitAllocate(this, bounds)
+!    !
+!    ! !USES: 
+!    use shr_infnan_mod , only : nan => shr_infnan_nan, assignment(=)
+!    use clm_varpar     , only : nlevgrnd, nlevdecomp_full
+!    use EDtypesMod     , only : numpft_ed
+!    !
+!    ! !ARGUMENTS:
+!    class (ed_clm_type) :: this 
+!    type(bounds_type), intent(in)    :: bounds 
+!    !
+!    ! !LOCAL VARIABLES:
+!    integer           :: begp,endp
+!    integer           :: begc,endc                                    !bounds
+!    integer           :: begg,endg
+!    !------------------------------------------------------------------------
 
-    begp = bounds%begp; endp = bounds%endp
-    begc = bounds%begc; endc = bounds%endc
+!    begp = bounds%begp; endp = bounds%endp
+!    begc = bounds%begc; endc = bounds%endc
 
-    allocate(this%ed_to_bgc_this_edts_col    (begc:endc))            ; this%ed_to_bgc_this_edts_col   (:) = nan
-    allocate(this%ed_to_bgc_last_edts_col    (begc:endc))            ; this%ed_to_bgc_last_edts_col   (:) = nan
-    allocate(this%seed_rain_flux_col         (begc:endc))            ; this%seed_rain_flux_col        (:) = nan
+!    allocate(this%ed_to_bgc_this_edts_col    (begc:endc))            ; this%ed_to_bgc_this_edts_col   (:) = nan
+!    allocate(this%ed_to_bgc_last_edts_col    (begc:endc))            ; this%ed_to_bgc_last_edts_col   (:) = nan
+!    allocate(this%seed_rain_flux_col         (begc:endc))            ; this%seed_rain_flux_col        (:) = nan
 
-    allocate(this%nep_col                    (begc:endc))            ; this%nep_col                   (:) = nan
-    allocate(this%nep_timeintegrated_col     (begc:endc))            ; this%nep_timeintegrated_col    (:) = nan
-    allocate(this%npp_timeintegrated_col     (begc:endc))            ; this%npp_timeintegrated_col    (:) = nan
-    allocate(this%hr_timeintegrated_col     (begc:endc))            ; this%hr_timeintegrated_col    (:) = nan
+!    allocate(this%nep_col                    (begc:endc))            ; this%nep_col                   (:) = nan
+!    allocate(this%nep_timeintegrated_col     (begc:endc))            ; this%nep_timeintegrated_col    (:) = nan
+!    allocate(this%npp_timeintegrated_col     (begc:endc))            ; this%npp_timeintegrated_col    (:) = nan
+!    allocate(this%hr_timeintegrated_col     (begc:endc))            ; this%hr_timeintegrated_col    (:) = nan
 
-    allocate(this%nbp_col                    (begc:endc))            ; this%nbp_col                   (:) = nan
-    allocate(this%npp_col                    (begc:endc))            ; this%npp_col                   (:) = nan
-    allocate(this%fire_c_to_atm_col          (begc:endc))            ; this%fire_c_to_atm_col         (:) = nan
+!    allocate(this%nbp_col                    (begc:endc))            ; this%nbp_col                   (:) = nan
+!    allocate(this%npp_col                    (begc:endc))            ; this%npp_col                   (:) = nan
+!    allocate(this%fire_c_to_atm_col          (begc:endc))            ; this%fire_c_to_atm_col         (:) = nan
 
-    allocate(this%totecosysc_col             (begc:endc))            ; this%totecosysc_col            (:) = nan
-    allocate(this%totecosysc_old_col         (begc:endc))            ; this%totecosysc_old_col        (:) = nan
-    allocate(this%totedc_col             (begc:endc))            ; this%totedc_col            (:) = nan
-    allocate(this%totedc_old_col         (begc:endc))            ; this%totedc_old_col        (:) = nan
-    allocate(this%totbgcc_col             (begc:endc))            ; this%totbgcc_col            (:) = nan
-    allocate(this%totbgcc_old_col         (begc:endc))            ; this%totbgcc_old_col        (:) = nan
-    allocate(this%biomass_stock_col          (begc:endc))            ; this%biomass_stock_col         (:) = nan
-    allocate(this%ed_litter_stock_col        (begc:endc))            ; this%ed_litter_stock_col       (:) = nan
-    allocate(this%cwd_stock_col              (begc:endc))            ; this%cwd_stock_col             (:) = nan
-    allocate(this%seed_stock_col             (begc:endc))            ; this%seed_stock_col            (:) = nan
-
-    allocate(this%cbalance_error_ed_col      (begc:endc))            ; this%cbalance_error_ed_col     (:) = nan    
-    allocate(this%cbalance_error_bgc_col     (begc:endc))            ; this%cbalance_error_bgc_col    (:) = nan    
-    allocate(this%cbalance_error_total_col   (begc:endc))            ; this%cbalance_error_total_col  (:) = nan    
-
-  end subroutine InitAllocate
+!    allocate(this%totecosysc_col             (begc:endc))            ; this%totecosysc_col            (:) = nan
+!    allocate(this%totecosysc_old_col         (begc:endc))            ; this%totecosysc_old_col        (:) = nan
+!    allocate(this%totedc_col             (begc:endc))            ; this%totedc_col            (:) = nan
+!    allocate(this%totedc_old_col         (begc:endc))            ; this%totedc_old_col        (:) = nan
+!    allocate(this%totbgcc_col             (begc:endc))            ; this%totbgcc_col            (:) = nan
+!    allocate(this%totbgcc_old_col         (begc:endc))            ; this%totbgcc_old_col        (:) = nan
+!    allocate(this%biomass_stock_col          (begc:endc))            ; this%biomass_stock_col         (:) = nan
+!    allocate(this%ed_litter_stock_col        (begc:endc))            ; this%ed_litter_stock_col       (:) = nan
+!    allocate(this%cwd_stock_col              (begc:endc))            ; this%cwd_stock_col             (:) = nan
+!    allocate(this%seed_stock_col             (begc:endc))            ; this%seed_stock_col            (:) = nan
+!
+!    allocate(this%cbalance_error_ed_col      (begc:endc))            ; this%cbalance_error_ed_col     (:) = nan    
+!    allocate(this%cbalance_error_bgc_col     (begc:endc))            ; this%cbalance_error_bgc_col    (:) = nan    
+!    allocate(this%cbalance_error_total_col   (begc:endc))            ; this%cbalance_error_total_col  (:) = nan    
+!
+!  end subroutine InitAllocate
 
   !------------------------------------------------------------------------
-  subroutine InitHistory(this, bounds)
+!  subroutine InitHistory(this, bounds)
     !
     ! !DESCRIPTION:
     ! add history fields for all variables, always set as default='inactive'
     !
     ! !USES:
-    use clm_varpar , only : ndecomp_cascade_transitions, ndecomp_pools
-    use clm_varpar , only : nlevdecomp, nlevdecomp_full
-    use clm_varcon , only : spval
-    use histFileMod, only : hist_addfld1d, hist_addfld2d, hist_addfld_decomp 
+!    use clm_varpar , only : ndecomp_cascade_transitions, ndecomp_pools
+!    use clm_varpar , only : nlevdecomp, nlevdecomp_full
+!    use clm_varcon , only : spval
+!    use histFileMod, only : hist_addfld1d, hist_addfld2d, hist_addfld_decomp 
     !
     ! !ARGUMENTS:
-    class(ed_clm_type) :: this    
-    type(bounds_type)         , intent(in) :: bounds 
+!    class(ed_clm_type) :: this    
+!    type(bounds_type)         , intent(in) :: bounds 
     !
     ! !LOCAL VARIABLES:
-    integer           :: k,l,ii,jj 
-    character(8)      :: vr_suffix
-    character(10)     :: active
-    integer           :: begp,endp
-    integer           :: begc,endc
-    character(24)     :: fieldname
-    character(100)    :: longname
-    real(r8), pointer :: data1dptr(:)   ! temp. pointer for slicing larger arrays
+!    integer           :: k,l,ii,jj 
+!    character(8)      :: vr_suffix
+!    character(10)     :: active
+!    integer           :: begp,endp
+!    integer           :: begc,endc
+!    character(24)     :: fieldname
+!    character(100)    :: longname
+!    real(r8), pointer :: data1dptr(:)   ! temp. pointer for slicing larger arrays
     !---------------------------------------------------------------------
 
-    begp = bounds%begp; endp = bounds%endp
-    begc = bounds%begc; endc = bounds%endc
+!    begp = bounds%begp; endp = bounds%endp
+!    begc = bounds%begc; endc = bounds%endc
 
-    this%nep_col(begc:endc) = spval
-    call hist_addfld1d (fname='NEP', units='gC/m^2/s', &
-         avgflag='A', long_name='net ecosystem production', &
-         ptr_col=this%nep_col)
+!    this%nep_col(begc:endc) = spval
+!    call hist_addfld1d (fname='NEP', units='gC/m^2/s', &
+!         avgflag='A', long_name='net ecosystem production', &
+!         ptr_col=this%nep_col)
 
-    this%fire_c_to_atm_col(begc:endc) = spval
-    call hist_addfld1d (fname='Fire_Closs', units='gC/m^2/s', &
-         avgflag='A', long_name='ED/SPitfire Carbon loss to atmosphere', &
-         ptr_col=this%fire_c_to_atm_col)
+!    this%fire_c_to_atm_col(begc:endc) = spval
+!    call hist_addfld1d (fname='Fire_Closs', units='gC/m^2/s', &
+!         avgflag='A', long_name='ED/SPitfire Carbon loss to atmosphere', &
+!         ptr_col=this%fire_c_to_atm_col)
 
-    this%nbp_col(begc:endc) = spval
-    call hist_addfld1d (fname='NBP', units='gC/m^2/s', &
-         avgflag='A', long_name='net biosphere production', &
-         ptr_col=this%nbp_col)
+!    this%nbp_col(begc:endc) = spval
+!    call hist_addfld1d (fname='NBP', units='gC/m^2/s', &
+!         avgflag='A', long_name='net biosphere production', &
+!         ptr_col=this%nbp_col)
 
-    this%totecosysc_col(begc:endc) = spval
-    call hist_addfld1d (fname='TOTECOSYSC', units='gC/m^2', &
-         avgflag='A', long_name='total ecosystem carbon', &
-         ptr_col=this%totecosysc_col)
+!    this%totecosysc_col(begc:endc) = spval
+!    call hist_addfld1d (fname='TOTECOSYSC', units='gC/m^2', &
+!         avgflag='A', long_name='total ecosystem carbon', &
+!         ptr_col=this%totecosysc_col)
 
-    this%cbalance_error_ed_col(begc:endc) = spval
-    call hist_addfld1d (fname='CBALANCE_ERROR_ED', units='gC/m^2/s', &
-         avgflag='A', long_name='total carbon balance error on ED side', &
-         ptr_col=this%cbalance_error_ed_col)
+!    this%cbalance_error_ed_col(begc:endc) = spval
+!    call hist_addfld1d (fname='CBALANCE_ERROR_ED', units='gC/m^2/s', &
+!         avgflag='A', long_name='total carbon balance error on ED side', &
+!         ptr_col=this%cbalance_error_ed_col)
 
-    this%cbalance_error_bgc_col(begc:endc) = spval
-    call hist_addfld1d (fname='CBALANCE_ERROR_BGC', units='gC/m^2/s', &
-         avgflag='A', long_name='total carbon balance error on BGC side', &
-         ptr_col=this%cbalance_error_bgc_col)
+!    this%cbalance_error_bgc_col(begc:endc) = spval
+!    call hist_addfld1d (fname='CBALANCE_ERROR_BGC', units='gC/m^2/s', &
+!         avgflag='A', long_name='total carbon balance error on BGC side', &
+!         ptr_col=this%cbalance_error_bgc_col)
 
-    this%cbalance_error_total_col(begc:endc) = spval
-    call hist_addfld1d (fname='CBALANCE_ERROR_TOTAL', units='gC/m^2/s', &
-         avgflag='A', long_name='total carbon balance error total', &
-         ptr_col=this%cbalance_error_total_col)
+!    this%cbalance_error_total_col(begc:endc) = spval
+!    call hist_addfld1d (fname='CBALANCE_ERROR_TOTAL', units='gC/m^2/s', &
+!         avgflag='A', long_name='total carbon balance error total', &
+!         ptr_col=this%cbalance_error_total_col)
 
-    this%biomass_stock_col(begc:endc) = spval
-    call hist_addfld1d (fname='BIOMASS_STOCK_COL', units='gC/m^2', &
-         avgflag='A', long_name='total ED biomass carbon at the column level', &
-         ptr_col=this%biomass_stock_col)
+!    this%biomass_stock_col(begc:endc) = spval
+!    call hist_addfld1d (fname='BIOMASS_STOCK_COL', units='gC/m^2', &
+!         avgflag='A', long_name='total ED biomass carbon at the column level', &
+!         ptr_col=this%biomass_stock_col)
 
-    this%ed_litter_stock_col(begc:endc) = spval
-    call hist_addfld1d (fname='ED_LITTER_STOCK_COL', units='gC/m^2', &
-         avgflag='A', long_name='total ED litter carbon at the column level', &
-         ptr_col=this%ed_litter_stock_col)
+!    this%ed_litter_stock_col(begc:endc) = spval
+!    call hist_addfld1d (fname='ED_LITTER_STOCK_COL', units='gC/m^2', &
+!         avgflag='A', long_name='total ED litter carbon at the column level', &
+!         ptr_col=this%ed_litter_stock_col)
 
-    this%cwd_stock_col(begc:endc) = spval
-    call hist_addfld1d (fname='CWD_STOCK_COL', units='gC/m^2', &
-         avgflag='A', long_name='total CWD carbon at the column level', &
-         ptr_col=this%cwd_stock_col)
+!    this%cwd_stock_col(begc:endc) = spval
+!    call hist_addfld1d (fname='CWD_STOCK_COL', units='gC/m^2', &
+!         avgflag='A', long_name='total CWD carbon at the column level', &
+!         ptr_col=this%cwd_stock_col)
 
-    this%seed_stock_col(begc:endc) = spval
-    call hist_addfld1d (fname='SEED_STOCK_COL', units='gC/m^2', &
-         avgflag='A', long_name='total seed carbon at the column level', &
-         ptr_col=this%seed_stock_col)
+!    this%seed_stock_col(begc:endc) = spval
+!    call hist_addfld1d (fname='SEED_STOCK_COL', units='gC/m^2', &
+!         avgflag='A', long_name='total seed carbon at the column level', &
+!         ptr_col=this%seed_stock_col)
 
-  end subroutine InitHistory
+!  end subroutine InitHistory
 
   !-----------------------------------------------------------------------
   ! subroutine InitCold(this, bounds)
