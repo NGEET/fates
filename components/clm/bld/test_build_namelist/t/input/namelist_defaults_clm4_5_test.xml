@@ -331,6 +331,8 @@ lnd/clm2/surfdata_map/surfdata_ne30np4_simyr1850_c130927.nc</fsurdat>
 <flanduse_timeseries hgrid="ne30np4"       rcp="2.6" sim_year_range="1850-2100"
  use_crop=".false." >lnd/clm2/surfdata_map/surfdata.pftdyn_ne30np4_rcp2.6_simyr1850-2100_c130524.nc</flanduse_timeseries>
 
+<use_fun                                                           >.false.</use_fun>
+
 <!-- GLC mask datasets (relative to {csmdata}) -->
 <fglcmask hgrid="48x96"    >glc/cism/griddata/glcmaskdata_48x96_gland_c141105.nc</fglcmask>
 <fglcmask hgrid="0.9x1.25" >glc/cism/griddata/glcmaskdata_0.9x1.25_gland_c141105.nc</fglcmask>

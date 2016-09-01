@@ -78,8 +78,8 @@ sub test_ed_mode__use_century_decomp : Tests {
 
   my $msg = "Test that use_century_decomp is the default on ed_mode.\n";
 
-  my $opts = { ed_mode => 1, bgc => "default" };
-  my $nl_flags = { crop => "off", }; # the setup_cmdl_ed_mode code requires this logic
+  my $opts = { bgc => "ed" };
+  my $nl_flags = { crop => "off"}; # the setup_cmdl_ed_mode code requires this logic
 
   # include bgc because they have mutually exclusive functionality that needs to be tested
   CLMBuildNamelist::setup_cmdl_bgc($opts, $nl_flags, $self->{definition}, $self->{defaults}, $self->{nl}, $self->{cfg},$self->{physv});
@@ -98,7 +98,7 @@ sub test_ed_mode__use_vertsoilc : Tests {
 
     my $msg = "Tests that use_vertsoilc is default on ed_mode.\n";
 
-    my $opts = { ed_mode => 1, bgc => "default"};
+    my $opts = { bgc => "ed"};
     my $nl_flags = { crop => "off", };
 
     CLMBuildNamelist::setup_cmdl_bgc($opts, $nl_flags, $self->{definition}, $self->{defaults}, $self->{nl}, $self->{cfg},$self->{physv});
@@ -116,7 +116,7 @@ sub test_ed_mode__use_ed_spit_fire : Tests {
 
     my $msg = "Tests that use_ed_spit_fire is default on ed_mode.\n";
 
-    my $opts = { ed_mode => 1, bgc => "default"};
+    my $opts = { bgc => "ed"};
     my $nl_flags = { crop => "off", };
 
     CLMBuildNamelist::setup_cmdl_bgc($opts, $nl_flags, $self->{definition}, $self->{defaults}, $self->{nl}, $self->{cfg},$self->{physv});
@@ -134,7 +134,7 @@ sub test_ed_mode__use_nitrif_denitrif: Tests {
 
     my $msg = "Tests that us_nitrif_denitfif e i nots default on ed_mode.\n";
 
-    my $opts = { ed_mode => 1, bgc => "default"};
+    my $opts = { bgc => "ed"};
     my $nl_flags = { crop => "off", };
 
     CLMBuildNamelist::setup_cmdl_bgc($opts, $nl_flags, $self->{definition}, $self->{defaults}, $self->{nl}, $self->{cfg},$self->{physv});
@@ -152,7 +152,7 @@ sub test_ed_mode__use_lch4: Tests {
      
      my $msg = "Tests that use_lch4 is not default on ed_mode.\n";
 
-     my $opts = { ed_mode => 1, bgc => "default"};
+     my $opts = { bgc => "ed"};
      my $nl_flags = { crop => "off", };
 
      CLMBuildNamelist::setup_cmdl_bgc($opts, $nl_flags, $self->{definition}, $self->{defaults}, $self->{nl}, $self->{cfg},$self->{physv});
@@ -170,8 +170,8 @@ sub test_ed_mode__use_ed_nl_contradicts_cmdl : Tests {
 
     my $msg = "Tests that use_ed=false will fail on ed_mode.\n";
 
-    my $opts = { ed_mode => 1, };
-    my $nl_flags = { crop => "off", use_ed => ".false."};
+    my $opts = { };
+    my $nl_flags = { crop => "off", use_ed => ".false.", , bgc_mode => 'ed',};
 
     my $group = $self->{definition}->get_group_name("use_ed");
     $self->{nl}->set_variable_value($group, "use_ed", '.false.' );
@@ -186,8 +186,8 @@ sub test_ed_mode__crop_on_nl_contradicts_cmdl : Tests {
 
     my $msg = "Tests that crop=on will fail on ed_mode.\n";
 
-    my $opts = { ed_mode => 1, };
-    my $nl_flags = { crop => "on", };
+    my $opts = { };
+    my $nl_flags = { crop => "on", bgc_mode => 'ed'};
 
     my $group = $self->{definition}->get_group_name("crop");
     $self->{nl}->set_variable_value($group, "crop", 'on' );
@@ -202,7 +202,7 @@ sub test_ed_mode__use_ed_spit_fire_false : Tests {
 
     my $msg = "Tests that use_ed_spit_fire can be turned to false.\n";
 
-    my $opts = { ed_mode => 1, bgc => "default"};
+    my $opts = { bgc => "ed"};
     my $nl_flags = { crop => "off", };
 
     my $group = $self->{definition}->get_group_name("use_ed_spit_fire");
@@ -226,7 +226,7 @@ sub test_ed_mode__use_vertsoilc_false : Tests {
     use CLMBuildNamelist qw(setup_cmdl_ed_mode);	
     use CLMBuildNamelist qw(setup_logic_ed);	
 
-    my $opts = { ed_mode => 1, bgc => "default"};
+    my $opts = { bgc => "ed"};
     my $nl_flags = { crop => "off", };
 
     my $group = $self->{definition}->get_group_name("use_vertsoilc");
@@ -247,7 +247,7 @@ sub test_ed_mode__use_century_decomp_false : Tests {
 
     my $msg = "Tests that use_vertsoilc can be turned to false.\n";
 
-    my $opts = { ed_mode => 1, bgc => "default"};
+    my $opts = { bgc => "ed"};
     my $nl_flags = { crop => "off", };
 
     my $group = $self->{definition}->get_group_name("use_century_decomp");
@@ -268,7 +268,7 @@ sub test_ed_mode__use_lch4_true : Tests {
 
     my $msg = "Tests that use_vertsoilc can be turned to false.\n";
 
-    my $opts = { ed_mode => 1, bgc => "default"};
+    my $opts = { bgc => "ed"};
     my $nl_flags = { crop => "off", };
 
     my $group = $self->{definition}->get_group_name("use_lch4");
