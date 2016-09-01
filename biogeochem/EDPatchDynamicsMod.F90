@@ -996,6 +996,7 @@ contains
     !  Decide to fuse patches if their cohort structures are similar           
     !
     ! !USES:
+    use EDTypesMod , only : patchfusion_profile_tolerance
     !
     ! !ARGUMENTS:
     type(ed_site_type), intent(inout), target  :: csite
@@ -1017,7 +1018,7 @@ contains
 
     currentSite => csite 
 
-    profiletol = 0.6_r8 !start off with a very small profile tol, or a predefined parameter? 
+    profiletol = patchfusion_profile_tolerance
 
     nopatches = 0
     currentPatch => currentSite%youngest_patch
@@ -1411,6 +1412,7 @@ contains
     real(r8) :: delta_dbh   ! Size of DBH bin
     integer  :: p    ! Counter for PFT 
     integer  :: j    ! Counter for DBH bins 
+    real(r8), parameter :: gigantictrees = 1.e8_r8
     !---------------------------------------------------------------------
 
     currentPatch => cp_pnt
@@ -1427,6 +1429,9 @@ contains
         if (j == 1) then
            mind(j) = 0.0_r8
            maxd(j) = delta_dbh
+        else if (j == N_DBH_BINS) then
+           mind(j) = (j-1) * delta_dbh
+           maxd(j) = gigantictrees
         else 
            mind(j) = (j-1) * delta_dbh
            maxd(j) = (j)*delta_dbh
@@ -1443,15 +1448,6 @@ contains
 
           endif
        enddo ! dbh bins
-
-       ! Deal with largest dbh bin
-       j = N_DBH_BINS-1
-       if(currentCohort%dbh  >  j*delta_dbh)then
-
-          currentPatch%pft_agb_profile(currentCohort%pft,j) = currentPatch%pft_agb_profile(currentCohort%pft,j) + &
-               currentCohort%bdead*currentCohort%n/currentPatch%area
-
-       endif !  
 
        currentCohort => currentCohort%taller
 
