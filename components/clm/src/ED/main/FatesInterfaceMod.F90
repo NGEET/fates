@@ -329,6 +329,7 @@ contains
       allocate(bc_in%albgr_dir_rb(cp_numSWb))
       allocate(bc_in%albgr_dif_rb(cp_numSWb))
 
+      ! Carbon Balance Checking
 
 
 

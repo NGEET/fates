@@ -53,14 +53,17 @@ module CLMFatesInterfaceMod
    use atm2lndType       , only : atm2lnd_type
    use SurfaceAlbedoType , only : surfalb_type
    use SolarAbsorbedType , only : solarabs_type
-   use SoilBiogeochemCarbonFluxType, only : soilbiogeochem_carbonflux_type
+   use SoilBiogeochemCarbonFluxType, only :  soilbiogeochem_carbonflux_type
+   use SoilBiogeochemCarbonStateType, only : soilbiogeochem_carbonstate_type
    use clm_time_manager  , only : is_restart
    use ncdio_pio         , only : file_desc_t
    use clm_time_manager  , only : get_days_per_year, &
                                   get_curr_date,     &
                                   get_ref_date,      &
                                   timemgr_datediff,  &
-                                  is_beg_curr_day
+                                  is_beg_curr_day,   &
+                                  get_step_size,     &
+                                  get_nstep
    use spmdMod           , only : masterproc
    use decompMod         , only : get_proc_bounds,   &
                                   get_proc_clumps,   &
@@ -926,7 +929,6 @@ contains
     use shr_log_mod       , only : errMsg => shr_log_errMsg
     use abortutils        , only : endrun
     use decompMod         , only : bounds_type
-    use clm_time_manager  , only : get_step_size
     use clm_varcon        , only : rgas, tfrz, namep  
     use clm_varpar        , only : nlevsoi, mxpft
     use clm_varctl        , only : iulog
@@ -1052,8 +1054,6 @@ contains
 
  subroutine wrap_accumulatefluxes(this, nc, fn, filterp)
 
-   use clm_time_manager  , only : get_step_size
-   
    ! !ARGUMENTS:
    class(hlm_fates_interface_type), intent(inout) :: this
    integer                , intent(in)            :: nc                   ! clump index
@@ -1221,7 +1221,7 @@ contains
 
  ! ======================================================================================
 
- subroutine wrap_bgc_summary(nc, bounds_clump, soilbiogeochem_carbonflux_inst,     &
+ subroutine wrap_bgc_summary(this, nc, bounds_clump, soilbiogeochem_carbonflux_inst,     &
                                     soilbiogeochem_carbonstate_inst)
 
    
@@ -1230,10 +1230,13 @@ contains
     class(hlm_fates_interface_type), intent(inout)    :: this
     integer          , intent(in)                     :: nc
     type(bounds_type), intent(in)                     :: bounds_clump
-    type(soilbiogeochem_carbonflux_type), intent()    :: soilbiogeochem_carbonflux_inst
-    type(soilbiogeochem_carbonstate_type), intent()   :: soilbiogeochem_carbonstate_inst
+    type(soilbiogeochem_carbonflux_type), intent(in)  :: soilbiogeochem_carbonflux_inst
+    type(soilbiogeochem_carbonstate_type), intent(in) :: soilbiogeochem_carbonstate_inst
 
     ! locals
+    real(r8) :: dtime
+    integer  :: nstep
+    logical  :: is_beg_day
     integer :: s,c
 
     associate(& 
@@ -1249,19 +1252,20 @@ contains
          this%fates(nc)%bc_in(s)%tot_litc     = totlitc(c)
       end do
 
-      
       call SummarizeNetFluxes(this%fates(nc)%sites,  &
                              this%fates(nc)%nsites, &
                              this%fates(nc)%bc_in,  &
                              is_beg_curr_day())
-
       
+      is_beg_day = is_beg_curr_day()
+      dtime = get_step_size()
+      nstep = get_nstep()
       call ED_BGC_Carbon_Balancecheck(this%fates(nc)%sites,  &
                                       this%fates(nc)%nsites, &
                                       this%fates(nc)%bc_in,  &
                                       is_beg_curr_day(),     &
-                                      get_step_size(), get_nstep() )
-
+                                      dtime, nstep)
+      
 
       ! Update history variables that track these variables
       call this%fates_hio%update_history_cbal(nc, &

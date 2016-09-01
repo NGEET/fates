@@ -263,7 +263,7 @@ contains
        c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
        c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
        soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst, &
-       clm_fates)
+       clm_fates, nc)
     !
     ! !DESCRIPTION:
     ! Call to all CN and SoilBiogeochem summary routines
@@ -273,6 +273,7 @@ contains
     use clm_varpar                        , only: ndecomp_cascade_transitions
     use CNPrecisionControlMod             , only: CNPrecisionControl
     use SoilBiogeochemPrecisionControlMod , only: SoilBiogeochemPrecisionControl
+    use CLMFatesInterfaceMod              , only: hlm_fates_interface_type
     !
     ! !ARGUMENTS:
     type(bounds_type)                       , intent(in)    :: bounds  
@@ -289,7 +290,7 @@ contains
     type(soilbiogeochem_nitrogenflux_type)  , intent(inout) :: soilbiogeochem_nitrogenflux_inst
     type(soilbiogeochem_nitrogenstate_type) , intent(inout) :: soilbiogeochem_nitrogenstate_inst
     type(hlm_fates_interface_type)          , intent(inout) :: clm_fates
-    
+    integer                                 , intent(in)    :: nc  ! thread index
     !
     ! !LOCAL VARIABLES:
     integer :: begc,endc

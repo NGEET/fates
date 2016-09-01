@@ -79,6 +79,10 @@ contains
     site_in%acc_ni           = 0.0_r8     ! daily nesterov index accumulating over time. time unlimited theoretically.
     site_in%frac_burnt       = 0.0_r8     ! burn area read in from external file
 
+    ! BGC Balance Checks
+    site_in%fates_to_bgc_this_ts = 0.0_r8
+    site_in%fates_to_bgc_last_ts = 0.0_r8
+
   end subroutine zero_site
 
   ! ============================================================================
