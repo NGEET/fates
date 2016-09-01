@@ -219,7 +219,8 @@ contains
        if(mode==1)then
 
           currentcohort%npp_froot = currentcohort%npp_froot + &
-                max(0._r8,pftcon%froot_leaf(ft)*(currentcohort%balive+currentcohort%laimemory)*leaf_frac - currentcohort%br)/udata%deltat
+               max(0._r8,pftcon%froot_leaf(ft)*(currentcohort%balive+currentcohort%laimemory)*leaf_frac - currentcohort%br) / &
+               udata%deltat
 
           currentcohort%npp_bsw = max(0._r8,EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
                 currentcohort%laimemory)*leaf_frac - currentcohort%bsw)/udata%deltat

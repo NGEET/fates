@@ -600,7 +600,7 @@ contains
   end function newEDRestartVectorClass
 
   !-------------------------------------------------------------------------------!
-  subroutine setVectors( this, bounds, sites, nsites, fcolumn )
+  subroutine setVectors( this, bounds, nsites, sites, fcolumn )
     !
     ! !DESCRIPTION:
     ! implement setVectors
@@ -611,8 +611,8 @@ contains
     ! !ARGUMENTS:
     class(EDRestartVectorClass) , intent(inout)      :: this
     type(bounds_type)           , intent(in)         :: bounds 
-    type(ed_site_type)          , intent(in), target :: sites(nsites)
     integer                     , intent(in)         :: nsites
+    type(ed_site_type)          , intent(in), target :: sites(nsites)
     integer                     , intent(in)         :: fcolumn(nsites)
     !
     ! !LOCAL VARIABLES:
@@ -625,11 +625,11 @@ contains
     !  call this%printDataInfoLL ( bounds, sites, nsites )
     !end if
 
-    call this%convertCohortListToVector ( bounds, sites, nsites, fcolumn )
+    call this%convertCohortListToVector ( bounds, nsites, sites, fcolumn )
 
     if (this%DEBUG) then
-       call this%printIoInfoLL ( bounds, sites, nsites, fcolumn )
-       call this%printDataInfoLL ( bounds, sites, nsites )
+       call this%printIoInfoLL ( bounds, nsites, sites, fcolumn )
+       call this%printDataInfoLL ( bounds, nsites, sites )
 
        ! RGK: Commenting this out because it is calling several
        ! variables over the wrong indices
@@ -639,7 +639,7 @@ contains
   end subroutine setVectors
 
   !-------------------------------------------------------------------------------!
-  subroutine getVectors( this, bounds, sites, nsites, fcolumn)
+  subroutine getVectors( this, bounds, nsites, sites, fcolumn)
     !
     ! !DESCRIPTION:
     ! implement getVectors
@@ -652,8 +652,8 @@ contains
     ! !ARGUMENTS:
     class(EDRestartVectorClass) , intent(inout)         :: this
     type(bounds_type)           , intent(in)            :: bounds 
-    type(ed_site_type)          , intent(inout), target :: sites(nsites)
     integer                     , intent(in)            :: nsites
+    type(ed_site_type)          , intent(inout), target :: sites(nsites)
     integer                     , intent(in)            :: fcolumn(nsites)
     !
     ! !LOCAL VARIABLES:
@@ -664,17 +664,17 @@ contains
        write(iulog,*) 'edtime getVectors ',get_nstep()
     end if
 
-    call this%createPatchCohortStructure ( bounds, sites, nsites, fcolumn )
+    call this%createPatchCohortStructure ( bounds, nsites, sites, fcolumn )
 
-    call this%convertCohortVectorToList ( bounds, sites , nsites, fcolumn)
+    call this%convertCohortVectorToList ( bounds, nsites , sites, fcolumn)
 
     do s = 1,nsites
        call ed_update_site( sites(s) )
     end do
 
     if (this%DEBUG) then
-       call this%printIoInfoLL ( bounds, sites, nsites, fcolumn )
-       call this%printDataInfoLL ( bounds, sites, nsites )
+       call this%printIoInfoLL ( bounds, nsites, sites, fcolumn )
+       call this%printDataInfoLL ( bounds, nsites, sites )
        call this%printDataInfoVector (  )
     end if
 
@@ -1260,7 +1260,7 @@ contains
   end subroutine printDataInfoVector
 
   !-------------------------------------------------------------------------------!
-  subroutine printDataInfoLL( this, bounds, sites, nsites ) 
+  subroutine printDataInfoLL( this, bounds, nsites, sites ) 
     !
     ! !DESCRIPTION:
     ! counts the total number of cohorts over all p levels (ed_patch_type) so we
@@ -1271,8 +1271,8 @@ contains
     ! !ARGUMENTS:
     class(EDRestartVectorClass) , intent(inout)      :: this
     type(bounds_type)           , intent(in)         :: bounds 
-    type(ed_site_type)          , intent(in), target :: sites(nsites)
     integer                     , intent(in)         :: nsites
+    type(ed_site_type)          , intent(in), target :: sites(nsites)
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type),  pointer :: currentPatch
@@ -1392,7 +1392,7 @@ contains
   end subroutine printDataInfoLL
 
   !-------------------------------------------------------------------------------!
-  subroutine printIoInfoLL( this, bounds, sites, nsites, fcolumn ) 
+  subroutine printIoInfoLL( this, bounds, nsites, sites, fcolumn ) 
     !!
     ! !DESCRIPTION:
     ! for debugging.  prints some IO info regarding cohorts/patches
@@ -1403,8 +1403,8 @@ contains
     ! !ARGUMENTS:
     class(EDRestartVectorClass) , intent(inout)      :: this
     type(bounds_type)           , intent(in)         :: bounds 
-    type(ed_site_type)          , intent(in), target :: sites(nsites)
     integer                     , intent(in)         :: nsites
+    type(ed_site_type)          , intent(in), target :: sites(nsites)
     integer                     , intent(in)         :: fcolumn(nsites)
     !
     ! !LOCAL VARIABLES:
@@ -1491,7 +1491,7 @@ contains
   end subroutine printIoInfoLL
 
   !-------------------------------------------------------------------------------!
-  subroutine convertCohortListToVector( this, bounds, sites, nsites, fcolumn ) 
+  subroutine convertCohortListToVector( this, bounds, nsites, sites, fcolumn ) 
     !
     ! !DESCRIPTION:
     ! counts the total number of cohorts over all p levels (ed_patch_type) so we
@@ -1503,8 +1503,8 @@ contains
     ! !ARGUMENTS:
     class(EDRestartVectorClass) , intent(inout)      :: this
     type(bounds_type)           , intent(in)         :: bounds 
-    type(ed_site_type)          , intent(in), target :: sites(nsites)
     integer                     , intent(in)         :: nsites
+    type(ed_site_type)          , intent(in), target :: sites(nsites)
     integer                     , intent(in)         :: fcolumn(nsites)
     !
     ! !LOCAL VARIABLES:
@@ -1750,7 +1750,7 @@ contains
  end subroutine convertCohortListToVector
 
   !-------------------------------------------------------------------------------!
-  subroutine createPatchCohortStructure( this, bounds, sites, nsites, fcolumn ) 
+  subroutine createPatchCohortStructure( this, bounds, nsites, sites, fcolumn ) 
     !
     ! !DESCRIPTION:
     ! counts the total number of cohorts over all p levels (ed_patch_type) so we
@@ -1769,8 +1769,8 @@ contains
     ! !ARGUMENTS:
     class(EDRestartVectorClass) , intent(inout)         :: this
     type(bounds_type)           , intent(in)            :: bounds 
-    type(ed_site_type)          , intent(inout), target :: sites(nsites)
     integer                     , intent(in)            :: nsites
+    type(ed_site_type)          , intent(inout), target :: sites(nsites)
     integer                     , intent(in)            :: fcolumn(nsites)
     !
     ! !LOCAL VARIABLES:
@@ -1937,7 +1937,7 @@ contains
  end subroutine createPatchCohortStructure
 
   !-------------------------------------------------------------------------------!
-  subroutine convertCohortVectorToList( this, bounds, sites, nsites, fcolumn ) 
+  subroutine convertCohortVectorToList( this, bounds, nsites, sites, fcolumn ) 
     !
     ! !DESCRIPTION:
     ! counts the total number of cohorts over all p levels (ed_patch_type) so we
@@ -1948,8 +1948,8 @@ contains
     ! !ARGUMENTS:
     class(EDRestartVectorClass) , intent(inout)         :: this
     type(bounds_type)           , intent(in)            :: bounds 
-    type(ed_site_type)          , intent(inout), target :: sites(nsites)
     integer                     , intent(in)            :: nsites
+    type(ed_site_type)          , intent(inout), target :: sites(nsites)
     integer                     , intent(in)            :: fcolumn(nsites)
 
     !
@@ -2174,7 +2174,7 @@ contains
   !--------------------------------------------!
 
   !-------------------------------------------------------------------------------!
-  subroutine EDRest ( bounds, sites, nsites, fcolumn, ncid, flag )
+  subroutine EDRest ( bounds, nsites, sites, fcolumn, ncid, flag )
     !
     ! !DESCRIPTION:
     ! Read/write ED restart data
@@ -2188,8 +2188,8 @@ contains
     ! !ARGUMENTS:
     type(bounds_type)       , intent(in)            :: bounds  ! bounds
     type(file_desc_t)       , intent(inout)         :: ncid    ! netcdf id
-    type(ed_site_type)      , intent(inout)         :: sites(nsites)   ! The site vector
     integer                 , intent(in)            :: nsites
+    type(ed_site_type)      , intent(inout), target :: sites(nsites)   ! The site vector
     integer                 , intent(in)            :: fcolumn(nsites)
     character(len=*)        , intent(in)            :: flag    !'read' or 'write'
     !
@@ -2208,13 +2208,13 @@ contains
     end if
 
     if ( flag == 'write' ) then
-       call ervc%setVectors( bounds, sites, nsites, fcolumn )
+       call ervc%setVectors( bounds, nsites, sites, fcolumn )
     endif
 
     call ervc%doVectorIO( ncid, flag )
 
     if ( flag == 'read' ) then
-       call ervc%getVectors( bounds, sites, nsites, fcolumn )
+       call ervc%getVectors( bounds, nsites, sites, fcolumn )
     endif
 
     call ervc%deleteEDRestartVectorClass ()
