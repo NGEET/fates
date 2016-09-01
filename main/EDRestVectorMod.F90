@@ -881,10 +881,6 @@ contains
          dim1name='column', long_name='', units='', &
          interpinic_flag='interp', readvar=readvar, data=this%hr_timeintegrated_si) 
 
-    call restartvar(ncid=ncid, flag=flag, varname='totecosysc_old_col', xtype=ncd_double,  &
-         dim1name='column', long_name='', units='', &
-         interpinic_flag='interp', readvar=readvar, data=this%totecosys_old_si) 
-    
     call restartvar(ncid=ncid, flag=flag, varname='cbalance_error_ed_col', xtype=ncd_double,  &
          dim1name='column', long_name='', units='', &
          interpinic_flag='interp', readvar=readvar, data=this%cbal_err_fates_si) 
@@ -896,7 +892,11 @@ contains
     call restartvar(ncid=ncid, flag=flag, varname='cbalance_error_total_col', xtype=ncd_double,  &
          dim1name='column', long_name='', units='', &
          interpinic_flag='interp', readvar=readvar, data=this%cbal_err_tot_si) 
-
+    
+    call restartvar(ncid=ncid, flag=flag, varname='totecosysc_old_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%totecosys_old_si) 
+    
     call restartvar(ncid=ncid, flag=flag, varname='totedc_old_col', xtype=ncd_double,  &
          dim1name='column', long_name='', units='', &
          interpinic_flag='interp', readvar=readvar, data=this%tot_fatesc_old_si) 

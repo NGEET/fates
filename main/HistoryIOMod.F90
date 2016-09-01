@@ -223,6 +223,7 @@ Module HistoryIOMod
      
      procedure, public :: update_history_dyn
      procedure, public :: update_history_prod
+     procedure, public :: update_history_cbal
      procedure, public :: define_history_vars
      procedure, public :: set_history_var
      procedure, public :: init_iovar_dk_maps
