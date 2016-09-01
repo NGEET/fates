@@ -92,11 +92,11 @@ contains
          'Source', len_trim(str), trim(str)), subname)
 
     str = &
-'$HeadURL: https://svn-ccsm-models.cgd.ucar.edu/clm2/trunk_tags/clm4_5_11_r188/components/clm/tools/clm4_5/mksurfdata_map/src/mkfileMod.F90 $'
+'$HeadURL: https://svn-ccsm-models.cgd.ucar.edu/clm2/trunk_tags/clm4_5_12_r191/components/clm/tools/clm4_5/mksurfdata_map/src/mkfileMod.F90 $'
     call check_ret(nf_put_att_text (ncid, NF_GLOBAL, &
          'Version', len_trim(str), trim(str)), subname)
 
-    str = '$Id: mkfileMod.F90 76495 2016-01-29 12:31:01Z sacks $'
+    str = '$Id: mkfileMod.F90 79983 2016-08-11 03:23:37Z erik $'
     call check_ret(nf_put_att_text (ncid, NF_GLOBAL, &
          'Revision_Id', len_trim(str), trim(str)), subname)
 
@@ -357,10 +357,6 @@ contains
        call ncd_def_spatial_var(ncid=ncid, varname='THICK_WALL', xtype=xtype, &
             lev1name='numurbl', &
             long_name='thickness of wall', units='meters')
-
-       call ncd_def_spatial_var(ncid=ncid, varname='T_BUILDING_MAX', xtype=xtype, &
-            lev1name='numurbl', &
-            long_name='maximum interior building temperature', units='K')
 
        call ncd_def_spatial_var(ncid=ncid, varname='T_BUILDING_MIN', xtype=xtype, &
             lev1name='numurbl', &
