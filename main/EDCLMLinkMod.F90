@@ -27,6 +27,10 @@ module EDCLMLinkMod
   !
   implicit none
   private
+
+  public :: SummarizeNetFluxes
+  public :: ED_BGC_Carbon_Balancecheck
+
   !
   logical :: DEBUG = .false.  ! for debugging this module (EDCLMLinkMod.F90)
   
@@ -1201,7 +1205,8 @@ fraction_exposed= 1.0_r8
            
            currentCohort => currentPatch%tallest
            do while(associated(currentCohort))
-              ! for quantities that are natively at column level or higher, calculate plant density using whole area (for grid cell averages)
+              ! for quantities that are natively at column level or higher, 
+              ! calculate plant density using whole area (for grid cell averages)
               n_perm2   = currentCohort%n/AREA                    
               
               ! map biomass pools to column level
@@ -1281,6 +1286,8 @@ fraction_exposed= 1.0_r8
    real(r8) :: error_tolerance = 1.e-6_r8
    integer  :: s
 
+   ! TODO: THIS INITIALIZATION SHOULD BE IN AN INITIALIZATION PART OF THE CODE
+   ! COLD-START PORTION, NSTEP IS >1 FOR RESTARTS RIGHT? (RGK)
    if (nstep .le. 1) then
       ! when starting up the model, initialize the integrator variables
       do s = 1,nsites
