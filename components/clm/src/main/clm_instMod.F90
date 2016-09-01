@@ -375,7 +375,7 @@ contains
 
     end if
 
-    if ( use_cn ) then 
+    if ( use_cn .or. use_ed) then 
 
        ! Initalize soilbiogeochem nitrogen types
 
@@ -391,7 +391,7 @@ contains
     ! Note - always call Init for bgc_vegetation_inst: some pieces need to be initialized always
     call bgc_vegetation_inst%Init(bounds, nlfilename)
 
-    if (use_cn) then
+    if (use_cn .or. use_ed) then
        call crop_inst%Init(bounds)
     end if
 

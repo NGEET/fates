@@ -345,7 +345,7 @@ contains
     ! ----------------------------------------------
     
     call ed_clm_inst%SummarizeNetFluxes(bounds, num_soilc, filter_soilc, &
-         sites(:), nsites, fcolumn(:),   &
+         nsites, sites(:), fcolumn(:),   &
          soilbiogeochem_carbonflux_inst, &
          soilbiogeochem_carbonstate_inst)
 
