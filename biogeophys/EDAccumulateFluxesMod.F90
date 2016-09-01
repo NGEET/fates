@@ -84,7 +84,6 @@ contains
                 endif
                 if ( .not. ccohort%isnew ) then
                    sites(s)%npp = sites(s)%npp + ccohort%npp_tstep * n_perm2 * 1.e3_r8 / dt_time
-
                 endif
 
                 do iv=1,ccohort%nv

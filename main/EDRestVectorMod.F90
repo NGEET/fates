@@ -119,6 +119,20 @@ module EDRestVectorMod
      real(r8), pointer :: dleafondate(:)   
      real(r8), pointer :: dleafoffdate(:) 
      real(r8), pointer :: acc_NI(:) 
+     
+     ! Site level carbon state/flux checks
+     real(r8), pointer :: nep_timeintegrated_si(:)
+     real(r8), pointer :: npp_timeintegrated_si(:)
+     real(r8), pointer :: hr_timeintegrated_si(:) 
+     real(r8), pointer :: totecosys_old_si(:)
+     real(r8), pointer :: cbal_err_fates_si(:)
+     real(r8), pointer :: cbal_err_bgc_si(:)
+     real(r8), pointer :: cbal_err_tot_si(:)
+     real(r8), pointer :: tot_fatesc_old_si(:)
+     real(r8), pointer :: tot_bgcc_old_si(:)
+     real(r8), pointer :: fates_to_bgc_this_ts_si(:)
+     real(r8), pointer :: fates_to_bgc_last_ts_si(:)
+     real(r8), pointer :: seedrain_flux_si(:)
              
      
    contains
@@ -239,6 +253,19 @@ contains
     deallocate(this%dleafoffdate )    
     deallocate(this%acc_NI )
 
+    deallocate(this%nep_timeintegrated_si)
+    deallocate(this%npp_timeintegrated_si)
+    deallocate(this%hr_timeintegrated_si) 
+    deallocate(this%totecosys_old_si)
+    deallocate(this%cbal_err_fates_si)
+    deallocate(this%cbal_err_bgc_si)
+    deallocate(this%cbal_err_tot_si)
+    deallocate(this%tot_fatesc_old_si)
+    deallocate(this%tot_bgcc_old_si)
+    deallocate(this%fates_to_bgc_this_ts_si)
+    deallocate(this%fates_to_bgc_last_ts_si)
+    deallocate(this%seedrain_flux_si)
+    
   end subroutine deleteEDRestartVectorClass
 
   !-------------------------------------------------------------------------------!
@@ -324,9 +351,68 @@ contains
       new%ED_GDD_site(:) = 0_r8  
 
 
+      allocate(new%nep_timeintegrated_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%nep_timeintegrated_si(:) = 0_r8 
+
+      allocate(new%npp_timeintegrated_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%npp_timeintegrated_si(:) = 0_r8 
+
+      allocate(new%hr_timeintegrated_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%hr_timeintegrated_si(:) = 0_r8 
+
+      allocate(new%totecosys_old_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%totecosys_old_si(:) = 0_r8 
+
+      allocate(new%cbal_err_fates_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%cbal_err_fates_si(:) = 0_r8 
+
+      allocate(new%cbal_err_bgc_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%cbal_err_bgc_si(:) = 0_r8 
+
+      allocate(new%cbal_err_tot_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%cbal_err_tot_si(:) = 0_r8 
+
+      allocate(new%tot_fatesc_old_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%tot_fatesc_old_si(:) = 0_r8 
+
+      allocate(new%tot_bgcc_old_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%tot_bgcc_old_si(:) = 0_r8 
+
+      allocate(new%fates_to_bgc_this_ts_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%fates_to_bgc_this_ts_si(:) = 0_r8 
+      
+      allocate(new%fates_to_bgc_last_ts_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%fates_to_bgc_last_ts_si(:) = 0_r8 
+
+      allocate(new%seedrain_flux_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      new%seedrain_flux_si(:) = 0_r8 
+
+
       ! cohort level variables
-
-
 
       allocate(new%cohortsPerPatch &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
@@ -783,11 +869,61 @@ contains
          interpinic_flag='interp', data=this%ED_GDD_site, &
          readvar=readvar) 
 
+    call restartvar(ncid=ncid, flag=flag, varname='nep_timeintegrated_col', xtype=ncd_double,  &
+         dim1name=col_dimName, long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%nep_timeintegrated_si) 
+
+    call restartvar(ncid=ncid, flag=flag, varname='npp_timeintegrated_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%npp_timeintegrated_si)
+
+    call restartvar(ncid=ncid, flag=flag, varname='hr_timeintegrated_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%hr_timeintegrated_si) 
+
+    call restartvar(ncid=ncid, flag=flag, varname='totecosysc_old_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%totecosys_old_si) 
+    
+    call restartvar(ncid=ncid, flag=flag, varname='cbalance_error_ed_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%cbal_err_fates_si) 
+
+    call restartvar(ncid=ncid, flag=flag, varname='cbalance_error_bgc_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%cbal_err_bgc_si) 
+
+    call restartvar(ncid=ncid, flag=flag, varname='cbalance_error_total_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%cbal_err_tot_si) 
+
+    call restartvar(ncid=ncid, flag=flag, varname='totedc_old_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%tot_fatesc_old_si) 
+    
+    call restartvar(ncid=ncid, flag=flag, varname='totbgcc_old_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%tot_bgcc_old_si) 
+    
+    call restartvar(ncid=ncid, flag=flag, varname='ed_to_bgc_this_edts_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%fates_to_bgc_this_ts_si) 
+    
+    call restartvar(ncid=ncid, flag=flag, varname='ed_to_bgc_last_edts_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%fates_to_bgc_last_ts_si) 
+
+    call restartvar(ncid=ncid, flag=flag, varname='seed_rain_flux_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%seedrain_flux_si) 
+
+
     call restartvar(ncid=ncid, flag=flag, varname='ed_balive', xtype=ncd_double,  &
          dim1name=coh_dimName, &
          long_name='ed cohort ed_balive', units='unitless', &
          interpinic_flag='interp', data=this%balive, &
          readvar=readvar)
+
 
     !
     ! cohort level vars
@@ -1098,6 +1234,11 @@ contains
          long_name='ed cohort - water_memory', units='unitless', &
          interpinic_flag='interp', data=this%water_memory, &
          readvar=readvar)
+
+
+
+    
+
 
   end subroutine doVectorIO
 
@@ -1525,14 +1666,6 @@ contains
 
     totalCohorts = 0
 
-!    if(fcolumn(1).eq.bounds%begc .and. &
-!          (fcolumn(1)-1)*cohorts_per_col+1.ne.bounds%begCohort) then
-!        write(iulog,*) 'fcolumn(1) in this clump, points to the first column of the clump'
-!        write(iulog,*) 'but the assumption on first cohort index does not jive'
-!        call endrun(msg=errMsg(__FILE__, __LINE__))
-!    end if
-
-
     do s = 1,nsites
        
        ! Calculate the offsets
@@ -1541,14 +1674,6 @@ contains
        ! in the clump, than the offset should be be equal to begCohort
        
        c = fcolumn(s)
-
-!       incrementOffset     = (c-1)*cohorts_per_col + 1
-!       countCohort         = (c-1)*cohorts_per_col + 1
-!       countPft            = (c-1)*cohorts_per_col + 1
-!       countNcwd           = (c-1)*cohorts_per_col + 1
-!       countNclmax         = (c-1)*cohorts_per_col + 1
-!       countWaterMem       = (c-1)*cohorts_per_col + 1
-!       countSunZ           = (c-1)*cohorts_per_col + 1
 
        incrementOffset     = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
        countCohort         = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
@@ -1724,6 +1849,21 @@ contains
        this%dleafoffdate(c) = sites(s)%dleafoffdate
        this%acc_NI(c)       = sites(s)%acc_NI
        this%ED_GDD_site(c)  = sites(s)%ED_GDD_site
+
+       ! Carbon Balance and Checks
+       this%nep_timeintegrated_si(c) = sites(s)%nep_timeintegrated 
+       this%npp_timeintegrated_si(c) = sites(s)%npp_timeintegrated
+       this%hr_timeintegrated_si(c)  = sites(s)%hr_timeintegrated 
+       this%totecosys_old_si(c)      = sites(s)%totecosysc_old
+       this%tot_fatesc_old_si(c)     = sites(s)%totfatesc_old
+       this%tot_bgcc_old_si(c)       = sites(s)%totbgcc_old
+       this%cbal_err_fates_si(c)     = sites(s)%cbal_err_fates
+       this%cbal_err_bgc_si(c)       = sites(s)%cbal_err_bgc
+       this%cbal_err_tot_si(c)       = sites(s)%cbal_err_tot
+       this%fates_to_bgc_this_ts_si(c) = sites(s)%fates_to_bgc_this_ts
+       this%fates_to_bgc_last_ts_si(c) = sites(s)%fates_to_bgc_last_ts
+       this%seedrain_flux_si(c)        = sites(s)%seed_rain_flux
+
        
        ! set numpatches for this column
        this%numPatchesPerCol(c)  = numPatches
@@ -2066,8 +2206,6 @@ contains
           currentPatch%age        = this%age(incrementOffset) 
           currentPatch%area       = this%areaRestart(incrementOffset) 
           
-          
-          
           ! set cohorts per patch for IO
           
           if (this%DEBUG) then
@@ -2151,6 +2289,20 @@ contains
        sites(s)%dleafoffdate   = this%dleafoffdate(c)
        sites(s)%acc_NI         = this%acc_NI(c)
        sites(s)%ED_GDD_site    = this%ED_GDD_site(c)
+
+       ! Carbon Balance and Checks
+       sites(s)%nep_timeintegrated = this%nep_timeintegrated_si(c)
+       sites(s)%npp_timeintegrated = this%npp_timeintegrated_si(c)
+       sites(s)%hr_timeintegrated  = this%hr_timeintegrated_si(c)
+       sites(s)%totecosysc_old     = this%totecosys_old_si(c)
+       sites(s)%totfatesc_old      = this%tot_fatesc_old_si(c)
+       sites(s)%totbgcc_old        = this%tot_bgcc_old_si(c)
+       sites(s)%cbal_err_fates     = this%cbal_err_fates_si(c)
+       sites(s)%cbal_err_bgc       = this%cbal_err_bgc_si(c)
+       sites(s)%cbal_err_tot       = this%cbal_err_tot_si(c)
+       sites(s)%fates_to_bgc_this_ts = this%fates_to_bgc_this_ts_si(c)
+       sites(s)%fates_to_bgc_last_ts = this%fates_to_bgc_last_ts_si(c)
+       sites(s)%seed_rain_flux       = this%seedrain_flux_si(c)
        
     enddo
 
