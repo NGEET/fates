@@ -82,7 +82,7 @@ contains
   end subroutine zero_site
 
   ! ============================================================================
-  subroutine set_site_properties( sites, nsites)
+  subroutine set_site_properties( nsites, sites)
     !
     ! !DESCRIPTION:
     !
@@ -90,8 +90,8 @@ contains
     !
     ! !ARGUMENTS    
 
-    type(ed_site_type) , intent(inout), target :: sites(nsites)
     integer, intent(in)                        :: nsites
+    type(ed_site_type) , intent(inout), target :: sites(nsites)
     !
     ! !LOCAL VARIABLES:
     integer  :: s
@@ -160,7 +160,7 @@ contains
   end subroutine set_site_properties
 
   ! ============================================================================
-  subroutine init_patches( sites, nsites)
+  subroutine init_patches( nsites, sites)
     !
     ! !DESCRIPTION:
     !initialize patches on new ground
@@ -169,8 +169,8 @@ contains
     use EDParamsMod ,  only : ED_val_maxspread
     !
     ! !ARGUMENTS    
-    type(ed_site_type) , intent(inout), target :: sites(nsites)
     integer, intent(in)                        :: nsites
+    type(ed_site_type) , intent(inout), target :: sites(nsites)
     !
     ! !LOCAL VARIABLES:
     integer  :: s

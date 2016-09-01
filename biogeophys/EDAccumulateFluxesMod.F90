@@ -20,7 +20,9 @@ module EDAccumulateFluxesMod
 contains
 
   !------------------------------------------------------------------------------
+
   subroutine AccumulateFluxes_ED(sites, nsites, bc_in, bc_out, dt_time)
+
     !
     ! !DESCRIPTION:
     ! see above
@@ -33,8 +35,8 @@ contains
     use FatesInterfaceMod , only : bc_in_type,bc_out_type
     !
     ! !ARGUMENTS    
-    type(ed_site_type), intent(inout), target :: sites(nsites)
     integer,            intent(in)            :: nsites
+    type(ed_site_type), intent(inout), target :: sites(nsites)
     type(bc_in_type),   intent(in)            :: bc_in(nsites)
     type(bc_out_type),  intent(inout)         :: bc_out(nsites)
     real(r8),           intent(in)            :: dt_time  ! timestep interval
@@ -84,7 +86,6 @@ contains
                 endif
                 if ( .not. ccohort%isnew ) then
                    sites(s)%npp = sites(s)%npp + ccohort%npp_tstep * n_perm2 * 1.e3_r8 / dt_time
-
                 endif
 
                 do iv=1,ccohort%nv

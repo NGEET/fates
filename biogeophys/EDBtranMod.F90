@@ -47,12 +47,12 @@ contains
 
   ! =====================================================================================
   
-  subroutine get_active_suction_layers(sites,nsites,bc_in,bc_out)
+  subroutine get_active_suction_layers(nsites, sites, bc_in, bc_out)
     
     ! Arguments
     
-    type(ed_site_type),intent(inout),target :: sites(nsites)
     integer,intent(in)                      :: nsites
+    type(ed_site_type),intent(inout),target :: sites(nsites)
     type(bc_in_type),intent(in)             :: bc_in(nsites)
     type(bc_out_type),intent(inout)         :: bc_out(nsites)
     
@@ -75,7 +75,7 @@ contains
   
   ! =====================================================================================
 
-  subroutine btran_ed( sites, nsites, bc_in, bc_out)
+  subroutine btran_ed( nsites, sites, bc_in, bc_out)
       
       ! ---------------------------------------------------------------------------------
       ! Calculate the transpiration wetness function (BTRAN) and the root uptake
@@ -90,8 +90,8 @@ contains
       
       ! Arguments
       
-      type(ed_site_type),intent(inout),target :: sites(nsites)
       integer,intent(in)                      :: nsites
+      type(ed_site_type),intent(inout),target :: sites(nsites)
       type(bc_in_type),intent(in)             :: bc_in(nsites)
       type(bc_out_type),intent(inout)         :: bc_out(nsites)
       
