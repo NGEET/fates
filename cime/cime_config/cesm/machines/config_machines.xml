@@ -794,11 +794,7 @@
         </walltimes>
      </batch_system>
      <mpirun mpilib="mpi-serial">
-        <executable>mpirun</executable>
-        <arguments>
-           <arg name="num_tasks">-np {{ num_tasks }}</arg>
-           <arg name="tasks_per_node"> -npernode {{ tasks_per_node }}</arg>
-        </arguments>
+        <executable></executable>
      </mpirun>
      <mpirun mpilib="default">
         <executable>mpirun</executable>
@@ -819,16 +815,18 @@
            <command name="load">cmake</command>
            <command name="load">perl xml-libxml switch</command>
         </modules>
-        <modules compiler="intel">
-           <command name="load">intel/2015.6.233</command>
-           <command name="load">openmpi</command>
-           <command name="load">mkl</command>
-           <command name="load">netcdf/4.4.0-intel-p</command>
+	<modules compiler="intel">
+	  <command name="load">intel/2015.6.233</command>
+          <command name="load">mkl</command>
+	</modules>
+	<modules compiler="intel" mpilib="mpi-serial">
+          <command name="load">netcdf/4.4.0-intel-s</command>
+	</modules>
+        <modules compiler="intel" mpilib="!mpi-serial">
+          <command name="load">openmpi</command>
+          <command name="load">netcdf/4.4.0-intel-p</command>
         </modules>
      </module_system>
-     <environment_variables>
-        <env name="NETCDF_PATH">$NETCDF_DIR</env>
-     </environment_variables>
   </machine>
 
   <machine MACH="lawrencium-lr2">
@@ -874,29 +872,31 @@
            <arg name="num_tasks">-np {{ num_tasks }}</arg>
            <arg name="tasks_per_node"> -npernode {{ tasks_per_node }}</arg>
         </arguments>
-     </mpirun>
+     </mpirun> 
      <module_system type="module">
-        <init_path lang="sh">/etc/profile.d/modules.sh</init_path>
-        <init_path lang="csh">/etc/profile.d/modules.csh</init_path>
-        <init_path lang="perl">/usr/Modules/init/perl.pm</init_path>
-        <cmd_path lang="sh">module</cmd_path>
-        <cmd_path lang="csh">module</cmd_path>
-        <cmd_path lang="perl">/usr/Modules/bin/modulecmd perl</cmd_path>
-        <modules>
-           <command name="purge"/>
-           <command name="load">cmake</command>
-           <command name="load">perl xml-libxml switch</command>
-        </modules>
-        <modules compiler="intel">
-           <command name="load">intel/2015.6.233</command>
-           <command name="load">openmpi</command>
-           <command name="load">mkl</command>
-           <command name="load">netcdf/4.4.0-intel-p</command>
-        </modules>
+       <init_path lang="sh">/etc/profile.d/modules.sh</init_path>
+       <init_path lang="csh">/etc/profile.d/modules.csh</init_path>
+       <init_path lang="perl">/usr/Modules/init/perl.pm</init_path>
+       <cmd_path lang="sh">module</cmd_path>
+       <cmd_path lang="csh">module</cmd_path>
+       <cmd_path lang="perl">/usr/Modules/bin/modulecmd perl</cmd_path>
+       <modules>
+         <command name="purge"/>
+         <command name="load">cmake</command>
+         <command name="load">perl xml-libxml switch</command>
+       </modules>
+       <modules compiler="intel">
+	 <command name="load">intel/2015.6.233</command>
+         <command name="load">mkl</command>
+       </modules>
+       <modules compiler="intel" mpilib="mpi-serial">
+         <command name="load">netcdf/4.4.0-intel-s</command>
+       </modules>
+       <modules compiler="intel" mpilib="!mpi-serial">
+         <command name="load">openmpi</command>
+         <command name="load">netcdf/4.4.0-intel-p</command>
+       </modules>
      </module_system>
-     <environment_variables>
-        <env name="NETCDF_PATH">$NETCDF_DIR</env>
-     </environment_variables>
   </machine>
 
   <machine MACH="edison">

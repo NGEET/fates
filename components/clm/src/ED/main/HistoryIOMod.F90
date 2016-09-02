@@ -2,7 +2,7 @@ Module HistoryIOMod
 
   
   use shr_kind_mod    , only : r8 => shr_kind_r8
-  use clm_varctl      , only : iulog
+  use FatesGlobals    , only : fates_log
   use EDTypesMod      , only : cp_hio_ignore_val
   use pftconMod       , only : pftcon
 
@@ -242,15 +242,15 @@ contains
 
    ! ===================================================================================
   
-   subroutine update_history_cbal(this,nc,sites,nsites)
+   subroutine update_history_cbal(this,nc,nsites,sites)
 
      use EDtypesMod          , only : ed_site_type
      
      ! Arguments
      class(fates_hio_interface_type)                 :: this
      integer                 , intent(in)            :: nc   ! clump index
-     type(ed_site_type)      , intent(inout), target :: sites(nsites)
      integer                 , intent(in)            :: nsites
+     type(ed_site_type)      , intent(inout), target :: sites(nsites)
 
      ! Locals
      integer  :: s        ! The local site index
@@ -301,7 +301,7 @@ contains
 
   ! ====================================================================================
   
-  subroutine update_history_dyn(this,nc,sites,nsites)
+  subroutine update_history_dyn(this,nc,nsites,sites)
     
     ! ---------------------------------------------------------------------------------
     ! This is the call to update the history IO arrays that are expected to only change
@@ -319,8 +319,8 @@ contains
     ! Arguments
     class(fates_hio_interface_type)                 :: this
     integer                 , intent(in)            :: nc   ! clump index
-    type(ed_site_type)      , intent(inout), target :: sites(nsites)
     integer                 , intent(in)            :: nsites
+    type(ed_site_type)      , intent(inout), target :: sites(nsites)
     
     ! Locals
     integer  :: s        ! The local site index
@@ -497,28 +497,39 @@ contains
                ! have any meaning, otherwise they are just inialization values
                if( .not.(ccohort%isnew) ) then
 
-                  hio_gpp_si_scpf(io_si,scpf)      = hio_gpp_si_scpf(io_si,scpf)      + n_perm2*ccohort%gpp ! [kgC/m2/yr]
-                  hio_npp_totl_si_scpf(io_si,scpf) = hio_npp_totl_si_scpf(io_si,scpf) + ccohort%npp*n_perm2
-                  hio_npp_leaf_si_scpf(io_si,scpf) = hio_npp_leaf_si_scpf(io_si,scpf) + ccohort%npp_leaf*n_perm2
-                  hio_npp_fnrt_si_scpf(io_si,scpf) = hio_npp_fnrt_si_scpf(io_si,scpf) + ccohort%npp_froot*n_perm2
-                  hio_npp_bgsw_si_scpf(io_si,scpf) = hio_npp_bgsw_si_scpf(io_si,scpf) + ccohort%npp_bsw*(1._r8-ED_val_ag_biomass)*n_perm2
-                  hio_npp_agsw_si_scpf(io_si,scpf) = hio_npp_agsw_si_scpf(io_si,scpf) + ccohort%npp_bsw*ED_val_ag_biomass*n_perm2
-                  hio_npp_bgdw_si_scpf(io_si,scpf) = hio_npp_bgdw_si_scpf(io_si,scpf) + ccohort%npp_bdead*(1._r8-ED_val_ag_biomass)*n_perm2
-                  hio_npp_agdw_si_scpf(io_si,scpf) = hio_npp_agdw_si_scpf(io_si,scpf) + ccohort%npp_bdead*ED_val_ag_biomass*n_perm2
-                  hio_npp_seed_si_scpf(io_si,scpf) = hio_npp_seed_si_scpf(io_si,scpf) + ccohort%npp_bseed*n_perm2
-                  hio_npp_stor_si_scpf(io_si,scpf) = hio_npp_stor_si_scpf(io_si,scpf) + ccohort%npp_store*n_perm2
+                  hio_gpp_si_scpf(io_si,scpf)      = hio_gpp_si_scpf(io_si,scpf)      + &
+                                                     n_perm2*ccohort%gpp ! [kgC/m2/yr]
+                  hio_npp_totl_si_scpf(io_si,scpf) = hio_npp_totl_si_scpf(io_si,scpf) + &
+                                                     ccohort%npp*n_perm2
+                  hio_npp_leaf_si_scpf(io_si,scpf) = hio_npp_leaf_si_scpf(io_si,scpf) + &
+                                                     ccohort%npp_leaf*n_perm2
+                  hio_npp_fnrt_si_scpf(io_si,scpf) = hio_npp_fnrt_si_scpf(io_si,scpf) + &
+                                                     ccohort%npp_froot*n_perm2
+                  hio_npp_bgsw_si_scpf(io_si,scpf) = hio_npp_bgsw_si_scpf(io_si,scpf) + &
+                                                     ccohort%npp_bsw*(1._r8-ED_val_ag_biomass)*n_perm2
+                  hio_npp_agsw_si_scpf(io_si,scpf) = hio_npp_agsw_si_scpf(io_si,scpf) + &
+                                                     ccohort%npp_bsw*ED_val_ag_biomass*n_perm2
+                  hio_npp_bgdw_si_scpf(io_si,scpf) = hio_npp_bgdw_si_scpf(io_si,scpf) + &
+                                                     ccohort%npp_bdead*(1._r8-ED_val_ag_biomass)*n_perm2
+                  hio_npp_agdw_si_scpf(io_si,scpf) = hio_npp_agdw_si_scpf(io_si,scpf) + &
+                                                     ccohort%npp_bdead*ED_val_ag_biomass*n_perm2
+                  hio_npp_seed_si_scpf(io_si,scpf) = hio_npp_seed_si_scpf(io_si,scpf) + &
+                                                     ccohort%npp_bseed*n_perm2
+                  hio_npp_stor_si_scpf(io_si,scpf) = hio_npp_stor_si_scpf(io_si,scpf) + &
+                                                     ccohort%npp_store*n_perm2
 
                   if( abs(ccohort%npp-(ccohort%npp_leaf+ccohort%npp_froot+ &
                         ccohort%npp_bsw+ccohort%npp_bdead+ &
                         ccohort%npp_bseed+ccohort%npp_store))>1.e-9) then
-                     write(iulog,*) 'NPP Partitions are not balancing'
-                     write(iulog,*) 'Fractional Error: ',abs(ccohort%npp-(ccohort%npp_leaf+ccohort%npp_froot+ &
+                     write(fates_log(),*) 'NPP Partitions are not balancing'
+                     write(fates_log(),*) 'Fractional Error: ', &
+                          abs(ccohort%npp-(ccohort%npp_leaf+ccohort%npp_froot+ &
                            ccohort%npp_bsw+ccohort%npp_bdead+ &
                            ccohort%npp_bseed+ccohort%npp_store))/ccohort%npp
-                     write(iulog,*) 'Terms: ',ccohort%npp,ccohort%npp_leaf,ccohort%npp_froot, &
+                     write(fates_log(),*) 'Terms: ',ccohort%npp,ccohort%npp_leaf,ccohort%npp_froot, &
                            ccohort%npp_bsw,ccohort%npp_bdead, &
                            ccohort%npp_bseed,ccohort%npp_store
-                     write(iulog,*) ' NPP components during FATES-HLM linking does not balance '
+                     write(fates_log(),*) ' NPP components during FATES-HLM linking does not balance '
                      stop ! we need termination control for FATES!!!
                      ! call endrun(msg=errMsg(__FILE__, __LINE__))
                   end if
@@ -583,9 +594,12 @@ contains
             hio_litter_out_pa(io_pa)           = (sum(cpatch%CWD_AG_out)+sum(cpatch%leaf_litter_out)) &
                  * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
             hio_seed_bank_pa(io_pa)            = sum(cpatch%seed_bank) * 1.e3_r8 * patch_scaling_scalar
-            hio_seeds_in_pa(io_pa)             = sum(cpatch%seeds_in) * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
-            hio_seed_decay_pa(io_pa)           = sum(cpatch%seed_decay) * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
-            hio_seed_germination_pa(io_pa)     = sum(cpatch%seed_germination) * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
+            hio_seeds_in_pa(io_pa)             = sum(cpatch%seeds_in) * &
+                 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
+            hio_seed_decay_pa(io_pa)           = sum(cpatch%seed_decay) &
+                 * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
+            hio_seed_germination_pa(io_pa)     = sum(cpatch%seed_germination) &
+                 * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
 
             
             hio_canopy_spread_pa(io_pa)        = cpatch%spread(1) 
@@ -604,8 +618,8 @@ contains
  
  ! ======================================================================================
 
- subroutine update_history_prod(this,nc,sites,nsites,dt_tstep)
-    
+ subroutine update_history_prod(this,nc,nsites,sites,dt_tstep)
+
     ! ---------------------------------------------------------------------------------
     ! This is the call to update the history IO arrays that are expected to only change
     ! after rapid timescale productivity calculations (gpp and respiration).
@@ -618,8 +632,8 @@ contains
     ! Arguments
     class(fates_hio_interface_type)                 :: this
     integer                 , intent(in)            :: nc   ! clump index
-    type(ed_site_type)      , intent(inout), target :: sites(nsites)
     integer                 , intent(in)            :: nsites
+    type(ed_site_type)      , intent(inout), target :: sites(nsites)
     real(r8)                , intent(in)            :: dt_tstep
     
     ! Locals
@@ -740,7 +754,7 @@ contains
          case('PA_INT')
             hvar%int1d(lb1:ub1) = nint(hvar%flushval)
          case default
-            write(iulog,*) 'iotyp undefined while flushing history variables'
+            write(fates_log(),*) 'iotyp undefined while flushing history variables'
             stop
             !end_run
          end select
@@ -786,7 +800,7 @@ contains
     integer                                :: ivar
     
     if(.not. (trim(callstep).eq.'count' .or. trim(callstep).eq.'initialize') ) then
-       write(iulog,*) 'defining history variables in FATES requires callstep count or initialize'
+       write(fates_log(),*) 'defining history variables in FATES requires callstep count or initialize'
        ! end_run('MESSAGE')
     end if
     
@@ -1104,7 +1118,6 @@ contains
           avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
           upfreq=3, ivar=ivar,callstep=callstep, index = ih_nep_si )
 
-
     call this%set_history_var(vname='Fire_Closs', units='gC/m^2/s', &
           long='ED/SPitfire Carbon loss to atmosphere', use_default='active', &
           avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
@@ -1239,8 +1252,8 @@ contains
           case('SI_SCPF_R8')
              allocate(hvar%r82d(lb1:ub1,lb2:ub2))
           case default
-             write(iulog,*) 'Incompatible vtype passed to set_history_var'
-             write(iulog,*) 'vtype = ',trim(vtype),' ?'
+             write(fates_log(),*) 'Incompatible vtype passed to set_history_var'
+             write(fates_log(),*) 'vtype = ',trim(vtype),' ?'
              stop
              ! end_run
           end select
@@ -1412,9 +1425,9 @@ contains
     
     ! First check to see if the dimension is allocated
     if(this%iovar_dk(ityp)%ndims<idim)then
-       write(iulog,*)'Trying to define dimension size to a dim-type structure'
-       write(iulog,*)'but the dimension index does not exist'
-       write(iulog,*)'type: ',dk_name,' ndims: ',this%iovar_dk(ityp)%ndims,' input dim:',idim
+       write(fates_log(),*)'Trying to define dimension size to a dim-type structure'
+       write(fates_log(),*)'but the dimension index does not exist'
+       write(fates_log(),*)'type: ',dk_name,' ndims: ',this%iovar_dk(ityp)%ndims,' input dim:',idim
        stop
        !end_run
     end if
@@ -1448,7 +1461,7 @@ contains
           return
        end if
     end do
-    write(iulog,*) 'An IOTYPE THAT DOESNT EXIST WAS SPECIFIED'
+    write(fates_log(),*) 'An IOTYPE THAT DOESNT EXIST WAS SPECIFIED'
     !end_run
     
   end function iotype_index
@@ -1557,8 +1570,8 @@ contains
 !             case('dimsize2')
 !                ityp=iotype_index(trim(iotype_name))
 !                if(ubound(iovar_str(ityp)%dimsize,1)==1)then
-!                   write(iulog,*) 'Transfering second dimensional bound to unallocated space'
-!                   write(iulog,*) 'type:',iotype_name
+!                   write(fates_log(),*) 'Transfering second dimensional bound to unallocated space'
+!                   write(fates_log(),*) 'type:',iotype_name
 !                   ! end_run
 !                end if
 !                iovar_str(ityp)%dimsize(2) = iostr_val
@@ -1567,8 +1580,8 @@ contains
 !             case('dimsize3')
 !                ityp=iotype_index(trim(iotype_name))
 !                if(ubound(iovar_str(ityp)%dimsize,1)<3)then
-!                   write(iulog,*) 'Transfering third dimensional bound to unallocated space'
-!                   write(iulog,*) 'type:',iotype_name
+!                   write(fates_log(),*) 'Transfering third dimensional bound to unallocated space'
+!                   write(fates_log(),*) 'type:',iotype_name
 !                   ! end_run
 !                end if
 !                iovar_str(ityp)%dimsize(3) = iostr_val

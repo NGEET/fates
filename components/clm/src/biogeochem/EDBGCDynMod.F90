@@ -339,31 +339,18 @@ contains
 
 
     ! -----------------------------------------------------------------------------------
-    ! ed veg carbon state and flux summary, Nitrogen (TBD) and Balance Checks
+    ! fates veg carbon state and flux summary, Nitrogen (TBD) and Balance Checks
     ! -----------------------------------------------------------------------------------
+    ! ----------------------------------------------
+    ! fates veg nitrogen flux summary
+    ! ----------------------------------------------
+    ! ----------------------------------------------
+    ! calculate balance checks on entire carbon cycle (FATES + BGC)
+    ! ----------------------------------------------
     
-    call clm_fates%wrap_bgc_summary(nc, bounds, &
-                                    soilbiogeochem_carbonflux_inst, &
-                                    soilbiogeochem_carbonstate_inst)
+    call clm_fates%wrap_bgc_summary(nc, soilbiogeochem_carbonflux_inst, &
+                                        soilbiogeochem_carbonstate_inst)
 
-!    call ed_clm_inst%SummarizeNetFluxes(bounds, num_soilc, filter_soilc, &
-!         sites(:), nsites, fcolumn(:),   &
-!         soilbiogeochem_carbonflux_inst, &
-!         soilbiogeochem_carbonstate_inst)
-
-    ! ----------------------------------------------
-    ! ed veg nitrogen flux summary
-    ! ----------------------------------------------
-
-    ! TBD...
-
-    ! ----------------------------------------------
-    ! calculate balance checks on entire carbon cycle (ED + BGC)
-    ! ----------------------------------------------
-
-!    call ed_clm_inst%ED_BGC_Carbon_Balancecheck(bounds, num_soilc, filter_soilc, &
-!         soilbiogeochem_carbonflux_inst)
-         
     call t_stopf('BGCsum')
 
   end subroutine EDBGCDynSummary
