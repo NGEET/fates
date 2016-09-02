@@ -84,7 +84,7 @@ module CLMFatesInterfaceMod
    use HistoryIOMod          , only : fates_hio_interface_type
 
    use EDCLMLinkMod          , only : ed_clm_type
-   use EDCLMLinkMod          , only : SummarizeNetFluxes, ED_BGC_Carbon_BalanceCheck
+   use ChecksBalancesMod     , only : SummarizeNetFluxes, FATES_BGC_Carbon_BalanceCheck
    use EDTypesMod            , only : udata
    use EDTypesMod            , only : ed_patch_type
    use EDtypesMod            , only : numPatchesPerCol
@@ -566,10 +566,9 @@ contains
                     this%fates(nc)%sites) 
 
                
-
             end if
          end if
-!         call this%fates2hlm%restart(bounds_clump, ncid, flag)
+
       end do
       !$OMP END PARALLEL DO
       
@@ -1268,11 +1267,11 @@ contains
                              is_beg_day)
       
 
-      call ED_BGC_Carbon_Balancecheck(this%fates(nc)%nsites,  &
-                                      this%fates(nc)%sites, &
-                                      this%fates(nc)%bc_in,  &
-                                      is_beg_day,            &
-                                      dtime, nstep)
+      call FATES_BGC_Carbon_Balancecheck(this%fates(nc)%nsites,  &
+                                         this%fates(nc)%sites, &
+                                         this%fates(nc)%bc_in,  &
+                                         is_beg_day,            &
+                                         dtime, nstep)
       
 
       ! Update history variables that track these variables
