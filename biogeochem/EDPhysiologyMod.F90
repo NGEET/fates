@@ -27,15 +27,15 @@ module EDPhysiologyMod
   public :: non_canopy_derivs
   public :: trim_canopy
   public :: phenology
-  public :: phenology_leafonoff
-  public :: Growth_Derivatives
+  private :: phenology_leafonoff
+  private :: Growth_Derivatives
   public :: recruitment
-  public :: cwd_input
-  public :: cwd_out
-  public :: fragmentation_scaler
-  public :: seeds_in
-  public :: seed_decay
-  public :: seed_germination
+  private :: cwd_input
+  private :: cwd_out
+  private :: fragmentation_scaler
+  private :: seeds_in
+  private :: seed_decay
+  private :: seed_germination
   public :: flux_into_litter_pools
 
   logical, parameter :: DEBUG  = .false. ! local debug flag
@@ -45,7 +45,7 @@ module EDPhysiologyMod
 contains
 
   ! ============================================================================
-  subroutine canopy_derivs( currentPatch )
+  subroutine canopy_derivs( currentSite, currentPatch )
     !
     ! !DESCRIPTION:
     ! spawn new cohorts of juveniles of each PFT             
@@ -53,6 +53,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS    
+    type(ed_site_type), intent(inout), target  :: currentSite
     type(ed_patch_type) , intent(inout), target :: currentPatch
     !
     ! !LOCAL VARIABLES:
@@ -64,7 +65,7 @@ contains
     currentCohort => currentPatch%shortest
 
     do while(associated(currentCohort))
-       call Growth_Derivatives(currentCohort)
+       call Growth_Derivatives(currentSite, currentCohort)
        currentCohort => currentCohort%taller
     enddo
 
@@ -103,13 +104,13 @@ contains
     currentPatch%seed_germination(:) = 0.0_r8
 
     ! update seed fluxes 
-    call seeds_in(currentPatch)
-    call seed_decay(currentPatch)
-    call seed_germination(currentPatch)
+    call seeds_in(currentSite, currentPatch)
+    call seed_decay(currentSite, currentPatch)
+    call seed_germination(currentSite, currentPatch)
 
     ! update fragmenting pool fluxes
     call cwd_input(currentPatch)
-    call cwd_out( currentPatch, temperature_inst)
+    call cwd_out( currentSite, currentPatch, temperature_inst)
 
     do p = 1,numpft_ed
        currentSite%dseed_dt(p) = currentSite%dseed_dt(p) + (currentPatch%seeds_in(p) - currentPatch%seed_decay(p) - currentPatch%seed_germination(p)) * currentPatch%area/AREA
@@ -632,7 +633,7 @@ contains
 
 
   ! ============================================================================
-  subroutine seeds_in( cp_pnt )
+  subroutine seeds_in( currentSite, cp_pnt )
     !
     ! !DESCRIPTION:
     !  Flux from plants into seed pool. 
@@ -641,17 +642,16 @@ contains
     use EDTypesMod, only : AREA
     !
     ! !ARGUMENTS    
+    type(ed_site_type), intent(inout), target  :: currentSite
     type(ed_patch_type), intent(inout), target :: cp_pnt ! seeds go to these patches.
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type),  pointer :: currentPatch
-    type(ed_site_type),   pointer :: currentSite
     type(ed_cohort_type), pointer :: currentCohort
     integer :: p
     !----------------------------------------------------------------------
 
     currentPatch => cp_pnt
-    currentSite  => currentPatch%siteptr
    
     currentPatch%seeds_in(:) = 0.0_r8
     
@@ -668,7 +668,7 @@ contains
        if (EXTERNAL_RECRUITMENT == 1) then !external seed rain - needed to prevent extinction  
           do p = 1,numpft_ed
            currentPatch%seeds_in(p) = currentPatch%seeds_in(p) + EDecophyscon%seed_rain(p) !KgC/m2/year
-           currentPatch%siteptr%seed_rain_flux(p) = currentPatch%siteptr%seed_rain_flux(p) + EDecophyscon%seed_rain(p) * currentPatch%area/AREA !KgC/m2/year
+           currentSite%seed_rain_flux(p) = currentSite%seed_rain_flux(p) + EDecophyscon%seed_rain(p) * currentPatch%area/AREA !KgC/m2/year
           enddo
        endif
        currentPatch => currentPatch%younger
@@ -677,7 +677,7 @@ contains
   end subroutine seeds_in
   
   ! ============================================================================
-  subroutine seed_decay( currentPatch )
+  subroutine seed_decay( currentSite, currentPatch )
     !
     ! !DESCRIPTION:
     !  Flux from seed pool into leaf litter pool    
@@ -685,6 +685,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS    
+    type(ed_site_type), intent(inout), target  :: currentSite
     type(ed_patch_type),intent(inout) :: currentPatch ! seeds go to these patches.
     !
     ! !LOCAL VARIABLES:
@@ -696,13 +697,13 @@ contains
     ! decays the seed pool according to exponential model
     ! sd_mort is in yr-1
     do p = 1,numpft_ed 
-       currentPatch%seed_decay(p) =  currentPatch%siteptr%seed_bank(p) * seed_turnover
+       currentPatch%seed_decay(p) =  currentSite%seed_bank(p) * seed_turnover
     enddo
  
   end subroutine seed_decay
 
   ! ============================================================================
-  subroutine seed_germination( currentPatch ) 
+  subroutine seed_germination( currentSite, currentPatch ) 
     !
     ! !DESCRIPTION:
     !  Flux from seed pool into sapling pool    
@@ -710,6 +711,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS    
+    type(ed_site_type), intent(inout), target  :: currentSite
     type(ed_patch_type),intent(inout) :: currentPatch ! seeds go to these patches.
     !
     ! !LOCAL VARIABLES:
@@ -722,13 +724,13 @@ contains
     max_germination = 1.0_r8 !this is arbitrary
 
     do p = 1,numpft_ed
-       currentPatch%seed_germination(p) =  min(currentPatch%siteptr%seed_bank(p) * germination_timescale,max_germination)
+       currentPatch%seed_germination(p) =  min(currentSite%seed_bank(p) * germination_timescale,max_germination)
     enddo
 
   end subroutine seed_germination
 
   ! ============================================================================
-  subroutine Growth_Derivatives( currentCohort)
+  subroutine Growth_Derivatives( currentSite, currentCohort)
     !
     ! !DESCRIPTION:
     !  Main subroutine controlling growth and allocation derivatives    
@@ -738,10 +740,10 @@ contains
     use EDTypesMod           , only : udata
     !
     ! !ARGUMENTS    
+    type(ed_site_type), intent(inout), target  :: currentSite
     type(ed_cohort_type),intent(inout), target :: currentCohort
     !
     ! !LOCAL VARIABLES:
-    type(ed_site_type),  pointer :: currentSite
     real(r8) :: dbldbd   !rate of change of dead biomass per unit dbh 
     real(r8) :: dbrdbd   !rate of change of root biomass per unit dbh
     real(r8) :: dbswdbd  !rate of change of sapwood biomass per unit dbh
@@ -758,8 +760,6 @@ contains
     real(r8) :: hmort    ! hydraulic failure mortality rate (fraction per year)
     real(r8) :: balive_loss
     !----------------------------------------------------------------------
-
-    currentSite => currentCohort%siteptr
 
     ! Mortality for trees in the understorey. 
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
@@ -979,7 +979,7 @@ contains
   end subroutine Growth_Derivatives
 
   ! ============================================================================
-  subroutine recruitment( t, currentPatch )
+  subroutine recruitment( t, currentSite, currentPatch )
     !
     ! !DESCRIPTION:
     ! spawn new cohorts of juveniles of each PFT             
@@ -990,6 +990,7 @@ contains
     !
     ! !ARGUMENTS    
     integer, intent(in) :: t
+    type(ed_site_type), intent(inout), target  :: currentSite
     type(ed_patch_type), intent(inout), pointer :: currentPatch
     !
     ! !LOCAL VARIABLES:
@@ -1023,18 +1024,18 @@ contains
        endif
 
        temp_cohort%laimemory = 0.0_r8     
-       if (pftcon%season_decid(temp_cohort%pft) == 1.and.currentPatch%siteptr%status == 1)then
+       if (pftcon%season_decid(temp_cohort%pft) == 1.and.currentSite%status == 1)then
          temp_cohort%laimemory = (1.0_r8/(1.0_r8 + pftcon%froot_leaf(ft) + &
               EDecophyscon%sapwood_ratio(ft)*temp_cohort%hite))*temp_cohort%balive
        endif
-       if (pftcon%stress_decid(temp_cohort%pft) == 1.and.currentPatch%siteptr%dstatus == 1)then
+       if (pftcon%stress_decid(temp_cohort%pft) == 1.and.currentSite%dstatus == 1)then
          temp_cohort%laimemory = (1.0_r8/(1.0_r8 + pftcon%froot_leaf(ft) + &
             EDecophyscon%sapwood_ratio(ft)*temp_cohort%hite))*temp_cohort%balive
        endif
 
-       cohortstatus = currentPatch%siteptr%status
+       cohortstatus = currentSite%status
        if (pftcon%stress_decid(ft) == 1)then !drought decidous, override status. 
-          cohortstatus = currentPatch%siteptr%dstatus
+          cohortstatus = currentSite%dstatus
        endif
 
        if (temp_cohort%n > 0.0_r8 )then
@@ -1154,7 +1155,6 @@ contains
     !
     ! !LOCAL VARIABLES:
     logical  :: use_century_tfunc = .false.
-    type(ed_site_type), pointer :: currentSite
     integer  :: p,j
     real(r8) :: t_scalar
     real(r8) :: w_scalar
@@ -1172,7 +1172,6 @@ contains
 
     catanf_30 = catanf(30._r8)
     
-!    c = currentPatch%siteptr%clmcolumn
     p = currentPatch%clm_pno
     
     ! set "froz_q10" parameter
@@ -1204,7 +1203,7 @@ contains
   end subroutine fragmentation_scaler
   
   ! ============================================================================
-  subroutine cwd_out( currentPatch, temperature_inst )
+  subroutine cwd_out( currentSite, currentPatch, temperature_inst )
     !
     ! !DESCRIPTION:
     ! Simple CWD fragmentation Model
@@ -1215,15 +1214,14 @@ contains
     use EDTypesMod , only : udata
     !
     ! !ARGUMENTS    
+    type(ed_site_type), intent(inout), target  :: currentSite
     type(ed_patch_type)    , intent(inout), target :: currentPatch
     type(temperature_type) , intent(in)            :: temperature_inst
     !
     ! !LOCAL VARIABLES:
-    type(ed_site_type), pointer :: currentSite
     integer :: c,ft
     !----------------------------------------------------------------------
 
-    currentSite => currentPatch%siteptr
     currentPatch%root_litter_out(:) = 0.0_r8
     currentPatch%leaf_litter_out(:) = 0.0_r8
 

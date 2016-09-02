@@ -86,7 +86,7 @@ contains
     do while (associated(currentPatch))                 
 
        ! adds small cohort of each PFT
-       call recruitment(0,currentPatch)                
+       call recruitment(0, currentSite, currentPatch)                
 
        currentPatch => currentPatch%younger
     enddo
@@ -173,7 +173,7 @@ contains
        endif
 
        ! Find the derivatives of the growth and litter processes. 
-       call canopy_derivs(currentPatch)
+       call canopy_derivs(currentSite, currentPatch)
        
        ! Update Canopy Biomass Pools
        currentCohort => currentPatch%shortest
@@ -336,7 +336,7 @@ contains
        ! Fixing this would likely require a re-work of how seed germination works which would be tricky. 
        if(currentPatch%countcohorts < 1)then
           !write(iulog,*) 'ED: calling recruitment for no cohorts',currentPatch%siteptr%clmgcell,currentPatch%patchno
-          !call recruitment(1,currentPatch)
+          !call recruitment(1, currentSite, currentPatch)
           ! write(iulog,*) 'patch empty',currentPatch%area,currentPatch%age
        endif
 
