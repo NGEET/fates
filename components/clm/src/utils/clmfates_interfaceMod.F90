@@ -504,8 +504,8 @@ contains
 
 
       call this%fates_hio%update_history_dyn( nc, &
-           this%fates(nc)%sites,       &
-           this%fates(nc)%nsites,      &
+           this%fates(nc)%nsites,       &
+           this%fates(nc)%sites,      &
            this%f2hmap(nc)%fcolumn)
 
 
@@ -558,8 +558,8 @@ contains
                     canopystate_inst)
                
                call this%fates_hio%update_history_dyn( nc, &
-                    this%fates(nc)%sites,       &
-                    this%fates(nc)%nsites,      &
+                    this%fates(nc)%nsites,       &
+                    this%fates(nc)%sites,      &
                     this%f2hmap(nc)%fcolumn)
 
             end if
@@ -623,8 +623,8 @@ contains
                 canopystate_inst)
 
            call this%fates_hio%update_history_dyn( nc, &
-                this%fates(nc)%sites,       &
-                this%fates(nc)%nsites,      &
+                this%fates(nc)%nsites,       &
+                this%fates(nc)%sites,      &
                 this%f2hmap(nc)%fcolumn)
 
 
@@ -1081,16 +1081,16 @@ contains
 
 
     dtime = get_step_size()
-    call  AccumulateFluxes_ED(this%fates(nc)%sites,  &
-                               this%fates(nc)%nsites, &
+    call  AccumulateFluxes_ED(this%fates(nc)%nsites,  &
+                               this%fates(nc)%sites, &
                                this%fates(nc)%bc_in,  &
                                this%fates(nc)%bc_out, &
                                dtime)
 
     
     call this%fates_hio%update_history_prod(nc, &
-                               this%fates(nc)%sites,  &
-                               this%fates(nc)%nsites, &
+                               this%fates(nc)%nsites,  &
+                               this%fates(nc)%sites, &
                                this%f2hmap(nc)%fcolumn, &
                                dtime)
 
