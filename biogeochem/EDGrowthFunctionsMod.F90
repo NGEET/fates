@@ -117,7 +117,7 @@ contains
     slascaler = 0.03_r8/pftcon%slatop(cohort_in%pft)
     bleaf = bleaf * slascaler
     
-    !write(*,*) 'bleaf',bleaf, slascaler,cohort_in%pft
+    !write(iulog,*) 'bleaf',bleaf, slascaler,cohort_in%pft
     
     !Adjust for canopies that have become so deep that their bottom layer is not producing any carbon... 
     !nb this will change the allometry and the effects of this remain untested. RF. April 2014  
