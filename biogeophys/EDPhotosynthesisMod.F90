@@ -26,7 +26,7 @@ module EDPhotosynthesisMod
 contains
  
   !---------------------------------------------------------
-   subroutine Photosynthesis_ED (sites,nsites,bc_in,bc_out,dtime)
+   subroutine Photosynthesis_ED (nsites, sites,bc_in,bc_out,dtime)
 
 
     !
@@ -55,8 +55,8 @@ contains
 
     !
     ! !ARGUMENTS:
-    type(ed_site_type),intent(inout),target :: sites(nsites)
     integer,intent(in)                      :: nsites
+    type(ed_site_type),intent(inout),target :: sites(nsites)
     type(bc_in_type),intent(in)             :: bc_in(nsites)
     type(bc_out_type),intent(inout)         :: bc_out(nsites)
     real(r8),intent(in)                     :: dtime
@@ -467,7 +467,8 @@ contains
                            lmr25 = lmr25top(FT) * nscaler
                            
                            if (nint(c3psn(FT)) == 1)then
-                              lmr_z(CL,FT,iv) = lmr25 * ft1_f(bc_in(s)%t_veg_pa(ifp), lmrha) * fth_f(bc_in(s)%t_veg_pa(ifp), lmrhd, lmrse, lmrc)
+                              lmr_z(CL,FT,iv) = lmr25 * ft1_f(bc_in(s)%t_veg_pa(ifp), lmrha) * &
+                                   fth_f(bc_in(s)%t_veg_pa(ifp), lmrhd, lmrse, lmrc)
                            else
                               lmr_z(CL,FT,iv) = lmr25 * 2._r8**((bc_in(s)%t_veg_pa(ifp)-(tfrz+25._r8))/10._r8)
                               lmr_z(CL,FT,iv) = lmr_z(CL,FT,iv) / (1._r8 + exp( 1.3_r8*(bc_in(s)%t_veg_pa(ifp)-(tfrz+55._r8)) ))
@@ -485,14 +486,19 @@ contains
                               kp25 = kp25top(FT) * nscaler
                               
                               ! Adjust for temperature
-                              vcmax_z(CL,FT,iv) = vcmax25 * ft1_f(bc_in(s)%t_veg_pa(ifp), vcmaxha) * fth_f(bc_in(s)%t_veg_pa(ifp), vcmaxhd, vcmaxse, vcmaxc)
-                              jmax_z(CL,FT,iv)  = jmax25 * ft1_f(bc_in(s)%t_veg_pa(ifp), jmaxha) * fth_f(bc_in(s)%t_veg_pa(ifp), jmaxhd, jmaxse, jmaxc)
-                              tpu_z(CL,FT,iv)   = tpu25 * ft1_f(bc_in(s)%t_veg_pa(ifp), tpuha) * fth_f(bc_in(s)%t_veg_pa(ifp), tpuhd, tpuse, tpuc)
+                              vcmax_z(CL,FT,iv) = vcmax25 * ft1_f(bc_in(s)%t_veg_pa(ifp), vcmaxha) * &
+                                   fth_f(bc_in(s)%t_veg_pa(ifp), vcmaxhd, vcmaxse, vcmaxc)
+                              jmax_z(CL,FT,iv)  = jmax25 * ft1_f(bc_in(s)%t_veg_pa(ifp), jmaxha) * &
+                                   fth_f(bc_in(s)%t_veg_pa(ifp), jmaxhd, jmaxse, jmaxc)
+                              tpu_z(CL,FT,iv)   = tpu25 * ft1_f(bc_in(s)%t_veg_pa(ifp), tpuha) * &
+                                   fth_f(bc_in(s)%t_veg_pa(ifp), tpuhd, tpuse, tpuc)
 
                               if (nint(c3psn(FT))  /=  1) then
                                  vcmax_z(CL,FT,iv) = vcmax25 * 2._r8**((bc_in(s)%t_veg_pa(ifp)-(tfrz+25._r8))/10._r8)
-                                 vcmax_z(CL,FT,iv) = vcmax_z(CL,FT,iv) / (1._r8 + exp( 0.2_r8*((tfrz+15._r8)-bc_in(s)%t_veg_pa(ifp)) ))
-                                 vcmax_z(CL,FT,iv) = vcmax_z(CL,FT,iv) / (1._r8 + exp( 0.3_r8*(bc_in(s)%t_veg_pa(ifp)-(tfrz+40._r8)) ))
+                                 vcmax_z(CL,FT,iv) = vcmax_z(CL,FT,iv) / (1._r8 + &
+                                      exp( 0.2_r8*((tfrz+15._r8)-bc_in(s)%t_veg_pa(ifp)) ))
+                                 vcmax_z(CL,FT,iv) = vcmax_z(CL,FT,iv) / (1._r8 + &
+                                      exp( 0.3_r8*(bc_in(s)%t_veg_pa(ifp)-(tfrz+40._r8)) ))
                               end if
                               kp_z(CL,FT,iv) = kp25 * 2._r8**((bc_in(s)%t_veg_pa(ifp)-(tfrz+25._r8))/10._r8) !q10 response of product limited psn. 
                         end if
@@ -669,7 +675,8 @@ contains
                                     cs = max(cs,1.e-06_r8)
                                     aquad = cs
                                     bquad = cs*(gb_mol - bbb(FT)) - bb_slope(ft)*an(cl,ft,iv)*bc_in(s)%forc_pbot
-                                    cquad = -gb_mol*(cs*bbb(FT) + bb_slope(ft)*an(cl,ft,iv)*bc_in(s)%forc_pbot*ceair/bc_in(s)%esat_tv_pa(ifp))
+                                    cquad = -gb_mol*(cs*bbb(FT) + &
+                                         bb_slope(ft)*an(cl,ft,iv)*bc_in(s)%forc_pbot*ceair/bc_in(s)%esat_tv_pa(ifp))
                                     call quadratic_f (aquad, bquad, cquad, r1, r2)
                                     gs_mol = max(r1,r2)
 
@@ -694,8 +701,8 @@ contains
                                  ! Final estimates for cs and ci (needed for early exit of ci iteration when an < 0)
                                  cs = bc_in(s)%cair_pa(ifp) - 1.4_r8/gb_mol * an(cl,ft,iv) * bc_in(s)%forc_pbot
                                  cs = max(cs,1.e-06_r8)
-                                 ci(cl,ft,iv) = bc_in(s)%cair_pa(ifp) - an(cl,ft,iv) * bc_in(s)%forc_pbot * (1.4_r8*gs_mol+1.6_r8*gb_mol) / &
-                                      (gb_mol*gs_mol)
+                                 ci(cl,ft,iv) = bc_in(s)%cair_pa(ifp) - &
+                                      an(cl,ft,iv) * bc_in(s)%forc_pbot * (1.4_r8*gs_mol+1.6_r8*gb_mol) / (gb_mol*gs_mol)
                                  ! Convert gs_mol (umol H2O/m**2/s) to gs (m/s) and then to rs (s/m)
                                  gs = gs_mol / cf
 

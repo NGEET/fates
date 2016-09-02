@@ -40,7 +40,7 @@ module EDSurfaceRadiationMod
 
 contains
    
-  subroutine ED_Norman_Radiation (sites, nsites, bc_in, bc_out )
+  subroutine ED_Norman_Radiation (nsites, sites, bc_in, bc_out )
       !
 
       !
@@ -53,8 +53,8 @@ contains
 
       ! !ARGUMENTS:
       
-      type(ed_site_type), intent(inout), target :: sites(nsites)      ! FATES site vector
       integer,            intent(in)            :: nsites 
+      type(ed_site_type), intent(inout), target :: sites(nsites)      ! FATES site vector
       type(bc_in_type),   intent(in)            :: bc_in(nsites)
       type(bc_out_type),  intent(inout)         :: bc_out(nsites)
 
@@ -505,7 +505,8 @@ contains
                                    
                                    do iv = currentPatch%nrad(L,ft), 1, -1
                                       if (lai_change(L,ft,iv) > 0.0_r8)then
-                                         Dif_up(L,ft,iv) = dif_ratio(L,ft,iv,ib) * Dif_dn(L,ft,iv)*ftweight(L,ft,iv)/ftweight(L,ft,1)
+                                         Dif_up(L,ft,iv) = dif_ratio(L,ft,iv,ib) * Dif_dn(L,ft,iv) * &
+                                              ftweight(L,ft,iv) / ftweight(L,ft,1)
                                          Dif_up(L,ft,iv) = Dif_up(L,ft,iv) + Dif_up(L,ft,iv+1) * &
                                               tran_dif(L,ft,iv,ib) * lai_change(L,ft,iv)/ftweight(L,ft,1)
                                          Dif_up(L,ft,iv) = Dif_up(L,ft,iv) + Dif_up(L,ft,iv+1) * &
@@ -621,7 +622,8 @@ contains
                                          !reflection of the lower layer,
                                          up_rad = Dif_dn(L,ft,iv) * refl_dif(L,ft,iv,ib)
                                          up_rad = up_rad + forc_dir(ifp,ib) * tr_dir_z(L,ft,iv) * (1.00_r8 - exp(-k_dir(ft) * &
-                                              (currentPatch%elai_profile(L,ft,iv)+currentPatch%esai_profile(L,ft,iv)))) * rhol(ft,ib)
+                                              (currentPatch%elai_profile(L,ft,iv) + currentPatch%esai_profile(L,ft,iv)))) * &
+                                              rhol(ft,ib)
                                          up_rad = up_rad + Dif_up(L,ft,iv+1) * tran_dif(L,ft,iv,ib)
                                          up_rad = up_rad * ftweight(L,ft,iv)/ftweight(L,ft,1)
                                          up_rad = up_rad + Dif_up(L,ft,iv+1) *(ftweight(L,ft,1)-ftweight(L,ft,iv))/ftweight(L,ft,1)
@@ -686,7 +688,8 @@ contains
                                          if (radtype==1) then
                                             if ( DEBUG ) then
                                                write(iulog,*) 'EDsurfAlb 730 ',Abs_dif_z(ft,iv),currentPatch%f_sun(L,ft,iv)
-                                               write(iulog,*) 'EDsurfAlb 731 ',currentPatch%fabd_sha_z(L,ft,iv),currentPatch%fabd_sun_z(L,ft,iv)
+                                               write(iulog,*) 'EDsurfAlb 731 ', currentPatch%fabd_sha_z(L,ft,iv), &
+                                                    currentPatch%fabd_sun_z(L,ft,iv)
                                             endif
                                             currentPatch%fabd_sha_z(L,ft,iv) = Abs_dif_z(ft,iv) * &
                                                  (1._r8 - currentPatch%f_sun(L,ft,iv))
@@ -700,7 +703,8 @@ contains
                                                  currentPatch%f_sun(L,ft,iv)
                                          endif
                                          if ( DEBUG ) then
-                                            write(iulog,*) 'EDsurfAlb 740 ',currentPatch%fabd_sha_z(L,ft,iv),currentPatch%fabd_sun_z(L,ft,iv)
+                                            write(iulog,*) 'EDsurfAlb 740 ', currentPatch%fabd_sha_z(L,ft,iv), &
+                                                 currentPatch%fabd_sun_z(L,ft,iv)
                                          endif
                                       end do
                                    endif ! ib 
@@ -726,9 +730,11 @@ contains
                                    ! Albefor
                                    if (L==1)then !top canopy layer.
                                       if (radtype == 1)then
-                                         bc_out(s)%albd_parb(ifp,ib) = bc_out(s)%albd_parb(ifp,ib) + Dif_up(L,ft,1) * ftweight(L,ft,1)
+                                         bc_out(s)%albd_parb(ifp,ib) = bc_out(s)%albd_parb(ifp,ib) + &
+                                              Dif_up(L,ft,1) * ftweight(L,ft,1)
                                       else
-                                         bc_out(s)%albi_parb(ifp,ib) = bc_out(s)%albi_parb(ifp,ib) + Dif_up(L,ft,1) * ftweight(L,ft,1)
+                                         bc_out(s)%albi_parb(ifp,ib) = bc_out(s)%albi_parb(ifp,ib) + &
+                                              Dif_up(L,ft,1) * ftweight(L,ft,1)
                                       end if
                                    end if
                                 end if ! present
@@ -771,8 +777,9 @@ contains
                           ! Total radiation balance: absorbed = incoming - outgoing
                           
                           if (radtype == 1)then
-                             error = abs(currentPatch%sabs_dir(ib)-(currentPatch%tr_soil_dir(ib)*(1.0_r8-bc_in(s)%albgr_dir_rb(ib))+ &
-                                  currentPatch%tr_soil_dir_dif(ib)*(1.0_r8-bc_in(s)%albgr_dif_rb(ib))))
+                             error = abs(currentPatch%sabs_dir(ib) - (currentPatch%tr_soil_dir(ib) * &
+                                  (1.0_r8-bc_in(s)%albgr_dir_rb(ib)) + &
+                                  currentPatch%tr_soil_dir_dif(ib) * (1.0_r8-bc_in(s)%albgr_dif_rb(ib))))
                              if ( abs(error) > 0.0001)then
                                 write(iulog,*)'dir ground absorption error',ifp,s,error,currentPatch%sabs_dir(ib), &
                                      currentPatch%tr_soil_dir(ib)* &
@@ -796,9 +803,11 @@ contains
                           endif
                           
                           if (radtype == 1)then
-                             error = (forc_dir(ifp,ib) + forc_dif(ifp,ib)) - (bc_out(s)%fabd_parb(ifp,ib)  + bc_out(s)%albd_parb(ifp,ib) + currentPatch%sabs_dir(ib))
+                             error = (forc_dir(ifp,ib) + forc_dif(ifp,ib)) - &
+                                  (bc_out(s)%fabd_parb(ifp,ib)  + bc_out(s)%albd_parb(ifp,ib) + currentPatch%sabs_dir(ib))
                           else
-                             error = (forc_dir(ifp,ib) + forc_dif(ifp,ib)) - (bc_out(s)%fabi_parb(ifp,ib)  + bc_out(s)%albi_parb(ifp,ib) + currentPatch%sabs_dif(ib))
+                             error = (forc_dir(ifp,ib) + forc_dif(ifp,ib)) - &
+                                  (bc_out(s)%fabi_parb(ifp,ib)  + bc_out(s)%albi_parb(ifp,ib) + currentPatch%sabs_dif(ib))
                           endif
                           lai_reduction(:) = 0.0_r8
                           do L = 1, currentPatch%NCL_p
@@ -845,7 +854,8 @@ contains
                              end if
                              if (abs(error)  >  0.15_r8)then
                                 write(iulog,*) 'Large Dir Radn consvn error',error ,ifp,ib
-                                write(iulog,*) 'diags',bc_out(s)%albd_parb(ifp,ib),bc_out(s)%ftdd_parb(ifp,ib),bc_out(s)%ftid_parb(ifp,ib),bc_out(s)%fabd_parb(ifp,ib)
+                                write(iulog,*) 'diags', bc_out(s)%albd_parb(ifp,ib), bc_out(s)%ftdd_parb(ifp,ib), &
+                                     bc_out(s)%ftid_parb(ifp,ib), bc_out(s)%fabd_parb(ifp,ib)
                                 write(iulog,*) 'lai_change',lai_change(currentpatch%ncl_p,1:2,1:4)
                                 write(iulog,*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:2,1:4)
                                 write(iulog,*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:2,1:4)
@@ -863,7 +873,8 @@ contains
                              
                              if (abs(error)  >  0.15_r8)then
                                 write(iulog,*)  '>5% Dif Radn consvn error',error ,ifp,ib
-                                write(iulog,*) 'diags',bc_out(s)%albi_parb(ifp,ib),bc_out(s)%ftii_parb(ifp,ib),bc_out(s)%fabi_parb(ifp,ib)
+                                write(iulog,*) 'diags', bc_out(s)%albi_parb(ifp,ib), bc_out(s)%ftii_parb(ifp,ib), &
+                                     bc_out(s)%fabi_parb(ifp,ib)
                                 write(iulog,*) 'lai_change',lai_change(currentpatch%ncl_p,1:2,1:4)
                                 write(iulog,*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:2,1:4)
                                 write(iulog,*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:2,1:4)
@@ -879,9 +890,11 @@ contains
                              end if
                              
                              if (radtype == 1)then
-                                error = (forc_dir(ifp,ib) + forc_dif(ifp,ib)) - (bc_out(s)%fabd_parb(ifp,ib)  + bc_out(s)%albd_parb(ifp,ib) + currentPatch%sabs_dir(ib))
+                                error = (forc_dir(ifp,ib) + forc_dif(ifp,ib)) - &
+                                     (bc_out(s)%fabd_parb(ifp,ib)  + bc_out(s)%albd_parb(ifp,ib) + currentPatch%sabs_dir(ib))
                              else
-                                error = (forc_dir(ifp,ib) + forc_dif(ifp,ib)) - (bc_out(s)%fabi_parb(ifp,ib)  + bc_out(s)%albi_parb(ifp,ib) + currentPatch%sabs_dif(ib))
+                                error = (forc_dir(ifp,ib) + forc_dif(ifp,ib)) - &
+                                     (bc_out(s)%fabi_parb(ifp,ib)  + bc_out(s)%albi_parb(ifp,ib) + currentPatch%sabs_dif(ib))
                              endif
                              
                              if (abs(error)  >  0.00000001_r8)then
@@ -906,15 +919,15 @@ contains
     
  ! ======================================================================================
 
- subroutine ED_SunShadeFracs(sites,nsites,bc_in,bc_out)
+ subroutine ED_SunShadeFracs(nsites, sites,bc_in,bc_out)
     
     use clm_varctl        , only : iulog
     
     implicit none
 
     ! Arguments
-    type(ed_site_type),intent(inout),target :: sites(nsites)
     integer,intent(in)                      :: nsites
+    type(ed_site_type),intent(inout),target :: sites(nsites)
     type(bc_in_type),intent(in)             :: bc_in(nsites)
     type(bc_out_type),intent(inout)         :: bc_out(nsites)
     
