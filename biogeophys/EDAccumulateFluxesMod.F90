@@ -21,7 +21,7 @@ contains
 
   !------------------------------------------------------------------------------
 
-  subroutine AccumulateFluxes_ED(sites, nsites, bc_in, bc_out, dt_time)
+  subroutine AccumulateFluxes_ED(nsites, sites, bc_in, bc_out, dt_time)
 
     !
     ! !DESCRIPTION:
