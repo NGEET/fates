@@ -23,11 +23,13 @@ module FatesInterfaceMod
                                       cp_maxSWb,         &
                                       cp_numlevdecomp,   &
                                       cp_numlevdecomp_full, &
-                                      cp_hlm_name
+                                      cp_hlm_name,       &
+                                      cp_hio_ignore_val
 
    use shr_kind_mod          , only : r8 => shr_kind_r8  ! INTERF-TODO: REMOVE THIS
 
    
+   implicit none
 
    ! ------------------------------------------------------------------------------------
    ! Notes on types
@@ -500,7 +502,7 @@ contains
          cp_numlevdecomp_full = unset_int
          cp_numlevdecomp      = unset_int
          cp_hlm_name          = 'unset'
-         cp_hio_ignore        = unset_double
+         cp_hio_ignore_val    = unset_double
 
       case('check_allset')
          
@@ -557,7 +559,7 @@ contains
             ! end_run('MESSAGE')
          end if
 
-         if( abs(cp_hio_ignore-unset_double)<1e-10 ) then
+         if( abs(cp_hio_ignore_val-unset_double)<1e-10 ) then
             if (fates_global_verbose()) then
                write(fates_log(),*) 'FATES dimension/parameter unset: hio_ignore'
             end if
