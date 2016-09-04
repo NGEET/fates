@@ -499,14 +499,25 @@ contains
 
       call wrap_litter_fluxout(this, nc, bounds_clump, canopystate_inst, soilbiogeochem_carbonflux_inst)
       
+
+      ! This couplet used to be ed_clm_lin()
+      ! ---------------------------------------------------------------------------------
       
-      ! link to CLM/ALM structures
-      call this%fates2hlm%ed_clm_link( bounds_clump,               &
-            this%fates(nc)%nsites,                                 &
-            this%fates(nc)%sites,                                  &
-            this%f2hmap(nc)%fcolumn,                               &
-            waterstate_inst,                                       &
-            canopystate_inst)
+      call canopy_summarization()
+
+      ! Pass informa
+!      call this%wrap_fates2hlm_dynamics(nc, &
+!           this%fates(nc)%nsites, &
+!           this%fates(nc)%sites)
+
+      
+!      ! link to CLM/ALM structures
+!      call this%fates2hlm%ed_clm_link( bounds_clump,               &
+!            this%fates(nc)%nsites,                                 &
+!            this%fates(nc)%sites,                                  &
+!            this%f2hmap(nc)%fcolumn,                               &
+!            waterstate_inst,                                       &
+!            canopystate_inst)
 
 
       call this%fates_hio%update_history_dyn( nc, &
@@ -522,6 +533,87 @@ contains
       return
    end subroutine dynamics_driv
    
+   ! ------------------------------------------------------------------------------------
+
+   subroutine wrap_update_hlm_dynamics(this, nc, bounds_clump,      &
+        waterstate_inst, canopystate_inst)
+     
+     implicit none
+     class(hlm_fates_interface_type), intent(inout) :: this
+     type(bounds_type),intent(in)                   :: bounds_clump
+     integer                 , intent(in)           :: nc
+     type(waterstate_type)   , intent(inout)        :: waterstate_inst
+     type(canopystate_type)  , intent(inout)        :: canopystate_inst
+     
+     associate(                                &
+         tlai => canopystate_inst%tlai_patch , &
+         elai => canopystate_inst%elai_patch , &
+         tsai => canopystate_inst%tsai_patch , &
+         esai => canopystate_inst%esai_patch , &
+         frac_veg_nosno_alb => canopystate_inst%frac_veg_nosno_alb_patch)
+
+       call update_hlm_dynamics(this%fates(nc)%nsites, &
+            this%fates(nc)%sites,  &
+            this%fates(nc)%bc_in,  &
+            this%fates(nc)%bc_out )
+       
+       ! Initialize weighting variables (note FATES is the only HLM module
+       ! that uses "is_veg" and "is_bareground".  The entire purpose of these
+       ! variables is to inform patch%wtcol(p).  wt_ed is imposed on wtcol,
+       ! but only for FATES columns.
+
+       patch%is_veg(bounds_clump%begp:bounds_clump)        = .false.
+       patch%is_bareground(bounds_clump%begp:bounds_clump) = .false.
+       patch%wt_ed(bounds_clump%begp:bounds_clump)         = 0.0_r8
+
+       do s=1,this%fates(nc)%nsites
+          
+          c = this%f2hlm(nc)%fcolumn(s)
+
+          ! Other modules may have AI's we only flush values
+          ! that are on the naturally vegetated columns
+          elai(col%patchi(c):col%patchf(c)) = 0.0_r8
+          tlai(col%patchi(c):col%patchf(c)) = 0.0_r8
+          esai(col%patchi(c):col%patchf(c)) = 0.0_r8
+          tsai(col%patchi(c):col%patchf(c)) = 0.0_r8
+          frac_veg_nosno_alb(col%patchi(c):col%patchf(c)) = 0.0_r8
+
+          patch%is_bareground(col%patchi(c)) = .true.
+          npatch = this%fates(nc)%sites(s)%youngest_patch%patchno
+          patch%wt_ed(col%patchi(c)) = 1.0-sum(bc_out(s)%site_canopy_fraction(1:npatch))
+          if(sum(bc_out(s)%site_canopy_fraction(1:npatch))>1.0_r8)then
+             write(fates_log(),*)'Projected Canopy Area of all FATES patches'
+             write(fates_log(),*)'cannot exceed 1.0'
+             !end_run()
+          end if
+
+          do ifp = 1, npatch
+
+             p = ifp+col%patchi(c)
+
+             ! bc_out(s)%site_canopy_fraction(ifp) is the area fraction
+             ! the site's total ground area that is occupied by the 
+             ! area footprint of the current patch's vegetation canopy 
+
+             patch%is_veg(p) = .true.
+             patch%wt_ed(p)  = bc_out(s)%site_canopy_fraction(ifp)
+             elai(p) = this%fates(nc)%bc_out(s)%elai(ifp)
+             tlai(p) = this%fates(nc)%bc_out(s)%tlai(ifp)
+             esai(p) = this%fates(nc)%bc_out(s)%esai(ifp)
+             tsai(p) = this%fates(nc)%bc_out(s)%tsai(ifp)
+             frac_veg_nosno_alb(p) = this%fates(nc)%bc_out(s)%frac_veg_nosno_alb(ifp)
+
+          end do
+
+       end do
+       
+
+
+       
+
+     end associate
+     return
+   end subroutine update_hlm_dynamics
 
    ! ------------------------------------------------------------------------------------
 
