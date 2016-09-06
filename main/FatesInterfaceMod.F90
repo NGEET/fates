@@ -149,6 +149,12 @@ module FatesInterfaceMod
       real(r8) :: tot_somc      ! total soil organic matter carbon (gc/m2)
       real(r8) :: tot_litc      ! total litter carbon tracked in the HLM (gc/m2)
 
+      ! Canopy Structure
+
+      real(r8) :: snow_depth_si    ! Depth of snow in snowy areas of site (m)
+      real(r8) :: frac_sno_eff_si  ! Fraction of ground covered by snow (0-1)
+
+
    end type bc_in_type
 
 
@@ -226,6 +232,25 @@ module FatesInterfaceMod
       !total lignin    litter coming from ED. gC/m3/s
       real(r8), allocatable :: FATES_c_to_litr_lig_c_col(:)      
 
+      ! Canopy Structure
+
+      real(r8), allocatable :: elai_pa(:)  ! exposed leaf area index
+      real(r8), allocatable :: esai_pa(:)  ! exposed stem area index
+      real(r8), allocatable :: tlai_pa(:)  ! total leaf area index
+      real(r8), allocatable :: tsai_pa(:)  ! total stem area index
+      real(r8), allocatable :: htop_pa(:)  ! top of the canopy [m]
+      real(r8), allocatable :: hbot_pa(:)  ! bottom of canopy? [m]
+
+      real(r8), allocatable :: canopy_fraction_pa(:) ! Area fraction of each patch in the site
+                                                     ! Use most likely for weighting
+                                                     ! This is currently the projected canopy
+                                                     ! area of each patch [0-1]
+
+      real(r8), allocatable :: frac_veg_nosno_alb_pa(:) ! This is not really a fraction
+                                                        ! this is actually binary based on if any
+                                                        ! vegetation in the patch is exposed.
+                                                        ! [0,1]
+
       
    end type bc_out_type
 
@@ -296,7 +321,7 @@ contains
       
       
       ! Deallocate the site list
-      deallocate (this%sites)
+!      deallocate (this%sites)
       
       return
    end subroutine fates_clean
@@ -393,6 +418,17 @@ contains
       allocate(bc_out%FATES_c_to_litr_cel_c_col(cp_numlevdecomp_full))
       allocate(bc_out%FATES_c_to_litr_lig_c_col(cp_numlevdecomp_full))
 
+      ! Canopy Structure
+      allocate(bc_out%elai_pa(numPatchesPerCol))
+      allocate(bc_out%esai_pa(numPatchesPerCol))
+      allocate(bc_out%tlai_pa(numPatchesPerCol))
+      allocate(bc_out%tsai_pa(numPatchesPerCol))
+      allocate(bc_out%htop_pa(numPatchesPerCol))
+      allocate(bc_out%hbot_pa(numPatchesPerCol))
+      allocate(bc_out%canopy_fraction_pa(numPatchesPerCol))
+      allocate(bc_out%frac_veg_nosno_alb_pa(numPatchesPerCol))
+
+
       return
    end subroutine allocate_bcout
 
@@ -421,6 +457,8 @@ contains
       this%bc_in(s)%tot_het_resp        = 0.0_r8
       this%bc_in(s)%tot_somc            = 0.0_r8 
       this%bc_in(s)%tot_litc            = 0.0_r8
+      this%bc_in(s)%snow_depth_si       = 0.0_r8
+      this%bc_in(s)%frac_sno_eff_si     = 0.0_r8
       
       ! Output boundaries
       this%bc_out(s)%active_suction_gl(:) = .false.
@@ -447,6 +485,15 @@ contains
       this%bc_out(s)%ftdd_parb(:,:) = 0.0_r8
       this%bc_out(s)%ftid_parb(:,:) = 0.0_r8
       this%bc_out(s)%ftii_parb(:,:) = 0.0_r8
+
+      this%bc_out(s)%elai_pa(:) = 0.0_r8
+      this%bc_out(s)%esai_pa(:) = 0.0_r8
+      this%bc_out(s)%tlai_pa(:) = 0.0_r8
+      this%bc_out(s)%tsai_pa(:) = 0.0_r8
+      this%bc_out(s)%htop_pa(:) = 0.0_r8
+      this%bc_out(s)%hbot_pa(:) = 0.0_r8
+      this%bc_out(s)%canopy_fraction_pa(:) = 0.0_r8
+      this%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
       
       return
     end subroutine zero_bcs
