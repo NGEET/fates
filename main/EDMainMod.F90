@@ -17,7 +17,6 @@ module EDMainMod
   use SFMainMod            , only : fire_model
   use EDtypesMod           , only : ncwd, numpft_ed, udata
   use EDtypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDCLMLinkMod         , only : ed_clm_type
 
   implicit none
   private

@@ -729,7 +729,6 @@ contains
     !
     ! !USES:
     use clm_time_manager , only : get_nstep
-    use EDCLMLinkMod     , only : ed_clm_type
     use EDMainMod        , only : ed_update_site
     !
     ! !ARGUMENTS:
@@ -2326,7 +2325,6 @@ contains
     ! !USES:
 
     use ncdio_pio    , only : file_desc_t
-    use EDCLMLinkMod , only : ed_clm_type
     !
     ! !ARGUMENTS:
     type(bounds_type)       , intent(in)            :: bounds  ! bounds
