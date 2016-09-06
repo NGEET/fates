@@ -113,7 +113,8 @@ contains
     call cwd_out( currentSite, currentPatch, temperature_inst)
 
     do p = 1,numpft_ed
-       currentSite%dseed_dt(p) = currentSite%dseed_dt(p) + (currentPatch%seeds_in(p) - currentPatch%seed_decay(p) - currentPatch%seed_germination(p)) * currentPatch%area/AREA
+       currentSite%dseed_dt(p) = currentSite%dseed_dt(p) + &
+            (currentPatch%seeds_in(p) - currentPatch%seed_decay(p) - currentPatch%seed_germination(p)) * currentPatch%area/AREA
     enddo   
     
     do c = 1,ncwd
