@@ -1289,7 +1289,9 @@ contains
 
     use EDTypesMod, only : AREA, numpft_ed, cp_numlevdecomp_full, cp_numlevdecomp
     use SoilBiogeochemVerticalProfileMod, only: surfprof_exp
-    use EDCLMLinkMod, only: cwd_fcel_ed, cwd_flig_ed
+
+    !use EDCLMLinkMod, only: cwd_fcel_ed, cwd_flig
+    
     use pftconMod, only : pftcon
     use shr_const_mod, only: SHR_CONST_CDAY
     use clm_varcon, only : zisoi, dzsoi_decomp, zsoi
@@ -1348,6 +1350,11 @@ contains
     real(r8) :: froot_prof(1:nsites,  1:numpft_ed, 1:cp_numlevdecomp)
     real(r8) :: croot_prof(1:nsites, 1:cp_numlevdecomp)
     real(r8) :: stem_prof(1:nsites, 1:cp_numlevdecomp)
+
+    ! INTERF-TODO: THESE PARAMETERS WERE ORIGINALLY SET BY params_inst%
+    ! THEY NEED THEIR OWN ENTRIES IN THE PARAMETER FILE (RGK)
+    real(r8), parameter :: cwd_fcel = 0.76
+    real(r8), parameter :: cwd_flig = 0.24
     
     
     delta = 0.001_r8    
@@ -1570,26 +1577,26 @@ contains
             ! now disaggregate, vertically and by decomposition substrate type, the actual fluxes from CWD and litter pools
             !
             ! do c = 1, ncwd
-            !    write(iulog,*)'cdk CWD_AG_out', c, currentpatch%CWD_AG_out(c), cwd_fcel_ed, currentpatch%area/AREA
-            !    write(iulog,*)'cdk CWD_BG_out', c, currentpatch%CWD_BG_out(c), cwd_fcel_ed, currentpatch%area/AREA
+            !    write(iulog,*)'cdk CWD_AG_out', c, currentpatch%CWD_AG_out(c), cwd_fcel, currentpatch%area/AREA
+            !    write(iulog,*)'cdk CWD_BG_out', c, currentpatch%CWD_BG_out(c), cwd_fcel, currentpatch%area/AREA
             ! end do
             ! do ft = 1,numpft_ed
-            !    write(iulog,*)'cdk leaf_litter_out', ft, currentpatch%leaf_litter_out(ft), cwd_fcel_ed, currentpatch%area/AREA
-            !    write(iulog,*)'cdk root_litter_out', ft, currentpatch%root_litter_out(ft), cwd_fcel_ed, currentpatch%area/AREA
+            !    write(iulog,*)'cdk leaf_litter_out', ft, currentpatch%leaf_litter_out(ft), cwd_fcel, currentpatch%area/AREA
+            !    write(iulog,*)'cdk root_litter_out', ft, currentpatch%root_litter_out(ft), cwd_fcel, currentpatch%area/AREA
             ! end do
             ! !
             ! CWD pools fragmenting into decomposing litter pools. 
             do ci = 1, ncwd
                do j = 1, cp_numlevdecomp
                   bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + &
-                       currentpatch%CWD_AG_out(ci) * cwd_fcel_ed * currentpatch%area/AREA * stem_prof(s,j)  
+                       currentpatch%CWD_AG_out(ci) * cwd_fcel * currentpatch%area/AREA * stem_prof(s,j)  
                   bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + &
-                       currentpatch%CWD_AG_out(ci) * cwd_flig_ed * currentpatch%area/AREA * stem_prof(s,j)
+                       currentpatch%CWD_AG_out(ci) * cwd_flig * currentpatch%area/AREA * stem_prof(s,j)
                   !
                   bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + &
-                       currentpatch%CWD_BG_out(ci) * cwd_fcel_ed * currentpatch%area/AREA * croot_prof_perpatch(j)
+                       currentpatch%CWD_BG_out(ci) * cwd_fcel * currentpatch%area/AREA * croot_prof_perpatch(j)
                   bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + &
-                       currentpatch%CWD_BG_out(ci) * cwd_flig_ed * currentpatch%area/AREA * croot_prof_perpatch(j)
+                       currentpatch%CWD_BG_out(ci) * cwd_flig * currentpatch%area/AREA * croot_prof_perpatch(j)
                end do
             end do
             

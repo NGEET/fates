@@ -83,7 +83,6 @@ module CLMFatesInterfaceMod
    
    use HistoryIOMod          , only : fates_hio_interface_type
 
-   use EDCLMLinkMod          , only : ed_clm_type
    use ChecksBalancesMod     , only : SummarizeNetFluxes, FATES_BGC_Carbon_BalanceCheck
    use EDTypesMod            , only : udata
    use EDTypesMod            , only : ed_patch_type
@@ -99,10 +98,10 @@ module CLMFatesInterfaceMod
    use EDSurfaceRadiationMod , only : ED_SunShadeFracs, ED_Norman_Radiation
    use EDBtranMod            , only : btran_ed, &
                                       get_active_suction_layers
-
+   use EDCanopyStructureMod  , only : canopy_summarization, update_hlm_dynamics
    use EDPhotosynthesisMod   , only : Photosynthesis_ED
    use EDAccumulateFluxesMod , only : AccumulateFluxes_ED
-   use EDPhysiologyMod       , only: flux_into_litter_pools
+   use EDPhysiologyMod       , only : flux_into_litter_pools
 
    implicit none
 
@@ -157,6 +156,7 @@ module CLMFatesInterfaceMod
       procedure, private :: wrap_litter_fluxout
       procedure, public  :: wrap_bgc_summary
       procedure, private :: init_history_io
+      procedure, private :: wrap_update_hlmfates_dyn
 
    end type hlm_fates_interface_type
 
@@ -494,10 +494,7 @@ contains
       ! Use what has been calculated in Canopy Summarization to pass
       ! back 
 
-      call this%wrap_update_hlmfates_dynamics(nc,bounds_clump, &
-           this%fates(nc)%nsites, &
-           this%fates(nc)%sites)
-
+      call this%wrap_update_hlmfates_dyn(nc,bounds_clump,waterstate_inst,canopystate_inst)
       
 !      ! link to CLM/ALM structures
 !      call this%fates2hlm%ed_clm_link( bounds_clump,               &
@@ -523,7 +520,7 @@ contains
    
    ! ------------------------------------------------------------------------------------
 
-   subroutine wrap_update_hlmfates_dynamics(this, nc, bounds_clump,      &
+   subroutine wrap_update_hlmfates_dyn(this, nc, bounds_clump,      &
         waterstate_inst, canopystate_inst)
 
       ! ---------------------------------------------------------------------------------
@@ -538,6 +535,12 @@ contains
      integer                 , intent(in)           :: nc
      type(waterstate_type)   , intent(inout)        :: waterstate_inst
      type(canopystate_type)  , intent(inout)        :: canopystate_inst
+
+     integer :: npatch  ! number of patches in each site
+     integer :: ifp     ! index FATES patch 
+     integer :: p       ! HLM patch index
+     integer :: s       ! site index
+     integer :: c       ! column index
      
      associate(                                &
          tlai => canopystate_inst%tlai_patch , &
@@ -554,9 +557,9 @@ contains
        ! Process input boundary conditions
        ! --------------------------------------------------------------------------------
        do s=1,this%fates(nc)%nsites
-          c = this%f2hlm(nc)%fcolumn(s)
-          bc_in(s)%snow_depth   = snow_depth(c)
-          bc_in(s)%frac_sno_eff = frac_sno_eff(c)
+          c = this%f2hmap(nc)%fcolumn(s)
+          this%fates(nc)%bc_in(s)%snow_depth_si   = snow_depth(c)
+          this%fates(nc)%bc_in(s)%frac_sno_eff_si = frac_sno_eff(c)
        end do
        
        ! Canopy diagnostics for FATES
@@ -575,13 +578,13 @@ contains
        ! variables is to inform patch%wtcol(p).  wt_ed is imposed on wtcol,
        ! but only for FATES columns.
 
-       patch%is_veg(bounds_clump%begp:bounds_clump)        = .false.
-       patch%is_bareground(bounds_clump%begp:bounds_clump) = .false.
-       patch%wt_ed(bounds_clump%begp:bounds_clump)         = 0.0_r8
+       patch%is_veg(bounds_clump%begp:bounds_clump%endp)        = .false.
+       patch%is_bareground(bounds_clump%begp:bounds_clump%endp) = .false.
+       patch%wt_ed(bounds_clump%begp:bounds_clump%endp)         = 0.0_r8
 
        do s=1,this%fates(nc)%nsites
           
-          c = this%f2hlm(nc)%fcolumn(s)
+          c = this%f2hmap(nc)%fcolumn(s)
 
           ! Other modules may have AI's we only flush values
           ! that are on the naturally vegetated columns
@@ -595,10 +598,10 @@ contains
 
           patch%is_bareground(col%patchi(c)) = .true.
           npatch = this%fates(nc)%sites(s)%youngest_patch%patchno
-          patch%wt_ed(col%patchi(c)) = 1.0-sum(bc_out(s)%site_canopy_fraction(1:npatch))
-          if(sum(bc_out(s)%site_canopy_fraction(1:npatch))>1.0_r8)then
-             write(fates_log(),*)'Projected Canopy Area of all FATES patches'
-             write(fates_log(),*)'cannot exceed 1.0'
+          patch%wt_ed(col%patchi(c)) = 1.0-sum(this%fates(nc)%bc_out(s)%canopy_fraction_pa(1:npatch))
+          if(sum(this%fates(nc)%bc_out(s)%canopy_fraction_pa(1:npatch))>1.0_r8)then
+             write(iulog,*)'Projected Canopy Area of all FATES patches'
+             write(iulog,*)'cannot exceed 1.0'
              !end_run()
           end if
 
@@ -606,26 +609,26 @@ contains
 
              p = ifp+col%patchi(c)
 
-             ! bc_out(s)%site_canopy_fraction(ifp) is the area fraction
+             ! bc_out(s)%canopy_fraction_pa(ifp) is the area fraction
              ! the site's total ground area that is occupied by the 
              ! area footprint of the current patch's vegetation canopy 
 
              patch%is_veg(p) = .true.
-             patch%wt_ed(p)  = bc_out(s)%site_canopy_fraction(ifp)
-             elai(p) = this%fates(nc)%bc_out(s)%elai(ifp)
-             tlai(p) = this%fates(nc)%bc_out(s)%tlai(ifp)
-             esai(p) = this%fates(nc)%bc_out(s)%esai(ifp)
-             tsai(p) = this%fates(nc)%bc_out(s)%tsai(ifp)
-             hbot(p) = this%fates(nc)%bc_out(s)%hbot(ifp)
-             htop(p) = this%fates(nc)%bc_out(s)%htop(ifp)
-             frac_veg_nosno_alb(p) = this%fates(nc)%bc_out(s)%frac_veg_nosno_alb(ifp)
+             patch%wt_ed(p)  = this%fates(nc)%bc_out(s)%canopy_fraction_pa(ifp)
+             elai(p) = this%fates(nc)%bc_out(s)%elai_pa(ifp)
+             tlai(p) = this%fates(nc)%bc_out(s)%tlai_pa(ifp)
+             esai(p) = this%fates(nc)%bc_out(s)%esai_pa(ifp)
+             tsai(p) = this%fates(nc)%bc_out(s)%tsai_pa(ifp)
+             hbot(p) = this%fates(nc)%bc_out(s)%hbot_pa(ifp)
+             htop(p) = this%fates(nc)%bc_out(s)%htop_pa(ifp)
+             frac_veg_nosno_alb(p) = this%fates(nc)%bc_out(s)%frac_veg_nosno_alb_pa(ifp)
 
           end do
 
        end do
      end associate
      return
-   end subroutine update_hlm_dynamics
+   end subroutine wrap_update_hlmfates_dyn
 
    ! ------------------------------------------------------------------------------------
 
@@ -665,9 +668,8 @@ contains
 !                    waterstate_inst,                                               &
 !                    canopystate_inst)
                
-               call this%wrap_update_hlmfates_dynamics(nc,bounds_clump, &
-                     this%fates(nc)%nsites, &
-                     this%fates(nc)%sites)
+               call this%wrap_update_hlmfates_dyn(nc,bounds_clump, &
+                    waterstate_inst,canopystate_inst)
 
                call this%fates_hio%update_history_dyn( nc, &
                     this%fates(nc)%nsites,                 &
@@ -727,9 +729,7 @@ contains
               call ed_update_site(this%fates(nc)%sites(s))
            end do
            
-           call this%wrap_update_hlmfates_dynamics(nc,bounds_clump, &
-                 this%fates(nc)%nsites, &
-                 this%fates(nc)%sites)
+           call this%wrap_update_hlmfates_dyn(nc,bounds_clump,waterstate_inst,canopystate_inst)
 
 !           call this%fates2hlm%ed_clm_link( bounds_clump,           &
 !                this%fates(nc)%nsites,                              &

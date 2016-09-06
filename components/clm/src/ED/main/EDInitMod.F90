@@ -21,7 +21,6 @@ module EDInitMod
   use EDPatchDynamicsMod        , only : create_patch
   use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type, area
   use EDTypesMod                , only : cohorts_per_col, ncwd, numpft_ed, udata
-  use EDCLMLinkMod              , only : ed_clm_type
 
   implicit none
   private
