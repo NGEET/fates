@@ -86,7 +86,7 @@ contains
     do while (associated(currentPatch))                 
 
        ! adds small cohort of each PFT
-       call recruitment(0,currentPatch)                
+       call recruitment(0, currentSite, currentPatch)                
 
        currentPatch => currentPatch%younger
     enddo
@@ -141,7 +141,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type)     , intent(in)    :: currentSite
+    type(ed_site_type)     , intent(inout)    :: currentSite
     type(temperature_type) , intent(in)    :: temperature_inst
     !
     ! !LOCAL VARIABLES:
@@ -156,6 +156,11 @@ contains
 
     small_no = 0.0000000000_r8  ! Obviously, this is arbitrary.  RF - changed to zero
 
+    do p = 1,numpft_ed
+       currentSite%dseed_dt(p) = 0._r8  ! zero the dseed_dt at the site level before looping through patches and adding the fluxes from each patch
+    end do
+    currentSite%seed_rain_flux = 0._r8  
+
     currentPatch => currentSite%youngest_patch
 
     do while(associated(currentPatch))
@@ -168,7 +173,7 @@ contains
        endif
 
        ! Find the derivatives of the growth and litter processes. 
-       call canopy_derivs(currentPatch)
+       call canopy_derivs(currentSite, currentPatch)
        
        ! Update Canopy Biomass Pools
        currentCohort => currentPatch%shortest
@@ -214,13 +219,11 @@ contains
           write(6,*)'DEBUG18: calling non_canopy_derivs with pno= ',currentPatch%clm_pno
        endif
 
-       call non_canopy_derivs( currentPatch, temperature_inst )
+       call non_canopy_derivs( currentSite, currentPatch, temperature_inst )
 
        !update state variables simultaneously according to derivatives for this time period. 
-       do p = 1,numpft_ed
-          currentPatch%seed_bank(p) = currentPatch%seed_bank(p) + currentPatch%dseed_dt(p)*udata%deltat
-       enddo
 
+       ! first update the litter variables that are tracked at the patch level
        do c = 1,ncwd
           currentPatch%cwd_ag(c) =  currentPatch%cwd_ag(c) + currentPatch%dcwd_ag_dt(c)* udata%deltat
           currentPatch%cwd_bg(c) =  currentPatch%cwd_bg(c) + currentPatch%dcwd_bg_dt(c)* udata%deltat
@@ -229,14 +232,6 @@ contains
        do p = 1,numpft_ed
           currentPatch%leaf_litter(p) = currentPatch%leaf_litter(p) + currentPatch%dleaf_litter_dt(p)* udata%deltat
           currentPatch%root_litter(p) = currentPatch%root_litter(p) + currentPatch%droot_litter_dt(p)* udata%deltat
-       enddo
-
-       ! Check for negative values. Write out warning to show carbon balance. 
-       do p = 1,numpft_ed
-          if(currentPatch%seed_bank(p)<small_no)then
-            write(iulog,*) 'negative seedbank', currentPatch%seed_bank(p)
-            currentPatch%seed_bank(p) = small_no
-          endif
        enddo
 
        do c = 1,ncwd
@@ -276,6 +271,20 @@ contains
        currentPatch => currentPatch%older
 
     enddo
+
+    ! at the site level, update the seed bank mass
+    do p = 1,numpft_ed
+       currentSite%seed_bank(p) = currentSite%seed_bank(p) + currentSite%dseed_dt(p)*udata%deltat
+    enddo
+
+    ! Check for negative values. Write out warning to show carbon balance. 
+    do p = 1,numpft_ed
+       if(currentSite%seed_bank(p)<small_no)then
+          write(iulog,*) 'negative seedbank', currentSite%seed_bank(p)
+          currentSite%seed_bank(p) = small_no
+       endif
+    enddo
+
 
   end subroutine ed_integrate_state_variables
 
@@ -327,7 +336,7 @@ contains
        ! Fixing this would likely require a re-work of how seed germination works which would be tricky. 
        if(currentPatch%countcohorts < 1)then
           !write(iulog,*) 'ED: calling recruitment for no cohorts',currentPatch%siteptr%clmgcell,currentPatch%patchno
-          !call recruitment(1,currentPatch)
+          !call recruitment(1, currentSite, currentPatch)
           ! write(iulog,*) 'patch empty',currentPatch%area,currentPatch%age
        endif
 
@@ -379,14 +388,14 @@ contains
     change_in_stock = 0.0_r8
     biomass_stock   = 0.0_r8
     litter_stock    = 0.0_r8
-    seed_stock      = 0.0_r8
+
+    seed_stock   =  sum(currentSite%seed_bank)
 
     currentPatch => currentSite%oldest_patch 
     do while(associated(currentPatch))
 
        litter_stock = litter_stock + currentPatch%area * (sum(currentPatch%cwd_ag)+ &
              sum(currentPatch%cwd_bg)+sum(currentPatch%leaf_litter)+sum(currentPatch%root_litter))
-       seed_stock   = seed_stock   + currentPatch%area * sum(currentPatch%seed_bank)
        currentCohort => currentPatch%tallest;
        
        do while(associated(currentCohort))
