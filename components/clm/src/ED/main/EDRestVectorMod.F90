@@ -89,7 +89,6 @@ module EDRestVectorMod
      real(r8), pointer :: root_litter(:)
      real(r8), pointer :: leaf_litter_in(:)
      real(r8), pointer :: root_litter_in(:)
-     real(r8), pointer :: seed_bank(:)
      !
      ! indext by nclmax
      !
@@ -119,6 +118,10 @@ module EDRestVectorMod
      real(r8), pointer :: dleafondate(:)   
      real(r8), pointer :: dleafoffdate(:) 
      real(r8), pointer :: acc_NI(:) 
+     !
+     ! site x pft
+     real(r8), pointer :: seed_bank(:)
+
              
      
    contains
@@ -1032,7 +1035,7 @@ contains
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_seed_bank', xtype=ncd_double,  &
          dim1name=coh_dimName, &
-         long_name='ed patch - seed_bank', units='unitless', &
+         long_name='ed site - seed_bank', units='unitless', &
          interpinic_flag='interp', data=this%seed_bank, &
          readvar=readvar)
 
@@ -1352,7 +1355,6 @@ contains
              write(iulog,*) trim(methodName)//' root_litter '    ,currentPatch%root_litter
              write(iulog,*) trim(methodName)//' leaf_litter_in ' ,currentPatch%leaf_litter_in
              write(iulog,*) trim(methodName)//' root_litter_in ' ,currentPatch%root_litter_in
-             write(iulog,*) trim(methodName)//' seed_bank '      ,currentPatch%seed_bank
              write(iulog,*) trim(methodName)//' spread '         ,currentPatch%spread
              write(iulog,*) trim(methodName)//' livegrass '      ,currentPatch%livegrass
              write(iulog,*) trim(methodName)//' age '            ,currentPatch%age
@@ -1373,6 +1375,7 @@ contains
              write(iulog,*) trim(methodName)//' dleafoffdate '   ,sites(s)%dleafoffdate
              write(iulog,*) trim(methodName)//' acc_NI'          ,sites(s)%acc_NI
              write(iulog,*) trim(methodName)//' ED_GDD_site '    ,sites(s)%ED_GDD_site
+             write(iulog,*) trim(methodName)//' seed_bank '      ,sites(s)%seed_bank
 
              currentPatch => currentPatch%younger
 
@@ -1558,6 +1561,11 @@ contains
        countWaterMem       = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
        countSunZ           = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
 
+       ! write seed_bank info(site-level, but PFT-resolved)
+       do i = 1,numpft_ed 
+          this%seed_bank(incrementOffset+i-1)      = sites(s)%seed_bank(i)
+       end do
+
        currentPatch => sites(s)%oldest_patch
 
        ! new column, reset num patches
@@ -1658,7 +1666,6 @@ contains
              this%root_litter(countPft)    = currentPatch%root_litter(i)
              this%leaf_litter_in(countPft) = currentPatch%leaf_litter_in(i)
              this%root_litter_in(countPft) = currentPatch%root_litter_in(i)
-             this%seed_bank(countPft)      = currentPatch%seed_bank(i)
              countPft = countPft + 1
           end do
           
@@ -1723,8 +1730,8 @@ contains
        this%dleafondate(c)  = sites(s)%dleafondate
        this%dleafoffdate(c) = sites(s)%dleafoffdate
        this%acc_NI(c)       = sites(s)%acc_NI
-       this%ED_GDD_site(c)  = sites(s)%ED_GDD_site
-       
+       this%ED_GDD_site(c)  = sites(s)%ED_GDD_site       
+
        ! set numpatches for this column
        this%numPatchesPerCol(c)  = numPatches
        
@@ -1771,7 +1778,6 @@ contains
     type(ed_cohort_type), allocatable :: temp_cohort
     real(r8) :: cwd_ag_local(ncwd),cwd_bg_local(ncwd),spread_local(cp_nclmax)
     real(r8) :: leaf_litter_local(numpft_ed),root_litter_local(numpft_ed)
-    real(r8) :: seed_bank_local(numpft_ed)
     real(r8) :: age !notional age of this patch
     integer  :: cohortstatus
     integer  :: s  ! site index
@@ -1839,7 +1845,7 @@ contains
           ! make new patch
           call create_patch(sites(s), newp, age, area, &
                spread_local, cwd_ag_local, cwd_bg_local,  &
-               leaf_litter_local, root_litter_local, seed_bank_local) 
+               leaf_litter_local, root_litter_local) 
 
           newp%siteptr => sites(s)
 
@@ -1980,6 +1986,11 @@ contains
        countWaterMem   = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
        countSunZ       = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
 
+       ! read seed_bank info(site-level, but PFT-resolved)
+       do i = 1,numpft_ed 
+          sites(s)%seed_bank(i)      = this%seed_bank(incrementOffset+i-1) 
+       end do
+
        currentPatch => sites(s)%oldest_patch
        
        ! new grid cell, reset num patches
@@ -2056,7 +2067,6 @@ contains
           currentPatch%root_litter(:)    = 0.0_r8
           currentPatch%leaf_litter_in(:) = 0.0_r8
           currentPatch%root_litter_in(:) = 0.0_r8
-          currentPatch%seed_bank(:)      = 0.0_r8
           currentPatch%spread(:)         = 0.0_r8
           
           !
@@ -2084,7 +2094,6 @@ contains
              currentPatch%root_litter(i)    = this%root_litter(countPft)    
              currentPatch%leaf_litter_in(i) = this%leaf_litter_in(countPft) 
              currentPatch%root_litter_in(i) = this%root_litter_in(countPft) 
-             currentPatch%seed_bank(i)      = this%seed_bank(countPft) 
              countPft = countPft + 1
           end do
           
