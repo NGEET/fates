@@ -398,7 +398,7 @@ contains
                   hio_trimming_pa(io_pa) = 0.0_r8
                endif
                
-               hio_area_plant_pa(io_pa) = 1.0_r8
+               hio_area_plant_pa(io_pa) = 1._r8
                
                if (min(cpatch%total_canopy_area,cpatch%area)>0.0_r8) then
                   hio_area_treespread_pa(io_pa) = cpatch%total_tree_area  &
@@ -1122,19 +1122,25 @@ contains
           
           call this%get_hvar_bounds(hvar,0,lb1,ub1,lb2,ub2)
           
+          ! currently, all array spaces are flushed each time
+          ! the update is called. The flush here on the initialization
+          ! may be redundant, but will prevent issues in the future
+          ! if we have host models where not all threads are updating
+          ! the HIO array spaces. (RGK:09-2016)
+
           select case(trim(vtype))
           case('PA_R8')
-             allocate(hvar%r81d(lb1:ub1))
+             allocate(hvar%r81d(lb1:ub1));hvar%r81d(:)=flushval
           case('SI_R8')
-             allocate(hvar%r81d(lb1:ub1))
+             allocate(hvar%r81d(lb1:ub1));hvar%r81d(:)=flushval
           case('PA_GRND_R8')
-             allocate(hvar%r82d(lb1:ub1,lb2:ub2))
+             allocate(hvar%r82d(lb1:ub1,lb2:ub2));hvar%r82d(:,:)=flushval
           case('PA_SCPF_R8')
-             allocate(hvar%r82d(lb1:ub1,lb2:ub2))
+             allocate(hvar%r82d(lb1:ub1,lb2:ub2));hvar%r82d(:,:)=flushval
           case('SI_GRND_R8')
-             allocate(hvar%r82d(lb1:ub1,lb2:ub2))
+             allocate(hvar%r82d(lb1:ub1,lb2:ub2));hvar%r82d(:,:)=flushval
           case('SI_SCPF_R8')
-             allocate(hvar%r82d(lb1:ub1,lb2:ub2))
+             allocate(hvar%r82d(lb1:ub1,lb2:ub2));hvar%r82d(:,:)=flushval
           case default
              write(fates_log(),*) 'Incompatible vtype passed to set_history_var'
              write(fates_log(),*) 'vtype = ',trim(vtype),' ?'
