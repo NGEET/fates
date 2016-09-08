@@ -41,7 +41,7 @@ Module HistoryIOMod
   integer, private :: ih_daily_temp
   integer, private :: ih_daily_rh
   integer, private :: ih_daily_prec
-  integer, private :: ih_seed_bank_pa
+  integer, private :: ih_seed_bank_si
   integer, private :: ih_seeds_in_pa
   integer, private :: ih_seed_decay_pa
   integer, private :: ih_seed_germination_pa
@@ -312,7 +312,7 @@ contains
                hio_sum_fuel_pa         => this%hvars(ih_sum_fuel_pa)%r81d,  &
                hio_litter_in_pa        => this%hvars(ih_litter_in_pa)%r81d, &
                hio_litter_out_pa       => this%hvars(ih_litter_out_pa)%r81d, &
-               hio_seed_bank_pa        => this%hvars(ih_seed_bank_pa)%r81d, &
+               hio_seed_bank_si        => this%hvars(ih_seed_bank_si)%r81d, &
                hio_seeds_in_pa         => this%hvars(ih_seeds_in_pa)%r81d, &
                hio_seed_decay_pa       => this%hvars(ih_seed_decay_pa)%r81d, &
                hio_seed_germination_pa => this%hvars(ih_seed_germination_pa)%r81d, &
@@ -358,7 +358,10 @@ contains
          
          ! Set trimming on the soil patch to 1.0
          hio_trimming_pa(io_soipa) = 1.0_r8
-         
+
+         ! The seed bank is a site level variable
+         hio_seed_bank_si(io_si) = sum(sites(s)%seed_bank) * 1.e3_r8
+
          ipa = 0
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
@@ -534,7 +537,7 @@ contains
                  * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
             hio_litter_out_pa(io_pa)           = (sum(cpatch%CWD_AG_out)+sum(cpatch%leaf_litter_out)) &
                  * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
-            hio_seed_bank_pa(io_pa)            = sum(cpatch%seed_bank) * 1.e3_r8 * patch_scaling_scalar
+            
             hio_seeds_in_pa(io_pa)             = sum(cpatch%seeds_in) * &
                  1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
             hio_seed_decay_pa(io_pa)           = sum(cpatch%seed_decay) &
@@ -879,8 +882,8 @@ contains
 
     call this%set_history_var(vname='SEED_BANK', units='gC m-2',               &
          long='Total Seed Mass of all PFTs',  use_default='active',             &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_seed_bank_pa )
+         avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar,callstep=callstep, index = ih_seed_bank_si )
 
     call this%set_history_var(vname='SEEDS_IN', units='gC m-2 s-1',            &
          long='Seed Production Rate',  use_default='active',                    &

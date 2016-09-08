@@ -23,7 +23,7 @@ module EDCLMLinkMod
   use abortutils      , only : endrun
   use shr_log_mod     , only : errMsg => shr_log_errMsg    
   use EDCanopyStructureMod, only : calc_areaindex
-
+  use FatesGlobals, only : fates_log
   !
   implicit none
   private
@@ -41,26 +41,6 @@ module EDCLMLinkMod
      real(r8), pointer, private  :: daily_rh_patch             (:)   ! daily RH for fire model
      real(r8), pointer, private  :: daily_prec_patch           (:)   ! daily rain for fire and phenology models. 
 
-     !seed model. Aggregated to gridcell for now. 
-
-     ! RGK: LEAVING SOME OLD DEFINITIONS IN UNTIL UNIT DISCREPANCIES ARE RECTIFIED
-
-!     real(r8), pointer, private  :: seed_bank_patch            (:)   ! kGC/m2      Mass of seeds.                 
-!     real(r8), pointer, private  :: seeds_in_patch             (:)   ! kGC/m2/year Production of seed mass.       
-!     real(r8), pointer, private  :: seed_decay_patch           (:)   ! kGC/m2/year Decay of seed mass.            
-!     real(r8), pointer, private  :: seed_germination_patch     (:)   ! kGC/m2/year Germiantion rate of seed mass. 
-!     real(r8), pointer, private  :: ED_bstore_patch            (:)   ! kGC/m2 Total stored biomass. 
-!     real(r8), pointer, private  :: ED_bdead_patch             (:)   ! kGC/m2 Total dead biomass.   
-!     real(r8), pointer, private  :: ED_balive_patch            (:)   ! kGC/m2 Total alive biomass.  
-!     real(r8), pointer, private  :: ED_bleaf_patch             (:)   ! kGC/m2 Total leaf biomass.   
-!     real(r8), pointer, private  :: ED_biomass_patch           (:)   ! kGC/m2 Total biomass.        
-!     Vegetation carbon fluxes at the patch scale
-!     real(r8), pointer, private  :: npp_patch                  (:)   ! (gC/m2/s) patch net primary production
-!     real(r8), pointer, private  :: gpp_patch                  (:)   ! (gC/m2/s) patch gross primary production 
-!     real(r8), pointer, private  :: ar_patch                   (:)   ! (gC/m2/s) patch autotrophic respiration
-!     real(r8), pointer, private  :: maint_resp_patch           (:)   ! (gC/m2/s) patch maintenance respiration
-!     real(r8), pointer, private  :: growth_resp_patch          (:)   ! (gC/m2/s) patch growth respiration
-     
      ! summary carbon fluxes at the column level
      real(r8), pointer,  private :: nep_col(:)                       ! [gC/m2/s] Net ecosystem production, i.e. fast-timescale carbon balance that does not include disturbance
      real(r8), pointer,  private :: nep_timeintegrated_col(:)                       ! [gC/m2/s] Net ecosystem production, i.e. fast-timescale carbon balance that does not include disturbance
@@ -83,7 +63,6 @@ module EDCLMLinkMod
      real(r8), pointer,  private :: biomass_stock_col(:)             ! [gC/m2] total biomass at the column level in gC / m2
      real(r8), pointer,  private :: ed_litter_stock_col(:)           ! [gC/m2] ED litter at the column level in gC / m2
      real(r8), pointer,  private :: cwd_stock_col(:)                 ! [gC/m2] ED CWD at the column level in gC / m2
-     real(r8), pointer,  private :: seed_stock_col(:)                ! [gC/m2] ED seed mass carbon at the column level in gC / m2
 
      ! carbon balance errors.  at some point we'll reduce these to close to zero and delete, but for now we'll just keep[ track of them
      real(r8), pointer,  private :: cbalance_error_ed_col(:)         ! [gC/m2/s]  total carbon balance error for the ED side
@@ -175,7 +154,6 @@ contains
     allocate(this%biomass_stock_col          (begc:endc))            ; this%biomass_stock_col         (:) = nan
     allocate(this%ed_litter_stock_col        (begc:endc))            ; this%ed_litter_stock_col       (:) = nan
     allocate(this%cwd_stock_col              (begc:endc))            ; this%cwd_stock_col             (:) = nan
-    allocate(this%seed_stock_col             (begc:endc))            ; this%seed_stock_col            (:) = nan
 
     allocate(this%cbalance_error_ed_col      (begc:endc))            ; this%cbalance_error_ed_col     (:) = nan    
     allocate(this%cbalance_error_bgc_col     (begc:endc))            ; this%cbalance_error_bgc_col    (:) = nan    
@@ -263,10 +241,6 @@ contains
          avgflag='A', long_name='total CWD carbon at the column level', &
          ptr_col=this%cwd_stock_col)
 
-    this%seed_stock_col(begc:endc) = spval
-    call hist_addfld1d (fname='SEED_STOCK_COL', units='gC/m^2', &
-         avgflag='A', long_name='total seed carbon at the column level', &
-         ptr_col=this%seed_stock_col)
 
   end subroutine InitHistory
 
@@ -1188,7 +1162,8 @@ fraction_exposed= 1.0_r8
    type (ed_cohort_type) , pointer :: currentCohort
 !   integer  :: firstsoilpatch(bounds%begg:bounds%endg) ! the first patch in this gridcell that is soil and thus bare... 
    real(r8) :: n_perm2     ! individuals per m2 of the whole column
-   
+   real(r8) :: site_total_seedbank
+
    associate(& 
         hr            => soilbiogeochem_carbonflux_inst%hr_col,      & ! (gC/m2/s) total heterotrophic respiration
         totsomc       => soilbiogeochem_carbonstate_inst%totsomc_col, & ! (gC/m2) total soil organic matter carbon
@@ -1203,7 +1178,6 @@ fraction_exposed= 1.0_r8
         biomass_stock => this%biomass_stock_col,      &    ! total biomass in gC / m2
         ed_litter_stock    => this%ed_litter_stock_col,      & ! ED litter in gC / m2
         cwd_stock     => this%cwd_stock_col,      &        ! total CWD in gC / m2
-        seed_stock    => this%seed_stock_col,     &        ! total seed mass in gC / m2
         ed_to_bgc_this_edts           => this%ed_to_bgc_this_edts_col,      &
         ed_to_bgc_last_edts           => this%ed_to_bgc_last_edts_col,      &
         seed_rain_flux                => this%seed_rain_flux_col            &
@@ -1221,7 +1195,6 @@ fraction_exposed= 1.0_r8
         ! summary stock variables
         ed_litter_stock(c) = 0._r8
         cwd_stock(c) = 0._r8
-        seed_stock(c) = 0._r8
         biomass_stock(c) = 0._r8
         npp_col(c)       = 0.0_r8
      end do
@@ -1233,6 +1206,7 @@ fraction_exposed= 1.0_r8
 
         ! Temporary
         npp_col(c) = sites(s)%npp
+        
 
         ! map ed site-level fire fluxes to clm column fluxes
         fire_c_to_atm(c) = sites(s)%total_burn_flux_to_atm / ( AREA * SHR_CONST_CDAY * 1.e3_r8)
@@ -1247,7 +1221,6 @@ fraction_exposed= 1.0_r8
                  sum(currentPatch%cwd_bg)) * 1.e3_r8
            ed_litter_stock(c) = ed_litter_stock(c) + (currentPatch%area / AREA) * &
                  (sum(currentPatch%leaf_litter)+sum(currentPatch%root_litter)) * 1.e3_r8
-           seed_stock(c)   = seed_stock(c)   + (currentPatch%area / AREA) * sum(currentPatch%seed_bank) * 1.e3_r8
            
            currentCohort => currentPatch%tallest
            do while(associated(currentCohort))
@@ -1284,12 +1257,20 @@ fraction_exposed= 1.0_r8
         nep(c) = npp_col(c) - hr(c)
         nbp(c) = npp_col(c) - ( hr(c) + fire_c_to_atm(c) )
      end do
-      
+     
+     if( sum(filter_soilc(1:num_soilc)) .ne. sum(fcolumn(1:nsites)) )then
+        write(fates_log(),*)'You have real problems'
+        call endrun(msg=errMsg(__FILE__, __LINE__))
+     end if
+
+
      ! calculate total stocks
-     do fc = 1,num_soilc
-        c = filter_soilc(fc)
-        
-        totedc(c) = ed_litter_stock(c) + cwd_stock(c) + seed_stock(c) + biomass_stock(c) ! ED stocks
+!     do fc = 1,num_soilc         (THIS WILL BE REMOVED IN NEXT PR)
+!        c = filter_soilc(fc)     (THIS WILL BE REMOVED IN NEXT PR)
+     do s = 1, nsites
+        c = fcolumn(s)
+        site_total_seedbank = sum(sites(s)%seed_bank) * 1.e3_r8
+        totedc(c) = ed_litter_stock(c) + cwd_stock(c) + site_total_seedbank + biomass_stock(c) ! ED stocks
         totbgcc(c) = totsomc(c) + totlitc(c)  ! BGC stocks
         totecosysc(c) = totedc(c) + totbgcc(c)
 
@@ -1308,12 +1289,13 @@ fraction_exposed= 1.0_r8
         do s = 1,nsites
            c = fcolumn(s)
            ed_to_bgc_this_edts(c) = 0._r8
-           seed_rain_flux(c) = 0._r8
         end do
         !
         do s = 1,nsites
            c = fcolumn(s)
 
+           seed_rain_flux(c) = sum(sites(s)%seed_rain_flux) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
+           !
            currentPatch => sites(s)%oldest_patch
            do while(associated(currentPatch))
               !
@@ -1323,8 +1305,6 @@ fraction_exposed= 1.0_r8
                     sum(currentPatch%seed_decay) + sum(currentPatch%leaf_litter_out) + &
                     sum(currentPatch%root_litter_out)) * &
                    ( currentPatch%area/AREA ) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
-              !
-              seed_rain_flux(c) = seed_rain_flux(c) + sum(currentPatch%seed_rain_flux) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
               !
               currentPatch => currentPatch%younger
            end do !currentPatch

@@ -76,6 +76,10 @@ contains
     site_in%dleafoffdate     = 999  ! doy of leaf on drought
     site_in%water_memory(:)  = nan
 
+
+    ! SEED
+    site_in%seed_bank(:)     = 0._r8
+
     ! FIRE 
     site_in%acc_ni           = 0.0_r8     ! daily nesterov index accumulating over time. time unlimited theoretically.
     site_in%frac_burnt       = 0.0_r8     ! burn area read in from external file
@@ -180,7 +184,6 @@ contains
     real(r8) :: spread_local(cp_nclmax)
     real(r8) :: leaf_litter_local(numpft_ed)
     real(r8) :: root_litter_local(numpft_ed)
-    real(r8) :: seed_bank_local(numpft_ed)
     real(r8) :: age !notional age of this patch
     type(ed_patch_type), pointer :: newp
     !----------------------------------------------------------------------
@@ -190,7 +193,6 @@ contains
     leaf_litter_local(:) = 0.0_r8
     root_litter_local(:) = 0.0_r8
     spread_local(:)      = ED_val_maxspread
-    seed_bank_local(:)   = 0.0_r8 !Note (mv,11-04-2014, this is a bug fix - this line was missing)
     age                  = 0.0_r8
 
     !FIX(SPM,032414) clean this up...inits out of this loop
@@ -209,7 +211,7 @@ contains
        ! make new patch...
        call create_patch(sites(s), newp, age, AREA, &
             spread_local, cwd_ag_local, cwd_bg_local, leaf_litter_local,  &
-            root_litter_local, seed_bank_local) 
+            root_litter_local) 
        
        call init_cohorts(newp)
 
