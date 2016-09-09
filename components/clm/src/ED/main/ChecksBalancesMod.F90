@@ -49,7 +49,6 @@ contains
          sites(s)%fire_c_to_atm   = 0._r8    ! REMOVE THIS VARIABLE?
          sites(s)%ed_litter_stock = 0._r8
          sites(s)%cwd_stock       = 0._r8
-         sites(s)%seed_stock      = 0._r8
          sites(s)%biomass_stock   = 0._r8
          
          ! map ed site-level fire fluxes to clm column fluxes
@@ -67,9 +66,6 @@ contains
             sites(s)%ed_litter_stock = sites(s)%ed_litter_stock + &
                   (currentPatch%area / AREA) * &
                   (sum(currentPatch%leaf_litter)+sum(currentPatch%root_litter)) * 1.e3_r8
-            
-            sites(s)%seed_stock = sites(s)%seed_stock + (currentPatch%area / AREA) * &
-                  sum(currentPatch%seed_bank) * 1.e3_r8
             
             currentCohort => currentPatch%tallest
             do while(associated(currentCohort))
@@ -93,7 +89,7 @@ contains
          
          ! FATES stocks
          sites(s)%totfatesc = sites(s)%ed_litter_stock + sites(s)%cwd_stock + &
-               sites(s)%seed_stock + sites(s)%biomass_stock
+               (sum(sites(s)%seed_bank) * 1.e3_r8) + sites(s)%biomass_stock
          
          ! BGC stocks (used for error checking, totlitc should be zero?)
          sites(s)%totbgcc = bc_in(s)%tot_somc +  bc_in(s)%tot_litc
@@ -113,7 +109,7 @@ contains
             ! order of operations in the next to lines is quite important ;)
             sites(s)%fates_to_bgc_last_ts = sites(s)%fates_to_bgc_this_ts
             sites(s)%fates_to_bgc_this_ts = 0._r8
-            sites(s)%seed_rain_flux       = 0._r8
+            sites(s)%tot_seed_rain_flux   = 0._r8
             
             currentPatch => sites(s)%oldest_patch
             do while(associated(currentPatch))
@@ -124,8 +120,8 @@ contains
                      sum(currentPatch%root_litter_out)) * &
                      ( currentPatch%area/AREA ) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
                !
-               sites(s)%seed_rain_flux = sites(s)%seed_rain_flux + &
-                     sum(currentPatch%seed_rain_flux) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
+               sites(s)%tot_seed_rain_flux = sites(s)%tot_seed_rain_flux + &
+                     sum(sites(s)%seed_rain_flux) * 1.e3_r8 / ( 365.0_r8*SHR_CONST_CDAY )
                !
                currentPatch => currentPatch%younger
             end do !currentPatch
@@ -199,13 +195,13 @@ contains
             ! NBP can only be updated when dynamics level information is available
             sites(s)%nbp_integrated  = sites(s)%nep_timeintegrated - &
                   sites(s)%fire_c_to_atm * SHR_CONST_CDAY + &
-                  sites(s)%seed_rain_flux * SHR_CONST_CDAY
+                  sites(s)%tot_seed_rain_flux * SHR_CONST_CDAY
 
          
             sites(s)%cbal_err_fates = sites(s)%totfatesc - & 
                   sites(s)%totfatesc_old - &
                   (sites(s)%npp_timeintegrated + &
-                  sites(s)%seed_rain_flux*SHR_CONST_CDAY - &
+                  sites(s)%tot_seed_rain_flux*SHR_CONST_CDAY - &
                   sites(s)%fates_to_bgc_this_ts*SHR_CONST_CDAY - &
                   sites(s)%fire_c_to_atm*SHR_CONST_CDAY)
             sites(s)%cbal_err_fates = sites(s)%cbal_err_fates / SHR_CONST_CDAY

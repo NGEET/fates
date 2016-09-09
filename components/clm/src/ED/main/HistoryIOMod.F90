@@ -41,7 +41,7 @@ Module HistoryIOMod
   integer, private :: ih_daily_temp
   integer, private :: ih_daily_rh
   integer, private :: ih_daily_prec
-  integer, private :: ih_seed_bank_pa
+  integer, private :: ih_seed_bank_si
   integer, private :: ih_seeds_in_pa
   integer, private :: ih_seed_decay_pa
   integer, private :: ih_seed_germination_pa
@@ -75,7 +75,6 @@ Module HistoryIOMod
   integer, private :: ih_fire_c_to_atm_si
   integer, private :: ih_ed_to_bgc_this_edts_si
   integer, private :: ih_ed_to_bgc_last_edts_si
-  integer, private :: ih_seed_rain_flux_si
   integer, private :: ih_totecosysc_si
   integer, private :: ih_totecosysc_old_si
   integer, private :: ih_totedc_si
@@ -85,7 +84,6 @@ Module HistoryIOMod
   integer, private :: ih_biomass_stock_si
   integer, private :: ih_litter_stock_si
   integer, private :: ih_cwd_stock_si
-  integer, private :: ih_seed_stock_si
   integer, private :: ih_cbal_err_fates_si
   integer, private :: ih_cbal_err_bgc_si
   integer, private :: ih_cbal_err_tot_si
@@ -266,8 +264,7 @@ contains
                  hio_cbal_err_tot_si   => this%hvars(ih_cbal_err_tot_si)%r81d, &
                  hio_biomass_stock_si  => this%hvars(ih_biomass_stock_si)%r81d, &
                  hio_litter_stock_si   => this%hvars(ih_litter_stock_si)%r81d, &
-                 hio_cwd_stock_si      => this%hvars(ih_cwd_stock_si)%r81d, &
-                 hio_seed_stock_si     => this%hvars(ih_seed_stock_si)%r81d )
+                 hio_cwd_stock_si      => this%hvars(ih_cwd_stock_si)%r81d )
 
         ! ---------------------------------------------------------------------------------
         ! Flush arrays to values defined by %flushval (see registry entry in
@@ -290,7 +287,6 @@ contains
            hio_biomass_stock_si(io_si) = sites(s)%biomass_stock
            hio_litter_stock_si(io_si) = sites(s)%ed_litter_stock
            hio_cwd_stock_si(io_si) = sites(s)%cwd_stock
-           hio_seed_stock_si(io_si) = sites(s)%seed_stock
 
         end do
 
@@ -371,7 +367,7 @@ contains
                hio_sum_fuel_pa         => this%hvars(ih_sum_fuel_pa)%r81d,  &
                hio_litter_in_pa        => this%hvars(ih_litter_in_pa)%r81d, &
                hio_litter_out_pa       => this%hvars(ih_litter_out_pa)%r81d, &
-               hio_seed_bank_pa        => this%hvars(ih_seed_bank_pa)%r81d, &
+               hio_seed_bank_si        => this%hvars(ih_seed_bank_si)%r81d, &
                hio_seeds_in_pa         => this%hvars(ih_seeds_in_pa)%r81d, &
                hio_seed_decay_pa       => this%hvars(ih_seed_decay_pa)%r81d, &
                hio_seed_germination_pa => this%hvars(ih_seed_germination_pa)%r81d, &
@@ -417,7 +413,10 @@ contains
          
          ! Set trimming on the soil patch to 1.0
          hio_trimming_pa(io_soipa) = 1.0_r8
-         
+
+         ! The seed bank is a site level variable
+         hio_seed_bank_si(io_si) = sum(sites(s)%seed_bank) * 1.e3_r8
+
          ipa = 0
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
@@ -457,7 +456,7 @@ contains
                   hio_trimming_pa(io_pa) = 0.0_r8
                endif
                
-               hio_area_plant_pa(io_pa) = 1.0_r8
+               hio_area_plant_pa(io_pa) = 1._r8
                
                if (min(cpatch%total_canopy_area,cpatch%area)>0.0_r8) then
                   hio_area_treespread_pa(io_pa) = cpatch%total_tree_area  &
@@ -593,7 +592,7 @@ contains
                  * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
             hio_litter_out_pa(io_pa)           = (sum(cpatch%CWD_AG_out)+sum(cpatch%leaf_litter_out)) &
                  * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
-            hio_seed_bank_pa(io_pa)            = sum(cpatch%seed_bank) * 1.e3_r8 * patch_scaling_scalar
+            
             hio_seeds_in_pa(io_pa)             = sum(cpatch%seeds_in) * &
                  1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
             hio_seed_decay_pa(io_pa)           = sum(cpatch%seed_decay) &
@@ -937,8 +936,8 @@ contains
 
     call this%set_history_var(vname='SEED_BANK', units='gC m-2',               &
          long='Total Seed Mass of all PFTs',  use_default='active',             &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_seed_bank_pa )
+         avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar,callstep=callstep, index = ih_seed_bank_si )
 
     call this%set_history_var(vname='SEEDS_IN', units='gC m-2 s-1',            &
          long='Seed Production Rate',  use_default='active',                    &
@@ -1163,11 +1162,6 @@ contains
           avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
           upfreq=3, ivar=ivar,callstep=callstep, index = ih_cwd_stock_si )
    
-    call this%set_history_var(vname='SEED_STOCK_COL', units='gC/m^2', &
-         long='total seed carbon at the column level', use_default='active', &
-         avgflag='A', vtype='SI_R8',hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
-         upfreq=3, ivar=ivar,callstep=callstep, index = ih_seed_stock_si )
-    
 
     ! Must be last thing before return
     if(present(nvar)) nvar = ivar
@@ -1238,19 +1232,25 @@ contains
           
           call this%get_hvar_bounds(hvar,0,lb1,ub1,lb2,ub2)
           
+          ! currently, all array spaces are flushed each time
+          ! the update is called. The flush here on the initialization
+          ! may be redundant, but will prevent issues in the future
+          ! if we have host models where not all threads are updating
+          ! the HIO array spaces. (RGK:09-2016)
+
           select case(trim(vtype))
           case('PA_R8')
-             allocate(hvar%r81d(lb1:ub1))
+             allocate(hvar%r81d(lb1:ub1));hvar%r81d(:)=flushval
           case('SI_R8')
-             allocate(hvar%r81d(lb1:ub1))
+             allocate(hvar%r81d(lb1:ub1));hvar%r81d(:)=flushval
           case('PA_GRND_R8')
-             allocate(hvar%r82d(lb1:ub1,lb2:ub2))
+             allocate(hvar%r82d(lb1:ub1,lb2:ub2));hvar%r82d(:,:)=flushval
           case('PA_SCPF_R8')
-             allocate(hvar%r82d(lb1:ub1,lb2:ub2))
+             allocate(hvar%r82d(lb1:ub1,lb2:ub2));hvar%r82d(:,:)=flushval
           case('SI_GRND_R8')
-             allocate(hvar%r82d(lb1:ub1,lb2:ub2))
+             allocate(hvar%r82d(lb1:ub1,lb2:ub2));hvar%r82d(:,:)=flushval
           case('SI_SCPF_R8')
-             allocate(hvar%r82d(lb1:ub1,lb2:ub2))
+             allocate(hvar%r82d(lb1:ub1,lb2:ub2));hvar%r82d(:,:)=flushval
           case default
              write(fates_log(),*) 'Incompatible vtype passed to set_history_var'
              write(fates_log(),*) 'vtype = ',trim(vtype),' ?'
