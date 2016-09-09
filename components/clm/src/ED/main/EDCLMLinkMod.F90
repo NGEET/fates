@@ -1252,28 +1252,19 @@ fraction_exposed= 1.0_r8
      end do    ! site loop
 
      ! calculate NEP and NBP fluxes.  ?????
-     do fc = 1,num_soilc
-        c = filter_soilc(fc)
+     do s = 1, nsites
+        c = fcolumn(s)
         nep(c) = npp_col(c) - hr(c)
         nbp(c) = npp_col(c) - ( hr(c) + fire_c_to_atm(c) )
      end do
      
-     if( sum(filter_soilc(1:num_soilc)) .ne. sum(fcolumn(1:nsites)) )then
-        write(fates_log(),*)'You have real problems'
-        call endrun(msg=errMsg(__FILE__, __LINE__))
-     end if
-
-
-     ! calculate total stocks
-!     do fc = 1,num_soilc         (THIS WILL BE REMOVED IN NEXT PR)
-!        c = filter_soilc(fc)     (THIS WILL BE REMOVED IN NEXT PR)
+     ! calculate total stocks 
      do s = 1, nsites
         c = fcolumn(s)
         site_total_seedbank = sum(sites(s)%seed_bank) * 1.e3_r8
         totedc(c) = ed_litter_stock(c) + cwd_stock(c) + site_total_seedbank + biomass_stock(c) ! ED stocks
         totbgcc(c) = totsomc(c) + totlitc(c)  ! BGC stocks
         totecosysc(c) = totedc(c) + totbgcc(c)
-
      end do
 
      ! in ED timesteps, because of offset between when ED and BGC reconcile the gain and loss of litterfall carbon,
