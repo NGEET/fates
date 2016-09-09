@@ -23,7 +23,7 @@ module EDCLMLinkMod
   use abortutils      , only : endrun
   use shr_log_mod     , only : errMsg => shr_log_errMsg    
   use EDCanopyStructureMod, only : calc_areaindex
-
+  use FatesGlobals, only : fates_log
   !
   implicit none
   private
@@ -809,6 +809,4 @@ fraction_exposed= 1.0_r8
 
   end subroutine ed_clm_leaf_area_profile
 
-  
-  
 end module EDCLMLinkMod

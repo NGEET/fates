@@ -56,9 +56,10 @@ module EDTypesMod
   real(r8), parameter :: fire_threshold       = 35.0_r8    ! threshold for fires that spread or go out. KWm-2
 
   ! COHORT FUSION          
-  real(r8), parameter :: FUSETOL              = 0.6_r8     ! min fractional difference in dbh between cohorts
+  real(r8), parameter :: FUSETOL              = 0.05_r8     ! min fractional difference in dbh between cohorts
 
   ! PATCH FUSION 
+  real(r8), parameter :: patchfusion_profile_tolerance = 0.05_r8  ! minimum fraction in difference in profiles between patches
   real(r8), parameter :: NTOL                 = 0.05_r8    ! min plant density for hgt bin to be used in height profile comparisons 
   real(r8), parameter :: HITEMAX              = 30.0_r8    ! max dbh value used in hgt profile comparison 
   real(r8), parameter :: DBHMAX               = 150.0_r8   ! max dbh value used in hgt profile comparison 
@@ -337,12 +338,9 @@ module EDTypesMod
 
 
      !SEED BANK
-     real(r8) :: seed_bank(numpft_ed)                              ! seed pool in KgC/m2/year
      real(r8) :: seeds_in(numpft_ed)                               ! seed production KgC/m2/year
      real(r8) :: seed_decay(numpft_ed)                             ! seed decay in KgC/m2/year
      real(r8) :: seed_germination(numpft_ed)                       ! germination rate of seed pool in KgC/m2/year
-     real(r8) :: dseed_dt(numpft_ed)
-     real(r8) :: seed_rain_flux(numpft_ed)                         ! flux of seeds from exterior KgC/m2/year (needed for C balance purposes)
 
      ! PHOTOSYNTHESIS       
      real(r8) ::  psn_z(cp_nclmax,numpft_ed,cp_nlevcan)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
@@ -450,11 +448,10 @@ module EDTypesMod
                                                               ! does not include disturbance [gC/m2/s]
      real(r8) :: nbp                                          ! Net biosphere production, i.e. slow-timescale carbon balance that 
                                                               ! integrates to total carbon change [gC/m2/s]
-     real(r8) :: seed_rain_flux                               ! [gC/m2/s] total flux of carbon from seed rain
+     real(r8) :: tot_seed_rain_flux                           ! [gC/m2/s] total flux of carbon from seed rain
      real(r8) :: fire_c_to_atm                                ! total fire carbon loss to atmosphere [gC/m2/s]
      real(r8) :: ed_litter_stock                              ! litter in [gC/m2]
      real(r8) :: cwd_stock                                    ! coarse woody debris [gC/m2]
-     real(r8) :: seed_stock                                   ! seed mass [gc/m2]
      real(r8) :: biomass_stock                                ! total biomass at the column level in [gC / m2]
      real(r8) :: totfatesc                                    ! Total FATES carbon at the site, including vegetation, CWD, seeds, 
                                                               ! and FATES portion of litter [gC/m2] 
@@ -496,6 +493,11 @@ module EDTypesMod
      integer  ::  dleafondate                                  ! doy of leaf on drought:-
      integer  ::  dleafoffdate                                 ! doy of leaf on drought:-
      real(r8) ::  water_memory(10)                             ! last 10 days of soil moisture memory...
+
+     !SEED BANK
+     real(r8) :: seed_bank(numpft_ed)                              ! seed pool in KgC/m2/year
+     real(r8) :: dseed_dt(numpft_ed)
+     real(r8) :: seed_rain_flux(numpft_ed)                         ! flux of seeds from exterior KgC/m2/year (needed for C balance purposes)
 
      ! FIRE 
      real(r8) ::  acc_ni                                       ! daily nesterov index accumulating over time.
