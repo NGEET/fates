@@ -191,7 +191,6 @@ contains
     real(r8) :: leaf_litter_local(numpft_ed) ! initial value of leaf litter. KgC/m2
     real(r8) :: cwd_ag_local(ncwd)           ! initial value of above ground coarse woody debris. KgC/m2
     real(r8) :: cwd_bg_local(ncwd)           ! initial value of below ground coarse woody debris. KgC/m2
-    real(r8) :: seed_bank_local(numpft_ed)   ! initial value of seed bank. KgC/m2
     real(r8) :: spread_local(cp_nclmax)         ! initial value of canopy spread parameter.no units 
     !---------------------------------------------------------------------
 
@@ -222,7 +221,6 @@ contains
        root_litter_local = 0.0_r8
        spread_local(1:cp_nclmax) = ED_val_maxspread
        age = 0.0_r8
-       seed_bank_local = 0.0_r8
 
        allocate(new_patch)
 
@@ -233,7 +231,7 @@ contains
 
        call create_patch(currentSite, new_patch, age, site_areadis, &
             spread_local, cwd_ag_local, cwd_bg_local, leaf_litter_local, &
-            root_litter_local, seed_bank_local)
+            root_litter_local)
 
        new_patch%tallest  => null()
        new_patch%shortest => null()
@@ -488,10 +486,6 @@ contains
 
     patch_site_areadis = currentPatch%area * currentPatch%disturbance_rate ! how much land is disturbed in this donor patch? 
  
-    do p=1,numpft_ed
-       newPatch%seed_bank(p) = newPatch%seed_bank(p) + currentPatch%seed_bank(p) * patch_site_areadis/newPatch%area
-    enddo
-
     do c = 1,ncwd !move litter pool en mass into the new patch. 
        newPatch%cwd_ag(c) = newPatch%cwd_ag(c) + currentPatch%cwd_ag(c) * patch_site_areadis/newPatch%area
        newPatch%cwd_bg(c) = newPatch%cwd_bg(c) + currentPatch%cwd_bg(c) * patch_site_areadis/newPatch%area
@@ -793,7 +787,7 @@ contains
 
   ! ============================================================================
   subroutine create_patch(currentSite, new_patch, age, areap, spread_local,cwd_ag_local,cwd_bg_local, &
-       leaf_litter_local,root_litter_local,seed_bank_local)
+       leaf_litter_local,root_litter_local)
     !
     ! !DESCRIPTION:
     !  Set default values for creating a new patch
@@ -810,7 +804,6 @@ contains
     real(r8), intent(in) :: root_litter_local(:)! initial value of root litter. KgC/m2
     real(r8), intent(in) :: leaf_litter_local(:)! initial value of leaf litter. KgC/m2
     real(r8), intent(in) :: spread_local(:)     ! initial value of canopy spread parameter.no units 
-    real(r8), intent(in) :: seed_bank_local(:)  ! initial value of seed bank. KgC/m2
     !
     ! !LOCAL VARIABLES:
     !---------------------------------------------------------------------
@@ -844,7 +837,6 @@ contains
     new_patch%cwd_bg             = cwd_bg_local
     new_patch%leaf_litter        = leaf_litter_local
     new_patch%root_litter        = root_litter_local
-    new_patch%seed_bank          = seed_bank_local
  
     !zeroing things because of the surfacealbedo problem... shouldnt really be necesary
     new_patch%cwd_ag_in(:)       = 0._r8
@@ -945,8 +937,6 @@ contains
     currentPatch%pft_agb_profile(:,:)       = nan    
     currentPatch%gpp                        = 0._r8 
     currentPatch%npp                        = 0._r8                
-    currentPatch%seed_bank(:)               = 0._r8                    
-    currentPatch%dseed_dt(:)                = 0._r8                    
 
     ! DISTURBANCE 
     currentPatch%disturbance_rates          = 0._r8 
@@ -991,9 +981,6 @@ contains
     currentPatch%btran_ft(:)                = 0.0_r8
 
     currentPatch%canopy_layer_lai(:)        = 0.0_r8
-    currentPatch%seeds_in(:)                = 0.0_r8
-    currentPatch%seed_decay(:)              = 0.0_r8
-    currentPatch%seed_germination(:)        = 0.0_r8
 
     currentPatch%fab(:)                     = 0.0_r8
     currentPatch%sabs_dir(:)                = 0.0_r8
@@ -1009,6 +996,7 @@ contains
     !  Decide to fuse patches if their cohort structures are similar           
     !
     ! !USES:
+    use EDTypesMod , only : patchfusion_profile_tolerance
     !
     ! !ARGUMENTS:
     type(ed_site_type), intent(inout), target  :: csite
@@ -1030,7 +1018,7 @@ contains
 
     currentSite => csite 
 
-    profiletol = 0.6_r8 !start off with a very small profile tol, or a predefined parameter? 
+    profiletol = patchfusion_profile_tolerance
 
     nopatches = 0
     currentPatch => currentSite%youngest_patch
@@ -1175,11 +1163,10 @@ contains
     type(ed_site_type),  pointer :: csite      ! pointer to the donor patch's site
     !---------------------------------------------------------------------
 
-    !area weighted average of ages & litter & seed bank
+    !area weighted average of ages & litter
     rp%age = (dp%age * dp%area + rp%age * rp%area)/(dp%area + rp%area)  
 
     do p = 1,numpft_ed
-       rp%seed_bank(p)        = (rp%seed_bank(p)*rp%area + dp%seed_bank(p)*dp%area)/(rp%area + dp%area)
        rp%seeds_in(p)         = (rp%seeds_in(p)*rp%area + dp%seeds_in(p)*dp%area)/(rp%area + dp%area)
        rp%seed_decay(p)       = (rp%seed_decay(p)*rp%area + dp%seed_decay(p)*dp%area)/(rp%area + dp%area)
        rp%seed_germination(p) = (rp%seed_germination(p)*rp%area + dp%seed_germination(p)*dp%area)/(rp%area + dp%area)
@@ -1255,6 +1242,8 @@ contains
           rp%shortest => storesmallcohort    
 
           currentCohort%patchptr => rp
+          currentCohort%siteptr  => rp%siteptr
+
           currentCohort => nextc
 
           dp%shortest => currentCohort
@@ -1342,9 +1331,9 @@ contains
             ! This is only really meant for very old patches. 
              if(associated(currentPatch%older) )then
                 write(iulog,*) 'fusing to older patch because this one is too small',currentPatch%area, currentPatch%lai, &
-                     currentPatch%older%area,currentPatch%older%lai,currentPatch%seed_bank(1)
+                     currentPatch%older%area,currentPatch%older%lai
                 call fuse_2_patches(currentPatch%older, currentPatch)
-                write(iulog,*) 'after fusion to older patch',currentPatch%area,currentPatch%seed_bank(1)
+                write(iulog,*) 'after fusion to older patch',currentPatch%area
              else
                 write(iulog,*) 'fusing to younger patch because oldest one is too small',currentPatch%area, currentPatch%lai
                 tmpptr => currentPatch%younger
@@ -1431,6 +1420,7 @@ contains
     real(r8) :: delta_dbh   ! Size of DBH bin
     integer  :: p    ! Counter for PFT 
     integer  :: j    ! Counter for DBH bins 
+    real(r8), parameter :: gigantictrees = 1.e8_r8
     !---------------------------------------------------------------------
 
     currentPatch => cp_pnt
@@ -1447,6 +1437,9 @@ contains
         if (j == 1) then
            mind(j) = 0.0_r8
            maxd(j) = delta_dbh
+        else if (j == N_DBH_BINS) then
+           mind(j) = (j-1) * delta_dbh
+           maxd(j) = gigantictrees
         else 
            mind(j) = (j-1) * delta_dbh
            maxd(j) = (j)*delta_dbh
@@ -1463,15 +1456,6 @@ contains
 
           endif
        enddo ! dbh bins
-
-       ! Deal with largest dbh bin
-       j = N_DBH_BINS-1
-       if(currentCohort%dbh  >  j*delta_dbh)then
-
-          currentPatch%pft_agb_profile(currentCohort%pft,j) = currentPatch%pft_agb_profile(currentCohort%pft,j) + &
-               currentCohort%bdead*currentCohort%n/currentPatch%area
-
-       endif !  
 
        currentCohort => currentCohort%taller
 
