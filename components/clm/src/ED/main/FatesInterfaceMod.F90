@@ -22,11 +22,14 @@ module FatesInterfaceMod
                                       cp_numlevgrnd,     &
                                       cp_maxSWb,         &
                                       cp_numlevdecomp,   &
-                                      cp_numlevdecomp_full 
+                                      cp_numlevdecomp_full, &
+                                      cp_hlm_name,       &
+                                      cp_hio_ignore_val
 
    use shr_kind_mod          , only : r8 => shr_kind_r8  ! INTERF-TODO: REMOVE THIS
 
    
+   implicit none
 
    ! ------------------------------------------------------------------------------------
    ! Notes on types
@@ -439,7 +442,7 @@ contains
    
    ! ==================================================================================== 
 
-   subroutine set_fates_ctrlparms(tag,dimval)
+   subroutine set_fates_ctrlparms(tag,ival,rval,cval)
       
       ! ---------------------------------------------------------------------------------
       ! INTERF-TODO:  NEED ALLOWANCES FOR REAL AND CHARACTER ARGS..
@@ -463,16 +466,20 @@ contains
       !
       ! RGK-2016
       ! ---------------------------------------------------------------------------------
-     use FatesGlobals, only : fates_log, fates_global_verbose
+
+      use FatesGlobals, only : fates_log, fates_global_verbose
 
       ! Arguments
-      integer, optional, intent(in)  :: dimval
-      character(len=*),intent(in)    :: tag
+      integer, optional, intent(in)         :: ival
+      real(r8), optional, intent(in)        :: rval
+      character(len=*),optional, intent(in) :: cval
+      character(len=*),intent(in)           :: tag
       
       ! local variables
       logical              :: all_set
       integer,  parameter  :: unset_int = -999
       real(r8), parameter  :: unset_double = -999.9
+      
       
       select case (trim(tag))
       case('flush_to_unset')
@@ -483,7 +490,8 @@ contains
          cp_numlevgrnd = unset_int
          cp_numlevdecomp_full = unset_int
          cp_numlevdecomp      = unset_int
-
+         cp_hlm_name          = 'unset'
+         cp_hio_ignore_val    = unset_double
 
       case('check_allset')
          
@@ -532,42 +540,58 @@ contains
             ! end_run('MESSAGE')
          end if
 
+         if(trim(cp_hlm_name) .eq. 'unset') then
+            if (fates_global_verbose()) then
+               write(fates_log(),*) 'FATES dimension/parameter unset: hlm_name'
+            end if
+            ! INTERF-TODO: FATES NEEDS INTERNAL end_run
+            ! end_run('MESSAGE')
+         end if
+
+         if( abs(cp_hio_ignore_val-unset_double)<1e-10 ) then
+            if (fates_global_verbose()) then
+               write(fates_log(),*) 'FATES dimension/parameter unset: hio_ignore'
+            end if
+            ! INTERF-TODO: FATES NEEDS INTERNAL end_run
+            ! end_run('MESSAGE')
+         end if
+
          if (fates_global_verbose()) then
             write(fates_log(), *) 'Checked. All control parameters sent to FATES.'
          end if
+
          
       case default
 
-         if(present(dimval))then
+         if(present(ival))then
             select case (trim(tag))
                
             case('num_sw_bbands')
-               
-               cp_numSwb = dimval
+
+               cp_numSwb = ival
                if (fates_global_verbose()) then
-                  write(fates_log(), *) 'Transfering num_sw_bbands = ',dimval,' to FATES'
+                  write(fates_log(),*) 'Transfering num_sw_bbands = ',ival,' to FATES'
                end if
                
             case('num_lev_ground')
                
-               cp_numlevgrnd = dimval
+               cp_numlevgrnd = ival
                if (fates_global_verbose()) then
-
-                  write(fates_log(), *) 'Transfering num_lev_ground = ',dimval,' to FATES'
+                  write(fates_log(),*) 'Transfering num_lev_ground = ',ival,' to FATES'
                end if
-               
+
             case('num_levdecomp_full')
                
-               cp_numlevdecomp_full = dimval
+               cp_numlevdecomp_full = ival
                if (fates_global_verbose()) then
-                  write(fates_log(), *) 'Transfering num_levdecomp_full = ',dimval,' to FATES'
+                  write(fates_log(),*) 'Transfering num_levdecomp_full = ',ival,' to FATES'
                end if
             
             case('num_levdecomp')
                
-               cp_numlevdecomp = dimval
+               cp_numlevdecomp = ival
                if (fates_global_verbose()) then
-                  write(fates_log(), *) 'Transfering num_levdecomp = ',dimval,' to FATES'
+                  write(fates_log(),*) 'Transfering num_levdecomp = ',ival,' to FATES'
                end if
 
             case default
@@ -576,15 +600,43 @@ contains
                end if
                ! end_run
             end select
-         else
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'no value was provided for the tag'
-            end if
+            
          end if
          
+         if(present(rval))then
+            select case (trim(tag))
+            case ('hio_ignore_val')
+               cp_hio_ignore_val = rval
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hio_ignore_val = ',rval,' to FATES'
+               end if
+            case default
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'tag not recognized:',trim(tag)
+               end if
+               ! end_run
+            end select
+         end if
+
+         if(present(cval))then
+            select case (trim(tag))
+               
+            case('hlm_name')
+               cp_hlm_name = trim(cval)
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering the HLM name = ',trim(cval)
+               end if
+
+            case default
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'tag not recognized:',trim(tag)
+               end if
+               ! end_run
+            end select
+         end if
+
       end select
-      
-      
+            
       return
    end subroutine set_fates_ctrlparms
 

@@ -497,17 +497,6 @@ contains
        deallocate(downreg_patch, leafn_patch)
        call t_stopf('canflux')
 
-       if (use_ed) then
-          ! if ED enabled, summarize productivity fluxes onto CLM history file structure
-          call t_startf('edclmsumprodfluxes')
-          ! INTERF-TODO: THIS NEEDS A WRAPPER call clm_fates%sumprod(bounds_clump)
-          call clm_fates%fates2hlm%SummarizeProductivityFluxes( bounds_clump, &
-                clm_fates%fates(nc)%nsites,                                   &
-                clm_fates%fates(nc)%sites,                                    &
-                clm_fates%f2hmap(nc)%fcolumn)
-          call t_stopf('edclmsumprodfluxes')
-       endif
-       
        ! Fluxes for all urban landunits
 
        call t_startf('uflux')
@@ -778,11 +767,6 @@ contains
           call t_stopf('SatellitePhenology')
        end if
 
-       ! Zero some of the FATES->CLM communicators
-       if (use_ed) then
-          call clm_fates%fates2hlm%SetValues(bounds_clump,0._r8)
-       end if
-
        ! Dry Deposition of chemical tracers (Wesely (1998) parameterizaion)
           
        call t_startf('depvel')
@@ -828,11 +812,8 @@ contains
        if ( use_ed  .and. is_beg_curr_day() ) then ! run ED at the start of each day
           
           if ( masterproc ) then
-             write(iulog,*)  'clm: calling ED model ', get_nstep()
+             write(iulog,*)  'clm: calling FATES model ', get_nstep()
           end if
-
-          ! INTERF-TODO: THIS CHECK WILL BE TURNED ON IN FUTURE VERSION
-!          call clm_fates%check_hlm_active(nc, bounds_clump)
 
           call clm_fates%dynamics_driv( nc, bounds_clump,                        &
                atm2lnd_inst, soilstate_inst, temperature_inst,                   &

@@ -76,6 +76,8 @@ module CLMFatesInterfaceMod
                                       set_fates_ctrlparms,  &
                                       allocate_bcin,        &
                                       allocate_bcout
+   
+   use HistoryIOMod          , only : fates_hio_interface_type
 
    use EDCLMLinkMod          , only : ed_clm_type
    use EDTypesMod            , only : udata
@@ -137,6 +139,9 @@ module CLMFatesInterfaceMod
 
       type(ed_clm_type) :: fates2hlm  
 
+      ! fates_hio is the interface class for the history output
+      type(fates_hio_interface_type) :: fates_hio
+
    contains
       
       procedure, public :: init
@@ -152,6 +157,7 @@ module CLMFatesInterfaceMod
       procedure, public :: prep_canopyfluxes
       procedure, public :: wrap_canopy_radiation
       procedure, private :: wrap_litter_fluxout
+      procedure, private :: init_history_io
 
    end type hlm_fates_interface_type
 
@@ -229,10 +235,12 @@ contains
       call set_fates_ctrlparms('flush_to_unset')
       
       ! Send parameters individually
-      call set_fates_ctrlparms('num_sw_bbands',numrad)
-      call set_fates_ctrlparms('num_lev_ground',nlevgrnd)
-      call set_fates_ctrlparms('num_levdecomp',nlevdecomp)
-      call set_fates_ctrlparms('num_levdecomp_full',nlevdecomp_full)
+      call set_fates_ctrlparms('num_sw_bbands',ival=numrad)
+      call set_fates_ctrlparms('num_lev_ground',ival=nlevgrnd)
+      call set_fates_ctrlparms('num_levdecomp',ival=nlevdecomp)
+      call set_fates_ctrlparms('num_levdecomp_full',ival=nlevdecomp_full)
+      call set_fates_ctrlparms('hlm_name',cval='CLM')
+      call set_fates_ctrlparms('hio_ignore_val',rval=spval)
 
       ! Check through FATES parameters to see if all have been set
       call set_fates_ctrlparms('check_allset')
@@ -261,6 +269,7 @@ contains
       integer                                        :: l         ! HLM LU index
       integer, allocatable                           :: collist (:)
       type(bounds_type)                              :: bounds_clump
+      type(bounds_type)                              :: bounds_proc
       integer                                        :: nmaxcol
 
       if(DEBUG)then
@@ -357,6 +366,9 @@ contains
       end do
       !$OMP END PARALLEL DO
       
+      call get_proc_bounds(bounds_proc)
+      call this%init_history_io(bounds_proc)
+
    end subroutine init_allocate
    
   
@@ -445,9 +457,6 @@ contains
       !                               this%fates(nc)%fatesbc)
       ! ---------------------------------------------------------------------------------
       
-
-      call this%fates2hlm%SetValues( bounds_clump, 0._r8 )
-
       ! timing statements. 
       udata%n_sub = get_days_per_year()
             udata%deltat = 1.0_r8/dble(udata%n_sub) !for working out age of patches in years        
@@ -492,6 +501,12 @@ contains
             this%f2hmap(nc)%fcolumn,                               &
             waterstate_inst,                                       &
             canopystate_inst)
+
+
+      call this%fates_hio%update_history_dyn( nc, &
+           this%fates(nc)%nsites,       &
+           this%fates(nc)%sites,      &
+           this%f2hmap(nc)%fcolumn)
 
 
       if (masterproc) then
@@ -542,6 +557,10 @@ contains
                     waterstate_inst,                                               &
                     canopystate_inst)
                
+               call this%fates_hio%update_history_dyn( nc, &
+                    this%fates(nc)%nsites,       &
+                    this%fates(nc)%sites,      &
+                    this%f2hmap(nc)%fcolumn)
 
             end if
          end if
@@ -602,6 +621,13 @@ contains
                 this%f2hmap(nc)%fcolumn,                            &
                 waterstate_inst,                                    &
                 canopystate_inst)
+
+           call this%fates_hio%update_history_dyn( nc, &
+                this%fates(nc)%nsites,       &
+                this%fates(nc)%sites,      &
+                this%f2hmap(nc)%fcolumn)
+
+
         end if
      end do
      !$OMP END PARALLEL DO
@@ -1030,14 +1056,17 @@ contains
  ! ======================================================================================
 
  subroutine wrap_accumulatefluxes(this, nc, fn, filterp)
-    
-    ! !ARGUMENTS:
-    class(hlm_fates_interface_type), intent(inout) :: this
-    integer                , intent(in)            :: nc                   ! clump index
-    integer                , intent(in)            :: fn                   ! size of pft filter
-    integer                , intent(in)            :: filterp(fn)          ! pft filter
 
-    integer                                        :: s,c,p,ifp,icp
+   use clm_time_manager  , only : get_step_size
+   
+   ! !ARGUMENTS:
+   class(hlm_fates_interface_type), intent(inout) :: this
+   integer                , intent(in)            :: nc                   ! clump index
+   integer                , intent(in)            :: fn                   ! size of pft filter
+   integer                , intent(in)            :: filterp(fn)          ! pft filter
+   
+   integer                                        :: s,c,p,ifp,icp
+   real(r8)                                       :: dtime
 
     ! Run a check on the filter
     do icp = 1,fn
@@ -1050,10 +1079,20 @@ contains
        end if
     end do
 
-    call AccumulateFluxes_ED(this%fates(nc)%nsites, &
-         this%fates(nc)%sites,  &
-         this%fates(nc)%bc_in,  &
-         this%fates(nc)%bc_out)
+
+    dtime = get_step_size()
+    call  AccumulateFluxes_ED(this%fates(nc)%nsites,  &
+                               this%fates(nc)%sites, &
+                               this%fates(nc)%bc_in,  &
+                               this%fates(nc)%bc_out, &
+                               dtime)
+
+    
+    call this%fates_hio%update_history_prod(nc, &
+                               this%fates(nc)%nsites,  &
+                               this%fates(nc)%sites, &
+                               this%f2hmap(nc)%fcolumn, &
+                               dtime)
 
     return
 
@@ -1186,5 +1225,205 @@ contains
 
 
  end subroutine wrap_litter_fluxout
+
+ ! ======================================================================================
+
+ subroutine init_history_io(this,bounds_proc)
+
+   use histFileMod, only : hist_addfld1d, hist_addfld2d, hist_addfld_decomp 
+   use EDtypesMod , only : nlevsclass_ed
+   use clm_varpar , only : mxpft, nlevgrnd
+
+   ! Arguments
+   class(hlm_fates_interface_type), intent(inout) :: this
+   type(bounds_type),intent(in)                   :: bounds_proc  ! Currently "proc"
+   
+   
+   ! Locals
+   type(bounds_type)                              :: bounds_clump
+   integer :: nvar  ! number of IO variables found
+   integer :: ivar  ! variable index 1:nvar
+   integer :: nc    ! thread counter 1:nclumps
+   integer :: nclumps ! number of threads on this proc
+   integer :: s     ! FATES site index
+   integer :: c     ! ALM/CLM column index
+   character(len=32) :: dim2name
+   
+   ! This routine initializes the types of output variables
+   ! not the variables themselves, just the types
+   ! ---------------------------------------------------------------------------------
+
+   if(.not.use_ed) return
+   
+   !associate(hio => this%fates_hio)
+   
+   nclumps = get_proc_clumps()
+
+   ! ------------------------------------------------------------------------------------
+   ! PART I: Set FATES DIMENSIONING INFORMATION
+   !       
+   ! -------------------------------------------------------------------------------
+   ! Those who wish add variables that require new dimensions, please
+   ! see FATES: HistoryIOMod.F90.  Dimension types are defined at the top of the
+   ! module, and a new explicitly named instance of that type should be created.
+   ! With this new dimension, a new output type/kind can contain that dimension.
+   ! A new type/kind can be added to the iovar_dk structure, which defines its members
+   ! in created in init_iovar_dk_maps().  Make sure to increase the size of n_iovar_dk.
+   ! A type/kind of output is defined by the data type (ie r8,int,..)
+   ! and the dimensions.  Keep in mind that 3D variables (or 4D if you include time)
+   ! are not really supported in CLM/ALM right now.  There are ways around this
+   ! limitations by creating combined dimensions, for instance the size+pft dimension
+   ! "scpf"
+   ! ------------------------------------------------------------------------------------
+   
+   call this%fates_hio%dim_init(this%fates_hio%iopa_dim,'patch',nclumps,bounds_proc%begp,bounds_proc%endp)
+   call this%fates_hio%dim_init(this%fates_hio%iosi_dim,'column',nclumps,bounds_proc%begc,bounds_proc%endc)
+   call this%fates_hio%dim_init(this%fates_hio%iogrnd_dim,'levgrnd',nclumps,1,nlevgrnd)
+   call this%fates_hio%dim_init(this%fates_hio%ioscpf_dim,'levscpf',nclumps,1,nlevsclass_ed*mxpft)
+
+   ! Allocate the mapping between FATES indices and the IO indices
+   allocate(this%fates_hio%iovar_map(nclumps))
+
+   
+   ! Define the bounds on the first dimension for each thread
+   !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,s,c)
+   do nc = 1,nclumps
+      
+      call get_clump_bounds(nc, bounds_clump)
+      
+      ! thread bounds for patch
+      call this%fates_hio%set_dim_thread_bounds(this%fates_hio%iopa_dim,nc,bounds_clump%begp,bounds_clump%endp)
+      call this%fates_hio%set_dim_thread_bounds(this%fates_hio%iosi_dim,nc,bounds_clump%begc,bounds_clump%endc)
+      call this%fates_hio%set_dim_thread_bounds(this%fates_hio%iogrnd_dim,nc,1,nlevgrnd)
+      call this%fates_hio%set_dim_thread_bounds(this%fates_hio%ioscpf_dim,nc,1,nlevsclass_ed*mxpft)
+
+      ! ------------------------------------------------------------------------------------
+      ! PART I.5: SET SOME INDEX MAPPINGS SPECIFICALLY FOR SITE<->COLUMN AND PATCH 
+      ! ------------------------------------------------------------------------------------
+
+      allocate(this%fates_hio%iovar_map(nc)%site_index(this%fates(nc)%nsites))
+      allocate(this%fates_hio%iovar_map(nc)%patch1_index(this%fates(nc)%nsites))
+      
+      do s=1,this%fates(nc)%nsites
+         c = this%f2hmap(nc)%fcolumn(s)
+         this%fates_hio%iovar_map(nc)%site_index(s)   = c
+         this%fates_hio%iovar_map(nc)%patch1_index(s) = col%patchi(c)+1
+      end do
+      
+   end do
+   !$OMP END PARALLEL DO
+   
+   ! ------------------------------------------------------------------------------------
+   ! PART II: USE THE JUST DEFINED DIMENSIONS TO ASSEMBLE THE VALID IO TYPES
+   ! INTERF-TODO: THESE CAN ALL BE EMBEDDED INTO A SUBROUTINE IN HISTORYIOMOD
+   ! ------------------------------------------------------------------------------------
+
+   call this%fates_hio%init_iovar_dk_maps()
+   
+   call this%fates_hio%set_dim_ptrs(dk_name='PA_R8',idim=1,dim_target=this%fates_hio%iopa_dim)
+
+   call this%fates_hio%set_dim_ptrs(dk_name='SI_R8',idim=1,dim_target=this%fates_hio%iosi_dim)
+
+   call this%fates_hio%set_dim_ptrs(dk_name='PA_GRND_R8',idim=1,dim_target=this%fates_hio%iopa_dim)
+   call this%fates_hio%set_dim_ptrs(dk_name='PA_GRND_R8',idim=2,dim_target=this%fates_hio%iogrnd_dim)
+
+   call this%fates_hio%set_dim_ptrs(dk_name='SI_GRND_R8',idim=1,dim_target=this%fates_hio%iosi_dim)
+   call this%fates_hio%set_dim_ptrs(dk_name='SI_GRND_R8',idim=2,dim_target=this%fates_hio%iogrnd_dim)
+
+   call this%fates_hio%set_dim_ptrs(dk_name='PA_SCPF_R8',idim=1,dim_target=this%fates_hio%iopa_dim)
+   call this%fates_hio%set_dim_ptrs(dk_name='PA_SCPF_R8',idim=2,dim_target=this%fates_hio%ioscpf_dim)
+
+   call this%fates_hio%set_dim_ptrs(dk_name='SI_SCPF_R8',idim=1,dim_target=this%fates_hio%iosi_dim)
+   call this%fates_hio%set_dim_ptrs(dk_name='SI_SCPF_R8',idim=2,dim_target=this%fates_hio%ioscpf_dim)
+
+   
+   ! ------------------------------------------------------------------------------------
+   ! PART III: DEFINE THE LIST OF OUTPUT VARIABLE OBJECTS, AND REGISTER THEM WITH THE
+   ! HLM ACCORDING TO THEIR TYPES
+   ! ------------------------------------------------------------------------------------
+   
+   ! Determine how many of the history IO variables registered in FATES
+   ! are going to be allocated
+   
+   call this%fates_hio%define_history_vars('count',nvar)
+   this%fates_hio%n_hvars = nvar
+   
+   ! Allocate the list of history output variable objects
+   allocate(this%fates_hio%hvars(nvar))
+   
+   ! construct the object that defines all of the IO variables
+   call this%fates_hio%define_history_vars('initialize')
+   
+   do ivar = 1,nvar
+      
+      associate( vname    => this%fates_hio%hvars(ivar)%vname, &
+                 vunits   => this%fates_hio%hvars(ivar)%units,   &
+                 vlong    => this%fates_hio%hvars(ivar)%long, &
+                 vdefault => this%fates_hio%hvars(ivar)%use_default, &
+                 vavgflag => this%fates_hio%hvars(ivar)%avgflag,  &
+                 ioname   => this%fates_hio%hvars(ivar)%iovar_dk_ptr%name )
+        
+ 
+        
+        select case(trim(ioname))
+        case('PA_R8')
+           call hist_addfld1d(fname=trim(vname),units=trim(vunits),         &
+                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+                              ptr_patch=this%fates_hio%hvars(ivar)%r81d,    &
+                              default=trim(vdefault),                       &
+                              set_lake=0._r8,set_urb=0._r8)
+           
+        case('SI_R8')
+           call hist_addfld1d(fname=trim(vname),units=trim(vunits),         &
+                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+                              ptr_col=this%fates_hio%hvars(ivar)%r81d,      & 
+                              default=trim(vdefault),                       &
+                              set_lake=0._r8,set_urb=0._r8)
+
+        case('PA_GRND_R8')
+           dim2name = this%fates_hio%hvars(ivar)%iovar_dk_ptr%dim2_ptr%name
+           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         & ! <--- addfld2d
+                              type2d=trim(dim2name),                        & ! <--- type2d
+                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+                              ptr_patch=this%fates_hio%hvars(ivar)%r82d,    & 
+                              default=trim(vdefault),                       &
+                              set_lake=0._r8,set_urb=0._r8)
+           
+        case('PA_SCPF_R8')
+           dim2name = this%fates_hio%hvars(ivar)%iovar_dk_ptr%dim2_ptr%name
+           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+                              type2d=trim(dim2name),                        &
+                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+                              ptr_patch=this%fates_hio%hvars(ivar)%r82d,    & 
+                              default=trim(vdefault),                       &
+                              set_lake=0._r8,set_urb=0._r8)
+        case('SI_GRND_R8')
+           dim2name = this%fates_hio%hvars(ivar)%iovar_dk_ptr%dim2_ptr%name
+           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+                              type2d=trim(dim2name),                        &
+                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+                              ptr_col=this%fates_hio%hvars(ivar)%r82d,      & 
+                              default=trim(vdefault),                       &
+                              set_lake=0._r8,set_urb=0._r8)
+        case('SI_SCPF_R8')
+           dim2name = this%fates_hio%hvars(ivar)%iovar_dk_ptr%dim2_ptr%name
+           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+                              type2d=trim(dim2name),                        &
+                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+                              ptr_col=this%fates_hio%hvars(ivar)%r82d,      & 
+                              default=trim(vdefault),                       &
+                              set_lake=0._r8,set_urb=0._r8)
+
+        case default
+           write(iulog,*) 'A FATES iotype was created that was not registerred'
+           write(iulog,*) 'in CLM.:',trim(ioname)
+           call endrun(msg=errMsg(__FILE__, __LINE__))
+        end select
+          
+      end associate
+   end do
+   return
+ end subroutine init_history_io
+
 
 end module CLMFatesInterfaceMod

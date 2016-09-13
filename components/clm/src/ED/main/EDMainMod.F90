@@ -149,15 +149,15 @@ contains
     type(ed_cohort_type) , pointer :: currentCohort
 
     integer  :: c                     ! Counter for litter size class 
-    integer  :: p                     ! Counter for PFT
+    integer  :: ft                    ! Counter for PFT
     real(r8) :: small_no              ! to circumvent numerical errors that cause negative values of things that can't be negative
     real(r8) :: cohort_biomass_store  ! remembers the biomass in the cohort for balance checking
     !-----------------------------------------------------------------------
 
     small_no = 0.0000000000_r8  ! Obviously, this is arbitrary.  RF - changed to zero
 
-    do p = 1,numpft_ed
-       currentSite%dseed_dt(p) = 0._r8  ! zero the dseed_dt at the site level before looping through patches and adding the fluxes from each patch
+    do ft = 1,numpft_ed
+       currentSite%dseed_dt(ft) = 0._r8  ! zero the dseed_dt at the site level before looping through patches and adding the fluxes from each patch
     end do
     currentSite%seed_rain_flux = 0._r8  
 
@@ -229,9 +229,9 @@ contains
           currentPatch%cwd_bg(c) =  currentPatch%cwd_bg(c) + currentPatch%dcwd_bg_dt(c)* udata%deltat
        enddo
 
-       do p = 1,numpft_ed
-          currentPatch%leaf_litter(p) = currentPatch%leaf_litter(p) + currentPatch%dleaf_litter_dt(p)* udata%deltat
-          currentPatch%root_litter(p) = currentPatch%root_litter(p) + currentPatch%droot_litter_dt(p)* udata%deltat
+       do ft = 1,numpft_ed
+          currentPatch%leaf_litter(ft) = currentPatch%leaf_litter(ft) + currentPatch%dleaf_litter_dt(ft)* udata%deltat
+          currentPatch%root_litter(ft) = currentPatch%root_litter(ft) + currentPatch%droot_litter_dt(ft)* udata%deltat
        enddo
 
        do c = 1,ncwd
@@ -245,17 +245,17 @@ contains
           endif
        enddo
 
-       do p = 1,numpft_ed
-          if(currentPatch%leaf_litter(p)<small_no)then
-            write(iulog,*) 'negative leaf litter numerical error', currentPatch%leaf_litter(p),CurrentSite%lat,CurrentSite%lon,&
-            currentPatch%dleaf_litter_dt(p),currentPatch%leaf_litter_in(p),currentPatch%leaf_litter_out(p),currentpatch%age
-            currentPatch%leaf_litter(p) = small_no
+       do ft = 1,numpft_ed
+          if(currentPatch%leaf_litter(ft)<small_no)then
+            write(iulog,*) 'negative leaf litter numerical error', currentPatch%leaf_litter(ft),CurrentSite%lat,CurrentSite%lon,&
+            currentPatch%dleaf_litter_dt(ft),currentPatch%leaf_litter_in(ft),currentPatch%leaf_litter_out(ft),currentpatch%age
+            currentPatch%leaf_litter(ft) = small_no
           endif
-          if(currentPatch%root_litter(p)<small_no)then
-               write(iulog,*) 'negative root litter numerical error', currentPatch%root_litter(p), &
-               currentPatch%droot_litter_dt(p)* udata%deltat, &
+          if(currentPatch%root_litter(ft)<small_no)then
+               write(iulog,*) 'negative root litter numerical error', currentPatch%root_litter(ft), &
+               currentPatch%droot_litter_dt(ft)* udata%deltat, &
                CurrentSite%lat,CurrentSite%lon
-            currentPatch%root_litter(p) = small_no
+            currentPatch%root_litter(ft) = small_no
           endif
        enddo
 
@@ -273,15 +273,15 @@ contains
     enddo
 
     ! at the site level, update the seed bank mass
-    do p = 1,numpft_ed
-       currentSite%seed_bank(p) = currentSite%seed_bank(p) + currentSite%dseed_dt(p)*udata%deltat
+    do ft = 1,numpft_ed
+       currentSite%seed_bank(ft) = currentSite%seed_bank(ft) + currentSite%dseed_dt(ft)*udata%deltat
     enddo
 
     ! Check for negative values. Write out warning to show carbon balance. 
-    do p = 1,numpft_ed
-       if(currentSite%seed_bank(p)<small_no)then
-          write(iulog,*) 'negative seedbank', currentSite%seed_bank(p)
-          currentSite%seed_bank(p) = small_no
+    do ft = 1,numpft_ed
+       if(currentSite%seed_bank(ft)<small_no)then
+          write(iulog,*) 'negative seedbank', currentSite%seed_bank(ft)
+          currentSite%seed_bank(ft) = small_no
        endif
     enddo
 
