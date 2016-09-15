@@ -371,7 +371,7 @@ contains
       allocate(bc_in%albgr_dif_rb(cp_numSWb))
 
       ! Carbon Balance Checking
-
+      ! (snow-depth and snow fraction are site level and not vectors)
 
 
       return

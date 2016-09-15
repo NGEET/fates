@@ -653,6 +653,7 @@ contains
      ! ---------------------------------------------------------------------------------
 
     use FatesInterfaceMod    , only : bc_in_type
+    use EDPatchDynamicsMod   , only : set_patchno
     use EDGrowthFunctionsMod , only : tree_lai, c_area
     use EDEcophysConType     , only : EDecophyscon
     use EDtypesMod           , only : area
@@ -668,6 +669,7 @@ contains
     type (ed_cohort_type) , pointer :: currentCohort
     integer  :: s
     integer  :: ft                                      ! plant functional type
+    integer  :: ifp
     integer  :: patchn                                  ! identification number for each patch. 
     real(r8) :: coarse_wood_frac  
     real(r8) :: canopy_leaf_area                        ! total amount of leaf area in the vegetated area. m2.  
@@ -680,11 +682,19 @@ contains
 
     do s = 1,nsites
        
+       ! --------------------------------------------------------------------------------
+       ! Set the patch indices (this is usefull mostly for communicating with a host or 
+       ! driving model.  Loops through all patches and sets cpatch%patchno to the integer 
+       ! order of oldest to youngest where the oldest is 1.
+       ! --------------------------------------------------------------------------------
+       call set_patchno( sites(s) )
+
        currentPatch => sites(s)%oldest_patch
+
        do while(associated(currentPatch))
           
           call currentPatch%set_root_fraction()
-          
+
           !zero cohort-summed variables. 
           currentPatch%total_canopy_area = 0.0_r8
           currentPatch%total_tree_area = 0.0_r8
@@ -745,6 +755,7 @@ contains
              
           enddo ! ends 'do while(associated(currentCohort))
           
+          currentPatch => currentPatch%younger
        end do !patch loop
             
        call leaf_area_profile(sites(s),bc_in(s)%snow_depth_si,bc_in(s)%frac_sno_eff_si) 
@@ -1252,7 +1263,7 @@ contains
               bc_out(s)%frac_veg_nosno_alb_pa(ifp) = 0.0_r8
            end if
            
-
+           currentPatch => currentPatch%younger
         end do
         
         if(abs(total_patch_area-1.0_r8)>1e-9)then
