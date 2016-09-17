@@ -439,6 +439,9 @@ module EDTypesMod
      real(r8) ::  lat                                          ! latitude:  degrees 
      real(r8) ::  lon                                          ! longitude: degrees 
 
+     ! Soil layer depths (dictated by the HLM)
+     real(r8), allocatable ::  grnd_zi(:)                      ! Ground layer depth (nsoilev)
+
      ! CARBON BALANCE       
      real(r8) :: flux_in                                      ! for carbon balance purpose. C coming into biomass pool:  KgC/site
      real(r8) :: flux_out                                     ! for carbon balance purpose. C leaving ED pools  KgC/site
@@ -613,8 +616,8 @@ contains
     integer :: lev,p,c,ft
     !----------------------------------------------------------------------
 
-    p = this%clm_pno
-    c = clmpatch%column(p) 
+!    p = this%clm_pno
+!    c = clmpatch%column(p) 
 
     do ft = 1,numpft_ed 
        do lev = 1, nlevgrnd
