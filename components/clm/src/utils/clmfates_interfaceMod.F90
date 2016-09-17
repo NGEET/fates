@@ -353,6 +353,14 @@ contains
             call this%fates(nc)%zero_bcs(s)
          end do
 
+         ! Initialize site-level static quantities dictated by the HLM
+         ! currently ground layering depth
+
+         do s = 1, this%fates(nc)%nsites
+            c = this%f2hmap(nc)%fcolumn(s)
+            this%fates(nc)%bc_in(s)%depth_gl(:) = col%zi(c,:)
+            call init_site(this%fates(nc)%site(s),this%fates(nc)%bc_in(s))
+         end do
 
          if( this%fates(nc)%nsites == 0 ) then
             write(iulog,*) 'Clump ',nc,' had no valid FATES sites'

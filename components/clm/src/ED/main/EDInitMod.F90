@@ -29,12 +29,33 @@ module EDInitMod
 
   public  :: zero_site
   public  :: init_patches
+  public  :: init_site
   public  :: set_site_properties
-  
   private :: init_cohorts
+
   ! ============================================================================
 
 contains
+
+   
+  subroutine init_site( site_in, bc_in )
+
+     ! 
+
+      ! !ARGUMENTS    
+      type(ed_site_type), intent(inout) ::  site_in
+      type(bc_in_type), intent(in) ::  bc_in
+
+      site_in%oldest_patch     => null() ! pointer to oldest patch at the site
+      site_in%youngest_patch   => null() ! pointer to yngest patch at the site
+
+      ! Allocate static vectors
+      allocate(site_in%depth_gl(cp_nlevgrnd))
+      site_in%depth_gl(:) = bc_in%depth_gl(:)
+
+
+      return
+   end subroutine init_site
 
   ! ============================================================================
 
@@ -50,9 +71,6 @@ contains
     !
     ! !LOCAL VARIABLES:
     !----------------------------------------------------------------------
-
-    site_in%oldest_patch     => null() ! pointer to oldest patch at the site
-    site_in%youngest_patch   => null() ! pointer to yngest patch at the site
 
     ! INDICES 
     site_in%lat              = nan
@@ -162,6 +180,8 @@ contains
        sites(s)%acc_NI     = acc_NI
        sites(s)%frac_burnt = 0.0_r8
        sites(s)%old_stock  = 0.0_r8
+
+
     end do
 
     return
