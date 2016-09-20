@@ -159,7 +159,7 @@ contains
     do ft = 1,numpft_ed
        currentSite%dseed_dt(ft) = 0._r8  ! zero the dseed_dt at the site level before looping through patches and adding the fluxes from each patch
     end do
-    currentSite%seed_rain_flux = 0._r8  
+    currentSite%seed_rain_flux(:) = 0._r8  
 
     currentPatch => currentSite%youngest_patch
 
