@@ -48,6 +48,7 @@ module CLMFatesInterfaceMod
    use clm_varpar        , only : numpft,            &
                                   numrad,            &
                                   nlevgrnd,          &
+                                  nlevsoi,           &
                                   nlevdecomp,        &
                                   nlevdecomp_full
    use atm2lndType       , only : atm2lnd_type
@@ -87,6 +88,7 @@ module CLMFatesInterfaceMod
    use EDTypesMod            , only : udata
    use EDTypesMod            , only : ed_patch_type
    use EDtypesMod            , only : numPatchesPerCol
+   use EDtypesMod            , only : cp_numlevgrnd
    use EDMainMod             , only : ed_ecosystem_dynamics
    use EDMainMod             , only : ed_update_site
    use EDInitMod             , only : zero_site
@@ -236,6 +238,7 @@ contains
       ! Send parameters individually
       call set_fates_ctrlparms('num_sw_bbands',ival=numrad)
       call set_fates_ctrlparms('num_lev_ground',ival=nlevgrnd)
+      call set_fates_ctrlparms('num_lev_soil',ival=nlevsoi)
       call set_fates_ctrlparms('num_levdecomp',ival=nlevdecomp)
       call set_fates_ctrlparms('num_levdecomp_full',ival=nlevdecomp_full)
       call set_fates_ctrlparms('hlm_name',cval='CLM')
@@ -358,8 +361,7 @@ contains
 
          do s = 1, this%fates(nc)%nsites
             c = this%f2hmap(nc)%fcolumn(s)
-            this%fates(nc)%bc_in(s)%depth_gl(:) = col%zi(c,:)
-            call init_site(this%fates(nc)%site(s),this%fates(nc)%bc_in(s))
+            this%fates(nc)%bc_in(s)%depth_gl(0:cp_numlevgrnd) = col%zi(c,0:cp_numlevgrnd)
          end do
 
          if( this%fates(nc)%nsites == 0 ) then
