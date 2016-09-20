@@ -982,6 +982,10 @@ contains
 
     currentPatch%canopy_layer_lai(:)        = 0.0_r8
 
+    currentPatch%seeds_in(:)                = 0.0_r8
+    currentPatch%seed_decay(:)              = 0.0_r8
+    currentPatch%seed_germination(:)        = 0.0_r8
+
     currentPatch%fab(:)                     = 0.0_r8
     currentPatch%sabs_dir(:)                = 0.0_r8
     currentPatch%sabs_dif(:)                = 0.0_r8
