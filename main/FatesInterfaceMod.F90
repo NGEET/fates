@@ -24,7 +24,8 @@ module FatesInterfaceMod
                                       cp_numlevdecomp,   &
                                       cp_numlevdecomp_full, &
                                       cp_hlm_name,       &
-                                      cp_hio_ignore_val
+                                      cp_hio_ignore_val, &
+                                      cp_numlevsoil
 
    use shr_kind_mod          , only : r8 => shr_kind_r8  ! INTERF-TODO: REMOVE THIS
 
@@ -154,6 +155,9 @@ module FatesInterfaceMod
       real(r8) :: snow_depth_si    ! Depth of snow in snowy areas of site (m)
       real(r8) :: frac_sno_eff_si  ! Fraction of ground covered by snow (0-1)
 
+      ! Ground Layer Structure
+      real(r8),allocatable :: depth_gl(:)      ! Depth in vertical direction of ground layers
+                                   ! Interface level below a "z" level (m) (1:cp_nlevgrnd) 
 
    end type bc_in_type
 
@@ -372,7 +376,9 @@ contains
 
       ! Carbon Balance Checking
       ! (snow-depth and snow fraction are site level and not vectors)
-
+      
+      ! Ground layer structure
+      allocate(bc_in%depth_gl(0:cp_numlevgrnd))
 
       return
    end subroutine allocate_bcin
@@ -459,6 +465,7 @@ contains
       this%bc_in(s)%tot_litc            = 0.0_r8
       this%bc_in(s)%snow_depth_si       = 0.0_r8
       this%bc_in(s)%frac_sno_eff_si     = 0.0_r8
+      this%bc_in(s)%depth_gl(:)         = 0.0_r8
       
       ! Output boundaries
       this%bc_out(s)%active_suction_gl(:) = .false.
@@ -546,6 +553,7 @@ contains
          end if
          cp_numSwb     = unset_int
          cp_numlevgrnd = unset_int
+         cp_numlevsoil = unset_int
          cp_numlevdecomp_full = unset_int
          cp_numlevdecomp      = unset_int
          cp_hlm_name          = 'unset'
@@ -575,6 +583,14 @@ contains
          end if
 
          if(cp_numlevgrnd .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'FATES dimension/parameter unset: numlevground'
+            end if
+            ! INTERF-TODO: FATES NEEDS INTERNAL end_run
+            ! end_run('MESSAGE')
+         end if
+
+         if(cp_numlevsoil .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES dimension/parameter unset: numlevground'
             end if
@@ -634,6 +650,12 @@ contains
             case('num_lev_ground')
                
                cp_numlevgrnd = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering num_lev_ground = ',ival,' to FATES'
+               end if
+            case('num_lev_soil')
+               
+               cp_numlevsoil = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering num_lev_ground = ',ival,' to FATES'
                end if

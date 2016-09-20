@@ -128,8 +128,8 @@ module EDTypesMod
                              ! specturm to track 
                              ! (typically 2 as a default, VIS/NIR, in ED variants <2016)
 
-  
-  integer :: cp_numlevgrnd   ! Number of soil layers
+  integer :: cp_numlevgrnd   ! Number of ground layers
+  integer :: cp_numlevsoil   ! Number of soil layers
 
   ! Number of GROUND layers for the purposes of biogeochemistry; can be either 1 
   ! or the total number of soil layers (includes bedrock)
@@ -439,9 +439,6 @@ module EDTypesMod
      real(r8) ::  lat                                          ! latitude:  degrees 
      real(r8) ::  lon                                          ! longitude: degrees 
 
-     ! Soil layer depths (dictated by the HLM)
-     real(r8), allocatable ::  grnd_zi(:)                      ! Ground layer depth (nsoilev)
-
      ! CARBON BALANCE       
      real(r8) :: flux_in                                      ! for carbon balance purpose. C coming into biomass pool:  KgC/site
      real(r8) :: flux_out                                     ! for carbon balance purpose. C leaving ED pools  KgC/site
@@ -598,38 +595,34 @@ contains
   end function map_clmpatch_to_edpatch
 
   !-------------------------------------------------------------------------------------!
-  subroutine set_root_fraction( this )
+  subroutine set_root_fraction( this , depth_gl)
     !
     ! !DESCRIPTION:
     !  Calculates the fractions of the root biomass in each layer for each pft. 
     !
     ! !USES:
     use PatchType   , only : clmpatch => patch
-    use ColumnType  , only : col
-    use clm_varpar  , only : nlevsoi
     use pftconMod   , only : pftcon
     !
     ! !ARGUMENTS    
     class(ed_patch_type) :: this
+    real(r8),intent(in)  :: depth_gl(0:cp_numlevgrnd)
     !
     ! !LOCAL VARIABLES:
     integer :: lev,p,c,ft
     !----------------------------------------------------------------------
 
-!    p = this%clm_pno
-!    c = clmpatch%column(p) 
-
     do ft = 1,numpft_ed 
-       do lev = 1, nlevgrnd
+       do lev = 1, cp_numlevgrnd
           this%rootfr_ft(ft,lev) = 0._r8
        enddo
 
-       do lev = 1, nlevsoi-1
+       do lev = 1, cp_numlevsoil-1
           this%rootfr_ft(ft,lev) = .5_r8*( &
-                 exp(-pftcon%roota_par(ft) * col%zi(c,lev-1))  &
-               + exp(-pftcon%rootb_par(ft) * col%zi(c,lev-1))  &
-               - exp(-pftcon%roota_par(ft) * col%zi(c,lev))    &
-               - exp(-pftcon%rootb_par(ft) * col%zi(c,lev)))
+                 exp(-pftcon%roota_par(ft) * depth_gl(lev-1))  &
+               + exp(-pftcon%rootb_par(ft) * depth_gl(lev-1))  &
+               - exp(-pftcon%roota_par(ft) * depth_gl(lev))    &
+               - exp(-pftcon%rootb_par(ft) * depth_gl(lev)))
        end do
     end do
 

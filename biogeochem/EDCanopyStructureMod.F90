@@ -693,7 +693,7 @@ contains
 
        do while(associated(currentPatch))
           
-          call currentPatch%set_root_fraction()
+          call currentPatch%set_root_fraction(bc_in(s)%depth_gl)
 
           !zero cohort-summed variables. 
           currentPatch%total_canopy_area = 0.0_r8
