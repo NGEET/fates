@@ -118,10 +118,23 @@ module EDRestVectorMod
      real(r8), pointer :: dleafondate(:)   
      real(r8), pointer :: dleafoffdate(:) 
      real(r8), pointer :: acc_NI(:) 
+     
+     ! Site level carbon state/flux checks
+     real(r8), pointer :: nep_timeintegrated_si(:)
+     real(r8), pointer :: npp_timeintegrated_si(:)
+     real(r8), pointer :: hr_timeintegrated_si(:) 
+     real(r8), pointer :: totecosys_old_si(:)
+     real(r8), pointer :: cbal_err_fates_si(:)
+     real(r8), pointer :: cbal_err_bgc_si(:)
+     real(r8), pointer :: cbal_err_tot_si(:)
+     real(r8), pointer :: tot_fatesc_old_si(:)
+     real(r8), pointer :: tot_bgcc_old_si(:)
+     real(r8), pointer :: fates_to_bgc_this_ts_si(:)
+     real(r8), pointer :: fates_to_bgc_last_ts_si(:)
+     real(r8), pointer :: seedrain_flux_si(:)
      !
      ! site x pft
      real(r8), pointer :: seed_bank(:)
-
              
      
    contains
@@ -154,6 +167,8 @@ module EDRestVectorMod
   interface EDRestartVectorClass
      module procedure newEDRestartVectorClass
   end interface EDRestartVectorClass
+
+  character(len=*), private, parameter :: mod_filename =  __FILE__
 
   ! 
   ! non type-bound procedures
@@ -242,6 +257,19 @@ contains
     deallocate(this%dleafoffdate )    
     deallocate(this%acc_NI )
 
+    deallocate(this%nep_timeintegrated_si)
+    deallocate(this%npp_timeintegrated_si)
+    deallocate(this%hr_timeintegrated_si) 
+    deallocate(this%totecosys_old_si)
+    deallocate(this%cbal_err_fates_si)
+    deallocate(this%cbal_err_bgc_si)
+    deallocate(this%cbal_err_tot_si)
+    deallocate(this%tot_fatesc_old_si)
+    deallocate(this%tot_bgcc_old_si)
+    deallocate(this%fates_to_bgc_this_ts_si)
+    deallocate(this%fates_to_bgc_last_ts_si)
+    deallocate(this%seedrain_flux_si)
+    
   end subroutine deleteEDRestartVectorClass
 
   !-------------------------------------------------------------------------------!
@@ -272,233 +300,292 @@ contains
  
       allocate(new%numPatchesPerCol &
            (bounds%begc:bounds%endc), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%numPatchesPerCol(:) = invalidValue
       
       allocate(new%old_stock &
            (bounds%begc:bounds%endc), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%old_stock(:) = 0.0_r8
 
       allocate(new%cd_status &
            (bounds%begc:bounds%endc), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%cd_status(:) = 0_r8
       
        allocate(new%dd_status &
            (bounds%begc:bounds%endc), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%dd_status(:) = 0_r8
  
       allocate(new%ncd &
            (bounds%begc:bounds%endc), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%ncd(:) = 0_r8
  
 
       allocate(new%leafondate &
            (bounds%begc:bounds%endc), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%leafondate(:) = 0_r8
       
       allocate(new%leafoffdate &
            (bounds%begc:bounds%endc), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%leafoffdate(:) = 0_r8     
       
       allocate(new%dleafondate &
            (bounds%begc:bounds%endc), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%dleafondate(:) = 0_r8
       
       allocate(new%dleafoffdate &
            (bounds%begc:bounds%endc), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%dleafoffdate(:) = 0_r8        
 
       allocate(new%acc_NI &
            (bounds%begc:bounds%endc), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%acc_NI(:) = 0_r8        
 
       allocate(new%ED_GDD_site &
            (bounds%begc:bounds%endc), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%ED_GDD_site(:) = 0_r8  
+
+
+      allocate(new%nep_timeintegrated_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
+      new%nep_timeintegrated_si(:) = 0_r8 
+
+      allocate(new%npp_timeintegrated_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
+      new%npp_timeintegrated_si(:) = 0_r8 
+
+      allocate(new%hr_timeintegrated_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
+      new%hr_timeintegrated_si(:) = 0_r8 
+
+      allocate(new%totecosys_old_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
+      new%totecosys_old_si(:) = 0_r8 
+
+      allocate(new%cbal_err_fates_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
+      new%cbal_err_fates_si(:) = 0_r8 
+
+      allocate(new%cbal_err_bgc_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
+      new%cbal_err_bgc_si(:) = 0_r8 
+
+      allocate(new%cbal_err_tot_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
+      new%cbal_err_tot_si(:) = 0_r8 
+
+      allocate(new%tot_fatesc_old_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
+      new%tot_fatesc_old_si(:) = 0_r8 
+
+      allocate(new%tot_bgcc_old_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
+      new%tot_bgcc_old_si(:) = 0_r8 
+
+      allocate(new%fates_to_bgc_this_ts_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
+      new%fates_to_bgc_this_ts_si(:) = 0_r8 
+      
+      allocate(new%fates_to_bgc_last_ts_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
+      new%fates_to_bgc_last_ts_si(:) = 0_r8 
+
+      allocate(new%seedrain_flux_si &
+           (bounds%begc:bounds%endc), stat=retVal)
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
+      new%seedrain_flux_si(:) = 0_r8 
 
 
       ! cohort level variables
 
-
-
       allocate(new%cohortsPerPatch &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%cohortsPerPatch(:) = invalidValue
 
       allocate(new%balive &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%balive(:) = 0.0_r8
 
       allocate(new%bdead &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%bdead(:) = 0.0_r8
 
       allocate(new%bl &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%bl(:) = 0.0_r8
 
       allocate(new%br &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%br(:) = 0.0_r8
 
       allocate(new%bstore &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%bstore(:) = 0.0_r8
 
       allocate(new%canopy_layer &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%canopy_layer(:) = 0.0_r8
 
       allocate(new%canopy_trim &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%canopy_trim(:) = 0.0_r8
 
       allocate(new%dbh &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%dbh(:) = 0.0_r8
 
       allocate(new%hite &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%hite(:) = 0.0_r8
 
       allocate(new%laimemory &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%laimemory(:) = 0.0_r8
 
       allocate(new%leaf_md &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%leaf_md(:) = 0.0_r8
 
       allocate(new%root_md &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%root_md(:) = 0.0_r8
 
       allocate(new%n &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%n(:) = 0.0_r8
 
       allocate(new%gpp_acc &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%gpp_acc(:) = 0.0_r8
 
       allocate(new%npp_acc &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%npp_acc(:) = 0.0_r8
 
       allocate(new%gpp &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%gpp(:) = 0.0_r8
 
       allocate(new%npp &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%npp(:) = 0.0_r8
 
       allocate(new%npp_leaf &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%npp_leaf(:) = 0.0_r8
 
       allocate(new%npp_froot &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%npp_froot(:) = 0.0_r8
 
       allocate(new%npp_bsw &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%npp_bsw(:) = 0.0_r8
 
       allocate(new%npp_bdead &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%npp_bdead(:) = 0.0_r8
 
       allocate(new%npp_bseed &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%npp_bseed(:) = 0.0_r8
 
       allocate(new%npp_store &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%npp_store(:) = 0.0_r8
 
       allocate(new%bmort &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%bmort(:) = 0.0_r8
 
       allocate(new%hmort &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%hmort(:) = 0.0_r8
 
       allocate(new%cmort &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%cmort(:) = 0.0_r8
 
       allocate(new%imort &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%imort(:) = 0.0_r8
 
       allocate(new%fmort &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%fmort(:) = 0.0_r8
 
       allocate(new%ddbhdt &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%ddbhdt(:) = 0.0_r8
 
       allocate(new%resp_tstep &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%resp_tstep(:) = 0.0_r8
 
       allocate(new%pft &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%pft(:) = 0
 
       allocate(new%status_coh &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%status_coh(:) = 0
 
       allocate(new%isnew &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%isnew(:) = new_cohort
 
       ! 
@@ -506,82 +593,82 @@ contains
       !
       allocate(new%cwd_ag &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%cwd_ag(:) = 0.0_r8
 
       allocate(new%cwd_bg &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%cwd_bg(:) = 0.0_r8
 
       allocate(new%leaf_litter &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%leaf_litter(:) = 0.0_r8
 
       allocate(new%root_litter &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%root_litter(:) = 0.0_r8
 
       allocate(new%leaf_litter_in &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%leaf_litter_in(:) = 0.0_r8
 
       allocate(new%root_litter_in &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%root_litter_in(:) = 0.0_r8
 
       allocate(new%seed_bank &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%seed_bank(:) = 0.0_r8
 
       allocate(new%spread &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%spread(:) = 0.0_r8
 
       allocate(new%livegrass &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%livegrass(:) = 0.0_r8
 
       allocate(new%age &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%age(:) = 0.0_r8
 
       allocate(new%areaRestart &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%areaRestart(:) = 0.0_r8
 
       allocate(new%f_sun &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%f_sun(:) = 0.0_r8
 
       allocate(new%fabd_sun_z &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%fabd_sun_z(:) = 0.0_r8
 
       allocate(new%fabi_sun_z &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%fabi_sun_z(:) = 0.0_r8
 
       allocate(new%fabd_sha_z &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%fabd_sha_z(:) = 0.0_r8
 
       allocate(new%fabi_sha_z &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%fabi_sha_z(:) = 0.0_r8
 
       !
@@ -591,7 +678,7 @@ contains
 
       allocate(new%water_memory &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
-      SHR_ASSERT(( retVal == allocOK ), errMsg(__FILE__, __LINE__))
+      SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%water_memory(:) = 0.0_r8
     
 
@@ -786,11 +873,61 @@ contains
          interpinic_flag='interp', data=this%ED_GDD_site, &
          readvar=readvar) 
 
+    call restartvar(ncid=ncid, flag=flag, varname='nep_timeintegrated_col', xtype=ncd_double,  &
+         dim1name=col_dimName, long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%nep_timeintegrated_si) 
+
+    call restartvar(ncid=ncid, flag=flag, varname='npp_timeintegrated_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%npp_timeintegrated_si)
+
+    call restartvar(ncid=ncid, flag=flag, varname='hr_timeintegrated_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%hr_timeintegrated_si) 
+
+    call restartvar(ncid=ncid, flag=flag, varname='cbalance_error_ed_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%cbal_err_fates_si) 
+
+    call restartvar(ncid=ncid, flag=flag, varname='cbalance_error_bgc_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%cbal_err_bgc_si) 
+
+    call restartvar(ncid=ncid, flag=flag, varname='cbalance_error_total_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%cbal_err_tot_si) 
+    
+    call restartvar(ncid=ncid, flag=flag, varname='totecosysc_old_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%totecosys_old_si) 
+    
+    call restartvar(ncid=ncid, flag=flag, varname='totedc_old_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%tot_fatesc_old_si) 
+    
+    call restartvar(ncid=ncid, flag=flag, varname='totbgcc_old_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%tot_bgcc_old_si) 
+    
+    call restartvar(ncid=ncid, flag=flag, varname='ed_to_bgc_this_edts_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%fates_to_bgc_this_ts_si) 
+    
+    call restartvar(ncid=ncid, flag=flag, varname='ed_to_bgc_last_edts_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%fates_to_bgc_last_ts_si) 
+
+    call restartvar(ncid=ncid, flag=flag, varname='seed_rain_flux_col', xtype=ncd_double,  &
+         dim1name='column', long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%seedrain_flux_si) 
+
+
     call restartvar(ncid=ncid, flag=flag, varname='ed_balive', xtype=ncd_double,  &
          dim1name=coh_dimName, &
          long_name='ed cohort ed_balive', units='unitless', &
          interpinic_flag='interp', data=this%balive, &
          readvar=readvar)
+
 
     !
     ! cohort level vars
@@ -1101,6 +1238,11 @@ contains
          long_name='ed cohort - water_memory', units='unitless', &
          interpinic_flag='interp', data=this%water_memory, &
          readvar=readvar)
+
+
+
+    
+
 
   end subroutine doVectorIO
 
@@ -1528,14 +1670,6 @@ contains
 
     totalCohorts = 0
 
-!    if(fcolumn(1).eq.bounds%begc .and. &
-!          (fcolumn(1)-1)*cohorts_per_col+1.ne.bounds%begCohort) then
-!        write(iulog,*) 'fcolumn(1) in this clump, points to the first column of the clump'
-!        write(iulog,*) 'but the assumption on first cohort index does not jive'
-!        call endrun(msg=errMsg(__FILE__, __LINE__))
-!    end if
-
-
     do s = 1,nsites
        
        ! Calculate the offsets
@@ -1544,14 +1678,6 @@ contains
        ! in the clump, than the offset should be be equal to begCohort
        
        c = fcolumn(s)
-
-!       incrementOffset     = (c-1)*cohorts_per_col + 1
-!       countCohort         = (c-1)*cohorts_per_col + 1
-!       countPft            = (c-1)*cohorts_per_col + 1
-!       countNcwd           = (c-1)*cohorts_per_col + 1
-!       countNclmax         = (c-1)*cohorts_per_col + 1
-!       countWaterMem       = (c-1)*cohorts_per_col + 1
-!       countSunZ           = (c-1)*cohorts_per_col + 1
 
        incrementOffset     = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
        countCohort         = bounds%begCohort+(c-bounds%begc)*cohorts_per_col + 1
@@ -1730,7 +1856,21 @@ contains
        this%dleafondate(c)  = sites(s)%dleafondate
        this%dleafoffdate(c) = sites(s)%dleafoffdate
        this%acc_NI(c)       = sites(s)%acc_NI
-       this%ED_GDD_site(c)  = sites(s)%ED_GDD_site       
+       this%ED_GDD_site(c)  = sites(s)%ED_GDD_site
+
+       ! Carbon Balance and Checks
+       this%nep_timeintegrated_si(c) = sites(s)%nep_timeintegrated 
+       this%npp_timeintegrated_si(c) = sites(s)%npp_timeintegrated
+       this%hr_timeintegrated_si(c)  = sites(s)%hr_timeintegrated 
+       this%totecosys_old_si(c)      = sites(s)%totecosysc_old
+       this%tot_fatesc_old_si(c)     = sites(s)%totfatesc_old
+       this%tot_bgcc_old_si(c)       = sites(s)%totbgcc_old
+       this%cbal_err_fates_si(c)     = sites(s)%cbal_err_fates
+       this%cbal_err_bgc_si(c)       = sites(s)%cbal_err_bgc
+       this%cbal_err_tot_si(c)       = sites(s)%cbal_err_tot
+       this%fates_to_bgc_this_ts_si(c) = sites(s)%fates_to_bgc_this_ts
+       this%fates_to_bgc_last_ts_si(c) = sites(s)%fates_to_bgc_last_ts
+       this%seedrain_flux_si(c)        = sites(s)%tot_seed_rain_flux
 
        ! set numpatches for this column
        this%numPatchesPerCol(c)  = numPatches
@@ -1825,7 +1965,7 @@ contains
        if (this%numPatchesPerCol(c)<0 .or. this%numPatchesPerCol(c)>10000) then
           write(iulog,*) 'a column was expected to contain a valid number of patches'
           write(iulog,*) '0 is a valid number, but this column seems uninitialized',this%numPatchesPerCol(c)
-          call endrun(msg=errMsg(__FILE__, __LINE__))
+          call endrun(msg=errMsg(mod_filename, __LINE__))
        end if
 
        ! Initialize the site pointers to null
@@ -2076,8 +2216,6 @@ contains
           currentPatch%age        = this%age(incrementOffset) 
           currentPatch%area       = this%areaRestart(incrementOffset) 
           
-          
-          
           ! set cohorts per patch for IO
           
           if (this%DEBUG) then
@@ -2160,6 +2298,20 @@ contains
        sites(s)%dleafoffdate   = this%dleafoffdate(c)
        sites(s)%acc_NI         = this%acc_NI(c)
        sites(s)%ED_GDD_site    = this%ED_GDD_site(c)
+
+       ! Carbon Balance and Checks
+       sites(s)%nep_timeintegrated = this%nep_timeintegrated_si(c)
+       sites(s)%npp_timeintegrated = this%npp_timeintegrated_si(c)
+       sites(s)%hr_timeintegrated  = this%hr_timeintegrated_si(c)
+       sites(s)%totecosysc_old     = this%totecosys_old_si(c)
+       sites(s)%totfatesc_old      = this%tot_fatesc_old_si(c)
+       sites(s)%totbgcc_old        = this%tot_bgcc_old_si(c)
+       sites(s)%cbal_err_fates     = this%cbal_err_fates_si(c)
+       sites(s)%cbal_err_bgc       = this%cbal_err_bgc_si(c)
+       sites(s)%cbal_err_tot       = this%cbal_err_tot_si(c)
+       sites(s)%fates_to_bgc_this_ts = this%fates_to_bgc_this_ts_si(c)
+       sites(s)%fates_to_bgc_last_ts = this%fates_to_bgc_last_ts_si(c)
+       sites(s)%tot_seed_rain_flux       = this%seedrain_flux_si(c)
        
     enddo
 

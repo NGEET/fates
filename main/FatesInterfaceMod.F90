@@ -143,6 +143,11 @@ module FatesInterfaceMod
       ! due to permafrost or bedrock constraints
       integer  :: max_rooting_depth_index_col
 
+      ! BGC Accounting
+
+      real(r8) :: tot_het_resp  ! total heterotrophic respiration  (gC/m2/s)
+      real(r8) :: tot_somc      ! total soil organic matter carbon (gc/m2)
+      real(r8) :: tot_litc      ! total litter carbon tracked in the HLM (gc/m2)
 
    end type bc_in_type
 
@@ -340,6 +345,10 @@ contains
       allocate(bc_in%albgr_dir_rb(cp_numSWb))
       allocate(bc_in%albgr_dif_rb(cp_numSWb))
 
+      ! Carbon Balance Checking
+
+
+
       return
    end subroutine allocate_bcin
    
@@ -409,7 +418,9 @@ contains
       this%bc_in(s)%albgr_dir_rb(:)     = 0.0_r8
       this%bc_in(s)%albgr_dif_rb(:)     = 0.0_r8
       this%bc_in(s)%max_rooting_depth_index_col = 0
-
+      this%bc_in(s)%tot_het_resp        = 0.0_r8
+      this%bc_in(s)%tot_somc            = 0.0_r8 
+      this%bc_in(s)%tot_litc            = 0.0_r8
       
       ! Output boundaries
       this%bc_out(s)%active_suction_gl(:) = .false.

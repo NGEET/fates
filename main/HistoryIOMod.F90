@@ -65,6 +65,7 @@ Module HistoryIOMod
 
   ! Indices to (site) variables
 
+
   integer, private :: ih_nep_si
   integer, private :: ih_nep_timeintegrated_si
   integer, private :: ih_npp_timeintegrated_si
@@ -74,7 +75,6 @@ Module HistoryIOMod
   integer, private :: ih_fire_c_to_atm_si
   integer, private :: ih_ed_to_bgc_this_edts_si
   integer, private :: ih_ed_to_bgc_last_edts_si
-  integer, private :: ih_seed_rain_flux_si
   integer, private :: ih_totecosysc_si
   integer, private :: ih_totecosysc_old_si
   integer, private :: ih_totedc_si
@@ -82,12 +82,11 @@ Module HistoryIOMod
   integer, private :: ih_totbgcc_si
   integer, private :: ih_totbgcc_old_si
   integer, private :: ih_biomass_stock_si
-  integer, private :: ih_ed_litter_stock_si
+  integer, private :: ih_litter_stock_si
   integer, private :: ih_cwd_stock_si
-  integer, private :: ih_seed_stock_si
-  integer, private :: ih_cbalance_error_ed_si
-  integer, private :: ih_cbalance_error_bgc_si
-  integer, private :: ih_cbalance_error_total_si
+  integer, private :: ih_cbal_err_fates_si
+  integer, private :: ih_cbal_err_bgc_si
+  integer, private :: ih_cbal_err_tot_si
   integer, private :: ih_npatches_si
   integer, private :: ih_ncohorts_si
   
@@ -222,6 +221,7 @@ Module HistoryIOMod
      
      procedure, public :: update_history_dyn
      procedure, public :: update_history_prod
+     procedure, public :: update_history_cbal
      procedure, public :: define_history_vars
      procedure, public :: set_history_var
      procedure, public :: init_iovar_dk_maps
@@ -237,11 +237,67 @@ Module HistoryIOMod
 
 
 contains
+
+   ! ===================================================================================
   
-  
+   subroutine update_history_cbal(this,nc,nsites,sites)
+
+     use EDtypesMod          , only : ed_site_type
+     
+     ! Arguments
+     class(fates_hio_interface_type)                 :: this
+     integer                 , intent(in)            :: nc   ! clump index
+     integer                 , intent(in)            :: nsites
+     type(ed_site_type)      , intent(inout), target :: sites(nsites)
+
+     ! Locals
+     integer  :: s        ! The local site index
+     integer  :: io_si     ! The site index of the IO array
+     
+     
+     associate( hio_nep_si            => this%hvars(ih_nep_si)%r81d, &
+                 hio_nbp_si            => this%hvars(ih_nbp_si)%r81d, &
+                 hio_fire_c_to_atm_si  => this%hvars(ih_fire_c_to_atm_si)%r81d, &
+                 hio_totecosysc_si     => this%hvars(ih_totecosysc_si)%r81d, &
+                 hio_cbal_err_fates_si => this%hvars(ih_cbal_err_fates_si)%r81d, &
+                 hio_cbal_err_bgc_si   => this%hvars(ih_cbal_err_bgc_si)%r81d, &
+                 hio_cbal_err_tot_si   => this%hvars(ih_cbal_err_tot_si)%r81d, &
+                 hio_biomass_stock_si  => this%hvars(ih_biomass_stock_si)%r81d, &
+                 hio_litter_stock_si   => this%hvars(ih_litter_stock_si)%r81d, &
+                 hio_cwd_stock_si      => this%hvars(ih_cwd_stock_si)%r81d )
+
+        ! ---------------------------------------------------------------------------------
+        ! Flush arrays to values defined by %flushval (see registry entry in
+        ! subroutine define_history_vars()
+        ! ---------------------------------------------------------------------------------
+        call this%flush_hvars(nc,upfreq_in=3)
+        
+        
+        do s = 1,nsites
+         
+           io_si  = this%iovar_map(nc)%site_index(s)
+
+           hio_nep_si(io_si) = sites(s)%nep
+           hio_nbp_si(io_si) = sites(s)%nbp
+           hio_fire_c_to_atm_si(io_si) = sites(s)%fire_c_to_atm
+           hio_totecosysc_si(io_si) = sites(s)%totecosysc
+           hio_cbal_err_fates_si(io_si) = sites(s)%cbal_err_fates
+           hio_cbal_err_bgc_si(io_si) = sites(s)%cbal_err_bgc
+           hio_cbal_err_tot_si(io_si) = sites(s)%cbal_err_tot
+           hio_biomass_stock_si(io_si) = sites(s)%biomass_stock
+           hio_litter_stock_si(io_si) = sites(s)%ed_litter_stock
+           hio_cwd_stock_si(io_si) = sites(s)%cwd_stock
+
+        end do
+
+      end associate
+
+   end subroutine update_history_cbal
+   
+
   ! ====================================================================================
   
-  subroutine update_history_dyn(this,nc,nsites,sites,fcolumn)
+  subroutine update_history_dyn(this,nc,nsites,sites)
     
     ! ---------------------------------------------------------------------------------
     ! This is the call to update the history IO arrays that are expected to only change
@@ -261,7 +317,6 @@ contains
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
-    integer                 , intent(in)            :: fcolumn(nsites)
     
     ! Locals
     integer  :: s        ! The local site index
@@ -562,8 +617,8 @@ contains
  
  ! ======================================================================================
 
-  subroutine update_history_prod(this,nc,nsites,sites,fcolumn,dt_tstep)
-    
+ subroutine update_history_prod(this,nc,nsites,sites,dt_tstep)
+
     ! ---------------------------------------------------------------------------------
     ! This is the call to update the history IO arrays that are expected to only change
     ! after rapid timescale productivity calculations (gpp and respiration).
@@ -578,7 +633,6 @@ contains
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
-    integer                 , intent(in)            :: fcolumn(nsites)
     real(r8)                , intent(in)            :: dt_tstep
     
     ! Locals
@@ -1055,6 +1109,59 @@ contains
           avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
           upfreq=1, ivar=ivar,callstep=callstep, index = ih_m5_si_scpf )
 
+
+    ! CARBON BALANCE VARIABLES THAT DEPEND ON HLM BGC INPUTS
+
+    call this%set_history_var(vname='NEP', units='gC/m^2/s', &
+          long='net ecosystem production', use_default='active', &
+          avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
+          upfreq=3, ivar=ivar,callstep=callstep, index = ih_nep_si )
+
+    call this%set_history_var(vname='Fire_Closs', units='gC/m^2/s', &
+          long='ED/SPitfire Carbon loss to atmosphere', use_default='active', &
+          avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
+          upfreq=3, ivar=ivar,callstep=callstep, index = ih_fire_c_to_atm_si )
+   
+    call this%set_history_var(vname='NBP', units='gC/m^2/s', &
+          long='net biosphere production', use_default='active', &
+          avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
+          upfreq=3, ivar=ivar,callstep=callstep, index = ih_nbp_si )
+   
+    call this%set_history_var(vname='TOTECOSYSC', units='gC/m^2',  &
+         long='total ecosystem carbon', use_default='active', &
+         avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
+         upfreq=3, ivar=ivar,callstep=callstep, index = ih_totecosysc_si )
+    
+    call this%set_history_var(vname='CBALANCE_ERROR_ED', units='gC/m^2/s',  &
+         long='total carbon balance error on ED side', use_default='active', &
+         avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
+         upfreq=3, ivar=ivar,callstep=callstep, index = ih_cbal_err_fates_si )
+
+    call this%set_history_var(vname='CBALANCE_ERROR_BGC', units='gC/m^2/s',  &
+         long='total carbon balance error on HLMs BGC side', use_default='active', &
+         avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
+         upfreq=3, ivar=ivar,callstep=callstep, index = ih_cbal_err_bgc_si )
+    
+    call this%set_history_var(vname='CBALANCE_ERROR_TOTAL', units='gC/m^2/s', &
+          long='total carbon balance error total', use_default='active', &
+          avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
+          upfreq=3, ivar=ivar,callstep=callstep, index = ih_cbal_err_tot_si )
+    
+    call this%set_history_var(vname='BIOMASS_STOCK_COL', units='gC/m^2',  &
+          long='total ED biomass carbon at the column level', use_default='active', &
+          avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
+          upfreq=3, ivar=ivar,callstep=callstep, index = ih_biomass_stock_si )
+    
+    call this%set_history_var(vname='ED_LITTER_STOCK_COL', units='gC/m^2', &
+          long='total ED litter carbon at the column level', use_default='active', &
+          avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
+          upfreq=3, ivar=ivar,callstep=callstep, index = ih_litter_stock_si )
+    
+    call this%set_history_var(vname='CWD_STOCK_COL', units='gC/m^2', &
+          long='total CWD carbon at the column level', use_default='active', &
+          avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
+          upfreq=3, ivar=ivar,callstep=callstep, index = ih_cwd_stock_si )
+   
 
     ! Must be last thing before return
     if(present(nvar)) nvar = ivar
