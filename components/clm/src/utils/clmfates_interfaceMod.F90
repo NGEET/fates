@@ -53,13 +53,17 @@ module CLMFatesInterfaceMod
    use atm2lndType       , only : atm2lnd_type
    use SurfaceAlbedoType , only : surfalb_type
    use SolarAbsorbedType , only : solarabs_type
-   use SoilBiogeochemCarbonFluxType, only : soilbiogeochem_carbonflux_type
+   use SoilBiogeochemCarbonFluxType, only :  soilbiogeochem_carbonflux_type
+   use SoilBiogeochemCarbonStateType, only : soilbiogeochem_carbonstate_type
    use clm_time_manager  , only : is_restart
    use ncdio_pio         , only : file_desc_t
    use clm_time_manager  , only : get_days_per_year, &
-                                  get_curr_date
-   use clm_time_manager  , only : get_ref_date,      &
-                                  timemgr_datediff 
+                                  get_curr_date,     &
+                                  get_ref_date,      &
+                                  timemgr_datediff,  &
+                                  is_beg_curr_day,   &
+                                  get_step_size,     &
+                                  get_nstep
    use spmdMod           , only : masterproc
    use decompMod         , only : get_proc_bounds,   &
                                   get_proc_clumps,   &
@@ -80,6 +84,7 @@ module CLMFatesInterfaceMod
    use HistoryIOMod          , only : fates_hio_interface_type
 
    use EDCLMLinkMod          , only : ed_clm_type
+   use ChecksBalancesMod     , only : SummarizeNetFluxes, FATES_BGC_Carbon_BalanceCheck
    use EDTypesMod            , only : udata
    use EDTypesMod            , only : ed_patch_type
    use EDtypesMod            , only : numPatchesPerCol
@@ -157,6 +162,7 @@ module CLMFatesInterfaceMod
       procedure, public :: prep_canopyfluxes
       procedure, public :: wrap_canopy_radiation
       procedure, private :: wrap_litter_fluxout
+      procedure, public  :: wrap_bgc_summary
       procedure, private :: init_history_io
 
    end type hlm_fates_interface_type
@@ -208,7 +214,7 @@ contains
          ! This involves to stages
          ! 1) allocate the vectors
          ! 2) add the history variables defined in clm_inst to the history machinery
-         call this%fates2hlm%Init(bounds_proc)
+!         call this%fates2hlm%Init(bounds_proc)
                   
          call EDecophysconInit( EDpftvarcon_inst, numpft )
 
@@ -504,10 +510,8 @@ contains
 
 
       call this%fates_hio%update_history_dyn( nc, &
-           this%fates(nc)%nsites,       &
-           this%fates(nc)%sites,      &
-           this%f2hmap(nc)%fcolumn)
-
+            this%fates(nc)%nsites,       &
+            this%fates(nc)%sites) 
 
       if (masterproc) then
          write(iulog, *) 'clm: leaving ED model', bounds_clump%begg, &
@@ -558,13 +562,13 @@ contains
                     canopystate_inst)
                
                call this%fates_hio%update_history_dyn( nc, &
-                    this%fates(nc)%nsites,       &
-                    this%fates(nc)%sites,      &
-                    this%f2hmap(nc)%fcolumn)
+                    this%fates(nc)%nsites,                 &
+                    this%fates(nc)%sites) 
 
+               
             end if
          end if
-         call this%fates2hlm%restart(bounds_clump, ncid, flag)
+
       end do
       !$OMP END PARALLEL DO
       
@@ -623,9 +627,8 @@ contains
                 canopystate_inst)
 
            call this%fates_hio%update_history_dyn( nc, &
-                this%fates(nc)%nsites,       &
-                this%fates(nc)%sites,      &
-                this%f2hmap(nc)%fcolumn)
+                 this%fates(nc)%nsites,       &
+                 this%fates(nc)%sites) 
 
 
         end if
@@ -931,7 +934,6 @@ contains
     use shr_log_mod       , only : errMsg => shr_log_errMsg
     use abortutils        , only : endrun
     use decompMod         , only : bounds_type
-    use clm_time_manager  , only : get_step_size
     use clm_varcon        , only : rgas, tfrz, namep  
     use clm_varpar        , only : nlevsoi, mxpft
     use clm_varctl        , only : iulog
@@ -1057,8 +1059,6 @@ contains
 
  subroutine wrap_accumulatefluxes(this, nc, fn, filterp)
 
-   use clm_time_manager  , only : get_step_size
-   
    ! !ARGUMENTS:
    class(hlm_fates_interface_type), intent(inout) :: this
    integer                , intent(in)            :: nc                   ! clump index
@@ -1091,7 +1091,6 @@ contains
     call this%fates_hio%update_history_prod(nc, &
                                this%fates(nc)%nsites,  &
                                this%fates(nc)%sites, &
-                               this%f2hmap(nc)%fcolumn, &
                                dtime)
 
     return
@@ -1225,6 +1224,65 @@ contains
 
 
  end subroutine wrap_litter_fluxout
+
+ ! ======================================================================================
+
+ subroutine wrap_bgc_summary(this, nc, soilbiogeochem_carbonflux_inst,     &
+                                    soilbiogeochem_carbonstate_inst)
+
+   
+
+    ! Arguments
+    class(hlm_fates_interface_type), intent(inout)    :: this
+    integer          , intent(in)                     :: nc
+    type(soilbiogeochem_carbonflux_type), intent(in)  :: soilbiogeochem_carbonflux_inst
+    type(soilbiogeochem_carbonstate_type), intent(in) :: soilbiogeochem_carbonstate_inst
+
+    ! locals
+    real(r8) :: dtime
+    integer  :: nstep
+    logical  :: is_beg_day
+    integer :: s,c
+
+    associate(& 
+        hr            => soilbiogeochem_carbonflux_inst%hr_col,      & ! (gC/m2/s) total heterotrophic respiration
+        totsomc       => soilbiogeochem_carbonstate_inst%totsomc_col, & ! (gC/m2) total soil organic matter carbon
+        totlitc       => soilbiogeochem_carbonstate_inst%totlitc_col)   ! (gC/m2) total litter carbon in BGC pools
+
+      ! Summarize Net Fluxes
+      do s = 1, this%fates(nc)%nsites
+         c = this%f2hmap(nc)%fcolumn(s)
+         this%fates(nc)%bc_in(s)%tot_het_resp = hr(c)
+         this%fates(nc)%bc_in(s)%tot_somc     = totsomc(c)
+         this%fates(nc)%bc_in(s)%tot_litc     = totlitc(c)
+      end do
+
+      is_beg_day = is_beg_curr_day()
+      dtime = get_step_size()
+      nstep = get_nstep()
+
+      call SummarizeNetFluxes(this%fates(nc)%nsites,  &
+                             this%fates(nc)%sites,    &
+                             this%fates(nc)%bc_in,    &
+                             is_beg_day)
+      
+
+      call FATES_BGC_Carbon_Balancecheck(this%fates(nc)%nsites,  &
+                                         this%fates(nc)%sites, &
+                                         this%fates(nc)%bc_in,  &
+                                         is_beg_day,            &
+                                         dtime, nstep)
+      
+
+      ! Update history variables that track these variables
+      call this%fates_hio%update_history_cbal(nc, &
+                               this%fates(nc)%nsites,  &
+                               this%fates(nc)%sites)
+
+      
+    end associate
+    return
+ end subroutine wrap_bgc_summary
 
  ! ======================================================================================
 

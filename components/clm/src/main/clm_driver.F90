@@ -834,7 +834,6 @@ contains
                filter(nc)%num_pcropp, filter(nc)%pcropp, doalb,                                    &
                bgc_vegetation_inst%cnveg_carbonflux_inst, &
                bgc_vegetation_inst%cnveg_carbonstate_inst, &
-                clm_fates%fates2hlm, &
                soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst,                    &
                soilbiogeochem_state_inst,                                                          &
                soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,                &
@@ -850,10 +849,7 @@ contains
                 c13_soilbiogeochem_carbonflux_inst, c13_soilbiogeochem_carbonstate_inst, &
                 c14_soilbiogeochem_carbonflux_inst, c14_soilbiogeochem_carbonstate_inst, &
                 soilbiogeochem_nitrogenflux_inst, soilbiogeochem_nitrogenstate_inst,     &
-                clm_fates%fates2hlm,                                                     &
-                clm_fates%fates(nc)%sites,                                               &
-                clm_fates%fates(nc)%nsites,                                              &
-                clm_fates%f2hmap(nc)%fcolumn )
+                clm_fates, nc)
        end if
 
 
