@@ -98,6 +98,9 @@ module CNFireBaseMod
 
   type(cnfire_const_type), public, protected :: cnfire_const          ! Fire constants shared by Li versons
 
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
+
 contains
 
   !-----------------------------------------------------------------------
@@ -181,10 +184,10 @@ contains
        if (ierr == 0) then
           read(unitn, nml=lifire_inparm, iostat=ierr)
           if (ierr /= 0) then
-             call endrun(msg="ERROR reading "//nmlname//"namelist"//errmsg(__FILE__, __LINE__))
+             call endrun(msg="ERROR reading "//nmlname//"namelist"//errmsg(sourcefile, __LINE__))
           end if
        else
-          call endrun(msg="ERROR could NOT find "//nmlname//"namelist"//errmsg(__FILE__, __LINE__))
+          call endrun(msg="ERROR could NOT find "//nmlname//"namelist"//errmsg(sourcefile, __LINE__))
        end if
        call relavu( unitn )
     end if
@@ -326,14 +329,14 @@ contains
    logical :: do_transient_pfts    ! whether transient pfts are active in this run
    !-----------------------------------------------------------------------
 
-    SHR_ASSERT_ALL((ubound(leaf_prof_patch)      == (/bounds%endp,nlevdecomp_full/))               , errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(froot_prof_patch)     == (/bounds%endp,nlevdecomp_full/))               , errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(croot_prof_patch)     == (/bounds%endp,nlevdecomp_full/))               , errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(stem_prof_patch)      == (/bounds%endp,nlevdecomp_full/))               , errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(totsomc_col)          == (/bounds%endc/))                               , errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(decomp_cpools_vr_col) == (/bounds%endc,nlevdecomp_full,ndecomp_pools/)) , errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(decomp_npools_vr_col) == (/bounds%endc,nlevdecomp_full,ndecomp_pools/)) , errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(somc_fire_col)        == (/bounds%endc/))                               , errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(leaf_prof_patch)      == (/bounds%endp,nlevdecomp_full/))               , errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(froot_prof_patch)     == (/bounds%endp,nlevdecomp_full/))               , errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(croot_prof_patch)     == (/bounds%endp,nlevdecomp_full/))               , errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(stem_prof_patch)      == (/bounds%endp,nlevdecomp_full/))               , errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(totsomc_col)          == (/bounds%endc/))                               , errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(decomp_cpools_vr_col) == (/bounds%endc,nlevdecomp_full,ndecomp_pools/)) , errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(decomp_npools_vr_col) == (/bounds%endc,nlevdecomp_full,ndecomp_pools/)) , errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(somc_fire_col)        == (/bounds%endc/))                               , errMsg(sourcefile, __LINE__))
 
    ! NOTE: VR      = Vertically Resolved
    !       conv.   = conversion
@@ -386,8 +389,8 @@ contains
          fbac                                => cnveg_state_inst%fbac_col                                         , & ! Input:  [real(r8) (:)     ]  total burned area out of conversion (/sec)
          baf_crop                            => cnveg_state_inst%baf_crop_col                                     , & ! Input:  [real(r8) (:)     ]  BAF for cropland                                  
          baf_peatf                           => cnveg_state_inst%baf_peatf_col                                    , & ! Input:  [real(r8) (:)     ]  BAF for peatlabd                                  
-         trotr1_col                          => cnveg_state_inst%trotr1_col                                       , & ! Input:  [real(r8) (:)     ]  patch weight of BET on the gridcell (0-1)           
-         trotr2_col                          => cnveg_state_inst%trotr2_col                                       , & ! Input:  [real(r8) (:)     ]  patch weight of BDT on the gridcell (0-1)           
+         trotr1_col                          => cnveg_state_inst%trotr1_col                                       , & ! Input:  [real(r8) (:)     ]  patch weight of BET on the column (0-1)           
+         trotr2_col                          => cnveg_state_inst%trotr2_col                                       , & ! Input:  [real(r8) (:)     ]  patch weight of BDT on the column (0-1)           
          dtrotr_col                          => cnveg_state_inst%dtrotr_col                                       , & ! Input:  [real(r8) (:)     ]  ann. decreased frac. coverage of BET+BDT (0-1) on GC
          lfc                                 => cnveg_state_inst%lfc_col                                          , & ! Input:  [real(r8) (:)     ]  conv. area frac. of BET+BDT that haven't burned before
          lfc2                                => cnveg_state_inst%lfc2_col                                         , & ! Output: [real(r8) (:)     ]  conv. area frac. of BET+BDT burned this dt (/sec)
@@ -965,7 +968,7 @@ contains
       if (nml_error == 0) then
          read(nu_nml, nml=popd_streams,iostat=nml_error)
          if (nml_error /= 0) then
-            call endrun(msg='ERROR reading popd_streams namelist'//errMsg(__FILE__, __LINE__))
+            call endrun(msg='ERROR reading popd_streams namelist'//errMsg(sourcefile, __LINE__))
          end if
       end if
       close(nu_nml)
@@ -1118,7 +1121,7 @@ contains
       if (nml_error == 0) then
          read(nu_nml, nml=light_streams,iostat=nml_error)
          if (nml_error /= 0) then
-            call endrun(msg='ERROR reading light_streams namelist'//errMsg(__FILE__, __LINE__))
+            call endrun(msg='ERROR reading light_streams namelist'//errMsg(sourcefile, __LINE__))
          end if
       end if
       close(nu_nml)
