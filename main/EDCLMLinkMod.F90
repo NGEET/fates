@@ -46,6 +46,9 @@ module EDCLMLinkMod
 
   end type ed_clm_type
 
+  character(len=*), parameter, private :: mod_filename = &
+       __FILE__
+
   ! 10/30/09: Created by Rosie Fisher
   !-----------------------------------------------------------------------
 
@@ -154,7 +157,7 @@ contains
                
                if(c .ne. clmpatch%column(p))then
                   write(iulog,*) ' fcolumn(s) does not match clmpatch%column(p)'
-                  call endrun(msg=errMsg(__FILE__, __LINE__))
+                  call endrun(msg=errMsg(mod_filename, __LINE__))
                end if
 
                clmpatch%is_veg(p) = .true. !this .is. a tile filled with vegetation... 
@@ -564,7 +567,7 @@ contains
                   if( clmpatch%column(currentPatch%clm_pno) .ne. colindex .or. currentPatch%clm_pno .ne. p )then
                      ! ERROR
                      write(fates_log(), *) ' clmpatch%column(currentPatch%clm_pno) .ne. colindex .or. currentPatch%clm_pno .ne. p '
-                     call endrun(msg=errMsg(__FILE__, __LINE__))
+                     call endrun(msg=errMsg(mod_filename, __LINE__))
                   end if
 
 
