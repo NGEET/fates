@@ -174,6 +174,7 @@ module EDRestVectorMod
   ! non type-bound procedures
   !
   public :: EDRest
+
   !-------------------------------------------------------------------------------!
 
 contains
@@ -1668,6 +1669,14 @@ contains
     !-----------------------------------------------------------------------
 
     totalCohorts = 0
+
+!    if(fcolumn(1).eq.bounds%begc .and. &
+!          (fcolumn(1)-1)*cohorts_per_col+1.ne.bounds%begCohort) then
+!        write(iulog,*) 'fcolumn(1) in this clump, points to the first column of the clump'
+!        write(iulog,*) 'but the assumption on first cohort index does not jive'
+!        call endrun(msg=errMsg(mod_filename, __LINE__))
+!    end if
+
 
     do s = 1,nsites
        
