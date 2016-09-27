@@ -1180,7 +1180,7 @@ contains
 
  ! ======================================================================================
 
-  subroutine update_hlm_dynamics(nsites,sites,bc_out)
+  subroutine update_hlm_dynamics(nsites,sites,fcolumn,bc_out)
 
      ! ----------------------------------------------------------------------------------
      ! The purpose of this routine is to package output boundary conditions related
@@ -1190,14 +1190,17 @@ contains
      use EDTypesMod        , only : ed_patch_type, ed_cohort_type, &
                                     ed_site_type, AREA
      use FatesInterfaceMod , only : bc_out_type
+     use ColumnType        , only : col      ! THIS MUST BE REMOVED WITH CLM_PNO
+
      !
      ! !ARGUMENTS    
      integer,            intent(in)            :: nsites
      type(ed_site_type), intent(inout), target :: sites(nsites)
+     integer,            intent(in)            :: fcolumn(nsites)
      type(bc_out_type),  intent(inout)         :: bc_out(nsites)
 
      ! Locals
-     integer :: s, ifp
+     integer :: s, ifp, c
      type (ed_patch_type)  , pointer :: currentPatch
      real(r8) :: bare_frac_area
      real(r8) :: total_patch_area
@@ -1207,9 +1210,12 @@ contains
         ifp = 0
         total_patch_area = 0._r8 
         currentPatch => sites(s)%oldest_patch
+        c = fcolumn(s)
         do while(associated(currentPatch))
            ifp = ifp+1
-           
+
+           currentPatch%clm_pno = ifp + col%patchi(c)   ! THIS IS SLOWLY BEING REMOVED
+
            if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
               write(fates_log(),*) 'ED: canopy area bigger than area',currentPatch%total_canopy_area ,currentPatch%area
               currentPatch%total_canopy_area = currentPatch%area
