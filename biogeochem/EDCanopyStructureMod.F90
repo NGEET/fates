@@ -15,6 +15,7 @@ module EDCanopyStructureMod
   use EDtypesMod            , only : numpft_ed
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use abortutils            , only : endrun
+  use FatesGlobals          , only : fates_log
 
   implicit none
   private
@@ -26,6 +27,9 @@ module EDCanopyStructureMod
   public :: update_hlm_dynamics
 
   logical, parameter :: DEBUG=.false.
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
 
   ! 10/30/09: Created by Rosie Fisher
   ! ============================================================================
@@ -1335,8 +1339,9 @@ contains
            enddo
         enddo
      else
+
         write(fates_log(),*) 'Unsupported area index sent to calc_areaindex'
-        call endrun(msg=errMsg(__FILE__, __LINE__))
+        call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
      
      ai = max(ai_min,ai)
