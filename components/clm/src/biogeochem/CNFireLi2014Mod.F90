@@ -67,6 +67,9 @@ module CNFireLi2014Mod
   end interface cnfire_li2014_type
   !-----------------------------------------------------------------------
 
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
+
 contains
 
   !------------------------------------------------------------------------
@@ -136,9 +139,9 @@ contains
     real(r8), pointer :: prec10_col(:)
     !-----------------------------------------------------------------------
 
-    SHR_ASSERT_ALL((ubound(totlitc_col)           == (/bounds%endc/))                              , errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(decomp_cpools_vr_col)  == (/bounds%endc,nlevdecomp_full,ndecomp_pools/)), errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(t_soi17cm_col)         == (/bounds%endc/))                              , errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(totlitc_col)           == (/bounds%endc/))                              , errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(decomp_cpools_vr_col)  == (/bounds%endc,nlevdecomp_full,ndecomp_pools/)), errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(t_soi17cm_col)         == (/bounds%endc/))                              , errMsg(sourcefile, __LINE__))
 
     associate(                                                                      & 
          totlitc            => totlitc_col                                     , & ! Input:  [real(r8) (:)     ]  (gC/m2) total lit C (column-level mean)           
@@ -192,8 +195,8 @@ contains
          lgdp1_col          => cnveg_state_inst%lgdp1_col                      , & ! Output: [real(r8) (:)     ]  gdp limitation factor for baf per fire            
          lpop_col           => cnveg_state_inst%lpop_col                       , & ! Output: [real(r8) (:)     ]  pop limitation factor for baf per fire            
          lfwt               => cnveg_state_inst%lfwt_col                       , & ! Output: [real(r8) (:)     ]  fractional coverage of non-crop and non-bare-soil Patches
-         trotr1_col         => cnveg_state_inst%trotr1_col                     , & ! Output: [real(r8) (:)     ]  patch weight of BET on the gridcell (0-1)           
-         trotr2_col         => cnveg_state_inst%trotr2_col                     , & ! Output: [real(r8) (:)     ]  patch weight of BDT on the gridcell (0-1)           
+         trotr1_col         => cnveg_state_inst%trotr1_col                     , & ! Output: [real(r8) (:)     ]  patch weight of BET on the column (0-1)           
+         trotr2_col         => cnveg_state_inst%trotr2_col                     , & ! Output: [real(r8) (:)     ]  patch weight of BDT on the column (0-1)           
          dtrotr_col         => cnveg_state_inst%dtrotr_col                     , & ! Output: [real(r8) (:)     ]  decreased frac. coverage of BET+BDT on grid for dt
          lfc                => cnveg_state_inst%lfc_col                        , & ! Output: [real(r8) (:)     ]  conversion area frac. of BET+BDT that haven't burned before
          wtlf               => cnveg_state_inst%wtlf_col                       , & ! Output: [real(r8) (:)     ]  fractional coverage of non-crop Patches              
@@ -337,10 +340,10 @@ contains
                     end if
                  end if
                  if( patch%itype(p) == nbrdlf_evr_trp_tree .and. patch%wtcol(p)  >  0._r8 )then
-                    trotr1_col(c)=trotr1_col(c)+patch%wtcol(p)*col%wtgcell(c)
+                    trotr1_col(c)=trotr1_col(c)+patch%wtcol(p)
                  end if
                  if( patch%itype(p) == nbrdlf_dcd_trp_tree .and. patch%wtcol(p)  >  0._r8 )then
-                    trotr2_col(c)=trotr2_col(c)+patch%wtcol(p)*col%wtgcell(c)
+                    trotr2_col(c)=trotr2_col(c)+patch%wtcol(p)
                  end if
                  if (do_transient_pfts) then
                     if( patch%itype(p) == nbrdlf_evr_trp_tree .or. patch%itype(p) == nbrdlf_dcd_trp_tree )then
@@ -638,14 +641,14 @@ contains
    logical :: do_transient_pfts    ! whether transient pfts are active in this run
    !-----------------------------------------------------------------------
 
-    SHR_ASSERT_ALL((ubound(leaf_prof_patch)      == (/bounds%endp,nlevdecomp_full/))               , errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(froot_prof_patch)     == (/bounds%endp,nlevdecomp_full/))               , errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(croot_prof_patch)     == (/bounds%endp,nlevdecomp_full/))               , errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(stem_prof_patch)      == (/bounds%endp,nlevdecomp_full/))               , errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(totsomc_col)          == (/bounds%endc/))                               , errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(decomp_cpools_vr_col) == (/bounds%endc,nlevdecomp_full,ndecomp_pools/)) , errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(decomp_npools_vr_col) == (/bounds%endc,nlevdecomp_full,ndecomp_pools/)) , errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(somc_fire_col)        == (/bounds%endc/))                               , errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(leaf_prof_patch)      == (/bounds%endp,nlevdecomp_full/))               , errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(froot_prof_patch)     == (/bounds%endp,nlevdecomp_full/))               , errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(croot_prof_patch)     == (/bounds%endp,nlevdecomp_full/))               , errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(stem_prof_patch)      == (/bounds%endp,nlevdecomp_full/))               , errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(totsomc_col)          == (/bounds%endc/))                               , errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(decomp_cpools_vr_col) == (/bounds%endc,nlevdecomp_full,ndecomp_pools/)) , errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(decomp_npools_vr_col) == (/bounds%endc,nlevdecomp_full,ndecomp_pools/)) , errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(somc_fire_col)        == (/bounds%endc/))                               , errMsg(sourcefile, __LINE__))
 
    ! NOTE: VR      = Vertically Resolved
    !       conv.   = conversion
@@ -698,8 +701,8 @@ contains
          fbac                                => cnveg_state_inst%fbac_col                                         , & ! Input:  [real(r8) (:)     ]  total burned area out of conversion (/sec)
          baf_crop                            => cnveg_state_inst%baf_crop_col                                     , & ! Input:  [real(r8) (:)     ]  BAF for cropland                                  
          baf_peatf                           => cnveg_state_inst%baf_peatf_col                                    , & ! Input:  [real(r8) (:)     ]  BAF for peatlabd                                  
-         trotr1_col                          => cnveg_state_inst%trotr1_col                                       , & ! Input:  [real(r8) (:)     ]  patch weight of BET on the gridcell (0-1)           
-         trotr2_col                          => cnveg_state_inst%trotr2_col                                       , & ! Input:  [real(r8) (:)     ]  patch weight of BDT on the gridcell (0-1)           
+         trotr1_col                          => cnveg_state_inst%trotr1_col                                       , & ! Input:  [real(r8) (:)     ]  patch weight of BET on the column (0-1)           
+         trotr2_col                          => cnveg_state_inst%trotr2_col                                       , & ! Input:  [real(r8) (:)     ]  patch weight of BDT on the column (0-1)           
          dtrotr_col                          => cnveg_state_inst%dtrotr_col                                       , & ! Input:  [real(r8) (:)     ]  ann. decreased frac. coverage of BET+BDT (0-1) on GC
          lfc                                 => cnveg_state_inst%lfc_col                                          , & ! Input:  [real(r8) (:)     ]  conv. area frac. of BET+BDT that haven't burned before
          lfc2                                => cnveg_state_inst%lfc2_col                                         , & ! Output: [real(r8) (:)     ]  conv. area frac. of BET+BDT burned this dt (/sec)
