@@ -175,27 +175,6 @@ contains
                do while(associated(currentCohort))
      
                   ft = currentCohort%pft
-                  currentCohort%livestemn = currentCohort%bsw  / pftcon%leafcn(currentCohort%pft)
-                  
-                  currentCohort%livecrootn = 0.0_r8
-
-                  if (pftcon%woody(ft) == 1) then
-                     coarse_wood_frac = 0.5_r8
-                  else
-                     coarse_wood_frac = 0.0_r8
-                  end if
-                  
-                  if ( DEBUG ) then
-                     write(iulog,*) 'EDCLMLink 618 ',currentCohort%livecrootn
-                     write(iulog,*) 'EDCLMLink 619 ',currentCohort%br
-                     write(iulog,*) 'EDCLMLink 620 ',coarse_wood_frac
-                     write(iulog,*) 'EDCLMLink 621 ',pftcon%leafcn(ft)
-                  endif
-
-                  currentCohort%livecrootn = currentCohort%br * coarse_wood_frac / pftcon%leafcn(ft)
-
-                  if ( DEBUG ) write(iulog,*) 'EDCLMLink 625 ',currentCohort%livecrootn
-
                   currentCohort%b = currentCohort%balive+currentCohort%bdead+currentCohort%bstore
                   currentCohort%treelai = tree_lai(currentCohort)
 

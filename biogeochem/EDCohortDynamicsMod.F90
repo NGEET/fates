@@ -381,11 +381,6 @@ contains
     currentCohort%leaf_litter        = nan ! leaf litter from phenology: KgC/m2
     currentCohort%woody_turnover     = nan ! amount of wood lost each day: kgC/indiv/year. Currently set to zero.
 
-    ! NITROGEN POOLS      
-    currentCohort%livestemn          = nan ! live stem nitrogen       : KgN/invid
-    currentCohort%livecrootn         = nan ! live coarse root nitrogen: KgN/invid
-    currentCohort%frootn             = nan ! fine root  nitrogen      : KgN/invid
-
     ! VARIABLES NEEDED FOR INTEGRATION 
     currentCohort%dndt               = nan ! time derivative of cohort size 
     currentCohort%dhdt               = nan ! time derivative of height 
@@ -1047,11 +1042,6 @@ contains
     n%livecroot_mr    = o%livecroot_mr
     n%froot_mr        = o%froot_mr
  
-    ! NITROGEN POOLS      
-    n%livestemn       = o%livestemn
-    n%livecrootn      = o%livecrootn
-    n%frootn          = o%frootn
-
     ! ALLOCATION
     n%md              = o%md
     n%leaf_md         = o%leaf_md
