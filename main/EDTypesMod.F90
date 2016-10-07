@@ -216,7 +216,9 @@ module EDTypesMod
      real(r8) ::  resp_g                                 ! Growth respiration:  kgC/indiv/timestep
      real(r8) ::  resp_m                                 ! Maintenance respiration:  kgC/indiv/timestep 
      real(r8) ::  livestem_mr                            ! Live stem        maintenance respiration: kgC/indiv/s
-     real(r8) ::  livecroot_mr                           ! Live coarse root maintenance respiration: kgC/indiv/s
+                                                         ! (Above ground)
+     real(r8) ::  livecroot_mr                           ! Live stem        maintenance respiration: kgC/indiv/s
+                                                         ! (below ground)
      real(r8) ::  froot_mr                               ! Live fine root   maintenance respiration: kgC/indiv/s
 
      ! ALLOCATION
@@ -239,9 +241,11 @@ module EDTypesMod
      real(r8) ::  fmort                                  ! fire mortality                   n/year
 
      ! NITROGEN POOLS      
-     real(r8) ::  livestemn                              ! live stem nitrogen       : KgN/invid
-     real(r8) ::  livecrootn                             ! live coarse root nitrogen: KgN/invid
-     real(r8) ::  frootn                                 ! fine root  nitrogen      : KgN/invid
+     ! ----------------------------------------------------------------------------------
+     ! Nitrogen pools are not prognostic in the current implementation.
+     ! They are diagnosed during photosynthesis using a simple C2N parameter. Local values
+     ! used in that routine.
+     ! ----------------------------------------------------------------------------------
 
      ! GROWTH DERIVIATIVES
      real(r8) ::  dndt                                   ! time derivative of cohort size  : n/year
