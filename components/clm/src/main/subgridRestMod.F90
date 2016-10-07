@@ -11,7 +11,7 @@ module subgridRestMod
   use domainMod          , only : ldomain
   use clm_time_manager   , only : get_curr_date
   use clm_varcon         , only : nameg, namel, namec, namep
-  use clm_varpar         , only : nlevsno
+  use clm_varpar         , only : nlevsno, nlevgrnd
   use pio                , only : file_desc_t
   use ncdio_pio          , only : ncd_int, ncd_double
   use GetGlobalValuesMod , only : GetGlobalIndex
@@ -27,7 +27,8 @@ module subgridRestMod
   private
   !
   ! !PUBLIC MEMBER FUNCTIONS:
-  public :: subgridRest                   ! handle restart of subgrid variables
+  public :: subgridRestWrite              ! handle restart writes of subgrid variables
+  public :: subgridRestRead               ! handle restart reads of subgrid variables
   public :: subgridRest_check_consistency ! check consistency of variables read by subgridRest
   public :: subgridRest_read_cleanup      ! do cleanup of variables allocated when reading the restart file; should be called after subgridRest and subgridRest_check_consistency are complete
 
@@ -38,32 +39,52 @@ module subgridRestMod
 
   ! !PRIVATE TYPES:
   real(r8), allocatable :: pft_wtlunit_before_rest_read(:)  ! patch%wtlunit weights - saved values from before the restart read
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !------------------------------------------------------------------------
 
 contains
 
-  !------------------------------------------------------------------------
-  subroutine subgridRest( bounds, ncid, flag )
+  !-----------------------------------------------------------------------
+  subroutine subgridRestWrite(bounds, ncid, flag)
     !
     ! !DESCRIPTION:
-    ! Handle restart of subgrid variables
+    ! Handle restart writes (and defines) of subgrid variables
     !
     ! !ARGUMENTS:
     type(bounds_type), intent(in)    :: bounds ! bounds
     type(file_desc_t), intent(inout) :: ncid   ! netCDF dataset id
-    character(len=*) , intent(in)    :: flag   ! flag to determine if define, write or read data
+    character(len=*) , intent(in)    :: flag   ! flag to determine if define or write data
     !
     ! !LOCAL VARIABLES:
-    character(len=32) :: subname='SubgridRest' ! subroutine name
-    !------------------------------------------------------------------------
 
-    if (flag /= 'read') then
-       call subgridRest_write_only(bounds, ncid, flag)
-    end if
+    character(len=*), parameter :: subname = 'subgridRestWrite'
+    !-----------------------------------------------------------------------
 
+    call subgridRest_write_only(bounds, ncid, flag)
     call subgridRest_write_and_read(bounds, ncid, flag)
 
-  end subroutine subgridRest
+  end subroutine subgridRestWrite
+
+
+  !------------------------------------------------------------------------
+  subroutine subgridRestRead(bounds, ncid)
+    !
+    ! !DESCRIPTION:
+    ! Handle restart reads of subgrid variables
+    !
+    ! !ARGUMENTS:
+    type(bounds_type), intent(in)    :: bounds ! bounds
+    type(file_desc_t), intent(inout) :: ncid   ! netCDF dataset id
+    !
+    ! !LOCAL VARIABLES:
+    character(len=32) :: subname='subgridRestRead' ! subroutine name
+    !------------------------------------------------------------------------
+
+    call subgridRest_write_and_read(bounds, ncid, 'read')
+
+  end subroutine subgridRestRead
 
   !-----------------------------------------------------------------------
   subroutine subgridRest_write_only(bounds, ncid, flag)
@@ -95,7 +116,10 @@ contains
     integer , pointer :: ilarr(:)    ! temporary
     integer , pointer :: icarr(:)    ! temporary
     integer , pointer :: iparr(:)    ! temporary
-    
+
+    real(r8), pointer :: temp2d_r(:,:) ! temporary for multi-level variables
+    integer , pointer :: temp2d_i(:,:) ! temporary for multi-level variables
+
     character(len=*), parameter :: subname = 'subgridRest_write_only'
     !-----------------------------------------------------------------------
     
@@ -278,6 +302,19 @@ contains
          long_name='column active flag (1=active, 0=inactive)', units=' ',          &
          interpinic_flag='skip', readvar=readvar, data=icarr)
 
+    call restartvar(ncid=ncid, flag=flag, varname='LEVGRND_CLASS', xtype=ncd_int,   &
+         dim1name='column', dim2name='levgrnd', switchdim=.true.,                   &
+         long_name='class in which each layer falls', units=' ',                    &
+         interpinic_flag='skip', readvar=readvar, data=col%levgrnd_class)
+
+    allocate(temp2d_r(bounds%begc:bounds%endc, 1:nlevgrnd))
+    temp2d_r(bounds%begc:bounds%endc, 1:nlevgrnd) = col%z(bounds%begc:bounds%endc, 1:nlevgrnd)
+    call restartvar(ncid=ncid, flag=flag, varname='COL_Z', xtype=ncd_double,  & 
+         dim1name='column', dim2name='levgrnd', switchdim=.true., &
+         long_name='layer depth, excluding snow layers', units='m', &
+         interpinic_flag='skip', readvar=readvar, data=temp2d_r)
+    deallocate(temp2d_r)
+
     deallocate(rcarr, icarr)
 
     !------------------------------------------------------------------
@@ -375,14 +412,27 @@ contains
          long_name='pft active flag (1=active, 0=inactive)', units='',            &
          interpinic_flag='skip', readvar=readvar, data=iparr)
 
+    allocate(temp2d_i(bounds%begp:bounds%endp, 1:nlevgrnd))
     do p=bounds%begp,bounds%endp
        c = patch%column(p)
-       rparr(p) = col%glc_topo(c)
-    enddo
-    call restartvar(ncid=ncid, flag=flag, varname='pfts1d_topoglc', xtype=ncd_double,   &
-         dim1name='column',                                                             &
-         long_name='mean elevation on glacier elevation classes', units='m',            &
-         interpinic_flag='skip', readvar=readvar, data=rparr)
+       temp2d_i(p, 1:nlevgrnd) = col%levgrnd_class(c, 1:nlevgrnd)
+    end do
+    call restartvar(ncid=ncid, flag=flag, varname='LEVGRND_CLASS_p', xtype=ncd_int, &
+         dim1name='pft', dim2name='levgrnd', switchdim=.true., &
+         long_name='class in which each layer falls, patch-level', units=' ', &
+         interpinic_flag='skip', readvar=readvar, data=temp2d_i)
+    deallocate(temp2d_i)
+
+    allocate(temp2d_r(bounds%begp:bounds%endp, 1:nlevgrnd))
+    do p=bounds%begp,bounds%endp
+       c = patch%column(p)
+       temp2d_r(p, 1:nlevgrnd) = col%z(c, 1:nlevgrnd)
+    end do
+    call restartvar(ncid=ncid, flag=flag, varname='COL_Z_p', xtype=ncd_double, &
+         dim1name='pft', dim2name='levgrnd', switchdim=.true., &
+         long_name='layer depth, excluding snow layers, patch-level', units='m', &
+         interpinic_flag='skip', readvar=readvar, data=temp2d_r)
+    deallocate(temp2d_r)
 
     deallocate(rparr, iparr)
 
@@ -427,11 +477,6 @@ contains
          long_name='column weight relative to corresponding landunit', units=' ',   &
          interpinic_flag='skip', readvar=readvar, data=col%wtlunit)
 
-    call restartvar(ncid=ncid, flag=flag, varname='cols1d_topoglc', xtype=ncd_double,   &
-         dim1name='column',                                                             &
-         long_name='mean elevation on glacier elevation classes', units='m',            &
-         interpinic_flag='skip', readvar=readvar, data=col%glc_topo)
-
     call restartvar(ncid=ncid, flag=flag, varname='pfts1d_wtxy', xtype=ncd_double,  &
          dim1name='pft',                                                            &
          long_name='pft weight relative to corresponding gridcell', units='',       &  
@@ -451,7 +496,7 @@ contains
 
     call restartvar(ncid=ncid, flag=flag, varname='SNLSNO', xtype=ncd_int,  & 
          dim1name='column', &
-         long_name='number of snow layers', units='unitless', &
+         long_name='negative number of snow layers', units='unitless', &
          interpinic_flag='interp', readvar=readvar, data=col%snl)
 
     allocate(temp2d(bounds%begc:bounds%endc,-nlevsno+1:0))
@@ -638,7 +683,7 @@ contains
                write(iulog,*) '    in user_nl_clm'
                write(iulog,*) '    In this case, CLM will take the weights from the initial conditions file.'
                write(iulog,*) ' '
-               call endrun(decomp_index=p, clmlevel=namep, msg=errMsg(__FILE__, __LINE__))
+               call endrun(decomp_index=p, clmlevel=namep, msg=errMsg(sourcefile, __LINE__))
             end if
          end if
       end do

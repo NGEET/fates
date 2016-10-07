@@ -4,260 +4,498 @@ module subgridMod
   ! !DESCRIPTION:
   ! sub-grid data and mapping types and modules
   !
+  ! TODO(wjs, 2015-12-08) Much of the logic here duplicates (in some sense) logic in
+  ! initGridCellsMod. The duplication should probably be extracted into routines shared
+  ! between these modules (or the two modules should be combined into one).
+  !
   ! !USES:
-  use shr_kind_mod, only : r8 => shr_kind_r8
-  use spmdMod     , only : masterproc
-  use abortutils  , only : endrun
-  use clm_varctl  , only : iulog
+#include "shr_assert.h"
+  use shr_kind_mod   , only : r8 => shr_kind_r8
+  use shr_log_mod    , only : errMsg => shr_log_errMsg
+  use spmdMod        , only : masterproc
+  use abortutils     , only : endrun
+  use clm_varctl     , only : iulog
+  use clm_instur     , only : wt_lunit, urban_valid, wt_cft
+  use glcBehaviorMod , only : glc_behavior_type
+  use EDtypesMod, only : cohorts_per_col
 
   implicit none
   private   
   save
 
   ! !PUBLIC MEMBER FUNCTIONS:
-  public subgrid_get_gcellinfo        ! Obtain gridcell properties
+  public :: subgrid_get_gcellinfo   ! Obtain gridcell properties, summed across all landunits
+
+  ! Routines to get info for each landunit:
+  public :: subgrid_get_info_natveg
+  public :: subgrid_get_info_urban_tbd
+  public :: subgrid_get_info_urban_hd
+  public :: subgrid_get_info_urban_md
+  public :: subgrid_get_info_lake
+  public :: subgrid_get_info_wetland
+  public :: subgrid_get_info_glacier
+  public :: subgrid_get_info_glacier_mec
+  public :: subgrid_get_info_crop
+  public :: crop_patch_exists ! returns true if the given crop patch should be created in memory
+
+  ! !PRIVATE MEMBER FUNCTIONS:
+  private :: subgrid_get_info_urban
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !-----------------------------------------------------------------------
 
 contains
 
   !------------------------------------------------------------------------------
-  subroutine subgrid_get_gcellinfo (gi, &
-       nlunits, ncols, npatches, ncohorts, &
-       nveg, &
-       ncrop, &
-       nurban_tbd, &
-       nurban_hd, &
-       nurban_md, &
-       nlake, &
-       nwetland, &
-       nglacier, &
-       nglacier_mec,  &
-       glcmask)
+  subroutine subgrid_get_gcellinfo (gi, glc_behavior, &
+       nlunits, ncols, npatches, ncohorts)
     !
     ! !DESCRIPTION:
-    ! Obtain gridcell properties
-    !
-    ! !USES
-    use clm_varpar      , only : natpft_size, cft_size, maxpatch_urb, maxpatch_glcmec
-    use clm_varctl      , only : create_crop_landunit
-    use clm_instur      , only : wt_lunit, urban_valid, wt_glc_mec
-    use landunit_varcon , only : istsoil, istcrop, istice, istice_mec, istdlak, istwet
-    use landunit_varcon , only : isturb_tbd, isturb_hd, isturb_md
-    use EDtypesMod      , only : cohorts_per_gcell
+    ! Obtain gridcell properties, aggregated across all landunits
     !
     ! !ARGUMENTS
-    integer , intent(in)  :: gi                     ! grid cell index
-    integer , optional, intent(out) :: nlunits      ! number of landunits
-    integer , optional, intent(out) :: ncols        ! number of columns 
-    integer , optional, intent(out) :: npatches     ! number of patchs 
-    integer , optional, intent(out) :: ncohorts     ! number of cohorts 
-    integer , optional, intent(out) :: nveg         ! number of vegetated patchs in naturally vegetated landunit
-    integer , optional, intent(out) :: ncrop        ! number of crop patchs in crop landunit
-    integer , optional, intent(out) :: nurban_tbd   ! number of urban patchs (columns) in urban TBD landunit
-    integer , optional, intent(out) :: nurban_hd    ! number of urban patchs (columns) in urban HD landunit
-    integer , optional, intent(out) :: nurban_md    ! number of urban patchs (columns) in urban MD landunit
-    integer , optional, intent(out) :: nlake        ! number of lake patchs (columns) in lake landunit
-    integer , optional, intent(out) :: nwetland     ! number of wetland patchs (columns) in wetland landunit
-    integer , optional, intent(out) :: nglacier     ! number of glacier patchs (columns) in glacier landunit
-    integer , optional, intent(out) :: nglacier_mec ! number of glacier_mec patchs (columns) in glacier_mec landunit
-    integer , optional, intent(in)  :: glcmask      ! = 1 if glc requires surface mass balance in this gridcell
+    integer , intent(in)  :: gi       ! grid cell index
+    type(glc_behavior_type), intent(in) :: glc_behavior
+    integer , intent(out) :: nlunits  ! number of landunits
+    integer , intent(out) :: ncols    ! number of columns 
+    integer , intent(out) :: npatches ! number of patchs 
+    integer , intent(out) :: ncohorts ! number of cohorts 
     !
     ! !LOCAL VARIABLES:
-    integer  :: m                  ! loop index
-    integer  :: n                  ! elevation class index
-    integer  :: ipatches           ! number of patches in gridcell
-    integer  :: icols              ! number of columns in gridcell
-    integer  :: ilunits            ! number of landunits in gridcell
-    integer  :: icohorts           ! number of cohorts in gridcell
-    integer  :: npatches_per_lunit ! number of patches in landunit
+    ! Counts from a single landunit:
+    integer :: ncohorts_temp
+    integer :: npatches_temp
+    integer :: ncols_temp
+    integer :: nlunits_temp
+
+    ! atm_topo is arbitrary for the sake of getting these counts. We don't have a true
+    ! atm_topo value at the point of this call, so use 0.
+    real(r8), parameter :: atm_topo = 0._r8
     !------------------------------------------------------------------------------
 
-    ! -------------------------------------------------------------------------
-    ! Initialize patches, columns and landunits counters for gridcell
-    ! -------------------------------------------------------------------------
+    npatches = 0
+    ncols    = 0
+    nlunits  = 0
+    ncohorts = 0
 
-    ipatches    = 0
-    icols    = 0
-    ilunits  = 0
-    icohorts = 0
+    call subgrid_get_info_natveg(gi, ncohorts, npatches_temp, ncols_temp, nlunits_temp)
+    call accumulate_counters()
 
-    ! -------------------------------------------------------------------------
-    ! Set naturally vegetated landunit
-    ! -------------------------------------------------------------------------
+    call subgrid_get_info_urban_tbd(gi, npatches_temp, ncols_temp, nlunits_temp)
+    call accumulate_counters()
+
+    call subgrid_get_info_urban_hd(gi, npatches_temp, ncols_temp, nlunits_temp)
+    call accumulate_counters()
+
+    call subgrid_get_info_urban_md(gi, npatches_temp, ncols_temp, nlunits_temp)
+    call accumulate_counters()
+
+    call subgrid_get_info_lake(gi, npatches_temp, ncols_temp, nlunits_temp)
+    call accumulate_counters()
+
+    call subgrid_get_info_wetland(gi, npatches_temp, ncols_temp, nlunits_temp)
+    call accumulate_counters()
+
+    call subgrid_get_info_glacier(gi, npatches_temp, ncols_temp, nlunits_temp)
+    call accumulate_counters()
+
+    call subgrid_get_info_glacier_mec(gi, atm_topo, glc_behavior, &
+         npatches_temp, ncols_temp, nlunits_temp)
+    call accumulate_counters()
+
+    call subgrid_get_info_crop(gi, npatches_temp, ncols_temp, nlunits_temp)
+    call accumulate_counters()
+   
+
+  contains
+    subroutine accumulate_counters
+      ! Accumulate running sums of patches, columns and landunits.
+      !
+      ! This uses local variables in the parent subroutine as both inputs and outputs
+
+      npatches = npatches + npatches_temp
+      ncols = ncols + ncols_temp
+      nlunits = nlunits + nlunits_temp
+
+    end subroutine accumulate_counters
+
+  end subroutine subgrid_get_gcellinfo
+
+  !-----------------------------------------------------------------------
+  subroutine subgrid_get_info_natveg(gi, ncohorts, npatches, ncols, nlunits)
+    !
+    ! !DESCRIPTION:
+    ! Obtain properties for natural vegetated landunit in this grid cell
+    !
+    ! !USES
+    use clm_varpar, only : natpft_size
+    !
+    ! !ARGUMENTS:
+    integer, intent(in)  :: gi        ! grid cell index
+    integer, intent(out) :: ncohorts  ! number of nat veg cohorts in this grid cell
+    integer, intent(out) :: npatches  ! number of nat veg patches in this grid cell
+    integer, intent(out) :: ncols     ! number of nat veg columns in this grid cell
+    integer, intent(out) :: nlunits   ! number of nat veg landunits in this grid cell
+    !
+    ! !LOCAL VARIABLES:
+
+    character(len=*), parameter :: subname = 'subgrid_get_info_natveg'
+    !-----------------------------------------------------------------------
 
     ! To support dynamic landunits, we have a naturally vegetated landunit in every grid
     ! cell, because it might need to come into existence even if its weight is 0 at the
     ! start of the run. And to support transient patches or dynamic vegetation, we always
     ! allocate space for ALL patches on this landunit.
 
-    npatches_per_lunit = natpft_size
+    npatches = natpft_size
 
     ! Assume that the vegetated landunit has one column
-    ilunits = ilunits + 1
-    icols = icols + 1  
-
-    ipatches = ipatches + npatches_per_lunit
-
-    !
-    ! number of cohorts per gridcell set here.
-    !
-    icohorts = icohorts + cohorts_per_gcell
-
-    if (present(nveg )) nveg  = npatches_per_lunit
+    nlunits = 1
+    ncols = 1
 
     ! -------------------------------------------------------------------------
-    ! Set urban landunits
+    ! Number of cohorts is set here
+    ! ED cohorts (via FATES) populate all natural vegetation columns.
+    ! Current implementations mostly assume that only one column contains
+    ! natural vegetation, which is synonomous with the soil column. 
+    ! For restart output however, we will allocate the cohort vector space
+    ! based on all columns.
     ! -------------------------------------------------------------------------
+
+    ncohorts = ncols*cohorts_per_col
+
+  end subroutine subgrid_get_info_natveg
+
+  !-----------------------------------------------------------------------
+  subroutine subgrid_get_info_urban_tbd(gi, npatches, ncols, nlunits)
+    !
+    ! !DESCRIPTION:
+    ! Obtain properties for urban tbd landunit in this grid cell
+    !
+    ! !ARGUMENTS:
+    integer, intent(in)  :: gi        ! grid cell index
+    integer, intent(out) :: npatches  ! number of urban tbd patches in this grid cell
+    integer, intent(out) :: ncols     ! number of urban tbd columns in this grid cell
+    integer, intent(out) :: nlunits   ! number of urban tbd landunits in this grid cell
+    !
+    ! !LOCAL VARIABLES:
+
+    character(len=*), parameter :: subname = 'subgrid_get_info_urban_tbd'
+    !-----------------------------------------------------------------------
+
+    call subgrid_get_info_urban(gi, npatches, ncols, nlunits)
+
+  end subroutine subgrid_get_info_urban_tbd
+
+  !-----------------------------------------------------------------------
+  subroutine subgrid_get_info_urban_hd(gi, npatches, ncols, nlunits)
+    !
+    ! !DESCRIPTION:
+    ! Obtain properties for urban hd landunit in this grid cell
+    !
+    ! !ARGUMENTS:
+    integer, intent(in)  :: gi        ! grid cell index
+    integer, intent(out) :: npatches  ! number of urban hd patches in this grid cell
+    integer, intent(out) :: ncols     ! number of urban hd columns in this grid cell
+    integer, intent(out) :: nlunits   ! number of urban hd landunits in this grid cell
+    !
+    ! !LOCAL VARIABLES:
+
+    character(len=*), parameter :: subname = 'subgrid_get_info_urban_hd'
+    !-----------------------------------------------------------------------
+
+    call subgrid_get_info_urban(gi, npatches, ncols, nlunits)
+
+  end subroutine subgrid_get_info_urban_hd
+
+  !-----------------------------------------------------------------------
+  subroutine subgrid_get_info_urban_md(gi, npatches, ncols, nlunits)
+    !
+    ! !DESCRIPTION:
+    ! Obtain properties for urban md landunit in this grid cell
+    !
+    ! !ARGUMENTS:
+    integer, intent(in)  :: gi        ! grid cell index
+    integer, intent(out) :: npatches  ! number of urban md patches in this grid cell
+    integer, intent(out) :: ncols     ! number of urban md columns in this grid cell
+    integer, intent(out) :: nlunits   ! number of urban md landunits in this grid cell
+    !
+    ! !LOCAL VARIABLES:
+
+    character(len=*), parameter :: subname = 'subgrid_get_info_urban_md'
+    !-----------------------------------------------------------------------
+
+    call subgrid_get_info_urban(gi, npatches, ncols, nlunits)
+
+  end subroutine subgrid_get_info_urban_md
+
+  !-----------------------------------------------------------------------
+  subroutine subgrid_get_info_urban(gi, npatches, ncols, nlunits)
+    !
+    ! !DESCRIPTION:
+    ! Obtain properties for one of the urban landunits in this grid cell
+    !
+    ! This is shared for all urban landunits, because currently they are all treated the same.
+    !
+    ! !USES
+    use clm_varpar, only : maxpatch_urb
+    !
+    ! !ARGUMENTS:
+    integer, intent(in)  :: gi        ! grid cell index
+    integer, intent(out) :: npatches  ! number of urban patches in this grid cell, for one urban landunit
+    integer, intent(out) :: ncols     ! number of urban columns in this grid cell, for one urban landunit
+    integer, intent(out) :: nlunits   ! number of urban landunits in this grid cell, for one urban landunit
+    !
+    ! !LOCAL VARIABLES:
+
+    character(len=*), parameter :: subname = 'subgrid_get_info_urban'
+    !-----------------------------------------------------------------------
 
     ! To support dynamic landunits, we have all urban landunits in every grid cell that
     ! has valid urban parameters, because they might need to come into existence even if
     ! their weight is 0 at the start of the run. And for simplicity, we always allocate
     ! space for ALL columns on the urban landunits.
 
-    ! Set urban tall building district landunit
-
-    npatches_per_lunit = 0
     if (urban_valid(gi)) then
-       npatches_per_lunit = maxpatch_urb
-       ilunits = ilunits + 1
-       icols   = icols + npatches_per_lunit
-       ipatches = ipatches + npatches_per_lunit
+       npatches = maxpatch_urb
+       ncols = npatches
+       nlunits = 1
+    else
+       npatches = 0
+       ncols = 0
+       nlunits = 0
     end if
-    if (present(nurban_tbd )) nurban_tbd  = npatches_per_lunit
 
-    ! Set urban high density landunit
+  end subroutine subgrid_get_info_urban
 
-    npatches_per_lunit = 0
-    if (urban_valid(gi)) then
-       npatches_per_lunit = maxpatch_urb
-       ilunits = ilunits + 1
-       icols   = icols + npatches_per_lunit
-       ipatches = ipatches + npatches_per_lunit
-    end if
-    if (present(nurban_hd )) nurban_hd  = npatches_per_lunit
+  !-----------------------------------------------------------------------
+  subroutine subgrid_get_info_lake(gi, npatches, ncols, nlunits)
+    !
+    ! !DESCRIPTION:
+    ! Obtain properties for lake landunit in this grid cell
+    !
+    ! !USES:
+    use landunit_varcon, only : istdlak
+    !
+    ! !ARGUMENTS:
+    integer, intent(in)  :: gi        ! grid cell index
+    integer, intent(out) :: npatches  ! number of lake patches in this grid cell
+    integer, intent(out) :: ncols     ! number of lake columns in this grid cell
+    integer, intent(out) :: nlunits   ! number of lake landunits in this grid cell
+    !
+    ! !LOCAL VARIABLES:
 
-    ! Set urban medium density landunit
-
-    npatches_per_lunit = 0
-    if (urban_valid(gi)) then
-       npatches_per_lunit = maxpatch_urb
-       ilunits = ilunits + 1
-       icols   = icols + npatches_per_lunit
-       ipatches = ipatches + npatches_per_lunit
-    end if
-    if (present(nurban_md )) nurban_md  = npatches_per_lunit
-
-    ! -------------------------------------------------------------------------
-    ! Set lake landunit
-    ! -------------------------------------------------------------------------
+    character(len=*), parameter :: subname = 'subgrid_get_info_lake'
+    !-----------------------------------------------------------------------
 
     ! We currently do NOT allow the lake landunit to expand via dynamic landunits, so we
     ! only need to allocate space for it where its weight is currently non-zero.
 
-    npatches_per_lunit = 0
     if (wt_lunit(gi, istdlak) > 0.0_r8) then
-       npatches_per_lunit = npatches_per_lunit + 1
+       npatches = 1
+       ncols = 1
+       nlunits = 1
+    else
+       npatches = 0
+       ncols = 0
+       nlunits = 0
     end if
-    if (npatches_per_lunit > 0) then
-       ilunits = ilunits + 1
-       icols   = icols + npatches_per_lunit
-    end if
-    ipatches = ipatches + npatches_per_lunit
-    if (present(nlake )) nlake  = npatches_per_lunit
 
-    ! -------------------------------------------------------------------------
-    ! Set wetland landunit
-    ! -------------------------------------------------------------------------
+  end subroutine subgrid_get_info_lake
 
-    ! We currently do NOT allow the wetland landunit to expand via dynamic landunits, so
-    ! we only need to allocate space for it where its weight is currently non-zero.
+  !-----------------------------------------------------------------------
+  subroutine subgrid_get_info_wetland(gi, npatches, ncols, nlunits)
+    !
+    ! !DESCRIPTION:
+    ! Obtain properties for wetland landunit in this grid cell
+    !
+    ! !USES:
+    use landunit_varcon, only : istwet
+    !
+    ! !ARGUMENTS:
+    integer, intent(in)  :: gi        ! grid cell index
+    integer, intent(out) :: npatches  ! number of wetland patches in this grid cell
+    integer, intent(out) :: ncols     ! number of wetland columns in this grid cell
+    integer, intent(out) :: nlunits   ! number of wetland landunits in this grid cell
+    !
+    ! !LOCAL VARIABLES:
 
-    npatches_per_lunit = 0
+    character(len=*), parameter :: subname = 'subgrid_get_info_wetland'
+    !-----------------------------------------------------------------------
+
+    ! We currently do NOT allow the wetland landunit to expand via dynamic landunits, so we
+    ! only need to allocate space for it where its weight is currently non-zero.
+
     if (wt_lunit(gi, istwet) > 0.0_r8) then
-       npatches_per_lunit = npatches_per_lunit + 1
+       npatches = 1
+       ncols = 1
+       nlunits = 1
+    else
+       npatches = 0
+       ncols = 0
+       nlunits = 0
     end if
-    if (npatches_per_lunit > 0) then
-       ilunits = ilunits + 1
-       icols   = icols + npatches_per_lunit
-    end if
-    ipatches = ipatches + npatches_per_lunit
-    if (present(nwetland )) nwetland  = npatches_per_lunit
 
-    ! -------------------------------------------------------------------------
-    ! Set glacier landunit
-    ! -------------------------------------------------------------------------
+  end subroutine subgrid_get_info_wetland
+  
+  !-----------------------------------------------------------------------
+  subroutine subgrid_get_info_glacier(gi, npatches, ncols, nlunits)
+    !
+    ! !DESCRIPTION:
+    ! Obtain properties for glacier landunit in this grid cell
+    !
+    ! !USES:
+    use landunit_varcon, only : istice
+    !
+    ! !ARGUMENTS:
+    integer, intent(in)  :: gi        ! grid cell index
+    integer, intent(out) :: npatches  ! number of glacier patches in this grid cell
+    integer, intent(out) :: ncols     ! number of glacier columns in this grid cell
+    integer, intent(out) :: nlunits   ! number of glacier landunits in this grid cell
+    !
+    ! !LOCAL VARIABLES:
+
+    character(len=*), parameter :: subname = 'subgrid_get_info_glacier'
+    !-----------------------------------------------------------------------
 
     ! We currently do NOT allow the glacier landunit to expand via dynamic landunits, so
     ! we only need to allocate space for it where its weight is currently non-zero. (If we
     ! have dynamic glacier area, we will be using glacier_mec landunits rather than
     ! glacier landunits.)
 
-    npatches_per_lunit = 0
     if (wt_lunit(gi, istice) > 0.0_r8) then
-       npatches_per_lunit = npatches_per_lunit + 1
+       npatches = 1
+       ncols = 1
+       nlunits = 1
+    else
+       npatches = 0
+       ncols = 0
+       nlunits = 0
     end if
-    if (npatches_per_lunit > 0) then
-       ilunits = ilunits + 1
-       icols   = icols + npatches_per_lunit
+
+  end subroutine subgrid_get_info_glacier
+
+    !-----------------------------------------------------------------------
+  subroutine subgrid_get_info_glacier_mec(gi, atm_topo, glc_behavior, npatches, ncols, nlunits)
+    !
+    ! !DESCRIPTION:
+    ! Obtain properties for glacier_mec landunit in this grid cell
+    !
+    ! !ARGUMENTS:
+    integer, intent(in)  :: gi        ! grid cell index
+    real(r8), intent(in) :: atm_topo  ! atmosphere's topographic height for this grid cell (m)
+    type(glc_behavior_type), intent(in) :: glc_behavior
+    integer, intent(out) :: npatches  ! number of glacier_mec patches in this grid cell
+    integer, intent(out) :: ncols     ! number of glacier_mec columns in this grid cell
+    integer, intent(out) :: nlunits   ! number of glacier_mec landunits in this grid cell
+    !
+    ! !LOCAL VARIABLES:
+
+    character(len=*), parameter :: subname = 'subgrid_get_info_glacier_mec'
+    !-----------------------------------------------------------------------
+
+    call glc_behavior%get_num_glc_mec_subgrid(gi, atm_topo, npatches, ncols, nlunits)
+
+  end subroutine subgrid_get_info_glacier_mec
+
+  !-----------------------------------------------------------------------
+  subroutine subgrid_get_info_crop(gi, npatches, ncols, nlunits)
+    !
+    ! !DESCRIPTION:
+    ! Obtain properties for crop landunit in this grid cell
+    !
+    ! !USES:
+    use clm_varpar, only : cft_lb, cft_ub
+    !
+    ! !ARGUMENTS:
+    integer, intent(in)  :: gi        ! grid cell index
+    integer, intent(out) :: npatches  ! number of nat veg patches in this grid cell
+    integer, intent(out) :: ncols     ! number of nat veg columns in this grid cell
+    integer, intent(out) :: nlunits   ! number of nat veg landunits in this grid cell
+    !
+    ! !LOCAL VARIABLES:
+    integer :: cft  ! crop functional type index
+
+    character(len=*), parameter :: subname = 'subgrid_get_info_crop'
+    !-----------------------------------------------------------------------
+
+    npatches = 0
+
+    do cft = cft_lb, cft_ub
+       if (crop_patch_exists(gi, cft)) then
+          npatches = npatches + 1
+       end if
+    end do
+
+    if (npatches > 0) then
+       ncols = npatches
+       nlunits = 1
+    else
+       ncols = 0
+       nlunits = 0
     end if
-    ipatches = ipatches + npatches_per_lunit
-    if (present(nglacier )) nglacier  = npatches_per_lunit
 
-    ! -------------------------------------------------------------------------
-    ! Set glacier_mec landunit
-    ! -------------------------------------------------------------------------
+  end subroutine subgrid_get_info_crop
 
-    ! If glcmask = 1, we create a column for each elevation class even if the weight on
-    ! the grid cell is 0. This is needed for coupling to CISM. In addition, this is
-    ! currently sufficient to ensure that we have glaciers everywhere they might be
-    ! needed with dynamic landunits, since CISM won't be able to create glaciers outside
-    ! of the area specified by glcmask. 
+  !-----------------------------------------------------------------------
+  function crop_patch_exists(gi, cft) result(exists)
+    !
+    ! !DESCRIPTION:
+    ! Returns true if a patch should be created in memory for the given crop functional
+    ! type in this grid cell.
+    !
+    ! This just applies to the crop landunit: it always returns .false. if
+    ! create_crop_landunit is .false.
+    !
+    ! !USES:
+    use clm_varpar           , only : cft_lb, cft_ub
+    use clm_varctl           , only : create_crop_landunit
+    use pftconmod            , only : pftcon
+    use landunit_varcon      , only : istcrop
+    use dynSubgridControlMod , only : get_do_transient_crops
+    !
+    ! !ARGUMENTS:
+    logical :: exists  ! function result
+    integer, intent(in) :: gi  ! grid cell index
+    integer, intent(in) :: cft ! crop functional type
+    !
+    ! !LOCAL VARIABLES:
 
-    npatches_per_lunit = 0
-    do m = 1, maxpatch_glcmec
-       ! If the landunit has non-zero weight on the grid cell, and this column has
-       ! non-zero weight on the landunit...
-       if (wt_lunit(gi, istice_mec) > 0.0_r8 .and. wt_glc_mec(gi, m) > 0.0_r8) then
-          npatches_per_lunit = npatches_per_lunit + 1
+    character(len=*), parameter :: subname = 'crop_patch_exists'
+    !-----------------------------------------------------------------------
 
-       elseif (present(glcmask)) then
-          if (glcmask == 1) then      ! create a virtual column 
-             npatches_per_lunit = npatches_per_lunit + 1
-          endif  ! glcmask = 1 
-       endif  ! wt > 0
-    enddo   ! maxpatch_glcmec
-    if (npatches_per_lunit > 0) then
-       ilunits = ilunits + 1
-       icols   = icols + npatches_per_lunit
-    end if
-    ipatches = ipatches + npatches_per_lunit
-    if (present(nglacier_mec )) nglacier_mec  = npatches_per_lunit
-
-    ! -------------------------------------------------------------------------
-    ! Set crop landunit if appropriate
-    ! -------------------------------------------------------------------------
-
-    npatches_per_lunit = 0
     if (create_crop_landunit) then
-       ! To support dynamic landunits, we have a crop landunit in every grid cell (if
-       ! create_crop_landunit is true), because it might need to come into existence even
-       ! if its weight is 0 at the start of the run.
-       npatches_per_lunit = cft_size
-       ilunits = ilunits + 1
-       icols   = icols + npatches_per_lunit
-       ipatches = ipatches + npatches_per_lunit
+       SHR_ASSERT(cft >= cft_lb, errMsg(sourcefile, __LINE__))
+       SHR_ASSERT(cft <= cft_ub, errMsg(sourcefile, __LINE__))
+
+       if (get_do_transient_crops()) then
+          ! To support dynamic landunits, we have all possible crop columns in every grid
+          ! cell, because they might need to come into existence even if their weight is 0 at
+          ! the start of the run.
+          if (pftcon%is_pft_known_to_model(cft)) then
+             exists = .true.
+          else
+             exists = .false.
+          end if
+
+       else
+          ! For a run without transient crops, only allocate memory for crops that are
+          ! actually present in this run. (This will require running init_interp when
+          ! changing between a transient crop run and a non-transient run.)
+          if (wt_lunit(gi, istcrop) > 0.0_r8 .and. wt_cft(gi, cft) > 0.0_r8) then
+             exists = .true.
+          else
+             exists = .false.
+          end if
+       end if
+
+    else  ! create_crop_landunit false
+       exists = .false.
     end if
-    if (present(ncrop )) ncrop  = npatches_per_lunit
 
-    ! -------------------------------------------------------------------------
-    ! Determine return arguments
-    ! -------------------------------------------------------------------------
+  end function crop_patch_exists
 
-    if (present(nlunits  )) nlunits  = ilunits
-    if (present(ncols    )) ncols    = icols
-    if (present(npatches )) npatches = ipatches
-    if (present(ncohorts )) ncohorts = icohorts
 
-  end subroutine subgrid_get_gcellinfo
 
 end module subgridMod

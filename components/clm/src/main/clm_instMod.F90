@@ -7,12 +7,13 @@ module clm_instMod
   ! !USES:
   use shr_kind_mod    , only : r8 => shr_kind_r8
   use decompMod       , only : bounds_type
-  use clm_varpar      , only : crop_prog, ndecomp_pools, nlevdecomp_full
+  use clm_varpar      , only : ndecomp_pools, nlevdecomp_full
   use clm_varctl      , only : use_cn, use_c13, use_c14, use_lch4, use_cndv, use_ed, use_voc
-  use clm_varctl      , only : use_century_decomp
+  use clm_varctl      , only : use_century_decomp, use_crop
   use clm_varcon      , only : h2osno_max, bdsno, c13ratio, c14ratio
   use landunit_varcon , only : istice, istice_mec, istsoil
   use perf_mod        , only : t_startf, t_stopf
+  use controlMod      , only : NLFilename
 
   !-----------------------------------------
   ! Constants
@@ -20,9 +21,9 @@ module clm_instMod
 
   use UrbanParamsType                    , only : urbanparams_type   ! Constants 
   use UrbanParamsType                    , only : IsSimpleBuildTemp, IsProgBuildTemp
+  use UrbanTimeVarType                   , only : urbantv_type
   use SoilBiogeochemDecompCascadeConType , only : decomp_cascade_con
   use CNDVType                           , only : dgv_ecophyscon     ! Constants 
-  use EDEcophysConType                   , only : EDecophyscon       ! ED Constants
 
   !-----------------------------------------
   ! Definition of component types 
@@ -31,23 +32,18 @@ module clm_instMod
   use AerosolMod                      , only : aerosol_type
   use CanopyStateType                 , only : canopystate_type
   use ch4Mod                          , only : ch4_type
-  use CNBalanceCheckMod               , only : cn_balance_type
-  use CNVegStateType                  , only : cnveg_state_type
-  use CNVegCarbonFluxType             , only : cnveg_carbonflux_type
-  use CNVegCarbonStateType            , only : cnveg_carbonstate_type
-  use CNVegNitrogenFluxType           , only : cnveg_nitrogenflux_type
-  use CNVegNitrogenStateType          , only : cnveg_nitrogenstate_type
+  use CNVegetationFacade              , only : cn_vegetation_type
   use SoilBiogeochemStateType         , only : soilbiogeochem_state_type
   use SoilBiogeochemCarbonFluxType    , only : soilbiogeochem_carbonflux_type
   use SoilBiogeochemCarbonStateType   , only : soilbiogeochem_carbonstate_type
   use SoilBiogeochemNitrogenFluxType  , only : soilbiogeochem_nitrogenflux_type
   use SoilBiogeochemNitrogenStateType , only : soilbiogeochem_nitrogenstate_type
-  use CNDVType                        , only : dgvs_type
   use CropType                        , only : crop_type
   use DryDepVelocity                  , only : drydepvel_type
   use DUSTMod                         , only : dust_type
   use EnergyFluxType                  , only : energyflux_type
   use FrictionVelocityMod             , only : frictionvel_type
+  use GlacierSurfaceMassBalanceMod    , only : glacier_smb_type
   use IrrigationMod                   , only : irrigation_type
   use LakeStateType                   , only : lakestate_type
   use OzoneBaseMod                    , only : ozone_base_type
@@ -62,20 +58,21 @@ module clm_instMod
   use WaterFluxType                   , only : waterflux_type
   use WaterStateType                  , only : waterstate_type
   use UrbanParamsType                 , only : urbanparams_type
+  use UrbanTimeVarType                , only : urbantv_type
   use HumanIndexMod                   , only : humanindex_type
   use VOCEmissionMod                  , only : vocemis_type
+  use CNFireEmissionsMod              , only : fireemis_type
   use atm2lndType                     , only : atm2lnd_type
   use lnd2atmType                     , only : lnd2atm_type
   use lnd2glcMod                      , only : lnd2glc_type 
   use glc2lndMod                      , only : glc2lnd_type
-  use glcDiagnosticsMod               , only : glc_diagnostics_type
-  use GridcellType                    , only : grc                
+  use glcBehaviorMod                  , only : glc_behavior_type
+  use TopoMod                         , only : topo_type
+  use GridcellType                    , only : grc
   use LandunitType                    , only : lun                
   use ColumnType                      , only : col                
   use PatchType                       , only : patch                
-  use EDTypesMod                      , only : ed_site_type
-  use EDPhenologyType                 , only : ed_phenology_type
-  use EDCLMLinkMod                    , only : ed_clm_type
+  use CLMFatesInterfaceMod            , only : hlm_fates_interface_type
   use SoilWaterRetentionCurveMod      , only : soil_water_retention_curve_type
   use NutrientCompetitionMethodMod    , only : nutrient_competition_method_type
   !
@@ -96,6 +93,7 @@ module clm_instMod
   type(canopystate_type)                  :: canopystate_inst
   type(energyflux_type)                   :: energyflux_inst
   type(frictionvel_type)                  :: frictionvel_inst
+  type(glacier_smb_type)                  :: glacier_smb_inst
   type(irrigation_type)                   :: irrigation_inst
   type(lakestate_type)                    :: lakestate_inst
   class(ozone_base_type), allocatable     :: ozone_inst
@@ -107,6 +105,7 @@ module clm_instMod
   type(surfrad_type)                      :: surfrad_inst
   type(temperature_type)                  :: temperature_inst
   type(urbanparams_type)                  :: urbanparams_inst
+  type(urbantv_type)                      :: urbantv_inst
   type(humanindex_type)                   :: humanindex_inst
   type(waterflux_type)                    :: waterflux_inst
   type(waterstate_type)                   :: waterstate_inst
@@ -114,20 +113,14 @@ module clm_instMod
   type(glc2lnd_type)                      :: glc2lnd_inst
   type(lnd2atm_type)                      :: lnd2atm_inst
   type(lnd2glc_type)                      :: lnd2glc_inst
-  type(glc_diagnostics_type)              :: glc_diagnostics_inst
+  type(glc_behavior_type)                 :: glc_behavior
+  type(topo_type)                         :: topo_inst
   class(soil_water_retention_curve_type) , allocatable :: soil_water_retention_curve
 
-  ! CN vegetation types  
-  type(cnveg_state_type)                  :: cnveg_state_inst
-  type(cnveg_carbonstate_type)            :: cnveg_carbonstate_inst
-  type(cnveg_carbonstate_type)            :: c13_cnveg_carbonstate_inst
-  type(cnveg_carbonstate_type)            :: c14_cnveg_carbonstate_inst
-  type(cnveg_carbonflux_type)             :: cnveg_carbonflux_inst
-  type(cnveg_carbonflux_type)             :: c13_cnveg_carbonflux_inst
-  type(cnveg_carbonflux_type)             :: c14_cnveg_carbonflux_inst
-  type(cnveg_nitrogenstate_type)          :: cnveg_nitrogenstate_inst
-  type(cnveg_nitrogenflux_type)           :: cnveg_nitrogenflux_inst
-  type(cn_balance_type)                   :: cn_balance_inst
+  ! CN vegetation types
+  ! Eventually bgc_vegetation_inst will be an allocatable instance of an abstract
+  ! interface
+  type(cn_vegetation_type)                :: bgc_vegetation_inst
   class(nutrient_competition_method_type), allocatable :: nutrient_competition_method
 
   ! Soil biogeochem types 
@@ -143,47 +136,61 @@ module clm_instMod
 
   ! General biogeochem types
   type(ch4_type)                          :: ch4_inst
-  type(dgvs_type)                         :: dgvs_inst
   type(crop_type)                         :: crop_inst
   type(dust_type)                         :: dust_inst
   type(vocemis_type)                      :: vocemis_inst
+  type(fireemis_type)                     :: fireemis_inst
   type(drydepvel_type)                    :: drydepvel_inst
 
-  ! ED types passed in from top level
-  type(ed_site_type), allocatable, target :: ed_allsites_inst(:)
-  type(ed_phenology_type)                 :: ed_phenology_inst
-  type(ed_clm_type)                       :: ed_clm_inst
+  ! FATES
+  type(hlm_fates_interface_type)          :: clm_fates
+
   !
-  public :: clm_instInit
-  public :: clm_instRest
+  public :: clm_instInit       ! Initialize
+  public :: clm_instReadNML    ! Read in namelist
+  public :: clm_instRest       ! Setup restart
   !-----------------------------------------------------------------------
 
 contains
 
   !-----------------------------------------------------------------------
+  subroutine clm_instReadNML( NLFilename )
+    !
+    ! !ARGUMENTS    
+    implicit none
+    character(len=*), intent(IN) :: NLFilename ! Namelist filename
+    ! Read in any namelists that must be read for any clm object instances that need it
+    call canopystate_inst%ReadNML( NLFilename )
+    call photosyns_inst%ReadNML(   NLFilename )
+
+  end subroutine clm_instReadNML
+
+  !-----------------------------------------------------------------------
   subroutine clm_instInit(bounds)
     !
     ! !USES: 
-    use clm_varpar                         , only : nlevsno, numpft, crop_prog
+    use clm_varpar                         , only : nlevsno, numpft
     use controlMod                         , only : nlfilename, fsurdat
     use domainMod                          , only : ldomain
     use SoilBiogeochemDecompCascadeBGCMod  , only : init_decompcascade_bgc
     use SoilBiogeochemDecompCascadeCNMod   , only : init_decompcascade_cn
     use SoilBiogeochemDecompCascadeContype , only : init_decomp_cascade_constants
-    use EDEcophysConType                   , only : EDecophysconInit 
-    use EDPftVarcon                        , only : EDpftvarcon_inst
+    
     use initVerticalMod                    , only : initVertical
     use accumulMod                         , only : print_accum_fields 
     use SoilWaterRetentionCurveFactoryMod  , only : create_soil_water_retention_curve
+    use decompMod                          , only : get_proc_bounds
     !
     ! !ARGUMENTS    
     type(bounds_type), intent(in) :: bounds  ! processor bounds
     !
     ! !LOCAL VARIABLES:
     integer               :: c,l,g
+    integer               :: nclumps,nc
     integer               :: begp, endp
     integer               :: begc, endc
     integer               :: begl, endl
+    type(bounds_type)     :: bounds_clump
     real(r8), allocatable :: h2osno_col(:)
     real(r8), allocatable :: snow_depth_col(:)
 
@@ -195,31 +202,27 @@ contains
 
     begp = bounds%begp; endp = bounds%endp 
     begc = bounds%begc; endc = bounds%endc 
-    begl = bounds%begl; endl = bounds%endl 
+    begl = bounds%begl; endl = bounds%endl
 
     allocate (h2osno_col(begc:endc))
     allocate (snow_depth_col(begc:endc))
 
     ! snow water
-    ! Note: Glacier_mec columns are initialized with half the maximum snow cover.
-    ! This gives more realistic values of qflx_glcice sooner in the simulation
-    ! for columns with net ablation, at the cost of delaying ice formation
-    ! in columns with net accumulation.
     do c = begc,endc
        l = col%landunit(c)
        g = col%gridcell(c)
 
-       if (lun%itype(l)==istice) then
-          h2osno_col(c) = h2osno_max
-       elseif (lun%itype(l)==istice_mec .or. &
-              (lun%itype(l)==istsoil .and. abs(grc%latdeg(g)) >= 60._r8)) then 
-          ! In order to speed equilibration of the snow pack, initialize non-zero snow
-          ! thickness in some places. This is mainly of interest for glacier spinup.
-          ! However, putting in an explicit dependence on glcmask is problematic, because
-          ! that means that answers change simply due to changing glcmask (which may be
-          ! done simply to have additional virtual columns for the sake of diagnostics).
-          ! Thus, we apply this non-zero initialization at all high latitude soil points.
-          h2osno_col(c) = 0.5_r8 * h2osno_max   ! 50 cm if h2osno_max = 1 m
+       ! In areas that should be snow-covered, it can be problematic to start with 0 snow
+       ! cover, because this can affect the long-term state through soil heating, albedo
+       ! feedback, etc. On the other hand, we would introduce hysteresis by putting too
+       ! much snow in places that are in a net melt regime, because the melt-albedo
+       ! feedback may not activate on time (or at all). So, as a compromise, we start with
+       ! a small amount of snow in places that are likely to be snow-covered for much or
+       ! all of the year.
+       if (lun%itype(l)==istice .or. lun%itype(l)==istice_mec) then
+          h2osno_col(c) = 100._r8
+       else if (lun%itype(l)==istsoil .and. abs(grc%latdeg(g)) >= 60._r8) then 
+          h2osno_col(c) = 100._r8
        else
           h2osno_col(c) = 0._r8
        endif
@@ -231,9 +234,13 @@ contains
     call urbanparams_inst%Init(bounds)
     call humanindex_inst%Init(bounds)
 
+    ! Initialize urban time varying data
+    call urbantv_inst%Init(bounds, NLFilename)
+
     ! Initialize vertical data components 
 
     call initVertical(bounds,               &
+         glc_behavior, &
          snow_depth_col(begc:endc),              &
          urbanparams_inst%thick_wall(begl:endl), &
          urbanparams_inst%thick_roof(begl:endl))
@@ -246,8 +253,11 @@ contains
     ! Initialize glc2lnd and lnd2glc even if running without create_glacier_mec_landunit,
     ! because at least some variables (such as the icemask) are referred to in code that
     ! is executed even when running without glc_mec.
+    !
+    ! NOTE(wjs, 2016-04-01) I'm not sure if that's true any more (it isn't true for
+    ! icemask), but I'm keeping this as is for now anyway.
 
-    call glc2lnd_inst%Init( bounds )
+    call glc2lnd_inst%Init( bounds, glc_behavior )
     call lnd2glc_inst%Init( bounds )
 
     ! Initialization of public data types
@@ -271,6 +281,8 @@ contains
          temperature_inst%t_soisno_col(begc:endc, -nlevsno+1:) )
 
     call waterflux_inst%Init(bounds)
+
+    call glacier_smb_inst%Init(bounds)
 
     ! COMPILER_BUG(wjs, 2014-11-29, pgi 14.7) Without the following assignment, the
     ! assertion in energyflux_inst%Init fails with pgi 14.7 on yellowstone, presumably due
@@ -302,8 +314,6 @@ contains
 
     call dust_inst%Init(bounds)
 
-    call glc_diagnostics_inst%Init(bounds)
-
     ! Once namelist options are added to control the soil water retention curve method,
     ! we'll need to either pass the namelist file as an argument to this routine, or pass
     ! the namelist value itself (if the namelist is read elsewhere).
@@ -313,26 +323,20 @@ contains
 
     call irrigation_inst%init(bounds, soilstate_inst, soil_water_retention_curve)
 
+    call topo_inst%Init(bounds)
+
     ! Note - always initialize the memory for ch4_inst
     call ch4_inst%Init(bounds, soilstate_inst%cellorg_col(begc:endc, 1:), fsurdat)
-
-    ! Note - always initialize the memory for cnveg_state_inst (used in biogeophys/)
-    call cnveg_state_inst%Init(bounds)
 
     if (use_voc ) then
        call vocemis_inst%Init(bounds)
     end if
 
+    call fireemis_inst%Init(bounds)
+
     call drydepvel_inst%Init(bounds)
 
-    if (use_cn) then
-
-       ! Note - always initialize the memory for the c13_xxx_inst and
-       ! c14_xxx_inst data structure so that they can be used in 
-       ! associate statements (nag compiler complains otherwise)
-
-       ! Note that SoillBiogeochem types must ALWAYS be allocated first - since CNVeg_xxxType
-       ! can reference SoilBiogeochem types (for both carbon and nitrogen)
+    if (use_cn .or. use_ed ) then
 
        ! Initialize soilbiogeochem_state_inst
 
@@ -349,7 +353,7 @@ contains
           call init_decompcascade_cn(bounds, soilbiogeochem_state_inst)
        end if
 
-       ! Initalize soilbiogeochem carbon and nitrogen types
+       ! Initalize soilbiogeochem carbon types
 
        call soilbiogeochem_carbonstate_inst%Init(bounds, carbon_type='c12', ratio=1._r8)
        if (use_c13) then
@@ -360,10 +364,6 @@ contains
           call c14_soilbiogeochem_carbonstate_inst%Init(bounds, carbon_type='c14', ratio=c14ratio, &
                c12_soilbiogeochem_carbonstate_inst=soilbiogeochem_carbonstate_inst)
        end if
-       call soilbiogeochem_nitrogenstate_inst%Init(bounds, &
-            soilbiogeochem_carbonstate_inst%decomp_cpools_vr_col(begc:endc,1:nlevdecomp_full,1:ndecomp_pools), &
-            soilbiogeochem_carbonstate_inst%decomp_cpools_col(begc:endc,1:ndecomp_pools),  &
-            soilbiogeochem_carbonstate_inst%decomp_cpools_1m_col(begc:endc, 1:ndecomp_pools))
 
        call soilbiogeochem_carbonflux_inst%Init(bounds, carbon_type='c12') 
        if (use_c13) then
@@ -372,44 +372,28 @@ contains
        if (use_c14) then
           call c14_soilbiogeochem_carbonflux_inst%Init(bounds, carbon_type='c14')
        end if
+
+    end if
+
+    if ( use_cn .or. use_ed) then 
+
+       ! Initalize soilbiogeochem nitrogen types
+
+       call soilbiogeochem_nitrogenstate_inst%Init(bounds, &
+            soilbiogeochem_carbonstate_inst%decomp_cpools_vr_col(begc:endc,1:nlevdecomp_full,1:ndecomp_pools), &
+            soilbiogeochem_carbonstate_inst%decomp_cpools_col(begc:endc,1:ndecomp_pools),  &
+            soilbiogeochem_carbonstate_inst%decomp_cpools_1m_col(begc:endc, 1:ndecomp_pools))
+
        call soilbiogeochem_nitrogenflux_inst%Init(bounds) 
 
-       ! Initalize cnveg carbon and nitrogen types
-
-       call cnveg_carbonstate_inst%Init(bounds, carbon_type='c12', ratio=1._r8)
-       if (use_c13) then
-          call c13_cnveg_carbonstate_inst%Init(bounds, carbon_type='c13', ratio=c13ratio, &
-               c12_cnveg_carbonstate_inst=cnveg_carbonstate_inst)
-       end if
-       if (use_c14) then
-          call c14_cnveg_carbonstate_inst%Init(bounds, carbon_type='c14', ratio=c14ratio, &
-               c12_cnveg_carbonstate_inst=cnveg_carbonstate_inst)
-       end if
-       call cnveg_carbonflux_inst%Init(bounds, carbon_type='c12')
-       if (use_c13) then
-          call c13_cnveg_carbonflux_inst%Init(bounds, carbon_type='c13')
-       end if
-       if (use_c14) then
-          call c14_cnveg_carbonflux_inst%Init(bounds, carbon_type='c14')
-       end if
-       call cnveg_nitrogenstate_inst%Init(bounds,                  &
-            cnveg_carbonstate_inst%leafc_patch(begp:endp),         &
-            cnveg_carbonstate_inst%leafc_storage_patch(begp:endp), &
-            cnveg_carbonstate_inst%frootc_patch(begp:endp), &
-            cnveg_carbonstate_inst%frootc_storage_patch(begp:endp), &
-            cnveg_carbonstate_inst%deadstemc_patch(begp:endp))
-       call cnveg_nitrogenflux_inst%Init(bounds) 
-
-       call cn_balance_inst%Init(bounds)
-
-       ! Note - always initialize the memory for the dgvs_inst data structure so
-       ! that it can be used in associate statements (nag compiler complains otherwise)
-
-       call dgvs_inst%Init(bounds)
-
-       call crop_inst%Init(bounds)
-       
     end if ! end of if use_cn 
+
+    ! Note - always call Init for bgc_vegetation_inst: some pieces need to be initialized always
+    call bgc_vegetation_inst%Init(bounds, nlfilename)
+
+    if (use_cn .or. use_ed) then
+       call crop_inst%Init(bounds)
+    end if
 
     ! NOTE (MV, 10-24-2014): because ed_allsites is currently passed as arguments to
     ! biogeophys routines in the present implementation - it needs to be allocated - 
@@ -417,13 +401,11 @@ contains
     ! if use_ed is true, then the actual memory for all of the ED data structures
     ! is allocated in the call to EDInitMod - called from clm_initialize
     ! NOTE (SPM, 10-27-2015) ... check on deallocation of ed_allsites_inst
+    ! NOTE (RGK, 04-25-2016) : Updating names, ED is now part of FATES
+    !                          Incrementally changing to ED names to FATES
 
-    allocate (ed_allsites_inst(bounds%begg:bounds%endg))
-    if (use_ed) then
-       call ed_clm_inst%Init(bounds)
-       call ed_phenology_inst%Init(bounds)
-       call EDecophysconInit( EDpftvarcon_inst, numpft)
-    end if
+    call clm_fates%Init(bounds,use_ed)
+    call clm_fates%init_allocate()
 
     deallocate (h2osno_col)
     deallocate (snow_depth_col)
@@ -440,18 +422,14 @@ contains
     call atm2lnd_inst%InitAccBuffer(bounds)
 
     call temperature_inst%InitAccBuffer(bounds)
-
-    if (use_ed) then
-       call ed_phenology_inst%initAccBuffer(bounds)
-    endif
+    
+    call waterflux_inst%InitAccBuffer(bounds)
 
     call canopystate_inst%InitAccBuffer(bounds)
 
-    if (use_cndv) then
-       call dgvs_inst%InitAccBuffer(bounds)
-    end if
+    call bgc_vegetation_inst%InitAccBuffer(bounds)
 
-    if (crop_prog) then
+    if (use_crop) then
        call crop_inst%InitAccBuffer(bounds)
     end if
 
@@ -468,14 +446,22 @@ contains
     use ncdio_pio       , only : file_desc_t
     use EDRestVectorMod , only : EDRest
     use UrbanParamsType , only : IsSimpleBuildTemp, IsProgBuildTemp
+    use decompMod       , only : get_proc_bounds, get_proc_clumps, get_clump_bounds
+
     !
     ! !DESCRIPTION:
     ! Define/write/read CLM restart file.
     !
     ! !ARGUMENTS:
     type(bounds_type) , intent(in)    :: bounds          
+    
     type(file_desc_t) , intent(inout) :: ncid ! netcdf id
     character(len=*)  , intent(in)    :: flag ! 'define', 'write', 'read' 
+
+    ! Local variables
+    integer                           :: nc, nclumps
+    type(bounds_type)                 :: bounds_clump
+
     !-----------------------------------------------------------------------
 
     call atm2lnd_inst%restart (bounds, ncid, flag=flag)
@@ -500,6 +486,8 @@ contains
     call temperature_inst%restart (bounds, ncid, flag=flag, &
          is_simple_buildtemp=IsSimpleBuildTemp(), is_prog_buildtemp=IsProgBuildTemp())
 
+    call soilstate_inst%restart (bounds, ncid, flag=flag)
+
     call waterflux_inst%restart (bounds, ncid, flag=flag)
 
     call waterstate_inst%restart (bounds, ncid, flag=flag, &
@@ -515,11 +503,13 @@ contains
          tlai_patch=canopystate_inst%tlai_patch(bounds%begp:bounds%endp), &
          tsai_patch=canopystate_inst%tsai_patch(bounds%begp:bounds%endp))
 
+    call topo_inst%restart (bounds, ncid, flag=flag)
+
     if (use_lch4) then
        call ch4_inst%restart(bounds, ncid, flag=flag)
     end if
 
-    if (use_cn) then
+    if (use_cn .or. use_ed) then
 
        call soilbiogeochem_state_inst%restart(bounds, ncid, flag=flag)
        call soilbiogeochem_carbonstate_inst%restart(bounds, ncid, flag=flag, carbon_type='c12')
@@ -532,36 +522,26 @@ contains
                c12_soilbiogeochem_carbonstate_inst=soilbiogeochem_carbonstate_inst)
        end if
        call soilbiogeochem_carbonflux_inst%restart(bounds, ncid, flag=flag)
+    endif
+    if ( use_cn ) then
+       
        call soilbiogeochem_nitrogenstate_inst%restart(bounds, ncid, flag=flag)
        call soilbiogeochem_nitrogenflux_inst%restart(bounds, ncid, flag=flag)
 
-       call cnveg_state_inst%restart(bounds, ncid, flag=flag)
-       call cnveg_carbonstate_inst%restart(bounds, ncid, flag=flag, carbon_type='c12')
-       if (use_c13) then
-          call c13_cnveg_carbonstate_inst%restart(bounds, ncid, flag=flag, carbon_type='c13', &
-               c12_cnveg_carbonstate_inst=cnveg_carbonstate_inst)
-       end if
-       if (use_c14) then
-          call c14_cnveg_carbonstate_inst%restart(bounds, ncid, flag=flag, carbon_type='c14', &
-               c12_cnveg_carbonstate_inst=cnveg_carbonstate_inst)
-       end if
-       call cnveg_carbonflux_inst%restart(bounds, ncid, flag=flag)
-       call cnveg_nitrogenstate_inst%restart(bounds, ncid, flag=flag)
-       call cnveg_nitrogenflux_inst%restart(bounds, ncid, flag=flag)
+       call bgc_vegetation_inst%restart(bounds, ncid, flag=flag)
 
-    end if
-
-    if (use_cndv) then
-       call dgvs_inst%Restart(bounds, ncid, flag=flag)
+       call crop_inst%restart(bounds, ncid, flag=flag)
     end if
 
     if (use_ed) then
-       call ED_Phenology_inst%restart(bounds, ncid, flag=flag)
-       call EDRest ( bounds, ncid, flag, ed_allsites_inst(bounds%begg:bounds%endg), &
-            ed_clm_inst, ed_phenology_inst, waterstate_inst, canopystate_inst )
+
+       ! Bounds are not passed to FATES init_restart because
+       ! we call a loop on clumps within this subroutine anyway
+       call clm_fates%init_restart(ncid,flag, waterstate_inst, canopystate_inst)
+
     end if
 
-  end subroutine clm_instRest
+ end subroutine clm_instRest
 
 end module clm_instMod
 

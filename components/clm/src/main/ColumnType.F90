@@ -22,6 +22,8 @@ module ColumnType
   use shr_infnan_mod , only : nan => shr_infnan_nan, assignment(=)
   use clm_varpar     , only : nlevsno, nlevgrnd, nlevlak
   use clm_varcon     , only : spval, ispval
+  use shr_sys_mod    , only : shr_sys_abort
+  use clm_varctl     , only : iulog
   !
   ! !PUBLIC TYPES:
   implicit none
@@ -39,11 +41,12 @@ module ColumnType
      integer , pointer :: npatches             (:)   ! number of patches for each column
 
      ! topological mapping functionality
-     integer , pointer :: itype                (:)   ! column type
+     integer , pointer :: itype                (:)   ! column type (after init, should only be modified via update_itype routine)
      logical , pointer :: active               (:)   ! true=>do computations on this column 
+     logical , pointer :: type_is_dynamic      (:)   ! true=>itype can change throughout the run
 
      ! topography
-     real(r8), pointer :: glc_topo             (:)   ! surface elevation (m)
+     ! TODO(wjs, 2016-04-05) Probably move these things into topoMod
      real(r8), pointer :: micro_sigma          (:)   ! microtopography pdf sigma (m)
      real(r8), pointer :: n_melt               (:)   ! SCA shape parameter
      real(r8), pointer :: topo_slope           (:)   ! gridcell topographic slope
@@ -58,11 +61,25 @@ module ColumnType
      real(r8), pointer :: dz_lake              (:,:) ! lake layer thickness (m)  (1:nlevlak)
      real(r8), pointer :: z_lake               (:,:) ! layer depth for lake (m)
      real(r8), pointer :: lakedepth            (:)   ! variable lake depth (m)                             
+     integer , pointer :: nbedrock             (:)   ! variable depth to bedrock index
 
+     ! levgrnd_class gives the class in which each layer falls. This is relevant for
+     ! columns where there are 2 or more fundamentally different layer types. For
+     ! example, this distinguishes between soil and bedrock layers. The particular value
+     ! assigned to each class is irrelevant; the important thing is that different
+     ! classes (e.g., soil vs. bedrock) have different values of levgrnd_class.
+     !
+     ! levgrnd_class = ispval indicates that the given layer is completely unused for
+     ! this column (i.e., this column doesn't use the full nlevgrnd layers).
+     integer , pointer :: levgrnd_class        (:,:) ! class in which each layer falls (1:nlevgrnd)
    contains
 
      procedure, public :: Init
      procedure, public :: Clean
+
+     ! Update the column type for one column. Any updates to col%itype after
+     ! initialization should be made via this routine.
+     procedure, public :: update_itype
 
   end type column_type
 
@@ -86,9 +103,10 @@ contains
     allocate(this%wtlunit     (begc:endc))                     ; this%wtlunit     (:)   = nan
     allocate(this%patchi      (begc:endc))                     ; this%patchi      (:)   = ispval
     allocate(this%patchf      (begc:endc))                     ; this%patchf      (:)   = ispval
-    allocate(this%npatches     (begc:endc))                     ; this%npatches     (:)   = ispval
+    allocate(this%npatches     (begc:endc))                    ; this%npatches     (:)   = ispval
     allocate(this%itype       (begc:endc))                     ; this%itype       (:)   = ispval
     allocate(this%active      (begc:endc))                     ; this%active      (:)   = .false.
+    allocate(this%type_is_dynamic(begc:endc))                  ; this%type_is_dynamic(:) = .false.
 
     ! The following is set in initVerticalMod
     allocate(this%snl         (begc:endc))                     ; this%snl         (:)   = ispval  !* cannot be averaged up
@@ -100,7 +118,8 @@ contains
     allocate(this%dz_lake     (begc:endc,nlevlak))             ; this%dz_lake     (:,:) = nan
     allocate(this%z_lake      (begc:endc,nlevlak))             ; this%z_lake      (:,:) = nan
 
-    allocate(this%glc_topo    (begc:endc))                     ; this%glc_topo    (:)   = nan
+    allocate(this%nbedrock   (begc:endc))                     ; this%nbedrock   (:)   = ispval  
+    allocate(this%levgrnd_class(begc:endc,nlevgrnd))           ; this%levgrnd_class(:,:) = ispval
     allocate(this%micro_sigma (begc:endc))                     ; this%micro_sigma (:)   = nan
     allocate(this%n_melt      (begc:endc))                     ; this%n_melt      (:)   = nan 
     allocate(this%topo_slope  (begc:endc))                     ; this%topo_slope  (:)   = nan
@@ -124,6 +143,7 @@ contains
     deallocate(this%npatches    )
     deallocate(this%itype      )
     deallocate(this%active     )
+    deallocate(this%type_is_dynamic)
     deallocate(this%snl        )
     deallocate(this%dz         )
     deallocate(this%z          )
@@ -132,13 +152,43 @@ contains
     deallocate(this%lakedepth  )
     deallocate(this%dz_lake    )
     deallocate(this%z_lake     )
-    deallocate(this%glc_topo   )
     deallocate(this%micro_sigma)
     deallocate(this%n_melt     )
     deallocate(this%topo_slope )
     deallocate(this%topo_std   )
+    deallocate(this%nbedrock   )
+    deallocate(this%levgrnd_class)
 
   end subroutine Clean
+
+  !-----------------------------------------------------------------------
+  subroutine update_itype(this, c, itype)
+    !
+    ! !DESCRIPTION:
+    ! Update the column type for one column. Any updates to col%itype after
+    ! initialization should be made via this routine.
+    !
+    ! !ARGUMENTS:
+    class(column_type), intent(inout) :: this
+    integer, intent(in) :: c
+    integer, intent(in) :: itype
+    !
+    ! !LOCAL VARIABLES:
+
+    character(len=*), parameter :: subname = 'update_itype'
+    !-----------------------------------------------------------------------
+
+    if (col%type_is_dynamic(c)) then
+       col%itype(c) = itype
+    else
+       write(iulog,*) subname//' ERROR: attempt to update itype when type_is_dynamic is false'
+       write(iulog,*) 'c, col%itype(c), itype = ', c, col%itype(c), itype
+       ! Need to use shr_sys_abort rather than endrun, because using endrun would cause
+       ! circular dependencies
+       call shr_sys_abort(subname//' ERROR: attempt to update itype when type_is_dynamic is false')
+    end if
+  end subroutine update_itype
+
 
 
 end module ColumnType

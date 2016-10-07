@@ -16,7 +16,9 @@ module NutrientCompetitionCLM45defaultMod
   use LandunitType        , only : lun                
   use ColumnType          , only : col                
   use PatchType           , only : patch                
-  use NutrientCompetitionMethodMod, only : nutrient_competition_method_type  
+  use NutrientCompetitionMethodMod, only : nutrient_competition_method_type
+  use NutrientCompetitionMethodMod, only : params_inst
+  !use clm_varctl          , only : iulog  
   !
   implicit none
   private
@@ -28,7 +30,7 @@ module NutrientCompetitionCLM45defaultMod
      private
    contains
      ! public methocs
-     procedure, public :: readParams
+     procedure, public :: init                                ! Initialize the class
      procedure, public :: calc_plant_nutrient_competition     ! calculate nutrient yield rate from competition
      procedure, public :: calc_plant_nutrient_demand          ! calculate plant nutrient demand 
      !
@@ -42,11 +44,9 @@ module NutrientCompetitionCLM45defaultMod
      module procedure constructor  
   end interface nutrient_competition_clm45default_type
   !
-  type, private :: params_type
-     real(r8), private :: dayscrecover      ! number of days to recover negative cpool
-  end type params_type
-  !
-  type(params_type), private :: params_inst  ! params_inst is populated in readParamsMod  
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !------------------------------------------------------------------------
   
 contains
@@ -60,50 +60,37 @@ contains
 
   end function constructor
 
-  !-----------------------------------------------------------------------
-  subroutine readParams (this, ncid )
+  !------------------------------------------------------------------------
+  subroutine Init(this, bounds)
     !
-    ! !USES:
-    use ncdio_pio , only : file_desc_t,ncd_io
-    use abortutils, only : endrun
+    ! !DESCRIPTION:
+    ! Initialize the class (currently empty for this version)
     !
-    ! !ARGUMENTS:
-    class(nutrient_competition_clm45default_type), intent(in) :: this
-    type(file_desc_t),intent(inout) :: ncid   ! pio netCDF file id
-    !
-    ! !LOCAL VARIABLES:
-    character(len=100) :: errCode = '-Error reading in parameters file:'
-    logical            :: readv ! has variable been read in or not
-    real(r8)           :: tempr ! temporary to read in parameter
-    character(len=100) :: tString ! temp. var for reading
-    !-----------------------------------------------------------------------
+    class(nutrient_competition_clm45default_type) :: this
+    type(bounds_type), intent(in) :: bounds
 
-    ! read in parameters
-
-    tString='dayscrecover'
-    call ncd_io(varname=trim(tString),data=tempr, flag='read', ncid=ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
-    params_inst%dayscrecover=tempr
-
-  end subroutine readParams
+  end subroutine Init
 
   !-----------------------------------------------------------------------
-  subroutine calc_plant_nutrient_competition (this, &
-       bounds, num_soilp, filter_soilp, &
-       cnveg_state_inst, cnveg_carbonflux_inst, &
-       c13_cnveg_carbonflux_inst, c14_cnveg_carbonflux_inst, &
-       cnveg_nitrogenstate_inst, cnveg_nitrogenflux_inst, &
-       soilbiogeochem_nitrogenstate_inst, &
-       aroot, arepr, fpg_col)                                              
+  subroutine calc_plant_nutrient_competition (this,                   &
+          bounds, num_soilp, filter_soilp,                            &
+          cnveg_state_inst, crop_inst, canopystate_inst, cnveg_carbonstate_inst, &
+          cnveg_carbonflux_inst,                                      &
+          c13_cnveg_carbonflux_inst, c14_cnveg_carbonflux_inst,       &
+          cnveg_nitrogenstate_inst, cnveg_nitrogenflux_inst,          &
+          soilbiogeochem_nitrogenstate_inst,                          &
+          aroot, arepr, fpg_col)
     !
     ! !USES:
-    use shr_kind_mod          , only : r8 => shr_kind_r8
-    use decompMod             , only : bounds_type       
     use CNVegStateType        , only : cnveg_state_type
+    use CropType              , only : crop_type
+    use CanopyStateType        , only : canopystate_type
+    use CNVegCarbonStateType  , only : cnveg_carbonstate_type
     use CNVegCarbonFluxType   , only : cnveg_carbonflux_type
     use CNVegNitrogenStateType, only : cnveg_nitrogenstate_type
     use CNVegNitrogenFluxType , only : cnveg_nitrogenflux_type
     use SoilBiogeochemNitrogenStateType, only : soilbiogeochem_nitrogenstate_type
+    use CNSharedParamsMod     , only : use_fun
     !
     ! !ARGUMENTS:
     class(nutrient_competition_clm45default_type), intent(inout) :: this
@@ -111,6 +98,9 @@ contains
     integer                         , intent(in)    :: num_soilp        ! number of soil patches in filter
     integer                         , intent(in)    :: filter_soilp(:)  ! filter for soil patches
     type(cnveg_state_type)          , intent(inout) :: cnveg_state_inst
+    type(crop_type)                 , intent(in)    :: crop_inst
+    type(canopystate_type)          , intent(in)    :: canopystate_inst
+    type(cnveg_carbonstate_type)    , intent(in)    :: cnveg_carbonstate_inst
     type(cnveg_carbonflux_type)     , intent(inout) :: cnveg_carbonflux_inst
     type(cnveg_carbonflux_type)     , intent(inout) :: c13_cnveg_carbonflux_inst
     type(cnveg_carbonflux_type)     , intent(inout) :: c14_cnveg_carbonflux_inst
@@ -122,27 +112,34 @@ contains
     real(r8)                        , intent(in)    :: fpg_col(bounds%begc:)
 
     call this%calc_plant_cn_alloc (bounds, num_soilp, filter_soilp,        &
-       cnveg_state_inst, cnveg_carbonflux_inst, c13_cnveg_carbonflux_inst, &
-       c14_cnveg_carbonflux_inst, cnveg_nitrogenflux_inst,                 &
-       aroot=aroot(bounds%begp:bounds%endp),                               &
-       arepr=arepr(bounds%begp:bounds%endp),                               &
-       fpg_col=fpg_col(bounds%begc:bounds%endc))
+         cnveg_state_inst, crop_inst, canopystate_inst, &
+         cnveg_carbonstate_inst, cnveg_carbonflux_inst, c13_cnveg_carbonflux_inst, &
+         c14_cnveg_carbonflux_inst, cnveg_nitrogenflux_inst,                 &
+         aroot=aroot(bounds%begp:bounds%endp),                               &
+         arepr=arepr(bounds%begp:bounds%endp),                               &
+         fpg_col=fpg_col(bounds%begc:bounds%endc))
 
   end subroutine calc_plant_nutrient_competition
 
   !-----------------------------------------------------------------------
   subroutine calc_plant_cn_alloc (this, bounds, num_soilp, filter_soilp,   &
-       cnveg_state_inst, cnveg_carbonflux_inst, c13_cnveg_carbonflux_inst, &
+       cnveg_state_inst, crop_inst, canopystate_inst, &
+       cnveg_carbonstate_inst, cnveg_carbonflux_inst, c13_cnveg_carbonflux_inst, &
        c14_cnveg_carbonflux_inst, cnveg_nitrogenflux_inst,                 &
        aroot, arepr, fpg_col)                                              
     !
     ! !USES:
-    use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
     use pftconMod             , only : pftcon, npcropmin
     use clm_varctl            , only : use_c13, use_c14
     use CNVegStateType        , only : cnveg_state_type
+    use CropType              , only : crop_type
+    use CanopyStateType        , only : canopystate_type
+    use CNVegCarbonStateType   , only : cnveg_carbonstate_type
     use CNVegCarbonFluxType   , only : cnveg_carbonflux_type
     use CNVegNitrogenFluxType , only : cnveg_nitrogenflux_type
+    use CNSharedParamsMod     , only : use_fun
+    use shr_infnan_mod        , only : shr_infnan_isnan
+
     !
     ! !ARGUMENTS:
     class(nutrient_competition_clm45default_type), intent(in) :: this
@@ -150,6 +147,9 @@ contains
     integer                         , intent(in)    :: num_soilp        ! number of soil patches in filter
     integer                         , intent(in)    :: filter_soilp(:)  ! filter for soil patches
     type(cnveg_state_type)          , intent(inout) :: cnveg_state_inst
+    type(crop_type)                 , intent(in)    :: crop_inst
+    type(canopystate_type)          , intent(in)    :: canopystate_inst
+    type(cnveg_carbonstate_type)    , intent(in)    :: cnveg_carbonstate_inst
     type(cnveg_carbonflux_type)     , intent(inout) :: cnveg_carbonflux_inst
     type(cnveg_carbonflux_type)     , intent(inout) :: c13_cnveg_carbonflux_inst
     type(cnveg_carbonflux_type)     , intent(inout) :: c14_cnveg_carbonflux_inst
@@ -159,7 +159,7 @@ contains
     real(r8)                        , intent(in)    :: fpg_col(bounds%begc:)
     !
     ! !LOCAL VARIABLES:
-    integer :: c,p            ! indices
+    integer :: c,p,l,j            ! indices
     integer :: fp                 ! lake filter patch index
     real(r8):: f1,f2,f3,f4,g1,g2  ! allocation parameters
     real(r8):: cnl,cnfr,cnlw,cndw ! C:N ratios for leaf, fine root, and wood
@@ -168,16 +168,17 @@ contains
     real(r8):: nlc                ! temporary variable for total new leaf carbon allocation
     real(r8):: f5                 ! grain allocation parameter
     real(r8):: cng                ! C:N ratio for grain (= cnlw for now; slevis)
-    !-----------------------------------------------------------------------
+    real(r8):: fsmn(bounds%begp:bounds%endp)  ! A emperate variable for adjusting FUN uptakes 
+   !-----------------------------------------------------------------------
 
-    SHR_ASSERT_ALL((ubound(aroot)   == (/bounds%endp/)), errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(arepr)   == (/bounds%endp/)), errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(fpg_col) == (/bounds%endc/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(aroot)   == (/bounds%endp/)), errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(arepr)   == (/bounds%endp/)), errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(fpg_col) == (/bounds%endc/)), errMsg(sourcefile, __LINE__))
 
     associate(                                                                                       &
          fpg                          => fpg_col                                                   , & ! Input:  [real(r8) (:)   ]  fraction of potential gpp (no units)    
 
-         ivt                          => patch%itype                                                 , & ! Input:  [integer  (:) ]  patch vegetation type                                
+         ivt                          => patch%itype                                               , & ! Input:  [integer  (:) ]  patch vegetation type                                
          
          woody                        => pftcon%woody                                              , & ! Input:  binary flag for woody lifeform (1=woody, 0=not woody)
          froot_leaf                   => pftcon%froot_leaf                                         , & ! Input:  allocation parameter: new fine root C per new leaf C (gC/gC)
@@ -193,7 +194,8 @@ contains
          grperc                       => pftcon%grperc                                             , & ! Input:  growth respiration parameter
          grpnow                       => pftcon%grpnow                                             , & ! Input:  growth respiration parameter
 
-         croplive                     => cnveg_state_inst%croplive_patch                           , & ! Input:  [logical  (:)   ]  flag, true if planted, not harvested     
+         croplive                     => crop_inst%croplive_patch                                  , & ! Input:  [logical  (:)   ]  flag, true if planted, not harvested
+
          peaklai                      => cnveg_state_inst%peaklai_patch                            , & ! Input:  [integer  (:)   ]  1: max allowed lai; 0: not at max        
          aleaf                        => cnveg_state_inst%aleaf_patch                              , & ! Output: [real(r8) (:)   ]  leaf allocation coefficient             
          astem                        => cnveg_state_inst%astem_patch                              , & ! Output: [real(r8) (:)   ]  stem allocation coefficient             
@@ -241,16 +243,23 @@ contains
          npool_to_livecrootn          => cnveg_nitrogenflux_inst%npool_to_livecrootn_patch         , & ! Output: [real(r8) (:)   ]                                          
          npool_to_livecrootn_storage  => cnveg_nitrogenflux_inst%npool_to_livecrootn_storage_patch , & ! Output: [real(r8) (:)   ]                                          
          npool_to_deadcrootn          => cnveg_nitrogenflux_inst%npool_to_deadcrootn_patch         , & ! Output: [real(r8) (:)   ]                                          
-         npool_to_deadcrootn_storage  => cnveg_nitrogenflux_inst%npool_to_deadcrootn_storage_patch   & ! Output: [real(r8) (:)   ]                                          
+         npool_to_deadcrootn_storage  => cnveg_nitrogenflux_inst%npool_to_deadcrootn_storage_patch , & ! Output: [real(r8) (:)   ]                                          
+         Npassive                     => cnveg_nitrogenflux_inst%Npassive_patch                    , & ! Output:  [real(r8) (:) ]  Passive N uptake (gN/m2/s)
+         Nfix                         => cnveg_nitrogenflux_inst%Nfix_patch                        , & ! Output:  [real(r8) (:) ]  Symbiotic BNF (gN/m2/s)
+         Nactive                      => cnveg_nitrogenflux_inst%Nactive_patch                     , & ! Output:  [real(r8) (:) ]  Mycorrhizal N uptake (gN/m2/s)
+         Nnonmyc                      => cnveg_nitrogenflux_inst%Nnonmyc_patch                     , & ! Output:  [real(r8) (:) ]  Non-mycorrhizal N uptake (gN/m2/s)
+         Nam                          => cnveg_nitrogenflux_inst%Nam_patch                         , & ! Output:  [real(r8) (:) ]  AM uptake (gN/m2/s)
+         Necm                         => cnveg_nitrogenflux_inst%Necm_patch                        , & ! Output:  [real(r8) (:) ]  ECM uptake (gN/m2/s)
+         sminn_to_plant_fun           => cnveg_nitrogenflux_inst%sminn_to_plant_fun_patch           & ! Output:  [real(r8) (:) ]  Total N uptake of FUN (gN/m2/s)
          )
 
-      f5 = nan
       ! patch loop to distribute the available N between the competing patches 
       ! on the basis of relative demand, and allocate C and N to new growth and storage
 
       do fp = 1,num_soilp
          p = filter_soilp(fp)
          c = patch%column(p)
+
 
          ! set some local allocation variables
          f1 = froot_leaf(ivt(p))
@@ -279,7 +288,7 @@ contains
          fcur = fcur2(ivt(p))
 
          if (ivt(p) >= npcropmin) then ! skip 2 generic crops
-            if (croplive(p)) then
+           if (croplive(p).and.(.not.shr_infnan_isnan(aleaf(p)))) then
                f1 = aroot(p) / aleaf(p)
                f3 = astem(p) / aleaf(p)
                f5 = arepr(p) / aleaf(p)
@@ -292,39 +301,41 @@ contains
             end if
          end if
 
-         ! increase fcur linearly with ndays_active, until fcur reaches 1.0 at
-         ! ndays_active = days/year.  This prevents the continued storage of C and N.
-         ! turning off this correction (PET, 12/11/03), instead using bgtr in
-         ! phenology algorithm.
-         sminn_to_npool(p) = plant_ndemand(p) * fpg(c)
+         if(use_fun)then ! if we are using FUN, we get the N available from there.
+            sminn_to_npool(p) = sminn_to_plant_fun(p)
+         else ! no FUN. :( we get N available from the FPG calculation in soilbiogeochemistry competition. 
+            sminn_to_npool(p) = plant_ndemand(p) * fpg(c)        
+         endif
+         
          plant_nalloc(p) = sminn_to_npool(p) + retransn_to_npool(p)
-
-         ! calculate the associated carbon allocation, and the excess
-         ! carbon flux that must be accounted for through downregulation
          plant_calloc(p) = plant_nalloc(p) * (c_allometry(p)/n_allometry(p))
-         excess_cflux(p) = availc(p) - plant_calloc(p)
 
-         ! reduce gpp fluxes due to N limitation
-         if (gpp(p) > 0.0_r8) then
-            downreg(p) = excess_cflux(p)/gpp(p)
+          
+         if(.not.use_fun)then  !ORIGINAL CLM(CN) downregulation code. 
+	    excess_cflux(p) = availc(p) - plant_calloc(p)
+	    ! reduce gpp fluxes due to N limitation
+	    if (gpp(p) > 0.0_r8) then
+	       downreg(p) = excess_cflux(p)/gpp(p)
 
-            psnsun_to_cpool(p)   = psnsun_to_cpool(p)  *(1._r8 - downreg(p))
-            psnshade_to_cpool(p) = psnshade_to_cpool(p)*(1._r8 - downreg(p))
+	       psnsun_to_cpool(p)   = psnsun_to_cpool(p)  *(1._r8 - downreg(p))
+	       psnshade_to_cpool(p) = psnshade_to_cpool(p)*(1._r8 - downreg(p))
 
-            if ( use_c13 ) then
-               c13_cnveg_carbonflux_inst%psnsun_to_cpool_patch(p)   = &
-                    c13_cnveg_carbonflux_inst%psnsun_to_cpool_patch(p)  *(1._r8 - downreg(p))
-               c13_cnveg_carbonflux_inst%psnshade_to_cpool_patch(p) = &
-                    c13_cnveg_carbonflux_inst%psnshade_to_cpool_patch(p)*(1._r8 - downreg(p))
-            endif
-            if ( use_c14 ) then
-               c14_cnveg_carbonflux_inst%psnsun_to_cpool_patch(p)   = &
-                    c14_cnveg_carbonflux_inst%psnsun_to_cpool_patch(p)  *(1._r8 - downreg(p))
-               c14_cnveg_carbonflux_inst%psnshade_to_cpool_patch(p) = &
-                    c14_cnveg_carbonflux_inst%psnshade_to_cpool_patch(p)*(1._r8 - downreg(p))
-            endif
-         end if
-
+	       if ( use_c13 ) then
+	          c13_cnveg_carbonflux_inst%psnsun_to_cpool_patch(p)   = &
+	               c13_cnveg_carbonflux_inst%psnsun_to_cpool_patch(p)  *(1._r8 - downreg(p))
+	          c13_cnveg_carbonflux_inst%psnshade_to_cpool_patch(p) = &
+	               c13_cnveg_carbonflux_inst%psnshade_to_cpool_patch(p)*(1._r8 - downreg(p))
+	       endif
+	       if ( use_c14 ) then
+	          c14_cnveg_carbonflux_inst%psnsun_to_cpool_patch(p)   = &
+	               c14_cnveg_carbonflux_inst%psnsun_to_cpool_patch(p)  *(1._r8 - downreg(p))
+	          c14_cnveg_carbonflux_inst%psnshade_to_cpool_patch(p) = &
+	               c14_cnveg_carbonflux_inst%psnshade_to_cpool_patch(p)*(1._r8 - downreg(p))
+	       endif
+	    end if
+	         
+	 end if !use_fun
+         
          ! calculate the amount of new leaf C dictated by these allocation
          ! decisions, and calculate the daily fluxes of C and N to current
          ! growth and storage pools
@@ -425,9 +436,9 @@ contains
        photosyns_inst, crop_inst, canopystate_inst,                            &
        cnveg_state_inst, cnveg_carbonstate_inst, cnveg_carbonflux_inst,        &
        c13_cnveg_carbonflux_inst, c14_cnveg_carbonflux_inst,                   &
-       cnveg_nitrogenstate_inst, cnveg_nitrogenflux_inst, &
-       soilbiogeochem_carbonflux_inst, soilbiogeochem_nitrogenstate_inst, &
-       energyflux_inst, &
+       cnveg_nitrogenstate_inst, cnveg_nitrogenflux_inst,                      &
+       soilbiogeochem_carbonflux_inst, soilbiogeochem_nitrogenstate_inst,      &
+       energyflux_inst,                                                        &
        aroot, arepr)
     !
     ! !USES:
@@ -436,12 +447,13 @@ contains
     use CropType               , only : crop_type
     use CNVegStateType         , only : cnveg_state_type
     use CNVegCarbonStateType   , only : cnveg_carbonstate_type
-    use CNVegCarbonFluxType    , only : cnveg_carbonflux_type
     use CNVegNitrogenStateType , only : cnveg_nitrogenstate_type
+    use CNVegCarbonFluxType    , only : cnveg_carbonflux_type
     use CNVegNitrogenFluxType  , only : cnveg_nitrogenflux_type
     use SoilBiogeochemCarbonFluxType, only : soilbiogeochem_carbonflux_type
     use SoilBiogeochemNitrogenStateType, only : soilbiogeochem_nitrogenstate_type
     use EnergyFluxType         , only : energyflux_type
+    use CNSharedParamsMod      , only : use_fun
     !
     ! !ARGUMENTS:
     class(nutrient_competition_clm45default_type), intent(inout) :: this
@@ -459,8 +471,8 @@ contains
     type(cnveg_nitrogenstate_type)  , intent(in)    :: cnveg_nitrogenstate_inst
     type(cnveg_nitrogenflux_type)   , intent(inout) :: cnveg_nitrogenflux_inst
     type(soilbiogeochem_carbonflux_type)   , intent(in) :: soilbiogeochem_carbonflux_inst
-    type(soilbiogeochem_nitrogenstate_type), intent(in)    :: soilbiogeochem_nitrogenstate_inst
-    type(energyflux_type)           , intent(in)    :: energyflux_inst   
+    type(soilbiogeochem_nitrogenstate_type), intent(in) :: soilbiogeochem_nitrogenstate_inst
+    type(energyflux_type)           , intent(in)    :: energyflux_inst
     real(r8)                        , intent(out)   :: aroot(bounds%begp:)
     real(r8)                        , intent(out)   :: arepr(bounds%begp:)
     !-----------------------------------------------------------------------
@@ -480,7 +492,7 @@ contains
        photosyns_inst, crop_inst, canopystate_inst,                             &
        cnveg_state_inst, cnveg_carbonstate_inst, cnveg_carbonflux_inst,         &
        c13_cnveg_carbonflux_inst, c14_cnveg_carbonflux_inst,                    &
-       cnveg_nitrogenstate_inst, cnveg_nitrogenflux_inst, &
+       cnveg_nitrogenstate_inst, cnveg_nitrogenflux_inst,                       &
        aroot, arepr)
     !
     ! !USES:
@@ -495,9 +507,10 @@ contains
     use CropType               , only : crop_type
     use CNVegStateType         , only : cnveg_state_type
     use CNVegCarbonStateType   , only : cnveg_carbonstate_type
-    use CNVegCarbonFluxType    , only : cnveg_carbonflux_type
     use CNVegNitrogenStateType , only : cnveg_nitrogenstate_type
+    use CNVegCarbonFluxType    , only : cnveg_carbonflux_type
     use CNVegNitrogenFluxType  , only : cnveg_nitrogenflux_type
+    use CNSharedParamsMod      , only : use_fun
     !
     ! !ARGUMENTS:
     class(nutrient_competition_clm45default_type), intent(in) :: this
@@ -518,7 +531,7 @@ contains
     real(r8)                        , intent(out)   :: arepr(bounds%begp:)
     !
     ! !LOCAL VARIABLES:
-    integer :: p            ! indices
+    integer :: c,p,l,j            ! indices
     integer :: fp                 ! lake filter patch index
     real(r8):: mr                 ! maintenance respiration (gC/m2/s)
     real(r8):: f1,f2,f3,f4,g1,g2  ! allocation parameters
@@ -530,10 +543,11 @@ contains
     real(r8):: t1                 ! temporary variable
     real(r8):: dt                 ! model time step
     real(r8):: dayscrecover       ! number of days to recover negative cpool
+
     !-----------------------------------------------------------------------
 
-    SHR_ASSERT_ALL((ubound(aroot) == (/bounds%endp/)), errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(arepr) == (/bounds%endp/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(aroot) == (/bounds%endp/)), errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(arepr) == (/bounds%endp/)), errMsg(sourcefile, __LINE__))
 
     associate(                                                                        &
          ivt                   => patch%itype                                        ,  & ! Input:  [integer  (:) ]  patch vegetation type                                
@@ -562,7 +576,8 @@ contains
          grperc                => pftcon%grperc                                     , & ! Input:  parameter used below
          grpnow                => pftcon%grpnow                                     , & ! Input:  parameter used below
          declfact              => pftcon%declfact                                   , & ! Input:
-
+         season_decid          => pftcon%season_decid                               , & ! Input:  binary flag for seasonal-deciduous leaf habit (0 or 1)
+         stress_decid          => pftcon%stress_decid                               , & ! Input:  binary flag for stress-deciduous leaf habit (0 or 1)
          psnsun                => photosyns_inst%psnsun_patch                       , & ! Input:  [real(r8) (:)   ]  sunlit leaf-level photosynthesis (umol CO2 /m**2/ s)
          psnsha                => photosyns_inst%psnsha_patch                       , & ! Input:  [real(r8) (:)   ]  shaded leaf-level photosynthesis (umol CO2 /m**2/ s)
          c13_psnsun            => photosyns_inst%c13_psnsun_patch                   , & ! Input:  [real(r8) (:)   ]  sunlit leaf-level photosynthesis (umol CO2 /m**2/ s)
@@ -575,11 +590,11 @@ contains
 
          hui                   => crop_inst%gddplant_patch                          , & ! Input:  [real(r8) (:)   ]  =gdd since planting (gddplant)          
          leafout               => crop_inst%gddtsoi_patch                           , & ! Input:  [real(r8) (:)   ]  =gdd from top soil layer temperature    
+         croplive              => crop_inst%croplive_patch                          , & ! Input:  [logical  (:)   ]  flag, true if planted, not harvested     
 
          gddmaturity           => cnveg_state_inst%gddmaturity_patch                , & ! Input:  [real(r8) (:)   ]  gdd needed to harvest                   
          huileaf               => cnveg_state_inst%huileaf_patch                    , & ! Input:  [real(r8) (:)   ]  heat unit index needed from planting to leaf emergence
          huigrain              => cnveg_state_inst%huigrain_patch                   , & ! Input:  [real(r8) (:)   ]  same to reach vegetative maturity       
-         croplive              => cnveg_state_inst%croplive_patch                   , & ! Input:  [logical  (:)   ]  flag, true if planted, not harvested     
          peaklai               => cnveg_state_inst%peaklai_patch                    , & ! Input:  [integer  (:)   ]  1: max allowed lai; 0: not at max        
          aleafi                => cnveg_state_inst%aleafi_patch                     , & ! Output: [real(r8) (:)   ]  saved allocation coefficient from phase 2
          astemi                => cnveg_state_inst%astemi_patch                     , & ! Output: [real(r8) (:)   ]  saved allocation coefficient from phase 2
@@ -641,6 +656,7 @@ contains
       ! loop over patches to assess the total plant N demand
       do fp = 1,num_soilp
          p = filter_soilp(fp)
+         c = patch%column(p)
 
          ! get the time step total gross photosynthesis
          ! this is coming from the canopy fluxes code, and is the
@@ -727,14 +743,14 @@ contains
             end if
             cpool_to_xsmrpool(p) = xsmrpool_recover(p)
          end if
-
+         
          f1 = froot_leaf(ivt(p))
          f2 = croot_stem(ivt(p))
 
          ! modified wood allocation to be 2.2 at npp=800 gC/m2/yr, 0.2 at npp=0,
          ! constrained so that it does not go lower than 0.2 (under negative annsum_npp)
          ! This variable allocation is only for trees. Shrubs have a constant
-         ! allocation as specified in the pft-physiology file.  The value is also used
+         ! allocation as specified in the pft-physiologfy file.  The value is also used
          ! as a trigger here: -1.0 means to use the dynamic allocation (trees).
 
          if (stem_leaf(ivt(p)) == -1._r8) then
@@ -838,10 +854,11 @@ contains
                   !would be bypassed altogether, not the intended outcome. I checked several of my output files and 
                   !they all seemed to be going through the retranslocation loop for soybean - good news.
 
-                  if (astem(p) == astemf(ivt(p)) .or. &
+                   if (astem(p) == astemf(ivt(p)) .or. &
                        (ivt(p) /= ntmp_soybean .and. ivt(p) /= nirrig_tmp_soybean .and.&
                         ivt(p) /= ntrp_soybean .and. ivt(p) /= nirrig_trp_soybean)) then
-                     if (grain_flag(p) == 0._r8) then
+                     if (grain_flag(p) == 0._r8)then
+                     if(.not.use_fun) then
                         t1 = 1 / dt
                         leafn_to_retransn(p) = t1 * ((leafc(p) / leafcn(ivt(p))) - (leafc(p) / &
                              fleafcn(ivt(p))))
@@ -852,6 +869,10 @@ contains
                            frootn_to_retransn(p) = t1 * ((frootc(p) / frootcn(ivt(p))) - (frootc(p) / &
                                 ffrootcn(ivt(p))))
                         end if
+                        else !leafn retrans flux is handled in phenology
+                        frootn_to_retransn(p) = 0._r8
+                        livestemn_to_retransn(p)=0.0_r8 
+                        end if !fun
                         grain_flag(p) = 1._r8
                      end if
                   end if
@@ -880,22 +901,42 @@ contains
 
          ! based on available C, use constant allometric relationships to
          ! determine N requirements
-
-         if (woody(ivt(p)) == 1.0_r8) then
-            c_allometry(p) = (1._r8+g1)*(1._r8+f1+f3*(1._r8+f2))
-            n_allometry(p) = 1._r8/cnl + f1/cnfr + (f3*f4*(1._r8+f2))/cnlw + &
-                 (f3*(1._r8-f4)*(1._r8+f2))/cndw
-         else if (ivt(p) >= npcropmin) then ! skip generic crops
-            cng = graincn(ivt(p))
-            c_allometry(p) = (1._r8+g1)*(1._r8+f1+f5+f3*(1._r8+f2))
-            n_allometry(p) = 1._r8/cnl + f1/cnfr + f5/cng + (f3*f4*(1._r8+f2))/cnlw + &
-                 (f3*(1._r8-f4)*(1._r8+f2))/cndw
-         else
-            c_allometry(p) = 1._r8+g1+f1+f1*g1
-            n_allometry(p) = 1._r8/cnl + f1/cnfr
-         end if
+         
+         !RF. I removed the growth respiration from this, because it is used to calculate 
+         !plantCN for N uptake AND c_allometry for allocation. If we add gresp to the 
+         !allometry calculation then we allocate too much carbon since gresp is not allocated here. 
+         if(.not.use_fun)then
+	    if (woody(ivt(p)) == 1.0_r8) then
+	       c_allometry(p) = (1._r8+g1)*(1._r8+f1+f3*(1._r8+f2))
+	       n_allometry(p) = 1._r8/cnl + f1/cnfr + (f3*f4*(1._r8+f2))/cnlw + &
+	             (f3*(1._r8-f4)*(1._r8+f2))/cndw
+	    else if (ivt(p) >= npcropmin) then ! skip generic crops
+	       cng = graincn(ivt(p))
+	       c_allometry(p) = (1._r8+g1)*(1._r8+f1+f5+f3*(1._r8+f2))
+	       n_allometry(p) = 1._r8/cnl + f1/cnfr + f5/cng + (f3*f4*(1._r8+f2))/cnlw + &
+	            (f3*(1._r8-f4)*(1._r8+f2))/cndw
+	    else
+	       c_allometry(p) = 1._r8+g1+f1+f1*g1
+	       n_allometry(p) = 1._r8/cnl + f1/cnfr
+	    end if           
+         else !no FUN. 
+	    if (woody(ivt(p)) == 1.0_r8) then
+	       c_allometry(p) = (1._r8)*(1._r8+f1+f3*(1._r8+f2))
+	       n_allometry(p) = 1._r8/cnl + f1/cnfr + (f3*f4*(1._r8+f2))/cnlw + &
+	            (f3*(1._r8-f4)*(1._r8+f2))/cndw
+	    else if (ivt(p) >= npcropmin) then ! skip generic crops
+	       cng = graincn(ivt(p))
+	       c_allometry(p) = (1._r8)*(1._r8+f1+f5+f3*(1._r8+f2))
+	       n_allometry(p) = 1._r8/cnl + f1/cnfr + f5/cng + (f3*f4*(1._r8+f2))/cnlw + &
+	            (f3*(1._r8-f4)*(1._r8+f2))/cndw
+	    else
+	       c_allometry(p) = 1._r8+f1
+	       n_allometry(p) = 1._r8/cnl + f1/cnfr
+	    end if
+         end if !use_fun
+         
          plant_ndemand(p) = availc(p)*(n_allometry(p)/c_allometry(p))
-
+ 
          ! retranslocated N deployment depends on seasonal cycle of potential GPP
          ! (requires one year run to accumulate demand)
 
@@ -907,29 +948,40 @@ contains
          ! Beth's code: crops pull from retransn pool only during grain fill;
          !              retransn pool has N from leaves, stems, and roots for
          !              retranslocation
+         
+         if(.not.use_fun)then
 
-         if (ivt(p) >= npcropmin .and. grain_flag(p) == 1._r8) then
-            avail_retransn(p) = plant_ndemand(p)
-         else if (ivt(p) < npcropmin .and. annsum_potential_gpp(p) > 0._r8) then
-            avail_retransn(p) = (annmax_retransn(p)/2._r8)*(gpp(p)/annsum_potential_gpp(p))/dt
-         else
-            avail_retransn(p) = 0.0_r8
-         end if
+	    if (ivt(p) >= npcropmin .and. grain_flag(p) == 1._r8) then
+	       avail_retransn(p) = plant_ndemand(p)
+	    else if (ivt(p) < npcropmin .and. annsum_potential_gpp(p) > 0._r8) then
+	       avail_retransn(p) = (annmax_retransn(p)/2._r8)*(gpp(p)/annsum_potential_gpp(p))/dt
+	    else
+	       avail_retransn(p) = 0.0_r8
+	    end if
 
-         ! make sure available retrans N doesn't exceed storage
-         avail_retransn(p) = min(avail_retransn(p), retransn(p)/dt)
+	    ! make sure available retrans N doesn't exceed storage
+	    avail_retransn(p) = min(avail_retransn(p), retransn(p)/dt)
 
-         ! modify plant N demand according to the availability of
-         ! retranslocated N
-         ! take from retransn pool at most the flux required to meet
-         ! plant ndemand
+	    ! modify plant N demand according to the availability of
+	    ! retranslocated N
+	    ! take from retransn pool at most the flux required to meet
+	    ! plant ndemand
 
-         if (plant_ndemand(p) > avail_retransn(p)) then
-            retransn_to_npool(p) = avail_retransn(p)
-         else
-            retransn_to_npool(p) = plant_ndemand(p)
-         end if
-         plant_ndemand(p) = plant_ndemand(p) - retransn_to_npool(p)
+	    if (plant_ndemand(p) > avail_retransn(p)) then
+	       retransn_to_npool(p) = avail_retransn(p)
+	    else
+	       retransn_to_npool(p) = plant_ndemand(p)
+	    end if
+
+	    if ( .not. use_fun ) then
+	       plant_ndemand(p) = plant_ndemand(p) - retransn_to_npool(p)
+	    else
+	       if (season_decid(ivt(p)) == 1._r8.or.stress_decid(ivt(p))==1._r8) then
+	          plant_ndemand(p) = plant_ndemand(p) - retransn_to_npool(p)
+	       end if
+	    end if
+	         
+         end if !use_fun
 
       end do ! end patch loop
 

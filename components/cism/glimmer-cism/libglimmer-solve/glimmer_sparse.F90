@@ -73,7 +73,7 @@ contains
         use parallel
         integer, intent(in) :: method                 ! sparse solver: BiCG, GMRES, PCG, etc.
         integer, optional, intent(in) :: nonlinear    ! Picard vs. JFNK flag 
-        type(sparse_solver_options) :: opt            !TODO - intent inout or out?
+        type(sparse_solver_options), target :: opt    !TODO - intent inout or out?
 
         opt%base%method = method
         opt%base%tolerance  = 1.0d-08   !WHL - used to be 1e-11
@@ -331,7 +331,7 @@ contains
         character(*), optional :: calling_file
         integer, optional :: calling_line
 
-        type(sparse_solver_options) :: opt
+        type(sparse_solver_options), target :: opt
         type(sparse_solver_workspace) :: wk
 
         integer :: ierr

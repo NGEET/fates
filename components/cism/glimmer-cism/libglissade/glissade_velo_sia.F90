@@ -61,7 +61,7 @@
 
     use glide_types
     use glissade_grid_operators, only: glissade_stagger, glissade_centered_gradient, &
-                                       glissade_edge_gradient
+                                       glissade_gradient_at_edges
     use parallel
 
     implicit none
@@ -309,7 +309,7 @@
     ! gradient_margin_in = 1 (HO_GRADIENT_MARGIN_ICE_LAND) computes the gradient
     !  using ice-covered and/or land points.  It is equivalent to HO_GRADIENT_MARGIN_ALL
     !  for the land-based problems where an SIA solver would usually be applied, and is the
-    !  default value.
+    !  default value.  Requires passing in the surface elevation and a land mask.
     ! gradient_margin_in = 2 (HO_GRADIENT_MARGIN_ICE) computes the gradient
     !  using ice-covered points only.  This scheme is very inaccurate for the
     !  Halfar problem because it underestimates margin velocities.
@@ -320,6 +320,7 @@
                                     dusrf_dx,  dusrf_dy,    &
                                     ice_mask,               &
                                     gradient_margin_in = whichgradient_margin, &
+                                    usrf = usrf,            &
                                     land_mask = land_mask)
 
     if (verbose .and. main_task) then
@@ -820,9 +821,12 @@
     real(dp), dimension(nx,ny) ::   &
        uedge, vedge             ! velocity components at cell edges (m/yr)
                                 ! u on E edge, v on N edge (C grid)
-    real(dp), dimension(nx-1,ny-1) ::  &
-       dusrf_dx_edge,         &  ! upper surface elevation gradient at cell edges (m/m)
-       dusrf_dy_edge
+
+    real(dp), dimension(nx-1,ny) ::  &
+       dusrf_dx_edge             ! x gradient of upper surface elevation at cell edges (m/m)
+
+    real(dp), dimension(nx,ny-1) ::  &
+       dusrf_dy_edge             ! y gradient of upper surface elevation at cell edges (m/m)
 
     real(dp), dimension(nx-1,ny-1) :: diffu
 
@@ -895,13 +899,14 @@
     !       is likely to give less accurate results.
     ! See comments above the call to glissade_centered_gradient.
 
-    call glissade_edge_gradient(nx,               ny,             &
-                                dx,               dy,             &
-                                usrf,                             &
-                                dusrf_dx_edge,    dusrf_dy_edge,  &
-                                gradient_margin_in = whichgradient_margin, &
-                                ice_mask = ice_mask,              &
-                                land_mask = land_mask)
+    call glissade_gradient_at_edges(nx,               ny,             &
+                                    dx,               dy,             &
+                                    usrf,                             &
+                                    dusrf_dx_edge,    dusrf_dy_edge,  &
+                                    gradient_margin_in = whichgradient_margin, &
+                                    ice_mask = ice_mask,              &
+                                    land_mask = land_mask,            &
+                                    usrf = usrf)
     
     do k = nz-1, 1, -1
 

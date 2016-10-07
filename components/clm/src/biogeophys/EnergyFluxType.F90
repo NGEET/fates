@@ -12,6 +12,7 @@ module EnergyFluxType
   use LandunitType   , only : lun                
   use ColumnType     , only : col                
   use PatchType      , only : patch                
+  use AnnualFluxDribbler, only : annual_flux_dribbler_type
   !
   implicit none
   save
@@ -87,6 +88,8 @@ module EnergyFluxType
 
      ! Transpiration
      real(r8), pointer :: btran_patch             (:)   ! patch transpiration wetness factor (0 to 1)
+     real(r8), pointer :: bsun_patch              (:)   ! patch sunlit canopy transpiration wetness factor (0 to 1)
+     real(r8), pointer :: bsha_patch              (:)   ! patch shaded canopy transpiration wetness factor (0 to 1)
 
      ! Roots
      real(r8), pointer :: btran2_patch            (:)   ! patch root zone soil wetness factor (0 to 1) 
@@ -105,6 +108,10 @@ module EnergyFluxType
      real(r8), pointer :: errlon_patch            (:)   ! longwave radiation conservation error (W/m**2)
      real(r8), pointer :: errlon_col              (:)   ! longwave radiation conservation error (W/m**2)
 
+     ! Objects that help convert once-per-year dynamic land cover changes into fluxes
+     ! that are dribbled throughout the year
+     type(annual_flux_dribbler_type) :: eflx_dynbal_dribbler
+
    contains
 
      procedure, public  :: Init            ! Public initialization method
@@ -114,6 +121,9 @@ module EnergyFluxType
      procedure, public  :: Restart         ! setup restart fields
 
   end type energyflux_type
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !------------------------------------------------------------------------
 
 contains
@@ -132,7 +142,7 @@ contains
     logical           , intent(in) :: is_simple_buildtemp        ! If using simple building temp method
     logical           , intent(in) :: is_prog_buildtemp          ! If using prognostic building temp method
 
-    SHR_ASSERT_ALL((ubound(t_grnd_col) == (/bounds%endc/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(t_grnd_col) == (/bounds%endc/)), errMsg(sourcefile, __LINE__))
 
     call this%InitAllocate ( bounds )
     call this%InitHistory ( bounds, is_simple_buildtemp )
@@ -148,7 +158,8 @@ contains
     !
     ! !USES:
     use shr_infnan_mod , only : nan => shr_infnan_nan, assignment(=)
-    use clm_varpar     , only : nlevsno, nlevgrnd, nlevlak, crop_prog 
+    use clm_varpar     , only : nlevsno, nlevgrnd, nlevlak
+    use clm_varctl     , only : use_hydrstress
     implicit none
     !
     ! !ARGUMENTS:
@@ -232,7 +243,10 @@ contains
     allocate(this%rresis_patch             (begp:endp,1:nlevgrnd))  ; this%rresis_patch            (:,:) = nan
     allocate(this%btran_patch              (begp:endp))             ; this%btran_patch             (:)   = nan
     allocate(this%btran2_patch             (begp:endp))             ; this%btran2_patch            (:)   = nan
-
+    if (use_hydrstress) then
+      allocate(this%bsun_patch             (begp:endp))             ; this%bsun_patch              (:)   = nan
+      allocate(this%bsha_patch             (begp:endp))             ; this%bsha_patch              (:)   = nan
+    end if
     allocate( this%errsoi_patch            (begp:endp))             ; this%errsoi_patch            (:)   = nan
     allocate( this%errsoi_col              (begc:endc))             ; this%errsoi_col              (:)   = nan
     allocate( this%errseb_patch            (begp:endp))             ; this%errseb_patch            (:)   = nan
@@ -241,6 +255,11 @@ contains
     allocate( this%errsol_col              (begc:endc))             ; this%errsol_col              (:)   = nan
     allocate( this%errlon_patch            (begp:endp))             ; this%errlon_patch            (:)   = nan
     allocate( this%errlon_col              (begc:endc))             ; this%errlon_col              (:)   = nan
+
+    this%eflx_dynbal_dribbler = annual_flux_dribbler_type( &
+         bounds = bounds, &
+         name = 'eflx_dynbal', &
+         units = 'J/m**2')
 
   end subroutine InitAllocate
     
@@ -252,7 +271,7 @@ contains
     !
     ! !USES:
     use shr_infnan_mod , only : nan => shr_infnan_nan, assignment(=)
-    use clm_varpar     , only : nlevsno, nlevgrnd, crop_prog 
+    use clm_varpar     , only : nlevsno, nlevgrnd
     use clm_varctl     , only : use_cn
     use histFileMod    , only : hist_addfld1d, hist_addfld2d, no_snow_normal
     use ncdio_pio      , only : ncd_inqvdlen
@@ -612,7 +631,7 @@ contains
     use shr_const_mod   , only : SHR_CONST_TKFRZ
     use clm_varpar      , only : nlevsoi, nlevgrnd, nlevsno, nlevlak, nlevurb
     use clm_varcon      , only : denice, denh2o, sb
-    use landunit_varcon , only : istice, istwet, istsoil, istdlak, istice_mec
+    use landunit_varcon , only : istwet, istsoil, istdlak
     use column_varcon   , only : icol_road_imperv, icol_roof, icol_sunwall
     use column_varcon   , only : icol_shadewall, icol_road_perv
     use clm_varctl      , only : iulog, use_vancouver, use_mexicocity
@@ -629,7 +648,7 @@ contains
     integer  :: j,l,c,p,levs,lev
     !-----------------------------------------------------------------------
 
-    SHR_ASSERT_ALL((ubound(t_grnd_col) == (/bounds%endc/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(t_grnd_col) == (/bounds%endc/)), errMsg(sourcefile, __LINE__))
 
     ! Columns
     if ( is_simple_buildtemp )then
@@ -802,6 +821,8 @@ contains
          dim1name='pft', &
          long_name='net heat flux into lake/snow surface, excluding light transmission', units='W/m^2', &
          interpinic_flag='interp', readvar=readvar, data=this%eflx_grnd_lake_patch)
+
+    call this%eflx_dynbal_dribbler%Restart(bounds, ncid, flag)
 
   end subroutine Restart
 

@@ -11,7 +11,8 @@ module CNVegStructUpdateMod
   use WaterStateType       , only : waterstate_type
   use FrictionVelocityMod  , only : frictionvel_type
   use CNDVType             , only : dgvs_type
-  use CNVegstateType       , only : cnveg_state_type
+  use CNVegStateType       , only : cnveg_state_type
+  use CropType             , only : crop_type
   use CNVegCarbonStateType , only : cnveg_carbonstate_type
   use CanopyStateType      , only : canopystate_type
   use PatchType            , only : patch                
@@ -27,7 +28,7 @@ contains
 
   !-----------------------------------------------------------------------
   subroutine CNVegStructUpdate(num_soilp, filter_soilp, &
-       waterstate_inst, frictionvel_inst, dgvs_inst, cnveg_state_inst, &
+       waterstate_inst, frictionvel_inst, dgvs_inst, cnveg_state_inst, crop_inst, &
        cnveg_carbonstate_inst, canopystate_inst)
     !
     ! !DESCRIPTION:
@@ -41,6 +42,7 @@ contains
     use pftconMod        , only : ntrp_corn, nirrig_trp_corn
     use pftconMod        , only : nsugarcane, nirrig_sugarcane
     use pftconMod        , only : pftcon
+    use clm_varctl       , only : spinup_state
     use clm_time_manager , only : get_rad_step_size
     !
     ! !ARGUMENTS:
@@ -50,6 +52,7 @@ contains
     type(frictionvel_type)       , intent(in)    :: frictionvel_inst
     type(dgvs_type)              , intent(in)    :: dgvs_inst
     type(cnveg_state_type)       , intent(inout) :: cnveg_state_inst
+    type(crop_type)              , intent(in)    :: crop_inst
     type(cnveg_carbonstate_type) , intent(in)    :: cnveg_carbonstate_inst
     type(canopystate_type)       , intent(inout) :: canopystate_inst
     !
@@ -109,9 +112,10 @@ contains
          deadstemc          =>  cnveg_carbonstate_inst%deadstemc_patch  , & ! Input:  [real(r8) (:) ] (gC/m2) dead stem C                               
 
          farea_burned       =>  cnveg_state_inst%farea_burned_col       , & ! Input:  [real(r8) (:) ] F. Li and S. Levis                                 
-         harvdate           =>  cnveg_state_inst%harvdate_patch         , & ! Input:  [integer  (:) ] harvest date                                       
          htmx               =>  cnveg_state_inst%htmx_patch             , & ! Output: [real(r8) (:) ] max hgt attained by a crop during yr (m)          
          peaklai            =>  cnveg_state_inst%peaklai_patch          , & ! Output: [integer  (:) ] 1: max allowed lai; 0: not at max                  
+
+         harvdate           =>  crop_inst%harvdate_patch                , & ! Input:  [integer  (:) ] harvest date                                       
 
          ! *** Key Output from CN***
          tlai               =>  canopystate_inst%tlai_patch             , & ! Output: [real(r8) (:) ] one-sided leaf area index, no burying by snow      
@@ -198,9 +202,14 @@ contains
                   end if
 
                else
-
-                  htop(p) = ((3._r8 * deadstemc(p) * taper * taper)/ &
-                       (SHR_CONST_PI * stocking * dwood(ivt(p))))**(1._r8/3._r8)
+                  !correct height calculation if doing accelerated spinup
+                  if (spinup_state == 2) then
+                    htop(p) = ((3._r8 * deadstemc(p) * 10._r8 * taper * taper)/ &
+                         (SHR_CONST_PI * stocking * dwood(ivt(p))))**(1._r8/3._r8)
+                  else
+                    htop(p) = ((3._r8 * deadstemc(p) * taper * taper)/ &
+                         (SHR_CONST_PI * stocking * dwood(ivt(p))))**(1._r8/3._r8)
+                  end if
 
                endif
 

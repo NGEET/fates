@@ -38,6 +38,9 @@ module CNGapMortalityMod
   !
   ! !PRIVATE MEMBER FUNCTIONS:
   private :: CNGap_PatchToColumn
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !-----------------------------------------------------------------------
 
 contains
@@ -65,12 +68,12 @@ contains
 
     tString='r_mort'
     call ncd_io(varname=trim(tString),data=tempr, flag='read', ncid=ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%am=tempr
 
     tString='k_mort'
     call ncd_io(varname=trim(tString),data=tempr, flag='read', ncid=ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%k_mort=tempr   
     
   end subroutine readParams
@@ -88,10 +91,8 @@ contains
     use clm_time_manager , only: get_days_per_year
     use clm_varpar       , only: nlevdecomp_full
     use clm_varcon       , only: secspday
-    use clm_varctl       , only: use_cndv
+    use clm_varctl       , only: use_cndv, spinup_state
     use pftconMod        , only: npcropmin
-    use clm_varctl       , only : carbon_excess_opt            
-    use clm_varctl       , only : carbon_storage_excess_opt    
     !
     ! !ARGUMENTS:
     type(bounds_type)               , intent(in)    :: bounds
@@ -117,26 +118,12 @@ contains
     real(r8):: m             ! rate for fractional mortality (1/s)
     real(r8):: mort_max      ! asymptotic max mortality rate (/yr)
     real(r8):: k_mort = 0.3  ! coeff of growth efficiency in mortality equation
-         
-    real(r8):: leafcn_storage_actual 					
-    real(r8):: leafcn_actual       									
-    real(r8):: frootcn_storage_actual       										
-    real(r8):: frootcn_actual               	
-    real(r8):: livestemcn_storage_actual    	
-    real(r8):: livestemcn_actual            	
-    real(r8):: livecrootcn_storage_actual   			
-    real(r8):: livecrootcn_actual           	
-    real(r8):: leafcn_max                   	
-    real(r8):: frootcn_max                  	
-    real(r8):: livewdcn_max                 	             
-    real(r8):: lfr_cn                       	 
-    real(r8):: mort_cn                      	 
     !-----------------------------------------------------------------------
 
-    SHR_ASSERT_ALL((ubound(leaf_prof_patch)   == (/bounds%endp,nlevdecomp_full/)), errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(froot_prof_patch)  == (/bounds%endp,nlevdecomp_full/)), errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(croot_prof_patch)  == (/bounds%endp,nlevdecomp_full/)), errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(stem_prof_patch)   == (/bounds%endp,nlevdecomp_full/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(leaf_prof_patch)   == (/bounds%endp,nlevdecomp_full/)), errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(froot_prof_patch)  == (/bounds%endp,nlevdecomp_full/)), errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(croot_prof_patch)  == (/bounds%endp,nlevdecomp_full/)), errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(stem_prof_patch)   == (/bounds%endp,nlevdecomp_full/)), errMsg(sourcefile, __LINE__))
 
     associate(                                         & 
          ivt        =>    patch%itype                  , & ! Input:  [integer  (:) ]  patch vegetation type                                
@@ -203,9 +190,14 @@ contains
          cnveg_carbonflux_inst%m_leafc_to_litter_patch(p)               = cnveg_carbonstate_inst%leafc_patch(p)               * m
          cnveg_carbonflux_inst%m_frootc_to_litter_patch(p)              = cnveg_carbonstate_inst%frootc_patch(p)              * m
          cnveg_carbonflux_inst%m_livestemc_to_litter_patch(p)           = cnveg_carbonstate_inst%livestemc_patch(p)           * m
-         cnveg_carbonflux_inst%m_deadstemc_to_litter_patch(p)           = cnveg_carbonstate_inst%deadstemc_patch(p)           * m
          cnveg_carbonflux_inst%m_livecrootc_to_litter_patch(p)          = cnveg_carbonstate_inst%livecrootc_patch(p)          * m
-         cnveg_carbonflux_inst%m_deadcrootc_to_litter_patch(p)          = cnveg_carbonstate_inst%deadcrootc_patch(p)          * m
+         if (spinup_state == 2 .and. .not. use_cndv) then   !accelerate mortality of dead woody pools 
+           cnveg_carbonflux_inst%m_deadstemc_to_litter_patch(p)         = cnveg_carbonstate_inst%deadstemc_patch(p)  * m * 10._r8
+           cnveg_carbonflux_inst%m_deadcrootc_to_litter_patch(p)        = cnveg_carbonstate_inst%deadcrootc_patch(p) * m * 10._r8        
+         else
+           cnveg_carbonflux_inst%m_deadstemc_to_litter_patch(p)         = cnveg_carbonstate_inst%deadstemc_patch(p)           * m
+           cnveg_carbonflux_inst%m_deadcrootc_to_litter_patch(p)        = cnveg_carbonstate_inst%deadcrootc_patch(p)          * m
+         end if
 
          ! storage pools
          cnveg_carbonflux_inst%m_leafc_storage_to_litter_patch(p)       = cnveg_carbonstate_inst%leafc_storage_patch(p)       * m
@@ -216,219 +208,6 @@ contains
          cnveg_carbonflux_inst%m_deadcrootc_storage_to_litter_patch(p)  = cnveg_carbonstate_inst%deadcrootc_storage_patch(p)  * m
          cnveg_carbonflux_inst%m_gresp_storage_to_litter_patch(p)       = cnveg_carbonstate_inst%gresp_storage_patch(p)       * m
          
-         if (ivt(p) == 11 .OR. ivt(p) == 14) then   
-         
-         if (carbon_excess_opt == 1 .AND. laisun(p)+laisha(p) > 0.0_r8) then   
-            ! computing carbon to nitrogen ratio of different plant parts 
-                    
-            if (cnveg_nitrogenstate_inst%leafn_patch(p) == 0.0_r8) then   ! to avoid division by zero, and also to make leafcn_actual(p) a very large number if leafn(p) is zero 
-               leafcn_actual = cnveg_carbonstate_inst%leafc_patch(p) / 0.000000001_r8    				
-            else                        										
-               leafcn_actual = cnveg_carbonstate_inst%leafc_patch(p)  / cnveg_nitrogenstate_inst%leafn_patch(p)   					! leaf CN ratio 
-            end if    																												 														
-          
-            if (cnveg_nitrogenstate_inst%frootn_patch(p) == 0.0_r8) then   ! to avoid division by zero, and also to make frootcn_actual(p) a very large number if frootc(p) is zero 
-               frootcn_actual = cnveg_carbonstate_inst%frootc_patch(p) / 0.000000001_r8    			
-            else                        										
-               frootcn_actual = cnveg_carbonstate_inst%frootc_patch(p) / cnveg_nitrogenstate_inst%frootn_patch(p) 					! fine root CN ratio 
-            end if    														
-      
-            if (woody(ivt(p)) == 1._r8) then  
-
-               if (cnveg_nitrogenstate_inst%livestemn_patch(p) == 0.0_r8) then   ! to avoid division by zero, and also to make livestemcn_actual(p) a very large number if livestemc(p) is zero 
-                  livestemcn_actual = cnveg_carbonstate_inst%livestemc_patch(p) / 0.000000001_r8    		
-               else                        										
-                  livestemcn_actual =  cnveg_carbonstate_inst%livestemc_patch(p) / cnveg_nitrogenstate_inst%livestemn_patch(p)  			! live stem CN ratio 
-               end if 														 														
-              
-               if (cnveg_nitrogenstate_inst%livecrootn_patch(p) == 0.0_r8) then   ! to avoid division by zero, and also to make livecrootcn_actual(p) a very large number if livecrootc(p) is zero 
-                  livecrootcn_actual = cnveg_carbonstate_inst%livecrootc_patch(p) / 0.000000001_r8    	
-               else                        										
-                  livecrootcn_actual = cnveg_carbonstate_inst%livecrootc_patch(p) / &
-                       cnveg_nitrogenstate_inst%livecrootn_patch(p)  		! live coarse root CN ratio
-               end if              
-            end if   
-          
-            if (ivt(p) >= npcropmin) then ! skip 2 generic crops    
-														              
-               if (cnveg_nitrogenstate_inst%livestemn_patch(p) == 0.0_r8) then   ! to avoid division by zero, and also to make livestemcn_actual(p) a very large number if livestemc(p) is zero 
-                  livestemcn_actual = cnveg_carbonstate_inst%livestemc_patch(p) / 0.000000001_r8    		
-               else                        										
-                  livestemcn_actual =  cnveg_carbonstate_inst%livestemc_patch(p) / cnveg_nitrogenstate_inst%livestemn_patch(p)  			! live stem CN ratio 
-               end if
-              
-               if (cnveg_nitrogenstate_inst%livecrootn_patch(p) == 0.0_r8) then   ! to avoid division by zero, and also to make livecrootcn_actual(p) a very large number if livecrootc(p) is zero 
-                  livecrootcn_actual = cnveg_carbonstate_inst%livecrootc_patch(p) / 0.000000001_r8    	
-               else                        										
-                  livecrootcn_actual = cnveg_carbonstate_inst%livecrootc_patch(p) / &
-                       cnveg_nitrogenstate_inst%livecrootn_patch(p)  		! live coarse root CN ratio
-               end if          
-            end if
-                
-            lfr_cn = 7.0_r8     ! turnover time if CN ratio exceeds the maximum = 12 days  put this later in text file
-            mort_cn  =  1.0_r8 / (lfr_cn * secspday)           ! converting annual to seconds 
-          
-            leafcn_max = leafcn(ivt(p)) + 25
-            frootcn_max = frootcn(ivt(p)) + 25
-            
-            ! Note that for high CN ratio stress the plant part does not retranslocate nitrogen as the plant part will need the N 
-            ! if high leaf CN ratio (i.e., high leaf C compared to N) then turnover extra C           
-            if (leafcn_actual > leafcn_max) then       
-               cnveg_carbonflux_inst%m_leafc_to_litter_patch(p) = mort_cn * cnveg_carbonstate_inst%leafc_patch(p)  
-            end if    
-
-            ! if high fine root CN ratio (i.e., high fine root C compared to N) then turnover extra C 
-            if (frootcn_actual > frootcn_max) then     
-               cnveg_carbonflux_inst%m_frootc_to_litter_patch(p) = mort_cn * cnveg_carbonstate_inst%frootc_patch(p)      
-            end if    
-					
-		    if (woody(ivt(p)) == 1._r8) then  
-		  
-		       livewdcn_max = livewdcn(ivt(p)) + 25
-
-               ! if high coarse root CN ratio (i.e., high coarse root C compared to N) then turnover extra C 
-               if (livecrootcn_actual > livewdcn_max) then     
-                  cnveg_carbonflux_inst%m_livecrootc_to_litter_patch(p) = mort_cn * cnveg_carbonstate_inst%livecrootc_patch(p)  
-               end if    
-          
-               ! if high stem CN ratio (i.e., high stem C compared to N) then turnover extra C 
-               if (livestemcn_actual > livewdcn_max) then       
-                   cnveg_carbonflux_inst%m_livestemc_to_litter_patch(p) = mort_cn * cnveg_carbonstate_inst%livestemc_patch(p)  
-               end if    
-              
-            end if  
-          
-            if (ivt(p) >= npcropmin) then ! skip 2 generic crops    
-
-               livewdcn_max = livewdcn(ivt(p)) + 25
-
-               ! if high coarse root CN ratio (i.e., high coarse root C compared to N) then turnover extra C 
-               if (livecrootcn_actual > livewdcn_max) then     
-                  cnveg_carbonflux_inst%m_livecrootc_to_litter_patch(p) = mort_cn * cnveg_carbonstate_inst%livecrootc_patch(p)  
-               end if    
-          
-               ! if high stem CN ratio (i.e., high stem C compared to N) then turnover extra C 
-               if (livestemcn_actual > livewdcn_max) then       
-                  cnveg_carbonflux_inst%m_livestemc_to_litter_patch(p) = mort_cn * cnveg_carbonstate_inst%livestemc_patch(p)  
-               end if    
-              
-             end if  
-      
-         end if   
-      
-      
-         if (carbon_storage_excess_opt == 1 .AND. laisun(p)+laisha(p) > 0.0_r8) then   
-            ! computing carbon to nitrogen ratio of different plant parts 
-          
-            if (cnveg_nitrogenstate_inst%leafn_storage_patch(p) == 0.0_r8) then   ! to avoid division by zero, and also to make leafcn_actual(p) a very large number if leafn(p) is zero 
-                leafcn_storage_actual = cnveg_carbonstate_inst%leafc_storage_patch(p) / 0.000000001_r8    				
-            else                        										
-                leafcn_storage_actual = cnveg_carbonstate_inst%leafc_storage_patch(p)  / &
-                     cnveg_nitrogenstate_inst%leafn_storage_patch(p)   					! leaf CN ratio 
-            end if    
-
-            if (cnveg_nitrogenstate_inst%frootn_storage_patch(p) == 0.0_r8) then   ! to avoid division by zero, and also to make frootcn_actual(p) a very large number if frootc(p) is zero 
-               frootcn_storage_actual = cnveg_carbonstate_inst%frootc_storage_patch(p) / 0.000000001_r8    			
-            else                        										
-               frootcn_storage_actual = cnveg_carbonstate_inst%frootc_storage_patch(p) / &
-                    cnveg_nitrogenstate_inst%frootn_storage_patch(p) 					! fine root CN ratio 
-            end if    														
-
-            if (woody(ivt(p)) == 1._r8) then  
-          
-               if (cnveg_nitrogenstate_inst%livestemn_storage_patch(p) == 0.0_r8) then   ! to avoid division by zero, and also to make livestemcn_actual(p) a very large number if livestemc(p) is zero 
-                  livestemcn_storage_actual = cnveg_carbonstate_inst%livestemc_storage_patch(p) / 0.000000001_r8    		
-               else                        										
-                  livestemcn_storage_actual =  cnveg_carbonstate_inst%livestemc_storage_patch(p) / &
-                       cnveg_nitrogenstate_inst%livestemn_storage_patch(p)  			! live stem CN ratio 
-               end if 																												
-      
-               if (cnveg_nitrogenstate_inst%livecrootn_storage_patch(p) == 0.0_r8) then   ! to avoid division by zero, and also to make livecrootcn_actual(p) a very large number if livecrootc(p) is zero 
-                  livecrootcn_storage_actual = cnveg_carbonstate_inst%livecrootc_storage_patch(p) / 0.000000001_r8    	
-               else                        										
-                  livecrootcn_storage_actual = cnveg_carbonstate_inst%livecrootc_storage_patch(p) / &
-                       cnveg_nitrogenstate_inst%livecrootn_storage_patch(p)  		! live coarse root CN ratio 
-               end if    														
- 														              
-            end if   
-          
-            if (ivt(p) >= npcropmin) then ! skip 2 generic crops    
-          
-               if (cnveg_nitrogenstate_inst%livestemn_storage_patch(p) == 0.0_r8) then   ! to avoid division by zero, and also to make livestemcn_actual(p) a very large number if livestemc(p) is zero 
-                  livestemcn_storage_actual = cnveg_carbonstate_inst%livestemc_storage_patch(p) / 0.000000001_r8    		
-               else                        										
-                  livestemcn_storage_actual =  cnveg_carbonstate_inst%livestemc_storage_patch(p) / &
-                       cnveg_nitrogenstate_inst%livestemn_storage_patch(p)  			! live stem CN ratio 
-               end if 																												
-      
-               if (cnveg_nitrogenstate_inst%livecrootn_storage_patch(p) == 0.0_r8) then   ! to avoid division by zero, and also to make livecrootcn_actual(p) a very large number if livecrootc(p) is zero 
-                  livecrootcn_storage_actual = cnveg_carbonstate_inst%livecrootc_storage_patch(p) / 0.000000001_r8    	
-               else                        										
-                  livecrootcn_storage_actual = cnveg_carbonstate_inst%livecrootc_storage_patch(p) / &
-                       cnveg_nitrogenstate_inst%livecrootn_storage_patch(p)  		! live coarse root CN ratio 
-               end if 
-          
-            end if   
-                
-            lfr_cn = 7.0_r8     ! turnover time if CN ratio exceeds the maximum = 12 days  put this later in text file
-            mort_cn  =  1.0_r8 / (lfr_cn * secspday)           ! converting annual to seconds 
-          
-            leafcn_max = leafcn(ivt(p)) + 25
-            frootcn_max = frootcn(ivt(p)) + 25
-            
-            ! Note that for high CN ratio stress the plant part does not retranslocate nitrogen as the plant part will need the N 
-            ! if high leaf CN ratio (i.e., high leaf C compared to N) then turnover extra C 
-            if (leafcn_storage_actual > leafcn_max) then       
-               cnveg_carbonflux_inst%m_leafc_storage_to_litter_patch(p) = mort_cn * &
-                    cnveg_carbonstate_inst%leafc_storage_patch(p)  
-            end if    
-
-            ! if high fine root CN ratio (i.e., high fine root C compared to N) then turnover extra C 
-            if (frootcn_storage_actual > frootcn_max) then     
-               cnveg_carbonflux_inst%m_frootc_storage_to_litter_patch(p) = mort_cn * &
-                    cnveg_carbonstate_inst%frootc_storage_patch(p)      
-            end if    
-					
-		    if (woody(ivt(p)) == 1._r8) then  
-		  
-		       livewdcn_max = livewdcn(ivt(p)) + 25
-
-               ! if high coarse root CN ratio (i.e., high coarse root C compared to N) then turnover extra C 
-               if (livecrootcn_storage_actual > livewdcn_max) then     
-                  cnveg_carbonflux_inst%m_livecrootc_storage_to_litter_patch(p) = mort_cn * &
-                       cnveg_carbonstate_inst%livecrootc_storage_patch(p)  
-               end if    
-
-               ! if high stem CN ratio (i.e., high stem C compared to N) then turnover extra C 
-               if (livestemcn_storage_actual > livewdcn_max) then       
-                  cnveg_carbonflux_inst%m_livestemc_storage_to_litter_patch(p) = mort_cn * &
-                       cnveg_carbonstate_inst%livestemc_storage_patch(p)  
-               end if    
-              
-            end if  
-          
-            if (ivt(p) >= npcropmin) then ! skip 2 generic crops    
-
-               livewdcn_max = livewdcn(ivt(p)) + 25
-
-               ! if high coarse root CN ratio (i.e., high coarse root C compared to N) then turnover extra C 
-               if (livecrootcn_storage_actual > livewdcn_max) then     
-                  cnveg_carbonflux_inst%m_livecrootc_storage_to_litter_patch(p) = mort_cn * &
-                       cnveg_carbonstate_inst%livecrootc_storage_patch(p)  
-               end if    
-          
-               ! if high stem CN ratio (i.e., high stem C compared to N) then turnover extra C 
-               if (livestemcn_storage_actual > livewdcn_max) then       
-                  cnveg_carbonflux_inst%m_livestemc_storage_to_litter_patch(p) = mort_cn * &
-                       cnveg_carbonstate_inst%livestemc_storage_patch(p)  
-               end if    
-              
-            end if  
-      
-         end if   
-         
-         end if ! end of if (ivt(p) == 11 .OR. ivt(p) == 14) then   
-
          ! transfer pools
          cnveg_carbonflux_inst%m_leafc_xfer_to_litter_patch(p)          = cnveg_carbonstate_inst%leafc_xfer_patch(p)          * m
          cnveg_carbonflux_inst%m_frootc_xfer_to_litter_patch(p)         = cnveg_carbonstate_inst%frootc_xfer_patch(p)         * m
@@ -443,12 +222,19 @@ contains
          !------------------------------------------------------
 
          ! displayed pools
-         cnveg_nitrogenflux_inst%m_leafn_to_litter_patch(p)               = cnveg_nitrogenstate_inst%leafn_patch(p)      * m
-         cnveg_nitrogenflux_inst%m_frootn_to_litter_patch(p)              = cnveg_nitrogenstate_inst%frootn_patch(p)     * m
-         cnveg_nitrogenflux_inst%m_livestemn_to_litter_patch(p)           = cnveg_nitrogenstate_inst%livestemn_patch(p)  * m
-         cnveg_nitrogenflux_inst%m_deadstemn_to_litter_patch(p)           = cnveg_nitrogenstate_inst%deadstemn_patch(p)  * m
-         cnveg_nitrogenflux_inst%m_livecrootn_to_litter_patch(p)          = cnveg_nitrogenstate_inst%livecrootn_patch(p) * m
-         cnveg_nitrogenflux_inst%m_deadcrootn_to_litter_patch(p)          = cnveg_nitrogenstate_inst%deadcrootn_patch(p) * m
+         cnveg_nitrogenflux_inst%m_leafn_to_litter_patch(p)            = cnveg_nitrogenstate_inst%leafn_patch(p)               * m
+         cnveg_nitrogenflux_inst%m_frootn_to_litter_patch(p)           = cnveg_nitrogenstate_inst%frootn_patch(p)              * m
+         cnveg_nitrogenflux_inst%m_livestemn_to_litter_patch(p)        = cnveg_nitrogenstate_inst%livestemn_patch(p)           * m
+         cnveg_nitrogenflux_inst%m_livecrootn_to_litter_patch(p)       = cnveg_nitrogenstate_inst%livecrootn_patch(p)          * m
+
+         if (spinup_state == 2 .and. .not. use_cndv) then   !accelerate mortality of dead woody pools 
+           cnveg_nitrogenflux_inst%m_deadstemn_to_litter_patch(p)      = cnveg_nitrogenstate_inst%deadstemn_patch(p)  * m * 10._r8
+           cnveg_nitrogenflux_inst%m_deadcrootn_to_litter_patch(p)     = cnveg_nitrogenstate_inst%deadcrootn_patch(p) * m * 10._r8
+         else
+           cnveg_nitrogenflux_inst%m_deadstemn_to_litter_patch(p)      = cnveg_nitrogenstate_inst%deadstemn_patch(p)           * m 
+           cnveg_nitrogenflux_inst%m_deadcrootn_to_litter_patch(p)     = cnveg_nitrogenstate_inst%deadcrootn_patch(p)          * m 
+         end if
+
          if (ivt(p) < npcropmin) then
             cnveg_nitrogenflux_inst%m_retransn_to_litter_patch(p) = cnveg_nitrogenstate_inst%retransn_patch(p) * m
          end if
@@ -523,10 +309,10 @@ contains
     integer :: fc,c,pi,p,j               ! indices
     !-----------------------------------------------------------------------
 
-    SHR_ASSERT_ALL((ubound(leaf_prof_patch)   == (/bounds%endp,nlevdecomp_full/)), errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(froot_prof_patch)  == (/bounds%endp,nlevdecomp_full/)), errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(croot_prof_patch)  == (/bounds%endp,nlevdecomp_full/)), errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(stem_prof_patch)   == (/bounds%endp,nlevdecomp_full/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(leaf_prof_patch)   == (/bounds%endp,nlevdecomp_full/)), errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(froot_prof_patch)  == (/bounds%endp,nlevdecomp_full/)), errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(croot_prof_patch)  == (/bounds%endp,nlevdecomp_full/)), errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(stem_prof_patch)   == (/bounds%endp,nlevdecomp_full/)), errMsg(sourcefile, __LINE__))
 
     associate(                                                                                                 & 
          leaf_prof                           => leaf_prof_patch                                              , & ! Input:  [real(r8) (:,:) ]  (1/m) profile of leaves                         

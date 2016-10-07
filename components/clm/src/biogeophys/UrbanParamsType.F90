@@ -53,7 +53,6 @@ module UrbanParamsType
      real(r8), pointer :: thick_roof      (:,:)
      integer,  pointer :: nlev_improad    (:,:)
      real(r8), pointer :: t_building_min  (:,:)
-     real(r8), pointer :: t_building_max  (:,:)
   end type urbinp_type
   type (urbinp_type), public :: urbinp   ! urban input derived type
 
@@ -89,7 +88,6 @@ module UrbanParamsType
      real(r8), pointer     :: vf_rw               (:)   ! lun view factor of road for one wall
      real(r8), pointer     :: vf_ww               (:)   ! lun view factor of opposing wall for one wall
 
-     real(r8), pointer     :: t_building_max      (:)   ! lun maximum internal building air temperature (K)
      real(r8), pointer     :: t_building_min      (:)   ! lun minimum internal building air temperature (K)
      real(r8), pointer     :: eflx_traffic_factor (:)   ! lun multiplicative traffic factor for sensible heat flux from urban traffic (-)
    contains
@@ -110,6 +108,9 @@ module UrbanParamsType
   integer, parameter, private :: BUILDING_TEMP_METHOD_SIMPLE = 0       ! Simple method introduced in CLM4.5
   integer, parameter, private :: BUILDING_TEMP_METHOD_PROG   = 1       ! Prognostic method introduced in CLM5.0
   integer, private :: building_temp_method = BUILDING_TEMP_METHOD_PROG ! Method to calculate the building temperature
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !----------------------------------------------------------------------- 
 
 contains
@@ -164,7 +165,6 @@ contains
        allocate(this%cv_wall          (begl:endl,nlevurb))  ; this%cv_wall             (:,:) = nan
        allocate(this%cv_roof          (begl:endl,nlevurb))  ; this%cv_roof             (:,:) = nan
     end if
-    allocate(this%t_building_max      (begl:endl))          ; this%t_building_max      (:)   = nan
     allocate(this%t_building_min      (begl:endl))          ; this%t_building_min      (:)   = nan
     allocate(this%tk_improad          (begl:endl,nlevurb))  ; this%tk_improad          (:,:) = nan
     allocate(this%cv_improad          (begl:endl,nlevurb))  ; this%cv_improad          (:,:) = nan
@@ -234,7 +234,6 @@ contains
           this%thick_roof(l)     = urbinp%thick_roof(g,dindx)
           this%nlev_improad(l)   = urbinp%nlev_improad(g,dindx)
           this%t_building_min(l) = urbinp%t_building_min(g,dindx)
-          this%t_building_max(l) = urbinp%t_building_max(g,dindx)
 
           ! Inferred from Sailor and Lu 2004
           if (urban_traffic) then
@@ -245,12 +244,10 @@ contains
 
           if (use_vancouver .or. use_mexicocity) then
              ! Freely evolving
-             this%t_building_max(l) = 380.00_r8
              this%t_building_min(l) = 200.00_r8
           else
              if (urban_hac == urban_hac_off) then
                 ! Overwrite values read in from urbinp by freely evolving values
-                this%t_building_max(l) = 380.00_r8
                 this%t_building_min(l) = 200.00_r8
              end if
           end if
@@ -301,13 +298,13 @@ contains
           if (abs(sumvf-1._r8) > 1.e-06_r8 ) then
              write (iulog,*) 'urban road view factor error',sumvf
              write (iulog,*) 'clm model is stopping'
-             call endrun(decomp_index=l, clmlevel=namel, msg=errmsg(__FILE__, __LINE__))
+             call endrun(decomp_index=l, clmlevel=namel, msg=errmsg(sourcefile, __LINE__))
           endif
           sumvf = this%vf_sw(l) + this%vf_rw(l) + this%vf_ww(l)
           if (abs(sumvf-1._r8) > 1.e-06_r8 ) then
              write (iulog,*) 'urban wall view factor error',sumvf
              write (iulog,*) 'clm model is stopping'
-             call endrun(decomp_index=l, clmlevel=namel, msg=errmsg(__FILE__, __LINE__))
+             call endrun(decomp_index=l, clmlevel=namel, msg=errmsg(sourcefile, __LINE__))
           endif
 
           !----------------------------------------------------------------------------------
@@ -351,7 +348,6 @@ contains
        else ! Not urban point 
 
           this%eflx_traffic_factor(l) = spval
-          this%t_building_max(l) = spval
           this%t_building_min(l) = spval
 
           this%vf_sr(l) = spval
@@ -428,7 +424,7 @@ contains
        ! in this case, set nlevurb to zero
        if (.not. has_numurbl) then
          nlevurb = 0
-         write(iulog,*)'PCT_URBAN is not multi-density, nlevurb set to 0'
+         if (masterproc) write(iulog,*)'PCT_URBAN is not multi-density, nlevurb set to 0'
        end if
 
        if ( nlevurb == 0 ) return
@@ -461,10 +457,9 @@ contains
                 urbinp%thick_roof(begg:endg, numurbl), &
                 urbinp%nlev_improad(begg:endg, numurbl), &
                 urbinp%t_building_min(begg:endg, numurbl), &
-                urbinp%t_building_max(begg:endg, numurbl), &
                 stat=ier)
        if (ier /= 0) then
-          call endrun(msg="Allocation error "//errmsg(__FILE__, __LINE__))
+          call endrun(msg="Allocation error "//errmsg(sourcefile, __LINE__))
        endif
 
        call ncd_inqfdims (ncid, isgrid2d, ni, nj, ns)
@@ -473,7 +468,7 @@ contains
           write(iulog,*)trim(subname), 'ldomain%ni,ni,= ',ldomain%ni,ni
           write(iulog,*)trim(subname), 'ldomain%nj,nj,= ',ldomain%nj,nj
           write(iulog,*)trim(subname), 'ldomain%ns,ns,= ',ldomain%ns,ns
-          call endrun(msg=errmsg(__FILE__, __LINE__))
+          call endrun(msg=errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_inqdid(ncid, 'nlevurb', dimid)
@@ -481,7 +476,7 @@ contains
        if (nlevurb_i /= nlevurb) then
           write(iulog,*)trim(subname)// ': parameter nlevurb= ',nlevurb, &
                'does not equal input dataset nlevurb= ',nlevurb_i
-          call endrun(msg=errmsg(__FILE__, __LINE__))
+          call endrun(msg=errmsg(sourcefile, __LINE__))
        endif
 
        call ncd_inqdid(ncid, 'numrad', dimid)
@@ -489,181 +484,175 @@ contains
        if (numrad_i /= numrad) then
           write(iulog,*)trim(subname)// ': parameter numrad= ',numrad, &
                'does not equal input dataset numrad= ',numrad_i
-          call endrun(msg=errmsg(__FILE__, __LINE__))
+          call endrun(msg=errmsg(sourcefile, __LINE__))
        endif
        call ncd_inqdid(ncid, 'numurbl', dimid)
        call ncd_inqdlen(ncid, dimid, numurbl_i)
        if (numurbl_i /= numurbl) then
           write(iulog,*)trim(subname)// ': parameter numurbl= ',numurbl, &
                'does not equal input dataset numurbl= ',numurbl_i
-          call endrun(msg=errmsg(__FILE__, __LINE__))
+          call endrun(msg=errmsg(sourcefile, __LINE__))
        endif
        call ncd_io(ncid=ncid, varname='CANYON_HWR', flag='read', data=urbinp%canyon_hwr,&
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg='ERROR: CANYON_HWR NOT on fsurdat file '//errmsg(__FILE__, __LINE__))
+          call endrun( msg='ERROR: CANYON_HWR NOT on fsurdat file '//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='WTLUNIT_ROOF', flag='read', data=urbinp%wtlunit_roof, &
             dim1name=grlnd,  readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: WTLUNIT_ROOF NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: WTLUNIT_ROOF NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='WTROAD_PERV', flag='read', data=urbinp%wtroad_perv, &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: WTROAD_PERV NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: WTROAD_PERV NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='EM_ROOF', flag='read', data=urbinp%em_roof, &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: EM_ROOF NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: EM_ROOF NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='EM_IMPROAD', flag='read', data=urbinp%em_improad, &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: EM_IMPROAD NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: EM_IMPROAD NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='EM_PERROAD', flag='read', data=urbinp%em_perroad, &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: EM_PERROAD NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: EM_PERROAD NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='EM_WALL', flag='read', data=urbinp%em_wall, &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: EM_WALL NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: EM_WALL NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='HT_ROOF', flag='read', data=urbinp%ht_roof, &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: HT_ROOF NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: HT_ROOF NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='WIND_HGT_CANYON', flag='read', data=urbinp%wind_hgt_canyon, &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: WIND_HGT_CANYON NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: WIND_HGT_CANYON NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='THICK_WALL', flag='read', data=urbinp%thick_wall, &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: THICK_WALL NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: THICK_WALL NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='THICK_ROOF', flag='read', data=urbinp%thick_roof, &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: THICK_ROOF NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: THICK_ROOF NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='NLEV_IMPROAD', flag='read', data=urbinp%nlev_improad, &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: NLEV_IMPROAD NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: NLEV_IMPROAD NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='T_BUILDING_MIN', flag='read', data=urbinp%t_building_min, &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: T_BUILDING_MIN NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
-       end if
-
-       call ncd_io(ncid=ncid, varname='T_BUILDING_MAX', flag='read', data=urbinp%t_building_max, &
-            dim1name=grlnd, readvar=readvar)
-       if (.not. readvar) then
-          call endrun( msg=' ERROR: T_BUILDING_MAX NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: T_BUILDING_MIN NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='ALB_IMPROAD_DIR', flag='read', data=urbinp%alb_improad_dir, &
             dim1name=grlnd, readvar=readvar)
        if (.not.readvar) then
-          call endrun( msg=' ERROR: ALB_IMPROAD_DIR NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: ALB_IMPROAD_DIR NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='ALB_IMPROAD_DIF', flag='read', data=urbinp%alb_improad_dif, &
             dim1name=grlnd, readvar=readvar)
        if (.not.readvar) then
-          call endrun( msg=' ERROR: ALB_IMPROAD_DIF NOT on fsurdat file'//errmsg(__FILE__, __LINE__) )
+          call endrun( msg=' ERROR: ALB_IMPROAD_DIF NOT on fsurdat file'//errmsg(sourcefile, __LINE__) )
        end if
 
        call ncd_io(ncid=ncid, varname='ALB_PERROAD_DIR', flag='read',data=urbinp%alb_perroad_dir, &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: ALB_PERROAD_DIR NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: ALB_PERROAD_DIR NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='ALB_PERROAD_DIF', flag='read',data=urbinp%alb_perroad_dif, &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: ALB_PERROAD_DIF NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: ALB_PERROAD_DIF NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='ALB_ROOF_DIR', flag='read', data=urbinp%alb_roof_dir,  &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: ALB_ROOF_DIR NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: ALB_ROOF_DIR NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='ALB_ROOF_DIF', flag='read', data=urbinp%alb_roof_dif,  &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: ALB_ROOF_DIF NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: ALB_ROOF_DIF NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='ALB_WALL_DIR', flag='read', data=urbinp%alb_wall_dir, &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: ALB_WALL_DIR NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: ALB_WALL_DIR NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='ALB_WALL_DIF', flag='read', data=urbinp%alb_wall_dif, &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: ALB_WALL_DIF NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: ALB_WALL_DIF NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='TK_IMPROAD', flag='read', data=urbinp%tk_improad, &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: TK_IMPROAD NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: TK_IMPROAD NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='TK_ROOF', flag='read', data=urbinp%tk_roof, &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: TK_ROOF NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: TK_ROOF NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='TK_WALL', flag='read', data=urbinp%tk_wall, &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: TK_WALL NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: TK_WALL NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='CV_IMPROAD', flag='read', data=urbinp%cv_improad, &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: CV_IMPROAD NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: CV_IMPROAD NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='CV_ROOF', flag='read', data=urbinp%cv_roof, &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: CV_ROOF NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: CV_ROOF NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_io(ncid=ncid, varname='CV_WALL', flag='read', data=urbinp%cv_wall, &
             dim1name=grlnd, readvar=readvar)
        if (.not. readvar) then
-          call endrun( msg=' ERROR: CV_WALL NOT on fsurdat file'//errmsg(__FILE__, __LINE__))
+          call endrun( msg=' ERROR: CV_WALL NOT on fsurdat file'//errmsg(sourcefile, __LINE__))
        end if
 
        call ncd_pio_closefile(ncid)
@@ -703,14 +692,13 @@ contains
                   urbinp%thick_roof, &
                   urbinp%nlev_improad, &
                   urbinp%t_building_min, &
-                  urbinp%t_building_max, &
                   stat=ier)
        if (ier /= 0) then
-          call endrun(msg='initUrbanInput: deallocation error '//errmsg(__FILE__, __LINE__))
+          call endrun(msg='initUrbanInput: deallocation error '//errmsg(sourcefile, __LINE__))
        end if
     else
        write(iulog,*)'initUrbanInput error: mode ',trim(mode),' not supported '
-       call endrun(msg=errmsg(__FILE__, __LINE__))
+       call endrun(msg=errmsg(sourcefile, __LINE__))
     end if
 
   end subroutine UrbanInput
@@ -756,7 +744,6 @@ contains
                   urbinp%ht_roof(nl,n)               <= 0._r8 .or. &
                   urbinp%thick_roof(nl,n)            <= 0._r8 .or. &
                   urbinp%thick_wall(nl,n)            <= 0._r8 .or. &
-                  urbinp%t_building_max(nl,n)        <= 0._r8 .or. &
                   urbinp%t_building_min(nl,n)        <= 0._r8 .or. &
                   urbinp%wind_hgt_canyon(nl,n)       <= 0._r8 .or. &
                   urbinp%wtlunit_roof(nl,n)          <= 0._r8 .or. &
@@ -805,7 +792,6 @@ contains
        write(iulog,*)'ht_roof:         ',urbinp%ht_roof(nindx,dindx)
        write(iulog,*)'thick_roof:      ',urbinp%thick_roof(nindx,dindx)
        write(iulog,*)'thick_wall:      ',urbinp%thick_wall(nindx,dindx)
-       write(iulog,*)'t_building_max:  ',urbinp%t_building_max(nindx,dindx)
        write(iulog,*)'t_building_min:  ',urbinp%t_building_min(nindx,dindx)
        write(iulog,*)'wind_hgt_canyon: ',urbinp%wind_hgt_canyon(nindx,dindx)
        write(iulog,*)'wtlunit_roof:    ',urbinp%wtlunit_roof(nindx,dindx)
@@ -827,7 +813,7 @@ contains
           write(iulog,*)'tk_improad: ',urbinp%tk_improad(nindx,dindx,1:nlev)
           write(iulog,*)'cv_improad: ',urbinp%cv_improad(nindx,dindx,1:nlev)
        end if
-       call endrun(msg=errmsg(__FILE__, __LINE__))
+       call endrun(msg=errmsg(sourcefile, __LINE__))
     end if
 
   end subroutine CheckUrban
@@ -881,8 +867,10 @@ contains
        if (ierr == 0) then
           read(unitn, clmu_inparm, iostat=ierr)
           if (ierr /= 0) then
-             call endrun(msg="ERROR reading clmu_inparm namelist"//errmsg(__FILE__, __LINE__))
+             call endrun(msg="ERROR reading clmu_inparm namelist"//errmsg(sourcefile, __LINE__))
           end if
+       else
+          call endrun(msg="ERROR finding clmu_inparm namelist"//errmsg(sourcefile, __LINE__))
        end if
        call relavu( unitn )
 
@@ -896,11 +884,13 @@ contains
     !
     if (urban_traffic) then
        write(iulog,*)'Urban traffic fluxes are not implemented currently'
-       call endrun(msg=errMsg(__FILE__, __LINE__))
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
     !
-    write(iulog,*) '   urban air conditioning/heating and wasteheat   = ', urban_hac
-    write(iulog,*) '   urban traffic flux   = ', urban_traffic
+    if ( masterproc )then
+       write(iulog,*) '   urban air conditioning/heating and wasteheat   = ', urban_hac
+       write(iulog,*) '   urban traffic flux   = ', urban_traffic
+    end if
 
     ReadNamelist = .true.
 
@@ -928,7 +918,7 @@ contains
 
     if ( .not. ReadNamelist )then
        write(iulog,*)'Testing on building_temp_method before urban namelist was read in'
-       call endrun(msg=errMsg(__FILE__, __LINE__))
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
     IsSimpleBuildTemp = building_temp_method == BUILDING_TEMP_METHOD_SIMPLE
 
@@ -956,7 +946,7 @@ contains
 
     if ( .not. ReadNamelist )then
        write(iulog,*)'Testing on building_temp_method before urban namelist was read in'
-       call endrun(msg=errMsg(__FILE__, __LINE__))
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
     IsProgBuildTemp = building_temp_method == BUILDING_TEMP_METHOD_PROG
 

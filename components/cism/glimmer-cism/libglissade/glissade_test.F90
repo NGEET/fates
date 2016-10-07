@@ -372,7 +372,8 @@ contains
   subroutine glissade_test_transport(model)
 
     use parallel
-    use glissade_transport, only: glissade_transport_driver, ntracer
+    use glissade_transport, only: glissade_transport_driver, &
+         glissade_transport_setup_tracers, glissade_transport_finish_tracers
     use glimmer_paramets, only: len0, thk0, tim0
     use glimmer_physcon, only: pi, scyr
 
@@ -412,6 +413,8 @@ contains
     !-------------------------------------------------------------------
 
     type(glide_global_type), intent(inout) :: model      ! model instance
+
+    integer :: ntracers   ! number of tracers to be transported
 
     real(dp), dimension(:,:,:), allocatable :: uvel, vvel   ! uniform velocity field (m/yr)
 
@@ -535,17 +538,24 @@ contains
        ! call transport scheme
        ! Note: glissade_transport_driver expects dt in seconds, uvel/vvel in m/s
 
+       call glissade_transport_setup_tracers(model)
+
        call glissade_transport_driver(dt*scyr,                                              &
                                       dx,                        dy,                        &
                                       nx,                        ny,                        &
                                       nz-1,                      model%numerics%sigma,      &
-                                      ntracer,                                              &
                                       uvel(:,:,:)/scyr,          vvel(:,:,:)/scyr,          &
                                       model%geometry%thck(:,:),                             &
                                       model%climate%acab(:,:),                              &
-                                      model%temper%bmlt(:,:),                               &
-                                      model%temper%temp(:,:,:),                             &
+                                      model%temper%bmlt_ground(:,:),                        &
+                                      model%geometry%ntracers,                              &
+                                      model%geometry%tracers(:,:,:,:),                      &
+                                      model%geometry%tracers_usrf(:,:,:),                   &
+                                      model%geometry%tracers_lsrf(:,:,:),                   &
+                                      model%options%which_ho_vertical_remap,                &
                                       upwind_transport_in = do_upwind_transport)
+
+       call glissade_transport_finish_tracers(model)
 
        if (this_rank == rdiag) then
           write(6,*) ' '

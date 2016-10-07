@@ -16,6 +16,7 @@ module SoilBiogeochemPotentialMod
   use SoilBiogeochemCarbonFluxType       , only : soilbiogeochem_carbonflux_type
   use SoilBiogeochemNitrogenStateType    , only : soilbiogeochem_nitrogenstate_type
   use SoilBiogeochemNitrogenFluxType     , only : soilbiogeochem_nitrogenflux_type
+  use clm_varctl                         , only : use_ed, iulog
   !
   implicit none
   private
@@ -29,6 +30,9 @@ module SoilBiogeochemPotentialMod
   end type Params_type
   !
   type(params_type), private :: params_inst
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !-----------------------------------------------------------------------
 
 contains
@@ -57,7 +61,7 @@ contains
 
     tString='dnp'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%dnp=tempr 
 
   end subroutine readParams
@@ -95,9 +99,9 @@ contains
    
     begc = bounds%begc; endc = bounds%endc
 
-    SHR_ASSERT_ALL((ubound(cn_decomp_pools)     == (/endc,nlevdecomp,ndecomp_pools/))               , errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(p_decomp_cpool_loss) == (/endc,nlevdecomp,ndecomp_cascade_transitions/)) , errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(pmnf_decomp_cascade) == (/endc,nlevdecomp,ndecomp_cascade_transitions/)) , errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(cn_decomp_pools)     == (/endc,nlevdecomp,ndecomp_pools/))               , errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(p_decomp_cpool_loss) == (/endc,nlevdecomp,ndecomp_cascade_transitions/)) , errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(pmnf_decomp_cascade) == (/endc,nlevdecomp,ndecomp_cascade_transitions/)) , errMsg(sourcefile, __LINE__))
 
     associate(                                                                                                          & 
          cascade_donor_pool               => decomp_cascade_con%cascade_donor_pool                                 , & ! Input:  [integer  (:)     ]  which pool is C taken from for a given decomposition step
@@ -130,6 +134,7 @@ contains
          fphr                             => soilbiogeochem_carbonflux_inst%fphr_col                                 & ! Output: [real(r8) (:,:)   ]  fraction of potential SOM + LITTER heterotrophic
          )
    
+   if ( .not. use_ed ) then
       ! set initial values for potential C and N fluxes
       p_decomp_cpool_loss(begc:endc, :, :) = 0._r8
       pmnf_decomp_cascade(begc:endc, :, :) = 0._r8
@@ -223,6 +228,20 @@ contains
             potential_immob_vr(c,j) = immob(c,j)
          end do
       end do
+   else  ! use_ed
+      ! As a first step we are making this a C-only model, so no N downregulation of fluxes. 
+      do k = 1, ndecomp_cascade_transitions
+         do j = 1,nlevdecomp
+            do fc = 1,num_soilc
+               c = filter_soilc(fc)
+               !
+               p_decomp_cpool_loss(c,j,k) = decomp_cpools_vr(c,j,cascade_donor_pool(k)) &
+                    * decomp_k(c,j,cascade_donor_pool(k))  * pathfrac_decomp_cascade(c,j,k)
+               !
+            end do
+         end do
+      end do
+   end if
 
       ! Add up potential hr for methane calculations
       do j = 1,nlevdecomp

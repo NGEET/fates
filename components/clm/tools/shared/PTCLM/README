@@ -37,7 +37,7 @@ General Directory structure:
         list script. Handles command line arguments and such.
   components/clm/tools/shared/PTCLM/batchque.py ---------- Python module for batch submital.
   components/clm/tools/shared/PTCLM/buildtools ----------- Script to build the CLM
-        tools needed to run PTCLMmkdata (mksurfdata_map both clm4_0 and clm4_5
+        tools needed to run PTCLMmkdata (mksurfdata_map both clm4_0 and clm4_5/clm5_0
         versions and gen_domain). Works on yellowstone.
 
 Quickstart:

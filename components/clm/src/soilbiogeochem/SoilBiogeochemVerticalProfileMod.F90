@@ -15,10 +15,10 @@ module SoilBiogeochemVerticalProfileMod
   ! !PUBLIC MEMBER FUNCTIONS:
   public:: SoilBiogeochemVerticalProfile
   !
-  logical , public :: exponential_rooting_profile = .true.
-  logical , public :: pftspecific_rootingprofile = .true.
-  real(r8), public :: rootprof_exp  = 3.  ! how steep profile is for root C inputs (1/ e-folding depth) (1/m)      
   real(r8), public :: surfprof_exp  = 10. ! how steep profile is for surface components (1/ e_folding depth) (1/m)      
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !-----------------------------------------------------------------------
 
 contains
@@ -45,9 +45,9 @@ contains
     use shr_log_mod             , only : errMsg => shr_log_errMsg
     use decompMod               , only : bounds_type
     use abortutils              , only : endrun
-    use clm_varcon              , only : zsoi, dzsoi, zisoi, dzsoi_decomp
+    use clm_varcon              , only : zsoi, dzsoi, zisoi, dzsoi_decomp, zmin_bedrock
     use clm_varpar              , only : nlevdecomp, nlevgrnd, nlevdecomp_full, maxpatch_pft
-    use clm_varctl              , only : use_vertsoilc, iulog
+    use clm_varctl              , only : use_vertsoilc, iulog, use_bedrock
     use pftconMod               , only : noveg, pftcon
     use SoilBiogeochemStateType , only : soilbiogeochem_state_type
     use CanopyStateType         , only : canopystate_type
@@ -92,7 +92,7 @@ contains
     associate(                                                                  & 
          altmax_lastyear_indx => canopystate_inst%altmax_lastyear_indx_col    , & ! Input:  [integer   (:)   ]  frost table depth (m)                              
 
-         rootfr               => soilstate_inst%rootfr_patch                  , & ! Input:  [real(r8)  (:,:) ]  fraction of roots in each soil layer  (nlevgrnd)
+         crootfr              => soilstate_inst%crootfr_patch                 , & ! Input:  [real(r8)  (:,:) ]  fraction of roots in each soil layer  (nlevgrnd)
          
          nfixation_prof       => soilbiogeochem_state_inst%nfixation_prof_col , & ! Input  :  [real(r8) (:,:) ]  (1/m) profile for N fixation additions          
          ndep_prof            => soilbiogeochem_state_inst%ndep_prof_col      , & ! Input  :  [real(r8) (:,:) ]  (1/m) profile for N fixation additions          
@@ -108,6 +108,11 @@ contains
          surface_prof(:) = 0._r8
          do j = 1, nlevdecomp
             surface_prof(j) = exp(-surfprof_exp * zsoi(j)) / dzsoi_decomp(j)
+            if (use_bedrock) then 
+               if (zsoi(j) > zmin_bedrock) then
+                 surface_prof(j) = 0._r8
+               end if
+            end if
          end do
 
          ! initialize profiles to zero
@@ -121,39 +126,18 @@ contains
          cinput_rootfr(begp:endp, :)     = 0._r8
          col_cinput_rootfr(begc:endc, :) = 0._r8
 
-         if ( exponential_rooting_profile ) then
-            if ( .not. pftspecific_rootingprofile ) then
-               ! define rooting profile from exponential parameters
+         do fp = 1,num_soilp
+            p = filter_soilp(fp)
+            c = patch%column(p)
+            if (patch%itype(p) /= noveg) then
                do j = 1, nlevdecomp
-                  do fp = 1,num_soilp
-                     p = filter_soilp(fp)
-                     cinput_rootfr(p,j) = exp(-rootprof_exp * zsoi(j)) / dzsoi_decomp(j)
-                  end do
+                  cinput_rootfr(p,j) = crootfr(p,j) / dzsoi_decomp(j)
                end do
+
             else
-               ! use beta distribution parameter from Jackson et al., 1996
-               do fp = 1,num_soilp
-                  p = filter_soilp(fp)
-                  if (patch%itype(p) /= noveg) then
-                     do j = 1, nlevdecomp
-                        cinput_rootfr(p,j) = ( pftcon%rootprof_beta(patch%itype(p)) ** (zisoi(j-1)*100._r8) - &
-                             pftcon%rootprof_beta(patch%itype(p)) ** (zisoi(j)*100._r8) ) &
-                             / dzsoi_decomp(j)
-                     end do
-                  else
-                     cinput_rootfr(p,1) = 1._r8 / dzsoi_decomp(1)
-                  endif
-               end do
+               cinput_rootfr(p,1) = 0.
             endif
-         else
-            do j = 1, nlevdecomp
-               ! use standard CLM root fraction profiles
-               do fp = 1,num_soilp
-                  p = filter_soilp(fp)
-                  cinput_rootfr(p,j) = rootfr(p,j) / dzsoi_decomp(j)
-               end do
-            end do
-         endif
+         end do
 
          do fp = 1,num_soilp
             p = filter_soilp(fp)
@@ -171,6 +155,10 @@ contains
                do j = 1, min(max(altmax_lastyear_indx(c), 1), nlevdecomp)
                   froot_prof(p,j) = cinput_rootfr(p,j) / rootfr_tot
                   croot_prof(p,j) = cinput_rootfr(p,j) / rootfr_tot
+
+                  if (j > col%nbedrock(c) .and. cinput_rootfr(p,j) > 0._r8) then 
+                     write(iulog,*) 'cinput_rootfr > 0 in bedrock'
+                  end if
                   ! set all surface processes to shallower profile
                   leaf_prof(p,j) = surface_prof(j)/ surface_prof_tot
                   stem_prof(p,j) = surface_prof(j)/ surface_prof_tot
@@ -259,7 +247,7 @@ contains
                write(iulog, *) 'p, itype(p), wtcol(p): ', p, patch%itype(p), patch%wtcol(p)
                write(iulog, *) 'cinput_rootfr(p,:): ', cinput_rootfr(p,:)
             end do
-            call endrun(msg=" ERROR: _prof_sum-1>delta"//errMsg(__FILE__, __LINE__))
+            call endrun(msg=" ERROR: _prof_sum-1>delta"//errMsg(sourcefile, __LINE__))
          endif
       end do
 
@@ -278,7 +266,7 @@ contains
          if ( ( abs(froot_prof_sum - 1._r8) > delta ) .or.  ( abs(croot_prof_sum - 1._r8) > delta ) .or. &
               ( abs(stem_prof_sum - 1._r8) > delta ) .or.  ( abs(leaf_prof_sum - 1._r8) > delta ) ) then
             write(iulog, *) 'profile sums: ', froot_prof_sum, croot_prof_sum, leaf_prof_sum, stem_prof_sum
-            call endrun(msg=' ERROR: sum-1 > delta'//errMsg(__FILE__, __LINE__))
+            call endrun(msg=' ERROR: sum-1 > delta'//errMsg(sourcefile, __LINE__))
          endif
       end do
 

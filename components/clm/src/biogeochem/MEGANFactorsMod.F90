@@ -43,6 +43,9 @@ module MEGANFactorsMod
   !
   character(len=32), allocatable :: comp_names(:)     ! MEGAN compound names
   real(r8),          allocatable :: comp_molecwghts(:)! MEGAN compound molecular weights
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !-----------------------------------------------------------------------
 
 contains
@@ -70,7 +73,7 @@ contains
     if (ndx<1) then 
        errmes = 'megan_factors_get: '//trim(comp_name)//' compound not found in MEGAN table'
        write(iulog,*) trim(errmes)
-       call endrun(msg=errMsg(__FILE__, __LINE__))
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
 
     factors(:) = comp_factors_table( ndx )%eff(:)
@@ -89,6 +92,7 @@ contains
     use ncdio_pio, only : ncd_pio_openfile,ncd_inqdlen
     use pio, only : pio_inq_varid,pio_get_var,file_desc_t,pio_closefile
     use fileutils   , only : getfil
+    use clm_varpar  , only : mxpft
     !
     ! !ARGUMENTS:
     character(len=*),intent(in) :: filename ! MEGAN factors input file
@@ -120,6 +124,9 @@ contains
     call ncd_inqdlen( ncid, dimid, n_classes, name='Class_Num')
     call ncd_inqdlen( ncid, dimid, n_patchs, name='PFT_Num')
 
+    if ( n_patchs /= mxpft+1 )then
+       call endrun(msg='PFT_Num does NOT equal mxpft: '//errMsg(sourcefile, __LINE__))
+    end if
     npfts = n_patchs
 
     ierr = pio_inq_varid(ncid,'Class_EF', class_ef_vid)
@@ -148,7 +155,7 @@ contains
     call  bld_hash_table_indices( comp_names )
     do i=1,n_comps
        start=(/i,1/)
-       count=(/1,16/) !TODO - this SHOULD NOT BE HARD-WIRED here!!!!!
+       count=(/1,mxpft/) 
        ierr = pio_get_var( ncid, comp_ef_vid,  start, count, comp_factors )
        start=(/class_nums(i),1/)
        ierr = pio_get_var( ncid, class_ef_vid, start, count, class_factors  )

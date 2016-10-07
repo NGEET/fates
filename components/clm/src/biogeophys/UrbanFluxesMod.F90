@@ -43,6 +43,9 @@ module UrbanFluxesMod
   private :: simple_wasteheatfromac  ! Calculate waste heat from air-conditioning with the simpler method (CLM4.5)
   private :: calc_simple_internal_building_temp ! Calculate internal building temperature by simpler method (CLM4.5)
 
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
+
 contains
 
   !-----------------------------------------------------------------------
@@ -256,7 +259,6 @@ contains
          qg                  =>   waterstate_inst%qg_col                    , & ! Input:  [real(r8) (:)   ]  specific humidity at ground surface (kg/kg)       
          h2osoi_ice          =>   waterstate_inst%h2osoi_ice_col            , & ! Input:  [real(r8) (:,:) ]  ice lens (kg/m2)                                
          h2osoi_liq          =>   waterstate_inst%h2osoi_liq_col            , & ! Input:  [real(r8) (:,:) ]  liquid water (kg/m2)                            
-         h2osno              =>   waterstate_inst%h2osno_col                , & ! Input:  [real(r8) (:)   ]  snow water (mm H2O)                               
          qaf                 =>   waterstate_inst%qaf_lun                   , & ! Output: [real(r8) (:)   ]  urban canopy air specific humidity (kg/kg)        
          q_ref2m             =>   waterstate_inst%q_ref2m_patch             , & ! Output: [real(r8) (:)   ]  2 m height surface specific humidity (kg/kg)      
          rh_ref2m            =>   waterstate_inst%rh_ref2m_patch            , & ! Output: [real(r8) (:)   ]  2 m height surface relative humidity (%)          
@@ -334,7 +336,7 @@ contains
             write (iulog,*) 'ht_roof, z_d_town, z_0_town: ', ht_roof(l), z_d_town(l), &
                  z_0_town(l)
             write (iulog,*) 'clm model is stopping'
-            call endrun(decomp_index=l, clmlevel=namel, msg=errmsg(__FILE__, __LINE__))
+            call endrun(decomp_index=l, clmlevel=namel, msg=errmsg(sourcefile, __LINE__))
          end if
          if (forc_hgt_u_patch(lun%patchi(l)) - z_d_town(l) <= z_0_town(l)) then
             write (iulog,*) 'aerodynamic parameter error in UrbanFluxes'
@@ -342,7 +344,7 @@ contains
             write (iulog,*) 'forc_hgt_u_patch, z_d_town, z_0_town: ', forc_hgt_u_patch(lun%patchi(l)), z_d_town(l), &
                  z_0_town(l)
             write (iulog,*) 'clm model is stopping'
-            call endrun(decomp_index=l, clmlevel=namel, msg=errmsg(__FILE__, __LINE__))
+            call endrun(decomp_index=l, clmlevel=namel, msg=errmsg(sourcefile, __LINE__))
          end if
 
          ! Magnitude of atmospheric wind
@@ -579,7 +581,7 @@ contains
                write(iulog,*) 'c, ctype, pi = ', c, ctype(c), pi
                write(iulog,*) 'Column indices for: shadewall, sunwall, road_imperv, road_perv, roof: '
                write(iulog,*) icol_shadewall, icol_sunwall, icol_road_imperv, icol_road_perv, icol_roof
-               call endrun(decomp_index=l, clmlevel=namel, msg="ERROR, ctype out of range"//errmsg(__FILE__, __LINE__))
+               call endrun(decomp_index=l, clmlevel=namel, msg="ERROR, ctype out of range"//errmsg(sourcefile, __LINE__))
             end if
 
             taf_numer(l) = taf_numer(l) + t_grnd(c)*wtus(c)
@@ -799,7 +801,7 @@ contains
             write(iulog,*)'eflx_scale    = ',eflx_scale(indexl)
             write(iulog,*)'eflx_sh_grnd_scale: ',eflx_sh_grnd_scale(lun%patchi(indexl):lun%patchf(indexl))
             write(iulog,*)'eflx          = ',eflx(indexl)
-            call endrun(decomp_index=indexl, clmlevel=namel, msg=errmsg(__FILE__, __LINE__))
+            call endrun(decomp_index=indexl, clmlevel=namel, msg=errmsg(sourcefile, __LINE__))
          end if
       end if
 
@@ -820,7 +822,7 @@ contains
             write(iulog,*)'clm model is stopping - error is greater than 4.e-9 kg/m**2/s'
             write(iulog,*)'qflx_scale    = ',qflx_scale(indexl)
             write(iulog,*)'qflx          = ',qflx(indexl)
-            call endrun(decomp_index=indexl, clmlevel=namel, msg=errmsg(__FILE__, __LINE__))
+            call endrun(decomp_index=indexl, clmlevel=namel, msg=errmsg(sourcefile, __LINE__))
          end if
       end if
 

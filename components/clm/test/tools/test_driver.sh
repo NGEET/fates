@@ -4,7 +4,7 @@
 #
 # interactive usage on all machines:
 #
-# env CLM_SOFF=FALSE ./test_driver.sh -i
+# env ./test_driver.sh -i
 #
 # valid arguments: 
 # -i    interactive usage
@@ -59,6 +59,11 @@ if [ -z "\$CLM_THREADS" ]; then   #threads NOT set on command line
    export CLM_THREADS=\$c_threads
 fi
 
+# Stop on first failed test
+if [ -z "\$CLM_SOFF" ]; then   #CLM_SOFF NOT set
+   export CLM_SOFF=FALSE
+fi
+
 export CESM_MACH="yellowstone"
 export CESM_COMP="intel"
 
@@ -69,7 +74,7 @@ export MAKE_CMD="gmake -j "
 export CFG_STRING=""
 export TOOLS_MAKE_STRING="USER_FC=ifort USER_LINKER=ifort "
 export MACH_WORKSPACE="/glade/scratch"
-CPRNC_EXE="$CESMDATAROOT/tools/cprnc/cprnc"
+export CPRNC_EXE="$CESMDATAROOT/tools/cprnc/cprnc"
 dataroot="$CESMDATAROOT"
 export TOOLSLIBS=""
 export TOOLS_CONF_STRING=""
@@ -221,6 +226,7 @@ esac
 ##vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv writing to batch script vvvvvvvvvvvvvvvvvvv
 cat >> ./${submit_script} << EOF
 
+export CPRNC_OPT=""
 if [ -n "\${CLM_JOBID}" ]; then
     export JOBID=\${CLM_JOBID}
 fi
@@ -400,18 +406,10 @@ for test_id in \${test_list}; do
         pending_tests="YES"
     else
         echo " rc=\$rc FAIL" >> \${clm_status}
-	if [ \$interactive = "YES" ]; then
-	    if [ "\$CLM_SOFF" != "FALSE" ]; then
-		echo "stopping on first failure"
-		echo "stopping on first failure" >> \${clm_status}
-		exit 6
-	    fi
-	else
-	    if [ "\$CLM_SOFF" = "TRUE" ]; then
-		echo "stopping on first failure" >> \${clm_status}
-		echo "stopping on first failure" >> \${clm_log}
-		exit 6
-	    fi
+        if [ "\$CLM_SOFF" = "TRUE" ]; then
+           echo "stopping on first failure" >> \${clm_status}
+           echo "stopping on first failure" >> \${clm_log}
+           exit 6
 	fi
     fi
 done

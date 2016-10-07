@@ -40,6 +40,7 @@ module atm2lndType
      real(r8), pointer :: forc_v_grc                    (:)   => null() ! atm wind speed, north direction (m/s)
      real(r8), pointer :: forc_wind_grc                 (:)   => null() ! atmospheric wind speed
      real(r8), pointer :: forc_hgt_grc                  (:)   => null() ! atmospheric reference height (m)
+     real(r8), pointer :: forc_topo_grc                 (:)   => null() ! atmospheric surface height (m)
      real(r8), pointer :: forc_hgt_u_grc                (:)   => null() ! obs height of wind [m] (new)
      real(r8), pointer :: forc_hgt_t_grc                (:)   => null() ! obs height of temperature [m] (new)
      real(r8), pointer :: forc_hgt_q_grc                (:)   => null() ! obs height of humidity [m] (new)
@@ -80,7 +81,8 @@ module atm2lndType
 
      !  rof->lnd
      real(r8), pointer :: forc_flood_grc                (:)   => null() ! rof flood (mm/s)
-     real(r8), pointer :: volr_grc                      (:)   => null() ! rof volr (m3)
+     real(r8), pointer :: volr_grc                      (:)   => null() ! rof volr total volume (m3)
+     real(r8), pointer :: volrmch_grc                   (:)   => null() ! rof volr main channel (m3)
 
      ! anomaly forcing
      real(r8), pointer :: af_precip_grc                 (:)   => null() ! anomaly forcing 
@@ -101,6 +103,7 @@ module atm2lndType
      real(r8) , pointer :: prec365_patch                (:)   => null() ! patch 365-day running mean of tot. precipitation
      real(r8) , pointer :: prec60_patch                 (:)   => null() ! patch 60-day running mean of tot. precipitation (mm/s) 
      real(r8) , pointer :: prec10_patch                 (:)   => null() ! patch 10-day running mean of tot. precipitation (mm/s) 
+     real(r8) , pointer :: rh30_patch                   (:)   => null() ! patch 30-day running mean of relative humidity 
      real(r8) , pointer :: prec24_patch                 (:)   => null() ! patch 24-hour running mean of tot. precipitation (mm/s) 
      real(r8) , pointer :: rh24_patch                   (:)   => null() ! patch 24-hour running mean of relative humidity
      real(r8) , pointer :: wind24_patch                 (:)   => null() ! patch 24-hour running mean of wind
@@ -119,6 +122,9 @@ module atm2lndType
      procedure, public  :: Clean
 
   end type atm2lnd_type
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !----------------------------------------------------
 
 contains
@@ -161,6 +167,7 @@ contains
     allocate(this%forc_wind_grc                 (begg:endg))        ; this%forc_wind_grc                 (:)   = ival
     allocate(this%forc_rh_grc                   (begg:endg))        ; this%forc_rh_grc                   (:)   = ival
     allocate(this%forc_hgt_grc                  (begg:endg))        ; this%forc_hgt_grc                  (:)   = ival
+    allocate(this%forc_topo_grc                 (begg:endg))        ; this%forc_topo_grc                 (:)   = ival
     allocate(this%forc_hgt_u_grc                (begg:endg))        ; this%forc_hgt_u_grc                (:)   = ival
     allocate(this%forc_hgt_t_grc                (begg:endg))        ; this%forc_hgt_t_grc                (:)   = ival
     allocate(this%forc_hgt_q_grc                (begg:endg))        ; this%forc_hgt_q_grc                (:)   = ival
@@ -204,6 +211,7 @@ contains
     ! rof->lnd
     allocate(this%forc_flood_grc                (begg:endg))        ; this%forc_flood_grc                (:)   = ival
     allocate(this%volr_grc                      (begg:endg))        ; this%volr_grc                      (:)   = ival
+    allocate(this%volrmch_grc                   (begg:endg))        ; this%volrmch_grc                   (:)   = ival
 
     ! anomaly forcing
     allocate(this%bc_precip_grc                 (begg:endg))        ; this%bc_precip_grc                 (:)   = ival
@@ -222,6 +230,7 @@ contains
     allocate(this%fsi240_patch                  (begp:endp))        ; this%fsi240_patch                  (:)   = nan
     allocate(this%prec10_patch                  (begp:endp))        ; this%prec10_patch                  (:)   = nan
     allocate(this%prec60_patch                  (begp:endp))        ; this%prec60_patch                  (:)   = nan
+    allocate(this%rh30_patch                    (begp:endp))        ; this%rh30_patch                    (:)   = nan 
     allocate(this%prec365_patch                 (begp:endp))        ; this%prec365_patch                 (:)   = nan
     if (use_ed) then
        allocate(this%prec24_patch               (begp:endp))        ; this%prec24_patch                  (:)   = nan
@@ -260,8 +269,13 @@ contains
 
     this%volr_grc(begg:endg) = spval
     call hist_addfld1d (fname='VOLR',  units='m3',  &
-         avgflag='A', long_name='river channel water storage', &
+         avgflag='A', long_name='river channel total water storage', &
          ptr_lnd=this%volr_grc)
+
+    this%volrmch_grc(begg:endg) = spval
+    call hist_addfld1d (fname='VOLRMCH',  units='m3',  &
+         avgflag='A', long_name='river channel main channel water storage', &
+         ptr_lnd=this%volrmch_grc)
 
     this%forc_wind_grc(begg:endg) = spval
     call hist_addfld1d (fname='WIND', units='m/s',  &
@@ -276,6 +290,11 @@ contains
     call hist_addfld1d (fname='ZBOT', units='m',  &
          avgflag='A', long_name='atmospheric reference height', &
          ptr_lnd=this%forc_hgt_grc)
+
+    this%forc_topo_grc(begg:endg) = spval
+    call hist_addfld1d (fname='ATM_TOPO', units='m', &
+         avgflag='A', long_name='atmospheric surface height', &
+         ptr_lnd=this%forc_topo_grc)
 
     this%forc_solar_grc(begg:endg) = spval
     call hist_addfld1d (fname='FSDS', units='W/m^2',  &
@@ -308,6 +327,11 @@ contains
     call hist_addfld1d (fname='Tair', units='K',  &
          avgflag='A', long_name='atmospheric air temperature', &
          ptr_gcell=this%forc_t_not_downscaled_grc, default='inactive')
+
+    this%forc_t_downscaled_col(begc:endc) = spval
+    call hist_addfld1d (fname='Tair_downscaled', units='K', &
+         avgflag='A', long_name='atmospheric air temperature downscaled to columns', &
+         ptr_col=this%forc_t_downscaled_col, default='inactive')
 
     this%forc_pbot_not_downscaled_grc(begg:endg) = spval
     call hist_addfld1d (fname='PSurf', units='Pa',  &
@@ -395,6 +419,23 @@ contains
          avgflag='A', long_name='direct radiation (last 240hrs)', &
          ptr_patch=this%fsd240_patch, default='inactive')
 
+    if (use_cn) then
+       this%rh30_patch(begp:endp) = spval
+       call hist_addfld1d (fname='RH30', units='%',  &
+            avgflag='A', long_name='30-day running mean of relative humidity', &
+            ptr_patch=this%rh30_patch, default='inactive')
+
+       this%prec10_patch(begp:endp) = spval
+       call hist_addfld1d (fname='PREC10', units='MM H2O/S',  &
+            avgflag='A', long_name='10-day running mean of PREC', &
+            ptr_patch=this%prec10_patch, default='inactive')
+
+       this%prec60_patch(begp:endp) = spval
+       call hist_addfld1d (fname='PREC60', units='MM H2O/S',  &
+            avgflag='A', long_name='60-day running mean of PREC', &
+            ptr_patch=this%prec60_patch, default='inactive')
+    end if
+
     if (use_cndv) then
        call hist_addfld1d (fname='TDA', units='K',  &
             avgflag='A', long_name='daily average 2-m temperature', &
@@ -463,6 +504,10 @@ contains
        call init_accum_field (name='PREC60', units='MM H2O/S', &
             desc='60-day running mean of total precipitation', accum_type='runmean', accum_period=-60, &
             subgrid_type='pft', numlev=1, init_value=0._r8)
+    
+       call init_accum_field (name='RH30', units='%', &
+            desc='30-day running mean of relative humidity', accum_type='runmean', accum_period=-30, &
+            subgrid_type='pft', numlev=1, init_value=100._r8)
     end if
 
     if (use_cndv) then
@@ -538,7 +583,7 @@ contains
     if (ier/=0) then
        write(iulog,*)' in '
        call endrun(msg="extract_accum_hist allocation error for rbufslp"//&
-            errMsg(__FILE__, __LINE__))
+            errMsg(sourcefile, __LINE__))
     endif
 
     ! Determine time step
@@ -562,6 +607,9 @@ contains
 
        call extract_accum_field ('PREC60', rbufslp, nstep)
        this%prec60_patch(begp:endp) = rbufslp(begp:endp)
+   
+       call extract_accum_field ('RH30', rbufslp, nstep)
+       this%rh30_patch(begp:endp) = rbufslp(begp:endp)
     end if
 
     if (use_cndv) then
@@ -628,7 +676,7 @@ contains
     allocate(rbufslp(begp:endp), stat=ier)
     if (ier/=0) then
        write(iulog,*)'update_accum_hist allocation error for rbuf1dp'
-       call endrun(msg=errMsg(__FILE__, __LINE__))
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
 
     ! Accumulate and extract forc_solad24 & forc_solad240 
@@ -692,14 +740,14 @@ contains
        call extract_accum_field ('PREC24', this%prec24_patch, nstep)
 
        do p = bounds%begp,bounds%endp
-          c = patch%column(p)
+          g = patch%gridcell(p) 
           rbufslp(p) = this%forc_wind_grc(g) 
        end do
        call update_accum_field  ('WIND24', rbufslp, nstep)
        call extract_accum_field ('WIND24', this%wind24_patch, nstep)
 
        do p = bounds%begp,bounds%endp
-          c = patch%column(p)
+          g = patch%gridcell(p) 
           rbufslp(p) = this%forc_rh_grc(g) 
        end do
        call update_accum_field  ('RH24', rbufslp, nstep)
@@ -728,6 +776,16 @@ contains
      call update_accum_field  ('pbot240', rbufslp, nstep)
      call extract_accum_field ('pbot240', this%forc_pbot240_downscaled_patch, nstep)
 
+    endif
+
+    if (use_cn) then
+       do p = begp,endp
+          g = patch%gridcell(p) 
+          rbufslp(p) = this%forc_rh_grc(g)
+       end do
+       ! Accumulate and extract RH30 (accumulates RH as 30-day running mean)
+       call update_accum_field  ('RH30', rbufslp, nstep)
+       call extract_accum_field ('RH30', this%rh30_patch, nstep)
     endif
 
     deallocate(rbufslp)
@@ -802,6 +860,7 @@ contains
     deallocate(this%forc_wind_grc)
     deallocate(this%forc_rh_grc)
     deallocate(this%forc_hgt_grc)
+    deallocate(this%forc_topo_grc)
     deallocate(this%forc_hgt_u_grc)
     deallocate(this%forc_hgt_t_grc)
     deallocate(this%forc_hgt_q_grc)

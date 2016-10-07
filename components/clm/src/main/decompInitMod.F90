@@ -18,6 +18,7 @@ module decompInitMod
   use ColumnType      , only : col                
   use PatchType       , only : patch                
   use EDVecCohortType , only : ed_vec_cohort
+  use glcBehaviorMod  , only : glc_behavior_type
   use decompMod
   use mct_mod
   !
@@ -32,6 +33,9 @@ module decompInitMod
   ! !PRIVATE TYPES:
   private
   integer, pointer :: lcid(:)       ! temporary for setting ldecomp
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !------------------------------------------------------------------------------
 
 contains
@@ -76,11 +80,11 @@ contains
        if (nclumps < npes) then
           write(iulog,*) 'decompInit_lnd(): Number of gridcell clumps= ',nclumps, &
                ' is less than the number of processes = ', npes
-          call endrun(msg=errMsg(__FILE__, __LINE__))
+          call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
     else
        write(iulog,*)'clump_pproc= ',clump_pproc,'  must be greater than 0'
-       call endrun(msg=errMsg(__FILE__, __LINE__))
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
     ! allocate and initialize procinfo and clumps 
@@ -89,7 +93,7 @@ contains
     allocate(procinfo%cid(clump_pproc), stat=ier)
     if (ier /= 0) then
        write(iulog,*) 'decompInit_lnd(): allocation error for procinfo%cid'
-       call endrun(msg=errMsg(__FILE__, __LINE__))
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
     procinfo%nclumps   = clump_pproc
     procinfo%cid(:)    = -1
@@ -112,7 +116,7 @@ contains
     allocate(clumps(nclumps), stat=ier)
     if (ier /= 0) then
        write(iulog,*) 'decompInit_lnd(): allocation error for clumps'
-       call endrun(msg=errMsg(__FILE__, __LINE__))
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
     clumps(:)%owner     = -1
     clumps(:)%ncells    = 0
@@ -137,14 +141,14 @@ contains
        pid = mod(n-1,npes)
        if (pid < 0 .or. pid > npes-1) then
           write(iulog,*) 'decompInit_lnd(): round robin pid error ',n,pid,npes
-          call endrun(msg=errMsg(__FILE__, __LINE__))
+          call endrun(msg=errMsg(sourcefile, __LINE__))
        endif
        clumps(n)%owner = pid
        if (iam == pid) then
           cid = cid + 1
           if (cid < 1 .or. cid > clump_pproc) then
              write(iulog,*) 'decompInit_lnd(): round robin pid error ',n,pid,npes
-             call endrun(msg=errMsg(__FILE__, __LINE__))
+             call endrun(msg=errMsg(sourcefile, __LINE__))
           endif
           procinfo%cid(cid) = n
        endif
@@ -161,12 +165,12 @@ contains
     if (npes > numg) then
        write(iulog,*) 'decompInit_lnd(): Number of processes exceeds number ', &
             'of land grid cells',npes,numg
-       call endrun(msg=errMsg(__FILE__, __LINE__))
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
     if (nclumps > numg) then
        write(iulog,*) 'decompInit_lnd(): Number of clumps exceeds number ', &
             'of land grid cells',nclumps,numg
-       call endrun(msg=errMsg(__FILE__, __LINE__))
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
     if (float(numg)/float(nclumps) < float(nsegspc)) then
@@ -237,12 +241,12 @@ contains
     allocate(ldecomp%gdc2glo(numg), stat=ier)
     if (ier /= 0) then
        write(iulog,*) 'decompInit_lnd(): allocation error1 for ldecomp, etc'
-       call endrun(msg=errMsg(__FILE__, __LINE__))
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
     allocate(clumpcnt(nclumps),stat=ier)
     if (ier /= 0) then
        write(iulog,*) 'decompInit_lnd(): allocation error1 for clumpcnt'
-       call endrun(msg=errMsg(__FILE__, __LINE__))
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
     ldecomp%gdc2glo(:) = 0
@@ -309,7 +313,7 @@ contains
   end subroutine decompInit_lnd
 
   !------------------------------------------------------------------------------
-  subroutine decompInit_clumps(lns,lni,lnj,glcmask)
+  subroutine decompInit_clumps(lns,lni,lnj,glc_behavior)
     !
     ! !DESCRIPTION:
     ! This subroutine initializes the land surface decomposition into a clump
@@ -323,7 +327,7 @@ contains
     ! !ARGUMENTS:
     implicit none
     integer , intent(in) :: lns,lni,lnj ! land domain global size
-    integer , pointer, optional   :: glcmask(:)  ! glc mask
+    type(glc_behavior_type), intent(in) :: glc_behavior
     !
     ! !LOCAL VARIABLES:
     integer :: ln,an              ! indices
@@ -366,13 +370,8 @@ contains
        an  = ldecomp%gdc2glo(anumg)
        cid = lcid(an)
        ln  = anumg
-       if (present(glcmask)) then
-          call subgrid_get_gcellinfo (ln, nlunits=ilunits, ncols=icols, npatches=ipatches, &
-              ncohorts=icohorts, glcmask=glcmask(ln))
-       else
-          call subgrid_get_gcellinfo (ln, nlunits=ilunits, ncols=icols, npatches=ipatches, &
-               ncohorts=icohorts )
-       endif
+       call subgrid_get_gcellinfo (ln, nlunits=ilunits, ncols=icols, npatches=ipatches, &
+            ncohorts=icohorts, glc_behavior=glc_behavior)
        allvecl(cid,1) = allvecl(cid,1) + 1
        allvecl(cid,2) = allvecl(cid,2) + ilunits  ! number of landunits for local clump cid
        allvecl(cid,3) = allvecl(cid,3) + icols    ! number of columns for local clump cid
@@ -466,7 +465,7 @@ contains
           write(iulog ,*) 'decompInit_glcp(): allvecg error patches',iam,n,clumps(n)%npatches ,allvecg(n,4)
           write(iulog ,*) 'decompInit_glcp(): allvecg error cohorts',iam,n,clumps(n)%nCohorts ,allvecg(n,5)
           
-          call endrun(msg=errMsg(__FILE__, __LINE__))
+          call endrun(msg=errMsg(sourcefile, __LINE__))
        endif
     enddo
 
@@ -476,10 +475,10 @@ contains
   end subroutine decompInit_clumps
 
   !------------------------------------------------------------------------------
-  subroutine decompInit_glcp(lns,lni,lnj,glcmask)
+  subroutine decompInit_glcp(lns,lni,lnj,glc_behavior)
     !
     ! !DESCRIPTION:
-    ! Determine gsMaps for landunits, columns, patchesand cohorts
+    ! Determine gsMaps for landunits, columns, patches and cohorts
     !
     ! !USES:
     use spmdMod
@@ -490,7 +489,7 @@ contains
     ! !ARGUMENTS:
     implicit none
     integer , intent(in) :: lns,lni,lnj ! land domain global size
-    integer , pointer, optional   :: glcmask(:)  ! glc mask
+    type(glc_behavior_type), intent(in) :: glc_behavior
     !
     ! !LOCAL VARIABLES:
     integer :: gi,li,ci,pi,coi    ! indices
@@ -500,7 +499,7 @@ contains
     integer :: begl,endl          ! beg,end landunits
     integer :: begc,endc          ! beg,end columns
     integer :: begp,endp          ! beg,end patches
-    integer :: begCohort,endCohort! beg,end patches
+    integer :: begCohort,endCohort! beg,end cohorts
     integer :: numg               ! total number of gridcells across all processors
     integer :: numl               ! total number of landunits across all processors
     integer :: numc               ! total number of columns across all processors
@@ -565,13 +564,8 @@ contains
     ! Determine gcount, lcount, ccount and pcount
 
     do gi = begg,endg
-       if (present(glcmask)) then
-          call subgrid_get_gcellinfo (gi, nlunits=ilunits, ncols=icols, npatches=ipatches, &
-              ncohorts=icohorts, glcmask=glcmask(gi))
-       else
-          call subgrid_get_gcellinfo (gi, nlunits=ilunits, ncols=icols, npatches=ipatches, &
-               ncohorts=icohorts )
-       endif
+       call subgrid_get_gcellinfo (gi, nlunits=ilunits, ncols=icols, npatches=ipatches, &
+            ncohorts=icohorts, glc_behavior=glc_behavior)
        gcount(gi)  = 1         ! number of gridcells for local gridcell index gi
        lcount(gi)  = ilunits   ! number of landunits for local gridcell index gi
        ccount(gi)  = icols     ! number of columns for local gridcell index gi
@@ -673,14 +667,14 @@ contains
           i = i + 1
           if (i < begg .or. i > endg) then
              write(iulog,*) 'decompInit_glcp error i ',i,begg,endg
-             call endrun(msg=errMsg(__FILE__, __LINE__))
+             call endrun(msg=errMsg(sourcefile, __LINE__))
           endif
           gindex(i) = gstart(gi) + l - 1
        enddo
     enddo
     if (i /= endg) then
        write(iulog,*) 'decompInit_glcp error size ',i,begg,endg
-       call endrun(msg=errMsg(__FILE__, __LINE__))
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
     locsize = endg-begg+1
     globsize = numg
@@ -737,7 +731,8 @@ contains
        allocate(gindex(begCohort:endCohort))
        ioff(:) = 0
        do coi = begCohort,endCohort
-          gi = ed_vec_cohort%gridcell(coi) !function call to get gcell for this cohort idx
+          ci = ed_vec_cohort%column(coi) ! function call to get column for this cohort idx
+          gi = col%gridcell(ci)          ! convert column into gridcell
           gindex(coi) = coStart(gi) + ioff(gi)
           ioff(gi) = ioff(gi) + 1
        enddo

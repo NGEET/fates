@@ -29,11 +29,13 @@ module glc_override_frac
   
   
   ! !PRIVATE DATA MEMBERS:
-  logical(log_kind) :: enable_frac_overrides  ! whether the overrides in this module are enabled for this run
-  integer(int_kind) :: override_delay         ! time delay before beginning any overrides (days)
-  real(r8)          :: decrease_frac          ! fractional decrease per day (should be positive)
-  real(r8)          :: increase_frac          ! fractional increase per day
-  integer(int_kind) :: rearrange_freq         ! frequency (days) at which we rearrange elevation classes
+  logical(log_kind) :: enable_frac_overrides     ! whether the overrides in this module are enabled for this run
+  integer(int_kind) :: decrease_override_delay   ! time delay before beginning decrease_frac overrides (days)
+  integer(int_kind) :: increase_override_delay   ! time delay before beginning increase_frac overrides (days)
+  integer(int_kind) :: rearrange_override_delay  ! time delay before beginning rearrange_freq overrides (days)
+  real(r8)          :: decrease_frac             ! fractional decrease per day (should be positive)
+  real(r8)          :: increase_frac             ! fractional increase per day
+  integer(int_kind) :: rearrange_freq            ! frequency (days) at which we rearrange elevation classes
 
   ! Assumed maximum topographic height. It's okay for heights to go above this value, but
   ! they may not be handled exactly as desired by the overrides here.
@@ -80,15 +82,18 @@ contains
     ! !LOCAL VARIABLES:
     integer(int_kind) :: nml_error   ! namelist i/o error flag
 
-    namelist /glc_override_nml/ enable_frac_overrides, override_delay, decrease_frac, &
-         increase_frac, rearrange_freq
+    namelist /glc_override_nml/ enable_frac_overrides, &
+         decrease_override_delay, increase_override_delay, rearrange_override_delay, &
+         decrease_frac, increase_frac, rearrange_freq
     
     character(len=*), parameter :: subname = 'read_namelist'
     !-----------------------------------------------------------------------
     
     ! Initialize namelist inputs
     enable_frac_overrides = .false.
-    override_delay = 0
+    decrease_override_delay = 0
+    increase_override_delay = 0
+    rearrange_override_delay = 0
     decrease_frac = 0._r8
     increase_frac = 0._r8
     rearrange_freq = 0
@@ -126,7 +131,9 @@ contains
 
     ! Send namelist settings to all procs
     call broadcast_scalar(enable_frac_overrides, master_task)
-    call broadcast_scalar(override_delay, master_task)
+    call broadcast_scalar(decrease_override_delay, master_task)
+    call broadcast_scalar(increase_override_delay, master_task)
+    call broadcast_scalar(rearrange_override_delay, master_task)
     call broadcast_scalar(decrease_frac, master_task)
     call broadcast_scalar(increase_frac, master_task)
     call broadcast_scalar(rearrange_freq, master_task)
@@ -193,17 +200,19 @@ contains
     !
     ! !LOCAL VARIABLES:
     real(r8) :: increase_topo_threshold
+    integer(int_kind) :: increase_time_since_baseline
 
     character(len=*), parameter :: subname = 'apply_increase_frac'
     !-----------------------------------------------------------------------
-    
-    if (time_since_baseline() > 0) then
-       ! When time_since_baseline * increase_frac is 0, we'll set elevations >= max_height
+
+    increase_time_since_baseline = time_since_baseline(increase_override_delay)
+    if (increase_time_since_baseline > 0) then
+       ! When increase_time_since_baseline * increase_frac is 0, we'll set elevations >= max_height
        !   to ice_covered = 1
-       ! When time_since_baseline * increase_frac is 1, we'll set all elevations >= 0 to
+       ! When increase_time_since_baseline * increase_frac is 1, we'll set all elevations >= 0 to
        !   ice_covered = 1
        ! In between those times, we'll use an intermediate threshold
-       increase_topo_threshold = (1._r8 - time_since_baseline() * increase_frac) * max_height
+       increase_topo_threshold = (1._r8 - increase_time_since_baseline * increase_frac) * max_height
        increase_topo_threshold = max(increase_topo_threshold, 0._r8)
        increase_topo_threshold = min(increase_topo_threshold, max_height)
 
@@ -229,17 +238,19 @@ contains
     !
     ! !LOCAL VARIABLES:
     real(r8) :: decrease_topo_threshold
+    integer(int_kind) :: decrease_time_since_baseline
     
     character(len=*), parameter :: subname = 'apply_decrease_frac'
     !-----------------------------------------------------------------------
 
-    if (time_since_baseline() > 0) then
-       ! When time_since_baseline * decrease_frac is 0, we'll set elevations < 0 to
+    decrease_time_since_baseline = time_since_baseline(decrease_override_delay)
+    if (decrease_time_since_baseline > 0) then
+       ! When decrease_time_since_baseline * decrease_frac is 0, we'll set elevations < 0 to
        !   ice_covered = 0
-       ! When time_since_baseline * decrease_frac is 1, we'll set all elevations < max_height
+       ! When decrease_time_since_baseline * decrease_frac is 1, we'll set all elevations < max_height
        !   to ice_covered = 0
        ! In between those times, we'll use an intermediate threshold
-       decrease_topo_threshold = (time_since_baseline() * decrease_frac) * max_height
+       decrease_topo_threshold = (decrease_time_since_baseline * decrease_frac) * max_height
        decrease_topo_threshold = max(decrease_topo_threshold, 0._r8)
        decrease_topo_threshold = min(decrease_topo_threshold, max_height)
 
@@ -271,13 +282,15 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer(int_kind) :: num_intervals ! number of intervals of rearrange_freq
+    integer(int_kind) :: rearrange_time_since_baseline
 
     character(len=*), parameter :: subname = 'apply_rearrange_freq'
     !-----------------------------------------------------------------------
 
-    if (time_since_baseline() > 0 .and. rearrange_freq > 0) then
+    rearrange_time_since_baseline = time_since_baseline(rearrange_override_delay)
+    if (rearrange_time_since_baseline > 0 .and. rearrange_freq > 0) then
        ! num_intervals will be 0 in the first interval, 1 in the second, etc.
-       num_intervals = time_since_baseline() / rearrange_freq
+       num_intervals = rearrange_time_since_baseline / rearrange_freq
 
        ! Rearrange topographic heights half the time
        if (modulo(num_intervals, 2) == 1) then
@@ -291,22 +304,23 @@ contains
 
 
   !-----------------------------------------------------------------------
-  integer(int_kind) function time_since_baseline()
+  integer(int_kind) function time_since_baseline(delay)
     !
     ! !DESCRIPTION:
-    ! Return time (days) since the baseline for adjustments (based on override_delay)
+    ! Return time (days) since the baseline for adjustments (based on delay)
     !
     ! !USES:
     use glc_time_management, only : elapsed_days_init_date
     !
     ! !ARGUMENTS:
+    integer, intent(in) :: delay  ! number of days to delay before starting adjustments
     !
     ! !LOCAL VARIABLES:
     
     character(len=*), parameter :: subname = 'time_since_baseline'
     !-----------------------------------------------------------------------
     
-    time_since_baseline = elapsed_days_init_date - override_delay
+    time_since_baseline = elapsed_days_init_date - delay
 
   end function time_since_baseline
 

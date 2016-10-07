@@ -31,7 +31,6 @@ module VOCEmissionMod
   use TemperatureType    , only : temperature_type
   use PatchType          , only : patch                
   !
-  ! !PUBLIC TYPES:
   implicit none
   private 
   !
@@ -75,6 +74,9 @@ module VOCEmissionMod
   type(megan_out_type), private, pointer :: meg_out(:) ! (n_megan_comps) points to output fluxes
   !
   logical, parameter :: debug = .false.
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !------------------------------------------------------------------------
 
 contains
@@ -100,6 +102,7 @@ contains
     use shr_infnan_mod  , only : nan => shr_infnan_nan, assignment(=)
     use shr_megan_mod   , only : shr_megan_factors_file
     use MEGANFactorsMod , only : megan_factors_init, megan_factors_get
+    use clm_varpar      , only : mxpft
     !
     ! !ARGUMENTS:
     class(vocemis_type) :: this
@@ -108,7 +111,7 @@ contains
     ! !LOCAL VARIABLES:
     integer            :: i, imeg
     integer            :: class_num
-    real(r8)           :: factors(numpft)
+    real(r8)           :: factors(mxpft+1)
     real(r8)           :: molec_wght
     integer            :: begg, endg
     integer            :: begp, endp
@@ -125,7 +128,7 @@ contains
     do while(associated(meg_cmp))
        allocate(meg_cmp%emis_factors(numpft))
        call megan_factors_get( trim(meg_cmp%name), factors, class_num, molec_wght )
-       meg_cmp%emis_factors = factors
+       meg_cmp%emis_factors(1:numpft) = factors(1:numpft)
        meg_cmp%class_number = class_num
        meg_cmp%molec_weight = molec_wght
        meg_cmp => meg_cmp%next_megcomp
@@ -195,7 +198,7 @@ contains
 
           call hist_addfld1d ( fname='MEG_'//trim(meg_cmp%name), units='kg/m2/sec',  &
                avgflag='A', long_name='MEGAN flux', &
-               ptr_patch=meg_out(imeg)%flux_out, set_lake=0._r8, set_urb=0._r8, default='inactive' )
+               ptr_patch=meg_out(imeg)%flux_out, set_lake=0._r8, set_urb=0._r8 )
 
           meg_cmp => meg_cmp%next_megcomp
        enddo
@@ -327,37 +330,37 @@ contains
 
     call ncd_io(ncid=ncid, varname='EF1_BTR', flag='read', data=temp_ef, dim1name=grlnd, readvar=readvar)
     if (.not. readvar) then
-       call endrun(msg='iniTimeConst: errror reading EF1_BTR'//errMsg(__FILE__, __LINE__))
+       call endrun(msg='iniTimeConst: errror reading EF1_BTR'//errMsg(sourcefile, __LINE__))
     end if
     this%efisop_grc(1,begg:endg)=temp_ef(begg:endg)
 
     call ncd_io(ncid=ncid, varname='EF1_FET', flag='read', data=temp_ef, dim1name=grlnd, readvar=readvar)
     if (.not. readvar) then
-       call endrun(msg='iniTimeConst: errror reading EF1_FET'//errMsg(__FILE__, __LINE__))
+       call endrun(msg='iniTimeConst: errror reading EF1_FET'//errMsg(sourcefile, __LINE__))
     end if
     this%efisop_grc(2,begg:endg)=temp_ef(begg:endg)
 
     call ncd_io(ncid=ncid, varname='EF1_FDT', flag='read', data=temp_ef, dim1name=grlnd, readvar=readvar)
     if (.not. readvar) then
-       call endrun(msg='iniTimeConst: errror reading EF1_FDT'//errMsg(__FILE__, __LINE__))
+       call endrun(msg='iniTimeConst: errror reading EF1_FDT'//errMsg(sourcefile, __LINE__))
     end if
     this%efisop_grc(3,begg:endg)=temp_ef(begg:endg)
 
     call ncd_io(ncid=ncid, varname='EF1_SHR', flag='read', data=temp_ef, dim1name=grlnd, readvar=readvar)
     if (.not. readvar) then
-       call endrun(msg='iniTimeConst: errror reading EF1_SHR'//errMsg(__FILE__, __LINE__))
+       call endrun(msg='iniTimeConst: errror reading EF1_SHR'//errMsg(sourcefile, __LINE__))
     end if
     this%efisop_grc(4,begg:endg)=temp_ef(begg:endg)
 
     call ncd_io(ncid=ncid, varname='EF1_GRS', flag='read', data=temp_ef, dim1name=grlnd, readvar=readvar)
     if (.not. readvar) then
-       call endrun(msg='iniTimeConst: errror reading EF1_GRS'//errMsg(__FILE__, __LINE__))
+       call endrun(msg='iniTimeConst: errror reading EF1_GRS'//errMsg(sourcefile, __LINE__))
     end if
     this%efisop_grc(5,begg:endg)=temp_ef(begg:endg)
 
     call ncd_io(ncid=ncid, varname='EF1_CRP', flag='read', data=temp_ef, dim1name=grlnd, readvar=readvar)
     if (.not. readvar) then
-       call endrun(msg='iniTimeConst: errror reading EF1_CRP'//errMsg(__FILE__, __LINE__))
+       call endrun(msg='iniTimeConst: errror reading EF1_CRP'//errMsg(sourcefile, __LINE__))
     end if
     this%efisop_grc(6,begg:endg)=temp_ef(begg:endg)
 
@@ -609,7 +612,7 @@ contains
 
              if ( (gamma >=0.0_r8) .and. (gamma< 100._r8) ) then
 
-                vocflx_meg(imeg) = epsilon * gamma * megemis_units_factor / meg_cmp%molec_weight ! moles/m2/sec
+                vocflx_meg(imeg) =  meg_cmp%coeff * epsilon * gamma * megemis_units_factor / meg_cmp%molec_weight ! moles/m2/sec
 
                 ! assign to arrays for history file output (not weighted by landfrac)
                 meg_out(imeg)%flux_out(p) = meg_out(imeg)%flux_out(p) &

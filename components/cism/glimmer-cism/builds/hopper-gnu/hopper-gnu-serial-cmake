@@ -58,8 +58,10 @@ module load torque/4.2.3.h5_notcpretry
 module swap gcc gcc/4.7.2
 
 # remove old build data:
-rm ./CMakeCache.txt
-rm -r ./CMakeFiles
+rm -rf ./CMakeCache.txt
+rm -rf ./CMakeFiles
+
+# remove old executables:
 
 # run a script that creates some CISM source files:
 #pushd .
@@ -105,7 +107,6 @@ cmake \
   -D CMAKE_CXX_FLAGS:STRING="-O2  -DH5_USE_16_API" \
   -D CISM_Fortran_FLAGS:STRING="-O2 -ffree-line-length-none " \
   -D BISICLES_LIB_SUBDIR=libgnu \
-  -D CISM_GNU:BOOL=ON \
   -D BISICLES_INTERFACE_DIR=$PWD/../../../BISICLES/CISM-interface/interface \
   -D CISM_MPI_LIBS:STRING="mpichf90" \
   -D CISM_STATIC_LINKING:BOOL=ON \

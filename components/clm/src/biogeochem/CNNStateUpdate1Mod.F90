@@ -8,7 +8,7 @@ module CNNStateUpdate1Mod
   use shr_kind_mod                    , only: r8 => shr_kind_r8
   use clm_time_manager                , only : get_step_size
   use clm_varpar                      , only : nlevdecomp, ndecomp_pools, ndecomp_cascade_transitions
-  use clm_varpar                      , only : crop_prog, i_met_lit, i_cel_lit, i_lig_lit, i_cwd
+  use clm_varpar                      , only : i_met_lit, i_cel_lit, i_lig_lit, i_cwd
   use clm_varctl                      , only : iulog, use_nitrif_denitrif
   use clm_varcon                      , only : nitrif_n2o_loss_frac
   use pftconMod                       , only : npcropmin, pftcon
@@ -152,7 +152,10 @@ contains
          ! deployment from retranslocation pool
          ns_veg%npool_patch(p)    = ns_veg%npool_patch(p)    + nf_veg%retransn_to_npool_patch(p)*dt
          ns_veg%retransn_patch(p) = ns_veg%retransn_patch(p) - nf_veg%retransn_to_npool_patch(p)*dt
-
+         
+         ns_veg%npool_patch(p)    = ns_veg%npool_patch(p)    + nf_veg%free_retransn_to_npool_patch(p)*dt
+         ns_veg%retransn_patch(p) = ns_veg%retransn_patch(p) - nf_veg%free_retransn_to_npool_patch(p)*dt !how is retransn a state? 
+         
          ! allocation fluxes
          ns_veg%npool_patch(p)           = ns_veg%npool_patch(p)          - nf_veg%npool_to_leafn_patch(p)*dt
          ns_veg%leafn_patch(p)           = ns_veg%leafn_patch(p)          + nf_veg%npool_to_leafn_patch(p)*dt

@@ -168,12 +168,6 @@ set to 3 meaning branch.
 Full pathname of land-ice mask data file (on lnd grid).
 </entry>
 
-<entry id="flndtopo" type="char*256" category="datasets"
-       input_pathname="abs" group="clm_inparm" valid_values="" >
-Full pathname of topography data file. Only required when 
-land-ice model is active.
-</entry>
-
 <entry id="glcmec_downscale_rain_snow_convert" type="logical" category="clm_physics"
        group="clm_inparm" valid_values="" >
 If TRUE, downscale precipitation division into rain vs. snow over glc_mec landunits.
@@ -395,6 +389,12 @@ CLM Biogeochemistry mode : Carbon Nitrogen model (CN)
        group="clm_inparm" valid_values="" value=".false.">
 CLM Biogeochemistry mode : Carbon Nitrogen with Dynamic Global Vegetation Model (CNDV)
 (or CLM45BGCDV if phys=clm4_5, vsoilc_centbgc='on', and clm4me='on')
+</entry>
+
+<entry id="use_fun" type="logical" category="bgc"
+       group="clm_inparm" valid_values="" value=".false.">
+Turn the Fixation and Uptate of Nitrogen model version 2 (FUN2.0)
+Requires the CN model to work (either CN or CNDV).
 </entry>
 
 <entry id="use_nitrif_denitrif" type="logical" category="bgc"
@@ -1011,7 +1011,7 @@ Command line arguement for turning on CN spinup mode.
 </entry>
 
 <entry id="bgc_mode" type="char*4" category="default_settings"
-       group="default_settings" valid_values="sp,cn,bgc" >
+       group="default_settings" valid_values="sp,cn,bgc,ed" >
 Command line arguement for biogeochemistry mode for CLM4.5
    sp  = Satellitte Phenology
    cn  = Carbon Nitrogen model

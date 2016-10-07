@@ -9,7 +9,7 @@ module SoilBiogeochemNitrogenStateType
   use abortutils                         , only : endrun
   use spmdMod                            , only : masterproc 
   use clm_varpar                         , only : ndecomp_cascade_transitions, ndecomp_pools, nlevcan
-  use clm_varpar                         , only : nlevdecomp_full, nlevdecomp, crop_prog
+  use clm_varpar                         , only : nlevdecomp_full, nlevdecomp
   use clm_varcon                         , only : spval, dzsoi_decomp, zisoi
   use clm_varctl                         , only : use_nitrif_denitrif, use_vertsoilc, use_century_decomp
   use clm_varctl                         , only : iulog, override_bgc_restart_mismatch_dump, spinup_state
@@ -17,6 +17,8 @@ module SoilBiogeochemNitrogenStateType
   use SoilBiogeochemDecompCascadeConType , only : decomp_cascade_con
   use LandunitType                       , only : lun                
   use ColumnType                         , only : col                
+  use GridcellType                       , only : grc
+  use SoilBiogeochemStateType            , only : get_spinup_latitude_term
   ! 
   ! !PUBLIC TYPES:
   implicit none
@@ -44,6 +46,12 @@ module SoilBiogeochemNitrogenStateType
      real(r8), pointer :: totsomn_col                  (:)     ! col (gN/m2) total soil organic matter nitrogen
      real(r8), pointer :: totlitn_1m_col               (:)     ! col (gN/m2) total litter nitrogen to 1 meter
      real(r8), pointer :: totsomn_1m_col               (:)     ! col (gN/m2) total soil organic matter nitrogen to 1 meter
+     real(r8), pointer :: dyn_nbal_adjustments_col (:) ! (gN/m2) adjustments to each column made in this timestep via dynamic column adjustments (note: this variable only makes sense at the column-level: it is meaningless if averaged to the gridcell-level)
+
+     ! Track adjustments to no3 and nh4 pools separately, since those aren't included in
+     ! the N balance check
+     real(r8), pointer :: dyn_no3bal_adjustments_col (:) ! (gN/m2) NO3 adjustments to each column made in this timestep via dynamic column area adjustments (only makes sense at the column-level: meaningless if averaged to the gridcell-level)
+     real(r8), pointer :: dyn_nh4bal_adjustments_col (:) ! (gN/m2) NH4 adjustments to each column made in this timestep via dynamic column adjustments (only makes sense at the column-level: meaningless if averaged to the gridcell-level)
 
    contains
 
@@ -51,11 +59,15 @@ module SoilBiogeochemNitrogenStateType
      procedure , public  :: Restart
      procedure , public  :: SetValues
      procedure , public  :: Summary
+     procedure , public  :: DynamicColumnAdjustments  ! adjust state variables when column areas change
      procedure , private :: InitAllocate 
      procedure , private :: InitHistory  
      procedure , private :: InitCold     
 
   end type soilbiogeochem_nitrogenstate_type
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !------------------------------------------------------------------------
 
 contains
@@ -105,6 +117,9 @@ contains
     allocate(this%totsomn_col          (begc:endc))                   ; this%totsomn_col          (:)   = nan
     allocate(this%totlitn_1m_col       (begc:endc))                   ; this%totlitn_1m_col       (:)   = nan
     allocate(this%totsomn_1m_col       (begc:endc))                   ; this%totsomn_1m_col       (:)   = nan
+    allocate(this%dyn_nbal_adjustments_col (begc:endc)) ; this%dyn_nbal_adjustments_col (:) = nan
+    allocate(this%dyn_no3bal_adjustments_col (begc:endc)) ; this%dyn_no3bal_adjustments_col (:) = nan
+    allocate(this%dyn_nh4bal_adjustments_col (begc:endc)) ; this%dyn_nh4bal_adjustments_col (:) = nan
     allocate(this%decomp_npools_col    (begc:endc,1:ndecomp_pools))   ; this%decomp_npools_col    (:,:) = nan
     allocate(this%decomp_npools_1m_col (begc:endc,1:ndecomp_pools))   ; this%decomp_npools_1m_col (:,:) = nan
 
@@ -121,7 +136,7 @@ contains
     !
     ! !USES:
     use clm_varpar , only : ndecomp_cascade_transitions, ndecomp_pools
-    use clm_varpar , only : nlevdecomp, nlevdecomp_full,crop_prog, nlevgrnd
+    use clm_varpar , only : nlevdecomp, nlevdecomp_full, nlevgrnd
     use histFileMod, only : hist_addfld1d, hist_addfld2d, hist_addfld_decomp 
     use decompMod  , only : bounds_type
     !
@@ -154,7 +169,7 @@ contains
           longname =  trim(decomp_cascade_con%decomp_pool_name_history(l))//' N (vertically resolved)'
           call hist_addfld2d (fname=fieldname, units='gN/m^3',  type2d='levdcmp', &
                avgflag='A', long_name=longname, &
-               ptr_col=data2dptr)
+               ptr_col=data2dptr, default='inactive')
        endif
 
        data1dptr => this%decomp_npools_col(:,l)
@@ -231,7 +246,7 @@ contains
        this%sminn_vr_col(begc:endc,:) = spval
        call hist_addfld_decomp (fname='SMINN'//trim(vr_suffix), units='gN/m^3',  type2d='levdcmp', &
             avgflag='A', long_name='soil mineral N', &
-            ptr_col=this%sminn_vr_col, default = 'inactive')
+            ptr_col=this%sminn_vr_col)
     else
        this%sminn_vr_col(begc:endc,:) = spval
        call hist_addfld_decomp (fname='SMINN'//trim(vr_suffix), units='gN/m^3',  type2d='levdcmp', &
@@ -249,6 +264,26 @@ contains
          avgflag='A', long_name='total soil organic matter N', &
          ptr_col=this%totsomn_col)
 
+    this%dyn_nbal_adjustments_col(begc:endc) = spval
+    call hist_addfld1d (fname='DYN_COL_SOIL_ADJUSTMENTS_N', units='gN/m^2', &
+         avgflag='SUM', &
+         long_name='Adjustments in soil nitrogen due to dynamic column areas; &
+         &only makes sense at the column level: should not be averaged to gridcell', &
+         ptr_col=this%dyn_nbal_adjustments_col, default='inactive')
+
+    if (use_nitrif_denitrif) then
+       call hist_addfld1d (fname='DYN_COL_SOIL_ADJUSTMENTS_NO3', units='gN/m^2', &
+            avgflag='SUM', &
+            long_name='Adjustments in soil NO3 due to dynamic column areas; &
+            &only makes sense at the column level: should not be averaged to gridcell', &
+            ptr_col=this%dyn_no3bal_adjustments_col, default='inactive')
+
+       call hist_addfld1d (fname='DYN_COL_SOIL_ADJUSTMENTS_NH4', units='gN/m^2', &
+            avgflag='SUM', &
+            long_name='Adjustments in soil NH4 due to dynamic column areas; &
+            &only makes sense at the column level: should not be averaged to gridcell', &
+            ptr_col=this%dyn_nh4bal_adjustments_col, default='inactive')
+    end if
   end subroutine InitHistory
 
   !-----------------------------------------------------------------------
@@ -259,7 +294,6 @@ contains
     ! Initializes time varying variables used only in coupled carbon-nitrogen mode (CN):
     !
     ! !USES:
-    use clm_varpar     , only : crop_prog
     use decompMod      , only : bounds_type
     !
     ! !ARGUMENTS:
@@ -275,9 +309,9 @@ contains
     integer :: special_col   (bounds%endc-bounds%begc+1) ! special landunit filter - columns
     !------------------------------------------------------------------------
 
-    SHR_ASSERT_ALL((ubound(decomp_cpools_col)    == (/bounds%endc,ndecomp_pools/)),                 errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(decomp_cpools_1m_col) == (/bounds%endc,ndecomp_pools/)),                 errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(decomp_cpools_vr_col) == (/bounds%endc,nlevdecomp_full,ndecomp_pools/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(decomp_cpools_col)    == (/bounds%endc,ndecomp_pools/)),                 errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(decomp_cpools_1m_col) == (/bounds%endc,ndecomp_pools/)),                 errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(decomp_cpools_vr_col) == (/bounds%endc,nlevdecomp_full,ndecomp_pools/)), errMsg(sourcefile, __LINE__))
 
     do c = bounds%begc, bounds%endc
        l = col%landunit(c)
@@ -391,7 +425,7 @@ contains
     end if
     if (flag=='read' .and. .not. readvar) then
        call endrun(msg='ERROR::'//trim(varname)//' is required on an initialization dataset'//&
-            errMsg(__FILE__, __LINE__))
+            errMsg(sourcefile, __LINE__))
     end if
 
     ! decomposing N pools
@@ -412,7 +446,7 @@ contains
        end if
        if (flag=='read' .and. .not. readvar) then
           call endrun(msg='ERROR:: '//trim(varname)//' is required on an initialization dataset'//&
-               errMsg(__FILE__, __LINE__))
+               errMsg(sourcefile, __LINE__))
        end if
     end do
 
@@ -470,18 +504,6 @@ contains
        end if
     end if
 
-    ! Set the integrated sminn based on sminn_vr, as is done in CNSummaryMod (this may
-    ! not be the most appropriate method or place to do this)
-
-    this%sminn_col(bounds%begc:bounds%endc) = 0._r8
-    do j = 1, nlevdecomp
-       do c = bounds%begc, bounds%endc
-          this%sminn_col(c) = &
-               this%sminn_col(c) + &
-               this%sminn_vr_col(c,j) * dzsoi_decomp(j)
-       end do
-    end do
-
     ! decomp_cascade_state - the purpose of this is to check to make sure the bgc used 
     ! matches what the restart file was generated with.  
     ! add info about the SOM decomposition cascade
@@ -522,7 +544,7 @@ contains
                 write(iulog,*) 'override_bgc_restart_mismatch_dump to .true. in the namelist'
                 if ( .not. override_bgc_restart_mismatch_dump ) then
                    call endrun(msg= ' CNRest: Stopping. Decomposition cascade mismatch error.'//&
-                        errMsg(__FILE__, __LINE__))
+                        errMsg(sourcefile, __LINE__))
                 endif
              endif
           endif
@@ -565,20 +587,20 @@ contains
     ! only allow this to occur on first timestep of model run.
 
     if (flag == 'read' .and. spinup_state /= restart_file_spinup_state ) then
-       if (spinup_state == 0 .and. restart_file_spinup_state == 1 ) then
+       if (spinup_state == 0 .and. restart_file_spinup_state >= 1 ) then
           if ( masterproc ) write(iulog,*) ' NitrogenStateType Restart: taking SOM pools out of AD spinup mode'
           exit_spinup = .true.
-       else if (spinup_state == 1 .and. restart_file_spinup_state == 0 ) then
+       else if (spinup_state >= 1 .and. restart_file_spinup_state == 0 ) then
           if ( masterproc ) write(iulog,*) ' NitrogenStateType Restart: taking SOM pools into AD spinup mode'
           enter_spinup = .true.
        else
           call endrun(msg=' Error in entering/exiting spinup.  spinup_state ' &
                // ' != restart_file_spinup_state, but do not know what to do'//&
-               errMsg(__FILE__, __LINE__))
+               errMsg(sourcefile, __LINE__))
        end if
        if (get_nstep() >= 2) then
           call endrun(msg=' Error in entering/exiting spinup - should occur only when nstep = 1'//&
-               errMsg(__FILE__, __LINE__))
+               errMsg(sourcefile, __LINE__))
        endif
        do k = 1, ndecomp_pools
           if ( exit_spinup ) then
@@ -588,7 +610,15 @@ contains
           end if
           do c = bounds%begc, bounds%endc
              do j = 1, nlevdecomp
-                this%decomp_npools_vr_col(c,j,k) = this%decomp_npools_vr_col(c,j,k) * m
+                if ( abs(m - 1._r8) .gt. 0.000001_r8 .and. exit_spinup) then
+                   this%decomp_npools_vr_col(c,j,k) = this%decomp_npools_vr_col(c,j,k) * m * &
+                        get_spinup_latitude_term(grc%latdeg(col%gridcell(c)))
+                elseif ( abs(m - 1._r8) .gt. 0.000001_r8 .and. enter_spinup) then
+                   this%decomp_npools_vr_col(c,j,k) = this%decomp_npools_vr_col(c,j,k) * m / &
+                        get_spinup_latitude_term(grc%latdeg(col%gridcell(c)))
+                else
+                   this%decomp_npools_vr_col(c,j,k) = this%decomp_npools_vr_col(c,j,k) * m 
+                endif
              end do
           end do
        end do
@@ -663,13 +693,13 @@ contains
   end subroutine SetValues
 
   !-----------------------------------------------------------------------
-  subroutine Summary(this, bounds, num_soilc, filter_soilc)
+  subroutine Summary(this, bounds, num_allc, filter_allc)
     !
     ! !ARGUMENTS:
     class (soilbiogeochem_nitrogenstate_type) :: this
     type(bounds_type) , intent(in) :: bounds  
-    integer           , intent(in) :: num_soilc       ! number of soil columns in filter
-    integer           , intent(in) :: filter_soilc(:) ! filter for soil columns
+    integer           , intent(in) :: num_allc       ! number of columns in allc filter
+    integer           , intent(in) :: filter_allc(:) ! filter for all active columns
     !
     ! !LOCAL VARIABLES:
     integer  :: c,j,k,l     ! indices
@@ -679,14 +709,14 @@ contains
 
    ! vertically integrate NO3 NH4 N2O pools
    if (use_nitrif_denitrif) then
-      do fc = 1,num_soilc
-         c = filter_soilc(fc)
+      do fc = 1,num_allc
+         c = filter_allc(fc)
          this%smin_no3_col(c) = 0._r8
          this%smin_nh4_col(c) = 0._r8
       end do
       do j = 1, nlevdecomp
-         do fc = 1,num_soilc
-            c = filter_soilc(fc)
+         do fc = 1,num_allc
+            c = filter_allc(fc)
             this%smin_no3_col(c) = &
                  this%smin_no3_col(c) + &
                  this%smin_no3_vr_col(c,j) * dzsoi_decomp(j)
@@ -701,13 +731,13 @@ contains
 
    ! vertically integrate each of the decomposing N pools
    do l = 1, ndecomp_pools
-      do fc = 1,num_soilc
-         c = filter_soilc(fc)
+      do fc = 1,num_allc
+         c = filter_allc(fc)
          this%decomp_npools_col(c,l) = 0._r8
       end do
       do j = 1, nlevdecomp
-         do fc = 1,num_soilc
-            c = filter_soilc(fc)
+         do fc = 1,num_allc
+            c = filter_allc(fc)
             this%decomp_npools_col(c,l) = &
                  this%decomp_npools_col(c,l) + &
                  this%decomp_npools_vr_col(c,j,l) * dzsoi_decomp(j)
@@ -719,8 +749,8 @@ contains
    if ( nlevdecomp > 1) then
 
       do l = 1, ndecomp_pools
-         do fc = 1,num_soilc
-            c = filter_soilc(fc)
+         do fc = 1,num_allc
+            c = filter_allc(fc)
             this%decomp_npools_1m_col(c,l) = 0._r8
          end do
       end do
@@ -730,15 +760,15 @@ contains
       do l = 1, ndecomp_pools
          do j = 1, nlevdecomp
             if ( zisoi(j) <= maxdepth ) then
-               do fc = 1,num_soilc
-                  c = filter_soilc(fc)
+               do fc = 1,num_allc
+                  c = filter_allc(fc)
                   this%decomp_npools_1m_col(c,l) = &
                        this%decomp_npools_1m_col(c,l) + &
                        this%decomp_npools_vr_col(c,j,l) * dzsoi_decomp(j)
                end do
             elseif ( zisoi(j-1) < maxdepth ) then
-               do fc = 1,num_soilc
-                  c = filter_soilc(fc)
+               do fc = 1,num_allc
+                  c = filter_allc(fc)
                   this%decomp_npools_1m_col(c,l) = &
                        this%decomp_npools_1m_col(c,l) + &
                        this%decomp_npools_vr_col(c,j,l) * (maxdepth - zisoi(j-1))
@@ -748,14 +778,14 @@ contains
       end do
       
       ! total litter nitrogen to 1 meter (TOTLITN_1m)
-      do fc = 1,num_soilc
-         c = filter_soilc(fc)
+      do fc = 1,num_allc
+         c = filter_allc(fc)
          this%totlitn_1m_col(c) = 0._r8
       end do
       do l = 1, ndecomp_pools
          if ( decomp_cascade_con%is_litter(l) ) then
-            do fc = 1,num_soilc
-               c = filter_soilc(fc)
+            do fc = 1,num_allc
+               c = filter_allc(fc)
                this%totlitn_1m_col(c) = &
                     this%totlitn_1m_col(c) + &
                     this%decomp_npools_1m_col(c,l)
@@ -764,14 +794,14 @@ contains
       end do
       
       ! total soil organic matter nitrogen to 1 meter (TOTSOMN_1m)
-      do fc = 1,num_soilc
-         c = filter_soilc(fc)
+      do fc = 1,num_allc
+         c = filter_allc(fc)
          this%totsomn_1m_col(c) = 0._r8
       end do
       do l = 1, ndecomp_pools
          if ( decomp_cascade_con%is_soil(l) ) then
-            do fc = 1,num_soilc
-               c = filter_soilc(fc)
+            do fc = 1,num_allc
+               c = filter_allc(fc)
                this%totsomn_1m_col(c) = this%totsomn_1m_col(c) + &
                     this%decomp_npools_1m_col(c,l)
             end do
@@ -781,14 +811,14 @@ contains
    endif
    
    ! total litter nitrogen (TOTLITN)
-   do fc = 1,num_soilc
-      c = filter_soilc(fc)
+   do fc = 1,num_allc
+      c = filter_allc(fc)
       this%totlitn_col(c)    = 0._r8
    end do
    do l = 1, ndecomp_pools
       if ( decomp_cascade_con%is_litter(l) ) then
-         do fc = 1,num_soilc
-            c = filter_soilc(fc)
+         do fc = 1,num_allc
+            c = filter_allc(fc)
             this%totlitn_col(c) = &
                  this%totlitn_col(c) + &
                  this%decomp_npools_col(c,l)
@@ -797,14 +827,14 @@ contains
    end do
    
    ! total soil organic matter nitrogen (TOTSOMN)
-   do fc = 1,num_soilc
-      c = filter_soilc(fc)
+   do fc = 1,num_allc
+      c = filter_allc(fc)
       this%totsomn_col(c)    = 0._r8
    end do
    do l = 1, ndecomp_pools
       if ( decomp_cascade_con%is_soil(l) ) then
-         do fc = 1,num_soilc
-            c = filter_soilc(fc)
+         do fc = 1,num_allc
+            c = filter_allc(fc)
             this%totsomn_col(c) = this%totsomn_col(c) + &
                  this%decomp_npools_col(c,l)
          end do
@@ -812,14 +842,14 @@ contains
    end do
    
    ! total cwdn
-   do fc = 1,num_soilc
-      c = filter_soilc(fc)
+   do fc = 1,num_allc
+      c = filter_allc(fc)
       this%cwdn_col(c) = 0._r8
    end do
    do l = 1, ndecomp_pools
       if ( decomp_cascade_con%is_cwd(l) ) then
-         do fc = 1,num_soilc
-            c = filter_soilc(fc)
+         do fc = 1,num_allc
+            c = filter_allc(fc)
             this%cwdn_col(c) = this%cwdn_col(c) + &
                  this%decomp_npools_col(c,l)
          end do
@@ -827,31 +857,119 @@ contains
    end do
 
    ! total sminn
-   do fc = 1,num_soilc
-      c = filter_soilc(fc)
+   do fc = 1,num_allc
+      c = filter_allc(fc)
       this%sminn_col(c)      = 0._r8
    end do
    do j = 1, nlevdecomp
-      do fc = 1,num_soilc
-         c = filter_soilc(fc)
+      do fc = 1,num_allc
+         c = filter_allc(fc)
          this%sminn_col(c) = this%sminn_col(c) + &
               this%sminn_vr_col(c,j) * dzsoi_decomp(j)
       end do
    end do
 
    ! total col_ntrunc
-   do fc = 1,num_soilc
-      c = filter_soilc(fc)
+   do fc = 1,num_allc
+      c = filter_allc(fc)
       this%ntrunc_col(c) = 0._r8
    end do
    do j = 1, nlevdecomp
-      do fc = 1,num_soilc
-         c = filter_soilc(fc)
+      do fc = 1,num_allc
+         c = filter_allc(fc)
          this%ntrunc_col(c) = this%ntrunc_col(c) + &
               this%ntrunc_vr_col(c,j) * dzsoi_decomp(j)
       end do
    end do
 
  end subroutine Summary
+
+ !-----------------------------------------------------------------------
+ subroutine DynamicColumnAdjustments(this, bounds, column_state_updater)
+   !
+   ! !DESCRIPTION:
+   ! Adjust state variables when column areas change due to dynamic landuse
+   !
+   ! !USES:
+   use dynColumnStateUpdaterMod, only : column_state_updater_type
+   !
+   ! !ARGUMENTS:
+   class(soilbiogeochem_nitrogenstate_type) , intent(inout) :: this
+   type(bounds_type)                        , intent(in)    :: bounds
+   type(column_state_updater_type)          , intent(in)    :: column_state_updater
+   !
+   ! !LOCAL VARIABLES:
+   integer :: j  ! level
+   integer :: l  ! decomp pool
+   real(r8) :: adjustment_one_level(bounds%begc:bounds%endc)
+   integer :: begc, endc
+
+   character(len=*), parameter :: subname = 'DynamicColumnAdjustments'
+   !-----------------------------------------------------------------------
+
+   begc = bounds%begc
+   endc = bounds%endc
+
+   this%dyn_nbal_adjustments_col(begc:endc) = 0._r8
+
+   do l = 1, ndecomp_pools
+      do j = 1, nlevdecomp
+         call column_state_updater%update_column_state_no_special_handling( &
+              bounds = bounds, &
+              var    = this%decomp_npools_vr_col(begc:endc, j, l), &
+              adjustment = adjustment_one_level(begc:endc))
+         this%dyn_nbal_adjustments_col(begc:endc) = &
+              this%dyn_nbal_adjustments_col(begc:endc) + &
+              adjustment_one_level(begc:endc) * dzsoi_decomp(j)
+      end do
+   end do
+
+   do j = 1, nlevdecomp
+      call column_state_updater%update_column_state_no_special_handling( &
+           bounds = bounds, &
+           var    = this%ntrunc_vr_col(begc:endc, j), &
+           adjustment = adjustment_one_level(begc:endc))
+      this%dyn_nbal_adjustments_col(begc:endc) = &
+           this%dyn_nbal_adjustments_col(begc:endc) + &
+           adjustment_one_level(begc:endc) * dzsoi_decomp(j)
+
+      call column_state_updater%update_column_state_no_special_handling( &
+           bounds = bounds, &
+           var    = this%sminn_vr_col(begc:endc, j), &
+           adjustment = adjustment_one_level(begc:endc))
+      this%dyn_nbal_adjustments_col(begc:endc) = &
+           this%dyn_nbal_adjustments_col(begc:endc) + &
+           adjustment_one_level(begc:endc) * dzsoi_decomp(j)
+   end do
+
+   if (use_nitrif_denitrif) then
+
+      do j = 1, nlevdecomp
+         ! Separately track adjustments made to no3 and nh4 pools, since those aren't included
+         ! in the overall N balance (totn)
+         this%dyn_no3bal_adjustments_col(begc:endc) = 0._r8
+         this%dyn_nh4bal_adjustments_col(begc:endc) = 0._r8
+
+         call column_state_updater%update_column_state_no_special_handling( &
+              bounds = bounds, &
+              var    = this%smin_no3_vr_col(begc:endc, j), &
+              adjustment = adjustment_one_level(begc:endc))
+         this%dyn_no3bal_adjustments_col(begc:endc) = &
+              this%dyn_no3bal_adjustments_col(begc:endc) + &
+              adjustment_one_level(begc:endc) * dzsoi_decomp(j)
+
+         call column_state_updater%update_column_state_no_special_handling( &
+              bounds = bounds, &
+              var    = this%smin_nh4_vr_col(begc:endc, j), &
+              adjustment = adjustment_one_level(begc:endc))
+         this%dyn_nh4bal_adjustments_col(begc:endc) = &
+              this%dyn_nh4bal_adjustments_col(begc:endc) + &
+              adjustment_one_level(begc:endc) * dzsoi_decomp(j)
+      end do
+
+   end if
+
+ end subroutine DynamicColumnAdjustments
+
 
 end module SoilBiogeochemNitrogenStateType

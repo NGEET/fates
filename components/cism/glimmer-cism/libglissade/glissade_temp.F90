@@ -673,7 +673,7 @@ contains
                                model%temper%temp,         &
                                Tstagsigma,                &
                                model%geometry%thck,       &
-                               model%temper%bmlt,         &
+                               model%temper%bmlt_ground,  &
                                GLIDE_IS_FLOAT(model%geometry%thkmask))
 
        ! Interpolate basal temperature and pressure melting point onto velocity grid
@@ -980,7 +980,7 @@ contains
                                       model%temper%waterfrac,    &
                                       Tstagsigma,                &
                                       model%geometry%thck,       &
-                                      model%temper%bmlt,         &
+                                      model%temper%bmlt_ground,  &
                                       GLIDE_IS_FLOAT(model%geometry%thkmask))
 
 
@@ -1303,9 +1303,9 @@ contains
   !-----------------------------------------------------------------------------------
 
   subroutine glissade_calcbmlt( model,                   &
-                                temp,     stagsigma,     &
+                                temp,        stagsigma,     &
                                 thck,                    &
-                                bmlt,     floater)
+                                bmlt_ground, floater)
 
     ! Compute the amount of basal melting.
     ! The basal melting computed here is applied to the ice thickness
@@ -1316,6 +1316,8 @@ contains
     !  Hopefully this is rare.
     ! TODO: Moving all internal melting to the basal surface is not very realistic 
     !       and should be revisited.
+    ! Note: Since this module is deprecated, the calculation has not been updated
+    !       to include bmlt_float.
 
     use glimmer_physcon, only: shci, rhoi, lhci
     use glimmer_paramets, only : thk0, tim0
@@ -1323,10 +1325,10 @@ contains
     type(glide_global_type) :: model
 
     real(dp), dimension(0:,:,:), intent(inout) :: temp
-    real(dp), dimension(0:),     intent(in) :: stagsigma  !WHL - This is Tstagsigma, (0:upn)
+    real(dp), dimension(0:),     intent(in) :: stagsigma   ! This is Tstagsigma, (0:upn)
     real(dp), dimension(:,:),    intent(in) :: thck
-    real(dp), dimension(:,:),    intent(out):: bmlt    ! scaled melt rate (m/s * tim0/thk0)
-                                                       ! > 0 for melting, < 0 for freeze-on
+    real(dp), dimension(:,:),    intent(out):: bmlt_ground ! scaled melt rate (m/s * tim0/thk0)
+                                                           ! > 0 for melting, < 0 for freeze-on
     logical,  dimension(:,:),    intent(in) :: floater
 
     real(dp), dimension(size(stagsigma))    :: pmptemp   ! pressure melting point temperature
@@ -1339,7 +1341,7 @@ contains
 
     real(dp), parameter :: eps11 = 1.d-11       ! small number
 
-    bmlt(:,:) = 0.0d0
+    bmlt_ground(:,:) = 0.0d0
 
     do ns = 2, model%general%nsn-1
        do ew = 2, model%general%ewn-1
@@ -1365,7 +1367,7 @@ contains
              ! bflx might be slightly different from zero because of rounding errors; if so, then set bflx = 0
              if (abs(bflx) < eps11) bflx = 0.d0
 
-             bmlt(ew,ns) = bflx * model%tempwk%f(2)   ! f(2) = tim0 / (thk0 * lhci * rhoi)
+             bmlt_ground(ew,ns) = bflx * model%tempwk%f(2)   ! f(2) = tim0 / (thk0 * lhci * rhoi)
 
             ! Add internal melting associated with temp > pmptemp
             ! Note: glissade_calcpmpt does not compute pmpt at the top surface or the bed.
@@ -1380,7 +1382,7 @@ contains
                     ! compute melt rate 
                     internal_melt_rate = melt_energy / (rhoi * lhci * model%numerics%dttem * tim0)  ! m/s
                     ! transfer internal melting to the bed
-                    bmlt(ew,ns) = bmlt(ew,ns) + internal_melt_rate * tim0/thk0  ! m/s * tim0/thk0
+                    bmlt_ground(ew,ns) = bmlt_ground(ew,ns) + internal_melt_rate * tim0/thk0  ! m/s * tim0/thk0
                     ! reset T to Tpmp
                     temp(up,ew,ns) = pmptemp(up)
                  endif
@@ -1398,7 +1400,7 @@ contains
              ! Note: Energy is not exactly conserved here.
 
              up = model%general%upn  ! basal level
-             if (bmlt(ew,ns) < 0.d0 .and. model%temper%bwat(ew,ns)==0.d0 .and. temp(up,ew,ns) >= pmptemp(up)) then
+             if (bmlt_ground(ew,ns) < 0.d0 .and. model%temper%bwat(ew,ns)==0.d0 .and. temp(up,ew,ns) >= pmptemp(up)) then
                 temp(up,ew,ns) = pmptemp(up) - 0.01d0
              endif
 
@@ -1540,9 +1542,7 @@ contains
     real(dp), intent(in), dimension(:) :: stagsigma ! staggered vertical coordinate
                                                     ! (defined at layer midpoints)
 
-    real(dp), parameter :: fact = - grav * rhoi * pmlt * thk0
-
-    pmptemp(:) = fact * thck * stagsigma(:)
+    pmptemp(:) = - grav * rhoi * pmlt * thk0 * thck * stagsigma(:)
 
   end subroutine glissade_calcpmpt
 
@@ -1580,9 +1580,7 @@ contains
     real(dp), intent(out) :: pmptemp_bed ! pressure melting point temp at bed (deg C)
     real(dp), intent(in) :: thck         ! ice thickness
 
-    real(dp), parameter :: fact = - grav * rhoi * pmlt * thk0
-
-    pmptemp_bed = fact * thck 
+    pmptemp_bed = - grav * rhoi * pmlt * thk0 * thck 
 
   end subroutine glissade_calcpmpt_bed
 
@@ -1649,8 +1647,6 @@ contains
     integer :: ew, ns, up, ewn, nsn, uflwa
     real(dp) :: tempcor
 
-    real(dp), parameter :: fact = grav * rhoi * pmlt * thk0
-
     real(dp),dimension(4), parameter ::  &
        arrfact = (/ arrmlh / vis0,      &   ! Value of A when T* is above -263K
                     arrmll / vis0,      &   ! Value of A when T* is below -263K
@@ -1692,7 +1688,7 @@ contains
 
                   ! Calculate the corrected temperature
 
-                  tempcor = min(0.0d0, temp(up,ew,ns) + thck(ew,ns)*fact*stagsigma(up))
+                  tempcor = min(0.0d0, temp(up,ew,ns) + thck(ew,ns)*grav*rhoi*pmlt*thk0*stagsigma(up))
                   tempcor = max(-50.0d0, tempcor)
 
                   ! Calculate Glen's A (including flow enhancement factor)

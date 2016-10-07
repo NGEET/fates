@@ -52,7 +52,8 @@
     
     private
     public :: pcg_solver_standard_3d,  pcg_solver_standard_2d,  &
-              pcg_solver_chrongear_3d, pcg_solver_chrongear_2d
+              pcg_solver_chrongear_3d, pcg_solver_chrongear_2d, &
+              matvec_multiply_structured_3d
     
     logical :: verbose_pcg
 
@@ -62,6 +63,19 @@
        module procedure global_sum_staggered_2d_real8
        module procedure global_sum_staggered_2d_real8_nvar       
     end interface
+
+    ! linear solver settings
+    !TODO - Pass in these solver settings as arguments?
+    integer, parameter ::    &
+       maxiters = 200        ! max number of linear iterations before quitting
+!!       maxiters = 1000        ! max number of linear iterations before quitting
+
+    real(dp), parameter ::   &
+!!       tolerance = 1.d-11    ! tolerance for linear solver (old value; more stringent than necessary)
+       tolerance = 1.d-08    ! tolerance for linear solver
+
+    integer, parameter :: &
+       solve_ncheck = 5      ! check for convergence every solve_ncheck iterations
 
   contains
 
@@ -82,7 +96,7 @@
     !---------------------------------------------------------------
     !  This subroutine uses a standard preconditioned conjugate-gradient algorithm
     !  to solve the equation $Ax=b$.
-    !  Convergence is checked every {\em solv_ncheck} steps.
+    !  Convergence is checked every {\em solve_ncheck} steps.
     !
     !  It is based on the barotropic solver in the POP ocean model 
     !  (author Phil Jones, LANL).  Input and output arrays are located
@@ -211,21 +225,6 @@
        Muu, Mvv            ! simplified SIA matrices for preconditioning
 
     integer :: itest, jtest, rtest
-
-    !---------------------------------------------------------------
-    ! Solver parameters
-    ! TODO: Pass in PCG solver parameters as arguments?  (Here and below)
-    !---------------------------------------------------------------
-
-    real(dp), parameter ::   &
-!!       tolerance = 1.d-11    ! tolerance for linear solver (old value; more stringent than necessary)
-       tolerance = 1.d-08    ! tolerance for linear solver
-
-    integer, parameter ::    &
-       maxiters = 200        ! max number of linear iterations before quitting
-                             
-    integer, parameter :: &
-       solv_ncheck = 5       ! check for convergence every solv_ncheck iterations
 
     if (present(itest_in)) then
        itest = itest_in
@@ -473,10 +472,10 @@
        rv(:,:,:) = rv(:,:,:) - alpha * qv(:,:,:)
        call t_stopf("pcg_vecupdate")
 
-       ! Check for convergence every solv_ncheck iterations
+       ! Check for convergence every solve_ncheck iterations
        ! For convergence check, use r = b - Ax
 
-       if (mod(n,solv_ncheck) == 0) then
+       if (mod(n,solve_ncheck) == 0) then
 
           ! Halo update for x
 
@@ -534,18 +533,17 @@
              exit iter_loop
           endif            
 
-       endif    ! solv_ncheck
+       endif    ! solve_ncheck
 
     enddo iter_loop
 
 !WHL - Without good preconditioning, convergence can be slow, but the solution after maxiters might be good enough.
  
     if (niters == maxiters) then
-       if (main_task) then
-          print*, 'WARNING: Glissade PCG solver not converged'
+       if (verbose_pcg .and. main_task) then
+          print*, 'Glissade PCG solver not converged'
           print*, 'niters, err, tolerance:', niters, err, tolerance
        endif
-!!!     stop
     endif
 
   end subroutine pcg_solver_standard_3d
@@ -567,7 +565,7 @@
     !---------------------------------------------------------------
     !  This subroutine uses a standard preconditioned conjugate-gradient algorithm
     !  to solve the equation $Ax=b$.
-    !  Convergence is checked every {\em solv_ncheck} steps.
+    !  Convergence is checked every {\em solve_ncheck} steps.
     !
     !  It is similar to subroutine pcg_solver_standard_3d, but modified
     !  to solve for x and y at a single horizontal level, as in the
@@ -662,20 +660,6 @@
                            ! solver converges when L2_resid/L2_rhs < tolerance
 
     integer :: itest, jtest, rtest
-
-    !---------------------------------------------------------------
-    ! Solver parameters
-    !---------------------------------------------------------------
-
-    real(dp), parameter ::   &
-!!       tolerance = 1.d-11    ! tolerance for linear solver (old value; more stringent than necessary)
-       tolerance = 1.d-08    ! tolerance for linear solver
-
-    integer, parameter ::    &
-       maxiters = 200        ! max number of linear iterations before quitting
-                             
-    integer, parameter :: &
-       solv_ncheck = 5       ! check for convergence every solv_ncheck iterations
 
     if (present(itest_in)) then
        itest = itest_in
@@ -906,10 +890,10 @@
        rv(:,:) = rv(:,:) - alpha * qv(:,:)
        call t_stopf("pcg_vecupdate")
 
-       ! Check for convergence every solv_ncheck iterations
+       ! Check for convergence every solve_ncheck iterations
        ! For convergence check, use r = b - Ax
 
-       if (mod(n,solv_ncheck) == 0) then
+       if (mod(n,solve_ncheck) == 0) then
 
           ! Halo update for x
 
@@ -961,14 +945,14 @@
              exit iter_loop
           endif            
 
-       endif    ! solv_ncheck
+       endif    ! solve_ncheck
 
     enddo iter_loop
 
 !WHL - Without good preconditioning, convergence can be slow, but the solution after maxiters might be good enough.
  
     if (niters == maxiters) then
-       if (main_task) then
+       if (verbose_pcg .and. main_task) then
           print*, 'Glissade PCG solver not converged'
           print*, 'niters, err, tolerance:', niters, err, tolerance
        endif
@@ -998,7 +982,7 @@
     !  (author Frank Bryan, NCAR). It is a rearranged conjugate gradient solver 
     !  that reduces the number of global reductions per iteration from two to one 
     !  (not counting the convergence check).  Convergence is checked every 
-    !  {\em solv_ncheck} steps.
+    !  {\em solve_ncheck} steps.
     !
     !     References are:
     !
@@ -1177,20 +1161,6 @@
 
     real(dp), dimension(-1:1,nz,nx-1,ny-1) ::  &
        Muu, Mvv            ! simplified SIA matrices for preconditioning
-
-    !---------------------------------------------------------------
-    ! Solver parameters
-    !---------------------------------------------------------------
-
-    real(dp), parameter ::   &
-!!       tolerance = 1.d-11    ! tolerance for linear solver (old value; more stringent than necessary)
-       tolerance = 1.d-08    ! tolerance for linear solver
-
-    integer, parameter ::    &
-       maxiters = 200        ! max number of linear iterations before quitting
-                             
-    integer, parameter :: &
-       solv_ncheck = 5       ! check for convergence every solv_ncheck iterations
 
     integer :: itest, jtest, rtest
 
@@ -1562,10 +1532,10 @@
        call t_stopf("pcg_vecupdate")
 
        !---------------------------------------------------------------
-       ! Convergence check every solv_ncheck iterations
+       ! Convergence check every solve_ncheck iterations
        !---------------------------------------------------------------
 
-       if (mod(n,solv_ncheck) == 0) then    ! use r = b - Ax
+       if (mod(n,solve_ncheck) == 0) then    ! use r = b - Ax
 
           !---- Compute z = A*x  (use z as a temp vector for A*x)
            
@@ -1620,14 +1590,14 @@
           call staggered_parallel_halo(rv)
           call t_stopf("pcg_halo_resid")
 
-       endif    ! solv_ncheck
+       endif    ! solve_ncheck
 
     enddo iter_loop
 
     !WHL - Without good preconditioning, convergence can be slow, but the solution after maxiters might be good enough.
  
     if (niters == maxiters) then
-       if (main_task) then
+       if (verbose_pcg .and. main_task) then
           print*, 'Glissade PCG solver not converged'
           print*, 'niters, err, tolerance:', niters, err, tolerance
        endif
@@ -1757,20 +1727,6 @@
        L2_resid,          &! L2 norm of residual = sqrt(r,r)
        L2_rhs              ! L2 norm of rhs vector = sqrt(b,b)
                            ! solver is converged when L2_resid/L2_rhs < tolerance
-
-    !---------------------------------------------------------------
-    ! Solver parameters
-    !---------------------------------------------------------------
-
-    real(dp), parameter ::   &
-!!       tolerance = 1.d-11    ! tolerance for linear solver (old value; more stringent than necessary)
-       tolerance = 1.d-08    ! tolerance for linear solver
-
-    integer, parameter ::    &
-       maxiters = 200        ! max number of linear iterations before quitting
-                             
-    integer, parameter :: &
-       solv_ncheck = 5       ! check for convergence every solv_ncheck iterations
 
     integer :: itest, jtest, rtest
 
@@ -2113,10 +2069,10 @@
        call t_stopf("pcg_vecupdate")
 
        !---------------------------------------------------------------
-       ! Convergence check every solv_ncheck iterations
+       ! Convergence check every solve_ncheck iterations
        !---------------------------------------------------------------
 
-       if (mod(n,solv_ncheck) == 0) then    ! use r = b - Ax
+       if (mod(n,solve_ncheck) == 0) then    ! use r = b - Ax
 
           !---- Compute z = A*x  (use z as a temp vector for A*x)
            
@@ -2170,14 +2126,14 @@
           call staggered_parallel_halo(rv)
           call t_stopf("pcg_halo_resid")
 
-       endif    ! solv_ncheck
+       endif    ! solve_ncheck
 
     enddo iter_loop
 
     !WHL - Without good preconditioning, convergence can be slow, but the solution after maxiters might be good enough.
  
     if (niters == maxiters) then
-       if (main_task) then
+       if (verbose_pcg .and. main_task) then
           print*, 'Glissade PCG solver not converged'
           print*, 'niters, err, tolerance:', niters, err, tolerance
        endif

@@ -3,11 +3,14 @@ module restUtilMod
   !-----------------------------------------------------------------------
   ! provies generic routines and types for use with restart files
   !
+#include "shr_assert.h"
+  use shr_log_mod , only: errMsg => shr_log_errMsg
   use shr_kind_mod, only: r8=>shr_kind_r8, r4 => shr_kind_r4, i4=>shr_kind_i4
   use shr_sys_mod,  only: shr_sys_abort
   use spmdMod,      only: masterproc
   use clm_varctl,   only: iulog
   use clm_varcon,   only: spval, ispval
+  use decompMod,    only: bounds_type
   use ncdio_pio
   use pio
   use ncdio_utils,  only: find_var_on_file
@@ -24,7 +27,8 @@ module restUtilMod
      !DIMS 0,1,2
      !TYPE text,int,double
      module procedure restartvar_{DIMS}d_{TYPE}
-     module procedure restartvar_2d_double_bounds
+     !TYPE int,double
+     module procedure restartvar_2d_{TYPE}_bounds
   end interface restartvar
 
   integer,parameter, public :: iflag_interp = 1
@@ -35,7 +39,24 @@ module restUtilMod
 
   public :: restartvar
 
+  ! Set values of a missing restart field from a template field, with some constant
+  ! multiplier
+  public :: set_missing_from_template
+
+  ! Set a gridcell-level field from a column-level field
+  public :: set_grc_field_from_col_field
+
+  ! Set any NaN or spval entries in a field to some constant value
+  interface set_missing_vals_to_constant
+     !DIMS 1,2
+     module procedure set_missing_vals_to_constant_{DIMS}d
+  end interface set_missing_vals_to_constant
+  public :: set_missing_vals_to_constant
+
   private :: is_restart
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
 
 contains
 
@@ -323,8 +344,8 @@ contains
   end subroutine restartvar_{DIMS}d_{TYPE}
 
   !-----------------------------------------------------------------------
-
-  subroutine restartvar_2d_double_bounds(ncid, flag, varname, xtype, &
+  !TYPE int,double
+  subroutine restartvar_2d_{TYPE}_bounds(ncid, flag, varname, xtype, &
        dim1name, dim2name, switchdim, lowerb2, upperb2, &
        long_name, units, interpinic_flag, data, readvar, &
        comment, flag_meanings, missing_value, fill_value, &
@@ -349,7 +370,7 @@ contains
     logical          , intent(in)           :: switchdim
     character(len=*) , intent(in)           :: long_name        ! long name for variable
     character(len=*) , intent(in)           :: interpinic_flag  ! interpolate variable using interpinic
-    real(r8)         , pointer              :: data(:,:)        ! raw data
+    {VTYPE}          , pointer              :: data(:,:)        ! raw data
     logical          , intent(out)          :: readvar          ! was var read?
     integer          , intent(in), optional :: lowerb2
     integer          , intent(in), optional :: upperb2 
@@ -483,8 +504,120 @@ contains
        if (.not. readvar .and. is_restart()) call shr_sys_abort()
     end if
 
-  end subroutine restartvar_2d_double_bounds
+  end subroutine restartvar_2d_{TYPE}_bounds
 
+  !-----------------------------------------------------------------------
+  subroutine set_missing_from_template(my_var, template_var, multiplier)
+    !
+    ! !DESCRIPTION:
+    ! Set values of a missing restart field from a template field, with some constant
+    ! multiplier
+    !
+    ! !USES:
+    use shr_infnan_mod, only : isnan => shr_infnan_isnan, nan => shr_infnan_nan, assignment(=)
+    !
+    ! !ARGUMENTS:
+    real(r8), intent(out) :: my_var(:)
+    real(r8), intent(in)  :: template_var(:)
+    real(r8), intent(in)  :: multiplier
+    !
+    ! !LOCAL VARIABLES:
+    integer :: i
+
+    character(len=*), parameter :: subname = 'set_missing_from_template'
+    !-----------------------------------------------------------------------
+
+    SHR_ASSERT_ALL((ubound(template_var) == ubound(my_var)), errMsg(sourcefile, __LINE__))
+
+    do i = 1, size(my_var)
+       if (isnan(template_var(i))) then
+          my_var(i) = nan
+       else if (template_var(i) == spval) then
+          my_var(i) = spval
+       else
+          my_var(i) = template_var(i) * multiplier
+       end if
+    end do
+
+  end subroutine set_missing_from_template
+
+  !-----------------------------------------------------------------------
+  subroutine set_grc_field_from_col_field(bounds, ncid, varname, data_grc, readvar)
+    !
+    ! !DESCRIPTION:
+    ! Set a gridcell-level field from a column-level field on the restart file.
+    !
+    ! If the column-level field isn't found, then 'data' remains unchanged, and readvar
+    ! is set to .false.
+    !
+    ! This can be useful for backwards compatibility: If a field that was previously on
+    ! the column level has been moved to the gridcell-level, then this routine can be
+    ! used to read the old column-level field and then average it to the gridcell-level.
+    !
+    ! We may want to make this more general, so that a single routine can set a
+    ! gridcell-level field from a patch-, column- or landunit-level field - and maybe
+    ! also set a column-level field from a patch-level field, etc.
+    !
+    ! !USES:
+    use subgridAveMod, only : c2g
+    !
+    ! !ARGUMENTS:
+    type(bounds_type) , intent(in)    :: bounds
+    type(file_desc_t) , intent(inout) :: ncid        ! netcdf file id
+    character(len=*)  , intent(in)    :: varname     ! variable name
+    real(r8)          , intent(inout) :: data_grc( bounds%begg: ) ! gridcell-level data to set
+    logical           , intent(out)   :: readvar     ! was var read?
+    !
+    ! !LOCAL VARIABLES:
+    real(r8), pointer :: data_col(:)
+
+    character(len=*), parameter :: subname = 'set_grc_field_from_col_field'
+    !-----------------------------------------------------------------------
+
+    SHR_ASSERT_ALL((ubound(data_grc) == (/bounds%endg/)), errMsg(sourcefile, __LINE__))
+
+    allocate(data_col(bounds%begc:bounds%endc))
+    call ncd_io(varname=trim(varname), data=data_col, &
+         dim1name='column', &
+         ncid=ncid, flag='read', readvar=readvar)
+
+    if (readvar) then
+       call c2g(bounds, data_col, data_grc, &
+            c2l_scale_type = 'unity', &
+            l2g_scale_type = 'unity')
+    end if
+
+    deallocate(data_col)
+  end subroutine set_grc_field_from_col_field
+
+  !-----------------------------------------------------------------------
+  ! DIMS 1,2
+  subroutine set_missing_vals_to_constant_{DIMS}d(data, val)
+    !
+    ! !DESCRIPTION:
+    ! Set missing values (NaN or spval) of a restart field to some constant value
+    !
+    ! !USES:
+    use shr_infnan_mod, only : isnan => shr_infnan_isnan
+    !
+    ! !ARGUMENTS:
+    real(r8), intent(inout) :: data{DIMSTR}  ! variable to modify
+    real(r8), intent(in)    :: val           ! value to replace any NaNs or spvals
+    !
+    ! !LOCAL VARIABLES:
+
+    character(len=*), parameter :: subname = 'set_missing_vals_to_constant_{DIMS}d'
+    !-----------------------------------------------------------------------
+
+    where (isnan(data))
+       data = val
+    elsewhere (data == spval)
+       data = val
+    end where
+
+  end subroutine set_missing_vals_to_constant_{DIMS}d
+
+  
 
   !-----------------------------------------------------------------------
   logical function is_restart( )

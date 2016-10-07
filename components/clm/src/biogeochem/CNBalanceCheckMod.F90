@@ -20,6 +20,8 @@ module CNBalanceCheckMod
   use SoilBiogeochemCarbonfluxType    , only : soilbiogeochem_carbonflux_type
   use ColumnType                      , only : col                
   use GridcellType                    , only : grc
+  use CNSharedParamsMod               , only : use_fun
+
   !
   implicit none
   private
@@ -31,7 +33,6 @@ module CNBalanceCheckMod
      real(r8), pointer :: endcb_col(:)        ! (gC/m2) carbon mass, end of time step
      real(r8), pointer :: begnb_col(:)        ! (gN/m2) nitrogen mass, beginning of time step 
      real(r8), pointer :: endnb_col(:)        ! (gN/m2) nitrogen mass, end of time step 
-     logical , pointer :: beg_vals_set_col(:) ! Whether begcb/begnb have been set for this column in this time step
    contains
      procedure , public  :: Init
      procedure , public  :: BeginCNBalance
@@ -40,6 +41,9 @@ module CNBalanceCheckMod
      procedure , private :: InitAllocate 
   end type cn_balance_type
   !
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !-----------------------------------------------------------------------
 
 contains
@@ -65,7 +69,6 @@ contains
     allocate(this%endcb_col(begc:endc)) ; this%endcb_col(:) = nan
     allocate(this%begnb_col(begc:endc)) ; this%begnb_col(:) = nan
     allocate(this%endnb_col(begc:endc)) ; this%endnb_col(:) = nan
-    allocate(this%beg_vals_set_col(begc:endc)) ; this%beg_vals_set_col(:) = .false.
   end subroutine InitAllocate
 
   !-----------------------------------------------------------------------
@@ -74,6 +77,10 @@ contains
     !
     ! !DESCRIPTION:
     ! Calculate beginning column-level carbon/nitrogen balance, for mass conservation check
+    !
+    ! Should be called after the CN state summaries have been computed for this time step
+    ! (which should be after the dynamic landunit area updates and the associated filter
+    ! updates - i.e., using the new version of the filters)
     !
     ! !ARGUMENTS:
     class(cn_balance_type)         , intent(inout) :: this
@@ -90,18 +97,14 @@ contains
     associate(                                            & 
          col_begcb    => this%begcb_col                  , & ! Output: [real(r8) (:)]  (gC/m2) carbon mass, beginning of time step
          col_begnb    => this%begnb_col                  , & ! Output: [real(r8) (:)]  (gN/m2) nitrogen mass, beginning of time step 
-         beg_vals_set => this%beg_vals_set_col           , & ! Output: [logical  (:)]  Whether begcb/begnb have been set
          totcolc      => cnveg_carbonstate_inst%totc_col , & ! Input:  [real(r8) (:)]  (gC/m2) total column carbon, incl veg and cpool
          totcoln      => cnveg_nitrogenstate_inst%totn_col & ! Input:  [real(r8) (:)]  (gN/m2) total column nitrogen, incl veg 
          )
     
-    beg_vals_set(bounds%begc:bounds%endc) = .false.
-
     do fc = 1,num_soilc
        c = filter_soilc(fc)
        col_begcb(c) = totcolc(c)
        col_begnb(c) = totcoln(c)
-       beg_vals_set(c) = .true.
     end do
 
     end associate
@@ -137,10 +140,9 @@ contains
     associate(                                                                            & 
          col_begcb               =>    this%begcb_col                                   , & ! Input:  [real(r8) (:) ]  (gC/m2) carbon mass, beginning of time step 
          col_endcb               =>    this%endcb_col                                   , & ! Output: [real(r8) (:) ]  (gC/m2) carbon mass, end of time step 
-         beg_vals_set            =>    this%beg_vals_set_col                            , & ! Input:  [logical  (:) ]  Whether begcb/begnb have been set in this time step
-         dwt_closs               =>    cnveg_carbonflux_inst%dwt_closs_col              , & ! Input:  [real(r8) (:) ]  (gC/m2/s) total carbon loss from product pools and conversion
-         product_closs           =>    cnveg_carbonflux_inst%product_closs_col          , & ! Input:  [real(r8) (:) ]  (gC/m2/s) total wood product carbon loss
-         gpp                     =>    cnveg_carbonflux_inst%gpp_col                    , & ! Input:  [real(r8) (:) ]  (gC/m2/s) gross primary production      
+         wood_harvestc           =>    cnveg_carbonflux_inst%wood_harvestc_col          , & ! Input:  [real(r8) (:) ]  (gC/m2/s) wood harvest (to product pools)
+         grainc_to_cropprodc     =>    cnveg_carbonflux_inst%grainc_to_cropprodc_col    , & ! Input:  [real(r8) (:) ]  (gC/m2/s) grain C to 1-year crop product pool
+         gpp                     =>    cnveg_carbonflux_inst%gpp_col                    , & ! Input:  [real(r8) (:) ]  (gC/m2/s) gross primary production
          er                      =>    cnveg_carbonflux_inst%er_col                     , & ! Input:  [real(r8) (:) ]  (gC/m2/s) total ecosystem respiration, autotrophic + heterotrophic
          col_fire_closs          =>    cnveg_carbonflux_inst%fire_closs_col             , & ! Input:  [real(r8) (:) ]  (gC/m2/s) total column-level fire C loss
          col_hrv_xsmrpool_to_atm =>    cnveg_carbonflux_inst%hrv_xsmrpool_to_atm_col    , & ! Input:  [real(r8) (:) ]  (gC/m2/s) excess MR pool harvest mortality 
@@ -157,44 +159,82 @@ contains
       do fc = 1,num_soilc
          c = filter_soilc(fc)
 
-         if (.not. beg_vals_set(c)) then
-            ! Skip the check if the beginning values weren't set for this column. This
-            ! can happen, for example, if this is a newly-active column.
-            cycle
-         end if
-
          ! calculate the total column-level carbon storage, for mass conservation check
          col_endcb(c) = totcolc(c)
 
          ! calculate total column-level inputs
          col_cinputs = gpp(c)
 
+         ! FIXME(wjs, 2016-07-08) This is temporary. It can be removed once we update
+         ! column states immediately after dyn_cnbal_patch. For now this is needed
+         ! because col_begcb is computed after this mass is lost from the patch-level
+         ! statese, but before it is added to the column-level states.
+         col_cinputs = col_cinputs + &
+              cnveg_carbonflux_inst%dwt_to_litrc_col(c)
+
          ! calculate total column-level outputs
          ! er = ar + hr, col_fire_closs includes patch-level fire losses
-         col_coutputs = er(c) + col_fire_closs(c) + dwt_closs(c) + product_closs(c) + col_hrv_xsmrpool_to_atm(c)
+         col_coutputs = er(c) + col_fire_closs(c) + col_hrv_xsmrpool_to_atm(c)
+
+         ! Fluxes to product pools are included in column-level outputs: the product
+         ! pools are not included in totcolc, so are outside the system with respect to
+         ! these balance checks. (However, the dwt flux to product pools is NOT included,
+         ! since col_begcb is initialized after the dynamic area adjustments - i.e.,
+         ! after the dwt term has already been taken out.)
+         col_coutputs = col_coutputs + &
+              wood_harvestc(c) + &
+              grainc_to_cropprodc(c)
 
          ! subtract leaching flux
          col_coutputs = col_coutputs - som_c_leached(c)
 
+         ! FIXME(wjs, 2016-07-08) This is temporary. It can be removed once we update
+         ! column states immediately after dyn_cnbal_patch. For now this is needed because
+         ! col_begcb is computed after this mass is gained by the patch-level states, but
+         ! before it is taken away from the column-level states.
+         col_coutputs = col_coutputs + &
+              cnveg_carbonflux_inst%dwt_seedc_col(c)
+
          ! calculate the total column-level carbon balance error for this time step
-         col_errcb(c) = (col_cinputs - col_coutputs)*dt - (col_endcb(c) - col_begcb(c))
+         col_errcb(c) = (col_cinputs - col_coutputs)*dt - &
+              (col_endcb(c) - col_begcb(c))
 
          ! check for significant errors
          if (abs(col_errcb(c)) > 1e-8_r8) then
             err_found = .true.
             err_index = c
          end if
+          if (abs(col_errcb(c)) > 1e-9_r8) then
+            write(iulog,*) 'cbalance warning',c,col_errcb(c),col_endcb(c)
+         end if
+
+
 
       end do ! end of columns loop
 
       if (err_found) then
          c = err_index
-         write(iulog,*)'column cbalance error = ', col_errcb(c), c
+         write(iulog,*)'column cbalance error    = ', col_errcb(c), c
          write(iulog,*)'Latdeg,Londeg=',grc%latdeg(col%gridcell(c)),grc%londeg(col%gridcell(c))
-         write(iulog,*)'begcb       = ',col_begcb(c)
-         write(iulog,*)'endcb       = ',col_endcb(c)
-         write(iulog,*)'delta store = ',col_endcb(c)-col_begcb(c)
-         call endrun(msg=errMsg(__FILE__, __LINE__))
+         write(iulog,*)'begcb                    = ',col_begcb(c)
+         write(iulog,*)'endcb                    = ',col_endcb(c)
+         write(iulog,*)'delta store              = ',col_endcb(c)-col_begcb(c)
+         write(iulog,*)'--- Inputs ---'
+         write(iulog,*)'gpp                      = ',gpp(c)*dt
+         ! FIXME(wjs, 2016-07-08) Remove this line when we stop adding this term to
+         ! col_cinputs
+         write(iulog,*)'dwt_to_litrc             = ',cnveg_carbonflux_inst%dwt_to_litrc_col(c)*dt
+         write(iulog,*)'--- Outputs ---'
+         write(iulog,*)'er                       = ',er(c)*dt
+         write(iulog,*)'col_fire_closs           = ',col_fire_closs(c)*dt
+         write(iulog,*)'col_hrv_xsmrpool_to_atm  = ',col_hrv_xsmrpool_to_atm(c)*dt
+         write(iulog,*)'wood_harvestc            = ',wood_harvestc(c)*dt
+         write(iulog,*)'grainc_to_cropprodc      = ',grainc_to_cropprodc(c)*dt
+         write(iulog,*)'-1*som_c_leached         = ',som_c_leached(c)*dt
+         ! FIXME(wjs, 2016-07-08) Remove this line when we stop adding this term to
+         ! col_coutputs
+         write(iulog,*)'dwt_seedc                = ',cnveg_carbonflux_inst%dwt_seedc_col(c)*dt
+         call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
     end associate
@@ -209,7 +249,7 @@ contains
     ! Perform nitrogen mass conservation check
     !
     ! !USES:
-    use clm_varpar, only : crop_prog
+    use clm_varctl, only : use_crop
     !
     ! !ARGUMENTS:
     class(cn_balance_type)                  , intent(inout) :: this
@@ -233,9 +273,9 @@ contains
     associate(                                                                             & 
          col_begnb           => this%begnb_col                                           , & ! Input:  [real(r8) (:) ]  (gN/m2) nitrogen mass, beginning of time step   
          col_endnb           => this%endnb_col                                           , & ! Output: [real(r8) (:) ]  (gN/m2) nitrogen mass, end of time step         
-         beg_vals_set        => this%beg_vals_set_col                                    , & ! Input:  [logical  (:) ]  Whether begcb/begnb have been set in this time step
          ndep_to_sminn       => soilbiogeochem_nitrogenflux_inst%ndep_to_sminn_col       , & ! Input:  [real(r8) (:) ]  (gN/m2/s) atmospheric N deposition to soil mineral N        
          nfix_to_sminn       => soilbiogeochem_nitrogenflux_inst%nfix_to_sminn_col       , & ! Input:  [real(r8) (:) ]  (gN/m2/s) symbiotic/asymbiotic N fixation to soil mineral N 
+         ffix_to_sminn       => soilbiogeochem_nitrogenflux_inst%ffix_to_sminn_col       , & ! Input:  [real(r8) (:) ]  (gN/m2/s) free living N fixation to soil mineral N         
          fert_to_sminn       => soilbiogeochem_nitrogenflux_inst%fert_to_sminn_col       , & ! Input:  [real(r8) (:) ]  (gN/m2/s)                                         
          soyfixn_to_sminn    => soilbiogeochem_nitrogenflux_inst%soyfixn_to_sminn_col    , & ! Input:  [real(r8) (:) ]  (gN/m2/s)                                         
          supplement_to_sminn => soilbiogeochem_nitrogenflux_inst%supplement_to_sminn_col , & ! Input:  [real(r8) (:) ]  (gN/m2/s) supplemental N supply                           
@@ -247,8 +287,8 @@ contains
          som_n_leached       => soilbiogeochem_nitrogenflux_inst%som_n_leached_col       , & ! Input:  [real(r8) (:) ]  (gN/m2/s) total SOM N loss from vertical transport
 
          col_fire_nloss      => cnveg_nitrogenflux_inst%fire_nloss_col                   , & ! Input:  [real(r8) (:) ]  (gN/m2/s) total column-level fire N loss 
-         dwt_nloss           => cnveg_nitrogenflux_inst%dwt_nloss_col                    , & ! Input:  [real(r8) (:) ]  (gN/m2/s) total nitrogen loss from product pools and conversion
-         product_nloss       => cnveg_nitrogenflux_inst%product_nloss_col                , & ! Input:  [real(r8) (:) ]  (gN/m2/s) total wood product nitrogen loss
+         wood_harvestn       => cnveg_nitrogenflux_inst%wood_harvestn_col                , & ! Input:  [real(r8) (:) ]  (gN/m2/s) wood harvest (to product pools)
+         grainn_to_cropprodn => cnveg_nitrogenflux_inst%grainn_to_cropprodn_col          , & ! Input:  [real(r8) (:) ]  (gN/m2/s) grain N to 1-year crop product pool
 
          totcoln             => cnveg_nitrogenstate_inst%totn_col                          & ! Input:  [real(r8) (:) ]  (gN/m2) total column nitrogen, incl veg 
          )
@@ -260,23 +300,38 @@ contains
       do fc = 1,num_soilc
          c=filter_soilc(fc)
 
-         if (.not. beg_vals_set(c)) then
-            ! Skip the check if the beginning values weren't set for this column. This
-            ! can happen, for example, if this is a newly-active column.
-            cycle
-         end if
-
          ! calculate the total column-level nitrogen storage, for mass conservation check
          col_endnb(c) = totcoln(c)
 
          ! calculate total column-level inputs
          col_ninputs(c) = ndep_to_sminn(c) + nfix_to_sminn(c) + supplement_to_sminn(c)
-         if (crop_prog) then
+         
+         if(use_fun)then
+            col_ninputs(c) = col_ninputs(c) + ffix_to_sminn(c) ! for FUN, free living fixation is a seprate flux. RF. 
+         endif
+     
+         if (use_crop) then
             col_ninputs(c) = col_ninputs(c) + fert_to_sminn(c) + soyfixn_to_sminn(c)
          end if
 
+         ! FIXME(wjs, 2016-07-08) This is temporary. It can be removed once we update
+         ! column states immediately after dyn_cnbal_patch. For now this is needed
+         ! because col_begnb is computed after this mass is lost from the patch-level
+         ! statese, but before it is added to the column-level states.
+         col_ninputs(c) = col_ninputs(c) + &
+              cnveg_nitrogenflux_inst%dwt_to_litrn_col(c)
+
          ! calculate total column-level outputs
-         col_noutputs(c) = denit(c) + col_fire_nloss(c) + dwt_nloss(c) + product_nloss(c)
+         col_noutputs(c) = denit(c) + col_fire_nloss(c)
+
+         ! Fluxes to product pools are included in column-level outputs: the product
+         ! pools are not included in totcoln, so are outside the system with respect to
+         ! these balance checks. (However, the dwt flux to product pools is NOT included,
+         ! since col_begnb is initialized after the dynamic area adjustments - i.e.,
+         ! after the dwt term has already been taken out.)
+         col_noutputs(c) = col_noutputs(c) + &
+              wood_harvestn(c) + &
+              grainn_to_cropprodn(c)
 
          if (.not. use_nitrif_denitrif) then
             col_noutputs(c) = col_noutputs(c) + sminn_leached(c)
@@ -288,27 +343,46 @@ contains
 
          col_noutputs(c) = col_noutputs(c) - som_n_leached(c)
 
-         ! calculate the total column-level nitrogen balance error for this time step
-         col_errnb(c) = (col_ninputs(c) - col_noutputs(c))*dt - (col_endnb(c) - col_begnb(c))
+         ! FIXME(wjs, 2016-07-08) This is temporary. It can be removed once we update
+         ! column states immediately after dyn_cnbal_patch. For now this is needed because
+         ! col_begnb is computed after this mass is gained by the patch-level states, but
+         ! before it is taken away from the column-level states.
+         col_noutputs(c) = col_noutputs(c) + &
+              cnveg_nitrogenflux_inst%dwt_seedn_col(c)
 
-         if (abs(col_errnb(c)) > 1e-8_r8) then
+         ! calculate the total column-level nitrogen balance error for this time step
+         col_errnb(c) = (col_ninputs(c) - col_noutputs(c))*dt - &
+              (col_endnb(c) - col_begnb(c))
+
+         if (abs(col_errnb(c)) > 1e-6_r8) then
             err_found = .true.
             err_index = c
+         end if
+         
+         if (abs(col_errnb(c)) > 1e-8_r8) then
+            write(iulog,*) 'nbalance warning',c,col_errnb(c),col_endnb(c)
+            write(iulog,*)'inputs,ffix,nfix,ndep = ',ffix_to_sminn(c)*dt,nfix_to_sminn(c)*dt,ndep_to_sminn(c)*dt
+            write(iulog,*)'outputs,lch,roff,dnit = ',smin_no3_leached(c)*dt, smin_no3_runoff(c)*dt,f_n2o_nit(c)*dt
          end if
 
       end do ! end of columns loop
 
       if (err_found) then
          c = err_index
-         write(iulog,*)'column nbalance error = ',col_errnb(c), c
-         write(iulog,*)'Latdeg,Londeg         = ',grc%latdeg(col%gridcell(c)),grc%londeg(col%gridcell(c))
-         write(iulog,*)'begnb                 = ',col_begnb(c)
-         write(iulog,*)'endnb                 = ',col_endnb(c)
-         write(iulog,*)'delta store           = ',col_endnb(c)-col_begnb(c)
-         write(iulog,*)'input mass            = ',col_ninputs(c)*dt
-         write(iulog,*)'output mass           = ',col_noutputs(c)*dt
-         write(iulog,*)'net flux              = ',(col_ninputs(c)-col_noutputs(c))*dt
-         call endrun(msg=errMsg(__FILE__, __LINE__))
+         write(iulog,*)'column nbalance error    = ',col_errnb(c), c
+         write(iulog,*)'Latdeg,Londeg            = ',grc%latdeg(col%gridcell(c)),grc%londeg(col%gridcell(c))
+         write(iulog,*)'begnb                    = ',col_begnb(c)
+         write(iulog,*)'endnb                    = ',col_endnb(c)
+         write(iulog,*)'delta store              = ',col_endnb(c)-col_begnb(c)
+         write(iulog,*)'input mass               = ',col_ninputs(c)*dt
+         write(iulog,*)'output mass              = ',col_noutputs(c)*dt
+         write(iulog,*)'net flux                 = ',(col_ninputs(c)-col_noutputs(c))*dt
+         write(iulog,*)'inputs,ffix,nfix,ndep    = ',ffix_to_sminn(c)*dt,nfix_to_sminn(c)*dt,ndep_to_sminn(c)*dt
+         write(iulog,*)'outputs,ffix,nfix,ndep   = ',smin_no3_leached(c)*dt, smin_no3_runoff(c)*dt,f_n2o_nit(c)*dt
+        
+         
+         
+         call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
     end associate

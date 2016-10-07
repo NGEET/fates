@@ -35,6 +35,7 @@ module IrrigationWrapperMod
      real(r8), allocatable :: eff_porosity(:,:)
      real(r8), allocatable :: h2osoi_liq(:,:)
      real(r8), allocatable :: relsat_so(:,:)
+     real(r8), allocatable :: volr(:)
 
      ! Previous model time
      integer :: time_prev
@@ -74,7 +75,10 @@ contains
     ! Values are set up such that there is some irrigation deficit everywhere, and
     ! irrigation would start in the following call to CalcIrrigationNeeded (followed by
     ! ApplyIrrigation). Values are set the same for every patch/column, and are the same
-    ! at every level EXCEPT for relsat_so, which varies linearly by level and patch number.
+    ! at every level EXCEPT for relsat_so, which varies linearly by level and patch
+    ! number.
+    !
+    ! volr is set up to be non-limiting
     !
     ! Assumes that nlevgrnd has been set, and that all necessary subgrid setup has been
     ! completed.
@@ -83,6 +87,8 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer :: p,j
+
+    real(r8), parameter :: irrig_volr_threshold = 1._r8
     !
     !-----------------------------------------------------------------------
 
@@ -92,7 +98,8 @@ contains
          irrig_btran_thresh = 0.99_r8, &
          irrig_start_time = 21600, &
          irrig_length = 14400, &
-         irrig_factor = 0.7_r8)
+         irrig_factor = 0.7_r8, &
+         irrig_volr_threshold = irrig_volr_threshold)
          
 
     ! ------------------------------------------------------------------------
@@ -106,6 +113,7 @@ contains
     allocate(constructor%eff_porosity(bounds%begc:bounds%endc, nlevgrnd), source=1._r8)
     allocate(constructor%h2osoi_liq(bounds%begc:bounds%endc, nlevgrnd), source=0._r8)
     allocate(constructor%relsat_so(bounds%begp:bounds%endp, nlevgrnd))
+    allocate(constructor%volr(bounds%begg:bounds%endg), source=irrig_volr_threshold + 1.e-13_r8)
 
     do j = 1, nlevgrnd
        do p = bounds%begp, bounds%endp
@@ -131,6 +139,11 @@ contains
     ! that the IrrigationDeficit function is working correctly, and we want to test the
     ! code that builds on top of these computed deficits. By having this function, we can
     ! avoid having to hard-code the deficits in each test.
+    !
+    ! An alternative would have been to make a test-specific subclass of the irrigation
+    ! type for testing, in which we replaced the IrrigationDeficit with our own version
+    ! in which we could set the desired IrrigationDeficit for each (p,j) to some simple
+    ! value.
     !
     ! !USES:
     !
@@ -192,7 +205,7 @@ contains
          eff_porosity = this%eff_porosity, &
          h2osoi_liq = this%h2osoi_liq)
     
-    call irrigation%ApplyIrrigation(bounds)
+    call irrigation%ApplyIrrigation(bounds, this%volr)
 
   end subroutine calculateAndApplyIrrigation
 
@@ -203,7 +216,7 @@ contains
   ! ========================================================================
 
   !-----------------------------------------------------------------------
-  subroutine setupIrrigation(irrigation_inputs, irrigation, maxpft)
+  subroutine setupIrrigation(irrigation_inputs, irrigation, maxpft, test_limit_irrigation)
     !
     ! !DESCRIPTION:
     ! Do the setup needed for most tests.
@@ -216,12 +229,20 @@ contains
     type(irrigation_inputs_type), intent(out) :: irrigation_inputs
     type(irrigation_type), intent(out) :: irrigation
     integer, intent(in) :: maxpft ! max pft type
+    logical, intent(in), optional :: test_limit_irrigation
     !
     ! !LOCAL VARIABLES:
+    logical :: limit_irrigation
     !-----------------------------------------------------------------------
     
     irrigation_inputs = irrigation_inputs_type()
-    call setupEnvironment(maxpft=maxpft)
+
+    limit_irrigation = .false.
+    if (present(test_limit_irrigation)) then
+       limit_irrigation = test_limit_irrigation
+    end if
+
+    call setupEnvironment(maxpft=maxpft, test_limit_irrigation=limit_irrigation)
     call irrigation%InitForTesting(bounds, irrigation_inputs%irrigation_params, &
          dtime, irrigation_inputs%relsat_so)
 
@@ -256,7 +277,7 @@ contains
 
 
   !-----------------------------------------------------------------------
-  subroutine setupEnvironment(maxpft)
+  subroutine setupEnvironment(maxpft, test_limit_irrigation)
     !
     ! !DESCRIPTION:
     ! Sets up the external environment used by Irrigation - i.e., things accessed via
@@ -268,9 +289,11 @@ contains
     ! !USES:
     use pftconMod , only : pftcon
     use clm_varpar, only : mxpft
+    use clm_varctl, only : limit_irrigation
     !
     ! !ARGUMENTS:
     integer, intent(in) :: maxpft  ! max pft type that needs to be supported
+    logical, intent(in) :: test_limit_irrigation
     !
     !-----------------------------------------------------------------------
 
@@ -280,6 +303,10 @@ contains
 
     ! slightly greater than 1 hour offset
     grc%londeg(:) = 15.1_r8
+
+    limit_irrigation = test_limit_irrigation
+
+    grc%area(:) = 1.0_r8
     
   end subroutine setupEnvironment
 

@@ -4,10 +4,10 @@ module SoilBiogeochemNitrogenFluxType
   use shr_infnan_mod                     , only : nan => shr_infnan_nan, assignment(=)
   use shr_log_mod                        , only : errMsg => shr_log_errMsg
   use clm_varpar                         , only : ndecomp_cascade_transitions, ndecomp_pools
-  use clm_varpar                         , only : nlevdecomp_full, nlevdecomp, crop_prog
+  use clm_varpar                         , only : nlevdecomp_full, nlevdecomp
   use clm_varcon                         , only : spval, ispval, dzsoi_decomp
   use decompMod                          , only : bounds_type
-  use clm_varctl                         , only : use_nitrif_denitrif, use_vertsoilc
+  use clm_varctl                         , only : use_nitrif_denitrif, use_vertsoilc, use_crop
   use SoilBiogeochemDecompCascadeConType , only : decomp_cascade_con
   use abortutils                         , only : endrun
   use LandunitType                       , only : lun                
@@ -22,6 +22,7 @@ module SoilBiogeochemNitrogenFluxType
      ! deposition fluxes
      real(r8), pointer :: ndep_to_sminn_col                         (:)     ! col atmospheric N deposition to soil mineral N (gN/m2/s)
      real(r8), pointer :: nfix_to_sminn_col                         (:)     ! col symbiotic/asymbiotic N fixation to soil mineral N (gN/m2/s) 
+     real(r8), pointer :: ffix_to_sminn_col                         (:)     ! col free living N fixation to soil mineral N (gN/m2/s)  
      real(r8), pointer :: fert_to_sminn_col                         (:)     ! col fertilizer N to soil mineral N (gN/m2/s)
      real(r8), pointer :: soyfixn_to_sminn_col                      (:)     ! col soybean fixation to soil mineral N (gN/m2/s)
 
@@ -45,7 +46,7 @@ module SoilBiogeochemNitrogenFluxType
      real(r8), pointer :: gross_nmin_col                            (:)     ! col vert-int (diagnostic) gross rate of N mineralization (gN/m2/s)
      real(r8), pointer :: net_nmin_vr_col                           (:,:)   ! col vertically-resolved net rate of N mineralization (gN/m3/s)
      real(r8), pointer :: net_nmin_col                              (:)     ! col vert-int (diagnostic) net rate of N mineralization (gN/m2/s)
-
+     real(r8), pointer :: sminn_to_plant_fun_col                    (:)     ! col total soil N uptake of FUN        (gN/m2/s)
      ! ---------- NITRIF_DENITRIF  ---------------------
 
      ! nitrification / denitrification fluxes
@@ -99,7 +100,8 @@ module SoilBiogeochemNitrogenFluxType
 
      real(r8), pointer :: r_psi_col                                 (:,:)
      real(r8), pointer :: anaerobic_frac_col                        (:,:)
-
+     real(r8), pointer :: sminn_to_plant_fun_no3_vr_col             (:,:)   ! col total layer no3 uptake of FUN     (gN/m2/s)
+     real(r8), pointer :: sminn_to_plant_fun_nh4_vr_col             (:,:)   ! col total layer nh4 uptake of FUN     (gN/m2/s)
      !----------- no NITRIF_DENITRIF--------------
 
      ! denitrification fluxes
@@ -123,7 +125,7 @@ module SoilBiogeochemNitrogenFluxType
      ! all n pools involved in decomposition
      real(r8), pointer :: decomp_npools_sourcesink_col              (:,:,:) ! col (gN/m3) change in decomposing n pools 
                                                                             ! (sum of all additions and subtractions from stateupdate1).  
-
+          real(r8), pointer :: sminn_to_plant_fun_vr_col                 (:,:)   ! col total layer soil N uptake of FUN  (gN/m2/s)
    contains
 
      procedure , public  :: Init   
@@ -135,6 +137,9 @@ module SoilBiogeochemNitrogenFluxType
      procedure , private :: InitCold
 
   end type SoilBiogeochem_nitrogenflux_type
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !------------------------------------------------------------------------
 
 contains
@@ -163,12 +168,14 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer           :: begc,endc
+!   integer           :: begp,endp
     !------------------------------------------------------------------------
 
     begc = bounds%begc; endc = bounds%endc
-
+!   begp = bounds%begp; endp = bounds%endp
     allocate(this%ndep_to_sminn_col                 (begc:endc))                   ; this%ndep_to_sminn_col          (:)   = nan
     allocate(this%nfix_to_sminn_col                 (begc:endc))                   ; this%nfix_to_sminn_col          (:)   = nan
+    allocate(this%ffix_to_sminn_col                 (begc:endc))                   ; this%ffix_to_sminn_col          (:)   = nan
     allocate(this%fert_to_sminn_col                 (begc:endc))                   ; this%fert_to_sminn_col          (:)   = nan
     allocate(this%soyfixn_to_sminn_col              (begc:endc))                   ; this%soyfixn_to_sminn_col       (:)   = nan
     allocate(this%sminn_to_plant_col                (begc:endc))                   ; this%sminn_to_plant_col         (:)   = nan
@@ -190,7 +197,10 @@ contains
     allocate(this%supplement_to_sminn_vr_col        (begc:endc,1:nlevdecomp_full)) ; this%supplement_to_sminn_vr_col (:,:) = nan
     allocate(this%gross_nmin_vr_col                 (begc:endc,1:nlevdecomp_full)) ; this%gross_nmin_vr_col          (:,:) = nan
     allocate(this%net_nmin_vr_col                   (begc:endc,1:nlevdecomp_full)) ; this%net_nmin_vr_col            (:,:) = nan
-
+    allocate(this%sminn_to_plant_fun_col            (begc:endc))                   ; this%sminn_to_plant_fun_col     (:)     = nan
+    allocate(this%sminn_to_plant_fun_vr_col         (begc:endc,1:nlevdecomp_full)) ; this%sminn_to_plant_fun_vr_col  (:,:)   = nan
+    allocate(this%sminn_to_plant_fun_no3_vr_col     (begc:endc,1:nlevdecomp_full)) ; this%sminn_to_plant_fun_no3_vr_col(:,:) = nan
+    allocate(this%sminn_to_plant_fun_nh4_vr_col     (begc:endc,1:nlevdecomp_full)) ; this%sminn_to_plant_fun_nh4_vr_col(:,:) = nan
     allocate(this%f_nit_vr_col                      (begc:endc,1:nlevdecomp_full)) ; this%f_nit_vr_col               (:,:) = nan
     allocate(this%f_denit_vr_col                    (begc:endc,1:nlevdecomp_full)) ; this%f_denit_vr_col             (:,:) = nan
     allocate(this%smin_no3_leached_vr_col           (begc:endc,1:nlevdecomp_full)) ; this%smin_no3_leached_vr_col    (:,:) = nan
@@ -310,6 +320,11 @@ contains
          avgflag='A', long_name='symbiotic/asymbiotic N fixation to soil mineral N', &
          ptr_col=this%nfix_to_sminn_col)
 
+    this%ffix_to_sminn_col(begc:endc) = spval
+    call hist_addfld1d (fname='FFIX_TO_SMINN', units='gN/m^2/s', &
+         avgflag='A', long_name='free living  N fixation to soil mineral N', &
+         ptr_col=this%ffix_to_sminn_col)
+
     do l = 1, ndecomp_cascade_transitions
        ! vertically integrated fluxes
        !-- mineralization/immobilization fluxes (none from CWD)
@@ -415,7 +430,7 @@ contains
           longname =  trim(decomp_cascade_con%decomp_pool_name_long(k))//' N tendency due to vertical transport'
           call hist_addfld_decomp (fname=fieldname, units='gN/m^3/s',  type2d='levdcmp', &
                avgflag='A', long_name=longname, &
-               ptr_col=data2dptr)
+               ptr_col=data2dptr, default='inactive')
        end if
     end do
 
@@ -802,14 +817,14 @@ contains
             ptr_col=this%f_n2o_denit_col)
     end if
 
-    if (crop_prog) then
+    if (use_crop) then
        this%fert_to_sminn_col(begc:endc) = spval
        call hist_addfld1d (fname='FERT_TO_SMINN', units='gN/m^2/s', &
             avgflag='A', long_name='fertilizer to soil mineral N', &
             ptr_col=this%fert_to_sminn_col)
     end if
 
-    if (crop_prog) then
+    if (use_crop) then
        this%soyfixn_to_sminn_col(begc:endc) = spval
        call hist_addfld1d (fname='SOYFIXN_TO_SMINN', units='gN/m^2/s', &
             avgflag='A', long_name='Soybean fixation to soil mineral N', &
@@ -825,7 +840,6 @@ contains
     ! Initializes time varying variables used only in coupled carbon-nitrogen mode (CN):
     !
     ! !USES:
-    use clm_varpar      , only : crop_prog
     use landunit_varcon , only : istsoil, istcrop
     !
     ! !ARGUMENTS:
@@ -865,7 +879,6 @@ contains
     ! Read/write CN restart data for carbon state
     !
     ! !USES:
-    use clm_varpar, only : crop_prog
     use restUtilMod
     use ncdio_pio
     !
@@ -919,7 +932,7 @@ contains
        end if
        if (flag=='read' .and. .not. readvar) then
           call endrun(msg='ERROR:: f_nit_vr'//' is required on an initialization dataset'//&
-               errMsg(__FILE__, __LINE__))
+               errMsg(sourcefile, __LINE__))
        end if
     end if
 
@@ -950,6 +963,7 @@ contains
           if (.not. use_nitrif_denitrif) then
              this%sminn_to_denit_excess_vr_col(i,j)      = value_column
              this%sminn_leached_vr_col(i,j)              = value_column
+             this%sminn_to_plant_fun_vr_col(i,j)         = value_column
           else
              this%f_nit_vr_col(i,j)                      = value_column
              this%f_denit_vr_col(i,j)                    = value_column
@@ -991,6 +1005,8 @@ contains
           this%supplement_to_sminn_vr_col(i,j)           = value_column
           this%gross_nmin_vr_col(i,j)                    = value_column
           this%net_nmin_vr_col(i,j)                      = value_column
+          this%sminn_to_plant_fun_no3_vr_col(i,j)        = value_column
+          this%sminn_to_plant_fun_nh4_vr_col(i,j)        = value_column
        end do
     end do
 
@@ -999,6 +1015,7 @@ contains
 
        this%ndep_to_sminn_col(i)             = value_column
        this%nfix_to_sminn_col(i)             = value_column
+       this%ffix_to_sminn_col(i)             = value_column
        this%fert_to_sminn_col(i)             = value_column
        this%soyfixn_to_sminn_col(i)          = value_column
        this%potential_immob_col(i)           = value_column
@@ -1008,6 +1025,7 @@ contains
        this%gross_nmin_col(i)                = value_column
        this%net_nmin_col(i)                  = value_column
        this%denit_col(i)                     = value_column
+       this%sminn_to_plant_fun_col(i)        = value_column
        if (use_nitrif_denitrif) then
           this%f_nit_col(i)                  = value_column
           this%pot_f_nit_col(i)              = value_column

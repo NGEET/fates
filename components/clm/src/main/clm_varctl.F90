@@ -87,8 +87,6 @@ module clm_varctl
   character(len=fname_len), public :: fsurdat    = ' '        ! surface data file name
   character(len=fname_len), public :: fatmgrid   = ' '        ! atm grid file name
   character(len=fname_len), public :: fatmlndfrc = ' '        ! lnd frac file on atm grid
-  character(len=fname_len), public :: fatmtopo   = ' '        ! topography on atm grid
-  character(len=fname_len), public :: flndtopo   = ' '        ! topography on lnd grid
   character(len=fname_len), public :: paramfile  = ' '        ! ASCII data file with PFT physiological constants
   character(len=fname_len), public :: nrevsn     = ' '        ! restart data file name for branch run
   character(len=fname_len), public :: fsnowoptics  = ' '      ! snow optical properties file name
@@ -106,26 +104,30 @@ module clm_varctl
 
   logical, public :: bound_h2osoi = .true. ! for debugging 
 
-  ! If finidat_interp_source is non-blank and finidat is blank then interpolation will be done from
-  ! finidat_interp_source to finidat_interp_dest
+  ! If finidat_interp_source is non-blank and finidat is blank then interpolation will be
+  ! done from finidat_interp_source to finidat_interp_dest. Note that
+  ! finidat_interp_source is not read in directly from the namelist - rather, it is set
+  ! from finidat if use_init_interp is .true.
 
   character(len=fname_len), public :: finidat_interp_source = ' '
   character(len=fname_len), public :: finidat_interp_dest   = 'finidat_interp_dest.nc'     
 
   !----------------------------------------------------------
-  ! Irrigate logic
+  ! Crop & Irrigation logic
   !----------------------------------------------------------
 
-  ! do not irrigate by default
-  logical, public :: irrigate = .false.            
-
-  !----------------------------------------------------------
-  ! Landunit logic
-  !----------------------------------------------------------
+  ! If prognostic crops are turned on
+  logical, public :: use_crop = .false.
 
   ! true => separate crop landunit is not created by default
   logical, public :: create_crop_landunit = .false.     
   
+  ! do not irrigate by default
+  logical, public :: irrigate = .false.            
+
+  ! true => limit irrigation when river storage
+  logical, public :: limit_irrigation = .false.
+
   !----------------------------------------------------------
   ! Other subgrid logic
   !----------------------------------------------------------
@@ -209,7 +211,6 @@ module clm_varctl
   !  appropriate module.
   logical, public :: use_flexibleCN = .false.
   logical, public :: MM_Nuptake_opt = .false.
-  logical, public :: dynamic_plant_alloc_opt = .false.
   logical, public :: downreg_opt = .true.
   integer, public :: plant_ndemand_opt = 0
   logical, public :: substrate_term_opt = .true.
@@ -221,15 +222,33 @@ module clm_varctl
   integer, public :: vcmax_opt = 0
   integer, public :: CN_residual_opt = 0
   integer, public :: CN_partition_opt = 0
-  integer, public :: carbon_excess_opt = 0
-  integer, public :: carbon_storage_excess_opt = 0
   integer, public :: CN_evergreen_phenology_opt = 0
+  integer, public :: carbon_resp_opt = 0
 
   !----------------------------------------------------------
   ! lai streams switch for Sat. Phenology
   !----------------------------------------------------------
 
   logical, public :: use_lai_streams = .false. ! true => use lai streams in SatellitePhenologyMod.F90
+
+  !----------------------------------------------------------
+  ! bedrock / soil depth switch
+  !----------------------------------------------------------
+
+  logical,           public :: use_bedrock = .false. ! true => use spatially variable soil depth
+  character(len=16), public :: soil_layerstruct = '10SL_3.5m'
+
+  !----------------------------------------------------------
+  ! plant hydraulic stress switch
+  !----------------------------------------------------------
+
+  logical, public :: use_hydrstress = .false. ! true => use plant hydraulic stress calculation
+
+  !----------------------------------------------------------
+  ! dynamic root switch
+  !----------------------------------------------------------
+
+  logical, public :: use_dynroot = .false. ! true => use dynamic root module
 
   !----------------------------------------------------------
   ! glacier_mec control variables: default values (may be overwritten by namelist)
@@ -253,8 +272,6 @@ module clm_varctl
   ! number of days before one considers the perennially snow-covered point 'land ice'
   integer , public :: glc_snow_persistence_max_days = 7300  
 
-  ! glacier mask file name
-  character(len=fname_len), public :: fglcmask = ' '        
   !
   !----------------------------------------------------------
   ! single column control variables
@@ -297,7 +314,6 @@ module clm_varctl
   ! Migration of CPP variables
   !----------------------------------------------------------
 
-  logical, public :: use_nofire          = .false.
   logical, public :: use_lch4            = .false.
   logical, public :: use_nitrif_denitrif = .false.
   logical, public :: use_vertsoilc       = .false.
@@ -306,12 +322,15 @@ module clm_varctl
   logical, public :: use_century_decomp  = .false.
   logical, public :: use_cn              = .false.
   logical, public :: use_cndv            = .false.
-  logical, public :: use_crop            = .false.
+  logical, public :: use_grainproduct    = .false.
+  logical, public :: use_fertilizer      = .false.
   logical, public :: use_ozone           = .false.
   logical, public :: use_snicar_frc      = .false.
   logical, public :: use_vancouver       = .false.
   logical, public :: use_mexicocity      = .false.
   logical, public :: use_noio            = .false.
+
+  logical, public :: use_nguardrail      = .false.
 
   !----------------------------------------------------------
   ! To retrieve namelist

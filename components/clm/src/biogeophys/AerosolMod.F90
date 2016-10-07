@@ -90,6 +90,9 @@ module AerosolMod
      procedure, private :: InitCold     
        
   end type aerosol_type
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !-----------------------------------------------------------------------
 
 contains
@@ -311,8 +314,8 @@ contains
     logical :: readvar      ! determine if variable is on initial file
     !-----------------------------------------------------------------------
 
-    SHR_ASSERT_ALL((ubound(h2osoi_ice_col) == (/bounds%endc,nlevgrnd/)), errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(h2osoi_liq_col) == (/bounds%endc,nlevgrnd/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(h2osoi_ice_col) == (/bounds%endc,nlevgrnd/)), errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(h2osoi_liq_col) == (/bounds%endc,nlevgrnd/)), errMsg(sourcefile, __LINE__))
 
     call restartvar(ncid=ncid, flag=flag, varname='mss_bcpho', xtype=ncd_double,  &
          dim1name='column', dim2name='levsno', switchdim=.true., lowerb2=-nlevsno+1, upperb2=0, &
@@ -482,10 +485,8 @@ contains
     associate(                                                & 
          snl           => col%snl                           , & ! Input:  [integer  (:)   ]  number of snow layers                    
 
-         do_capsnow    => waterstate_inst%do_capsnow_col    , & ! Input:  [logical  (:)   ]  true => do snow capping                  
          h2osoi_ice    => waterstate_inst%h2osoi_ice_col    , & ! Input:  [real(r8) (:,:) ]  ice lens (kg/m2)                      
          h2osoi_liq    => waterstate_inst%h2osoi_liq_col    , & ! Input:  [real(r8) (:,:) ]  liquid water (kg/m2)                  
-         qflx_snwcp_ice=> waterflux_inst%qflx_snwcp_ice_col , & ! Input:  [real(r8) (:)   ]  excess snowfall due to snow capping (mm H2O /s) [+]          
 
          h2osno_top    => waterstate_inst%h2osno_top_col    , & ! Output: [real(r8) (:)   |  top-layer mass of snow  [kg]
          snw_rds       => waterstate_inst%snw_rds_col       , & ! Output: [real(r8) (:,:) ]  effective snow grain radius (col,lyr) [microns, m^-6] 
@@ -531,27 +532,6 @@ contains
 
             ! layer mass of snow:
             snowmass = h2osoi_ice(c,j) + h2osoi_liq(c,j)
-
-            ! Correct the top layer aerosol mass to account for snow capping. 
-            ! This approach conserves the aerosol mass concentration
-            ! (but not the aerosol amss) when snow-capping is invoked
-
-            if (j == snl(c)+1) then
-               if (do_capsnow(c)) then 
-
-                  snowcap_scl_fct = snowmass / (snowmass + (qflx_snwcp_ice(c)*dtime))
-
-                  mss_bcpho(c,j) = mss_bcpho(c,j)*snowcap_scl_fct
-                  mss_bcphi(c,j) = mss_bcphi(c,j)*snowcap_scl_fct
-                  mss_ocpho(c,j) = mss_ocpho(c,j)*snowcap_scl_fct
-                  mss_ocphi(c,j) = mss_ocphi(c,j)*snowcap_scl_fct
-
-                  mss_dst1(c,j)  = mss_dst1(c,j)*snowcap_scl_fct
-                  mss_dst2(c,j)  = mss_dst2(c,j)*snowcap_scl_fct
-                  mss_dst3(c,j)  = mss_dst3(c,j)*snowcap_scl_fct
-                  mss_dst4(c,j)  = mss_dst4(c,j)*snowcap_scl_fct
-               endif
-            endif
 
             if (j >= snl(c)+1) then
 

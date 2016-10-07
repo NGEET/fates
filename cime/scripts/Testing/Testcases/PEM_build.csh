@@ -1,4 +1,5 @@
 #!/bin/csh -f
+setenv CIMEROOT `./xmlquery CIMEROOT    -value`
 
 ./Tools/check_lockedfiles || exit -1
 
@@ -12,10 +13,10 @@ if ( -e env_mach_pes.xml.1 )  then
   cp -f env_mach_pes.xml.1 env_mach_pes.xml
 endif
 
-./cesm_setup -clean
-./cesm_setup
+./case.setup -clean
+./case.setup
 
-./$CASE.build
+./case.build -testmode
 if ($status != 0) then
    echo "Error: build default PE layout failed" >! ./TestStatus
    echo "CFAIL $CASE" > ./TestStatus
@@ -33,6 +34,7 @@ set NTASKS_WAV  = `./xmlquery NTASKS_WAV	-value`
 set NTASKS_OCN  = `./xmlquery NTASKS_OCN	-value`
 set NTASKS_ICE  = `./xmlquery NTASKS_ICE	-value`
 set NTASKS_GLC  = `./xmlquery NTASKS_GLC	-value`
+set NTASKS_ESP  = `./xmlquery NTASKS_ESP	-value`
 set NTASKS_CPL  = `./xmlquery NTASKS_CPL	-value`
 
 if ( $NTASKS_ATM > 1 ) then
@@ -63,15 +65,19 @@ if ( $NTASKS_GLC > 1 ) then
   @ ntask = $NTASKS_GLC / 2
   ./xmlchange -file env_mach_pes.xml -id NTASKS_GLC  -val $ntask
 endif
+if ( $NTASKS_ESP > 1 ) then
+  @ ntask = $NTASKS_ESP / 2
+  ./xmlchange -file env_mach_pes.xml -id NTASKS_ESP  -val $ntask
+endif
 if ( $NTASKS_CPL > 1 ) then
   @ ntask = $NTASKS_CPL / 2
   ./xmlchange -file env_mach_pes.xml -id NTASKS_CPL  -val $ntask
 endif
 
-./cesm_setup -clean -testmode
-./cesm_setup
+./case.setup -clean -testmode
+./case.setup
 
-./$CASE.build
+./case.build -testmode
 if ($status != 0) then
    echo "Error: build for half tasks layout failed" >! ./TestStatus
    echo "CFAIL $CASE" > ./TestStatus

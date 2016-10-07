@@ -9,7 +9,7 @@ module SoilStateType
   use abortutils      , only : endrun
   use clm_varpar      , only : nlevsoi, nlevgrnd, nlevlak, nlayer, nlevsno
   use clm_varcon      , only : spval
-  use clm_varctl      , only : use_cn, use_lch4
+  use clm_varctl      , only : use_hydrstress, use_cn, use_lch4, use_dynroot
   use clm_varctl      , only : iulog, hist_wrtch4diag
   use LandunitType    , only : lun                
   use ColumnType      , only : col                
@@ -36,6 +36,7 @@ module SoilStateType
      real(r8), pointer :: hksat_min_col        (:,:) ! col mineral hydraulic conductivity at saturation (hksat) (mm/s)
      real(r8), pointer :: hk_l_col             (:,:) ! col hydraulic conductivity (mm/s)
      real(r8), pointer :: smp_l_col            (:,:) ! col soil matric potential (mm)
+     real(r8), pointer :: djk_l_col            (:,:) ! col soil transpiration sink by layer
      real(r8), pointer :: smpmin_col           (:)   ! col restriction for min of soil potential (mm) 
      real(r8), pointer :: bsw_col              (:,:) ! col Clapp and Hornberger "b" (nlevgrnd)  
      real(r8), pointer :: watsat_col           (:,:) ! col volumetric soil water at saturation (porosity) 
@@ -43,6 +44,8 @@ module SoilStateType
      real(r8), pointer :: watopt_col           (:,:) ! col btran parameter for btran = 1
      real(r8), pointer :: watfc_col            (:,:) ! col volumetric soil water at field capacity (nlevsoi)
      real(r8), pointer :: sucsat_col           (:,:) ! col minimum soil suction (mm) (nlevgrnd) 
+     real(r8), pointer :: dsl_col              (:)   ! col dry surface layer thickness (mm)
+     real(r8), pointer :: soilresis_col        (:)   ! col soil evaporative resistance S&L14 (s/m)
      real(r8), pointer :: soilbeta_col         (:)   ! col factor that reduces ground evaporation L&P1992(-)
      real(r8), pointer :: soilalpha_col        (:)   ! col factor that reduces ground saturated specific humidity (-)
      real(r8), pointer :: soilalpha_u_col      (:)   ! col urban factor that reduces ground saturated specific humidity (-) 
@@ -51,7 +54,11 @@ module SoilStateType
      real(r8), pointer :: porosity_col         (:,:) ! col soil porisity (1-bulk_density/soil_density) (VIC)
      real(r8), pointer :: eff_porosity_col     (:,:) ! col effective porosity = porosity - vol_ice (nlevgrnd) 
      real(r8), pointer :: gwc_thr_col          (:)   ! col threshold soil moisture based on clay content
-
+!scs: vangenuchten
+     real(r8), pointer :: msw_col              (:,:) ! col vanGenuchtenClapp "m"
+     real(r8), pointer :: nsw_col              (:,:) ! col vanGenuchtenClapp "n"
+     real(r8), pointer :: alphasw_col          (:,:) ! col vanGenuchtenClapp "nalpha"
+     real(r8), pointer :: watres_col           (:,:) ! residual soil water content
      ! thermal conductivity / heat capacity
      real(r8), pointer :: thk_col              (:,:) ! col thermal conductivity of each layer [W/m-K] 
      real(r8), pointer :: tkmg_col             (:,:) ! col thermal conductivity, soil minerals  [W/m-K] (new) (nlevgrnd) 
@@ -63,13 +70,16 @@ module SoilStateType
      real(r8), pointer :: rootr_patch          (:,:) ! patch effective fraction of roots in each soil layer (nlevgrnd)
      real(r8), pointer :: rootr_col            (:,:) ! col effective fraction of roots in each soil layer (nlevgrnd)  
      real(r8), pointer :: rootfr_col           (:,:) ! col fraction of roots in each soil layer (nlevgrnd) 
-     real(r8), pointer :: rootfr_patch         (:,:) ! patch fraction of roots in each soil layer (nlevgrnd)
+     real(r8), pointer :: rootfr_patch         (:,:) ! patch fraction of roots for water in each soil layer (nlevgrnd)
+     real(r8), pointer :: crootfr_patch        (:,:) ! patch fraction of roots for carbon in each soil layer (nlevgrnd)
+     real(r8), pointer :: root_depth_patch     (:)   ! root depth
      real(r8), pointer :: rootr_road_perv_col  (:,:) ! col effective fraction of roots in each soil layer of urban pervious road
      real(r8), pointer :: rootfr_road_perv_col (:,:) ! col effective fraction of roots in each soil layer of urban pervious road
 
    contains
 
      procedure, public  :: Init         
+     procedure, public  :: Restart
      procedure, private :: InitAllocate 
      procedure, private :: InitHistory  
      procedure, private :: InitCold     
@@ -123,6 +133,9 @@ contains
     allocate(this%hksat_min_col        (begc:endc,nlevgrnd))            ; this%hksat_min_col        (:,:) = spval
     allocate(this%hk_l_col             (begc:endc,nlevgrnd))            ; this%hk_l_col             (:,:) = nan   
     allocate(this%smp_l_col            (begc:endc,nlevgrnd))            ; this%smp_l_col            (:,:) = nan   
+    if (use_hydrstress) then
+      allocate(this%djk_l_col          (begc:endc,nlevgrnd))            ; this%djk_l_col            (:,:) = spval
+    end if
     allocate(this%smpmin_col           (begc:endc))                     ; this%smpmin_col           (:)   = nan
 
     allocate(this%bsw_col              (begc:endc,nlevgrnd))            ; this%bsw_col              (:,:) = nan
@@ -131,6 +144,8 @@ contains
     allocate(this%watopt_col           (begc:endc,nlevgrnd))            ; this%watopt_col           (:,:) = spval
     allocate(this%watfc_col            (begc:endc,nlevgrnd))            ; this%watfc_col            (:,:) = nan
     allocate(this%sucsat_col           (begc:endc,nlevgrnd))            ; this%sucsat_col           (:,:) = spval
+    allocate(this%dsl_col              (begc:endc))                     ; this%dsl_col         (:)   = spval!nan   
+    allocate(this%soilresis_col        (begc:endc))                     ; this%soilresis_col         (:)   = spval!nan   
     allocate(this%soilbeta_col         (begc:endc))                     ; this%soilbeta_col         (:)   = nan   
     allocate(this%soilalpha_col        (begc:endc))                     ; this%soilalpha_col        (:)   = nan
     allocate(this%soilalpha_u_col      (begc:endc))                     ; this%soilalpha_u_col      (:)   = nan
@@ -147,12 +162,18 @@ contains
     allocate(this%csol_col             (begc:endc,nlevgrnd))            ; this%csol_col             (:,:) = nan
 
     allocate(this%rootr_patch          (begp:endp,1:nlevgrnd))          ; this%rootr_patch          (:,:) = nan
+    allocate(this%root_depth_patch     (begp:endp))                     ; this%root_depth_patch     (:)   = nan
     allocate(this%rootr_col            (begc:endc,nlevgrnd))            ; this%rootr_col            (:,:) = nan
     allocate(this%rootr_road_perv_col  (begc:endc,1:nlevgrnd))          ; this%rootr_road_perv_col  (:,:) = nan
     allocate(this%rootfr_patch         (begp:endp,1:nlevgrnd))          ; this%rootfr_patch         (:,:) = nan
+    allocate(this%crootfr_patch        (begp:endp,1:nlevgrnd))          ; this%crootfr_patch        (:,:) = nan
     allocate(this%rootfr_col           (begc:endc,1:nlevgrnd))          ; this%rootfr_col           (:,:) = nan 
     allocate(this%rootfr_road_perv_col (begc:endc,1:nlevgrnd))          ; this%rootfr_road_perv_col (:,:) = nan
 
+    allocate(this%msw_col              (begc:endc,1:nlevgrnd))            ; this%msw_col              (:,:) = nan
+    allocate(this%nsw_col              (begc:endc,1:nlevgrnd))            ; this%nsw_col              (:,:) = nan
+    allocate(this%alphasw_col          (begc:endc,1:nlevgrnd))            ; this%alphasw_col          (:,:) = nan
+    allocate(this%watres_col           (begc:endc,1:nlevgrnd))            ; this%watres_col           (:,:) = nan
   end subroutine InitAllocate
 
   !-----------------------------------------------------------------------
@@ -189,7 +210,13 @@ contains
     end if
     call hist_addfld2d (fname='SMP',  units='mm', type2d='levgrnd',  &
          avgflag='A', long_name='soil matric potential (vegetated landunits only)', &
-         ptr_col=this%smp_l_col, set_spec=spval, l2g_scale_type='veg', default=active)
+         ptr_col=this%smp_l_col, set_spec=spval, l2g_scale_type='veg')
+
+    if (use_hydrstress) then
+      call hist_addfld2d (fname='DJK',  units='tbd', type2d='levgrnd',  &
+           avgflag='A', long_name='soil transpiration sink by layer', &
+           ptr_col=this%djk_l_col, set_spec=spval, l2g_scale_type='veg')
+    end if
 
     if (use_cn) then
        this%bsw_col(begc:endc,:) = spval 
@@ -198,12 +225,29 @@ contains
             ptr_col=this%bsw_col, default='inactive')
     end if
 
-    if (use_cn) then
+    if (use_dynroot) then
        this%rootfr_patch(begp:endp,:) = spval
        call hist_addfld2d (fname='ROOTFR', units='proportion', type2d='levgrnd', &
             avgflag='A', long_name='fraction of roots in each soil layer', &
-            ptr_patch=this%rootfr_patch, default='inactive')
+            ptr_patch=this%rootfr_patch, default='active')
+    else
+       this%rootfr_patch(begp:endp,:) = spval
+       call hist_addfld2d (fname='ROOTFR', units='proportion', type2d='levgrnd', &
+          avgflag='A', long_name='fraction of roots for water in each soil layer', &
+          ptr_patch=this%rootfr_patch, default='active')
+       this%crootfr_patch(begp:endp,:) = spval
+       call hist_addfld2d (fname='CROOTFR', units='proportion', type2d='levgrnd', &
+          avgflag='A', long_name='fraction of roots for carbon in each soil layer', &
+          ptr_patch=this%crootfr_patch, default='active')
     end if
+
+
+    if ( use_dynroot ) then
+       this%root_depth_patch(begp:endp) = spval
+        call hist_addfld1d (fname='ROOT_DEPTH', units="m", &
+             avgflag='A', long_name='rooting depth', &
+             ptr_patch=this%root_depth_patch )
+     end if
 
     if (use_cn) then
        this%rootr_patch(begp:endp,:) = spval
@@ -269,14 +313,25 @@ contains
             ptr_col=this%watfc_col, default='inactive')
     end if
 
+    this%soilresis_col(begc:endc) = spval
+    call hist_addfld1d (fname='SOILRESIS',  units='s/m',  &
+         avgflag='A', long_name='soil resistance to evaporation', &
+         ptr_col=this%soilresis_col)
+
+    this%dsl_col(begc:endc) = spval
+    call hist_addfld1d (fname='DSL',  units='mm',  &
+         avgflag='A', long_name='dry surface layer thickness', &
+         ptr_col=this%dsl_col)
+
   end subroutine InitHistory
 
   !-----------------------------------------------------------------------
   subroutine InitCold(this, bounds)
     !
-    ! Initialize module surface albedos to reasonable values
+    ! Initialize module soil state variables to reasonable values
     !
     ! !USES:
+    use clm_varpar      , only : nlevgrnd
     !
     ! !ARGUMENTS:
     class(soilstate_type) :: this
@@ -285,8 +340,73 @@ contains
     ! !LOCAL VARIABLES:
     !-----------------------------------------------------------------------
 
-    ! Nothing for now
+    this%smp_l_col(bounds%begc:bounds%endc,1:nlevgrnd) = -1000._r8
 
   end subroutine InitCold
+
+  !------------------------------------------------------------------------
+  subroutine Restart(this, bounds, ncid, flag)
+    ! 
+    ! !DESCRIPTION:
+    ! Read/Write module information to/from restart file.
+    !
+    ! !USES:
+    use ncdio_pio        , only : file_desc_t, ncd_io, ncd_double
+    use restUtilMod
+    use spmdMod          , only : masterproc
+    use RootBiophysMod   , only : init_vegrootfr
+    !
+    ! !ARGUMENTS:
+    class(soilstate_type) :: this
+    type(bounds_type), intent(in)    :: bounds 
+    type(file_desc_t), intent(inout) :: ncid   ! netcdf id
+    character(len=*) , intent(in)    :: flag   ! 'read' or 'write'
+    !
+    ! !LOCAL VARIABLES:
+    integer  :: c
+    logical  :: readvar
+    !------------------------------------------------------------------------
+
+    call restartvar(ncid=ncid, flag=flag, varname='DSL', xtype=ncd_double,  &
+         dim1name='column', long_name='dsl thickness', units='mm', &
+         interpinic_flag='interp', readvar=readvar, data=this%dsl_col)
+    
+    call restartvar(ncid=ncid, flag=flag, varname='SOILRESIS', xtype=ncd_double,  &
+         dim1name='column', long_name='soil resistance', units='s/m', &
+         interpinic_flag='interp', readvar=readvar, data=this%soilresis_col)
+
+    call restartvar(ncid=ncid, flag=flag, varname='SMP', xtype=ncd_double,  &
+         dim1name='column', dim2name='levgrnd', switchdim=.true., &
+         long_name='soil matric potential', units='mm', &
+         interpinic_flag='interp', readvar=readvar, data=this%smp_l_col)
+
+    call restartvar(ncid=ncid, flag=flag, varname='HK', xtype=ncd_double,  &
+         dim1name='column', dim2name='levgrnd', switchdim=.true., &
+         long_name='hydraulic conductivity', units='mm/s', &
+         interpinic_flag='interp', readvar=readvar, data=this%hk_l_col)
+
+     if( use_dynroot ) then
+         call restartvar(ncid=ncid, flag=flag, varname='root_depth', xtype=ncd_double,  &
+              dim1name='pft', &
+              long_name='root depth', units='m', &
+              interpinic_flag='interp', readvar=readvar, data=this%root_depth_patch)
+ 
+     end if
+         call restartvar(ncid=ncid, flag=flag, varname='rootfr', xtype=ncd_double,  &
+              dim1name='pft', dim2name='levgrnd', switchdim=.true., &
+              long_name='root fraction', units='', &
+              interpinic_flag='interp', readvar=readvar, data=this%rootfr_patch)
+         if (flag=='read' .and. .not. readvar) then
+            if (masterproc) then
+               write(iulog,*) "can't find rootfr in restart (or initial) file..."
+               write(iulog,*) "Initialize rootfr to default"
+            end if
+            call init_vegrootfr(bounds, nlevsoi, nlevgrnd, &
+            this%rootfr_patch(bounds%begp:bounds%endp,1:nlevgrnd), 'water')
+            call init_vegrootfr(bounds, nlevsoi, nlevgrnd, &
+            this%crootfr_patch(bounds%begp:bounds%endp,1:nlevgrnd), 'carbon')
+         end if
+    
+  end subroutine Restart
 
 end module SoilStateType

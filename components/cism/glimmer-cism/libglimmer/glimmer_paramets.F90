@@ -33,7 +33,7 @@
 module glimmer_paramets
 
   use glimmer_global, only : dp
-  use glimmer_physcon, only : scyr, rhoi, grav, gn
+  use glimmer_physcon, only : scyr, gn
 
   implicit none
   save
@@ -107,8 +107,15 @@ module glimmer_paramets
 !Note - With thk0 = 1, can replace tau0 by rhoi*grav in code and remove stress scaling.
 !       Similarly can redefine vis0 and evs0
 
+!Note - The constants rhoi_glam and grav_glam are declared here as parameters because the parameters
+!        tau0, evs0 and vis0 depend on them.
+!       The values of rhoi and grav used elsewhere in the code are declared in glimmer_physcon but are
+!        not parameters, because they can be overridden by the user in the config file.
+  real(dp), parameter :: rhoi_glam = 910.0d0          ! kg m^{-3}
+  real(dp), parameter :: grav_glam = 9.81d0           ! m s^{-2}
+
   ! GLAM scaling parameters; units are correct if thk0 has units of meters
-  real(dp), parameter :: tau0 = rhoi*grav*thk0              ! stress scale in GLAM ( Pa )  
+  real(dp), parameter :: tau0 = rhoi_glam*grav_glam*thk0    ! stress scale in GLAM ( Pa )  
   real(dp), parameter :: evs0 = tau0 / (vel0/len0)          ! eff. visc. scale in GLAM ( Pa s )
   real(dp), parameter :: vis0 = tau0**(-gn) * (vel0/len0)   ! rate factor scale in GLAM ( Pa^-3 s^-1 )
 
@@ -118,7 +125,7 @@ module glimmer_paramets
 !  real(dp), parameter :: vel0 = 1.d0 / scyr
 !  real(dp), parameter :: tim0 = scyr
 !  real(dp), parameter :: acc0 = 1.d0 / scyr
-!  real(dp), parameter :: tau0 = rhoi*grav
+!  real(dp), parameter :: tau0 = rhoi_glam*grav_glam
 !  real(dp), parameter :: evs0 = tau0*scyr
 !  real(dp), parameter :: vis0 = tau0**(-gn) / scyr
 
@@ -138,7 +145,7 @@ module glimmer_paramets
   real(dp), parameter :: thk_scale = 2000.0d0        ! m
   real(dp), parameter :: len_scale = 200.0d3         ! m
   real(dp), parameter :: vel_scale = 500.0 / scyr    ! m yr^{-1} converted to S.I. units
-  real(dp), parameter :: tau_scale = rhoi*grav*thk_scale      ! stress scale in GLAM ( Pa )  
+  real(dp), parameter :: tau_scale = rhoi_glam*grav_glam*thk_scale       ! stress scale in GLAM ( Pa )  
   real(dp), parameter :: vis_scale = tau_scale**(-gn) * (vel_scale/len_scale)  ! rate factor scale in GLAM ( Pa^-3 s^-1 )
   real(dp), parameter :: evs_scale = tau_scale / (vel_scale/len_scale)   ! eff. visc. scale in GLAM ( Pa s )
 

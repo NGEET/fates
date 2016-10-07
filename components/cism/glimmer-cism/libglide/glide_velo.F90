@@ -49,7 +49,7 @@ module glide_velo
   integer, private, parameter :: p3 = 2*gn+1
   integer, private, parameter :: p4 = gn+2
 
-  real(dp),private, parameter :: cflow = -2.0d0*vis0*(rhoi*grav)**gn*thk0**p3/(8.0d0*vel0*len0**gn)
+  real(dp), private :: cflow
 
 contains
 
@@ -111,7 +111,8 @@ contains
     model%velowk%c(2)   = (model%velowk%trcmax - model%velowk%trcmin) / 2.0d0
     model%velowk%c(3)   = (thk0 * pi) / model%velowk%watwd  
     model%velowk%c(4)   = pi*(model%velowk%watct / model%velowk%watwd)
-   
+
+    cflow = -2.0d0*vis0*(rhoi*grav)**gn*thk0**p3/(8.0d0*vel0*len0**gn)
 
   end subroutine init_velo
 
@@ -312,7 +313,6 @@ contains
     ! Internal variables
     !------------------------------------------------------------------------------------
 
-    real(dp), parameter :: rhograv = - rhoi * grav
     integer :: nsn,ewn
 
     ! Get array sizes -------------------------------------------------------------------
@@ -329,8 +329,8 @@ contains
       ! Linear function of gravitational driving stress ---------------------------------
 
       where (model%numerics%thklim < model%geomderv%stagthck)
-        ubas = btrc * rhograv * model%geomderv%stagthck * model%geomderv%dusrfdew
-        vbas = btrc * rhograv * model%geomderv%stagthck * model%geomderv%dusrfdns
+        ubas = btrc * rhoi * grav * model%geomderv%stagthck * model%geomderv%dusrfdew
+        vbas = btrc * rhoi * grav * model%geomderv%stagthck * model%geomderv%dusrfdns
       elsewhere
         ubas = 0.0d0
         vbas = 0.0d0
@@ -341,7 +341,7 @@ contains
       ! *tp* option to be used in picard iteration for thck
       ! *tp* start by find constants which dont vary in iteration
 
-      model%velowk%fslip = rhograv * btrc
+      model%velowk%fslip = rhoi * grav * btrc
 
     case(2)
 
@@ -605,7 +605,7 @@ contains
                       model%velowk,                               &
                       model%velocity%wgrd(model%general%upn,:,:), &
                       model%geometry%thck,                        &
-                      model%temper%bmlt,                          &
+                      model%temper%bmlt_ground,                   &
                       model%velocity%wvel)
 
      case(VERTINT_KINEMATIC_BC)     ! Vertical integration constrained so kinematic upper BC obeyed.
@@ -617,7 +617,7 @@ contains
                       model%velowk,                               &
                       model%velocity%wgrd(model%general%upn,:,:), &
                       model%geometry%thck,                        &
-                      model%temper%  bmlt,                        &
+                      model%temper%bmlt_ground,                   &
                       model%velocity%wvel)
 
         call chckwvel(model%numerics,                             &
@@ -1066,7 +1066,7 @@ contains
 
        do ns = 1,nsn-1
           do ew = 1,ewn-1
-             stagbmlt = 0.25d0*sum(model%temper%bmlt(ew:ew+1,ns:ns+1))
+             stagbmlt = 0.25d0*sum(model%temper%bmlt_ground(ew:ew+1,ns:ns+1))
              
              if (stagbmlt > 0.0d0) then
                 btrc(ew,ns) = min(model%velowk%btrac_max, &

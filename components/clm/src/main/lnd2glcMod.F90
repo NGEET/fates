@@ -25,10 +25,11 @@ module lnd2glcMod
   use column_varcon   , only : col_itype_to_icemec_class
   use landunit_varcon , only : istice_mec, istsoil
   use abortutils      , only : endrun
-  use WaterFluxType   , only : waterflux_type
+  use GlacierSurfaceMassBalanceMod, only : glacier_smb_type
   use TemperatureType , only : temperature_type
   use LandunitType    , only : lun                
-  use ColumnType      , only : col                
+  use ColumnType      , only : col
+  use TopoMod         , only : topo_type
   !
   ! !PUBLIC TYPES:
   implicit none
@@ -58,6 +59,9 @@ module lnd2glcMod
   ! Note that it is not a type-bound procedure, because it doesn't actually involve the
   ! lnd2glc_type. This suggests that perhaps it belongs in some other module.
   public :: bareland_normalization ! compute normalization factor for fluxes from the bare land portion of the grid cell
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !------------------------------------------------------------------------
 
 contains
@@ -144,7 +148,7 @@ contains
 
   !------------------------------------------------------------------------------
   subroutine update_lnd2glc(this, bounds, num_do_smb_c, filter_do_smb_c, &
-       temperature_inst, waterflux_inst, init)
+       temperature_inst, glacier_smb_inst, topo_inst, init)
     !
     ! !DESCRIPTION:
     ! Assign values to lnd2glc+
@@ -155,7 +159,8 @@ contains
     integer                , intent(in)    :: num_do_smb_c       ! number of columns in filter_do_smb_c
     integer                , intent(in)    :: filter_do_smb_c(:) ! column filter: columns where smb calculations are performed
     type(temperature_type) , intent(in)    :: temperature_inst
-    type(waterflux_type)   , intent(in)    :: waterflux_inst
+    type(glacier_smb_type) , intent(in)    :: glacier_smb_inst
+    type(topo_type)        , intent(in)    :: topo_inst
     logical                , intent(in)    :: init               ! if true=>only set a subset of fields
     !
     ! !LOCAL VARIABLES:
@@ -206,19 +211,19 @@ contains
          write(iulog,*) 'One possible cause is having multiple columns in the istsoil landunit,'
          write(iulog,*) 'which this routine cannot handle.'
          write(iulog,*) 'g, n = ', g, n
-         call endrun(decomp_index=c, clmlevel=namec, msg=errMsg(__FILE__, __LINE__))
+         call endrun(decomp_index=c, clmlevel=namec, msg=errMsg(sourcefile, __LINE__))
       end if
 
       ! Send surface temperature, topography, and SMB flux (qice) to coupler.
-      ! t_soisno and glc_topo are valid even in initialization, so tsrf and topo
+      ! t_soisno and topo_col are valid even in initialization, so tsrf and topo
       ! are set here regardless of the value of init. But qflx_glcice is not valid
       ! until the run loop; thus, in initialization, we will use the default value
       ! for qice, as set above.
       fields_assigned(g,n) = .true.
       this%tsrf_grc(g,n) = temperature_inst%t_soisno_col(c,1)
-      this%topo_grc(g,n) = col%glc_topo(c)
+      this%topo_grc(g,n) = topo_inst%topo_col(c)
       if (.not. init) then
-         this%qice_grc(g,n) = waterflux_inst%qflx_glcice_col(c) * flux_normalization
+         this%qice_grc(g,n) = glacier_smb_inst%qflx_glcice_col(c) * flux_normalization
 
          ! Check for bad values of qice
          if ( abs(this%qice_grc(g,n)) > 1.0_r8) then

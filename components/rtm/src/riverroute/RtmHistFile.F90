@@ -8,6 +8,7 @@ module RtmHistFile
 ! !USES:
   use shr_kind_mod  , only : r8 => shr_kind_r8
   use shr_sys_mod   , only : shr_sys_flush, shr_sys_abort
+  use shr_log_mod   , only : errMsg => shr_log_errMsg
   use RunoffMod     , only : runoff
   use RtmVar        , only : rtmlon, rtmlat, spval, ispval, secspday, frivinp_rtm, &   
                              iulog, nsrest, caseid, inst_suffix, nsrStartup, nsrBranch, & 
@@ -92,7 +93,10 @@ module RtmHistFile
 ! !PRIVATE TYPES:
 ! Constants
 !
-  integer, parameter :: max_chars = 128        ! max chars for char variables
+  integer, parameter :: max_length_filename = 255 ! max length of a filename. on most linux systems this
+                                                  ! is 255. But this can't be increased until all hard
+                                                  ! coded values throughout the i/o stack are updated.
+  integer, parameter :: max_chars = 255        ! max chars for char variables
 !
 ! Subscript dimensions
 !
@@ -159,7 +163,7 @@ module RtmHistFile
 !
 ! Other variables
 !
-  character(len=max_chars) :: locfnh(max_tapes)  ! local history file names
+  character(len=max_length_filename) :: locfnh(max_tapes)  ! local history file names
   character(len=max_chars) :: locfnhr(max_tapes) ! local history restart file names
   logical :: htapes_defined = .false.            ! flag indicates history contents have been defined
 !
@@ -765,6 +769,8 @@ contains
 
     ! !DESCRIPTION:
     ! Write time constant values to primary history tape.
+    ! !USES:
+    use RtmTimeManager, only : get_calendar, NO_LEAP_C, GREGORIAN_C
 
     ! !ARGUMENTS:
     implicit none
@@ -793,6 +799,8 @@ contains
     character(len=max_chars) :: long_name ! variable long name
     character(len=max_namlen):: varname   ! variable name
     character(len=max_namlen):: units     ! variable units
+    character(len=max_namlen):: cal       ! calendar type from time-manager
+    character(len=max_namlen):: caldesc   ! calendar description to put on file
     character(len=256):: str              ! global attribute string
     integer :: status
     logical, save :: writeTC = .true. ! true => write out time-constant data
@@ -816,7 +824,13 @@ contains
        str = 'days since ' // basedate // " " // basesec
        call ncd_defvar(nfid(t), 'time', tape(t)%ncprec, 1, dim1id, varid, &
             long_name='time',units=str) 
-       call ncd_putatt(nfid(t), varid, 'calendar', 'noleap')
+       cal = get_calendar()
+       if (      trim(cal) == NO_LEAP_C   )then
+          caldesc = "noleap"
+       else if ( trim(cal) == GREGORIAN_C )then
+          caldesc = "gregorian"
+       end if
+       call ncd_putatt(nfid(t), varid, 'calendar', caldesc)
        call ncd_putatt(nfid(t), varid, 'bounds', 'time_bounds')
 
        dim1id(1) = time_dimid
@@ -1634,7 +1648,7 @@ contains
 
 !-----------------------------------------------------------------------
 
-  character(len=256) function set_hist_filename (hist_freq, rtmhist_mfilt, hist_file)
+  character(len=max_length_filename) function set_hist_filename (hist_freq, rtmhist_mfilt, hist_file)
 
     ! Determine history dataset filenames.
     
@@ -1651,6 +1665,7 @@ contains
     integer :: mon                    !month (1 -> 12)
     integer :: yr                     !year (0 -> ...)
     integer :: sec                    !seconds into current day
+    integer :: filename_length
     character(len=*),parameter :: subname = 'set_hist_filename'
     
     if (hist_freq == 0 .and. rtmhist_mfilt == 1) then   !monthly
@@ -1664,6 +1679,21 @@ contains
     set_hist_filename = "./"//trim(caseid)//".rtm"//trim(inst_suffix)//&
                         ".h"//hist_index//"."//trim(cdate)//".nc"
 
+   ! check to see if the concatenated filename exceeded the
+   ! length. Simplest way to do this is ensure that the file
+   ! extension is '.nc'.
+   filename_length = len_trim(set_hist_filename)
+   if (set_hist_filename(filename_length-2:filename_length) /= '.nc') then
+      write(iulog, '(a,a,a,a,a)') 'ERROR: ', subname, &
+           ' : expected file extension ".nc", received extension "', &
+           set_hist_filename(filename_length-2:filename_length), '"'
+      write(iulog, '(a,a,a,a,a)') 'ERROR: ', subname, &
+           ' : filename : "', set_hist_filename, '"'
+      write(iulog, '(a,a,a,i3,a,i3)') 'ERROR: ', subname, &
+           ' Did the constructed filename exceed the maximum length? : filename length = ', &
+           filename_length, ', max length = ', max_length_filename
+      call shr_sys_abort(errMsg(__FILE__, __LINE__))
+   end if
   end function set_hist_filename
 
 !------------------------------------------------------------------------

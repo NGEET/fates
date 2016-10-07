@@ -35,6 +35,9 @@ module dyncropFileMod
   ! Names of variables on file
   character(len=*), parameter :: crop_varname = 'PCT_CROP'
   character(len=*), parameter :: cft_varname  = 'PCT_CFT'
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !---------------------------------------------------------------------------
 
 contains
@@ -112,6 +115,7 @@ contains
     ! !USES:
     use landunit_varcon   , only : istcrop
     use clm_varpar        , only : cft_lb, cft_ub
+    use surfrdUtilsMod    , only : collapse_crop_types
     use subgridWeightsMod , only : set_landunit_weight
     !
     ! !ARGUMENTS:
@@ -144,7 +148,9 @@ contains
     ! each crop is on its own column.
     allocate(wtcft_cur(bounds%begg:bounds%endg, cft_lb:cft_ub))
     call wtcft%get_current_data(wtcft_cur)
-    
+
+    call collapse_crop_types(wtcft_cur, bounds%begg, bounds%endg, verbose = .false.)
+
     allocate(col_set(bounds%begc:bounds%endc))
     col_set(:) = .false.
 
@@ -162,7 +168,7 @@ contains
           if (col_set(c)) then
              write(iulog,*) subname//' ERROR: attempt to set a column that has already been set.'
              write(iulog,*) 'This may happen if there are multiple crops on a single column.'
-             call endrun(decomp_index=c, clmlevel=namec, msg=errMsg(__FILE__, __LINE__))
+             call endrun(decomp_index=c, clmlevel=namec, msg=errMsg(sourcefile, __LINE__))
           end if
           
           col%wtlunit(c) = wtcft_cur(g,m)

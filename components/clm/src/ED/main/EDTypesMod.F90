@@ -2,7 +2,7 @@ module EDTypesMod
 
   use shr_kind_mod , only : r8 => shr_kind_r8;
   use decompMod    , only : bounds_type 
-  use clm_varpar   , only : nlevcan_ed, nclmax, numrad, nlevgrnd, mxpft
+  use clm_varpar   , only : nlevgrnd, mxpft
   use domainMod    , only : domain_type
   use shr_sys_mod  , only : shr_sys_flush
 
@@ -14,7 +14,7 @@ module EDTypesMod
 
   ! MODEL PARAMETERS
   real(r8)            :: timestep_secs                     ! subdaily timestep in seconds (e.g. 1800 or 3600) 
-  integer             :: n_sub                             ! num of substeps in year 
+  
   real(r8), parameter :: AREA                 = 10000.0_r8 ! Notional area of simulated forest m2
   integer  doy
 
@@ -24,9 +24,9 @@ module EDTypesMod
   ! for setting number of patches per gridcell and number of cohorts per patch
   ! for I/O and converting to a vector
 
-  integer, parameter :: numPatchesPerGridCell = 10          !
+  integer, parameter :: numPatchesPerCol      = 10          !
   integer, parameter :: numCohortsPerPatch    = 160         !
-  integer, parameter :: cohorts_per_gcell     = 1600        ! This is the max number of individual items one can store per 
+  integer, parameter :: cohorts_per_col       = 1600        ! This is the max number of individual items one can store per 
 
                                                            ! each grid cell and effects the striding in the ED restart 
                                                            ! data as some fields are arrays where each array is
@@ -56,14 +56,23 @@ module EDTypesMod
   real(r8), parameter :: fire_threshold       = 35.0_r8    ! threshold for fires that spread or go out. KWm-2
 
   ! COHORT FUSION          
-  real(r8), parameter :: FUSETOL              = 0.6_r8     ! min fractional difference in dbh between cohorts
+  real(r8), parameter :: FUSETOL              = 0.05_r8     ! min fractional difference in dbh between cohorts
 
   ! PATCH FUSION 
+  real(r8), parameter :: patchfusion_profile_tolerance = 0.05_r8  ! minimum fraction in difference in profiles between patches
   real(r8), parameter :: NTOL                 = 0.05_r8    ! min plant density for hgt bin to be used in height profile comparisons 
   real(r8), parameter :: HITEMAX              = 30.0_r8    ! max dbh value used in hgt profile comparison 
   real(r8), parameter :: DBHMAX               = 150.0_r8   ! max dbh value used in hgt profile comparison 
   integer , parameter :: N_HITE_BINS          = 60         ! no. of hite bins used to distribute LAI
   integer , parameter :: N_DBH_BINS           = 5          ! no. of dbh bins used when comparing patches
+
+
+  real(r8), parameter :: min_npm2       = 1.0d-5   ! minimum cohort number density per m2 before termination
+  real(r8), parameter :: min_patch_area = 0.001_r8 ! smallest allowable patch area before termination
+  real(r8), parameter :: min_nppatch    = 1.0d-8   ! minimum number of cohorts per patch (min_npm2*min_patch_area)
+  real(r8), parameter :: min_n_safemath = 1.0d-15  ! in some cases, we want to immediately remove super small
+                                                   ! number densities of cohorts to prevent FPEs, this is usually
+                                                   ! just relevant in the first day after recruitment
 
   character*4 yearchar                    
 
@@ -98,6 +107,47 @@ module EDTypesMod
   integer , allocatable :: pft_levscpf_ed(:)
   integer , allocatable :: scls_levscpf_ed(:) 
 
+  
+  ! Control Parameters (cp_)            
+  ! -------------------------------------------------------------------------------------
+
+  ! These parameters are dictated by FATES internals
+  
+  integer, parameter :: cp_nclmax = 2       ! Maximum number of canopy layers
+
+  integer, parameter :: cp_nlevcan = 40     ! number of leaf layers in canopy layer
+  
+  integer, parameter :: cp_maxSWb = 2       ! maximum number of broad-bands in the
+                                            ! shortwave spectrum cp_numSWb <= cp_maxSWb
+                                            ! this is just for scratch-array purposes
+                                            ! if cp_numSWb is larger than this value
+                                            ! simply bump this number up as needed
+  ! These parameters are dictated by the host model or driver
+  
+  integer :: cp_numSWb       ! Number of broad-bands in the short-wave radiation
+                             ! specturm to track 
+                             ! (typically 2 as a default, VIS/NIR, in ED variants <2016)
+
+  
+  integer :: cp_numlevgrnd   ! Number of soil layers
+
+  ! Number of GROUND layers for the purposes of biogeochemistry; can be either 1 
+  ! or the total number of soil layers (includes bedrock)
+  integer :: cp_numlevdecomp_full  
+
+  ! Number of SOIL layers for the purposes of biogeochemistry; can be either 1 
+  ! or the total number of soil layers
+  integer :: cp_numlevdecomp
+
+  ! This character string passed by the HLM is used during the processing of IO
+  ! data, so that FATES knows which IO variables it should prepare.  For instance
+  ! ATS, ALM and CLM will only want variables specficially packaged for them.
+  ! This string will dictate which filter is enacted.
+  character(len=16) :: cp_hlm_name
+
+  ! This value can be flushed to history diagnostics, such that the
+  ! HLM will interpret that the value should not be included in the average.
+  real(r8) :: cp_hio_ignore_val
 
   !************************************
   !** COHORT type structure          **
@@ -143,13 +193,13 @@ module EDTypesMod
      ! CARBON FLUXES 
      real(r8) ::  gpp                                    ! GPP:  kgC/indiv/year
      real(r8) ::  gpp_acc                                ! GPP:  kgC/indiv/day   
-     real(r8) ::  gpp_clm                                ! GPP:  kgC/indiv/timestep
+     real(r8) ::  gpp_tstep                              ! GPP:  kgC/indiv/timestep
      real(r8) ::  npp                                    ! NPP:  kgC/indiv/year
      real(r8) ::  npp_acc                                ! NPP:  kgC/indiv/day   
-     real(r8) ::  npp_clm                                ! NPP:  kgC/indiv/timestep
+     real(r8) ::  npp_tstep                              ! NPP:  kgC/indiv/timestep
      real(r8) ::  resp                                   ! Resp: kgC/indiv/year
      real(r8) ::  resp_acc                               ! Resp: kgC/indiv/day
-     real(r8) ::  resp_clm                               ! Resp: kgC/indiv/timestep
+     real(r8) ::  resp_tstep                             ! Resp: kgC/indiv/timestep
 
      real(r8) ::  npp_leaf                               ! NPP into leaves (includes replacement of turnover):  KgC/indiv/day
      real(r8) ::  npp_froot                              ! NPP into fine roots (includes replacement of turnover):  KgC/indiv/day
@@ -158,8 +208,8 @@ module EDTypesMod
      real(r8) ::  npp_bseed                              ! NPP into seeds: KgC/indiv/day
      real(r8) ::  npp_store                              ! NPP into storage: KgC/indiv/day
 
-     real(r8) ::  ts_net_uptake(nlevcan_ed)              ! Net uptake of leaf layers: kgC/m2/s
-     real(r8) ::  year_net_uptake(nlevcan_ed)            ! Net uptake of leaf layers: kgC/m2/year
+     real(r8) ::  ts_net_uptake(cp_nlevcan)              ! Net uptake of leaf layers: kgC/m2/s
+     real(r8) ::  year_net_uptake(cp_nlevcan)            ! Net uptake of leaf layers: kgC/m2/year
 
      ! RESPIRATION COMPONENTS
      real(r8) ::  rd                                     ! Dark respiration: umol/indiv/s
@@ -225,6 +275,8 @@ module EDTypesMod
 
      !INDICES
      integer  :: patchno                                           ! unique number given to each new patch created for tracking
+
+     ! INTERF-TODO: THIS VARIABLE SHOULD BE REMOVED
      integer  :: clm_pno                                           ! clm patch number (index of p vector)
 
      ! PATCH INFO
@@ -234,65 +286,64 @@ module EDTypesMod
      integer  ::  ncl_p                                            ! Number of occupied canopy layers
 
      ! LEAF ORGANIZATION
-     real(r8) ::  spread(nclmax)                                   ! dynamic ratio of dbh to canopy area: cm/m2
+     real(r8) ::  spread(cp_nclmax)                                   ! dynamic ratio of dbh to canopy area: cm/m2
      real(r8) ::  pft_agb_profile(numpft_ed,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
-     real(r8) ::  canopy_layer_lai(nclmax)                         ! lai that is shading this canopy layer: m2/m2 
+     real(r8) ::  canopy_layer_lai(cp_nclmax)                         ! lai that is shading this canopy layer: m2/m2 
      real(r8) ::  total_canopy_area                                ! area that is covered by vegetation : m2
      real(r8) ::  total_tree_area                                  ! area that is covered by woody vegetation : m2
      real(r8) ::  canopy_area                                      ! area that is covered by vegetation : m2 (is this different to total_canopy_area?
      real(r8) ::  bare_frac_area                                   ! bare soil in this patch expressed as a fraction of the total soil surface.
      real(r8) ::  lai                                              ! leaf area index of patch
 
-     real(r8) ::  tlai_profile(nclmax,numpft_ed,nlevcan_ed)        ! total   leaf area in each canopy layer, pft, and leaf layer. m2/m2
-     real(r8) ::  elai_profile(nclmax,numpft_ed,nlevcan_ed)        ! exposed leaf area in each canopy layer, pft, and leaf layer. m2/m2
-     real(r8) ::  tsai_profile(nclmax,numpft_ed,nlevcan_ed)        ! total   stem area in each canopy layer, pft, and leaf layer. m2/m2
-     real(r8) ::  esai_profile(nclmax,numpft_ed,nlevcan_ed)        ! exposed stem area in each canopy layer, pft, and leaf layer. m2/m2
-
-     real(r8) ::  canopy_area_profile(nclmax,numpft_ed,nlevcan_ed) ! fraction of canopy in each canopy 
+     real(r8) ::  tlai_profile(cp_nclmax,numpft_ed,cp_nlevcan)        ! total   leaf area in each canopy layer, pft, and leaf layer. m2/m2
+     real(r8) ::  elai_profile(cp_nclmax,numpft_ed,cp_nlevcan)        ! exposed leaf area in each canopy layer, pft, and leaf layer. m2/m2
+     real(r8) ::  tsai_profile(cp_nclmax,numpft_ed,cp_nlevcan)        ! total   stem area in each canopy layer, pft, and leaf layer. m2/m2
+     real(r8) ::  esai_profile(cp_nclmax,numpft_ed,cp_nlevcan)        ! exposed stem area in each canopy layer, pft, and leaf layer. m2/m2
+     real(r8) ::  layer_height_profile(cp_nclmax,numpft_ed,cp_nlevcan)
+     real(r8) ::  canopy_area_profile(cp_nclmax,numpft_ed,cp_nlevcan) ! fraction of canopy in each canopy 
      ! layer, pft, and leaf layer:-
-     integer  ::  present(nclmax,numpft_ed)                        ! is there any of this pft in this canopy layer?      
-     integer  ::  nrad(nclmax,numpft_ed)                           ! number of exposed leaf layers for each canopy layer and pft
-     integer  ::  ncan(nclmax,numpft_ed)                           ! number of total   leaf layers for each canopy layer and pft
+     integer  ::  present(cp_nclmax,numpft_ed)                        ! is there any of this pft in this canopy layer?      
+     integer  ::  nrad(cp_nclmax,numpft_ed)                           ! number of exposed leaf layers for each canopy layer and pft
+     integer  ::  ncan(cp_nclmax,numpft_ed)                           ! number of total   leaf layers for each canopy layer and pft
 
      !RADIATION FLUXES      
-     real(r8) ::  fabd_sun_z(nclmax,numpft_ed,nlevcan_ed)          ! sun fraction of direct light absorbed by each canopy 
+     real(r8) ::  fabd_sun_z(cp_nclmax,numpft_ed,cp_nlevcan)          ! sun fraction of direct light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
-     real(r8) ::  fabd_sha_z(nclmax,numpft_ed,nlevcan_ed)          ! shade fraction of direct light absorbed by each canopy 
+     real(r8) ::  fabd_sha_z(cp_nclmax,numpft_ed,cp_nlevcan)          ! shade fraction of direct light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
-     real(r8) ::  fabi_sun_z(nclmax,numpft_ed,nlevcan_ed)          ! sun fraction of indirect light absorbed by each canopy 
+     real(r8) ::  fabi_sun_z(cp_nclmax,numpft_ed,cp_nlevcan)          ! sun fraction of indirect light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
-     real(r8) ::  fabi_sha_z(nclmax,numpft_ed,nlevcan_ed)          ! shade fraction of indirect light absorbed by each canopy 
+     real(r8) ::  fabi_sha_z(cp_nclmax,numpft_ed,cp_nlevcan)          ! shade fraction of indirect light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
 
-     real(r8) ::  ed_laisun_z(nclmax,numpft_ed,nlevcan_ed)         ! amount of LAI in the sun   in each canopy layer, 
+     real(r8) ::  ed_laisun_z(cp_nclmax,numpft_ed,cp_nlevcan)         ! amount of LAI in the sun   in each canopy layer, 
      ! pft, and leaf layer. m2/m2
-     real(r8) ::  ed_laisha_z(nclmax,numpft_ed,nlevcan_ed)         ! amount of LAI in the shade in each canopy layer,
-     real(r8) ::  ed_parsun_z(nclmax,numpft_ed,nlevcan_ed)         ! PAR absorbed  in the sun   in each canopy layer,
-     real(r8) ::  ed_parsha_z(nclmax,numpft_ed,nlevcan_ed)         ! PAR absorbed  in the shade in each canopy layer,
-     real(r8) ::  f_sun(nclmax,numpft_ed,nlevcan_ed)               ! fraction of leaves in the sun in each canopy layer, pft, 
+     real(r8) ::  ed_laisha_z(cp_nclmax,numpft_ed,cp_nlevcan)         ! amount of LAI in the shade in each canopy layer,
+     real(r8) ::  ed_parsun_z(cp_nclmax,numpft_ed,cp_nlevcan)         ! PAR absorbed  in the sun   in each canopy layer,
+     real(r8) ::  ed_parsha_z(cp_nclmax,numpft_ed,cp_nlevcan)         ! PAR absorbed  in the shade in each canopy layer,
+     real(r8) ::  f_sun(cp_nclmax,numpft_ed,cp_nlevcan)               ! fraction of leaves in the sun in each canopy layer, pft, 
+
      ! and leaf layer. m2/m2
-     real(r8) ::  tr_soil_dir(numrad)                              ! fraction of incoming direct  radiation that 
+     real(r8),allocatable ::  tr_soil_dir(:)                              ! fraction of incoming direct  radiation that (cm_numSWb)
      ! is transmitted to the soil as direct
-     real(r8) ::  tr_soil_dif(numrad)                              ! fraction of incoming diffuse radiation that 
+     real(r8),allocatable ::  tr_soil_dif(:)                              ! fraction of incoming diffuse radiation that 
      ! is transmitted to the soil as diffuse
-     real(r8) ::  tr_soil_dir_dif(numrad)                          ! fraction of incoming direct  radiation that 
+     real(r8),allocatable ::  tr_soil_dir_dif(:)                          ! fraction of incoming direct  radiation that 
      ! is transmitted to the soil as diffuse
-     real(r8) ::  fab(numrad)                                      ! fraction of incoming total   radiation that is absorbed by the canopy
-     real(r8) ::  fabd(numrad)                                     ! fraction of incoming direct  radiation that is absorbed by the canopy
-     real(r8) ::  fabi(numrad)                                     ! fraction of incoming diffuse radiation that is absorbed by the canopy
-     real(r8) ::  sabs_dir(numrad)                                 ! fraction of incoming direct  radiation that is absorbed by the canopy
-     real(r8) ::  sabs_dif(numrad)                                 ! fraction of incoming diffuse radiation that is absorbed by the canopy
+     real(r8),allocatable ::  fab(:)                                      ! fraction of incoming total   radiation that is absorbed by the canopy
+     real(r8),allocatable ::  fabd(:)                                     ! fraction of incoming direct  radiation that is absorbed by the canopy
+     real(r8),allocatable ::  fabi(:)                                     ! fraction of incoming diffuse radiation that is absorbed by the canopy
+     real(r8),allocatable ::  sabs_dir(:)                                 ! fraction of incoming direct  radiation that is absorbed by the canopy
+     real(r8),allocatable ::  sabs_dif(:)                                 ! fraction of incoming diffuse radiation that is absorbed by the canopy
 
 
      !SEED BANK
-     real(r8) :: seed_bank(numpft_ed)                              ! seed pool in KgC/m2/year
      real(r8) :: seeds_in(numpft_ed)                               ! seed production KgC/m2/year
      real(r8) :: seed_decay(numpft_ed)                             ! seed decay in KgC/m2/year
      real(r8) :: seed_germination(numpft_ed)                       ! germination rate of seed pool in KgC/m2/year
-     real(r8) :: dseed_dt(numpft_ed)
 
      ! PHOTOSYNTHESIS       
-     real(r8) ::  psn_z(nclmax,numpft_ed,nlevcan_ed)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
+     real(r8) ::  psn_z(cp_nclmax,numpft_ed,cp_nlevcan)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
      real(r8) ::  gpp                                              ! total patch gpp: KgC/m2/year
      real(r8) ::  npp                                              ! total patch npp: KgC/m2/year   
 
@@ -387,14 +438,43 @@ module EDTypesMod
      ! INDICES 
      real(r8) ::  lat                                          ! latitude:  degrees 
      real(r8) ::  lon                                          ! longitude: degrees 
-     integer  ::  clmgcell                                     ! gridcell index
-     integer  ::  clmcolumn                                    ! column index (assuming there is only one soil column in each gcell.
-     logical  ::  istheresoil                                  ! are there any soil columns, or is this all ice/rocks/lakes?
 
      ! CARBON BALANCE       
-     real(r8) ::  flux_in                                      ! for carbon balance purpose. C coming into biomass pool:  KgC/site
-     real(r8) ::  flux_out                                     ! for carbon balance purpose. C leaving ED pools  KgC/site
-     real(r8) ::  old_stock                                    ! for accounting purposes, remember biomass stock from last time:  KgC/site
+     real(r8) :: flux_in                                      ! for carbon balance purpose. C coming into biomass pool:  KgC/site
+     real(r8) :: flux_out                                     ! for carbon balance purpose. C leaving ED pools  KgC/site
+     real(r8) :: old_stock                                    ! for accounting purposes, remember biomass stock from last time:  KgC/site
+     real(r8) :: npp                                          ! used for calculating NEP and NBP during BGC summarization phase
+     real(r8) :: nep                                          ! Net ecosystem production, i.e. fast-timescale carbon balance that 
+                                                              ! does not include disturbance [gC/m2/s]
+     real(r8) :: nbp                                          ! Net biosphere production, i.e. slow-timescale carbon balance that 
+                                                              ! integrates to total carbon change [gC/m2/s]
+     real(r8) :: tot_seed_rain_flux                           ! [gC/m2/s] total flux of carbon from seed rain
+     real(r8) :: fire_c_to_atm                                ! total fire carbon loss to atmosphere [gC/m2/s]
+     real(r8) :: ed_litter_stock                              ! litter in [gC/m2]
+     real(r8) :: cwd_stock                                    ! coarse woody debris [gC/m2]
+     real(r8) :: biomass_stock                                ! total biomass at the column level in [gC / m2]
+     real(r8) :: totfatesc                                    ! Total FATES carbon at the site, including vegetation, CWD, seeds, 
+                                                              ! and FATES portion of litter [gC/m2] 
+     real(r8) :: totbgcc                                      ! Total BGC carbon at the site, including litter, and soil pools [gC/m2] 
+     real(r8) :: totecosysc                                   ! Total ecosystem C at the site, including vegetation, 
+                                                              ! CWD, litter (from HLM and FATES), and soil pools [gC/m2]
+
+     real(r8) :: totfatesc_old                                ! Total FATES C at the site from last call to balance check [gC/m2]
+     real(r8) :: totbgcc_old                                  ! Total BGC C at the site from last call to balance check [gC/m2] 
+     real(r8) :: totecosysc_old                               ! Total ecosystem C at the site from last call to balance check [gC/m2]
+     
+     real(r8) :: fates_to_bgc_this_ts                         ! total flux of carbon from FATES to BGC models on current timestep [gC/m2/s] 
+     real(r8) :: fates_to_bgc_last_ts                         ! total flux of carbon from FATES to BGC models on previous timestep [gC/m2/s] 
+
+     real(r8) :: cbal_err_fates                               ! [gC/m2/s]  total carbon balance error for FATES processes
+     real(r8) :: cbal_err_bgc                                 ! [gC/m2/s]  total carbon balance error for BGC (HLM) processes
+     real(r8) :: cbal_err_tot                                 ! [gC/m2/s]  total carbon balance error for all land processes
+
+     real(r8) :: nep_timeintegrated                           ! Net ecosystem production accumulated over model time-steps [gC/m2]
+     real(r8) :: hr_timeintegrated                            ! Heterotrophic respiration accumulated over model time-steps [gC/m2]
+     real(r8) :: npp_timeintegrated                           ! Net primary production accumulated over model time-steps [gC/m2]
+     real(r8) :: nbp_integrated                               ! Net biosphere production accumulated over model time-steps [gC/m2]
+
 
      ! DISTURBANCE
      real(r8) ::  disturbance_mortality                        ! site level disturbance rates from mortality.
@@ -403,9 +483,9 @@ module EDTypesMod
      real(r8) ::  disturbance_rate                             ! site total dist rate
 
      ! PHENOLOGY 
+     real(r8) ::  ED_GDD_site                                  ! ED Phenology growing degree days.
      integer  ::  status                                       ! are leaves in this pixel on or off for cold decid
      integer  ::  dstatus                                      ! are leaves in this pixel on or off for drought decid
-     real(r8) ::  gdd                                          ! growing degree days: deg C. 
      real(r8) ::  ncd                                          ! no chilling days:-
      real(r8) ::  last_n_days(senes)                           ! record of last 10 days temperature for senescence model. deg C
      integer  ::  leafondate                                   ! doy of leaf on:-
@@ -413,13 +493,19 @@ module EDTypesMod
      integer  ::  dleafondate                                  ! doy of leaf on drought:-
      integer  ::  dleafoffdate                                 ! doy of leaf on drought:-
      real(r8) ::  water_memory(10)                             ! last 10 days of soil moisture memory...
-     real(r8) ::  cwd_ag_burned(ncwd)
-     real(r8) :: leaf_litter_burned(numpft_ed)
+
+     !SEED BANK
+     real(r8) :: seed_bank(numpft_ed)                              ! seed pool in KgC/m2/year
+     real(r8) :: dseed_dt(numpft_ed)
+     real(r8) :: seed_rain_flux(numpft_ed)                         ! flux of seeds from exterior KgC/m2/year (needed for C balance purposes)
 
      ! FIRE 
      real(r8) ::  acc_ni                                       ! daily nesterov index accumulating over time.
      real(r8) ::  ab                                           ! daily burnt area: m2
      real(r8) ::  frac_burnt                                   ! fraction of soil burnt in this day.
+     real(r8) ::  total_burn_flux_to_atm                       ! total carbon burnt to the atmosphere in this day. KgC/site
+     real(r8) ::  cwd_ag_burned(ncwd)
+     real(r8) ::  leaf_litter_burned(numpft_ed)
 
   end type ed_site_type
 
@@ -428,13 +514,15 @@ module EDTypesMod
   !************************************
 
   type userdata
-     integer  ::   cohort_number            ! Counts up the number of cohorts which have been made. 
+     integer  ::   cohort_number            ! Counts up the number of cohorts which have been made.
+     integer  ::   n_sub                    ! num of substeps in year 
      real(r8) ::   deltat                   ! fraction of year used for each timestep (1/N_SUB)
      integer  ::   time_period              ! Within year timestep (1:N_SUB) day of year
      integer  ::   restart_year             ! Which year of simulation are we starting in? 
   end type userdata
 
-  type(userdata), public, target :: udata
+
+  type(userdata), public, target :: udata   ! THIS WAS NOT THREADSAFE
   !-------------------------------------------------------------------------------------!
 
   public :: ed_hist_scpfmaps

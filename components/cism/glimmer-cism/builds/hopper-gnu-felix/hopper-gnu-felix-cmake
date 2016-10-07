@@ -99,7 +99,6 @@ cmake \
 \
   -D CMAKE_CXX_FLAGS:STRING="-O2" \
   -D CISM_Fortran_FLAGS="-ffree-line-length-none" \
-  -D CISM_GNU:BOOL=ON \
   -D CISM_MPI_LIBS:STRING="mpichf90" \
   ../..
 # Note: last argument above  "../.."  is path to top seacism directory

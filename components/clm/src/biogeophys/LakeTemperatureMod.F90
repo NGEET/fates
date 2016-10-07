@@ -33,6 +33,9 @@ module LakeTemperatureMod
   ! !PRIVATE MEMBER FUNCTIONS:
   private :: SoilThermProp_Lake   ! Set therm conductivities and heat cap of snow/soil layers
   private :: PhaseChange_Lake     ! Calculation of the phase change within snow/soil/lake layers
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !-----------------------------------------------------------------------
 
 contains
@@ -1077,7 +1080,7 @@ contains
      !
      ! !USES:
      use clm_varcon  , only : denh2o, denice, tfrz, tkwat, tkice, tkair
-     use clm_varcon  , only : cpice,  cpliq, thk_bedrock
+     use clm_varcon  , only : cpice,  cpliq, thk_bedrock, csol_bedrock
      use clm_varpar  , only : nlevsno, nlevsoi, nlevgrnd
      !
      ! !ARGUMENTS:
@@ -1105,9 +1108,9 @@ contains
      !-----------------------------------------------------------------------
 
      ! Enforce expected array sizes
-     SHR_ASSERT_ALL((ubound(cv)           == (/bounds%endc, nlevgrnd/)), errMsg(__FILE__, __LINE__))
-     SHR_ASSERT_ALL((ubound(tk)           == (/bounds%endc, nlevgrnd/)), errMsg(__FILE__, __LINE__))
-     SHR_ASSERT_ALL((ubound(tktopsoillay) == (/bounds%endc/)),           errMsg(__FILE__, __LINE__))
+     SHR_ASSERT_ALL((ubound(cv)           == (/bounds%endc, nlevgrnd/)), errMsg(sourcefile, __LINE__))
+     SHR_ASSERT_ALL((ubound(tk)           == (/bounds%endc, nlevgrnd/)), errMsg(sourcefile, __LINE__))
+     SHR_ASSERT_ALL((ubound(tktopsoillay) == (/bounds%endc/)),           errMsg(sourcefile, __LINE__))
 
      associate(                                           & 
           snl         => col%snl                        , & ! Input:  [integer (:)]  number of snow layers                    
@@ -1217,6 +1220,9 @@ contains
              !   end if
              ! Won't worry about heat capacity for thin snow on lake with no snow layers.
              ! Its temperature will be assigned based on air temperature anyway if a new node is formed.
+             if (j > nlevsoi) then
+                cv(c,j) = csol_bedrock*dz(c,j)
+             endif
           enddo
        end do
 
@@ -1287,9 +1293,9 @@ contains
      !-----------------------------------------------------------------------
 
      ! Enforce expected array sizes
-     SHR_ASSERT_ALL((ubound(cv)      == (/bounds%endc, nlevgrnd/)), errMsg(__FILE__, __LINE__))
-     SHR_ASSERT_ALL((ubound(cv_lake) == (/bounds%endc, nlevlak/)),  errMsg(__FILE__, __LINE__))
-     SHR_ASSERT_ALL((ubound(lhabs)   == (/bounds%endc/)),           errMsg(__FILE__, __LINE__))
+     SHR_ASSERT_ALL((ubound(cv)      == (/bounds%endc, nlevgrnd/)), errMsg(sourcefile, __LINE__))
+     SHR_ASSERT_ALL((ubound(cv_lake) == (/bounds%endc, nlevlak/)),  errMsg(sourcefile, __LINE__))
+     SHR_ASSERT_ALL((ubound(lhabs)   == (/bounds%endc/)),           errMsg(sourcefile, __LINE__))
 
      associate(                                                   & 
           dz_lake         => col%dz_lake                        , & ! Input:  [real(r8)  (:,:) ] lake layer thickness (m)              

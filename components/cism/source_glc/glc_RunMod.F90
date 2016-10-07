@@ -141,7 +141,6 @@
                         ice_covered = ice_covered, topo = topo,        &
                         rofi = rofi, rofl = rofl, hflx = hflx,         &
                         ice_sheet_grid_mask=ice_sheet_grid_mask,       &
-                        icemask_coupled_fluxes=icemask_coupled_fluxes, &
                         ice_tstep = ice_tstep)
 
      else    ! use PDD scheme

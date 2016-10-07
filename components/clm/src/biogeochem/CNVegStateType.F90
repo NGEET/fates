@@ -6,10 +6,9 @@ module CNVegStateType
   use decompMod      , only : bounds_type
   use abortutils     , only : endrun
   use spmdMod        , only : masterproc
-  use clm_varpar     , only : nlevsno, nlevgrnd, nlevlak, nlevsoifl, nlevsoi, crop_prog
-  use clm_varpar     , only : ndecomp_cascade_transitions, nlevdecomp, nlevdecomp_full, more_vertlayers  
-  use clm_varctl     , only : use_vertsoilc, use_c14, use_cn, iulog, fsurdat 
-  use clm_varcon     , only : spval, ispval, c14ratio, grlnd
+  use clm_varpar     , only : nlevsno, nlevgrnd, nlevlak, nlevsoi
+  use clm_varctl     , only : use_cn, iulog, fsurdat, use_crop
+  use clm_varcon     , only : spval, ispval, grlnd
   use landunit_varcon, only : istsoil, istcrop
   use LandunitType   , only : lun                
   use ColumnType     , only : col                
@@ -19,19 +18,18 @@ module CNVegStateType
   implicit none
   private
   !
-  ! !PRIVATE MEMBER FUNCTIONS: 
-  private :: checkDates
-  ! 
   ! !PUBLIC TYPES:
   type, public :: cnveg_state_type
 
      integer  , pointer :: burndate_patch              (:)     ! patch crop burn date
      real(r8) , pointer :: lfpftd_patch                (:)     ! patch decrease of patch weight (0-1) on the column for the timestep 
 
-     ! Prognostic crop model -  Note that cropplant and harvdate could be 2D to facilitate rotation
+     ! Prognostic crop model
+     !
+     ! TODO(wjs, 2016-02-22) Most / all of these crop-specific state variables should be
+     ! moved to CropType
      real(r8) , pointer :: hdidx_patch                 (:)     ! patch cold hardening index?
      real(r8) , pointer :: cumvd_patch                 (:)     ! patch cumulative vernalization d?ependence?
-     real(r8) , pointer :: vf_patch                    (:)     ! patch vernalization factor for cereal
      real(r8) , pointer :: gddmaturity_patch           (:)     ! patch growing degree days (gdd) needed to harvest (ddays)
      real(r8) , pointer :: huileaf_patch               (:)     ! patch heat unit index needed from planting to leaf emergence
      real(r8) , pointer :: huigrain_patch              (:)     ! patch heat unit index needed to reach vegetative maturity
@@ -39,9 +37,6 @@ module CNVegStateType
      real(r8) , pointer :: astemi_patch                (:)     ! patch saved stem allocation coefficient from phase 2
      real(r8) , pointer :: aleaf_patch                 (:)     ! patch leaf allocation coefficient
      real(r8) , pointer :: astem_patch                 (:)     ! patch stem allocation coefficient
-     logical  , pointer :: croplive_patch              (:)     ! patch Flag, true if planted, not harvested
-     logical  , pointer :: cropplant_patch             (:)     ! patch Flag, true if planted
-     integer  , pointer :: harvdate_patch              (:)     ! patch harvest date
      real(r8) , pointer :: htmx_patch                  (:)     ! patch max hgt attained by a crop during yr (m)
      integer  , pointer :: peaklai_patch               (:)     ! patch 1: max allowed lai; 0: not at max
 
@@ -67,8 +62,8 @@ module CNVegStateType
      real(r8) , pointer :: lfc_col                     (:)     ! col conversion area fraction of BET and BDT that haven't burned before (/timestep)
      real(r8) , pointer :: lfc2_col                    (:)     ! col conversion area fraction of BET and BDT that burned (/sec)
      real(r8) , pointer :: dtrotr_col                  (:)     ! col annual decreased fraction coverage of BET on the gridcell (0-1)
-     real(r8) , pointer :: trotr1_col                  (:)     ! col patch weight of BET and BDT on the gridcell(0-1)
-     real(r8) , pointer :: trotr2_col                  (:)     ! col patch weight of BDT on the gridcell (0-1)
+     real(r8) , pointer :: trotr1_col                  (:)     ! col patch weight of BET on the column (0-1)
+     real(r8) , pointer :: trotr2_col                  (:)     ! col patch weight of BDT on the column (0-1)
      real(r8) , pointer :: cropf_col                   (:)     ! col crop fraction in veg column (0-1)
      real(r8) , pointer :: baf_crop_col                (:)     ! col baf for cropland(/sec)
      real(r8) , pointer :: baf_peatf_col               (:)     ! col baf for peatland (/sec)
@@ -102,20 +97,22 @@ module CNVegStateType
      real(r8), pointer :: tempmax_retransn_patch       (:)     ! patch temporary annual max of retranslocated N pool (gN/m2)
      real(r8), pointer :: annmax_retransn_patch        (:)     ! patch annual max of retranslocated N pool (gN/m2)
      real(r8), pointer :: downreg_patch                (:)     ! patch fractional reduction in GPP due to N limitation (DIM)
-
-     integer           :: CropRestYear                        ! restart year from initial conditions file - increment as time elapses
+     real(r8), pointer :: leafcn_offset_patch          (:)     ! patch leaf C:N used by FUN
+     real(r8), pointer :: plantCN_patch                (:)     ! patch plant C:N used by FUN
 
    contains
 
      procedure, public  :: Init         
      procedure, public  :: Restart      
-     procedure, public  :: CropRestIncYear
      procedure, private :: InitAllocate 
      procedure, private :: InitHistory  
      procedure, private :: InitCold     
 
   end type cnveg_state_type
   !------------------------------------------------------------------------
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
 
 contains
 
@@ -159,17 +156,13 @@ contains
 
     allocate(this%hdidx_patch         (begp:endp))                   ; this%hdidx_patch         (:)   = nan
     allocate(this%cumvd_patch         (begp:endp))                   ; this%cumvd_patch         (:)   = nan
-    allocate(this%vf_patch            (begp:endp))                   ; this%vf_patch            (:)   = 0.0_r8
     allocate(this%gddmaturity_patch   (begp:endp))                   ; this%gddmaturity_patch   (:)   = spval
     allocate(this%huileaf_patch       (begp:endp))                   ; this%huileaf_patch       (:)   = nan
-    allocate(this%huigrain_patch      (begp:endp))                   ; this%huigrain_patch      (:)   = nan
+    allocate(this%huigrain_patch      (begp:endp))                   ; this%huigrain_patch      (:)   = 0.0_r8
     allocate(this%aleafi_patch        (begp:endp))                   ; this%aleafi_patch        (:)   = nan
     allocate(this%astemi_patch        (begp:endp))                   ; this%astemi_patch        (:)   = nan
     allocate(this%aleaf_patch         (begp:endp))                   ; this%aleaf_patch         (:)   = nan
     allocate(this%astem_patch         (begp:endp))                   ; this%astem_patch         (:)   = nan
-    allocate(this%croplive_patch      (begp:endp))                   ; this%croplive_patch      (:)   = .false.
-    allocate(this%cropplant_patch     (begp:endp))                   ; this%cropplant_patch     (:)   = .false.
-    allocate(this%harvdate_patch      (begp:endp))                   ; this%harvdate_patch      (:)   = huge(1) 
     allocate(this%htmx_patch          (begp:endp))                   ; this%htmx_patch          (:)   = 0.0_r8
     allocate(this%peaklai_patch       (begp:endp))                   ; this%peaklai_patch       (:)   = 0
 
@@ -205,8 +198,6 @@ contains
     allocate(this%lfwt_col            (begc:endc))                   ; this%lfwt_col            (:)   = nan
     allocate(this%farea_burned_col    (begc:endc))                   ; this%farea_burned_col    (:)   = nan
 
-    this%CropRestYear = 0
-
     allocate(this%dormant_flag_patch          (begp:endp)) ;    this%dormant_flag_patch          (:) = nan
     allocate(this%days_active_patch           (begp:endp)) ;    this%days_active_patch           (:) = nan
     allocate(this%onset_flag_patch            (begp:endp)) ;    this%onset_flag_patch            (:) = nan
@@ -230,7 +221,8 @@ contains
     allocate(this%tempmax_retransn_patch      (begp:endp)) ;    this%tempmax_retransn_patch      (:) = nan
     allocate(this%annmax_retransn_patch       (begp:endp)) ;    this%annmax_retransn_patch       (:) = nan
     allocate(this%downreg_patch               (begp:endp)) ;    this%downreg_patch               (:) = nan
-
+    allocate(this%leafcn_offset_patch         (begp:endp)) ;    this%leafcn_offset_patch         (:) = nan
+    allocate(this%plantCN_patch               (begp:endp)) ;    this%plantCN_patch               (:) = nan
   end subroutine InitAllocate
 
   !------------------------------------------------------------------------
@@ -258,7 +250,7 @@ contains
     begp = bounds%begp; endp= bounds%endp
     begc = bounds%begc; endc= bounds%endc
 
-    if ( crop_prog) then
+    if ( use_crop) then
        this%gddmaturity_patch(begp:endp) = spval
        call hist_addfld1d (fname='GDDHARV', units='ddays', &
             avgflag='A', long_name='Growing degree days (gdd) needed to harvest', &
@@ -420,6 +412,15 @@ contains
          avgflag='A', long_name='fractional reduction in GPP due to N limitation', &
          ptr_patch=this%downreg_patch, default='inactive')
 
+    this%leafcn_offset_patch(begp:endp) = spval
+    call hist_addfld1d (fname='LEAFCN_OFFSET', units='unitless', &
+         avgflag='A', long_name='Leaf C:N used by FUN', &
+         ptr_patch=this%leafcn_offset_patch, default='inactive')
+
+    this%plantCN_patch(begp:endp)       = spval
+    call hist_addfld1d (fname='PLANTCN', units='unitless', &
+         avgflag='A', long_name='Plant C:N used by FUN', &
+         ptr_patch=this%plantCN_patch, default='inactive')
   end subroutine InitHistory
 
   !-----------------------------------------------------------------------
@@ -457,23 +458,8 @@ contains
     ! Open surface dataset
     ! --------------------------------------------------------------------
 
-    if (masterproc) then
-       write(iulog,*) 'Attempting to read soil color, sand and clay boundary data .....'
-    end if
-
     call getfil (fsurdat, locfn, 0)
     call ncd_pio_openfile (ncid, locfn, 0)
-
-    call ncd_inqdlen(ncid,dimid,nlevsoifl,name='nlevsoi')
-    if ( .not. more_vertlayers )then
-       if ( nlevsoifl /= nlevsoi )then
-          call endrun(msg=' ERROR: Number of soil layers on file does NOT match the number being used'//&
-               errMsg(__FILE__, __LINE__))
-       end if
-    else
-       ! read in layers, interpolate to high resolution grid later
-    end if
-
 
     ! --------------------------------------------------------------------
     ! Read in GDP data 
@@ -482,7 +468,7 @@ contains
     allocate(gdp(bounds%begg:bounds%endg))
     call ncd_io(ncid=ncid, varname='gdp', flag='read', data=gdp, dim1name=grlnd, readvar=readvar)
     if (.not. readvar) then
-       call endrun(msg=' ERROR: gdp NOT on surfdata file'//errMsg(__FILE__, __LINE__)) 
+       call endrun(msg=' ERROR: gdp NOT on surfdata file'//errMsg(sourcefile, __LINE__)) 
     end if
     do c = bounds%begc, bounds%endc
        g = col%gridcell(c)
@@ -497,7 +483,7 @@ contains
     allocate(peatf(bounds%begg:bounds%endg))
     call ncd_io(ncid=ncid, varname='peatf', flag='read', data=peatf, dim1name=grlnd, readvar=readvar)
     if (.not. readvar) then
-       call endrun(msg=' ERROR: peatf NOT on surfdata file'//errMsg(__FILE__, __LINE__)) 
+       call endrun(msg=' ERROR: peatf NOT on surfdata file'//errMsg(sourcefile, __LINE__)) 
     end if
     do c = bounds%begc, bounds%endc
        g = col%gridcell(c)
@@ -512,7 +498,7 @@ contains
     allocate(abm(bounds%begg:bounds%endg))
     call ncd_io(ncid=ncid, varname='abm', flag='read', data=abm, dim1name=grlnd, readvar=readvar)
     if (.not. readvar) then
-       call endrun(msg=' ERROR: abm NOT on surfdata file'//errMsg(__FILE__, __LINE__)) 
+       call endrun(msg=' ERROR: abm NOT on surfdata file'//errMsg(sourcefile, __LINE__)) 
     end if
     do c = bounds%begc, bounds%endc
        g = col%gridcell(c)
@@ -592,6 +578,8 @@ contains
           this%tempmax_retransn_patch(p)      = spval
           this%annmax_retransn_patch(p)       = spval
           this%downreg_patch(p)               = spval
+          this%leafcn_offset_patch(p)         = spval
+          this%plantCN_patch(p)               = spval
        end if
 
        if (lun%itype(l) == istsoil .or. lun%itype(l) == istcrop) then
@@ -623,6 +611,8 @@ contains
           this%tempmax_retransn_patch(p)      = 0._r8
           this%annmax_retransn_patch(p)       = 0._r8
           this%downreg_patch(p)               = 0._r8
+          this%leafcn_offset_patch(p)         = spval 
+          this%plantCN_patch(p)               = spval 
        end if
 
     end do
@@ -652,8 +642,7 @@ contains
     character(len=*) , intent(in)    :: flag   
     !
     ! !LOCAL VARIABLES:
-    integer, pointer :: temp1d(:) ! temporary
-    integer          :: p,j,c,i   ! indices
+    integer          :: j,c,i   ! indices
     logical          :: readvar   ! determine if variable is on initial file
     real(r8), pointer :: ptr2d(:,:) ! temp. pointers for slicing larger arrays
     real(r8), pointer :: ptr1d(:)   ! temp. pointers for slicing larger arrays
@@ -779,6 +768,16 @@ contains
          long_name='', units='', &
          interpinic_flag='interp', readvar=readvar, data=this%downreg_patch) 
 
+    call restartvar(ncid=ncid, flag=flag, varname='leafcn_offset', xtype=ncd_double,  &
+         dim1name='pft', &
+         long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%leafcn_offset_patch)
+     
+    call restartvar(ncid=ncid, flag=flag, varname='plantCN', xtype=ncd_double,  &
+         dim1name='pft', &
+         long_name='', units='', &
+         interpinic_flag='interp', readvar=readvar, data=this%plantCN_patch)
+
     call restartvar(ncid=ncid, flag=flag, varname='annsum_counter', xtype=ncd_double,  &
          dim1name='column', &
          long_name='', units='', &
@@ -799,14 +798,7 @@ contains
          long_name='', units='', &
          interpinic_flag='interp', readvar=readvar, data=this%annavg_t2m_col) 
 
-    if (crop_prog) then
-
-       call restartvar(ncid=ncid, flag=flag,  varname='restyear', xtype=ncd_int,  &
-            long_name='Number of years prognostic crop ran', units="years", &
-            interpinic_flag='copy', readvar=readvar, data=this%CropRestYear)
-       if (flag=='read' .and. readvar)  then
-          call checkDates( )
-       end if
+    if (use_crop) then
 
        call restartvar(ncid=ncid, flag=flag,  varname='htmx', xtype=ncd_double,  &
             dim1name='pft', long_name='max height attained by a crop during year', units='m', &
@@ -842,67 +834,9 @@ contains
             dim1name='pft', long_name='cold hardening index', units='', &
             interpinic_flag='interp', readvar=readvar, data=this%hdidx_patch)
 
-       call restartvar(ncid=ncid, flag=flag,  varname='vf', xtype=ncd_double,  &
-            dim1name='pft', long_name='vernalization factor', units='', &
-            interpinic_flag='interp', readvar=readvar, data=this%vf_patch)
-
        call restartvar(ncid=ncid, flag=flag,  varname='cumvd', xtype=ncd_double,  &
             dim1name='pft', long_name='cumulative vernalization d', units='', &
             interpinic_flag='interp', readvar=readvar, data=this%cumvd_patch)
-
-       allocate(temp1d(bounds%begp:bounds%endp))
-       if (flag == 'write') then 
-          do p= bounds%begp,bounds%endp
-             if (this%croplive_patch(p)) then
-                temp1d(p) = 1
-             else
-                temp1d(p) = 0
-             end if
-          end do
-       end if
-       call restartvar(ncid=ncid, flag=flag,  varname='croplive', xtype=ncd_log,  &
-            dim1name='pft', &
-            long_name='Flag that crop is alive, but not harvested', &
-            interpinic_flag='interp', readvar=readvar, data=temp1d)
-       if (flag == 'read') then 
-          do p= bounds%begp,bounds%endp
-             if (temp1d(p) == 1) then
-                this%croplive_patch(p) = .true.
-             else
-                this%croplive_patch(p) = .false.
-             end if
-          end do
-       end if
-       deallocate(temp1d)
-
-       allocate(temp1d(bounds%begp:bounds%endp))
-       if (flag == 'write') then 
-          do p= bounds%begp,bounds%endp
-             if (this%cropplant_patch(p)) then
-                temp1d(p) = 1
-             else
-                temp1d(p) = 0
-             end if
-          end do
-       end if
-       call restartvar(ncid=ncid, flag=flag,  varname='cropplant', xtype=ncd_log,  &
-            dim1name='pft', &
-            long_name='Flag that crop is planted, but not harvested' , &
-            interpinic_flag='interp', readvar=readvar, data=temp1d)
-       if (flag == 'read') then 
-          do p= bounds%begp,bounds%endp
-             if (temp1d(p) == 1) then
-                this%cropplant_patch(p) = .true.
-             else
-                this%cropplant_patch(p) = .false.
-             end if
-          end do
-       end if
-       deallocate(temp1d)
-
-       call restartvar(ncid=ncid, flag=flag,  varname='harvdate', xtype=ncd_int,  &
-            dim1name='pft', long_name='harvest date', units='jday', nvalid_range=(/1,366/), & 
-            interpinic_flag='interp', readvar=readvar, data=this%harvdate_patch)
 
       call restartvar(ncid=ncid, flag=flag,  varname='gddmaturity', xtype=ncd_double,  &
             dim1name='pft', long_name='Growing degree days needed to harvest', units='ddays', &
@@ -922,95 +856,5 @@ contains
     end if
 
   end subroutine Restart
-
-  !-----------------------------------------------------------------------
-  subroutine CropRestIncYear (this)
-    !
-    ! !DESCRIPTION: 
-    ! Increment the crop restart year, if appropriate
-    !
-    ! This routine should be called every time step, but only once per clump (to avoid
-    ! inadvertently updating nyrs multiple times)
-    !
-    ! !USES:
-    use clm_time_manager , only : get_curr_date, is_first_step
-    !
-    ! !ARGUMENTS:
-    class(cnveg_state_type) :: this
-    !
-    ! !LOCAL VARIABLES:
-    integer kyr   ! current year
-    integer kmo   ! month of year  (1, ..., 12)
-    integer kda   ! day of month   (1, ..., 31)
-    integer mcsec ! seconds of day (0, ..., seconds/day)
-    !-----------------------------------------------------------------------
-
-    ! Update restyear only when running with prognostic crop
-    if ( crop_prog )then
-
-       ! Update restyear when it's the start of a new year - but don't do that at the
-       ! very start of the run
-       call get_curr_date (   kyr, kmo, kda, mcsec)
-       if ((kmo == 1 .and. kda == 1 .and. mcsec == 0) .and. .not. is_first_step()) then
-          this%CropRestYear = this%CropRestYear + 1
-       end if
-
-    end if
-
-  end subroutine CropRestIncYear
-
-  !-----------------------------------------------------------------------
-  subroutine checkDates( )
-    !
-    ! !DESCRIPTION: 
-    ! Make sure the dates are compatible. The date given to startup the model
-    ! and the date on the restart file must be the same although years can be
-    ! different. The dates need to be checked when the restart file is being
-    ! read in for a startup or branch case (they are NOT allowed to be different
-    ! for a restart case).
-    !
-    ! For the prognostic crop model the date of planting is tracked and growing
-    ! degree days is tracked (with a 20 year mean) -- so shifting the start dates
-    ! messes up these bits of saved information.
-    !
-    ! !ARGUMENTS:
-    use clm_time_manager, only : get_driver_start_ymd, get_start_date
-    use clm_varctl      , only : iulog
-    use clm_varctl      , only : nsrest, nsrBranch, nsrStartup
-    !
-    ! !LOCAL VARIABLES:
-    integer :: stymd       ! Start date YYYYMMDD from driver
-    integer :: styr        ! Start year from driver
-    integer :: stmon_day   ! Start date MMDD from driver
-    integer :: rsmon_day   ! Restart date MMDD from restart file
-    integer :: rsyr        ! Restart year from restart file
-    integer :: rsmon       ! Restart month from restart file
-    integer :: rsday       ! Restart day from restart file
-    integer :: tod         ! Restart time of day from restart file
-    character(len=*), parameter :: formDate = '(A,i4.4,"/",i2.2,"/",i2.2)' ! log output format
-    character(len=32) :: subname = 'CropRest::checkDates'
-    !-----------------------------------------------------------------------
-    !
-    ! If branch or startup make sure the startdate is compatible with the date
-    ! on the restart file.
-    !
-    if ( nsrest == nsrBranch .or. nsrest == nsrStartup )then
-       stymd       = get_driver_start_ymd()
-       styr        = stymd / 10000
-       stmon_day   = stymd - styr*10000
-       call get_start_date( rsyr, rsmon, rsday, tod )
-       rsmon_day = rsmon*100 + rsday
-       if ( masterproc ) &
-            write(iulog,formDate) 'Date on the restart file is: ', rsyr, rsmon, rsday
-       if ( stmon_day /= rsmon_day )then
-          write(iulog,formDate) 'Start date is: ', styr, stmon_day/100, &
-               (stmon_day - stmon_day/100)
-          call endrun(msg=' ERROR: For prognostic crop to work correctly, the start date (month and day)'// &
-               ' and the date on the restart file needs to match (years can be different)'//&
-               errMsg(__FILE__, __LINE__))
-       end if
-    end if
-
-  end subroutine checkDates
 
 end module CNVegStateType

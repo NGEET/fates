@@ -32,13 +32,14 @@ module mkvarctl
   character(len=256), public :: mksrf_fsoicol    = ' '  ! soil color data file name
   character(len=256), public :: mksrf_fabm       = ' '  ! ag fire peak month and
   character(len=256), public :: mksrf_fpeat      = ' '  ! peatlands and
+  character(len=256), public :: mksrf_fsoildepth = ' '  ! soil depth file name
   character(len=256), public :: mksrf_fgdp       = ' '  ! gdp data file names
   character(len=256), public :: mksrf_flakwat    = ' '  ! inland lake data file name
   character(len=256), public :: mksrf_fwetlnd    = ' '  ! inland wetlands data file name
   character(len=256), public :: mksrf_furban     = ' '  ! urban data file name
   character(len=256), public :: mksrf_fglacier   = ' '  ! glacier data file name
+  character(len=256), public :: mksrf_fglacierregion = ' ' ! glacier region data file name
   character(len=256), public :: mksrf_furbtopo   = ' '  ! urban topography data file name
-  character(len=256), public :: mksrf_flndtopo   = ' '  ! land topography data file name
   character(len=256), public :: mksrf_fmax       = ' '  ! fmax data file name
   character(len=256), public :: mksrf_flai       = ' '  ! lai data filename
   character(len=256), public :: mksrf_fdynuse    = ' '  ! ascii file containing names of dynamic land use files
@@ -53,14 +54,15 @@ module mkvarctl
   character(len=256), public :: map_flakwat     = ' ' ! Mapping file for lake water
   character(len=256), public :: map_fwetlnd     = ' ' ! Mapping file for wetland water
   character(len=256), public :: map_fglacier    = ' ' ! Mapping file for glacier
+  character(len=256), public :: map_fglacierregion = ' ' ! Mapping file for glacier region
   character(len=256), public :: map_fsoitex     = ' ' ! Mapping file for soil texture
   character(len=256), public :: map_fsoicol     = ' ' ! Mapping file for soil color
   character(len=256), public :: map_fabm        = ' ' ! Mapping file: ag fire...
   character(len=256), public :: map_fpeat       = ' ' ! Mapping file: peatlands
+  character(len=256), public :: map_fsoildepth  = ' ' ! Mapping file: soil depth
   character(len=256), public :: map_fgdp        = ' ' ! Mapping file: gdp
   character(len=256), public :: map_furban      = ' ' ! Mapping file for urban
   character(len=256), public :: map_furbtopo    = ' ' ! Mapping file for urban topography
-  character(len=256), public :: map_flndtopo    = ' ' ! Mapping file for land topography
   character(len=256), public :: map_fmax        = ' ' ! Mapping file for soil frac max
   character(len=256), public :: map_forganic    = ' ' ! Mapping file for organic soil
   character(len=256), public :: map_fvocef      = ' ' ! Mapping file for VOC emission factors

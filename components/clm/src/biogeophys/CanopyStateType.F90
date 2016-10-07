@@ -8,9 +8,9 @@ module CanopyStateType
   use abortutils      , only : endrun
   use decompMod       , only : bounds_type
   use landunit_varcon , only : istsoil, istcrop
-  use clm_varpar      , only : nlevcan
+  use clm_varpar      , only : nlevcan, nvegwcs
   use clm_varcon      , only : spval  
-  use clm_varctl      , only : iulog, use_cn, use_ed
+  use clm_varctl      , only : iulog, use_cn, use_ed, use_hydrstress
   use LandunitType    , only : lun                
   use ColumnType      , only : col                
   use PatchType       , only : patch                
@@ -53,7 +53,10 @@ module CanopyStateType
      real(r8) , pointer :: dewmx_patch              (:)   ! patch maximum allowed dew [mm] 
 
      real(r8) , pointer :: rscanopy_patch           (:)   ! patch canopy stomatal resistance (s/m) (ED specific)
-     real(r8) , pointer :: gccanopy_patch           (:)   ! patch (ED specific)
+
+     real(r8) , pointer :: vegwp_patch              (:,:) ! patch vegetation water matric potential (mm)
+
+     real(r8)           :: leaf_mr_vcm = spval            ! Scalar constant of leaf respiration with Vcmax
 
    contains
 
@@ -61,12 +64,16 @@ module CanopyStateType
      procedure, private :: InitAllocate 
      procedure, private :: InitHistory  
      procedure, private :: InitCold     
+     procedure, public  :: ReadNML
      procedure, public  :: InitAccBuffer
      procedure, public  :: InitAccVars
      procedure, public  :: UpdateAccVars
      procedure, public  :: Restart      
 
   end type CanopyState_type
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !------------------------------------------------------------------------
 
 contains   
@@ -80,6 +87,10 @@ contains
     call this%InitAllocate(bounds)
     call this%InitHistory(bounds)
     call this%InitCold(bounds)
+
+    if ( this%leaf_mr_vcm == spval ) then
+       call endrun(msg="ERROR canopystate Init called before ReadNML"//errmsg(sourcefile, __LINE__))
+    end if
 
   end subroutine Init
 
@@ -132,8 +143,12 @@ contains
     allocate(this%dewmx_patch              (begp:endp))           ; this%dewmx_patch              (:)   = nan
 
     allocate(this%rscanopy_patch           (begp:endp))           ; this%rscanopy_patch           (:)   = nan
-    allocate(this%gccanopy_patch           (begp:endp))           ; this%gccanopy_patch           (:)   = 0.0_r8     
-
+!    allocate(this%gccanopy_patch           (begp:endp))           ; this%gccanopy_patch           (:)   = 0.0_r8     
+    if( use_hydrstress )then
+       ! NOTE(kwo, 2015-09) because these variables are only allocated when use_hydrstress
+       ! is turned on, they can not be placed into associate statements.
+       allocate(this%vegwp_patch           (begp:endp,1:nvegwcs)) ; this%vegwp_patch              (:,:) = nan
+    end if
 
   end subroutine InitAllocate
 
@@ -273,9 +288,16 @@ contains
          avgflag='A', long_name='canopy resistance', &
          ptr_patch=this%rscanopy_patch, set_lake=0._r8, set_urb=0._r8)
 
-    call hist_addfld1d (fname='GCCANOPY', units='none',  &
-         avgflag='A', long_name='Canopy Conductance: mmol m-2 s-1', &
-         ptr_patch=this%GCcanopy_patch, set_lake=0._r8, set_urb=0._r8)  
+!    call hist_addfld1d (fname='GCCANOPY', units='none',  &
+!         avgflag='A', long_name='Canopy Conductance: mmol m-2 s-1', &
+!         ptr_patch=this%GCcanopy_patch, set_lake=0._r8, set_urb=0._r8)  
+
+    if ( use_hydrstress ) then
+       this%vegwp_patch(begp:endp,:) = spval
+       call hist_addfld2d (fname='VEGWP',  units='mm', type2d='nvegwcs', &
+            avgflag='A', long_name='vegetation water matric potential for sun/sha canopy,xyl,root segments', &
+            ptr_patch=this%vegwp_patch)
+    end if
 
   end subroutine InitHistory
 
@@ -343,7 +365,7 @@ contains
     if (ier/=0) then
        write(iulog,*)' in '
        call endrun(msg="extract_accum_hist allocation error for rbufslp"//&
-            errMsg(__FILE__, __LINE__))
+            errMsg(sourcefile, __LINE__))
     endif
 
     ! Determine time step
@@ -364,6 +386,61 @@ contains
     deallocate(rbufslp)
 
   end subroutine InitAccVars
+
+  !-----------------------------------------------------------------------
+  subroutine ReadNML( this, NLFilename )
+    !
+    ! Read in canopy parameter namelist
+    !       
+    ! USES:
+    use shr_mpi_mod   , only : shr_mpi_bcast
+    use abortutils    , only : endrun
+    use spmdMod       , only : masterproc, mpicom
+    use fileutils     , only : getavu, relavu, opnfil
+    use shr_nl_mod    , only : shr_nl_find_group_name
+    use shr_mpi_mod   , only : shr_mpi_bcast
+    use clm_varctl    , only : iulog
+    use shr_log_mod   , only : errMsg => shr_log_errMsg
+    !
+    ! ARGUMENTS:
+    implicit none
+    class(canopystate_type)      :: this
+    character(len=*), intent(IN) :: NLFilename ! Namelist filename
+    ! LOCAL VARIABLES:
+    integer :: ierr                 ! error code
+    integer :: unitn                ! unit for namelist file
+    real(r8) :: leaf_mr_vcm         ! Scalar of leaf respiration to vcmax
+    character(len=32) :: subname = 'CanopyStateType::ReadNML'  ! subroutine name
+    !-----------------------------------------------------------------------
+    namelist / clm_canopy_inparm / leaf_mr_vcm
+
+    ! ----------------------------------------------------------------------
+    ! Read namelist from input namelist filename
+    ! ----------------------------------------------------------------------
+
+    if ( masterproc )then
+
+       unitn = getavu()
+       write(iulog,*) 'Read in clm_canopy_inparm  namelist'
+       call opnfil (NLFilename, unitn, 'F')
+       call shr_nl_find_group_name(unitn, 'clm_canopy_inparm', status=ierr)
+       if (ierr == 0) then
+          read(unitn, clm_canopy_inparm, iostat=ierr)
+          if (ierr /= 0) then
+             call endrun(msg="ERROR reading clm_canopy_inparm namelist"//errmsg(sourcefile, __LINE__))
+          end if
+       else
+          call endrun(msg="ERROR finding clm_canopy_inparm namelist"//errmsg(sourcefile, __LINE__))
+       end if
+       call relavu( unitn )
+
+    end if
+
+    ! Broadcast namelist variables read in
+    call shr_mpi_bcast(leaf_mr_vcm, mpicom)
+    this%leaf_mr_vcm = leaf_mr_vcm
+
+  end subroutine ReadNML
 
   !-----------------------------------------------------------------------
   subroutine UpdateAccVars (this, bounds)
@@ -395,7 +472,7 @@ contains
     allocate(rbufslp(begp:endp), stat=ier)
     if (ier/=0) then
        write(iulog,*)'update_accum_hist allocation error for rbuf1dp'
-       call endrun(msg=errMsg(__FILE__, __LINE__))
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
 
     ! Accumulate and extract fsun24 & fsun240   
@@ -440,6 +517,9 @@ contains
        this%htop_patch(p)       = 0._r8
        this%hbot_patch(p)       = 0._r8
        this%dewmx_patch(p)      = 0.1_r8
+       if ( use_hydrstress ) then
+          this%vegwp_patch(p,:) = -2.5e4_r8
+       end if
 
        if (lun%itype(l) == istsoil .or. lun%itype(l) == istcrop) then
           this%laisun_patch(p) = 0._r8
@@ -531,7 +611,7 @@ contains
        end do
     end if
 
-    if (use_cn) then
+    if (use_cn .or. use_ed) then
        call restartvar(ncid=ncid, flag=flag, varname='altmax', xtype=ncd_double,  &
             dim1name='column', long_name='', units='', &
             interpinic_flag='interp', readvar=readvar, data=this%altmax_col) 
@@ -547,6 +627,14 @@ contains
        call restartvar(ncid=ncid, flag=flag, varname='altmax_lastyear_indx', xtype=ncd_int,  &
             dim1name='column', long_name='', units='', &
             interpinic_flag='interp', readvar=readvar, data=this%altmax_lastyear_indx_col) 
+    end if
+
+    if ( use_hydrstress ) then
+       call restartvar(ncid=ncid, flag=flag, varname='vegwp', xtype=ncd_double,  &
+            dim1name='pft', dim2name='vegwcs', switchdim=.true., &
+            long_name='vegetation water matric potential', units='mm', &
+            interpinic_flag='interp', readvar=readvar, data=this%vegwp_patch) 
+
     end if
 
   end subroutine Restart

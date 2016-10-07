@@ -7,8 +7,8 @@ module TemperatureType
   use shr_log_mod     , only : errMsg => shr_log_errMsg
   use decompMod       , only : bounds_type
   use abortutils      , only : endrun
-  use clm_varctl      , only : use_cndv, iulog ,use_luna
-  use clm_varpar      , only : nlevsno, nlevgrnd, nlevlak, nlevlak, nlevurb, crop_prog 
+  use clm_varctl      , only : use_cndv, iulog, use_luna, use_crop
+  use clm_varpar      , only : nlevsno, nlevgrnd, nlevlak, nlevlak, nlevurb
   use clm_varcon      , only : spval, ispval
   use GridcellType    , only : grc
   use LandunitType    , only : lun                
@@ -122,6 +122,9 @@ module TemperatureType
      procedure, public  :: UpdateAccVars
 
   end type temperature_type
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !------------------------------------------------------------------------
 
 contains
@@ -394,7 +397,7 @@ contains
          avgflag='A', long_name='soil temperature in top 10cm of soil', &
          ptr_col=this%t_soi10cm_col, set_urb=spval)
 
-    if (use_cndv .or. crop_prog) then
+    if (use_cndv .or. use_crop) then
        active = "active"
     else
        active = "inactive"
@@ -404,14 +407,14 @@ contains
          avgflag='A', long_name='10-day running mean of 2-m temperature', &
          ptr_patch=this%t_a10_patch, default=active)
 
-    if (use_cn .and.  crop_prog )then
+    if (use_cn .and.  use_crop )then
        this%t_a5min_patch(begp:endp) = spval
        call hist_addfld1d (fname='A5TMIN', units='K',  &
             avgflag='A', long_name='5-day running mean of min 2-m temperature', &
             ptr_patch=this%t_a5min_patch, default='inactive')
     end if
 
-    if (use_cn .and. crop_prog )then
+    if (use_cn .and. use_crop )then
        this%t_a10min_patch(begp:endp) = spval
        call hist_addfld1d (fname='A10TMIN', units='K',  &
             avgflag='A', long_name='10-day running mean of min 2-m temperature', &
@@ -520,14 +523,14 @@ contains
          avgflag='A', long_name='vegetation temperature (last 240hrs)', &
          ptr_patch=this%t_veg240_patch, default='inactive')
 
-    if (crop_prog) then
+    if (use_crop) then
        this%gdd0_patch(begp:endp) = spval
        call hist_addfld1d (fname='GDD0', units='ddays', &
             avgflag='A', long_name='Growing degree days base  0C from planting', &
             ptr_patch=this%gdd0_patch, default='inactive')
     end if
 
-    if (crop_prog) then
+    if (use_crop) then
        this%gdd8_patch(begp:endp) = spval
        call hist_addfld1d (fname='GDD8', units='ddays', &
             avgflag='A', long_name='Growing degree days base  8C from planting', &
@@ -601,10 +604,10 @@ contains
     integer  :: lev
     !-----------------------------------------------------------------------
 
-    SHR_ASSERT_ALL((ubound(em_roof_lun)    == (/bounds%endl/)), errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(em_wall_lun)    == (/bounds%endl/)), errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(em_improad_lun) == (/bounds%endl/)), errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(em_perroad_lun) == (/bounds%endl/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(em_roof_lun)    == (/bounds%endl/)), errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(em_wall_lun)    == (/bounds%endl/)), errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(em_improad_lun) == (/bounds%endl/)), errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(em_perroad_lun) == (/bounds%endl/)), errMsg(sourcefile, __LINE__))
 
     associate(snl => col%snl) ! Output: [integer (:)    ]  number of snow layers   
 
@@ -860,7 +863,7 @@ contains
          dim1name='pft', &
          long_name='2m height surface air temperature', units='K', &
          interpinic_flag='interp', readvar=readvar, data=this%t_ref2m_patch)
-    if (flag=='read' .and. .not. readvar) call endrun(msg=errMsg(__FILE__, __LINE__))
+    if (flag=='read' .and. .not. readvar) call endrun(msg=errMsg(sourcefile, __LINE__))
 
     call restartvar(ncid=ncid, flag=flag, varname="T_REF2M_R", xtype=ncd_double,  &
          dim1name='pft', &
@@ -932,7 +935,7 @@ contains
          long_name='urban canopy air temperature', units='K',                                                         &
          interpinic_flag='interp', readvar=readvar, data=this%taf_lun)
 
-    if (crop_prog) then
+    if (use_crop) then
        call restartvar(ncid=ncid, flag=flag,  varname='gdd1020', xtype=ncd_double,  &
             dim1name='pft', long_name='20 year average of growing degree-days base 10C from planting', units='ddays', &
             interpinic_flag='interp', readvar=readvar, data=this%gdd1020_patch)
@@ -1096,7 +1099,7 @@ contains
          desc='10-day running mean of 2-m temperature', accum_type='runmean', accum_period=-10, &
          subgrid_type='pft', numlev=1,init_value=SHR_CONST_TKFRZ+20._r8)
 
-    if ( crop_prog )then
+    if ( use_crop )then
        call init_accum_field (name='TDM10', units='K', &
             desc='10-day running mean of min 2-m temperature', accum_type='runmean', accum_period=-10, &
             subgrid_type='pft', numlev=1, init_value=SHR_CONST_TKFRZ)
@@ -1106,7 +1109,7 @@ contains
             subgrid_type='pft', numlev=1, init_value=SHR_CONST_TKFRZ)
     end if
 
-    if ( crop_prog )then
+    if ( use_crop )then
 
        ! All GDD summations are relative to the planting date (Kucharik & Brye 2003)
        call init_accum_field (name='GDD0', units='K', &
@@ -1166,7 +1169,7 @@ contains
     if (ier/=0) then
        write(iulog,*)' in '
        call endrun(msg="extract_accum_hist allocation error for rbufslp"//&
-            errMsg(__FILE__, __LINE__))
+            errMsg(sourcefile, __LINE__))
     endif
 
     ! Determine time step
@@ -1181,7 +1184,7 @@ contains
     call extract_accum_field ('T10', rbufslp, nstep)
     this%t_a10_patch(begp:endp) = rbufslp(begp:endp)
 
-    if (crop_prog) then
+    if (use_crop) then
        call extract_accum_field ('TDM10', rbufslp, nstep) 
        this%t_a10min_patch(begp:endp)= rbufslp(begp:endp)
 
@@ -1210,7 +1213,7 @@ contains
        this%t_ref2m_min_inst_u_patch(begp:endp) =  spval
     end if
 
-    if ( crop_prog ) then
+    if ( use_crop ) then
 
        call extract_accum_field ('GDD0', rbufslp, nstep)
        this%gdd0_patch(begp:endp) = rbufslp(begp:endp)
@@ -1265,7 +1268,7 @@ contains
     allocate(rbufslp(begp:endp), stat=ier)
     if (ier/=0) then
        write(iulog,*)'update_accum_hist allocation error for rbuf1dp'
-       call endrun(msg=errMsg(__FILE__, __LINE__))
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
 
     ! Accumulate and extract T_VEG24 & T_VEG240 
@@ -1362,7 +1365,7 @@ contains
     call update_accum_field  ('T10', this%t_ref2m_patch, nstep)
     call extract_accum_field ('T10', this%t_a10_patch, nstep)
 
-    if ( crop_prog )then
+    if ( use_crop )then
        ! Accumulate and extract TDM10
 
        do p = begp,endp

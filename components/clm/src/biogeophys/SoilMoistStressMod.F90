@@ -30,6 +30,9 @@ module SoilMoistStressMod
   integer, parameter :: moist_stress_clm_default  = 0  !default method for calculating root moisture stress
   logical,  private :: perchroot     = .false.  ! true => btran is based only on unfrozen soil levels
   logical,  private :: perchroot_alt = .false.  ! true => btran is based on active layer (defined over two years); 
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !--------------------------------------------------------------------------------
 
 contains
@@ -93,9 +96,9 @@ contains
     !------------------------------------------------------------------------------
 
     ! Enforce expected array sizes
-    SHR_ASSERT_ALL((ubound(watsat)     == (/bounds%endc, ubj/)), errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(h2osoi_ice) == (/bounds%endc, ubj/)), errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(eff_por)    == (/bounds%endc, ubj/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(watsat)     == (/bounds%endc, ubj/)), errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(h2osoi_ice) == (/bounds%endc, ubj/)), errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(eff_por)    == (/bounds%endc, ubj/)), errMsg(sourcefile, __LINE__))
 
     !main calculation loop
     !it assumes the soil layers start from 1
@@ -144,9 +147,9 @@ contains
     ubj = 0
 
     ! Enforce expected array sizes
-    SHR_ASSERT_ALL((ubound(jtop)       == (/bounds%endc/))     , errMsg(__FILE__, __LINE__)) 
-    SHR_ASSERT_ALL((ubound(h2osoi_ice) == (/bounds%endc, ubj/)), errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(eff_por)    == (/bounds%endc,0/))   , errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(jtop)       == (/bounds%endc/))     , errMsg(sourcefile, __LINE__)) 
+    SHR_ASSERT_ALL((ubound(h2osoi_ice) == (/bounds%endc, ubj/)), errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(eff_por)    == (/bounds%endc,0/))   , errMsg(sourcefile, __LINE__))
 
     !main calculation loop
 
@@ -197,16 +200,17 @@ contains
     !------------------------------------------------------------------------------
 
     ! Enforce expected array sizes  
-    SHR_ASSERT_ALL((ubound(jtop)         == (/bounds%endc/))     , errMsg(__FILE__, __LINE__)) 
-    SHR_ASSERT_ALL((ubound(h2osoi_liq)   == (/bounds%endc, ubj/)), errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(eff_porosity) == (/bounds%endc, ubj/)), errMsg(__FILE__, __LINE__))
-    SHR_ASSERT_ALL((ubound(vol_liq)      == (/bounds%endc, ubj/)), errMsg(__FILE__, __LINE__))  
+    SHR_ASSERT_ALL((ubound(jtop)         == (/bounds%endc/))     , errMsg(sourcefile, __LINE__)) 
+    SHR_ASSERT_ALL((ubound(h2osoi_liq)   == (/bounds%endc, ubj/)), errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(eff_porosity) == (/bounds%endc, ubj/)), errMsg(sourcefile, __LINE__))
+    SHR_ASSERT_ALL((ubound(vol_liq)      == (/bounds%endc, ubj/)), errMsg(sourcefile, __LINE__))  
 
     !main calculation loop
     do j = lbj, ubj
        do fc = 1, numf
           c = filter(fc)
           if(j>=jtop(c))then
+             
              !volume of liquid is no greater than effective void space
              vol_liq(c,j) = min(eff_porosity(c,j), h2osoi_liq(c,j)/(col%dz(c,j)*denh2o))
           endif
@@ -330,6 +334,7 @@ contains
     use WaterSTateType       , only : waterstate_type
     use SoilWaterRetentionCurveMod, only : soil_water_retention_curve_type
     use PatchType            , only : patch
+    use clm_varctl           , only : iulog, use_hydrstress
     !
     ! !ARGUMENTS:
     implicit none
@@ -352,7 +357,7 @@ contains
     !------------------------------------------------------------------------------
 
     ! Enforce expected array sizes   
-    SHR_ASSERT_ALL((ubound(rootfr_unf) == (/bounds%endp, nlevgrnd/)), errMsg(__FILE__, __LINE__))  
+    SHR_ASSERT_ALL((ubound(rootfr_unf) == (/bounds%endp, nlevgrnd/)), errMsg(sourcefile, __LINE__))  
 
     associate(                                                &
          smpso         => pftcon%smpso                      , & ! Input:  soil water potential at full stomatal opening (mm)                    
@@ -389,7 +394,10 @@ contains
                s_node = max(h2osoi_liqvol(c,j)/eff_porosity(c,j),0.01_r8)
 
                !smp_node = max(smpsc(patch%itype(p)), -sucsat(c,j)*s_node**(-bsw(c,j)))
-               call soil_water_retention_curve%soil_suction(sucsat(c,j), s_node, bsw(c,j), smp_node)
+!               call soil_water_retention_curve%soil_suction(sucsat(c,j), s_node, bsw(c,j), smp_node)
+!scs
+               call soil_water_retention_curve%soil_suction(c, j, s_node, soilstate_inst, smp_node)
+!scs
                smp_node = max(smpsc(patch%itype(p)), smp_node)
 
                rresis(p,j) = min( (eff_porosity(c,j)/watsat(c,j))* &
@@ -403,12 +411,17 @@ contains
                end if
 
                !it is possible to further separate out a btran function, but I will leave it for the moment, jyt
-               btran(p)    = btran(p) + max(rootr(p,j),0._r8)
+               if ( .not.(use_hydrstress) ) then
+                  btran(p)    = btran(p) + max(rootr(p,j),0._r8)
+               end if
 
                !smp_node_lf = max(smpsc(patch%itype(p)), -sucsat(c,j)*(h2osoi_vol(c,j)/watsat(c,j))**(-bsw(c,j)))
                s_node = h2osoi_vol(c,j)/watsat(c,j)
 
-               call soil_water_retention_curve%soil_suction(sucsat(c,j), s_node, bsw(c,j), smp_node_lf)
+!               call soil_water_retention_curve%soil_suction(sucsat(c,j), s_node, bsw(c,j), smp_node_lf)
+!scs
+               call soil_water_retention_curve%soil_suction(c, j, s_node, soilstate_inst, smp_node_lf)
+!scs
 
                !smp_node_lf =  -sucsat(c,j)*(h2osoi_vol(c,j)/watsat(c,j))**(-bsw(c,j))
                smp_node_lf = max(smpsc(patch%itype(p)), smp_node_lf) 

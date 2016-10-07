@@ -91,19 +91,20 @@ contains
     ! Accumulate solid runoff (calving)
     !--------------------------------------------------------------------
                        
-    ! Note on units: model%climate%calving has dimensionless ice thickness units
+    ! Note on units: model%calving%calving_thck has dimensionless ice thickness units
     !                Multiply by thk0 to convert to meters of ice
     !                Multiply by rhoi to convert to kg/m^2 water equiv.
     !                Divide by (dt*tim0) to convert to kg/m^2/s
 
     ! Convert to kg/m^2/s
     output_fluxes%rofi_sum(:,:) = output_fluxes%rofi_sum(:,:)  &
-         + model%climate%calving(:,:) * thk0 * rhoi / (model%numerics%dt * tim0)
+         + model%calving%calving_thck(:,:) * thk0 * rhoi / (model%numerics%dt * tim0)
 
     !--------------------------------------------------------------------
     ! Accumulate liquid runoff (basal melting)
+    ! Note: This is basal melting for grounded ice only.
+    !       Basal melting for floating ice will typically be an input from the coupler, not an output.
     !--------------------------------------------------------------------
-    !TODO - Add internal melting for enthalpy case
                        
     ! Note on units: model%temper%bmlt has dimensionless units of ice thickness per unit time
     !                Multiply by thk0/tim0 to convert to meters ice per second
@@ -111,7 +112,7 @@ contains
 
     ! Convert to kg/m^2/s
     output_fluxes%rofl_sum(:,:) = output_fluxes%rofl_sum(:,:)  &
-         + model%temper%bmlt(:,:) * thk0/tim0 * rhoi
+         + model%temper%bmlt_ground(:,:) * thk0/tim0 * rhoi
 
     !--------------------------------------------------------------------
     ! Accumulate basal heat flux

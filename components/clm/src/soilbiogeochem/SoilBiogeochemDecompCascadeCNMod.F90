@@ -11,7 +11,7 @@ module SoilBiogeochemDecompCascadeCNMod
   use shr_log_mod                        , only : errMsg => shr_log_errMsg
   use clm_varpar                         , only : nlevsoi, nlevgrnd, nlevdecomp, ndecomp_cascade_transitions, ndecomp_pools
   use clm_varpar                         , only : i_met_lit, i_cel_lit, i_lig_lit, i_cwd
-  use clm_varctl                         , only : iulog, spinup_state, anoxia, use_lch4, use_vertsoilc
+  use clm_varctl                         , only : iulog, spinup_state, anoxia, use_lch4, use_vertsoilc, use_ed
   use clm_varcon                         , only : zsoi
   use decompMod                          , only : bounds_type
   use abortutils                         , only : endrun
@@ -24,6 +24,7 @@ module SoilBiogeochemDecompCascadeCNMod
   use TemperatureType                    , only : temperature_type 
   use ch4Mod                             , only : ch4_type
   use ColumnType                         , only : col                
+  use EDCLMLinkMod                       , only : cwd_fcel_ed, cwd_flig_ed
   !
   implicit none
   private
@@ -59,6 +60,7 @@ module SoilBiogeochemDecompCascadeCNMod
 
      real(r8) :: k_frag_cn      !fragmentation rate for CWD
      real(r8) :: minpsi_cn      !minimum soil water potential for heterotrophic resp
+     real(r8) :: maxpsi_cn      !maximum soil water potential for heterotrophic resp
 
      integer  :: nsompools = 4 
      real(r8), allocatable :: spinup_vector(:) ! multipliers for soil decomp during accelerated spinup
@@ -66,6 +68,9 @@ module SoilBiogeochemDecompCascadeCNMod
   end type params_type
   !
   type(params_type), private :: params_inst
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !-----------------------------------------------------------------------
 
 contains
@@ -102,108 +107,118 @@ contains
     ! Read off of netcdf file
     tString='cn_s1'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%cn_s1_cn=tempr
 
     tString='cn_s2'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%cn_s2_cn=tempr
 
     tString='cn_s3'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%cn_s3_cn=tempr
 
     tString='cn_s4'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%cn_s4_cn=tempr
 
     tString='rf_l1s1'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%rf_l1s1_cn=tempr
 
     tString='rf_l2s2'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%rf_l2s2_cn=tempr
 
     tString='rf_l3s3'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%rf_l3s3_cn=tempr
 
     tString='rf_s1s2'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%rf_s1s2_cn=tempr
 
     tString='rf_s2s3'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%rf_s2s3_cn=tempr
 
     tString='rf_s3s4'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%rf_s3s4_cn=tempr
 
     tString='cwd_fcel'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%cwd_fcel_cn=tempr
 
     tString='k_l1'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%k_l1_cn=tempr
 
     tString='k_l2'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%k_l2_cn=tempr
 
     tString='k_l3'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%k_l3_cn=tempr
 
     tString='k_s1'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%k_s1_cn=tempr
 
     tString='k_s2'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%k_s2_cn=tempr
 
     tString='k_s3'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%k_s3_cn=tempr
 
     tString='k_s4'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%k_s4_cn=tempr
 
     tString='k_frag'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%k_frag_cn=tempr
 
     tString='minpsi_hr'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%minpsi_cn=tempr 
+
+    tString='maxpsi_hr'
+    call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
+    params_inst%maxpsi_cn=tempr 
 
     tString='cwd_flig'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%cwd_flig_cn=tempr
+
+    if ( use_ed ) then
+       cwd_fcel_ed = params_inst%cwd_fcel_cn
+       cwd_flig_ed = params_inst%cwd_flig_cn
+    endif
 
   end subroutine readParams
 
@@ -342,21 +357,27 @@ contains
       is_cellulose(i_litr3) = .false.
       is_lignin(i_litr3) = .true.
 
-      floating_cn_ratio_decomp_pools(i_cwd) = .true.
-      decomp_pool_name_restart(i_cwd) = 'cwd'
-      decomp_pool_name_history(i_cwd) = 'CWD'
-      decomp_pool_name_long(i_cwd) = 'coarse woody debris'
-      decomp_pool_name_short(i_cwd) = 'CWD'
-      is_litter(i_cwd) = .false.
-      is_soil(i_cwd) = .false.
-      is_cwd(i_cwd) = .true.
-      initial_cn_ratio(i_cwd) = 500._r8
-      initial_stock(i_cwd) = 0._r8
-      is_metabolic(i_cwd) = .false.
-      is_cellulose(i_cwd) = .false.
-      is_lignin(i_cwd) = .false.
+      if (.not. use_ed) then
+         floating_cn_ratio_decomp_pools(i_cwd) = .true.
+         decomp_pool_name_restart(i_cwd) = 'cwd'
+         decomp_pool_name_history(i_cwd) = 'CWD'
+         decomp_pool_name_long(i_cwd) = 'coarse woody debris'
+         decomp_pool_name_short(i_cwd) = 'CWD'
+         is_litter(i_cwd) = .false.
+         is_soil(i_cwd) = .false.
+         is_cwd(i_cwd) = .true.
+         initial_cn_ratio(i_cwd) = 500._r8
+         initial_stock(i_cwd) = 0._r8
+         is_metabolic(i_cwd) = .false.
+         is_cellulose(i_cwd) = .false.
+         is_lignin(i_cwd) = .false.
+      end if
 
-      i_soil1 = 5
+      if ( .not. use_ed ) then
+         i_soil1 = 5
+      else
+         i_soil1 = 4
+      endif
       floating_cn_ratio_decomp_pools(i_soil1) = .false.
       decomp_pool_name_restart(i_soil1) = 'soil1'
       decomp_pool_name_history(i_soil1) = 'SOIL1'
@@ -371,7 +392,11 @@ contains
       is_cellulose(i_soil1) = .false.
       is_lignin(i_soil1) = .false.
 
-      i_soil2 = 6
+      if ( .not. use_ed ) then
+         i_soil2 = 6
+      else
+         i_soil2 = 5
+      endif
       floating_cn_ratio_decomp_pools(i_soil2) = .false.
       decomp_pool_name_restart(i_soil2) = 'soil2'
       decomp_pool_name_history(i_soil2) = 'SOIL2'
@@ -386,7 +411,11 @@ contains
       is_cellulose(i_soil2) = .false.
       is_lignin(i_soil2) = .false.
 
-      i_soil3 = 7
+      if ( .not. use_ed ) then
+         i_soil3 = 7
+      else
+         i_soil3 = 6
+      endif
       floating_cn_ratio_decomp_pools(i_soil3) = .false.
       decomp_pool_name_restart(i_soil3) = 'soil3'
       decomp_pool_name_history(i_soil3) = 'SOIL3'
@@ -401,7 +430,11 @@ contains
       is_cellulose(i_soil3) = .false.
       is_lignin(i_soil3) = .false.
 
-      i_soil4 = 8
+      if ( .not. use_ed ) then
+         i_soil4 = 8
+      else
+         i_soil4 = 7
+      endif
       floating_cn_ratio_decomp_pools(i_soil4) = .false.
       decomp_pool_name_restart(i_soil4) = 'soil4'
       decomp_pool_name_history(i_soil4) = 'SOIL4'
@@ -435,7 +468,9 @@ contains
       spinup_factor(i_litr1) = 1._r8
       spinup_factor(i_litr2) = 1._r8
       spinup_factor(i_litr3) = 1._r8
-      spinup_factor(i_cwd) = 1._r8
+      if (.not. use_ed) then
+         spinup_factor(i_cwd) = 1._r8
+      end if
       spinup_factor(i_soil1) = params_inst%spinup_vector(1)
       spinup_factor(i_soil2) = params_inst%spinup_vector(2)
       spinup_factor(i_soil3) = params_inst%spinup_vector(3)
@@ -492,20 +527,21 @@ contains
       cascade_receiver_pool(i_s4atm) = i_atm
       pathfrac_decomp_cascade(bounds%begc:bounds%endc,1:nlevdecomp,i_s4atm) = 1.0_r8
 
-      i_cwdl2 = 8
-      cascade_step_name(i_cwdl2) = 'CWDL2'
-      rf_decomp_cascade(bounds%begc:bounds%endc,1:nlevdecomp,i_cwdl2) = 0._r8
-      cascade_donor_pool(i_cwdl2) = i_cwd
-      cascade_receiver_pool(i_cwdl2) = i_litr2
-      pathfrac_decomp_cascade(bounds%begc:bounds%endc,1:nlevdecomp,i_cwdl2) = cwd_fcel
-
-      i_cwdl3 = 9
-      cascade_step_name(i_cwdl3) = 'CWDL3'
-      rf_decomp_cascade(bounds%begc:bounds%endc,1:nlevdecomp,i_cwdl3) = 0._r8
-      cascade_donor_pool(i_cwdl3) = i_cwd
-      cascade_receiver_pool(i_cwdl3) = i_litr3
-      pathfrac_decomp_cascade(bounds%begc:bounds%endc,1:nlevdecomp,i_cwdl3) = cwd_flig
-
+      if (.not. use_ed) then
+         i_cwdl2 = 8
+         cascade_step_name(i_cwdl2) = 'CWDL2'
+         rf_decomp_cascade(bounds%begc:bounds%endc,1:nlevdecomp,i_cwdl2) = 0._r8
+         cascade_donor_pool(i_cwdl2) = i_cwd
+         cascade_receiver_pool(i_cwdl2) = i_litr2
+         pathfrac_decomp_cascade(bounds%begc:bounds%endc,1:nlevdecomp,i_cwdl2) = cwd_fcel
+         
+         i_cwdl3 = 9
+         cascade_step_name(i_cwdl3) = 'CWDL3'
+         rf_decomp_cascade(bounds%begc:bounds%endc,1:nlevdecomp,i_cwdl3) = 0._r8
+         cascade_donor_pool(i_cwdl3) = i_cwd
+         cascade_receiver_pool(i_cwdl3) = i_litr3
+         pathfrac_decomp_cascade(bounds%begc:bounds%endc,1:nlevdecomp,i_cwdl3) = cwd_flig
+      end if
 
     end associate
 
@@ -581,7 +617,6 @@ contains
      associate(                                                           &
           dz             => col%dz                                      , & ! Input:  [real(r8) (:,:)   ]  soil layer thickness (m)                               
 
-          sucsat         => soilstate_inst%sucsat_col                   , & ! Input:  [real(r8) (:,:)   ]  minimum soil suction (mm)                              
           soilpsi        => soilstate_inst%soilpsi_col                  , & ! Input:  [real(r8) (:,:)   ]  soil water potential in each soil layer (MPa)          
 
           alt_indx       => canopystate_inst%alt_indx_col               , & ! Input:  [integer  (:)     ]  current depth of thaw                                     
@@ -634,6 +669,7 @@ contains
        k_frag = 1.0_r8-exp(-k_frag*dtd)
 
        minpsi = params_inst%minpsi_cn
+       maxpsi = params_inst%maxpsi_cn
 
        Q10 = CNParamsShareInst%Q10
 
@@ -658,11 +694,17 @@ contains
        i_litr1 = 1
        i_litr2 = 2
        i_litr3 = 3
-       i_soil1 = 5
-       i_soil2 = 6
-       i_soil3 = 7
-       i_soil4 = 8
-
+       if (use_ed) then
+          i_soil1 = 4
+          i_soil2 = 5
+          i_soil3 = 6
+          i_soil4 = 7
+       else
+          i_soil1 = 5
+          i_soil2 = 6
+          i_soil3 = 7
+          i_soil4 = 8
+       endif
 
        !--- time dependent coefficients-----!
        if ( nlevdecomp .eq. 1 ) then
@@ -729,7 +771,6 @@ contains
              do fc = 1,num_soilc
                 c = filter_soilc(fc)
                 if (j==1) w_scalar(c,:) = 0._r8
-                maxpsi = sucsat(c,j) * (-9.8e-6_r8)
                 psi = min(soilpsi(c,j),maxpsi)
                 ! decomp only if soilpsi is higher than minpsi
                 if (psi > minpsi) then
@@ -814,7 +855,6 @@ contains
           do j = 1,nlevdecomp
              do fc = 1,num_soilc
                 c = filter_soilc(fc)
-                maxpsi = sucsat(c,j) * (-9.8e-6_r8)
                 psi = min(soilpsi(c,j),maxpsi)
                 ! decomp only if soilpsi is higher than minpsi
                 if (psi > minpsi) then
@@ -867,6 +907,7 @@ contains
           end do
        end if
 
+      ! calculate rate constants for all litter and som pools
        if (use_vertsoilc) then
           do j = 1,nlevdecomp
              do fc = 1,num_soilc
@@ -874,7 +915,6 @@ contains
                 decomp_k(c,j,i_litr1) = k_l1 * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j) / dt
                 decomp_k(c,j,i_litr2) = k_l2 * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j) / dt
                 decomp_k(c,j,i_litr3) = k_l3 * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j) / dt
-                decomp_k(c,j,i_cwd) = k_frag * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j) / dt
                 decomp_k(c,j,i_soil1) = k_s1 * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j) / dt
                 decomp_k(c,j,i_soil2) = k_s2 * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j) / dt
                 decomp_k(c,j,i_soil3) = k_s3 * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j) / dt
@@ -888,13 +928,31 @@ contains
                 decomp_k(c,j,i_litr1) = k_l1 * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j) / dt
                 decomp_k(c,j,i_litr2) = k_l2 * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j) / dt
                 decomp_k(c,j,i_litr3) = k_l3 * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j) / dt
-                decomp_k(c,j,i_cwd) = k_frag * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j) / dt
                 decomp_k(c,j,i_soil1) = k_s1 * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j) / dt
                 decomp_k(c,j,i_soil2) = k_s2 * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j) / dt
                 decomp_k(c,j,i_soil3) = k_s3 * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j) / dt
                 decomp_k(c,j,i_soil4) = k_s4 * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j) / dt
              end do
           end do
+       end if
+
+      ! do the same for cwd, but only if ed is not enabled (because ED handles CWD on its own structure
+       if (.not. use_ed) then
+          if (use_vertsoilc) then
+             do j = 1,nlevdecomp
+                do fc = 1,num_soilc
+                   c = filter_soilc(fc)
+                   decomp_k(c,j,i_cwd) = k_frag * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j) / dt
+                end do
+             end do
+          else
+             do j = 1,nlevdecomp
+                do fc = 1,num_soilc
+                   c = filter_soilc(fc)
+                   decomp_k(c,j,i_cwd) = k_frag * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j) / dt
+                end do
+             end do
+          end if
        end if
 
      end associate

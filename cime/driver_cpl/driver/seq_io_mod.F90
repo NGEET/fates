@@ -34,7 +34,7 @@ module seq_io_mod
 
   ! !USES:
 
-  use shr_kind_mod, only: r8 => shr_kind_r8, in => shr_kind_in
+  use shr_kind_mod, only: r4 => shr_kind_r4, r8 => shr_kind_r8, in => shr_kind_in
   use shr_kind_mod, only: cl => shr_kind_cl, cs => shr_kind_cs
   use shr_sys_mod       ! system calls
   use seq_comm_mct
@@ -395,7 +395,7 @@ end function seq_io_sec2hms
     integer(in),pointer :: dimid(:)
     type(var_desc_t) :: varid
     type(io_desc_t) :: iodesc
-    integer(kind=Pio_Offset_Kind) :: frame=-1
+    integer(kind=Pio_Offset_Kind) :: frame
     type(mct_string) :: mstring     ! mct char type
     character(CL)    :: itemc       ! string converted to char
     character(CL)    :: name1       ! var name
@@ -411,6 +411,8 @@ end function seq_io_sec2hms
     character(*),parameter :: subName = '(seq_io_write_av) '
     integer :: lbnum
     integer, pointer :: Dof(:)
+
+    real(r8), allocatable :: tmpdata(:)
 
     !-------------------------------------------------------------------------------
     !
@@ -450,7 +452,7 @@ end function seq_io_sec2hms
        write(logunit,*) subname,' ERROR: nf = ',nf,trim(dname)
        call shr_sys_abort()
     endif
-
+    frame = -1
     if (present(nt)) then
        frame = nt
     endif
@@ -481,14 +483,17 @@ end function seq_io_sec2hms
           call mct_aVect_getRList(mstring,k,AV)
           itemc = mct_string_toChar(mstring)
           call mct_string_clean(mstring)
+!-------tcraig, this is a temporary mod to NOT write hgt
+        if (trim(itemc) /= "hgt") then
           name1 = trim(lpre)//'_'//trim(itemc)
           call seq_flds_lookup(itemc,longname=lname,stdname=sname,units=cunit)
 	  if (luse_float) then 
              rcode = pio_def_var(cpl_io_file,trim(name1),PIO_REAL,dimid,varid)
+             rcode = pio_put_att(cpl_io_file,varid,"_FillValue",real(lfillvalue,r4))
           else
              rcode = pio_def_var(cpl_io_file,trim(name1),PIO_DOUBLE,dimid,varid)
+             rcode = pio_put_att(cpl_io_file,varid,"_FillValue",lfillvalue)
           end if
-          rcode = pio_put_att(cpl_io_file,varid,"_FillValue",lfillvalue)
           rcode = pio_put_att(cpl_io_file,varid,"units",trim(cunit))
           rcode = pio_put_att(cpl_io_file,varid,"long_name",trim(lname))
           rcode = pio_put_att(cpl_io_file,varid,"standard_name",trim(sname))
@@ -498,6 +503,8 @@ end function seq_io_sec2hms
                 rcode = pio_put_att(cpl_io_file,varid,"cell_methods","time: mean")
              endif
           endif
+!-------tcraig
+        endif
        enddo
        if (lwdata) call seq_io_enddef(filename)
     end if
@@ -505,18 +512,24 @@ end function seq_io_sec2hms
     if (lwdata) then
        call mct_gsmap_OrderedPoints(gsmap, iam, Dof)
        call pio_initdecomp(cpl_io_subsystem, pio_double, (/lnx,lny/), dof, iodesc)
+       ns = size(dof)
        deallocate(dof)
-
+       allocate(tmpdata(ns))
        do k = 1,nf
           call mct_aVect_getRList(mstring,k,AV)
           itemc = mct_string_toChar(mstring)
           call mct_string_clean(mstring)
+!-------tcraig, this is a temporary mod to NOT write hgt
+        if (trim(itemc) /= "hgt") then
           name1 = trim(lpre)//'_'//trim(itemc)
           rcode = pio_inq_varid(cpl_io_file,trim(name1),varid)
           call pio_setframe(cpl_io_file,varid,frame)
-          call pio_write_darray(cpl_io_file, varid, iodesc, av%rattr(k,:), rcode, fillval=lfillvalue)
+          tmpdata = av%rattr(k,:)
+          call pio_write_darray(cpl_io_file, varid, iodesc, tmpdata, rcode, fillval=lfillvalue)
+!-------tcraig
+        endif
        enddo
-
+       deallocate(tmpdata)
        call pio_freedecomp(cpl_io_file, iodesc)
 
     end if
@@ -567,7 +580,7 @@ end function seq_io_sec2hms
     integer(in),pointer :: dimid(:)
     type(var_desc_t) :: varid
     type(io_desc_t) :: iodesc
-    integer(kind=Pio_Offset_Kind) :: frame=-1
+    integer(kind=Pio_Offset_Kind) :: frame
     type(mct_string) :: mstring     ! mct char type
     character(CL)    :: itemc       ! string converted to char
     character(CL)    :: name1       ! var name
@@ -627,6 +640,7 @@ end function seq_io_sec2hms
        write(logunit,*) subname,' ERROR: nf = ',nf,trim(dname)
        call shr_sys_abort()
     endif
+    frame = -1
     if (present(nt)) then
        frame = nt
     endif
@@ -671,14 +685,17 @@ end function seq_io_sec2hms
           call mct_aVect_getRList(mstring,k,AVS(1))
           itemc = mct_string_toChar(mstring)
           call mct_string_clean(mstring)
+!-------tcraig, this is a temporary mod to NOT write hgt
+        if (trim(itemc) /= "hgt") then
           name1 = trim(lpre)//'_'//trim(itemc)
           call seq_flds_lookup(itemc,longname=lname,stdname=sname,units=cunit)
 	  if (luse_float) then 
              rcode = pio_def_var(cpl_io_file,trim(name1),PIO_REAL,dimid,varid)
+             rcode = pio_put_att(cpl_io_file,varid,"_FillValue",real(lfillvalue,r4))
           else
              rcode = pio_def_var(cpl_io_file,trim(name1),PIO_DOUBLE,dimid,varid)
+             rcode = pio_put_att(cpl_io_file,varid,"_FillValue",lfillvalue)
           end if
-          rcode = pio_put_att(cpl_io_file,varid,"_FillValue",lfillvalue)
           rcode = pio_put_att(cpl_io_file,varid,"units",trim(cunit))
           rcode = pio_put_att(cpl_io_file,varid,"long_name",trim(lname))
           rcode = pio_put_att(cpl_io_file,varid,"standard_name",trim(sname))
@@ -688,6 +705,8 @@ end function seq_io_sec2hms
                 rcode = pio_put_att(cpl_io_file,varid,"cell_methods","time: mean")
              endif
           endif
+!-------tcraig
+        endif
        enddo
        if (lwdata) call seq_io_enddef(filename)
     end if
@@ -700,10 +719,8 @@ end function seq_io_sec2hms
           allocate(dofn(ns*ni))
           n = 0
           do k1 = 1,ni
-          do k2 = 1,ns
-             n = n + 1
-             dofn(n) = (k1-1)*ng + dof(k2)
-          enddo
+             dofn(n+1:n+ns) = (k1-1)*ng + dof(:)
+             n = n + ns
           enddo
           call pio_initdecomp(cpl_io_subsystem, pio_double, (/lnx,lny,ni/), dofn, iodesc)
           deallocate(dofn)
@@ -716,18 +733,20 @@ end function seq_io_sec2hms
           call mct_aVect_getRList(mstring,k,AVS(1))
           itemc = mct_string_toChar(mstring)
           call mct_string_clean(mstring)
+!-------tcraig, this is a temporary mod to NOT write hgt
+        if (trim(itemc) /= "hgt") then
           name1 = trim(lpre)//'_'//trim(itemc)
           rcode = pio_inq_varid(cpl_io_file,trim(name1),varid)
           call pio_setframe(cpl_io_file,varid,frame)
           n = 0
           do k1 = 1,ni
-          do k2 = 1,ns
-             n = n + 1
-             data(n) = AVS(k1)%rAttr(k,k2)
+             data(n+1:n+ns) = AVS(k1)%rAttr(k,:)
+             n = n + ns
           enddo
-          enddo
-!          call pio_write_darray(cpl_io_file, varid, iodesc, av%rattr(k,:), rcode, fillval=lfillvalue)
-          call pio_write_darray(cpl_io_file, varid, iodesc, data, rcode, fillval=lfillvalue)
+         call pio_write_darray(cpl_io_file, varid, iodesc, data, rcode, fillval=lfillvalue)
+         call pio_setdebuglevel(0)
+!-------tcraig
+        endif
        enddo
 
        deallocate(data)
@@ -784,7 +803,7 @@ end function seq_io_sec2hms
     integer(in),pointer      :: dimid(:)
     type(var_desc_t)         :: varid
     type(io_desc_t)          :: iodesc
-    integer(kind=Pio_Offset_Kind) :: frame=-1
+    integer(kind=Pio_Offset_Kind) :: frame
     type(mct_string)         :: mstring     ! mct char type
     character(CL)            :: itemc       ! string converted to char
     character(CL)            :: name1       ! var name
@@ -821,6 +840,7 @@ end function seq_io_sec2hms
     lwdata = .true.
     if (present(whead)) lwhead = whead
     if (present(wdata)) lwdata = wdata
+    frame = -1
     if (present(nt)) then
        frame = nt
     endif
@@ -893,14 +913,17 @@ end function seq_io_sec2hms
           call mct_aVect_getRList(mstring,k,avcomp1)
           itemc = mct_string_toChar(mstring)
           call mct_string_clean(mstring)
+!-------tcraig, this is a temporary mod to NOT write hgt
+        if (trim(itemc) /= "hgt") then
           name1 = trim(lpre)//'_'//trim(itemc)
           call seq_flds_lookup(itemc,longname=lname,stdname=sname,units=cunit)
 	  if (luse_float) then 
              rcode = pio_def_var(cpl_io_file,trim(name1),PIO_REAL,dimid,varid)
+             rcode = pio_put_att(cpl_io_file,varid,"_FillValue",real(lfillvalue,r4))
           else
              rcode = pio_def_var(cpl_io_file,trim(name1),PIO_DOUBLE,dimid,varid)
+             rcode = pio_put_att(cpl_io_file,varid,"_FillValue",lfillvalue)
           end if
-          rcode = pio_put_att(cpl_io_file,varid,"_FillValue",lfillvalue)
           rcode = pio_put_att(cpl_io_file,varid,"units",trim(cunit))
           rcode = pio_put_att(cpl_io_file,varid,"long_name",trim(lname))
           rcode = pio_put_att(cpl_io_file,varid,"standard_name",trim(sname))
@@ -910,6 +933,8 @@ end function seq_io_sec2hms
                 rcode = pio_put_att(cpl_io_file,varid,"cell_methods","time: mean")
              endif
           endif
+!-------tcraig
+        endif
        enddo
        if (lwdata) call seq_io_enddef(filename)
     end if
@@ -938,6 +963,8 @@ end function seq_io_sec2hms
           call mct_aVect_getRList(mstring,k,avcomp1)
           itemc = mct_string_toChar(mstring)
           call mct_string_clean(mstring)
+!-------tcraig, this is a temporary mod to NOT write hgt
+        if (trim(itemc) /= "hgt") then
           name1 = trim(lpre)//'_'//trim(itemc)
           rcode = pio_inq_varid(cpl_io_file,trim(name1),varid)
           call pio_setframe(cpl_io_file,varid,frame)
@@ -951,6 +978,8 @@ end function seq_io_sec2hms
              enddo
           enddo
           call pio_write_darray(cpl_io_file, varid, iodesc, data, rcode, fillval=lfillvalue)
+!-------tcraig
+        endif
        enddo
 
        deallocate(data)

@@ -22,6 +22,9 @@ module SoilStateInitTimeConstMod
   ! !PRIVATE DATA:
   ! Control variables (from namelist)
   logical, private :: organic_frac_squared ! If organic fraction should be squared (as in CLM4.5)
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !-----------------------------------------------------------------------
   !
 contains
@@ -67,8 +70,10 @@ contains
        if (ierr == 0) then
           read(unit=unitn, nml=clm_soilstate_inparm, iostat=ierr)
           if (ierr /= 0) then
-             call endrun(msg="ERROR reading '//nl_name//' namelist"//errmsg(__FILE__, __LINE__))
+             call endrun(msg="ERROR reading '//nl_name//' namelist"//errmsg(sourcefile, __LINE__))
           end if
+       else
+          call endrun(msg="ERROR finding '//nl_name//' namelist"//errmsg(sourcefile, __LINE__))
        end if
        call relavu( unitn )
 
@@ -90,18 +95,19 @@ contains
     use spmdMod             , only : masterproc
     use ncdio_pio           , only : file_desc_t, ncd_io, ncd_double, ncd_int, ncd_inqvdlen
     use ncdio_pio           , only : ncd_pio_openfile, ncd_pio_closefile, ncd_inqdlen
-    use clm_varpar          , only : more_vertlayers, numpft, numrad 
+    use clm_varpar          , only : numpft, numrad
     use clm_varpar          , only : nlevsoi, nlevgrnd, nlevlak, nlevsoifl, nlayer, nlayert, nlevurb, nlevsno
     use clm_varcon          , only : zsoi, dzsoi, zisoi, spval
     use clm_varcon          , only : secspday, pc, mu, denh2o, denice, grlnd
     use clm_varctl          , only : use_cn, use_lch4, use_ed
-    use clm_varctl          , only : iulog, fsurdat, paramfile 
+    use clm_varctl          , only : iulog, fsurdat, paramfile, soil_layerstruct
     use landunit_varcon     , only : istice, istdlak, istwet, istsoil, istcrop, istice_mec
     use column_varcon       , only : icol_roof, icol_sunwall, icol_shadewall, icol_road_perv, icol_road_imperv 
     use fileutils           , only : getfil
     use organicFileMod      , only : organicrd 
     use FuncPedotransferMod , only : pedotransf, get_ipedof
     use RootBiophysMod      , only : init_vegrootfr
+    use GridcellType     , only : grc                
     !
     ! !ARGUMENTS:
     type(bounds_type)    , intent(in)    :: bounds  
@@ -123,7 +129,6 @@ contains
     real(r8)           :: om_tkd         = 0.05_r8      ! thermal conductivity of dry organic soil (Farouki, 1981)
     real(r8)           :: om_b                          ! Clapp Hornberger paramater for oragnic soil (Letts, 2000)
     real(r8)           :: zsapric        = 0.5_r8       ! depth (m) that organic matter takes on characteristics of sapric peat
-    real(r8)           :: csol_bedrock   = 2.0e6_r8     ! vol. heat capacity of granite/sandstone  J/(m3 K)(Shabbir, 2000)
     real(r8)           :: pcalpha        = 0.5_r8       ! percolation threshold
     real(r8)           :: pcbeta         = 0.139_r8     ! percolation exponent
     real(r8)           :: pc_lake        = 0.5_r8       ! percolation threshold
@@ -182,6 +187,12 @@ contains
           do lev = 1,nlevsoi
              soilstate_inst%rootfr_road_perv_col(c,lev) = 0.1_r8  ! uniform profile
           end do
+! remove roots below bedrock layer
+          soilstate_inst%rootfr_road_perv_col(c,1:col%nbedrock(c)) = &
+               soilstate_inst%rootfr_road_perv_col(c,1:col%nbedrock(c)) &
+               + sum(soilstate_inst%rootfr_road_perv_col(c,col%nbedrock(c)+1:nlevsoi)) &
+               /real(col%nbedrock(c))
+          soilstate_inst%rootfr_road_perv_col(c,col%nbedrock(c)+1:nlevsoi) = 0._r8
        end if
     end do
 
@@ -203,7 +214,9 @@ contains
 
     if (.not. use_ed) then
         call init_vegrootfr(bounds, nlevsoi, nlevgrnd, &
-             soilstate_inst%rootfr_patch(begp:endp,1:nlevgrnd))
+             soilstate_inst%rootfr_patch(begp:endp,1:nlevgrnd),'water')
+        call init_vegrootfr(bounds, nlevsoi, nlevgrnd, &
+             soilstate_inst%crootfr_patch(begp:endp,1:nlevgrnd),'carbon')
      end if
 
     ! --------------------------------------------------------------------
@@ -218,7 +231,7 @@ contains
     call getfil (paramfile, locfn, 0)
     call ncd_pio_openfile (ncid, trim(locfn), 0)
     call ncd_io(ncid=ncid, varname='organic_max', flag='read', data=organic_max, readvar=readvar)
-    if ( .not. readvar ) call endrun(msg=' ERROR: organic_max not on param file'//errMsg(__FILE__, __LINE__))
+    if ( .not. readvar ) call endrun(msg=' ERROR: organic_max not on param file'//errMsg(sourcefile, __LINE__))
     call ncd_pio_closefile(ncid)
 
     ! --------------------------------------------------------------------
@@ -232,16 +245,6 @@ contains
     call getfil (fsurdat, locfn, 0)
     call ncd_pio_openfile (ncid, locfn, 0)
 
-    call ncd_inqdlen(ncid,dimid,nlevsoifl,name='nlevsoi')
-    if ( .not. more_vertlayers )then
-       if ( nlevsoifl /= nlevsoi )then
-          call endrun(msg=' ERROR: Number of soil layers on file does NOT match the number being used'//&
-               errMsg(__FILE__, __LINE__))
-       end if
-    else
-       ! read in layers, interpolate to high resolution grid later
-    end if
-
     ! Read in organic matter dataset 
 
     allocate(organic3d(begg:endg,nlevsoifl))
@@ -251,12 +254,12 @@ contains
 
     call ncd_io(ncid=ncid, varname='PCT_SAND', flag='read', data=sand3d, dim1name=grlnd, readvar=readvar)
     if (.not. readvar) then
-       call endrun(msg=' ERROR: PCT_SAND NOT on surfdata file'//errMsg(__FILE__, __LINE__)) 
+       call endrun(msg=' ERROR: PCT_SAND NOT on surfdata file'//errMsg(sourcefile, __LINE__)) 
     end if
 
     call ncd_io(ncid=ncid, varname='PCT_CLAY', flag='read', data=clay3d, dim1name=grlnd, readvar=readvar)
     if (.not. readvar) then
-       call endrun(msg=' ERROR: PCT_CLAY NOT on surfdata file'//errMsg(__FILE__, __LINE__)) 
+       call endrun(msg=' ERROR: PCT_CLAY NOT on surfdata file'//errMsg(sourcefile, __LINE__)) 
     end if
 
     do p = begp,endp
@@ -264,13 +267,13 @@ contains
        if ( sand3d(g,1)+clay3d(g,1) == 0.0_r8 )then
           if ( any( sand3d(g,:)+clay3d(g,:) /= 0.0_r8 ) )then
              call endrun(msg='found depth points that do NOT sum to zero when surface does'//&
-                  errMsg(__FILE__, __LINE__)) 
+                  errMsg(sourcefile, __LINE__)) 
           end if
           sand3d(g,:) = 1.0_r8
           clay3d(g,:) = 1.0_r8
        end if
        if ( any( sand3d(g,:)+clay3d(g,:) == 0.0_r8 ) )then
-          call endrun(msg='after setting, found points sum to zero'//errMsg(__FILE__, __LINE__)) 
+          call endrun(msg='after setting, found points sum to zero'//errMsg(sourcefile, __LINE__)) 
        end if
 
        soilstate_inst%sandfrac_patch(p) = sand3d(g,1)/100.0_r8
@@ -282,7 +285,7 @@ contains
     allocate(gti(begg:endg))
     call ncd_io(ncid=ncid, varname='FMAX', flag='read', data=gti, dim1name=grlnd, readvar=readvar)
     if (.not. readvar) then
-       call endrun(msg=' ERROR: FMAX NOT on surfdata file'//errMsg(__FILE__, __LINE__)) 
+       call endrun(msg=' ERROR: FMAX NOT on surfdata file'//errMsg(sourcefile, __LINE__)) 
     end if
     do c = begc, endc
        g = col%gridcell(c)
@@ -352,11 +355,7 @@ contains
              soilstate_inst%tkmg_col(c,lev)   = spval
              soilstate_inst%tksatu_col(c,lev) = spval
              soilstate_inst%tkdry_col(c,lev)  = spval
-             if (lun%itype(l)==istwet .and. lev > nlevsoi) then
-                soilstate_inst%csol_col(c,lev) = csol_bedrock
-             else
-                soilstate_inst%csol_col(c,lev)= spval
-             endif
+             soilstate_inst%csol_col(c,lev)= spval
           end do
 
        else if (lun%urbpoi(l) .and. (col%itype(c) /= icol_road_perv) .and. (col%itype(c) /= icol_road_imperv) )then
@@ -388,9 +387,9 @@ contains
        else
 
           do lev = 1,nlevgrnd
-
-             if ( more_vertlayers )then ! duplicate clay and sand values from last soil layer
-
+             ! DML - this if statement could probably be removed and just the
+             ! top part used for all soil layer structures
+             if ( soil_layerstruct /= '10SL_3.5m' )then ! apply soil texture from 10 layer input dataset 
                 if (lev .eq. 1) then
                    clay = clay3d(g,1)
                    sand = sand3d(g,1)
@@ -497,10 +496,6 @@ contains
                 soilstate_inst%csol_col(c,lev)   = ((1._r8-om_frac)*(2.128_r8*sand+2.385_r8*clay) / (sand+clay) + &
                      om_csol*om_frac)*1.e6_r8  ! J/(m3 K)
 
-                if (lev > nlevsoi) then
-                   soilstate_inst%csol_col(c,lev) = csol_bedrock
-                endif
-
                 soilstate_inst%watdry_col(c,lev) = soilstate_inst%watsat_col(c,lev) * &
                      (316230._r8/soilstate_inst%sucsat_col(c,lev)) ** (-1._r8/soilstate_inst%bsw_col(c,lev)) 
                 soilstate_inst%watopt_col(c,lev) = soilstate_inst%watsat_col(c,lev) * &
@@ -597,10 +592,6 @@ contains
                                        om_tkd * om_frac
              soilstate_inst%csol_col(c,lev)   = ((1._r8-om_frac)*(2.128_r8*sand+2.385_r8*clay) / (sand+clay) +   &
                                        om_csol * om_frac)*1.e6_r8  ! J/(m3 K)
-             if (lev > nlevsoi) then
-                soilstate_inst%csol_col(c,lev) = csol_bedrock
-             endif
-
              soilstate_inst%watdry_col(c,lev) = soilstate_inst%watsat_col(c,lev) &
                   * (316230._r8/soilstate_inst%sucsat_col(c,lev)) ** (-1._r8/soilstate_inst%bsw_col(c,lev))
              soilstate_inst%watopt_col(c,lev) = soilstate_inst%watsat_col(c,lev) &

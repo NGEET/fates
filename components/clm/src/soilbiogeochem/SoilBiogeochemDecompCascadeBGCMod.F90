@@ -11,9 +11,10 @@ module SoilBiogeochemDecompCascadeBGCMod
   use shr_log_mod                        , only : errMsg => shr_log_errMsg
   use clm_varpar                         , only : nlevsoi, nlevgrnd, nlevdecomp, ndecomp_cascade_transitions, ndecomp_pools
   use clm_varpar                         , only : i_met_lit, i_cel_lit, i_lig_lit, i_cwd
-  use clm_varctl                         , only : iulog, spinup_state, anoxia, use_lch4, use_vertsoilc
+  use clm_varctl                         , only : iulog, spinup_state, anoxia, use_lch4, use_vertsoilc, use_ed
   use clm_varcon                         , only : zsoi
   use decompMod                          , only : bounds_type
+  use spmdMod                            , only : masterproc
   use abortutils                         , only : endrun
   use CNSharedParamsMod                  , only : CNParamsShareInst, anoxia_wtsat, nlev_soildecomp_standard 
   use SoilBiogeochemDecompCascadeConType , only : decomp_cascade_con
@@ -24,6 +25,9 @@ module SoilBiogeochemDecompCascadeBGCMod
   use TemperatureType                    , only : temperature_type 
   use ch4Mod                             , only : ch4_type
   use ColumnType                         , only : col                
+  use GridcellType                       , only : grc
+  use SoilBiogeochemStateType            , only : get_spinup_latitude_term
+  use EDCLMLinkMod                       , only : cwd_fcel_ed, cwd_flig_ed
   !
   implicit none
   private
@@ -67,13 +71,16 @@ module SoilBiogeochemDecompCascadeBGCMod
 
      real(r8) :: k_frag_bgc   !fragmentation rate for CWD
      real(r8) :: minpsi_bgc   !minimum soil water potential for heterotrophic resp
+     real(r8) :: maxpsi_bgc   !maximum soil water potential for heterotrophic resp
      
      integer  :: nsompools = 3
-     real(r8),allocatable :: spinup_vector(:) ! multipliers for soil decomp during accelerated spinup
 
   end type params_type
   !
   type(params_type), private :: params_inst
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !-----------------------------------------------------------------------
 
 contains
@@ -97,115 +104,121 @@ contains
     character(len=100) :: tString ! temp. var for reading
     !-----------------------------------------------------------------------
 
-    ! These are not read off of netcdf file
-    allocate(params_inst%spinup_vector(params_inst%nsompools))
-    params_inst%spinup_vector(:) = (/ 1.0_r8, 15.0_r8, 675.0_r8 /)
-
     ! Read off of netcdf file
     tString='tau_l1'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%tau_l1_bgc=tempr
 
     tString='tau_l2_l3'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%tau_l2_l3_bgc=tempr
 
     tString='tau_s1'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%tau_s1_bgc=tempr
 
     tString='tau_s2'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%tau_s2_bgc=tempr
 
     tString='tau_s3'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%tau_s3_bgc=tempr
 
     tString='tau_cwd'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%tau_cwd_bgc=tempr
 
     tString='cn_s1_bgc'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%cn_s1_bgc=tempr
 
     tString='cn_s2_bgc'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%cn_s2_bgc=tempr
 
     tString='cn_s3_bgc'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%cn_s3_bgc=tempr
 
     tString='rf_l1s1_bgc'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%rf_l1s1_bgc=tempr
 
     tString='rf_l2s1_bgc'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%rf_l2s1_bgc=tempr
 
     tString='rf_l3s2_bgc'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%rf_l3s2_bgc=tempr   
 
     tString='rf_s2s1_bgc'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%rf_s2s1_bgc=tempr
 
     tString='rf_s2s3_bgc'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%rf_s2s3_bgc=tempr
 
     tString='rf_s3s1_bgc'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%rf_s3s1_bgc=tempr
 
     tString='rf_cwdl2_bgc'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%rf_cwdl2_bgc=tempr
 
     tString='rf_cwdl3_bgc'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%rf_cwdl3_bgc=tempr
 
     tString='cwd_fcel'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%cwd_fcel_bgc=tempr
 
     tString='k_frag'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%k_frag_bgc=tempr
 
     tString='minpsi_hr'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%minpsi_bgc=tempr 
+
+    tString='maxpsi_hr'
+    call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
+    params_inst%maxpsi_bgc=tempr 
 
     tString='cwd_flig'
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
-    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(__FILE__, __LINE__))
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%cwd_flig_bgc=tempr 
+    
+    if ( use_ed ) then
+       cwd_fcel_ed = params_inst%cwd_fcel_bgc
+       cwd_flig_ed = params_inst%cwd_flig_bgc
+    endif
 
   end subroutine readParams
 
@@ -266,6 +279,7 @@ contains
     integer :: i_s3s1
     integer :: i_cwdl2
     integer :: i_cwdl3
+    real(r8):: speedup_fac                  ! acceleration factor, higher when vertsoilc = .true.
 
     integer  :: c, j    ! indices
     real(r8) :: t       ! temporary variable
@@ -294,6 +308,7 @@ contains
          is_cellulose                   => decomp_cascade_con%is_cellulose                       , & ! Output: [logical           (:)     ]  TRUE => pool is cellulose                                 
          is_lignin                      => decomp_cascade_con%is_lignin                          , & ! Output: [logical           (:)     ]  TRUE => pool is lignin                                    
          spinup_factor                  => decomp_cascade_con%spinup_factor                        & ! Output: [real(r8)          (:)     ]  factor for AD spinup associated with each pool           
+
          )
 
       allocate(rf_s1s2(bounds%begc:bounds%endc,1:nlevdecomp))
@@ -383,22 +398,28 @@ contains
       is_cellulose(i_litr3) = .false.
       is_lignin(i_litr3) = .true.
 
-      ! CWD
-      floating_cn_ratio_decomp_pools(i_cwd) = .true.
-      decomp_pool_name_restart(i_cwd) = 'cwd'
-      decomp_pool_name_history(i_cwd) = 'CWD'
-      decomp_pool_name_long(i_cwd) = 'coarse woody debris'
-      decomp_pool_name_short(i_cwd) = 'CWD'
-      is_litter(i_cwd) = .false.
-      is_soil(i_cwd) = .false.
-      is_cwd(i_cwd) = .true.
-      initial_cn_ratio(i_cwd) = 90._r8
-      initial_stock(i_cwd) = 0._r8
-      is_metabolic(i_cwd) = .false.
-      is_cellulose(i_cwd) = .false.
-      is_lignin(i_cwd) = .false.
+      if (.not. use_ed) then
+         ! CWD
+         floating_cn_ratio_decomp_pools(i_cwd) = .true.
+         decomp_pool_name_restart(i_cwd) = 'cwd'
+         decomp_pool_name_history(i_cwd) = 'CWD'
+         decomp_pool_name_long(i_cwd) = 'coarse woody debris'
+         decomp_pool_name_short(i_cwd) = 'CWD'
+         is_litter(i_cwd) = .false.
+         is_soil(i_cwd) = .false.
+         is_cwd(i_cwd) = .true.
+         initial_cn_ratio(i_cwd) = 90._r8
+         initial_stock(i_cwd) = 0._r8
+         is_metabolic(i_cwd) = .false.
+         is_cellulose(i_cwd) = .false.
+         is_lignin(i_cwd) = .false.
+      endif
 
-      i_soil1 = 5
+      if (.not. use_ed) then
+         i_soil1 = 5
+      else
+         i_soil1 = 4
+      endif
       floating_cn_ratio_decomp_pools(i_soil1) = .false.
       decomp_pool_name_restart(i_soil1) = 'soil1'
       decomp_pool_name_history(i_soil1) = 'SOIL1'
@@ -413,7 +434,11 @@ contains
       is_cellulose(i_soil1) = .false.
       is_lignin(i_soil1) = .false.
 
-      i_soil2 = 6
+      if (.not. use_ed) then
+         i_soil2 = 6
+      else
+         i_soil2 = 5
+      endif
       floating_cn_ratio_decomp_pools(i_soil2) = .false.
       decomp_pool_name_restart(i_soil2) = 'soil2'
       decomp_pool_name_history(i_soil2) = 'SOIL2'
@@ -428,7 +453,11 @@ contains
       is_cellulose(i_soil2) = .false.
       is_lignin(i_soil2) = .false.
 
-      i_soil3 = 7
+      if (.not. use_ed) then
+         i_soil3 = 7
+      else
+         i_soil3 = 6
+      endif
       floating_cn_ratio_decomp_pools(i_soil3) = .false.
       decomp_pool_name_restart(i_soil3) = 'soil3'
       decomp_pool_name_history(i_soil3) = 'SOIL3'
@@ -443,13 +472,28 @@ contains
       is_cellulose(i_soil3) = .false.
       is_lignin(i_soil3) = .false.
 
+
+      speedup_fac = 1._r8
+
+      !lit1
       spinup_factor(i_litr1) = 1._r8
+      !lit2,3
       spinup_factor(i_litr2) = 1._r8
       spinup_factor(i_litr3) = 1._r8
-      spinup_factor(i_cwd) = 1._r8
-      spinup_factor(i_soil1) = params_inst%spinup_vector(1)
-      spinup_factor(i_soil2) = params_inst%spinup_vector(2)
-      spinup_factor(i_soil3) = params_inst%spinup_vector(3)
+      !CWD
+      if (.not. use_ed) then
+         spinup_factor(i_cwd) = max(1._r8, (speedup_fac * params_inst%tau_cwd_bgc / 2._r8 ))
+      end if
+      !som1
+      spinup_factor(i_soil1) = 1._r8
+      !som2,3
+      spinup_factor(i_soil2) = max(1._r8, (speedup_fac * params_inst%tau_s2_bgc))
+      spinup_factor(i_soil3) = max(1._r8, (speedup_fac * params_inst%tau_s3_bgc))
+
+      if ( masterproc ) then
+         write(iulog,*) 'Spinup_state ',spinup_state
+         write(iulog,*) 'Spinup factors ',spinup_factor
+      end if
 
       !----------------  list of transitions and their time-independent coefficients  ---------------!
       i_l1s1 = 1
@@ -508,19 +552,21 @@ contains
       cascade_receiver_pool(i_s3s1) = i_soil1
       pathfrac_decomp_cascade(bounds%begc:bounds%endc,1:nlevdecomp,i_s3s1) = 1.0_r8
 
-      i_cwdl2 = 9
-      cascade_step_name(i_cwdl2) = 'CWDL2'
-      rf_decomp_cascade(bounds%begc:bounds%endc,1:nlevdecomp,i_cwdl2) = rf_cwdl2
-      cascade_donor_pool(i_cwdl2) = i_cwd
-      cascade_receiver_pool(i_cwdl2) = i_litr2
-      pathfrac_decomp_cascade(bounds%begc:bounds%endc,1:nlevdecomp,i_cwdl2) = cwd_fcel
-
-      i_cwdl3 = 10
-      cascade_step_name(i_cwdl3) = 'CWDL3'
-      rf_decomp_cascade(bounds%begc:bounds%endc,1:nlevdecomp,i_cwdl3) = rf_cwdl3
-      cascade_donor_pool(i_cwdl3) = i_cwd
-      cascade_receiver_pool(i_cwdl3) = i_litr3
-      pathfrac_decomp_cascade(bounds%begc:bounds%endc,1:nlevdecomp,i_cwdl3) = cwd_flig
+      if (.not. use_ed) then
+         i_cwdl2 = 9
+         cascade_step_name(i_cwdl2) = 'CWDL2'
+         rf_decomp_cascade(bounds%begc:bounds%endc,1:nlevdecomp,i_cwdl2) = rf_cwdl2
+         cascade_donor_pool(i_cwdl2) = i_cwd
+         cascade_receiver_pool(i_cwdl2) = i_litr2
+         pathfrac_decomp_cascade(bounds%begc:bounds%endc,1:nlevdecomp,i_cwdl2) = cwd_fcel
+         
+         i_cwdl3 = 10
+         cascade_step_name(i_cwdl3) = 'CWDL3'
+         rf_decomp_cascade(bounds%begc:bounds%endc,1:nlevdecomp,i_cwdl3) = rf_cwdl3
+         cascade_donor_pool(i_cwdl3) = i_cwd
+         cascade_receiver_pool(i_cwdl3) = i_litr3
+         pathfrac_decomp_cascade(bounds%begc:bounds%endc,1:nlevdecomp,i_cwdl3) = cwd_flig
+      end if
 
       deallocate(rf_s1s2)
       deallocate(rf_s1s3)
@@ -557,7 +603,6 @@ contains
     ! !LOCAL VARIABLES:
     real(r8):: frw(bounds%begc:bounds%endc) ! rooting fraction weight
     real(r8), allocatable:: fr(:,:)         ! column-level rooting fraction by soil depth
-    real(r8):: minpsi, maxpsi               ! limits for soil water scalar for decomp
     real(r8):: psi                          ! temporary soilpsi for water scalar
     real(r8):: rate_scalar                  ! combined rate scalar for decomp
     real(r8):: k_l1                         ! decomposition rate constant litter 1 (1/sec)
@@ -592,13 +637,21 @@ contains
     real(r8):: days_per_year                ! days per year
     real(r8):: depth_scalar(bounds%begc:bounds%endc,1:nlevdecomp) 
     real(r8):: mino2lim                     !minimum anaerobic decomposition rate
+    real(r8):: spinup_geogterm_l1(bounds%begc:bounds%endc) ! geographically-varying spinup term for l1
+    real(r8):: spinup_geogterm_l23(bounds%begc:bounds%endc) ! geographically-varying spinup term for l2 and l3
+    real(r8):: spinup_geogterm_cwd(bounds%begc:bounds%endc) ! geographically-varying spinup term for cwd
+    real(r8):: spinup_geogterm_s1(bounds%begc:bounds%endc) ! geographically-varying spinup term for s1
+    real(r8):: spinup_geogterm_s2(bounds%begc:bounds%endc) ! geographically-varying spinup term for s2
+    real(r8):: spinup_geogterm_s3(bounds%begc:bounds%endc) ! geographically-varying spinup term for s3
+
     !-----------------------------------------------------------------------
 
     !----- CENTURY T response function
     catanf(t1) = 11.75_r8 +(29.7_r8 / SHR_CONST_PI) * atan( SHR_CONST_PI * 0.031_r8  * ( t1 - 15.4_r8 ))
 
     associate(                                                           &
-         sucsat         => soilstate_inst%sucsat_col                   , & ! Input:  [real(r8) (:,:)   ]  minimum soil suction (mm)                              
+         minpsi         => params_inst%minpsi_bgc                      , & ! Input:  [real(r8)         ]  minimum soil suction (mm)
+         maxpsi         => params_inst%maxpsi_bgc                      , & ! Input:  [real(r8)         ]  maximum soil suction (mm)
          soilpsi        => soilstate_inst%soilpsi_col                  , & ! Input:  [real(r8) (:,:)   ]  soil water potential in each soil layer (MPa)          
 
          alt_indx       => canopystate_inst%alt_indx_col               , & ! Input:  [integer  (:)     ]  current depth of thaw                                     
@@ -612,14 +665,15 @@ contains
          t_scalar       => soilbiogeochem_carbonflux_inst%t_scalar_col , & ! Output: [real(r8) (:,:)   ]  soil temperature scalar for decomp                     
          w_scalar       => soilbiogeochem_carbonflux_inst%w_scalar_col , & ! Output: [real(r8) (:,:)   ]  soil water scalar for decomp                           
          o_scalar       => soilbiogeochem_carbonflux_inst%o_scalar_col , & ! Output: [real(r8) (:,:)   ]  fraction by which decomposition is limited by anoxia   
-         decomp_k       => soilbiogeochem_carbonflux_inst%decomp_k_col   & ! Output: [real(r8) (:,:,:) ]  rate constant for decomposition (1./sec)             
+         decomp_k       => soilbiogeochem_carbonflux_inst%decomp_k_col , & ! Output: [real(r8) (:,:,:) ]  rate constant for decomposition (1./sec)
+         spinup_factor  => decomp_cascade_con%spinup_factor              & ! Input:  [real(r8)          (:)     ]  factor for AD spinup associated with each pool           
          )
 
       mino2lim = CNParamsShareInst%mino2lim
 
       if ( use_century_tfunc .and. normalize_q10_to_century_tfunc ) then
          call endrun(msg='ERROR: cannot have both use_century_tfunc and normalize_q10_to_century_tfunc set as true'//&
-              errMsg(__FILE__, __LINE__))
+              errMsg(sourcefile, __LINE__))
       endif
 
       days_per_year = get_days_per_year()
@@ -664,22 +718,76 @@ contains
       k_s3 = 1._r8    / (secspday * days_per_year * tau_s3)
       k_frag = 1._r8  / (secspday * days_per_year * tau_cwd)
 
-      ! calc ref rate
-      catanf_30 = catanf(30._r8)
-      ! The following code implements the acceleration part of the AD spinup algorithm
-
-      if ( spinup_state .eq. 1 ) then
-         k_s1 = k_s1 * params_inst%spinup_vector(1)
-         k_s2 = k_s2 * params_inst%spinup_vector(2)
-         k_s3 = k_s3 * params_inst%spinup_vector(3)
+      i_litr1 = i_met_lit
+      i_litr2 = i_cel_lit
+      i_litr3 = i_lig_lit
+      if ( use_ed ) then
+         i_soil1 = 4
+         i_soil2 = 5
+         i_soil3 = 6
+      else
+         i_soil1 = 5
+         i_soil2 = 6
+         i_soil3 = 7
       endif
 
-      i_litr1 = 1
-      i_litr2 = 2
-      i_litr3 = 3
-      i_soil1 = 5
-      i_soil2 = 6
-      i_soil3 = 7
+     ! calc ref rate
+      catanf_30 = catanf(30._r8)
+
+      if ( spinup_state >= 1 ) then
+         do fc = 1,num_soilc
+            c = filter_soilc(fc)
+            !
+            if ( abs(spinup_factor(i_litr1) - 1._r8) .gt. .000001_r8) then
+               spinup_geogterm_l1(c) = spinup_factor(i_litr1) * get_spinup_latitude_term(grc%latdeg(col%gridcell(c)))
+            else
+               spinup_geogterm_l1(c) = 1._r8
+            endif
+            !
+            if ( abs(spinup_factor(i_litr2) - 1._r8) .gt. .000001_r8) then
+               spinup_geogterm_l23(c) = spinup_factor(i_litr2) * get_spinup_latitude_term(grc%latdeg(col%gridcell(c)))
+            else
+               spinup_geogterm_l23(c) = 1._r8
+            endif
+            !
+            if ( .not. use_ed ) then
+               if ( abs(spinup_factor(i_cwd) - 1._r8) .gt. .000001_r8) then
+                  spinup_geogterm_cwd(c) = spinup_factor(i_cwd) * get_spinup_latitude_term(grc%latdeg(col%gridcell(c)))
+               else
+                  spinup_geogterm_cwd(c) = 1._r8
+               endif
+            endif
+            !
+            if ( abs(spinup_factor(i_soil1) - 1._r8) .gt. .000001_r8) then
+               spinup_geogterm_s1(c) = spinup_factor(i_soil1) * get_spinup_latitude_term(grc%latdeg(col%gridcell(c)))
+            else
+               spinup_geogterm_s1(c) = 1._r8
+            endif
+            !
+            if ( abs(spinup_factor(i_soil2) - 1._r8) .gt. .000001_r8) then
+               spinup_geogterm_s2(c) = spinup_factor(i_soil2) * get_spinup_latitude_term(grc%latdeg(col%gridcell(c)))
+            else
+               spinup_geogterm_s2(c) = 1._r8
+            endif
+            !
+            if ( abs(spinup_factor(i_soil3) - 1._r8) .gt. .000001_r8) then
+               spinup_geogterm_s3(c) = spinup_factor(i_soil3) * get_spinup_latitude_term(grc%latdeg(col%gridcell(c)))
+            else
+               spinup_geogterm_s3(c) = 1._r8
+            endif
+            !
+         end do
+      else
+         do fc = 1,num_soilc
+            c = filter_soilc(fc)
+            spinup_geogterm_l1(c) = 1._r8
+            spinup_geogterm_l23(c) = 1._r8
+            spinup_geogterm_cwd(c) = 1._r8
+            spinup_geogterm_s1(c) = 1._r8
+            spinup_geogterm_s2(c) = 1._r8
+            spinup_geogterm_s3(c) = 1._r8
+         end do
+      endif
 
       !--- time dependent coefficients-----!
       if ( nlevdecomp .eq. 1 ) then
@@ -750,13 +858,10 @@ contains
          ! Orchard, V.A., and F.J. Cook, 1983. Relationship between soil respiration
          ! and soil moisture. Soil Biol. Biochem., 15(4):447-453.
 
-         minpsi = -10.0_r8;
-
          do j = 1,nlev_soildecomp_standard
             do fc = 1,num_soilc
                c = filter_soilc(fc)
                if (j==1) w_scalar(c,:) = 0._r8
-               maxpsi = sucsat(c,j) * (-9.8e-6_r8)
                psi = min(soilpsi(c,j),maxpsi)
                ! decomp only if soilpsi is higher than minpsi
                if (psi > minpsi) then
@@ -847,11 +952,9 @@ contains
          ! Orchard, V.A., and F.J. Cook, 1983. Relationship between soil respiration
          ! and soil moisture. Soil Biol. Biochem., 15(4):447-453.
 
-         minpsi = -10.0_r8;
          do j = 1,nlevdecomp
             do fc = 1,num_soilc
                c = filter_soilc(fc)
-               maxpsi = sucsat(c,j) * (-9.8e-6_r8)
                psi = min(soilpsi(c,j),maxpsi)
                ! decomp only if soilpsi is higher than minpsi
                if (psi > minpsi) then
@@ -915,32 +1018,58 @@ contains
          end do
       end if
 
+      ! calculate rate constants for all litter and som pools
       if (use_vertsoilc) then
          do j = 1,nlevdecomp
             do fc = 1,num_soilc
                c = filter_soilc(fc)
-               decomp_k(c,j,i_litr1) = k_l1    * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j)
-               decomp_k(c,j,i_litr2) = k_l2_l3 * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j)
-               decomp_k(c,j,i_litr3) = k_l2_l3 * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j)
-               decomp_k(c,j,i_cwd)   = k_frag  * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j)
-               decomp_k(c,j,i_soil1) = k_s1    * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j)
-               decomp_k(c,j,i_soil2) = k_s2    * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j)
-               decomp_k(c,j,i_soil3) = k_s3    * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j)
+               decomp_k(c,j,i_litr1) = k_l1    * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j) &
+                                       * spinup_geogterm_l1(c)
+               decomp_k(c,j,i_litr2) = k_l2_l3 * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j) &
+                                       * spinup_geogterm_l23(c)
+               decomp_k(c,j,i_litr3) = k_l2_l3 * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j) &
+                                       * spinup_geogterm_l23(c)
+               decomp_k(c,j,i_soil1) = k_s1    * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j) &
+                                       * spinup_geogterm_s1(c)
+               decomp_k(c,j,i_soil2) = k_s2    * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j) &
+                                       * spinup_geogterm_s2(c)
+               decomp_k(c,j,i_soil3) = k_s3    * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * o_scalar(c,j) &
+                                       * spinup_geogterm_s3(c)
             end do
          end do
       else
          do j = 1,nlevdecomp
             do fc = 1,num_soilc
                c = filter_soilc(fc)
-               decomp_k(c,j,i_litr1) = k_l1    * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j)
-               decomp_k(c,j,i_litr2) = k_l2_l3 * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j)
-               decomp_k(c,j,i_litr3) = k_l2_l3 * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j)
-               decomp_k(c,j,i_cwd)   = k_frag  * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j)
-               decomp_k(c,j,i_soil1) = k_s1    * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j)
-               decomp_k(c,j,i_soil2) = k_s2    * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j)
-               decomp_k(c,j,i_soil3) = k_s3    * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j)
+               decomp_k(c,j,i_litr1) = k_l1    * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j) * spinup_geogterm_l1(c)
+               decomp_k(c,j,i_litr2) = k_l2_l3 * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j) * spinup_geogterm_l23(c)
+               decomp_k(c,j,i_litr3) = k_l2_l3 * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j) * spinup_geogterm_l23(c)
+               decomp_k(c,j,i_soil1) = k_s1    * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j) * spinup_geogterm_s1(c)
+               decomp_k(c,j,i_soil2) = k_s2    * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j) * spinup_geogterm_s2(c)
+               decomp_k(c,j,i_soil3) = k_s3    * t_scalar(c,j) * w_scalar(c,j) * o_scalar(c,j) * spinup_geogterm_s3(c)
             end do
          end do
+      end if
+
+      ! do the same for cwd, but only if ed is not enabled, because ED handles CWD on its own structure
+      if (.not. use_ed) then
+         if (use_vertsoilc) then
+            do j = 1,nlevdecomp
+               do fc = 1,num_soilc
+                  c = filter_soilc(fc)
+                  decomp_k(c,j,i_cwd)   = k_frag  * t_scalar(c,j) * w_scalar(c,j) * depth_scalar(c,j) * &
+                       o_scalar(c,j) * spinup_geogterm_cwd(c)
+               end do
+            end do
+         else
+            do j = 1,nlevdecomp
+               do fc = 1,num_soilc
+                  c = filter_soilc(fc)
+                  decomp_k(c,j,i_cwd)   = k_frag  * t_scalar(c,j) * w_scalar(c,j) * &
+                       o_scalar(c,j) * spinup_geogterm_cwd(c)
+               end do
+            end do
+         end if
       end if
 
     end associate

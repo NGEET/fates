@@ -30,6 +30,9 @@ module initSubgridMod
   public :: add_column        ! add an entry in the column-level arrays
   public :: add_patch         ! add an entry in the patch-level arrays
   !
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !-----------------------------------------------------------------------
 
 contains
@@ -89,7 +92,7 @@ contains
           curc = patch%column(p)
           if (curc < bounds%begc .or. curc > bounds%endc) then
              write(iulog,*) 'clm_ptrs_compdown ERROR: pcolumn ',p,curc,bounds%begc,bounds%endc
-             call endrun(decomp_index=p, clmlevel=namep, msg=errMsg(__FILE__, __LINE__))
+             call endrun(decomp_index=p, clmlevel=namep, msg=errMsg(sourcefile, __LINE__))
           endif
           col%patchi(curc) = p
        endif
@@ -99,7 +102,7 @@ contains
           curl = patch%landunit(p)
           if (curl < bounds%begl .or. curl > bounds%endl) then
              write(iulog,*) 'clm_ptrs_compdown ERROR: plandunit ',p,curl,bounds%begl,bounds%endl
-             call endrun(decomp_index=p, clmlevel=namep, msg=errMsg(__FILE__, __LINE__))
+             call endrun(decomp_index=p, clmlevel=namep, msg=errMsg(sourcefile, __LINE__))
           endif
           lun%patchi(curl) = p
        endif
@@ -113,7 +116,7 @@ contains
           curl = col%landunit(c)
           if (curl < bounds%begl .or. curl > bounds%endl) then
              write(iulog,*) 'clm_ptrs_compdown ERROR: clandunit ',c,curl,bounds%begl,bounds%endl
-             call endrun(decomp_index=c, clmlevel=namec, msg=errMsg(__FILE__, __LINE__))
+             call endrun(decomp_index=c, clmlevel=namec, msg=errMsg(sourcefile, __LINE__))
           endif
           lun%coli(curl) = c
        endif
@@ -129,7 +132,7 @@ contains
        curg = lun%gridcell(l)
        if (curg < bounds%begg .or. curg > bounds%endg) then
           write(iulog,*) 'clm_ptrs_compdown ERROR: landunit_indices ', l,curg,bounds%begg,bounds%endg
-          call endrun(decomp_index=l, clmlevel=namel, msg=errMsg(__FILE__, __LINE__))
+          call endrun(decomp_index=l, clmlevel=namel, msg=errMsg(sourcefile, __LINE__))
        end if
 
        if (grc%landunit_indices(ltype, curg) == ispval) then
@@ -137,7 +140,7 @@ contains
        else
           write(iulog,*) 'clm_ptrs_compdown ERROR: This landunit type has already been set for this gridcell'
           write(iulog,*) 'l, ltype, curg = ', l, ltype, curg
-          call endrun(decomp_index=l, clmlevel=namel, msg=errMsg(__FILE__, __LINE__))
+          call endrun(decomp_index=l, clmlevel=namel, msg=errMsg(sourcefile, __LINE__))
        end if
     end do
 
@@ -190,7 +193,7 @@ contains
     end do
     if (error) then
        write(iulog,*) '   clm_ptrs_check: g index ranges - ERROR'
-       call endrun(msg=errMsg(__FILE__, __LINE__))
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
     if (masterproc) write(iulog,*) '   clm_ptrs_check: g index ranges - OK'
 
@@ -202,7 +205,7 @@ contains
     if (minval(lun%patchf(begl:endl)) < begp .or. maxval(lun%patchf(begl:endl)) > endp) error=.true.
     if (error) then
        write(iulog,*) '   clm_ptrs_check: l index ranges - ERROR'
-       call endrun(msg=errMsg(__FILE__, __LINE__))
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
     if (masterproc) write(iulog,*) '   clm_ptrs_check: l index ranges - OK'
 
@@ -213,7 +216,7 @@ contains
     if (minval(col%patchf(begc:endc)) < begp .or. maxval(col%patchf(begc:endc)) > endp) error=.true.
     if (error) then
        write(iulog,*) '   clm_ptrs_check: c index ranges - ERROR'
-       call endrun(msg=errMsg(__FILE__, __LINE__))
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
     if (masterproc) write(iulog,*) '   clm_ptrs_check: c index ranges - OK'
 
@@ -223,7 +226,7 @@ contains
     if (minval(patch%column(begp:endp)) < begc .or. maxval(patch%column(begp:endp)) > endc) error=.true.
     if (error) then
        write(iulog,*) '   clm_ptrs_check: p index ranges - ERROR'
-       call endrun(msg=errMsg(__FILE__, __LINE__))
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
     if (masterproc) write(iulog,*) '   clm_ptrs_check: p index ranges - OK'
 
@@ -241,7 +244,7 @@ contains
       if (lun%patchf(l) < lun%patchf(l-1)) error = .true.
       if (error) then
          write(iulog,*) '   clm_ptrs_check: l mono increasing - ERROR'
-         call endrun(decomp_index=l, clmlevel=namel, msg=errMsg(__FILE__, __LINE__))
+         call endrun(decomp_index=l, clmlevel=namel, msg=errMsg(sourcefile, __LINE__))
       endif
     enddo
     if (masterproc) write(iulog,*) '   clm_ptrs_check: l mono increasing - OK'
@@ -260,7 +263,7 @@ contains
       if (col%patchf(c) < col%patchf(c-1)) error = .true.
       if (error) then
          write(iulog,*) '   clm_ptrs_check: c mono increasing - ERROR'
-         call endrun(decomp_index=c, clmlevel=namec, msg=errMsg(__FILE__, __LINE__))
+         call endrun(decomp_index=c, clmlevel=namec, msg=errMsg(sourcefile, __LINE__))
       endif
     enddo
     if (masterproc) write(iulog,*) '   clm_ptrs_check: c mono increasing - OK'
@@ -278,7 +281,7 @@ contains
       if (patch%column  (p) < patch%column  (p-1)) error = .true.
       if (error) then
          write(iulog,*) '   clm_ptrs_check: p mono increasing - ERROR'
-         call endrun(decomp_index=p, clmlevel=namep, msg=errMsg(__FILE__, __LINE__))
+         call endrun(decomp_index=p, clmlevel=namep, msg=errMsg(sourcefile, __LINE__))
       endif
     enddo
     if (masterproc) write(iulog,*) '   clm_ptrs_check: p mono increasing - OK'
@@ -295,14 +298,14 @@ contains
              if (lun%gridcell(l) /= g) error = .true.
              if (error) then
                 write(iulog,*) '   clm_ptrs_check: tree consistent - ERROR'
-                call endrun(decomp_index=l, clmlevel=namel, msg=errMsg(__FILE__, __LINE__))
+                call endrun(decomp_index=l, clmlevel=namel, msg=errMsg(sourcefile, __LINE__))
              endif
              do c = lun%coli(l),lun%colf(l)
                 if (col%gridcell(c) /= g) error = .true.
                 if (col%landunit(c) /= l) error = .true.
                 if (error) then
                    write(iulog,*) '   clm_ptrs_check: tree consistent - ERROR'
-                   call endrun(decomp_index=c, clmlevel=namec, msg=errMsg(__FILE__, __LINE__))
+                   call endrun(decomp_index=c, clmlevel=namec, msg=errMsg(sourcefile, __LINE__))
                 endif
                 do p = col%patchi(c),col%patchf(c)
                    if (patch%gridcell(p) /= g) error = .true.
@@ -310,7 +313,7 @@ contains
                    if (patch%column(p)   /= c) error = .true.
                    if (error) then
                       write(iulog,*) '   clm_ptrs_check: tree consistent - ERROR'
-                      call endrun(decomp_index=p, clmlevel=namep, msg=errMsg(__FILE__, __LINE__))
+                      call endrun(decomp_index=p, clmlevel=namep, msg=errMsg(sourcefile, __LINE__))
                    endif
                 enddo  ! p
              enddo  ! c
@@ -333,7 +336,7 @@ contains
     ! accordingly.
     !
     ! !USES:
-    use landunit_varcon , only : istsoil, istcrop, istice_mec, istdlak, isturb_MIN, isturb_MAX
+    use landunit_varcon , only : istice_mec, istdlak, isturb_MIN, isturb_MAX, landunit_is_special
     !
     ! !ARGUMENTS:
     integer  , intent(inout) :: li      ! input value is index of last landunit added; output value is index of this newly-added landunit
@@ -351,12 +354,8 @@ contains
     lun%gridcell(li) = gi
     lun%wtgcell(li) = wtgcell
     lun%itype(li) = ltype
-    
-    if (ltype == istsoil .or. ltype == istcrop) then
-       lun%ifspecial(li) = .false.
-    else
-       lun%ifspecial(li) = .true.
-    end if
+
+    lun%ifspecial(li) = landunit_is_special(ltype)
 
     if (ltype == istice_mec) then
        lun%glcmecpoi(li) = .true.
@@ -379,7 +378,7 @@ contains
   end subroutine add_landunit
 
   !-----------------------------------------------------------------------
-  subroutine add_column(ci, li, ctype, wtlunit)
+  subroutine add_column(ci, li, ctype, wtlunit, type_is_dynamic)
     !
     ! !DESCRIPTION:
     ! Add an entry in the column-level arrays. ci gives the index of the last column
@@ -391,10 +390,20 @@ contains
     integer  , intent(in)    :: li      ! landunit index on which this column should be placed (assumes this landunit has already been created)
     integer  , intent(in)    :: ctype   ! column type
     real(r8) , intent(in)    :: wtlunit ! weight of the column relative to the landunit
+
+    ! whether this column's type can change at runtime; if not provided, assumed to be false
+    logical  , intent(in), optional :: type_is_dynamic
     !
     ! !LOCAL VARIABLES:
+    logical :: l_type_is_dynamic  ! local version of type_is_dynamic
+
     character(len=*), parameter :: subname = 'add_column'
     !-----------------------------------------------------------------------
+
+    l_type_is_dynamic = .false.
+    if (present(type_is_dynamic)) then
+       l_type_is_dynamic = type_is_dynamic
+    end if
 
     ci = ci + 1
 
@@ -402,7 +411,8 @@ contains
     col%gridcell(ci) = lun%gridcell(li)
     col%wtlunit(ci) = wtlunit
     col%itype(ci) = ctype
-    
+    col%type_is_dynamic(ci) = l_type_is_dynamic
+
   end subroutine add_column
 
   !-----------------------------------------------------------------------

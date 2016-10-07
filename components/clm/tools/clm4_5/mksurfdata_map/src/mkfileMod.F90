@@ -92,11 +92,11 @@ contains
          'Source', len_trim(str), trim(str)), subname)
 
     str = &
-'$HeadURL: https://svn-ccsm-models.cgd.ucar.edu/clm2/branch_tags/ed4x5fix_tags/ed4x5fix_n10_r120/components/clm/tools/clm4_5/mksurfdata_map/src/mkfileMod.F90 $'
+'$HeadURL: https://svn-ccsm-models.cgd.ucar.edu/clm2/trunk_tags/clm4_5_12_r195/components/clm/tools/clm4_5/mksurfdata_map/src/mkfileMod.F90 $'
     call check_ret(nf_put_att_text (ncid, NF_GLOBAL, &
          'Version', len_trim(str), trim(str)), subname)
 
-    str = '$Id: mkfileMod.F90 66531 2014-12-27 13:54:58Z sacks $'
+    str = '$Id: mkfileMod.F90 79983 2016-08-11 03:23:37Z erik $'
     call check_ret(nf_put_att_text (ncid, NF_GLOBAL, &
          'Revision_Id', len_trim(str), trim(str)), subname)
 
@@ -152,13 +152,13 @@ contains
     call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
          'Glacier_raw_data_file_name', len_trim(str), trim(str)), subname)
 
+    str = get_filename(mksrf_fglacierregion)
+    call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
+         'Glacier_region_raw_data_file_name', len_trim(str), trim(str)), subname)
+
     str = get_filename(mksrf_furbtopo)
     call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
          'Urban_Topography_raw_data_file_name', len_trim(str), trim(str)), subname)
-
-    str = get_filename(mksrf_flndtopo)
-    call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
-         'Land_Topography_raw_data_file_name', len_trim(str), trim(str)), subname)
 
     str = get_filename(mksrf_furban)
     call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
@@ -181,6 +181,10 @@ contains
     str = get_filename(mksrf_fpeat)
     call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
          'peatland_raw_data_file_name', len_trim(str), trim(str)), subname)
+
+    str = get_filename(mksrf_fsoildepth)
+    call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
+         'soildepth_raw_data_file_name', len_trim(str), trim(str)), subname)
 
     str = get_filename(mksrf_ftopostats)
     call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
@@ -211,6 +215,10 @@ contains
     str = get_filename(map_fglacier)
     call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
          'map_glacier_file', len_trim(str), trim(str)), subname)
+
+    str = get_filename(map_fglacierregion)
+    call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
+         'map_glacier_region_file', len_trim(str), trim(str)), subname)
 
     str = get_filename(map_fsoitex)
     call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
@@ -248,10 +256,6 @@ contains
     call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
          'map_urban_topography_file', len_trim(str), trim(str)), subname)
 
-    str = get_filename(map_flndtopo)
-    call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
-         'map_land_topography_file', len_trim(str), trim(str)), subname)
-
     str = get_filename(map_fabm)
     call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
          'map_agfirepkmon_file', len_trim(str), trim(str)), subname)
@@ -263,6 +267,10 @@ contains
     str = get_filename(map_fpeat)
     call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
          'map_peatland_file', len_trim(str), trim(str)), subname)
+
+    str = get_filename(map_fsoildepth)
+    call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
+         'map_soildepth_file', len_trim(str), trim(str)), subname)
 
     str = get_filename(map_ftopostats)
     call check_ret(nf_put_att_text(ncid, NF_GLOBAL, &
@@ -350,10 +358,6 @@ contains
             lev1name='numurbl', &
             long_name='thickness of wall', units='meters')
 
-       call ncd_def_spatial_var(ncid=ncid, varname='T_BUILDING_MAX', xtype=xtype, &
-            lev1name='numurbl', &
-            long_name='maximum interior building temperature', units='K')
-
        call ncd_def_spatial_var(ncid=ncid, varname='T_BUILDING_MIN', xtype=xtype, &
             lev1name='numurbl', &
             long_name='minimum interior building temperature', units='K')
@@ -433,6 +437,9 @@ contains
        call ncd_def_spatial_var(ncid=ncid, varname='peatf', xtype=xtype, &
             long_name='peatland fraction', units='unitless')
 
+       call ncd_def_spatial_var(ncid=ncid, varname='zbedrock', xtype=xtype, &
+            long_name='soil depth', units='m')
+
        call ncd_def_spatial_var(ncid=ncid, varname='abm', xtype=nf_int, &
             long_name='agricultural fire peak month', units='unitless')
 
@@ -478,6 +485,9 @@ contains
        call ncd_def_spatial_var(ncid=ncid, varname='PCT_GLACIER', xtype=xtype, &
             long_name='percent glacier', units='unitless')
 
+       call ncd_def_spatial_var(ncid=ncid, varname='GLACIER_REGION', xtype=nf_int, &
+            long_name='glacier region ID', units='unitless')
+
        if ( nglcec > 0 )then
           call ncd_defvar(ncid=ncid, varname='GLC_MEC', xtype=xtype, &
                dim1name='nglcecp1', long_name='Glacier elevation class', units='m')
@@ -504,9 +514,6 @@ contains
                lev1name='nglcec', &
                long_name='mean elevation on glacier elevation classes', units='m')
        end if
-
-       call ncd_def_spatial_var(ncid=ncid, varname='TOPO', xtype=xtype, &
-            long_name='mean elevation on land', units='m')
 
        call ncd_def_spatial_var(ncid=ncid, varname='PCT_URBAN', xtype=xtype, &
             lev1name='numurbl', &

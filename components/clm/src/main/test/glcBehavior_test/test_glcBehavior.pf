@@ -1,0 +1,205 @@
+module test_glcBehavior
+
+  ! Tests of glcBehaviorMod
+
+  use pfunit_mod
+  use glcBehaviorMod
+  use shr_kind_mod , only : r8 => shr_kind_r8
+  use unittestSubgridMod
+  use unittestSimpleSubgridSetupsMod
+  use unittestArrayMod
+  use column_varcon, only : col_itype_to_icemec_class
+  use glcBehaviorMod, only : glc_behavior_type
+  use ColumnType, only : col
+  use unittestGlcMec
+
+  implicit none
+
+  @TestCase
+  type, extends(TestCase) :: TestGlcBehavior
+   contains
+     procedure :: setUp
+     procedure :: tearDown
+  end type TestGlcBehavior
+
+  real(r8), parameter :: tol = 1.e-13_r8
+
+contains
+
+  subroutine setUp(this)
+    class(TestGlcBehavior), intent(inout) :: this
+  end subroutine setUp
+
+  subroutine tearDown(this)
+    class(TestGlcBehavior), intent(inout) :: this
+
+    call unittest_subgrid_teardown()
+    call teardown_elevation_classes()
+  end subroutine tearDown
+
+  function create_glc_behavior_all_collapse() result(glc_behavior)
+    ! Create a glc_behavior object where all grid cells get collapsed to a single column
+    type(glc_behavior_type) :: glc_behavior
+
+    call glc_behavior%InitSetDirectly(bounds%begg, bounds%endg, &
+         has_virtual_columns = grc_array(.false.), &
+         collapse_to_atm_topo = grc_array(.true.))
+  end function create_glc_behavior_all_collapse
+
+  ! ------------------------------------------------------------------------
+  ! Tests of setup / initialization
+  ! ------------------------------------------------------------------------
+
+  @Test
+  subroutine init_multiple_behaviorIsCorrect(this)
+    ! Make sure behavior is correct for 'multiple'
+    class(TestGlcBehavior), intent(inout) :: this
+    type(glc_behavior_type) :: glc_behavior
+
+    call setup_single_veg_patch(0)
+
+    call glc_behavior%InitFromInputs(bounds%begg, bounds%endg, &
+         glacier_region_map = [0], &
+         glacier_region_behavior_str = ['multiple'], &
+         glacier_region_melt_behavior_str = ['replaced_by_ice'])
+
+    @assertFalse(glc_behavior%has_virtual_columns_grc(bounds%begg))
+    @assertFalse(glc_behavior%get_collapse_to_atm_topo(bounds%begg))
+    @assertTrue(glc_behavior%allow_multiple_columns_grc(bounds%begg))
+  end subroutine init_multiple_behaviorIsCorrect
+
+  @Test
+  subroutine init_virtual_behaviorIsCorrect(this)
+    ! Make sure behavior is correct for 'virtual'
+    class(TestGlcBehavior), intent(inout) :: this
+    type(glc_behavior_type) :: glc_behavior
+
+    call setup_single_veg_patch(0)
+
+    call glc_behavior%InitFromInputs(bounds%begg, bounds%endg, &
+         glacier_region_map = [0], &
+         glacier_region_behavior_str = ['virtual'], &
+         glacier_region_melt_behavior_str = ['replaced_by_ice'])
+
+    @assertTrue(glc_behavior%has_virtual_columns_grc(bounds%begg))
+    @assertFalse(glc_behavior%get_collapse_to_atm_topo(bounds%begg))
+    @assertTrue(glc_behavior%allow_multiple_columns_grc(bounds%begg))
+  end subroutine init_virtual_behaviorIsCorrect
+
+  @Test
+  subroutine init_single_behaviorIsCorrect(this)
+    ! Make sure behavior is correct for 'single_at_atm_topo'
+    class(TestGlcBehavior), intent(inout) :: this
+    type(glc_behavior_type) :: glc_behavior
+
+    call setup_single_veg_patch(0)
+
+    call glc_behavior%InitFromInputs(bounds%begg, bounds%endg, &
+         glacier_region_map = [0], &
+         glacier_region_behavior_str = ['single_at_atm_topo'], &
+         glacier_region_melt_behavior_str = ['replaced_by_ice'])
+
+    @assertFalse(glc_behavior%has_virtual_columns_grc(bounds%begg))
+    @assertTrue(glc_behavior%get_collapse_to_atm_topo(bounds%begg))
+    @assertFalse(glc_behavior%allow_multiple_columns_grc(bounds%begg))
+  end subroutine init_single_behaviorIsCorrect
+
+  @Test
+  subroutine init_replaced_behaviorIsCorrect(this)
+    ! Make sure melt behavior is correct for 'replaced_by_ice'
+    class(TestGlcBehavior), intent(inout) :: this
+    type(glc_behavior_type) :: glc_behavior
+
+    call setup_single_veg_patch(0)
+
+    call glc_behavior%InitFromInputs(bounds%begg, bounds%endg, &
+         glacier_region_map = [0], &
+         glacier_region_behavior_str = ['single_at_atm_topo'], &
+         glacier_region_melt_behavior_str = ['replaced_by_ice'])
+
+    @assertTrue(glc_behavior%melt_replaced_by_ice_grc(bounds%begg))
+  end subroutine init_replaced_behaviorIsCorrect
+
+  @Test
+  subroutine init_remains_behaviorIsCorrect(this)
+    ! Make sure melt behavior is correct for 'remains_in_place'
+    class(TestGlcBehavior), intent(inout) :: this
+    type(glc_behavior_type) :: glc_behavior
+
+    call setup_single_veg_patch(0)
+
+    call glc_behavior%InitFromInputs(bounds%begg, bounds%endg, &
+         glacier_region_map = [0], &
+         glacier_region_behavior_str = ['single_at_atm_topo'], &
+         glacier_region_melt_behavior_str = ['remains_in_place'])
+
+    @assertFalse(glc_behavior%melt_replaced_by_ice_grc(bounds%begg))
+  end subroutine init_remains_behaviorIsCorrect
+
+  @Test
+  subroutine init_multipleGridCells(this)
+    class(TestGlcBehavior), intent(inout) :: this
+    type(glc_behavior_type) :: glc_behavior
+
+    call setup_ncells_single_veg_patch(ncells = 3, pft_type = 0)
+
+    call glc_behavior%InitFromInputs(bounds%begg, bounds%endg, &
+         glacier_region_map = [0, 1, 0], &
+         glacier_region_behavior_str = ['multiple', 'virtual '], &
+         glacier_region_melt_behavior_str = ['replaced_by_ice ', 'remains_in_place'])
+
+    @assertFalse(glc_behavior%has_virtual_columns_grc(bounds%begg))
+    @assertTrue(glc_behavior%has_virtual_columns_grc(bounds%begg + 1))
+    @assertFalse(glc_behavior%has_virtual_columns_grc(bounds%begg + 2))
+
+    @assertTrue(glc_behavior%melt_replaced_by_ice_grc(bounds%begg))
+    @assertFalse(glc_behavior%melt_replaced_by_ice_grc(bounds%begg + 1))
+    @assertTrue(glc_behavior%melt_replaced_by_ice_grc(bounds%begg + 2))
+  end subroutine init_multipleGridCells
+
+  ! ------------------------------------------------------------------------
+  ! Tests of update_glc_classes
+  ! ------------------------------------------------------------------------
+
+  @Test
+  subroutine update_glc_classes_basic(this)
+    class(TestGlcBehavior), intent(inout) :: this
+    type(glc_behavior_type) :: glc_behavior
+    integer, parameter :: glc_nec = 3
+    real(r8), parameter :: topomax(0:glc_nec) = [0._r8, 10._r8, 20._r8, 30._r8]
+    real(r8), parameter :: new_topo = 15._r8
+    integer, parameter :: new_elev_class = 2
+    real(r8), allocatable :: topo_col(:)
+
+    call setup_elevation_classes(glc_nec, topomax)
+    call setup_single_icemec_column(elev_class = 1)
+    glc_behavior = create_glc_behavior_all_collapse()
+    col%type_is_dynamic(:) = .true.
+
+    topo_col = col_array(new_topo)
+    call glc_behavior%update_glc_classes(bounds, topo_col)
+
+    @assertEqual(new_elev_class, col_itype_to_icemec_class(col%itype(bounds%begc)))
+  end subroutine update_glc_classes_basic
+
+  @Test
+  subroutine update_glc_classes_non_icemec(this)
+    ! A column that is not ice_mec should remain unchanged
+    class(TestGlcBehavior), intent(inout) :: this
+    type(glc_behavior_type) :: glc_behavior
+    real(r8), parameter :: new_topo = 15._r8
+    integer :: coltype_orig
+    real(r8), allocatable :: topo_col(:)
+
+    call setup_elevation_classes(3, [0._r8, 1._r8, 2._r8, 3._r8])
+    call setup_single_veg_patch(pft_type=1)
+    glc_behavior = create_glc_behavior_all_collapse()
+    coltype_orig = col%itype(bounds%begc)
+
+    topo_col = col_array(new_topo)
+    call glc_behavior%update_glc_classes(bounds, topo_col)
+
+    @assertEqual(coltype_orig, col%itype(bounds%begc))
+  end subroutine update_glc_classes_non_icemec
+
+end module test_glcBehavior

@@ -97,7 +97,7 @@ cmake \
 \
   -D CMAKE_CXX_FLAGS:STRING="-O2" \
   -D CISM_Fortran_FLAGS:STRING="-O2 -DNO_RESCALE" \
-  -D CISM_EXTRA_LIBS:STRING="-L$PETSC_DIR/$PETSC_ARCH/lib -lpetsc -lHYPRE -lpthread -ldl -lssl -lcrypto" \
+  -D CISM_EXTRA_LIBS:STRING="-L$PETSC_DIR/$PETSC_ARCH/lib -lpetsc -lHYPRE -lparmetis -lmetis  -lpthread -ldl -lssl -lcrypto" \
   -D BISICLES_LIB_SUBDIR=libintel \
   -D BISICLES_INTERFACE_DIR=$PWD/../../../BISICLES/CISM-interface/interface \
   -D CISM_MPI_LIBS:STRING="mpichf90" \

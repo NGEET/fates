@@ -46,6 +46,8 @@ attributes from the config_cache.xml file (with keys converted to upper-case).
 <scripgriddata hgrid="ne4np4"   lmask="nomask" >lnd/clm2/mappingdata/grids/SCRIPgrid_ne4np4_nomask_c110808.nc</scripgriddata>
 
 <!-- Regular lat/lon grids -->
+<scripgriddata hgrid="0.125x0.125" lmask="nomask"    
+   >lnd/clm2/mappingdata/grids/SCRIPgrid_0.125x0.125_nomask_c140702.nc</scripgriddata>
 <scripgriddata hgrid="0.33x0.33" lmask="navy"    
    >lnd/clm2/mappingdata/grids/SCRIPgrid_0.33x0.33_navy_c111207.nc</scripgriddata>
 <scripgriddata hgrid="0.1x0.1"   lmask="nomask"    
@@ -68,7 +70,10 @@ attributes from the config_cache.xml file (with keys converted to upper-case).
    >lnd/clm2/mappingdata/grids/SCRIPgrid_10x10min_IGBPmergeICESatGIS_c110818.nc</scripgriddata>
 <scripgriddata hgrid="3x3min"    lmask="MODIS"    
    >lnd/clm2/mappingdata/grids/SCRIPgrid_3minx3min_MODIS_c110915.nc</scripgriddata>
-<scripgriddata_lrgfile_needed hgrid="3x3min" lmask="MODIS">64bit_offset</scripgriddata_lrgfile_needed>
+<scripgriddata hgrid="3x3min"    lmask="MODIS-wCsp"    
+   >lnd/clm2/mappingdata/grids/SCRIPgrid_3minx3min_MODISwcspsea_c151020.nc</scripgriddata>
+<scripgriddata_lrgfile_needed hgrid="3x3min" lmask="MODIS"     >64bit_offset</scripgriddata_lrgfile_needed>
+<scripgriddata_lrgfile_needed hgrid="3x3min" lmask="MODIS-wCsp">64bit_offset</scripgriddata_lrgfile_needed>
 <scripgriddata hgrid="3x3min"    lmask="USGS"     
    >lnd/clm2/mappingdata/grids/SCRIPgrid_3x3_USGS_c120912.nc</scripgriddata>
 <scripgriddata_lrgfile_needed hgrid="3x3min" lmask="USGS">64bit_offset</scripgriddata_lrgfile_needed>
@@ -117,7 +122,7 @@ attributes from the config_cache.xml file (with keys converted to upper-case).
 <scripgriddata hgrid="tx0.1v2"    lmask="tx0.1v2"   >/glade/proj3/cseg/mapping/grids/tx0.1v2_090127.nc</scripgriddata>
 
 <!-- land masks for different types of mksurfdata_map input files -->
-<lmask type="lak"              >MODIS</lmask>
+<lmask type="lak"              >MODIS-wCsp</lmask>
 <lmask type="wet"              >AVHRR</lmask>
 <lmask type="voc"              >AVHRR</lmask>
 <lmask type="lai"              >MODIS</lmask>
@@ -128,13 +133,14 @@ attributes from the config_cache.xml file (with keys converted to upper-case).
 <lmask type="org"              >ISRIC-WISE</lmask>
 <lmask type="glc"              >GLOBE-Gardner</lmask>
 <lmask type="glc" mergeGIS="on">GLOBE-Gardner-mergeGIS</lmask>
+<lmask type="glcregion"        >nomask</lmask>
 <lmask type="fmx"              >USGS</lmask>
 <lmask type="irr"              >nomask</lmask>
 <lmask type="utp"              >nomask</lmask>
-<lmask type="top"              >nomask</lmask>
 <lmask type="tex"              >IGBP-GSDP</lmask>
 <lmask type="gdp"              >AVHRR</lmask>
 <lmask type="peat"             >AVHRR</lmask>
+<lmask type="soildepth"        >ISRIC-WISE</lmask>
 <lmask type="abm"              >AVHRR</lmask>
 <lmask type="topostats"        >HYDRO1K-merge-nomask</lmask>
 <lmask type="vic"              >GRDC</lmask>
@@ -151,13 +157,14 @@ attributes from the config_cache.xml file (with keys converted to upper-case).
 <hgrid type="col"              >0.5x0.5</hgrid>
 <hgrid type="org"              >5x5min</hgrid>
 <hgrid type="glc"              >3x3min</hgrid>
+<hgrid type="glcregion"        >10x10min</hgrid>
 <hgrid type="fmx"              >3x3min</hgrid>
 <hgrid type="irr"              >5x5min</hgrid>
 <hgrid type="utp"              >10x10min</hgrid>
-<hgrid type="top"              >10x10min</hgrid>
 <hgrid type="tex"              >5x5min</hgrid>
 <hgrid type="gdp"              >0.5x0.5</hgrid>
 <hgrid type="peat"             >0.5x0.5</hgrid>
+<hgrid type="soildepth"        >5x5min</hgrid>
 <hgrid type="abm"              >0.5x0.5</hgrid>
 <hgrid type="topostats"        >1km-merge-10min</hgrid>
 <hgrid type="vic"              >0.9x1.25</hgrid>
@@ -173,12 +180,13 @@ attributes from the config_cache.xml file (with keys converted to upper-case).
 <mksrf_filename type="col" >mksrf_fsoicol</mksrf_filename>
 <mksrf_filename type="org" >mksrf_forganic</mksrf_filename>
 <mksrf_filename type="glc" >mksrf_fglacier</mksrf_filename>
+<mksrf_filename type="glcregion">mksrf_fglacierregion</mksrf_filename>
 <mksrf_filename type="fmx" >mksrf_fmax</mksrf_filename>
 <mksrf_filename type="utp" >mksrf_furbtopo</mksrf_filename>
-<mksrf_filename type="top" >mksrf_flndtopo</mksrf_filename>
 <mksrf_filename type="tex" >mksrf_fsoitex</mksrf_filename>
 <mksrf_filename type="gdp" >mksrf_fgdp</mksrf_filename>
 <mksrf_filename type="peat">mksrf_fpeat</mksrf_filename>
+<mksrf_filename type="soildepth">mksrf_fsoildepth</mksrf_filename>
 <mksrf_filename type="abm" >mksrf_fabm</mksrf_filename>
 <mksrf_filename type="topostats">mksrf_ftopostats</mksrf_filename>
 <mksrf_filename type="vic" >mksrf_fvic</mksrf_filename>
@@ -210,8 +218,8 @@ attributes from the config_cache.xml file (with keys converted to upper-case).
 >lnd/clm2/rawdata/mksrf_fmax_3x3min_USGS_c120911.nc</mksrf_fmax>
 
 <!-- Lake and wetlands -->
-<mksrf_flakwat  hgrid="3x3min"   lmask="MODIS"
->lnd/clm2/rawdata/mksrf_LakePnDepth_3x3min_simyr2004_c111116.nc</mksrf_flakwat>
+<mksrf_flakwat  hgrid="3x3min"   lmask="MODIS-wCsp"
+>lnd/clm2/rawdata/mksrf_LakePnDepth_3x3min_simyr2004_csplk_c151015.nc</mksrf_flakwat>
 
 <mksrf_fwetlnd  hgrid="0.5x0.5"  lmask="AVHRR"
 >lnd/clm2/rawdata/mksrf_lanwat.050425.nc</mksrf_fwetlnd>
@@ -219,10 +227,6 @@ attributes from the config_cache.xml file (with keys converted to upper-case).
 <!-- VOC emission factors -->
 <mksrf_fvocef   hgrid="0.5x0.5"  lmask="AVHRR"
 >lnd/clm2/rawdata/mksrf_vocef_0.5x0.5_simyr2000.c110531.nc</mksrf_fvocef>
-
-<!-- Land topography -->
-<mksrf_flndtopo hgrid="10x10min" lmask="nomask"
->lnd/clm2/rawdata/topodata_10min_USGS_071205.nc</mksrf_flndtopo>
 
 <!-- urban -->
 <mksrf_furban   hgrid="3x3min"   lmask="LandScan2004"
@@ -246,6 +250,10 @@ attributes from the config_cache.xml file (with keys converted to upper-case).
 <mksrf_fglacier hgrid="3x3min"   lmask="GLOBE-Gardner-mergeGIS" mergeGIS="on"
 >lnd/clm2/rawdata/mksrf_glacier_3x3min_simyr2000_mergeGreenland.c120921.nc</mksrf_fglacier>
 
+<!-- Glacier region ID -->
+<mksrf_fglacierregion hgrid="10x10min" lmask="nomask"
+>lnd/clm2/rawdata/mksrf_GlacierRegion_10x10min_nomask_c160122.nc</mksrf_fglacierregion>
+
 <!-- mksrf_furbtopo - topography for urban threshold -->
 <mksrf_furbtopo hgrid="10x10min" lmask="nomask"
 >lnd/clm2/rawdata/mksrf_topo.10min.c080912.nc</mksrf_furbtopo>
@@ -256,6 +264,9 @@ attributes from the config_cache.xml file (with keys converted to upper-case).
 
 <mksrf_fpeat hgrid="0.5x0.5" lmask="AVHRR"
 >lnd/clm2/rawdata/mksrf_peatf_0.5x0.5_AVHRR_simyr2000.c130228.nc</mksrf_fpeat>
+
+<mksrf_fsoildepth hgrid="5x5min" lmask="ISRIC-WISE"
+>/glade/p/work/swensosc/soildepth_data/u.arizona/soil_alluvial_thickness_5x5min.no_nan.nc</mksrf_fsoildepth>
 
 <mksrf_fabm hgrid="0.5x0.5" lmask="AVHRR"
 >lnd/clm2/rawdata/mksrf_abm_0.5x0.5_AVHRR_simyr2000.c130201.nc</mksrf_fabm>
@@ -281,6 +292,8 @@ attributes from the config_cache.xml file (with keys converted to upper-case).
 <mksrf_fvegtyp hgrid="3x3min"        sim_year="2000" crop="on"  >lnd/clm2/rawdata/pftlanduse.3minx3min.simyr2000.c110913/mksrf_78pft_landuse_rc2000_c130927.nc</mksrf_fvegtyp>
 
 <!-- Historical period from 1850 to 2005 -->
+<mksrf_fvegtyp hgrid="0.5x0.5" sim_year="1850" crop="on"  >lnd/clm2/rawdata/pftlandusedyn.0.5x0.5.simyr1850-2005.c090630/mksrf_78pft_harvest_landuse_rc1850_c150819.nc
+</mksrf_fvegtyp>
 <mksrf_fvegtyp hgrid="0.5x0.5" sim_year="1850" crop="off" >lnd/clm2/rawdata/pftlandusedyn.0.5x0.5.simyr1850-2005.c090630/mksrf_landuse_rc1850_c090630.nc
 </mksrf_fvegtyp>
 <mksrf_fvegtyp hgrid="0.5x0.5" sim_year="1851" crop="off" >lnd/clm2/rawdata/pftlandusedyn.0.5x0.5.simyr1850-2005.c090630/mksrf_landuse_rc1851_c090630.nc

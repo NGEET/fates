@@ -728,7 +728,9 @@ contains
     if (ios==0) then
        val = temp
     elseif (ios > 0) then
-       call write_log('Value for "' // trim( name) // '" specified in .config file was not used because of a read error (e.g. wrong data type used).  Default value has been used instead.', GM_WARNING)
+       call write_log('Value for "' // trim( name) // &
+            '" specified in .config file was not used because of a read error (e.g. wrong data type used).  &
+            &Default value has been used instead.', GM_WARNING)
     end if
   end subroutine GetValueReal
 
@@ -753,7 +755,9 @@ contains
     if (ios==0) then
        val = temp
     elseif (ios > 0) then
-       call write_log('Value for the option "' // trim( name) // '" specified in .config file was not used because of a read error (e.g. wrong data type used).  Default value has been used instead.', GM_WARNING)
+       call write_log('Value for the option "' // trim( name) // &
+            '" specified in .config file was not used because of a read error (e.g. wrong data type used).  &
+            &Default value has been used instead.', GM_WARNING)
     end if
   end subroutine GetValueDouble
 
@@ -776,7 +780,9 @@ contains
     if (ios==0) then
        val = temp
     elseif (ios > 0) then
-       call write_log('Value for the option "' // trim( name) // '" specified in .config file was not used because of a read error (e.g. wrong data type used).  Default value has been used instead.', GM_WARNING)
+       call write_log('Value for the option "' // trim( name) // &
+            '" specified in .config file was not used because of a read error (e.g. wrong data type used).  &
+            &Default value has been used instead.', GM_WARNING)
     end if
   end subroutine GetValueInt
 
@@ -835,7 +841,9 @@ contains
        ierr = ierr + 1
     end if
     if (ierr == 2) then
-       call write_log('Value for the option "' // trim( name) // '" specified in .config file was not used because of a read error (e.g. wrong data type used).  Default value has been used instead.', GM_WARNING)
+       call write_log('Value for the option "' // trim( name) // &
+            '" specified in .config file was not used because of a read error (e.g. wrong data type used).  &
+            &Default value has been used instead.', GM_WARNING)
     endif
 
   end subroutine GetValueLogical

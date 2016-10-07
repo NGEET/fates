@@ -663,17 +663,11 @@ contains
 
              else   ! glam/glissade dycore
 
-!WHL - debug
-    print*, 'call glissade_tstep'
-
                 call glissade_tstep(instance%model, instance%glide_time)
 
              endif
 
           endif  ! evolve_ice
-
-!WHL - debug
-    print*, 'write diagnostics'
 
           ! write ice sheet diagnostics at specified interval (model%numerics%dt_diag)
 

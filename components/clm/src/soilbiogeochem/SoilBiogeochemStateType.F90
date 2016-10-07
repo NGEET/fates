@@ -6,11 +6,11 @@ module SoilBiogeochemStateType
   use decompMod      , only : bounds_type
   use abortutils     , only : endrun
   use spmdMod        , only : masterproc
-  use clm_varpar     , only : nlevsno, nlevgrnd, nlevlak, nlevsoifl, nlevsoi, crop_prog
-  use clm_varpar     , only : ndecomp_cascade_transitions, nlevdecomp, nlevdecomp_full, more_vertlayers  
+  use clm_varpar     , only : nlevsno, nlevgrnd, nlevlak, nlevsoifl, nlevsoi
+  use clm_varpar     , only : ndecomp_cascade_transitions, nlevdecomp, nlevdecomp_full
   use clm_varcon     , only : spval, ispval, c14ratio, grlnd
   use landunit_varcon, only : istsoil, istcrop
-  use clm_varpar     , only : nlevsno, nlevgrnd, nlevlak, crop_prog 
+  use clm_varpar     , only : nlevsno, nlevgrnd, nlevlak
   use clm_varctl     , only : use_vertsoilc, use_cn 
   use clm_varctl     , only : iulog
   use LandunitType   , only : lun                
@@ -19,6 +19,9 @@ module SoilBiogeochemStateType
   ! !PUBLIC TYPES:
   implicit none
   private
+  !
+  ! !PUBLIC MEMBER FUNCTIONS:
+  public :: get_spinup_latitude_term  
   !
   ! !PUBLIC TYPES:
   type, public :: soilbiogeochem_state_type
@@ -192,7 +195,7 @@ contains
     this%fpi_vr_col(begc:endc,:) = spval
     call hist_addfld_decomp (fname='FPI'//trim(vr_suffix), units='proportion', type2d='levdcmp', & 
          avgflag='A', long_name='fraction of potential immobilization', &
-         ptr_col=this%fpi_vr_col)
+         ptr_col=this%fpi_vr_col, default='inactive')
 
   end subroutine InitHistory
 
@@ -202,7 +205,6 @@ contains
     ! !USES:
     use spmdMod    , only : masterproc
     use fileutils  , only : getfil
-    use clm_varctl , only : fsurdat
     use ncdio_pio
     !
     ! !ARGUMENTS:
@@ -213,34 +215,11 @@ contains
     integer               :: g,l,c,p,n,j,m            ! indices
     integer               :: dimid                    ! dimension id
     integer               :: ier                      ! error status
-    type(file_desc_t)     :: ncid                     ! netcdf id
     logical               :: readvar 
-    character(len=256)    :: locfn                    ! local filename
     integer               :: begc, endc
     !-----------------------------------------------------------------------
 
     begc = bounds%begc; endc= bounds%endc
-
-    ! --------------------------------------------------------------------
-    ! Open surface dataset
-    ! --------------------------------------------------------------------
-
-    if (masterproc) then
-       write(iulog,*) 'Attempting to read soil color, sand and clay boundary data .....'
-    end if
-
-    call getfil (fsurdat, locfn, 0)
-    call ncd_pio_openfile (ncid, locfn, 0)
-
-    call ncd_inqdlen(ncid,dimid,nlevsoifl,name='nlevsoi')
-    if ( .not. more_vertlayers )then
-       if ( nlevsoifl /= nlevsoi )then
-          call endrun(msg=' ERROR: Number of soil layers on file does NOT match the number being used'//&
-               errMsg(__FILE__, __LINE__))
-       end if
-    else
-       ! read in layers, interpolate to high resolution grid later
-    end if
 
     ! --------------------------------------------------------------------
     ! Initialize terms needed for dust model
@@ -330,5 +309,25 @@ contains
          interpinic_flag='interp', readvar=readvar, data=this%fpg_col) 
 
   end subroutine Restart
+
+
+  function get_spinup_latitude_term(latitude) result(ans)
+
+    !!DESCRIPTION:
+    ! calculate a logistic function to scale spinup factors so that spinup is more accelerated in high latitude regions
+    !
+    ! !REVISION HISTORY
+    ! charlie koven, nov. 2015
+    !
+    ! !ARGUMENTS:
+    real(r8), intent(in) :: latitude
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: ans
+
+    ans = 1._r8 + 50._r8 / ( 1._r8 + exp(-0.15_r8 * (abs(latitude) - 60._r8) ) )
+    
+    return
+  end function get_spinup_latitude_term
 
 end module SoilBiogeochemStateType

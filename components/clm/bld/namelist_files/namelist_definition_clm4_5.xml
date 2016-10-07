@@ -8,25 +8,14 @@
 <!-- CLM Namelist -->
 <!-- ========================================================================================  -->
 
-<entry id="finidat_interp_source" 
-       type="char*256" 
-       category="datasets"
-       input_pathname="abs" 
-       group="clm_inparm" 
-       valid_values="" >
-If non-blank, then interpinic will be called to interpolate finidat_interp_source and 
-create output file specified by finidat_interp_dest.
-For this to be used finidat MUST BE blank.
-</entry>
-
 <entry id="finidat_interp_dest" 
        type="char*256" 
        category="datasets"
        input_pathname="abs" 
        group="clm_inparm" 
        valid_values="" >
-If finidat_interp_source is set to non-blank, then interpinic will be called 
-to interpolate finidat_interp_source and create output file finidat_interp_dest.
+If use_init_interp is set to .true., interpinic will be called to interpolate
+the file given by finidat, creating the output file specified by finidat_interp_dest.
 </entry>
 
 <entry id="finidat" 
@@ -37,6 +26,17 @@ to interpolate finidat_interp_source and create output file finidat_interp_dest.
        valid_values="" >
 Full pathname of initial conditions file. If blank CLM will startup from
 arbitrary initial conditions.
+</entry>
+
+<entry id="use_init_interp"
+       type="logical"
+       category="datasets"
+       group="clm_inparm"
+       valid_values="" >
+If set to .true., interpinic will be called to interpolate the file given by finidat,
+creating the output file specified by finidat_interp_dest.
+
+This requires that finidat be non-blank.
 </entry>
 
 <entry id="nrevsn" 
@@ -100,17 +100,249 @@ This means that computations will be run even over these 0-weight points.
 THIS IS ONLY FOR TESTING PURPOSES - IT HAS NOT BEEN CHECKED FOR SCIENTIFIC VALIDITY.
 </entry>
 
-<entry id="more_vertlayers" type="logical" category="clm_physics"
-       group="clm_inparm" valid_values="" >
-If TRUE, run with an increased number of soil layers
-Interpolate the soil layers on the surface dataset to the soil layers specified in iniTimeConst
-(EXPERIMENTAL)
-</entry>
-
 <entry id="organic_frac_squared" type="logical" category="clm_physics"
        group="clm_soilstate_inparm" valid_values="" >
 If TRUE, square the organic fraction when it's used (as was done in CLM4.5)
 Otherwise use the fraction straight up              (the default for CLM5.0)
+</entry>
+
+<entry id="soil_layerstruct" type="char*16" category="clm_physics"
+       group="clm_inparm" valid_values="10SL_3.5m,23SL_3.5m,49SL_10m,20SL_8.5m" >
+10SL_3.5m    = standard CLM4 and CLM4.5 version
+23SL_3.5m    = more vertical layers for permafrost simulations 
+49SL_10m     = 49 layer soil column, 10m of soil, 5 bedrock layers
+20SL_8.5m    = 20 layer soil column, 8m of soil, 5 bedrock layers
+</entry>
+
+<entry id="use_bedrock" type="logical" category="clm_physics"
+       group="clm_inparm" valid_values="" >
+If TRUE, use variable soil depth.
+
+If present on surface dataset, use depth to bedrock information to
+specify spatially variable soil thickness. If not present, use bottom
+of soil column (nlevsoi).
+</entry>
+
+<entry id="rooting_profile_method_water" type="integer" category="clm_physics"
+       group="rooting_profile_inparm" valid_values="0,1,2" >
+Index of rooting profile for water
+
+Changes rooting profile from Zeng 2001 double exponential (0) to
+Jackson 1996 single exponential (1) to Koven uniform exponential (2).
+</entry>
+
+<entry id="rooting_profile_method_carbon" type="integer" category="clm_physics"
+       group="rooting_profile_inparm" valid_values="0,1,2" >
+Index of rooting profile for carbon
+
+Changes rooting profile from Zeng 2001 double exponential (0) to
+Jackson 1996 single exponential (1) to Koven uniform exponential (2).
+</entry>
+
+<entry id="rooting_profile_method_soilcarbon" type="integer" category="clm_physics"
+       group="rooting_profile_inparm" valid_values="0,1,2" >
+Index of rooting profile for soil carbon
+
+Changes rooting profile from Zeng 2001 double exponential (0) to
+Jackson 1996 single exponential (1) to Koven uniform exponential (2).
+</entry>
+
+<entry id="rooting_profile_varindex_water" type="integer" category="clm_physics"
+       group="rooting_profile_inparm" valid_values="1,2" >
+Variant index of rooting profile for water
+(Currently only used for Jackson 1996 method)
+</entry>
+
+<entry id="rooting_profile_varindex_carbon" type="integer" category="clm_physics"
+       group="rooting_profile_inparm" valid_values="1,2" >
+Variant index of rooting profile for carbon and soil carbon
+(Currently only used for Jackson 1996 method)
+</entry>
+
+<entry id="rooting_profile_method_carbon" type="integer" category="clm_physics"
+       group="rooting_profile_inparm" valid_values="0,1,2" >
+Index of rooting profile for carbon
+
+Changes rooting profile from Zeng 2001 double exponential (0) to
+Jackson 1996 single exponential (1) to Koven uniform exponential (2).
+</entry>
+
+<entry id="soil_resis_method" type="integer" category="clm_physics"
+       group="soil_resis_inparm" valid_values="0,1" >
+Index of evaporative resistance method.
+
+Changes soil evaporative resistance method from Sakaguchi and Zeng
+2009 Beta function (0) to Swenson and Lawrence 2014 dry surface layer
+formulation (1).
+</entry>
+
+<entry id="fire_method" type="char*80" category="clm_physics"
+       group="cnfire_inparm" valid_values="nofire,li2014qianfrc,li2016crufrc" >
+The method type to use for CNFire
+
+nofire:        Turn fire effects off
+li2014qianfrc: Reference paper Li, et. al.(2014) tuned with QIAN atmospheric forcing
+li2016crufrc:  Reference paper Li, et. al.(2016) tuned with CRU-NCEP atmospheric forcing
+</entry>
+
+<entry id="pot_hmn_ign_counts_alpha" type="real" category="clm_physics"
+       group="lifire_inparm" >
+Potential human ignition counts (/person/month)
+</entry>
+
+<entry id="boreal_peatfire_c" type="real" category="clm_physics"
+       group="lifire_inparm" >
+boreal peat fires (/hr)
+</entry>
+
+<entry id="non_boreal_peatfire_c" type="real" category="clm_physics"
+       group="lifire_inparm" >
+non-boreal peat fires (/hr)
+</entry>
+
+<entry id="cropfire_a1" type="real" category="clm_physics"
+       group="lifire_inparm" >
+Scalar for cropfire (/hr)
+</entry>
+
+<entry id="rh_low" type="real" category="clm_physics"
+       group="lifire_inparm" >
+Critical RH for ignition (0-100)
+</entry>
+
+<entry id="rh_hgh" type="real" category="clm_physics"
+       group="lifire_inparm" >
+Saturation RH for ignition (0-100)
+</entry>
+
+<entry id="bt_max" type="real" category="clm_physics"
+       group="lifire_inparm" >
+Saturation BTRAN for ignition (0-1)
+</entry>
+
+<entry id="bt_min" type="real" category="clm_physics"
+       group="lifire_inparm" >
+Critical BTRAN for ignition (0-1)
+</entry>
+
+<entry id="cli_scale" type="real" category="clm_physics"
+       group="lifire_inparm" >
+Global constant for deforestation fires (/day)
+</entry>
+
+<entry id="occur_hi_gdp_tree" type="real" category="clm_physics"
+       group="lifire_inparm" >
+Fire occurance for high GDP areas that are tree dominated (fraction)
+</entry>
+
+<entry id="ncrit" type="real" category="clm_physics"
+       group="cnprecision_inparm" >
+Critical threshold for truncation of Nitrogen (truncate Nitrogen states to zero below this value)
+</entry>
+
+<entry id="ccrit" type="real" category="clm_physics"
+       group="cnprecision_inparm" >
+Critical threshold for truncation of Carbon (truncate Carbon states to zero below this value)
+</entry>
+
+<entry id="nnegcrit" type="real" category="clm_physics"
+       group="cnprecision_inparm" >
+Critical threshold of negative Nitrogen to die (abort when Nitrogen states are below this value)
+</entry>
+
+<entry id="cnegcrit" type="real" category="clm_physics"
+       group="cnprecision_inparm" >
+Critical threshold of negative Carbon to die (abort when Carbon states are below this value)
+</entry>
+
+<entry id="use_undercanopy_stability" type="logical" category="clm_physics"
+       group="canopyfluxes_inparm" valid_values="" >
+If TRUE use the undercanopy stability term used with CLM4.5 (Sakaguchi&Zeng, 2008)
+</entry>
+
+<entry id="interception_fraction" type="real" category="clm_physics"
+       group="clm_canopyhydrology_inparm" valid_values="" >
+Fraction of intercepted precipitation
+</entry>
+
+<entry id="use_clm5_fpi" type="logical" category="clm_physics"
+       group="clm_canopyhydrology_inparm" valid_values="" >
+If TRUE use clm5 equation for fraction of intercepted precipitation
+</entry>
+
+<entry id="maximum_leaf_wetted_fraction" type="real" category="clm_physics"
+       group="clm_canopyhydrology_inparm" valid_values="" >
+Maximum fraction of leaf that may be wet prior to drip occuring
+</entry>
+
+<entry id="baseflow_scalar" type="real" category="clm_physics"
+       group="soilhydrology_inparm" valid_values="" >
+Scalar multiplier for base flow rate
+(ONLY used if lower_boundary_condition is not aquifer or table)
+</entry>
+
+<entry id="soilwater_movement_method" type="integer" category="clm_physics"
+       group="soilwater_movement_inparm" valid_values="0,1" >
+Index of solution method of Richards equation.
+
+Change method for richards equation solution and boundary
+conditions.
+
+CLM 4.5 - soilwater_movement_method = 0 (Zeng and Decker, 2009, method). 
+CLM 5.0 - soilwater_movement_method = 1 (adaptive time stepping moisture form from Martyn Clark).
+
+1 (adaptive time stepping moisture form
+</entry>
+
+<entry id="upper_boundary_condition" type="integer" category="clm_physics"
+       group="soilwater_movement_inparm" valid_values="1" >
+Index of upper boundary condition for Richards equation.
+</entry>
+
+<entry id="lower_boundary_condition" type="integer" category="clm_physics"
+       group="soilwater_movement_inparm" valid_values="1,2,3,4" >
+Index of lower boundary condition for Richards equation.
+
+lower_boundary_condition = 1 : flux lower boundary condition
+lower_boundary_condition = 2 : zero-flux lower boundary condition
+lower_boundary_condition = 3 : water table head-based lower boundary condition w/ aquifer layer.
+lower_boundary_condition = 4 : 11-layer solution w/ aquifer layer
+
+TODO(bja, 2015-09) these should be strings so they have meaningful names instead of ints. 
+</entry>
+
+<entry id="dtmin" type="real" category="clm_physics"
+       group="soilwater_movement_inparm" valid_values="" >
+minimum time step length (seconds) for adaptive time stepping in richards equation
+</entry>
+<entry id="verySmall" type="real" category="clm_physics"
+       group="soilwater_movement_inparm" valid_values="" >
+a very small number: used to check for sub step completion for adaptive time stepping in richards equation
+</entry>
+<entry id="xTolerUpper" type="real" category="clm_physics"
+       group="soilwater_movement_inparm" valid_values="" >
+tolerance to halve length of substep for adaptive time stepping in richards equation
+</entry>
+<entry id="xTolerLower" type="real" category="clm_physics"
+       group="soilwater_movement_inparm" valid_values="" >
+tolerance to double length of substep for adaptive time stepping in richards equation
+</entry>
+<entry id="expensive" type="integer" category="clm_physics"
+       group="soilwater_movement_inparm" valid_values="" >
+
+</entry>
+<entry id="inexpensive" type="integer" category="clm_physics"
+       group="soilwater_movement_inparm" valid_values="" >
+
+</entry>
+<entry id="flux_calculation" type="integer" category="clm_physics"
+       group="soilwater_movement_inparm" valid_values="" >
+
+</entry>
+
+<entry id="limit_irrigation" type="logical" category="clm_physics"
+       group="clm_inparm" valid_values="" >
+If TRUE, limit irrigation when river storage drops below a threshold.
 </entry>
 
 <entry id="irrigate" type="logical" category="clm_physics"
@@ -138,16 +370,88 @@ If TRUE, dynamically change areas and topographic heights over glacier points.
 Only works when glc_nec is greater than zero, and when coupled to CISM.
 </entry>
 
+<entry id="glacier_region_behavior" type="char*32(10)" category="clm_physics"
+       group="clm_glacier_behavior"
+       valid_values="multiple,virtual,single_at_atm_topo" >
+Behavior of each glacier region (GLACIER_REGION in surface dataset).
+First item corresponds to GLACIER_REGION with ID 0 in the surface dataset,
+second to GLACIER_REGION with ID 1, etc.
+Allowed values are:
+'multiple': grid cells can potentially have multiple glacier elevation classes,
+   but no virtual columns
+'virtual': grid cells have virtual columns: values are computed for every glacier
+   elevation class, even those with 0 area (in order to provide surface mass
+   balance for every glacier elevation class). In addition, surface mass balance is
+   computed for the vegetated column in this region.
+'single_at_atm_topo': glacier landunits in these grid cells have a single column,
+   whose elevation matches the atmosphere's topographic height (so that there is no
+   adjustment due to downscaling)
+Only applies when glc_nec is greater than 0.
+</entry>
+
+<entry id="glacier_region_melt_behavior" type="char*32(10)" category="clm_physics"
+       group="clm_glacier_behavior"
+       valid_values="replaced_by_ice,remains_in_place" >
+Treatment of ice melt for each glacier region (GLACIER_REGION in surface dataset).
+First item corresponds to GLACIER_REGION with ID 0 in the surface dataset,
+second to GLACIER_REGION with ID 1, etc.
+Allowed values are:
+'replaced_by_ice': any melted ice runs off and is immediately replaced by solid ice;
+   this results in positive liquid runoff and negative ice runoff
+'remains_in_place': any melted ice remains in place as liquid until it refreezes;
+   thus, ice melt does not result in any runoff
+IMPORTANT NOTE: Regions with the 'remains_in_place' behavior also do not
+generate generate SMB (because negative SMB would be pretty much meaningless in
+those regions). Thus, you cannot use this behavior where GLC is operating.
+Only applies when glc_nec is greater than 0.
+</entry>
+
 <entry id="glc_snow_persistence_max_days" type="integer" category="clm_physics"
        group="clm_inparm" valid_values="" >
 Number of days before one considers the perennially snow-covered point 'land ice'
 (and thus capable of generating a positive surface mass balance for CISM).
-Default: 7300 (20 years)
+This is meant to compensate for the fact that, with small values of h2osno_max,
+the onset of a snow-capped state (and thus conversion to land ice) can occur in an
+unrealistically short amount of time.
+Thus, in general, large values of h2osno_max should have glc_snow_persistence_max_days = 0;
+small values of h2osno_max should have glc_snow_persistence_max_days > 0.
 </entry>
 
 <entry id="albice" type="real(2)" category="clm_physics"
        group="clm_inparm" >
 Visible and Near-infrared albedo's for glacier ice
+</entry>
+
+<entry id="br_root" type="real" category="clm_physics"
+       group="cnmresp_inparm" >
+CN Maintenence Respiration base rate for roots
+(if NOT set, use the value for br_mr on the params file)
+</entry>
+
+<entry id="rootstem_acc" type="logical" category="clm_physics"
+       group="photosyns_inparm" >
+Switch to turn on root and stem respiratory acclimation
+Atkin, Fisher et al. (2008) and Lombardozzi et al. (2015)
+</entry>
+
+<entry id="light_inhibit" type="logical" category="clm_physics"
+       group="photosyns_inparm" >
+Switch to inihibit photosynthesis in daytime
+Lloyd et al. 2010, & Metcalfe et al. 2012
+</entry>
+
+<entry id="leafresp_method" type="integer" category="clm_physics"
+       group="photosyns_inparm" >
+Leaf maintencence respiration for canopy top at 25C method to use
+
+    0  Scaled by vcmax25top
+    1  Ryan 1991
+    2  Atkin 2015
+</entry>
+
+<entry id="leaf_mr_vcm" type="real" category="clm_physics"
+       group="clm_canopy_inparm" >
+Scalar of leaf respiration to vcmax
 </entry>
 
 <entry id="dtime" type="real"  category="clm_physics" 
@@ -159,17 +463,6 @@ Time step (seconds)
        group="clm_inparm" valid_values="3">
 Override the start type from the driver: it can only be
 set to 3 meaning branch.
-</entry>
-
-<entry id="fglcmask" type="char*256" category="datasets"
-       input_pathname="abs" group="clm_inparm" valid_values="" >
-Full pathname of land-ice mask data file (on lnd grid).
-</entry>
-
-<entry id="flndtopo" type="char*256" category="datasets"
-       input_pathname="abs" group="clm_inparm" valid_values="" >
-Full pathname of topography data file. Only required when 
-land-ice model is active.
 </entry>
 
 <entry id="glcmec_downscale_longwave" type="logical" category="clm_physics"
@@ -194,9 +487,22 @@ Toggle to turn on spit fire (only relevant if ED is being used).
 
 <entry id="use_luna" type="logical" category="physics"
         group="clm_inparm" valid_values="" value=".false.">
-Toggle to turn on the LUNA model, not supporting CLM(ED) yet
+Toggle to turn on the LUNA model, to effect Photosynthesis by leaf Nitrogen
+LUNA operates on C3 and non-crop vegetation (see vcmax_opt for how other veg is handled)
+LUNA: Leaf Utilization of Nitrogen for Assimilation
 </entry>
 
+<entry id="use_hydrstress" type="logical" category="physics"
+        group="clm_inparm" valid_values="" value=".false.">
+Toggle to turn on the plant hydraulic stress model
+</entry>
+
+<entry id="lnc_opt" type="logical" category="clm_nitrogen"
+       group="clm_nitrogen" value=".false.">
+How LUNA and Photosynthesis (if needed) will get Leaf nitrogen content
+   lnc_opt = true  get from leaf N from CN model
+   lnc_opt = false get based on LAI and fixed CN ratio from parameter file
+</entry>
 
 <entry id="paramfile" type="char*256" category="datasets"
        input_pathname="abs" group="clm_inparm" valid_values="" >
@@ -395,11 +701,6 @@ Turn vegetation snow canopy ON, OFF, or ON with albedo influence (ON_RAD)
 <!-- ========================================================================================  -->
 <!-- Former CPP tokens -->
 <!-- ========================================================================================  -->
-<entry id="use_nofire" type="logical" category="bgc"
-       group="clm_inparm" valid_values="" value=".false.">
-Toggle to make wild-fires inactive for biogeochemistry=CN mode
-</entry>
-
 <entry id="use_lch4" type="logical" category="bgc"
        group="clm_inparm" valid_values="" value=".false.">
 Turn on methane model. Standard part of CLM45BGC model.
@@ -417,6 +718,12 @@ CLM Biogeochemistry mode : Carbon Nitrogen with Dynamic Global Vegetation Model 
 (or CLM45BGCDV if phys=clm4_5, vsoilc_centbgc='on', and clm4me='on')
 </entry>
 
+<entry id="use_fun" type="logical" category="bgc"
+       group="clm_inparm" valid_values="" value=".false.">
+Turn the Fixation and Uptate of Nitrogen model version 2 (FUN2.0)
+Requires the CN model to work (either CN or CNDV).
+</entry>
+
 <entry id="use_nitrif_denitrif" type="logical" category="bgc"
        group="clm_inparm" valid_values="" value=".false.">
 Nitrification/denitrification splits the prognostic mineral N pool into two 
@@ -424,16 +731,46 @@ Nitrification/denitrification splits the prognostic mineral N pool into two
 Requires the CN model to work (either CN or CNDV).
 </entry>
 
+<entry id="denitrif_respiration_coefficient" type="real" category="bgc"
+       group="nitrif_inparm" valid_values="" >
+Multiplier for heterotrophic respiration for max denitrification rates
+(ONLY used if use_nitrif_denitrif is enabled)
+</entry>
+
+<entry id="denitrif_respiration_exponent" type="real" category="bgc"
+       group="nitrif_inparm" valid_values="" >
+Exponent power for heterotrophic respiration for max denitrification rates
+(ONLY used if use_nitrif_denitrif is enabled)
+</entry>
+
+<entry id="denitrif_nitrateconc_coefficient" type="real" category="bgc"
+       group="nitrif_inparm" valid_values="" >
+Multiplier for nitrate concentration for max denitrification rates
+(ONLY used if use_nitrif_denitrif is enabled)
+</entry>
+
+<entry id="denitrif_nitrateconc_exponent" type="real" category="bgc"
+       group="nitrif_inparm" valid_values="" >
+Exponent power for nitrate concentrationfor max denitrification rates
+(ONLY used if use_nitrif_denitrif is enabled)
+</entry>
+
+<entry id="k_nitr_max" type="real" category="bgc"
+       group="nitrif_inparm" valid_values="" >
+Maximum nitrification rate constant (1/s)
+(ONLY used if use_nitrif_denitrif is enabled)
+</entry>
+
 <entry id="use_vertsoilc" type="logical" category="bgc"
        group="clm_inparm" valid_values="" value=".false.">
 Turn on vertical soil carbon.
-Requires the CN model to work (either CN or CNDV).
+Requires the CN or ED model to work (either CN or CNDV).
 </entry>
 
 <entry id="use_century_decomp" type="logical" category="bgc"
        group="clm_inparm" valid_values="" value=".false.">
 Use parameters for decomposition from the CENTURY Carbon model
-Requires the CN model to work (either CN or CNDV).
+Requires the CN or ED model to work (either CN or CNDV).
 </entry>
 
 <entry id="use_extralakelayers" type="logical" category="physics"
@@ -451,6 +788,16 @@ Toggle to turn on the VIC hydrologic parameterizations
 <entry id="use_crop" type="logical" category="physics"
        group="clm_inparm" valid_values="" value=".false.">
 Toggle to turn on the prognostic crop model
+</entry>
+
+<entry id="use_fertilizer" type="logical" category="physics"
+       group="clm_inparm" valid_values="" value=".false.">
+Toggle to turn on the prognostic fertilizer for crop model 
+</entry>
+
+<entry id="use_grainproduct" type="logical" category="physics"
+       group="clm_inparm" valid_values="" value=".false.">
+Toggle to turn on the 1-year grain product pool in the crop model 
 </entry>
 
 <entry id="use_ozone" type="logical" category="physics"
@@ -484,6 +831,10 @@ Toggle for mexico city specific logic.
 Max number of plant functional types in naturally vegetated landunit.
 </entry>
 
+<entry id="use_dynroot" type="logical" category="physics"
+       group="clm_inparm" valid_values="" value=".false.">
+Toggle to turn on the dynamic root model
+</entry>
 
 <!--                                                   -->
 <!-- mkmapdata  namelist                               -->
@@ -518,7 +869,7 @@ in its attributes. (Only used if scripgriddata_src_type = UGRID.)
 <!--                                                   -->
 <entry id="mksrf_filename" type="char*256" category="mksurfdata"
        group="default_settings" 
-       valid_values="mksrf_fsoitex,mksrf_forganic,mksrf_flakwat,mksrf_fwetlnd,mksrf_fmax,mksrf_fmax,mksrf_fglacier,mksrf_fvocef,mksrf_furbtopo,mksrf_flndtopo,firrig,mksrf_furban,mksrf_fvegtyp,mksrf_fsoicol,mksrf_flai,mksrf_fgdp,mksrf_fpeat,mksrf_fabm,mksrf_ftopostats,mksrf_fvic,mksrf_fch4" >
+       valid_values="mksrf_fsoitex,mksrf_forganic,mksrf_flakwat,mksrf_fwetlnd,mksrf_fmax,mksrf_fmax,mksrf_fglacier,mksrf_fglacierregion,mksrf_fvocef,mksrf_furbtopo,firrig,mksrf_furban,mksrf_fvegtyp,mksrf_fsoicol,mksrf_flai,mksrf_fgdp,mksrf_fpeat,mksrf_fsoildepth,mksrf_fabm,mksrf_ftopostats,mksrf_fvic,mksrf_fch4" >
 Filename for mksurfdata_map to remap raw data into the output surface dataset
 </entry>
 
@@ -532,14 +883,14 @@ Plant Function Type dataset for mksurfdata
 Dataset for percent glacier land-unit for mksurfdata
 </entry>
 
+<entry id="mksrf_fglacierregion" type="char*256" category="mksurfdata"
+       input_pathname="abs" group="clmexp" valid_values="" >
+Dataset for glacier region ID for mksurfdata
+</entry>
+
 <entry id="mksrf_furbtopo" type="char*256" category="mksurfdata"
        input_pathname="abs" group="clmexp" valid_values="" >
 Dataset for topography used to define urban threshold
-</entry>
-
-<entry id="mksrf_flndtopo" type="char*256" category="mksurfdata"
-       input_pathname="abs" group="clmexp" valid_values="" >
-Dataset for land topography
 </entry>
 
 <entry id="mksrf_flai" type="char*256" category="mksurfdata"
@@ -629,6 +980,11 @@ GDP dataset for mksurfdata
 <entry id="mksrf_fpeat" type="char*256" category="mksurfdata"
        input_pathname="abs" group="clmexp" valid_values="" >
 Peat dataset for mksurfdata
+</entry>
+
+<entry id="mksrf_fsoildepth" type="char*256" category="mksurfdata"
+       input_pathname="abs" group="clmexp" valid_values="" >
+Soil depth dataset for mksurfdata
 </entry>
 
 <entry id="mksrf_fabm" type="char*256" category="mksurfdata"
@@ -957,6 +1313,43 @@ Mapping method from human population density input file to the model resolution
     copy     = copy using the same indices
 </entry>
 
+<!-- ========================================================================================  -->
+<!-- urbantv_streams Namelist (when CLM4_5/CLM5_0 is active)                                   -->
+<!-- ========================================================================================  -->
+
+<!-- urban time varying -->
+
+<entry id="stream_year_first_urbantv" type="integer" category="datasets"
+       group="urbantv_streams" valid_values="" >
+First year to loop over for urban time varying data
+</entry>
+
+<entry id="stream_year_last_urbantv" type="integer" category="datasets"
+       group="urbantv_streams" valid_values="" >
+Last year to loop over for urban time varying data
+</entry>
+
+<entry id="model_year_align_urbantv" type="integer" category="datasets"
+       group="urbantv_streams" valid_values="" >
+Simulation year that aligns with stream_year_first_urbantv value
+</entry>
+
+<entry id="stream_fldfilename_urbantv" type="char*256" category="datasets"
+       input_pathname="abs" group="urbantv_streams" valid_values="" >
+Filename of input stream data for urban time varying
+</entry>
+
+<entry id="urbantvmapalgo" type="char*256" category="datasets"
+       group="urbantv_streams" valid_values="bilinear,nn,nnoni,nnonj,spval,copy" >
+Mapping method from urban time varying input file to the model resolution
+    bilinear = bilinear interpolation
+    nn       = nearest neighbor
+    nnoni    = nearest neighbor on the "i" (longitude) axis
+    nnonj    = nearest neighbor on the "j" (latitude) axis
+    spval    = set to special value
+    copy     = copy using the same indices
+</entry>
+
 <entry id="diri" type="char*256" category="datm"
        group="modelio" valid_values="">
 datm input directory
@@ -1038,9 +1431,23 @@ Representative concentration pathway for future scenarios [radiative forcing at 
 Land mask description
 </entry> 
 
+<entry id="lnd_tuning_mode" type="char*20" category="default_settings"
+       group="default_settings"
+       valid_values="clm4_5_CRUNCEP,clm5_0_cam5.5,clm5_0_GSWP">
+General configuration of model version and atmospheric forcing to tune the model to run under.
+This sets the model to run with constants that were set to run well under the configuration
+of model version and atmospheric forcing. To run well constants would need to be changed
+to run with a different type of atmospheric forcing.
+</entry> 
+
 <entry id="irrig" type="logical" category="default_settings"
        group="default_settings"  >
 If TRUE, irrigation will be active (find surface datasets with active irrigation).
+</entry> 
+
+<entry id="megan" type="integer" category="default_settings"
+       group="default_settings"  valid_values="0,1">
+If 1, turn on the MEGAN model for BVOC's (Biogenic Volitile Organic Compounds)
 </entry> 
 
 <entry id="sim_year" type="integer" category="default_settings"
@@ -1072,13 +1479,18 @@ Namelist entries to demand be provided on the namelist.
 Description of the use case selected.
 </entry>
 
-<entry id="bgc_spinup" type="char*3" category="default_settings"
+<entry id="clm_accelerated_spinup" type="char*3" category="default_settings"
        group="default_settings" valid_values="on,off" >
-Command line arguement for turning on CN spinup mode.
+Command line argument for setting up your simulation in a mode for faster
+throughput. By default turns off some options, and sets up for a lower level
+of output. When bgc_mode is some level of prognostic BGC (so NOT Satellite Phenology)
+it also sets up for accelerated decomposition.
+NOTE: THIS CORRESPONDS DIRECTLY TO THE env_run.xml VARIABLE OF THE SAME NAME.
+      Set the env_run variable, rather than setting this directly.
 </entry>
 
 <entry id="bgc_mode" type="char*4" category="default_settings"
-       group="default_settings" valid_values="sp,cn,bgc" >
+       group="default_settings" valid_values="sp,cn,bgc,ed" >
 Command line arguement for biogeochemistry mode for CLM4.5
    sp  = Satellitte Phenology
    cn  = Carbon Nitrogen model
@@ -1087,31 +1499,7 @@ Command line arguement for biogeochemistry mode for CLM4.5
         Nitrification/De-nitrification
         Methane model
         Vertically resolved Carbon
-</entry>
-
-<!-- ========================================================================================  -->
-<!-- drydep Namelists                                                                          -->
-<!-- ========================================================================================  -->
-
-<entry id="drydep_method" type="char*16" category="dry-deposition"
-       group="drydep_inparm" 
-       valid_values="xactive_lnd,xactive_atm,table">
-Where dry deposition is calculated (from land, atmosphere, or from a table)
-</entry>
-
-<!-- List of all of the potential Chemical species that can be use for Dry-Deposition 
-     Anything NOT in this list - can NOT be used. As species are added in
-       seq_drydep_mod.F90 this list needs to be updated.
-     Note: Species from H2 and thereafter are species that "map" 
-           to other previous species in the list. The mapping is laid
-           out in seq_drydep_mod.F90.
--->
-<entry id="drydep_list" type="char*32(100)" category="dry-deposition"
-       group="drydep_inparm" 
-       valid_values=
-"OX,H2O2,OH,HO2,CO,CH4,CH3O2,CH3OOH,CH2O,CHOOH,NO,NO2,HNO3,CO2,NH3,N2O5,NO3,CH3OH,HO2NO2,O1D,C2H6,C2H5O2,PO2,MACRO2,ISOPO2,C4H10,CH3CHO,C2H5OOH,C3H6,POOH,C2H4,PAN,CH3COOOH,C10H16,CHOCHO,CH3COCHO,GLYALD,CH3CO3,C3H8,C3H7O2,CH3COCH3,C3H7OOH,RO2,ROOH,Rn,ISOP,MVK,MACR,C2H5OH,ONITR,ONIT,ISOPNO3,HYDRALD,HCN,CH3CN,H2,'HYAC','CH3COOH','O3S','O3INERT','MPAN','ISOPOOH','MACROOH','Pb','XOOH','H2SO4','ALKOOH','MEKOOH','TOLOOH','BENOOH','XYLOOH','TERPOOH','SOGM','SOGI','SOGT','SOGB','SOGX','SOA','SO2','SO4','CB1','CB2','OC1','OC2','NH3','NH4','SA1','SA2','SA3','SA4','HCN','CH3CN','HCOOH','SOAM','SOAI','SOAT','SOAB','SOAX','O3A','XMPAN','XPAN','XNO','XNO2','XHNO3','XONIT','XONITR',XHO2NO2','XNH4NO3','COhc','COme','CO01','CO02','CO03','CO04','CO05','CO06','CO07','CO08','CO09','CO10','CO11','CO12','CO13','CO14','CO15','CO16','CO17','CO18','CO19','CO20','CO21','CO22','CO23','CO24','CO25','CO26','CO27','CO28','CO29','CO30','CO31','CO32','CO33','CO34','CO35','CO36','CO37','CO38','CO39','CO40','CO41','CO42','CO43','CO44','CO45','CO46','CO47','CO48','CO49','CO50','NH4NO3'"
->
-List of chemical constituents that dry deposition will be calculated for
+   ed  = ED (Ecosystem Demography) model with below ground BGC:
 </entry>
 
 <!-- ========================================================================================  -->
@@ -1124,11 +1512,13 @@ Flag for overriding the crash that should occur if user tries to start the model
 </entry>
 
 <entry id="spinup_state" type="integer" category="clm_vertcn"
-       group="clm_inparm" valid_values="0,1" >
-Flag for setting the state of the Accelerated decomposition spinup state for the model.  
+       group="clm_inparm" valid_values="0,1,2" >
+Flag for setting the state of the Accelerated decomposition spinup state for the BGC model.  
    0 = normal model behavior; 
-   1 = AD spinup.  
+   1 = AD spinup (standard)
+   2 = AD spinup (accelerated spinup from Ricciuto, doesn't work for CNDV and not implemented for CN soil decomposition)
 Entering and exiting spinup mode occurs automatically by comparing the namelist and restart file values for this variable.
+NOTE: THIS CAN ONLY BE SET TO NON-ZERO WHEN BGC_MODE IS NOT SATELITE PHENOLOGY!
 </entry>
 
 <!-- vertical mixing switches    -->
@@ -1144,7 +1534,7 @@ Maximum depth to mix soils to by croturbation, in permafrost soils.
 
 <!-- turnover time modifications    -->
 <entry id="decomp_depth_efolding" type="real" category="clm_vertcn"
-       group="clm_inparm" valid_values="" >
+       group="bgc_shared" valid_values="" >
 E-folding depth over which decomposition is slowed with depth in all soils.
 </entry>
 
@@ -1167,22 +1557,6 @@ separate q10 for frozen soil respiration rates.  default to same as above zero r
 </entry>
 
 <!-- rooting parameters    -->
-
-<entry id="pftspecific_rootingprofile" type="logical" category="clm_vertcn"
-       group="clm_inparm" valid_values="" >
-If TRUE, rooting profile depends on specific PFT
-</entry>
-
-<entry id="exponential_rooting_profile" type="logical" category="clm_vertcn"
-       group="clm_inparm" valid_values="" >
-If true, use a single exponential function to define the profile for distributing C and N from belowground components (following Jackson et al., 1999). If False, use the default CLM rootfrac double exponential for distributing C and N from belowground components.
-(EXPERIMENTAL and NOT tested)
-</entry>
-
-<entry id="rootprof_exp" type="real" category="clm_vertcn"
-       group="clm_inparm" valid_values="" >
-If pftspecific_rootingprofile is set to false, this sets a single exponential profile over which to distribute C and N coming from root pools (leaves, stem, grain).
-</entry>
 
 <entry id="hist_wrtch4diag" type="logical" category="history"
        group="clm_inparm" valid_values="" >
@@ -1223,8 +1597,8 @@ Flag to use the atmospheric time series of C14 concentrations from bomb fallout,
 (EXPERIMENTAL and NOT tested)
 </entry>
 
-<entry id="atm_c14_filename" type="char*256" category="clm_isotope"
-       group="clm_inparm" valid_values="" >
+<entry id="atm_c14_filename" type="char*256"    category="clm_isotope"
+       input_pathname="abs"  group="clm_inparm" valid_values="" >
 Filename with time series of atmospheric Delta C14 data.  variables in file are "time" and "atm_delta_c14".  time variable is in format 1950.0, and time values must be monotonically increasing for interpolation, however spacing can be unequal. atm_delta_c14 variable has units of permil.  
 (EXPERIMENTAL and NOT tested)
 </entry>
@@ -1245,121 +1619,105 @@ If TRUE, weight btran (vegetation soil moisture availability) by the active laye
 (EXPERIMENTAL and NOT tested)
 </entry>
 
+<!-- stress deciduous onset trigger    -->
+<entry id="constrain_stress_deciduous_onset" type="logical" category="clm_physics"
+       group="bgc_shared" valid_values="" >
+If TRUE use additional stress deciduous onset trigger
+</entry>
+
+<entry id="use_nguardrail" type="logical" category="clm_physics"
+       group="clm_inparm" value=".false.">
+Apply the guardrail for leaf-Nitrogen that ensures it doesn't go negative or too small
+</entry>
+
 
 <!-- ========================================================================================  -->
-<!-- namelist elements associated with the clm 5.0 BGC nitrogen model                          -->
+<!-- namelist elements associated with the clm 5.0 BGC flexible CN Model                       -->
 <!-- ========================================================================================  -->
 <entry id="use_flexibleCN" type="logical" category="clm_nitrogen"
        group="clm_inparm" value=".false.">
-Turn on the clm 5.0 nitrogen model in clm 4.5/5.0 compsets.
+Allow the CN ratio to flexibly change with the simulation, rather than being fixed
 </entry>
 
 <entry id="MM_Nuptake_opt" type="logical" category="clm_nitrogen"
        group="clm_nitrogen" value=".false.">
    Michaelis Menten nitrogen uptake kinetics
-   clm 5.0: MM_Nuptake_opt = true
-   clm 4.5: MM_Nuptake_opt = false
-</entry>
-
-<entry id="dynamic_plant_alloc_opt" type="logical" category="clm_nitrogen"
-       group="clm_nitrogen" value=".false.">
-   Dynamic plant allocation of nitrogen
-   clm 5.0: dynamic_plant_alloc_opt = false
-   clm 4.5: dynamic_plant_alloc_opt = false
 </entry>
 
 <entry id="downreg_opt" type="logical" category="clm_nitrogen"
        group="clm_nitrogen" value=".false.">
-   GPP downregulation
-   clm 5.0: downreg_opt = false
-   clm 4.5: downreg_opt = true
+   GPP downregulation for use_flexibleCN option
+(EXPERIMENTAL and NOT tested)
 </entry>
 
 <entry id="plant_ndemand_opt" type="integer" category="clm_nitrogen"
        group="clm_nitrogen" valid_values="0,1,2,3">
-   Plant nitrogen demand
-   clm 5.0: plant_ndemand_opt = 3
-   clm 4.5: plant_ndemand_opt = 0
+   Plant nitrogen demand for use_flexibleCN option
+(EXPERIMENTAL and NOT tested)
 </entry>
 
 <entry id="substrate_term_opt" type="logical" category="clm_nitrogen"
        group="clm_nitrogen" value=".true.">
-   Michaelis Menten substrate limitation
-   clm 5.0: substrate_term_opt = true
-   clm 4.5: substrate_term_opt = true
+   Michaelis Menten substrate limitation for use_flexibleCN option
+(EXPERIMENTAL and NOT tested)
 </entry>
 
 <entry id="nscalar_opt" type="logical" category="clm_nitrogen"
        group="clm_nitrogen" value=".true.">
-   Michaelis Menten nitrogen limitation
-   clm 5.0: nscalar_opt = true
-   clm 4.5: nscalar_opt = true
+   Michaelis Menten nitrogen limitation for use_flexibleCN option
+(EXPERIMENTAL and NOT tested)
 </entry>
 
 <entry id="temp_scalar_opt" type="logical" category="clm_nitrogen"
        group="clm_nitrogen" value=".true.">
-   Michaelis Menten temperature limitation
-   clm 5.0: temp_scalar_opt = true
-   clm 4.5: temp_scalar_opt = true
+   Michaelis Menten temperature limitation for use_flexibleCN option
+(EXPERIMENTAL and NOT tested)
 </entry>
 
 <entry id="CNratio_floating" type="logical" category="clm_nitrogen"
        group="clm_nitrogen" value=".false.">
-   Flexible CN ratio
-   clm 5.0: CNratio_floating = true
-   clm 4.5: CNratio_floating = false
-</entry>
-
-<entry id="lnc_opt" type="logical" category="clm_nitrogen"
-       group="clm_nitrogen" value=".false.">
-   Leaf nitrogen content
-   clm 5.0: lnc_opt = true
-   clm 4.5: lnc_opt = false
+   Flexible CN ratio used for Phenology
+(EXPERIMENTAL and NOT tested)
 </entry>
 
 <entry id="reduce_dayl_factor" type="logical" category="clm_nitrogen"
        group="clm_nitrogen" value=".false.">
    Reduce day length factor
-   clm 5.0: reduce_dayl_factor = false
-   clm 4.5: reduce_dayl_factor = false
+(NOT implemented)
 </entry>
 
 <entry id="vcmax_opt" type="integer" category="clm_nitrogen"
-       group="clm_nitrogen" valid_values="0,1,2,3,4">
-   Vcmax calculation
-   clm 5.0: vcmax_opt = 3
-   clm 4.5: vcmax_opt = 0
+       group="clm_nitrogen" valid_values="0,3,4">
+Vcmax calculation for Photosynthesis
+    vcmax_opt = 4 As for vcmax_opt=0, but using leafN, and exponential if tree  (EXPERIMENTAL NOT TESTED!)
+    vcmax_opt = 3 Based on leafN and VCAD (used with Luna for crop and C4 vegetation)
+    vcmax_opt = 0 Based on canopy top and foilage Nitrogen limitation factor from params file (clm4.5)
+(EXPERIMENTAL and NOT tested)
 </entry>
 
 <entry id="CN_residual_opt" type="integer" category="clm_nitrogen"
        group="clm_nitrogen" valid_values="0,1">
-   clm 5.0: CN_residual_opt = 1
-   clm 4.5: CN_residual_opt = 0
+Residual option for flexible-CN
+(EXPERIMENTAL and NOT tested)
 </entry>
 
 <entry id="CN_partition_opt" type="integer" category="clm_nitrogen"
        group="clm_nitrogen" valid_values="0,1">
-   clm 5.0: CN_partition_opt = 1
-   clm 4.5: CN_partition_opt = 0
-</entry>
-
-<entry id="carbon_excess_opt" type="integer" category="clm_nitrogen"
-       group="clm_nitrogen" valid_values="0,1">
-   clm 5.0: carbon_excess_opt = 0
-   clm 4.5: carbon_excess_opt = 0           
-</entry>
-
-<entry id="carbon_storage_excess_opt" type="integer" category="clm_nitrogen"
-       group="clm_nitrogen" valid_values="0,1">
-   clm 5.0: carbon_storage_excess_opt = 1
-   clm 4.5: carbon_storage_excess_opt = 0
-
+Partition option for flexible-CN
+   CN_partition_opt = 1
+(EXPERIMENTAL and NOT tested)
 </entry>
 
 <entry id="CN_evergreen_phenology_opt" type="integer" category="clm_nitrogen"
        group="clm_nitrogen" valid_values="0,1">
-   clm 5.0: CN_evergreen_phenology_opt = 1
-   clm 4.5: CN_evergreen_phenology_opt = 0
+Evergreen phenology option for CNPhenology
+(EXPERIMENTAL and NOT tested)
+</entry>
+
+<entry id="carbon_resp_opt" type="integer" category="clm_nitrogen"
+       group="clm_nitrogen" valid_values="0,1">
+Carbon respiration option to burn off carbon when CN ratio is too high (do NOT use when FUN is on)
+(EXPERIMENTAL and NOT tested)
 </entry>
 
 
@@ -1469,42 +1827,6 @@ net methane production. NOTE: Currently this must be TRUE.
 </entry>
 
 <!-- ========================================================================================  -->
-<!-- MEGAN VOC emissions namelist options                                                      -->
-<!-- ========================================================================================  -->
-
-<entry id="megan_factors_file" type="char*256" input_pathname="abs" category="drv_physics"
-       group="megan_emis_nl" valid_values="" >
-File containing MEGAN emissions factors. Includes the list of MEGAN compounds that can be
-used in the Comp_Name variable on the file.
-</entry>
-
-<entry id="megan_specifier" type="char*1024(100)" category="drv_physics"
-       group="megan_emis_nl" valid_values="" >
-MEGAN specifier. This is in the form of: Chem-compound = megan_compound(s)
-where megan_compound(s) can be the sum of megan compounds with a "+" between them.
-In each equation, the item to the left of the equal sign is a CAM chemistry compound, the
-items to the right are compounds known to the MEGAN model (single or combinations). 
-For example,
-megan_specifier = 'ISOP = isoprene',
-                  'C10H16 = pinene_a + carene_3 + thujene_a'
-</entry>
-
-<entry id="megan_mapped_emisfctrs" type="logical" category="drv_physics"
-       group="megan_emis_nl" >
-MEGAN mapped isoprene emissions factors switch
-If TRUE then use mapped MEGAN emissions factors for isoprene.
-</entry>
-
-<entry id="megan_cmpds" type="char*32(150)" category="drv_physics"
-       group="drv_physics" 
-       valid_values=
-"isoprene,myrcene,sabinene,limonene,carene_3,ocimene_t_b,pinene_b,pinene_a,2met_styrene,cymene_p,cymene_o,phellandrene_a,thujene_a,terpinene_a,terpinene_g,terpinolene,phellandrene_b,camphene,bornene,fenchene_a,ocimene_al,ocimene_c_b,tricyclene,estragole,camphor,fenchone,piperitone,thujone_a,thujone_b,cineole_1_8,borneol,linalool,terpineol_4,terpineol_a,linalool_OXD_c,linalool_OXD_t,ionone_b,bornyl_ACT,farnescene_a,caryophyllene_b,acoradiene,aromadendrene,bergamotene_a,bergamotene_b,bisabolene_a,bisabolene_b,bourbonene_b,cadinene_d,cadinene_g,cedrene_a,copaene_a,cubebene_a,cubebene_b,elemene_b,farnescene_b,germacrene_B,germacrene_D,gurjunene_b,humulene_a,humulene_g,isolongifolene,longifolene,longipinene,muurolene_a,muurolene_g,selinene_b,selinene_d,nerolidol_c,nerolidol_t,cedrol,MBO_2m3e2ol,methanol,acetone,methane,ammonia,nitrous_OXD,nitric_OXD,acetaldehyde,ethanol,formic_acid,formaldehyde,acetic_acid,MBO_3m2e1ol,MBO_3m3e1ol,benzaldehyde,butanone_2,decanal,dodecene_1,geranyl_acetone,heptanal,heptane,hexane,met_benzoate,met_heptenone,neryl_acetone,nonanal,nonenal,octanal,octanol,octenol_1e3ol,oxopentanal,pentane,phenyl_CCO,pyruvic_acid,terpinyl_ACT_a,tetradecene_1,toluene,carbon_monoxide,butene,ethane,ethene,hydrogen_cyanide,propane,propene,carbon_2s,carbonyl_s,diallyl_2s,2met_2s,2met_s,met_chloride,met_bromide,met_iodide,hydrogen_s,met_mercaptan,met_propenyl_2s,PPPP_2s,2met_nonatriene,met_salicylate,indole,jasmone,met_jasmonate,3met_3DCTT,hexanal,hexanol_1,hexenal_c3,hexenal_t2,hexenol_c3,hexenyl_ACT_c3,homosalate,Ehsalate,pentanal,heptanone,anisole,verbenene,benzyl-acetate,myrtenal,benzyl-alcohol,meta-cymenene,ipsenol,Napthalene"
->
-List of possible MEGAN compounds to use
-  (the list used by the simulation is on the megan_factors_file as the Comp_Name)
-</entry> 
-
-<!-- ========================================================================================  -->
 <!-- Namelist options controlling prescribed subgrid dynamics                                  -->
 <!-- ========================================================================================  -->
 
@@ -1537,12 +1859,6 @@ If TRUE, apply harvest from flanduse_timeseries file.
 <!-- ========================================================================================  -->
 <!-- Namelist options related to finidat consistency checks                                    -->
 <!-- ========================================================================================  -->
-
-<entry id="check_finidat_fsurdat_consistency" type="logical" category="clm_restart"
-       group="finidat_consistency_checks" valid_values="" >
-If TRUE (which is the default), check consistency between surface dataset used to create the finidat file
-and the current fsurdat. This check is only done for a transient run.
-</entry>
 
 <entry id="check_finidat_year_consistency" type="logical" category="clm_restart"
        group="finidat_consistency_checks" valid_values="" >
@@ -1580,6 +1896,65 @@ Values less than 5 are mainly useful for testing, and should not be used for sci
        group="clm_inparm" valid_values="" >
 Maximum snow depth in mm H2O equivalent. Additional mass gains will be capped when this depth 
 is exceeded.
+Changes in this value should possibly be accompanied by changes in:
+- nlevsno: larger values of h2osno_max should be accompanied by increases in nlevsno
+- glc_snow_persistence_max_days: large values of h2osno_max should generally have
+  glc_snow_persistence_max_days = 0; small values of h2osno_max should generally have
+  glc_snow_persistence_max_days > 0.
+</entry>
+
+<entry id="wind_dependent_snow_density" type="logical" category="clm_physics"
+       group="clm_snowhydrology_inparm" valid_values="" >
+If TRUE, the density of new snow depends on wind speed, and there is also
+wind-dependent snow compaction.
+</entry>
+
+<entry id="snow_overburden_compaction_method" type="char*64" category="clm_physics"
+       group="clm_snowhydrology_inparm"
+       valid_values="Vionnet2012,Anderson1976">
+Method used to compute snow overburden compaction
+Anderson1976 -- older method, default in CLM45
+Vionnet2012 --- newer method, default in CLM50
+</entry>
+
+<entry id="lotmp_snowdensity_method" type="char*25" category="clm_physics"
+       group="clm_snowhydrology_inparm"    valid_values="Slater2017,TruncatedAnderson1976" >
+Snow density method to use for low temperatures (below -15C)
+TruncatedAnderson1976 -- Truncate the Anderson-1976 equation at the value for -15C
+Slater2017 ------------- Use equation from Slater that increases snow density for very cold temperatures  (Arctic, Antarctic)
+</entry>
+
+<entry id="upplim_destruct_metamorph" type="real" category="clm_physics"
+       group="clm_snowhydrology_inparm"   >
+Upper Limit on Destructive Metamorphism Compaction [kg/m3]
+</entry>
+
+<entry id="overburden_compress_Tfactor" type="real" category="clm_physics"
+       group="clm_snowhydrology_inparm"   >
+Snow compaction overburden exponential factor (1/K)
+Not used for snow_overburden_compaction_method=Vionnet2012
+</entry>
+
+<entry id="min_wind_snowcompact" type="real" category="clm_physics"
+       group="clm_snowhydrology_inparm"   >
+Minimum wind speed tht results in compaction (m/s)
+</entry>
+
+<!-- ========================================================================================  -->
+<!-- Namelist options related to initInterp                                                    -->
+<!-- ========================================================================================  -->
+
+<entry id="init_interp_fill_missing_with_natveg" type="logical" category="datasets"
+       group="clm_initinterp_inparm" valid_values="" >
+If FALSE (which is the default): If an output type cannot be found in the input for initInterp,
+code aborts
+If TRUE: If an output type cannot be found in the input, fill with closest natural veg column
+(using bare soil for patch-level variables)
+
+NOTE: Natural vegetation and crop landunits always behave as if this were true. e.g., if
+we can't find a column with the same type as a given crop column in the output, then we
+always fill with the closest natural veg patch / column, regardless of the value of this
+flag. So interpolation from non-crop to crop cases can be done without setting this flag.
 </entry>
 
 </namelist_definition>
