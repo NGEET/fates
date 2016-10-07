@@ -46,7 +46,8 @@ contains
     use clm_varpar        , only : nlevsoi, mxpft
     use clm_varctl        , only : iulog
     use pftconMod         , only : pftcon
-    use EDParamsMod       , only : ED_val_grperc
+    use EDParamsMod       , only : ED_val_grperc, &
+                                   ED_val_ag_biomass
     use EDSharedParamsMod , only : EDParamsShareInst
     use EDTypesMod        , only : numpft_ed, dinc_ed 
     use EDtypesMod        , only : ed_patch_type, ed_cohort_type, ed_site_type, numpft_ed
@@ -181,7 +182,6 @@ contains
     real(r8) :: an(cp_nclmax,mxpft,cp_nlevcan)       ! net leaf photosynthesis (umol CO2/m**2/s)
     real(r8) :: an_av(cp_nclmax,mxpft,cp_nlevcan)    ! net leaf photosynthesis (umol CO2/m**2/s) averaged over sun and shade leaves.  
     real(r8) :: ai                                ! intermediate co-limited photosynthesis (umol CO2/m**2/s)
-
     real(r8) :: laican                            ! canopy sum of lai_z
     real(r8) :: vai                               ! leaf and steam area in ths layer. 
     integer  :: exitloop   
@@ -189,7 +189,7 @@ contains
     real(r8) :: tcsoi                             ! Temperature response function for root respiration. 
     real(r8) :: tc                                ! Temperature response function for wood
 
-    real(r8) :: br                                ! Base rate of root respiration.  (gC/gN/s) 
+    
     real(r8) :: q10                               ! temperature dependence of root respiration  
     integer  :: sunsha                            ! sun (1) or shaded (2)  leaves...
     real(r8) :: dr(2)
@@ -198,6 +198,26 @@ contains
     real(r8) :: gs_cohort
     real(r8) :: rscanopy
     real(r8) :: elai
+    
+    real(r8) :: live_agstem_n   ! Live above-ground stem (sapwood) nitrogen content (gN/plant)
+    real(r8) :: live_bgstem_n   ! Live below-ground stem (sapwood) nitrogen content (gN/plant)
+    real(r8) :: froot_n         ! Fine root nitrogen content (gN/plant)
+
+    ! Parameters
+
+    ! -----------------------------------------------------------------------
+    ! base maintenance respiration rate for plant tissues base_mr_20
+    ! M. Ryan, 1991. Effects of climate change on plant respiration.
+    ! Ecological Applications, 1(2), 157-167.
+    ! Original expression is br = 0.0106 molC/(molN h)
+    ! Conversion by molecular weights of C and N gives 2.525e-6 gC/(gN s)
+    !
+    ! Base rate is at 20C. Adjust to 25C using the CN Q10 = 1.5
+    ! (gC/gN/s)
+    ! ------------------------------------------------------------------------
+
+    real(r8),parameter :: base_mr_20 = 2.525e-6_r8
+    
 
     associate(                                                &
          c3psn     => pftcon%c3psn                          , & ! photosynthetic pathway: 0. = c4, 1. = c3
@@ -410,13 +430,6 @@ contains
                   ! Leaf maintenance respiration to match the base rate used in CN
                   ! but with the new temperature functions for C3 and C4 plants.
                   !
-                  ! Base rate for maintenance respiration is from:
-                  ! M. Ryan, 1991. Effects of climate change on plant respiration.
-                  ! Ecological Applications, 1(2), 157-167.
-                  ! Original expression is br = 0.0106 molC/(molN h)
-                  ! Conversion by molecular weights of C and N gives 2.525e-6 gC/(gN s)
-                  !
-                  ! Base rate is at 20C. Adjust to 25C using the CN Q10 = 1.5
                   !
                   ! CN respiration has units:  g C / g N [leaf] / s. This needs to be
                   ! converted from g C / g N [leaf] / s to umol CO2 / m**2 [leaf] / s
@@ -853,60 +866,67 @@ contains
                      !------------------------------------------------------------------------------
                      ! Calculate Whole Plant Respiration (this doesn't really need to be in this iteration at all, surely?)    
                      ! Leaf respn needs to be in the sub-layer loop to account for changing N through canopy. 
-                     !
-                     ! base rate for maintenance respiration is from:
-                     ! M. Ryan, 1991. Effects of climate change on plant respiration.
-                     ! Ecological Applications, 1(2), 157-167.
-                     ! Original expression is br = 0.0106 molC/(molN h)
-                     ! Conversion by molecular weights of C and N gives 2.525e-6 gC/(gN s)
                      !------------------------------------------------------------------------------
-
-                     br = 2.525e-6_r8
 
                      leaf_frac = 1.0_r8/(currentCohort%canopy_trim + EDecophyscon%sapwood_ratio(currentCohort%pft) * &
                           currentCohort%hite + pftcon%froot_leaf(currentCohort%pft))
-                     currentCohort%bsw = EDecophyscon%sapwood_ratio(currentCohort%pft) * currentCohort%hite * &
-                          (currentCohort%balive + currentCohort%laimemory)*leaf_frac
-                     currentCohort%livestemn  = currentCohort%bsw  / pftcon%leafcn(currentCohort%pft)
 
-                     currentCohort%livestem_mr  = 0._r8
-                     currentCohort%livecroot_mr = 0._r8
 
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 874 ', currentCohort%livecroot_mr
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 875 ', currentCohort%livecrootn
+                     ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                     ! THIS CALCULATION SHOULD BE MOVED TO THE ALLOMETRY MODULE (RGK 10-8-2016)
+                     ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                     currentCohort%bsw = EDecophyscon%sapwood_ratio(currentCohort%pft) * &
+                           currentCohort%hite * (currentCohort%balive + currentCohort%laimemory)*leaf_frac
 
-                     if (woody(FT) == 1) then
+                     ! Calculate the amount of nitrogen in the above and below ground 
+                     ! stem and root pools, used for maint resp
+                     ! ------------------------------------------------------------------
+                     live_agstem_n = ED_val_ag_biomass * currentCohort%bsw / &
+                           pftcon%leafcn(currentCohort%pft)
+                     live_bgstem_n = (1.0_r8-ED_val_ag_biomass) * currentCohort%bsw  / &
+                           pftcon%leafcn(currentCohort%pft)
+                     froot_n       = currentCohort%br / leafcn(currentCohort%pft) 
+
+                     ! Above ground Live stem MR
+                     ! ------------------------------------------------------------------
+                     if (woody(ft) == 1) then
                         tc = q10**((bc_in(s)%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8) 
-                        currentCohort%livestem_mr  = currentCohort%livestemn  * br * tc !*currentPatch%btran_ft(currentCohort%pft)  
-                        currentCohort%livecroot_mr = currentCohort%livecrootn * br * tc !*currentPatch%btran_ft(currentCohort%pft) 
-
+                        currentCohort%livestem_mr  = live_agstem_n * base_mr_20 * tc
                         !convert from gC /indiv/s-1 to kgC/indiv/s-1
-                        ! TODO:  CHANGE THAT 1000 to 1000.0_r8 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                        currentCohort%livestem_mr  = currentCohort%livestem_mr /1000
-                        currentCohort%livecroot_mr = currentCohort%livecroot_mr /1000
+                        currentCohort%livestem_mr  = currentCohort%livestem_mr /1000.0_r8
                      else
-                        tc = 1.0_r8
                         currentCohort%livestem_mr  = 0._r8
-                        currentCohort%livecroot_mr = 0._r8    
                      end if
 
-                     if (pftcon%woody(currentCohort%pft) == 1) then
-                        coarse_wood_frac = 0.5_r8
-                     else
-                        coarse_wood_frac = 0.0_r8
-                     end if
 
-                     ! Soil temperature. 
+                     ! Fine Root MR
+                     ! ------------------------------------------------------------------
                      currentCohort%froot_mr = 0._r8
-
                      do j = 1,nlevsoi
                         tcsoi  = q10**((bc_in(s)%t_soisno_gl(j)-tfrz - 20.0_r8)/10.0_r8)
-                        !fine root respn. 
-                        currentCohort%froot_mr = currentCohort%froot_mr + (1.0_r8 - coarse_wood_frac) * &
-                             currentCohort%br*br*tcsoi * currentPatch%rootfr_ft(ft,j)/leafcn(currentCohort%pft) 
-                        ! convert from gC/indiv/s-1 to kgC/indiv/s-1
-                        currentCohort%froot_mr  =  currentCohort%froot_mr /1000.0_r8
+                        currentCohort%froot_mr = currentCohort%froot_mr + &
+                              froot_n * base_mr_20 * tcsoi * currentPatch%rootfr_ft(ft,j)
                      enddo
+                     ! convert from gC/indiv/s-1 to kgC/indiv/s-1
+                     currentCohort%froot_mr  =  currentCohort%froot_mr /1000.0_r8
+
+
+                     ! Coarse Root MR
+                     ! ------------------------------------------------------------------
+                     if (woody(ft) == 1) then
+                        currentCohort%livecroot_mr = 0._r8
+                        do j = 1,nlevsoi
+                           ! Soil temperature used to adjust base rate of MR
+                           tcsoi  = q10**((bc_in(s)%t_soisno_gl(j)-tfrz - 20.0_r8)/10.0_r8)
+                           currentCohort%livecroot_mr = currentCohort%livecroot_mr + &
+                                 live_bgstem_n * base_mr_20 * tcsoi * &
+                                 currentPatch%rootfr_ft(ft,j)* currentPatch%rootfr_ft(ft,j)
+                        enddo
+                        ! convert from gC/indiv/s-1 to kgC/indiv/s-1
+                        currentCohort%livecroot_mr = currentCohort%livecroot_mr /1000.0_r8
+                     else
+                        currentCohort%livecroot_mr = 0._r8    
+                     end if
 
                      ! convert gpp and resp from umol/indiv/s-1 to kgC/indiv/s-1  = X * 12 *10-6 * 10-3
                      !currentCohort%resp_m  = currentCohort%rd      * 12.0E-9
