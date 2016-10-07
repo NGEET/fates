@@ -21,7 +21,6 @@ module EDInitMod
   use EDPatchDynamicsMod        , only : create_patch
   use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type, area
   use EDTypesMod                , only : cohorts_per_col, ncwd, numpft_ed, udata
-  use EDCLMLinkMod              , only : ed_clm_type
 
   implicit none
   private
@@ -31,8 +30,8 @@ module EDInitMod
   public  :: zero_site
   public  :: init_patches
   public  :: set_site_properties
-  
   private :: init_cohorts
+
   ! ============================================================================
 
 contains
@@ -54,7 +53,7 @@ contains
 
     site_in%oldest_patch     => null() ! pointer to oldest patch at the site
     site_in%youngest_patch   => null() ! pointer to yngest patch at the site
-
+    
     ! INDICES 
     site_in%lat              = nan
     site_in%lon              = nan
@@ -163,6 +162,8 @@ contains
        sites(s)%acc_NI     = acc_NI
        sites(s)%frac_burnt = 0.0_r8
        sites(s)%old_stock  = 0.0_r8
+
+
     end do
 
     return

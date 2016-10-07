@@ -860,7 +860,7 @@
         </walltimes>
      </batch_system>
      <mpirun mpilib="mpi-serial">
-        <executable>mpirun</executable>
+        <executable></executable>
         <arguments>
            <arg name="num_tasks">-np {{ num_tasks }}</arg>
            <arg name="tasks_per_node"> -npernode {{ tasks_per_node }}</arg>

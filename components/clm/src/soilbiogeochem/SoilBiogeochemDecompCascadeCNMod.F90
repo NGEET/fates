@@ -24,7 +24,7 @@ module SoilBiogeochemDecompCascadeCNMod
   use TemperatureType                    , only : temperature_type 
   use ch4Mod                             , only : ch4_type
   use ColumnType                         , only : col                
-  use EDCLMLinkMod                       , only : cwd_fcel_ed, cwd_flig_ed
+
   !
   implicit none
   private
@@ -214,11 +214,6 @@ contains
     call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
     if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%cwd_flig_cn=tempr
-
-    if ( use_ed ) then
-       cwd_fcel_ed = params_inst%cwd_fcel_cn
-       cwd_flig_ed = params_inst%cwd_flig_cn
-    endif
 
   end subroutine readParams
 

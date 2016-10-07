@@ -48,6 +48,7 @@ module CLMFatesInterfaceMod
    use clm_varpar        , only : numpft,            &
                                   numrad,            &
                                   nlevgrnd,          &
+                                  nlevsoi,           &
                                   nlevdecomp,        &
                                   nlevdecomp_full
    use atm2lndType       , only : atm2lnd_type
@@ -83,11 +84,11 @@ module CLMFatesInterfaceMod
    
    use HistoryIOMod          , only : fates_hio_interface_type
 
-   use EDCLMLinkMod          , only : ed_clm_type
    use ChecksBalancesMod     , only : SummarizeNetFluxes, FATES_BGC_Carbon_BalanceCheck
    use EDTypesMod            , only : udata
    use EDTypesMod            , only : ed_patch_type
    use EDtypesMod            , only : numPatchesPerCol
+   use EDtypesMod            , only : cp_numlevgrnd
    use EDMainMod             , only : ed_ecosystem_dynamics
    use EDMainMod             , only : ed_update_site
    use EDInitMod             , only : zero_site
@@ -99,10 +100,10 @@ module CLMFatesInterfaceMod
    use EDSurfaceRadiationMod , only : ED_SunShadeFracs, ED_Norman_Radiation
    use EDBtranMod            , only : btran_ed, &
                                       get_active_suction_layers
-
+   use EDCanopyStructureMod  , only : canopy_summarization, update_hlm_dynamics
    use EDPhotosynthesisMod   , only : Photosynthesis_ED
    use EDAccumulateFluxesMod , only : AccumulateFluxes_ED
-   use EDPhysiologyMod       , only: flux_into_litter_pools
+   use EDPhysiologyMod       , only : flux_into_litter_pools
 
    implicit none
 
@@ -137,13 +138,6 @@ module CLMFatesInterfaceMod
 
       type(f2hmap_type), allocatable  :: f2hmap(:)
 
-      ! fates2hlm (previously called "clm_ed_inst") contains types and variables
-      ! that are passed back to the driving land model, ie fates-to-hlm.  
-      ! usefull to a calling model.  In this case HLM means "Hosting Land Model"
-      ! prev:  type(ed_clm_type)::ed_clm_inst
-
-      type(ed_clm_type) :: fates2hlm  
-
       ! fates_hio is the interface class for the history output
       type(fates_hio_interface_type) :: fates_hio
 
@@ -164,6 +158,7 @@ module CLMFatesInterfaceMod
       procedure, private :: wrap_litter_fluxout
       procedure, public  :: wrap_bgc_summary
       procedure, private :: init_history_io
+      procedure, private :: wrap_update_hlmfates_dyn
 
    end type hlm_fates_interface_type
 
@@ -246,6 +241,7 @@ contains
       ! Send parameters individually
       call set_fates_ctrlparms('num_sw_bbands',ival=numrad)
       call set_fates_ctrlparms('num_lev_ground',ival=nlevgrnd)
+      call set_fates_ctrlparms('num_lev_soil',ival=nlevsoi)
       call set_fates_ctrlparms('num_levdecomp',ival=nlevdecomp)
       call set_fates_ctrlparms('num_levdecomp_full',ival=nlevdecomp_full)
       call set_fates_ctrlparms('hlm_name',cval='CLM')
@@ -307,8 +303,6 @@ contains
                
             ! These are the key constraints that determine if this column
             ! will have a FATES site associated with it
-            
-            
 
             ! INTERF-TODO: WE HAVE NOT FILTERED OUT FATES SITES ON INACTIVE COLUMNS.. YET
             ! NEED A RUN-TIME ROUTINE THAT CLEARS AND REWRITES THE SITE LIST
@@ -365,6 +359,13 @@ contains
             call this%fates(nc)%zero_bcs(s)
          end do
 
+         ! Initialize site-level static quantities dictated by the HLM
+         ! currently ground layering depth
+
+         do s = 1, this%fates(nc)%nsites
+            c = this%f2hmap(nc)%fcolumn(s)
+            this%fates(nc)%bc_in(s)%depth_gl(0:cp_numlevgrnd) = col%zi(c,0:cp_numlevgrnd)
+         end do
 
          if( this%fates(nc)%nsites == 0 ) then
             write(iulog,*) 'Clump ',nc,' had no valid FATES sites'
@@ -394,9 +395,6 @@ contains
       
       ! local variables
       integer :: c
-
-      ! FATES-TODO: THIS SHOULD BE CHANGED TO DO RE-ALLOCATION
-      ! INSTEAD OF FAILURE
       
       do c = bounds_clump%begc,bounds_clump%endc
 
@@ -492,7 +490,6 @@ contains
       do s = 1,this%fates(nc)%nsites
 
             call ed_ecosystem_dynamics(this%fates(nc)%sites(s),    &
-                  this%fates2hlm,                                  &
                   atm2lnd_inst,                                    &
                   soilstate_inst, temperature_inst, waterstate_inst)
             
@@ -500,21 +497,22 @@ contains
 
       enddo
 
-      call wrap_litter_fluxout(this, nc, bounds_clump, canopystate_inst, soilbiogeochem_carbonflux_inst)
-      
-      
-      ! link to CLM/ALM structures
-      call this%fates2hlm%ed_clm_link( bounds_clump,               &
-            this%fates(nc)%nsites,                                 &
-            this%fates(nc)%sites,                                  &
-            this%f2hmap(nc)%fcolumn,                               &
-            waterstate_inst,                                       &
-            canopystate_inst)
+      call this%wrap_litter_fluxout(nc, bounds_clump, canopystate_inst, soilbiogeochem_carbonflux_inst)
 
-
-      call this%fates_hio%update_history_dyn( nc, &
-            this%fates(nc)%nsites,       &
-            this%fates(nc)%sites) 
+      ! ---------------------------------------------------------------------------------
+      ! Update diagnostics of the FATES ecosystem structure that are used in the HLM.
+      ! ---------------------------------------------------------------------------------
+      call this%wrap_update_hlmfates_dyn(nc,              &
+                                         bounds_clump,    &
+                                         waterstate_inst, &
+                                         canopystate_inst)
+      
+      ! ---------------------------------------------------------------------------------
+      ! Update history IO fields that depend on ecosystem dynamics
+      ! ---------------------------------------------------------------------------------
+      call this%fates_hio%update_history_dyn( nc,                    &
+                                              this%fates(nc)%nsites, &
+                                              this%fates(nc)%sites) 
 
       if (masterproc) then
          write(iulog, *) 'clm: leaving ED model', bounds_clump%begg, &
@@ -525,6 +523,120 @@ contains
       return
    end subroutine dynamics_driv
    
+   ! ------------------------------------------------------------------------------------
+
+   subroutine wrap_update_hlmfates_dyn(this, nc, bounds_clump,      &
+        waterstate_inst, canopystate_inst)
+
+      ! ---------------------------------------------------------------------------------
+      ! This routine handles the updating of vegetation canopy diagnostics, (such as lai)
+      ! that either requires HLM boundary conditions (like snow accumulation) or
+      ! provides boundary conditions (such as vegetation fractional coverage)
+      ! ---------------------------------------------------------------------------------
+
+     implicit none
+     class(hlm_fates_interface_type), intent(inout) :: this
+     type(bounds_type),intent(in)                   :: bounds_clump
+     integer                 , intent(in)           :: nc
+     type(waterstate_type)   , intent(inout)        :: waterstate_inst
+     type(canopystate_type)  , intent(inout)        :: canopystate_inst
+
+     integer :: npatch  ! number of patches in each site
+     integer :: ifp     ! index FATES patch 
+     integer :: p       ! HLM patch index
+     integer :: s       ! site index
+     integer :: c       ! column index
+
+     associate(                                &
+         tlai => canopystate_inst%tlai_patch , &
+         elai => canopystate_inst%elai_patch , &
+         tsai => canopystate_inst%tsai_patch , &
+         esai => canopystate_inst%esai_patch , &
+         htop => canopystate_inst%htop_patch , &
+         hbot => canopystate_inst%hbot_patch , & 
+         snow_depth => waterstate_inst%snow_depth_col, &
+         frac_sno_eff => waterstate_inst%frac_sno_eff_col, &
+         frac_veg_nosno_alb => canopystate_inst%frac_veg_nosno_alb_patch)
+
+
+       ! Process input boundary conditions to FATES
+       ! --------------------------------------------------------------------------------
+       do s=1,this%fates(nc)%nsites
+          c = this%f2hmap(nc)%fcolumn(s)
+          this%fates(nc)%bc_in(s)%snow_depth_si   = snow_depth(c)
+          this%fates(nc)%bc_in(s)%frac_sno_eff_si = frac_sno_eff(c)
+       end do
+       
+       ! Canopy diagnostics for FATES
+       call canopy_summarization(this%fates(nc)%nsites, &
+            this%fates(nc)%sites,  &
+            this%fates(nc)%bc_in)
+
+       ! Canopy diagnostic outputs for HLM
+       call update_hlm_dynamics(this%fates(nc)%nsites, &
+            this%fates(nc)%sites,  &
+            this%f2hmap(nc)%fcolumn, &
+            this%fates(nc)%bc_out )
+       
+       ! Convert FATES dynamics into HLM usable information
+       ! Initialize weighting variables (note FATES is the only HLM module
+       ! that uses "is_veg" and "is_bareground".  The entire purpose of these
+       ! variables is to inform patch%wtcol(p).  wt_ed is imposed on wtcol,
+       ! but only for FATES columns.
+
+       patch%is_veg(bounds_clump%begp:bounds_clump%endp)        = .false.
+       patch%is_bareground(bounds_clump%begp:bounds_clump%endp) = .false.
+       patch%wt_ed(bounds_clump%begp:bounds_clump%endp)         = 0.0_r8
+
+       do s = 1,this%fates(nc)%nsites
+          
+          c = this%f2hmap(nc)%fcolumn(s)
+
+          ! Other modules may have AI's we only flush values
+          ! that are on the naturally vegetated columns
+          elai(col%patchi(c):col%patchf(c)) = 0.0_r8
+          tlai(col%patchi(c):col%patchf(c)) = 0.0_r8
+          esai(col%patchi(c):col%patchf(c)) = 0.0_r8
+          tsai(col%patchi(c):col%patchf(c)) = 0.0_r8
+          htop(col%patchi(c):col%patchf(c)) = 0.0_r8
+          hbot(col%patchi(c):col%patchf(c)) = 0.0_r8
+          frac_veg_nosno_alb(col%patchi(c):col%patchf(c)) = 0.0_r8
+
+          ! Set the bareground patch indicator
+          patch%is_bareground(col%patchi(c)) = .true.
+          npatch = this%fates(nc)%sites(s)%youngest_patch%patchno
+          patch%wt_ed(col%patchi(c)) = 1.0-sum(this%fates(nc)%bc_out(s)%canopy_fraction_pa(1:npatch))
+
+          if(sum(this%fates(nc)%bc_out(s)%canopy_fraction_pa(1:npatch))>1.0_r8)then
+             write(iulog,*)'Projected Canopy Area of all FATES patches'
+             write(iulog,*)'cannot exceed 1.0'
+             !end_run()
+          end if
+
+          do ifp = 1, npatch
+
+             p = ifp+col%patchi(c)
+
+             ! bc_out(s)%canopy_fraction_pa(ifp) is the area fraction
+             ! the site's total ground area that is occupied by the 
+             ! area footprint of the current patch's vegetation canopy 
+
+             patch%is_veg(p) = .true.
+             patch%wt_ed(p)  = this%fates(nc)%bc_out(s)%canopy_fraction_pa(ifp)
+             elai(p) = this%fates(nc)%bc_out(s)%elai_pa(ifp)
+             tlai(p) = this%fates(nc)%bc_out(s)%tlai_pa(ifp)
+             esai(p) = this%fates(nc)%bc_out(s)%esai_pa(ifp)
+             tsai(p) = this%fates(nc)%bc_out(s)%tsai_pa(ifp)
+             hbot(p) = this%fates(nc)%bc_out(s)%hbot_pa(ifp)
+             htop(p) = this%fates(nc)%bc_out(s)%htop_pa(ifp)
+             frac_veg_nosno_alb(p) = this%fates(nc)%bc_out(s)%frac_veg_nosno_alb_pa(ifp)
+
+          end do
+
+       end do
+     end associate
+     return
+   end subroutine wrap_update_hlmfates_dyn
 
    ! ------------------------------------------------------------------------------------
 
@@ -550,20 +662,25 @@ contains
          if (this%fates(nc)%nsites>0) then
             call get_clump_bounds(nc, bounds_clump)
             
+            ! ------------------------------------------------------------------------
+            ! Main call to read in FATES restart data and unroll it into linked lists
+            ! ------------------------------------------------------------------------
             call EDRest( bounds_clump,                                             &
                  this%fates(nc)%nsites,                                            &
                  this%fates(nc)%sites,                                             &
                  this%f2hmap(nc)%fcolumn, ncid, flag )
             
             if ( trim(flag) == 'read' ) then
-               
-               call this%fates2hlm%ed_clm_link( bounds_clump,                      &
-                    this%fates(nc)%nsites,                                         &
-                    this%fates(nc)%sites,                                          &
-                    this%f2hmap(nc)%fcolumn,                                       &
-                    waterstate_inst,                                               &
-                    canopystate_inst)
-               
+
+               ! ------------------------------------------------------------------------
+               ! Update diagnostics of FATES ecosystem structure used in HLM.
+               ! ------------------------------------------------------------------------
+               call this%wrap_update_hlmfates_dyn(nc,bounds_clump, &
+                    waterstate_inst,canopystate_inst)
+
+               ! ------------------------------------------------------------------------
+               ! Update history IO fields that depend on ecosystem dynamics
+               ! ------------------------------------------------------------------------
                call this%fates_hio%update_history_dyn( nc, &
                     this%fates(nc)%nsites,                 &
                     this%fates(nc)%sites) 
@@ -621,18 +738,20 @@ contains
            do s = 1,this%fates(nc)%nsites
               call ed_update_site(this%fates(nc)%sites(s))
            end do
+
+
+           ! ------------------------------------------------------------------------
+           ! Update diagnostics of FATES ecosystem structure used in HLM.
+           ! ------------------------------------------------------------------------
+           call this%wrap_update_hlmfates_dyn(nc,bounds_clump, &
+                waterstate_inst,canopystate_inst)
            
-           call this%fates2hlm%ed_clm_link( bounds_clump,           &
-                this%fates(nc)%nsites,                              &
-                this%fates(nc)%sites,                               &
-                this%f2hmap(nc)%fcolumn,                            &
-                waterstate_inst,                                    &
-                canopystate_inst)
-
+           ! ------------------------------------------------------------------------
+           ! Update history IO fields that depend on ecosystem dynamics
+           ! ------------------------------------------------------------------------
            call this%fates_hio%update_history_dyn( nc, &
-                 this%fates(nc)%nsites,       &
-                 this%fates(nc)%sites) 
-
+                this%fates(nc)%nsites,                 &
+                this%fates(nc)%sites) 
 
         end if
      end do
@@ -644,10 +763,11 @@ contains
    
    subroutine wrap_sunfrac(this,nc,atm2lnd_inst,canopystate_inst)
          
-      
+      ! ---------------------------------------------------------------------------------
       ! This interface function is a wrapper call on ED_SunShadeFracs. The only
       ! returned variable is a patch vector, fsun_patch, which describes the fraction
       ! of the canopy that is exposed to sun.
+      ! ---------------------------------------------------------------------------------
       
       implicit none
       
@@ -892,7 +1012,6 @@ contains
              this%fates(nc)%sites,  &
              this%fates(nc)%bc_in,  &
              this%fates(nc)%bc_out)
-
 
         ! -------------------------------------------------------------------------------
         ! Convert output BC's
