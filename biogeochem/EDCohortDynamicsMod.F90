@@ -10,9 +10,10 @@ module EDCohortDynamicsMod
   use EDEcophysContype      , only : EDecophyscon
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDTypesMod            , only : fusetol, nclmax
+  use EDTypesMod            , only : fusetol, cp_nclmax
   use EDtypesMod            , only : ncwd, numcohortsperpatch, udata
   use EDtypesMod            , only : sclass_ed,nlevsclass_ed,AREA
+  use EDtypesMod            , only : min_npm2, min_nppatch, min_n_safemath
   !
   implicit none
   private
@@ -26,7 +27,7 @@ module EDCohortDynamicsMod
   public :: sort_cohorts
   public :: copy_cohort
   public :: count_cohorts
-  public :: countCohorts
+!  public :: countCohorts
   public :: allocate_live_biomass
 
   logical, parameter :: DEBUG  = .false. ! local debug flag
@@ -67,8 +68,8 @@ contains
     !----------------------------------------------------------------------
 
     allocate(new_cohort)
-    udata%cohort_number = udata%cohort_number + 1 !give each cohort a unique number for checking cohort fusing routine.
-    
+    udata%cohort_number = udata%cohort_number + 1  !give each cohort a unique number for checking cohort fusing routine.
+
     call nan_cohort(new_cohort)  ! Make everything in the cohort not-a-number
     call zero_cohort(new_cohort) ! Zero things that need to be zeroed. 
 
@@ -218,7 +219,8 @@ contains
        if(mode==1)then
 
           currentcohort%npp_froot = currentcohort%npp_froot + &
-                max(0._r8,pftcon%froot_leaf(ft)*(currentcohort%balive+currentcohort%laimemory)*leaf_frac - currentcohort%br)/udata%deltat
+               max(0._r8,pftcon%froot_leaf(ft)*(currentcohort%balive+currentcohort%laimemory)*leaf_frac - currentcohort%br) / &
+               udata%deltat
 
           currentcohort%npp_bsw = max(0._r8,EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
                 currentcohort%laimemory)*leaf_frac - currentcohort%bsw)/udata%deltat
@@ -339,15 +341,15 @@ contains
 
     ! CARBON FLUXES 
     currentCohort%gpp                = nan ! GPP:  kgC/indiv/year
-    currentCohort%gpp_clm            = nan ! GPP:  kgC/indiv/timestep
+    currentCohort%gpp_tstep            = nan ! GPP:  kgC/indiv/timestep
     currentCohort%gpp_acc            = nan ! GPP:  kgC/indiv/day         
     currentCohort%npp                = nan ! NPP:  kgC/indiv/year
-    currentCohort%npp_clm            = nan ! NPP:  kGC/indiv/timestep
+    currentCohort%npp_tstep            = nan ! NPP:  kGC/indiv/timestep
     currentCohort%npp_acc            = nan ! NPP:  kgC/indiv/day  
     currentCohort%year_net_uptake(:) = nan ! Net uptake of individual leaf layers kgC/m2/year
     currentCohort%ts_net_uptake(:)   = nan ! Net uptake of individual leaf layers kgC/m2/s
     currentCohort%resp               = nan ! RESP: kgC/indiv/year
-    currentCohort%resp_clm           = nan ! RESP: kgC/indiv/timestep
+    currentCohort%resp_tstep           = nan ! RESP: kgC/indiv/timestep
     currentCohort%resp_acc           = nan ! RESP: kGC/cohort/day
 
     currentCohort%npp_leaf  = nan
@@ -431,9 +433,9 @@ contains
     currentcohort%npp_acc            = 0._r8
     currentcohort%gpp_acc            = 0._r8
     currentcohort%resp_acc           = 0._r8
-    currentcohort%npp_clm            = 0._r8
-    currentcohort%gpp_clm            = 0._r8
-    currentcohort%resp_clm           = 0._r8
+    currentcohort%npp_tstep            = 0._r8
+    currentcohort%gpp_tstep            = 0._r8
+    currentcohort%resp_tstep           = 0._r8
     currentcohort%resp               = 0._r8
     currentcohort%carbon_balance     = 0._r8
     currentcohort%leaf_litter        = 0._r8
@@ -488,47 +490,55 @@ contains
        nextc      => currentCohort%shorter    
        terminate = 0 
 
-       ! Not enough n or dbh
-       if (currentCohort%n/currentPatch%area <= 0.00001_r8 .or. currentCohort%dbh <  &
-            0.00001_r8.and.currentCohort%bstore < 0._r8) then
-          terminate = 1
-
-          if ( DEBUG ) then
-             write(iulog,*) 'terminating cohorts 1',currentCohort%n/currentPatch%area,currentCohort%dbh
-          endif
-
+       ! Check if number density is so low is breaks math
+       if (currentcohort%n <  min_n_safemath) then
+         terminate = 1
+	 if ( DEBUG ) then
+             write(iulog,*) 'terminating cohorts 0',currentCohort%n/currentPatch%area,currentCohort%dbh
+         endif
        endif
 
-       ! In the third canopy layer
-       if (currentCohort%canopy_layer > NCLMAX) then 
-          terminate = 1
+       ! The rest of these are only allowed if we are not dealing with a recruit
+       if (.not.currentCohort%isnew) then
 
-          if ( DEBUG ) then
-            write(iulog,*) 'terminating cohorts 2', currentCohort%canopy_layer
-          endif
+         ! Not enough n or dbh
+         if  (currentCohort%n/currentPatch%area <= min_npm2 .or.	&  !
+              currentCohort%n <= min_nppatch .or. &
+              (currentCohort%dbh < 0.00001_r8.and.currentCohort%bstore < 0._r8) ) then 
+            terminate = 1
 
-       endif
+            if ( DEBUG ) then
+               write(iulog,*) 'terminating cohorts 1',currentCohort%n/currentPatch%area,currentCohort%dbh
+            endif
+         endif
 
-       ! live biomass pools are terminally depleted
-       if (currentCohort%balive < 1e-10_r8 .or. currentCohort%bstore < 1e-10_r8) then 
-          terminate = 1  
+         ! In the third canopy layer
+         if (currentCohort%canopy_layer > cp_nclmax ) then 
+           terminate = 1
+           if ( DEBUG ) then
+             write(iulog,*) 'terminating cohorts 2', currentCohort%canopy_layer
+           endif
+         endif
 
-          if ( DEBUG ) then
-            write(iulog,*) 'terminating cohorts 3', currentCohort%balive,currentCohort%bstore
-          endif
+         ! live biomass pools are terminally depleted
+         if (currentCohort%balive < 1e-10_r8 .or. currentCohort%bstore < 1e-10_r8) then 
+            terminate = 1  
+            if ( DEBUG ) then
+              write(iulog,*) 'terminating cohorts 3', currentCohort%balive,currentCohort%bstore
+            endif
+         endif
 
-       endif
-
-       ! Total cohort biomass is negative
-       if (currentCohort%balive+currentCohort%bdead+currentCohort%bstore < 0._r8) then
-          terminate = 1
-
-          if ( DEBUG ) then
-            write(iulog,*) 'terminating cohorts 4', currentCohort%balive, currentCohort%bstore, currentCohort%bdead, &
+         ! Total cohort biomass is negative
+         if (currentCohort%balive+currentCohort%bdead+currentCohort%bstore < 0._r8) then
+            terminate = 1
+            if ( DEBUG ) then
+            write(iulog,*) 'terminating cohorts 4', currentCohort%balive, &
+                           currentCohort%bstore, currentCohort%bdead, &
                            currentCohort%balive+currentCohort%bdead+&
                            currentCohort%bstore, currentCohort%n
-          endif
+            endif
 
+         endif
        endif
 
        if (terminate == 1) then 
@@ -575,7 +585,7 @@ contains
     ! Join similar cohorts to reduce total number            
     !
     ! !USES:
-    use clm_varpar  , only :  nlevcan_ed
+    use EDTypesMod  , only :  cp_nlevcan
     !
     ! !ARGUMENTS    
     type (ed_patch_type), intent(inout), target :: patchptr
@@ -604,7 +614,6 @@ contains
     iterate = 1
     fusion_took_place = 0   
     currentPatch => patchptr
-   ! maxcohorts =  currentPatch%NCL_p * numCohortsPerPatch
     maxcohorts = numCohortsPerPatch
   
     !---------------------------------------------------------------------!
@@ -615,8 +624,13 @@ contains
 
          currentCohort => currentPatch%tallest
 
-         !CHANGED FROM C VERSION  loop from tallest to smallest, fusing if they are similar
-         do while (currentCohort%indexnumber /= currentPatch%shortest%indexnumber)  
+         ! The following logic continues the loop while the current cohort is not the shortest cohort
+         ! if they point to the same target (ie equivalence), then the loop ends.
+         ! This loop is different than the simple "continue while associated" loop in that
+         ! it omits the last cohort (because it has already been compared by that point)
+
+         do while ( .not.associated(currentCohort,currentPatch%shortest) )
+
           nextc => currentPatch%tallest
 
           do while (associated(nextc))
@@ -627,7 +641,8 @@ contains
 
              if (diff < dynamic_fusion_tolerance) then
 
-                if (currentCohort%indexnumber /= nextc%indexnumber) then
+                ! Don't fuse a cohort with itself!
+                if (.not.associated(currentCohort,nextc) ) then
 
                    if (currentCohort%pft == nextc%pft) then              
 
@@ -641,11 +656,11 @@ contains
 			 ! to fuse with other new cohorts to keep the total number of cohorts
 			 ! down.
 
-                         if( (.not.(currentCohort%isnew) .and. .not.(nextc%isnew) ) .or. & 
-			          ( currentCohort%isnew .and. nextc%isnew ) ) then
+                         if( .not.(currentCohort%isnew) .and. .not.(nextc%isnew) ) then
 
+                         newn = currentCohort%n + nextc%n
                          fusion_took_place = 1         
-                         newn = currentCohort%n + nextc%n    ! sum individuals in both cohorts.     
+                             
 
                          currentCohort%balive    = (currentCohort%n*currentCohort%balive    + nextc%n*nextc%balive)/newn
                          currentCohort%bdead     = (currentCohort%n*currentCohort%bdead     + nextc%n*nextc%bdead)/newn
@@ -715,7 +730,7 @@ contains
                          currentCohort%npp_bseed = (currentCohort%n*currentCohort%npp_bseed + nextc%n*nextc%npp_bseed)/newn
                          currentCohort%npp_store = (currentCohort%n*currentCohort%npp_store + nextc%n*nextc%npp_store)/newn
 
-                         do i=1, nlevcan_ed     
+                         do i=1, cp_nlevcan     
                             if (currentCohort%year_net_uptake(i) == 999._r8 .or. nextc%year_net_uptake(i) == 999._r8) then
                                currentCohort%year_net_uptake(i) = min(nextc%year_net_uptake(i),currentCohort%year_net_uptake(i))
                             else
@@ -723,7 +738,7 @@ contains
                                   nextc%n*nextc%year_net_uptake(i))/newn                
                             endif
                          enddo
-
+                         
                          currentCohort%n = newn     
                          !remove fused cohort from the list
                          nextc%taller%shorter => nextnextc        
@@ -973,8 +988,8 @@ contains
     n => copyc
 
     udata%cohort_number = udata%cohort_number + 1
-    n%indexnumber = udata%cohort_number
-
+    n%indexnumber       = udata%cohort_number
+    
     ! VEGETATION STRUCTURE
     n%pft             = o%pft
     n%n               = o%n                         
@@ -1003,15 +1018,15 @@ contains
     ! CARBON FLUXES 
     n%gpp             = o%gpp
     n%gpp_acc         = o%gpp_acc
-    n%gpp_clm         = o%gpp_clm
+    n%gpp_tstep         = o%gpp_tstep
     n%npp             = o%npp
-    n%npp_clm         = o%npp_clm
+    n%npp_tstep         = o%npp_tstep
 
     if ( DEBUG ) write(iulog,*) 'EDcohortDyn Ia ',o%npp_acc
     if ( DEBUG ) write(iulog,*) 'EDcohortDyn Ib ',o%resp_acc
 
     n%npp_acc         = o%npp_acc
-    n%resp_clm        = o%resp_clm
+    n%resp_tstep        = o%resp_tstep
     n%resp_acc        = o%resp_acc
     n%resp            = o%resp
     n%year_net_uptake = o%year_net_uptake
@@ -1123,46 +1138,46 @@ contains
   end function count_cohorts
 
   !-------------------------------------------------------------------------------------!
-  function countCohorts( bounds, ed_allsites_inst ) result ( totNumCohorts ) 
+!  function countCohorts( bounds, ed_allsites_inst ) result ( totNumCohorts ) 
     !
     ! !DESCRIPTION:
     !  counts the total number of cohorts over all p levels (ed_patch_type) so we
     ! can allocate vectors, copy from LL -> vector and read/write restarts.
     !
     ! !USES:
-    use decompMod, only : bounds_type
+!    use decompMod, only : bounds_type
     !
     ! !ARGUMENTS    
-    type(bounds_type)  , intent(in)            :: bounds 
-    type(ed_site_type) , intent(inout), target :: ed_allsites_inst( bounds%begg: )
+!    type(bounds_type)  , intent(in)            :: bounds 
+!    type(ed_site_type) , intent(inout), target :: ed_allsites_inst( bounds%begg: )
     !
     ! !LOCAL VARIABLES:
-    type (ed_patch_type)  , pointer :: currentPatch
-    type (ed_cohort_type) , pointer :: currentCohort
-    integer :: g, totNumCohorts
-    logical :: error
+!    type (ed_patch_type)  , pointer :: currentPatch
+!    type (ed_cohort_type) , pointer :: currentCohort
+!    integer :: g, totNumCohorts
+!    logical :: error
     !----------------------------------------------------------------------
 
-    totNumCohorts = 0
+!    totNumCohorts = 0
 
-    do g = bounds%begg,bounds%endg
+!    do g = bounds%begg,bounds%endg
 
-       if (ed_allsites_inst(g)%istheresoil) then   
+!       if (ed_allsites_inst(g)%istheresoil) then   
 
-          currentPatch => ed_allsites_inst(g)%oldest_patch
-          do while(associated(currentPatch))
+!          currentPatch => ed_allsites_inst(g)%oldest_patch
+!          do while(associated(currentPatch))
 
-             currentCohort => currentPatch%shortest
-             do while(associated(currentCohort))        
-                totNumCohorts = totNumCohorts + 1
-                currentCohort => currentCohort%taller
-             enddo !currentCohort
-             currentPatch => currentPatch%younger
-          end do
+!             currentCohort => currentPatch%shortest
+!             do while(associated(currentCohort))        
+!                totNumCohorts = totNumCohorts + 1
+!                currentCohort => currentCohort%taller
+!             enddo !currentCohort
+!             currentPatch => currentPatch%younger
+!          end do
 
-       end if
-    end do
+!       end if
+!    end do
 
-  end function countCohorts
+!  end function countCohorts
 
 end module EDCohortDynamicsMod

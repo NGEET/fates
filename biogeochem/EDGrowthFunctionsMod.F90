@@ -10,7 +10,7 @@ module EDGrowthFunctionsMod
   use clm_varctl       , only : iulog 
   use pftconMod        , only : pftcon
   use EDEcophysContype , only : EDecophyscon
-  use EDTypesMod       , only : ed_cohort_type, nlevcan_ed, dinc_ed
+  use EDTypesMod       , only : ed_cohort_type, cp_nlevcan, dinc_ed
 
   implicit none
   private
@@ -117,7 +117,7 @@ contains
     slascaler = 0.03_r8/pftcon%slatop(cohort_in%pft)
     bleaf = bleaf * slascaler
     
-    !write(*,*) 'bleaf',bleaf, slascaler,cohort_in%pft
+    !write(iulog,*) 'bleaf',bleaf, slascaler,cohort_in%pft
     
     !Adjust for canopies that have become so deep that their bottom layer is not producing any carbon... 
     !nb this will change the allometry and the effects of this remain untested. RF. April 2014  
@@ -159,10 +159,10 @@ contains
     cohort_in%treelai = tree_lai
 
     ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
-    ! at the moments nlevcan_ed default is 40, which is very large, so exceeding this would clearly illustrate a 
+    ! at the moments cp_nlevcan default is 40, which is very large, so exceeding this would clearly illustrate a 
     ! huge error 
-    if(cohort_in%treelai > nlevcan_ed*dinc_ed)then
-       write(iulog,*) 'too much lai' , cohort_in%treelai , cohort_in%pft , nlevcan_ed * dinc_ed
+    if(cohort_in%treelai > cp_nlevcan*dinc_ed)then
+       write(iulog,*) 'too much lai' , cohort_in%treelai , cohort_in%pft , cp_nlevcan * dinc_ed
     endif
 
     return
@@ -196,10 +196,10 @@ contains
     cohort_in%treesai = tree_sai
 
     ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
-    ! at the moments nlevcan_ed default is 40, which is very large, so exceeding this would clearly illustrate a 
+    ! at the moments cp_nlevcan default is 40, which is very large, so exceeding this would clearly illustrate a 
     ! huge error 
-    if(cohort_in%treesai > nlevcan_ed*dinc_ed)then
-       write(iulog,*) 'too much sai' , cohort_in%treesai , cohort_in%pft , nlevcan_ed * dinc_ed
+    if(cohort_in%treesai > cp_nlevcan*dinc_ed)then
+       write(iulog,*) 'too much sai' , cohort_in%treesai , cohort_in%pft , cp_nlevcan * dinc_ed
     endif
 
     return
@@ -350,8 +350,10 @@ contains
     real(r8) :: frac  ! relativised stored carbohydrate
 
     ! 'Background' mortality (can vary as a function of density as in ED1.0 and ED2.0, but doesn't here for tractability) 
-    bmort = 0.014_r8 
-   
+    ! bmort = EDecophyscon%b_mort(cohort_in%pft) !0.014_r8 
+    ! RGK:/CX HOLDING OFF ON SENS-ANALYSIS UNTIL MACHINE CONFIGS SQUARED AWAY
+    bmort = 0.014_r8
+
     ! Proxy for hydraulic failure induced mortality. 
     if(cohort_in%patchptr%btran_ft(cohort_in%pft) <= 0.000001_r8)then 
        hmort = ED_val_stress_mort
