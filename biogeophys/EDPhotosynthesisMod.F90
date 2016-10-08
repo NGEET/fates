@@ -920,7 +920,7 @@ contains
                            tcsoi  = q10**((bc_in(s)%t_soisno_gl(j)-tfrz - 20.0_r8)/10.0_r8)
                            currentCohort%livecroot_mr = currentCohort%livecroot_mr + &
                                  live_bgstem_n * base_mr_20 * tcsoi * &
-                                 currentPatch%rootfr_ft(ft,j)* currentPatch%rootfr_ft(ft,j)
+                                 currentPatch%rootfr_ft(ft,j)
                         enddo
                         ! convert from gC/indiv/s-1 to kgC/indiv/s-1
                         currentCohort%livecroot_mr = currentCohort%livecroot_mr /1000.0_r8
