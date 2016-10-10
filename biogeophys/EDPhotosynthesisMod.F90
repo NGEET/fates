@@ -205,6 +205,12 @@ contains
 
     ! Parameters
 
+    ! Conversion factor umols of Carbon -> kg of Carbon (1 mol = 12g)
+    real(r8), parameter :: umolC_to_kgC = 12.0E-9_r8
+
+    ! Conversion factor: grams per kilograms
+    real(r8), parameter :: g_per_kg = 1000.0_r8
+
     ! -----------------------------------------------------------------------
     ! base maintenance respiration rate for plant tissues base_mr_20
     ! M. Ryan, 1991. Effects of climate change on plant respiration.
@@ -437,7 +443,7 @@ contains
                   ! Then scale this value at the top of the canopy for canopy depth
                   
                   lmr25top(FT) = 2.525e-6_r8 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
-                  lmr25top(FT) = lmr25top(FT) * lnc(FT) / 12.e-06_r8
+                  lmr25top(FT) = lmr25top(FT) * lnc(FT) / (umolC_to_kgC * g_per_kg)
                   
                end do !FT 
 
@@ -801,7 +807,7 @@ contains
                      currentCohort%npp_tstep  = 0.0_r8
                      currentCohort%resp_tstep = 0.0_r8
                      currentCohort%gpp_tstep  = 0.0_r8
-                     currentCohort%rd       = 0.0_r8
+                     currentCohort%rdark       = 0.0_r8
                      currentCohort%resp_m   = 0.0_r8
 
                      ! Select canopy layer and PFT.
@@ -824,16 +830,16 @@ contains
                         currentCohort%gpp_tstep  = sum(currentPatch%psn_z(cl,ft,1:currentCohort%nv-1) * &
                              currentPatch%elai_profile(cl,ft,1:currentCohort%nv-1)) * tree_area
 
-                        currentCohort%rd       = sum(lmr_z(cl,ft,1:currentCohort%nv-1)    * &
+                        currentCohort%rdark       = sum(lmr_z(cl,ft,1:currentCohort%nv-1)    * &
                              currentPatch%elai_profile(cl,ft,1:currentCohort%nv-1)) * tree_area 
 
                         currentCohort%gscan    = sum((1.0_r8/(rs_z(cl,ft,1:currentCohort%nv-1)+bc_in(s)%rb_pa(ifp)))) *  tree_area 
-                        currentCohort%ts_net_uptake(1:currentCohort%nv) = an_av(cl,ft,1:currentCohort%nv) * 12E-9 * dtime 
+                        currentCohort%ts_net_uptake(1:currentCohort%nv) = an_av(cl,ft,1:currentCohort%nv) * umolC_to_kgC * dtime 
 
                      else
 
                         currentCohort%gpp_tstep = 0.0_r8 
-                        currentCohort%rd = 0.0_r8 
+                        currentCohort%rdark = 0.0_r8 
                         currentCohort%gscan = 0.0_r8 
                         currentCohort%ts_net_uptake(:) = 0.0_r8
 
@@ -858,15 +864,14 @@ contains
                      currentCohort%gpp_tstep  = currentCohort%gpp_tstep + currentPatch%psn_z(cl,ft,currentCohort%nv) * &
                           currentPatch%elai_profile(cl,ft,currentCohort%nv) * laifrac * tree_area
 
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 843 ', currentCohort%rd
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 843 ', currentCohort%rdark
 
-                     currentCohort%rd       = currentCohort%rd      + lmr_z(cl,ft,currentCohort%nv)    * &
+
+                     currentCohort%rdark       = currentCohort%rdark      + lmr_z(cl,ft,currentCohort%nv)    * &
                           currentPatch%elai_profile(cl,ft,currentCohort%nv) * laifrac * tree_area 
 
-                     !------------------------------------------------------------------------------
-                     ! Calculate Whole Plant Respiration (this doesn't really need to be in this iteration at all, surely?)    
-                     ! Leaf respn needs to be in the sub-layer loop to account for changing N through canopy. 
-                     !------------------------------------------------------------------------------
+                     ! Convert dark respiration from umol/plant/s to kgC/plant/s
+                     currentCohort%rdark       = currentCohort%rdark * umolC_to_kgC
 
                      leaf_frac = 1.0_r8/(currentCohort%canopy_trim + EDecophyscon%sapwood_ratio(currentCohort%pft) * &
                           currentCohort%hite + pftcon%froot_leaf(currentCohort%pft))
@@ -886,6 +891,12 @@ contains
                      live_bgstem_n = (1.0_r8-ED_val_ag_biomass) * currentCohort%bsw  / &
                            pftcon%leafcn(currentCohort%pft)
                      froot_n       = currentCohort%br / leafcn(currentCohort%pft) 
+
+
+                     !------------------------------------------------------------------------------
+                     ! Calculate Whole Plant Respiration (this doesn't really need to be in this iteration at all, surely?)    
+                     ! Leaf respn needs to be in the sub-layer loop to account for changing N through canopy. 
+                     !------------------------------------------------------------------------------
 
                      ! Above ground Live stem MR
                      ! ------------------------------------------------------------------
@@ -928,20 +939,19 @@ contains
                         currentCohort%livecroot_mr = 0._r8    
                      end if
 
-                     ! convert gpp and resp from umol/indiv/s-1 to kgC/indiv/s-1  = X * 12 *10-6 * 10-3
-                     !currentCohort%resp_m  = currentCohort%rd      * 12.0E-9
+                     ! convert gpp from umol/indiv/s-1 to kgC/indiv/s-1  = X * 12 *10-6 * 10-3
 
                      if ( DEBUG ) write(iulog,*) 'EDPhoto 904 ', currentCohort%resp_m
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 905 ', currentCohort%rd
+                     if ( DEBUG ) write(iulog,*) 'EDPhoto 905 ', currentCohort%rdark
                      if ( DEBUG ) write(iulog,*) 'EDPhoto 906 ', currentCohort%livestem_mr
                      if ( DEBUG ) write(iulog,*) 'EDPhoto 907 ', currentCohort%livecroot_mr
                      if ( DEBUG ) write(iulog,*) 'EDPhoto 908 ', currentCohort%froot_mr
 
-                     currentCohort%gpp_tstep = currentCohort%gpp_tstep * 12.0E-9    
+                     currentCohort%gpp_tstep = currentCohort%gpp_tstep * umolC_to_kgC
                      ! add on whole plant respiration values in kgC/indiv/s-1  
                      currentCohort%resp_m = currentCohort%livestem_mr + currentCohort%livecroot_mr + currentCohort%froot_mr
                      ! no drought response * (1.0_r8 - currentPatch%btran_ft(currentCohort%pft)*pftcon%resp_drought_response(FT))   
-                     currentCohort%resp_m = currentCohort%resp_m + currentCohort%rd * 12.0E-9 !this was already corrected fo BTRAN     
+                     currentCohort%resp_m = currentCohort%resp_m + currentCohort%rdark
 
                      ! convert from kgC/indiv/s to kgC/indiv/timestep       
                      currentCohort%resp_m   = currentCohort%resp_m  * dtime 
@@ -951,7 +961,7 @@ contains
                      if ( DEBUG ) write(iulog,*) 'EDPhoto 912 ', currentCohort%resp_tstep
                      if ( DEBUG ) write(iulog,*) 'EDPhoto 913 ', currentCohort%resp_m
 
-                     currentCohort%resp_g   = ED_val_grperc(1) * (max(0._r8,currentCohort%gpp_tstep - currentCohort%resp_m))
+                     currentCohort%resp_g     = ED_val_grperc(1) * (max(0._r8,currentCohort%gpp_tstep - currentCohort%resp_m))
                      currentCohort%resp_tstep = currentCohort%resp_m + currentCohort%resp_g ! kgC/indiv/ts    
                      currentCohort%npp_tstep  = currentCohort%gpp_tstep - currentCohort%resp_tstep  ! kgC/indiv/ts
 

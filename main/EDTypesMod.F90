@@ -212,7 +212,7 @@ module EDTypesMod
      real(r8) ::  year_net_uptake(cp_nlevcan)            ! Net uptake of leaf layers: kgC/m2/year
 
      ! RESPIRATION COMPONENTS
-     real(r8) ::  rd                                     ! Dark respiration: umol/indiv/s
+     real(r8) ::  rdark                                  ! Dark respiration: kgC/indiv/s
      real(r8) ::  resp_g                                 ! Growth respiration:  kgC/indiv/timestep
      real(r8) ::  resp_m                                 ! Maintenance respiration:  kgC/indiv/timestep 
      real(r8) ::  livestem_mr                            ! Live stem        maintenance respiration: kgC/indiv/s

@@ -361,7 +361,7 @@ contains
 
 
     !RESPIRATION
-    currentCohort%rd                 = nan
+    currentCohort%rdark              = nan
     currentCohort%resp_m             = nan ! Maintenance respiration.  kGC/cohort/year
     currentCohort%resp_g             = nan ! Growth respiration.       kGC/cohort/year
     currentCohort%livestem_mr        = nan ! Live stem maintenance respiration. kgC/indiv/s-1 
@@ -418,7 +418,7 @@ contains
 
     currentCohort%NV                 = 0    
     currentCohort%status_coh         = 0    
-    currentCohort%rd                 = 0._r8
+    currentCohort%rdark              = 0._r8
     currentCohort%resp_m             = 0._r8 
     currentCohort%resp_g             = 0._r8
     currentCohort%livestem_mr        = 0._r8
@@ -1035,7 +1035,7 @@ contains
     n%npp_store      = o%npp_store
 
     !RESPIRATION
-    n%rd              = o%rd
+    n%rdark           = o%rdark
     n%resp_m          = o%resp_m
     n%resp_g          = o%resp_g
     n%livestem_mr     = o%livestem_mr
