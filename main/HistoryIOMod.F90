@@ -119,6 +119,13 @@ Module HistoryIOMod
   integer, private :: ih_m4_si_scpf
   integer, private :: ih_m5_si_scpf
 
+  integer, private :: ih_ar_si_scpf
+  integer, private :: ih_ar_grow_si_scpf
+  integer, private :: ih_ar_maint_si_scpf
+  integer, private :: ih_ar_darkm_si_scpf
+  integer, private :: ih_ar_agsapm_si_scpf
+  integer, private :: ih_ar_crootm_si_scpf
+  integer, private :: ih_ar_frootm_si_scpf
 
   ! The number of variable dim/kind types we have defined (static)
   integer, parameter                :: n_iovar_dk = 6
@@ -627,7 +634,9 @@ contains
     use EDtypesMod          , only : ed_site_type,   &
                                      ed_cohort_type, &
                                      ed_patch_type,  &
-                                     AREA
+                                     AREA,           &
+                                     sclass_ed,      &
+                                     nlevsclass_ed
     ! Arguments
     class(fates_hio_interface_type)                 :: this
     integer                 , intent(in)            :: nc   ! clump index
@@ -644,7 +653,9 @@ contains
     integer  :: io_soipa 
     integer  :: lb1,ub1,lb2,ub2  ! IO array bounds for the calling thread
     integer  :: ivar             ! index of IO variable object vector
-
+    integer  :: ft               ! functional type index
+    integer  :: scpf             ! index of the size-class x pft bin
+    integer  :: sc               ! index of the size-class bin
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
 
@@ -660,7 +671,15 @@ contains
                hio_aresp_pa       => this%hvars(ih_aresp_pa)%r81d, &
                hio_maint_resp_pa  => this%hvars(ih_maint_resp_pa)%r81d, &
                hio_growth_resp_pa => this%hvars(ih_growth_resp_pa)%r81d, &
-               hio_npp_si         => this%hvars(ih_npp_si)%r81d )
+               hio_npp_si         => this%hvars(ih_npp_si)%r81d, &
+               hio_ar_si_scpf     => this%hvars(ih_ar_si_scpf)%r82d, &
+               hio_ar_grow_si_scpf   => this%hvars(ih_ar_grow_si_scpf)%r82d, &
+               hio_ar_maint_si_scpf  => this%hvars(ih_ar_maint_si_scpf)%r82d, &
+               hio_ar_agsapm_si_scpf => this%hvars(ih_ar_agsapm_si_scpf)%r82d, &
+               hio_ar_darkm_si_scpf  => this%hvars(ih_ar_darkm_si_scpf)%r82d, &
+               hio_ar_crootm_si_scpf => this%hvars(ih_ar_crootm_si_scpf)%r82d, &
+               hio_ar_frootm_si_scpf => this%hvars(ih_ar_frootm_si_scpf)%r82d )
+
 
       ! Flush the relevant history variables 
       call this%flush_hvars(nc,upfreq_in=2)
@@ -705,6 +724,39 @@ contains
                   
                   ! map ed cohort-level npp fluxes to clm column fluxes
                   hio_npp_si(io_si) = hio_npp_si(io_si) + ccohort%npp_tstep * n_perm2 * 1.e3_r8 /dt_tstep
+
+                  ! Calculate index for the scpf class
+                  sc  = count(ccohort%dbh-sclass_ed.ge.0.0)
+                  scpf = (ft-1)*nlevsclass_ed+sc
+
+                  ! Total AR (kgC/m2/yr) = (kgC/plant/step) / (s/step) * (plant/m2) * (s/yr)
+                  hio_ar_si_scpf(io_si,scpf)    =   hio_ar_si_scpf(io_si,scpf) + &
+                        (ccohort%resp_tstep/dt_tstep) * n_perm2 * daysecs * yeardays
+
+                  ! Growth AR (kgC/m2/yr)
+                  hio_ar_grow_si_scpf(io_si,scpf) = hio_ar_grow_si_scpf(io_si,scpf) + &
+                        (ccohort%resp_g/dt_tstep) * n_perm2 * daysecs * yeardays
+
+                  ! Maint AR (kgC/m2/yr)
+                  hio_ar_maint_si_scpf(io_si,scpf) = hio_ar_maint_si_scpf(io_si,scpf) + &
+                        (ccohort%resp_m/dt_tstep) * n_perm2 * daysecs * yeardays
+                  
+                  ! Maintenance AR partition variables are stored as rates (kgC/plant/s)
+                  ! (kgC/m2/yr) = (kgC/plant/s) * (plant/m2) * (s/yr)
+                  hio_ar_agsapm_si_scpf(io_si,scpf) = hio_ar_agsapm_si_scpf(io_si,scpf) + &
+                        ccohort%livestem_mr * n_perm2 * daysecs * yeardays
+
+                  ! (kgC/m2/yr) = (kgC/plant/s) * (plant/m2) * (s/yr)
+                  hio_ar_darkm_si_scpf(io_si,scpf) = hio_ar_darkm_si_scpf(io_si,scpf) + &
+                        ccohort%rdark * n_perm2 *  daysecs * yeardays
+
+                  ! (kgC/m2/yr) = (kgC/plant/s) * (plant/m2) * (s/yr)
+                  hio_ar_crootm_si_scpf(io_si,scpf) = hio_ar_crootm_si_scpf(io_si,scpf) + &
+                        ccohort%livecroot_mr * n_perm2 * daysecs * yeardays
+
+                  ! (kgC/m2/yr) = (kgC/plant/s) * (plant/m2) * (s/yr)
+                  hio_ar_frootm_si_scpf(io_si,scpf) = hio_ar_frootm_si_scpf(io_si,scpf) + &
+                        ccohort%froot_mr * n_perm2  * daysecs * yeardays
 
                endif
 
@@ -1028,7 +1080,6 @@ contains
           avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
           upfreq=1, ivar=ivar,callstep=callstep, index = ih_npp_totl_si_scpf )
 
-
     call this%set_history_var(vname='NPP_LEAF_SCPF',units='kgC/m2/yr',       &
           long='NPP flux into leaves', use_default='inactive',               &
           avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
@@ -1108,6 +1159,43 @@ contains
           long='fire mortality count by patch and pft/size',use_default='inactive',&
           avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
           upfreq=1, ivar=ivar,callstep=callstep, index = ih_m5_si_scpf )
+
+    ! Size structured diagnostics that require rapid updates (upfreq=2)
+
+    call this%set_history_var(vname='AR_SCPF',units = 'kgC/m2/yr',          &
+          long='total autotrophic respiration per m2 per year',use_default='inactive',&
+          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar,callstep=callstep, index = ih_ar_si_scpf )
+    
+    call this%set_history_var(vname='AR_GROW_SCPF',units = 'kgC/m2/yr',          &
+          long='growth autotrophic respiration per m2 per year',use_default='inactive',&
+          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar,callstep=callstep, index = ih_ar_grow_si_scpf )
+
+    call this%set_history_var(vname='AR_MAINT_SCPF',units = 'kgC/m2/yr',          &
+          long='maintenance autotrophic respiration per m2 per year',use_default='inactive',&
+          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar,callstep=callstep, index = ih_ar_maint_si_scpf )
+
+    call this%set_history_var(vname='AR_DARKM_SCPF',units = 'kgC/m2/yr',          &
+          long='dark portion of maintenance autotrophic respiration per m2 per year',use_default='inactive',&
+          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar,callstep=callstep, index = ih_ar_darkm_si_scpf )
+
+    call this%set_history_var(vname='AR_AGSAPM_SCPF',units = 'kgC/m2/yr',          &
+          long='above-ground sapwood maintenance autotrophic respiration per m2 per year',use_default='inactive',&
+          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar,callstep=callstep, index = ih_ar_agsapm_si_scpf )
+    
+    call this%set_history_var(vname='AR_CROOTM_SCPF',units = 'kgC/m2/yr',          &
+          long='below-ground sapwood maintenance autotrophic respiration per m2 per year',use_default='inactive',&
+          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar,callstep=callstep, index = ih_ar_crootm_si_scpf )
+
+    call this%set_history_var(vname='AR_FROOTM_SCPF',units = 'kgC/m2/yr',          &
+          long='fine root maintenance autotrophic respiration per m2 per year',use_default='inactive',&
+          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar,callstep=callstep, index = ih_ar_frootm_si_scpf )
 
 
     ! CARBON BALANCE VARIABLES THAT DEPEND ON HLM BGC INPUTS
