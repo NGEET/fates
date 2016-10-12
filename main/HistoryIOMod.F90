@@ -348,7 +348,7 @@ contains
     type(ed_cohort_type),pointer :: ccohort
 
     real(r8), parameter :: daysecs = 86400.0_r8 ! What modeler doesn't recognize 86400?
-    real(r8), parameter :: yeardays = 365.0_r8  ! Should this be 365.25?
+    real(r8), parameter :: yeardays = 365.0_r8  ! ALM/CLM do not use leap-years
     
     associate( hio_npatches_si         => this%hvars(ih_npatches_si)%r81d, &
                hio_ncohorts_si         => this%hvars(ih_ncohorts_si)%r81d, &

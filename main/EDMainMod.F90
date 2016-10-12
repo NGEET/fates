@@ -17,7 +17,6 @@ module EDMainMod
   use SFMainMod            , only : fire_model
   use EDtypesMod           , only : ncwd, numpft_ed, udata
   use EDtypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDCLMLinkMod         , only : ed_clm_type
 
   implicit none
   private
@@ -41,7 +40,7 @@ contains
 
   !-------------------------------------------------------------------------------!
   subroutine ed_ecosystem_dynamics(currentSite, &
-       ed_clm_inst, atm2lnd_inst, &
+       atm2lnd_inst, &
        soilstate_inst, temperature_inst, waterstate_inst)
     !
     ! !DESCRIPTION:
@@ -49,7 +48,6 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type)      , intent(inout), target  :: currentSite
-    type(ed_clm_type)       , intent(in)             :: ed_clm_inst
     type(atm2lnd_type)      , intent(in)             :: atm2lnd_inst
     type(soilstate_type)    , intent(in)             :: soilstate_inst
     type(temperature_type)  , intent(in)             :: temperature_inst
