@@ -4,7 +4,12 @@ Module HistoryIOMod
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : fates_avg_flag_length, fates_short_string_length, fates_long_string_length
   use FatesGlobals    , only : fates_log
+
+  use FatesHistoryDimensionMod, only : fates_history_dimension_type
+
   use EDTypesMod      , only : cp_hio_ignore_val
+
+  ! FIXME(bja, 2016-10) need to remove CLM dependancy 
   use pftconMod       , only : pftcon
 
   implicit none
@@ -124,17 +129,16 @@ Module HistoryIOMod
   ! The number of variable dim/kind types we have defined (static)
   integer, parameter                :: n_iovar_dk = 6
 
-
-  ! This structure is not allocated by thread, but the upper and lower boundaries
-  ! of the dimension for each thread is saved in the clump_ entry
-  type iovar_dim_type
-     character(fates_short_string_length) :: name  ! This should match the name of the dimension
-     integer :: lb                       ! lower bound
-     integer :: ub                       ! upper bound
-     integer,allocatable :: clump_lb(:)  ! lower bound of thread's portion of HIO array
-     integer,allocatable :: clump_ub(:)  ! upper bound of thread's portion of HIO array
-  end type iovar_dim_type
-  
+  type, public :: fates_bounds_type
+     integer :: patch_begin
+     integer :: patch_end
+     integer :: column_begin
+     integer :: column_end
+     integer :: ground_begin
+     integer :: ground_end
+     integer :: pft_class_begin
+     integer :: pft_class_end
+  end type fates_bounds_type
 
   
   ! This structure is allocated by thread, and must be calculated after the FATES
@@ -155,8 +159,8 @@ Module HistoryIOMod
      integer              :: ndims       ! number of dimensions in this IO type
      integer, allocatable :: dimsize(:)  ! The size of each dimension
      logical              :: active
-     type(iovar_dim_type), pointer :: dim1_ptr
-     type(iovar_dim_type), pointer :: dim2_ptr
+     type(fates_history_dimension_type), pointer :: dim1_ptr
+     type(fates_history_dimension_type), pointer :: dim2_ptr
   end type iovar_dimkind_type
 
 
@@ -200,26 +204,29 @@ Module HistoryIOMod
      ! This is a structure that explains where FATES patch boundaries
      ! on each thread point to in the host IO array, this structure
      ! is allocated by number of threads
-     type(iovar_dim_type) :: iopa_dim
+     type(fates_history_dimension_type) :: iopa_dim
      
      ! This is a structure that explains where FATES patch boundaries
      ! on each thread point to in the host IO array, this structure
      ! is allocated by number of threads
-     type(iovar_dim_type) :: iosi_dim
+     type(fates_history_dimension_type) :: iosi_dim
      
      ! This is a structure that contains the boundaries for the
      ! ground level (includes rock) dimension
-     type(iovar_dim_type) :: iogrnd_dim
+     type(fates_history_dimension_type) :: iogrnd_dim
 
      ! This is a structure that contains the boundaries for the
      ! number of size-class x pft dimension
-     type(iovar_dim_type) :: ioscpf_dim
+     type(fates_history_dimension_type) :: ioscpf_dim
 
 
      type(iovar_map_type), pointer :: iovar_map(:)
      
    contains
      
+     procedure, public :: Init => InitFatesHistoryOutput
+     procedure, public :: SetThreadBounds => SetHistoryThreadBounds
+
      procedure, public :: update_history_dyn
      procedure, public :: update_history_prod
      procedure, public :: update_history_cbal
@@ -229,8 +236,6 @@ Module HistoryIOMod
      procedure, public :: iotype_index
      procedure, public :: set_dim_ptrs
      procedure, public :: get_hvar_bounds
-     procedure, public :: dim_init
-     procedure, public :: set_dim_thread_bounds
      procedure, private :: flush_hvars
 
   end type fates_hio_interface_type
@@ -239,9 +244,52 @@ Module HistoryIOMod
 
 contains
 
-   ! ===================================================================================
+  ! ======================================================================
   
-   subroutine update_history_cbal(this,nc,nsites,sites)
+  subroutine InitFatesHistoryOutput(this, num_threads, fates_bounds)
+
+    implicit none
+
+    class(fates_hio_interface_type), intent(inout) :: this
+    integer, intent(in) :: num_threads
+    type(fates_bounds_type), intent(in) :: fates_bounds
+    
+    call this%iopa_dim%Init('patch', num_threads, fates_bounds%patch_begin, fates_bounds%patch_end)
+    call this%iosi_dim%Init('column', num_threads, fates_bounds%column_begin, fates_bounds%column_end)
+    call this%iogrnd_dim%Init('levgrnd', num_threads, fates_bounds%ground_begin, fates_bounds%ground_end)
+    call this%ioscpf_dim%Init('levscpf', num_threads, fates_bounds%pft_class_begin, fates_bounds%pft_class_end)
+    
+    ! Allocate the mapping between FATES indices and the IO indices
+    allocate(this%iovar_map(num_threads))
+    
+  end subroutine InitFatesHistoryOutput
+
+  ! ======================================================================
+  subroutine SetHistoryThreadBounds(this, thread_index, thread_bounds)
+
+    implicit none
+
+    class(fates_hio_interface_type), intent(inout) :: this
+
+    integer, intent(in) :: thread_index
+    type(fates_bounds_type), intent(in) :: thread_bounds
+    
+    call this%iopa_dim%SetThreadBounds(thread_index, &
+         thread_bounds%patch_begin, thread_bounds%patch_end)
+
+    call this%iosi_dim%SetThreadBounds(thread_index, &
+         thread_bounds%column_begin, thread_bounds%column_end)
+
+    call this%iogrnd_dim%SetThreadBounds(thread_index, &
+         thread_bounds%ground_begin, thread_bounds%ground_end)
+
+    call this%ioscpf_dim%SetThreadBounds(thread_index, &
+         thread_bounds%pft_class_begin, thread_bounds%pft_class_end)
+    
+  end subroutine SetHistoryThreadBounds
+  
+  ! =======================================================================
+ subroutine update_history_cbal(this,nc,nsites,sites)
 
      use EDtypesMod          , only : ed_site_type
      
@@ -732,7 +780,6 @@ contains
    integer                      :: ivar
    type(iovar_def_type),pointer :: hvar
    integer                      :: lb1,ub1,lb2,ub2
-
 
    do ivar=1,ubound(this%hvars,1)
       hvar => this%hvars(ivar)
@@ -1292,18 +1339,18 @@ contains
 
      ! The thread = 0 case is the boundaries for the whole proc/node
      if (thread==0) then
-        lb1 = hvar%iovar_dk_ptr%dim1_ptr%lb
-        ub1 = hvar%iovar_dk_ptr%dim1_ptr%ub
+        lb1 = hvar%iovar_dk_ptr%dim1_ptr%lower_bound
+        ub1 = hvar%iovar_dk_ptr%dim1_ptr%upper_bound
         if(ndims>1)then
-           lb2 = hvar%iovar_dk_ptr%dim2_ptr%lb
-           ub2 = hvar%iovar_dk_ptr%dim2_ptr%ub
+           lb2 = hvar%iovar_dk_ptr%dim2_ptr%lower_bound
+           ub2 = hvar%iovar_dk_ptr%dim2_ptr%upper_bound
         end if
      else
-        lb1 = hvar%iovar_dk_ptr%dim1_ptr%clump_lb(thread)
-        ub1 = hvar%iovar_dk_ptr%dim1_ptr%clump_ub(thread)
+        lb1 = hvar%iovar_dk_ptr%dim1_ptr%clump_lower_bound(thread)
+        ub1 = hvar%iovar_dk_ptr%dim1_ptr%clump_upper_bound(thread)
         if(ndims>1)then
-           lb2 = hvar%iovar_dk_ptr%dim2_ptr%clump_lb(thread)
-           ub2 = hvar%iovar_dk_ptr%dim2_ptr%clump_ub(thread)
+           lb2 = hvar%iovar_dk_ptr%dim2_ptr%clump_lower_bound(thread)
+           ub2 = hvar%iovar_dk_ptr%dim2_ptr%clump_upper_bound(thread)
         end if
      end if
      
@@ -1416,7 +1463,7 @@ contains
     class(fates_hio_interface_type) :: this
     character(len=*),intent(in)     :: dk_name
     integer,intent(in)              :: idim  ! dimension index
-    type(iovar_dim_type),target     :: dim_target
+    type(fates_history_dimension_type),target     :: dim_target
     
     
     ! local
@@ -1440,7 +1487,7 @@ contains
     end if
 
     ! With the map, we can set the dimension size
-    this%iovar_dk(ityp)%dimsize(idim) = dim_target%ub - dim_target%lb + 1
+    this%iovar_dk(ityp)%dimsize(idim) = dim_target%upper_bound - dim_target%lower_bound + 1
 
     
     return
@@ -1467,43 +1514,6 @@ contains
     
   end function iotype_index
    
-  ! =====================================================================================
-
-  subroutine dim_init(this,iovar_dim,dim_name,nthreads,lb_in,ub_in)
-
-    ! arguments
-    class(fates_hio_interface_type) :: this
-    type(iovar_dim_type),target     :: iovar_dim
-    character(len=*),intent(in)     :: dim_name
-    integer,intent(in)              :: nthreads
-    integer,intent(in)              :: lb_in
-    integer,intent(in)              :: ub_in
-
-    allocate(iovar_dim%clump_lb(nthreads))
-    allocate(iovar_dim%clump_ub(nthreads))
-    
-    iovar_dim%name = trim(dim_name)
-    iovar_dim%lb = lb_in
-    iovar_dim%ub = ub_in
-
-    return
-  end subroutine dim_init
-
-  ! =====================================================================================
-
-  subroutine set_dim_thread_bounds(this,iovar_dim,nc,lb_in,ub_in)
-
-    class(fates_hio_interface_type) :: this
-    type(iovar_dim_type),target     :: iovar_dim
-    integer,intent(in)              :: nc    ! Thread index
-    integer,intent(in)              :: lb_in
-    integer,intent(in)              :: ub_in
-    
-    iovar_dim%clump_lb(nc) = lb_in
-    iovar_dim%clump_ub(nc) = ub_in
-
-    return
-  end subroutine set_dim_thread_bounds
 
    ! ====================================================================================
    ! DEPRECATED, TRANSITIONAL OR FUTURE CODE SECTION
