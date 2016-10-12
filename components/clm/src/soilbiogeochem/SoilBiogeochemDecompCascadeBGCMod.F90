@@ -27,7 +27,7 @@ module SoilBiogeochemDecompCascadeBGCMod
   use ColumnType                         , only : col                
   use GridcellType                       , only : grc
   use SoilBiogeochemStateType            , only : get_spinup_latitude_term
-  use EDCLMLinkMod                       , only : cwd_fcel_ed, cwd_flig_ed
+
   !
   implicit none
   private
@@ -215,11 +215,6 @@ contains
     if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
     params_inst%cwd_flig_bgc=tempr 
     
-    if ( use_ed ) then
-       cwd_fcel_ed = params_inst%cwd_fcel_bgc
-       cwd_flig_ed = params_inst%cwd_flig_bgc
-    endif
-
   end subroutine readParams
 
   !-----------------------------------------------------------------------

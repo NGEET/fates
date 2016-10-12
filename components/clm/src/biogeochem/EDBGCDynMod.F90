@@ -16,7 +16,6 @@ module EDBGCDynMod
   use SoilBiogeochemCarbonFluxType    , only : soilbiogeochem_carbonflux_type
   use SoilBiogeochemNitrogenStateType , only : soilbiogeochem_nitrogenstate_type
   use SoilBiogeochemNitrogenFluxType  , only : soilbiogeochem_nitrogenflux_type
-  use EDCLMLinkMod                    , only : ed_clm_type
   use CanopyStateType                 , only : canopystate_type
   use SoilStateType                   , only : soilstate_type
   use SoilHydrologyType               , only : soilhydrology_type
@@ -26,7 +25,7 @@ module EDBGCDynMod
   use atm2lndType                     , only : atm2lnd_type
   use SoilStateType                   , only : soilstate_type
   use ch4Mod                          , only : ch4_type
-  use EDtypesMod                      , only : ed_site_type
+
 
   ! public :: EDBGCDynInit         ! BGC dynamics: initialization
   public :: EDBGCDyn             ! BGC Dynamics
