@@ -711,8 +711,6 @@ contains
              
              ft = currentCohort%pft
              
-             if ( DEBUG ) write(fates_log(),*) 'canopy_summarization 732 ',currentCohort%livecrootn
-             
              currentCohort%b = currentCohort%balive+currentCohort%bdead+currentCohort%bstore
              currentCohort%treelai = tree_lai(currentCohort)
              
