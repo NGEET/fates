@@ -14,8 +14,4 @@ module FatesConstantsMod
   integer, parameter :: fates_short_string_length = 32
   integer, parameter :: fates_long_string_length = 199
 
-  ! various magic numbers
-  real(fates_r8), parameter ::  fates_special_value = 1.0e36_fates_r8 ! special value for real data, compatible with clm.
-  integer, parameter :: fates_int_special_value = -9999    ! keep this negative to avoid conflicts with possible valid values
-
 end module FatesConstantsMod
