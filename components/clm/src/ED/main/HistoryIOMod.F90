@@ -710,6 +710,11 @@ contains
                
                if ( .not. ccohort%isnew ) then
                   
+                  ! Calculate index for the scpf class
+                  ft  = ccohort%pft
+                  sc  = count(ccohort%dbh-sclass_ed.ge.0.0)
+                  scpf = (ft-1)*nlevsclass_ed+sc
+
                   ! scale up cohort fluxes to their patches
                   hio_npp_pa(io_pa) = hio_npp_pa(io_pa) + &
                         ccohort%npp_tstep * 1.e3_r8 * n_density / dt_tstep
@@ -725,9 +730,6 @@ contains
                   ! map ed cohort-level npp fluxes to clm column fluxes
                   hio_npp_si(io_si) = hio_npp_si(io_si) + ccohort%npp_tstep * n_perm2 * 1.e3_r8 /dt_tstep
 
-                  ! Calculate index for the scpf class
-                  sc  = count(ccohort%dbh-sclass_ed.ge.0.0)
-                  scpf = (ft-1)*nlevsclass_ed+sc
 
                   ! Total AR (kgC/m2/yr) = (kgC/plant/step) / (s/step) * (plant/m2) * (s/yr)
                   hio_ar_si_scpf(io_si,scpf)    =   hio_ar_si_scpf(io_si,scpf) + &
