@@ -81,7 +81,10 @@ module CLMFatesInterfaceMod
                                       set_fates_ctrlparms,  &
                                       allocate_bcin,        &
                                       allocate_bcout
-   
+
+   use FatesHistoryDimensionMod, only : fates_history_dimension_type
+   use HistoryIOMod, only : fates_bounds_type
+
    use HistoryIOMod          , only : fates_hio_interface_type
 
    use ChecksBalancesMod     , only : SummarizeNetFluxes, FATES_BGC_Carbon_BalanceCheck
@@ -1411,8 +1414,6 @@ contains
  subroutine init_history_io(this,bounds_proc)
 
    use histFileMod, only : hist_addfld1d, hist_addfld2d, hist_addfld_decomp 
-   use EDtypesMod , only : nlevsclass_ed
-   use clm_varpar , only : mxpft, nlevgrnd
 
    ! Arguments
    class(hlm_fates_interface_type), intent(inout) :: this
@@ -1429,6 +1430,9 @@ contains
    integer :: c     ! ALM/CLM column index
    character(len=32) :: dim2name
    
+   type(fates_bounds_type) :: fates_bounds
+   type(fates_bounds_type) :: fates_clump
+
    ! This routine initializes the types of output variables
    ! not the variables themselves, just the types
    ! ---------------------------------------------------------------------------------
@@ -1456,26 +1460,23 @@ contains
    ! "scpf"
    ! ------------------------------------------------------------------------------------
    
-   call this%fates_hio%dim_init(this%fates_hio%iopa_dim,'patch',nclumps,bounds_proc%begp,bounds_proc%endp)
-   call this%fates_hio%dim_init(this%fates_hio%iosi_dim,'column',nclumps,bounds_proc%begc,bounds_proc%endc)
-   call this%fates_hio%dim_init(this%fates_hio%iogrnd_dim,'levgrnd',nclumps,1,nlevgrnd)
-   call this%fates_hio%dim_init(this%fates_hio%ioscpf_dim,'levscpf',nclumps,1,nlevsclass_ed*mxpft)
+   call hlm_bounds_to_fates_bounds(bounds_proc, fates_bounds)
+
+   call this%fates_hio%Init(nclumps, fates_bounds)
 
    ! Allocate the mapping between FATES indices and the IO indices
    allocate(this%fates_hio%iovar_map(nclumps))
 
    
    ! Define the bounds on the first dimension for each thread
-   !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,s,c)
+   !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,fates_clump,s,c,num_sites)
    do nc = 1,nclumps
       
       call get_clump_bounds(nc, bounds_clump)
       
       ! thread bounds for patch
-      call this%fates_hio%set_dim_thread_bounds(this%fates_hio%iopa_dim,nc,bounds_clump%begp,bounds_clump%endp)
-      call this%fates_hio%set_dim_thread_bounds(this%fates_hio%iosi_dim,nc,bounds_clump%begc,bounds_clump%endc)
-      call this%fates_hio%set_dim_thread_bounds(this%fates_hio%iogrnd_dim,nc,1,nlevgrnd)
-      call this%fates_hio%set_dim_thread_bounds(this%fates_hio%ioscpf_dim,nc,1,nlevsclass_ed*mxpft)
+      call hlm_bounds_to_fates_bounds(bounds_clump, fates_clump)
+      call this%fates_hio%SetThreadBounds(nc, fates_clump)
 
       ! ------------------------------------------------------------------------------------
       ! PART I.5: SET SOME INDEX MAPPINGS SPECIFICALLY FOR SITE<->COLUMN AND PATCH 
@@ -1605,5 +1606,28 @@ contains
    return
  end subroutine init_history_io
 
+ subroutine hlm_bounds_to_fates_bounds(hlm, fates)
+
+   use EDtypesMod , only : nlevsclass_ed
+   use clm_varpar , only : mxpft, nlevgrnd
+
+   implicit none
+
+   type(bounds_type), intent(in) :: hlm
+   type(fates_bounds_type), intent(out) :: fates
+   
+   fates%patch_begin = hlm%begp
+   fates%patch_end = hlm%endp
+   
+   fates%column_begin = hlm%begc
+   fates%column_end = hlm%endc
+   
+   fates%ground_begin = 1
+   fates%ground_end = nlevgrnd
+   
+   fates%pft_class_begin = 1
+   fates%pft_class_end = nlevsclass_ed * mxpft
+   
+ end subroutine hlm_bounds_to_fates_bounds
 
 end module CLMFatesInterfaceMod
