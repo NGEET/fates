@@ -1,7 +1,8 @@
 Module HistoryIOMod
 
   
-  use shr_kind_mod    , only : r8 => shr_kind_r8
+  use FatesConstantsMod, only : r8 => fates_r8
+  use FatesConstantsMod, only : fates_avg_flag_length, fates_short_string_length, fates_long_string_length
   use FatesGlobals    , only : fates_log
   use EDTypesMod      , only : cp_hio_ignore_val
   use pftconMod       , only : pftcon
@@ -134,7 +135,7 @@ Module HistoryIOMod
   ! This structure is not allocated by thread, but the upper and lower boundaries
   ! of the dimension for each thread is saved in the clump_ entry
   type iovar_dim_type
-     character(len=32) :: name            ! This should match the name of the dimension 
+     character(fates_short_string_length) :: name  ! This should match the name of the dimension
      integer :: lb                       ! lower bound
      integer :: ub                       ! upper bound
      integer,allocatable :: clump_lb(:)  ! lower bound of thread's portion of HIO array
@@ -157,7 +158,7 @@ Module HistoryIOMod
    
   ! This structure is not multi-threaded
   type iovar_dimkind_type
-     character(len=32)    :: name        ! String labelling this IO type
+     character(fates_short_string_length) :: name  ! String labelling this IO type
      integer              :: ndims       ! number of dimensions in this IO type
      integer, allocatable :: dimsize(:)  ! The size of each dimension
      logical              :: active
@@ -169,15 +170,15 @@ Module HistoryIOMod
   
   ! This type is instanteated in the HLM-FATES interface (clmfates_interfaceMod.F90)
   type iovar_def_type
-     character(len=32)    :: vname
-     character(len=24)    :: units
-     character(len=128)   :: long
-     character(len=24)    :: use_default ! States whether a variable should be turned
+     character(len=fates_short_string_length) :: vname
+     character(len=fates_short_string_length) :: units
+     character(len=fates_long_string_length) :: long
+     character(len=fates_short_string_length) :: use_default  ! States whether a variable should be turned
                                          ! on the output files by default (active/inactive)
                                          ! It is a good idea to set inactive for very large
                                          ! or infrequently used output datasets
-     character(len=24)    :: vtype
-     character(len=1)     :: avgflag
+     character(len=fates_short_string_length) :: vtype
+     character(len=fates_avg_flag_length) :: avgflag
      integer              :: upfreq  ! Update frequency (this is for checks and flushing)
                                      ! 1 = dynamics "dyn" (daily)
                                      ! 2 = production "prod" (prob model tstep)
