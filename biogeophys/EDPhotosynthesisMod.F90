@@ -960,7 +960,7 @@ contains
                      if ( DEBUG ) write(iulog,*) 'EDPhoto 912 ', currentCohort%resp_tstep
                      if ( DEBUG ) write(iulog,*) 'EDPhoto 913 ', currentCohort%resp_m
 
-                     currentCohort%resp_g     = ED_val_grperc(1) * (max(0._r8,currentCohort%gpp_tstep - currentCohort%resp_m))
+                     currentCohort%resp_g     = ED_val_grperc(ft) * (max(0._r8,currentCohort%gpp_tstep - currentCohort%resp_m))
                      currentCohort%resp_tstep = currentCohort%resp_m + currentCohort%resp_g ! kgC/indiv/ts    
                      currentCohort%npp_tstep  = currentCohort%gpp_tstep - currentCohort%resp_tstep  ! kgC/indiv/ts
 
