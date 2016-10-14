@@ -675,7 +675,6 @@ contains
     integer  :: ft                                      ! plant functional type
     integer  :: ifp
     integer  :: patchn                                  ! identification number for each patch. 
-    real(r8) :: coarse_wood_frac  
     real(r8) :: canopy_leaf_area                        ! total amount of leaf area in the vegetated area. m2.  
 
     !----------------------------------------------------------------------

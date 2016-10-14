@@ -9,14 +9,14 @@ module EDPhotosynthesisMod
   !
   ! !USES:
   !
-  use shr_kind_mod      , only : r8 => shr_kind_r8
-  use shr_log_mod       , only : errMsg => shr_log_errMsg
-  use abortutils        , only : endrun
-  use clm_varctl        , only : iulog
+
+  use abortutils, only        : endrun
+  use FatesGlobals, only      : fates_log
+  use FatesConstantsMod, only : r8 => fates_r8
+  use shr_log_mod , only      : errMsg => shr_log_errMsg
+
   implicit none
   private
-  !
-  
 
 
   ! PUBLIC MEMBER FUNCTIONS:
@@ -39,22 +39,39 @@ contains
     ! a multi-layer canopy
     !
     ! !USES:
-    use shr_kind_mod      , only : r8 => shr_kind_r8
-    use shr_log_mod       , only : errMsg => shr_log_errMsg
+
     use abortutils        , only : endrun
-    use clm_varcon        , only : rgas, tfrz, namep  
-    use clm_varpar        , only : nlevsoi, mxpft
-    use clm_varctl        , only : iulog
-    use pftconMod         , only : pftcon
+    use clm_varpar        , only : mxpft   ! THIS WILL BE DEPRECATED WHEN PARAMETER
+                                           ! READS ARE REFACTORED (RGK 10-13-2016)
+    use pftconMod         , only : pftcon  ! THIS WILL BE DEPRECATED WHEN PARAMETER
+                                           ! READS ARE REFACTORED (RGK 10-13-2016)
     use EDParamsMod       , only : ED_val_grperc, &
                                    ED_val_ag_biomass
     use EDSharedParamsMod , only : EDParamsShareInst
-    use EDTypesMod        , only : numpft_ed, dinc_ed 
-    use EDtypesMod        , only : ed_patch_type, ed_cohort_type, ed_site_type, numpft_ed
+    use EDTypesMod        , only : numpft_ed,     &
+                                   dinc_ed, & 
+                                   ed_patch_type, &
+                                   ed_cohort_type, &
+                                   ed_site_type, &
+                                   numpft_ed,    &
+                                   numpatchespercol, &
+                                   cp_numlevsoil, &
+                                   cp_nlevcan, &
+                                   cp_nclmax
+
     use EDEcophysContype  , only : EDecophyscon
-    use FatesInterfaceMod , only : bc_in_type,bc_out_type
-    use EDtypesMod        , only : numpatchespercol, cp_nlevcan, cp_nclmax
+    use FatesInterfaceMod , only : bc_in_type,    &
+                                   bc_out_type
+    
     use EDCanopyStructureMod,only: calc_areaindex
+    
+    use FatesConstantsMod, only : umolC_to_kgC,   &    ! micromole conversion to kgC
+                                  g_per_kg,       &    ! number of grams per kg
+                                  mg_per_g,       &    ! number of miligrams per g
+                                  sec_per_min,    &    ! seconds per minute (60!)
+                                  rgas,           &    ! universal gas constant
+                                  
+                                  tfrz => t_water_freeze_k_1atm ! Freezing point of water at 1 atmosphere
 
     !
     ! !ARGUMENTS:
@@ -149,7 +166,7 @@ contains
     integer  :: c,CL,f,s,iv,j,ps,ft,ifp         ! indices
     integer  :: NCL_p                             ! number of canopy layers in patch
     real(r8) :: cf                                ! s m**2/umol -> s/m
-    real(r8) :: rsmax0                            ! maximum stomatal resistance [s/m]
+    
     real(r8) :: gb                                ! leaf boundary layer conductance (m/s)
     real(r8) :: gb_mol                            ! leaf boundary layer conductance (umol H2O/m**2/s)
     real(r8) :: cs                                ! CO2 partial pressure at leaf surface (Pa)
@@ -191,7 +208,6 @@ contains
     
     real(r8) :: q10                               ! temperature dependence of root respiration  
     integer  :: sunsha                            ! sun (1) or shaded (2)  leaves...
-    real(r8) :: dr(2)
     real(r8) :: coarse_wood_frac                  ! amount of woody biomass that is coarse... 
     real(r8) :: tree_area
     real(r8) :: gs_cohort
@@ -203,15 +219,8 @@ contains
     real(r8) :: froot_n         ! Fine root nitrogen content (gN/plant)
 
     ! Parameters
-
-    ! Conversion factor umols of Carbon -> kg of Carbon (1 mol = 12g)
-    real(r8), parameter :: umolC_to_kgC = 12.0E-9_r8
-
-    ! Conversion factor: grams per kilograms
-    real(r8), parameter :: g_per_kg = 1000.0_r8
-
     ! -----------------------------------------------------------------------
-    ! base maintenance respiration rate for plant tissues base_mr_20
+    ! Base maintenance respiration rate for plant tissues base_mr_20
     ! M. Ryan, 1991. Effects of climate change on plant respiration.
     ! Ecological Applications, 1(2), 157-167.
     ! Original expression is br = 0.0106 molC/(molN h)
@@ -222,7 +231,15 @@ contains
     ! ------------------------------------------------------------------------
 
     real(r8),parameter :: base_mr_20 = 2.525e-6_r8
-    
+
+    ! maximum stomatal resistance [s/m]
+    real(r8),parameter :: rsmax0 =  2.e4_r8                          
+
+    ! First guess on ratio between intracellular co2 and the atmosphere
+    ! an iterator converges on actual
+    real(r8),parameter :: init_a2l_co2_c3 = 0.7  
+    real(r8),parameter :: init_a2l_co2_c4 = 0.4
+
 
     associate(                                                &
          c3psn     => pftcon%c3psn                          , & ! photosynthetic pathway: 0. = c4, 1. = c3
@@ -231,10 +248,8 @@ contains
          woody     => pftcon%woody                          , & ! Is vegetation woody or not? 
          fnitr     => pftcon%fnitr                          , & ! foliage nitrogen limitation factor (-)
          leafcn    => pftcon%leafcn                         , & ! leaf C:N (gC/gN)
+         frootcn   => pftcon%frootcn                        , & ! froot C:N (gc/gN)
          bb_slope  => EDecophyscon%BB_slope                 )   ! slope of BB relationship
-
-      ! Assign local pointers to derived type members (gridcell-level)
-      dr(1) = 0.025_r8; dr(2) = 0.015_r8
 
       ! Peter Thornton: 3/13/09 
       ! Q10 was originally set to 2.0, an arbitrary choice, but reduced to 1.5 as part of the tuning
@@ -252,7 +267,7 @@ contains
 
       act25 = 3.6_r8   !umol/mgRubisco/min
       ! Convert rubisco activity units from umol/mgRubisco/min -> umol/gRubisco/s
-      act25 = act25 * 1000.0_r8 / 60.0_r8
+      act25 = act25 * mg_per_g / sec_per_min 
 
       ! Activation energy, from:
       ! Bernacchi et al (2001) Plant, Cell and Environment 24:253-259
@@ -399,11 +414,10 @@ contains
 
                   ! THIS CALL APPEARS TO BE REDUNDANT WITH LINE 650 (RGK)
                   if (nint(c3psn(FT)) == 1)then
-                     ci(:,FT,:) = 0.7_r8 * bc_in(s)%cair_pa(ifp)
+                     ci(:,FT,:) = init_a2l_co2_c3 * bc_in(s)%cair_pa(ifp)
                   else
-                     ci(:,FT,:) = 0.4_r8 * bc_in(s)%cair_pa(ifp)
+                     ci(:,FT,:) = init_a2l_co2_c4 * bc_in(s)%cair_pa(ifp)
                   end if
-
 
                   ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
                   lnc(FT) = 1._r8 / (slatop(FT) * leafcn(FT))
@@ -416,7 +430,7 @@ contains
                   ! Here use a factor "1.67", from Medlyn et al (2002) Plant, Cell and Environment 25:1167-1179
                   
                   !RF - copied this from the CLM trunk code, but where did it come from, and how can we make these consistant? 
-                  !jmax25top(FT) = (2.59_r8 - 0.035_r8*min(max((t10(p)-tfrz),11._r8),35._r8)) * vcmax25top(FT)
+                  !jmax25top(FT) = (2.59_r8 - 0.035_r8*min(max((t10(p)-tfrzc),11._r8),35._r8)) * vcmax25top(FT)
                   
                   jmax25top(FT) = 1.67_r8   * vcmax25top(FT)
                   tpu25top(FT)  = 0.167_r8  * vcmax25top(FT)
@@ -454,7 +468,7 @@ contains
                      
                      do iv = 1, currentPatch%nrad(CL,FT)
                         if(currentPatch%canopy_area_profile(CL,FT,iv)>0._r8.and.currentPatch%present(CL,FT) /= 1)then
-                           write(iulog,*) 'CF: issue with present structure',CL,FT,iv, &
+                           write(fates_log(),*) 'CF: issue with present structure',CL,FT,iv, &
                                  currentPatch%canopy_area_profile(CL,FT,iv),currentPatch%present(CL,FT), &
                                  currentPatch%nrad(CL,FT),currentPatch%ncl_p,cp_nclmax
                            currentPatch%present(CL,FT) = 1
@@ -539,10 +553,9 @@ contains
             ! Leaf-level photosynthesis and stomatal conductance
             !==============================================================================!
 
-            rsmax0 = 2.e4_r8
-
             ! Leaf boundary layer conductance, umol/m**2/s
 
+            ! THESE HARD CODED CONVERSIONS NEED TO BE CALLED FROM GLOBAL CONSTANTS (RGK 10-13-2016)
             cf = bc_in(s)%forc_pbot/(rgas*1.e-3_r8*bc_in(s)%tgcm_pa(ifp))*1.e06_r8
             gb = 1._r8/bc_in(s)%rb_pa(ifp)
             gb_mol = gb * cf
@@ -561,7 +574,7 @@ contains
                   end if
                   if(currentPatch%present(CL,FT) == 1)then ! are there any leaves of this pft in this layer?     
                      do iv = 1, currentPatch%nrad(CL,FT)
-                        if ( DEBUG ) write(iulog,*) 'EDphoto 581 ',currentPatch%ed_parsun_z(CL,ft,iv)
+                        if ( DEBUG ) write(fates_log(),*) 'EDphoto 581 ',currentPatch%ed_parsun_z(CL,ft,iv)
                         if (currentPatch%ed_parsun_z(CL,FT,iv) <= 0._r8) then  ! night time
 
                            ac = 0._r8
@@ -576,12 +589,12 @@ contains
                         else ! day time
                            !is there leaf area? - (NV can be larger than 0 with only stem area if deciduous)
 
-                           if ( DEBUG ) write(iulog,*) 'EDphot 594 ',currentPatch%ed_laisun_z(CL,ft,iv)
-                           if ( DEBUG ) write(iulog,*) 'EDphot 595 ',currentPatch%ed_laisha_z(CL,ft,iv)
+                           if ( DEBUG ) write(fates_log(),*) 'EDphot 594 ',currentPatch%ed_laisun_z(CL,ft,iv)
+                           if ( DEBUG ) write(fates_log(),*) 'EDphot 595 ',currentPatch%ed_laisha_z(CL,ft,iv)
 
                            if(currentPatch%ed_laisun_z(CL,ft,iv)+currentPatch%ed_laisha_z(cl,ft,iv) > 0._r8)then 
 
-                              if ( DEBUG ) write(iulog,*) '600 in laisun, laisha loop '
+                              if ( DEBUG ) write(fates_log(),*) '600 in laisun, laisha loop '
 
                               !Loop aroun shaded and unshaded leaves          
                               currentPatch%psn_z(CL,ft,iv) = 0._r8    ! psn is accumulated across sun and shaded leaves. 
@@ -624,9 +637,9 @@ contains
                                  ! THIS CALL APPEARS TO BE REDUNDANT WITH LINE 423 (RGK)
                                  
                                  if (nint(c3psn(FT)) == 1)then
-                                    ci(cl,ft,iv) = 0.7_r8 * bc_in(s)%cair_pa(ifp)
+                                    ci(cl,ft,iv) = init_a2l_co2_c3 * bc_in(s)%cair_pa(ifp)
                                  else
-                                    ci(cl,ft,iv) = 0.4_r8 * bc_in(s)%cair_pa(ifp)
+                                    ci(cl,ft,iv) = init_a2l_co2_c4 * bc_in(s)%cair_pa(ifp)
                                  end if
 
                                  niter = 0
@@ -727,9 +740,9 @@ contains
                                  ! Convert gs_mol (umol H2O/m**2/s) to gs (m/s) and then to rs (s/m)
                                  gs = gs_mol / cf
 
-                                 if ( DEBUG ) write(iulog,*) 'EDPhoto 737 ', currentPatch%psn_z(cl,ft,iv)
-                                 if ( DEBUG ) write(iulog,*) 'EDPhoto 738 ', ag(cl,ft,iv)
-                                 if ( DEBUG ) write(iulog,*) 'EDPhoto 739 ', currentPatch%f_sun(cl,ft,iv) 
+                                 if ( DEBUG ) write(fates_log(),*) 'EDPhoto 737 ', currentPatch%psn_z(cl,ft,iv)
+                                 if ( DEBUG ) write(fates_log(),*) 'EDPhoto 738 ', ag(cl,ft,iv)
+                                 if ( DEBUG ) write(fates_log(),*) 'EDPhoto 739 ', currentPatch%f_sun(cl,ft,iv) 
 
                                  !accumulate total photosynthesis umol/m2 ground/s-1. weight per unit sun and sha leaves.  
                                  if(sunsha == 1)then !sunlit       
@@ -752,15 +765,15 @@ contains
 
                                  end if
 
-                                 if ( DEBUG ) write(iulog,*) 'EDPhoto 758 ', currentPatch%psn_z(cl,ft,iv)
-                                 if ( DEBUG ) write(iulog,*) 'EDPhoto 759 ', ag(cl,ft,iv)
-                                 if ( DEBUG ) write(iulog,*) 'EDPhoto 760 ', currentPatch%f_sun(cl,ft,iv) 
+                                 if ( DEBUG ) write(fates_log(),*) 'EDPhoto 758 ', currentPatch%psn_z(cl,ft,iv)
+                                 if ( DEBUG ) write(fates_log(),*) 'EDPhoto 759 ', ag(cl,ft,iv)
+                                 if ( DEBUG ) write(fates_log(),*) 'EDPhoto 760 ', currentPatch%f_sun(cl,ft,iv) 
 
                                  ! Make sure iterative solution is correct
                                  if (gs_mol < 0._r8) then
-                                    write (iulog,*)'Negative stomatal conductance:'
-                                    write (iulog,*)'ifp,iv,gs_mol= ',ifp,iv,gs_mol
-                                    call endrun(msg=errmsg(sourcefile, __LINE__))
+                                    write (fates_log(),*)'Negative stomatal conductance:'
+                                    write (fates_log(),*)'ifp,iv,gs_mol= ',ifp,iv,gs_mol
+                                    call endrun(msg=errMsg(sourcefile, __LINE__))
                                  end if
 
                                  ! Compare with Ball-Berry model: gs_mol = m * an * hs/cs p + b
@@ -768,8 +781,8 @@ contains
                                  gs_mol_err = bb_slope(ft)*max(an(cl,ft,iv), 0._r8)*hs/cs*bc_in(s)%forc_pbot + bbb(FT)
 
                                  if (abs(gs_mol-gs_mol_err) > 1.e-01_r8) then
-                                    write (iulog,*) 'CF: Ball-Berry error check - stomatal conductance error:'
-                                    write (iulog,*) gs_mol, gs_mol_err
+                                    write (fates_log(),*) 'CF: Ball-Berry error check - stomatal conductance error:'
+                                    write (fates_log(),*) gs_mol, gs_mol_err
                                  end if
 
                               enddo !sunsha loop
@@ -817,12 +830,12 @@ contains
                      !------------------------------------------------------------------------------
                      ! Convert from umolC/m2leaf/s to umolC/indiv/s ( x canopy area x 1m2 leaf area). 
                      tree_area = currentCohort%c_area/currentCohort%n
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 816 ', currentCohort%gpp_tstep
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 817 ', currentPatch%psn_z(cl,ft,1:currentCohort%nv-1)
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 818 ', cl
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 819 ', ft
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 820 ', currentCohort%nv
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 821 ', currentPatch%elai_profile(cl,ft,1:currentCohort%nv-1)
+                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 816 ', currentCohort%gpp_tstep
+                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 817 ', currentPatch%psn_z(cl,ft,1:currentCohort%nv-1)
+                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 818 ', cl
+                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 819 ', ft
+                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 820 ', currentCohort%nv
+                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 821 ', currentPatch%elai_profile(cl,ft,1:currentCohort%nv-1)
 
                      if (currentCohort%nv > 1) then !is there canopy, and are the leaves on?
 
@@ -844,7 +857,7 @@ contains
 
                      end if
 
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 832 ', currentCohort%gpp_tstep
+                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 832 ', currentCohort%gpp_tstep
 
                      laifrac = (currentCohort%treelai+currentCohort%treesai)-(currentCohort%nv-1)*dinc_ed
 
@@ -852,18 +865,18 @@ contains
                      currentCohort%gscan = currentCohort%gscan+gs_cohort
 
                      if ( DEBUG ) then
-                        write(iulog,*) 'EDPhoto 868 ', currentCohort%gpp_tstep
-                        write(iulog,*) 'EDPhoto 869 ',  currentPatch%psn_z(cl,ft,currentCohort%nv)
-                        write(iulog,*) 'EDPhoto 870 ',  currentPatch%elai_profile(cl,ft,currentCohort%nv)
-                        write(iulog,*) 'EDPhoto 871 ',  laifrac
-                        write(iulog,*) 'EDPhoto 872 ',  tree_area
-                        write(iulog,*) 'EDPhoto 873 ',  currentCohort%nv, cl, ft
+                        write(fates_log(),*) 'EDPhoto 868 ', currentCohort%gpp_tstep
+                        write(fates_log(),*) 'EDPhoto 869 ',  currentPatch%psn_z(cl,ft,currentCohort%nv)
+                        write(fates_log(),*) 'EDPhoto 870 ',  currentPatch%elai_profile(cl,ft,currentCohort%nv)
+                        write(fates_log(),*) 'EDPhoto 871 ',  laifrac
+                        write(fates_log(),*) 'EDPhoto 872 ',  tree_area
+                        write(fates_log(),*) 'EDPhoto 873 ',  currentCohort%nv, cl, ft
                      endif
 
                      currentCohort%gpp_tstep  = currentCohort%gpp_tstep + currentPatch%psn_z(cl,ft,currentCohort%nv) * &
                           currentPatch%elai_profile(cl,ft,currentCohort%nv) * laifrac * tree_area
 
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 843 ', currentCohort%rdark
+                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 843 ', currentCohort%rdark
 
 
                      currentCohort%rdark       = currentCohort%rdark      + lmr_z(cl,ft,currentCohort%nv)    * &
@@ -884,12 +897,15 @@ contains
 
                      ! Calculate the amount of nitrogen in the above and below ground 
                      ! stem and root pools, used for maint resp
+                     ! We are using the fine-root C:N ratio as an approximation for
+                     ! the sapwood pools.
+                     ! Units are in (kgN/plant)
                      ! ------------------------------------------------------------------
                      live_agstem_n = ED_val_ag_biomass * currentCohort%bsw / &
-                           pftcon%leafcn(currentCohort%pft)
+                           frootcn(currentCohort%pft)
                      live_bgstem_n = (1.0_r8-ED_val_ag_biomass) * currentCohort%bsw  / &
-                           pftcon%leafcn(currentCohort%pft)
-                     froot_n       = currentCohort%br / leafcn(currentCohort%pft) 
+                           frootcn(currentCohort%pft)
+                     froot_n       = currentCohort%br / frootcn(currentCohort%pft) 
 
 
                      !------------------------------------------------------------------------------
@@ -897,54 +913,48 @@ contains
                      ! Leaf respn needs to be in the sub-layer loop to account for changing N through canopy. 
                      !------------------------------------------------------------------------------
 
-                     ! Above ground Live stem MR
+                     ! Above ground Live stem MR (kgC/plant/s)
                      ! ------------------------------------------------------------------
                      if (woody(ft) == 1) then
                         tc = q10**((bc_in(s)%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8) 
+                        ! kgC/s = kgN * kgC/kgN/s
                         currentCohort%livestem_mr  = live_agstem_n * base_mr_20 * tc
-                        !convert from gC /indiv/s-1 to kgC/indiv/s-1
-                        currentCohort%livestem_mr  = currentCohort%livestem_mr /1000.0_r8
                      else
                         currentCohort%livestem_mr  = 0._r8
                      end if
 
 
-                     ! Fine Root MR
+                     ! Fine Root MR  (kgC/plant/s)
                      ! ------------------------------------------------------------------
                      currentCohort%froot_mr = 0._r8
-                     do j = 1,nlevsoi
+                     do j = 1,cp_numlevsoil
                         tcsoi  = q10**((bc_in(s)%t_soisno_gl(j)-tfrz - 20.0_r8)/10.0_r8)
                         currentCohort%froot_mr = currentCohort%froot_mr + &
                               froot_n * base_mr_20 * tcsoi * currentPatch%rootfr_ft(ft,j)
                      enddo
-                     ! convert from gC/indiv/s-1 to kgC/indiv/s-1
-                     currentCohort%froot_mr  =  currentCohort%froot_mr /1000.0_r8
-
 
                      ! Coarse Root MR
                      ! ------------------------------------------------------------------
                      if (woody(ft) == 1) then
                         currentCohort%livecroot_mr = 0._r8
-                        do j = 1,nlevsoi
+                        do j = 1,cp_numlevsoil
                            ! Soil temperature used to adjust base rate of MR
                            tcsoi  = q10**((bc_in(s)%t_soisno_gl(j)-tfrz - 20.0_r8)/10.0_r8)
                            currentCohort%livecroot_mr = currentCohort%livecroot_mr + &
                                  live_bgstem_n * base_mr_20 * tcsoi * &
                                  currentPatch%rootfr_ft(ft,j)
                         enddo
-                        ! convert from gC/indiv/s-1 to kgC/indiv/s-1
-                        currentCohort%livecroot_mr = currentCohort%livecroot_mr /1000.0_r8
                      else
                         currentCohort%livecroot_mr = 0._r8    
                      end if
 
                      ! convert gpp from umol/indiv/s-1 to kgC/indiv/s-1  = X * 12 *10-6 * 10-3
 
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 904 ', currentCohort%resp_m
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 905 ', currentCohort%rdark
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 906 ', currentCohort%livestem_mr
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 907 ', currentCohort%livecroot_mr
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 908 ', currentCohort%froot_mr
+                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 904 ', currentCohort%resp_m
+                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 905 ', currentCohort%rdark
+                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 906 ', currentCohort%livestem_mr
+                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 907 ', currentCohort%livecroot_mr
+                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 908 ', currentCohort%froot_mr
 
                      currentCohort%gpp_tstep = currentCohort%gpp_tstep * umolC_to_kgC
                      ! add on whole plant respiration values in kgC/indiv/s-1  
@@ -956,9 +966,9 @@ contains
                      currentCohort%resp_m   = currentCohort%resp_m  * dtime 
                      currentCohort%gpp_tstep  = currentCohort%gpp_tstep * dtime          
 
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 911 ', currentCohort%gpp_tstep
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 912 ', currentCohort%resp_tstep
-                     if ( DEBUG ) write(iulog,*) 'EDPhoto 913 ', currentCohort%resp_m
+                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 911 ', currentCohort%gpp_tstep
+                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 912 ', currentCohort%resp_tstep
+                     if ( DEBUG ) write(fates_log(),*) 'EDPhoto 913 ', currentCohort%resp_m
 
                      currentCohort%resp_g     = ED_val_grperc(ft) * (max(0._r8,currentCohort%gpp_tstep - currentCohort%resp_m))
                      currentCohort%resp_tstep = currentCohort%resp_m + currentCohort%resp_g ! kgC/indiv/ts    
@@ -979,7 +989,7 @@ contains
                         currentCohort%gscan = 0._r8
                      end if
                   else !pft<0 n<0
-                     write(iulog,*) 'CF: pft 0 or n 0',currentCohort%pft,currentCohort%n,currentCohort%indexnumber
+                     write(fates_log(),*) 'CF: pft 0 or n 0',currentCohort%pft,currentCohort%n,currentCohort%indexnumber
                      currentCohort%gpp_tstep = 0._r8
                      currentCohort%resp_m  = 0._r8
                      currentCohort%gscan   = 0._r8   
@@ -1009,7 +1019,7 @@ contains
             end if
             bc_out(s)%rssun_pa(ifp) = rscanopy
             bc_out(s)%rssha_pa(ifp) = rscanopy
-            bc_out(s)%gccanopy_pa(ifp)  = 1.0_r8/rscanopy*cf/1000 !convert into umol m02 s-1 then mmol m-2 s-1. 
+            bc_out(s)%gccanopy_pa(ifp)  = 1.0_r8/rscanopy*cf/1000.0 !convert into umol m-2 s-1 then mmol m-2 s-1. 
          end if
 
          currentPatch => currentPatch%younger
@@ -1034,7 +1044,8 @@ function ft1_f(tl, ha) result(ans)
     ! 7/23/16: Copied over from CLM by Ryan Knox
     !
     !!USES
-    use clm_varcon  , only : rgas, tfrz
+    use FatesConstantsMod, only : rgas,           &    ! universal gas constant
+                                  tfrz => t_water_freeze_k_1atm ! Freezing point of water at 1 atm
     !
     ! !ARGUMENTS:
     real(r8), intent(in) :: tl  ! leaf temperature in photosynthesis temperature function (K)
@@ -1060,7 +1071,8 @@ function ft1_f(tl, ha) result(ans)
     ! Jinyun Tang separated it out from Photosynthesis, Feb. 07/2013
     ! 7/23/16: Copied over from CLM by Ryan Knox
     !
-    use clm_varcon  , only : rgas, tfrz
+    use FatesConstantsMod, only : rgas,           &    ! universal gas constant
+                                  tfrz => t_water_freeze_k_1atm ! Freezing point of water at 1 atm
     !
     ! !ARGUMENTS:
     real(r8), intent(in) :: tl  ! leaf temperature in photosynthesis temperature function (K)
@@ -1088,8 +1100,10 @@ function ft1_f(tl, ha) result(ans)
     ! Jinyun Tang separated it out from Photosynthesis, Feb. 07/2013
     ! 7/23/16: Copied over from CLM by Ryan Knox
     !
-    !!USES
-    use clm_varcon  , only : rgas, tfrz
+    !!USES    
+    use FatesConstantsMod, only : rgas,           &    ! universal gas constant
+                                  tfrz => t_water_freeze_k_1atm ! Freezing point of water at 1 atm
+    
     !
     ! !ARGUMENTS:
     real(r8), intent(in) :: hd    ! deactivation energy in photosynthesis temperature function (J/mol)
@@ -1131,8 +1145,8 @@ function ft1_f(tl, ha) result(ans)
      !------------------------------------------------------------------------------
     
      if (a == 0._r8) then
-        write (iulog,*) 'Quadratic solution error: a = ',a
-        call endrun(msg=errmsg(sourcefile, __LINE__))
+        write (fates_log(),*) 'Quadratic solution error: a = ',a
+        call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
    
      if (b >= 0._r8) then
