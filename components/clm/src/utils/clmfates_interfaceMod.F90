@@ -82,10 +82,7 @@ module CLMFatesInterfaceMod
                                       allocate_bcin,        &
                                       allocate_bcout
 
-   use FatesHistoryDimensionMod, only : fates_history_dimension_type
-   use HistoryIOMod, only : fates_bounds_type
-
-   use HistoryIOMod          , only : fates_hio_interface_type
+   use HistoryIOMod, only : fates_hio_interface_type
 
    use ChecksBalancesMod     , only : SummarizeNetFluxes, FATES_BGC_Carbon_BalanceCheck
    use EDTypesMod            , only : udata
@@ -1415,6 +1412,11 @@ contains
 
    use histFileMod, only : hist_addfld1d, hist_addfld2d, hist_addfld_decomp 
 
+   use HistoryIOMod, only : fates_bounds_type
+   use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_class_pft_r8, &
+        site_r8, site_ground_r8, site_class_pft_r8
+
+
    ! Arguments
    class(hlm_fates_interface_type), intent(inout) :: this
    type(bounds_type),intent(in)                   :: bounds_proc  ! Currently "proc"
@@ -1464,10 +1466,6 @@ contains
 
    call this%fates_hio%Init(nclumps, fates_bounds)
 
-   ! Allocate the mapping between FATES indices and the IO indices
-   allocate(this%fates_hio%iovar_map(nclumps))
-
-   
    ! Define the bounds on the first dimension for each thread
    !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,fates_clump,s,c,num_sites)
    do nc = 1,nclumps
@@ -1477,11 +1475,22 @@ contains
       ! thread bounds for patch
       call hlm_bounds_to_fates_bounds(bounds_clump, fates_clump)
       call this%fates_hio%SetThreadBounds(nc, fates_clump)
+   end do
+   !$OMP END PARALLEL DO
 
-      ! ------------------------------------------------------------------------------------
-      ! PART I.5: SET SOME INDEX MAPPINGS SPECIFICALLY FOR SITE<->COLUMN AND PATCH 
-      ! ------------------------------------------------------------------------------------
+   ! ------------------------------------------------------------------------------------
+   ! PART I.5: SET SOME INDEX MAPPINGS SPECIFICALLY FOR SITE<->COLUMN AND PATCH 
+   ! ------------------------------------------------------------------------------------
 
+   ! Allocate the mapping between FATES indices and the IO indices
+   allocate(this%fates_hio%iovar_map(nclumps))
+
+   
+   !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,fates_clump,s,c,num_sites)
+   do nc = 1,nclumps
+      
+      call get_clump_bounds(nc, bounds_clump)
+      
       allocate(this%fates_hio%iovar_map(nc)%site_index(this%fates(nc)%nsites))
       allocate(this%fates_hio%iovar_map(nc)%patch1_index(this%fates(nc)%nsites))
       
@@ -1501,21 +1510,21 @@ contains
 
    call this%fates_hio%init_iovar_dk_maps()
    
-   call this%fates_hio%set_dim_ptrs(dk_name='PA_R8',idim=1,dim_target=this%fates_hio%iopa_dim)
+   call this%fates_hio%set_dim_ptrs(dk_name=patch_r8,idim=1, dim_target=this%fates_hio%iopa_dim)
 
-   call this%fates_hio%set_dim_ptrs(dk_name='SI_R8',idim=1,dim_target=this%fates_hio%iosi_dim)
+   call this%fates_hio%set_dim_ptrs(dk_name=site_r8, idim=1, dim_target=this%fates_hio%iosi_dim)
 
-   call this%fates_hio%set_dim_ptrs(dk_name='PA_GRND_R8',idim=1,dim_target=this%fates_hio%iopa_dim)
-   call this%fates_hio%set_dim_ptrs(dk_name='PA_GRND_R8',idim=2,dim_target=this%fates_hio%iogrnd_dim)
+   call this%fates_hio%set_dim_ptrs(dk_name=patch_ground_r8, idim=1, dim_target=this%fates_hio%iopa_dim)
+   call this%fates_hio%set_dim_ptrs(dk_name=patch_ground_r8, idim=2, dim_target=this%fates_hio%iogrnd_dim)
 
-   call this%fates_hio%set_dim_ptrs(dk_name='SI_GRND_R8',idim=1,dim_target=this%fates_hio%iosi_dim)
-   call this%fates_hio%set_dim_ptrs(dk_name='SI_GRND_R8',idim=2,dim_target=this%fates_hio%iogrnd_dim)
+   call this%fates_hio%set_dim_ptrs(dk_name=site_ground_r8, idim=1, dim_target=this%fates_hio%iosi_dim)
+   call this%fates_hio%set_dim_ptrs(dk_name=site_ground_r8, idim=2, dim_target=this%fates_hio%iogrnd_dim)
 
-   call this%fates_hio%set_dim_ptrs(dk_name='PA_SCPF_R8',idim=1,dim_target=this%fates_hio%iopa_dim)
-   call this%fates_hio%set_dim_ptrs(dk_name='PA_SCPF_R8',idim=2,dim_target=this%fates_hio%ioscpf_dim)
+   call this%fates_hio%set_dim_ptrs(dk_name=patch_class_pft_r8, idim=1, dim_target=this%fates_hio%iopa_dim)
+   call this%fates_hio%set_dim_ptrs(dk_name=patch_class_pft_r8, idim=2, dim_target=this%fates_hio%ioscpf_dim)
 
-   call this%fates_hio%set_dim_ptrs(dk_name='SI_SCPF_R8',idim=1,dim_target=this%fates_hio%iosi_dim)
-   call this%fates_hio%set_dim_ptrs(dk_name='SI_SCPF_R8',idim=2,dim_target=this%fates_hio%ioscpf_dim)
+   call this%fates_hio%set_dim_ptrs(dk_name=site_class_pft_r8, idim=1, dim_target=this%fates_hio%iosi_dim)
+   call this%fates_hio%set_dim_ptrs(dk_name=site_class_pft_r8, idim=2, dim_target=this%fates_hio%ioscpf_dim)
 
    
    ! ------------------------------------------------------------------------------------
@@ -1547,21 +1556,21 @@ contains
  
         
         select case(trim(ioname))
-        case('PA_R8')
+        case(patch_r8)
            call hist_addfld1d(fname=trim(vname),units=trim(vunits),         &
                               avgflag=trim(vavgflag),long_name=trim(vlong), &
                               ptr_patch=this%fates_hio%hvars(ivar)%r81d,    &
                               default=trim(vdefault),                       &
                               set_lake=0._r8,set_urb=0._r8)
            
-        case('SI_R8')
+        case(site_r8)
            call hist_addfld1d(fname=trim(vname),units=trim(vunits),         &
                               avgflag=trim(vavgflag),long_name=trim(vlong), &
                               ptr_col=this%fates_hio%hvars(ivar)%r81d,      & 
                               default=trim(vdefault),                       &
                               set_lake=0._r8,set_urb=0._r8)
 
-        case('PA_GRND_R8')
+        case(patch_ground_r8)
            dim2name = this%fates_hio%hvars(ivar)%iovar_dk_ptr%dim2_ptr%name
            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         & ! <--- addfld2d
                               type2d=trim(dim2name),                        & ! <--- type2d
@@ -1570,7 +1579,7 @@ contains
                               default=trim(vdefault),                       &
                               set_lake=0._r8,set_urb=0._r8)
            
-        case('PA_SCPF_R8')
+        case(patch_class_pft_r8)
            dim2name = this%fates_hio%hvars(ivar)%iovar_dk_ptr%dim2_ptr%name
            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
                               type2d=trim(dim2name),                        &
@@ -1578,7 +1587,7 @@ contains
                               ptr_patch=this%fates_hio%hvars(ivar)%r82d,    & 
                               default=trim(vdefault),                       &
                               set_lake=0._r8,set_urb=0._r8)
-        case('SI_GRND_R8')
+        case(site_ground_r8)
            dim2name = this%fates_hio%hvars(ivar)%iovar_dk_ptr%dim2_ptr%name
            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
                               type2d=trim(dim2name),                        &
@@ -1586,7 +1595,7 @@ contains
                               ptr_col=this%fates_hio%hvars(ivar)%r82d,      & 
                               default=trim(vdefault),                       &
                               set_lake=0._r8,set_urb=0._r8)
-        case('SI_SCPF_R8')
+        case(site_class_pft_r8)
            dim2name = this%fates_hio%hvars(ivar)%iovar_dk_ptr%dim2_ptr%name
            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
                               type2d=trim(dim2name),                        &
@@ -1608,8 +1617,9 @@ contains
 
  subroutine hlm_bounds_to_fates_bounds(hlm, fates)
 
-   use EDtypesMod , only : nlevsclass_ed
-   use clm_varpar , only : mxpft, nlevgrnd
+   use HistoryIOMod, only : fates_bounds_type
+   use EDtypesMod, only : nlevsclass_ed
+   use clm_varpar, only : mxpft, nlevgrnd
 
    implicit none
 
