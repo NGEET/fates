@@ -102,8 +102,8 @@ contains
     real(r8) :: lmr_z(cp_nclmax,mxpft,cp_nlevcan)    ! initial slope of CO2 response curve (C4 plants)
     real(r8) :: rs_z(cp_nclmax,mxpft,cp_nlevcan)     ! stomatal resistance s/m
     real(r8) :: gs_z(cp_nclmax,mxpft,cp_nlevcan)     ! stomatal conductance m/s
-
-    real(r8) :: ci(cp_nclmax,mxpft,cp_nlevcan)       ! intracellular leaf CO2 (Pa)
+    
+    real(r8) :: ci                                ! intracellular leaf CO2 (Pa)
     real(r8) :: lnc(mxpft)                        ! leaf N concentration (gN leaf/m^2)
         
     real(r8) :: kc( numpatchespercol )            ! Michaelis-Menten constant for CO2 (Pa)
@@ -412,13 +412,6 @@ contains
                   end if
                   bbb(FT) = max (bbbopt(ps)*currentPatch%btran_ft(FT), 1._r8)
 
-                  ! THIS CALL APPEARS TO BE REDUNDANT WITH LINE 650 (RGK)
-                  if (nint(c3psn(FT)) == 1)then
-                     ci(:,FT,:) = init_a2l_co2_c3 * bc_in(s)%cair_pa(ifp)
-                  else
-                     ci(:,FT,:) = init_a2l_co2_c4 * bc_in(s)%cair_pa(ifp)
-                  end if
-
                   ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
                   lnc(FT) = 1._r8 / (slatop(FT) * leafcn(FT))
 
@@ -637,9 +630,9 @@ contains
                                  ! THIS CALL APPEARS TO BE REDUNDANT WITH LINE 423 (RGK)
                                  
                                  if (nint(c3psn(FT)) == 1)then
-                                    ci(cl,ft,iv) = init_a2l_co2_c3 * bc_in(s)%cair_pa(ifp)
+                                    ci = init_a2l_co2_c3 * bc_in(s)%cair_pa(ifp)
                                  else
-                                    ci(cl,ft,iv) = init_a2l_co2_c4 * bc_in(s)%cair_pa(ifp)
+                                    ci = init_a2l_co2_c4 * bc_in(s)%cair_pa(ifp)
                                  end if
 
                                  niter = 0
@@ -649,15 +642,15 @@ contains
                                     niter = niter + 1
 
                                     ! Save old ci
-                                    ciold = ci(cl,ft,iv)
+                                    ciold = ci
 
                                     ! Photosynthesis limitation rate calculations 
                                     if (nint(c3psn(FT)) == 1)then
                                        ! C3: Rubisco-limited photosynthesis
-                                       ac = vcmax_z(cl,ft,iv) * max(ci(cl,ft,iv)-co2_cp(ifp), 0._r8) / (ci(cl,ft,iv)+kc(ifp)* &
+                                       ac = vcmax_z(cl,ft,iv) * max(ci-co2_cp(ifp), 0._r8) / (ci+kc(ifp)* &
                                             (1._r8+bc_in(s)%oair_pa(ifp)/ko(ifp)))
                                        ! C3: RuBP-limited photosynthesis
-                                       aj = je * max(ci(cl,ft,iv)-co2_cp(ifp), 0._r8) / (4._r8*ci(cl,ft,iv)+8._r8*co2_cp(ifp))
+                                       aj = je * max(ci-co2_cp(ifp), 0._r8) / (4._r8*ci+8._r8*co2_cp(ifp))
                                        ! C3: Product-limited photosynthesis 
                                        ap = 3._r8 * tpu_z(cl,ft,iv)
                                     else
@@ -681,7 +674,7 @@ contains
                                        end if
 
                                        ! C4: PEP carboxylase-limited (CO2-limited)
-                                       ap = kp_z(cl,ft,iv) * max(ci(cl,ft,iv), 0._r8) / bc_in(s)%forc_pbot
+                                       ap = kp_z(cl,ft,iv) * max(ci, 0._r8) / bc_in(s)%forc_pbot
                                     end if
                                     ! Gross photosynthesis smoothing calculations. First co-limit ac and aj. Then co-limit ap
                                     aquad = theta_cj(ps)
@@ -715,14 +708,14 @@ contains
                                     gs_mol = max(r1,r2)
 
                                     ! Derive new estimate for ci
-                                    ci(cl,ft,iv) = bc_in(s)%cair_pa(ifp) - an(cl,ft,iv) * bc_in(s)%forc_pbot * &
+                                    ci = bc_in(s)%cair_pa(ifp) - an(cl,ft,iv) * bc_in(s)%forc_pbot * &
                                          (1.4_r8*gs_mol+1.6_r8*gb_mol) / (gb_mol*gs_mol)
 
                                     ! Check for ci convergence. Delta ci/pair = mol/mol. Multiply by 10**6 to
                                     ! convert to umol/mol (ppm). Exit iteration if convergence criteria of +/- 1 x 10**-6 ppm
                                     ! is met OR if at least ten iterations (niter=10) are completed
 
-                                    if ((abs(ci(cl,ft,iv)-ciold)/bc_in(s)%forc_pbot*1.e06_r8 <=  2.e-06_r8) .or. niter == 5) then
+                                    if ((abs(ci-ciold)/bc_in(s)%forc_pbot*1.e06_r8 <=  2.e-06_r8) .or. niter == 5) then
                                        exitloop = 1
                                     end if
                                  end do !iteration loop
@@ -735,7 +728,7 @@ contains
                                  ! Final estimates for cs and ci (needed for early exit of ci iteration when an < 0)
                                  cs = bc_in(s)%cair_pa(ifp) - 1.4_r8/gb_mol * an(cl,ft,iv) * bc_in(s)%forc_pbot
                                  cs = max(cs,1.e-06_r8)
-                                 ci(cl,ft,iv) = bc_in(s)%cair_pa(ifp) - &
+                                 ci = bc_in(s)%cair_pa(ifp) - &
                                       an(cl,ft,iv) * bc_in(s)%forc_pbot * (1.4_r8*gs_mol+1.6_r8*gb_mol) / (gb_mol*gs_mol)
                                  ! Convert gs_mol (umol H2O/m**2/s) to gs (m/s) and then to rs (s/m)
                                  gs = gs_mol / cf
