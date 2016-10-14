@@ -11,6 +11,7 @@ module FatesHistoryDimensionMod
     character(*), parameter :: site_r8 = 'SI_R8'
     character(*), parameter :: site_ground_r8 = 'SI_GRND_R8'
     character(*), parameter :: site_class_pft_r8 = 'SI_SCPF_R8'
+    character(*), parameter :: patch_int = 'PA_INT'
 
   ! This structure is not allocated by thread, but the upper and lower boundaries
   ! of the dimension for each thread is saved in the clump_ entry
