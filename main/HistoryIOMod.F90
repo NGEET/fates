@@ -6,6 +6,7 @@ Module HistoryIOMod
   use FatesGlobals    , only : fates_log
 
   use FatesHistoryDimensionMod, only : fates_history_dimension_type
+  use FatesHistoryVariableKindMod, only : fates_history_variable_kind_type
 
   use EDTypesMod      , only : cp_hio_ignore_val
 
@@ -153,18 +154,6 @@ Module HistoryIOMod
 
 
    
-  ! This structure is not multi-threaded
-  type iovar_dimkind_type
-     character(fates_short_string_length) :: name  ! String labelling this IO type
-     integer              :: ndims       ! number of dimensions in this IO type
-     integer, allocatable :: dimsize(:)  ! The size of each dimension
-     logical              :: active
-     type(fates_history_dimension_type), pointer :: dim1_ptr
-     type(fates_history_dimension_type), pointer :: dim2_ptr
-  end type iovar_dimkind_type
-
-
-  
   ! This type is instanteated in the HLM-FATES interface (clmfates_interfaceMod.F90)
   type iovar_def_type
      character(len=fates_short_string_length) :: vname
@@ -180,7 +169,7 @@ Module HistoryIOMod
                                      ! 1 = dynamics "dyn" (daily)
                                      ! 2 = production "prod" (prob model tstep)
      real(r8)             :: flushval
-     type(iovar_dimkind_type),pointer :: iovar_dk_ptr
+     type(fates_history_variable_kind_type),pointer :: iovar_dk_ptr
      ! Pointers (only one of these is allocated per variable)
      real(r8), pointer     :: r81d(:)
      real(r8), pointer     :: r82d(:,:)
@@ -199,7 +188,7 @@ Module HistoryIOMod
      
      ! Instanteat one registry of the different dimension/kinds (dk)
      ! All output variables will have a pointer to one of these dk's
-     type(iovar_dimkind_type), pointer :: iovar_dk(:)
+     type(fates_history_variable_kind_type), pointer :: iovar_dk(:)
      
      ! This is a structure that explains where FATES patch boundaries
      ! on each thread point to in the host IO array, this structure
@@ -1372,89 +1361,48 @@ contains
     ! The allocation on the structures is not dynamic and should only add up to the
     ! number of entries listed here.
     !
-    ! note (RGK) %active is not used yet. Was intended as a check on the HLM->FATES
-    ! control parameter passing to ensure all active dimension types received all
-    ! dimensioning specifications from the host, but we currently arent using those
-    ! passing functions..
     ! ----------------------------------------------------------------------------------
+    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_class_pft_r8, &
+         site_r8, site_ground_r8, site_class_pft_r8
+    
+    implicit none
     
     ! Arguments
     class(fates_hio_interface_type) :: this
        
-    ! Locals
-    integer            :: ityp
+    ! Localsi
+    integer            :: index
     integer, parameter :: unset_int = -999
-    
+
     allocate(this%iovar_dk(n_iovar_dk))
 
     ! 1d Patch
-    ityp = 1
-    this%iovar_dk(ityp)%name  = 'PA_R8'
-    this%iovar_dk(ityp)%ndims = 1
-    allocate(this%iovar_dk(ityp)%dimsize(this%iovar_dk(ityp)%ndims))
-    this%iovar_dk(ityp)%dimsize(:) = unset_int
-    this%iovar_dk(ityp)%active = .false.  
-    nullify(this%iovar_dk(ityp)%dim1_ptr)
-    nullify(this%iovar_dk(ityp)%dim2_ptr)
+    index = 1
+    call this%iovar_dk(index)%Init(patch_r8, 1)
 
     ! 1d Site
-    ityp = 2
-    this%iovar_dk(ityp)%name  = 'SI_R8'
-    this%iovar_dk(ityp)%ndims = 1
-    allocate(this%iovar_dk(ityp)%dimsize(this%iovar_dk(ityp)%ndims))
-    this%iovar_dk(ityp)%dimsize(:) = unset_int
-    this%iovar_dk(ityp)%active = .false.
-    nullify(this%iovar_dk(ityp)%dim1_ptr)
-    nullify(this%iovar_dk(ityp)%dim2_ptr)
+    index = index + 1
+    call this%iovar_dk(index)%Init(site_r8, 1)
 
     ! patch x ground
-    ityp = 3
-    this%iovar_dk(ityp)%name = 'PA_GRND_R8'
-    this%iovar_dk(ityp)%ndims = 2
-    allocate(this%iovar_dk(ityp)%dimsize(this%iovar_dk(ityp)%ndims))
-    this%iovar_dk(ityp)%dimsize(:) = unset_int
-    this%iovar_dk(ityp)%active = .false.
-    nullify(this%iovar_dk(ityp)%dim1_ptr)
-    nullify(this%iovar_dk(ityp)%dim2_ptr)
+    index = index + 1
+    call this%iovar_dk(index)%Init(patch_ground_r8, 2)
 
     ! patch x size-class/pft
-    ityp = 4
-    this%iovar_dk(ityp)%name = 'PA_SCPF_R8'
-    this%iovar_dk(ityp)%ndims = 2
-    allocate(this%iovar_dk(ityp)%dimsize(this%iovar_dk(ityp)%ndims))
-    this%iovar_dk(ityp)%dimsize(:) = unset_int
-    this%iovar_dk(ityp)%active = .false.
-    nullify(this%iovar_dk(ityp)%dim1_ptr)
-    nullify(this%iovar_dk(ityp)%dim2_ptr)
+    index = index + 1
+    call this%iovar_dk(index)%Init(patch_class_pft_r8, 2)
 
     ! site x ground
-    ityp = 5
-    this%iovar_dk(ityp)%name = 'SI_GRND_R8'
-    this%iovar_dk(ityp)%ndims = 2
-    allocate(this%iovar_dk(ityp)%dimsize(this%iovar_dk(ityp)%ndims))
-    this%iovar_dk(ityp)%dimsize(:) = unset_int
-    this%iovar_dk(ityp)%active = .false.
-    nullify(this%iovar_dk(ityp)%dim1_ptr)
-    nullify(this%iovar_dk(ityp)%dim2_ptr)
+    index = index + 1
+    call this%iovar_dk(index)%Init(site_ground_r8, 2)
 
     ! site x size-class/pft
-    ityp = 6
-    this%iovar_dk(ityp)%name = 'SI_SCPF_R8'
-    this%iovar_dk(ityp)%ndims = 2
-    allocate(this%iovar_dk(ityp)%dimsize(this%iovar_dk(ityp)%ndims))
-    this%iovar_dk(ityp)%dimsize(:) = unset_int
-    this%iovar_dk(ityp)%active = .false.
-    nullify(this%iovar_dk(ityp)%dim1_ptr)
-    nullify(this%iovar_dk(ityp)%dim2_ptr)
+    index = index + 1
+    call this%iovar_dk(index)%Init(site_class_pft_r8, 2)
 
-
-   
-    
-    
-    
-    return
+    ! FIXME(bja, 2016-10) assert(index == n_iovar_dk)
   end subroutine init_iovar_dk_maps
-  
+
   ! ===================================================================================
   
   subroutine set_dim_ptrs(this,dk_name,idim,dim_target)
