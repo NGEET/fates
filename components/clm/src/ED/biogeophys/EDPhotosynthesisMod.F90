@@ -55,7 +55,6 @@ contains
     use EDtypesMod        , only : numpatchespercol, cp_nlevcan, cp_nclmax
     use EDCanopyStructureMod,only: calc_areaindex
 
-
     !
     ! !ARGUMENTS:
     integer,intent(in)                      :: nsites
@@ -774,7 +773,7 @@ contains
             ! Unpack fluxes from arrays into cohorts
             !==============================================================================!
 
-            call currentPatch%set_root_fraction()
+            call currentPatch%set_root_fraction(bc_in(s)%depth_gl)
 
             if(currentPatch%countcohorts > 0.0)then  !avoid errors caused by empty patches 
 
