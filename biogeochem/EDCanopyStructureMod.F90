@@ -658,6 +658,7 @@ contains
 
     use FatesInterfaceMod    , only : bc_in_type
     use EDPatchDynamicsMod   , only : set_patchno
+    use EDCohortDynamicsMod  , only : size_and_type_class_index
     use EDGrowthFunctionsMod , only : tree_lai, c_area
     use EDEcophysConType     , only : EDecophyscon
     use EDtypesMod           , only : area
@@ -709,6 +710,13 @@ contains
           do while(associated(currentCohort))
              
              ft = currentCohort%pft
+
+             
+             ! Update the cohort's index within the size bin classes
+             ! Update the cohort's index within the SCPF classification system
+             call size_and_type_class_index(currentCohort%dbh,currentCohort%pft, &
+                                            currentCohort%size_class,currentCohort%size_by_pft_class)
+
              
              currentCohort%b = currentCohort%balive+currentCohort%bdead+currentCohort%bstore
              currentCohort%treelai = tree_lai(currentCohort)
