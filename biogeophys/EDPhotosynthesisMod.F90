@@ -214,9 +214,9 @@ contains
     real(r8) :: rscanopy
     real(r8) :: elai
     
-    real(r8) :: live_agstem_n   ! Live above-ground stem (sapwood) nitrogen content (gN/plant)
-    real(r8) :: live_bgstem_n   ! Live below-ground stem (sapwood) nitrogen content (gN/plant)
-    real(r8) :: froot_n         ! Fine root nitrogen content (gN/plant)
+    real(r8) :: live_stem_n    ! Live stem (above-ground sapwood) nitrogen content (kgN/plant)
+    real(r8) :: live_croot_n   ! Live coarse root (below-ground sapwood) nitrogen content (kgN/plant)
+    real(r8) :: froot_n        ! Fine root nitrogen content (kgN/plant)
 
     ! Parameters
     ! -----------------------------------------------------------------------
@@ -894,9 +894,9 @@ contains
                      ! the sapwood pools.
                      ! Units are in (kgN/plant)
                      ! ------------------------------------------------------------------
-                     live_agstem_n = ED_val_ag_biomass * currentCohort%bsw / &
+                     live_stem_n = ED_val_ag_biomass * currentCohort%bsw / &
                            frootcn(currentCohort%pft)
-                     live_bgstem_n = (1.0_r8-ED_val_ag_biomass) * currentCohort%bsw  / &
+                     live_croot_n = (1.0_r8-ED_val_ag_biomass) * currentCohort%bsw  / &
                            frootcn(currentCohort%pft)
                      froot_n       = currentCohort%br / frootcn(currentCohort%pft) 
 
@@ -906,12 +906,12 @@ contains
                      ! Leaf respn needs to be in the sub-layer loop to account for changing N through canopy. 
                      !------------------------------------------------------------------------------
 
-                     ! Above ground Live stem MR (kgC/plant/s)
+                     ! Live stem MR (kgC/plant/s) (above ground sapwood)
                      ! ------------------------------------------------------------------
                      if (woody(ft) == 1) then
                         tc = q10**((bc_in(s)%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8) 
                         ! kgC/s = kgN * kgC/kgN/s
-                        currentCohort%livestem_mr  = live_agstem_n * base_mr_20 * tc
+                        currentCohort%livestem_mr  = live_stem_n * base_mr_20 * tc
                      else
                         currentCohort%livestem_mr  = 0._r8
                      end if
@@ -926,7 +926,7 @@ contains
                               froot_n * base_mr_20 * tcsoi * currentPatch%rootfr_ft(ft,j)
                      enddo
 
-                     ! Coarse Root MR
+                     ! Coarse Root MR (kgC/plant/s) (below ground sapwood)
                      ! ------------------------------------------------------------------
                      if (woody(ft) == 1) then
                         currentCohort%livecroot_mr = 0._r8
@@ -934,7 +934,7 @@ contains
                            ! Soil temperature used to adjust base rate of MR
                            tcsoi  = q10**((bc_in(s)%t_soisno_gl(j)-tfrz - 20.0_r8)/10.0_r8)
                            currentCohort%livecroot_mr = currentCohort%livecroot_mr + &
-                                 live_bgstem_n * base_mr_20 * tcsoi * &
+                                 live_croot_n * base_mr_20 * tcsoi * &
                                  currentPatch%rootfr_ft(ft,j)
                         enddo
                      else
