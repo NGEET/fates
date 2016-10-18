@@ -27,7 +27,7 @@ module EDCohortDynamicsMod
   public :: sort_cohorts
   public :: copy_cohort
   public :: count_cohorts
-!  public :: countCohorts
+  public :: size_and_type_class_index
   public :: allocate_live_biomass
 
   logical, parameter :: DEBUG  = .false. ! local debug flag
@@ -91,6 +91,9 @@ contains
     new_cohort%bdead        = bdead
     new_cohort%balive       = balive
     new_cohort%bstore       = bstore
+
+    call size_and_type_class_index(new_cohort%dbh,new_cohort%pft, &
+                                   new_cohort%size_class,new_cohort%size_by_pft_class)
 
     if ( DEBUG ) write(iulog,*) 'EDCohortDyn I ',bstore
 
@@ -316,6 +319,8 @@ contains
     currentCohort%canopy_layer       = 999 ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)   
     currentCohort%NV                 = 999 ! Number of leaf layers: -
     currentCohort%status_coh         = 999 ! growth status of plant  (2 = leaves on , 1 = leaves off)
+    currentCohort%size_class         = 999 ! size class index
+    currentCohort%size_by_pft_class  = 999 ! size by pft classification index
 
     currentCohort%n                  = nan ! number of individuals in cohort per 'area' (10000m2 default)     
     currentCohort%dbh                = nan ! 'diameter at breast height' in cm                            
@@ -1126,6 +1131,28 @@ contains
     endif
 
   end function count_cohorts
+
+  ! =====================================================================================
+
+  subroutine size_and_type_class_index(dbh,pft,size_class,size_by_pft_class)
+    
+    use EDTypesMod, only: sclass_ed, &
+                          nlevsclass_ed
+    
+    ! Arguments
+    real(r8),intent(in) :: dbh
+    integer,intent(in)  :: pft
+    integer,intent(out) :: size_class
+    integer,intent(out) :: size_by_pft_class
+    
+    size_class        = count(dbh-sclass_ed.ge.0.0)
+    
+    size_by_pft_class = (pft-1)*nlevsclass_ed+size_class
+
+    return
+  end subroutine size_and_type_class_index
+
+
 
   !-------------------------------------------------------------------------------------!
 !  function countCohorts( bounds, ed_allsites_inst ) result ( totNumCohorts ) 

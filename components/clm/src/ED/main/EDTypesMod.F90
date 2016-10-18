@@ -189,6 +189,14 @@ module EDTypesMod
      real(r8) ::  treesai                                ! stem area index of tree (total stem area (m2) / canopy area (m2)
      logical  ::  isnew                                  ! flag to signify a new cohort, new cohorts have not experienced
                                                          ! npp or mortality and should therefore not be fused or averaged
+     integer  ::  size_class                             ! An index that indicates which diameter size bin the cohort currently resides in
+                                                         ! this is used for history output. We maintain this in the main cohort memory
+                                                         ! because we don't want to continually re-calculate the cohort's position when
+                                                         ! performing size diagnostics at high-frequency calls
+     integer  ::  size_by_pft_class                      ! An index that indicates the cohorts position of the joint size-class x functional
+                                                         ! type classification. We also maintain this in the main cohort memory
+                                                         ! because we don't want to continually re-calculate the cohort's position when
+                                                         ! performing size diagnostics at high-frequency calls
 
      ! CARBON FLUXES 
      real(r8) ::  gpp                                    ! GPP:  kgC/indiv/year
