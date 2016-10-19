@@ -15,13 +15,15 @@ module FatesHistoryVariableKindMod
      character(len=fates_long_string_length) :: name ! String labelling this IO type
      integer              :: ndims       ! number of dimensions in this IO type
      integer, allocatable :: dimsize(:)  ! The size of each dimension
-     logical              :: active
-     type(fates_history_dimension_type), pointer :: dim1_ptr
-     type(fates_history_dimension_type), pointer :: dim2_ptr
+     logical, private :: active_
+     integer :: dim1_index
+     integer :: dim2_index
 
    contains
 
      procedure, public :: Init => InitVariableKind
+     procedure, public :: set_active
+     procedure, public :: is_active
 
   end type fates_history_variable_kind_type
 
@@ -44,12 +46,24 @@ contains
     this%ndims = num_dims
     allocate(this%dimsize(this%ndims))
     this%dimsize(:) = fates_unset_int
-    this%active = .false.
-    nullify(this%dim1_ptr)
-    nullify(this%dim2_ptr)
+    this%active_ = .false.
+    this%dim1_index = fates_unset_int
+    this%dim2_index = fates_unset_int
     
   end subroutine InitVariableKind
   
-  
+ ! =======================================================================
+ subroutine set_active(this)
+   implicit none
+   class(fates_history_variable_kind_type), intent(inout) :: this
+   this%active_ = .true.
+ end subroutine set_active
+
+ logical function is_active(this)
+   implicit none
+   class(fates_history_variable_kind_type), intent(in) :: this
+   is_active = this%active_
+ end function is_active
+
   
 end module FatesHistoryVariableKindMod

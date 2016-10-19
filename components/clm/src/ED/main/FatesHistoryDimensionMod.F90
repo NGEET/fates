@@ -13,6 +13,27 @@ module FatesHistoryDimensionMod
     character(*), parameter :: site_class_pft_r8 = 'SI_SCPF_R8'
     character(*), parameter :: patch_int = 'PA_INT'
 
+    integer, parameter :: fates_num_dimension_types = 4
+    character(*), parameter :: patch = 'patch'
+    character(*), parameter :: column = 'column'
+    character(*), parameter :: levgrnd = 'levgrnd'
+    character(*), parameter :: levscpf = 'levscpf'
+
+    ! patch = This is a structure that records where FATES patch boundaries
+    ! on each thread point to in the host IO array, this structure
+    ! is allocated by number of threads
+
+    ! column = This is a structure that records where FATES column boundaries
+    ! on each thread point to in the host IO array, this structure
+    ! is allocated by number of threads
+
+    ! ground = This is a structure that records the boundaries for the
+    ! ground level (includes rock) dimension
+
+    ! levscpf = This is a structure that records the boundaries for the
+    ! number of size-class x pft dimension
+
+
   ! This structure is not allocated by thread, but the upper and lower boundaries
   ! of the dimension for each thread is saved in the clump_ entry
   type fates_history_dimension_type

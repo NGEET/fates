@@ -1412,6 +1412,7 @@ contains
 
    use histFileMod, only : hist_addfld1d, hist_addfld2d, hist_addfld_decomp 
 
+   use FatesConstantsMod, only : fates_short_string_length, fates_long_string_length
    use HistoryIOMod, only : fates_bounds_type
    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_class_pft_r8, &
         site_r8, site_ground_r8, site_class_pft_r8
@@ -1430,7 +1431,9 @@ contains
    integer :: nclumps ! number of threads on this proc
    integer :: s     ! FATES site index
    integer :: c     ! ALM/CLM column index
-   character(len=32) :: dim2name
+   character(len=fates_short_string_length) :: dim2name
+   character(len=fates_long_string_length) :: ioname
+   integer :: d_index, dk_index
    
    type(fates_bounds_type) :: fates_bounds
    type(fates_bounds_type) :: fates_clump
@@ -1453,8 +1456,8 @@ contains
    ! see FATES: HistoryIOMod.F90.  Dimension types are defined at the top of the
    ! module, and a new explicitly named instance of that type should be created.
    ! With this new dimension, a new output type/kind can contain that dimension.
-   ! A new type/kind can be added to the iovar_dk structure, which defines its members
-   ! in created in init_iovar_dk_maps().  Make sure to increase the size of n_iovar_dk.
+   ! A new type/kind can be added to the dim_kinds structure, which defines its members
+   ! in created in init_dim_kinds_maps().  Make sure to increase the size of n_dim_kinds.
    ! A type/kind of output is defined by the data type (ie r8,int,..)
    ! and the dimensions.  Keep in mind that 3D variables (or 4D if you include time)
    ! are not really supported in CLM/ALM right now.  There are ways around this
@@ -1508,23 +1511,23 @@ contains
    ! INTERF-TODO: THESE CAN ALL BE EMBEDDED INTO A SUBROUTINE IN HISTORYIOMOD
    ! ------------------------------------------------------------------------------------
 
-   call this%fates_hio%init_iovar_dk_maps()
+   call this%fates_hio%init_dim_kinds_maps()
    
-   call this%fates_hio%set_dim_ptrs(dk_name=patch_r8,idim=1, dim_target=this%fates_hio%iopa_dim)
+   call this%fates_hio%set_dim_indicies(patch_r8, 1, this%fates_hio%patch_index())
 
-   call this%fates_hio%set_dim_ptrs(dk_name=site_r8, idim=1, dim_target=this%fates_hio%iosi_dim)
+   call this%fates_hio%set_dim_indicies(site_r8, 1, this%fates_hio%column_index())
 
-   call this%fates_hio%set_dim_ptrs(dk_name=patch_ground_r8, idim=1, dim_target=this%fates_hio%iopa_dim)
-   call this%fates_hio%set_dim_ptrs(dk_name=patch_ground_r8, idim=2, dim_target=this%fates_hio%iogrnd_dim)
+   call this%fates_hio%set_dim_indicies(patch_ground_r8, 1, this%fates_hio%patch_index())
+   call this%fates_hio%set_dim_indicies(patch_ground_r8, 2, this%fates_hio%levgrnd_index())
 
-   call this%fates_hio%set_dim_ptrs(dk_name=site_ground_r8, idim=1, dim_target=this%fates_hio%iosi_dim)
-   call this%fates_hio%set_dim_ptrs(dk_name=site_ground_r8, idim=2, dim_target=this%fates_hio%iogrnd_dim)
+   call this%fates_hio%set_dim_indicies(site_ground_r8, 1, this%fates_hio%column_index())
+   call this%fates_hio%set_dim_indicies(site_ground_r8, 2, this%fates_hio%levgrnd_index())
 
-   call this%fates_hio%set_dim_ptrs(dk_name=patch_class_pft_r8, idim=1, dim_target=this%fates_hio%iopa_dim)
-   call this%fates_hio%set_dim_ptrs(dk_name=patch_class_pft_r8, idim=2, dim_target=this%fates_hio%ioscpf_dim)
+   call this%fates_hio%set_dim_indicies(patch_class_pft_r8, 1, this%fates_hio%patch_index())
+   call this%fates_hio%set_dim_indicies(patch_class_pft_r8, 2, this%fates_hio%levscpf_index())
 
-   call this%fates_hio%set_dim_ptrs(dk_name=site_class_pft_r8, idim=1, dim_target=this%fates_hio%iosi_dim)
-   call this%fates_hio%set_dim_ptrs(dk_name=site_class_pft_r8, idim=2, dim_target=this%fates_hio%ioscpf_dim)
+   call this%fates_hio%set_dim_indicies(site_class_pft_r8, 1, this%fates_hio%column_index())
+   call this%fates_hio%set_dim_indicies(site_class_pft_r8, 2, this%fates_hio%levscpf_index())
 
    
    ! ------------------------------------------------------------------------------------
@@ -1550,10 +1553,10 @@ contains
                  vunits   => this%fates_hio%hvars(ivar)%units,   &
                  vlong    => this%fates_hio%hvars(ivar)%long, &
                  vdefault => this%fates_hio%hvars(ivar)%use_default, &
-                 vavgflag => this%fates_hio%hvars(ivar)%avgflag,  &
-                 ioname   => this%fates_hio%hvars(ivar)%iovar_dk_ptr%name )
-        
- 
+                 vavgflag => this%fates_hio%hvars(ivar)%avgflag)
+
+        dk_index = this%fates_hio%hvars(ivar)%dim_kinds_index
+        ioname = trim(this%fates_hio%dim_kinds(dk_index)%name)
         
         select case(trim(ioname))
         case(patch_r8)
@@ -1571,7 +1574,8 @@ contains
                               set_lake=0._r8,set_urb=0._r8)
 
         case(patch_ground_r8)
-           dim2name = this%fates_hio%hvars(ivar)%iovar_dk_ptr%dim2_ptr%name
+           d_index = this%fates_hio%dim_kinds(dk_index)%dim2_index
+           dim2name = this%fates_hio%dim_bounds(d_index)%name
            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         & ! <--- addfld2d
                               type2d=trim(dim2name),                        & ! <--- type2d
                               avgflag=trim(vavgflag),long_name=trim(vlong), &
@@ -1580,7 +1584,8 @@ contains
                               set_lake=0._r8,set_urb=0._r8)
            
         case(patch_class_pft_r8)
-           dim2name = this%fates_hio%hvars(ivar)%iovar_dk_ptr%dim2_ptr%name
+           d_index = this%fates_hio%dim_kinds(dk_index)%dim2_index
+           dim2name = this%fates_hio%dim_bounds(d_index)%name
            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
                               type2d=trim(dim2name),                        &
                               avgflag=trim(vavgflag),long_name=trim(vlong), &
@@ -1588,7 +1593,8 @@ contains
                               default=trim(vdefault),                       &
                               set_lake=0._r8,set_urb=0._r8)
         case(site_ground_r8)
-           dim2name = this%fates_hio%hvars(ivar)%iovar_dk_ptr%dim2_ptr%name
+           d_index = this%fates_hio%dim_kinds(dk_index)%dim2_index
+           dim2name = this%fates_hio%dim_bounds(d_index)%name
            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
                               type2d=trim(dim2name),                        &
                               avgflag=trim(vavgflag),long_name=trim(vlong), &
@@ -1596,7 +1602,8 @@ contains
                               default=trim(vdefault),                       &
                               set_lake=0._r8,set_urb=0._r8)
         case(site_class_pft_r8)
-           dim2name = this%fates_hio%hvars(ivar)%iovar_dk_ptr%dim2_ptr%name
+           d_index = this%fates_hio%dim_kinds(dk_index)%dim2_index
+           dim2name = this%fates_hio%dim_bounds(d_index)%name
            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
                               type2d=trim(dim2name),                        &
                               avgflag=trim(vavgflag),long_name=trim(vlong), &
