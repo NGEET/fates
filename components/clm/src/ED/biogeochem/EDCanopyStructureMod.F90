@@ -754,7 +754,7 @@ contains
              if(currentCohort%balive <= 0._r8)then
                 write(fates_log(),*) 'ED: balive is zero in canopy_summarization',currentCohort%balive
              endif
-             
+
              currentCohort => currentCohort%taller
              
           enddo ! ends 'do while(associated(currentCohort))

@@ -498,9 +498,9 @@ contains
                if( .not.(ccohort%isnew) ) then
 
                   hio_gpp_si_scpf(io_si,scpf)      = hio_gpp_si_scpf(io_si,scpf)      + &
-                                                     n_perm2*ccohort%gpp ! [kgC/m2/yr]
+                                                     n_perm2*ccohort%gpp_acc_hold ! [kgC/m2/yr]
                   hio_npp_totl_si_scpf(io_si,scpf) = hio_npp_totl_si_scpf(io_si,scpf) + &
-                                                     ccohort%npp*n_perm2
+                                                     ccohort%npp_acc_hold*n_perm2
                   hio_npp_leaf_si_scpf(io_si,scpf) = hio_npp_leaf_si_scpf(io_si,scpf) + &
                                                      ccohort%npp_leaf*n_perm2
                   hio_npp_fnrt_si_scpf(io_si,scpf) = hio_npp_fnrt_si_scpf(io_si,scpf) + &
@@ -518,15 +518,15 @@ contains
                   hio_npp_stor_si_scpf(io_si,scpf) = hio_npp_stor_si_scpf(io_si,scpf) + &
                                                      ccohort%npp_store*n_perm2
 
-                  if( abs(ccohort%npp-(ccohort%npp_leaf+ccohort%npp_froot+ &
+                  if( abs(ccohort%npp_acc_hold-(ccohort%npp_leaf+ccohort%npp_froot+ &
                         ccohort%npp_bsw+ccohort%npp_bdead+ &
                         ccohort%npp_bseed+ccohort%npp_store))>1.e-9) then
                      write(fates_log(),*) 'NPP Partitions are not balancing'
                      write(fates_log(),*) 'Fractional Error: ', &
-                          abs(ccohort%npp-(ccohort%npp_leaf+ccohort%npp_froot+ &
+                          abs(ccohort%npp_acc_hold-(ccohort%npp_leaf+ccohort%npp_froot+ &
                            ccohort%npp_bsw+ccohort%npp_bdead+ &
-                           ccohort%npp_bseed+ccohort%npp_store))/ccohort%npp
-                     write(fates_log(),*) 'Terms: ',ccohort%npp,ccohort%npp_leaf,ccohort%npp_froot, &
+                           ccohort%npp_bseed+ccohort%npp_store))/ccohort%npp_acc_hold
+                     write(fates_log(),*) 'Terms: ',ccohort%npp_acc_hold,ccohort%npp_leaf,ccohort%npp_froot, &
                            ccohort%npp_bsw,ccohort%npp_bdead, &
                            ccohort%npp_bseed,ccohort%npp_store
                      write(fates_log(),*) ' NPP components during FATES-HLM linking does not balance '

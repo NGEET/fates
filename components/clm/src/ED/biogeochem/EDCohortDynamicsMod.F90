@@ -340,16 +340,16 @@ contains
     currentCohort%treesai            = nan ! stem area index of tree (total stem area (m2) / canopy area (m2)
 
     ! CARBON FLUXES 
-    currentCohort%gpp                = nan ! GPP:  kgC/indiv/year
-    currentCohort%gpp_tstep            = nan ! GPP:  kgC/indiv/timestep
+    currentCohort%gpp_acc_hold       = nan ! GPP:  kgC/indiv/year
+    currentCohort%gpp_tstep          = nan ! GPP:  kgC/indiv/timestep
     currentCohort%gpp_acc            = nan ! GPP:  kgC/indiv/day         
-    currentCohort%npp                = nan ! NPP:  kgC/indiv/year
-    currentCohort%npp_tstep            = nan ! NPP:  kGC/indiv/timestep
+    currentCohort%npp_acc_hold       = nan ! NPP:  kgC/indiv/year
+    currentCohort%npp_tstep          = nan ! NPP:  kGC/indiv/timestep
     currentCohort%npp_acc            = nan ! NPP:  kgC/indiv/day  
     currentCohort%year_net_uptake(:) = nan ! Net uptake of individual leaf layers kgC/m2/year
     currentCohort%ts_net_uptake(:)   = nan ! Net uptake of individual leaf layers kgC/m2/s
-    currentCohort%resp               = nan ! RESP: kgC/indiv/year
-    currentCohort%resp_tstep           = nan ! RESP: kgC/indiv/timestep
+    currentCohort%resp_acc_hold      = nan ! RESP: kgC/indiv/year
+    currentCohort%resp_tstep         = nan ! RESP: kgC/indiv/timestep
     currentCohort%resp_acc           = nan ! RESP: kGC/cohort/day
 
     currentCohort%npp_leaf  = nan
@@ -433,10 +433,10 @@ contains
     currentcohort%npp_acc            = 0._r8
     currentcohort%gpp_acc            = 0._r8
     currentcohort%resp_acc           = 0._r8
-    currentcohort%npp_tstep            = 0._r8
-    currentcohort%gpp_tstep            = 0._r8
-    currentcohort%resp_tstep           = 0._r8
-    currentcohort%resp               = 0._r8
+    currentcohort%npp_tstep          = 0._r8
+    currentcohort%gpp_tstep          = 0._r8
+    currentcohort%resp_tstep         = 0._r8
+    currentcohort%resp_acc_hold      = 0._r8
     currentcohort%carbon_balance     = 0._r8
     currentcohort%leaf_litter        = 0._r8
     currentcohort%year_net_uptake(:) = 999 ! this needs to be 999, or trimming of new cohorts will break. 
@@ -446,8 +446,8 @@ contains
     currentcohort%md                 = 0._r8
     currentcohort%root_md            = 0._r8
     currentcohort%leaf_md            = 0._r8
-    currentcohort%npp                = 0._r8 
-    currentcohort%gpp                = 0._r8  
+    currentcohort%npp_acc_hold       = 0._r8 
+    currentcohort%gpp_acc_hold       = 0._r8  
     currentcohort%storage_flux       = 0._r8   
     currentcohort%dmort              = 0._r8 
     currentcohort%gscan              = 0._r8 
@@ -706,10 +706,10 @@ contains
 
                          if ( DEBUG ) write(iulog,*) 'EDcohortDyn V ',currentCohort%npp_acc
                          if ( DEBUG ) write(iulog,*) 'EDcohortDyn VI ',currentCohort%resp_acc
-
-                         currentCohort%resp        = (currentCohort%n*currentCohort%resp        + nextc%n*nextc%resp)/newn
-                         currentCohort%npp         = (currentCohort%n*currentCohort%npp         + nextc%n*nextc%npp)/newn
-                         currentCohort%gpp         = (currentCohort%n*currentCohort%gpp         + nextc%n*nextc%gpp)/newn
+                         
+                         currentCohort%resp_acc_hold = (currentCohort%n*currentCohort%resp_acc_hold + nextc%n*nextc%resp_acc_hold)/newn
+                         currentCohort%npp_acc_hold  = (currentCohort%n*currentCohort%npp_acc_hold + nextc%n*nextc%npp_acc_hold)/newn
+                         currentCohort%gpp_acc_hold  = (currentCohort%n*currentCohort%gpp_acc_hold + nextc%n*nextc%gpp_acc_hold)/newn
                          currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim + nextc%n*nextc%canopy_trim)/newn
 			 currentCohort%dmort       = (currentCohort%n*currentCohort%dmort       + nextc%n*nextc%dmort)/newn
                          currentCohort%fire_mort   = (currentCohort%n*currentCohort%fire_mort   + nextc%n*nextc%fire_mort)/newn
@@ -1015,20 +1015,20 @@ contains
     n%excl_weight     = o%excl_weight               
     n%prom_weight     = o%prom_weight               
 
-    ! CARBON FLUXES 
-    n%gpp             = o%gpp
+    ! CARBON FLUXES
+    n%gpp_acc_hold    = o%gpp_acc_hold
     n%gpp_acc         = o%gpp_acc
-    n%gpp_tstep         = o%gpp_tstep
-    n%npp             = o%npp
-    n%npp_tstep         = o%npp_tstep
+    n%gpp_tstep       = o%gpp_tstep
+    n%npp_acc_hold    = o%npp_acc_hold
+    n%npp_tstep       = o%npp_tstep
 
     if ( DEBUG ) write(iulog,*) 'EDcohortDyn Ia ',o%npp_acc
     if ( DEBUG ) write(iulog,*) 'EDcohortDyn Ib ',o%resp_acc
 
-    n%npp_acc         = o%npp_acc
-    n%resp_tstep        = o%resp_tstep
+    n%npp_acc_hold    = o%npp_acc_hold
+    n%resp_tstep      = o%resp_tstep
     n%resp_acc        = o%resp_acc
-    n%resp            = o%resp
+    n%resp_acc_hold   = o%resp_acc_hold
     n%year_net_uptake = o%year_net_uptake
     n%ts_net_uptake   = o%ts_net_uptake
 
