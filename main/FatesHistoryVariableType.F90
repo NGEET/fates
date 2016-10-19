@@ -22,7 +22,7 @@ module FatesHistoryVariableType
                                      ! 1 = dynamics "dyn" (daily)
                                      ! 2 = production "prod" (prob model tstep)
      real(r8)             :: flushval
-     type(fates_history_variable_kind_type),pointer :: iovar_dk_ptr
+     integer :: dim_kinds_index
      ! Pointers (only one of these is allocated per variable)
      real(r8), pointer     :: r81d(:)
      real(r8), pointer     :: r82d(:,:)
@@ -32,15 +32,16 @@ module FatesHistoryVariableType
      integer,  pointer     :: int3d(:,:,:)
    contains
      procedure, public :: Init => InitHistoryVariableType
-     procedure, public :: Flush => FlushVar
+     procedure, public :: Flush
      procedure, private :: GetBounds
   end type fates_history_variable_type
 
 contains
 
   subroutine InitHistoryVariableType(this, vname, units, long, use_default, &
-       vtype, avgflag, flushval, upfreq, n_iovar_dk, iovar_dk)
+       vtype, avgflag, flushval, upfreq, n_dim_kinds, dim_kinds, dim_bounds)
 
+    use FatesHistoryDimensionMod, only : fates_history_dimension_type
     use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_class_pft_r8, &
          site_r8, site_ground_r8, site_class_pft_r8
 
@@ -55,10 +56,11 @@ contains
     character(len=*), intent(in) :: avgflag
     real(r8), intent(in) :: flushval ! If the type is an int we will round with nint
     integer, intent(in) :: upfreq
-    integer, intent(in) :: n_iovar_dk
-    type(fates_history_variable_kind_type), intent(in), target :: iovar_dk(:)    
+    integer, intent(in) :: n_dim_kinds
+    type(fates_history_dimension_type), intent(in) :: dim_bounds(:)
+    type(fates_history_variable_kind_type), intent(inout) :: dim_kinds(:)
 
-    integer :: ityp
+    integer :: dk_index
     integer :: lb1, ub1, lb2, ub2
     
     this%vname = vname
@@ -77,11 +79,11 @@ contains
     nullify(this%int2d)
     nullify(this%int3d)
 
-    ityp = iotype_index(trim(vtype), n_iovar_dk, iovar_dk)
-    this%iovar_dk_ptr => iovar_dk(ityp)
-    this%iovar_dk_ptr%active = .true.
+    dk_index = iotype_index(trim(vtype), n_dim_kinds, dim_kinds)
+    this%dim_kinds_index = dk_index
+    call dim_kinds(dk_index)%set_active()
                 
-    call this%GetBounds(0, lb1, ub1, lb2, ub2)
+    call this%GetBounds(0, dim_bounds, dim_kinds, lb1, ub1, lb2, ub2)
           
     ! NOTE(rgk, 2016-09) currently, all array spaces are flushed each
     ! time the update is called. The flush here on the initialization
@@ -125,12 +127,16 @@ contains
   
   ! =====================================================================================
 
-  subroutine GetBounds(this, thread, lb1, ub1, lb2, ub2)
+  subroutine GetBounds(this, thread, dim_bounds, dim_kinds, lb1, ub1, lb2, ub2)
+
+    use FatesHistoryDimensionMod, only : fates_history_dimension_type
+
+    implicit none
 
      class(fates_history_variable_type), intent(inout) :: this
-
      integer, intent(in)  :: thread
-
+     class(fates_history_dimension_type), intent(in) :: dim_bounds(:)
+     type(fates_history_variable_kind_type), intent(in) :: dim_kinds(:)
      integer, intent(out) :: lb1
      integer, intent(out) :: ub1
      integer, intent(out) :: lb2
@@ -138,35 +144,41 @@ contains
 
      ! local
      integer :: ndims
+     integer :: d_index
 
      lb1 = 0
      ub1 = 0
      lb2 = 0
      ub2 = 0
 
-     ndims = this%iovar_dk_ptr%ndims
+     ndims = dim_kinds(this%dim_kinds_index)%ndims
 
      ! The thread = 0 case is the boundaries for the whole proc/node
      if (thread==0) then
-        lb1 = this%iovar_dk_ptr%dim1_ptr%lower_bound
-        ub1 = this%iovar_dk_ptr%dim1_ptr%upper_bound
+        d_index = dim_kinds(this%dim_kinds_index)%dim1_index
+        lb1 = dim_bounds(d_index)%lower_bound
+        ub1 = dim_bounds(d_index)%upper_bound
         if(ndims>1)then
-           lb2 = this%iovar_dk_ptr%dim2_ptr%lower_bound
-           ub2 = this%iovar_dk_ptr%dim2_ptr%upper_bound
+           d_index = dim_kinds(this%dim_kinds_index)%dim2_index
+           lb2 = dim_bounds(d_index)%lower_bound
+           ub2 = dim_bounds(d_index)%upper_bound
         end if
      else
-        lb1 = this%iovar_dk_ptr%dim1_ptr%clump_lower_bound(thread)
-        ub1 = this%iovar_dk_ptr%dim1_ptr%clump_upper_bound(thread)
+        d_index = dim_kinds(this%dim_kinds_index)%dim1_index
+        lb1 = dim_bounds(d_index)%clump_lower_bound(thread)
+        ub1 = dim_bounds(d_index)%clump_upper_bound(thread)
         if(ndims>1)then
-           lb2 = this%iovar_dk_ptr%dim2_ptr%clump_lower_bound(thread)
-           ub2 = this%iovar_dk_ptr%dim2_ptr%clump_upper_bound(thread)
+           d_index = dim_kinds(this%dim_kinds_index)%dim2_index
+           lb2 = dim_bounds(d_index)%clump_lower_bound(thread)
+           ub2 = dim_bounds(d_index)%clump_upper_bound(thread)
         end if
      end if
      
    end subroutine GetBounds
 
-  subroutine FlushVar(this, thread)
+  subroutine Flush(this, thread, dim_bounds, dim_kinds)
 
+    use FatesHistoryDimensionMod, only : fates_history_dimension_type
     use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_class_pft_r8, &
          site_r8, site_ground_r8, site_class_pft_r8, patch_int
 
@@ -174,12 +186,14 @@ contains
 
     class(fates_history_variable_type), intent(inout) :: this
     integer, intent(in) :: thread
+    type(fates_history_dimension_type), intent(in) :: dim_bounds(:)
+    type(fates_history_variable_kind_type), intent(in) :: dim_kinds(:)
 
     integer :: lb1, ub1, lb2, ub2
     
-    call this%GetBounds(thread, lb1, ub1, lb2, ub2)
+    call this%GetBounds(thread, dim_bounds, dim_kinds, lb1, ub1, lb2, ub2)
 
-    select case(trim(this%iovar_dk_ptr%name))
+    select case(trim(dim_kinds(this%dim_kinds_index)%name))
     case(patch_r8) 
        this%r81d(lb1:ub1) = this%flushval
     case(site_r8) 
@@ -200,22 +214,22 @@ contains
        !end_run
     end select
     
-  end subroutine FlushVar
+  end subroutine Flush
 
   ! ====================================================================================
   
-  function iotype_index(iotype_name, n_iovar_dk, iovar_dk) result(ityp)
+  function iotype_index(iotype_name, n_dim_kinds, dim_kinds) result(dk_index)
     
     ! argument
     character(len=*), intent(in) :: iotype_name
-    integer, intent(in) :: n_iovar_dk
-    type(fates_history_variable_kind_type), intent(in) :: iovar_dk(:)
+    integer, intent(in) :: n_dim_kinds
+    type(fates_history_variable_kind_type), intent(in) :: dim_kinds(:)
 
     ! local
-    integer :: ityp
+    integer :: dk_index
     
-    do ityp=1, n_iovar_dk
-       if(trim(iotype_name).eq.trim(iovar_dk(ityp)%name))then
+    do dk_index=1, n_dim_kinds
+       if (trim(iotype_name) .eq. trim(dim_kinds(dk_index)%name)) then
           return
        end if
     end do
