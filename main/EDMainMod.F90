@@ -202,7 +202,8 @@ contains
                   currentCohort%bstore+udata%deltat* &
                  (currentCohort%md+currentCohort%seed_prod)-cohort_biomass_store-currentCohort%npp_acc)
           endif  
-          !do we need these any more?        
+
+          ! THESE SHOULD BE MOVED TO A MORE "VISIBLE" LOCATION (RGK 10-2016)
           currentCohort%npp_acc  = 0.0_r8
           currentCohort%gpp_acc  = 0.0_r8
           currentCohort%resp_acc = 0.0_r8
