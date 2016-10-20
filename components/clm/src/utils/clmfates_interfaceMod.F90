@@ -1510,44 +1510,16 @@ contains
    ! PART II: USE THE JUST DEFINED DIMENSIONS TO ASSEMBLE THE VALID IO TYPES
    ! INTERF-TODO: THESE CAN ALL BE EMBEDDED INTO A SUBROUTINE IN HISTORYIOMOD
    ! ------------------------------------------------------------------------------------
-
-   call this%fates_hio%init_dim_kinds_maps()
-   
-   call this%fates_hio%set_dim_indicies(patch_r8, 1, this%fates_hio%patch_index())
-
-   call this%fates_hio%set_dim_indicies(site_r8, 1, this%fates_hio%column_index())
-
-   call this%fates_hio%set_dim_indicies(patch_ground_r8, 1, this%fates_hio%patch_index())
-   call this%fates_hio%set_dim_indicies(patch_ground_r8, 2, this%fates_hio%levgrnd_index())
-
-   call this%fates_hio%set_dim_indicies(site_ground_r8, 1, this%fates_hio%column_index())
-   call this%fates_hio%set_dim_indicies(site_ground_r8, 2, this%fates_hio%levgrnd_index())
-
-   call this%fates_hio%set_dim_indicies(patch_class_pft_r8, 1, this%fates_hio%patch_index())
-   call this%fates_hio%set_dim_indicies(patch_class_pft_r8, 2, this%fates_hio%levscpf_index())
-
-   call this%fates_hio%set_dim_indicies(site_class_pft_r8, 1, this%fates_hio%column_index())
-   call this%fates_hio%set_dim_indicies(site_class_pft_r8, 2, this%fates_hio%levscpf_index())
-
+   call this%fates_hio%assemble_valid_output_types()
    
    ! ------------------------------------------------------------------------------------
    ! PART III: DEFINE THE LIST OF OUTPUT VARIABLE OBJECTS, AND REGISTER THEM WITH THE
    ! HLM ACCORDING TO THEIR TYPES
    ! ------------------------------------------------------------------------------------
+   call this%fates_hio%initialize_history_vars()
+   nvar = this%fates_hio%num_history_vars()
    
-   ! Determine how many of the history IO variables registered in FATES
-   ! are going to be allocated
-   
-   call this%fates_hio%define_history_vars('count',nvar)
-   this%fates_hio%n_hvars = nvar
-   
-   ! Allocate the list of history output variable objects
-   allocate(this%fates_hio%hvars(nvar))
-   
-   ! construct the object that defines all of the IO variables
-   call this%fates_hio%define_history_vars('initialize')
-   
-   do ivar = 1,nvar
+   do ivar = 1, nvar
       
       associate( vname    => this%fates_hio%hvars(ivar)%vname, &
                  vunits   => this%fates_hio%hvars(ivar)%units,   &
@@ -1619,7 +1591,6 @@ contains
           
       end associate
    end do
-   return
  end subroutine init_history_io
 
  subroutine hlm_bounds_to_fates_bounds(hlm, fates)
