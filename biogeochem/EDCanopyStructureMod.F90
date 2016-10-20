@@ -546,7 +546,8 @@ contains
           enddo
 
           if(((checkarea-currentPatch%area)) > 0.0001)then
-             write(fates_log(),*) 'problem with canopy area', checkarea,currentPatch%area,checkarea-currentPatch%area,i,z,missing_area 
+             write(fates_log(),*) 'problem with canopy area', checkarea, currentPatch%area, checkarea - currentPatch%area, &
+                  i, z, missing_area 
              currentCohort => currentPatch%tallest
              do while (associated(currentCohort))
              if(currentCohort%canopy_layer == i)then
