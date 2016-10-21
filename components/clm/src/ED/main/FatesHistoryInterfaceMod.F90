@@ -1,4 +1,4 @@
-Module HistoryIOMod
+module FatesHistoryInterfaceMod
 
   
   use FatesConstantsMod, only : r8 => fates_r8
@@ -154,7 +154,7 @@ Module HistoryIOMod
   end type iovar_map_type
 
 
-  type, public :: fates_hio_interface_type
+  type, public :: fates_history_interface_type
      
      ! Instance of the list of history output varialbes
      type(fates_history_variable_type), allocatable :: hvars(:)
@@ -203,7 +203,7 @@ Module HistoryIOMod
      procedure, private :: set_levgrnd_index
      procedure, private :: set_levscpf_index
 
-  end type fates_hio_interface_type
+  end type fates_history_interface_type
    
 
 
@@ -217,7 +217,7 @@ contains
 
     implicit none
 
-    class(fates_hio_interface_type), intent(inout) :: this
+    class(fates_history_interface_type), intent(inout) :: this
     integer, intent(in) :: num_threads
     type(fates_bounds_type), intent(in) :: fates_bounds
 
@@ -254,7 +254,7 @@ contains
 
     implicit none
 
-    class(fates_hio_interface_type), intent(inout) :: this
+    class(fates_history_interface_type), intent(inout) :: this
 
     integer, intent(in) :: thread_index
     type(fates_bounds_type), intent(in) :: thread_bounds
@@ -287,7 +287,7 @@ contains
 
    implicit none
 
-    class(fates_hio_interface_type), intent(inout) :: this
+    class(fates_history_interface_type), intent(inout) :: this
 
     call this%init_dim_kinds_maps()
 
@@ -318,7 +318,7 @@ contains
     implicit none
 
     ! arguments
-    class(fates_hio_interface_type), intent(inout) :: this
+    class(fates_history_interface_type), intent(inout) :: this
     character(len=*), intent(in)     :: dk_name
     integer, intent(in)              :: idim  ! dimension index
     integer, intent(in) :: dim_index
@@ -353,56 +353,56 @@ contains
  ! =======================================================================
  subroutine set_patch_index(this, index)
    implicit none
-   class(fates_hio_interface_type), intent(inout) :: this
+   class(fates_history_interface_type), intent(inout) :: this
    integer, intent(in) :: index
    this%patch_index_ = index
  end subroutine set_patch_index
 
  integer function patch_index(this)
    implicit none
-   class(fates_hio_interface_type), intent(in) :: this
+   class(fates_history_interface_type), intent(in) :: this
    patch_index = this%patch_index_
  end function patch_index
 
  ! =======================================================================
  subroutine set_column_index(this, index)
    implicit none
-   class(fates_hio_interface_type), intent(inout) :: this
+   class(fates_history_interface_type), intent(inout) :: this
    integer, intent(in) :: index
    this%column_index_ = index
  end subroutine set_column_index
 
  integer function column_index(this)
    implicit none
-   class(fates_hio_interface_type), intent(in) :: this
+   class(fates_history_interface_type), intent(in) :: this
    column_index = this%column_index_
  end function column_index
 
  ! =======================================================================
  subroutine set_levgrnd_index(this, index)
    implicit none
-   class(fates_hio_interface_type), intent(inout) :: this
+   class(fates_history_interface_type), intent(inout) :: this
    integer, intent(in) :: index
    this%levgrnd_index_ = index
  end subroutine set_levgrnd_index
 
  integer function levgrnd_index(this)
    implicit none
-   class(fates_hio_interface_type), intent(in) :: this
+   class(fates_history_interface_type), intent(in) :: this
    levgrnd_index = this%levgrnd_index_
  end function levgrnd_index
 
  ! =======================================================================
  subroutine set_levscpf_index(this, index)
    implicit none
-   class(fates_hio_interface_type), intent(inout) :: this
+   class(fates_history_interface_type), intent(inout) :: this
    integer, intent(in) :: index
    this%levscpf_index_ = index
  end subroutine set_levscpf_index
 
  integer function levscpf_index(this)
    implicit none
-   class(fates_hio_interface_type), intent(in) :: this
+   class(fates_history_interface_type), intent(in) :: this
    levscpf_index = this%levscpf_index_
  end function levscpf_index
 
@@ -410,7 +410,7 @@ contains
 
  subroutine flush_hvars(this,nc,upfreq_in)
  
-   class(fates_hio_interface_type)        :: this
+   class(fates_history_interface_type)        :: this
    integer,intent(in)                     :: nc
    integer,intent(in)                     :: upfreq_in
 
@@ -440,7 +440,7 @@ contains
     implicit none
     
     ! arguments
-    class(fates_hio_interface_type), intent(inout) :: this
+    class(fates_history_interface_type), intent(inout) :: this
     character(len=*), intent(in)  :: vname
     character(len=*), intent(in)  :: units
     character(len=*), intent(in)  :: long
@@ -503,7 +503,7 @@ contains
     implicit none
     
     ! Arguments
-    class(fates_hio_interface_type), intent(inout) :: this
+    class(fates_history_interface_type), intent(inout) :: this
        
 
     integer :: index
@@ -541,7 +541,7 @@ contains
      use EDtypesMod          , only : ed_site_type
      
      ! Arguments
-     class(fates_hio_interface_type)                 :: this
+     class(fates_history_interface_type)                 :: this
      integer                 , intent(in)            :: nc   ! clump index
      integer                 , intent(in)            :: nsites
      type(ed_site_type)      , intent(inout), target :: sites(nsites)
@@ -609,7 +609,7 @@ contains
     use EDParamsMod      , only : ED_val_ag_biomass
 
     ! Arguments
-    class(fates_hio_interface_type)                 :: this
+    class(fates_history_interface_type)                 :: this
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
@@ -925,7 +925,7 @@ contains
                                      ed_patch_type,  &
                                      AREA
     ! Arguments
-    class(fates_hio_interface_type)                 :: this
+    class(fates_history_interface_type)                 :: this
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
@@ -1021,7 +1021,7 @@ contains
 
     implicit none
 
-    class(fates_hio_interface_type), intent(in) :: this
+    class(fates_history_interface_type), intent(in) :: this
 
     num_history_vars = this%num_history_vars_
     
@@ -1033,7 +1033,7 @@ contains
 
     implicit none
 
-    class(fates_hio_interface_type), intent(inout) :: this
+    class(fates_history_interface_type), intent(inout) :: this
 
    ! Determine how many of the history IO variables registered in FATES
    ! are going to be allocated
@@ -1082,7 +1082,7 @@ contains
          site_r8, site_ground_r8, site_class_pft_r8    
     implicit none
     
-    class(fates_hio_interface_type), intent(inout) :: this
+    class(fates_history_interface_type), intent(inout) :: this
     logical, intent(in) :: initialize_variables  ! are we 'count'ing or 'initializ'ing?
 
     integer :: ivar
@@ -1549,4 +1549,4 @@ contains
 
 
 
-end module HistoryIOMod
+end module FatesHistoryInterfaceMod
