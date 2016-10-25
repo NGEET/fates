@@ -43,14 +43,14 @@ module FatesHistoryDimensionMod
      integer, allocatable :: clump_lower_bound(:) ! lower bound of thread's portion of HIO array
      integer, allocatable :: clump_upper_bound(:) ! upper bound of thread's portion of HIO array
    contains
-     procedure, public :: Init => InitHistoryDimensions
-     procedure, public :: SetThreadBounds => SetHistoryDimensionThreadBounds
+     procedure, public :: Init
+     procedure, public :: SetThreadBounds
   end type fates_history_dimension_type
 
 contains
 
   ! =====================================================================================
-  subroutine InitHistoryDimensions(this, name, num_threads, lower_bound, upper_bound)
+  subroutine Init(this, name, num_threads, lower_bound, upper_bound)
 
     implicit none
 
@@ -71,11 +71,11 @@ contains
     allocate(this%clump_upper_bound(num_threads))
     this%clump_upper_bound(:) = -1
 
-  end subroutine InitHistoryDimensions
+  end subroutine Init
 
   ! =====================================================================================
 
-  subroutine SetHistoryDimensionThreadBounds(this, thread_index, lower_bound, upper_bound)
+  subroutine SetThreadBounds(this, thread_index, lower_bound, upper_bound)
 
     implicit none
 
@@ -87,6 +87,6 @@ contains
     this%clump_lower_bound(thread_index) = lower_bound
     this%clump_upper_bound(thread_index) = upper_bound
 
-  end subroutine SetHistoryDimensionThreadBounds
+  end subroutine SetThreadBounds
   
 end module FatesHistoryDimensionMod
