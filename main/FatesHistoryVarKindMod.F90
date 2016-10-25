@@ -1,6 +1,7 @@
 module FatesHistoryVariableKindMod
 
   use FatesConstantsMod, only : fates_long_string_length
+  use FatesGlobals, only : fates_log
   use FatesHistoryDimensionMod, only : fates_history_dimension_type
 
   implicit none
@@ -21,7 +22,7 @@ module FatesHistoryVariableKindMod
 
    contains
 
-     procedure, public :: Init => InitVariableKind
+     procedure, public :: Init
      procedure, public :: set_active
      procedure, public :: is_active
 
@@ -32,7 +33,7 @@ module FatesHistoryVariableKindMod
 contains
 
   ! ===================================================================================
-  subroutine InitVariableKind(this, name, num_dims)
+  subroutine Init(this, name, num_dims)
 
     use FatesConstantsMod, only : fates_unset_int
     
@@ -50,7 +51,7 @@ contains
     this%dim1_index = fates_unset_int
     this%dim2_index = fates_unset_int
     
-  end subroutine InitVariableKind
+  end subroutine Init
   
  ! =======================================================================
  subroutine set_active(this)
@@ -65,5 +66,26 @@ contains
    is_active = this%active_
  end function is_active
 
+  ! ====================================================================================
+
+  function iotype_index(iotype_name, num_dim_kinds, dim_kinds) result(dk_index)
+
+    ! argument
+    character(len=*), intent(in) :: iotype_name
+    integer, intent(in) :: num_dim_kinds
+    type(fates_history_variable_kind_type), intent(in) :: dim_kinds(:)
+
+    ! local
+    integer :: dk_index
+
+    do dk_index=1, num_dim_kinds
+       if (trim(iotype_name) .eq. trim(dim_kinds(dk_index)%name)) then
+          return
+       end if
+    end do
+    write(fates_log(),*) 'An IOTYPE THAT DOESNT EXIST WAS SPECIFIED'
+    !end_run
+
+  end function iotype_index
   
 end module FatesHistoryVariableKindMod

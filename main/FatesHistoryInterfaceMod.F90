@@ -129,7 +129,7 @@ module FatesHistoryInterfaceMod
 
 
   ! The number of variable dim/kind types we have defined (static)
-  integer, parameter                :: n_dim_kinds = 6
+  integer, parameter :: fates_num_dim_kinds = 6
 
   type, public :: fates_bounds_type
      integer :: patch_begin
@@ -162,7 +162,7 @@ module FatesHistoryInterfaceMod
      
      ! Instanteat one registry of the different dimension/kinds (dk)
      ! All output variables will have a pointer to one of these dk's
-     type(fates_history_variable_kind_type) :: dim_kinds(n_dim_kinds)
+     type(fates_history_variable_kind_type) :: dim_kinds(fates_num_dim_kinds)
      
      ! This is a structure that explains where FATES patch boundaries
      ! on each thread point to in the host IO array, this structure is
@@ -175,8 +175,8 @@ module FatesHistoryInterfaceMod
      integer, private :: patch_index_, column_index_, levgrnd_index_, levscpf_index_
    contains
      
-     procedure, public :: Init => InitFatesHistoryOutput
-     procedure, public :: SetThreadBounds => SetHistoryThreadBounds
+     procedure, public :: Init
+     procedure, public :: SetThreadBounds
      procedure, public :: initialize_history_vars
      procedure, public :: assemble_valid_output_types
      
@@ -211,7 +211,7 @@ contains
 
   ! ======================================================================
   
-  subroutine InitFatesHistoryOutput(this, num_threads, fates_bounds)
+  subroutine Init(this, num_threads, fates_bounds)
 
     use FatesHistoryDimensionMod, only : patch, column, levgrnd, levscpf
 
@@ -247,10 +247,10 @@ contains
     ! Allocate the mapping between FATES indices and the IO indices
     allocate(this%iovar_map(num_threads))
     
-  end subroutine InitFatesHistoryOutput
+  end subroutine Init
 
   ! ======================================================================
-  subroutine SetHistoryThreadBounds(this, thread_index, thread_bounds)
+  subroutine SetThreadBounds(this, thread_index, thread_bounds)
 
     implicit none
 
@@ -277,13 +277,13 @@ contains
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
          thread_bounds%pft_class_begin, thread_bounds%pft_class_end)
     
-  end subroutine SetHistoryThreadBounds
+  end subroutine SetThreadBounds
   
   ! ===================================================================================
   subroutine assemble_valid_output_types(this)
 
-    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_class_pft_r8, &
-         site_r8, site_ground_r8, site_class_pft_r8
+    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_class_pft_r8
+    use FatesHistoryDimensionMod, only : site_r8, site_ground_r8, site_class_pft_r8
 
    implicit none
 
@@ -313,7 +313,7 @@ contains
   
   subroutine set_dim_indicies(this, dk_name, idim, dim_index)
 
-    use FatesHistoryVariableType, only : iotype_index
+    use FatesHistoryVariableKindMod , only : iotype_index
 
     implicit none
 
@@ -327,7 +327,7 @@ contains
     ! local
     integer :: ityp
 
-    ityp = iotype_index(trim(dk_name), n_dim_kinds, this%dim_kinds)
+    ityp = iotype_index(trim(dk_name), fates_num_dim_kinds, this%dim_kinds)
 
     ! First check to see if the dimension is allocated
     if (this%dim_kinds(ityp)%ndims < idim) then
@@ -472,7 +472,7 @@ contains
        
        if (initialize) then
           call this%hvars(ivar)%Init(vname, units, long, use_default, &
-               vtype, avgflag, flushval, upfreq, n_dim_kinds, this%dim_kinds, &
+               vtype, avgflag, flushval, upfreq, fates_num_dim_kinds, this%dim_kinds, &
                this%dim_bounds)
        end if
     else
@@ -532,7 +532,7 @@ contains
     index = index + 1
     call this%dim_kinds(index)%Init(site_class_pft_r8, 2)
 
-    ! FIXME(bja, 2016-10) assert(index == n_dim_kinds)
+    ! FIXME(bja, 2016-10) assert(index == fates_num_dim_kinds)
   end subroutine init_dim_kinds_maps
 
  ! =======================================================================
