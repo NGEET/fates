@@ -1460,7 +1460,7 @@ contains
    call this%fates_hist%Init(nclumps, fates_bounds)
 
    ! Define the bounds on the first dimension for each thread
-   !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,fates_clump,s,c,num_sites)
+   !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,fates_clump,s,c)
    do nc = 1,nclumps
       
       call get_clump_bounds(nc, bounds_clump)
@@ -1479,7 +1479,7 @@ contains
    allocate(this%fates_hist%iovar_map(nclumps))
 
    
-   !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,fates_clump,s,c,num_sites)
+   !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,fates_clump,s,c)
    do nc = 1,nclumps
       
       call get_clump_bounds(nc, bounds_clump)
