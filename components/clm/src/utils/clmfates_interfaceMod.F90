@@ -172,7 +172,7 @@ contains
    
    ! ====================================================================================
 
-   subroutine init(this,bounds_proc, use_ed)
+   subroutine init(this, bounds_proc, use_ed)
       
       ! ---------------------------------------------------------------------------------
       ! This initializes the dlm_fates_interface_type 
@@ -255,8 +255,7 @@ contains
          write(iulog,*) 'clm_fates%init():  allocating for ',nclumps,' threads'
       end if
 
-      return
-   end subroutine init
+    end subroutine init
 
    ! ====================================================================================
    
@@ -413,8 +412,6 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
       end do
-
-
 
    end subroutine check_hlm_active
 
@@ -635,7 +632,6 @@ contains
 
        end do
      end associate
-     return
    end subroutine wrap_update_hlmfates_dyn
 
    ! ------------------------------------------------------------------------------------
@@ -691,8 +687,7 @@ contains
 
       end do
       !$OMP END PARALLEL DO
-      
-      return
+
    end subroutine init_restart
 
    ! ====================================================================================
@@ -756,7 +751,7 @@ contains
         end if
      end do
      !$OMP END PARALLEL DO
-     return
+
    end subroutine init_coldstart
 
    ! ======================================================================================
@@ -847,7 +842,7 @@ contains
         end do
 
       end associate
-      return
+
    end subroutine wrap_sunfrac
    
    ! ===================================================================================
@@ -1044,7 +1039,7 @@ contains
            end do
         end do
       end associate
-      return
+
    end subroutine wrap_btran
 
    ! ====================================================================================
@@ -1174,7 +1169,7 @@ contains
       
     end associate
     call t_stopf('edpsn')
-    return
+
  end subroutine wrap_photosynthesis
 
  ! ======================================================================================
@@ -1214,8 +1209,6 @@ contains
                                this%fates(nc)%nsites,  &
                                this%fates(nc)%sites, &
                                dtime)
-
-    return
 
  end subroutine wrap_accumulatefluxes
 
@@ -1303,7 +1296,6 @@ contains
     
   end associate
 
-    return
  end subroutine wrap_canopy_radiation
 
  ! ======================================================================================
@@ -1343,7 +1335,6 @@ contains
        soilbiogeochem_carbonflux_inst%FATES_c_to_litr_cel_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_cel_c_col(:)
        soilbiogeochem_carbonflux_inst%FATES_c_to_litr_lig_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_lig_c_col(:)
     end do
-
 
  end subroutine wrap_litter_fluxout
 
@@ -1403,7 +1394,6 @@ contains
 
       
     end associate
-    return
  end subroutine wrap_bgc_summary
 
  ! ======================================================================================
@@ -1457,7 +1447,7 @@ contains
    ! module, and a new explicitly named instance of that type should be created.
    ! With this new dimension, a new output type/kind can contain that dimension.
    ! A new type/kind can be added to the dim_kinds structure, which defines its members
-   ! in created in init_dim_kinds_maps().  Make sure to increase the size of n_dim_kinds.
+   ! in created in init_dim_kinds_maps().  Make sure to increase the size of fates_num_dim_kinds.
    ! A type/kind of output is defined by the data type (ie r8,int,..)
    ! and the dimensions.  Keep in mind that 3D variables (or 4D if you include time)
    ! are not really supported in CLM/ALM right now.  There are ways around this

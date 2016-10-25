@@ -31,19 +31,21 @@ module FatesHistoryVariableType
      integer,  pointer     :: int2d(:,:)
      integer,  pointer     :: int3d(:,:,:)
    contains
-     procedure, public :: Init => InitHistoryVariableType
+     procedure, public :: Init
      procedure, public :: Flush
      procedure, private :: GetBounds
   end type fates_history_variable_type
 
 contains
 
-  subroutine InitHistoryVariableType(this, vname, units, long, use_default, &
-       vtype, avgflag, flushval, upfreq, n_dim_kinds, dim_kinds, dim_bounds)
+  subroutine Init(this, vname, units, long, use_default, &
+       vtype, avgflag, flushval, upfreq, num_dim_kinds, dim_kinds, dim_bounds)
 
     use FatesHistoryDimensionMod, only : fates_history_dimension_type
-    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_class_pft_r8, &
-         site_r8, site_ground_r8, site_class_pft_r8
+    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_class_pft_r8
+    use FatesHistoryDimensionMod, only : site_r8, site_ground_r8, site_class_pft_r8
+
+    use FatesHistoryVariableKindMod, only : iotype_index
 
     implicit none
 
@@ -56,7 +58,7 @@ contains
     character(len=*), intent(in) :: avgflag
     real(r8), intent(in) :: flushval ! If the type is an int we will round with nint
     integer, intent(in) :: upfreq
-    integer, intent(in) :: n_dim_kinds
+    integer, intent(in) :: num_dim_kinds
     type(fates_history_dimension_type), intent(in) :: dim_bounds(:)
     type(fates_history_variable_kind_type), intent(inout) :: dim_kinds(:)
 
@@ -79,7 +81,7 @@ contains
     nullify(this%int2d)
     nullify(this%int3d)
 
-    dk_index = iotype_index(trim(vtype), n_dim_kinds, dim_kinds)
+    dk_index = iotype_index(trim(vtype), num_dim_kinds, dim_kinds)
     this%dim_kinds_index = dk_index
     call dim_kinds(dk_index)%set_active()
                 
@@ -123,7 +125,7 @@ contains
        ! end_run
     end select
     
-  end subroutine InitHistoryVariableType
+  end subroutine Init
   
   ! =====================================================================================
 
@@ -179,8 +181,8 @@ contains
   subroutine Flush(this, thread, dim_bounds, dim_kinds)
 
     use FatesHistoryDimensionMod, only : fates_history_dimension_type
-    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_class_pft_r8, &
-         site_r8, site_ground_r8, site_class_pft_r8, patch_int
+    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_class_pft_r8
+    use FatesHistoryDimensionMod, only : site_r8, site_ground_r8, site_class_pft_r8, patch_int
 
     implicit none
 
@@ -215,28 +217,5 @@ contains
     end select
     
   end subroutine Flush
-
-  ! ====================================================================================
-  
-  function iotype_index(iotype_name, n_dim_kinds, dim_kinds) result(dk_index)
-    
-    ! argument
-    character(len=*), intent(in) :: iotype_name
-    integer, intent(in) :: n_dim_kinds
-    type(fates_history_variable_kind_type), intent(in) :: dim_kinds(:)
-
-    ! local
-    integer :: dk_index
-    
-    do dk_index=1, n_dim_kinds
-       if (trim(iotype_name) .eq. trim(dim_kinds(dk_index)%name)) then
-          return
-       end if
-    end do
-    write(fates_log(),*) 'An IOTYPE THAT DOESNT EXIST WAS SPECIFIED'
-    !end_run
-    
-  end function iotype_index
-   
 
 end module FatesHistoryVariableType
