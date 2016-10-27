@@ -293,6 +293,8 @@ contains
     !
     ! !USES:
     use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)  
+    use FatesConstantsMod, only : fates_unset_int
+
     !
     ! !ARGUMENTS    
     type (ed_cohort_type), intent(inout), target  :: cc_p
@@ -314,13 +316,13 @@ contains
     nullify(currentCohort%siteptr) 
 
     ! VEGETATION STRUCTURE
-    currentCohort%pft                = 999 ! pft number                           
-    currentCohort%indexnumber        = 999 ! unique number for each cohort. (within clump?)
-    currentCohort%canopy_layer       = 999 ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)   
-    currentCohort%NV                 = 999 ! Number of leaf layers: -
-    currentCohort%status_coh         = 999 ! growth status of plant  (2 = leaves on , 1 = leaves off)
-    currentCohort%size_class         = 999 ! size class index
-    currentCohort%size_by_pft_class  = 999 ! size by pft classification index
+    currentCohort%pft                = fates_unset_int  ! pft number                           
+    currentCohort%indexnumber        = fates_unset_int  ! unique number for each cohort. (within clump?)
+    currentCohort%canopy_layer       = fates_unset_int  ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)   
+    currentCohort%NV                 = fates_unset_int  ! Number of leaf layers: -
+    currentCohort%status_coh         = fates_unset_int  ! growth status of plant  (2 = leaves on , 1 = leaves off)
+    currentCohort%size_class         = fates_unset_int  ! size class index
+    currentCohort%size_by_pft_class  = fates_unset_int  ! size by pft classification index
 
     currentCohort%n                  = nan ! number of individuals in cohort per 'area' (10000m2 default)     
     currentCohort%dbh                = nan ! 'diameter at breast height' in cm                            
@@ -1136,8 +1138,8 @@ contains
 
   subroutine size_and_type_class_index(dbh,pft,size_class,size_by_pft_class)
     
-    use EDTypesMod, only: sclass_ed, &
-                          nlevsclass_ed
+    use EDTypesMod, only: sclass_ed
+    use EDTypesMod, only: nlevsclass_ed
     
     ! Arguments
     real(r8),intent(in) :: dbh
@@ -1145,7 +1147,7 @@ contains
     integer,intent(out) :: size_class
     integer,intent(out) :: size_by_pft_class
     
-    size_class        = count(dbh-sclass_ed.ge.0.0)
+    size_class        = count(dbh-sclass_ed.ge.0.0_r8)
     
     size_by_pft_class = (pft-1)*nlevsclass_ed+size_class
 
