@@ -15,6 +15,10 @@ module FatesConstantsMod
   integer, parameter :: fates_long_string_length = 199
 
 
+  ! Unset and various other 'special' values
+  integer, parameter :: fates_unset_int = -9999
+
+
   ! Unit conversion constants:
 
   ! Conversion factor umols of Carbon -> kg of Carbon (1 mol = 12g)
@@ -27,14 +31,24 @@ module FatesConstantsMod
   ! Conversion factor: miligrams per grams
   real(fates_r8), parameter :: mg_per_g = 1000.0_fates_r8
 
+  ! Conversion factor: micromoles per milimole
+  real(fates_r8), parameter :: umol_per_mmol = 1000.0_fates_r8
+
+  ! Conversion factor: milimoles per mole
+  real(fates_r8), parameter :: mmol_per_mol = 1000.0_fates_r8
+  
+  ! Conversion factor: micromoles per mole
+  real(fates_r8), parameter :: umol_per_mol = 1.0E6_fates_r8
+  
+
   ! Conversion: secons per minute
   real(fates_r8), parameter :: sec_per_min = 60.0_fates_r8
   
   
   ! Physical constants
 
-  ! universal gas constant [J/K/kmole]
-  real(fates_r8), parameter :: rgas                    = 8314.4598_fates_r8   
+  ! universal gas constant [J/K/kmol]
+  real(fates_r8), parameter :: rgas_J_K_kmol          = 8314.4598_fates_r8
 
   ! freezing point of water at 1 atm (K)
   real(fates_r8), parameter :: t_water_freeze_k_1atm   = 273.15_fates_r8     
