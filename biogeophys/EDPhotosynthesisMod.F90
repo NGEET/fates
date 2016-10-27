@@ -45,50 +45,49 @@ contains
                                            ! READS ARE REFACTORED (RGK 10-13-2016)
     use pftconMod         , only : pftcon  ! THIS WILL BE DEPRECATED WHEN PARAMETER
                                            ! READS ARE REFACTORED (RGK 10-13-2016)
-    use EDParamsMod       , only : ED_val_grperc, &
-                                   ED_val_ag_biomass
+    use EDParamsMod       , only : ED_val_grperc
+    use EDParamsMod       , only : ED_val_ag_biomass
     use EDSharedParamsMod , only : EDParamsShareInst
-    use EDTypesMod        , only : numpft_ed,     &
-                                   dinc_ed, & 
-                                   ed_patch_type, &
-                                   ed_cohort_type, &
-                                   ed_site_type, &
-                                   numpft_ed,    &
-                                   numpatchespercol, &
-                                   cp_numlevsoil, &
-                                   cp_nlevcan, &
-                                   cp_nclmax
+    use EDTypesMod        , only : numpft_ed
+    use EDTypesMod        , only : dinc_ed
+    use EDTypesMod        , only : ed_patch_type
+    use EDTypesMod        , only : ed_cohort_type
+    use EDTypesMod        , only : ed_site_type
+    use EDTypesMod        , only : numpft_ed
+    use EDTypesMod        , only : numpatchespercol
+    use EDTypesMod        , only : cp_numlevsoil
+    use EDTypesMod        , only : cp_nlevcan
+    use EDTypesMod        , only : cp_nclmax
 
     use EDEcophysContype  , only : EDecophyscon
-    use FatesInterfaceMod , only : bc_in_type,    &
-                                   bc_out_type
-    
-    use EDCanopyStructureMod,only: calc_areaindex
-    
-    use FatesConstantsMod, only : umolC_to_kgC,   &    ! micromole conversion to kgC
-                                  g_per_kg,       &    ! number of grams per kg
-                                  mg_per_g,       &    ! number of miligrams per g
-                                  sec_per_min,    &    ! seconds per minute (60!)
-                                  rgas,           &    ! universal gas constant
-                                  
-                                  tfrz => t_water_freeze_k_1atm ! Freezing point of water at 1 atmosphere
 
-    !
+    use FatesInterfaceMod , only : bc_in_type
+    use FatesInterfaceMod , only : bc_out_type
+    
+    use EDCanopyStructureMod, only : calc_areaindex
+    
+    use FatesConstantsMod, only : umolC_to_kgC
+    use FatesConstantsMod, only : g_per_kg
+    use FatesConstantsMod, only : mg_per_g
+    use FatesConstantsMod, only : sec_per_min
+    use FatesConstantsMod, only : umol_per_mmol
+    use FatesConstantsMod, only : rgas => rgas_J_K_kmol
+    use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+
     ! !ARGUMENTS:
+    ! -----------------------------------------------------------------------------------
     integer,intent(in)                      :: nsites
     type(ed_site_type),intent(inout),target :: sites(nsites)
     type(bc_in_type),intent(in)             :: bc_in(nsites)
     type(bc_out_type),intent(inout)         :: bc_out(nsites)
     real(r8),intent(in)                     :: dtime
 
-    !
-    ! !CALLED FROM:
-    ! subroutine CanopyFluxes 
-    !
+
     ! !LOCAL VARIABLES:
+    ! -----------------------------------------------------------------------------------
     type (ed_patch_type) , pointer :: currentPatch
     type (ed_cohort_type), pointer :: currentCohort
-    !
+
     integer , parameter :: psn_type = 2 !c3 or c4. 
 
     logical   ::  DEBUG = .false.
@@ -237,8 +236,8 @@ contains
 
     ! First guess on ratio between intracellular co2 and the atmosphere
     ! an iterator converges on actual
-    real(r8),parameter :: init_a2l_co2_c3 = 0.7  
-    real(r8),parameter :: init_a2l_co2_c4 = 0.4
+    real(r8),parameter :: init_a2l_co2_c3 = 0.7_r8
+    real(r8),parameter :: init_a2l_co2_c4 = 0.4_r8
 
 
     associate(                                                &
@@ -1012,7 +1011,7 @@ contains
             end if
             bc_out(s)%rssun_pa(ifp) = rscanopy
             bc_out(s)%rssha_pa(ifp) = rscanopy
-            bc_out(s)%gccanopy_pa(ifp)  = 1.0_r8/rscanopy*cf/1000.0 !convert into umol m-2 s-1 then mmol m-2 s-1. 
+            bc_out(s)%gccanopy_pa(ifp)  = 1.0_r8/rscanopy*cf/umol_per_mmol  !convert into umol m-2 s-1 then mmol m-2 s-1. 
          end if
 
          currentPatch => currentPatch%younger
@@ -1037,8 +1036,8 @@ function ft1_f(tl, ha) result(ans)
     ! 7/23/16: Copied over from CLM by Ryan Knox
     !
     !!USES
-    use FatesConstantsMod, only : rgas,           &    ! universal gas constant
-                                  tfrz => t_water_freeze_k_1atm ! Freezing point of water at 1 atm
+    use FatesConstantsMod, only : rgas => rgas_J_K_kmol
+    use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     !
     ! !ARGUMENTS:
     real(r8), intent(in) :: tl  ! leaf temperature in photosynthesis temperature function (K)
@@ -1064,8 +1063,9 @@ function ft1_f(tl, ha) result(ans)
     ! Jinyun Tang separated it out from Photosynthesis, Feb. 07/2013
     ! 7/23/16: Copied over from CLM by Ryan Knox
     !
-    use FatesConstantsMod, only : rgas,           &    ! universal gas constant
-                                  tfrz => t_water_freeze_k_1atm ! Freezing point of water at 1 atm
+    use FatesConstantsMod, only : rgas => rgas_J_K_kmol
+    use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+
     !
     ! !ARGUMENTS:
     real(r8), intent(in) :: tl  ! leaf temperature in photosynthesis temperature function (K)
@@ -1094,8 +1094,9 @@ function ft1_f(tl, ha) result(ans)
     ! 7/23/16: Copied over from CLM by Ryan Knox
     !
     !!USES    
-    use FatesConstantsMod, only : rgas,           &    ! universal gas constant
-                                  tfrz => t_water_freeze_k_1atm ! Freezing point of water at 1 atm
+
+     use FatesConstantsMod, only : rgas => rgas_J_K_kmol
+     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     
     !
     ! !ARGUMENTS:
@@ -1127,7 +1128,6 @@ function ft1_f(tl, ha) result(ans)
      ! 7/23/16: Copied over from CLM by Ryan Knox
      !
      ! !USES:
-     implicit none
      !
      ! !ARGUMENTS:
      real(r8), intent(in)  :: a,b,c       ! Terms for quadratic equation
