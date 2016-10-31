@@ -27,7 +27,7 @@ module EDCohortDynamicsMod
   public :: sort_cohorts
   public :: copy_cohort
   public :: count_cohorts
-!  public :: countCohorts
+  public :: size_and_type_class_index
   public :: allocate_live_biomass
 
   logical, parameter :: DEBUG  = .false. ! local debug flag
@@ -91,6 +91,9 @@ contains
     new_cohort%bdead        = bdead
     new_cohort%balive       = balive
     new_cohort%bstore       = bstore
+
+    call size_and_type_class_index(new_cohort%dbh,new_cohort%pft, &
+                                   new_cohort%size_class,new_cohort%size_by_pft_class)
 
     if ( DEBUG ) write(iulog,*) 'EDCohortDyn I ',bstore
 
@@ -290,6 +293,8 @@ contains
     !
     ! !USES:
     use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)  
+    use FatesConstantsMod, only : fates_unset_int
+
     !
     ! !ARGUMENTS    
     type (ed_cohort_type), intent(inout), target  :: cc_p
@@ -311,11 +316,13 @@ contains
     nullify(currentCohort%siteptr) 
 
     ! VEGETATION STRUCTURE
-    currentCohort%pft                = 999 ! pft number                           
-    currentCohort%indexnumber        = 999 ! unique number for each cohort. (within clump?)
-    currentCohort%canopy_layer       = 999 ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)   
-    currentCohort%NV                 = 999 ! Number of leaf layers: -
-    currentCohort%status_coh         = 999 ! growth status of plant  (2 = leaves on , 1 = leaves off)
+    currentCohort%pft                = fates_unset_int  ! pft number                           
+    currentCohort%indexnumber        = fates_unset_int  ! unique number for each cohort. (within clump?)
+    currentCohort%canopy_layer       = fates_unset_int  ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)   
+    currentCohort%NV                 = fates_unset_int  ! Number of leaf layers: -
+    currentCohort%status_coh         = fates_unset_int  ! growth status of plant  (2 = leaves on , 1 = leaves off)
+    currentCohort%size_class         = fates_unset_int  ! size class index
+    currentCohort%size_by_pft_class  = fates_unset_int  ! size by pft classification index
 
     currentCohort%n                  = nan ! number of individuals in cohort per 'area' (10000m2 default)     
     currentCohort%dbh                = nan ! 'diameter at breast height' in cm                            
@@ -361,7 +368,7 @@ contains
 
 
     !RESPIRATION
-    currentCohort%rd                 = nan
+    currentCohort%rdark              = nan
     currentCohort%resp_m             = nan ! Maintenance respiration.  kGC/cohort/year
     currentCohort%resp_g             = nan ! Growth respiration.       kGC/cohort/year
     currentCohort%livestem_mr        = nan ! Live stem maintenance respiration. kgC/indiv/s-1 
@@ -380,11 +387,6 @@ contains
     currentCohort%treesai            = nan ! stem area index of tree (total stem area (m2) / canopy area (m2)
     currentCohort%leaf_litter        = nan ! leaf litter from phenology: KgC/m2
     currentCohort%woody_turnover     = nan ! amount of wood lost each day: kgC/indiv/year. Currently set to zero.
-
-    ! NITROGEN POOLS      
-    currentCohort%livestemn          = nan ! live stem nitrogen       : KgN/invid
-    currentCohort%livecrootn         = nan ! live coarse root nitrogen: KgN/invid
-    currentCohort%frootn             = nan ! fine root  nitrogen      : KgN/invid
 
     ! VARIABLES NEEDED FOR INTEGRATION 
     currentCohort%dndt               = nan ! time derivative of cohort size 
@@ -423,7 +425,7 @@ contains
 
     currentCohort%NV                 = 0    
     currentCohort%status_coh         = 0    
-    currentCohort%rd                 = 0._r8
+    currentCohort%rdark              = 0._r8
     currentCohort%resp_m             = 0._r8 
     currentCohort%resp_g             = 0._r8
     currentCohort%livestem_mr        = 0._r8
@@ -1040,18 +1042,13 @@ contains
     n%npp_store      = o%npp_store
 
     !RESPIRATION
-    n%rd              = o%rd
+    n%rdark           = o%rdark
     n%resp_m          = o%resp_m
     n%resp_g          = o%resp_g
     n%livestem_mr     = o%livestem_mr
     n%livecroot_mr    = o%livecroot_mr
     n%froot_mr        = o%froot_mr
  
-    ! NITROGEN POOLS      
-    n%livestemn       = o%livestemn
-    n%livecrootn      = o%livecrootn
-    n%frootn          = o%frootn
-
     ! ALLOCATION
     n%md              = o%md
     n%leaf_md         = o%leaf_md
@@ -1136,6 +1133,28 @@ contains
     endif
 
   end function count_cohorts
+
+  ! =====================================================================================
+
+  subroutine size_and_type_class_index(dbh,pft,size_class,size_by_pft_class)
+    
+    use EDTypesMod, only: sclass_ed
+    use EDTypesMod, only: nlevsclass_ed
+    
+    ! Arguments
+    real(r8),intent(in) :: dbh
+    integer,intent(in)  :: pft
+    integer,intent(out) :: size_class
+    integer,intent(out) :: size_by_pft_class
+    
+    size_class        = count(dbh-sclass_ed.ge.0.0_r8)
+    
+    size_by_pft_class = (pft-1)*nlevsclass_ed+size_class
+
+    return
+  end subroutine size_and_type_class_index
+
+
 
   !-------------------------------------------------------------------------------------!
 !  function countCohorts( bounds, ed_allsites_inst ) result ( totNumCohorts ) 
