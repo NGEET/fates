@@ -4,8 +4,10 @@ module EDCohortDynamicsMod
   ! Cohort stuctures in ED. 
   !
   ! !USES: 
-  use shr_kind_mod          , only : r8 => shr_kind_r8;
-  use clm_varctl            , only : iulog 
+  use abortutils            , only : endrun
+  use FatesGlobals          , only : fates_log
+  use FatesConstantsMod     , only : r8 => fates_r8
+  use shr_log_mod           , only : errMsg => shr_log_errMsg
   use pftconMod             , only : pftcon
   use EDEcophysContype      , only : EDecophyscon
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
@@ -31,6 +33,9 @@ module EDCohortDynamicsMod
   public :: allocate_live_biomass
 
   logical, parameter :: DEBUG  = .false. ! local debug flag
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
 
   ! 10/30/09: Created by Rosie Fisher
   !-------------------------------------------------------------------------------------!
@@ -95,13 +100,18 @@ contains
     call size_and_type_class_index(new_cohort%dbh,new_cohort%pft, &
                                    new_cohort%size_class,new_cohort%size_by_pft_class)
 
-    if ( DEBUG ) write(iulog,*) 'EDCohortDyn I ',bstore
+    if ( DEBUG ) write(fates_log(),*) 'EDCohortDyn I ',bstore
 
-    if (new_cohort%dbh <= 0.0_r8 .or. new_cohort%n == 0._r8 .or. new_cohort%pft == 0 &
-          .or. new_cohort%canopy_trim <= 0.0_r8 .or. new_cohort%balive <= 0._r8) then
-             write(iulog,*) 'ED: something is zero in create_cohort', &
+    ! This routine may be called during restarts, and at this point in the call sequence
+    ! the actual cohort data is unknown, as this is really only used for allocation
+    ! In these cases, testing if things like biomass are reasonable is pre-mature
+    ! However, in this part of the code, we will pass in nominal values for size, number and type
+    
+    if (new_cohort%dbh <= 0.0_r8 .or. new_cohort%n == 0._r8 .or. new_cohort%pft == 0 ) then
+             write(fates_log(),*) 'ED: something is zero in create_cohort', &
                              new_cohort%indexnumber,new_cohort%dbh,new_cohort%n, &
-                             new_cohort%pft,new_cohort%canopy_trim,new_cohort%balive
+                             new_cohort%pft
+             call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
 
     if (new_cohort%siteptr%status==2 .and. pftcon%season_decid(pft) == 1) then
@@ -274,12 +284,12 @@ contains
     endif
     
     if (abs(currentcohort%balive -currentcohort%bl- currentcohort%br - currentcohort%bsw)>1e-12) then
-       write(iulog,*) 'issue with carbon allocation in create_cohort,allocate_live_biomass',&
+       write(fates_log(),*) 'issue with carbon allocation in create_cohort,allocate_live_biomass',&
             currentcohort%balive -currentcohort%bl- currentcohort%br - currentcohort%bsw, &
             currentcohort%status_coh,currentcohort%balive
-       write(iulog,*) 'actual vs predicted balive',ideal_balive,currentcohort%balive ,ratio_balive,leaf_frac
-       write(iulog,*) 'leaf,root,stem',currentcohort%bl,currentcohort%br,currentcohort%bsw
-       write(iulog,*) 'pft',ft,pftcon%evergreen(ft),pftcon%season_decid(ft),leaves_off_switch
+       write(fates_log(),*) 'actual vs predicted balive',ideal_balive,currentcohort%balive ,ratio_balive,leaf_frac
+       write(fates_log(),*) 'leaf,root,stem',currentcohort%bl,currentcohort%br,currentcohort%bsw
+       write(fates_log(),*) 'pft',ft,pftcon%evergreen(ft),pftcon%season_decid(ft),leaves_off_switch
     endif
     currentCohort%b   = currentCohort%bdead + currentCohort%balive
 
@@ -496,7 +506,7 @@ contains
        if (currentcohort%n <  min_n_safemath) then
          terminate = 1
 	 if ( DEBUG ) then
-             write(iulog,*) 'terminating cohorts 0',currentCohort%n/currentPatch%area,currentCohort%dbh
+             write(fates_log(),*) 'terminating cohorts 0',currentCohort%n/currentPatch%area,currentCohort%dbh
          endif
        endif
 
@@ -510,7 +520,7 @@ contains
             terminate = 1
 
             if ( DEBUG ) then
-               write(iulog,*) 'terminating cohorts 1',currentCohort%n/currentPatch%area,currentCohort%dbh
+               write(fates_log(),*) 'terminating cohorts 1',currentCohort%n/currentPatch%area,currentCohort%dbh
             endif
          endif
 
@@ -518,7 +528,7 @@ contains
          if (currentCohort%canopy_layer > cp_nclmax ) then 
            terminate = 1
            if ( DEBUG ) then
-             write(iulog,*) 'terminating cohorts 2', currentCohort%canopy_layer
+             write(fates_log(),*) 'terminating cohorts 2', currentCohort%canopy_layer
            endif
          endif
 
@@ -526,7 +536,7 @@ contains
          if (currentCohort%balive < 1e-10_r8 .or. currentCohort%bstore < 1e-10_r8) then 
             terminate = 1  
             if ( DEBUG ) then
-              write(iulog,*) 'terminating cohorts 3', currentCohort%balive,currentCohort%bstore
+              write(fates_log(),*) 'terminating cohorts 3', currentCohort%balive,currentCohort%bstore
             endif
          endif
 
@@ -534,7 +544,7 @@ contains
          if (currentCohort%balive+currentCohort%bdead+currentCohort%bstore < 0._r8) then
             terminate = 1
             if ( DEBUG ) then
-            write(iulog,*) 'terminating cohorts 4', currentCohort%balive, &
+            write(fates_log(),*) 'terminating cohorts 4', currentCohort%balive, &
                            currentCohort%bstore, currentCohort%bdead, &
                            currentCohort%balive+currentCohort%bdead+&
                            currentCohort%bstore, currentCohort%n
@@ -667,11 +677,11 @@ contains
                          currentCohort%balive    = (currentCohort%n*currentCohort%balive    + nextc%n*nextc%balive)/newn
                          currentCohort%bdead     = (currentCohort%n*currentCohort%bdead     + nextc%n*nextc%bdead)/newn
 
-                         if ( DEBUG ) write(iulog,*) 'EDcohortDyn I ',currentCohort%bstore
+                         if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn I ',currentCohort%bstore
 
                          currentCohort%bstore    = (currentCohort%n*currentCohort%bstore    + nextc%n*nextc%bstore)/newn   
 
-                         if ( DEBUG ) write(iulog,*) 'EDcohortDyn II ',currentCohort%bstore
+                         if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn II ',currentCohort%bstore
 
                          currentCohort%seed_prod = (currentCohort%n*currentCohort%seed_prod + nextc%n*nextc%seed_prod)/newn  
                          currentCohort%root_md   = (currentCohort%n*currentCohort%root_md   + nextc%n*nextc%root_md)/newn   
@@ -689,10 +699,10 @@ contains
                          currentCohort%bsw         = (currentCohort%n*currentCohort%bsw         + nextc%n*nextc%bsw)/newn
                          currentCohort%bl          = (currentCohort%n*currentCohort%bl          + nextc%n*nextc%bl)/newn
 
-                         if ( DEBUG ) write(iulog,*) 'EDcohortDyn 569 ',currentCohort%br
-                         if ( DEBUG ) write(iulog,*) 'EDcohortDyn 570 ',currentCohort%n
-                         if ( DEBUG ) write(iulog,*) 'EDcohortDyn 571 ',nextc%br
-                         if ( DEBUG ) write(iulog,*) 'EDcohortDyn 572 ',nextc%n
+                         if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn 569 ',currentCohort%br
+                         if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn 570 ',currentCohort%n
+                         if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn 571 ',nextc%br
+                         if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn 572 ',nextc%n
 
                          currentCohort%br          = (currentCohort%n*currentCohort%br          + nextc%n*nextc%br)/newn
                          currentCohort%hite        = (currentCohort%n*currentCohort%hite        + nextc%n*nextc%hite)/newn         
@@ -700,14 +710,14 @@ contains
 
                          currentCohort%gpp_acc     = (currentCohort%n*currentCohort%gpp_acc     + nextc%n*nextc%gpp_acc)/newn
 
-                         if ( DEBUG ) write(iulog,*) 'EDcohortDyn III ',currentCohort%npp_acc
-                         if ( DEBUG ) write(iulog,*) 'EDcohortDyn IV ',currentCohort%resp_acc
+                         if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn III ',currentCohort%npp_acc
+                         if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn IV ',currentCohort%resp_acc
 
                          currentCohort%npp_acc     = (currentCohort%n*currentCohort%npp_acc     + nextc%n*nextc%npp_acc)/newn
                          currentCohort%resp_acc    = (currentCohort%n*currentCohort%resp_acc    + nextc%n*nextc%resp_acc)/newn
 
-                         if ( DEBUG ) write(iulog,*) 'EDcohortDyn V ',currentCohort%npp_acc
-                         if ( DEBUG ) write(iulog,*) 'EDcohortDyn VI ',currentCohort%resp_acc
+                         if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn V ',currentCohort%npp_acc
+                         if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn VI ',currentCohort%resp_acc
                          
                          currentCohort%resp_acc_hold = (currentCohort%n*currentCohort%resp_acc_hold + nextc%n*nextc%resp_acc_hold)/newn
                          currentCohort%npp_acc_hold  = (currentCohort%n*currentCohort%npp_acc_hold + nextc%n*nextc%npp_acc_hold)/newn
@@ -791,7 +801,7 @@ contains
           !---------------------------------------------------------------------!        
           dynamic_fusion_tolerance = dynamic_fusion_tolerance * 1.1_r8
 
-          write(iulog,*) 'maxcohorts exceeded',dynamic_fusion_tolerance
+          write(fates_log(),*) 'maxcohorts exceeded',dynamic_fusion_tolerance
 
        else
           iterate = 0
@@ -1024,8 +1034,8 @@ contains
     n%npp_acc_hold    = o%npp_acc_hold
     n%npp_tstep       = o%npp_tstep
 
-    if ( DEBUG ) write(iulog,*) 'EDcohortDyn Ia ',o%npp_acc
-    if ( DEBUG ) write(iulog,*) 'EDcohortDyn Ib ',o%resp_acc
+    if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn Ia ',o%npp_acc
+    if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn Ib ',o%resp_acc
 
     n%npp_acc_hold    = o%npp_acc_hold
     n%resp_tstep      = o%resp_tstep
@@ -1080,7 +1090,7 @@ contains
     n%dbdeaddt        = o%dbdeaddt
     n%dbstoredt       = o%dbstoredt
 
-    if ( DEBUG ) write(iulog,*) 'EDCohortDyn dpstoredt ',o%dbstoredt
+    if ( DEBUG ) write(fates_log(),*) 'EDCohortDyn dpstoredt ',o%dbstoredt
 
     n%storage_flux    = o%storage_flux
 
@@ -1129,7 +1139,7 @@ contains
     enddo
 
     if (backcount /= currentPatch%countcohorts) then
-       write(iulog,*) 'problem with linked list, not symmetrical' 
+       write(fates_log(),*) 'problem with linked list, not symmetrical' 
     endif
 
   end function count_cohorts
