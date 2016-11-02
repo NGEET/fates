@@ -994,8 +994,6 @@ contains
                 layer_bottom_hite = currentCohort%hite-(((iv+1)/currentCohort%NV) * currentCohort%hite * &
                       EDecophyscon%crown(currentCohort%pft)) ! pftcon%vertical_canopy_frac(ft))
                 
-                write(fates_log(), *) 'calc snow 2', snow_depth_si , frac_sno_eff_si
-                
                 fraction_exposed =1.0_r8
                 
                 currentPatch%tlai_profile(L,ft,iv) = currentPatch%tlai_profile(L,ft,iv)+ dinc_ed * fleaf * &
@@ -1013,9 +1011,12 @@ contains
                 currentPatch%layer_height_profile(L,ft,iv) = currentPatch%layer_height_profile(L,ft,iv) + (dinc_ed * fleaf * &
                       currentCohort%c_area/currentPatch%total_canopy_area *(layer_top_hite+layer_bottom_hite)/2.0_r8) !average height of layer. 
                 
-                write(fates_log(), *) 'LHP', currentPatch%layer_height_profile(L,ft,iv)
-                if ( DEBUG ) write(fates_log(), *) 'EDCLMLink 1246 ', currentPatch%elai_profile(1,ft,iv)
-                
+                if ( DEBUG ) then
+                   write(fates_log(), *) 'calc snow 2', snow_depth_si , frac_sno_eff_si
+                   write(fates_log(), *) 'LHP', currentPatch%layer_height_profile(L,ft,iv)
+                   write(fates_log(), *) 'EDCLMLink 1246 ', currentPatch%elai_profile(1,ft,iv)
+                end if
+
              end do
                   
              !Bottom layer
