@@ -202,7 +202,7 @@ module FatesHistoryInterfaceMod
      procedure, private :: define_history_vars
      procedure, private :: set_history_var
      procedure, private :: init_dim_kinds_maps
-     procedure, private :: set_dim_indicies
+     procedure, private :: set_dim_indices
      procedure, private :: flush_hvars
 
      procedure, private :: set_patch_index
@@ -289,8 +289,8 @@ contains
   ! ===================================================================================
   subroutine assemble_valid_output_types(this)
 
-    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_class_pft_r8
-    use FatesHistoryDimensionMod, only : site_r8, site_ground_r8, site_class_pft_r8
+    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
+    use FatesHistoryDimensionMod, only : site_r8, site_ground_r8, site_size_pft_r8
 
    implicit none
 
@@ -298,27 +298,27 @@ contains
 
     call this%init_dim_kinds_maps()
 
-    call this%set_dim_indicies(patch_r8, 1, this%patch_index())
+    call this%set_dim_indices(patch_r8, 1, this%patch_index())
 
-    call this%set_dim_indicies(site_r8, 1, this%column_index())
+    call this%set_dim_indices(site_r8, 1, this%column_index())
 
-    call this%set_dim_indicies(patch_ground_r8, 1, this%patch_index())
-    call this%set_dim_indicies(patch_ground_r8, 2, this%levgrnd_index())
+    call this%set_dim_indices(patch_ground_r8, 1, this%patch_index())
+    call this%set_dim_indices(patch_ground_r8, 2, this%levgrnd_index())
 
-    call this%set_dim_indicies(site_ground_r8, 1, this%column_index())
-    call this%set_dim_indicies(site_ground_r8, 2, this%levgrnd_index())
+    call this%set_dim_indices(site_ground_r8, 1, this%column_index())
+    call this%set_dim_indices(site_ground_r8, 2, this%levgrnd_index())
 
-    call this%set_dim_indicies(patch_class_pft_r8, 1, this%patch_index())
-    call this%set_dim_indicies(patch_class_pft_r8, 2, this%levscpf_index())
+    call this%set_dim_indices(patch_size_pft_r8, 1, this%patch_index())
+    call this%set_dim_indices(patch_size_pft_r8, 2, this%levscpf_index())
 
-    call this%set_dim_indicies(site_class_pft_r8, 1, this%column_index())
-    call this%set_dim_indicies(site_class_pft_r8, 2, this%levscpf_index())
+    call this%set_dim_indices(site_size_pft_r8, 1, this%column_index())
+    call this%set_dim_indices(site_size_pft_r8, 2, this%levscpf_index())
 
   end subroutine assemble_valid_output_types
   
   ! ===================================================================================
   
-  subroutine set_dim_indicies(this, dk_name, idim, dim_index)
+  subroutine set_dim_indices(this, dk_name, idim, dim_index)
 
     use FatesHistoryVariableKindMod , only : iotype_index
 
@@ -355,7 +355,7 @@ contains
     this%dim_kinds(ityp)%dimsize(idim) = this%dim_bounds(dim_index)%upper_bound - &
          this%dim_bounds(dim_index)%lower_bound + 1
 
- end subroutine set_dim_indicies
+ end subroutine set_dim_indices
   
  ! =======================================================================
  subroutine set_patch_index(this, index)
@@ -504,8 +504,8 @@ contains
     ! number of entries listed here.
     !
     ! ----------------------------------------------------------------------------------
-    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_class_pft_r8, &
-         site_r8, site_ground_r8, site_class_pft_r8
+    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8, &
+         site_r8, site_ground_r8, site_size_pft_r8
     
     implicit none
     
@@ -529,7 +529,7 @@ contains
 
     ! patch x size-class/pft
     index = index + 1
-    call this%dim_kinds(index)%Init(patch_class_pft_r8, 2)
+    call this%dim_kinds(index)%Init(patch_size_pft_r8, 2)
 
     ! site x ground
     index = index + 1
@@ -537,7 +537,7 @@ contains
 
     ! site x size-class/pft
     index = index + 1
-    call this%dim_kinds(index)%Init(site_class_pft_r8, 2)
+    call this%dim_kinds(index)%Init(site_size_pft_r8, 2)
 
     ! FIXME(bja, 2016-10) assert(index == fates_num_dim_kinds)
   end subroutine init_dim_kinds_maps
@@ -1128,8 +1128,8 @@ contains
     ! a real.  The applied flush value will use the NINT() intrinsic function
     ! ---------------------------------------------------------------------------------
 
-    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_class_pft_r8, &
-         site_r8, site_ground_r8, site_class_pft_r8    
+    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8, &
+         site_r8, site_ground_r8, site_size_pft_r8    
     implicit none
     
     class(fates_history_interface_type), intent(inout) :: this
@@ -1354,130 +1354,130 @@ contains
 
     call this%set_history_var(vname='GPP_SCPF', units='kgC/m2/yr',            &
           long='gross primary production', use_default='inactive',           &
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_gpp_si_scpf )
 
     call this%set_history_var(vname='NPP_SCPF', units='kgC/m2/yr',            &
           long='total net primary production', use_default='inactive',       &
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_totl_si_scpf )
 
 
     call this%set_history_var(vname='NPP_LEAF_SCPF', units='kgC/m2/yr',       &
           long='NPP flux into leaves', use_default='inactive',               &
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_leaf_si_scpf )
 
     call this%set_history_var(vname='NPP_SEED_SCPF', units='kgC/m2/yr',       &
           long='NPP flux into seeds', use_default='inactive',                &
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_seed_si_scpf )
 
     call this%set_history_var(vname='NPP_FNRT_SCPF', units='kgC/m2/yr',       &
           long='NPP flux into fine roots', use_default='inactive',           &
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_fnrt_si_scpf )
 
     call this%set_history_var(vname='NPP_BGSW_SCPF', units='kgC/m2/yr',       &
           long='NPP flux into below-ground sapwood', use_default='inactive', &
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_bgsw_si_scpf )
 
     call this%set_history_var(vname='NPP_BGDW_SCPF', units='kgC/m2/yr',       &
           long='NPP flux into below-ground deadwood', use_default='inactive', &
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_bgdw_si_scpf )
 
     call this%set_history_var(vname='NPP_AGSW_SCPF', units='kgC/m2/yr',       &
           long='NPP flux into above-ground sapwood', use_default='inactive', &
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_agsw_si_scpf )
 
     call this%set_history_var(vname = 'NPP_AGDW_SCPF', units='kgC/m2/yr',    &
           long='NPP flux into above-ground deadwood', use_default='inactive', &
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_agdw_si_scpf )
 
     call this%set_history_var(vname = 'NPP_STOR_SCPF', units='kgC/m2/yr',    &
           long='NPP flux into storage', use_default='inactive',              &
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_stor_si_scpf )
 
     call this%set_history_var(vname='DDBH_SCPF', units = 'cm/yr/ha',         &
           long='diameter growth increment and pft/size',use_default='inactive', &
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ddbh_si_scpf )
 
     call this%set_history_var(vname='BA_SCPF', units = 'm2/ha',               &
           long='basal area by patch and pft/size', use_default='inactive',   &
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ba_si_scpf )
 
     call this%set_history_var(vname='NPLANT_SCPF', units = 'N/ha',         &
           long='stem number density by patch and pft/size', use_default='inactive', &
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nplant_si_scpf )
 
     call this%set_history_var(vname='M1_SCPF', units = 'N/ha/yr',          &
           long='background mortality count by patch and pft/size', use_default='inactive', &
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m1_si_scpf )
     
     call this%set_history_var(vname='M2_SCPF', units = 'N/ha/yr',          &
           long='hydraulic mortality count by patch and pft/size',use_default='inactive', &
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m2_si_scpf )
 
     call this%set_history_var(vname='M3_SCPF', units = 'N/ha/yr',          &
           long='carbon starvation mortality count by patch and pft/size', use_default='inactive', &
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m3_si_scpf )
 
     call this%set_history_var(vname='M4_SCPF', units = 'N/ha/yr',          &
           long='impact mortality count by patch and pft/size',use_default='inactive', &
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m4_si_scpf )
 
     call this%set_history_var(vname='M5_SCPF', units = 'N/ha/yr',          &
           long='fire mortality count by patch and pft/size',use_default='inactive', &
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m5_si_scpf )
 
     ! Size structured diagnostics that require rapid updates (upfreq=2)
 
     call this%set_history_var(vname='AR_SCPF',units = 'kgC/m2/yr',          &
           long='total autotrophic respiration per m2 per year',use_default='inactive',&
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_si_scpf )
     
     call this%set_history_var(vname='AR_GROW_SCPF',units = 'kgC/m2/yr',          &
           long='growth autotrophic respiration per m2 per year',use_default='inactive',&
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_grow_si_scpf )
 
     call this%set_history_var(vname='AR_MAINT_SCPF',units = 'kgC/m2/yr',          &
           long='maintenance autotrophic respiration per m2 per year',use_default='inactive',&
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_maint_si_scpf )
 
     call this%set_history_var(vname='AR_DARKM_SCPF',units = 'kgC/m2/yr',          &
           long='dark portion of maintenance autotrophic respiration per m2 per year',use_default='inactive',&
-          avgflag='A', vtype=site_class_pft_r8,hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8,hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_darkm_si_scpf )
 
     call this%set_history_var(vname='AR_AGSAPM_SCPF',units = 'kgC/m2/yr',          &
           long='above-ground sapwood maintenance autotrophic respiration per m2 per year',use_default='inactive',&
-          avgflag='A', vtype=site_class_pft_r8,hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8,hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_agsapm_si_scpf )
     
     call this%set_history_var(vname='AR_CROOTM_SCPF',units = 'kgC/m2/yr',          &
           long='below-ground sapwood maintenance autotrophic respiration per m2 per year',use_default='inactive',&
-          avgflag='A', vtype=site_class_pft_r8,hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8,hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_crootm_si_scpf )
 
     call this%set_history_var(vname='AR_FROOTM_SCPF',units = 'kgC/m2/yr',          &
           long='fine root maintenance autotrophic respiration per m2 per year',use_default='inactive',&
-          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_frootm_si_scpf )
 
 

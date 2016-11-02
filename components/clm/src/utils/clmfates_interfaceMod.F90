@@ -1403,8 +1403,8 @@ contains
 
    use FatesConstantsMod, only : fates_short_string_length, fates_long_string_length
    use FatesHistoryInterfaceMod, only : fates_bounds_type
-   use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_class_pft_r8, &
-        site_r8, site_ground_r8, site_class_pft_r8
+   use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8, &
+        site_r8, site_ground_r8, site_size_pft_r8
 
 
    ! Arguments
@@ -1544,7 +1544,7 @@ contains
                               default=trim(vdefault),                       &
                               set_lake=0._r8,set_urb=0._r8)
            
-        case(patch_class_pft_r8)
+        case(patch_size_pft_r8)
            d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
            dim2name = this%fates_hist%dim_bounds(d_index)%name
            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
@@ -1562,7 +1562,7 @@ contains
                               ptr_col=this%fates_hist%hvars(ivar)%r82d,      & 
                               default=trim(vdefault),                       &
                               set_lake=0._r8,set_urb=0._r8)
-        case(site_class_pft_r8)
+        case(site_size_pft_r8)
            d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
            dim2name = this%fates_hist%dim_bounds(d_index)%name
            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &

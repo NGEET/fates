@@ -42,8 +42,8 @@ contains
        vtype, avgflag, flushval, upfreq, num_dim_kinds, dim_kinds, dim_bounds)
 
     use FatesHistoryDimensionMod, only : fates_history_dimension_type
-    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_class_pft_r8
-    use FatesHistoryDimensionMod, only : site_r8, site_ground_r8, site_class_pft_r8
+    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
+    use FatesHistoryDimensionMod, only : site_r8, site_ground_r8, site_size_pft_r8
 
     use FatesHistoryVariableKindMod, only : iotype_index
 
@@ -106,7 +106,7 @@ contains
        allocate(this%r82d(lb1:ub1, lb2:ub2))
        this%r82d(:,:) = flushval
 
-    case(patch_class_pft_r8)
+    case(patch_size_pft_r8)
        allocate(this%r82d(lb1:ub1, lb2:ub2))
        this%r82d(:,:) = flushval
 
@@ -114,7 +114,7 @@ contains
        allocate(this%r82d(lb1:ub1, lb2:ub2))
        this%r82d(:,:) = flushval
 
-    case(site_class_pft_r8)
+    case(site_size_pft_r8)
        allocate(this%r82d(lb1:ub1, lb2:ub2))
        this%r82d(:,:) = flushval
 
@@ -181,8 +181,8 @@ contains
   subroutine Flush(this, thread, dim_bounds, dim_kinds)
 
     use FatesHistoryDimensionMod, only : fates_history_dimension_type
-    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_class_pft_r8
-    use FatesHistoryDimensionMod, only : site_r8, site_ground_r8, site_class_pft_r8, patch_int
+    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
+    use FatesHistoryDimensionMod, only : site_r8, site_ground_r8, site_size_pft_r8, patch_int
 
     implicit none
 
@@ -202,11 +202,11 @@ contains
        this%r81d(lb1:ub1) = this%flushval
     case(patch_ground_r8) 
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
-    case(patch_class_pft_r8) 
+    case(patch_size_pft_r8) 
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
     case(site_ground_r8) 
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
-    case(site_class_pft_r8) 
+    case(site_size_pft_r8) 
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
     case(patch_int)
        this%int1d(lb1:ub1) = nint(this%flushval)

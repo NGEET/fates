@@ -7,10 +7,10 @@ module FatesHistoryDimensionMod
     ! FIXME(bja, 2016-10) do these need to be strings, or can they be integer enumerations?
     character(*), parameter :: patch_r8 = 'PA_R8'
     character(*), parameter :: patch_ground_r8 = 'PA_GRND_R8'
-    character(*), parameter :: patch_class_pft_r8 = 'PA_SCPF_R8'
+    character(*), parameter :: patch_size_pft_r8 = 'PA_SCPF_R8'
     character(*), parameter :: site_r8 = 'SI_R8'
     character(*), parameter :: site_ground_r8 = 'SI_GRND_R8'
-    character(*), parameter :: site_class_pft_r8 = 'SI_SCPF_R8'
+    character(*), parameter :: site_size_pft_r8 = 'SI_SCPF_R8'
     character(*), parameter :: patch_int = 'PA_INT'
 
     integer, parameter :: fates_num_dimension_types = 4
