@@ -127,6 +127,13 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_m4_si_scpf
   integer, private :: ih_m5_si_scpf
 
+  integer, private :: ih_ar_si_scpf
+  integer, private :: ih_ar_grow_si_scpf
+  integer, private :: ih_ar_maint_si_scpf
+  integer, private :: ih_ar_darkm_si_scpf
+  integer, private :: ih_ar_agsapm_si_scpf
+  integer, private :: ih_ar_crootm_si_scpf
+  integer, private :: ih_ar_frootm_si_scpf
 
   ! The number of variable dim/kind types we have defined (static)
   integer, parameter :: fates_num_dim_kinds = 6
@@ -624,8 +631,6 @@ contains
     integer  :: lb1,ub1,lb2,ub2  ! IO array bounds for the calling thread
     integer  :: ivar             ! index of IO variable object vector
     integer  :: ft               ! functional type index
-    integer  :: scpf             ! index of the size-class x pft bin
-    integer  :: sc               ! index of the size-class bin
 
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
@@ -785,75 +790,76 @@ contains
                ! ------------------------------------------------------------------------
 
                dbh = ccohort%dbh !-0.5*(1./365.25)*ccohort%ddbhdt
-               sc  = count(dbh-sclass_ed.ge.0.0)
-               scpf = (ft-1)*nlevsclass_ed+sc
 
                ! Flux Variables (cohorts must had experienced a day before any of these values
                ! have any meaning, otherwise they are just inialization values
                if( .not.(ccohort%isnew) ) then
 
-                  hio_gpp_si_scpf(io_si,scpf)      = hio_gpp_si_scpf(io_si,scpf)      + &
-                                                     n_perm2*ccohort%gpp ! [kgC/m2/yr]
-                  hio_npp_totl_si_scpf(io_si,scpf) = hio_npp_totl_si_scpf(io_si,scpf) + &
-                                                     ccohort%npp*n_perm2
-                  hio_npp_leaf_si_scpf(io_si,scpf) = hio_npp_leaf_si_scpf(io_si,scpf) + &
-                                                     ccohort%npp_leaf*n_perm2
-                  hio_npp_fnrt_si_scpf(io_si,scpf) = hio_npp_fnrt_si_scpf(io_si,scpf) + &
-                                                     ccohort%npp_froot*n_perm2
-                  hio_npp_bgsw_si_scpf(io_si,scpf) = hio_npp_bgsw_si_scpf(io_si,scpf) + &
-                                                     ccohort%npp_bsw*(1._r8-ED_val_ag_biomass)*n_perm2
-                  hio_npp_agsw_si_scpf(io_si,scpf) = hio_npp_agsw_si_scpf(io_si,scpf) + &
-                                                     ccohort%npp_bsw*ED_val_ag_biomass*n_perm2
-                  hio_npp_bgdw_si_scpf(io_si,scpf) = hio_npp_bgdw_si_scpf(io_si,scpf) + &
-                                                     ccohort%npp_bdead*(1._r8-ED_val_ag_biomass)*n_perm2
-                  hio_npp_agdw_si_scpf(io_si,scpf) = hio_npp_agdw_si_scpf(io_si,scpf) + &
-                                                     ccohort%npp_bdead*ED_val_ag_biomass*n_perm2
-                  hio_npp_seed_si_scpf(io_si,scpf) = hio_npp_seed_si_scpf(io_si,scpf) + &
-                                                     ccohort%npp_bseed*n_perm2
-                  hio_npp_stor_si_scpf(io_si,scpf) = hio_npp_stor_si_scpf(io_si,scpf) + &
-                                                     ccohort%npp_store*n_perm2
+                  associate( scpf => ccohort%size_by_pft_class )
 
-                  if( abs(ccohort%npp-(ccohort%npp_leaf+ccohort%npp_froot+ &
-                        ccohort%npp_bsw+ccohort%npp_bdead+ &
-                        ccohort%npp_bseed+ccohort%npp_store))>1.e-9) then
-                     write(fates_log(),*) 'NPP Partitions are not balancing'
-                     write(fates_log(),*) 'Fractional Error: ', &
-                          abs(ccohort%npp-(ccohort%npp_leaf+ccohort%npp_froot+ &
-                           ccohort%npp_bsw+ccohort%npp_bdead+ &
-                           ccohort%npp_bseed+ccohort%npp_store))/ccohort%npp
-                     write(fates_log(),*) 'Terms: ',ccohort%npp,ccohort%npp_leaf,ccohort%npp_froot, &
-                           ccohort%npp_bsw,ccohort%npp_bdead, &
-                           ccohort%npp_bseed,ccohort%npp_store
-                     write(fates_log(),*) ' NPP components during FATES-HLM linking does not balance '
-                     stop ! we need termination control for FATES!!!
-                     ! call endrun(msg=errMsg(__FILE__, __LINE__))
-                  end if
+                    hio_gpp_si_scpf(io_si,scpf)      = hio_gpp_si_scpf(io_si,scpf)      + &
+                                                       n_perm2*ccohort%gpp ! [kgC/m2/yr]
+                    hio_npp_totl_si_scpf(io_si,scpf) = hio_npp_totl_si_scpf(io_si,scpf) + &
+                                                       ccohort%npp*n_perm2
+                    hio_npp_leaf_si_scpf(io_si,scpf) = hio_npp_leaf_si_scpf(io_si,scpf) + &
+                                                       ccohort%npp_leaf*n_perm2
+                    hio_npp_fnrt_si_scpf(io_si,scpf) = hio_npp_fnrt_si_scpf(io_si,scpf) + &
+                                                       ccohort%npp_froot*n_perm2
+                    hio_npp_bgsw_si_scpf(io_si,scpf) = hio_npp_bgsw_si_scpf(io_si,scpf) + &
+                                                       ccohort%npp_bsw*(1._r8-ED_val_ag_biomass)*n_perm2
+                    hio_npp_agsw_si_scpf(io_si,scpf) = hio_npp_agsw_si_scpf(io_si,scpf) + &
+                                                       ccohort%npp_bsw*ED_val_ag_biomass*n_perm2
+                    hio_npp_bgdw_si_scpf(io_si,scpf) = hio_npp_bgdw_si_scpf(io_si,scpf) + &
+                                                       ccohort%npp_bdead*(1._r8-ED_val_ag_biomass)*n_perm2
+                    hio_npp_agdw_si_scpf(io_si,scpf) = hio_npp_agdw_si_scpf(io_si,scpf) + &
+                                                       ccohort%npp_bdead*ED_val_ag_biomass*n_perm2
+                    hio_npp_seed_si_scpf(io_si,scpf) = hio_npp_seed_si_scpf(io_si,scpf) + &
+                                                       ccohort%npp_bseed*n_perm2
+                    hio_npp_stor_si_scpf(io_si,scpf) = hio_npp_stor_si_scpf(io_si,scpf) + &
+                                                       ccohort%npp_store*n_perm2
+
+                    if( abs(ccohort%npp-(ccohort%npp_leaf+ccohort%npp_froot+ &
+                         ccohort%npp_bsw+ccohort%npp_bdead+ &
+                         ccohort%npp_bseed+ccohort%npp_store))>1.e-9) then
+                       write(fates_log(),*) 'NPP Partitions are not balancing'
+                       write(fates_log(),*) 'Fractional Error: ', &
+                            abs(ccohort%npp-(ccohort%npp_leaf+ccohort%npp_froot+ &
+                            ccohort%npp_bsw+ccohort%npp_bdead+ &
+                            ccohort%npp_bseed+ccohort%npp_store))/ccohort%npp
+                       write(fates_log(),*) 'Terms: ',ccohort%npp,ccohort%npp_leaf,ccohort%npp_froot, &
+                            ccohort%npp_bsw,ccohort%npp_bdead, &
+                            ccohort%npp_bseed,ccohort%npp_store
+                       write(fates_log(),*) ' NPP components during FATES-HLM linking does not balance '
+                       stop ! we need termination control for FATES!!!
+                       ! call endrun(msg=errMsg(__FILE__, __LINE__))
+                    end if
                   
-                  ! Woody State Variables (basal area and number density and mortality)
-                  if (pftcon%woody(ft) == 1) then
-
-                     hio_m1_si_scpf(io_si,scpf) = hio_m1_si_scpf(io_si,scpf) + ccohort%bmort*n_perm2*AREA
-                     hio_m2_si_scpf(io_si,scpf) = hio_m2_si_scpf(io_si,scpf) + ccohort%hmort*n_perm2*AREA
-                     hio_m3_si_scpf(io_si,scpf) = hio_m3_si_scpf(io_si,scpf) + ccohort%cmort*n_perm2*AREA
-                     hio_m4_si_scpf(io_si,scpf) = hio_m4_si_scpf(io_si,scpf) + ccohort%imort*n_perm2*AREA
-                     hio_m5_si_scpf(io_si,scpf) = hio_m5_si_scpf(io_si,scpf) + ccohort%fmort*n_perm2*AREA
-
-                     ! basal area  [m2/ha]
-                     hio_ba_si_scpf(io_si,scpf) = hio_ba_si_scpf(io_si,scpf) + &
-                           0.25_r8*3.14159_r8*((dbh/100.0_r8)**2.0_r8)*n_perm2*AREA
-                     
-                     ! number density [/ha]
-                     hio_nplant_si_scpf(io_si,scpf) = hio_nplant_si_scpf(io_si,scpf) + AREA*n_perm2
-                     
-                     ! Growth Incrments must have NaN check and woody check
-                     if(ccohort%ddbhdt == ccohort%ddbhdt) then
-                        hio_ddbh_si_scpf(io_si,scpf) = hio_ddbh_si_scpf(io_si,scpf) + &
-                              ccohort%ddbhdt*n_perm2*AREA
-                     else
-                        hio_ddbh_si_scpf(io_si,scpf) = -999.9
-                     end if
-                  end if
-
+                    ! Woody State Variables (basal area and number density and mortality)
+                    if (pftcon%woody(ft) == 1) then
+                       
+                       hio_m1_si_scpf(io_si,scpf) = hio_m1_si_scpf(io_si,scpf) + ccohort%bmort*n_perm2*AREA
+                       hio_m2_si_scpf(io_si,scpf) = hio_m2_si_scpf(io_si,scpf) + ccohort%hmort*n_perm2*AREA
+                       hio_m3_si_scpf(io_si,scpf) = hio_m3_si_scpf(io_si,scpf) + ccohort%cmort*n_perm2*AREA
+                       hio_m4_si_scpf(io_si,scpf) = hio_m4_si_scpf(io_si,scpf) + ccohort%imort*n_perm2*AREA
+                       hio_m5_si_scpf(io_si,scpf) = hio_m5_si_scpf(io_si,scpf) + ccohort%fmort*n_perm2*AREA
+                       
+                       ! basal area  [m2/ha]
+                       hio_ba_si_scpf(io_si,scpf) = hio_ba_si_scpf(io_si,scpf) + &
+                            0.25_r8*3.14159_r8*((dbh/100.0_r8)**2.0_r8)*n_perm2*AREA
+                       
+                       ! number density [/ha]
+                       hio_nplant_si_scpf(io_si,scpf) = hio_nplant_si_scpf(io_si,scpf) + AREA*n_perm2
+                       
+                       ! Growth Incrments must have NaN check and woody check
+                       if(ccohort%ddbhdt == ccohort%ddbhdt) then
+                          hio_ddbh_si_scpf(io_si,scpf) = hio_ddbh_si_scpf(io_si,scpf) + &
+                               ccohort%ddbhdt*n_perm2*AREA
+                       else
+                          hio_ddbh_si_scpf(io_si,scpf) = -999.9
+                       end if
+                    end if
+                    
+                  end associate
                end if
                
                ccohort => ccohort%taller
@@ -923,7 +929,9 @@ contains
     use EDtypesMod          , only : ed_site_type,   &
                                      ed_cohort_type, &
                                      ed_patch_type,  &
-                                     AREA
+                                     AREA,           &
+                                     sclass_ed,      &
+                                     nlevsclass_ed
     ! Arguments
     class(fates_history_interface_type)                 :: this
     integer                 , intent(in)            :: nc   ! clump index
@@ -940,7 +948,7 @@ contains
     integer  :: io_soipa 
     integer  :: lb1,ub1,lb2,ub2  ! IO array bounds for the calling thread
     integer  :: ivar             ! index of IO variable object vector
-
+    integer  :: ft               ! functional type index
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
 
@@ -956,7 +964,15 @@ contains
                hio_aresp_pa       => this%hvars(ih_aresp_pa)%r81d, &
                hio_maint_resp_pa  => this%hvars(ih_maint_resp_pa)%r81d, &
                hio_growth_resp_pa => this%hvars(ih_growth_resp_pa)%r81d, &
-               hio_npp_si         => this%hvars(ih_npp_si)%r81d )
+               hio_npp_si         => this%hvars(ih_npp_si)%r81d, &
+               hio_ar_si_scpf     => this%hvars(ih_ar_si_scpf)%r82d, &
+               hio_ar_grow_si_scpf   => this%hvars(ih_ar_grow_si_scpf)%r82d, &
+               hio_ar_maint_si_scpf  => this%hvars(ih_ar_maint_si_scpf)%r82d, &
+               hio_ar_agsapm_si_scpf => this%hvars(ih_ar_agsapm_si_scpf)%r82d, &
+               hio_ar_darkm_si_scpf  => this%hvars(ih_ar_darkm_si_scpf)%r82d, &
+               hio_ar_crootm_si_scpf => this%hvars(ih_ar_crootm_si_scpf)%r82d, &
+               hio_ar_frootm_si_scpf => this%hvars(ih_ar_frootm_si_scpf)%r82d )
+
 
       ! Flush the relevant history variables 
       call this%flush_hvars(nc,upfreq_in=2)
@@ -986,7 +1002,10 @@ contains
                endif
                
                if ( .not. ccohort%isnew ) then
-                  
+
+                  ! Calculate index for the scpf class
+                  associate( scpf => ccohort%size_by_pft_class )
+
                   ! scale up cohort fluxes to their patches
                   hio_npp_pa(io_pa) = hio_npp_pa(io_pa) + &
                         ccohort%npp_tstep * 1.e3_r8 * n_density / dt_tstep
@@ -1002,6 +1021,37 @@ contains
                   ! map ed cohort-level npp fluxes to clm column fluxes
                   hio_npp_si(io_si) = hio_npp_si(io_si) + ccohort%npp_tstep * n_perm2 * 1.e3_r8 /dt_tstep
 
+
+                  ! Total AR (kgC/m2/yr) = (kgC/plant/step) / (s/step) * (plant/m2) * (s/yr)
+                  hio_ar_si_scpf(io_si,scpf)    =   hio_ar_si_scpf(io_si,scpf) + &
+                        (ccohort%resp_tstep/dt_tstep) * n_perm2 * daysecs * yeardays
+
+                  ! Growth AR (kgC/m2/yr)
+                  hio_ar_grow_si_scpf(io_si,scpf) = hio_ar_grow_si_scpf(io_si,scpf) + &
+                        (ccohort%resp_g/dt_tstep) * n_perm2 * daysecs * yeardays
+
+                  ! Maint AR (kgC/m2/yr)
+                  hio_ar_maint_si_scpf(io_si,scpf) = hio_ar_maint_si_scpf(io_si,scpf) + &
+                        (ccohort%resp_m/dt_tstep) * n_perm2 * daysecs * yeardays
+                  
+                  ! Maintenance AR partition variables are stored as rates (kgC/plant/s)
+                  ! (kgC/m2/yr) = (kgC/plant/s) * (plant/m2) * (s/yr)
+                  hio_ar_agsapm_si_scpf(io_si,scpf) = hio_ar_agsapm_si_scpf(io_si,scpf) + &
+                        ccohort%livestem_mr * n_perm2 * daysecs * yeardays
+
+                  ! (kgC/m2/yr) = (kgC/plant/s) * (plant/m2) * (s/yr)
+                  hio_ar_darkm_si_scpf(io_si,scpf) = hio_ar_darkm_si_scpf(io_si,scpf) + &
+                        ccohort%rdark * n_perm2 *  daysecs * yeardays
+
+                  ! (kgC/m2/yr) = (kgC/plant/s) * (plant/m2) * (s/yr)
+                  hio_ar_crootm_si_scpf(io_si,scpf) = hio_ar_crootm_si_scpf(io_si,scpf) + &
+                        ccohort%livecroot_mr * n_perm2 * daysecs * yeardays
+
+                  ! (kgC/m2/yr) = (kgC/plant/s) * (plant/m2) * (s/yr)
+                  hio_ar_frootm_si_scpf(io_si,scpf) = hio_ar_frootm_si_scpf(io_si,scpf) + &
+                        ccohort%froot_mr * n_perm2  * daysecs * yeardays
+
+                end associate
                endif
 
                ccohort => ccohort%taller
@@ -1392,6 +1442,43 @@ contains
           long='fire mortality count by patch and pft/size',use_default='inactive', &
           avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m5_si_scpf )
+
+    ! Size structured diagnostics that require rapid updates (upfreq=2)
+
+    call this%set_history_var(vname='AR_SCPF',units = 'kgC/m2/yr',          &
+          long='total autotrophic respiration per m2 per year',use_default='inactive',&
+          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_si_scpf )
+    
+    call this%set_history_var(vname='AR_GROW_SCPF',units = 'kgC/m2/yr',          &
+          long='growth autotrophic respiration per m2 per year',use_default='inactive',&
+          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_grow_si_scpf )
+
+    call this%set_history_var(vname='AR_MAINT_SCPF',units = 'kgC/m2/yr',          &
+          long='maintenance autotrophic respiration per m2 per year',use_default='inactive',&
+          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_maint_si_scpf )
+
+    call this%set_history_var(vname='AR_DARKM_SCPF',units = 'kgC/m2/yr',          &
+          long='dark portion of maintenance autotrophic respiration per m2 per year',use_default='inactive',&
+          avgflag='A', vtype=site_class_pft_r8,hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_darkm_si_scpf )
+
+    call this%set_history_var(vname='AR_AGSAPM_SCPF',units = 'kgC/m2/yr',          &
+          long='above-ground sapwood maintenance autotrophic respiration per m2 per year',use_default='inactive',&
+          avgflag='A', vtype=site_class_pft_r8,hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_agsapm_si_scpf )
+    
+    call this%set_history_var(vname='AR_CROOTM_SCPF',units = 'kgC/m2/yr',          &
+          long='below-ground sapwood maintenance autotrophic respiration per m2 per year',use_default='inactive',&
+          avgflag='A', vtype=site_class_pft_r8,hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_crootm_si_scpf )
+
+    call this%set_history_var(vname='AR_FROOTM_SCPF',units = 'kgC/m2/yr',          &
+          long='fine root maintenance autotrophic respiration per m2 per year',use_default='inactive',&
+          avgflag='A', vtype=site_class_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_frootm_si_scpf )
 
 
     ! CARBON BALANCE VARIABLES THAT DEPEND ON HLM BGC INPUTS
