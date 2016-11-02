@@ -719,6 +719,9 @@
       </test>
     </grid>
     <grid name="f10_f10">
+      <test name="ERP_D_P15x2_Ld5">
+        <machine compiler="ed" testtype="ed" testmods="clm/edTest">ed</machine>
+      </test>
       <test name="ERS_D_Ld5">
         <machine compiler="ed" testtype="ed" testmods="clm/edTest">ed</machine>
         <machine compiler="ed" testtype="ed" testmods="clm/edNoFire">ed</machine>
