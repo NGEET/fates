@@ -2030,7 +2030,9 @@ contains
              ! item it needs, not the entire cohort...refactor
              temp_cohort%dbh = Dbh(temp_cohort) + 0.0001_r8*ft
 
-             write(iulog,*) 'EDRestVectorMod.F90::createPatchCohortStructure call create_cohort '
+             if (this%DEBUG) then
+                write(iulog,*) 'EDRestVectorMod.F90::createPatchCohortStructure call create_cohort '
+             end if
 
              call create_cohort(newp, ft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                   temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore,  &
