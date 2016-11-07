@@ -1,10 +1,17 @@
-Module HistoryIOMod
+module FatesHistoryInterfaceMod
 
   
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : fates_avg_flag_length, fates_short_string_length, fates_long_string_length
   use FatesGlobals    , only : fates_log
+
+  use FatesHistoryDimensionMod, only : fates_history_dimension_type, fates_num_dimension_types
+  use FatesHistoryVariableKindMod, only : fates_history_variable_kind_type
+  use FatesHistoryVariableType, only : fates_history_variable_type
+
   use EDTypesMod      , only : cp_hio_ignore_val
+
+  ! FIXME(bja, 2016-10) need to remove CLM dependancy 
   use pftconMod       , only : pftcon
 
   implicit none
@@ -129,19 +136,18 @@ Module HistoryIOMod
   integer, private :: ih_ar_frootm_si_scpf
 
   ! The number of variable dim/kind types we have defined (static)
-  integer, parameter                :: n_iovar_dk = 6
+  integer, parameter :: fates_num_dim_kinds = 6
 
-
-  ! This structure is not allocated by thread, but the upper and lower boundaries
-  ! of the dimension for each thread is saved in the clump_ entry
-  type iovar_dim_type
-     character(fates_short_string_length) :: name  ! This should match the name of the dimension
-     integer :: lb                       ! lower bound
-     integer :: ub                       ! upper bound
-     integer,allocatable :: clump_lb(:)  ! lower bound of thread's portion of HIO array
-     integer,allocatable :: clump_ub(:)  ! upper bound of thread's portion of HIO array
-  end type iovar_dim_type
-  
+  type, public :: fates_bounds_type
+     integer :: patch_begin
+     integer :: patch_end
+     integer :: column_begin
+     integer :: column_end
+     integer :: ground_begin
+     integer :: ground_end
+     integer :: pft_class_begin
+     integer :: pft_class_end
+  end type fates_bounds_type
 
   
   ! This structure is allocated by thread, and must be calculated after the FATES
@@ -155,105 +161,394 @@ Module HistoryIOMod
   end type iovar_map_type
 
 
-   
-  ! This structure is not multi-threaded
-  type iovar_dimkind_type
-     character(fates_short_string_length) :: name  ! String labelling this IO type
-     integer              :: ndims       ! number of dimensions in this IO type
-     integer, allocatable :: dimsize(:)  ! The size of each dimension
-     logical              :: active
-     type(iovar_dim_type), pointer :: dim1_ptr
-     type(iovar_dim_type), pointer :: dim2_ptr
-  end type iovar_dimkind_type
-
-
-  
-  ! This type is instanteated in the HLM-FATES interface (clmfates_interfaceMod.F90)
-  type iovar_def_type
-     character(len=fates_short_string_length) :: vname
-     character(len=fates_short_string_length) :: units
-     character(len=fates_long_string_length) :: long
-     character(len=fates_short_string_length) :: use_default  ! States whether a variable should be turned
-                                         ! on the output files by default (active/inactive)
-                                         ! It is a good idea to set inactive for very large
-                                         ! or infrequently used output datasets
-     character(len=fates_short_string_length) :: vtype
-     character(len=fates_avg_flag_length) :: avgflag
-     integer              :: upfreq  ! Update frequency (this is for checks and flushing)
-                                     ! 1 = dynamics "dyn" (daily)
-                                     ! 2 = production "prod" (prob model tstep)
-     real(r8)             :: flushval
-     type(iovar_dimkind_type),pointer :: iovar_dk_ptr
-     ! Pointers (only one of these is allocated per variable)
-     real(r8), pointer     :: r81d(:)
-     real(r8), pointer     :: r82d(:,:)
-     real(r8), pointer     :: r83d(:,:,:)
-     integer,  pointer     :: int1d(:)
-     integer,  pointer     :: int2d(:,:)
-     integer,  pointer     :: int3d(:,:,:)
-  end type iovar_def_type
-
-
-  type, public :: fates_hio_interface_type
+  type, public :: fates_history_interface_type
      
      ! Instance of the list of history output varialbes
-     type(iovar_def_type), pointer :: hvars(:)
-     integer                       :: n_hvars
+     type(fates_history_variable_type), allocatable :: hvars(:)
+     integer, private :: num_history_vars_
      
      ! Instanteat one registry of the different dimension/kinds (dk)
      ! All output variables will have a pointer to one of these dk's
-     type(iovar_dimkind_type), pointer :: iovar_dk(:)
+     type(fates_history_variable_kind_type) :: dim_kinds(fates_num_dim_kinds)
      
      ! This is a structure that explains where FATES patch boundaries
-     ! on each thread point to in the host IO array, this structure
-     ! is allocated by number of threads
-     type(iovar_dim_type) :: iopa_dim
+     ! on each thread point to in the host IO array, this structure is
+     ! allocated by number of threads. This could be dynamically
+     ! allocated, but is unlikely to change...?
+     type(fates_history_dimension_type) :: dim_bounds(fates_num_dimension_types)
      
-     ! This is a structure that explains where FATES patch boundaries
-     ! on each thread point to in the host IO array, this structure
-     ! is allocated by number of threads
-     type(iovar_dim_type) :: iosi_dim
-     
-     ! This is a structure that contains the boundaries for the
-     ! ground level (includes rock) dimension
-     type(iovar_dim_type) :: iogrnd_dim
-
-     ! This is a structure that contains the boundaries for the
-     ! number of size-class x pft dimension
-     type(iovar_dim_type) :: ioscpf_dim
-
-
      type(iovar_map_type), pointer :: iovar_map(:)
-     
+
+     integer, private :: patch_index_, column_index_, levgrnd_index_, levscpf_index_
    contains
+     
+     procedure, public :: Init
+     procedure, public :: SetThreadBounds
+     procedure, public :: initialize_history_vars
+     procedure, public :: assemble_valid_output_types
      
      procedure, public :: update_history_dyn
      procedure, public :: update_history_prod
      procedure, public :: update_history_cbal
-     procedure, public :: define_history_vars
-     procedure, public :: set_history_var
-     procedure, public :: init_iovar_dk_maps
-     procedure, public :: iotype_index
-     procedure, public :: set_dim_ptrs
-     procedure, public :: get_hvar_bounds
-     procedure, public :: dim_init
-     procedure, public :: set_dim_thread_bounds
+
+     ! 'get' methods used by external callers to access private read only data
+     procedure, public :: num_history_vars
+     procedure, public :: patch_index
+     procedure, public :: column_index
+     procedure, public :: levgrnd_index
+     procedure, public :: levscpf_index
+
+     ! private work functions
+     procedure, private :: define_history_vars
+     procedure, private :: set_history_var
+     procedure, private :: init_dim_kinds_maps
+     procedure, private :: set_dim_indices
      procedure, private :: flush_hvars
 
-  end type fates_hio_interface_type
+     procedure, private :: set_patch_index
+     procedure, private :: set_column_index
+     procedure, private :: set_levgrnd_index
+     procedure, private :: set_levscpf_index
+
+  end type fates_history_interface_type
    
 
 
 contains
 
-   ! ===================================================================================
+  ! ======================================================================
   
-   subroutine update_history_cbal(this,nc,nsites,sites)
+  subroutine Init(this, num_threads, fates_bounds)
+
+    use FatesHistoryDimensionMod, only : patch, column, levgrnd, levscpf
+
+    implicit none
+
+    class(fates_history_interface_type), intent(inout) :: this
+    integer, intent(in) :: num_threads
+    type(fates_bounds_type), intent(in) :: fates_bounds
+
+    integer :: dim_count = 0
+
+    dim_count = dim_count + 1
+    call this%set_patch_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(patch, num_threads, &
+         fates_bounds%patch_begin, fates_bounds%patch_end)
+
+    dim_count = dim_count + 1
+    call this%set_column_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(column, num_threads, &
+         fates_bounds%column_begin, fates_bounds%column_end)
+
+    dim_count = dim_count + 1
+    call this%set_levgrnd_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levgrnd, num_threads, &
+         fates_bounds%ground_begin, fates_bounds%ground_end)
+
+    dim_count = dim_count + 1
+    call this%set_levscpf_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levscpf, num_threads, &
+         fates_bounds%pft_class_begin, fates_bounds%pft_class_end)
+    ! FIXME(bja, 2016-10) assert(dim_count == FatesHistorydimensionmod::num_dimension_types)
+
+    ! Allocate the mapping between FATES indices and the IO indices
+    allocate(this%iovar_map(num_threads))
+    
+  end subroutine Init
+
+  ! ======================================================================
+  subroutine SetThreadBounds(this, thread_index, thread_bounds)
+
+    implicit none
+
+    class(fates_history_interface_type), intent(inout) :: this
+
+    integer, intent(in) :: thread_index
+    type(fates_bounds_type), intent(in) :: thread_bounds
+
+    integer :: index
+    
+    index = this%patch_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%patch_begin, thread_bounds%patch_end)
+
+    index = this%column_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%column_begin, thread_bounds%column_end)
+
+    index = this%levgrnd_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%ground_begin, thread_bounds%ground_end)
+
+    index = this%levscpf_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%pft_class_begin, thread_bounds%pft_class_end)
+    
+  end subroutine SetThreadBounds
+  
+  ! ===================================================================================
+  subroutine assemble_valid_output_types(this)
+
+    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
+    use FatesHistoryDimensionMod, only : site_r8, site_ground_r8, site_size_pft_r8
+
+   implicit none
+
+    class(fates_history_interface_type), intent(inout) :: this
+
+    call this%init_dim_kinds_maps()
+
+    call this%set_dim_indices(patch_r8, 1, this%patch_index())
+
+    call this%set_dim_indices(site_r8, 1, this%column_index())
+
+    call this%set_dim_indices(patch_ground_r8, 1, this%patch_index())
+    call this%set_dim_indices(patch_ground_r8, 2, this%levgrnd_index())
+
+    call this%set_dim_indices(site_ground_r8, 1, this%column_index())
+    call this%set_dim_indices(site_ground_r8, 2, this%levgrnd_index())
+
+    call this%set_dim_indices(patch_size_pft_r8, 1, this%patch_index())
+    call this%set_dim_indices(patch_size_pft_r8, 2, this%levscpf_index())
+
+    call this%set_dim_indices(site_size_pft_r8, 1, this%column_index())
+    call this%set_dim_indices(site_size_pft_r8, 2, this%levscpf_index())
+
+  end subroutine assemble_valid_output_types
+  
+  ! ===================================================================================
+  
+  subroutine set_dim_indices(this, dk_name, idim, dim_index)
+
+    use FatesHistoryVariableKindMod , only : iotype_index
+
+    implicit none
+
+    ! arguments
+    class(fates_history_interface_type), intent(inout) :: this
+    character(len=*), intent(in)     :: dk_name
+    integer, intent(in)              :: idim  ! dimension index
+    integer, intent(in) :: dim_index
+
+
+    ! local
+    integer :: ityp
+
+    ityp = iotype_index(trim(dk_name), fates_num_dim_kinds, this%dim_kinds)
+
+    ! First check to see if the dimension is allocated
+    if (this%dim_kinds(ityp)%ndims < idim) then
+       write(fates_log(), *) 'Trying to define dimension size to a dim-type structure'
+       write(fates_log(), *) 'but the dimension index does not exist'
+       write(fates_log(), *) 'type: ',dk_name,' ndims: ',this%dim_kinds(ityp)%ndims,' input dim:',idim
+       stop
+       !end_run
+    end if
+
+    if (idim == 1) then
+       this%dim_kinds(ityp)%dim1_index = dim_index
+    else if (idim == 2) then
+       this%dim_kinds(ityp)%dim2_index = dim_index
+    end if
+
+    ! With the map, we can set the dimension size
+    this%dim_kinds(ityp)%dimsize(idim) = this%dim_bounds(dim_index)%upper_bound - &
+         this%dim_bounds(dim_index)%lower_bound + 1
+
+ end subroutine set_dim_indices
+  
+ ! =======================================================================
+ subroutine set_patch_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%patch_index_ = index
+ end subroutine set_patch_index
+
+ integer function patch_index(this)
+   implicit none
+   class(fates_history_interface_type), intent(in) :: this
+   patch_index = this%patch_index_
+ end function patch_index
+
+ ! =======================================================================
+ subroutine set_column_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%column_index_ = index
+ end subroutine set_column_index
+
+ integer function column_index(this)
+   implicit none
+   class(fates_history_interface_type), intent(in) :: this
+   column_index = this%column_index_
+ end function column_index
+
+ ! =======================================================================
+ subroutine set_levgrnd_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%levgrnd_index_ = index
+ end subroutine set_levgrnd_index
+
+ integer function levgrnd_index(this)
+   implicit none
+   class(fates_history_interface_type), intent(in) :: this
+   levgrnd_index = this%levgrnd_index_
+ end function levgrnd_index
+
+ ! =======================================================================
+ subroutine set_levscpf_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%levscpf_index_ = index
+ end subroutine set_levscpf_index
+
+ integer function levscpf_index(this)
+   implicit none
+   class(fates_history_interface_type), intent(in) :: this
+   levscpf_index = this%levscpf_index_
+ end function levscpf_index
+
+ ! ======================================================================================
+
+ subroutine flush_hvars(this,nc,upfreq_in)
+ 
+   class(fates_history_interface_type)        :: this
+   integer,intent(in)                     :: nc
+   integer,intent(in)                     :: upfreq_in
+
+   integer                      :: ivar
+   type(fates_history_variable_type),pointer :: hvar
+   integer                      :: lb1,ub1,lb2,ub2
+
+   do ivar=1,ubound(this%hvars,1)
+      associate( hvar => this%hvars(ivar) )
+        if (hvar%upfreq == upfreq_in) then ! Only flush variables with update on dynamics step
+           call hvar%Flush(nc, this%dim_bounds, this%dim_kinds)
+        end if
+      end associate
+   end do
+   
+ end subroutine flush_hvars
+
+  
+  ! =====================================================================================
+   
+  subroutine set_history_var(this, vname, units, long, use_default, avgflag, vtype, &
+       hlms, flushval, upfreq, ivar, initialize, index)
+
+    use FatesUtilsMod, only : check_hlm_list
+    use EDTypesMod, only    : cp_hlm_name
+
+    implicit none
+    
+    ! arguments
+    class(fates_history_interface_type), intent(inout) :: this
+    character(len=*), intent(in)  :: vname
+    character(len=*), intent(in)  :: units
+    character(len=*), intent(in)  :: long
+    character(len=*), intent(in)  :: use_default
+    character(len=*), intent(in)  :: avgflag
+    character(len=*), intent(in)  :: vtype
+    character(len=*), intent(in)  :: hlms
+    real(r8), intent(in)          :: flushval ! IF THE TYPE IS AN INT WE WILL round with NINT
+    integer, intent(in)           :: upfreq
+    logical, intent(in) :: initialize
+    integer, intent(inout)       :: ivar
+    integer, intent(inout)       :: index  ! This is the index for the variable of
+                                           ! interest that is associated with an
+                                           ! explict name (for fast reference during update)
+                                           ! A zero is passed back when the variable is
+                                           ! not used
+
+    ! locals
+    type(fates_history_variable_type), pointer :: hvar
+    integer :: ub1, lb1, ub2, lb2    ! Bounds for allocating the var
+    integer :: ityp
+
+    logical :: write_var
+
+    write_var = check_hlm_list(trim(hlms), trim(cp_hlm_name))
+    if( write_var ) then
+       ivar  = ivar+1
+       index = ivar    
+       
+       if (initialize) then
+          call this%hvars(ivar)%Init(vname, units, long, use_default, &
+               vtype, avgflag, flushval, upfreq, fates_num_dim_kinds, this%dim_kinds, &
+               this%dim_bounds)
+       end if
+    else
+       index = 0
+    end if
+    
+    return
+  end subroutine set_history_var
+  
+  ! ====================================================================================
+  
+  subroutine init_dim_kinds_maps(this)
+    
+    ! ----------------------------------------------------------------------------------
+    ! This subroutine simply initializes the structures that define the different
+    ! array and type formats for different IO variables
+    !
+    ! PA_R8   : 1D patch scale 8-byte reals
+    ! SI_R8   : 1D site scale 8-byte reals
+    !
+    ! The allocation on the structures is not dynamic and should only add up to the
+    ! number of entries listed here.
+    !
+    ! ----------------------------------------------------------------------------------
+    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8, &
+         site_r8, site_ground_r8, site_size_pft_r8
+    
+    implicit none
+    
+    ! Arguments
+    class(fates_history_interface_type), intent(inout) :: this
+       
+
+    integer :: index
+
+    ! 1d Patch
+    index = 1
+    call this%dim_kinds(index)%Init(patch_r8, 1)
+
+    ! 1d Site
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_r8, 1)
+
+    ! patch x ground
+    index = index + 1
+    call this%dim_kinds(index)%Init(patch_ground_r8, 2)
+
+    ! patch x size-class/pft
+    index = index + 1
+    call this%dim_kinds(index)%Init(patch_size_pft_r8, 2)
+
+    ! site x ground
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_ground_r8, 2)
+
+    ! site x size-class/pft
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_size_pft_r8, 2)
+
+    ! FIXME(bja, 2016-10) assert(index == fates_num_dim_kinds)
+  end subroutine init_dim_kinds_maps
+
+ ! =======================================================================
+ subroutine update_history_cbal(this,nc,nsites,sites)
 
      use EDtypesMod          , only : ed_site_type
      
      ! Arguments
-     class(fates_hio_interface_type)                 :: this
+     class(fates_history_interface_type)                 :: this
      integer                 , intent(in)            :: nc   ! clump index
      integer                 , intent(in)            :: nsites
      type(ed_site_type)      , intent(inout), target :: sites(nsites)
@@ -321,7 +616,7 @@ contains
     use EDParamsMod      , only : ED_val_ag_biomass
 
     ! Arguments
-    class(fates_hio_interface_type)                 :: this
+    class(fates_history_interface_type)                 :: this
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
@@ -342,7 +637,7 @@ contains
     real(r8) :: patch_scaling_scalar ! ratio of canopy to patch area for counteracting patch scaling
     real(r8) :: dbh         ! diameter ("at breast height")
 
-    type(iovar_def_type),pointer :: hvar
+    type(fates_history_variable_type),pointer :: hvar
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
 
@@ -638,7 +933,7 @@ contains
                                      sclass_ed,      &
                                      nlevsclass_ed
     ! Arguments
-    class(fates_hio_interface_type)                 :: this
+    class(fates_history_interface_type)                 :: this
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
@@ -657,7 +952,7 @@ contains
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
 
-    type(iovar_def_type),pointer :: hvar
+    type(fates_history_variable_type),pointer :: hvar
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
 
@@ -771,51 +1066,40 @@ contains
  
   end subroutine update_history_prod
 
- ! ======================================================================================
+  ! ====================================================================================
+  integer function num_history_vars(this)
 
- subroutine flush_hvars(this,nc,upfreq_in)
- 
-   class(fates_hio_interface_type)        :: this
-   integer,intent(in)                     :: nc
-   integer,intent(in)                     :: upfreq_in
+    implicit none
 
-   integer                      :: ivar
-   type(iovar_def_type),pointer :: hvar
-   integer                      :: lb1,ub1,lb2,ub2
+    class(fates_history_interface_type), intent(in) :: this
 
-
-   do ivar=1,ubound(this%hvars,1)
-      hvar => this%hvars(ivar)
-      if (hvar%upfreq==upfreq_in) then ! Only flush variables with update on dynamics step
-         call this%get_hvar_bounds(hvar,nc,lb1,ub1,lb2,ub2)
-         select case(trim(hvar%iovar_dk_ptr%name))
-         case('PA_R8') 
-            hvar%r81d(lb1:ub1) = hvar%flushval
-         case('SI_R8') 
-            hvar%r81d(lb1:ub1) = hvar%flushval
-         case('PA_GRND_R8') 
-            hvar%r82d(lb1:ub1,lb2:ub2) = hvar%flushval
-         case('PA_SCPF_R8') 
-            hvar%r82d(lb1:ub1,lb2:ub2) = hvar%flushval
-         case('SI_GRND_R8') 
-            hvar%r82d(lb1:ub1,lb2:ub2) = hvar%flushval
-         case('SI_SCPF_R8') 
-            hvar%r82d(lb1:ub1,lb2:ub2) = hvar%flushval
-         case('PA_INT')
-            hvar%int1d(lb1:ub1) = nint(hvar%flushval)
-         case default
-            write(fates_log(),*) 'iotyp undefined while flushing history variables'
-            stop
-            !end_run
-         end select
-      end if
-   end do
-   
- end subroutine flush_hvars
-
- ! ====================================================================================
+    num_history_vars = this%num_history_vars_
+    
+  end function num_history_vars
   
-  subroutine define_history_vars(this,callstep,nvar)
+  ! ====================================================================================
+  
+  subroutine initialize_history_vars(this)
+
+    implicit none
+
+    class(fates_history_interface_type), intent(inout) :: this
+
+   ! Determine how many of the history IO variables registered in FATES
+   ! are going to be allocated
+   call this%define_history_vars(initialize_variables=.false.)
+
+   ! Allocate the list of history output variable objects
+   allocate(this%hvars(this%num_history_vars()))
+   
+   ! construct the object that defines all of the IO variables
+   call this%define_history_vars(initialize_variables=.true.)
+   
+ end subroutine initialize_history_vars
+  
+  ! ====================================================================================
+  
+  subroutine define_history_vars(this, initialize_variables)
     
     ! ---------------------------------------------------------------------------------
     ! 
@@ -843,763 +1127,427 @@ contains
     ! If your HLM makes use of, and you want, INTEGER OUTPUT, pass the flushval as
     ! a real.  The applied flush value will use the NINT() intrinsic function
     ! ---------------------------------------------------------------------------------
+
+    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8, &
+         site_r8, site_ground_r8, site_size_pft_r8    
+    implicit none
     
-    class(fates_hio_interface_type)        :: this
-    character(len=*),intent(in)            :: callstep  ! are we 'count'ing or 'initializ'ing?
-    integer,optional,intent(out)           :: nvar
-    integer                                :: ivar
-    
-    if(.not. (trim(callstep).eq.'count' .or. trim(callstep).eq.'initialize') ) then
-       write(fates_log(),*) 'defining history variables in FATES requires callstep count or initialize'
-       ! end_run('MESSAGE')
-    end if
+    class(fates_history_interface_type), intent(inout) :: this
+    logical, intent(in) :: initialize_variables  ! are we 'count'ing or 'initializ'ing?
+
+    integer :: ivar
     
     ivar=0
     
     ! Site level counting variables
-    call this%set_history_var(vname='ED_NPATCHES',units='none',                &
+    call this%set_history_var(vname='ED_NPATCHES', units='none',                &
          long='Total number of ED patches per site', use_default='active',      &
-         avgflag='A',vtype='SI_R8',hlms='CLM:ALM',flushval=1.0_r8, upfreq=1,    &
-         ivar=ivar, callstep=callstep,index = ih_npatches_si)
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=1.0_r8, upfreq=1,    &
+         ivar=ivar, initialize=initialize_variables, index = ih_npatches_si)
 
-    call this%set_history_var(vname='ED_NCOHORTS',units='none',                &
+    call this%set_history_var(vname='ED_NCOHORTS', units='none',                &
          long='Total number of ED cohorts per site', use_default='active',      &
-         avgflag='A',vtype='SI_R8',hlms='CLM:ALM',flushval=1.0_r8, upfreq=1,    &
-         ivar=ivar, callstep=callstep,index = ih_ncohorts_si)
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=1.0_r8, upfreq=1,    &
+         ivar=ivar, initialize=initialize_variables, index = ih_ncohorts_si)
     
     ! Patch variables
-    call this%set_history_var(vname='TRIMMING',units='none',                   &
+    call this%set_history_var(vname='TRIMMING', units='none',                   &
          long='Degree to which canopy expansion is limited by leaf economics',  & 
          use_default='active', &
-         avgflag='A',vtype='PA_R8',hlms='CLM:ALM',flushval=1.0_r8, upfreq=1,    &
-         ivar=ivar, callstep=callstep,index = ih_trimming_pa)
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=1.0_r8, upfreq=1,    &
+         ivar=ivar, initialize=initialize_variables, index = ih_trimming_pa)
     
-    call this%set_history_var(vname='AREA_PLANT',units='m2',                   &
+    call this%set_history_var(vname='AREA_PLANT', units='m2',                   &
          long='area occupied by all plants', use_default='active',              &
-         avgflag='A',vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,    &
-         ivar=ivar, callstep=callstep,index = ih_area_plant_pa)
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
+         ivar=ivar, initialize=initialize_variables, index = ih_area_plant_pa)
     
-    call this%set_history_var(vname='AREA_TREES',units='m2',                   &
+    call this%set_history_var(vname='AREA_TREES', units='m2',                   &
          long='area occupied by woody plants', use_default='active',            &
-         avgflag='A',vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,    &
-         ivar=ivar, callstep=callstep,index = ih_area_treespread_pa)
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
+         ivar=ivar, initialize=initialize_variables, index = ih_area_treespread_pa)
 
-    call this%set_history_var(vname='CANOPY_SPREAD',units='0-1',               &
+    call this%set_history_var(vname='CANOPY_SPREAD', units='0-1',               &
          long='Scaling factor between tree basal area and canopy area',         &
          use_default='active',                                                  &
-         avgflag='A',vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,    &
-         ivar=ivar, callstep=callstep,index = ih_canopy_spread_pa)
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
+         ivar=ivar, initialize=initialize_variables, index = ih_canopy_spread_pa)
 
-    call this%set_history_var(vname='PFTbiomass',units='gC/m2',                   &
+    call this%set_history_var(vname='PFTbiomass', units='gC/m2',                   &
          long='total PFT level biomass', use_default='active',                     &
-         avgflag='A', vtype='PA_GRND_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1, &
-         ivar=ivar, callstep=callstep, index = ih_biomass_pa_pft )
+         avgflag='A', vtype=patch_ground_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_biomass_pa_pft )
 
     call this%set_history_var(vname='PFTleafbiomass', units='gC/m2',              &
          long='total PFT level leaf biomass', use_default='active',                &
-         avgflag='A', vtype='PA_GRND_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1, &
-         ivar=ivar, callstep=callstep, index = ih_leafbiomass_pa_pft )
+         avgflag='A', vtype=patch_ground_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_leafbiomass_pa_pft )
 
     call this%set_history_var(vname='PFTstorebiomass',  units='gC/m2',            &
          long='total PFT level stored biomass', use_default='active',              &
-         avgflag='A', vtype='PA_GRND_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1, &
-         ivar=ivar, callstep=callstep, index = ih_storebiomass_pa_pft )
+         avgflag='A', vtype=patch_ground_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_storebiomass_pa_pft )
     
     call this%set_history_var(vname='PFTnindivs',  units='indiv / m2',            &
          long='total PFT level number of individuals', use_default='active',       &
-         avgflag='A', vtype='PA_GRND_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1, &
-         ivar=ivar, callstep=callstep, index = ih_nindivs_pa_pft )
+         avgflag='A', vtype=patch_ground_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_nindivs_pa_pft )
 
     ! Fire Variables
 
     call this%set_history_var(vname='FIRE_NESTEROV_INDEX', units='none',       &
          long='nesterov_fire_danger index', use_default='active',               &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_nesterov_fire_danger_pa)
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_nesterov_fire_danger_pa)
 
     call this%set_history_var(vname='FIRE_ROS', units='m/min',                 &
          long='fire rate of spread m/min', use_default='active',                &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_spitfire_ROS_pa)
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_spitfire_ROS_pa)
 
     call this%set_history_var(vname='EFFECT_WSPEED', units='none',             &
          long ='effective windspeed for fire spread', use_default='active',     &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_effect_wspeed_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_effect_wspeed_pa )
 
     call this%set_history_var(vname='FIRE_TFC_ROS', units='none',              &
          long ='total fuel consumed', use_default='active',                     &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_TFC_ROS_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_TFC_ROS_pa )
 
     call this%set_history_var(vname='FIRE_INTENSITY', units='kJ/m/s',          &
          long='spitfire fire intensity: kJ/m/s', use_default='active',          &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_fire_intensity_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fire_intensity_pa )
 
     call this%set_history_var(vname='FIRE_AREA', units='fraction',             &
          long='spitfire fire area:m2', use_default='active',                    &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_fire_area_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fire_area_pa )
 
     call this%set_history_var(vname='SCORCH_HEIGHT', units='m',                &
          long='spitfire fire area:m2', use_default='active',                    &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_scorch_height_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_scorch_height_pa )
 
     call this%set_history_var(vname='fire_fuel_mef', units='m',                &
          long='spitfire fuel moisture',  use_default='active',                  &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_fire_fuel_mef_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_mef_pa )
 
     call this%set_history_var(vname='fire_fuel_bulkd', units='m',              &
          long='spitfire fuel bulk density',  use_default='active',              &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_fire_fuel_bulkd_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_bulkd_pa )
 
     call this%set_history_var(vname='FIRE_FUEL_EFF_MOIST', units='m',          &
          long='spitfire fuel moisture', use_default='active',                   &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_fire_fuel_eff_moist_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_eff_moist_pa )
 
     call this%set_history_var(vname='fire_fuel_sav', units='m',                &
          long='spitfire fuel surface/volume ',  use_default='active',           &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_fire_fuel_sav_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fire_fuel_sav_pa )
 
     call this%set_history_var(vname='SUM_FUEL', units='gC m-2',                &
          long='total ground fuel related to ros (omits 1000hr fuels)',          & 
          use_default='active',                                                  & 
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_sum_fuel_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_sum_fuel_pa )
 
     ! Litter Variables
 
     call this%set_history_var(vname='LITTER_IN', units='gC m-2 s-1',           &
          long='Litter flux in leaves',  use_default='active',                   &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_litter_in_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_litter_in_pa )
 
     call this%set_history_var(vname='LITTER_OUT', units='gC m-2 s-1',          &
          long='Litter flux out leaves',  use_default='active',                  & 
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_litter_out_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_litter_out_pa )
 
     call this%set_history_var(vname='SEED_BANK', units='gC m-2',               &
          long='Total Seed Mass of all PFTs',  use_default='active',             &
-         avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_seed_bank_si )
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_seed_bank_si )
 
     call this%set_history_var(vname='SEEDS_IN', units='gC m-2 s-1',            &
          long='Seed Production Rate',  use_default='active',                    &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_seeds_in_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_seeds_in_pa )
 
     call this%set_history_var(vname='SEED_GERMINATION', units='gC m-2 s-1',    &
          long='Seed mass converted into new cohorts',   use_default='active',   &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_seed_germination_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_seed_germination_pa )
 
     call this%set_history_var(vname='SEED_DECAY', units='gC m-2 s-1',          &
          long='Seed mass decay', use_default='active',                          &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_seed_decay_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_seed_decay_pa )
     
     call this%set_history_var(vname='ED_bstore', units='gC m-2',                  &
          long='Storage biomass', use_default='active',                          &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_bstore_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_bstore_pa )
 
     call this%set_history_var(vname='ED_bdead', units='gC m-2',                   &
          long='Dead (structural) biomass (live trees, not CWD)',                &
          use_default='active',                                                  &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_bdead_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_bdead_pa )
 
     call this%set_history_var(vname='ED_balive', units='gC m-2',                  &
          long='Live biomass', use_default='active',                             &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_balive_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_balive_pa )
 
     call this%set_history_var(vname='ED_bleaf', units='gC m-2',                   &
          long='Leaf biomass',  use_default='active',                            &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_bleaf_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_bleaf_pa )
 
     call this%set_history_var(vname='ED_biomass', units='gC m-2',                  &
          long='Total biomass',  use_default='active',                           &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar,callstep=callstep, index = ih_btotal_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_btotal_pa )
 
     
     ! Ecosystem Carbon Fluxes (updated rapidly, upfreq=2)
 
     call this%set_history_var(vname='NPP_column', units='gC/m^2/s',                &
          long='net primary production on the site',  use_default='active',      &
-         avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=2,   &
-         ivar=ivar,callstep=callstep, index = ih_npp_si )
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_npp_si )
 
     call this%set_history_var(vname='GPP', units='gC/m^2/s',                   &
          long='gross primary production',  use_default='active',                &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=2,   &
-         ivar=ivar,callstep=callstep, index = ih_gpp_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_gpp_pa )
 
     call this%set_history_var(vname='NPP', units='gC/m^2/s',                   &
          long='net primary production', use_default='active',                   &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=2,   &
-         ivar=ivar,callstep=callstep, index = ih_npp_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_npp_pa )
 
     call this%set_history_var(vname='AR', units='gC/m^2/s',                 &
          long='autotrophic respiration', use_default='active',                  &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=2,   &
-         ivar=ivar,callstep=callstep, index = ih_aresp_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_aresp_pa )
 
     call this%set_history_var(vname='GROWTH_RESP', units='gC/m^2/s',           &
          long='growth respiration', use_default='active',                       &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=2,   &
-         ivar=ivar,callstep=callstep, index = ih_growth_resp_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_growth_resp_pa )
 
     call this%set_history_var(vname='MAINT_RESP', units='gC/m^2/s',            &
          long='maintenance respiration', use_default='active',                  &
-         avgflag='A', vtype='PA_R8',hlms='CLM:ALM',flushval=0.0_r8, upfreq=2,   &
-         ivar=ivar,callstep=callstep, index = ih_maint_resp_pa )
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_maint_resp_pa )
 
 
     ! Carbon Flux (grid dimension x scpf) (THESE ARE DEFAULT INACTIVE!!!
     !                                     (BECAUSE THEY TAKE UP SPACE!!!
     ! ===================================================================================
 
-    call this%set_history_var(vname='GPP_SCPF',units='kgC/m2/yr',            &
+    call this%set_history_var(vname='GPP_SCPF', units='kgC/m2/yr',            &
           long='gross primary production', use_default='inactive',           &
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar,callstep=callstep, index = ih_gpp_si_scpf )
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_gpp_si_scpf )
 
-    call this%set_history_var(vname='NPP_SCPF',units='kgC/m2/yr',            &
+    call this%set_history_var(vname='NPP_SCPF', units='kgC/m2/yr',            &
           long='total net primary production', use_default='inactive',       &
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar,callstep=callstep, index = ih_npp_totl_si_scpf )
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_totl_si_scpf )
 
-    call this%set_history_var(vname='NPP_LEAF_SCPF',units='kgC/m2/yr',       &
+
+    call this%set_history_var(vname='NPP_LEAF_SCPF', units='kgC/m2/yr',       &
           long='NPP flux into leaves', use_default='inactive',               &
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar,callstep=callstep, index = ih_npp_leaf_si_scpf )
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_leaf_si_scpf )
 
-    call this%set_history_var(vname='NPP_SEED_SCPF',units='kgC/m2/yr',       &
+    call this%set_history_var(vname='NPP_SEED_SCPF', units='kgC/m2/yr',       &
           long='NPP flux into seeds', use_default='inactive',                &
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar,callstep=callstep, index = ih_npp_seed_si_scpf )
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_seed_si_scpf )
 
-    call this%set_history_var(vname='NPP_FNRT_SCPF',units='kgC/m2/yr',       &
+    call this%set_history_var(vname='NPP_FNRT_SCPF', units='kgC/m2/yr',       &
           long='NPP flux into fine roots', use_default='inactive',           &
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar,callstep=callstep, index = ih_npp_fnrt_si_scpf )
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_fnrt_si_scpf )
 
-    call this%set_history_var(vname='NPP_BGSW_SCPF',units='kgC/m2/yr',       &
+    call this%set_history_var(vname='NPP_BGSW_SCPF', units='kgC/m2/yr',       &
           long='NPP flux into below-ground sapwood', use_default='inactive', &
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar,callstep=callstep, index = ih_npp_bgsw_si_scpf )
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_bgsw_si_scpf )
 
-    call this%set_history_var(vname='NPP_BGDW_SCPF',units='kgC/m2/yr',       &
-          long='NPP flux into below-ground deadwood', use_default='inactive',&
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar,callstep=callstep, index = ih_npp_bgdw_si_scpf )
+    call this%set_history_var(vname='NPP_BGDW_SCPF', units='kgC/m2/yr',       &
+          long='NPP flux into below-ground deadwood', use_default='inactive', &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_bgdw_si_scpf )
 
-    call this%set_history_var(vname='NPP_AGSW_SCPF',units='kgC/m2/yr',       &
+    call this%set_history_var(vname='NPP_AGSW_SCPF', units='kgC/m2/yr',       &
           long='NPP flux into above-ground sapwood', use_default='inactive', &
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar,callstep=callstep, index = ih_npp_agsw_si_scpf )
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_agsw_si_scpf )
 
     call this%set_history_var(vname = 'NPP_AGDW_SCPF', units='kgC/m2/yr',    &
-          long='NPP flux into above-ground deadwood', use_default='inactive',&
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar,callstep=callstep, index = ih_npp_agdw_si_scpf )
+          long='NPP flux into above-ground deadwood', use_default='inactive', &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_agdw_si_scpf )
 
     call this%set_history_var(vname = 'NPP_STOR_SCPF', units='kgC/m2/yr',    &
           long='NPP flux into storage', use_default='inactive',              &
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar,callstep=callstep, index = ih_npp_stor_si_scpf )
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_stor_si_scpf )
 
     call this%set_history_var(vname='DDBH_SCPF', units = 'cm/yr/ha',         &
-          long='diameter growth increment and pft/size',use_default='inactive',&
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar,callstep=callstep, index = ih_ddbh_si_scpf )
+          long='diameter growth increment and pft/size',use_default='inactive', &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ddbh_si_scpf )
 
-    call this%set_history_var(vname='BA_SCPF',units = 'm2/ha',               &
+    call this%set_history_var(vname='BA_SCPF', units = 'm2/ha',               &
           long='basal area by patch and pft/size', use_default='inactive',   &
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar,callstep=callstep, index = ih_ba_si_scpf )
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ba_si_scpf )
 
-    call this%set_history_var(vname='NPLANT_SCPF',units = 'N/ha',         &
+    call this%set_history_var(vname='NPLANT_SCPF', units = 'N/ha',         &
           long='stem number density by patch and pft/size', use_default='inactive', &
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar,callstep=callstep, index = ih_nplant_si_scpf )
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nplant_si_scpf )
 
-    call this%set_history_var(vname='M1_SCPF',units = 'N/ha/yr',          &
-          long='background mortality count by patch and pft/size', use_default='inactive',&
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar,callstep=callstep, index = ih_m1_si_scpf )
+    call this%set_history_var(vname='M1_SCPF', units = 'N/ha/yr',          &
+          long='background mortality count by patch and pft/size', use_default='inactive', &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m1_si_scpf )
     
-    call this%set_history_var(vname='M2_SCPF',units = 'N/ha/yr',          &
-          long='hydraulic mortality count by patch and pft/size',use_default='inactive',&
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar,callstep=callstep, index = ih_m2_si_scpf )
+    call this%set_history_var(vname='M2_SCPF', units = 'N/ha/yr',          &
+          long='hydraulic mortality count by patch and pft/size',use_default='inactive', &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m2_si_scpf )
 
-    call this%set_history_var(vname='M3_SCPF',units = 'N/ha/yr',          &
-          long='carbon starvation mortality count by patch and pft/size',use_default='inactive', &
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar,callstep=callstep, index = ih_m3_si_scpf )
+    call this%set_history_var(vname='M3_SCPF', units = 'N/ha/yr',          &
+          long='carbon starvation mortality count by patch and pft/size', use_default='inactive', &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m3_si_scpf )
 
-    call this%set_history_var(vname='M4_SCPF',units = 'N/ha/yr',          &
-          long='impact mortality count by patch and pft/size',use_default='inactive',&
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar,callstep=callstep, index = ih_m4_si_scpf )
+    call this%set_history_var(vname='M4_SCPF', units = 'N/ha/yr',          &
+          long='impact mortality count by patch and pft/size',use_default='inactive', &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m4_si_scpf )
 
-    call this%set_history_var(vname='M5_SCPF',units = 'N/ha/yr',          &
-          long='fire mortality count by patch and pft/size',use_default='inactive',&
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar,callstep=callstep, index = ih_m5_si_scpf )
+    call this%set_history_var(vname='M5_SCPF', units = 'N/ha/yr',          &
+          long='fire mortality count by patch and pft/size',use_default='inactive', &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m5_si_scpf )
 
     ! Size structured diagnostics that require rapid updates (upfreq=2)
 
     call this%set_history_var(vname='AR_SCPF',units = 'kgC/m2/yr',          &
           long='total autotrophic respiration per m2 per year',use_default='inactive',&
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=2, ivar=ivar,callstep=callstep, index = ih_ar_si_scpf )
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_si_scpf )
     
     call this%set_history_var(vname='AR_GROW_SCPF',units = 'kgC/m2/yr',          &
           long='growth autotrophic respiration per m2 per year',use_default='inactive',&
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=2, ivar=ivar,callstep=callstep, index = ih_ar_grow_si_scpf )
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_grow_si_scpf )
 
     call this%set_history_var(vname='AR_MAINT_SCPF',units = 'kgC/m2/yr',          &
           long='maintenance autotrophic respiration per m2 per year',use_default='inactive',&
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=2, ivar=ivar,callstep=callstep, index = ih_ar_maint_si_scpf )
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_maint_si_scpf )
 
     call this%set_history_var(vname='AR_DARKM_SCPF',units = 'kgC/m2/yr',          &
           long='dark portion of maintenance autotrophic respiration per m2 per year',use_default='inactive',&
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=2, ivar=ivar,callstep=callstep, index = ih_ar_darkm_si_scpf )
+          avgflag='A', vtype=site_size_pft_r8,hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_darkm_si_scpf )
 
     call this%set_history_var(vname='AR_AGSAPM_SCPF',units = 'kgC/m2/yr',          &
           long='above-ground sapwood maintenance autotrophic respiration per m2 per year',use_default='inactive',&
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=2, ivar=ivar,callstep=callstep, index = ih_ar_agsapm_si_scpf )
+          avgflag='A', vtype=site_size_pft_r8,hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_agsapm_si_scpf )
     
     call this%set_history_var(vname='AR_CROOTM_SCPF',units = 'kgC/m2/yr',          &
           long='below-ground sapwood maintenance autotrophic respiration per m2 per year',use_default='inactive',&
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=2, ivar=ivar,callstep=callstep, index = ih_ar_crootm_si_scpf )
+          avgflag='A', vtype=site_size_pft_r8,hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_crootm_si_scpf )
 
     call this%set_history_var(vname='AR_FROOTM_SCPF',units = 'kgC/m2/yr',          &
           long='fine root maintenance autotrophic respiration per m2 per year',use_default='inactive',&
-          avgflag='A', vtype='SI_SCPF_R8',hlms='CLM:ALM',flushval=0.0_r8,    &
-          upfreq=2, ivar=ivar,callstep=callstep, index = ih_ar_frootm_si_scpf )
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_frootm_si_scpf )
 
 
     ! CARBON BALANCE VARIABLES THAT DEPEND ON HLM BGC INPUTS
 
     call this%set_history_var(vname='NEP', units='gC/m^2/s', &
           long='net ecosystem production', use_default='active', &
-          avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
-          upfreq=3, ivar=ivar,callstep=callstep, index = ih_nep_si )
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_nep_si )
 
     call this%set_history_var(vname='Fire_Closs', units='gC/m^2/s', &
           long='ED/SPitfire Carbon loss to atmosphere', use_default='active', &
-          avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
-          upfreq=3, ivar=ivar,callstep=callstep, index = ih_fire_c_to_atm_si )
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_fire_c_to_atm_si )
    
     call this%set_history_var(vname='NBP', units='gC/m^2/s', &
           long='net biosphere production', use_default='active', &
-          avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
-          upfreq=3, ivar=ivar,callstep=callstep, index = ih_nbp_si )
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_nbp_si )
    
     call this%set_history_var(vname='TOTECOSYSC', units='gC/m^2',  &
          long='total ecosystem carbon', use_default='active', &
-         avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
-         upfreq=3, ivar=ivar,callstep=callstep, index = ih_totecosysc_si )
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+         upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_totecosysc_si )
     
     call this%set_history_var(vname='CBALANCE_ERROR_ED', units='gC/m^2/s',  &
          long='total carbon balance error on ED side', use_default='active', &
-         avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
-         upfreq=3, ivar=ivar,callstep=callstep, index = ih_cbal_err_fates_si )
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+         upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cbal_err_fates_si )
 
     call this%set_history_var(vname='CBALANCE_ERROR_BGC', units='gC/m^2/s',  &
          long='total carbon balance error on HLMs BGC side', use_default='active', &
-         avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
-         upfreq=3, ivar=ivar,callstep=callstep, index = ih_cbal_err_bgc_si )
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+         upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cbal_err_bgc_si )
     
     call this%set_history_var(vname='CBALANCE_ERROR_TOTAL', units='gC/m^2/s', &
           long='total carbon balance error total', use_default='active', &
-          avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
-          upfreq=3, ivar=ivar,callstep=callstep, index = ih_cbal_err_tot_si )
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cbal_err_tot_si )
     
     call this%set_history_var(vname='BIOMASS_STOCK_COL', units='gC/m^2',  &
           long='total ED biomass carbon at the column level', use_default='active', &
-          avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
-          upfreq=3, ivar=ivar,callstep=callstep, index = ih_biomass_stock_si )
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_biomass_stock_si )
     
     call this%set_history_var(vname='ED_LITTER_STOCK_COL', units='gC/m^2', &
           long='total ED litter carbon at the column level', use_default='active', &
-          avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
-          upfreq=3, ivar=ivar,callstep=callstep, index = ih_litter_stock_si )
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_litter_stock_si )
     
     call this%set_history_var(vname='CWD_STOCK_COL', units='gC/m^2', &
           long='total CWD carbon at the column level', use_default='active', &
-          avgflag='A', vtype='SI_R8',hlms='CLM:ALM',flushval=cp_hio_ignore_val,    &
-          upfreq=3, ivar=ivar,callstep=callstep, index = ih_cwd_stock_si )
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cwd_stock_si )
    
 
     ! Must be last thing before return
-    if(present(nvar)) nvar = ivar
-    
-    return
+    this%num_history_vars_ = ivar
     
   end subroutine define_history_vars
-  
-  ! =====================================================================================
-   
-  subroutine set_history_var(this,vname,units,long,use_default,avgflag,vtype,hlms, &
-                             flushval,upfreq,ivar,callstep,index)
-
-
-    use FatesUtilsMod, only : check_hlm_list
-    use EDTypesMod, only    : cp_hlm_name
-
-    ! arguments
-    class(fates_hio_interface_type) :: this
-    character(len=*),intent(in)  :: vname
-    character(len=*),intent(in)  :: units
-    character(len=*),intent(in)  :: long
-    character(len=*),intent(in)  :: use_default
-    character(len=*),intent(in)  :: avgflag
-    character(len=*),intent(in)  :: vtype
-    character(len=*),intent(in)  :: hlms
-    real(r8),intent(in)          :: flushval ! IF THE TYPE IS AN INT WE WILL round with NINT
-    integer,intent(in)           :: upfreq
-    character(len=*),intent(in)  :: callstep
-    integer, intent(inout)       :: ivar
-    integer, intent(inout)       :: index  ! This is the index for the variable of
-                                           ! interest that is associated with an
-                                           ! explict name (for fast reference during update)
-                                           ! A zero is passed back when the variable is
-                                           ! not used
-
-    ! locals
-    type(iovar_def_type),pointer :: hvar
-    integer :: ub1,lb1,ub2,lb2    ! Bounds for allocating the var
-    integer :: ityp
-    
-    if( check_hlm_list(trim(hlms),trim(cp_hlm_name)) ) then
-       
-       ivar  = ivar+1
-       index = ivar    
-       
-       if(trim(callstep).eq.'initialize')then
-          
-          hvar => this%hvars(ivar)
-          hvar%vname = vname
-          hvar%units = units
-          hvar%long  = long
-          hvar%use_default = use_default
-          hvar%vtype = vtype
-          hvar%avgflag = avgflag
-          hvar%flushval = flushval
-          hvar%upfreq = upfreq
-          ityp=this%iotype_index(trim(vtype))
-          hvar%iovar_dk_ptr => this%iovar_dk(ityp)
-          this%iovar_dk(ityp)%active = .true.
-          
-          nullify(hvar%r81d)
-          nullify(hvar%r82d)
-          nullify(hvar%r83d)
-          nullify(hvar%int1d)
-          nullify(hvar%int2d)
-          nullify(hvar%int3d)
-          
-          call this%get_hvar_bounds(hvar,0,lb1,ub1,lb2,ub2)
-          
-          ! currently, all array spaces are flushed each time
-          ! the update is called. The flush here on the initialization
-          ! may be redundant, but will prevent issues in the future
-          ! if we have host models where not all threads are updating
-          ! the HIO array spaces. (RGK:09-2016)
-
-          select case(trim(vtype))
-          case('PA_R8')
-             allocate(hvar%r81d(lb1:ub1));hvar%r81d(:)=flushval
-          case('SI_R8')
-             allocate(hvar%r81d(lb1:ub1));hvar%r81d(:)=flushval
-          case('PA_GRND_R8')
-             allocate(hvar%r82d(lb1:ub1,lb2:ub2));hvar%r82d(:,:)=flushval
-          case('PA_SCPF_R8')
-             allocate(hvar%r82d(lb1:ub1,lb2:ub2));hvar%r82d(:,:)=flushval
-          case('SI_GRND_R8')
-             allocate(hvar%r82d(lb1:ub1,lb2:ub2));hvar%r82d(:,:)=flushval
-          case('SI_SCPF_R8')
-             allocate(hvar%r82d(lb1:ub1,lb2:ub2));hvar%r82d(:,:)=flushval
-          case default
-             write(fates_log(),*) 'Incompatible vtype passed to set_history_var'
-             write(fates_log(),*) 'vtype = ',trim(vtype),' ?'
-             stop
-             ! end_run
-          end select
-          
-       end if
-    else
-       
-       index = 0
-    end if
-    
-    return
-  end subroutine set_history_var
-  
-  ! =====================================================================================
-
-  subroutine get_hvar_bounds(this,hvar,thread,lb1,ub1,lb2,ub2)
-
-     class(fates_hio_interface_type) :: this
-     type(iovar_def_type),target,intent(in) :: hvar
-     integer,intent(in)              :: thread
-     integer,intent(out)             :: lb1
-     integer,intent(out)             :: ub1
-     integer,intent(out)             :: lb2
-     integer,intent(out)             :: ub2
-
-     ! local
-     integer :: ndims
-
-     lb1 = 0
-     ub1 = 0
-     lb2 = 0
-     ub2 = 0
-
-     ndims = hvar%iovar_dk_ptr%ndims
-
-     ! The thread = 0 case is the boundaries for the whole proc/node
-     if (thread==0) then
-        lb1 = hvar%iovar_dk_ptr%dim1_ptr%lb
-        ub1 = hvar%iovar_dk_ptr%dim1_ptr%ub
-        if(ndims>1)then
-           lb2 = hvar%iovar_dk_ptr%dim2_ptr%lb
-           ub2 = hvar%iovar_dk_ptr%dim2_ptr%ub
-        end if
-     else
-        lb1 = hvar%iovar_dk_ptr%dim1_ptr%clump_lb(thread)
-        ub1 = hvar%iovar_dk_ptr%dim1_ptr%clump_ub(thread)
-        if(ndims>1)then
-           lb2 = hvar%iovar_dk_ptr%dim2_ptr%clump_lb(thread)
-           ub2 = hvar%iovar_dk_ptr%dim2_ptr%clump_ub(thread)
-        end if
-     end if
-     
-     return
-  end subroutine get_hvar_bounds
-
-
-  ! ====================================================================================
-  
-  subroutine init_iovar_dk_maps(this)
-    
-    ! ----------------------------------------------------------------------------------
-    ! This subroutine simply initializes the structures that define the different
-    ! array and type formats for different IO variables
-    !
-    ! PA_R8   : 1D patch scale 8-byte reals
-    ! SI_R8   : 1D site scale 8-byte reals
-    !
-    ! The allocation on the structures is not dynamic and should only add up to the
-    ! number of entries listed here.
-    !
-    ! note (RGK) %active is not used yet. Was intended as a check on the HLM->FATES
-    ! control parameter passing to ensure all active dimension types received all
-    ! dimensioning specifications from the host, but we currently arent using those
-    ! passing functions..
-    ! ----------------------------------------------------------------------------------
-    
-    ! Arguments
-    class(fates_hio_interface_type) :: this
-       
-    ! Locals
-    integer            :: ityp
-    integer, parameter :: unset_int = -999
-    
-    allocate(this%iovar_dk(n_iovar_dk))
-
-    ! 1d Patch
-    ityp = 1
-    this%iovar_dk(ityp)%name  = 'PA_R8'
-    this%iovar_dk(ityp)%ndims = 1
-    allocate(this%iovar_dk(ityp)%dimsize(this%iovar_dk(ityp)%ndims))
-    this%iovar_dk(ityp)%dimsize(:) = unset_int
-    this%iovar_dk(ityp)%active = .false.  
-    nullify(this%iovar_dk(ityp)%dim1_ptr)
-    nullify(this%iovar_dk(ityp)%dim2_ptr)
-
-    ! 1d Site
-    ityp = 2
-    this%iovar_dk(ityp)%name  = 'SI_R8'
-    this%iovar_dk(ityp)%ndims = 1
-    allocate(this%iovar_dk(ityp)%dimsize(this%iovar_dk(ityp)%ndims))
-    this%iovar_dk(ityp)%dimsize(:) = unset_int
-    this%iovar_dk(ityp)%active = .false.
-    nullify(this%iovar_dk(ityp)%dim1_ptr)
-    nullify(this%iovar_dk(ityp)%dim2_ptr)
-
-    ! patch x ground
-    ityp = 3
-    this%iovar_dk(ityp)%name = 'PA_GRND_R8'
-    this%iovar_dk(ityp)%ndims = 2
-    allocate(this%iovar_dk(ityp)%dimsize(this%iovar_dk(ityp)%ndims))
-    this%iovar_dk(ityp)%dimsize(:) = unset_int
-    this%iovar_dk(ityp)%active = .false.
-    nullify(this%iovar_dk(ityp)%dim1_ptr)
-    nullify(this%iovar_dk(ityp)%dim2_ptr)
-
-    ! patch x size-class/pft
-    ityp = 4
-    this%iovar_dk(ityp)%name = 'PA_SCPF_R8'
-    this%iovar_dk(ityp)%ndims = 2
-    allocate(this%iovar_dk(ityp)%dimsize(this%iovar_dk(ityp)%ndims))
-    this%iovar_dk(ityp)%dimsize(:) = unset_int
-    this%iovar_dk(ityp)%active = .false.
-    nullify(this%iovar_dk(ityp)%dim1_ptr)
-    nullify(this%iovar_dk(ityp)%dim2_ptr)
-
-    ! site x ground
-    ityp = 5
-    this%iovar_dk(ityp)%name = 'SI_GRND_R8'
-    this%iovar_dk(ityp)%ndims = 2
-    allocate(this%iovar_dk(ityp)%dimsize(this%iovar_dk(ityp)%ndims))
-    this%iovar_dk(ityp)%dimsize(:) = unset_int
-    this%iovar_dk(ityp)%active = .false.
-    nullify(this%iovar_dk(ityp)%dim1_ptr)
-    nullify(this%iovar_dk(ityp)%dim2_ptr)
-
-    ! site x size-class/pft
-    ityp = 6
-    this%iovar_dk(ityp)%name = 'SI_SCPF_R8'
-    this%iovar_dk(ityp)%ndims = 2
-    allocate(this%iovar_dk(ityp)%dimsize(this%iovar_dk(ityp)%ndims))
-    this%iovar_dk(ityp)%dimsize(:) = unset_int
-    this%iovar_dk(ityp)%active = .false.
-    nullify(this%iovar_dk(ityp)%dim1_ptr)
-    nullify(this%iovar_dk(ityp)%dim2_ptr)
-
-
-   
-    
-    
-    
-    return
-  end subroutine init_iovar_dk_maps
-  
-  ! ===================================================================================
-  
-  subroutine set_dim_ptrs(this,dk_name,idim,dim_target)
-    
-    ! arguments
-    class(fates_hio_interface_type) :: this
-    character(len=*),intent(in)     :: dk_name
-    integer,intent(in)              :: idim  ! dimension index
-    type(iovar_dim_type),target     :: dim_target
-    
-    
-    ! local
-    integer                         :: ityp
-    
-    ityp = this%iotype_index(trim(dk_name))
-    
-    ! First check to see if the dimension is allocated
-    if(this%iovar_dk(ityp)%ndims<idim)then
-       write(fates_log(),*)'Trying to define dimension size to a dim-type structure'
-       write(fates_log(),*)'but the dimension index does not exist'
-       write(fates_log(),*)'type: ',dk_name,' ndims: ',this%iovar_dk(ityp)%ndims,' input dim:',idim
-       stop
-       !end_run
-    end if
-    
-    if(idim==1) then
-       this%iovar_dk(ityp)%dim1_ptr => dim_target
-    elseif(idim==2) then
-       this%iovar_dk(ityp)%dim2_ptr => dim_target
-    end if
-
-    ! With the map, we can set the dimension size
-    this%iovar_dk(ityp)%dimsize(idim) = dim_target%ub - dim_target%lb + 1
-
-    
-    return
- end subroutine set_dim_ptrs
-  
-  ! ====================================================================================
-  
-  function iotype_index(this,iotype_name) result(ityp)
-    
-    ! argument
-    class(fates_hio_interface_type) :: this
-    character(len=*),intent(in)     :: iotype_name
-
-    ! local
-    integer :: ityp
-    
-    do ityp=1,n_iovar_dk
-       if(trim(iotype_name).eq.trim(this%iovar_dk(ityp)%name))then
-          return
-       end if
-    end do
-    write(fates_log(),*) 'An IOTYPE THAT DOESNT EXIST WAS SPECIFIED'
-    !end_run
-    
-  end function iotype_index
-   
-  ! =====================================================================================
-
-  subroutine dim_init(this,iovar_dim,dim_name,nthreads,lb_in,ub_in)
-
-    ! arguments
-    class(fates_hio_interface_type) :: this
-    type(iovar_dim_type),target     :: iovar_dim
-    character(len=*),intent(in)     :: dim_name
-    integer,intent(in)              :: nthreads
-    integer,intent(in)              :: lb_in
-    integer,intent(in)              :: ub_in
-
-    allocate(iovar_dim%clump_lb(nthreads))
-    allocate(iovar_dim%clump_ub(nthreads))
-    
-    iovar_dim%name = trim(dim_name)
-    iovar_dim%lb = lb_in
-    iovar_dim%ub = ub_in
-
-    return
-  end subroutine dim_init
-
-  ! =====================================================================================
-
-  subroutine set_dim_thread_bounds(this,iovar_dim,nc,lb_in,ub_in)
-
-    class(fates_hio_interface_type) :: this
-    type(iovar_dim_type),target     :: iovar_dim
-    integer,intent(in)              :: nc    ! Thread index
-    integer,intent(in)              :: lb_in
-    integer,intent(in)              :: ub_in
-    
-    iovar_dim%clump_lb(nc) = lb_in
-    iovar_dim%clump_ub(nc) = ub_in
-
-    return
-  end subroutine set_dim_thread_bounds
 
    ! ====================================================================================
    ! DEPRECATED, TRANSITIONAL OR FUTURE CODE SECTION
    ! ====================================================================================
 
-   !subroutine set_fates_hio_str(tag,iotype_name,iostr_val)
+   !subroutine set_fates_hio_str(tag,iotype_name, iostr_val)
 
 !       ! Arguments
-!       character(len=*),intent(in)           :: tag
-!       character(len=*), optional,intent(in) :: iotype_name
+!       character(len=*), intent(in)           :: tag
+!       character(len=*), optional, intent(in) :: iotype_name
 !       integer, optional, intent(in)         :: iostr_val
 
 !       ! local variables
@@ -1610,32 +1558,32 @@ contains
 
 !       select case (trim(tag))
 !       case('flush_to_unset')
-!          write(*,*) ''
-!          write(*,*) 'Flushing FATES IO types prior to transfer from host'
-!          do ityp=1,ubound(iovar_str,1)
+!          write(*, *) ''
+!          write(*, *) 'Flushing FATES IO types prior to transfer from host'
+!          do ityp=1,ubound(iovar_str, 1)
 !             iovar_str(ityp)%dimsize = unset_int
 !             iovar_str(ityp)%active  = .false.
 !          end do
 
 !       case('check_allset')
-!          do ityp=1,ubound(iovar_str,1)
-!             write(*,*) 'Checking to see if ',iovar_str(ityp)%name,' IO communicators were sent to FATES'
+!          do ityp=1,ubound(iovar_str, 1)
+!             write(*, *) 'Checking to see if ',iovar_str(ityp)%name, ' IO communicators were sent to FATES'
 !             if(iovar_str(ityp)%active)then
 !                if(iovar_str(ityp)%offset .eq. unset_int) then
-!                   write(*,*) 'FATES offset information of IO type:',iovar_str(ityp)%name
-!                   write(*,*) 'was never set'
+!                   write(*, *) 'FATES offset information of IO type:', iovar_str(ityp)%name
+!                   write(*, *) 'was never set'
 !                   ! end_run('MESSAGE')
 !                end if
-!                do idim=1,iovar_str(ityp)%ndims
+!                do idim=1, iovar_str(ityp)%ndims
 !                   if(iovar_str(ityp)%dimsize(idim) .eq. unset_int) then
-!                      write(*,*) 'FATES dimension information of IO type:',iovar_str(ityp)%name
-!                      write(*,*) 'was never set'
+!                      write(*, *) 'FATES dimension information of IO type:', iovar_str(ityp)%name
+!                      write(*, *) 'was never set'
 !                      ! end_run('MESSAGE')
 !                   end if
 !                end do
 !             end if
 !          end do
-!          write(*,*) 'Checked. All history IO specifications properly sent to FATES.'
+!          write(*, *) 'Checked. All history IO specifications properly sent to FATES.'
 !       case default
 
 !          ! Must have two arguments if this is not a check or flush
@@ -1647,39 +1595,39 @@ contains
 !             case('offset')
 !                ityp=iotype_index(trim(iotype_name))
 !                iovar_str(ityp)%offset = iostr_val
-!                write(*,*) 'Transfering offset for IOTYPE',iotype_name,' to FATES'
+!                write(*, *) 'Transfering offset for IOTYPE',iotype_name, ' to FATES'
 
 !             case('dimsize1')
 !                ityp=iotype_index(trim(iotype_name))
 !                iovar_str(ityp)%dimsize(1) = iostr_val
-!                write(*,*) 'Transfering 1st dimension size for IOTYPE',iotype_name,' to FATES'
+!                write(*, *) 'Transfering 1st dimension size for IOTYPE',iotype_name, ' to FATES'
 
 !             case('dimsize2')
 !                ityp=iotype_index(trim(iotype_name))
-!                if(ubound(iovar_str(ityp)%dimsize,1)==1)then
-!                   write(fates_log(),*) 'Transfering second dimensional bound to unallocated space'
-!                   write(fates_log(),*) 'type:',iotype_name
+!                if(ubound(iovar_str(ityp)%dimsize, 1)==1)then
+!                   write(fates_log(), *) 'Transfering second dimensional bound to unallocated space'
+!                   write(fates_log(), *) 'type:', iotype_name
 !                   ! end_run
 !                end if
 !                iovar_str(ityp)%dimsize(2) = iostr_val
-!                write(*,*) 'Transfering 2nd dimension size for IOTYPE',iotype_name,' to FATES'
+!                write(*, *) 'Transfering 2nd dimension size for IOTYPE',iotype_name, ' to FATES'
 
 !             case('dimsize3')
 !                ityp=iotype_index(trim(iotype_name))
-!                if(ubound(iovar_str(ityp)%dimsize,1)<3)then
-!                   write(fates_log(),*) 'Transfering third dimensional bound to unallocated space'
-!                   write(fates_log(),*) 'type:',iotype_name
+!                if(ubound(iovar_str(ityp)%dimsize, 1)<3)then
+!                   write(fates_log(), *) 'Transfering third dimensional bound to unallocated space'
+!                   write(fates_log(), *) 'type:', iotype_name
 !                   ! end_run
 !                end if
 !                iovar_str(ityp)%dimsize(3) = iostr_val
-!                write(*,*) 'Transfering 3rd dimension size for IOTYPE',iotype_name,' to FATES'
+!                write(*, *) 'Transfering 3rd dimension size for IOTYPE',iotype_name, ' to FATES'
 
 !             case default
-!                write(*,*) 'IO parameter not recognized:',trim(tag)
+!                write(*, *) 'IO parameter not recognized:', trim(tag)
 !                ! end_run
 !             end select
 !          else
-!             write(*,*) 'no value was provided for the tag'
+!             write(*, *) 'no value was provided for the tag'
 !          end if
 !
 !       end select
@@ -1688,4 +1636,4 @@ contains
 
 
 
-end module HistoryIOMod
+end module FatesHistoryInterfaceMod
