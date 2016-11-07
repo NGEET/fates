@@ -14,11 +14,9 @@ module FatesConstantsMod
   integer, parameter :: fates_short_string_length = 32
   integer, parameter :: fates_long_string_length = 199
 
-
   ! Unset and various other 'special' values
   integer, parameter :: fates_unset_int = -9999
-
-
+  
   ! Unit conversion constants:
 
   ! Conversion factor umols of Carbon -> kg of Carbon (1 mol = 12g)
