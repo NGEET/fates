@@ -2,7 +2,7 @@ module FatesHistoryVariableType
 
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesGlobals, only : fates_log
-  use FatesHistoryVariableKindMod, only : fates_history_variable_kind_type
+  use FatesIOVariableKindMod, only : fates_io_variable_kind_type
 
   implicit none
 
@@ -41,11 +41,11 @@ contains
   subroutine Init(this, vname, units, long, use_default, &
        vtype, avgflag, flushval, upfreq, num_dim_kinds, dim_kinds, dim_bounds)
 
-    use FatesHistoryDimensionMod, only : fates_history_dimension_type
-    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
-    use FatesHistoryDimensionMod, only : site_r8, site_ground_r8, site_size_pft_r8
+    use FatesIODimensionsMod, only : fates_io_dimension_type
 
-    use FatesHistoryVariableKindMod, only : iotype_index
+    use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
+    use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
+    use FatesIOVariableKindMod, only : iotype_index
 
     implicit none
 
@@ -59,8 +59,8 @@ contains
     real(r8), intent(in) :: flushval ! If the type is an int we will round with nint
     integer, intent(in) :: upfreq
     integer, intent(in) :: num_dim_kinds
-    type(fates_history_dimension_type), intent(in) :: dim_bounds(:)
-    type(fates_history_variable_kind_type), intent(inout) :: dim_kinds(:)
+    type(fates_io_dimension_type), intent(in) :: dim_bounds(:)
+    type(fates_io_variable_kind_type), intent(inout) :: dim_kinds(:)
 
     integer :: dk_index
     integer :: lb1, ub1, lb2, ub2
@@ -131,14 +131,14 @@ contains
 
   subroutine GetBounds(this, thread, dim_bounds, dim_kinds, lb1, ub1, lb2, ub2)
 
-    use FatesHistoryDimensionMod, only : fates_history_dimension_type
+    use FatesIODimensionsMod, only : fates_io_dimension_type
 
     implicit none
 
      class(fates_history_variable_type), intent(inout) :: this
      integer, intent(in)  :: thread
-     class(fates_history_dimension_type), intent(in) :: dim_bounds(:)
-     type(fates_history_variable_kind_type), intent(in) :: dim_kinds(:)
+     class(fates_io_dimension_type), intent(in) :: dim_bounds(:)
+     type(fates_io_variable_kind_type), intent(in) :: dim_kinds(:)
      integer, intent(out) :: lb1
      integer, intent(out) :: ub1
      integer, intent(out) :: lb2
@@ -178,18 +178,18 @@ contains
      
    end subroutine GetBounds
 
-  subroutine Flush(this, thread, dim_bounds, dim_kinds)
+   subroutine Flush(this, thread, dim_bounds, dim_kinds)
 
-    use FatesHistoryDimensionMod, only : fates_history_dimension_type
-    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
-    use FatesHistoryDimensionMod, only : site_r8, site_ground_r8, site_size_pft_r8, patch_int
+    use FatesIODimensionsMod, only : fates_io_dimension_type
+    use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
+    use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8, patch_int
 
     implicit none
 
     class(fates_history_variable_type), intent(inout) :: this
     integer, intent(in) :: thread
-    type(fates_history_dimension_type), intent(in) :: dim_bounds(:)
-    type(fates_history_variable_kind_type), intent(in) :: dim_kinds(:)
+    type(fates_io_dimension_type), intent(in) :: dim_bounds(:)
+    type(fates_io_variable_kind_type), intent(in) :: dim_kinds(:)
 
     integer :: lb1, ub1, lb2, ub2
     

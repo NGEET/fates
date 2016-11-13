@@ -5,10 +5,9 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod, only : fates_avg_flag_length, fates_short_string_length, fates_long_string_length
   use FatesGlobals    , only : fates_log
 
-  use FatesHistoryDimensionMod, only : fates_history_dimension_type, fates_num_dimension_types
-  use FatesHistoryVariableKindMod, only : fates_history_variable_kind_type
+  use FatesIODimensionsMod, only : fates_io_dimension_type
+  use FatesIOVariableKindMod, only : fates_io_variable_kind_type
   use FatesHistoryVariableType, only : fates_history_variable_type
-
   use EDTypesMod      , only : cp_hio_ignore_val
 
   ! FIXME(bja, 2016-10) need to remove CLM dependancy 
@@ -135,19 +134,11 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_ar_crootm_si_scpf
   integer, private :: ih_ar_frootm_si_scpf
 
-  ! The number of variable dim/kind types we have defined (static)
-  integer, parameter :: fates_num_dim_kinds = 6
 
-  type, public :: fates_bounds_type
-     integer :: patch_begin
-     integer :: patch_end
-     integer :: column_begin
-     integer :: column_end
-     integer :: ground_begin
-     integer :: ground_end
-     integer :: pft_class_begin
-     integer :: pft_class_end
-  end type fates_bounds_type
+  ! The number of variable dim/kind types we have defined (static)
+  integer, parameter :: fates_history_num_dimensions = 4
+  integer, parameter :: fates_history_num_dim_kinds = 6
+  
 
   
   ! This structure is allocated by thread, and must be calculated after the FATES
@@ -169,13 +160,13 @@ module FatesHistoryInterfaceMod
      
      ! Instanteat one registry of the different dimension/kinds (dk)
      ! All output variables will have a pointer to one of these dk's
-     type(fates_history_variable_kind_type) :: dim_kinds(fates_num_dim_kinds)
+     type(fates_io_variable_kind_type) :: dim_kinds(fates_history_num_dim_kinds)
      
      ! This is a structure that explains where FATES patch boundaries
      ! on each thread point to in the host IO array, this structure is
      ! allocated by number of threads. This could be dynamically
      ! allocated, but is unlikely to change...?
-     type(fates_history_dimension_type) :: dim_bounds(fates_num_dimension_types)
+     type(fates_io_dimension_type) :: dim_bounds(fates_history_num_dimensions)
      
      type(iovar_map_type), pointer :: iovar_map(:)
 
@@ -185,7 +176,7 @@ module FatesHistoryInterfaceMod
      procedure, public :: Init
      procedure, public :: SetThreadBounds
      procedure, public :: initialize_history_vars
-     procedure, public :: assemble_valid_output_types
+     procedure, public :: assemble_history_output_types
      
      procedure, public :: update_history_dyn
      procedure, public :: update_history_prod
@@ -220,7 +211,8 @@ contains
   
   subroutine Init(this, num_threads, fates_bounds)
 
-    use FatesHistoryDimensionMod, only : patch, column, levgrnd, levscpf
+    use FatesIODimensionsMod, only : patch, column, levgrnd, levscpf
+    use FatesIODimensionsMod, only : fates_bounds_type
 
     implicit none
 
@@ -259,6 +251,8 @@ contains
   ! ======================================================================
   subroutine SetThreadBounds(this, thread_index, thread_bounds)
 
+    use FatesIODimensionsMod, only : fates_bounds_type
+
     implicit none
 
     class(fates_history_interface_type), intent(inout) :: this
@@ -287,10 +281,10 @@ contains
   end subroutine SetThreadBounds
   
   ! ===================================================================================
-  subroutine assemble_valid_output_types(this)
+  subroutine assemble_history_output_types(this)
 
-    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
-    use FatesHistoryDimensionMod, only : site_r8, site_ground_r8, site_size_pft_r8
+    use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
+    use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
 
    implicit none
 
@@ -314,13 +308,13 @@ contains
     call this%set_dim_indices(site_size_pft_r8, 1, this%column_index())
     call this%set_dim_indices(site_size_pft_r8, 2, this%levscpf_index())
 
-  end subroutine assemble_valid_output_types
+  end subroutine assemble_history_output_types
   
   ! ===================================================================================
   
   subroutine set_dim_indices(this, dk_name, idim, dim_index)
 
-    use FatesHistoryVariableKindMod , only : iotype_index
+    use FatesIOVariableKindMod , only : iotype_index
 
     implicit none
 
@@ -334,7 +328,7 @@ contains
     ! local
     integer :: ityp
 
-    ityp = iotype_index(trim(dk_name), fates_num_dim_kinds, this%dim_kinds)
+    ityp = iotype_index(trim(dk_name), fates_history_num_dim_kinds, this%dim_kinds)
 
     ! First check to see if the dimension is allocated
     if (this%dim_kinds(ityp)%ndims < idim) then
@@ -479,7 +473,7 @@ contains
        
        if (initialize) then
           call this%hvars(ivar)%Init(vname, units, long, use_default, &
-               vtype, avgflag, flushval, upfreq, fates_num_dim_kinds, this%dim_kinds, &
+               vtype, avgflag, flushval, upfreq, fates_history_num_dim_kinds, this%dim_kinds, &
                this%dim_bounds)
        end if
     else
@@ -504,8 +498,8 @@ contains
     ! number of entries listed here.
     !
     ! ----------------------------------------------------------------------------------
-    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8, &
-         site_r8, site_ground_r8, site_size_pft_r8
+    use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
+    use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
     
     implicit none
     
@@ -539,7 +533,7 @@ contains
     index = index + 1
     call this%dim_kinds(index)%Init(site_size_pft_r8, 2)
 
-    ! FIXME(bja, 2016-10) assert(index == fates_num_dim_kinds)
+    ! FIXME(bja, 2016-10) assert(index == fates_history_num_dim_kinds)
   end subroutine init_dim_kinds_maps
 
  ! =======================================================================
@@ -548,7 +542,7 @@ contains
      use EDtypesMod          , only : ed_site_type
      
      ! Arguments
-     class(fates_history_interface_type)                 :: this
+     class(fates_history_interface_type)             :: this
      integer                 , intent(in)            :: nc   ! clump index
      integer                 , intent(in)            :: nsites
      type(ed_site_type)      , intent(inout), target :: sites(nsites)
@@ -1128,8 +1122,8 @@ contains
     ! a real.  The applied flush value will use the NINT() intrinsic function
     ! ---------------------------------------------------------------------------------
 
-    use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8, &
-         site_r8, site_ground_r8, site_size_pft_r8    
+    use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
+    use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8    
     implicit none
     
     class(fates_history_interface_type), intent(inout) :: this
@@ -1538,6 +1532,7 @@ contains
     this%num_history_vars_ = ivar
     
   end subroutine define_history_vars
+
 
    ! ====================================================================================
    ! DEPRECATED, TRANSITIONAL OR FUTURE CODE SECTION
