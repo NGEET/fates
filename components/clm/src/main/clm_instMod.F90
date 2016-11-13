@@ -537,7 +537,7 @@ contains
 
        ! Bounds are not passed to FATES init_restart because
        ! we call a loop on clumps within this subroutine anyway
-       call clm_fates%init_restart(ncid,flag, waterstate_inst, canopystate_inst)
+       call clm_fates%init_restart(bounds, ncid, waterstate_inst, canopystate_inst )
 
     end if
 
