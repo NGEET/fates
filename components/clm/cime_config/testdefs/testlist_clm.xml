@@ -721,7 +721,7 @@
     <grid name="f10_f10">
       <test name="ERS_D_Ld5">
         <machine compiler="ed" testtype="ed" testmods="clm/edTest">ed</machine>
-        <machine compiler="ed" testtype="ed" testmods="clm/edNoFire">ed</machine>
+        <machine compiler="ed" testtype="ed" testmods="clm/edFire">ed</machine>
         <machine compiler="nag" testtype="aux_clm45" testmods="clm/edTest">hobart</machine>
         <machine compiler="intel" testtype="aux_clm45" testmods="clm/edTest">yellowstone</machine>
       </test>
