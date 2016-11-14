@@ -764,7 +764,8 @@ contains
          !$OMP PARALLEL DO PRIVATE (nc,bounds_clump)
          do nc = 1, nclumps
             if (this%fates(nc)%nsites>0) then
-!!               call this%fates_restart%set_rio_vectors(nc,this%fates(nc)%nsites,this%fates(nc)%sites)
+               call this%fates_restart%set_restart_vectors(nc,this%fates(nc)%nsites, &
+                                                           this%fates(nc)%sites)
             end if
          end do
          !$OMP END PARALLEL DO
