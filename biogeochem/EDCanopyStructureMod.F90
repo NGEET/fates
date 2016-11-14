@@ -546,7 +546,8 @@ contains
           enddo
 
           if(((checkarea-currentPatch%area)) > 0.0001)then
-             write(fates_log(),*) 'problem with canopy area', checkarea,currentPatch%area,checkarea-currentPatch%area,i,z,missing_area 
+             write(fates_log(),*) 'problem with canopy area', checkarea, currentPatch%area, checkarea - currentPatch%area, &
+                  i, z, missing_area 
              currentCohort => currentPatch%tallest
              do while (associated(currentCohort))
              if(currentCohort%canopy_layer == i)then
@@ -658,6 +659,7 @@ contains
 
     use FatesInterfaceMod    , only : bc_in_type
     use EDPatchDynamicsMod   , only : set_patchno
+    use EDCohortDynamicsMod  , only : size_and_type_class_index
     use EDGrowthFunctionsMod , only : tree_lai, c_area
     use EDEcophysConType     , only : EDecophyscon
     use EDtypesMod           , only : area
@@ -675,7 +677,6 @@ contains
     integer  :: ft                                      ! plant functional type
     integer  :: ifp
     integer  :: patchn                                  ! identification number for each patch. 
-    real(r8) :: coarse_wood_frac  
     real(r8) :: canopy_leaf_area                        ! total amount of leaf area in the vegetated area. m2.  
 
     !----------------------------------------------------------------------
@@ -710,26 +711,13 @@ contains
           do while(associated(currentCohort))
              
              ft = currentCohort%pft
-             currentCohort%livestemn = currentCohort%bsw  / pftcon%leafcn(currentCohort%pft)
+
              
-             currentCohort%livecrootn = 0.0_r8
-             
-             if (pftcon%woody(ft) == 1) then
-                coarse_wood_frac = 0.5_r8
-             else
-                coarse_wood_frac = 0.0_r8
-             end if
-             
-             if ( DEBUG ) then
-                write(fates_log(),*) 'canopy_summarization 724 ',currentCohort%livecrootn
-                write(fates_log(),*) 'canopy_summarization 725 ',currentCohort%br
-                write(fates_log(),*) 'canopy_summarization 726 ',coarse_wood_frac
-                write(fates_log(),*) 'canopy_summarization 727 ',pftcon%leafcn(ft)
-             endif
-             
-             currentCohort%livecrootn = currentCohort%br * coarse_wood_frac / pftcon%leafcn(ft)
-             
-             if ( DEBUG ) write(fates_log(),*) 'canopy_summarization 732 ',currentCohort%livecrootn
+             ! Update the cohort's index within the size bin classes
+             ! Update the cohort's index within the SCPF classification system
+             call size_and_type_class_index(currentCohort%dbh,currentCohort%pft, &
+                                            currentCohort%size_class,currentCohort%size_by_pft_class)
+
              
              currentCohort%b = currentCohort%balive+currentCohort%bdead+currentCohort%bstore
              currentCohort%treelai = tree_lai(currentCohort)
