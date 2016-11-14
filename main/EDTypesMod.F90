@@ -189,6 +189,14 @@ module EDTypesMod
      real(r8) ::  treesai                                ! stem area index of tree (total stem area (m2) / canopy area (m2)
      logical  ::  isnew                                  ! flag to signify a new cohort, new cohorts have not experienced
                                                          ! npp or mortality and should therefore not be fused or averaged
+     integer  ::  size_class                             ! An index that indicates which diameter size bin the cohort currently resides in
+                                                         ! this is used for history output. We maintain this in the main cohort memory
+                                                         ! because we don't want to continually re-calculate the cohort's position when
+                                                         ! performing size diagnostics at high-frequency calls
+     integer  ::  size_by_pft_class                      ! An index that indicates the cohorts position of the joint size-class x functional
+                                                         ! type classification. We also maintain this in the main cohort memory
+                                                         ! because we don't want to continually re-calculate the cohort's position when
+                                                         ! performing size diagnostics at high-frequency calls
 
      ! CARBON FLUXES 
      real(r8) ::  gpp                                    ! GPP:  kgC/indiv/year
@@ -212,11 +220,13 @@ module EDTypesMod
      real(r8) ::  year_net_uptake(cp_nlevcan)            ! Net uptake of leaf layers: kgC/m2/year
 
      ! RESPIRATION COMPONENTS
-     real(r8) ::  rd                                     ! Dark respiration: umol/indiv/s
+     real(r8) ::  rdark                                  ! Dark respiration: kgC/indiv/s
      real(r8) ::  resp_g                                 ! Growth respiration:  kgC/indiv/timestep
      real(r8) ::  resp_m                                 ! Maintenance respiration:  kgC/indiv/timestep 
      real(r8) ::  livestem_mr                            ! Live stem        maintenance respiration: kgC/indiv/s
-     real(r8) ::  livecroot_mr                           ! Live coarse root maintenance respiration: kgC/indiv/s
+                                                         ! (Above ground)
+     real(r8) ::  livecroot_mr                           ! Live stem        maintenance respiration: kgC/indiv/s
+                                                         ! (below ground)
      real(r8) ::  froot_mr                               ! Live fine root   maintenance respiration: kgC/indiv/s
 
      ! ALLOCATION
@@ -239,9 +249,11 @@ module EDTypesMod
      real(r8) ::  fmort                                  ! fire mortality                   n/year
 
      ! NITROGEN POOLS      
-     real(r8) ::  livestemn                              ! live stem nitrogen       : KgN/invid
-     real(r8) ::  livecrootn                             ! live coarse root nitrogen: KgN/invid
-     real(r8) ::  frootn                                 ! fine root  nitrogen      : KgN/invid
+     ! ----------------------------------------------------------------------------------
+     ! Nitrogen pools are not prognostic in the current implementation.
+     ! They are diagnosed during photosynthesis using a simple C2N parameter. Local values
+     ! used in that routine.
+     ! ----------------------------------------------------------------------------------
 
      ! GROWTH DERIVIATIVES
      real(r8) ::  dndt                                   ! time derivative of cohort size  : n/year
