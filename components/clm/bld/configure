@@ -655,6 +655,7 @@ sub write_filepath_cesmbld
 		     "ED/biogeophys", 
 		     "ED/biogeochem", 
 		     "ED/fire", 
+                     "external_models/emi/src",
 		     "utils", 
 		     "cpl" );
 
