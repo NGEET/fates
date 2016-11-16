@@ -276,6 +276,7 @@ contains
       integer                                        :: s         ! FATES site index
       integer                                        :: c         ! HLM column index
       integer                                        :: l         ! HLM LU index
+      integer                                        :: g         ! HLM grid index
       integer, allocatable                           :: collist (:)
       type(bounds_type)                              :: bounds_clump
       type(bounds_type)                              :: bounds_proc
@@ -361,6 +362,14 @@ contains
             call allocate_bcin(this%fates(nc)%bc_in(s))
             call allocate_bcout(this%fates(nc)%bc_out(s))
             call this%fates(nc)%zero_bcs(s)
+
+            ! Pass any grid-cell derived attributes to the site
+            ! ---------------------------------------------------------------------------
+            c = this%f2hmap(nc)%fcolumn(s)
+            g = col%gridcell(c)
+            this%fates(nc)%sites(s)%lat = grc%latdeg(g)
+            this%fates(nc)%sites(s)%lon = grc%londeg(g)
+
          end do
 
          ! Initialize site-level static quantities dictated by the HLM
@@ -733,6 +742,7 @@ contains
                c = this%f2hmap(nc)%fcolumn(s)
                this%fates_restart%restart_map(nc)%site_index(s)   = c
                this%fates_restart%restart_map(nc)%patch1_index(s) = col%patchi(c)+1
+
                this%fates_restart%restart_map(nc)%cohort1_index(s) = &
                     bounds_clump%begCohort+(c-bounds_clump%begc)*cohorts_per_col + 1
             end do
@@ -843,7 +853,11 @@ contains
                ! ------------------------------------------------------------------------
                ! Convert newly read-in vectors into the FATES namelist state variables
                ! ------------------------------------------------------------------------
-!!!               call this%fates_restart%get_rio_vectors(nc)
+               call this%fates_restart%create_patchcohort_structure(nc, &
+                    this%fates(nc)%nsites, this%fates(nc)%sites)
+               
+               call this%fates_restart%get_restart_vectors(nc, this%fates(nc)%nsites, &
+                    this%fates(nc)%sites )
                
                ! ------------------------------------------------------------------------
                ! Update diagnostics of FATES ecosystem structure used in HLM.
@@ -897,10 +911,6 @@ contains
 
            do s = 1,this%fates(nc)%nsites
               call zero_site(this%fates(nc)%sites(s))
-              c = this%f2hmap(nc)%fcolumn(s)
-              g = col%gridcell(c)
-              this%fates(nc)%sites(s)%lat = grc%latdeg(g)  
-              this%fates(nc)%sites(s)%lon = grc%londeg(g)
            end do
            
            call set_site_properties(this%fates(nc)%nsites, this%fates(nc)%sites)
