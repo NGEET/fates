@@ -1,0 +1,1765 @@
+module FatesRestartInterfaceMod
+
+
+  use FatesConstantsMod , only : r8 => fates_r8
+  use FatesConstantsMod , only : fates_avg_flag_length
+  use FatesConstantsMod , only : fates_short_string_length
+  use FatesConstantsMod , only : fates_long_string_length
+  use FatesGlobals      , only : fates_log
+
+  use FatesIODimensionsMod, only : fates_io_dimension_type
+  use FatesIOVariableKindMod, only : fates_io_variable_kind_type
+  use FatesRestartVariableMod, only : fates_restart_variable_type
+
+  ! TO BE REMOVED WHEN ERROR HANDLINE IS ADDED (rgk 11-2016)
+  use shr_log_mod       , only : errMsg => shr_log_errMsg
+  use abortutils        , only : endrun
+
+  implicit none
+
+  ! ------------------------------------------------------------
+  ! A note on variable naming conventions.
+  ! Many variables in this restart IO portion of the code will
+  ! follow the conventions:
+  !
+  ! <use_case>_<description>_<dimension>
+  !
+  ! For instance we use an index for restart variable "ir_"
+  ! to point the object that contains the number of patches per
+  ! site "npatch" and this value is relevant to all sites "si"
+  ! thus:   ir_npatch_si
+  !
+  ! We also use associations to the data arrays of restart IO
+  ! variables "rio", for example the leaf litter "leaf_litter"
+  ! is retrieved for every patch and every functional type "paft"
+  ! thus: ir_leaf_litter_paft
+  !
+  ! si: site dimension
+  ! pa: patch dimension
+  ! co: cohort dimension
+  ! ft: functional type dimension
+  ! cl: canopy layer dimension (upper, lower, etc)
+  ! ls: layer sublayer dimension (fine discretization of upper,lower)
+  ! wm: the number of memory slots for water (currently 10)
+  ! -------------------------------------------------------------
+  
+  
+  ! Indices to the restart variable object
+  integer, private :: ir_npatch_si 
+  integer, private :: ir_oldstock_si
+  integer, private :: ir_cd_status_si
+  integer, private :: ir_dd_status_si
+  integer, private :: ir_nchill_days_si
+  integer, private :: ir_leafondate_si
+  integer, private :: ir_leafoffdate_si
+  integer, private :: ir_dleafondate_si
+  integer, private :: ir_dleafoffdate_si
+  integer, private :: ir_acc_ni_si
+  integer, private :: ir_gdd_si
+  integer, private :: ir_nep_timeintegrated_si
+  integer, private :: ir_npp_timeintegrated_si
+  integer, private :: ir_hr_timeintegrated_si
+  integer, private :: ir_cbal_error_fates_si
+  integer, private :: ir_cbal_error_bgc_si
+  integer, private :: ir_cbal_error_total_si
+  integer, private :: ir_totecosysc_old_si
+  integer, private :: ir_totfatesc_old_si
+  integer, private :: ir_totbgcc_old_si
+  integer, private :: ir_fates_to_bgc_this_ts_si
+  integer, private :: ir_fates_to_bgc_last_ts_si
+  integer, private :: ir_seedrainflux_si
+  integer, private :: ir_ncohort_pa
+  integer, private :: ir_balive_co
+  integer, private :: ir_bdead_co
+  integer, private :: ir_bleaf_co
+  integer, private :: ir_broot_co
+  integer, private :: ir_bstore_co
+  integer, private :: ir_canopy_layer_co
+  integer, private :: ir_canopy_trim_co
+  integer, private :: ir_dbh_co
+  integer, private :: ir_height_co
+  integer, private :: ir_laimemory_co
+  integer, private :: ir_leaf_md_co
+  integer, private :: ir_root_md_co
+  integer, private :: ir_nplant_co
+  integer, private :: ir_gpp_acc_co
+  integer, private :: ir_npp_acc_co
+  integer, private :: ir_gpp_co
+  integer, private :: ir_npp_co
+  integer, private :: ir_npp_leaf_co
+  integer, private :: ir_npp_froot_co
+  integer, private :: ir_npp_sw_co
+  integer, private :: ir_npp_dead_co
+  integer, private :: ir_npp_seed_co
+  integer, private :: ir_npp_store_co
+  integer, private :: ir_bmort_co
+  integer, private :: ir_hmort_co
+  integer, private :: ir_cmort_co
+  integer, private :: ir_imort_co
+  integer, private :: ir_fmort_co
+  integer, private :: ir_ddbhdt_co
+  integer, private :: ir_resp_tstep_co
+  integer, private :: ir_pft_co
+  integer, private :: ir_status_co
+  integer, private :: ir_isnew_co
+  integer, private :: ir_cwd_ag_pacw
+  integer, private :: ir_cwd_bg_pacw
+  integer, private :: ir_leaf_litter_paft
+  integer, private :: ir_root_litter_paft
+  integer, private :: ir_leaf_litter_in_paft
+  integer, private :: ir_root_litter_in_paft
+  integer, private :: ir_seed_bank_co
+  integer, private :: ir_spread_pacl
+  integer, private :: ir_livegrass_pa
+  integer, private :: ir_age_pa
+  integer, private :: ir_area_pa
+  integer, private :: ir_fsun_paclftls
+  integer, private :: ir_fabd_sun_paclftls
+  integer, private :: ir_fabi_sun_paclftls
+  integer, private :: ir_fabd_sha_paclftls
+  integer, private :: ir_fabi_sha_paclftls
+  integer, private :: ir_watermem_siwm
+
+  ! The number of variable dim/kind types we have defined (static)
+  integer, parameter :: fates_restart_num_dimensions = 2
+  integer, parameter :: fates_restart_num_dim_kinds = 4
+
+  ! integer constants for storing logical data
+  integer, parameter :: old_cohort = 0
+  integer, parameter :: new_cohort = 1  
+
+  ! Local debug flag
+  logical, parameter :: DEBUG=.false.
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
+
+  ! This structure is allocated by thread, and must be calculated after the FATES
+  ! sites are allocated, and their mapping to the HLM is identified.  This structure
+  ! is not combined with iovar_bounds, because that one is multi-instanced.  This
+  ! structure is used more during the update phase, wherease _bounds is used
+  ! more for things like flushing
+  type restart_map_type
+     integer, allocatable :: site_index(:)   ! maps site indexes to the HIO site position
+     integer, allocatable :: patch1_index(:) ! maps site index to the HIO patch 1st position
+     integer, allocatable :: cohort1_index(:) ! maps site index to the HIO cohort 1st position
+  end type restart_map_type
+
+
+
+  type, public :: fates_restart_interface_type
+
+     type(fates_restart_variable_type),allocatable :: rvars(:)
+     integer,private :: num_restart_vars_
+
+     ! Instanteate one registry of the different dimension/kinds (dk)
+     ! All output variables will have a pointer to one of these dk's
+     type(fates_io_variable_kind_type) :: dim_kinds(fates_restart_num_dim_kinds)
+     
+     ! This is a structure that explains where FATES patch boundaries
+     ! on each thread point to in the host IO array, this structure is
+     ! allocated by number of threads. This could be dynamically
+     ! allocated, but is unlikely to change...?
+     ! Note: history io also instanteates fates_io_dimension_type
+     type(fates_io_dimension_type) :: dim_bounds(fates_restart_num_dimensions)
+     
+     type(restart_map_type), pointer :: restart_map(:)
+
+     integer, private :: cohort_index_, column_index_
+
+   contains
+     
+     procedure, public :: Init
+     procedure, public :: SetThreadBoundsEach
+     procedure, public :: assemble_restart_output_types
+     procedure, public :: initialize_restart_vars
+     procedure, public :: num_restart_vars
+     procedure, public :: column_index
+     procedure, public :: cohort_index
+     procedure, public :: set_restart_vectors
+     procedure, public :: create_patchcohort_structure
+     procedure, public :: get_restart_vectors
+     ! private work functions
+     procedure, private :: init_dim_kinds_maps
+     procedure, private :: set_dim_indices
+!     procedure, private :: set_patch_index (not currently used rgk 11-2016)
+     procedure, private :: set_cohort_index
+     procedure, private :: set_column_index
+     procedure, private :: flushzero_rvars
+     
+     procedure, private :: define_restart_vars
+     procedure, private :: set_restart_var
+     
+     
+
+  end type fates_restart_interface_type
+
+  
+
+
+contains
+
+  ! =====================================================================================
+  
+  subroutine Init(this, num_threads, fates_bounds)
+    
+    use FatesIODimensionsMod, only : fates_bounds_type, column, cohort
+
+    implicit none
+
+    class(fates_restart_interface_type), intent(inout) :: this
+    integer, intent(in) :: num_threads
+    type(fates_bounds_type), intent(in) :: fates_bounds
+
+    integer :: dim_count = 0
+
+    dim_count = dim_count + 1
+    call this%set_cohort_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(cohort, num_threads, &
+         fates_bounds%cohort_begin, fates_bounds%cohort_end)
+
+    dim_count = dim_count + 1
+    call this%set_column_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(column, num_threads, &
+         fates_bounds%column_begin, fates_bounds%column_end)
+
+    ! FIXME(bja, 2016-10) assert(dim_count == FatesIOdimensionsmod::num_dimension_types)
+
+    ! Allocate the mapping between FATES indices and the IO indices
+    allocate(this%restart_map(num_threads))
+    
+  end subroutine Init  
+
+  ! ======================================================================
+
+  subroutine SetThreadBoundsEach(this, thread_index, thread_bounds)
+    
+    use FatesIODimensionsMod, only : fates_bounds_type
+
+    implicit none
+
+    class(fates_restart_interface_type), intent(inout) :: this
+
+    integer, intent(in) :: thread_index
+    type(fates_bounds_type), intent(in) :: thread_bounds
+
+    integer :: index
+    
+    index = this%cohort_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%cohort_begin, thread_bounds%cohort_end)
+    
+    index = this%column_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%column_begin, thread_bounds%column_end)
+    
+  end subroutine SetThreadBoundsEach
+
+  ! ===================================================================================
+
+  subroutine assemble_restart_output_types(this)
+    
+    use FatesIOVariableKindMod, only : site_r8, site_int, cohort_r8, cohort_int
+
+    implicit none
+   
+    class(fates_restart_interface_type), intent(inout) :: this
+
+    call this%init_dim_kinds_maps()
+
+    call this%set_dim_indices(cohort_r8, 1, this%cohort_index())
+    call this%set_dim_indices(cohort_int, 1, this%cohort_index())
+
+    call this%set_dim_indices(site_r8, 1, this%column_index())
+    call this%set_dim_indices(site_int, 1, this%column_index())
+
+  end subroutine assemble_restart_output_types
+
+ ! ===================================================================================
+  
+  subroutine set_dim_indices(this, dk_name, idim, dim_index)
+
+    use FatesIOVariableKindMod , only : iotype_index
+
+    implicit none
+
+    ! arguments
+    class(fates_restart_interface_type), intent(inout) :: this
+    character(len=*), intent(in)     :: dk_name
+    integer, intent(in)              :: idim  ! dimension index
+    integer, intent(in) :: dim_index
+
+
+    ! local
+    integer :: ityp
+
+    ityp = iotype_index(trim(dk_name), fates_restart_num_dim_kinds, this%dim_kinds)
+
+    ! First check to see if the dimension is allocated
+    if (this%dim_kinds(ityp)%ndims < idim) then
+       write(fates_log(), *) 'Trying to define dimension size to a dim-type structure'
+       write(fates_log(), *) 'but the dimension index does not exist'
+       write(fates_log(), *) 'type: ',dk_name,' ndims: ',this%dim_kinds(ityp)%ndims,' input dim:',idim
+       stop
+       !end_run
+    end if
+
+    if (idim == 1) then
+       this%dim_kinds(ityp)%dim1_index = dim_index
+    else if (idim == 2) then
+       this%dim_kinds(ityp)%dim2_index = dim_index
+    end if
+
+    ! With the map, we can set the dimension size
+    this%dim_kinds(ityp)%dimsize(idim) = this%dim_bounds(dim_index)%upper_bound - &
+         this%dim_bounds(dim_index)%lower_bound + 1
+
+ end subroutine set_dim_indices
+
+
+  ! =======================================================================
+
+  subroutine set_cohort_index(this, index)
+    implicit none
+    class(fates_restart_interface_type), intent(inout) :: this
+    integer, intent(in) :: index
+    this%cohort_index_ = index
+  end subroutine set_cohort_index
+  
+  integer function cohort_index(this)
+    implicit none
+    class(fates_restart_interface_type), intent(in) :: this
+    cohort_index = this%cohort_index_
+  end function cohort_index
+  
+  ! =======================================================================
+
+  subroutine set_column_index(this, index)
+    implicit none
+    class(fates_restart_interface_type), intent(inout) :: this
+    integer, intent(in) :: index
+    this%column_index_ = index
+  end subroutine set_column_index
+  
+  integer function column_index(this)
+    implicit none
+    class(fates_restart_interface_type), intent(in) :: this
+   column_index = this%column_index_
+ end function column_index
+ 
+
+ subroutine init_dim_kinds_maps(this)
+    
+    ! ----------------------------------------------------------------------------------
+    ! This subroutine simply initializes the structures that define the different
+    ! array and type formats for different IO variables
+    !
+    ! CO_R8   : 1D cohort scale 8-byte reals
+    ! SI_R8   : 1D site scale 8-byte reals
+    ! CO_INT  : 1D cohort scale integers
+    ! SI_INT  : 1D site scale integers
+    !
+    ! The allocation on the structures is not dynamic and should only add up to the
+    ! number of entries listed here.
+    !
+    ! ----------------------------------------------------------------------------------
+    use FatesIOVariableKindMod, only : site_r8, site_int, cohort_r8, cohort_int
+    
+    implicit none
+    
+    ! Arguments
+    class(fates_restart_interface_type), intent(inout) :: this
+
+    integer :: index
+
+    ! 1d cohort r8
+    index = 1
+    call this%dim_kinds(index)%Init(cohort_r8, 1)
+
+    ! 1d Site r8
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_r8, 1)
+
+    ! cohort int
+    index = index + 1
+    call this%dim_kinds(index)%Init(cohort_int, 1)
+
+    ! site int
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_int, 1)
+
+    ! FIXME(bja, 2016-10) assert(index == fates_num_dim_kinds)
+  end subroutine init_dim_kinds_maps
+
+
+   ! ====================================================================================
+  integer function num_restart_vars(this)
+    
+    implicit none
+
+    class(fates_restart_interface_type), intent(in) :: this
+
+    num_restart_vars = this%num_restart_vars_
+    
+  end function num_restart_vars
+  
+  ! ====================================================================================
+  
+  subroutine initialize_restart_vars(this)
+
+    implicit none
+
+    class(fates_restart_interface_type), intent(inout) :: this
+
+   ! Determine how many of the restart IO variables registered in FATES
+   ! are going to be allocated
+   call this%define_restart_vars(initialize_variables=.false.)
+
+   ! Allocate the list of restart output variable objects
+   allocate(this%rvars(this%num_restart_vars()))
+   
+   ! construct the object that defines all of the IO variables
+   call this%define_restart_vars(initialize_variables=.true.)
+   
+ end subroutine initialize_restart_vars
+
+  ! ======================================================================================
+
+ subroutine flushzero_rvars(this,nc)
+ 
+   class(fates_restart_interface_type)        :: this
+   integer,intent(in)                         :: nc
+
+   integer                                   :: ivar
+   type(fates_restart_variable_type),pointer :: rvar
+   integer                      :: lb1,ub1,lb2,ub2
+
+   do ivar=1,ubound(this%rvars,1)
+      associate( rvar => this%rvars(ivar) )
+        call rvar%FlushZero(nc, this%dim_bounds, this%dim_kinds)
+      end associate
+   end do
+   
+ end subroutine flushzero_rvars
+
+ 
+
+ ! ====================================================================================
+ 
+ subroutine define_restart_vars(this, initialize_variables)
+    
+    ! ---------------------------------------------------------------------------------
+    ! 
+    !                    REGISTRY OF HISTORY OUTPUT VARIABLES
+    !
+    ! This subroutine is called in two contexts, either in count mode or inialize mode
+    ! In count mode, we just walk through the list of registerred variables, compare
+    ! if the variable of interest list the current host model and add it to the count
+    ! if true.  This count is used just to allocate the variable space.  After this
+    ! has been done, we go through the list a second time populating a memory structure.
+    ! This phase is the "initialize" phase.  These two phases are differntiated by the
+    ! string "callstep", which should be either "count" or "initialize".
+    !
+    ! Note 1 there are different ways you can flush or initialize the output fields.
+    ! If you flush to a native type, (such as zero), the entire slab which covers
+    ! indices which may not be relevant to FATES, are flushed to this value.  So
+    ! in that case, lakes and crops that are not controlled by FATES will zero'd
+    ! and when values are scaled up to the land-grid, the zero's for non FATES will
+    ! be included.  This is good and correct if nothing is there.  
+    !
+    ! But, what if crops exist in the host model and occupy a fraction of the land-surface
+    ! shared with natural vegetation? In that case, you want to flush your arrays
+    ! with a value that the HLM treats as "do not average"
+    ! 
+    ! If your HLM makes use of, and you want, INTEGER OUTPUT, pass the flushval as
+    ! a real.  The applied flush value will use the NINT() intrinsic function
+    ! ---------------------------------------------------------------------------------
+   
+    use FatesIOVariableKindMod, only : site_r8, site_int, cohort_int, cohort_r8
+    implicit none
+    
+    class(fates_restart_interface_type), intent(inout) :: this
+    logical, intent(in) :: initialize_variables  ! are we 'count'ing or 'initializ'ing?
+
+    integer :: ivar
+    
+    ivar=0
+
+    ! Site level counting variables
+    call this%set_restart_var(vname='ed_io_numPatchesPerCol', vtype=site_int, &
+         long_name='Total number of ED patches per column', units='none',       &
+          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npatch_si )
+
+    call this%set_restart_var(vname='ed_old_stock',  vtype=site_r8, &
+         long_name='ed cohort - old_stock', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_oldstock_si )
+
+    call this%set_restart_var(vname='ed_cd_status', vtype=site_r8, &
+         long_name='ed cold dec status', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cd_status_si )
+
+    call this%set_restart_var(vname='ed_dd_status', vtype=site_r8, &
+         long_name='ed drought dec status', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dd_status_si )
+
+    call this%set_restart_var(vname='ed_chilling_days', vtype=site_r8, &
+         long_name='ed chilling day counter', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_nchill_days_si )
+
+    call this%set_restart_var(vname='ed_leafondate', vtype=site_r8, &
+         long_name='ed leafondate', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leafondate_si )
+
+    call this%set_restart_var(vname='ed_leafoffdate', vtype=site_r8, &
+         long_name='ed leafoffdate', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leafoffdate_si )
+
+    call this%set_restart_var(vname='ed_dleafondate', vtype=site_r8, &
+         long_name='ed dleafondate', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dleafondate_si )
+
+    call this%set_restart_var(vname='ed_dleafoffdate', vtype=site_r8, &
+         long_name='ed dleafoffdate', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dleafoffdate_si )
+
+    call this%set_restart_var(vname='ed_acc_NI', vtype=site_r8, &
+         long_name='ed nesterov index', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_acc_ni_si )
+    
+    call this%set_restart_var(vname='ed_gdd_site', vtype=site_r8, &
+         long_name='ed GDD site', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gdd_si )
+
+    call this%set_restart_var(vname='nep_timeintegrated_col', vtype=site_r8, &
+         long_name='NA', units='NA', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_nep_timeintegrated_si )
+
+    call this%set_restart_var(vname='npp_timeintegrated_col', vtype=site_r8, &
+         long_name='NA', units='NA', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_timeintegrated_si )
+
+    call this%set_restart_var(vname='hr_timeintegrated_col', vtype=site_r8, &
+         long_name='NA', units='NA', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hr_timeintegrated_si )
+
+    call this%set_restart_var(vname='cbalance_error_ed_col', vtype=site_r8, &
+         long_name='NA', units='NA', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cbal_error_fates_si )
+
+    call this%set_restart_var(vname='cbalance_error_bgc_col', vtype=site_r8, &
+         long_name='NA', units='NA', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cbal_error_bgc_si )
+
+    call this%set_restart_var(vname='cbalance_error_total_col', vtype=site_r8, &
+         long_name='NA', units='NA', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cbal_error_total_si )
+
+    call this%set_restart_var(vname='totecosysc_old_col', vtype=site_r8, &
+         long_name='NA', units='NA', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_totecosysc_old_si )
+
+    call this%set_restart_var(vname='totedc_old_col', vtype=site_r8, &
+         long_name='NA', units='NA', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_totfatesc_old_si )
+
+    call this%set_restart_var(vname='totbgcc_old_col', vtype=site_r8, &
+         long_name='NA', units='NA', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_totbgcc_old_si )
+
+    call this%set_restart_var(vname='ed_to_bgc_this_edts_col', vtype=site_r8, &
+         long_name='NA', units='NA', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fates_to_bgc_this_ts_si )
+
+    call this%set_restart_var(vname='ed_to_bgc_last_edts_col', vtype=site_r8, &
+         long_name='NA', units='NA', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fates_to_bgc_last_ts_si )
+
+    call this%set_restart_var(vname='seed_rain_flux_col', vtype=site_r8, &
+         long_name='NA', units='NA', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedrainflux_si )
+
+    !
+    ! cohort level vars
+    !
+
+    ! This variable may be confusing, because it is a patch level variables
+    ! but it is using the cohort IO vector to hold data
+    call this%set_restart_var(vname='ed_io_cohortsPerPatch', vtype=cohort_int, &
+         long_name='cohorts per patch, indexed by numPatchesPerCol', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_ncohort_pa )
+
+    call this%set_restart_var(vname='ed_balive', vtype=cohort_r8, &
+         long_name='ed cohort ed_balive', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_balive_co )
+
+    call this%set_restart_var(vname='ed_bdead', vtype=cohort_r8, &
+         long_name='ed cohort - bdead', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_bdead_co )
+
+    call this%set_restart_var(vname='ed_bl', vtype=cohort_r8, &
+         long_name='ed cohort - bl', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_bleaf_co )
+
+    call this%set_restart_var(vname='ed_br', vtype=cohort_r8, &
+         long_name='ed cohort - br', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_broot_co )
+
+    call this%set_restart_var(vname='ed_bstore', vtype=cohort_r8, &
+         long_name='ed cohort - bstore', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_bstore_co )
+
+    call this%set_restart_var(vname='ed_canopy_layer', vtype=cohort_r8, &
+         long_name='ed cohort - canopy_layer', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_layer_co )
+
+    call this%set_restart_var(vname='ed_canopy_trim', vtype=cohort_r8, &
+         long_name='ed cohort - canopy_trim', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_trim_co )
+
+    call this%set_restart_var(vname='ed_dbh', vtype=cohort_r8, &
+         long_name='ed cohort - dbh', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dbh_co )
+
+    call this%set_restart_var(vname='ed_hite', vtype=cohort_r8, &
+         long_name='ed cohort - hite', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_height_co )
+
+    call this%set_restart_var(vname='ed_laimemory', vtype=cohort_r8, &
+         long_name='ed cohort - laimemory', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_laimemory_co )
+
+    call this%set_restart_var(vname='ed_leaf_md', vtype=cohort_r8, &
+         long_name='ed cohort - leaf_md', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leaf_md_co )
+
+    call this%set_restart_var(vname='ed_root_md', vtype=cohort_r8, &
+         long_name='ed cohort - root_md', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_root_md_co )
+
+    call this%set_restart_var(vname='ed_n', vtype=cohort_r8, &
+         long_name='ed cohort - n', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_nplant_co )
+
+    call this%set_restart_var(vname='ed_gpp_acc', vtype=cohort_r8, &
+         long_name='ed cohort - gpp_acc', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gpp_acc_co )
+
+    call this%set_restart_var(vname='ed_npp_acc', vtype=cohort_r8, &
+         long_name='ed cohort - npp_acc', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_acc_co )
+
+    call this%set_restart_var(vname='ed_gpp', vtype=cohort_r8, &
+         long_name='ed cohort - gpp', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gpp_co )
+
+    call this%set_restart_var(vname='ed_npp', vtype=cohort_r8, &
+         long_name='ed cohort - npp', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_co )
+
+    call this%set_restart_var(vname='ed_npp_leaf', vtype=cohort_r8, &
+         long_name='ed cohort - npp_leaf', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_leaf_co )
+
+    call this%set_restart_var(vname='ed_npp_froot', vtype=cohort_r8, &
+         long_name='ed cohort - npp_froot', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_froot_co )
+
+    call this%set_restart_var(vname='ed_npp_sw', vtype=cohort_r8, &
+         long_name='ed cohort - npp_sw', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_sw_co )
+
+    call this%set_restart_var(vname='ed_npp_bdead', vtype=cohort_r8, &
+         long_name='ed cohort - npp_bdead', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_dead_co )
+
+    call this%set_restart_var(vname='ed_npp_bseed', vtype=cohort_r8, &
+         long_name='ed cohort - npp_bseed', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_seed_co )
+
+    call this%set_restart_var(vname='ed_npp_store', vtype=cohort_r8, &
+         long_name='ed cohort - npp_store', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_store_co )
+
+    call this%set_restart_var(vname='ed_bmort', vtype=cohort_r8, &
+         long_name='ed cohort - bmort', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_bmort_co )
+
+    call this%set_restart_var(vname='ed_hmort', vtype=cohort_r8, &
+         long_name='ed cohort - hmort', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hmort_co )
+
+    call this%set_restart_var(vname='ed_cmort', vtype=cohort_r8, &
+         long_name='ed cohort - cmort', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cmort_co )
+
+    call this%set_restart_var(vname='ed_imort', vtype=cohort_r8, &
+         long_name='ed cohort - imort', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_imort_co )
+
+    call this%set_restart_var(vname='ed_fmort', vtype=cohort_r8, &
+         long_name='ed cohort - fmort', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fmort_co )
+
+    call this%set_restart_var(vname='ed_ddbhdt', vtype=cohort_r8, &
+         long_name='ed cohort - ddbhdt', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_ddbhdt_co )
+
+    call this%set_restart_var(vname='ed_resp_tstep', vtype=cohort_r8, &
+         long_name='ed cohort - resp_tstep', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_tstep_co )
+
+    call this%set_restart_var(vname='ed_pft', vtype=cohort_int, &
+         long_name='ed cohort - pft', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_pft_co )
+
+    call this%set_restart_var(vname='ed_status_coh', vtype=cohort_int, &
+         long_name='ed cohort - status_coh', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_status_co )
+
+    call this%set_restart_var(vname='ed_isnew', vtype=cohort_int, &
+         long_name='ed cohort - isnew', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_isnew_co )
+
+    !
+    ! patch level vars
+    !
+
+    call this%set_restart_var(vname='ed_cwd_ag', vtype=cohort_r8, &
+         long_name='ed patch - cwd_ag', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cwd_ag_pacw )
+
+    call this%set_restart_var(vname='ed_cwd_bg', vtype=cohort_r8, &
+         long_name='ed patch - cwd_bg', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cwd_bg_pacw )
+
+    call this%set_restart_var(vname='ed_leaf_litter', vtype=cohort_r8, &
+         long_name='fates: leaf litter by patch x pft', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leaf_litter_paft )
+
+    call this%set_restart_var(vname='ed_root_litter', vtype=cohort_r8, &
+         long_name='ed patch - root_litter', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_root_litter_paft )
+
+    call this%set_restart_var(vname='ed_leaf_litter_in', vtype=cohort_r8, &
+         long_name='ed patch - leaf_litter_in', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leaf_litter_in_paft )
+
+    call this%set_restart_var(vname='ed_root_litter_in', vtype=cohort_r8, &
+         long_name='ed patch - root_litter_in', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_root_litter_in_paft )
+
+    ! TODO: THIS SAYS SITE BUT USES COHORT LEVEL, INVESTIGATE (RGK)
+    call this%set_restart_var(vname='ed_seed_bank', vtype=cohort_r8, &
+         long_name='ed site? - seed_bank', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_bank_co )
+
+    call this%set_restart_var(vname='ed_spread', vtype=cohort_r8, &
+         long_name='ed patch - spread', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_spread_pacl )
+
+    call this%set_restart_var(vname='ed_livegrass', vtype=cohort_r8, &
+         long_name='ed patch - livegrass', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_livegrass_pa )
+
+    call this%set_restart_var(vname='ed_age', vtype=cohort_r8, &
+         long_name='ed patch - age', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_age_pa )
+
+    call this%set_restart_var(vname='ed_area', vtype=cohort_r8, &
+         long_name='ed patch - area', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_area_pa )
+
+    ! These dimensions are pa "patch" cl "canopy layer" ft "functional type" ls "layer sublevel"
+    call this%set_restart_var(vname='ed_f_sun', vtype=cohort_r8, &
+         long_name='ed patch - f_sun', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fsun_paclftls )
+
+    call this%set_restart_var(vname='ed_fabd_sun_z', vtype=cohort_r8, &
+         long_name='ed patch - fabd_sun_z', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fabd_sun_paclftls )
+
+    call this%set_restart_var(vname='ed_fabi_sun_z', vtype=cohort_r8, &
+         long_name='ed patch - fabi_sun_z', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fabi_sun_paclftls )
+
+    call this%set_restart_var(vname='ed_fabd_sha_z', vtype=cohort_r8, &
+         long_name='ed patch - fabd_sha_z', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fabd_sha_paclftls )
+
+    call this%set_restart_var(vname='ed_fabi_sha_z', vtype=cohort_r8, &
+         long_name='ed patch - fabi_sha_z', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fabi_sha_paclftls )
+
+    !
+    ! site x time level vars
+    !
+
+    call this%set_restart_var(vname='ed_water_memory', vtype=cohort_r8, &
+         long_name='ed cohort - water_memory', units='unitless', &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_watermem_siwm )
+         
+    
+    ! Must be last thing before return
+    this%num_restart_vars_ = ivar
+    
+  end subroutine define_restart_vars
+    
+
+  ! =====================================================================================
+   
+  subroutine set_restart_var(this,vname,vtype,long_name,units,hlms,initialize,ivar,index)
+
+    use FatesUtilsMod, only : check_hlm_list
+    use EDTypesMod, only    : cp_hlm_name
+
+    ! arguments
+    class(fates_restart_interface_type) :: this
+    character(len=*),intent(in)  :: vname
+    character(len=*),intent(in)  :: vtype
+    character(len=*),intent(in)  :: units
+    character(len=*),intent(in)  :: long_name
+    character(len=*),intent(in)  :: hlms
+    logical, intent(in)          :: initialize
+    integer, intent(inout)       :: ivar
+    integer, intent(inout)       :: index  ! This is the index for the variable of
+                                           ! interest that is associated with an
+                                           ! explict name (for fast reference during update)
+                                           ! A zero is passed back when the variable is
+                                           ! not used
+
+    
+    type(fates_restart_variable_type),pointer :: rvar
+    integer :: ub1,lb1,ub2,lb2    ! Bounds for allocating the var
+    integer :: ityp
+    
+    logical :: use_var
+    
+    use_var = check_hlm_list(trim(hlms), trim(cp_hlm_name))
+
+
+    if( use_var ) then
+       
+       ivar  = ivar+1
+       index = ivar    
+       
+       if( initialize )then
+          
+          call this%rvars(ivar)%Init(vname, units, long_name, vtype, &
+               fates_restart_num_dim_kinds, this%dim_kinds, this%dim_bounds)
+
+       end if
+    else
+       
+       index = 0
+    end if
+    
+    return
+ end subroutine set_restart_var
+
+ ! =====================================================================================
+
+ subroutine set_restart_vectors(this,nc,nsites,sites)
+
+   use EDTypesMod, only : cp_nclmax
+   use EDTypesMod, only : cp_nlevcan
+   use EDTypesMod, only : numCohortsPerPatch
+   use EDTypesMod, only : numpft_ed
+   use EDTypesMod, only : ed_site_type
+   use EDTypesMod, only : ed_cohort_type
+   use EDTypesMod, only : ed_patch_type
+   use EDTypesMod, only : cohorts_per_col
+   use EDTypesMod, only : ncwd
+   use EDTypesMod, only : numWaterMem
+
+    ! Arguments
+    class(fates_restart_interface_type)                 :: this
+    integer                 , intent(in)            :: nc   ! clump index
+    integer                 , intent(in)            :: nsites
+    type(ed_site_type)      , intent(inout), target :: sites(nsites)
+
+    ! Locals
+    integer  :: s        ! The local site index
+    integer  :: io_si     ! The site index of the IO array
+    integer  :: io_co
+    integer  :: incrementOffset
+    integer  :: countCohort
+    integer  :: countPft
+    integer  :: countNcwd
+    integer  :: countNclmax
+    integer  :: countWaterMem
+    integer  :: countSunZ
+    integer  :: numCohorts
+    integer  :: numPatches
+
+    integer  :: ivar             ! index of IO variable object vector
+    integer  :: ft               ! functional type index
+    integer  :: scpf             ! index of the size-class x pft bin
+    integer  :: sc               ! index of the size-class bin
+    integer  :: totalcohorts     ! total cohort count
+    integer  :: k,j,i            ! indices to the radiation matrix
+
+    real(r8) :: n_density   ! individual of cohort per m2.
+    real(r8) :: n_perm2     ! individuals per m2 for the whole column
+    real(r8) :: patch_scaling_scalar ! ratio of canopy to patch area for 
+                                     ! counteracting patch scaling
+    real(r8) :: dbh         ! diameter ("at breast height")
+    
+    type(fates_restart_variable_type) :: rvar
+    type(ed_patch_type),pointer  :: cpatch
+    type(ed_cohort_type),pointer :: ccohort
+
+
+    associate( rio_npatch_si           => this%rvars(ir_npatch_si)%int1d, &
+           rio_old_stock_si             => this%rvars(ir_oldstock_si)%r81d, &
+           rio_cd_status_si            => this%rvars(ir_cd_status_si)%r81d, &
+           rio_dd_status_si            => this%rvars(ir_dd_status_si)%r81d, &
+           rio_nchill_days_si          => this%rvars(ir_nchill_days_si)%r81d, &
+           rio_leafondate_si           => this%rvars(ir_leafondate_si)%r81d, &
+           rio_leafoffdate_si          => this%rvars(ir_leafoffdate_si)%r81d, &
+           rio_dleafondate_si          => this%rvars(ir_dleafondate_si)%r81d, &
+           rio_dleafoffdate_si         => this%rvars(ir_dleafoffdate_si)%r81d, &
+           rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
+           rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
+           rio_nep_timeintegrated_si   => this%rvars(ir_nep_timeintegrated_si)%r81d, &
+           rio_npp_timeintegrated_si   => this%rvars(ir_npp_timeintegrated_si)%r81d, &
+           rio_hr_timeintegrated_si    => this%rvars(ir_hr_timeintegrated_si)%r81d, &
+           rio_cbal_err_fates_si       => this%rvars(ir_cbal_error_fates_si)%r81d, &
+           rio_cbal_err_bgc_si         => this%rvars(ir_cbal_error_bgc_si)%r81d, &
+           rio_cbal_err_tot_si         => this%rvars(ir_cbal_error_total_si)%r81d, &
+           rio_totecosysc_old_si       => this%rvars(ir_totecosysc_old_si)%r81d, &
+           rio_totfatesc_old_si        => this%rvars(ir_totfatesc_old_si)%r81d, &
+           rio_totbgcc_old_si          => this%rvars(ir_totbgcc_old_si)%r81d, &
+           rio_fates_to_bgc_this_ts_si => this%rvars(ir_fates_to_bgc_this_ts_si)%r81d, &
+           rio_fates_to_bgc_last_ts_si => this%rvars(ir_fates_to_bgc_last_ts_si)%r81d, &
+           rio_seedrainflux_si         => this%rvars(ir_seedrainflux_si)%r81d, &
+           rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
+           rio_balive_co               => this%rvars(ir_balive_co)%r81d, &
+           rio_bdead_co                => this%rvars(ir_bdead_co)%r81d, &
+           rio_bleaf_co                => this%rvars(ir_bleaf_co)%r81d, &
+           rio_broot_co                => this%rvars(ir_broot_co)%r81d, &
+           rio_bstore_co               => this%rvars(ir_bstore_co)%r81d, &
+           rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
+           rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
+           rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
+           rio_height_co               => this%rvars(ir_height_co)%r81d, &
+           rio_laimemory_co            => this%rvars(ir_laimemory_co)%r81d, &
+           rio_leaf_md_co              => this%rvars(ir_leaf_md_co)%r81d, &
+           rio_root_md_co              => this%rvars(ir_root_md_co)%r81d, &
+           rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
+           rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
+           rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
+           rio_gpp_co                  => this%rvars(ir_gpp_co)%r81d, &
+           rio_npp_co                  => this%rvars(ir_npp_co)%r81d, &
+           rio_npp_leaf_co             => this%rvars(ir_npp_leaf_co)%r81d, &
+           rio_npp_froot_co            => this%rvars(ir_npp_froot_co)%r81d, &
+           rio_npp_sw_co               => this%rvars(ir_npp_sw_co)%r81d, &
+           rio_npp_dead_co             => this%rvars(ir_npp_dead_co)%r81d, &
+           rio_npp_seed_co             => this%rvars(ir_npp_seed_co)%r81d, &
+           rio_npp_store_co            => this%rvars(ir_npp_store_co)%r81d, &
+           rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
+           rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
+           rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
+           rio_imort_co                => this%rvars(ir_imort_co)%r81d, &
+           rio_fmort_co                => this%rvars(ir_fmort_co)%r81d, &
+           rio_ddbhdt_co               => this%rvars(ir_ddbhdt_co)%r81d, &
+           rio_resp_tstep_co           => this%rvars(ir_resp_tstep_co)%r81d, &
+           rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
+           rio_status_co               => this%rvars(ir_status_co)%int1d, &
+           rio_isnew_co                => this%rvars(ir_isnew_co)%int1d, &
+           rio_cwd_ag_pacw             => this%rvars(ir_cwd_ag_pacw)%r81d, &
+           rio_cwd_bg_pacw             => this%rvars(ir_cwd_bg_pacw)%r81d, &
+           rio_leaf_litter_paft        => this%rvars(ir_leaf_litter_paft)%r81d, &
+           rio_root_litter_paft        => this%rvars(ir_root_litter_paft)%r81d, &
+           rio_leaf_litter_in_paft     => this%rvars(ir_leaf_litter_in_paft)%r81d, &
+           rio_root_litter_in_paft     => this%rvars(ir_root_litter_in_paft)%r81d, &
+           rio_seed_bank_co            => this%rvars(ir_seed_bank_co)%r81d, &
+           rio_spread_pacl             => this%rvars(ir_spread_pacl)%r81d, &
+           rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
+           rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
+           rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
+           rio_fsun_paclftls           => this%rvars(ir_fsun_paclftls)%r81d, &
+           rio_fabd_sun_z_paclftls     => this%rvars(ir_fabd_sun_paclftls)%r81d, &
+           rio_fabi_sun_z_paclftls     => this%rvars(ir_fabi_sun_paclftls)%r81d, &
+           rio_fabd_sha_z_paclftls     => this%rvars(ir_fabd_sha_paclftls)%r81d, &
+           rio_fabi_sha_z_paclftls     => this%rvars(ir_fabi_sha_paclftls)%r81d, &
+           rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d )
+
+       totalCohorts = 0
+       
+       ! ---------------------------------------------------------------------------------
+       ! Flush arrays to values defined by %flushval (see registry entry in
+       ! subroutine define_history_vars()
+       ! ---------------------------------------------------------------------------------
+       call this%flushzero_rvars(nc)
+       
+       do s = 1,nsites
+          
+          ! Calculate the offsets
+          ! fcolumn is the global column index of the current site.
+          ! For the first site, if that site aligns with the first column index
+          ! in the clump, than the offset should be be equal to begCohort
+          
+          io_si  = this%restart_map(nc)%site_index(s)
+          io_co  = this%restart_map(nc)%cohort1_index(s)
+          
+          incrementOffset     = io_co
+          countCohort         = io_co
+          countPft            = io_co
+          countNcwd           = io_co
+          countNclmax         = io_co
+          countWaterMem       = io_co
+          countSunZ           = io_co
+          
+          ! write seed_bank info(site-level, but PFT-resolved)
+          do i = 1,numpft_ed
+             rio_seed_bank_co(incrementOffset+i-1) = sites(s)%seed_bank(i)
+          end do
+          
+          cpatch => sites(s)%oldest_patch
+          
+          ! new column, reset num patches
+          numPatches = 0
+          
+          do while(associated(cpatch))
+             
+             ! found patch, increment
+             numPatches = numPatches + 1
+             
+             ccohort => cpatch%shortest
+             
+             ! new patch, reset num cohorts
+             numCohorts = 0
+             
+             do while(associated(ccohort))
+                
+                ! found cohort, increment
+                numCohorts       = numCohorts    + 1
+                totalCohorts     = totalCohorts + 1
+             
+                if ( DEBUG ) then
+                   write(fates_log(),*) 'CLTV countCohort ', countCohort
+                   write(fates_log(),*) 'CLTV lowerbound ', lbound(rio_npp_acc_co,1) 
+                   write(fates_log(),*) 'CLTV upperbound  ', ubound(rio_npp_acc_co,1)
+                endif
+             
+                rio_balive_co(countCohort)       = ccohort%balive
+                rio_bdead_co(countCohort)        = ccohort%bdead
+                rio_bleaf_co(countCohort)        = ccohort%bl
+                rio_broot_co(countCohort)        = ccohort%br
+                rio_bstore_co(countCohort)       = ccohort%bstore
+                rio_canopy_layer_co(countCohort) = ccohort%canopy_layer
+                rio_canopy_trim_co(countCohort)  = ccohort%canopy_trim
+                rio_dbh_co(countCohort)          = ccohort%dbh
+                rio_height_co(countCohort)       = ccohort%hite
+                rio_laimemory_co(countCohort)    = ccohort%laimemory
+                rio_leaf_md_co(countCohort)      = ccohort%leaf_md
+                rio_root_md_co(countCohort)      = ccohort%root_md
+                rio_nplant_co(countCohort)       = ccohort%n
+                rio_gpp_acc_co(countCohort)      = ccohort%gpp_acc
+                rio_npp_acc_co(countCohort)      = ccohort%npp_acc
+                rio_gpp_co(countCohort)          = ccohort%gpp
+                rio_npp_co(countCohort)          = ccohort%npp
+                rio_npp_leaf_co(countCohort)     = ccohort%npp_leaf
+                rio_npp_froot_co(countCohort)    = ccohort%npp_froot
+                rio_npp_sw_co(countCohort)       = ccohort%npp_bsw
+                rio_npp_dead_co(countCohort)     = ccohort%npp_bdead
+                rio_npp_seed_co(countCohort)     = ccohort%npp_bseed
+                rio_npp_store_co(countCohort)    = ccohort%npp_store
+                rio_bmort_co(countCohort)        = ccohort%bmort
+                rio_hmort_co(countCohort)        = ccohort%hmort
+                rio_cmort_co(countCohort)        = ccohort%cmort
+                rio_imort_co(countCohort)        = ccohort%imort
+                rio_fmort_co(countCohort)        = ccohort%fmort
+                rio_ddbhdt_co(countCohort)       = ccohort%ddbhdt
+                rio_resp_tstep_co(countCohort)   = ccohort%resp_tstep
+                rio_pft_co(countCohort)          = ccohort%pft
+                rio_status_co(countCohort)       = ccohort%status_coh
+                if ( ccohort%isnew ) then
+                   rio_isnew_co(countCohort)     = new_cohort
+                else
+                   rio_isnew_co(countCohort)     = old_cohort
+                endif
+                
+                if ( DEBUG ) then
+                   write(fates_log(),*) 'CLTV offsetNumCohorts II ',countCohort, &
+                         numCohorts
+                endif
+             
+                countCohort = countCohort + 1
+                
+                ccohort => ccohort%taller
+                
+             enddo ! ccohort do while
+             
+             !
+             ! deal with patch level fields here
+             !
+             rio_livegrass_pa(incrementOffset)   = cpatch%livegrass
+             rio_age_pa(incrementOffset)         = cpatch%age
+             rio_area_pa(incrementOffset)        = cpatch%area
+             
+             ! set cohorts per patch for IO
+             rio_ncohort_pa( incrementOffset )   = numCohorts
+             
+             if ( DEBUG ) then
+                write(fates_log(),*) 'offsetNumCohorts III ' &
+                      ,countCohort,cohorts_per_col, numCohorts
+             endif
+             !
+             ! deal with patch level fields of arrays here
+             !
+             ! these are arrays of length numpft_ed, each patch contains one
+             ! vector so we increment 
+             do i = 1,numpft_ed 
+                rio_leaf_litter_paft(countPft)    = cpatch%leaf_litter(i)
+                rio_root_litter_paft(countPft)    = cpatch%root_litter(i)
+                rio_leaf_litter_in_paft(countPft) = cpatch%leaf_litter_in(i)
+                rio_root_litter_in_paft(countPft) = cpatch%root_litter_in(i)
+                countPft = countPft + 1
+             end do
+             
+             do i = 1,ncwd ! ncwd currently 4
+                rio_cwd_ag_pacw(countNcwd) = cpatch%cwd_ag(i)
+                rio_cwd_bg_pacw(countNcwd) = cpatch%cwd_bg(i)
+                countNcwd = countNcwd + 1
+             end do
+             
+             do i = 1,cp_nclmax ! cp_nclmax currently 2
+                rio_spread_pacl(countNclmax)   = cpatch%spread(i)
+                countNclmax = countNclmax + 1
+             end do
+             
+             if ( DEBUG ) write(fates_log(),*) 'CLTV countSunZ 1 ',countSunZ
+             
+             if ( DEBUG ) write(fates_log(),*) 'CLTV 1186 ',cp_nlevcan,numpft_ed,cp_nclmax
+             
+             do k = 1,cp_nlevcan ! cp_nlevcan currently 40
+                do j = 1,numpft_ed ! numpft_ed currently 2
+                   do i = 1,cp_nclmax ! cp_nclmax currently 2
+                      rio_fsun_paclftls(countSunZ)        = cpatch%f_sun(i,j,k)
+                      rio_fabd_sun_z_paclftls(countSunZ)  = cpatch%fabd_sun_z(i,j,k)
+                      rio_fabi_sun_z_paclftls(countSunZ)  = cpatch%fabi_sun_z(i,j,k)
+                      rio_fabd_sha_z_paclftls(countSunZ)  = cpatch%fabd_sha_z(i,j,k)
+                      rio_fabi_sha_z_paclftls(countSunZ)  = cpatch%fabi_sha_z(i,j,k)
+                      countSunZ = countSunZ + 1
+                   end do
+                end do
+             end do
+             
+             if ( DEBUG ) write(fates_log(),*) 'CLTV countSunZ 2 ',countSunZ
+             
+             incrementOffset = incrementOffset + numCohortsPerPatch
+             
+             ! reset counters so that they are all advanced evenly. Currently
+             ! the offset is 10, the max of numpft_ed, ncwd, cp_nclmax,
+             ! countWaterMem and the number of allowed cohorts per patch
+             countPft      = incrementOffset
+             countNcwd     = incrementOffset
+             countNclmax   = incrementOffset
+             countCohort   = incrementOffset
+             countSunZ     = incrementOffset
+             
+             if ( DEBUG ) then
+                write(fates_log(),*) 'CLTV incrementOffset ', incrementOffset
+                write(fates_log(),*) 'CLTV cohorts_per_col ', cohorts_per_col
+                write(fates_log(),*) 'CLTV numCohort ', numCohorts
+                write(fates_log(),*) 'CLTV totalCohorts ', totalCohorts
+             end if
+             
+             cpatch => cpatch%younger
+             
+          enddo ! cpatch do while
+          
+          rio_old_stock_si(io_si)    = sites(s)%old_stock
+          rio_cd_status_si(io_si)    = sites(s)%status
+          rio_dd_status_si(io_si)    = sites(s)%dstatus
+          rio_nchill_days_si(io_si)  = sites(s)%ncd 
+          rio_leafondate_si(io_si)   = sites(s)%leafondate
+          rio_leafoffdate_si(io_si)  = sites(s)%leafoffdate
+          rio_dleafondate_si(io_si)  = sites(s)%dleafondate
+          rio_dleafoffdate_si(io_si) = sites(s)%dleafoffdate
+          rio_acc_ni_si(io_si)       = sites(s)%acc_NI
+          rio_gdd_si(io_si)          = sites(s)%ED_GDD_site
+          
+          ! Carbon Balance and Checks
+          rio_nep_timeintegrated_si(io_si) = sites(s)%nep_timeintegrated 
+          rio_npp_timeintegrated_si(io_si) = sites(s)%npp_timeintegrated
+          rio_hr_timeintegrated_si(io_si)  = sites(s)%hr_timeintegrated 
+          rio_totecosysc_old_si(io_si)     = sites(s)%totecosysc_old
+          rio_totfatesc_old_si(io_si)      = sites(s)%totfatesc_old
+          rio_totbgcc_old_si(io_si)        = sites(s)%totbgcc_old
+          rio_cbal_err_fates_si(io_si)     = sites(s)%cbal_err_fates
+          rio_cbal_err_bgc_si(io_si)       = sites(s)%cbal_err_bgc
+          rio_cbal_err_tot_si(io_si)       = sites(s)%cbal_err_tot
+          rio_fates_to_bgc_this_ts_si(io_si) = sites(s)%fates_to_bgc_this_ts
+          rio_fates_to_bgc_last_ts_si(io_si) = sites(s)%fates_to_bgc_last_ts
+          rio_seedrainflux_si(io_si)         = sites(s)%tot_seed_rain_flux
+          
+          ! set numpatches for this column
+          rio_npatch_si(io_si)  = numPatches
+          
+          do i = 1,numWaterMem ! numWaterMem currently 10
+             rio_watermem_siwm( countWaterMem ) = sites(s)%water_memory(i)
+             countWaterMem = countWaterMem + 1
+          end do
+          
+       enddo
+       
+       if ( DEBUG ) then
+          write(fates_log(),*) 'CLTV total cohorts ',totalCohorts
+       end if
+       
+       return
+     end associate
+   end subroutine set_restart_vectors
+
+   ! ====================================================================================
+
+   subroutine create_patchcohort_structure(this, nc, nsites, sites ) 
+
+     ! ----------------------------------------------------------------------------------
+     ! This subroutine takes a peak at the restart file to determine how to allocate
+     ! memory for the state structure, and then makes those allocations. This
+     ! subroutine is called prior to the transfer of the restart vectors into the
+     ! linked-list state structure.
+     ! ---------------------------------------------------------------------------------
+     use EDTypesMod,           only : ed_site_type
+     use EDTypesMod,           only : ed_cohort_type
+     use EDTypesMod,           only : ed_patch_type
+     use EDTypesMod,           only : ncwd
+     use EDTypesMod,           only : cp_nlevcan
+     use EDTypesMod,           only : cp_nclmax
+     use EDTypesMod,           only : numCohortsPerPatch
+     use EDTypesMod,           only : numpft_ed
+     use EDTypesMod,           only : area
+     use EDPatchDynamicsMod,   only : zero_patch
+     use EDGrowthFunctionsMod, only : Dbh
+     use EDCohortDynamicsMod,  only : create_cohort
+     use EDInitMod,            only : zero_site
+     use EDParamsMod,          only : ED_val_maxspread
+     use EDPatchDynamicsMod,   only : create_patch
+     use pftconMod,            only : pftcon
+
+     ! !ARGUMENTS:
+     class(fates_restart_interface_type) , intent(inout) :: this
+     integer                     , intent(in)            :: nc
+     integer                     , intent(in)            :: nsites
+     type(ed_site_type)          , intent(inout), target :: sites(nsites)
+
+     ! local variables
+     
+     type(ed_patch_type) , pointer     :: newp
+     type(ed_cohort_type), allocatable :: temp_cohort
+     real(r8)                          :: cwd_ag_local(ncwd)
+     real(r8)                          :: cwd_bg_local(ncwd)
+     real(r8)                          :: spread_local(cp_nclmax)
+     real(r8)                          :: leaf_litter_local(numpft_ed)
+     real(r8)                          :: root_litter_local(numpft_ed)
+     real(r8)                          :: patch_age
+     integer                           :: cohortstatus
+     integer                           :: s        ! site index
+     integer                           :: patchIdx ! local patch index, 1:
+     integer                           :: io_si    ! global site index in IO vector
+     integer                           :: io_co    ! global cohort index in IO vector
+     integer                           :: fto
+     integer                           :: ft
+
+     ! Dummy arguments used for calling create patch, these will be overwritten before
+     ! run-time.  Just used now for allocation.
+     cwd_ag_local(:)      = 0.0_r8
+     cwd_bg_local(:)      = 0.0_r8
+     leaf_litter_local(:) = 0.0_r8
+     root_litter_local(:) = 0.0_r8
+     spread_local(:)      = ED_val_maxspread
+     patch_age            = 0.0_r8
+
+     ! ----------------------------------------------------------------------------------
+     ! We really only need the counts for the number of patches per site
+     ! and the number of cohorts per patch. These values tell us how much
+     ! space to allocate.
+     ! ----------------------------------------------------------------------------------
+     
+     associate( rio_npatch_si  => this%rvars(ir_npatch_si)%int1d , &
+                rio_ncohort_pa => this%rvars(ir_ncohort_pa)%int1d )
+            
+       do s = 1,nsites
+          
+          io_si  = this%restart_map(nc)%site_index(s)
+          io_co  = this%restart_map(nc)%cohort1_index(s)
+          
+          call zero_site( sites(s) )
+          
+          ! 
+          ! set a few items that are necessary on restart for ED but not on the 
+          ! restart file
+          !
+          
+          sites(s)%ncd = 0.0_r8
+
+          if ( rio_npatch_si(io_si)<0 .or. rio_npatch_si(io_si) > 10000 ) then
+             write(fates_log(),*) 'a column was expected to contain a valid number of patches'
+             write(fates_log(),*) '0 is a valid number, but this column seems uninitialized',rio_npatch_si(io_si)
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+       
+          ! Initialize the site pointers to null
+          sites(s)%youngest_patch         => null()                 
+          sites(s)%oldest_patch           => null()
+
+          do patchIdx = 1,rio_npatch_si(io_si)
+
+             if ( DEBUG ) then
+                write(fates_log(),*) 'create patch ',patchIdx
+                write(fates_log(),*) 'patchIdx 1-numCohorts : ', rio_ncohort_pa( io_co )
+             end if
+             
+             ! create patch
+             allocate(newp)    
+             
+             ! make new patch
+             call create_patch(sites(s), newp, patch_age, area, &
+                  spread_local, cwd_ag_local, cwd_bg_local,  &
+                  leaf_litter_local, root_litter_local) 
+             
+             newp%siteptr => sites(s)
+
+             ! give this patch a unique patch number
+             newp%patchno = patchIdx
+
+             do fto = 1, rio_ncohort_pa( io_co )
+
+                allocate(temp_cohort)
+                
+                temp_cohort%n = 700.0_r8
+                temp_cohort%balive = 0.0_r8
+                temp_cohort%bdead = 0.0_r8
+                temp_cohort%bstore = 0.0_r8
+                temp_cohort%laimemory = 0.0_r8
+                temp_cohort%canopy_trim = 0.0_r8
+                temp_cohort%canopy_layer = 1.0_r8
+
+                ! set the pft (only 2 used in ed) based on odd/even cohort
+                ! number
+                ft=2
+                if ((mod(fto, 2)  ==  0 )) then
+                   ft=1
+                endif
+                
+                cohortstatus = newp%siteptr%status
+
+                if(pftcon%stress_decid(ft) == 1)then !drought decidous, override status. 
+                   cohortstatus = newp%siteptr%dstatus
+                endif
+
+                temp_cohort%hite = 1.25_r8
+                ! the dbh function should only take as an argument, the one
+                ! item it needs, not the entire cohort...refactor
+                temp_cohort%dbh = Dbh(temp_cohort) + 0.0001_r8*ft
+                
+                if (DEBUG) then
+                   write(fates_log(),*) 'EDRestVectorMod.F90::createPatchCohortStructure call create_cohort '
+                end if
+                
+                call create_cohort(newp, ft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
+                     temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore,  &
+                     temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, newp%NCL_p)
+                
+                deallocate(temp_cohort)
+                
+             enddo ! ends loop over fto
+             
+             !
+             ! insert this patch with cohorts into the site pointer.  At this
+             ! point just insert the new patch in the youngest position
+             !
+             if (patchIdx == 1) then ! nothing associated yet. first patch is pointed to by youngest and oldest
+                
+                if ( DEBUG ) write(fates_log(),*) 'patchIdx = 1 ',patchIdx
+                
+                sites(s)%youngest_patch         => newp                   
+                sites(s)%oldest_patch           => newp                        
+                sites(s)%youngest_patch%younger => null()
+                sites(s)%youngest_patch%older   => null()
+                sites(s)%oldest_patch%younger   => null()
+                sites(s)%oldest_patch%older     => null()
+                
+             else if (patchIdx == 2) then ! add second patch to list
+                
+                if ( DEBUG ) write(fates_log(),*) 'patchIdx = 2 ',patchIdx
+                
+                sites(s)%youngest_patch         => newp
+                sites(s)%youngest_patch%younger => null()
+                sites(s)%youngest_patch%older   => sites(s)%oldest_patch
+                sites(s)%oldest_patch%younger   => sites(s)%youngest_patch
+                sites(s)%oldest_patch%older     => null()
+
+             else ! more than 2 patches, insert patch into youngest slot
+                
+                if ( DEBUG ) write(fates_log(),*) 'patchIdx > 2 ',patchIdx
+                
+                newp%older                      => sites(s)%youngest_patch
+                sites(s)%youngest_patch%younger => newp
+                newp%younger                    => null()
+                sites(s)%youngest_patch         => newp
+                
+             endif
+             
+             io_co = io_co + numCohortsPerPatch
+
+          enddo ! ends loop over patchIdx
+
+       enddo ! ends loop over s
+       
+     end associate
+   end subroutine create_patchcohort_structure
+   
+   ! ====================================================================================
+
+   subroutine get_restart_vectors(this, nc, nsites, sites)
+
+     use EDTypesMod, only : ed_site_type
+     use EDTypesMod, only : ed_cohort_type
+     use EDTypesMod, only : ed_patch_type
+     use EDTypesMod, only : numpft_ed
+     use EDTypesMod, only : ncwd
+     use EDTypesMod, only : cp_nlevcan
+     use EDTypesMod, only : cp_nclmax
+     use EDTypesMod, only : numCohortsPerPatch
+     use EDTypesMod, only : cohorts_per_col
+     use EDTypesMod, only : numWaterMem
+
+     ! !ARGUMENTS:
+     class(fates_restart_interface_type) , intent(inout) :: this
+     integer                     , intent(in)            :: nc
+     integer                     , intent(in)            :: nsites
+     type(ed_site_type)          , intent(inout), target :: sites(nsites)
+
+
+     ! locals
+     ! ----------------------------------------------------------------------------------
+     ! LL pointers
+     type(ed_patch_type),pointer  :: cpatch      ! current patch
+     type(ed_cohort_type),pointer :: ccohort     ! current cohort
+
+     ! loop indices
+     integer :: s, i, j, k
+
+     ! ----------------------------------------------------------------------------------
+     ! The following group of integers indicate the positional index (idx)
+     ! of variables at different scales inside the I/O arrays (io)
+     ! Keep in mind that many of these variables have a composite dimension
+     ! at the patch scale.  To hold this memory, we borrow the cohort
+     ! vector.  Thus the head of each array points to the first cohort
+     ! of each patch. "io_idx_co_1st"
+     ! ----------------------------------------------------------------------------------
+     integer  :: io_idx_si      ! site index
+     integer  :: io_idx_co_1st  ! 1st cohort of each patch
+     integer  :: io_idx_co      ! cohort index
+     integer  :: io_idx_pa_pft  ! each pft within each patch (pa_pft)
+     integer  :: io_idx_pa_cwd  ! each cwd class within each patch (pa_cwd)
+     integer  :: io_idx_pa_cl   ! each canopy layer class within each patch (pa_cl)
+     integer  :: io_idx_pa_sunz ! index for the combined dimensions for radiation
+     integer  :: io_idx_si_wmem ! each water memory class within each site
+
+     ! Some counters (for checking mostly)
+     integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
+     integer  :: patchespersite   ! number of patches per site
+     integer  :: cohortsperpatch  ! number of cohorts per patch 
+     
+
+
+     associate( rio_npatch_si         => this%rvars(ir_npatch_si)%int1d, &
+          rio_old_stock_si            => this%rvars(ir_oldstock_si)%r81d, &
+          rio_cd_status_si            => this%rvars(ir_cd_status_si)%r81d, &
+          rio_dd_status_si            => this%rvars(ir_dd_status_si)%r81d, &
+          rio_nchill_days_si          => this%rvars(ir_nchill_days_si)%r81d, &
+          rio_leafondate_si           => this%rvars(ir_leafondate_si)%r81d, &
+          rio_leafoffdate_si          => this%rvars(ir_leafoffdate_si)%r81d, &
+          rio_dleafondate_si          => this%rvars(ir_dleafondate_si)%r81d, &
+          rio_dleafoffdate_si         => this%rvars(ir_dleafoffdate_si)%r81d, &
+          rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
+          rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
+          rio_nep_timeintegrated_si   => this%rvars(ir_nep_timeintegrated_si)%r81d, &
+          rio_npp_timeintegrated_si   => this%rvars(ir_npp_timeintegrated_si)%r81d, &
+          rio_hr_timeintegrated_si    => this%rvars(ir_hr_timeintegrated_si)%r81d, &
+          rio_cbal_err_fates_si       => this%rvars(ir_cbal_error_fates_si)%r81d, &
+          rio_cbal_err_bgc_si         => this%rvars(ir_cbal_error_bgc_si)%r81d, &
+          rio_cbal_err_tot_si         => this%rvars(ir_cbal_error_total_si)%r81d, &
+          rio_totecosysc_old_si       => this%rvars(ir_totecosysc_old_si)%r81d, &
+          rio_totfatesc_old_si        => this%rvars(ir_totfatesc_old_si)%r81d, &
+          rio_totbgcc_old_si          => this%rvars(ir_totbgcc_old_si)%r81d, &
+          rio_fates_to_bgc_this_ts_si => this%rvars(ir_fates_to_bgc_this_ts_si)%r81d, &
+          rio_fates_to_bgc_last_ts_si => this%rvars(ir_fates_to_bgc_last_ts_si)%r81d, &
+          rio_seedrainflux_si         => this%rvars(ir_seedrainflux_si)%r81d, &
+          rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
+          rio_balive_co               => this%rvars(ir_balive_co)%r81d, &
+          rio_bdead_co                => this%rvars(ir_bdead_co)%r81d, &
+          rio_bleaf_co                => this%rvars(ir_bleaf_co)%r81d, &
+          rio_broot_co                => this%rvars(ir_broot_co)%r81d, &
+          rio_bstore_co               => this%rvars(ir_bstore_co)%r81d, &
+          rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
+          rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
+          rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
+          rio_height_co               => this%rvars(ir_height_co)%r81d, &
+          rio_laimemory_co            => this%rvars(ir_laimemory_co)%r81d, &
+          rio_leaf_md_co              => this%rvars(ir_leaf_md_co)%r81d, &
+          rio_root_md_co              => this%rvars(ir_root_md_co)%r81d, &
+          rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
+          rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
+          rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
+          rio_gpp_co                  => this%rvars(ir_gpp_co)%r81d, &
+          rio_npp_co                  => this%rvars(ir_npp_co)%r81d, &
+          rio_npp_leaf_co             => this%rvars(ir_npp_leaf_co)%r81d, &
+          rio_npp_froot_co            => this%rvars(ir_npp_froot_co)%r81d, &
+          rio_npp_sw_co               => this%rvars(ir_npp_sw_co)%r81d, &
+          rio_npp_dead_co             => this%rvars(ir_npp_dead_co)%r81d, &
+          rio_npp_seed_co             => this%rvars(ir_npp_seed_co)%r81d, &
+          rio_npp_store_co            => this%rvars(ir_npp_store_co)%r81d, &
+          rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
+          rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
+          rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
+          rio_imort_co                => this%rvars(ir_imort_co)%r81d, &
+          rio_fmort_co                => this%rvars(ir_fmort_co)%r81d, &
+          rio_ddbhdt_co               => this%rvars(ir_ddbhdt_co)%r81d, &
+          rio_resp_tstep_co           => this%rvars(ir_resp_tstep_co)%r81d, &
+          rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
+          rio_status_co               => this%rvars(ir_status_co)%int1d, &
+          rio_isnew_co                => this%rvars(ir_isnew_co)%int1d, &
+          rio_cwd_ag_pacw             => this%rvars(ir_cwd_ag_pacw)%r81d, &
+          rio_cwd_bg_pacw             => this%rvars(ir_cwd_bg_pacw)%r81d, &
+          rio_leaf_litter_paft        => this%rvars(ir_leaf_litter_paft)%r81d, &
+          rio_root_litter_paft        => this%rvars(ir_root_litter_paft)%r81d, &
+          rio_leaf_litter_in_paft     => this%rvars(ir_leaf_litter_in_paft)%r81d, &
+          rio_root_litter_in_paft     => this%rvars(ir_root_litter_in_paft)%r81d, &
+          rio_seed_bank_co            => this%rvars(ir_seed_bank_co)%r81d, &
+          rio_spread_pacl             => this%rvars(ir_spread_pacl)%r81d, &
+          rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
+          rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
+          rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
+          rio_fsun_paclftls           => this%rvars(ir_fsun_paclftls)%r81d, &
+          rio_fabd_sun_z_paclftls     => this%rvars(ir_fabd_sun_paclftls)%r81d, &
+          rio_fabi_sun_z_paclftls     => this%rvars(ir_fabi_sun_paclftls)%r81d, &
+          rio_fabd_sha_z_paclftls     => this%rvars(ir_fabd_sha_paclftls)%r81d, &
+          rio_fabi_sha_z_paclftls     => this%rvars(ir_fabi_sha_paclftls)%r81d, &
+          rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d )
+     
+       totalcohorts = 0
+     
+       do s = 1,nsites
+          
+          io_idx_si      = this%restart_map(nc)%site_index(s)
+          io_idx_co_1st  = this%restart_map(nc)%cohort1_index(s)
+          
+          io_idx_co      = io_idx_co_1st
+          io_idx_pa_pft  = io_idx_co_1st
+          io_idx_pa_cwd  = io_idx_co_1st
+          io_idx_pa_cl   = io_idx_co_1st
+          io_idx_pa_sunz = io_idx_co_1st
+          io_idx_si_wmem = io_idx_co_1st
+          
+          ! read seed_bank info(site-level, but PFT-resolved)
+          do i = 1,numpft_ed 
+             rio_seed_bank_co(io_idx_co_1st+i-1) = sites(s)%seed_bank(i)
+          enddo
+          
+          ! Perform a check on the number of patches per site
+          patchespersite = 0
+          
+          cpatch => sites(s)%oldest_patch
+          do while(associated(cpatch))
+             
+             patchespersite = patchespersite + 1
+             
+             ccohort => cpatch%shortest
+             
+             ! new patch, reset num cohorts
+             cohortsperpatch = 0
+             
+             do while(associated(ccohort))        
+                
+                ! found cohort, increment
+                cohortsperpatch  = cohortsperpatch    + 1
+                totalcohorts     = totalcohorts + 1
+                
+                if ( DEBUG ) then
+                   write(fates_log(),*) 'CVTL io_idx_co ',io_idx_co
+                endif
+
+                ccohort%balive       = rio_balive_co(io_idx_co)
+                ccohort%bdead        = rio_bdead_co(io_idx_co)
+                ccohort%bl           = rio_bleaf_co(io_idx_co)
+                ccohort%br           = rio_broot_co(io_idx_co)
+                ccohort%bstore       = rio_bstore_co(io_idx_co)
+                ccohort%canopy_layer = rio_canopy_layer_co(io_idx_co)
+                ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)
+                ccohort%dbh          = rio_dbh_co(io_idx_co)
+                ccohort%hite         = rio_height_co(io_idx_co)
+                ccohort%laimemory    = rio_laimemory_co(io_idx_co)
+                ccohort%leaf_md      = rio_leaf_md_co(io_idx_co)
+                ccohort%root_md      = rio_root_md_co(io_idx_co)
+                ccohort%n            = rio_nplant_co(io_idx_co)
+                ccohort%gpp_acc      = rio_gpp_acc_co(io_idx_co)
+                ccohort%npp_acc      = rio_npp_acc_co(io_idx_co)
+                ccohort%gpp          = rio_gpp_co(io_idx_co)
+                ccohort%npp          = rio_npp_co(io_idx_co)
+                ccohort%npp_leaf     = rio_npp_leaf_co(io_idx_co)
+                ccohort%npp_froot    = rio_npp_froot_co(io_idx_co)
+                ccohort%npp_bsw      = rio_npp_sw_co(io_idx_co)
+                ccohort%npp_bdead    = rio_npp_dead_co(io_idx_co)
+                ccohort%npp_bseed    = rio_npp_seed_co(io_idx_co)
+                ccohort%npp_store    = rio_npp_store_co(io_idx_co)
+                ccohort%bmort        = rio_bmort_co(io_idx_co)
+                ccohort%hmort        = rio_hmort_co(io_idx_co)
+                ccohort%cmort        = rio_cmort_co(io_idx_co)
+                ccohort%imort        = rio_imort_co(io_idx_co)
+                ccohort%fmort        = rio_fmort_co(io_idx_co)
+                ccohort%ddbhdt       = rio_ddbhdt_co(io_idx_co)
+                ccohort%resp_tstep   = rio_resp_tstep_co(io_idx_co)
+                ccohort%pft          = rio_pft_co(io_idx_co)
+                ccohort%status_coh   = rio_status_co(io_idx_co)
+                ccohort%isnew        = ( rio_isnew_co(io_idx_co) .eq. new_cohort )
+                
+                io_idx_co = io_idx_co + 1
+             
+                ccohort => ccohort%taller
+                
+             enddo ! current cohort do while
+
+             if(cohortsperpatch .ne. rio_ncohort_pa(io_idx_co_1st)) then
+                write(fates_log(),*) 'Number of cohorts per patch during retrieval'
+                write(fates_log(),*) 'does not match allocation'
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+             end if
+
+          
+             ! FIX(SPM,032414) move to init if you can...or make a new init function
+             cpatch%leaf_litter(:)    = 0.0_r8
+             cpatch%root_litter(:)    = 0.0_r8
+             cpatch%leaf_litter_in(:) = 0.0_r8
+             cpatch%root_litter_in(:) = 0.0_r8
+             cpatch%spread(:)         = 0.0_r8
+             
+             !
+             ! deal with patch level fields here
+             !
+             cpatch%livegrass  = rio_livegrass_pa(io_idx_co_1st)
+             cpatch%age        = rio_age_pa(io_idx_co_1st) 
+             cpatch%area       = rio_area_pa(io_idx_co_1st) 
+             
+             ! set cohorts per patch for IO
+             
+             if ( DEBUG ) then
+                write(fates_log(),*) 'CVTL III ' &
+                     ,io_idx_co,cohorts_per_col, cohortsperpatch
+             endif
+             !
+             ! deal with patch level fields of arrays here
+             !
+             ! these are arrays of length numpft_ed, each patch contains one
+             ! vector so we increment 
+
+             do i = 1,numpft_ed
+                cpatch%leaf_litter(i)    = rio_leaf_litter_paft(io_idx_pa_pft)    
+                cpatch%root_litter(i)    = rio_root_litter_paft(io_idx_pa_pft)    
+                cpatch%leaf_litter_in(i) = rio_leaf_litter_in_paft(io_idx_pa_pft) 
+                cpatch%root_litter_in(i) = rio_root_litter_in_paft(io_idx_pa_pft) 
+                io_idx_pa_pft = io_idx_pa_pft + 1
+             enddo
+          
+             do i = 1,ncwd ! ncwd currently 4
+                cpatch%cwd_ag(i) = rio_cwd_ag_pacw(io_idx_pa_cwd)
+                cpatch%cwd_bg(i) = rio_cwd_bg_pacw(io_idx_pa_cwd)
+                io_idx_pa_cwd = io_idx_pa_cwd + 1
+             enddo
+             
+             do i = 1,cp_nclmax ! cp_nclmax currently 2
+                cpatch%spread(i) = rio_spread_pacl(io_idx_pa_cl) 
+                io_idx_pa_cl  = io_idx_pa_cl + 1
+             enddo
+             
+             if ( DEBUG ) write(fates_log(),*) 'CVTL io_idx_pa_sunz 1 ',io_idx_pa_sunz
+             
+             do k = 1,cp_nlevcan ! cp_nlevcan currently 40
+                do j = 1,numpft_ed ! numpft_ed currently 2
+                   do i = 1,cp_nclmax ! cp_nclmax currently 2
+                      cpatch%f_sun(i,j,k)      = rio_fsun_paclftls(io_idx_pa_sunz) 
+                      cpatch%fabd_sun_z(i,j,k) = rio_fabd_sun_z_paclftls(io_idx_pa_sunz) 
+                      cpatch%fabi_sun_z(i,j,k) = rio_fabi_sun_z_paclftls(io_idx_pa_sunz) 
+                      cpatch%fabd_sha_z(i,j,k) = rio_fabd_sha_z_paclftls(io_idx_pa_sunz) 
+                      cpatch%fabi_sha_z(i,j,k) = rio_fabi_sha_z_paclftls(io_idx_pa_sunz) 
+                      io_idx_pa_sunz = io_idx_pa_sunz + 1
+                   end do
+                end do
+             end do
+             
+             if ( DEBUG ) write(fates_log(),*) 'CVTL io_idx_pa_sunz 2 ',io_idx_pa_sunz
+             
+             ! Now increment the position of the first cohort to that of the next
+             ! patch
+             
+             io_idx_co_1st = io_idx_co_1st + numcohortsPerPatch
+             
+             ! and the number of allowed cohorts per patch (currently 200)
+             io_idx_pa_pft  = io_idx_co_1st
+             io_idx_pa_cwd  = io_idx_co_1st
+             io_idx_pa_cl   = io_idx_co_1st
+             io_idx_co      = io_idx_co_1st
+             io_idx_pa_sunz = io_idx_co_1st
+             
+             if ( DEBUG ) then
+                write(fates_log(),*) 'CVTL io_idx_co_1st ', io_idx_co_1st
+                write(fates_log(),*) 'CVTL cohorts_per_col ', cohorts_per_col
+                write(fates_log(),*) 'CVTL cohortsperpatch ', cohortsperpatch
+                write(fates_log(),*) 'CVTL totalCohorts ', totalCohorts
+             end if
+             
+             cpatch => cpatch%younger
+             
+          enddo ! patch do while
+          
+          if(patchespersite .ne. rio_npatch_si(io_idx_si)) then
+             write(fates_log(),*) 'Number of patches per site during retrieval does not match allocation'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+          
+          
+          do i = 1,numWaterMem
+             sites(s)%water_memory(i) = rio_watermem_siwm( io_idx_si_wmem )
+             io_idx_si_wmem = io_idx_si_wmem + 1
+          end do
+          
+          sites(s)%old_stock      = rio_old_stock_si(io_idx_si)
+          sites(s)%status         = rio_cd_status_si(io_idx_si)
+          sites(s)%dstatus        = rio_dd_status_si(io_idx_si)
+          sites(s)%ncd            = rio_nchill_days_si(io_idx_si)
+          sites(s)%leafondate     = rio_leafondate_si(io_idx_si)
+          sites(s)%leafoffdate    = rio_leafoffdate_si(io_idx_si)
+          sites(s)%dleafondate    = rio_dleafondate_si(io_idx_si)
+          sites(s)%dleafoffdate   = rio_dleafoffdate_si(io_idx_si)
+          sites(s)%acc_NI         = rio_acc_ni_si(io_idx_si)
+          sites(s)%ED_GDD_site    = rio_gdd_si(io_idx_si)
+
+          ! Carbon Balance and Checks
+          sites(s)%nep_timeintegrated   = rio_nep_timeintegrated_si(io_idx_si)
+          sites(s)%npp_timeintegrated   = rio_npp_timeintegrated_si(io_idx_si)
+          sites(s)%hr_timeintegrated    = rio_hr_timeintegrated_si(io_idx_si)
+          sites(s)%totecosysc_old       = rio_totecosysc_old_si(io_idx_si)
+          sites(s)%totfatesc_old        = rio_totfatesc_old_si(io_idx_si)
+          sites(s)%totbgcc_old          = rio_totbgcc_old_si(io_idx_si)
+          sites(s)%cbal_err_fates       = rio_cbal_err_fates_si(io_idx_si)
+          sites(s)%cbal_err_bgc         = rio_cbal_err_bgc_si(io_idx_si)
+          sites(s)%cbal_err_tot         = rio_cbal_err_tot_si(io_idx_si)
+          sites(s)%fates_to_bgc_this_ts = rio_fates_to_bgc_this_ts_si(io_idx_si)
+          sites(s)%fates_to_bgc_last_ts = rio_fates_to_bgc_last_ts_si(io_idx_si)
+          sites(s)%tot_seed_rain_flux   = rio_seedrainflux_si(io_idx_si)
+          
+       end do
+       
+       if ( DEBUG ) then
+          write(fates_log(),*) 'CVTL total cohorts ',totalCohorts
+       end if
+       
+     end associate
+   end subroutine get_restart_vectors
+   
+ end module FatesRestartInterfaceMod
