@@ -288,7 +288,7 @@ contains
 
       nclumps = get_proc_clumps()
 
-      !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,nmaxcol,s,c,l,collist)
+      !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,nmaxcol,s,c,l,g,collist)
       do nc = 1,nclumps
          
          call get_clump_bounds(nc, bounds_clump)
@@ -355,8 +355,7 @@ contains
 
          ! Allocate and Initialize the Boundary Condition Arrays
          ! These are staticaly allocated at maximums, so
-         ! No information about the patch or cohort
-         ! structure is needed at this step
+         ! No information about the patch or cohort structure is needed at this step
          
          do s = 1, this%fates(nc)%nsites
             call allocate_bcin(this%fates(nc)%bc_in(s))
@@ -648,14 +647,30 @@ contains
      end associate
    end subroutine wrap_update_hlmfates_dyn
 
-   ! ------------------------------------------------------------------------------------
+   ! ====================================================================================
 
    subroutine restart( this, bounds_proc, ncid, flag, waterstate_inst, canopystate_inst )
+
+      ! ---------------------------------------------------------------------------------
+      ! The ability to restart the model is handled through three different types of calls
+      ! "Define" the variables in the restart file, we "read" those variables into memory
+      ! or "write" data into the file from memory.  This subroutine accomodates all three
+      ! of those modes through the "flag" argument.  FATES as an external model also
+      ! requires an initialization step, where we set-up the dimensions, allocate and
+      ! flush the memory space that is used to transfer data in and out of the file.  This
+      ! Only occurs once, where as the define step occurs every time a file is opened.
+      !
+      ! Note: waterstate_inst and canopystate_inst are arguments only because following
+      ! the reading of variables, it is necessary to update diagnostics of the canopy
+      ! throug the interface call clm_fates%wrap_update_hlmfates_dyn() which requires
+      ! this information from the HLM.
+      ! ---------------------------------------------------------------------------------
+
 
      use FatesConstantsMod, only : fates_long_string_length
      use FatesIODimensionsMod, only: fates_bounds_type
      use FatesIOVariableKindMod, only : site_r8, site_int, cohort_r8, cohort_int
-     use EDTypesMod      , only:  cohorts_per_col ! EDtypes should be protected
+     use EDTypesMod, only:        cohorts_per_col ! EDtypes should be protected
                                                   ! this variable should be transferred
                                                   ! to a location where we keep
                                                   ! variables that are co-dictated by
@@ -699,9 +714,15 @@ contains
       ! can be unallocated,reallocated and set every time a new column/site is spawned
       ! ---------------------------------------------------------------------------------
 
-
       ! ---------------------------------------------------------------------------------
       ! Only initialize the FATES restart structures the first time it is called
+      ! Note that the allocations involved with initialization are static.
+      ! This is because the array spaces for IO span the entire column, patch and cohort
+      ! range on the proc.
+      ! With DYNAMIC LANDUNITS or SPAWNING NEW OR CULLING OLD SITES:
+      ! we will in that case have to de-allocate, reallocate and then re-set the mapping
+      ! tables:  this%fates_restart%restart_map(nc)
+      ! I think that is it...
       ! ---------------------------------------------------------------------------------
 
       if(.not.initialized) then
@@ -712,14 +733,12 @@ contains
          ! PART I: Set FATES DIMENSIONING INFORMATION
          ! ------------------------------------------------------------------------------
          
-         ! This is also called during history initialization  (rgk-11-2016)
-         ! It is harmlessly redundant
          call hlm_bounds_to_fates_bounds(bounds_proc, fates_bounds)
          
          call this%fates_restart%Init(nclumps, fates_bounds)
          
          ! Define the bounds on the first dimension for each thread
-         !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,fates_clump,s,c)
+         !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,fates_clump)
          do nc = 1,nclumps
             call get_clump_bounds(nc, bounds_clump)
             
@@ -771,7 +790,7 @@ contains
       ! ---------------------------------------------------------------------------------
 
       if(flag=='write')then
-         !$OMP PARALLEL DO PRIVATE (nc,bounds_clump)
+         !$OMP PARALLEL DO PRIVATE (nc)
          do nc = 1, nclumps
             if (this%fates(nc)%nsites>0) then
                call this%fates_restart%set_restart_vectors(nc,this%fates(nc)%nsites, &
