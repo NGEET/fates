@@ -106,6 +106,8 @@ contains
     !
     ! !USES:
     use clm_time_manager, only : get_curr_date    
+    use ExternalModelConstants   , only : EM_ID_FATES, EM_FATES_SUNFRAC_STAGE
+    use ExternalModelInterfaceMod, only : EMI_Driver
     !
     ! !ARGUMENTS:
     implicit none
@@ -412,7 +414,13 @@ contains
 
        if(use_ed) then
 
+          if (1 == 1) then
+          call EMI_Driver(em_id = EM_ID_FATES, em_stage = EM_FATES_SUNFRAC_STAGE, &
+                          clump_rank = nc, atm2lnd_vars = atm2lnd_inst, &
+                          canopystate_vars=canopystate_inst)
+          else
           call clm_fates%wrap_sunfrac(nc,atm2lnd_inst, canopystate_inst)
+          endif
           
        else
           call CanopySunShadeFracs(filter(nc)%nourbanp,filter(nc)%num_nourbanp,     &

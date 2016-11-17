@@ -55,6 +55,7 @@ contains
     use ch4varcon        , only: ch4conrd
     use UrbanParamsType  , only: UrbanInput, IsSimpleBuildTemp
     use dynSubgridControlMod, only: dynSubgridControl_init
+    use ExternalModelInterfaceMod, only : EMI_Determine_Active_EMs
     !
     ! !LOCAL VARIABLES:
     integer           :: ier                     ! error status
@@ -197,6 +198,9 @@ contains
     call col%Init  (bounds_proc%begc, bounds_proc%endc)
     call patch%Init(bounds_proc%begp, bounds_proc%endp)
 
+    ! Determine the number of active external models.
+    call EMI_Determine_Active_EMs()
+
     if ( use_ed ) then
        ! INTERF-TODO:  THIS GUY NEEDS TO BE MOVED TO THE INTERFACE
        call ed_vec_cohort%Init(bounds_proc%begCohort,bounds_proc%endCohort)
@@ -285,6 +289,8 @@ contains
     use NutrientCompetitionFactoryMod, only : create_nutrient_competition_method
     use controlMod            , only : NLFilename
     use clm_instMod           , only : clm_fates
+    use ExternalModelInterfaceMod, only : EMI_Init_EM
+    use ExternalModelConstants   , only : EM_ID_FATES
     !
     ! !ARGUMENTS    
     !
@@ -679,6 +685,9 @@ contains
        write(iulog,*)
     endif
     call t_stopf('init_wlog')
+
+    ! Initialize EM version of FATES
+    call EMI_Init_EM(EM_ID_FATES)
 
     call t_stopf('clm_init2')
 
