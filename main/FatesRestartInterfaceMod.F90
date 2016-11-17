@@ -32,7 +32,7 @@ module FatesRestartInterfaceMod
   ! We also use associations to the data arrays of restart IO
   ! variables "rio", for example the leaf litter "leaf_litter"
   ! is retrieved for every patch and every functional type "paft"
-  ! thus: ir_leaf_litter_paft
+  ! thus: rio_leaf_litter_paft
   !
   ! si: site dimension
   ! pa: patch dimension
@@ -84,8 +84,8 @@ module FatesRestartInterfaceMod
   integer, private :: ir_nplant_co
   integer, private :: ir_gpp_acc_co
   integer, private :: ir_npp_acc_co
-  integer, private :: ir_gpp_co
-  integer, private :: ir_npp_co
+  integer, private :: ir_gpp_co  ! IS THIS VARIABLE NECESSARY? ... (RGK 11-2016)
+  integer, private :: ir_npp_co  ! IS THIS VARIABLE NECESSARY? ... (RGK 11-2016)
   integer, private :: ir_npp_leaf_co
   integer, private :: ir_npp_froot_co
   integer, private :: ir_npp_sw_co
@@ -121,8 +121,8 @@ module FatesRestartInterfaceMod
   integer, private :: ir_watermem_siwm
 
   ! The number of variable dim/kind types we have defined (static)
-  integer, parameter :: fates_restart_num_dimensions = 2
-  integer, parameter :: fates_restart_num_dim_kinds = 4
+  integer, parameter :: fates_restart_num_dimensions = 2   !(cohort,column)
+  integer, parameter :: fates_restart_num_dim_kinds = 4    !(cohort-int,cohort-r8,site-int,site-r8)
 
   ! integer constants for storing logical data
   integer, parameter :: old_cohort = 0
@@ -141,7 +141,7 @@ module FatesRestartInterfaceMod
   ! more for things like flushing
   type restart_map_type
      integer, allocatable :: site_index(:)   ! maps site indexes to the HIO site position
-     integer, allocatable :: patch1_index(:) ! maps site index to the HIO patch 1st position
+!     integer, allocatable :: patch1_index(:) ! maps site index to the HIO patch 1st position
      integer, allocatable :: cohort1_index(:) ! maps site index to the HIO cohort 1st position
   end type restart_map_type
 
@@ -182,15 +182,11 @@ module FatesRestartInterfaceMod
      ! private work functions
      procedure, private :: init_dim_kinds_maps
      procedure, private :: set_dim_indices
-!     procedure, private :: set_patch_index (not currently used rgk 11-2016)
      procedure, private :: set_cohort_index
      procedure, private :: set_column_index
      procedure, private :: flushzero_rvars
-     
      procedure, private :: define_restart_vars
      procedure, private :: set_restart_var
-     
-     
 
   end type fates_restart_interface_type
 

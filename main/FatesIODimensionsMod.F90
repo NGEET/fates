@@ -30,8 +30,8 @@ module FatesIODimensionsMod
        integer :: patch_end
        integer :: cohort_begin
        integer :: cohort_end
-       integer :: column_begin
-       integer :: column_end
+       integer :: column_begin          ! FATES does not have a "column" type
+       integer :: column_end            ! we call this a "site" (rgk 11-2016)
        integer :: ground_begin
        integer :: ground_end
        integer :: pft_class_begin
