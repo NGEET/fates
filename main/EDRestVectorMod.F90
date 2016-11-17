@@ -9,7 +9,7 @@ module EDRestVectorMod
   use spmdMod         , only : masterproc
   use decompMod       , only : bounds_type
   use pftconMod       , only : pftcon
-  use EDTypesMod      , only : area, cohorts_per_col, numpft_ed, numWaterMem, cp_nclmax, numCohortsPerPatch
+  use EDTypesMod      , only : area, cohorts_per_col, numpft_ed, numWaterMem, cp_nclmax, maxCohortsPerPatch
   use EDTypesMod      , only : ncwd, invalidValue, cp_nlevcan
   use EDTypesMod      , only : ed_site_type, ed_patch_type, ed_cohort_type
   use abortutils      , only : endrun
@@ -1833,7 +1833,7 @@ contains
           
           if (this%DEBUG) write(iulog,*) 'CLTV countSunZ 2 ',countSunZ
           
-          incrementOffset = incrementOffset + numCohortsPerPatch
+          incrementOffset = incrementOffset + maxCohortsPerPatch
           
           ! reset counters so that they are all advanced evenly. Currently
           ! the offset is 10, the max of numpft_ed, ncwd, cp_nclmax,
@@ -2076,7 +2076,7 @@ contains
 
           endif
 
-          currIdx = currIdx + numCohortsPerPatch
+          currIdx = currIdx + maxCohortsPerPatch
 
        enddo ! ends loop over patchIdx
 
@@ -2271,7 +2271,7 @@ contains
           
           if (this%DEBUG) write(iulog,*) 'CVTL countSunZ 2 ',countSunZ
           
-          incrementOffset = incrementOffset + numCohortsPerPatch
+          incrementOffset = incrementOffset + maxCohortsPerPatch
 
           ! and the number of allowed cohorts per patch (currently 200)
           countPft      = incrementOffset

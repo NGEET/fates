@@ -11,7 +11,7 @@ module EDCohortDynamicsMod
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : fusetol, cp_nclmax
-  use EDtypesMod            , only : ncwd, numcohortsperpatch, udata
+  use EDtypesMod            , only : ncwd, maxcohortsperpatch, udata
   use EDtypesMod            , only : sclass_ed,nlevsclass_ed,AREA
   use EDtypesMod            , only : min_npm2, min_nppatch, min_n_safemath
   !
@@ -616,7 +616,7 @@ contains
     iterate = 1
     fusion_took_place = 0   
     currentPatch => patchptr
-    maxcohorts = numCohortsPerPatch
+    maxcohorts = maxCohortsPerPatch
   
     !---------------------------------------------------------------------!
     !  Keep doing this until nocohorts <= maxcohorts                         !

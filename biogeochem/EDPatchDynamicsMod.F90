@@ -9,7 +9,7 @@ module EDPatchDynamicsMod
   use clm_varctl           , only : iulog 
   use pftconMod            , only : pftcon
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
-  use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, numpft_ed, area, dbhmax, numPatchesPerCol
+  use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, numpft_ed, area, dbhmax, maxPatchesPerCol
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type, udata
   use EDTypesMod           , only : min_patch_area, cp_numlevgrnd, cp_numSWb
   !
@@ -1018,7 +1018,7 @@ contains
     !---------------------------------------------------------------------
 
     !maxpatch = 4  
-    maxpatch = numPatchesPerCol
+    maxpatch = maxPatchesPerCol
 
     currentSite => csite 
 
