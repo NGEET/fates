@@ -343,6 +343,7 @@ contains
    column_index = this%column_index_
  end function column_index
  
+ ! =======================================================================
 
  subroutine init_dim_kinds_maps(this)
     
@@ -388,7 +389,8 @@ contains
   end subroutine init_dim_kinds_maps
 
 
-   ! ====================================================================================
+  ! ====================================================================================
+
   integer function num_restart_vars(this)
     
     implicit none
@@ -446,29 +448,16 @@ contains
     
     ! ---------------------------------------------------------------------------------
     ! 
-    !                    REGISTRY OF HISTORY OUTPUT VARIABLES
+    !                    REGISTRY OF RESTART OUTPUT VARIABLES
     !
-    ! This subroutine is called in two contexts, either in count mode or inialize mode
-    ! In count mode, we just walk through the list of registerred variables, compare
-    ! if the variable of interest list the current host model and add it to the count
-    ! if true.  This count is used just to allocate the variable space.  After this
-    ! has been done, we go through the list a second time populating a memory structure.
-    ! This phase is the "initialize" phase.  These two phases are differntiated by the
-    ! string "callstep", which should be either "count" or "initialize".
+    ! Please add any restart variables to this registry. This registry will handle
+    ! all variables that can make use of 1D column dimensioned or 1D cohort dimensioned
+    ! variables.  Note that restarts are only using 1D vectors in ALM and CLM.  If you
+    ! have a multi-dimensional variable that is below the cohort scale, then pack
+    ! that variable into a cohort-sized output array by giving it a vtype "cohort_r8"
+    ! or "cohort_int".  
     !
-    ! Note 1 there are different ways you can flush or initialize the output fields.
-    ! If you flush to a native type, (such as zero), the entire slab which covers
-    ! indices which may not be relevant to FATES, are flushed to this value.  So
-    ! in that case, lakes and crops that are not controlled by FATES will zero'd
-    ! and when values are scaled up to the land-grid, the zero's for non FATES will
-    ! be included.  This is good and correct if nothing is there.  
-    !
-    ! But, what if crops exist in the host model and occupy a fraction of the land-surface
-    ! shared with natural vegetation? In that case, you want to flush your arrays
-    ! with a value that the HLM treats as "do not average"
-    ! 
-    ! If your HLM makes use of, and you want, INTEGER OUTPUT, pass the flushval as
-    ! a real.  The applied flush value will use the NINT() intrinsic function
+    ! Unlike history variables, restarts flush to zero.
     ! ---------------------------------------------------------------------------------
    
     use FatesIOVariableKindMod, only : site_r8, site_int, cohort_int, cohort_r8
@@ -858,7 +847,7 @@ contains
 
    use EDTypesMod, only : cp_nclmax
    use EDTypesMod, only : cp_nlevcan
-   use EDTypesMod, only : numCohortsPerPatch
+   use EDTypesMod, only : maxCohortsPerPatch
    use EDTypesMod, only : numpft_ed
    use EDTypesMod, only : ed_site_type
    use EDTypesMod, only : ed_cohort_type
@@ -875,30 +864,31 @@ contains
 
     ! Locals
     integer  :: s        ! The local site index
-    integer  :: io_si     ! The site index of the IO array
-    integer  :: io_co
-    integer  :: incrementOffset
-    integer  :: countCohort
-    integer  :: countPft
-    integer  :: countNcwd
-    integer  :: countNclmax
-    integer  :: countWaterMem
-    integer  :: countSunZ
-    integer  :: numCohorts
-    integer  :: numPatches
 
-    integer  :: ivar             ! index of IO variable object vector
+    ! ----------------------------------------------------------------------------------
+    ! The following group of integers indicate the positional index (idx)
+    ! of variables at different scales inside the I/O arrays (io)
+    ! Keep in mind that many of these variables have a composite dimension
+    ! at the patch scale.  To hold this memory, we borrow the cohort
+    ! vector.  Thus the head of each array points to the first cohort
+    ! of each patch. "io_idx_co_1st"
+    ! ----------------------------------------------------------------------------------
+    integer  :: io_idx_si      ! site index
+    integer  :: io_idx_co_1st  ! 1st cohort of each patch
+    integer  :: io_idx_co      ! cohort index
+    integer  :: io_idx_pa_pft  ! each pft within each patch (pa_pft)
+    integer  :: io_idx_pa_cwd  ! each cwd class within each patch (pa_cwd)
+    integer  :: io_idx_pa_cl   ! each canopy layer class within each patch (pa_cl)
+    integer  :: io_idx_pa_sunz ! index for the combined dimensions for radiation
+    integer  :: io_idx_si_wmem ! each water memory class within each site
+    
+    ! Some counters (for checking mostly)
+    integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
+    integer  :: patchespersite   ! number of patches per site
+    integer  :: cohortsperpatch  ! number of cohorts per patch 
+
     integer  :: ft               ! functional type index
-    integer  :: scpf             ! index of the size-class x pft bin
-    integer  :: sc               ! index of the size-class bin
-    integer  :: totalcohorts     ! total cohort count
     integer  :: k,j,i            ! indices to the radiation matrix
-
-    real(r8) :: n_density   ! individual of cohort per m2.
-    real(r8) :: n_perm2     ! individuals per m2 for the whole column
-    real(r8) :: patch_scaling_scalar ! ratio of canopy to patch area for 
-                                     ! counteracting patch scaling
-    real(r8) :: dbh         ! diameter ("at breast height")
     
     type(fates_restart_variable_type) :: rvar
     type(ed_patch_type),pointer  :: cpatch
@@ -995,93 +985,92 @@ contains
           ! For the first site, if that site aligns with the first column index
           ! in the clump, than the offset should be be equal to begCohort
           
-          io_si  = this%restart_map(nc)%site_index(s)
-          io_co  = this%restart_map(nc)%cohort1_index(s)
-          
-          incrementOffset     = io_co
-          countCohort         = io_co
-          countPft            = io_co
-          countNcwd           = io_co
-          countNclmax         = io_co
-          countWaterMem       = io_co
-          countSunZ           = io_co
+          io_idx_si  = this%restart_map(nc)%site_index(s)
+          io_idx_co_1st  = this%restart_map(nc)%cohort1_index(s)
+
+          io_idx_co         = io_idx_co_1st
+          io_idx_pa_pft            = io_idx_co_1st
+          io_idx_pa_cwd           = io_idx_co_1st
+          io_idx_pa_cl         = io_idx_co_1st
+          io_idx_si_wmem       = io_idx_co_1st
+          io_idx_pa_sunz           = io_idx_co_1st
           
           ! write seed_bank info(site-level, but PFT-resolved)
           do i = 1,numpft_ed
-             rio_seed_bank_co(incrementOffset+i-1) = sites(s)%seed_bank(i)
+             rio_seed_bank_co(io_idx_co_1st+i-1) = sites(s)%seed_bank(i)
           end do
           
           cpatch => sites(s)%oldest_patch
           
           ! new column, reset num patches
-          numPatches = 0
+          patchespersite = 0
           
           do while(associated(cpatch))
              
              ! found patch, increment
-             numPatches = numPatches + 1
+             patchespersite = patchespersite + 1
              
              ccohort => cpatch%shortest
              
              ! new patch, reset num cohorts
-             numCohorts = 0
+             cohortsperpatch = 0
              
              do while(associated(ccohort))
                 
                 ! found cohort, increment
-                numCohorts       = numCohorts    + 1
+                cohortsperpatch       = cohortsperpatch    + 1
                 totalCohorts     = totalCohorts + 1
              
                 if ( DEBUG ) then
-                   write(fates_log(),*) 'CLTV countCohort ', countCohort
+                   write(fates_log(),*) 'CLTV io_idx_co ', io_idx_co
                    write(fates_log(),*) 'CLTV lowerbound ', lbound(rio_npp_acc_co,1) 
                    write(fates_log(),*) 'CLTV upperbound  ', ubound(rio_npp_acc_co,1)
                 endif
              
-                rio_balive_co(countCohort)       = ccohort%balive
-                rio_bdead_co(countCohort)        = ccohort%bdead
-                rio_bleaf_co(countCohort)        = ccohort%bl
-                rio_broot_co(countCohort)        = ccohort%br
-                rio_bstore_co(countCohort)       = ccohort%bstore
-                rio_canopy_layer_co(countCohort) = ccohort%canopy_layer
-                rio_canopy_trim_co(countCohort)  = ccohort%canopy_trim
-                rio_dbh_co(countCohort)          = ccohort%dbh
-                rio_height_co(countCohort)       = ccohort%hite
-                rio_laimemory_co(countCohort)    = ccohort%laimemory
-                rio_leaf_md_co(countCohort)      = ccohort%leaf_md
-                rio_root_md_co(countCohort)      = ccohort%root_md
-                rio_nplant_co(countCohort)       = ccohort%n
-                rio_gpp_acc_co(countCohort)      = ccohort%gpp_acc
-                rio_npp_acc_co(countCohort)      = ccohort%npp_acc
-                rio_gpp_co(countCohort)          = ccohort%gpp
-                rio_npp_co(countCohort)          = ccohort%npp
-                rio_npp_leaf_co(countCohort)     = ccohort%npp_leaf
-                rio_npp_froot_co(countCohort)    = ccohort%npp_froot
-                rio_npp_sw_co(countCohort)       = ccohort%npp_bsw
-                rio_npp_dead_co(countCohort)     = ccohort%npp_bdead
-                rio_npp_seed_co(countCohort)     = ccohort%npp_bseed
-                rio_npp_store_co(countCohort)    = ccohort%npp_store
-                rio_bmort_co(countCohort)        = ccohort%bmort
-                rio_hmort_co(countCohort)        = ccohort%hmort
-                rio_cmort_co(countCohort)        = ccohort%cmort
-                rio_imort_co(countCohort)        = ccohort%imort
-                rio_fmort_co(countCohort)        = ccohort%fmort
-                rio_ddbhdt_co(countCohort)       = ccohort%ddbhdt
-                rio_resp_tstep_co(countCohort)   = ccohort%resp_tstep
-                rio_pft_co(countCohort)          = ccohort%pft
-                rio_status_co(countCohort)       = ccohort%status_coh
+                rio_balive_co(io_idx_co)       = ccohort%balive
+                rio_bdead_co(io_idx_co)        = ccohort%bdead
+                rio_bleaf_co(io_idx_co)        = ccohort%bl
+                rio_broot_co(io_idx_co)        = ccohort%br
+                rio_bstore_co(io_idx_co)       = ccohort%bstore
+                rio_canopy_layer_co(io_idx_co) = ccohort%canopy_layer
+                rio_canopy_trim_co(io_idx_co)  = ccohort%canopy_trim
+                rio_dbh_co(io_idx_co)          = ccohort%dbh
+                rio_height_co(io_idx_co)       = ccohort%hite
+                rio_laimemory_co(io_idx_co)    = ccohort%laimemory
+                rio_leaf_md_co(io_idx_co)      = ccohort%leaf_md
+                rio_root_md_co(io_idx_co)      = ccohort%root_md
+                rio_nplant_co(io_idx_co)       = ccohort%n
+                rio_gpp_acc_co(io_idx_co)      = ccohort%gpp_acc
+                rio_npp_acc_co(io_idx_co)      = ccohort%npp_acc
+                rio_gpp_co(io_idx_co)          = ccohort%gpp
+                rio_npp_co(io_idx_co)          = ccohort%npp
+                rio_npp_leaf_co(io_idx_co)     = ccohort%npp_leaf
+                rio_npp_froot_co(io_idx_co)    = ccohort%npp_froot
+                rio_npp_sw_co(io_idx_co)       = ccohort%npp_bsw
+                rio_npp_dead_co(io_idx_co)     = ccohort%npp_bdead
+                rio_npp_seed_co(io_idx_co)     = ccohort%npp_bseed
+                rio_npp_store_co(io_idx_co)    = ccohort%npp_store
+                rio_bmort_co(io_idx_co)        = ccohort%bmort
+                rio_hmort_co(io_idx_co)        = ccohort%hmort
+                rio_cmort_co(io_idx_co)        = ccohort%cmort
+                rio_imort_co(io_idx_co)        = ccohort%imort
+                rio_fmort_co(io_idx_co)        = ccohort%fmort
+                rio_ddbhdt_co(io_idx_co)       = ccohort%ddbhdt
+                rio_resp_tstep_co(io_idx_co)   = ccohort%resp_tstep
+                rio_pft_co(io_idx_co)          = ccohort%pft
+                rio_status_co(io_idx_co)       = ccohort%status_coh
                 if ( ccohort%isnew ) then
-                   rio_isnew_co(countCohort)     = new_cohort
+                   rio_isnew_co(io_idx_co)     = new_cohort
                 else
-                   rio_isnew_co(countCohort)     = old_cohort
+                   rio_isnew_co(io_idx_co)     = old_cohort
                 endif
                 
                 if ( DEBUG ) then
-                   write(fates_log(),*) 'CLTV offsetNumCohorts II ',countCohort, &
-                         numCohorts
+                   write(fates_log(),*) 'CLTV offsetNumCohorts II ',io_idx_co, &
+                         cohortsperpatch
                 endif
              
-                countCohort = countCohort + 1
+                io_idx_co = io_idx_co + 1
                 
                 ccohort => ccohort%taller
                 
@@ -1090,16 +1079,16 @@ contains
              !
              ! deal with patch level fields here
              !
-             rio_livegrass_pa(incrementOffset)   = cpatch%livegrass
-             rio_age_pa(incrementOffset)         = cpatch%age
-             rio_area_pa(incrementOffset)        = cpatch%area
+             rio_livegrass_pa(io_idx_co_1st)   = cpatch%livegrass
+             rio_age_pa(io_idx_co_1st)         = cpatch%age
+             rio_area_pa(io_idx_co_1st)        = cpatch%area
              
              ! set cohorts per patch for IO
-             rio_ncohort_pa( incrementOffset )   = numCohorts
+             rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
              
              if ( DEBUG ) then
                 write(fates_log(),*) 'offsetNumCohorts III ' &
-                      ,countCohort,cohorts_per_col, numCohorts
+                      ,io_idx_co,cohorts_per_col, cohortsperpatch
              endif
              !
              ! deal with patch level fields of arrays here
@@ -1107,58 +1096,58 @@ contains
              ! these are arrays of length numpft_ed, each patch contains one
              ! vector so we increment 
              do i = 1,numpft_ed 
-                rio_leaf_litter_paft(countPft)    = cpatch%leaf_litter(i)
-                rio_root_litter_paft(countPft)    = cpatch%root_litter(i)
-                rio_leaf_litter_in_paft(countPft) = cpatch%leaf_litter_in(i)
-                rio_root_litter_in_paft(countPft) = cpatch%root_litter_in(i)
-                countPft = countPft + 1
+                rio_leaf_litter_paft(io_idx_pa_pft)    = cpatch%leaf_litter(i)
+                rio_root_litter_paft(io_idx_pa_pft)    = cpatch%root_litter(i)
+                rio_leaf_litter_in_paft(io_idx_pa_pft) = cpatch%leaf_litter_in(i)
+                rio_root_litter_in_paft(io_idx_pa_pft) = cpatch%root_litter_in(i)
+                io_idx_pa_pft = io_idx_pa_pft + 1
              end do
              
              do i = 1,ncwd ! ncwd currently 4
-                rio_cwd_ag_pacw(countNcwd) = cpatch%cwd_ag(i)
-                rio_cwd_bg_pacw(countNcwd) = cpatch%cwd_bg(i)
-                countNcwd = countNcwd + 1
+                rio_cwd_ag_pacw(io_idx_pa_cwd) = cpatch%cwd_ag(i)
+                rio_cwd_bg_pacw(io_idx_pa_cwd) = cpatch%cwd_bg(i)
+                io_idx_pa_cwd = io_idx_pa_cwd + 1
              end do
              
              do i = 1,cp_nclmax ! cp_nclmax currently 2
-                rio_spread_pacl(countNclmax)   = cpatch%spread(i)
-                countNclmax = countNclmax + 1
+                rio_spread_pacl(io_idx_pa_cl)   = cpatch%spread(i)
+                io_idx_pa_cl = io_idx_pa_cl + 1
              end do
              
-             if ( DEBUG ) write(fates_log(),*) 'CLTV countSunZ 1 ',countSunZ
+             if ( DEBUG ) write(fates_log(),*) 'CLTV io_idx_pa_sunz 1 ',io_idx_pa_sunz
              
              if ( DEBUG ) write(fates_log(),*) 'CLTV 1186 ',cp_nlevcan,numpft_ed,cp_nclmax
              
              do k = 1,cp_nlevcan ! cp_nlevcan currently 40
                 do j = 1,numpft_ed ! numpft_ed currently 2
                    do i = 1,cp_nclmax ! cp_nclmax currently 2
-                      rio_fsun_paclftls(countSunZ)        = cpatch%f_sun(i,j,k)
-                      rio_fabd_sun_z_paclftls(countSunZ)  = cpatch%fabd_sun_z(i,j,k)
-                      rio_fabi_sun_z_paclftls(countSunZ)  = cpatch%fabi_sun_z(i,j,k)
-                      rio_fabd_sha_z_paclftls(countSunZ)  = cpatch%fabd_sha_z(i,j,k)
-                      rio_fabi_sha_z_paclftls(countSunZ)  = cpatch%fabi_sha_z(i,j,k)
-                      countSunZ = countSunZ + 1
+                      rio_fsun_paclftls(io_idx_pa_sunz)        = cpatch%f_sun(i,j,k)
+                      rio_fabd_sun_z_paclftls(io_idx_pa_sunz)  = cpatch%fabd_sun_z(i,j,k)
+                      rio_fabi_sun_z_paclftls(io_idx_pa_sunz)  = cpatch%fabi_sun_z(i,j,k)
+                      rio_fabd_sha_z_paclftls(io_idx_pa_sunz)  = cpatch%fabd_sha_z(i,j,k)
+                      rio_fabi_sha_z_paclftls(io_idx_pa_sunz)  = cpatch%fabi_sha_z(i,j,k)
+                      io_idx_pa_sunz = io_idx_pa_sunz + 1
                    end do
                 end do
              end do
              
-             if ( DEBUG ) write(fates_log(),*) 'CLTV countSunZ 2 ',countSunZ
+             if ( DEBUG ) write(fates_log(),*) 'CLTV io_idx_pa_sunz 2 ',io_idx_pa_sunz
              
-             incrementOffset = incrementOffset + numCohortsPerPatch
+             io_idx_co_1st = io_idx_co_1st + maxCohortsPerPatch
              
              ! reset counters so that they are all advanced evenly. Currently
              ! the offset is 10, the max of numpft_ed, ncwd, cp_nclmax,
-             ! countWaterMem and the number of allowed cohorts per patch
-             countPft      = incrementOffset
-             countNcwd     = incrementOffset
-             countNclmax   = incrementOffset
-             countCohort   = incrementOffset
-             countSunZ     = incrementOffset
+             ! io_idx_si_wmem and the number of allowed cohorts per patch
+             io_idx_pa_pft  = io_idx_co_1st
+             io_idx_pa_cwd  = io_idx_co_1st
+             io_idx_pa_cl   = io_idx_co_1st
+             io_idx_co      = io_idx_co_1st
+             io_idx_pa_sunz = io_idx_co_1st
              
              if ( DEBUG ) then
-                write(fates_log(),*) 'CLTV incrementOffset ', incrementOffset
+                write(fates_log(),*) 'CLTV io_idx_co_1st ', io_idx_co_1st
                 write(fates_log(),*) 'CLTV cohorts_per_col ', cohorts_per_col
-                write(fates_log(),*) 'CLTV numCohort ', numCohorts
+                write(fates_log(),*) 'CLTV numCohort ', cohortsperpatch
                 write(fates_log(),*) 'CLTV totalCohorts ', totalCohorts
              end if
              
@@ -1166,37 +1155,37 @@ contains
              
           enddo ! cpatch do while
           
-          rio_old_stock_si(io_si)    = sites(s)%old_stock
-          rio_cd_status_si(io_si)    = sites(s)%status
-          rio_dd_status_si(io_si)    = sites(s)%dstatus
-          rio_nchill_days_si(io_si)  = sites(s)%ncd 
-          rio_leafondate_si(io_si)   = sites(s)%leafondate
-          rio_leafoffdate_si(io_si)  = sites(s)%leafoffdate
-          rio_dleafondate_si(io_si)  = sites(s)%dleafondate
-          rio_dleafoffdate_si(io_si) = sites(s)%dleafoffdate
-          rio_acc_ni_si(io_si)       = sites(s)%acc_NI
-          rio_gdd_si(io_si)          = sites(s)%ED_GDD_site
+          rio_old_stock_si(io_idx_si)    = sites(s)%old_stock
+          rio_cd_status_si(io_idx_si)    = sites(s)%status
+          rio_dd_status_si(io_idx_si)    = sites(s)%dstatus
+          rio_nchill_days_si(io_idx_si)  = sites(s)%ncd 
+          rio_leafondate_si(io_idx_si)   = sites(s)%leafondate
+          rio_leafoffdate_si(io_idx_si)  = sites(s)%leafoffdate
+          rio_dleafondate_si(io_idx_si)  = sites(s)%dleafondate
+          rio_dleafoffdate_si(io_idx_si) = sites(s)%dleafoffdate
+          rio_acc_ni_si(io_idx_si)       = sites(s)%acc_NI
+          rio_gdd_si(io_idx_si)          = sites(s)%ED_GDD_site
           
           ! Carbon Balance and Checks
-          rio_nep_timeintegrated_si(io_si) = sites(s)%nep_timeintegrated 
-          rio_npp_timeintegrated_si(io_si) = sites(s)%npp_timeintegrated
-          rio_hr_timeintegrated_si(io_si)  = sites(s)%hr_timeintegrated 
-          rio_totecosysc_old_si(io_si)     = sites(s)%totecosysc_old
-          rio_totfatesc_old_si(io_si)      = sites(s)%totfatesc_old
-          rio_totbgcc_old_si(io_si)        = sites(s)%totbgcc_old
-          rio_cbal_err_fates_si(io_si)     = sites(s)%cbal_err_fates
-          rio_cbal_err_bgc_si(io_si)       = sites(s)%cbal_err_bgc
-          rio_cbal_err_tot_si(io_si)       = sites(s)%cbal_err_tot
-          rio_fates_to_bgc_this_ts_si(io_si) = sites(s)%fates_to_bgc_this_ts
-          rio_fates_to_bgc_last_ts_si(io_si) = sites(s)%fates_to_bgc_last_ts
-          rio_seedrainflux_si(io_si)         = sites(s)%tot_seed_rain_flux
+          rio_nep_timeintegrated_si(io_idx_si) = sites(s)%nep_timeintegrated 
+          rio_npp_timeintegrated_si(io_idx_si) = sites(s)%npp_timeintegrated
+          rio_hr_timeintegrated_si(io_idx_si)  = sites(s)%hr_timeintegrated 
+          rio_totecosysc_old_si(io_idx_si)     = sites(s)%totecosysc_old
+          rio_totfatesc_old_si(io_idx_si)      = sites(s)%totfatesc_old
+          rio_totbgcc_old_si(io_idx_si)        = sites(s)%totbgcc_old
+          rio_cbal_err_fates_si(io_idx_si)     = sites(s)%cbal_err_fates
+          rio_cbal_err_bgc_si(io_idx_si)       = sites(s)%cbal_err_bgc
+          rio_cbal_err_tot_si(io_idx_si)       = sites(s)%cbal_err_tot
+          rio_fates_to_bgc_this_ts_si(io_idx_si) = sites(s)%fates_to_bgc_this_ts
+          rio_fates_to_bgc_last_ts_si(io_idx_si) = sites(s)%fates_to_bgc_last_ts
+          rio_seedrainflux_si(io_idx_si)         = sites(s)%tot_seed_rain_flux
           
           ! set numpatches for this column
-          rio_npatch_si(io_si)  = numPatches
+          rio_npatch_si(io_idx_si)  = patchespersite
           
           do i = 1,numWaterMem ! numWaterMem currently 10
-             rio_watermem_siwm( countWaterMem ) = sites(s)%water_memory(i)
-             countWaterMem = countWaterMem + 1
+             rio_watermem_siwm( io_idx_si_wmem ) = sites(s)%water_memory(i)
+             io_idx_si_wmem = io_idx_si_wmem + 1
           end do
           
        enddo
@@ -1225,7 +1214,7 @@ contains
      use EDTypesMod,           only : ncwd
      use EDTypesMod,           only : cp_nlevcan
      use EDTypesMod,           only : cp_nclmax
-     use EDTypesMod,           only : numCohortsPerPatch
+     use EDTypesMod,           only : maxCohortsPerPatch
      use EDTypesMod,           only : numpft_ed
      use EDTypesMod,           only : area
      use EDPatchDynamicsMod,   only : zero_patch
@@ -1254,9 +1243,10 @@ contains
      real(r8)                          :: patch_age
      integer                           :: cohortstatus
      integer                           :: s        ! site index
-     integer                           :: patchIdx ! local patch index, 1:
-     integer                           :: io_si    ! global site index in IO vector
-     integer                           :: io_co    ! global cohort index in IO vector
+     integer                           :: idx_pa        ! local patch index
+     integer                           :: io_idx_si     ! global site index in IO vector
+     integer                           :: io_idx_co_1st ! global cohort index in IO vector
+
      integer                           :: fto
      integer                           :: ft
 
@@ -1280,8 +1270,8 @@ contains
             
        do s = 1,nsites
           
-          io_si  = this%restart_map(nc)%site_index(s)
-          io_co  = this%restart_map(nc)%cohort1_index(s)
+          io_idx_si  = this%restart_map(nc)%site_index(s)
+          io_idx_co_1st  = this%restart_map(nc)%cohort1_index(s)
           
           call zero_site( sites(s) )
           
@@ -1292,9 +1282,9 @@ contains
           
           sites(s)%ncd = 0.0_r8
 
-          if ( rio_npatch_si(io_si)<0 .or. rio_npatch_si(io_si) > 10000 ) then
+          if ( rio_npatch_si(io_idx_si)<0 .or. rio_npatch_si(io_idx_si) > 10000 ) then
              write(fates_log(),*) 'a column was expected to contain a valid number of patches'
-             write(fates_log(),*) '0 is a valid number, but this column seems uninitialized',rio_npatch_si(io_si)
+             write(fates_log(),*) '0 is a valid number, but this column seems uninitialized',rio_npatch_si(io_idx_si)
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
        
@@ -1302,11 +1292,11 @@ contains
           sites(s)%youngest_patch         => null()                 
           sites(s)%oldest_patch           => null()
 
-          do patchIdx = 1,rio_npatch_si(io_si)
+          do idx_pa = 1,rio_npatch_si(io_idx_si)
 
              if ( DEBUG ) then
-                write(fates_log(),*) 'create patch ',patchIdx
-                write(fates_log(),*) 'patchIdx 1-numCohorts : ', rio_ncohort_pa( io_co )
+                write(fates_log(),*) 'create patch ',idx_pa
+                write(fates_log(),*) 'idx_pa 1-cohortsperpatch : ', rio_ncohort_pa( io_idx_co_1st )
              end if
              
              ! create patch
@@ -1320,9 +1310,9 @@ contains
              newp%siteptr => sites(s)
 
              ! give this patch a unique patch number
-             newp%patchno = patchIdx
+             newp%patchno = idx_pa
 
-             do fto = 1, rio_ncohort_pa( io_co )
+             do fto = 1, rio_ncohort_pa( io_idx_co_1st )
 
                 allocate(temp_cohort)
                 
@@ -1368,9 +1358,9 @@ contains
              ! insert this patch with cohorts into the site pointer.  At this
              ! point just insert the new patch in the youngest position
              !
-             if (patchIdx == 1) then ! nothing associated yet. first patch is pointed to by youngest and oldest
+             if (idx_pa == 1) then ! nothing associated yet. first patch is pointed to by youngest and oldest
                 
-                if ( DEBUG ) write(fates_log(),*) 'patchIdx = 1 ',patchIdx
+                if ( DEBUG ) write(fates_log(),*) 'idx_pa = 1 ',idx_pa
                 
                 sites(s)%youngest_patch         => newp                   
                 sites(s)%oldest_patch           => newp                        
@@ -1379,9 +1369,9 @@ contains
                 sites(s)%oldest_patch%younger   => null()
                 sites(s)%oldest_patch%older     => null()
                 
-             else if (patchIdx == 2) then ! add second patch to list
+             else if (idx_pa == 2) then ! add second patch to list
                 
-                if ( DEBUG ) write(fates_log(),*) 'patchIdx = 2 ',patchIdx
+                if ( DEBUG ) write(fates_log(),*) 'idx_pa = 2 ',idx_pa
                 
                 sites(s)%youngest_patch         => newp
                 sites(s)%youngest_patch%younger => null()
@@ -1391,7 +1381,7 @@ contains
 
              else ! more than 2 patches, insert patch into youngest slot
                 
-                if ( DEBUG ) write(fates_log(),*) 'patchIdx > 2 ',patchIdx
+                if ( DEBUG ) write(fates_log(),*) 'idx_pa > 2 ',idx_pa
                 
                 newp%older                      => sites(s)%youngest_patch
                 sites(s)%youngest_patch%younger => newp
@@ -1400,9 +1390,9 @@ contains
                 
              endif
              
-             io_co = io_co + numCohortsPerPatch
+             io_idx_co_1st = io_idx_co_1st + maxCohortsPerPatch
 
-          enddo ! ends loop over patchIdx
+          enddo ! ends loop over idx_pa
 
        enddo ! ends loop over s
        
@@ -1420,7 +1410,7 @@ contains
      use EDTypesMod, only : ncwd
      use EDTypesMod, only : cp_nlevcan
      use EDTypesMod, only : cp_nclmax
-     use EDTypesMod, only : numCohortsPerPatch
+     use EDTypesMod, only : maxCohortsPerPatch
      use EDTypesMod, only : cohorts_per_col
      use EDTypesMod, only : numWaterMem
 
@@ -1693,7 +1683,7 @@ contains
              ! Now increment the position of the first cohort to that of the next
              ! patch
              
-             io_idx_co_1st = io_idx_co_1st + numcohortsPerPatch
+             io_idx_co_1st = io_idx_co_1st + maxCohortsPerPatch
              
              ! and the number of allowed cohorts per patch (currently 200)
              io_idx_pa_pft  = io_idx_co_1st

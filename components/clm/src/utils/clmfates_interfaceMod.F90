@@ -88,7 +88,6 @@ module CLMFatesInterfaceMod
    use ChecksBalancesMod     , only : SummarizeNetFluxes, FATES_BGC_Carbon_BalanceCheck
    use EDTypesMod            , only : udata
    use EDTypesMod            , only : ed_patch_type
-   use EDtypesMod            , only : numPatchesPerCol
    use EDtypesMod            , only : cp_numlevgrnd
    use EDMainMod             , only : ed_ecosystem_dynamics
    use EDMainMod             , only : ed_update_site
@@ -754,14 +753,11 @@ contains
             call get_clump_bounds(nc, bounds_clump)
             
             allocate(this%fates_restart%restart_map(nc)%site_index(this%fates(nc)%nsites))
-            allocate(this%fates_restart%restart_map(nc)%patch1_index(this%fates(nc)%nsites))
             allocate(this%fates_restart%restart_map(nc)%cohort1_index(this%fates(nc)%nsites))
             
             do s=1,this%fates(nc)%nsites
                c = this%f2hmap(nc)%fcolumn(s)
                this%fates_restart%restart_map(nc)%site_index(s)   = c
-               this%fates_restart%restart_map(nc)%patch1_index(s) = col%patchi(c)+1
-
                this%fates_restart%restart_map(nc)%cohort1_index(s) = &
                     bounds_clump%begCohort+(c-bounds_clump%begc)*cohorts_per_col + 1
             end do
@@ -1266,7 +1262,7 @@ contains
     use quadraticMod      , only : quadratic
     use EDSharedParamsMod , only : EDParamsShareInst
     use EDTypesMod        , only : numpft_ed, dinc_ed
-    use EDtypesMod        , only : ed_patch_type, ed_cohort_type, ed_site_type, numpft_ed, numPatchesPerCol
+    use EDtypesMod        , only : ed_patch_type, ed_cohort_type, ed_site_type, numpft_ed
     use EDEcophysContype  , only : EDecophyscon
    
     !

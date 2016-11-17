@@ -54,7 +54,7 @@ contains
     use EDTypesMod        , only : ed_cohort_type
     use EDTypesMod        , only : ed_site_type
     use EDTypesMod        , only : numpft_ed
-    use EDTypesMod        , only : numpatchespercol
+    use EDTypesMod        , only : maxpatchespercol
     use EDTypesMod        , only : cp_numlevsoil
     use EDTypesMod        , only : cp_nlevcan
     use EDTypesMod        , only : cp_nclmax
@@ -105,9 +105,9 @@ contains
     real(r8) :: ci                                ! intracellular leaf CO2 (Pa)
     real(r8) :: lnc(mxpft)                        ! leaf N concentration (gN leaf/m^2)
         
-    real(r8) :: kc( numpatchespercol )            ! Michaelis-Menten constant for CO2 (Pa)
-    real(r8) :: ko( numpatchespercol )            ! Michaelis-Menten constant for O2 (Pa)
-    real(r8) :: co2_cp( numpatchespercol )        ! CO2 compensation point (Pa)
+    real(r8) :: kc( maxpatchespercol )            ! Michaelis-Menten constant for CO2 (Pa)
+    real(r8) :: ko( maxpatchespercol )            ! Michaelis-Menten constant for O2 (Pa)
+    real(r8) :: co2_cp( maxpatchespercol )        ! CO2 compensation point (Pa)
 
     ! ---------------------------------------------------------------
     ! TO-DO: bbbopt is slated to be transferred to the parameter file
