@@ -174,7 +174,7 @@ module FatesHistoryInterfaceMod
    contains
      
      procedure, public :: Init
-     procedure, public :: SetThreadBounds
+     procedure, public :: SetThreadBoundsEach
      procedure, public :: initialize_history_vars
      procedure, public :: assemble_history_output_types
      
@@ -249,7 +249,7 @@ contains
   end subroutine Init
 
   ! ======================================================================
-  subroutine SetThreadBounds(this, thread_index, thread_bounds)
+  subroutine SetThreadBoundsEach(this, thread_index, thread_bounds)
 
     use FatesIODimensionsMod, only : fates_bounds_type
 
@@ -278,7 +278,7 @@ contains
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
          thread_bounds%pft_class_begin, thread_bounds%pft_class_end)
     
-  end subroutine SetThreadBounds
+  end subroutine SetThreadBoundsEach
   
   ! ===================================================================================
   subroutine assemble_history_output_types(this)
