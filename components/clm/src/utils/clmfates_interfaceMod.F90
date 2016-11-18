@@ -668,6 +668,7 @@ contains
      use FatesConstantsMod, only : fates_long_string_length
      use FatesIODimensionsMod, only: fates_bounds_type
      use FatesIOVariableKindMod, only : site_r8, site_int, cohort_r8, cohort_int
+     use EDMainMod, only :        ed_update_site
      use EDTypesMod, only:        cohorts_per_col ! EDtypes should be protected
                                                   ! this variable should be transferred
                                                   ! to a location where we keep
@@ -858,7 +859,7 @@ contains
 
       if(flag=='read')then
          
-         !$OMP PARALLEL DO PRIVATE (nc,bounds_clump)
+         !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,s)
          do nc = 1, nclumps
             if (this%fates(nc)%nsites>0) then
 
@@ -872,7 +873,13 @@ contains
                
                call this%fates_restart%get_restart_vectors(nc, this%fates(nc)%nsites, &
                     this%fates(nc)%sites )
-               
+
+               ! I think ed_update_site and update_hlmfates_dyn are doing some similar
+               ! update type stuff, should consolidate (rgk 11-2016)
+               do s = 1,this%fates(nc)%nsites
+                  call ed_update_site( this%fates(nc)%sites(s) )
+               end do
+
                ! ------------------------------------------------------------------------
                ! Update diagnostics of FATES ecosystem structure used in HLM.
                ! ------------------------------------------------------------------------
