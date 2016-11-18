@@ -1661,14 +1661,14 @@ contains
    call this%fates_hist%Init(nclumps, fates_bounds)
 
    ! Define the bounds on the first dimension for each thread
-   !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,fates_clump,s,c)
+   !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,fates_clump)
    do nc = 1,nclumps
       
       call get_clump_bounds(nc, bounds_clump)
       
       ! thread bounds for patch
       call hlm_bounds_to_fates_bounds(bounds_clump, fates_clump)
-      call this%fates_hist%SetThreadBounds(nc, fates_clump)
+      call this%fates_hist%SetThreadBoundsEach(nc, fates_clump)
    end do
    !$OMP END PARALLEL DO
 
