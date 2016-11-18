@@ -444,7 +444,6 @@ contains
     !
     ! !USES:
     use ncdio_pio       , only : file_desc_t
-    use EDRestVectorMod , only : EDRest
     use UrbanParamsType , only : IsSimpleBuildTemp, IsProgBuildTemp
     use decompMod       , only : get_proc_bounds, get_proc_clumps, get_clump_bounds
 

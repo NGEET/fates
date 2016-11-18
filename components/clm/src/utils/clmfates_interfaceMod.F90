@@ -96,7 +96,6 @@ module CLMFatesInterfaceMod
    use EDInitMod             , only : set_site_properties
    use EDPftVarcon           , only : EDpftvarcon_inst
    use EDEcophysConType      , only : EDecophysconInit
-   use EDRestVectorMod       , only : EDRest
    use EDSurfaceRadiationMod , only : ED_SunShadeFracs, ED_Norman_Radiation
    use EDBtranMod            , only : btran_ed, &
                                       get_active_suction_layers
