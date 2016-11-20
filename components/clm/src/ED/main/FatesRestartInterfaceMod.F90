@@ -108,7 +108,7 @@ module FatesRestartInterfaceMod
   integer, private :: ir_root_litter_paft
   integer, private :: ir_leaf_litter_in_paft
   integer, private :: ir_root_litter_in_paft
-  integer, private :: ir_seed_bank_co
+  integer, private :: ir_seed_bank_sift
   integer, private :: ir_spread_pacl
   integer, private :: ir_livegrass_pa
   integer, private :: ir_age_pa
@@ -141,7 +141,6 @@ module FatesRestartInterfaceMod
   ! more for things like flushing
   type restart_map_type
      integer, allocatable :: site_index(:)   ! maps site indexes to the HIO site position
-!     integer, allocatable :: patch1_index(:) ! maps site index to the HIO patch 1st position
      integer, allocatable :: cohort1_index(:) ! maps site index to the HIO cohort 1st position
   end type restart_map_type
 
@@ -340,7 +339,7 @@ contains
   integer function column_index(this)
     implicit none
     class(fates_restart_interface_type), intent(in) :: this
-   column_index = this%column_index_
+    column_index = this%column_index_
  end function column_index
  
  ! =======================================================================
@@ -733,10 +732,9 @@ contains
          long_name='ed patch - root_litter_in', units='unitless', &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_root_litter_in_paft )
 
-    ! TODO: THIS SAYS SITE BUT USES COHORT LEVEL, INVESTIGATE (RGK)
     call this%set_restart_var(vname='ed_seed_bank', vtype=cohort_r8, &
          long_name='ed site? - seed_bank', units='unitless', &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_bank_co )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_bank_sift )
 
     call this%set_restart_var(vname='ed_spread', vtype=cohort_r8, &
          long_name='ed patch - spread', units='unitless', &
@@ -857,7 +855,7 @@ contains
    use EDTypesMod, only : numWaterMem
 
     ! Arguments
-    class(fates_restart_interface_type)                 :: this
+    class(fates_restart_interface_type)             :: this
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
@@ -958,7 +956,7 @@ contains
            rio_root_litter_paft        => this%rvars(ir_root_litter_paft)%r81d, &
            rio_leaf_litter_in_paft     => this%rvars(ir_leaf_litter_in_paft)%r81d, &
            rio_root_litter_in_paft     => this%rvars(ir_root_litter_in_paft)%r81d, &
-           rio_seed_bank_co            => this%rvars(ir_seed_bank_co)%r81d, &
+           rio_seed_bank_sift          => this%rvars(ir_seed_bank_sift)%r81d, &
            rio_spread_pacl             => this%rvars(ir_spread_pacl)%r81d, &
            rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
            rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
@@ -985,19 +983,19 @@ contains
           ! For the first site, if that site aligns with the first column index
           ! in the clump, than the offset should be be equal to begCohort
           
-          io_idx_si  = this%restart_map(nc)%site_index(s)
+          io_idx_si      = this%restart_map(nc)%site_index(s)
           io_idx_co_1st  = this%restart_map(nc)%cohort1_index(s)
 
-          io_idx_co         = io_idx_co_1st
-          io_idx_pa_pft            = io_idx_co_1st
-          io_idx_pa_cwd           = io_idx_co_1st
-          io_idx_pa_cl         = io_idx_co_1st
-          io_idx_si_wmem       = io_idx_co_1st
-          io_idx_pa_sunz           = io_idx_co_1st
+          io_idx_co      = io_idx_co_1st
+          io_idx_pa_pft  = io_idx_co_1st
+          io_idx_pa_cwd  = io_idx_co_1st
+          io_idx_pa_cl   = io_idx_co_1st
+          io_idx_si_wmem = io_idx_co_1st
+          io_idx_pa_sunz = io_idx_co_1st
           
           ! write seed_bank info(site-level, but PFT-resolved)
           do i = 1,numpft_ed
-             rio_seed_bank_co(io_idx_co_1st+i-1) = sites(s)%seed_bank(i)
+             rio_seed_bank_sift(io_idx_co_1st+i-1) = sites(s)%seed_bank(i)
           end do
           
           cpatch => sites(s)%oldest_patch
@@ -1018,8 +1016,8 @@ contains
              do while(associated(ccohort))
                 
                 ! found cohort, increment
-                cohortsperpatch       = cohortsperpatch    + 1
-                totalCohorts     = totalCohorts + 1
+                cohortsperpatch = cohortsperpatch + 1
+                totalCohorts    = totalCohorts + 1
              
                 if ( DEBUG ) then
                    write(fates_log(),*) 'CLTV io_idx_co ', io_idx_co
@@ -1132,7 +1130,10 @@ contains
              end do
              
              if ( DEBUG ) write(fates_log(),*) 'CLTV io_idx_pa_sunz 2 ',io_idx_pa_sunz
-             
+
+
+             ! Set the first cohort index to the start of the next patch, increment
+             ! by the maximum number of cohorts per patch
              io_idx_co_1st = io_idx_co_1st + maxCohortsPerPatch
              
              ! reset counters so that they are all advanced evenly. Currently
@@ -1517,7 +1518,7 @@ contains
           rio_root_litter_paft        => this%rvars(ir_root_litter_paft)%r81d, &
           rio_leaf_litter_in_paft     => this%rvars(ir_leaf_litter_in_paft)%r81d, &
           rio_root_litter_in_paft     => this%rvars(ir_root_litter_in_paft)%r81d, &
-          rio_seed_bank_co            => this%rvars(ir_seed_bank_co)%r81d, &
+          rio_seed_bank_sift          => this%rvars(ir_seed_bank_sift)%r81d, &
           rio_spread_pacl             => this%rvars(ir_spread_pacl)%r81d, &
           rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
           rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
@@ -1545,7 +1546,7 @@ contains
           
           ! read seed_bank info(site-level, but PFT-resolved)
           do i = 1,numpft_ed 
-             rio_seed_bank_co(io_idx_co_1st+i-1) = sites(s)%seed_bank(i)
+             rio_seed_bank_sift(io_idx_co_1st+i-1) = sites(s)%seed_bank(i)
           enddo
           
           ! Perform a check on the number of patches per site
@@ -1669,10 +1670,10 @@ contains
                 do j = 1,numpft_ed ! numpft_ed currently 2
                    do i = 1,cp_nclmax ! cp_nclmax currently 2
                       cpatch%f_sun(i,j,k)      = rio_fsun_paclftls(io_idx_pa_sunz) 
-                      cpatch%fabd_sun_z(i,j,k) = rio_fabd_sun_z_paclftls(io_idx_pa_sunz) 
-                      cpatch%fabi_sun_z(i,j,k) = rio_fabi_sun_z_paclftls(io_idx_pa_sunz) 
-                      cpatch%fabd_sha_z(i,j,k) = rio_fabd_sha_z_paclftls(io_idx_pa_sunz) 
-                      cpatch%fabi_sha_z(i,j,k) = rio_fabi_sha_z_paclftls(io_idx_pa_sunz) 
+                      cpatch%fabd_sun_z(i,j,k) = rio_fabd_sun_z_paclftls(io_idx_pa_sunz)
+                      cpatch%fabi_sun_z(i,j,k) = rio_fabi_sun_z_paclftls(io_idx_pa_sunz)
+                      cpatch%fabd_sha_z(i,j,k) = rio_fabd_sha_z_paclftls(io_idx_pa_sunz)
+                      cpatch%fabi_sha_z(i,j,k) = rio_fabi_sha_z_paclftls(io_idx_pa_sunz)
                       io_idx_pa_sunz = io_idx_pa_sunz + 1
                    end do
                 end do
@@ -1685,7 +1686,7 @@ contains
              
              io_idx_co_1st = io_idx_co_1st + maxCohortsPerPatch
              
-             ! and the number of allowed cohorts per patch (currently 200)
+             ! and max the number of allowed cohorts per patch
              io_idx_pa_pft  = io_idx_co_1st
              io_idx_pa_cwd  = io_idx_co_1st
              io_idx_pa_cl   = io_idx_co_1st
@@ -1707,7 +1708,6 @@ contains
              write(fates_log(),*) 'Number of patches per site during retrieval does not match allocation'
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
-          
           
           do i = 1,numWaterMem
              sites(s)%water_memory(i) = rio_watermem_siwm( io_idx_si_wmem )

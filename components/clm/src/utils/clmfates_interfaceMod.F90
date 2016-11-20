@@ -747,19 +747,16 @@ contains
          end do
          !$OMP END PARALLEL DO
          
-         !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,fates_clump,s,c)
+         !$OMP PARALLEL DO PRIVATE (nc,s,c)
          do nc = 1,nclumps
             
-            call get_clump_bounds(nc, bounds_clump)
-            
             allocate(this%fates_restart%restart_map(nc)%site_index(this%fates(nc)%nsites))
-            allocate(this%fates_restart%restart_map(nc)%cohort1_index(this%fates(nc)%nsites))
-            
+            allocate(this%fates_restart%restart_map(nc)%cohort1_index(this%fates(nc)%nsites))            
             do s=1,this%fates(nc)%nsites
                c = this%f2hmap(nc)%fcolumn(s)
                this%fates_restart%restart_map(nc)%site_index(s)   = c
                this%fates_restart%restart_map(nc)%cohort1_index(s) = &
-                    bounds_clump%begCohort+(c-bounds_clump%begc)*cohorts_per_col + 1
+                    bounds_proc%begCohort + (c-bounds_proc%begc)*cohorts_per_col
             end do
             
          end do
@@ -845,7 +842,7 @@ contains
            case default
               write(iulog,*) 'A FATES iotype was created that was not registerred'
               write(iulog,*) 'in CLM.:',trim(ioname)
-              call endrun(msg=errMsg(__FILE__, __LINE__))
+              call endrun(msg=errMsg(sourcefile, __LINE__))
            end select
            
          end associate
@@ -1681,15 +1678,9 @@ contains
    ! ------------------------------------------------------------------------------------
    ! PART I.5: SET SOME INDEX MAPPINGS SPECIFICALLY FOR SITE<->COLUMN AND PATCH 
    ! ------------------------------------------------------------------------------------
-
-   ! Allocate the mapping between FATES indices and the IO indices
-   allocate(this%fates_hist%iovar_map(nclumps))
-
    
-   !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,fates_clump,s,c)
+   !$OMP PARALLEL DO PRIVATE (nc,s,c)
    do nc = 1,nclumps
-      
-      call get_clump_bounds(nc, bounds_clump)
       
       allocate(this%fates_hist%iovar_map(nc)%site_index(this%fates(nc)%nsites))
       allocate(this%fates_hist%iovar_map(nc)%patch1_index(this%fates(nc)%nsites))
