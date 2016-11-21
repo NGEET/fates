@@ -756,7 +756,7 @@ contains
                c = this%f2hmap(nc)%fcolumn(s)
                this%fates_restart%restart_map(nc)%site_index(s)   = c
                this%fates_restart%restart_map(nc)%cohort1_index(s) = &
-                    bounds_proc%begCohort + (c-bounds_proc%begc)*cohorts_per_col
+                    bounds_proc%begCohort + (c-bounds_proc%begc)*cohorts_per_col + 1
             end do
             
          end do
