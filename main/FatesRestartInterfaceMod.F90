@@ -648,7 +648,7 @@ contains
          long_name='ed cohort - npp_froot', units='unitless', &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_froot_co )
 
-    call this%set_restart_var(vname='ed_npp_sw', vtype=cohort_r8, &
+    call this%set_restart_var(vname='ed_npp_bsw', vtype=cohort_r8, &
          long_name='ed cohort - npp_sw', units='unitless', &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_sw_co )
 
