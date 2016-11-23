@@ -24,13 +24,13 @@ module FatesRestartVariableMod
      integer,  pointer     :: int1d(:)
    contains
      procedure, public :: Init
-     procedure, public :: FlushZero
+     procedure, public :: Flush
      procedure, private :: GetBounds
   end type fates_restart_variable_type
 
 contains
 
-  subroutine Init(this, vname, units, long, vtype, num_dim_kinds, dim_kinds, dim_bounds)
+  subroutine Init(this, vname, units, long, vtype, flushval, num_dim_kinds, dim_kinds, dim_bounds)
 
     use FatesIODimensionsMod, only : fates_io_dimension_type
     use FatesIOVariableKindMod, only : patch_r8, site_r8, cohort_r8
@@ -44,6 +44,7 @@ contains
     character(len=*), intent(in) :: units
     character(len=*), intent(in) :: long
     character(len=*), intent(in) :: vtype
+    real(r8), intent(in) :: flushval
     integer, intent(in) :: num_dim_kinds
     type(fates_io_dimension_type), intent(in) :: dim_bounds(:)
     type(fates_io_variable_kind_type), intent(inout) :: dim_kinds(:)
@@ -55,6 +56,7 @@ contains
     this%units = units
     this%long  = long
     this%vtype = vtype
+    this%flushval = flushval
 
     nullify(this%r81d)
     nullify(this%int1d)
@@ -75,27 +77,27 @@ contains
 
     case(cohort_r8)
        allocate(this%r81d(lb1:ub1))
-       this%r81d(:) = 0.0_r8
+       this%r81d(:) = flushval
 
     case(patch_r8)
        allocate(this%r81d(lb1:ub1))
-       this%r81d(:) = 0.0_r8
+       this%r81d(:) = flushval
 
     case(site_r8)
        allocate(this%r81d(lb1:ub1))
-       this%r81d(:) = 0.0_r8
+       this%r81d(:) = flushval
 
     case(cohort_int)
        allocate(this%int1d(lb1:ub1))
-       this%int1d(:) = 0
+       this%int1d(:) = idnint(flushval)
 
     case(patch_int)
        allocate(this%int1d(lb1:ub1))
-       this%int1d(:) = 0
+       this%int1d(:) = idnint(flushval)
 
     case(site_int)
        allocate(this%int1d(lb1:ub1))
-       this%int1d(:) = 0
+       this%int1d(:) = idnint(flushval)
 
     case default
        write(fates_log(),*) 'Incompatible vtype passed to set_restart_var'
@@ -159,7 +161,7 @@ contains
 
    ! ====================================================================================
 
-  subroutine FlushZero(this, thread, dim_bounds, dim_kinds)
+  subroutine flush(this, thread, dim_bounds, dim_kinds)
 
     use FatesIODimensionsMod, only : fates_io_dimension_type
     use FatesIOVariableKindMod, only : patch_r8, site_r8, cohort_r8
@@ -178,17 +180,17 @@ contains
 
     select case(trim(dim_kinds(this%dim_kinds_index)%name))
     case(patch_r8) 
-       this%r81d(lb1:ub1) = 0.0_r8
+       this%r81d(lb1:ub1) = this%flushval
     case(site_r8) 
-       this%r81d(lb1:ub1) = 0.0_r8
+       this%r81d(lb1:ub1) = this%flushval
     case(cohort_r8)
-       this%r81d(lb1:ub1) = 0.0_r8
+       this%r81d(lb1:ub1) = this%flushval
     case(patch_int)
-       this%int1d(lb1:ub1) = 0
+       this%int1d(lb1:ub1) = nint(this%flushval)
     case(site_int)
-       this%int1d(lb1:ub1) = 0
+       this%int1d(lb1:ub1) = nint(this%flushval)
     case(cohort_int)
-       this%int1d(lb1:ub1) = 0
+       this%int1d(lb1:ub1) = nint(this%flushval)
        
     case default
        write(fates_log(),*) 'fates history variable type undefined while flushing history variables'
@@ -196,6 +198,6 @@ contains
        !end_run
     end select
     
-  end subroutine FlushZero
+ end subroutine Flush
   
 end module FatesRestartVariableMod
