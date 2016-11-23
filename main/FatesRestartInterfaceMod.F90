@@ -1551,7 +1551,7 @@ contains
           
           ! read seed_bank info(site-level, but PFT-resolved)
           do i = 1,numpft_ed 
-             rio_seed_bank_sift(io_idx_co_1st+i-1) = sites(s)%seed_bank(i)
+             sites(s)%seed_bank(i) = rio_seed_bank_sift(io_idx_co_1st+i-1)
           enddo
           
           ! Perform a check on the number of patches per site
