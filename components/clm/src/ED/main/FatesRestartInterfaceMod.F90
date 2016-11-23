@@ -183,7 +183,7 @@ module FatesRestartInterfaceMod
      procedure, private :: set_dim_indices
      procedure, private :: set_cohort_index
      procedure, private :: set_column_index
-     procedure, private :: flushzero_rvars
+     procedure, private :: flush_rvars
      procedure, private :: define_restart_vars
      procedure, private :: set_restart_var
 
@@ -422,7 +422,7 @@ contains
 
   ! ======================================================================================
 
- subroutine flushzero_rvars(this,nc)
+ subroutine flush_rvars(this,nc)
  
    class(fates_restart_interface_type)        :: this
    integer,intent(in)                         :: nc
@@ -433,11 +433,11 @@ contains
 
    do ivar=1,ubound(this%rvars,1)
       associate( rvar => this%rvars(ivar) )
-        call rvar%FlushZero(nc, this%dim_bounds, this%dim_kinds)
+        call rvar%Flush(nc, this%dim_bounds, this%dim_kinds)
       end associate
    end do
    
- end subroutine flushzero_rvars
+ end subroutine flush_rvars
 
  
 
@@ -464,102 +464,105 @@ contains
     
     class(fates_restart_interface_type), intent(inout) :: this
     logical, intent(in) :: initialize_variables  ! are we 'count'ing or 'initializ'ing?
-
     integer :: ivar
+    real(r8), parameter :: flushinvalid = -9999.0
+    real(r8), parameter :: flushzero = 0.0
+    real(r8), parameter :: flushone  = 1.0
+
     
     ivar=0
 
     ! Site level counting variables
     call this%set_restart_var(vname='ed_io_numPatchesPerCol', vtype=site_int, &
-         long_name='Total number of ED patches per column', units='none',       &
+         long_name='Total number of ED patches per column', units='none', flushval = flushinvalid, &
           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npatch_si )
 
     call this%set_restart_var(vname='ed_old_stock',  vtype=site_r8, &
-         long_name='ed cohort - old_stock', units='unitless', &
+         long_name='ed cohort - old_stock', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_oldstock_si )
 
     call this%set_restart_var(vname='ed_cd_status', vtype=site_r8, &
-         long_name='ed cold dec status', units='unitless', &
+         long_name='ed cold dec status', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cd_status_si )
 
     call this%set_restart_var(vname='ed_dd_status', vtype=site_r8, &
-         long_name='ed drought dec status', units='unitless', &
+         long_name='ed drought dec status', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dd_status_si )
 
     call this%set_restart_var(vname='ed_chilling_days', vtype=site_r8, &
-         long_name='ed chilling day counter', units='unitless', &
+         long_name='ed chilling day counter', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_nchill_days_si )
 
     call this%set_restart_var(vname='ed_leafondate', vtype=site_r8, &
-         long_name='ed leafondate', units='unitless', &
+         long_name='ed leafondate', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leafondate_si )
 
     call this%set_restart_var(vname='ed_leafoffdate', vtype=site_r8, &
-         long_name='ed leafoffdate', units='unitless', &
+         long_name='ed leafoffdate', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leafoffdate_si )
 
     call this%set_restart_var(vname='ed_dleafondate', vtype=site_r8, &
-         long_name='ed dleafondate', units='unitless', &
+         long_name='ed dleafondate', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dleafondate_si )
 
     call this%set_restart_var(vname='ed_dleafoffdate', vtype=site_r8, &
-         long_name='ed dleafoffdate', units='unitless', &
+         long_name='ed dleafoffdate', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dleafoffdate_si )
 
     call this%set_restart_var(vname='ed_acc_NI', vtype=site_r8, &
-         long_name='ed nesterov index', units='unitless', &
+         long_name='ed nesterov index', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_acc_ni_si )
     
     call this%set_restart_var(vname='ed_gdd_site', vtype=site_r8, &
-         long_name='ed GDD site', units='unitless', &
+         long_name='ed GDD site', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gdd_si )
 
     call this%set_restart_var(vname='nep_timeintegrated_col', vtype=site_r8, &
-         long_name='NA', units='NA', &
+         long_name='NA', units='NA', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_nep_timeintegrated_si )
 
     call this%set_restart_var(vname='npp_timeintegrated_col', vtype=site_r8, &
-         long_name='NA', units='NA', &
+         long_name='NA', units='NA', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_timeintegrated_si )
 
     call this%set_restart_var(vname='hr_timeintegrated_col', vtype=site_r8, &
-         long_name='NA', units='NA', &
+         long_name='NA', units='NA', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hr_timeintegrated_si )
 
     call this%set_restart_var(vname='cbalance_error_ed_col', vtype=site_r8, &
-         long_name='NA', units='NA', &
+         long_name='NA', units='NA', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cbal_error_fates_si )
 
     call this%set_restart_var(vname='cbalance_error_bgc_col', vtype=site_r8, &
-         long_name='NA', units='NA', &
+         long_name='NA', units='NA', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cbal_error_bgc_si )
 
     call this%set_restart_var(vname='cbalance_error_total_col', vtype=site_r8, &
-         long_name='NA', units='NA', &
+         long_name='NA', units='NA', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cbal_error_total_si )
 
     call this%set_restart_var(vname='totecosysc_old_col', vtype=site_r8, &
-         long_name='NA', units='NA', &
+         long_name='NA', units='NA', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_totecosysc_old_si )
 
     call this%set_restart_var(vname='totedc_old_col', vtype=site_r8, &
-         long_name='NA', units='NA', &
+         long_name='NA', units='NA', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_totfatesc_old_si )
 
     call this%set_restart_var(vname='totbgcc_old_col', vtype=site_r8, &
-         long_name='NA', units='NA', &
+         long_name='NA', units='NA', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_totbgcc_old_si )
 
     call this%set_restart_var(vname='ed_to_bgc_this_edts_col', vtype=site_r8, &
-         long_name='NA', units='NA', &
+         long_name='NA', units='NA', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fates_to_bgc_this_ts_si )
 
     call this%set_restart_var(vname='ed_to_bgc_last_edts_col', vtype=site_r8, &
-         long_name='NA', units='NA', &
+         long_name='NA', units='NA', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fates_to_bgc_last_ts_si )
 
     call this%set_restart_var(vname='seed_rain_flux_col', vtype=site_r8, &
-         long_name='NA', units='NA', &
+         long_name='NA', units='NA', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedrainflux_si )
 
     !
@@ -569,139 +572,139 @@ contains
     ! This variable may be confusing, because it is a patch level variables
     ! but it is using the cohort IO vector to hold data
     call this%set_restart_var(vname='ed_io_cohortsPerPatch', vtype=cohort_int, &
-         long_name='cohorts per patch, indexed by numPatchesPerCol', units='unitless', &
+         long_name='cohorts per patch, indexed by numPatchesPerCol', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_ncohort_pa )
 
     call this%set_restart_var(vname='ed_balive', vtype=cohort_r8, &
-         long_name='ed cohort ed_balive', units='unitless', &
+         long_name='ed cohort ed_balive', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_balive_co )
 
     call this%set_restart_var(vname='ed_bdead', vtype=cohort_r8, &
-         long_name='ed cohort - bdead', units='unitless', &
+         long_name='ed cohort - bdead', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_bdead_co )
 
     call this%set_restart_var(vname='ed_bl', vtype=cohort_r8, &
-         long_name='ed cohort - bl', units='unitless', &
+         long_name='ed cohort - bl', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_bleaf_co )
 
     call this%set_restart_var(vname='ed_br', vtype=cohort_r8, &
-         long_name='ed cohort - br', units='unitless', &
+         long_name='ed cohort - br', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_broot_co )
 
     call this%set_restart_var(vname='ed_bstore', vtype=cohort_r8, &
-         long_name='ed cohort - bstore', units='unitless', &
+         long_name='ed cohort - bstore', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_bstore_co )
 
     call this%set_restart_var(vname='ed_canopy_layer', vtype=cohort_r8, &
-         long_name='ed cohort - canopy_layer', units='unitless', &
+         long_name='ed cohort - canopy_layer', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_layer_co )
 
     call this%set_restart_var(vname='ed_canopy_trim', vtype=cohort_r8, &
-         long_name='ed cohort - canopy_trim', units='unitless', &
+         long_name='ed cohort - canopy_trim', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_trim_co )
 
     call this%set_restart_var(vname='ed_dbh', vtype=cohort_r8, &
-         long_name='ed cohort - dbh', units='unitless', &
+         long_name='ed cohort - dbh', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dbh_co )
 
     call this%set_restart_var(vname='ed_hite', vtype=cohort_r8, &
-         long_name='ed cohort - hite', units='unitless', &
+         long_name='ed cohort - hite', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_height_co )
 
     call this%set_restart_var(vname='ed_laimemory', vtype=cohort_r8, &
-         long_name='ed cohort - laimemory', units='unitless', &
+         long_name='ed cohort - laimemory', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_laimemory_co )
 
     call this%set_restart_var(vname='ed_leaf_md', vtype=cohort_r8, &
-         long_name='ed cohort - leaf_md', units='unitless', &
+         long_name='ed cohort - leaf_md', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leaf_md_co )
 
     call this%set_restart_var(vname='ed_root_md', vtype=cohort_r8, &
-         long_name='ed cohort - root_md', units='unitless', &
+         long_name='ed cohort - root_md', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_root_md_co )
 
     call this%set_restart_var(vname='ed_n', vtype=cohort_r8, &
-         long_name='ed cohort - n', units='unitless', &
+         long_name='ed cohort - n', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_nplant_co )
 
     call this%set_restart_var(vname='ed_gpp_acc', vtype=cohort_r8, &
-         long_name='ed cohort - gpp_acc', units='unitless', &
+         long_name='ed cohort - gpp_acc', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gpp_acc_co )
 
     call this%set_restart_var(vname='ed_npp_acc', vtype=cohort_r8, &
-         long_name='ed cohort - npp_acc', units='unitless', &
+         long_name='ed cohort - npp_acc', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_acc_co )
 
     call this%set_restart_var(vname='ed_gpp', vtype=cohort_r8, &
-         long_name='ed cohort - gpp', units='unitless', &
+         long_name='ed cohort - gpp', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gpp_co )
 
     call this%set_restart_var(vname='ed_npp', vtype=cohort_r8, &
-         long_name='ed cohort - npp', units='unitless', &
+         long_name='ed cohort - npp', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_co )
 
     call this%set_restart_var(vname='ed_npp_leaf', vtype=cohort_r8, &
-         long_name='ed cohort - npp_leaf', units='unitless', &
+         long_name='ed cohort - npp_leaf', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_leaf_co )
 
     call this%set_restart_var(vname='ed_npp_froot', vtype=cohort_r8, &
-         long_name='ed cohort - npp_froot', units='unitless', &
+         long_name='ed cohort - npp_froot', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_froot_co )
 
     call this%set_restart_var(vname='ed_npp_bsw', vtype=cohort_r8, &
-         long_name='ed cohort - npp_sw', units='unitless', &
+         long_name='ed cohort - npp_sw', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_sw_co )
 
     call this%set_restart_var(vname='ed_npp_bdead', vtype=cohort_r8, &
-         long_name='ed cohort - npp_bdead', units='unitless', &
+         long_name='ed cohort - npp_bdead', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_dead_co )
 
     call this%set_restart_var(vname='ed_npp_bseed', vtype=cohort_r8, &
-         long_name='ed cohort - npp_bseed', units='unitless', &
+         long_name='ed cohort - npp_bseed', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_seed_co )
 
     call this%set_restart_var(vname='ed_npp_store', vtype=cohort_r8, &
-         long_name='ed cohort - npp_store', units='unitless', &
+         long_name='ed cohort - npp_store', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_store_co )
 
     call this%set_restart_var(vname='ed_bmort', vtype=cohort_r8, &
-         long_name='ed cohort - bmort', units='unitless', &
+         long_name='ed cohort - bmort', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_bmort_co )
 
     call this%set_restart_var(vname='ed_hmort', vtype=cohort_r8, &
-         long_name='ed cohort - hmort', units='unitless', &
+         long_name='ed cohort - hmort', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hmort_co )
 
     call this%set_restart_var(vname='ed_cmort', vtype=cohort_r8, &
-         long_name='ed cohort - cmort', units='unitless', &
+         long_name='ed cohort - cmort', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cmort_co )
 
     call this%set_restart_var(vname='ed_imort', vtype=cohort_r8, &
-         long_name='ed cohort - imort', units='unitless', &
+         long_name='ed cohort - imort', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_imort_co )
 
     call this%set_restart_var(vname='ed_fmort', vtype=cohort_r8, &
-         long_name='ed cohort - fmort', units='unitless', &
+         long_name='ed cohort - fmort', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fmort_co )
 
     call this%set_restart_var(vname='ed_ddbhdt', vtype=cohort_r8, &
-         long_name='ed cohort - ddbhdt', units='unitless', &
+         long_name='ed cohort - ddbhdt', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_ddbhdt_co )
 
     call this%set_restart_var(vname='ed_resp_tstep', vtype=cohort_r8, &
-         long_name='ed cohort - resp_tstep', units='unitless', &
+         long_name='ed cohort - resp_tstep', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_tstep_co )
 
     call this%set_restart_var(vname='ed_pft', vtype=cohort_int, &
-         long_name='ed cohort - pft', units='unitless', &
+         long_name='ed cohort - pft', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_pft_co )
 
     call this%set_restart_var(vname='ed_status_coh', vtype=cohort_int, &
-         long_name='ed cohort - status_coh', units='unitless', &
+         long_name='ed cohort - status_coh', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_status_co )
 
     call this%set_restart_var(vname='ed_isnew', vtype=cohort_int, &
-         long_name='ed cohort - isnew', units='unitless', &
+         long_name='ed cohort - isnew', units='unitless', flushval = flushone, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_isnew_co )
 
     !
@@ -709,68 +712,68 @@ contains
     !
 
     call this%set_restart_var(vname='ed_cwd_ag', vtype=cohort_r8, &
-         long_name='ed patch - cwd_ag', units='unitless', &
+         long_name='ed patch - cwd_ag', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cwd_ag_pacw )
 
     call this%set_restart_var(vname='ed_cwd_bg', vtype=cohort_r8, &
-         long_name='ed patch - cwd_bg', units='unitless', &
+         long_name='ed patch - cwd_bg', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cwd_bg_pacw )
 
     call this%set_restart_var(vname='ed_leaf_litter', vtype=cohort_r8, &
-         long_name='fates: leaf litter by patch x pft', units='unitless', &
+         long_name='fates: leaf litter by patch x pft', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leaf_litter_paft )
 
     call this%set_restart_var(vname='ed_root_litter', vtype=cohort_r8, &
-         long_name='ed patch - root_litter', units='unitless', &
+         long_name='ed patch - root_litter', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_root_litter_paft )
 
     call this%set_restart_var(vname='ed_leaf_litter_in', vtype=cohort_r8, &
-         long_name='ed patch - leaf_litter_in', units='unitless', &
+         long_name='ed patch - leaf_litter_in', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leaf_litter_in_paft )
 
     call this%set_restart_var(vname='ed_root_litter_in', vtype=cohort_r8, &
-         long_name='ed patch - root_litter_in', units='unitless', &
+         long_name='ed patch - root_litter_in', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_root_litter_in_paft )
 
     call this%set_restart_var(vname='ed_seed_bank', vtype=cohort_r8, &
-         long_name='ed site? - seed_bank', units='unitless', &
+         long_name='ed site? - seed_bank', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_bank_sift )
 
     call this%set_restart_var(vname='ed_spread', vtype=cohort_r8, &
-         long_name='ed patch - spread', units='unitless', &
+         long_name='ed patch - spread', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_spread_pacl )
 
     call this%set_restart_var(vname='ed_livegrass', vtype=cohort_r8, &
-         long_name='ed patch - livegrass', units='unitless', &
+         long_name='ed patch - livegrass', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_livegrass_pa )
 
     call this%set_restart_var(vname='ed_age', vtype=cohort_r8, &
-         long_name='ed patch - age', units='unitless', &
+         long_name='ed patch - age', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_age_pa )
 
     call this%set_restart_var(vname='ed_area', vtype=cohort_r8, &
-         long_name='ed patch - area', units='unitless', &
+         long_name='ed patch - area', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_area_pa )
 
     ! These dimensions are pa "patch" cl "canopy layer" ft "functional type" ls "layer sublevel"
     call this%set_restart_var(vname='ed_f_sun', vtype=cohort_r8, &
-         long_name='ed patch - f_sun', units='unitless', &
+         long_name='ed patch - f_sun', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fsun_paclftls )
 
     call this%set_restart_var(vname='ed_fabd_sun_z', vtype=cohort_r8, &
-         long_name='ed patch - fabd_sun_z', units='unitless', &
+         long_name='ed patch - fabd_sun_z', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fabd_sun_paclftls )
 
     call this%set_restart_var(vname='ed_fabi_sun_z', vtype=cohort_r8, &
-         long_name='ed patch - fabi_sun_z', units='unitless', &
+         long_name='ed patch - fabi_sun_z', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fabi_sun_paclftls )
 
     call this%set_restart_var(vname='ed_fabd_sha_z', vtype=cohort_r8, &
-         long_name='ed patch - fabd_sha_z', units='unitless', &
+         long_name='ed patch - fabd_sha_z', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fabd_sha_paclftls )
 
     call this%set_restart_var(vname='ed_fabi_sha_z', vtype=cohort_r8, &
-         long_name='ed patch - fabi_sha_z', units='unitless', &
+         long_name='ed patch - fabi_sha_z', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fabi_sha_paclftls )
 
     !
@@ -778,7 +781,7 @@ contains
     !
 
     call this%set_restart_var(vname='ed_water_memory', vtype=cohort_r8, &
-         long_name='ed cohort - water_memory', units='unitless', &
+         long_name='ed cohort - water_memory', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_watermem_siwm )
          
     
@@ -790,7 +793,8 @@ contains
 
   ! =====================================================================================
    
-  subroutine set_restart_var(this,vname,vtype,long_name,units,hlms,initialize,ivar,index)
+  subroutine set_restart_var(this,vname,vtype,long_name,units,flushval, &
+        hlms,initialize,ivar,index)
 
     use FatesUtilsMod, only : check_hlm_list
     use EDTypesMod, only    : cp_hlm_name
@@ -799,7 +803,8 @@ contains
     class(fates_restart_interface_type) :: this
     character(len=*),intent(in)  :: vname
     character(len=*),intent(in)  :: vtype
-    character(len=*),intent(in)  :: units
+    character(len=*),intent(in)  :: units 
+    real(r8), intent(in)         :: flushval
     character(len=*),intent(in)  :: long_name
     character(len=*),intent(in)  :: hlms
     logical, intent(in)          :: initialize
@@ -827,7 +832,7 @@ contains
        
        if( initialize )then
           
-          call this%rvars(ivar)%Init(vname, units, long_name, vtype, &
+          call this%rvars(ivar)%Init(vname, units, long_name, vtype, flushval, &
                fates_restart_num_dim_kinds, this%dim_kinds, this%dim_bounds)
 
        end if
@@ -974,7 +979,7 @@ contains
        ! Flush arrays to values defined by %flushval (see registry entry in
        ! subroutine define_history_vars()
        ! ---------------------------------------------------------------------------------
-       call this%flushzero_rvars(nc)
+       call this%flush_rvars(nc)
        
        do s = 1,nsites
           
