@@ -694,8 +694,8 @@
     <grid name="1x1_brazil">
       <test name="ERS_D_Mmpi-serial_Ld5">
         <machine compiler="ed" testtype="ed" testmods="clm/edTest">ed</machine>
-        <machine compiler="ed" testtype="ed" testmods="clm/edTest">hobart</machine>
         <machine compiler="nag" testtype="aux_clm45" testmods="clm/edTest">hobart</machine>
+        <machine compiler="ed" testtype="ed" testmods="clm/edTest">hobart</machine>
         <machine compiler="gnu" testtype="aux_clm45" testmods="clm/edTest">yellowstone</machine>
         <machine compiler="intel" testtype="aux_clm45" testmods="clm/edTest">yellowstone</machine>
         <machine compiler="pgi" testtype="aux_clm45" testmods="clm/edTest">yellowstone</machine>
@@ -709,8 +709,8 @@
       </test>
       <test name="SMS_D_Mmpi-serial_Ld5">
         <machine compiler="ed" testtype="ed" testmods="clm/edTest">ed</machine>
-        <machine compiler="ed" testtype="ed" testmods="clm/edTest">hobart</machine>
         <machine compiler="nag" testtype="aux_clm45" testmods="clm/edTest">hobart</machine>
+        <machine compiler="ed" testtype="ed" testmods="clm/edTest">hobart</machine>
         <machine compiler="intel" testtype="aux_clm45" testmods="clm/edTest">yellowstone</machine>
         <machine compiler="pgi" testtype="aux_clm45" testmods="clm/edTest">yellowstone</machine>
       </test>
@@ -722,20 +722,17 @@
       </test>
     </grid>
     <grid name="f10_f10">
-      <test name="ERP_D_P15x2_Ld5">
-        <machine compiler="ed" testtype="ed" testmods="clm/edTest">ed</machine>
-      </test>
       <test name="ERS_D_Ld5">
         <machine compiler="ed" testtype="ed" testmods="clm/edTest">ed</machine>
-        <machine compiler="ed" testtype="ed" testmods="clm/edTest">hobart</machine>
         <machine compiler="ed" testtype="ed" testmods="clm/edNoFire">ed</machine>
         <machine compiler="nag" testtype="aux_clm45" testmods="clm/edTest">hobart</machine>
+        <machine compiler="ed" testtype="ed" testmods="clm/edTest">hobart</machine>
         <machine compiler="intel" testtype="aux_clm45" testmods="clm/edTest">yellowstone</machine>
       </test>
       <test name="SMS_D_Ld5">
         <machine compiler="ed" testtype="ed" testmods="clm/edTest">ed</machine>
-        <machine compiler="ed" testtype="ed" testmods="clm/edTest">hobart</machine>
         <machine compiler="nag" testtype="aux_clm45" testmods="clm/edTest">hobart</machine>
+        <machine compiler="ed" testtype="ed" testmods="clm/edTest">hobart</machine>
         <machine compiler="gnu" testtype="aux_clm45" testmods="clm/edTest">yellowstone</machine>
         <machine compiler="intel" testtype="aux_clm45" testmods="clm/edTest">yellowstone</machine>
         <machine compiler="pgi" testtype="aux_clm45" testmods="clm/edTest">yellowstone</machine>
