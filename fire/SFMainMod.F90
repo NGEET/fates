@@ -52,11 +52,8 @@ contains
 
     type (ed_patch_type), pointer :: currentPatch
 
-    integer temporary_SF_switch
-
     !zero fire things
     currentPatch => currentSite%youngest_patch
-    temporary_SF_switch = 1
     do while(associated(currentPatch))
        currentPatch%frac_burnt = 0.0_r8
        currentPatch%AB         = 0.0_r8
@@ -68,7 +65,7 @@ contains
        write(iulog,*) 'use_ed_spit_fire',use_ed_spit_fire
     endif
 
-    if(use_ed_spit_fire.and.temporary_SF_switch==1)then
+    if(use_ed_spit_fire)then
        call fire_danger_index(currentSite, temperature_inst, atm2lnd_inst)
        call wind_effect(currentSite, atm2lnd_inst)
        call charecteristics_of_fuel(currentSite)
