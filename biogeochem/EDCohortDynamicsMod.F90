@@ -719,9 +719,16 @@ contains
                          if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn V ',currentCohort%npp_acc
                          if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn VI ',currentCohort%resp_acc
                          
-                         currentCohort%resp_acc_hold = (currentCohort%n*currentCohort%resp_acc_hold + nextc%n*nextc%resp_acc_hold)/newn
-                         currentCohort%npp_acc_hold  = (currentCohort%n*currentCohort%npp_acc_hold + nextc%n*nextc%npp_acc_hold)/newn
-                         currentCohort%gpp_acc_hold  = (currentCohort%n*currentCohort%gpp_acc_hold + nextc%n*nextc%gpp_acc_hold)/newn
+                         currentCohort%resp_acc_hold = &
+                               (currentCohort%n*currentCohort%resp_acc_hold + &
+                               nextc%n*nextc%resp_acc_hold)/newn
+                         currentCohort%npp_acc_hold  = &
+                               (currentCohort%n*currentCohort%npp_acc_hold + &
+                               nextc%n*nextc%npp_acc_hold)/newn
+                         currentCohort%gpp_acc_hold  = &
+                               (currentCohort%n*currentCohort%gpp_acc_hold + &
+                               nextc%n*nextc%gpp_acc_hold)/newn
+
                          currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim + nextc%n*nextc%canopy_trim)/newn
 			 currentCohort%dmort       = (currentCohort%n*currentCohort%dmort       + nextc%n*nextc%dmort)/newn
                          currentCohort%fire_mort   = (currentCohort%n*currentCohort%fire_mort   + nextc%n*nextc%fire_mort)/newn
