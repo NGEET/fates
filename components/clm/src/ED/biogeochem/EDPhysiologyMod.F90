@@ -836,7 +836,8 @@ contains
     if ( DEBUG ) write(iulog,*) 'EDphys 760 ',currentCohort%npp_acc_hold, currentCohort%md, &
                    EDecophyscon%leaf_stor_priority(currentCohort%pft)
 
-    currentCohort%carbon_balance = currentCohort%npp_acc_hold - currentCohort%md *  EDecophyscon%leaf_stor_priority(currentCohort%pft)
+    currentCohort%carbon_balance = currentCohort%npp_acc_hold - &
+          currentCohort%md *  EDecophyscon%leaf_stor_priority(currentCohort%pft)
 
     ! Allowing only carbon from NPP pool to account for npp flux into the maintenance pools
     ! ie this does not include any use of storage carbon or balive to make up for missing carbon balance in the transfer
