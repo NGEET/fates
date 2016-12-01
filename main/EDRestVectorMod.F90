@@ -168,7 +168,8 @@ module EDRestVectorMod
      module procedure newEDRestartVectorClass
   end interface EDRestartVectorClass
 
-  character(len=*), private, parameter :: mod_filename =  __FILE__
+  character(len=*), private, parameter :: mod_filename = &
+        __FILE__
 
   ! 
   ! non type-bound procedures
