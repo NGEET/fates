@@ -556,6 +556,7 @@ for mct, etc.
 <compiler COMPILER="gnu" MACH="eddi">
   <NETCDF_PATH>$(NETCDF_HOME)</NETCDF_PATH>
   <ADD_CPPDEFS> -DLinux -DCPRGNU </ADD_CPPDEFS>
+  <ADD_FFLAGS> -ffree-line-length-132 </ADD_FFLAGS>
   <ADD_FFLAGS DEBUG="TRUE"> -ffpe-trap=invalid,zero,overflow </ADD_FFLAGS>  <!---finit-integer=0-->
   <ADD_SLIBS> -L$(NETCDF_HOME)/lib/ -lnetcdff -lnetcdf -lcurl -llapack -lblas</ADD_SLIBS>
   <GPTL_CPPDEFS> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY </GPTL_CPPDEFS>
