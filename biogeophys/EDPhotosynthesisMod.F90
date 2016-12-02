@@ -1,11 +1,10 @@
-module EDPhotosynthesisMod
+module FATESPhotosynthesisMod
    
-   !------------------------------------------------------------------------------
+   !-------------------------------------------------------------------------------------
    ! !DESCRIPTION:
-   ! Calculates the photosynthetic fluxes for the ED model
-   ! This code is equivalent to the 'photosynthesis' subroutine in PhotosynthesisMod.F90.
-   ! We have split this out to reduce merge conflicts until we can pull out
-   ! common code used in both the ED and CLM versions.
+   ! Calculates the photosynthetic fluxes for the FATES model
+   ! This code is similar to and was originally based off of the 'photosynthesis' 
+   ! subroutine in the CLM model.
    !
    ! Parameter for activation and deactivation energies were taken from:
    ! Activation energy, from:
@@ -18,7 +17,6 @@ module EDPhotosynthesisMod
    ! ------------------------------------------------------------------------------------
    
    ! !USES:
-   !
 
    use abortutils, only        : endrun
    use FatesGlobals, only      : fates_log
@@ -309,17 +307,24 @@ contains
                   
                end do !FT 
 
+               ! ------------------------------------------------------------------------
+               ! Part VI: Loop over all leaf layers.
+               ! The concept of leaf layers is a result of the radiative transfer scheme.
+               ! A leaf layer has uniform radiation environment.  Leaf layers are a group
+               ! of vegetation surfaces (stems and leaves) which inhabit the same 
+               ! canopy-layer "CL", have the same functional type "ft" and within those
+               ! two partitions are further partitioned into vertical layers where
+               ! downwelling radiation attenuates in order.
+               ! In this phase we loop over the leaf layers and calculate the
+               ! photosynthesis and respiration of the layer (since all biophysical
+               ! properties are homogeneous).  After this step, we can loop through
+               ! our cohort list, associate each cohort with its list of leaf-layers
+               ! and transfer these quantities to the cohort.
+               ! With plant hydraulics, we must realize that photosynthesis and
+               ! respiration will be different for leaves of each cohort in the leaf
+               ! layers, as they will have there own hydraulic limitations.
+               ! ------------------------------------------------------------------------
 
-               ! If we are using plant hydro-dynamics, then several photosynthesis
-               ! variables will be available at the cohort scale, and not the
-               ! pft scale. So here we split and use different looping structures
-               ! ------------------------------------------------------------------
-               !               if ( use_fates_plant_hydro ) 
-
-
-               !==============================================================================!   
-               ! Calculate Nitrogen scaling factors and photosynthetic parameters.         
-               !==============================================================================!
                do CL = 1, NCL_p
                   do FT = 1,numpft_ed
                      
@@ -412,7 +417,10 @@ contains
             enddo !CL
 
             !==============================================================================!
-            ! Unpack fluxes from arrays into cohorts
+            ! Part VII: Transfer leaf biophysical rates (like maintenance respiration,
+            ! carbon assimilation and conductance) that are defined by the leaf layer
+            ! (which is area independent, ie /m2) onto each cohort (where the rates become
+            ! per cohort, ie /individual).
             !==============================================================================!
 
             call currentPatch%set_root_fraction(bc_in(s)%depth_gl)
@@ -499,11 +507,13 @@ contains
                      leaf_frac = 1.0_r8/(currentCohort%canopy_trim + EDecophyscon%sapwood_ratio(currentCohort%pft) * &
                           currentCohort%hite + pftcon%froot_leaf(currentCohort%pft))
 
-                     ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                     ! THIS CALCULATION SHOULD BE MOVED TO THE ALLOMETRY MODULE (RGK 10-8-2016)
-                     ! ------ IT ALSO SHOULD ALREADY HAVE BEEN CALCULATED RIGHT?
-                     ! ------ CHANGING TO A CHECK
-                     ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+                     ! ------------------------------------------------------------------
+                     ! Part VIII: Calculate maintenance respiration in the sapwood and
+                     ! fine root pools.
+                     ! ------------------------------------------------------------------
+
+
                      currentCohort%bsw = EDecophyscon%sapwood_ratio(currentCohort%pft) * &
                           currentCohort%hite * (currentCohort%balive + currentCohort%laimemory)*leaf_frac
 
@@ -1471,4 +1481,4 @@ function ft1_f(tl, ha) result(ans)
 
 
 
-end module EDPhotosynthesisMod
+end module FATESPhotosynthesisMod
