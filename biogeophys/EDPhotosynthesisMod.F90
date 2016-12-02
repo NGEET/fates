@@ -238,7 +238,7 @@ contains
                ! currentPatch%present(:,:)
                call UpdateCanopyNCanNRadPresent(currentPatch)
 
-               
+
                ! Part IV.  Identify some environmentally derived parameters:
                !           These quantities are biologically irrelevant
                !  Michaelis-Menten constant for CO2 (Pa)
@@ -267,9 +267,10 @@ contains
 
                do FT = 1,numpft_ed !calculate patch and pft specific properties at canopy top. 
                   
+
                   ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
                   lnc  = 1._r8 / (slatop(FT) * leafcn(FT))
-
+                  
                   !at the moment in ED we assume that there is no active N cycle. This should change, of course. FIX(RF,032414) Sep2011. 
                   vcmax25top(FT) = fnitr(FT) !fudge - shortcut using fnitr as a proxy for vcmax... 
                   
@@ -342,7 +343,8 @@ contains
                            btran_eff = currentPatch%btran_ft(ft)
                        !!    end if
                            
-                           vai = (currentPatch%elai_profile(CL,FT,iv)+currentPatch%esai_profile(CL,FT,iv)) !vegetation area index. 
+                           ! Vegetation area index
+                           vai = (currentPatch%elai_profile(CL,FT,iv)+currentPatch%esai_profile(CL,FT,iv)) 
                            if (iv == 1) then
                               laican = laican + 0.5_r8 * vai
                            else
@@ -352,14 +354,13 @@ contains
                            
                            ! Scale for leaf nitrogen profile
                            nscaler = exp(-kn(FT) * laican)
-                           
+
                            call LeafLayerMaintenanceRespiration( lmr25top(ft),             &  ! in
                                                                  nscaler,                  &  ! in
                                                                  ft,                       &  ! in
                                                                  bc_in(s)%t_veg_pa(ifp),   &  ! in
                                                                  lmr_z(CL,FT,iv))             ! out
 
-                           
                            call LeafLayerBiophysicalRates(currentPatch%ed_parsun_z(CL,FT,iv), &  ! in
                                                                 ft,                           &  ! in
                                                                 vcmax25top(ft),               &  ! in
@@ -410,7 +411,6 @@ contains
                enddo !PFT 
             enddo !CL
 
-
             !==============================================================================!
             ! Unpack fluxes from arrays into cohorts
             !==============================================================================!
@@ -418,11 +418,11 @@ contains
             call currentPatch%set_root_fraction(bc_in(s)%depth_gl)
 
             if(currentPatch%countcohorts > 0.0)then  !avoid errors caused by empty patches 
-
+               
                currentCohort => currentPatch%tallest  ! Cohort loop
-
+               
                do while (associated(currentCohort)) ! Cohort loop
-
+                  
                   if(currentCohort%n > 0._r8)then   
 
                      ! Zero cohort flux accumulators.
@@ -435,6 +435,7 @@ contains
                      ! Select canopy layer and PFT.
                      FT = currentCohort%pft  !are we going to have ftindex?
                      CL  = currentCohort%canopy_layer
+
                      !------------------------------------------------------------------------------
                      ! Accumulate fluxes over the sub-canopy layers of each cohort.
                      !------------------------------------------------------------------------------
@@ -498,20 +499,14 @@ contains
                      leaf_frac = 1.0_r8/(currentCohort%canopy_trim + EDecophyscon%sapwood_ratio(currentCohort%pft) * &
                           currentCohort%hite + pftcon%froot_leaf(currentCohort%pft))
 
-
                      ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                      ! THIS CALCULATION SHOULD BE MOVED TO THE ALLOMETRY MODULE (RGK 10-8-2016)
                      ! ------ IT ALSO SHOULD ALREADY HAVE BEEN CALCULATED RIGHT?
                      ! ------ CHANGING TO A CHECK
                      ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                     if ( abs(currentCohort%bsw - (EDecophyscon%sapwood_ratio(currentCohort%pft) * &
-                           currentCohort%hite * (currentCohort%balive + currentCohort%laimemory)*leaf_frac) ) &
-                           > 1e-9 ) then
-                        write(fates_log(),*) 'Sapwood biomass calculated during photosynthesis'
-                        write(fates_log(),*) 'does not match what is contained in cohort%bsw'
-                        write(fates_log(),*) 'which is the prognostic variable. Stopping.'
-                        call endrun(msg=errMsg(sourcefile, __LINE__))
-                     end if
+                     currentCohort%bsw = EDecophyscon%sapwood_ratio(currentCohort%pft) * &
+                          currentCohort%hite * (currentCohort%balive + currentCohort%laimemory)*leaf_frac
+
 
                      ! Calculate the amount of nitrogen in the above and below ground 
                      ! stem and root pools, used for maint resp
@@ -641,7 +636,7 @@ contains
          end if
 
          currentPatch => currentPatch%younger
-
+         
       end do
       
    end do !site loop
