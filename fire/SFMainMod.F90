@@ -636,7 +636,7 @@ contains
     !currentPatch%NF    !Daily number of ignitions (lightning and human-caused), adjusted for size of patch. 
 
     use domainMod,     only : ldomain
-    use EDParamsMod,   only : ED_val_nfires
+    use EDParamsMod,   only : ED_val_nignitions
     use PatchType,     only : patch 
 
     type(ed_site_type), intent(inout), target :: currentSite
@@ -690,7 +690,7 @@ contains
              ! THIS SHOULD HAVE THE COLUMN AND LU AREA WEIGHT ALSO, NO?
 
              gridarea = ldomain%area(g) *1000000.0_r8 !convert from km2 into m2
-             currentPatch%NF = ldomain%area(g) * ED_val_nfires * currentPatch%area/area /365
+             currentPatch%NF = ldomain%area(g) * ED_val_nignitions * currentPatch%area/area /365
 
              ! If there are 15  lightening strickes per year, per km2. (approx from NASA product) 
              ! then there are 15/365 s/km2 each day. 
@@ -700,19 +700,23 @@ contains
              ! Equation 16 in arora and boer model.
              !currentPatch%ab = currentPatch%ab *3.0_r8
              size_of_fire = ((3.1416_r8/(4.0_r8*lb))*((df+db)**2.0_r8))
+
+             ! area of fires in m2. 
              currentPatch%AB = size_of_fire * currentPatch%nf 
-             if (currentPatch%AB > gridarea*currentPatch%area/area) then !all of patch burnt. 
+             
+             patch_area_in_m2 = gridarea*currentPatch%area/area
+             if (currentPatch%AB > patch_area_in_m2 ) then !all of patch burnt. 
 
                 if (masterproc) write(iulog,*) 'burnt all of patch',currentPatch%patchno, &
-                     currentPatch%area/area,currentPatch%ab,currentPatch%area/area*gridarea   
+                     currentPatch%area/area,currentPatch%ab,patch_area_in_m2   
                 if (masterproc) write(iulog,*) 'ros',currentPatch%ROS_front,currentPatch%FD, &
                      currentPatch%NF,currentPatch%FI,size_of_fire
 
                 if (masterproc) write(iulog,*) 'litter',currentPatch%sum_fuel,currentPatch%CWD_AG,currentPatch%leaf_litter
                 ! turn km2 into m2. work out total area burnt. 
-                currentPatch%AB = currentPatch%area *  gridarea/AREA 
+                currentPatch%AB = patch_area_in_m2 
              endif
-             currentPatch%frac_burnt = currentPatch%AB / (gridarea*currentPatch%area/area)
+             currentPatch%frac_burnt = currentPatch%AB / patch_area_in_m2
              if(write_SF == 1)then
                 if (masterproc) write(iulog,*) 'frac_burnt',currentPatch%frac_burnt
              endif
