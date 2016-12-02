@@ -236,7 +236,6 @@ contains
        currentcohort%bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
             currentcohort%laimemory)*leaf_frac
 
-	    
     else ! Leaves are on (leaves_off_switch==1)
 
     !the purpose of this section is to figure out the root and stem biomass when the leaves are off
