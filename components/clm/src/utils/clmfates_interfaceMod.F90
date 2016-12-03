@@ -41,7 +41,6 @@ module CLMFatesInterfaceMod
    use TemperatureType   , only : temperature_type
    use EnergyFluxType    , only : energyflux_type
    use SoilStateType     , only : soilstate_type
-   use PhotosynthesisMod , only : photosyns_type
    use clm_varctl        , only : iulog, use_ed
    use clm_varcon        , only : tfrz
    use clm_varcon        , only : spval
@@ -51,6 +50,7 @@ module CLMFatesInterfaceMod
                                   nlevsoi,           &
                                   nlevdecomp,        &
                                   nlevdecomp_full
+   use PhotosynthesisMod , only : photosyns_type
    use atm2lndType       , only : atm2lnd_type
    use SurfaceAlbedoType , only : surfalb_type
    use SolarAbsorbedType , only : solarabs_type
@@ -101,7 +101,7 @@ module CLMFatesInterfaceMod
    use EDBtranMod            , only : btran_ed, &
                                       get_active_suction_layers
    use EDCanopyStructureMod  , only : canopy_summarization, update_hlm_dynamics
-   use EDPhotosynthesisMod   , only : Photosynthesis_ED
+   use FATESPhotosynthesisMod, only : FATESPhotosynthesis
    use EDAccumulateFluxesMod , only : AccumulateFluxes_ED
    use EDPhysiologyMod       , only : flux_into_litter_pools
 
@@ -1136,11 +1136,11 @@ contains
       
       ! Call photosynthesis
       
-      call  Photosynthesis_ED (this%fates(nc)%nsites, &
-           this%fates(nc)%sites,  &
-           this%fates(nc)%bc_in,  &
-           this%fates(nc)%bc_out, &
-           dtime)
+      call FATESPhotosynthesis (this%fates(nc)%nsites, &
+                                this%fates(nc)%sites,  &
+                                this%fates(nc)%bc_in,  &
+                                this%fates(nc)%bc_out, &
+                                dtime)
 
       ! Perform a double check to see if all patches on naturally vegetated columns
       ! were activated for photosynthesis
