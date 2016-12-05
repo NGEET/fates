@@ -44,7 +44,7 @@ contains
   ! ============================================================================
   subroutine fire_model( currentSite, atm2lnd_inst, temperature_inst)
 
-    use clm_varctl,   only : use_ed_spit_fire
+    use clm_varctl,   only : use_ed_spitfire
 
     type(ed_site_type)     , intent(inout), target :: currentSite
     type(atm2lnd_type)     , intent(in)    :: atm2lnd_inst
@@ -62,10 +62,10 @@ contains
     enddo
 
     if(write_SF==1)then
-       write(iulog,*) 'use_ed_spit_fire',use_ed_spit_fire
+       write(iulog,*) 'use_ed_spitfire',use_ed_spitfire
     endif
 
-    if(use_ed_spit_fire)then
+    if(use_ed_spitfire)then
        call fire_danger_index(currentSite, temperature_inst, atm2lnd_inst)
        call wind_effect(currentSite, atm2lnd_inst)
        call charecteristics_of_fuel(currentSite)
@@ -579,7 +579,7 @@ contains
     !currentPatch%ROS_front  forward ROS (m/min) 
     !currentPatch%TFC_ROS total fuel consumed by flaming front (kgC/m2)
 
-    use clm_varctl,   only : use_ed_spit_fire
+    use clm_varctl,   only : use_ed_spitfire
     use SFParamsMod,  only : SF_val_fdi_alpha,SF_val_fuel_energy, &
          SF_val_max_durat, SF_val_durat_slope
 
@@ -619,7 +619,7 @@ contains
        endif
        !  FIX(SPM,032414) needs a refactor
        !  FIX(RF,032414) : should happen outside of SF loop - doing all spitfire code is inefficient otherwise. 
-       if(.not. use_ed_spit_fire)then   
+       if(.not. use_ed_spitfire)then   
           currentPatch%fire = 0 !fudge to turn fire off
        endif
 
