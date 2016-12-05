@@ -103,6 +103,8 @@ contains
     ! If we are not using hydraulics, we calculate a unique solution for each
     ! level-pft-layer combination.  Thus the following three arrays are statically 
     ! allocated for the maximum space of the two cases (numCohortsPerPatch)
+    ! The "_z" suffix indicates these variables are discretized at the "leaf_layer"
+    ! scale.
     ! -----------------------------------------------------------------------------------
     
     ! leaf maintenance (dark) respiration (umol CO2/m**2/s) Double check this
@@ -118,47 +120,52 @@ contains
     ! used already
     logical :: rate_mask_z(cp_nclmax,mxpft,cp_nlevcan)
 
+    real(r8) :: vcmax_z            ! leaf layer maximum rate of carboxylation 
+                                   ! (umol co2/m**2/s)
+    real(r8) :: jmax_z             ! leaf layer maximum electron transport rate 
+                                   ! (umol electrons/m**2/s)
+    real(r8) :: tpu_z              ! leaf layer triose phosphate utilization rate 
+                                   ! (umol CO2/m**2/s)
+    real(r8) :: kp_z               ! leaf layer initial slope of CO2 response 
+                                   ! curve (C4 plants)
+    real(r8) :: lnc                ! leaf N concentration (gN leaf/m^2)
+    real(r8) :: mm_kco2            ! Michaelis-Menten constant for CO2 (Pa)
+    real(r8) :: mm_ko2             ! Michaelis-Menten constant for O2 (Pa)
+    real(r8) :: co2_cpoint         ! CO2 compensation point (Pa)
+    real(r8) :: btran_eff          ! effective transpiration wetness factor (0 to 1) 
+    real(r8) :: bbb                ! Ball-Berry minimum leaf conductance (umol H2O/m**2/s)
+    real(r8) :: kn(mxpft)          ! leaf nitrogen decay coefficient
+    real(r8) :: vcmax25top(mxpft)  ! canopy top: maximum rate of carboxylation 
+                                   ! at 25C (umol CO2/m**2/s)
+    real(r8) :: jmax25top(mxpft)   ! canopy top: maximum electron transport 
+                                   ! rate at 25C (umol electrons/m**2/s)
+    real(r8) :: tpu25top(mxpft)    ! canopy top: triose phosphate utilization rate 
+                                   ! at 25C (umol CO2/m**2/s)
+    real(r8) :: lmr25top(mxpft)    ! canopy top: leaf maintenance respiration rate 
+                                   ! at 25C (umol CO2/m**2/s)
+    real(r8) :: kp25top(mxpft)     ! canopy top: initial slope of CO2 response curve 
+                                   ! (C4 plants) at 25C
+    real(r8) :: cf                 ! s m**2/umol -> s/m
+    real(r8) :: gb_mol             ! leaf boundary layer conductance (umol H2O/m**2/s)
+    real(r8) :: ceair              ! vapor pressure of air, constrained (Pa)
+    real(r8) :: nscaler            ! leaf nitrogen scaling coefficient
+    real(r8) :: leaf_frac          ! ratio of to leaf biomass to total alive biomass
+    real(r8) :: laican             ! canopy sum of lai_z
+    real(r8) :: vai                ! leaf and steam area in ths layer. 
+    real(r8) :: tcsoi              ! Temperature response function for root respiration. 
+    real(r8) :: tcwood             ! Temperature response function for wood
+    real(r8) :: rscanopy           ! Canopy resistance [s/m]
+    real(r8) :: elai               ! exposed LAI (patch scale)
+    real(r8) :: live_stem_n        ! Live stem (above-ground sapwood) 
+                                   ! nitrogen content (kgN/plant)
+    real(r8) :: live_croot_n       ! Live coarse root (below-ground sapwood) 
+                                   ! nitrogen content (kgN/plant)
+    real(r8) :: froot_n            ! Fine root nitrogen content (kgN/plant)
 
-    real(r8) :: vcmax_z                              ! leaf layer maximum rate of carboxylation (umol co2/m**2/s)
-    real(r8) :: jmax_z                               ! leaf layer maximum electron transport rate (umol electrons/m**2/s)
-    real(r8) :: tpu_z                                ! leaf layer triose phosphate utilization rate (umol CO2/m**2/s)
-    real(r8) :: kp_z                                 ! leaf layer initial slope of CO2 response curve (C4 plants)
-    real(r8) :: lnc                                  ! leaf N concentration (gN leaf/m^2)
-    real(r8) :: mm_kco2                              ! Michaelis-Menten constant for CO2 (Pa)
-    real(r8) :: mm_ko2                               ! Michaelis-Menten constant for O2 (Pa)
-    real(r8) :: co2_cpoint                           ! CO2 compensation point (Pa)
-    real(r8) :: btran_eff                            ! effective transpiration wetness factor (0 to 1) 
 
-   
-    real(r8) :: bbb                               ! Ball-Berry minimum leaf conductance (umol H2O/m**2/s)
-    real(r8) :: kn(mxpft)                         ! leaf nitrogen decay coefficient
-    real(r8) :: vcmax25top(mxpft)                 ! canopy top: maximum rate of carboxylation at 25C (umol CO2/m**2/s)
-    real(r8) :: jmax25top(mxpft)                  ! canopy top: maximum electron transport rate at 25C (umol electrons/m**2/s)
-    real(r8) :: tpu25top(mxpft)                   ! canopy top: triose phosphate utilization rate at 25C (umol CO2/m**2/s)
-    real(r8) :: lmr25top(mxpft)                   ! canopy top: leaf maintenance respiration rate at 25C (umol CO2/m**2/s)
-    real(r8) :: kp25top(mxpft)                    ! canopy top: initial slope of CO2 response curve (C4 plants) at 25C
-
-    ! Other
-    integer  :: cl,s,iv,j,ps,ft,ifp               ! indices
-    integer  :: nv                                ! number of leaf layers
-    integer  :: NCL_p                             ! number of canopy layers in patch
-    real(r8) :: cf                                ! s m**2/umol -> s/m
-    real(r8) :: gb_mol                            ! leaf boundary layer conductance (umol H2O/m**2/s)
-    real(r8) :: ceair                             ! vapor pressure of air, constrained (Pa)
-    real(r8) :: nscaler                           ! leaf nitrogen scaling coefficient
-    real(r8) :: leaf_frac                         ! ratio of to leaf biomass to total alive biomass
-    real(r8) :: laican                            ! canopy sum of lai_z
-    real(r8) :: vai                               ! leaf and steam area in ths layer. 
-    real(r8) :: laifrac
-    real(r8) :: tcsoi                             ! Temperature response function for root respiration. 
-    real(r8) :: tcwood                            ! Temperature response function for wood
-    real(r8) :: tree_area
-    real(r8) :: gs_cohort
-    real(r8) :: rscanopy
-    real(r8) :: elai
-    real(r8) :: live_stem_n    ! Live stem (above-ground sapwood) nitrogen content (kgN/plant)
-    real(r8) :: live_croot_n   ! Live coarse root (below-ground sapwood) nitrogen content (kgN/plant)
-    real(r8) :: froot_n        ! Fine root nitrogen content (kgN/plant)
+    integer  :: cl,s,iv,j,ps,ft,ifp ! indices
+    integer  :: nv                  ! number of leaf layers
+    integer  :: NCL_p               ! number of canopy layers in patch
 
     ! Parameters
     ! -----------------------------------------------------------------------
@@ -188,13 +195,15 @@ contains
 
 
     associate(  &
-         c3psn     => pftcon%c3psn                          , &
-         slatop    => pftcon%slatop                         , & ! specific leaf area at top of canopy, projected area basis [m^2/gC]
-         flnr      => pftcon%flnr                           , & ! fraction of leaf N in the Rubisco enzyme (gN Rubisco / gN leaf)
-         woody     => pftcon%woody                          , & ! Is vegetation woody or not? 
-         fnitr     => pftcon%fnitr                          , & ! foliage nitrogen limitation factor (-)
-         leafcn    => pftcon%leafcn                         , & ! leaf C:N (gC/gN)
-         frootcn   => pftcon%frootcn                        , & ! froot C:N (gc/gN)   ! slope of BB relationship
+         c3psn     => pftcon%c3psn  , &
+         slatop    => pftcon%slatop , & ! specific leaf area at top of canopy, 
+                                        ! projected area basis [m^2/gC]
+         flnr      => pftcon%flnr   , & ! fraction of leaf N in the Rubisco 
+                                        ! enzyme (gN Rubisco / gN leaf)
+         woody     => pftcon%woody  , & ! Is vegetation woody or not? 
+         fnitr     => pftcon%fnitr  , & ! foliage nitrogen limitation factor (-)
+         leafcn    => pftcon%leafcn , & ! leaf C:N (gC/gN)
+         frootcn   => pftcon%frootcn, & ! froot C:N (gc/gN)   ! slope of BB relationship
          q10       => EDParamsShareInst%Q10) 
 
       do s = 1,nsites
@@ -750,7 +759,6 @@ contains
    real(r8), intent(out) :: anet_av_out    ! net leaf photosynthesis (umol CO2/m**2/s) 
                                            ! averaged over sun and shade leaves.  
 
-
    ! Locals
    ! ------------------------------------------------------------------------
    integer :: pp_type            ! Index for the different photosynthetic pathways C3,C4
@@ -772,7 +780,8 @@ contains
    real(r8) :: gs_mol_err        ! gs_mol for error check
    real(r8) :: ac                ! Rubisco-limited gross photosynthesis (umol CO2/m**2/s)
    real(r8) :: aj                ! RuBP-limited gross photosynthesis (umol CO2/m**2/s)
-   real(r8) :: ap                ! product-limited (C3) or CO2-limited (C4) gross photosynthesis (umol CO2/m**2/s)
+   real(r8) :: ap                ! product-limited (C3) or CO2-limited  
+                                 ! (C4) gross photosynthesis (umol CO2/m**2/s)
    real(r8) :: ai                ! intermediate co-limited photosynthesis (umol CO2/m**2/s)
    real(r8) :: leaf_co2_ppress         ! CO2 partial pressure at leaf surface (Pa)
    ! Parameters
@@ -826,14 +835,15 @@ contains
            
            !Loop aroun shaded and unshaded leaves          
            psn_out     = 0._r8    ! psn is accumulated across sun and shaded leaves. 
-           rstoma_out  = 0._r8                 ! 1/rs is accumulated across sun and shaded leaves. 
+           rstoma_out  = 0._r8    ! 1/rs is accumulated across sun and shaded leaves. 
            anet_av_out = 0._r8
            gstoma  = 0._r8
            
            do  sunsha = 1,2      
-              ! Electron transport rate for C3 plants. Convert par from W/m2 to umol photons/m**2/s 
-              ! using the factor 4.6
-              ! Convert from units of par absorbed per unit ground area to par absorbed per unit leaf area. 
+              ! Electron transport rate for C3 plants. 
+              ! Convert par from W/m2 to umol photons/m**2/s using the factor 4.6
+              ! Convert from units of par absorbed per unit ground area to par 
+              ! absorbed per unit leaf area. 
               
               if(sunsha == 1)then !sunlit
                  if(( laisun_lsl * canopy_area_lsl) > 0.0000000001_r8)then
@@ -885,7 +895,8 @@ contains
                           (co2_intra_c+mm_kco2 * (1._r8+can_o2_ppress / mm_ko2 ))
 
                     ! C3: RuBP-limited photosynthesis
-                    aj = je * max(co2_intra_c-co2_cpoint, 0._r8) / (4._r8*co2_intra_c+8._r8*co2_cpoint)
+                    aj = je * max(co2_intra_c-co2_cpoint, 0._r8) / &
+                          (4._r8*co2_intra_c+8._r8*co2_cpoint)
                  
                     ! C3: Product-limited photosynthesis 
                     ap = 3._r8 * tpu
@@ -897,7 +908,8 @@ contains
 
                     ! C4: RuBP-limited photosynthesis
                     if(sunsha == 1)then !sunlit
-                       if((laisun_lsl * canopy_area_lsl) > 0.0000000001_r8) then !guard against /0's in the night.             
+                       !guard against /0's in the night.           
+                       if((laisun_lsl * canopy_area_lsl) > 0.0000000001_r8) then   
                           aj = quant_eff(pp_type) * parsun_lsl * 4.6_r8
                           !convert from per cohort to per m2 of leaf)
                           aj = aj / (laisun_lsl * canopy_area_lsl)
@@ -939,8 +951,9 @@ contains
                  leaf_co2_ppress = can_co2_ppress- 1.4_r8/gb_mol * anet * can_press 
                  leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
                  aquad = leaf_co2_ppress
-                 bquad = leaf_co2_ppress*(gb_mol - bbb) - bb_slope(ft) * anet * can_press 
-                 cquad = -gb_mol*(leaf_co2_ppress*bbb + bb_slope(ft)*anet*can_press * ceair/ veg_esat )
+                 bquad = leaf_co2_ppress*(gb_mol - bbb) - bb_slope(ft) * anet * can_press
+                 cquad = -gb_mol*(leaf_co2_ppress*bbb + &
+                                  bb_slope(ft)*anet*can_press * ceair/ veg_esat )
 
                  call quadratic_f (aquad, bquad, cquad, r1, r2)
                  gs_mol = max(r1,r2)
@@ -949,11 +962,13 @@ contains
                  co2_intra_c = can_co2_ppress - anet * can_press * &
                        (1.4_r8*gs_mol+1.6_r8*gb_mol) / (gb_mol*gs_mol)
 
-                 ! Check for co2_intra_c convergence. Delta co2_intra_c/pair = mol/mol. Multiply by 10**6 to
-                 ! convert to umol/mol (ppm). Exit iteration if convergence criteria of +/- 1 x 10**-6 ppm
-                 ! is met OR if at least ten iterations (niter=10) are completed
+                 ! Check for co2_intra_c convergence. Delta co2_intra_c/pair = mol/mol. 
+                 ! Multiply by 10**6 to convert to umol/mol (ppm). Exit iteration if 
+                 ! convergence criteria of +/- 1 x 10**-6 ppm is met OR if at least ten 
+                 ! iterations (niter=10) are completed
                  
-                 if ((abs(co2_intra_c-co2_intra_c_old)/can_press*1.e06_r8 <=  2.e-06_r8) .or. niter == 5) then
+                 if ((abs(co2_intra_c-co2_intra_c_old)/can_press*1.e06_r8 <=  2.e-06_r8) &
+                       .or. niter == 5) then
                     loop_continue = .false.
                  end if
               end do !iteration loop
@@ -963,10 +978,12 @@ contains
                  gs_mol = bbb
               end if
               
-              ! Final estimates for leaf_co2_ppress and co2_intra_c (needed for early exit of co2_intra_c iteration when an < 0)
+              ! Final estimates for leaf_co2_ppress and co2_intra_c 
+              ! (needed for early exit of co2_intra_c iteration when an < 0)
               leaf_co2_ppress = can_co2_ppress - 1.4_r8/gb_mol * anet * can_press
               leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
-              co2_intra_c = can_co2_ppress - anet * can_press * (1.4_r8*gs_mol+1.6_r8*gb_mol) / (gb_mol*gs_mol)
+              co2_intra_c = can_co2_ppress - anet * can_press * &
+                            (1.4_r8*gs_mol+1.6_r8*gb_mol) / (gb_mol*gs_mol)
               
               ! Convert gs_mol (umol H2O/m**2/s) to gs (m/s) and then to rs (s/m)
               gs = gs_mol / cf
@@ -975,7 +992,8 @@ contains
               if ( DEBUG ) write(fates_log(),*) 'EDPhoto 738 ', agross
               if ( DEBUG ) write(fates_log(),*) 'EDPhoto 739 ', f_sun_lsl
 
-              !accumulate total photosynthesis umol/m2 ground/s-1. weight per unit sun and sha leaves.  
+              ! Accumulate total photosynthesis umol/m2 ground/s-1. 
+              ! weight per unit sun and sha leaves.
               if(sunsha == 1)then !sunlit       
                  psn_out     = psn_out + agross * f_sun_lsl
                  anet_av_out = anet_av_out + anet * f_sun_lsl
@@ -1012,7 +1030,9 @@ contains
            !average leaf-level stomatal resistance rate over sun and shade leaves... 
            rstoma_out = 1._r8/gstoma
            
-        else !No leaf area. This layer is present only because of stems. (leaves are off, or have reduced to 0
+        else
+           !No leaf area. This layer is present only because of stems. 
+           ! (leaves are off, or have reduced to 0)
            psn_out = 0._r8
            rstoma_out = min(rsmax0, 1._r8/bbb * cf)
            
@@ -1163,10 +1183,10 @@ contains
 
     !
     ! !ARGUMENTS:
-    real(r8), intent(in) :: tl  ! leaf temperature in photosynthesis temperature function (K)
-    real(r8), intent(in) :: hd  ! deactivation energy in photosynthesis temperature function (J/mol)
-    real(r8), intent(in) :: se  ! entropy term in photosynthesis temperature function (J/mol/K)
-    real(r8), intent(in) :: scaleFactor  ! scaling factor for high temperature inhibition (25 C = 1.0)
+    real(r8), intent(in) :: tl  ! leaf temperature in photosynthesis temp function (K)
+    real(r8), intent(in) :: hd  ! deactivation energy in photosynthesis temp function (J/mol)
+    real(r8), intent(in) :: se  ! entropy term in photosynthesis temp function (J/mol/K)
+    real(r8), intent(in) :: scaleFactor  ! scaling factor for high temp inhibition (25 C = 1.0)
     !
     ! !LOCAL VARIABLES:
     real(r8) :: ans
@@ -1195,8 +1215,8 @@ contains
     
     !
     ! !ARGUMENTS:
-    real(r8), intent(in) :: hd    ! deactivation energy in photosynthesis temperature function (J/mol)
-    real(r8), intent(in) :: se    ! entropy term in photosynthesis temperature function (J/mol/K)
+    real(r8), intent(in) :: hd    ! deactivation energy in photosynthesis temp function (J/mol)
+    real(r8), intent(in) :: se    ! entropy term in photosynthesis temp function (J/mol/K)
     !
     ! !LOCAL VARIABLES:
     real(r8) :: ans
@@ -1294,12 +1314,14 @@ contains
       ! ---------------------------------------------------------------------------------
 
       currentPatch%ncan(:,:) = 0
-      !redo the canopy structure algorithm to get round a bug that is happening for site 125, FT13. 
+      ! redo the canopy structure algorithm to get round a 
+      ! bug that is happening for site 125, FT13.
       currentCohort => currentPatch%tallest
       do while(associated(currentCohort))
          
          currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft) = &
-              max(currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft),currentCohort%NV)
+               max(currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft), &
+                   currentCohort%NV)
          
          currentCohort => currentCohort%shorter
          
