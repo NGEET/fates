@@ -9,7 +9,7 @@ module EDInitMod
   use decompMod                 , only : bounds_type
   use abortutils                , only : endrun
   use EDTypesMod                , only : cp_nclmax
-  use clm_varctl                , only : iulog, use_ed_spit_fire 
+  use clm_varctl                , only : iulog, use_ed_spitfire 
   use clm_time_manager          , only : is_restart
   use CanopyStateType           , only : canopystate_type
   use WaterStateType            , only : waterstate_type

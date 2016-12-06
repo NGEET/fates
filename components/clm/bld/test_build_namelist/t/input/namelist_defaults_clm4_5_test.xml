@@ -82,7 +82,7 @@ attributes from the config_cache.xml file (with keys converted to upper-case).
 
 <use_vertsoilc use_ed=".true.">.true.</use_vertsoilc>
 <use_century_decomp use_ed=".true."  >.true.</use_century_decomp>
-<use_ed_spit_fire use_ed=".true.">.true.</use_ed_spit_fire>
+<use_ed_spitfire use_ed=".true.">.true.</use_ed_spitfire>
 <use_lch4 use_ed=".true.">.false.</use_lch4>
 <use_nitrif_denitrif use_ed=".true.">.false.</use_nitrif_denitrif>
 

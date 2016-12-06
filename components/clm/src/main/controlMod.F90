@@ -203,7 +203,7 @@ contains
 
     namelist /clm_inparm/ use_c13, use_c14
 
-    namelist /clm_inparm/ use_ed, use_ed_spit_fire
+    namelist /clm_inparm/ use_ed, use_ed_spitfire
 
     ! CLM 5.0 nitrogen flags
     namelist /clm_inparm/ use_flexibleCN, use_luna
@@ -575,7 +575,7 @@ contains
     call mpi_bcast (use_c14, 1, MPI_LOGICAL, 0, mpicom, ier)
 
     call mpi_bcast (use_ed, 1, MPI_LOGICAL, 0, mpicom, ier)
-    call mpi_bcast (use_ed_spit_fire, 1, MPI_LOGICAL, 0, mpicom, ier)
+    call mpi_bcast (use_ed_spitfire, 1, MPI_LOGICAL, 0, mpicom, ier)
 
     ! flexibleCN nitrogen model
     call mpi_bcast (use_flexibleCN, 1, MPI_LOGICAL, 0, mpicom, ier)
