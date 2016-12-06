@@ -29,9 +29,7 @@ module FATESPlantRespPhotosynthMod
    implicit none
    private
    
-   
-   ! PUBLIC MEMBER FUNCTIONS:
-   public :: FATESPhotosynthesis !ED specific photosynthesis routine
+   public :: FatesPlantRespPhotosynthDrive ! Called by the HLM-Fates interface
    
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
@@ -46,7 +44,7 @@ contains
   
   !--------------------------------------------------------------------------------------
   
-  subroutine FatesPhotosynthesis (nsites, sites,bc_in,bc_out,dtime)
+  subroutine FatesPlantRespPhotosynthDrive (nsites, sites,bc_in,bc_out,dtime)
 
     ! -----------------------------------------------------------------------------------
     ! !DESCRIPTION:
@@ -681,7 +679,7 @@ contains
       end do !site loop
       
     end associate
-  end subroutine FatesPhotosynthesis
+ end subroutine FatesPlantRespPhotosynthDrive
   
   ! =======================================================================================
   
