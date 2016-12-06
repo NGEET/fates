@@ -789,9 +789,9 @@ contains
     ! NPP 
     if ( DEBUG ) write(iulog,*) 'EDphys 716 ',currentCohort%npp_acc
 
-    currentCohort%npp  = currentCohort%npp_acc  * udata%n_sub   !Link to CLM. convert from kgC/indiv/day into kgC/indiv/year
-    currentCohort%gpp  = currentCohort%gpp_acc  * udata%n_sub   !Link to CLM. convert from kgC/indiv/day into kgC/indiv/year
-    currentCohort%resp = currentCohort%resp_acc * udata%n_sub   !Link to CLM. convert from kgC/indiv/day into kgC/indiv/year
+    currentCohort%npp_acc_hold  = currentCohort%npp_acc  * udata%n_sub  ! convert from kgC/indiv/day into kgC/indiv/year
+    currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * udata%n_sub  ! convert from kgC/indiv/day into kgC/indiv/year
+    currentCohort%resp_acc_hold = currentCohort%resp_acc * udata%n_sub  ! convert from kgC/indiv/day into kgC/indiv/year
 
     currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
 
@@ -833,16 +833,17 @@ contains
     ! Calculate carbon balance 
     ! this is the fraction of maintenance demand we -have- to do...
 
-    if ( DEBUG ) write(iulog,*) 'EDphys 760 ',currentCohort%npp, currentCohort%md, &
+    if ( DEBUG ) write(iulog,*) 'EDphys 760 ',currentCohort%npp_acc_hold, currentCohort%md, &
                    EDecophyscon%leaf_stor_priority(currentCohort%pft)
 
-    currentCohort%carbon_balance = currentCohort%npp - currentCohort%md *  EDecophyscon%leaf_stor_priority(currentCohort%pft)
+    currentCohort%carbon_balance = currentCohort%npp_acc_hold - &
+          currentCohort%md *  EDecophyscon%leaf_stor_priority(currentCohort%pft)
 
     ! Allowing only carbon from NPP pool to account for npp flux into the maintenance pools
     ! ie this does not include any use of storage carbon or balive to make up for missing carbon balance in the transfer
-    currentCohort%npp_leaf  = min(currentCohort%npp*currentCohort%leaf_md/currentCohort%md, &
+    currentCohort%npp_leaf  = min(currentCohort%npp_acc_hold*currentCohort%leaf_md/currentCohort%md, &
                                   currentCohort%leaf_md*EDecophyscon%leaf_stor_priority(currentCohort%pft))
-    currentCohort%npp_froot = min(currentCohort%npp*currentCohort%root_md/currentCohort%md, &
+    currentCohort%npp_froot = min(currentCohort%npp_acc_hold*currentCohort%root_md/currentCohort%md, &
                                   currentCohort%root_md*EDecophyscon%leaf_stor_priority(currentCohort%pft))
 
 
@@ -944,12 +945,12 @@ contains
     if ( DEBUG ) write(iulog,*) 'EDPhys dbstoredt I ',currentCohort%dbstoredt
 
     currentCohort%seed_prod = (1.0_r8 - gr_fract) * currentCohort%carbon_balance
-    if (abs(currentCohort%npp-(currentCohort%dbalivedt+currentCohort%dbdeaddt+currentCohort%dbstoredt+ &
+    if (abs(currentCohort%npp_acc_hold-(currentCohort%dbalivedt+currentCohort%dbdeaddt+currentCohort%dbstoredt+ &
          currentCohort%seed_prod+currentCohort%md)) > 0.0000000001_r8)then
-       write(iulog,*) 'error in carbon check growth derivs',currentCohort%npp- &
+       write(iulog,*) 'error in carbon check growth derivs',currentCohort%npp_acc_hold- &
             (currentCohort%dbalivedt+currentCohort%dbdeaddt+currentCohort%dbstoredt+currentCohort%seed_prod+currentCohort%md)
        write(iulog,*) 'cohort fluxes',currentCohort%pft,currentCohort%canopy_layer,currentCohort%n, &
-            currentCohort%npp,currentCohort%dbalivedt,balive_loss, &
+            currentCohort%npp_acc_hold,currentCohort%dbalivedt,balive_loss, &
             currentCohort%dbdeaddt,currentCohort%dbstoredt,currentCohort%seed_prod,currentCohort%md * &
             EDecophyscon%leaf_stor_priority(currentCohort%pft)
        write(iulog,*) 'proxies' ,target_balive,currentCohort%balive,currentCohort%dbh,va,vs,gr_fract

@@ -58,8 +58,8 @@ module EDRestVectorMod
      real(r8), pointer :: n(:) 
      real(r8), pointer :: gpp_acc(:) 
      real(r8), pointer :: npp_acc(:) 
-     real(r8), pointer :: gpp(:) 
-     real(r8), pointer :: npp(:) 
+     real(r8), pointer :: gpp_acc_hold(:) 
+     real(r8), pointer :: npp_acc_hold(:) 
      real(r8), pointer :: npp_leaf(:) 
      real(r8), pointer :: npp_froot(:) 
      real(r8), pointer :: npp_bsw(:) 
@@ -168,7 +168,8 @@ module EDRestVectorMod
      module procedure newEDRestartVectorClass
   end interface EDRestartVectorClass
 
-  character(len=*), private, parameter :: mod_filename =  __FILE__
+  character(len=*), private, parameter :: mod_filename = &
+        __FILE__
 
   ! 
   ! non type-bound procedures
@@ -212,8 +213,8 @@ contains
     deallocate(this%n )
     deallocate(this%gpp_acc )
     deallocate(this%npp_acc )
-    deallocate(this%gpp )
-    deallocate(this%npp )
+    deallocate(this%gpp_acc_hold )
+    deallocate(this%npp_acc_hold )
     deallocate(this%npp_leaf )
     deallocate(this%npp_froot )
     deallocate(this%npp_bsw )
@@ -499,15 +500,15 @@ contains
       SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
       new%npp_acc(:) = 0.0_r8
 
-      allocate(new%gpp &
+      allocate(new%gpp_acc_hold &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
       SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
-      new%gpp(:) = 0.0_r8
+      new%gpp_acc_hold(:) = 0.0_r8
 
-      allocate(new%npp &
+      allocate(new%npp_acc_hold &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
       SHR_ASSERT(( retVal == allocOK ), errMsg(mod_filename, __LINE__))
-      new%npp(:) = 0.0_r8
+      new%npp_acc_hold(:) = 0.0_r8
 
       allocate(new%npp_leaf &
            (new%vectorLengthStart:new%vectorLengthStop), stat=retVal)
@@ -1022,16 +1023,16 @@ contains
          interpinic_flag='interp', data=this%npp_acc, &
          readvar=readvar)
 
-    call restartvar(ncid=ncid, flag=flag, varname='ed_gpp', xtype=ncd_double,  &
+    call restartvar(ncid=ncid, flag=flag, varname='ed_gpp_acc_hold', xtype=ncd_double,  &
          dim1name=coh_dimName, &
          long_name='ed cohort - gpp', units='unitless', &
-         interpinic_flag='interp', data=this%gpp, &
+         interpinic_flag='interp', data=this%gpp_acc_hold, &
          readvar=readvar)
 
-    call restartvar(ncid=ncid, flag=flag, varname='ed_npp', xtype=ncd_double,  &
+    call restartvar(ncid=ncid, flag=flag, varname='ed_npp_acc_hold', xtype=ncd_double,  &
          dim1name=coh_dimName, &
          long_name='ed cohort - npp', units='unitless', &
-         interpinic_flag='interp', data=this%npp, &
+         interpinic_flag='interp', data=this%npp_acc_hold, &
          readvar=readvar)
 
     call restartvar(ncid=ncid, flag=flag, varname='ed_npp_leaf', xtype=ncd_double,  &
@@ -1306,9 +1307,9 @@ contains
     write(iulog,*) trim(methodName)//' :: npp_acc ', &
          this%npp_acc(iSta:iSto)
     write(iulog,*) trim(methodName)//' :: gpp ', &
-         this%gpp(iSta:iSto)
+         this%gpp_acc_hold(iSta:iSto)
     write(iulog,*) trim(methodName)//' :: npp ', &
-         this%npp(iSta:iSto)
+         this%npp_acc_hold(iSta:iSto)
     write(iulog,*) trim(methodName)//' :: npp_leaf ', &
          this%npp_leaf(iSta:iSto)
     write(iulog,*) trim(methodName)//' :: npp_froot ', &
@@ -1461,8 +1462,8 @@ contains
                 write(iulog,*) trim(methodName)//' n '            ,totalCohorts,currentCohort%n
                 write(iulog,*) trim(methodName)//' gpp_acc '      ,totalCohorts,currentCohort%gpp_acc
                 write(iulog,*) trim(methodName)//' npp_acc '      ,totalCohorts,currentCohort%npp_acc
-                write(iulog,*) trim(methodName)//' gpp '          ,totalCohorts,currentCohort%gpp
-                write(iulog,*) trim(methodName)//' npp '          ,totalCohorts,currentCohort%npp
+                write(iulog,*) trim(methodName)//' gpp_acc_hold ' ,totalCohorts,currentCohort%gpp_acc_hold
+                write(iulog,*) trim(methodName)//' npp_acc_hold ' ,totalCohorts,currentCohort%npp_acc_hold
                 write(iulog,*) trim(methodName)//' npp_leaf '     ,totalCohorts,currentCohort%npp_leaf
                 write(iulog,*) trim(methodName)//' npp_froot '    ,totalCohorts,currentCohort%npp_froot
                 write(iulog,*) trim(methodName)//' npp_bsw '      ,totalCohorts,currentCohort%npp_bsw
@@ -1597,8 +1598,8 @@ contains
              write(iulog,*) trim(methodName)//' n            ',currentCohort%n
              write(iulog,*) trim(methodName)//' gpp_acc      ',currentCohort%gpp_acc
              write(iulog,*) trim(methodName)//' npp_acc      ',currentCohort%npp_acc
-             write(iulog,*) trim(methodName)//' gpp      ',currentCohort%gpp
-             write(iulog,*) trim(methodName)//' npp      ',currentCohort%npp
+             write(iulog,*) trim(methodName)//' gpp_acc_hold  ',currentCohort%gpp_acc_hold
+             write(iulog,*) trim(methodName)//' npp_acc_hold  ',currentCohort%npp_acc_hold
              write(iulog,*) trim(methodName)//' npp_leaf      ',currentCohort%npp_leaf
              write(iulog,*) trim(methodName)//' npp_froot      ',currentCohort%npp_froot
              write(iulog,*) trim(methodName)//' npp_bsw      ',currentCohort%npp_bsw
@@ -1742,8 +1743,8 @@ contains
              this%n(countCohort)            = currentCohort%n
              this%gpp_acc(countCohort)      = currentCohort%gpp_acc
              this%npp_acc(countCohort)      = currentCohort%npp_acc
-             this%gpp(countCohort)      = currentCohort%gpp
-             this%npp(countCohort)      = currentCohort%npp
+             this%gpp_acc_hold(countCohort)      = currentCohort%gpp_acc_hold
+             this%npp_acc_hold(countCohort)      = currentCohort%npp_acc_hold
              this%npp_leaf(countCohort)      = currentCohort%npp_leaf
              this%npp_froot(countCohort)      = currentCohort%npp_froot
              this%npp_bsw(countCohort)      = currentCohort%npp_bsw
@@ -2030,7 +2031,9 @@ contains
              ! item it needs, not the entire cohort...refactor
              temp_cohort%dbh = Dbh(temp_cohort) + 0.0001_r8*ft
 
-             write(iulog,*) 'EDRestVectorMod.F90::createPatchCohortStructure call create_cohort '
+             if (this%DEBUG) then
+                write(iulog,*) 'EDRestVectorMod.F90::createPatchCohortStructure call create_cohort '
+             end if
 
              call create_cohort(newp, ft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                   temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore,  &
@@ -2179,8 +2182,8 @@ contains
              currentCohort%n = this%n(countCohort)
              currentCohort%gpp_acc = this%gpp_acc(countCohort)
              currentCohort%npp_acc = this%npp_acc(countCohort)
-             currentCohort%gpp = this%gpp(countCohort)
-             currentCohort%npp = this%npp(countCohort)
+             currentCohort%gpp_acc_hold = this%gpp_acc_hold(countCohort)
+             currentCohort%npp_acc_hold = this%npp_acc_hold(countCohort)
              currentCohort%npp_leaf = this%npp_leaf(countCohort)
              currentCohort%npp_froot = this%npp_froot(countCohort)
              currentCohort%npp_bsw = this%npp_bsw(countCohort)

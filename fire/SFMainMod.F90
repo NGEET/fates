@@ -52,11 +52,8 @@ contains
 
     type (ed_patch_type), pointer :: currentPatch
 
-    integer temporary_SF_switch
-
     !zero fire things
     currentPatch => currentSite%youngest_patch
-    temporary_SF_switch = 0
     do while(associated(currentPatch))
        currentPatch%frac_burnt = 0.0_r8
        currentPatch%AB         = 0.0_r8
@@ -68,7 +65,7 @@ contains
        write(iulog,*) 'use_ed_spit_fire',use_ed_spit_fire
     endif
 
-    if(use_ed_spit_fire.and.temporary_SF_switch==1)then
+    if(use_ed_spit_fire)then
        call fire_danger_index(currentSite, temperature_inst, atm2lnd_inst)
        call wind_effect(currentSite, atm2lnd_inst)
        call charecteristics_of_fuel(currentSite)
@@ -222,7 +219,7 @@ contains
           ! average water content !is this the correct metric?         
           timeav_swc                  = sum(currentSite%water_memory(1:10)) / 10._r8 
           ! Equation B2 in Thonicke et al. 2010
-          fuel_moisture(dg_sf)        = max(0.0_r8, 10.0_r8/9._r8 * timeav_swc - 1.0_r8/9.0_r8)           
+          fuel_moisture(lg_sf)        = max(0.0_r8, 10.0_r8/9._r8 * timeav_swc - 1.0_r8/9.0_r8)           
  
           ! Average properties over the first four litter pools (dead leaves, twigs, s branches, l branches) 
           currentPatch%fuel_bulkd     = sum(currentPatch%fuel_frac(dg_sf:lb_sf) * SF_val_FBD(dg_sf:lb_sf))     
@@ -363,7 +360,7 @@ contains
 
     do while(associated(currentPatch))       
        currentPatch%total_tree_area = min(currentPatch%total_tree_area,currentPatch%area)      
-       currentPatch%effect_wspeed = wind * (tree_fraction*0.6+grass_fraction*0.4+bare_fraction*1.0)
+       currentPatch%effect_wspeed = wind * (tree_fraction*0.4+(grass_fraction+bare_fraction)*0.6)
       
        currentPatch => currentPatch%younger
     enddo !end patch loop
