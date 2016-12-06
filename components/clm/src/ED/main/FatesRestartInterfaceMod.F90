@@ -84,8 +84,8 @@ module FatesRestartInterfaceMod
   integer, private :: ir_nplant_co
   integer, private :: ir_gpp_acc_co
   integer, private :: ir_npp_acc_co
-  integer, private :: ir_gpp_co  ! IS THIS VARIABLE NECESSARY? ... (RGK 11-2016)
-  integer, private :: ir_npp_co  ! IS THIS VARIABLE NECESSARY? ... (RGK 11-2016)
+  integer, private :: ir_gpp_acc_hold_co
+  integer, private :: ir_npp_acc_hold_co
   integer, private :: ir_npp_leaf_co
   integer, private :: ir_npp_froot_co
   integer, private :: ir_npp_sw_co
@@ -661,15 +661,15 @@ contains
          units='kgC/indiv', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_acc_co )
 
-    call this%set_restart_var(vname='fates_gpp', vtype=cohort_r8, &
+    call this%set_restart_var(vname='fates_gpp_acc_hold', vtype=cohort_r8, &
          long_name='ed cohort - current step gpp', &
          units='kgC/indiv/year', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gpp_co )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gpp_acc_hold_co )
 
-    call this%set_restart_var(vname='fates_npp', vtype=cohort_r8, &
+    call this%set_restart_var(vname='fates_npp_acc_hold', vtype=cohort_r8, &
          long_name='ed cohort - current step npp', &
          units='kgC/indiv/year', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_co )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_acc_hold_co )
 
     call this%set_restart_var(vname='fates_npp_leaf', vtype=cohort_r8, &
          long_name='ed cohort - npp sent to leaves', &
@@ -994,8 +994,8 @@ contains
            rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
            rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
            rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
-           rio_gpp_co                  => this%rvars(ir_gpp_co)%r81d, &
-           rio_npp_co                  => this%rvars(ir_npp_co)%r81d, &
+           rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
+           rio_npp_acc_hold_co         => this%rvars(ir_npp_acc_hold_co)%r81d, &
            rio_npp_leaf_co             => this%rvars(ir_npp_leaf_co)%r81d, &
            rio_npp_froot_co            => this%rvars(ir_npp_froot_co)%r81d, &
            rio_npp_sw_co               => this%rvars(ir_npp_sw_co)%r81d, &
@@ -1102,8 +1102,8 @@ contains
                 rio_nplant_co(io_idx_co)       = ccohort%n
                 rio_gpp_acc_co(io_idx_co)      = ccohort%gpp_acc
                 rio_npp_acc_co(io_idx_co)      = ccohort%npp_acc
-                rio_gpp_co(io_idx_co)          = ccohort%gpp
-                rio_npp_co(io_idx_co)          = ccohort%npp
+                rio_gpp_acc_hold_co(io_idx_co) = ccohort%gpp_acc_hold
+                rio_npp_acc_hold_co(io_idx_co) = ccohort%npp_acc_hold
                 rio_npp_leaf_co(io_idx_co)     = ccohort%npp_leaf
                 rio_npp_froot_co(io_idx_co)    = ccohort%npp_froot
                 rio_npp_sw_co(io_idx_co)       = ccohort%npp_bsw
@@ -1556,8 +1556,8 @@ contains
           rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
           rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
           rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
-          rio_gpp_co                  => this%rvars(ir_gpp_co)%r81d, &
-          rio_npp_co                  => this%rvars(ir_npp_co)%r81d, &
+          rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
+          rio_npp_acc_hold_co         => this%rvars(ir_npp_acc_hold_co)%r81d, &
           rio_npp_leaf_co             => this%rvars(ir_npp_leaf_co)%r81d, &
           rio_npp_froot_co            => this%rvars(ir_npp_froot_co)%r81d, &
           rio_npp_sw_co               => this%rvars(ir_npp_sw_co)%r81d, &
@@ -1649,8 +1649,8 @@ contains
                 ccohort%n            = rio_nplant_co(io_idx_co)
                 ccohort%gpp_acc      = rio_gpp_acc_co(io_idx_co)
                 ccohort%npp_acc      = rio_npp_acc_co(io_idx_co)
-                ccohort%gpp          = rio_gpp_co(io_idx_co)
-                ccohort%npp          = rio_npp_co(io_idx_co)
+                ccohort%gpp_acc_hold = rio_gpp_acc_hold_co(io_idx_co)
+                ccohort%npp_acc_hold = rio_npp_acc_hold_co(io_idx_co)
                 ccohort%npp_leaf     = rio_npp_leaf_co(io_idx_co)
                 ccohort%npp_froot    = rio_npp_froot_co(io_idx_co)
                 ccohort%npp_bsw      = rio_npp_sw_co(io_idx_co)

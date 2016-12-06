@@ -401,7 +401,8 @@ contains
                                       !How much diffuse light is intercepted and then reflected?
                                       refl_dif(L,ft,iv,ib) = (1._r8 - tr_dif_z(L,ft,iv)) * rhol(ft,ib)
                                       !How much diffuse light in this layer is transmitted?
-                                      tran_dif(L,ft,iv,ib) = (1._r8 - tr_dif_z(L,ft,iv)) * taul(ft,ib) + tr_dif_z(L,ft,iv)
+                                      tran_dif(L,ft,iv,ib) = (1._r8 - tr_dif_z(L,ft,iv)) * &
+                                            taul(ft,ib) + tr_dif_z(L,ft,iv)
                                    end do
                                    
                                    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
@@ -418,13 +419,17 @@ contains
                                    ! FIX(RF,032414) ray tracing eqution - need to find derivation of this...
                                    ! for each unit going down, there are x units going up.
                                    do iv = currentPatch%nrad(L,ft),1, -1
-                                      dif_ratio(L,ft,iv,ib) = dif_ratio(L,ft,iv+1,ib) * tran_dif(L,ft,iv,ib)*tran_dif(L,ft,iv,ib) / &
-                                           (1._r8 - dif_ratio(L,ft,iv+1,ib) * refl_dif(L,ft,iv,ib)) + refl_dif(L,ft,iv,ib)
-                                      dif_ratio(L,ft,iv,ib) = dif_ratio(L,ft,iv,ib) * ftweight(L,ft,iv)/ftweight(L,ft,1)
-                                      dif_ratio(L,ft,iv,ib) = dif_ratio(L,ft,iv,ib) + dif_ratio(L,ft,iv+1,ib)* &
+                                      dif_ratio(L,ft,iv,ib) = dif_ratio(L,ft,iv+1,ib) * &
+                                            tran_dif(L,ft,iv,ib)*tran_dif(L,ft,iv,ib) / &
+                                            (1._r8 - dif_ratio(L,ft,iv+1,ib) * refl_dif(L,ft,iv,ib)) &
+                                            + refl_dif(L,ft,iv,ib)
+                                      dif_ratio(L,ft,iv,ib) = dif_ratio(L,ft,iv,ib) * &
+                                            ftweight(L,ft,iv)/ftweight(L,ft,1)
+                                      dif_ratio(L,ft,iv,ib) = dif_ratio(L,ft,iv,ib) + dif_ratio(L,ft,iv+1,ib) * &
                                            (ftweight(L,ft,1)-ftweight(L,ft,iv))/ftweight(L,ft,1)
                                    end do
-                                   weighted_dif_ratio(L,ib) = weighted_dif_ratio(L,ib) + dif_ratio(L,ft,1,ib) * ftweight(L,ft,1)
+                                   weighted_dif_ratio(L,ib) = weighted_dif_ratio(L,ib) + &
+                                         dif_ratio(L,ft,1,ib) * ftweight(L,ft,1)
                                    !instance where the first layer ftweight is used a proxy for the whole column. FTWA
                                 end do!cp_numSWb
                              endif ! currentPatch%present
