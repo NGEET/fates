@@ -1,8 +1,8 @@
-module FATESPhotosynthesisMod
+module FATESPlantRespPhotosynthMod
    
    !-------------------------------------------------------------------------------------
    ! !DESCRIPTION:
-   ! Calculates the photosynthetic fluxes for the FATES model
+   ! Calculates the plant respiration and photosynthetic fluxes for the FATES model
    ! This code is similar to and was originally based off of the 'photosynthesis' 
    ! subroutine in the CLM model.
    !
@@ -591,8 +591,12 @@ contains
                      else
                         currentCohort%livecroot_mr = 0._r8    
                      end if
-                     
-                     ! convert gpp from umol/indiv/s-1 to kgC/indiv/s-1  = X * 12 *10-6 * 10-3
+
+
+                     ! ------------------------------------------------------------------
+                     ! Part IX: Perform some unit conversions (rate to integrated) and
+                     ! calcualate some fluxes that are sums and nets of the base fluxes
+                     ! ------------------------------------------------------------------
                      
                      if ( DEBUG ) write(fates_log(),*) 'EDPhoto 904 ', currentCohort%resp_m
                      if ( DEBUG ) write(fates_log(),*) 'EDPhoto 905 ', currentCohort%rdark
@@ -630,6 +634,13 @@ contains
                      currentCohort%npp_tstep  = currentCohort%gpp_tstep - &
                                                 currentCohort%resp_tstep  ! kgC/indiv/ts
                      
+                     
+                     
+                     ! psncanopy (gpp) and lmrcanopy (dark resp) are not used
+                     ! by the host model right now.  Once upon a time they were diagnostics.
+                     ! Now we have our own diagnostics for GPP and LMR, so this step
+                     ! is not really needed.
+                     ! --------------------------------------------------------------------
                      bc_out(s)%psncanopy_pa(ifp) = bc_out(s)%psncanopy_pa(ifp) + &
                                                    currentCohort%gpp_tstep
                      bc_out(s)%lmrcanopy_pa(ifp) = bc_out(s)%lmrcanopy_pa(ifp) + &
@@ -1613,4 +1624,4 @@ contains
       return
     end subroutine LeafLayerBiophysicalRates
 
-end module FATESPhotosynthesisMod
+ end module FATESPlantRespPhotosynthMod
