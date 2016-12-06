@@ -101,7 +101,7 @@ module CLMFatesInterfaceMod
    use EDBtranMod            , only : btran_ed, &
                                       get_active_suction_layers
    use EDCanopyStructureMod  , only : canopy_summarization, update_hlm_dynamics
-   use FATESPhotosynthesisMod, only : FATESPhotosynthesis
+   use FatesPlantRespPhotosynthMod, only : FatesPlantRespPhotosynthDrive
    use EDAccumulateFluxesMod , only : AccumulateFluxes_ED
    use EDPhysiologyMod       , only : flux_into_litter_pools
 
@@ -1136,7 +1136,7 @@ contains
       
       ! Call photosynthesis
       
-      call FATESPhotosynthesis (this%fates(nc)%nsites, &
+      call FatesPlantRespPhotosynthDrive (this%fates(nc)%nsites, &
                                 this%fates(nc)%sites,  &
                                 this%fates(nc)%bc_in,  &
                                 this%fates(nc)%bc_out, &
