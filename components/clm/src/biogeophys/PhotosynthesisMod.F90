@@ -162,10 +162,6 @@ module  PhotosynthesisMod
      real(r8), pointer, public  :: rssun_patch       (:)   ! patch sunlit stomatal resistance (s/m)
      real(r8), pointer, public  :: rssha_patch       (:)   ! patch shaded stomatal resistance (s/m)
 
-     ! ED specific variables
-!     real(r8), pointer, public  :: psncanopy_patch   (:)   ! patch sunlit leaf photosynthesis (umol CO2 /m**2/ s) (ED specific)
-!     real(r8), pointer, public  :: lmrcanopy_patch   (:)   ! sunlit leaf maintenance respiration rate (umol CO2/m**2/s) (ED specific)
-
      ! LUNA specific variables
      real(r8), pointer, public  :: vcmx25_z_patch    (:,:) ! patch  leaf Vc,max25 (umol CO2/m**2/s) for canopy layer 
      real(r8), pointer, public  :: jmx25_z_patch     (:,:) ! patch  leaf Jmax25 (umol electron/m**2/s) for canopy layer 
