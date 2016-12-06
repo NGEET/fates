@@ -208,16 +208,36 @@ module EDTypesMod
                                                          ! because we don't want to continually re-calculate the cohort's position when
                                                          ! performing size diagnostics at high-frequency calls
 
+
      ! CARBON FLUXES 
-     real(r8) ::  gpp                                    ! GPP:  kgC/indiv/year
-     real(r8) ::  gpp_acc                                ! GPP:  kgC/indiv/day   
-     real(r8) ::  gpp_tstep                              ! GPP:  kgC/indiv/timestep
-     real(r8) ::  npp                                    ! NPP:  kgC/indiv/year
-     real(r8) ::  npp_acc                                ! NPP:  kgC/indiv/day   
-     real(r8) ::  npp_tstep                              ! NPP:  kgC/indiv/timestep
-     real(r8) ::  resp                                   ! Resp: kgC/indiv/year
-     real(r8) ::  resp_acc                               ! Resp: kgC/indiv/day
-     real(r8) ::  resp_tstep                             ! Resp: kgC/indiv/timestep
+     
+     ! ----------------------------------------------------------------------------------
+     ! NPP, GPP and RESP: Instantaneous, accumulated and accumulated-hold types.*
+     ! 
+     ! _tstep:    The instantaneous estimate that is calculated at each rapid plant biophysics
+     !            time-step (ie photosynthesis, sub-hourly). (kgC/indiv/timestep)
+     ! _acc:      The accumulation of the _tstep variable from the beginning to ending of
+     !            the dynamics time-scale.  This variable is zero'd during initialization and
+     !            after the dynamics call-sequence is completed.  (kgC/indiv/day)
+     ! _acc_hold: While _acc is zero'd after the dynamics call sequence and then integrated, 
+     !            _acc_hold "holds" the integrated value until the next time dynamics is 
+     !            called. This is necessary for restarts. This variable also has units
+     !            converted to a useful rate (kgC/indiv/yr)
+     ! ----------------------------------------------------------------------------------
+
+     real(r8) ::  gpp_tstep          ! Gross Primary Production (see above *)
+     real(r8) ::  gpp_acc
+     real(r8) ::  gpp_acc_hold
+
+     real(r8) ::  npp_tstep          ! Net Primary Production (see above *)
+     real(r8) ::  npp_acc
+     real(r8) ::  npp_acc_hold
+
+     real(r8) ::  resp_tstep         ! Autotrophic respiration (see above *)
+     real(r8) ::  resp_acc
+     real(r8) ::  resp_acc_hold
+
+     ! Net Primary Production Partitions
 
      real(r8) ::  npp_leaf                               ! NPP into leaves (includes replacement of turnover):  KgC/indiv/day
      real(r8) ::  npp_froot                              ! NPP into fine roots (includes replacement of turnover):  KgC/indiv/day
