@@ -375,7 +375,7 @@ contains
                            ! not been done yet.
                            ! ------------------------------------------------------------
                            
-                           if ( .not.rate_mask_z(ft,cl,iv) .or. use_fates_plant_hydro ) then
+                           if ( .not.rate_mask_z(cl,ft,iv) .or. use_fates_plant_hydro ) then
                               
                               if (use_fates_plant_hydro) then
                                  write(fates_log(),*) 'use_fates_plant_hydro in EDTypes'
@@ -466,7 +466,7 @@ contains
                                                         rs_z(cl,ft,iv),                     &  ! out
                                                         anet_av_z(cl,ft,iv))                   ! out
 
-                              rate_mask_z(ft,cl,iv) = .true.
+                              rate_mask_z(cl,ft,iv) = .true.
                            end if
                         end do
 
