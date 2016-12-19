@@ -614,7 +614,7 @@ contains
     type(ed_patch_type), pointer :: edpatch_pointer
     !----------------------------------------------------------------------
     
-    ! There is a one-to-one mapping between edpatches and clmpatches. To obtain
+    ! There is a one-to-one mapping between edpatches and clmpatches. To obtainFatesDerivedFromParameters
     ! this mapping - the following is computed elsewhere in the code base
     ! (1) what is the weight respective to the column of clmpatch? 
     !     dynEDMod determines this via the following logic
@@ -669,5 +669,11 @@ contains
     end do
 
   end subroutine set_root_fraction
+
+
+  ! =====================================================================================
+  
+ 
+
 
 end module EDTypesMod
