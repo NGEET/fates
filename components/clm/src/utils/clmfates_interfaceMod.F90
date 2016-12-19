@@ -191,6 +191,8 @@ contains
       ! ---------------------------------------------------------------------------------
 
      use FatesInterfaceMod, only : FatesInterfaceInit
+     use EDTypesMod       , only : numpft_ed
+     use FatesParameterDerivedMod, only : param_derived
 
       implicit none
       
@@ -212,10 +214,11 @@ contains
          ! This involves to stages
          ! 1) allocate the vectors
          ! 2) add the history variables defined in clm_inst to the history machinery
-!         call this%fates2hlm%Init(bounds_proc)
+
                   
          call EDecophysconInit( EDpftvarcon_inst, numpft )
-
+         call param_derived%Init(numpft_ed)
+         
       end if
          
       if(DEBUG)then
