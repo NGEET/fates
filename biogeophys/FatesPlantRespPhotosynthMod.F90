@@ -79,6 +79,8 @@ contains
     use FatesConstantsMod, only : umol_per_mmol
     use FatesConstantsMod, only : rgas => rgas_J_K_kmol
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+    use FatesParameterDerivedMod, only : param_derived
+
 
     ! ARGUMENTS:
     ! -----------------------------------------------------------------------------------
@@ -104,7 +106,7 @@ contains
     ! The "_z" suffix indicates these variables are discretized at the "leaf_layer"
     ! scale.
     ! -----------------------------------------------------------------------------------
-    
+
     ! leaf maintenance (dark) respiration (umol CO2/m**2/s) Double check this
     real(r8) :: lmr_z(cp_nclmax,mxpft,cp_nlevcan)  
 
@@ -126,23 +128,13 @@ contains
                                    ! (umol CO2/m**2/s)
     real(r8) :: kp_z               ! leaf layer initial slope of CO2 response 
                                    ! curve (C4 plants)
-    real(r8) :: lnc                ! leaf N concentration (gN leaf/m^2)
+   
     real(r8) :: mm_kco2            ! Michaelis-Menten constant for CO2 (Pa)
     real(r8) :: mm_ko2             ! Michaelis-Menten constant for O2 (Pa)
     real(r8) :: co2_cpoint         ! CO2 compensation point (Pa)
     real(r8) :: btran_eff          ! effective transpiration wetness factor (0 to 1) 
     real(r8) :: bbb                ! Ball-Berry minimum leaf conductance (umol H2O/m**2/s)
     real(r8) :: kn(mxpft)          ! leaf nitrogen decay coefficient
-    real(r8) :: vcmax25top(mxpft)  ! canopy top: maximum rate of carboxylation 
-                                   ! at 25C (umol CO2/m**2/s)
-    real(r8) :: jmax25top(mxpft)   ! canopy top: maximum electron transport 
-                                   ! rate at 25C (umol electrons/m**2/s)
-    real(r8) :: tpu25top(mxpft)    ! canopy top: triose phosphate utilization rate 
-                                   ! at 25C (umol CO2/m**2/s)
-    real(r8) :: lmr25top(mxpft)    ! canopy top: leaf maintenance respiration rate 
-                                   ! at 25C (umol CO2/m**2/s)
-    real(r8) :: kp25top(mxpft)     ! canopy top: initial slope of CO2 response curve 
-                                   ! (C4 plants) at 25C
     real(r8) :: cf                 ! s m**2/umol -> s/m
     real(r8) :: gb_mol             ! leaf boundary layer conductance (umol H2O/m**2/s)
     real(r8) :: ceair              ! vapor pressure of air, constrained (Pa)
@@ -159,7 +151,14 @@ contains
     real(r8) :: live_croot_n       ! Live coarse root (below-ground sapwood) 
                                    ! nitrogen content (kgN/plant)
     real(r8) :: froot_n            ! Fine root nitrogen content (kgN/plant)
-
+    real(r8) :: gccanopy_pa        ! Patch level canopy stomatal conductance  [mmol m-2 s-1]
+    
+    ! -----------------------------------------------------------------------------------
+    ! Keeping these two definitions in case they need to be added later
+    !
+    ! -----------------------------------------------------------------------------------
+    !real(r8) :: psncanopy_pa  ! patch sunlit leaf photosynthesis (umol CO2 /m**2/ s)
+    !real(r8) :: lmrcanopy_pa  ! patch sunlit leaf maintenance respiration rate (umol CO2/m**2/s) 
 
     integer  :: cl,s,iv,j,ps,ft,ifp ! indices
     integer  :: nv                  ! number of leaf layers
@@ -202,7 +201,8 @@ contains
          fnitr     => pftcon%fnitr  , & ! foliage nitrogen limitation factor (-)
          leafcn    => pftcon%leafcn , & ! leaf C:N (gC/gN)
          frootcn   => pftcon%frootcn, & ! froot C:N (gc/gN)   ! slope of BB relationship
-         q10       => EDParamsShareInst%Q10) 
+         q10       => EDParamsShareInst%Q10 )
+
 
       do s = 1,nsites
 
@@ -219,11 +219,13 @@ contains
             
             ! Part I. Zero output boundary conditions
             ! ---------------------------------------------------------------------------
-            bc_out(s)%psncanopy_pa(ifp) = 0._r8
-            bc_out(s)%lmrcanopy_pa(ifp) = 0._r8
             bc_out(s)%rssun_pa(ifp)     = 0._r8
             bc_out(s)%rssha_pa(ifp)     = 0._r8
-            bc_out(s)%gccanopy_pa(ifp)  = 0._r8  
+
+            gccanopy_pa = 0._r8
+            
+            !psncanopy_pa = 0._r8
+            !lmrcanopy_pa = 0._r8
 
             ! Part II. Filter out patches 
             ! Patch level filter flag for photosynthesis calculations
@@ -270,32 +272,7 @@ contains
                ! ------------------------------------------------------------------------
 
                do ft = 1,numpft_ed
-                  
 
-                  ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
-                  lnc  = 1._r8 / (slatop(ft) * leafcn(ft))
-                  
-                  ! at the moment in ED we assume that there is no active N cycle. 
-                  ! This should change, of course. FIX(RF,032414) Sep2011. 
-                  ! fudge - shortcut using fnitr as a proxy for vcmax... 
-                  vcmax25top(ft) = fnitr(ft) 
-                  
-                  ! Parameters derived from vcmax25top. 
-                  ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593
-                  ! used jmax25 = 1.97 vcmax25, from Wullschleger (1993) Journal of 
-                  ! Experimental Botany 44:907-920.  Here use a factor "1.67", from 
-                  ! Medlyn et al (2002) Plant, Cell and Environment 25:1167-1179
-                  
-                  ! RF - copied this from the CLM trunk code, but where did it come from, 
-                  ! and how can we make these consistant? 
-                  ! jmax25top(ft) =  &
-                  ! (2.59_r8 - 0.035_r8*min(max((t10(p)-tfrzc),11._r8),35._r8)) * vcmax25top(ft)
-                  
-                  jmax25top(ft) = 1.67_r8   * vcmax25top(ft)
-                  tpu25top(ft)  = 0.167_r8  * vcmax25top(ft)
-                  kp25top(ft)   = 20000._r8 * vcmax25top(ft)
-
-                  ! Nitrogen scaling factor. 
                   ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 used
                   ! kn = 0.11. Here, derive kn from vcmax25 as in Lloyd et al 
                   ! (2010) Biogeosciences, 7, 1833-1859
@@ -304,20 +281,8 @@ contains
                   if (bc_in(s)%dayl_factor_pa(ifp)  ==  0._r8) then
                      kn(ft) =  0._r8
                   else
-                     kn(ft) = exp(0.00963_r8 * vcmax25top(ft) - 2.43_r8)
+                     kn(ft) = exp(0.00963_r8 * param_derived%vcmax25top(ft) - 2.43_r8)
                   end if
-
-                  ! Leaf maintenance respiration to match the base rate used in CN
-                  ! but with the new temperature functions for C3 and C4 plants.
-                  !
-                  !
-                  ! CN respiration has units:  g C / g N [leaf] / s. This needs to be
-                  ! converted from g C / g N [leaf] / s to umol CO2 / m**2 [leaf] / s
-                  !
-                  ! Then scale this value at the top of the canopy for canopy depth
-                  
-                  lmr25top(ft) = 2.525e-6_r8 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
-                  lmr25top(ft) = lmr25top(ft) * lnc / (umolC_to_kgC * g_per_kg)
                   
                end do !ft 
 
@@ -339,8 +304,10 @@ contains
                ! With plant hydraulics, we must realize that photosynthesis and
                ! respiration will be different for leaves of each cohort in the leaf
                ! layers, as they will have there own hydraulic limitations.
+               ! NOTE: Only need to flush mask on the number of used pfts, not the whole 
+               ! scratch space.
                ! ------------------------------------------------------------------------
-               rate_mask_z(:,:,:) = .false.
+               rate_mask_z(:,1:numpft_ed,:) = .false.
 
                if(currentPatch%countcohorts > 0.0)then   ! Ignore empty patches
 
@@ -404,7 +371,7 @@ contains
                               nscaler = exp(-kn(ft) * laican)
 
                               ! Part VII: Calculate dark respiration (leaf maintenance) for this layer
-                              call LeafLayerMaintenanceRespiration( lmr25top(ft),             &  ! in
+                              call LeafLayerMaintenanceRespiration( param_derived%lmr25top(ft),&  ! in
                                                                     nscaler,                  &  ! in
                                                                     ft,                       &  ! in
                                                                     bc_in(s)%t_veg_pa(ifp),   &  ! in
@@ -422,10 +389,10 @@ contains
 
                               call LeafLayerBiophysicalRates(currentPatch%ed_parsun_z(cl,ft,iv), &  ! in
                                                              ft,                                 &  ! in
-                                                             vcmax25top(ft),                     &  ! in
-                                                             jmax25top(ft),                      &  ! in
-                                                             tpu25top(ft),                       &  ! in
-                                                             kp25top(ft),                        &  ! in
+                                                             param_derived%vcmax25top(ft),       &  ! in
+                                                             param_derived%jmax25top(ft),        &  ! in
+                                                             param_derived%tpu25top(ft),         &  ! in
+                                                             param_derived%kp25top(ft),          &  ! in
                                                              nscaler,                            &  ! in
                                                              bc_in(s)%t_veg_pa(ifp),             &  ! in
                                                              btran_eff,                          &  ! in
@@ -631,25 +598,15 @@ contains
                                                 currentCohort%resp_g ! kgC/indiv/ts
                      currentCohort%npp_tstep  = currentCohort%gpp_tstep - &
                                                 currentCohort%resp_tstep  ! kgC/indiv/ts
-                     
-                     
-                     
-                     ! psncanopy (gpp) and lmrcanopy (dark resp) are not used
-                     ! by the host model right now.  Once upon a time they were diagnostics.
-                     ! Now we have our own diagnostics for GPP and LMR, so this step
-                     ! is not really needed.
-                     ! --------------------------------------------------------------------
-                     bc_out(s)%psncanopy_pa(ifp) = bc_out(s)%psncanopy_pa(ifp) + &
-                                                   currentCohort%gpp_tstep
-                     bc_out(s)%lmrcanopy_pa(ifp) = bc_out(s)%lmrcanopy_pa(ifp) + &
-                                                   currentCohort%resp_m
 
-                     ! accumulate cohort level canopy conductances over 
-                     ! whole area before dividing by total area
-                     bc_out(s)%gccanopy_pa(ifp)  = bc_out(s)%gccanopy_pa(ifp) + &
-                                                   currentCohort%gscan * &
-                                                   currentCohort%n /currentPatch%total_canopy_area
+                     ! Accumulate stomatal conductance over the patch
+                     gccanopy_pa  = gccanopy_pa + &
+                                    currentCohort%gscan * &
+                                    currentCohort%n /currentPatch%total_canopy_area
                      
+                     !psncanopy_pa = psncanopy_pa + currentCohort%gpp_tstep
+                     !lmrcanopy_pa = lmrcanopy_pa + currentCohort%resp_m
+
                      currentCohort => currentCohort%shorter
                      
                   enddo  ! end cohort loop.   
@@ -658,18 +615,19 @@ contains
                
                elai = calc_areaindex(currentPatch,'elai')
                
-               bc_out(s)%psncanopy_pa(ifp) = bc_out(s)%psncanopy_pa(ifp) / currentPatch%area
-               bc_out(s)%lmrcanopy_pa(ifp) = bc_out(s)%lmrcanopy_pa(ifp) / currentPatch%area
-               
-               if(bc_out(s)%gccanopy_pa(ifp) > 1._r8/rsmax0 .and. elai > 0.0_r8)then
-                  rscanopy  = (1.0_r8/bc_out(s)%gccanopy_pa(ifp))-bc_in(s)%rb_pa(ifp)/elai  
+               !psncanopy_pa(ifp) = psncanopy_pa(ifp) / currentPatch%area
+               !lmrcanopy_pa(ifp) = lmrcanopy_pa(ifp) / currentPatch%area
+
+               if(gccanopy_pa > 1._r8/rsmax0 .and. elai > 0.0_r8)then
+                  rscanopy  = (1.0_r8/gccanopy_pa)-bc_in(s)%rb_pa(ifp)/elai  
                else
                   rscanopy = rsmax0
                end if
+
                bc_out(s)%rssun_pa(ifp) = rscanopy
                bc_out(s)%rssha_pa(ifp) = rscanopy
-               !convert into umol m-2 s-1 then mmol m-2 s-1. 
-               bc_out(s)%gccanopy_pa(ifp)  = 1.0_r8/rscanopy*cf/umol_per_mmol  
+
+
             end if
             
             currentPatch => currentPatch%younger
