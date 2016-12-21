@@ -346,9 +346,9 @@ contains
                               
                               if (use_fates_plant_hydro) then
                                  write(fates_log(),*) 'use_fates_plant_hydro in EDTypes'
-                                 write(fates_log(),*) 'has been set to true.  You have inadvartently'
+                                 write(fates_log(),*) 'has been set to true.  You have inadvertently'
                                  write(fates_log(),*) 'turned on a future feature that is not in the'
-                                 write(fates_log(),*) 'FATES model codeset yet. Please set this to'
+                                 write(fates_log(),*) 'FATES codeset yet. Please set this to'
                                  write(fates_log(),*) 'false and re-compile.'
                                  call endrun(msg=errMsg(sourcefile, __LINE__))
                                  !!       !! bbb   = max (bbbopt(ps)*currentCohort%btran(iv), 1._r8)
@@ -750,7 +750,8 @@ contains
    real(r8) :: ap                ! product-limited (C3) or CO2-limited  
                                  ! (C4) gross photosynthesis (umol CO2/m**2/s)
    real(r8) :: ai                ! intermediate co-limited photosynthesis (umol CO2/m**2/s)
-   real(r8) :: leaf_co2_ppress         ! CO2 partial pressure at leaf surface (Pa)
+   real(r8) :: leaf_co2_ppress   ! CO2 partial pressure at leaf surface (Pa)
+   real(r8) :: init_co2_intra_c  ! First guess intracellular co2 specific to C path
    ! Parameters
    ! ------------------------------------------------------------------------
    ! Fraction of light absorbed by non-photosynthetic pigments
@@ -777,8 +778,10 @@ contains
      
      if (nint(pftcon%c3psn(ft)) == 1) then! photosynthetic pathway: 0. = c4, 1. = c3
         pp_type = 1
+        init_co2_intra_c = init_a2l_co2_c3 * can_co2_ppress
      else
         pp_type = 2
+        init_co2_intra_c = init_a2l_co2_c4 * can_co2_ppress
      end if
 
      ! Part III: Photosynthesis and Conductance
@@ -792,13 +795,13 @@ contains
         
      else ! day time (a little bit more complicated ...)
         
-        if ( DEBUG ) write(fates_log(),*) 'EDphot 594 ',laisun_lsl
-        if ( DEBUG ) write(fates_log(),*) 'EDphot 595 ',laisha_lsl
+!        if ( DEBUG ) write(fates_log(),*) 'EDphot 594 ',laisun_lsl
+!        if ( DEBUG ) write(fates_log(),*) 'EDphot 595 ',laisha_lsl
 
         !is there leaf area? - (NV can be larger than 0 with only stem area if deciduous)
         if ( laisun_lsl + laisha_lsl > 0._r8 ) then 
 
-           if ( DEBUG ) write(fates_log(),*) '600 in laisun, laisha loop '
+!           if ( DEBUG ) write(fates_log(),*) '600 in laisun, laisha loop '
            
            !Loop aroun shaded and unshaded leaves          
            psn_out     = 0._r8    ! psn is accumulated across sun and shaded leaves. 
@@ -836,14 +839,8 @@ contains
               call quadratic_f (aquad, bquad, cquad, r1, r2)
               je = min(r1,r2)
 
-              ! Iterative loop for ci beginning with initial guess
-              ! THIS CALL APPEARS TO BE REDUNDANT WITH LINE 423 (RGK)
-              
-              if (pp_type == 1)then
-                 co2_intra_c = init_a2l_co2_c3 * can_co2_ppress
-              else
-                 co2_intra_c = init_a2l_co2_c4 * can_co2_ppress
-              end if
+              ! Initialize intracellular co2
+              co2_intra_c = init_co2_intra_c
 
               niter = 0
               loop_continue = .true.
@@ -855,7 +852,7 @@ contains
                  co2_intra_c_old = co2_intra_c
                  
                  ! Photosynthesis limitation rate calculations 
-                 if (pp_type == 1)then
+                 if (pp_type == 1)then    
 
                     ! C3: Rubisco-limited photosynthesis
                     ac = vcmax * max(co2_intra_c-co2_cpoint, 0._r8) / &
@@ -875,7 +872,7 @@ contains
 
                     ! C4: RuBP-limited photosynthesis
                     if(sunsha == 1)then !sunlit
-                       !guard against /0's in the night.           
+                       !guard against /0's in the night.
                        if((laisun_lsl * canopy_area_lsl) > 0.0000000001_r8) then   
                           aj = quant_eff(pp_type) * parsun_lsl * 4.6_r8
                           !convert from per cohort to per m2 of leaf)
@@ -955,9 +952,9 @@ contains
               ! Convert gs_mol (umol H2O/m**2/s) to gs (m/s) and then to rs (s/m)
               gs = gs_mol / cf
               
-              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 737 ', psn_out
-              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 738 ', agross
-              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 739 ', f_sun_lsl
+!              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 737 ', psn_out
+!              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 738 ', agross
+!              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 739 ', f_sun_lsl
 
               ! Accumulate total photosynthesis umol/m2 ground/s-1. 
               ! weight per unit sun and sha leaves.
@@ -972,9 +969,9 @@ contains
                        1._r8/(min(1._r8/gs, rsmax0)) * (1.0_r8-f_sun_lsl) 
               end if
 
-              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 758 ', psn_out
-              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 759 ', agross
-              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 760 ', f_sun_lsl
+!              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 758 ', psn_out
+!              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 759 ', agross
+!              if ( DEBUG ) write(fates_log(),*) 'EDPhoto 760 ', f_sun_lsl
               
               ! Make sure iterative solution is correct
               if (gs_mol < 0._r8) then
@@ -1238,6 +1235,53 @@ contains
      end if
      
    end subroutine quadratic_f
+   
+   ! ====================================================================================
+
+   subroutine quadratic_fast (a, b, c, r1, r2)
+     !
+     ! !DESCRIPTION:
+     !==============================================================================!
+     !----------------- Solve quadratic equation for its two roots -----------------!
+     ! THIS METHOD SIMPLY REMOVES THE DIV0 CHECK AND ERROR REPORTING                !
+     !==============================================================================!
+     ! Solution from Press et al (1986) Numerical Recipes: The Art of Scientific
+     ! Computing (Cambridge University Press, Cambridge), pp. 145.
+     !
+     ! !REVISION HISTORY:
+     ! 4/5/10: Adapted from /home/bonan/ecm/psn/An_gs_iterative.f90 by Keith Oleson
+     ! 7/23/16: Copied over from CLM by Ryan Knox
+     !
+     ! !USES:
+     !
+     ! !ARGUMENTS:
+     real(r8), intent(in)  :: a,b,c       ! Terms for quadratic equation
+     real(r8), intent(out) :: r1,r2       ! Roots of quadratic equation
+     !
+     ! !LOCAL VARIABLES:
+     real(r8) :: q                        ! Temporary term for quadratic solution
+     !------------------------------------------------------------------------------
+    
+   !  if (a == 0._r8) then
+   !     write (fates_log(),*) 'Quadratic solution error: a = ',a
+   !     call endrun(msg=errMsg(sourcefile, __LINE__))
+   !  end if
+   
+     if (b >= 0._r8) then
+        q = -0.5_r8 * (b + sqrt(b*b - 4._r8*a*c))
+     else
+        q = -0.5_r8 * (b - sqrt(b*b - 4._r8*a*c))
+     end if
+   
+     r1 = q / a
+   !  if (q /= 0._r8) then
+     r2 = c / q
+   !  else
+   !     r2 = 1.e36_r8
+   !  end if
+     
+   end subroutine quadratic_fast
+
 
    ! ====================================================================================
 
