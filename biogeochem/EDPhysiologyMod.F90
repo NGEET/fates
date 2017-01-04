@@ -20,6 +20,12 @@ module EDPhysiologyMod
   use EDTypesMod          , only : ncwd, cp_nlevcan, numpft_ed, senes
   use EDTypesMod          , only : ed_site_type, ed_patch_type, ed_cohort_type
 
+  use shr_log_mod           , only : errMsg => shr_log_errMsg
+  use abortutils            , only : endrun
+  use FatesGlobals          , only : fates_log
+
+
+
   implicit none
   private
 
@@ -39,7 +45,8 @@ module EDPhysiologyMod
   public :: flux_into_litter_pools
 
   logical, parameter :: DEBUG  = .false. ! local debug flag
-
+  character(len=*), parameter, private :: sourcefile = &
+        __FILE__
   ! ============================================================================
 
 contains
@@ -877,13 +884,16 @@ contains
 
     else
 
-       currentCohort%storage_flux = currentCohort%carbon_balance
-       ! Note that npp_store only tracks the flux between NPP and storage.  Storage can 
-       ! also be drawn down to support some turnover demand.
-       currentCohort%npp_store = min(0.0_r8,currentCohort%npp_acc_hold)
-       currentCohort%carbon_balance = 0._r8
-       write(iulog,*) 'ED: no leaf area in gd', currentCohort%indexnumber,currentCohort%n,currentCohort%bdead, &
-             currentCohort%dbh,currentCohort%balive
+       write(fates_log(),*) 'No target leaf area in GrowthDerivs? Bleaf(cohort) <= 0?'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+
+!       currentCohort%storage_flux = currentCohort%carbon_balance
+!       ! Note that npp_store only tracks the flux between NPP and storage.  Storage can 
+!       ! also be drawn down to support some turnover demand.
+!       currentCohort%npp_store = min(0.0_r8,currentCohort%npp_acc_hold)
+!       currentCohort%carbon_balance = 0._r8
+!       write(iulog,*) 'ED: no leaf area in gd', currentCohort%indexnumber,currentCohort%n,currentCohort%bdead, &
+!             currentCohort%dbh,currentCohort%balive
 
     endif
 
