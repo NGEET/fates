@@ -12,7 +12,7 @@ module EDSurfaceRadiationMod
    
   use EDtypesMod        , only : ed_patch_type, ed_site_type
   use EDtypesMod        , only : numpft_ed
-  use EDtypesMod        , only : numPatchesPerCol
+  use EDtypesMod        , only : maxPatchesPerCol
   use shr_kind_mod      , only : r8 => shr_kind_r8
   use shr_log_mod       , only : errMsg => shr_log_errMsg
   use FatesInterfaceMod , only : bc_in_type, &
@@ -74,8 +74,8 @@ contains
       real(r8) :: k_dir(numpft_ed)                              ! Direct beam extinction coefficient
       real(r8) :: tr_dir_z(cp_nclmax,numpft_ed,cp_nlevcan)         ! Exponential transmittance of direct beam radiation through a single layer
       real(r8) :: tr_dif_z(cp_nclmax,numpft_ed,cp_nlevcan)         ! Exponential transmittance of diffuse radiation through a single layer
-      real(r8) :: forc_dir(numPatchesPerCol,cp_maxSWb)
-      real(r8) :: forc_dif(numPatchesPerCol,cp_maxSWb)
+      real(r8) :: forc_dir(maxPatchesPerCol,cp_maxSWb)
+      real(r8) :: forc_dif(maxPatchesPerCol,cp_maxSWb)
       real(r8) :: weighted_dir_tr(cp_nclmax)
       real(r8) :: weighted_fsun(cp_nclmax)
       real(r8) :: weighted_dif_ratio(cp_nclmax,cp_maxSWb)
@@ -93,8 +93,8 @@ contains
       real(r8) :: abs_rad(cp_maxSWb)                               !radiation absorbed by soil
       real(r8) :: tr_soili                                      ! Radiation transmitted to the soil surface.
       real(r8) :: tr_soild                                      ! Radiation transmitted to the soil surface.
-      real(r8) :: phi1b(numPatchesPerCol,numpft_ed)      ! Radiation transmitted to the soil surface.
-      real(r8) :: phi2b(numPatchesPerCol,numpft_ed)
+      real(r8) :: phi1b(maxPatchesPerCol,numpft_ed)      ! Radiation transmitted to the soil surface.
+      real(r8) :: phi2b(maxPatchesPerCol,numpft_ed)
       real(r8) :: laisum                                        ! cumulative lai+sai for canopy layer (at middle of layer)
       real(r8) :: angle
 
@@ -107,8 +107,8 @@ contains
       integer  :: fp,iv,s      ! array indices
       integer  :: ib               ! waveband number
       real(r8) :: cosz             ! 0.001 <= coszen <= 1.000
-      real(r8) :: chil(numPatchesPerCol)     ! -0.4 <= xl <= 0.6
-      real(r8) :: gdir(numPatchesPerCol)    ! leaf projection in solar direction (0 to 1)
+      real(r8) :: chil(maxPatchesPerCol)     ! -0.4 <= xl <= 0.6
+      real(r8) :: gdir(maxPatchesPerCol)    ! leaf projection in solar direction (0 to 1)
 
       !-----------------------------------------------------------------------
 
