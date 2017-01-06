@@ -9,14 +9,19 @@ module EDAccumulateFluxesMod
   ! Rosie Fisher. March 2014. 
   !
   ! !USES:
+  use abortutils, only        : endrun
+  use shr_log_mod , only      : errMsg => shr_log_errMsg
+  use FatesConstantsMod, only : fates_huge, fates_tiny
   implicit none
   private
   !
   public :: AccumulateFluxes_ED
 
   logical :: DEBUG = .false.  ! for debugging this module
-  !------------------------------------------------------------------------------
 
+  character(len=*), parameter, private :: sourcefile = &
+        __FILE__
+  
 contains
 
   !------------------------------------------------------------------------------
@@ -33,6 +38,8 @@ contains
     use EDTypesMod        , only : ed_patch_type, ed_cohort_type, &
                                    ed_site_type, AREA
     use FatesInterfaceMod , only : bc_in_type,bc_out_type
+    use, intrinsic :: IEEE_ARITHMETIC
+
     !
     ! !ARGUMENTS    
     integer,            intent(in)            :: nsites
@@ -67,12 +74,45 @@ contains
                 ! _tstep fluxes are KgC/indiv/timestep _acc are KgC/indiv/day
                 
                 if ( DEBUG ) then
-                   write(iulog,*) 'EDAccumFlux 64 ',ccohort%npp_acc, &
-                         ccohort%npp_tstep
+                   write(iulog,*) 'EDAccumFlux 64 ',ccohort%npp_tstep
                    write(iulog,*) 'EDAccumFlux 66 ',ccohort%gpp_tstep
                    write(iulog,*) 'EDAccumFlux 67 ',ccohort%resp_tstep
                 endif
+
+                ! Trap invalid values from photosynthesis and resp
+                ! -----------------------------------------------------------------------
+
+                if(ieee_is_nan(ccohort%gpp_tstep))then
+                   write(iulog,*)'GPP NaN Trap Triggered',s,ifp,ccohort%gpp_tstep
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                end if
                 
+                if(ieee_is_nan(ccohort%resp_tstep))then
+                   write(iulog,*)'RESP NaN Trap Triggered',s,ifp,ccohort%resp_tstep
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                end if
+                
+                if(ieee_is_nan(ccohort%npp_tstep))then
+                   write(iulog,*)'NPP NaN Trap Triggered',s,ifp,ccohort%npp_tstep
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                end if
+
+                if(.not.ieee_is_finite(ccohort%gpp_tstep))then
+                   write(iulog,*)'GPP Infinite Trap Triggered',s,ifp,ccohort%gpp_tstep
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                end if
+                
+                if(.not.ieee_is_finite(ccohort%resp_tstep))then
+                   write(iulog,*)'RESP Infinite Trap Triggered',s,ifp,ccohort%resp_tstep
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                end if
+                
+                if(.not.ieee_is_finite(ccohort%npp_tstep))then
+                   write(iulog,*)'NPP Infinite Trap Triggered',s,ifp,ccohort%npp_tstep
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                end if
+
+
                 ccohort%npp_acc  = ccohort%npp_acc  + ccohort%npp_tstep 
                 ccohort%gpp_acc  = ccohort%gpp_acc  + ccohort%gpp_tstep 
                 ccohort%resp_acc = ccohort%resp_acc + ccohort%resp_tstep
