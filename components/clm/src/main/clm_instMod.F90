@@ -375,7 +375,7 @@ contains
 
     end if
 
-    if ( use_cn .or. use_ed) then 
+    if ( use_cn ) then 
 
        ! Initalize soilbiogeochem nitrogen types
 
