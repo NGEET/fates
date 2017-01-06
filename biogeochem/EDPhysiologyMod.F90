@@ -873,6 +873,7 @@ contains
           !what is the tax on the carbon available for growth? 
           currentCohort%carbon_balance = currentCohort%carbon_balance * (1.0_r8 - f_store)  
        else  !cbalance is negative. Take C out of store to pay for maintenance respn.
+
           currentCohort%storage_flux = currentCohort%carbon_balance 
 
           ! Note that npp_store only tracks the flux between NPP and storage.  Storage can 
@@ -886,14 +887,6 @@ contains
 
        write(fates_log(),*) 'No target leaf area in GrowthDerivs? Bleaf(cohort) <= 0?'
        call endrun(msg=errMsg(sourcefile, __LINE__))
-
-!       currentCohort%storage_flux = currentCohort%carbon_balance
-!       ! Note that npp_store only tracks the flux between NPP and storage.  Storage can 
-!       ! also be drawn down to support some turnover demand.
-!       currentCohort%npp_store = min(0.0_r8,currentCohort%npp_acc_hold)
-!       currentCohort%carbon_balance = 0._r8
-!       write(iulog,*) 'ED: no leaf area in gd', currentCohort%indexnumber,currentCohort%n,currentCohort%bdead, &
-!             currentCohort%dbh,currentCohort%balive
 
     endif
 
