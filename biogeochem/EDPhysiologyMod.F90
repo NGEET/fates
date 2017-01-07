@@ -8,7 +8,7 @@ module EDPhysiologyMod
 
   use shr_kind_mod        , only : r8 => shr_kind_r8
   use clm_varctl          , only : iulog 
-  use spmdMod             , only : masterproc
+  
   use TemperatureType     , only : temperature_type
   use SoilStateType       , only : soilstate_type
   use WaterstateType      , only : waterstate_type
@@ -240,20 +240,21 @@ contains
   end subroutine trim_canopy
 
   ! ============================================================================
-  subroutine phenology( currentSite, temperature_inst, waterstate_inst)
+  subroutine phenology( currentSite, bc_in, temperature_inst, waterstate_inst)
     !
     ! !DESCRIPTION:
     ! Phenology. 
     !
     ! !USES:
     use clm_varcon, only : tfrz
-    use clm_time_manager, only : get_curr_date
-    use clm_time_manager, only : get_ref_date, timemgr_datediff 
+    use FatesInterfaceMod, only : bc_in_type
     use EDTypesMod, only : udata
-    use PatchType , only : patch   
+    use PatchType , only : patch
     !
     ! !ARGUMENTS:
-    type(ed_site_type)      , intent(inout), target :: currentSite
+    type(ed_site_type), intent(inout), target :: currentSite
+    type(bc_in_type),   intent(in)            :: bc_in
+
     type(temperature_type)  , intent(in)            :: temperature_inst
     type(waterstate_type)   , intent(in)            :: waterstate_inst
     !
@@ -283,8 +284,9 @@ contains
     real(r8) :: drought_threshold
     real(r8) :: off_time     ! minimum number of days between leaf off and leaf on for drought phenology 
     real(r8) :: temp_in_C    ! daily averaged temperature in celcius
-    real(r8) :: mindayson 
-    real(r8) :: modelday
+
+    real(r8), parameter :: mindayson = 30.0
+
 
     !------------------------------------------------------------------------
 
@@ -294,16 +296,9 @@ contains
     patchi = currentSite%oldest_patch%clm_pno-1
     coli   = patch%column(patchi)
 
-    t_veg24       => temperature_inst%t_veg24_patch ! Input:  [real(r8) (:)]  avg pft vegetation temperature for last 24 hrs    
+    t_veg24 => temperature_inst%t_veg24_patch ! Input:  [real(r8) (:)]  avg pft vegetation temperature for last 24 hrs    
 
-    call get_curr_date(yr, mon, day, sec)
-    curdate = yr*10000 + mon*100 + day
     
-    call get_ref_date(yr, mon, day, sec)
-    refdate = yr*10000 + mon*100 + day
-  
-    call timemgr_datediff(refdate, 0, curdate, sec, modelday)
-    if ( masterproc ) write(iulog,*) 'modelday',modelday
 
     ! Parameter of drought decid leaf loss in mm in top layer...FIX(RF,032414) 
     ! - this is arbitrary and poorly understood. Needs work. ED_
@@ -316,7 +311,7 @@ contains
     c = -0.001_r8
     coldday = 5.0_r8    !ed_ph_chiltemp
 
-    mindayson = 30
+   
      
     !Parameters from SDGVM model of senesence
     ncolddayslim = 5
@@ -372,7 +367,7 @@ contains
     endif
     
 
-    timesinceleafoff = modelday - currentSite%leafoffdate
+    timesinceleafoff = bc_in%model_day - currentSite%leafoffdate
     !LEAF ON: COLD DECIDUOUS. Needs to
     !1) have exceeded the growing degree day threshold 
     !2) The leaves should not be on already
@@ -381,14 +376,14 @@ contains
        if (currentSite%status == 1) then
           if (currentSite%ncd >= 1) then
              currentSite%status = 2     !alter status of site to 'leaves on'
-             ! NOTE(bja, 2015-01) should leafondate = modelday to be consistent with leaf off?
+             ! NOTE(bja, 2015-01) should leafondate = model_day to be consistent with leaf off?
              currentSite%leafondate = t !record leaf on date   
              if ( DEBUG ) write(iulog,*) 'leaves on'
           endif !ncd
        endif !status
     endif !GDD
 
-    timesinceleafon = modelday - currentSite%leafondate
+    timesinceleafon = bc_in%model_day - currentSite%leafondate
 
 
     !LEAF OFF: COLD THRESHOLD
@@ -402,7 +397,7 @@ contains
      if (timesinceleafon > mindayson)then
        if (currentSite%status == 2)then
           currentSite%status = 1        !alter status of site to 'leaves on'
-          currentSite%leafoffdate = modelday   !record leaf off date   
+          currentSite%leafoffdate = bc_in%model_day   !record leaf off date   
           if ( DEBUG ) write(iulog,*) 'leaves off'
        endif
     endif
@@ -412,7 +407,7 @@ contains
     if(timesinceleafoff > 400)then !remove leaves after a whole year when there is no 'off' period.  
        if(currentSite%status == 2)then
           currentSite%status = 1        !alter status of site to 'leaves on'
-          currentSite%leafoffdate = modelday   !record leaf off date   
+          currentSite%leafoffdate = bc_in%model_day   !record leaf off date   
           if ( DEBUG ) write(iulog,*) 'leaves off'
        endif
     endif
