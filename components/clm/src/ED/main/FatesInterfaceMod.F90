@@ -50,6 +50,18 @@ module FatesInterfaceMod
       ! The actual number of FATES' ED patches
       integer :: npatches
 
+      ! Timing Variables
+      integer  :: current_year    ! Current year
+      integer  :: current_month   ! month of year
+      integer  :: current_day     ! day of month
+      integer  :: current_tod     ! time of day (seconds past 0Z)
+      integer  :: current_date    ! time of day (seconds past 0Z)
+      integer  :: reference_date  ! YYYYMMDD
+      real(r8) :: model_day       ! elapsed days between current date and reference
+                                  ! uses ESMF functions, so prefered to pass it in as
+                                  ! argument rather than calculate directly
+
+
       ! Radiation variables for calculating sun/shade fractions
       ! ---------------------------------------------------------------------------------
 
@@ -447,6 +459,13 @@ contains
       integer, intent(in) :: s
 
       ! Input boundaries
+      this%bc_in(s)%current_year   = 0
+      this%bc_in(s)%current_month  = 0 
+      this%bc_in(s)%current_day    = 0 
+      this%bc_in(s)%current_tod    = 0 
+      this%bc_in(s)%current_date   = 0
+      this%bc_in(s)%reference_date = 0 
+      this%bc_in(s)%model_day      = 0.0_r8
 
       this%bc_in(s)%solad_parb(:,:)     = 0.0_r8
       this%bc_in(s)%solai_parb(:,:)     = 0.0_r8

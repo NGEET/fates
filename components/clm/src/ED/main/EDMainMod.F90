@@ -17,6 +17,8 @@ module EDMainMod
   use SFMainMod            , only : fire_model
   use EDtypesMod           , only : ncwd, numpft_ed, udata
   use EDtypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
+  use FatesInterfaceMod    , only : bc_in_type
+  use spmdMod              , only : masterproc
 
   implicit none
   private
@@ -39,7 +41,7 @@ module EDMainMod
 contains
 
   !-------------------------------------------------------------------------------!
-  subroutine ed_ecosystem_dynamics(currentSite, &
+  subroutine ed_ecosystem_dynamics(currentSite, bc_in, &
        atm2lnd_inst, &
        soilstate_inst, temperature_inst, waterstate_inst)
     !
@@ -48,6 +50,7 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type)      , intent(inout), target  :: currentSite
+    type(bc_in_type)        , intent(in)             :: bc_in
     type(atm2lnd_type)      , intent(in)             :: atm2lnd_inst
     type(soilstate_type)    , intent(in)             :: soilstate_inst
     type(temperature_type)  , intent(in)             :: temperature_inst
@@ -56,6 +59,8 @@ contains
     ! !LOCAL VARIABLES:
     type(ed_patch_type), pointer :: currentPatch
     !-----------------------------------------------------------------------
+
+    if ( masterproc ) write(iulog,*) 'modelday',bc_in%model_day
 
     !**************************************************************************
     ! Fire, growth, biogeochemistry. 
@@ -66,7 +71,7 @@ contains
    
     call ed_total_balance_check(currentSite, 0)
     
-    call phenology(currentSite, temperature_inst, waterstate_inst)
+    call phenology(currentSite, bc_in, temperature_inst, waterstate_inst)
 
     call fire_model(currentSite, atm2lnd_inst, temperature_inst)
 

@@ -551,6 +551,7 @@ module EDTypesMod
      real(r8) ::   deltat                   ! fraction of year used for each timestep (1/N_SUB)
      integer  ::   time_period              ! Within year timestep (1:N_SUB) day of year
      integer  ::   restart_year             ! Which year of simulation are we starting in? 
+     integer  ::   modelday                 ! Number of days since reference
   end type userdata
 
 
