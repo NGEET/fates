@@ -1037,13 +1037,15 @@ contains
     n%gpp_acc_hold    = o%gpp_acc_hold
     n%gpp_acc         = o%gpp_acc
     n%gpp_tstep       = o%gpp_tstep
+
     n%npp_acc_hold    = o%npp_acc_hold
     n%npp_tstep       = o%npp_tstep
 
     if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn Ia ',o%npp_acc
     if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn Ib ',o%resp_acc
 
-    n%npp_acc_hold    = o%npp_acc_hold
+    n%npp_acc         = o%npp_acc
+
     n%resp_tstep      = o%resp_tstep
     n%resp_acc        = o%resp_acc
     n%resp_acc_hold   = o%resp_acc_hold
