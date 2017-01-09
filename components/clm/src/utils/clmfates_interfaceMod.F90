@@ -440,7 +440,10 @@ contains
       ! !LOCAL VARIABLES:
       real(r8) :: dayDiff                  ! day of run
       integer  :: dayDiffInt               ! integer of day of run
-      integer  :: s                        ! site
+      integer  :: s                        ! site index
+      integer  :: c                        ! column index (HLM)
+      integer  :: ifp                      ! patch index
+      integer  :: p                        ! HLM patch index
       integer  :: yr                       ! year (0, ...)
       integer  :: mon                      ! month (1, ..., 12)
       integer  :: day                      ! day of month (1, ..., 31)
@@ -502,6 +505,7 @@ contains
       if ( masterproc ) write(iulog,*) 'modelday',model_day
 
       do s=1,this%fates(nc)%nsites
+         c = this%f2hmap(nc)%fcolumn(s)
          this%fates(nc)%bc_in(s)%current_year   = current_year
          this%fates(nc)%bc_in(s)%current_month  = current_month
          this%fates(nc)%bc_in(s)%current_day    = current_day
@@ -509,10 +513,17 @@ contains
          this%fates(nc)%bc_in(s)%current_tod    = current_date
          this%fates(nc)%bc_in(s)%reference_date = reference_date
          this%fates(nc)%bc_in(s)%model_day      = model_day
+         this%fates(nc)%bc_in(s)%t_veg24_si     = &
+              temperature_inst%t_veg24_patch(col%patchi(c)-1)
+         do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
+            p = ifp+col%patchi(c)
+            this%fates(nc)%bc_in(s)%t_veg24_pa(ifp) = &
+                 temperature_inst%t_veg24_patch(p)
+         end do
       end do
 
 
-         ! TODO-INTEF: PROCEDURE FOR CONVERTING CLM/ALM FIELDS TO MODEL BOUNDARY
+      ! TODO-INTER: PROCEDURE FOR CONVERTING CLM/ALM FIELDS TO MODEL BOUNDARY
       ! CONDITIONS. IE. 
 
 
