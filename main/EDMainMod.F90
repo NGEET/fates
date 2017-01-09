@@ -71,7 +71,7 @@ contains
    
     call ed_total_balance_check(currentSite, 0)
     
-    call phenology(currentSite, bc_in, temperature_inst, waterstate_inst)
+    call phenology(currentSite, bc_in, waterstate_inst )
 
     call fire_model(currentSite, atm2lnd_inst, temperature_inst)
 

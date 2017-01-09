@@ -240,26 +240,25 @@ contains
   end subroutine trim_canopy
 
   ! ============================================================================
-  subroutine phenology( currentSite, bc_in, temperature_inst, waterstate_inst)
+  subroutine phenology( currentSite, bc_in, waterstate_inst)
     !
     ! !DESCRIPTION:
     ! Phenology. 
     !
     ! !USES:
-    use clm_varcon, only : tfrz
+    use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use FatesInterfaceMod, only : bc_in_type
     use EDTypesMod, only : udata
-    use PatchType , only : patch
+
     !
     ! !ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite
     type(bc_in_type),   intent(in)            :: bc_in
 
-    type(temperature_type)  , intent(in)            :: temperature_inst
     type(waterstate_type)   , intent(in)            :: waterstate_inst
     !
     ! !LOCAL VARIABLES:
-    real(r8), pointer :: t_veg24(:) 
+
     integer  :: t            ! day of year
     integer  :: ncolddays    ! no days underneath the threshold for leaf drop
     integer  :: ncolddayslim ! critical no days underneath the threshold for leaf drop
@@ -287,19 +286,6 @@ contains
 
     real(r8), parameter :: mindayson = 30.0
 
-
-    !------------------------------------------------------------------------
-
-    ! INTERF-TODO: THIS IS A BAND-AID, AS I WAS HOPING TO REMOVE CLM_PNO
-    ! ALREADY REMOVED currentSite%clmcolumn, hence the need for these
-
-    patchi = currentSite%oldest_patch%clm_pno-1
-    coli   = patch%column(patchi)
-
-    t_veg24 => temperature_inst%t_veg24_patch ! Input:  [real(r8) (:)]  avg pft vegetation temperature for last 24 hrs    
-
-    
-
     ! Parameter of drought decid leaf loss in mm in top layer...FIX(RF,032414) 
     ! - this is arbitrary and poorly understood. Needs work. ED_
     drought_threshold = 0.15 
@@ -318,7 +304,7 @@ contains
     cold_t   = 7.5_r8  ! ed_ph_coldtemp
 
     t  = udata%time_period
-    temp_in_C = t_veg24(patchi) - tfrz
+    temp_in_C = bc_in%t_veg24_si - tfrz
 
     !-----------------Cold Phenology--------------------!              
 
@@ -362,8 +348,8 @@ contains
     endif
     !
     ! accumulate the GDD using daily mean temperatures
-    if (t_veg24(patchi) .gt. tfrz) then
-       currentSite%ED_GDD_site = currentSite%ED_GDD_site + t_veg24(currentSite%oldest_patch%clm_pno-1) - tfrz
+    if (bc_in%t_veg24_si .gt. tfrz) then
+       currentSite%ED_GDD_site = currentSite%ED_GDD_site + bc_in%t_veg24_si - tfrz
     endif
     
 
