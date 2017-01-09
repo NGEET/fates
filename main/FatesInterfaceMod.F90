@@ -404,8 +404,8 @@ contains
       
       ! Photosynthesis
 
-      allocate(bc_out%rssun_pa(numPatchesPerCol))
-      allocate(bc_out%rssha_pa(numPatchesPerCol))
+      allocate(bc_out%rssun_pa(maxPatchesPerCol))
+      allocate(bc_out%rssha_pa(maxPatchesPerCol))
       
       ! Canopy Radiation
       allocate(bc_out%albd_parb(maxPatchesPerCol,cp_numSWb))

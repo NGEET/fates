@@ -105,20 +105,25 @@ contains
     ! allocated for the maximum space of the two cases (numCohortsPerPatch)
     ! The "_z" suffix indicates these variables are discretized at the "leaf_layer"
     ! scale.
+    ! Note: For these temporary arrays, we have the leaf layer dimension first
+    ! and the canopy layer last. This order is chosen for efficiency. The arrays
+    ! such as leaf area that are bound to the patch structure DO NOT follow this order
+    ! as they are used in many other parts of the code with different looping, we
+    ! are not modifying its order now.
     ! -----------------------------------------------------------------------------------
 
     ! leaf maintenance (dark) respiration (umol CO2/m**2/s) Double check this
-    real(r8) :: lmr_z(cp_nclmax,mxpft,cp_nlevcan)  
+    real(r8) :: lmr_z(cp_nlevcan,mxpft,cp_nclmax)
 
     ! stomatal resistance s/m
-    real(r8) :: rs_z(cp_nclmax,mxpft,cp_nlevcan)    
+    real(r8) :: rs_z(cp_nlevcan,mxpft,cp_nclmax)    
 
     ! net leaf photosynthesis averaged over sun and shade leaves. (umol CO2/m**2/s) 
-    real(r8) :: anet_av_z(cp_nclmax,mxpft,cp_nlevcan)  
+    real(r8) :: anet_av_z(cp_nlevcan,mxpft,cp_nclmax)  
     
     ! Mask used to determine which leaf-layer biophysical rates have been
     ! used already
-    logical :: rate_mask_z(cp_nclmax,mxpft,cp_nlevcan)
+    logical :: rate_mask_z(cp_nlevcan,mxpft,cp_nclmax)
 
     real(r8) :: vcmax_z            ! leaf layer maximum rate of carboxylation 
                                    ! (umol co2/m**2/s)
@@ -342,7 +347,7 @@ contains
                            ! not been done yet.
                            ! ------------------------------------------------------------
                            
-                           if ( .not.rate_mask_z(cl,ft,iv) .or. use_fates_plant_hydro ) then
+                           if ( .not.rate_mask_z(iv,ft,cl) .or. use_fates_plant_hydro ) then
                               
                               if (use_fates_plant_hydro) then
                                  write(fates_log(),*) 'use_fates_plant_hydro in EDTypes'
@@ -375,7 +380,7 @@ contains
                                                                     nscaler,                  &  ! in
                                                                     ft,                       &  ! in
                                                                     bc_in(s)%t_veg_pa(ifp),   &  ! in
-                                                                    lmr_z(cl,ft,iv))             ! out
+                                                                    lmr_z(iv,ft,cl))             ! out
                               
                               ! Part VII: Calculate (1) maximum rate of carboxylation (vcmax), 
                               ! (2) maximum electron transport rate, (3) triose phosphate 
@@ -428,12 +433,12 @@ contains
                                                         mm_kco2,                            &  ! in
                                                         mm_ko2,                             &  ! in
                                                         co2_cpoint,                         &  ! in
-                                                        lmr_z(cl,ft,iv),                    &  ! in
+                                                        lmr_z(iv,ft,cl),                    &  ! in
                                                         currentPatch%psn_z(cl,ft,iv),       &  ! out
-                                                        rs_z(cl,ft,iv),                     &  ! out
-                                                        anet_av_z(cl,ft,iv))                   ! out
+                                                        rs_z(iv,ft,cl),                     &  ! out
+                                                        anet_av_z(iv,ft,cl))                   ! out
 
-                              rate_mask_z(cl,ft,iv) = .true.
+                              rate_mask_z(iv,ft,cl) = .true.
                            end if
                         end do
 
@@ -455,9 +460,9 @@ contains
                         nv = currentCohort%nv
                         call ScaleLeafLayerFluxToCohort(nv,                                    & !in
                                                         currentPatch%psn_z(cl,ft,1:nv),        & !in
-                                                        lmr_z(cl,ft,1:nv),                     & !in
-                                                        rs_z(cl,ft,1:nv),                      & !in
-                                                        anet_av_z(cl,ft,1:nv),                 & !in
+                                                        lmr_z(1:nv,ft,cl),                     & !in
+                                                        rs_z(1:nv,ft,cl),                      & !in
+                                                        anet_av_z(1:nv,ft,cl),                 & !in
                                                         currentPatch%elai_profile(cl,ft,1:nv), & !in
                                                         currentCohort%c_area,                  & !in
                                                         currentCohort%n,                       & !in
@@ -469,7 +474,7 @@ contains
                                                         currentCohort%rdark)                     !out
                         
                         ! Net Uptake does not need to be scaled, just transfer directly
-                        currentCohort%ts_net_uptake(1:nv) = anet_av_z(cl,ft,1:nv) * umolC_to_kgC
+                        currentCohort%ts_net_uptake(1:nv) = anet_av_z(1:nv,ft,cl) * umolC_to_kgC
 
                      else
                         
@@ -1011,10 +1016,10 @@ contains
   ! =====================================================================================
 
   subroutine ScaleLeafLayerFluxToCohort(nv,    & ! in   currentCohort%nv
-                                        psn_llz,     & ! in   %psn_z(cl,ft,1:currentCohort%nv)
-                                        lmr_llz,     & ! in   lmr_z(cl,ft,1:currentCohort%nv)
-                                        rs_llz,      & ! in   rs_z(cl,ft,1:currentCohort%nv)
-                                        anet_av_llz, & ! in   anet_av_z(cl,ft,1:currentCohort%nv)
+                                        psn_llz,     & ! in   %psn_z(1:currentCohort%nv,ft,cl)
+                                        lmr_llz,     & ! in   lmr_z(1:currentCohort%nv,ft,cl)
+                                        rs_llz,      & ! in   rs_z(1:currentCohort%nv,ft,cl)
+                                        anet_av_llz, & ! in   anet_av_z(1:currentCohort%nv,ft,cl)
                                         elai_llz,    & ! in   %elai_profile(cl,ft,1:currentCohort%nv)
                                         c_area,      & ! in   currentCohort%c_area
                                         nplant,      & ! in   currentCohort%n
