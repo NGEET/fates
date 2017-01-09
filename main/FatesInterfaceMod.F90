@@ -61,6 +61,20 @@ module FatesInterfaceMod
                                   ! uses ESMF functions, so prefered to pass it in as
                                   ! argument rather than calculate directly
 
+      ! Vegetation Dynamics
+      ! ---------------------------------------------------------------------------------
+
+      ! This 24 hour vegetation temperature is used for various purposes during vegetation 
+      ! dynamics.  However, we are currently using the bare-ground patch's value [K]
+      ! TO-DO: Get some consensus on the correct vegetation temperature used for phenology.
+      ! It is possible that the bare-ground value is where the average is being stored.
+      ! (RGK-01-2017)
+
+      real(r8) :: t_veg24_si    ! See above [K]
+
+      ! Patch 24 hour vegetation temperature [K]
+      real(r8),allocatable :: t_veg24_pa(:)  
+
 
       ! Radiation variables for calculating sun/shade fractions
       ! ---------------------------------------------------------------------------------
@@ -357,6 +371,10 @@ contains
       
       ! Allocate input boundaries
       
+      ! Vegetation Dynamics
+      allocate(bc_in%t_veg24_pa(numPatchesPerCol))
+
+      
       ! Radiation
       allocate(bc_in%solad_parb(numPatchesPerCol,cp_numSWb))
       allocate(bc_in%solai_parb(numPatchesPerCol,cp_numSWb))
@@ -466,6 +484,9 @@ contains
       this%bc_in(s)%current_date   = 0
       this%bc_in(s)%reference_date = 0 
       this%bc_in(s)%model_day      = 0.0_r8
+
+      this%bc_in(s)%t_veg24_pa(:)  = 0.0_r8
+      this%bc_in(s)%t_veg24_si     = 0.0_r8
 
       this%bc_in(s)%solad_parb(:,:)     = 0.0_r8
       this%bc_in(s)%solai_parb(:,:)     = 0.0_r8
