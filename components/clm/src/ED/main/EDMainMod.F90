@@ -40,9 +40,7 @@ module EDMainMod
 contains
 
   !-------------------------------------------------------------------------------!
-  subroutine ed_ecosystem_dynamics(currentSite, bc_in, &
-       atm2lnd_inst, &
-       temperature_inst)
+  subroutine ed_ecosystem_dynamics(currentSite, bc_in)
     !
     ! !DESCRIPTION:
     !  Core of ed model, calling all subsequent vegetation dynamics routines         
@@ -50,8 +48,6 @@ contains
     ! !ARGUMENTS:
     type(ed_site_type)      , intent(inout), target  :: currentSite
     type(bc_in_type)        , intent(in)             :: bc_in
-    type(atm2lnd_type)      , intent(in)             :: atm2lnd_inst
-    type(temperature_type)  , intent(in)             :: temperature_inst
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type), pointer :: currentPatch
@@ -70,7 +66,7 @@ contains
     
     call phenology(currentSite, bc_in )
 
-    call fire_model(currentSite, atm2lnd_inst, temperature_inst)
+    call fire_model(currentSite, bc_in) 
 
     ! Calculate disturbance and mortality based on previous timestep vegetation.
     call disturbance_rates(currentSite)

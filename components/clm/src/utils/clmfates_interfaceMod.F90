@@ -518,17 +518,23 @@ contains
 
          this%fates(nc)%bc_in(s)%t_veg24_si = &
                temperature_inst%t_veg24_patch(col%patchi(c))
+
          do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
             p = ifp+col%patchi(c)
             this%fates(nc)%bc_in(s)%t_veg24_pa(ifp) = &
                  temperature_inst%t_veg24_patch(p)
+
+            this%fates(nc)%bc_in(s)%precip24_pa(ifp) = &
+                  atm2lnd_inst%prec24_patch(p)
+
+            this%fates(nc)%bc_in(s)%relhumid24_pa(ifp) = &
+                  atm2lnd_inst%rh24_patch(p)
+
+            this%fates(nc)%bc_in(s)%wind24_pa(ifp) = &
+                  atm2lnd_inst%wind24_patch(p)
+
          end do
       end do
-
-
-      ! TODO-INTER: PROCEDURE FOR CONVERTING CLM/ALM FIELDS TO MODEL BOUNDARY
-      ! CONDITIONS. IE. 
-
 
       ! where most things happen
       do s = 1,this%fates(nc)%nsites
