@@ -10,7 +10,6 @@ module EDMainMod
   use atm2lndType          , only : atm2lnd_type
   use SoilStateType        , only : soilstate_type  
   use TemperatureType      , only : temperature_type
-  use WaterStateType       , only : waterstate_type
   use EDCohortDynamicsMod  , only : allocate_live_biomass, terminate_cohorts, fuse_cohorts, sort_cohorts, count_cohorts
   use EDPatchDynamicsMod   , only : disturbance_rates, fuse_patches, spawn_patches, terminate_patches
   use EDPhysiologyMod      , only : canopy_derivs, non_canopy_derivs, phenology, recruitment, trim_canopy
@@ -43,7 +42,7 @@ contains
   !-------------------------------------------------------------------------------!
   subroutine ed_ecosystem_dynamics(currentSite, bc_in, &
        atm2lnd_inst, &
-       soilstate_inst, temperature_inst, waterstate_inst)
+       temperature_inst)
     !
     ! !DESCRIPTION:
     !  Core of ed model, calling all subsequent vegetation dynamics routines         
@@ -52,9 +51,7 @@ contains
     type(ed_site_type)      , intent(inout), target  :: currentSite
     type(bc_in_type)        , intent(in)             :: bc_in
     type(atm2lnd_type)      , intent(in)             :: atm2lnd_inst
-    type(soilstate_type)    , intent(in)             :: soilstate_inst
     type(temperature_type)  , intent(in)             :: temperature_inst
-    type(waterstate_type)   , intent(in)             :: waterstate_inst
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type), pointer :: currentPatch
@@ -71,7 +68,7 @@ contains
    
     call ed_total_balance_check(currentSite, 0)
     
-    call phenology(currentSite, bc_in, waterstate_inst )
+    call phenology(currentSite, bc_in )
 
     call fire_model(currentSite, atm2lnd_inst, temperature_inst)
 
@@ -79,7 +76,7 @@ contains
     call disturbance_rates(currentSite)
 
     ! Integrate state variables from annual rates to daily timestep
-    call ed_integrate_state_variables(currentSite, temperature_inst ) 
+    call ed_integrate_state_variables(currentSite, bc_in ) 
 
     !******************************************************************************
     ! Reproduction, Recruitment and Cohort Dynamics : controls cohort organisation 
@@ -136,7 +133,7 @@ contains
   end subroutine ed_ecosystem_dynamics
 
   !-------------------------------------------------------------------------------!
-  subroutine ed_integrate_state_variables(currentSite, temperature_inst )
+  subroutine ed_integrate_state_variables(currentSite, bc_in )
     !
     ! !DESCRIPTION:
     ! FIX(SPM,032414) refactor so everything goes through interface
@@ -144,8 +141,9 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type)     , intent(inout)    :: currentSite
-    type(temperature_type) , intent(in)    :: temperature_inst
+    type(ed_site_type)     , intent(inout) :: currentSite
+    type(bc_in_type)        , intent(in)   :: bc_in
+
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type)  , pointer :: currentPatch
@@ -223,7 +221,7 @@ contains
           write(6,*)'DEBUG18: calling non_canopy_derivs with pno= ',currentPatch%clm_pno
        endif
 
-       call non_canopy_derivs( currentSite, currentPatch, temperature_inst )
+       call non_canopy_derivs( currentSite, currentPatch, bc_in)
 
        !update state variables simultaneously according to derivatives for this time period. 
 
