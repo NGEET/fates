@@ -64,17 +64,21 @@ module FatesInterfaceMod
       ! Vegetation Dynamics
       ! ---------------------------------------------------------------------------------
 
-      ! This 24 hour vegetation temperature is used for various purposes during vegetation 
-      ! dynamics.  However, we are currently using the bare-ground patch's value [K]
+      ! The site level 24 hour vegetation temperature is used for various purposes during vegetation 
+      ! dynamics.  However, we are currently using the bare ground patch's value [K]
       ! TO-DO: Get some consensus on the correct vegetation temperature used for phenology.
       ! It is possible that the bare-ground value is where the average is being stored.
       ! (RGK-01-2017)
-
-      real(r8) :: t_veg24_si    ! See above [K]
+      real(r8)             :: t_veg24_si
 
       ! Patch 24 hour vegetation temperature [K]
       real(r8),allocatable :: t_veg24_pa(:)  
-
+      
+      ! NOTE: h2osoi_vol_si is used to update surface water memory
+      ! CLM/ALM may be using "waterstate%h2osoi_vol_col" on the first index (coli,1)
+      ! to inform this. I think this should be re-evaluated (RGK 01/2017)
+      ! Site volumetric soil water (0<=h2osoi_vol<=watsat) [m3/m3]
+      real(r8) :: h2osoi_vol_si 
 
       ! Radiation variables for calculating sun/shade fractions
       ! ---------------------------------------------------------------------------------
@@ -484,9 +488,9 @@ contains
       this%bc_in(s)%current_date   = 0
       this%bc_in(s)%reference_date = 0 
       this%bc_in(s)%model_day      = 0.0_r8
-
-      this%bc_in(s)%t_veg24_pa(:)  = 0.0_r8
       this%bc_in(s)%t_veg24_si     = 0.0_r8
+      this%bc_in(s)%t_veg24_pa(:)  = 0.0_r8
+      this%bc_in(s)%h2osoi_vol_si  = 0.0_r8
 
       this%bc_in(s)%solad_parb(:,:)     = 0.0_r8
       this%bc_in(s)%solai_parb(:,:)     = 0.0_r8

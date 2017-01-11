@@ -513,8 +513,11 @@ contains
          this%fates(nc)%bc_in(s)%current_tod    = current_date
          this%fates(nc)%bc_in(s)%reference_date = reference_date
          this%fates(nc)%bc_in(s)%model_day      = model_day
-         this%fates(nc)%bc_in(s)%t_veg24_si     = &
-              temperature_inst%t_veg24_patch(col%patchi(c)-1)
+         this%fates(nc)%bc_in(s)%h2osoi_vol_si  = &
+               waterstate_inst%h2osoi_vol_col(c,1) 
+
+         this%fates(nc)%bc_in(s)%t_veg24_si = &
+               temperature_inst%t_veg24_patch(col%patchi(c))
          do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
             p = ifp+col%patchi(c)
             this%fates(nc)%bc_in(s)%t_veg24_pa(ifp) = &
@@ -533,7 +536,7 @@ contains
             call ed_ecosystem_dynamics(this%fates(nc)%sites(s),    &
                   this%fates(nc)%bc_in(s),                         &
                   atm2lnd_inst,                                    &
-                  soilstate_inst, temperature_inst, waterstate_inst)
+                  temperature_inst )
             
             call ed_update_site(this%fates(nc)%sites(s))
 

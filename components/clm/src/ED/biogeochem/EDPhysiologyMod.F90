@@ -10,10 +10,9 @@ module EDPhysiologyMod
   use clm_varctl          , only : iulog 
   
   use TemperatureType     , only : temperature_type
-  use SoilStateType       , only : soilstate_type
-  use WaterstateType      , only : waterstate_type
   use pftconMod           , only : pftcon
   use EDEcophysContype    , only : EDecophyscon
+  use FatesInterfaceMod, only    : bc_in_type
   use EDCohortDynamicsMod , only : allocate_live_biomass, zero_cohort
   use EDCohortDynamicsMod , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDTypesMod          , only : dg_sf, dinc_ed, external_recruitment
@@ -72,7 +71,7 @@ contains
   end subroutine canopy_derivs
 
   ! ============================================================================
-  subroutine non_canopy_derivs( currentSite, currentPatch, temperature_inst )
+  subroutine non_canopy_derivs( currentSite, currentPatch, bc_in )
     !
     ! !DESCRIPTION:
     ! Returns time differentials of the state vector
@@ -82,8 +81,9 @@ contains
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
-    type(ed_patch_type)    , intent(inout) :: currentPatch
-    type(temperature_type) , intent(in)    :: temperature_inst
+    type(ed_patch_type), intent(inout)         :: currentPatch
+    type(bc_in_type), intent(in)               :: bc_in
+
     !
     ! !LOCAL VARIABLES:
     integer c,p
@@ -110,7 +110,7 @@ contains
 
     ! update fragmenting pool fluxes
     call cwd_input(currentPatch)
-    call cwd_out( currentSite, currentPatch, temperature_inst)
+    call cwd_out( currentSite, currentPatch, bc_in)
 
     do p = 1,numpft_ed
        currentSite%dseed_dt(p) = currentSite%dseed_dt(p) + &
@@ -240,14 +240,13 @@ contains
   end subroutine trim_canopy
 
   ! ============================================================================
-  subroutine phenology( currentSite, bc_in, waterstate_inst)
+  subroutine phenology( currentSite, bc_in )
     !
     ! !DESCRIPTION:
     ! Phenology. 
     !
     ! !USES:
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-    use FatesInterfaceMod, only : bc_in_type
     use EDTypesMod, only : udata
 
     !
@@ -255,7 +254,6 @@ contains
     type(ed_site_type), intent(inout), target :: currentSite
     type(bc_in_type),   intent(in)            :: bc_in
 
-    type(waterstate_type)   , intent(in)            :: waterstate_inst
     !
     ! !LOCAL VARIABLES:
 
@@ -271,8 +269,6 @@ contains
     integer  :: mon                      ! month (1, ..., 12)
     integer  :: day                      ! day of month (1, ..., 31)
     integer  :: sec                      ! seconds of the day
-    integer  :: patchi                   ! the first CLM/ALM patch index of the associated column
-    integer  :: coli                     ! the CLM/ALM column index of the associated site
 
     real(r8) :: gdd_threshold
     real(r8) :: a,b,c        ! params of leaf-pn model from botta et al. 2000. 
@@ -283,7 +279,6 @@ contains
     real(r8) :: drought_threshold
     real(r8) :: off_time     ! minimum number of days between leaf off and leaf on for drought phenology 
     real(r8) :: temp_in_C    ! daily averaged temperature in celcius
-
     real(r8), parameter :: mindayson = 30.0
 
     ! Parameter of drought decid leaf loss in mm in top layer...FIX(RF,032414) 
@@ -296,8 +291,6 @@ contains
     b = 638.0_r8
     c = -0.001_r8
     coldday = 5.0_r8    !ed_ph_chiltemp
-
-   
      
     !Parameters from SDGVM model of senesence
     ncolddayslim = 5
@@ -426,7 +419,7 @@ contains
     ! distinction actually matter??).... 
 
     !Accumulate surface water memory of last 10 days.
-    currentSite%water_memory(1) = waterstate_inst%h2osoi_vol_col(coli,1) 
+    currentSite%water_memory(1) = bc_in%h2osoi_vol_si   !waterstate_inst%h2osoi_vol_col(coli,1) 
     do i = 1,9 !shift memory along one
        currentSite%water_memory(11-i) = currentSite%water_memory(10-i)
     enddo
@@ -1121,7 +1114,7 @@ contains
   end subroutine CWD_Input
 
   ! ============================================================================
-  subroutine fragmentation_scaler( currentPatch, temperature_inst )
+  subroutine fragmentation_scaler( currentPatch, bc_in) 
     !
     ! !DESCRIPTION:
     ! Simple CWD fragmentation Model
@@ -1133,12 +1126,14 @@ contains
 
     !
     ! !ARGUMENTS    
-    type(ed_patch_type)    , intent(inout) :: currentPatch
-    type(temperature_type) , intent(in)    :: temperature_inst
+    type(ed_patch_type), intent(inout) :: currentPatch
+    type(bc_in_type),    intent(in)    :: bc_in
+
     !
     ! !LOCAL VARIABLES:
     logical  :: use_century_tfunc = .false.
-    integer  :: p,j
+    integer  :: j
+    integer  :: ifp                   ! Index of a FATES Patch "ifp"
     real(r8) :: t_scalar
     real(r8) :: w_scalar
     real(r8) :: catanf                ! hyperbolic temperature function from CENTURY
@@ -1146,16 +1141,12 @@ contains
     real(r8) :: t1                    ! temperature argument
     real(r8) :: Q10                   ! temperature dependence
     real(r8) :: froz_q10              ! separate q10 for frozen soil respiration rates.  default to same as above zero rates
-    real(r8), pointer :: t_veg24(:)
     !----------------------------------------------------------------------
 
     catanf(t1) = 11.75_r8 +(29.7_r8 / SHR_CONST_PI) * atan( SHR_CONST_PI * 0.031_r8  * ( t1 - 15.4_r8 ))
-
-    t_veg24 => temperature_inst%t_veg24_patch      ! Input:  [real(r8) (:)]  avg pft vegetation temperature for last 24 hrs
-
     catanf_30 = catanf(30._r8)
     
-    p = currentPatch%clm_pno
+    ifp = currentPatch%patchno 
     
     ! set "froz_q10" parameter
     froz_q10  = EDParamsShareInst%froz_q10  
@@ -1164,16 +1155,16 @@ contains
     if ( .not. use_century_tfunc ) then
     !calculate rate constant scalar for soil temperature,assuming that the base rate constants 
     !are assigned for non-moisture limiting conditions at 25C. 
-      if (t_veg24(p)  >=  SHR_CONST_TKFRZ) then
-        t_scalar = Q10**((t_veg24(p)-(SHR_CONST_TKFRZ+25._r8))/10._r8)
+      if (bc_in%t_veg24_pa(ifp)  >=  SHR_CONST_TKFRZ) then
+        t_scalar = Q10**((bc_in%t_veg24_pa(ifp)-(SHR_CONST_TKFRZ+25._r8))/10._r8)
                  !  Q10**((t_soisno(c,j)-(SHR_CONST_TKFRZ+25._r8))/10._r8)
       else
-        t_scalar = (Q10**(-25._r8/10._r8))*(froz_q10**((t_veg24(p)-SHR_CONST_TKFRZ)/10._r8))
+        t_scalar = (Q10**(-25._r8/10._r8))*(froz_q10**((bc_in%t_veg24_pa(ifp)-SHR_CONST_TKFRZ)/10._r8))
                   !Q10**(-25._r8/10._r8))*(froz_q10**((t_soisno(c,j)-SHR_CONST_TKFRZ)/10._r8)
       endif
     else
       ! original century uses an arctangent function to calculate the temperature dependence of decomposition      
-      t_scalar = max(catanf(t_veg24(p)-SHR_CONST_TKFRZ)/catanf_30,0.01_r8)
+      t_scalar = max(catanf(bc_in%t_veg24_pa(ifp)-SHR_CONST_TKFRZ)/catanf_30,0.01_r8)
     endif    
    
     !Moisture Limitations   
@@ -1186,7 +1177,7 @@ contains
   end subroutine fragmentation_scaler
   
   ! ============================================================================
-  subroutine cwd_out( currentSite, currentPatch, temperature_inst )
+  subroutine cwd_out( currentSite, currentPatch, bc_in )
     !
     ! !DESCRIPTION:
     ! Simple CWD fragmentation Model
@@ -1198,8 +1189,9 @@ contains
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
-    type(ed_patch_type)    , intent(inout), target :: currentPatch
-    type(temperature_type) , intent(in)            :: temperature_inst
+    type(ed_patch_type), intent(inout), target :: currentPatch
+    type(bc_in_type), intent(in)               :: bc_in
+    
     !
     ! !LOCAL VARIABLES:
     integer :: c,ft
@@ -1207,8 +1199,8 @@ contains
 
     currentPatch%root_litter_out(:) = 0.0_r8
     currentPatch%leaf_litter_out(:) = 0.0_r8
-
-    call fragmentation_scaler(currentPatch, temperature_inst)
+    
+    call fragmentation_scaler(currentPatch, bc_in)
 
     !Flux of coarse woody debris into decomposing litter pool. 
 
