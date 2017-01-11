@@ -80,6 +80,18 @@ module FatesInterfaceMod
       ! Site volumetric soil water (0<=h2osoi_vol<=watsat) [m3/m3]
       real(r8) :: h2osoi_vol_si 
 
+      ! Fire Model
+
+      ! Average precipitation over the last 24 hours [mm/s]
+      real(r8), allocatable :: precip24_pa(:)
+
+      ! Average relative humidity over past 24 hours [-]
+      real(r8), allocatable :: relhumid24_pa(:)
+
+      ! Patch 24-hour running mean of wind (m/s ?)
+      real(r8), allocatable :: wind24_pa(:)
+
+
       ! Radiation variables for calculating sun/shade fractions
       ! ---------------------------------------------------------------------------------
 
@@ -378,6 +390,9 @@ contains
       ! Vegetation Dynamics
       allocate(bc_in%t_veg24_pa(numPatchesPerCol))
 
+      allocate(bc_in%wind24_pa(numPatchesPerCol))
+      allocate(bc_in%relhumid24_pa(numPatchesPerCol))
+      allocate(bc_in%precip24_pa(numPatchesPerCol))
       
       ! Radiation
       allocate(bc_in%solad_parb(numPatchesPerCol,cp_numSWb))
@@ -491,6 +506,9 @@ contains
       this%bc_in(s)%t_veg24_si     = 0.0_r8
       this%bc_in(s)%t_veg24_pa(:)  = 0.0_r8
       this%bc_in(s)%h2osoi_vol_si  = 0.0_r8
+      this%bc_in(s)%precip24_pa(:) = 0.0_r8
+      this%bc_in(s)%relhumid24_pa(:) = 0.0_r8
+      this%bc_in(s)%wind24_pa(:)     = 0.0_r8
 
       this%bc_in(s)%solad_parb(:,:)     = 0.0_r8
       this%bc_in(s)%solai_parb(:,:)     = 0.0_r8
