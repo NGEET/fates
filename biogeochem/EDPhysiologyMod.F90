@@ -6,10 +6,8 @@ module EDPhysiologyMod
   ! Miscellaneous physiology routines from ED. 
   ! ============================================================================
 
-  use shr_kind_mod        , only : r8 => shr_kind_r8
-  use clm_varctl          , only : iulog 
-  
-  use TemperatureType     , only : temperature_type
+  use FatesGlobals, only         : fates_log
+  use FatesConstantsMod, only    : r8 => fates_r8
   use pftconMod           , only : pftcon
   use EDEcophysContype    , only : EDecophyscon
   use FatesInterfaceMod, only    : bc_in_type
@@ -114,7 +112,8 @@ contains
 
     do p = 1,numpft_ed
        currentSite%dseed_dt(p) = currentSite%dseed_dt(p) + &
-            (currentPatch%seeds_in(p) - currentPatch%seed_decay(p) - currentPatch%seed_germination(p)) * currentPatch%area/AREA
+            (currentPatch%seeds_in(p) - currentPatch%seed_decay(p) - &
+            currentPatch%seed_germination(p)) * currentPatch%area/AREA
     enddo   
     
     do c = 1,ncwd
@@ -123,18 +122,11 @@ contains
     enddo
 
     do p = 1,numpft_ed
-       currentPatch%dleaf_litter_dt(p) = currentPatch%leaf_litter_in(p) - currentPatch%leaf_litter_out(p) 
-       currentPatch%droot_litter_dt(p) = currentPatch%root_litter_in(p) - currentPatch%root_litter_out(p) 
+       currentPatch%dleaf_litter_dt(p) = currentPatch%leaf_litter_in(p) - &
+             currentPatch%leaf_litter_out(p) 
+       currentPatch%droot_litter_dt(p) = currentPatch%root_litter_in(p) - &
+             currentPatch%root_litter_out(p) 
     enddo
-
-    ! currentPatch%leaf_litter_in(:)  = 0.0_r8
-    ! currentPatch%root_litter_in(:)  = 0.0_r8
-    ! currentPatch%leaf_litter_out(:) = 0.0_r8
-    ! currentPatch%root_litter_out(:) = 0.0_r8
-    ! currentPatch%CWD_AG_in(:)       = 0.0_r8
-    ! currentPatch%cwd_bg_in(:)       = 0.0_r8
-    ! currentPatch%CWD_AG_out(:)      = 0.0_r8
-    ! currentPatch%cwd_bg_out(:)      = 0.0_r8
 
   end subroutine non_canopy_derivs
 
@@ -176,7 +168,7 @@ contains
           currentCohort%treelai = tree_lai(currentCohort)    
           currentCohort%nv = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
           if (currentCohort%nv > cp_nlevcan)then
-             write(iulog,*) 'nv > cp_nlevcan',currentCohort%nv,currentCohort%treelai,currentCohort%treesai, &
+             write(fates_log(),*) 'nv > cp_nlevcan',currentCohort%nv,currentCohort%treelai,currentCohort%treesai, &
                   currentCohort%c_area,currentCohort%n,currentCohort%bl
           endif
 
@@ -201,7 +193,7 @@ contains
                    if (currentCohort%canopy_trim > trim_limit)then
 
                       if ( DEBUG ) then
-                         write(iulog,*) 'trimming leaves',currentCohort%canopy_trim,currentCohort%leaf_cost
+                         write(fates_log(),*) 'trimming leaves',currentCohort%canopy_trim,currentCohort%leaf_cost
                       endif
 
                       ! keep trimming until none of the canopy is in negative carbon balance.              
@@ -219,7 +211,7 @@ contains
           if (currentCohort%NV.gt.2)then
              ! leaf_cost may be uninitialized, removing its diagnostic from the log
              ! to allow checking with fpe_traps (RGK)
-             write(iulog,*) 'nv>4',currentCohort%year_net_uptake(1:6),currentCohort%canopy_trim
+             write(fates_log(),*) 'nv>4',currentCohort%year_net_uptake(1:6),currentCohort%canopy_trim
           endif
 
           currentCohort%year_net_uptake(:) = 999.0_r8
@@ -228,7 +220,7 @@ contains
           endif 
 
           if ( DEBUG ) then
-             write(iulog,*) 'trimming',currentCohort%canopy_trim
+             write(fates_log(),*) 'trimming',currentCohort%canopy_trim
           endif
          
           ! currentCohort%canopy_trim = 1.0_r8 !FIX(RF,032414) this turns off ctrim for now. 
@@ -357,7 +349,7 @@ contains
              currentSite%status = 2     !alter status of site to 'leaves on'
              ! NOTE(bja, 2015-01) should leafondate = model_day to be consistent with leaf off?
              currentSite%leafondate = t !record leaf on date   
-             if ( DEBUG ) write(iulog,*) 'leaves on'
+             if ( DEBUG ) write(fates_log(),*) 'leaves on'
           endif !ncd
        endif !status
     endif !GDD
@@ -377,7 +369,7 @@ contains
        if (currentSite%status == 2)then
           currentSite%status = 1        !alter status of site to 'leaves on'
           currentSite%leafoffdate = bc_in%model_day   !record leaf off date   
-          if ( DEBUG ) write(iulog,*) 'leaves off'
+          if ( DEBUG ) write(fates_log(),*) 'leaves off'
        endif
     endif
     endif
@@ -387,7 +379,7 @@ contains
        if(currentSite%status == 2)then
           currentSite%status = 1        !alter status of site to 'leaves on'
           currentSite%leafoffdate = bc_in%model_day   !record leaf off date   
-          if ( DEBUG ) write(iulog,*) 'leaves off'
+          if ( DEBUG ) write(fates_log(),*) 'leaves off'
        endif
     endif
 
@@ -503,7 +495,8 @@ contains
     type(ed_patch_type) , pointer :: currentPatch     
     type(ed_cohort_type), pointer :: currentCohort  
 
-    real(r8)           :: store_output ! the amount of the store to put into leaves - is a barrier against negative storage and C starvation. 
+    real(r8)           :: store_output ! the amount of the store to put into leaves -
+                                       ! is a barrier against negative storage and C starvation. 
 
     !------------------------------------------------------------------------
 
@@ -532,11 +525,11 @@ contains
                    ! Add deployed carbon to alive biomass pool
                    currentCohort%balive = currentCohort%balive + currentCohort%bl
 
-                   if ( DEBUG ) write(iulog,*) 'EDPhysMod 1 ',currentCohort%bstore
+                   if ( DEBUG ) write(fates_log(),*) 'EDPhysMod 1 ',currentCohort%bstore
 
                    currentCohort%bstore = currentCohort%bstore - currentCohort%bl  ! Drain store
 
-                   if ( DEBUG ) write(iulog,*) 'EDPhysMod 2 ',currentCohort%bstore
+                   if ( DEBUG ) write(fates_log(),*) 'EDPhysMod 2 ',currentCohort%bstore
 
                    currentCohort%laimemory = 0.0_r8
 
@@ -571,11 +564,11 @@ contains
                     endif
                    currentCohort%balive = currentCohort%balive + currentCohort%bl
 
-                   if ( DEBUG ) write(iulog,*) 'EDPhysMod 3 ',currentCohort%bstore
+                   if ( DEBUG ) write(fates_log(),*) 'EDPhysMod 3 ',currentCohort%bstore
 
                    currentCohort%bstore = currentCohort%bstore - currentCohort%bl ! empty store
 
-                   if ( DEBUG ) write(iulog,*) 'EDPhysMod 4 ',currentCohort%bstore
+                   if ( DEBUG ) write(fates_log(),*) 'EDPhysMod 4 ',currentCohort%bstore
 
                    currentCohort%laimemory = 0.0_r8
 
@@ -633,7 +626,8 @@ contains
     currentCohort => currentPatch%tallest
     do while (associated(currentCohort))
        p = currentCohort%pft
-       currentPatch%seeds_in(p) = currentPatch%seeds_in(p) +  currentCohort%seed_prod * currentCohort%n/currentPatch%area
+       currentPatch%seeds_in(p) = currentPatch%seeds_in(p) +  &
+             currentCohort%seed_prod * currentCohort%n/currentPatch%area
        currentCohort => currentCohort%shorter
     enddo !cohort loop
 
@@ -642,8 +636,10 @@ contains
     do while(associated(currentPatch))
        if (EXTERNAL_RECRUITMENT == 1) then !external seed rain - needed to prevent extinction  
           do p = 1,numpft_ed
-           currentPatch%seeds_in(p) = currentPatch%seeds_in(p) + EDecophyscon%seed_rain(p) !KgC/m2/year
-           currentSite%seed_rain_flux(p) = currentSite%seed_rain_flux(p) + EDecophyscon%seed_rain(p) * currentPatch%area/AREA !KgC/m2/year
+           currentPatch%seeds_in(p) = currentPatch%seeds_in(p) + &
+                 EDecophyscon%seed_rain(p) !KgC/m2/year
+           currentSite%seed_rain_flux(p) = currentSite%seed_rain_flux(p) + &
+                 EDecophyscon%seed_rain(p) * currentPatch%area/AREA !KgC/m2/year
           enddo
        endif
        currentPatch => currentPatch%younger
@@ -699,7 +695,8 @@ contains
     max_germination = 1.0_r8 !this is arbitrary
 
     do p = 1,numpft_ed
-       currentPatch%seed_germination(p) =  min(currentSite%seed_bank(p) * germination_timescale,max_germination)
+       currentPatch%seed_germination(p) =  min(currentSite%seed_bank(p) * &
+             germination_timescale,max_germination)
     enddo
 
   end subroutine seed_germination
@@ -761,7 +758,7 @@ contains
     endif
 
     ! NPP 
-    if ( DEBUG ) write(iulog,*) 'EDphys 716 ',currentCohort%npp_acc
+    if ( DEBUG ) write(fates_log(),*) 'EDphys 716 ',currentCohort%npp_acc
 
     currentCohort%npp_acc_hold  = currentCohort%npp_acc  * udata%n_sub  ! convert from kgC/indiv/day into kgC/indiv/year
     currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * udata%n_sub  ! convert from kgC/indiv/day into kgC/indiv/year
@@ -795,7 +792,7 @@ contains
 
     if (pftcon%stress_decid(currentCohort%pft) /= 1.and.pftcon%season_decid(currentCohort%pft) /= 1.and. &
          pftcon%evergreen(currentCohort%pft) /= 1)then
-       write(iulog,*) 'problem with phenology definitions',currentCohort%pft,pftcon%stress_decid(currentCohort%pft), &
+       write(fates_log(),*) 'problem with phenology definitions',currentCohort%pft,pftcon%stress_decid(currentCohort%pft), &
             pftcon%season_decid(currentCohort%pft),pftcon%evergreen(currentCohort%pft)
     endif
 
@@ -807,7 +804,7 @@ contains
     ! Calculate carbon balance 
     ! this is the fraction of maintenance demand we -have- to do...
 
-    if ( DEBUG ) write(iulog,*) 'EDphys 760 ',currentCohort%npp_acc_hold, currentCohort%md, &
+    if ( DEBUG ) write(fates_log(),*) 'EDphys 760 ',currentCohort%npp_acc_hold, currentCohort%md, &
                    EDecophyscon%leaf_stor_priority(currentCohort%pft)
 
     currentCohort%carbon_balance = currentCohort%npp_acc_hold - &
@@ -823,7 +820,7 @@ contains
 
     if (Bleaf(currentCohort) > 0._r8)then
 
-       if ( DEBUG ) write(iulog,*) 'EDphys A ',currentCohort%carbon_balance
+       if ( DEBUG ) write(fates_log(),*) 'EDphys A ',currentCohort%carbon_balance
 
        if (currentCohort%carbon_balance > 0._r8)then !spend C on growing and storing
 
@@ -835,7 +832,7 @@ contains
           !what is the flux into the store?
           currentCohort%storage_flux = currentCohort%carbon_balance * f_store                     
 
-          if ( DEBUG ) write(iulog,*) 'EDphys B ',f_store
+          if ( DEBUG ) write(fates_log(),*) 'EDphys B ',f_store
 
           !what is the tax on the carbon available for growth? 
           currentCohort%carbon_balance = currentCohort%carbon_balance * (1.0_r8 - f_store)  
@@ -848,7 +845,7 @@ contains
 
        currentCohort%storage_flux = 0._r8
        currentCohort%carbon_balance = 0._r8
-       write(iulog,*) 'ED: no leaf area in gd', currentCohort%indexnumber,currentCohort%n,currentCohort%bdead, &
+       write(fates_log(),*) 'ED: no leaf area in gd', currentCohort%indexnumber,currentCohort%n,currentCohort%bdead, &
              currentCohort%dbh,currentCohort%balive
 
     endif
@@ -902,7 +899,7 @@ contains
        !FIX(RF,032414) - to fix high bl's. needed to prevent numerical errors without the ODEINT.  
        if (currentCohort%balive > target_balive*1.1_r8)then  
           va = 0.0_r8; vs = 1._r8
-          write(iulog,*) 'using high bl cap',target_balive,currentCohort%balive                        
+          write(fates_log(),*) 'using high bl cap',target_balive,currentCohort%balive                        
        endif
 
     else         
@@ -916,28 +913,28 @@ contains
     currentCohort%dbdeaddt  = gr_fract * vs * currentCohort%carbon_balance
     currentCohort%dbstoredt = currentCohort%storage_flux
 
-    if ( DEBUG ) write(iulog,*) 'EDPhys dbstoredt I ',currentCohort%dbstoredt
+    if ( DEBUG ) write(fates_log(),*) 'EDPhys dbstoredt I ',currentCohort%dbstoredt
 
     currentCohort%seed_prod = (1.0_r8 - gr_fract) * currentCohort%carbon_balance
     if (abs(currentCohort%npp_acc_hold-(currentCohort%dbalivedt+currentCohort%dbdeaddt+currentCohort%dbstoredt+ &
          currentCohort%seed_prod+currentCohort%md)) > 0.0000000001_r8)then
-       write(iulog,*) 'error in carbon check growth derivs',currentCohort%npp_acc_hold- &
+       write(fates_log(),*) 'error in carbon check growth derivs',currentCohort%npp_acc_hold- &
             (currentCohort%dbalivedt+currentCohort%dbdeaddt+currentCohort%dbstoredt+currentCohort%seed_prod+currentCohort%md)
-       write(iulog,*) 'cohort fluxes',currentCohort%pft,currentCohort%canopy_layer,currentCohort%n, &
+       write(fates_log(),*) 'cohort fluxes',currentCohort%pft,currentCohort%canopy_layer,currentCohort%n, &
             currentCohort%npp_acc_hold,currentCohort%dbalivedt,balive_loss, &
             currentCohort%dbdeaddt,currentCohort%dbstoredt,currentCohort%seed_prod,currentCohort%md * &
             EDecophyscon%leaf_stor_priority(currentCohort%pft)
-       write(iulog,*) 'proxies' ,target_balive,currentCohort%balive,currentCohort%dbh,va,vs,gr_fract
+       write(fates_log(),*) 'proxies' ,target_balive,currentCohort%balive,currentCohort%dbh,va,vs,gr_fract
     endif
 
     ! prevent negative leaf pool (but not negative store pool). This is also a numerical error prevention, 
     ! but it shouldn't happen actually... 
     if (-1.0_r8*currentCohort%dbalivedt * udata%deltat > currentCohort%balive*0.99)then 
-       write(iulog,*) 'using non-neg leaf mass cap',currentCohort%balive , currentCohort%dbalivedt,currentCohort%dbstoredt, &
+       write(fates_log(),*) 'using non-neg leaf mass cap',currentCohort%balive , currentCohort%dbalivedt,currentCohort%dbstoredt, &
             currentCohort%carbon_balance
        currentCohort%dbstoredt = currentCohort%dbstoredt + currentCohort%dbalivedt
 
-       if ( DEBUG ) write(iulog,*) 'EDPhys dbstoredt II ',currentCohort%dbstoredt
+       if ( DEBUG ) write(fates_log(),*) 'EDPhys dbstoredt II ',currentCohort%dbstoredt
 
        currentCohort%dbalivedt = 0._r8 
     endif
@@ -993,10 +990,10 @@ contains
             / (temp_cohort%bdead+temp_cohort%balive+temp_cohort%bstore)
  
        if (t == 1)then
-          write(iulog,*) 'filling in cohorts where there are none left; this will break carbon balance', &
+          write(fates_log(),*) 'filling in cohorts where there are none left; this will break carbon balance', &
                currentPatch%patchno,currentPatch%area
           temp_cohort%n = 0.1_r8*currentPatch%area
-          write(iulog,*) 'cohort n',ft,temp_cohort%n
+          write(fates_log(),*) 'cohort n',ft,temp_cohort%n
        endif
 
        temp_cohort%laimemory = 0.0_r8     
@@ -1015,7 +1012,7 @@ contains
        endif
 
        if (temp_cohort%n > 0.0_r8 )then
-           if ( DEBUG ) write(iulog,*) 'EDPhysiologyMod.F90 call create_cohort '
+           if ( DEBUG ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
            call create_cohort(currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                 temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore,  &
                 temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, currentPatch%NCL_p)
@@ -1096,7 +1093,7 @@ contains
                   SF_val_CWD_frac(c) * dead_n * (1.0_r8-ED_val_ag_biomass)
 
              if (currentPatch%cwd_AG_in(c) < 0.0_r8)then
-                write(iulog,*) 'negative CWD in flux',currentPatch%cwd_AG_in(c), &
+                write(fates_log(),*) 'negative CWD in flux',currentPatch%cwd_AG_in(c), &
                      (currentCohort%bdead+currentCohort%bsw), dead_n
              endif
           enddo
@@ -1118,12 +1115,14 @@ contains
     !
     ! !DESCRIPTION:
     ! Simple CWD fragmentation Model
-    ! FIX(SPM, 091914) this should be a function as it returns a value in currentPatch%fragmentation_scaler
+    ! FIX(SPM, 091914) this should be a function as it returns a value in 
+    ! currentPatch%fragmentation_scaler
     !
     ! !USES:
-    use shr_const_mod      , only : SHR_CONST_PI, SHR_CONST_TKFRZ
-    use EDSharedParamsMod  , only : EDParamsShareInst
 
+    use EDSharedParamsMod  , only : EDParamsShareInst
+    use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+    use FatesConstantsMod, only : pi => pi_const
     !
     ! !ARGUMENTS    
     type(ed_patch_type), intent(inout) :: currentPatch
@@ -1140,10 +1139,11 @@ contains
     real(r8) :: catanf_30             ! hyperbolic temperature function from CENTURY
     real(r8) :: t1                    ! temperature argument
     real(r8) :: Q10                   ! temperature dependence
-    real(r8) :: froz_q10              ! separate q10 for frozen soil respiration rates.  default to same as above zero rates
+    real(r8) :: froz_q10              ! separate q10 for frozen soil respiration rates.
+                                      ! default to same as above zero rates
     !----------------------------------------------------------------------
 
-    catanf(t1) = 11.75_r8 +(29.7_r8 / SHR_CONST_PI) * atan( SHR_CONST_PI * 0.031_r8  * ( t1 - 15.4_r8 ))
+    catanf(t1) = 11.75_r8 +(29.7_r8 / pi) * atan( pi * 0.031_r8  * ( t1 - 15.4_r8 ))
     catanf_30 = catanf(30._r8)
     
     ifp = currentPatch%patchno 
@@ -1155,20 +1155,22 @@ contains
     if ( .not. use_century_tfunc ) then
     !calculate rate constant scalar for soil temperature,assuming that the base rate constants 
     !are assigned for non-moisture limiting conditions at 25C. 
-      if (bc_in%t_veg24_pa(ifp)  >=  SHR_CONST_TKFRZ) then
-        t_scalar = Q10**((bc_in%t_veg24_pa(ifp)-(SHR_CONST_TKFRZ+25._r8))/10._r8)
-                 !  Q10**((t_soisno(c,j)-(SHR_CONST_TKFRZ+25._r8))/10._r8)
+      if (bc_in%t_veg24_pa(ifp)  >=  tfrz) then
+        t_scalar = Q10**((bc_in%t_veg24_pa(ifp)-(tfrz+25._r8))/10._r8)
+                 !  Q10**((t_soisno(c,j)-(tfrz+25._r8))/10._r8)
       else
-        t_scalar = (Q10**(-25._r8/10._r8))*(froz_q10**((bc_in%t_veg24_pa(ifp)-SHR_CONST_TKFRZ)/10._r8))
-                  !Q10**(-25._r8/10._r8))*(froz_q10**((t_soisno(c,j)-SHR_CONST_TKFRZ)/10._r8)
+        t_scalar = (Q10**(-25._r8/10._r8))*(froz_q10**((bc_in%t_veg24_pa(ifp)-tfrz)/10._r8))
+                  !Q10**(-25._r8/10._r8))*(froz_q10**((t_soisno(c,j)-tfrz)/10._r8)
       endif
     else
-      ! original century uses an arctangent function to calculate the temperature dependence of decomposition      
-      t_scalar = max(catanf(bc_in%t_veg24_pa(ifp)-SHR_CONST_TKFRZ)/catanf_30,0.01_r8)
+      ! original century uses an arctangent function to calculate the 
+      ! temperature dependence of decomposition      
+      t_scalar = max(catanf(bc_in%t_veg24_pa(ifp)-tfrz)/catanf_30,0.01_r8)
     endif    
    
     !Moisture Limitations   
-    !BTRAN APPROACH - is quite simple, but max's out decomp at all unstressed soil moisture values, which is not realistic.  
+    !BTRAN APPROACH - is quite simple, but max's out decomp at all unstressed 
+    !soil moisture values, which is not realistic.  
     !litter decomp is proportional to water limitation on average... 
     w_scalar = sum(currentPatch%btran_ft(1:numpft_ed))/numpft_ed 
 
@@ -1227,7 +1229,7 @@ contains
        currentPatch%root_litter_out(ft) = max(0.0_r8,currentPatch%root_litter(ft)* SF_val_max_decomp(dg_sf) * &
             currentPatch%fragmentation_scaler )
        if ( currentPatch%leaf_litter_out(ft)<0.0_r8.or.currentPatch%root_litter_out(ft)<0.0_r8)then
-         write(iulog,*) 'root or leaf out is negative?',SF_val_max_decomp(dg_sf),currentPatch%fragmentation_scaler
+         write(fates_log(),*) 'root or leaf out is negative?',SF_val_max_decomp(dg_sf),currentPatch%fragmentation_scaler
        endif
     enddo
 
@@ -1268,14 +1270,15 @@ contains
     !use EDCLMLinkMod, only: cwd_fcel_ed, cwd_flig
     
     use pftconMod, only : pftcon
-    use shr_const_mod, only: SHR_CONST_CDAY
+    use FatesConstantsMod, only : sec_per_day
     use clm_varcon, only : zisoi, dzsoi_decomp, zsoi
     use EDParamsMod, only : ED_val_ag_biomass
     use FatesInterfaceMod, only : bc_in_type, bc_out_type
     use clm_varctl, only : use_vertsoilc
     use abortutils  , only : endrun
 
-    ! INTERF-TODO: remove the control parameters: exponential_rooting_profile, pftspecific_rootingprofile, rootprof_exp, surfprof_exp, zisoi, dzsoi_decomp, zsoi
+    ! INTERF-TODO: remove the control parameters: exponential_rooting_profile, 
+    ! pftspecific_rootingprofile, rootprof_exp, surfprof_exp, zisoi, dzsoi_decomp, zsoi
     !
     implicit none   
     !
@@ -1334,7 +1337,7 @@ contains
     
     delta = 0.001_r8    
     !no of seconds in a year. 
-    time_convert =  365.0_r8*SHR_CONST_CDAY
+    time_convert =  365.0_r8*sec_per_day
 
     ! number of grams in a kilogram
     mass_convert = 1000._r8
@@ -1343,8 +1346,10 @@ contains
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       ! first calculate vertical profiles
       ! define two types of profiles: 
-      ! (1) a surface profile, for leaves and stem inputs, which is the same for each pft but differs from one site to the next to avoid inputting any C into permafrost or bedrock
-      ! (2) a fine root profile, which is indexed by both site and pft, differs for each pft and also from one site to the next to avoid inputting any C into permafrost or bedrock
+      ! (1) a surface profile, for leaves and stem inputs, which is the same for each
+      ! pft but differs from one site to the next to avoid inputting any C into permafrost or bedrock
+      ! (2) a fine root profile, which is indexed by both site and pft, differs for 
+      ! each pft and also from one site to the next to avoid inputting any C into permafrost or bedrock
       ! (3) a coarse root profile, which is the root-biomass=weighted average of the fine root profiles
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -1468,13 +1473,13 @@ contains
             stem_prof_sum = stem_prof_sum + stem_prof(s,j) *  dzsoi_decomp(j)
          end do
          if ( ( abs(stem_prof_sum - 1._r8) > delta ) .or.  ( abs(leaf_prof_sum - 1._r8) > delta ) ) then
-            write(iulog, *) 'profile sums: ',  leaf_prof_sum, stem_prof_sum
-            write(iulog, *) 'surface_prof: ', surface_prof
-            write(iulog, *) 'surface_prof_tot: ', surface_prof_tot
-            write(iulog, *) 'leaf_prof: ',  leaf_prof(s,:)
-            write(iulog, *) 'stem_prof: ',  stem_prof(s,:)
-            write(iulog, *) 'max_rooting_depth_index_col: ', bc_in(s)%max_rooting_depth_index_col
-            write(iulog, *) 'dzsoi_decomp: ',  dzsoi_decomp            
+            write(fates_log(), *) 'profile sums: ',  leaf_prof_sum, stem_prof_sum
+            write(fates_log(), *) 'surface_prof: ', surface_prof
+            write(fates_log(), *) 'surface_prof_tot: ', surface_prof_tot
+            write(fates_log(), *) 'leaf_prof: ',  leaf_prof(s,:)
+            write(fates_log(), *) 'stem_prof: ',  stem_prof(s,:)
+            write(fates_log(), *) 'max_rooting_depth_index_col: ', bc_in(s)%max_rooting_depth_index_col
+            write(fates_log(), *) 'dzsoi_decomp: ',  dzsoi_decomp            
             call endrun()
          endif
          ! now check each fine root profile
@@ -1484,7 +1489,7 @@ contains
                froot_prof_sum = froot_prof_sum + froot_prof(s,ft,j) *  dzsoi_decomp(j)
             end do
             if ( ( abs(froot_prof_sum - 1._r8) > delta ) ) then
-               write(iulog, *) 'profile sums: ', froot_prof_sum
+               write(fates_log(), *) 'profile sums: ', froot_prof_sum
                call endrun()
             endif
          end do
@@ -1552,12 +1557,12 @@ contains
             ! now disaggregate, vertically and by decomposition substrate type, the actual fluxes from CWD and litter pools
             !
             ! do c = 1, ncwd
-            !    write(iulog,*)'cdk CWD_AG_out', c, currentpatch%CWD_AG_out(c), cwd_fcel, currentpatch%area/AREA
-            !    write(iulog,*)'cdk CWD_BG_out', c, currentpatch%CWD_BG_out(c), cwd_fcel, currentpatch%area/AREA
+            !    write(fates_log(),*)'cdk CWD_AG_out', c, currentpatch%CWD_AG_out(c), cwd_fcel, currentpatch%area/AREA
+            !    write(fates_log(),*)'cdk CWD_BG_out', c, currentpatch%CWD_BG_out(c), cwd_fcel, currentpatch%area/AREA
             ! end do
             ! do ft = 1,numpft_ed
-            !    write(iulog,*)'cdk leaf_litter_out', ft, currentpatch%leaf_litter_out(ft), cwd_fcel, currentpatch%area/AREA
-            !    write(iulog,*)'cdk root_litter_out', ft, currentpatch%root_litter_out(ft), cwd_fcel, currentpatch%area/AREA
+            !    write(fates_log(),*)'cdk leaf_litter_out', ft, currentpatch%leaf_litter_out(ft), cwd_fcel, currentpatch%area/AREA
+            !    write(fates_log(),*)'cdk root_litter_out', ft, currentpatch%root_litter_out(ft), cwd_fcel, currentpatch%area/AREA
             ! end do
             ! !
             ! CWD pools fragmenting into decomposing litter pools. 
@@ -1618,15 +1623,15 @@ contains
            end do
         end do
         
-        ! write(iulog,*)'cdk FATES_c_to_litr_lab_c: ', FATES_c_to_litr_lab_c
-        ! write_col(iulog,*)'cdk FATES_c_to_litr_cel_c: ', FATES_c_to_litr_cel_c    
-        ! write_col(iulog,*)'cdk FATES_c_to_litr_lig_c: ', FATES_c_to_litr_lig_c
-        ! write_col(iulog,*)'cdk cp_numlevdecomp_full,  bounds%begc, bounds%endc: ', cp_numlevdecomp_full, bounds%begc, bounds%endc
-        ! write(iulog,*)'cdk leaf_prof: ', leaf_prof
-        ! write(iulog,*)'cdk stem_prof: ', stem_prof    
-        ! write(iulog,*)'cdk froot_prof: ', froot_prof
-        ! write(iulog,*)'cdk croot_prof_perpatch: ', croot_prof_perpatch
-        ! write(iulog,*)'cdk croot_prof: ', croot_prof
+        ! write(fates_log(),*)'cdk FATES_c_to_litr_lab_c: ', FATES_c_to_litr_lab_c
+        ! write_col(fates_log(),*)'cdk FATES_c_to_litr_cel_c: ', FATES_c_to_litr_cel_c    
+        ! write_col(fates_log(),*)'cdk FATES_c_to_litr_lig_c: ', FATES_c_to_litr_lig_c
+        ! write_col(fates_log(),*)'cdk cp_numlevdecomp_full,  bounds%begc, bounds%endc: ', cp_numlevdecomp_full, bounds%begc, bounds%endc
+        ! write(fates_log(),*)'cdk leaf_prof: ', leaf_prof
+        ! write(fates_log(),*)'cdk stem_prof: ', stem_prof    
+        ! write(fates_log(),*)'cdk froot_prof: ', froot_prof
+        ! write(fates_log(),*)'cdk croot_prof_perpatch: ', croot_prof_perpatch
+        ! write(fates_log(),*)'cdk croot_prof: ', croot_prof
 
     end subroutine flux_into_litter_pools
 
