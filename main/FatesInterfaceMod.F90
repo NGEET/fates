@@ -388,11 +388,11 @@ contains
       ! Allocate input boundaries
       
       ! Vegetation Dynamics
-      allocate(bc_in%t_veg24_pa(numPatchesPerCol))
+      allocate(bc_in%t_veg24_pa(maxPatchesPerCol))
 
-      allocate(bc_in%wind24_pa(numPatchesPerCol))
-      allocate(bc_in%relhumid24_pa(numPatchesPerCol))
-      allocate(bc_in%precip24_pa(numPatchesPerCol))
+      allocate(bc_in%wind24_pa(maxPatchesPerCol))
+      allocate(bc_in%relhumid24_pa(maxPatchesPerCol))
+      allocate(bc_in%precip24_pa(maxPatchesPerCol))
       
       ! Radiation
       allocate(bc_in%solad_parb(maxPatchesPerCol,cp_numSWb))
