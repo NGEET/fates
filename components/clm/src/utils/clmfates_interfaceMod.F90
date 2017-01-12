@@ -22,7 +22,6 @@ module CLMFatesInterfaceMod
    ! Therefore, the state variables in the clm_fates communicator is vectorized by
    ! threadcount, and the IO communication arrays are not.
    !
-   ! INTERF-TODO: NEED AN INVALID R8 SETTING FOR FATES
    !
    ! Conventions:
    ! keep line widths within 90 spaces
@@ -57,7 +56,8 @@ module CLMFatesInterfaceMod
    use SoilBiogeochemCarbonFluxType, only :  soilbiogeochem_carbonflux_type
    use SoilBiogeochemCarbonStateType, only : soilbiogeochem_carbonstate_type
    use clm_time_manager  , only : is_restart
-   use ncdio_pio         , only : file_desc_t
+   use ncdio_pio         , only : file_desc_t, ncd_int, ncd_double
+   use restUtilMod,        only : restartvar
    use clm_time_manager  , only : get_days_per_year, &
                                   get_curr_date,     &
                                   get_ref_date,      &
@@ -83,11 +83,11 @@ module CLMFatesInterfaceMod
                                       allocate_bcout
 
    use FatesHistoryInterfaceMod, only : fates_history_interface_type
+   use FatesRestartInterfaceMod, only : fates_restart_interface_type
 
    use ChecksBalancesMod     , only : SummarizeNetFluxes, FATES_BGC_Carbon_BalanceCheck
    use EDTypesMod            , only : udata
    use EDTypesMod            , only : ed_patch_type
-   use EDtypesMod            , only : numPatchesPerCol
    use EDtypesMod            , only : cp_numlevgrnd
    use EDMainMod             , only : ed_ecosystem_dynamics
    use EDMainMod             , only : ed_update_site
@@ -96,7 +96,6 @@ module CLMFatesInterfaceMod
    use EDInitMod             , only : set_site_properties
    use EDPftVarcon           , only : EDpftvarcon_inst
    use EDEcophysConType      , only : EDecophysconInit
-   use EDRestVectorMod       , only : EDRest
    use EDSurfaceRadiationMod , only : ED_SunShadeFracs, ED_Norman_Radiation
    use EDBtranMod            , only : btran_ed, &
                                       get_active_suction_layers
@@ -138,15 +137,18 @@ module CLMFatesInterfaceMod
 
       type(f2hmap_type), allocatable  :: f2hmap(:)
 
-      ! fates_hio is the interface class for the history output
+      ! fates_hist is the interface class for the history output
       type(fates_history_interface_type) :: fates_hist
+
+      ! fates_restart is the inteface calss for restarting the model
+      type(fates_restart_interface_type) :: fates_restart
 
    contains
       
       procedure, public :: init
       procedure, public :: init_allocate
       procedure, public :: check_hlm_active
-      procedure, public :: init_restart
+      procedure, public :: restart
       procedure, public :: init_coldstart
       procedure, public :: dynamics_driv
       procedure, public :: wrap_sunfrac
@@ -189,8 +191,9 @@ contains
       ! Note: CLM/ALM currently wants sites to be allocated even if ed
       ! is not turned on
       ! ---------------------------------------------------------------------------------
-
+     
      use FatesInterfaceMod, only : FatesInterfaceInit
+     
 
       implicit none
       
@@ -278,6 +281,7 @@ contains
       integer                                        :: s         ! FATES site index
       integer                                        :: c         ! HLM column index
       integer                                        :: l         ! HLM LU index
+      integer                                        :: g         ! HLM grid index
       integer, allocatable                           :: collist (:)
       type(bounds_type)                              :: bounds_clump
       type(bounds_type)                              :: bounds_proc
@@ -289,7 +293,7 @@ contains
 
       nclumps = get_proc_clumps()
 
-      !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,nmaxcol,s,c,l,collist)
+      !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,nmaxcol,s,c,l,g,collist)
       do nc = 1,nclumps
          
          call get_clump_bounds(nc, bounds_clump)
@@ -356,13 +360,20 @@ contains
 
          ! Allocate and Initialize the Boundary Condition Arrays
          ! These are staticaly allocated at maximums, so
-         ! No information about the patch or cohort
-         ! structure is needed at this step
+         ! No information about the patch or cohort structure is needed at this step
          
          do s = 1, this%fates(nc)%nsites
             call allocate_bcin(this%fates(nc)%bc_in(s))
             call allocate_bcout(this%fates(nc)%bc_out(s))
             call this%fates(nc)%zero_bcs(s)
+
+            ! Pass any grid-cell derived attributes to the site
+            ! ---------------------------------------------------------------------------
+            c = this%f2hmap(nc)%fcolumn(s)
+            g = col%gridcell(c)
+            this%fates(nc)%sites(s)%lat = grc%latdeg(g)
+            this%fates(nc)%sites(s)%lon = grc%londeg(g)
+
          end do
 
          ! Initialize site-level static quantities dictated by the HLM
@@ -693,63 +704,261 @@ contains
      end associate
    end subroutine wrap_update_hlmfates_dyn
 
-   ! ------------------------------------------------------------------------------------
+   ! ====================================================================================
 
-   subroutine init_restart(this, ncid, flag, waterstate_inst, canopystate_inst )
+   subroutine restart( this, bounds_proc, ncid, flag, waterstate_inst, canopystate_inst )
+
+      ! ---------------------------------------------------------------------------------
+      ! The ability to restart the model is handled through three different types of calls
+      ! "Define" the variables in the restart file, we "read" those variables into memory
+      ! or "write" data into the file from memory.  This subroutine accomodates all three
+      ! of those modes through the "flag" argument.  FATES as an external model also
+      ! requires an initialization step, where we set-up the dimensions, allocate and
+      ! flush the memory space that is used to transfer data in and out of the file.  This
+      ! Only occurs once, where as the define step occurs every time a file is opened.
+      !
+      ! Note: waterstate_inst and canopystate_inst are arguments only because following
+      ! the reading of variables, it is necessary to update diagnostics of the canopy
+      ! throug the interface call clm_fates%wrap_update_hlmfates_dyn() which requires
+      ! this information from the HLM.
+      ! ---------------------------------------------------------------------------------
+
+
+     use FatesConstantsMod, only : fates_long_string_length
+     use FatesIODimensionsMod, only: fates_bounds_type
+     use FatesIOVariableKindMod, only : site_r8, site_int, cohort_r8, cohort_int
+     use EDMainMod, only :        ed_update_site
+     use EDTypesMod, only:        cohorts_per_col ! EDtypes should be protected
+                                                  ! this variable should be transferred
+                                                  ! to a location where we keep
+                                                  ! variables that are co-dictated by
+                                                  ! FATES and the HLM
 
       implicit none
 
       ! Arguments
+
       class(hlm_fates_interface_type), intent(inout) :: this
+      type(bounds_type)              , intent(in)    :: bounds_proc
       type(file_desc_t)              , intent(inout) :: ncid    ! netcdf id
-      character(len=*)               , intent(in)    :: flag    !'read' or 'write'
+      character(len=*)               , intent(in)    :: flag
       type(waterstate_type)          , intent(inout) :: waterstate_inst
       type(canopystate_type)         , intent(inout) :: canopystate_inst
-
+      
       ! Locals
       type(bounds_type) :: bounds_clump
       integer           :: nc
       integer           :: nclumps
+      type(fates_bounds_type) :: fates_bounds
+      type(fates_bounds_type) :: fates_clump
+      integer                 :: c   ! HLM column index
+      integer                 :: s   ! Fates site index
+      integer                 :: dk_index
+      character(len=fates_long_string_length) :: ioname
+      integer                 :: nvar
+      integer                 :: ivar
+      logical                 :: readvar
+
+      logical, save           :: initialized = .false.
 
       nclumps = get_proc_clumps()
-      !$OMP PARALLEL DO PRIVATE (nc,bounds_clump)
-      do nc = 1, nclumps
-         if (this%fates(nc)%nsites>0) then
+
+      ! ---------------------------------------------------------------------------------
+      ! note (rgk: 11-2016) The history and restart intialization process assumes
+      ! that the number of site/columns active is a static entity.  Thus
+      ! we only allocate the mapping tables for the column/sites we start with.
+      ! If/when we start having dynamic column/sites (for reasons uknown as of yet)
+      ! we will need to re-evaluate the allocation of the mapping tables so they
+      ! can be unallocated,reallocated and set every time a new column/site is spawned
+      ! ---------------------------------------------------------------------------------
+
+      ! ---------------------------------------------------------------------------------
+      ! Only initialize the FATES restart structures the first time it is called
+      ! Note that the allocations involved with initialization are static.
+      ! This is because the array spaces for IO span the entire column, patch and cohort
+      ! range on the proc.
+      ! With DYNAMIC LANDUNITS or SPAWNING NEW OR CULLING OLD SITES:
+      ! we will in that case have to de-allocate, reallocate and then re-set the mapping
+      ! tables:  this%fates_restart%restart_map(nc)
+      ! I think that is it...
+      ! ---------------------------------------------------------------------------------
+
+      if(.not.initialized) then
+
+         initialized=.true.
+      
+         ! ------------------------------------------------------------------------------
+         ! PART I: Set FATES DIMENSIONING INFORMATION
+         ! ------------------------------------------------------------------------------
+         
+         call hlm_bounds_to_fates_bounds(bounds_proc, fates_bounds)
+         
+         call this%fates_restart%Init(nclumps, fates_bounds)
+         
+         ! Define the bounds on the first dimension for each thread
+         !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,fates_clump)
+         do nc = 1,nclumps
             call get_clump_bounds(nc, bounds_clump)
             
-            ! ------------------------------------------------------------------------
-            ! Main call to read in FATES restart data and unroll it into linked lists
-            ! ------------------------------------------------------------------------
-            call EDRest( bounds_clump,                                             &
-                 this%fates(nc)%nsites,                                            &
-                 this%fates(nc)%sites,                                             &
-                 this%f2hmap(nc)%fcolumn, ncid, flag )
+            ! thread bounds for patch
+            call hlm_bounds_to_fates_bounds(bounds_clump, fates_clump)
+            call this%fates_restart%SetThreadBoundsEach(nc, fates_clump)
+         end do
+         !$OMP END PARALLEL DO
+         
+         !$OMP PARALLEL DO PRIVATE (nc,s,c)
+         do nc = 1,nclumps
             
-            if ( trim(flag) == 'read' ) then
+            allocate(this%fates_restart%restart_map(nc)%site_index(this%fates(nc)%nsites))
+            allocate(this%fates_restart%restart_map(nc)%cohort1_index(this%fates(nc)%nsites))            
+            do s=1,this%fates(nc)%nsites
+               c = this%f2hmap(nc)%fcolumn(s)
+               this%fates_restart%restart_map(nc)%site_index(s)   = c
+               this%fates_restart%restart_map(nc)%cohort1_index(s) = &
+                    bounds_proc%begCohort + (c-bounds_proc%begc)*cohorts_per_col + 1
+            end do
+            
+         end do
+         !$OMP END PARALLEL DO
+         
+         ! ------------------------------------------------------------------------------------
+         ! PART II: USE THE JUST DEFINED DIMENSIONS TO ASSEMBLE THE VALID IO TYPES
+         ! INTERF-TODO: THESE CAN ALL BE EMBEDDED INTO A SUBROUTINE IN HISTORYIOMOD
+         ! ------------------------------------------------------------------------------------
+         call this%fates_restart%assemble_restart_output_types()
+         
+         
+         ! ------------------------------------------------------------------------------------
+         ! PART III: DEFINE THE LIST OF OUTPUT VARIABLE OBJECTS, AND REGISTER THEM WITH THE
+         ! HLM ACCORDING TO THEIR TYPES
+         ! ------------------------------------------------------------------------------------
+         call this%fates_restart%initialize_restart_vars()
+         
+      end if
+
+      ! ---------------------------------------------------------------------------------
+      ! If we are writing, we must loop through our linked list structures and transfer the
+      ! information in the linked lists (FATES state memory) to the output vectors.
+      ! ---------------------------------------------------------------------------------
+
+      if(flag=='write')then
+         !$OMP PARALLEL DO PRIVATE (nc)
+         do nc = 1, nclumps
+            if (this%fates(nc)%nsites>0) then
+               call this%fates_restart%set_restart_vectors(nc,this%fates(nc)%nsites, &
+                                                           this%fates(nc)%sites)
+            end if
+         end do
+         !$OMP END PARALLEL DO
+      end if
+
+      ! ---------------------------------------------------------------------------------
+      ! In all cases, iterate through the list of variable objects
+      ! and either define, write or read to the NC buffer
+      ! This seems strange, but keep in mind that the call to restartvar()
+      ! has a different function in all three cases.
+      ! ---------------------------------------------------------------------------------
+
+      nvar = this%fates_restart%num_restart_vars()
+      do ivar = 1, nvar
+            
+         associate( vname => this%fates_restart%rvars(ivar)%vname, &
+              vunits      => this%fates_restart%rvars(ivar)%units,   &
+              vlong       => this%fates_restart%rvars(ivar)%long )
+
+           dk_index = this%fates_restart%rvars(ivar)%dim_kinds_index
+           ioname = trim(this%fates_restart%dim_kinds(dk_index)%name)
+        
+           select case(trim(ioname))
+           case(cohort_r8)
+
+              call restartvar(ncid=ncid, flag=flag, varname=trim(vname), &
+                    xtype=ncd_double,dim1name=trim('cohort'),long_name=trim(vlong), &
+                    units=trim(vunits),interpinic_flag='interp', &
+                    data=this%fates_restart%rvars(ivar)%r81d,readvar=readvar)
+              
+           case(site_r8)
+              
+              call restartvar(ncid=ncid, flag=flag, varname=trim(vname), &
+                    xtype=ncd_double,dim1name=trim('column'),long_name=trim(vlong), &
+                    units=trim(vunits),interpinic_flag='interp', &
+                    data=this%fates_restart%rvars(ivar)%r81d,readvar=readvar)
+              
+           case(cohort_int)
+              
+              call restartvar(ncid=ncid, flag=flag, varname=trim(vname), &
+                    xtype=ncd_int,dim1name=trim('cohort'),long_name=trim(vlong), &
+                    units=trim(vunits),interpinic_flag='interp', &
+                    data=this%fates_restart%rvars(ivar)%int1d,readvar=readvar)
+              
+           case(site_int)
+           
+              call restartvar(ncid=ncid, flag=flag, varname=trim(vname), &
+                    xtype=ncd_int,dim1name=trim('column'),long_name=trim(vlong), &
+                    units=trim(vunits),interpinic_flag='interp', &
+                    data=this%fates_restart%rvars(ivar)%int1d,readvar=readvar)
+              
+           case default
+              write(iulog,*) 'A FATES iotype was created that was not registerred'
+              write(iulog,*) 'in CLM.:',trim(ioname)
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end select
+           
+         end associate
+      end do
+      
+      ! ---------------------------------------------------------------------------------
+      ! If we are in a read mode, then we have just populated the sparse vectors
+      ! in the IO object list. The data in these vectors needs to be transferred
+      ! to the linked lists to populate the state memory.
+      ! ---------------------------------------------------------------------------------
+
+      if(flag=='read')then
+         
+         !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,s)
+         do nc = 1, nclumps
+            if (this%fates(nc)%nsites>0) then
+
+               call get_clump_bounds(nc, bounds_clump)
+
+               ! ------------------------------------------------------------------------
+               ! Convert newly read-in vectors into the FATES namelist state variables
+               ! ------------------------------------------------------------------------
+               call this%fates_restart%create_patchcohort_structure(nc, &
+                    this%fates(nc)%nsites, this%fates(nc)%sites)
+               
+               call this%fates_restart%get_restart_vectors(nc, this%fates(nc)%nsites, &
+                    this%fates(nc)%sites )
+
+               ! I think ed_update_site and update_hlmfates_dyn are doing some similar
+               ! update type stuff, should consolidate (rgk 11-2016)
+               do s = 1,this%fates(nc)%nsites
+                  call ed_update_site( this%fates(nc)%sites(s) )
+               end do
 
                ! ------------------------------------------------------------------------
                ! Update diagnostics of FATES ecosystem structure used in HLM.
                ! ------------------------------------------------------------------------
                call this%wrap_update_hlmfates_dyn(nc,bounds_clump, &
-                    waterstate_inst,canopystate_inst)
-
+                     waterstate_inst,canopystate_inst)
+               
                ! ------------------------------------------------------------------------
                ! Update history IO fields that depend on ecosystem dynamics
                ! ------------------------------------------------------------------------
                call this%fates_hist%update_history_dyn( nc, &
-                    this%fates(nc)%nsites,                 &
-                    this%fates(nc)%sites) 
-
+                     this%fates(nc)%nsites,                 &
+                     this%fates(nc)%sites) 
                
             end if
-         end if
+         end do
+         !$OMP END PARALLEL DO
+         
+      end if
+      
+      return
+   end subroutine restart
 
-      end do
-      !$OMP END PARALLEL DO
-
-   end subroutine init_restart
-
-   ! ====================================================================================
+   !=====================================================================================
 
    subroutine init_coldstart(this, waterstate_inst, canopystate_inst)
 
@@ -779,10 +988,6 @@ contains
 
            do s = 1,this%fates(nc)%nsites
               call zero_site(this%fates(nc)%sites(s))
-              c = this%f2hmap(nc)%fcolumn(s)
-              g = col%gridcell(c)
-              this%fates(nc)%sites(s)%lat = grc%latdeg(g)  
-              this%fates(nc)%sites(s)%lon = grc%londeg(g)
            end do
            
            call set_site_properties(this%fates(nc)%nsites, this%fates(nc)%sites)
@@ -1119,7 +1324,7 @@ contains
     use quadraticMod      , only : quadratic
     use EDSharedParamsMod , only : EDParamsShareInst
     use EDTypesMod        , only : numpft_ed, dinc_ed
-    use EDtypesMod        , only : ed_patch_type, ed_cohort_type, ed_site_type, numpft_ed, numPatchesPerCol
+    use EDtypesMod        , only : ed_patch_type, ed_cohort_type, ed_site_type, numpft_ed
     use EDEcophysContype  , only : EDecophyscon
    
     !
@@ -1461,9 +1666,9 @@ contains
    use histFileMod, only : hist_addfld1d, hist_addfld2d, hist_addfld_decomp 
 
    use FatesConstantsMod, only : fates_short_string_length, fates_long_string_length
-   use FatesHistoryInterfaceMod, only : fates_bounds_type
-   use FatesHistoryDimensionMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8, &
-        site_r8, site_ground_r8, site_size_pft_r8
+   use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
+   use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
+   use FatesIODimensionsMod, only : fates_bounds_type
 
 
    ! Arguments
@@ -1518,29 +1723,23 @@ contains
    call this%fates_hist%Init(nclumps, fates_bounds)
 
    ! Define the bounds on the first dimension for each thread
-   !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,fates_clump,s,c)
+   !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,fates_clump)
    do nc = 1,nclumps
       
       call get_clump_bounds(nc, bounds_clump)
       
       ! thread bounds for patch
       call hlm_bounds_to_fates_bounds(bounds_clump, fates_clump)
-      call this%fates_hist%SetThreadBounds(nc, fates_clump)
+      call this%fates_hist%SetThreadBoundsEach(nc, fates_clump)
    end do
    !$OMP END PARALLEL DO
 
    ! ------------------------------------------------------------------------------------
    ! PART I.5: SET SOME INDEX MAPPINGS SPECIFICALLY FOR SITE<->COLUMN AND PATCH 
    ! ------------------------------------------------------------------------------------
-
-   ! Allocate the mapping between FATES indices and the IO indices
-   allocate(this%fates_hist%iovar_map(nclumps))
-
    
-   !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,fates_clump,s,c)
+   !$OMP PARALLEL DO PRIVATE (nc,s,c)
    do nc = 1,nclumps
-      
-      call get_clump_bounds(nc, bounds_clump)
       
       allocate(this%fates_hist%iovar_map(nc)%site_index(this%fates(nc)%nsites))
       allocate(this%fates_hist%iovar_map(nc)%patch1_index(this%fates(nc)%nsites))
@@ -1558,7 +1757,7 @@ contains
    ! PART II: USE THE JUST DEFINED DIMENSIONS TO ASSEMBLE THE VALID IO TYPES
    ! INTERF-TODO: THESE CAN ALL BE EMBEDDED INTO A SUBROUTINE IN HISTORYIOMOD
    ! ------------------------------------------------------------------------------------
-   call this%fates_hist%assemble_valid_output_types()
+   call this%fates_hist%assemble_history_output_types()
    
    ! ------------------------------------------------------------------------------------
    ! PART III: DEFINE THE LIST OF OUTPUT VARIABLE OBJECTS, AND REGISTER THEM WITH THE
@@ -1643,7 +1842,7 @@ contains
 
  subroutine hlm_bounds_to_fates_bounds(hlm, fates)
 
-   use FatesHistoryInterfaceMod, only : fates_bounds_type
+   use FatesIODimensionsMod, only : fates_bounds_type
    use EDtypesMod, only : nlevsclass_ed
    use clm_varpar, only : mxpft, nlevgrnd
 
@@ -1651,6 +1850,9 @@ contains
 
    type(bounds_type), intent(in) :: hlm
    type(fates_bounds_type), intent(out) :: fates
+
+   fates%cohort_begin = hlm%begcohort
+   fates%cohort_end = hlm%endcohort
    
    fates%patch_begin = hlm%begp
    fates%patch_end = hlm%endp

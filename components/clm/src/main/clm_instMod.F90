@@ -444,7 +444,6 @@ contains
     !
     ! !USES:
     use ncdio_pio       , only : file_desc_t
-    use EDRestVectorMod , only : EDRest
     use UrbanParamsType , only : IsSimpleBuildTemp, IsProgBuildTemp
     use decompMod       , only : get_proc_bounds, get_proc_clumps, get_clump_bounds
 
@@ -535,9 +534,8 @@ contains
 
     if (use_ed) then
 
-       ! Bounds are not passed to FATES init_restart because
-       ! we call a loop on clumps within this subroutine anyway
-       call clm_fates%init_restart(ncid,flag, waterstate_inst, canopystate_inst)
+       call clm_fates%restart(bounds, ncid, flag=flag,  &
+            waterstate_inst=waterstate_inst, canopystate_inst=canopystate_inst )
 
     end if
 

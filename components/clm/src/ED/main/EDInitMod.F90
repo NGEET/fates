@@ -50,10 +50,6 @@ contains
     site_in%oldest_patch     => null() ! pointer to oldest patch at the site
     site_in%youngest_patch   => null() ! pointer to yngest patch at the site
     
-    ! INDICES 
-    site_in%lat              = nan
-    site_in%lon              = nan
-
     ! DISTURBANCE
     site_in%disturbance_rate = 0._r8  ! site level disturbance rates from mortality and fire.
     site_in%dist_type        = 0      ! disturbance dist_type id.
