@@ -42,7 +42,7 @@ module EDPhysiologyMod
 contains
 
   ! ============================================================================
-  subroutine canopy_derivs( currentSite, currentPatch )
+  subroutine canopy_derivs( currentSite, currentPatch, bc_in )
     !
     ! !DESCRIPTION:
     ! spawn new cohorts of juveniles of each PFT             
@@ -52,6 +52,7 @@ contains
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
     type(ed_patch_type) , intent(inout), target :: currentPatch
+    type(bc_in_type), intent(in)               :: bc_in
     !
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer ::currentCohort
@@ -62,7 +63,7 @@ contains
     currentCohort => currentPatch%shortest
 
     do while(associated(currentCohort))
-       call Growth_Derivatives(currentSite, currentCohort)
+       call Growth_Derivatives(currentSite, currentCohort, bc_in )
        currentCohort => currentCohort%taller
     enddo
 
@@ -702,7 +703,7 @@ contains
   end subroutine seed_germination
 
   ! ============================================================================
-  subroutine Growth_Derivatives( currentSite, currentCohort)
+  subroutine Growth_Derivatives( currentSite, currentCohort, bc_in)
     !
     ! !DESCRIPTION:
     !  Main subroutine controlling growth and allocation derivatives    
@@ -714,6 +715,7 @@ contains
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
     type(ed_cohort_type),intent(inout), target :: currentCohort
+    type(bc_in_type), intent(in)               :: bc_in
     !
     ! !LOCAL VARIABLES:
     real(r8) :: dbldbd   !rate of change of dead biomass per unit dbh 
@@ -760,9 +762,11 @@ contains
     ! NPP 
     if ( DEBUG ) write(fates_log(),*) 'EDphys 716 ',currentCohort%npp_acc
 
-    currentCohort%npp_acc_hold  = currentCohort%npp_acc  * udata%n_sub  ! convert from kgC/indiv/day into kgC/indiv/year
-    currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * udata%n_sub  ! convert from kgC/indiv/day into kgC/indiv/year
-    currentCohort%resp_acc_hold = currentCohort%resp_acc * udata%n_sub  ! convert from kgC/indiv/day into kgC/indiv/year
+    ! convert from kgC/indiv/day into kgC/indiv/year 
+    ! TODO: CONVERT DAYS_PER_YEAR TO DBLE (HOLDING FOR B4B COMPARISONS, RGK-01-2017)
+    currentCohort%npp_acc_hold  = currentCohort%npp_acc  * bc_in%days_per_year 
+    currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * bc_in%days_per_year
+    currentCohort%resp_acc_hold = currentCohort%resp_acc * bc_in%days_per_year
 
     currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
 
@@ -845,7 +849,7 @@ contains
 
        currentCohort%storage_flux = 0._r8
        currentCohort%carbon_balance = 0._r8
-       write(fates_log(),*) 'ED: no leaf area in gd', currentCohort%indexnumber,currentCohort%n,currentCohort%bdead, &
+       write(fates_log(),*) 'ED: no leaf area in gd',currentCohort%n,currentCohort%bdead, &
              currentCohort%dbh,currentCohort%balive
 
     endif

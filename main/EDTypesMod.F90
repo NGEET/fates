@@ -552,12 +552,11 @@ module EDTypesMod
   !************************************
 
   type userdata
-     integer  ::   cohort_number            ! Counts up the number of cohorts which have been made.
+!     integer  ::   cohort_number            ! Counts up the number of cohorts which have been made.
      integer  ::   n_sub                    ! num of substeps in year 
      real(r8) ::   deltat                   ! fraction of year used for each timestep (1/N_SUB)
      integer  ::   time_period              ! Within year timestep (1:N_SUB) day of year
      integer  ::   restart_year             ! Which year of simulation are we starting in? 
-     integer  ::   modelday                 ! Number of days since reference
   end type userdata
 
 
