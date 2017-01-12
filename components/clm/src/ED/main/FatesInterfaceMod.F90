@@ -15,20 +15,19 @@ module FatesInterfaceMod
    ! PUBLIC API!!!!
    ! ------------------------------------------------------------------------------------
 
-   use EDtypesMod            , only : ed_site_type,      &
-                                      numPatchesPerCol,  &
-                                      cp_nclmax,         &
-                                      cp_numSWb,         &
-                                      cp_numlevgrnd,     &
-                                      cp_maxSWb,         &
-                                      cp_numlevdecomp,   &
-                                      cp_numlevdecomp_full, &
-                                      cp_hlm_name,       &
-                                      cp_hio_ignore_val, &
-                                      cp_numlevsoil
-
-   use shr_kind_mod          , only : r8 => shr_kind_r8  ! INTERF-TODO: REMOVE THIS
-
+   use EDtypesMod            , only : ed_site_type
+   use EDtypesMod            , only : numPatchesPerCol
+   use EDtypesMod            , only : cp_nclmax
+   use EDtypesMod            , only : cp_numSWb
+   use EDtypesMod            , only : cp_numlevgrnd
+   use EDtypesMod            , only : cp_maxSWb
+   use EDtypesMod            , only : cp_numlevdecomp
+   use EDtypesMod            , only : cp_numlevdecomp_full
+   use EDtypesMod            , only : cp_hlm_name
+   use EDtypesMod            , only : cp_hio_ignore_val
+   use EDtypesMod            , only : cp_numlevsoil
+   use EDtypesMod            , only : cp_masterproc
+   use FatesConstantsMod     , only : r8 => fates_r8
    
    implicit none
 
@@ -41,6 +40,7 @@ module FatesInterfaceMod
    ! (Intel-Forum Post), ALLOCATABLES are better perfomance wise as long as they point 
    ! to contiguous memory spaces and do not alias other variables, the case here.
    ! Naming conventions:   _gl  means ground layer dimensions
+   !                       _si  means site dimensions (scalar in that case)
    !                       _pa  means patch dimensions
    !                       _rb  means radiation band
    ! ------------------------------------------------------------------------------------
@@ -620,12 +620,21 @@ contains
          cp_numlevdecomp      = unset_int
          cp_hlm_name          = 'unset'
          cp_hio_ignore_val    = unset_double
+         cp_masterproc        = unset_int
 
       case('check_allset')
          
          if(cp_numSWb .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES dimension/parameter unset: num_sw_rad_bbands'
+            end if
+            ! INTERF-TODO: FATES NEEDS INTERNAL end_run
+            ! end_run('MESSAGE')
+         end if
+
+         if(cp_masterproc .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'FATES parameter unset: cp_masterproc'
             end if
             ! INTERF-TODO: FATES NEEDS INTERNAL end_run
             ! end_run('MESSAGE')
@@ -701,36 +710,38 @@ contains
 
          if(present(ival))then
             select case (trim(tag))
-               
-            case('num_sw_bbands')
 
+            case('masterproc')
+               cp_masterproc = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering masterproc = ',ival,' to FATES'
+               end if
+
+            case('num_sw_bbands')
                cp_numSwb = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering num_sw_bbands = ',ival,' to FATES'
                end if
                
             case('num_lev_ground')
-               
                cp_numlevgrnd = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering num_lev_ground = ',ival,' to FATES'
                end if
+
             case('num_lev_soil')
-               
                cp_numlevsoil = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering num_lev_ground = ',ival,' to FATES'
                end if
 
             case('num_levdecomp_full')
-               
                cp_numlevdecomp_full = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering num_levdecomp_full = ',ival,' to FATES'
                end if
             
             case('num_levdecomp')
-               
                cp_numlevdecomp = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering num_levdecomp = ',ival,' to FATES'

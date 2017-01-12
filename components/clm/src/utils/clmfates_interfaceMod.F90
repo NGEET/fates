@@ -205,6 +205,7 @@ contains
       ! local variables
       integer                                        :: nclumps   ! Number of threads
       logical :: verbose_output
+      integer :: pass_masterproc
 
       if (use_ed) then
          
@@ -246,6 +247,12 @@ contains
       call set_fates_ctrlparms('num_levdecomp_full',ival=nlevdecomp_full)
       call set_fates_ctrlparms('hlm_name',cval='CLM')
       call set_fates_ctrlparms('hio_ignore_val',rval=spval)
+      if(masterproc)then
+         pass_masterproc = 1
+      else
+         pass_masterproc = 0
+      end if
+      call set_fates_ctrlparms('masterproc',ival=pass_masterproc)
 
       ! Check through FATES parameters to see if all have been set
       call set_fates_ctrlparms('check_allset')
@@ -540,9 +547,7 @@ contains
       do s = 1,this%fates(nc)%nsites
 
             call ed_ecosystem_dynamics(this%fates(nc)%sites(s),    &
-                  this%fates(nc)%bc_in(s),                         &
-                  atm2lnd_inst,                                    &
-                  temperature_inst )
+                  this%fates(nc)%bc_in(s))
             
             call ed_update_site(this%fates(nc)%sites(s))
 

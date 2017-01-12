@@ -7,7 +7,8 @@ module SFMainMod
 
   use FatesConstantsMod     , only : r8 => fates_r8
 
-  use spmdMod               , only : masterproc
+!  use spmdMod               , only : masterproc
+  use EDTypesMod            , only : cp_masterproc ! 1= master process, 0=not master process
   use FatesGlobals          , only : fates_log
 
   use FatesInterfaceMod     , only : bc_in_type
@@ -183,15 +184,15 @@ contains
        currentPatch%fuel_frac      = 0.0_r8
 
        if(write_sf == 1)then
-          if (masterproc) write(fates_log(),*) ' leaf_litter1 ',currentPatch%leaf_litter
-          if (masterproc) write(fates_log(),*) ' leaf_litter2 ',sum(currentPatch%CWD_AG)
-          if (masterproc) write(fates_log(),*) ' leaf_litter3 ',currentPatch%livegrass
-          if (masterproc) write(fates_log(),*) ' sum fuel', currentPatch%sum_fuel
+          if ( cp_masterproc == 1 ) write(fates_log(),*) ' leaf_litter1 ',currentPatch%leaf_litter
+          if ( cp_masterproc == 1 ) write(fates_log(),*) ' leaf_litter2 ',sum(currentPatch%CWD_AG)
+          if ( cp_masterproc == 1 ) write(fates_log(),*) ' leaf_litter3 ',currentPatch%livegrass
+          if ( cp_masterproc == 1 ) write(fates_log(),*) ' sum fuel', currentPatch%sum_fuel
        endif
 
        currentPatch%sum_fuel =  sum(currentPatch%leaf_litter) + sum(currentPatch%CWD_AG) + currentPatch%livegrass
        if(write_SF == 1)then
-          if (masterproc) write(fates_log(),*) 'sum fuel', currentPatch%sum_fuel,currentPatch%area
+          if ( cp_masterproc == 1 ) write(fates_log(),*) 'sum fuel', currentPatch%sum_fuel,currentPatch%area
        endif
        ! ===============================================
        ! Average moisture, bulk density, surface area-volume and moisture extinction of fuel
@@ -203,9 +204,9 @@ contains
           currentPatch%fuel_frac(dg_sf+1:tr_sf) = currentPatch%CWD_AG          / currentPatch%sum_fuel    
 
           if(write_sf == 1)then
-             if (masterproc) write(fates_log(),*) 'ff1 ',currentPatch%fuel_frac
-             if (masterproc) write(fates_log(),*) 'ff2 ',currentPatch%fuel_frac
-             if (masterproc) write(fates_log(),*) 'ff2a ',lg_sf,currentPatch%livegrass,currentPatch%sum_fuel
+             if ( cp_masterproc == 1 ) write(fates_log(),*) 'ff1 ',currentPatch%fuel_frac
+             if ( cp_masterproc == 1 ) write(fates_log(),*) 'ff2 ',currentPatch%fuel_frac
+             if ( cp_masterproc == 1 ) write(fates_log(),*) 'ff2a ',lg_sf,currentPatch%livegrass,currentPatch%sum_fuel
           endif
 
           currentPatch%fuel_frac(lg_sf)       = currentPatch%livegrass       / currentPatch%sum_fuel   
@@ -214,10 +215,10 @@ contains
           !Equation 6 in Thonicke et al. 2010. 
           fuel_moisture(dg_sf+1:tr_sf)  = exp(-1.0_r8 * SF_val_alpha_FMC(dg_sf+1:tr_sf) * currentSite%acc_NI)  
           if(write_SF == 1)then
-             if (masterproc) write(fates_log(),*) 'ff3 ',currentPatch%fuel_frac
-             if (masterproc) write(fates_log(),*) 'fm ',fuel_moisture
-             if (masterproc) write(fates_log(),*) 'csa ',currentSite%acc_NI
-             if (masterproc) write(fates_log(),*) 'sfv ',SF_val_alpha_FMC
+             if ( cp_masterproc == 1 ) write(fates_log(),*) 'ff3 ',currentPatch%fuel_frac
+             if ( cp_masterproc == 1 ) write(fates_log(),*) 'fm ',fuel_moisture
+             if ( cp_masterproc == 1 ) write(fates_log(),*) 'csa ',currentSite%acc_NI
+             if ( cp_masterproc == 1 ) write(fates_log(),*) 'sfv ',SF_val_alpha_FMC
           endif
           ! FIX(RF,032414): needs refactoring. 
           ! average water content !is this the correct metric?         
@@ -231,7 +232,7 @@ contains
           currentPatch%fuel_mef       = sum(currentPatch%fuel_frac(dg_sf:lb_sf) * MEF(dg_sf:lb_sf))              
           currentPatch%fuel_eff_moist = sum(currentPatch%fuel_frac(dg_sf:lb_sf) * fuel_moisture(dg_sf:lb_sf))         
           if(write_sf == 1)then
-             if (masterproc) write(fates_log(),*) 'ff4 ',currentPatch%fuel_eff_moist
+             if ( cp_masterproc == 1 ) write(fates_log(),*) 'ff4 ',currentPatch%fuel_eff_moist
           endif
           ! Add on properties of live grass multiplied by grass fraction. (6)
           currentPatch%fuel_bulkd     = currentPatch%fuel_bulkd     + currentPatch%fuel_frac(lg_sf)  * SF_val_FBD(lg_sf)      
@@ -258,14 +259,14 @@ contains
 
           if(write_SF == 1)then
 
-             if (masterproc) write(fates_log(),*) 'no litter fuel at all',currentPatch%patchno, &
+             if ( cp_masterproc == 1 ) write(fates_log(),*) 'no litter fuel at all',currentPatch%patchno, &
                   currentPatch%sum_fuel,sum(currentPatch%cwd_ag),                         &
                   sum(currentPatch%cwd_bg),sum(currentPatch%leaf_litter)
 
           endif
           currentPatch%fuel_sav = sum(SF_val_SAV(1:ncwd+2))/(ncwd+2) ! make average sav to avoid crashing code. 
 
-          if (masterproc) write(fates_log(),*) 'problem with spitfire fuel averaging'
+          if ( cp_masterproc == 1 ) write(fates_log(),*) 'problem with spitfire fuel averaging'
 
           ! FIX(SPM,032414) refactor...should not have 0 fuel unless everything is burnt
           ! off.
@@ -281,7 +282,7 @@ contains
        ! FIX(SPM,032414) refactor...
        if(write_SF == 1.and.currentPatch%fuel_sav <= 0.0_r8.or.currentPatch%fuel_bulkd <=  &
             0.0_r8.or.currentPatch%fuel_mef <= 0.0_r8.or.currentPatch%fuel_eff_moist <= 0.0_r8)then
-            if (masterproc) write(fates_log(),*) 'problem with spitfire fuel averaging'
+            if ( cp_masterproc == 1 ) write(fates_log(),*) 'problem with spitfire fuel averaging'
        endif 
        
        currentPatch => currentPatch%younger
@@ -320,7 +321,7 @@ contains
     wind = bc_in%wind24_pa(iofp) * sec_per_min  ! Convert to m/min for SPITFIRE units.
 
     if(write_SF == 1)then
-       if (masterproc) write(fates_log(),*) 'wind24', wind
+       if ( cp_masterproc == 1 ) write(fates_log(),*) 'wind24', wind
     endif
     ! --- influence of wind speed, corrected for surface roughness----
     ! --- averaged over the whole grid cell to prevent extreme divergence 
@@ -359,7 +360,7 @@ contains
     grass_fraction = min(grass_fraction,1.0_r8-tree_fraction) 
     bare_fraction = 1.0 - tree_fraction - grass_fraction
     if(write_sf == 1)then
-       if (masterproc) write(fates_log(),*) 'grass, trees, bare',grass_fraction, tree_fraction, bare_fraction
+       if ( cp_masterproc == 1 ) write(fates_log(),*) 'grass, trees, bare',grass_fraction, tree_fraction, bare_fraction
     endif
 
     currentPatch=>currentSite%oldest_patch;
@@ -409,18 +410,18 @@ contains
        currentPatch%sum_fuel  = currentPatch%sum_fuel * (1.0_r8 - SF_val_miner_total) !net of minerals
 
        ! ----start spreading---
-       if (masterproc.and.DEBUG) write(fates_log(),*) 'SF - currentPatch%fuel_bulkd ',currentPatch%fuel_bulkd
-       if (masterproc.and.DEBUG) write(fates_log(),*) 'SF - SF_val_part_dens ',SF_val_part_dens
+       if ( cp_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - currentPatch%fuel_bulkd ',currentPatch%fuel_bulkd
+       if ( cp_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - SF_val_part_dens ',SF_val_part_dens
 
        beta = (currentPatch%fuel_bulkd / 0.45_r8) / SF_val_part_dens
        
        ! Equation A6 in Thonicke et al. 2010
        beta_op = 0.200395_r8 *(currentPatch%fuel_sav**(-0.8189_r8))
-       if (masterproc.and.DEBUG) write(fates_log(),*) 'SF - beta ',beta
-       if (masterproc.and.DEBUG) write(fates_log(),*) 'SF - beta_op ',beta_op
+       if ( cp_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - beta ',beta
+       if ( cp_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - beta_op ',beta_op
        bet = beta/beta_op
        if(write_sf == 1)then
-          if (masterproc) write(fates_log(),*) 'esf ',currentPatch%fuel_eff_moist
+          if ( cp_masterproc == 1 ) write(fates_log(),*) 'esf ',currentPatch%fuel_eff_moist
        endif
        ! ---heat of pre-ignition---
        !  Equation A4 in Thonicke et al. 2010 
@@ -438,11 +439,11 @@ contains
        ! Equation A5 in Thonicke et al. 2010
 
        if (DEBUG) then
-          if (masterproc.and.DEBUG) write(fates_log(),*) 'SF - c ',c
-          if (masterproc.and.DEBUG) write(fates_log(),*) 'SF - currentPatch%effect_wspeed ',currentPatch%effect_wspeed
-          if (masterproc.and.DEBUG) write(fates_log(),*) 'SF - b ',b
-          if (masterproc.and.DEBUG) write(fates_log(),*) 'SF - bet ',bet
-          if (masterproc.and.DEBUG) write(fates_log(),*) 'SF - e ',e
+          if ( cp_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - c ',c
+          if ( cp_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - currentPatch%effect_wspeed ',currentPatch%effect_wspeed
+          if ( cp_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - b ',b
+          if ( cp_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - bet ',bet
+          if ( cp_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - e ',e
        endif
 
        ! convert from m/min to ft/min for Rothermel ROS eqn
@@ -604,7 +605,7 @@ contains
        W     = currentPatch%TFC_ROS / 0.45_r8 !kgC/m2 to kgbiomass/m2
        currentPatch%FI = SF_val_fuel_energy * W * ROS !kj/m/s, or kW/m
        if(write_sf == 1)then
-          if(masterproc) write(fates_log(),*) 'fire_intensity',currentPatch%fi,W,currentPatch%ROS_front
+          if( cp_masterproc == 1 ) write(fates_log(),*) 'fire_intensity',currentPatch%fi,W,currentPatch%ROS_front
        endif
        !'decide_fire' subroutine shortened and put in here... 
        if (currentPatch%FI >= fire_threshold) then  ! 50kW/m is the threshold for a self-sustaining fire
@@ -615,7 +616,7 @@ contains
           ! Equation 14 in Thonicke et al. 2010
           currentPatch%FD = SF_val_max_durat / (1.0_r8 + SF_val_max_durat * exp(SF_val_durat_slope*d_FDI))
           if(write_SF == 1)then
-             if (masterproc) write(fates_log(),*) 'fire duration minutes',currentPatch%fd
+             if ( cp_masterproc == 1 ) write(fates_log(),*) 'fire duration minutes',currentPatch%fd
           endif
           !equation 15 in Arora and Boer CTEM model.Average fire is 1 day long.
           !currentPatch%FD = 60.0_r8 * 24.0_r8 !no minutes in a day      
@@ -709,18 +710,19 @@ contains
              currentPatch%AB = size_of_fire * currentPatch%nf 
              if (currentPatch%AB > gridarea*currentPatch%area/area) then !all of patch burnt. 
 
-                if (masterproc) write(fates_log(),*) 'burnt all of patch',currentPatch%patchno, &
+                if ( cp_masterproc == 1 ) write(fates_log(),*) 'burnt all of patch',currentPatch%patchno, &
                      currentPatch%area/area,currentPatch%ab,currentPatch%area/area*gridarea   
-                if (masterproc) write(fates_log(),*) 'ros',currentPatch%ROS_front,currentPatch%FD, &
+                if ( cp_masterproc == 1 ) write(fates_log(),*) 'ros',currentPatch%ROS_front,currentPatch%FD, &
                      currentPatch%NF,currentPatch%FI,size_of_fire
 
-                if (masterproc) write(fates_log(),*) 'litter',currentPatch%sum_fuel,currentPatch%CWD_AG,currentPatch%leaf_litter
+                if ( cp_masterproc == 1 ) write(fates_log(),*) 'litter', &
+                      currentPatch%sum_fuel,currentPatch%CWD_AG,currentPatch%leaf_litter
                 ! turn km2 into m2. work out total area burnt. 
                 currentPatch%AB = currentPatch%area *  gridarea/AREA 
              endif
              currentPatch%frac_burnt = currentPatch%AB / (gridarea*currentPatch%area/area)
              if(write_SF == 1)then
-                if (masterproc) write(fates_log(),*) 'frac_burnt',currentPatch%frac_burnt
+                if ( cp_masterproc == 1 ) write(fates_log(),*) 'frac_burnt',currentPatch%frac_burnt
              endif
           endif
        endif! fire
@@ -777,7 +779,7 @@ contains
                      currentCohort%bdead))*currentCohort%n)/tree_ag_biomass
                 !equation 16 in Thonicke et al. 2010
                 if(write_SF == 1)then
-                   if (masterproc) write(fates_log(),*) 'currentPatch%SH',currentPatch%SH,f_ag_bmass
+                   if ( cp_masterproc == 1 ) write(fates_log(),*) 'currentPatch%SH',currentPatch%SH,f_ag_bmass
                 endif
                 !2/3 Byram (1959)
                 currentPatch%SH = currentPatch%SH + f_ag_bmass * SF_val_alpha_SH * (currentPatch%FI**0.667_r8) 

@@ -17,7 +17,7 @@ module EDMainMod
   use EDtypesMod           , only : ncwd, numpft_ed, udata
   use EDtypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
   use FatesInterfaceMod    , only : bc_in_type
-  use spmdMod              , only : masterproc
+  use EDTypesMod           , only : cp_masterproc
 
   implicit none
   private
@@ -53,7 +53,7 @@ contains
     type(ed_patch_type), pointer :: currentPatch
     !-----------------------------------------------------------------------
 
-    if ( masterproc ) write(iulog,*) 'modelday',bc_in%model_day
+    if ( cp_masterproc==1 ) write(iulog,*) 'modelday',bc_in%model_day
 
     !**************************************************************************
     ! Fire, growth, biogeochemistry. 
