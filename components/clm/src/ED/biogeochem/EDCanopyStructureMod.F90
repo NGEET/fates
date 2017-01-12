@@ -465,12 +465,12 @@ contains
                       endif
                       !call terminate_cohorts(currentPatch) 
                       if(promswitch == 1)then
-                        ! write(fates_log(),*) 'cohort loop',currentCohort%pft,currentCohort%indexnumber,currentPatch%patchno
+                        ! write(fates_log(),*) 'cohort loop',currentCohort%pft,currentPatch%patchno
                       endif
                       !----------- End of cohort splitting ------------------------------!             
                    else
                       if(promswitch == 1)then
-                         ! write(fates_log(),*) 'cohort list',currentCohort%pft,currentCohort%indexnumber, &
+                         ! write(fates_log(),*) 'cohort list',currentCohort%pft, &
                              ! currentCohort%canopy_layer,currentCohort%c_area
                       endif
                    endif
@@ -485,7 +485,7 @@ contains
                         !currentPatch%patchno,z,i,lower_cohort_switch
                 endif
                 if(promswitch == 1.and.associated(currentPatch%tallest))then
-                   ! write(fates_log(),*) 'cohorts',currentCohort%pft,currentCohort%indexnumber,currentPatch%patchno, &
+                   ! write(fates_log(),*) 'cohorts',currentCohort%pft,currentPatch%patchno, &
                         !currentCohort%c_area
                 endif
              enddo !arealayer loop

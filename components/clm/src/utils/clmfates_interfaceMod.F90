@@ -473,8 +473,11 @@ contains
       integer  :: current_day
       integer  :: current_tod
       integer  :: current_date
+      integer  :: jan01_curr_year
       integer  :: reference_date
+      integer  :: days_per_year
       real(r8) :: model_day
+      real(r8) :: day_of_year
       !-----------------------------------------------------------------------
 
       
@@ -498,14 +501,14 @@ contains
       
       call get_curr_date(yr, mon, day, sec)
       ncdate = yr*10000 + mon*100 + day
+     
       call get_ref_date(yr, mon, day, sec)
       nbdate = yr*10000 + mon*100 + day
       
       call timemgr_datediff(nbdate, 0, ncdate, sec, dayDiff)
-      udata%modelday = dayDiff
       dayDiffInt = floor(dayDiff)
       udata%time_period = mod( dayDiffInt , udata%n_sub )
-      
+
       ! ---------------------------------------------------------------------------------
       ! Prepare input boundary conditions for FATES dynamics
       ! Note that timing information is the same across all sites, this may
@@ -513,14 +516,19 @@ contains
       ! one day.  The cost of holding site level boundary conditions is minimal
       ! and it keeps all the boundaries in one location
       ! ---------------------------------------------------------------------------------
+
+      days_per_year = get_days_per_year()
       call get_curr_date(current_year,current_month,current_day,current_tod)
       current_date = current_year*10000 + current_month*100 + current_day
+      jan01_curr_year = current_year*10000 + 100 + 1
 
       call get_ref_date(yr, mon, day, sec)
       reference_date = yr*10000 + mon*100 + day
 
       call timemgr_datediff(reference_date, sec, current_date, current_tod, model_day)
-      if ( masterproc ) write(iulog,*) 'modelday',model_day
+
+      ! Calculate the day of the year
+      call timemgr_datediff(jan01_curr_year,0,ncdate,sec,day_of_year)
 
       do s=1,this%fates(nc)%nsites
          c = this%f2hmap(nc)%fcolumn(s)
@@ -531,6 +539,9 @@ contains
          this%fates(nc)%bc_in(s)%current_tod    = current_date
          this%fates(nc)%bc_in(s)%reference_date = reference_date
          this%fates(nc)%bc_in(s)%model_day      = model_day
+         this%fates(nc)%bc_in(s)%days_per_year  = days_per_year
+         this%fates(nc)%bc_in(s)%day_of_year    = floor(day_of_year)
+         this%fates(nc)%bc_in(s)%deltat_day     = 1.0_r8/dble(day_of_year)
          this%fates(nc)%bc_in(s)%h2osoi_vol_si  = &
                waterstate_inst%h2osoi_vol_col(c,1) 
 
@@ -560,7 +571,8 @@ contains
             call ed_ecosystem_dynamics(this%fates(nc)%sites(s),    &
                   this%fates(nc)%bc_in(s))
             
-            call ed_update_site(this%fates(nc)%sites(s))
+            call ed_update_site(this%fates(nc)%sites(s), &
+                  this%fates(nc)%bc_in(s))
 
       enddo
 
@@ -933,7 +945,8 @@ contains
                ! I think ed_update_site and update_hlmfates_dyn are doing some similar
                ! update type stuff, should consolidate (rgk 11-2016)
                do s = 1,this%fates(nc)%nsites
-                  call ed_update_site( this%fates(nc)%sites(s) )
+                  call ed_update_site( this%fates(nc)%sites(s), &
+                        this%fates(nc)%bc_in(s) )
                end do
 
                ! ------------------------------------------------------------------------
@@ -995,7 +1008,8 @@ contains
            call init_patches(this%fates(nc)%nsites, this%fates(nc)%sites)
 
            do s = 1,this%fates(nc)%nsites
-              call ed_update_site(this%fates(nc)%sites(s))
+              call ed_update_site(this%fates(nc)%sites(s), &
+                    this%fates(nc)%bc_in(s))
            end do
 
 
