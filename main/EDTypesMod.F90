@@ -149,6 +149,12 @@ module EDTypesMod
   ! HLM will interpret that the value should not be included in the average.
   real(r8) :: cp_hio_ignore_val
 
+
+  ! Is this the master processor, typically useful for knowing if 
+  ! the current machine should be printing out messages to the logs or terminals
+  ! 1 = TRUE (is master) 0 = FALSE (is not master)
+  integer :: cp_masterproc
+
   !************************************
   !** COHORT type structure          **
   !************************************

@@ -4,16 +4,12 @@ module EDInitMod
   ! Contains all modules to set up the ED structure. 
   ! ============================================================================
 
-  use shr_kind_mod              , only : r8 => shr_kind_r8;
-  use spmdMod                   , only : masterproc
-  use decompMod                 , only : bounds_type
+  use FatesConstantsMod         , only : r8 => fates_r8
   use abortutils                , only : endrun
   use EDTypesMod                , only : cp_nclmax
-  use clm_varctl                , only : iulog, use_ed_spit_fire 
+  use FatesGlobals              , only : fates_log
+  use clm_varctl                , only : use_ed_spit_fire 
   use clm_time_manager          , only : is_restart
-  use CanopyStateType           , only : canopystate_type
-  use WaterStateType            , only : waterstate_type
-  use GridcellType              , only : grc
   use pftconMod                 , only : pftcon
   use EDEcophysConType          , only : EDecophyscon
   use EDGrowthFunctionsMod      , only : bdead, bleaf, dbh
@@ -285,7 +281,7 @@ contains
           cstatus = patch_in%siteptr%dstatus
        endif
 
-       if ( DEBUG ) write(iulog,*) 'EDInitMod.F90 call create_cohort '
+       if ( DEBUG ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
 
        call create_cohort(patch_in, pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
             temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore, &
