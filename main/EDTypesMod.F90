@@ -83,9 +83,12 @@ module EDTypesMod
 !  real(r8), parameter, dimension(16) ::  sclass_ed  = (/0.0_r8,1.0_r8,2.0_r8,3.0_r8,4.0_r8,5.0_r8,10.0_r8,20.0_r8,30.0_r8,40.0_r8, &
 !                                                       50.0_r8,60.0_r8,70.0_r8,80.0_r8,90.0_r8,100.0_r8/)
 
-  real(r8), parameter, dimension(13) ::  sclass_ed  = (/0.0_r8,5.0_r8,10.0_r8,15.0_r8,20.0_r8,30.0_r8,40.0_r8, &
+  real(r8), parameter, dimension(nlevsclass_ed) ::  sclass_ed  = (/0.0_r8,5.0_r8,10.0_r8,15.0_r8,20.0_r8,30.0_r8,40.0_r8, &
                                                        50.0_r8,60.0_r8,70.0_r8,80.0_r8,90.0_r8,100.0_r8/)
 
+  integer, parameter :: nlevpage_ed = 7  ! Number of patch-age classes for age structured analyses
+  real(r8), parameter, dimension(nlevpage_ed) ::  pageclass_ed  = (/0.0_r8,1.0_r8,2._r8,5.0_r8,10.0_r8,20.0_r8,50.0_r8/)
+  
 
  !  integer, parameter :: nlevsclass_ed = 17
  !  real(r8), parameter, dimension(17) ::  sclass_ed  = (/0.1_r8, 5.0_r8,10.0_r8,15.0_r8,20.0_r8,25.0_r8, & 
@@ -99,13 +102,15 @@ module EDTypesMod
   character(len = 10), parameter,dimension(5) :: char_list = (/"background","hydraulic ","carbon    ","impact    ","fire      "/)
 
 
-  ! These three vectors are used for history output mapping
+  ! These vectors are used for history output mapping
   real(r8) ,allocatable :: levsclass_ed(:) ! The lower bound on size classes for ED trees. This 
                                            ! is used really for IO into the
                                            ! history tapes. It gets copied from
                                            ! the parameter array sclass_ed.
   integer , allocatable :: pft_levscpf_ed(:)
   integer , allocatable :: scls_levscpf_ed(:) 
+  real(r8), allocatable :: levpage_ed(:) 
+  integer , allocatable :: levpft_ed(:) 
 
   
   ! Control Parameters (cp_)            
@@ -313,6 +318,7 @@ module EDTypesMod
 
      ! PATCH INFO
      real(r8) ::  age                                              ! average patch age: years                   
+     integer  ::  age_class                                        ! age class of the patch for history binning purposes
      real(r8) ::  area                                             ! patch area: m2  
      integer  ::  countcohorts                                     ! Number of cohorts in patch
      integer  ::  ncl_p                                            ! Number of occupied canopy layers
@@ -575,11 +581,20 @@ contains
     allocate( levsclass_ed(1:nlevsclass_ed   ))
     allocate( pft_levscpf_ed(1:nlevsclass_ed*mxpft))
     allocate(scls_levscpf_ed(1:nlevsclass_ed*mxpft))
+    allocate( levpft_ed(1:mxpft   ))
+    allocate( levpage_ed(1:nlevpage_ed   ))
 
     ! Fill the IO array of plant size classes
     ! For some reason the history files did not like
     ! a hard allocation of sclass_ed
     levsclass_ed(:) = sclass_ed(:)
+    
+    levpage_ed(:) = pageclass_ed(:)
+
+    ! make pft array
+    do ipft=1,mxpft
+       levpft_ed(ipft) = ipft
+    end do
 
     ! Fill the IO arrays that match pft and size class to their combined array
     i=0

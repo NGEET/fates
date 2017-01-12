@@ -64,15 +64,13 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_growth_resp_pa
   
   ! Indices to (patch x pft) variables   (using nlevgrnd as surrogate)
-
+  !+++cdk+++ leaving these as-is for now to preserve b4b, but once established, need to move these to actual pft dimension
   integer, private :: ih_biomass_pa_pft
   integer, private :: ih_leafbiomass_pa_pft
   integer, private :: ih_storebiomass_pa_pft
   integer, private :: ih_nindivs_pa_pft
 
   ! Indices to (site) variables
-
-
   integer, private :: ih_nep_si
   integer, private :: ih_nep_timeintegrated_si
   integer, private :: ih_npp_timeintegrated_si
@@ -137,9 +135,15 @@ module FatesHistoryInterfaceMod
   ! indices to (site x scls) variables
   integer, private :: ih_ba_si_scls
 
+  ! indices to (site x pft) variables
+  integer, private :: ih_biomass_si_pft
+
+  ! indices to (site x patch-age) variables
+  integer, private :: ih_area_si_page
+
   ! The number of variable dim/kind types we have defined (static)
-  integer, parameter :: fates_history_num_dimensions = 5
-  integer, parameter :: fates_history_num_dim_kinds = 8
+  integer, parameter :: fates_history_num_dimensions = 7
+  integer, parameter :: fates_history_num_dim_kinds = 10
   
 
   
@@ -172,7 +176,8 @@ module FatesHistoryInterfaceMod
      
      type(iovar_map_type), pointer :: iovar_map(:)
 
-     integer, private :: patch_index_, column_index_, levgrnd_index_, levscpf_index_, levscls_index_
+     integer, private :: patch_index_, column_index_, levgrnd_index_, levscpf_index_
+     integer, private :: levscls_index_, levpft_index_, levpage_index_
    contains
      
      procedure, public :: Init
@@ -191,6 +196,8 @@ module FatesHistoryInterfaceMod
      procedure, public :: levgrnd_index
      procedure, public :: levscpf_index
      procedure, public :: levscls_index
+     procedure, public :: levpft_index
+     procedure, public :: levpage_index
 
      ! private work functions
      procedure, private :: define_history_vars
@@ -204,6 +211,8 @@ module FatesHistoryInterfaceMod
      procedure, private :: set_levgrnd_index
      procedure, private :: set_levscpf_index
      procedure, private :: set_levscls_index
+     procedure, private :: set_levpft_index
+     procedure, private :: set_levpage_index
 
   end type fates_history_interface_type
    
@@ -215,7 +224,8 @@ contains
   
   subroutine Init(this, num_threads, fates_bounds)
 
-    use FatesIODimensionsMod, only : patch, column, levgrnd, levscpf, levscls
+    use FatesIODimensionsMod, only : patch, column, levgrnd, levscpf
+    use FatesIODimensionsMod, only : levscls, levpft, levpage
     use FatesIODimensionsMod, only : fates_bounds_type
 
     implicit none
@@ -244,12 +254,22 @@ contains
     dim_count = dim_count + 1
     call this%set_levscpf_index(dim_count)
     call this%dim_bounds(dim_count)%Init(levscpf, num_threads, &
-         fates_bounds%pft_class_begin, fates_bounds%pft_class_end)
+         fates_bounds%sizepft_class_begin, fates_bounds%sizepft_class_end)
 
     dim_count = dim_count + 1
     call this%set_levscls_index(dim_count)
     call this%dim_bounds(dim_count)%Init(levscls, num_threads, &
          fates_bounds%size_class_begin, fates_bounds%size_class_end)
+
+    dim_count = dim_count + 1
+    call this%set_levpft_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levpft, num_threads, &
+         fates_bounds%pft_class_begin, fates_bounds%pft_class_end)
+
+    dim_count = dim_count + 1
+    call this%set_levpage_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levpage, num_threads, &
+         fates_bounds%page_class_begin, fates_bounds%page_class_end)
     ! FIXME(bja, 2016-10) assert(dim_count == FatesHistorydimensionmod::num_dimension_types)
 
     ! Allocate the mapping between FATES indices and the IO indices
@@ -285,11 +305,15 @@ contains
 
     index = this%levscpf_index()
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
-         thread_bounds%pft_class_begin, thread_bounds%pft_class_end)
+         thread_bounds%sizepft_class_begin, thread_bounds%sizepft_class_end)
 
-    index = this%levscls_index()
+    index = this%levpft_index()
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
-         thread_bounds%size_class_begin, thread_bounds%size_class_end)
+         thread_bounds%pft_class_begin, thread_bounds%pft_class_end)
+    
+    index = this%levpage_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%page_class_begin, thread_bounds%page_class_end)
     
   end subroutine SetThreadBoundsEach
   
@@ -299,6 +323,7 @@ contains
     use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
     use FatesIOVariableKindMod, only : patch_size_r8, site_size_r8
+    use FatesIOVariableKindMod, only : site_pft_r8, site_page_r8
 
    implicit none
 
@@ -327,6 +352,12 @@ contains
 
     call this%set_dim_indices(site_size_r8, 1, this%column_index())
     call this%set_dim_indices(site_size_r8, 2, this%levscls_index())
+
+    call this%set_dim_indices(site_pft_r8, 1, this%column_index())
+    call this%set_dim_indices(site_pft_r8, 2, this%levpft_index())
+
+    call this%set_dim_indices(site_page_r8, 1, this%column_index())
+    call this%set_dim_indices(site_page_r8, 2, this%levpage_index())
 
   end subroutine assemble_history_output_types
   
@@ -441,6 +472,34 @@ contains
    levscls_index = this%levscls_index_
  end function levscls_index
 
+ ! =======================================================================
+ subroutine set_levpft_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%levpft_index_ = index
+ end subroutine set_levpft_index
+
+ integer function levpft_index(this)
+   implicit none
+   class(fates_history_interface_type), intent(in) :: this
+   levpft_index = this%levpft_index_
+ end function levpft_index
+
+ ! =======================================================================
+ subroutine set_levpage_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%levpage_index_ = index
+ end subroutine set_levpage_index
+
+ integer function levpage_index(this)
+   implicit none
+   class(fates_history_interface_type), intent(in) :: this
+   levpage_index = this%levpage_index_
+ end function levpage_index
+
  ! ======================================================================================
 
  subroutine flush_hvars(this,nc,upfreq_in)
@@ -535,6 +594,7 @@ contains
     use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
     use FatesIOVariableKindMod, only : patch_size_r8, site_size_r8
+    use FatesIOVariableKindMod, only : site_pft_r8, site_page_r8
     
     implicit none
     
@@ -575,6 +635,14 @@ contains
     ! site x size-class
     index = index + 1
     call this%dim_kinds(index)%Init(site_size_r8, 2)
+
+    ! site x pft
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_pft_r8, 2)
+
+    ! site x patch-age clase
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_page_r8, 2)
 
     ! FIXME(bja, 2016-10) assert(index == fates_history_num_dim_kinds)
   end subroutine init_dim_kinds_maps
@@ -649,7 +717,10 @@ contains
                                      ed_patch_type,  &
                                      AREA,           &
                                      sclass_ed,      &
-                                     nlevsclass_ed
+                                     nlevsclass_ed,  &
+                                     levpage_ed,     &
+                                     nlevpage_ed,    &
+                                     levpft_ed
     use EDParamsMod      , only : ED_val_ag_biomass
 
     ! Arguments
@@ -732,7 +803,9 @@ contains
                hio_m3_si_scpf          => this%hvars(ih_m3_si_scpf)%r82d, &
                hio_m4_si_scpf          => this%hvars(ih_m4_si_scpf)%r82d, &
                hio_m5_si_scpf          => this%hvars(ih_m5_si_scpf)%r82d, &
-               hio_ba_si_scls          => this%hvars(ih_ba_si_scls)%r82d )
+               hio_ba_si_scls          => this%hvars(ih_ba_si_scls)%r82d)!, &
+!               hio_biomass_si_pft      => this%hvars(ih_biomass_si_pft)%r82d, &
+!               hio_area_si_page        => this%hvars(ih_area_si_page)%r82d)
                
       ! ---------------------------------------------------------------------------------
       ! Flush arrays to values defined by %flushval (see registry entry in
@@ -764,6 +837,10 @@ contains
 
             ! Increment the number of patches per site
             hio_npatches_si(io_si) = hio_npatches_si(io_si) + 1._r8
+
+            ! report the fractional area in each age class bin
+            ! hio_area_si_page(io_si,cpatch%age_class) = hio_area_si_page(io_si,cpatch%age_class) &
+            !      + cpatch%area/AREA
             
             ccohort => cpatch%shortest
             do while(associated(ccohort))
@@ -823,6 +900,9 @@ contains
                
                hio_nindivs_pa_pft(io_pa,ft) = hio_nindivs_pa_pft(io_pa,ft) + &
                     ccohort%n
+
+               ! hio_biomass_si_pft(io_si, ft) = hio_biomass_si_pft(io_si, ft) + &
+               !      n_density * ccohort%b * 1.e3_r8
 
                ! Site by Size-Class x PFT (SCPF) 
                ! ------------------------------------------------------------------------
@@ -1173,6 +1253,7 @@ contains
     use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8    
     use FatesIOVariableKindMod, only : patch_size_r8, site_size_r8
+    use FatesIOVariableKindMod, only : site_pft_r8, site_page_r8
     implicit none
     
     class(fates_history_interface_type), intent(inout) :: this
@@ -1236,6 +1317,16 @@ contains
          avgflag='A', vtype=patch_ground_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_nindivs_pa_pft )
 
+    ! call this%set_history_var(vname='PFT_biomass', units='gC/m2',                   &
+    !      long='total PFT level biomass -- on actual PFT dimension', use_default='active',&
+    !      avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+    !      ivar=ivar, initialize=initialize_variables, index = ih_biomass_si_pft )
+
+    ! call this%set_history_var(vname='patch_area_by_age', units='m2/m2',                   &
+    !      long='patch area by age bin', use_default='active',                     &
+    !      avgflag='A', vtype=site_page_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+    !      ivar=ivar, initialize=initialize_variables, index = ih_area_si_page )
+    
     ! Fire Variables
 
     call this%set_history_var(vname='FIRE_NESTEROV_INDEX', units='none',       &
