@@ -1,19 +1,10 @@
-module FatesHistoryDimensionMod
+module FatesIODimensionsMod
 
   use FatesConstantsMod, only : fates_short_string_length
   
   implicit none
 
-    ! FIXME(bja, 2016-10) do these need to be strings, or can they be integer enumerations?
-    character(*), parameter :: patch_r8 = 'PA_R8'
-    character(*), parameter :: patch_ground_r8 = 'PA_GRND_R8'
-    character(*), parameter :: patch_size_pft_r8 = 'PA_SCPF_R8'
-    character(*), parameter :: site_r8 = 'SI_R8'
-    character(*), parameter :: site_ground_r8 = 'SI_GRND_R8'
-    character(*), parameter :: site_size_pft_r8 = 'SI_SCPF_R8'
-    character(*), parameter :: patch_int = 'PA_INT'
-
-    integer, parameter :: fates_num_dimension_types = 4
+    character(*), parameter :: cohort = 'cohort'
     character(*), parameter :: patch = 'patch'
     character(*), parameter :: column = 'column'
     character(*), parameter :: levgrnd = 'levgrnd'
@@ -34,9 +25,24 @@ module FatesHistoryDimensionMod
     ! number of size-class x pft dimension
 
 
+    type, public :: fates_bounds_type
+       integer :: patch_begin
+       integer :: patch_end
+       integer :: cohort_begin
+       integer :: cohort_end
+       integer :: column_begin          ! FATES does not have a "column" type
+       integer :: column_end            ! we call this a "site" (rgk 11-2016)
+       integer :: ground_begin
+       integer :: ground_end
+       integer :: pft_class_begin
+       integer :: pft_class_end
+    end type fates_bounds_type
+    
+
+
   ! This structure is not allocated by thread, but the upper and lower boundaries
   ! of the dimension for each thread is saved in the clump_ entry
-  type fates_history_dimension_type
+  type fates_io_dimension_type
      character(len=fates_short_string_length) :: name
      integer :: lower_bound
      integer :: upper_bound
@@ -45,7 +51,7 @@ module FatesHistoryDimensionMod
    contains
      procedure, public :: Init
      procedure, public :: SetThreadBounds
-  end type fates_history_dimension_type
+  end type fates_io_dimension_type
 
 contains
 
@@ -55,7 +61,7 @@ contains
     implicit none
 
     ! arguments
-    class(fates_history_dimension_type), intent(inout) :: this
+    class(fates_io_dimension_type), intent(inout) :: this
     character(len=*), intent(in) :: name
     integer, intent(in) :: num_threads
     integer, intent(in) :: lower_bound
@@ -79,7 +85,7 @@ contains
 
     implicit none
 
-    class(fates_history_dimension_type), intent(inout) :: this
+    class(fates_io_dimension_type), intent(inout) :: this
     integer, intent(in) :: thread_index
     integer, intent(in) :: lower_bound
     integer, intent(in) :: upper_bound
@@ -89,4 +95,4 @@ contains
 
   end subroutine SetThreadBounds
   
-end module FatesHistoryDimensionMod
+end module FatesIODimensionsMod
