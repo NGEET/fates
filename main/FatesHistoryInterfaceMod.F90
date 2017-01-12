@@ -134,10 +134,12 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_ar_crootm_si_scpf
   integer, private :: ih_ar_frootm_si_scpf
 
+  ! indices to (site x scls) variables
+  integer, private :: ih_ba_si_scls
 
   ! The number of variable dim/kind types we have defined (static)
-  integer, parameter :: fates_history_num_dimensions = 4
-  integer, parameter :: fates_history_num_dim_kinds = 6
+  integer, parameter :: fates_history_num_dimensions = 5
+  integer, parameter :: fates_history_num_dim_kinds = 8
   
 
   
@@ -170,7 +172,7 @@ module FatesHistoryInterfaceMod
      
      type(iovar_map_type), pointer :: iovar_map(:)
 
-     integer, private :: patch_index_, column_index_, levgrnd_index_, levscpf_index_
+     integer, private :: patch_index_, column_index_, levgrnd_index_, levscpf_index_, levscls_index_
    contains
      
      procedure, public :: Init
@@ -188,6 +190,7 @@ module FatesHistoryInterfaceMod
      procedure, public :: column_index
      procedure, public :: levgrnd_index
      procedure, public :: levscpf_index
+     procedure, public :: levscls_index
 
      ! private work functions
      procedure, private :: define_history_vars
@@ -200,6 +203,7 @@ module FatesHistoryInterfaceMod
      procedure, private :: set_column_index
      procedure, private :: set_levgrnd_index
      procedure, private :: set_levscpf_index
+     procedure, private :: set_levscls_index
 
   end type fates_history_interface_type
    
@@ -211,7 +215,7 @@ contains
   
   subroutine Init(this, num_threads, fates_bounds)
 
-    use FatesIODimensionsMod, only : patch, column, levgrnd, levscpf
+    use FatesIODimensionsMod, only : patch, column, levgrnd, levscpf, levscls
     use FatesIODimensionsMod, only : fates_bounds_type
 
     implicit none
@@ -241,6 +245,11 @@ contains
     call this%set_levscpf_index(dim_count)
     call this%dim_bounds(dim_count)%Init(levscpf, num_threads, &
          fates_bounds%pft_class_begin, fates_bounds%pft_class_end)
+
+    dim_count = dim_count + 1
+    call this%set_levscls_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levscls, num_threads, &
+         fates_bounds%size_class_begin, fates_bounds%size_class_end)
     ! FIXME(bja, 2016-10) assert(dim_count == FatesHistorydimensionmod::num_dimension_types)
 
     ! Allocate the mapping between FATES indices and the IO indices
@@ -277,6 +286,10 @@ contains
     index = this%levscpf_index()
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
          thread_bounds%pft_class_begin, thread_bounds%pft_class_end)
+
+    index = this%levscls_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%size_class_begin, thread_bounds%size_class_end)
     
   end subroutine SetThreadBoundsEach
   
@@ -285,6 +298,7 @@ contains
 
     use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
+    use FatesIOVariableKindMod, only : patch_size_r8, site_size_r8
 
    implicit none
 
@@ -307,6 +321,12 @@ contains
 
     call this%set_dim_indices(site_size_pft_r8, 1, this%column_index())
     call this%set_dim_indices(site_size_pft_r8, 2, this%levscpf_index())
+
+    call this%set_dim_indices(patch_size_r8, 1, this%patch_index())
+    call this%set_dim_indices(patch_size_r8, 2, this%levscls_index())
+
+    call this%set_dim_indices(site_size_r8, 1, this%column_index())
+    call this%set_dim_indices(site_size_r8, 2, this%levscls_index())
 
   end subroutine assemble_history_output_types
   
@@ -407,6 +427,20 @@ contains
    levscpf_index = this%levscpf_index_
  end function levscpf_index
 
+ ! =======================================================================
+ subroutine set_levscls_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%levscls_index_ = index
+ end subroutine set_levscls_index
+
+ integer function levscls_index(this)
+   implicit none
+   class(fates_history_interface_type), intent(in) :: this
+   levscls_index = this%levscls_index_
+ end function levscls_index
+
  ! ======================================================================================
 
  subroutine flush_hvars(this,nc,upfreq_in)
@@ -500,6 +534,7 @@ contains
     ! ----------------------------------------------------------------------------------
     use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
+    use FatesIOVariableKindMod, only : patch_size_r8, site_size_r8
     
     implicit none
     
@@ -532,6 +567,14 @@ contains
     ! site x size-class/pft
     index = index + 1
     call this%dim_kinds(index)%Init(site_size_pft_r8, 2)
+
+    ! patch x size-class
+    index = index + 1
+    call this%dim_kinds(index)%Init(patch_size_r8, 2)
+
+    ! site x size-class
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_size_r8, 2)
 
     ! FIXME(bja, 2016-10) assert(index == fates_history_num_dim_kinds)
   end subroutine init_dim_kinds_maps
@@ -688,7 +731,8 @@ contains
                hio_m2_si_scpf          => this%hvars(ih_m2_si_scpf)%r82d, &
                hio_m3_si_scpf          => this%hvars(ih_m3_si_scpf)%r82d, &
                hio_m4_si_scpf          => this%hvars(ih_m4_si_scpf)%r82d, &
-               hio_m5_si_scpf          => this%hvars(ih_m5_si_scpf)%r82d )
+               hio_m5_si_scpf          => this%hvars(ih_m5_si_scpf)%r82d, &
+               hio_ba_si_scls          => this%hvars(ih_ba_si_scls)%r82d )
                
       ! ---------------------------------------------------------------------------------
       ! Flush arrays to values defined by %flushval (see registry entry in
@@ -789,7 +833,8 @@ contains
                ! have any meaning, otherwise they are just inialization values
                if( .not.(ccohort%isnew) ) then
 
-                  associate( scpf => ccohort%size_by_pft_class )
+                  associate( scpf => ccohort%size_by_pft_class, &
+                             scls => ccohort%size_class )
 
                     hio_gpp_si_scpf(io_si,scpf)      = hio_gpp_si_scpf(io_si,scpf)      + &
                                                        n_perm2*ccohort%gpp_acc_hold  ! [kgC/m2/yr]
@@ -839,6 +884,9 @@ contains
                        
                        ! basal area  [m2/ha]
                        hio_ba_si_scpf(io_si,scpf) = hio_ba_si_scpf(io_si,scpf) + &
+                            0.25_r8*3.14159_r8*((dbh/100.0_r8)**2.0_r8)*n_perm2*AREA
+                       ! also by size class only
+                       hio_ba_si_scls(io_si,scls) = hio_ba_si_scls(io_si,scls) + &
                             0.25_r8*3.14159_r8*((dbh/100.0_r8)**2.0_r8)*n_perm2*AREA
                        
                        ! number density [/ha]
@@ -1124,6 +1172,7 @@ contains
 
     use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8    
+    use FatesIOVariableKindMod, only : patch_size_r8, site_size_r8
     implicit none
     
     class(fates_history_interface_type), intent(inout) :: this
@@ -1474,6 +1523,11 @@ contains
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_frootm_si_scpf )
 
+    ! size-class only variables
+    call this%set_history_var(vname='BA_SCLS', units = 'm2/ha',               &
+          long='basal area by size class', use_default='active',   &
+          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ba_si_scls )
 
     ! CARBON BALANCE VARIABLES THAT DEPEND ON HLM BGC INPUTS
 
