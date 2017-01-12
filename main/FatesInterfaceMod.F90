@@ -60,7 +60,15 @@ module FatesInterfaceMod
       real(r8) :: model_day       ! elapsed days between current date and reference
                                   ! uses ESMF functions, so prefered to pass it in as
                                   ! argument rather than calculate directly
-
+      integer  :: day_of_year     ! The integer day of the year
+      integer  :: days_per_year   ! The HLM controls time, some HLMs may include a leap
+                                  ! day, some actually don't.  This is the number of
+                                  ! days in the current year
+      real(r8) :: deltat_day      ! fraction of year for each time-step (1/days_per_year)
+      
+      
+      
+      
       ! Vegetation Dynamics
       ! ---------------------------------------------------------------------------------
 

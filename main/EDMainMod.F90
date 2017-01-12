@@ -6,7 +6,7 @@ module EDMainMod
 
   use shr_kind_mod         , only : r8 => shr_kind_r8
   
-  use clm_varctl           , only : iulog
+  use FatesGlobals         , only : fates_log
   use atm2lndType          , only : atm2lnd_type
   use SoilStateType        , only : soilstate_type  
   use TemperatureType      , only : temperature_type
@@ -53,7 +53,8 @@ contains
     type(ed_patch_type), pointer :: currentPatch
     !-----------------------------------------------------------------------
 
-    if ( cp_masterproc==1 ) write(iulog,*) 'modelday',bc_in%model_day
+    if ( cp_masterproc==1 ) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
+          bc_in%current_year,'-',bc_in%current_month,'-',bc_in%current_day
 
     !**************************************************************************
     ! Fire, growth, biogeochemistry. 
@@ -165,12 +166,12 @@ contains
        currentPatch%age = currentPatch%age + udata%deltat
        ! FIX(SPM,032414) valgrind 'Conditional jump or move depends on uninitialised value'
        if( currentPatch%age  <  0._r8 )then
-          write(iulog,*) 'negative patch age?',currentPatch%age, &
+          write(fates_log(),*) 'negative patch age?',currentPatch%age, &
                currentPatch%patchno,currentPatch%area
        endif
 
        ! Find the derivatives of the growth and litter processes. 
-       call canopy_derivs(currentSite, currentPatch)
+       call canopy_derivs(currentSite, currentPatch, bc_in)
        
        ! Update Canopy Biomass Pools
        currentCohort => currentPatch%shortest
@@ -181,23 +182,23 @@ contains
           currentCohort%balive = currentCohort%balive + currentCohort%dbalivedt * udata%deltat 
           currentCohort%bdead  = max(small_no,currentCohort%bdead  + currentCohort%dbdeaddt  * udata%deltat )
           if ( DEBUG ) then
-             write(iulog,*) 'EDMainMod dbstoredt I ',currentCohort%bstore, &
+             write(fates_log(),*) 'EDMainMod dbstoredt I ',currentCohort%bstore, &
                   currentCohort%dbstoredt,udata%deltat
           end if
           currentCohort%bstore = currentCohort%bstore + currentCohort%dbstoredt * udata%deltat 
           if ( DEBUG ) then
-             write(iulog,*) 'EDMainMod dbstoredt II ',currentCohort%bstore, &
+             write(fates_log(),*) 'EDMainMod dbstoredt II ',currentCohort%bstore, &
                   currentCohort%dbstoredt,udata%deltat
           end if
 
           if( (currentCohort%balive+currentCohort%bdead+currentCohort%bstore)*currentCohort%n<0._r8)then
-            write(iulog,*) 'biomass is negative', currentCohort%n,currentCohort%balive, &
+            write(fates_log(),*) 'biomass is negative', currentCohort%n,currentCohort%balive, &
                  currentCohort%bdead,currentCohort%bstore
           endif
 
           if(abs((currentCohort%balive+currentCohort%bdead+currentCohort%bstore+udata%deltat*(currentCohort%md+ &
                currentCohort%seed_prod)-cohort_biomass_store)-currentCohort%npp_acc) > 1e-8_r8)then
-             write(iulog,*) 'issue with c balance in integration', abs(currentCohort%balive+currentCohort%bdead+ &
+             write(fates_log(),*) 'issue with c balance in integration', abs(currentCohort%balive+currentCohort%bdead+ &
                   currentCohort%bstore+udata%deltat* &
                  (currentCohort%md+currentCohort%seed_prod)-cohort_biomass_store-currentCohort%npp_acc)
           endif  
@@ -234,23 +235,25 @@ contains
 
        do c = 1,ncwd
           if(currentPatch%cwd_ag(c)<small_no)then
-            write(iulog,*) 'negative CWD_AG', currentPatch%cwd_ag(c),CurrentSite%lat,currentSite%lon
+            write(fates_log(),*) 'negative CWD_AG', currentPatch%cwd_ag(c),CurrentSite%lat,currentSite%lon
             currentPatch%cwd_ag(c) = small_no
           endif
           if(currentPatch%cwd_bg(c)<small_no)then
-            write(iulog,*) 'negative CWD_BG', currentPatch%cwd_bg(c),CurrentSite%lat,CurrentSite%lon
+            write(fates_log(),*) 'negative CWD_BG', currentPatch%cwd_bg(c),CurrentSite%lat,CurrentSite%lon
             currentPatch%cwd_bg(c) = small_no
           endif
        enddo
 
        do ft = 1,numpft_ed
           if(currentPatch%leaf_litter(ft)<small_no)then
-            write(iulog,*) 'negative leaf litter numerical error', currentPatch%leaf_litter(ft),CurrentSite%lat,CurrentSite%lon,&
-            currentPatch%dleaf_litter_dt(ft),currentPatch%leaf_litter_in(ft),currentPatch%leaf_litter_out(ft),currentpatch%age
+            write(fates_log(),*) 'negative leaf litter numerical error', &
+                  currentPatch%leaf_litter(ft),CurrentSite%lat,CurrentSite%lon,&
+            currentPatch%dleaf_litter_dt(ft),currentPatch%leaf_litter_in(ft), &
+            currentPatch%leaf_litter_out(ft),currentpatch%age
             currentPatch%leaf_litter(ft) = small_no
           endif
           if(currentPatch%root_litter(ft)<small_no)then
-               write(iulog,*) 'negative root litter numerical error', currentPatch%root_litter(ft), &
+               write(fates_log(),*) 'negative root litter numerical error', currentPatch%root_litter(ft), &
                currentPatch%droot_litter_dt(ft)* udata%deltat, &
                CurrentSite%lat,CurrentSite%lon
             currentPatch%root_litter(ft) = small_no
@@ -278,7 +281,7 @@ contains
     ! Check for negative values. Write out warning to show carbon balance. 
     do ft = 1,numpft_ed
        if(currentSite%seed_bank(ft)<small_no)then
-          write(iulog,*) 'negative seedbank', currentSite%seed_bank(ft)
+          write(fates_log(),*) 'negative seedbank', currentSite%seed_bank(ft)
           currentSite%seed_bank(ft) = small_no
        endif
     enddo
@@ -287,7 +290,7 @@ contains
   end subroutine ed_integrate_state_variables
 
   !-------------------------------------------------------------------------------!
-  subroutine ed_update_site( currentSite )
+  subroutine ed_update_site( currentSite, bc_in )
     !
     ! !DESCRIPTION:
     ! Calls routines to consolidate the ED growth process.
@@ -301,6 +304,7 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type) , intent(inout), target :: currentSite
+    type(bc_in_type)        , intent(in)             :: bc_in
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type) , pointer :: currentPatch   
@@ -324,7 +328,7 @@ contains
        ! FIX(SPM,040314) why is this needed for BFB restarts? Look into this at some point
        cohort_number = count_cohorts(currentPatch)  
        if ( DEBUG ) then
-          write(iulog,*) 'tempCount ',cohort_number
+          write(fates_log(),*) 'tempCount ',cohort_number
        endif
 
        ! Note (RF)
@@ -333,9 +337,9 @@ contains
        ! and so there are radiation errors instead. 
        ! Fixing this would likely require a re-work of how seed germination works which would be tricky. 
        if(currentPatch%countcohorts < 1)then
-          !write(iulog,*) 'ED: calling recruitment for no cohorts',currentPatch%siteptr%clmgcell,currentPatch%patchno
+          !write(fates_log(),*) 'ED: calling recruitment for no cohorts',currentPatch%siteptr%clmgcell,currentPatch%patchno
           !call recruitment(1, currentSite, currentPatch)
-          ! write(iulog,*) 'patch empty',currentPatch%area,currentPatch%age
+          ! write(fates_log(),*) 'patch empty',currentPatch%area,currentPatch%age
        endif
 
        currentPatch => currentPatch%younger    
@@ -343,8 +347,13 @@ contains
     enddo
 
     ! FIX(RF,032414). This needs to be monthly, not annual
-    if((udata%time_period == udata%n_sub-1))then 
-       write(iulog,*) 'calling trim canopy' 
+!    if((udata%time_period == udata%n_sub-1))then 
+
+    ! If this is the second to last day of the year, then perform trimming
+
+    if( bc_in%day_of_year == bc_in%days_per_year-1) then
+
+       write(fates_log(),*) 'calling trim canopy' 
        call trim_canopy(currentSite)  
     endif
 
@@ -414,14 +423,14 @@ contains
     error           = abs(net_flux - change_in_stock)   
 
     if ( abs(error) > 10e-6 ) then
-       write(iulog,*) 'total error: call index: ',call_index, &
+       write(fates_log(),*) 'total error: call index: ',call_index, &
                       'in:  ',currentSite%flux_in,   &
                       'out: ',currentSite%flux_out,  &
                       'net: ',net_flux,              &
                       'dstock: ',change_in_stock,    &
                       'error=net_flux-dstock:', error
-       write(iulog,*) 'biomass,litter,seeds', biomass_stock,litter_stock,seed_stock
-       write(iulog,*) 'lat lon',currentSite%lat,currentSite%lon
+       write(fates_log(),*) 'biomass,litter,seeds', biomass_stock,litter_stock,seed_stock
+       write(fates_log(),*) 'lat lon',currentSite%lat,currentSite%lon
     endif
 
     currentSite%flux_in   = 0.0_r8
