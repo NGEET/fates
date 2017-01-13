@@ -7,6 +7,12 @@ module EDMainMod
   use shr_kind_mod         , only : r8 => shr_kind_r8
   
   use FatesGlobals         , only : fates_log
+  use FatesGlobals         , only : freq_day
+  use FatesGlobals         , only : day_of_year
+  use FatesGlobals         , only : days_per_year
+  use FatesGlobals         , only : current_year
+  use FatesGlobals         , only : current_month
+  use FatesGlobals         , only : current_day
   use atm2lndType          , only : atm2lnd_type
   use SoilStateType        , only : soilstate_type  
   use TemperatureType      , only : temperature_type
@@ -14,10 +20,11 @@ module EDMainMod
   use EDPatchDynamicsMod   , only : disturbance_rates, fuse_patches, spawn_patches, terminate_patches
   use EDPhysiologyMod      , only : canopy_derivs, non_canopy_derivs, phenology, recruitment, trim_canopy
   use SFMainMod            , only : fire_model
-  use EDtypesMod           , only : ncwd, numpft_ed, udata
+  use EDtypesMod           , only : ncwd, numpft_ed
   use EDtypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
   use FatesInterfaceMod    , only : bc_in_type
   use EDTypesMod           , only : cp_masterproc
+  
 
   implicit none
   private
@@ -54,7 +61,7 @@ contains
     !-----------------------------------------------------------------------
 
     if ( cp_masterproc==1 ) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
-          bc_in%current_year,'-',bc_in%current_month,'-',bc_in%current_day
+          current_year,'-',current_month,'-',current_day
 
     !**************************************************************************
     ! Fire, growth, biogeochemistry. 
@@ -163,7 +170,7 @@ contains
 
     do while(associated(currentPatch))
 
-       currentPatch%age = currentPatch%age + udata%deltat
+       currentPatch%age = currentPatch%age + freq_day
        ! FIX(SPM,032414) valgrind 'Conditional jump or move depends on uninitialised value'
        if( currentPatch%age  <  0._r8 )then
           write(fates_log(),*) 'negative patch age?',currentPatch%age, &
@@ -178,17 +185,17 @@ contains
        do while(associated(currentCohort)) 
 
           cohort_biomass_store  = (currentCohort%balive+currentCohort%bdead+currentCohort%bstore)
-          currentCohort%dbh    = max(small_no,currentCohort%dbh    + currentCohort%ddbhdt    * udata%deltat )
-          currentCohort%balive = currentCohort%balive + currentCohort%dbalivedt * udata%deltat 
-          currentCohort%bdead  = max(small_no,currentCohort%bdead  + currentCohort%dbdeaddt  * udata%deltat )
+          currentCohort%dbh    = max(small_no,currentCohort%dbh    + currentCohort%ddbhdt    * freq_day )
+          currentCohort%balive = currentCohort%balive + currentCohort%dbalivedt * freq_day 
+          currentCohort%bdead  = max(small_no,currentCohort%bdead  + currentCohort%dbdeaddt  * freq_day )
           if ( DEBUG ) then
              write(fates_log(),*) 'EDMainMod dbstoredt I ',currentCohort%bstore, &
-                  currentCohort%dbstoredt,udata%deltat
+                  currentCohort%dbstoredt,freq_day
           end if
-          currentCohort%bstore = currentCohort%bstore + currentCohort%dbstoredt * udata%deltat 
+          currentCohort%bstore = currentCohort%bstore + currentCohort%dbstoredt * freq_day 
           if ( DEBUG ) then
              write(fates_log(),*) 'EDMainMod dbstoredt II ',currentCohort%bstore, &
-                  currentCohort%dbstoredt,udata%deltat
+                  currentCohort%dbstoredt,freq_day
           end if
 
           if( (currentCohort%balive+currentCohort%bdead+currentCohort%bstore)*currentCohort%n<0._r8)then
@@ -196,10 +203,10 @@ contains
                  currentCohort%bdead,currentCohort%bstore
           endif
 
-          if(abs((currentCohort%balive+currentCohort%bdead+currentCohort%bstore+udata%deltat*(currentCohort%md+ &
+          if(abs((currentCohort%balive+currentCohort%bdead+currentCohort%bstore+freq_day*(currentCohort%md+ &
                currentCohort%seed_prod)-cohort_biomass_store)-currentCohort%npp_acc) > 1e-8_r8)then
              write(fates_log(),*) 'issue with c balance in integration', abs(currentCohort%balive+currentCohort%bdead+ &
-                  currentCohort%bstore+udata%deltat* &
+                  currentCohort%bstore+freq_day* &
                  (currentCohort%md+currentCohort%seed_prod)-cohort_biomass_store-currentCohort%npp_acc)
           endif  
 
@@ -224,13 +231,13 @@ contains
 
        ! first update the litter variables that are tracked at the patch level
        do c = 1,ncwd
-          currentPatch%cwd_ag(c) =  currentPatch%cwd_ag(c) + currentPatch%dcwd_ag_dt(c)* udata%deltat
-          currentPatch%cwd_bg(c) =  currentPatch%cwd_bg(c) + currentPatch%dcwd_bg_dt(c)* udata%deltat
+          currentPatch%cwd_ag(c) =  currentPatch%cwd_ag(c) + currentPatch%dcwd_ag_dt(c)* freq_day
+          currentPatch%cwd_bg(c) =  currentPatch%cwd_bg(c) + currentPatch%dcwd_bg_dt(c)* freq_day
        enddo
 
        do ft = 1,numpft_ed
-          currentPatch%leaf_litter(ft) = currentPatch%leaf_litter(ft) + currentPatch%dleaf_litter_dt(ft)* udata%deltat
-          currentPatch%root_litter(ft) = currentPatch%root_litter(ft) + currentPatch%droot_litter_dt(ft)* udata%deltat
+          currentPatch%leaf_litter(ft) = currentPatch%leaf_litter(ft) + currentPatch%dleaf_litter_dt(ft)* freq_day
+          currentPatch%root_litter(ft) = currentPatch%root_litter(ft) + currentPatch%droot_litter_dt(ft)* freq_day
        enddo
 
        do c = 1,ncwd
@@ -254,7 +261,7 @@ contains
           endif
           if(currentPatch%root_litter(ft)<small_no)then
                write(fates_log(),*) 'negative root litter numerical error', currentPatch%root_litter(ft), &
-               currentPatch%droot_litter_dt(ft)* udata%deltat, &
+               currentPatch%droot_litter_dt(ft)* freq_day, &
                CurrentSite%lat,CurrentSite%lon
             currentPatch%root_litter(ft) = small_no
           endif
@@ -265,7 +272,7 @@ contains
        ! assume the pre-mortality currentCohort%n. 
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort)) 
-         currentCohort%n = max(small_no,currentCohort%n + currentCohort%dndt * udata%deltat )  
+         currentCohort%n = max(small_no,currentCohort%n + currentCohort%dndt * freq_day )  
          currentCohort => currentCohort%taller
        enddo
 
@@ -275,7 +282,7 @@ contains
 
     ! at the site level, update the seed bank mass
     do ft = 1,numpft_ed
-       currentSite%seed_bank(ft) = currentSite%seed_bank(ft) + currentSite%dseed_dt(ft)*udata%deltat
+       currentSite%seed_bank(ft) = currentSite%seed_bank(ft) + currentSite%dseed_dt(ft)*freq_day
     enddo
 
     ! Check for negative values. Write out warning to show carbon balance. 
@@ -347,11 +354,8 @@ contains
     enddo
 
     ! FIX(RF,032414). This needs to be monthly, not annual
-!    if((udata%time_period == udata%n_sub-1))then 
-
     ! If this is the second to last day of the year, then perform trimming
-
-    if( bc_in%day_of_year == bc_in%days_per_year-1) then
+    if( day_of_year == days_per_year-1) then
 
        write(fates_log(),*) 'calling trim canopy' 
        call trim_canopy(currentSite)  

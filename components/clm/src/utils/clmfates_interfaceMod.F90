@@ -82,11 +82,12 @@ module CLMFatesInterfaceMod
                                       allocate_bcin,        &
                                       allocate_bcout
 
+   use FatesGlobals            , only : SetFatesTime
+
    use FatesHistoryInterfaceMod, only : fates_history_interface_type
    use FatesRestartInterfaceMod, only : fates_restart_interface_type
 
    use ChecksBalancesMod     , only : SummarizeNetFluxes, FATES_BGC_Carbon_BalanceCheck
-   use EDTypesMod            , only : udata
    use EDTypesMod            , only : ed_patch_type
    use EDtypesMod            , only : cp_numlevgrnd
    use EDMainMod             , only : ed_ecosystem_dynamics
@@ -456,8 +457,6 @@ contains
       type(soilbiogeochem_carbonflux_type), intent(inout) :: soilbiogeochem_carbonflux_inst
 
       ! !LOCAL VARIABLES:
-      real(r8) :: dayDiff                  ! day of run
-      integer  :: dayDiffInt               ! integer of day of run
       integer  :: s                        ! site index
       integer  :: c                        ! column index (HLM)
       integer  :: ifp                      ! patch index
@@ -466,8 +465,6 @@ contains
       integer  :: mon                      ! month (1, ..., 12)
       integer  :: day                      ! day of month (1, ..., 31)
       integer  :: sec                      ! seconds of the day
-      integer  :: ncdate                   ! current date
-      integer  :: nbdate                   ! base date (reference date)
       integer  :: current_year             
       integer  :: current_month
       integer  :: current_day
@@ -479,35 +476,6 @@ contains
       real(r8) :: model_day
       real(r8) :: day_of_year
       !-----------------------------------------------------------------------
-
-      
-      ! ---------------------------------------------------------------------------------
-      ! INTERF-TODO: REMOVE ED_DRIVER ARGUMENTS OF CLM STUCTURED TYPES AND
-      ! REPLACE THEM WITH FATES_BC TYPES WITH ITS OWN MAPPING SCHEME
-      ! ALSO, NOTE THAT THE ED_DYNAMICS IS A MODULE OF FATES NOW
-      ! ie:
-      ! fates(nc)%fatesbc%leaf_temp <=> canopystate_inst%
-      !
-      ! call this%fates(nc)%ed_driver(this%fates(nc)%site,    &
-      !                               this%fates(nc)%fatesbc)
-      ! ---------------------------------------------------------------------------------
-      
-      ! timing statements. 
-      udata%n_sub = get_days_per_year()
-      udata%deltat = 1.0_r8/dble(udata%n_sub) !for working out age of patches in years        
-      if(udata%time_period == 0)then             
-         udata%time_period = udata%n_sub
-      endif
-      
-      call get_curr_date(yr, mon, day, sec)
-      ncdate = yr*10000 + mon*100 + day
-     
-      call get_ref_date(yr, mon, day, sec)
-      nbdate = yr*10000 + mon*100 + day
-      
-      call timemgr_datediff(nbdate, 0, ncdate, sec, dayDiff)
-      dayDiffInt = floor(dayDiff)
-      udata%time_period = mod( dayDiffInt , udata%n_sub )
 
       ! ---------------------------------------------------------------------------------
       ! Prepare input boundary conditions for FATES dynamics
@@ -527,21 +495,17 @@ contains
 
       call timemgr_datediff(reference_date, sec, current_date, current_tod, model_day)
 
-      ! Calculate the day of the year
-      call timemgr_datediff(jan01_curr_year,0,ncdate,sec,day_of_year)
+      call timemgr_datediff(jan01_curr_year,0,current_date,sec,day_of_year)
+      
+      call SetFatesTime(current_year, current_month, &
+                        current_day, current_tod, &
+                        current_date, reference_date, &
+                        model_day, floor(day_of_year), &
+                        days_per_year, 1.0_r8/dble(days_per_year))
+
 
       do s=1,this%fates(nc)%nsites
          c = this%f2hmap(nc)%fcolumn(s)
-         this%fates(nc)%bc_in(s)%current_year   = current_year
-         this%fates(nc)%bc_in(s)%current_month  = current_month
-         this%fates(nc)%bc_in(s)%current_day    = current_day
-         this%fates(nc)%bc_in(s)%current_tod    = current_tod
-         this%fates(nc)%bc_in(s)%current_tod    = current_date
-         this%fates(nc)%bc_in(s)%reference_date = reference_date
-         this%fates(nc)%bc_in(s)%model_day      = model_day
-         this%fates(nc)%bc_in(s)%days_per_year  = days_per_year
-         this%fates(nc)%bc_in(s)%day_of_year    = floor(day_of_year)
-         this%fates(nc)%bc_in(s)%deltat_day     = 1.0_r8/dble(day_of_year)
          this%fates(nc)%bc_in(s)%h2osoi_vol_si  = &
                waterstate_inst%h2osoi_vol_col(c,1) 
 
@@ -595,7 +559,7 @@ contains
 
       if (masterproc) then
          write(iulog, *) 'clm: leaving ED model', bounds_clump%begg, &
-                                                  bounds_clump%endg, dayDiffInt
+                                                  bounds_clump%endg
       end if
 
       

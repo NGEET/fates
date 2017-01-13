@@ -16,7 +16,7 @@ module EDInitMod
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDPatchDynamicsMod        , only : create_patch
   use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type, area
-  use EDTypesMod                , only : cohorts_per_col, ncwd, numpft_ed, udata
+  use EDTypesMod                , only : cohorts_per_col, ncwd, numpft_ed
 
   implicit none
   private
