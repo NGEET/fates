@@ -22,7 +22,7 @@ module FatesIOVariableKindMod
   character(*), parameter :: cohort_r8 = 'CO_R8'
   character(*), parameter :: cohort_int = 'CO_INT'
   character(*), parameter :: site_pft_r8 = 'SI_PFT_R8'
-  character(*), parameter :: site_page_r8 = 'SI_PAGE_R8'
+  character(*), parameter :: site_age_r8 = 'SI_AGE_R8'
 
 
   ! NOTE(RGK, 2016) %active is not used yet. Was intended as a check on the HLM->FATES

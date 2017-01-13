@@ -1610,7 +1610,7 @@ contains
    use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
    use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
    use FatesIOVariableKindMod, only : patch_size_r8, site_size_r8
-   use FatesIOVariableKindMod, only : site_pft_r8, site_page_r8
+   use FatesIOVariableKindMod, only : site_pft_r8, site_age_r8
    use FatesIODimensionsMod, only : fates_bounds_type
 
 
@@ -1799,7 +1799,7 @@ contains
                               ptr_patch=this%fates_hist%hvars(ivar)%r82d,    & 
                               default=trim(vdefault),                       &
                               set_lake=0._r8,set_urb=0._r8)
-        case(site_page_r8)
+        case(site_age_r8)
            d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
            dim2name = this%fates_hist%dim_bounds(d_index)%name
            call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
@@ -1822,7 +1822,7 @@ contains
  subroutine hlm_bounds_to_fates_bounds(hlm, fates)
 
    use FatesIODimensionsMod, only : fates_bounds_type
-   use EDtypesMod, only : nlevsclass_ed, nlevpage_ed
+   use EDtypesMod, only : nlevsclass_ed, nlevage_ed
    use clm_varpar, only : mxpft, nlevgrnd
 
    implicit none
@@ -1851,8 +1851,8 @@ contains
    fates%pft_class_begin = 1
    fates%pft_class_end = mxpft
 
-   fates%page_class_begin = 1
-   fates%page_class_end = nlevpage_ed
+   fates%age_class_begin = 1
+   fates%age_class_end = nlevage_ed
    
  end subroutine hlm_bounds_to_fates_bounds
 
