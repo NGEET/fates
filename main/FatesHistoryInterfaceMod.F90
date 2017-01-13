@@ -307,6 +307,10 @@ contains
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
          thread_bounds%sizepft_class_begin, thread_bounds%sizepft_class_end)
 
+    index = this%levscls_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%size_class_begin, thread_bounds%size_class_end)
+
     index = this%levpft_index()
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
          thread_bounds%pft_class_begin, thread_bounds%pft_class_end)
