@@ -248,7 +248,6 @@ contains
        currentcohort%bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
             currentcohort%laimemory)*leaf_frac
 
-	    
     else ! Leaves are on (leaves_off_switch==1)
 
     !the purpose of this section is to figure out the root and stem biomass when the leaves are off
@@ -1039,13 +1038,15 @@ contains
     n%gpp_acc_hold    = o%gpp_acc_hold
     n%gpp_acc         = o%gpp_acc
     n%gpp_tstep       = o%gpp_tstep
+
     n%npp_acc_hold    = o%npp_acc_hold
     n%npp_tstep       = o%npp_tstep
 
     if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn Ia ',o%npp_acc
     if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn Ib ',o%resp_acc
 
-    n%npp_acc_hold    = o%npp_acc_hold
+    n%npp_acc         = o%npp_acc
+
     n%resp_tstep      = o%resp_tstep
     n%resp_acc        = o%resp_acc
     n%resp_acc_hold   = o%resp_acc_hold

@@ -219,14 +219,13 @@ module FatesInterfaceMod
       ! Shaded canopy resistance [s/m]
       real(r8), allocatable :: rssha_pa(:)
 
-      ! Canopy conductance [mmol m-2 s-1]
-      real(r8), allocatable :: gccanopy_pa(:)
+      ! leaf photosynthesis (umol CO2 /m**2/ s)
+      ! (NOT CURRENTLY USED, PLACE-HOLDER)
+      !real(r8), allocatable :: psncanopy_pa(:)
 
-      ! patch sunlit leaf photosynthesis (umol CO2 /m**2/ s)
-      real(r8), allocatable :: psncanopy_pa(:)
-
-      ! patch sunlit leaf maintenance respiration rate (umol CO2/m**2/s) 
-      real(r8), allocatable :: lmrcanopy_pa(:)
+      ! leaf maintenance respiration rate (umol CO2/m**2/s) 
+      ! (NOT CURRENTLY USED, PLACE-HOLDER)
+      !real(r8), allocatable :: lmrcanopy_pa(:)
 
       ! Canopy Radiation Boundaries
       ! ---------------------------------------------------------------------------------
@@ -439,11 +438,9 @@ contains
       allocate(bc_out%btran_pa(maxPatchesPerCol))
       
       ! Photosynthesis
+
       allocate(bc_out%rssun_pa(maxPatchesPerCol))
       allocate(bc_out%rssha_pa(maxPatchesPerCol))
-      allocate(bc_out%gccanopy_pa(maxPatchesPerCol))
-      allocate(bc_out%lmrcanopy_pa(maxPatchesPerCol))
-      allocate(bc_out%psncanopy_pa(maxPatchesPerCol))
       
       ! Canopy Radiation
       allocate(bc_out%albd_parb(maxPatchesPerCol,cp_numSWb))
@@ -523,9 +520,6 @@ contains
 
       this%bc_out(s)%rssun_pa(:)     = 0.0_r8
       this%bc_out(s)%rssha_pa(:)     = 0.0_r8
-      this%bc_out(s)%gccanopy_pa(:)  = 0.0_r8
-      this%bc_out(s)%psncanopy_pa(:) = 0.0_r8
-      this%bc_out(s)%lmrcanopy_pa(:) = 0.0_r8
 
       this%bc_out(s)%albd_parb(:,:) = 0.0_r8
       this%bc_out(s)%albi_parb(:,:) = 0.0_r8
