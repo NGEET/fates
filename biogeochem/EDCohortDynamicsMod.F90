@@ -6,6 +6,7 @@ module EDCohortDynamicsMod
   ! !USES: 
   use abortutils            , only : endrun
   use FatesGlobals          , only : fates_log
+  use FatesGlobals          , only : freq_day
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -14,7 +15,7 @@ module EDCohortDynamicsMod
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : fusetol, cp_nclmax
-  use EDtypesMod            , only : ncwd, maxcohortsperpatch, udata
+  use EDtypesMod            , only : ncwd, maxcohortsperpatch
   use EDtypesMod            , only : sclass_ed,nlevsclass_ed,AREA
   use EDtypesMod            , only : min_npm2, min_nppatch, min_n_safemath
   !
@@ -223,7 +224,7 @@ contains
        if(mode==1)then
           ! it will not be able to put out as many leaves as it had previous timestep
           currentcohort%npp_leaf = currentcohort%npp_leaf + &
-                max(0.0_r8,currentcohort%balive*leaf_frac - currentcohort%bl)/udata%deltat
+                max(0.0_r8,currentcohort%balive*leaf_frac - currentcohort%bl)/freq_day
        end if
 
        currentcohort%bl = currentcohort%balive*leaf_frac
@@ -234,10 +235,10 @@ contains
 
           currentcohort%npp_froot = currentcohort%npp_froot + &
                max(0._r8,pftcon%froot_leaf(ft)*(currentcohort%balive+currentcohort%laimemory)*leaf_frac - currentcohort%br) / &
-               udata%deltat
+               freq_day
 
           currentcohort%npp_bsw = max(0._r8,EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
-                currentcohort%laimemory)*leaf_frac - currentcohort%bsw)/udata%deltat
+                currentcohort%laimemory)*leaf_frac - currentcohort%bsw)/freq_day
 
           currentcohort%npp_bdead =  currentCohort%dbdeaddt
 
@@ -273,10 +274,10 @@ contains
 
           currentcohort%npp_froot = currentcohort%npp_froot + &
                 max(0.0_r8,pftcon%froot_leaf(ft)*(ideal_balive + &
-                currentcohort%laimemory)*leaf_frac*ratio_balive-currentcohort%br)/udata%deltat
+                currentcohort%laimemory)*leaf_frac*ratio_balive-currentcohort%br)/freq_day
 
           currentcohort%npp_bsw = max(0.0_r8,EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(ideal_balive + &
-                currentcohort%laimemory)*leaf_frac*ratio_balive - currentcohort%bsw)/udata%deltat
+                currentcohort%laimemory)*leaf_frac*ratio_balive - currentcohort%bsw)/freq_day
 
           currentcohort%npp_bdead =  currentCohort%dbdeaddt
 

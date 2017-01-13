@@ -7,6 +7,10 @@ module EDPhysiologyMod
   ! ============================================================================
 
   use FatesGlobals, only         : fates_log
+  use FatesGlobals, only         : days_per_year
+  use FatesGlobals, only         : model_day
+  use FatesGlobals, only         : freq_day
+  use FatesGlobals, only         : day_of_year
   use FatesConstantsMod, only    : r8 => fates_r8
   use pftconMod           , only : pftcon
   use EDEcophysContype    , only : EDecophyscon
@@ -240,7 +244,6 @@ contains
     !
     ! !USES:
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-    use EDTypesMod, only : udata
 
     !
     ! !ARGUMENTS:
@@ -289,7 +292,7 @@ contains
     ncolddayslim = 5
     cold_t   = 7.5_r8  ! ed_ph_coldtemp
 
-    t  = udata%time_period
+    t  = day_of_year
     temp_in_C = bc_in%t_veg24_si - tfrz
 
     !-----------------Cold Phenology--------------------!              
@@ -339,7 +342,7 @@ contains
     endif
     
 
-    timesinceleafoff = bc_in%model_day - currentSite%leafoffdate
+    timesinceleafoff = model_day - currentSite%leafoffdate
     !LEAF ON: COLD DECIDUOUS. Needs to
     !1) have exceeded the growing degree day threshold 
     !2) The leaves should not be on already
@@ -355,7 +358,7 @@ contains
        endif !status
     endif !GDD
 
-    timesinceleafon = bc_in%model_day - currentSite%leafondate
+    timesinceleafon = model_day - currentSite%leafondate
 
 
     !LEAF OFF: COLD THRESHOLD
@@ -369,7 +372,7 @@ contains
      if (timesinceleafon > mindayson)then
        if (currentSite%status == 2)then
           currentSite%status = 1        !alter status of site to 'leaves on'
-          currentSite%leafoffdate = bc_in%model_day   !record leaf off date   
+          currentSite%leafoffdate = model_day   !record leaf off date   
           if ( DEBUG ) write(fates_log(),*) 'leaves off'
        endif
     endif
@@ -379,7 +382,7 @@ contains
     if(timesinceleafoff > 400)then !remove leaves after a whole year when there is no 'off' period.  
        if(currentSite%status == 2)then
           currentSite%status = 1        !alter status of site to 'leaves on'
-          currentSite%leafoffdate = bc_in%model_day   !record leaf off date   
+          currentSite%leafoffdate = model_day   !record leaf off date   
           if ( DEBUG ) write(fates_log(),*) 'leaves off'
        endif
     endif
@@ -710,7 +713,7 @@ contains
     !
     ! !USES:
     use EDGrowthFunctionsMod , only : Bleaf, dDbhdBd, dhdbd, hite, mortality_rates,dDbhdBl
-    use EDTypesMod           , only : udata
+
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
@@ -764,9 +767,9 @@ contains
 
     ! convert from kgC/indiv/day into kgC/indiv/year 
     ! TODO: CONVERT DAYS_PER_YEAR TO DBLE (HOLDING FOR B4B COMPARISONS, RGK-01-2017)
-    currentCohort%npp_acc_hold  = currentCohort%npp_acc  * bc_in%days_per_year 
-    currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * bc_in%days_per_year
-    currentCohort%resp_acc_hold = currentCohort%resp_acc * bc_in%days_per_year
+    currentCohort%npp_acc_hold  = currentCohort%npp_acc  * days_per_year 
+    currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * days_per_year
+    currentCohort%resp_acc_hold = currentCohort%resp_acc * days_per_year
 
     currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
 
@@ -933,7 +936,7 @@ contains
 
     ! prevent negative leaf pool (but not negative store pool). This is also a numerical error prevention, 
     ! but it shouldn't happen actually... 
-    if (-1.0_r8*currentCohort%dbalivedt * udata%deltat > currentCohort%balive*0.99)then 
+    if (-1.0_r8*currentCohort%dbalivedt * freq_day > currentCohort%balive*0.99)then 
        write(fates_log(),*) 'using non-neg leaf mass cap',currentCohort%balive , currentCohort%dbalivedt,currentCohort%dbstoredt, &
             currentCohort%carbon_balance
        currentCohort%dbstoredt = currentCohort%dbstoredt + currentCohort%dbalivedt
@@ -963,7 +966,6 @@ contains
     !
     ! !USES:
     use EDGrowthFunctionsMod, only : bdead,dbh, Bleaf
-    use EDTypesMod, only : udata
     !
     ! !ARGUMENTS    
     integer, intent(in) :: t
@@ -990,7 +992,7 @@ contains
             + EDecophyscon%sapwood_ratio(ft)*temp_cohort%hite)
        temp_cohort%bstore      = EDecophyscon%cushion(ft)*(temp_cohort%balive/ (1.0_r8 + pftcon%froot_leaf(ft) &
             + EDecophyscon%sapwood_ratio(ft)*temp_cohort%hite))
-       temp_cohort%n           = currentPatch%area * currentPatch%seed_germination(ft)*udata%deltat &
+       temp_cohort%n           = currentPatch%area * currentPatch%seed_germination(ft)*freq_day &
             / (temp_cohort%bdead+temp_cohort%balive+temp_cohort%bstore)
  
        if (t == 1)then
@@ -1037,7 +1039,7 @@ contains
     ! !USES:
     use SFParamsMod , only : SF_val_CWD_frac
     use EDParamsMod , only : ED_val_ag_biomass
-    use EDTypesMod  , only : udata
+
     !
     ! !ARGUMENTS    
     type(ed_patch_type),intent(inout), target :: currentPatch
@@ -1067,7 +1069,7 @@ contains
       currentPatch%root_litter_in(pft) = currentPatch%root_litter_in(pft) + &
                currentCohort%root_md * currentCohort%n/currentPatch%area !turnover
       currentPatch%leaf_litter_in(pft) = currentPatch%leaf_litter_in(pft) + &
-         currentCohort%leaf_litter * currentCohort%n/currentPatch%area/udata%deltat
+         currentCohort%leaf_litter * currentCohort%n/currentPatch%area/freq_day
 
       !daily leaf loss needs to be scaled up to the annual scale here. 
       
@@ -1086,7 +1088,7 @@ contains
           dead_n = -1.0_r8 * currentCohort%dndt / currentPatch%area
 
           currentPatch%leaf_litter_in(pft) = currentPatch%leaf_litter_in(pft) + &
-               (currentCohort%bl+currentCohort%leaf_litter/udata%deltat)* dead_n          
+               (currentCohort%bl+currentCohort%leaf_litter/freq_day)* dead_n          
           currentPatch%root_litter_in(pft) = currentPatch%root_litter_in(pft) + &
                (currentCohort%br+currentCohort%bstore)     * dead_n
 
@@ -1191,7 +1193,7 @@ contains
     !
     ! !USES:
     use SFParamsMod, only : SF_val_max_decomp
-    use EDTypesMod , only : udata
+
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
@@ -1239,13 +1241,13 @@ contains
 
     !add up carbon going into fragmenting pools
     currentSite%flux_out = currentSite%flux_out + sum(currentPatch%leaf_litter_out) * &
-         currentPatch%area *udata%deltat!kgC/site/day
+         currentPatch%area *freq_day!kgC/site/day
     currentSite%flux_out = currentSite%flux_out + sum(currentPatch%root_litter_out) * &
-         currentPatch%area *udata%deltat!kgC/site/day
+         currentPatch%area *freq_day!kgC/site/day
     currentSite%flux_out = currentSite%flux_out + sum(currentPatch%cwd_ag_out) * &
-         currentPatch%area *udata%deltat!kgC/site/day
+         currentPatch%area *freq_day!kgC/site/day
     currentSite%flux_out = currentSite%flux_out + sum(currentPatch%cwd_bg_out) * &
-         currentPatch%area *udata%deltat!kgC/site/day
+         currentPatch%area *freq_day!kgC/site/day
 
   end subroutine cwd_out
 
