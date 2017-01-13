@@ -158,7 +158,6 @@ module CLMFatesInterfaceMod
       procedure, public :: wrap_accumulatefluxes
       procedure, public :: prep_canopyfluxes
       procedure, public :: wrap_canopy_radiation
-      procedure, private :: wrap_litter_fluxout
       procedure, public  :: wrap_bgc_summary
       procedure, private :: init_history_io
       procedure, private :: wrap_update_hlmfates_dyn
@@ -478,6 +477,7 @@ contains
       !-----------------------------------------------------------------------
 
       ! ---------------------------------------------------------------------------------
+      ! Part I.
       ! Prepare input boundary conditions for FATES dynamics
       ! Note that timing information is the same across all sites, this may
       ! seem redundant, but it is possible that we may have asynchronous site simulations
@@ -512,6 +512,8 @@ contains
          this%fates(nc)%bc_in(s)%t_veg24_si = &
                temperature_inst%t_veg24_patch(col%patchi(c))
 
+         this%fates(nc)%bc_in(s)%max_rooting_depth_index_col = canopystate_inst%altmax_lastyear_indx_col(c)
+
          do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
             p = ifp+col%patchi(c)
             this%fates(nc)%bc_in(s)%t_veg24_pa(ifp) = &
@@ -529,7 +531,11 @@ contains
          end do
       end do
 
-      ! where most things happen
+      ! ---------------------------------------------------------------------------------
+      ! Part II: Call the FATES model now that input boundary conditions have been
+      ! provided.
+      ! ---------------------------------------------------------------------------------
+
       do s = 1,this%fates(nc)%nsites
 
             call ed_ecosystem_dynamics(this%fates(nc)%sites(s),    &
@@ -537,12 +543,35 @@ contains
             
             call ed_update_site(this%fates(nc)%sites(s), &
                   this%fates(nc)%bc_in(s))
-
+            
       enddo
+      
+      ! call subroutine to aggregate ED litter output fluxes and 
+      ! package them for handing across interface
+      call flux_into_litter_pools(this%fates(nc)%nsites, &
+            this%fates(nc)%sites,  &
+            this%fates(nc)%bc_in,  &
+            this%fates(nc)%bc_out)
 
-      call this%wrap_litter_fluxout(nc, bounds_clump, canopystate_inst, soilbiogeochem_carbonflux_inst)
 
       ! ---------------------------------------------------------------------------------
+      ! Part III: Process FATES output into the dimensions and structures that are part
+      ! of the HLMs API.  (column, depth, and litter fractions)
+      ! ---------------------------------------------------------------------------------
+
+      do s = 1, this%fates(nc)%nsites
+         c = this%f2hmap(nc)%fcolumn(s)
+         soilbiogeochem_carbonflux_inst%FATES_c_to_litr_lab_c_col(c,:) = &
+               this%fates(nc)%bc_out(s)%FATES_c_to_litr_lab_c_col(:)
+         soilbiogeochem_carbonflux_inst%FATES_c_to_litr_cel_c_col(c,:) = &
+               this%fates(nc)%bc_out(s)%FATES_c_to_litr_cel_c_col(:)
+         soilbiogeochem_carbonflux_inst%FATES_c_to_litr_lig_c_col(c,:) = &
+               this%fates(nc)%bc_out(s)%FATES_c_to_litr_lig_c_col(:)
+      end do
+
+
+      ! ---------------------------------------------------------------------------------
+      ! Part III.2 (continued).
       ! Update diagnostics of the FATES ecosystem structure that are used in the HLM.
       ! ---------------------------------------------------------------------------------
       call this%wrap_update_hlmfates_dyn(nc,              &
@@ -551,6 +580,7 @@ contains
                                          canopystate_inst)
       
       ! ---------------------------------------------------------------------------------
+      ! Part IV: 
       ! Update history IO fields that depend on ecosystem dynamics
       ! ---------------------------------------------------------------------------------
       call this%fates_hist%update_history_dyn( nc,                    &
@@ -1538,46 +1568,6 @@ contains
   end associate
 
  end subroutine wrap_canopy_radiation
-
- ! ======================================================================================
- 
- subroutine wrap_litter_fluxout(this, nc, bounds_clump, canopystate_inst, soilbiogeochem_carbonflux_inst)
-     
-    implicit none
-    
-    ! Arguments
-    class(hlm_fates_interface_type), intent(inout) :: this
-    integer                , intent(in)            :: nc
-    type(bounds_type),intent(in)                   :: bounds_clump
-    type(canopystate_type)         , intent(inout) :: canopystate_inst
-    type(soilbiogeochem_carbonflux_type), intent(inout) :: soilbiogeochem_carbonflux_inst
-    
-    ! local variables
-    integer :: s, c
-    
-    
-    ! process needed input boundary conditions to define rooting profiles
-    ! call subroutine to aggregate ED litter output fluxes and package them for handing across interface
-    ! process output into the dimensions that the BGC model wants (column, depth, and litter fractions)
-    
-    do s = 1, this%fates(nc)%nsites
-       c = this%f2hmap(nc)%fcolumn(s)
-       this%fates(nc)%bc_in(s)%max_rooting_depth_index_col = canopystate_inst%altmax_lastyear_indx_col(c)
-    end do
-    
-    call flux_into_litter_pools(this%fates(nc)%nsites, &
-         this%fates(nc)%sites,  &
-         this%fates(nc)%bc_in,  &
-         this%fates(nc)%bc_out)
-    
-    do s = 1, this%fates(nc)%nsites
-       c = this%f2hmap(nc)%fcolumn(s)
-       soilbiogeochem_carbonflux_inst%FATES_c_to_litr_lab_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_lab_c_col(:)
-       soilbiogeochem_carbonflux_inst%FATES_c_to_litr_cel_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_cel_c_col(:)
-       soilbiogeochem_carbonflux_inst%FATES_c_to_litr_lig_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_lig_c_col(:)
-    end do
-
- end subroutine wrap_litter_fluxout
 
  ! ======================================================================================
 
