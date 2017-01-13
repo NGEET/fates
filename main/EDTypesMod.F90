@@ -155,6 +155,12 @@ module EDTypesMod
   ! 1 = TRUE (is master) 0 = FALSE (is not master)
   integer :: cp_masterproc
 
+
+  ! Module switches (this will be read in one day)
+  ! This variable only exists now to serve as a place holder
+  !!!!!!!!!! THIS SHOULD NOT BE SET TO TRUE !!!!!!!!!!!!!!!!!
+  logical,parameter :: use_fates_plant_hydro = .false.
+
   !************************************
   !** COHORT type structure          **
   !************************************
@@ -663,5 +669,11 @@ contains
     end do
 
   end subroutine set_root_fraction
+
+
+  ! =====================================================================================
+  
+ 
+
 
 end module EDTypesMod
