@@ -1152,7 +1152,7 @@ contains
     ! associated with the secnd patch
     !
     ! !USES:
-    use EDTypesMod, only: pageclass_ed
+    use EDTypesMod, only: ageclass_ed
     !
     ! !ARGUMENTS:
     type (ed_patch_type) , intent(inout), pointer :: dp ! Donor Patch
@@ -1172,7 +1172,7 @@ contains
 
     !area weighted average of ages & litter
     rp%age = (dp%age * dp%area + rp%age * rp%area)/(dp%area + rp%area)  
-    rp%age_class = max(1,count(rp%age-pageclass_ed.ge.0.0_r8))
+    rp%age_class = max(1,count(rp%age-ageclass_ed.ge.0.0_r8))
 
     do p = 1,numpft_ed
        rp%seeds_in(p)         = (rp%seeds_in(p)*rp%area + dp%seeds_in(p)*dp%area)/(rp%area + dp%area)
