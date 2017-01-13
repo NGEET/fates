@@ -154,6 +154,16 @@ module EDTypesMod
   ! HLM will interpret that the value should not be included in the average.
   real(r8) :: cp_hio_ignore_val
 
+
+
+  ! Module switches (this will be read in one day)
+  ! This variable only exists now to serve as a place holder
+  !!!!!!!!!! THIS SHOULD NOT BE SET TO TRUE !!!!!!!!!!!!!!!!!
+  logical,parameter :: use_fates_plant_hydro = .false.
+
+
+
+
   !************************************
   !** COHORT type structure          **
   !************************************
@@ -674,5 +684,11 @@ contains
     end do
 
   end subroutine set_root_fraction
+
+
+  ! =====================================================================================
+  
+ 
+
 
 end module EDTypesMod
