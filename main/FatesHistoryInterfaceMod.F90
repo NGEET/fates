@@ -807,9 +807,9 @@ contains
                hio_m3_si_scpf          => this%hvars(ih_m3_si_scpf)%r82d, &
                hio_m4_si_scpf          => this%hvars(ih_m4_si_scpf)%r82d, &
                hio_m5_si_scpf          => this%hvars(ih_m5_si_scpf)%r82d, &
-               hio_ba_si_scls          => this%hvars(ih_ba_si_scls)%r82d)!, &
-!               hio_biomass_si_pft      => this%hvars(ih_biomass_si_pft)%r82d, &
-!               hio_area_si_page        => this%hvars(ih_area_si_page)%r82d)
+               hio_ba_si_scls          => this%hvars(ih_ba_si_scls)%r82d, &
+               hio_biomass_si_pft      => this%hvars(ih_biomass_si_pft)%r82d, &
+               hio_area_si_page        => this%hvars(ih_area_si_page)%r82d)
                
       ! ---------------------------------------------------------------------------------
       ! Flush arrays to values defined by %flushval (see registry entry in
@@ -843,8 +843,8 @@ contains
             hio_npatches_si(io_si) = hio_npatches_si(io_si) + 1._r8
 
             ! report the fractional area in each age class bin
-            ! hio_area_si_page(io_si,cpatch%age_class) = hio_area_si_page(io_si,cpatch%age_class) &
-            !      + cpatch%area/AREA
+            hio_area_si_page(io_si,cpatch%age_class) = hio_area_si_page(io_si,cpatch%age_class) &
+                 + cpatch%area/AREA
             
             ccohort => cpatch%shortest
             do while(associated(ccohort))
@@ -905,8 +905,8 @@ contains
                hio_nindivs_pa_pft(io_pa,ft) = hio_nindivs_pa_pft(io_pa,ft) + &
                     ccohort%n
 
-               ! hio_biomass_si_pft(io_si, ft) = hio_biomass_si_pft(io_si, ft) + &
-               !      n_density * ccohort%b * 1.e3_r8
+               hio_biomass_si_pft(io_si, ft) = hio_biomass_si_pft(io_si, ft) + &
+                    n_density * ccohort%b * 1.e3_r8
 
                ! Site by Size-Class x PFT (SCPF) 
                ! ------------------------------------------------------------------------
@@ -1321,15 +1321,15 @@ contains
          avgflag='A', vtype=patch_ground_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_nindivs_pa_pft )
 
-    ! call this%set_history_var(vname='PFT_biomass', units='gC/m2',                   &
-    !      long='total PFT level biomass -- on actual PFT dimension', use_default='active',&
-    !      avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
-    !      ivar=ivar, initialize=initialize_variables, index = ih_biomass_si_pft )
+    call this%set_history_var(vname='PFT_biomass', units='gC/m2',                   &
+         long='total PFT level biomass -- on actual PFT dimension', use_default='active',&
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_biomass_si_pft )
 
-    ! call this%set_history_var(vname='patch_area_by_age', units='m2/m2',                   &
-    !      long='patch area by age bin', use_default='active',                     &
-    !      avgflag='A', vtype=site_page_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
-    !      ivar=ivar, initialize=initialize_variables, index = ih_area_si_page )
+    call this%set_history_var(vname='patch_area_by_age', units='m2/m2',                   &
+         long='patch area by age bin', use_default='active',                     &
+         avgflag='A', vtype=site_page_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_area_si_page )
     
     ! Fire Variables
 
