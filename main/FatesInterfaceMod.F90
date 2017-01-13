@@ -16,7 +16,7 @@ module FatesInterfaceMod
    ! ------------------------------------------------------------------------------------
 
    use EDtypesMod            , only : ed_site_type,      &
-                                      numPatchesPerCol,  &
+                                      maxPatchesPerCol,  &
                                       cp_nclmax,         &
                                       cp_numSWb,         &
                                       cp_numlevgrnd,     &
@@ -191,14 +191,13 @@ module FatesInterfaceMod
       ! Shaded canopy resistance [s/m]
       real(r8), allocatable :: rssha_pa(:)
 
-      ! Canopy conductance [mmol m-2 s-1]
-      real(r8), allocatable :: gccanopy_pa(:)
+      ! leaf photosynthesis (umol CO2 /m**2/ s)
+      ! (NOT CURRENTLY USED, PLACE-HOLDER)
+      !real(r8), allocatable :: psncanopy_pa(:)
 
-      ! patch sunlit leaf photosynthesis (umol CO2 /m**2/ s)
-      real(r8), allocatable :: psncanopy_pa(:)
-
-      ! patch sunlit leaf maintenance respiration rate (umol CO2/m**2/s) 
-      real(r8), allocatable :: lmrcanopy_pa(:)
+      ! leaf maintenance respiration rate (umol CO2/m**2/s) 
+      ! (NOT CURRENTLY USED, PLACE-HOLDER)
+      !real(r8), allocatable :: lmrcanopy_pa(:)
 
       ! Canopy Radiation Boundaries
       ! ---------------------------------------------------------------------------------
@@ -346,8 +345,8 @@ contains
       ! Allocate input boundaries
       
       ! Radiation
-      allocate(bc_in%solad_parb(numPatchesPerCol,cp_numSWb))
-      allocate(bc_in%solai_parb(numPatchesPerCol,cp_numSWb))
+      allocate(bc_in%solad_parb(maxPatchesPerCol,cp_numSWb))
+      allocate(bc_in%solai_parb(maxPatchesPerCol,cp_numSWb))
       
       ! Hydrology
       allocate(bc_in%smp_gl(cp_numlevgrnd))
@@ -357,20 +356,20 @@ contains
       allocate(bc_in%h2o_liqvol_gl(cp_numlevgrnd))
 
       ! Photosynthesis
-      allocate(bc_in%filter_photo_pa(numPatchesPerCol))
-      allocate(bc_in%dayl_factor_pa(numPatchesPerCol))
-      allocate(bc_in%esat_tv_pa(numPatchesPerCol))
-      allocate(bc_in%eair_pa(numPatchesPerCol))
-      allocate(bc_in%oair_pa(numPatchesPerCol))
-      allocate(bc_in%cair_pa(numPatchesPerCol))
-      allocate(bc_in%rb_pa(numPatchesPerCol))
-      allocate(bc_in%t_veg_pa(numPatchesPerCol))
-      allocate(bc_in%tgcm_pa(numPatchesPerCol))
+      allocate(bc_in%filter_photo_pa(maxPatchesPerCol))
+      allocate(bc_in%dayl_factor_pa(maxPatchesPerCol))
+      allocate(bc_in%esat_tv_pa(maxPatchesPerCol))
+      allocate(bc_in%eair_pa(maxPatchesPerCol))
+      allocate(bc_in%oair_pa(maxPatchesPerCol))
+      allocate(bc_in%cair_pa(maxPatchesPerCol))
+      allocate(bc_in%rb_pa(maxPatchesPerCol))
+      allocate(bc_in%t_veg_pa(maxPatchesPerCol))
+      allocate(bc_in%tgcm_pa(maxPatchesPerCol))
       allocate(bc_in%t_soisno_gl(cp_numlevgrnd))
 
       ! Canopy Radiation
-      allocate(bc_in%filter_vegzen_pa(numPatchesPerCol))
-      allocate(bc_in%coszen_pa(numPatchesPerCol))
+      allocate(bc_in%filter_vegzen_pa(maxPatchesPerCol))
+      allocate(bc_in%coszen_pa(maxPatchesPerCol))
       allocate(bc_in%albgr_dir_rb(cp_numSWb))
       allocate(bc_in%albgr_dif_rb(cp_numSWb))
 
@@ -394,30 +393,28 @@ contains
       
       
       ! Radiation
-      allocate(bc_out%fsun_pa(numPatchesPerCol))
-      allocate(bc_out%laisun_pa(numPatchesPerCol))
-      allocate(bc_out%laisha_pa(numPatchesPerCol))
+      allocate(bc_out%fsun_pa(maxPatchesPerCol))
+      allocate(bc_out%laisun_pa(maxPatchesPerCol))
+      allocate(bc_out%laisha_pa(maxPatchesPerCol))
       
       ! Hydrology
       allocate(bc_out%active_suction_gl(cp_numlevgrnd))
-      allocate(bc_out%rootr_pagl(numPatchesPerCol,cp_numlevgrnd))
-      allocate(bc_out%btran_pa(numPatchesPerCol))
+      allocate(bc_out%rootr_pagl(maxPatchesPerCol,cp_numlevgrnd))
+      allocate(bc_out%btran_pa(maxPatchesPerCol))
       
       ! Photosynthesis
-      allocate(bc_out%rssun_pa(numPatchesPerCol))
-      allocate(bc_out%rssha_pa(numPatchesPerCol))
-      allocate(bc_out%gccanopy_pa(numPatchesPerCol))
-      allocate(bc_out%lmrcanopy_pa(numPatchesPerCol))
-      allocate(bc_out%psncanopy_pa(numPatchesPerCol))
+
+      allocate(bc_out%rssun_pa(maxPatchesPerCol))
+      allocate(bc_out%rssha_pa(maxPatchesPerCol))
       
       ! Canopy Radiation
-      allocate(bc_out%albd_parb(numPatchesPerCol,cp_numSWb))
-      allocate(bc_out%albi_parb(numPatchesPerCol,cp_numSWb))
-      allocate(bc_out%fabd_parb(numPatchesPerCol,cp_numSWb))
-      allocate(bc_out%fabi_parb(numPatchesPerCol,cp_numSWb))
-      allocate(bc_out%ftdd_parb(numPatchesPerCol,cp_numSWb))
-      allocate(bc_out%ftid_parb(numPatchesPerCol,cp_numSWb))
-      allocate(bc_out%ftii_parb(numPatchesPerCol,cp_numSWb))
+      allocate(bc_out%albd_parb(maxPatchesPerCol,cp_numSWb))
+      allocate(bc_out%albi_parb(maxPatchesPerCol,cp_numSWb))
+      allocate(bc_out%fabd_parb(maxPatchesPerCol,cp_numSWb))
+      allocate(bc_out%fabi_parb(maxPatchesPerCol,cp_numSWb))
+      allocate(bc_out%ftdd_parb(maxPatchesPerCol,cp_numSWb))
+      allocate(bc_out%ftid_parb(maxPatchesPerCol,cp_numSWb))
+      allocate(bc_out%ftii_parb(maxPatchesPerCol,cp_numSWb))
 
       ! biogeochemistry
       allocate(bc_out%FATES_c_to_litr_lab_c_col(cp_numlevdecomp_full))        
@@ -425,14 +422,14 @@ contains
       allocate(bc_out%FATES_c_to_litr_lig_c_col(cp_numlevdecomp_full))
 
       ! Canopy Structure
-      allocate(bc_out%elai_pa(numPatchesPerCol))
-      allocate(bc_out%esai_pa(numPatchesPerCol))
-      allocate(bc_out%tlai_pa(numPatchesPerCol))
-      allocate(bc_out%tsai_pa(numPatchesPerCol))
-      allocate(bc_out%htop_pa(numPatchesPerCol))
-      allocate(bc_out%hbot_pa(numPatchesPerCol))
-      allocate(bc_out%canopy_fraction_pa(numPatchesPerCol))
-      allocate(bc_out%frac_veg_nosno_alb_pa(numPatchesPerCol))
+      allocate(bc_out%elai_pa(maxPatchesPerCol))
+      allocate(bc_out%esai_pa(maxPatchesPerCol))
+      allocate(bc_out%tlai_pa(maxPatchesPerCol))
+      allocate(bc_out%tsai_pa(maxPatchesPerCol))
+      allocate(bc_out%htop_pa(maxPatchesPerCol))
+      allocate(bc_out%hbot_pa(maxPatchesPerCol))
+      allocate(bc_out%canopy_fraction_pa(maxPatchesPerCol))
+      allocate(bc_out%frac_veg_nosno_alb_pa(maxPatchesPerCol))
 
 
       return
@@ -481,9 +478,6 @@ contains
 
       this%bc_out(s)%rssun_pa(:)     = 0.0_r8
       this%bc_out(s)%rssha_pa(:)     = 0.0_r8
-      this%bc_out(s)%gccanopy_pa(:)  = 0.0_r8
-      this%bc_out(s)%psncanopy_pa(:) = 0.0_r8
-      this%bc_out(s)%lmrcanopy_pa(:) = 0.0_r8
 
       this%bc_out(s)%albd_parb(:,:) = 0.0_r8
       this%bc_out(s)%albi_parb(:,:) = 0.0_r8

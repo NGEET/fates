@@ -13,7 +13,7 @@ module EDCohortDynamicsMod
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : fusetol, cp_nclmax
-  use EDtypesMod            , only : ncwd, numcohortsperpatch, udata
+  use EDtypesMod            , only : ncwd, maxcohortsperpatch, udata
   use EDtypesMod            , only : sclass_ed,nlevsclass_ed,AREA
   use EDtypesMod            , only : min_npm2, min_nppatch, min_n_safemath
   !
@@ -246,7 +246,6 @@ contains
        currentcohort%bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
             currentcohort%laimemory)*leaf_frac
 
-	    
     else ! Leaves are on (leaves_off_switch==1)
 
     !the purpose of this section is to figure out the root and stem biomass when the leaves are off
@@ -626,7 +625,7 @@ contains
     iterate = 1
     fusion_took_place = 0   
     currentPatch => patchptr
-    maxcohorts = numCohortsPerPatch
+    maxcohorts = maxCohortsPerPatch
   
     !---------------------------------------------------------------------!
     !  Keep doing this until nocohorts <= maxcohorts                         !
@@ -1046,7 +1045,6 @@ contains
     if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn Ia ',o%npp_acc
     if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn Ib ',o%resp_acc
 
-    
     n%resp_tstep      = o%resp_tstep
     n%resp_acc        = o%resp_acc
     n%resp_acc_hold   = o%resp_acc_hold
