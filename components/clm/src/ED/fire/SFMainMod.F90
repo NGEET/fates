@@ -642,12 +642,9 @@ contains
     !currentPatch%AB  daily area burnt (m2)
     !currentPatch%NF    !Daily number of ignitions (lightning and human-caused), adjusted for size of patch. 
 
-    use domainMod,     only : ldomain
     use EDParamsMod,   only : ED_val_nfires
-    use PatchType,     only : patch 
 
     type(ed_site_type), intent(inout), target :: currentSite
-
     type(ed_patch_type), pointer :: currentPatch
 
     real lb !length to breadth ratio of fire ellipse
@@ -689,15 +686,11 @@ contains
           ! --- calculate area burnt---
           if(lb > 0.0_r8) then
              
-             p = currentPatch%clm_pno
-             g = patch%gridcell(p)
-
-
              ! INTERF-TODO:
              ! THIS SHOULD HAVE THE COLUMN AND LU AREA WEIGHT ALSO, NO?
 
-             gridarea = ldomain%area(g) *1000000.0_r8 !convert from km2 into m2
-             currentPatch%NF = ldomain%area(g) * ED_val_nfires * currentPatch%area/area /365
+             gridarea = 1000000.0_r8     ! 1M m2 in a km2
+             currentPatch%NF = ED_val_nfires * currentPatch%area/area /365
 
              ! If there are 15  lightening strickes per year, per km2. (approx from NASA product) 
              ! then there are 15/365 s/km2 each day. 
@@ -728,7 +721,7 @@ contains
        endif! fire
        currentSite%frac_burnt = currentSite%frac_burnt + currentPatch%frac_burnt     
 
-       currentPatch => currentPatch%younger;
+       currentPatch => currentPatch%younger
 
     enddo !end patch loop
 
