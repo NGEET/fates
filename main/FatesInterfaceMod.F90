@@ -9,12 +9,6 @@ module FatesInterfaceMod
    ! which is allocated by thread
    ! ------------------------------------------------------------------------------------
 
-   ! ------------------------------------------------------------------------------------
-   ! Used CLM Modules
-   ! INTERF-TODO:  NO CLM MODULES SHOULD BE ACCESSIBLE BY THE FATES
-   ! PUBLIC API!!!!
-   ! ------------------------------------------------------------------------------------
-
    use EDtypesMod            , only : ed_site_type
    use EDtypesMod            , only : maxPatchesPerCol
    use EDtypesMod            , only : cp_nclmax
@@ -45,30 +39,14 @@ module FatesInterfaceMod
    !                       _rb  means radiation band
    ! ------------------------------------------------------------------------------------
    
+   
+
+
    type, public :: bc_in_type
 
       ! The actual number of FATES' ED patches
       integer :: npatches
 
-      ! Timing Variables
-      integer  :: current_year    ! Current year
-      integer  :: current_month   ! month of year
-      integer  :: current_day     ! day of month
-      integer  :: current_tod     ! time of day (seconds past 0Z)
-      integer  :: current_date    ! time of day (seconds past 0Z)
-      integer  :: reference_date  ! YYYYMMDD
-      real(r8) :: model_day       ! elapsed days between current date and reference
-                                  ! uses ESMF functions, so prefered to pass it in as
-                                  ! argument rather than calculate directly
-      integer  :: day_of_year     ! The integer day of the year
-      integer  :: days_per_year   ! The HLM controls time, some HLMs may include a leap
-                                  ! day, some actually don't.  This is the number of
-                                  ! days in the current year
-      real(r8) :: deltat_day      ! fraction of year for each time-step (1/days_per_year)
-      
-      
-      
-      
       ! Vegetation Dynamics
       ! ---------------------------------------------------------------------------------
 
@@ -504,13 +482,7 @@ contains
       integer, intent(in) :: s
 
       ! Input boundaries
-      this%bc_in(s)%current_year   = 0
-      this%bc_in(s)%current_month  = 0 
-      this%bc_in(s)%current_day    = 0 
-      this%bc_in(s)%current_tod    = 0 
-      this%bc_in(s)%current_date   = 0
-      this%bc_in(s)%reference_date = 0 
-      this%bc_in(s)%model_day      = 0.0_r8
+
       this%bc_in(s)%t_veg24_si     = 0.0_r8
       this%bc_in(s)%t_veg24_pa(:)  = 0.0_r8
       this%bc_in(s)%h2osoi_vol_si  = 0.0_r8
