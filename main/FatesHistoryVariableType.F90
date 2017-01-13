@@ -45,7 +45,7 @@ contains
 
     use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
-    use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_page_r8
+    use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
     use FatesIOVariableKindMod, only : iotype_index
 
     implicit none
@@ -127,7 +127,7 @@ contains
        allocate(this%r82d(lb1:ub1, lb2:ub2))
        this%r82d(:,:) = flushval
 
-    case(site_page_r8)
+    case(site_age_r8)
        allocate(this%r82d(lb1:ub1, lb2:ub2))
        this%r82d(:,:) = flushval
 
@@ -196,7 +196,7 @@ contains
     use FatesIODimensionsMod, only : fates_io_dimension_type
     use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8, patch_int
-    use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_page_r8
+    use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
 
     implicit none
 
@@ -226,7 +226,7 @@ contains
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
     case(site_pft_r8) 
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
-    case(site_page_r8) 
+    case(site_age_r8) 
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
     case(patch_int)
        this%int1d(lb1:ub1) = nint(this%flushval)

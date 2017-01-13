@@ -86,8 +86,8 @@ module EDTypesMod
   real(r8), parameter, dimension(nlevsclass_ed) ::  sclass_ed  = (/0.0_r8,5.0_r8,10.0_r8,15.0_r8,20.0_r8,30.0_r8,40.0_r8, &
                                                        50.0_r8,60.0_r8,70.0_r8,80.0_r8,90.0_r8,100.0_r8/)
 
-  integer, parameter :: nlevpage_ed = 7  ! Number of patch-age classes for age structured analyses
-  real(r8), parameter, dimension(nlevpage_ed) ::  pageclass_ed  = (/0.0_r8,1.0_r8,2._r8,5.0_r8,10.0_r8,20.0_r8,50.0_r8/)
+  integer, parameter :: nlevage_ed = 7  ! Number of patch-age classes for age structured analyses
+  real(r8), parameter, dimension(nlevage_ed) ::  ageclass_ed  = (/0.0_r8,1.0_r8,2._r8,5.0_r8,10.0_r8,20.0_r8,50.0_r8/)
   
 
  !  integer, parameter :: nlevsclass_ed = 17
@@ -109,7 +109,7 @@ module EDTypesMod
                                            ! the parameter array sclass_ed.
   integer , allocatable :: pft_levscpf_ed(:)
   integer , allocatable :: scls_levscpf_ed(:) 
-  real(r8), allocatable :: levpage_ed(:) 
+  real(r8), allocatable :: levage_ed(:) 
   integer , allocatable :: levpft_ed(:) 
 
   
@@ -582,14 +582,14 @@ contains
     allocate( pft_levscpf_ed(1:nlevsclass_ed*mxpft))
     allocate(scls_levscpf_ed(1:nlevsclass_ed*mxpft))
     allocate( levpft_ed(1:mxpft   ))
-    allocate( levpage_ed(1:nlevpage_ed   ))
+    allocate( levage_ed(1:nlevage_ed   ))
 
     ! Fill the IO array of plant size classes
     ! For some reason the history files did not like
     ! a hard allocation of sclass_ed
     levsclass_ed(:) = sclass_ed(:)
     
-    levpage_ed(:) = pageclass_ed(:)
+    levage_ed(:) = ageclass_ed(:)
 
     ! make pft array
     do ipft=1,mxpft
