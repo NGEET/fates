@@ -24,8 +24,8 @@ module EDTypesMod
   ! for setting number of patches per gridcell and number of cohorts per patch
   ! for I/O and converting to a vector
 
-  integer, parameter :: numPatchesPerCol      = 10          !
-  integer, parameter :: numCohortsPerPatch    = 160         !
+  integer, parameter :: maxPatchesPerCol      = 10          !
+  integer, parameter :: maxCohortsPerPatch    = 160         !
   integer, parameter :: cohorts_per_col       = 1600        ! This is the max number of individual items one can store per 
 
                                                            ! each grid cell and effects the striding in the ED restart 
@@ -148,6 +148,16 @@ module EDTypesMod
   ! This value can be flushed to history diagnostics, such that the
   ! HLM will interpret that the value should not be included in the average.
   real(r8) :: cp_hio_ignore_val
+
+
+
+  ! Module switches (this will be read in one day)
+  ! This variable only exists now to serve as a place holder
+  !!!!!!!!!! THIS SHOULD NOT BE SET TO TRUE !!!!!!!!!!!!!!!!!
+  logical,parameter :: use_fates_plant_hydro = .false.
+
+
+
 
   !************************************
   !** COHORT type structure          **
@@ -659,5 +669,11 @@ contains
     end do
 
   end subroutine set_root_fraction
+
+
+  ! =====================================================================================
+  
+ 
+
 
 end module EDTypesMod
