@@ -143,7 +143,7 @@ module FatesHistoryInterfaceMod
 
   ! The number of variable dim/kind types we have defined (static)
   integer, parameter :: fates_history_num_dimensions = 7
-  integer, parameter :: fates_history_num_dim_kinds = 10
+  integer, parameter :: fates_history_num_dim_kinds = 9
   
 
   
@@ -326,8 +326,7 @@ contains
 
     use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
-    use FatesIOVariableKindMod, only : patch_size_r8, site_size_r8
-    use FatesIOVariableKindMod, only : site_pft_r8, site_age_r8
+    use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
 
    implicit none
 
@@ -350,9 +349,6 @@ contains
 
     call this%set_dim_indices(site_size_pft_r8, 1, this%column_index())
     call this%set_dim_indices(site_size_pft_r8, 2, this%levscpf_index())
-
-    call this%set_dim_indices(patch_size_r8, 1, this%patch_index())
-    call this%set_dim_indices(patch_size_r8, 2, this%levscls_index())
 
     call this%set_dim_indices(site_size_r8, 1, this%column_index())
     call this%set_dim_indices(site_size_r8, 2, this%levscls_index())
@@ -597,8 +593,7 @@ contains
     ! ----------------------------------------------------------------------------------
     use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
-    use FatesIOVariableKindMod, only : patch_size_r8, site_size_r8
-    use FatesIOVariableKindMod, only : site_pft_r8, site_age_r8
+    use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
     
     implicit none
     
@@ -631,10 +626,6 @@ contains
     ! site x size-class/pft
     index = index + 1
     call this%dim_kinds(index)%Init(site_size_pft_r8, 2)
-
-    ! patch x size-class
-    index = index + 1
-    call this%dim_kinds(index)%Init(patch_size_r8, 2)
 
     ! site x size-class
     index = index + 1
@@ -1256,8 +1247,7 @@ contains
 
     use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8    
-    use FatesIOVariableKindMod, only : patch_size_r8, site_size_r8
-    use FatesIOVariableKindMod, only : site_pft_r8, site_age_r8
+    use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
     implicit none
     
     class(fates_history_interface_type), intent(inout) :: this
