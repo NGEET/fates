@@ -12,7 +12,6 @@ module FatesIOVariableKindMod
   character(*), parameter :: patch_r8 = 'PA_R8'
   character(*), parameter :: patch_ground_r8 = 'PA_GRND_R8'
   character(*), parameter :: patch_size_pft_r8 = 'PA_SCPF_R8'
-  character(*), parameter :: patch_size_r8 = 'PA_SCLS_R8'
   character(*), parameter :: site_r8 = 'SI_R8'
   character(*), parameter :: site_int = 'SI_INT'
   character(*), parameter :: site_ground_r8 = 'SI_GRND_R8'
