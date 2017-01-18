@@ -897,7 +897,7 @@ contains
                     ccohort%n
 
                hio_biomass_si_pft(io_si, ft) = hio_biomass_si_pft(io_si, ft) + &
-                    n_density * ccohort%b * 1.e3_r8
+                    ccohort%n * ccohort%b * 1.e3_r8 / AREA
 
                ! Site by Size-Class x PFT (SCPF) 
                ! ------------------------------------------------------------------------
