@@ -8,7 +8,7 @@ module EDCohortDynamicsMod
   use FatesGlobals          , only : fates_log
   use FatesConstantsMod     , only : r8 => fates_r8
   use shr_log_mod           , only : errMsg => shr_log_errMsg
-  use pftconMod             , only : pftcon
+  use EDPftvarcon             , only : EDPftvarcon_inst
   use EDEcophysContype      , only : EDecophyscon
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
@@ -114,11 +114,11 @@ contains
              call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
 
-    if (new_cohort%siteptr%status==2 .and. pftcon%season_decid(pft) == 1) then
+    if (new_cohort%siteptr%status==2 .and. EDPftvarcon_inst%season_decid(pft) == 1) then
       new_cohort%laimemory = 0.0_r8
     endif
 
-    if (new_cohort%siteptr%dstatus==2 .and. pftcon%stress_decid(pft) == 1) then
+    if (new_cohort%siteptr%dstatus==2 .and. EDPftvarcon_inst%stress_decid(pft) == 1) then
       new_cohort%laimemory = 0.0_r8
     endif
     
@@ -191,27 +191,27 @@ contains
 
     currentCohort => cc_p
     ft = currentcohort%pft
-    leaf_frac = 1.0_r8/(1.0_r8 + EDecophyscon%sapwood_ratio(ft) * currentcohort%hite + pftcon%froot_leaf(ft))     
+    leaf_frac = 1.0_r8/(1.0_r8 + EDecophyscon%sapwood_ratio(ft) * currentcohort%hite + EDPftvarcon_inst%froot_leaf(ft))     
 
     !currentcohort%bl = currentcohort%balive*leaf_frac    
     !for deciduous trees, there are no leaves  
     
-    if (pftcon%evergreen(ft) == 1) then
+    if (EDPftvarcon_inst%evergreen(ft) == 1) then
        currentcohort%laimemory = 0._r8
        currentcohort%status_coh    = 2      
     endif    
 
     ! iagnore the root and stem biomass from the functional balance hypothesis. This is used when the leaves are 
     !fully on. 
-    !currentcohort%br  = pftcon%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
+    !currentcohort%br  = EDPftvarcon_inst%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
     !currentcohort%bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
     !     currentcohort%laimemory)*leaf_frac 
     
     leaves_off_switch = 0
-    if (currentcohort%status_coh == 1.and.pftcon%stress_decid(ft) == 1.and.currentcohort%siteptr%dstatus==1) then !no leaves 
+    if (currentcohort%status_coh == 1.and.EDPftvarcon_inst%stress_decid(ft) == 1.and.currentcohort%siteptr%dstatus==1) then !no leaves 
       leaves_off_switch = 1 !drought decid
     endif
-    if (currentcohort%status_coh == 1.and.pftcon%season_decid(ft) == 1.and.currentcohort%siteptr%status==1) then !no leaves
+    if (currentcohort%status_coh == 1.and.EDPftvarcon_inst%season_decid(ft) == 1.and.currentcohort%siteptr%status==1) then !no leaves
       leaves_off_switch = 1 !cold decid
     endif
   
@@ -232,8 +232,8 @@ contains
        if(mode==1)then
 
           currentcohort%npp_froot = currentcohort%npp_froot + &
-               max(0._r8,pftcon%froot_leaf(ft)*(currentcohort%balive+currentcohort%laimemory)*leaf_frac - currentcohort%br) / &
-               udata%deltat
+               max(0._r8, EDPftvarcon_inst%froot_leaf(ft)*(currentcohort%balive+currentcohort%laimemory)*leaf_frac - &
+               currentcohort%br) / udata%deltat
 
           currentcohort%npp_bsw = max(0._r8,EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
                 currentcohort%laimemory)*leaf_frac - currentcohort%bsw)/udata%deltat
@@ -242,7 +242,7 @@ contains
 
        end if
 
-       currentcohort%br  = pftcon%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
+       currentcohort%br  = EDPftvarcon_inst%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
        currentcohort%bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
             currentcohort%laimemory)*leaf_frac
 
@@ -257,9 +257,9 @@ contains
 
 
        currentcohort%bl  = 0.0_r8
-       ideal_balive      = currentcohort%laimemory * pftcon%froot_leaf(ft) +  &
+       ideal_balive      = currentcohort%laimemory * EDPftvarcon_inst%froot_leaf(ft) +  &
             currentcohort%laimemory*  EDecophyscon%sapwood_ratio(ft) * currentcohort%hite
-       currentcohort%br  = pftcon%froot_leaf(ft) * (ideal_balive + currentcohort%laimemory) * leaf_frac
+       currentcohort%br  = EDPftvarcon_inst%froot_leaf(ft) * (ideal_balive + currentcohort%laimemory) * leaf_frac
        currentcohort%bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(ideal_balive + &
             currentcohort%laimemory)*leaf_frac 
      
@@ -271,7 +271,7 @@ contains
        if(mode==1)then
 
           currentcohort%npp_froot = currentcohort%npp_froot + &
-                max(0.0_r8,pftcon%froot_leaf(ft)*(ideal_balive + &
+                max(0.0_r8,EDPftvarcon_inst%froot_leaf(ft)*(ideal_balive + &
                 currentcohort%laimemory)*leaf_frac*ratio_balive-currentcohort%br)/udata%deltat
 
           currentcohort%npp_bsw = max(0.0_r8,EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(ideal_balive + &
@@ -289,7 +289,7 @@ contains
             currentcohort%status_coh,currentcohort%balive
        write(fates_log(),*) 'actual vs predicted balive',ideal_balive,currentcohort%balive ,ratio_balive,leaf_frac
        write(fates_log(),*) 'leaf,root,stem',currentcohort%bl,currentcohort%br,currentcohort%bsw
-       write(fates_log(),*) 'pft',ft,pftcon%evergreen(ft),pftcon%season_decid(ft),leaves_off_switch
+       write(fates_log(),*) 'pft',ft,EDPftvarcon_inst%evergreen(ft),EDPftvarcon_inst%season_decid(ft),leaves_off_switch
     endif
     currentCohort%b   = currentCohort%bdead + currentCohort%balive
 

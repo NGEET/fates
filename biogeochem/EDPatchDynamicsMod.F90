@@ -7,7 +7,7 @@ module EDPatchDynamicsMod
   use shr_kind_mod         , only : r8 => shr_kind_r8;
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
   use clm_varctl           , only : iulog 
-  use pftconMod            , only : pftcon
+  use EDPftvarcon            , only : EDPftvarcon_inst
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
   use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, numpft_ed, area, dbhmax, maxPatchesPerCol
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type, udata
@@ -281,7 +281,7 @@ contains
                    nc%imort = nan
                 else
                    ! small trees 
-                   if(pftcon%woody(currentCohort%pft) == 1)then
+                   if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
 
                       ! Number of trees in the understory of new patch, before we impose impact mortality and survivorship
                       nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
@@ -566,7 +566,7 @@ contains
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))
           p = currentCohort%pft
-          if(pftcon%woody(p) == 1)then !DEAD (FROM FIRE) TREES
+          if(EDPftvarcon_inst%woody(p) == 1)then !DEAD (FROM FIRE) TREES
              !************************************/ 
              ! Number of trees that died because of the fire, per m2 of ground. 
              ! Divide their litter into the four litter streams, and spread evenly across ground surface. 
@@ -649,7 +649,7 @@ contains
        do while(associated(currentCohort))
 
           currentCohort%c_area = c_area(currentCohort) 
-          if(pftcon%woody(currentCohort%pft) == 1)then
+          if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
              burned_leaves = (currentCohort%bl+currentCohort%bsw) * currentCohort%cfa
           else
              burned_leaves = (currentCohort%bl+currentCohort%bsw) * currentPatch%burnt_frac_litter(6)
@@ -726,7 +726,7 @@ contains
                   canopy_dead*(currentCohort%br+currentCohort%bstore)
 
          else 
-             if(pftcon%woody(currentCohort%pft) == 1)then
+             if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
 
                 understorey_dead = ED_val_understorey_death * currentCohort%n * (patch_site_areadis/currentPatch%area)  !kgC/site/day
                 currentPatch%canopy_mortality_woody_litter  = currentPatch%canopy_mortality_woody_litter  + &
