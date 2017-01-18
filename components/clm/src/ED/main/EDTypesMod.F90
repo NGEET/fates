@@ -634,7 +634,7 @@ contains
     !
     ! !USES:
     use PatchType   , only : clmpatch => patch
-    use pftconMod   , only : pftcon
+    use EDPftvarcon   , only : EDPftvarcon_inst
     !
     ! !ARGUMENTS    
     class(ed_patch_type) :: this
@@ -651,10 +651,10 @@ contains
 
        do lev = 1, cp_numlevsoil-1
           this%rootfr_ft(ft,lev) = .5_r8*( &
-                 exp(-pftcon%roota_par(ft) * depth_gl(lev-1))  &
-               + exp(-pftcon%rootb_par(ft) * depth_gl(lev-1))  &
-               - exp(-pftcon%roota_par(ft) * depth_gl(lev))    &
-               - exp(-pftcon%rootb_par(ft) * depth_gl(lev)))
+                 exp(-EDPftvarcon_inst%roota_par(ft) * depth_gl(lev-1))  &
+               + exp(-EDPftvarcon_inst%rootb_par(ft) * depth_gl(lev-1))  &
+               - exp(-EDPftvarcon_inst%roota_par(ft) * depth_gl(lev))    &
+               - exp(-EDPftvarcon_inst%rootb_par(ft) * depth_gl(lev)))
        end do
     end do
 

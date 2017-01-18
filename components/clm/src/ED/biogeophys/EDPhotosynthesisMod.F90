@@ -43,7 +43,7 @@ contains
     use abortutils        , only : endrun
     use clm_varpar        , only : mxpft   ! THIS WILL BE DEPRECATED WHEN PARAMETER
                                            ! READS ARE REFACTORED (RGK 10-13-2016)
-    use pftconMod         , only : pftcon  ! THIS WILL BE DEPRECATED WHEN PARAMETER
+    use EDPftvarcon         , only : EDPftvarcon_inst  ! THIS WILL BE DEPRECATED WHEN PARAMETER
                                            ! READS ARE REFACTORED (RGK 10-13-2016)
     use EDParamsMod       , only : ED_val_grperc
     use EDParamsMod       , only : ED_val_ag_biomass
@@ -241,13 +241,13 @@ contains
 
 
     associate(                                                &
-         c3psn     => pftcon%c3psn                          , & ! photosynthetic pathway: 0. = c4, 1. = c3
-         slatop    => pftcon%slatop                         , & ! specific leaf area at top of canopy, projected area basis [m^2/gC]
-         flnr      => pftcon%flnr                           , & ! fraction of leaf N in the Rubisco enzyme (gN Rubisco / gN leaf)
-         woody     => pftcon%woody                          , & ! Is vegetation woody or not? 
-         fnitr     => pftcon%fnitr                          , & ! foliage nitrogen limitation factor (-)
-         leafcn    => pftcon%leafcn                         , & ! leaf C:N (gC/gN)
-         frootcn   => pftcon%frootcn                        , & ! froot C:N (gc/gN)
+         c3psn     => EDPftvarcon_inst%c3psn                          , & ! photosynthetic pathway: 0. = c4, 1. = c3
+         slatop    => EDPftvarcon_inst%slatop                         , & ! specific leaf area at top of canopy, projected area basis [m^2/gC]
+         flnr      => EDPftvarcon_inst%flnr                           , & ! fraction of leaf N in the Rubisco enzyme (gN Rubisco / gN leaf)
+         woody     => EDPftvarcon_inst%woody                          , & ! Is vegetation woody or not? 
+         fnitr     => EDPftvarcon_inst%fnitr                          , & ! foliage nitrogen limitation factor (-)
+         leafcn    => EDPftvarcon_inst%leafcn                         , & ! leaf C:N (gC/gN)
+         frootcn   => EDPftvarcon_inst%frootcn                        , & ! froot C:N (gc/gN)
          bb_slope  => EDecophyscon%BB_slope                 )   ! slope of BB relationship
 
       ! Peter Thornton: 3/13/09 
@@ -533,7 +533,7 @@ contains
 
                         vcmax_z(CL,FT,iv) = vcmax_z(CL,FT,iv) * currentPatch%btran_ft(FT)
                         ! completely removed respiration drought response 
-                        ! - (lmr_z(CL,FT,iv) * (1.0_r8-currentPatch%btran_ft(FT))  *pftcon%resp_drought_response(FT))
+                        ! - (lmr_z(CL,FT,iv) * (1.0_r8-currentPatch%btran_ft(FT))  *EDPftvarcon_inst%resp_drought_response(FT))
                         lmr_z(CL,FT,iv) = lmr_z(CL,FT,iv) 
 
                      end do ! iv
@@ -878,7 +878,7 @@ contains
                      currentCohort%rdark       = currentCohort%rdark * umolC_to_kgC
 
                      leaf_frac = 1.0_r8/(currentCohort%canopy_trim + EDecophyscon%sapwood_ratio(currentCohort%pft) * &
-                          currentCohort%hite + pftcon%froot_leaf(currentCohort%pft))
+                          currentCohort%hite + EDPftvarcon_inst%froot_leaf(currentCohort%pft))
 
 
                      ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -951,7 +951,7 @@ contains
                      currentCohort%gpp_tstep = currentCohort%gpp_tstep * umolC_to_kgC
                      ! add on whole plant respiration values in kgC/indiv/s-1  
                      currentCohort%resp_m = currentCohort%livestem_mr + currentCohort%livecroot_mr + currentCohort%froot_mr
-                     ! no drought response * (1.0_r8 - currentPatch%btran_ft(currentCohort%pft)*pftcon%resp_drought_response(FT))   
+                     ! no drought response * (1.0_r8 - currentPatch%btran_ft(currentCohort%pft)*EDPftvarcon_inst%resp_drought_response(FT))   
                      currentCohort%resp_m = currentCohort%resp_m + currentCohort%rdark
 
                      ! convert from kgC/indiv/s to kgC/indiv/timestep       

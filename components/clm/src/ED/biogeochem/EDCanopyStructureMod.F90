@@ -7,7 +7,7 @@ module EDCanopyStructureMod
 
   use shr_kind_mod          , only : r8 => shr_kind_r8;
   use FatesGlobals          , only : fates_log
-  use pftconMod             , only : pftcon
+  use EDPftvarcon             , only : EDPftvarcon_inst
   use EDGrowthFunctionsMod  , only : c_area
   use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type, ncwd
@@ -617,7 +617,7 @@ contains
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
           currentCohort%c_area = c_area(currentCohort) 
-          if(pftcon%woody(currentCohort%pft) == 1)then
+          if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
              arealayer(currentCohort%canopy_layer) = arealayer(currentCohort%canopy_layer) + currentCohort%c_area
           endif
           currentCohort => currentCohort%shorter
@@ -663,7 +663,7 @@ contains
     use EDGrowthFunctionsMod , only : tree_lai, c_area
     use EDEcophysConType     , only : EDecophyscon
     use EDtypesMod           , only : area
-    use pftconMod            , only : pftcon
+    use EDPftvarcon            , only : EDPftvarcon_inst
 
     ! !ARGUMENTS    
     integer                 , intent(in)            :: nsites
@@ -727,7 +727,7 @@ contains
                   
              if(currentCohort%canopy_layer==1)then
                 currentPatch%total_canopy_area = currentPatch%total_canopy_area + currentCohort%c_area
-                if(pftcon%woody(ft)==1)then
+                if(EDPftvarcon_inst%woody(ft)==1)then
                    currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
                 endif
              endif
@@ -989,11 +989,11 @@ contains
              do iv = 1,currentCohort%NV-1 
                 
                 ! what is the height of this layer? (for snow burial purposes...)  
-                ! pftcon%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile. 
+                ! EDPftvarcon_inst%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile. 
                 layer_top_hite = currentCohort%hite-((iv/currentCohort%NV) * currentCohort%hite * &
                       EDecophyscon%crown(currentCohort%pft) )
                 layer_bottom_hite = currentCohort%hite-(((iv+1)/currentCohort%NV) * currentCohort%hite * &
-                      EDecophyscon%crown(currentCohort%pft)) ! pftcon%vertical_canopy_frac(ft))
+                      EDecophyscon%crown(currentCohort%pft)) ! EDPftvarcon_inst%vertical_canopy_frac(ft))
                 
                 fraction_exposed =1.0_r8
                 
@@ -1022,10 +1022,10 @@ contains
                   
              !Bottom layer
              iv = currentCohort%NV
-             ! pftcon%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile.
+             ! EDPftvarcon_inst%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile.
              layer_top_hite = currentCohort%hite-((iv/currentCohort%NV) * currentCohort%hite * &
                    EDecophyscon%crown(currentCohort%pft) )
-             ! pftcon%vertical_canopy_frac(ft))
+             ! EDPftvarcon_inst%vertical_canopy_frac(ft))
              layer_bottom_hite = currentCohort%hite-(((iv+1)/currentCohort%NV) * currentCohort%hite * &
                    EDecophyscon%crown(currentCohort%pft))
              

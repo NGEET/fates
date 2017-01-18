@@ -17,6 +17,7 @@ module readParamsMod
   private
   !
   public :: readParameters
+  private :: readFatesParameters
   !-----------------------------------------------------------------------
 
 contains
@@ -25,9 +26,6 @@ contains
   subroutine readParameters (nutrient_competition_method, photosyns_inst)
     !
     ! ! USES:
-    use EDSharedParamsMod                 , only : EDParamsReadShared
-    use EDParamsMod                       , only : EDParamsRead 
-    use SFParamsMod                       , only : SFParamsRead
     use CNSharedParamsMod                 , only : CNParamsReadShared
     use CNGapMortalityMod                 , only : readCNGapMortParams                    => readParams
     use CNMRespMod                        , only : readCNMRespParams                      => readParams
@@ -45,6 +43,7 @@ contains
     use NutrientCompetitionMethodMod      , only : nutrient_competition_method_type
     use clm_varctl,                         only : NLFilename_in
     use PhotosynthesisMod                 , only : photosyns_type
+    use EDSharedParamsMod                 , only : EDParamsReadShared
     !
     ! !ARGUMENTS:
     type(photosyns_type)                   , intent(in) :: photosyns_inst
@@ -66,15 +65,6 @@ contains
     call ncd_pio_openfile (ncid, trim(locfn), 0)
     call ncd_inqdid(ncid,'pft',dimid) 
     call ncd_inqdlen(ncid,dimid,npft) 
-
-    !
-    ! Ecosystem Dynamics model
-    !
-    if (use_ed) then
-       call EDParamsReadShared(ncid)
-       call EDParamsRead(ncid)
-       call SFParamsRead(ncid)
-    end if
 
     !
     ! Above ground biogeochemistry...
@@ -101,6 +91,10 @@ contains
        call readSoilBiogeochemPotentialParams(ncid)
        call CNParamsReadShared(ncid, NLFilename_in)  ! this is called CN params but really is for the soil biogeochem parameters
 
+       ! FIXME(bja, 2017-01) ED shared params must be read from the
+       ! host file, not the fates file to be consistent with the host.
+       call EDParamsReadShared(ncid)
+
        call readCH4Params (ncid)
     end if
 
@@ -113,6 +107,42 @@ contains
     !
     call ncd_pio_closefile(ncid)
 
+    call readFatesParameters()
+
   end subroutine readParameters
+
+    !-----------------------------------------------------------------------
+  subroutine readFatesParameters()
+
+    use clm_varctl , only : fates_paramfile
+
+    use EDParamsMod                       , only : EDParamsRead
+    use SFParamsMod                       , only : SFParamsRead
+
+    implicit none
+
+    character(len=256) :: locfn ! local file name
+    type(file_desc_t)  :: ncid  ! pio netCDF file id
+    integer            :: dimid ! netCDF dimension id
+    integer            :: npft  ! number of pfts on pft-physiology file
+    character(len=32)  :: subname = 'readFatesParameters'
+
+    if (use_ed) then
+       if (masterproc) then
+          write(iulog,*) 'paramMod.F90::'//trim(subname)//' :: CLM reading ED/FATES '//' parameters '
+       end if
+
+       call getfil (fates_paramfile, locfn, 0)
+       call ncd_pio_openfile (ncid, trim(locfn), 0)
+       call ncd_inqdid(ncid, 'pft', dimid)
+       call ncd_inqdlen(ncid, dimid, npft)
+
+       call EDParamsRead(ncid)
+       call SFParamsRead(ncid)
+
+       call ncd_pio_closefile(ncid)
+    end if
+
+  end subroutine readFatesParameters
 
 end module readParamsMod
