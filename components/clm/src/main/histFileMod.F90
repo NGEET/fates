@@ -2327,7 +2327,7 @@ contains
              call ncd_defvar(varname='scls_levscpf',xtype=ncd_int, dim1name='levscpf', &
                   long_name='size index of the combined pft-size class dimension', units='-', ncid=nfid(t))
              call ncd_defvar(varname='levage',xtype=tape(t)%ncprec, dim1name='levage', &
-                  long_name='patch age', units='yr', ncid=nfid(t))
+                  long_name='patch age (yr)', ncid=nfid(t))
              call ncd_defvar(varname='levpft',xtype=ncd_int, dim1name='levpft', &
                   long_name='pft number', ncid=nfid(t))
           end if
