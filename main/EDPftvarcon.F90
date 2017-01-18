@@ -6,7 +6,7 @@ module EDPftvarcon
   ! read and initialize vegetation (PFT) constants.
   !
   ! !USES:
-  use clm_varpar  , only : mxpft
+  use clm_varpar  , only : mxpft, numrad, ivis, inir, nvariants
   use shr_kind_mod, only : r8 => shr_kind_r8
 
   !
@@ -39,10 +39,40 @@ module EDPftvarcon
      real(r8) :: seed_alloc         (0:mxpft) ! fraction of carbon balance allocated to seeds.
      real(r8) :: sapwood_ratio      (0:mxpft) ! amount of sapwood per unit leaf carbon and m of height. gC/gC/m
      real(r8) :: dbh2h_m            (0:mxpft) ! allocation parameter m from dbh to height
+     real(r8) :: woody(0:mxpft)
+     real(r8) :: stress_decid(0:mxpft)
+     real(r8) :: season_decid(0:mxpft)
+     real(r8) :: evergreen(0:mxpft)
+     real(r8) :: froot_leaf(0:mxpft)
+     real(r8) :: slatop(0:mxpft)
+     real(r8) :: leaf_long(0:mxpft)
+     real(r8) :: rootprof_beta(0:mxpft,nvariants)
+     real(r8) :: roota_par(0:mxpft)
+     real(r8) :: rootb_par(0:mxpft)
+     real(r8) :: lf_flab(0:mxpft)
+     real(r8) :: lf_fcel(0:mxpft)
+     real(r8) :: lf_flig(0:mxpft)
+     real(r8) :: fr_flab(0:mxpft)
+     real(r8) :: fr_fcel(0:mxpft)
+     real(r8) :: fr_flig(0:mxpft)
+     real(r8) :: rhol(0:mxpft, numrad)
+     real(r8) :: rhos(0:mxpft, numrad)
+     real(r8) :: taul(0:mxpft, numrad)
+     real(r8) :: taus(0:mxpft, numrad)
+     real(r8) :: xl(0:mxpft)
+     real(r8) :: c3psn(0:mxpft)
+     real(r8) :: flnr(0:mxpft)
+     real(r8) :: fnitr(0:mxpft)
+     real(r8) :: leafcn(0:mxpft)
+     real(r8) :: frootcn(0:mxpft)
+     real(r8) :: smpso(0:mxpft)
+     real(r8) :: smpsc(0:mxpft)
   end type EDPftvarcon_type
 
   type(EDPftvarcon_type), public :: EDPftvarcon_inst
 
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
   !
   ! !PUBLIC MEMBER FUNCTIONS:
   public :: EDpftconrd ! Read and initialize vegetation (PFT) constants
@@ -59,6 +89,7 @@ contains
     ! !USES:
     use ncdio_pio , only : file_desc_t, ncd_io
     use abortutils  , only : endrun
+    use shr_log_mod , only : errMsg => shr_log_errMsg
     !
     ! !ARGUMENTS:
     implicit none
@@ -133,6 +164,102 @@ contains
     call ncd_io('sapwood_ratio',EDPftvarcon_inst%sapwood_ratio, 'read', ncid,  readvar=readv)
     if   ( .not. readv) call endrun(trim(subname)// ' ERROR : error in reading in pft data')
  
+    call ncd_io('woody', EDPftvarcon_inst%woody, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('stress_decid', EDPftvarcon_inst%stress_decid, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('season_decid', EDPftvarcon_inst%season_decid, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('evergreen', EDPftvarcon_inst%evergreen, 'read', ncid, readvar=readv, posNOTonfile=.true.)    
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('froot_leaf', EDPftvarcon_inst%froot_leaf, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('slatop', EDPftvarcon_inst%slatop, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('leaf_long', EDPftvarcon_inst%leaf_long, 'read', ncid, readvar=readv, posNOTonfile=.true.)    
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('rootprof_beta', EDPftvarcon_inst%rootprof_beta, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('roota_par', EDPftvarcon_inst%roota_par, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('rootb_par', EDPftvarcon_inst%rootb_par, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('lf_flab', EDPftvarcon_inst%lf_flab, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('lf_fcel', EDPftvarcon_inst%lf_fcel, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('lf_flig', EDPftvarcon_inst%lf_flig, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('fr_flab', EDPftvarcon_inst%fr_flab, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('fr_fcel', EDPftvarcon_inst%fr_fcel, 'read', ncid, readvar=readv, posNOTonfile=.true.)    
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('fr_flig', EDPftvarcon_inst%fr_flig, 'read', ncid, readvar=readv, posNOTonfile=.true.)    
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('rholvis', EDPftvarcon_inst%rhol(:,ivis), 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('rholnir', EDPftvarcon_inst%rhol(:,inir), 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('rhosvis', EDPftvarcon_inst%rhos(:,ivis), 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('rhosnir', EDPftvarcon_inst% rhos(:,inir), 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('taulvis', EDPftvarcon_inst%taul(:,ivis), 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('taulnir', EDPftvarcon_inst%taul(:,inir), 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('tausvis', EDPftvarcon_inst%taus(:,ivis), 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('tausnir', EDPftvarcon_inst%taus(:,inir), 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('xl', EDPftvarcon_inst%xl, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('c3psn', EDPftvarcon_inst%c3psn, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('flnr', EDPftvarcon_inst%flnr, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('fnitr', EDPftvarcon_inst%fnitr, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('leafcn', EDPftvarcon_inst%leafcn, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('frootcn', EDPftvarcon_inst%frootcn, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('smpso', EDPftvarcon_inst%smpso, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('smpsc', EDPftvarcon_inst%smpsc, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
 ! HOLDING ON SEW ENSITIVITY-ANALYSIS PARAMETERS UNTIL MACHINE CONFIGS SET RGK/CX
 !    call ncd_io('dbh2h_m',EDPftvarcon_inst%dbh2h_m, 'read', ncid,  readvar=readv)
 !    if   ( .not. readv) call endrun(trim(subname)// ' ERROR : error in reading in pft data')   
