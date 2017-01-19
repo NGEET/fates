@@ -140,6 +140,8 @@ module FatesHistoryInterfaceMod
 
   ! indices to (site x patch-age) variables
   integer, private :: ih_area_si_age
+  integer, private :: ih_lai_si_age
+  integer, private :: ih_canopy_area_si_age
 
   ! The number of variable dim/kind types we have defined (static)
   integer, parameter :: fates_history_num_dimensions = 7
@@ -727,7 +729,7 @@ contains
     ! Locals
     integer  :: s        ! The local site index
     integer  :: io_si     ! The site index of the IO array
-    integer  :: ipa      ! The local "I"ndex of "PA"tches 
+    integer  :: ipa, ipa2 ! The local "I"ndex of "PA"tches 
     integer  :: io_pa    ! The patch index of the IO array
     integer  :: io_pa1   ! The first patch index in the IO array for each site
     integer  :: io_soipa 
@@ -746,6 +748,7 @@ contains
 
     real(r8), parameter :: daysecs = 86400.0_r8 ! What modeler doesn't recognize 86400?
     real(r8), parameter :: yeardays = 365.0_r8  ! ALM/CLM do not use leap-years
+    real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
     
     associate( hio_npatches_si         => this%hvars(ih_npatches_si)%r81d, &
                hio_ncohorts_si         => this%hvars(ih_ncohorts_si)%r81d, &
@@ -800,7 +803,9 @@ contains
                hio_m5_si_scpf          => this%hvars(ih_m5_si_scpf)%r82d, &
                hio_ba_si_scls          => this%hvars(ih_ba_si_scls)%r82d, &
                hio_biomass_si_pft      => this%hvars(ih_biomass_si_pft)%r82d, &
-               hio_area_si_age        => this%hvars(ih_area_si_age)%r82d)
+               hio_area_si_age         => this%hvars(ih_area_si_age)%r82d, &
+               hio_lai_si_age          => this%hvars(ih_lai_si_age)%r82d, &
+               hio_canopy_area_si_age  => this%hvars(ih_canopy_area_si_age)%r82d)
                
       ! ---------------------------------------------------------------------------------
       ! Flush arrays to values defined by %flushval (see registry entry in
@@ -833,9 +838,15 @@ contains
             ! Increment the number of patches per site
             hio_npatches_si(io_si) = hio_npatches_si(io_si) + 1._r8
 
-            ! report the fractional area in each age class bin
+            ! Increment the fractional area in each age class bin
             hio_area_si_age(io_si,cpatch%age_class) = hio_area_si_age(io_si,cpatch%age_class) &
                  + cpatch%area/AREA
+
+            ! Increment the leaf and canopy areas in each age class bin
+            hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
+                 + cpatch%lai * cpatch%area
+            hio_canopy_area_si_age(io_si,cpatch%age_class) = hio_canopy_area_si_age(io_si,cpatch%age_class) &
+                 + cpatch%canopy_area/AREA
             
             ccohort => cpatch%shortest
             do while(associated(ccohort))
@@ -1026,6 +1037,15 @@ contains
             ipa = ipa + 1
             cpatch => cpatch%younger
          end do !patch loop
+
+         ! divide so-far-just-summed but to-be-averaged patch-age-class variables by patch-age-class area to get mean values
+         do ipa2 = 1, nlevage_ed
+            if (hio_area_si_age(io_si, ipa2) .gt. tiny) then
+               hio_lai_si_age(io_si, ipa2) = hio_lai_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
+            else
+               hio_lai_si_age(io_si, ipa2) = 0._r8
+            endif
+         end do
        
       enddo ! site loop
       
@@ -1316,10 +1336,21 @@ contains
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_biomass_si_pft )
 
-    call this%set_history_var(vname='patch_area_by_age', units='m2/m2',                   &
+    ! patch age class variables
+    call this%set_history_var(vname='PATCH_AREA_BY_AGE', units='m2/m2',             &
          long='patch area by age bin', use_default='active',                     &
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_area_si_age )
+
+    call this%set_history_var(vname='LAI_BY_AGE', units='m2/m2',                   &
+         long='leaf area index by age bin', use_default='active',                     &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_lai_si_age )
+
+    call this%set_history_var(vname='CANOPY_AREA_BY_AGE', units='m2/m2',             &
+         long='canopy area by age bin', use_default='active',                     &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_canopy_area_si_age )
     
     ! Fire Variables
 
