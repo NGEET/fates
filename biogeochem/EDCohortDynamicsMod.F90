@@ -184,6 +184,9 @@ contains
                               ! accounts for the fact that live biomass may decline in the off-season, 
                               ! making leaf_memory unrealistic.    
     real(r8)  :: ratio_balive ! ratio between root+shoot biomass now and root+shoot biomass when leaves fell off. 
+    real(r8)  :: new_bl
+    real(r8)  :: new_br
+    real(r8)  :: new_bsw
                                             
     integer   :: ft           ! functional type
     integer   :: leaves_off_switch
@@ -218,67 +221,67 @@ contains
     ! Use different proportions if the leaves are on vs off
     if(leaves_off_switch==0)then
 
-       ! Tracking npp/gpp diagnostics only occur after growth derivatives is called
-       if(mode==1)then
-          ! it will not be able to put out as many leaves as it had previous timestep
-          currentcohort%npp_leaf = currentcohort%npp_leaf + &
-                max(0.0_r8,currentcohort%balive*leaf_frac - currentcohort%bl)/udata%deltat
-       end if
+       new_bl = currentcohort%balive*leaf_frac
 
-       currentcohort%bl = currentcohort%balive*leaf_frac
+       new_br = pftcon%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
+
+       new_bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
+            currentcohort%laimemory)*leaf_frac
 
        !diagnose the root and stem biomass from the functional balance hypothesis. This is used when the leaves are 
        !fully on. 
-       if(mode==1)then
+       if(mode==1)then 
 
+          currentcohort%npp_leaf = currentcohort%npp_leaf + &
+                max(0.0_r8,new_bl - currentcohort%bl) / udata%deltat
+          
           currentcohort%npp_froot = currentcohort%npp_froot + &
-               max(0._r8,pftcon%froot_leaf(ft)*(currentcohort%balive+currentcohort%laimemory)*leaf_frac - currentcohort%br) / &
-               udata%deltat
-
-          currentcohort%npp_bsw = max(0._r8,EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
-                currentcohort%laimemory)*leaf_frac - currentcohort%bsw)/udata%deltat
-
+                max(0._r8,new_br - currentcohort%br) / udata%deltat
+          
+          currentcohort%npp_bsw = max(0._r8,new_bsw - currentcohort%bsw)/udata%deltat
+          
           currentcohort%npp_bdead =  currentCohort%dbdeaddt
 
        end if
-
-       currentcohort%br  = pftcon%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
-       currentcohort%bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
-            currentcohort%laimemory)*leaf_frac
-
-    else ! Leaves are on (leaves_off_switch==1)
-
-    !the purpose of this section is to figure out the root and stem biomass when the leaves are off
-    !at this point, we know the former leaf mass (laimemory) and the current alive mass
-    !because balive may decline in the off-season, we need to adjust the root and stem biomass that are predicted
-    !from the laimemory, for the fact that we now might not have enough live biomass to support the hypothesized root mass
-    !thus, we use 'ratio_balive' to adjust br and bsw. Apologies that this is so complicated! RF
+       
+       currentcohort%bl = new_bl
+       currentcohort%br = new_br
+       currentcohort%bsw = new_bsw
 
 
-       currentcohort%bl  = 0.0_r8
+    else ! Leaves are off (leaves_off_switch==1)
+
+       !the purpose of this section is to figure out the root and stem biomass when the leaves are off
+       !at this point, we know the former leaf mass (laimemory) and the current alive mass
+       !because balive may decline in the off-season, we need to adjust the 
+       !root and stem biomass that are predicted from the laimemory, for the fact that we now might 
+       !not have enough live biomass to support the hypothesized root mass
+       !thus, we use 'ratio_balive' to adjust br and bsw. Apologies that this is so complicated! RF
+       
        ideal_balive      = currentcohort%laimemory * pftcon%froot_leaf(ft) +  &
             currentcohort%laimemory*  EDecophyscon%sapwood_ratio(ft) * currentcohort%hite
-       currentcohort%br  = pftcon%froot_leaf(ft) * (ideal_balive + currentcohort%laimemory) * leaf_frac
-       currentcohort%bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(ideal_balive + &
-            currentcohort%laimemory)*leaf_frac 
-     
-       ratio_balive           = currentcohort%balive / ideal_balive
-       currentcohort%br       = currentcohort%br  * ratio_balive
-       currentcohort%bsw      = currentcohort%bsw * ratio_balive
+       ratio_balive      = currentcohort%balive / ideal_balive
+
+       new_br  = pftcon%froot_leaf(ft) * (ideal_balive + currentcohort%laimemory) * &
+             leaf_frac *  ratio_balive
+       new_bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite * &
+             (ideal_balive + currentcohort%laimemory) * leaf_frac * ratio_balive
 
        ! Diagnostics
        if(mode==1)then
 
           currentcohort%npp_froot = currentcohort%npp_froot + &
-                max(0.0_r8,pftcon%froot_leaf(ft)*(ideal_balive + &
-                currentcohort%laimemory)*leaf_frac*ratio_balive-currentcohort%br)/udata%deltat
+                max(0.0_r8,new_br-currentcohort%br)/udata%deltat
 
-          currentcohort%npp_bsw = max(0.0_r8,EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(ideal_balive + &
-                currentcohort%laimemory)*leaf_frac*ratio_balive - currentcohort%bsw)/udata%deltat
+          currentcohort%npp_bsw = max(0.0_r8, new_bsw-currentcohort%bsw)/udata%deltat
 
           currentcohort%npp_bdead =  currentCohort%dbdeaddt
 
        end if
+
+       currentcohort%bl  = 0.0_r8
+       currentcohort%br  = new_bl
+       currentcohort%bsw = new_bsw
 
     endif
     
