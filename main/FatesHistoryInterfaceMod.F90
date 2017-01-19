@@ -63,13 +63,6 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_maint_resp_pa
   integer, private :: ih_growth_resp_pa
   
-  ! Indices to (patch x pft) variables   (using nlevgrnd as surrogate)
-  !+++cdk+++ leaving these as-is for now to preserve b4b, but once established, need to move these to actual pft dimension
-  integer, private :: ih_biomass_pa_pft
-  integer, private :: ih_leafbiomass_pa_pft
-  integer, private :: ih_storebiomass_pa_pft
-  integer, private :: ih_nindivs_pa_pft
-
   ! Indices to (site) variables
   integer, private :: ih_nep_si
   integer, private :: ih_nep_timeintegrated_si
@@ -137,6 +130,10 @@ module FatesHistoryInterfaceMod
 
   ! indices to (site x pft) variables
   integer, private :: ih_biomass_si_pft
+  integer, private :: ih_leafbiomass_si_pft
+  integer, private :: ih_storebiomass_si_pft
+  integer, private :: ih_nindivs_si_pft
+
 
   ! indices to (site x patch-age) variables
   integer, private :: ih_area_si_age
@@ -760,10 +757,10 @@ contains
                hio_area_plant_pa       => this%hvars(ih_area_plant_pa)%r81d, &
                hio_area_treespread_pa  => this%hvars(ih_area_treespread_pa)%r81d, & 
                hio_canopy_spread_pa    => this%hvars(ih_canopy_spread_pa)%r81d, &
-               hio_biomass_pa_pft      => this%hvars(ih_biomass_pa_pft)%r82d, &
-               hio_leafbiomass_pa_pft  => this%hvars(ih_leafbiomass_pa_pft)%r82d, &
-               hio_storebiomass_pa_pft => this%hvars(ih_storebiomass_pa_pft)%r82d, &
-               hio_nindivs_pa_pft      => this%hvars(ih_nindivs_pa_pft)%r82d, &
+               hio_biomass_si_pft      => this%hvars(ih_biomass_si_pft)%r82d, &
+               hio_leafbiomass_si_pft  => this%hvars(ih_leafbiomass_si_pft)%r82d, &
+               hio_storebiomass_si_pft => this%hvars(ih_storebiomass_si_pft)%r82d, &
+               hio_nindivs_si_pft      => this%hvars(ih_nindivs_si_pft)%r82d, &
                hio_nesterov_fire_danger_pa => this%hvars(ih_nesterov_fire_danger_pa)%r81d, &
                hio_spitfire_ros_pa     => this%hvars(ih_spitfire_ROS_pa)%r81d, &
                hio_tfc_ros_pa          => this%hvars(ih_TFC_ROS_pa)%r81d, &
@@ -806,7 +803,6 @@ contains
                hio_m4_si_scpf          => this%hvars(ih_m4_si_scpf)%r82d, &
                hio_m5_si_scpf          => this%hvars(ih_m5_si_scpf)%r82d, &
                hio_ba_si_scls          => this%hvars(ih_ba_si_scls)%r82d, &
-               hio_biomass_si_pft      => this%hvars(ih_biomass_si_pft)%r82d, &
                hio_area_si_age         => this%hvars(ih_area_si_age)%r82d, &
                hio_lai_si_age          => this%hvars(ih_lai_si_age)%r82d, &
                hio_canopy_area_si_age  => this%hvars(ih_canopy_area_si_age)%r82d, &
@@ -905,20 +901,17 @@ contains
                hio_balive_pa(io_pa) = hio_balive_pa(io_pa) + n_density * ccohort%balive   * 1.e3_r8
                
                ! Update PFT partitioned biomass components
-               hio_biomass_pa_pft(io_pa,ft) = hio_biomass_pa_pft(io_pa,ft) + &
-                    n_density * ccohort%b * 1.e3_r8
-               
-               hio_leafbiomass_pa_pft(io_pa,ft) = hio_leafbiomass_pa_pft(io_pa,ft) + &
-                    n_density * ccohort%bl       * 1.e3_r8
+               hio_leafbiomass_si_pft(io_si,ft) = hio_leafbiomass_si_pft(io_si,ft) + &
+                    (ccohort%n / AREA) * ccohort%bl       * 1.e3_r8
              
-               hio_storebiomass_pa_pft(io_pa,ft) = hio_storebiomass_pa_pft(io_pa,ft) + &
-                    n_density * ccohort%bstore   * 1.e3_r8
+               hio_storebiomass_si_pft(io_si,ft) = hio_storebiomass_si_pft(io_si,ft) + &
+                    (ccohort%n / AREA) * ccohort%bstore   * 1.e3_r8
                
-               hio_nindivs_pa_pft(io_pa,ft) = hio_nindivs_pa_pft(io_pa,ft) + &
-                    ccohort%n
+               hio_nindivs_si_pft(io_si,ft) = hio_nindivs_si_pft(io_si,ft) + &
+                    ccohort%n / AREA
 
                hio_biomass_si_pft(io_si, ft) = hio_biomass_si_pft(io_si, ft) + &
-                    ccohort%n * ccohort%b * 1.e3_r8 / AREA
+                    (ccohort%n / AREA) * ccohort%b * 1.e3_r8
 
                ! Site by Size-Class x PFT (SCPF) 
                ! ------------------------------------------------------------------------
@@ -1352,28 +1345,23 @@ contains
 
     call this%set_history_var(vname='PFTbiomass', units='gC/m2',                   &
          long='total PFT level biomass', use_default='active',                     &
-         avgflag='A', vtype=patch_ground_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_biomass_pa_pft )
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_biomass_si_pft )
 
     call this%set_history_var(vname='PFTleafbiomass', units='gC/m2',              &
          long='total PFT level leaf biomass', use_default='active',                &
-         avgflag='A', vtype=patch_ground_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_leafbiomass_pa_pft )
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_leafbiomass_si_pft )
 
     call this%set_history_var(vname='PFTstorebiomass',  units='gC/m2',            &
          long='total PFT level stored biomass', use_default='active',              &
-         avgflag='A', vtype=patch_ground_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_storebiomass_pa_pft )
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_storebiomass_si_pft )
     
     call this%set_history_var(vname='PFTnindivs',  units='indiv / m2',            &
          long='total PFT level number of individuals', use_default='active',       &
-         avgflag='A', vtype=patch_ground_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_nindivs_pa_pft )
-
-    call this%set_history_var(vname='PFT_biomass', units='gC/m2',                   &
-         long='total PFT level biomass -- on actual PFT dimension', use_default='active',&
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_biomass_si_pft )
+         ivar=ivar, initialize=initialize_variables, index = ih_nindivs_si_pft )
 
     ! patch age class variables
     call this%set_history_var(vname='PATCH_AREA_BY_AGE', units='m2/m2',             &
