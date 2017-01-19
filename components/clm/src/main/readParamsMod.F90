@@ -111,13 +111,19 @@ contains
 
   end subroutine readParameters
 
-    !-----------------------------------------------------------------------
+  !-----------------------------------------------------------------------
   subroutine readFatesParameters()
 
-    use clm_varctl , only : fates_paramfile
+    use clm_varctl, only : fates_paramfile
+    use shr_kind_mod, only: r8 => shr_kind_r8
+    use paramUtilMod, only : readNcdio
 
-    use EDParamsMod                       , only : EDParamsRead
-    use SFParamsMod                       , only : SFParamsRead
+    use EDParamsMod, only : EDParamsRead, FatesRegisterParams, FatesReceiveParams
+    use SFParamsMod, only : SFParamsRead
+    use FatesParametersInterface, only : fates_parameters_type
+    use FatesParametersInterface, only : param_string_length
+    use FatesParametersInterface, only : dimension_shape_scalar, dimension_shape_1d, dimension_shape_2d
+    use FatesParametersInterface, only : dimension_name_pft
 
     implicit none
 
@@ -126,6 +132,10 @@ contains
     integer            :: dimid ! netCDF dimension id
     integer            :: npft  ! number of pfts on pft-physiology file
     character(len=32)  :: subname = 'readFatesParameters'
+    class(fates_parameters_type), allocatable :: fates_params
+    integer :: i, num_params, dimension_shape
+    real(r8), allocatable :: data(:, :)
+    character(len=param_string_length) :: name
 
     if (use_ed) then
        if (masterproc) then
@@ -134,12 +144,38 @@ contains
 
        call getfil (fates_paramfile, locfn, 0)
        call ncd_pio_openfile (ncid, trim(locfn), 0)
-       call ncd_inqdid(ncid, 'pft', dimid)
+       call ncd_inqdid(ncid, dimension_name_pft, dimid)
        call ncd_inqdlen(ncid, dimid, npft)
 
+       ! read using the old infrastrructure
        call EDParamsRead(ncid)
        call SFParamsRead(ncid)
 
+       ! read parameters with new fates parammeter infrastructure
+       allocate(fates_params)
+       allocate(data(npft, npft)) ! FIXME(bja, 2017-01) correct? maxpft?
+       call fates_params%Init()
+       call FatesRegisterParams(fates_params)
+       num_params = fates_params%num_params()
+       do i = 1, num_params
+          call fates_params%GetMetaData(i, name, dimension_shape)
+          select case(dimension_shape)
+          case(dimension_shape_scalar)
+             call readNcdio(ncid, name, subname, data(1, 1))
+             call fates_params%SetData(i, data(1, 1))
+          case(dimension_shape_1d)
+             call readNcdio(ncid, name, subname, data(:, 1))
+             call fates_params%SetData(i, data(:, 1))
+          case(dimension_shape_2d)
+             call readNcdio(ncid, name, subname, data(:, :))
+             call fates_params%SetData(i, data(:, :))
+          case default
+             ! error, unsupported number of dimensions
+          end select
+       end do
+       call FatesReceiveParams(fates_params)
+       deallocate(data)
+       deallocate(fates_params)
        call ncd_pio_closefile(ncid)
     end if
 
