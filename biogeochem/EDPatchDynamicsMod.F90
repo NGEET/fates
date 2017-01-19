@@ -937,8 +937,6 @@ contains
     currentPatch%lai                        = nan    ! leaf area index of patch
     currentPatch%spread(:)                  = nan    ! dynamic ratio of dbh to canopy area.
     currentPatch%pft_agb_profile(:,:)       = nan    
-    currentPatch%gpp                        = 0._r8 
-    currentPatch%npp                        = 0._r8                
 
     ! DISTURBANCE 
     currentPatch%disturbance_rates          = 0._r8 
