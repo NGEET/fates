@@ -392,8 +392,6 @@ module EDTypesMod
 
      ! PHOTOSYNTHESIS       
      real(r8) ::  psn_z(cp_nclmax,numpft_ed,cp_nlevcan)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
-     real(r8) ::  gpp                                              ! total patch gpp: KgC/m2/year
-     real(r8) ::  npp                                              ! total patch npp: KgC/m2/year   
 
      ! ROOTS
      real(r8), allocatable ::  rootfr_ft(:,:)                      ! root fraction of each PFT in each soil layer:-
