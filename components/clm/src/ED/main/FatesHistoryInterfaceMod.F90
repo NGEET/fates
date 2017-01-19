@@ -142,6 +142,10 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_area_si_age
   integer, private :: ih_lai_si_age
   integer, private :: ih_canopy_area_si_age
+  integer, private :: ih_gpp_si_age
+  integer, private :: ih_npp_si_age
+  integer, private :: ih_ncl_si_age
+  integer, private :: ih_npatches_si_age
 
   ! The number of variable dim/kind types we have defined (static)
   integer, parameter :: fates_history_num_dimensions = 7
@@ -805,7 +809,10 @@ contains
                hio_biomass_si_pft      => this%hvars(ih_biomass_si_pft)%r82d, &
                hio_area_si_age         => this%hvars(ih_area_si_age)%r82d, &
                hio_lai_si_age          => this%hvars(ih_lai_si_age)%r82d, &
-               hio_canopy_area_si_age  => this%hvars(ih_canopy_area_si_age)%r82d)
+               hio_canopy_area_si_age  => this%hvars(ih_canopy_area_si_age)%r82d, &
+               hio_ncl_si_age          => this%hvars(ih_ncl_si_age)%r82d, &
+               hio_npatches_si_age     => this%hvars(ih_npatches_si_age)%r82d)
+
                
       ! ---------------------------------------------------------------------------------
       ! Flush arrays to values defined by %flushval (see registry entry in
@@ -842,11 +849,14 @@ contains
             hio_area_si_age(io_si,cpatch%age_class) = hio_area_si_age(io_si,cpatch%age_class) &
                  + cpatch%area/AREA
 
-            ! Increment the leaf and canopy areas in each age class bin
+            ! Increment some patch-age-resolved diagnostics
             hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
                  + cpatch%lai * cpatch%area
             hio_canopy_area_si_age(io_si,cpatch%age_class) = hio_canopy_area_si_age(io_si,cpatch%age_class) &
                  + cpatch%canopy_area/AREA
+            hio_ncl_si_age(io_si,cpatch%age_class) = hio_ncl_si_age(io_si,cpatch%age_class) &
+                 + cpatch%ncl_p * cpatch%area
+            hio_npatches_si_age(io_si,cpatch%age_class) = hio_npatches_si_age(io_si,cpatch%age_class) + 1._r8
             
             ccohort => cpatch%shortest
             do while(associated(ccohort))
@@ -1042,8 +1052,10 @@ contains
          do ipa2 = 1, nlevage_ed
             if (hio_area_si_age(io_si, ipa2) .gt. tiny) then
                hio_lai_si_age(io_si, ipa2) = hio_lai_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
+               hio_ncl_si_age(io_si, ipa2) = hio_ncl_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
             else
                hio_lai_si_age(io_si, ipa2) = 0._r8
+               hio_ncl_si_age(io_si, ipa2) = 0._r8
             endif
          end do
        
@@ -1067,6 +1079,7 @@ contains
                                      ed_cohort_type, &
                                      ed_patch_type,  &
                                      AREA,           &
+                                     nlevage_ed,     &
                                      sclass_ed,      &
                                      nlevsclass_ed
     ! Arguments
@@ -1088,6 +1101,9 @@ contains
     integer  :: ft               ! functional type index
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
+    real(r8) :: patch_area_by_age(nlevage_ed) ! patch area in each bin for normalizing purposes
+    real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
+    integer  :: ipa2     ! patch incrementer
 
     type(fates_history_variable_type),pointer :: hvar
     type(ed_patch_type),pointer  :: cpatch
@@ -1108,7 +1124,10 @@ contains
                hio_ar_agsapm_si_scpf => this%hvars(ih_ar_agsapm_si_scpf)%r82d, &
                hio_ar_darkm_si_scpf  => this%hvars(ih_ar_darkm_si_scpf)%r82d, &
                hio_ar_crootm_si_scpf => this%hvars(ih_ar_crootm_si_scpf)%r82d, &
-               hio_ar_frootm_si_scpf => this%hvars(ih_ar_frootm_si_scpf)%r82d )
+               hio_ar_frootm_si_scpf => this%hvars(ih_ar_frootm_si_scpf)%r82d, &
+               hio_gpp_si_age         => this%hvars(ih_gpp_si_age)%r82d, &
+               hio_npp_si_age         => this%hvars(ih_npp_si_age)%r82d &
+ )
 
 
       ! Flush the relevant history variables 
@@ -1122,9 +1141,14 @@ contains
          
          ipa = 0
          cpatch => sites(s)%oldest_patch
+
+         patch_area_by_age(:) = 0._r8
+
          do while(associated(cpatch))
             
             io_pa = io_pa1 + ipa
+
+            patch_area_by_age(cpatch%age_class) = patch_area_by_age(cpatch%age_class) + cpatch%area
 
             ccohort => cpatch%shortest
             do while(associated(ccohort))
@@ -1188,6 +1212,11 @@ contains
                   hio_ar_frootm_si_scpf(io_si,scpf) = hio_ar_frootm_si_scpf(io_si,scpf) + &
                         ccohort%froot_mr * n_perm2  * daysecs * yeardays
 
+                  ! accumulate fluxes per patch age bin
+                  hio_gpp_si_age(io_si,cpatch%age_class) = hio_gpp_si_age(io_si,cpatch%age_class) &
+                       + ccohort%gpp_tstep * ccohort%n * 1.e3_r8 / dt_tstep
+                  hio_npp_si_age(io_si,cpatch%age_class) = hio_npp_si_age(io_si,cpatch%age_class) &
+                       + ccohort%npp_tstep * ccohort%n * 1.e3_r8 / dt_tstep
                 end associate
                endif
 
@@ -1196,6 +1225,16 @@ contains
             ipa = ipa + 1
             cpatch => cpatch%younger
          end do !patch loop
+
+         do ipa2 = 1, nlevage_ed
+            if (patch_area_by_age(ipa2) .gt. tiny) then
+               hio_gpp_si_age(io_si, ipa2) = hio_gpp_si_age(io_si, ipa2) / (patch_area_by_age(ipa2))
+               hio_npp_si_age(io_si, ipa2) = hio_npp_si_age(io_si, ipa2) / (patch_area_by_age(ipa2))
+            else
+               hio_gpp_si_age(io_si, ipa2) = 0._r8
+               hio_npp_si_age(io_si, ipa2) = 0._r8
+            endif
+         end do
          
       enddo ! site loop
 
@@ -1352,6 +1391,16 @@ contains
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_canopy_area_si_age )
     
+    call this%set_history_var(vname='NCL_BY_AGE', units='--',                   &
+         long='number of canopy levels by age bin', use_default='active',             &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_ncl_si_age )
+
+    call this%set_history_var(vname='NPATCH_BY_AGE', units='--',                   &
+         long='number of patches by age bin', use_default='active',                     &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_npatches_si_age )
+
     ! Fire Variables
 
     call this%set_history_var(vname='FIRE_NESTEROV_INDEX', units='none',       &
@@ -1505,6 +1554,18 @@ contains
          long='maintenance respiration', use_default='active',                  &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_maint_resp_pa )
+
+    ! fast fluxes by age bin
+    call this%set_history_var(vname='NPP_BY_AGE', units='gC/m^2/s',                   &
+         long='net primary productivity by age bin', use_default='active',           &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2, &
+         ivar=ivar, initialize=initialize_variables, index = ih_npp_si_age )
+
+    call this%set_history_var(vname='GPP_BY_AGE', units='gC/m^2/s',                   &
+         long='gross primary productivity by age bin', use_default='active',         &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2, &
+         ivar=ivar, initialize=initialize_variables, index = ih_gpp_si_age )
+
 
 
     ! Carbon Flux (grid dimension x scpf) (THESE ARE DEFAULT INACTIVE!!!
