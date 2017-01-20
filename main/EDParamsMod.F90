@@ -19,7 +19,6 @@ module EDParamsMod
    real(r8),protected :: ED_val_comp_excln
    real(r8),protected :: ED_val_stress_mort
    real(r8),protected :: ED_val_dispersal
-   real(r8),protected :: ED_val_grperc(maxPft)
    real(r8),protected :: ED_val_maxspread
    real(r8),protected :: ED_val_minspread
    real(r8),protected :: ED_val_init_litter
@@ -32,7 +31,6 @@ module EDParamsMod
    character(len=param_string_length),parameter :: ED_name_comp_excln = "comp_excln"
    character(len=param_string_length),parameter :: ED_name_stress_mort = "stress_mort"
    character(len=param_string_length),parameter :: ED_name_dispersal = "dispersal"
-   character(len=param_string_length),parameter :: ED_name_grperc = "grperc"
    character(len=param_string_length),parameter :: ED_name_maxspread = "maxspread"
    character(len=param_string_length),parameter :: ED_name_minspread = "minspread"
    character(len=param_string_length),parameter :: ED_name_init_litter = "init_litter"
@@ -80,7 +78,6 @@ contains
     ED_val_comp_excln = nan
     ED_val_stress_mort = nan
     ED_val_dispersal = nan
-    ED_val_grperc(:) = nan
     ED_val_maxspread = nan
     ED_val_minspread = nan
     ED_val_init_litter = nan
@@ -131,11 +128,6 @@ contains
      !X!    varName=ED_name_dispersal, &
      !X!    callingName=subname, &
      !X!    retVal=ED_val_dispersal)
-  
-      call readNcdio(ncid = ncid, &
-         varName=ED_name_grperc, &
-         callingName=subname, &
-         retVal=ED_val_grperc)
   
      !X! call readNcdio(ncid = ncid, &
      !X!    varName=ED_name_maxspread, &
