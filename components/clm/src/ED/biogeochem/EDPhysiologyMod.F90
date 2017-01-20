@@ -146,7 +146,6 @@ contains
     !
     ! !USES:
     !
-    use EDParamsMod,          only : ED_val_grperc
     use EDGrowthFunctionsMod, only : tree_lai
     !
     ! !ARGUMENTS    
@@ -191,14 +190,14 @@ contains
                    currentCohort%leaf_cost = currentCohort%leaf_cost + &
                         1.0_r8/(EDPftvarcon_inst%slatop(currentCohort%pft)*1000.0_r8) * &
                         EDPftvarcon_inst%froot_leaf(currentCohort%pft) / EDecophyscon%root_long(currentCohort%pft)
-                   currentCohort%leaf_cost = currentCohort%leaf_cost * (ED_val_grperc(currentCohort%pft) + 1._r8)
+                   currentCohort%leaf_cost = currentCohort%leaf_cost * (EDPftvarcon_inst%grperc(currentCohort%pft) + 1._r8)
                 else !evergreen costs
                    currentCohort%leaf_cost = 1.0_r8/(EDPftvarcon_inst%slatop(currentCohort%pft)* &
                         EDPftvarcon_inst%leaf_long(currentCohort%pft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
                    currentCohort%leaf_cost = currentCohort%leaf_cost + &
                         1.0_r8/(EDPftvarcon_inst%slatop(currentCohort%pft)*1000.0_r8) * &
                         EDPftvarcon_inst%froot_leaf(currentCohort%pft) / EDecophyscon%root_long(currentCohort%pft)
-                   currentCohort%leaf_cost = currentCohort%leaf_cost * (ED_val_grperc(currentCohort%pft) + 1._r8)
+                   currentCohort%leaf_cost = currentCohort%leaf_cost * (EDPftvarcon_inst%grperc(currentCohort%pft) + 1._r8)
                 endif
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost)then
                    if (currentCohort%canopy_trim > trim_limit)then

@@ -45,7 +45,6 @@ contains
                                            ! READS ARE REFACTORED (RGK 10-13-2016)
     use EDPftvarcon         , only : EDPftvarcon_inst  ! THIS WILL BE DEPRECATED WHEN PARAMETER
                                            ! READS ARE REFACTORED (RGK 10-13-2016)
-    use EDParamsMod       , only : ED_val_grperc
     use EDParamsMod       , only : ED_val_ag_biomass
     use EDSharedParamsMod , only : EDParamsShareInst
     use EDTypesMod        , only : numpft_ed
@@ -962,7 +961,8 @@ contains
                      if ( DEBUG ) write(fates_log(),*) 'EDPhoto 912 ', currentCohort%resp_tstep
                      if ( DEBUG ) write(fates_log(),*) 'EDPhoto 913 ', currentCohort%resp_m
 
-                     currentCohort%resp_g     = ED_val_grperc(ft) * (max(0._r8,currentCohort%gpp_tstep - currentCohort%resp_m))
+                     currentCohort%resp_g     = EDPftvarcon_inst%grperc(ft) * &
+                          (max(0._r8,currentCohort%gpp_tstep - currentCohort%resp_m))
                      currentCohort%resp_tstep = currentCohort%resp_m + currentCohort%resp_g ! kgC/indiv/ts    
                      currentCohort%npp_tstep  = currentCohort%gpp_tstep - currentCohort%resp_tstep  ! kgC/indiv/ts
 

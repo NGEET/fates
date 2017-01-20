@@ -67,6 +67,7 @@ module EDPftvarcon
      real(r8) :: frootcn(0:mxpft)
      real(r8) :: smpso(0:mxpft)
      real(r8) :: smpsc(0:mxpft)
+     real(r8) :: grperc(0:mxpft) ! NOTE(bja, 2017-01) moved from EDParamsMod, was allocated as (maxPft=79), not (0:mxpft=78)!
   end type EDPftvarcon_type
 
   type(EDPftvarcon_type), public :: EDPftvarcon_inst
@@ -258,6 +259,9 @@ contains
     if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
 
     call ncd_io('smpsc', EDPftvarcon_inst%smpsc, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('grperc', EDPftvarcon_inst%grperc, 'read', ncid, readvar=readv, posNOTonfile=.true.)
     if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
 
 ! HOLDING ON SEW ENSITIVITY-ANALYSIS PARAMETERS UNTIL MACHINE CONFIGS SET RGK/CX
