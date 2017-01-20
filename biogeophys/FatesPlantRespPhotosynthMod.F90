@@ -20,12 +20,14 @@ module FATESPlantRespPhotosynthMod
    
    ! !USES:
 
-   use abortutils, only        : endrun
+   use FatesGlobals, only      : endrun => fates_endrun
    use FatesGlobals, only      : fates_log
    use FatesConstantsMod, only : r8 => fates_r8
-   use shr_log_mod , only      : errMsg => shr_log_errMsg
    use EDTypesMod, only        : use_fates_plant_hydro
-   
+
+   ! CIME Globals
+   use shr_log_mod , only      : errMsg => shr_log_errMsg
+
    implicit none
    private
    

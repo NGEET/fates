@@ -3,9 +3,7 @@ module EDPatchDynamicsMod
   ! ============================================================================
   ! Controls formation, creation, fusing and termination of patch level processes. 
   ! ============================================================================
-
-  use shr_kind_mod         , only : r8 => shr_kind_r8;
-  use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
+ 
   use clm_varctl           , only : iulog 
   use FatesGlobals         , only : freq_day
   use pftconMod            , only : pftcon
@@ -13,6 +11,12 @@ module EDPatchDynamicsMod
   use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, numpft_ed, area, dbhmax, maxPatchesPerCol
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod           , only : min_patch_area, cp_numlevgrnd, cp_numSWb
+  use FatesGlobals         , only : endrun => fates_endrun
+  use FatesConstantsMod    , only : r8 => fates_r8
+
+  ! CIME globals
+  use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
+
   !
   implicit none
   private
@@ -878,7 +882,6 @@ contains
     ! (this needs to be two seperate routines, one for nan & one for zero
     !
     ! !USES:
-    use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)  
     !
     ! !ARGUMENTS:
     type(ed_patch_type), intent(inout), target :: cp_p
@@ -1475,7 +1478,6 @@ contains
     !
     ! !USES:
     use decompMod  , only : bounds_type
-    use abortutils , only : endrun
     use EDTypesMod , only : ed_site_type
     !
     ! !ARGUMENTS:

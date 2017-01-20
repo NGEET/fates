@@ -6,14 +6,14 @@ module FatesRestartInterfaceMod
   use FatesConstantsMod , only : fates_short_string_length
   use FatesConstantsMod , only : fates_long_string_length
   use FatesGlobals      , only : fates_log
-
+  use FatesGlobals      , only : endrun => fates_endrun
   use FatesIODimensionsMod, only : fates_io_dimension_type
   use FatesIOVariableKindMod, only : fates_io_variable_kind_type
   use FatesRestartVariableMod, only : fates_restart_variable_type
 
-  ! TO BE REMOVED WHEN ERROR HANDLINE IS ADDED (rgk 11-2016)
+  ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
-  use abortutils        , only : endrun
+
 
   implicit none
 
