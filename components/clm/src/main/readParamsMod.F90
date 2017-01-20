@@ -118,8 +118,8 @@ contains
     use shr_kind_mod, only: r8 => shr_kind_r8
     use paramUtilMod, only : readNcdio
 
-    use EDParamsMod, only : EDParamsRead, FatesRegisterParams, FatesReceiveParams
-    use SFParamsMod, only : SFParamsRead
+    use EDParamsMod, only : FatesRegisterParams, FatesReceiveParams
+    use SFParamsMod, only : SFParamsRead, SpitFireRegisterParams, SpitFireReceiveParams
     use FatesParametersInterface, only : fates_parameters_type
     use FatesParametersInterface, only : param_string_length
     use FatesParametersInterface, only : dimension_shape_scalar, dimension_shape_1d, dimension_shape_2d
@@ -148,14 +148,14 @@ contains
        call ncd_inqdlen(ncid, dimid, npft)
 
        ! read using the old infrastrructure
-       call EDParamsRead(ncid)
        call SFParamsRead(ncid)
 
        ! read parameters with new fates parammeter infrastructure
        allocate(fates_params)
-       allocate(data(npft, npft)) ! FIXME(bja, 2017-01) correct? maxpft?
+       allocate(data(npft, npft)) ! FIXME(bja, 2017-01) correct? maxpft? needs to be max of all dimensions expected to receive!
        call fates_params%Init()
        call FatesRegisterParams(fates_params)
+       call SpitFireRegisterParams(fates_params)
        num_params = fates_params%num_params()
        do i = 1, num_params
           call fates_params%GetMetaData(i, name, dimension_shape)
@@ -174,6 +174,7 @@ contains
           end select
        end do
        call FatesReceiveParams(fates_params)
+       call SpitFireReceiveParams(fates_params)
        deallocate(data)
        deallocate(fates_params)
        call ncd_pio_closefile(ncid)
