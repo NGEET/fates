@@ -5,7 +5,7 @@ module EDInitMod
   ! ============================================================================
 
   use FatesConstantsMod         , only : r8 => fates_r8
-  use abortutils                , only : endrun
+  use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : cp_nclmax
   use FatesGlobals              , only : fates_log
   use clm_varctl                , only : use_ed_spit_fire 

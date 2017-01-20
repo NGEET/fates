@@ -5,7 +5,7 @@ module EDCanopyStructureMod
   ! This is obviosuly far too complicated for it's own good and needs re-writing.  
   ! ============================================================================
 
-  use shr_kind_mod          , only : r8 => shr_kind_r8;
+  use FatesConstantsMod     , only : r8 => fates_r8
   use FatesGlobals          , only : fates_log
   use pftconMod             , only : pftcon
   use EDGrowthFunctionsMod  , only : c_area
@@ -13,9 +13,10 @@ module EDCanopyStructureMod
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type, ncwd
   use EDtypesMod            , only : cp_nclmax,cp_nlevcan
   use EDtypesMod            , only : numpft_ed
+  use FatesGlobals          , only : endrun => fates_endrun
+
+  ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
-  use abortutils            , only : endrun
-  use FatesGlobals          , only : fates_log
 
   implicit none
   private
