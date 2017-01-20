@@ -35,4 +35,32 @@ contains
     fates_global_verbose = fates_global_verbose_
   end function fates_global_verbose
 
+  
+  subroutine fates_endrun(msg) 
+
+    !-----------------------------------------------------------------------
+    ! !DESCRIPTION:
+    ! Abort the model for abnormal termination
+    ! This subroutine was derived from CLM's
+    ! endrun_vanilla() in abortutils.F90
+    !
+    use shr_sys_mod , only: shr_sys_abort
+    !
+    ! !ARGUMENTS:
+    implicit none
+    character(len=*), intent(in), optional :: msg    ! string to be printed
+    !-----------------------------------------------------------------------
+
+    if (present (msg)) then
+       write(fates_log(),*)'ENDRUN:', msg
+    else
+       write(fates_log(),*)'ENDRUN: called without a message string'
+    end if
+
+    call shr_sys_abort()
+
+  end subroutine fates_endrun
+
+
+
 end module FatesGlobals
