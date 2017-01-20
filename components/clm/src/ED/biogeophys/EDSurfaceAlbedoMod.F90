@@ -13,16 +13,17 @@ module EDSurfaceRadiationMod
   use EDtypesMod        , only : ed_patch_type, ed_site_type
   use EDtypesMod        , only : numpft_ed
   use EDtypesMod        , only : maxPatchesPerCol
-  use shr_kind_mod      , only : r8 => shr_kind_r8
-  use shr_log_mod       , only : errMsg => shr_log_errMsg
+  use FatesConstantsMod , only : r8 => fates_r8
   use FatesInterfaceMod , only : bc_in_type, &
                                  bc_out_type
   use EDTypesMod        , only : cp_numSWb, &        ! Actual number of SW radiation bands
                                  cp_maxSWb, &        ! maximum number of SW bands (for scratch)
                                  cp_nclmax           ! control parameter, number of SW bands
   use EDCanopyStructureMod, only: calc_areaindex
-
   
+  ! CIME globals
+  use shr_log_mod       , only : errMsg => shr_log_errMsg
+
   implicit none
 
   private

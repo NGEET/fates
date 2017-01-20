@@ -1281,7 +1281,8 @@ contains
     use EDParamsMod, only : ED_val_ag_biomass
     use FatesInterfaceMod, only : bc_in_type, bc_out_type
     use clm_varctl, only : use_vertsoilc
-    use abortutils  , only : endrun
+    use FatesGlobals, only : endrun => fates_endrun
+
 
     ! INTERF-TODO: remove the control parameters: exponential_rooting_profile, 
     ! pftspecific_rootingprofile, rootprof_exp, surfprof_exp, zisoi, dzsoi_decomp, zsoi

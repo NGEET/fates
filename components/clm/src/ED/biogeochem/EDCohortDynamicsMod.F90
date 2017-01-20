@@ -4,12 +4,11 @@ module EDCohortDynamicsMod
   ! Cohort stuctures in ED. 
   !
   ! !USES: 
-  use abortutils            , only : endrun
+  use FatesGlobals          , only : endrun => fates_endrun
   use FatesGlobals          , only : fates_log
   use FatesGlobals          , only : freq_day
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
-  use shr_log_mod           , only : errMsg => shr_log_errMsg
   use pftconMod             , only : pftcon
   use EDEcophysContype      , only : EDecophyscon
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
@@ -18,6 +17,8 @@ module EDCohortDynamicsMod
   use EDtypesMod            , only : ncwd, maxcohortsperpatch
   use EDtypesMod            , only : sclass_ed,nlevsclass_ed,AREA
   use EDtypesMod            , only : min_npm2, min_nppatch, min_n_safemath
+  ! CIME globals
+  use shr_log_mod           , only : errMsg => shr_log_errMsg
   !
   implicit none
   private
