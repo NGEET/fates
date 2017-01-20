@@ -39,31 +39,11 @@ module EDParamsMod
    character(len=param_string_length),parameter :: ED_name_profile_tol = "profile_tol"
    character(len=param_string_length),parameter :: ED_name_ag_biomass= "ag_biomass"   
    
-   public :: EDParamsRead
    public :: FatesParamsInit
    public :: FatesRegisterParams
    public :: FatesReceiveParams
   
 contains
-
-  !-----------------------------------------------------------------------
-  !
-  !-----------------------------------------------------------------------
-  subroutine EDParamsRead(ncid)
-     !
-     ! calls to initialize parameter instance and do ncdio read
-     !
-     use ncdio_pio    , only : file_desc_t
-     
-     implicit none
-
-     ! arguments
-     type(file_desc_t),intent(inout) :: ncid   ! pio netCDF file id
-
-     call FatesParamsInit()
-     call EDParamsReadLocal(ncid)
-
-  end subroutine EDParamsRead
 
   !-----------------------------------------------------------------------
   subroutine FatesParamsInit()
@@ -87,84 +67,6 @@ contains
     ED_val_ag_biomass = nan
 
   end subroutine FatesParamsInit
-  !-----------------------------------------------------------------------
-  !
-  !-----------------------------------------------------------------------
-  subroutine EDParamsReadLocal(ncid)
-     !
-     ! read the netcdf file and populate internalInstScalar
-     !
-     use ncdio_pio         , only : file_desc_t
-     use paramUtilMod      , only : readNcdio
-
-     implicit none
-
-     ! arguments
-     type(file_desc_t),intent(inout) :: ncid   ! pio netCDF file id
-
-     ! local vars
-     character(len=32)  :: subname = 'EDParamsReadLocal::'
-
-     !
-     ! call read function
-     !
-
-     !X! call readNcdio(ncid = ncid, &
-     !X!    varName=ED_name_grass_spread, &
-     !X!    callingName=subname, &
-     !X!    retVal=ED_val_grass_spread)
-  
-     !X! call readNcdio(ncid = ncid, &
-     !X!    varName=ED_name_comp_excln, &
-     !X!    callingName=subname, &
-     !X!    retVal=ED_val_comp_excln)
-  
-     !X! call readNcdio(ncid = ncid, &
-     !X!    varName=ED_name_stress_mort, &
-     !X!    callingName=subname, &
-     !X!    retVal=ED_val_stress_mort)
-     !X!
-     !X! call readNcdio(ncid = ncid, &
-     !X!    varName=ED_name_dispersal, &
-     !X!    callingName=subname, &
-     !X!    retVal=ED_val_dispersal)
-  
-     !X! call readNcdio(ncid = ncid, &
-     !X!    varName=ED_name_maxspread, &
-     !X!    callingName=subname, &
-     !X!    retVal=ED_val_maxspread)
-     !X!
-     !X! call readNcdio(ncid = ncid, &
-     !X!    varName=ED_name_minspread, &
-     !X!    callingName=subname, &
-     !X!    retVal=ED_val_minspread)
-     !X!
-     !X! call readNcdio(ncid = ncid, &
-     !X!    varName=ED_name_init_litter, &
-     !X!    callingName=subname, &
-     !X!    retVal=ED_val_init_litter)
-     !X!
-     !X! call readNcdio(ncid = ncid, &
-     !X!    varName=ED_name_nfires, &
-     !X!    callingName=subname, &
-     !X!    retVal=ED_val_nfires)
-     !X!
-     !X! call readNcdio(ncid = ncid, &
-     !X!    varName=ED_name_understorey_death, &
-     !X!    callingName=subname, &
-     !X!    retVal=ED_val_understorey_death)
-     !X!
-     !X! call readNcdio(ncid = ncid, &
-     !X!    varName=ED_name_profile_tol, &
-     !X!    callingName=subname, &
-     !X!    retVal=ED_val_profile_tol)
-     !X!
-     !X! call readNcdio(ncid = ncid, &
-     !X!    varName=ED_name_ag_biomass, &
-     !X!    callingName=subname, &
-     !X!    retVal=ED_val_ag_biomass)
-  
-  end subroutine EDParamsReadLocal
 
   !-----------------------------------------------------------------------
   subroutine FatesRegisterParams(fates_params)
@@ -179,6 +81,8 @@ contains
     class(fates_parameters_type), intent(inout) :: fates_params
 
     character(len=param_string_length), parameter :: dim_names_scalar(1) = (/dimension_name_scalar/)
+
+    call FatesParamsInit()
 
     call fates_params%RegisterParameter(name=ED_name_grass_spread, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
