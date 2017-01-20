@@ -9,27 +9,20 @@ module FatesInterfaceMod
    ! which is allocated by thread
    ! ------------------------------------------------------------------------------------
 
-   ! ------------------------------------------------------------------------------------
-   ! Used CLM Modules
-   ! INTERF-TODO:  NO CLM MODULES SHOULD BE ACCESSIBLE BY THE FATES
-   ! PUBLIC API!!!!
-   ! ------------------------------------------------------------------------------------
+   use EDtypesMod            , only : ed_site_type
+   use EDtypesMod            , only : maxPatchesPerCol
+   use EDtypesMod            , only : cp_nclmax
+   use EDtypesMod            , only : cp_numSWb
+   use EDtypesMod            , only : cp_numlevgrnd
+   use EDtypesMod            , only : cp_maxSWb
+   use EDtypesMod            , only : cp_numlevdecomp
+   use EDtypesMod            , only : cp_numlevdecomp_full
+   use EDtypesMod            , only : cp_hlm_name
+   use EDtypesMod            , only : cp_hio_ignore_val
+   use EDtypesMod            , only : cp_numlevsoil
+   use EDtypesMod            , only : cp_masterproc
+   use FatesConstantsMod     , only : r8 => fates_r8
 
-   use EDtypesMod            , only : ed_site_type,      &
-                                      maxPatchesPerCol,  &
-                                      cp_nclmax,         &
-                                      cp_numSWb,         &
-                                      cp_numlevgrnd,     &
-                                      cp_maxSWb,         &
-                                      cp_numlevdecomp,   &
-                                      cp_numlevdecomp_full, &
-                                      cp_hlm_name,       &
-                                      cp_hio_ignore_val, &
-                                      cp_numlevsoil
-
-   use shr_kind_mod          , only : r8 => shr_kind_r8  ! INTERF-TODO: REMOVE THIS
-
-   
    implicit none
 
    ! ------------------------------------------------------------------------------------
@@ -41,14 +34,49 @@ module FatesInterfaceMod
    ! (Intel-Forum Post), ALLOCATABLES are better perfomance wise as long as they point 
    ! to contiguous memory spaces and do not alias other variables, the case here.
    ! Naming conventions:   _gl  means ground layer dimensions
+   !                       _si  means site dimensions (scalar in that case)
    !                       _pa  means patch dimensions
    !                       _rb  means radiation band
    ! ------------------------------------------------------------------------------------
    
+   
+
+
    type, public :: bc_in_type
 
       ! The actual number of FATES' ED patches
       integer :: npatches
+
+      ! Vegetation Dynamics
+      ! ---------------------------------------------------------------------------------
+
+      ! The site level 24 hour vegetation temperature is used for various purposes during vegetation 
+      ! dynamics.  However, we are currently using the bare ground patch's value [K]
+      ! TO-DO: Get some consensus on the correct vegetation temperature used for phenology.
+      ! It is possible that the bare-ground value is where the average is being stored.
+      ! (RGK-01-2017)
+      real(r8)             :: t_veg24_si
+
+      ! Patch 24 hour vegetation temperature [K]
+      real(r8),allocatable :: t_veg24_pa(:)  
+      
+      ! NOTE: h2osoi_vol_si is used to update surface water memory
+      ! CLM/ALM may be using "waterstate%h2osoi_vol_col" on the first index (coli,1)
+      ! to inform this. I think this should be re-evaluated (RGK 01/2017)
+      ! Site volumetric soil water (0<=h2osoi_vol<=watsat) [m3/m3]
+      real(r8) :: h2osoi_vol_si 
+
+      ! Fire Model
+
+      ! Average precipitation over the last 24 hours [mm/s]
+      real(r8), allocatable :: precip24_pa(:)
+
+      ! Average relative humidity over past 24 hours [-]
+      real(r8), allocatable :: relhumid24_pa(:)
+
+      ! Patch 24-hour running mean of wind (m/s ?)
+      real(r8), allocatable :: wind24_pa(:)
+
 
       ! Radiation variables for calculating sun/shade fractions
       ! ---------------------------------------------------------------------------------
@@ -344,6 +372,13 @@ contains
       
       ! Allocate input boundaries
       
+      ! Vegetation Dynamics
+      allocate(bc_in%t_veg24_pa(maxPatchesPerCol))
+
+      allocate(bc_in%wind24_pa(maxPatchesPerCol))
+      allocate(bc_in%relhumid24_pa(maxPatchesPerCol))
+      allocate(bc_in%precip24_pa(maxPatchesPerCol))
+      
       ! Radiation
       allocate(bc_in%solad_parb(maxPatchesPerCol,cp_numSWb))
       allocate(bc_in%solai_parb(maxPatchesPerCol,cp_numSWb))
@@ -444,6 +479,13 @@ contains
       integer, intent(in) :: s
 
       ! Input boundaries
+
+      this%bc_in(s)%t_veg24_si     = 0.0_r8
+      this%bc_in(s)%t_veg24_pa(:)  = 0.0_r8
+      this%bc_in(s)%h2osoi_vol_si  = 0.0_r8
+      this%bc_in(s)%precip24_pa(:) = 0.0_r8
+      this%bc_in(s)%relhumid24_pa(:) = 0.0_r8
+      this%bc_in(s)%wind24_pa(:)     = 0.0_r8
 
       this%bc_in(s)%solad_parb(:,:)     = 0.0_r8
       this%bc_in(s)%solai_parb(:,:)     = 0.0_r8
@@ -552,12 +594,21 @@ contains
          cp_numlevdecomp      = unset_int
          cp_hlm_name          = 'unset'
          cp_hio_ignore_val    = unset_double
+         cp_masterproc        = unset_int
 
       case('check_allset')
          
          if(cp_numSWb .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES dimension/parameter unset: num_sw_rad_bbands'
+            end if
+            ! INTERF-TODO: FATES NEEDS INTERNAL end_run
+            ! end_run('MESSAGE')
+         end if
+
+         if(cp_masterproc .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'FATES parameter unset: cp_masterproc'
             end if
             ! INTERF-TODO: FATES NEEDS INTERNAL end_run
             ! end_run('MESSAGE')
@@ -633,36 +684,38 @@ contains
 
          if(present(ival))then
             select case (trim(tag))
-               
-            case('num_sw_bbands')
 
+            case('masterproc')
+               cp_masterproc = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering masterproc = ',ival,' to FATES'
+               end if
+
+            case('num_sw_bbands')
                cp_numSwb = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering num_sw_bbands = ',ival,' to FATES'
                end if
                
             case('num_lev_ground')
-               
                cp_numlevgrnd = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering num_lev_ground = ',ival,' to FATES'
                end if
+
             case('num_lev_soil')
-               
                cp_numlevsoil = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering num_lev_ground = ',ival,' to FATES'
                end if
 
             case('num_levdecomp_full')
-               
                cp_numlevdecomp_full = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering num_levdecomp_full = ',ival,' to FATES'
                end if
             
             case('num_levdecomp')
-               
                cp_numlevdecomp = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering num_levdecomp = ',ival,' to FATES'
