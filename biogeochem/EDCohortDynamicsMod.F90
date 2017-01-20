@@ -280,7 +280,7 @@ contains
        end if
 
        currentcohort%bl  = 0.0_r8
-       currentcohort%br  = new_bl
+       currentcohort%br  = new_br
        currentcohort%bsw = new_bsw
 
     endif
