@@ -1170,7 +1170,7 @@ contains
 
     !area weighted average of ages & litter
     rp%age = (dp%age * dp%area + rp%age * rp%area)/(dp%area + rp%area)  
-    rp%age_class = max(1,count(rp%age-ageclass_ed.ge.0.0_r8))
+    rp%age_class = count(rp%age-ageclass_ed.ge.0.0_r8)
 
     do p = 1,numpft_ed
        rp%seeds_in(p)         = (rp%seeds_in(p)*rp%area + dp%seeds_in(p)*dp%area)/(rp%area + dp%area)

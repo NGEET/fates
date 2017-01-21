@@ -2321,15 +2321,15 @@ contains
       
           if(use_ed)then
              call ncd_defvar(varname='levscls', xtype=tape(t)%ncprec, dim1name='levscls', &
-                  long_name='diameter size class lower bound', units='cm', ncid=nfid(t))
+                  long_name='FATES diameter size class lower bound', units='cm', ncid=nfid(t))
              call ncd_defvar(varname='pft_levscpf',xtype=ncd_int, dim1name='levscpf', &
-                  long_name='pft index of the combined pft-size class dimension', units='-', ncid=nfid(t))
+                  long_name='FATES pft index of the combined pft-size class dimension', units='-', ncid=nfid(t))
              call ncd_defvar(varname='scls_levscpf',xtype=ncd_int, dim1name='levscpf', &
-                  long_name='size index of the combined pft-size class dimension', units='-', ncid=nfid(t))
+                  long_name='FATES size index of the combined pft-size class dimension', units='-', ncid=nfid(t))
              call ncd_defvar(varname='levage',xtype=tape(t)%ncprec, dim1name='levage', &
-                  long_name='patch age (yr)', ncid=nfid(t))
+                  long_name='FATES patch age (yr)', ncid=nfid(t))
              call ncd_defvar(varname='levpft',xtype=ncd_int, dim1name='levpft', &
-                  long_name='pft number', ncid=nfid(t))
+                  long_name='FATES pft number', ncid=nfid(t))
           end if
 
        elseif (mode == 'write') then
