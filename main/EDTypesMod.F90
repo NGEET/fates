@@ -16,21 +16,6 @@ module EDTypesMod
   real(r8)            :: timestep_secs                     ! subdaily timestep in seconds (e.g. 1800 or 3600) 
   
   real(r8), parameter :: AREA                 = 10000.0_r8 ! Notional area of simulated forest m2
-  integer  doy
-
-  integer, parameter  :: invalidValue         = -9999      ! invalid value for gcells,
-  ! cohorts, and patches
-
-  ! for setting number of patches per gridcell and number of cohorts per patch
-  ! for I/O and converting to a vector
-
-  integer, parameter :: maxPatchesPerCol      = 10          !
-  integer, parameter :: maxCohortsPerPatch    = 160         !
-  integer, parameter :: cohorts_per_col       = 1600        ! This is the max number of individual items one can store per 
-
-                                                           ! each grid cell and effects the striding in the ED restart 
-                                                           ! data as some fields are arrays where each array is
-                                                           ! associated with one cohort
 
   integer, parameter :: numWaterMem           = 10         ! watermemory saved as site level var
 

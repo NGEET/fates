@@ -324,16 +324,15 @@ module FatesInterfaceMod
 contains
 
    ! ====================================================================================
-  subroutine FatesInterfaceInit(log_unit, global_verbose)
+  subroutine FatesInterfaceInit(log_unit)
 
     use FatesGlobals, only : FatesGlobalsInit
 
     implicit none
 
     integer, intent(in) :: log_unit
-    logical, intent(in) :: global_verbose
 
-    call FatesGlobalsInit(log_unit, global_verbose)
+    call FatesGlobalsInit(log_unit)
 
   end subroutine FatesInterfaceInit
 

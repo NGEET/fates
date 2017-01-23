@@ -5,15 +5,33 @@ module FatesGlobals
   ! immediately obvious home.
 
   use FatesConstantsMod         , only : r8 => fates_r8
+  use EDTypes                   , only : cp_nclmax, cp_nlevcan, numpft_ed
    
   implicit none
-
-
 
   public :: FatesGlobalsInit
   public :: fates_log
   public :: fates_global_verbose
   public :: SetFatesTime
+
+
+  ! for setting number of patches per gridcell and number of cohorts per patch
+  ! for I/O and converting to a vector
+
+  integer, parameter :: maxPatchesPerSite  = 10         ! maximum number of patches to live on a site
+  integer, parameter :: CohortsPerPatch    = 160        ! maxCohortsPerPatch is the value that is ultimately
+                                                        ! used to set array sizes. The arrays that it allocates
+                                                        ! are sometimes used to hold non-cohort entities. As such
+                                                        ! the size of those arrays must be the maximum of what we
+                                                        ! expect from cohorts per patch, and those others.
+
+  integer            :: maxCohortsPerPatch              ! See above for CohortsPerPatch
+  integer            :: maxCohortsPerSite               ! This is the max number of individual items one can store per 
+                                                        ! each grid cell and effects the striding in the ED restart 
+                                                        ! data as some fields are arrays where each array is
+                                                        ! associated with one cohort
+
+
 
   ! -------------------------------------------------------------------------------------
   ! Timing Variables
@@ -33,21 +51,29 @@ module FatesGlobals
                                          ! this is a frequency
 
   integer, private :: fates_log_
-  logical, private :: fates_global_verbose_
+  logical, private, parameter :: fates_global_verbose_ = .false.
 
 contains
 
-  subroutine FatesGlobalsInit(log_unit, global_verbose)
+  subroutine FatesGlobalsInit(log_unit)
 
     implicit none
 
     integer, intent(in) :: log_unit
-    logical, intent(in) :: global_verbose
+
+
+    maxCohortsPerPatch = max(CohortsPerPatch, &
+         numpft_ed * cp_nclmax * cp_nlevcan)
+
+    maxCohortsPerSite = maxPatchesPerCol * maxCohortsPerPatch
+
 
     fates_log_ = log_unit
     fates_global_verbose_ = global_verbose
 
   end subroutine FatesGlobalsInit
+
+  ! =====================================================================================
 
   integer function fates_log()
     fates_log = fates_log_
@@ -112,7 +138,7 @@ contains
      model_day      = model_day_in
      day_of_year    = day_of_year_in
      days_per_year  = days_per_year_in
-     freq_day     = freq_day_in
+     freq_day       = freq_day_in
 
   end subroutine SetFatesTime
 
