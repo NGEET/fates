@@ -28,6 +28,7 @@ module initGridCellsMod
   use initSubgridMod , only : clm_ptrs_compdown, clm_ptrs_check
   use initSubgridMod , only : add_landunit, add_column, add_patch
   use glcBehaviorMod , only : glc_behavior_type
+  use FatesInterfaceMod, only : FatesInterfaceInit
   !
   ! !PUBLIC TYPES:
   implicit none
@@ -191,6 +192,7 @@ contains
 
        if ( use_ed ) then
           ! cohort decomp
+          call FatesInterfaceInit(iulog)
           call set_cohort_decomp( bounds_clump=bounds_clump )
        end if
 
@@ -227,13 +229,12 @@ contains
 
   end subroutine initGridcells
 
-  !------------------------------------------------------------------------
   subroutine set_cohort_decomp ( bounds_clump )
-    !
+    
     ! !DESCRIPTION: 
     ! Set gridcell decomposition for cohorts
     !
-    use EDTypesMod      , only : cohorts_per_col
+    use FatesGlobals, only     : maxCohortsPerSite
     use EDVecCohortType , only : ed_vec_cohort
     !
     ! !ARGUMENTS:
@@ -241,10 +242,12 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer c, ci
+    integer cohorts_per_col
     !------------------------------------------------------------------------
 
-    ci = bounds_clump%begc
+    cohorts_per_col = maxCohortsPerSite
 
+    ci = bounds_clump%begc
     do c = bounds_clump%begCohort, bounds_clump%endCohort
 
        ed_vec_cohort%column(c) = ci
@@ -252,6 +255,7 @@ contains
        
     end do
 
+    
   end subroutine set_cohort_decomp
 
   !------------------------------------------------------------------------

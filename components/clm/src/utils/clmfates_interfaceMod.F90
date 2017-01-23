@@ -171,8 +171,8 @@ module CLMFatesInterfaceMod
        __FILE__
 
 contains
-   
-   ! ====================================================================================
+
+  ! ====================================================================================
 
    subroutine init(this, bounds_proc, use_ed)
       
@@ -222,12 +222,6 @@ contains
          
       end if
          
-      if(DEBUG)then
-         write(iulog,*) 'Entering clm_fates%init'
-      end if
-
-      verbose_output = .false.
-      call FatesInterfaceInit(iulog, verbose_output)
 
       nclumps = get_proc_clumps()
       allocate(this%fates(nclumps))
