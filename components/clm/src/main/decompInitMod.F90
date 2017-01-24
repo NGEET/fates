@@ -16,8 +16,7 @@ module decompInitMod
   use GridcellType    , only : grc
   use LandunitType    , only : lun                
   use ColumnType      , only : col                
-  use PatchType       , only : patch                
-  use EDVecCohortType , only : ed_vec_cohort
+  use PatchType       , only : patch
   use glcBehaviorMod  , only : glc_behavior_type
   use decompMod
   use mct_mod
@@ -734,8 +733,6 @@ contains
        ioff(:) = 0
        ci = begc
        do coi = begCohort,endCohort
-!          ci = ed_vec_cohort%column(coi) ! function call to get column for this cohort idx
-!          ed_vec_cohort%column(coi) = ci
           if ( mod(coi, maxElementsPerSite ) == 0 ) ci = ci + 1
           gi = col%gridcell(ci)          ! convert column into gridcell
           gindex(coi) = coStart(gi) + ioff(gi)

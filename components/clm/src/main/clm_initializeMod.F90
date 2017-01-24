@@ -22,7 +22,6 @@ module clm_initializeMod
   use PatchType       , only : patch         ! instance            
   use reweightMod     , only : reweight_wrapup
   use filterMod       , only : allocFilters, filter
-  use EDVecCohortType , only : ed_vec_cohort ! instance, used for domain decomp
   use FatesGlobals    , only : set_fates_global_elements
 
   use clm_instMod       
@@ -214,11 +213,6 @@ contains
     call lun%Init  (bounds_proc%begl, bounds_proc%endl)
     call col%Init  (bounds_proc%begc, bounds_proc%endc)
     call patch%Init(bounds_proc%begp, bounds_proc%endp)
-
-    if ( use_ed ) then
-       ! INTERF-TODO:  THIS GUY NEEDS TO BE MOVED TO THE INTERFACE
-       call ed_vec_cohort%Init(bounds_proc%begCohort,bounds_proc%endCohort)
-    end if
 
     ! Build hierarchy and topological info for derived types
     ! This is needed here for the following call to decompInit_glcp
