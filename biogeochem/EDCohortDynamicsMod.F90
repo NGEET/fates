@@ -13,8 +13,10 @@ module EDCohortDynamicsMod
   use EDEcophysContype      , only : EDecophyscon
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDTypesMod            , only : fusetol, cp_nclmax
-  use EDtypesMod            , only : ncwd, maxcohortsperpatch
+  use EDTypesMod            , only : fusetol
+  use FatesGlobals          , only : cp_nclmax
+  use EDtypesMod            , only : ncwd
+  use FatesGlobals          , only : maxCohortsPerPatch
   use EDtypesMod            , only : sclass_ed,nlevsclass_ed,AREA
   use EDtypesMod            , only : min_npm2, min_nppatch, min_n_safemath
   ! CIME globals
@@ -599,7 +601,7 @@ contains
     ! Join similar cohorts to reduce total number            
     !
     ! !USES:
-    use EDTypesMod  , only :  cp_nlevcan
+    use FatesGlobals  , only :  cp_nlevcan
     !
     ! !ARGUMENTS    
     type (ed_patch_type), intent(inout), target :: patchptr

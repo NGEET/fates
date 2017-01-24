@@ -1,10 +1,9 @@
 module EDTypesMod
 
   use shr_kind_mod , only : r8 => shr_kind_r8;
-  use decompMod    , only : bounds_type 
-  use clm_varpar   , only : nlevgrnd, mxpft
-  use domainMod    , only : domain_type
-  use shr_sys_mod  , only : shr_sys_flush
+  use clm_varpar   , only : mxpft
+  use FatesGlobals , only : cp_nclmax, cp_nlevcan, numpft_ed
+
 
   implicit none
   save
@@ -25,7 +24,7 @@ module EDTypesMod
   integer , parameter :: SENES                = 10         ! Window of time over which we track temp for cold sensecence (days)
   real(r8), parameter :: DINC_ED              = 1.0_r8     ! size of LAI bins. 
   integer , parameter :: N_DIST_TYPES         = 2          ! number of disturbance types (mortality, fire)
-  integer , parameter :: numpft_ed            = 2          ! number of PFTs used in ED. 
+  
   integer , parameter :: maxPft               = 79         ! max number of PFTs potentially used by CLM 
 
 
@@ -96,11 +95,7 @@ module EDTypesMod
   ! Control Parameters (cp_)            
   ! -------------------------------------------------------------------------------------
 
-  ! These parameters are dictated by FATES internals
-  
-  integer, parameter :: cp_nclmax = 2       ! Maximum number of canopy layers
 
-  integer, parameter :: cp_nlevcan = 40     ! number of leaf layers in canopy layer
   
   integer, parameter :: cp_maxSWb = 2       ! maximum number of broad-bands in the
                                             ! shortwave spectrum cp_numSWb <= cp_maxSWb
@@ -566,7 +561,7 @@ contains
     integer :: i
     integer :: isc
     integer :: ipft
-
+    
     allocate( levsclass_ed(1:nlevsclass_ed   ))
     allocate( pft_levscpf_ed(1:nlevsclass_ed*mxpft))
     allocate(scls_levscpf_ed(1:nlevsclass_ed*mxpft))
@@ -628,7 +623,6 @@ contains
     !  Calculates the fractions of the root biomass in each layer for each pft. 
     !
     ! !USES:
-    use PatchType   , only : clmpatch => patch
     use pftconMod   , only : pftcon
     !
     ! !ARGUMENTS    

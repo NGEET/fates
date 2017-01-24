@@ -905,14 +905,13 @@ contains
 
  subroutine set_restart_vectors(this,nc,nsites,sites)
 
-   use EDTypesMod, only : cp_nclmax
-   use EDTypesMod, only : cp_nlevcan
-   use EDTypesMod, only : maxCohortsPerPatch
-   use EDTypesMod, only : numpft_ed
+   use FatesGlobals, only : cp_nclmax
+   use FatesGlobals, only : cp_nlevcan
+   use FatesGlobals, only : maxElementsPerPatch
+   use FatesGlobals, only : numpft_ed
    use EDTypesMod, only : ed_site_type
    use EDTypesMod, only : ed_cohort_type
    use EDTypesMod, only : ed_patch_type
-   use EDTypesMod, only : cohorts_per_col
    use EDTypesMod, only : ncwd
    use EDTypesMod, only : numWaterMem
 
@@ -1148,7 +1147,7 @@ contains
              
              if ( DEBUG ) then
                 write(fates_log(),*) 'offsetNumCohorts III ' &
-                      ,io_idx_co,cohorts_per_col, cohortsperpatch
+                      ,io_idx_co,cohortsperpatch
              endif
              !
              ! deal with patch level fields of arrays here
@@ -1196,7 +1195,7 @@ contains
 
              ! Set the first cohort index to the start of the next patch, increment
              ! by the maximum number of cohorts per patch
-             io_idx_co_1st = io_idx_co_1st + maxCohortsPerPatch
+             io_idx_co_1st = io_idx_co_1st + maxElementsPerPatch
              
              ! reset counters so that they are all advanced evenly. Currently
              ! the offset is 10, the max of numpft_ed, ncwd, cp_nclmax,
@@ -1209,7 +1208,6 @@ contains
              
              if ( DEBUG ) then
                 write(fates_log(),*) 'CLTV io_idx_co_1st ', io_idx_co_1st
-                write(fates_log(),*) 'CLTV cohorts_per_col ', cohorts_per_col
                 write(fates_log(),*) 'CLTV numCohort ', cohortsperpatch
                 write(fates_log(),*) 'CLTV totalCohorts ', totalCohorts
              end if
@@ -1275,10 +1273,10 @@ contains
      use EDTypesMod,           only : ed_cohort_type
      use EDTypesMod,           only : ed_patch_type
      use EDTypesMod,           only : ncwd
-     use EDTypesMod,           only : cp_nlevcan
-     use EDTypesMod,           only : cp_nclmax
-     use EDTypesMod,           only : maxCohortsPerPatch
-     use EDTypesMod,           only : numpft_ed
+     use FatesGlobals,         only : cp_nlevcan
+     use FatesGlobals,         only : cp_nclmax
+     use FatesGlobals,         only : maxElementsPerPatch
+     use FatesGlobals,         only : numpft_ed
      use EDTypesMod,           only : area
      use EDPatchDynamicsMod,   only : zero_patch
      use EDGrowthFunctionsMod, only : Dbh
@@ -1453,7 +1451,7 @@ contains
                 
              endif
              
-             io_idx_co_1st = io_idx_co_1st + maxCohortsPerPatch
+             io_idx_co_1st = io_idx_co_1st + maxElementsPerPatch
 
           enddo ! ends loop over idx_pa
 
@@ -1469,12 +1467,11 @@ contains
      use EDTypesMod, only : ed_site_type
      use EDTypesMod, only : ed_cohort_type
      use EDTypesMod, only : ed_patch_type
-     use EDTypesMod, only : numpft_ed
+     use FatesGlobals, only : numpft_ed
      use EDTypesMod, only : ncwd
-     use EDTypesMod, only : cp_nlevcan
-     use EDTypesMod, only : cp_nclmax
-     use EDTypesMod, only : maxCohortsPerPatch
-     use EDTypesMod, only : cohorts_per_col
+     use FatesGlobals, only : cp_nlevcan
+     use FatesGlobals, only : cp_nclmax
+     use FatesGlobals, only : maxElementsPerPatch
      use EDTypesMod, only : numWaterMem
 
      ! !ARGUMENTS:
@@ -1699,7 +1696,7 @@ contains
              
              if ( DEBUG ) then
                 write(fates_log(),*) 'CVTL III ' &
-                     ,io_idx_co,cohorts_per_col, cohortsperpatch
+                     ,io_idx_co,cohortsperpatch
              endif
              !
              ! deal with patch level fields of arrays here
@@ -1746,7 +1743,7 @@ contains
              ! Now increment the position of the first cohort to that of the next
              ! patch
              
-             io_idx_co_1st = io_idx_co_1st + maxCohortsPerPatch
+             io_idx_co_1st = io_idx_co_1st + maxElementsPerPatch
              
              ! and max the number of allowed cohorts per patch
              io_idx_pa_pft  = io_idx_co_1st
@@ -1757,7 +1754,6 @@ contains
              
              if ( DEBUG ) then
                 write(fates_log(),*) 'CVTL io_idx_co_1st ', io_idx_co_1st
-                write(fates_log(),*) 'CVTL cohorts_per_col ', cohorts_per_col
                 write(fates_log(),*) 'CVTL cohortsperpatch ', cohortsperpatch
                 write(fates_log(),*) 'CVTL totalCohorts ', totalCohorts
              end if

@@ -8,7 +8,9 @@ module EDPatchDynamicsMod
   use FatesGlobals         , only : freq_day
   use pftconMod            , only : pftcon
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
-  use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, numpft_ed, area, dbhmax, maxPatchesPerCol
+  use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, area, dbhmax
+  use FatesGlobals         , only : numpft_ed
+  use FatesGlobals         , only : maxPatchesPerSite
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod           , only : min_patch_area, cp_numlevgrnd, cp_numSWb
   use FatesGlobals         , only : endrun => fates_endrun
@@ -172,7 +174,7 @@ contains
     ! 10) Area checked, and patchno recalculated. 
     !
     ! !USES:
-    use EDTypesMod          , only : cp_nclmax
+    use FatesGlobals        , only : cp_nclmax
     use EDParamsMod         , only : ED_val_maxspread, ED_val_understorey_death
     use EDCohortDynamicsMod , only : zero_cohort, copy_cohort, terminate_cohorts 
     !
@@ -1021,7 +1023,7 @@ contains
     !---------------------------------------------------------------------
 
     !maxpatch = 4  
-    maxpatch = maxPatchesPerCol
+    maxpatch = maxPatchesPerSite
 
     currentSite => csite 
 
