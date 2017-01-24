@@ -6,7 +6,7 @@ module EDInitMod
 
   use FatesConstantsMod         , only : r8 => fates_r8
   use FatesGlobals              , only : endrun => fates_endrun
-  use EDTypesMod                , only : cp_nclmax
+  use FatesGlobals              , only : cp_nclmax
   use FatesGlobals              , only : fates_log
   use clm_varctl                , only : use_ed_spit_fire 
   use clm_time_manager          , only : is_restart
@@ -16,7 +16,8 @@ module EDInitMod
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDPatchDynamicsMod        , only : create_patch
   use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type, area
-  use EDTypesMod                , only : cohorts_per_col, ncwd, numpft_ed
+  use EDTypesMod                , only : ncwd
+  use FatesGlobals              , only : numpft_ed
 
   implicit none
   private

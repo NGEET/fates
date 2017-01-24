@@ -11,8 +11,9 @@ module EDCanopyStructureMod
   use EDGrowthFunctionsMod  , only : c_area
   use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type, ncwd
-  use EDtypesMod            , only : cp_nclmax,cp_nlevcan
-  use EDtypesMod            , only : numpft_ed
+  use FatesGlobals          , only : cp_nclmax
+  use FatesGlobals          , only : cp_nlevcan
+  use FatesGlobals          , only : numpft_ed
   use FatesGlobals          , only : endrun => fates_endrun
 
   ! CIME Globals
@@ -80,7 +81,7 @@ contains
 
     use EDParamsMod, only : ED_val_comp_excln, ED_val_ag_biomass
     use SFParamsMod, only : SF_val_cwd_frac
-    use EDtypesMod , only : ncwd, min_patch_area, cp_nlevcan
+    use EDtypesMod , only : ncwd, min_patch_area
     !
     ! !ARGUMENTS    
     type(ed_site_type) , intent(inout), target   :: currentSite
@@ -593,7 +594,6 @@ contains
     !  Calculates the spatial spread of tree canopies based on canopy closure.                             
     !
     ! !USES:
-    use EDTypesMod  , only : cp_nlevcan
     use EDParamsMod , only : ED_val_maxspread, ED_val_minspread 
     !
     ! !ARGUMENTS    
@@ -773,7 +773,7 @@ contains
     ! !USES:
 
     use EDGrowthFunctionsMod , only : tree_lai, tree_sai, c_area 
-    use EDtypesMod           , only : area, dinc_ed, hitemax, numpft_ed, n_hite_bins
+    use EDtypesMod           , only : area, dinc_ed, hitemax, n_hite_bins
     use EDEcophysConType     , only : EDecophyscon
   
     !

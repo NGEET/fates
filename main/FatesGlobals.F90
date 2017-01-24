@@ -5,7 +5,7 @@ module FatesGlobals
   ! immediately obvious home.
 
   use FatesConstantsMod         , only : r8 => fates_r8
-  use EDTypes                   , only : cp_nclmax, cp_nlevcan, numpft_ed
+!  use EDTypesMod                , only : cp_nclmax, cp_nlevcan, numpft_ed
    
   implicit none
 
@@ -13,24 +13,41 @@ module FatesGlobals
   public :: fates_log
   public :: fates_global_verbose
   public :: SetFatesTime
+  public :: set_fates_global_elements
 
 
   ! for setting number of patches per gridcell and number of cohorts per patch
   ! for I/O and converting to a vector
 
-  integer, parameter :: maxPatchesPerSite  = 10         ! maximum number of patches to live on a site
-  integer, parameter :: CohortsPerPatch    = 160        ! maxCohortsPerPatch is the value that is ultimately
-                                                        ! used to set array sizes. The arrays that it allocates
-                                                        ! are sometimes used to hold non-cohort entities. As such
-                                                        ! the size of those arrays must be the maximum of what we
-                                                        ! expect from cohorts per patch, and those others.
+  integer, parameter :: maxPatchesPerSite  = 10   ! maximum number of patches to live on a site
+  integer, parameter :: maxCohortsPerPatch = 160  ! maximum number of cohorts to live on a patch
 
-  integer            :: maxCohortsPerPatch              ! See above for CohortsPerPatch
-  integer            :: maxCohortsPerSite               ! This is the max number of individual items one can store per 
-                                                        ! each grid cell and effects the striding in the ED restart 
-                                                        ! data as some fields are arrays where each array is
-                                                        ! associated with one cohort
 
+  ! Variables mostly used for dimensioning host land model (HLM) array spaces
+
+  integer, protected :: maxElementsPerPatch       ! maxElementsPerPatch is the value that is ultimately
+                                                  ! used to set the size of the largest arrays necessary
+                                                  ! in things like restart files (probably hosted by the 
+                                                  ! HLM). The size of these arrays are not a parameter
+                                                  ! because it is simply the maximum of several different
+                                                  ! dimensions. It is possible that this would be the
+                                                  ! maximum number of cohorts per patch, but
+                                                  ! but it could be other things.
+
+  integer, protected :: maxElementsPerSite        ! This is the max number of individual items one can store per 
+                                                  ! each grid cell and effects the striding in the ED restart 
+                                                  ! data as some fields are arrays where each array is
+                                                  ! associated with one cohort
+
+  integer, protected :: maxCohortsPerSite         ! Maximum number of cohorts that can exist in a given
+                                                  ! site. Its possible this is not used.
+
+
+  integer, parameter :: cp_nclmax = 2       ! Maximum number of canopy layers
+
+  integer, parameter :: cp_nlevcan = 40     ! number of leaf layers in canopy layer
+
+  integer , parameter :: numpft_ed = 2      ! number of PFTs used in ED. 
 
 
   ! -------------------------------------------------------------------------------------
@@ -51,22 +68,30 @@ module FatesGlobals
                                          ! this is a frequency
 
   integer, private :: fates_log_
-  logical, private, parameter :: fates_global_verbose_ = .false.
+  logical, private :: fates_global_verbose_
 
 contains
 
-  subroutine FatesGlobalsInit(log_unit)
+  subroutine set_fates_global_elements()
+     implicit none
+
+     maxElementsPerPatch = max(maxCohortsPerPatch, &
+           numpft_ed * cp_nclmax * cp_nlevcan)
+     
+     maxCohortsPerSite = maxPatchesPerSite * maxCohortsPerPatch
+     
+     maxElementsPerSite = maxPatchesPerSite * maxElementsPerPatch
+
+  end subroutine set_fates_global_elements
+
+  ! =====================================================================================
+
+  subroutine FatesGlobalsInit(log_unit,global_verbose)
 
     implicit none
 
     integer, intent(in) :: log_unit
-
-
-    maxCohortsPerPatch = max(CohortsPerPatch, &
-         numpft_ed * cp_nclmax * cp_nlevcan)
-
-    maxCohortsPerSite = maxPatchesPerCol * maxCohortsPerPatch
-
+    logical, intent(in) :: global_verbose
 
     fates_log_ = log_unit
     fates_global_verbose_ = global_verbose
