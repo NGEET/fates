@@ -68,10 +68,10 @@ contains
     use EDTypesMod        , only : ed_patch_type
     use EDTypesMod        , only : ed_cohort_type
     use EDTypesMod        , only : ed_site_type
-    use EDTypesMod        , only : numpft_ed
+    use FatesGlobals      , only : numpft_ed
     use EDTypesMod        , only : cp_numlevsoil
-    use EDTypesMod        , only : cp_nlevcan
-    use EDTypesMod        , only : cp_nclmax
+    use FatesGlobals      , only : cp_nlevcan
+    use FatesGlobals      , only : cp_nclmax
     use EDEcophysContype  , only : EDecophyscon
     use FatesInterfaceMod , only : bc_in_type
     use FatesInterfaceMod , only : bc_out_type

@@ -23,6 +23,8 @@ module clm_initializeMod
   use reweightMod     , only : reweight_wrapup
   use filterMod       , only : allocFilters, filter
   use EDVecCohortType , only : ed_vec_cohort ! instance, used for domain decomp
+  use FatesGlobals    , only : set_fates_global_elements
+
   use clm_instMod       
   ! 
   implicit none
@@ -176,6 +178,22 @@ contains
     ! Read surface dataset and set up subgrid weight arrays
     
     call surfrd_get_data(begg, endg, ldomain, fsurdat)
+
+    ! ------------------------------------------------------------------------
+    ! Ask Fates to evaluate its own dimensioning needs.
+    ! This determines the total amount of space it requires in its largest
+    ! dimension.  We are currently calling that the "cohort" dimension, but
+    ! it is really a utility dimension that captures the models largest
+    ! size need.
+    ! Sets:
+    ! maxElementsPerPatch
+    ! maxElementsPerSite (where a site is roughly equivalent to a column)
+    ! maxCohortsperSite  
+    ! (Note: maxELementsPerSite is the critical variable used by CLM
+    ! to allocate space)
+    ! ------------------------------------------------------------------------
+    
+    call set_fates_global_elements()
 
     ! ------------------------------------------------------------------------
     ! Determine decomposition of subgrid scale landunits, columns, patches

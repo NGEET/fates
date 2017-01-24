@@ -11,14 +11,15 @@ module EDSurfaceRadiationMod
 #include "shr_assert.h"
    
   use EDtypesMod        , only : ed_patch_type, ed_site_type
-  use EDtypesMod        , only : numpft_ed
-  use EDtypesMod        , only : maxPatchesPerCol
+  use FatesGlobals      , only : numpft_ed
+  use FatesGlobals      , only : maxPatchesPerSite
   use FatesConstantsMod , only : r8 => fates_r8
   use FatesInterfaceMod , only : bc_in_type, &
                                  bc_out_type
   use EDTypesMod        , only : cp_numSWb, &        ! Actual number of SW radiation bands
-                                 cp_maxSWb, &        ! maximum number of SW bands (for scratch)
-                                 cp_nclmax           ! control parameter, number of SW bands
+                                 cp_maxSWb           ! maximum number of SW bands (for scratch)
+                                 
+  use FatesGlobals      , only : cp_nclmax
   use EDCanopyStructureMod, only: calc_areaindex
   
   ! CIME globals
@@ -48,7 +49,9 @@ contains
       ! !USES:
       use clm_varctl        , only : iulog
       use pftconMod         , only : pftcon
-      use EDtypesMod        , only : ed_patch_type, numpft_ed, cp_nlevcan
+      use EDtypesMod        , only : ed_patch_type
+      use FatesGlobals      , only : numpft_ed
+      use FatesGlobals      , only : cp_nlevcan
       use EDTypesMod        , only : ed_site_type
 
 
@@ -75,8 +78,8 @@ contains
       real(r8) :: k_dir(numpft_ed)                              ! Direct beam extinction coefficient
       real(r8) :: tr_dir_z(cp_nclmax,numpft_ed,cp_nlevcan)         ! Exponential transmittance of direct beam radiation through a single layer
       real(r8) :: tr_dif_z(cp_nclmax,numpft_ed,cp_nlevcan)         ! Exponential transmittance of diffuse radiation through a single layer
-      real(r8) :: forc_dir(maxPatchesPerCol,cp_maxSWb)
-      real(r8) :: forc_dif(maxPatchesPerCol,cp_maxSWb)
+      real(r8) :: forc_dir(maxPatchesPerSite,cp_maxSWb)
+      real(r8) :: forc_dif(maxPatchesPerSite,cp_maxSWb)
       real(r8) :: weighted_dir_tr(cp_nclmax)
       real(r8) :: weighted_fsun(cp_nclmax)
       real(r8) :: weighted_dif_ratio(cp_nclmax,cp_maxSWb)
@@ -94,8 +97,8 @@ contains
       real(r8) :: abs_rad(cp_maxSWb)                               !radiation absorbed by soil
       real(r8) :: tr_soili                                      ! Radiation transmitted to the soil surface.
       real(r8) :: tr_soild                                      ! Radiation transmitted to the soil surface.
-      real(r8) :: phi1b(maxPatchesPerCol,numpft_ed)      ! Radiation transmitted to the soil surface.
-      real(r8) :: phi2b(maxPatchesPerCol,numpft_ed)
+      real(r8) :: phi1b(maxPatchesPerSite,numpft_ed)      ! Radiation transmitted to the soil surface.
+      real(r8) :: phi2b(maxPatchesPerSite,numpft_ed)
       real(r8) :: laisum                                        ! cumulative lai+sai for canopy layer (at middle of layer)
       real(r8) :: angle
 
@@ -108,8 +111,8 @@ contains
       integer  :: fp,iv,s      ! array indices
       integer  :: ib               ! waveband number
       real(r8) :: cosz             ! 0.001 <= coszen <= 1.000
-      real(r8) :: chil(maxPatchesPerCol)     ! -0.4 <= xl <= 0.6
-      real(r8) :: gdir(maxPatchesPerCol)    ! leaf projection in solar direction (0 to 1)
+      real(r8) :: chil(maxPatchesPerSite)     ! -0.4 <= xl <= 0.6
+      real(r8) :: gdir(maxPatchesPerSite)    ! leaf projection in solar direction (0 to 1)
 
       !-----------------------------------------------------------------------
 

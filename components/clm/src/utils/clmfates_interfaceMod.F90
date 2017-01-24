@@ -221,7 +221,9 @@ contains
          call param_derived%Init(numpft_ed)
          
       end if
-         
+
+      verbose_output = .false.
+      call FatesInterfaceInit(iulog, verbose_output)
 
       nclumps = get_proc_clumps()
       allocate(this%fates(nclumps))
@@ -728,11 +730,7 @@ contains
      use FatesIODimensionsMod, only: fates_bounds_type
      use FatesIOVariableKindMod, only : site_r8, site_int, cohort_r8, cohort_int
      use EDMainMod, only :        ed_update_site
-     use EDTypesMod, only:        cohorts_per_col ! EDtypes should be protected
-                                                  ! this variable should be transferred
-                                                  ! to a location where we keep
-                                                  ! variables that are co-dictated by
-                                                  ! FATES and the HLM
+     use FatesGlobals, only:   maxElementsPerSite
 
       implicit none
 
@@ -815,7 +813,7 @@ contains
                c = this%f2hmap(nc)%fcolumn(s)
                this%fates_restart%restart_map(nc)%site_index(s)   = c
                this%fates_restart%restart_map(nc)%cohort1_index(s) = &
-                    bounds_proc%begCohort + (c-bounds_proc%begc)*cohorts_per_col + 1
+                    bounds_proc%begCohort + (c-bounds_proc%begc)*maxElementsPerSite + 1
             end do
             
          end do
