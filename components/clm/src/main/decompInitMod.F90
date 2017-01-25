@@ -20,7 +20,7 @@ module decompInitMod
   use glcBehaviorMod  , only : glc_behavior_type
   use decompMod
   use mct_mod
-  use FatesGlobals    , only : maxElementsPerSite
+  use FatesInterfaceMod, only : fates_maxElementsPerSite
   !
   ! !PUBLIC TYPES:
   implicit none
@@ -733,7 +733,7 @@ contains
        ioff(:) = 0
        ci = begc
        do coi = begCohort,endCohort
-          if ( mod(coi, maxElementsPerSite ) == 0 ) ci = ci + 1
+          if ( mod(coi, fates_maxElementsPerSite ) == 0 ) ci = ci + 1
           gi = col%gridcell(ci)          ! convert column into gridcell
           gindex(coi) = coStart(gi) + ioff(gi)
           ioff(gi) = ioff(gi) + 1

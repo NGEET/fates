@@ -77,19 +77,19 @@ module CLMFatesInterfaceMod
    use shr_log_mod       , only : errMsg => shr_log_errMsg    
 
    ! Used FATES Modules
-   use FatesInterfaceMod     , only : fates_interface_type, &
-                                      set_fates_ctrlparms,  &
-                                      allocate_bcin,        &
-                                      allocate_bcout
+   use FatesInterfaceMod     , only : fates_interface_type
+   use FatesInterfaceMod     , only : allocate_bcin
+   use FatesInterfaceMod     , only : allocate_bcout
 
-   use FatesGlobals            , only : SetFatesTime
+   use FatesInterfaceMod     , only : SetFatesTime
+   use FatesInterfaceMod     , only : set_fates_ctrlparms
 
    use FatesHistoryInterfaceMod, only : fates_history_interface_type
    use FatesRestartInterfaceMod, only : fates_restart_interface_type
 
    use ChecksBalancesMod     , only : SummarizeNetFluxes, FATES_BGC_Carbon_BalanceCheck
    use EDTypesMod            , only : ed_patch_type
-   use EDtypesMod            , only : cp_numlevgrnd
+   use FatesInterfaceMod     , only : hlm_numlevgrnd
    use EDMainMod             , only : ed_ecosystem_dynamics
    use EDMainMod             , only : ed_update_site
    use EDInitMod             , only : zero_site
@@ -106,7 +106,7 @@ module CLMFatesInterfaceMod
    use EDPhysiologyMod       , only : flux_into_litter_pools
 
    implicit none
-
+   
    type, public :: f2hmap_type
 
       ! This is the associated column index of each FATES site
@@ -377,7 +377,7 @@ contains
 
          do s = 1, this%fates(nc)%nsites
             c = this%f2hmap(nc)%fcolumn(s)
-            this%fates(nc)%bc_in(s)%depth_gl(0:cp_numlevgrnd) = col%zi(c,0:cp_numlevgrnd)
+            this%fates(nc)%bc_in(s)%depth_gl(0:hlm_numlevgrnd) = col%zi(c,0:hlm_numlevgrnd)
          end do
 
          if( this%fates(nc)%nsites == 0 ) then
@@ -730,7 +730,7 @@ contains
      use FatesIODimensionsMod, only: fates_bounds_type
      use FatesIOVariableKindMod, only : site_r8, site_int, cohort_r8, cohort_int
      use EDMainMod, only :        ed_update_site
-     use FatesGlobals, only:   maxElementsPerSite
+     use FatesInterfaceMod, only:  fates_maxElementsPerSite
 
       implicit none
 
@@ -813,7 +813,7 @@ contains
                c = this%f2hmap(nc)%fcolumn(s)
                this%fates_restart%restart_map(nc)%site_index(s)   = c
                this%fates_restart%restart_map(nc)%cohort1_index(s) = &
-                    bounds_proc%begCohort + (c-bounds_proc%begc)*maxElementsPerSite + 1
+                    bounds_proc%begCohort + (c-bounds_proc%begc)*fates_maxElementsPerSite + 1
             end do
             
          end do

@@ -17,7 +17,7 @@ module subgridMod
   use clm_varctl     , only : iulog
   use clm_instur     , only : wt_lunit, urban_valid, wt_cft
   use glcBehaviorMod , only : glc_behavior_type
-  use FatesGlobals   , only : maxElementsPerSite
+  use FatesInterfaceMod, only : fates_maxElementsPerSite
 
   implicit none
   private   
@@ -163,7 +163,7 @@ contains
     ! based on all columns.
     ! -------------------------------------------------------------------------
 
-    ncohorts = ncols*maxElementsPerSite
+    ncohorts = ncols*fates_maxElementsPerSite
 
   end subroutine subgrid_get_info_natveg
 

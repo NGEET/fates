@@ -22,7 +22,7 @@ module clm_initializeMod
   use PatchType       , only : patch         ! instance            
   use reweightMod     , only : reweight_wrapup
   use filterMod       , only : allocFilters, filter
-  use FatesGlobals    , only : set_fates_global_elements
+  use FatesInterfaceMod, only : set_fates_global_elements
 
   use clm_instMod       
   ! 
@@ -185,10 +185,10 @@ contains
     ! it is really a utility dimension that captures the models largest
     ! size need.
     ! Sets:
-    ! maxElementsPerPatch
-    ! maxElementsPerSite (where a site is roughly equivalent to a column)
-    ! maxCohortsperSite  
-    ! (Note: maxELementsPerSite is the critical variable used by CLM
+    ! fates_maxElementsPerPatch
+    ! fates_maxElementsPerSite (where a site is roughly equivalent to a column)
+    ! 
+    ! (Note: fates_maxELementsPerSite is the critical variable used by CLM
     ! to allocate space)
     ! ------------------------------------------------------------------------
     

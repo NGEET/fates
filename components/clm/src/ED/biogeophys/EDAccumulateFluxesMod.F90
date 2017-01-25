@@ -28,8 +28,8 @@ contains
     ! see above
     !
     ! !USES:
-    use shr_kind_mod      , only : r8 => shr_kind_r8
-    use clm_varctl        , only : iulog
+    use FatesConstantsMod , only : r8 => fates_r8
+    use FatesGlobals      , only : fates_log
     use EDTypesMod        , only : ed_patch_type, ed_cohort_type, &
                                    ed_site_type, AREA
     use FatesInterfaceMod , only : bc_in_type,bc_out_type
@@ -67,10 +67,10 @@ contains
                 ! _tstep fluxes are KgC/indiv/timestep _acc are KgC/indiv/day
                 
                 if ( DEBUG ) then
-                   write(iulog,*) 'EDAccumFlux 64 ',ccohort%npp_acc, &
+                   write(fates_log(),*) 'EDAccumFlux 64 ',ccohort%npp_acc, &
                          ccohort%npp_tstep
-                   write(iulog,*) 'EDAccumFlux 66 ',ccohort%gpp_tstep
-                   write(iulog,*) 'EDAccumFlux 67 ',ccohort%resp_tstep
+                   write(fates_log(),*) 'EDAccumFlux 66 ',ccohort%gpp_tstep
+                   write(fates_log(),*) 'EDAccumFlux 67 ',ccohort%resp_tstep
                 endif
                 
                 ccohort%npp_acc  = ccohort%npp_acc  + ccohort%npp_tstep 
