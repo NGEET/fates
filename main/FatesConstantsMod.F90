@@ -64,4 +64,8 @@ module FatesConstantsMod
   real(fates_r8), parameter :: pi_const = 3.14159265359_fates_r8
 
 
+  ! Numerical Constants
+
+
+
 end module FatesConstantsMod
