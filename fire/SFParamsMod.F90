@@ -24,9 +24,12 @@ module SFParamsMod
    real(r8),protected :: SF_val_max_durat
    real(r8),protected :: SF_val_durat_slope
    real(r8),protected :: SF_val_alpha_SH
-   real(r8),protected :: SF_val_alpha_FMC(NLSC)
+
    real(r8),protected :: SF_val_CWD_frac(NCWD)
+
+   real(r8),protected :: SF_val_alpha_FMC(NLSC)
    real(r8),protected :: SF_val_max_decomp(NLSC)
+
    real(r8),protected :: SF_val_SAV(NFSC)
    real(r8),protected :: SF_val_FBD(NFSC)
    real(r8),protected :: SF_val_min_moisture(NFSC)
@@ -58,10 +61,21 @@ module SFParamsMod
    character(len=param_string_length),parameter :: SF_name_mid_moisture_C = "mid_moisture_C"
    character(len=param_string_length),parameter :: SF_name_mid_moisture_S = "mid_moisture_S"
 
-   public :: SFParamsRead
-   public :: SpitFireParamsInit
    public :: SpitFireRegisterParams
    public :: SpitFireReceiveParams
+
+   private :: SpitFireParamsInit
+   private :: SpitFireRegisterScalars
+   private :: SpitFireReceiveScalars
+  
+   private :: SpitFireRegisterNCWD
+   private :: SpitFireReceiveNCWD
+  
+   private :: SpitFireRegisterNLSC
+   private :: SpitFireReceiveNLSC
+  
+   private :: SpitFireRegisterNFSC
+   private :: SpitFireReceiveNFSC
   
 contains
   !-----------------------------------------------------------------------
@@ -83,9 +97,12 @@ contains
     SF_val_max_durat = nan
     SF_val_durat_slope = nan
     SF_val_alpha_SH = nan
-    SF_val_alpha_FMC(:) = nan
+
     SF_val_CWD_frac(:) = nan
+
+    SF_val_alpha_FMC(:) = nan
     SF_val_max_decomp(:) = nan
+
     SF_val_SAV(:) = nan
     SF_val_FBD(:) = nan
     SF_val_min_moisture(:) = nan
@@ -96,6 +113,7 @@ contains
     SF_val_mid_moisture_S(:) = nan
 
   end subroutine SpitFireParamsInit
+
   !-----------------------------------------------------------------------
   subroutine SpitFireRegisterParams(fates_params)
 
@@ -105,10 +123,40 @@ contains
 
     class(fates_parameters_type), intent(inout) :: fates_params
 
-    character(len=param_string_length), parameter :: dim_names_scalar(1) = (/dimension_name_scalar/)
+    call SpitFireParamsInit()
+    call SpitFireRegisterScalars(fates_params)
+    call SpitFireRegisterNCWD(fates_params)
+    call SpitFireRegisterNLSC(fates_params)
+    call SpitFireRegisterNFSC(fates_params)
 
-    !call SpitFireParamsInit()
+ end subroutine SpitFireRegisterParams
+
+ !-----------------------------------------------------------------------
+ subroutine SpitFireReceiveParams(fates_params)
+   
+   use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar
+   
+   implicit none
+   
+    class(fates_parameters_type), intent(inout) :: fates_params
     
+    call SpitFireReceiveScalars(fates_params)
+    call SpitFireReceiveNCWD(fates_params)
+    call SpitFireReceiveNLSC(fates_params)
+    call SpitFireReceiveNFSC(fates_params)
+    
+  end subroutine SpitFireReceiveParams
+
+  !-----------------------------------------------------------------------
+  subroutine SpitFireRegisterScalars(fates_params)
+
+    use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar, dimension_shape_scalar
+
+    implicit none
+
+    class(fates_parameters_type), intent(inout) :: fates_params
+
+    character(len=param_string_length), parameter :: dim_names_scalar(1) = (/dimension_name_scalar/)
 
     call fates_params%RegisterParameter(name=SF_name_fdi_a, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
@@ -140,17 +188,16 @@ contains
     call fates_params%RegisterParameter(name=SF_name_alpha_SH, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
- end subroutine SpitFireRegisterParams
+  end subroutine SpitFireRegisterScalars
 
  !-----------------------------------------------------------------------
- subroutine SpitFireReceiveParams(fates_params)
+ subroutine SpitFireReceiveScalars(fates_params)
    
     use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar
 
     implicit none
 
     class(fates_parameters_type), intent(inout) :: fates_params
-
     
     call fates_params%RetreiveParameter(name=SF_name_fdi_a, &
          data=SF_val_fdi_a)
@@ -182,155 +229,147 @@ contains
     call fates_params%RetreiveParameter(name=SF_name_alpha_SH, &
          data=SF_val_alpha_SH)
 
-  end subroutine SpitFireReceiveParams
-  !-----------------------------------------------------------------------
-  !
-  !-----------------------------------------------------------------------
-  subroutine SFParamsRead(ncid)
-     !
-     ! calls to initialize parameter instance and do ncdio read
-     !
-     use ncdio_pio    , only : file_desc_t
-     
-     implicit none
-
-     ! arguments
-     type(file_desc_t),intent(inout) :: ncid   ! pio netCDF file id
-
-     call SpitFireParamsInit()
-     call SFParamsReadLocal(ncid)
-
-  end subroutine SFParamsRead
-  !-----------------------------------------------------------------------
+  end subroutine SpitFireReceiveScalars
 
   !-----------------------------------------------------------------------
-  !
+  subroutine SpitFireRegisterNCWD(fates_params)
+
+    use FatesParametersInterface, only : fates_parameters_type, dimension_name_cwd, dimension_shape_1d
+
+    implicit none
+
+    class(fates_parameters_type), intent(inout) :: fates_params
+
+    character(len=param_string_length), parameter :: dim_names_cwd(1) = (/dimension_name_cwd/)
+
+    call fates_params%RegisterParameter(name=SF_name_CWD_frac, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_cwd)
+
+  end subroutine SpitFireRegisterNCWD
+
+ !-----------------------------------------------------------------------
+ subroutine SpitFireReceiveNCWD(fates_params)
+   
+    use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar
+
+    implicit none
+
+    class(fates_parameters_type), intent(inout) :: fates_params
+
+    call fates_params%RetreiveParameter(name=SF_name_CWD_frac, &
+         data=SF_val_CWD_frac)
+
+  end subroutine SpitFireReceiveNCWD
+
   !-----------------------------------------------------------------------
-  subroutine SFParamsReadLocal(ncid)
-     !
-     ! read the netcdf file and populate internalInstScalar
-     !
-     use ncdio_pio         , only : file_desc_t
-     use paramUtilMod      , only : readNcdio
+  subroutine SpitFireRegisterNLSC(fates_params)
 
-     implicit none
+    use FatesParametersInterface, only : fates_parameters_type, dimension_name_lsc, dimension_shape_1d
 
-     ! arguments
-     type(file_desc_t),intent(inout) :: ncid   ! pio netCDF file id
+    implicit none
 
-     ! local vars
-     character(len=32)  :: subname = 'SFParamsReadLocal::'
+    class(fates_parameters_type), intent(inout) :: fates_params
 
-     !
-     ! call read function
-     !
+    character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_lsc/)
 
-     !X! call readNcdio(ncid = ncid, &
-     !X!    varName=SF_name_fdi_a, &
-     !X!    callingName=subname, &
-     !X!    retVal=SF_val_fdi_a)
-     !X!
-     !X! call readNcdio(ncid = ncid, &
-     !X!    varName=SF_name_fdi_b, &
-     !X!    callingName=subname, &
-     !X!    retVal=SF_val_fdi_b)
-     !X!
-     !X! call readNcdio(ncid = ncid, &
-     !X!    varName=SF_name_fdi_alpha, &
-     !X!    callingName=subname, &
-     !X!    retVal=SF_val_fdi_alpha)
-     !X!
-     !X! call readNcdio(ncid = ncid, &
-     !X!    varName=SF_name_miner_total, &
-     !X!    callingName=subname, &
-     !X!    retVal=SF_val_miner_total)
-     !X!
-     !X! call readNcdio(ncid = ncid, &
-     !X!    varName=SF_name_fuel_energy, &
-     !X!    callingName=subname, &
-     !X!    retVal=SF_val_fuel_energy)
-     !X!
-     !X! call readNcdio(ncid = ncid, &
-     !X!    varName=SF_name_part_dens, &
-     !X!    callingName=subname, &
-     !X!    retVal=SF_val_part_dens)
-     !X!
-     !X! call readNcdio(ncid = ncid, &
-     !X!    varName=SF_name_miner_damp, &
-     !X!    callingName=subname, &
-     !X!    retVal=SF_val_miner_damp)
-     !X!
-     !X! call readNcdio(ncid = ncid, &
-     !X!    varName=SF_name_max_durat, &
-     !X!    callingName=subname, &
-     !X!    retVal=SF_val_max_durat)
-     !X!
-     !X! call readNcdio(ncid = ncid, &
-     !X!    varName=SF_name_durat_slope, &
-     !X!    callingName=subname, &
-     !X!    retVal=SF_val_durat_slope)
-     !X!
-     !X! call readNcdio(ncid = ncid, &
-     !X!    varName=SF_name_alpha_SH, &
-     !X!    callingName=subname, &
-     !X!    retVal=SF_val_alpha_SH)
-  
-      call readNcdio(ncid = ncid, &
-         varName=SF_name_alpha_FMC, &
-         callingName=subname, &
-         retVal=SF_val_alpha_FMC)
+    call fates_params%RegisterParameter(name=SF_name_alpha_FMC, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+    
+    call fates_params%RegisterParameter(name=SF_name_max_decomp, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
 
-      call readNcdio(ncid = ncid, &
-         varName=SF_name_CWD_frac, &
-         callingName=subname, &
-         retVal=SF_val_CWD_frac)
-  
-      call readNcdio(ncid = ncid, &
-         varName=SF_name_max_decomp, &
-         callingName=subname, &
-         retVal=SF_val_max_decomp)
-  
-      call readNcdio(ncid = ncid, &
-         varName=SF_name_SAV, &
-         callingName=subname, &
-         retVal=SF_val_SAV)
-  
-      call readNcdio(ncid = ncid, &
-         varName=SF_name_FBD, &
-         callingName=subname, &
-         retVal=SF_val_FBD)
-  
-      call readNcdio(ncid = ncid, &
-         varName=SF_name_min_moisture, &
-         callingName=subname, &
-         retVal=SF_val_min_moisture)
-  
-      call readNcdio(ncid = ncid, &
-         varName=SF_name_mid_moisture, &
-         callingName=subname, &
-         retVal=SF_val_mid_moisture)
-  
-      call readNcdio(ncid = ncid, &
-         varName=SF_name_low_moisture_C, &
-         callingName=subname, &
-         retVal=SF_val_low_moisture_C)
-  
-      call readNcdio(ncid = ncid, &
-         varName=SF_name_low_moisture_S, &
-         callingName=subname, &
-         retVal=SF_val_low_moisture_S)
-  
-      call readNcdio(ncid = ncid, &
-         varName=SF_name_mid_moisture_C, &
-         callingName=subname, &
-         retVal=SF_val_mid_moisture_C)
-  
-      call readNcdio(ncid = ncid, &
-         varName=SF_name_mid_moisture_S, &
-         callingName=subname, &
-         retVal=SF_val_mid_moisture_S)
-  
-  end subroutine SFParamsReadLocal
+  end subroutine SpitFireRegisterNLSC
+
+ !-----------------------------------------------------------------------
+ subroutine SpitFireReceiveNLSC(fates_params)
+   
+    use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar
+
+    implicit none
+
+    class(fates_parameters_type), intent(inout) :: fates_params
+
+    call fates_params%RetreiveParameter(name=SF_name_alpha_FMC, &
+         data=SF_val_alpha_FMC)
+    
+    call fates_params%RetreiveParameter(name=SF_name_max_decomp, &
+         data=SF_val_max_decomp)
+
+  end subroutine SpitFireReceiveNLSC
+
   !-----------------------------------------------------------------------
+  subroutine SpitFireRegisterNFSC(fates_params)
+
+    use FatesParametersInterface, only : fates_parameters_type, dimension_name_fsc, dimension_shape_1d
+
+    implicit none
+
+    class(fates_parameters_type), intent(inout) :: fates_params
+
+    character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_fsc/)
+
+    call fates_params%RegisterParameter(name=SF_name_SAV, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=SF_name_FBD, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=SF_name_min_moisture, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=SF_name_mid_moisture, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=SF_name_low_moisture_C, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=SF_name_low_moisture_S, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=SF_name_mid_moisture_C, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=SF_name_mid_moisture_S, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+  end subroutine SpitFireRegisterNFSC
+
+ !-----------------------------------------------------------------------
+ subroutine SpitFireReceiveNFSC(fates_params)
+   
+    use FatesParametersInterface, only : fates_parameters_type
+
+    implicit none
+
+    class(fates_parameters_type), intent(inout) :: fates_params
+
+    
+    call fates_params%RetreiveParameter(name=SF_name_SAV, &
+         data=SF_val_SAV)
+
+    call fates_params%RetreiveParameter(name=SF_name_FBD, &
+         data=SF_val_FBD)
+
+    call fates_params%RetreiveParameter(name=SF_name_min_moisture, &
+         data=SF_val_min_moisture)
+
+    call fates_params%RetreiveParameter(name=SF_name_mid_moisture, &
+         data=SF_val_mid_moisture)
+
+    call fates_params%RetreiveParameter(name=SF_name_low_moisture_C, &
+         data=SF_val_low_moisture_C)
+
+    call fates_params%RetreiveParameter(name=SF_name_low_moisture_S, &
+         data=SF_val_low_moisture_S)
+
+    call fates_params%RetreiveParameter(name=SF_name_mid_moisture_C, &
+         data=SF_val_mid_moisture_C)
+
+    call fates_params%RetreiveParameter(name=SF_name_mid_moisture_S, &
+         data=SF_val_mid_moisture_S)
+
+  end subroutine SpitFireReceiveNFSC
+  !-----------------------------------------------------------------------
+
 
 end module SFParamsMod
