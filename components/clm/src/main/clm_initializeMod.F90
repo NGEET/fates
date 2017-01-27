@@ -192,7 +192,7 @@ contains
     ! to allocate space)
     ! ------------------------------------------------------------------------
     
-    call set_fates_global_elements()
+    call set_fates_global_elements(use_ed)
 
     ! ------------------------------------------------------------------------
     ! Determine decomposition of subgrid scale landunits, columns, patches

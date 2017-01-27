@@ -25,7 +25,7 @@ module CLMFatesInterfaceMod
    !
    ! Conventions:
    ! keep line widths within 90 spaces
-   ! DLM acronym = Driving Land Model
+   ! HLM acronym = Host Land Model
    !
    ! -------------------------------------------------------------------------------------
 
@@ -147,7 +147,6 @@ module CLMFatesInterfaceMod
    contains
       
       procedure, public :: init
-      procedure, public :: init_allocate
       procedure, public :: check_hlm_active
       procedure, public :: restart
       procedure, public :: init_coldstart
@@ -174,10 +173,10 @@ contains
 
   ! ====================================================================================
 
-   subroutine init(this, bounds_proc, use_ed)
+   subroutine init(this, bounds_proc )
       
       ! ---------------------------------------------------------------------------------
-      ! This initializes the dlm_fates_interface_type 
+      ! This initializes the hlm_fates_interface_type 
       !
       ! sites is the root of the ED state hierarchy (instantaneous info on 
       ! the state of the ecosystem).  As such, it governs the connection points between
@@ -201,26 +200,29 @@ contains
       ! Input Arguments
       class(hlm_fates_interface_type), intent(inout) :: this
       type(bounds_type),intent(in)                   :: bounds_proc
-      logical,intent(in)                             :: use_ed   ! NEEDS TO BE PASSED (FOR NOW)
-                                                                 ! BC THE FATES SITE VECTORS
-                                                                 ! NEED TO BE GENERATED
-                                                                 ! FOR NON-ED AS WELL.  SO
-                                                                 ! ONLY PART OF THIS MAY BE OPERATIVE
+
       ! local variables
       integer                                        :: nclumps   ! Number of threads
       logical :: verbose_output
       integer :: pass_masterproc
+      integer                                        :: nc        ! thread index
+      integer                                        :: s         ! FATES site index
+      integer                                        :: c         ! HLM column index
+      integer                                        :: l         ! HLM LU index
+      integer                                        :: g         ! HLM grid index
+      integer, allocatable                           :: collist (:)
+      type(bounds_type)                              :: bounds_clump
+      integer                                        :: nmaxcol
 
-      if (use_ed) then
+      if(.not.use_ed) return
+
          
-         ! Initialize the FATES communicators with the HLM
-         ! This involves to stages
-         ! 1) allocate the vectors
-         ! 2) add the history variables defined in clm_inst to the history machinery
-         call EDecophysconInit( EDpftvarcon_inst, numpft )
-         call param_derived%Init(numpft_ed)
-         
-      end if
+      ! Initialize the FATES communicators with the HLM
+      ! This involves to stages
+      ! 1) allocate the vectors
+      ! 2) add the history variables defined in clm_inst to the history machinery
+      call EDecophysconInit( EDpftvarcon_inst, numpft )
+      call param_derived%Init( numpft_ed )
 
       verbose_output = .false.
       call FatesInterfaceInit(iulog, verbose_output)
@@ -256,37 +258,11 @@ contains
       ! Check through FATES parameters to see if all have been set
       call set_fates_ctrlparms('check_allset')
 
-
       if(DEBUG)then
          write(iulog,*) 'clm_fates%init():  allocating for ',nclumps,' threads'
       end if
 
-    end subroutine init
-
-   ! ====================================================================================
-   
-   subroutine init_allocate(this)
       
-      implicit none
-      
-      ! Input Arguments
-      class(hlm_fates_interface_type), intent(inout) :: this
-      ! local variables
-      integer                                        :: nclumps   ! Number of threads
-      integer                                        :: nc        ! thread index
-      integer                                        :: s         ! FATES site index
-      integer                                        :: c         ! HLM column index
-      integer                                        :: l         ! HLM LU index
-      integer                                        :: g         ! HLM grid index
-      integer, allocatable                           :: collist (:)
-      type(bounds_type)                              :: bounds_clump
-      type(bounds_type)                              :: bounds_proc
-      integer                                        :: nmaxcol
-
-      if(DEBUG)then
-         write(iulog,*) 'Entering clm_fates%init_allocate'
-      end if
-
       nclumps = get_proc_clumps()
 
       !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,nmaxcol,s,c,l,g,collist)
@@ -389,17 +365,15 @@ contains
       end do
       !$OMP END PARALLEL DO
       
-      call get_proc_bounds(bounds_proc)
+
       call this%init_history_io(bounds_proc)
 
-   end subroutine init_allocate
-   
-  
-   ! ------------------------------------------------------------------------------------
-   
 
-   subroutine check_hlm_active(this, nc, bounds_clump)
+    end subroutine init
 
+    ! ===================================================================================
+   
+    subroutine check_hlm_active(this, nc, bounds_clump)
       
       implicit none
       class(hlm_fates_interface_type), intent(inout) :: this
@@ -408,12 +382,14 @@ contains
       
       ! local variables
       integer :: c
+
+      
+      if (.not.use_ed) return
       
       do c = bounds_clump%begc,bounds_clump%endc
 
          ! FATES ACTIVE BUT HLM IS NOT
          if(this%f2hmap(nc)%hsites(c)>0 .and. .not.col%active(c)) then
-
             
             write(iulog,*) 'INACTIVE COLUMN WITH ACTIVE FATES SITE'
             write(iulog,*) 'c = ',c
@@ -471,6 +447,8 @@ contains
       real(r8) :: model_day
       real(r8) :: day_of_year
       !-----------------------------------------------------------------------
+
+      if(.not.use_ed) return
 
       ! ---------------------------------------------------------------------------------
       ! Part I.
@@ -616,6 +594,8 @@ contains
      integer :: s       ! site index
      integer :: c       ! column index
 
+     if (.not.use_ed) return
+
      associate(                                &
          tlai => canopystate_inst%tlai_patch , &
          elai => canopystate_inst%elai_patch , &
@@ -758,6 +738,8 @@ contains
       logical                 :: readvar
 
       logical, save           :: initialized = .false.
+
+      if (.not.use_ed) return
 
       nclumps = get_proc_clumps()
 
@@ -975,6 +957,7 @@ contains
      integer :: c
      integer :: g
 
+     if(.not.use_ed) return
 
      nclumps = get_proc_clumps()
 
@@ -1053,6 +1036,8 @@ contains
       
       type(ed_patch_type), pointer :: cpatch  ! c"urrent" patch  INTERF-TODO: SHOULD
                                               ! BE HIDDEN AS A FATES PRIVATE
+
+      if(.not.use_ed) return
       
       associate( forc_solad => atm2lnd_inst%forc_solad_grc, &
                  forc_solai => atm2lnd_inst%forc_solai_grc, &
@@ -1176,6 +1161,8 @@ contains
       integer  :: j
       integer  :: ifp
       integer  :: p
+
+      if (.not.use_ed) return
       
       associate(& 
          sucsat      => soilstate_inst%sucsat_col           , & ! Input:  [real(r8) (:,:) ]  minimum soil suction (mm) 
@@ -1348,6 +1335,8 @@ contains
     integer                                        :: s,c,p,ifp,j,icp
     real(r8)                                       :: dtime
 
+    if (.not.use_ed) return
+
     call t_startf('edpsn')
     associate(&
           t_soisno  => temperature_inst%t_soisno_col , &
@@ -1448,6 +1437,8 @@ contains
    integer                                        :: s,c,p,ifp,icp
    real(r8)                                       :: dtime
 
+   if (.not.use_ed) return
+
     ! Run a check on the filter
     do icp = 1,fn
        p = filterp(icp)
@@ -1494,6 +1485,8 @@ contains
     
     ! locals
     integer                                    :: s,c,p,ifp,icp
+
+    if (.not.use_ed) return
 
     associate(&
          albgrd_col   =>    surfalb_inst%albgrd_col         , & !in
@@ -1579,6 +1572,8 @@ contains
     integer  :: nstep
     logical  :: is_beg_day
     integer :: s,c
+
+    if (.not.use_ed) return
 
     associate(& 
         hr            => soilbiogeochem_carbonflux_inst%hr_col,      & ! (gC/m2/s) total heterotrophic respiration
@@ -1810,6 +1805,8 @@ contains
 
    type(bounds_type), intent(in) :: hlm
    type(fates_bounds_type), intent(out) :: fates
+
+   if (.not.use_ed) return
 
    fates%cohort_begin = hlm%begcohort
    fates%cohort_end = hlm%endcohort
