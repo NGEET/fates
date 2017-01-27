@@ -76,6 +76,9 @@ module EDTypesMod
 
   character*4 yearchar                    
 
+  ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
+  logical, parameter :: homogenize_seed_pfts  = .true.
+
   !the lower limit of the size classes of ED cohorts
   !0-10,10-20...
   integer, parameter :: nlevsclass_ed = 13    ! Number of dbh size classes for size structure analysis
