@@ -638,13 +638,30 @@ contains
 
     ! ===================================================================================
     
-    subroutine set_fates_global_elements()
+    subroutine set_fates_global_elements(use_fates)
       implicit none
       
-      fates_maxElementsPerPatch = max(maxCohortsPerPatch, &
-           numpft_ed * nclmax * nlevcan)
+      logical,intent(in) :: use_fates    ! Is fates turned on?
       
-      fates_maxElementsPerSite = maxPatchesPerSite * fates_maxElementsPerPatch
+      if (use_fates) then
+
+         fates_maxElementsPerPatch = max(maxCohortsPerPatch, &
+              numpft_ed * nclmax * nlevcan)
+      
+         fates_maxElementsPerSite = maxPatchesPerSite * fates_maxElementsPerPatch
+
+      else
+         ! If we are not using FATES, the cohort dimension is still
+         ! going to be initialized, lets set it to the smallest value
+         ! possible so that the dimensioning info takes up little space
+
+         fates_maxElementsPerPatch = 1
+      
+         fates_maxElementsPerSite = 1
+         
+
+      end if
+
 
     end subroutine set_fates_global_elements
 
