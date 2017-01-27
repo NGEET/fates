@@ -45,7 +45,6 @@ contains
     use PhotosynthesisMod                 , only : photosyns_type
   
     use CLMFatesInterfaceMod              , only : FatesReadParameters
-    use EDSharedParamsMod                 , only : EDParamsReadShared
     !
     ! !ARGUMENTS:
     type(photosyns_type)                   , intent(in) :: photosyns_inst
@@ -92,10 +91,6 @@ contains
        call readSoilBiogeochemNLeachingParams(ncid)
        call readSoilBiogeochemPotentialParams(ncid)
        call CNParamsReadShared(ncid, NLFilename_in)  ! this is called CN params but really is for the soil biogeochem parameters
-
-       ! FIXME(bja, 2017-01) ED shared params must be read from the
-       ! host file, not the fates file to be consistent with the host.
-       call EDParamsReadShared(ncid)
 
        call readCH4Params (ncid)
     end if

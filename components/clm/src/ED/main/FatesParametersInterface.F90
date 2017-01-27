@@ -28,10 +28,11 @@ module FatesParametersInterface
   character(len=*), parameter, public :: dimension_name_cwd = 'NCWD'
   character(len=*), parameter, public :: dimension_name_lsc = 'litterclass'
   character(len=*), parameter, public :: dimension_name_fsc = 'litterclass'
+  character(len=*), parameter, public :: dimension_name_allpfts = 'allpfts'
   
   type, private ::  parameter_type
      character(len=param_string_length) :: name
-     logical :: host_parameter
+     logical :: sync_with_host
      integer :: dimension_shape
      integer :: dimension_sizes(max_dimensions)
      character(len=param_string_length) :: dimension_names(max_dimensions)
@@ -92,7 +93,7 @@ contains
   end subroutine Destroy
 
   !-----------------------------------------------------------------------
-  subroutine RegisterParameter(this, name, dimension_shape, dimension_names, host_parameter)
+  subroutine RegisterParameter(this, name, dimension_shape, dimension_names, sync_with_host)
     
     implicit none
 
@@ -100,7 +101,7 @@ contains
     character(len=param_string_length), intent(in) :: name
     integer, intent(in) :: dimension_shape
     character(len=param_string_length) :: dimension_names(1:)
-    logical, intent(in), optional :: host_parameter
+    logical, intent(in), optional :: sync_with_host
 
     integer :: i, n, num_names
     
@@ -116,9 +117,9 @@ contains
     do n = 1, num_names
        this%parameters(i)%dimension_names(n) = dimension_names(n)
     end do
-    this%parameters(i)%host_parameter = .false.
-    if (present(host_parameter)) then
-       this%parameters(i)%host_parameter = .true.
+    this%parameters(i)%sync_with_host = .false.
+    if (present(sync_with_host)) then
+       this%parameters(i)%sync_with_host = sync_with_host
     end if
     
   end subroutine RegisterParameter
@@ -219,13 +220,14 @@ contains
   end function num_params
   
   !-----------------------------------------------------------------------
-  subroutine GetUsedDimensions(this, num_used_dimensions, used_dimensions)
+  subroutine GetUsedDimensions(this, is_host_file, num_used_dimensions, used_dimensions)
     ! Construct a list of the unique dimension names used by the
     ! parameters.
     
     implicit none
     
     class(fates_parameters_type), intent(inout) :: this
+    logical, intent(in) :: is_host_file
     integer, intent(out) :: num_used_dimensions
     character(len=param_string_length), intent(out) :: used_dimensions(max_used_dimensions)
 
@@ -234,36 +236,39 @@ contains
 
     num_used_dimensions = 0
     do p = 1, this%num_parameters
-       do d = 1, max_dimensions
-          dim_name = this%parameters(p)%dimension_names(d)
-          if (len_trim(dim_name) /= 0) then
-             ! non-empty dimension name, check if it needs to be added to the list.
-             do i = 1, num_used_dimensions
-                if (used_dimensions(i) == dim_name) then
-                   ! dimension is already in list. can stop searching
-                   exit
-                end if
-             end do
+       if (is_host_file .eqv. this%parameters(p)%sync_with_host) then
+          do d = 1, max_dimensions
+             dim_name = this%parameters(p)%dimension_names(d)
+             if (len_trim(dim_name) /= 0) then
+                ! non-empty dimension name, check if it needs to be added to the list.
+                do i = 1, num_used_dimensions
+                   if (used_dimensions(i) == dim_name) then
+                      ! dimension is already in list. can stop searching
+                      exit
+                   end if
+                end do
 
-             if (i > num_used_dimensions) then
-                ! dimension name was not in the list, add it.
-                num_used_dimensions = num_used_dimensions + 1
-                used_dimensions(num_used_dimensions) = dim_name
-             end if
-          end if
-       end do
-    end do
+                if (i > num_used_dimensions) then
+                   ! dimension name was not in the list, add it.
+                   num_used_dimensions = num_used_dimensions + 1
+                   used_dimensions(num_used_dimensions) = dim_name
+                end if
+             end if ! if dim_name
+          end do ! do d
+       end if ! if host_param
+    end do ! do p
 
   end subroutine GetUsedDimensions
   
   !-----------------------------------------------------------------------
-  subroutine SetDimensionSizes(this, num_used_dimensions, dimension_names, dimension_sizes)
+  subroutine SetDimensionSizes(this, is_host_file, num_used_dimensions, dimension_names, dimension_sizes)
     ! Construct a list of the unique dimension names used by the
     ! parameters.
     
     implicit none
     
     class(fates_parameters_type), intent(inout) :: this
+    logical, intent(in) :: is_host_file
     integer, intent(in) :: num_used_dimensions
     character(len=param_string_length), intent(in) :: dimension_names(max_used_dimensions)
     integer, intent(in) :: dimension_sizes(max_used_dimensions)
@@ -272,25 +277,27 @@ contains
     character(len=param_string_length) :: dim_name
 
     do p = 1, this%num_parameters
-       do d = 1, max_dimensions
-          dim_name = this%parameters(p)%dimension_names(d)
-          if (len_trim(dim_name) /= 0) then
-             ! non-empty dimension name, set the size
-             do i = 1, num_used_dimensions
-                if (trim(dimension_names(i)) == trim(dim_name)) then
-                   !write(*, *) '--> ', trim(this%parameters(p)%name), ' setting ', trim(dim_name), ' d = ', d, 'size = ', dimension_sizes(i)
-                   this%parameters(p)%dimension_sizes(d) = dimension_sizes(i)
-                   exit
-                end if
-             end do
-          end if
-       end do
-    end do
+       if (is_host_file .eqv. this%parameters(p)%sync_with_host) then
+          do d = 1, max_dimensions
+             dim_name = this%parameters(p)%dimension_names(d)
+             if (len_trim(dim_name) /= 0) then
+                ! non-empty dimension name, set the size
+                do i = 1, num_used_dimensions
+                   if (trim(dimension_names(i)) == trim(dim_name)) then
+                      !write(*, *) '--> ', trim(this%parameters(p)%name), ' setting ', trim(dim_name), ' d = ', d, 'size = ', dimension_sizes(i)
+                      this%parameters(p)%dimension_sizes(d) = dimension_sizes(i)
+                      exit
+                   end if
+                end do
+             end if ! if dim_name
+          end do ! do dim
+       end if ! if host_param
+    end do ! do param
 
   end subroutine SetDimensionSizes
   
   !-----------------------------------------------------------------------
-  subroutine GetMetaData(this, index, name, dimension_shape, dimension_sizes)
+  subroutine GetMetaData(this, index, name, dimension_shape, dimension_sizes, is_host_param)
 
     implicit none
     
@@ -299,10 +306,12 @@ contains
     character(len=param_string_length), intent(out) :: name
     integer, intent(out) :: dimension_shape
     integer, intent(out) :: dimension_sizes(max_dimensions)
+    logical, intent(out) :: is_host_param
 
     name = this%parameters(index)%name
     dimension_shape = this%parameters(index)%dimension_shape
     dimension_sizes = this%parameters(index)%dimension_sizes
+    is_host_param = this%parameters(index)%sync_with_host
 
   end subroutine GetMetaData
   

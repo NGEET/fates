@@ -1820,17 +1820,19 @@ contains
  !-----------------------------------------------------------------------
  subroutine FatesReadParameters()
 
-   use clm_varctl, only : fates_paramfile
+   use clm_varctl, only : paramfile, fates_paramfile
 
    use FatesParametersInterface, only : fates_parameters_type
 
    use EDParamsMod, only : FatesRegisterParams, FatesReceiveParams
    use SFParamsMod, only : SpitFireRegisterParams, SpitFireReceiveParams
+   use EDSharedParamsMod, only : EDParamsShareInst
 
    implicit none
 
    character(len=32)  :: subname = 'FatesReadParameters'
    class(fates_parameters_type), allocatable :: fates_params
+   logical :: is_host_file
 
    if (use_ed) then
       if (masterproc) then
@@ -1841,11 +1843,17 @@ contains
       call fates_params%Init()
       call FatesRegisterParams(fates_params)
       call SpitFireRegisterParams(fates_params)
+      call EDParamsShareInst%RegisterParams(fates_params)
 
-      call ParametersFromNetCDF(fates_params)
+      is_host_file = .false.
+      call ParametersFromNetCDF(fates_paramfile, is_host_file, fates_params)
+
+      is_host_file = .true.
+      call ParametersFromNetCDF(paramfile, is_host_file, fates_params)
 
       call FatesReceiveParams(fates_params)
       call SpitFireReceiveParams(fates_params)
+      call EDParamsShareInst%ReceiveParams(fates_params)
 
       call fates_params%Destroy()
       deallocate(fates_params)
@@ -1856,7 +1864,7 @@ contains
  !-----------------------------------------------------------------------
  subroutine FatesReadPFTs()
 
-   use clm_varctl, only : fates_paramfile
+   use clm_varctl, only : paramfile, fates_paramfile
 
    use FatesParametersInterface, only : fates_parameters_type
 
@@ -1864,6 +1872,7 @@ contains
 
    character(len=32)  :: subname = 'FatesReadPFTs'
    class(fates_parameters_type), allocatable :: fates_params
+   logical :: is_host_file
 
    if (use_ed) then
       if (masterproc) then
@@ -1873,7 +1882,11 @@ contains
       allocate(fates_params)
       call fates_params%Init()
 
-      call ParametersFromNetCDF(fates_params)
+      is_host_file = .false.
+      call ParametersFromNetCDF(fates_paramfile, is_host_file, fates_params)
+
+      is_host_file = .true.
+      call ParametersFromNetCDF(paramfile, is_host_file, fates_params)
 
       call fates_params%Destroy()
       deallocate(fates_params)
@@ -1882,7 +1895,7 @@ contains
  end subroutine FatesReadPFTs
 
  !-----------------------------------------------------------------------
- subroutine SetParameterDimensions(ncid, fates_params)
+ subroutine SetParameterDimensions(ncid, is_host_file, fates_params)
    ! Get the list of dimensions used by the fates parameters,
    ! retreive them from the parameter file, then give the information
    ! back to fates.
@@ -1891,17 +1904,18 @@ contains
    implicit none
 
    type(file_desc_t), intent(inout) :: ncid
+   logical, intent(in) :: is_host_file
    class(fates_parameters_type), intent(inout) :: fates_params
 
    integer :: num_used_dimensions
    character(len=param_string_length) :: used_dimension_names(max_used_dimensions)
    integer :: used_dimension_sizes(max_used_dimensions)
 
-   call fates_params%GetUsedDimensions(num_used_dimensions, used_dimension_names)
+   call fates_params%GetUsedDimensions(is_host_file, num_used_dimensions, used_dimension_names)
 
    call GetUsedDimensionSizes(ncid, num_used_dimensions, used_dimension_names, used_dimension_sizes)
 
-   call fates_params%SetDimensionSizes(num_used_dimensions, used_dimension_names, used_dimension_sizes)
+   call fates_params%SetDimensionSizes(is_host_file, num_used_dimensions, used_dimension_names, used_dimension_sizes)
 
  end subroutine SetParameterDimensions
 
@@ -1935,11 +1949,10 @@ contains
  end subroutine GetUsedDimensionSizes
 
  !-----------------------------------------------------------------------
- subroutine ParametersFromNetCDF(fates_params)
+ subroutine ParametersFromNetCDF(filename, is_host_file, fates_params)
 
    use shr_kind_mod, only: r8 => shr_kind_r8
    use abortutils, only : endrun
-   use clm_varctl, only : fates_paramfile
    use fileutils  , only : getfil
    use ncdio_pio  , only : file_desc_t, ncd_pio_closefile, ncd_pio_openfile
    use paramUtilMod, only : readNcdio
@@ -1950,6 +1963,8 @@ contains
 
    implicit none
 
+   character(len=*), intent(in) :: filename
+   logical, intent(in) :: is_host_file
    class(fates_parameters_type), intent(inout) :: fates_params
 
    character(len=32)  :: subname = 'clmfates_interface::ReadParameters'
@@ -1962,32 +1977,35 @@ contains
    character(len=param_string_length) :: name
    integer :: dimension_sizes(max_dimensions)
    integer :: size_dim_1, size_dim_2
+   logical :: is_host_param
 
-   call getfil (fates_paramfile, locfn, 0)
+   call getfil (filename, locfn, 0)
    call ncd_pio_openfile (ncid, trim(locfn), 0)
 
-   call SetParameterDimensions(ncid, fates_params)
+   call SetParameterDimensions(ncid, is_host_file, fates_params)
    max_dim_size = fates_params%GetMaxDimensionSize()
    allocate(data(max_dim_size, max_dim_size))
 
    num_params = fates_params%num_params()
    do i = 1, num_params
-      call fates_params%GetMetaData(i, name, dimension_shape, dimension_sizes)
-      select case(dimension_shape)
-      case(dimension_shape_scalar)
-         size_dim_1 = 1
-         size_dim_2 = 1
-      case(dimension_shape_1d)
-         size_dim_1 = dimension_sizes(1)
-         size_dim_2 = 1
-      case(dimension_shape_2d)
-         size_dim_1 = dimension_sizes(1)
-         size_dim_2 = dimension_sizes(2)
-      case default
-         call endrun(msg='unsupported number of dimensions reading parameters.')
-      end select
-      call readNcdio(ncid, name, subname, data(1:size_dim_1, 1:size_dim_2))
-      call fates_params%SetData(i, data(1:size_dim_1, 1:size_dim_2))
+      call fates_params%GetMetaData(i, name, dimension_shape, dimension_sizes, is_host_param)
+      if (is_host_file .eqv. is_host_param) then
+         select case(dimension_shape)
+         case(dimension_shape_scalar)
+            size_dim_1 = 1
+            size_dim_2 = 1
+         case(dimension_shape_1d)
+            size_dim_1 = dimension_sizes(1)
+            size_dim_2 = 1
+         case(dimension_shape_2d)
+            size_dim_1 = dimension_sizes(1)
+            size_dim_2 = dimension_sizes(2)
+         case default
+            call endrun(msg='unsupported number of dimensions reading parameters.')
+         end select
+         call readNcdio(ncid, name, subname, data(1:size_dim_1, 1:size_dim_2))
+         call fates_params%SetData(i, data(1:size_dim_1, 1:size_dim_2))
+      end if
    end do
    deallocate(data)
    call ncd_pio_closefile(ncid)
