@@ -641,6 +641,7 @@ contains
     !
     ! !USES:
     use EDTypesMod, only : AREA
+    use EDTypesMod, only : homogenize_seed_pfts
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
@@ -650,18 +651,56 @@ contains
     type(ed_patch_type),  pointer :: currentPatch
     type(ed_cohort_type), pointer :: currentCohort
     integer :: p
+    logical :: pft_present(numpft_ed)
+    real(r8) :: npfts_present
     !----------------------------------------------------------------------
 
     currentPatch => cp_pnt
    
     currentPatch%seeds_in(:) = 0.0_r8
-    
+
+    if ( homogenize_seed_pfts ) then
+       ! special mode to remove intergenerational filters on PFT existence: each PFT seeds all PFTs
+       ! first loop over all patches and cohorts to see what and how many PFTs are present on this site
+       pft_present(:) = .false.
+       npfts_present =  0._r8
+       currentPatch => currentSite%oldest_patch
+       do while(associated(currentPatch))
+          currentCohort => currentPatch%tallest
+          do while (associated(currentCohort))
+             p = currentCohort%pft
+             if (.not. pft_present(p)) then
+                pft_present(p) = .true.
+                npfts_present = npfts_present + 1._r8
+             endif
+             currentCohort => currentCohort%shorter
+          enddo !cohort loop                        
+          currentPatch => currentPatch%younger
+       enddo ! patch loop
+       
+       ! now calculate the homogenized seed flux into each PFT pool
+       currentPatch => cp_pnt
+       currentCohort => currentPatch%tallest
+       do while (associated(currentCohort))
+          do p = 1, numpft_ed
+             if (pft_present(p)) then
+                currentPatch%seeds_in(p) = currentPatch%seeds_in(p) +  currentCohort%seed_prod * currentCohort%n / &
+                     (currentPatch%area * npfts_present)
+             endif
+          end do
+          currentCohort => currentCohort%shorter
+       enddo !cohort loop                  
+    else
+
+    ! normal case: each PFT seeds its own type
     currentCohort => currentPatch%tallest
     do while (associated(currentCohort))
        p = currentCohort%pft
        currentPatch%seeds_in(p) = currentPatch%seeds_in(p) +  currentCohort%seed_prod * currentCohort%n/currentPatch%area
        currentCohort => currentCohort%shorter
     enddo !cohort loop
+
+    endif
 
     currentPatch => currentSite%oldest_patch
 
