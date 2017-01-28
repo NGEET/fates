@@ -44,7 +44,7 @@ contains
     use clm_varctl,                         only : NLFilename_in
     use PhotosynthesisMod                 , only : photosyns_type
   
-    use CLMFatesInterfaceMod              , only : FatesReadParameters
+    use CLMFatesParamInterfaceMod         , only : FatesReadParameters
     !
     ! !ARGUMENTS:
     type(photosyns_type)                   , intent(in) :: photosyns_inst
