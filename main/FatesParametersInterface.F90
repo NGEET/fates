@@ -29,6 +29,7 @@ module FatesParametersInterface
   character(len=*), parameter, public :: dimension_name_lsc = 'litterclass'
   character(len=*), parameter, public :: dimension_name_fsc = 'litterclass'
   character(len=*), parameter, public :: dimension_name_allpfts = 'allpfts'
+  character(len=*), parameter, public :: dimension_name_variants = 'variants'
   
   type, private ::  parameter_type
      character(len=param_string_length) :: name
@@ -157,7 +158,7 @@ contains
     i = this%FindIndex(name)
     if (size(data) /= size(this%parameters(i)%data(:, 1))) then
        write(fates_log(), *) 'ERROR : retreiveparameter1d : ', name, ' size inconsistent.'
-       write(fates_log(), *) 'ERROR : size expected size = ', size(data)
+       write(fates_log(), *) 'ERROR : expected size = ', size(data)
        write(fates_log(), *) 'ERROR : data size received from file = ', size(this%parameters(i)%data(:, 1))
        write(fates_log(), *) 'ERROR : dimesions received from file'
        write(fates_log(), *) 'ERROR : names    size'
@@ -173,16 +174,32 @@ contains
   !-----------------------------------------------------------------------
   subroutine RetreiveParameter2D(this, name, data)
 
+    use abortutils, only : endrun
+
     implicit none
 
     class(fates_parameters_type), intent(inout) :: this
     character(len=param_string_length), intent(in) :: name
     real(r8), intent(out) :: data(:, :)
 
-    integer :: i
+    integer :: i, d
 
     i = this%FindIndex(name)
-    ! assert(size(data) == size(this%parameters(i)%data))
+    if (size(data, 1) /= size(this%parameters(i)%data, 1) .and. &
+         size(data, 2) /= size(this%parameters(i)%data, 2)) then
+       write(fates_log(), *) 'ERROR : retreiveparameter2d : ', name, ' size inconsistent.'
+       write(fates_log(), *) 'ERROR : expected shape = ', shape(data)
+       write(fates_log(), *) 'ERROR : dim 1 expected size = ', size(data, 1)
+       write(fates_log(), *) 'ERROR : dim 2 expected size = ', size(data, 2)
+       write(fates_log(), *) 'ERROR : dim 1 data size received from file = ', size(this%parameters(i)%data, 1)
+       write(fates_log(), *) 'ERROR : dim 2 data size received from file = ', size(this%parameters(i)%data, 2)
+       write(fates_log(), *) 'ERROR : dimesions received from file'
+       write(fates_log(), *) 'ERROR : names    size'
+       do d = 1, max_dimensions
+          write(fates_log(), *) this%parameters(i)%dimension_names(d), ', ', this%parameters(i)%dimension_sizes(d)
+       end do
+       call endrun(msg='size error retreiving 2d parameter.')
+    end if
     data = this%parameters(i)%data
 
   end subroutine RetreiveParameter2D
