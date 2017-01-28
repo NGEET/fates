@@ -74,12 +74,19 @@ contains
    use spmdMod, only : masterproc
 
    use FatesParametersInterface, only : fates_parameters_type
+   use EDPftvarcon , only : EDpftconrd, EDPftvarcon_inst
+
+   use fileutils  , only : getfil
+   use ncdio_pio  , only : file_desc_t, ncd_pio_closefile, ncd_pio_openfile
 
    implicit none
 
    character(len=32)  :: subname = 'FatesReadPFTs'
    class(fates_parameters_type), allocatable :: fates_params
    logical :: is_host_file
+
+   character(len=256) :: locfn ! local file name
+   type(file_desc_t)  :: ncid  ! pio netCDF file id
 
    if (use_ed) then
       if (masterproc) then
@@ -88,12 +95,25 @@ contains
 
       allocate(fates_params)
       call fates_params%Init()
+      call EDPftvarcon_inst%Init()
+
+      ! FIXME(bja, 2017-01) old style read for some parameters, remove
+      ! when all pfts are read with new infrastructure.
+      !X! call getfil (fates_paramfile, locfn, 0)
+      !X! call ncd_pio_openfile (ncid, trim(locfn), 0)
+      !X! call EDpftconrd ( ncid )
+      !X! call ncd_pio_closefile(ncid)
+
+      call EDPftvarcon_inst%Register(fates_params)
+
 
       is_host_file = .false.
       call ParametersFromNetCDF(fates_paramfile, is_host_file, fates_params)
 
       is_host_file = .true.
       call ParametersFromNetCDF(paramfile, is_host_file, fates_params)
+
+      call EDPftvarcon_inst%Receive(fates_params)
 
       call fates_params%Destroy()
       deallocate(fates_params)
@@ -107,8 +127,7 @@ contains
    ! retreive them from the parameter file, then give the information
    ! back to fates.
    use FatesParametersInterface, only : fates_parameters_type, param_string_length, max_dimensions, max_used_dimensions
-
-   use ncdio_pio, only : file_desc_t
+   use ncdio_pio  , only : file_desc_t
 
    implicit none
 
@@ -145,7 +164,6 @@ contains
 
    integer :: d, max_dim_size, num_dims
    integer :: dim_len, dim_id
-
 
    dimension_sizes(:) = 0
    max_dim_size = 0

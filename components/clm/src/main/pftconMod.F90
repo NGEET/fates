@@ -465,6 +465,7 @@ contains
     use ncdio_pio   , only : ncd_inqdid, ncd_inqdlen
     use clm_varctl  , only : paramfile, use_ed, use_flexibleCN, use_dynroot
     use spmdMod     , only : masterproc
+    use CLMFatesParamInterfaceMod, only : FatesReadPFTs
     !
     ! !ARGUMENTS:
     class(pftcon_type) :: this
@@ -984,7 +985,7 @@ contains
    
     call ncd_pio_closefile(ncid)
 
-    call readFatesParametersPFT()
+    call FatesReadPFTs()
 
     do i = 0, mxpft
        if (.not. use_ed)then
@@ -1351,34 +1352,6 @@ contains
     deallocate( this%FUN_fracfixers)
     
   end subroutine Clean
-
-
-  subroutine readFatesParametersPFT()
-
-    use fileutils   , only : getfil
-    use ncdio_pio   , only : ncd_io, ncd_pio_closefile, ncd_pio_openfile, file_desc_t
-    use ncdio_pio   , only : ncd_inqdid, ncd_inqdlen
-    use clm_varctl  , only : fates_paramfile, use_ed
-    use EDPftvarcon , only : EDpftconrd
-
-    implicit none
-
-    character(len=256) :: locfn                ! local file name
-    type(file_desc_t)  :: ncid                 ! pio netCDF file id
-    integer            :: dimid                ! netCDF dimension id
-    integer            :: npft                 ! number of pfts on pft-physiology file
-
-    if ( use_ed ) then
-       call getfil (fates_paramfile, locfn, 0)
-       call ncd_pio_openfile (ncid, trim(locfn), 0)
-       call ncd_inqdid(ncid, 'pft', dimid)
-       call ncd_inqdlen(ncid, dimid, npft)
-       ! The following sets the module variable EDpftcon_inst in EDPftcon
-       call EDpftconrd ( ncid )
-       call ncd_pio_closefile(ncid)
-    endif
-
-  end subroutine readFatesParametersPFT
 
 end module pftconMod
 
