@@ -143,6 +143,7 @@ contains
     ! FIX(SPM,032414) refactor so everything goes through interface
     !
     ! !USES:
+    use EDTypesMod, only : ageclass_ed
     !
     ! !ARGUMENTS:
     type(ed_site_type)     , intent(inout) :: currentSite
@@ -176,6 +177,9 @@ contains
           write(fates_log(),*) 'negative patch age?',currentPatch%age, &
                currentPatch%patchno,currentPatch%area
        endif
+
+       ! check to see if the patch has moved to the next age class
+       currentPatch%age_class = count(currentPatch%age-ageclass_ed.ge.0.0_r8)
 
        ! Find the derivatives of the growth and litter processes. 
        call canopy_derivs(currentSite, currentPatch, bc_in)
