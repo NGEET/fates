@@ -6,14 +6,16 @@ module EDCohortDynamicsMod
   ! !USES: 
   use abortutils            , only : endrun
   use FatesGlobals          , only : fates_log
+  use FatesGlobals          , only : freq_day
   use FatesConstantsMod     , only : r8 => fates_r8
+  use FatesConstantsMod     , only : fates_unset_int
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use pftconMod             , only : pftcon
   use EDEcophysContype      , only : EDecophyscon
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : fusetol, cp_nclmax
-  use EDtypesMod            , only : ncwd, maxcohortsperpatch, udata
+  use EDtypesMod            , only : ncwd, maxcohortsperpatch
   use EDtypesMod            , only : sclass_ed,nlevsclass_ed,AREA
   use EDtypesMod            , only : min_npm2, min_nppatch, min_n_safemath
   !
@@ -73,7 +75,6 @@ contains
     !----------------------------------------------------------------------
 
     allocate(new_cohort)
-    udata%cohort_number = udata%cohort_number + 1  !give each cohort a unique number for checking cohort fusing routine.
 
     call nan_cohort(new_cohort)  ! Make everything in the cohort not-a-number
     call zero_cohort(new_cohort) ! Zero things that need to be zeroed. 
@@ -82,7 +83,8 @@ contains
     ! Define cohort state variable
     !**********************/
  
-    new_cohort%indexnumber  = udata%cohort_number
+    new_cohort%indexnumber  = fates_unset_int ! Cohort indexing was not thread-safe, setting
+                                              ! bogus value for the time being (RGK-012017)
     new_cohort%siteptr      => patchptr%siteptr
     new_cohort%patchptr     => patchptr
     new_cohort%pft          = pft     
@@ -109,7 +111,7 @@ contains
     
     if (new_cohort%dbh <= 0.0_r8 .or. new_cohort%n == 0._r8 .or. new_cohort%pft == 0 ) then
              write(fates_log(),*) 'ED: something is zero in create_cohort', &
-                             new_cohort%indexnumber,new_cohort%dbh,new_cohort%n, &
+                             new_cohort%dbh,new_cohort%n, &
                              new_cohort%pft
              call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
@@ -221,6 +223,7 @@ contains
     ! Use different proportions if the leaves are on vs off
     if(leaves_off_switch==0)then
 
+
        new_bl = currentcohort%balive*leaf_frac
 
        new_br = pftcon%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
@@ -233,13 +236,13 @@ contains
        if(mode==1)then 
 
           currentcohort%npp_leaf = currentcohort%npp_leaf + &
-                max(0.0_r8,new_bl - currentcohort%bl) / udata%deltat
+                max(0.0_r8,new_bl - currentcohort%bl) / freq_day
           
           currentcohort%npp_froot = currentcohort%npp_froot + &
-                max(0._r8,new_br - currentcohort%br) / udata%deltat
-          
-          currentcohort%npp_bsw = max(0._r8,new_bsw - currentcohort%bsw)/udata%deltat
-          
+                max(0._r8,new_br - currentcohort%br) / freq_day
+
+          currentcohort%npp_bsw =  max(0.0_r8, new_bsw - currentcohort%bsw)/freq_day
+
           currentcohort%npp_bdead =  currentCohort%dbdeaddt
 
        end if
@@ -271,9 +274,9 @@ contains
        if(mode==1)then
 
           currentcohort%npp_froot = currentcohort%npp_froot + &
-                max(0.0_r8,new_br-currentcohort%br)/udata%deltat
+                max(0.0_r8,new_br-currentcohort%br)/freq_day
 
-          currentcohort%npp_bsw = max(0.0_r8, new_bsw-currentcohort%bsw)/udata%deltat
+          currentcohort%npp_bsw = max(0.0_r8, new_bsw-currentcohort%bsw)/freq_day
 
           currentcohort%npp_bdead =  currentCohort%dbdeaddt
 
@@ -1008,8 +1011,7 @@ contains
     o => currentCohort
     n => copyc
 
-    udata%cohort_number = udata%cohort_number + 1
-    n%indexnumber       = udata%cohort_number
+    n%indexnumber     = fates_unset_int
     
     ! VEGETATION STRUCTURE
     n%pft             = o%pft
