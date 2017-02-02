@@ -63,16 +63,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_maint_resp_pa
   integer, private :: ih_growth_resp_pa
   
-  ! Indices to (patch x pft) variables   (using nlevgrnd as surrogate)
-
-  integer, private :: ih_biomass_pa_pft
-  integer, private :: ih_leafbiomass_pa_pft
-  integer, private :: ih_storebiomass_pa_pft
-  integer, private :: ih_nindivs_pa_pft
-
   ! Indices to (site) variables
-
-
   integer, private :: ih_nep_si
   integer, private :: ih_nep_timeintegrated_si
   integer, private :: ih_npp_timeintegrated_si
@@ -134,10 +125,28 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_ar_crootm_si_scpf
   integer, private :: ih_ar_frootm_si_scpf
 
+  ! indices to (site x scls) variables
+  integer, private :: ih_ba_si_scls
+
+  ! indices to (site x pft) variables
+  integer, private :: ih_biomass_si_pft
+  integer, private :: ih_leafbiomass_si_pft
+  integer, private :: ih_storebiomass_si_pft
+  integer, private :: ih_nindivs_si_pft
+
+
+  ! indices to (site x patch-age) variables
+  integer, private :: ih_area_si_age
+  integer, private :: ih_lai_si_age
+  integer, private :: ih_canopy_area_si_age
+  integer, private :: ih_gpp_si_age
+  integer, private :: ih_npp_si_age
+  integer, private :: ih_ncl_si_age
+  integer, private :: ih_npatches_si_age
 
   ! The number of variable dim/kind types we have defined (static)
-  integer, parameter :: fates_history_num_dimensions = 4
-  integer, parameter :: fates_history_num_dim_kinds = 6
+  integer, parameter :: fates_history_num_dimensions = 7
+  integer, parameter :: fates_history_num_dim_kinds = 9
   
 
   
@@ -171,6 +180,7 @@ module FatesHistoryInterfaceMod
      type(iovar_map_type), pointer :: iovar_map(:)
 
      integer, private :: patch_index_, column_index_, levgrnd_index_, levscpf_index_
+     integer, private :: levscls_index_, levpft_index_, levage_index_
    contains
      
      procedure, public :: Init
@@ -188,6 +198,9 @@ module FatesHistoryInterfaceMod
      procedure, public :: column_index
      procedure, public :: levgrnd_index
      procedure, public :: levscpf_index
+     procedure, public :: levscls_index
+     procedure, public :: levpft_index
+     procedure, public :: levage_index
 
      ! private work functions
      procedure, private :: define_history_vars
@@ -200,6 +213,9 @@ module FatesHistoryInterfaceMod
      procedure, private :: set_column_index
      procedure, private :: set_levgrnd_index
      procedure, private :: set_levscpf_index
+     procedure, private :: set_levscls_index
+     procedure, private :: set_levpft_index
+     procedure, private :: set_levage_index
 
   end type fates_history_interface_type
    
@@ -212,6 +228,7 @@ contains
   subroutine Init(this, num_threads, fates_bounds)
 
     use FatesIODimensionsMod, only : patch, column, levgrnd, levscpf
+    use FatesIODimensionsMod, only : levscls, levpft, levage
     use FatesIODimensionsMod, only : fates_bounds_type
 
     implicit none
@@ -240,7 +257,22 @@ contains
     dim_count = dim_count + 1
     call this%set_levscpf_index(dim_count)
     call this%dim_bounds(dim_count)%Init(levscpf, num_threads, &
+         fates_bounds%sizepft_class_begin, fates_bounds%sizepft_class_end)
+
+    dim_count = dim_count + 1
+    call this%set_levscls_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levscls, num_threads, &
+         fates_bounds%size_class_begin, fates_bounds%size_class_end)
+
+    dim_count = dim_count + 1
+    call this%set_levpft_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levpft, num_threads, &
          fates_bounds%pft_class_begin, fates_bounds%pft_class_end)
+
+    dim_count = dim_count + 1
+    call this%set_levage_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levage, num_threads, &
+         fates_bounds%age_class_begin, fates_bounds%age_class_end)
     ! FIXME(bja, 2016-10) assert(dim_count == FatesHistorydimensionmod::num_dimension_types)
 
     ! Allocate the mapping between FATES indices and the IO indices
@@ -276,7 +308,19 @@ contains
 
     index = this%levscpf_index()
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%sizepft_class_begin, thread_bounds%sizepft_class_end)
+
+    index = this%levscls_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%size_class_begin, thread_bounds%size_class_end)
+
+    index = this%levpft_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
          thread_bounds%pft_class_begin, thread_bounds%pft_class_end)
+    
+    index = this%levage_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%age_class_begin, thread_bounds%age_class_end)
     
   end subroutine SetThreadBoundsEach
   
@@ -285,6 +329,7 @@ contains
 
     use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
+    use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
 
    implicit none
 
@@ -307,6 +352,15 @@ contains
 
     call this%set_dim_indices(site_size_pft_r8, 1, this%column_index())
     call this%set_dim_indices(site_size_pft_r8, 2, this%levscpf_index())
+
+    call this%set_dim_indices(site_size_r8, 1, this%column_index())
+    call this%set_dim_indices(site_size_r8, 2, this%levscls_index())
+
+    call this%set_dim_indices(site_pft_r8, 1, this%column_index())
+    call this%set_dim_indices(site_pft_r8, 2, this%levpft_index())
+
+    call this%set_dim_indices(site_age_r8, 1, this%column_index())
+    call this%set_dim_indices(site_age_r8, 2, this%levage_index())
 
   end subroutine assemble_history_output_types
   
@@ -407,6 +461,48 @@ contains
    levscpf_index = this%levscpf_index_
  end function levscpf_index
 
+ ! =======================================================================
+ subroutine set_levscls_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%levscls_index_ = index
+ end subroutine set_levscls_index
+
+ integer function levscls_index(this)
+   implicit none
+   class(fates_history_interface_type), intent(in) :: this
+   levscls_index = this%levscls_index_
+ end function levscls_index
+
+ ! =======================================================================
+ subroutine set_levpft_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%levpft_index_ = index
+ end subroutine set_levpft_index
+
+ integer function levpft_index(this)
+   implicit none
+   class(fates_history_interface_type), intent(in) :: this
+   levpft_index = this%levpft_index_
+ end function levpft_index
+
+ ! =======================================================================
+ subroutine set_levage_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%levage_index_ = index
+ end subroutine set_levage_index
+
+ integer function levage_index(this)
+   implicit none
+   class(fates_history_interface_type), intent(in) :: this
+   levage_index = this%levage_index_
+ end function levage_index
+
  ! ======================================================================================
 
  subroutine flush_hvars(this,nc,upfreq_in)
@@ -500,6 +596,7 @@ contains
     ! ----------------------------------------------------------------------------------
     use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
+    use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
     
     implicit none
     
@@ -532,6 +629,18 @@ contains
     ! site x size-class/pft
     index = index + 1
     call this%dim_kinds(index)%Init(site_size_pft_r8, 2)
+
+    ! site x size-class
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_size_r8, 2)
+
+    ! site x pft
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_pft_r8, 2)
+
+    ! site x patch-age clase
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_age_r8, 2)
 
     ! FIXME(bja, 2016-10) assert(index == fates_history_num_dim_kinds)
   end subroutine init_dim_kinds_maps
@@ -606,7 +715,10 @@ contains
                                      ed_patch_type,  &
                                      AREA,           &
                                      sclass_ed,      &
-                                     nlevsclass_ed
+                                     nlevsclass_ed,  &
+                                     levage_ed,     &
+                                     nlevage_ed,    &
+                                     levpft_ed
     use EDParamsMod      , only : ED_val_ag_biomass
 
     ! Arguments
@@ -618,7 +730,7 @@ contains
     ! Locals
     integer  :: s        ! The local site index
     integer  :: io_si     ! The site index of the IO array
-    integer  :: ipa      ! The local "I"ndex of "PA"tches 
+    integer  :: ipa, ipa2 ! The local "I"ndex of "PA"tches 
     integer  :: io_pa    ! The patch index of the IO array
     integer  :: io_pa1   ! The first patch index in the IO array for each site
     integer  :: io_soipa 
@@ -637,6 +749,7 @@ contains
 
     real(r8), parameter :: daysecs = 86400.0_r8 ! What modeler doesn't recognize 86400?
     real(r8), parameter :: yeardays = 365.0_r8  ! ALM/CLM do not use leap-years
+    real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
     
     associate( hio_npatches_si         => this%hvars(ih_npatches_si)%r81d, &
                hio_ncohorts_si         => this%hvars(ih_ncohorts_si)%r81d, &
@@ -644,10 +757,10 @@ contains
                hio_area_plant_pa       => this%hvars(ih_area_plant_pa)%r81d, &
                hio_area_treespread_pa  => this%hvars(ih_area_treespread_pa)%r81d, & 
                hio_canopy_spread_pa    => this%hvars(ih_canopy_spread_pa)%r81d, &
-               hio_biomass_pa_pft      => this%hvars(ih_biomass_pa_pft)%r82d, &
-               hio_leafbiomass_pa_pft  => this%hvars(ih_leafbiomass_pa_pft)%r82d, &
-               hio_storebiomass_pa_pft => this%hvars(ih_storebiomass_pa_pft)%r82d, &
-               hio_nindivs_pa_pft      => this%hvars(ih_nindivs_pa_pft)%r82d, &
+               hio_biomass_si_pft      => this%hvars(ih_biomass_si_pft)%r82d, &
+               hio_leafbiomass_si_pft  => this%hvars(ih_leafbiomass_si_pft)%r82d, &
+               hio_storebiomass_si_pft => this%hvars(ih_storebiomass_si_pft)%r82d, &
+               hio_nindivs_si_pft      => this%hvars(ih_nindivs_si_pft)%r82d, &
                hio_nesterov_fire_danger_pa => this%hvars(ih_nesterov_fire_danger_pa)%r81d, &
                hio_spitfire_ros_pa     => this%hvars(ih_spitfire_ROS_pa)%r81d, &
                hio_tfc_ros_pa          => this%hvars(ih_TFC_ROS_pa)%r81d, &
@@ -688,7 +801,14 @@ contains
                hio_m2_si_scpf          => this%hvars(ih_m2_si_scpf)%r82d, &
                hio_m3_si_scpf          => this%hvars(ih_m3_si_scpf)%r82d, &
                hio_m4_si_scpf          => this%hvars(ih_m4_si_scpf)%r82d, &
-               hio_m5_si_scpf          => this%hvars(ih_m5_si_scpf)%r82d )
+               hio_m5_si_scpf          => this%hvars(ih_m5_si_scpf)%r82d, &
+               hio_ba_si_scls          => this%hvars(ih_ba_si_scls)%r82d, &
+               hio_area_si_age         => this%hvars(ih_area_si_age)%r82d, &
+               hio_lai_si_age          => this%hvars(ih_lai_si_age)%r82d, &
+               hio_canopy_area_si_age  => this%hvars(ih_canopy_area_si_age)%r82d, &
+               hio_ncl_si_age          => this%hvars(ih_ncl_si_age)%r82d, &
+               hio_npatches_si_age     => this%hvars(ih_npatches_si_age)%r82d)
+
                
       ! ---------------------------------------------------------------------------------
       ! Flush arrays to values defined by %flushval (see registry entry in
@@ -720,6 +840,19 @@ contains
 
             ! Increment the number of patches per site
             hio_npatches_si(io_si) = hio_npatches_si(io_si) + 1._r8
+
+            ! Increment the fractional area in each age class bin
+            hio_area_si_age(io_si,cpatch%age_class) = hio_area_si_age(io_si,cpatch%age_class) &
+                 + cpatch%area/AREA
+
+            ! Increment some patch-age-resolved diagnostics
+            hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
+                 + cpatch%lai * cpatch%area
+            hio_canopy_area_si_age(io_si,cpatch%age_class) = hio_canopy_area_si_age(io_si,cpatch%age_class) &
+                 + cpatch%canopy_area/AREA
+            hio_ncl_si_age(io_si,cpatch%age_class) = hio_ncl_si_age(io_si,cpatch%age_class) &
+                 + cpatch%ncl_p * cpatch%area
+            hio_npatches_si_age(io_si,cpatch%age_class) = hio_npatches_si_age(io_si,cpatch%age_class) + 1._r8
             
             ccohort => cpatch%shortest
             do while(associated(ccohort))
@@ -768,17 +901,17 @@ contains
                hio_balive_pa(io_pa) = hio_balive_pa(io_pa) + n_density * ccohort%balive   * 1.e3_r8
                
                ! Update PFT partitioned biomass components
-               hio_biomass_pa_pft(io_pa,ft) = hio_biomass_pa_pft(io_pa,ft) + &
-                    n_density * ccohort%b * 1.e3_r8
-               
-               hio_leafbiomass_pa_pft(io_pa,ft) = hio_leafbiomass_pa_pft(io_pa,ft) + &
-                    n_density * ccohort%bl       * 1.e3_r8
+               hio_leafbiomass_si_pft(io_si,ft) = hio_leafbiomass_si_pft(io_si,ft) + &
+                    (ccohort%n / AREA) * ccohort%bl       * 1.e3_r8
              
-               hio_storebiomass_pa_pft(io_pa,ft) = hio_storebiomass_pa_pft(io_pa,ft) + &
-                    n_density * ccohort%bstore   * 1.e3_r8
+               hio_storebiomass_si_pft(io_si,ft) = hio_storebiomass_si_pft(io_si,ft) + &
+                    (ccohort%n / AREA) * ccohort%bstore   * 1.e3_r8
                
-               hio_nindivs_pa_pft(io_pa,ft) = hio_nindivs_pa_pft(io_pa,ft) + &
-                    ccohort%n
+               hio_nindivs_si_pft(io_si,ft) = hio_nindivs_si_pft(io_si,ft) + &
+                    ccohort%n / AREA
+
+               hio_biomass_si_pft(io_si, ft) = hio_biomass_si_pft(io_si, ft) + &
+                    (ccohort%n / AREA) * ccohort%b * 1.e3_r8
 
                ! Site by Size-Class x PFT (SCPF) 
                ! ------------------------------------------------------------------------
@@ -789,7 +922,8 @@ contains
                ! have any meaning, otherwise they are just inialization values
                if( .not.(ccohort%isnew) ) then
 
-                  associate( scpf => ccohort%size_by_pft_class )
+                  associate( scpf => ccohort%size_by_pft_class, &
+                             scls => ccohort%size_class )
 
                     hio_gpp_si_scpf(io_si,scpf)      = hio_gpp_si_scpf(io_si,scpf)      + &
                                                        n_perm2*ccohort%gpp_acc_hold  ! [kgC/m2/yr]
@@ -839,6 +973,9 @@ contains
                        
                        ! basal area  [m2/ha]
                        hio_ba_si_scpf(io_si,scpf) = hio_ba_si_scpf(io_si,scpf) + &
+                            0.25_r8*3.14159_r8*((dbh/100.0_r8)**2.0_r8)*n_perm2*AREA
+                       ! also by size class only
+                       hio_ba_si_scls(io_si,scls) = hio_ba_si_scls(io_si,scls) + &
                             0.25_r8*3.14159_r8*((dbh/100.0_r8)**2.0_r8)*n_perm2*AREA
                        
                        ! number density [/ha]
@@ -903,6 +1040,17 @@ contains
             ipa = ipa + 1
             cpatch => cpatch%younger
          end do !patch loop
+
+         ! divide so-far-just-summed but to-be-averaged patch-age-class variables by patch-age-class area to get mean values
+         do ipa2 = 1, nlevage_ed
+            if (hio_area_si_age(io_si, ipa2) .gt. tiny) then
+               hio_lai_si_age(io_si, ipa2) = hio_lai_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
+               hio_ncl_si_age(io_si, ipa2) = hio_ncl_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
+            else
+               hio_lai_si_age(io_si, ipa2) = 0._r8
+               hio_ncl_si_age(io_si, ipa2) = 0._r8
+            endif
+         end do
        
       enddo ! site loop
       
@@ -924,6 +1072,7 @@ contains
                                      ed_cohort_type, &
                                      ed_patch_type,  &
                                      AREA,           &
+                                     nlevage_ed,     &
                                      sclass_ed,      &
                                      nlevsclass_ed
     ! Arguments
@@ -945,6 +1094,9 @@ contains
     integer  :: ft               ! functional type index
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
+    real(r8) :: patch_area_by_age(nlevage_ed) ! patch area in each bin for normalizing purposes
+    real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
+    integer  :: ipa2     ! patch incrementer
 
     type(fates_history_variable_type),pointer :: hvar
     type(ed_patch_type),pointer  :: cpatch
@@ -965,7 +1117,10 @@ contains
                hio_ar_agsapm_si_scpf => this%hvars(ih_ar_agsapm_si_scpf)%r82d, &
                hio_ar_darkm_si_scpf  => this%hvars(ih_ar_darkm_si_scpf)%r82d, &
                hio_ar_crootm_si_scpf => this%hvars(ih_ar_crootm_si_scpf)%r82d, &
-               hio_ar_frootm_si_scpf => this%hvars(ih_ar_frootm_si_scpf)%r82d )
+               hio_ar_frootm_si_scpf => this%hvars(ih_ar_frootm_si_scpf)%r82d, &
+               hio_gpp_si_age         => this%hvars(ih_gpp_si_age)%r82d, &
+               hio_npp_si_age         => this%hvars(ih_npp_si_age)%r82d &
+ )
 
 
       ! Flush the relevant history variables 
@@ -979,9 +1134,14 @@ contains
          
          ipa = 0
          cpatch => sites(s)%oldest_patch
+
+         patch_area_by_age(:) = 0._r8
+
          do while(associated(cpatch))
             
             io_pa = io_pa1 + ipa
+
+            patch_area_by_age(cpatch%age_class) = patch_area_by_age(cpatch%age_class) + cpatch%area
 
             ccohort => cpatch%shortest
             do while(associated(ccohort))
@@ -1045,6 +1205,11 @@ contains
                   hio_ar_frootm_si_scpf(io_si,scpf) = hio_ar_frootm_si_scpf(io_si,scpf) + &
                         ccohort%froot_mr * n_perm2  * daysecs * yeardays
 
+                  ! accumulate fluxes per patch age bin
+                  hio_gpp_si_age(io_si,cpatch%age_class) = hio_gpp_si_age(io_si,cpatch%age_class) &
+                       + ccohort%gpp_tstep * ccohort%n * 1.e3_r8 / dt_tstep
+                  hio_npp_si_age(io_si,cpatch%age_class) = hio_npp_si_age(io_si,cpatch%age_class) &
+                       + ccohort%npp_tstep * ccohort%n * 1.e3_r8 / dt_tstep
                 end associate
                endif
 
@@ -1053,6 +1218,16 @@ contains
             ipa = ipa + 1
             cpatch => cpatch%younger
          end do !patch loop
+
+         do ipa2 = 1, nlevage_ed
+            if (patch_area_by_age(ipa2) .gt. tiny) then
+               hio_gpp_si_age(io_si, ipa2) = hio_gpp_si_age(io_si, ipa2) / (patch_area_by_age(ipa2))
+               hio_npp_si_age(io_si, ipa2) = hio_npp_si_age(io_si, ipa2) / (patch_area_by_age(ipa2))
+            else
+               hio_gpp_si_age(io_si, ipa2) = 0._r8
+               hio_npp_si_age(io_si, ipa2) = 0._r8
+            endif
+         end do
          
       enddo ! site loop
 
@@ -1124,6 +1299,7 @@ contains
 
     use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8    
+    use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
     implicit none
     
     class(fates_history_interface_type), intent(inout) :: this
@@ -1169,23 +1345,49 @@ contains
 
     call this%set_history_var(vname='PFTbiomass', units='gC/m2',                   &
          long='total PFT level biomass', use_default='active',                     &
-         avgflag='A', vtype=patch_ground_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_biomass_pa_pft )
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_biomass_si_pft )
 
     call this%set_history_var(vname='PFTleafbiomass', units='gC/m2',              &
          long='total PFT level leaf biomass', use_default='active',                &
-         avgflag='A', vtype=patch_ground_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_leafbiomass_pa_pft )
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_leafbiomass_si_pft )
 
     call this%set_history_var(vname='PFTstorebiomass',  units='gC/m2',            &
          long='total PFT level stored biomass', use_default='active',              &
-         avgflag='A', vtype=patch_ground_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_storebiomass_pa_pft )
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_storebiomass_si_pft )
     
     call this%set_history_var(vname='PFTnindivs',  units='indiv / m2',            &
          long='total PFT level number of individuals', use_default='active',       &
-         avgflag='A', vtype=patch_ground_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_nindivs_pa_pft )
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_nindivs_si_pft )
+
+    ! patch age class variables
+    call this%set_history_var(vname='PATCH_AREA_BY_AGE', units='m2/m2',             &
+         long='patch area by age bin', use_default='active',                     &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_area_si_age )
+
+    call this%set_history_var(vname='LAI_BY_AGE', units='m2/m2',                   &
+         long='leaf area index by age bin', use_default='active',                     &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_lai_si_age )
+
+    call this%set_history_var(vname='CANOPY_AREA_BY_AGE', units='m2/m2',             &
+         long='canopy area by age bin', use_default='active',                     &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_canopy_area_si_age )
+    
+    call this%set_history_var(vname='NCL_BY_AGE', units='--',                   &
+         long='number of canopy levels by age bin', use_default='inactive',             &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_ncl_si_age )
+
+    call this%set_history_var(vname='NPATCH_BY_AGE', units='--',                   &
+         long='number of patches by age bin', use_default='active',                     &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_npatches_si_age )
 
     ! Fire Variables
 
@@ -1341,6 +1543,18 @@ contains
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_maint_resp_pa )
 
+    ! fast fluxes by age bin
+    call this%set_history_var(vname='NPP_BY_AGE', units='gC/m^2/s',                   &
+         long='net primary productivity by age bin', use_default='active',           &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2, &
+         ivar=ivar, initialize=initialize_variables, index = ih_npp_si_age )
+
+    call this%set_history_var(vname='GPP_BY_AGE', units='gC/m^2/s',                   &
+         long='gross primary productivity by age bin', use_default='active',         &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2, &
+         ivar=ivar, initialize=initialize_variables, index = ih_gpp_si_age )
+
+
 
     ! Carbon Flux (grid dimension x scpf) (THESE ARE DEFAULT INACTIVE!!!
     !                                     (BECAUSE THEY TAKE UP SPACE!!!
@@ -1474,6 +1688,11 @@ contains
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_frootm_si_scpf )
 
+    ! size-class only variables
+    call this%set_history_var(vname='BA_SCLS', units = 'm2/ha',               &
+          long='basal area by size class', use_default='active',   &
+          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ba_si_scls )
 
     ! CARBON BALANCE VARIABLES THAT DEPEND ON HLM BGC INPUTS
 
