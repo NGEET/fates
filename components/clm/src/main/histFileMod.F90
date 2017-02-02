@@ -21,7 +21,8 @@ module histFileMod
   use ColumnType     , only : col                
   use PatchType      , only : patch                
   use ncdio_pio
-  use EDtypesMod      , only : nlevsclass_ed
+  use EDtypesMod     , only : nlevsclass_ed, nlevage_ed
+  use clm_varpar     , only : mxpft
   !
   implicit none
   save
@@ -1849,6 +1850,8 @@ contains
     
     if(use_ed)then
        call ncd_defdim(lnfid, 'levscls', nlevsclass_ed, dimid)
+       call ncd_defdim(lnfid, 'levpft', mxpft, dimid)
+       call ncd_defdim(lnfid, 'levage', nlevage_ed, dimid)
        call ncd_defdim(lnfid, 'levscpf', nlevsclass_ed*mxpft, dimid)
     end if
 
@@ -2265,6 +2268,7 @@ contains
     use clm_time_manager, only : get_nstep, get_curr_date, get_curr_time
     use clm_time_manager, only : get_ref_date, get_calendar, NO_LEAP_C, GREGORIAN_C
     use EDTypesMod,       only : levsclass_ed, pft_levscpf_ed, scls_levscpf_ed
+    use EDTypesMod,       only : levage_ed, levpft_ed
     !
     ! !ARGUMENTS:
     integer, intent(in) :: t              ! tape index
@@ -2317,11 +2321,15 @@ contains
       
           if(use_ed)then
              call ncd_defvar(varname='levscls', xtype=tape(t)%ncprec, dim1name='levscls', &
-                  long_name='diameter size class lower bound', units='cm', ncid=nfid(t))
+                  long_name='FATES diameter size class lower bound', units='cm', ncid=nfid(t))
              call ncd_defvar(varname='pft_levscpf',xtype=ncd_int, dim1name='levscpf', &
-                  long_name='pft index of the combined pft-size class dimension', units='-', ncid=nfid(t))
+                  long_name='FATES pft index of the combined pft-size class dimension', units='-', ncid=nfid(t))
              call ncd_defvar(varname='scls_levscpf',xtype=ncd_int, dim1name='levscpf', &
-                  long_name='size index of the combined pft-size class dimension', units='-', ncid=nfid(t))
+                  long_name='FATES size index of the combined pft-size class dimension', units='-', ncid=nfid(t))
+             call ncd_defvar(varname='levage',xtype=tape(t)%ncprec, dim1name='levage', &
+                  long_name='FATES patch age (yr)', ncid=nfid(t))
+             call ncd_defvar(varname='levpft',xtype=ncd_int, dim1name='levpft', &
+                  long_name='FATES pft number', ncid=nfid(t))
           end if
 
        elseif (mode == 'write') then
@@ -2338,6 +2346,8 @@ contains
              call ncd_io(varname='levscls',data=levsclass_ed, ncid=nfid(t), flag='write')
              call ncd_io(varname='pft_levscpf',data=pft_levscpf_ed, ncid=nfid(t), flag='write')
              call ncd_io(varname='scls_levscpf',data=scls_levscpf_ed, ncid=nfid(t), flag='write')
+             call ncd_io(varname='levage',data=levage_ed, ncid=nfid(t), flag='write')
+             call ncd_io(varname='levpft',data=levpft_ed, ncid=nfid(t), flag='write')
           end if
 
        endif
@@ -4439,6 +4449,10 @@ contains
        num2d = nlevdecomp_full
     case ('levscls')
        num2d = nlevsclass_ed
+    case ('levpft')
+       num2d = mxpft
+    case ('levage')
+       num2d = nlevage_ed
     case ('levscpf')
        num2d = nlevsclass_ed*mxpft
     case('ltype')
