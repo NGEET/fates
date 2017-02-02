@@ -39,8 +39,11 @@ module FatesConstantsMod
   real(fates_r8), parameter :: umol_per_mol = 1.0E6_fates_r8
   
 
-  ! Conversion: secons per minute
+  ! Conversion: seconds per minute
   real(fates_r8), parameter :: sec_per_min = 60.0_fates_r8
+
+  ! Conversion: seconds per day
+  real(fates_r8), parameter :: sec_per_day = 86400.0_fates_r8
   
   
   ! Physical constants
@@ -60,7 +63,10 @@ module FatesConstantsMod
 
   real(fates_r8), parameter :: fates_tiny = tiny(g_per_kg)
 
-
+  ! Geometric Constants
+  
+  ! PI
+  real(fates_r8), parameter :: pi_const = 3.14159265359_fates_r8
 
 
 
