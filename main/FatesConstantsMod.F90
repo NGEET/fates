@@ -58,10 +58,16 @@ module FatesConstantsMod
   real(fates_r8), parameter :: t_water_freeze_k_triple = 273.16_fates_r8      
 
 
+  ! For numerical inquiry
+  real(fates_r8), parameter :: fates_huge = huge(g_per_kg)
+
+  real(fates_r8), parameter :: fates_tiny = tiny(g_per_kg)
+
   ! Geometric Constants
   
   ! PI
   real(fates_r8), parameter :: pi_const = 3.14159265359_fates_r8
+
 
 
 end module FatesConstantsMod

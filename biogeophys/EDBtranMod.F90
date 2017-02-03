@@ -192,7 +192,7 @@ contains
                     end if
                  enddo
               enddo
-              
+
               !weight patch level output BTRAN for the
               bc_out(s)%btran_pa(ifp) = 0.0_r8
               do ft = 1,numpft_ed
@@ -203,10 +203,11 @@ contains
                     bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft) * 1./numpft_ed
                  end if
               enddo
-              
-              temprootr = sum(bc_out(s)%rootr_pagl(ifp,:))
+
+              ! While the in-pft root profiles summed to unity, averaging them weighted
+              ! by conductance, or not, will break sum to unity.  Thus, re-normalize.
+              temprootr = sum(bc_out(s)%rootr_pagl(ifp,1:cp_numlevgrnd))
               if(abs(1.0_r8-temprootr) > 1.0e-10_r8 .and. temprootr > 1.0e-10_r8)then
-                 write(iulog,*) 'error with rootr in canopy fluxes',temprootr,sum(pftgs),sum(cpatch%rootr_ft(1:2,:),dim=2)
                  do j = 1,cp_numlevgrnd
                     bc_out(s)%rootr_pagl(ifp,j) = bc_out(s)%rootr_pagl(ifp,j)/temprootr
                  enddo
