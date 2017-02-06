@@ -58,10 +58,7 @@ contains
     character(len=*), intent(in) :: msg    ! string to be printed
     !-----------------------------------------------------------------------
 
-    if (present (msg)) then
-       write(fates_log(),*)'ENDRUN:', msg
-    end if
-
+    write(fates_log(),*)'ENDRUN:', msg
     call shr_sys_abort()
 
   end subroutine fates_endrun
