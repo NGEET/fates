@@ -1505,7 +1505,7 @@ contains
             write(fates_log(), *) 'stem_prof: ',  stem_prof(s,:)
             write(fates_log(), *) 'max_rooting_depth_index_col: ', bc_in(s)%max_rooting_depth_index_col
             write(fates_log(), *) 'dzsoi_decomp: ',  dzsoi_decomp            
-            call endrun()
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          endif
          ! now check each fine root profile
          do ft = 1,numpft_ed 
@@ -1515,7 +1515,7 @@ contains
             end do
             if ( ( abs(froot_prof_sum - 1._r8) > delta ) ) then
                write(fates_log(), *) 'profile sums: ', froot_prof_sum
-               call endrun()
+               call endrun(msg=errMsg(sourcefile, __LINE__))
             endif
          end do
       end do
