@@ -100,14 +100,15 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_npp_agsw_si_scpf
   integer, private :: ih_npp_agdw_si_scpf
   integer, private :: ih_npp_stor_si_scpf
-  integer, private :: ih_litt_leaf_si_scpf
-  integer, private :: ih_litt_fnrt_si_scpf
-  integer, private :: ih_litt_sawd_si_scpf
-  integer, private :: ih_litt_ddwd_si_scpf
-  integer, private :: ih_r_leaf_si_scpf
-  integer, private :: ih_r_stem_si_scpf
-  integer, private :: ih_r_root_si_scpf
-  integer, private :: ih_r_stor_si_scpf
+
+  integer, private :: ih_bstor_canopy_si_scpf
+  integer, private :: ih_bstor_understory_si_scpf
+  integer, private :: ih_bleaf_canopy_si_scpf
+  integer, private :: ih_bleaf_understory_si_scpf
+  integer, private :: ih_m3_canopy_si_scpf
+  integer, private :: ih_m3_understory_si_scpf
+  integer, private :: ih_nplant_canopy_si_scpf
+  integer, private :: ih_nplant_understory_si_scpf
 
   integer, private :: ih_ddbh_si_scpf
   integer, private :: ih_ba_si_scpf
@@ -794,6 +795,14 @@ contains
                hio_npp_agsw_si_scpf    => this%hvars(ih_npp_agsw_si_scpf)%r82d, &
                hio_npp_agdw_si_scpf    => this%hvars(ih_npp_agdw_si_scpf)%r82d, &
                hio_npp_stor_si_scpf    => this%hvars(ih_npp_stor_si_scpf)%r82d, &
+               hio_bstor_canopy_si_scpf      => this%hvars(ih_bstor_canopy_si_scpf)%r82d, &
+               hio_bstor_understory_si_scpf  => this%hvars(ih_bstor_understory_si_scpf)%r82d, &
+               hio_bleaf_canopy_si_scpf      => this%hvars(ih_bleaf_canopy_si_scpf)%r82d, &
+               hio_bleaf_understory_si_scpf  => this%hvars(ih_bleaf_understory_si_scpf)%r82d, &
+               hio_m3_canopy_si_scpf         => this%hvars(ih_m3_canopy_si_scpf)%r82d, &
+               hio_m3_understory_si_scpf     => this%hvars(ih_m3_understory_si_scpf)%r82d, &
+               hio_nplant_canopy_si_scpf     => this%hvars(ih_nplant_canopy_si_scpf)%r82d, &
+               hio_nplant_understory_si_scpf => this%hvars(ih_nplant_understory_si_scpf)%r82d, &
                hio_ddbh_si_scpf        => this%hvars(ih_ddbh_si_scpf)%r82d, &
                hio_ba_si_scpf          => this%hvars(ih_ba_si_scpf)%r82d, &
                hio_nplant_si_scpf      => this%hvars(ih_nplant_si_scpf)%r82d, &
@@ -989,6 +998,23 @@ contains
                           hio_ddbh_si_scpf(io_si,scpf) = -999.9
                        end if
                     end if
+
+                    ! update SCPF- and canopy/subcanopy- partitioned quantities
+                    if (ccohort%canopy_layer .eq. 1) then
+                       hio_bstor_canopy_si_scpf(io_si,scpf) = hio_bstor_canopy_si_scpf(io_si,scpf) + &
+                            ccohort%bstore * n_perm2 * AREA
+                       hio_bleaf_canopy_si_scpf(io_si,scpf) = hio_bleaf_canopy_si_scpf(io_si,scpf) + &
+                            ccohort%bl * n_perm2 * AREA
+                       hio_m3_canopy_si_scpf(io_si,scpf) = hio_m3_canopy_si_scpf(io_si,scpf) + ccohort%cmort*n_perm2*AREA
+                       hio_nplant_canopy_si_scpf(io_si,scpf) = hio_nplant_canopy_si_scpf(io_si,scpf) + AREA*n_perm2
+                    else
+                       hio_bstor_understory_si_scpf(io_si,scpf) = hio_bstor_understory_si_scpf(io_si,scpf) + &
+                            ccohort%bstore * n_perm2
+                       hio_bleaf_understory_si_scpf(io_si,scpf) = hio_bleaf_understory_si_scpf(io_si,scpf) + &
+                            ccohort%bl * n_perm2
+                       hio_m3_understory_si_scpf(io_si,scpf) = hio_m3_understory_si_scpf(io_si,scpf) + ccohort%cmort*n_perm2*AREA
+                       hio_nplant_understory_si_scpf(io_si,scpf) = hio_nplant_understory_si_scpf(io_si,scpf) + AREA*n_perm2
+                    endif
                     
                   end associate
                end if
@@ -1650,6 +1676,47 @@ contains
           long='fire mortality count by patch and pft/size',use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m5_si_scpf )
+
+    call this%set_history_var(vname='M3_CANOPY_SCPF', units = 'N/ha/yr',          &
+          long='carbon starvation mortality of canopy plants count by patch and pft/size', use_default='inactive', &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m3_canopy_si_scpf )
+
+    call this%set_history_var(vname='BSTOR_CANOPY_SCPF', units = 'kgC/ha',          &
+          long='biomass carbon in storage pools of canopy plants count by patch and pft/size', use_default='inactive', &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_bstor_canopy_si_scpf )
+
+    call this%set_history_var(vname='BLEAF_CANOPY_SCPF', units = 'kgC/ha',          &
+          long='biomass carbon in leaf of canopy plants count by patch and pft/size', use_default='inactive', &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_bleaf_canopy_si_scpf )
+
+    call this%set_history_var(vname='NPLANT_CANOPY_SCPF', units = 'N/ha',         &
+          long='stem number of canopy plants density by patch and pft/size', use_default='inactive', &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nplant_canopy_si_scpf )
+
+    call this%set_history_var(vname='M3_UNDERSTORY_SCPF', units = 'N/ha/yr',          &
+          long='carbon starvation mortality of understory plants count by patch and pft/size', use_default='inactive', &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m3_understory_si_scpf )
+
+    call this%set_history_var(vname='BSTOR_UNDERSTORY_SCPF', units = 'kgC/ha',          &
+          long='biomass carbon in storage pools of understory plants count by patch and pft/size', use_default='inactive', &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_bstor_understory_si_scpf )
+
+    call this%set_history_var(vname='BLEAF_UNDERSTORY_SCPF', units = 'kgC/ha',          &
+          long='biomass carbon in leaf of understory plants count by patch and pft/size', use_default='inactive', &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_bleaf_understory_si_scpf )
+
+    call this%set_history_var(vname='NPLANT_UNDERSTORY_SCPF', units = 'N/ha',         &
+          long='stem number of understory plants density by patch and pft/size', use_default='inactive', &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nplant_understory_si_scpf )
+
 
     ! Size structured diagnostics that require rapid updates (upfreq=2)
 
