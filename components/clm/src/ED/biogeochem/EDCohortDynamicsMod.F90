@@ -6,14 +6,16 @@ module EDCohortDynamicsMod
   ! !USES: 
   use abortutils            , only : endrun
   use FatesGlobals          , only : fates_log
+  use FatesGlobals          , only : freq_day
   use FatesConstantsMod     , only : r8 => fates_r8
+  use FatesConstantsMod     , only : fates_unset_int
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use pftconMod             , only : pftcon
   use EDEcophysContype      , only : EDecophyscon
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : fusetol, cp_nclmax
-  use EDtypesMod            , only : ncwd, maxcohortsperpatch, udata
+  use EDtypesMod            , only : ncwd, maxcohortsperpatch
   use EDtypesMod            , only : sclass_ed,nlevsclass_ed,AREA
   use EDtypesMod            , only : min_npm2, min_nppatch, min_n_safemath
   !
@@ -73,7 +75,6 @@ contains
     !----------------------------------------------------------------------
 
     allocate(new_cohort)
-    udata%cohort_number = udata%cohort_number + 1  !give each cohort a unique number for checking cohort fusing routine.
 
     call nan_cohort(new_cohort)  ! Make everything in the cohort not-a-number
     call zero_cohort(new_cohort) ! Zero things that need to be zeroed. 
@@ -82,7 +83,8 @@ contains
     ! Define cohort state variable
     !**********************/
  
-    new_cohort%indexnumber  = udata%cohort_number
+    new_cohort%indexnumber  = fates_unset_int ! Cohort indexing was not thread-safe, setting
+                                              ! bogus value for the time being (RGK-012017)
     new_cohort%siteptr      => patchptr%siteptr
     new_cohort%patchptr     => patchptr
     new_cohort%pft          = pft     
@@ -109,7 +111,7 @@ contains
     
     if (new_cohort%dbh <= 0.0_r8 .or. new_cohort%n == 0._r8 .or. new_cohort%pft == 0 ) then
              write(fates_log(),*) 'ED: something is zero in create_cohort', &
-                             new_cohort%indexnumber,new_cohort%dbh,new_cohort%n, &
+                             new_cohort%dbh,new_cohort%n, &
                              new_cohort%pft
              call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
@@ -184,6 +186,9 @@ contains
                               ! accounts for the fact that live biomass may decline in the off-season, 
                               ! making leaf_memory unrealistic.    
     real(r8)  :: ratio_balive ! ratio between root+shoot biomass now and root+shoot biomass when leaves fell off. 
+    real(r8)  :: new_bl
+    real(r8)  :: new_br
+    real(r8)  :: new_bsw
                                             
     integer   :: ft           ! functional type
     integer   :: leaves_off_switch
@@ -218,67 +223,68 @@ contains
     ! Use different proportions if the leaves are on vs off
     if(leaves_off_switch==0)then
 
-       ! Tracking npp/gpp diagnostics only occur after growth derivatives is called
-       if(mode==1)then
-          ! it will not be able to put out as many leaves as it had previous timestep
-          currentcohort%npp_leaf = currentcohort%npp_leaf + &
-                max(0.0_r8,currentcohort%balive*leaf_frac - currentcohort%bl)/udata%deltat
-       end if
 
-       currentcohort%bl = currentcohort%balive*leaf_frac
+       new_bl = currentcohort%balive*leaf_frac
+
+       new_br = pftcon%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
+
+       new_bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
+            currentcohort%laimemory)*leaf_frac
 
        !diagnose the root and stem biomass from the functional balance hypothesis. This is used when the leaves are 
        !fully on. 
-       if(mode==1)then
+       if(mode==1)then 
 
+          currentcohort%npp_leaf = currentcohort%npp_leaf + &
+                max(0.0_r8,new_bl - currentcohort%bl) / freq_day
+          
           currentcohort%npp_froot = currentcohort%npp_froot + &
-               max(0._r8,pftcon%froot_leaf(ft)*(currentcohort%balive+currentcohort%laimemory)*leaf_frac - currentcohort%br) / &
-               udata%deltat
+                max(0._r8,new_br - currentcohort%br) / freq_day
 
-          currentcohort%npp_bsw = max(0._r8,EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
-                currentcohort%laimemory)*leaf_frac - currentcohort%bsw)/udata%deltat
+          currentcohort%npp_bsw =  max(0.0_r8, new_bsw - currentcohort%bsw)/freq_day
 
           currentcohort%npp_bdead =  currentCohort%dbdeaddt
 
        end if
-
-       currentcohort%br  = pftcon%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
-       currentcohort%bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
-            currentcohort%laimemory)*leaf_frac
-
-    else ! Leaves are on (leaves_off_switch==1)
-
-    !the purpose of this section is to figure out the root and stem biomass when the leaves are off
-    !at this point, we know the former leaf mass (laimemory) and the current alive mass
-    !because balive may decline in the off-season, we need to adjust the root and stem biomass that are predicted
-    !from the laimemory, for the fact that we now might not have enough live biomass to support the hypothesized root mass
-    !thus, we use 'ratio_balive' to adjust br and bsw. Apologies that this is so complicated! RF
+       
+       currentcohort%bl = new_bl
+       currentcohort%br = new_br
+       currentcohort%bsw = new_bsw
 
 
-       currentcohort%bl  = 0.0_r8
+    else ! Leaves are off (leaves_off_switch==1)
+
+       !the purpose of this section is to figure out the root and stem biomass when the leaves are off
+       !at this point, we know the former leaf mass (laimemory) and the current alive mass
+       !because balive may decline in the off-season, we need to adjust the 
+       !root and stem biomass that are predicted from the laimemory, for the fact that we now might 
+       !not have enough live biomass to support the hypothesized root mass
+       !thus, we use 'ratio_balive' to adjust br and bsw. Apologies that this is so complicated! RF
+       
        ideal_balive      = currentcohort%laimemory * pftcon%froot_leaf(ft) +  &
             currentcohort%laimemory*  EDecophyscon%sapwood_ratio(ft) * currentcohort%hite
-       currentcohort%br  = pftcon%froot_leaf(ft) * (ideal_balive + currentcohort%laimemory) * leaf_frac
-       currentcohort%bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(ideal_balive + &
-            currentcohort%laimemory)*leaf_frac 
-     
-       ratio_balive           = currentcohort%balive / ideal_balive
-       currentcohort%br       = currentcohort%br  * ratio_balive
-       currentcohort%bsw      = currentcohort%bsw * ratio_balive
+       ratio_balive      = currentcohort%balive / ideal_balive
+
+       new_br  = pftcon%froot_leaf(ft) * (ideal_balive + currentcohort%laimemory) * &
+             leaf_frac *  ratio_balive
+       new_bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite * &
+             (ideal_balive + currentcohort%laimemory) * leaf_frac * ratio_balive
 
        ! Diagnostics
        if(mode==1)then
 
           currentcohort%npp_froot = currentcohort%npp_froot + &
-                max(0.0_r8,pftcon%froot_leaf(ft)*(ideal_balive + &
-                currentcohort%laimemory)*leaf_frac*ratio_balive-currentcohort%br)/udata%deltat
+                max(0.0_r8,new_br-currentcohort%br)/freq_day
 
-          currentcohort%npp_bsw = max(0.0_r8,EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(ideal_balive + &
-                currentcohort%laimemory)*leaf_frac*ratio_balive - currentcohort%bsw)/udata%deltat
+          currentcohort%npp_bsw = max(0.0_r8, new_bsw-currentcohort%bsw)/freq_day
 
           currentcohort%npp_bdead =  currentCohort%dbdeaddt
 
        end if
+
+       currentcohort%bl  = 0.0_r8
+       currentcohort%br  = new_br
+       currentcohort%bsw = new_bsw
 
     endif
     
@@ -1005,8 +1011,7 @@ contains
     o => currentCohort
     n => copyc
 
-    udata%cohort_number = udata%cohort_number + 1
-    n%indexnumber       = udata%cohort_number
+    n%indexnumber     = fates_unset_int
     
     ! VEGETATION STRUCTURE
     n%pft             = o%pft
@@ -1040,11 +1045,10 @@ contains
 
     n%npp_acc_hold    = o%npp_acc_hold
     n%npp_tstep       = o%npp_tstep
+    n%npp_acc         = o%npp_acc
 
     if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn Ia ',o%npp_acc
     if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn Ib ',o%resp_acc
-
-    n%npp_acc         = o%npp_acc
 
     n%resp_tstep      = o%resp_tstep
     n%resp_acc        = o%resp_acc
