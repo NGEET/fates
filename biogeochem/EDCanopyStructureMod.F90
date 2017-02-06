@@ -1069,7 +1069,7 @@ contains
                    currentCohort%c_area/currentPatch%total_canopy_area)
              currentPatch%layer_height_profile(L,ft,iv) = currentPatch%layer_height_profile(L,ft,iv) + (remainder * fleaf * &
                    currentCohort%c_area/currentPatch%total_canopy_area*(layer_top_hite+layer_bottom_hite)/2.0_r8)
-             write(fates_log(), *) 'LHP', currentPatch%layer_height_profile(L,ft,iv)
+             if ( DEBUG ) write(fates_log(), *) 'LHP', currentPatch%layer_height_profile(L,ft,iv)
              if(currentCohort%dbh <= 0._r8.or.currentCohort%n == 0._r8)then
                 write(fates_log(), *) 'ED: dbh or n is zero in clmedlink', currentCohort%dbh,currentCohort%n
              endif

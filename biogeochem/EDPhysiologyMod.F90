@@ -26,6 +26,12 @@ module EDPhysiologyMod
   use EDTypesMod          , only : senes
   use EDTypesMod          , only : ed_site_type, ed_patch_type, ed_cohort_type
 
+  use shr_log_mod           , only : errMsg => shr_log_errMsg
+  use abortutils            , only : endrun
+  use FatesGlobals          , only : fates_log
+
+
+
   implicit none
   private
 
@@ -45,7 +51,8 @@ module EDPhysiologyMod
   public :: flux_into_litter_pools
 
   logical, parameter :: DEBUG  = .false. ! local debug flag
-
+  character(len=*), parameter, private :: sourcefile = &
+        __FILE__
   ! ============================================================================
 
 contains
@@ -824,12 +831,12 @@ contains
     currentCohort%carbon_balance = currentCohort%npp_acc_hold - &
           currentCohort%md *  EDecophyscon%leaf_stor_priority(currentCohort%pft)
 
-    ! Allowing only carbon from NPP pool to account for npp flux into the maintenance pools
+    ! Allowing only carbon from NPP pool to account for npp flux into the maintenance turnover pools
     ! ie this does not include any use of storage carbon or balive to make up for missing carbon balance in the transfer
-    currentCohort%npp_leaf  = min(currentCohort%npp_acc_hold*currentCohort%leaf_md/currentCohort%md, &
-                                  currentCohort%leaf_md*EDecophyscon%leaf_stor_priority(currentCohort%pft))
-    currentCohort%npp_froot = min(currentCohort%npp_acc_hold*currentCohort%root_md/currentCohort%md, &
-                                  currentCohort%root_md*EDecophyscon%leaf_stor_priority(currentCohort%pft))
+    currentCohort%npp_leaf  = max(0.0_r8,min(currentCohort%npp_acc_hold*currentCohort%leaf_md/currentCohort%md, &
+                                  currentCohort%leaf_md*EDecophyscon%leaf_stor_priority(currentCohort%pft)))
+    currentCohort%npp_froot = max(0.0_r8,min(currentCohort%npp_acc_hold*currentCohort%root_md/currentCohort%md, &
+                                  currentCohort%root_md*EDecophyscon%leaf_stor_priority(currentCohort%pft)))
 
 
     if (Bleaf(currentCohort) > 0._r8)then
@@ -846,21 +853,26 @@ contains
           !what is the flux into the store?
           currentCohort%storage_flux = currentCohort%carbon_balance * f_store                     
 
+          currentCohort%npp_store = currentCohort%carbon_balance * f_store         
           if ( DEBUG ) write(fates_log(),*) 'EDphys B ',f_store
 
           !what is the tax on the carbon available for growth? 
           currentCohort%carbon_balance = currentCohort%carbon_balance * (1.0_r8 - f_store)  
        else  !cbalance is negative. Take C out of store to pay for maintenance respn.
+
           currentCohort%storage_flux = currentCohort%carbon_balance 
+
+          ! Note that npp_store only tracks the flux between NPP and storage.  Storage can 
+          ! also be drawn down to support some turnover demand.
+          currentCohort%npp_store = min(0.0_r8,currentCohort%npp_acc_hold)
+
           currentCohort%carbon_balance = 0._r8 
        endif
 
     else
 
-       currentCohort%storage_flux = 0._r8
-       currentCohort%carbon_balance = 0._r8
-       write(fates_log(),*) 'ED: no leaf area in gd',currentCohort%n,currentCohort%bdead, &
-             currentCohort%dbh,currentCohort%balive
+       write(fates_log(),*) 'No target leaf area in GrowthDerivs? Bleaf(cohort) <= 0?'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
 
     endif
 
@@ -954,7 +966,6 @@ contains
     endif
 
     currentCohort%npp_bseed = currentCohort%seed_prod
-    currentCohort%npp_store = max(0.0_r8,currentCohort%storage_flux)
 
     ! calculate change in diameter and height 
     currentCohort%ddbhdt = currentCohort%dbdeaddt * dDbhdBd(currentCohort)
