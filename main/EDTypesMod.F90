@@ -158,14 +158,16 @@ module EDTypesMod
   real(r8) :: cp_hio_ignore_val
 
 
+  ! Is this the master processor, typically useful for knowing if 
+  ! the current machine should be printing out messages to the logs or terminals
+  ! 1 = TRUE (is master) 0 = FALSE (is not master)
+  integer :: cp_masterproc
+
 
   ! Module switches (this will be read in one day)
   ! This variable only exists now to serve as a place holder
   !!!!!!!!!! THIS SHOULD NOT BE SET TO TRUE !!!!!!!!!!!!!!!!!
   logical,parameter :: use_fates_plant_hydro = .false.
-
-
-
 
   !************************************
   !** COHORT type structure          **
@@ -562,16 +564,14 @@ module EDTypesMod
   !** Userdata type structure       **
   !************************************
 
-  type userdata
-     integer  ::   cohort_number            ! Counts up the number of cohorts which have been made.
-     integer  ::   n_sub                    ! num of substeps in year 
-     real(r8) ::   deltat                   ! fraction of year used for each timestep (1/N_SUB)
-     integer  ::   time_period              ! Within year timestep (1:N_SUB) day of year
-     integer  ::   restart_year             ! Which year of simulation are we starting in? 
-  end type userdata
-
-
-  type(userdata), public, target :: udata   ! THIS WAS NOT THREADSAFE
+!  type userdata
+!     integer  ::   cohort_number            ! Counts up the number of cohorts which have been made.
+!     integer  ::   n_sub                    ! num of substeps in year 
+!     real(r8) ::   deltat                   ! fraction of year used for each timestep (1/N_SUB)
+!     integer  ::   time_period              ! Within year timestep (1:N_SUB) day of year
+!     integer  ::   restart_year             ! Which year of simulation are we starting in? 
+!  end type userdata
+!  type(userdata), public, target :: udata   ! THIS WAS NOT THREADSAFE
   !-------------------------------------------------------------------------------------!
 
   public :: ed_hist_scpfmaps

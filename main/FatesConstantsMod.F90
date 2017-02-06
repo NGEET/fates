@@ -39,8 +39,11 @@ module FatesConstantsMod
   real(fates_r8), parameter :: umol_per_mol = 1.0E6_fates_r8
   
 
-  ! Conversion: secons per minute
+  ! Conversion: seconds per minute
   real(fates_r8), parameter :: sec_per_min = 60.0_fates_r8
+
+  ! Conversion: seconds per day
+  real(fates_r8), parameter :: sec_per_day = 86400.0_fates_r8
   
   
   ! Physical constants
@@ -53,6 +56,18 @@ module FatesConstantsMod
 
   ! freezing point of water at triple point (K)
   real(fates_r8), parameter :: t_water_freeze_k_triple = 273.16_fates_r8      
+
+
+  ! For numerical inquiry
+  real(fates_r8), parameter :: fates_huge = huge(g_per_kg)
+
+  real(fates_r8), parameter :: fates_tiny = tiny(g_per_kg)
+
+  ! Geometric Constants
+  
+  ! PI
+  real(fates_r8), parameter :: pi_const = 3.14159265359_fates_r8
+
 
 
 end module FatesConstantsMod
