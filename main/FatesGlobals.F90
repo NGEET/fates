@@ -12,11 +12,6 @@ module FatesGlobals
   public :: fates_log
   public :: fates_global_verbose
 
-
-  
-
-
-
   integer, private :: fates_log_
   logical, private :: fates_global_verbose_
 
@@ -60,13 +55,11 @@ contains
     !
     ! !ARGUMENTS:
     implicit none
-    character(len=*), intent(in), optional :: msg    ! string to be printed
+    character(len=*), intent(in) :: msg    ! string to be printed
     !-----------------------------------------------------------------------
 
     if (present (msg)) then
        write(fates_log(),*)'ENDRUN:', msg
-    else
-       write(fates_log(),*)'ENDRUN: called without a message string'
     end if
 
     call shr_sys_abort()
