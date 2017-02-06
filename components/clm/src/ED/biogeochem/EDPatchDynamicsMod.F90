@@ -842,6 +842,7 @@ contains
 
     new_patch%siteptr            => currentSite 
     new_patch%age                = age   
+    new_patch%age_class          = 1
     new_patch%area               = areap 
     new_patch%spread             = spread_local
     new_patch%cwd_ag             = cwd_ag_local
@@ -908,6 +909,7 @@ contains
     currentPatch%patchno  = 999                            
 
     currentPatch%age                        = nan                          
+    currentPatch%age_class                  = 1
     currentPatch%area                       = nan                                           
     currentPatch%canopy_layer_lai(:)        = nan               
     currentPatch%total_canopy_area          = nan
@@ -944,8 +946,6 @@ contains
     currentPatch%lai                        = nan    ! leaf area index of patch
     currentPatch%spread(:)                  = nan    ! dynamic ratio of dbh to canopy area.
     currentPatch%pft_agb_profile(:,:)       = nan    
-    currentPatch%gpp                        = 0._r8 
-    currentPatch%npp                        = 0._r8                
 
     ! DISTURBANCE 
     currentPatch%disturbance_rates          = 0._r8 
@@ -1159,6 +1159,7 @@ contains
     ! associated with the secnd patch
     !
     ! !USES:
+    use EDTypesMod, only: ageclass_ed
     !
     ! !ARGUMENTS:
     type (ed_patch_type) , intent(inout), pointer :: dp ! Donor Patch
@@ -1178,6 +1179,7 @@ contains
 
     !area weighted average of ages & litter
     rp%age = (dp%age * dp%area + rp%age * rp%area)/(dp%area + rp%area)  
+    rp%age_class = count(rp%age-ageclass_ed.ge.0.0_r8)
 
     do p = 1,numpft_ed
        rp%seeds_in(p)         = (rp%seeds_in(p)*rp%area + dp%seeds_in(p)*dp%area)/(rp%area + dp%area)

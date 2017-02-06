@@ -9,6 +9,9 @@ module FatesIODimensionsMod
     character(*), parameter :: column = 'column'
     character(*), parameter :: levgrnd = 'levgrnd'
     character(*), parameter :: levscpf = 'levscpf'
+    character(*), parameter :: levscls = 'levscls'
+    character(*), parameter :: levpft = 'levpft'
+    character(*), parameter :: levage = 'levage'
 
     ! patch = This is a structure that records where FATES patch boundaries
     ! on each thread point to in the host IO array, this structure
@@ -24,6 +27,15 @@ module FatesIODimensionsMod
     ! levscpf = This is a structure that records the boundaries for the
     ! number of size-class x pft dimension
 
+    ! levscls = This is a structure that records the boundaries for the
+    ! number of size-class dimension
+
+    ! levpft = This is a structure that records the boundaries for the
+    ! number of pft dimension
+
+    ! levage = This is a structure that records the boundaries for the
+    ! number of patch-age-class dimension
+
 
     type, public :: fates_bounds_type
        integer :: patch_begin
@@ -34,8 +46,14 @@ module FatesIODimensionsMod
        integer :: column_end            ! we call this a "site" (rgk 11-2016)
        integer :: ground_begin
        integer :: ground_end
+       integer :: sizepft_class_begin
+       integer :: sizepft_class_end
+       integer :: size_class_begin
+       integer :: size_class_end
        integer :: pft_class_begin
        integer :: pft_class_end
+       integer :: age_class_begin
+       integer :: age_class_end
     end type fates_bounds_type
     
 
