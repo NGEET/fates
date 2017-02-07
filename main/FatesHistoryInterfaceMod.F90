@@ -62,6 +62,10 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_aresp_pa
   integer, private :: ih_maint_resp_pa
   integer, private :: ih_growth_resp_pa
+  integer, private :: ih_ar_canopy_pa
+  integer, private :: ih_gpp_canopy_pa
+  integer, private :: ih_ar_understory_pa
+  integer, private :: ih_gpp_understory_pa
   
   ! Indices to (site) variables
   integer, private :: ih_nep_si
@@ -109,6 +113,12 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_m3_understory_si_scpf
   integer, private :: ih_nplant_canopy_si_scpf
   integer, private :: ih_nplant_understory_si_scpf
+  integer, private :: ih_ddbh_canopy_si_scpf
+  integer, private :: ih_ddbh_understory_si_scpf
+  integer, private :: ih_gpp_canopy_si_scpf
+  integer, private :: ih_gpp_understory_si_scpf
+  integer, private :: ih_ar_canopy_si_scpf
+  integer, private :: ih_ar_understory_si_scpf
 
   integer, private :: ih_ddbh_si_scpf
   integer, private :: ih_ba_si_scpf
@@ -803,6 +813,12 @@ contains
                hio_m3_understory_si_scpf     => this%hvars(ih_m3_understory_si_scpf)%r82d, &
                hio_nplant_canopy_si_scpf     => this%hvars(ih_nplant_canopy_si_scpf)%r82d, &
                hio_nplant_understory_si_scpf => this%hvars(ih_nplant_understory_si_scpf)%r82d, &
+               hio_ddbh_canopy_si_scpf       => this%hvars(ih_ddbh_canopy_si_scpf)%r82d, &
+               hio_ddbh_understory_si_scpf   => this%hvars(ih_ddbh_understory_si_scpf)%r82d, &
+               hio_gpp_canopy_si_scpf        => this%hvars(ih_gpp_canopy_si_scpf)%r82d, &
+               hio_gpp_understory_si_scpf    => this%hvars(ih_gpp_understory_si_scpf)%r82d, &
+               hio_ar_canopy_si_scpf         => this%hvars(ih_ar_canopy_si_scpf)%r82d, &
+               hio_ar_understory_si_scpf     => this%hvars(ih_ar_understory_si_scpf)%r82d, &
                hio_ddbh_si_scpf        => this%hvars(ih_ddbh_si_scpf)%r82d, &
                hio_ba_si_scpf          => this%hvars(ih_ba_si_scpf)%r82d, &
                hio_nplant_si_scpf      => this%hvars(ih_nplant_si_scpf)%r82d, &
@@ -990,13 +1006,9 @@ contains
                        ! number density [/ha]
                        hio_nplant_si_scpf(io_si,scpf) = hio_nplant_si_scpf(io_si,scpf) + AREA*n_perm2
                        
-                       ! Growth Incrments must have NaN check and woody check
-                       if(ccohort%ddbhdt == ccohort%ddbhdt) then
-                          hio_ddbh_si_scpf(io_si,scpf) = hio_ddbh_si_scpf(io_si,scpf) + &
-                               ccohort%ddbhdt*n_perm2*AREA
-                       else
-                          hio_ddbh_si_scpf(io_si,scpf) = -999.9
-                       end if
+                       ! growth increment
+                       hio_ddbh_si_scpf(io_si,scpf) = hio_ddbh_si_scpf(io_si,scpf) + &
+                            ccohort%ddbhdt*n_perm2*AREA
                     end if
 
                     ! update SCPF- and canopy/subcanopy- partitioned quantities
@@ -1007,6 +1019,13 @@ contains
                             ccohort%bl * n_perm2 * AREA
                        hio_m3_canopy_si_scpf(io_si,scpf) = hio_m3_canopy_si_scpf(io_si,scpf) + ccohort%cmort*n_perm2*AREA
                        hio_nplant_canopy_si_scpf(io_si,scpf) = hio_nplant_canopy_si_scpf(io_si,scpf) + AREA*n_perm2
+                       hio_gpp_canopy_si_scpf(io_si,scpf)      = hio_gpp_canopy_si_scpf(io_si,scpf)      + &
+                            n_perm2*ccohort%gpp_acc_hold
+                       hio_ar_canopy_si_scpf(io_si,scpf)      = hio_ar_canopy_si_scpf(io_si,scpf)      + &
+                            n_perm2*ccohort%resp_acc_hold
+                       ! growth increment
+                       hio_ddbh_canopy_si_scpf(io_si,scpf) = hio_ddbh_canopy_si_scpf(io_si,scpf) + &
+                            ccohort%ddbhdt*n_perm2*AREA
                     else
                        hio_bstor_understory_si_scpf(io_si,scpf) = hio_bstor_understory_si_scpf(io_si,scpf) + &
                             ccohort%bstore * n_perm2
@@ -1014,6 +1033,13 @@ contains
                             ccohort%bl * n_perm2
                        hio_m3_understory_si_scpf(io_si,scpf) = hio_m3_understory_si_scpf(io_si,scpf) + ccohort%cmort*n_perm2*AREA
                        hio_nplant_understory_si_scpf(io_si,scpf) = hio_nplant_understory_si_scpf(io_si,scpf) + AREA*n_perm2
+                       hio_gpp_understory_si_scpf(io_si,scpf)      = hio_gpp_understory_si_scpf(io_si,scpf)      + &
+                            n_perm2*ccohort%gpp_acc_hold
+                       hio_ar_understory_si_scpf(io_si,scpf)      = hio_ar_understory_si_scpf(io_si,scpf)      + &
+                            n_perm2*ccohort%resp_acc_hold
+                       ! growth increment
+                       hio_ddbh_understory_si_scpf(io_si,scpf) = hio_ddbh_understory_si_scpf(io_si,scpf) + &
+                            ccohort%ddbhdt*n_perm2*AREA
                     endif
                     
                   end associate
@@ -1144,6 +1170,10 @@ contains
                hio_ar_darkm_si_scpf  => this%hvars(ih_ar_darkm_si_scpf)%r82d, &
                hio_ar_crootm_si_scpf => this%hvars(ih_ar_crootm_si_scpf)%r82d, &
                hio_ar_frootm_si_scpf => this%hvars(ih_ar_frootm_si_scpf)%r82d, &
+               hio_gpp_canopy_pa     => this%hvars(ih_gpp_canopy_pa)%r81d, &
+               hio_ar_canopy_pa      => this%hvars(ih_ar_canopy_pa)%r81d, &
+               hio_gpp_understory_pa => this%hvars(ih_gpp_understory_pa)%r81d, &
+               hio_ar_understory_pa  => this%hvars(ih_ar_understory_pa)%r81d, &
                hio_gpp_si_age         => this%hvars(ih_gpp_si_age)%r82d, &
                hio_npp_si_age         => this%hvars(ih_npp_si_age)%r82d &
  )
@@ -1236,6 +1266,19 @@ contains
                        + ccohort%gpp_tstep * ccohort%n * 1.e3_r8 / dt_tstep
                   hio_npp_si_age(io_si,cpatch%age_class) = hio_npp_si_age(io_si,cpatch%age_class) &
                        + ccohort%npp_tstep * ccohort%n * 1.e3_r8 / dt_tstep
+
+                  ! accumulate fluxes on canopy- and understory- separated fluxes
+                  if (ccohort%canopy_layer .eq. 1) then
+                     hio_gpp_canopy_pa(io_pa) = hio_gpp_canopy_pa(io_pa) + &
+                          ccohort%gpp_tstep * 1.e3_r8 * n_density / dt_tstep                     
+                     hio_ar_canopy_pa(io_pa) = hio_ar_canopy_pa(io_pa) + &
+                          ccohort%resp_tstep * 1.e3_r8 * n_density / dt_tstep                     
+                  else
+                     hio_gpp_understory_pa(io_pa) = hio_gpp_understory_pa(io_pa) + &
+                          ccohort%gpp_tstep * 1.e3_r8 * n_density / dt_tstep                     
+                     hio_ar_understory_pa(io_pa) = hio_ar_understory_pa(io_pa) + &
+                          ccohort%resp_tstep * 1.e3_r8 * n_density / dt_tstep                     
+                  endif
                 end associate
                endif
 
@@ -1580,6 +1623,26 @@ contains
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2, &
          ivar=ivar, initialize=initialize_variables, index = ih_gpp_si_age )
 
+    ! fast fluxes separated canopy/understory
+    call this%set_history_var(vname='GPP_CANOPY', units='gC/m^2/s',                   &
+         long='gross primary production of canopy plants',  use_default='active',     &
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_gpp_canopy_pa )
+
+    call this%set_history_var(vname='AR_CANOPY', units='gC/m^2/s',                 &
+         long='autotrophic respiration of canopy plants', use_default='active',       &
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_ar_canopy_pa )
+
+    call this%set_history_var(vname='GPP_UNDERSTORY', units='gC/m^2/s',                   &
+         long='gross primary production of understory plants',  use_default='active',     &
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_gpp_understory_pa )
+
+    call this%set_history_var(vname='AR_UNDERSTORY', units='gC/m^2/s',                 &
+         long='autotrophic respiration of understory plants', use_default='active',       &
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_ar_understory_pa )
 
 
     ! Carbon Flux (grid dimension x scpf) (THESE ARE DEFAULT INACTIVE!!!
@@ -1590,6 +1653,26 @@ contains
           long='gross primary production', use_default='inactive',           &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_gpp_si_scpf )
+
+    call this%set_history_var(vname='GPP_CANOPY_SCPF', units='kgC/m2/yr',            &
+          long='gross primary production of canopy plants', use_default='inactive',           &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_gpp_canopy_si_scpf )
+
+    call this%set_history_var(vname='AR_CANOPY_SCPF', units='kgC/m2/yr',            &
+          long='autotrophic respiration of canopy plants', use_default='inactive',           &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ar_canopy_si_scpf )
+
+    call this%set_history_var(vname='GPP_UNDERSTORY_SCPF', units='kgC/m2/yr',            &
+          long='gross primary production of understory plants', use_default='inactive',           &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_gpp_understory_si_scpf )
+
+    call this%set_history_var(vname='AR_UNDERSTORY_SCPF', units='kgC/m2/yr',            &
+          long='autotrophic respiration of understory plants', use_default='inactive',           &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ar_understory_si_scpf )
 
     call this%set_history_var(vname='NPP_SCPF', units='kgC/m2/yr',            &
           long='total net primary production', use_default='inactive',       &
@@ -1641,6 +1724,16 @@ contains
           long='diameter growth increment and pft/size',use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ddbh_si_scpf )
+
+    call this%set_history_var(vname='DDBH_CANOPY_SCPF', units = 'cm/yr/ha',         &
+          long='diameter growth increment and pft/size',use_default='inactive', &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ddbh_canopy_si_scpf )
+
+    call this%set_history_var(vname='DDBH_UNDERSTORY_SCPF', units = 'cm/yr/ha',         &
+          long='diameter growth increment and pft/size',use_default='inactive', &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ddbh_understory_si_scpf )
 
     call this%set_history_var(vname='BA_SCPF', units = 'm2/ha',               &
           long='basal area by patch and pft/size', use_default='inactive',   &
