@@ -1028,9 +1028,9 @@ contains
                             ccohort%ddbhdt*n_perm2*AREA
                     else
                        hio_bstor_understory_si_scpf(io_si,scpf) = hio_bstor_understory_si_scpf(io_si,scpf) + &
-                            ccohort%bstore * n_perm2
+                            ccohort%bstore * n_perm2 * AREA
                        hio_bleaf_understory_si_scpf(io_si,scpf) = hio_bleaf_understory_si_scpf(io_si,scpf) + &
-                            ccohort%bl * n_perm2
+                            ccohort%bl * n_perm2 * AREA
                        hio_m3_understory_si_scpf(io_si,scpf) = hio_m3_understory_si_scpf(io_si,scpf) + ccohort%cmort*n_perm2*AREA
                        hio_nplant_understory_si_scpf(io_si,scpf) = hio_nplant_understory_si_scpf(io_si,scpf) + AREA*n_perm2
                        hio_gpp_understory_si_scpf(io_si,scpf)      = hio_gpp_understory_si_scpf(io_si,scpf)      + &
