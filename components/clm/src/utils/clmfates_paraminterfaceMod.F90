@@ -205,6 +205,7 @@ contains
    real(r8), allocatable :: data(:, :)
    character(len=param_string_length) :: name
    integer :: dimension_sizes(max_dimensions)
+   character(len=param_string_length) :: dimension_names(max_dimensions)
    integer :: size_dim_1, size_dim_2
    logical :: is_host_param
 
@@ -217,7 +218,7 @@ contains
 
    num_params = fates_params%num_params()
    do i = 1, num_params
-      call fates_params%GetMetaData(i, name, dimension_shape, dimension_sizes, is_host_param)
+      call fates_params%GetMetaData(i, name, dimension_shape, dimension_sizes, dimension_names, is_host_param)
       if (is_host_file .eqv. is_host_param) then
          select case(dimension_shape)
          case(dimension_shape_scalar)
@@ -232,7 +233,7 @@ contains
          case default
             call endrun(msg='unsupported number of dimensions reading parameters.')
          end select
-         call readNcdio(ncid, name, subname, data(1:size_dim_1, 1:size_dim_2))
+         call readNcdio(ncid, name, dimension_shape, dimension_names, subname, data(1:size_dim_1, 1:size_dim_2))
          call fates_params%SetData(i, data(1:size_dim_1, 1:size_dim_2))
       end if
    end do
