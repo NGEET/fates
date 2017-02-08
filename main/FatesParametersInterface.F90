@@ -22,7 +22,8 @@ module FatesParametersInterface
   ! parameters. Can't be done easily until this framework is being
   ! used to read variables.
   ! FIXME(bja, 2017-01) change 'param' to 'scalar'!
-  character(len=*), parameter, public :: dimension_name_scalar = 'param'
+  character(len=*), parameter, public :: dimension_name_scalar = ''
+  character(len=*), parameter, public :: dimension_name_scalar1d = 'param'
   character(len=*), parameter, public :: dimension_name_pft = 'pft'
   character(len=*), parameter, public :: dimension_name_segment = 'segment'
   character(len=*), parameter, public :: dimension_name_cwd = 'NCWD'

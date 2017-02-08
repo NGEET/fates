@@ -74,54 +74,54 @@ contains
     ! indicate whether they are fates parameters or host parameters
     ! that need to be synced with host values.
 
-    use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar, dimension_shape_scalar
+    use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar1d, dimension_shape_1d
 
     implicit none
 
     class(fates_parameters_type), intent(inout) :: fates_params
 
-    character(len=param_string_length), parameter :: dim_names_scalar(1) = (/dimension_name_scalar/)
+    character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_scalar1d/)
 
     call FatesParamsInit()
 
-    call fates_params%RegisterParameter(name=ED_name_grass_spread, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    call fates_params%RegisterParameter(name=ED_name_grass_spread, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=ED_name_comp_excln, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    call fates_params%RegisterParameter(name=ED_name_comp_excln, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=ED_name_grass_spread, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    call fates_params%RegisterParameter(name=ED_name_grass_spread, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=ED_name_comp_excln, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    call fates_params%RegisterParameter(name=ED_name_comp_excln, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=ED_name_stress_mort, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    call fates_params%RegisterParameter(name=ED_name_stress_mort, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=ED_name_dispersal, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    call fates_params%RegisterParameter(name=ED_name_dispersal, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=ED_name_maxspread, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    call fates_params%RegisterParameter(name=ED_name_maxspread, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=ED_name_minspread, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    call fates_params%RegisterParameter(name=ED_name_minspread, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=ED_name_init_litter, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    call fates_params%RegisterParameter(name=ED_name_init_litter, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=ED_name_nfires, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    call fates_params%RegisterParameter(name=ED_name_nfires, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=ED_name_understorey_death, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    call fates_params%RegisterParameter(name=ED_name_understorey_death, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=ED_name_profile_tol, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    call fates_params%RegisterParameter(name=ED_name_profile_tol, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=ED_name_ag_biomass, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    call fates_params%RegisterParameter(name=ED_name_ag_biomass, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
 
   end subroutine FatesRegisterParams
   

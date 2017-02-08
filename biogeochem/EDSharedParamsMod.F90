@@ -52,7 +52,6 @@ contains
     ! that need to be synced with host values.
 
     use FatesParametersInterface, only : fates_parameters_type, param_string_length
-    use FatesParametersInterface, only : dimension_name_scalar, dimension_shape_scalar
 
     implicit none
 
@@ -85,7 +84,7 @@ contains
     ! that need to be synced with host values.
 
     use FatesParametersInterface, only : fates_parameters_type, param_string_length
-    use FatesParametersInterface, only : dimension_name_allpfts, dimension_shape_scalar
+    use FatesParametersInterface, only : dimension_name_allpfts, dimension_shape_1d
 
     implicit none
 
@@ -98,11 +97,11 @@ contains
     call this%Init()
 
     name = 'q10_mr'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_scalar, &
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, sync_with_host=.true.)
 
     name = 'froz_q10'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_scalar, &
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, sync_with_host=.true.)
 
   end subroutine RegisterParamsScalar
