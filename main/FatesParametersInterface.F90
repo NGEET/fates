@@ -315,7 +315,7 @@ contains
   end subroutine SetDimensionSizes
   
   !-----------------------------------------------------------------------
-  subroutine GetMetaData(this, index, name, dimension_shape, dimension_sizes, is_host_param)
+  subroutine GetMetaData(this, index, name, dimension_shape, dimension_sizes, dimension_names, is_host_param)
 
     implicit none
     
@@ -324,11 +324,13 @@ contains
     character(len=param_string_length), intent(out) :: name
     integer, intent(out) :: dimension_shape
     integer, intent(out) :: dimension_sizes(max_dimensions)
+    character(len=param_string_length), intent(out) :: dimension_names(max_dimensions)
     logical, intent(out) :: is_host_param
 
     name = this%parameters(index)%name
     dimension_shape = this%parameters(index)%dimension_shape
     dimension_sizes = this%parameters(index)%dimension_sizes
+    dimension_names = this%parameters(index)%dimension_names
     is_host_param = this%parameters(index)%sync_with_host
 
   end subroutine GetMetaData
