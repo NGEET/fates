@@ -559,6 +559,10 @@ contains
        endif
 
        if (terminate == 1) then 
+          ! preserve a record of the to-be-terminated cohort for mortality accounting
+          currentPatch%siteptr%terminated_nindivs(currentCohort%size_by_pft_class) = &
+               currentPatch%siteptr%terminated_nindivs(currentCohort%size_by_pft_class) + currentCohort%n
+
           if (.not. associated(currentCohort%taller)) then
              currentPatch%tallest => currentCohort%shorter
           else 
