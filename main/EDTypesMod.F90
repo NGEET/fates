@@ -558,6 +558,9 @@ module EDTypesMod
      real(r8) ::  cwd_ag_burned(ncwd)
      real(r8) ::  leaf_litter_burned(numpft_ed)
 
+     ! TERMINATION
+     real(r8) :: terminated_nindivs(1:nlevsclass_ed*mxpft)     ! number of individuals that were in cohorts which were terminated this timestep on scpf array
+
   end type ed_site_type
 
   !************************************

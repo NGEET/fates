@@ -127,6 +127,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_m3_si_scpf
   integer, private :: ih_m4_si_scpf
   integer, private :: ih_m5_si_scpf
+  integer, private :: ih_m6_si_scpf
 
   integer, private :: ih_ar_si_scpf
   integer, private :: ih_ar_grow_si_scpf
@@ -729,6 +730,7 @@ contains
                                      nlevsclass_ed,  &
                                      levage_ed,     &
                                      nlevage_ed,    &
+                                     mxpft,         &
                                      levpft_ed
     use EDParamsMod      , only : ED_val_ag_biomass
 
@@ -748,6 +750,7 @@ contains
     integer  :: lb1,ub1,lb2,ub2  ! IO array bounds for the calling thread
     integer  :: ivar             ! index of IO variable object vector
     integer  :: ft               ! functional type index
+    integer  :: i_scpf           ! iterator for scpf dim
 
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
@@ -827,6 +830,7 @@ contains
                hio_m3_si_scpf          => this%hvars(ih_m3_si_scpf)%r82d, &
                hio_m4_si_scpf          => this%hvars(ih_m4_si_scpf)%r82d, &
                hio_m5_si_scpf          => this%hvars(ih_m5_si_scpf)%r82d, &
+               hio_m6_si_scpf          => this%hvars(ih_m6_si_scpf)%r82d, &
                hio_ba_si_scls          => this%hvars(ih_ba_si_scls)%r82d, &
                hio_area_si_age         => this%hvars(ih_area_si_age)%r82d, &
                hio_lai_si_age          => this%hvars(ih_lai_si_age)%r82d, &
@@ -873,8 +877,6 @@ contains
             ! Increment some patch-age-resolved diagnostics
             hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
                  + cpatch%lai * cpatch%area
-            hio_canopy_area_si_age(io_si,cpatch%age_class) = hio_canopy_area_si_age(io_si,cpatch%age_class) &
-                 + cpatch%canopy_area/AREA
             hio_ncl_si_age(io_si,cpatch%age_class) = hio_ncl_si_age(io_si,cpatch%age_class) &
                  + cpatch%ncl_p * cpatch%area
             hio_npatches_si_age(io_si,cpatch%age_class) = hio_npatches_si_age(io_si,cpatch%age_class) + 1._r8
@@ -918,6 +920,9 @@ contains
                   hio_area_treespread_pa(io_pa) = 0.0_r8
                end if
                
+               hio_canopy_area_si_age(io_si,cpatch%age_class) = hio_canopy_area_si_age(io_si,cpatch%age_class) &
+                    + ccohort%c_area/AREA
+
                ! Update biomass components
                hio_bleaf_pa(io_pa)  = hio_bleaf_pa(io_pa)  + n_density * ccohort%bl       * 1.e3_r8
                hio_bstore_pa(io_pa) = hio_bstore_pa(io_pa) + n_density * ccohort%bstore   * 1.e3_r8
@@ -1103,6 +1108,12 @@ contains
                hio_ncl_si_age(io_si, ipa2) = 0._r8
             endif
          end do
+
+         ! pass the cohort termination mortality as a flux to the history, and then reset the termination mortality buffer
+         do i_scpf = 1, nlevsclass_ed * mxpft
+            hio_m6_si_scpf(io_si,i_scpf) = sites(s)%terminated_nindivs(i_scpf) * yeardays
+         end do
+         sites(s)%terminated_nindivs(:) = 0._r8
        
       enddo ! site loop
       
@@ -1769,6 +1780,11 @@ contains
           long='fire mortality count by patch and pft/size',use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m5_si_scpf )
+
+    call this%set_history_var(vname='M6_SCPF', units = 'N/ha/yr',          &
+          long='termination mortality count by patch and pft/size',use_default='inactive', &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m6_si_scpf )
 
     call this%set_history_var(vname='M3_CANOPY_SCPF', units = 'N/ha/yr',          &
           long='carbon starvation mortality of canopy plants count by patch and pft/size', use_default='inactive', &
