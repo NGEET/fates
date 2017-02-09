@@ -16,59 +16,62 @@ module EDPftvarcon
   save
   private
 
+  integer, parameter, public :: lower_bound_pft = 0
+  integer, parameter, public :: lower_bound_general = 1
+  
   !ED specific variables. 
   type, public ::  EDPftvarcon_type
-     real(r8) :: max_dbh            (0:mxpft) ! maximum dbh at which height growth ceases...
-     real(r8) :: freezetol          (0:mxpft) ! minimum temperature tolerance...
-     real(r8) :: wood_density       (0:mxpft) ! wood density  g cm^-3  ...
-     real(r8) :: alpha_stem         (0:mxpft) ! live stem turnover rate. y-1
-     real(r8) :: hgt_min            (0:mxpft) ! sapling height m
-     real(r8) :: cushion            (0:mxpft) ! labile carbon storage target as multiple of leaf pool.
-     real(r8) :: leaf_stor_priority (0:mxpft) ! leaf turnover vs labile carbon use prioritisation. (1 = lose  leaves, 0 = use store).
-     real(r8) :: leafwatermax       (0:mxpft) ! degree to which respiration is limited by btran if btran = 0
-     real(r8) :: rootresist         (0:mxpft)
-     real(r8) :: soilbeta           (0:mxpft)
-     real(r8) :: crown              (0:mxpft)
-     real(r8) :: bark_scaler        (0:mxpft)
-     real(r8) :: crown_kill         (0:mxpft)
-     real(r8) :: initd              (0:mxpft)
-     real(r8) :: sd_mort            (0:mxpft)
-     real(r8) :: seed_rain          (0:mxpft)
-     real(r8) :: BB_slope           (0:mxpft)
-     real(r8) :: root_long          (0:mxpft) ! root longevity (yrs)
-     real(r8) :: clone_alloc        (0:mxpft) ! fraction of carbon balance allocated to clonal reproduction.
-     real(r8) :: seed_alloc         (0:mxpft) ! fraction of carbon balance allocated to seeds.
-     real(r8) :: sapwood_ratio      (0:mxpft) ! amount of sapwood per unit leaf carbon and m of height. gC/gC/m
-     real(r8) :: dbh2h_m            (0:mxpft) ! allocation parameter m from dbh to height
-     real(r8) :: woody(0:mxpft)
-     real(r8) :: stress_decid(0:mxpft)
-     real(r8) :: season_decid(0:mxpft)
-     real(r8) :: evergreen(0:mxpft)
-     real(r8) :: froot_leaf(0:mxpft)
-     real(r8) :: slatop(0:mxpft)
-     real(r8) :: leaf_long(0:mxpft)
-     real(r8) :: rootprof_beta(0:mxpft,nvariants)
-     real(r8) :: roota_par(0:mxpft)
-     real(r8) :: rootb_par(0:mxpft)
-     real(r8) :: lf_flab(0:mxpft)
-     real(r8) :: lf_fcel(0:mxpft)
-     real(r8) :: lf_flig(0:mxpft)
-     real(r8) :: fr_flab(0:mxpft)
-     real(r8) :: fr_fcel(0:mxpft)
-     real(r8) :: fr_flig(0:mxpft)
-     real(r8) :: rhol(0:mxpft, numrad)
-     real(r8) :: rhos(0:mxpft, numrad)
-     real(r8) :: taul(0:mxpft, numrad)
-     real(r8) :: taus(0:mxpft, numrad)
-     real(r8) :: xl(0:mxpft)
-     real(r8) :: c3psn(0:mxpft)
-     real(r8) :: flnr(0:mxpft)
-     real(r8) :: fnitr(0:mxpft)
-     real(r8) :: leafcn(0:mxpft)
-     real(r8) :: frootcn(0:mxpft)
-     real(r8) :: smpso(0:mxpft)
-     real(r8) :: smpsc(0:mxpft)
-     real(r8) :: grperc(0:mxpft) ! NOTE(bja, 2017-01) moved from EDParamsMod, was allocated as (maxPft=79), not (0:mxpft=78)!
+     real(r8), allocatable :: max_dbh            (:) ! maximum dbh at which height growth ceases...
+     real(r8), allocatable :: freezetol          (:) ! minimum temperature tolerance...
+     real(r8), allocatable :: wood_density       (:) ! wood density  g cm^-3  ...
+     real(r8), allocatable :: alpha_stem         (:) ! live stem turnover rate. y-1
+     real(r8), allocatable :: hgt_min            (:) ! sapling height m
+     real(r8), allocatable :: cushion            (:) ! labile carbon storage target as multiple of leaf pool.
+     real(r8), allocatable :: leaf_stor_priority (:) ! leaf turnover vs labile carbon use prioritisation. (1 = lose  leaves, 0 = use store).
+     real(r8), allocatable :: leafwatermax       (:) ! degree to which respiration is limited by btran if btran = 0
+     real(r8), allocatable :: rootresist         (:)
+     real(r8), allocatable :: soilbeta           (:)
+     real(r8), allocatable :: crown              (:)
+     real(r8), allocatable :: bark_scaler        (:)
+     real(r8), allocatable :: crown_kill         (:)
+     real(r8), allocatable :: initd              (:)
+     real(r8), allocatable :: sd_mort            (:)
+     real(r8), allocatable :: seed_rain          (:)
+     real(r8), allocatable :: BB_slope           (:)
+     real(r8), allocatable :: root_long          (:) ! root longevity (yrs)
+     real(r8), allocatable :: clone_alloc        (:) ! fraction of carbon balance allocated to clonal reproduction.
+     real(r8), allocatable :: seed_alloc         (:) ! fraction of carbon balance allocated to seeds.
+     real(r8), allocatable :: sapwood_ratio      (:) ! amount of sapwood per unit leaf carbon and m of height. gC/gC/m
+     real(r8), allocatable :: dbh2h_m            (:) ! allocation parameter m from dbh to height
+     real(r8), allocatable :: woody(:)
+     real(r8), allocatable :: stress_decid(:)
+     real(r8), allocatable :: season_decid(:)
+     real(r8), allocatable :: evergreen(:)
+     real(r8), allocatable :: froot_leaf(:)
+     real(r8), allocatable :: slatop(:)
+     real(r8), allocatable :: leaf_long(:)
+     real(r8), allocatable :: roota_par(:)
+     real(r8), allocatable :: rootb_par(:)
+     real(r8), allocatable :: lf_flab(:)
+     real(r8), allocatable :: lf_fcel(:)
+     real(r8), allocatable :: lf_flig(:)
+     real(r8), allocatable :: fr_flab(:)
+     real(r8), allocatable :: fr_fcel(:)
+     real(r8), allocatable :: fr_flig(:)
+     real(r8), allocatable :: xl(:)
+     real(r8), allocatable :: c3psn(:)
+     real(r8), allocatable :: flnr(:)
+     real(r8), allocatable :: fnitr(:)
+     real(r8), allocatable :: leafcn(:)
+     real(r8), allocatable :: frootcn(:)
+     real(r8), allocatable :: smpso(:)
+     real(r8), allocatable :: smpsc(:)
+     real(r8), allocatable :: grperc(:) ! NOTE(bja, 2017-01) moved from EDParamsMod, was allocated as (maxPft=79), not (0:mxpft=78)!
+     real(r8), allocatable :: rhol(:, :)
+     real(r8), allocatable :: rhos(:, :)
+     real(r8), allocatable :: taul(:, :)
+     real(r8), allocatable :: taus(:, :)
+     real(r8), allocatable :: rootprof_beta(:, :)
    contains
      procedure, public :: Init => EDpftconInit
      procedure, public :: Register
@@ -101,59 +104,6 @@ contains
     implicit none
 
     class(EDPftvarcon_type), intent(inout) :: this
-
-    this%max_dbh(:) = nan
-    this%freezetol(:) = nan
-    this%wood_density(:) = nan
-    this%alpha_stem(:) = nan
-    this%hgt_min(:) = nan
-    this%cushion(:) = nan
-    this%leaf_stor_priority(:) = nan
-    this%leafwatermax(:) = nan
-    this%rootresist(:) = nan
-    this%soilbeta(:) = nan
-    this%crown(:) = nan
-    this%bark_scaler(:) = nan
-    this%crown_kill(:) = nan
-    this%initd(:) = nan
-    this%sd_mort(:) = nan
-    this%seed_rain(:) = nan
-    this%BB_slope(:) = nan
-    this%root_long(:) = nan
-    this%clone_alloc(:) = nan
-    this%seed_alloc(:) = nan
-    this%sapwood_ratio(:) = nan
-    this%dbh2h_m(:) = nan
-    this%woody(:) = nan
-    this%stress_decid(:) = nan
-    this%season_decid(:) = nan
-    this%evergreen(:) = nan
-    this%froot_leaf(:) = nan
-    this%slatop(:) = nan
-    this%leaf_long(:) = nan
-    this%roota_par(:) = nan
-    this%rootb_par(:) = nan
-    this%lf_flab(:) = nan
-    this%lf_fcel(:) = nan
-    this%lf_flig(:) = nan
-    this%fr_flab(:) = nan
-    this%fr_fcel(:) = nan
-    this%fr_flig(:) = nan
-    this%xl(:) = nan
-    this%c3psn(:) = nan
-    this%flnr(:) = nan
-    this%fnitr(:) = nan
-    this%leafcn(:) = nan
-    this%frootcn(:) = nan
-    this%smpso(:) = nan
-    this%smpsc(:) = nan
-    this%grperc(:) = nan
-
-    this%rootprof_beta(:, :) = nan
-    this%rhol(:, :) = nan
-    this%rhos(:, :) = nan
-    this%taul(:, :) = nan
-    this%taus(:, :) = nan
 
   end subroutine EDpftconInit
 
@@ -202,191 +152,193 @@ contains
 
     character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_pft/)
 
+    integer, parameter :: dim_lower_bound(1) = (/ lower_bound_pft /)
+
     character(len=param_string_length) :: name
 
     !X!    name = ''
     !X!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-    !X!         dimension_names=dim_names)
+    !X!         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'max_dbh'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'freezetol'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'wood_density'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'alpha_stem'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'hgt_min'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'cushion'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'leaf_stor_priority'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'leafwatermax'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'rootresist'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'soilbeta'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'crown'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'bark_scaler'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'crown_kill'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'initd'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'sd_mort'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'seed_rain'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'BB_slope'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'root_long'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'clone_alloc'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'seed_alloc'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'sapwood_ratio'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'woody'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'stress_decid'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'season_decid'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'evergreen'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'froot_leaf'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'slatop'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'leaf_long'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'roota_par'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'rootb_par'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'lf_flab'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'lf_fcel'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'lf_flig'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fr_flab'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fr_fcel'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fr_flig'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'xl'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'c3psn'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'flnr'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fnitr'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'leafcn'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'frootcn'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'smpso'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'smpsc'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'grperc'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
 
   end subroutine Register_PFT
@@ -408,190 +360,193 @@ contains
     !X!         data=this%)
 
     name = 'max_dbh'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%max_dbh)
 
     name = 'freezetol'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%freezetol)
 
     name = 'wood_density'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%wood_density)
 
     name = 'alpha_stem'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%alpha_stem)
 
     name = 'hgt_min'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%hgt_min)
 
     name = 'cushion'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%cushion)
 
     name = 'leaf_stor_priority'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%leaf_stor_priority)
 
     name = 'leafwatermax'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%leafwatermax)
 
     name = 'rootresist'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%rootresist)
 
     name = 'soilbeta'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%soilbeta)
 
     name = 'crown'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%crown)
 
     name = 'bark_scaler'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%bark_scaler)
 
     name = 'crown_kill'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%crown_kill)
 
     name = 'initd'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%initd)
 
     name = 'sd_mort'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%sd_mort)
 
     name = 'seed_rain'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seed_rain)
 
     name = 'BB_slope'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%BB_slope)
 
     name = 'root_long'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%root_long)
 
     name = 'clone_alloc'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%clone_alloc)
 
     name = 'seed_alloc'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seed_alloc)
 
     name = 'sapwood_ratio'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%sapwood_ratio)
 
     name = 'woody'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%woody)
 
     name = 'stress_decid'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%stress_decid)
 
     name = 'season_decid'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%season_decid)
 
     name = 'evergreen'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%evergreen)
 
     name = 'froot_leaf'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%froot_leaf)
 
     name = 'slatop'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%slatop)
 
     name = 'leaf_long'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%leaf_long)
 
     name = 'roota_par'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%roota_par)
 
     name = 'rootb_par'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%rootb_par)
 
     name = 'lf_flab'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%lf_flab)
 
     name = 'lf_fcel'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%lf_fcel)
 
     name = 'lf_flig'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%lf_flig)
 
     name = 'fr_flab'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%fr_flab)
 
     name = 'fr_fcel'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%fr_fcel)
 
     name = 'fr_flig'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%fr_flig)
 
     name = 'xl'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%xl)
 
     name = 'c3psn'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%c3psn)
 
     name = 'flnr'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%flnr)
 
     name = 'fnitr'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%fnitr)
 
     name = 'leafcn'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%leafcn)
 
     name = 'frootcn'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%frootcn)
 
     name = 'smpso'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%smpso)
 
     name = 'smpsc'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%smpsc)
 
     name = 'grperc'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%grperc)
 
   end subroutine Receive_PFT
 
   !-----------------------------------------------------------------------
   subroutine Register_PFT_numrad(this, fates_params)
-
+    ! NOTE(bja, 2017-02) these are 2-d parameters, but they are
+    ! currently stored in the parameter file as separate 1-d
+    ! arrays. We have to register the parameters as 1-d arrays as they
+    ! are on the parameter file. We store them as 2-d in the receive step.
     use FatesParametersInterface, only : fates_parameters_type, param_string_length
     use FatesParametersInterface, only : dimension_name_pft, dimension_shape_1d
 
@@ -601,7 +556,7 @@ contains
     class(fates_parameters_type), intent(inout) :: fates_params
 
     character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_pft/)
-
+    integer, parameter :: dim_lower_bound(1) = (/ lower_bound_pft /)
     character(len=param_string_length) :: name
 
     !X!    name = ''
@@ -645,9 +600,15 @@ contains
 
   !-----------------------------------------------------------------------
   subroutine Receive_PFT_numrad(this, fates_params)
-
+    ! NOTE(bja, 2017-02) these are 2-d parameters, but they are
+    ! currently stored in the parameter file as separate 1-d arrays.
+    ! We can't allocate slices of arrays separately, so we have to
+    ! manually allocate the memory here, retreive into a dummy array,
+    ! and copy. All parameters in this subroutine are sized the same,
+    ! so we can reused the dummy array. If someone wants to cleanup
+    ! the input file, all this complexity can be removed.
     use FatesParametersInterface, only : fates_parameters_type
-    use FatesParametersInterface, only : param_string_length
+    use FatesParametersInterface, only : param_string_length, max_dimensions
 
     implicit none
 
@@ -660,37 +621,86 @@ contains
     !X!    call fates_params%RetreiveParameter(name=name, &
     !X!         data=this%)
 
+    integer :: index
+    integer :: dimension_shape
+    integer :: dimension_sizes(max_dimensions)
+    character(len=param_string_length) :: dimension_names(max_dimensions)
+    logical :: is_host_param
+
+    integer :: lower_bound_1, upper_bound_1, lower_bound_2, upper_bound_2
+    real(r8), allocatable :: dummy_data(:)
+
+    ! Fetch metadata from a representative variable. All variables
+    ! called by this subroutine must be dimensioned the same way!
+    name = 'rholvis'
+    index = fates_params%FindIndex(name)
+    call fates_params%GetMetaData(index, name, dimension_shape, dimension_sizes, dimension_names, is_host_param)
+    lower_bound_1 = lower_bound_pft
+    upper_bound_1 = lower_bound_pft + dimension_sizes(1) - 1
+    lower_bound_2 = lower_bound_general
+    upper_bound_2 = numrad
+
+    allocate(dummy_data(lower_bound_1:upper_bound_1))
+
+    !
+    ! received rhol data
+    !
+    allocate(this%rhol(lower_bound_1:upper_bound_1, lower_bound_2:upper_bound_2))
+    
     name = 'rholvis'
     call fates_params%RetreiveParameter(name=name, &
-         data=this%rhol(:,ivis))
+         data=dummy_data)
+    this%rhol(lower_bound_1:upper_bound_1, ivis) = dummy_data
 
     name = 'rholnir'
     call fates_params%RetreiveParameter(name=name, &
-         data=this%rhol(:,inir))
+         data=dummy_data)
+    this%rhol(lower_bound_1:upper_bound_1, inir) = dummy_data
 
+    !
+    ! received rhos data
+    !
+    allocate(this%rhos(lower_bound_1:upper_bound_1, lower_bound_2:upper_bound_2))
+    
     name = 'rhosvis'
     call fates_params%RetreiveParameter(name=name, &
-         data=this%rhos(:,ivis))
+         data=dummy_data)
+    this%rhos(lower_bound_1:upper_bound_1, ivis) = dummy_data
 
     name = 'rhosnir'
     call fates_params%RetreiveParameter(name=name, &
-         data=this%rhos(:,inir))
+         data=dummy_data)
+    this%rhos(lower_bound_1:upper_bound_1, inir) = dummy_data
 
+    !
+    ! received taul data
+    !
+    allocate(this%taul(lower_bound_1:upper_bound_1, lower_bound_2:upper_bound_2))
+    
     name = 'taulvis'
     call fates_params%RetreiveParameter(name=name, &
-         data=this%taul(:,ivis))
+         data=dummy_data)
+    this%taul(lower_bound_1:upper_bound_1, ivis) = dummy_data
 
     name = 'taulnir'
     call fates_params%RetreiveParameter(name=name, &
-         data=this%taul(:,inir))
+         data=dummy_data)
+    this%taul(lower_bound_1:upper_bound_1, inir) = dummy_data
 
+    !
+    ! received taus data
+    !
+    allocate(this%taus(lower_bound_1:upper_bound_1, lower_bound_2:upper_bound_2))
+    
     name = 'tausvis'
     call fates_params%RetreiveParameter(name=name, &
-         data=this%taus(:,ivis))
+         data=dummy_data)
+    this%taus(lower_bound_1:upper_bound_1, ivis) = dummy_data
 
     name = 'tausnir'
     call fates_params%RetreiveParameter(name=name, &
-         data=this%taus(:,inir))
+         data=dummy_data)
+    this%taus(lower_bound_1:upper_bound_1, inir) = dummy_data
 
   end subroutine Receive_PFT_numrad
 
@@ -705,11 +715,12 @@ contains
     class(EDPftvarcon_type), intent(inout) :: this
     class(fates_parameters_type), intent(inout) :: fates_params
 
+    integer, parameter :: dim_lower_bound(2) = (/ lower_bound_pft, lower_bound_general /)
     character(len=param_string_length) :: dim_names(2)
     character(len=param_string_length) :: name
 
     ! NOTE(bja, 2017-01) initialization doesn't seem to work correctly
-    ! if dim_names has a paramater qualifier.
+    ! if dim_names has a parameter qualifier.
     dim_names(1) = dimension_name_pft
     dim_names(2) = dimension_name_variants
 
@@ -719,7 +730,7 @@ contains
 
     name = 'rootprof_beta'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-         dimension_names=dim_names)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
   end subroutine Register_PFT_nvariants
 
@@ -741,7 +752,7 @@ contains
     !X!         data=this%)
 
     name = 'rootprof_beta'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%rootprof_beta)
 
   end subroutine Receive_PFT_nvariants
