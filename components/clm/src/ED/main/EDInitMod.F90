@@ -79,8 +79,9 @@ contains
     site_in%fates_to_bgc_this_ts = 0.0_r8
     site_in%fates_to_bgc_last_ts = 0.0_r8
 
-    ! termination info
+    ! termination and recruitment info
     site_in%terminated_nindivs(:) = 0._r8
+    site_in%recruitment_rate(:) = 0._r8
 
   end subroutine zero_site
 
