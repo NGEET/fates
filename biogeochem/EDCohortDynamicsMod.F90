@@ -498,6 +498,7 @@ contains
     type (ed_cohort_type) , pointer :: nextc
     integer :: terminate   ! do we terminate (1) or not (0) 
     integer :: c           ! counter for litter size class. 
+    integer :: levcan      ! canopy level
     !----------------------------------------------------------------------
 
     currentPatch  => patchptr
@@ -560,8 +561,13 @@ contains
 
        if (terminate == 1) then 
           ! preserve a record of the to-be-terminated cohort for mortality accounting
-          currentPatch%siteptr%terminated_nindivs(currentCohort%size_by_pft_class) = &
-               currentPatch%siteptr%terminated_nindivs(currentCohort%size_by_pft_class) + currentCohort%n
+          if (currentCohort%canopy_layer .eq. 1) then
+             levcan = 1
+          else
+             levcan = 2
+          endif
+          currentPatch%siteptr%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) = &
+               currentPatch%siteptr%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) + currentCohort%n
 
           if (.not. associated(currentCohort%taller)) then
              currentPatch%tallest => currentCohort%shorter
