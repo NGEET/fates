@@ -67,7 +67,7 @@ module EDTypesMod
   integer , parameter :: N_DBH_BINS           = 5          ! no. of dbh bins used when comparing patches
 
 
-  real(r8), parameter :: min_npm2       = 1.0d-5   ! minimum cohort number density per m2 before termintion
+  real(r8), parameter :: min_npm2       = 1.0d-5   ! minimum cohort number density per m2 before termination
   real(r8), parameter :: min_patch_area = 0.001_r8 ! smallest allowable patch area before termination
   real(r8), parameter :: min_nppatch    = 1.0d-8   ! minimum number of cohorts per patch (min_npm2*min_patch_area)
   real(r8), parameter :: min_n_safemath = 1.0d-15  ! in some cases, we want to immediately remove super small
@@ -558,8 +558,8 @@ module EDTypesMod
      real(r8) ::  cwd_ag_burned(ncwd)
      real(r8) ::  leaf_litter_burned(numpft_ed)
 
-     ! TERMINATION AND RECRUITMENT
-     real(r8) :: terminated_nindivs(1:nlevsclass_ed*mxpft)     ! number of individuals that were in cohorts which were terminated this timestep on scpf array
+     ! TERMINATION AND RECRUITMENT~
+     real(r8) :: terminated_nindivs(1:nlevsclass_ed,1:mxpft,2) ! number of individuals that were in cohorts which were terminated this timestep, on size x pft x canopy array. 
      real(r8) :: recruitment_rate(1:mxpft)                     ! number of individuals that were recruited into new cohorts
 
   end type ed_site_type
