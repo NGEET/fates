@@ -12,6 +12,8 @@ module FatesParametersInterface
   integer, parameter, public :: max_dimensions = 2
   integer, parameter, public :: max_used_dimensions = 25
   integer, parameter, public :: param_string_length = 40
+  ! NOTE(bja, 2017-02) these are the values returned from netcdf after
+  ! inquiring about the number of dimensions
   integer, parameter, public :: dimension_shape_scalar = 0
   integer, parameter, public :: dimension_shape_1d = 1
   integer, parameter, public :: dimension_shape_2d = 2
@@ -38,6 +40,7 @@ module FatesParametersInterface
      integer :: dimension_shape
      integer :: dimension_sizes(max_dimensions)
      character(len=param_string_length) :: dimension_names(max_dimensions)
+     integer :: dimension_lower_bound(max_dimensions)
      real(r8), allocatable :: data(:, :)
   end type parameter_type
 
@@ -50,20 +53,23 @@ module FatesParametersInterface
      procedure, public :: Destroy
      procedure, public :: RegisterParameter
      generic, public :: RetreiveParameter => RetreiveParameterScalar, RetreiveParameter1D, RetreiveParameter2D
+     generic, public :: RetreiveParameterAllocate => RetreiveParameter1DAllocate, RetreiveParameter2DAllocate
      generic, public :: SetData => SetDataScalar, SetData1D, SetData2D
      procedure, public :: GetUsedDimensions
      procedure, public :: SetDimensionSizes
      procedure, public :: GetMaxDimensionSize
      procedure, public :: GetMetaData
      procedure, public :: num_params
+     procedure, public :: FindIndex
 
      procedure, private :: RetreiveParameterScalar
      procedure, private :: RetreiveParameter1D
      procedure, private :: RetreiveParameter2D
+     procedure, private :: RetreiveParameter1DAllocate
+     procedure, private :: RetreiveParameter2DAllocate
      procedure, private :: SetDataScalar
      procedure, private :: SetData1D
      procedure, private :: SetData2D
-     procedure, private :: FindIndex
      
   end type fates_parameters_type
 
@@ -95,8 +101,9 @@ contains
   end subroutine Destroy
 
   !-----------------------------------------------------------------------
-  subroutine RegisterParameter(this, name, dimension_shape, dimension_names, sync_with_host)
-    
+  subroutine RegisterParameter(this, name, dimension_shape, dimension_names, &
+       sync_with_host, lower_bounds)
+
     implicit none
 
     class(fates_parameters_type), intent(inout) :: this
@@ -104,8 +111,9 @@ contains
     integer, intent(in) :: dimension_shape
     character(len=param_string_length) :: dimension_names(1:)
     logical, intent(in), optional :: sync_with_host
+    integer, intent(in), optional :: lower_bounds(1:)
 
-    integer :: i, n, num_names
+    integer :: i, n, num_names, num_bounds
     
     this%num_parameters = this%num_parameters + 1
     i = this%num_parameters
@@ -123,7 +131,15 @@ contains
     if (present(sync_with_host)) then
        this%parameters(i)%sync_with_host = sync_with_host
     end if
-    
+    ! allocate as a standard 1-based array unless otherwise specified
+    ! by the caller.
+    this%parameters(i)%dimension_lower_bound = (/ 1, 1 /)
+    if (present(lower_bounds)) then
+       num_bounds = min(max_dimensions, size(lower_bounds, 1))
+       do n = 1, num_bounds
+          this%parameters(i)%dimension_lower_bound(n) = lower_bounds(n)
+       end do
+    endif
   end subroutine RegisterParameter
 
   !-----------------------------------------------------------------------
@@ -204,6 +220,50 @@ contains
     data = this%parameters(i)%data
 
   end subroutine RetreiveParameter2D
+
+  !-----------------------------------------------------------------------
+  subroutine RetreiveParameter1DAllocate(this, name, data)
+
+    use abortutils, only : endrun
+
+    implicit none
+
+    class(fates_parameters_type), intent(inout) :: this
+    character(len=param_string_length), intent(in) :: name
+    real(r8), intent(out), allocatable :: data(:)
+
+    integer :: i, lower_bound, upper_bound
+    
+    i = this%FindIndex(name)
+    lower_bound = this%parameters(i)%dimension_lower_bound(1)
+    upper_bound = lower_bound + this%parameters(i)%dimension_sizes(1) - 1
+    allocate(data(lower_bound:upper_bound))
+    data(lower_bound:upper_bound) = this%parameters(i)%data(:, 1)
+
+  end subroutine RetreiveParameter1DAllocate
+
+  !-----------------------------------------------------------------------
+  subroutine RetreiveParameter2DAllocate(this, name, data)
+
+    use abortutils, only : endrun
+
+    implicit none
+
+    class(fates_parameters_type), intent(inout) :: this
+    character(len=param_string_length), intent(in) :: name
+    real(r8), intent(out), allocatable :: data(:, :)
+
+    integer :: i, lb_1, ub_1, lb_2, ub_2
+
+    i = this%FindIndex(name)
+    lb_1 = this%parameters(i)%dimension_lower_bound(1)
+    ub_1 = lb_1 + this%parameters(i)%dimension_sizes(1) - 1
+    lb_2 = this%parameters(i)%dimension_lower_bound(2)
+    ub_2 = lb_2 + this%parameters(i)%dimension_sizes(2) - 1
+    allocate(data(lb_1:ub_1, lb_2:ub_2))
+    data(lb_1:ub_1, lb_2:ub_2) = this%parameters(i)%data
+
+  end subroutine RetreiveParameter2DAllocate
 
   !-----------------------------------------------------------------------
   function FindIndex(this, name) result(i)
