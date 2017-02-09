@@ -145,6 +145,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_leafbiomass_si_pft
   integer, private :: ih_storebiomass_si_pft
   integer, private :: ih_nindivs_si_pft
+  integer, private :: ih_recruitment_si_pft
 
 
   ! indices to (site x patch-age) variables
@@ -750,7 +751,7 @@ contains
     integer  :: lb1,ub1,lb2,ub2  ! IO array bounds for the calling thread
     integer  :: ivar             ! index of IO variable object vector
     integer  :: ft               ! functional type index
-    integer  :: i_scpf           ! iterator for scpf dim
+    integer  :: i_scpf,i_pft     ! iterators for scpf and pft dims
 
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
@@ -775,6 +776,7 @@ contains
                hio_leafbiomass_si_pft  => this%hvars(ih_leafbiomass_si_pft)%r82d, &
                hio_storebiomass_si_pft => this%hvars(ih_storebiomass_si_pft)%r82d, &
                hio_nindivs_si_pft      => this%hvars(ih_nindivs_si_pft)%r82d, &
+               hio_recruitment_si_pft  => this%hvars(ih_recruitment_si_pft)%r82d, &
                hio_nesterov_fire_danger_pa => this%hvars(ih_nesterov_fire_danger_pa)%r81d, &
                hio_spitfire_ros_pa     => this%hvars(ih_spitfire_ROS_pa)%r81d, &
                hio_tfc_ros_pa          => this%hvars(ih_TFC_ROS_pa)%r81d, &
@@ -1114,6 +1116,12 @@ contains
             hio_m6_si_scpf(io_si,i_scpf) = sites(s)%terminated_nindivs(i_scpf) * yeardays
          end do
          sites(s)%terminated_nindivs(:) = 0._r8
+
+         ! pass the recruitment rate as a flux to the history, and then reset the recruitment buffer
+         do i_pft = 1, mxpft
+            hio_recruitment_si_pft(io_si,i_pft) = sites(s)%recruitment_rate(i_pft) * yeardays
+         end do
+         sites(s)%recruitment_rate(:) = 0._r8
        
       enddo ! site loop
       
@@ -1442,6 +1450,11 @@ contains
          long='total PFT level number of individuals', use_default='active',       &
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_nindivs_si_pft )
+
+    call this%set_history_var(vname='RECRUITMENT',  units='indiv/ha/yr',            &
+         long='Rate of recruitment by PFT', use_default='active',       &
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_recruitment_si_pft )
 
     ! patch age class variables
     call this%set_history_var(vname='PATCH_AREA_BY_AGE', units='m2/m2',             &
