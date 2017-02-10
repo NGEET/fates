@@ -160,183 +160,183 @@ contains
     !X!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
     !X!         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'max_dbh'
+    name = 'fates_max_dbh'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'freezetol'
+    name = 'fates_freezetol'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'wood_density'
+    name = 'fates_wood_density'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'alpha_stem'
+    name = 'fates_alpha_stem'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'hgt_min'
+    name = 'fates_hgt_min'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'cushion'
+    name = 'fates_cushion'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'leaf_stor_priority'
+    name = 'fates_leaf_stor_priority'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'leafwatermax'
+    name = 'fates_leafwatermax'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'rootresist'
+    name = 'fates_rootresist'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'soilbeta'
+    name = 'fates_soilbeta'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'crown'
+    name = 'fates_crown'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'bark_scaler'
+    name = 'fates_bark_scaler'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'crown_kill'
+    name = 'fates_crown_kill'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'initd'
+    name = 'fates_initd'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'sd_mort'
+    name = 'fates_sd_mort'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'seed_rain'
+    name = 'fates_seed_rain'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'BB_slope'
+    name = 'fates_BB_slope'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'root_long'
+    name = 'fates_root_long'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'clone_alloc'
+    name = 'fates_clone_alloc'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'seed_alloc'
+    name = 'fates_seed_alloc'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'sapwood_ratio'
+    name = 'fates_sapwood_ratio'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'woody'
+    name = 'fates_woody'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'stress_decid'
+    name = 'fates_stress_decid'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'season_decid'
+    name = 'fates_season_decid'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'evergreen'
+    name = 'fates_evergreen'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'froot_leaf'
+    name = 'fates_froot_leaf'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'slatop'
+    name = 'fates_slatop'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'leaf_long'
+    name = 'fates_leaf_long'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'roota_par'
+    name = 'fates_roota_par'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'rootb_par'
+    name = 'fates_rootb_par'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'lf_flab'
+    name = 'fates_lf_flab'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'lf_fcel'
+    name = 'fates_lf_fcel'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'lf_flig'
+    name = 'fates_lf_flig'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fr_flab'
+    name = 'fates_fr_flab'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fr_fcel'
+    name = 'fates_fr_fcel'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fr_flig'
+    name = 'fates_fr_flig'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'xl'
+    name = 'fates_xl'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'c3psn'
+    name = 'fates_c3psn'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'flnr'
+    name = 'fates_flnr'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fnitr'
+    name = 'fates_fnitr'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'leafcn'
+    name = 'fates_leafcn'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'frootcn'
+    name = 'fates_frootcn'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'smpso'
+    name = 'fates_smpso'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'smpsc'
+    name = 'fates_smpsc'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'grperc'
+    name = 'fates_grperc'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -359,183 +359,183 @@ contains
     !X!    call fates_params%RetreiveParameter(name=name, &
     !X!         data=this%)
 
-    name = 'max_dbh'
+    name = 'fates_max_dbh'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%max_dbh)
 
-    name = 'freezetol'
+    name = 'fates_freezetol'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%freezetol)
 
-    name = 'wood_density'
+    name = 'fates_wood_density'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%wood_density)
 
-    name = 'alpha_stem'
+    name = 'fates_alpha_stem'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%alpha_stem)
 
-    name = 'hgt_min'
+    name = 'fates_hgt_min'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%hgt_min)
 
-    name = 'cushion'
+    name = 'fates_cushion'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%cushion)
 
-    name = 'leaf_stor_priority'
+    name = 'fates_leaf_stor_priority'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%leaf_stor_priority)
 
-    name = 'leafwatermax'
+    name = 'fates_leafwatermax'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%leafwatermax)
 
-    name = 'rootresist'
+    name = 'fates_rootresist'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%rootresist)
 
-    name = 'soilbeta'
+    name = 'fates_soilbeta'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%soilbeta)
 
-    name = 'crown'
+    name = 'fates_crown'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%crown)
 
-    name = 'bark_scaler'
+    name = 'fates_bark_scaler'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%bark_scaler)
 
-    name = 'crown_kill'
+    name = 'fates_crown_kill'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%crown_kill)
 
-    name = 'initd'
+    name = 'fates_initd'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%initd)
 
-    name = 'sd_mort'
+    name = 'fates_sd_mort'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%sd_mort)
 
-    name = 'seed_rain'
+    name = 'fates_seed_rain'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seed_rain)
 
-    name = 'BB_slope'
+    name = 'fates_BB_slope'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%BB_slope)
 
-    name = 'root_long'
+    name = 'fates_root_long'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%root_long)
 
-    name = 'clone_alloc'
+    name = 'fates_clone_alloc'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%clone_alloc)
 
-    name = 'seed_alloc'
+    name = 'fates_seed_alloc'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seed_alloc)
 
-    name = 'sapwood_ratio'
+    name = 'fates_sapwood_ratio'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%sapwood_ratio)
 
-    name = 'woody'
+    name = 'fates_woody'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%woody)
 
-    name = 'stress_decid'
+    name = 'fates_stress_decid'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%stress_decid)
 
-    name = 'season_decid'
+    name = 'fates_season_decid'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%season_decid)
 
-    name = 'evergreen'
+    name = 'fates_evergreen'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%evergreen)
 
-    name = 'froot_leaf'
+    name = 'fates_froot_leaf'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%froot_leaf)
 
-    name = 'slatop'
+    name = 'fates_slatop'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%slatop)
 
-    name = 'leaf_long'
+    name = 'fates_leaf_long'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%leaf_long)
 
-    name = 'roota_par'
+    name = 'fates_roota_par'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%roota_par)
 
-    name = 'rootb_par'
+    name = 'fates_rootb_par'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%rootb_par)
 
-    name = 'lf_flab'
+    name = 'fates_lf_flab'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%lf_flab)
 
-    name = 'lf_fcel'
+    name = 'fates_lf_fcel'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%lf_fcel)
 
-    name = 'lf_flig'
+    name = 'fates_lf_flig'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%lf_flig)
 
-    name = 'fr_flab'
+    name = 'fates_fr_flab'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%fr_flab)
 
-    name = 'fr_fcel'
+    name = 'fates_fr_fcel'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%fr_fcel)
 
-    name = 'fr_flig'
+    name = 'fates_fr_flig'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%fr_flig)
 
-    name = 'xl'
+    name = 'fates_xl'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%xl)
 
-    name = 'c3psn'
+    name = 'fates_c3psn'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%c3psn)
 
-    name = 'flnr'
+    name = 'fates_flnr'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%flnr)
 
-    name = 'fnitr'
+    name = 'fates_fnitr'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%fnitr)
 
-    name = 'leafcn'
+    name = 'fates_leafcn'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%leafcn)
 
-    name = 'frootcn'
+    name = 'fates_frootcn'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%frootcn)
 
-    name = 'smpso'
+    name = 'fates_smpso'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%smpso)
 
-    name = 'smpsc'
+    name = 'fates_smpsc'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%smpsc)
 
-    name = 'grperc'
+    name = 'fates_grperc'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%grperc)
 
@@ -563,35 +563,35 @@ contains
     !X!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
     !X!         dimension_names=dim_names)
 
-    name = 'rholvis'
+    name = 'fates_rholvis'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    name = 'rholnir'
+    name = 'fates_rholnir'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    name = 'rhosvis'
+    name = 'fates_rhosvis'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    name = 'rhosnir'
+    name = 'fates_rhosnir'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    name = 'taulvis'
+    name = 'fates_taulvis'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    name = 'taulnir'
+    name = 'fates_taulnir'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    name = 'tausvis'
+    name = 'fates_tausvis'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    name = 'tausnir'
+    name = 'fates_tausnir'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
@@ -632,7 +632,7 @@ contains
 
     ! Fetch metadata from a representative variable. All variables
     ! called by this subroutine must be dimensioned the same way!
-    name = 'rholvis'
+    name = 'fates_rholvis'
     index = fates_params%FindIndex(name)
     call fates_params%GetMetaData(index, name, dimension_shape, dimension_sizes, dimension_names, is_host_param)
     lower_bound_1 = lower_bound_pft
@@ -647,12 +647,12 @@ contains
     !
     allocate(this%rhol(lower_bound_1:upper_bound_1, lower_bound_2:upper_bound_2))
     
-    name = 'rholvis'
+    name = 'fates_rholvis'
     call fates_params%RetreiveParameter(name=name, &
          data=dummy_data)
     this%rhol(lower_bound_1:upper_bound_1, ivis) = dummy_data
 
-    name = 'rholnir'
+    name = 'fates_rholnir'
     call fates_params%RetreiveParameter(name=name, &
          data=dummy_data)
     this%rhol(lower_bound_1:upper_bound_1, inir) = dummy_data
@@ -662,12 +662,12 @@ contains
     !
     allocate(this%rhos(lower_bound_1:upper_bound_1, lower_bound_2:upper_bound_2))
     
-    name = 'rhosvis'
+    name = 'fates_rhosvis'
     call fates_params%RetreiveParameter(name=name, &
          data=dummy_data)
     this%rhos(lower_bound_1:upper_bound_1, ivis) = dummy_data
 
-    name = 'rhosnir'
+    name = 'fates_rhosnir'
     call fates_params%RetreiveParameter(name=name, &
          data=dummy_data)
     this%rhos(lower_bound_1:upper_bound_1, inir) = dummy_data
@@ -677,12 +677,12 @@ contains
     !
     allocate(this%taul(lower_bound_1:upper_bound_1, lower_bound_2:upper_bound_2))
     
-    name = 'taulvis'
+    name = 'fates_taulvis'
     call fates_params%RetreiveParameter(name=name, &
          data=dummy_data)
     this%taul(lower_bound_1:upper_bound_1, ivis) = dummy_data
 
-    name = 'taulnir'
+    name = 'fates_taulnir'
     call fates_params%RetreiveParameter(name=name, &
          data=dummy_data)
     this%taul(lower_bound_1:upper_bound_1, inir) = dummy_data
@@ -692,12 +692,12 @@ contains
     !
     allocate(this%taus(lower_bound_1:upper_bound_1, lower_bound_2:upper_bound_2))
     
-    name = 'tausvis'
+    name = 'fates_tausvis'
     call fates_params%RetreiveParameter(name=name, &
          data=dummy_data)
     this%taus(lower_bound_1:upper_bound_1, ivis) = dummy_data
 
-    name = 'tausnir'
+    name = 'fates_tausnir'
     call fates_params%RetreiveParameter(name=name, &
          data=dummy_data)
     this%taus(lower_bound_1:upper_bound_1, inir) = dummy_data
@@ -728,7 +728,7 @@ contains
     !X!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
     !X!         dimension_names=dim_names)
 
-    name = 'rootprof_beta'
+    name = 'fates_rootprof_beta'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -751,7 +751,7 @@ contains
     !X!    call fates_params%RetreiveParameter(name=name, &
     !X!         data=this%)
 
-    name = 'rootprof_beta'
+    name = 'fates_rootprof_beta'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%rootprof_beta)
 
