@@ -1135,17 +1135,16 @@ contains
          ! note there are various ways of reporting the total mortality, so pass to these as well
          do i_pft = 1, mxpft
             do i_scls = 1,nlevsclass_ed
-               hio_m6_si_scpf(io_si,(i_pft-1)*nlevsclass_ed + i_scls) = (sites(s)%terminated_nindivs(i_pft,i_scls,1) + &
+               i_scpf = (i_pft-1)*nlevsclass_ed + i_scls
+               hio_m6_si_scpf(io_si,i_scpf) = (sites(s)%terminated_nindivs(i_pft,i_scls,1) + &
                     sites(s)%terminated_nindivs(i_scls,i_pft,2)) * yeardays
-               hio_mortality_canopy_si_scls(io_si,i_pft) = hio_mortality_canopy_si_scls(io_si,i_pft) + &
+               hio_mortality_canopy_si_scls(io_si,i_scls) = hio_mortality_canopy_si_scls(io_si,i_scls) + &
                     sites(s)%terminated_nindivs(i_scls,i_pft,1) * yeardays
-               hio_mortality_understory_si_scls(io_si,i_pft) = hio_mortality_understory_si_scls(io_si,i_pft) + &
+               hio_mortality_understory_si_scls(io_si,i_scls) = hio_mortality_understory_si_scls(io_si,i_scls) + &
                     sites(s)%terminated_nindivs(i_scls,i_pft,2) * yeardays
-               hio_mortality_canopy_si_scpf(io_si,(i_pft-1)*nlevsclass_ed + i_scls) = &
-                    hio_mortality_canopy_si_scpf(io_si,(i_pft-1)*nlevsclass_ed + i_scls) + &
+               hio_mortality_canopy_si_scpf(io_si,i_scpf) = hio_mortality_canopy_si_scpf(io_si,i_scpf) + &
                     sites(s)%terminated_nindivs(i_scls,i_pft,1) * yeardays
-               hio_mortality_understory_si_scpf(io_si,(i_pft-1)*nlevsclass_ed + i_scls) = &
-                    hio_mortality_understory_si_scpf(io_si,(i_pft-1)*nlevsclass_ed + i_scls) + &
+               hio_mortality_understory_si_scpf(io_si,i_scpf) = hio_mortality_understory_si_scpf(io_si,i_scpf) + &
                     sites(s)%terminated_nindivs(i_scls,i_pft,2) * yeardays
             end do
          end do
@@ -1160,13 +1159,14 @@ contains
          ! summarize all of the mortality fluxes by PFT
          do i_pft = 1, mxpft
             do i_scls = 1,nlevsclass_ed
+               i_scpf = (i_pft-1)*nlevsclass_ed + i_scls
                hio_mortality_si_pft(io_si,i_pft) = hio_mortality_si_pft(io_si,i_pft) + &
-                    hio_m1_si_scpf(io_si,(i_pft-1)*nlevsclass_ed + i_scls) + &
-                    hio_m2_si_scpf(io_si,(i_pft-1)*nlevsclass_ed + i_scls) + &
-                    hio_m3_si_scpf(io_si,(i_pft-1)*nlevsclass_ed + i_scls) + &
-                    hio_m4_si_scpf(io_si,(i_pft-1)*nlevsclass_ed + i_scls) + &
-                    hio_m5_si_scpf(io_si,(i_pft-1)*nlevsclass_ed + i_scls) + &
-                    hio_m6_si_scpf(io_si,(i_pft-1)*nlevsclass_ed + i_scls) 
+                    hio_m1_si_scpf(io_si,i_scpf) + &
+                    hio_m2_si_scpf(io_si,i_scpf) + &
+                    hio_m3_si_scpf(io_si,i_scpf) + &
+                    hio_m4_si_scpf(io_si,i_scpf) + &
+                    hio_m5_si_scpf(io_si,i_scpf) + &
+                    hio_m6_si_scpf(io_si,i_scpf) 
             end do
          end do
        
