@@ -84,14 +84,14 @@ contains
     ! that need to be synced with host values.
 
     use FatesParametersInterface, only : fates_parameters_type, param_string_length
-    use FatesParametersInterface, only : dimension_name_allpfts, dimension_shape_1d
+    use FatesParametersInterface, only : dimension_name_host_allpfts, dimension_shape_1d
 
     implicit none
 
     class(EDParamsShareType), intent(inout) :: this
     class(fates_parameters_type), intent(inout) :: fates_params
 
-    character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_allpfts/)
+    character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_host_allpfts/)
     character(len=param_string_length) :: name
 
     call this%Init()

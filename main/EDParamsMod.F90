@@ -27,17 +27,17 @@ module EDParamsMod
    real(r8),protected :: ED_val_profile_tol
    real(r8),protected :: ED_val_ag_biomass
   
-   character(len=param_string_length),parameter :: ED_name_grass_spread = "grass_spread"
-   character(len=param_string_length),parameter :: ED_name_comp_excln = "comp_excln"
-   character(len=param_string_length),parameter :: ED_name_stress_mort = "stress_mort"
-   character(len=param_string_length),parameter :: ED_name_dispersal = "dispersal"
-   character(len=param_string_length),parameter :: ED_name_maxspread = "maxspread"
-   character(len=param_string_length),parameter :: ED_name_minspread = "minspread"
-   character(len=param_string_length),parameter :: ED_name_init_litter = "init_litter"
-   character(len=param_string_length),parameter :: ED_name_nfires = "nfires"
-   character(len=param_string_length),parameter :: ED_name_understorey_death = "understorey_death"
-   character(len=param_string_length),parameter :: ED_name_profile_tol = "profile_tol"
-   character(len=param_string_length),parameter :: ED_name_ag_biomass= "ag_biomass"   
+   character(len=param_string_length),parameter :: ED_name_grass_spread = "fates_grass_spread"
+   character(len=param_string_length),parameter :: ED_name_comp_excln = "fates_comp_excln"
+   character(len=param_string_length),parameter :: ED_name_stress_mort = "fates_stress_mort"
+   character(len=param_string_length),parameter :: ED_name_dispersal = "fates_dispersal"
+   character(len=param_string_length),parameter :: ED_name_maxspread = "fates_maxspread"
+   character(len=param_string_length),parameter :: ED_name_minspread = "fates_minspread"
+   character(len=param_string_length),parameter :: ED_name_init_litter = "fates_init_litter"
+   character(len=param_string_length),parameter :: ED_name_nfires = "fates_nfires"
+   character(len=param_string_length),parameter :: ED_name_understorey_death = "fates_understorey_death"
+   character(len=param_string_length),parameter :: ED_name_profile_tol = "fates_profile_tol"
+   character(len=param_string_length),parameter :: ED_name_ag_biomass= "fates_ag_biomass"   
    
    public :: FatesParamsInit
    public :: FatesRegisterParams
