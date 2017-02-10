@@ -18,21 +18,19 @@ module FatesParametersInterface
   integer, parameter, public :: dimension_shape_1d = 1
   integer, parameter, public :: dimension_shape_2d = 2
 
-  ! FIXME(bja, 2017-01) these strings need to be changed to 'fates_'
-  ! to namespace dimonsions and prevent name collisions if someone
-  ! wants to write a single netcdf file containing host and fates
-  ! parameters. Can't be done easily until this framework is being
-  ! used to read variables.
-  ! FIXME(bja, 2017-01) change 'param' to 'scalar'!
+  ! Dimensions in the fates namespace:
   character(len=*), parameter, public :: dimension_name_scalar = ''
-  character(len=*), parameter, public :: dimension_name_scalar1d = 'param'
-  character(len=*), parameter, public :: dimension_name_pft = 'pft'
-  character(len=*), parameter, public :: dimension_name_segment = 'segment'
-  character(len=*), parameter, public :: dimension_name_cwd = 'NCWD'
-  character(len=*), parameter, public :: dimension_name_lsc = 'litterclass'
-  character(len=*), parameter, public :: dimension_name_fsc = 'litterclass'
-  character(len=*), parameter, public :: dimension_name_allpfts = 'allpfts'
-  character(len=*), parameter, public :: dimension_name_variants = 'variants'
+  character(len=*), parameter, public :: dimension_name_scalar1d = 'fates_scalar'
+  character(len=*), parameter, public :: dimension_name_pft = 'fates_pft'
+  character(len=*), parameter, public :: dimension_name_segment = 'fates_segment'
+  character(len=*), parameter, public :: dimension_name_cwd = 'fates_NCWD'
+  character(len=*), parameter, public :: dimension_name_lsc = 'fates_litterclass'
+  character(len=*), parameter, public :: dimension_name_fsc = 'fates_litterclass'
+  character(len=*), parameter, public :: dimension_name_allpfts = 'fates_allpfts'
+  character(len=*), parameter, public :: dimension_name_variants = 'fates_variants'
+
+  ! Dimensions in the host namespace:
+  character(len=*), parameter, public :: dimension_name_host_allpfts = 'allpfts'
   
   type, private ::  parameter_type
      character(len=param_string_length) :: name
