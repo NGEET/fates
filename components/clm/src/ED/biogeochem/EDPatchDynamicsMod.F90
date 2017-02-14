@@ -7,10 +7,11 @@ module EDPatchDynamicsMod
   use shr_kind_mod         , only : r8 => shr_kind_r8;
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
   use clm_varctl           , only : iulog 
+  use FatesGlobals         , only : freq_day
   use EDPftvarcon            , only : EDPftvarcon_inst
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
   use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, numpft_ed, area, dbhmax, maxPatchesPerCol
-  use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type, udata
+  use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod           , only : min_patch_area, cp_numlevgrnd, cp_numSWb
   !
   implicit none
@@ -45,7 +46,6 @@ contains
     !
     ! !USES:
     use EDGrowthFunctionsMod , only : c_area, mortality_rates
-    use EDTypesMod           , only : udata
     !
     ! !ARGUMENTS:
     type(ed_site_type) , intent(inout), target :: site_in
@@ -85,7 +85,7 @@ contains
           if(currentCohort%canopy_layer == 1)then
 
              currentPatch%disturbance_rates(1) = currentPatch%disturbance_rates(1) + &
-                  min(1.0_r8,currentCohort%dmort)*udata%deltat*currentCohort%c_area/currentPatch%area
+                  min(1.0_r8,currentCohort%dmort)*freq_day*currentCohort%c_area/currentPatch%area
 
           endif
 
@@ -271,7 +271,7 @@ contains
                    ! because this is the part of the original patch where no trees have actually fallen
                    ! The diagnostic cmort,bmort and hmort rates have already been saved         
 
-                   currentCohort%n = currentCohort%n * (1.0_r8 - min(1.0_r8,currentCohort%dmort * udata%deltat))
+                   currentCohort%n = currentCohort%n * (1.0_r8 - min(1.0_r8,currentCohort%dmort * freq_day))
 
                    nc%n = 0.0_r8      ! kill all of the trees who caused the disturbance.         
                    nc%cmort = nan     ! The mortality diagnostics are set to nan because the cohort should dissappear
@@ -298,7 +298,7 @@ contains
                       ! so with the number density must come the effective mortality rates.
 
                       nc%fmort = 0.0_r8               ! Should had also been zero in the donor
-                      nc%imort = ED_val_understorey_death/udata%deltat  ! This was zero in the donor
+                      nc%imort = ED_val_understorey_death/freq_day  ! This was zero in the donor
                       nc%cmort = currentCohort%cmort
                       nc%hmort = currentCohort%hmort
                       nc%bmort = currentCohort%bmort
@@ -336,7 +336,7 @@ contains
                 ! loss of individual from fire in new patch.
                 nc%n = nc%n * (1.0_r8 - currentCohort%fire_mort) 
 
-                nc%fmort = currentCohort%fire_mort/udata%deltat
+                nc%fmort = currentCohort%fire_mort/freq_day
                 nc%imort = 0.0_r8
                 nc%cmort = currentCohort%cmort
                 nc%hmort = currentCohort%hmort
@@ -716,7 +716,7 @@ contains
              !currentCohort%dmort = mortality_rates(currentCohort) 
              !the disturbance calculations are done with the previous n, c_area and d_mort. So it's probably &
              !not right to recalcualte dmort here.
-             canopy_dead = currentCohort%n * min(1.0_r8,currentCohort%dmort * udata%deltat)
+             canopy_dead = currentCohort%n * min(1.0_r8,currentCohort%dmort * freq_day)
 
              currentPatch%canopy_mortality_woody_litter   = currentPatch%canopy_mortality_woody_litter  + &
                   canopy_dead*(currentCohort%bdead+currentCohort%bsw)
@@ -831,6 +831,7 @@ contains
 
     new_patch%siteptr            => currentSite 
     new_patch%age                = age   
+    new_patch%age_class          = 1
     new_patch%area               = areap 
     new_patch%spread             = spread_local
     new_patch%cwd_ag             = cwd_ag_local
@@ -899,6 +900,7 @@ contains
     currentPatch%clm_pno  = 999                          
 
     currentPatch%age                        = nan                          
+    currentPatch%age_class                  = 1
     currentPatch%area                       = nan                                           
     currentPatch%canopy_layer_lai(:)        = nan               
     currentPatch%total_canopy_area          = nan
@@ -935,8 +937,6 @@ contains
     currentPatch%lai                        = nan    ! leaf area index of patch
     currentPatch%spread(:)                  = nan    ! dynamic ratio of dbh to canopy area.
     currentPatch%pft_agb_profile(:,:)       = nan    
-    currentPatch%gpp                        = 0._r8 
-    currentPatch%npp                        = 0._r8                
 
     ! DISTURBANCE 
     currentPatch%disturbance_rates          = 0._r8 
@@ -1150,6 +1150,7 @@ contains
     ! associated with the secnd patch
     !
     ! !USES:
+    use EDTypesMod, only: ageclass_ed
     !
     ! !ARGUMENTS:
     type (ed_patch_type) , intent(inout), pointer :: dp ! Donor Patch
@@ -1169,6 +1170,7 @@ contains
 
     !area weighted average of ages & litter
     rp%age = (dp%age * dp%area + rp%age * rp%area)/(dp%area + rp%area)  
+    rp%age_class = count(rp%age-ageclass_ed.ge.0.0_r8)
 
     do p = 1,numpft_ed
        rp%seeds_in(p)         = (rp%seeds_in(p)*rp%area + dp%seeds_in(p)*dp%area)/(rp%area + dp%area)

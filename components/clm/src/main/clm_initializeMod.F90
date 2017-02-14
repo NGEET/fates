@@ -647,7 +647,7 @@ contains
     ! Initialise the ED model state structure
     ! --------------------------------------------------------------
    
-    if ( use_ed .and. .not.is_restart() ) then
+    if ( use_ed .and. .not.is_restart() .and. finidat == ' ') then
 
        call clm_fates%init_coldstart(waterstate_inst,canopystate_inst)
        

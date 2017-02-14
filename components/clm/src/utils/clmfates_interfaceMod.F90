@@ -40,7 +40,6 @@ module CLMFatesInterfaceMod
    use TemperatureType   , only : temperature_type
    use EnergyFluxType    , only : energyflux_type
    use SoilStateType     , only : soilstate_type
-   use PhotosynthesisMod , only : photosyns_type
    use clm_varctl        , only : iulog, use_ed
    use clm_varcon        , only : tfrz
    use clm_varcon        , only : spval
@@ -50,6 +49,7 @@ module CLMFatesInterfaceMod
                                   nlevsoi,           &
                                   nlevdecomp,        &
                                   nlevdecomp_full
+   use PhotosynthesisMod , only : photosyns_type
    use atm2lndType       , only : atm2lnd_type
    use SurfaceAlbedoType , only : surfalb_type
    use SolarAbsorbedType , only : solarabs_type
@@ -82,11 +82,12 @@ module CLMFatesInterfaceMod
                                       allocate_bcin,        &
                                       allocate_bcout
 
+   use FatesGlobals            , only : SetFatesTime
+
    use FatesHistoryInterfaceMod, only : fates_history_interface_type
    use FatesRestartInterfaceMod, only : fates_restart_interface_type
 
    use ChecksBalancesMod     , only : SummarizeNetFluxes, FATES_BGC_Carbon_BalanceCheck
-   use EDTypesMod            , only : udata
    use EDTypesMod            , only : ed_patch_type
    use EDtypesMod            , only : cp_numlevgrnd
    use EDMainMod             , only : ed_ecosystem_dynamics
@@ -100,7 +101,7 @@ module CLMFatesInterfaceMod
    use EDBtranMod            , only : btran_ed, &
                                       get_active_suction_layers
    use EDCanopyStructureMod  , only : canopy_summarization, update_hlm_dynamics
-   use EDPhotosynthesisMod   , only : Photosynthesis_ED
+   use FatesPlantRespPhotosynthMod, only : FatesPlantRespPhotosynthDrive
    use EDAccumulateFluxesMod , only : AccumulateFluxes_ED
    use EDPhysiologyMod       , only : flux_into_litter_pools
 
@@ -157,7 +158,6 @@ module CLMFatesInterfaceMod
       procedure, public :: wrap_accumulatefluxes
       procedure, public :: prep_canopyfluxes
       procedure, public :: wrap_canopy_radiation
-      procedure, private :: wrap_litter_fluxout
       procedure, public  :: wrap_bgc_summary
       procedure, private :: init_history_io
       procedure, private :: wrap_update_hlmfates_dyn
@@ -191,8 +191,9 @@ contains
       ! is not turned on
       ! ---------------------------------------------------------------------------------
      
-     use FatesInterfaceMod, only : FatesInterfaceInit
-     
+      use FatesInterfaceMod, only : FatesInterfaceInit
+      use EDTypesMod       , only : numpft_ed
+      use FatesParameterDerivedMod, only : param_derived
 
       implicit none
       
@@ -207,6 +208,7 @@ contains
       ! local variables
       integer                                        :: nclumps   ! Number of threads
       logical :: verbose_output
+      integer :: pass_masterproc
 
       if (use_ed) then
          
@@ -214,10 +216,9 @@ contains
          ! This involves to stages
          ! 1) allocate the vectors
          ! 2) add the history variables defined in clm_inst to the history machinery
-!         call this%fates2hlm%Init(bounds_proc)
-                  
          call EDecophysconInit( EDpftvarcon_inst, numpft )
-
+         call param_derived%Init(numpft_ed)
+         
       end if
          
       if(DEBUG)then
@@ -248,6 +249,12 @@ contains
       call set_fates_ctrlparms('num_levdecomp_full',ival=nlevdecomp_full)
       call set_fates_ctrlparms('hlm_name',cval='CLM')
       call set_fates_ctrlparms('hio_ignore_val',rval=spval)
+      if(masterproc)then
+         pass_masterproc = 1
+      else
+         pass_masterproc = 0
+      end if
+      call set_fates_ctrlparms('masterproc',ival=pass_masterproc)
 
       ! Check through FATES parameters to see if all have been set
       call set_fates_ctrlparms('check_allset')
@@ -448,65 +455,122 @@ contains
       type(soilbiogeochem_carbonflux_type), intent(inout) :: soilbiogeochem_carbonflux_inst
 
       ! !LOCAL VARIABLES:
-      real(r8) :: dayDiff                  ! day of run
-      integer  :: dayDiffInt               ! integer of day of run
-      integer  :: s                        ! site
+      integer  :: s                        ! site index
+      integer  :: c                        ! column index (HLM)
+      integer  :: ifp                      ! patch index
+      integer  :: p                        ! HLM patch index
       integer  :: yr                       ! year (0, ...)
       integer  :: mon                      ! month (1, ..., 12)
       integer  :: day                      ! day of month (1, ..., 31)
       integer  :: sec                      ! seconds of the day
-      integer  :: ncdate                   ! current date
-      integer  :: nbdate                   ! base date (reference date)
+      integer  :: current_year             
+      integer  :: current_month
+      integer  :: current_day
+      integer  :: current_tod
+      integer  :: current_date
+      integer  :: jan01_curr_year
+      integer  :: reference_date
+      integer  :: days_per_year
+      real(r8) :: model_day
+      real(r8) :: day_of_year
       !-----------------------------------------------------------------------
 
-      
       ! ---------------------------------------------------------------------------------
-      ! INTERF-TODO: REMOVE ED_DRIVER ARGUMENTS OF CLM STUCTURED TYPES AND
-      ! REPLACE THEM WITH FATES_BC TYPES WITH ITS OWN MAPPING SCHEME
-      ! ALSO, NOTE THAT THE ED_DYNAMICS IS A MODULE OF FATES NOW
-      ! ie:
-      ! fates(nc)%fatesbc%leaf_temp <=> canopystate_inst%
-      !
-      ! call this%fates(nc)%ed_driver(this%fates(nc)%site,    &
-      !                               this%fates(nc)%fatesbc)
+      ! Part I.
+      ! Prepare input boundary conditions for FATES dynamics
+      ! Note that timing information is the same across all sites, this may
+      ! seem redundant, but it is possible that we may have asynchronous site simulations
+      ! one day.  The cost of holding site level boundary conditions is minimal
+      ! and it keeps all the boundaries in one location
       ! ---------------------------------------------------------------------------------
-      
-      ! timing statements. 
-      udata%n_sub = get_days_per_year()
-            udata%deltat = 1.0_r8/dble(udata%n_sub) !for working out age of patches in years        
-      if(udata%time_period == 0)then             
-         udata%time_period = udata%n_sub
-      endif
-      
-      call get_curr_date(yr, mon, day, sec)
-      ncdate = yr*10000 + mon*100 + day
+
+      days_per_year = get_days_per_year()
+      call get_curr_date(current_year,current_month,current_day,current_tod)
+      current_date = current_year*10000 + current_month*100 + current_day
+      jan01_curr_year = current_year*10000 + 100 + 1
+
       call get_ref_date(yr, mon, day, sec)
-      nbdate = yr*10000 + mon*100 + day
-      
-      call timemgr_datediff(nbdate, 0, ncdate, sec, dayDiff)
-      
-      dayDiffInt = floor(dayDiff)
-      udata%time_period = mod( dayDiffInt , udata%n_sub )
-      
+      reference_date = yr*10000 + mon*100 + day
 
-      ! TODO-INTEF: PROCEDURE FOR CONVERTING CLM/ALM FIELDS TO MODEL BOUNDARY
-      ! CONDITIONS. IE. 
+      call timemgr_datediff(reference_date, sec, current_date, current_tod, model_day)
+
+      call timemgr_datediff(jan01_curr_year,0,current_date,sec,day_of_year)
+      
+      call SetFatesTime(current_year, current_month, &
+                        current_day, current_tod, &
+                        current_date, reference_date, &
+                        model_day, floor(day_of_year), &
+                        days_per_year, 1.0_r8/dble(days_per_year))
 
 
-      ! where most things happen
+      do s=1,this%fates(nc)%nsites
+         c = this%f2hmap(nc)%fcolumn(s)
+         this%fates(nc)%bc_in(s)%h2osoi_vol_si  = &
+               waterstate_inst%h2osoi_vol_col(c,1) 
+
+         this%fates(nc)%bc_in(s)%t_veg24_si = &
+               temperature_inst%t_veg24_patch(col%patchi(c))
+
+         this%fates(nc)%bc_in(s)%max_rooting_depth_index_col = canopystate_inst%altmax_lastyear_indx_col(c)
+
+         do ifp = 1, this%fates(nc)%sites(s)%youngest_patch%patchno
+            p = ifp+col%patchi(c)
+            this%fates(nc)%bc_in(s)%t_veg24_pa(ifp) = &
+                 temperature_inst%t_veg24_patch(p)
+
+            this%fates(nc)%bc_in(s)%precip24_pa(ifp) = &
+                  atm2lnd_inst%prec24_patch(p)
+
+            this%fates(nc)%bc_in(s)%relhumid24_pa(ifp) = &
+                  atm2lnd_inst%rh24_patch(p)
+
+            this%fates(nc)%bc_in(s)%wind24_pa(ifp) = &
+                  atm2lnd_inst%wind24_patch(p)
+
+         end do
+      end do
+
+      ! ---------------------------------------------------------------------------------
+      ! Part II: Call the FATES model now that input boundary conditions have been
+      ! provided.
+      ! ---------------------------------------------------------------------------------
+
       do s = 1,this%fates(nc)%nsites
 
             call ed_ecosystem_dynamics(this%fates(nc)%sites(s),    &
-                  atm2lnd_inst,                                    &
-                  soilstate_inst, temperature_inst, waterstate_inst)
+                  this%fates(nc)%bc_in(s))
             
-            call ed_update_site(this%fates(nc)%sites(s))
-
+            call ed_update_site(this%fates(nc)%sites(s), &
+                  this%fates(nc)%bc_in(s))
+            
       enddo
+      
+      ! call subroutine to aggregate ED litter output fluxes and 
+      ! package them for handing across interface
+      call flux_into_litter_pools(this%fates(nc)%nsites, &
+            this%fates(nc)%sites,  &
+            this%fates(nc)%bc_in,  &
+            this%fates(nc)%bc_out)
 
-      call this%wrap_litter_fluxout(nc, bounds_clump, canopystate_inst, soilbiogeochem_carbonflux_inst)
 
       ! ---------------------------------------------------------------------------------
+      ! Part III: Process FATES output into the dimensions and structures that are part
+      ! of the HLMs API.  (column, depth, and litter fractions)
+      ! ---------------------------------------------------------------------------------
+
+      do s = 1, this%fates(nc)%nsites
+         c = this%f2hmap(nc)%fcolumn(s)
+         soilbiogeochem_carbonflux_inst%FATES_c_to_litr_lab_c_col(c,:) = &
+               this%fates(nc)%bc_out(s)%FATES_c_to_litr_lab_c_col(:)
+         soilbiogeochem_carbonflux_inst%FATES_c_to_litr_cel_c_col(c,:) = &
+               this%fates(nc)%bc_out(s)%FATES_c_to_litr_cel_c_col(:)
+         soilbiogeochem_carbonflux_inst%FATES_c_to_litr_lig_c_col(c,:) = &
+               this%fates(nc)%bc_out(s)%FATES_c_to_litr_lig_c_col(:)
+      end do
+
+
+      ! ---------------------------------------------------------------------------------
+      ! Part III.2 (continued).
       ! Update diagnostics of the FATES ecosystem structure that are used in the HLM.
       ! ---------------------------------------------------------------------------------
       call this%wrap_update_hlmfates_dyn(nc,              &
@@ -515,6 +579,7 @@ contains
                                          canopystate_inst)
       
       ! ---------------------------------------------------------------------------------
+      ! Part IV: 
       ! Update history IO fields that depend on ecosystem dynamics
       ! ---------------------------------------------------------------------------------
       call this%fates_hist%update_history_dyn( nc,                    &
@@ -523,7 +588,7 @@ contains
 
       if (masterproc) then
          write(iulog, *) 'clm: leaving ED model', bounds_clump%begg, &
-                                                  bounds_clump%endg, dayDiffInt
+                                                  bounds_clump%endg
       end if
 
       
@@ -873,7 +938,8 @@ contains
                ! I think ed_update_site and update_hlmfates_dyn are doing some similar
                ! update type stuff, should consolidate (rgk 11-2016)
                do s = 1,this%fates(nc)%nsites
-                  call ed_update_site( this%fates(nc)%sites(s) )
+                  call ed_update_site( this%fates(nc)%sites(s), &
+                        this%fates(nc)%bc_in(s) )
                end do
 
                ! ------------------------------------------------------------------------
@@ -935,7 +1001,8 @@ contains
            call init_patches(this%fates(nc)%nsites, this%fates(nc)%sites)
 
            do s = 1,this%fates(nc)%nsites
-              call ed_update_site(this%fates(nc)%sites(s))
+              call ed_update_site(this%fates(nc)%sites(s), &
+                    this%fates(nc)%bc_in(s))
            end do
 
 
@@ -1340,11 +1407,11 @@ contains
       
       ! Call photosynthesis
       
-      call  Photosynthesis_ED (this%fates(nc)%nsites, &
-           this%fates(nc)%sites,  &
-           this%fates(nc)%bc_in,  &
-           this%fates(nc)%bc_out, &
-           dtime)
+      call FatesPlantRespPhotosynthDrive (this%fates(nc)%nsites, &
+                                this%fates(nc)%sites,  &
+                                this%fates(nc)%bc_in,  &
+                                this%fates(nc)%bc_out, &
+                                dtime)
 
       ! Perform a double check to see if all patches on naturally vegetated columns
       ! were activated for photosynthesis
@@ -1502,46 +1569,6 @@ contains
  end subroutine wrap_canopy_radiation
 
  ! ======================================================================================
- 
- subroutine wrap_litter_fluxout(this, nc, bounds_clump, canopystate_inst, soilbiogeochem_carbonflux_inst)
-     
-    implicit none
-    
-    ! Arguments
-    class(hlm_fates_interface_type), intent(inout) :: this
-    integer                , intent(in)            :: nc
-    type(bounds_type),intent(in)                   :: bounds_clump
-    type(canopystate_type)         , intent(inout) :: canopystate_inst
-    type(soilbiogeochem_carbonflux_type), intent(inout) :: soilbiogeochem_carbonflux_inst
-    
-    ! local variables
-    integer :: s, c
-    
-    
-    ! process needed input boundary conditions to define rooting profiles
-    ! call subroutine to aggregate ED litter output fluxes and package them for handing across interface
-    ! process output into the dimensions that the BGC model wants (column, depth, and litter fractions)
-    
-    do s = 1, this%fates(nc)%nsites
-       c = this%f2hmap(nc)%fcolumn(s)
-       this%fates(nc)%bc_in(s)%max_rooting_depth_index_col = canopystate_inst%altmax_lastyear_indx_col(c)
-    end do
-    
-    call flux_into_litter_pools(this%fates(nc)%nsites, &
-         this%fates(nc)%sites,  &
-         this%fates(nc)%bc_in,  &
-         this%fates(nc)%bc_out)
-    
-    do s = 1, this%fates(nc)%nsites
-       c = this%f2hmap(nc)%fcolumn(s)
-       soilbiogeochem_carbonflux_inst%FATES_c_to_litr_lab_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_lab_c_col(:)
-       soilbiogeochem_carbonflux_inst%FATES_c_to_litr_cel_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_cel_c_col(:)
-       soilbiogeochem_carbonflux_inst%FATES_c_to_litr_lig_c_col(c,:) = this%fates(nc)%bc_out(s)%FATES_c_to_litr_lig_c_col(:)
-    end do
-
- end subroutine wrap_litter_fluxout
-
- ! ======================================================================================
 
  subroutine wrap_bgc_summary(this, nc, soilbiogeochem_carbonflux_inst,     &
                                     soilbiogeochem_carbonstate_inst)
@@ -1608,6 +1635,7 @@ contains
    use FatesConstantsMod, only : fates_short_string_length, fates_long_string_length
    use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
    use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
+   use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
    use FatesIODimensionsMod, only : fates_bounds_type
 
 
@@ -1769,6 +1797,33 @@ contains
                               ptr_col=this%fates_hist%hvars(ivar)%r82d,      & 
                               default=trim(vdefault),                       &
                               set_lake=0._r8,set_urb=0._r8)
+        case(site_size_r8)
+           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+           dim2name = this%fates_hist%dim_bounds(d_index)%name
+           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+                              type2d=trim(dim2name),                        &
+                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+                              ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
+                              default=trim(vdefault),                       &
+                              set_lake=0._r8,set_urb=0._r8)
+        case(site_pft_r8)
+           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+           dim2name = this%fates_hist%dim_bounds(d_index)%name
+           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+                              type2d=trim(dim2name),                        &
+                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+                              ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
+                              default=trim(vdefault),                       &
+                              set_lake=0._r8,set_urb=0._r8)
+        case(site_age_r8)
+           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+           dim2name = this%fates_hist%dim_bounds(d_index)%name
+           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+                              type2d=trim(dim2name),                        &
+                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+                              ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
+                              default=trim(vdefault),                       &
+                              set_lake=0._r8,set_urb=0._r8)
 
         case default
            write(iulog,*) 'A FATES iotype was created that was not registerred'
@@ -1783,7 +1838,7 @@ contains
  subroutine hlm_bounds_to_fates_bounds(hlm, fates)
 
    use FatesIODimensionsMod, only : fates_bounds_type
-   use EDtypesMod, only : nlevsclass_ed
+   use EDtypesMod, only : nlevsclass_ed, nlevage_ed
    use clm_varpar, only : mxpft, nlevgrnd
 
    implicit none
@@ -1803,8 +1858,17 @@ contains
    fates%ground_begin = 1
    fates%ground_end = nlevgrnd
    
+   fates%sizepft_class_begin = 1
+   fates%sizepft_class_end = nlevsclass_ed * mxpft
+   
+   fates%size_class_begin = 1
+   fates%size_class_end = nlevsclass_ed
+
    fates%pft_class_begin = 1
-   fates%pft_class_end = nlevsclass_ed * mxpft
+   fates%pft_class_end = mxpft
+
+   fates%age_class_begin = 1
+   fates%age_class_end = nlevage_ed
    
  end subroutine hlm_bounds_to_fates_bounds
 
