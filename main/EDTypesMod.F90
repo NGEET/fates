@@ -83,9 +83,12 @@ module EDTypesMod
 !  real(r8), parameter, dimension(16) ::  sclass_ed  = (/0.0_r8,1.0_r8,2.0_r8,3.0_r8,4.0_r8,5.0_r8,10.0_r8,20.0_r8,30.0_r8,40.0_r8, &
 !                                                       50.0_r8,60.0_r8,70.0_r8,80.0_r8,90.0_r8,100.0_r8/)
 
-  real(r8), parameter, dimension(13) ::  sclass_ed  = (/0.0_r8,5.0_r8,10.0_r8,15.0_r8,20.0_r8,30.0_r8,40.0_r8, &
+  real(r8), parameter, dimension(nlevsclass_ed) ::  sclass_ed  = (/0.0_r8,5.0_r8,10.0_r8,15.0_r8,20.0_r8,30.0_r8,40.0_r8, &
                                                        50.0_r8,60.0_r8,70.0_r8,80.0_r8,90.0_r8,100.0_r8/)
 
+  integer, parameter :: nlevage_ed = 7  ! Number of patch-age classes for age structured analyses
+  real(r8), parameter, dimension(nlevage_ed) ::  ageclass_ed  = (/0.0_r8,1.0_r8,2._r8,5.0_r8,10.0_r8,20.0_r8,50.0_r8/)
+  
 
  !  integer, parameter :: nlevsclass_ed = 17
  !  real(r8), parameter, dimension(17) ::  sclass_ed  = (/0.1_r8, 5.0_r8,10.0_r8,15.0_r8,20.0_r8,25.0_r8, & 
@@ -99,13 +102,15 @@ module EDTypesMod
   character(len = 10), parameter,dimension(5) :: char_list = (/"background","hydraulic ","carbon    ","impact    ","fire      "/)
 
 
-  ! These three vectors are used for history output mapping
+  ! These vectors are used for history output mapping
   real(r8) ,allocatable :: levsclass_ed(:) ! The lower bound on size classes for ED trees. This 
                                            ! is used really for IO into the
                                            ! history tapes. It gets copied from
                                            ! the parameter array sclass_ed.
   integer , allocatable :: pft_levscpf_ed(:)
   integer , allocatable :: scls_levscpf_ed(:) 
+  real(r8), allocatable :: levage_ed(:) 
+  integer , allocatable :: levpft_ed(:) 
 
   
   ! Control Parameters (cp_)            
@@ -148,6 +153,18 @@ module EDTypesMod
   ! This value can be flushed to history diagnostics, such that the
   ! HLM will interpret that the value should not be included in the average.
   real(r8) :: cp_hio_ignore_val
+
+
+  ! Is this the master processor, typically useful for knowing if 
+  ! the current machine should be printing out messages to the logs or terminals
+  ! 1 = TRUE (is master) 0 = FALSE (is not master)
+  integer :: cp_masterproc
+
+
+  ! Module switches (this will be read in one day)
+  ! This variable only exists now to serve as a place holder
+  !!!!!!!!!! THIS SHOULD NOT BE SET TO TRUE !!!!!!!!!!!!!!!!!
+  logical,parameter :: use_fates_plant_hydro = .false.
 
   !************************************
   !** COHORT type structure          **
@@ -313,6 +330,7 @@ module EDTypesMod
 
      ! PATCH INFO
      real(r8) ::  age                                              ! average patch age: years                   
+     integer  ::  age_class                                        ! age class of the patch for history binning purposes
      real(r8) ::  area                                             ! patch area: m2  
      integer  ::  countcohorts                                     ! Number of cohorts in patch
      integer  ::  ncl_p                                            ! Number of occupied canopy layers
@@ -376,8 +394,6 @@ module EDTypesMod
 
      ! PHOTOSYNTHESIS       
      real(r8) ::  psn_z(cp_nclmax,numpft_ed,cp_nlevcan)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
-     real(r8) ::  gpp                                              ! total patch gpp: KgC/m2/year
-     real(r8) ::  npp                                              ! total patch npp: KgC/m2/year   
 
      ! ROOTS
      real(r8), allocatable ::  rootfr_ft(:,:)                      ! root fraction of each PFT in each soil layer:-
@@ -545,16 +561,14 @@ module EDTypesMod
   !** Userdata type structure       **
   !************************************
 
-  type userdata
-     integer  ::   cohort_number            ! Counts up the number of cohorts which have been made.
-     integer  ::   n_sub                    ! num of substeps in year 
-     real(r8) ::   deltat                   ! fraction of year used for each timestep (1/N_SUB)
-     integer  ::   time_period              ! Within year timestep (1:N_SUB) day of year
-     integer  ::   restart_year             ! Which year of simulation are we starting in? 
-  end type userdata
-
-
-  type(userdata), public, target :: udata   ! THIS WAS NOT THREADSAFE
+!  type userdata
+!     integer  ::   cohort_number            ! Counts up the number of cohorts which have been made.
+!     integer  ::   n_sub                    ! num of substeps in year 
+!     real(r8) ::   deltat                   ! fraction of year used for each timestep (1/N_SUB)
+!     integer  ::   time_period              ! Within year timestep (1:N_SUB) day of year
+!     integer  ::   restart_year             ! Which year of simulation are we starting in? 
+!  end type userdata
+!  type(userdata), public, target :: udata   ! THIS WAS NOT THREADSAFE
   !-------------------------------------------------------------------------------------!
 
   public :: ed_hist_scpfmaps
@@ -575,11 +589,20 @@ contains
     allocate( levsclass_ed(1:nlevsclass_ed   ))
     allocate( pft_levscpf_ed(1:nlevsclass_ed*mxpft))
     allocate(scls_levscpf_ed(1:nlevsclass_ed*mxpft))
+    allocate( levpft_ed(1:mxpft   ))
+    allocate( levage_ed(1:nlevage_ed   ))
 
     ! Fill the IO array of plant size classes
     ! For some reason the history files did not like
     ! a hard allocation of sclass_ed
     levsclass_ed(:) = sclass_ed(:)
+    
+    levage_ed(:) = ageclass_ed(:)
+
+    ! make pft array
+    do ipft=1,mxpft
+       levpft_ed(ipft) = ipft
+    end do
 
     ! Fill the IO arrays that match pft and size class to their combined array
     i=0
@@ -659,5 +682,11 @@ contains
     end do
 
   end subroutine set_root_fraction
+
+
+  ! =====================================================================================
+  
+ 
+
 
 end module EDTypesMod
