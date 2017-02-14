@@ -1726,168 +1726,168 @@ contains
     ! ===================================================================================
 
     call this%set_history_var(vname='GPP_SCPF', units='kgC/m2/yr',            &
-          long='gross primary production', use_default='inactive',           &
+          long='gross primary production by pft/size', use_default='inactive',           &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_gpp_si_scpf )
 
     call this%set_history_var(vname='GPP_CANOPY_SCPF', units='kgC/m2/yr',            &
-          long='gross primary production of canopy plants', use_default='inactive',           &
+          long='gross primary production of canopy plants by pft/size ', use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_gpp_canopy_si_scpf )
 
     call this%set_history_var(vname='AR_CANOPY_SCPF', units='kgC/m2/yr',            &
-          long='autotrophic respiration of canopy plants', use_default='inactive',           &
+          long='autotrophic respiration of canopy plants by pft/size', use_default='inactive',           &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ar_canopy_si_scpf )
 
     call this%set_history_var(vname='GPP_UNDERSTORY_SCPF', units='kgC/m2/yr',            &
-          long='gross primary production of understory plants', use_default='inactive',           &
+          long='gross primary production of understory plants by pft/size', use_default='inactive',           &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_gpp_understory_si_scpf )
 
     call this%set_history_var(vname='AR_UNDERSTORY_SCPF', units='kgC/m2/yr',            &
-          long='autotrophic respiration of understory plants', use_default='inactive',           &
+          long='autotrophic respiration of understory plants by pft/size', use_default='inactive',           &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ar_understory_si_scpf )
 
     call this%set_history_var(vname='NPP_SCPF', units='kgC/m2/yr',            &
-          long='total net primary production', use_default='inactive',       &
+          long='total net primary production by pft/size', use_default='inactive',       &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_totl_si_scpf )
 
 
     call this%set_history_var(vname='NPP_LEAF_SCPF', units='kgC/m2/yr',       &
-          long='NPP flux into leaves', use_default='inactive',               &
+          long='NPP flux into leaves by pft/size', use_default='inactive',               &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_leaf_si_scpf )
 
     call this%set_history_var(vname='NPP_SEED_SCPF', units='kgC/m2/yr',       &
-          long='NPP flux into seeds', use_default='inactive',                &
+          long='NPP flux into seeds by pft/size', use_default='inactive',                &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_seed_si_scpf )
 
     call this%set_history_var(vname='NPP_FNRT_SCPF', units='kgC/m2/yr',       &
-          long='NPP flux into fine roots', use_default='inactive',           &
+          long='NPP flux into fine roots by pft/size', use_default='inactive',           &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_fnrt_si_scpf )
 
     call this%set_history_var(vname='NPP_BGSW_SCPF', units='kgC/m2/yr',       &
-          long='NPP flux into below-ground sapwood', use_default='inactive', &
+          long='NPP flux into below-ground sapwood by pft/size', use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_bgsw_si_scpf )
 
     call this%set_history_var(vname='NPP_BGDW_SCPF', units='kgC/m2/yr',       &
-          long='NPP flux into below-ground deadwood', use_default='inactive', &
+          long='NPP flux into below-ground deadwood by pft/size', use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_bgdw_si_scpf )
 
     call this%set_history_var(vname='NPP_AGSW_SCPF', units='kgC/m2/yr',       &
-          long='NPP flux into above-ground sapwood', use_default='inactive', &
+          long='NPP flux into above-ground sapwood by pft/size', use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_agsw_si_scpf )
 
     call this%set_history_var(vname = 'NPP_AGDW_SCPF', units='kgC/m2/yr',    &
-          long='NPP flux into above-ground deadwood', use_default='inactive', &
+          long='NPP flux into above-ground deadwood by pft/size', use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_agdw_si_scpf )
 
     call this%set_history_var(vname = 'NPP_STOR_SCPF', units='kgC/m2/yr',    &
-          long='NPP flux into storage', use_default='inactive',              &
+          long='NPP flux into storage by pft/size', use_default='inactive',              &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_stor_si_scpf )
 
     call this%set_history_var(vname='DDBH_SCPF', units = 'cm/yr/ha',         &
-          long='diameter growth increment and pft/size',use_default='inactive', &
+          long='diameter growth increment by pft/size',use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ddbh_si_scpf )
 
     call this%set_history_var(vname='DDBH_CANOPY_SCPF', units = 'cm/yr/ha',         &
-          long='diameter growth increment and pft/size',use_default='inactive', &
+          long='diameter growth increment by pft/size',use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ddbh_canopy_si_scpf )
 
     call this%set_history_var(vname='DDBH_UNDERSTORY_SCPF', units = 'cm/yr/ha',         &
-          long='diameter growth increment and pft/size',use_default='inactive', &
+          long='diameter growth increment by pft/size',use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ddbh_understory_si_scpf )
 
     call this%set_history_var(vname='BA_SCPF', units = 'm2/ha',               &
-          long='basal area by patch and pft/size', use_default='inactive',   &
+          long='basal area by pft/size', use_default='inactive',   &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ba_si_scpf )
 
     call this%set_history_var(vname='NPLANT_SCPF', units = 'N/ha',         &
-          long='stem number density by patch and pft/size', use_default='inactive', &
+          long='stem number density by pft/size', use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nplant_si_scpf )
 
     call this%set_history_var(vname='M1_SCPF', units = 'N/ha/yr',          &
-          long='background mortality by patch and pft/size', use_default='inactive', &
+          long='background mortality by pft/size', use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m1_si_scpf )
     
     call this%set_history_var(vname='M2_SCPF', units = 'N/ha/yr',          &
-          long='hydraulic mortality by patch and pft/size',use_default='inactive', &
+          long='hydraulic mortality by pft/size',use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m2_si_scpf )
 
     call this%set_history_var(vname='M3_SCPF', units = 'N/ha/yr',          &
-          long='carbon starvation mortality by patch and pft/size', use_default='inactive', &
+          long='carbon starvation mortality by pft/size', use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m3_si_scpf )
 
     call this%set_history_var(vname='M4_SCPF', units = 'N/ha/yr',          &
-          long='impact mortality by patch and pft/size',use_default='inactive', &
+          long='impact mortality by pft/size',use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m4_si_scpf )
 
     call this%set_history_var(vname='M5_SCPF', units = 'N/ha/yr',          &
-          long='fire mortality by patch and pft/size',use_default='inactive', &
+          long='fire mortality by pft/size',use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m5_si_scpf )
 
     call this%set_history_var(vname='M6_SCPF', units = 'N/ha/yr',          &
-          long='termination mortality by patch and pft/size',use_default='inactive', &
+          long='termination mortality by pft/size',use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m6_si_scpf )
 
     call this%set_history_var(vname='MORTALITY_CANOPY_SCPF', units = 'N/ha/yr',          &
-          long='total mortality of canopy plants by patch and pft/size', use_default='inactive', &
+          long='total mortality of canopy plants by pft/size', use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_mortality_canopy_si_scpf )
 
     call this%set_history_var(vname='BSTOR_CANOPY_SCPF', units = 'kgC/ha',          &
-          long='biomass carbon in storage pools of canopy plants by patch and pft/size', use_default='inactive', &
+          long='biomass carbon in storage pools of canopy plants by pft/size', use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_bstor_canopy_si_scpf )
 
     call this%set_history_var(vname='BLEAF_CANOPY_SCPF', units = 'kgC/ha',          &
-          long='biomass carbon in leaf of canopy plants by patch and pft/size', use_default='inactive', &
+          long='biomass carbon in leaf of canopy plants by pft/size', use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_bleaf_canopy_si_scpf )
 
     call this%set_history_var(vname='NPLANT_CANOPY_SCPF', units = 'N/ha',         &
-          long='stem number of canopy plants density by patch and pft/size', use_default='inactive', &
+          long='stem number of canopy plants density by pft/size', use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nplant_canopy_si_scpf )
 
     call this%set_history_var(vname='MORTALITY_UNDERSTORY_SCPF', units = 'N/ha/yr',          &
-          long='total mortality of understory plants by patch and pft/size', use_default='inactive', &
+          long='total mortality of understory plants by pft/size', use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_mortality_understory_si_scpf )
 
     call this%set_history_var(vname='BSTOR_UNDERSTORY_SCPF', units = 'kgC/ha',          &
-          long='biomass carbon in storage pools of understory plants by patch and pft/size', use_default='inactive', &
+          long='biomass carbon in storage pools of understory plants by pft/size', use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_bstor_understory_si_scpf )
 
     call this%set_history_var(vname='BLEAF_UNDERSTORY_SCPF', units = 'kgC/ha',          &
-          long='biomass carbon in leaf of understory plants by patch and pft/size', use_default='inactive', &
+          long='biomass carbon in leaf of understory plants by pft/size', use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_bleaf_understory_si_scpf )
 
     call this%set_history_var(vname='NPLANT_UNDERSTORY_SCPF', units = 'N/ha',         &
-          long='stem number of understory plants density by patch and pft/size', use_default='inactive', &
+          long='stem number of understory plants density by pft/size', use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nplant_understory_si_scpf )
 
@@ -1895,37 +1895,37 @@ contains
     ! Size structured diagnostics that require rapid updates (upfreq=2)
 
     call this%set_history_var(vname='AR_SCPF',units = 'kgC/m2/yr',          &
-          long='total autotrophic respiration per m2 per year',use_default='inactive',&
+          long='total autotrophic respiration per m2 per year by pft/size',use_default='inactive',&
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_si_scpf )
     
     call this%set_history_var(vname='AR_GROW_SCPF',units = 'kgC/m2/yr',          &
-          long='growth autotrophic respiration per m2 per year',use_default='inactive',&
+          long='growth autotrophic respiration per m2 per year by pft/size',use_default='inactive',&
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_grow_si_scpf )
 
     call this%set_history_var(vname='AR_MAINT_SCPF',units = 'kgC/m2/yr',          &
-          long='maintenance autotrophic respiration per m2 per year',use_default='inactive',&
+          long='maintenance autotrophic respiration per m2 per year by pft/size',use_default='inactive',&
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_maint_si_scpf )
 
     call this%set_history_var(vname='AR_DARKM_SCPF',units = 'kgC/m2/yr',          &
-          long='dark portion of maintenance autotrophic respiration per m2 per year',use_default='inactive',&
+          long='dark portion of maintenance autotrophic respiration per m2 per year by pft/size',use_default='inactive',&
           avgflag='A', vtype=site_size_pft_r8,hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_darkm_si_scpf )
 
     call this%set_history_var(vname='AR_AGSAPM_SCPF',units = 'kgC/m2/yr',          &
-          long='above-ground sapwood maintenance autotrophic respiration per m2 per year',use_default='inactive',&
+          long='above-ground sapwood maintenance autotrophic respiration per m2 per year by pft/size',use_default='inactive',&
           avgflag='A', vtype=site_size_pft_r8,hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_agsapm_si_scpf )
     
     call this%set_history_var(vname='AR_CROOTM_SCPF',units = 'kgC/m2/yr',          &
-          long='below-ground sapwood maintenance autotrophic respiration per m2 per year',use_default='inactive',&
+          long='below-ground sapwood maintenance autotrophic respiration per m2 per year by pft/size',use_default='inactive',&
           avgflag='A', vtype=site_size_pft_r8,hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_crootm_si_scpf )
 
     call this%set_history_var(vname='AR_FROOTM_SCPF',units = 'kgC/m2/yr',          &
-          long='fine root maintenance autotrophic respiration per m2 per year',use_default='inactive',&
+          long='fine root maintenance autotrophic respiration per m2 per year by pft/size',use_default='inactive',&
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_frootm_si_scpf )
 
