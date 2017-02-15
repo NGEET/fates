@@ -98,6 +98,9 @@ module FatesRestartInterfaceMod
   integer, private :: ir_imort_co
   integer, private :: ir_fmort_co
   integer, private :: ir_ddbhdt_co
+  integer, private :: ir_dbalivedt_co
+  integer, private :: ir_dbdeaddt_co
+  integer, private :: ir_dbstoredt_co
   integer, private :: ir_resp_tstep_co
   integer, private :: ir_pft_co
   integer, private :: ir_status_co
@@ -731,6 +734,21 @@ contains
          units='cm/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_ddbhdt_co )
 
+    call this%set_restart_var(vname='fates_dbalivedt', vtype=cohort_r8, &
+         long_name='ed cohort - differential: ddbh/dt', &
+         units='cm/year', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dbalivedt_co )
+
+    call this%set_restart_var(vname='fates_dbdeaddt', vtype=cohort_r8, &
+         long_name='ed cohort - differential: ddbh/dt', &
+         units='cm/year', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dbdeaddt_co )
+
+    call this%set_restart_var(vname='fates_dbstoredt', vtype=cohort_r8, &
+         long_name='ed cohort - differential: ddbh/dt', &
+         units='cm/year', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dbstoredt_co )
+
     call this%set_restart_var(vname='fates_resp_tstep', vtype=cohort_r8, &
          long_name='ed cohort - autotrophic respiration over timestep', &
          units='kgC/indiv/timestep', flushval = flushzero, &
@@ -1008,6 +1026,9 @@ contains
            rio_imort_co                => this%rvars(ir_imort_co)%r81d, &
            rio_fmort_co                => this%rvars(ir_fmort_co)%r81d, &
            rio_ddbhdt_co               => this%rvars(ir_ddbhdt_co)%r81d, &
+           rio_dbalivedt_co            => this%rvars(ir_dbalivedt_co)%r81d, &
+           rio_dbdeaddt_co             => this%rvars(ir_dbdeaddt_co)%r81d, &
+           rio_dbstoredt_co            => this%rvars(ir_dbstoredt_co)%r81d, &
            rio_resp_tstep_co           => this%rvars(ir_resp_tstep_co)%r81d, &
            rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
            rio_status_co               => this%rvars(ir_status_co)%int1d, &
@@ -1116,6 +1137,9 @@ contains
                 rio_imort_co(io_idx_co)        = ccohort%imort
                 rio_fmort_co(io_idx_co)        = ccohort%fmort
                 rio_ddbhdt_co(io_idx_co)       = ccohort%ddbhdt
+                rio_dbalivedt_co(io_idx_co)    = ccohort%dbalivedt
+                rio_dbdeaddt_co(io_idx_co)     = ccohort%dbdeaddt
+                rio_dbstoredt_co(io_idx_co)    = ccohort%dbstoredt
                 rio_resp_tstep_co(io_idx_co)   = ccohort%resp_tstep
                 rio_pft_co(io_idx_co)          = ccohort%pft
                 rio_status_co(io_idx_co)       = ccohort%status_coh
@@ -1570,6 +1594,9 @@ contains
           rio_imort_co                => this%rvars(ir_imort_co)%r81d, &
           rio_fmort_co                => this%rvars(ir_fmort_co)%r81d, &
           rio_ddbhdt_co               => this%rvars(ir_ddbhdt_co)%r81d, &
+          rio_dbalivedt_co            => this%rvars(ir_dbalivedt_co)%r81d, &
+          rio_dbdeaddt_co             => this%rvars(ir_dbdeaddt_co)%r81d, &
+          rio_dbstoredt_co            => this%rvars(ir_dbstoredt_co)%r81d, &
           rio_resp_tstep_co           => this%rvars(ir_resp_tstep_co)%r81d, &
           rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
           rio_status_co               => this%rvars(ir_status_co)%int1d, &
@@ -1663,6 +1690,9 @@ contains
                 ccohort%imort        = rio_imort_co(io_idx_co)
                 ccohort%fmort        = rio_fmort_co(io_idx_co)
                 ccohort%ddbhdt       = rio_ddbhdt_co(io_idx_co)
+                ccohort%dbalivedt    = rio_dbalivedt_co(io_idx_co)
+                ccohort%dbdeaddt     = rio_dbdeaddt_co(io_idx_co)
+                ccohort%dbstoredt    = rio_dbstoredt_co(io_idx_co)
                 ccohort%resp_tstep   = rio_resp_tstep_co(io_idx_co)
                 ccohort%pft          = rio_pft_co(io_idx_co)
                 ccohort%status_coh   = rio_status_co(io_idx_co)

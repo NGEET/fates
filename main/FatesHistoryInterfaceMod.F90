@@ -1483,17 +1483,17 @@ contains
                           ccohort%resp_tstep * 1.e3_r8 * n_density / dt_tstep                     
                      !
                      hio_rdark_canopy_si_scls(io_si,scls) = hio_rdark_canopy_si_scls(io_si,scls) + &
-                          ccohort%rdark * 1.e3_r8 * n_density * daysecs * yeardays
+                          ccohort%rdark * 1.e3_r8 * ccohort%n * daysecs * yeardays
                      hio_livestem_mr_canopy_si_scls(io_si,scls) = hio_livestem_mr_canopy_si_scls(io_si,scls) + &
-                          ccohort%livestem_mr * 1.e3_r8 * n_density * daysecs * yeardays
+                          ccohort%livestem_mr * 1.e3_r8 * ccohort%n * daysecs * yeardays
                      hio_livecroot_mr_canopy_si_scls(io_si,scls) = hio_livecroot_mr_canopy_si_scls(io_si,scls) + &
-                          ccohort%livecroot_mr * 1.e3_r8 * n_density * daysecs * yeardays
+                          ccohort%livecroot_mr * 1.e3_r8 * ccohort%n * daysecs * yeardays
                      hio_froot_mr_canopy_si_scls(io_si,scls) = hio_froot_mr_canopy_si_scls(io_si,scls) + &
-                          ccohort%froot_mr * 1.e3_r8 * n_density * daysecs * yeardays
+                          ccohort%froot_mr * 1.e3_r8 * ccohort%n * daysecs * yeardays
                      hio_resp_g_canopy_si_scls(io_si,scls) = hio_resp_g_canopy_si_scls(io_si,scls) + &
-                          ccohort%resp_g * 1.e3_r8 * n_density * daysecs * yeardays / dt_tstep 
+                          ccohort%resp_g * 1.e3_r8 * ccohort%n * daysecs * yeardays / dt_tstep 
                      hio_resp_m_canopy_si_scls(io_si,scls) = hio_resp_m_canopy_si_scls(io_si,scls) + &
-                          ccohort%resp_m * 1.e3_r8 * n_density * daysecs * yeardays / dt_tstep 
+                          ccohort%resp_m * 1.e3_r8 * ccohort%n * daysecs * yeardays / dt_tstep 
                   else
                      hio_gpp_understory_pa(io_pa) = hio_gpp_understory_pa(io_pa) + &
                           ccohort%gpp_tstep * 1.e3_r8 * n_density / dt_tstep                     
@@ -1501,17 +1501,17 @@ contains
                           ccohort%resp_tstep * 1.e3_r8 * n_density / dt_tstep                     
                      !
                      hio_rdark_understory_si_scls(io_si,scls) = hio_rdark_understory_si_scls(io_si,scls) + &
-                          ccohort%rdark * 1.e3_r8 * n_density * daysecs * yeardays
+                          ccohort%rdark * 1.e3_r8 * ccohort%n * daysecs * yeardays
                      hio_livestem_mr_understory_si_scls(io_si,scls) = hio_livestem_mr_understory_si_scls(io_si,scls) + &
-                          ccohort%livestem_mr * 1.e3_r8 * n_density * daysecs * yeardays
+                          ccohort%livestem_mr * 1.e3_r8 * ccohort%n * daysecs * yeardays
                      hio_livecroot_mr_understory_si_scls(io_si,scls) = hio_livecroot_mr_understory_si_scls(io_si,scls) + &
-                          ccohort%livecroot_mr * 1.e3_r8 * n_density * daysecs * yeardays
+                          ccohort%livecroot_mr * 1.e3_r8 * ccohort%n * daysecs * yeardays
                      hio_froot_mr_understory_si_scls(io_si,scls) = hio_froot_mr_understory_si_scls(io_si,scls) + &
-                          ccohort%froot_mr * 1.e3_r8 * n_density * daysecs * yeardays
+                          ccohort%froot_mr * 1.e3_r8 * ccohort%n * daysecs * yeardays
                      hio_resp_g_understory_si_scls(io_si,scls) = hio_resp_g_understory_si_scls(io_si,scls) + &
-                          ccohort%resp_g * 1.e3_r8 * n_density * daysecs * yeardays / dt_tstep 
+                          ccohort%resp_g * 1.e3_r8 * ccohort%n * daysecs * yeardays / dt_tstep 
                      hio_resp_m_understory_si_scls(io_si,scls) = hio_resp_m_understory_si_scls(io_si,scls) + &
-                          ccohort%resp_m * 1.e3_r8 * n_density * daysecs * yeardays / dt_tstep 
+                          ccohort%resp_m * 1.e3_r8 * ccohort%n * daysecs * yeardays / dt_tstep 
                   endif
                 end associate
                endif
