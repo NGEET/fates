@@ -75,6 +75,7 @@ module FatesRestartInterfaceMod
   integer, private :: ir_broot_co
   integer, private :: ir_bstore_co
   integer, private :: ir_canopy_layer_co
+  integer, private :: ir_canopy_layer_yesterday_co
   integer, private :: ir_canopy_trim_co
   integer, private :: ir_dbh_co
   integer, private :: ir_height_co
@@ -622,6 +623,10 @@ contains
          long_name='ed cohort - canopy_layer', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_layer_co )
 
+    call this%set_restart_var(vname='fates_canopy_layer_yesterday', vtype=cohort_r8, &
+         long_name='ed cohort - canopy_layer_yesterday', units='unitless', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_layer_yesterday_co )
+
     call this%set_restart_var(vname='fates_canopy_trim', vtype=cohort_r8, &
          long_name='ed cohort - canopy_trim', units='fraction', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_trim_co )
@@ -1003,6 +1008,7 @@ contains
            rio_broot_co                => this%rvars(ir_broot_co)%r81d, &
            rio_bstore_co               => this%rvars(ir_bstore_co)%r81d, &
            rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
+           rio_canopy_layer_yesterday_co    => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
            rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
            rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
            rio_height_co               => this%rvars(ir_height_co)%r81d, &
@@ -1114,6 +1120,7 @@ contains
                 rio_broot_co(io_idx_co)        = ccohort%br
                 rio_bstore_co(io_idx_co)       = ccohort%bstore
                 rio_canopy_layer_co(io_idx_co) = ccohort%canopy_layer
+                rio_canopy_layer_yesterday_co(io_idx_co) = ccohort%canopy_layer_yesterday
                 rio_canopy_trim_co(io_idx_co)  = ccohort%canopy_trim
                 rio_dbh_co(io_idx_co)          = ccohort%dbh
                 rio_height_co(io_idx_co)       = ccohort%hite
@@ -1410,6 +1417,7 @@ contains
                 temp_cohort%laimemory = 0.0_r8
                 temp_cohort%canopy_trim = 0.0_r8
                 temp_cohort%canopy_layer = 1.0_r8
+                temp_cohort%canopy_layer_yesterday = 1.0_r8
 
                 ! set the pft (only 2 used in ed) based on odd/even cohort
                 ! number
@@ -1571,6 +1579,7 @@ contains
           rio_broot_co                => this%rvars(ir_broot_co)%r81d, &
           rio_bstore_co               => this%rvars(ir_bstore_co)%r81d, &
           rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
+          rio_canopy_layer_yesterday_co         => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
           rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
           rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
           rio_height_co               => this%rvars(ir_height_co)%r81d, &
@@ -1667,6 +1676,7 @@ contains
                 ccohort%br           = rio_broot_co(io_idx_co)
                 ccohort%bstore       = rio_bstore_co(io_idx_co)
                 ccohort%canopy_layer = rio_canopy_layer_co(io_idx_co)
+                ccohort%canopy_layer_yesterday = rio_canopy_layer_yesterday_co(io_idx_co)
                 ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)
                 ccohort%dbh          = rio_dbh_co(io_idx_co)
                 ccohort%hite         = rio_height_co(io_idx_co)
