@@ -191,6 +191,7 @@ module EDTypesMod
      real(r8) ::  bstore                                 ! stored carbon: kGC per indiv
      real(r8) ::  laimemory                              ! target leaf biomass- set from previous year: kGC per indiv
      integer  ::  canopy_layer                           ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)
+     integer  ::  canopy_layer_yesterday                 ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)
      real(r8) ::  b                                      ! total biomass: kGC per indiv
      real(r8) ::  bsw                                    ! sapwood in stem and roots: kGC per indiv
      real(r8) ::  bl                                     ! leaf biomass: kGC per indiv

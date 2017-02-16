@@ -94,6 +94,7 @@ contains
     new_cohort%dbh          = dbh
     new_cohort%canopy_trim  = ctrim
     new_cohort%canopy_layer = clayer
+    new_cohort%canopy_layer_yesterday = clayer
     new_cohort%laimemory    = laimemory
     new_cohort%bdead        = bdead
     new_cohort%balive       = balive
@@ -334,6 +335,7 @@ contains
     currentCohort%pft                = fates_unset_int  ! pft number                           
     currentCohort%indexnumber        = fates_unset_int  ! unique number for each cohort. (within clump?)
     currentCohort%canopy_layer       = fates_unset_int  ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)   
+    currentCohort%canopy_layer_yesterday       = fates_unset_int  ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)   
     currentCohort%NV                 = fates_unset_int  ! Number of leaf layers: -
     currentCohort%status_coh         = fates_unset_int  ! growth status of plant  (2 = leaves on , 1 = leaves off)
     currentCohort%size_class         = fates_unset_int  ! size class index
@@ -1041,6 +1043,7 @@ contains
     n%gscan           = o%gscan
     n%leaf_cost       = o%leaf_cost
     n%canopy_layer    = o%canopy_layer
+    n%canopy_layer_yesterday    = o%canopy_layer_yesterday
     n%nv              = o%nv
     n%status_coh      = o%status_coh
     n%canopy_trim     = o%canopy_trim
