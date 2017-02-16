@@ -187,6 +187,9 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_npp_bseed_understory_si_scls
   integer, private :: ih_npp_store_understory_si_scls
 
+  integer, private :: ih_yesterdaycanopylevel_canopy_si_scls
+  integer, private :: ih_yesterdaycanopylevel_understory_si_scls
+
   ! indices to (site x pft) variables
   integer, private :: ih_biomass_si_pft
   integer, private :: ih_leafbiomass_si_pft
@@ -915,6 +918,8 @@ contains
                hio_npp_bdead_understory_si_scls     => this%hvars(ih_npp_bdead_understory_si_scls)%r82d, &
                hio_npp_bseed_understory_si_scls     => this%hvars(ih_npp_bseed_understory_si_scls)%r82d, &
                hio_npp_store_understory_si_scls     => this%hvars(ih_npp_store_understory_si_scls)%r82d, &
+               hio_yesterdaycanopylevel_canopy_si_scls             => this%hvars(ih_yesterdaycanopylevel_canopy_si_scls)%r82d, &
+               hio_yesterdaycanopylevel_understory_si_scls         => this%hvars(ih_yesterdaycanopylevel_understory_si_scls)%r82d, &
                hio_area_si_age         => this%hvars(ih_area_si_age)%r82d, &
                hio_lai_si_age          => this%hvars(ih_lai_si_age)%r82d, &
                hio_canopy_area_si_age  => this%hvars(ih_canopy_area_si_age)%r82d, &
@@ -1148,6 +1153,8 @@ contains
                             ccohort%npp_bseed * n_perm2 * AREA * yeardays
                        hio_npp_store_canopy_si_scls(io_si,scls) = hio_npp_store_canopy_si_scls(io_si,scls) + &
                             ccohort%npp_store * n_perm2 * AREA * yeardays
+                       hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) = hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) + &
+                            real(ccohort%canopy_layer_yesterday, r8) * n_perm2 * AREA
                     else
                        hio_bstor_understory_si_scpf(io_si,scpf) = hio_bstor_understory_si_scpf(io_si,scpf) + &
                             ccohort%bstore * n_perm2 * AREA
@@ -1196,7 +1203,11 @@ contains
                             ccohort%npp_bseed * n_perm2 * AREA * yeardays
                        hio_npp_store_understory_si_scls(io_si,scls) = hio_npp_store_understory_si_scls(io_si,scls) + &
                             ccohort%npp_store * n_perm2 * AREA * yeardays
+                       hio_yesterdaycanopylevel_understory_si_scls(io_si,scls) = hio_yesterdaycanopylevel_understory_si_scls(io_si,scls) + &
+                            real(ccohort%canopy_layer_yesterday, r8) * n_perm2 * AREA
                     endif
+                    !
+                    ccohort%canopy_layer_yesterday = ccohort%canopy_layer
                     
                   end associate
                end if
@@ -2098,6 +2109,17 @@ contains
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_frootm_si_scpf )
 
     ! size-class only variables
+
+    call this%set_history_var(vname='YESTERDAYCANLEV_CANOPY_SCLS', units = 'indiv/ha',               &
+          long='Yesterdays canopy level for canopy plants by size class', use_default='inactive',   &
+          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_yesterdaycanopylevel_canopy_si_scls )
+
+    call this%set_history_var(vname='YESTERDAYCANLEV_UNDERSTORY_SCLS', units = 'indiv/ha',               &
+          long='Yesterdays canopy level for understory plants by size class', use_default='inactive',   &
+          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_yesterdaycanopylevel_understory_si_scls )
+
     call this%set_history_var(vname='BA_SCLS', units = 'm2/ha',               &
           long='basal area by size class', use_default='active',   &
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
