@@ -13,6 +13,7 @@ module rof_import_export
   use rtm_cpl_indices  , only : nt_rtm, rtm_tracers 
   use rtm_cpl_indices  , only : index_x2r_Flrl_rofsur,index_x2r_Flrl_rofi 
   use rtm_cpl_indices  , only : index_x2r_Flrl_rofgwl,index_x2r_Flrl_rofsub 
+  use rtm_cpl_indices  , only : index_x2r_Flrl_irrig
   use rtm_cpl_indices  , only : index_r2x_Forr_rofl, index_r2x_Forr_rofi
   use rtm_cpl_indices  , only : index_r2x_Flrr_flood, index_r2x_Flrr_volr
   use rtm_cpl_indices  , only : index_r2x_Flrr_volrmch
@@ -58,11 +59,15 @@ contains
 
     begr = runoff%begr
     endr = runoff%endr
+
     do n = begr,endr
        n2 = n - begr + 1
        totrunin(n,nliq) = x2r(index_x2r_Flrl_rofsur,n2) + &
                           x2r(index_x2r_Flrl_rofsub,n2) + &
-                          x2r(index_x2r_Flrl_rofgwl,n2)
+                          x2r(index_x2r_Flrl_rofgwl,n2) + &
+                          x2r(index_x2r_Flrl_irrig,n2)
+
+       runoff%qirrig(n) = x2r(index_x2r_Flrl_irrig,n2)
 
        totrunin(n,nfrz) = x2r(index_x2r_Flrl_rofi,n2)
 
@@ -162,7 +167,7 @@ contains
     ni = 0
     do n = runoff%begr, runoff%endr
       ni = ni + 1
-         r2x(index_r2x_Flrr_volr,ni) = runoff%volr_nt1(n) / (runoff%area(n))
+         r2x(index_r2x_Flrr_volr,ni) = runoff%volr(n,1) / (runoff%area(n))
          r2x(index_r2x_Flrr_volrmch,ni) = r2x(index_r2x_Flrr_volr,ni)  ! main channel not defined in rtm so use total
     end do
 

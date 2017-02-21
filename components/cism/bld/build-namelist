@@ -425,7 +425,8 @@ else {
 # namelist group: cism_history     #
 ####################################
 
-add_default($nl, 'cesm_history_vars');
+add_default($nl, 'cesm_history_vars',
+            'cism_evolve'=>"$CISM_EVOLVE");
 add_default($nl, 'history_option');
 if (!($nl->get_value('history_option') =~ /coupler/)) {
    add_default($nl, 'history_frequency');

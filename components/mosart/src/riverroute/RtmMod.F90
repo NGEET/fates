@@ -1422,11 +1422,12 @@ contains
     integer  :: cnt                         ! counter for gridcells
     integer  :: ier                         ! error code
     integer,parameter  :: dbug = 1          ! local debug flag
-!scs
+
 ! parameters used in negative runoff partitioning algorithm
     real(r8) :: river_volume_minimum        ! gridcell area multiplied by average river_depth_minimum [m3]
     real(r8) :: qgwl_volume                 ! volume of runoff during time step [m3]
-!scs
+    real(r8) :: irrig_volume                ! volume of irrigation demand during time step [m3]
+
     character(len=*),parameter :: subname = '(Rtmrun) '
 !-----------------------------------------------------------------------
 
@@ -1460,6 +1461,7 @@ contains
     rtmCTL%runoff = 0._r8
     rtmCTL%direct = 0._r8
     rtmCTL%flood = 0._r8
+    rtmCTL%qirrig_actual = 0._r8
     rtmCTL%runofflnd = spval
     rtmCTL%runoffocn = spval
     rtmCTL%dvolrdt = 0._r8
@@ -1480,9 +1482,12 @@ contains
           budget_terms(13,nt) = budget_terms(13,nt) + rtmCTL%qsur(nr,nt)
           budget_terms(14,nt) = budget_terms(14,nt) + rtmCTL%qsub(nr,nt)
           budget_terms(15,nt) = budget_terms(15,nt) + rtmCTL%qgwl(nr,nt)
-          budget_terms(16,nt) = budget_terms(16,nt) + rtmCTL%qsur(nr,nt) &
-               + rtmCTL%qsub(nr,nt) &
-               + rtmCTL%qgwl(nr,nt)
+          budget_terms(17,nt) = budget_terms(17,nt) + rtmCTL%qsur(nr,nt) &
+               + rtmCTL%qsub(nr,nt)+ rtmCTL%qgwl(nr,nt)
+          if (nt==1) then 
+             budget_terms(16,nt) = budget_terms(16,nt) + rtmCTL%qirrig(nr)
+             budget_terms(17,nt) = budget_terms(17,nt) + rtmCTL%qirrig(nr)
+          endif
        enddo
        enddo
        call t_stopf('mosartr_budget')
@@ -1496,6 +1501,47 @@ contains
        TRunoff%qgwl(nr,nt) = rtmCTL%qgwl(nr,nt)
     enddo
     enddo
+
+    !-----------------------------------
+    ! Compute irrigation flux based on demand from clm
+    ! Must be calculated before volr is updated to be consistent with lnd
+    ! Just consider land points and only remove liquid water 
+    !-----------------------------------
+
+    call t_startf('mosartr_irrig')
+    nt = 1 
+    rtmCTL%qirrig_actual = 0._r8
+    do nr = rtmCTL%begr,rtmCTL%endr
+
+          ! calculate volume of irrigation flux during timestep
+          irrig_volume = -rtmCTL%qirrig(nr) * coupling_period
+
+          ! compare irrig_volume to main channel storage; 
+          ! add overage to subsurface runoff
+          if(irrig_volume > TRunoff%wr(nr,nt)) then
+             rtmCTL%qsub(nr,nt) = rtmCTL%qsub(nr,nt) &
+                  + (TRunoff%wr(nr,nt) - irrig_volume) / coupling_period 
+             TRunoff%qsub(nr,nt) = rtmCTL%qsub(nr,nt)
+             irrig_volume = TRunoff%wr(nr,nt)
+          endif
+
+!scs: how to deal with sink points / river outlets?
+!       if (rtmCTL%mask(nr) == 1) then
+
+          ! actual irrigation rate [m3/s]
+          ! i.e. the rate actually removed from the main channel
+          ! if irrig_volume is greater than TRunoff%wr
+          rtmCTL%qirrig_actual(nr) = - irrig_volume / coupling_period
+
+          ! remove irrigation from wr (main channel)
+          TRunoff%wr(nr,nt) = TRunoff%wr(nr,nt) - irrig_volume
+
+
+
+!scs       endif
+    enddo
+    call t_stopf('mosartr_irrig')
+
 
     !-----------------------------------
     ! Compute flood
@@ -1651,11 +1697,10 @@ contains
        do nt = 1,nt_rtm
           do nr = rtmCTL%begr,rtmCTL%endr
              
-!  allow negative qsub for irrigation
-!!$       if (TRunoff%qsub(nr,nt) < 0._r8) then
-!!$          rtmCTL%direct(nr,nt) = rtmCTL%direct(nr,nt) + TRunoff%qsub(nr,nt)
-!!$          TRunoff%qsub(nr,nt) = 0._r8
-!!$       endif
+             if (TRunoff%qsub(nr,nt) < 0._r8) then
+                rtmCTL%direct(nr,nt) = rtmCTL%direct(nr,nt) + TRunoff%qsub(nr,nt)
+                TRunoff%qsub(nr,nt) = 0._r8
+             endif
 
              if (TRunoff%qsur(nr,nt) < 0._r8) then
                 rtmCTL%direct(nr,nt) = rtmCTL%direct(nr,nt) + TRunoff%qsur(nr,nt)
@@ -1684,12 +1729,11 @@ contains
           cnt = cnt + 1
           do nt = 1,nt_rtm
           !---- negative qsub water, remove from TRunoff ---
-             !  allow negative qsub for irrigation
-!!$             if (TRunoff%qsub(nr,nt) < 0._r8) then
-!!$                avsrc_direct%rAttr(nt,cnt) = avsrc_direct%rAttr(nt,cnt) &
-!!$                     + TRunoff%qsub(nr,nt)
-!!$                TRunoff%qsub(nr,nt) = 0._r8
-!!$             endif
+             if (TRunoff%qsub(nr,nt) < 0._r8) then
+                avsrc_direct%rAttr(nt,cnt) = avsrc_direct%rAttr(nt,cnt) &
+                     + TRunoff%qsub(nr,nt)
+                TRunoff%qsub(nr,nt) = 0._r8
+             endif
              
              !---- negative qsur water, remove from TRunoff ---
              if (TRunoff%qsur(nr,nt) < 0._r8) then
@@ -1764,8 +1808,8 @@ contains
        call t_startf('mosartr_budget')
        do nt = 1,nt_rtm
        do nr = rtmCTL%begr,rtmCTL%endr
-          budget_terms(20,nt) = budget_terms(20,nt) + TRunoff%qsur(nr,nt) + &
-             TRunoff%qsub(nr,nt) + TRunoff%qgwl(nr,nt)
+          budget_terms(20,nt) = budget_terms(20,nt) + TRunoff%qsur(nr,nt) &
+             + TRunoff%qsub(nr,nt) + TRunoff%qgwl(nr,nt)
           budget_terms(29,nt) = budget_terms(29,nt) + TRunoff%qgwl(nr,nt)
        enddo
        enddo
@@ -1919,7 +1963,7 @@ contains
        do nt = 1,nt_rtm
           budget_volume = (budget_terms( 2,nt) - budget_terms( 1,nt)) / delt_coupling
           budget_input  = (budget_terms(13,nt) + budget_terms(14,nt) + &
-                           budget_terms(15,nt))
+                           budget_terms(15,nt) + budget_terms(16,nt))
           budget_output = (budget_terms(18,nt) + budget_terms(19,nt) + &
                            budget_terms(21,nt))
           budget_total  = budget_volume - budget_input + budget_output
@@ -1966,7 +2010,8 @@ contains
             write(iulog,'(2a,i4,f22.6)') trim(subname),'   input surface = ',nt,budget_global(13,nt)
             write(iulog,'(2a,i4,f22.6)') trim(subname),'   input subsurf = ',nt,budget_global(14,nt)
             write(iulog,'(2a,i4,f22.6)') trim(subname),'   input gwl     = ',nt,budget_global(15,nt)
-            write(iulog,'(2a,i4,f22.6)') trim(subname),'   input total   = ',nt,budget_global(16,nt)
+            write(iulog,'(2a,i4,f22.6)') trim(subname),'   input irrig   = ',nt,budget_global(16,nt)
+            write(iulog,'(2a,i4,f22.6)') trim(subname),'   input total   = ',nt,budget_global(17,nt)
            !write(iulog,'(2a,i4,f22.6)') trim(subname),'   input check   = ',nt,budget_input - budget_global(17,nt)
            !write(iulog,'(2a,i4,f22.6)') trim(subname),'   input euler   = ',nt,budget_global(20,nt)
            !write(iulog,'(2a)') trim(subname),'----------------'

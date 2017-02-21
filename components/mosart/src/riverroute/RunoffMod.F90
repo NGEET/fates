@@ -79,6 +79,9 @@ module RunoffMod
      real(r8), pointer :: runoff(:,:)      ! coupler return mosart basin derived flow [m3/s]
      real(r8), pointer :: direct(:,:)      ! coupler return direct flow [m3/s]
 
+     real(r8), pointer :: qirrig(:)        ! coupler irrigation [m3/s]
+     real(r8), pointer :: qirrig_actual(:) ! minimum of irrigation and available main channel storage
+
      !    - history (currently needed)
      real(r8), pointer :: runofflnd_nt1(:)
      real(r8), pointer :: runofflnd_nt2(:)
@@ -94,6 +97,7 @@ module RunoffMod
      real(r8), pointer :: dvolrdtocn_nt2(:)
      real(r8), pointer :: volr_nt1(:)
      real(r8), pointer :: volr_nt2(:)
+     real(r8), pointer :: volr_mch(:)
      real(r8), pointer :: qsur_nt1(:)
      real(r8), pointer :: qsur_nt2(:)
      real(r8), pointer :: qsub_nt1(:)
@@ -310,6 +314,7 @@ contains
              rtmCTL%runoffdir_nt2(begr:endr),     &
              rtmCTL%volr_nt1(begr:endr),          &
              rtmCTL%volr_nt2(begr:endr),          &
+             rtmCTL%volr_mch(begr:endr),          &
              rtmCTL%dvolrdtlnd_nt1(begr:endr),    &
              rtmCTL%dvolrdtlnd_nt2(begr:endr),    &
              rtmCTL%dvolrdtocn_nt1(begr:endr),    &
@@ -332,6 +337,8 @@ contains
              rtmCTL%qsur(begr:endr,nt_rtm),       & 
              rtmCTL%qsub(begr:endr,nt_rtm),       &
              rtmCTL%qgwl(begr:endr,nt_rtm),       &
+             rtmCTL%qirrig(begr:endr),            &
+             rtmCTL%qirrig_actual(begr:endr),     &
              stat=ier)
     if (ier /= 0) then
        write(iulog,*)'Rtmini ERROR allocation of runoff local arrays'
@@ -348,10 +355,13 @@ contains
     rtmCTL%volr(:,:)       = 0._r8
     rtmCTL%flood(:)        = 0._r8
     rtmCTL%direct(:,:)     = 0._r8
+    rtmCTL%qirrig(:)       = 0._r8
+    rtmCTL%qirrig_actual(:)= 0._r8
+    rtmCTL%volr_mch(:)     = 0._r8
 
-    rtmCTL%qsur(:,:)        = 0._r8
-    rtmCTL%qsub(:,:)        = 0._r8
-    rtmCTL%qgwl(:,:)        = 0._r8
+    rtmCTL%qsur(:,:)       = 0._r8
+    rtmCTL%qsub(:,:)       = 0._r8
+    rtmCTL%qgwl(:,:)       = 0._r8
 
   end subroutine RunoffInit
 

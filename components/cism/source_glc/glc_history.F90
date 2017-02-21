@@ -91,7 +91,7 @@ contains
   end subroutine glc_history_init
 
   !-----------------------------------------------------------------------
-  subroutine glc_history_write(instance, EClock, force_write)
+  subroutine glc_history_write(instance, EClock, initial_history)
     !
     ! !DESCRIPTION:
     ! Write a CISM history file, if it's time to do so.
@@ -99,8 +99,9 @@ contains
     ! This routine should be called every time step. It will return without doing
     ! anything if it isn't yet time to write a history file.
     !
-    ! If force_write is present and true, then a history file is written regardless of
-    ! the check for whether it's time to do so.
+    ! If initial_history is present and true, that means that we're writing a history file
+    ! in initialization. This is written regardless of the check for whether it's time to
+    ! do so, with a different extension than standard history files.
     !
     ! !USES:
     use glad_type, only : glad_instance
@@ -109,10 +110,10 @@ contains
     ! !ARGUMENTS:
     type(glad_instance), intent(inout) :: instance
     type(ESMF_Clock),     intent(in)    :: EClock
-    logical, intent(in), optional :: force_write
+    logical, intent(in), optional :: initial_history
     !-----------------------------------------------------------------------
 
-    call history_tape%write_history(instance, EClock, force_write)
+    call history_tape%write_history(instance, EClock, initial_history)
     
   end subroutine glc_history_write
 

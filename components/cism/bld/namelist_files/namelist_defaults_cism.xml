@@ -44,8 +44,13 @@ attributes to express the dependency.
 <!-- group: cism_history                                            -->
 <!-- =============================================================  -->
 
-<cesm_history_vars cism_phys="cism1">'acab artm thk usurf topg uvel vvel uflx vflx temp bmlt bwat'</cesm_history_vars>
-<cesm_history_vars cism_phys="cism2">'acab artm thk usurf topg uvel vvel temp bmlt bwat beta_internal'</cesm_history_vars>
+<cesm_history_vars cism_phys="cism1" cism_evolve="TRUE" >'acab artm thk usurf topg uvel vvel uflx vflx temp bmlt bwat'</cesm_history_vars>
+<!-- When ice evolution is turned off, uflx and vflx don't restart properly, so remove those from the list -->
+<cesm_history_vars cism_phys="cism1" cism_evolve="FALSE">'acab artm thk usurf topg uvel vvel temp bmlt bwat'</cesm_history_vars>
+
+<cesm_history_vars cism_phys="cism2" cism_evolve="TRUE" >'acab artm thk usurf topg uvel vvel temp bmlt bwat beta_internal'</cesm_history_vars>
+<!-- When ice evolution is turned off, beta_internal doesn't restart properly, so remove it from the list -->
+<cesm_history_vars cism_phys="cism2" cism_evolve="FALSE">'acab artm thk usurf topg uvel vvel temp bmlt bwat'</cesm_history_vars>
 
 <history_option>nyears</history_option>
 

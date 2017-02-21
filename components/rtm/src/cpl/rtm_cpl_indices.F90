@@ -27,6 +27,7 @@ module rtm_cpl_indices
   integer, public :: index_x2r_Flrl_rofgwl = 0  ! lnd->rtm liquid gwl runoff forcing from land
   integer, public :: index_x2r_Flrl_rofsub = 0  ! lnd->rtm liquid subsurface runoff forcing from land
   integer, public :: index_x2r_Flrl_rofi  = 0   ! lnd->rtm ice runoff forcing from land
+  integer, public :: index_x2r_Flrl_irrig  = 0 ! lnd->rof fraction of volr to be removed for irrigation
 
   integer, public :: nflds_x2r = 0
 
@@ -80,7 +81,8 @@ contains
     index_x2r_Flrl_rofsur = mct_avect_indexra(avtmp,'Flrl_rofsur')
     index_x2r_Flrl_rofgwl = mct_avect_indexra(avtmp,'Flrl_rofgwl')
     index_x2r_Flrl_rofsub = mct_avect_indexra(avtmp,'Flrl_rofsub')
-    index_x2r_Flrl_rofi = mct_avect_indexra(avtmp,'Flrl_rofi')
+    index_x2r_Flrl_rofi   = mct_avect_indexra(avtmp,'Flrl_rofi')
+    index_x2r_Flrl_irrig  = mct_avect_indexra(avtmp,'Flrl_irrig')
 
     nflds_x2r = mct_avect_nRattr(avtmp)
 

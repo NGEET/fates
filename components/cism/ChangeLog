@@ -4,6 +4,136 @@ This file describes what main-trunk tags were created and why
 
 ================================================================================
 Originator: sacks
+Date: Sept 27, 2016
+Model: cism
+Version: cism2_1_21
+One-line summary: Change extension on initial history file
+
+Purpose of changes:
+
+   The glc code is set up to output a history file in initialization, giving the
+   results of the initial, diagnostic solve. With cime5, this causes failures to
+   be reported for some tests (particularly ERI tests, and maybe some others),
+   where there is an initial history file for one run that has no counterpart in
+   the other run of a multi-run test.
+
+   This tag implements a work-around for this problem by changing the extension
+   of the initial history file to .initial_hist rather than .h: The test system
+   only picks up .h files in doing its comparisons.
+
+Changes answers relative to previous tag: NO
+
+   However, this test is reported as a failure:
+
+   FAIL ERS_D_Ld9.f19_g16_gl5.IGCLM45.yellowstone_pgi.cism-override_glc_frac COMPARE_baseline
+
+   simply because there is no longer a cism.h file in the new code.
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+2355 - need to change extension on initial history file so it's not picked up in CESM testing
+
+List all modified files, and describe the changes:
+
+M       source_glc/history_tape_base.F90
+M       source_glc/glc_history.F90
+M       source_glc/glc_InitMod.F90
+M       source_glc/glc_io.F90
+
+Summary of testing:
+
+   Ran aux_glc test suite just on yellowstone. All tests passed, except for this
+   expected failure:
+
+FAIL ERS_Ly5.T31_g37_gl5.IGCLM45.yellowstone_intel.clm-glcMEC_long MEMLEAK
+memleak detected, memory went from 504.810000 to 590.900000 in 11129 days
+
+   and this MEMCOMP failure, which I'm ignoring since it's the only one:
+
+FAIL ERS_Ly11.f09_g16_gl20.TG1850IS2.yellowstone_gnu MEMCOMP Error: Memory usage increase > 10% from baseline
+
+Externals used for testing: cesm2_0_beta01, with cime at
+db03e895f4c54428ff207dc1b85a57e2ecb73be9
+
+cism tag used for baseline comparisons: cism2_1_20
+
+Any other externals that differed in baseline: same, but cime at
+f55da30e17efbbae8cb1c026fc8f32e406ee9934
+
+================================================================================
+Originator: sacks
+Date: Sept 13, 2016
+Model: cism
+Version: cism2_1_20
+One-line summary: Exclude some history fields when ice evolution is turned off
+
+Purpose of changes:
+
+   A few diagnostic history fields do not restart properly when ice evolution is
+   turned off: uflx and vflx for cism1, and beta_internal for cism2 (see also
+   https://github.com/ACME-Climate/cism-piscees/issues/59 for the beta_internal
+   issue).
+
+   Since these diagnostic fields are not important with ice evolution turned
+   off, this tag implements a workaround where we simply do not add these fields
+   to the default list of history fields if running with the CISM_EVOLVE xml
+   variable set to FALSE.
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/): none
+
+List all modified files, and describe the changes:
+
+M       bld/build-namelist
+M       bld/namelist_files/namelist_defaults_cism.xml
+
+Summary of testing:
+
+   Ran aux_glc test suite just on yellowstone. All tests passed, except for this
+   BFAIL:
+
+BFAIL (baseline directory /glade/scratch/sacks/cesm_baselines/cesm1_5_beta07/SMS_Ly5_N2_P2_D.f09_g16_gl5.TG1850.yellowstone_intel does not exist)
+
+Externals used for testing: cesm1_5_beta07
+
+cism tag used for baseline comparisons: cism2_1_17
+
+Any other externals that differed in baseline: none
+
+================================================================================
+Originator: sacks
+Date: Sept 12, 2016
+Model: cism
+Version: cism2_1_19
+One-line summary: Remove apply_to_multiinstance testmods
+
+Purpose of changes:
+
+   The apply_to_multiinstance testmods are no longer needed with cime5
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/): none
+
+List all modified files, and describe the changes:
+
+D       cime_config/testdefs/testmods_dirs/cism/apply_to_multiinstance
+D       cime_config/testdefs/testmods_dirs/cism/apply_to_multiinstance/README
+D       cime_config/testdefs/testmods_dirs/cism/apply_to_multiinstance/shell_commands
+D       cime_config/testdefs/testmods_dirs/cism/override_glc_frac/include_user_mods
+D       cime_config/testdefs/testmods_dirs/cism/test_coupling/include_user_mods
+D       cime_config/testdefs/testmods_dirs/cism/trilinos/include_user_mods
+
+Summary of testing: None!
+
+Externals used for testing: n/a
+
+cism tag used for baseline comparisons: n/a
+
+Any other externals that differed in baseline: n/a
+
+================================================================================
+Originator: sacks
 Date: June 30, 2016
 Model: cism
 Version: cism2_1_18

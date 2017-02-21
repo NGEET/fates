@@ -122,20 +122,34 @@
 ! !IROUTINE: glc_io_write_history
 ! !INTERFACE:
 
-   subroutine glc_io_write_history(instance, EClock, history_vars, history_frequency_metadata)
+  subroutine glc_io_write_history(instance, EClock, history_vars, &
+       initial_history, history_frequency_metadata)
+    ! Write a CISM history file
+    !
+    ! If initial_history is present and true, that means that we're writing a history file
+    ! in initialization. This uses a different extension than standard history files.
+    !
+    ! history_frequency_metadata gives the text to use for the time_period_freq global
+    ! attribute. It must be present if initial_history is .false.
 
     use glad_type
     use glide_io, only : glide_io_create, glide_io_write
     use glad_io, only : glad_io_create, glad_io_write
     use glide_nc_custom, only: glide_nc_filldvars
     implicit none
-    type(glad_instance), intent(inout) :: instance
-    type(ESMF_Clock),     intent(in)    :: EClock
-    character(len=*),     intent(in)    :: history_vars
-    character(len=*),     intent(in)    :: history_frequency_metadata
+    type(glad_instance) , intent(inout) :: instance
+    type(ESMF_Clock)    , intent(in)    :: EClock
+    character(len=*)    , intent(in)    :: history_vars
+    logical             , intent(in)    :: initial_history       
+
+    ! If present, history_frequency_metadata gives the text to use for the
+    ! time_period_freq global attribute. If absent, there will be no time_period_freq
+    ! global attribute.
+    character(len=*)    , intent(in), optional :: history_frequency_metadata
     
     ! local variables
     type(glimmer_nc_output),  pointer :: oc => null()
+    character(len=32) :: file_type
     character(CL) :: filename
     integer(IN)   :: cesmYMD           ! cesm model date
     integer(IN)   :: cesmTOD           ! cesm model sec
@@ -150,10 +164,22 @@
 
 !-----------------------------------------------------------------------
 
+    ! Error checking on arguments
+    if (.not. initial_history) then
+       if (.not. present(history_frequency_metadata)) then
+          call shr_sys_abort('glc_io_write_history: history_frequency_metadata must be present if initial_history is .false.')
+       end if
+    end if
+
     ! figure out history filename
     call seq_timemgr_EClockGetData(EClock, curr_ymd=cesmYMD, curr_tod=cesmTOD, &
                                    curr_yr=cesmYR, curr_mon=cesmMON, curr_day=cesmDAY)
-    filename = glc_filename(cesmYR, cesmMON, cesmDAY, cesmTOD, 'history')
+    if (initial_history) then
+       file_type = 'initial_history'
+    else
+       file_type = 'history'
+    end if
+    filename = glc_filename(cesmYR, cesmMON, cesmDAY, cesmTOD, file_type)
 
     if (my_task == master_task) then
        write(stdout,*) &
@@ -200,9 +226,11 @@
        call nc_errorhandle(__FILE__,__LINE__,status)
 
        ! The following piece of metadata is needed to follow a CESM convention
-       status = nf90_put_att(oc%nc%id, NF90_GLOBAL, 'time_period_freq', &
-            history_frequency_metadata)
-       call nc_errorhandle(__FILE__,__LINE__,status)
+       if (present(history_frequency_metadata)) then
+          status = nf90_put_att(oc%nc%id, NF90_GLOBAL, 'time_period_freq', &
+               history_frequency_metadata)
+          call nc_errorhandle(__FILE__,__LINE__,status)
+       end if
     end if
     
     call glide_nc_filldvars(oc, instance%model)
@@ -354,11 +382,11 @@
     use glc_ensemble       , only: get_inst_suffix
 !
 ! !INPUT/OUTPUT PARAMETERS:
-  integer,      intent(in)  :: yr_spec         ! Simulation year
-  integer,      intent(in)  :: mon_spec        ! Simulation month
-  integer,      intent(in)  :: day_spec        ! Simulation day
-  integer,      intent(in)  :: sec_spec        ! Seconds into current simulation day
-  character(7), intent(in)  :: file_type       ! file type, either history or restart
+  integer          ,      intent(in) :: yr_spec   ! Simulation year
+  integer          ,      intent(in) :: mon_spec  ! Simulation month
+  integer          ,      intent(in) :: day_spec  ! Simulation day
+  integer          ,      intent(in) :: sec_spec  ! Seconds into current simulation day
+  character(len=*) ,      intent(in) :: file_type ! file type: 'history', 'initial_history' or 'restart'
 !
 ! EOP
 !
@@ -378,6 +406,13 @@
   filename_spec = ' '
   if (file_type.eq.'history') then
      filename_spec = '%c.cism%i.h.%y-%m-%d-%s'
+  else if (file_type.eq.'initial_history') then
+     ! Give the initial history file (i.e., the file generated based on the diagnostic
+     ! solve in initialization) a different extension so that it isn't picked up by the
+     ! CESM test system. (If the test system picks it up, there will sometimes be
+     ! failures - e.g., in ERI tests - because this file can be present in one run but
+     ! not in another.)
+     filename_spec = '%c.cism%i.initial_hist.%y-%m-%d-%s'
   else if (file_type.eq.'restart') then
      filename_spec = '%c.cism%i.r.%y-%m-%d-%s'
   else
