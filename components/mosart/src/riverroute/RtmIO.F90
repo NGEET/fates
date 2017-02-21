@@ -699,7 +699,7 @@ contains
     integer :: status              ! error status 
     integer :: lxtype              ! local external type (in case logical variable)
     type(var_desc_t)   :: vardesc  ! local vardesc
-    character(len=128) :: dimname  ! temporary
+    character(len=255) :: dimname  ! temporary
     character(len=256) :: str      ! temporary
     character(len=*),parameter :: subname='ncd_defvar_bynf' ! subroutine name
     !-----------------------------------------------------------------------
@@ -1256,7 +1256,7 @@ contains
     integer :: status                  ! error code
     logical :: varpresent              ! if true, variable is on tape
     character(len=32) :: vname         ! variable error checking
-    character(len=1)  :: tmpString(128)! temp for manipulating output string
+    character(len=1)  :: tmpString(255)! temp for manipulating output string
     type(var_desc_t)  :: vardesc       ! local vardesc pointer
     character(len=*),parameter :: subname='ncd_io_char_var1_nf'
     !-----------------------------------------------------------------------

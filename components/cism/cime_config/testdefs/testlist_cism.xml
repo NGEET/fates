@@ -9,9 +9,6 @@
   </compset>
   <compset name="IGCLM45">
     <grid name="T31_g37_gl5">
-      <test name="CME_D">
-        <machine compiler="intel" testtype="aux_glc" testmods="cism/test_coupling" comment="Note that this is more about testing CLM (specifically the esmf code in CLM) than it is about testing CISM">yellowstone</machine>
-      </test>
       <test name="ERS_Ly5">
         <machine compiler="intel" testtype="aux_glc" testmods="clm/glcMEC_long" comment="Need IG ERS test to catch problems with fields sent before the end of the first year after restart. Also use glcMEC_long testmods to get shorter snow_persistence_max - the main motivation here is to have a long ERS test that checks restart of the snow_persistence stuff (which more belongs in the aux_clm test list, but was added here to avoid needing to add a long ERS test to that test list)... this is mainly needed because we do not have an IG test that uses spun-up initial conditions, so we currently need a long test to completely test the restartability of the snow_persistence stuff. Also note that this is the only multi-year non-TG test in the test list, so this is the one test that a production-like configuration can run for a few years. Consider moving this to the aux_clm45 test list once this test can be made shorter, either through use of initial conditions and/or moving to f10 resolution.">yellowstone</machine>
       </test>
@@ -59,12 +56,12 @@
       <test name="CME_Ly10">
         <machine compiler="intel" testtype="aux_esmf">yellowstone</machine>
       </test>
-      <test name="CME_Ly5_N2_P2_D">
-        <machine compiler="intel" testtype="aux_glc">yellowstone</machine>
-        <machine compiler="intel" testtype="prebeta">yellowstone</machine>
-      </test>
       <test name="ERS_Ly20">
         <machine compiler="gnu" testtype="aux_glc" testmods="cism/oneway" comment="(3-3-16) can probably be removed, just keeping the new CISM2 oneway test; but I am keeping this one for now, since I am doing rework related to the one-way coupling">yellowstone</machine>
+      </test>
+      <test name="SMS_Ly5_N2_P2_D">
+        <machine compiler="intel" testtype="aux_glc" comment="include a multi-instance debug test">yellowstone</machine>
+        <machine compiler="intel" testtype="prebeta">yellowstone</machine>
       </test>
     </grid>
   </compset>
@@ -75,16 +72,6 @@
         <machine compiler="gnu" testtype="aux_glc">yellowstone</machine>
       </test>
       <test name="SMS_D_Ly1">
-        <machine compiler="pgi" testtype="aux_glc">yellowstone</machine>
-      </test>
-    </grid>
-  </compset>
-  <compset name="TGHIST">
-    <grid name="f09_g16_gl5">
-      <test name="ERS_Ly20_E_Mmpich2">
-        <machine compiler="intel" testtype="aux_glc" comment="need to specify mpi library because ESMF is not built with mpi-serial">yellowstone</machine>
-      </test>
-      <test name="PEA_P1">
         <machine compiler="pgi" testtype="aux_glc">yellowstone</machine>
       </test>
     </grid>
@@ -102,9 +89,6 @@
   </compset>
   <compset name="TGIS2">
     <grid name="f09_g16_gl20">
-      <test name="PEA_P1_Ly2">
-        <machine compiler="intel" testtype="aux_glc" comment="needs to be at least 2 years for there to be enough cpl fields for the cpl log comparison to work">yellowstone</machine>
-      </test>
       <test name="SMS_D_Ly1">
         <machine compiler="pgi" testtype="prebeta" testmods="cism/trilinos">titan</machine>
         <machine compiler="intel" testtype="aux_glc">yellowstone</machine>
@@ -136,9 +120,6 @@
   </compset>
   <compset name="TGRCP85IS2">
     <grid name="f09_g16_gl20">
-      <test name="CME_Ly3">
-        <machine compiler="intel" testtype="aux_glc">yellowstone</machine>
-      </test>
       <test name="NCK_Ly3">
         <machine compiler="pgi" testtype="prebeta">hobart</machine>
         <machine compiler="pgi" testtype="aux_glc">yellowstone</machine>

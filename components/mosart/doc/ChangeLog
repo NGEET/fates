@@ -1,13 +1,46 @@
 ===============================================================
-Tag name:  mosart1_0_15
-Originator(s): swenson, andre
-Date: Dec 23 2015
-One-line Summary: bugfix for minimum channel length
+Tag name:  mosart1_0_18
+Originator(s): erik
+Date: Sep 13 2016
+One-line Summary: Add output frequency to history files
 
-  bugfix: minimum channel length
 
-  Note(bja, 20151223) r14 this was made directly as a trunk tag, but
-  not put on the trunk. This brings that change to the trunk.
+M   src/riverroute/RtmHistFile.Fi90 -- add output history frequency "time_period_freq"
+
+===============================================================
+Tag name:  mosart1_0_17
+Originator(s): erik
+Date: Apr 14 2016
+One-line Summary: Turn off for CLM_ACCELERATED_SPINUP="on" and fix a few bugs
+
+Have MOSART react to CLM_ACCELERATED_SPINUP setting from CLM and turn itself off
+by default if it's "on".
+
+Also fix following bugs:
+
+2307 -- assumes history files are no_leap calendar
+2299 -- missing timer call
+2230 -- for MOSART delt_save not initialized
+
+M       bld/build-namelist ---- Check CLM_ACCELERATED_SPINUP, read do_rtm from
+           defaults file and check based on CLM_ACCELERATED_SPINUP and MOSART_MODE
+M       bld/namelist_files/namelist_defaults_mosart.xml - add do_rtm settings
+M       src/riverroute/RtmRestFile.F90 -- Increase string length to 255
+M       src/riverroute/RtmMod.F90 ------- Increase string length to 255
+M       src/riverroute/RtmHistFile.F90 -- Increase filename length to 255
+           check calendar type before writing to history file
+M       src/riverroute/RtmIO.F90 -------- Remove commented out lines, add timer call (2299), 
+           initialize delt_save (2230)
+M       src/riverroute/RtmTimeManager.F90 Add NO_LEAP_C and GREGORIAN_C as public constants (2307)
+
+===============================================================
+Tag name:  mosart1_0_16
+Originator(s): swenson
+Date: Feb 8 2016
+One-line Summary: bugfix for budget diagnostic output
+
+  bugfix: budget diagnostic output
+
 
 M       src/riverroute/RtmMod.F90
 
