@@ -110,6 +110,8 @@ contains
     ! Section 1: Check  total canopy area.    
 
     new_total_area_check = 0._r8
+    currentSite%demotion_rate(:) = 0._r8
+    currentSite%demotion_carbonflux = 0._r8
     do while (associated(currentPatch)) ! Patch loop    
 
        if (currentPatch%area .gt. min_patch_area) then  ! avoid numerical weirdness that shouldn't be happening anyway
@@ -198,6 +200,14 @@ contains
                          ! causing non-linearity issues with c_area.  is this really required? 
                          currentCohort%dbh = currentCohort%dbh 
                          copyc%dbh = copyc%dbh !+ 0.000000000001_r8
+
+                         ! keep track of number and biomass of demoted cohort
+                         currentSite%demotion_rate(currentCohort%size_class) = &
+                              currentSite%demotion_rate(currentCohort%size_class) + currentCohort%n
+                         currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + &
+                              (currentCohort%bdead + currentCohort%bsw + currentCohort%bl + currentCohort%br + &
+                              currentCohort%bstore) * currentCohort%n
+
                          !kill the ones which go into canopy layers that are not allowed... (default nclmax=2) 
                          if(i+1 > cp_nclmax)then 
                            !put the litter from the terminated cohorts into the fragmenting pools
@@ -243,6 +253,13 @@ contains
                       else
                          currentCohort%canopy_layer = i + 1 !the whole cohort becomes demoted
                          sumloss = sumloss + currentCohort%c_area 
+
+                         ! keep track of number and biomass of demoted cohort
+                         currentSite%demotion_rate(currentCohort%size_class) = &
+                              currentSite%demotion_rate(currentCohort%size_class) + currentCohort%n
+                         currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + &
+                              (currentCohort%bdead + currentCohort%bsw + currentCohort%bl + currentCohort%br + &
+                              currentCohort%bstore) * currentCohort%n
 
                          !kill the ones which go into canopy layers that are not allowed... (default cp_nclmax=2) 
                          if(i+1 > cp_nclmax)then  

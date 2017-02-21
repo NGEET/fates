@@ -66,6 +66,8 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_gpp_canopy_pa
   integer, private :: ih_ar_understory_pa
   integer, private :: ih_gpp_understory_pa
+  integer, private :: ih_canopy_biomass_pa
+  integer, private :: ih_understory_biomass_pa
   
   ! Indices to (site) variables
   integer, private :: ih_nep_si
@@ -91,6 +93,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_cbal_err_tot_si
   integer, private :: ih_npatches_si
   integer, private :: ih_ncohorts_si
+  integer, private :: ih_demotion_carbonflux_si
   
   ! Indices to (site x scpf) variables
   integer, private :: ih_nplant_si_scpf
@@ -143,6 +146,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_nplant_understory_si_scls
   integer, private :: ih_mortality_canopy_si_scls
   integer, private :: ih_mortality_understory_si_scls
+  integer, private :: ih_demotion_rate_si_scls
 
   ! lots of non-default diagnostics for understanding canopy versus understory carbon balances
   integer, private :: ih_rdark_canopy_si_scls
@@ -852,6 +856,8 @@ contains
                hio_balive_pa           => this%hvars(ih_balive_pa)%r81d, &
                hio_bleaf_pa            => this%hvars(ih_bleaf_pa)%r81d, &
                hio_btotal_pa           => this%hvars(ih_btotal_pa)%r81d, &
+               hio_canopy_biomass_pa   => this%hvars(ih_canopy_biomass_pa)%r81d, &
+               hio_understory_biomass_pa   => this%hvars(ih_understory_biomass_pa)%r81d, &
                hio_gpp_si_scpf         => this%hvars(ih_gpp_si_scpf)%r82d, &
                hio_npp_totl_si_scpf    => this%hvars(ih_npp_totl_si_scpf)%r82d, &
                hio_npp_leaf_si_scpf    => this%hvars(ih_npp_leaf_si_scpf)%r82d, &
@@ -890,6 +896,8 @@ contains
                hio_nplant_understory_si_scls     => this%hvars(ih_nplant_understory_si_scls)%r82d, &
                hio_mortality_canopy_si_scls      => this%hvars(ih_mortality_canopy_si_scls)%r82d, &
                hio_mortality_understory_si_scls  => this%hvars(ih_mortality_understory_si_scls)%r82d, &
+               hio_demotion_rate_si_scls         => this%hvars(ih_demotion_rate_si_scls)%r82d, &
+               hio_demotion_carbonflux_si        => this%hvars(ih_demotion_carbonflux_si)%r81d, &
                hio_leaf_md_canopy_si_scls           => this%hvars(ih_leaf_md_canopy_si_scls)%r82d, &
                hio_root_md_canopy_si_scls           => this%hvars(ih_root_md_canopy_si_scls)%r82d, &
                hio_carbon_balance_canopy_si_scls    => this%hvars(ih_carbon_balance_canopy_si_scls)%r82d, &
@@ -1110,6 +1118,7 @@ contains
                             ccohort%bstore * n_perm2 * AREA
                        hio_bleaf_canopy_si_scpf(io_si,scpf) = hio_bleaf_canopy_si_scpf(io_si,scpf) + &
                             ccohort%bl * n_perm2 * AREA
+                       hio_canopy_biomass_pa(io_pa) = hio_canopy_biomass_pa(io_pa) + n_density * ccohort%b * 1.e3_r8
                        hio_mortality_canopy_si_scpf(io_si,scpf) = hio_mortality_canopy_si_scpf(io_si,scpf)+ &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * n_perm2*AREA
                        hio_nplant_canopy_si_scpf(io_si,scpf) = hio_nplant_canopy_si_scpf(io_si,scpf) + AREA*n_perm2
@@ -1154,12 +1163,13 @@ contains
                        hio_npp_store_canopy_si_scls(io_si,scls) = hio_npp_store_canopy_si_scls(io_si,scls) + &
                             ccohort%npp_store * n_perm2 * AREA * yeardays
                        hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) = hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) + &
-                            real(ccohort%canopy_layer_yesterday, r8) * n_perm2 * AREA
+                            ccohort%canopy_layer_yesterday * n_perm2 * AREA
                     else
                        hio_bstor_understory_si_scpf(io_si,scpf) = hio_bstor_understory_si_scpf(io_si,scpf) + &
                             ccohort%bstore * n_perm2 * AREA
                        hio_bleaf_understory_si_scpf(io_si,scpf) = hio_bleaf_understory_si_scpf(io_si,scpf) + &
                             ccohort%bl * n_perm2 * AREA
+                       hio_understory_biomass_pa(io_pa) = hio_understory_biomass_pa(io_pa) + n_density * ccohort%b * 1.e3_r8
                        hio_mortality_understory_si_scpf(io_si,scpf) = hio_mortality_understory_si_scpf(io_si,scpf)+ &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * n_perm2*AREA
                        hio_nplant_understory_si_scpf(io_si,scpf) = hio_nplant_understory_si_scpf(io_si,scpf) + AREA*n_perm2
@@ -1204,10 +1214,10 @@ contains
                        hio_npp_store_understory_si_scls(io_si,scls) = hio_npp_store_understory_si_scls(io_si,scls) + &
                             ccohort%npp_store * n_perm2 * AREA * yeardays
                        hio_yesterdaycanopylevel_understory_si_scls(io_si,scls) = hio_yesterdaycanopylevel_understory_si_scls(io_si,scls) + &
-                            real(ccohort%canopy_layer_yesterday, r8) * n_perm2 * AREA
+                            ccohort%canopy_layer_yesterday * n_perm2 * AREA
                     endif
                     !
-                    ccohort%canopy_layer_yesterday = ccohort%canopy_layer
+                    ccohort%canopy_layer_yesterday = real(ccohort%canopy_layer, r8)
                     
                   end associate
                end if
@@ -1309,7 +1319,13 @@ contains
                     hio_m6_si_scpf(io_si,i_scpf) 
             end do
          end do
-       
+
+         ! pass demotion rates and associated carbon fluxes to history
+         do i_scls = 1,nlevsclass_ed
+            hio_demotion_rate_si_scls(io_si,i_scls) = sites(s)%demotion_rate(i_scls) * yeardays
+         end do
+         hio_demotion_carbonflux_si(io_si) = sites(s)%demotion_carbonflux * 1e3 / (1e-4 * daysecs)
+ 
       enddo ! site loop
       
     end associate
@@ -1834,6 +1850,16 @@ contains
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_btotal_pa )
 
+    call this%set_history_var(vname='CANOPY_BIOMASS', units='gC m-2',                   &
+         long='Biomass of canopy plants',  use_default='active',                            &
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_canopy_biomass_pa )
+
+    call this%set_history_var(vname='UNDERSTORY_BIOMASS', units='gC m-2',                   &
+         long='Biomass of understory plants',  use_default='active',                            &
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_understory_biomass_pa )
+
     
     ! Ecosystem Carbon Fluxes (updated rapidly, upfreq=2)
 
@@ -2124,6 +2150,16 @@ contains
           long='basal area by size class', use_default='active',   &
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ba_si_scls )
+
+    call this%set_history_var(vname='DEMOTION_RATE_SCLS', units = 'indiv/ha/yr',               &
+          long='demotion rate from canopy to understory by size class', use_default='active',   &
+          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_demotion_rate_si_scls )
+
+    call this%set_history_var(vname='DEMOTION_CARBONFLUX', units = 'gC/m2/s',               &
+          long='demotion-associated biomass carbon flux from canopy to understory', use_default='active',   &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_demotion_carbonflux_si )
 
     call this%set_history_var(vname='NPLANT_CANOPY_SCLS', units = 'indiv/ha',               &
           long='number of canopy plants by size class', use_default='active',   &
