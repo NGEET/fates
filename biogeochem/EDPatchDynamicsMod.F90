@@ -262,7 +262,7 @@ contains
              !this is the case as the new patch probably doesn't have a closed canopy, and
              ! even if it does, that will be sorted out in canopy_structure. 
              nc%canopy_layer = 1 
-             nc%canopy_layer_yesterday = 1 
+             nc%canopy_layer_yesterday = 1._r8 
 
              !mortality is dominant disturbance              
              if(currentPatch%disturbance_rates(1) > currentPatch%disturbance_rates(2))then 
