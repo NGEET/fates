@@ -1186,43 +1186,10 @@ contains
              model%stress%btracty(:,:) = model%stress%btracty_extend(1:model%general%ewn-1,1:model%general%nsn-1)
           endif
 
-          if (this_rank==model%numerics%rdiag_local) then
-             print*, ' '
-             print*, 'After restart, before halo update: uvel_2d:'
-             do i = model%numerics%idiag_local-5, model%numerics%idiag_local+5
-                write(6,'(i8)',advance='no') i
-             enddo
-             print*, ' '
-             do j = model%general%nsn-1, 1, -1
-                write(6,'(i4)',advance='no') j
-                do i = model%numerics%idiag_local-5, model%numerics%idiag_local+5
-                   write(6,'(f8.2)',advance='no') model%velocity%uvel_2d(i,j) * (vel0*scyr)
-                enddo
-                print*, ' '
-             enddo
-          endif
-
           call staggered_parallel_halo(model%velocity%uvel_2d)
           call staggered_parallel_halo(model%velocity%vvel_2d)
           call staggered_parallel_halo(model%stress%btractx)
           call staggered_parallel_halo(model%stress%btracty)
-
-
-          if (this_rank==model%numerics%rdiag_local) then
-             print*, ' '
-             print*, 'After halo update: uvel_2d:'
-             do i = model%numerics%idiag_local-5, model%numerics%idiag_local+5
-                write(6,'(i8)',advance='no') i
-             enddo
-             print*, ' '
-             do j = model%general%nsn-1, 1, -1
-                write(6,'(i4)',advance='no') j
-                do i = model%numerics%idiag_local-5, model%numerics%idiag_local+5
-                   write(6,'(f8.2)',advance='no') model%velocity%uvel_2d(i,j) * (vel0*scyr)
-                enddo
-                print*, ' '
-             enddo
-          endif
 
        endif   ! DIVA approx
              
