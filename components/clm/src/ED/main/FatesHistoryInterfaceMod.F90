@@ -1143,7 +1143,7 @@ contains
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * n_perm2*AREA
                        hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * &
-                            ccohort%b * ccohort%n * 1e3 / (1e4 * daysecs)
+                            ccohort%b * ccohort%n * 1e3 / (1e4 * daysecs * yeardays)
                        !
                        hio_leaf_md_canopy_si_scls(io_si,scls) = hio_leaf_md_canopy_si_scls(io_si,scls) + &
                             ccohort%leaf_md * n_perm2 * AREA
@@ -1197,7 +1197,7 @@ contains
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * n_perm2*AREA
                        hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * &
-                            ccohort%b * ccohort%n * 1e3 / (1e4 * daysecs)
+                            ccohort%b * ccohort%n * 1e3 / (1e4 * daysecs * yeardays)
                        !
                        hio_leaf_md_understory_si_scls(io_si,scls) = hio_leaf_md_understory_si_scls(io_si,scls) + &
                             ccohort%leaf_md * n_perm2 * AREA
