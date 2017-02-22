@@ -1876,12 +1876,12 @@ contains
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_btotal_pa )
 
-    call this%set_history_var(vname='CANOPY_BIOMASS', units='gC m-2',                   &
+    call this%set_history_var(vname='BIOMASS_CANOPY', units='gC m-2',                   &
          long='Biomass of canopy plants',  use_default='active',                            &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_canopy_biomass_pa )
 
-    call this%set_history_var(vname='UNDERSTORY_BIOMASS', units='gC m-2',                   &
+    call this%set_history_var(vname='BIOMASS_UNDERSTORY', units='gC m-2',                   &
          long='Biomass of understory plants',  use_default='active',                            &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_understory_biomass_pa )
@@ -1950,6 +1950,27 @@ contains
          long='autotrophic respiration of understory plants', use_default='active',       &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_ar_understory_pa )
+
+    ! slow carbon fluxes associated with mortality from or transfer betweeen canopy and understory
+    call this%set_history_var(vname='DEMOTION_CARBONFLUX', units = 'gC/m2/s',               &
+          long='demotion-associated biomass carbon flux from canopy to understory', use_default='active',   &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_demotion_carbonflux_si )
+
+    call this%set_history_var(vname='PROMOTION_CARBONFLUX', units = 'gC/m2/s',               &
+          long='promotion-associated biomass carbon flux from understory to canopy', use_default='active',   &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_promotion_carbonflux_si )
+
+    call this%set_history_var(vname='MORTALITY_CARBONFLUX_CANOPY', units = 'gC/m2/s',               &
+          long='flux of biomass carbon from live to dead pools from mortality of canopy plants', use_default='active',   &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_canopy_mortality_carbonflux_si )
+
+    call this%set_history_var(vname='MORTALITY_CARBONFLUX_UNDERSTORY', units = 'gC/m2/s',               &
+          long='flux of biomass carbon from live to dead pools from mortality of understory plants', use_default='active',   &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_understory_mortality_carbonflux_si )
 
 
     ! Carbon Flux (grid dimension x scpf) (THESE ARE DEFAULT INACTIVE!!!
@@ -2182,20 +2203,10 @@ contains
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_demotion_rate_si_scls )
 
-    call this%set_history_var(vname='DEMOTION_CARBONFLUX', units = 'gC/m2/s',               &
-          long='demotion-associated biomass carbon flux from canopy to understory', use_default='active',   &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_demotion_carbonflux_si )
-
     call this%set_history_var(vname='PROMOTION_RATE_SCLS', units = 'indiv/ha/yr',               &
           long='promotion rate from understory to canopy by size class', use_default='active',   &
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_promotion_rate_si_scls )
-
-    call this%set_history_var(vname='PROMOTION_CARBONFLUX', units = 'gC/m2/s',               &
-          long='promotion-associated biomass carbon flux from understory to canopy', use_default='active',   &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_promotion_carbonflux_si )
 
     call this%set_history_var(vname='NPLANT_CANOPY_SCLS', units = 'indiv/ha',               &
           long='number of canopy plants by size class', use_default='active',   &
