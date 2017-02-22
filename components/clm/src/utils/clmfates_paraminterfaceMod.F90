@@ -74,7 +74,7 @@ contains
    use spmdMod, only : masterproc
 
    use FatesParametersInterface, only : fates_parameters_type
-   use EDPftvarcon , only : EDpftconrd, EDPftvarcon_inst
+   use EDPftvarcon , only : EDPftvarcon_inst
 
    use fileutils  , only : getfil
    use ncdio_pio  , only : file_desc_t, ncd_pio_closefile, ncd_pio_openfile
@@ -97,15 +97,7 @@ contains
       call fates_params%Init()
       call EDPftvarcon_inst%Init()
 
-      ! FIXME(bja, 2017-01) old style read for some parameters, remove
-      ! when all pfts are read with new infrastructure.
-      !X! call getfil (fates_paramfile, locfn, 0)
-      !X! call ncd_pio_openfile (ncid, trim(locfn), 0)
-      !X! call EDpftconrd ( ncid )
-      !X! call ncd_pio_closefile(ncid)
-
       call EDPftvarcon_inst%Register(fates_params)
-
 
       is_host_file = .false.
       call ParametersFromNetCDF(fates_paramfile, is_host_file, fates_params)
