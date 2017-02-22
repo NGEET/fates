@@ -94,6 +94,9 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_npatches_si
   integer, private :: ih_ncohorts_si
   integer, private :: ih_demotion_carbonflux_si
+  integer, private :: ih_promotion_carbonflux_si
+  integer, private :: ih_canopy_mortality_carbonflux_si
+  integer, private :: ih_understory_mortality_carbonflux_si
   
   ! Indices to (site x scpf) variables
   integer, private :: ih_nplant_si_scpf
@@ -147,6 +150,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_mortality_canopy_si_scls
   integer, private :: ih_mortality_understory_si_scls
   integer, private :: ih_demotion_rate_si_scls
+  integer, private :: ih_promotion_rate_si_scls
 
   ! lots of non-default diagnostics for understanding canopy versus understory carbon balances
   integer, private :: ih_rdark_canopy_si_scls
@@ -898,6 +902,10 @@ contains
                hio_mortality_understory_si_scls  => this%hvars(ih_mortality_understory_si_scls)%r82d, &
                hio_demotion_rate_si_scls         => this%hvars(ih_demotion_rate_si_scls)%r82d, &
                hio_demotion_carbonflux_si        => this%hvars(ih_demotion_carbonflux_si)%r81d, &
+               hio_promotion_rate_si_scls        => this%hvars(ih_promotion_rate_si_scls)%r82d, &
+               hio_promotion_carbonflux_si       => this%hvars(ih_promotion_carbonflux_si)%r81d, &
+               hio_canopy_mortality_carbonflux_si     => this%hvars(ih_canopy_mortality_carbonflux_si)%r81d, &
+               hio_understory_mortality_carbonflux_si => this%hvars(ih_understory_mortality_carbonflux_si)%r81d, &
                hio_leaf_md_canopy_si_scls           => this%hvars(ih_leaf_md_canopy_si_scls)%r82d, &
                hio_root_md_canopy_si_scls           => this%hvars(ih_root_md_canopy_si_scls)%r82d, &
                hio_carbon_balance_canopy_si_scls    => this%hvars(ih_carbon_balance_canopy_si_scls)%r82d, &
@@ -1133,6 +1141,9 @@ contains
                        ! sum of all mortality
                        hio_mortality_canopy_si_scls(io_si,scls) = hio_mortality_canopy_si_scls(io_si,scls) + &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * n_perm2*AREA
+                       hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
+                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * &
+                            ccohort%b * ccohort%n * 1e3 / (1e4 * daysecs)
                        !
                        hio_leaf_md_canopy_si_scls(io_si,scls) = hio_leaf_md_canopy_si_scls(io_si,scls) + &
                             ccohort%leaf_md * n_perm2 * AREA
@@ -1184,6 +1195,9 @@ contains
                        ! sum of all mortality
                        hio_mortality_understory_si_scls(io_si,scls) = hio_mortality_understory_si_scls(io_si,scls) + &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * n_perm2*AREA
+                       hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
+                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * &
+                            ccohort%b * ccohort%n * 1e3 / (1e4 * daysecs)
                        !
                        hio_leaf_md_understory_si_scls(io_si,scls) = hio_leaf_md_understory_si_scls(io_si,scls) + &
                             ccohort%leaf_md * n_perm2 * AREA
@@ -1323,8 +1337,20 @@ contains
          ! pass demotion rates and associated carbon fluxes to history
          do i_scls = 1,nlevsclass_ed
             hio_demotion_rate_si_scls(io_si,i_scls) = sites(s)%demotion_rate(i_scls) * yeardays
+            hio_promotion_rate_si_scls(io_si,i_scls) = sites(s)%promotion_rate(i_scls) * yeardays
          end do
-         hio_demotion_carbonflux_si(io_si) = sites(s)%demotion_carbonflux * 1e3 / (1e-4 * daysecs)
+         !
+         ! convert kg C / ha / day to gc / m2 / sec
+         hio_demotion_carbonflux_si(io_si) = sites(s)%demotion_carbonflux * 1e3 / (1e4 * daysecs)
+         hio_promotion_carbonflux_si(io_si) = sites(s)%promotion_carbonflux * 1e3 / (1e4 * daysecs)
+         !
+         ! mortality-associated carbon fluxes
+         hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
+              sites(s)%termination_carbonflux(1) * 1e3 / (1e4 * daysecs)
+         hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
+              sites(s)%termination_carbonflux(2) * 1e3 / (1e4 * daysecs)
+         ! and zero the site-level termination carbon flux variable
+         sites(s)%termination_carbonflux(:) = 0._r8
  
       enddo ! site loop
       
@@ -2160,6 +2186,16 @@ contains
           long='demotion-associated biomass carbon flux from canopy to understory', use_default='active',   &
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_demotion_carbonflux_si )
+
+    call this%set_history_var(vname='PROMOTION_RATE_SCLS', units = 'indiv/ha/yr',               &
+          long='promotion rate from understory to canopy by size class', use_default='active',   &
+          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_promotion_rate_si_scls )
+
+    call this%set_history_var(vname='PROMOTION_CARBONFLUX', units = 'gC/m2/s',               &
+          long='promotion-associated biomass carbon flux from understory to canopy', use_default='active',   &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_promotion_carbonflux_si )
 
     call this%set_history_var(vname='NPLANT_CANOPY_SCLS', units = 'indiv/ha',               &
           long='number of canopy plants by size class', use_default='active',   &

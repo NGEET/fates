@@ -561,9 +561,12 @@ module EDTypesMod
 
      ! TERMINATION, RECRUITMENT, AND DEMOTION
      real(r8) :: terminated_nindivs(1:nlevsclass_ed,1:mxpft,2) ! number of individuals that were in cohorts which were terminated this timestep, on size x pft x canopy array. 
+     real(r8) :: termination_carbonflux(2)                     ! carbon flux from live to dead pools associated with termination mortality, per canopy level
      real(r8) :: recruitment_rate(1:mxpft)                     ! number of individuals that were recruited into new cohorts
      real(r8) :: demotion_rate(1:nlevsclass_ed)                ! rate of individuals demoted from canopy to understory per FATES timestep
-     real(r8) :: demotion_carbonflux                           ! biomass of demoted individuals from canopy to understory [gC/m2/s]
+     real(r8) :: demotion_carbonflux                           ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
+     real(r8) :: promotion_rate(1:nlevsclass_ed)               ! rate of individuals promoted from understory to canopy per FATES timestep
+     real(r8) :: promotion_carbonflux                          ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
 
   end type ed_site_type
 

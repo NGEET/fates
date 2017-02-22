@@ -105,13 +105,17 @@ contains
     integer  :: count_mi
     !----------------------------------------------------------------------
 
-    currentPatch => currentSite%oldest_patch
-    
-    ! Section 1: Check  total canopy area.    
-
-    new_total_area_check = 0._r8
+    currentPatch => currentSite%oldest_patch    
+    ! 
+    ! zero site-level demotion / promotion tracking info
     currentSite%demotion_rate(:) = 0._r8
+    currentSite%promotion_rate(:) = 0._r8
     currentSite%demotion_carbonflux = 0._r8
+    currentSite%promotion_carbonflux = 0._r8
+    !
+    ! Section 1: Check  total canopy area.    
+    !
+    new_total_area_check = 0._r8
     do while (associated(currentPatch)) ! Patch loop    
 
        if (currentPatch%area .gt. min_patch_area) then  ! avoid numerical weirdness that shouldn't be happening anyway
@@ -205,8 +209,7 @@ contains
                          currentSite%demotion_rate(currentCohort%size_class) = &
                               currentSite%demotion_rate(currentCohort%size_class) + currentCohort%n
                          currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + &
-                              (currentCohort%bdead + currentCohort%bsw + currentCohort%bl + currentCohort%br + &
-                              currentCohort%bstore) * currentCohort%n
+                              currentCohort%b * currentCohort%n
 
                          !kill the ones which go into canopy layers that are not allowed... (default nclmax=2) 
                          if(i+1 > cp_nclmax)then 
@@ -258,8 +261,7 @@ contains
                          currentSite%demotion_rate(currentCohort%size_class) = &
                               currentSite%demotion_rate(currentCohort%size_class) + currentCohort%n
                          currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + &
-                              (currentCohort%bdead + currentCohort%bsw + currentCohort%bl + currentCohort%br + &
-                              currentCohort%bstore) * currentCohort%n
+                              currentCohort%b * currentCohort%n
 
                          !kill the ones which go into canopy layers that are not allowed... (default cp_nclmax=2) 
                          if(i+1 > cp_nclmax)then  
@@ -383,6 +385,12 @@ contains
                          currentCohort%canopy_layer = i   
                          currentCohort%c_area = c_area(currentCohort)
 
+                         ! keep track of number and biomass of promoted cohort
+                         currentSite%promotion_rate(currentCohort%size_class) = &
+                              currentSite%promotion_rate(currentCohort%size_class) + currentCohort%n
+                         currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
+                              currentCohort%b * currentCohort%n
+
                         ! write(fates_log(),*) 'promoting very small cohort', currentCohort%c_area,currentCohort%canopy_layer
                       endif
                       arealayer(currentCohort%canopy_layer) = arealayer(currentCohort%canopy_layer)+currentCohort%c_area 
@@ -442,11 +450,17 @@ contains
 
                          newarea = currentCohort%c_area - cc_gain !new area of existing cohort
                          copyc%n = currentCohort%n*cc_gain/currentCohort%c_area   !number of individuals in promoted cohort. 
-                         ! number of individuals in cohort remianing in understorey    
+                         ! number of individuals in cohort remaining in understorey    
                          currentCohort%n = currentCohort%n - (currentCohort%n*cc_gain/currentCohort%c_area) 
 
                          currentCohort%canopy_layer = i+1  !keep current cohort in the understory.        
                          copyc%canopy_layer = i ! promote copy to the higher canopy layer. 
+
+                         ! keep track of number and biomass of promoted cohort
+                         currentSite%promotion_rate(copyc%size_class) = &
+                              currentSite%promotion_rate(copyc%size_class) + copyc%n
+                         currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
+                              copyc%b * copyc%n
 
                          ! seperate cohorts. 
                          ! needs to be a very small number to avoid causing non-linearity issues with c_area. 
@@ -473,6 +487,12 @@ contains
                          ! update area AFTER we sum up the losses. the cohort may shrink at this point,
                          ! if the upper canopy spread is smaller. this shold be dealt with by the 'excess area' loop.  
                          currentCohort%c_area = c_area(currentCohort) 
+
+                         ! keep track of number and biomass of promoted cohort
+                         currentSite%promotion_rate(currentCohort%size_class) = &
+                              currentSite%promotion_rate(currentCohort%size_class) + currentCohort%n
+                         currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
+                              currentCohort%b * currentCohort%n
 
                          promswitch = 1
 

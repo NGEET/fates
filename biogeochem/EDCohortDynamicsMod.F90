@@ -570,7 +570,9 @@ contains
           endif
           currentPatch%siteptr%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) = &
                currentPatch%siteptr%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) + currentCohort%n
-
+          !
+          currentPatch%siteptr%termination_carbonflux(levcan) = currentPatch%siteptr%termination_carbonflux(levcan) + &
+               currentCohort%n * currentCohort%b
           if (.not. associated(currentCohort%taller)) then
              currentPatch%tallest => currentCohort%shorter
           else 
