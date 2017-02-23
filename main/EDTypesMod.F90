@@ -250,12 +250,12 @@ module EDTypesMod
 
      ! Net Primary Production Partitions
 
-     real(r8) ::  npp_leaf                               ! NPP into leaves (includes replacement of turnover):  KgC/indiv/day
-     real(r8) ::  npp_froot                              ! NPP into fine roots (includes replacement of turnover):  KgC/indiv/day
-     real(r8) ::  npp_bsw                                ! NPP into sapwood: KgC/indiv/day
-     real(r8) ::  npp_bdead                              ! NPP into deadwood (structure):  KgC/indiv/day
-     real(r8) ::  npp_bseed                              ! NPP into seeds: KgC/indiv/day
-     real(r8) ::  npp_store                              ! NPP into storage: KgC/indiv/day
+     real(r8) ::  npp_leaf                               ! NPP into leaves (includes replacement of turnover):  KgC/indiv/year
+     real(r8) ::  npp_froot                              ! NPP into fine roots (includes replacement of turnover):  KgC/indiv/year
+     real(r8) ::  npp_bsw                                ! NPP into sapwood: KgC/indiv/year
+     real(r8) ::  npp_bdead                              ! NPP into deadwood (structure):  KgC/indiv/year
+     real(r8) ::  npp_bseed                              ! NPP into seeds: KgC/indiv/year
+     real(r8) ::  npp_store                              ! NPP into storage: KgC/indiv/year
 
      real(r8) ::  ts_net_uptake(cp_nlevcan)              ! Net uptake of leaf layers: kgC/m2/s
      real(r8) ::  year_net_uptake(cp_nlevcan)            ! Net uptake of leaf layers: kgC/m2/year
