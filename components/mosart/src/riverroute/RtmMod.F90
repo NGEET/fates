@@ -544,11 +544,6 @@ contains
        end if
     end do
 
-!    if (masterproc) then
-!       write(iulog,*) 'tcx rlats = ',rlats
-!       write(iulog,*) 'tcx rlatn = ',rlatn
-!    endif
-
     ! Set edge longitudes
     rlonw(:) = edgew
     rlone(:) = edgee
@@ -557,11 +552,7 @@ contains
        rlonw(i)   = rlonw(i) + (i-1)*dx
        rlone(i-1) = rlonw(i)
     end do
-
-!    if (masterproc) then
-!       write(iulog,*) 'tcx rlonw = ',rlonw
-!       write(iulog,*) 'tcx rlone = ',rlone
-!    endif
+    call t_stopf ('mosarti_grid')
 
     !-------------------------------------------------------
     ! Determine mosart ocn/land mask (global, all procs)
@@ -1453,6 +1444,7 @@ contains
     if (first_call) then
        budget_accum = 0._r8
        budget_accum_cnt = 0
+       delt_save    = delt_mosart
        if (masterproc) write(iulog,'(2a,g20.12)') trim(subname),' MOSART coupling period ',delt_coupling
     end if
 

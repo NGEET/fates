@@ -16,6 +16,10 @@ for the CLM data in the CESM distribution
 
 <!-- Default mosart namelist -->
 
+<do_rtm MOSART_MODE="ACTIVE" CLM_ACCELERATED_SPINUP="off" >.true.</do_rtm>
+<do_rtm                      CLM_ACCELERATED_SPINUP="on"  >.false.</do_rtm>
+<do_rtm MOSART_MODE="NULL"                                >.false.</do_rtm>
+
 <ice_runoff>.true.</ice_runoff>
 <delt_mosart>3600</delt_mosart> 
 <decomp_option>'roundrobin'</decomp_option> 

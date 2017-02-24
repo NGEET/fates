@@ -1,4 +1,12 @@
 ===============================================================
+Tag name:  rtm1_0_58
+Originator(s): erik
+Date: Sep 13, 2016
+One-line Summary: Add time period frequency to output history files
+
+M       src/riverroute/RtmHistFile.F90
+
+===============================================================
 Tag name:  rtm1_0_57
 Originator(s): erik
 Date: Jul 01, 2016
