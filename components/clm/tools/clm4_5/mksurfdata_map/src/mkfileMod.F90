@@ -92,7 +92,7 @@ contains
          'Source', len_trim(str), trim(str)), subname)
 
     str = &
-'$HeadURL: https://svn-ccsm-models.cgd.ucar.edu/clm2/trunk_tags/clm4_5_12_r197/components/clm/tools/clm4_5/mksurfdata_map/src/mkfileMod.F90 $'
+'$HeadURL: https://svn-ccsm-models.cgd.ucar.edu/clm2/trunk_tags/clm4_5_12_r198/components/clm/tools/clm4_5/mksurfdata_map/src/mkfileMod.F90 $'
     call check_ret(nf_put_att_text (ncid, NF_GLOBAL, &
          'Version', len_trim(str), trim(str)), subname)
 

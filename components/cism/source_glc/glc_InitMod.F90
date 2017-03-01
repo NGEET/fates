@@ -345,7 +345,7 @@
 
    if (.not. cesm_restart) then
       ! TODO loop over instances
-      call glc_history_write(ice_sheet%instances(1), EClock, force_write=.true.)
+      call glc_history_write(ice_sheet%instances(1), EClock, initial_history=.true.)
    end if
    
 !-----------------------------------------------------------------------

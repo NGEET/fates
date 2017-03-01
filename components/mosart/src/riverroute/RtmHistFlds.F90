@@ -78,6 +78,10 @@ contains
          avgflag='A', long_name='MOSART storage: '//trim(rtm_tracers(2)), &
          ptr_rof=rtmCTL%volr_nt2, default='inactive')
 
+    call RtmHistAddfld (fname='STORAGE_MCH', units='m3',  &
+         avgflag='A', long_name='MOSART main channelstorage', &
+         ptr_rof=rtmCTL%volr_mch, default='inactive')
+
     call RtmHistAddfld (fname='DVOLRDT_LND'//'_'//trim(rtm_tracers(1)), units='m3/s',  &
          avgflag='A', long_name='MOSART land change in storage: '//trim(rtm_tracers(1)), &
          ptr_rof=rtmCTL%dvolrdtlnd_nt1, default='inactive')
@@ -118,6 +122,14 @@ contains
          avgflag='A', long_name='MOSART input GWL runoff: '//trim(rtm_tracers(2)), &
          ptr_rof=rtmCTL%qgwl_nt2, default='inactive')
 
+    call RtmHistAddfld (fname='QIRRIG_FROM_COUPLER', units='m3/s',  &
+         avgflag='A', long_name='Amount of water used for irrigation (total flux received from coupler)', &
+         ptr_rof=rtmCTL%qirrig, default='inactive')
+
+    call RtmHistAddfld (fname='QIRRIG_ACTUAL', units='m3/s',  &
+         avgflag='A', long_name='Actual irrigation (if limited by river storage)', &
+         ptr_rof=rtmCTL%qirrig_actual, default='inactive')
+
     ! Print masterlist of history fields
 
     call RtmHistPrintflds()
@@ -157,6 +169,7 @@ contains
 
     rtmCTL%volr_nt1(:)       = rtmCTL%volr(:,1)
     rtmCTL%volr_nt2(:)       = rtmCTL%volr(:,2)
+    rtmCTL%volr_mch(:)       = rtmCTL%wr(:,1)
 
     rtmCTL%qsub_nt1(:)       = rtmCTL%qsub(:,1)
     rtmCTL%qsub_nt2(:)       = rtmCTL%qsub(:,2)

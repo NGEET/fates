@@ -83,6 +83,10 @@ contains
          avgflag='A', long_name='RTM flooding flux', &
          ptr_rof=runoff%flood, default='inactive')
 
+    call RtmHistAddfld (fname='QIRRIG', units='mm/s',  &
+         avgflag='A', long_name='Irrigation flux from land', &
+         ptr_rof=runoff%qirrig, default='inactive')
+
     ! Print masterlist of history fields
 
     call RtmHistPrintflds()
@@ -95,7 +99,7 @@ contains
 
     !-----------------------------------------------------------------------
     ! !DESCRIPTION:
-    ! Set rtm history fields as 1d poitner arrays
+    ! Set rtm history fields as 1d pointer arrays
     !
     implicit none
     !-----------------------------------------------------------------------

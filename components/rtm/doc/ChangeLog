@@ -1,4 +1,45 @@
 ===============================================================
+Tag name:  rtm1_0_59
+Originator(s): swenson, sacks
+Date: Oct 17, 2016
+One-line Summary: Treat irrigation specially, tweak volr
+
+(1) Together with corresponding cime and clm changes, treats irrigation as a
+    separate flux. The point of this is to map irrigation withdrawals normalized
+    by volr, to help prevent river channels from going to negative volumes.
+
+(2) Tweaks the volr field sent to the coupler. Sean Swenson expected this to
+    have an effect, although it appears not to, at least from the rtm and
+    aux_clm45 test suite.
+
+Requires the cime changes from https://github.com/ESMCI/cime/pull/681
+
+In order for the new irrigation changes to have an effect, also requires the CLM
+changes from the branch
+https://svn-ccsm-models.cgd.ucar.edu/clm2/branches/limitirrig - although this
+code will work correctly without the CLM changes (in this case, irrigation will
+simply be 0, and the irrigation flux will be folded in to a different runoff
+flux).
+
+Changes are from Sean Swenson; reviewed, tested and brought to the trunk by Bill
+Sacks.
+
+Testing: rtm test suite (on yellowstone), from
+https://svn-ccsm-models.cgd.ucar.edu/clm2/branch_tags/limitirrig_tags/limitirrig_n10_clm4_5_12_r196
+
+All tests passed and were bit-for-bit with testing from clm4_5_12_r196 with cime
+at d321e4b (the baseline for the relevant cime branch).
+
+Also ran aux_clm45 test suite; most tests passed; I'm looking into remaining
+failures and will update rtm if it turns out it was the source of any problems.
+
+M       src/riverroute/RtmHistFlds.F90
+M       src/riverroute/RunoffMod.F90
+M       src/riverroute/RtmMod.F90
+M       src/cpl/rtm_cpl_indices.F90
+M       src/cpl/rof_import_export.F90
+
+===============================================================
 Tag name:  rtm1_0_58
 Originator(s): erik
 Date: Sep 13, 2016
