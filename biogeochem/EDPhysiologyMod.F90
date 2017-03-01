@@ -427,10 +427,11 @@ contains
     ! distinction actually matter??).... 
 
     !Accumulate surface water memory of last 10 days.
-    currentSite%water_memory(1) = bc_in%h2osoi_vol_si   !waterstate_inst%h2osoi_vol_col(coli,1) 
-    do i = 1,numWaterMem !shift memory along one
+   
+    do i = 1,numWaterMem-1 !shift memory along one
        currentSite%water_memory(numWaterMem+1-i) = currentSite%water_memory(numWaterMem-i)
     enddo
+    currentSite%water_memory(1) = bc_in%h2osoi_vol_si   !waterstate_inst%h2osoi_vol_col(coli,1) 
 
     !In drought phenology, we often need to force the leaves to stay on or off as moisture fluctuates...     
     timesincedleafoff = 0
