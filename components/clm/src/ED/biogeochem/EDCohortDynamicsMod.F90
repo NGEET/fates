@@ -4,20 +4,24 @@ module EDCohortDynamicsMod
   ! Cohort stuctures in ED. 
   !
   ! !USES: 
-  use abortutils            , only : endrun
+  use FatesGlobals          , only : endrun => fates_endrun
   use FatesGlobals          , only : fates_log
-  use FatesGlobals          , only : freq_day
+  use FatesInterfaceMod     , only : hlm_freq_day
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
-  use shr_log_mod           , only : errMsg => shr_log_errMsg
   use pftconMod             , only : pftcon
   use EDEcophysContype      , only : EDecophyscon
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDTypesMod            , only : fusetol, cp_nclmax
-  use EDtypesMod            , only : ncwd, maxcohortsperpatch
-  use EDtypesMod            , only : sclass_ed,nlevsclass_ed,AREA
-  use EDtypesMod            , only : min_npm2, min_nppatch, min_n_safemath
+  use EDTypesMod            , only : fusetol
+  use EDTypesMod            , only : nclmax
+  use EDTypesMod            , only : ncwd
+  use EDTypesMod            , only : maxCohortsPerPatch
+  use EDTypesMod            , only : sclass_ed,nlevsclass_ed,AREA
+  use EDTypesMod            , only : min_npm2, min_nppatch
+  use EDTypesMod            , only : min_n_safemath
+  ! CIME globals
+  use shr_log_mod           , only : errMsg => shr_log_errMsg
   !
   implicit none
   private
@@ -223,7 +227,6 @@ contains
     ! Use different proportions if the leaves are on vs off
     if(leaves_off_switch==0)then
 
-
        new_bl = currentcohort%balive*leaf_frac
 
        new_br = pftcon%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
@@ -236,12 +239,12 @@ contains
        if(mode==1)then 
 
           currentcohort%npp_leaf = currentcohort%npp_leaf + &
-                max(0.0_r8,new_bl - currentcohort%bl) / freq_day
+                max(0.0_r8,new_bl - currentcohort%bl) / hlm_freq_day
           
           currentcohort%npp_froot = currentcohort%npp_froot + &
-                max(0._r8,new_br - currentcohort%br) / freq_day
+                max(0._r8,new_br - currentcohort%br) / hlm_freq_day
 
-          currentcohort%npp_bsw =  max(0.0_r8, new_bsw - currentcohort%bsw)/freq_day
+          currentcohort%npp_bsw =  max(0.0_r8, new_bsw - currentcohort%bsw)/hlm_freq_day
 
           currentcohort%npp_bdead =  currentCohort%dbdeaddt
 
@@ -274,9 +277,9 @@ contains
        if(mode==1)then
 
           currentcohort%npp_froot = currentcohort%npp_froot + &
-                max(0.0_r8,new_br-currentcohort%br)/freq_day
+                max(0.0_r8,new_br-currentcohort%br)/hlm_freq_day
 
-          currentcohort%npp_bsw = max(0.0_r8, new_bsw-currentcohort%bsw)/freq_day
+          currentcohort%npp_bsw = max(0.0_r8, new_bsw-currentcohort%bsw)/hlm_freq_day
 
           currentcohort%npp_bdead =  currentCohort%dbdeaddt
 
@@ -530,7 +533,7 @@ contains
          endif
 
          ! In the third canopy layer
-         if (currentCohort%canopy_layer > cp_nclmax ) then 
+         if (currentCohort%canopy_layer > nclmax ) then 
            terminate = 1
            if ( DEBUG ) then
              write(fates_log(),*) 'terminating cohorts 2', currentCohort%canopy_layer
@@ -602,7 +605,7 @@ contains
     ! Join similar cohorts to reduce total number            
     !
     ! !USES:
-    use EDTypesMod  , only :  cp_nlevcan
+    use EDTypesMod  , only :  nlevcan
     !
     ! !ARGUMENTS    
     type (ed_patch_type), intent(inout), target :: patchptr
@@ -754,7 +757,7 @@ contains
                          currentCohort%npp_bseed = (currentCohort%n*currentCohort%npp_bseed + nextc%n*nextc%npp_bseed)/newn
                          currentCohort%npp_store = (currentCohort%n*currentCohort%npp_store + nextc%n*nextc%npp_store)/newn
 
-                         do i=1, cp_nlevcan     
+                         do i=1, nlevcan     
                             if (currentCohort%year_net_uptake(i) == 999._r8 .or. nextc%year_net_uptake(i) == 999._r8) then
                                currentCohort%year_net_uptake(i) = min(nextc%year_net_uptake(i),currentCohort%year_net_uptake(i))
                             else

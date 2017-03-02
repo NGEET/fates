@@ -5,8 +5,8 @@ module EDInitMod
   ! ============================================================================
 
   use FatesConstantsMod         , only : r8 => fates_r8
-  use abortutils                , only : endrun
-  use EDTypesMod                , only : cp_nclmax
+  use FatesGlobals              , only : endrun => fates_endrun
+  use EDTypesMod                , only : nclmax
   use FatesGlobals              , only : fates_log
   use clm_varctl                , only : use_ed_spit_fire 
   use clm_time_manager          , only : is_restart
@@ -16,8 +16,10 @@ module EDInitMod
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDPatchDynamicsMod        , only : create_patch
   use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type, area
-  use EDTypesMod                , only : cohorts_per_col, ncwd, numpft_ed
-
+  use EDTypesMod                , only : ncwd
+  use EDTypesMod                , only : nuMWaterMem
+  use EDTypesMod                , only : numpft_ed
+  
   implicit none
   private
 
@@ -144,7 +146,7 @@ contains
        sites(s)%ED_GDD_site  = GDD
 
        if ( .not. is_restart() ) then
-          sites(s)%water_memory(1:10) = watermem
+          sites(s)%water_memory(1:numWaterMem) = watermem
        end if
 
        sites(s)%status = stat
@@ -178,7 +180,7 @@ contains
     integer  :: s
     real(r8) :: cwd_ag_local(ncwd)
     real(r8) :: cwd_bg_local(ncwd)
-    real(r8) :: spread_local(cp_nclmax)
+    real(r8) :: spread_local(nclmax)
     real(r8) :: leaf_litter_local(numpft_ed)
     real(r8) :: root_litter_local(numpft_ed)
     real(r8) :: age !notional age of this patch
