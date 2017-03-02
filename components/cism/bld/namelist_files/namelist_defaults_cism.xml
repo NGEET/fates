@@ -25,7 +25,7 @@ attributes to express the dependency.
 <cisminputfile glc_grid="gland20" cism_phys="cism2">glc/cism/gland20.input_c150415.nc</cisminputfile>
 
 <!-- this is the resolution that should be used for science applications with cism2 -->
-<cisminputfile glc_grid="gland4" cism_phys="cism2">glc/cism/Greenland/glissade/init/greenland_4km.glissade.10kyr.beta6.SSacab_c150415a.nc</cisminputfile>
+<cisminputfile glc_grid="gland4" cism_phys="cism2">glc/cism/Greenland/glissade/init/greenland_4km_2015_06_03.mcb_trunk_c161025.nc</cisminputfile>
 
 <!-- =============================================================  -->
 <!-- group: cism_params                                             -->

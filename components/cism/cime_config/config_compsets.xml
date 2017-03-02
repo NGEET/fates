@@ -38,47 +38,42 @@
 
   <!---TG compsets -->
   <compset>
-    <alias>TG</alias>
+    <alias>TG1</alias>
     <lname>2000_SATM_DLND%SCPL_SICE_SOCN_SROF_CISM1_SWAV</lname>
   </compset>
 
   <compset>
-    <alias>TG1850</alias>
+    <alias>T1850G1</alias>
     <lname>1850_SATM_DLND%SCPL_SICE_SOCN_SROF_CISM1_SWAV</lname>
   </compset>
 
   <compset>
-    <alias>TGHIST</alias>     
+    <alias>THISTG1</alias>     
     <lname>HIST_SATM_DLND%SCPL_SICE_SOCN_SROF_CISM1_SWAV</lname>
   </compset>
 
   <compset>
-    <alias>TGRCP85</alias>    
+    <alias>TRCP85G1</alias>    
     <lname>RCP8_SATM_DLND%SCPL_SICE_SOCN_SROF_CISM1_SWAV</lname>
   </compset>
 
   <compset>
-    <alias>TGIS2</alias>      
+    <alias>TG</alias>      
     <lname>2000_SATM_DLND%SCPL_SICE_SOCN_SROF_CISM2_SWAV</lname>
   </compset>
 
   <compset>
-    <alias>TG1850IS</alias>  
-    <lname>1850_SATM_DLND%SCPL_SICE_SOCN_SROF_CISM1_SWAV</lname>
-  </compset>
-
-  <compset>
-    <alias>TG1850IS2</alias>  
+    <alias>T1850G</alias>  
     <lname>1850_SATM_DLND%SCPL_SICE_SOCN_SROF_CISM2_SWAV</lname>
   </compset>
 
   <compset>
-    <alias>TGHISTIS2</alias>  
+    <alias>THISTG</alias>  
     <lname>HIST_SATM_DLND%SCPL_SICE_SOCN_SROF_CISM2_SWAV</lname>
   </compset>
 
   <compset>
-    <alias>TGRCP85IS2</alias> 
+    <alias>TRCP85G</alias> 
     <lname>RCP8_SATM_DLND%SCPL_SICE_SOCN_SROF_CISM2_SWAV</lname>
   </compset>
 
