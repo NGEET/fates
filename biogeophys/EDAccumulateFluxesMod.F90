@@ -9,8 +9,10 @@ module EDAccumulateFluxesMod
   ! Rosie Fisher. March 2014. 
   !
   ! !USES:
-  use abortutils, only        : endrun
+  use FatesGlobals, only      : fates_endrun 
+  use FatesGlobals, only      : fates_log
   use shr_log_mod , only      : errMsg => shr_log_errMsg
+  use FatesConstantsMod , only : r8 => fates_r8
   implicit none
   private
   !
@@ -32,12 +34,10 @@ contains
     ! see above
     !
     ! !USES:
-    use FatesConstantsMod , only : r8 => fates_r8
-    use FatesGlobals      , only : fates_log
+  
     use EDTypesMod        , only : ed_patch_type, ed_cohort_type, &
                                    ed_site_type, AREA
     use FatesInterfaceMod , only : bc_in_type,bc_out_type
-    use, intrinsic :: IEEE_ARITHMETIC
 
     !
     ! !ARGUMENTS    
