@@ -89,7 +89,6 @@
        <arg flag="-n" name=" $TOTALPES / $PES_PER_NODE"/>
        <arg flag="-q" name="JOB_QUEUE"/>
        <arg flag="--mode script"/>
-       <arg flag="--env" name='"CIMEROOT=$CIMEROOT"'/>
       </submit_args>
    </batch_system>
   
@@ -304,19 +303,20 @@
   <batch_system MACH="laramie" type="pbs">
     <directives>
       <directive default="/bin/bash" > -S {{ shell }}  </directive>
+      <directive> -l select={{ num_nodes }}:ncpus={{ max_tasks_per_node }}:mpiprocs={{ tasks_per_node }}:ompthreads={{ thread_count }}</directive>
     </directives>
-    <submit_args>
-       <arg flag="-l select=" name="$TOTALPES"/>
-    </submit_args>
     <queues>
       <queue walltimemin="0" walltimemax="12:00" jobmin="1" jobmax="2592">regular</queue>
     </queues>
+    <submit_args>
+      <arg flag="-l " name="select=$TOTALPES"/>
+    </submit_args>
   </batch_system>
 
 
   <batch_system MACH="mira" type="cobalt">
     <queues>
-      <queue walltimemax="360" jobmin="1" jobmax="786432" default="true">default</queue>
+      <queue walltimemax="06:00:00" jobmin="1" jobmax="786432" default="true">default</queue>
     </queues>
   </batch_system>
 
@@ -333,7 +333,7 @@
     <jobid_pattern>^(\S+)</jobid_pattern>
     <directives>
       <directive>-W group_list=$PROJECT </directive>
-      <directive>-l select={{ num_nodes }}:ncpus=$MAX_TASKS_PER_NODE:mpiprocs={{ tasks_per_node }}:ompthreads=$OMP_NUM_THREADS:model=has</directive>
+      <directive>-l select={{ num_nodes }}:ncpus=$MAX_TASKS_PER_NODE:mpiprocs={{ tasks_per_node }}:ompthreads={{ thread_count }}:model=has</directive>
       <directive>-l place=scatter:excl</directive>
       <directive default="/bin/bash" > -S {{ shell }}  </directive>
     </directives>
@@ -347,7 +347,7 @@
     <jobid_pattern>^(\S+)</jobid_pattern>
     <directives>
       <directive>-W group_list=$PROJECT </directive>
-      <directive>-l select={{ num_nodes }}:ncpus=$MAX_TASKS_PER_NODE:mpiprocs={{ tasks_per_node }}:ompthreads=$OMP_NUM_THREADS:model=ivy</directive>
+      <directive>-l select={{ num_nodes }}:ncpus=$MAX_TASKS_PER_NODE:mpiprocs={{ tasks_per_node }}:ompthreads={{ thread_count }}:model=ivy</directive>
       <directive>-l place=scatter:excl</directive>
       <directive default="/bin/bash" > -S {{ shell }}  </directive>
     </directives>
@@ -367,7 +367,7 @@
     <jobid_pattern>^(\S+)</jobid_pattern>
     <directives>
       <directive>-W group_list=$PROJECT </directive>
-      <directive>-l select={{ num_nodes }}:ncpus=$MAX_TASKS_PER_NODE:mpiprocs={{ tasks_per_node }}:ompthreads=$OMP_NUM_THREADS:model=san</directive>
+      <directive>-l select={{ num_nodes }}:ncpus=$MAX_TASKS_PER_NODE:mpiprocs={{ tasks_per_node }}:ompthreads={{ thread_count }}:model=san</directive>
       <directive>-l place=scatter:excl</directive>
       <directive default="/bin/bash" > -S {{ shell }}  </directive>
     </directives>
@@ -381,7 +381,7 @@
     <jobid_pattern>^(\S+)</jobid_pattern>
     <directives>
       <directive>-W group_list=$PROJECT </directive>
-      <directive>-l select={{ num_nodes }}:ncpus=$MAX_TASKS_PER_NODE:mpiprocs={{ tasks_per_node }}:ompthreads=$OMP_NUM_THREADS:model=wes</directive>
+      <directive>-l select={{ num_nodes }}:ncpus=$MAX_TASKS_PER_NODE:mpiprocs={{ tasks_per_node }}:ompthreads={{ thread_count }}:model=wes</directive>
       <directive>-l place=scatter:excl</directive>
       <directive default="/bin/bash" > -S {{ shell }}  </directive>
     </directives>
@@ -443,10 +443,12 @@
 
   <batch_system MACH="yellowstone" type="lsf" version="9.1">
     <queues>
-      <queue walltimemax="24:00" jobmin="1" jobmax="1" jobname="case.lt_archive">hpss</queue>
+      <!-- the hpss queue that should be used for lt_archive jobs on yellowstone does not have modules installed and so rejects our python job -->
+      <queue walltimemax="24:00" jobmin="1" jobmax="1" jobname="case.lt_archive">caldera</queue>
       <queue walltimemax="24:00" jobmin="1" jobmax="8" >caldera</queue>
       <queue walltimemax="12:00" jobmin="9" jobmax="16384" default="true">regular</queue>
       <queue walltimemax="12:00" jobmin="16385" jobmax="65536">capability</queue>
+      <queue walltimemax="12:00" jobmin="1" jobmax="16384">premium</queue>
     </queues>
   </batch_system>
 
