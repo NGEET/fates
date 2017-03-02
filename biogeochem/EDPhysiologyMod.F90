@@ -27,9 +27,8 @@ module EDPhysiologyMod
   use EDTypesMod          , only : ed_site_type, ed_patch_type, ed_cohort_type
 
   use shr_log_mod           , only : errMsg => shr_log_errMsg
-  use abortutils            , only : endrun
   use FatesGlobals          , only : fates_log
-
+  use FatesGlobals          , only : endrun => fates_endrun
 
 
   implicit none
