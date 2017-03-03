@@ -1300,7 +1300,7 @@ contains
          do i_pft = 1, mxpft
             do i_scls = 1,nlevsclass_ed
                i_scpf = (i_pft-1)*nlevsclass_ed + i_scls
-               hio_m6_si_scpf(io_si,i_scpf) = (sites(s)%terminated_nindivs(i_pft,i_scls,1) + &
+               hio_m6_si_scpf(io_si,i_scpf) = (sites(s)%terminated_nindivs(i_scls,i_pft,1) + &
                     sites(s)%terminated_nindivs(i_scls,i_pft,2)) * yeardays
                hio_mortality_canopy_si_scls(io_si,i_scls) = hio_mortality_canopy_si_scls(io_si,i_scls) + &
                     sites(s)%terminated_nindivs(i_scls,i_pft,1) * yeardays
