@@ -3,7 +3,7 @@ module SFParamsMod
    ! module that deals with reading the SF parameter file
    !
    use shr_kind_mod      , only: r8 => shr_kind_r8
-   use EDtypesMod        , only: NLSC,NFSC,NCWD
+   use EDtypesMod        , only: NFSC,NCWD
 
    implicit none
    save
@@ -23,9 +23,9 @@ module SFParamsMod
    real(r8),protected :: SF_val_max_durat
    real(r8),protected :: SF_val_durat_slope
    real(r8),protected :: SF_val_alpha_SH
-   real(r8),protected :: SF_val_alpha_FMC(NLSC)
+   real(r8),protected :: SF_val_alpha_FMC(NFSC)
    real(r8),protected :: SF_val_CWD_frac(NCWD)
-   real(r8),protected :: SF_val_max_decomp(NLSC)
+   real(r8),protected :: SF_val_max_decomp(NFSC)
    real(r8),protected :: SF_val_SAV(NFSC)
    real(r8),protected :: SF_val_FBD(NFSC)
    real(r8),protected :: SF_val_min_moisture(NFSC)

@@ -45,10 +45,8 @@ module EDTypesMod
 
 
   ! SPITFIRE     
-  integer , parameter :: NLSC                 = 6          ! number carbon compartments in above ground litter array 
-  integer , parameter :: NFSC                 = 6          ! number fuel size classes  
-  integer , parameter :: N_EF                 = 7          ! number of emission factors. One per trace gas or aerosol species.
   integer,  parameter :: NCWD                 = 4          ! number of coarse woody debris pools
+  integer , parameter :: NFSC                 = NCWD+2     ! number fuel size classes  (really this is a mix of cwd size classes, leaf litter, and grass types)
   integer,  parameter :: lg_sf                = 6          ! array index of live grass pool for spitfire
   integer,  parameter :: dg_sf                = 1          ! array index of dead grass pool for spitfire
   integer,  parameter :: tr_sf                = 5          ! array index of dead trunk pool for spitfire
@@ -114,6 +112,8 @@ module EDTypesMod
   integer , allocatable :: scls_levscpf_ed(:) 
   real(r8), allocatable :: levage_ed(:) 
   integer , allocatable :: levpft_ed(:) 
+  integer , allocatable :: levfuel_ed(:) 
+  integer , allocatable :: levcwdsc_ed(:) 
 
   
   ! Control Parameters (cp_)            
@@ -442,7 +442,7 @@ module EDTypesMod
 
      !FUEL CHARECTERISTICS
      real(r8) ::  sum_fuel                                         ! total ground fuel related to ros (omits 1000hr fuels): KgC/m2
-     real(r8) ::  fuel_frac(ncwd+2)                                ! fraction of each litter class in the ros_fuel:-.  
+     real(r8) ::  fuel_frac(nfsc)                                  ! fraction of each litter class in the ros_fuel:-.  
      real(r8) ::  livegrass                                        ! total aboveground grass biomass in patch.  KgC/m2
      real(r8) ::  fuel_bulkd                                       ! average fuel bulk density of the ground fuel 
      ! (incl. live grasses. omits 1000hr fuels). KgC/m3
@@ -452,7 +452,7 @@ module EDTypesMod
      ! of the ground fuel (incl. live grasses. omits 1000hr fuels).
      real(r8) ::  fuel_eff_moist                                   ! effective avearage fuel moisture content of the ground fuel 
      ! (incl. live grasses. omits 1000hr fuels)
-     real(r8) ::  litter_moisture(ncwd+2)
+     real(r8) ::  litter_moisture(nfsc)
 
      ! FIRE SPREAD
      real(r8) ::  ros_front                                        ! rate of forward  spread of fire: m/min
@@ -598,11 +598,15 @@ contains
     integer :: i
     integer :: isc
     integer :: ipft
+    integer :: icwd
+    integer :: ifuel
 
     allocate( levsclass_ed(1:nlevsclass_ed   ))
     allocate( pft_levscpf_ed(1:nlevsclass_ed*mxpft))
     allocate(scls_levscpf_ed(1:nlevsclass_ed*mxpft))
     allocate( levpft_ed(1:mxpft   ))
+    allocate( levfuel_ed(1:NFSC   ))
+    allocate( levcwdsc_ed(1:NCWD   ))
     allocate( levage_ed(1:nlevage_ed   ))
 
     ! Fill the IO array of plant size classes
@@ -615,6 +619,16 @@ contains
     ! make pft array
     do ipft=1,mxpft
        levpft_ed(ipft) = ipft
+    end do
+
+    ! make fuel array
+    do ifuel=1,NFSC
+       levfuel_ed(ifuel) = ifuel
+    end do
+
+    ! make cwd array
+    do icwd=1,NCWD
+       levcwdsc_ed(icwd) = icwd
     end do
 
     ! Fill the IO arrays that match pft and size class to their combined array
