@@ -22,6 +22,7 @@ module histFileMod
   use PatchType      , only : patch                
   use ncdio_pio
   use EDtypesMod     , only : nlevsclass_ed, nlevage_ed
+  use EDtypesMod     , only : nfsc, ncwd
   use clm_varpar     , only : mxpft
   !
   implicit none
@@ -1852,6 +1853,8 @@ contains
        call ncd_defdim(lnfid, 'levscls', nlevsclass_ed, dimid)
        call ncd_defdim(lnfid, 'levpft', mxpft, dimid)
        call ncd_defdim(lnfid, 'levage', nlevage_ed, dimid)
+       call ncd_defdim(lnfid, 'levfuel', nfsc, dimid)
+       call ncd_defdim(lnfid, 'levcwdsc', ncwd, dimid)
        call ncd_defdim(lnfid, 'levscpf', nlevsclass_ed*mxpft, dimid)
     end if
 
@@ -2269,6 +2272,7 @@ contains
     use clm_time_manager, only : get_ref_date, get_calendar, NO_LEAP_C, GREGORIAN_C
     use EDTypesMod,       only : levsclass_ed, pft_levscpf_ed, scls_levscpf_ed
     use EDTypesMod,       only : levage_ed, levpft_ed
+    use EDTypesMod,       only : levfuel_ed, levcwdsc_ed
     !
     ! !ARGUMENTS:
     integer, intent(in) :: t              ! tape index
@@ -2330,6 +2334,10 @@ contains
                   long_name='FATES patch age (yr)', ncid=nfid(t))
              call ncd_defvar(varname='levpft',xtype=ncd_int, dim1name='levpft', &
                   long_name='FATES pft number', ncid=nfid(t))
+             call ncd_defvar(varname='levfuel',xtype=ncd_int, dim1name='levfuel', &
+                  long_name='FATES fuel index', ncid=nfid(t))
+             call ncd_defvar(varname='levcwdsc',xtype=ncd_int, dim1name='levcwdsc', &
+                  long_name='FATES cwd size class', ncid=nfid(t))
           end if
 
        elseif (mode == 'write') then
@@ -2348,6 +2356,8 @@ contains
              call ncd_io(varname='scls_levscpf',data=scls_levscpf_ed, ncid=nfid(t), flag='write')
              call ncd_io(varname='levage',data=levage_ed, ncid=nfid(t), flag='write')
              call ncd_io(varname='levpft',data=levpft_ed, ncid=nfid(t), flag='write')
+             call ncd_io(varname='levfuel',data=levfuel_ed, ncid=nfid(t), flag='write')
+             call ncd_io(varname='levcwdsc',data=levcwdsc_ed, ncid=nfid(t), flag='write')
           end if
 
        endif
@@ -4453,6 +4463,10 @@ contains
        num2d = mxpft
     case ('levage')
        num2d = nlevage_ed
+    case ('levfuel')
+       num2d = nfsc
+    case ('levcwdsc')
+       num2d = ncwd
     case ('levscpf')
        num2d = nlevsclass_ed*mxpft
     case('ltype')
