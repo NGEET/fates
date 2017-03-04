@@ -216,9 +216,16 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_ncl_si_age
   integer, private :: ih_npatches_si_age
 
+  ! indices to (site x fuel class) variables
+  integer, private :: ih_litter_moisture_si_fuel
+
+  ! indices to (site x cwd size class) variables
+  integer, private :: ih_cwd_ag_si_cwdsc
+  integer, private :: ih_cwd_bg_si_cwdsc
+
   ! The number of variable dim/kind types we have defined (static)
-  integer, parameter :: fates_history_num_dimensions = 7
-  integer, parameter :: fates_history_num_dim_kinds = 9
+  integer, parameter :: fates_history_num_dimensions = 9
+  integer, parameter :: fates_history_num_dim_kinds = 11
   
 
   
@@ -253,6 +260,7 @@ module FatesHistoryInterfaceMod
 
      integer, private :: patch_index_, column_index_, levgrnd_index_, levscpf_index_
      integer, private :: levscls_index_, levpft_index_, levage_index_
+     integer, private :: levfuel_index_, levcwdsc_index_
    contains
      
      procedure, public :: Init
@@ -273,6 +281,8 @@ module FatesHistoryInterfaceMod
      procedure, public :: levscls_index
      procedure, public :: levpft_index
      procedure, public :: levage_index
+     procedure, public :: levfuel_index
+     procedure, public :: levcwdsc_index
 
      ! private work functions
      procedure, private :: define_history_vars
@@ -288,6 +298,8 @@ module FatesHistoryInterfaceMod
      procedure, private :: set_levscls_index
      procedure, private :: set_levpft_index
      procedure, private :: set_levage_index
+     procedure, private :: set_levfuel_index
+     procedure, private :: set_levcwdsc_index
 
   end type fates_history_interface_type
    
@@ -301,6 +313,7 @@ contains
 
     use FatesIODimensionsMod, only : patch, column, levgrnd, levscpf
     use FatesIODimensionsMod, only : levscls, levpft, levage
+    use FatesIODimensionsMod, only : levfuel, levcwdsc
     use FatesIODimensionsMod, only : fates_bounds_type
 
     implicit none
@@ -345,6 +358,17 @@ contains
     call this%set_levage_index(dim_count)
     call this%dim_bounds(dim_count)%Init(levage, num_threads, &
          fates_bounds%age_class_begin, fates_bounds%age_class_end)
+
+    dim_count = dim_count + 1
+    call this%set_levfuel_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levfuel, num_threads, &
+         fates_bounds%fuel_begin, fates_bounds%fuel_end)
+
+    dim_count = dim_count + 1
+    call this%set_levcwdsc_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levcwdsc, num_threads, &
+         fates_bounds%cwdsc_begin, fates_bounds%cwdsc_end)
+
     ! FIXME(bja, 2016-10) assert(dim_count == FatesHistorydimensionmod::num_dimension_types)
 
     ! Allocate the mapping between FATES indices and the IO indices
@@ -394,6 +418,14 @@ contains
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
          thread_bounds%age_class_begin, thread_bounds%age_class_end)
     
+    index = this%levfuel_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%fuel_begin, thread_bounds%fuel_end)
+    
+    index = this%levcwdsc_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%cwdsc_begin, thread_bounds%cwdsc_end)
+    
   end subroutine SetThreadBoundsEach
   
   ! ===================================================================================
@@ -402,6 +434,7 @@ contains
     use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
     use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
+    use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8
 
    implicit none
 
@@ -433,6 +466,12 @@ contains
 
     call this%set_dim_indices(site_age_r8, 1, this%column_index())
     call this%set_dim_indices(site_age_r8, 2, this%levage_index())
+
+    call this%set_dim_indices(site_fuel_r8, 1, this%column_index())
+    call this%set_dim_indices(site_fuel_r8, 2, this%levfuel_index())
+
+    call this%set_dim_indices(site_cwdsc_r8, 1, this%column_index())
+    call this%set_dim_indices(site_cwdsc_r8, 2, this%levcwdsc_index())
 
   end subroutine assemble_history_output_types
   
@@ -575,6 +614,34 @@ contains
    levage_index = this%levage_index_
  end function levage_index
 
+ ! =======================================================================
+ subroutine set_levfuel_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%levfuel_index_ = index
+ end subroutine set_levfuel_index
+
+ integer function levfuel_index(this)
+   implicit none
+   class(fates_history_interface_type), intent(in) :: this
+   levfuel_index = this%levfuel_index_
+ end function levfuel_index
+
+ ! =======================================================================
+ subroutine set_levcwdsc_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%levcwdsc_index_ = index
+ end subroutine set_levcwdsc_index
+
+ integer function levcwdsc_index(this)
+   implicit none
+   class(fates_history_interface_type), intent(in) :: this
+   levcwdsc_index = this%levcwdsc_index_
+ end function levcwdsc_index
+
  ! ======================================================================================
 
  subroutine flush_hvars(this,nc,upfreq_in)
@@ -669,6 +736,7 @@ contains
     use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
     use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
+    use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8
     
     implicit none
     
@@ -710,9 +778,17 @@ contains
     index = index + 1
     call this%dim_kinds(index)%Init(site_pft_r8, 2)
 
-    ! site x patch-age clase
+    ! site x patch-age class
     index = index + 1
     call this%dim_kinds(index)%Init(site_age_r8, 2)
+
+    ! site x fuel size class
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_fuel_r8, 2)
+
+    ! site x cwd size class class
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_cwdsc_r8, 2)
 
     ! FIXME(bja, 2016-10) assert(index == fates_history_num_dim_kinds)
   end subroutine init_dim_kinds_maps
@@ -791,7 +867,9 @@ contains
                                      levage_ed,     &
                                      nlevage_ed,    &
                                      mxpft,         &
-                                     levpft_ed
+                                     levpft_ed,     &
+                                     nfsc,          &
+                                     ncwd
     use EDParamsMod      , only : ED_val_ag_biomass
 
     ! Arguments
@@ -811,6 +889,7 @@ contains
     integer  :: ivar             ! index of IO variable object vector
     integer  :: ft               ! functional type index
     integer  :: i_scpf,i_pft,i_scls     ! iterators for scpf, pft, and scls dims
+    integer  :: i_cwd,i_fuel            ! iterators for cwd and fuel dims
 
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
@@ -940,7 +1019,10 @@ contains
                hio_lai_si_age          => this%hvars(ih_lai_si_age)%r82d, &
                hio_canopy_area_si_age  => this%hvars(ih_canopy_area_si_age)%r82d, &
                hio_ncl_si_age          => this%hvars(ih_ncl_si_age)%r82d, &
-               hio_npatches_si_age     => this%hvars(ih_npatches_si_age)%r82d)
+               hio_npatches_si_age     => this%hvars(ih_npatches_si_age)%r82d, &
+               hio_litter_moisture_si_fuel        => this%hvars(ih_litter_moisture_si_fuel)%r82d, &
+               hio_cwd_ag_si_cwdsc                  => this%hvars(ih_cwd_ag_si_cwdsc)%r82d, &
+               hio_cwd_bg_si_cwdsc                  => this%hvars(ih_cwd_bg_si_cwdsc)%r82d)
 
                
       ! ---------------------------------------------------------------------------------
@@ -1263,6 +1345,10 @@ contains
             hio_fire_fuel_mef_pa(io_pa)        = cpatch%fuel_mef
             hio_sum_fuel_pa(io_pa)             = cpatch%sum_fuel * 1.e3_r8 * patch_scaling_scalar
             
+            do i_fuel = 1,nfsc
+               hio_litter_moisture_si_fuel(io_si, i_fuel) = cpatch%litter_moisture(i_fuel) * cpatch%area/AREA
+            end do
+            
             ! Update Litter Flux Variables
             hio_litter_in_pa(io_pa)            = (sum(cpatch%CWD_AG_in) +sum(cpatch%leaf_litter_in)) &
                  * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
@@ -1279,7 +1365,11 @@ contains
             
             hio_canopy_spread_pa(io_pa)        = cpatch%spread(1) 
             
-            
+            do i_cwd = 1, ncwd
+               hio_cwd_ag_si_cwdsc(io_si, i_cwd) = cpatch%CWD_AG_out(i_cwd)*cpatch%area/AREA * 1e3
+               hio_cwd_bg_si_cwdsc(io_si, i_cwd) = cpatch%CWD_BG_out(i_cwd)*cpatch%area/AREA * 1e3
+            end do
+
             ipa = ipa + 1
             cpatch => cpatch%younger
          end do !patch loop
@@ -1656,6 +1746,7 @@ contains
     use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8    
     use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
+    use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8
     implicit none
     
     class(fates_history_interface_type), intent(inout) :: this
@@ -1817,6 +1908,11 @@ contains
          use_default='active',                                                  & 
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_sum_fuel_pa )
+
+    call this%set_history_var(vname='FUEL_MOISTURE_NFSC', units='-',                &
+         long='spitfire size-resolved fuel moisture', use_default='active',       &
+         avgflag='A', vtype=site_fuel_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_litter_moisture_si_fuel )
 
     ! Litter Variables
 
@@ -2143,6 +2239,15 @@ contains
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nplant_understory_si_scpf )
 
+    call this%set_history_var(vname='CWD_AG_CWDSC', units='gC/m^2', &
+          long='size-resolved AG CWD stocks', use_default='active', &
+          avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_ag_si_cwdsc )
+
+    call this%set_history_var(vname='CWD_BG_CWDSC', units='gC/m^2', &
+          long='size-resolved BG CWD stocks', use_default='active', &
+          avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_bg_si_cwdsc )
 
     ! Size structured diagnostics that require rapid updates (upfreq=2)
 
