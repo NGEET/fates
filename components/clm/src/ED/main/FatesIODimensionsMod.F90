@@ -14,6 +14,9 @@ module FatesIODimensionsMod
     character(*), parameter :: levage = 'levage'
     character(*), parameter :: levfuel = 'levfuel'
     character(*), parameter :: levcwdsc = 'levcwdsc'
+    character(*), parameter :: levcan = 'levcan'
+    character(*), parameter :: levcnlf = 'levcnlf'
+    character(*), parameter :: levcnlfpft = 'lvcnlfpf'
 
     ! patch = This is a structure that records where FATES patch boundaries
     ! on each thread point to in the host IO array, this structure
@@ -44,6 +47,15 @@ module FatesIODimensionsMod
     ! levcwdsc = This is a structure that records the boundaries for the
     ! number of coarse-woody-debris-size-class dimension
 
+    ! levcan = This is a structure that records the boundaries for the
+    ! number of canopy layer dimension
+
+    ! levcnlf = This is a structure that records the boundaries for the
+    ! number of cnanopy layer x leaf layer dimension
+
+    ! levcnlfpft = This is a structure that records the boundaries for the
+    ! number of canopy layer x leaf layer x pft dimension
+
 
     type, public :: fates_bounds_type
        integer :: patch_begin
@@ -66,6 +78,12 @@ module FatesIODimensionsMod
        integer :: fuel_end
        integer :: cwdsc_begin
        integer :: cwdsc_end
+       integer :: can_begin
+       integer :: can_end
+       integer :: cnlf_begin
+       integer :: cnlf_end
+       integer :: cnlfpft_begin
+       integer :: cnlfpft_end
     end type fates_bounds_type
     
 

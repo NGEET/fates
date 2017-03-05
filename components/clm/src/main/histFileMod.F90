@@ -23,6 +23,7 @@ module histFileMod
   use ncdio_pio
   use EDtypesMod     , only : nlevsclass_ed, nlevage_ed
   use EDtypesMod     , only : nfsc, ncwd
+  use EDtypesMod     , only : cp_nlevcan, cp_nclmax, numpft_ed
   use clm_varpar     , only : mxpft
   !
   implicit none
@@ -1856,6 +1857,9 @@ contains
        call ncd_defdim(lnfid, 'levfuel', nfsc, dimid)
        call ncd_defdim(lnfid, 'levcwdsc', ncwd, dimid)
        call ncd_defdim(lnfid, 'levscpf', nlevsclass_ed*mxpft, dimid)
+       call ncd_defdim(lnfid, 'levcan', cp_nlevcan, dimid)
+       call ncd_defdim(lnfid, 'levcnlf', cp_nlevcan * cp_nclmax, dimid)
+       call ncd_defdim(lnfid, 'lvcnlfpf', cp_nlevcan * cp_nclmax * numpft_ed, dimid)
     end if
 
     if ( .not. lhistrest )then
@@ -2273,6 +2277,8 @@ contains
     use EDTypesMod,       only : levsclass_ed, pft_levscpf_ed, scls_levscpf_ed
     use EDTypesMod,       only : levage_ed, levpft_ed
     use EDTypesMod,       only : levfuel_ed, levcwdsc_ed
+    use EDTypesMod,       only : levcan_ed, can_levcnlf_ed, lf_levcnlf_ed
+    use EDTypesMod,       only : can_levcnlfpft_ed, lf_levcnlfpft_ed, pft_levcnlfpft_ed
     !
     ! !ARGUMENTS:
     integer, intent(in) :: t              ! tape index
@@ -2338,7 +2344,20 @@ contains
                   long_name='FATES fuel index', ncid=nfid(t))
              call ncd_defvar(varname='levcwdsc',xtype=ncd_int, dim1name='levcwdsc', &
                   long_name='FATES cwd size class', ncid=nfid(t))
+             call ncd_defvar(varname='levcan',xtype=ncd_int, dim1name='levcan', &
+                  long_name='FATES canopy level', ncid=nfid(t))
+             call ncd_defvar(varname='can_levcnlf',xtype=ncd_int, dim1name='levcnlf', &
+                  long_name='FATES canopy level of combined canopy-leaf dimension', ncid=nfid(t))
+             call ncd_defvar(varname='lf_levcnlf',xtype=ncd_int, dim1name='levcnlf', &
+                  long_name='FATES leaf level of combined canopy-leaf dimension', ncid=nfid(t))
+             call ncd_defvar(varname='can_levcnlfpft',xtype=ncd_int, dim1name='lvcnlfpf', &
+                  long_name='FATES canopy level of combined canopy x leaf x pft dimension', ncid=nfid(t))
+             call ncd_defvar(varname='lf_levcnlfpft',xtype=ncd_int, dim1name='lvcnlfpf', &
+                  long_name='FATES leaf level of combined canopy x leaf x pft dimension', ncid=nfid(t))
+             call ncd_defvar(varname='pft_levcnlfpft',xtype=ncd_int, dim1name='lvcnlfpf', &
+                  long_name='FATES PFT level of combined canopy x leaf x pft dimension', ncid=nfid(t))
           end if
+
 
        elseif (mode == 'write') then
           if ( masterproc ) write(iulog, *) ' zsoi:',zsoi
@@ -2358,6 +2377,12 @@ contains
              call ncd_io(varname='levpft',data=levpft_ed, ncid=nfid(t), flag='write')
              call ncd_io(varname='levfuel',data=levfuel_ed, ncid=nfid(t), flag='write')
              call ncd_io(varname='levcwdsc',data=levcwdsc_ed, ncid=nfid(t), flag='write')
+             call ncd_io(varname='levcan',data=levcan_ed, ncid=nfid(t), flag='write')
+             call ncd_io(varname='can_levcnlf',data=can_levcnlf_ed, ncid=nfid(t), flag='write')
+             call ncd_io(varname='lf_levcnlf',data=lf_levcnlf_ed, ncid=nfid(t), flag='write')
+             call ncd_io(varname='can_levcnlfpft',data=can_levcnlfpft_ed, ncid=nfid(t), flag='write')
+             call ncd_io(varname='lf_levcnlfpft',data=lf_levcnlfpft_ed, ncid=nfid(t), flag='write')
+             call ncd_io(varname='pft_levcnlfpft',data=pft_levcnlfpft_ed, ncid=nfid(t), flag='write')
           end if
 
        endif
@@ -4469,6 +4494,12 @@ contains
        num2d = ncwd
     case ('levscpf')
        num2d = nlevsclass_ed*mxpft
+    case ('levcan')
+       num2d = cp_nlevcan
+    case ('levcnlf')
+       num2d = cp_nlevcan * cp_nclmax
+    case ('lvcnlfpf')
+       num2d = cp_nlevcan * cp_nclmax * numpft_ed
     case('ltype')
        num2d = max_lunit
     case('natpft')
