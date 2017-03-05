@@ -223,9 +223,15 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_cwd_ag_si_cwdsc
   integer, private :: ih_cwd_bg_si_cwdsc
 
+  ! indices to (site x [canopy layer x leaf layer]) variables
+
+  ! indices to (site x [canopy layer x leaf layer x pft]) variables
+
+  ! indices to (site x canopy layer) variables
+
   ! The number of variable dim/kind types we have defined (static)
-  integer, parameter :: fates_history_num_dimensions = 9
-  integer, parameter :: fates_history_num_dim_kinds = 11
+  integer, parameter :: fates_history_num_dimensions = 12
+  integer, parameter :: fates_history_num_dim_kinds = 14
   
 
   
@@ -261,6 +267,7 @@ module FatesHistoryInterfaceMod
      integer, private :: patch_index_, column_index_, levgrnd_index_, levscpf_index_
      integer, private :: levscls_index_, levpft_index_, levage_index_
      integer, private :: levfuel_index_, levcwdsc_index_
+     integer, private :: levcan_index_, levcnlf_index_, levcnlfpft_index_
    contains
      
      procedure, public :: Init
@@ -283,6 +290,9 @@ module FatesHistoryInterfaceMod
      procedure, public :: levage_index
      procedure, public :: levfuel_index
      procedure, public :: levcwdsc_index
+     procedure, public :: levcan_index
+     procedure, public :: levcnlf_index
+     procedure, public :: levcnlfpft_index
 
      ! private work functions
      procedure, private :: define_history_vars
@@ -300,6 +310,9 @@ module FatesHistoryInterfaceMod
      procedure, private :: set_levage_index
      procedure, private :: set_levfuel_index
      procedure, private :: set_levcwdsc_index
+     procedure, private :: set_levcan_index
+     procedure, private :: set_levcnlf_index
+     procedure, private :: set_levcnlfpft_index
 
   end type fates_history_interface_type
    
@@ -314,6 +327,7 @@ contains
     use FatesIODimensionsMod, only : patch, column, levgrnd, levscpf
     use FatesIODimensionsMod, only : levscls, levpft, levage
     use FatesIODimensionsMod, only : levfuel, levcwdsc
+    use FatesIODimensionsMod, only : levcan, levcnlf, levcnlfpft
     use FatesIODimensionsMod, only : fates_bounds_type
 
     implicit none
@@ -368,6 +382,21 @@ contains
     call this%set_levcwdsc_index(dim_count)
     call this%dim_bounds(dim_count)%Init(levcwdsc, num_threads, &
          fates_bounds%cwdsc_begin, fates_bounds%cwdsc_end)
+
+    dim_count = dim_count + 1
+    call this%set_levcan_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levcan, num_threads, &
+         fates_bounds%can_begin, fates_bounds%can_end)
+
+    dim_count = dim_count + 1
+    call this%set_levcnlf_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levcnlf, num_threads, &
+         fates_bounds%cnlf_begin, fates_bounds%cnlf_end)
+
+    dim_count = dim_count + 1
+    call this%set_levcnlfpft_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levcnlfpft, num_threads, &
+         fates_bounds%cnlfpft_begin, fates_bounds%cnlfpft_end)
 
     ! FIXME(bja, 2016-10) assert(dim_count == FatesHistorydimensionmod::num_dimension_types)
 
@@ -426,6 +455,18 @@ contains
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
          thread_bounds%cwdsc_begin, thread_bounds%cwdsc_end)
     
+    index = this%levcan_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%can_begin, thread_bounds%can_end)
+    
+    index = this%levcnlf_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%cnlf_begin, thread_bounds%cnlf_end)
+    
+    index = this%levcnlfpft_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%cnlfpft_begin, thread_bounds%cnlfpft_end)
+    
   end subroutine SetThreadBoundsEach
   
   ! ===================================================================================
@@ -435,6 +476,7 @@ contains
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
     use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8
+    use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
 
    implicit none
 
@@ -472,6 +514,15 @@ contains
 
     call this%set_dim_indices(site_cwdsc_r8, 1, this%column_index())
     call this%set_dim_indices(site_cwdsc_r8, 2, this%levcwdsc_index())
+
+    call this%set_dim_indices(site_can_r8, 1, this%column_index())
+    call this%set_dim_indices(site_can_r8, 2, this%levcan_index())
+
+    call this%set_dim_indices(site_cnlf_r8, 1, this%column_index())
+    call this%set_dim_indices(site_cnlf_r8, 2, this%levcnlf_index())
+
+    call this%set_dim_indices(site_cnlfpft_r8, 1, this%column_index())
+    call this%set_dim_indices(site_cnlfpft_r8, 2, this%levcnlfpft_index())
 
   end subroutine assemble_history_output_types
   
@@ -642,6 +693,47 @@ contains
    levcwdsc_index = this%levcwdsc_index_
  end function levcwdsc_index
 
+ ! =======================================================================
+ subroutine set_levcan_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%levcan_index_ = index
+ end subroutine set_levcan_index
+
+ integer function levcan_index(this)
+   implicit none
+   class(fates_history_interface_type), intent(in) :: this
+   levcan_index = this%levcan_index_
+ end function levcan_index
+
+ ! =======================================================================
+ subroutine set_levcnlf_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%levcnlf_index_ = index
+ end subroutine set_levcnlf_index
+
+ integer function levcnlf_index(this)
+   implicit none
+   class(fates_history_interface_type), intent(in) :: this
+   levcnlf_index = this%levcnlf_index_
+ end function levcnlf_index
+
+ ! =======================================================================
+ subroutine set_levcnlfpft_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%levcnlfpft_index_ = index
+ end subroutine set_levcnlfpft_index
+
+ integer function levcnlfpft_index(this)
+   implicit none
+   class(fates_history_interface_type), intent(in) :: this
+   levcnlfpft_index = this%levcnlfpft_index_
+ end function levcnlfpft_index
  ! ======================================================================================
 
  subroutine flush_hvars(this,nc,upfreq_in)
@@ -737,6 +829,7 @@ contains
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
     use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8
+    use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
     
     implicit none
     
@@ -786,9 +879,21 @@ contains
     index = index + 1
     call this%dim_kinds(index)%Init(site_fuel_r8, 2)
 
-    ! site x cwd size class class
+    ! site x cwd size class
     index = index + 1
     call this%dim_kinds(index)%Init(site_cwdsc_r8, 2)
+
+    ! site x can class
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_can_r8, 2)
+
+    ! site x cnlf class
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_cnlf_r8, 2)
+
+    ! site x cnlfpft class
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_cnlfpft_r8, 2)
 
     ! FIXME(bja, 2016-10) assert(index == fates_history_num_dim_kinds)
   end subroutine init_dim_kinds_maps
@@ -1747,6 +1852,7 @@ contains
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8    
     use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8
+    use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
     implicit none
     
     class(fates_history_interface_type), intent(inout) :: this
