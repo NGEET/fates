@@ -114,6 +114,12 @@ module EDTypesMod
   integer , allocatable :: levpft_ed(:) 
   integer , allocatable :: levfuel_ed(:) 
   integer , allocatable :: levcwdsc_ed(:) 
+  integer , allocatable :: levcan_ed(:)
+  integer , allocatable :: can_levcnlf_ed(:)
+  integer , allocatable :: lf_levcnlf_ed(:)
+  integer , allocatable :: can_levcnlfpft_ed(:)
+  integer , allocatable :: lf_levcnlfpft_ed(:)
+  integer , allocatable :: pft_levcnlfpft_ed(:)
 
   
   ! Control Parameters (cp_)            
@@ -600,6 +606,8 @@ contains
     integer :: ipft
     integer :: icwd
     integer :: ifuel
+    integer :: ican
+    integer :: ileaf
 
     allocate( levsclass_ed(1:nlevsclass_ed   ))
     allocate( pft_levscpf_ed(1:nlevsclass_ed*mxpft))
@@ -608,6 +616,13 @@ contains
     allocate( levfuel_ed(1:NFSC   ))
     allocate( levcwdsc_ed(1:NCWD   ))
     allocate( levage_ed(1:nlevage_ed   ))
+
+    allocate(levcan_ed(cp_nlevcan))
+    allocate(can_levcnlf_ed(cp_nlevcan*cp_nclmax))
+    allocate(lf_levcnlf_ed(cp_nlevcan*cp_nclmax))
+    allocate(can_levcnlfpft_ed(cp_nlevcan*cp_nclmax*numpft_ed))
+    allocate(lf_levcnlfpft_ed(cp_nlevcan*cp_nclmax*numpft_ed))
+    allocate(pft_levcnlfpft_ed(cp_nlevcan*cp_nclmax*numpft_ed))
 
     ! Fill the IO array of plant size classes
     ! For some reason the history files did not like
@@ -631,6 +646,11 @@ contains
        levcwdsc_ed(icwd) = icwd
     end do
 
+    ! make canopy array
+    do ican = 1,cp_nlevcan
+       levcan_ed(ican) = ican
+    end do
+
     ! Fill the IO arrays that match pft and size class to their combined array
     i=0
     do ipft=1,mxpft
@@ -638,6 +658,27 @@ contains
           i=i+1
           pft_levscpf_ed(i) = ipft
           scls_levscpf_ed(i) = isc
+       end do
+    end do
+
+    i=0
+    do ican=1,cp_nlevcan
+       do ileaf=1,cp_nclmax
+          i=i+1
+          can_levcnlf_ed(i) = ican
+          lf_levcnlf_ed(i) = ileaf
+       end do
+    end do
+
+    i=0
+    do ican=1,cp_nlevcan
+       do ileaf=1,cp_nclmax
+          do ipft=1,numpft_ed
+             i=i+1
+             can_levcnlfpft_ed(i) = ican
+             lf_levcnlfpft_ed(i) = ileaf
+             pft_levcnlfpft_ed(i) = ipft
+          end do
        end do
     end do
 
