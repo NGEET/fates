@@ -224,10 +224,24 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_cwd_bg_si_cwdsc
 
   ! indices to (site x [canopy layer x leaf layer]) variables
+  integer, private :: ih_parsun_z_si_cnlf
+  integer, private :: ih_parsha_z_si_cnlf
+  integer, private :: ih_laisun_z_si_cnlf
+  integer, private :: ih_laisha_z_si_cnlf
 
   ! indices to (site x [canopy layer x leaf layer x pft]) variables
+  integer, private :: ih_parsun_z_si_cnlfpft
+  integer, private :: ih_parsha_z_si_cnlfpft
+  integer, private :: ih_laisun_z_si_cnlfpft
+  integer, private :: ih_laisha_z_si_cnlfpft
+  integer, private :: ih_fabd_sun_si_cnlfpft
+  integer, private :: ih_fabd_sha_si_cnlfpft
+  integer, private :: ih_fabi_sun_si_cnlfpft
+  integer, private :: ih_fabi_sha_si_cnlfpft
 
   ! indices to (site x canopy layer) variables
+  integer, private :: ih_parsuntop_si_can
+  integer, private :: ih_parshatop_si_can
 
   ! The number of variable dim/kind types we have defined (static)
   integer, parameter :: fates_history_num_dimensions = 12
@@ -1570,6 +1584,8 @@ contains
                                      nlevage_ed,     &
                                      sclass_ed,      &
                                      nlevsclass_ed
+    use EDTypesMod, only : numpft_ed, cp_nclmax, cp_nlevcan
+    !
     ! Arguments
     class(fates_history_interface_type)                 :: this
     integer                 , intent(in)            :: nc   ! clump index
@@ -1592,7 +1608,7 @@ contains
     real(r8) :: patch_area_by_age(nlevage_ed) ! patch area in each bin for normalizing purposes
     real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
     integer  :: ipa2     ! patch incrementer
-
+    integer :: cnlfpft_indx, cnlf_indx, ipft, ican, ileaf ! more iterators and indices
     type(fates_history_variable_type),pointer :: hvar
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
@@ -1630,7 +1646,21 @@ contains
                hio_resp_g_understory_si_scls        => this%hvars(ih_resp_g_understory_si_scls)%r82d, &
                hio_resp_m_understory_si_scls        => this%hvars(ih_resp_m_understory_si_scls)%r82d, &
                hio_gpp_si_age         => this%hvars(ih_gpp_si_age)%r82d, &
-               hio_npp_si_age         => this%hvars(ih_npp_si_age)%r82d &
+               hio_npp_si_age         => this%hvars(ih_npp_si_age)%r82d, &
+               hio_parsun_z_si_cnlf     => this%hvars(ih_parsun_z_si_cnlf)%r82d, &
+               hio_parsha_z_si_cnlf     => this%hvars(ih_parsha_z_si_cnlf)%r82d, &
+               hio_parsun_z_si_cnlfpft  => this%hvars(ih_parsun_z_si_cnlfpft)%r82d, &
+               hio_parsha_z_si_cnlfpft  => this%hvars(ih_parsha_z_si_cnlfpft)%r82d, &
+               hio_laisun_z_si_cnlf     => this%hvars(ih_laisun_z_si_cnlf)%r82d, &
+               hio_laisha_z_si_cnlf     => this%hvars(ih_laisha_z_si_cnlf)%r82d, &
+               hio_laisun_z_si_cnlfpft  => this%hvars(ih_laisun_z_si_cnlfpft)%r82d, &
+               hio_laisha_z_si_cnlfpft  => this%hvars(ih_laisha_z_si_cnlfpft)%r82d, &
+               hio_fabd_sun_si_cnlfpft  => this%hvars(ih_fabd_sun_si_cnlfpft)%r82d, &
+               hio_fabd_sha_si_cnlfpft  => this%hvars(ih_fabd_sha_si_cnlfpft)%r82d, &
+               hio_fabi_sun_si_cnlfpft  => this%hvars(ih_fabi_sun_si_cnlfpft)%r82d, &
+               hio_fabi_sha_si_cnlfpft  => this%hvars(ih_fabi_sha_si_cnlfpft)%r82d, &
+               hio_parsuntop_si_can     => this%hvars(ih_parsuntop_si_can)%r82d, &
+               hio_parshatop_si_can     => this%hvars(ih_parshatop_si_can)%r82d &
  )
 
 
@@ -1766,6 +1796,47 @@ contains
 
                ccohort => ccohort%taller
             enddo ! cohort loop
+
+            ! summarize radiation profiles through the canopy
+            do ipft=1,numpft_ed
+               do ican=1,cp_nclmax
+                  do ileaf=1,cp_nlevcan
+                     ! calculate where we are on multiplexed dimensions
+                     cnlfpft_indx = ileaf + (ican-1) * cp_nlevcan + (ipft-1) * cp_nlevcan * cp_nclmax 
+                     cnlf_indx = ileaf + (ican-1) * cp_nlevcan
+                     !
+                     hio_parsun_z_si_cnlfpft(io_si,cnlfpft_indx) = cpatch%ed_parsun_z(ican,ipft,ileaf) * cpatch%area/AREA
+                     hio_parsha_z_si_cnlfpft(io_si,cnlfpft_indx) = cpatch%ed_parsha_z(ican,ipft,ileaf) * cpatch%area/AREA
+                     !
+                     hio_laisun_z_si_cnlfpft(io_si,cnlfpft_indx) = cpatch%ed_laisun_z(ican,ipft,ileaf) * cpatch%area/AREA
+                     hio_laisha_z_si_cnlfpft(io_si,cnlfpft_indx) = cpatch%ed_laisha_z(ican,ipft,ileaf) * cpatch%area/AREA
+                     !
+                     hio_fabd_sun_si_cnlfpft(io_si,cnlfpft_indx) = cpatch%fabd_sun_z(ican,ipft,ileaf) * cpatch%area/AREA
+                     hio_fabd_sha_si_cnlfpft(io_si,cnlfpft_indx) = cpatch%fabd_sha_z(ican,ipft,ileaf) * cpatch%area/AREA
+                     hio_fabi_sun_si_cnlfpft(io_si,cnlfpft_indx) = cpatch%fabi_sun_z(ican,ipft,ileaf) * cpatch%area/AREA
+                     hio_fabi_sha_si_cnlfpft(io_si,cnlfpft_indx) = cpatch%fabi_sha_z(ican,ipft,ileaf) * cpatch%area/AREA
+                     !
+                     ! summarize across all PFTs
+                     hio_parsun_z_si_cnlf(io_si,cnlf_indx) = hio_parsun_z_si_cnlf(io_si,cnlf_indx) + &
+                          cpatch%ed_parsun_z(ican,ipft,ileaf) * cpatch%area/AREA
+                     hio_parsha_z_si_cnlf(io_si,cnlf_indx) = hio_parsha_z_si_cnlf(io_si,cnlf_indx) + &
+                          cpatch%ed_parsha_z(ican,ipft,ileaf) * cpatch%area/AREA
+                     !
+                     hio_laisun_z_si_cnlf(io_si,cnlf_indx) = hio_laisun_z_si_cnlf(io_si,cnlf_indx) + &
+                          cpatch%ed_laisun_z(ican,ipft,ileaf) * cpatch%area/AREA
+                     hio_laisha_z_si_cnlf(io_si,cnlf_indx) = hio_laisha_z_si_cnlf(io_si,cnlf_indx) + &
+                          cpatch%ed_laisha_z(ican,ipft,ileaf) * cpatch%area/AREA
+                  end do
+                  !
+                  ! summarize just the top leaf level across all PFTs, for each canopy level
+                  hio_parsuntop_si_can(io_si,ican) = hio_parsuntop_si_can(io_si,ican) + &
+                       cpatch%ed_parsun_z(ican,ipft,1) * cpatch%area/AREA
+                  hio_parshatop_si_can(io_si,ican) = hio_parshatop_si_can(io_si,ican) + &
+                       cpatch%ed_parsha_z(ican,ipft,1) * cpatch%area/AREA
+               end do
+            end do
+
+
             ipa = ipa + 1
             cpatch => cpatch%younger
          end do !patch loop
@@ -2152,6 +2223,91 @@ contains
          long='autotrophic respiration of understory plants', use_default='active',       &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_ar_understory_pa )
+
+    ! fast radiative fluxes resolved through the canopy
+    call this%set_history_var(vname='PARSUN_Z_CNLF', units='fraction',                 &
+         long='PAR absorbed in the sun by each canopy and leaf layer', &
+         use_default='active',       &
+         avgflag='A', vtype=site_cnlf_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_parsun_z_si_cnlf )
+
+    call this%set_history_var(vname='PARSHA_Z_CNLF', units='fraction',                 &
+         long='PAR absorbed in the shade by each canopy and leaf layer', &
+         use_default='active',       &
+         avgflag='A', vtype=site_cnlf_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_parsha_z_si_cnlf )
+
+    call this%set_history_var(vname='PARSUN_Z_CNLFPFT', units='fraction',                 &
+         long='PAR absorbed in the sun by each canopy, leaf, and PFT', &
+         use_default='active',       &
+         avgflag='A', vtype=site_cnlfpft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_parsun_z_si_cnlfpft )
+
+    call this%set_history_var(vname='PARSHA_Z_CNLFPFT', units='fraction',                 &
+         long='PAR absorbed in the shade by each canopy, leaf, and PFT', &
+         use_default='active',       &
+         avgflag='A', vtype=site_cnlfpft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_parsha_z_si_cnlfpft )
+
+    call this%set_history_var(vname='PARSUN_Z_CAN', units='fraction',                 &
+         long='PAR absorbed in the sun by top leaf layer in each canopy layer', &
+         use_default='active',       &
+         avgflag='A', vtype=site_can_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_parsuntop_si_can )
+
+    call this%set_history_var(vname='PARSHA_Z_CAN', units='fraction',                 &
+         long='PAR absorbed in the shade by top leaf layer in each canopy layer', &
+         use_default='active',       &
+         avgflag='A', vtype=site_can_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_parshatop_si_can )
+
+    call this%set_history_var(vname='LAISUN_Z_CNLF', units='fraction',                 &
+         long='LAI in the sun by each canopy and leaf layer', &
+         use_default='active',       &
+         avgflag='A', vtype=site_cnlf_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_laisun_z_si_cnlf )
+
+    call this%set_history_var(vname='LAISHA_Z_CNLF', units='fraction',                 &
+         long='LAI in the shade by each canopy and leaf layer', &
+         use_default='active',       &
+         avgflag='A', vtype=site_cnlf_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_laisha_z_si_cnlf )
+
+    call this%set_history_var(vname='LAISUN_Z_CNLFPFT', units='fraction',                 &
+         long='LAI in the sun by each canopy, leaf, and PFT', &
+         use_default='active',       &
+         avgflag='A', vtype=site_cnlfpft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_laisun_z_si_cnlfpft )
+
+    call this%set_history_var(vname='LAISHA_Z_CNLFPFT', units='fraction',                 &
+         long='LAI in the shade by each canopy, leaf, and PFT', &
+         use_default='active',       &
+         avgflag='A', vtype=site_cnlfpft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_laisha_z_si_cnlfpft )
+
+    call this%set_history_var(vname='FABD_SUN_CNLFPFT', units='fraction',                 &
+         long='sun fraction of direct light absorbed by each canopy, leaf, and PFT', &
+         use_default='active',       &
+         avgflag='A', vtype=site_cnlfpft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fabd_sun_si_cnlfpft )
+
+    call this%set_history_var(vname='FABD_SHA_CNLFPFT', units='fraction',                 &
+         long='shade fraction of direct light absorbed by each canopy, leaf, and PFT', &
+         use_default='active',       &
+         avgflag='A', vtype=site_cnlfpft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fabd_sha_si_cnlfpft )
+
+    call this%set_history_var(vname='FABI_SUN_CNLFPFT', units='fraction',                 &
+         long='sun fraction of indirect light absorbed by each canopy, leaf, and PFT', &
+         use_default='active',       &
+         avgflag='A', vtype=site_cnlfpft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fabi_sun_si_cnlfpft )
+
+    call this%set_history_var(vname='FABI_SHA_CNLFPFT', units='fraction',                 &
+         long='shade fraction of indirect light absorbed by each canopy, leaf, and PFT', &
+         use_default='active',       &
+         avgflag='A', vtype=site_cnlfpft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fabi_sha_si_cnlfpft )
 
     ! slow carbon fluxes associated with mortality from or transfer betweeen canopy and understory
     call this%set_history_var(vname='DEMOTION_CARBONFLUX', units = 'gC/m2/s',               &

@@ -1857,7 +1857,7 @@ contains
        call ncd_defdim(lnfid, 'levfuel', nfsc, dimid)
        call ncd_defdim(lnfid, 'levcwdsc', ncwd, dimid)
        call ncd_defdim(lnfid, 'levscpf', nlevsclass_ed*mxpft, dimid)
-       call ncd_defdim(lnfid, 'levcan', cp_nlevcan, dimid)
+       call ncd_defdim(lnfid, 'levcan', cp_nclmax, dimid)
        call ncd_defdim(lnfid, 'levcnlf', cp_nlevcan * cp_nclmax, dimid)
        call ncd_defdim(lnfid, 'lvcnlfpf', cp_nlevcan * cp_nclmax * numpft_ed, dimid)
     end if
@@ -4495,7 +4495,7 @@ contains
     case ('levscpf')
        num2d = nlevsclass_ed*mxpft
     case ('levcan')
-       num2d = cp_nlevcan
+       num2d = cp_nclmax
     case ('levcnlf')
        num2d = cp_nlevcan * cp_nclmax
     case ('lvcnlfpf')

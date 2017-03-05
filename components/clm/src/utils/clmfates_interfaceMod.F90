@@ -1927,7 +1927,7 @@ contains
    fates%cwdsc_end = ncwd
    
    fates%can_begin = 1
-   fates%can_end = cp_nlevcan
+   fates%can_end = cp_nclmax
    
    fates%cnlf_begin = 1
    fates%cnlf_end = cp_nlevcan * cp_nclmax
