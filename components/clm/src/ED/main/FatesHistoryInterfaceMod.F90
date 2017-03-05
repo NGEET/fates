@@ -1465,7 +1465,8 @@ contains
             hio_sum_fuel_pa(io_pa)             = cpatch%sum_fuel * 1.e3_r8 * patch_scaling_scalar
             
             do i_fuel = 1,nfsc
-               hio_litter_moisture_si_fuel(io_si, i_fuel) = cpatch%litter_moisture(i_fuel) * cpatch%area/AREA
+               hio_litter_moisture_si_fuel(io_si, i_fuel) = hio_litter_moisture_si_fuel(io_si, i_fuel) + &
+                    cpatch%litter_moisture(i_fuel) * cpatch%area/AREA
             end do
             
             ! Update Litter Flux Variables
@@ -1485,8 +1486,10 @@ contains
             hio_canopy_spread_pa(io_pa)        = cpatch%spread(1) 
             
             do i_cwd = 1, ncwd
-               hio_cwd_ag_si_cwdsc(io_si, i_cwd) = cpatch%CWD_AG_out(i_cwd)*cpatch%area/AREA * 1e3
-               hio_cwd_bg_si_cwdsc(io_si, i_cwd) = cpatch%CWD_BG_out(i_cwd)*cpatch%area/AREA * 1e3
+               hio_cwd_ag_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_si_cwdsc(io_si, i_cwd) + &
+                    cpatch%CWD_AG(i_cwd)*cpatch%area/AREA * 1e3
+               hio_cwd_bg_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_si_cwdsc(io_si, i_cwd) + &
+                    cpatch%CWD_BG(i_cwd)*cpatch%area/AREA * 1e3
             end do
 
             ipa = ipa + 1
@@ -1805,16 +1808,24 @@ contains
                      cnlfpft_indx = ileaf + (ican-1) * cp_nlevcan + (ipft-1) * cp_nlevcan * cp_nclmax 
                      cnlf_indx = ileaf + (ican-1) * cp_nlevcan
                      !
-                     hio_parsun_z_si_cnlfpft(io_si,cnlfpft_indx) = cpatch%ed_parsun_z(ican,ipft,ileaf) * cpatch%area/AREA
-                     hio_parsha_z_si_cnlfpft(io_si,cnlfpft_indx) = cpatch%ed_parsha_z(ican,ipft,ileaf) * cpatch%area/AREA
+                     hio_parsun_z_si_cnlfpft(io_si,cnlfpft_indx) = hio_parsun_z_si_cnlfpft(io_si,cnlfpft_indx) + &
+                          cpatch%ed_parsun_z(ican,ipft,ileaf) * cpatch%area/AREA
+                     hio_parsha_z_si_cnlfpft(io_si,cnlfpft_indx) = hio_parsha_z_si_cnlfpft(io_si,cnlfpft_indx) + &
+                          cpatch%ed_parsha_z(ican,ipft,ileaf) * cpatch%area/AREA
                      !
-                     hio_laisun_z_si_cnlfpft(io_si,cnlfpft_indx) = cpatch%ed_laisun_z(ican,ipft,ileaf) * cpatch%area/AREA
-                     hio_laisha_z_si_cnlfpft(io_si,cnlfpft_indx) = cpatch%ed_laisha_z(ican,ipft,ileaf) * cpatch%area/AREA
+                     hio_laisun_z_si_cnlfpft(io_si,cnlfpft_indx) = hio_laisun_z_si_cnlfpft(io_si,cnlfpft_indx) + &
+                          cpatch%ed_laisun_z(ican,ipft,ileaf) * cpatch%area/AREA
+                     hio_laisha_z_si_cnlfpft(io_si,cnlfpft_indx) = hio_laisha_z_si_cnlfpft(io_si,cnlfpft_indx) + &
+                          cpatch%ed_laisha_z(ican,ipft,ileaf) * cpatch%area/AREA
                      !
-                     hio_fabd_sun_si_cnlfpft(io_si,cnlfpft_indx) = cpatch%fabd_sun_z(ican,ipft,ileaf) * cpatch%area/AREA
-                     hio_fabd_sha_si_cnlfpft(io_si,cnlfpft_indx) = cpatch%fabd_sha_z(ican,ipft,ileaf) * cpatch%area/AREA
-                     hio_fabi_sun_si_cnlfpft(io_si,cnlfpft_indx) = cpatch%fabi_sun_z(ican,ipft,ileaf) * cpatch%area/AREA
-                     hio_fabi_sha_si_cnlfpft(io_si,cnlfpft_indx) = cpatch%fabi_sha_z(ican,ipft,ileaf) * cpatch%area/AREA
+                     hio_fabd_sun_si_cnlfpft(io_si,cnlfpft_indx) = hio_fabd_sun_si_cnlfpft(io_si,cnlfpft_indx) + &
+                          cpatch%fabd_sun_z(ican,ipft,ileaf) * cpatch%area/AREA
+                     hio_fabd_sha_si_cnlfpft(io_si,cnlfpft_indx) = hio_fabd_sha_si_cnlfpft(io_si,cnlfpft_indx) + &
+                          cpatch%fabd_sha_z(ican,ipft,ileaf) * cpatch%area/AREA
+                     hio_fabi_sun_si_cnlfpft(io_si,cnlfpft_indx) = hio_fabi_sun_si_cnlfpft(io_si,cnlfpft_indx) + &
+                          cpatch%fabi_sun_z(ican,ipft,ileaf) * cpatch%area/AREA
+                     hio_fabi_sha_si_cnlfpft(io_si,cnlfpft_indx) = hio_fabi_sha_si_cnlfpft(io_si,cnlfpft_indx) + &
+                          cpatch%fabi_sha_z(ican,ipft,ileaf) * cpatch%area/AREA
                      !
                      ! summarize across all PFTs
                      hio_parsun_z_si_cnlf(io_si,cnlf_indx) = hio_parsun_z_si_cnlf(io_si,cnlf_indx) + &
