@@ -58,7 +58,7 @@ contains
     !
     ! !USES:
     use ncdio_pio , only : file_desc_t, ncd_io
-    use abortutils  , only : endrun
+    use FatesGlobals, only      : endrun => fates_endrun
     !
     ! !ARGUMENTS:
     implicit none
