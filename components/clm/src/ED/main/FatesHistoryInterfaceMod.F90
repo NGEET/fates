@@ -222,6 +222,10 @@ module FatesHistoryInterfaceMod
   ! indices to (site x cwd size class) variables
   integer, private :: ih_cwd_ag_si_cwdsc
   integer, private :: ih_cwd_bg_si_cwdsc
+  integer, private :: ih_cwd_ag_in_si_cwdsc
+  integer, private :: ih_cwd_bg_in_si_cwdsc
+  integer, private :: ih_cwd_ag_out_si_cwdsc
+  integer, private :: ih_cwd_bg_out_si_cwdsc
 
   ! indices to (site x [canopy layer x leaf layer]) variables
   integer, private :: ih_parsun_z_si_cnlf
@@ -1141,7 +1145,11 @@ contains
                hio_npatches_si_age     => this%hvars(ih_npatches_si_age)%r82d, &
                hio_litter_moisture_si_fuel        => this%hvars(ih_litter_moisture_si_fuel)%r82d, &
                hio_cwd_ag_si_cwdsc                  => this%hvars(ih_cwd_ag_si_cwdsc)%r82d, &
-               hio_cwd_bg_si_cwdsc                  => this%hvars(ih_cwd_bg_si_cwdsc)%r82d)
+               hio_cwd_bg_si_cwdsc                  => this%hvars(ih_cwd_bg_si_cwdsc)%r82d, &
+               hio_cwd_ag_in_si_cwdsc               => this%hvars(ih_cwd_ag_in_si_cwdsc)%r82d, &
+               hio_cwd_bg_in_si_cwdsc               => this%hvars(ih_cwd_bg_in_si_cwdsc)%r82d, &
+               hio_cwd_ag_out_si_cwdsc              => this%hvars(ih_cwd_ag_out_si_cwdsc)%r82d, &
+               hio_cwd_bg_out_si_cwdsc              => this%hvars(ih_cwd_bg_out_si_cwdsc)%r82d)
 
                
       ! ---------------------------------------------------------------------------------
@@ -1490,6 +1498,14 @@ contains
                     cpatch%CWD_AG(i_cwd)*cpatch%area/AREA * 1e3
                hio_cwd_bg_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_si_cwdsc(io_si, i_cwd) + &
                     cpatch%CWD_BG(i_cwd)*cpatch%area/AREA * 1e3
+               hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) + &
+                    cpatch%CWD_AG_IN(i_cwd)*cpatch%area/AREA * 1e3
+               hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) + &
+                    cpatch%CWD_BG_IN(i_cwd)*cpatch%area/AREA * 1e3
+               hio_cwd_ag_out_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_out_si_cwdsc(io_si, i_cwd) + &
+                    cpatch%CWD_AG_OUT(i_cwd)*cpatch%area/AREA * 1e3
+               hio_cwd_bg_out_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_out_si_cwdsc(io_si, i_cwd) + &
+                    cpatch%CWD_BG_OUT(i_cwd)*cpatch%area/AREA * 1e3
             end do
 
             ipa = ipa + 1
@@ -2521,6 +2537,26 @@ contains
           long='size-resolved BG CWD stocks', use_default='active', &
           avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_bg_si_cwdsc )
+
+    call this%set_history_var(vname='CWD_AG_IN_CWDSC', units='kgC/m^2/y', &
+          long='size-resolved AG CWD input', use_default='active', &
+          avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_ag_in_si_cwdsc )
+
+    call this%set_history_var(vname='CWD_BG_IN_CWDSC', units='kgC/m^2/y', &
+          long='size-resolved BG CWD input', use_default='active', &
+          avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_bg_in_si_cwdsc )
+
+    call this%set_history_var(vname='CWD_AG_OUT_CWDSC', units='kgC/m^2/y', &
+          long='size-resolved AG CWD output', use_default='active', &
+          avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_ag_out_si_cwdsc )
+
+    call this%set_history_var(vname='CWD_BG_OUT_CWDSC', units='kgC/m^2/y', &
+          long='size-resolved BG CWD output', use_default='active', &
+          avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_bg_out_si_cwdsc )
 
     ! Size structured diagnostics that require rapid updates (upfreq=2)
 
