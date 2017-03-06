@@ -68,6 +68,4 @@ module FatesConstantsMod
   ! PI
   real(fates_r8), parameter :: pi_const = 3.14159265359_fates_r8
 
-
-
 end module FatesConstantsMod

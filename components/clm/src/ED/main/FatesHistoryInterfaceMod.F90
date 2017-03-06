@@ -8,7 +8,7 @@ module FatesHistoryInterfaceMod
   use FatesIODimensionsMod, only : fates_io_dimension_type
   use FatesIOVariableKindMod, only : fates_io_variable_kind_type
   use FatesHistoryVariableType, only : fates_history_variable_type
-  use EDTypesMod      , only : cp_hio_ignore_val
+  use FatesInterfaceMod, only : hlm_hio_ignore_val
 
   ! FIXME(bja, 2016-10) need to remove CLM dependancy 
   use pftconMod       , only : pftcon
@@ -603,8 +603,8 @@ contains
   subroutine set_history_var(this, vname, units, long, use_default, avgflag, vtype, &
        hlms, flushval, upfreq, ivar, initialize, index)
 
-    use FatesUtilsMod, only : check_hlm_list
-    use EDTypesMod, only    : cp_hlm_name
+    use FatesUtilsMod, only     : check_hlm_list
+    use FatesInterfaceMod, only : hlm_name
 
     implicit none
     
@@ -634,7 +634,7 @@ contains
 
     logical :: write_var
 
-    write_var = check_hlm_list(trim(hlms), trim(cp_hlm_name))
+    write_var = check_hlm_list(trim(hlms), trim(hlm_name))
     if( write_var ) then
        ivar  = ivar+1
        index = ivar    
@@ -2433,52 +2433,52 @@ contains
 
     call this%set_history_var(vname='NEP', units='gC/m^2/s', &
           long='net ecosystem production', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_nep_si )
 
     call this%set_history_var(vname='Fire_Closs', units='gC/m^2/s', &
           long='ED/SPitfire Carbon loss to atmosphere', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_fire_c_to_atm_si )
    
     call this%set_history_var(vname='NBP', units='gC/m^2/s', &
           long='net biosphere production', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_nbp_si )
    
     call this%set_history_var(vname='TOTECOSYSC', units='gC/m^2',  &
          long='total ecosystem carbon', use_default='active', &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_totecosysc_si )
     
     call this%set_history_var(vname='CBALANCE_ERROR_ED', units='gC/m^2/s',  &
          long='total carbon balance error on ED side', use_default='active', &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cbal_err_fates_si )
 
     call this%set_history_var(vname='CBALANCE_ERROR_BGC', units='gC/m^2/s',  &
          long='total carbon balance error on HLMs BGC side', use_default='active', &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
          upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cbal_err_bgc_si )
     
     call this%set_history_var(vname='CBALANCE_ERROR_TOTAL', units='gC/m^2/s', &
           long='total carbon balance error total', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cbal_err_tot_si )
     
     call this%set_history_var(vname='BIOMASS_STOCK_COL', units='gC/m^2',  &
           long='total ED biomass carbon at the column level', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_biomass_stock_si )
     
     call this%set_history_var(vname='ED_LITTER_STOCK_COL', units='gC/m^2', &
           long='total ED litter carbon at the column level', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_litter_stock_si )
     
     call this%set_history_var(vname='CWD_STOCK_COL', units='gC/m^2', &
           long='total CWD carbon at the column level', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cwd_stock_si )
    
 
