@@ -2236,61 +2236,61 @@ contains
          ivar=ivar, initialize=initialize_variables, index = ih_ar_understory_pa )
 
     ! fast radiative fluxes resolved through the canopy
-    call this%set_history_var(vname='PARSUN_Z_CNLF', units='fraction',                 &
+    call this%set_history_var(vname='PARSUN_Z_CNLF', units='W/m2',                 &
          long='PAR absorbed in the sun by each canopy and leaf layer', &
          use_default='active',       &
          avgflag='A', vtype=site_cnlf_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_parsun_z_si_cnlf )
 
-    call this%set_history_var(vname='PARSHA_Z_CNLF', units='fraction',                 &
+    call this%set_history_var(vname='PARSHA_Z_CNLF', units='W/m2',                 &
          long='PAR absorbed in the shade by each canopy and leaf layer', &
          use_default='active',       &
          avgflag='A', vtype=site_cnlf_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_parsha_z_si_cnlf )
 
-    call this%set_history_var(vname='PARSUN_Z_CNLFPFT', units='fraction',                 &
+    call this%set_history_var(vname='PARSUN_Z_CNLFPFT', units='W/m2',                 &
          long='PAR absorbed in the sun by each canopy, leaf, and PFT', &
          use_default='active',       &
          avgflag='A', vtype=site_cnlfpft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_parsun_z_si_cnlfpft )
 
-    call this%set_history_var(vname='PARSHA_Z_CNLFPFT', units='fraction',                 &
+    call this%set_history_var(vname='PARSHA_Z_CNLFPFT', units='W/m2',                 &
          long='PAR absorbed in the shade by each canopy, leaf, and PFT', &
          use_default='active',       &
          avgflag='A', vtype=site_cnlfpft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_parsha_z_si_cnlfpft )
 
-    call this%set_history_var(vname='PARSUN_Z_CAN', units='fraction',                 &
+    call this%set_history_var(vname='PARSUN_Z_CAN', units='W/m2',                 &
          long='PAR absorbed in the sun by top leaf layer in each canopy layer', &
          use_default='active',       &
          avgflag='A', vtype=site_can_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_parsuntop_si_can )
 
-    call this%set_history_var(vname='PARSHA_Z_CAN', units='fraction',                 &
+    call this%set_history_var(vname='PARSHA_Z_CAN', units='W/m2',                 &
          long='PAR absorbed in the shade by top leaf layer in each canopy layer', &
          use_default='active',       &
          avgflag='A', vtype=site_can_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_parshatop_si_can )
 
-    call this%set_history_var(vname='LAISUN_Z_CNLF', units='fraction',                 &
+    call this%set_history_var(vname='LAISUN_Z_CNLF', units='m2/m2',                 &
          long='LAI in the sun by each canopy and leaf layer', &
          use_default='active',       &
          avgflag='A', vtype=site_cnlf_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_laisun_z_si_cnlf )
 
-    call this%set_history_var(vname='LAISHA_Z_CNLF', units='fraction',                 &
+    call this%set_history_var(vname='LAISHA_Z_CNLF', units='m2/m2',                 &
          long='LAI in the shade by each canopy and leaf layer', &
          use_default='active',       &
          avgflag='A', vtype=site_cnlf_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_laisha_z_si_cnlf )
 
-    call this%set_history_var(vname='LAISUN_Z_CNLFPFT', units='fraction',                 &
+    call this%set_history_var(vname='LAISUN_Z_CNLFPFT', units='m2/m2',                 &
          long='LAI in the sun by each canopy, leaf, and PFT', &
          use_default='active',       &
          avgflag='A', vtype=site_cnlfpft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_laisun_z_si_cnlfpft )
 
-    call this%set_history_var(vname='LAISHA_Z_CNLFPFT', units='fraction',                 &
+    call this%set_history_var(vname='LAISHA_Z_CNLFPFT', units='m2/m2',                 &
          long='LAI in the shade by each canopy, leaf, and PFT', &
          use_default='active',       &
          avgflag='A', vtype=site_cnlfpft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
@@ -2514,12 +2514,12 @@ contains
 
     call this%set_history_var(vname='CWD_AG_CWDSC', units='gC/m^2', &
           long='size-resolved AG CWD stocks', use_default='active', &
-          avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+          avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_ag_si_cwdsc )
 
     call this%set_history_var(vname='CWD_BG_CWDSC', units='gC/m^2', &
           long='size-resolved BG CWD stocks', use_default='active', &
-          avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=cp_hio_ignore_val,    &
+          avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_bg_si_cwdsc )
 
     ! Size structured diagnostics that require rapid updates (upfreq=2)
