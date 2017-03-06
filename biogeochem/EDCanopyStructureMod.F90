@@ -5,17 +5,19 @@ module EDCanopyStructureMod
   ! This is obviosuly far too complicated for it's own good and needs re-writing.  
   ! ============================================================================
 
-  use shr_kind_mod          , only : r8 => shr_kind_r8;
+  use FatesConstantsMod     , only : r8 => fates_r8
   use FatesGlobals          , only : fates_log
   use pftconMod             , only : pftcon
   use EDGrowthFunctionsMod  , only : c_area
   use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type, ncwd
-  use EDtypesMod            , only : cp_nclmax,cp_nlevcan
-  use EDtypesMod            , only : numpft_ed
+  use EDTypesMod            , only : nclmax
+  use EDTypesMod            , only : nlevcan
+  use EDTypesMod            , only : numpft_ed
+  use FatesGlobals          , only : endrun => fates_endrun
+
+  ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
-  use abortutils            , only : endrun
-  use FatesGlobals          , only : fates_log
 
   implicit none
   private
@@ -79,7 +81,7 @@ contains
 
     use EDParamsMod, only : ED_val_comp_excln, ED_val_ag_biomass
     use SFParamsMod, only : SF_val_cwd_frac
-    use EDtypesMod , only : ncwd, min_patch_area, cp_nlevcan
+    use EDtypesMod , only : ncwd, min_patch_area
     !
     ! !ARGUMENTS    
     type(ed_site_type) , intent(inout), target   :: currentSite
@@ -94,10 +96,10 @@ contains
     real(r8) :: cc_loss
     real(r8) :: lossarea
     real(r8) :: newarea
-    real(r8) :: arealayer(cp_nlevcan) ! Amount of plant area currently in each canopy layer
-    real(r8) :: sumdiff(cp_nlevcan)   ! The total of the exclusion weights for all cohorts in layer z 
+    real(r8) :: arealayer(nlevcan) ! Amount of plant area currently in each canopy layer
+    real(r8) :: sumdiff(nlevcan)   ! The total of the exclusion weights for all cohorts in layer z 
     real(r8) :: weight                ! The amount of the total lost area that comes from this cohort
-    real(r8) :: sum_weights(cp_nlevcan)
+    real(r8) :: sum_weights(nlevcan)
     real(r8) :: new_total_area_check
     real(r8) :: missing_area, promarea,cc_gain,sumgain
     integer  :: promswitch,lower_cohort_switch
@@ -144,7 +146,7 @@ contains
              z = z + 1
           endif
 
-          currentPatch%NCL_p = min(cp_nclmax,z)   ! Set current canopy layer occupancy indicator.  
+          currentPatch%NCL_p = min(nclmax,z)   ! Set current canopy layer occupancy indicator.  
 
           do i = 1,z ! Loop around the currently occupied canopy layers. 
              
@@ -212,7 +214,7 @@ contains
                               currentCohort%b * currentCohort%n
 
                          !kill the ones which go into canopy layers that are not allowed... (default nclmax=2) 
-                         if(i+1 > cp_nclmax)then 
+                         if(i+1 > nclmax)then 
                            !put the litter from the terminated cohorts into the fragmenting pools
                           ! write(fates_log(),*) '3rd canopy layer'
                             do c=1,ncwd
@@ -263,8 +265,9 @@ contains
                          currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + &
                               currentCohort%b * currentCohort%n
 
-                         !kill the ones which go into canopy layers that are not allowed... (default cp_nclmax=2) 
-                         if(i+1 > cp_nclmax)then  
+                         !kill the ones which go into canopy layers that are not allowed... (default nclmax=2) 
+                         if(i+1 > nclmax)then  
+
                            !put the litter from the terminated cohorts into the fragmenting pools
                             do c=1,ncwd
 
@@ -311,7 +314,7 @@ contains
 
              enddo !arealayer loop
              if(arealayer(i)-currentPatch%area > 0.00001_r8)then
-                write(fates_log(),*) 'lossarea problem', lossarea,sumloss,z,currentPatch%patchno,currentPatch%clm_pno
+                write(fates_log(),*) 'lossarea problem', lossarea,sumloss,z,currentPatch%patchno
              endif
 
           enddo !z  
@@ -336,7 +339,7 @@ contains
                 excess_area = arealayer(j)-currentPatch%area
              endif
           enddo
-          currentPatch%ncl_p = min(z,cp_nclmax)
+          currentPatch%ncl_p = min(z,nclmax)
 
        enddo !is there still excess area in any layer?      
 
@@ -529,7 +532,7 @@ contains
 
              if(currentPatch%area-arealayer(i) < 0.000001_r8)then
                 !write(fates_log(),*) 'gainarea problem',sumgain,arealayer(i),currentPatch%area,z, &
-                     !currentPatch%patchno,currentPatch%clm_pno,currentPatch%area - arealayer(i),i,missing_area,count_mi
+                     !currentPatch%patchno,currentPatch%area - arealayer(i),i,missing_area,count_mi
              endif
              if(promswitch == 1)then
                ! write(fates_log(),*) 'z loop',arealayer(1:3),currentPatch%patchno,z
@@ -556,7 +559,7 @@ contains
                 endif
              endif
           enddo
-          currentPatch%ncl_p = min(z,cp_nclmax)
+          currentPatch%ncl_p = min(z,nclmax)
           if(promswitch == 1)then
             ! write(fates_log(),*) 'missingarea loop',arealayer(1:3),currentPatch%patchno,missing_area,z
           endif
@@ -567,7 +570,7 @@ contains
        call terminate_cohorts(currentPatch)
 
        if(promswitch == 1)then
-          !write(fates_log(),*) 'going into cohort check',currentPatch%clm_pno
+          !write(fates_log(),*) 'going into cohort check'
        endif
        ! ----------- Check cohort area ------------------------------!
        do i = 1,z
@@ -629,7 +632,6 @@ contains
     !  Calculates the spatial spread of tree canopies based on canopy closure.                             
     !
     ! !USES:
-    use EDTypesMod  , only : cp_nlevcan
     use EDParamsMod , only : ED_val_maxspread, ED_val_minspread 
     !
     ! !ARGUMENTS    
@@ -638,7 +640,7 @@ contains
     ! !LOCAL VARIABLES:
     type (ed_cohort_type), pointer :: currentCohort
     type (ed_patch_type) , pointer :: currentPatch
-    real(r8) :: arealayer(cp_nlevcan) ! Amount of canopy in each layer. 
+    real(r8) :: arealayer(nlevcan) ! Amount of canopy in each layer. 
     real(r8) :: inc                   ! Arbitrary daily incremental change in canopy area 
     integer  :: z
     !----------------------------------------------------------------------
@@ -661,7 +663,7 @@ contains
        enddo
 
        !If the canopy area is approaching closure, squash the tree canopies and make them taller and thinner
-       do z = 1,cp_nclmax  
+       do z = 1,nclmax  
          
           if(arealayer(z)/currentPatch%area > 0.9_r8)then
              currentPatch%spread(z) = currentPatch%spread(z) - inc
@@ -696,6 +698,7 @@ contains
 
     use FatesInterfaceMod    , only : bc_in_type
     use EDPatchDynamicsMod   , only : set_patchno
+    use EDPatchDYnamicsMod   , only : set_root_fraction
     use EDCohortDynamicsMod  , only : size_and_type_class_index
     use EDGrowthFunctionsMod , only : tree_lai, c_area
     use EDEcophysConType     , only : EDecophyscon
@@ -735,7 +738,7 @@ contains
 
        do while(associated(currentPatch))
           
-          call currentPatch%set_root_fraction(bc_in(s)%depth_gl)
+          call set_root_fraction(currentPatch,bc_in(s)%depth_gl)
 
           !zero cohort-summed variables. 
           currentPatch%total_canopy_area = 0.0_r8
@@ -809,7 +812,7 @@ contains
     ! !USES:
 
     use EDGrowthFunctionsMod , only : tree_lai, tree_sai, c_area 
-    use EDtypesMod           , only : area, dinc_ed, hitemax, numpft_ed, n_hite_bins
+    use EDtypesMod           , only : area, dinc_ed, hitemax, n_hite_bins
     use EDEcophysConType     , only : EDecophyscon
   
     !
@@ -885,7 +888,7 @@ contains
                 max(currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft),currentCohort%NV)
           currentPatch%lai = currentPatch%lai +currentCohort%lai
           
-          do L = 1,cp_nclmax-1
+          do L = 1,nclmax-1
              if(currentCohort%canopy_layer == L)then
                 currentPatch%canopy_layer_lai(L) = currentPatch%canopy_layer_lai(L) + currentCohort%lai + &
                       currentCohort%sai
@@ -1138,10 +1141,10 @@ contains
                          /currentPatch%tlai_profile(L,ft,iv)
                 enddo
                 
-                currentPatch%tlai_profile(L,ft,currentPatch%nrad(L,ft)+1: cp_nlevcan) = 0._r8
-                currentPatch%tsai_profile(L,ft,currentPatch%nrad(L,ft)+1: cp_nlevcan) = 0._r8
-                currentPatch%elai_profile(L,ft,currentPatch%nrad(L,ft)+1: cp_nlevcan) = 0._r8 
-                currentPatch%esai_profile(L,ft,currentPatch%nrad(L,ft)+1: cp_nlevcan) = 0._r8
+                currentPatch%tlai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevcan) = 0._r8
+                currentPatch%tsai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevcan) = 0._r8
+                currentPatch%elai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevcan) = 0._r8 
+                currentPatch%esai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevcan) = 0._r8
                 
              enddo
           enddo
@@ -1199,7 +1202,7 @@ contains
           do L = 1,currentPatch%NCL_p
              do ft = 1,numpft_ed
                 if(currentPatch%present(L,FT) > 1)then
-                   write(fates_log(), *) 'ED: present issue',currentPatch%clm_pno,L,ft,currentPatch%present(L,FT)
+                   write(fates_log(), *) 'ED: present issue',L,ft,currentPatch%present(L,FT)
                    currentPatch%present(L,ft) = 1
                 endif
              enddo
@@ -1226,7 +1229,6 @@ contains
      use EDTypesMod        , only : ed_patch_type, ed_cohort_type, &
                                     ed_site_type, AREA
      use FatesInterfaceMod , only : bc_out_type
-     use ColumnType        , only : col      ! THIS MUST BE REMOVED WITH CLM_PNO
 
      !
      ! !ARGUMENTS    
@@ -1249,8 +1251,6 @@ contains
         c = fcolumn(s)
         do while(associated(currentPatch))
            ifp = ifp+1
-
-           currentPatch%clm_pno = ifp + col%patchi(c)   ! THIS IS SLOWLY BEING REMOVED
 
            if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
               write(fates_log(),*) 'ED: canopy area bigger than area',currentPatch%total_canopy_area ,currentPatch%area
