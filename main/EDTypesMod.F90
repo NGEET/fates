@@ -551,12 +551,12 @@ contains
     allocate( levcwdsc_ed(1:NCWD   ))
     allocate( levage_ed(1:nlevage_ed   ))
 
-    allocate(levcan_ed(cp_nclmax))
-    allocate(can_levcnlf_ed(cp_nlevcan*cp_nclmax))
-    allocate(lf_levcnlf_ed(cp_nlevcan*cp_nclmax))
-    allocate(can_levcnlfpft_ed(cp_nlevcan*cp_nclmax*numpft_ed))
-    allocate(lf_levcnlfpft_ed(cp_nlevcan*cp_nclmax*numpft_ed))
-    allocate(pft_levcnlfpft_ed(cp_nlevcan*cp_nclmax*numpft_ed))
+    allocate(levcan_ed(nclmax))
+    allocate(can_levcnlf_ed(nlevcan*nclmax))
+    allocate(lf_levcnlf_ed(nlevcan*nclmax))
+    allocate(can_levcnlfpft_ed(nlevcan*nclmax*numpft_ed))
+    allocate(lf_levcnlfpft_ed(nlevcan*nclmax*numpft_ed))
+    allocate(pft_levcnlfpft_ed(nlevcan*nclmax*numpft_ed))
 
     ! Fill the IO array of plant size classes
     ! For some reason the history files did not like
@@ -581,7 +581,7 @@ contains
     end do
 
     ! make canopy array
-    do ican = 1,cp_nclmax
+    do ican = 1,nclmax
        levcan_ed(ican) = ican
     end do
 
@@ -596,8 +596,8 @@ contains
     end do
 
     i=0
-    do ican=1,cp_nclmax
-       do ileaf=1,cp_nlevcan
+    do ican=1,nclmax
+       do ileaf=1,nlevcan
           i=i+1
           can_levcnlf_ed(i) = ican
           lf_levcnlf_ed(i) = ileaf
@@ -606,8 +606,8 @@ contains
 
     i=0
     do ipft=1,numpft_ed
-       do ican=1,cp_nclmax
-          do ileaf=1,cp_nlevcan
+       do ican=1,nclmax
+          do ileaf=1,nlevcan
              i=i+1
              can_levcnlfpft_ed(i) = ican
              lf_levcnlfpft_ed(i) = ileaf
