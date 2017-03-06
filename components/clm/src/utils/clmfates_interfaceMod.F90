@@ -1875,7 +1875,7 @@ contains
    use FatesIODimensionsMod, only : fates_bounds_type
    use EDtypesMod, only : nlevsclass_ed, nlevage_ed
    use EDtypesMod, only : nfsc, ncwd
-   use EDtypesMod, only : cp_nlevcan, cp_nclmax, numpft_ed
+   use EDtypesMod, only : nlevcan, nclmax, numpft_ed
    use clm_varpar, only : mxpft, nlevgrnd
 
    implicit none
@@ -1916,13 +1916,13 @@ contains
    fates%cwdsc_end = ncwd
    
    fates%can_begin = 1
-   fates%can_end = cp_nclmax
+   fates%can_end = nclmax
    
    fates%cnlf_begin = 1
-   fates%cnlf_end = cp_nlevcan * cp_nclmax
+   fates%cnlf_end = nlevcan * nclmax
    
    fates%cnlfpft_begin = 1
-   fates%cnlfpft_end = cp_nlevcan * cp_nclmax * numpft_ed
+   fates%cnlfpft_end = nlevcan * nclmax * numpft_ed
    
  end subroutine hlm_bounds_to_fates_bounds
 

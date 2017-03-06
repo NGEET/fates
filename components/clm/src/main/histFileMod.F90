@@ -23,7 +23,7 @@ module histFileMod
   use ncdio_pio
   use EDtypesMod     , only : nlevsclass_ed, nlevage_ed
   use EDtypesMod     , only : nfsc, ncwd
-  use EDtypesMod     , only : cp_nlevcan, cp_nclmax, numpft_ed
+  use EDtypesMod     , only : nlevcan, nclmax, numpft_ed
   use clm_varpar     , only : mxpft
   !
   implicit none
@@ -1857,9 +1857,9 @@ contains
        call ncd_defdim(lnfid, 'levfuel', nfsc, dimid)
        call ncd_defdim(lnfid, 'levcwdsc', ncwd, dimid)
        call ncd_defdim(lnfid, 'levscpf', nlevsclass_ed*mxpft, dimid)
-       call ncd_defdim(lnfid, 'levcan', cp_nclmax, dimid)
-       call ncd_defdim(lnfid, 'levcnlf', cp_nlevcan * cp_nclmax, dimid)
-       call ncd_defdim(lnfid, 'lvcnlfpf', cp_nlevcan * cp_nclmax * numpft_ed, dimid)
+       call ncd_defdim(lnfid, 'levcan', nclmax, dimid)
+       call ncd_defdim(lnfid, 'levcnlf', nlevcan * nclmax, dimid)
+       call ncd_defdim(lnfid, 'lvcnlfpf', nlevcan * nclmax * numpft_ed, dimid)
     end if
 
     if ( .not. lhistrest )then
@@ -4495,11 +4495,11 @@ contains
     case ('levscpf')
        num2d = nlevsclass_ed*mxpft
     case ('levcan')
-       num2d = cp_nclmax
+       num2d = nclmax
     case ('levcnlf')
-       num2d = cp_nlevcan * cp_nclmax
+       num2d = nlevcan * nclmax
     case ('lvcnlfpf')
-       num2d = cp_nlevcan * cp_nclmax * numpft_ed
+       num2d = nlevcan * nclmax * numpft_ed
     case('ltype')
        num2d = max_lunit
     case('natpft')
