@@ -7,24 +7,28 @@ module EDPhysiologyMod
   ! ============================================================================
 
   use FatesGlobals, only         : fates_log
-  use FatesGlobals, only         : days_per_year
-  use FatesGlobals, only         : model_day
-  use FatesGlobals, only         : freq_day
-  use FatesGlobals, only         : day_of_year
+  use FatesInterfaceMod, only    : hlm_days_per_year
+  use FatesInterfaceMod, only    : hlm_model_day
+  use FatesInterfaceMod, only    : hlm_freq_day
+  use FatesInterfaceMod, only    : hlm_day_of_year
   use FatesConstantsMod, only    : r8 => fates_r8
-  use pftconMod           , only : pftcon
-  use EDEcophysContype    , only : EDecophyscon
+  use pftconMod        , only    : pftcon
+  use EDEcophysContype , only    : EDecophyscon
   use FatesInterfaceMod, only    : bc_in_type
   use EDCohortDynamicsMod , only : allocate_live_biomass, zero_cohort
   use EDCohortDynamicsMod , only : create_cohort, fuse_cohorts, sort_cohorts
-  use EDTypesMod          , only : dg_sf, dinc_ed, external_recruitment
-  use EDTypesMod          , only : ncwd, cp_nlevcan, numpft_ed, senes
+  use EDTypesMod          , only : numWaterMem
+  use EDTypesMod          , only : dg_sf, dinc_ed
+  use EDTypesMod          , only : external_recruitment
+  use EDTypesMod          , only : ncwd
+  use EDTypesMod          , only : nlevcan
+  use EDTypesMod          , only : numpft_ed
+  use EDTypesMod          , only : senes
   use EDTypesMod          , only : ed_site_type, ed_patch_type, ed_cohort_type
 
   use shr_log_mod           , only : errMsg => shr_log_errMsg
-  use abortutils            , only : endrun
   use FatesGlobals          , only : fates_log
-
+  use FatesGlobals          , only : endrun => fates_endrun
 
 
   implicit none
@@ -179,13 +183,13 @@ contains
           trimmed = 0    
           currentCohort%treelai = tree_lai(currentCohort)    
           currentCohort%nv = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
-          if (currentCohort%nv > cp_nlevcan)then
-             write(fates_log(),*) 'nv > cp_nlevcan',currentCohort%nv,currentCohort%treelai,currentCohort%treesai, &
+          if (currentCohort%nv > nlevcan)then
+             write(fates_log(),*) 'nv > nlevcan',currentCohort%nv,currentCohort%treelai,currentCohort%treesai, &
                   currentCohort%c_area,currentCohort%n,currentCohort%bl
           endif
 
           !Leaf cost vs netuptake for each leaf layer. 
-          do z = 1,cp_nlevcan
+          do z = 1,nlevcan
              if (currentCohort%year_net_uptake(z) /= 999._r8)then !there was activity this year in this leaf layer. 
                 !Leaf Cost kgC/m2/year-1
                 !decidous costs. 
@@ -299,7 +303,7 @@ contains
     ncolddayslim = 5
     cold_t   = 7.5_r8  ! ed_ph_coldtemp
 
-    t  = day_of_year
+    t  = hlm_day_of_year
     temp_in_C = bc_in%t_veg24_si - tfrz
 
     !-----------------Cold Phenology--------------------!              
@@ -349,7 +353,7 @@ contains
     endif
     
 
-    timesinceleafoff = model_day - currentSite%leafoffdate
+    timesinceleafoff = hlm_model_day - currentSite%leafoffdate
     !LEAF ON: COLD DECIDUOUS. Needs to
     !1) have exceeded the growing degree day threshold 
     !2) The leaves should not be on already
@@ -365,7 +369,7 @@ contains
        endif !status
     endif !GDD
 
-    timesinceleafon = model_day - currentSite%leafondate
+    timesinceleafon = hlm_model_day - currentSite%leafondate
 
 
     !LEAF OFF: COLD THRESHOLD
@@ -379,7 +383,7 @@ contains
      if (timesinceleafon > mindayson)then
        if (currentSite%status == 2)then
           currentSite%status = 1        !alter status of site to 'leaves on'
-          currentSite%leafoffdate = model_day   !record leaf off date   
+          currentSite%leafoffdate = hlm_model_day   !record leaf off date   
           if ( DEBUG ) write(fates_log(),*) 'leaves off'
        endif
     endif
@@ -389,7 +393,7 @@ contains
     if(timesinceleafoff > 400)then !remove leaves after a whole year when there is no 'off' period.  
        if(currentSite%status == 2)then
           currentSite%status = 1        !alter status of site to 'leaves on'
-          currentSite%leafoffdate = model_day   !record leaf off date   
+          currentSite%leafoffdate = hlm_model_day   !record leaf off date   
           if ( DEBUG ) write(fates_log(),*) 'leaves off'
        endif
     endif
@@ -422,10 +426,11 @@ contains
     ! distinction actually matter??).... 
 
     !Accumulate surface water memory of last 10 days.
-    currentSite%water_memory(1) = bc_in%h2osoi_vol_si   !waterstate_inst%h2osoi_vol_col(coli,1) 
-    do i = 1,9 !shift memory along one
-       currentSite%water_memory(11-i) = currentSite%water_memory(10-i)
+   
+    do i = 1,numWaterMem-1 !shift memory along one
+       currentSite%water_memory(numWaterMem+1-i) = currentSite%water_memory(numWaterMem-i)
     enddo
+    currentSite%water_memory(1) = bc_in%h2osoi_vol_si   !waterstate_inst%h2osoi_vol_col(coli,1) 
 
     !In drought phenology, we often need to force the leaves to stay on or off as moisture fluctuates...     
     timesincedleafoff = 0
@@ -453,7 +458,9 @@ contains
     !Here, we used a window of oppurtunity to determine if we are close to the time when then leaves came on last year
     if ((t >= currentSite%dleafondate - 30.and.t <= currentSite%dleafondate + 30).or.(t > 360 - 15.and. &
          currentSite%dleafondate < 15))then ! are we in the window?
-       if (sum(currentSite%water_memory(1:10)/10._r8) >= drought_threshold.and.currentSite%dstatus == 1.and.t >= 10)then 
+       ! TODO: CHANGE THIS MATH, MOVE THE DENOMENATOR OUTSIDE OF THE SUM (rgk 01-2017)
+       if (sum(currentSite%water_memory(1:numWaterMem)/dble(numWaterMem)) &
+            >= drought_threshold.and.currentSite%dstatus == 1.and.t >= 10)then 
           ! leave some minimum time between leaf off and leaf on to prevent 'flickering'.  
           if (timesincedleafoff > off_time)then  
              currentSite%dstatus = 2     !alter status of site to 'leaves on'
@@ -684,7 +691,7 @@ contains
     currentPatch => currentSite%oldest_patch
 
     do while(associated(currentPatch))
-       if (EXTERNAL_RECRUITMENT == 1) then !external seed rain - needed to prevent extinction  
+       if (external_recruitment == 1) then !external seed rain - needed to prevent extinction  
           do p = 1,numpft_ed
            currentPatch%seeds_in(p) = currentPatch%seeds_in(p) + &
                  EDecophyscon%seed_rain(p) !KgC/m2/year
@@ -813,9 +820,9 @@ contains
 
     ! convert from kgC/indiv/day into kgC/indiv/year 
     ! TODO: CONVERT DAYS_PER_YEAR TO DBLE (HOLDING FOR B4B COMPARISONS, RGK-01-2017)
-    currentCohort%npp_acc_hold  = currentCohort%npp_acc  * days_per_year 
-    currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * days_per_year
-    currentCohort%resp_acc_hold = currentCohort%resp_acc * days_per_year
+    currentCohort%npp_acc_hold  = currentCohort%npp_acc  * hlm_days_per_year 
+    currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * hlm_days_per_year
+    currentCohort%resp_acc_hold = currentCohort%resp_acc * hlm_days_per_year
 
     currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
 
@@ -987,7 +994,7 @@ contains
 
     ! prevent negative leaf pool (but not negative store pool). This is also a numerical error prevention, 
     ! but it shouldn't happen actually... 
-    if (-1.0_r8*currentCohort%dbalivedt * freq_day > currentCohort%balive*0.99)then 
+    if (-1.0_r8*currentCohort%dbalivedt * hlm_freq_day > currentCohort%balive*0.99)then 
        write(fates_log(),*) 'using non-neg leaf mass cap',currentCohort%balive , currentCohort%dbalivedt,currentCohort%dbstoredt, &
             currentCohort%carbon_balance
        currentCohort%dbstoredt = currentCohort%dbstoredt + currentCohort%dbalivedt
@@ -1042,7 +1049,7 @@ contains
             + EDecophyscon%sapwood_ratio(ft)*temp_cohort%hite)
        temp_cohort%bstore      = EDecophyscon%cushion(ft)*(temp_cohort%balive/ (1.0_r8 + pftcon%froot_leaf(ft) &
             + EDecophyscon%sapwood_ratio(ft)*temp_cohort%hite))
-       temp_cohort%n           = currentPatch%area * currentPatch%seed_germination(ft)*freq_day &
+       temp_cohort%n           = currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day &
             / (temp_cohort%bdead+temp_cohort%balive+temp_cohort%bstore)
  
        if (t == 1)then
@@ -1122,7 +1129,7 @@ contains
       currentPatch%root_litter_in(pft) = currentPatch%root_litter_in(pft) + &
                currentCohort%root_md * currentCohort%n/currentPatch%area !turnover
       currentPatch%leaf_litter_in(pft) = currentPatch%leaf_litter_in(pft) + &
-         currentCohort%leaf_litter * currentCohort%n/currentPatch%area/freq_day
+         currentCohort%leaf_litter * currentCohort%n/currentPatch%area/hlm_freq_day
 
       !daily leaf loss needs to be scaled up to the annual scale here. 
       
@@ -1141,7 +1148,7 @@ contains
           dead_n = -1.0_r8 * currentCohort%dndt / currentPatch%area
 
           currentPatch%leaf_litter_in(pft) = currentPatch%leaf_litter_in(pft) + &
-               (currentCohort%bl+currentCohort%leaf_litter/freq_day)* dead_n          
+               (currentCohort%bl+currentCohort%leaf_litter/hlm_freq_day)* dead_n          
           currentPatch%root_litter_in(pft) = currentPatch%root_litter_in(pft) + &
                (currentCohort%br+currentCohort%bstore)     * dead_n
 
@@ -1294,13 +1301,13 @@ contains
 
     !add up carbon going into fragmenting pools
     currentSite%flux_out = currentSite%flux_out + sum(currentPatch%leaf_litter_out) * &
-         currentPatch%area *freq_day!kgC/site/day
+         currentPatch%area *hlm_freq_day!kgC/site/day
     currentSite%flux_out = currentSite%flux_out + sum(currentPatch%root_litter_out) * &
-         currentPatch%area *freq_day!kgC/site/day
+         currentPatch%area *hlm_freq_day!kgC/site/day
     currentSite%flux_out = currentSite%flux_out + sum(currentPatch%cwd_ag_out) * &
-         currentPatch%area *freq_day!kgC/site/day
+         currentPatch%area *hlm_freq_day!kgC/site/day
     currentSite%flux_out = currentSite%flux_out + sum(currentPatch%cwd_bg_out) * &
-         currentPatch%area *freq_day!kgC/site/day
+         currentPatch%area *hlm_freq_day!kgC/site/day
 
   end subroutine cwd_out
 
@@ -1323,18 +1330,19 @@ contains
     ! This means that the state update for the litter pools and for the CWD pools occurs at different timescales. 
     
 
-    use EDTypesMod, only : AREA, numpft_ed, cp_numlevdecomp_full, cp_numlevdecomp
+    use EDTypesMod, only : AREA
+    use EDTypesMod, only : numpft_ed
+    use FatesInterfaceMod, only : hlm_numlevdecomp_full
+    use FatesInterfaceMod, only : hlm_numlevdecomp
     use SoilBiogeochemVerticalProfileMod, only: surfprof_exp
-
-    !use EDCLMLinkMod, only: cwd_fcel_ed, cwd_flig
-    
     use pftconMod, only : pftcon
     use FatesConstantsMod, only : sec_per_day
     use clm_varcon, only : zisoi, dzsoi_decomp, zsoi
     use EDParamsMod, only : ED_val_ag_biomass
     use FatesInterfaceMod, only : bc_in_type, bc_out_type
     use clm_varctl, only : use_vertsoilc
-    use abortutils  , only : endrun
+    use FatesGlobals, only : endrun => fates_endrun
+
 
     ! INTERF-TODO: remove the control parameters: exponential_rooting_profile, 
     ! pftspecific_rootingprofile, rootprof_exp, surfprof_exp, zisoi, dzsoi_decomp, zsoi
@@ -1357,9 +1365,9 @@ contains
     integer           :: begp,endp
     integer           :: begc,endc                                    !bounds 
     !------------------------------------------------------------------------
-    real(r8) :: cinput_rootfr(1:numpft_ed, 1:cp_numlevdecomp_full)      ! column by pft root fraction used for calculating inputs
-    real(r8) :: croot_prof_perpatch(1:cp_numlevdecomp_full)
-    real(r8) :: surface_prof(1:cp_numlevdecomp_full)
+    real(r8) :: cinput_rootfr(1:numpft_ed, 1:hlm_numlevdecomp_full)      ! column by pft root fraction used for calculating inputs
+    real(r8) :: croot_prof_perpatch(1:hlm_numlevdecomp_full)
+    real(r8) :: surface_prof(1:hlm_numlevdecomp_full)
     integer  :: ft
     real(r8) :: rootfr_tot(1:numpft_ed), biomass_bg_ft(1:numpft_ed)
     real(r8) :: surface_prof_tot, leaf_prof_sum, stem_prof_sum, froot_prof_sum, biomass_bg_tot
@@ -1383,10 +1391,10 @@ contains
     ! Doing so will be answer changing though so perhaps easiest to do this in steps.
     integer, parameter :: rooting_profile_varindex_water = 1
 
-    real(r8) :: leaf_prof(1:nsites, 1:cp_numlevdecomp)
-    real(r8) :: froot_prof(1:nsites,  1:numpft_ed, 1:cp_numlevdecomp)
-    real(r8) :: croot_prof(1:nsites, 1:cp_numlevdecomp)
-    real(r8) :: stem_prof(1:nsites, 1:cp_numlevdecomp)
+    real(r8) :: leaf_prof(1:nsites, 1:hlm_numlevdecomp)
+    real(r8) :: froot_prof(1:nsites,  1:numpft_ed, 1:hlm_numlevdecomp)
+    real(r8) :: croot_prof(1:nsites, 1:hlm_numlevdecomp)
+    real(r8) :: stem_prof(1:nsites, 1:hlm_numlevdecomp)
 
     ! INTERF-TODO: THESE PARAMETERS WERE ORIGINALLY SET BY params_inst%
     ! THEY NEED THEIR OWN ENTRIES IN THE PARAMETER FILE (RGK)
@@ -1416,7 +1424,7 @@ contains
          
          ! define a single shallow surface profile for surface additions (leaves, stems, and N deposition)
          surface_prof(:) = 0._r8
-         do j = 1, cp_numlevdecomp
+         do j = 1, hlm_numlevdecomp
             surface_prof(j) = exp(-surfprof_exp * zsoi(j)) / dzsoi_decomp(j)
          end do
          
@@ -1433,14 +1441,14 @@ contains
             if ( .not. pftspecific_rootingprofile ) then
                ! define rooting profile from exponential parameters
                do ft = 1, numpft_ed
-                  do j = 1, cp_numlevdecomp
+                  do j = 1, hlm_numlevdecomp
                      cinput_rootfr(ft,j) = exp(-rootprof_exp * zsoi(j)) / dzsoi_decomp(j)
                   end do
                end do
             else
                ! use beta distribution parameter from Jackson et al., 1996
                do ft = 1, numpft_ed
-                  do j = 1, cp_numlevdecomp
+                  do j = 1, hlm_numlevdecomp
                      cinput_rootfr(ft,j) = ( pftcon%rootprof_beta(ft, rooting_profile_varindex_water) ** (zisoi(j-1)*100._r8) - &
                           pftcon%rootprof_beta(ft, rooting_profile_varindex_water) ** (zisoi(j)*100._r8) ) &
                           / dzsoi_decomp(j)
@@ -1449,7 +1457,7 @@ contains
             endif
          else
             do ft = 1,numpft_ed 
-               do j = 1, cp_numlevdecomp
+               do j = 1, hlm_numlevdecomp
                   ! use standard CLM root fraction profiles;
                   cinput_rootfr(ft,j) =  ( .5_r8*( &
                        exp(-pftcon%roota_par(ft) * zisoi(j-1))  &
@@ -1470,11 +1478,11 @@ contains
             end do
             surface_prof_tot = 0._r8
             !
-            do j = 1, min(max(bc_in(s)%max_rooting_depth_index_col, 1), cp_numlevdecomp)
+            do j = 1, min(max(bc_in(s)%max_rooting_depth_index_col, 1), hlm_numlevdecomp)
                surface_prof_tot = surface_prof_tot + surface_prof(j)  * dzsoi_decomp(j)
             end do
             do ft = 1,numpft_ed 
-               do j = 1, min(max(bc_in(s)%max_rooting_depth_index_col, 1), cp_numlevdecomp)
+               do j = 1, min(max(bc_in(s)%max_rooting_depth_index_col, 1), hlm_numlevdecomp)
                   rootfr_tot(ft) = rootfr_tot(ft) + cinput_rootfr(ft,j) * dzsoi_decomp(j)
                end do
             end do
@@ -1484,7 +1492,7 @@ contains
                if ( (bc_in(s)%max_rooting_depth_index_col > 0) .and. (rootfr_tot(ft) > 0._r8) ) then
                   ! where there is not permafrost extending to the surface, integrate the profiles over the active layer
                   ! this is equivalent to integrating over all soil layers outside of permafrost regions
-                  do j = 1, min(max(bc_in(s)%max_rooting_depth_index_col, 1), cp_numlevdecomp)
+                  do j = 1, min(max(bc_in(s)%max_rooting_depth_index_col, 1), hlm_numlevdecomp)
                      froot_prof(s,ft,j) = cinput_rootfr(ft,j) / rootfr_tot(ft)
                   end do
                else
@@ -1497,7 +1505,7 @@ contains
             if ( (bc_in(s)%max_rooting_depth_index_col > 0) .and. (surface_prof_tot > 0._r8) ) then
                ! where there is not permafrost extending to the surface, integrate the profiles over the active layer
                ! this is equivalent to integrating over all soil layers outside of permafrost regions
-               do j = 1, min(max(bc_in(s)%max_rooting_depth_index_col, 1), cp_numlevdecomp)
+               do j = 1, min(max(bc_in(s)%max_rooting_depth_index_col, 1), hlm_numlevdecomp)
                   ! set all surface processes to shallower profile
                   leaf_prof(s,j) = surface_prof(j)/ surface_prof_tot
                   stem_prof(s,j) = surface_prof(j)/ surface_prof_tot
@@ -1506,7 +1514,7 @@ contains
                ! if fully frozen, or no roots, put everything in the top layer
                leaf_prof(s,1) = 1._r8/dzsoi_decomp(1)
                stem_prof(s,1) = 1._r8/dzsoi_decomp(1)
-               do j = 2, cp_numlevdecomp
+               do j = 2, hlm_numlevdecomp
                   leaf_prof(s,j) = 0._r8
                   stem_prof(s,j) = 0._r8
                end do
@@ -1527,7 +1535,7 @@ contains
          ! check the leaf and stem profiles
          leaf_prof_sum = 0._r8
          stem_prof_sum = 0._r8
-         do j = 1, cp_numlevdecomp
+         do j = 1, hlm_numlevdecomp
             leaf_prof_sum = leaf_prof_sum + leaf_prof(s,j) *  dzsoi_decomp(j)
             stem_prof_sum = stem_prof_sum + stem_prof(s,j) *  dzsoi_decomp(j)
          end do
@@ -1539,24 +1547,24 @@ contains
             write(fates_log(), *) 'stem_prof: ',  stem_prof(s,:)
             write(fates_log(), *) 'max_rooting_depth_index_col: ', bc_in(s)%max_rooting_depth_index_col
             write(fates_log(), *) 'dzsoi_decomp: ',  dzsoi_decomp            
-            call endrun()
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          endif
          ! now check each fine root profile
          do ft = 1,numpft_ed 
             froot_prof_sum = 0._r8
-            do j = 1, cp_numlevdecomp
+            do j = 1, hlm_numlevdecomp
                froot_prof_sum = froot_prof_sum + froot_prof(s,ft,j) *  dzsoi_decomp(j)
             end do
             if ( ( abs(froot_prof_sum - 1._r8) > delta ) ) then
                write(fates_log(), *) 'profile sums: ', froot_prof_sum
-               call endrun()
+               call endrun(msg=errMsg(sourcefile, __LINE__))
             endif
          end do
       end do
       
       ! zero the site-level C input variables
       do s = 1, nsites
-         do j = 1, cp_numlevdecomp
+         do j = 1, hlm_numlevdecomp
             bc_out(s)%FATES_c_to_litr_lab_c_col(j) = 0._r8
             bc_out(s)%FATES_c_to_litr_cel_c_col(j) = 0._r8
             bc_out(s)%FATES_c_to_litr_lig_c_col(j) = 0._r8
@@ -1592,14 +1600,14 @@ contains
                biomass_bg_tot = biomass_bg_tot + biomass_bg_ft(ft)
             end do
             !         
-            do j = 1, cp_numlevdecomp
+            do j = 1, hlm_numlevdecomp
                ! zero this for each patch
                croot_prof_perpatch(j) = 0._r8
             end do
             !
             if ( biomass_bg_tot .gt. 0._r8) then
                do ft = 1,numpft_ed 
-                  do j = 1, cp_numlevdecomp
+                  do j = 1, hlm_numlevdecomp
                      croot_prof_perpatch(j) = croot_prof_perpatch(j) + froot_prof(s,ft,j) * biomass_bg_ft(ft) / biomass_bg_tot
                   end do
                end do
@@ -1609,7 +1617,7 @@ contains
 
             !
             ! add croot_prof as weighted average (weighted by patch area) of croot_prof_perpatch
-            do j = 1, cp_numlevdecomp
+            do j = 1, hlm_numlevdecomp
                croot_prof(s, j) = croot_prof(s, j) + croot_prof_perpatch(j) * currentPatch%area / AREA
             end do
             !
@@ -1626,7 +1634,7 @@ contains
             ! !
             ! CWD pools fragmenting into decomposing litter pools. 
             do ci = 1, ncwd
-               do j = 1, cp_numlevdecomp
+               do j = 1, hlm_numlevdecomp
                   bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + &
                        currentpatch%CWD_AG_out(ci) * cwd_fcel * currentpatch%area/AREA * stem_prof(s,j)  
                   bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + &
@@ -1641,7 +1649,7 @@ contains
             
             ! leaf and fine root pools. 
             do ft = 1,numpft_ed
-               do j = 1, cp_numlevdecomp
+               do j = 1, hlm_numlevdecomp
                   bc_out(s)%FATES_c_to_litr_lab_c_col(j) = bc_out(s)%FATES_c_to_litr_lab_c_col(j) + &
                        currentpatch%leaf_litter_out(ft) * pftcon%lf_flab(ft) * currentpatch%area/AREA * leaf_prof(s,j)
                   bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + &
@@ -1673,19 +1681,18 @@ contains
         end do  ! do sites(s)
      
         do s = 1, nsites
-           do j = 1, cp_numlevdecomp                    
+           do j = 1, hlm_numlevdecomp                    
               ! time unit conversion
               bc_out(s)%FATES_c_to_litr_lab_c_col(j)=bc_out(s)%FATES_c_to_litr_lab_c_col(j) * mass_convert / time_convert
               bc_out(s)%FATES_c_to_litr_cel_c_col(j)=bc_out(s)%FATES_c_to_litr_cel_c_col(j) * mass_convert / time_convert
               bc_out(s)%FATES_c_to_litr_lig_c_col(j)=bc_out(s)%FATES_c_to_litr_lig_c_col(j) * mass_convert / time_convert
-              
            end do
         end do
         
         ! write(fates_log(),*)'cdk FATES_c_to_litr_lab_c: ', FATES_c_to_litr_lab_c
         ! write_col(fates_log(),*)'cdk FATES_c_to_litr_cel_c: ', FATES_c_to_litr_cel_c    
         ! write_col(fates_log(),*)'cdk FATES_c_to_litr_lig_c: ', FATES_c_to_litr_lig_c
-        ! write_col(fates_log(),*)'cdk cp_numlevdecomp_full,  bounds%begc, bounds%endc: ', cp_numlevdecomp_full, bounds%begc, bounds%endc
+        ! write_col(fates_log(),*)'cdk hlm_numlevdecomp_full,  bounds%begc, bounds%endc: ', hlm_numlevdecomp_full, bounds%begc, bounds%endc
         ! write(fates_log(),*)'cdk leaf_prof: ', leaf_prof
         ! write(fates_log(),*)'cdk stem_prof: ', stem_prof    
         ! write(fates_log(),*)'cdk froot_prof: ', froot_prof

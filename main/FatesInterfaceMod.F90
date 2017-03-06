@@ -9,24 +9,118 @@ module FatesInterfaceMod
    ! which is allocated by thread
    ! ------------------------------------------------------------------------------------
 
-   use EDtypesMod            , only : ed_site_type
-   use EDtypesMod            , only : maxPatchesPerCol
-   use EDtypesMod            , only : cp_nclmax
-   use EDtypesMod            , only : cp_numSWb
-   use EDtypesMod            , only : cp_numlevgrnd
-   use EDtypesMod            , only : cp_maxSWb
-   use EDtypesMod            , only : cp_numlevdecomp
-   use EDtypesMod            , only : cp_numlevdecomp_full
-   use EDtypesMod            , only : cp_hlm_name
-   use EDtypesMod            , only : cp_hio_ignore_val
-   use EDtypesMod            , only : cp_numlevsoil
-   use EDtypesMod            , only : cp_masterproc
-   use FatesConstantsMod     , only : r8 => fates_r8
+   use EDTypesMod          , only : ed_site_type
+   use EDTypesMod          , only : maxPatchesPerSite
+   use EDTypesMod          , only : maxCohortsPerPatch
+   use EDTypesMod          , only : maxSWb
+   use EDTypesMod          , only : nclmax
+   use EDTypesMod          , only : nlevcan
+   use EDTypesMod          , only : numpft_ed
+   use FatesConstantsMod   , only : r8 => fates_r8
+   use FatesGlobals        , only : fates_global_verbose
+   use FatesGlobals        , only : fates_log
+   
 
    implicit none
 
+   public :: FatesInterfaceInit
+   public :: set_fates_ctrlparms
+   public :: SetFatesTime
+   public :: set_fates_global_elements
+
+   ! -------------------------------------------------------------------------------------
+   ! Parameters that are dictated by the Host Land Model
+   ! THESE ARE NOT DYNAMIC. SHOULD BE SET ONCE DURING INTIALIZATION.
+   ! -------------------------------------------------------------------------------------
+
+  
+   integer, protected :: hlm_numSWb  ! Number of broad-bands in the short-wave radiation
+                                     ! specturm to track 
+                                     ! (typically 2 as a default, VIS/NIR, in ED variants <2016)
+
+   integer, protected :: hlm_numlevgrnd   ! Number of ground layers
+   integer, protected :: hlm_numlevsoil   ! Number of soil layers
+
+   
+   integer, protected :: hlm_numlevdecomp_full ! Number of GROUND layers for the purposes
+                                               ! of biogeochemistry; can be either 1 
+                                               ! or the total number of soil layers
+                                               ! (includes bedrock)
+   
+   
+   integer, protected :: hlm_numlevdecomp ! Number of SOIL layers for the purposes of 
+                                          ! biogeochemistry; can be either 1 or the total
+                                          ! number of soil layers
+
+   
+   character(len=16), protected :: hlm_name ! This character string passed by the HLM
+                                            ! is used during the processing of IO data, 
+                                            ! so that FATES knows which IO variables it 
+                                            ! should prepare.  For instance
+                                            ! ATS, ALM and CLM will only want variables 
+                                            ! specficially packaged for them.
+                                            ! This string sets which filter is enacted.
+   
+  
+   real(r8), protected :: hlm_hio_ignore_val  ! This value can be flushed to history 
+                                              ! diagnostics, such that the
+                                              ! HLM will interpret that the value should not 
+                                              ! be included in the average.
+   
+   integer, protected :: hlm_masterproc  ! Is this the master processor, typically useful
+                                         ! for knowing if the current machine should be 
+                                         ! printing out messages to the logs or terminals
+                                         ! 1 = TRUE (is master) 0 = FALSE (is not master)
+   
+
+   ! -------------------------------------------------------------------------------------
+   ! Parameters that are dictated by FATES and known to be required knowledge
+   !  needed by the HLMs
+   ! -------------------------------------------------------------------------------------
+
+   ! Variables mostly used for dimensioning host land model (HLM) array spaces
+   
+   integer, protected :: fates_maxElementsPerPatch ! maxElementsPerPatch is the value that is ultimately
+                                                   ! used to set the size of the largest arrays necessary
+                                                   ! in things like restart files (probably hosted by the 
+                                                   ! HLM). The size of these arrays are not a parameter
+                                                   ! because it is simply the maximum of several different
+                                                   ! dimensions. It is possible that this would be the
+                                                   ! maximum number of cohorts per patch, but
+                                                   ! but it could be other things.
+
+   integer, protected :: fates_maxElementsPerSite  ! This is the max number of individual items one can store per 
+                                                   ! each grid cell and effects the striding in the ED restart 
+                                                   ! data as some fields are arrays where each array is
+                                                   ! associated with one cohort
+
+
+
    ! ------------------------------------------------------------------------------------
-   ! Notes on types
+   !                              DYNAMIC BOUNDARY CONDITIONS
+   ! ------------------------------------------------------------------------------------
+
+
+   ! -------------------------------------------------------------------------------------
+   ! Scalar Timing Variables
+   ! It is assumed that all of the sites on a given machine will be synchronous.
+   ! It is also assumed that the HLM will control time.
+   ! -------------------------------------------------------------------------------------
+   integer, protected  :: hlm_current_year    ! Current year
+   integer, protected  :: hlm_current_month   ! month of year
+   integer, protected  :: hlm_current_day     ! day of month
+   integer, protected  :: hlm_current_tod     ! time of day (seconds past 0Z)
+   integer, protected  :: hlm_current_date    ! time of day (seconds past 0Z)
+   integer, protected  :: hlm_reference_date  ! YYYYMMDD
+   real(r8), protected :: hlm_model_day       ! elapsed days between current date and ref
+   integer, protected  :: hlm_day_of_year     ! The integer day of the year
+   integer, protected  :: hlm_days_per_year   ! The HLM controls time, some HLMs may 
+                                              ! include a leap
+   real(r8), protected :: hlm_freq_day        ! fraction of year for daily time-step 
+                                              ! (1/days_per_year_, this is a frequency
+   
+   ! -------------------------------------------------------------------------------------
+   ! Structured Boundary Conditions (SITE/PATCH SCALE)
    ! For floating point arrays, it is sometimes the convention to define the arrays as
    ! POINTER instead of ALLOCATABLE.  This usually achieves the same result with subtle
    ! differences.  POINTER arrays can point to scalar values, discontinuous array slices
@@ -38,8 +132,9 @@ module FatesInterfaceMod
    !                       _pa  means patch dimensions
    !                       _rb  means radiation band
    ! ------------------------------------------------------------------------------------
-   
-   
+
+
+
 
 
    type, public :: bc_in_type
@@ -317,14 +412,13 @@ module FatesInterfaceMod
 
    end type fates_interface_type
 
-   public :: FatesInterfaceInit
-   public :: set_fates_ctrlparms
+  
 
 
 contains
 
    ! ====================================================================================
-  subroutine FatesInterfaceInit(log_unit, global_verbose)
+  subroutine FatesInterfaceInit(log_unit,global_verbose)
 
     use FatesGlobals, only : FatesGlobalsInit
 
@@ -333,7 +427,7 @@ contains
     integer, intent(in) :: log_unit
     logical, intent(in) :: global_verbose
 
-    call FatesGlobalsInit(log_unit, global_verbose)
+    call FatesGlobalsInit(log_unit,global_verbose)
 
   end subroutine FatesInterfaceInit
 
@@ -373,46 +467,46 @@ contains
       ! Allocate input boundaries
       
       ! Vegetation Dynamics
-      allocate(bc_in%t_veg24_pa(maxPatchesPerCol))
+      allocate(bc_in%t_veg24_pa(maxPatchesPerSite))
 
-      allocate(bc_in%wind24_pa(maxPatchesPerCol))
-      allocate(bc_in%relhumid24_pa(maxPatchesPerCol))
-      allocate(bc_in%precip24_pa(maxPatchesPerCol))
+      allocate(bc_in%wind24_pa(maxPatchesPerSite))
+      allocate(bc_in%relhumid24_pa(maxPatchesPerSite))
+      allocate(bc_in%precip24_pa(maxPatchesPerSite))
       
       ! Radiation
-      allocate(bc_in%solad_parb(maxPatchesPerCol,cp_numSWb))
-      allocate(bc_in%solai_parb(maxPatchesPerCol,cp_numSWb))
+      allocate(bc_in%solad_parb(maxPatchesPerSite,hlm_numSWb))
+      allocate(bc_in%solai_parb(maxPatchesPerSite,hlm_numSWb))
       
       ! Hydrology
-      allocate(bc_in%smp_gl(cp_numlevgrnd))
-      allocate(bc_in%eff_porosity_gl(cp_numlevgrnd))
-      allocate(bc_in%watsat_gl(cp_numlevgrnd))
-      allocate(bc_in%tempk_gl(cp_numlevgrnd))
-      allocate(bc_in%h2o_liqvol_gl(cp_numlevgrnd))
+      allocate(bc_in%smp_gl(hlm_numlevgrnd))
+      allocate(bc_in%eff_porosity_gl(hlm_numlevgrnd))
+      allocate(bc_in%watsat_gl(hlm_numlevgrnd))
+      allocate(bc_in%tempk_gl(hlm_numlevgrnd))
+      allocate(bc_in%h2o_liqvol_gl(hlm_numlevgrnd))
 
       ! Photosynthesis
-      allocate(bc_in%filter_photo_pa(maxPatchesPerCol))
-      allocate(bc_in%dayl_factor_pa(maxPatchesPerCol))
-      allocate(bc_in%esat_tv_pa(maxPatchesPerCol))
-      allocate(bc_in%eair_pa(maxPatchesPerCol))
-      allocate(bc_in%oair_pa(maxPatchesPerCol))
-      allocate(bc_in%cair_pa(maxPatchesPerCol))
-      allocate(bc_in%rb_pa(maxPatchesPerCol))
-      allocate(bc_in%t_veg_pa(maxPatchesPerCol))
-      allocate(bc_in%tgcm_pa(maxPatchesPerCol))
-      allocate(bc_in%t_soisno_gl(cp_numlevgrnd))
+      allocate(bc_in%filter_photo_pa(maxPatchesPerSite))
+      allocate(bc_in%dayl_factor_pa(maxPatchesPerSite))
+      allocate(bc_in%esat_tv_pa(maxPatchesPerSite))
+      allocate(bc_in%eair_pa(maxPatchesPerSite))
+      allocate(bc_in%oair_pa(maxPatchesPerSite))
+      allocate(bc_in%cair_pa(maxPatchesPerSite))
+      allocate(bc_in%rb_pa(maxPatchesPerSite))
+      allocate(bc_in%t_veg_pa(maxPatchesPerSite))
+      allocate(bc_in%tgcm_pa(maxPatchesPerSite))
+      allocate(bc_in%t_soisno_gl(hlm_numlevgrnd))
 
       ! Canopy Radiation
-      allocate(bc_in%filter_vegzen_pa(maxPatchesPerCol))
-      allocate(bc_in%coszen_pa(maxPatchesPerCol))
-      allocate(bc_in%albgr_dir_rb(cp_numSWb))
-      allocate(bc_in%albgr_dif_rb(cp_numSWb))
+      allocate(bc_in%filter_vegzen_pa(maxPatchesPerSite))
+      allocate(bc_in%coszen_pa(maxPatchesPerSite))
+      allocate(bc_in%albgr_dir_rb(hlm_numSWb))
+      allocate(bc_in%albgr_dif_rb(hlm_numSWb))
 
       ! Carbon Balance Checking
       ! (snow-depth and snow fraction are site level and not vectors)
       
       ! Ground layer structure
-      allocate(bc_in%depth_gl(0:cp_numlevgrnd))
+      allocate(bc_in%depth_gl(0:hlm_numlevgrnd))
 
       return
    end subroutine allocate_bcin
@@ -428,43 +522,43 @@ contains
       
       
       ! Radiation
-      allocate(bc_out%fsun_pa(maxPatchesPerCol))
-      allocate(bc_out%laisun_pa(maxPatchesPerCol))
-      allocate(bc_out%laisha_pa(maxPatchesPerCol))
+      allocate(bc_out%fsun_pa(maxPatchesPerSite))
+      allocate(bc_out%laisun_pa(maxPatchesPerSite))
+      allocate(bc_out%laisha_pa(maxPatchesPerSite))
       
       ! Hydrology
-      allocate(bc_out%active_suction_gl(cp_numlevgrnd))
-      allocate(bc_out%rootr_pagl(maxPatchesPerCol,cp_numlevgrnd))
-      allocate(bc_out%btran_pa(maxPatchesPerCol))
+      allocate(bc_out%active_suction_gl(hlm_numlevgrnd))
+      allocate(bc_out%rootr_pagl(maxPatchesPerSite,hlm_numlevgrnd))
+      allocate(bc_out%btran_pa(maxPatchesPerSite))
       
       ! Photosynthesis
 
-      allocate(bc_out%rssun_pa(maxPatchesPerCol))
-      allocate(bc_out%rssha_pa(maxPatchesPerCol))
+      allocate(bc_out%rssun_pa(maxPatchesPerSite))
+      allocate(bc_out%rssha_pa(maxPatchesPerSite))
       
       ! Canopy Radiation
-      allocate(bc_out%albd_parb(maxPatchesPerCol,cp_numSWb))
-      allocate(bc_out%albi_parb(maxPatchesPerCol,cp_numSWb))
-      allocate(bc_out%fabd_parb(maxPatchesPerCol,cp_numSWb))
-      allocate(bc_out%fabi_parb(maxPatchesPerCol,cp_numSWb))
-      allocate(bc_out%ftdd_parb(maxPatchesPerCol,cp_numSWb))
-      allocate(bc_out%ftid_parb(maxPatchesPerCol,cp_numSWb))
-      allocate(bc_out%ftii_parb(maxPatchesPerCol,cp_numSWb))
+      allocate(bc_out%albd_parb(maxPatchesPerSite,hlm_numSWb))
+      allocate(bc_out%albi_parb(maxPatchesPerSite,hlm_numSWb))
+      allocate(bc_out%fabd_parb(maxPatchesPerSite,hlm_numSWb))
+      allocate(bc_out%fabi_parb(maxPatchesPerSite,hlm_numSWb))
+      allocate(bc_out%ftdd_parb(maxPatchesPerSite,hlm_numSWb))
+      allocate(bc_out%ftid_parb(maxPatchesPerSite,hlm_numSWb))
+      allocate(bc_out%ftii_parb(maxPatchesPerSite,hlm_numSWb))
 
       ! biogeochemistry
-      allocate(bc_out%FATES_c_to_litr_lab_c_col(cp_numlevdecomp_full))        
-      allocate(bc_out%FATES_c_to_litr_cel_c_col(cp_numlevdecomp_full))
-      allocate(bc_out%FATES_c_to_litr_lig_c_col(cp_numlevdecomp_full))
+      allocate(bc_out%FATES_c_to_litr_lab_c_col(hlm_numlevdecomp_full))        
+      allocate(bc_out%FATES_c_to_litr_cel_c_col(hlm_numlevdecomp_full))
+      allocate(bc_out%FATES_c_to_litr_lig_c_col(hlm_numlevdecomp_full))
 
       ! Canopy Structure
-      allocate(bc_out%elai_pa(maxPatchesPerCol))
-      allocate(bc_out%esai_pa(maxPatchesPerCol))
-      allocate(bc_out%tlai_pa(maxPatchesPerCol))
-      allocate(bc_out%tsai_pa(maxPatchesPerCol))
-      allocate(bc_out%htop_pa(maxPatchesPerCol))
-      allocate(bc_out%hbot_pa(maxPatchesPerCol))
-      allocate(bc_out%canopy_fraction_pa(maxPatchesPerCol))
-      allocate(bc_out%frac_veg_nosno_alb_pa(maxPatchesPerCol))
+      allocate(bc_out%elai_pa(maxPatchesPerSite))
+      allocate(bc_out%esai_pa(maxPatchesPerSite))
+      allocate(bc_out%tlai_pa(maxPatchesPerSite))
+      allocate(bc_out%tsai_pa(maxPatchesPerSite))
+      allocate(bc_out%htop_pa(maxPatchesPerSite))
+      allocate(bc_out%hbot_pa(maxPatchesPerSite))
+      allocate(bc_out%canopy_fraction_pa(maxPatchesPerSite))
+      allocate(bc_out%frac_veg_nosno_alb_pa(maxPatchesPerSite))
 
 
       return
@@ -540,13 +634,76 @@ contains
       
       return
     end subroutine zero_bcs
-   
-   ! ==================================================================================== 
 
-   subroutine set_fates_ctrlparms(tag,ival,rval,cval)
+
+    ! ===================================================================================
+    
+    subroutine set_fates_global_elements(use_fates)
+      implicit none
+      
+      logical,intent(in) :: use_fates    ! Is fates turned on?
+      
+      if (use_fates) then
+
+         fates_maxElementsPerPatch = max(maxCohortsPerPatch, &
+              numpft_ed * nclmax * nlevcan)
+      
+         fates_maxElementsPerSite = maxPatchesPerSite * fates_maxElementsPerPatch
+
+      else
+         ! If we are not using FATES, the cohort dimension is still
+         ! going to be initialized, lets set it to the smallest value
+         ! possible so that the dimensioning info takes up little space
+
+         fates_maxElementsPerPatch = 1
+      
+         fates_maxElementsPerSite = 1
+         
+
+      end if
+
+
+    end subroutine set_fates_global_elements
+
+    ! ===================================================================================
+
+    subroutine SetFatesTime(current_year_in, current_month_in, &
+                          current_day_in, current_tod_in, &
+                          current_date_in, reference_date_in, &
+                          model_day_in, day_of_year_in, &
+                          days_per_year_in, freq_day_in)
+
+     ! This subroutine should be called directly from the HLM
+     
+     integer,  intent(in) :: current_year_in
+     integer,  intent(in) :: current_month_in
+     integer,  intent(in) :: current_day_in
+     integer,  intent(in) :: current_tod_in
+     integer,  intent(in) :: current_date_in
+     integer,  intent(in) :: reference_date_in
+     real(r8), intent(in) :: model_day_in
+     integer,  intent(in) :: day_of_year_in
+     integer,  intent(in) :: days_per_year_in
+     real(r8), intent(in) :: freq_day_in
+
+     hlm_current_year   = current_year_in
+     hlm_current_month  = current_month_in
+     hlm_current_day    = current_day_in
+     hlm_current_tod    = current_tod_in
+     hlm_current_date   = current_date_in
+     hlm_reference_date = reference_date_in
+     hlm_model_day      = model_day_in
+     hlm_day_of_year    = day_of_year_in
+     hlm_days_per_year  = days_per_year_in
+     hlm_freq_day       = freq_day_in
+
+  end subroutine SetFatesTime
+
+  ! ==================================================================================== 
+
+  subroutine set_fates_ctrlparms(tag,ival,rval,cval)
       
       ! ---------------------------------------------------------------------------------
-      ! INTERF-TODO:  NEED ALLOWANCES FOR REAL AND CHARACTER ARGS..
       ! Certain model control parameters and dimensions used by FATES are dictated by 
       ! the the driver or the host mode. To see which parameters should be filled here
       ! please also look at the ctrl_parms_type in FATESTYpeMod, in the section listing
@@ -568,8 +725,6 @@ contains
       ! RGK-2016
       ! ---------------------------------------------------------------------------------
 
-      use FatesGlobals, only : fates_log, fates_global_verbose
-
       ! Arguments
       integer, optional, intent(in)         :: ival
       real(r8), optional, intent(in)        :: rval
@@ -587,18 +742,18 @@ contains
          if (fates_global_verbose()) then
             write(fates_log(), *) 'Flushing FATES control parameters prior to transfer from host'
          end if
-         cp_numSwb     = unset_int
-         cp_numlevgrnd = unset_int
-         cp_numlevsoil = unset_int
-         cp_numlevdecomp_full = unset_int
-         cp_numlevdecomp      = unset_int
-         cp_hlm_name          = 'unset'
-         cp_hio_ignore_val    = unset_double
-         cp_masterproc        = unset_int
+         hlm_numSwb     = unset_int
+         hlm_numlevgrnd = unset_int
+         hlm_numlevsoil = unset_int
+         hlm_numlevdecomp_full = unset_int
+         hlm_numlevdecomp = unset_int
+         hlm_name         = 'unset'
+         hlm_hio_ignore_val   = unset_double
+         hlm_masterproc   = unset_int
 
       case('check_allset')
          
-         if(cp_numSWb .eq. unset_int) then
+         if(hlm_numSWb .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES dimension/parameter unset: num_sw_rad_bbands'
             end if
@@ -606,28 +761,28 @@ contains
             ! end_run('MESSAGE')
          end if
 
-         if(cp_masterproc .eq. unset_int) then
+         if(hlm_masterproc .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES parameter unset: cp_masterproc'
+               write(fates_log(), *) 'FATES parameter unset: hlm_masterproc'
             end if
             ! INTERF-TODO: FATES NEEDS INTERNAL end_run
             ! end_run('MESSAGE')
          end if
 
-         if(cp_numSWb > cp_maxSWb) then
+         if(hlm_numSWb > maxSWb) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES sets a maximum number of shortwave bands'
-               write(fates_log(), *) 'for some scratch-space, cp_maxSWb'
+               write(fates_log(), *) 'for some scratch-space, maxSWb'
                write(fates_log(), *) 'it defaults to 2, but can be increased as needed'
                write(fates_log(), *) 'your driver or host model is intending to drive'
-               write(fates_log(), *) 'FATES with:',cp_numSWb,' bands.'
-               write(fates_log(), *) 'please increase cp_maxSWb in EDTypes to match'
+               write(fates_log(), *) 'FATES with:',hlm_numSWb,' bands.'
+               write(fates_log(), *) 'please increase maxSWb in EDTypes to match'
                write(fates_log(), *) 'or exceed this value'
             end if
             ! end_run('MESSAGE')
          end if
 
-         if(cp_numlevgrnd .eq. unset_int) then
+         if(hlm_numlevgrnd .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES dimension/parameter unset: numlevground'
             end if
@@ -635,7 +790,7 @@ contains
             ! end_run('MESSAGE')
          end if
 
-         if(cp_numlevsoil .eq. unset_int) then
+         if(hlm_numlevsoil .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES dimension/parameter unset: numlevground'
             end if
@@ -643,7 +798,7 @@ contains
             ! end_run('MESSAGE')
          end if
 
-         if(cp_numlevdecomp_full .eq. unset_int) then
+         if(hlm_numlevdecomp_full .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES dimension/parameter unset: numlevdecomp_full'
             end if
@@ -651,7 +806,7 @@ contains
             ! end_run('MESSAGE')
          end if
 
-         if(cp_numlevdecomp .eq. unset_int) then
+         if(hlm_numlevdecomp .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES dimension/parameter unset: numlevdecomp'
             end if
@@ -659,7 +814,7 @@ contains
             ! end_run('MESSAGE')
          end if
 
-         if(trim(cp_hlm_name) .eq. 'unset') then
+         if(trim(hlm_name) .eq. 'unset') then
             if (fates_global_verbose()) then
                write(fates_log(),*) 'FATES dimension/parameter unset: hlm_name'
             end if
@@ -667,7 +822,7 @@ contains
             ! end_run('MESSAGE')
          end if
 
-         if( abs(cp_hio_ignore_val-unset_double)<1e-10 ) then
+         if( abs(hlm_hio_ignore_val-unset_double)<1e-10 ) then
             if (fates_global_verbose()) then
                write(fates_log(),*) 'FATES dimension/parameter unset: hio_ignore'
             end if
@@ -686,37 +841,37 @@ contains
             select case (trim(tag))
 
             case('masterproc')
-               cp_masterproc = ival
+               hlm_masterproc = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering masterproc = ',ival,' to FATES'
                end if
 
             case('num_sw_bbands')
-               cp_numSwb = ival
+               hlm_numSwb = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering num_sw_bbands = ',ival,' to FATES'
                end if
                
             case('num_lev_ground')
-               cp_numlevgrnd = ival
+               hlm_numlevgrnd = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering num_lev_ground = ',ival,' to FATES'
                end if
 
             case('num_lev_soil')
-               cp_numlevsoil = ival
+               hlm_numlevsoil = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering num_lev_ground = ',ival,' to FATES'
                end if
 
             case('num_levdecomp_full')
-               cp_numlevdecomp_full = ival
+               hlm_numlevdecomp_full = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering num_levdecomp_full = ',ival,' to FATES'
                end if
             
             case('num_levdecomp')
-               cp_numlevdecomp = ival
+               hlm_numlevdecomp = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering num_levdecomp = ',ival,' to FATES'
                end if
@@ -733,7 +888,7 @@ contains
          if(present(rval))then
             select case (trim(tag))
             case ('hio_ignore_val')
-               cp_hio_ignore_val = rval
+               hlm_hio_ignore_val = rval
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hio_ignore_val = ',rval,' to FATES'
                end if
@@ -749,7 +904,7 @@ contains
             select case (trim(tag))
                
             case('hlm_name')
-               cp_hlm_name = trim(cval)
+               hlm_name = trim(cval)
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering the HLM name = ',trim(cval)
                end if
@@ -766,7 +921,6 @@ contains
             
       return
    end subroutine set_fates_ctrlparms
-
 
 
 end module FatesInterfaceMod
