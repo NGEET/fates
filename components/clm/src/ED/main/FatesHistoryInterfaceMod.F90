@@ -2538,22 +2538,22 @@ contains
           avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_bg_si_cwdsc )
 
-    call this%set_history_var(vname='CWD_AG_IN_CWDSC', units='kgC/m^2/y', &
+    call this%set_history_var(vname='CWD_AG_IN_CWDSC', units='gC/m^2/y', &
           long='size-resolved AG CWD input', use_default='active', &
           avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_ag_in_si_cwdsc )
 
-    call this%set_history_var(vname='CWD_BG_IN_CWDSC', units='kgC/m^2/y', &
+    call this%set_history_var(vname='CWD_BG_IN_CWDSC', units='gC/m^2/y', &
           long='size-resolved BG CWD input', use_default='active', &
           avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_bg_in_si_cwdsc )
 
-    call this%set_history_var(vname='CWD_AG_OUT_CWDSC', units='kgC/m^2/y', &
+    call this%set_history_var(vname='CWD_AG_OUT_CWDSC', units='gC/m^2/y', &
           long='size-resolved AG CWD output', use_default='active', &
           avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_ag_out_si_cwdsc )
 
-    call this%set_history_var(vname='CWD_BG_OUT_CWDSC', units='kgC/m^2/y', &
+    call this%set_history_var(vname='CWD_BG_OUT_CWDSC', units='gC/m^2/y', &
           long='size-resolved BG CWD output', use_default='active', &
           avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_bg_out_si_cwdsc )
