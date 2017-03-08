@@ -929,7 +929,7 @@ contains
  subroutine set_restart_vectors(this,nc,nsites,sites)
 
    use EDTypesMod, only : nclmax
-   use EDTypesMod, only : nlevcan
+   use EDTypesMod, only : nlevleaf
    use FatesInterfaceMod, only : fates_maxElementsPerPatch
    use EDTypesMod, only : numpft_ed
    use EDTypesMod, only : ed_site_type
@@ -1206,9 +1206,9 @@ contains
              
              if ( DEBUG ) write(fates_log(),*) 'CLTV io_idx_pa_sunz 1 ',io_idx_pa_sunz
              
-             if ( DEBUG ) write(fates_log(),*) 'CLTV 1186 ',nlevcan,numpft_ed,nclmax
+             if ( DEBUG ) write(fates_log(),*) 'CLTV 1186 ',nlevleaf,numpft_ed,nclmax
              
-             do k = 1,nlevcan ! nlevcan currently 40
+             do k = 1,nlevleaf ! nlevleaf currently 40
                 do j = 1,numpft_ed ! numpft_ed currently 2
                    do i = 1,nclmax ! nclmax currently 2
                       rio_fsun_paclftls(io_idx_pa_sunz)        = cpatch%f_sun(i,j,k)
@@ -1304,7 +1304,7 @@ contains
      use EDTypesMod,           only : ed_cohort_type
      use EDTypesMod,           only : ed_patch_type
      use EDTypesMod,           only : ncwd
-     use EDTypesMod,           only : nlevcan
+     use EDTypesMod,           only : nlevleaf
      use EDTypesMod,           only : nclmax
      use FatesInterfaceMod,    only : fates_maxElementsPerPatch
      use EDTypesMod,           only : numpft_ed
@@ -1501,7 +1501,7 @@ contains
      use EDTypesMod, only : ed_patch_type
      use EDTypesMod, only : numpft_ed
      use EDTypesMod, only : ncwd
-     use EDTypesMod, only : nlevcan
+     use EDTypesMod, only : nlevleaf
      use EDTypesMod, only : nclmax
      use FatesInterfaceMod, only : fates_maxElementsPerPatch
      use EDTypesMod, only : numWaterMem
@@ -1765,7 +1765,7 @@ contains
              
              if ( DEBUG ) write(fates_log(),*) 'CVTL io_idx_pa_sunz 1 ',io_idx_pa_sunz
              
-             do k = 1,nlevcan ! nlevcan currently 40
+             do k = 1,nlevleaf ! nlevleaf currently 40
                 do j = 1,numpft_ed ! numpft_ed currently 2
                    do i = 1,nclmax ! nclmax currently 2
                       cpatch%f_sun(i,j,k)      = rio_fsun_paclftls(io_idx_pa_sunz) 

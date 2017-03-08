@@ -619,7 +619,7 @@ contains
     ! Join similar cohorts to reduce total number            
     !
     ! !USES:
-    use EDTypesMod  , only :  nlevcan
+    use EDTypesMod  , only :  nlevleaf
     !
     ! !ARGUMENTS    
     type (ed_patch_type), intent(inout), target :: patchptr
@@ -774,7 +774,7 @@ contains
                          ! recent canopy history
                          currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + nextc%n*nextc%canopy_layer_yesterday)/newn
 
-                         do i=1, nlevcan     
+                         do i=1, nlevleaf     
                             if (currentCohort%year_net_uptake(i) == 999._r8 .or. nextc%year_net_uptake(i) == 999._r8) then
                                currentCohort%year_net_uptake(i) = min(nextc%year_net_uptake(i),currentCohort%year_net_uptake(i))
                             else
