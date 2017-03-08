@@ -1490,6 +1490,7 @@ contains
             hio_litter_in_si(io_pa)            = (sum(cpatch%CWD_AG_in) +sum(cpatch%leaf_litter_in)) &
                  * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
             hio_litter_out_pa(io_pa)           = (sum(cpatch%CWD_AG_out)+sum(cpatch%leaf_litter_out)) &
+                 * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
             !!! --- cdk  --- !!!
             
             hio_seeds_in_pa(io_pa)             = sum(cpatch%seeds_in) * &
