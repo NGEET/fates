@@ -12,7 +12,7 @@ module EDCanopyStructureMod
   use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type, ncwd
   use EDTypesMod            , only : nclmax
-  use EDTypesMod            , only : nlevcan
+  use EDTypesMod            , only : nlevleaf
   use EDTypesMod            , only : numpft_ed
   use EDtypesMod            , only : AREA
   use FatesGlobals          , only : endrun => fates_endrun
@@ -98,10 +98,10 @@ contains
     real(r8) :: cc_loss
     real(r8) :: lossarea
     real(r8) :: newarea
-    real(r8) :: arealayer(nlevcan) ! Amount of plant area currently in each canopy layer
-    real(r8) :: sumdiff(nlevcan)   ! The total of the exclusion weights for all cohorts in layer z 
+    real(r8) :: arealayer(nlevleaf) ! Amount of plant area currently in each canopy layer
+    real(r8) :: sumdiff(nlevleaf)   ! The total of the exclusion weights for all cohorts in layer z 
     real(r8) :: weight                ! The amount of the total lost area that comes from this cohort
-    real(r8) :: sum_weights(nlevcan)
+    real(r8) :: sum_weights(nlevleaf)
     real(r8) :: new_total_area_check
     real(r8) :: missing_area, promarea,cc_gain,sumgain
     integer  :: promswitch,lower_cohort_switch
@@ -677,7 +677,7 @@ contains
     ! !LOCAL VARIABLES:
     type (ed_cohort_type), pointer :: currentCohort
     type (ed_patch_type) , pointer :: currentPatch
-    real(r8) :: arealayer(nlevcan) ! Amount of canopy in each layer. 
+    real(r8) :: arealayer(nlevleaf) ! Amount of canopy in each layer. 
     real(r8) :: inc                   ! Arbitrary daily incremental change in canopy area 
     integer  :: z
     !----------------------------------------------------------------------
@@ -1178,10 +1178,10 @@ contains
                          /currentPatch%tlai_profile(L,ft,iv)
                 enddo
                 
-                currentPatch%tlai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevcan) = 0._r8
-                currentPatch%tsai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevcan) = 0._r8
-                currentPatch%elai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevcan) = 0._r8 
-                currentPatch%esai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevcan) = 0._r8
+                currentPatch%tlai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevleaf) = 0._r8
+                currentPatch%tsai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevleaf) = 0._r8
+                currentPatch%elai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevleaf) = 0._r8 
+                currentPatch%esai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevleaf) = 0._r8
                 
              enddo
           enddo
