@@ -1603,7 +1603,7 @@ contains
                                      nlevage_ed,     &
                                      sclass_ed,      &
                                      nlevsclass_ed
-    use EDTypesMod, only : numpft_ed, nclmax, nlevcan
+    use EDTypesMod, only : numpft_ed, nclmax, nlevleaf
     !
     ! Arguments
     class(fates_history_interface_type)                 :: this
@@ -1819,10 +1819,10 @@ contains
             ! summarize radiation profiles through the canopy
             do ipft=1,numpft_ed
                do ican=1,nclmax
-                  do ileaf=1,nlevcan
+                  do ileaf=1,nlevleaf
                      ! calculate where we are on multiplexed dimensions
-                     cnlfpft_indx = ileaf + (ican-1) * nlevcan + (ipft-1) * nlevcan * nclmax 
-                     cnlf_indx = ileaf + (ican-1) * nlevcan
+                     cnlfpft_indx = ileaf + (ican-1) * nlevleaf + (ipft-1) * nlevleaf * nclmax 
+                     cnlf_indx = ileaf + (ican-1) * nlevleaf
                      !
                      hio_parsun_z_si_cnlfpft(io_si,cnlfpft_indx) = hio_parsun_z_si_cnlfpft(io_si,cnlfpft_indx) + &
                           cpatch%ed_parsun_z(ican,ipft,ileaf) * cpatch%area/AREA
