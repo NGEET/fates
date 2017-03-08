@@ -1481,18 +1481,18 @@ contains
             ! put litter_in flux onto site level variable so as to be able to append site-level distubance-related input flux after patch loop
             hio_litter_in_si(io_si) = hio_litter_in_si(io_si) + &
                  (sum(cpatch%CWD_AG_in) +sum(cpatch%leaf_litter_in) + sum(cpatch%root_litter_in)) &
-                 * 1.e3_r8 * 365.0_r8 * daysecs * cpatch%area/AREA
+                 * 1.e3_r8 * cpatch%area / ( AREA * 365.0_r8 * daysecs )
             ! keep litter_out at patch level
             hio_litter_out_pa(io_pa)           = (sum(cpatch%CWD_AG_out)+sum(cpatch%leaf_litter_out) &
                  + sum(cpatch%root_litter_out)) &
-                 * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
+                 * 1.e3_r8 * patch_scaling_scalar / ( 365.0_r8 * daysecs )
             
             hio_seeds_in_pa(io_pa)             = sum(cpatch%seeds_in) * &
-                 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
+                 1.e3_r8 * patch_scaling_scalar / ( 365.0_r8 * daysecs )
             hio_seed_decay_pa(io_pa)           = sum(cpatch%seed_decay) &
-                 * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
+                 * 1.e3_r8 * patch_scaling_scalar / ( 365.0_r8 * daysecs )
             hio_seed_germination_pa(io_pa)     = sum(cpatch%seed_germination) &
-                 * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
+                 * 1.e3_r8 * patch_scaling_scalar / ( 365.0_r8 * daysecs )
 
             
             hio_canopy_spread_pa(io_pa)        = cpatch%spread(1) 
@@ -1593,7 +1593,7 @@ contains
          end do
          hio_litter_in_si(io_si) = hio_litter_in_si(io_si) + &
               (sum(sites(s)%leaf_litter_diagnostic_input_carbonflux) + &
-              sum(sites(s)%root_litter_diagnostic_input_carbonflux)) * 1e3
+              sum(sites(s)%root_litter_diagnostic_input_carbonflux)) * 1e3 / ( daysecs * yeardays )
          ! and reset the disturbance-related field buffers
          sites(s)%CWD_AG_diagnostic_input_carbonflux(:) = 0._r8
          sites(s)%CWD_BG_diagnostic_input_carbonflux(:) = 0._r8
@@ -2141,12 +2141,12 @@ contains
     ! Litter Variables
 
     call this%set_history_var(vname='LITTER_IN', units='gC m-2 s-1',           &
-         long='Litter flux in leaves',  use_default='active',                   &
+         long='FATES litter flux in',  use_default='active',                   &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_litter_in_si )
 
     call this%set_history_var(vname='LITTER_OUT', units='gC m-2 s-1',          &
-         long='Litter flux out leaves',  use_default='active',                  & 
+         long='FATES litter flux out',  use_default='active',                  & 
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_litter_out_pa )
 
