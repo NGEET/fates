@@ -10,7 +10,7 @@ module EDTypesMod
   integer, parameter :: maxPatchesPerSite  = 10   ! maximum number of patches to live on a site
   integer, parameter :: maxCohortsPerPatch = 160  ! maximum number of cohorts to live on a patch
   integer, parameter :: nclmax = 2                ! Maximum number of canopy layers
-  integer, parameter :: nlevcan = 40              ! number of leaf layers in canopy layer
+  integer, parameter :: nlevleaf = 40              ! number of leaf layers in canopy layer
   integer, parameter :: maxpft = 10               ! maximum number of PFTs allowed
                                                   ! the parameter file may determine that fewer
                                                   ! are used, but this helps allocate scratch
@@ -213,8 +213,8 @@ module EDTypesMod
      real(r8) ::  npp_bseed                              ! NPP into seeds: KgC/indiv/year
      real(r8) ::  npp_store                              ! NPP into storage: KgC/indiv/year
 
-     real(r8) ::  ts_net_uptake(nlevcan)              ! Net uptake of leaf layers: kgC/m2/s
-     real(r8) ::  year_net_uptake(nlevcan)            ! Net uptake of leaf layers: kgC/m2/year
+     real(r8) ::  ts_net_uptake(nlevleaf)              ! Net uptake of leaf layers: kgC/m2/s
+     real(r8) ::  year_net_uptake(nlevleaf)            ! Net uptake of leaf layers: kgC/m2/year
 
      ! RESPIRATION COMPONENTS
      real(r8) ::  rdark                                  ! Dark respiration: kgC/indiv/s
@@ -302,33 +302,33 @@ module EDTypesMod
      real(r8) ::  bare_frac_area                                   ! bare soil in this patch expressed as a fraction of the total soil surface.
      real(r8) ::  lai                                              ! leaf area index of patch
 
-     real(r8) ::  tlai_profile(nclmax,numpft_ed,nlevcan)        ! total   leaf area in each canopy layer, pft, and leaf layer. m2/m2
-     real(r8) ::  elai_profile(nclmax,numpft_ed,nlevcan)        ! exposed leaf area in each canopy layer, pft, and leaf layer. m2/m2
-     real(r8) ::  tsai_profile(nclmax,numpft_ed,nlevcan)        ! total   stem area in each canopy layer, pft, and leaf layer. m2/m2
-     real(r8) ::  esai_profile(nclmax,numpft_ed,nlevcan)        ! exposed stem area in each canopy layer, pft, and leaf layer. m2/m2
-     real(r8) ::  layer_height_profile(nclmax,numpft_ed,nlevcan)
-     real(r8) ::  canopy_area_profile(nclmax,numpft_ed,nlevcan) ! fraction of canopy in each canopy 
+     real(r8) ::  tlai_profile(nclmax,numpft_ed,nlevleaf)        ! total   leaf area in each canopy layer, pft, and leaf layer. m2/m2
+     real(r8) ::  elai_profile(nclmax,numpft_ed,nlevleaf)        ! exposed leaf area in each canopy layer, pft, and leaf layer. m2/m2
+     real(r8) ::  tsai_profile(nclmax,numpft_ed,nlevleaf)        ! total   stem area in each canopy layer, pft, and leaf layer. m2/m2
+     real(r8) ::  esai_profile(nclmax,numpft_ed,nlevleaf)        ! exposed stem area in each canopy layer, pft, and leaf layer. m2/m2
+     real(r8) ::  layer_height_profile(nclmax,numpft_ed,nlevleaf)
+     real(r8) ::  canopy_area_profile(nclmax,numpft_ed,nlevleaf) ! fraction of canopy in each canopy 
      ! layer, pft, and leaf layer:-
      integer  ::  present(nclmax,numpft_ed)                        ! is there any of this pft in this canopy layer?      
      integer  ::  nrad(nclmax,numpft_ed)                           ! number of exposed leaf layers for each canopy layer and pft
      integer  ::  ncan(nclmax,numpft_ed)                           ! number of total   leaf layers for each canopy layer and pft
 
      !RADIATION FLUXES      
-     real(r8) ::  fabd_sun_z(nclmax,numpft_ed,nlevcan)          ! sun fraction of direct light absorbed by each canopy 
+     real(r8) ::  fabd_sun_z(nclmax,numpft_ed,nlevleaf)          ! sun fraction of direct light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
-     real(r8) ::  fabd_sha_z(nclmax,numpft_ed,nlevcan)          ! shade fraction of direct light absorbed by each canopy 
+     real(r8) ::  fabd_sha_z(nclmax,numpft_ed,nlevleaf)          ! shade fraction of direct light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
-     real(r8) ::  fabi_sun_z(nclmax,numpft_ed,nlevcan)          ! sun fraction of indirect light absorbed by each canopy 
+     real(r8) ::  fabi_sun_z(nclmax,numpft_ed,nlevleaf)          ! sun fraction of indirect light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
-     real(r8) ::  fabi_sha_z(nclmax,numpft_ed,nlevcan)          ! shade fraction of indirect light absorbed by each canopy 
+     real(r8) ::  fabi_sha_z(nclmax,numpft_ed,nlevleaf)          ! shade fraction of indirect light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
 
-     real(r8) ::  ed_laisun_z(nclmax,numpft_ed,nlevcan)         ! amount of LAI in the sun   in each canopy layer, 
+     real(r8) ::  ed_laisun_z(nclmax,numpft_ed,nlevleaf)         ! amount of LAI in the sun   in each canopy layer, 
      ! pft, and leaf layer. m2/m2
-     real(r8) ::  ed_laisha_z(nclmax,numpft_ed,nlevcan)         ! amount of LAI in the shade in each canopy layer,
-     real(r8) ::  ed_parsun_z(nclmax,numpft_ed,nlevcan)         ! PAR absorbed  in the sun   in each canopy layer,
-     real(r8) ::  ed_parsha_z(nclmax,numpft_ed,nlevcan)         ! PAR absorbed  in the shade in each canopy layer,
-     real(r8) ::  f_sun(nclmax,numpft_ed,nlevcan)               ! fraction of leaves in the sun in each canopy layer, pft, 
+     real(r8) ::  ed_laisha_z(nclmax,numpft_ed,nlevleaf)         ! amount of LAI in the shade in each canopy layer,
+     real(r8) ::  ed_parsun_z(nclmax,numpft_ed,nlevleaf)         ! PAR absorbed  in the sun   in each canopy layer,
+     real(r8) ::  ed_parsha_z(nclmax,numpft_ed,nlevleaf)         ! PAR absorbed  in the shade in each canopy layer,
+     real(r8) ::  f_sun(nclmax,numpft_ed,nlevleaf)               ! fraction of leaves in the sun in each canopy layer, pft, 
 
      ! and leaf layer. m2/m2
      real(r8),allocatable ::  tr_soil_dir(:)                              ! fraction of incoming direct  radiation that (cm_numSWb)
@@ -351,7 +351,7 @@ module EDTypesMod
 
      ! PHOTOSYNTHESIS       
 
-     real(r8) ::  psn_z(nclmax,numpft_ed,nlevcan)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
+     real(r8) ::  psn_z(nclmax,numpft_ed,nlevleaf)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
 !     real(r8) ::  gpp                                              ! total patch gpp: KgC/m2/year
 !     real(r8) ::  npp                                              ! total patch npp: KgC/m2/year   
 
@@ -554,11 +554,11 @@ contains
     allocate( levage_ed(1:nlevage_ed   ))
 
     allocate(levcan_ed(nclmax))
-    allocate(can_levcnlf_ed(nlevcan*nclmax))
-    allocate(lf_levcnlf_ed(nlevcan*nclmax))
-    allocate(can_levcnlfpft_ed(nlevcan*nclmax*numpft_ed))
-    allocate(lf_levcnlfpft_ed(nlevcan*nclmax*numpft_ed))
-    allocate(pft_levcnlfpft_ed(nlevcan*nclmax*numpft_ed))
+    allocate(can_levcnlf_ed(nlevleaf*nclmax))
+    allocate(lf_levcnlf_ed(nlevleaf*nclmax))
+    allocate(can_levcnlfpft_ed(nlevleaf*nclmax*numpft_ed))
+    allocate(lf_levcnlfpft_ed(nlevleaf*nclmax*numpft_ed))
+    allocate(pft_levcnlfpft_ed(nlevleaf*nclmax*numpft_ed))
 
     ! Fill the IO array of plant size classes
     ! For some reason the history files did not like
@@ -599,7 +599,7 @@ contains
 
     i=0
     do ican=1,nclmax
-       do ileaf=1,nlevcan
+       do ileaf=1,nlevleaf
           i=i+1
           can_levcnlf_ed(i) = ican
           lf_levcnlf_ed(i) = ileaf
@@ -609,7 +609,7 @@ contains
     i=0
     do ipft=1,numpft_ed
        do ican=1,nclmax
-          do ileaf=1,nlevcan
+          do ileaf=1,nlevleaf
              i=i+1
              can_levcnlfpft_ed(i) = ican
              lf_levcnlfpft_ed(i) = ileaf

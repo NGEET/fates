@@ -21,7 +21,7 @@ module EDPhysiologyMod
   use EDTypesMod          , only : dg_sf, dinc_ed
   use EDTypesMod          , only : external_recruitment
   use EDTypesMod          , only : ncwd
-  use EDTypesMod          , only : nlevcan
+  use EDTypesMod          , only : nlevleaf
   use EDTypesMod          , only : numpft_ed
   use EDTypesMod          , only : senes
   use EDTypesMod          , only : ed_site_type, ed_patch_type, ed_cohort_type
@@ -183,13 +183,13 @@ contains
           trimmed = 0    
           currentCohort%treelai = tree_lai(currentCohort)    
           currentCohort%nv = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
-          if (currentCohort%nv > nlevcan)then
-             write(fates_log(),*) 'nv > nlevcan',currentCohort%nv,currentCohort%treelai,currentCohort%treesai, &
+          if (currentCohort%nv > nlevleaf)then
+             write(fates_log(),*) 'nv > nlevleaf',currentCohort%nv,currentCohort%treelai,currentCohort%treesai, &
                   currentCohort%c_area,currentCohort%n,currentCohort%bl
           endif
 
           !Leaf cost vs netuptake for each leaf layer. 
-          do z = 1,nlevcan
+          do z = 1,nlevleaf
              if (currentCohort%year_net_uptake(z) /= 999._r8)then !there was activity this year in this leaf layer. 
                 !Leaf Cost kgC/m2/year-1
                 !decidous costs. 
