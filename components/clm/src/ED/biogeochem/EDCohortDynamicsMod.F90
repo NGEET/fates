@@ -9,6 +9,7 @@ module EDCohortDynamicsMod
   use FatesInterfaceMod     , only : hlm_freq_day
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
+  use FatesInterfaceMod     , only : hlm_days_per_year
   use pftconMod             , only : pftcon
   use EDEcophysContype      , only : EDecophyscon
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
@@ -498,6 +499,7 @@ contains
     type (ed_patch_type), intent(inout), target :: patchptr
     !
     ! !LOCAL VARIABLES:
+    type (ed_site_type)   , pointer :: currentSite
     type (ed_patch_type)  , pointer :: currentPatch
     type (ed_cohort_type) , pointer :: currentCohort
     type (ed_cohort_type) , pointer :: nextc
@@ -508,6 +510,7 @@ contains
 
     currentPatch  => patchptr
     currentCohort => currentPatch%tallest  
+    currentSite => currentPatch%siteptr
 
     do while (associated(currentCohort))
        nextc      => currentCohort%shorter    
@@ -571,10 +574,10 @@ contains
           else
              levcan = 2
           endif
-          currentPatch%siteptr%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) = &
-               currentPatch%siteptr%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) + currentCohort%n
+          currentSite%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) = &
+               currentSite%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) + currentCohort%n
           !
-          currentPatch%siteptr%termination_carbonflux(levcan) = currentPatch%siteptr%termination_carbonflux(levcan) + &
+          currentSite%termination_carbonflux(levcan) = currentSite%termination_carbonflux(levcan) + &
                currentCohort%n * currentCohort%b
           if (.not. associated(currentCohort%taller)) then
              currentPatch%tallest => currentCohort%shorter
@@ -603,6 +606,23 @@ contains
                   (currentCohort%bl)/currentPatch%area
              currentPatch%root_litter(currentCohort%pft) = currentPatch%root_litter(currentCohort%pft) + currentCohort%n* &
                   (currentCohort%br+currentCohort%bstore)/currentPatch%area 
+
+             ! keep track of the above fluxes at the site level as a CWD/litter input flux (in kg / site-m2 / yr)
+             do c=1,ncwd
+                currentSite%CWD_AG_diagnostic_input_carbonflux(c)  = currentSite%CWD_AG_diagnostic_input_carbonflux(c) &
+                     + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
+                     SF_val_CWD_frac(c) * ED_val_ag_biomass * hlm_days_per_year / AREA
+                currentSite%CWD_BG_diagnostic_input_carbonflux(c)  = currentSite%CWD_BG_diagnostic_input_carbonflux(c) &
+                     + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
+                     SF_val_CWD_frac(c) * (1.0_r8 -  ED_val_ag_biomass)  * hlm_days_per_year / AREA
+             enddo
+
+             currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
+                  currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) +  &
+                  currentCohort%n * (currentCohort%bl) * hlm_days_per_year  / AREA
+             currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
+                  currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) + &
+                  currentCohort%n * (currentCohort%br+currentCohort%bstore) * hlm_days_per_year  / AREA
 
              deallocate(currentCohort)     
           endif
