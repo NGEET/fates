@@ -39,7 +39,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_fire_fuel_sav_pa
   integer, private :: ih_fire_fuel_mef_pa
   integer, private :: ih_sum_fuel_pa
-  integer, private :: ih_litter_in_pa
+  integer, private :: ih_litter_in_si
   integer, private :: ih_litter_out_pa
 
   integer, private :: ih_efpot_pa        ! NA
@@ -1051,7 +1051,7 @@ contains
                hio_fire_fuel_sav_pa    => this%hvars(ih_fire_fuel_sav_pa)%r81d, &
                hio_fire_fuel_mef_pa    => this%hvars(ih_fire_fuel_mef_pa)%r81d, &
                hio_sum_fuel_pa         => this%hvars(ih_sum_fuel_pa)%r81d,  &
-               hio_litter_in_pa        => this%hvars(ih_litter_in_pa)%r81d, &
+               hio_litter_in_si        => this%hvars(ih_litter_in_si)%r81d, &
                hio_litter_out_pa       => this%hvars(ih_litter_out_pa)%r81d, &
                hio_seed_bank_si        => this%hvars(ih_seed_bank_si)%r81d, &
                hio_seeds_in_pa         => this%hvars(ih_seeds_in_pa)%r81d, &
@@ -1478,9 +1478,13 @@ contains
             end do
             
             ! Update Litter Flux Variables
-            hio_litter_in_pa(io_pa)            = (sum(cpatch%CWD_AG_in) +sum(cpatch%leaf_litter_in)) &
-                 * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
-            hio_litter_out_pa(io_pa)           = (sum(cpatch%CWD_AG_out)+sum(cpatch%leaf_litter_out)) &
+            ! put litter_in flux onto site level variable so as to be able to append site-level distubance-related input flux after patch loop
+            hio_litter_in_si(io_si) = hio_litter_in_si(io_si) + &
+                 (sum(cpatch%CWD_AG_in) +sum(cpatch%leaf_litter_in) + sum(cpatch%root_litter_in)) &
+                 * 1.e3_r8 * 365.0_r8 * daysecs * cpatch%area/AREA
+            ! keep litter_out at patch level
+            hio_litter_out_pa(io_pa)           = (sum(cpatch%CWD_AG_out)+sum(cpatch%leaf_litter_out) &
+                 + sum(cpatch%root_litter_out)) &
                  * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
             
             hio_seeds_in_pa(io_pa)             = sum(cpatch%seeds_in) * &
@@ -1579,7 +1583,23 @@ contains
               sites(s)%termination_carbonflux(2) * 1e3 / (1e4 * daysecs)
          ! and zero the site-level termination carbon flux variable
          sites(s)%termination_carbonflux(:) = 0._r8
- 
+         !
+         ! add the site-level disturbance-associated cwd and litter input fluxes to thir respective flux fields
+         do i_cwd = 1, ncwd
+            hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) + &
+                 sites(s)%CWD_AG_diagnostic_input_carbonflux(i_cwd) * 1e3
+            hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) + &
+                 sites(s)%CWD_BG_diagnostic_input_carbonflux(i_cwd) * 1e3
+         end do
+         hio_litter_in_si(io_si) = hio_litter_in_si(io_si) + &
+              (sum(sites(s)%leaf_litter_diagnostic_input_carbonflux) + &
+              sum(sites(s)%root_litter_diagnostic_input_carbonflux)) * 1e3
+         ! and reset the disturbance-related field buffers
+         sites(s)%CWD_AG_diagnostic_input_carbonflux(:) = 0._r8
+         sites(s)%CWD_BG_diagnostic_input_carbonflux(:) = 0._r8
+         sites(s)%leaf_litter_diagnostic_input_carbonflux(:) = 0._r8
+         sites(s)%root_litter_diagnostic_input_carbonflux(:) = 0._r8
+
       enddo ! site loop
       
     end associate
@@ -2122,8 +2142,8 @@ contains
 
     call this%set_history_var(vname='LITTER_IN', units='gC m-2 s-1',           &
          long='Litter flux in leaves',  use_default='active',                   &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_litter_in_pa )
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_litter_in_si )
 
     call this%set_history_var(vname='LITTER_OUT', units='gC m-2 s-1',          &
          long='Litter flux out leaves',  use_default='active',                  & 
@@ -2538,22 +2558,22 @@ contains
           avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_bg_si_cwdsc )
 
-    call this%set_history_var(vname='CWD_AG_IN_CWDSC', units='kgC/m^2/y', &
+    call this%set_history_var(vname='CWD_AG_IN_CWDSC', units='gC/m^2/y', &
           long='size-resolved AG CWD input', use_default='active', &
           avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_ag_in_si_cwdsc )
 
-    call this%set_history_var(vname='CWD_BG_IN_CWDSC', units='kgC/m^2/y', &
+    call this%set_history_var(vname='CWD_BG_IN_CWDSC', units='gC/m^2/y', &
           long='size-resolved BG CWD input', use_default='active', &
           avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_bg_in_si_cwdsc )
 
-    call this%set_history_var(vname='CWD_AG_OUT_CWDSC', units='kgC/m^2/y', &
+    call this%set_history_var(vname='CWD_AG_OUT_CWDSC', units='gC/m^2/y', &
           long='size-resolved AG CWD output', use_default='active', &
           avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_ag_out_si_cwdsc )
 
-    call this%set_history_var(vname='CWD_BG_OUT_CWDSC', units='kgC/m^2/y', &
+    call this%set_history_var(vname='CWD_BG_OUT_CWDSC', units='gC/m^2/y', &
           long='size-resolved BG CWD output', use_default='active', &
           avgflag='A', vtype=site_cwdsc_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_bg_out_si_cwdsc )
