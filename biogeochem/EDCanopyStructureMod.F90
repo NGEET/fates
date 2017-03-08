@@ -14,7 +14,9 @@ module EDCanopyStructureMod
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : nlevcan
   use EDTypesMod            , only : numpft_ed
+  use EDtypesMod            , only : AREA
   use FatesGlobals          , only : endrun => fates_endrun
+  use FatesInterfaceMod     , only : hlm_days_per_year
 
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -229,14 +231,31 @@ contains
 
                             enddo
 
-                                currentPatch%leaf_litter(currentCohort%pft)  = &
-                                     currentPatch%leaf_litter(currentCohort%pft) + (currentCohort%bl)* &
-                                          currentCohort%n/currentPatch%area ! leaf litter flux per m2.
-
-                                currentPatch%root_litter(currentCohort%pft)  = &
-                                     currentPatch%root_litter(currentCohort%pft) + &
-                                     (currentCohort%br+currentCohort%bstore)*currentCohort%n/currentPatch%area
-   									
+                            currentPatch%leaf_litter(currentCohort%pft)  = &
+                                 currentPatch%leaf_litter(currentCohort%pft) + (currentCohort%bl)* &
+                                 currentCohort%n/currentPatch%area ! leaf litter flux per m2.
+                            
+                            currentPatch%root_litter(currentCohort%pft)  = &
+                                 currentPatch%root_litter(currentCohort%pft) + &
+                                 (currentCohort%br+currentCohort%bstore)*currentCohort%n/currentPatch%area
+                            
+                            ! keep track of the above fluxes at the site level as a CWD/litter input flux (in kg / site-m2 / yr)
+                            do c=1,ncwd
+                               currentSite%CWD_AG_diagnostic_input_carbonflux(c)  = currentSite%CWD_AG_diagnostic_input_carbonflux(c) &
+                                    + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
+                                    SF_val_CWD_frac(c) * ED_val_ag_biomass * hlm_days_per_year / AREA
+                               currentSite%CWD_BG_diagnostic_input_carbonflux(c)  = currentSite%CWD_BG_diagnostic_input_carbonflux(c) &
+                                    + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
+                                    SF_val_CWD_frac(c) * (1.0_r8 -  ED_val_ag_biomass)  * hlm_days_per_year / AREA
+                            enddo
+                            
+                            currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
+                                 currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) +  &
+                                 currentCohort%n * (currentCohort%bl) * hlm_days_per_year  / AREA
+                            currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
+                                 currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) + &
+                                 currentCohort%n * (currentCohort%br+currentCohort%bstore) * hlm_days_per_year  / AREA
+                               									
                             currentCohort%n = 0.0_r8
                             currentCohort%c_area = 0._r8
                          else  
@@ -280,13 +299,31 @@ contains
 
                             enddo
 
-                                currentPatch%leaf_litter(currentCohort%pft)  = &
-                                     currentPatch%leaf_litter(currentCohort%pft) + currentCohort%bl* &
-                                          currentCohort%n/currentPatch%area ! leaf litter flux per m2.
+                            currentPatch%leaf_litter(currentCohort%pft)  = &
+                                 currentPatch%leaf_litter(currentCohort%pft) + currentCohort%bl* &
+                                 currentCohort%n/currentPatch%area ! leaf litter flux per m2.
+                            
+                            currentPatch%root_litter(currentCohort%pft)  = &
+                                 currentPatch%root_litter(currentCohort%pft) + &
+                                 (currentCohort%br+currentCohort%bstore)*currentCohort%n/currentPatch%area
+                            
+                            ! keep track of the above fluxes at the site level as a CWD/litter input flux (in kg / site-m2 / yr)
+                            do c=1,ncwd
+                               currentSite%CWD_AG_diagnostic_input_carbonflux(c)  = currentSite%CWD_AG_diagnostic_input_carbonflux(c) &
+                                    + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
+                                    SF_val_CWD_frac(c) * ED_val_ag_biomass * hlm_days_per_year / AREA
+                               currentSite%CWD_BG_diagnostic_input_carbonflux(c)  = currentSite%CWD_BG_diagnostic_input_carbonflux(c) &
+                                    + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
+                                    SF_val_CWD_frac(c) * (1.0_r8 -  ED_val_ag_biomass)  * hlm_days_per_year / AREA
+                            enddo
+                            
+                            currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
+                                 currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) +  &
+                                 currentCohort%n * (currentCohort%bl) * hlm_days_per_year  / AREA
+                            currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
+                                 currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) + &
+                                 currentCohort%n * (currentCohort%br+currentCohort%bstore) * hlm_days_per_year  / AREA
 
-                                currentPatch%root_litter(currentCohort%pft)  = &
-                                     currentPatch%root_litter(currentCohort%pft) + &
-                                     (currentCohort%br+currentCohort%bstore)*currentCohort%n/currentPatch%area
                             currentCohort%n = 0.0_r8
                             currentCohort%c_area = 0._r8
 

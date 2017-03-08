@@ -17,6 +17,7 @@ module EDPatchDynamicsMod
   use FatesInterfaceMod    , only : hlm_numlevgrnd
   use FatesInterfaceMod    , only : hlm_numlevsoil
   use FatesInterfaceMod    , only : hlm_numSWb
+  use FatesInterfaceMod    , only : hlm_days_per_year
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
 
@@ -600,11 +601,24 @@ contains
                   (currentCohort%bl) * (1.0_r8-currentCohort%cfa)
              currentPatch%root_litter(p) = currentPatch%root_litter(p) + dead_tree_density * &
                   (currentCohort%br+currentCohort%bstore)
+
+             ! track as diagnostic fluxes
+             currentSite%leaf_litter_diagnostic_input_carbonflux(p) = currentSite%leaf_litter_diagnostic_input_carbonflux(p) + &
+                  (currentCohort%bl) * (1.0_r8-currentCohort%cfa) * currentCohort%fire_mort * currentCohort%n * &
+                  hlm_days_per_year / AREA
+             currentSite%root_litter_diagnostic_input_carbonflux(p) = currentSite%root_litter_diagnostic_input_carbonflux(p) + &
+                  (currentCohort%br+currentCohort%bstore) * (1.0_r8-currentCohort%cfa) * currentCohort%fire_mort * &
+                  currentCohort%n * hlm_days_per_year / AREA
       
              ! below ground coarse woody debris from burned trees
              do c = 1,ncwd
                 new_patch%cwd_bg(c) = new_patch%cwd_bg(c) + dead_tree_density * SF_val_CWD_frac(c) * bcroot
                 currentPatch%cwd_bg(c) = currentPatch%cwd_bg(c) + dead_tree_density * SF_val_CWD_frac(c) * bcroot
+
+                ! track as diagnostic fluxes
+                currentSite%CWD_BG_diagnostic_input_carbonflux(c) = currentSite%CWD_BG_diagnostic_input_carbonflux(c) + &
+                     SF_val_CWD_frac(c) * bcroot * currentCohort%fire_mort * currentCohort%n * &
+                     hlm_days_per_year / AREA
              enddo
 
              ! above ground coarse woody debris from unburned twigs and small branches
@@ -613,12 +627,22 @@ contains
                 * (1.0_r8-currentCohort%cfa)
                 currentPatch%cwd_ag(c) = currentPatch%cwd_ag(c) + dead_tree_density * SF_val_CWD_frac(c) * &
                      bstem * (1.0_r8-currentCohort%cfa)
+
+                ! track as diagnostic fluxes
+                currentSite%CWD_AG_diagnostic_input_carbonflux(c) = currentSite%CWD_AG_diagnostic_input_carbonflux(c) + &
+                     SF_val_CWD_frac(c) * bstem * (1.0_r8-currentCohort%cfa) * currentCohort%fire_mort * currentCohort%n * &
+                     hlm_days_per_year / AREA
              enddo
              
              ! above ground coarse woody debris from large branches and stems: these do not burn in crown fires. 
              do c = 3,4
                 new_patch%cwd_ag(c) = new_patch%cwd_ag(c) + dead_tree_density * SF_val_CWD_frac(c) * bstem
                 currentPatch%cwd_ag(c) = currentPatch%cwd_ag(c) + dead_tree_density * SF_val_CWD_frac(c) * bstem
+
+                ! track as diagnostic fluxes
+                currentSite%CWD_AG_diagnostic_input_carbonflux(c) = currentSite%CWD_AG_diagnostic_input_carbonflux(c) + &
+                     SF_val_CWD_frac(c) * bstem * currentCohort%fire_mort * currentCohort%n * &
+                     hlm_days_per_year / AREA
              enddo
              
              ! Burned parts of dead tree pool.  
@@ -705,6 +729,7 @@ contains
     ! !LOCAL VARIABLES:
     real(r8) :: cwd_litter_density
     real(r8) :: litter_area ! area over which to distribute this litter. 
+    type(ed_site_type) , pointer  :: currentSite
     type(ed_cohort_type), pointer :: currentCohort
     type(ed_patch_type) , pointer :: currentPatch 
     type(ed_patch_type) , pointer :: new_patch 
@@ -712,13 +737,17 @@ contains
     real(r8) :: canopy_dead       !Number of individual dead from the understorey layer /day
     real(r8) :: np_mult           !Fraction of the new patch which came from the current patch (and so needs the same litter) 
     integer :: p,c
+    real(r8) :: canopy_mortality_woody_litter               ! flux of wood litter in to litter pool: KgC/m2/day
+    real(r8) :: canopy_mortality_leaf_litter(numpft_ed)     ! flux in to  leaf litter from tree death: KgC/m2/day
+    real(r8) :: canopy_mortality_root_litter(numpft_ed)     ! flux in to froot litter  from tree death: KgC/m2/day
     !---------------------------------------------------------------------
 
     currentPatch => cp_target
+    currentSite => currentPatch%siteptr
     new_patch => new_patch_target
-    currentPatch%canopy_mortality_woody_litter    = 0.0_r8 ! mortality generated litter. KgC/m2/day
-    currentPatch%canopy_mortality_leaf_litter(:)  = 0.0_r8
-    currentPatch%canopy_mortality_root_litter(:)  = 0.0_r8
+    canopy_mortality_woody_litter    = 0.0_r8 ! mortality generated litter. KgC/m2/day
+    canopy_mortality_leaf_litter(:)  = 0.0_r8
+    canopy_mortality_root_litter(:)  = 0.0_r8
 
     currentCohort => currentPatch%shortest
     do while(associated(currentCohort))       
@@ -730,22 +759,22 @@ contains
              !not right to recalcualte dmort here.
              canopy_dead = currentCohort%n * min(1.0_r8,currentCohort%dmort * hlm_freq_day)
 
-             currentPatch%canopy_mortality_woody_litter   = currentPatch%canopy_mortality_woody_litter  + &
+             canopy_mortality_woody_litter   = canopy_mortality_woody_litter  + &
                   canopy_dead*(currentCohort%bdead+currentCohort%bsw)
-             currentPatch%canopy_mortality_leaf_litter(p) = currentPatch%canopy_mortality_leaf_litter(p)+ &
+             canopy_mortality_leaf_litter(p) = canopy_mortality_leaf_litter(p)+ &
                   canopy_dead*(currentCohort%bl)
-             currentPatch%canopy_mortality_root_litter(p) = currentPatch%canopy_mortality_root_litter(p)+ &
+             canopy_mortality_root_litter(p) = canopy_mortality_root_litter(p)+ &
                   canopy_dead*(currentCohort%br+currentCohort%bstore)
 
          else 
              if(pftcon%woody(currentCohort%pft) == 1)then
 
                 understorey_dead = ED_val_understorey_death * currentCohort%n * (patch_site_areadis/currentPatch%area)  !kgC/site/day
-                currentPatch%canopy_mortality_woody_litter  = currentPatch%canopy_mortality_woody_litter  + &
+                canopy_mortality_woody_litter  = canopy_mortality_woody_litter  + &
                      understorey_dead*(currentCohort%bdead+currentCohort%bsw)  
-                currentPatch%canopy_mortality_leaf_litter(p)= currentPatch%canopy_mortality_leaf_litter(p)+ &
+                canopy_mortality_leaf_litter(p)= canopy_mortality_leaf_litter(p)+ &
                      understorey_dead* currentCohort%bl 
-                currentPatch%canopy_mortality_root_litter(p)= currentPatch%canopy_mortality_root_litter(p)+ &
+                canopy_mortality_root_litter(p)= canopy_mortality_root_litter(p)+ &
                       understorey_dead*(currentCohort%br+currentCohort%bstore)
 
              ! FIX(SPM,040114) - clarify this comment
@@ -777,22 +806,33 @@ contains
     ! so we need to multiply by patch_areadis/np%area
     do c = 1,ncwd
     
-       cwd_litter_density = SF_val_CWD_frac(c) * currentPatch%canopy_mortality_woody_litter / litter_area
+       cwd_litter_density = SF_val_CWD_frac(c) * canopy_mortality_woody_litter / litter_area
        
        new_patch%cwd_ag(c)    = new_patch%cwd_ag(c)    + ED_val_ag_biomass         * cwd_litter_density * np_mult
        currentPatch%cwd_ag(c) = currentPatch%cwd_ag(c) + ED_val_ag_biomass         * cwd_litter_density
        new_patch%cwd_bg(c)    = new_patch%cwd_bg(c)    + (1._r8-ED_val_ag_biomass) * cwd_litter_density * np_mult 
        currentPatch%cwd_bg(c) = currentPatch%cwd_bg(c) + (1._r8-ED_val_ag_biomass) * cwd_litter_density 
        
+       ! track as diagnostic fluxes
+       currentSite%CWD_AG_diagnostic_input_carbonflux(c) = currentSite%CWD_AG_diagnostic_input_carbonflux(c) + &
+            SF_val_CWD_frac(c) * canopy_mortality_woody_litter * hlm_days_per_year * ED_val_ag_biomass/ AREA 
+       currentSite%CWD_BG_diagnostic_input_carbonflux(c) = currentSite%CWD_BG_diagnostic_input_carbonflux(c) + &
+            SF_val_CWD_frac(c) * canopy_mortality_woody_litter * hlm_days_per_year * (1.0_r8 - ED_val_ag_biomass) / AREA
     enddo 
 
     do p = 1,numpft_ed
     
-       new_patch%leaf_litter(p) = new_patch%leaf_litter(p) + currentPatch%canopy_mortality_leaf_litter(p) / litter_area * np_mult
-       new_patch%root_litter(p) = new_patch%root_litter(p) + currentPatch%canopy_mortality_root_litter(p) / litter_area * np_mult 
-       currentPatch%leaf_litter(p) = currentPatch%leaf_litter(p) + currentPatch%canopy_mortality_leaf_litter(p) / litter_area
-       currentPatch%root_litter(p) = currentPatch%root_litter(p) + currentPatch%canopy_mortality_root_litter(p) / litter_area
+       new_patch%leaf_litter(p) = new_patch%leaf_litter(p) + canopy_mortality_leaf_litter(p) / litter_area * np_mult
+       new_patch%root_litter(p) = new_patch%root_litter(p) + canopy_mortality_root_litter(p) / litter_area * np_mult 
+       currentPatch%leaf_litter(p) = currentPatch%leaf_litter(p) + canopy_mortality_leaf_litter(p) / litter_area
+       currentPatch%root_litter(p) = currentPatch%root_litter(p) + canopy_mortality_root_litter(p) / litter_area
        
+       ! track as diagnostic fluxes
+       currentSite%leaf_litter_diagnostic_input_carbonflux(p) = currentSite%leaf_litter_diagnostic_input_carbonflux(p) + &
+            canopy_mortality_leaf_litter(p) * hlm_days_per_year / AREA
+
+       currentSite%root_litter_diagnostic_input_carbonflux(p) = currentSite%root_litter_diagnostic_input_carbonflux(p) + &
+            canopy_mortality_root_litter(p) * hlm_days_per_year / AREA
     enddo
 
   end subroutine mortality_litter_fluxes

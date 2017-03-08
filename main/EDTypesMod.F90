@@ -390,10 +390,6 @@ module EDTypesMod
      real(r8) ::  dleaf_litter_dt(numpft_ed)                       ! rate of change of leaf litter in each size class: KgC/m2/year. 
      real(r8) ::  droot_litter_dt(numpft_ed)                       ! rate of change of root litter in each size class: KgC/m2/year. 
 
-     real(r8) ::  canopy_mortality_woody_litter                    ! flux of wood litter in to litter pool: KgC/m2/year
-     real(r8) ::  canopy_mortality_leaf_litter(numpft_ed)          ! flux in to  leaf litter from tree death: KgC/m2/year
-     real(r8) ::  canopy_mortality_root_litter(numpft_ed)          ! flux in to froot litter  from tree death: KgC/m2/year
-
      real(r8) ::  repro(numpft_ed)                                 ! allocation to reproduction per PFT : KgC/m2
 
      !FUEL CHARECTERISTICS
@@ -513,7 +509,7 @@ module EDTypesMod
      real(r8) ::  cwd_ag_burned(ncwd)
      real(r8) ::  leaf_litter_burned(numpft_ed)
 
-     ! TERMINATION, RECRUITMENT, AND DEMOTION
+     ! TERMINATION, RECRUITMENT, DEMOTION, and DISTURBANCE
      real(r8) :: terminated_nindivs(1:nlevsclass_ed,1:mxpft,2) ! number of individuals that were in cohorts which were terminated this timestep, on size x pft x canopy array. 
      real(r8) :: termination_carbonflux(2)                     ! carbon flux from live to dead pools associated with termination mortality, per canopy level
      real(r8) :: recruitment_rate(1:mxpft)                     ! number of individuals that were recruited into new cohorts
@@ -521,6 +517,12 @@ module EDTypesMod
      real(r8) :: demotion_carbonflux                           ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
      real(r8) :: promotion_rate(1:nlevsclass_ed)               ! rate of individuals promoted from understory to canopy per FATES timestep
      real(r8) :: promotion_carbonflux                          ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
+
+     ! some diagnostic-only (i.e. not resolved by ODE solver) flux of carbon to CWD and litter pools from termination and canopy mortality
+     real(r8) :: CWD_AG_diagnostic_input_carbonflux(1:ncwd)       ! diagnostic flux to AG CWD [kg C / m2 / yr]
+     real(r8) :: CWD_BG_diagnostic_input_carbonflux(1:ncwd)       ! diagnostic flux to BG CWD [kg C / m2 / yr]
+     real(r8) :: leaf_litter_diagnostic_input_carbonflux(1:mxpft) ! diagnostic flux to AG litter [kg C / m2 / yr]
+     real(r8) :: root_litter_diagnostic_input_carbonflux(1:mxpft) ! diagnostic flux to BG litter [kg C / m2 / yr]
 
   end type ed_site_type
 
