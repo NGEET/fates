@@ -241,10 +241,12 @@ contains
                             
                             ! keep track of the above fluxes at the site level as a CWD/litter input flux (in kg / site-m2 / yr)
                             do c=1,ncwd
-                               currentSite%CWD_AG_diagnostic_input_carbonflux(c)  = currentSite%CWD_AG_diagnostic_input_carbonflux(c) &
+                               currentSite%CWD_AG_diagnostic_input_carbonflux(c) = &
+                                    currentSite%CWD_AG_diagnostic_input_carbonflux(c) &
                                     + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
                                     SF_val_CWD_frac(c) * ED_val_ag_biomass * hlm_days_per_year / AREA
-                               currentSite%CWD_BG_diagnostic_input_carbonflux(c)  = currentSite%CWD_BG_diagnostic_input_carbonflux(c) &
+                               currentSite%CWD_BG_diagnostic_input_carbonflux(c) = &
+                                    currentSite%CWD_BG_diagnostic_input_carbonflux(c) &
                                     + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
                                     SF_val_CWD_frac(c) * (1.0_r8 -  ED_val_ag_biomass)  * hlm_days_per_year / AREA
                             enddo
@@ -309,10 +311,12 @@ contains
                             
                             ! keep track of the above fluxes at the site level as a CWD/litter input flux (in kg / site-m2 / yr)
                             do c=1,ncwd
-                               currentSite%CWD_AG_diagnostic_input_carbonflux(c)  = currentSite%CWD_AG_diagnostic_input_carbonflux(c) &
+                               currentSite%CWD_AG_diagnostic_input_carbonflux(c) = &
+                                    currentSite%CWD_AG_diagnostic_input_carbonflux(c) &
                                     + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
                                     SF_val_CWD_frac(c) * ED_val_ag_biomass * hlm_days_per_year / AREA
-                               currentSite%CWD_BG_diagnostic_input_carbonflux(c)  = currentSite%CWD_BG_diagnostic_input_carbonflux(c) &
+                               currentSite%CWD_BG_diagnostic_input_carbonflux(c) = &
+                                    currentSite%CWD_BG_diagnostic_input_carbonflux(c) &
                                     + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
                                     SF_val_CWD_frac(c) * (1.0_r8 -  ED_val_ag_biomass)  * hlm_days_per_year / AREA
                             enddo

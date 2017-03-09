@@ -1136,8 +1136,8 @@ contains
                hio_npp_bdead_understory_si_scls     => this%hvars(ih_npp_bdead_understory_si_scls)%r82d, &
                hio_npp_bseed_understory_si_scls     => this%hvars(ih_npp_bseed_understory_si_scls)%r82d, &
                hio_npp_store_understory_si_scls     => this%hvars(ih_npp_store_understory_si_scls)%r82d, &
-               hio_yesterdaycanopylevel_canopy_si_scls             => this%hvars(ih_yesterdaycanopylevel_canopy_si_scls)%r82d, &
-               hio_yesterdaycanopylevel_understory_si_scls         => this%hvars(ih_yesterdaycanopylevel_understory_si_scls)%r82d, &
+               hio_yesterdaycanopylevel_canopy_si_scls     => this%hvars(ih_yesterdaycanopylevel_canopy_si_scls)%r82d, &
+               hio_yesterdaycanopylevel_understory_si_scls => this%hvars(ih_yesterdaycanopylevel_understory_si_scls)%r82d, &
                hio_area_si_age         => this%hvars(ih_area_si_age)%r82d, &
                hio_lai_si_age          => this%hvars(ih_lai_si_age)%r82d, &
                hio_canopy_area_si_age  => this%hvars(ih_canopy_area_si_age)%r82d, &
@@ -1382,7 +1382,8 @@ contains
                             ccohort%npp_bseed * ccohort%n
                        hio_npp_store_canopy_si_scls(io_si,scls) = hio_npp_store_canopy_si_scls(io_si,scls) + &
                             ccohort%npp_store * ccohort%n
-                       hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) = hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) + &
+                       hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) = &
+                            hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) + &
                             ccohort%canopy_layer_yesterday * ccohort%n
                     else
                        hio_bstor_understory_si_scpf(io_si,scpf) = hio_bstor_understory_si_scpf(io_si,scpf) + &
