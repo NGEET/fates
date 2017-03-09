@@ -1436,7 +1436,8 @@ contains
                             ccohort%npp_bseed * ccohort%n
                        hio_npp_store_understory_si_scls(io_si,scls) = hio_npp_store_understory_si_scls(io_si,scls) + &
                             ccohort%npp_store * ccohort%n
-                       hio_yesterdaycanopylevel_understory_si_scls(io_si,scls) = hio_yesterdaycanopylevel_understory_si_scls(io_si,scls) + &
+                       hio_yesterdaycanopylevel_understory_si_scls(io_si,scls) = &
+                            hio_yesterdaycanopylevel_understory_si_scls(io_si,scls) + &
                             ccohort%canopy_layer_yesterday * ccohort%n
                     endif
                     !
