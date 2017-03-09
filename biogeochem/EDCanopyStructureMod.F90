@@ -307,7 +307,7 @@ contains
 
                 enddo !currentCohort 
                 
-                call terminate_cohorts(currentPatch)
+                call terminate_cohorts(currentSite, currentPatch)
                 arealayer(i) = arealayer(i) - sumloss
                 !Update arealayer for diff calculations of layer below. 
                 arealayer(i + 1) = arealayer(i + 1) + sumloss 
@@ -343,9 +343,9 @@ contains
 
        enddo !is there still excess area in any layer?      
 
-       call terminate_cohorts(currentPatch)
+       call terminate_cohorts(currentSite, currentPatch)
        call fuse_cohorts(currentPatch)
-       call terminate_cohorts(currentPatch)
+       call terminate_cohorts(currentSite, currentPatch)
 
        ! ----------- Check cohort area ------------------------------!
        do i = 1,z
@@ -565,9 +565,9 @@ contains
           endif
        enddo !is there still not enough canopy area in any layer?         
 
-       call terminate_cohorts(currentPatch)
+       call terminate_cohorts(currentSite, currentPatch)
        call fuse_cohorts(currentPatch)
-       call terminate_cohorts(currentPatch)
+       call terminate_cohorts(currentSite, currentPatch)
 
        if(promswitch == 1)then
           !write(fates_log(),*) 'going into cohort check'
