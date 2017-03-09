@@ -500,7 +500,6 @@ contains
     type (ed_patch_type), intent(inout), target :: patchptr
     !
     ! !LOCAL VARIABLES:
-    type (ed_site_type)   , pointer :: currentSite
     type (ed_patch_type)  , pointer :: currentPatch
     type (ed_cohort_type) , pointer :: currentCohort
     type (ed_cohort_type) , pointer :: nextc
