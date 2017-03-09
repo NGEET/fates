@@ -255,9 +255,9 @@ contains
 
           call average_patch_properties(currentPatch, new_patch, patch_site_areadis)  ! MAY BE REDUNDANT CALL
           if (currentSite%disturbance_mortality > currentSite%disturbance_fire) then !mortality is dominant disturbance
-             call mortality_litter_fluxes(currentPatch, new_patch, patch_site_areadis)
+             call mortality_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)
           else
-             call fire_litter_fluxes(currentPatch, new_patch, patch_site_areadis)  
+             call fire_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)  
           endif
 
           !INSERT SURVIVORS FROM DISTURBANCE INTO NEW PATCH 
@@ -397,7 +397,7 @@ contains
 
           !sort out the cohorts, since some of them may be so small as to need removing. 
           call fuse_cohorts(currentPatch)
-          call terminate_cohorts(currentPatch)
+          call terminate_cohorts(currentSite, currentPatch)
           call sort_cohorts(currentPatch)
 
           currentPatch => currentPatch%younger
@@ -414,7 +414,7 @@ contains
        currentSite%youngest_patch => new_patch
 
        call fuse_cohorts(new_patch)
-       call terminate_cohorts(new_patch)
+       call terminate_cohorts(currentSite, new_patch)
        call sort_cohorts(new_patch)
 
     endif !end new_patch area 
@@ -514,7 +514,7 @@ contains
   end subroutine average_patch_properties
 
   ! ============================================================================
-  subroutine fire_litter_fluxes(cp_target, new_patch_target, patch_site_areadis)
+  subroutine fire_litter_fluxes(currentSite, cp_target, new_patch_target, patch_site_areadis)
     !
     ! !DESCRIPTION:
     !  CWD pool burned by a fire. 
@@ -529,12 +529,12 @@ contains
     use EDtypesMod          , only : dg_sf
     !
     ! !ARGUMENTS:
+    type(ed_site_type)  , intent(inout), target :: currentSite
     type(ed_patch_type) , intent(inout), target :: cp_target
     type(ed_patch_type) , intent(inout), target :: new_patch_target
     real(r8)            , intent(inout)         :: patch_site_areadis
     !
     ! !LOCAL VARIABLES:
-    type(ed_site_type)  , pointer :: currentSite
     type(ed_patch_type) , pointer :: currentPatch
     type(ed_patch_type) , pointer :: new_patch
     type(ed_cohort_type), pointer :: currentCohort
@@ -552,7 +552,6 @@ contains
 
     if ( currentPatch%fire  ==  1 ) then !only do this if there was a fire in this actual patch. 
        patch_site_areadis = currentPatch%area * currentPatch%disturbance_rate ! how much land is disturbed in this donor patch? 
-       currentSite => currentPatch%siteptr
 
        !************************************/ 
        !PART 1)  Burn the fractions of existing litter in the new patch that were consumed by the fire. 
@@ -712,7 +711,7 @@ contains
   end subroutine fire_litter_fluxes
 
   ! ============================================================================
-  subroutine mortality_litter_fluxes(cp_target, new_patch_target, patch_site_areadis)
+  subroutine mortality_litter_fluxes(currentSite, cp_target, new_patch_target, patch_site_areadis)
     !
     ! !DESCRIPTION:
     !  Carbon going from ongoing mortality into CWD pools. 
@@ -722,6 +721,7 @@ contains
     use SFParamsMod,  only : SF_val_cwd_frac
     !
     ! !ARGUMENTS:
+    type(ed_site_type)  , intent(inout), target :: currentSite 
     type(ed_patch_type) , intent(inout), target :: cp_target 
     type(ed_patch_type) , intent(inout), target :: new_patch_target
     real(r8)            , intent(in)            :: patch_site_areadis

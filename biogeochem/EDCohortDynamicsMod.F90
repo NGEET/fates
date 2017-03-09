@@ -486,7 +486,7 @@ contains
   end subroutine zero_cohort
 
   !-------------------------------------------------------------------------------------!
-  subroutine terminate_cohorts( patchptr )
+  subroutine terminate_cohorts( currentSite, patchptr )
     !
     ! !DESCRIPTION:
     ! terminates cohorts when they get too small      
@@ -496,6 +496,7 @@ contains
     use SFParamsMod, only : SF_val_CWD_frac
     !
     ! !ARGUMENTS    
+    type (ed_site_type) , intent(inout), target :: currentSite
     type (ed_patch_type), intent(inout), target :: patchptr
     !
     ! !LOCAL VARIABLES:
@@ -510,7 +511,6 @@ contains
 
     currentPatch  => patchptr
     currentCohort => currentPatch%tallest  
-    currentSite => currentPatch%siteptr
 
     do while (associated(currentCohort))
        nextc      => currentCohort%shorter    
