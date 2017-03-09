@@ -107,10 +107,16 @@ contains
     integer  :: count_mi
     !----------------------------------------------------------------------
 
-    currentPatch => currentSite%oldest_patch
-    
+    currentPatch => currentSite%oldest_patch    
+    ! 
+    ! zero site-level demotion / promotion tracking info
+    currentSite%demotion_rate(:) = 0._r8
+    currentSite%promotion_rate(:) = 0._r8
+    currentSite%demotion_carbonflux = 0._r8
+    currentSite%promotion_carbonflux = 0._r8
+    !
     ! Section 1: Check  total canopy area.    
-
+    !
     new_total_area_check = 0._r8
     do while (associated(currentPatch)) ! Patch loop    
 
@@ -200,6 +206,13 @@ contains
                          ! causing non-linearity issues with c_area.  is this really required? 
                          currentCohort%dbh = currentCohort%dbh 
                          copyc%dbh = copyc%dbh !+ 0.000000000001_r8
+
+                         ! keep track of number and biomass of demoted cohort
+                         currentSite%demotion_rate(currentCohort%size_class) = &
+                              currentSite%demotion_rate(currentCohort%size_class) + currentCohort%n
+                         currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + &
+                              currentCohort%b * currentCohort%n
+
                          !kill the ones which go into canopy layers that are not allowed... (default nclmax=2) 
                          if(i+1 > nclmax)then 
                            !put the litter from the terminated cohorts into the fragmenting pools
@@ -246,8 +259,15 @@ contains
                          currentCohort%canopy_layer = i + 1 !the whole cohort becomes demoted
                          sumloss = sumloss + currentCohort%c_area 
 
+                         ! keep track of number and biomass of demoted cohort
+                         currentSite%demotion_rate(currentCohort%size_class) = &
+                              currentSite%demotion_rate(currentCohort%size_class) + currentCohort%n
+                         currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + &
+                              currentCohort%b * currentCohort%n
+
                          !kill the ones which go into canopy layers that are not allowed... (default nclmax=2) 
                          if(i+1 > nclmax)then  
+
                            !put the litter from the terminated cohorts into the fragmenting pools
                             do c=1,ncwd
 
@@ -287,7 +307,7 @@ contains
 
                 enddo !currentCohort 
                 
-                call terminate_cohorts(currentPatch)
+                call terminate_cohorts(currentSite, currentPatch)
                 arealayer(i) = arealayer(i) - sumloss
                 !Update arealayer for diff calculations of layer below. 
                 arealayer(i + 1) = arealayer(i + 1) + sumloss 
@@ -323,9 +343,9 @@ contains
 
        enddo !is there still excess area in any layer?      
 
-       call terminate_cohorts(currentPatch)
+       call terminate_cohorts(currentSite, currentPatch)
        call fuse_cohorts(currentPatch)
-       call terminate_cohorts(currentPatch)
+       call terminate_cohorts(currentSite, currentPatch)
 
        ! ----------- Check cohort area ------------------------------!
        do i = 1,z
@@ -367,6 +387,12 @@ contains
                       if(currentCohort%canopy_layer == i+1)then !look at the cohorts in the canopy layer below... 
                          currentCohort%canopy_layer = i   
                          currentCohort%c_area = c_area(currentCohort)
+
+                         ! keep track of number and biomass of promoted cohort
+                         currentSite%promotion_rate(currentCohort%size_class) = &
+                              currentSite%promotion_rate(currentCohort%size_class) + currentCohort%n
+                         currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
+                              currentCohort%b * currentCohort%n
 
                         ! write(fates_log(),*) 'promoting very small cohort', currentCohort%c_area,currentCohort%canopy_layer
                       endif
@@ -427,11 +453,17 @@ contains
 
                          newarea = currentCohort%c_area - cc_gain !new area of existing cohort
                          copyc%n = currentCohort%n*cc_gain/currentCohort%c_area   !number of individuals in promoted cohort. 
-                         ! number of individuals in cohort remianing in understorey    
+                         ! number of individuals in cohort remaining in understorey    
                          currentCohort%n = currentCohort%n - (currentCohort%n*cc_gain/currentCohort%c_area) 
 
                          currentCohort%canopy_layer = i+1  !keep current cohort in the understory.        
                          copyc%canopy_layer = i ! promote copy to the higher canopy layer. 
+
+                         ! keep track of number and biomass of promoted cohort
+                         currentSite%promotion_rate(copyc%size_class) = &
+                              currentSite%promotion_rate(copyc%size_class) + copyc%n
+                         currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
+                              copyc%b * copyc%n
 
                          ! seperate cohorts. 
                          ! needs to be a very small number to avoid causing non-linearity issues with c_area. 
@@ -458,6 +490,12 @@ contains
                          ! update area AFTER we sum up the losses. the cohort may shrink at this point,
                          ! if the upper canopy spread is smaller. this shold be dealt with by the 'excess area' loop.  
                          currentCohort%c_area = c_area(currentCohort) 
+
+                         ! keep track of number and biomass of promoted cohort
+                         currentSite%promotion_rate(currentCohort%size_class) = &
+                              currentSite%promotion_rate(currentCohort%size_class) + currentCohort%n
+                         currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
+                              currentCohort%b * currentCohort%n
 
                          promswitch = 1
 
@@ -527,9 +565,9 @@ contains
           endif
        enddo !is there still not enough canopy area in any layer?         
 
-       call terminate_cohorts(currentPatch)
+       call terminate_cohorts(currentSite, currentPatch)
        call fuse_cohorts(currentPatch)
-       call terminate_cohorts(currentPatch)
+       call terminate_cohorts(currentSite, currentPatch)
 
        if(promswitch == 1)then
           !write(fates_log(),*) 'going into cohort check'
