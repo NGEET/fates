@@ -791,7 +791,8 @@ contains
                          currentCohort%npp_store = (currentCohort%n*currentCohort%npp_store + nextc%n*nextc%npp_store)/newn
 
                          ! recent canopy history
-                         currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + nextc%n*nextc%canopy_layer_yesterday)/newn
+                         currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
+                              nextc%n*nextc%canopy_layer_yesterday)/newn
 
                          do i=1, nlevleaf     
                             if (currentCohort%year_net_uptake(i) == 999._r8 .or. nextc%year_net_uptake(i) == 999._r8) then
