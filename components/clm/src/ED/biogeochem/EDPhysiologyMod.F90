@@ -1081,7 +1081,7 @@ contains
                 temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, currentPatch%NCL_p)
 
            ! keep track of how many individuals were recruited for passing to history
-           currentPatch%siteptr%recruitment_rate(ft) = currentPatch%siteptr%recruitment_rate(ft) + temp_cohort%n
+           currentSite%recruitment_rate(ft) = currentSite%recruitment_rate(ft) + temp_cohort%n
        endif
 
     enddo  !pft loop
