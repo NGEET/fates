@@ -729,7 +729,6 @@ contains
     ! !LOCAL VARIABLES:
     real(r8) :: cwd_litter_density
     real(r8) :: litter_area ! area over which to distribute this litter. 
-    type(ed_site_type) , pointer  :: currentSite
     type(ed_cohort_type), pointer :: currentCohort
     type(ed_patch_type) , pointer :: currentPatch 
     type(ed_patch_type) , pointer :: new_patch 
@@ -743,7 +742,6 @@ contains
     !---------------------------------------------------------------------
 
     currentPatch => cp_target
-    currentSite => currentPatch%siteptr
     new_patch => new_patch_target
     canopy_mortality_woody_litter    = 0.0_r8 ! mortality generated litter. KgC/m2/day
     canopy_mortality_leaf_litter(:)  = 0.0_r8
