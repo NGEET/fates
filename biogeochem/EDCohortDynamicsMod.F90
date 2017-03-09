@@ -485,7 +485,7 @@ contains
   end subroutine zero_cohort
 
   !-------------------------------------------------------------------------------------!
-  subroutine terminate_cohorts( patchptr )
+  subroutine terminate_cohorts( siteptr, patchptr )
     !
     ! !DESCRIPTION:
     ! terminates cohorts when they get too small      
@@ -495,6 +495,7 @@ contains
     use SFParamsMod, only : SF_val_CWD_frac
     !
     ! !ARGUMENTS    
+    type (ed_site_type), intent(inout), target :: siteptr
     type (ed_patch_type), intent(inout), target :: patchptr
     !
     ! !LOCAL VARIABLES:
@@ -571,10 +572,10 @@ contains
           else
              levcan = 2
           endif
-          currentPatch%siteptr%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) = &
-               currentPatch%siteptr%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) + currentCohort%n
+          siteptr%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) = &
+               siteptr%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) + currentCohort%n
           !
-          currentPatch%siteptr%termination_carbonflux(levcan) = currentPatch%siteptr%termination_carbonflux(levcan) + &
+          siteptr%termination_carbonflux(levcan) = siteptr%termination_carbonflux(levcan) + &
                currentCohort%n * currentCohort%b
           if (.not. associated(currentCohort%taller)) then
              currentPatch%tallest => currentCohort%shorter
