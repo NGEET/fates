@@ -342,7 +342,7 @@ contains
        enddo !is there still excess area in any layer?      
 
        call fuse_cohorts(currentPatch)
-       call terminate_cohorts(currentPatch)
+       call terminate_cohorts(currentSite, currentPatch)
 
        ! ----------- Check cohort area ------------------------------!
        do i = 1,z
@@ -562,7 +562,7 @@ contains
        enddo !is there still not enough canopy area in any layer?         
 
        call fuse_cohorts(currentPatch)
-       call terminate_cohorts(currentPatch)
+       call terminate_cohorts(currentSite, currentPatch)
 
        if(promswitch == 1)then
           !write(fates_log(),*) 'going into cohort check'
