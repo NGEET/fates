@@ -118,7 +118,7 @@ contains
        call fuse_cohorts(currentPatch)            
 
        ! kills cohorts that are too small
-       call terminate_cohorts(currentPatch)
+       call terminate_cohorts(currentSite, currentPatch)
 
 
        currentPatch => currentPatch%younger
@@ -341,7 +341,7 @@ contains
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
 
-       call terminate_cohorts(currentPatch) 
+       call terminate_cohorts(currentSite, currentPatch) 
 
        ! FIX(SPM,040314) why is this needed for BFB restarts? Look into this at some point
        cohort_number = count_cohorts(currentPatch)  
