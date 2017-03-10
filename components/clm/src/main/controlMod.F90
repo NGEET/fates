@@ -362,10 +362,26 @@ contains
        end if
 
        ! ----------------------------------------------------------------------
-       ! ABORT if use_cn AND use_ed are both true
-       if (use_ed .and. use_cn) then
-          call endrun(msg=' ERROR: use_cn and use_ed cannot both be set to true.'//&
-               errMsg(sourcefile, __LINE__))
+       ! Check compatibility with the FATES model 
+       if ( use_ed ) then
+
+          use_voc = .false.
+
+          if ( use_cn) then
+             call endrun(msg=' ERROR: use_cn and use_ed cannot both be set to true.'//&
+                   errMsg(sourcefile, __LINE__))
+          end if
+          
+          if ( use_hydrstress) then
+             call endrun(msg=' ERROR: use_hydrstress and use_ed cannot both be set to true.'//&
+                   errMsg(sourcefile, __LINE__))
+          end if
+
+          if ( use_crop ) then
+             call endrun(msg=' ERROR: use_crop and use_ed cannot both be set to true.'//&
+                   errMsg(sourcefile, __LINE__))
+          end if
+
        end if
 
        ! If nfix_timeconst is equal to the junk default value, then it was not specified
