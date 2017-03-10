@@ -284,22 +284,24 @@ contains
     real(r8) :: drought_threshold
     real(r8) :: off_time     ! minimum number of days between leaf off and leaf on for drought phenology 
     real(r8) :: temp_in_C    ! daily averaged temperature in celcius
-    real(r8), parameter :: mindayson = 30.0
+    real(r8) :: mindayson
 
     ! Parameter of drought decid leaf loss in mm in top layer...FIX(RF,032414) 
     ! - this is arbitrary and poorly understood. Needs work. ED_
-    drought_threshold = 0.15 
-    off_time = 100.0_r8
+    drought_threshold = EDecophyscon%fates_ph_drought_threshold
+    off_time = EDecophyscon%fates_ph_doff_time
 
-    !Parameters of Botta et al. 2000 GCB,6 709-725 
-    a = -68.0_r8
-    b = 638.0_r8
-    c = -0.001_r8
-    coldday = 5.0_r8    !ed_ph_chiltemp
+    !Parameters: defaults from Botta et al. 2000 GCB,6 709-725 
+    a = EDecophyscon%fates_ph_a
+    b = EDecophyscon%fates_ph_b
+    c = EDecophyscon%fates_ph_c
+    coldday = EDecophyscon%fates_ph_chiltemp
      
-    !Parameters from SDGVM model of senesence
-    ncolddayslim = 5
-    cold_t   = 7.5_r8  ! ed_ph_coldtemp
+    mindayson = EDecophyscon%fates_ph_mindayson
+
+    !Parameters, default from from SDGVM model of senesence
+    ncolddayslim = EDecophyscon%fates_ph_ncolddayslim
+    cold_t   = EDecophyscon%fates_ph_coldtemp
 
     t  = day_of_year
     temp_in_C = bc_in%t_veg24_si - tfrz
@@ -677,7 +679,7 @@ contains
     real(r8) :: seed_turnover !complete seed turnover rate in yr-1. 
     !----------------------------------------------------------------------
 
-    seed_turnover = 0.51_r8  ! from Liscke and Loffler 2006  
+    seed_turnover = EDecophyscon%seed_turnover  ! default value from Liscke and Loffler 2006  
     ! decays the seed pool according to exponential model
     ! sd_mort is in yr-1
     do p = 1,numpft_ed 
@@ -704,7 +706,7 @@ contains
     real(r8) germination_timescale !yr-1
     !----------------------------------------------------------------------
 
-    germination_timescale = 0.5_r8 !this is arbitrary
+    germination_timescale = EDecophyscon%germination_timescale
     max_germination = 1.0_r8 !this is arbitrary
 
     do p = 1,numpft_ed

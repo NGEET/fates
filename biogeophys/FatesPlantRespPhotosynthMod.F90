@@ -58,8 +58,8 @@ contains
 
     use clm_varpar        , only : mxpft   ! THIS WILL BE DEPRECATED WHEN PARAMETER
                                            ! READS ARE REFACTORED (RGK 10-13-2016)
-    use EDPftvarcon         , only : EDPftvarcon_inst  ! THIS WILL BE DEPRECATED WHEN PARAMETER
-                                           ! READS ARE REFACTORED (RGK 10-13-2016)
+    use EDPftvarcon         , only : EDPftvarcon_inst 
+
     use EDParamsMod       , only : ED_val_ag_biomass
     use EDSharedParamsMod , only : EDParamsShareInst
     use EDTypesMod        , only : ed_patch_type
@@ -196,15 +196,15 @@ contains
 
 
     associate(  &
-         c3psn     => EDPftvarcon_inst%c3psn  , &
-         slatop    => EDPftvarcon_inst%slatop , & ! specific leaf area at top of canopy, 
+         c3psn     => EDecophyscon%c3psn  , &
+         slatop    => EDecophyscon%slatop , & ! specific leaf area at top of canopy, 
                                         ! projected area basis [m^2/gC]
-         flnr      => EDPftvarcon_inst%flnr   , & ! fraction of leaf N in the Rubisco 
+         flnr      => EDecophyscon%flnr   , & ! fraction of leaf N in the Rubisco 
                                         ! enzyme (gN Rubisco / gN leaf)
-         woody     => EDPftvarcon_inst%woody  , & ! Is vegetation woody or not? 
-         fnitr     => EDPftvarcon_inst%fnitr  , & ! foliage nitrogen limitation factor (-)
-         leafcn    => EDPftvarcon_inst%leafcn , & ! leaf C:N (gC/gN)
-         frootcn   => EDPftvarcon_inst%frootcn, & ! froot C:N (gc/gN)   ! slope of BB relationship
+         woody     => EDecophyscon%woody  , & ! Is vegetation woody or not? 
+         fnitr     => EDecophyscon%fnitr  , & ! foliage nitrogen limitation factor (-)
+         leafcn    => EDecophyscon%leafcn , & ! leaf C:N (gC/gN)
+         frootcn   => EDecophyscon%frootcn, & ! froot C:N (gc/gN)   ! slope of BB relationship
          q10       => EDParamsShareInst%Q10 )
 
 
@@ -496,7 +496,7 @@ contains
                      
                      leaf_frac = 1.0_r8/(currentCohort%canopy_trim + &
                           EDecophyscon%sapwood_ratio(currentCohort%pft) * &
-                          currentCohort%hite + EDPftvarcon_inst%froot_leaf(currentCohort%pft))
+                          currentCohort%hite + EDecophyscon%froot_leaf(currentCohort%pft))
                      
                      
                      currentCohort%bsw = EDecophyscon%sapwood_ratio(currentCohort%pft) * &
@@ -582,7 +582,7 @@ contains
 
                      ! no drought response right now.. something like:
                      ! resp_m = resp_m * (1.0_r8 - currentPatch%btran_ft(currentCohort%pft) * &
-                     !                    EDPftvarcon_inst%resp_drought_response(ft))   
+                     !                    EDecophyscon%resp_drought_response(ft))   
 
                      currentCohort%resp_m = currentCohort%resp_m + currentCohort%rdark
                      
@@ -595,7 +595,7 @@ contains
                      if ( DEBUG ) write(fates_log(),*) 'EDPhoto 912 ', currentCohort%resp_tstep
                      if ( DEBUG ) write(fates_log(),*) 'EDPhoto 913 ', currentCohort%resp_m
                      
-                     currentCohort%resp_g     = EDPftvarcon_inst%grperc(ft) * &
+                     currentCohort%resp_g     = EDecophyscon%grperc(ft) * &
                                                 (max(0._r8,currentCohort%gpp_tstep - &
                                                 currentCohort%resp_m))
                      currentCohort%resp_tstep = currentCohort%resp_m + &
@@ -684,7 +684,7 @@ contains
     ! ------------------------------------------------------------------------------------
     
     use EDEcophysContype  , only : EDecophyscon
-    use EDPftvarcon       , only : EDPftvarcon_inst
+    use EDPftvarcon       , only : EDecophyscon
     
     ! Arguments
     ! ------------------------------------------------------------------------------------
@@ -780,7 +780,7 @@ contains
 
    associate( bb_slope  => EDecophyscon%BB_slope ) ! slope of BB relationship
      
-     if (nint(EDPftvarcon_inst%c3psn(ft)) == 1) then! photosynthetic pathway: 0. = c4, 1. = c3
+     if (nint(EDecophyscon%c3psn(ft)) == 1) then! photosynthetic pathway: 0. = c4, 1. = c3
         pp_type = 1
         init_co2_intra_c = init_a2l_co2_c3 * can_co2_ppress
      else
@@ -1473,7 +1473,7 @@ contains
                                               lmr)
 
       use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-      use EDPftvarcon         , only : EDPftvarcon_inst
+      use EDPftvarcon         , only : EDecophyscon
  
       ! Arguments
       real(r8), intent(in)  :: lmr25top_ft  ! canopy top leaf maint resp rate at 25C 
@@ -1540,7 +1540,7 @@ contains
       ! co2_rcurve_islope: initial slope of CO2 response curve (C4 plants)
       ! ---------------------------------------------------------------------------------
 
-      use EDPftvarcon         , only : EDPftvarcon_inst
+      use EDPftvarcon         , only : EDecophyscon
       use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
 
       ! Arguments
@@ -1581,21 +1581,34 @@ contains
       
       ! Parameters
       ! ---------------------------------------------------------------------------------
-      real(r8), parameter :: vcmaxha = 65330._r8    ! activation energy for vcmax (J/mol)
-      real(r8), parameter :: jmaxha  = 43540._r8    ! activation energy for jmax (J/mol)
-      real(r8), parameter :: tpuha   = 53100._r8    ! activation energy for tpu (J/mol)
-      real(r8), parameter :: vcmaxhd = 149250._r8   ! deactivation energy for vcmax (J/mol)
-      real(r8), parameter :: jmaxhd  = 152040._r8   ! deactivation energy for jmax (J/mol)
-      real(r8), parameter :: tpuhd   = 150650._r8   ! deactivation energy for tpu (J/mol)
-      real(r8), parameter :: vcmaxse = 485._r8      ! entropy term for vcmax (J/mol/K)
-      real(r8), parameter :: jmaxse  = 495._r8      ! entropy term for jmax (J/mol/K)
-      real(r8), parameter :: tpuse   = 490._r8      ! entropy term for tpu (J/mol/K)
-      real(r8), parameter :: vcmaxc = 1.1534040_r8  ! scaling factor for high 
-                                                    ! temperature inhibition (25 C = 1.0)
-      real(r8), parameter :: jmaxc  = 1.1657242_r8  ! scaling factor for high 
-                                                    ! temperature inhibition (25 C = 1.0)
-      real(r8), parameter :: tpuc   = 1.1591239_r8  ! scaling factor for high 
-                                                    ! temperature inhibition (25 C = 1.0)
+      real(r8) :: vcmaxha        ! activation energy for vcmax (J/mol)
+      real(r8) :: jmaxha         ! activation energy for jmax (J/mol)
+      real(r8) :: tpuha          ! activation energy for tpu (J/mol)
+      real(r8) :: vcmaxhd        ! deactivation energy for vcmax (J/mol)
+      real(r8) :: jmaxhd         ! deactivation energy for jmax (J/mol)
+      real(r8) :: tpuhd          ! deactivation energy for tpu (J/mol)
+      real(r8) :: vcmaxse        ! entropy term for vcmax (J/mol/K)
+      real(r8) :: jmaxse         ! entropy term for jmax (J/mol/K)
+      real(r8) :: tpuse          ! entropy term for tpu (J/mol/K)
+      real(r8) :: vcmaxc         ! scaling factor for high temperature inhibition (25 C = 1.0)
+      real(r8) :: jmaxc          ! scaling factor for high temperature inhibition (25 C = 1.0)
+      real(r8) :: tpuc           ! scaling factor for high temperature inhibition (25 C = 1.0)
+
+      vcmaxha = EDecophyscon%vcmaxha(FT)
+      jmaxha  = EDecophyscon%jmaxha(FT)
+      tpuha   = EDecophyscon%tpuha(FT)
+      
+      vcmaxhd = EDecophyscon%vcmaxhd(FT)
+      jmaxhd  = EDecophyscon%jmaxhd(FT)
+      tpuhd   = EDecophyscon%tpuhd(FT)
+      
+      vcmaxse = EDecophyscon%vcmaxse(FT)
+      jmaxse  = EDecophyscon%jmaxse(FT)
+      tpuse   = EDecophyscon%tpuse(FT)
+
+      vcmaxc = fth25(vcmaxhd, vcmaxse)
+      jmaxc  = fth25(jmaxhd, jmaxse)
+      tpuc   = fth25(tpuhd, tpuse)
 
       if ( parsun_lsl <= 0._r8) then           ! night time
          vcmax             = 0._r8
@@ -1613,7 +1626,7 @@ contains
          jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc)
          tpu   = tpu25 * ft1_f(veg_tempk, tpuha) * fth_f(veg_tempk, tpuhd, tpuse, tpuc)
          
-         if (nint(EDPftvarcon_inst%c3psn(ft))  /=  1) then
+         if (nint(EDecophyscon%c3psn(ft))  /=  1) then
             vcmax = vcmax25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
             vcmax = vcmax / (1._r8 + exp( 0.2_r8*((tfrz+15._r8)-veg_tempk ) ))
             vcmax = vcmax / (1._r8 + exp( 0.3_r8*(veg_tempk-(tfrz+40._r8)) ))
