@@ -64,7 +64,6 @@ contains
     
     associate( &
          slatop    => pftcon%slatop , & ! specific leaf area at top of canopy, 
-                                        ! projected area basis [m^2/gC]
          fnitr     => pftcon%fnitr  , & ! foliage nitrogen limitation factor (-)
          leafcn    => pftcon%leafcn )   ! leaf C:N (gC/gN)
     
