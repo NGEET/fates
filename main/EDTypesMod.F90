@@ -78,6 +78,9 @@ module EDTypesMod
 
   character*4 yearchar                    
 
+  ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
+  logical, parameter :: homogenize_seed_pfts  = .false.
+
   !the lower limit of the size classes of ED cohorts
   !0-10,10-20...
   integer, parameter :: nlevsclass_ed = 13    ! Number of dbh size classes for size structure analysis
@@ -138,6 +141,7 @@ module EDTypesMod
      real(r8) ::  bstore                                 ! stored carbon: kGC per indiv
      real(r8) ::  laimemory                              ! target leaf biomass- set from previous year: kGC per indiv
      integer  ::  canopy_layer                           ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)
+     real(r8) ::  canopy_layer_yesterday                 ! recent canopy status of cohort (1 = canopy, 2 = understorey, etc.)  real to be conservative during fusion
      real(r8) ::  b                                      ! total biomass: kGC per indiv
      real(r8) ::  bsw                                    ! sapwood in stem and roots: kGC per indiv
      real(r8) ::  bl                                     ! leaf biomass: kGC per indiv
@@ -196,12 +200,12 @@ module EDTypesMod
 
      ! Net Primary Production Partitions
 
-     real(r8) ::  npp_leaf                               ! NPP into leaves (includes replacement of turnover):  KgC/indiv/day
-     real(r8) ::  npp_froot                              ! NPP into fine roots (includes replacement of turnover):  KgC/indiv/day
-     real(r8) ::  npp_bsw                                ! NPP into sapwood: KgC/indiv/day
-     real(r8) ::  npp_bdead                              ! NPP into deadwood (structure):  KgC/indiv/day
-     real(r8) ::  npp_bseed                              ! NPP into seeds: KgC/indiv/day
-     real(r8) ::  npp_store                              ! NPP into storage: KgC/indiv/day
+     real(r8) ::  npp_leaf                               ! NPP into leaves (includes replacement of turnover):  KgC/indiv/year
+     real(r8) ::  npp_froot                              ! NPP into fine roots (includes replacement of turnover):  KgC/indiv/year
+     real(r8) ::  npp_bsw                                ! NPP into sapwood: KgC/indiv/year
+     real(r8) ::  npp_bdead                              ! NPP into deadwood (structure):  KgC/indiv/year
+     real(r8) ::  npp_bseed                              ! NPP into seeds: KgC/indiv/year
+     real(r8) ::  npp_store                              ! NPP into storage: KgC/indiv/year
 
      real(r8) ::  ts_net_uptake(nlevcan)              ! Net uptake of leaf layers: kgC/m2/s
      real(r8) ::  year_net_uptake(nlevcan)            ! Net uptake of leaf layers: kgC/m2/year
@@ -502,6 +506,15 @@ module EDTypesMod
      real(r8) ::  total_burn_flux_to_atm                       ! total carbon burnt to the atmosphere in this day. KgC/site
      real(r8) ::  cwd_ag_burned(ncwd)
      real(r8) ::  leaf_litter_burned(numpft_ed)
+
+     ! TERMINATION, RECRUITMENT, AND DEMOTION
+     real(r8) :: terminated_nindivs(1:nlevsclass_ed,1:mxpft,2) ! number of individuals that were in cohorts which were terminated this timestep, on size x pft x canopy array. 
+     real(r8) :: termination_carbonflux(2)                     ! carbon flux from live to dead pools associated with termination mortality, per canopy level
+     real(r8) :: recruitment_rate(1:mxpft)                     ! number of individuals that were recruited into new cohorts
+     real(r8) :: demotion_rate(1:nlevsclass_ed)                ! rate of individuals demoted from canopy to understory per FATES timestep
+     real(r8) :: demotion_carbonflux                           ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
+     real(r8) :: promotion_rate(1:nlevsclass_ed)               ! rate of individuals promoted from understory to canopy per FATES timestep
+     real(r8) :: promotion_carbonflux                          ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
 
   end type ed_site_type
 
