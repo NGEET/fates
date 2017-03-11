@@ -273,6 +273,7 @@ contains
              !this is the case as the new patch probably doesn't have a closed canopy, and
              ! even if it does, that will be sorted out in canopy_structure. 
              nc%canopy_layer = 1 
+             nc%canopy_layer_yesterday = 1._r8 
 
              !mortality is dominant disturbance              
              if(currentPatch%disturbance_rates(1) > currentPatch%disturbance_rates(2))then 
@@ -395,7 +396,7 @@ contains
 
           !sort out the cohorts, since some of them may be so small as to need removing. 
           call fuse_cohorts(currentPatch)
-          call terminate_cohorts(currentPatch)
+          call terminate_cohorts(currentSite, currentPatch)
           call sort_cohorts(currentPatch)
 
           currentPatch => currentPatch%younger
@@ -412,7 +413,7 @@ contains
        currentSite%youngest_patch => new_patch
 
        call fuse_cohorts(new_patch)
-       call terminate_cohorts(new_patch)
+       call terminate_cohorts(currentSite, new_patch)
        call sort_cohorts(new_patch)
 
     endif !end new_patch area 

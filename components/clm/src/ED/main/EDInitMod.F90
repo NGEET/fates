@@ -81,6 +81,17 @@ contains
     site_in%fates_to_bgc_this_ts = 0.0_r8
     site_in%fates_to_bgc_last_ts = 0.0_r8
 
+    ! termination and recruitment info
+    site_in%terminated_nindivs(:,:,:) = 0._r8
+    site_in%termination_carbonflux(:) = 0._r8
+    site_in%recruitment_rate(:) = 0._r8
+
+    ! demotion/promotion info
+    site_in%demotion_rate(:) = 0._r8
+    site_in%demotion_carbonflux = 0._r8
+    site_in%promotion_rate(:) = 0._r8
+    site_in%promotion_carbonflux = 0._r8
+
   end subroutine zero_site
 
   ! ============================================================================
