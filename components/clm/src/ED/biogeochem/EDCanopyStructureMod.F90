@@ -298,7 +298,6 @@ contains
                               !currentCohort%canopy_layer,currentCohort%dbh
 
                       endif
-                     ! call terminate_cohorts(currentPatch) 
 
                       !----------- End of cohort splitting ------------------------------!             
                    endif !canopy layer = i
@@ -307,7 +306,6 @@ contains
 
                 enddo !currentCohort 
                 
-                call terminate_cohorts(currentSite, currentPatch)
                 arealayer(i) = arealayer(i) - sumloss
                 !Update arealayer for diff calculations of layer below. 
                 arealayer(i + 1) = arealayer(i + 1) + sumloss 
@@ -343,7 +341,6 @@ contains
 
        enddo !is there still excess area in any layer?      
 
-       call terminate_cohorts(currentSite, currentPatch)
        call fuse_cohorts(currentPatch)
        call terminate_cohorts(currentSite, currentPatch)
 
@@ -503,7 +500,6 @@ contains
                               !currentCohort%pft,currentPatch%patchno
 
                       endif
-                      !call terminate_cohorts(currentPatch) 
                       if(promswitch == 1)then
                         ! write(fates_log(),*) 'cohort loop',currentCohort%pft,currentPatch%patchno
                       endif
@@ -565,7 +561,6 @@ contains
           endif
        enddo !is there still not enough canopy area in any layer?         
 
-       call terminate_cohorts(currentSite, currentPatch)
        call fuse_cohorts(currentPatch)
        call terminate_cohorts(currentSite, currentPatch)
 
