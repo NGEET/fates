@@ -242,7 +242,10 @@ contains
           currentPatch%fuel_bulkd     = currentPatch%fuel_bulkd     * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
           currentPatch%fuel_sav       = currentPatch%fuel_sav       * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
           currentPatch%fuel_mef       = currentPatch%fuel_mef       * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
-          currentPatch%fuel_eff_moist = currentPatch%fuel_eff_moist * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))  
+          currentPatch%fuel_eff_moist = currentPatch%fuel_eff_moist * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf))) 
+
+          ! Convert from biomass to carbon.
+          currentPatch%fuel_bulkd = currentPatch%fuel_bulkd * 0.45_r8 
      
           ! Pass litter moisture into the fuel burning routine
           ! (wo/me term in Thonicke et al. 2010) 
@@ -411,7 +414,7 @@ contains
        
        ! beta = packing ratio (unitless)
        ! fraction of fuel array volume occupied by fuel or compactness of fuel bed 
-       beta = (currentPatch%fuel_bulkd) / SF_val_part_dens
+       beta = (currentPatch%fuel_bulkd / 0.45_r8) / SF_val_part_dens
        
        ! Equation A6 in Thonicke et al. 2010
        ! packing ratio (unitless) 
@@ -491,11 +494,11 @@ contains
 
 
        ! write(iulog,*) 'ir',reaction_v_opt,moist_damp,SF_val_fuel_energy,SF_val_miner_damp
-       if ((currentPatch%fuel_bulkd <= 0.0_r8).or.(eps <= 0.0_r8).or.(q_ig <= 0.0_r8)) then
+       if (((currentPatch%fuel_bulkd/0.45_r8) <= 0.0_r8).or.(eps <= 0.0_r8).or.(q_ig <= 0.0_r8)) then
           currentPatch%ROS_front = 0.0_r8
        else ! Equation 9. Thonicke et al. 2010. 
             ! forward ROS in m/min
-          currentPatch%ROS_front = (ir*xi*(1.0_r8+phi_wind)) / (currentPatch%fuel_bulkd*eps*q_ig)
+          currentPatch%ROS_front = (ir*xi*(1.0_r8+phi_wind)) / (currentPatch%fuel_bulkd/0.45_r8*eps*q_ig)
           ! write(iulog,*) 'ROS',currentPatch%ROS_front,phi_wind,currentPatch%effect_wspeed
           ! write(iulog,*) 'ros calcs',currentPatch%fuel_bulkd,ir,xi,eps,q_ig
        endif
@@ -672,11 +675,9 @@ contains
     real patch_area_in_m2 !'actual' patch area as applied to whole grid cell
     real(r8) gridarea
     real(r8) size_of_fire !in m2
-    real(r8) km2_to_m2  
+    real(r8),parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m 
     integer g, p
 
-
-    km2_to_m2 = 1000000.0_r8
     currentSite%frac_burnt = 0.0_r8
 
     currentPatch => currentSite%oldest_patch;  
