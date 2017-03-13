@@ -12,7 +12,7 @@ module SFMainMod
   use TemperatureType       , only : temperature_type
   use pftconMod             , only : pftcon
   use EDEcophysconType      , only : EDecophyscon
-  use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type, AREA, DG_SF, FIRE_THRESHOLD
+  use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type, AREA, DL_SF, FIRE_THRESHOLD
   use EDtypesMod            , only : LB_SF, LG_SF, NCWD, TR_SF
 
   implicit none
@@ -96,7 +96,7 @@ contains
     type(atm2lnd_type)     , intent(in)    :: atm2lnd_inst
     
     real(r8) :: temp_in_C ! daily averaged temperature in celcius
-    real(r8) :: rainfall  ! daily precip
+    real(r8) :: rainfall  ! daily precip in mm/day
     real(r8) :: rh        ! daily rh 
     
     real yipsolon; !intermediate varable for dewpoint calculation
@@ -106,7 +106,7 @@ contains
     associate(                                                &
          t_veg24          => temperature_inst%t_veg24_patch , & ! Input:  [real(r8) (:)]  avg pft vegetation temperature for last 24 hrs    
 
-         prec24           => atm2lnd_inst%prec24_patch      , & ! Input:  [real(r8) (:)]  avg pft rainfall for last 24 hrs    
+         prec24           => atm2lnd_inst%prec24_patch      , & ! Input:  [real(r8) (:)]  avg pft rainfall for last 24 hrs in mm/sec   
          rh24             => atm2lnd_inst%rh24_patch          & ! Input:  [real(r8) (:)]  avg pft relative humidity for last 24 hrs    
          )
 
@@ -114,7 +114,7 @@ contains
       ! which probably won't have much inpact, unless we decide to ever calculated the NI for each patch.  
 
       temp_in_C  = t_veg24(currentSite%oldest_patch%clm_pno) - tfrz
-      rainfall   = prec24(currentSite%oldest_patch%clm_pno) *24.0_r8*3600._r8
+      rainfall   = prec24(currentSite%oldest_patch%clm_pno) *24.0_r8*3600._r8 
       rh         = rh24(currentSite%oldest_patch%clm_pno)
 
       if (rainfall > 3.0_r8) then !rezero NI if it rains... 
@@ -167,11 +167,11 @@ contains
        ! There are SIX fuel classes
        ! 1) Leaf litter, 2:5) four CWD_AG pools (twig, s branch, l branch, trunk) and  6) live grass
        ! NCWD =4 
-       ! dg_sf = 1, lb_sf, = 4, tr_sf = 5, lg_sf = 6,
+       ! dl_sf = 1, lb_sf, = 4, tr_sf = 5, lg_sf = 6,
      
             ! zero fire arrays. 
        currentPatch%fuel_eff_moist = 0.0_r8 
-       currentPatch%fuel_bulkd     = 0.0_r8 
+       currentPatch%fuel_bulkd     = 0.0_r8  !this is kgBiomass/m2 for use in rate of spread equations
        currentPatch%fuel_sav       = 0.0_r8 
        currentPatch%fuel_frac(:)   = 0.0_r8 
        currentPatch%fuel_mef       = 0.0_r8
@@ -195,8 +195,8 @@ contains
                   
        if (currentPatch%sum_fuel > 0.0) then        
           ! Fraction of fuel in litter classes
-          currentPatch%fuel_frac(dg_sf)       = sum(currentPatch%leaf_litter)/ currentPatch%sum_fuel
-          currentPatch%fuel_frac(dg_sf+1:tr_sf) = currentPatch%CWD_AG          / currentPatch%sum_fuel    
+          currentPatch%fuel_frac(dl_sf)       = sum(currentPatch%leaf_litter)/ currentPatch%sum_fuel
+          currentPatch%fuel_frac(dl_sf+1:tr_sf) = currentPatch%CWD_AG          / currentPatch%sum_fuel    
 
           if(write_sf == 1)then
              if (masterproc) write(iulog,*) 'ff1 ',currentPatch%fuel_frac
@@ -207,8 +207,10 @@ contains
           currentPatch%fuel_frac(lg_sf)       = currentPatch%livegrass       / currentPatch%sum_fuel   
           MEF(1:ncwd+2)               = 0.524_r8 - 0.066_r8 * log10(SF_val_SAV(1:ncwd+2)) 
 
-          !Equation 6 in Thonicke et al. 2010. 
-          fuel_moisture(dg_sf+1:tr_sf)  = exp(-1.0_r8 * SF_val_alpha_FMC(dg_sf+1:tr_sf) * currentSite%acc_NI)  
+          !--- weighted average of relative moisture content---
+          ! Equation 6 in Thonicke et al. 2010. 
+          fuel_moisture(dl_sf+1:tr_sf)  = exp(-1.0_r8 * SF_val_alpha_FMC(dl_sf+1:tr_sf) * currentSite%acc_NI) 
+ 
           if(write_SF == 1)then
              if (masterproc) write(iulog,*) 'ff3 ',currentPatch%fuel_frac
              if (masterproc) write(iulog,*) 'fm ',fuel_moisture
@@ -219,13 +221,14 @@ contains
           ! average water content !is this the correct metric?         
           timeav_swc                  = sum(currentSite%water_memory(1:10)) / 10._r8 
           ! Equation B2 in Thonicke et al. 2010
+          ! live grass moisture content
           fuel_moisture(lg_sf)        = max(0.0_r8, 10.0_r8/9._r8 * timeav_swc - 1.0_r8/9.0_r8)           
  
           ! Average properties over the first four litter pools (dead leaves, twigs, s branches, l branches) 
-          currentPatch%fuel_bulkd     = sum(currentPatch%fuel_frac(dg_sf:lb_sf) * SF_val_FBD(dg_sf:lb_sf))     
-          currentPatch%fuel_sav       = sum(currentPatch%fuel_frac(dg_sf:lb_sf) * SF_val_SAV(dg_sf:lb_sf))              
-          currentPatch%fuel_mef       = sum(currentPatch%fuel_frac(dg_sf:lb_sf) * MEF(dg_sf:lb_sf))              
-          currentPatch%fuel_eff_moist = sum(currentPatch%fuel_frac(dg_sf:lb_sf) * fuel_moisture(dg_sf:lb_sf))         
+          currentPatch%fuel_bulkd     = sum(currentPatch%fuel_frac(dl_sf:lb_sf) * SF_val_FBD(dl_sf:lb_sf))     
+          currentPatch%fuel_sav       = sum(currentPatch%fuel_frac(dl_sf:lb_sf) * SF_val_SAV(dl_sf:lb_sf))              
+          currentPatch%fuel_mef       = sum(currentPatch%fuel_frac(dl_sf:lb_sf) * MEF(dl_sf:lb_sf))              
+          currentPatch%fuel_eff_moist = sum(currentPatch%fuel_frac(dl_sf:lb_sf) * fuel_moisture(dl_sf:lb_sf))         
           if(write_sf == 1)then
              if (masterproc) write(iulog,*) 'ff4 ',currentPatch%fuel_eff_moist
           endif
@@ -239,14 +242,11 @@ contains
           currentPatch%fuel_bulkd     = currentPatch%fuel_bulkd     * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
           currentPatch%fuel_sav       = currentPatch%fuel_sav       * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
           currentPatch%fuel_mef       = currentPatch%fuel_mef       * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
-          currentPatch%fuel_eff_moist = currentPatch%fuel_eff_moist * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
-          
-          ! Convert from biomass to carbon. Which variables is this needed for?          
-          currentPatch%fuel_bulkd = currentPatch%fuel_bulkd * 0.45_r8  
+          currentPatch%fuel_eff_moist = currentPatch%fuel_eff_moist * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))  
      
           ! Pass litter moisture into the fuel burning routine
           ! (wo/me term in Thonicke et al. 2010) 
-          currentPatch%litter_moisture(dg_sf:lb_sf) = fuel_moisture(dg_sf:lb_sf)/MEF(dg_sf:lb_sf)  
+          currentPatch%litter_moisture(dl_sf:lb_sf) = fuel_moisture(dl_sf:lb_sf)/MEF(dl_sf:lb_sf)  
           currentPatch%litter_moisture(tr_sf)       = 0.0_r8
           currentPatch%litter_moisture(lg_sf)       = fuel_moisture(lg_sf)/MEF(lg_sf)  
 
@@ -304,7 +304,7 @@ contains
     ! unless we decide to ever calculated the NI for each patch.  
     real(r8), pointer :: wind24(:) 
 
-    real(r8) :: wind  ! daily wind
+    real(r8) :: wind             ! daily wind in m/min
     real(r8) :: total_grass_area ! per patch,in m2
     real(r8) :: tree_fraction  !  site level. no units
     real(r8) :: grass_fraction !  site level. no units
@@ -359,7 +359,8 @@ contains
     currentPatch=>currentSite%oldest_patch;
 
     do while(associated(currentPatch))       
-       currentPatch%total_tree_area = min(currentPatch%total_tree_area,currentPatch%area)      
+       currentPatch%total_tree_area = min(currentPatch%total_tree_area,currentPatch%area)
+       ! effect_wspeed in units m/min      
        currentPatch%effect_wspeed = wind * (tree_fraction*0.4+(grass_fraction+bare_fraction)*0.6)
       
        currentPatch => currentPatch%younger
@@ -383,13 +384,14 @@ contains
     real(r8) dummy
 
     ! Rothermal fire spread model parameters. 
-    real(r8) beta
-    real(r8) ir !reaction intensity
-    real(r8) xi,eps,q_ig,phi_wind
-    real(r8) gamma_aptr,gamma_max
-    real(r8) moist_damp,mw_weight
-    real(r8) bet,beta_op
-    real(r8) a,b,c,e
+    real(r8) beta,beta_op         !weighted average of packing ratio (unitless)
+    real(r8) ir                   !reaction intensity (kJ/m2/min)
+    real(r8) xi,eps,phi_wind      !all are unitless
+    real(r8) q_ig                 !heat of pre-ignition (kJ/kg)
+    real(r8) reaction_v_opt,reaction_v_max !reaction velocity (per min)
+    real(r8) moist_damp,mw_weight !moisture dampening coefficient and ratio fuel moisture to extinction
+    real(r8) bet                  !ratio of beta/beta_op
+    real(r8) a,b,c,e              !function of fuel sav
 
     currentPatch=>currentSite%oldest_patch;  
 
@@ -397,27 +399,34 @@ contains
               
         ! ---initialise parameters to zero.--- 
        bet = 0.0_r8;   q_ig = 0.0_r8;   eps = 0.0_r8;   a = 0.0_r8;   b = 0.0_r8;   c = 0.0_r8;   e = 0.0_r8
-       phi_wind = 0.0_r8;   xi = 0.0_r8;   gamma_max = 0.0_r8;   gamma_aptr = 0.0_r8;   mw_weight = 0.0_r8
+       phi_wind = 0.0_r8;   xi = 0.0_r8;   reaction_v_max = 0.0_r8;  reaction_v_opt = 0.0_r8; mw_weight = 0.0_r8
        moist_damp = 0.0_r8;   ir = 0.0_r8;   dummy = 0.0_r8;     
        currentPatch%ROS_front = 0.0_r8
+       ! remove mineral content from net fuel load per Thonicke 2010 for ir calculation
        currentPatch%sum_fuel  = currentPatch%sum_fuel * (1.0_r8 - SF_val_miner_total) !net of minerals
 
        ! ----start spreading---
        if (masterproc.and.DEBUG) write(iulog,*) 'SF - currentPatch%fuel_bulkd ',currentPatch%fuel_bulkd
        if (masterproc.and.DEBUG) write(iulog,*) 'SF - SF_val_part_dens ',SF_val_part_dens
-
-       beta = (currentPatch%fuel_bulkd / 0.45_r8) / SF_val_part_dens
+       
+       ! beta = packing ratio (unitless)
+       ! fraction of fuel array volume occupied by fuel or compactness of fuel bed 
+       beta = (currentPatch%fuel_bulkd) / SF_val_part_dens
        
        ! Equation A6 in Thonicke et al. 2010
+       ! packing ratio (unitless) 
        beta_op = 0.200395_r8 *(currentPatch%fuel_sav**(-0.8189_r8))
        if (masterproc.and.DEBUG) write(iulog,*) 'SF - beta ',beta
        if (masterproc.and.DEBUG) write(iulog,*) 'SF - beta_op ',beta_op
-       bet = beta/beta_op
+       bet = beta/beta_op   !unitless
        if(write_sf == 1)then
           if (masterproc) write(iulog,*) 'esf ',currentPatch%fuel_eff_moist
        endif
+
        ! ---heat of pre-ignition---
-       !  Equation A4 in Thonicke et al. 2010 
+       !  Equation A4 in Thonicke et al. 2010
+       !  conversion of Rohtermal (1972) equation 12 in BTU/lb to current kJ/kg
+       !  q_ig in kJ/kg 
        q_ig = 581.0_r8 +2594.0_r8 * currentPatch%fuel_eff_moist
 
        ! ---effective heating number---
@@ -429,7 +438,6 @@ contains
        c = 7.47_r8 * (exp(-0.8711_r8 * (currentPatch%fuel_sav**0.55_r8)))
        ! Equation A9 in Thonicke et al. 2010. 
        e = 0.715_r8 * (exp(-0.01094_r8 * currentPatch%fuel_sav))
-       ! Equation A5 in Thonicke et al. 2010
 
        if (DEBUG) then
           if (masterproc.and.DEBUG) write(iulog,*) 'SF - c ',c
@@ -439,11 +447,14 @@ contains
           if (masterproc.and.DEBUG) write(iulog,*) 'SF - e ',e
        endif
 
-       ! convert from m/min to ft/min for Rothermel ROS eqn
+       ! Equation A5 in Thonicke et al. 2010
+       ! convert effect_wspeed from m/min to ft/min for Rothermel ROS eqn
+       ! phi_wind (unitless)
        phi_wind = c * ((3.281_r8*currentPatch%effect_wspeed)**b)*(bet**(-e)) 
 
        ! ---propagating flux----
-       ! Equation A2 in Thonicke et al.        
+       ! Equation A2 in Thonicke et al.
+       ! xi (unitless)        
 
        xi = (exp((0.792_r8 + 3.7597_r8 * (currentPatch%fuel_sav**0.5_r8)) * (beta+0.1_r8))) / &
             (192_r8+7.9095_r8 * currentPatch%fuel_sav)      
@@ -452,13 +463,20 @@ contains
        ! Equation in table A1 Thonicke et al. 2010. 
        a = 8.9033_r8 * (currentPatch%fuel_sav**(-0.7913_r8))
        dummy = exp(a*(1-bet))
-       ! Equation in table A1 Thonicke et al. 2010. 
-       gamma_max  = 1.0_r8 / (0.0591_r8 + 2.926_r8* (currentPatch%fuel_sav**(-1.5_r8)))
-       gamma_aptr = gamma_max*(bet**a)*dummy
+       ! Equation in table A1 Thonicke et al. 2010.
+       ! reaction_v_max and reaction_v_opt = reaction velocity in units of per min
+       
+       ! Equation 36 in Rothermal 1972  12 
+       reaction_v_max  = 1.0_r8 / (0.0591_r8 + 2.926_r8* (currentPatch%fuel_sav**(-1.5_r8)))
+       ! Equation 38 in Rothermal 1972 and Fig 11
+       reaction_v_opt = reaction_v_max*(bet**a)*dummy
 
+       ! mw_weight = relative fuel moisture/fuel moisture of extinction
+       ! average values for litter pools (dead leaves, twigs, small and large branches) plus grass
        mw_weight = currentPatch%fuel_eff_moist/currentPatch%fuel_mef
        
        ! Equation in table A1 Thonicke et al. 2010. 
+       ! moist_damp is unitless
        moist_damp = max(0.0_r8,(1.0_r8 - (2.59_r8 * mw_weight) + (5.11_r8 * (mw_weight**2.0_r8)) - &
             (3.52_r8*(mw_weight**3.0_r8))))
 
@@ -466,19 +484,23 @@ contains
        ! if(write_SF == 1)then
        ! write(iulog,*) 'moist_damp' ,moist_damp,mw_weight,currentPatch%fuel_eff_moist,currentPatch%fuel_mef
        ! endif
+       
+       ! ir = reaction intenisty in kJ/m2/min
+       ! currentPatch%sum_fuel needs to be converted from kgC/m2 to kgBiomass/m2 for ir calculation
+       ir = reaction_v_opt*(currentPatch%sum_fuel/0.45_r8)*SF_val_fuel_energy*moist_damp*SF_val_miner_damp 
 
-       ir = gamma_aptr*(currentPatch%sum_fuel/0.45_r8)*SF_val_fuel_energy*moist_damp*SF_val_miner_damp 
-       ! currentPatch%sum_fuel needs to be converted from kgC/m2 to kgBiomass/m2
-       ! write(iulog,*) 'ir',gamma_aptr,moist_damp,SF_val_fuel_energy,SF_val_miner_damp
-       if (((currentPatch%fuel_bulkd/0.45_r8) <= 0.0_r8).or.(eps <= 0.0_r8).or.(q_ig <= 0.0_r8)) then
+
+       ! write(iulog,*) 'ir',reaction_v_opt,moist_damp,SF_val_fuel_energy,SF_val_miner_damp
+       if ((currentPatch%fuel_bulkd <= 0.0_r8).or.(eps <= 0.0_r8).or.(q_ig <= 0.0_r8)) then
           currentPatch%ROS_front = 0.0_r8
        else ! Equation 9. Thonicke et al. 2010. 
-          currentPatch%ROS_front = (ir*xi*(1.0_r8+phi_wind)) / (currentPatch%fuel_bulkd/0.45_r8*eps*q_ig)
+            ! forward ROS in m/min
+          currentPatch%ROS_front = (ir*xi*(1.0_r8+phi_wind)) / (currentPatch%fuel_bulkd*eps*q_ig)
           ! write(iulog,*) 'ROS',currentPatch%ROS_front,phi_wind,currentPatch%effect_wspeed
           ! write(iulog,*) 'ros calcs',currentPatch%fuel_bulkd,ir,xi,eps,q_ig
        endif
        ! Equation 10 in Thonicke et al. 2010
-       ! Can FBP System in m/min
+       ! backward ROS from Can FBP System (1992) in m/min
        currentPatch%ROS_back = currentPatch%ROS_front*exp(-0.012_r8*currentPatch%effect_wspeed) 
 
        currentPatch => currentPatch%younger
@@ -542,7 +564,7 @@ contains
        currentPatch%burnt_frac_litter = currentPatch%burnt_frac_litter * (1.0_r8-SF_val_miner_total) 
 
        !---Calculate amount of fuel burnt.---    
-       FC_ground(dg_sf)   = currentPatch%burnt_frac_litter(dg_sf)   * sum(currentPatch%leaf_litter)
+       FC_ground(dl_sf)   = currentPatch%burnt_frac_litter(dl_sf)   * sum(currentPatch%leaf_litter)
        FC_ground(2:tr_sf) = currentPatch%burnt_frac_litter(2:tr_sf) * currentPatch%CWD_AG
        FC_ground(lg_sf)   = currentPatch%burnt_frac_litter(lg_sf)   * currentPatch%livegrass      
 
@@ -588,7 +610,7 @@ contains
     type(ed_patch_type), pointer :: currentPatch
 
     real(r8) ROS !m/s
-    real(r8) W !  kgBiomass/m2
+    real(r8) W   !kgBiomass/m2
     real(r8) :: d_fdi      !change in the NI on this day to give fire duration. 
 
     currentPatch => currentSite%oldest_patch;  
@@ -607,9 +629,10 @@ contains
           ! This is like but not identical to equation 7 in Thonicke et al. 2010.  WHY? 
           d_FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI) !follows Venevsky et al GCB 2002 
           ! Equation 14 in Thonicke et al. 2010
+          ! fire duration in minutes
           currentPatch%FD = SF_val_max_durat / (1.0_r8 + SF_val_max_durat * exp(SF_val_durat_slope*d_FDI))
           if(write_SF == 1)then
-             if (masterproc) write(iulog,*) 'fire duration minutes',currentPatch%fd
+             if (masterproc) write(iulog,*) 'fire duration minutes',currentPatch%FD
           endif
           !equation 15 in Arora and Boer CTEM model.Average fire is 1 day long.
           !currentPatch%FD = 60.0_r8 * 24.0_r8 !no minutes in a day      
@@ -632,7 +655,7 @@ contains
   !*****************************************************************
   subroutine  area_burnt ( currentSite ) 
     !*****************************************************************
-    !currentPatch%AB  daily area burnt (m2)
+    !currentPatch%AB    !daily area burnt (m2)
     !currentPatch%NF    !Daily number of ignitions (lightning and human-caused), adjusted for size of patch. 
 
     use domainMod,     only : ldomain
@@ -643,13 +666,17 @@ contains
 
     type(ed_patch_type), pointer :: currentPatch
 
-    real lb !length to breadth ratio of fire ellipse
-    real df  !distance fire has travelled forward
-    real db !distance fire has travelled backward
+    real lb               !length to breadth ratio of fire ellipse
+    real df               !distance fire has travelled forward
+    real db               !distance fire has travelled backward
+    real patch_area_in_m2 !'actual' patch area as applied to whole grid cell
     real(r8) gridarea
-    real(r8) size_of_fire
+    real(r8) size_of_fire !in m2
+    real(r8) km2_to_m2  
     integer g, p
 
+
+    km2_to_m2 = 1000000.0_r8
     currentSite%frac_burnt = 0.0_r8
 
     currentPatch => currentSite%oldest_patch;  
@@ -689,7 +716,7 @@ contains
              ! INTERF-TODO:
              ! THIS SHOULD HAVE THE COLUMN AND LU AREA WEIGHT ALSO, NO?
 
-             gridarea = ldomain%area(g) *1000000.0_r8 !convert from km2 into m2
+             gridarea = ldomain%area(g) * km2_to_m2
              currentPatch%NF = ldomain%area(g) * ED_val_nignitions * currentPatch%area/area /365
 
              ! If there are 15  lightening strickes per year, per km2. (approx from NASA product) 
@@ -698,11 +725,11 @@ contains
              ! Equation 1 in Thonicke et al. 2010
              ! To Do: Connect here with the Li & Levis GDP fire suppression algorithm. 
              ! Equation 16 in arora and boer model.
-             !currentPatch%ab = currentPatch%ab *3.0_r8
+             !currentPatch%AB = currentPatch%AB *3.0_r8
              size_of_fire = ((3.1416_r8/(4.0_r8*lb))*((df+db)**2.0_r8))
 
-             ! area of fires in m2. 
-             currentPatch%AB = size_of_fire * currentPatch%nf 
+             !AB is daily area burnt = size of fires in m2 * number of ignitions 
+             currentPatch%AB = size_of_fire * currentPatch%NF 
              
              patch_area_in_m2 = gridarea*currentPatch%area/area
              if (currentPatch%AB > patch_area_in_m2 ) then !all of patch burnt. 
