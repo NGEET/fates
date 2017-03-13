@@ -1351,11 +1351,11 @@ contains
     real(r8) :: croot_prof(1:nsites, 1:cp_numlevdecomp)
     real(r8) :: stem_prof(1:nsites, 1:cp_numlevdecomp)
 
-    ! INTERF-TODO: THESE PARAMETERS WERE ORIGINALLY SET BY params_inst%
-    ! THEY NEED THEIR OWN ENTRIES IN THE PARAMETER FILE (RGK)
-    real(r8), parameter :: cwd_fcel = 0.76
-    real(r8), parameter :: cwd_flig = 0.24
+    real(r8) :: cwd_fcel
+    real(r8) :: cwd_flig
     
+    cwd_fcel = 
+    cwd_flig = 
     
     delta = 0.001_r8    
     !no of seconds in a year. 
