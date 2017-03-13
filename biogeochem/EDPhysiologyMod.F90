@@ -16,7 +16,7 @@ module EDPhysiologyMod
   use EDEcophysContype    , only : EDecophyscon
   use EDCohortDynamicsMod , only : allocate_live_biomass, zero_cohort
   use EDCohortDynamicsMod , only : create_cohort, fuse_cohorts, sort_cohorts
-  use EDTypesMod          , only : dg_sf, dinc_ed, external_recruitment
+  use EDTypesMod          , only : dl_sf, dinc_ed, external_recruitment
   use EDTypesMod          , only : ncwd, cp_nlevcan, numpft_ed, senes
   use EDTypesMod          , only : ed_site_type, ed_patch_type, ed_cohort_type
 
@@ -1249,12 +1249,12 @@ contains
     ! this section needs further scientific input. 
 
     do ft = 1,numpft_ed
-       currentPatch%leaf_litter_out(ft) = max(0.0_r8,currentPatch%leaf_litter(ft)* SF_val_max_decomp(dg_sf) * &
+       currentPatch%leaf_litter_out(ft) = max(0.0_r8,currentPatch%leaf_litter(ft)* SF_val_max_decomp(dl_sf) * &
             currentPatch%fragmentation_scaler )
-       currentPatch%root_litter_out(ft) = max(0.0_r8,currentPatch%root_litter(ft)* SF_val_max_decomp(dg_sf) * &
+       currentPatch%root_litter_out(ft) = max(0.0_r8,currentPatch%root_litter(ft)* SF_val_max_decomp(dl_sf) * &
             currentPatch%fragmentation_scaler )
        if ( currentPatch%leaf_litter_out(ft)<0.0_r8.or.currentPatch%root_litter_out(ft)<0.0_r8)then
-         write(iulog,*) 'root or leaf out is negative?',SF_val_max_decomp(dg_sf),currentPatch%fragmentation_scaler
+         write(iulog,*) 'root or leaf out is negative?',SF_val_max_decomp(dl_sf),currentPatch%fragmentation_scaler
        endif
     enddo
 
