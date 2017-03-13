@@ -180,7 +180,7 @@ contains
     ! (gC/gN/s)
     ! ------------------------------------------------------------------------
 
-    real(r8),parameter :: base_mr_20 = 2.525e-6_r8
+    real(r8) :: base_mr_20
 
     ! -----------------------------------------------------------------------------------
     ! Photosynthesis and stomatal conductance parameters, from:
@@ -190,9 +190,7 @@ contains
     ! Ball-Berry minimum leaf conductance, unstressed (umol H2O/m**2/s)
     ! For C3 and C4 plants
     ! -----------------------------------------------------------------------------------
-    ! TO-DO: bbbopt is slated to be transferred to the parameter file
-    ! -----------------------------------------------------------------------------------
-    real(r8),parameter, dimension(2) :: bbbopt = [10000._r8,40000._r8] 
+    real(r8), dimension(2) :: bbbopt 
 
 
     associate(  &
@@ -207,6 +205,9 @@ contains
          frootcn   => EDecophyscon%frootcn, & ! froot C:N (gc/gN)   ! slope of BB relationship
          q10       => EDParamsShareInst%Q10 )
 
+      base_mr_20 = 
+      bbbopt[1] =
+      bbbopt[2] = 
 
       do s = 1,nsites
 
