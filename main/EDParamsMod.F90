@@ -21,7 +21,7 @@ module EDParamsMod
    real(r8),protected :: ED_val_maxspread
    real(r8),protected :: ED_val_minspread
    real(r8),protected :: ED_val_init_litter
-   real(r8),protected :: ED_val_nfires
+   real(r8),protected :: ED_val_nignitions
    real(r8),protected :: ED_val_understorey_death
    real(r8),protected :: ED_val_profile_tol
    real(r8),protected :: ED_val_ag_biomass
@@ -127,7 +127,7 @@ contains
       call readNcdio(ncid = ncid, &
          varName=ED_name_nfires, &
          callingName=subname, &
-         retVal=ED_val_nfires)
+         retVal=ED_val_nignitions)
   
       call readNcdio(ncid = ncid, &
          varName=ED_name_understorey_death, &

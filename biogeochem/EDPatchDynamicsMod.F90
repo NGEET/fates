@@ -513,7 +513,7 @@ contains
     use EDParamsMod,          only : ED_val_ag_biomass
     use SFParamsMod,          only : SF_VAL_CWD_FRAC
     use EDGrowthFunctionsMod, only : c_area
-    use EDtypesMod          , only : dg_sf
+    use EDtypesMod          , only : dl_sf
     !
     ! !ARGUMENTS:
     type(ed_patch_type) , intent(inout), target :: cp_target
@@ -552,7 +552,7 @@ contains
        enddo
 
        do p = 1,numpft_ed
-          burned_litter = new_patch%leaf_litter(p) * patch_site_areadis/new_patch%area * currentPatch%burnt_frac_litter(dg_sf)
+          burned_litter = new_patch%leaf_litter(p) * patch_site_areadis/new_patch%area * currentPatch%burnt_frac_litter(dl_sf)
           new_patch%leaf_litter(p) = new_patch%leaf_litter(p) - burned_litter
           currentSite%flux_out = currentSite%flux_out + burned_litter * new_patch%area !kG/site/day
           currentSite%total_burn_flux_to_atm = currentSite%total_burn_flux_to_atm + burned_litter * new_patch%area !kG/site/day

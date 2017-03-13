@@ -50,7 +50,7 @@ module EDTypesMod
   integer , parameter :: N_EF                 = 7          ! number of emission factors. One per trace gas or aerosol species.
   integer,  parameter :: NCWD                 = 4          ! number of coarse woody debris pools
   integer,  parameter :: lg_sf                = 6          ! array index of live grass pool for spitfire
-  integer,  parameter :: dg_sf                = 1          ! array index of dead grass pool for spitfire
+  integer,  parameter :: dl_sf                = 1          ! array index of dead leaf pool for spitfire (dead grass and dead leaves)
   integer,  parameter :: tr_sf                = 5          ! array index of dead trunk pool for spitfire
   integer,  parameter :: lb_sf                = 4          ! array index of lrge branch pool for spitfire 
   real(r8), parameter :: fire_threshold       = 35.0_r8    ! threshold for fires that spread or go out. KWm-2
