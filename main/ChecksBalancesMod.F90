@@ -206,7 +206,6 @@ contains
                   sites(s)%fire_c_to_atm*SHR_CONST_CDAY)
             sites(s)%cbal_err_fates = sites(s)%cbal_err_fates / SHR_CONST_CDAY
             
-            
             sites(s)%cbal_err_bgc = sites(s)%totbgcc - &
                   sites(s)%totbgcc_old - &
                   (sites(s)%fates_to_bgc_last_ts*SHR_CONST_CDAY - &
