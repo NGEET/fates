@@ -32,7 +32,7 @@ contains
 
    use EDParamsMod, only : FatesRegisterParams, FatesReceiveParams
    use SFParamsMod, only : SpitFireRegisterParams, SpitFireReceiveParams
-   use EDSharedParamsMod, only : EDParamsShareInst
+   use FatesSynchronizedParamsMod, only : FatesSynchronizedParamsInst
 
    implicit none
 
@@ -49,7 +49,7 @@ contains
       call fates_params%Init()
       call FatesRegisterParams(fates_params)
       call SpitFireRegisterParams(fates_params)
-      call EDParamsShareInst%RegisterParams(fates_params)
+      call FatesSynchronizedParamsInst%RegisterParams(fates_params)
 
       is_host_file = .false.
       call ParametersFromNetCDF(fates_paramfile, is_host_file, fates_params)
@@ -59,7 +59,7 @@ contains
 
       call FatesReceiveParams(fates_params)
       call SpitFireReceiveParams(fates_params)
-      call EDParamsShareInst%ReceiveParams(fates_params)
+      call FatesSynchronizedParamsInst%ReceiveParams(fates_params)
 
       call fates_params%Destroy()
       deallocate(fates_params)
