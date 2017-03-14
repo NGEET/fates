@@ -1,10 +1,28 @@
-module FatesHistoryVariableKindMod
+module FatesIOVariableKindMod
 
   use FatesConstantsMod, only : fates_long_string_length
   use FatesGlobals, only : fates_log
-  use FatesHistoryDimensionMod, only : fates_history_dimension_type
+  use FatesIODimensionsMod, only : fates_io_dimension_type
 
   implicit none
+
+  ! FIXME(bja, 2016-10) do these need to be strings, or can they be integer enumerations?
+  ! FIXME(rgk, 2016-11) these should probably be moved to varkindmod?
+  
+  character(*), parameter :: patch_r8 = 'PA_R8'
+  character(*), parameter :: patch_ground_r8 = 'PA_GRND_R8'
+  character(*), parameter :: patch_size_pft_r8 = 'PA_SCPF_R8'
+  character(*), parameter :: site_r8 = 'SI_R8'
+  character(*), parameter :: site_int = 'SI_INT'
+  character(*), parameter :: site_ground_r8 = 'SI_GRND_R8'
+  character(*), parameter :: site_size_pft_r8 = 'SI_SCPF_R8'
+  character(*), parameter :: site_size_r8 = 'SI_SCLS_R8'
+  character(*), parameter :: patch_int = 'PA_INT'
+  character(*), parameter :: cohort_r8 = 'CO_R8'
+  character(*), parameter :: cohort_int = 'CO_INT'
+  character(*), parameter :: site_pft_r8 = 'SI_PFT_R8'
+  character(*), parameter :: site_age_r8 = 'SI_AGE_R8'
+
 
   ! NOTE(RGK, 2016) %active is not used yet. Was intended as a check on the HLM->FATES
   ! control parameter passing to ensure all active dimension types received all
@@ -12,7 +30,7 @@ module FatesHistoryVariableKindMod
   ! passing functions..
 
   ! This structure is not multi-threaded
-  type fates_history_variable_kind_type
+  type fates_io_variable_kind_type
      character(len=fates_long_string_length) :: name ! String labelling this IO type
      integer              :: ndims       ! number of dimensions in this IO type
      integer, allocatable :: dimsize(:)  ! The size of each dimension
@@ -26,7 +44,7 @@ module FatesHistoryVariableKindMod
      procedure, public :: set_active
      procedure, public :: is_active
 
-  end type fates_history_variable_kind_type
+  end type fates_io_variable_kind_type
 
 
 
@@ -39,7 +57,7 @@ contains
     
     implicit none
 
-    class(fates_history_variable_kind_type), intent(inout) :: this
+    class(fates_io_variable_kind_type), intent(inout) :: this
     character(*), intent(in) :: name
     integer, intent(in) :: num_dims
     
@@ -56,13 +74,13 @@ contains
  ! =======================================================================
  subroutine set_active(this)
    implicit none
-   class(fates_history_variable_kind_type), intent(inout) :: this
+   class(fates_io_variable_kind_type), intent(inout) :: this
    this%active_ = .true.
  end subroutine set_active
 
  logical function is_active(this)
    implicit none
-   class(fates_history_variable_kind_type), intent(in) :: this
+   class(fates_io_variable_kind_type), intent(in) :: this
    is_active = this%active_
  end function is_active
 
@@ -73,7 +91,7 @@ contains
     ! argument
     character(len=*), intent(in) :: iotype_name
     integer, intent(in) :: num_dim_kinds
-    type(fates_history_variable_kind_type), intent(in) :: dim_kinds(:)
+    type(fates_io_variable_kind_type), intent(in) :: dim_kinds(:)
 
     ! local
     integer :: dk_index
@@ -88,4 +106,4 @@ contains
 
   end function iotype_index
   
-end module FatesHistoryVariableKindMod
+end module FatesIOVariableKindMod

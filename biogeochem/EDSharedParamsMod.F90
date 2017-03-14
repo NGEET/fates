@@ -28,7 +28,7 @@ contains
   subroutine EDParamsReadShared(ncid)
     !
     use ncdio_pio   , only : file_desc_t,ncd_io
-    use abortutils  , only : endrun
+    use FatesGlobals, only : endrun => fates_endrun
     use shr_log_mod , only : errMsg => shr_log_errMsg
     !
     type(file_desc_t),intent(inout) :: ncid   ! pio netCDF file id
