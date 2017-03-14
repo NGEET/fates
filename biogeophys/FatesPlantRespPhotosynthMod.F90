@@ -61,7 +61,7 @@ contains
     use EDPftvarcon         , only : EDPftvarcon_inst  ! THIS WILL BE DEPRECATED WHEN PARAMETER
                                            ! READS ARE REFACTORED (RGK 10-13-2016)
     use EDParamsMod       , only : ED_val_ag_biomass
-    use EDSharedParamsMod , only : EDParamsShareInst
+    use FatesSynchronizedParamsMod , only : FatesSynchronizedParamsInst
     use EDTypesMod        , only : ed_patch_type
     use EDTypesMod        , only : ed_cohort_type
     use EDTypesMod        , only : ed_site_type
@@ -205,7 +205,7 @@ contains
          fnitr     => EDPftvarcon_inst%fnitr  , & ! foliage nitrogen limitation factor (-)
          leafcn    => EDPftvarcon_inst%leafcn , & ! leaf C:N (gC/gN)
          frootcn   => EDPftvarcon_inst%frootcn, & ! froot C:N (gc/gN)   ! slope of BB relationship
-         q10       => EDParamsShareInst%Q10 )
+         q10       => FatesSynchronizedParamsInst%Q10 )
 
 
       do s = 1,nsites

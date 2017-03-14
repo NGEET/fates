@@ -1,4 +1,4 @@
-module EDSharedParamsMod
+module FatesSynchronizedParamsMod
 
   !-----------------------------------------------------------------------
   !
@@ -6,11 +6,11 @@ module EDSharedParamsMod
   use shr_kind_mod , only: r8 => shr_kind_r8
   implicit none
 
-  ! EDParamsShareInst.  PGI wants the type decl. public but the instance
+  ! FatesSynchronizedParamsInst.  PGI wants the type decl. public but the instance
   ! is indeed protected.  A generic private statement at the start of the module
   ! overrides the protected functionality with PGI
 
-  type, public  :: EDParamsShareType
+  type, public  :: FatesSynchronizedParamsType
       real(r8) :: Q10      ! temperature dependence
       real(r8) :: froz_q10 ! separate q10 for frozen soil respiration rates
     contains
@@ -19,9 +19,9 @@ module EDSharedParamsMod
       procedure, private :: Init
       procedure, private :: RegisterParamsScalar
       procedure, private :: ReceiveParamsScalar
-  end type EDParamsShareType
+  end type FatesSynchronizedParamsType
 
-  type(EDParamsShareType), public :: EDParamsShareInst
+  type(FatesSynchronizedParamsType), public :: FatesSynchronizedParamsInst
   
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -38,7 +38,7 @@ contains
 
     implicit none
 
-    class(EDParamsShareType), intent(inout) :: this
+    class(FatesSynchronizedParamsType), intent(inout) :: this
 
     this%Q10 = nan
     this%froz_q10 = nan
@@ -55,7 +55,7 @@ contains
 
     implicit none
 
-    class(EDParamsShareType), intent(inout) :: this
+    class(FatesSynchronizedParamsType), intent(inout) :: this
     class(fates_parameters_type), intent(inout) :: fates_params
 
     call this%Init()
@@ -70,7 +70,7 @@ contains
 
     implicit none
 
-    class(EDParamsShareType), intent(inout) :: this
+    class(FatesSynchronizedParamsType), intent(inout) :: this
     class(fates_parameters_type), intent(inout) :: fates_params
 
     call this%ReceiveParamsScalar(fates_params)
@@ -88,7 +88,7 @@ contains
 
     implicit none
 
-    class(EDParamsShareType), intent(inout) :: this
+    class(FatesSynchronizedParamsType), intent(inout) :: this
     class(fates_parameters_type), intent(inout) :: fates_params
 
     character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_host_allpfts/)
@@ -113,7 +113,7 @@ contains
 
     implicit none
 
-    class(EDParamsShareType), intent(inout) :: this
+    class(FatesSynchronizedParamsType), intent(inout) :: this
     class(fates_parameters_type), intent(inout) :: fates_params
 
     character(len=param_string_length) :: name
@@ -128,4 +128,4 @@ contains
 
   end subroutine ReceiveParamsScalar
 
-end module EDSharedParamsMod
+end module FatesSynchronizedParamsMod

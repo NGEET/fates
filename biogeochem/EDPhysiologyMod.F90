@@ -1140,7 +1140,7 @@ contains
     !
     ! !USES:
 
-    use EDSharedParamsMod  , only : EDParamsShareInst
+    use FatesSynchronizedParamsMod  , only : FatesSynchronizedParamsInst
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use FatesConstantsMod, only : pi => pi_const
     !
@@ -1169,8 +1169,8 @@ contains
     ifp = currentPatch%patchno 
     
     ! set "froz_q10" parameter
-    froz_q10  = EDParamsShareInst%froz_q10  
-    Q10       = EDParamsShareInst%Q10
+    froz_q10  = FatesSynchronizedParamsInst%froz_q10  
+    Q10       = FatesSynchronizedParamsInst%Q10
 
     if ( .not. use_century_tfunc ) then
     !calculate rate constant scalar for soil temperature,assuming that the base rate constants 
