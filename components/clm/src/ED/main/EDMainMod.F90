@@ -6,17 +6,36 @@ module EDMainMod
 
   use shr_kind_mod         , only : r8 => shr_kind_r8
   
-  use clm_varctl           , only : iulog
-  use atm2lndType          , only : atm2lnd_type
-  use SoilStateType        , only : soilstate_type  
-  use TemperatureType      , only : temperature_type
-  use WaterStateType       , only : waterstate_type
-  use EDCohortDynamicsMod  , only : allocate_live_biomass, terminate_cohorts, fuse_cohorts, sort_cohorts, count_cohorts
-  use EDPatchDynamicsMod   , only : disturbance_rates, fuse_patches, spawn_patches, terminate_patches
-  use EDPhysiologyMod      , only : canopy_derivs, non_canopy_derivs, phenology, recruitment, trim_canopy
+  use FatesGlobals         , only : fates_log
+  use FatesInterfaceMod    , only : hlm_freq_day
+  use FatesInterfaceMod    , only : hlm_day_of_year
+  use FatesInterfaceMod    , only : hlm_days_per_year
+  use FatesInterfaceMod    , only : hlm_current_year
+  use FatesInterfaceMod    , only : hlm_current_month
+  use FatesInterfaceMod    , only : hlm_current_day
+  use EDCohortDynamicsMod  , only : allocate_live_biomass
+  use EDCohortDynamicsMod  , only : terminate_cohorts
+  use EDCohortDynamicsMod  , only : fuse_cohorts
+  use EDCohortDynamicsMod  , only : sort_cohorts
+  use EDCohortDynamicsMod  , only : count_cohorts
+  use EDPatchDynamicsMod   , only : disturbance_rates
+  use EDPatchDynamicsMod   , only : fuse_patches
+  use EDPatchDynamicsMod   , only : spawn_patches
+  use EDPatchDynamicsMod   , only : terminate_patches
+  use EDPhysiologyMod      , only : canopy_derivs
+  use EDPhysiologyMod      , only : non_canopy_derivs
+  use EDPhysiologyMod      , only : phenology
+  use EDPhysiologyMod      , only : recruitment
+  use EDPhysiologyMod      , only : trim_canopy
   use SFMainMod            , only : fire_model
-  use EDtypesMod           , only : ncwd, numpft_ed, udata
-  use EDtypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
+  use EDtypesMod           , only : ncwd
+  use EDTypesMod           , only : numpft_ed
+  use EDtypesMod           , only : ed_site_type
+  use EDtypesMod           , only : ed_patch_type
+  use EDtypesMod           , only : ed_cohort_type
+  use FatesInterfaceMod    , only : bc_in_type
+  use FatesInterfaceMod    , only : hlm_masterproc
+  
 
   implicit none
   private
@@ -39,23 +58,21 @@ module EDMainMod
 contains
 
   !-------------------------------------------------------------------------------!
-  subroutine ed_ecosystem_dynamics(currentSite, &
-       atm2lnd_inst, &
-       soilstate_inst, temperature_inst, waterstate_inst)
+  subroutine ed_ecosystem_dynamics(currentSite, bc_in)
     !
     ! !DESCRIPTION:
     !  Core of ed model, calling all subsequent vegetation dynamics routines         
     !
     ! !ARGUMENTS:
     type(ed_site_type)      , intent(inout), target  :: currentSite
-    type(atm2lnd_type)      , intent(in)             :: atm2lnd_inst
-    type(soilstate_type)    , intent(in)             :: soilstate_inst
-    type(temperature_type)  , intent(in)             :: temperature_inst
-    type(waterstate_type)   , intent(in)             :: waterstate_inst
+    type(bc_in_type)        , intent(in)             :: bc_in
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type), pointer :: currentPatch
     !-----------------------------------------------------------------------
+
+    if ( hlm_masterproc==1 ) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
+          hlm_current_year,'-',hlm_current_month,'-',hlm_current_day
 
     !**************************************************************************
     ! Fire, growth, biogeochemistry. 
@@ -66,15 +83,15 @@ contains
    
     call ed_total_balance_check(currentSite, 0)
     
-    call phenology(currentSite, temperature_inst, waterstate_inst)
+    call phenology(currentSite, bc_in )
 
-    call fire_model(currentSite, atm2lnd_inst, temperature_inst)
+    call fire_model(currentSite, bc_in) 
 
     ! Calculate disturbance and mortality based on previous timestep vegetation.
     call disturbance_rates(currentSite)
 
     ! Integrate state variables from annual rates to daily timestep
-    call ed_integrate_state_variables(currentSite, temperature_inst ) 
+    call ed_integrate_state_variables(currentSite, bc_in ) 
 
     !******************************************************************************
     ! Reproduction, Recruitment and Cohort Dynamics : controls cohort organisation 
@@ -101,7 +118,7 @@ contains
        call fuse_cohorts(currentPatch)            
 
        ! kills cohorts that are too small
-       call terminate_cohorts(currentPatch)
+       call terminate_cohorts(currentSite, currentPatch)
 
 
        currentPatch => currentPatch%younger
@@ -131,16 +148,18 @@ contains
   end subroutine ed_ecosystem_dynamics
 
   !-------------------------------------------------------------------------------!
-  subroutine ed_integrate_state_variables(currentSite, temperature_inst )
+  subroutine ed_integrate_state_variables(currentSite, bc_in )
     !
     ! !DESCRIPTION:
     ! FIX(SPM,032414) refactor so everything goes through interface
     !
     ! !USES:
+    use EDTypesMod, only : ageclass_ed
     !
     ! !ARGUMENTS:
-    type(ed_site_type)     , intent(inout)    :: currentSite
-    type(temperature_type) , intent(in)    :: temperature_inst
+    type(ed_site_type)     , intent(inout) :: currentSite
+    type(bc_in_type)        , intent(in)   :: bc_in
+
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type)  , pointer :: currentPatch
@@ -163,43 +182,46 @@ contains
 
     do while(associated(currentPatch))
 
-       currentPatch%age = currentPatch%age + udata%deltat
+       currentPatch%age = currentPatch%age + hlm_freq_day
        ! FIX(SPM,032414) valgrind 'Conditional jump or move depends on uninitialised value'
        if( currentPatch%age  <  0._r8 )then
-          write(iulog,*) 'negative patch age?',currentPatch%age, &
+          write(fates_log(),*) 'negative patch age?',currentPatch%age, &
                currentPatch%patchno,currentPatch%area
        endif
 
+       ! check to see if the patch has moved to the next age class
+       currentPatch%age_class = count(currentPatch%age-ageclass_ed.ge.0.0_r8)
+
        ! Find the derivatives of the growth and litter processes. 
-       call canopy_derivs(currentSite, currentPatch)
+       call canopy_derivs(currentSite, currentPatch, bc_in)
        
        ! Update Canopy Biomass Pools
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort)) 
 
           cohort_biomass_store  = (currentCohort%balive+currentCohort%bdead+currentCohort%bstore)
-          currentCohort%dbh    = max(small_no,currentCohort%dbh    + currentCohort%ddbhdt    * udata%deltat )
-          currentCohort%balive = currentCohort%balive + currentCohort%dbalivedt * udata%deltat 
-          currentCohort%bdead  = max(small_no,currentCohort%bdead  + currentCohort%dbdeaddt  * udata%deltat )
+          currentCohort%dbh    = max(small_no,currentCohort%dbh    + currentCohort%ddbhdt    * hlm_freq_day )
+          currentCohort%balive = currentCohort%balive + currentCohort%dbalivedt * hlm_freq_day 
+          currentCohort%bdead  = max(small_no,currentCohort%bdead  + currentCohort%dbdeaddt  * hlm_freq_day )
           if ( DEBUG ) then
-             write(iulog,*) 'EDMainMod dbstoredt I ',currentCohort%bstore, &
-                  currentCohort%dbstoredt,udata%deltat
+             write(fates_log(),*) 'EDMainMod dbstoredt I ',currentCohort%bstore, &
+                  currentCohort%dbstoredt,hlm_freq_day
           end if
-          currentCohort%bstore = currentCohort%bstore + currentCohort%dbstoredt * udata%deltat 
+          currentCohort%bstore = currentCohort%bstore + currentCohort%dbstoredt * hlm_freq_day 
           if ( DEBUG ) then
-             write(iulog,*) 'EDMainMod dbstoredt II ',currentCohort%bstore, &
-                  currentCohort%dbstoredt,udata%deltat
+             write(fates_log(),*) 'EDMainMod dbstoredt II ',currentCohort%bstore, &
+                  currentCohort%dbstoredt,hlm_freq_day
           end if
 
           if( (currentCohort%balive+currentCohort%bdead+currentCohort%bstore)*currentCohort%n<0._r8)then
-            write(iulog,*) 'biomass is negative', currentCohort%n,currentCohort%balive, &
+            write(fates_log(),*) 'biomass is negative', currentCohort%n,currentCohort%balive, &
                  currentCohort%bdead,currentCohort%bstore
           endif
 
-          if(abs((currentCohort%balive+currentCohort%bdead+currentCohort%bstore+udata%deltat*(currentCohort%md+ &
+          if(abs((currentCohort%balive+currentCohort%bdead+currentCohort%bstore+hlm_freq_day*(currentCohort%md+ &
                currentCohort%seed_prod)-cohort_biomass_store)-currentCohort%npp_acc) > 1e-8_r8)then
-             write(iulog,*) 'issue with c balance in integration', abs(currentCohort%balive+currentCohort%bdead+ &
-                  currentCohort%bstore+udata%deltat* &
+             write(fates_log(),*) 'issue with c balance in integration', abs(currentCohort%balive+currentCohort%bdead+ &
+                  currentCohort%bstore+hlm_freq_day* &
                  (currentCohort%md+currentCohort%seed_prod)-cohort_biomass_store-currentCohort%npp_acc)
           endif  
 
@@ -214,45 +236,43 @@ contains
 
        enddo
       
-       if ( DEBUG ) then
-          write(6,*)'DEBUG18: calling non_canopy_derivs with pno= ',currentPatch%clm_pno
-       endif
-
-       call non_canopy_derivs( currentSite, currentPatch, temperature_inst )
+       call non_canopy_derivs( currentSite, currentPatch, bc_in)
 
        !update state variables simultaneously according to derivatives for this time period. 
 
        ! first update the litter variables that are tracked at the patch level
        do c = 1,ncwd
-          currentPatch%cwd_ag(c) =  currentPatch%cwd_ag(c) + currentPatch%dcwd_ag_dt(c)* udata%deltat
-          currentPatch%cwd_bg(c) =  currentPatch%cwd_bg(c) + currentPatch%dcwd_bg_dt(c)* udata%deltat
+          currentPatch%cwd_ag(c) =  currentPatch%cwd_ag(c) + currentPatch%dcwd_ag_dt(c)* hlm_freq_day
+          currentPatch%cwd_bg(c) =  currentPatch%cwd_bg(c) + currentPatch%dcwd_bg_dt(c)* hlm_freq_day
        enddo
 
        do ft = 1,numpft_ed
-          currentPatch%leaf_litter(ft) = currentPatch%leaf_litter(ft) + currentPatch%dleaf_litter_dt(ft)* udata%deltat
-          currentPatch%root_litter(ft) = currentPatch%root_litter(ft) + currentPatch%droot_litter_dt(ft)* udata%deltat
+          currentPatch%leaf_litter(ft) = currentPatch%leaf_litter(ft) + currentPatch%dleaf_litter_dt(ft)* hlm_freq_day
+          currentPatch%root_litter(ft) = currentPatch%root_litter(ft) + currentPatch%droot_litter_dt(ft)* hlm_freq_day
        enddo
 
        do c = 1,ncwd
           if(currentPatch%cwd_ag(c)<small_no)then
-            write(iulog,*) 'negative CWD_AG', currentPatch%cwd_ag(c),CurrentSite%lat,currentSite%lon
+            write(fates_log(),*) 'negative CWD_AG', currentPatch%cwd_ag(c),CurrentSite%lat,currentSite%lon
             currentPatch%cwd_ag(c) = small_no
           endif
           if(currentPatch%cwd_bg(c)<small_no)then
-            write(iulog,*) 'negative CWD_BG', currentPatch%cwd_bg(c),CurrentSite%lat,CurrentSite%lon
+            write(fates_log(),*) 'negative CWD_BG', currentPatch%cwd_bg(c),CurrentSite%lat,CurrentSite%lon
             currentPatch%cwd_bg(c) = small_no
           endif
        enddo
 
        do ft = 1,numpft_ed
           if(currentPatch%leaf_litter(ft)<small_no)then
-            write(iulog,*) 'negative leaf litter numerical error', currentPatch%leaf_litter(ft),CurrentSite%lat,CurrentSite%lon,&
-            currentPatch%dleaf_litter_dt(ft),currentPatch%leaf_litter_in(ft),currentPatch%leaf_litter_out(ft),currentpatch%age
+            write(fates_log(),*) 'negative leaf litter numerical error', &
+                  currentPatch%leaf_litter(ft),CurrentSite%lat,CurrentSite%lon,&
+            currentPatch%dleaf_litter_dt(ft),currentPatch%leaf_litter_in(ft), &
+            currentPatch%leaf_litter_out(ft),currentpatch%age
             currentPatch%leaf_litter(ft) = small_no
           endif
           if(currentPatch%root_litter(ft)<small_no)then
-               write(iulog,*) 'negative root litter numerical error', currentPatch%root_litter(ft), &
-               currentPatch%droot_litter_dt(ft)* udata%deltat, &
+               write(fates_log(),*) 'negative root litter numerical error', currentPatch%root_litter(ft), &
+               currentPatch%droot_litter_dt(ft)* hlm_freq_day, &
                CurrentSite%lat,CurrentSite%lon
             currentPatch%root_litter(ft) = small_no
           endif
@@ -263,7 +283,7 @@ contains
        ! assume the pre-mortality currentCohort%n. 
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort)) 
-         currentCohort%n = max(small_no,currentCohort%n + currentCohort%dndt * udata%deltat )  
+         currentCohort%n = max(small_no,currentCohort%n + currentCohort%dndt * hlm_freq_day )  
          currentCohort => currentCohort%taller
        enddo
 
@@ -273,13 +293,13 @@ contains
 
     ! at the site level, update the seed bank mass
     do ft = 1,numpft_ed
-       currentSite%seed_bank(ft) = currentSite%seed_bank(ft) + currentSite%dseed_dt(ft)*udata%deltat
+       currentSite%seed_bank(ft) = currentSite%seed_bank(ft) + currentSite%dseed_dt(ft)*hlm_freq_day
     enddo
 
     ! Check for negative values. Write out warning to show carbon balance. 
     do ft = 1,numpft_ed
        if(currentSite%seed_bank(ft)<small_no)then
-          write(iulog,*) 'negative seedbank', currentSite%seed_bank(ft)
+          write(fates_log(),*) 'negative seedbank', currentSite%seed_bank(ft)
           currentSite%seed_bank(ft) = small_no
        endif
     enddo
@@ -288,7 +308,7 @@ contains
   end subroutine ed_integrate_state_variables
 
   !-------------------------------------------------------------------------------!
-  subroutine ed_update_site( currentSite )
+  subroutine ed_update_site( currentSite, bc_in )
     !
     ! !DESCRIPTION:
     ! Calls routines to consolidate the ED growth process.
@@ -302,6 +322,7 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type) , intent(inout), target :: currentSite
+    type(bc_in_type)        , intent(in)             :: bc_in
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type) , pointer :: currentPatch   
@@ -320,12 +341,12 @@ contains
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
 
-       call terminate_cohorts(currentPatch) 
+       call terminate_cohorts(currentSite, currentPatch) 
 
        ! FIX(SPM,040314) why is this needed for BFB restarts? Look into this at some point
        cohort_number = count_cohorts(currentPatch)  
        if ( DEBUG ) then
-          write(iulog,*) 'tempCount ',cohort_number
+          write(fates_log(),*) 'tempCount ',cohort_number
        endif
 
        ! Note (RF)
@@ -334,9 +355,9 @@ contains
        ! and so there are radiation errors instead. 
        ! Fixing this would likely require a re-work of how seed germination works which would be tricky. 
        if(currentPatch%countcohorts < 1)then
-          !write(iulog,*) 'ED: calling recruitment for no cohorts',currentPatch%siteptr%clmgcell,currentPatch%patchno
+          !write(fates_log(),*) 'ED: calling recruitment for no cohorts',currentPatch%siteptr%clmgcell,currentPatch%patchno
           !call recruitment(1, currentSite, currentPatch)
-          ! write(iulog,*) 'patch empty',currentPatch%area,currentPatch%age
+          ! write(fates_log(),*) 'patch empty',currentPatch%area,currentPatch%age
        endif
 
        currentPatch => currentPatch%younger    
@@ -344,8 +365,10 @@ contains
     enddo
 
     ! FIX(RF,032414). This needs to be monthly, not annual
-    if((udata%time_period == udata%n_sub-1))then 
-       write(iulog,*) 'calling trim canopy' 
+    ! If this is the second to last day of the year, then perform trimming
+    if( hlm_day_of_year == hlm_days_per_year-1) then
+
+       write(fates_log(),*) 'calling trim canopy' 
        call trim_canopy(currentSite)  
     endif
 
@@ -415,14 +438,14 @@ contains
     error           = abs(net_flux - change_in_stock)   
 
     if ( abs(error) > 10e-6 ) then
-       write(iulog,*) 'total error: call index: ',call_index, &
+       write(fates_log(),*) 'total error: call index: ',call_index, &
                       'in:  ',currentSite%flux_in,   &
                       'out: ',currentSite%flux_out,  &
                       'net: ',net_flux,              &
                       'dstock: ',change_in_stock,    &
                       'error=net_flux-dstock:', error
-       write(iulog,*) 'biomass,litter,seeds', biomass_stock,litter_stock,seed_stock
-       write(iulog,*) 'lat lon',currentSite%lat,currentSite%lon
+       write(fates_log(),*) 'biomass,litter,seeds', biomass_stock,litter_stock,seed_stock
+       write(fates_log(),*) 'lat lon',currentSite%lat,currentSite%lon
     endif
 
     currentSite%flux_in   = 0.0_r8

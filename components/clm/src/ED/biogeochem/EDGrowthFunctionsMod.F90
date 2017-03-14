@@ -6,11 +6,11 @@ module EDGrowthFunctionsMod
   ! At present, there is only a single allocation trajectory. 
   ! ============================================================================
 
-  use shr_kind_mod     , only : r8 => shr_kind_r8
-  use clm_varctl       , only : iulog 
+  use FatesConstantsMod, only : r8 => fates_r8
+  use FatesGlobals     , only : fates_log
   use pftconMod        , only : pftcon
   use EDEcophysContype , only : EDecophyscon
-  use EDTypesMod       , only : ed_cohort_type, cp_nlevcan, dinc_ed
+  use EDTypesMod       , only : ed_cohort_type, nlevcan, dinc_ed
 
   implicit none
   private
@@ -76,7 +76,7 @@ contains
     c = 0.37_r8       
 
     if(cohort_in%dbh <= 0._r8)then
-       write(iulog,*) 'ED: dbh less than zero problem!',cohort_in%indexnumber
+       write(fates_log(),*) 'ED: dbh less than zero problem!'
        cohort_in%dbh = 0.1_r8
     endif
 
@@ -106,7 +106,7 @@ contains
     real(r8) :: slascaler ! changes the target biomass according to the SLA
 
     if(cohort_in%dbh < 0._r8.or.cohort_in%pft == 0.or.cohort_in%dbh > 1000.0_r8)then
-       write(iulog,*) 'problems in bleaf',cohort_in%dbh,cohort_in%pft
+       write(fates_log(),*) 'problems in bleaf',cohort_in%dbh,cohort_in%pft
     endif
 
     if(cohort_in%dbh <= EDecophyscon%max_dbh(cohort_in%pft))then
@@ -117,7 +117,7 @@ contains
     slascaler = 0.03_r8/pftcon%slatop(cohort_in%pft)
     bleaf = bleaf * slascaler
     
-    !write(iulog,*) 'bleaf',bleaf, slascaler,cohort_in%pft
+    !write(fates_log(),*) 'bleaf',bleaf, slascaler,cohort_in%pft
     
     !Adjust for canopies that have become so deep that their bottom layer is not producing any carbon... 
     !nb this will change the allometry and the effects of this remain untested. RF. April 2014  
@@ -141,7 +141,7 @@ contains
     real(r8) :: slat               ! the sla of the top leaf layer. m2/kgC
 
     if( cohort_in%bl  <  0._r8 .or. cohort_in%pft  ==  0 ) then
-       write(iulog,*) 'problem in treelai',cohort_in%bl,cohort_in%pft
+       write(fates_log(),*) 'problem in treelai',cohort_in%bl,cohort_in%pft
     endif
 
     if( cohort_in%status_coh  ==  2 ) then ! are the leaves on? 
@@ -159,10 +159,10 @@ contains
     cohort_in%treelai = tree_lai
 
     ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
-    ! at the moments cp_nlevcan default is 40, which is very large, so exceeding this would clearly illustrate a 
+    ! at the moments nlevcan default is 40, which is very large, so exceeding this would clearly illustrate a 
     ! huge error 
-    if(cohort_in%treelai > cp_nlevcan*dinc_ed)then
-       write(iulog,*) 'too much lai' , cohort_in%treelai , cohort_in%pft , cp_nlevcan * dinc_ed
+    if(cohort_in%treelai > nlevcan*dinc_ed)then
+       write(fates_log(),*) 'too much lai' , cohort_in%treelai , cohort_in%pft , nlevcan * dinc_ed
     endif
 
     return
@@ -186,7 +186,7 @@ contains
     sai_scaler = 0.05_r8 ! here, a high biomass of 20KgC per m2 gives us a high SAI of 1.0. 
 
     if( cohort_in%bdead  <  0._r8 .or. cohort_in%pft  ==  0 ) then
-       write(iulog,*) 'problem in treesai',cohort_in%bdead,cohort_in%pft
+       write(fates_log(),*) 'problem in treesai',cohort_in%bdead,cohort_in%pft
     endif
 
     cohort_in%c_area = c_area(cohort_in) ! call the tree area 
@@ -196,10 +196,10 @@ contains
     cohort_in%treesai = tree_sai
 
     ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
-    ! at the moments cp_nlevcan default is 40, which is very large, so exceeding this would clearly illustrate a 
+    ! at the moments nlevcan default is 40, which is very large, so exceeding this would clearly illustrate a 
     ! huge error 
-    if(cohort_in%treesai > cp_nlevcan*dinc_ed)then
-       write(iulog,*) 'too much sai' , cohort_in%treesai , cohort_in%pft , cp_nlevcan * dinc_ed
+    if(cohort_in%treesai > nlevcan*dinc_ed)then
+       write(fates_log(),*) 'too much sai' , cohort_in%treesai , cohort_in%pft , nlevcan * dinc_ed
     endif
 
     return
@@ -223,13 +223,13 @@ contains
     real(r8) :: dbh ! Tree diameter at breat height. cm. 
 
     if (DEBUG_growth) then
-       write(iulog,*) 'z_area 1',cohort_in%dbh,cohort_in%pft
-       write(iulog,*) 'z_area 2',EDecophyscon%max_dbh
-       write(iulog,*) 'z_area 3',pftcon%woody
-       write(iulog,*) 'z_area 4',cohort_in%n
-       write(iulog,*) 'z_area 5',cohort_in%patchptr%spread
-       write(iulog,*) 'z_area 6',cohort_in%canopy_layer
-       write(iulog,*) 'z_area 7',ED_val_grass_spread
+       write(fates_log(),*) 'z_area 1',cohort_in%dbh,cohort_in%pft
+       write(fates_log(),*) 'z_area 2',EDecophyscon%max_dbh
+       write(fates_log(),*) 'z_area 3',pftcon%woody
+       write(fates_log(),*) 'z_area 4',cohort_in%n
+       write(fates_log(),*) 'z_area 5',cohort_in%patchptr%spread
+       write(fates_log(),*) 'z_area 6',cohort_in%canopy_layer
+       write(fates_log(),*) 'z_area 7',ED_val_grass_spread
     end if
 
     dbh = min(cohort_in%dbh,EDecophyscon%max_dbh(cohort_in%pft))
@@ -371,8 +371,8 @@ contains
        endif
 
     else
-       write(iulog,*) 'dbh problem in mortality_rates', &
-            cohort_in%dbh,cohort_in%pft,cohort_in%n,cohort_in%canopy_layer,cohort_in%indexnumber
+       write(fates_log(),*) 'dbh problem in mortality_rates', &
+            cohort_in%dbh,cohort_in%pft,cohort_in%n,cohort_in%canopy_layer
     endif
 
     !mortality_rates = bmort + hmort + cmort
