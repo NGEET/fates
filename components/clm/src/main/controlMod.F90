@@ -43,6 +43,7 @@ module controlMod
   use SoilHydrologyMod                 , only: soilHydReadNML
   use CNFireFactoryMod                 , only: CNFireReadNML
   use CanopyFluxesMod                  , only: CanopyFluxesReadNML
+  use seq_drydep_mod                   , only: drydep_method, DD_XLND, n_drydep
   use clm_varctl                       
   !
   ! !PUBLIC TYPES:
@@ -382,6 +383,17 @@ contains
                    errMsg(sourcefile, __LINE__))
           end if
 
+          
+          if( use_lch4 ) then
+             call endrun(msg=' ERROR: use_lch4 (methane) and use_ed cannot both be set to true.'//&
+                   errMsg(sourcefile, __LINE__))
+          end if
+
+          if ( n_drydep > 0 .and. drydep_method /= DD_XLND ) then
+             call endrun(msg=' ERROR: dry deposition via ML Welsey is not compatible with FATES.'//&
+                   errMsg(sourcefile, __LINE__))
+          end if
+          
        end if
 
        ! If nfix_timeconst is equal to the junk default value, then it was not specified

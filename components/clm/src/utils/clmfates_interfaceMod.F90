@@ -210,6 +210,7 @@ contains
       integer                                        :: c         ! HLM column index
       integer                                        :: l         ! HLM LU index
       integer                                        :: g         ! HLM grid index
+      integer                                        :: pi,pf
       integer, allocatable                           :: collist (:)
       type(bounds_type)                              :: bounds_clump
       integer                                        :: nmaxcol
@@ -265,7 +266,7 @@ contains
       
       nclumps = get_proc_clumps()
 
-      !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,nmaxcol,s,c,l,g,collist)
+      !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,nmaxcol,s,c,l,g,collist,pi,pf)
       do nc = 1,nclumps
          
          call get_clump_bounds(nc, bounds_clump)
@@ -361,6 +362,18 @@ contains
             write(iulog,*) 'This will likely cause problems until code is improved'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
+
+
+         ! Set patch itypes on natural veg columns to nonsense
+         ! This will force a crash if the model outside of FATES tries to think
+         ! of the patch as a PFT.
+
+         do s = 1, this%fates(nc)%nsites
+            c = this%f2hmap(nc)%fcolumn(s)
+            pi = col%patchi(c)+1
+            pf = col%patchf(c)
+            patch%itype(pi:pf) = -999
+         end do
 
       end do
       !$OMP END PARALLEL DO
@@ -649,6 +662,7 @@ contains
           tsai(col%patchi(c):col%patchf(c)) = 0.0_r8
           htop(col%patchi(c):col%patchf(c)) = 0.0_r8
           hbot(col%patchi(c):col%patchf(c)) = 0.0_r8
+          
           frac_veg_nosno_alb(col%patchi(c):col%patchf(c)) = 0.0_r8
 
           ! Set the bareground patch indicator
