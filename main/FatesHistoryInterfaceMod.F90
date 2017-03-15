@@ -11,7 +11,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceMod, only : hlm_hio_ignore_val
 
   ! FIXME(bja, 2016-10) need to remove CLM dependancy 
-  use pftconMod       , only : pftcon
+  use EDPftvarcon       , only : EDPftvarcon_inst
 
   implicit none
 
@@ -1316,7 +1316,7 @@ contains
                     end if
                   
                     ! Woody State Variables (basal area and number density and mortality)
-                    if (pftcon%woody(ft) == 1) then
+                    if (EDPftvarcon_inst%woody(ft) == 1) then
                        
                        hio_m1_si_scpf(io_si,scpf) = hio_m1_si_scpf(io_si,scpf) + ccohort%bmort*ccohort%n
                        hio_m2_si_scpf(io_si,scpf) = hio_m2_si_scpf(io_si,scpf) + ccohort%hmort*ccohort%n
