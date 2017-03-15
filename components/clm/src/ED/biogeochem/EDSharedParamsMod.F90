@@ -13,16 +13,10 @@ module EDSharedParamsMod
   type, public  :: EDParamsShareType
       real(r8) :: Q10      ! temperature dependence
       real(r8) :: froz_q10 ! separate q10 for frozen soil respiration rates
-    contains
-      procedure, public :: RegisterParams
-      procedure, public :: ReceiveParams
-      procedure, private :: Init
-      procedure, private :: RegisterParamsScalar
-      procedure, private :: ReceiveParamsScalar
   end type EDParamsShareType
 
-  type(EDParamsShareType), public :: EDParamsShareInst
-  
+  type(EDParamsShareType), protected :: EDParamsShareInst
+
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
@@ -30,102 +24,34 @@ module EDSharedParamsMod
   
 contains
 
-  subroutine Init(this)
-    ! Initialize all parameters to nan to ensure that we get valid
-    ! values back from the host.
-    
-    use shr_infnan_mod , only : nan => shr_infnan_nan, assignment(=)
-
-    implicit none
-
-    class(EDParamsShareType), intent(inout) :: this
-
-    this%Q10 = nan
-    this%froz_q10 = nan
-    
-  end subroutine Init
-
   !-----------------------------------------------------------------------
-  subroutine RegisterParams(this, fates_params)
-    ! Register the parameters we want the host to provide, and
-    ! indicate whether they are fates parameters or host parameters
-    ! that need to be synced with host values.
+  subroutine EDParamsReadShared(ncid)
+    !
+    use ncdio_pio   , only : file_desc_t,ncd_io
+    use FatesGlobals, only : endrun => fates_endrun
+    use shr_log_mod , only : errMsg => shr_log_errMsg
+    !
+    type(file_desc_t),intent(inout) :: ncid   ! pio netCDF file id
+    !
+    character(len=32)  :: subname = 'EDParamsReadShared'
+    character(len=100) :: errCode = '-Error reading in ED shared params file. Var:'
+    logical            :: readv ! has variable been read in or not
+    real(r8)           :: tempr ! temporary to read in parameter
+    character(len=100) :: tString ! temp. var for reading
+    !-----------------------------------------------------------------------
+    !
+    ! netcdf read here
+    !
+    tString='q10_mr'
+    call ncd_io(varname=trim(tString),data=tempr, flag='read', ncid=ncid, readvar=readv)
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
+    EDParamsShareInst%Q10=tempr
 
-    use FatesParametersInterface, only : fates_parameters_type, param_string_length
+    tString='froz_q10'
+    call ncd_io(trim(tString),tempr, 'read', ncid, readvar=readv)
+    if ( .not. readv ) call endrun(msg=trim(errCode)//trim(tString)//errMsg(sourcefile, __LINE__))
+    EDParamsShareInst%froz_q10=tempr   
 
-    implicit none
-
-    class(EDParamsShareType), intent(inout) :: this
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    call this%Init()
-    call this%RegisterParamsScalar(fates_params)
-    
-  end subroutine RegisterParams
-
-  !-----------------------------------------------------------------------
-  subroutine ReceiveParams(this, fates_params)
-    
-    use FatesParametersInterface, only : fates_parameters_type, param_string_length
-
-    implicit none
-
-    class(EDParamsShareType), intent(inout) :: this
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    call this%ReceiveParamsScalar(fates_params)
-    
-  end subroutine ReceiveParams
-
-  !-----------------------------------------------------------------------
-  subroutine RegisterParamsScalar(this, fates_params)
-    ! Register the parameters we want the host to provide, and
-    ! indicate whether they are fates parameters or host parameters
-    ! that need to be synced with host values.
-
-    use FatesParametersInterface, only : fates_parameters_type, param_string_length
-    use FatesParametersInterface, only : dimension_name_host_allpfts, dimension_shape_1d
-
-    implicit none
-
-    class(EDParamsShareType), intent(inout) :: this
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_host_allpfts/)
-    character(len=param_string_length) :: name
-
-    call this%Init()
-
-    name = 'q10_mr'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, sync_with_host=.true.)
-
-    name = 'froz_q10'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, sync_with_host=.true.)
-
-  end subroutine RegisterParamsScalar
-
-  !-----------------------------------------------------------------------
-  subroutine ReceiveParamsScalar(this, fates_params)
-    
-    use FatesParametersInterface, only : fates_parameters_type, param_string_length
-
-    implicit none
-
-    class(EDParamsShareType), intent(inout) :: this
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    character(len=param_string_length) :: name
-
-    name = 'q10_mr'
-    call fates_params%RetreiveParameter(name=name, &
-         data=this%Q10)
-
-    name = 'froz_q10'
-    call fates_params%RetreiveParameter(name=name, &
-         data=this%froz_q10)
-
-  end subroutine ReceiveParamsScalar
-
+  end subroutine EDParamsReadShared
+  
 end module EDSharedParamsMod
