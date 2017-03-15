@@ -17,6 +17,7 @@ module readParamsMod
   private
   !
   public :: readParameters
+
   !-----------------------------------------------------------------------
 
 contains
@@ -25,9 +26,6 @@ contains
   subroutine readParameters (nutrient_competition_method, photosyns_inst)
     !
     ! ! USES:
-    use EDSharedParamsMod                 , only : EDParamsReadShared
-    use EDParamsMod                       , only : EDParamsRead 
-    use SFParamsMod                       , only : SFParamsRead
     use CNSharedParamsMod                 , only : CNParamsReadShared
     use CNGapMortalityMod                 , only : readCNGapMortParams                    => readParams
     use CNMRespMod                        , only : readCNMRespParams                      => readParams
@@ -45,6 +43,8 @@ contains
     use NutrientCompetitionMethodMod      , only : nutrient_competition_method_type
     use clm_varctl,                         only : NLFilename_in
     use PhotosynthesisMod                 , only : photosyns_type
+  
+    use CLMFatesParamInterfaceMod         , only : FatesReadParameters
     !
     ! !ARGUMENTS:
     type(photosyns_type)                   , intent(in) :: photosyns_inst
@@ -66,15 +66,6 @@ contains
     call ncd_pio_openfile (ncid, trim(locfn), 0)
     call ncd_inqdid(ncid,'pft',dimid) 
     call ncd_inqdlen(ncid,dimid,npft) 
-
-    !
-    ! Ecosystem Dynamics model
-    !
-    if (use_ed) then
-       call EDParamsReadShared(ncid)
-       call EDParamsRead(ncid)
-       call SFParamsRead(ncid)
-    end if
 
     !
     ! Above ground biogeochemistry...
@@ -112,6 +103,8 @@ contains
 
     !
     call ncd_pio_closefile(ncid)
+
+    call FatesReadParameters()
 
   end subroutine readParameters
 
