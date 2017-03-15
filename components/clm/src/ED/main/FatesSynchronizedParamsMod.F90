@@ -3,7 +3,7 @@ module FatesSynchronizedParamsMod
   !-----------------------------------------------------------------------
   !
   ! !USES:
-  use shr_kind_mod , only: r8 => shr_kind_r8
+  use FatesConstantsMod, only : r8 => fates_r8
   implicit none
 
   ! FatesSynchronizedParamsInst.  PGI wants the type decl. public but the instance

@@ -16,11 +16,11 @@ module decompInitMod
   use GridcellType    , only : grc
   use LandunitType    , only : lun                
   use ColumnType      , only : col                
-  use PatchType       , only : patch                
-  use EDVecCohortType , only : ed_vec_cohort
+  use PatchType       , only : patch
   use glcBehaviorMod  , only : glc_behavior_type
   use decompMod
   use mct_mod
+  use FatesInterfaceMod, only : fates_maxElementsPerSite
   !
   ! !PUBLIC TYPES:
   implicit none
@@ -726,12 +726,14 @@ contains
     call mct_gsMap_init(gsmap_patch_gdc2glo, gindex, mpicom, comp_id, locsize, globsize)
     deallocate(gindex)
 
+    ! FATES gsmap for the cohort/element vector
+    
     if ( use_ed ) then
-       ! ED cohort gsMap
        allocate(gindex(begCohort:endCohort))
        ioff(:) = 0
+       ci = begc
        do coi = begCohort,endCohort
-          ci = ed_vec_cohort%column(coi) ! function call to get column for this cohort idx
+          if ( mod(coi, fates_maxElementsPerSite ) == 0 ) ci = ci + 1
           gi = col%gridcell(ci)          ! convert column into gridcell
           gindex(coi) = coStart(gi) + ioff(gi)
           ioff(gi) = ioff(gi) + 1

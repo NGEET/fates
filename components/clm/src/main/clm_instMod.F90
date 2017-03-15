@@ -395,17 +395,10 @@ contains
        call crop_inst%Init(bounds)
     end if
 
-    ! NOTE (MV, 10-24-2014): because ed_allsites is currently passed as arguments to
-    ! biogeophys routines in the present implementation - it needs to be allocated - 
-    ! if use_ed is not set, then this will not contain any significant memory 
-    ! if use_ed is true, then the actual memory for all of the ED data structures
-    ! is allocated in the call to EDInitMod - called from clm_initialize
-    ! NOTE (SPM, 10-27-2015) ... check on deallocation of ed_allsites_inst
-    ! NOTE (RGK, 04-25-2016) : Updating names, ED is now part of FATES
-    !                          Incrementally changing to ED names to FATES
-
-    call clm_fates%Init(bounds,use_ed)
-    call clm_fates%init_allocate()
+    
+    ! Initialize the Functionaly Assembled Terrestrial Ecosystem Simulator (FATES)
+    ! 
+    call clm_fates%Init(bounds)
 
     deallocate (h2osno_col)
     deallocate (snow_depth_col)

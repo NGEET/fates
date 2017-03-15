@@ -6,14 +6,14 @@ module FatesRestartInterfaceMod
   use FatesConstantsMod , only : fates_short_string_length
   use FatesConstantsMod , only : fates_long_string_length
   use FatesGlobals      , only : fates_log
-
+  use FatesGlobals      , only : endrun => fates_endrun
   use FatesIODimensionsMod, only : fates_io_dimension_type
   use FatesIOVariableKindMod, only : fates_io_variable_kind_type
   use FatesRestartVariableMod, only : fates_restart_variable_type
 
-  ! TO BE REMOVED WHEN ERROR HANDLINE IS ADDED (rgk 11-2016)
+  ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
-  use abortutils        , only : endrun
+
 
   implicit none
 
@@ -75,6 +75,7 @@ module FatesRestartInterfaceMod
   integer, private :: ir_broot_co
   integer, private :: ir_bstore_co
   integer, private :: ir_canopy_layer_co
+  integer, private :: ir_canopy_layer_yesterday_co
   integer, private :: ir_canopy_trim_co
   integer, private :: ir_dbh_co
   integer, private :: ir_height_co
@@ -98,6 +99,9 @@ module FatesRestartInterfaceMod
   integer, private :: ir_imort_co
   integer, private :: ir_fmort_co
   integer, private :: ir_ddbhdt_co
+  integer, private :: ir_dbalivedt_co
+  integer, private :: ir_dbdeaddt_co
+  integer, private :: ir_dbstoredt_co
   integer, private :: ir_resp_tstep_co
   integer, private :: ir_pft_co
   integer, private :: ir_status_co
@@ -619,6 +623,10 @@ contains
          long_name='ed cohort - canopy_layer', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_layer_co )
 
+    call this%set_restart_var(vname='fates_canopy_layer_yesterday', vtype=cohort_r8, &
+         long_name='ed cohort - canopy_layer_yesterday', units='unitless', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_layer_yesterday_co )
+
     call this%set_restart_var(vname='fates_canopy_trim', vtype=cohort_r8, &
          long_name='ed cohort - canopy_trim', units='fraction', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_trim_co )
@@ -730,6 +738,21 @@ contains
          long_name='ed cohort - differential: ddbh/dt', &
          units='cm/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_ddbhdt_co )
+
+    call this%set_restart_var(vname='fates_dbalivedt', vtype=cohort_r8, &
+         long_name='ed cohort - differential: ddbh/dt', &
+         units='cm/year', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dbalivedt_co )
+
+    call this%set_restart_var(vname='fates_dbdeaddt', vtype=cohort_r8, &
+         long_name='ed cohort - differential: ddbh/dt', &
+         units='cm/year', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dbdeaddt_co )
+
+    call this%set_restart_var(vname='fates_dbstoredt', vtype=cohort_r8, &
+         long_name='ed cohort - differential: ddbh/dt', &
+         units='cm/year', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dbstoredt_co )
 
     call this%set_restart_var(vname='fates_resp_tstep', vtype=cohort_r8, &
          long_name='ed cohort - autotrophic respiration over timestep', &
@@ -854,7 +877,7 @@ contains
         hlms,initialize,ivar,index)
 
     use FatesUtilsMod, only : check_hlm_list
-    use EDTypesMod, only    : cp_hlm_name
+    use FatesInterfaceMod, only : hlm_name
 
     ! arguments
     class(fates_restart_interface_type) :: this
@@ -879,7 +902,7 @@ contains
     
     logical :: use_var
     
-    use_var = check_hlm_list(trim(hlms), trim(cp_hlm_name))
+    use_var = check_hlm_list(trim(hlms), trim(hlm_name))
 
 
     if( use_var ) then
@@ -905,14 +928,13 @@ contains
 
  subroutine set_restart_vectors(this,nc,nsites,sites)
 
-   use EDTypesMod, only : cp_nclmax
-   use EDTypesMod, only : cp_nlevcan
-   use EDTypesMod, only : maxCohortsPerPatch
+   use EDTypesMod, only : nclmax
+   use EDTypesMod, only : nlevcan
+   use FatesInterfaceMod, only : fates_maxElementsPerPatch
    use EDTypesMod, only : numpft_ed
    use EDTypesMod, only : ed_site_type
    use EDTypesMod, only : ed_cohort_type
    use EDTypesMod, only : ed_patch_type
-   use EDTypesMod, only : cohorts_per_col
    use EDTypesMod, only : ncwd
    use EDTypesMod, only : numWaterMem
 
@@ -985,6 +1007,7 @@ contains
            rio_broot_co                => this%rvars(ir_broot_co)%r81d, &
            rio_bstore_co               => this%rvars(ir_bstore_co)%r81d, &
            rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
+           rio_canopy_layer_yesterday_co    => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
            rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
            rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
            rio_height_co               => this%rvars(ir_height_co)%r81d, &
@@ -1008,6 +1031,9 @@ contains
            rio_imort_co                => this%rvars(ir_imort_co)%r81d, &
            rio_fmort_co                => this%rvars(ir_fmort_co)%r81d, &
            rio_ddbhdt_co               => this%rvars(ir_ddbhdt_co)%r81d, &
+           rio_dbalivedt_co            => this%rvars(ir_dbalivedt_co)%r81d, &
+           rio_dbdeaddt_co             => this%rvars(ir_dbdeaddt_co)%r81d, &
+           rio_dbstoredt_co            => this%rvars(ir_dbstoredt_co)%r81d, &
            rio_resp_tstep_co           => this%rvars(ir_resp_tstep_co)%r81d, &
            rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
            rio_status_co               => this%rvars(ir_status_co)%int1d, &
@@ -1093,6 +1119,7 @@ contains
                 rio_broot_co(io_idx_co)        = ccohort%br
                 rio_bstore_co(io_idx_co)       = ccohort%bstore
                 rio_canopy_layer_co(io_idx_co) = ccohort%canopy_layer
+                rio_canopy_layer_yesterday_co(io_idx_co) = ccohort%canopy_layer_yesterday
                 rio_canopy_trim_co(io_idx_co)  = ccohort%canopy_trim
                 rio_dbh_co(io_idx_co)          = ccohort%dbh
                 rio_height_co(io_idx_co)       = ccohort%hite
@@ -1116,6 +1143,9 @@ contains
                 rio_imort_co(io_idx_co)        = ccohort%imort
                 rio_fmort_co(io_idx_co)        = ccohort%fmort
                 rio_ddbhdt_co(io_idx_co)       = ccohort%ddbhdt
+                rio_dbalivedt_co(io_idx_co)    = ccohort%dbalivedt
+                rio_dbdeaddt_co(io_idx_co)     = ccohort%dbdeaddt
+                rio_dbstoredt_co(io_idx_co)    = ccohort%dbstoredt
                 rio_resp_tstep_co(io_idx_co)   = ccohort%resp_tstep
                 rio_pft_co(io_idx_co)          = ccohort%pft
                 rio_status_co(io_idx_co)       = ccohort%status_coh
@@ -1148,7 +1178,7 @@ contains
              
              if ( DEBUG ) then
                 write(fates_log(),*) 'offsetNumCohorts III ' &
-                      ,io_idx_co,cohorts_per_col, cohortsperpatch
+                      ,io_idx_co,cohortsperpatch
              endif
              !
              ! deal with patch level fields of arrays here
@@ -1169,18 +1199,18 @@ contains
                 io_idx_pa_cwd = io_idx_pa_cwd + 1
              end do
              
-             do i = 1,cp_nclmax ! cp_nclmax currently 2
+             do i = 1,nclmax ! nclmax currently 2
                 rio_spread_pacl(io_idx_pa_cl)   = cpatch%spread(i)
                 io_idx_pa_cl = io_idx_pa_cl + 1
              end do
              
              if ( DEBUG ) write(fates_log(),*) 'CLTV io_idx_pa_sunz 1 ',io_idx_pa_sunz
              
-             if ( DEBUG ) write(fates_log(),*) 'CLTV 1186 ',cp_nlevcan,numpft_ed,cp_nclmax
+             if ( DEBUG ) write(fates_log(),*) 'CLTV 1186 ',nlevcan,numpft_ed,nclmax
              
-             do k = 1,cp_nlevcan ! cp_nlevcan currently 40
+             do k = 1,nlevcan ! nlevcan currently 40
                 do j = 1,numpft_ed ! numpft_ed currently 2
-                   do i = 1,cp_nclmax ! cp_nclmax currently 2
+                   do i = 1,nclmax ! nclmax currently 2
                       rio_fsun_paclftls(io_idx_pa_sunz)        = cpatch%f_sun(i,j,k)
                       rio_fabd_sun_z_paclftls(io_idx_pa_sunz)  = cpatch%fabd_sun_z(i,j,k)
                       rio_fabi_sun_z_paclftls(io_idx_pa_sunz)  = cpatch%fabi_sun_z(i,j,k)
@@ -1196,10 +1226,10 @@ contains
 
              ! Set the first cohort index to the start of the next patch, increment
              ! by the maximum number of cohorts per patch
-             io_idx_co_1st = io_idx_co_1st + maxCohortsPerPatch
+             io_idx_co_1st = io_idx_co_1st + fates_maxElementsPerPatch
              
              ! reset counters so that they are all advanced evenly. Currently
-             ! the offset is 10, the max of numpft_ed, ncwd, cp_nclmax,
+             ! the offset is 10, the max of numpft_ed, ncwd, nclmax,
              ! io_idx_si_wmem and the number of allowed cohorts per patch
              io_idx_pa_pft  = io_idx_co_1st
              io_idx_pa_cwd  = io_idx_co_1st
@@ -1209,7 +1239,6 @@ contains
              
              if ( DEBUG ) then
                 write(fates_log(),*) 'CLTV io_idx_co_1st ', io_idx_co_1st
-                write(fates_log(),*) 'CLTV cohorts_per_col ', cohorts_per_col
                 write(fates_log(),*) 'CLTV numCohort ', cohortsperpatch
                 write(fates_log(),*) 'CLTV totalCohorts ', totalCohorts
              end if
@@ -1275,9 +1304,9 @@ contains
      use EDTypesMod,           only : ed_cohort_type
      use EDTypesMod,           only : ed_patch_type
      use EDTypesMod,           only : ncwd
-     use EDTypesMod,           only : cp_nlevcan
-     use EDTypesMod,           only : cp_nclmax
-     use EDTypesMod,           only : maxCohortsPerPatch
+     use EDTypesMod,           only : nlevcan
+     use EDTypesMod,           only : nclmax
+     use FatesInterfaceMod,    only : fates_maxElementsPerPatch
      use EDTypesMod,           only : numpft_ed
      use EDTypesMod,           only : area
      use EDPatchDynamicsMod,   only : zero_patch
@@ -1300,7 +1329,7 @@ contains
      type(ed_cohort_type), allocatable :: temp_cohort
      real(r8)                          :: cwd_ag_local(ncwd)
      real(r8)                          :: cwd_bg_local(ncwd)
-     real(r8)                          :: spread_local(cp_nclmax)
+     real(r8)                          :: spread_local(nclmax)
      real(r8)                          :: leaf_litter_local(numpft_ed)
      real(r8)                          :: root_litter_local(numpft_ed)
      real(r8)                          :: patch_age
@@ -1386,6 +1415,7 @@ contains
                 temp_cohort%laimemory = 0.0_r8
                 temp_cohort%canopy_trim = 0.0_r8
                 temp_cohort%canopy_layer = 1.0_r8
+                temp_cohort%canopy_layer_yesterday = 1.0_r8
 
                 ! set the pft (only 2 used in ed) based on odd/even cohort
                 ! number
@@ -1453,7 +1483,7 @@ contains
                 
              endif
              
-             io_idx_co_1st = io_idx_co_1st + maxCohortsPerPatch
+             io_idx_co_1st = io_idx_co_1st + fates_maxElementsPerPatch
 
           enddo ! ends loop over idx_pa
 
@@ -1471,10 +1501,9 @@ contains
      use EDTypesMod, only : ed_patch_type
      use EDTypesMod, only : numpft_ed
      use EDTypesMod, only : ncwd
-     use EDTypesMod, only : cp_nlevcan
-     use EDTypesMod, only : cp_nclmax
-     use EDTypesMod, only : maxCohortsPerPatch
-     use EDTypesMod, only : cohorts_per_col
+     use EDTypesMod, only : nlevcan
+     use EDTypesMod, only : nclmax
+     use FatesInterfaceMod, only : fates_maxElementsPerPatch
      use EDTypesMod, only : numWaterMem
 
      ! !ARGUMENTS:
@@ -1547,6 +1576,7 @@ contains
           rio_broot_co                => this%rvars(ir_broot_co)%r81d, &
           rio_bstore_co               => this%rvars(ir_bstore_co)%r81d, &
           rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%r81d, &
+          rio_canopy_layer_yesterday_co         => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
           rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
           rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
           rio_height_co               => this%rvars(ir_height_co)%r81d, &
@@ -1570,6 +1600,9 @@ contains
           rio_imort_co                => this%rvars(ir_imort_co)%r81d, &
           rio_fmort_co                => this%rvars(ir_fmort_co)%r81d, &
           rio_ddbhdt_co               => this%rvars(ir_ddbhdt_co)%r81d, &
+          rio_dbalivedt_co            => this%rvars(ir_dbalivedt_co)%r81d, &
+          rio_dbdeaddt_co             => this%rvars(ir_dbdeaddt_co)%r81d, &
+          rio_dbstoredt_co            => this%rvars(ir_dbstoredt_co)%r81d, &
           rio_resp_tstep_co           => this%rvars(ir_resp_tstep_co)%r81d, &
           rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
           rio_status_co               => this%rvars(ir_status_co)%int1d, &
@@ -1640,6 +1673,7 @@ contains
                 ccohort%br           = rio_broot_co(io_idx_co)
                 ccohort%bstore       = rio_bstore_co(io_idx_co)
                 ccohort%canopy_layer = rio_canopy_layer_co(io_idx_co)
+                ccohort%canopy_layer_yesterday = rio_canopy_layer_yesterday_co(io_idx_co)
                 ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)
                 ccohort%dbh          = rio_dbh_co(io_idx_co)
                 ccohort%hite         = rio_height_co(io_idx_co)
@@ -1663,6 +1697,9 @@ contains
                 ccohort%imort        = rio_imort_co(io_idx_co)
                 ccohort%fmort        = rio_fmort_co(io_idx_co)
                 ccohort%ddbhdt       = rio_ddbhdt_co(io_idx_co)
+                ccohort%dbalivedt    = rio_dbalivedt_co(io_idx_co)
+                ccohort%dbdeaddt     = rio_dbdeaddt_co(io_idx_co)
+                ccohort%dbstoredt    = rio_dbstoredt_co(io_idx_co)
                 ccohort%resp_tstep   = rio_resp_tstep_co(io_idx_co)
                 ccohort%pft          = rio_pft_co(io_idx_co)
                 ccohort%status_coh   = rio_status_co(io_idx_co)
@@ -1699,7 +1736,7 @@ contains
              
              if ( DEBUG ) then
                 write(fates_log(),*) 'CVTL III ' &
-                     ,io_idx_co,cohorts_per_col, cohortsperpatch
+                     ,io_idx_co,cohortsperpatch
              endif
              !
              ! deal with patch level fields of arrays here
@@ -1721,16 +1758,16 @@ contains
                 io_idx_pa_cwd = io_idx_pa_cwd + 1
              enddo
              
-             do i = 1,cp_nclmax ! cp_nclmax currently 2
+             do i = 1,nclmax ! nclmax currently 2
                 cpatch%spread(i) = rio_spread_pacl(io_idx_pa_cl) 
                 io_idx_pa_cl  = io_idx_pa_cl + 1
              enddo
              
              if ( DEBUG ) write(fates_log(),*) 'CVTL io_idx_pa_sunz 1 ',io_idx_pa_sunz
              
-             do k = 1,cp_nlevcan ! cp_nlevcan currently 40
+             do k = 1,nlevcan ! nlevcan currently 40
                 do j = 1,numpft_ed ! numpft_ed currently 2
-                   do i = 1,cp_nclmax ! cp_nclmax currently 2
+                   do i = 1,nclmax ! nclmax currently 2
                       cpatch%f_sun(i,j,k)      = rio_fsun_paclftls(io_idx_pa_sunz) 
                       cpatch%fabd_sun_z(i,j,k) = rio_fabd_sun_z_paclftls(io_idx_pa_sunz)
                       cpatch%fabi_sun_z(i,j,k) = rio_fabi_sun_z_paclftls(io_idx_pa_sunz)
@@ -1746,7 +1783,7 @@ contains
              ! Now increment the position of the first cohort to that of the next
              ! patch
              
-             io_idx_co_1st = io_idx_co_1st + maxCohortsPerPatch
+             io_idx_co_1st = io_idx_co_1st + fates_maxElementsPerPatch
              
              ! and max the number of allowed cohorts per patch
              io_idx_pa_pft  = io_idx_co_1st
@@ -1757,7 +1794,6 @@ contains
              
              if ( DEBUG ) then
                 write(fates_log(),*) 'CVTL io_idx_co_1st ', io_idx_co_1st
-                write(fates_log(),*) 'CVTL cohorts_per_col ', cohorts_per_col
                 write(fates_log(),*) 'CVTL cohortsperpatch ', cohortsperpatch
                 write(fates_log(),*) 'CVTL totalCohorts ', totalCohorts
              end if

@@ -10,19 +10,23 @@ module EDSurfaceRadiationMod
 
 #include "shr_assert.h"
    
-  use EDtypesMod        , only : ed_patch_type, ed_site_type
-  use EDtypesMod        , only : numpft_ed
-  use EDtypesMod        , only : maxPatchesPerCol
-  use shr_kind_mod      , only : r8 => shr_kind_r8
-  use shr_log_mod       , only : errMsg => shr_log_errMsg
-  use FatesInterfaceMod , only : bc_in_type, &
-                                 bc_out_type
-  use EDTypesMod        , only : cp_numSWb, &        ! Actual number of SW radiation bands
-                                 cp_maxSWb, &        ! maximum number of SW bands (for scratch)
-                                 cp_nclmax           ! control parameter, number of SW bands
+  use EDTypesMod        , only : ed_patch_type, ed_site_type
+  use EDTypesMod        , only : numpft_ed
+  use EDTypesMod        , only : maxPatchesPerSite
+  use FatesConstantsMod , only : r8 => fates_r8
+  use FatesInterfaceMod , only : bc_in_type
+  use FatesInterfaceMod , only : bc_out_type
+  use FatesInterfaceMod , only : hlm_numSWb
+  use EDTypesMod        , only : maxSWb
+  use EDTypesMod        , only : nclmax
+  use EDTypesMod        , only : numpft_ed
+  use EDTypesMod        , only : nlevcan
   use EDCanopyStructureMod, only: calc_areaindex
-
+  use FatesGlobals      , only : fates_log
   
+  ! CIME globals
+  use shr_log_mod       , only : errMsg => shr_log_errMsg
+
   implicit none
 
   private
@@ -30,8 +34,9 @@ module EDSurfaceRadiationMod
   public :: ED_SunShadeFracs
   
   logical :: DEBUG = .false.  ! for debugging this module
+
   
-  real(r8), public  :: albice(cp_maxSWb) = &       ! albedo land ice by waveband (1=vis, 2=nir)
+  real(r8), public  :: albice(maxSWb) = &       ! albedo land ice by waveband (1=vis, 2=nir)
         (/ 0.80_r8, 0.55_r8 /)
 
   ! INTERF-TODO: THIS NEEDS SOME CONSISTENCY AND SHOULD BE SET IN THE INTERFACE
@@ -45,9 +50,8 @@ contains
 
       !
       ! !USES:
-      use clm_varctl        , only : iulog
-      use EDPftvarcon         , only : EDPftvarcon_inst
-      use EDtypesMod        , only : ed_patch_type, numpft_ed, cp_nlevcan
+      use EDPftvarcon       , only : EDPftvarcon_inst
+      use EDtypesMod        , only : ed_patch_type
       use EDTypesMod        , only : ed_site_type
 
 
@@ -70,31 +74,31 @@ contains
       real(r8) :: sb
       real(r8) :: error                                         ! Error check
       real(r8) :: down_rad, up_rad                              ! Iterative solution do Dif_dn and Dif_up
-      real(r8) :: ftweight(cp_nclmax,numpft_ed,cp_nlevcan)
+      real(r8) :: ftweight(nclmax,numpft_ed,nlevcan)
       real(r8) :: k_dir(numpft_ed)                              ! Direct beam extinction coefficient
-      real(r8) :: tr_dir_z(cp_nclmax,numpft_ed,cp_nlevcan)         ! Exponential transmittance of direct beam radiation through a single layer
-      real(r8) :: tr_dif_z(cp_nclmax,numpft_ed,cp_nlevcan)         ! Exponential transmittance of diffuse radiation through a single layer
-      real(r8) :: forc_dir(maxPatchesPerCol,cp_maxSWb)
-      real(r8) :: forc_dif(maxPatchesPerCol,cp_maxSWb)
-      real(r8) :: weighted_dir_tr(cp_nclmax)
-      real(r8) :: weighted_fsun(cp_nclmax)
-      real(r8) :: weighted_dif_ratio(cp_nclmax,cp_maxSWb)
-      real(r8) :: weighted_dif_down(cp_nclmax)
-      real(r8) :: weighted_dif_up(cp_nclmax)
-      real(r8) :: refl_dif(cp_nclmax,numpft_ed,cp_nlevcan,cp_maxSWb)  ! Term for diffuse radiation reflected by laye
-      real(r8) :: tran_dif(cp_nclmax,numpft_ed,cp_nlevcan,cp_maxSWb)  ! Term for diffuse radiation transmitted by layer
-      real(r8) :: dif_ratio(cp_nclmax,numpft_ed,cp_nlevcan,cp_maxSWb) ! Ratio of upward to forward diffuse fluxes
-      real(r8) :: Dif_dn(cp_nclmax,numpft_ed,cp_nlevcan)           ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
-      real(r8) :: Dif_up(cp_nclmax,numpft_ed,cp_nlevcan)           ! Upward diffuse flux above canopy layer J (W/m**2 ground area)
-      real(r8) :: lai_change(cp_nclmax,numpft_ed,cp_nlevcan)       ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
-      real(r8) :: f_not_abs(numpft_ed,cp_maxSWb)                   ! Fraction reflected + transmitted. 1-absorbtion.
-      real(r8) :: Abs_dir_z(numpft_ed,cp_nlevcan)
-      real(r8) :: Abs_dif_z(numpft_ed,cp_nlevcan)
-      real(r8) :: abs_rad(cp_maxSWb)                               !radiation absorbed by soil
+      real(r8) :: tr_dir_z(nclmax,numpft_ed,nlevcan)         ! Exponential transmittance of direct beam radiation through a single layer
+      real(r8) :: tr_dif_z(nclmax,numpft_ed,nlevcan)         ! Exponential transmittance of diffuse radiation through a single layer
+      real(r8) :: forc_dir(maxPatchesPerSite,maxSWb)
+      real(r8) :: forc_dif(maxPatchesPerSite,maxSWb)
+      real(r8) :: weighted_dir_tr(nclmax)
+      real(r8) :: weighted_fsun(nclmax)
+      real(r8) :: weighted_dif_ratio(nclmax,maxSWb)
+      real(r8) :: weighted_dif_down(nclmax)
+      real(r8) :: weighted_dif_up(nclmax)
+      real(r8) :: refl_dif(nclmax,numpft_ed,nlevcan,maxSWb)  ! Term for diffuse radiation reflected by laye
+      real(r8) :: tran_dif(nclmax,numpft_ed,nlevcan,maxSWb)  ! Term for diffuse radiation transmitted by layer
+      real(r8) :: dif_ratio(nclmax,numpft_ed,nlevcan,maxSWb) ! Ratio of upward to forward diffuse fluxes
+      real(r8) :: Dif_dn(nclmax,numpft_ed,nlevcan)           ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
+      real(r8) :: Dif_up(nclmax,numpft_ed,nlevcan)           ! Upward diffuse flux above canopy layer J (W/m**2 ground area)
+      real(r8) :: lai_change(nclmax,numpft_ed,nlevcan)       ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
+      real(r8) :: f_not_abs(numpft_ed,maxSWb)                   ! Fraction reflected + transmitted. 1-absorbtion.
+      real(r8) :: Abs_dir_z(numpft_ed,nlevcan)
+      real(r8) :: Abs_dif_z(numpft_ed,nlevcan)
+      real(r8) :: abs_rad(maxSWb)                               !radiation absorbed by soil
       real(r8) :: tr_soili                                      ! Radiation transmitted to the soil surface.
       real(r8) :: tr_soild                                      ! Radiation transmitted to the soil surface.
-      real(r8) :: phi1b(maxPatchesPerCol,numpft_ed)      ! Radiation transmitted to the soil surface.
-      real(r8) :: phi2b(maxPatchesPerCol,numpft_ed)
+      real(r8) :: phi1b(maxPatchesPerSite,numpft_ed)      ! Radiation transmitted to the soil surface.
+      real(r8) :: phi2b(maxPatchesPerSite,numpft_ed)
       real(r8) :: laisum                                        ! cumulative lai+sai for canopy layer (at middle of layer)
       real(r8) :: angle
 
@@ -107,8 +111,8 @@ contains
       integer  :: fp,iv,s      ! array indices
       integer  :: ib               ! waveband number
       real(r8) :: cosz             ! 0.001 <= coszen <= 1.000
-      real(r8) :: chil(maxPatchesPerCol)     ! -0.4 <= xl <= 0.6
-      real(r8) :: gdir(maxPatchesPerCol)    ! leaf projection in solar direction (0 to 1)
+      real(r8) :: chil(maxPatchesPerSite)     ! -0.4 <= xl <= 0.6
+      real(r8) :: gdir(maxPatchesPerSite)    ! leaf projection in solar direction (0 to 1)
 
       !-----------------------------------------------------------------------
 
@@ -177,7 +181,7 @@ contains
                     ! no radiation is absorbed  
                     bc_out(s)%fabd_parb(ifp,:) = 0.0_r8
                     bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
-                    do ib = 1,cp_numSWb
+                    do ib = 1,hlm_numSWb
                        bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dir_rb(ib)
                        bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dif_rb(ib)
                        bc_out(s)%ftdd_parb(ifp,ib)= 1.0_r8
@@ -187,7 +191,7 @@ contains
                  else
                     
                     ! Is this pft/canopy layer combination present in this patch?
-                    do L = 1,cp_nclmax
+                    do L = 1,nclmax
                        do ft = 1,numpft_ed
                           currentPatch%present(L,ft) = 0
                           do  iv = 1, currentPatch%nrad(L,ft)
@@ -200,7 +204,7 @@ contains
                     end do !L
 
                     do radtype = 1,2 !do this once for one unit of diffuse, and once for one unit of direct radiation
-                       do ib = 1,cp_numSWb
+                       do ib = 1,hlm_numSWb
                           if (radtype == 1) then
                              ! Set the hypothetical driving radiation. We do this once for a single unit of direct and
                              ! once for a single unit of diffuse radiation.
@@ -223,10 +227,10 @@ contains
                           end do  !ft1
                        end do  !L
                        if (sum(ftweight(1,:,1))<0.999_r8)then
-                          write(iulog,*) 'canopy not full',ftweight(1,:,1)
+                          write(fates_log(),*) 'canopy not full',ftweight(1,:,1)
                        endif
                        if (sum(ftweight(1,:,1))>1.0001_r8)then
-                          write(iulog,*) 'canopy too full',ftweight(1,:,1)
+                          write(fates_log(),*) 'canopy too full',ftweight(1,:,1)
                        endif
 
                        !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
@@ -249,7 +253,7 @@ contains
                        do L = 1,currentPatch%NCL_p !start at the top canopy layer (1 is the top layer.)
                           weighted_dir_tr(L) = 0.0_r8
                           weighted_fsun(L) = 0._r8
-                          weighted_dif_ratio(L,1:cp_numSWb) = 0._r8
+                          weighted_dif_ratio(L,1:hlm_numSWb) = 0._r8
                           !Each canopy layer (canopy, understorey) has multiple 'parallel' pft's
                           do ft =1,numpft_ed
                              if (currentPatch%present(L,ft) == 1)then !only do calculation if there are the appropriate leaves.
@@ -292,7 +296,7 @@ contains
                                       lai_change(L,ft,iv) = ftweight(L,ft,iv)-ftweight(L,ft,iv+1)
                                    endif
                                    if (ftweight(L,ft,iv+1) - ftweight(L,ft,iv) > 1.e-10_r8)then
-                                      write(iulog,*) 'lower layer has more coverage. This is wrong' , &
+                                      write(fates_log(),*) 'lower layer has more coverage. This is wrong' , &
                                            ftweight(L,ft,iv),ftweight(L,ft,iv+1),ftweight(L,ft,iv+1)-ftweight(L,ft,iv)
                                    endif
                                    
@@ -389,7 +393,7 @@ contains
                                 ! Iterative solution do scattering
                                 !==============================================================================!
                                 
-                                do ib = 1,cp_numSWb !vis, nir
+                                do ib = 1,hlm_numSWb !vis, nir
                                    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
                                    ! Leaf scattering coefficient and terms do diffuse radiation reflected
                                    ! and transmitted by a layer
@@ -431,12 +435,12 @@ contains
                                    weighted_dif_ratio(L,ib) = weighted_dif_ratio(L,ib) + &
                                          dif_ratio(L,ft,1,ib) * ftweight(L,ft,1)
                                    !instance where the first layer ftweight is used a proxy for the whole column. FTWA
-                                end do!cp_numSWb
+                                end do!hlm_numSWb
                              endif ! currentPatch%present
                           end do!ft
                        end do!L
                        
-                       do ib = 1,cp_numSWb
+                       do ib = 1,hlm_numSWb
                           Dif_dn(:,:,:) = 0.00_r8
                           Dif_up(:,:,:) = 0.00_r8
                           do L = 1, currentPatch%NCL_p !work down from the top of the canopy.
@@ -692,8 +696,8 @@ contains
                                       do iv = 1, currentPatch%nrad(L,ft)
                                          if (radtype==1) then
                                             if ( DEBUG ) then
-                                               write(iulog,*) 'EDsurfAlb 730 ',Abs_dif_z(ft,iv),currentPatch%f_sun(L,ft,iv)
-                                               write(iulog,*) 'EDsurfAlb 731 ', currentPatch%fabd_sha_z(L,ft,iv), &
+                                               write(fates_log(),*) 'EDsurfAlb 730 ',Abs_dif_z(ft,iv),currentPatch%f_sun(L,ft,iv)
+                                               write(fates_log(),*) 'EDsurfAlb 731 ', currentPatch%fabd_sha_z(L,ft,iv), &
                                                     currentPatch%fabd_sun_z(L,ft,iv)
                                             endif
                                             currentPatch%fabd_sha_z(L,ft,iv) = Abs_dif_z(ft,iv) * &
@@ -708,7 +712,7 @@ contains
                                                  currentPatch%f_sun(L,ft,iv)
                                          endif
                                          if ( DEBUG ) then
-                                            write(iulog,*) 'EDsurfAlb 740 ', currentPatch%fabd_sha_z(L,ft,iv), &
+                                            write(fates_log(),*) 'EDsurfAlb 740 ', currentPatch%fabd_sha_z(L,ft,iv), &
                                                  currentPatch%fabd_sun_z(L,ft,iv)
                                          endif
                                       end do
@@ -786,22 +790,22 @@ contains
                                   (1.0_r8-bc_in(s)%albgr_dir_rb(ib)) + &
                                   currentPatch%tr_soil_dir_dif(ib) * (1.0_r8-bc_in(s)%albgr_dif_rb(ib))))
                              if ( abs(error) > 0.0001)then
-                                write(iulog,*)'dir ground absorption error',ifp,s,error,currentPatch%sabs_dir(ib), &
+                                write(fates_log(),*)'dir ground absorption error',ifp,s,error,currentPatch%sabs_dir(ib), &
                                      currentPatch%tr_soil_dir(ib)* &
                                      (1.0_r8-bc_in(s)%albgr_dir_rb(ib)),currentPatch%NCL_p,ib,sum(ftweight(1,:,1))
-                                write(iulog,*) 'albedos',currentPatch%sabs_dir(ib) ,currentPatch%tr_soil_dir(ib), &
+                                write(fates_log(),*) 'albedos',currentPatch%sabs_dir(ib) ,currentPatch%tr_soil_dir(ib), &
                                      (1.0_r8-bc_in(s)%albgr_dir_rb(ib)),currentPatch%lai
                                 
                                 do ft =1,3
                                    iv = currentPatch%nrad(1,ft) + 1
-                                   write(iulog,*) 'abs soil fluxes', Abs_dir_z(ft,iv),Abs_dif_z(ft,iv)
+                                   write(fates_log(),*) 'abs soil fluxes', Abs_dir_z(ft,iv),Abs_dif_z(ft,iv)
                                 end do
                                 
                              end if
                           else
                              if ( abs(currentPatch%sabs_dif(ib)-(currentPatch%tr_soil_dif(ib) * &
                                   (1.0_r8-bc_in(s)%albgr_dif_rb(ib)))) > 0.0001)then
-                                write(iulog,*)'dif ground absorption error',ifp,s,currentPatch%sabs_dif(ib) , &
+                                write(fates_log(),*)'dif ground absorption error',ifp,s,currentPatch%sabs_dif(ib) , &
                                      (currentPatch%tr_soil_dif(ib)* &
                                      (1.0_r8-bc_in(s)%albgr_dif_rb(ib))),currentPatch%NCL_p,ib,sum(ftweight(1,:,1))
                              endif
@@ -827,22 +831,22 @@ contains
                              enddo
                           enddo
                           if (lai_change(1,2,1).gt.0.0.and.lai_change(1,2,2).gt.0.0)then
-                             !                           write(iulog,*) 'lai_change(1,2,12)',lai_change(1,2,1:4)
+                             !                           write(fates_log(),*) 'lai_change(1,2,12)',lai_change(1,2,1:4)
                           endif
                           if (lai_change(1,2,2).gt.0.0.and.lai_change(1,2,3).gt.0.0)then
-                             !                           write(iulog,*) ' lai_change (1,2,23)',lai_change(1,2,1:4)
+                             !                           write(fates_log(),*) ' lai_change (1,2,23)',lai_change(1,2,1:4)
                           endif
                           if (lai_change(1,1,3).gt.0.0.and.lai_change(1,1,2).gt.0.0)then
                              ! NO-OP
-                             ! write(iulog,*) 'first layer of lai_change 2 3',lai_change(1,1,1:3)
+                             ! write(fates_log(),*) 'first layer of lai_change 2 3',lai_change(1,1,1:3)
                           endif
                           if (lai_change(1,1,3).gt.0.0.and.lai_change(1,1,4).gt.0.0)then
                              ! NO-OP
-                             ! write(iulog,*) 'first layer of lai_change 3 4',lai_change(1,1,1:4)
+                             ! write(fates_log(),*) 'first layer of lai_change 3 4',lai_change(1,1,1:4)
                           endif
                           if (lai_change(1,1,4).gt.0.0.and.lai_change(1,1,5).gt.0.0)then
                              ! NO-OP
-                             ! write(iulog,*) 'first layer of lai_change 4 5',lai_change(1,1,1:5)
+                             ! write(fates_log(),*) 'first layer of lai_change 4 5',lai_change(1,1,1:5)
                           endif
                           
                           if (radtype == 1)then
@@ -858,15 +862,15 @@ contains
                                 ! will deal with them for now.
                              end if
                              if (abs(error)  >  0.15_r8)then
-                                write(iulog,*) 'Large Dir Radn consvn error',error ,ifp,ib
-                                write(iulog,*) 'diags', bc_out(s)%albd_parb(ifp,ib), bc_out(s)%ftdd_parb(ifp,ib), &
+                                write(fates_log(),*) 'Large Dir Radn consvn error',error ,ifp,ib
+                                write(fates_log(),*) 'diags', bc_out(s)%albd_parb(ifp,ib), bc_out(s)%ftdd_parb(ifp,ib), &
                                      bc_out(s)%ftid_parb(ifp,ib), bc_out(s)%fabd_parb(ifp,ib)
-                                write(iulog,*) 'lai_change',lai_change(currentpatch%ncl_p,1:2,1:4)
-                                write(iulog,*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:2,1:4)
-                                write(iulog,*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:2,1:4)
-                                write(iulog,*) 'ftweight',ftweight(1,1:2,1:4)
-                                write(iulog,*) 'cp',currentPatch%area, currentPatch%patchno
-                                write(iulog,*) 'bc_in(s)%albgr_dir_rb(ib)',bc_in(s)%albgr_dir_rb(ib)
+                                write(fates_log(),*) 'lai_change',lai_change(currentpatch%ncl_p,1:2,1:4)
+                                write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:2,1:4)
+                                write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:2,1:4)
+                                write(fates_log(),*) 'ftweight',ftweight(1,1:2,1:4)
+                                write(fates_log(),*) 'cp',currentPatch%area, currentPatch%patchno
+                                write(fates_log(),*) 'bc_in(s)%albgr_dir_rb(ib)',bc_in(s)%albgr_dir_rb(ib)
                                 
                                 bc_out(s)%albd_parb(ifp,ib) = bc_out(s)%albd_parb(ifp,ib) + error
                              end if
@@ -877,19 +881,19 @@ contains
                              end if
                              
                              if (abs(error)  >  0.15_r8)then
-                                write(iulog,*)  '>5% Dif Radn consvn error',error ,ifp,ib
-                                write(iulog,*) 'diags', bc_out(s)%albi_parb(ifp,ib), bc_out(s)%ftii_parb(ifp,ib), &
+                                write(fates_log(),*)  '>5% Dif Radn consvn error',error ,ifp,ib
+                                write(fates_log(),*) 'diags', bc_out(s)%albi_parb(ifp,ib), bc_out(s)%ftii_parb(ifp,ib), &
                                      bc_out(s)%fabi_parb(ifp,ib)
-                                write(iulog,*) 'lai_change',lai_change(currentpatch%ncl_p,1:2,1:4)
-                                write(iulog,*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:2,1:4)
-                                write(iulog,*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:2,1:4)
-                                write(iulog,*) 'ftweight',ftweight(currentpatch%ncl_p,1:2,1:4)
-                                write(iulog,*) 'cp',currentPatch%area, currentPatch%patchno
-                                write(iulog,*) 'bc_in(s)%albgr_dif_rb(ib)',bc_in(s)%albgr_dif_rb(ib)
-                                write(iulog,*) 'rhol',rhol(1:2,:)
-                                write(iulog,*) 'ftw',sum(ftweight(1,:,1)),ftweight(1,1:2,1)
-                                write(iulog,*) 'present',currentPatch%present(1,1:2)
-                                write(iulog,*) 'CAP',currentPatch%canopy_area_profile(1,1:2,1)
+                                write(fates_log(),*) 'lai_change',lai_change(currentpatch%ncl_p,1:2,1:4)
+                                write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:2,1:4)
+                                write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:2,1:4)
+                                write(fates_log(),*) 'ftweight',ftweight(currentpatch%ncl_p,1:2,1:4)
+                                write(fates_log(),*) 'cp',currentPatch%area, currentPatch%patchno
+                                write(fates_log(),*) 'bc_in(s)%albgr_dif_rb(ib)',bc_in(s)%albgr_dif_rb(ib)
+                                write(fates_log(),*) 'rhol',rhol(1:2,:)
+                                write(fates_log(),*) 'ftw',sum(ftweight(1,:,1)),ftweight(1,1:2,1)
+                                write(fates_log(),*) 'present',currentPatch%present(1,1:2)
+                                write(fates_log(),*) 'CAP',currentPatch%canopy_area_profile(1,1:2,1)
                                 
                                 bc_out(s)%albi_parb(ifp,ib) = bc_out(s)%albi_parb(ifp,ib) + error
                              end if
@@ -903,12 +907,12 @@ contains
                              endif
                              
                              if (abs(error)  >  0.00000001_r8)then
-                                write(iulog,*)  'there is still error after correction',error ,ifp,ib
+                                write(fates_log(),*)  'there is still error after correction',error ,ifp,ib
                              end if
                              
                           end if
                           
-                       end do !cp_numSWb
+                       end do !hlm_numSWb
                        
                     enddo ! rad-type
                  endif ! is there vegetation? 
@@ -925,8 +929,6 @@ contains
  ! ======================================================================================
 
  subroutine ED_SunShadeFracs(nsites, sites,bc_in,bc_out)
-    
-    use clm_varctl        , only : iulog
     
     implicit none
 
@@ -958,7 +960,7 @@ contains
           
           ifp=ifp+1
           
-          if( DEBUG ) write(iulog,*) 'edsurfRad_5600',ifp,s,cpatch%NCL_p,numpft_ed
+          if( DEBUG ) write(fates_log(),*) 'edsurfRad_5600',ifp,s,cpatch%NCL_p,numpft_ed
           
           ! zero out various datas
           cpatch%ed_parsun_z(:,:,:) = 0._r8
@@ -981,7 +983,7 @@ contains
           do CL = 1, cpatch%NCL_p
              do FT = 1,numpft_ed
 
-                if( DEBUG ) write(iulog,*) 'edsurfRad_5601',CL,FT,cpatch%nrad(CL,ft)
+                if( DEBUG ) write(fates_log(),*) 'edsurfRad_5601',CL,FT,cpatch%nrad(CL,ft)
                 
                 do iv = 1, cpatch%nrad(CL,ft) !NORMAL CASE. 
                    
@@ -991,8 +993,8 @@ contains
                    cpatch%ed_laisun_z(CL,ft,iv) = cpatch%elai_profile(CL,ft,iv) * &
                          cpatch%f_sun(CL,ft,iv)
                    
-                   if ( DEBUG ) write(iulog,*) 'edsurfRad 570 ',cpatch%elai_profile(CL,ft,iv)
-                   if ( DEBUG ) write(iulog,*) 'edsurfRad 571 ',cpatch%f_sun(CL,ft,iv)
+                   if ( DEBUG ) write(fates_log(),*) 'edsurfRad 570 ',cpatch%elai_profile(CL,ft,iv)
+                   if ( DEBUG ) write(fates_log(),*) 'edsurfRad 571 ',cpatch%f_sun(CL,ft,iv)
                    
                    cpatch%ed_laisha_z(CL,ft,iv) = cpatch%elai_profile(CL,ft,iv) * &
                          (1._r8 - cpatch%f_sun(CL,ft,iv))
@@ -1013,7 +1015,7 @@ contains
           endif
           
           if(bc_out(s)%fsun_pa(ifp) > 1._r8)then
-             write(iulog,*) 'too much leaf area in profile',  bc_out(s)%fsun_pa(ifp), &
+             write(fates_log(),*) 'too much leaf area in profile',  bc_out(s)%fsun_pa(ifp), &
                    cpatch%lai,sunlai,shalai
           endif
 
@@ -1026,34 +1028,34 @@ contains
          ! If sun/shade big leaf code, nrad=1 and fluxes from SurfaceAlbedo
          ! are canopy integrated so that layer values equal big leaf values.
          
-         if ( DEBUG ) write(iulog,*) 'edsurfRad 645 ',cpatch%NCL_p,numpft_ed
+         if ( DEBUG ) write(fates_log(),*) 'edsurfRad 645 ',cpatch%NCL_p,numpft_ed
          
          do CL = 1, cpatch%NCL_p
             do FT = 1,numpft_ed
                
-               if ( DEBUG ) write(iulog,*) 'edsurfRad 649 ',cpatch%nrad(CL,ft)
+               if ( DEBUG ) write(fates_log(),*) 'edsurfRad 649 ',cpatch%nrad(CL,ft)
                
                do iv = 1, cpatch%nrad(CL,ft)
                   
                   if ( DEBUG ) then
-                     write(iulog,*) 'edsurfRad 653 ', cpatch%ed_parsun_z(CL,ft,iv)
-                     write(iulog,*) 'edsurfRad 654 ', bc_in(s)%solad_parb(ifp,ipar)
-                     write(iulog,*) 'edsurfRad 655 ', bc_in(s)%solai_parb(ifp,ipar)
-                     write(iulog,*) 'edsurfRad 656 ', cpatch%fabd_sun_z(CL,ft,iv)
-                     write(iulog,*) 'edsurfRad 657 ', cpatch%fabi_sun_z(CL,ft,iv)
+                     write(fates_log(),*) 'edsurfRad 653 ', cpatch%ed_parsun_z(CL,ft,iv)
+                     write(fates_log(),*) 'edsurfRad 654 ', bc_in(s)%solad_parb(ifp,ipar)
+                     write(fates_log(),*) 'edsurfRad 655 ', bc_in(s)%solai_parb(ifp,ipar)
+                     write(fates_log(),*) 'edsurfRad 656 ', cpatch%fabd_sun_z(CL,ft,iv)
+                     write(fates_log(),*) 'edsurfRad 657 ', cpatch%fabi_sun_z(CL,ft,iv)
                   endif
                   
                   cpatch%ed_parsun_z(CL,ft,iv) = &
                         bc_in(s)%solad_parb(ifp,ipar)*cpatch%fabd_sun_z(CL,ft,iv) + &
                         bc_in(s)%solai_parb(ifp,ipar)*cpatch%fabi_sun_z(CL,ft,iv) 
                   
-                  if ( DEBUG )write(iulog,*) 'edsurfRad 663 ', cpatch%ed_parsun_z(CL,ft,iv)
+                  if ( DEBUG )write(fates_log(),*) 'edsurfRad 663 ', cpatch%ed_parsun_z(CL,ft,iv)
                   
                   cpatch%ed_parsha_z(CL,ft,iv) = &
                         bc_in(s)%solad_parb(ifp,ipar)*cpatch%fabd_sha_z(CL,ft,iv) + &
                         bc_in(s)%solai_parb(ifp,ipar)*cpatch%fabi_sha_z(CL,ft,iv)          
                   
-                  if ( DEBUG ) write(iulog,*) 'edsurfRad 669 ', cpatch%ed_parsha_z(CL,ft,iv)
+                  if ( DEBUG ) write(fates_log(),*) 'edsurfRad 669 ', cpatch%ed_parsha_z(CL,ft,iv)
                   
                end do !iv
             end do !FT
@@ -1092,7 +1094,7 @@ end subroutine ED_SunShadeFracs
 !            g = gridcell(p)
 !            errsol = (fsa(p) + fsr(p)  - (forc_solad(g,1) + forc_solad(g,2) + forc_solai(g,1) + forc_solai(g,2)))
 !            if(abs(errsol) > 0.1_r8)then
-!               write(iulog,*) 'sol error in surf rad',p,g, errsol
+!               write(fates_log(),*) 'sol error in surf rad',p,g, errsol
 !            endif
 !         end do
 !         return
