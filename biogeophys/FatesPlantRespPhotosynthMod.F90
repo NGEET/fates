@@ -20,12 +20,17 @@ module FATESPlantRespPhotosynthMod
    
    ! !USES:
 
-   use abortutils, only        : endrun
+   use FatesGlobals, only      : endrun => fates_endrun
    use FatesGlobals, only      : fates_log
    use FatesConstantsMod, only : r8 => fates_r8
-   use shr_log_mod , only      : errMsg => shr_log_errMsg
    use EDTypesMod, only        : use_fates_plant_hydro
+   use EDTypesMod, only        : numpft_ed
+   use EDTypesMod, only        : nlevcan
+   use EDTypesMod, only        : nclmax
    
+   ! CIME Globals
+   use shr_log_mod , only      : errMsg => shr_log_errMsg
+
    implicit none
    private
    
@@ -61,14 +66,11 @@ contains
     use EDPftvarcon         , only : EDPftvarcon_inst 
 
     use EDParamsMod       , only : ED_val_ag_biomass
-    use EDSharedParamsMod , only : EDParamsShareInst
+    use FatesSynchronizedParamsMod , only : FatesSynchronizedParamsInst
     use EDTypesMod        , only : ed_patch_type
     use EDTypesMod        , only : ed_cohort_type
     use EDTypesMod        , only : ed_site_type
-    use EDTypesMod        , only : numpft_ed
-    use EDTypesMod        , only : cp_numlevsoil
-    use EDTypesMod        , only : cp_nlevcan
-    use EDTypesMod        , only : cp_nclmax
+    use FatesInterfaceMod , only : hlm_numlevsoil
     use EDEcophysContype  , only : EDecophyscon
     use FatesInterfaceMod , only : bc_in_type
     use FatesInterfaceMod , only : bc_out_type
@@ -79,6 +81,7 @@ contains
     use FatesConstantsMod, only : rgas => rgas_J_K_kmol
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use FatesParameterDerivedMod, only : param_derived
+    use EDPatchDynamicsMod, only: set_root_fraction
 
 
     ! ARGUMENTS:
@@ -112,17 +115,17 @@ contains
     ! -----------------------------------------------------------------------------------
 
     ! leaf maintenance (dark) respiration (umol CO2/m**2/s) Double check this
-    real(r8) :: lmr_z(cp_nlevcan,mxpft,cp_nclmax)
+    real(r8) :: lmr_z(nlevcan,mxpft,nclmax)
 
     ! stomatal resistance s/m
-    real(r8) :: rs_z(cp_nlevcan,mxpft,cp_nclmax)    
+    real(r8) :: rs_z(nlevcan,mxpft,nclmax)    
 
     ! net leaf photosynthesis averaged over sun and shade leaves. (umol CO2/m**2/s) 
-    real(r8) :: anet_av_z(cp_nlevcan,mxpft,cp_nclmax)  
+    real(r8) :: anet_av_z(nlevcan,mxpft,nclmax)  
     
     ! Mask used to determine which leaf-layer biophysical rates have been
     ! used already
-    logical :: rate_mask_z(cp_nlevcan,mxpft,cp_nclmax)
+    logical :: rate_mask_z(nlevcan,mxpft,nclmax)
 
     real(r8) :: vcmax_z            ! leaf layer maximum rate of carboxylation 
                                    ! (umol co2/m**2/s)
@@ -199,11 +202,11 @@ contains
                                         ! projected area basis [m^2/gC]
          flnr      => EDecophyscon%flnr   , & ! fraction of leaf N in the Rubisco 
                                         ! enzyme (gN Rubisco / gN leaf)
-         woody     => EDecophyscon%woody  , & ! Is vegetation woody or not? 
-         fnitr     => EDecophyscon%fnitr  , & ! foliage nitrogen limitation factor (-)
-         leafcn    => EDecophyscon%leafcn , & ! leaf C:N (gC/gN)
-         frootcn   => EDecophyscon%frootcn, & ! froot C:N (gc/gN)   ! slope of BB relationship
-         q10       => EDParamsShareInst%Q10 )
+         woody     => EDPftvarcon_inst%woody  , & ! Is vegetation woody or not? 
+         fnitr     => EDPftvarcon_inst%fnitr  , & ! foliage nitrogen limitation factor (-)
+         leafcn    => EDPftvarcon_inst%leafcn , & ! leaf C:N (gC/gN)
+         frootcn   => EDPftvarcon_inst%frootcn, & ! froot C:N (gc/gN)   ! slope of BB relationship
+         q10       => FatesSynchronizedParamsInst%Q10 )
 
       base_mr_20 = 
       bbbopt[1] =
@@ -291,7 +294,7 @@ contains
                   
                end do !ft 
 
-               call currentPatch%set_root_fraction(bc_in(s)%depth_gl)
+               call set_root_fraction(currentPatch,bc_in(s)%depth_gl)
 
                ! ------------------------------------------------------------------------
                ! Part VI: Loop over all leaf layers.
@@ -541,7 +544,7 @@ contains
                      ! Fine Root MR  (kgC/plant/s)
                      ! ------------------------------------------------------------------
                      currentCohort%froot_mr = 0._r8
-                     do j = 1,cp_numlevsoil
+                     do j = 1,hlm_numlevsoil
                         tcsoi  = q10**((bc_in(s)%t_soisno_gl(j)-tfrz - 20.0_r8)/10.0_r8)
                         currentCohort%froot_mr = currentCohort%froot_mr + &
                               froot_n * base_mr_20 * tcsoi * currentPatch%rootfr_ft(ft,j)
@@ -551,7 +554,7 @@ contains
                      ! ------------------------------------------------------------------
                      if (woody(ft) == 1) then
                         currentCohort%livecroot_mr = 0._r8
-                        do j = 1,cp_numlevsoil
+                        do j = 1,hlm_numlevsoil
                            ! Soil temperature used to adjust base rate of MR
                            tcsoi  = q10**((bc_in(s)%t_soisno_gl(j)-tfrz - 20.0_r8)/10.0_r8)
                            currentCohort%livecroot_mr = currentCohort%livecroot_mr + &
@@ -1310,8 +1313,7 @@ contains
       ! profile).
       ! ---------------------------------------------------------------------------------
       
-      use EDTypesMod , only : cp_nclmax
-      use EDTypesMOd , only : numpft_ed
+      
       use EDTypesMod , only : ed_patch_type
       use EDTypesMod , only : ed_cohort_type
 
@@ -1347,7 +1349,7 @@ contains
       currentPatch%nrad = currentPatch%ncan
 
       ! Now loop through and identify which layer and pft combo has scattering elements
-      do cl = 1,cp_nclmax
+      do cl = 1,nclmax
          do ft = 1,numpft_ed
             currentPatch%present(cl,ft) = 0
             do iv = 1, currentPatch%nrad(cl,ft);
