@@ -420,8 +420,8 @@ contains
          displa                 => canopystate_inst%displa_patch                , & ! Input:  [real(r8) (:)   ]  displacement height (m)                                               
          htop                   => canopystate_inst%htop_patch                  , & ! Input:  [real(r8) (:)   ]  canopy top(m)                                                         
          altmax_lastyear_indx   => canopystate_inst%altmax_lastyear_indx_col    , & ! Input:  [integer  (:)   ]  prior year maximum annual depth of thaw                                
-         altmax_indx            => canopystate_inst%altmax_indx_col             , & ! Input:  [integer  (:)   ]  maximum annual depth of thaw                                           
-         rscanopy               => canopystate_inst%rscanopy_patch              , & ! Output: [real(r8) (:,:)]   canopy resistance s/m (ED)
+         altmax_indx            => canopystate_inst%altmax_indx_col             , & ! Input:  [integer  (:)   ]  maximum annual depth of thaw
+         dleaf_patch            => canopystate_inst%dleaf_patch                 , & ! Output: [real(r8) (:)   ]  mean leaf diameter for this patch/pft
          
          watsat                 => soilstate_inst%watsat_col                    , & ! Input:  [real(r8) (:,:) ]  volumetric soil water at saturation (porosity)   (constant)                     
          watdry                 => soilstate_inst%watdry_col                    , & ! Input:  [real(r8) (:,:) ]  btran parameter for btran=0                      (constant)                                        
@@ -757,6 +757,10 @@ contains
               temp1(begp:endp), temp2(begp:endp), temp12m(begp:endp), temp22m(begp:endp), fm(begp:endp), &
               frictionvel_inst)
 
+         
+
+
+
          do f = 1, fn
             p = filterp(f)
             c = patch%column(p)
@@ -774,7 +778,16 @@ contains
             ! Bulk boundary layer resistance of leaves
 
             uaf(p) = um(p)*sqrt( 1._r8/(ram1(p)*um(p)) )
-            cf  = 0.01_r8/(sqrt(uaf(p))*sqrt(dleaf(patch%itype(p))))
+
+            ! Use pft parameter for leaf characteristic width
+            ! dleaf_patch if this is not an ed patch.
+            ! Otherwise, the value has already been loaded
+            ! during the FATES dynamics update
+            if(.not.patch%is_veg(p)) then   ! "use_ed: logical for patches
+               dleaf_patch(p) = dleaf(patch%itype(p))
+            end if
+
+            cf  = 0.01_r8/(sqrt(uaf(p))*sqrt( dleaf_patch(p) ))
             rb(p)  = 1._r8/(cf*uaf(p))
             rb1(p) = rb(p)
 

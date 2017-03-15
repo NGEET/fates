@@ -76,6 +76,7 @@ contains
     use column_varcon      , only : icol_road_imperv, icol_road_perv
     use landunit_varcon    , only : istice, istice_mec, istwet, istsoil, istdlak, istcrop, istdlak
     use clm_varpar         , only : nlevgrnd, nlevurb, nlevsno, nlevsoi
+    use clm_varctl         , only : use_ed
     !
     ! !ARGUMENTS:
     type(bounds_type)      , intent(in)    :: bounds    
@@ -390,8 +391,23 @@ contains
 
       end do ! (end of columns loop)
 
-      ! Initialization
 
+      ! Set roughness and displacement
+      ! Note that FATES passes back z0m and displa at the end
+      ! of its dynamics call.  If and when crops are
+      ! enabled simultaneously with FATES, we will 
+      ! have to apply a filter here.
+         
+      do fp = 1,num_nolakep
+         p = filter_nolakep(fp)
+         
+         if( .not.(patch%is_veg(p))) then ! Allow bare-ground patches
+            z0m(p)    = z0mr(patch%itype(p)) * htop(p)
+            displa(p) = displar(patch%itype(p)) * htop(p)
+         end if
+      end do
+
+      ! Initialization
       do fp = 1,num_nolakep
          p = filter_nolakep(fp)
 
@@ -427,9 +443,6 @@ contains
          emv(p) = 1._r8-exp(-(elai(p)+esai(p))/avmuir)
 
          ! Roughness lengths over vegetation
-
-         z0m(p)    = z0mr(patch%itype(p)) * htop(p)
-         displa(p) = displar(patch%itype(p)) * htop(p)
 
          z0mv(p)   = z0m(p)
          z0hv(p)   = z0mv(p)

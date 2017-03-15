@@ -820,7 +820,8 @@ contains
 
           call clm_fates%dynamics_driv( nc, bounds_clump,                        &
                atm2lnd_inst, soilstate_inst, temperature_inst,                   &
-               waterstate_inst, canopystate_inst, soilbiogeochem_carbonflux_inst)
+               waterstate_inst, canopystate_inst, soilbiogeochem_carbonflux_inst,&
+               frictionvel_inst)
           
           ! TODO(wjs, 2016-04-01) I think this setFilters call should be replaced by a
           ! call to reweight_wrapup, if it's needed at all.
