@@ -6,11 +6,11 @@ module EDGrowthFunctionsMod
   ! At present, there is only a single allocation trajectory. 
   ! ============================================================================
 
-  use shr_kind_mod     , only : r8 => shr_kind_r8
+  use FatesConstantsMod, only : r8 => fates_r8
   use FatesGlobals     , only : fates_log
   use EDPftvarcon        , only : EDPftvarcon_inst
   use EDEcophysContype , only : EDecophyscon
-  use EDTypesMod       , only : ed_cohort_type, cp_nlevcan, dinc_ed
+  use EDTypesMod       , only : ed_cohort_type, nlevcan, dinc_ed
 
   implicit none
   private
@@ -159,10 +159,10 @@ contains
     cohort_in%treelai = tree_lai
 
     ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
-    ! at the moments cp_nlevcan default is 40, which is very large, so exceeding this would clearly illustrate a 
+    ! at the moments nlevcan default is 40, which is very large, so exceeding this would clearly illustrate a 
     ! huge error 
-    if(cohort_in%treelai > cp_nlevcan*dinc_ed)then
-       write(fates_log(),*) 'too much lai' , cohort_in%treelai , cohort_in%pft , cp_nlevcan * dinc_ed
+    if(cohort_in%treelai > nlevcan*dinc_ed)then
+       write(fates_log(),*) 'too much lai' , cohort_in%treelai , cohort_in%pft , nlevcan * dinc_ed
     endif
 
     return
@@ -196,10 +196,10 @@ contains
     cohort_in%treesai = tree_sai
 
     ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
-    ! at the moments cp_nlevcan default is 40, which is very large, so exceeding this would clearly illustrate a 
+    ! at the moments nlevcan default is 40, which is very large, so exceeding this would clearly illustrate a 
     ! huge error 
-    if(cohort_in%treesai > cp_nlevcan*dinc_ed)then
-       write(fates_log(),*) 'too much sai' , cohort_in%treesai , cohort_in%pft , cp_nlevcan * dinc_ed
+    if(cohort_in%treesai > nlevcan*dinc_ed)then
+       write(fates_log(),*) 'too much sai' , cohort_in%treesai , cohort_in%pft , nlevcan * dinc_ed
     endif
 
     return

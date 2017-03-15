@@ -2,7 +2,7 @@ module SFParamsMod
    !
    ! module that deals with reading the SF parameter file
    !
-   use shr_kind_mod      , only: r8 => shr_kind_r8
+   use FatesConstantsMod , only: r8 => fates_r8
    use EDtypesMod        , only: NLSC,NFSC,NCWD
    use FatesParametersInterface, only : param_string_length
 
