@@ -4,20 +4,24 @@ module EDCohortDynamicsMod
   ! Cohort stuctures in ED. 
   !
   ! !USES: 
-  use abortutils            , only : endrun
+  use FatesGlobals          , only : endrun => fates_endrun
   use FatesGlobals          , only : fates_log
-  use FatesGlobals          , only : freq_day
+  use FatesInterfaceMod     , only : hlm_freq_day
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
-  use shr_log_mod           , only : errMsg => shr_log_errMsg
-  use EDPftvarcon             , only : EDPftvarcon_inst
+  use EDPftvarcon           , only : EDPftvarcon_inst
   use EDEcophysContype      , only : EDecophyscon
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDTypesMod            , only : fusetol, cp_nclmax
-  use EDtypesMod            , only : ncwd, maxcohortsperpatch
-  use EDtypesMod            , only : sclass_ed,nlevsclass_ed,AREA
-  use EDtypesMod            , only : min_npm2, min_nppatch, min_n_safemath
+  use EDTypesMod            , only : fusetol
+  use EDTypesMod            , only : nclmax
+  use EDTypesMod            , only : ncwd
+  use EDTypesMod            , only : maxCohortsPerPatch
+  use EDTypesMod            , only : sclass_ed,nlevsclass_ed,AREA
+  use EDTypesMod            , only : min_npm2, min_nppatch
+  use EDTypesMod            , only : min_n_safemath
+  ! CIME globals
+  use shr_log_mod           , only : errMsg => shr_log_errMsg
   !
   implicit none
   private
@@ -94,6 +98,7 @@ contains
     new_cohort%dbh          = dbh
     new_cohort%canopy_trim  = ctrim
     new_cohort%canopy_layer = clayer
+    new_cohort%canopy_layer_yesterday = real(clayer, r8)
     new_cohort%laimemory    = laimemory
     new_cohort%bdead        = bdead
     new_cohort%balive       = balive
@@ -223,7 +228,6 @@ contains
     ! Use different proportions if the leaves are on vs off
     if(leaves_off_switch==0)then
 
-
        new_bl = currentcohort%balive*leaf_frac
 
        new_br = EDpftvarcon_inst%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
@@ -236,12 +240,12 @@ contains
        if(mode==1)then 
 
           currentcohort%npp_leaf = currentcohort%npp_leaf + &
-                max(0.0_r8,new_bl - currentcohort%bl) / freq_day
+                max(0.0_r8,new_bl - currentcohort%bl) / hlm_freq_day
           
           currentcohort%npp_froot = currentcohort%npp_froot + &
-                max(0._r8,new_br - currentcohort%br) / freq_day
+                max(0._r8,new_br - currentcohort%br) / hlm_freq_day
 
-          currentcohort%npp_bsw =  max(0.0_r8, new_bsw - currentcohort%bsw)/freq_day
+          currentcohort%npp_bsw =  max(0.0_r8, new_bsw - currentcohort%bsw)/hlm_freq_day
 
           currentcohort%npp_bdead =  currentCohort%dbdeaddt
 
@@ -273,9 +277,9 @@ contains
        if(mode==1)then
 
           currentcohort%npp_froot = currentcohort%npp_froot + &
-                max(0.0_r8,new_br-currentcohort%br)/freq_day
+                max(0.0_r8,new_br-currentcohort%br)/hlm_freq_day
 
-          currentcohort%npp_bsw = max(0.0_r8, new_bsw-currentcohort%bsw)/freq_day
+          currentcohort%npp_bsw = max(0.0_r8, new_bsw-currentcohort%bsw)/hlm_freq_day
 
           currentcohort%npp_bdead =  currentCohort%dbdeaddt
 
@@ -333,6 +337,7 @@ contains
     currentCohort%pft                = fates_unset_int  ! pft number                           
     currentCohort%indexnumber        = fates_unset_int  ! unique number for each cohort. (within clump?)
     currentCohort%canopy_layer       = fates_unset_int  ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)   
+    currentCohort%canopy_layer_yesterday       = nan  ! recent canopy status of cohort (1 = canopy, 2 = understorey, etc.)   
     currentCohort%NV                 = fates_unset_int  ! Number of leaf layers: -
     currentCohort%status_coh         = fates_unset_int  ! growth status of plant  (2 = leaves on , 1 = leaves off)
     currentCohort%size_class         = fates_unset_int  ! size class index
@@ -479,7 +484,7 @@ contains
   end subroutine zero_cohort
 
   !-------------------------------------------------------------------------------------!
-  subroutine terminate_cohorts( patchptr )
+  subroutine terminate_cohorts( siteptr, patchptr )
     !
     ! !DESCRIPTION:
     ! terminates cohorts when they get too small      
@@ -489,6 +494,7 @@ contains
     use SFParamsMod, only : SF_val_CWD_frac
     !
     ! !ARGUMENTS    
+    type (ed_site_type), intent(inout), target :: siteptr
     type (ed_patch_type), intent(inout), target :: patchptr
     !
     ! !LOCAL VARIABLES:
@@ -497,6 +503,7 @@ contains
     type (ed_cohort_type) , pointer :: nextc
     integer :: terminate   ! do we terminate (1) or not (0) 
     integer :: c           ! counter for litter size class. 
+    integer :: levcan      ! canopy level
     !----------------------------------------------------------------------
 
     currentPatch  => patchptr
@@ -529,7 +536,7 @@ contains
          endif
 
          ! In the third canopy layer
-         if (currentCohort%canopy_layer > cp_nclmax ) then 
+         if (currentCohort%canopy_layer > nclmax ) then 
            terminate = 1
            if ( DEBUG ) then
              write(fates_log(),*) 'terminating cohorts 2', currentCohort%canopy_layer
@@ -558,6 +565,17 @@ contains
        endif
 
        if (terminate == 1) then 
+          ! preserve a record of the to-be-terminated cohort for mortality accounting
+          if (currentCohort%canopy_layer .eq. 1) then
+             levcan = 1
+          else
+             levcan = 2
+          endif
+          siteptr%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) = &
+               siteptr%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) + currentCohort%n
+          !
+          siteptr%termination_carbonflux(levcan) = siteptr%termination_carbonflux(levcan) + &
+               currentCohort%n * currentCohort%b
           if (.not. associated(currentCohort%taller)) then
              currentPatch%tallest => currentCohort%shorter
           else 
@@ -601,7 +619,7 @@ contains
     ! Join similar cohorts to reduce total number            
     !
     ! !USES:
-    use EDTypesMod  , only :  cp_nlevcan
+    use EDTypesMod  , only :  nlevcan
     !
     ! !ARGUMENTS    
     type (ed_patch_type), intent(inout), target :: patchptr
@@ -753,7 +771,11 @@ contains
                          currentCohort%npp_bseed = (currentCohort%n*currentCohort%npp_bseed + nextc%n*nextc%npp_bseed)/newn
                          currentCohort%npp_store = (currentCohort%n*currentCohort%npp_store + nextc%n*nextc%npp_store)/newn
 
-                         do i=1, cp_nlevcan     
+                         ! recent canopy history
+                         currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
+                              nextc%n*nextc%canopy_layer_yesterday)/newn
+
+                         do i=1, nlevcan     
                             if (currentCohort%year_net_uptake(i) == 999._r8 .or. nextc%year_net_uptake(i) == 999._r8) then
                                currentCohort%year_net_uptake(i) = min(nextc%year_net_uptake(i),currentCohort%year_net_uptake(i))
                             else
@@ -1030,6 +1052,7 @@ contains
     n%gscan           = o%gscan
     n%leaf_cost       = o%leaf_cost
     n%canopy_layer    = o%canopy_layer
+    n%canopy_layer_yesterday    = o%canopy_layer_yesterday
     n%nv              = o%nv
     n%status_coh      = o%status_coh
     n%canopy_trim     = o%canopy_trim
