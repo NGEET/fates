@@ -50,7 +50,7 @@ contains
 
       !
       ! !USES:
-      use pftconMod         , only : pftcon
+      use EDPftvarcon       , only : EDPftvarcon_inst
       use EDtypesMod        , only : ed_patch_type
       use EDTypesMod        , only : ed_site_type
 
@@ -117,11 +117,11 @@ contains
       !-----------------------------------------------------------------------
 
       associate(&
-            rhol         =>    pftcon%rhol                     , & ! Input:  [real(r8) (:)   ] leaf reflectance: 1=vis, 2=nir
-            rhos         =>    pftcon%rhos                     , & ! Input:  [real(r8) (:)   ] stem reflectance: 1=vis, 2=nir
-            taul         =>    pftcon%taul                     , & ! Input:  [real(r8) (:)   ] leaf transmittance: 1=vis, 2=nir
-            taus         =>    pftcon%taus                     , & ! Input:  [real(r8) (:)   ] stem transmittance: 1=vis, 2=nir
-            xl           =>    pftcon%xl)                          ! Input:  [real(r8) (:)   ] ecophys const - leaf/stem orientation index
+            rhol         =>    EDPftvarcon_inst%rhol                     , & ! Input:  [real(r8) (:)   ] leaf reflectance: 1=vis, 2=nir
+            rhos         =>    EDPftvarcon_inst%rhos                     , & ! Input:  [real(r8) (:)   ] stem reflectance: 1=vis, 2=nir
+            taul         =>    EDPftvarcon_inst%taul                     , & ! Input:  [real(r8) (:)   ] leaf transmittance: 1=vis, 2=nir
+            taus         =>    EDPftvarcon_inst%taus                     , & ! Input:  [real(r8) (:)   ] stem transmittance: 1=vis, 2=nir
+            xl           =>    EDPftvarcon_inst%xl)                          ! Input:  [real(r8) (:)   ] ecophys const - leaf/stem orientation index
             
 !            albd         =>    surfalb_inst%albd_patch         , & ! Output: [real(r8) (:,:) ] surface albedo (direct) (USED IN LND2ATM,BALANCE_CHECK)
 !            albi         =>    surfalb_inst%albi_patch         , & ! Output: [real(r8) (:,:) ] surface albedo (diffuse) (LND2ATM,BALANCE_CHECK)

@@ -510,6 +510,11 @@ Full pathname datafile with plant function type (PFT) constants combined with
 constants for biogeochem modules
 </entry>
 
+<entry id="fates_paramfile" type="char*256" category="datasets"
+       input_pathname="abs" group="clm_inparm" valid_values="" >
+Full pathname datafile with fates parameters
+</entry>
+
 <entry id="fsurdat" type="char*256"     category="datasets"
        input_pathname="abs" group="clm_inparm" valid_values="" >
 Full pathname of surface data file.

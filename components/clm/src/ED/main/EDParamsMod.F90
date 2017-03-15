@@ -4,7 +4,8 @@ module EDParamsMod
    !
    use shr_kind_mod      , only: r8 => shr_kind_r8
    use EDtypesMod        , only: maxPft
-
+   use FatesParametersInterface, only : param_string_length
+   
    implicit none
    save
    ! private - if we allow this module to be private, it does not allow the protected values below to be 
@@ -13,11 +14,11 @@ module EDParamsMod
    !
    ! this is what the user can use for the actual values
    !
+   
    real(r8),protected :: ED_val_grass_spread
    real(r8),protected :: ED_val_comp_excln
    real(r8),protected :: ED_val_stress_mort
    real(r8),protected :: ED_val_dispersal
-   real(r8),protected :: ED_val_grperc(maxPft)
    real(r8),protected :: ED_val_maxspread
    real(r8),protected :: ED_val_minspread
    real(r8),protected :: ED_val_init_litter
@@ -26,125 +27,152 @@ module EDParamsMod
    real(r8),protected :: ED_val_profile_tol
    real(r8),protected :: ED_val_ag_biomass
   
-   character(len=20),parameter :: ED_name_grass_spread = "grass_spread"
-   character(len=20),parameter :: ED_name_comp_excln = "comp_excln"
-   character(len=20),parameter :: ED_name_stress_mort = "stress_mort"
-   character(len=20),parameter :: ED_name_dispersal = "dispersal"
-   character(len=20),parameter :: ED_name_grperc = "grperc"
-   character(len=20),parameter :: ED_name_maxspread = "maxspread"
-   character(len=20),parameter :: ED_name_minspread = "minspread"
-   character(len=20),parameter :: ED_name_init_litter = "init_litter"
-   character(len=20),parameter :: ED_name_nfires = "nfires"
-   character(len=20),parameter :: ED_name_understorey_death = "understorey_death"
-   character(len=20),parameter :: ED_name_profile_tol = "profile_tol"
-   character(len=20),parameter :: ED_name_ag_biomass= "ag_biomass"   
+   character(len=param_string_length),parameter :: ED_name_grass_spread = "fates_grass_spread"
+   character(len=param_string_length),parameter :: ED_name_comp_excln = "fates_comp_excln"
+   character(len=param_string_length),parameter :: ED_name_stress_mort = "fates_stress_mort"
+   character(len=param_string_length),parameter :: ED_name_dispersal = "fates_dispersal"
+   character(len=param_string_length),parameter :: ED_name_maxspread = "fates_maxspread"
+   character(len=param_string_length),parameter :: ED_name_minspread = "fates_minspread"
+   character(len=param_string_length),parameter :: ED_name_init_litter = "fates_init_litter"
+   character(len=param_string_length),parameter :: ED_name_nfires = "fates_nfires"
+   character(len=param_string_length),parameter :: ED_name_understorey_death = "fates_understorey_death"
+   character(len=param_string_length),parameter :: ED_name_profile_tol = "fates_profile_tol"
+   character(len=param_string_length),parameter :: ED_name_ag_biomass= "fates_ag_biomass"   
    
-   public :: EDParamsRead
+   public :: FatesParamsInit
+   public :: FatesRegisterParams
+   public :: FatesReceiveParams
   
 contains
 
   !-----------------------------------------------------------------------
-  !
+  subroutine FatesParamsInit()
+    ! Initialize all parameters to nan to ensure that we get valid
+    ! values back from the host.
+    
+    use shr_infnan_mod , only : nan => shr_infnan_nan, assignment(=)
+
+    implicit none
+
+    ED_val_grass_spread = nan
+    ED_val_comp_excln = nan
+    ED_val_stress_mort = nan
+    ED_val_dispersal = nan
+    ED_val_maxspread = nan
+    ED_val_minspread = nan
+    ED_val_init_litter = nan
+    ED_val_nfires = nan
+    ED_val_understorey_death = nan
+    ED_val_profile_tol = nan
+    ED_val_ag_biomass = nan
+
+  end subroutine FatesParamsInit
+
   !-----------------------------------------------------------------------
-  subroutine EDParamsRead(ncid)
-     !
-     ! calls to initialize parameter instance and do ncdio read
-     !
-     use ncdio_pio    , only : file_desc_t
-     
-     implicit none
+  subroutine FatesRegisterParams(fates_params)
+    ! Register the parameters we want the host to provide, and
+    ! indicate whether they are fates parameters or host parameters
+    ! that need to be synced with host values.
 
-     ! arguments
-     type(file_desc_t),intent(inout) :: ncid   ! pio netCDF file id
+    use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar1d, dimension_shape_1d
 
-     call EDParamsReadLocal(ncid)
+    implicit none
 
-  end subroutine EDParamsRead
+    class(fates_parameters_type), intent(inout) :: fates_params
+
+    character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_scalar1d/)
+
+    call FatesParamsInit()
+
+    call fates_params%RegisterParameter(name=ED_name_grass_spread, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=ED_name_comp_excln, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=ED_name_grass_spread, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=ED_name_comp_excln, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=ED_name_stress_mort, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=ED_name_dispersal, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=ED_name_maxspread, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=ED_name_minspread, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=ED_name_init_litter, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=ED_name_nfires, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=ED_name_understorey_death, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=ED_name_profile_tol, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=ED_name_ag_biomass, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+  end subroutine FatesRegisterParams
+  
   !-----------------------------------------------------------------------
+  subroutine FatesReceiveParams(fates_params)
+    
+    use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar
 
-  !-----------------------------------------------------------------------
-  !
-  !-----------------------------------------------------------------------
-  subroutine EDParamsReadLocal(ncid)
-     !
-     ! read the netcdf file and populate internalInstScalar
-     !
-     use ncdio_pio         , only : file_desc_t
-     use paramUtilMod      , only : readNcdio
+    implicit none
 
-     implicit none
+    class(fates_parameters_type), intent(inout) :: fates_params
 
-     ! arguments
-     type(file_desc_t),intent(inout) :: ncid   ! pio netCDF file id
+    call fates_params%RetreiveParameter(name=ED_name_grass_spread, &
+         data=ED_val_grass_spread)
 
-     ! local vars
-     character(len=32)  :: subname = 'EDParamsReadLocal::'
+    call fates_params%RetreiveParameter(name=ED_name_comp_excln, &
+         data=ED_val_comp_excln)
 
-     !
-     ! call read function
-     !
+    call fates_params%RetreiveParameter(name=ED_name_grass_spread, &
+         data=ED_val_grass_spread)
 
-      call readNcdio(ncid = ncid, &
-         varName=ED_name_grass_spread, &
-         callingName=subname, &
-         retVal=ED_val_grass_spread)
-  
-      call readNcdio(ncid = ncid, &
-         varName=ED_name_comp_excln, &
-         callingName=subname, &
-         retVal=ED_val_comp_excln)
-  
-      call readNcdio(ncid = ncid, &
-         varName=ED_name_stress_mort, &
-         callingName=subname, &
-         retVal=ED_val_stress_mort)
-  
-      call readNcdio(ncid = ncid, &
-         varName=ED_name_dispersal, &
-         callingName=subname, &
-         retVal=ED_val_dispersal)
-  
-      call readNcdio(ncid = ncid, &
-         varName=ED_name_grperc, &
-         callingName=subname, &
-         retVal=ED_val_grperc)
-  
-      call readNcdio(ncid = ncid, &
-         varName=ED_name_maxspread, &
-         callingName=subname, &
-         retVal=ED_val_maxspread)
-  
-      call readNcdio(ncid = ncid, &
-         varName=ED_name_minspread, &
-         callingName=subname, &
-         retVal=ED_val_minspread)
-  
-      call readNcdio(ncid = ncid, &
-         varName=ED_name_init_litter, &
-         callingName=subname, &
-         retVal=ED_val_init_litter)
-  
-      call readNcdio(ncid = ncid, &
-         varName=ED_name_nfires, &
-         callingName=subname, &
-         retVal=ED_val_nfires)
-  
-      call readNcdio(ncid = ncid, &
-         varName=ED_name_understorey_death, &
-         callingName=subname, &
-         retVal=ED_val_understorey_death)
-  
-      call readNcdio(ncid = ncid, &
-         varName=ED_name_profile_tol, &
-         callingName=subname, &
-         retVal=ED_val_profile_tol)
-  
-      call readNcdio(ncid = ncid, &
-         varName=ED_name_ag_biomass, &
-         callingName=subname, &
-         retVal=ED_val_ag_biomass)
-  
-  end subroutine EDParamsReadLocal
-  !-----------------------------------------------------------------------
+    call fates_params%RetreiveParameter(name=ED_name_comp_excln, &
+         data=ED_val_comp_excln)
 
+    call fates_params%RetreiveParameter(name=ED_name_stress_mort, &
+         data=ED_val_stress_mort)
+
+    call fates_params%RetreiveParameter(name=ED_name_dispersal, &
+         data=ED_val_dispersal)
+
+    call fates_params%RetreiveParameter(name=ED_name_maxspread, &
+         data=ED_val_maxspread)
+
+    call fates_params%RetreiveParameter(name=ED_name_minspread, &
+         data=ED_val_minspread)
+
+    call fates_params%RetreiveParameter(name=ED_name_init_litter, &
+         data=ED_val_init_litter)
+
+    call fates_params%RetreiveParameter(name=ED_name_nfires, &
+         data=ED_val_nfires)
+
+    call fates_params%RetreiveParameter(name=ED_name_understorey_death, &
+         data=ED_val_understorey_death)
+
+    call fates_params%RetreiveParameter(name=ED_name_profile_tol, &
+         data=ED_val_profile_tol)
+
+    call fates_params%RetreiveParameter(name=ED_name_ag_biomass, &
+         data=ED_val_ag_biomass)
+
+  end subroutine FatesReceiveParams
+  
 end module EDParamsMod
