@@ -13,6 +13,7 @@ module SFMainMod
 
   use FatesInterfaceMod     , only : bc_in_type
   use pftconMod             , only : pftcon
+  use EDPftvarcon        , only : EDPftvarcon_inst
   use EDEcophysconType      , only : EDecophyscon
   use EDtypesMod            , only : ed_site_type
   use EDtypesMod            , only : ed_patch_type
@@ -164,7 +165,7 @@ contains
        currentPatch%livegrass = 0.0_r8 
        currentCohort => currentPatch%tallest
        do while(associated(currentCohort))
-          if(pftcon%woody(currentCohort%pft) == 0)then 
+          if(EDPftvarcon_inst%woody(currentCohort%pft) == 0)then 
              currentPatch%livegrass = currentPatch%livegrass + currentCohort%bl*currentCohort%n/currentPatch%area
           endif
           currentCohort => currentCohort%shorter
@@ -337,7 +338,7 @@ contains
  
        do while(associated(currentCohort))
           write(fates_log(),*) 'SF currentCohort%c_area ',currentCohort%c_area
-          if(pftcon%woody(currentCohort%pft) == 1)then
+          if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
              currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
           else
              total_grass_area = total_grass_area + currentCohort%c_area
@@ -753,7 +754,7 @@ contains
        if (currentPatch%fire == 1) then
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
-             if (pftcon%woody(currentCohort%pft) == 1) then !trees only
+             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 tree_ag_biomass = tree_ag_biomass+(currentCohort%bl+ED_val_ag_biomass* &
                      (currentCohort%bsw + currentCohort%bdead))*currentCohort%n
              endif !trees only
@@ -768,7 +769,7 @@ contains
           currentPatch%SH = 0.0_r8
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))
-             if (pftcon%woody(currentCohort%pft) == 1.and.(tree_ag_biomass > 0.0_r8)) then !trees only
+             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1.and.(tree_ag_biomass > 0.0_r8)) then !trees only
                 f_ag_bmass = ((currentCohort%bl+ED_val_ag_biomass*(currentCohort%bsw + &
                      currentCohort%bdead))*currentCohort%n)/tree_ag_biomass
                 !equation 16 in Thonicke et al. 2010
@@ -808,7 +809,7 @@ contains
 
           do while(associated(currentCohort))  
              currentCohort%cfa = 0.0_r8
-             if (pftcon%woody(currentCohort%pft) == 1) then !trees only
+             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 ! Flames lower than bottom of canopy. 
                 ! c%hite is height of cohort
                 if (currentPatch%SH < (currentCohort%hite-currentCohort%hite*EDecophyscon%crown(currentCohort%pft))) then 
@@ -869,7 +870,7 @@ contains
        if (currentPatch%fire == 1) then
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
-             if (pftcon%woody(currentCohort%pft) == 1) then !trees only
+             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 ! Equation 21 in Thonicke et al 2010
                 bt = EDecophyscon%bark_scaler(currentCohort%pft)*currentCohort%dbh ! bark thickness. 
                 ! Equation 20 in Thonicke et al. 2010. 
@@ -921,7 +922,7 @@ contains
           do while(associated(currentCohort))  
              currentCohort%fire_mort = 0.0_r8
              currentCohort%crownfire_mort = 0.0_r8
-             if (pftcon%woody(currentCohort%pft) == 1) then
+             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then
                 ! Equation 22 in Thonicke et al. 2010. 
                 currentCohort%crownfire_mort = EDecophyscon%crown_kill(currentCohort%pft)*currentCohort%cfa**3.0_r8
                 ! Equation 18 in Thonicke et al. 2010. 
