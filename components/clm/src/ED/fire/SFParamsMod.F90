@@ -288,6 +288,12 @@ contains
     call fates_params%RegisterParameter(name=SF_name_mid_moisture_S, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
+    call fates_params%RegisterParameter(name=SF_name_alpha_FMC, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=SF_name_max_decomp, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
   end subroutine SpitFireRegisterNFSC
 
  !-----------------------------------------------------------------------
@@ -323,6 +329,12 @@ contains
 
     call fates_params%RetreiveParameter(name=SF_name_mid_moisture_S, &
          data=SF_val_mid_moisture_S)
+
+    call fates_params%RetreiveParameter(name=SF_name_alpha_FMC, &
+         data=SF_val_alpha_FMC)
+
+    call fates_params%RetreiveParameter(name=SF_name_max_decomp, &
+         data=SF_val_max_decomp)
 
   end subroutine SpitFireReceiveNFSC
   !-----------------------------------------------------------------------
