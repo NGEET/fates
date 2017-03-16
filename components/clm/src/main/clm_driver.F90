@@ -450,6 +450,7 @@ contains
        call CanopyTemperature(bounds_clump,                                   &
             filter(nc)%num_nolakec, filter(nc)%nolakec,                       &
             filter(nc)%num_nolakep, filter(nc)%nolakep,                       &
+            clm_fates,                                                        &
             atm2lnd_inst, canopystate_inst, soilstate_inst, frictionvel_inst, &
             waterstate_inst, waterflux_inst, energyflux_inst, temperature_inst)
        call t_stopf('bgp1')

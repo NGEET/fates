@@ -43,6 +43,7 @@ module CLMFatesInterfaceMod
    use clm_varctl        , only : iulog, use_ed
    use clm_varcon        , only : tfrz
    use clm_varcon        , only : spval
+   use clm_varcon        , only : ispval
    use clm_varpar        , only : numpft,            &
                                   numrad,            &
                                   nlevgrnd,          &
@@ -158,9 +159,11 @@ module CLMFatesInterfaceMod
       procedure, public :: wrap_accumulatefluxes
       procedure, public :: prep_canopyfluxes
       procedure, public :: wrap_canopy_radiation
-      procedure, public  :: wrap_bgc_summary
+      procedure, public :: wrap_bgc_summary
+      procedure, public :: TransferZ0mDisp
       procedure, private :: init_history_io
       procedure, private :: wrap_update_hlmfates_dyn
+      
 
    end type hlm_fates_interface_type
 
@@ -373,7 +376,8 @@ contains
             c = this%f2hmap(nc)%fcolumn(s)
             pi = col%patchi(c)+1
             pf = col%patchf(c)
-            patch%itype(pi:pf) = -999
+!            patch%itype(pi:pf) = ispval
+            patch%is_fates(pi:pf) = .true.
          end do
 
       end do
@@ -708,6 +712,10 @@ contains
              htop(p) = this%fates(nc)%bc_out(s)%htop_pa(ifp)
              frac_veg_nosno_alb(p) = this%fates(nc)%bc_out(s)%frac_veg_nosno_alb_pa(ifp)
 
+             ! Note that while we pass the following values at this point
+             ! we have to send the same values after each time-step because
+             ! the HLM keeps changing the value and re-setting, so we
+             ! re-send instead of re-set. See clm_fates%TransferZ0mDisp()
              z0m(p)    = this%fates(nc)%bc_out(s)%z0m_pa(ifp)
              displa(p) = this%fates(nc)%bc_out(s)%displa_pa(ifp)
              dleaf_patch(p) = this%fates(nc)%bc_out(s)%dleaf_pa(ifp)
@@ -1649,6 +1657,42 @@ contains
       
     end associate
  end subroutine wrap_bgc_summary
+
+ ! ======================================================================================
+
+
+ subroutine TransferZ0mDisp(this,bounds_clump,frictionvel_inst,canopystate_inst)
+
+    ! Arguments
+    class(hlm_fates_interface_type), intent(inout) :: this
+    type(bounds_type),intent(in)                   :: bounds_clump
+    type(canopystate_type)  , intent(inout)        :: canopystate_inst
+    type(frictionvel_type)  , intent(inout)        :: frictionvel_inst
+
+    ! Locals
+    integer :: ci   ! Current clump index
+    integer :: s    ! Site index
+    integer :: c    ! Column index
+    integer :: ifp  ! Fates patch index
+    integer :: p    ! CLM patch index
+
+    ci = bounds_clump%clump_index
+
+    do s = 1, this%fates(ci)%nsites
+       c = this%f2hmap(ci)%fcolumn(s)
+
+       frictionvel_inst%z0m_patch(col%patchi(c)+1:col%patchf(c)) = 0.0_r8
+       canopystate_inst%displa_patch(col%patchi(c)+1:col%patchf(c)) = 0.0_r8
+
+       do ifp = 1, this%fates(ci)%sites(s)%youngest_patch%patchno
+          p = ifp+col%patchi(c)
+          frictionvel_inst%z0m_patch(p) = this%fates(ci)%bc_out(s)%z0m_pa(ifp)
+          canopystate_inst%displa_patch(p) = this%fates(ci)%bc_out(s)%displa_pa(ifp)
+       end do
+    end do
+
+    return
+ end subroutine TransferZ0mDisp
 
  ! ======================================================================================
 

@@ -782,8 +782,8 @@ contains
             ! Use pft parameter for leaf characteristic width
             ! dleaf_patch if this is not an ed patch.
             ! Otherwise, the value has already been loaded
-            ! during the FATES dynamics update
-            if(.not.patch%is_veg(p)) then   ! "use_ed: logical for patches
+            ! during the FATES dynamics call
+            if(.not.patch%is_fates(p)) then  
                dleaf_patch(p) = dleaf(patch%itype(p))
             end if
 
