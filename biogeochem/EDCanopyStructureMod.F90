@@ -1269,13 +1269,13 @@ contains
            ! previous code, before calculating more reasonable values.
            p = col%patchi(c) + ifp
            
-           !bc_out(s)%z0m_pa(ifp)    = pftcon%z0mr(patch%itype(p)) * bc_out(s)%htop_pa(ifp)
-           !bc_out(s)%displa_pa(ifp) = pftcon%displar(patch%itype(p)) * bc_out(s)%htop_pa(ifp)
-           !bc_out(s)%dleaf_pa(ifp)  = pftcon%dleaf(patch%itype(p))
+           bc_out(s)%z0m_pa(ifp)    = pftcon%z0mr(patch%itype(p)) * bc_out(s)%htop_pa(ifp)
+           bc_out(s)%displa_pa(ifp) = pftcon%displar(patch%itype(p)) * bc_out(s)%htop_pa(ifp)
+           bc_out(s)%dleaf_pa(ifp)  = pftcon%dleaf(patch%itype(p))
            
-           bc_out(s)%z0m_pa(ifp)    = pftcon%z0mr(1) * bc_out(s)%htop_pa(ifp)
-           bc_out(s)%displa_pa(ifp) = pftcon%displar(1) * bc_out(s)%htop_pa(ifp)
-           bc_out(s)%dleaf_pa(ifp)  = pftcon%dleaf(1)
+!           bc_out(s)%z0m_pa(ifp)    = pftcon%z0mr(1) * bc_out(s)%htop_pa(ifp)
+!           bc_out(s)%displa_pa(ifp) = pftcon%displar(1) * bc_out(s)%htop_pa(ifp)
+!           bc_out(s)%dleaf_pa(ifp)  = pftcon%dleaf(1)
 
            ! We are assuming here that grass is all located underneath tree canopies. 
            ! The alternative is to assume it is all spatial distinct from tree canopies.
