@@ -10,6 +10,9 @@ module EDTypesMod
   integer, parameter :: maxPatchesPerSite  = 10   ! maximum number of patches to live on a site
   integer, parameter :: maxCohortsPerPatch = 160  ! maximum number of cohorts to live on a patch
   integer, parameter :: nclmax = 2                ! Maximum number of canopy layers
+  integer, parameter :: ican_upper = 1            ! Nominal index for the upper canopy
+  integer, parameter :: ican_ustory = 2           ! Nominal index for understory in two-canopy system
+
   integer, parameter :: nlevleaf = 40              ! number of leaf layers in canopy layer
   integer, parameter :: maxpft = 10               ! maximum number of PFTs allowed
                                                   ! the parameter file may determine that fewer
@@ -35,6 +38,8 @@ module EDTypesMod
 
   ! MODEL PARAMETERS
   real(r8), parameter :: AREA                 = 10000.0_r8 ! Notional area of simulated forest m2
+  real(r8), parameter :: AREA_INV             = 1.0e-4_r8  ! Inverse of the notion area (faster math)
+
   integer, parameter :: numWaterMem           = 10         ! watermemory saved as site level var
 
   ! BIOLOGY/BIOGEOCHEMISTRY        

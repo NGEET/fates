@@ -13,6 +13,13 @@ module FatesHistoryInterfaceMod
   ! FIXME(bja, 2016-10) need to remove CLM dependancy 
   use EDPftvarcon       , only : EDPftvarcon_inst
 
+  use FatesConstantsMod, only : g_per_kg
+  use FatesConstantsMod, only : ha_per_m2
+  use FatesConstantsMod, only : days_per_sec
+  use FatesConstantsMod, only : sec_per_day
+  use FatesConstantsMod, only : days_per_year
+  use FatesConstantsMod, only : years_per_day
+
   implicit none
 
   ! These variables hold the index of the history output structure so we don't
@@ -995,6 +1002,7 @@ contains
                                      ed_cohort_type, &
                                      ed_patch_type,  &
                                      AREA,           &
+                                     AREA_INV,       &
                                      sclass_ed,      &
                                      nlevsclass_ed,  &
                                      levage_ed,     &
@@ -1002,7 +1010,10 @@ contains
                                      mxpft,         &
                                      levpft_ed,     &
                                      nfsc,          &
-                                     ncwd
+                                     ncwd,          &
+                                     ican_upper,    &
+                                     ican_ustory
+
     use EDParamsMod      , only : ED_val_ag_biomass
 
     ! Arguments
@@ -1033,8 +1044,6 @@ contains
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
 
-    real(r8), parameter :: daysecs = 86400.0_r8 ! What modeler doesn't recognize 86400?
-    real(r8), parameter :: yeardays = 365.0_r8  ! ALM/CLM do not use leap-years
     real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
     
     associate( hio_npatches_si         => this%hvars(ih_npatches_si)%r81d, &
@@ -1182,7 +1191,7 @@ contains
          hio_trimming_pa(io_soipa) = 1.0_r8
 
          ! The seed bank is a site level variable
-         hio_seed_bank_si(io_si) = sum(sites(s)%seed_bank) * 1.e3_r8
+         hio_seed_bank_si(io_si) = sum(sites(s)%seed_bank) * g_per_kg
 
          ipa = 0
          cpatch => sites(s)%oldest_patch
@@ -1195,7 +1204,7 @@ contains
 
             ! Increment the fractional area in each age class bin
             hio_area_si_age(io_si,cpatch%age_class) = hio_area_si_age(io_si,cpatch%age_class) &
-                 + cpatch%area/AREA
+                 + cpatch%area * AREA_INV
 
             ! Increment some patch-age-resolved diagnostics
             hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
@@ -1221,7 +1230,7 @@ contains
                   
                   ! for quantities that are natively at column level, calculate plant 
                   ! density using whole area
-                  n_perm2   = ccohort%n/AREA   
+                  n_perm2   = ccohort%n * AREA_INV
                   
                else
                   n_density = 0.0_r8
@@ -1244,27 +1253,27 @@ contains
                end if
                
                hio_canopy_area_si_age(io_si,cpatch%age_class) = hio_canopy_area_si_age(io_si,cpatch%age_class) &
-                    + ccohort%c_area/AREA
+                    + ccohort%c_area * AREA_INV
 
                ! Update biomass components
-               hio_bleaf_pa(io_pa)  = hio_bleaf_pa(io_pa)  + n_density * ccohort%bl       * 1.e3_r8
-               hio_bstore_pa(io_pa) = hio_bstore_pa(io_pa) + n_density * ccohort%bstore   * 1.e3_r8
-               hio_btotal_pa(io_pa) = hio_btotal_pa(io_pa) + n_density * ccohort%b        * 1.e3_r8
-               hio_bdead_pa(io_pa)  = hio_bdead_pa(io_pa)  + n_density * ccohort%bdead    * 1.e3_r8
-               hio_balive_pa(io_pa) = hio_balive_pa(io_pa) + n_density * ccohort%balive   * 1.e3_r8
+               hio_bleaf_pa(io_pa)  = hio_bleaf_pa(io_pa)  + n_density * ccohort%bl       * g_per_kg
+               hio_bstore_pa(io_pa) = hio_bstore_pa(io_pa) + n_density * ccohort%bstore   * g_per_kg
+               hio_btotal_pa(io_pa) = hio_btotal_pa(io_pa) + n_density * ccohort%b        * g_per_kg
+               hio_bdead_pa(io_pa)  = hio_bdead_pa(io_pa)  + n_density * ccohort%bdead    * g_per_kg
+               hio_balive_pa(io_pa) = hio_balive_pa(io_pa) + n_density * ccohort%balive   * g_per_kg
                
                ! Update PFT partitioned biomass components
                hio_leafbiomass_si_pft(io_si,ft) = hio_leafbiomass_si_pft(io_si,ft) + &
-                    (ccohort%n / AREA) * ccohort%bl       * 1.e3_r8
+                    (ccohort%n * AREA_INV) * ccohort%bl       * g_per_kg
              
                hio_storebiomass_si_pft(io_si,ft) = hio_storebiomass_si_pft(io_si,ft) + &
-                    (ccohort%n / AREA) * ccohort%bstore   * 1.e3_r8
+                    (ccohort%n * AREA_INV) * ccohort%bstore   * g_per_kg
                
                hio_nindivs_si_pft(io_si,ft) = hio_nindivs_si_pft(io_si,ft) + &
-                    ccohort%n / AREA
+                    ccohort%n * AREA_INV
 
                hio_biomass_si_pft(io_si, ft) = hio_biomass_si_pft(io_si, ft) + &
-                    (ccohort%n / AREA) * ccohort%b * 1.e3_r8
+                    (ccohort%n * AREA_INV) * ccohort%b * g_per_kg
 
                ! Site by Size-Class x PFT (SCPF) 
                ! ------------------------------------------------------------------------
@@ -1345,7 +1354,7 @@ contains
                             ccohort%bstore * ccohort%n
                        hio_bleaf_canopy_si_scpf(io_si,scpf) = hio_bleaf_canopy_si_scpf(io_si,scpf) + &
                             ccohort%bl * ccohort%n
-                       hio_canopy_biomass_pa(io_pa) = hio_canopy_biomass_pa(io_pa) + n_density * ccohort%b * 1.e3_r8
+                       hio_canopy_biomass_pa(io_pa) = hio_canopy_biomass_pa(io_pa) + n_density * ccohort%b * g_per_kg
                        hio_mortality_canopy_si_scpf(io_si,scpf) = hio_mortality_canopy_si_scpf(io_si,scpf)+ &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * ccohort%n
                        hio_nplant_canopy_si_scpf(io_si,scpf) = hio_nplant_canopy_si_scpf(io_si,scpf) + ccohort%n
@@ -1362,7 +1371,7 @@ contains
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * ccohort%n
                        hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * &
-                            ccohort%b * ccohort%n * 1e3 / (1e4 * daysecs * yeardays)
+                            ccohort%b * ccohort%n * g_per_kg * days_per_sec * years_per_day * ha_per_m2
                        !
                        hio_leaf_md_canopy_si_scls(io_si,scls) = hio_leaf_md_canopy_si_scls(io_si,scls) + &
                             ccohort%leaf_md * ccohort%n
@@ -1400,7 +1409,7 @@ contains
                             ccohort%bstore * ccohort%n
                        hio_bleaf_understory_si_scpf(io_si,scpf) = hio_bleaf_understory_si_scpf(io_si,scpf) + &
                             ccohort%bl * ccohort%n
-                       hio_understory_biomass_pa(io_pa) = hio_understory_biomass_pa(io_pa) + n_density * ccohort%b * 1.e3_r8
+                       hio_understory_biomass_pa(io_pa) = hio_understory_biomass_pa(io_pa) + n_density * ccohort%b * g_per_kg
                        hio_mortality_understory_si_scpf(io_si,scpf) = hio_mortality_understory_si_scpf(io_si,scpf)+ &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * ccohort%n
                        hio_nplant_understory_si_scpf(io_si,scpf) = hio_nplant_understory_si_scpf(io_si,scpf) + ccohort%n
@@ -1417,7 +1426,7 @@ contains
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * ccohort%n
                        hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * &
-                            ccohort%b * ccohort%n * 1e3 / (1e4 * daysecs * yeardays)
+                            ccohort%b * ccohort%n * g_per_kg * days_per_sec * years_per_day * ha_per_m2
                        !
                        hio_leaf_md_understory_si_scls(io_si,scls) = hio_leaf_md_understory_si_scls(io_si,scls) + &
                             ccohort%leaf_md * ccohort%n
@@ -1482,52 +1491,52 @@ contains
             hio_fire_fuel_eff_moist_pa(io_pa)  = cpatch%fuel_eff_moist
             hio_fire_fuel_sav_pa(io_pa)        = cpatch%fuel_sav
             hio_fire_fuel_mef_pa(io_pa)        = cpatch%fuel_mef
-            hio_sum_fuel_pa(io_pa)             = cpatch%sum_fuel * 1.e3_r8 * patch_scaling_scalar
+            hio_sum_fuel_pa(io_pa)             = cpatch%sum_fuel * g_per_kg * patch_scaling_scalar
             
             do i_fuel = 1,nfsc
                hio_litter_moisture_si_fuel(io_si, i_fuel) = hio_litter_moisture_si_fuel(io_si, i_fuel) + &
-                    cpatch%litter_moisture(i_fuel) * cpatch%area/AREA
+                    cpatch%litter_moisture(i_fuel) * cpatch%area * AREA_INV
             end do
             !!! +++ cdk  +++ commenting out the below changes to revert for bit-for-bit passing !!!
             ! Update Litter Flux Variables
             ! ! put litter_in flux onto site level variable so as to be able to append site-level distubance-related input flux after patch loop
             ! hio_litter_in_si(io_si) = hio_litter_in_si(io_si) + &
             !      (sum(cpatch%CWD_AG_in) +sum(cpatch%leaf_litter_in) + sum(cpatch%root_litter_in)) &
-            !      * 1.e3_r8 * cpatch%area / ( AREA * 365.0_r8 * daysecs )
+            !      * 1.e3_r8 * cpatch%area / ( AREA * 365.0_r8 * sec_per_day )
             ! ! keep litter_out at patch level
             ! hio_litter_out_pa(io_pa)           = (sum(cpatch%CWD_AG_out)+sum(cpatch%leaf_litter_out) &
             !      + sum(cpatch%root_litter_out)) &
-            !      * 1.e3_r8 * patch_scaling_scalar / ( 365.0_r8 * daysecs )
+            !      * 1.e3_r8 * patch_scaling_scalar / ( 365.0_r8 * sec_per_day )
             !!! --- cdk  --- !!!
             hio_litter_in_si(io_pa)            = (sum(cpatch%CWD_AG_in) +sum(cpatch%leaf_litter_in)) &
-                 * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
+                 * g_per_kg * days_per_year * sec_per_day * patch_scaling_scalar
             hio_litter_out_pa(io_pa)           = (sum(cpatch%CWD_AG_out)+sum(cpatch%leaf_litter_out)) &
-                 * 1.e3_r8 * 365.0_r8 * daysecs * patch_scaling_scalar
+                 * g_per_kg * days_per_year * sec_per_day * patch_scaling_scalar
             !!! --- cdk  --- !!!
             
             hio_seeds_in_pa(io_pa)             = sum(cpatch%seeds_in) * &
-                 1.e3_r8 * patch_scaling_scalar / ( 365.0_r8 * daysecs )
-            hio_seed_decay_pa(io_pa)           = sum(cpatch%seed_decay) &
-                 * 1.e3_r8 * patch_scaling_scalar / ( 365.0_r8 * daysecs )
-            hio_seed_germination_pa(io_pa)     = sum(cpatch%seed_germination) &
-                 * 1.e3_r8 * patch_scaling_scalar / ( 365.0_r8 * daysecs )
+                 g_per_kg * patch_scaling_scalar * years_per_day * days_per_sec
+            hio_seed_decay_pa(io_pa)           = sum(cpatch%seed_decay) * &
+                 g_per_kg * patch_scaling_scalar * years_per_day * days_per_sec
+            hio_seed_germination_pa(io_pa)     = sum(cpatch%seed_germination) * &
+                 g_per_kg * patch_scaling_scalar * years_per_day * days_per_sec 
 
             
             hio_canopy_spread_pa(io_pa)        = cpatch%spread(1) 
             
             do i_cwd = 1, ncwd
                hio_cwd_ag_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_si_cwdsc(io_si, i_cwd) + &
-                    cpatch%CWD_AG(i_cwd)*cpatch%area/AREA * 1e3
+                    cpatch%CWD_AG(i_cwd)*cpatch%area * AREA_INV * g_per_kg
                hio_cwd_bg_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_si_cwdsc(io_si, i_cwd) + &
-                    cpatch%CWD_BG(i_cwd)*cpatch%area/AREA * 1e3
+                    cpatch%CWD_BG(i_cwd)*cpatch%area * AREA_INV * g_per_kg
                hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) + &
-                    cpatch%CWD_AG_IN(i_cwd)*cpatch%area/AREA * 1e3
+                    cpatch%CWD_AG_IN(i_cwd)*cpatch%area * AREA_INV * g_per_kg
                hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) + &
-                    cpatch%CWD_BG_IN(i_cwd)*cpatch%area/AREA * 1e3
+                    cpatch%CWD_BG_IN(i_cwd)*cpatch%area * AREA_INV * g_per_kg
                hio_cwd_ag_out_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_out_si_cwdsc(io_si, i_cwd) + &
-                    cpatch%CWD_AG_OUT(i_cwd)*cpatch%area/AREA * 1e3
+                    cpatch%CWD_AG_OUT(i_cwd)*cpatch%area * AREA_INV * g_per_kg
                hio_cwd_bg_out_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_out_si_cwdsc(io_si, i_cwd) + &
-                    cpatch%CWD_BG_OUT(i_cwd)*cpatch%area/AREA * 1e3
+                    cpatch%CWD_BG_OUT(i_cwd)*cpatch%area * AREA_INV * g_per_kg
             end do
 
             ipa = ipa + 1
@@ -1551,22 +1560,22 @@ contains
             do i_scls = 1,nlevsclass_ed
                i_scpf = (i_pft-1)*nlevsclass_ed + i_scls
                hio_m6_si_scpf(io_si,i_scpf) = (sites(s)%terminated_nindivs(i_scls,i_pft,1) + &
-                    sites(s)%terminated_nindivs(i_scls,i_pft,2)) * yeardays
+                    sites(s)%terminated_nindivs(i_scls,i_pft,2)) * days_per_year
                hio_mortality_canopy_si_scls(io_si,i_scls) = hio_mortality_canopy_si_scls(io_si,i_scls) + &
-                    sites(s)%terminated_nindivs(i_scls,i_pft,1) * yeardays
+                    sites(s)%terminated_nindivs(i_scls,i_pft,1) * days_per_year
                hio_mortality_understory_si_scls(io_si,i_scls) = hio_mortality_understory_si_scls(io_si,i_scls) + &
-                    sites(s)%terminated_nindivs(i_scls,i_pft,2) * yeardays
+                    sites(s)%terminated_nindivs(i_scls,i_pft,2) * days_per_year
                hio_mortality_canopy_si_scpf(io_si,i_scpf) = hio_mortality_canopy_si_scpf(io_si,i_scpf) + &
-                    sites(s)%terminated_nindivs(i_scls,i_pft,1) * yeardays
+                    sites(s)%terminated_nindivs(i_scls,i_pft,1) * days_per_year
                hio_mortality_understory_si_scpf(io_si,i_scpf) = hio_mortality_understory_si_scpf(io_si,i_scpf) + &
-                    sites(s)%terminated_nindivs(i_scls,i_pft,2) * yeardays
+                    sites(s)%terminated_nindivs(i_scls,i_pft,2) * days_per_year
             end do
          end do
          sites(s)%terminated_nindivs(:,:,:) = 0._r8
 
          ! pass the recruitment rate as a flux to the history, and then reset the recruitment buffer
          do i_pft = 1, mxpft
-            hio_recruitment_si_pft(io_si,i_pft) = sites(s)%recruitment_rate(i_pft) * yeardays
+            hio_recruitment_si_pft(io_si,i_pft) = sites(s)%recruitment_rate(i_pft) * days_per_year
          end do
          sites(s)%recruitment_rate(:) = 0._r8
 
@@ -1586,33 +1595,34 @@ contains
 
          ! pass demotion rates and associated carbon fluxes to history
          do i_scls = 1,nlevsclass_ed
-            hio_demotion_rate_si_scls(io_si,i_scls) = sites(s)%demotion_rate(i_scls) * yeardays
-            hio_promotion_rate_si_scls(io_si,i_scls) = sites(s)%promotion_rate(i_scls) * yeardays
+            hio_demotion_rate_si_scls(io_si,i_scls) = sites(s)%demotion_rate(i_scls) * days_per_year
+            hio_promotion_rate_si_scls(io_si,i_scls) = sites(s)%promotion_rate(i_scls) * days_per_year
          end do
          !
          ! convert kg C / ha / day to gc / m2 / sec
-         hio_demotion_carbonflux_si(io_si) = sites(s)%demotion_carbonflux * 1e3 / (1e4 * daysecs)
-         hio_promotion_carbonflux_si(io_si) = sites(s)%promotion_carbonflux * 1e3 / (1e4 * daysecs)
+         hio_demotion_carbonflux_si(io_si) = sites(s)%demotion_carbonflux * g_per_kg * ha_per_m2 * days_per_sec
+         hio_promotion_carbonflux_si(io_si) = sites(s)%promotion_carbonflux * g_per_kg * ha_per_m2 * days_per_sec
          !
          ! mortality-associated carbon fluxes
+         
          hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
-              sites(s)%termination_carbonflux(1) * 1e3 / (1e4 * daysecs)
+              sites(s)%termination_carbonflux(ican_upper) * g_per_kg * days_per_sec * ha_per_m2
          hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
-              sites(s)%termination_carbonflux(2) * 1e3 / (1e4 * daysecs)
+              sites(s)%termination_carbonflux(ican_ustory) * g_per_kg * days_per_sec * ha_per_m2
          ! and zero the site-level termination carbon flux variable
          sites(s)%termination_carbonflux(:) = 0._r8
          !
          ! add the site-level disturbance-associated cwd and litter input fluxes to thir respective flux fields
          do i_cwd = 1, ncwd
             hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) + &
-                 sites(s)%CWD_AG_diagnostic_input_carbonflux(i_cwd) * 1e3
+                 sites(s)%CWD_AG_diagnostic_input_carbonflux(i_cwd) * g_per_kg
             hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) + &
-                 sites(s)%CWD_BG_diagnostic_input_carbonflux(i_cwd) * 1e3
+                 sites(s)%CWD_BG_diagnostic_input_carbonflux(i_cwd) * g_per_kg
          end do
          !!! cdk comment out below line for bit-for-bitness
          ! hio_litter_in_si(io_si) = hio_litter_in_si(io_si) + &
          !      (sum(sites(s)%leaf_litter_diagnostic_input_carbonflux) + &
-         !      sum(sites(s)%root_litter_diagnostic_input_carbonflux)) * 1e3 / ( daysecs * yeardays )
+         !      sum(sites(s)%root_litter_diagnostic_input_carbonflux)) * g_per_kg / ( sec_per_day * days_per_year )
          ! and reset the disturbance-related field buffers
          sites(s)%CWD_AG_diagnostic_input_carbonflux(:) = 0._r8
          sites(s)%CWD_BG_diagnostic_input_carbonflux(:) = 0._r8
@@ -1639,6 +1649,7 @@ contains
                                      ed_cohort_type, &
                                      ed_patch_type,  &
                                      AREA,           &
+                                     AREA_INV,       &
                                      nlevage_ed,     &
                                      sclass_ed,      &
                                      nlevsclass_ed
@@ -1670,10 +1681,8 @@ contains
     type(fates_history_variable_type),pointer :: hvar
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
+    real(r8) :: per_dt_tstep          ! Time step in frequency units (/s)
 
-    real(r8), parameter :: daysecs = 86400.0_r8 ! What modeler doesn't recognize 86400?
-    real(r8), parameter :: yeardays = 365.0_r8  ! Should this be 365.25?
-    
     associate( hio_gpp_pa         => this%hvars(ih_gpp_pa)%r81d, &
                hio_npp_pa         => this%hvars(ih_npp_pa)%r81d, &
                hio_aresp_pa       => this%hvars(ih_aresp_pa)%r81d, &
@@ -1735,6 +1744,8 @@ contains
       ! Flush the relevant history variables 
       call this%flush_hvars(nc,upfreq_in=2)
 
+      per_dt_tstep = 1.0_r8/dt_tstep
+
       do s = 1,nsites
          
          io_si  = this%iovar_map(nc)%site_index(s)
@@ -1758,7 +1769,7 @@ contains
                ! TODO: we need a standardized logical function on this (used lots, RGK)
                if ((cpatch%area .gt. 0._r8) .and. (cpatch%total_canopy_area .gt. 0._r8)) then
                   n_density = ccohort%n/min(cpatch%area,cpatch%total_canopy_area) 
-                  n_perm2   = ccohort%n/AREA   
+                  n_perm2   = ccohort%n * AREA_INV
                else
                   n_density = 0.0_r8
                   n_perm2   = 0.0_r8
@@ -1772,92 +1783,92 @@ contains
 
                   ! scale up cohort fluxes to their patches
                   hio_npp_pa(io_pa) = hio_npp_pa(io_pa) + &
-                        ccohort%npp_tstep * 1.e3_r8 * n_density / dt_tstep
+                        ccohort%npp_tstep * g_per_kg * n_density * per_dt_tstep
                   hio_gpp_pa(io_pa) = hio_gpp_pa(io_pa) + &
-                        ccohort%gpp_tstep * 1.e3_r8 * n_density / dt_tstep
+                        ccohort%gpp_tstep * g_per_kg * n_density * per_dt_tstep
                   hio_aresp_pa(io_pa) = hio_aresp_pa(io_pa) + &
-                        ccohort%resp_tstep * 1.e3_r8 * n_density / dt_tstep
+                        ccohort%resp_tstep * g_per_kg * n_density * per_dt_tstep
                   hio_growth_resp_pa(io_pa) = hio_growth_resp_pa(io_pa) + &
-                        ccohort%resp_g * 1.e3_r8 * n_density / dt_tstep
+                        ccohort%resp_g * g_per_kg * n_density * per_dt_tstep
                   hio_maint_resp_pa(io_pa) = hio_maint_resp_pa(io_pa) + &
-                        ccohort%resp_m * 1.e3_r8 * n_density / dt_tstep
+                        ccohort%resp_m * g_per_kg * n_density * per_dt_tstep
                   
                   ! map ed cohort-level npp fluxes to clm column fluxes
-                  hio_npp_si(io_si) = hio_npp_si(io_si) + ccohort%npp_tstep * n_perm2 * 1.e3_r8 /dt_tstep
+                  hio_npp_si(io_si) = hio_npp_si(io_si) + ccohort%npp_tstep * n_perm2 * g_per_kg * per_dt_tstep
 
 
                   ! Total AR (kgC/m2/yr) = (kgC/plant/step) / (s/step) * (plant/m2) * (s/yr)
                   hio_ar_si_scpf(io_si,scpf)    =   hio_ar_si_scpf(io_si,scpf) + &
-                        (ccohort%resp_tstep/dt_tstep) * n_perm2 * daysecs * yeardays
+                        (ccohort%resp_tstep/dt_tstep) * n_perm2 * sec_per_day * days_per_year
 
                   ! Growth AR (kgC/m2/yr)
                   hio_ar_grow_si_scpf(io_si,scpf) = hio_ar_grow_si_scpf(io_si,scpf) + &
-                        (ccohort%resp_g/dt_tstep) * n_perm2 * daysecs * yeardays
+                        (ccohort%resp_g/dt_tstep) * n_perm2 * sec_per_day * days_per_year
 
                   ! Maint AR (kgC/m2/yr)
                   hio_ar_maint_si_scpf(io_si,scpf) = hio_ar_maint_si_scpf(io_si,scpf) + &
-                        (ccohort%resp_m/dt_tstep) * n_perm2 * daysecs * yeardays
+                        (ccohort%resp_m/dt_tstep) * n_perm2 * sec_per_day * days_per_year
                   
                   ! Maintenance AR partition variables are stored as rates (kgC/plant/s)
                   ! (kgC/m2/yr) = (kgC/plant/s) * (plant/m2) * (s/yr)
                   hio_ar_agsapm_si_scpf(io_si,scpf) = hio_ar_agsapm_si_scpf(io_si,scpf) + &
-                        ccohort%livestem_mr * n_perm2 * daysecs * yeardays
+                        ccohort%livestem_mr * n_perm2 * sec_per_day * days_per_year
 
                   ! (kgC/m2/yr) = (kgC/plant/s) * (plant/m2) * (s/yr)
                   hio_ar_darkm_si_scpf(io_si,scpf) = hio_ar_darkm_si_scpf(io_si,scpf) + &
-                        ccohort%rdark * n_perm2 *  daysecs * yeardays
+                        ccohort%rdark * n_perm2 *  sec_per_day * days_per_year
 
                   ! (kgC/m2/yr) = (kgC/plant/s) * (plant/m2) * (s/yr)
                   hio_ar_crootm_si_scpf(io_si,scpf) = hio_ar_crootm_si_scpf(io_si,scpf) + &
-                        ccohort%livecroot_mr * n_perm2 * daysecs * yeardays
+                        ccohort%livecroot_mr * n_perm2 * sec_per_day * days_per_year
 
                   ! (kgC/m2/yr) = (kgC/plant/s) * (plant/m2) * (s/yr)
                   hio_ar_frootm_si_scpf(io_si,scpf) = hio_ar_frootm_si_scpf(io_si,scpf) + &
-                        ccohort%froot_mr * n_perm2  * daysecs * yeardays
+                        ccohort%froot_mr * n_perm2  * sec_per_day * days_per_year
 
                   ! accumulate fluxes per patch age bin
                   hio_gpp_si_age(io_si,cpatch%age_class) = hio_gpp_si_age(io_si,cpatch%age_class) &
-                       + ccohort%gpp_tstep * ccohort%n * 1.e3_r8 / dt_tstep
+                       + ccohort%gpp_tstep * ccohort%n * g_per_kg * per_dt_tstep
                   hio_npp_si_age(io_si,cpatch%age_class) = hio_npp_si_age(io_si,cpatch%age_class) &
-                       + ccohort%npp_tstep * ccohort%n * 1.e3_r8 / dt_tstep
+                       + ccohort%npp_tstep * ccohort%n * g_per_kg * per_dt_tstep
 
                   ! accumulate fluxes on canopy- and understory- separated fluxes
                   if (ccohort%canopy_layer .eq. 1) then
                      hio_gpp_canopy_pa(io_pa) = hio_gpp_canopy_pa(io_pa) + &
-                          ccohort%gpp_tstep * 1.e3_r8 * n_density / dt_tstep                     
+                          ccohort%gpp_tstep * g_per_kg * n_density * per_dt_tstep                     
                      hio_ar_canopy_pa(io_pa) = hio_ar_canopy_pa(io_pa) + &
-                          ccohort%resp_tstep * 1.e3_r8 * n_density / dt_tstep                     
+                          ccohort%resp_tstep * g_per_kg * n_density * per_dt_tstep                     
                      !
                      hio_rdark_canopy_si_scls(io_si,scls) = hio_rdark_canopy_si_scls(io_si,scls) + &
-                          ccohort%rdark * 1.e3_r8 * ccohort%n * daysecs * yeardays
+                          ccohort%rdark * g_per_kg * ccohort%n * sec_per_day * days_per_year
                      hio_livestem_mr_canopy_si_scls(io_si,scls) = hio_livestem_mr_canopy_si_scls(io_si,scls) + &
-                          ccohort%livestem_mr * 1.e3_r8 * ccohort%n * daysecs * yeardays
+                          ccohort%livestem_mr * g_per_kg * ccohort%n * sec_per_day * days_per_year
                      hio_livecroot_mr_canopy_si_scls(io_si,scls) = hio_livecroot_mr_canopy_si_scls(io_si,scls) + &
-                          ccohort%livecroot_mr * 1.e3_r8 * ccohort%n * daysecs * yeardays
+                          ccohort%livecroot_mr * g_per_kg * ccohort%n * sec_per_day * days_per_year
                      hio_froot_mr_canopy_si_scls(io_si,scls) = hio_froot_mr_canopy_si_scls(io_si,scls) + &
-                          ccohort%froot_mr * 1.e3_r8 * ccohort%n * daysecs * yeardays
+                          ccohort%froot_mr * g_per_kg * ccohort%n * sec_per_day * days_per_year
                      hio_resp_g_canopy_si_scls(io_si,scls) = hio_resp_g_canopy_si_scls(io_si,scls) + &
-                          ccohort%resp_g * 1.e3_r8 * ccohort%n * daysecs * yeardays / dt_tstep 
+                          ccohort%resp_g * g_per_kg * ccohort%n * sec_per_day * days_per_year * per_dt_tstep 
                      hio_resp_m_canopy_si_scls(io_si,scls) = hio_resp_m_canopy_si_scls(io_si,scls) + &
-                          ccohort%resp_m * 1.e3_r8 * ccohort%n * daysecs * yeardays / dt_tstep 
+                          ccohort%resp_m * g_per_kg * ccohort%n * sec_per_day * days_per_year * per_dt_tstep 
                   else
                      hio_gpp_understory_pa(io_pa) = hio_gpp_understory_pa(io_pa) + &
-                          ccohort%gpp_tstep * 1.e3_r8 * n_density / dt_tstep                     
+                          ccohort%gpp_tstep * g_per_kg * n_density * per_dt_tstep                     
                      hio_ar_understory_pa(io_pa) = hio_ar_understory_pa(io_pa) + &
-                          ccohort%resp_tstep * 1.e3_r8 * n_density / dt_tstep                     
+                          ccohort%resp_tstep * g_per_kg * n_density * per_dt_tstep                     
                      !
                      hio_rdark_understory_si_scls(io_si,scls) = hio_rdark_understory_si_scls(io_si,scls) + &
-                          ccohort%rdark * 1.e3_r8 * ccohort%n * daysecs * yeardays
+                          ccohort%rdark * g_per_kg * ccohort%n * sec_per_day * days_per_year
                      hio_livestem_mr_understory_si_scls(io_si,scls) = hio_livestem_mr_understory_si_scls(io_si,scls) + &
-                          ccohort%livestem_mr * 1.e3_r8 * ccohort%n * daysecs * yeardays
+                          ccohort%livestem_mr * g_per_kg * ccohort%n * sec_per_day * days_per_year
                      hio_livecroot_mr_understory_si_scls(io_si,scls) = hio_livecroot_mr_understory_si_scls(io_si,scls) + &
-                          ccohort%livecroot_mr * 1.e3_r8 * ccohort%n * daysecs * yeardays
+                          ccohort%livecroot_mr * g_per_kg * ccohort%n * sec_per_day * days_per_year
                      hio_froot_mr_understory_si_scls(io_si,scls) = hio_froot_mr_understory_si_scls(io_si,scls) + &
-                          ccohort%froot_mr * 1.e3_r8 * ccohort%n * daysecs * yeardays
+                          ccohort%froot_mr * g_per_kg * ccohort%n * sec_per_day * days_per_year
                      hio_resp_g_understory_si_scls(io_si,scls) = hio_resp_g_understory_si_scls(io_si,scls) + &
-                          ccohort%resp_g * 1.e3_r8 * ccohort%n * daysecs * yeardays / dt_tstep 
+                          ccohort%resp_g * g_per_kg * ccohort%n * sec_per_day * days_per_year * per_dt_tstep 
                      hio_resp_m_understory_si_scls(io_si,scls) = hio_resp_m_understory_si_scls(io_si,scls) + &
-                          ccohort%resp_m * 1.e3_r8 * ccohort%n * daysecs * yeardays / dt_tstep 
+                          ccohort%resp_m * g_per_kg * ccohort%n * sec_per_day * days_per_year * per_dt_tstep 
                   endif
                 end associate
                endif
@@ -1875,65 +1886,65 @@ contains
                      !
                      ! first do all the canopy x leaf x pft calculations
                      hio_parsun_z_si_cnlfpft(io_si,cnlfpft_indx) = hio_parsun_z_si_cnlfpft(io_si,cnlfpft_indx) + &
-                          cpatch%ed_parsun_z(ican,ipft,ileaf) * cpatch%area/AREA
+                          cpatch%ed_parsun_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
                      hio_parsha_z_si_cnlfpft(io_si,cnlfpft_indx) = hio_parsha_z_si_cnlfpft(io_si,cnlfpft_indx) + &
-                          cpatch%ed_parsha_z(ican,ipft,ileaf) * cpatch%area/AREA
+                          cpatch%ed_parsha_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
                      !
                      hio_laisun_z_si_cnlfpft(io_si,cnlfpft_indx) = hio_laisun_z_si_cnlfpft(io_si,cnlfpft_indx) + &
-                          cpatch%ed_laisun_z(ican,ipft,ileaf) * cpatch%area/AREA
+                          cpatch%ed_laisun_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
                      hio_laisha_z_si_cnlfpft(io_si,cnlfpft_indx) = hio_laisha_z_si_cnlfpft(io_si,cnlfpft_indx) + &
-                          cpatch%ed_laisha_z(ican,ipft,ileaf) * cpatch%area/AREA
+                          cpatch%ed_laisha_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
                      !
                      hio_fabd_sun_si_cnlfpft(io_si,cnlfpft_indx) = hio_fabd_sun_si_cnlfpft(io_si,cnlfpft_indx) + &
-                          cpatch%fabd_sun_z(ican,ipft,ileaf) * cpatch%area/AREA
+                          cpatch%fabd_sun_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
                      hio_fabd_sha_si_cnlfpft(io_si,cnlfpft_indx) = hio_fabd_sha_si_cnlfpft(io_si,cnlfpft_indx) + &
-                          cpatch%fabd_sha_z(ican,ipft,ileaf) * cpatch%area/AREA
+                          cpatch%fabd_sha_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
                      hio_fabi_sun_si_cnlfpft(io_si,cnlfpft_indx) = hio_fabi_sun_si_cnlfpft(io_si,cnlfpft_indx) + &
-                          cpatch%fabi_sun_z(ican,ipft,ileaf) * cpatch%area/AREA
+                          cpatch%fabi_sun_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
                      hio_fabi_sha_si_cnlfpft(io_si,cnlfpft_indx) = hio_fabi_sha_si_cnlfpft(io_si,cnlfpft_indx) + &
-                          cpatch%fabi_sha_z(ican,ipft,ileaf) * cpatch%area/AREA
+                          cpatch%fabi_sha_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
                      !
                      ! summarize across all PFTs
                      hio_parsun_z_si_cnlf(io_si,cnlf_indx) = hio_parsun_z_si_cnlf(io_si,cnlf_indx) + &
-                          cpatch%ed_parsun_z(ican,ipft,ileaf) * cpatch%area/AREA
+                          cpatch%ed_parsun_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
                      hio_parsha_z_si_cnlf(io_si,cnlf_indx) = hio_parsha_z_si_cnlf(io_si,cnlf_indx) + &
-                          cpatch%ed_parsha_z(ican,ipft,ileaf) * cpatch%area/AREA
+                          cpatch%ed_parsha_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
                      !
                      hio_laisun_z_si_cnlf(io_si,cnlf_indx) = hio_laisun_z_si_cnlf(io_si,cnlf_indx) + &
-                          cpatch%ed_laisun_z(ican,ipft,ileaf) * cpatch%area/AREA
+                          cpatch%ed_laisun_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
                      hio_laisha_z_si_cnlf(io_si,cnlf_indx) = hio_laisha_z_si_cnlf(io_si,cnlf_indx) + &
-                          cpatch%ed_laisha_z(ican,ipft,ileaf) * cpatch%area/AREA
+                          cpatch%ed_laisha_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
                      !
                      hio_fabd_sun_si_cnlf(io_si,cnlf_indx) = hio_fabd_sun_si_cnlf(io_si,cnlf_indx) + &
-                          cpatch%fabd_sun_z(ican,ipft,ileaf) * cpatch%area/AREA
+                          cpatch%fabd_sun_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
                      hio_fabd_sha_si_cnlf(io_si,cnlf_indx) = hio_fabd_sha_si_cnlf(io_si,cnlf_indx) + &
-                          cpatch%fabd_sha_z(ican,ipft,ileaf) * cpatch%area/AREA
+                          cpatch%fabd_sha_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
                      hio_fabi_sun_si_cnlf(io_si,cnlf_indx) = hio_fabi_sun_si_cnlf(io_si,cnlf_indx) + &
-                          cpatch%fabi_sun_z(ican,ipft,ileaf) * cpatch%area/AREA
+                          cpatch%fabi_sun_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
                      hio_fabi_sha_si_cnlf(io_si,cnlf_indx) = hio_fabi_sha_si_cnlf(io_si,cnlf_indx) + &
-                          cpatch%fabi_sha_z(ican,ipft,ileaf) * cpatch%area/AREA
+                          cpatch%fabi_sha_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
 
                   end do
                   !
                   ! summarize just the top leaf level across all PFTs, for each canopy level
                   hio_parsun_top_si_can(io_si,ican) = hio_parsun_top_si_can(io_si,ican) + &
-                       cpatch%ed_parsun_z(ican,ipft,1) * cpatch%area/AREA
+                       cpatch%ed_parsun_z(ican,ipft,1) * cpatch%area * AREA_INV
                   hio_parsha_top_si_can(io_si,ican) = hio_parsha_top_si_can(io_si,ican) + &
-                       cpatch%ed_parsha_z(ican,ipft,1) * cpatch%area/AREA
+                       cpatch%ed_parsha_z(ican,ipft,1) * cpatch%area * AREA_INV
                   !
                   hio_laisun_top_si_can(io_si,ican) = hio_laisun_top_si_can(io_si,ican) + &
-                       cpatch%ed_laisun_z(ican,ipft,1) * cpatch%area/AREA
+                       cpatch%ed_laisun_z(ican,ipft,1) * cpatch%area * AREA_INV
                   hio_laisha_top_si_can(io_si,ican) = hio_laisha_top_si_can(io_si,ican) + &
-                       cpatch%ed_laisha_z(ican,ipft,1) * cpatch%area/AREA
+                       cpatch%ed_laisha_z(ican,ipft,1) * cpatch%area * AREA_INV
                   !
                   hio_fabd_sun_top_si_can(io_si,ican) = hio_fabd_sun_top_si_can(io_si,ican) + &
-                       cpatch%fabd_sun_z(ican,ipft,1) * cpatch%area/AREA
+                       cpatch%fabd_sun_z(ican,ipft,1) * cpatch%area * AREA_INV
                   hio_fabd_sha_top_si_can(io_si,ican) = hio_fabd_sha_top_si_can(io_si,ican) + &
-                       cpatch%fabd_sha_z(ican,ipft,1) * cpatch%area/AREA
+                       cpatch%fabd_sha_z(ican,ipft,1) * cpatch%area * AREA_INV
                   hio_fabi_sun_top_si_can(io_si,ican) = hio_fabi_sun_top_si_can(io_si,ican) + &
-                       cpatch%fabi_sun_z(ican,ipft,1) * cpatch%area/AREA
+                       cpatch%fabi_sun_z(ican,ipft,1) * cpatch%area * AREA_INV
                   hio_fabi_sha_top_si_can(io_si,ican) = hio_fabi_sha_top_si_can(io_si,ican) + &
-                       cpatch%fabi_sha_z(ican,ipft,1) * cpatch%area/AREA
+                       cpatch%fabi_sha_z(ican,ipft,1) * cpatch%area * AREA_INV
                   !
                end do
             end do
