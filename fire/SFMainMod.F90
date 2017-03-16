@@ -73,10 +73,10 @@ contains
     enddo
 
     if(write_SF==1)then
-       write(fates_log(),*) 'use_ed_spit_fire',use_ed_spit_fire
+       write(fates_log(),*) 'use_ed_spitfire',use_ed_spitfire
     endif
 
-    if(use_ed_spit_fire)then
+    if(use_ed_spitfire)then
        call fire_danger_index(currentSite, bc_in)
        call wind_effect(currentSite, bc_in) 
        call charecteristics_of_fuel(currentSite)
