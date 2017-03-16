@@ -167,7 +167,6 @@ module CLMFatesInterfaceMod
 
    end type hlm_fates_interface_type
 
-
    logical :: DEBUG  = .false.
 
   character(len=*), parameter, private :: sourcefile = &
@@ -1353,7 +1352,6 @@ contains
     use perf_mod          , only : t_startf, t_stopf
     use PatchType         , only : patch
     use quadraticMod      , only : quadratic
-    use EDSharedParamsMod , only : EDParamsShareInst
     use EDTypesMod        , only : numpft_ed, dinc_ed
     use EDtypesMod        , only : ed_patch_type, ed_cohort_type, ed_site_type, numpft_ed
     use EDEcophysContype  , only : EDecophyscon

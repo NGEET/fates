@@ -8,7 +8,7 @@ module EDGrowthFunctionsMod
 
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesGlobals     , only : fates_log
-  use pftconMod        , only : pftcon
+  use EDPftvarcon        , only : EDPftvarcon_inst
   use EDEcophysContype , only : EDecophyscon
   use EDTypesMod       , only : ed_cohort_type, nlevcan, dinc_ed
 
@@ -114,7 +114,7 @@ contains
     else  
        bleaf = 0.0419_r8 * (EDecophyscon%max_dbh(cohort_in%pft)**1.56) * EDecophyscon%wood_density(cohort_in%pft)**0.55_r8      
     endif  
-    slascaler = 0.03_r8/pftcon%slatop(cohort_in%pft)
+    slascaler = 0.03_r8/EDPftvarcon_inst%slatop(cohort_in%pft)
     bleaf = bleaf * slascaler
     
     !write(fates_log(),*) 'bleaf',bleaf, slascaler,cohort_in%pft
@@ -145,7 +145,7 @@ contains
     endif
 
     if( cohort_in%status_coh  ==  2 ) then ! are the leaves on? 
-       slat = 1000.0_r8 * pftcon%slatop(cohort_in%pft) ! m2/g to m2/kg
+       slat = 1000.0_r8 * EDPftvarcon_inst%slatop(cohort_in%pft) ! m2/g to m2/kg
        cohort_in%c_area = c_area(cohort_in) ! call the tree area
        leafc_per_unitarea = cohort_in%bl/(cohort_in%c_area/cohort_in%n) !KgC/m2
        if(leafc_per_unitarea > 0.0_r8)then
@@ -225,7 +225,7 @@ contains
     if (DEBUG_growth) then
        write(fates_log(),*) 'z_area 1',cohort_in%dbh,cohort_in%pft
        write(fates_log(),*) 'z_area 2',EDecophyscon%max_dbh
-       write(fates_log(),*) 'z_area 3',pftcon%woody
+       write(fates_log(),*) 'z_area 3',EDPftvarcon_inst%woody
        write(fates_log(),*) 'z_area 4',cohort_in%n
        write(fates_log(),*) 'z_area 5',cohort_in%patchptr%spread
        write(fates_log(),*) 'z_area 6',cohort_in%canopy_layer
@@ -233,7 +233,7 @@ contains
     end if
 
     dbh = min(cohort_in%dbh,EDecophyscon%max_dbh(cohort_in%pft))
-    if(pftcon%woody(cohort_in%pft) == 1)then 
+    if(EDPftvarcon_inst%woody(cohort_in%pft) == 1)then 
        c_area = 3.142_r8 * cohort_in%n * &
             (cohort_in%patchptr%spread(cohort_in%canopy_layer)*dbh)**1.56_r8
     else

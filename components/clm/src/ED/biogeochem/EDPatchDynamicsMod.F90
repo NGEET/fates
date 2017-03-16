@@ -3,10 +3,9 @@ module EDPatchDynamicsMod
   ! ============================================================================
   ! Controls formation, creation, fusing and termination of patch level processes. 
   ! ============================================================================
- 
   use FatesGlobals         , only : fates_log 
   use FatesInterfaceMod    , only : hlm_freq_day
-  use pftconMod            , only : pftcon
+  use EDPftvarcon          , only : EDPftvarcon_inst
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
   use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, area, dbhmax
   use EDTypesMod           , only : numpft_ed
@@ -293,7 +292,7 @@ contains
                    nc%imort = nan
                 else
                    ! small trees 
-                   if(pftcon%woody(currentCohort%pft) == 1)then
+                   if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
 
                       ! Number of trees in the understory of new patch, before we impose impact mortality and survivorship
                       nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
@@ -578,7 +577,7 @@ contains
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))
           p = currentCohort%pft
-          if(pftcon%woody(p) == 1)then !DEAD (FROM FIRE) TREES
+          if(EDPftvarcon_inst%woody(p) == 1)then !DEAD (FROM FIRE) TREES
              !************************************/ 
              ! Number of trees that died because of the fire, per m2 of ground. 
              ! Divide their litter into the four litter streams, and spread evenly across ground surface. 
@@ -661,7 +660,7 @@ contains
        do while(associated(currentCohort))
 
           currentCohort%c_area = c_area(currentCohort) 
-          if(pftcon%woody(currentCohort%pft) == 1)then
+          if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
              burned_leaves = (currentCohort%bl+currentCohort%bsw) * currentCohort%cfa
           else
              burned_leaves = (currentCohort%bl+currentCohort%bsw) * currentPatch%burnt_frac_litter(6)
@@ -738,7 +737,7 @@ contains
                   canopy_dead*(currentCohort%br+currentCohort%bstore)
 
          else 
-             if(pftcon%woody(currentCohort%pft) == 1)then
+             if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
 
                 understorey_dead = ED_val_understorey_death * currentCohort%n * (patch_site_areadis/currentPatch%area)  !kgC/site/day
                 currentPatch%canopy_mortality_woody_litter  = currentPatch%canopy_mortality_woody_litter  + &
@@ -1523,7 +1522,7 @@ contains
     !  Calculates the fractions of the root biomass in each layer for each pft. 
     !
     ! !USES:
-    use pftconMod   , only : pftcon
+
     !
     ! !ARGUMENTS
     type(ed_patch_type),intent(inout), target :: cpatch
@@ -1540,10 +1539,10 @@ contains
 
        do lev = 1, hlm_numlevsoil-1
           cpatch%rootfr_ft(ft,lev) = .5_r8*( &
-                 exp(-pftcon%roota_par(ft) * depth_gl(lev-1))  &
-               + exp(-pftcon%rootb_par(ft) * depth_gl(lev-1))  &
-               - exp(-pftcon%roota_par(ft) * depth_gl(lev))    &
-               - exp(-pftcon%rootb_par(ft) * depth_gl(lev)))
+                 exp(-EDPftvarcon_inst%roota_par(ft) * depth_gl(lev-1))  &
+               + exp(-EDPftvarcon_inst%rootb_par(ft) * depth_gl(lev-1))  &
+               - exp(-EDPftvarcon_inst%roota_par(ft) * depth_gl(lev))    &
+               - exp(-EDPftvarcon_inst%rootb_par(ft) * depth_gl(lev)))
        end do
     end do
 

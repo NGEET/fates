@@ -560,6 +560,4 @@ contains
 
   end subroutine ed_hist_scpfmaps
 
-
-
 end module EDTypesMod
