@@ -1005,10 +1005,8 @@ contains
                                      AREA_INV,       &
                                      sclass_ed,      &
                                      nlevsclass_ed,  &
-                                     levage_ed,     &
                                      nlevage_ed,    &
                                      mxpft,         &
-                                     levpft_ed,     &
                                      nfsc,          &
                                      ncwd,          &
                                      ican_upper,    &

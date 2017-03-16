@@ -4,19 +4,22 @@ module FatesIODimensionsMod
   
   implicit none
 
-    character(*), parameter :: cohort = 'cohort'
-    character(*), parameter :: patch = 'patch'
-    character(*), parameter :: column = 'column'
-    character(*), parameter :: levgrnd = 'levgrnd'
-    character(*), parameter :: levscpf = 'levscpf'
-    character(*), parameter :: levscls = 'levscls'
-    character(*), parameter :: levpft = 'levpft'
-    character(*), parameter :: levage = 'levage'
-    character(*), parameter :: levfuel = 'levfuel'
-    character(*), parameter :: levcwdsc = 'levcwdsc'
-    character(*), parameter :: levcan = 'levcan'
-    character(*), parameter :: levcnlf = 'levcnlf'
-    character(*), parameter :: levcnlfpft = 'lvcnlfpf'
+    ! The following dimension names must be replicated in
+    ! CLM/ALMs histFileMod.F90 and 
+
+    character(*), parameter :: cohort = 'cohort'           ! matches clm_varcon
+    character(*), parameter :: patch = 'patch'             ! matches clm_varcon
+    character(*), parameter :: column = 'column'           ! matches clm_varcon
+    character(*), parameter :: levgrnd = 'levgrnd'         ! matches clm_varcon
+    character(*), parameter :: levscpf = 'fates_levscpf'      ! matches histFileMod
+    character(*), parameter :: levscls = 'fates_levscls'      ! matches histFileMod
+    character(*), parameter :: levpft = 'fates_levpft'        ! matches histFileMod
+    character(*), parameter :: levage = 'fates_levage'        ! matches histFileMod
+    character(*), parameter :: levfuel = 'fates_levfuel'      ! matches histFileMod
+    character(*), parameter :: levcwdsc = 'fates_levcwdsc'    ! matches histFileMod
+    character(*), parameter :: levcan = 'fates_levcan'        ! matches histFileMod
+    character(*), parameter :: levcnlf = 'fates_levcnlf'      ! matches histFileMod
+    character(*), parameter :: levcnlfpft = 'fates_levcnlfpf' ! matches histFileMod
 
     ! patch = This is a structure that records where FATES patch boundaries
     ! on each thread point to in the host IO array, this structure
