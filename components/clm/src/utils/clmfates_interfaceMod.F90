@@ -1674,6 +1674,8 @@ contains
     integer :: ifp  ! Fates patch index
     integer :: p    ! CLM patch index
 
+    if (.not.use_ed) return
+
     ci = bounds_clump%clump_index
 
     do s = 1, this%fates(ci)%nsites
