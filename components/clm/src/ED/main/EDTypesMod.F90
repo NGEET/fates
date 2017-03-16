@@ -108,23 +108,28 @@ module EDTypesMod
        (/"background","hydraulic ","carbon    ","impact    ","fire      "/)
 
 
+  ! -------------------------------------------------------------------------------------
   ! These vectors are used for history output mapping
-  real(r8) ,allocatable :: levsclass_ed(:) ! The lower bound on size classes for ED trees. This 
-                                           ! is used really for IO into the
-                                           ! history tapes. It gets copied from
-                                           ! the parameter array sclass_ed.
-  integer , allocatable :: pft_levscpf_ed(:)
-  integer , allocatable :: scls_levscpf_ed(:) 
-  real(r8), allocatable :: levage_ed(:) 
-  integer , allocatable :: levpft_ed(:) 
-  integer , allocatable :: levfuel_ed(:) 
-  integer , allocatable :: levcwdsc_ed(:) 
-  integer , allocatable :: levcan_ed(:)
-  integer , allocatable :: can_levcnlf_ed(:)
-  integer , allocatable :: lf_levcnlf_ed(:)
-  integer , allocatable :: can_levcnlfpft_ed(:)
-  integer , allocatable :: lf_levcnlfpft_ed(:)
-  integer , allocatable :: pft_levcnlfpft_ed(:)
+  ! CLM/ALM have limited support for multi-dimensional history output arrays.
+  ! FATES structure and composition is multi-dimensional, so we end up "multi-plexing"
+  ! multiple dimensions into one dimension.  These new dimensions need definitions,
+  ! mapping to component dimensions, and definitions for those component dimensions as
+  ! well.
+  ! -------------------------------------------------------------------------------------
+
+  real(r8) ,allocatable :: fates_hdim_levsclass(:)       ! plant size class lower bound dimension
+  integer , allocatable :: fates_hdim_pfmap_levscpf(:)   ! map of pfts into size-class x pft dimension
+  integer , allocatable :: fates_hdim_scmap_levscpf(:)   ! map of size-class into size-class x pft dimension
+  real(r8), allocatable :: fates_hdim_levage(:)          ! patch age lower bound dimension
+  integer , allocatable :: fates_hdim_levpft(:)          ! plant pft dimension
+  integer , allocatable :: fates_hdim_levfuel(:)         ! fire fuel class dimension
+  integer , allocatable :: fates_hdim_levcwdsc(:)        ! cwd class dimension
+  integer , allocatable :: fates_hdim_levcan(:)          ! canopy-layer dimension 
+  integer , allocatable :: fates_hdim_canmap_levcnlf(:)  ! canopy-layer map into the canopy-layer x leaf-layer dimension
+  integer , allocatable :: fates_hdim_lfmap_levcnlf(:)   ! leaf-layer map into the canopy-layer x leaf-layer dimension
+  integer , allocatable :: fates_hdim_canmap_levcnlfpf(:) ! canopy-layer map into the canopy-layer x pft x leaf-layer dimension
+  integer , allocatable :: fates_hdim_lfmap_levcnlfpf(:)  ! leaf-layer map into the canopy-layer x pft x leaf-layer dimension
+  integer , allocatable :: fates_hdim_pftmap_levcnlfpf(:) ! pft map into the canopy-layer x pft x leaf-layer dimension
 
 
   !************************************
@@ -547,46 +552,46 @@ contains
     integer :: ican
     integer :: ileaf
 
-    allocate( levsclass_ed(1:nlevsclass_ed   ))
-    allocate( pft_levscpf_ed(1:nlevsclass_ed*mxpft))
-    allocate(scls_levscpf_ed(1:nlevsclass_ed*mxpft))
-    allocate( levpft_ed(1:mxpft   ))
-    allocate( levfuel_ed(1:NFSC   ))
-    allocate( levcwdsc_ed(1:NCWD   ))
-    allocate( levage_ed(1:nlevage_ed   ))
+    allocate( fates_hdim_levsclass(1:nlevsclass_ed   ))
+    allocate( fates_hdim_pfmap_levscpf(1:nlevsclass_ed*mxpft))
+    allocate( fates_hdim_scmap_levscpf(1:nlevsclass_ed*mxpft))
+    allocate( fates_hdim_levpft(1:mxpft   ))
+    allocate( fates_hdim_levfuel(1:NFSC   ))
+    allocate( fates_hdim_levcwdsc(1:NCWD   ))
+    allocate( fates_hdim_levage(1:nlevage_ed   ))
 
-    allocate(levcan_ed(nclmax))
-    allocate(can_levcnlf_ed(nlevleaf*nclmax))
-    allocate(lf_levcnlf_ed(nlevleaf*nclmax))
-    allocate(can_levcnlfpft_ed(nlevleaf*nclmax*numpft_ed))
-    allocate(lf_levcnlfpft_ed(nlevleaf*nclmax*numpft_ed))
-    allocate(pft_levcnlfpft_ed(nlevleaf*nclmax*numpft_ed))
+    allocate( fates_hdim_levcan(nclmax))
+    allocate( fates_hdim_canmap_levcnlf(nlevleaf*nclmax))
+    allocate( fates_hdim_lfmap_levcnlf(nlevleaf*nclmax))
+    allocate( fates_hdim_canmap_levcnlfpf(nlevleaf*nclmax*numpft_ed))
+    allocate( fates_hdim_lfmap_levcnlfpf(nlevleaf*nclmax*numpft_ed))
+    allocate( fates_hdim_pftmap_levcnlfpf(nlevleaf*nclmax*numpft_ed))
 
     ! Fill the IO array of plant size classes
     ! For some reason the history files did not like
     ! a hard allocation of sclass_ed
-    levsclass_ed(:) = sclass_ed(:)
+    fates_hdim_levsclass(:) = sclass_ed(:)
     
-    levage_ed(:) = ageclass_ed(:)
+    fates_hdim_levage(:) = ageclass_ed(:)
 
     ! make pft array
     do ipft=1,mxpft
-       levpft_ed(ipft) = ipft
+       fates_hdim_levpft(ipft) = ipft
     end do
 
     ! make fuel array
     do ifuel=1,NFSC
-       levfuel_ed(ifuel) = ifuel
+       fates_hdim_levfuel(ifuel) = ifuel
     end do
 
     ! make cwd array
     do icwd=1,NCWD
-       levcwdsc_ed(icwd) = icwd
+       fates_hdim_levcwdsc(icwd) = icwd
     end do
 
     ! make canopy array
     do ican = 1,nclmax
-       levcan_ed(ican) = ican
+       fates_hdim_levcan(ican) = ican
     end do
 
     ! Fill the IO arrays that match pft and size class to their combined array
@@ -594,8 +599,8 @@ contains
     do ipft=1,mxpft
        do isc=1,nlevsclass_ed
           i=i+1
-          pft_levscpf_ed(i) = ipft
-          scls_levscpf_ed(i) = isc
+          fates_hdim_pfmap_levscpf(i) = ipft
+          fates_hdim_scmap_levscpf(i) = isc
        end do
     end do
 
@@ -603,8 +608,8 @@ contains
     do ican=1,nclmax
        do ileaf=1,nlevleaf
           i=i+1
-          can_levcnlf_ed(i) = ican
-          lf_levcnlf_ed(i) = ileaf
+          fates_hdim_canmap_levcnlf(i) = ican
+          fates_hdim_lfmap_levcnlf(i) = ileaf
        end do
     end do
 
@@ -613,9 +618,9 @@ contains
        do ican=1,nclmax
           do ileaf=1,nlevleaf
              i=i+1
-             can_levcnlfpft_ed(i) = ican
-             lf_levcnlfpft_ed(i) = ileaf
-             pft_levcnlfpft_ed(i) = ipft
+             fates_hdim_canmap_levcnlfpf(i) = ican
+             fates_hdim_lfmap_levcnlfpf(i) = ileaf
+             fates_hdim_pftmap_levcnlfpf(i) = ipft
           end do
        end do
     end do
