@@ -130,7 +130,8 @@ module EDTypesMod
   integer , allocatable :: fates_hdim_canmap_levcnlfpf(:) ! canopy-layer map into the canopy-layer x pft x leaf-layer dimension
   integer , allocatable :: fates_hdim_lfmap_levcnlfpf(:)  ! leaf-layer map into the canopy-layer x pft x leaf-layer dimension
   integer , allocatable :: fates_hdim_pftmap_levcnlfpf(:) ! pft map into the canopy-layer x pft x leaf-layer dimension
-
+  integer , allocatable :: fates_hdim_scmap_levscag(:)   ! map of size-class into size-class x patch age dimension
+  integer , allocatable :: fates_hdim_agmap_levscag(:)   ! map of patch-age into size-class x patch age dimension
 
   !************************************
   !** COHORT type structure          **
@@ -551,6 +552,7 @@ contains
     integer :: ifuel
     integer :: ican
     integer :: ileaf
+    integer :: iage
 
     allocate( fates_hdim_levsclass(1:nlevsclass_ed   ))
     allocate( fates_hdim_pfmap_levscpf(1:nlevsclass_ed*mxpft))
@@ -566,6 +568,8 @@ contains
     allocate( fates_hdim_canmap_levcnlfpf(nlevleaf*nclmax*numpft_ed))
     allocate( fates_hdim_lfmap_levcnlfpf(nlevleaf*nclmax*numpft_ed))
     allocate( fates_hdim_pftmap_levcnlfpf(nlevleaf*nclmax*numpft_ed))
+    allocate( fates_hdim_scmap_levscag(nlevsclass_ed * nlevage_ed ))
+    allocate( fates_hdim_agmap_levscag(nlevsclass_ed * nlevage_ed ))
 
     ! Fill the IO array of plant size classes
     ! For some reason the history files did not like
@@ -614,6 +618,15 @@ contains
     end do
 
     i=0
+    do iage=1,nlevage_ed
+       do isc=1,nlevsclass_ed
+          i=i+1
+          fates_hdim_scmap_levscag(i) = isc
+          fates_hdim_agmap_levscag(i) = iage
+       end do
+    end do
+
+    i=0
     do ipft=1,numpft_ed
        do ican=1,nclmax
           do ileaf=1,nlevleaf
@@ -627,4 +640,65 @@ contains
 
   end subroutine ed_hist_scpfmaps
 
+  ! =====================================================================================
+  
+  function get_age_class_index(age) result( patch_age_class ) 
+
+     real(r8), intent(in) :: age
+     
+     integer :: patch_age_class
+
+     patch_age_class = count(age-ageclass_ed.ge.0.0_r8)
+
+  end function get_age_class_index
+
+  ! =====================================================================================
+
+  function get_sizeage_class_index(dbh,age) result(size_by_age_class)
+     
+     ! Arguments
+     real(r8),intent(in) :: dbh
+     real(r8),intent(in) :: age
+
+     integer             :: size_class
+     integer             :: age_class
+     integer             :: size_by_age_class
+     
+     size_class        = get_size_class_index(dbh)
+
+     age_class         = get_age_class_index(age)
+     
+     size_by_age_class = (age_class-1)*nlevage_ed + size_class
+
+  end function get_sizeage_class_index
+
+  ! =====================================================================================
+
+  subroutine sizetype_class_index(dbh,pft,size_class,size_by_pft_class)
+    
+    ! Arguments
+    real(r8),intent(in) :: dbh
+    integer,intent(in)  :: pft
+    integer,intent(out) :: size_class
+    integer,intent(out) :: size_by_pft_class
+    
+    size_class        = get_size_class_index(dbh)
+    
+    size_by_pft_class = (pft-1)*nlevsclass_ed+size_class
+
+    return
+ end subroutine sizetype_class_index
+
+  ! =====================================================================================
+
+  function get_size_class_index(dbh) result(cohort_size_class)
+
+     real(r8), intent(in) :: dbh
+     
+     integer :: cohort_size_class
+     
+     cohort_size_class = count(dbh-sclass_ed.ge.0.0_r8)
+     
+  end function get_size_class_index
+   
 end module EDTypesMod

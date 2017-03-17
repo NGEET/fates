@@ -21,6 +21,7 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : sclass_ed,nlevsclass_ed,AREA
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
+  use EDTypesMod            , only : sizetype_class_index
   ! CIME globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   !
@@ -36,7 +37,6 @@ module EDCohortDynamicsMod
   public :: sort_cohorts
   public :: copy_cohort
   public :: count_cohorts
-  public :: size_and_type_class_index
   public :: allocate_live_biomass
 
   logical, parameter :: DEBUG  = .false. ! local debug flag
@@ -105,8 +105,8 @@ contains
     new_cohort%balive       = balive
     new_cohort%bstore       = bstore
 
-    call size_and_type_class_index(new_cohort%dbh,new_cohort%pft, &
-                                   new_cohort%size_class,new_cohort%size_by_pft_class)
+    call sizetype_class_index(new_cohort%dbh,new_cohort%pft, &
+                              new_cohort%size_class,new_cohort%size_by_pft_class)
 
     if ( DEBUG ) write(fates_log(),*) 'EDCohortDyn I ',bstore
 
@@ -1196,25 +1196,6 @@ contains
 
   end function count_cohorts
 
-  ! =====================================================================================
-
-  subroutine size_and_type_class_index(dbh,pft,size_class,size_by_pft_class)
-    
-    use EDTypesMod, only: sclass_ed
-    use EDTypesMod, only: nlevsclass_ed
-    
-    ! Arguments
-    real(r8),intent(in) :: dbh
-    integer,intent(in)  :: pft
-    integer,intent(out) :: size_class
-    integer,intent(out) :: size_by_pft_class
-    
-    size_class        = count(dbh-sclass_ed.ge.0.0_r8)
-    
-    size_by_pft_class = (pft-1)*nlevsclass_ed+size_class
-
-    return
-  end subroutine size_and_type_class_index
 
 
 
