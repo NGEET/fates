@@ -1851,6 +1851,7 @@ contains
     call ncd_defdim( lnfid, 'levdcmp', nlevdecomp_full, dimid)
     
     if(use_ed)then
+       call ncd_defdim(lnfid, 'fates_levscag', nlevsclass_ed * nlevage_ed, dimid)
        call ncd_defdim(lnfid, 'fates_levscls', nlevsclass_ed, dimid)
        call ncd_defdim(lnfid, 'fates_levpft', mxpft, dimid)
        call ncd_defdim(lnfid, 'fates_levage', nlevage_ed, dimid)
@@ -2276,6 +2277,7 @@ contains
     use clm_time_manager, only : get_ref_date, get_calendar, NO_LEAP_C, GREGORIAN_C
     use EDTypesMod,       only : fates_hdim_levsclass, fates_hdim_pfmap_levscpf, fates_hdim_scmap_levscpf
     use EDTypesMod,       only : fates_hdim_levage, fates_hdim_levpft
+    use EDTypesMod,       only : fates_hdim_scmap_levscag, fates_hdim_agmap_levscag
     use EDTypesMod,       only : fates_hdim_levfuel, fates_hdim_levcwdsc
     use EDTypesMod,       only : fates_hdim_levcan, fates_hdim_canmap_levcnlf, fates_hdim_lfmap_levcnlf
     use EDTypesMod,       only : fates_hdim_canmap_levcnlfpf, fates_hdim_lfmap_levcnlfpf, fates_hdim_pftmap_levcnlfpf
@@ -2330,8 +2332,13 @@ contains
                long_name='coordinate soil levels', units='m', ncid=nfid(t))
       
           if(use_ed)then
+             
              call ncd_defvar(varname='fates_levscls', xtype=tape(t)%ncprec, dim1name='fates_levscls', &
                   long_name='FATES diameter size class lower bound', units='cm', ncid=nfid(t))
+             call ncd_defvar(varname='fates_scmap_levscag', xtype=ncd_int, dim1name='fates_levscag', &
+                   long_name='FATES size-class map into size x patch age', units='-', ncid=nfid(t))
+             call ncd_defvar(varname='fates_agmap_levscag', xtype=ncd_int, dim1name='fates_levscag', &
+                   long_name='FATES age-class map into size x patch age', units='-', ncid=nfid(t))
              call ncd_defvar(varname='fates_pftmap_levscpf',xtype=ncd_int, dim1name='fates_levscpf', &
                   long_name='FATES pft index of the combined pft-size class dimension', units='-', ncid=nfid(t))
              call ncd_defvar(varname='fates_scmap_levscpf',xtype=ncd_int, dim1name='fates_levscpf', &
@@ -2370,6 +2377,8 @@ contains
              call ncd_io(varname='levdcmp', data=zsoi_1d, ncid=nfid(t), flag='write')
           end if
           if(use_ed)then
+             call ncd_io(varname='fates_scmap_levscag',data=fates_hdim_scmap_levscag, ncid=nfid(t), flag='write')
+             call ncd_io(varname='fates_agmap_levscag',data=fates_hdim_agmap_levscag, ncid=nfid(t), flag='write')
              call ncd_io(varname='fates_levscls',data=fates_hdim_levsclass, ncid=nfid(t), flag='write')
              call ncd_io(varname='fates_pftmap_levscpf',data=fates_hdim_pfmap_levscpf, ncid=nfid(t), flag='write')
              call ncd_io(varname='fates_scmap_levscpf',data=fates_hdim_scmap_levscpf, ncid=nfid(t), flag='write')
@@ -4494,6 +4503,8 @@ contains
        num2d = ncwd
     case ('fates_levscpf')
        num2d = nlevsclass_ed*mxpft
+    case ('fates_levscag')
+       num2d = nlevsclass_ed*nlevage_ed
     case ('fates_levcan')
        num2d = nclmax
     case ('fates_levcnlf')
