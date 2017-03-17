@@ -11,6 +11,7 @@ module FatesIODimensionsMod
     character(*), parameter :: patch = 'patch'             ! matches clm_varcon
     character(*), parameter :: column = 'column'           ! matches clm_varcon
     character(*), parameter :: levgrnd = 'levgrnd'         ! matches clm_varcon
+    character(*), parameter :: levscag = 'fates_levscag'      ! matches histFileMod
     character(*), parameter :: levscpf = 'fates_levscpf'      ! matches histFileMod
     character(*), parameter :: levscls = 'fates_levscls'      ! matches histFileMod
     character(*), parameter :: levpft = 'fates_levpft'        ! matches histFileMod
@@ -59,6 +60,9 @@ module FatesIODimensionsMod
     ! levcnlfpft = This is a structure that records the boundaries for the
     ! number of canopy layer x leaf layer x pft dimension
 
+    ! levscag = This is a strcture that records the boundaries for the 
+    ! number of size-classes x patch age
+
 
     type, public :: fates_bounds_type
        integer :: patch_begin
@@ -69,6 +73,8 @@ module FatesIODimensionsMod
        integer :: column_end            ! we call this a "site" (rgk 11-2016)
        integer :: ground_begin
        integer :: ground_end
+       integer :: sizeage_class_begin
+       integer :: sizeage_class_end
        integer :: sizepft_class_begin
        integer :: sizepft_class_end
        integer :: size_class_begin
