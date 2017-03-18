@@ -54,11 +54,16 @@ module FatesConstantsMod
   real(fates_r8), parameter :: days_per_sec = 1.0_fates_r8/86400.0_fates_r8
 
   ! Conversion: days per year
-  real(fates_r8), parameter :: days_per_year = 365.25_fates_r8
+  real(fates_r8), parameter :: days_per_year_noleap = 365.00_fates_r8
   
    ! Conversion: years per day
-  real(fates_r8), parameter :: years_per_day = 1.0_fates_r8/365.25_fates_r8
+  real(fates_r8), parameter :: years_per_day_noleap = 1.0_fates_r8/365.00_fates_r8
   
+  ! Conversion: days per year
+  real(fates_r8), parameter :: days_per_year_leap = 365.25_fates_r8
+  
+   ! Conversion: years per day
+  real(fates_r8), parameter :: years_per_day_leap = 1.0_fates_r8/365.25_fates_r8
 
   ! Physical constants
 

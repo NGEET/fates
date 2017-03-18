@@ -17,8 +17,8 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod, only : ha_per_m2
   use FatesConstantsMod, only : days_per_sec
   use FatesConstantsMod, only : sec_per_day
-  use FatesConstantsMod, only : days_per_year
-  use FatesConstantsMod, only : years_per_day
+  use FatesConstantsMod, only : days_per_year => days_per_year_noleap
+  use FatesConstantsMod, only : years_per_day => years_per_day_noleap
 
   implicit none
 
