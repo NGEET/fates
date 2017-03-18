@@ -735,7 +735,7 @@ contains
     use FatesInterfaceMod    , only : bc_in_type
     use EDPatchDynamicsMod   , only : set_patchno
     use EDPatchDYnamicsMod   , only : set_root_fraction
-    use EDCohortDynamicsMod  , only : size_and_type_class_index
+    use EDTypesMod           , only : sizetype_class_index
     use EDGrowthFunctionsMod , only : tree_lai, c_area
     use EDEcophysConType     , only : EDecophyscon
     use EDtypesMod           , only : area
@@ -791,8 +791,8 @@ contains
              
              ! Update the cohort's index within the size bin classes
              ! Update the cohort's index within the SCPF classification system
-             call size_and_type_class_index(currentCohort%dbh,currentCohort%pft, &
-                                            currentCohort%size_class,currentCohort%size_by_pft_class)
+             call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
+                                       currentCohort%size_class,currentCohort%size_by_pft_class)
 
              
              currentCohort%b = currentCohort%balive+currentCohort%bdead+currentCohort%bstore
@@ -810,13 +810,16 @@ contains
              
              ! Check for erroneous zero values. 
              if(currentCohort%dbh <= 0._r8 .or. currentCohort%n == 0._r8)then
-                write(fates_log(),*) 'ED: dbh or n is zero in canopy_summarization', currentCohort%dbh,currentCohort%n
+                write(fates_log(),*) 'ED: dbh or n is zero in canopy_summarization', &
+                      currentCohort%dbh,currentCohort%n
              endif
              if(currentCohort%pft == 0.or.currentCohort%canopy_trim <= 0._r8)then
-                write(fates_log(),*) 'ED: PFT or trim is zero in canopy_summarization',currentCohort%pft,currentCohort%canopy_trim
+                write(fates_log(),*) 'ED: PFT or trim is zero in canopy_summarization', &
+                      currentCohort%pft,currentCohort%canopy_trim
              endif
              if(currentCohort%balive <= 0._r8)then
-                write(fates_log(),*) 'ED: balive is zero in canopy_summarization',currentCohort%balive
+                write(fates_log(),*) 'ED: balive is zero in canopy_summarization', &
+                      currentCohort%balive
              endif
 
              currentCohort => currentCohort%taller
@@ -824,7 +827,8 @@ contains
           enddo ! ends 'do while(associated(currentCohort))
           
           if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
-             write(fates_log(),*) 'ED: canopy area bigger than area',currentPatch%total_canopy_area ,currentPatch%area
+             write(fates_log(),*) 'ED: canopy area bigger than area', &
+                   currentPatch%total_canopy_area ,currentPatch%area
              currentPatch%total_canopy_area = currentPatch%area
           endif
 

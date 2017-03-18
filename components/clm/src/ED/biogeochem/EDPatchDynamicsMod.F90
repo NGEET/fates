@@ -37,7 +37,6 @@ module EDPatchDynamicsMod
   public :: check_patch_area
   public :: set_patchno
   public :: set_root_fraction
-
   private:: fuse_2_patches
 
 
@@ -1197,7 +1196,7 @@ contains
     ! associated with the secnd patch
     !
     ! !USES:
-    use EDTypesMod, only: ageclass_ed
+    use EDTypesMod, only: get_age_class_index
     !
     ! !ARGUMENTS:
     type (ed_patch_type) , intent(inout), pointer :: dp ! Donor Patch
@@ -1217,7 +1216,7 @@ contains
 
     !area weighted average of ages & litter
     rp%age = (dp%age * dp%area + rp%age * rp%area)/(dp%area + rp%area)  
-    rp%age_class = count(rp%age-ageclass_ed.ge.0.0_r8)
+    rp%age_class = get_age_class_index(rp%age)
 
     do p = 1,numpft_ed
        rp%seeds_in(p)         = (rp%seeds_in(p)*rp%area + dp%seeds_in(p)*dp%area)/(rp%area + dp%area)
@@ -1586,5 +1585,4 @@ contains
 
   end subroutine set_root_fraction
 
-
-end module EDPatchDynamicsMod
+ end module EDPatchDynamicsMod
