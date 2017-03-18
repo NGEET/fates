@@ -1226,7 +1226,8 @@ contains
      use FatesInterfaceMod , only : bc_out_type
      use PatchType         , only : patch
      use ColumnType        , only : col
-     use pftconMod         , only : pftcon
+     use EDPftvarcon       , only : EDPftvarcon_inst
+
 
      !
      ! !ARGUMENTS    
@@ -1269,9 +1270,9 @@ contains
            ! previous code, before calculating more reasonable values.
            p = col%patchi(c) + ifp
            
-           bc_out(s)%z0m_pa(ifp)    = pftcon%z0mr(patch%itype(p)) * bc_out(s)%htop_pa(ifp)
-           bc_out(s)%displa_pa(ifp) = pftcon%displar(patch%itype(p)) * bc_out(s)%htop_pa(ifp)
-           bc_out(s)%dleaf_pa(ifp)  = pftcon%dleaf(patch%itype(p))
+           bc_out(s)%z0m_pa(ifp)    = EDPftvarcon_inst%z0mr(patch%itype(p)) * bc_out(s)%htop_pa(ifp)
+           bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(patch%itype(p)) * bc_out(s)%htop_pa(ifp)
+           bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(patch%itype(p))
            
 !           bc_out(s)%z0m_pa(ifp)    = pftcon%z0mr(1) * bc_out(s)%htop_pa(ifp)
 !           bc_out(s)%displa_pa(ifp) = pftcon%displar(1) * bc_out(s)%htop_pa(ifp)
