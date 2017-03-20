@@ -1260,74 +1260,76 @@ contains
       end do
       
       if ( use_ed ) then
+         
          call clm_fates%wrap_accumulatefluxes(nc,fn,filterp(1:fn))
+
+      else
+
+         ! Determine total photosynthesis
+         
+         call PhotosynthesisTotal(fn, filterp, &
+              atm2lnd_inst, canopystate_inst, photosyns_inst)
+         
+         ! Calculate ozone stress. This needs to be done after rssun and rsshade are
+         ! computed by the Photosynthesis routine. However, Photosynthesis also uses the
+         ! ozone stress computed here. Thus, the ozone stress computed in timestep i is
+         ! applied in timestep (i+1).
+         
+         ! COMPILER_BUG(wjs, 2014-11-29, pgi 14.7) The following dummy variable assignment is
+         ! needed with pgi 14.7 on yellowstone; without it, forc_pbot_downscaled_col gets
+         ! resized inappropriately in the following subroutine call, due to a compiler bug.
+         dummy_to_make_pgi_happy = ubound(atm2lnd_inst%forc_pbot_downscaled_col, 1)
+         call ozone_inst%CalcOzoneStress( &
+              bounds, fn, filterp, &
+              forc_pbot = atm2lnd_inst%forc_pbot_downscaled_col(bounds%begc:bounds%endc), &
+              forc_th   = atm2lnd_inst%forc_th_downscaled_col(bounds%begc:bounds%endc), &
+              rssun     = photosyns_inst%rssun_patch(bounds%begp:bounds%endp), &
+              rssha     = photosyns_inst%rssha_patch(bounds%begp:bounds%endp), &
+              rb        = frictionvel_inst%rb1_patch(bounds%begp:bounds%endp), &
+              ram       = frictionvel_inst%ram1_patch(bounds%begp:bounds%endp), &
+              tlai      = canopystate_inst%tlai_patch(bounds%begp:bounds%endp))
+         
+         !---------------------------------------------------------
+         !update Vc,max and Jmax by LUNA model
+         if(use_luna)then
+            call Acc24_Climate_LUNA(bounds, fn, filterp, &
+                 canopystate_inst, photosyns_inst, &
+                 surfalb_inst, solarabs_inst, &
+                 temperature_inst)
+            
+            if(is_end_day)then
+               
+               call Acc240_Climate_LUNA(bounds, fn, filterp, &
+                    o2(begp:endp), &
+                    co2(begp:endp), &
+                    rb(begp:endp), &
+                    rhaf(begp:endp),&
+                    temperature_inst, & 
+                    photosyns_inst, &
+                    surfalb_inst, &
+                    solarabs_inst, &
+                    waterstate_inst,&
+                    frictionvel_inst) 
+               
+               call Update_Photosynthesis_Capacity(bounds, fn, filterp, &
+                    dayl_factor(begp:endp), &
+                    atm2lnd_inst, &
+                    temperature_inst, & 
+                    canopystate_inst, &
+                    photosyns_inst, &
+                    surfalb_inst, &
+                    solarabs_inst, &
+                    waterstate_inst,&
+                    frictionvel_inst)        
+               
+               call Clear24_Climate_LUNA(bounds, fn, filterp, &
+                    canopystate_inst, photosyns_inst, &
+                    surfalb_inst, solarabs_inst, &
+                    temperature_inst)
+            endif
+            
+         endif
       end if
-
-
-      ! Determine total photosynthesis
-
-      call PhotosynthesisTotal(fn, filterp, &
-           atm2lnd_inst, canopystate_inst, photosyns_inst)
-
-      ! Calculate ozone stress. This needs to be done after rssun and rsshade are
-      ! computed by the Photosynthesis routine. However, Photosynthesis also uses the
-      ! ozone stress computed here. Thus, the ozone stress computed in timestep i is
-      ! applied in timestep (i+1).
-      
-      ! COMPILER_BUG(wjs, 2014-11-29, pgi 14.7) The following dummy variable assignment is
-      ! needed with pgi 14.7 on yellowstone; without it, forc_pbot_downscaled_col gets
-      ! resized inappropriately in the following subroutine call, due to a compiler bug.
-      dummy_to_make_pgi_happy = ubound(atm2lnd_inst%forc_pbot_downscaled_col, 1)
-      call ozone_inst%CalcOzoneStress( &
-           bounds, fn, filterp, &
-           forc_pbot = atm2lnd_inst%forc_pbot_downscaled_col(bounds%begc:bounds%endc), &
-           forc_th   = atm2lnd_inst%forc_th_downscaled_col(bounds%begc:bounds%endc), &
-           rssun     = photosyns_inst%rssun_patch(bounds%begp:bounds%endp), &
-           rssha     = photosyns_inst%rssha_patch(bounds%begp:bounds%endp), &
-           rb        = frictionvel_inst%rb1_patch(bounds%begp:bounds%endp), &
-           ram       = frictionvel_inst%ram1_patch(bounds%begp:bounds%endp), &
-           tlai      = canopystate_inst%tlai_patch(bounds%begp:bounds%endp))
-
-      !---------------------------------------------------------
-      !update Vc,max and Jmax by LUNA model
-      if(use_luna)then
-        call Acc24_Climate_LUNA(bounds, fn, filterp, &
-                   canopystate_inst, photosyns_inst, &
-                   surfalb_inst, solarabs_inst, &
-                   temperature_inst)
-
-       if(is_end_day)then
-
-          call Acc240_Climate_LUNA(bounds, fn, filterp, &
-                 o2(begp:endp), &
-                 co2(begp:endp), &
-                 rb(begp:endp), &
-                 rhaf(begp:endp),&
-                 temperature_inst, & 
-                 photosyns_inst, &
-                 surfalb_inst, &
-                 solarabs_inst, &
-                 waterstate_inst,&
-                 frictionvel_inst) 
-
-          call Update_Photosynthesis_Capacity(bounds, fn, filterp, &
-                 dayl_factor(begp:endp), &
-                 atm2lnd_inst, &
-                 temperature_inst, & 
-                 canopystate_inst, &
-                 photosyns_inst, &
-                 surfalb_inst, &
-                 solarabs_inst, &
-                 waterstate_inst,&
-                 frictionvel_inst)        
-
-           call Clear24_Climate_LUNA(bounds, fn, filterp, &
-                   canopystate_inst, photosyns_inst, &
-                   surfalb_inst, solarabs_inst, &
-                   temperature_inst)
-         endif 
- 
-      endif
 
       ! Filter out patches which have small energy balance errors; report others
 

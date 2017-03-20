@@ -382,7 +382,6 @@ contains
              call endrun(msg=' ERROR: use_crop and use_ed cannot both be set to true.'//&
                    errMsg(sourcefile, __LINE__))
           end if
-
           
           if( use_lch4 ) then
              call endrun(msg=' ERROR: use_lch4 (methane) and use_ed cannot both be set to true.'//&
@@ -393,7 +392,17 @@ contains
              call endrun(msg=' ERROR: dry deposition via ML Welsey is not compatible with FATES.'//&
                    errMsg(sourcefile, __LINE__))
           end if
-          
+
+          if( use_luna ) then
+             call endrun(msg=' ERROR: luna is not compatible with FATES.'//&
+                  errMsg(sourcefile, __LINE__))
+          end if
+
+          if (use_ozone ) then
+             call endrun(msg=' ERROR: ozone is not compatible with FATES.'//&
+                  errMsg(sourcefile, __LINE__))
+          end if
+
        end if
 
        ! If nfix_timeconst is equal to the junk default value, then it was not specified
