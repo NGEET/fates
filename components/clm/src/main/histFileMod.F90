@@ -39,6 +39,7 @@ module histFileMod
   integer , public, parameter :: max_namlen = 64        ! maximum number of characters for field name
   integer , public, parameter :: scale_type_strlen = 32 ! maximum number of characters for scale types
   integer , private, parameter :: avgflag_strlen = 3 ! maximum number of characters for avgflag
+  integer , private, parameter :: hist_dim_name_length = 16 ! lenngth of character strings in dimension names
 
   ! Possible ways to treat multi-layer snow fields at times when no snow is present in a
   ! given layer. Note that the public parameters are the only ones that can be used by
@@ -161,9 +162,9 @@ module histFileMod
      character(len=max_namlen) :: name         ! field name
      character(len=max_chars)  :: long_name    ! long name
      character(len=max_chars)  :: units        ! units
-     character(len=16) :: type1d                ! pointer to first dimension type from data type (nameg, etc)
-     character(len=16) :: type1d_out            ! hbuf first dimension type from data type (nameg, etc)
-     character(len=16) :: type2d                ! hbuf second dimension type ["levgrnd","levlak","numrad","ltype","natpft","cft","glc_nec","elevclas","subname(n)"]
+     character(len=hist_dim_name_length) :: type1d                ! pointer to first dimension type from data type (nameg, etc)
+     character(len=hist_dim_name_length) :: type1d_out            ! hbuf first dimension type from data type (nameg, etc)
+     character(len=hist_dim_name_length) :: type2d                ! hbuf second dimension type ["levgrnd","levlak","numrad","ltype","natpft","cft","glc_nec","elevclas","subname(n)"]
      integer :: beg1d                          ! on-node 1d clm pointer start index
      integer :: end1d                          ! on-node 1d clm pointer end index
      integer :: num1d                          ! size of clm pointer first dimension (all nodes)
@@ -821,8 +822,8 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer :: n                    ! field index on defined tape
-    character(len=16) :: type1d      ! clm pointer 1d type
-    character(len=16) :: type1d_out  ! history buffer 1d type
+    character(len=hist_dim_name_length) :: type1d      ! clm pointer 1d type
+    character(len=hist_dim_name_length) :: type1d_out  ! history buffer 1d type
     integer :: numa                 ! total number of atm cells across all processors
     integer :: numg                 ! total number of gridcells across all processors
     integer :: numl                 ! total number of landunits across all processors
@@ -969,7 +970,7 @@ contains
     integer :: f                   ! field index
     integer :: num2d               ! size of second dimension (e.g. number of vertical levels)
     character(len=*),parameter :: subname = 'hist_update_hbuf'
-    character(len=16) :: type2d     ! hbuf second dimension type ["levgrnd","levlak","numrad","ltype","natpft","cft","glc_nec","elevclas","subname(n)"]
+    character(len=hist_dim_name_length) :: type2d     ! hbuf second dimension type ["levgrnd","levlak","numrad","ltype","natpft","cft","glc_nec","elevclas","subname(n)"]
     !-----------------------------------------------------------------------
 
     do t = 1,ntapes
@@ -1013,8 +1014,8 @@ contains
     logical  :: check_active            ! true => check 'active' flag of each point (this refers to a point being active, NOT a history field being active)
     logical  :: valid                   ! true => history operation is valid
     logical  :: map2gcell               ! true => map clm pointer field to gridcell
-    character(len=16)  :: type1d         ! 1d clm pointerr type   ["gridcell","landunit","column","pft"]
-    character(len=16)  :: type1d_out     ! 1d history buffer type ["gridcell","landunit","column","pft"]
+    character(len=hist_dim_name_length)  :: type1d         ! 1d clm pointerr type   ["gridcell","landunit","column","pft"]
+    character(len=hist_dim_name_length)  :: type1d_out     ! 1d history buffer type ["gridcell","landunit","column","pft"]
     character(len=avgflag_strlen) :: avgflag ! time averaging flag
     character(len=scale_type_strlen)  :: p2c_scale_type ! scale type for subgrid averaging of pfts to column
     character(len=scale_type_strlen)  :: c2l_scale_type ! scale type for subgrid averaging of columns to landunits
@@ -1253,8 +1254,8 @@ contains
     logical  :: check_active            ! true => check 'active' flag of each point (this refers to a point being active, NOT a history field being active)
     logical  :: valid                   ! true => history operation is valid
     logical  :: map2gcell               ! true => map clm pointer field to gridcell
-    character(len=16)  :: type1d         ! 1d clm pointerr type   ["gridcell","landunit","column","pft"]
-    character(len=16)  :: type1d_out     ! 1d history buffer type ["gridcell","landunit","column","pft"]
+    character(len=hist_dim_name_length)  :: type1d         ! 1d clm pointerr type   ["gridcell","landunit","column","pft"]
+    character(len=hist_dim_name_length)  :: type1d_out     ! 1d history buffer type ["gridcell","landunit","column","pft"]
     character(len=avgflag_strlen) :: avgflag ! time averaging flag
     character(len=scale_type_strlen) :: p2c_scale_type ! scale type for subgrid averaging of pfts to column
     character(len=scale_type_strlen) :: c2l_scale_type ! scale type for subgrid averaging of columns to landunits
@@ -1846,7 +1847,7 @@ contains
     do n = 1,num_subs
        call ncd_defdim(lnfid, subs_name(n), subs_dim(n), dimid)
     end do
-    call ncd_defdim(lnfid, 'string_length', 16, strlen_dimid)
+    call ncd_defdim(lnfid, 'string_length', hist_dim_name_length, strlen_dimid)
     call ncd_defdim(lnfid, 'scale_type_string_length', scale_type_strlen, dimid)
     call ncd_defdim( lnfid, 'levdcmp', nlevdecomp_full, dimid)
     
@@ -2614,8 +2615,8 @@ contains
     character(len=max_chars) :: units    ! units
     character(len=max_namlen):: varname  ! variable name
     character(len=32) :: avgstr          ! time averaging type
-    character(len=16)  :: type1d_out      ! history output 1d type
-    character(len=16)  :: type2d          ! history output 2d type
+    character(len=hist_dim_name_length)  :: type1d_out      ! history output 1d type
+    character(len=hist_dim_name_length)  :: type2d          ! history output 2d type
     character(len=32) :: dim1name        ! temporary
     character(len=32) :: dim2name        ! temporary
     real(r8), pointer :: histo(:,:)      ! temporary
@@ -3318,7 +3319,7 @@ contains
 
     character(len=max_namlen),allocatable :: tname(:)
     character(len=max_chars), allocatable :: tunits(:),tlongname(:)
-    character(len=16), allocatable :: tmpstr(:,:)
+    character(len=hist_dim_name_length), allocatable :: tmpstr(:,:)
     character(len=scale_type_strlen), allocatable :: p2c_scale_type(:)
     character(len=scale_type_strlen), allocatable :: c2l_scale_type(:)
     character(len=scale_type_strlen), allocatable :: l2g_scale_type(:)
@@ -3326,9 +3327,9 @@ contains
     integer :: start(2)
 
     character(len=1)   :: hnum                   ! history file index
-    character(len=16)   :: type1d                 ! clm pointer 1d type
-    character(len=16)   :: type1d_out             ! history buffer 1d type
-    character(len=16)   :: type2d                 ! history buffer 2d type
+    character(len=hist_dim_name_length)   :: type1d                 ! clm pointer 1d type
+    character(len=hist_dim_name_length)   :: type1d_out             ! history buffer 1d type
+    character(len=hist_dim_name_length)   :: type2d                 ! history buffer 2d type
     character(len=32)  :: dim1name               ! temporary
     character(len=32)  :: dim2name               ! temporary
     type(var_desc_t)   :: name_desc              ! variable descriptor for name
@@ -4218,8 +4219,8 @@ contains
     ! !LOCAL VARIABLES:
     integer :: p,c,l,g                 ! indices
     integer :: hpindex                 ! history buffer pointer index
-    character(len=16) :: l_type1d       ! 1d data type
-    character(len=16) :: l_type1d_out   ! 1d output type
+    character(len=hist_dim_name_length) :: l_type1d       ! 1d data type
+    character(len=hist_dim_name_length) :: l_type1d_out   ! 1d output type
     character(len=scale_type_strlen) :: scale_type_p2c ! scale type for subgrid averaging of pfts to column
     character(len=scale_type_strlen) :: scale_type_c2l ! scale type for subgrid averaging of columns to landunits
     character(len=scale_type_strlen) :: scale_type_l2g ! scale type for subgrid averaging of landunits to gridcells
