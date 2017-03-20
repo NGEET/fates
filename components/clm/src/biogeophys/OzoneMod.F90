@@ -315,10 +315,7 @@ contains
     ! Calculate ozone stress.
     !
     ! !USES:
-    use PatchType            , only : patch                
-!    use PatchType            , only : is_fates   ! Logical structure, true
-                                                 ! for fates patch and
-                                                 ! false for all others
+    use PatchType            , only : patch
     !
     ! !ARGUMENTS:
     class(ozone_type)      , intent(inout) :: this
@@ -364,7 +361,7 @@ contains
        p = filter_exposedvegp(fp)
        c = patch%column(p)
 
-!       if (.not.is_fates(p)) then   ! When FATES coexists with other vegetation,
+!       if (.not.patch%is_fates(p)) then   ! When FATES coexists with other vegetation,
                                      ! or when it has an ozone compatible module,  this
                                      ! logic will likely come into play
           
