@@ -24,6 +24,7 @@ module SFMainMod
   use EDtypesMod            , only : LB_SF
   use EDtypesMod            , only : LG_SF
   use EDtypesMod            , only : NCWD
+  use EDtypesMod            , only : NFSC
   use EDtypesMod            , only : TR_SF
 
   implicit none
@@ -153,8 +154,8 @@ contains
     type(ed_cohort_type), pointer :: currentCohort
 
     real(r8) timeav_swc 
-    real(r8) fuel_moisture(ncwd+2) ! Scaled moisture content of small litter fuels. 
-    real(r8) MEF(ncwd+2)           ! Moisture extinction factor of fuels     integer n 
+    real(r8) fuel_moisture(nfsc) ! Scaled moisture content of small litter fuels. 
+    real(r8) MEF(nfsc)           ! Moisture extinction factor of fuels     integer n 
 
     fuel_moisture(:) = 0.0_r8
     
@@ -211,7 +212,7 @@ contains
           endif
 
           currentPatch%fuel_frac(lg_sf)       = currentPatch%livegrass       / currentPatch%sum_fuel   
-          MEF(1:ncwd+2)               = 0.524_r8 - 0.066_r8 * log10(SF_val_SAV(1:ncwd+2)) 
+          MEF(1:nfsc)               = 0.524_r8 - 0.066_r8 * log10(SF_val_SAV(1:nfsc)) 
 
           !Equation 6 in Thonicke et al. 2010. 
           fuel_moisture(dg_sf+1:tr_sf)  = exp(-1.0_r8 * SF_val_alpha_FMC(dg_sf+1:tr_sf) * currentSite%acc_NI)  
@@ -265,7 +266,7 @@ contains
                   sum(currentPatch%cwd_bg),sum(currentPatch%leaf_litter)
 
           endif
-          currentPatch%fuel_sav = sum(SF_val_SAV(1:ncwd+2))/(ncwd+2) ! make average sav to avoid crashing code. 
+          currentPatch%fuel_sav = sum(SF_val_SAV(1:nfsc))/(nfsc) ! make average sav to avoid crashing code. 
 
           if ( hlm_masterproc == 1 ) write(fates_log(),*) 'problem with spitfire fuel averaging'
 
@@ -509,8 +510,8 @@ contains
     type(ed_patch_type), pointer    :: currentPatch
 
     real(r8) :: moist             !effective fuel moisture
-    real(r8) :: tau_b(ncwd+2)     !lethal heating rates for each fuel class (min) 
-    real(r8) :: fc_ground(ncwd+2) !propn of fuel consumed
+    real(r8) :: tau_b(nfsc)     !lethal heating rates for each fuel class (min) 
+    real(r8) :: fc_ground(nfsc) !propn of fuel consumed
 
     integer  :: c
 
@@ -520,7 +521,7 @@ contains
        currentPatch%burnt_frac_litter = 1.0_r8       
        ! Calculate fraction of litter is burnt for all classes. 
        ! Equation B1 in Thonicke et al. 2010---
-       do c = 1, ncwd+2    !work out the burnt fraction for all pools, even if those pools dont exist.         
+       do c = 1, nfsc    !work out the burnt fraction for all pools, even if those pools dont exist.         
           moist = currentPatch%litter_moisture(c)                  
           ! 1. Very dry litter
           if (moist <= SF_val_min_moisture(c)) then
@@ -561,7 +562,7 @@ contains
        ! taul is the duration of the lethal heating.  
        ! The /10 is to convert from kgC/m2 into gC/cm2, as in the Peterson and Ryan paper #Rosie,Jun 2013
         
-       do c = 1,ncwd+2  
+       do c = 1,nfsc  
           tau_b(c)   =  39.4_r8 *(currentPatch%fuel_frac(c)*currentPatch%sum_fuel/0.45_r8/10._r8)* &
                (1.0_r8-((1.0_r8-currentPatch%burnt_frac_litter(c))**0.5_r8))  
        enddo

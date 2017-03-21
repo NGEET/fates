@@ -9,6 +9,7 @@ module EDCohortDynamicsMod
   use FatesInterfaceMod     , only : hlm_freq_day
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
+  use FatesInterfaceMod     , only : hlm_days_per_year
   use EDPftvarcon           , only : EDPftvarcon_inst
   use EDEcophysContype      , only : EDecophyscon
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
@@ -20,6 +21,7 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : sclass_ed,nlevsclass_ed,AREA
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
+  use EDTypesMod            , only : sizetype_class_index
   ! CIME globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   !
@@ -35,7 +37,6 @@ module EDCohortDynamicsMod
   public :: sort_cohorts
   public :: copy_cohort
   public :: count_cohorts
-  public :: size_and_type_class_index
   public :: allocate_live_biomass
 
   logical, parameter :: DEBUG  = .false. ! local debug flag
@@ -104,8 +105,8 @@ contains
     new_cohort%balive       = balive
     new_cohort%bstore       = bstore
 
-    call size_and_type_class_index(new_cohort%dbh,new_cohort%pft, &
-                                   new_cohort%size_class,new_cohort%size_by_pft_class)
+    call sizetype_class_index(new_cohort%dbh,new_cohort%pft, &
+                              new_cohort%size_class,new_cohort%size_by_pft_class)
 
     if ( DEBUG ) write(fates_log(),*) 'EDCohortDyn I ',bstore
 
@@ -484,7 +485,7 @@ contains
   end subroutine zero_cohort
 
   !-------------------------------------------------------------------------------------!
-  subroutine terminate_cohorts( siteptr, patchptr )
+  subroutine terminate_cohorts( currentSite, patchptr )
     !
     ! !DESCRIPTION:
     ! terminates cohorts when they get too small      
@@ -494,7 +495,7 @@ contains
     use SFParamsMod, only : SF_val_CWD_frac
     !
     ! !ARGUMENTS    
-    type (ed_site_type), intent(inout), target :: siteptr
+    type (ed_site_type) , intent(inout), target :: currentSite
     type (ed_patch_type), intent(inout), target :: patchptr
     !
     ! !LOCAL VARIABLES:
@@ -571,10 +572,10 @@ contains
           else
              levcan = 2
           endif
-          siteptr%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) = &
-               siteptr%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) + currentCohort%n
+          currentSite%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) = &
+               currentSite%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) + currentCohort%n
           !
-          siteptr%termination_carbonflux(levcan) = siteptr%termination_carbonflux(levcan) + &
+          currentSite%termination_carbonflux(levcan) = currentSite%termination_carbonflux(levcan) + &
                currentCohort%n * currentCohort%b
           if (.not. associated(currentCohort%taller)) then
              currentPatch%tallest => currentCohort%shorter
@@ -604,6 +605,23 @@ contains
              currentPatch%root_litter(currentCohort%pft) = currentPatch%root_litter(currentCohort%pft) + currentCohort%n* &
                   (currentCohort%br+currentCohort%bstore)/currentPatch%area 
 
+             ! keep track of the above fluxes at the site level as a CWD/litter input flux (in kg / site-m2 / yr)
+             do c=1,ncwd
+                currentSite%CWD_AG_diagnostic_input_carbonflux(c)  = currentSite%CWD_AG_diagnostic_input_carbonflux(c) &
+                     + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
+                     SF_val_CWD_frac(c) * ED_val_ag_biomass * hlm_days_per_year / AREA
+                currentSite%CWD_BG_diagnostic_input_carbonflux(c)  = currentSite%CWD_BG_diagnostic_input_carbonflux(c) &
+                     + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
+                     SF_val_CWD_frac(c) * (1.0_r8 -  ED_val_ag_biomass)  * hlm_days_per_year / AREA
+             enddo
+
+             currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
+                  currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) +  &
+                  currentCohort%n * (currentCohort%bl) * hlm_days_per_year  / AREA
+             currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
+                  currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) + &
+                  currentCohort%n * (currentCohort%br+currentCohort%bstore) * hlm_days_per_year  / AREA
+
              deallocate(currentCohort)     
           endif
        endif
@@ -619,7 +637,7 @@ contains
     ! Join similar cohorts to reduce total number            
     !
     ! !USES:
-    use EDTypesMod  , only :  nlevcan
+    use EDTypesMod  , only :  nlevleaf
     !
     ! !ARGUMENTS    
     type (ed_patch_type), intent(inout), target :: patchptr
@@ -775,7 +793,7 @@ contains
                          currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
                               nextc%n*nextc%canopy_layer_yesterday)/newn
 
-                         do i=1, nlevcan     
+                         do i=1, nlevleaf     
                             if (currentCohort%year_net_uptake(i) == 999._r8 .or. nextc%year_net_uptake(i) == 999._r8) then
                                currentCohort%year_net_uptake(i) = min(nextc%year_net_uptake(i),currentCohort%year_net_uptake(i))
                             else
@@ -1178,25 +1196,6 @@ contains
 
   end function count_cohorts
 
-  ! =====================================================================================
-
-  subroutine size_and_type_class_index(dbh,pft,size_class,size_by_pft_class)
-    
-    use EDTypesMod, only: sclass_ed
-    use EDTypesMod, only: nlevsclass_ed
-    
-    ! Arguments
-    real(r8),intent(in) :: dbh
-    integer,intent(in)  :: pft
-    integer,intent(out) :: size_class
-    integer,intent(out) :: size_by_pft_class
-    
-    size_class        = count(dbh-sclass_ed.ge.0.0_r8)
-    
-    size_by_pft_class = (pft-1)*nlevsclass_ed+size_class
-
-    return
-  end subroutine size_and_type_class_index
 
 
 

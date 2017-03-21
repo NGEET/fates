@@ -4,14 +4,23 @@ module FatesIODimensionsMod
   
   implicit none
 
-    character(*), parameter :: cohort = 'cohort'
-    character(*), parameter :: patch = 'patch'
-    character(*), parameter :: column = 'column'
-    character(*), parameter :: levgrnd = 'levgrnd'
-    character(*), parameter :: levscpf = 'levscpf'
-    character(*), parameter :: levscls = 'levscls'
-    character(*), parameter :: levpft = 'levpft'
-    character(*), parameter :: levage = 'levage'
+    ! The following dimension names must be replicated in
+    ! CLM/ALMs histFileMod.F90 and 
+
+    character(*), parameter :: cohort = 'cohort'           ! matches clm_varcon
+    character(*), parameter :: patch = 'patch'             ! matches clm_varcon
+    character(*), parameter :: column = 'column'           ! matches clm_varcon
+    character(*), parameter :: levgrnd = 'levgrnd'         ! matches clm_varcon
+    character(*), parameter :: levscag = 'fates_levscag'      ! matches histFileMod
+    character(*), parameter :: levscpf = 'fates_levscpf'      ! matches histFileMod
+    character(*), parameter :: levscls = 'fates_levscls'      ! matches histFileMod
+    character(*), parameter :: levpft = 'fates_levpft'        ! matches histFileMod
+    character(*), parameter :: levage = 'fates_levage'        ! matches histFileMod
+    character(*), parameter :: levfuel = 'fates_levfuel'      ! matches histFileMod
+    character(*), parameter :: levcwdsc = 'fates_levcwdsc'    ! matches histFileMod
+    character(*), parameter :: levcan = 'fates_levcan'        ! matches histFileMod
+    character(*), parameter :: levcnlf = 'fates_levcnlf'      ! matches histFileMod
+    character(*), parameter :: levcnlfpft = 'fates_levcnlfpf' ! matches histFileMod
 
     ! patch = This is a structure that records where FATES patch boundaries
     ! on each thread point to in the host IO array, this structure
@@ -36,6 +45,24 @@ module FatesIODimensionsMod
     ! levage = This is a structure that records the boundaries for the
     ! number of patch-age-class dimension
 
+    ! levfuel = This is a structure that records the boundaries for the
+    ! number of fuel-size-class dimension
+
+    ! levcwdsc = This is a structure that records the boundaries for the
+    ! number of coarse-woody-debris-size-class dimension
+
+    ! levcan = This is a structure that records the boundaries for the
+    ! number of canopy layer dimension
+
+    ! levcnlf = This is a structure that records the boundaries for the
+    ! number of cnanopy layer x leaf layer dimension
+
+    ! levcnlfpft = This is a structure that records the boundaries for the
+    ! number of canopy layer x leaf layer x pft dimension
+
+    ! levscag = This is a strcture that records the boundaries for the 
+    ! number of size-classes x patch age
+
 
     type, public :: fates_bounds_type
        integer :: patch_begin
@@ -46,6 +73,8 @@ module FatesIODimensionsMod
        integer :: column_end            ! we call this a "site" (rgk 11-2016)
        integer :: ground_begin
        integer :: ground_end
+       integer :: sizeage_class_begin
+       integer :: sizeage_class_end
        integer :: sizepft_class_begin
        integer :: sizepft_class_end
        integer :: size_class_begin
@@ -54,6 +83,16 @@ module FatesIODimensionsMod
        integer :: pft_class_end
        integer :: age_class_begin
        integer :: age_class_end
+       integer :: fuel_begin
+       integer :: fuel_end
+       integer :: cwdsc_begin
+       integer :: cwdsc_end
+       integer :: can_begin
+       integer :: can_end
+       integer :: cnlf_begin
+       integer :: cnlf_end
+       integer :: cnlfpft_begin
+       integer :: cnlfpft_end
     end type fates_bounds_type
     
 
