@@ -4445,8 +4445,8 @@ contains
     integer :: p,c,l,g                 ! indices
     integer :: num2d                   ! size of second dimension (e.g. number of vertical levels)
     integer :: hpindex                 ! history buffer index
-    character(len=16) :: l_type1d         ! 1d data type
-    character(len=16) :: l_type1d_out     ! 1d output type
+    character(len=scale_type_strlen) :: l_type1d         ! 1d data type
+    character(len=scale_type_strlen) :: l_type1d_out     ! 1d output type
     character(len=scale_type_strlen) :: scale_type_p2c ! scale type for subgrid averaging of pfts to column
     character(len=scale_type_strlen) :: scale_type_c2l ! scale type for subgrid averaging of columns to landunits
     character(len=scale_type_strlen) :: scale_type_l2g ! scale type for subgrid averaging of landunits to gridcells
