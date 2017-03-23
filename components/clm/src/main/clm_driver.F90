@@ -98,7 +98,7 @@ module clm_driver
 contains
 
   !-----------------------------------------------------------------------
-  subroutine clm_drv(doalb, nextsw_cday, declinp1, declin, rstwr, nlend, rdate)
+  subroutine clm_drv(doalb, nextsw_cday, declinp1, declin, rstwr, nlend, rdate, rof_prognostic)
     !
     ! !DESCRIPTION:
     !
@@ -117,6 +117,11 @@ contains
     logical,         intent(in) :: rstwr       ! true => write restart file this step
     logical,         intent(in) :: nlend       ! true => end of run on this step
     character(len=*),intent(in) :: rdate       ! restart file time stamp for name
+
+    ! Whether we're running with a prognostic ROF component. This shouldn't change from
+    ! timestep to timestep, but we pass it into the driver loop because it isn't available
+    ! in initialization.
+    logical,         intent(in) :: rof_prognostic  ! whether we're running with a prognostic ROF component
     !
     ! !LOCAL VARIABLES:
     integer              :: nstep                   ! time step number
@@ -145,6 +150,8 @@ contains
     real(r8), allocatable :: annsum_npp_patch(:)
     real(r8), allocatable :: rr_patch(:)
     real(r8), allocatable :: net_carbon_exchange_grc(:)
+    real(r8), allocatable :: froot_carbon(:)
+    real(r8), allocatable :: croot_carbon(:)
 
     ! COMPILER_BUG(wjs, 2014-11-29, pgi 14.7) Workaround for internal compiler error with
     ! pgi 14.7 ('normalize_forall_array: non-conformable'), which appears in the call to
@@ -396,7 +403,7 @@ contains
     ! Get time as of beginning of time step
     call get_prev_date(yr_prev, mon_prev, day_prev, sec_prev)
 
-    !$OMP PARALLEL DO PRIVATE (nc,l,c, bounds_clump, downreg_patch, leafn_patch, agnpp_patch, bgnpp_patch, annsum_npp_patch, rr_patch)
+    !$OMP PARALLEL DO PRIVATE (nc,l,c, bounds_clump, downreg_patch, leafn_patch, agnpp_patch, bgnpp_patch, annsum_npp_patch, rr_patch, froot_carbon, croot_carbon)
     do nc = 1,nclumps
        call get_clump_bounds(nc, bounds_clump)
 
@@ -427,8 +434,7 @@ contains
 
        ! Irrigation flux
        ! input is main channel storage
-       call irrigation_inst%ApplyIrrigation(bounds_clump, &
-            volr = atm2lnd_inst%volrmch_grc(bounds_clump%begg:bounds_clump%endg))
+       call irrigation_inst%ApplyIrrigation(bounds_clump)
        call t_stopf('drvinit')
 
        ! ============================================================================
@@ -539,6 +545,12 @@ contains
        downreg_patch = bgc_vegetation_inst%get_downreg_patch(bounds_clump)
        leafn_patch = bgc_vegetation_inst%get_leafn_patch(bounds_clump)
 
+       allocate(froot_carbon(bounds_clump%begp:bounds_clump%endp))
+       allocate(croot_carbon(bounds_clump%begp:bounds_clump%endp))
+       froot_carbon = bgc_vegetation_inst%get_froot_carbon_patch( &
+            bounds_clump, canopystate_inst%tlai_patch(bounds_clump%begp:bounds_clump%endp))
+       croot_carbon = bgc_vegetation_inst%get_croot_carbon_patch( &
+            bounds_clump, canopystate_inst%tlai_patch(bounds_clump%begp:bounds_clump%endp))
 
        call CanopyFluxes(bounds_clump,                                                      &
             filter(nc)%num_exposedvegp, filter(nc)%exposedvegp,                             &
@@ -548,8 +560,10 @@ contains
             temperature_inst, waterflux_inst, waterstate_inst, ch4_inst, ozone_inst, photosyns_inst, &
             humanindex_inst, soil_water_retention_curve, &
             downreg_patch = downreg_patch(bounds_clump%begp:bounds_clump%endp), &
-            leafn_patch = leafn_patch(bounds_clump%begp:bounds_clump%endp))
-       deallocate(downreg_patch, leafn_patch)
+            leafn_patch = leafn_patch(bounds_clump%begp:bounds_clump%endp), &
+            froot_carbon = froot_carbon(bounds_clump%begp:bounds_clump%endp), &
+            croot_carbon = croot_carbon(bounds_clump%begp:bounds_clump%endp))
+       deallocate(downreg_patch, leafn_patch, froot_carbon, croot_carbon)
        call t_stopf('canflux')
 
        ! Fluxes for all urban landunits
@@ -580,7 +594,10 @@ contains
        ! Determine irrigation needed for future time steps
        ! ============================================================================
 
-       ! This needs to be called after btran is computed
+       ! NOTE(wjs, 2016-09-08) The placement of this call in the driver is historical: it
+       ! used to be that it had to come after btran was computed. Now it no longer depends
+       ! on btran, so it could be moved earlier in the driver loop - possibly even
+       ! immediately before ApplyIrrigation, which would be a more clear place to put it.
 
        call t_startf('irrigationneeded')
        call irrigation_inst%CalcIrrigationNeeded( &
@@ -589,11 +606,11 @@ contains
             filter_exposedvegp = filter(nc)%exposedvegp, &
             time_prev          = sec_prev, &
             elai               = canopystate_inst%elai_patch(bounds_clump%begp:bounds_clump%endp), &
-            btran              = energyflux_inst%btran_patch(bounds_clump%begp:bounds_clump%endp), &
-            rootfr             = soilstate_inst%rootfr_patch(bounds_clump%begp:bounds_clump%endp    , 1:nlevgrnd), &
             t_soisno           = temperature_inst%t_soisno_col(bounds_clump%begc:bounds_clump%endc  , 1:nlevgrnd), &
             eff_porosity       = soilstate_inst%eff_porosity_col(bounds_clump%begc:bounds_clump%endc, 1:nlevgrnd), &
-            h2osoi_liq         = waterstate_inst%h2osoi_liq_col(bounds_clump%begc:bounds_clump%endc , 1:nlevgrnd))
+            h2osoi_liq         = waterstate_inst%h2osoi_liq_col(bounds_clump%begc:bounds_clump%endc , 1:nlevgrnd), &
+            volr               = atm2lnd_inst%volrmch_grc(bounds_clump%begg:bounds_clump%endg), &
+            rof_prognostic     = rof_prognostic)
        call t_stopf('irrigationneeded')
 
        ! ============================================================================

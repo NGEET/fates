@@ -41,6 +41,7 @@ module WaterfluxType
      real(r8), pointer :: qflx_evap_tot_col        (:)   ! col col_qflx_evap_soi + col_qflx_evap_veg + qflx_tran_veg
      real(r8), pointer :: qflx_evap_grnd_patch     (:)   ! patch ground surface evaporation rate (mm H2O/s) [+]
      real(r8), pointer :: qflx_evap_grnd_col       (:)   ! col ground surface evaporation rate (mm H2O/s) [+]
+     real(r8), pointer :: qflx_phs_neg_col         (:)   ! col sum of negative hydraulic redistribution fluxes (mm H2O/s) [+]
 
     ! In the snow capping parametrization excess mass above h2osno_max is removed.  A breakdown of mass into liquid 
     ! and solid fluxes is done, these are represented by qflx_snwcp_liq_col and qflx_snwcp_ice_col. 
@@ -81,6 +82,7 @@ module WaterfluxType
      real(r8), pointer :: qflx_floodc_col          (:)   ! col flood water flux at column level
      real(r8), pointer :: qflx_sl_top_soil_col     (:)   ! col liquid water + ice from layer above soil to top soil layer or sent to qflx_qrgwl (mm H2O/s)
      real(r8), pointer :: qflx_snomelt_col         (:)   ! col snow melt (mm H2O /s)
+     real(r8), pointer :: qflx_snomelt_lyr_col     (:,:) ! col snow melt in each layer (mm H2O /s)
      real(r8), pointer :: qflx_snow_drain_col      (:)   ! col drainage from snow pack
      real(r8), pointer :: qflx_qrgwl_col           (:)   ! col qflx_surf at glaciers, wetlands, lakes
      real(r8), pointer :: qflx_runoff_col          (:)   ! col total runoff (qflx_drain+qflx_surf+qflx_qrgwl) (mm H2O /s)
@@ -195,6 +197,7 @@ contains
     allocate(this%qflx_evap_soi_patch      (begp:endp))              ; this%qflx_evap_soi_patch      (:)   = nan
     allocate(this%qflx_evap_tot_patch      (begp:endp))              ; this%qflx_evap_tot_patch      (:)   = nan
     allocate(this%qflx_evap_grnd_patch     (begp:endp))              ; this%qflx_evap_grnd_patch     (:)   = nan
+    allocate(this%qflx_phs_neg_col         (begc:endc))              ; this%qflx_phs_neg_col       (:)   = nan
 
     allocate( this%qflx_ev_snow_patch      (begp:endp))              ; this%qflx_ev_snow_patch       (:)   = nan
     allocate( this%qflx_ev_snow_col        (begc:endc))              ; this%qflx_ev_snow_col         (:)   = nan
@@ -214,6 +217,7 @@ contains
     allocate(this%qflx_h2osfc_surf_col     (begc:endc))              ; this%qflx_h2osfc_surf_col     (:)   = nan
     allocate(this%qflx_snow_h2osfc_col     (begc:endc))              ; this%qflx_snow_h2osfc_col     (:)   = nan
     allocate(this%qflx_snomelt_col         (begc:endc))              ; this%qflx_snomelt_col         (:)   = nan
+    allocate(this%qflx_snomelt_lyr_col     (begc:endc,-nlevsno+1:0)) ; this%qflx_snomelt_lyr_col     (:,:) = nan
     allocate(this%qflx_snow_drain_col      (begc:endc))              ; this%qflx_snow_drain_col      (:)   = nan
     allocate(this%qflx_snofrz_col          (begc:endc))              ; this%qflx_snofrz_col          (:)   = nan
     allocate(this%qflx_snofrz_lyr_col      (begc:endc,-nlevsno+1:0)) ; this%qflx_snofrz_lyr_col      (:,:) = nan
@@ -252,7 +256,7 @@ contains
     !
     ! !USES:
     use clm_varctl  , only : create_glacier_mec_landunit, use_cn
-    use histFileMod , only : hist_addfld1d
+    use histFileMod , only : hist_addfld1d, hist_addfld2d, no_snow_normal
     !
     ! !ARGUMENTS:
     class(waterflux_type) :: this
@@ -328,13 +332,45 @@ contains
 
     this%qflx_snomelt_col(begc:endc) = spval
     call hist_addfld1d (fname='QSNOMELT',  units='mm/s',  &
-         avgflag='A', long_name='snow melt', &
+         avgflag='A', long_name='snow melt rate', &
          ptr_col=this%qflx_snomelt_col, c2l_scale_type='urbanf')
+
+    call hist_addfld1d (fname='QSNOMELT_ICE', units='mm/s',  &
+         avgflag='A', long_name='snow melt (ice landunits only)', &
+         ptr_col=this%qflx_snomelt_col, c2l_scale_type='urbanf', l2g_scale_type='ice', &
+         default='inactive')
+
+    this%qflx_snomelt_lyr_col(begc:endc,-nlevsno+1:0) = spval
+    data2dptr => this%qflx_snomelt_lyr_col(begc:endc,-nlevsno+1:0)
+    call hist_addfld2d (fname='SNO_MELT',  units='mm/s', type2d='levsno', &
+         avgflag='A', long_name='snow melt rate in each snow layer', &
+         ptr_col=data2dptr, c2l_scale_type='urbanf',no_snow_behavior=no_snow_normal, default='inactive')
+
+    call hist_addfld2d (fname='SNO_MELT_ICE',  units='mm/s', type2d='levsno', &
+         avgflag='A', long_name='snow melt rate in each snow layer (ice landunits only)', &
+         ptr_col=data2dptr, c2l_scale_type='urbanf',no_snow_behavior=no_snow_normal, &
+         l2g_scale_type='ice', default='inactive')
 
     this%qflx_snofrz_col(begc:endc) = spval
     call hist_addfld1d (fname='QSNOFRZ', units='kg/m2/s', &
          avgflag='A', long_name='column-integrated snow freezing rate', &
          ptr_col=this%qflx_snofrz_col, set_lake=spval, c2l_scale_type='urbanf')
+
+    call hist_addfld1d (fname='QSNOFRZ_ICE', units='mm/s',  &
+         avgflag='A', long_name='column-integrated snow freezing rate (ice landunits only)', &
+         ptr_col=this%qflx_snofrz_col, c2l_scale_type='urbanf', l2g_scale_type='ice', &
+         default='inactive')
+
+    this%qflx_snofrz_lyr_col(begc:endc,-nlevsno+1:0) = spval
+    data2dptr => this%qflx_snofrz_lyr_col(begc:endc,-nlevsno+1:0)
+    call hist_addfld2d (fname='SNO_FRZ',  units='kg/m2/s', type2d='levsno', &
+         avgflag='A', long_name='snow freezing rate in each snow layer', &
+         ptr_col=data2dptr, c2l_scale_type='urbanf',no_snow_behavior=no_snow_normal, default='inactive')
+
+    call hist_addfld2d (fname='SNO_FRZ_ICE',  units='mm/s', type2d='levsno', &
+         avgflag='A', long_name='snow freezing rate in each snow layer (ice landunits only)', &
+         ptr_col=data2dptr, c2l_scale_type='urbanf',no_snow_behavior=no_snow_normal, &
+         l2g_scale_type='ice', default='inactive')
 
     this%qflx_h2osfc_to_ice_col(begc:endc) = spval
     call hist_addfld1d (fname='QH2OSFC_TO_ICE',  units='mm/s',  &
@@ -355,6 +391,11 @@ contains
     call hist_addfld1d (fname='QSOIL', units='mm/s',  &
          avgflag='A', long_name= 'Ground evaporation (soil/snow evaporation + soil/snow sublimation - dew)', &
          ptr_patch=this%qflx_evap_soi_patch, c2l_scale_type='urbanf')
+
+    call hist_addfld1d (fname='QSOIL_ICE', units='mm/s',  &
+         avgflag='A', long_name='Ground evaporation (ice landunits only)', &
+         ptr_patch=this%qflx_evap_soi_patch, c2l_scale_type='urbanf', l2g_scale_type='ice', &
+         default='inactive')
 
     this%qflx_evap_can_patch(begp:endp) = spval
     call hist_addfld1d (fname='QVEGE', units='mm/s',  &
@@ -456,6 +497,11 @@ contains
     call hist_addfld1d (fname='QDRAI_XS',  units='mm/s',  &
          avgflag='A', long_name='saturation excess drainage', &
          ptr_col=this%qflx_rsub_sat_col, c2l_scale_type='urbanf')
+
+    this%qflx_phs_neg_col(begc:endc) = spval
+    call hist_addfld1d (fname='QPHSNEG',  units='mm/s',  &
+         avgflag='A', long_name='net negative hydraulic redistribution flux', &
+         ptr_col=this%qflx_phs_neg_col, default='inactive')
 
     ! As defined here, snow_sources - snow_sinks will equal the change in h2osno at any
     ! given time step but only if there is at least one snow layer (for all landunits 
@@ -614,6 +660,8 @@ contains
     this%qflx_evap_grnd_col(bounds%begc:bounds%endc) = 0.0_r8
     this%qflx_dew_grnd_col (bounds%begc:bounds%endc) = 0.0_r8
     this%qflx_dew_snow_col (bounds%begc:bounds%endc) = 0.0_r8
+
+    this%qflx_phs_neg_col(bounds%begc:bounds%endc)   = 0.0_r8
 
     this%qflx_h2osfc_surf_col(bounds%begc:bounds%endc) = 0._r8
     this%qflx_snow_drain_col(bounds%begc:bounds%endc)  = 0._r8

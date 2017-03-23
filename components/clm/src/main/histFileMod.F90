@@ -1684,7 +1684,7 @@ contains
     ! wrapper calls to define the history file contents.
     !
     ! !USES:
-    use clm_varpar      , only : nlevgrnd, nlevsno, nlevlak, nlevurb, numrad, nlevcan, nvegwcs
+    use clm_varpar      , only : nlevgrnd, nlevsno, nlevlak, nlevurb, numrad, nlevcan, nvegwcs,nlevsoi
     use clm_varpar      , only : natpft_size, cft_size, maxpatch_glcmec, nlevdecomp_full
     use clm_varpar      , only : mxpft
     use landunit_varcon , only : max_lunit
@@ -1823,6 +1823,7 @@ contains
 
     ! "level" dimensions
     call ncd_defdim(lnfid, 'levgrnd', nlevgrnd, dimid)
+    call ncd_defdim(lnfid, 'levsoi', nlevsoi, dimid)
     if (nlevurb > 0) then
        call ncd_defdim(lnfid, 'levurb' , nlevurb, dimid)
     end if
@@ -4402,7 +4403,7 @@ contains
     ! initial or branch run to initialize the actual history tapes.
     !
     ! !USES:
-    use clm_varpar      , only : nlevgrnd, nlevsno, nlevlak, numrad, nlevdecomp_full, nlevcan, nvegwcs
+    use clm_varpar      , only : nlevgrnd, nlevsno, nlevlak, numrad, nlevdecomp_full, nlevcan, nvegwcs,nlevsoi
     use clm_varpar      , only : natpft_size, cft_size, maxpatch_glcmec, mxpft
     use landunit_varcon , only : max_lunit
     !
@@ -4475,6 +4476,8 @@ contains
     select case (type2d)
     case ('levgrnd')
        num2d = nlevgrnd
+    case ('levsoi')
+       num2d = nlevsoi
     case ('levlak')
        num2d = nlevlak
     case ('numrad')
@@ -4528,7 +4531,7 @@ contains
     case default
        write(iulog,*) trim(subname),' ERROR: unsupported 2d type ',type2d, &
           ' currently supported types for multi level fields are: ', &
-          '[levgrnd,levlak,numrad,levdcmp,levtrc,ltype,natpft,cft,glc_nec,elevclas,levsno,nvegwcs]'
+          '[levgrnd,levsoi,levlak,numrad,levdcmp,levtrc,ltype,natpft,cft,glc_nec,elevclas,levsno,nvegwcs]'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
 

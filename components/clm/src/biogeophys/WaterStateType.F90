@@ -32,7 +32,6 @@ module WaterstateType
      real(r8), pointer :: snow_layer_unity_col   (:,:) ! value 1 for each snow layer, used for history diagnostics
      real(r8), pointer :: bw_col                 (:,:) ! col partial density of water in the snow pack (ice + liquid) [kg/m3] 
 
-     real(r8), pointer :: smp_l_col              (:,:) ! col liquid phase soil matric potential, mm
      real(r8), pointer :: h2osno_col             (:)   ! col snow water (mm H2O)
      real(r8), pointer :: h2osno_old_col         (:)   ! col snow mass for previous time step (kg/m2) (new)
      real(r8), pointer :: h2osoi_liq_col         (:,:) ! col liquid water (kg/m2) (new) (-nlevsno+1:nlevgrnd)    
@@ -176,8 +175,6 @@ contains
     allocate(this%int_snow_col           (begc:endc))                     ; this%int_snow_col           (:)   = nan   
     allocate(this%snow_layer_unity_col   (begc:endc,-nlevsno+1:0))        ; this%snow_layer_unity_col   (:,:) = nan
     allocate(this%bw_col                 (begc:endc,-nlevsno+1:0))        ; this%bw_col                 (:,:) = nan   
-
-    allocate(this%smp_l_col              (begc:endc,-nlevsno+1:nlevgrnd)) ; this%smp_l_col              (:,:) = nan
     allocate(this%h2osno_col             (begc:endc))                     ; this%h2osno_col             (:)   = nan   
     allocate(this%h2osno_old_col         (begc:endc))                     ; this%h2osno_old_col         (:)   = nan   
     allocate(this%h2osoi_liqice_10cm_col (begc:endc))                     ; this%h2osoi_liqice_10cm_col (:)   = nan   
@@ -323,6 +320,11 @@ contains
          avgflag='A', long_name='snow depth (liquid water)', &
          ptr_col=this%h2osno_col, c2l_scale_type='urbanf')
 
+    call hist_addfld1d (fname='H2OSNO_ICE', units='mm',  &
+         avgflag='A', long_name='snow depth (liquid water, ice landunits only)', &
+         ptr_col=this%h2osno_col, c2l_scale_type='urbanf', l2g_scale_type='ice', &
+         default='inactive')
+
     this%liq1_grc(begg:endg) = spval
     call hist_addfld1d (fname='GC_LIQ1',  units='mm',  &
          avgflag='A', long_name='initial gridcell total liq content', &
@@ -444,6 +446,11 @@ contains
          avgflag='A', long_name='snow height of snow covered area', &
          ptr_col=this%snow_depth_col, c2l_scale_type='urbanf')!, default='inactive')
 
+    call hist_addfld1d (fname='SNOW_DEPTH_ICE', units='m',  &
+         avgflag='A', long_name='snow height of snow covered area (ice landunits only)', &
+         ptr_col=this%snow_depth_col, c2l_scale_type='urbanf', l2g_scale_type='ice', &
+         default='inactive')
+
     this%snowdp_col(begc:endc) = spval
     call hist_addfld1d (fname='SNOWDP',  units='m',  &
          avgflag='A', long_name='gridcell mean snow height', &
@@ -507,11 +514,21 @@ contains
          avgflag='A', long_name='Partial density of water in the snow pack (ice + liquid)', &
          ptr_col=data2dptr, no_snow_behavior=no_snow_normal, default='inactive')
 
+    call hist_addfld2d (fname='SNO_BW_ICE', units='kg/m3', type2d='levsno', &
+         avgflag='A', long_name='Partial density of water in the snow pack (ice + liquid, ice landunits only)', &
+         ptr_col=data2dptr, no_snow_behavior=no_snow_normal, &
+         l2g_scale_type='ice', default='inactive')
+
     this%snw_rds_col(begc:endc,-nlevsno+1:0) = spval
     data2dptr => this%snw_rds_col(:,-nlevsno+1:0)
     call hist_addfld2d (fname='SNO_GS', units='Microns', type2d='levsno',  &
          avgflag='A', long_name='Mean snow grain size', &
          ptr_col=data2dptr, no_snow_behavior=no_snow_normal, default='inactive')
+
+    call hist_addfld2d (fname='SNO_GS_ICE', units='Microns', type2d='levsno',  &
+         avgflag='A', long_name='Mean snow grain size (ice landunits only)', &
+         ptr_col=data2dptr, no_snow_behavior=no_snow_normal, &
+         l2g_scale_type='ice', default='inactive')
 
     this%errh2o_col(begc:endc) = spval
     call hist_addfld1d (fname='ERRH2O', units='mm',  &

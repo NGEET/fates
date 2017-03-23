@@ -1,4 +1,820 @@
 ===============================================================
+Tag name:  clm4_5_13_r209
+Originator(s):  sacks (Bill Sacks)
+Date: Sun Dec 11 06:09:22 MST 2016
+One-line Summary: Change definition of NBP; bring back some r205 changes that were lost in r207
+
+Purpose of changes
+------------------
+
+Changes definition of NBP to match the definition used by CMIP: Now NBP includes
+all terms that contribute to the net carbon exchange between land and
+atmosphere.
+
+Also, moves both NBP and NEE diagnostics to the gridcell level, rather than the
+column level - so you can no longer see column-by-column values for these
+diagnostics. The move of NBP to gridcell-level is needed because it now includes
+some gridcell-level quantities; the move of NEE to gridcell-level is needed to
+support some upcoming changes.
+
+Removes NET_CARBON_EXCHANGE diagnostic output because this is now redundant with
+NBP.
+
+Also, brings back some r205 changes that were lost in r207 - most notably, the
+fix for the MEGAN crash due to negative intracellular co2.
+
+
+Bugs fixed or introduced
+------------------------
+
+Bugs fixed (include bugzilla ID): 2371: Change definition of NBP
+
+
+Notes of particular relevance for users
+---------------------------------------
+
+Caveats for users (e.g., need to interpolate initial conditions): none
+
+Changes to CLM's user interface (e.g., new/renamed XML or namelist variables):
+- Changes definition of NBP diagnostic output; also, NBP is now defined at the gridcell level
+- Removes NET_CARBON_EXCHANGE diagnostic output
+- NEE diagnostic output is now defined at the gridcell level
+
+Changes made to namelist defaults (e.g., changed parameter values): none
+
+Changes to the datasets (e.g., parameter, surface or initial files): none
+
+Substantial timing or memory changes: none
+
+Notes of particular relevance for developers: (including Code reviews and testing)
+---------------------------------------------
+
+Caveats for developers (e.g., code that is duplicated that requires double maintenance): none
+
+Changes to tests or testing: none
+
+Code reviewed by: self; but change in definition of NBP was reviewed conceptually by Dave Lawrence
+
+CLM testing:
+
+ [PASS means all tests PASS and OK means tests PASS other than expected fails.]
+
+  build-namelist tests:
+
+    yellowstone - not run
+
+  unit-tests (components/clm/src):
+
+    yellowstone - pass
+
+  tools-tests (components/clm/test/tools):
+
+    yellowstone - not run
+
+  PTCLM testing (components/clm/tools/shared/PTCLM/test):
+
+     yellowstone - not run
+
+  regular tests (aux_clm40, aux_clm45):
+
+    yellowstone_intel - ok
+    yellowstone_pgi - ok
+    yellowstone_gnu (clm45 only) - ok
+    hobart_nag - ok
+
+    ok means tests pass; baseline comparison failures as noted below
+
+CLM tag used for the baseline comparisons: clm4_5_13_r208
+
+
+Answer changes
+--------------
+
+Changes answers relative to baseline: YES
+
+  If a tag changes answers relative to baseline comparison the
+  following should be filled in (otherwise remove this section):
+
+  Summarize any changes to answers, i.e.,
+    - what code configurations: CLM45/CLM50 change answers as noted below
+    - what platforms/compilers: all
+    - nature of change (roundoff; larger than roundoff/same climate; new climate): 
+      Most changes are roundoff-level changes in diagnostics and in FCO2 sent to
+      atmosphere; larger than roundoff-level changes in the diagnostic field
+      NBP; potentially larger-than-roundoff level changes in MEG_isoprene
+
+      Roundoff-level diffs in FCO2 (sent to atmosphere), NEE, C13_NEE, C14_NEE
+
+      NBP diagnostic field: roundoff-level change for many cases; larger than
+      roundoff for transient, crop, or year-2000 using initial conditions from a
+      transient case (due to non-zero product pools)
+
+      Small diffs in MEG_isoprene in
+      SMS_Lm1.f09_g16_gl4.IG1850CRUCLM50BGC.yellowstone_intel.clm-clm50KitchenSink,
+      due to bringing back the fix for Megan. (In principle, this could show up
+      in other cases as well.)
+
+   If bitwise differences were observed, how did you show they were no worse
+   than roundoff? N/A
+
+   If this tag changes climate describe the run(s) done to evaluate the new
+   climate (put details of the simulations in the experiment database)
+       - casename: N/A
+
+   URL for LMWG diagnostics output used to validate new climate: N/A
+	
+
+Detailed list of changes
+------------------------
+
+List any svn externals directories updated (cime, rtm, mosart, cism, etc.): none
+
+List all files eliminated: none
+
+List all files added and what they do: none
+
+List all existing files that have been modified, and describe the changes:
+
+========= Change definition of NBP, and other changes to carbon flux diagnostics
+          as noted above
+M       components/clm/src/biogeochem/CNVegCarbonFluxType.F90
+M       components/clm/src/biogeochem/CNVegetationFacade.F90
+
+========= Bring back fix for Megan crash (prevent negative intracellular CO2)
+          that was added in r205 and accidentally dropped in r207; also, change
+          1. to 1._r8
+M       components/clm/src/biogeophys/PhotosynthesisMod.F90
+
+========= Bring back SNO_TK_ICE diagnostic field that was added in r205 and
+          accidentally dropped in r207
+M       components/clm/src/biogeophys/SoilStateType.F90
+
+
+===============================================================
+===============================================================
+Tag name:  clm4_5_13_r208
+Originator(s):  sacks (Bill Sacks)
+Date: Sat Dec 10 15:00:21 MST 2016
+One-line Summary: Rework irrigation; remove glc_smb logical
+
+Purpose of changes
+------------------
+
+Main change is a complete rework of the irrigation algorithm. This reworks the
+trigger and target for irrigation to be based on soil physical properties,
+removing the dependence on btran and smpso (which were problematic in
+conjunction with PHS). With the current out-of-the-box parameter values,
+irrigation is substantially lower than before.
+
+In addition, this reworks the river volume-based limitation. One change to the
+volr-based limitation is that we now apply the limit to the deficit computed in
+calcIrrigationNeeded - rather than applying the limit in applyIrrigation. The
+point of this is to avoid problems that arise due to evolving VOLR - e.g., if we
+had calculated irrigation demand such that VOLR was just barely big enough, then
+we apply irrigation for some time steps, then we get an updated VOLR which is
+lower due to these irrigation withdrawals - the old implementation would impose
+an unnecessary limit on the irrigation to be applied for the rest of this
+day. It's hard to see a clean way around this problem, given that VOLR is
+updated in some but not all CLM time steps. So we're going to impose the limit
+on irrigation deficit, rather than on the time step-by-time-step flux. The
+downside here is that it's somewhat more likely that irrigation would try to
+draw volr negative, if volr has been evolving for other reasons.
+
+Also, this tag pulls out the parameters controlling irrigation to namelist.
+
+Also reworks the limit_irrigation namelist parameter, changing it to
+limit_irrigation_if_rof_enabled. This was a problem before, in that we needed to
+remember to set it to false whenever we ran without an active ROF model (e.g.,
+during spinup); now runtime logic handles that automatically. (We considered
+trying to have limit_irrigation set properly by build-namelist, but that turns
+out to be tricky because there are a number of ways in which you can end up with
+an inactive ROF model.)
+
+Also removes the glc_smb logical: this has been unused for quite a while (we
+have always assumed it's true).
+
+
+Notes of particular relevance for users
+---------------------------------------
+
+Caveats for users (e.g., need to interpolate initial conditions): none
+
+Changes to CLM's user interface (e.g., new/renamed XML or namelist variables):
+- New namelist variables for irrigation
+- limit_irrigation changed to limit_irrigation_if_rof_enabled
+- Remove glc_smb namelist variable, both for clm4_0 and clm4_5/clm5_0
+- Renamed ICE_MASK history variable to ICE_MODEL_FRACTION
+
+Changes made to namelist defaults (e.g., changed parameter values): none
+
+Changes to the datasets (e.g., parameter, surface or initial files): none
+
+Substantial timing or memory changes: none
+
+Notes of particular relevance for developers: (including Code reviews and testing)
+---------------------------------------------
+
+Caveats for developers (e.g., code that is duplicated that requires double maintenance): none
+
+Changes to tests or testing: minor tweaks to tests involving irrigation, as
+described below
+
+Code reviewed by: Irrigation changes reviewed by Sean Swenson
+
+CLM testing:
+
+ [PASS means all tests PASS and OK means tests PASS other than expected fails.]
+
+  build-namelist tests:
+
+    yellowstone - ok
+
+    Many failures due to bug 2386; other than that, expected differences from
+    baseline
+
+  unit-tests (components/clm/src):
+
+    yellowstone - pass
+
+  tools-tests (components/clm/test/tools):
+
+    yellowstone - not run
+
+  PTCLM testing (components/clm/tools/shared/PTCLM/test):
+
+     yellowstone - not run
+
+  regular tests (aux_clm40, aux_clm45):
+
+    yellowstone_intel - ok
+    yellowstone_pgi - pass
+    yellowstone_gnu (clm45 only) - pass
+    hobart_nag - ok
+
+    ok means pass or xfail; expected baseline failures as noted below
+
+CLM tag used for the baseline comparisons: clm4_5_13_r207
+
+
+Answer changes
+--------------
+
+Changes answers relative to baseline:
+
+  If a tag changes answers relative to baseline comparison the
+  following should be filled in (otherwise remove this section):
+
+  Summarize any changes to answers, i.e.,
+    - what code configurations: All cases with irrigation
+    - what platforms/compilers: all
+    - nature of change (roundoff; larger than roundoff/same climate; new climate): 
+      Not investigated closely, but potentially new climate
+
+   If bitwise differences were observed, how did you show they were no worse
+   than roundoff? N/A
+
+   If this tag changes climate describe the run(s) done to evaluate the new
+   climate (put details of the simulations in the experiment database)
+       - casename: N/A
+
+   URL for LMWG diagnostics output used to validate new climate: N/A
+	
+
+Detailed list of changes
+------------------------
+
+List any svn externals directories updated (cime, rtm, mosart, cism, etc.):
+
+List all files eliminated:
+
+========= Merge irrigation unit tests into a single module
+D       components/clm/src/biogeophys/test/Irrigation_test/test_irrigation_singlepatch.pf
+D       components/clm/src/biogeophys/test/Irrigation_test/test_irrigation_deficit.pf
+D       components/clm/src/biogeophys/test/Irrigation_test/test_irrigation_multipatch.pf
+D       components/clm/src/biogeophys/test/Irrigation_test/IrrigationWrapperMod.F90
+
+========= No longer needed because we turn on irrigation river limitation in
+          some other irrigation tests
+D       components/clm/cime_config/testdefs/testmods_dirs/clm/limit_river_withdraw/user_nl_clm
+D       components/clm/cime_config/testdefs/testmods_dirs/clm/limit_river_withdraw/include_user_mods
+D       components/clm/cime_config/testdefs/testmods_dirs/clm/limit_river_withdraw
+
+List all files added and what they do:
+
+========= Merge irrigation unit tests into a single module, and add some tests
+A       components/clm/src/biogeophys/test/Irrigation_test/test_irrigation.pf
+
+List all existing files that have been modified, and describe the changes:
+
+========= Rework irrigation: both the core algorithm and the volr limitation
+M       components/clm/src/biogeophys/IrrigationMod.F90
+M       components/clm/src/main/clm_driver.F90
+
+========= Determine if rof_enabled is true, needed now that we have changed
+          limit_irrigation to limit_irrigation_if_rof_enabled
+M       components/clm/src/cpl/lnd_comp_mct.F90
+
+========= Add new irrigation namelist variables, in their own group; also remove
+          glc_smb namelist item
+M       components/clm/bld/namelist_files/namelist_definition_clm4_5.xml
+M       components/clm/bld/namelist_files/namelist_defaults_clm4_5.xml
+M       components/clm/bld/CLMBuildNamelist.pm
+M       components/clm/src/main/clm_instMod.F90
+
+========= Remove glc_smb logical: we have been assuming it's true for quite a
+          while
+M       components/clm/bld/namelist_files/use_cases/2000_glacierMEC_control.xml
+M       components/clm/bld/namelist_files/use_cases/1850_glacierMEC_control.xml
+M       components/clm/bld/namelist_files/use_cases/1850-2100_rcp2.6_glacierMEC_transient.xml
+M       components/clm/bld/namelist_files/use_cases/1850-2100_rcp6_glacierMEC_transient.xml
+M       components/clm/bld/namelist_files/use_cases/1850-2100_rcp4.5_glacierMEC_transient.xml
+M       components/clm/bld/namelist_files/use_cases/glacierMEC_pd.xml
+M       components/clm/bld/namelist_files/use_cases/1850-2100_rcp8.5_glacierMEC_transient.xml
+M       components/clm/bld/namelist_files/use_cases/20thC_glacierMEC_transient.xml
+M       components/clm/bld/namelist_files/namelist_definition_clm4_0.xml
+M       components/clm/bld/namelist_files/namelist_defaults_overall.xml
+M       components/clm/cime_config/user_nl_clm
+M       components/clm/cime_config/testdefs/testmods_dirs/clm/fire_emis/user_nl_clm
+M       components/clm/bld/unit_testers/build-namelist_test.pl
+M       components/clm/cime_config/buildnml
+M       components/clm/doc/UsersGuide/preface.xml
+M       components/clm/bld/test_build_namelist/t/input/namelist_definition_clm4_5_test.xml
+M       components/clm/src_clm40/main/clm_glclnd.F90
+M       components/clm/src_clm40/main/controlMod.F90
+M       components/clm/src_clm40/main/clm_varctl.F90
+
+========= Remove glc_smb and move limit_irrigation logic into IrrigationMod
+M       components/clm/src/main/clm_varctl.F90
+M       components/clm/src/main/controlMod.F90
+
+========= Rework some of the column filter creators to have a clearer interface
+M       components/clm/src/main/filterColMod.F90
+M       components/clm/src/main/test/filter_test/test_filter_col.pf
+M       components/clm/src/main/TopoMod.F90
+M       components/clm/src/main/test/atm2lnd_test/test_downscale_forcings.pf
+
+========= Put some extra metadata on the restart file: whether we have
+          create_crop_landunit and irrigate, since these are helpful for
+          understanding when init_interp is needed
+M       components/clm/src/main/restFileMod.F90
+
+========= Rename ICE_MASK to ICE_MODEL_FRACTION, based on suggestion from Marcus
+          Lofverstrom
+M       components/clm/src/main/glc2lndMod.F90
+
+========= Merge irrigation unit tests into a single module
+M       components/clm/src/biogeophys/test/Irrigation_test/CMakeLists.txt
+
+========= Fix for cime update
+M       components/clm/bld/test_build_namelist/test_build_namelist.pl
+
+========= Stop turning off limit_irrigation, since it's working now; also
+          include QIRRIG_DEMAND in output
+M       components/clm/cime_config/testdefs/testmods_dirs/clm/clm50cropIrrigMonth_interp/user_nl_clm
+M       components/clm/cime_config/testdefs/testmods_dirs/clm/irrig_spunup/user_nl_clm
+
+========= Rename limit_irrigation to limit_irrigation_if_rof_enabled
+M       components/clm/cime_config/testdefs/testmods_dirs/clm/clm50KitchenSink/user_nl_clm
+
+========= Include QIRRIG_DEMAND in output
+M       components/clm/cime_config/testdefs/testmods_dirs/clm/irrigOn_reduceOutput/user_nl_clm
+
+========= Remove limit_river_withdraw test - now we test that option via other
+          irrigation tests
+M       components/clm/cime_config/testdefs/testlist_clm.xml
+
+========= Add a stub routine
+M       components/clm/src/unit_test_stubs/utils/restUtilMod_stub.F90.in
+
+========= Add a couple of tests to the xfail list - bug 2388
+M       components/clm/cime_config/testdefs/ExpectedTestFails.xml
+
+===============================================================
+===============================================================
+Tag name:  clm4_5_13_r207
+Originator(s):  andre (Benjamin Andre,UCAR/CSEG,303-497-1391)
+Date:  Thu Dec  8 10:34:56 MST 2016
+One-line Summary: PHS - Calculate separate root water uptake resistances for soil and root pathways
+
+Purpose of changes
+------------------
+
+PHS changes from Sean Swenson. Root water uptake resistances
+calculated separately for soil and root pathways.  These resistances
+are added in series to give a soil to root resistance that replaces
+the ad hoc expression used in the original code.  History variables
+added for soil and root resistances, as well as a variable 'QPHSNEG'
+obtained by summing negative transpiration terms in each soil layer.
+
+
+Bugs fixed or introduced
+-----------------------
+
+none
+
+Notes of particular relevance for users
+---------------------------------------
+
+Caveats for users (e.g., need to interpolate initial conditions): none
+
+Changes to CLM's user interface (e.g., new/renamed XML or namelist variables): none
+
+Changes made to namelist defaults (e.g., changed parameter values): none
+
+Changes to the datasets (e.g., parameter, surface or initial files): none
+
+Substantial timing or memory changes: unknown
+
+Notes of particular relevance for developers: (including Code reviews and testing) none
+
+---------------------------------------------
+
+Caveats for developers (e.g., code that is duplicated that requires double maintenance): none
+
+Changes to tests or testing: none
+
+Code reviewed by: Sean Swenson, David Lawrence, Keith Oleson
+
+CLM testing: 
+
+ [PASS means all tests PASS and OK means tests PASS other than expected fails.]
+
+  build-namelist tests:
+
+    yellowstone - not run
+
+  unit-tests (components/clm/src):
+
+    yellowstone - pass
+
+  tools-tests (components/clm/test/tools):
+
+    yellowstone - not run
+
+  PTCLM testing (components/clm/tools/shared/PTCLM/test):
+
+     yellowstone - not run
+
+  regular tests (aux_clm40, aux_clm45):
+
+    yellowstone_intel - ok
+    yellowstone_pgi - ok
+    yellowstone_gnu (clm45 only) - ok
+    hobart_nag - ok
+
+  ok means - all functionality tests passed. All baseline comparisons passed except:
+      - all clm5 compsets : expected, tag is answer changing for clm5
+
+      - SMS_D_Ld5.f10_f10.ICLM45ED.hobart_nag.clm-edTest :
+        baseline failed with RMS difference in a single field:
+           RMS NBP  3.3589E-12  NORMALIZED  4.4201E-05
+        SMS_D_Ld5.f10_f10.ICLM45ED.yellowstone_{gnu|intel|pgi} tests
+        are all bit for bit with the baseline. Just documenting the
+        discrepancy and ignoring.
+      
+CLM tag used for the baseline comparisons: clm4_5_13_r206
+
+
+Answer changes
+--------------
+
+Changes answers relative to baseline: yes
+
+  If a tag changes answers relative to baseline comparison the
+  following should be filled in (otherwise remove this section):
+
+  Summarize any changes to answers, i.e.,
+    - what code configurations: all clm5 compsets with PHS on
+    - what platforms/compilers: all
+    - nature of change (roundoff; larger than roundoff/same climate; new climate): unknown, assumed larger than roundoff same climate.
+
+   If bitwise differences were observed, how did you show they were no worse
+   than roundoff? n/a
+
+   If this tag changes climate describe the run(s) done to evaluate the new
+   climate (put details of the simulations in the experiment database)
+       - casename: none
+
+   URL for LMWG diagnostics output used to validate new climate: none
+	
+
+Detailed list of changes
+------------------------
+
+List any svn externals directories updated (cime, rtm, mosart, cism, etc.): none
+
+List all files eliminated: none
+
+List all files added and what they do: none
+
+List all existing files that have been modified, and describe the changes:
+
+clm/src/biogeochem/CNVegetationFacade.F90 - new routines to calculate froot and croot carbon.
+clm/src/main/histFileMod.F90 - add nlevsoi as 2d output option
+clm/src/main/clm_driver.F90 - add calls froot and croot carbon calculations
+clm/src/main/pftconMod.F90 - new root desnity and root radius variables
+clm/src/biogeophys/WaterfluxType.F90 - new qflx_phs_neg_col variable
+clm/src/biogeophys/WaterStateType.F90 - remove smp_l_col variable
+clm/src/biogeophys/PhotosynthesisMod.F90 - calculate root-soil interface conductance
+clm/src/biogeophys/SoilStateType.F90 - new variables k_soil_root_patch, soil_conductance_patch, root_conductance_patch
+clm/src/biogeophys/CanopyFluxesMod.F90 - pass froot and croot carbon through to photosynthesis.
+clm/src/biogeophys/SoilWaterMovementMod.F90 - calculate qflx_phs_neg_col
+
+
+===============================================================
+===============================================================
+Tag name:  clm4_5_13_r206
+Originator(s):  andre (Benjamin Andre,UCAR/CSEG,303-497-1391)
+Date:  Tue Nov 29 10:46:24 MST 2016
+One-line Summary: Bugfix for Luna causing arctic to die
+
+Purpose of changes
+------------------
+
+Bugfix from Keith Oleson to prevent Luna from causing the arctic to
+die.
+
+Bug 2366 prevented a divide by zero in Luna, but it sets Jmax/Vcmax to
+zero. This causes plants in the arctic to never start growing and
+hence never get any leaf nitrogen. The fix tested by Keith Oleson is
+to set them to the default values that Luna uses when it can't
+converge.
+
+
+Bugs fixed or introduced
+------------------------
+
+Bugs fixed (include bugzilla ID): 2379
+
+Bugs introduced: re-opening 2291. An old problem with fire emissions
+fields and gnu has resurfaced. This is a two line science change
+in clm5-bgc-luna that is unlikely to caused this regression.
+
+Notes of particular relevance for users
+---------------------------------------
+
+Caveats for users (e.g., need to interpolate initial conditions): none
+
+Changes to CLM's user interface (e.g., new/renamed XML or namelist variables): none
+
+Changes made to namelist defaults (e.g., changed parameter values): none
+
+Changes to the datasets (e.g., parameter, surface or initial files): none
+
+Substantial timing or memory changes: none expected
+
+Notes of particular relevance for developers: (including Code reviews and testing): none
+
+---------------------------------------------
+
+Caveats for developers (e.g., code that is duplicated that requires double maintenance): none
+
+Changes to tests or testing: none
+
+Code reviewed by: K. Oleson, Erik Kluzek
+
+CLM testing: regular
+
+ [PASS means all tests PASS and OK means tests PASS other than expected fails.]
+
+  build-namelist tests:
+
+    yellowstone - unit tests - fail, can't import perl module:
+    'Streams/TemplateGeneric.pm'. Not related to current changes, must
+    have come in a previous tag.
+
+  unit-tests (components/clm/src):
+
+    yellowstone - all tests pass
+
+  tools-tests (components/clm/test/tools):
+
+    yellowstone - no related changes, not run.
+
+  PTCLM testing (components/clm/tools/shared/PTCLM/test):
+
+     yellowstone - no related changes, not run.
+
+  regular tests (aux_clm40, aux_clm45):
+
+    yellowstone_intel - 40 : ok, 45 : ok
+    yellowstone_pgi - 40 : ok, 45 : ok 
+    yellowstone_gnu (clm45 only) - ok, see note below.
+    hobart_nag - ok
+
+    ok means - all test functionality passes
+             - baselines pass except for clm5 bgc (answer changing)
+             - expected failures ignored
+             - tput, memleak, memcomp, nlcomp ignored.
+
+             - bug 2291 has resurfaced? Also appears to have been an
+               issue in clm4_5_13_r205.
+
+               FAIL SMS_Lm25.f19_g16.ICLM45BGCCROP.yellowstone_gnu.clm-cropMonthOutput BASELINE
+
+               $ grep -e RMS TestStatus.log
+                RMS l2x_Fall_fire001   1.9723E-17    NORMALIZED  8.4685E-06
+                RMS l2x_Fall_fire002   2.7612E-17    NORMALIZED  1.2077E-06
+                RMS l2x_Fall_fire003   1.9723E-17    NORMALIZED  5.5636E-06
+
+CLM tag used for the baseline comparisons: clm4_5_13_r205
+
+
+Answer changes
+--------------
+
+Changes answers relative to baseline: yes
+
+  If a tag changes answers relative to baseline comparison the
+  following should be filled in (otherwise remove this section):
+
+  Summarize any changes to answers, i.e.,
+    - what code configurations: clm5-bgc with luna on.
+    - what platforms/compilers: all
+    - nature of change (roundoff; larger than roundoff/same climate;
+      new climate): Unknown, larger than roundoff to prevent die-off
+      of the arctic.
+
+   If this tag changes climate describe the run(s) done to evaluate the new
+   climate (put details of the simulations in the experiment database)
+    - casename: unknown, Keith Oleson ran a longer simulation and
+      verbally confirmend he was happy with the results.
+
+   URL for LMWG diagnostics output used to validate new climate: none
+
+
+Detailed list of changes
+------------------------
+
+List any svn externals directories updated (cime, rtm, mosart, cism, etc.): none
+
+List all files eliminated: none
+
+List all files added and what they do: none
+
+List all existing files that have been modified, and describe the changes:
+
+clm/src/biogeophys/LunaMod.F90 - bugfix for 2379 set vcmx25 and jmx25 to non-zero values.
+
+clm/cime_config/testdefs/ExpectedTestFails.xml - add xfail issue 2291
+
+===============================================================
+===============================================================
+Tag name:  clm4_5_13_r205
+Originator(s):  sacks (Bill Sacks)
+Date: Wed Nov 16 10:38:15 MST 2016
+One-line Summary: Add diagnostics for snow and glacier; fix crash in Megan
+
+Purpose of changes
+------------------
+
+Most changes are to add new diagnostics fields related to the snow pack, and
+diagnostic fields that are averaged just over istice/istice_mec landunits
+(fields ending with _ICE). These changes are from from Leo van Kampenhout
+(l.vankampenhout@uu.nl).
+
+In addition:
+
+(1) Fix to prevent negative (or very small positive) values of intracellular
+    leaf CO2. This just affects Megan emissions, and only has a small
+    effect. This change is needed to prevent a crash in Megan due to negative
+    values of these variables. This fix is from Keith Oleson.
+
+(2) Ensure that we don't try to do any downscaling over urban points; this is
+    not currently allowed (see bug 2377). This change is needed in case there is
+    an overlap between active urban points and the CISM domain: without this
+    change, urban points in the CISM domain would be inside the downscaling
+    filter, which would then cause an abort in check_downscale_consistency.
+
+
+Notes of particular relevance for users
+---------------------------------------
+
+Caveats for users (e.g., need to interpolate initial conditions): none
+
+Changes to CLM's user interface (e.g., new/renamed XML or namelist variables): none
+
+Changes made to namelist defaults (e.g., changed parameter values): none
+
+Changes to the datasets (e.g., parameter, surface or initial files): none
+
+Substantial timing or memory changes: none
+
+Notes of particular relevance for developers: (including Code reviews and testing)
+---------------------------------------------
+
+Caveats for developers (e.g., code that is duplicated that requires double maintenance): none
+
+Changes to tests or testing: none
+
+Code reviewed by: self
+
+CLM testing:
+
+ [PASS means all tests PASS and OK means tests PASS other than expected fails.]
+
+  build-namelist tests:
+
+    yellowstone - not run
+
+  unit-tests (components/clm/src):
+
+    yellowstone - pass
+
+  tools-tests (components/clm/test/tools):
+
+    yellowstone - not run
+
+  PTCLM testing (components/clm/tools/shared/PTCLM/test):
+
+     yellowstone - not run
+
+  regular tests (aux_clm40, aux_clm45):
+
+    yellowstone_intel - ok
+    yellowstone_pgi - pass
+    yellowstone_gnu (clm45 only) - ok
+    hobart_nag - pass
+
+    ok means tests pass; some answer changes as noted below
+
+CLM tag used for the baseline comparisons: clm4_5_13_r204
+
+
+Answer changes
+--------------
+
+Changes answers relative to baseline: YES
+
+  If a tag changes answers relative to baseline comparison the
+  following should be filled in (otherwise remove this section):
+
+  Summarize any changes to answers, i.e.,
+    - what code configurations: some clm45/clm50; answer changes show up rarely
+    - what platforms/compilers: all
+    - nature of change (roundoff; larger than roundoff/same climate; new climate): 
+      seem to be roundoff or only slightly greater
+
+      Changes are due to the fix for Megan, in PhotosynthesisMod. Answer changes
+      only appeared for three tests in the test suite:
+
+      SMS_Lm1.f09_g16_gl4.IG1850CRUCLM50BGC.yellowstone_intel.clm-clm50KitchenSink
+      ERP_P15x2_Lm13.f10_f10.IHISTCLM50BGC.yellowstone_intel.clm-monthly
+
+         Small diffs in MEG_isoprene
+
+      SMS_Lm25.f19_g16.ICLM45BGCCROP.yellowstone_gnu.clm-cropMonthOutput
+
+      NaN values in a few fields in old; non-NaN in new:
+
+       RMS l2x_Fall_fire001                        NaN            NORMALIZED  0.0000E+00
+       RMS l2x_Fall_fire002                        NaN            NORMALIZED  0.0000E+00
+       RMS l2x_Fall_fire003                        NaN            NORMALIZED  0.0000E+00
+
+
+   If bitwise differences were observed, how did you show they were no worse
+   than roundoff? N/A
+
+   If this tag changes climate describe the run(s) done to evaluate the new
+   climate (put details of the simulations in the experiment database)
+       - casename: N/A
+
+   URL for LMWG diagnostics output used to validate new climate: N/A
+	
+
+Detailed list of changes
+------------------------
+
+List any svn externals directories updated (cime, rtm, mosart, cism, etc.): none
+
+List all files eliminated: none
+
+List all files added and what they do: none
+
+List all existing files that have been modified, and describe the changes:
+
+========= Do not downscale over urban points
+M       components/clm/src/main/glc2lndMod.F90
+M       components/clm/src/main/atm2lndMod.F90
+
+========= Fix Megan crash: prevent negative intracellular CO2
+M       components/clm/src/biogeophys/PhotosynthesisMod.F90
+
+========= New snow / glacier diagnostic fields
+M       components/clm/src/main/clm_initializeMod.F90
+M       components/clm/src/biogeophys/SoilStateType.F90
+M       components/clm/src/biogeophys/LakeHydrologyMod.F90
+M       components/clm/src/biogeophys/SoilTemperatureMod.F90
+M       components/clm/src/biogeophys/SolarAbsorbedType.F90
+M       components/clm/src/biogeophys/WaterStateType.F90
+M       components/clm/src/biogeophys/LakeTemperatureMod.F90
+M       components/clm/src/biogeophys/WaterfluxType.F90
+M       components/clm/src/biogeophys/EnergyFluxType.F90
+M       components/clm/src/biogeophys/FrictionVelocityMod.F90
+M       components/clm/src/biogeophys/TemperatureType.F90
+
+===============================================================
+===============================================================
 Tag name:  clm4_5_13_r204
 Originator(s):  erik (Erik Kluzek)
 Date: Tue Nov 15 13:55:16 MST 2016
