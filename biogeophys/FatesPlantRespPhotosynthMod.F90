@@ -63,11 +63,10 @@ contains
 
     use clm_varpar        , only : mxpft   ! THIS WILL BE DEPRECATED WHEN PARAMETER
                                            ! READS ARE REFACTORED (RGK 10-13-2016)
-    use pftconMod         , only : pftcon  ! THIS WILL BE DEPRECATED WHEN PARAMETER
+    use EDPftvarcon         , only : EDPftvarcon_inst  ! THIS WILL BE DEPRECATED WHEN PARAMETER
                                            ! READS ARE REFACTORED (RGK 10-13-2016)
-    use EDParamsMod       , only : ED_val_grperc
     use EDParamsMod       , only : ED_val_ag_biomass
-    use EDSharedParamsMod , only : EDParamsShareInst
+    use FatesSynchronizedParamsMod , only : FatesSynchronizedParamsInst
     use EDTypesMod        , only : ed_patch_type
     use EDTypesMod        , only : ed_cohort_type
     use EDTypesMod        , only : ed_site_type
@@ -200,16 +199,16 @@ contains
 
 
     associate(  &
-         c3psn     => pftcon%c3psn  , &
-         slatop    => pftcon%slatop , & ! specific leaf area at top of canopy, 
+         c3psn     => EDPftvarcon_inst%c3psn  , &
+         slatop    => EDPftvarcon_inst%slatop , & ! specific leaf area at top of canopy, 
                                         ! projected area basis [m^2/gC]
-         flnr      => pftcon%flnr   , & ! fraction of leaf N in the Rubisco 
+         flnr      => EDPftvarcon_inst%flnr   , & ! fraction of leaf N in the Rubisco 
                                         ! enzyme (gN Rubisco / gN leaf)
-         woody     => pftcon%woody  , & ! Is vegetation woody or not? 
-         fnitr     => pftcon%fnitr  , & ! foliage nitrogen limitation factor (-)
-         leafcn    => pftcon%leafcn , & ! leaf C:N (gC/gN)
-         frootcn   => pftcon%frootcn, & ! froot C:N (gc/gN)   ! slope of BB relationship
-         q10       => EDParamsShareInst%Q10 )
+         woody     => EDPftvarcon_inst%woody  , & ! Is vegetation woody or not? 
+         fnitr     => EDPftvarcon_inst%fnitr  , & ! foliage nitrogen limitation factor (-)
+         leafcn    => EDPftvarcon_inst%leafcn , & ! leaf C:N (gC/gN)
+         frootcn   => EDPftvarcon_inst%frootcn, & ! froot C:N (gc/gN)   ! slope of BB relationship
+         q10       => FatesSynchronizedParamsInst%Q10 )
 
 
       do s = 1,nsites
@@ -500,7 +499,7 @@ contains
                      
                      leaf_frac = 1.0_r8/(currentCohort%canopy_trim + &
                           EDecophyscon%sapwood_ratio(currentCohort%pft) * &
-                          currentCohort%hite + pftcon%froot_leaf(currentCohort%pft))
+                          currentCohort%hite + EDPftvarcon_inst%froot_leaf(currentCohort%pft))
                      
                      
                      currentCohort%bsw = EDecophyscon%sapwood_ratio(currentCohort%pft) * &
@@ -586,7 +585,7 @@ contains
 
                      ! no drought response right now.. something like:
                      ! resp_m = resp_m * (1.0_r8 - currentPatch%btran_ft(currentCohort%pft) * &
-                     !                    pftcon%resp_drought_response(ft))   
+                     !                    EDPftvarcon_inst%resp_drought_response(ft))   
 
                      currentCohort%resp_m = currentCohort%resp_m + currentCohort%rdark
                      
@@ -599,7 +598,7 @@ contains
                      if ( DEBUG ) write(fates_log(),*) 'EDPhoto 912 ', currentCohort%resp_tstep
                      if ( DEBUG ) write(fates_log(),*) 'EDPhoto 913 ', currentCohort%resp_m
                      
-                     currentCohort%resp_g     = ED_val_grperc(ft) * &
+                     currentCohort%resp_g     = EDPftvarcon_inst%grperc(ft) * &
                                                 (max(0._r8,currentCohort%gpp_tstep - &
                                                 currentCohort%resp_m))
                      currentCohort%resp_tstep = currentCohort%resp_m + &
@@ -688,7 +687,7 @@ contains
     ! ------------------------------------------------------------------------------------
     
     use EDEcophysContype  , only : EDecophyscon
-    use pftconMod         , only : pftcon
+    use EDPftvarcon       , only : EDPftvarcon_inst
     
     ! Arguments
     ! ------------------------------------------------------------------------------------
@@ -784,7 +783,7 @@ contains
 
    associate( bb_slope  => EDecophyscon%BB_slope ) ! slope of BB relationship
      
-     if (nint(pftcon%c3psn(ft)) == 1) then! photosynthetic pathway: 0. = c4, 1. = c3
+     if (nint(EDPftvarcon_inst%c3psn(ft)) == 1) then! photosynthetic pathway: 0. = c4, 1. = c3
         pp_type = 1
         init_co2_intra_c = init_a2l_co2_c3 * can_co2_ppress
      else
@@ -1476,8 +1475,8 @@ contains
                                               lmr)
 
       use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-      use pftconMod        , only : pftcon
-      
+      use EDPftvarcon         , only : EDPftvarcon_inst
+ 
       ! Arguments
       real(r8), intent(in)  :: lmr25top_ft  ! canopy top leaf maint resp rate at 25C 
                                             ! for this pft (umol CO2/m**2/s)
@@ -1500,7 +1499,7 @@ contains
       ! ----------------------------------------------------------------------------------
       lmr25 = lmr25top_ft * nscaler 
       
-      if ( nint(pftcon%c3psn(ft)) == 1)then
+      if ( nint(EDpftvarcon_inst%c3psn(ft)) == 1)then
          lmr = lmr25 * ft1_f(veg_tempk, lmrha) * &
                fth_f(veg_tempk, lmrhd, lmrse, lmrc)
       else
@@ -1543,7 +1542,7 @@ contains
       ! co2_rcurve_islope: initial slope of CO2 response curve (C4 plants)
       ! ---------------------------------------------------------------------------------
 
-      use pftconMod        , only : pftcon
+      use EDPftvarcon         , only : EDPftvarcon_inst
       use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
 
       ! Arguments
@@ -1616,7 +1615,7 @@ contains
          jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc)
          tpu   = tpu25 * ft1_f(veg_tempk, tpuha) * fth_f(veg_tempk, tpuhd, tpuse, tpuc)
          
-         if (nint(pftcon%c3psn(ft))  /=  1) then
+         if (nint(EDPftvarcon_inst%c3psn(ft))  /=  1) then
             vcmax = vcmax25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
             vcmax = vcmax / (1._r8 + exp( 0.2_r8*((tfrz+15._r8)-veg_tempk ) ))
             vcmax = vcmax / (1._r8 + exp( 0.3_r8*(veg_tempk-(tfrz+40._r8)) ))
