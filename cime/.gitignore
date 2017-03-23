@@ -1,6 +1,0 @@
-# Ignore python bytecode files
-*.pyc
-buildnmlc
-
-# Ignore emacs backup files
-*~
