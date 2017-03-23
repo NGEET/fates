@@ -22,6 +22,7 @@ module EDMainMod
   use EDPatchDynamicsMod   , only : fuse_patches
   use EDPatchDynamicsMod   , only : spawn_patches
   use EDPatchDynamicsMod   , only : terminate_patches
+  use EDTypesMod           , only : get_age_class_index
   use EDPhysiologyMod      , only : canopy_derivs
   use EDPhysiologyMod      , only : non_canopy_derivs
   use EDPhysiologyMod      , only : phenology
@@ -118,7 +119,7 @@ contains
        call fuse_cohorts(currentPatch)            
 
        ! kills cohorts that are too small
-       call terminate_cohorts(currentPatch)
+       call terminate_cohorts(currentSite, currentPatch)
 
 
        currentPatch => currentPatch%younger
@@ -190,7 +191,7 @@ contains
        endif
 
        ! check to see if the patch has moved to the next age class
-       currentPatch%age_class = count(currentPatch%age-ageclass_ed.ge.0.0_r8)
+       currentPatch%age_class = get_age_class_index(currentPatch%age)
 
        ! Find the derivatives of the growth and litter processes. 
        call canopy_derivs(currentSite, currentPatch, bc_in)
@@ -341,7 +342,7 @@ contains
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
 
-       call terminate_cohorts(currentPatch) 
+       call terminate_cohorts(currentSite, currentPatch) 
 
        ! FIX(SPM,040314) why is this needed for BFB restarts? Look into this at some point
        cohort_number = count_cohorts(currentPatch)  

@@ -5,7 +5,7 @@ module EDBtranMod
    ! 
    ! ------------------------------------------------------------------------------------
    
-   use pftconMod         , only : pftcon
+   use EDPftvarcon       , only : EDPftvarcon_inst
    use FatesConstantsMod , only : tfrz => t_water_freeze_k_1atm 
    use EDTypesMod        , only : ed_site_type,       &
                                   ed_patch_type,      &
@@ -111,8 +111,8 @@ contains
       !------------------------------------------------------------------------------
       
       associate(                                 &
-            smpsc     => pftcon%smpsc          , &  ! INTERF-TODO: THESE SHOULD BE FATES PARAMETERS
-            smpso     => pftcon%smpso            &  ! INTERF-TODO: THESE SHOULD BE FATES PARAMETERS
+            smpsc     => EDPftvarcon_inst%smpsc          , &  ! INTERF-TODO: THESE SHOULD BE FATES PARAMETERS
+            smpso     => EDPftvarcon_inst%smpso            &  ! INTERF-TODO: THESE SHOULD BE FATES PARAMETERS
             )
         
         do s = 1,nsites

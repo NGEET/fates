@@ -3,10 +3,9 @@ module EDPatchDynamicsMod
   ! ============================================================================
   ! Controls formation, creation, fusing and termination of patch level processes. 
   ! ============================================================================
- 
   use FatesGlobals         , only : fates_log 
   use FatesInterfaceMod    , only : hlm_freq_day
-  use pftconMod            , only : pftcon
+  use EDPftvarcon          , only : EDPftvarcon_inst
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
   use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, area, dbhmax
   use EDTypesMod           , only : numpft_ed
@@ -38,7 +37,6 @@ module EDPatchDynamicsMod
   public :: check_patch_area
   public :: set_patchno
   public :: set_root_fraction
-
   private:: fuse_2_patches
 
 
@@ -255,9 +253,9 @@ contains
 
           call average_patch_properties(currentPatch, new_patch, patch_site_areadis)  ! MAY BE REDUNDANT CALL
           if (currentSite%disturbance_mortality > currentSite%disturbance_fire) then !mortality is dominant disturbance
-             call mortality_litter_fluxes(currentPatch, new_patch, patch_site_areadis)
+             call mortality_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)
           else
-             call fire_litter_fluxes(currentPatch, new_patch, patch_site_areadis)  
+             call fire_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)  
           endif
 
           !INSERT SURVIVORS FROM DISTURBANCE INTO NEW PATCH 
@@ -294,7 +292,7 @@ contains
                    nc%imort = nan
                 else
                    ! small trees 
-                   if(pftcon%woody(currentCohort%pft) == 1)then
+                   if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
 
                       ! Number of trees in the understory of new patch, before we impose impact mortality and survivorship
                       nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
@@ -397,7 +395,7 @@ contains
 
           !sort out the cohorts, since some of them may be so small as to need removing. 
           call fuse_cohorts(currentPatch)
-          call terminate_cohorts(currentPatch)
+          call terminate_cohorts(currentSite, currentPatch)
           call sort_cohorts(currentPatch)
 
           currentPatch => currentPatch%younger
@@ -414,7 +412,7 @@ contains
        currentSite%youngest_patch => new_patch
 
        call fuse_cohorts(new_patch)
-       call terminate_cohorts(new_patch)
+       call terminate_cohorts(currentSite, new_patch)
        call sort_cohorts(new_patch)
 
     endif !end new_patch area 
@@ -514,7 +512,7 @@ contains
   end subroutine average_patch_properties
 
   ! ============================================================================
-  subroutine fire_litter_fluxes(cp_target, new_patch_target, patch_site_areadis)
+  subroutine fire_litter_fluxes(currentSite, cp_target, new_patch_target, patch_site_areadis)
     !
     ! !DESCRIPTION:
     !  CWD pool burned by a fire. 
@@ -529,12 +527,12 @@ contains
     use EDtypesMod          , only : dg_sf
     !
     ! !ARGUMENTS:
+    type(ed_site_type)  , intent(inout), target :: currentSite
     type(ed_patch_type) , intent(inout), target :: cp_target
     type(ed_patch_type) , intent(inout), target :: new_patch_target
     real(r8)            , intent(inout)         :: patch_site_areadis
     !
     ! !LOCAL VARIABLES:
-    type(ed_site_type)  , pointer :: currentSite
     type(ed_patch_type) , pointer :: currentPatch
     type(ed_patch_type) , pointer :: new_patch
     type(ed_cohort_type), pointer :: currentCohort
@@ -552,7 +550,6 @@ contains
 
     if ( currentPatch%fire  ==  1 ) then !only do this if there was a fire in this actual patch. 
        patch_site_areadis = currentPatch%area * currentPatch%disturbance_rate ! how much land is disturbed in this donor patch? 
-       currentSite => currentPatch%siteptr
 
        !************************************/ 
        !PART 1)  Burn the fractions of existing litter in the new patch that were consumed by the fire. 
@@ -579,7 +576,7 @@ contains
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))
           p = currentCohort%pft
-          if(pftcon%woody(p) == 1)then !DEAD (FROM FIRE) TREES
+          if(EDPftvarcon_inst%woody(p) == 1)then !DEAD (FROM FIRE) TREES
              !************************************/ 
              ! Number of trees that died because of the fire, per m2 of ground. 
              ! Divide their litter into the four litter streams, and spread evenly across ground surface. 
@@ -685,7 +682,7 @@ contains
        do while(associated(currentCohort))
 
           currentCohort%c_area = c_area(currentCohort) 
-          if(pftcon%woody(currentCohort%pft) == 1)then
+          if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
              burned_leaves = (currentCohort%bl+currentCohort%bsw) * currentCohort%cfa
           else
              burned_leaves = (currentCohort%bl+currentCohort%bsw) * currentPatch%burnt_frac_litter(6)
@@ -712,7 +709,7 @@ contains
   end subroutine fire_litter_fluxes
 
   ! ============================================================================
-  subroutine mortality_litter_fluxes(cp_target, new_patch_target, patch_site_areadis)
+  subroutine mortality_litter_fluxes(currentSite, cp_target, new_patch_target, patch_site_areadis)
     !
     ! !DESCRIPTION:
     !  Carbon going from ongoing mortality into CWD pools. 
@@ -722,6 +719,7 @@ contains
     use SFParamsMod,  only : SF_val_cwd_frac
     !
     ! !ARGUMENTS:
+    type(ed_site_type)  , intent(inout), target :: currentSite 
     type(ed_patch_type) , intent(inout), target :: cp_target 
     type(ed_patch_type) , intent(inout), target :: new_patch_target
     real(r8)            , intent(in)            :: patch_site_areadis
@@ -729,7 +727,6 @@ contains
     ! !LOCAL VARIABLES:
     real(r8) :: cwd_litter_density
     real(r8) :: litter_area ! area over which to distribute this litter. 
-    type(ed_site_type) , pointer  :: currentSite
     type(ed_cohort_type), pointer :: currentCohort
     type(ed_patch_type) , pointer :: currentPatch 
     type(ed_patch_type) , pointer :: new_patch 
@@ -743,7 +740,6 @@ contains
     !---------------------------------------------------------------------
 
     currentPatch => cp_target
-    currentSite => currentPatch%siteptr
     new_patch => new_patch_target
     canopy_mortality_woody_litter    = 0.0_r8 ! mortality generated litter. KgC/m2/day
     canopy_mortality_leaf_litter(:)  = 0.0_r8
@@ -767,7 +763,7 @@ contains
                   canopy_dead*(currentCohort%br+currentCohort%bstore)
 
          else 
-             if(pftcon%woody(currentCohort%pft) == 1)then
+             if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
 
                 understorey_dead = ED_val_understorey_death * currentCohort%n * (patch_site_areadis/currentPatch%area)  !kgC/site/day
                 canopy_mortality_woody_litter  = canopy_mortality_woody_litter  + &
@@ -1200,7 +1196,7 @@ contains
     ! associated with the secnd patch
     !
     ! !USES:
-    use EDTypesMod, only: ageclass_ed
+    use EDTypesMod, only: get_age_class_index
     !
     ! !ARGUMENTS:
     type (ed_patch_type) , intent(inout), pointer :: dp ! Donor Patch
@@ -1220,7 +1216,7 @@ contains
 
     !area weighted average of ages & litter
     rp%age = (dp%age * dp%area + rp%age * rp%area)/(dp%area + rp%area)  
-    rp%age_class = count(rp%age-ageclass_ed.ge.0.0_r8)
+    rp%age_class = get_age_class_index(rp%age)
 
     do p = 1,numpft_ed
        rp%seeds_in(p)         = (rp%seeds_in(p)*rp%area + dp%seeds_in(p)*dp%area)/(rp%area + dp%area)
@@ -1563,7 +1559,7 @@ contains
     !  Calculates the fractions of the root biomass in each layer for each pft. 
     !
     ! !USES:
-    use pftconMod   , only : pftcon
+
     !
     ! !ARGUMENTS
     type(ed_patch_type),intent(inout), target :: cpatch
@@ -1580,14 +1576,13 @@ contains
 
        do lev = 1, hlm_numlevsoil-1
           cpatch%rootfr_ft(ft,lev) = .5_r8*( &
-                 exp(-pftcon%roota_par(ft) * depth_gl(lev-1))  &
-               + exp(-pftcon%rootb_par(ft) * depth_gl(lev-1))  &
-               - exp(-pftcon%roota_par(ft) * depth_gl(lev))    &
-               - exp(-pftcon%rootb_par(ft) * depth_gl(lev)))
+                 exp(-EDPftvarcon_inst%roota_par(ft) * depth_gl(lev-1))  &
+               + exp(-EDPftvarcon_inst%rootb_par(ft) * depth_gl(lev-1))  &
+               - exp(-EDPftvarcon_inst%roota_par(ft) * depth_gl(lev))    &
+               - exp(-EDPftvarcon_inst%rootb_par(ft) * depth_gl(lev)))
        end do
     end do
 
   end subroutine set_root_fraction
 
-
-end module EDPatchDynamicsMod
+ end module EDPatchDynamicsMod

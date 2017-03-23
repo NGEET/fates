@@ -7,7 +7,7 @@ module EDCanopyStructureMod
 
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesGlobals          , only : fates_log
-  use pftconMod             , only : pftcon
+  use EDPftvarcon             , only : EDPftvarcon_inst
   use EDGrowthFunctionsMod  , only : c_area
   use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type, ncwd
@@ -241,10 +241,12 @@ contains
                             
                             ! keep track of the above fluxes at the site level as a CWD/litter input flux (in kg / site-m2 / yr)
                             do c=1,ncwd
-                               currentSite%CWD_AG_diagnostic_input_carbonflux(c)  = currentSite%CWD_AG_diagnostic_input_carbonflux(c) &
+                               currentSite%CWD_AG_diagnostic_input_carbonflux(c) = &
+                                    currentSite%CWD_AG_diagnostic_input_carbonflux(c) &
                                     + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
                                     SF_val_CWD_frac(c) * ED_val_ag_biomass * hlm_days_per_year / AREA
-                               currentSite%CWD_BG_diagnostic_input_carbonflux(c)  = currentSite%CWD_BG_diagnostic_input_carbonflux(c) &
+                               currentSite%CWD_BG_diagnostic_input_carbonflux(c) = &
+                                    currentSite%CWD_BG_diagnostic_input_carbonflux(c) &
                                     + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
                                     SF_val_CWD_frac(c) * (1.0_r8 -  ED_val_ag_biomass)  * hlm_days_per_year / AREA
                             enddo
@@ -309,10 +311,12 @@ contains
                             
                             ! keep track of the above fluxes at the site level as a CWD/litter input flux (in kg / site-m2 / yr)
                             do c=1,ncwd
-                               currentSite%CWD_AG_diagnostic_input_carbonflux(c)  = currentSite%CWD_AG_diagnostic_input_carbonflux(c) &
+                               currentSite%CWD_AG_diagnostic_input_carbonflux(c) = &
+                                    currentSite%CWD_AG_diagnostic_input_carbonflux(c) &
                                     + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
                                     SF_val_CWD_frac(c) * ED_val_ag_biomass * hlm_days_per_year / AREA
-                               currentSite%CWD_BG_diagnostic_input_carbonflux(c)  = currentSite%CWD_BG_diagnostic_input_carbonflux(c) &
+                               currentSite%CWD_BG_diagnostic_input_carbonflux(c) = &
+                                    currentSite%CWD_BG_diagnostic_input_carbonflux(c) &
                                     + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
                                     SF_val_CWD_frac(c) * (1.0_r8 -  ED_val_ag_biomass)  * hlm_days_per_year / AREA
                             enddo
@@ -335,7 +339,6 @@ contains
                               !currentCohort%canopy_layer,currentCohort%dbh
 
                       endif
-                     ! call terminate_cohorts(currentPatch) 
 
                       !----------- End of cohort splitting ------------------------------!             
                    endif !canopy layer = i
@@ -344,7 +347,6 @@ contains
 
                 enddo !currentCohort 
                 
-                call terminate_cohorts(currentPatch)
                 arealayer(i) = arealayer(i) - sumloss
                 !Update arealayer for diff calculations of layer below. 
                 arealayer(i + 1) = arealayer(i + 1) + sumloss 
@@ -380,9 +382,8 @@ contains
 
        enddo !is there still excess area in any layer?      
 
-       call terminate_cohorts(currentPatch)
        call fuse_cohorts(currentPatch)
-       call terminate_cohorts(currentPatch)
+       call terminate_cohorts(currentSite, currentPatch)
 
        ! ----------- Check cohort area ------------------------------!
        do i = 1,z
@@ -540,7 +541,6 @@ contains
                               !currentCohort%pft,currentPatch%patchno
 
                       endif
-                      !call terminate_cohorts(currentPatch) 
                       if(promswitch == 1)then
                         ! write(fates_log(),*) 'cohort loop',currentCohort%pft,currentPatch%patchno
                       endif
@@ -602,9 +602,8 @@ contains
           endif
        enddo !is there still not enough canopy area in any layer?         
 
-       call terminate_cohorts(currentPatch)
        call fuse_cohorts(currentPatch)
-       call terminate_cohorts(currentPatch)
+       call terminate_cohorts(currentSite, currentPatch)
 
        if(promswitch == 1)then
           !write(fates_log(),*) 'going into cohort check'
@@ -693,7 +692,7 @@ contains
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
           currentCohort%c_area = c_area(currentCohort) 
-          if(pftcon%woody(currentCohort%pft) == 1)then
+          if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
              arealayer(currentCohort%canopy_layer) = arealayer(currentCohort%canopy_layer) + currentCohort%c_area
           endif
           currentCohort => currentCohort%shorter
@@ -736,11 +735,11 @@ contains
     use FatesInterfaceMod    , only : bc_in_type
     use EDPatchDynamicsMod   , only : set_patchno
     use EDPatchDYnamicsMod   , only : set_root_fraction
-    use EDCohortDynamicsMod  , only : size_and_type_class_index
+    use EDTypesMod           , only : sizetype_class_index
     use EDGrowthFunctionsMod , only : tree_lai, c_area
     use EDEcophysConType     , only : EDecophyscon
     use EDtypesMod           , only : area
-    use pftconMod            , only : pftcon
+    use EDPftvarcon            , only : EDPftvarcon_inst
 
     ! !ARGUMENTS    
     integer                 , intent(in)            :: nsites
@@ -792,8 +791,8 @@ contains
              
              ! Update the cohort's index within the size bin classes
              ! Update the cohort's index within the SCPF classification system
-             call size_and_type_class_index(currentCohort%dbh,currentCohort%pft, &
-                                            currentCohort%size_class,currentCohort%size_by_pft_class)
+             call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
+                                       currentCohort%size_class,currentCohort%size_by_pft_class)
 
              
              currentCohort%b = currentCohort%balive+currentCohort%bdead+currentCohort%bstore
@@ -804,20 +803,23 @@ contains
                   
              if(currentCohort%canopy_layer==1)then
                 currentPatch%total_canopy_area = currentPatch%total_canopy_area + currentCohort%c_area
-                if(pftcon%woody(ft)==1)then
+                if(EDPftvarcon_inst%woody(ft)==1)then
                    currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
                 endif
              endif
              
              ! Check for erroneous zero values. 
              if(currentCohort%dbh <= 0._r8 .or. currentCohort%n == 0._r8)then
-                write(fates_log(),*) 'ED: dbh or n is zero in canopy_summarization', currentCohort%dbh,currentCohort%n
+                write(fates_log(),*) 'ED: dbh or n is zero in canopy_summarization', &
+                      currentCohort%dbh,currentCohort%n
              endif
              if(currentCohort%pft == 0.or.currentCohort%canopy_trim <= 0._r8)then
-                write(fates_log(),*) 'ED: PFT or trim is zero in canopy_summarization',currentCohort%pft,currentCohort%canopy_trim
+                write(fates_log(),*) 'ED: PFT or trim is zero in canopy_summarization', &
+                      currentCohort%pft,currentCohort%canopy_trim
              endif
              if(currentCohort%balive <= 0._r8)then
-                write(fates_log(),*) 'ED: balive is zero in canopy_summarization',currentCohort%balive
+                write(fates_log(),*) 'ED: balive is zero in canopy_summarization', &
+                      currentCohort%balive
              endif
 
              currentCohort => currentCohort%taller
@@ -825,7 +827,8 @@ contains
           enddo ! ends 'do while(associated(currentCohort))
           
           if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
-             write(fates_log(),*) 'ED: canopy area bigger than area',currentPatch%total_canopy_area ,currentPatch%area
+             write(fates_log(),*) 'ED: canopy area bigger than area', &
+                   currentPatch%total_canopy_area ,currentPatch%area
              currentPatch%total_canopy_area = currentPatch%area
           endif
 
@@ -1066,11 +1069,11 @@ contains
              do iv = 1,currentCohort%NV-1 
                 
                 ! what is the height of this layer? (for snow burial purposes...)  
-                ! pftcon%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile. 
+                ! EDPftvarcon_inst%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile. 
                 layer_top_hite = currentCohort%hite-((iv/currentCohort%NV) * currentCohort%hite * &
                       EDecophyscon%crown(currentCohort%pft) )
                 layer_bottom_hite = currentCohort%hite-(((iv+1)/currentCohort%NV) * currentCohort%hite * &
-                      EDecophyscon%crown(currentCohort%pft)) ! pftcon%vertical_canopy_frac(ft))
+                      EDecophyscon%crown(currentCohort%pft)) ! EDPftvarcon_inst%vertical_canopy_frac(ft))
                 
                 fraction_exposed =1.0_r8
                 
@@ -1099,10 +1102,10 @@ contains
                   
              !Bottom layer
              iv = currentCohort%NV
-             ! pftcon%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile.
+             ! EDPftvarcon_inst%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile.
              layer_top_hite = currentCohort%hite-((iv/currentCohort%NV) * currentCohort%hite * &
                    EDecophyscon%crown(currentCohort%pft) )
-             ! pftcon%vertical_canopy_frac(ft))
+             ! EDPftvarcon_inst%vertical_canopy_frac(ft))
              layer_bottom_hite = currentCohort%hite-(((iv+1)/currentCohort%NV) * currentCohort%hite * &
                    EDecophyscon%crown(currentCohort%pft))
              

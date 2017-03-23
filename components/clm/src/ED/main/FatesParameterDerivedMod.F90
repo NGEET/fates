@@ -53,7 +53,7 @@ contains
   
   subroutine Init(this,maxpft)
 
-    use pftconMod        , only: pftcon
+    use EDPftvarcon, only: EDPftvarcon_inst
 
     class(param_derived_type), intent(inout) :: this
     integer, intent(in)                      :: maxpft
@@ -63,10 +63,10 @@ contains
     real(r8) :: lnc                ! leaf N concentration (gN leaf/m^2)
     
     associate( &
-         slatop    => pftcon%slatop , & ! specific leaf area at top of canopy, 
+         slatop    => EDPftvarcon_inst%slatop , & ! specific leaf area at top of canopy, 
                                         ! projected area basis [m^2/gC]
-         fnitr     => pftcon%fnitr  , & ! foliage nitrogen limitation factor (-)
-         leafcn    => pftcon%leafcn )   ! leaf C:N (gC/gN)
+         fnitr     => EDPftvarcon_inst%fnitr  , & ! foliage nitrogen limitation factor (-)
+         leafcn    => EDPftvarcon_inst%leafcn )   ! leaf C:N (gC/gN)
     
       call this%InitAllocate(maxpft)
       

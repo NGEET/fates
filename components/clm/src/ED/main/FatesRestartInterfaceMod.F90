@@ -1315,7 +1315,7 @@ contains
      use EDInitMod,            only : zero_site
      use EDParamsMod,          only : ED_val_maxspread
      use EDPatchDynamicsMod,   only : create_patch
-     use pftconMod,            only : pftcon
+     use EDPftvarcon,            only : EDPftvarcon_inst
 
      ! !ARGUMENTS:
      class(fates_restart_interface_type) , intent(inout) :: this
@@ -1426,7 +1426,7 @@ contains
                 
                 cohortstatus = newp%siteptr%status
 
-                if(pftcon%stress_decid(ft) == 1)then !drought decidous, override status. 
+                if(EDPftvarcon_inst%stress_decid(ft) == 1)then !drought decidous, override status. 
                    cohortstatus = newp%siteptr%dstatus
                 endif
 
