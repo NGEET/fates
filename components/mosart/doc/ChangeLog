@@ -1,4 +1,22 @@
 ===============================================================
+Tag name:  mosart1_0_20
+Originator(s): erik
+Date: Feb 21 2017
+One-line Summary: Fix an issue with nag, lower amount of log output
+
+Fix bugs: 2393, 3424
+
+Add some if(masterproc) for write statements, change some writes to aborts, bug 2393
+Fix bug for nag compiler on hobart moving global save after mpif bug 2424
+
+
+M       src/riverroute/RtmMod.F90 ---- Add if(masterproc)
+M       src/riverroute/MOSART_physics_mod.F90 ---- Remove print statements before abort
+M       src/riverroute/RtmSpmd.F90 -- Move the global save until after the mpif.h include
+           so it can work on the nag compiler on hobart.
+M       src/riverroute/RtmIO.F90 ---- Add if(masterproc)
+
+===============================================================
 Tag name:  mosart1_0_19
 Originator(s): swenson, sacks
 Date: Oct 17 2016

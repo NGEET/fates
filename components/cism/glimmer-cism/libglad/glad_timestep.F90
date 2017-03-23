@@ -252,9 +252,6 @@ contains
 
     end if   ! time - instance%mbal_accum%start_time + instance%mbal_tstep == instance%mbal_accum_time
 
-!WHL - debug
-    print*, 'output instantaneous values'
-
     ! Output instantaneous values
 
     call glad_mbal_io_writeall(instance, instance%model,       &

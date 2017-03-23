@@ -1,0 +1,141 @@
+#!/bin/bash
+#
+# buildtools
+#
+# Build the clm tools that PTCLM will need to run when creating files.
+#
+# Environment variables to set:
+#
+# CESM_ROOT:        To build with a separate root to CLM/CESM code set the
+#                   env variable CESM_ROOT to the root directory to use.
+#
+
+pwd=`pwd`
+host=`hostname`
+echo "Build clm tools for PTCLM on "$host""
+
+#
+# Get path to root
+#
+if [ -z "$CESM_ROOT" ]; then
+   cd "../../../.."
+   CESM_ROOT=`pwd`
+   cd -
+fi
+if [ ! -d "$CESM_ROOT" ];then
+   echo "Directory $CESM_ROOT does not exist"
+   echo "Set env variable CESM_ROOT"
+   exit -1
+fi
+#
+# Machine dependent stuff
+#
+CIME_MODEL="cesm"
+export CIME_MODEL
+toolsmake=""
+if [[  "$host" =~ ys ]] || [[ "$host" =~ caldera ]] || [[ "$host" =~ geyser ]] || [[ "$host" =~ pronghorn ]]; then
+  echo "Setup for yellowstone"
+  . /glade/apps/opt/lmod/lmod/init/sh
+
+  gmake="gmake"
+  parcmp=32
+  machine="yellowstone"
+  compiler="intel"
+  netcdf=$NETCDF
+  module load $compiler/15.0.3
+  module load mkl
+  module load netcdf
+  module load ncl
+elif [[ "$host" =~ hobart ]]; then
+  echo "Setup for hobart"
+  gmake="gmake"
+  parcmp=2
+  machine="hobart"
+  compiler="intel"
+  module load compiler/intel
+  netcdf=$NETCDF_PATH
+  export PATH="${PATH}:/usr/bin"
+elif [[ "$host" =~ yongi ]] || [[ "$host" =~ vpn ]]; then
+  echo "Setup for yongi"
+  gmake="make"
+  parcmp=12
+  machine="userdefined"
+  compiler="intel"
+  netcdf="/opt/local"
+  toolsmake="USER_FC=ifort USER_LINKER=ifort USER_CC=icc "
+  case='$CASE'
+  export NETCDF_PATH=$netcdf
+elif [[  "$host" =~ hopper ]]; then
+  echo "Setup for hopper"
+  .  /opt/modules/default/init/bash
+  module load netcdf
+  module load ncl/6.1.2
+  gmake="gmake"
+  parcmp=32
+  machine="hopper"
+  compiler="pgi"
+  USER_LDFLAGS="-L$NETCDF_DIR/lib -lnetcdff"
+  export USER_LDFLAGS
+  toolsmake="USER_FC=pgf90"
+  netcdf=$NETCDF_DIR
+elif [[  "$host" =~ edison ]]; then
+  echo "Setup for edison"
+  .  /opt/modules/default/init/bash
+  module load netcdf
+  module load ncl
+  gmake="gmake"
+  parcmp=32
+  machine="edison"
+  compiler="intel"
+  USER_LDFLAGS="-L$LIB_NETCDF -lnetcdff"
+  export USER_LDFLAGS
+  toolsmake="USER_FC=ftn"
+  netcdf=$NETCDF_DIR
+else
+  echo "Bad host to run on: know about yellowstone, hobart, hopper, edison or yongi"
+  exit -3
+fi
+export INC_NETCDF=${netcdf}/include
+export LIB_NETCDF=${netcdf}/lib
+#
+# Build the tools
+#
+echo "Build the tools"
+dirs=( \
+       $CESM_ROOT/components/clm/tools/mksurfdata_map/src \
+       $CESM_ROOT/cime/tools/mapping/gen_domain_files/src \
+     )
+for dir in ${dirs[*]}; do
+   echo "Build in $dir"
+   cd $dir
+   if [[ "$dir" =~ gen_domain ]]; then
+      export CIMEROOT=$CESM_ROOT/cime
+      rm env_mach_specific.xml
+      cmd="$CIMEROOT/tools/configure --machine $machine --macros-format Makefile"
+      echo "$cmd"
+      $cmd
+      if [ $? != 0 ]; then
+         echo "Problem with configure: $?"
+         exit -1
+      fi
+      #. ./.env_mach_specific.sh  # don't use this as it currently doesn't work for mpi-serial
+      #cmd="ln -s $dirs/Macros.make $dirs/Macros"
+      #echo "$cmd"
+      #$cmd
+   fi
+   $gmake clean
+   cmd="$gmake OPT=TRUE SMP=TRUE -j $parcmp COMPILER=$compiler OS=LINUX MPILIB=mpi-serial $toolsmake"
+   echo "$cmd"
+   $cmd
+   if [ $? != 0 ]; then
+      echo "Problem with build: $?"
+      exit -1
+   fi
+   if [[ "$dir" =~ gen_domain ]]; then
+      /bin/rm *.o
+   else
+      $gmake clean
+   fi
+done
+
+echo -e "\n\nSuccessfully built CLM tools needed to create datasets for PTCLM\n"

@@ -271,7 +271,7 @@ MODULE MOSART_physics_mod
     else if(Tctl%RoutingMethod == 4) then
        call Routing_DW(iunit, nt, theDeltaT)
     else
-       print*, "Please check the routing method! There are only 4 methods available."
+       call shr_sys_abort( "mosart: Please check the routing method! There are only 4 methods available." )
     end if
 
   end subroutine mainchannelRouting
@@ -667,7 +667,7 @@ MODULE MOSART_physics_mod
        open (unit=nio, file=fname, status="new", action="write", iostat=ios)
     end if
     if(ios /= 0) then
-       print*, "cannot create file ", fname
+       call shr_sys_abort( "mosart: cannot create file: "//trim(fname) )
     end if
   end subroutine createFile
   

@@ -25,7 +25,7 @@ attributes to express the dependency.
 <cisminputfile glc_grid="gland20" cism_phys="cism2">glc/cism/gland20.input_c150415.nc</cisminputfile>
 
 <!-- this is the resolution that should be used for science applications with cism2 -->
-<cisminputfile glc_grid="gland4" cism_phys="cism2">glc/cism/Greenland/glissade/init/greenland_4km_2015_06_03.mcb_trunk_c161025.nc</cisminputfile>
+<cisminputfile glc_grid="gland4" cism_phys="cism2">glc/cism/Greenland/glissade/init/greenland_4km_epsg3413_bheatflxPos_c161227.nc</cisminputfile>
 
 <!-- =============================================================  -->
 <!-- group: cism_params                                             -->
@@ -91,13 +91,13 @@ attributes to express the dependency.
 <ewn glc_grid="gland20" >76</ewn>
 <ewn glc_grid="gland5"  >301</ewn>
 <ewn glc_grid="gland5UM">301</ewn>
-<ewn glc_grid="gland4"  >376</ewn>
+<ewn glc_grid="gland4"  >393</ewn>
 
 <nsn glc_grid="gland10" >281</nsn>
 <nsn glc_grid="gland20" >141</nsn>
 <nsn glc_grid="gland5"  >561</nsn>
 <nsn glc_grid="gland5UM">561</nsn>
-<nsn glc_grid="gland4"  >701</nsn>
+<nsn glc_grid="gland4"  >695</nsn>
 
 <upn>11</upn>
 
@@ -130,22 +130,6 @@ attributes to express the dependency.
 <evolve_ice cism_evolve="FALSE">0</evolve_ice>
 
 <test_coupling>.false.</test_coupling>
-
-<!-- =============================================================  -->
-<!-- group: cism.config: projection                                 -->
-<!-- =============================================================  -->
-
-<type>"STERE"</type>
-
-<centre_latitude>90.0</centre_latitude>
-
-<centre_longitude>321.0</centre_longitude>
-
-<false_easting>800000.0</false_easting>
-
-<false_northing>3400000.0</false_northing>
-
-<standard_parallel>71.0</standard_parallel>
 
 <!-- =============================================================  -->
 <!-- group: cism.config: options                                    -->
@@ -256,6 +240,7 @@ attributes to express the dependency.
 <which_ho_babc glc_grid="gland10">4</which_ho_babc>
 <which_ho_babc glc_grid="gland5">4</which_ho_babc>
 <which_ho_babc glc_grid="gland5UM">4</which_ho_babc>
+<which_ho_babc glc_grid="gland4">4</which_ho_babc>
 
 <which_ho_efvs>2</which_ho_efvs>
 

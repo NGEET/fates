@@ -519,16 +519,16 @@ contains
     edgew = minval(rlonc) - 0.5*abs(rlonc(1) - rlonc(2))
 
     if ( edgen .ne.  90._r8 )then
-       write(iulog,*) 'Regional grid: edgen = ', edgen
+       if ( masterproc ) write(iulog,*) 'Regional grid: edgen = ', edgen
     end if
     if ( edges .ne. -90._r8 )then
-       write(iulog,*) 'Regional grid: edges = ', edges
+       if ( masterproc ) write(iulog,*) 'Regional grid: edges = ', edges
     end if
     if ( edgee .ne. 180._r8 )then
-       write(iulog,*) 'Regional grid: edgee = ', edgee
+       if ( masterproc ) write(iulog,*) 'Regional grid: edgee = ', edgee
     end if
     if ( edgew .ne.-180._r8 )then
-       write(iulog,*) 'Regional grid: edgew = ', edgew
+       if ( masterproc ) write(iulog,*) 'Regional grid: edgew = ', edgew
     end if
 
     ! Set edge latitudes (assumes latitudes are constant for a given longitude)
@@ -1132,7 +1132,7 @@ contains
     do nt = 2,nt_rtm
        write(rList,'(a,i3.3)') trim(rList)//':tr',nt
     enddo
-    write(iulog,*) trim(subname),' MOSART initialize avect ',trim(rList)
+    if (masterproc) write(iulog,*) trim(subname),' MOSART initialize avect ',trim(rList)
     call mct_aVect_init(avsrc_dnstrm,rList=rList,lsize=rtmCTL%lnumr)
     call mct_aVect_init(avdst_dnstrm,rList=rList,lsize=rtmCTL%lnumr)
 
@@ -1243,7 +1243,7 @@ contains
     do nt = 2,nt_rtm
        write(rList,'(a,i3.3)') trim(rList)//':tr',nt
     enddo
-    write(iulog,*) trim(subname),' MOSART initialize avect ',trim(rList)
+    if ( masterproc ) write(iulog,*) trim(subname),' MOSART initialize avect ',trim(rList)
     call mct_aVect_init(avsrc_direct,rList=rList,lsize=rtmCTL%lnumr)
     call mct_aVect_init(avdst_direct,rList=rList,lsize=rtmCTL%lnumr)
 
@@ -1778,7 +1778,7 @@ contains
 
     call t_startf('mosartr_subcycling')
 
-    if (first_call) then
+    if (first_call .and. masterproc) then
        do nt = 1,nt_rtm
           write(iulog,'(2a,i6,l4)') trim(subname),' euler_calc for nt = ',nt,TUnit%euler_calc(nt)
        enddo
@@ -2691,7 +2691,7 @@ contains
      do nt = 2,nt_rtm
         write(rList,'(a,i3.3)') trim(rList)//':tr',nt
      enddo
-     write(iulog,*) trim(subname),' MOSART initialize avect ',trim(rList)
+     if ( masterproc ) write(iulog,*) trim(subname),' MOSART initialize avect ',trim(rList)
      call mct_aVect_init(avsrc_eroutUp,rList=rList,lsize=rtmCTL%lnumr)
      call mct_aVect_init(avdst_eroutUp,rList=rList,lsize=rtmCTL%lnumr)
 
