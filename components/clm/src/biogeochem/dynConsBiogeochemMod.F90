@@ -88,8 +88,8 @@ contains
     integer                       :: pi,p,c,l,g,j                  ! indices
     integer                       :: begp, endp
     integer                       :: ier                           ! error code
-    real(r8)                      :: dwt                           ! change in patch weight (relative to column)
     real(r8)                      :: dt                            ! land model time step (sec)
+    real(r8), allocatable         :: dwt(:)                        ! change in patch weight (relative to column)
     real(r8), allocatable         :: dwt_leafc_seed(:)             ! patch-level mass gain due to seeding of new area
     real(r8), allocatable         :: dwt_leafn_seed(:)             ! patch-level mass gain due to seeding of new area
     real(r8), allocatable         :: dwt_deadstemc_seed(:)         ! patch-level mass gain due to seeding of new area
@@ -134,6 +134,11 @@ contains
     endp = bounds%endp
 
     ! Allocate patch-level mass loss arrays
+    allocate(dwt(begp:endp), stat=ier)
+    if (ier /= 0) then
+          write(iulog,*)subname,' allocation error for dwt'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
     allocate(dwt_leafc_seed(begp:endp), stat=ier)
     if (ier /= 0) then
           write(iulog,*)subname,' allocation error for dwt_leafc_seed'
@@ -288,6 +293,7 @@ contains
     do p = begp,endp
        c = patch%column(p)
        ! initialize all the patch-level local flux arrays
+       dwt(p) = 0._r8
        dwt_leafc_seed(p) = 0._r8
        dwt_leafn_seed(p) = 0._r8
        dwt_deadstemc_seed(p) = 0._r8
@@ -327,11 +333,7 @@ contains
        if (lun%itype(l) == istsoil .or. lun%itype(l) == istcrop) then
           
           ! calculate the change in weight for the timestep
-          ! TODO(wjs, 2016-06-01) Should this be moved elsewhere? Or should we get rid of
-          ! this lfpftd_patch variable entirely, instead using information that exists in
-          ! other places?
-          dwt = patch%wtcol(p)-prior_weights%pwtcol(p)
-          CNveg_state_inst%lfpftd_patch(p) = -dwt
+          dwt(p) = patch%wtcol(p)-prior_weights%pwtcol(p)
 
           ! Identify patches that are initiating on this timestep and set all the
           ! necessary state and flux variables
@@ -401,6 +403,12 @@ contains
           end if  ! end initialization of new patch
        end if     ! is soil
     end do        ! patch loop
+
+    ! Determine annually-smoothed (dribbled) change in weight
+    call CNveg_state_inst%dwt_dribbler_patch%set_curr_delta(bounds, &
+         dwt(bounds%begp:bounds%endp))
+    call CNveg_state_inst%dwt_dribbler_patch%get_dribbled_delta(bounds, &
+         CNveg_state_inst%dwt_smoothed_patch(bounds%begp:bounds%endp))
 
     ! Adjust patch variables and compute associated fluxes for changing patch areas
 
@@ -506,12 +514,6 @@ contains
              cnveg_carbonflux_inst%dwt_seedc_to_deadstem_col(c) = &
                   cnveg_carbonflux_inst%dwt_seedc_to_deadstem_col(c) + dwt_deadstemc_seed(p)/dt
 
-             ! FIXME(wjs, 2016-07-08) This is temporary. It can be removed once we update
-             ! column states immediately after dyn_cnbal_patch.
-             cnveg_carbonflux_inst%dwt_seedc_col(c) = &
-                  cnveg_carbonflux_inst%dwt_seedc_col(c) + &
-                  dwt_leafc_seed(p)/dt + dwt_deadstemc_seed(p)/dt
-
              if ( use_c13 ) then
                 c13_cnveg_carbonflux_inst%dwt_seedc_to_leaf_col(c) = &
                      c13_cnveg_carbonflux_inst%dwt_seedc_to_leaf_col(c) + dwt_leafc13_seed(p)/dt
@@ -532,11 +534,6 @@ contains
              cnveg_nitrogenflux_inst%dwt_seedn_to_deadstem_col(c) = &
                   cnveg_nitrogenflux_inst%dwt_seedn_to_deadstem_col(c) + dwt_deadstemn_seed(p)/dt
 
-             ! FIXME(wjs, 2016-07-08) This is temporary. It can be removed once we update
-             ! column states immediately after dyn_cnbal_patch.
-             cnveg_nitrogenflux_inst%dwt_seedn_col(c) = &
-                  cnveg_nitrogenflux_inst%dwt_seedn_col(c) + &
-                  dwt_leafn_seed(p)/dt + dwt_deadstemn_seed(p)/dt
           end if
        end do
     end do
@@ -661,29 +658,6 @@ contains
        end do
     end do
 
-    ! FIXME(wjs, 2016-07-08) This is temporary. It can be removed once we update column
-    ! states immediately after dyn_cnbal_patch
-    do pi = 1,max_patch_per_col
-       do c = bounds%begc, bounds%endc
-          if ( pi <=  col%npatches(c) ) then
-             p = col%patchi(c) + pi - 1
-
-             cnveg_carbonflux_inst%dwt_to_litrc_col(c) = &
-                  cnveg_carbonflux_inst%dwt_to_litrc_col(c) + &
-                  dwt_frootc_to_litter(p) / dt + &
-                  dwt_livecrootc_to_litter(p) / dt + &
-                  dwt_deadcrootc_to_litter(p) / dt
-
-             cnveg_nitrogenflux_inst%dwt_to_litrn_col(c) = &
-                  cnveg_nitrogenflux_inst%dwt_to_litrn_col(c) + &
-                  dwt_frootn_to_litter(p) / dt + &
-                  dwt_livecrootn_to_litter(p) / dt + &
-                  dwt_deadcrootn_to_litter(p) / dt
-
-          end if
-       end do
-    end do
-
     ! Store fluxes into product pools. Note that the temporary conv_cflux, product_cflux
     ! (and similar) fluxes are accumulated as negative values, but the values stored in
     ! carbonflux_inst and nitrogenflux_inst are positive values.
@@ -743,6 +717,7 @@ contains
     end do
 
     ! Deallocate patch-level flux arrays
+    deallocate(dwt)
     deallocate(dwt_leafc_seed)
     deallocate(dwt_leafn_seed)
     deallocate(dwt_deadstemc_seed)

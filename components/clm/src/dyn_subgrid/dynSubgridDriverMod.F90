@@ -83,9 +83,6 @@ contains
     ! Note that dynpft_init needs to be called from outside any loops over clumps - so
     ! this routine needs to be called from outside any loops over clumps.
     !
-    ! !USES:
-    use clm_varctl        , only : use_cndv
-    !
     ! !ARGUMENTS:
     type(bounds_type)       , intent(in) :: bounds_proc ! processor-level bounds
     type(glc_behavior_type) , intent(in) :: glc_behavior
@@ -174,7 +171,7 @@ contains
     ! OUTSIDE any loops over clumps in the driver.
     !
     ! !USES:
-    use clm_varctl           , only : use_cndv, use_cn, create_glacier_mec_landunit, use_ed
+    use clm_varctl           , only : use_cn, create_glacier_mec_landunit, use_ed
     use dynInitColumnsMod    , only : initialize_new_columns
     use dynConsBiogeophysMod , only : dyn_hwcontent_init, dyn_hwcontent_final
     use dynEDMod             , only : dyn_ED
@@ -295,6 +292,7 @@ contains
        if (use_cn) then
           call bgc_vegetation_inst%DynamicAreaConservation(bounds_clump, &
                filter_inactive_and_active(nc)%num_soilp, filter_inactive_and_active(nc)%soilp, &
+               filter_inactive_and_active(nc)%num_soilc, filter_inactive_and_active(nc)%soilc, &
                prior_weights, patch_state_updater, column_state_updater, &
                canopystate_inst, photosyns_inst, &
                soilbiogeochem_carbonflux_inst, soilbiogeochem_carbonstate_inst, &
