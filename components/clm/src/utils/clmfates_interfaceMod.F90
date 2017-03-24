@@ -163,7 +163,6 @@ module CLMFatesInterfaceMod
 
    end type hlm_fates_interface_type
 
-
    logical :: DEBUG  = .false.
 
   character(len=*), parameter, private :: sourcefile = &
@@ -1309,7 +1308,6 @@ contains
     use perf_mod          , only : t_startf, t_stopf
     use PatchType         , only : patch
     use quadraticMod      , only : quadratic
-    use EDSharedParamsMod , only : EDParamsShareInst
     use EDTypesMod        , only : numpft_ed, dinc_ed
     use EDtypesMod        , only : ed_patch_type, ed_cohort_type, ed_site_type, numpft_ed
     use EDEcophysContype  , only : EDecophyscon
@@ -1624,6 +1622,8 @@ contains
    use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
    use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
    use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
+   use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
+   use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
    use FatesIODimensionsMod, only : fates_bounds_type
 
 
@@ -1812,6 +1812,61 @@ contains
                               ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
                               default=trim(vdefault),                       &
                               set_lake=0._r8,set_urb=0._r8)
+        case(site_fuel_r8)
+           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+           dim2name = this%fates_hist%dim_bounds(d_index)%name
+           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+                              type2d=trim(dim2name),                        &
+                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+                              ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
+                              default=trim(vdefault),                       &
+                              set_lake=0._r8,set_urb=0._r8)
+        case(site_cwdsc_r8)
+           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+           dim2name = this%fates_hist%dim_bounds(d_index)%name
+           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+                              type2d=trim(dim2name),                        &
+                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+                              ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
+                              default=trim(vdefault),                       &
+                              set_lake=0._r8,set_urb=0._r8)
+        case(site_can_r8)
+           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+           dim2name = this%fates_hist%dim_bounds(d_index)%name
+           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+                              type2d=trim(dim2name),                        &
+                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+                              ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
+                              default=trim(vdefault),                       &
+                              set_lake=0._r8,set_urb=0._r8)
+        case(site_cnlf_r8)
+           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+           dim2name = this%fates_hist%dim_bounds(d_index)%name
+           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+                              type2d=trim(dim2name),                        &
+                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+                              ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
+                              default=trim(vdefault),                       &
+                              set_lake=0._r8,set_urb=0._r8)
+        case(site_cnlfpft_r8)
+           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+           dim2name = this%fates_hist%dim_bounds(d_index)%name
+           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+                              type2d=trim(dim2name),                        &
+                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+                              ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
+                              default=trim(vdefault),                       &
+                              set_lake=0._r8,set_urb=0._r8)
+        case(site_scag_r8)
+           d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
+           dim2name = this%fates_hist%dim_bounds(d_index)%name
+           call hist_addfld2d(fname=trim(vname),units=trim(vunits),         &
+                              type2d=trim(dim2name),                        &
+                              avgflag=trim(vavgflag),long_name=trim(vlong), &
+                              ptr_col=this%fates_hist%hvars(ivar)%r82d,    & 
+                              default=trim(vdefault),                       &
+                              set_lake=0._r8,set_urb=0._r8)
+           
 
         case default
            write(iulog,*) 'A FATES iotype was created that was not registerred'
@@ -1827,6 +1882,8 @@ contains
 
    use FatesIODimensionsMod, only : fates_bounds_type
    use EDtypesMod, only : nlevsclass_ed, nlevage_ed
+   use EDtypesMod, only : nfsc, ncwd
+   use EDtypesMod, only : nlevleaf, nclmax, numpft_ed
    use clm_varpar, only : mxpft, nlevgrnd
 
    implicit none
@@ -1859,6 +1916,24 @@ contains
 
    fates%age_class_begin = 1
    fates%age_class_end = nlevage_ed
+
+   fates%sizeage_class_begin = 1
+   fates%sizeage_class_end   = nlevsclass_ed * nlevage_ed
+   
+   fates%fuel_begin = 1
+   fates%fuel_end = nfsc
+   
+   fates%cwdsc_begin = 1
+   fates%cwdsc_end = ncwd
+   
+   fates%can_begin = 1
+   fates%can_end = nclmax
+   
+   fates%cnlf_begin = 1
+   fates%cnlf_end = nlevleaf * nclmax
+   
+   fates%cnlfpft_begin = 1
+   fates%cnlfpft_end = nlevleaf * nclmax * numpft_ed
    
  end subroutine hlm_bounds_to_fates_bounds
 

@@ -10,7 +10,7 @@ module EDInitMod
   use FatesGlobals              , only : fates_log
   use clm_varctl                , only : use_ed_spitfire 
   use clm_time_manager          , only : is_restart
-  use pftconMod                 , only : pftcon
+  use EDPftvarcon                 , only : EDPftvarcon_inst
   use EDEcophysConType          , only : EDecophyscon
   use EDGrowthFunctionsMod      , only : bdead, bleaf, dbh
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
@@ -91,6 +91,12 @@ contains
     site_in%demotion_carbonflux = 0._r8
     site_in%promotion_rate(:) = 0._r8
     site_in%promotion_carbonflux = 0._r8
+
+    ! diagnostic site-level cwd and litter fluxes
+    site_in%CWD_AG_diagnostic_input_carbonflux(:) = 0._r8
+    site_in%CWD_BG_diagnostic_input_carbonflux(:) = 0._r8
+    site_in%leaf_litter_diagnostic_input_carbonflux(:) = 0._r8
+    site_in%root_litter_diagnostic_input_carbonflux(:) = 0._r8
 
   end subroutine zero_site
 
@@ -261,17 +267,17 @@ contains
        temp_cohort%dbh         = Dbh(temp_cohort) ! FIX(RF, 090314) - comment out addition of ' + 0.0001_r8*pft   '  - seperate out PFTs a little bit...
        temp_cohort%canopy_trim = 1.0_r8
        temp_cohort%bdead       = Bdead(temp_cohort)
-       temp_cohort%balive      = Bleaf(temp_cohort)*(1.0_r8 + pftcon%froot_leaf(pft) &
+       temp_cohort%balive      = Bleaf(temp_cohort)*(1.0_r8 + EDPftvarcon_inst%froot_leaf(pft) &
             + EDecophyscon%sapwood_ratio(temp_cohort%pft)*temp_cohort%hite)
        temp_cohort%b           = temp_cohort%balive + temp_cohort%bdead
 
-       if( pftcon%evergreen(pft) == 1) then
+       if( EDPftvarcon_inst%evergreen(pft) == 1) then
           temp_cohort%bstore = Bleaf(temp_cohort) * EDecophyscon%cushion(pft)
           temp_cohort%laimemory = 0._r8
           cstatus = 2
        endif
 
-       if( pftcon%season_decid(pft) == 1 ) then !for dorment places
+       if( EDPftvarcon_inst%season_decid(pft) == 1 ) then !for dorment places
           temp_cohort%bstore = Bleaf(temp_cohort) * EDecophyscon%cushion(pft) !stored carbon in new seedlings.
           if(patch_in%siteptr%status == 2)then 
              temp_cohort%laimemory = 0.0_r8
@@ -283,7 +289,7 @@ contains
           cstatus = patch_in%siteptr%status
        endif
 
-       if ( pftcon%stress_decid(pft) == 1 ) then
+       if ( EDPftvarcon_inst%stress_decid(pft) == 1 ) then
           temp_cohort%bstore = Bleaf(temp_cohort) * EDecophyscon%cushion(pft)
           temp_cohort%laimemory = Bleaf(temp_cohort)
           temp_cohort%balive = temp_cohort%balive - temp_cohort%laimemory
