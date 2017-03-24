@@ -12,7 +12,8 @@ module EDPhysiologyMod
   use FatesInterfaceMod, only    : hlm_freq_day
   use FatesInterfaceMod, only    : hlm_day_of_year
   use FatesConstantsMod, only    : r8 => fates_r8
-  use pftconMod        , only    : pftcon
+  use EDEcophysContype    , only : EDecophyscon
+  use EDPftvarcon      , only : EDPftvarcon_inst
   use EDEcophysContype , only    : EDecophyscon
   use FatesInterfaceMod, only    : bc_in_type
   use EDCohortDynamicsMod , only : allocate_live_biomass, zero_cohort
@@ -22,7 +23,7 @@ module EDPhysiologyMod
   use EDTypesMod          , only : dl_sf, dinc_ed
   use EDTypesMod          , only : external_recruitment
   use EDTypesMod          , only : ncwd
-  use EDTypesMod          , only : nlevcan
+  use EDTypesMod          , only : nlevleaf
   use EDTypesMod          , only : numpft_ed
   use EDTypesMod          , only : senes
   use EDTypesMod          , only : ed_site_type, ed_patch_type, ed_cohort_type
@@ -155,7 +156,6 @@ contains
     !
     ! !USES:
     !
-    use EDParamsMod,          only : ED_val_grperc
     use EDGrowthFunctionsMod, only : tree_lai
     !
     ! !ARGUMENTS    
@@ -184,27 +184,30 @@ contains
           trimmed = 0    
           currentCohort%treelai = tree_lai(currentCohort)    
           currentCohort%nv = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
-          if (currentCohort%nv > nlevcan)then
-             write(fates_log(),*) 'nv > nlevcan',currentCohort%nv,currentCohort%treelai,currentCohort%treesai, &
+          if (currentCohort%nv > nlevleaf)then
+             write(fates_log(),*) 'nv > nlevleaf',currentCohort%nv,currentCohort%treelai,currentCohort%treesai, &
                   currentCohort%c_area,currentCohort%n,currentCohort%bl
           endif
 
           !Leaf cost vs netuptake for each leaf layer. 
-          do z = 1,nlevcan
+          do z = 1,nlevleaf
              if (currentCohort%year_net_uptake(z) /= 999._r8)then !there was activity this year in this leaf layer. 
                 !Leaf Cost kgC/m2/year-1
                 !decidous costs. 
-                if (pftcon%season_decid(currentCohort%pft) == 1.or.pftcon%stress_decid(currentCohort%pft) == 1)then 
-                   currentCohort%leaf_cost =  1._r8/(pftcon%slatop(currentCohort%pft)*1000.0_r8)
-                   currentCohort%leaf_cost = currentCohort%leaf_cost + 1.0_r8/(pftcon%slatop(currentCohort%pft)*1000.0_r8) * &
-                        pftcon%froot_leaf(currentCohort%pft) / EDecophyscon%root_long(currentCohort%pft)
-                   currentCohort%leaf_cost = currentCohort%leaf_cost * (ED_val_grperc(currentCohort%pft) + 1._r8)
+                if (EDPftvarcon_inst%season_decid(currentCohort%pft) == 1.or. &
+                     EDPftvarcon_inst%stress_decid(currentCohort%pft) == 1)then 
+                   currentCohort%leaf_cost =  1._r8/(EDPftvarcon_inst%slatop(currentCohort%pft)*1000.0_r8)
+                   currentCohort%leaf_cost = currentCohort%leaf_cost + &
+                        1.0_r8/(EDPftvarcon_inst%slatop(currentCohort%pft)*1000.0_r8) * &
+                        EDPftvarcon_inst%froot_leaf(currentCohort%pft) / EDecophyscon%root_long(currentCohort%pft)
+                   currentCohort%leaf_cost = currentCohort%leaf_cost * (EDPftvarcon_inst%grperc(currentCohort%pft) + 1._r8)
                 else !evergreen costs
-                   currentCohort%leaf_cost = 1.0_r8/(pftcon%slatop(currentCohort%pft)* &
-                        pftcon%leaf_long(currentCohort%pft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
-                   currentCohort%leaf_cost = currentCohort%leaf_cost + 1.0_r8/(pftcon%slatop(currentCohort%pft)*1000.0_r8) * &
-                        pftcon%froot_leaf(currentCohort%pft) / EDecophyscon%root_long(currentCohort%pft)
-                   currentCohort%leaf_cost = currentCohort%leaf_cost * (ED_val_grperc(currentCohort%pft) + 1._r8)
+                   currentCohort%leaf_cost = 1.0_r8/(EDPftvarcon_inst%slatop(currentCohort%pft)* &
+                        EDPftvarcon_inst%leaf_long(currentCohort%pft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
+                   currentCohort%leaf_cost = currentCohort%leaf_cost + &
+                        1.0_r8/(EDPftvarcon_inst%slatop(currentCohort%pft)*1000.0_r8) * &
+                        EDPftvarcon_inst%froot_leaf(currentCohort%pft) / EDecophyscon%root_long(currentCohort%pft)
+                   currentCohort%leaf_cost = currentCohort%leaf_cost * (EDPftvarcon_inst%grperc(currentCohort%pft) + 1._r8)
                 endif
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost)then
                    if (currentCohort%canopy_trim > trim_limit)then
@@ -216,7 +219,7 @@ contains
                       ! keep trimming until none of the canopy is in negative carbon balance.              
                       if (currentCohort%hite > EDecophyscon%hgt_min(currentCohort%pft))then
                          currentCohort%canopy_trim = currentCohort%canopy_trim - inc    
-                         if (pftcon%evergreen(currentCohort%pft) /= 1)then
+                         if (EDPftvarcon_inst%evergreen(currentCohort%pft) /= 1)then
                             currentCohort%laimemory = currentCohort%laimemory*(1.0_r8 - inc) 
                          endif
                          trimmed = 1
@@ -479,7 +482,7 @@ contains
     !LEAF OFF: DROUGHT DECIDUOUS LIFESPAN - if the leaf gets to the end of its useful life. A*, E*
     if (currentSite%dstatus == 2.and.t >= 10)then  !D*
        !Are the leaves at the end of their lives? !FIX(RF,0401014)- this is hardwiring....
-       if (timesincedleafon > 365.0*pftcon%leaf_long(7))then 
+       if (timesincedleafon > 365.0*EDPftvarcon_inst%leaf_long(7))then 
           currentSite%dstatus = 1         !alter status of site to 'leaves on'
           currentSite%dleafoffdate = t    !record leaf on date          
        endif
@@ -528,7 +531,7 @@ contains
        do while(associated(currentCohort))        
                 
           !COLD LEAF ON
-          if (pftcon%season_decid(currentCohort%pft) == 1)then
+          if (EDPftvarcon_inst%season_decid(currentCohort%pft) == 1)then
              if (currentSite%status == 2)then !we have just moved to leaves being on . 
                 if (currentCohort%status_coh == 1)then !Are the leaves currently off?        
                    currentCohort%status_coh = 2    !Leaves are on, so change status to stop flow of carbon out of bstore. 
@@ -572,7 +575,7 @@ contains
           endif  !season_decid
 
           !DROUGHT LEAF ON
-          if (pftcon%stress_decid(currentCohort%pft) == 1)then
+          if (EDPftvarcon_inst%stress_decid(currentCohort%pft) == 1)then
              if (currentSite%dstatus == 2)then !we have just moved to leaves being on . 
                 if (currentCohort%status_coh == 1)then !is it the leaf-on day? Are the leaves currently off?       
                    currentCohort%status_coh = 2    !Leaves are on, so change status to stop flow of carbon out of bstore. 
@@ -808,11 +811,11 @@ contains
     call allocate_live_biomass(currentCohort,0)
 
    ! calculate target size of living biomass compartment for a given dbh.   
-    target_balive = Bleaf(currentCohort) * (1.0_r8 + pftcon%froot_leaf(currentCohort%pft) + &
+    target_balive = Bleaf(currentCohort) * (1.0_r8 + EDPftvarcon_inst%froot_leaf(currentCohort%pft) + &
          EDecophyscon%sapwood_ratio(currentCohort%pft)*h)
     !target balive without leaves. 
     if (currentCohort%status_coh == 1)then 
-       target_balive = Bleaf(currentCohort) * (pftcon%froot_leaf(currentCohort%pft) + &
+       target_balive = Bleaf(currentCohort) * (EDPftvarcon_inst%froot_leaf(currentCohort%pft) + &
             EDecophyscon%sapwood_ratio(currentCohort%pft) * h)
     endif
 
@@ -828,8 +831,8 @@ contains
     currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
 
     ! Maintenance demands     
-    if (pftcon%evergreen(currentCohort%pft) == 1)then !grass and EBT
-       currentCohort%leaf_md = currentCohort%bl / pftcon%leaf_long(currentCohort%pft)
+    if (EDPftvarcon_inst%evergreen(currentCohort%pft) == 1)then !grass and EBT
+       currentCohort%leaf_md = currentCohort%bl / EDPftvarcon_inst%leaf_long(currentCohort%pft)
        currentCohort%root_md = currentCohort%br / EDecophyscon%root_long(currentCohort%pft)
        currentCohort%md      = currentCohort%root_md + currentCohort%leaf_md
     endif
@@ -839,22 +842,23 @@ contains
     !with which I am not especially comfortable, particularly as the concept of sapwood turnover is unclear for trees that 
     !are still in an expansion phase. 
 
-    if (pftcon%season_decid(currentCohort%pft) == 1)then 
+    if (EDPftvarcon_inst%season_decid(currentCohort%pft) == 1)then 
        currentCohort%root_md = currentCohort%br /EDecophyscon%root_long(currentCohort%pft)
        currentCohort%leaf_md = 0._r8
        currentCohort%md = currentCohort%root_md + currentCohort%leaf_md
     endif
 
-    if (pftcon%stress_decid(currentCohort%pft) == 1)then 
+    if (EDPftvarcon_inst%stress_decid(currentCohort%pft) == 1)then 
        currentCohort%root_md = currentCohort%br /EDecophyscon%root_long(currentCohort%pft)
        currentCohort%leaf_md = 0._r8
        currentCohort%md = currentCohort%root_md + currentCohort%leaf_md
     endif
 
-    if (pftcon%stress_decid(currentCohort%pft) /= 1.and.pftcon%season_decid(currentCohort%pft) /= 1.and. &
-         pftcon%evergreen(currentCohort%pft) /= 1)then
-       write(fates_log(),*) 'problem with phenology definitions',currentCohort%pft,pftcon%stress_decid(currentCohort%pft), &
-            pftcon%season_decid(currentCohort%pft),pftcon%evergreen(currentCohort%pft)
+    if (EDPftvarcon_inst%stress_decid(currentCohort%pft) /= 1.and.EDPftvarcon_inst%season_decid(currentCohort%pft) /= 1.and. &
+         EDPftvarcon_inst%evergreen(currentCohort%pft) /= 1)then
+       write(fates_log(),*) 'problem with phenology definitions',currentCohort%pft, &
+            EDPftvarcon_inst%stress_decid(currentCohort%pft), &
+            EDPftvarcon_inst%season_decid(currentCohort%pft),EDPftvarcon_inst%evergreen(currentCohort%pft)
     endif
 
     ! FIX(RF,032414) -turned off for now as it makes balive go negative....
@@ -948,7 +952,7 @@ contains
        ! fraction of carbon going into active vs structural carbon        
        if (currentCohort%dbh <= EDecophyscon%max_dbh(currentCohort%pft))then ! cap on leaf biomass
           dbldbd = dDbhdBd(currentCohort)/dDbhdBl(currentCohort) 
-          dbrdbd = pftcon%froot_leaf(currentCohort%pft) * dbldbd
+          dbrdbd = EDPftvarcon_inst%froot_leaf(currentCohort%pft) * dbldbd
           dhdbd_fn = dhdbd(currentCohort)
           dbswdbd = EDecophyscon%sapwood_ratio(currentCohort%pft) * (h*dbldbd + currentCohort%bl*dhdbd_fn)
           u  = 1.0_r8 / (dbldbd + dbrdbd + dbswdbd)     
@@ -1046,9 +1050,9 @@ contains
        temp_cohort%hite        = EDecophyscon%hgt_min(ft)
        temp_cohort%dbh         = Dbh(temp_cohort)
        temp_cohort%bdead       = Bdead(temp_cohort)
-       temp_cohort%balive      = Bleaf(temp_cohort)*(1.0_r8 + pftcon%froot_leaf(ft) &
+       temp_cohort%balive      = Bleaf(temp_cohort)*(1.0_r8 + EDPftvarcon_inst%froot_leaf(ft) &
             + EDecophyscon%sapwood_ratio(ft)*temp_cohort%hite)
-       temp_cohort%bstore      = EDecophyscon%cushion(ft)*(temp_cohort%balive/ (1.0_r8 + pftcon%froot_leaf(ft) &
+       temp_cohort%bstore      = EDecophyscon%cushion(ft)*(temp_cohort%balive/ (1.0_r8 + EDPftvarcon_inst%froot_leaf(ft) &
             + EDecophyscon%sapwood_ratio(ft)*temp_cohort%hite))
        temp_cohort%n           = currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day &
             / (temp_cohort%bdead+temp_cohort%balive+temp_cohort%bstore)
@@ -1061,17 +1065,17 @@ contains
        endif
 
        temp_cohort%laimemory = 0.0_r8     
-       if (pftcon%season_decid(temp_cohort%pft) == 1.and.currentSite%status == 1)then
-         temp_cohort%laimemory = (1.0_r8/(1.0_r8 + pftcon%froot_leaf(ft) + &
+       if (EDPftvarcon_inst%season_decid(temp_cohort%pft) == 1.and.currentSite%status == 1)then
+         temp_cohort%laimemory = (1.0_r8/(1.0_r8 + EDPftvarcon_inst%froot_leaf(ft) + &
               EDecophyscon%sapwood_ratio(ft)*temp_cohort%hite))*temp_cohort%balive
        endif
-       if (pftcon%stress_decid(temp_cohort%pft) == 1.and.currentSite%dstatus == 1)then
-         temp_cohort%laimemory = (1.0_r8/(1.0_r8 + pftcon%froot_leaf(ft) + &
+       if (EDPftvarcon_inst%stress_decid(temp_cohort%pft) == 1.and.currentSite%dstatus == 1)then
+         temp_cohort%laimemory = (1.0_r8/(1.0_r8 + EDPftvarcon_inst%froot_leaf(ft) + &
             EDecophyscon%sapwood_ratio(ft)*temp_cohort%hite))*temp_cohort%balive
        endif
 
        cohortstatus = currentSite%status
-       if (pftcon%stress_decid(ft) == 1)then !drought decidous, override status. 
+       if (EDPftvarcon_inst%stress_decid(ft) == 1)then !drought decidous, override status. 
           cohortstatus = currentSite%dstatus
        endif
 
@@ -1187,7 +1191,7 @@ contains
     !
     ! !USES:
 
-    use EDSharedParamsMod  , only : EDParamsShareInst
+    use FatesSynchronizedParamsMod  , only : FatesSynchronizedParamsInst
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use FatesConstantsMod, only : pi => pi_const
     !
@@ -1216,8 +1220,8 @@ contains
     ifp = currentPatch%patchno 
     
     ! set "froz_q10" parameter
-    froz_q10  = EDParamsShareInst%froz_q10  
-    Q10       = EDParamsShareInst%Q10
+    froz_q10  = FatesSynchronizedParamsInst%froz_q10  
+    Q10       = FatesSynchronizedParamsInst%Q10
 
     if ( .not. use_century_tfunc ) then
     !calculate rate constant scalar for soil temperature,assuming that the base rate constants 
@@ -1336,7 +1340,7 @@ contains
     use FatesInterfaceMod, only : hlm_numlevdecomp_full
     use FatesInterfaceMod, only : hlm_numlevdecomp
     use SoilBiogeochemVerticalProfileMod, only: surfprof_exp
-    use pftconMod, only : pftcon
+    use EDPftvarcon, only : EDPftvarcon_inst
     use FatesConstantsMod, only : sec_per_day
     use clm_varcon, only : zisoi, dzsoi_decomp, zsoi
     use EDParamsMod, only : ED_val_ag_biomass
@@ -1450,8 +1454,9 @@ contains
                ! use beta distribution parameter from Jackson et al., 1996
                do ft = 1, numpft_ed
                   do j = 1, hlm_numlevdecomp
-                     cinput_rootfr(ft,j) = ( pftcon%rootprof_beta(ft, rooting_profile_varindex_water) ** (zisoi(j-1)*100._r8) - &
-                          pftcon%rootprof_beta(ft, rooting_profile_varindex_water) ** (zisoi(j)*100._r8) ) &
+                     cinput_rootfr(ft,j) = &
+                          ( EDPftvarcon_inst%rootprof_beta(ft, rooting_profile_varindex_water) ** (zisoi(j-1)*100._r8) - &
+                          EDPftvarcon_inst%rootprof_beta(ft, rooting_profile_varindex_water) ** (zisoi(j)*100._r8) ) &
                           / dzsoi_decomp(j)
                   end do
                end do
@@ -1461,10 +1466,10 @@ contains
                do j = 1, hlm_numlevdecomp
                   ! use standard CLM root fraction profiles;
                   cinput_rootfr(ft,j) =  ( .5_r8*( &
-                       exp(-pftcon%roota_par(ft) * zisoi(j-1))  &
-                       + exp(-pftcon%rootb_par(ft) * zisoi(j-1))  &
-                       - exp(-pftcon%roota_par(ft) * zisoi(j))    &
-                       - exp(-pftcon%rootb_par(ft) * zisoi(j))))  / dzsoi_decomp(j)
+                       exp(-EDPftvarcon_inst%roota_par(ft) * zisoi(j-1))  &
+                       + exp(-EDPftvarcon_inst%rootb_par(ft) * zisoi(j-1))  &
+                       - exp(-EDPftvarcon_inst%roota_par(ft) * zisoi(j))    &
+                       - exp(-EDPftvarcon_inst%rootb_par(ft) * zisoi(j))))  / dzsoi_decomp(j)
                end do
             end do
          endif
@@ -1652,26 +1657,26 @@ contains
             do ft = 1,numpft_ed
                do j = 1, hlm_numlevdecomp
                   bc_out(s)%FATES_c_to_litr_lab_c_col(j) = bc_out(s)%FATES_c_to_litr_lab_c_col(j) + &
-                       currentpatch%leaf_litter_out(ft) * pftcon%lf_flab(ft) * currentpatch%area/AREA * leaf_prof(s,j)
+                       currentpatch%leaf_litter_out(ft) * EDPftvarcon_inst%lf_flab(ft) * currentpatch%area/AREA * leaf_prof(s,j)
                   bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + &
-                       currentpatch%leaf_litter_out(ft) * pftcon%lf_fcel(ft) * currentpatch%area/AREA * leaf_prof(s,j)
+                       currentpatch%leaf_litter_out(ft) * EDPftvarcon_inst%lf_fcel(ft) * currentpatch%area/AREA * leaf_prof(s,j)
                   bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + &
-                       currentpatch%leaf_litter_out(ft) * pftcon%lf_flig(ft) * currentpatch%area/AREA * leaf_prof(s,j)
+                       currentpatch%leaf_litter_out(ft) * EDPftvarcon_inst%lf_flig(ft) * currentpatch%area/AREA * leaf_prof(s,j)
                   !
                   bc_out(s)%FATES_c_to_litr_lab_c_col(j) = bc_out(s)%FATES_c_to_litr_lab_c_col(j) + &
-                       currentpatch%root_litter_out(ft) * pftcon%fr_flab(ft) * currentpatch%area/AREA * froot_prof(s,ft,j)
+                       currentpatch%root_litter_out(ft) * EDPftvarcon_inst%fr_flab(ft) * currentpatch%area/AREA * froot_prof(s,ft,j)
                   bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + &
-                       currentpatch%root_litter_out(ft) * pftcon%fr_fcel(ft) * currentpatch%area/AREA * froot_prof(s,ft,j)
+                       currentpatch%root_litter_out(ft) * EDPftvarcon_inst%fr_fcel(ft) * currentpatch%area/AREA * froot_prof(s,ft,j)
                   bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + &
-                       currentpatch%root_litter_out(ft) * pftcon%fr_flig(ft) * currentpatch%area/AREA * froot_prof(s,ft,j)
+                       currentpatch%root_litter_out(ft) * EDPftvarcon_inst%fr_flig(ft) * currentpatch%area/AREA * froot_prof(s,ft,j)
                   !
                   !! and seed_decay too.  for now, use the same lability fractions as for leaf litter
                   bc_out(s)%FATES_c_to_litr_lab_c_col(j) = bc_out(s)%FATES_c_to_litr_lab_c_col(j) + &
-                       currentpatch%seed_decay(ft) * pftcon%lf_flab(ft) * currentpatch%area/AREA * leaf_prof(s,j)
+                       currentpatch%seed_decay(ft) * EDPftvarcon_inst%lf_flab(ft) * currentpatch%area/AREA * leaf_prof(s,j)
                   bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + &
-                       currentpatch%seed_decay(ft) * pftcon%lf_fcel(ft) * currentpatch%area/AREA * leaf_prof(s,j)
+                       currentpatch%seed_decay(ft) * EDPftvarcon_inst%lf_fcel(ft) * currentpatch%area/AREA * leaf_prof(s,j)
                   bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + &
-                       currentpatch%seed_decay(ft) * pftcon%lf_flig(ft) * currentpatch%area/AREA * leaf_prof(s,j)
+                       currentpatch%seed_decay(ft) * EDPftvarcon_inst%lf_flig(ft) * currentpatch%area/AREA * leaf_prof(s,j)
                   !
                enddo
             end do
