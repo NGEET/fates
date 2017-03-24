@@ -13,6 +13,7 @@ module SFMainMod
 
   use FatesInterfaceMod     , only : bc_in_type
   use pftconMod             , only : pftcon
+  use EDPftvarcon        , only : EDPftvarcon_inst
   use EDEcophysconType      , only : EDecophyscon
 
   use EDtypesMod            , only : ed_site_type
@@ -24,6 +25,7 @@ module SFMainMod
   use EDtypesMod            , only : LB_SF
   use EDtypesMod            , only : LG_SF
   use EDtypesMod            , only : NCWD
+  use EDtypesMod            , only : NFSC
   use EDtypesMod            , only : TR_SF
 
   implicit none
@@ -153,8 +155,8 @@ contains
     type(ed_cohort_type), pointer :: currentCohort
 
     real(r8) timeav_swc 
-    real(r8) fuel_moisture(ncwd+2) ! Scaled moisture content of small litter fuels. 
-    real(r8) MEF(ncwd+2)           ! Moisture extinction factor of fuels     integer n 
+    real(r8) fuel_moisture(nfsc) ! Scaled moisture content of small litter fuels. 
+    real(r8) MEF(nfsc)           ! Moisture extinction factor of fuels     integer n 
 
     fuel_moisture(:) = 0.0_r8
     
@@ -164,7 +166,7 @@ contains
        currentPatch%livegrass = 0.0_r8 
        currentCohort => currentPatch%tallest
        do while(associated(currentCohort))
-          if(pftcon%woody(currentCohort%pft) == 0)then 
+          if(EDPftvarcon_inst%woody(currentCohort%pft) == 0)then 
              currentPatch%livegrass = currentPatch%livegrass + currentCohort%bl*currentCohort%n/currentPatch%area
           endif
           currentCohort => currentCohort%shorter
@@ -211,7 +213,7 @@ contains
           endif
 
           currentPatch%fuel_frac(lg_sf)       = currentPatch%livegrass       / currentPatch%sum_fuel   
-          MEF(1:ncwd+2)               = 0.524_r8 - 0.066_r8 * log10(SF_val_SAV(1:ncwd+2)) 
+          MEF(1:nfsc)               = 0.524_r8 - 0.066_r8 * log10(SF_val_SAV(1:nfsc)) 
 
           !--- weighted average of relative moisture content---
           ! Equation 6 in Thonicke et al. 2010. 
@@ -268,7 +270,7 @@ contains
                   sum(currentPatch%cwd_bg),sum(currentPatch%leaf_litter)
 
           endif
-          currentPatch%fuel_sav = sum(SF_val_SAV(1:ncwd+2))/(ncwd+2) ! make average sav to avoid crashing code. 
+          currentPatch%fuel_sav = sum(SF_val_SAV(1:nfsc))/(nfsc) ! make average sav to avoid crashing code. 
 
           if ( hlm_masterproc == 1 ) write(fates_log(),*) 'problem with spitfire fuel averaging'
 
@@ -340,7 +342,7 @@ contains
  
        do while(associated(currentCohort))
           write(fates_log(),*) 'SF currentCohort%c_area ',currentCohort%c_area
-          if(pftcon%woody(currentCohort%pft) == 1)then
+          if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
              currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
           else
              total_grass_area = total_grass_area + currentCohort%c_area
@@ -538,8 +540,8 @@ contains
     type(ed_patch_type), pointer    :: currentPatch
 
     real(r8) :: moist             !effective fuel moisture
-    real(r8) :: tau_b(ncwd+2)     !lethal heating rates for each fuel class (min) 
-    real(r8) :: fc_ground(ncwd+2) !propn of fuel consumed
+    real(r8) :: tau_b(nfsc)     !lethal heating rates for each fuel class (min) 
+    real(r8) :: fc_ground(nfsc) !propn of fuel consumed
 
     integer  :: c
 
@@ -549,7 +551,7 @@ contains
        currentPatch%burnt_frac_litter = 1.0_r8       
        ! Calculate fraction of litter is burnt for all classes. 
        ! Equation B1 in Thonicke et al. 2010---
-       do c = 1, ncwd+2    !work out the burnt fraction for all pools, even if those pools dont exist.         
+       do c = 1, nfsc    !work out the burnt fraction for all pools, even if those pools dont exist.         
           moist = currentPatch%litter_moisture(c)                  
           ! 1. Very dry litter
           if (moist <= SF_val_min_moisture(c)) then
@@ -590,7 +592,7 @@ contains
        ! taul is the duration of the lethal heating.  
        ! The /10 is to convert from kgC/m2 into gC/cm2, as in the Peterson and Ryan paper #Rosie,Jun 2013
         
-       do c = 1,ncwd+2  
+       do c = 1,nfsc  
           tau_b(c)   =  39.4_r8 *(currentPatch%fuel_frac(c)*currentPatch%sum_fuel/0.45_r8/10._r8)* &
                (1.0_r8-((1.0_r8-currentPatch%burnt_frac_litter(c))**0.5_r8))  
        enddo
@@ -789,7 +791,7 @@ contains
        if (currentPatch%fire == 1) then
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
-             if (pftcon%woody(currentCohort%pft) == 1) then !trees only
+             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 tree_ag_biomass = tree_ag_biomass+(currentCohort%bl+ED_val_ag_biomass* &
                      (currentCohort%bsw + currentCohort%bdead))*currentCohort%n
              endif !trees only
@@ -804,7 +806,7 @@ contains
           currentPatch%SH = 0.0_r8
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))
-             if (pftcon%woody(currentCohort%pft) == 1.and.(tree_ag_biomass > 0.0_r8)) then !trees only
+             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1.and.(tree_ag_biomass > 0.0_r8)) then !trees only
                 f_ag_bmass = ((currentCohort%bl+ED_val_ag_biomass*(currentCohort%bsw + &
                      currentCohort%bdead))*currentCohort%n)/tree_ag_biomass
                 !equation 16 in Thonicke et al. 2010
@@ -844,7 +846,7 @@ contains
 
           do while(associated(currentCohort))  
              currentCohort%cfa = 0.0_r8
-             if (pftcon%woody(currentCohort%pft) == 1) then !trees only
+             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 ! Flames lower than bottom of canopy. 
                 ! c%hite is height of cohort
                 if (currentPatch%SH < (currentCohort%hite-currentCohort%hite*EDecophyscon%crown(currentCohort%pft))) then 
@@ -905,7 +907,7 @@ contains
        if (currentPatch%fire == 1) then
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
-             if (pftcon%woody(currentCohort%pft) == 1) then !trees only
+             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 ! Equation 21 in Thonicke et al 2010
                 bt = EDecophyscon%bark_scaler(currentCohort%pft)*currentCohort%dbh ! bark thickness. 
                 ! Equation 20 in Thonicke et al. 2010. 
@@ -957,7 +959,7 @@ contains
           do while(associated(currentCohort))  
              currentCohort%fire_mort = 0.0_r8
              currentCohort%crownfire_mort = 0.0_r8
-             if (pftcon%woody(currentCohort%pft) == 1) then
+             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then
                 ! Equation 22 in Thonicke et al. 2010. 
                 currentCohort%crownfire_mort = EDecophyscon%crown_kill(currentCohort%pft)*currentCohort%cfa**3.0_r8
                 ! Equation 18 in Thonicke et al. 2010. 

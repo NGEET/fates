@@ -1976,7 +1976,7 @@ sub setup_logic_params_file {
 
   if ( $physv->as_long() >= $physv->as_long("clm4_5") ) {
     add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'paramfile', 
-                'use_ed'=>$nl_flags->{'use_ed'}, 'phys'=>$nl_flags->{'phys'},
+                'phys'=>$nl_flags->{'phys'},
                 'use_flexibleCN'=>$nl_flags->{'use_flexibleCN'} );
   } else {
     add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'fpftcon');
@@ -3367,6 +3367,7 @@ sub setup_logic_ed {
 
     if ($physv->as_long() >= $physv->as_long("clm4_5") && value_is_true( $nl_flags->{'use_ed'})  ) {
  	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_ed_spitfire', 'use_ed'=>$nl_flags->{'use_ed'} );
+        add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'fates_paramfile', 'phys'=>$nl_flags->{'phys'});
     }
 }
 
