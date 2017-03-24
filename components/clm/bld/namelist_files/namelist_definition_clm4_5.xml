@@ -532,14 +532,6 @@ Override the start type from the driver: it can only be
 set to 3 meaning branch.
 </entry>
 
-<entry id="glcmec_downscale_longwave" type="logical" category="clm_physics"
-       group="clm_inparm" valid_values="" >
-If TRUE, downscale longwave radiation over glc_mec landunits.
-This downscaling is conservative.
-<default>Default: .true.</default>
-</entry>
-
-
 <entry id="use_ed" type="logical" category="physics"
         group="clm_inparm" valid_values="" value=".false.">
 Toggle to turn on the ED
@@ -753,11 +745,6 @@ If TRUE, write diagnostic of global radiative temperature written to CLM log fil
 <entry id="subgridflag" type="integer" category="clm_physics"
        group="clm_inparm" valid_values="0,1" >
 Subgrid fluxes for snow
-</entry>
-
-<entry id="repartition_rain_snow" type="logical" category="clm_physics"
-       group="clm_inparm" valid_values="" >
-If TRUE, repartition rain/snow from atmosphere based on temperature.
 </entry>
 
 <entry id="snowveg_flag" type="char*10" category="clm_physics"
@@ -1258,6 +1245,68 @@ Full pathname of output domain dataset (only used for mkdatadomain).
 <entry id="dtype" type="char*5" category="tools"
        group="domain_nl" valid_values="datm,docn" >
 Type of domain file to create (ocean or atmosphere) (only used for mkdatadomain)
+</entry>
+
+<!-- ========================================================================================  -->
+<!-- Namelist items controlling atmospheric forcings                                           -->
+<!-- ========================================================================================  -->
+
+<entry id="repartition_rain_snow" type="logical" category="clm_physics"
+       group="atm2lnd_inparm" valid_values="" >
+If TRUE, repartition rain/snow from atmosphere based on temperature.
+</entry>
+
+<entry id="glcmec_downscale_longwave" type="logical" category="clm_physics"
+       group="atm2lnd_inparm" valid_values="" >
+If TRUE, downscale longwave radiation over glc_mec landunits.
+This downscaling is conservative.
+<default>Default: .true.</default>
+</entry>
+
+<entry id="lapse_rate" type="real" category="clm_physics"
+       group="atm2lnd_inparm" valid_values="" >
+Surface temperature lapse rate (K m-1)
+A positive value means a decrease in temperature with increasing height
+</entry>
+
+<entry id="lapse_rate_longwave" type="real" category="clm_physics"
+       group="atm2lnd_inparm" valid_values="" >
+Longwave radiation lapse rate (W m-2 m-1)
+A positive value means a decrease in LW radiation with increasing height
+Only relevant if glcmec_downscale_longwave is .true.
+</entry>
+
+<entry id="longwave_downscaling_limit" type="real" category="clm_physics"
+       group="atm2lnd_inparm" valid_values="" >
+Relative limit for how much longwave downscaling can be done (unitless)
+The pre-normalized, downscaled longwave is restricted to be in the range
+[lwrad*(1-longwave_downscaling_limit), lwrad*(1+longwave_downscaling_limit)]
+This parameter must be in the range [0,1]
+Only relevant if glcmec_downscale_longwave is .true.
+</entry>
+
+<entry id="precip_repartition_glc_all_snow_t" type="real" category="clm_physics"
+       group="atm2lnd_inparm" valid_values="" >
+Temperature below which all precipitation falls as snow, for glacier columns (deg C)
+Only relevant if repartition_rain_snow is .true.
+</entry>
+
+<entry id="precip_repartition_glc_all_rain_t" type="real" category="clm_physics"
+       group="atm2lnd_inparm" valid_values="" >
+Temperature above which all precipitation falls as rain, for glacier columns (deg C)
+Only relevant if repartition_rain_snow is .true.
+</entry>
+
+<entry id="precip_repartition_nonglc_all_snow_t" type="real" category="clm_physics"
+       group="atm2lnd_inparm" valid_values="" >
+Temperature below which all precipitation falls as snow, for non-glacier columns (deg C)
+Only relevant if repartition_rain_snow is .true.
+</entry>
+
+<entry id="precip_repartition_nonglc_all_rain_t" type="real" category="clm_physics"
+       group="atm2lnd_inparm" valid_values="" >
+Temperature above which all precipitation falls as rain, for non-glacier columns (deg C)
+Only relevant if repartition_rain_snow is .true.
 </entry>
 
 <!-- ========================================================================================  -->
@@ -1959,6 +2008,15 @@ If TRUE, apply harvest from flanduse_timeseries file.
 (Also, only valid for use_cn = true.)
 </entry>
 
+<entry id="for_testing_allow_non_annual_changes" type="logical" category="physics"
+       group="dynamic_subgrid" valid_values="" >
+If TRUE, allow area changes at times other than the year boundary. This should
+only arise in some test configurations where we artifically create changes more
+frequently so that we can run short tests. This flag is only used for
+error-checking, not controlling any model behavior. Do not set this in a
+production (non-test) run unless you know what you're doing!
+</entry>
+
 <!-- ========================================================================================  -->
 <!-- Namelist options related to finidat consistency checks                                    -->
 <!-- ========================================================================================  -->
@@ -2004,6 +2062,21 @@ Changes in this value should possibly be accompanied by changes in:
 - glc_snow_persistence_max_days: large values of h2osno_max should generally have
   glc_snow_persistence_max_days = 0; small values of h2osno_max should generally have
   glc_snow_persistence_max_days > 0.
+</entry>
+
+<entry id="int_snow_max" type="real" category="clm_physics"
+       group="clm_inparm" valid_values="" >
+Limit applied to integrated snowfall when determining changes in snow-covered fraction during melt
+(mm H2O)
+</entry>
+
+<entry id="n_melt_glcmec" type="real" category="clm_physics"
+       group="clm_inparm" valid_values="" >
+SCA shape parameter for glc_mec (glacier multiple elevation class) columns
+For most columns, n_melt is based on the standard deviation of 1km topography in the grid cell;
+but glc_mec columns already account for subgrid topographic variability through their use of
+multiple elevation classes; thus, to avoid double-accounting for topographic variability
+in these columns, we use a fixed value of n_melt.
 </entry>
 
 <entry id="wind_dependent_snow_density" type="logical" category="clm_physics"

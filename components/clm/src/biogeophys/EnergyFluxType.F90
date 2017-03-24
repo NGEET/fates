@@ -334,6 +334,11 @@ contains
          avgflag='A', long_name='net infrared (longwave) radiation', &
          ptr_patch=this%eflx_lwrad_net_patch, c2l_scale_type='urbanf')
 
+    call hist_addfld1d (fname='FIRA_ICE', units='W/m^2',  &
+         avgflag='A', long_name='net infrared (longwave) radiation (ice landunits only)', &
+         ptr_patch=this%eflx_lwrad_net_patch, c2l_scale_type='urbanf', l2g_scale_type='ice',&
+         default='inactive')
+
     this%eflx_lwrad_net_r_patch(begp:endp) = spval 
     call hist_addfld1d (fname='FIRA_R', units='W/m^2',  &
          avgflag='A', long_name='Rural net infrared (longwave) radiation', &
@@ -629,6 +634,11 @@ contains
     call hist_addfld1d (fname='BTRANMN', units='unitless',  &
          avgflag='A', long_name='daily minimum of transpiration beta factor', &
          ptr_patch=this%btran_min_patch, set_lake=spval, set_urb=spval)
+
+    this%btran2_patch(begp:endp) = spval
+    call hist_addfld1d (fname='BTRAN2', units='unitless',  &
+         avgflag='A', long_name='root zone soil wetness factor', &
+         ptr_patch=this%btran2_patch, set_lake=spval, set_urb=spval)
 
     if (use_cn) then
        this%rresis_patch(begp:endp,:) = spval

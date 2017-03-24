@@ -697,31 +697,35 @@ contains
     call t_startf('CNWoodProducts')
     call c_products_inst%UpdateProducts(bounds, &
          num_soilp, filter_soilp, &
-         dwt_wood_product_gain_patch = cnveg_carbonflux_inst%dwt_productc_gain_patch(begp:endp), &
+         dwt_wood_product_gain_patch = cnveg_carbonflux_inst%dwt_wood_productc_gain_patch(begp:endp), &
          wood_harvest_patch = cnveg_carbonflux_inst%wood_harvestc_patch(begp:endp), &
+         dwt_crop_product_gain_patch = cnveg_carbonflux_inst%dwt_crop_productc_gain_patch(begp:endp), &
          grain_to_cropprod_patch = cnveg_carbonflux_inst%grainc_to_cropprodc_patch(begp:endp))
     call t_stopf('CNWoodProducts')
 
     if (use_c13) then
        call c13_products_inst%UpdateProducts(bounds, &
             num_soilp, filter_soilp, &
-            dwt_wood_product_gain_patch = c13_cnveg_carbonflux_inst%dwt_productc_gain_patch(begp:endp), &
+            dwt_wood_product_gain_patch = c13_cnveg_carbonflux_inst%dwt_wood_productc_gain_patch(begp:endp), &
             wood_harvest_patch = c13_cnveg_carbonflux_inst%wood_harvestc_patch(begp:endp), &
+            dwt_crop_product_gain_patch = c13_cnveg_carbonflux_inst%dwt_crop_productc_gain_patch(begp:endp), &
             grain_to_cropprod_patch = c13_cnveg_carbonflux_inst%grainc_to_cropprodc_patch(begp:endp))
     end if
 
     if (use_c14) then
        call c14_products_inst%UpdateProducts(bounds, &
             num_soilp, filter_soilp, &
-            dwt_wood_product_gain_patch = c14_cnveg_carbonflux_inst%dwt_productc_gain_patch(begp:endp), &
+            dwt_wood_product_gain_patch = c14_cnveg_carbonflux_inst%dwt_wood_productc_gain_patch(begp:endp), &
             wood_harvest_patch = c14_cnveg_carbonflux_inst%wood_harvestc_patch(begp:endp), &
+            dwt_crop_product_gain_patch = c14_cnveg_carbonflux_inst%dwt_crop_productc_gain_patch(begp:endp), &
             grain_to_cropprod_patch = c14_cnveg_carbonflux_inst%grainc_to_cropprodc_patch(begp:endp))
     end if
 
     call n_products_inst%UpdateProducts(bounds, &
          num_soilp, filter_soilp, &
-         dwt_wood_product_gain_patch = cnveg_nitrogenflux_inst%dwt_productn_gain_patch(begp:endp), &
+         dwt_wood_product_gain_patch = cnveg_nitrogenflux_inst%dwt_wood_productn_gain_patch(begp:endp), &
          wood_harvest_patch = cnveg_nitrogenflux_inst%wood_harvestn_patch(begp:endp), &
+         dwt_crop_product_gain_patch = cnveg_nitrogenflux_inst%dwt_crop_productn_gain_patch(begp:endp), &
          grain_to_cropprod_patch = cnveg_nitrogenflux_inst%grainn_to_cropprodn_patch(begp:endp))
 
     !--------------------------------------------
@@ -784,7 +788,7 @@ contains
        call CStateUpdate3( num_soilc, filter_soilc, num_soilp, filter_soilp, &
             c14_cnveg_carbonflux_inst, c14_cnveg_carbonstate_inst, c14_soilbiogeochem_carbonstate_inst)
 
-       call C14Decay(num_soilc, filter_soilc, num_soilp, filter_soilp, &
+       call C14Decay(bounds, num_soilc, filter_soilc, num_soilp, filter_soilp, &
             c14_cnveg_carbonstate_inst, c14_soilbiogeochem_carbonstate_inst)
     end if
     call t_stopf('CNUpdate3')
@@ -914,8 +918,7 @@ contains
          soilbiogeochem_cwdc_col=soilbiogeochem_carbonstate_inst%cwdc_col(begc:endc), &
          soilbiogeochem_totlitc_col=soilbiogeochem_carbonstate_inst%totlitc_col(begc:endc), &
          soilbiogeochem_totsomc_col=soilbiogeochem_carbonstate_inst%totsomc_col(begc:endc), &
-         soilbiogeochem_ctrunc_col=soilbiogeochem_carbonstate_inst%ctrunc_col(begc:endc), &
-         soilbiogeochem_dyn_cbal_adjustments_col=soilbiogeochem_carbonstate_inst%dyn_cbal_adjustments_col(begc:endc))
+         soilbiogeochem_ctrunc_col=soilbiogeochem_carbonstate_inst%ctrunc_col(begc:endc))
 
     if ( use_c13 ) then
        call c13_cnveg_carbonstate_inst%Summary(bounds, num_allc, filter_allc, &
@@ -923,8 +926,7 @@ contains
             soilbiogeochem_cwdc_col=c13_soilbiogeochem_carbonstate_inst%cwdc_col(begc:endc), &
             soilbiogeochem_totlitc_col=c13_soilbiogeochem_carbonstate_inst%totlitc_col(begc:endc), &
             soilbiogeochem_totsomc_col=c13_soilbiogeochem_carbonstate_inst%totsomc_col(begc:endc), &
-            soilbiogeochem_ctrunc_col=c13_soilbiogeochem_carbonstate_inst%ctrunc_col(begc:endc), &
-            soilbiogeochem_dyn_cbal_adjustments_col=c13_soilbiogeochem_carbonstate_inst%dyn_cbal_adjustments_col(begc:endc))
+            soilbiogeochem_ctrunc_col=c13_soilbiogeochem_carbonstate_inst%ctrunc_col(begc:endc))
     end if
 
     if ( use_c14 ) then
@@ -933,8 +935,7 @@ contains
             soilbiogeochem_cwdc_col=c14_soilbiogeochem_carbonstate_inst%cwdc_col(begc:endc), &
             soilbiogeochem_totlitc_col=c14_soilbiogeochem_carbonstate_inst%totlitc_col(begc:endc), &
             soilbiogeochem_totsomc_col=c14_soilbiogeochem_carbonstate_inst%totsomc_col(begc:endc), &
-            soilbiogeochem_ctrunc_col=c14_soilbiogeochem_carbonstate_inst%ctrunc_col(begc:endc), &
-            soilbiogeochem_dyn_cbal_adjustments_col=c14_soilbiogeochem_carbonstate_inst%dyn_cbal_adjustments_col(begc:endc))
+            soilbiogeochem_ctrunc_col=c14_soilbiogeochem_carbonstate_inst%ctrunc_col(begc:endc))
     end if
 
     call cnveg_nitrogenstate_inst%Summary(bounds, num_allc, filter_allc, &

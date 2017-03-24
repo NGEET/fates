@@ -10,7 +10,7 @@ module clm_instMod
   use clm_varpar      , only : ndecomp_pools, nlevdecomp_full
   use clm_varctl      , only : use_cn, use_c13, use_c14, use_lch4, use_cndv, use_ed, use_voc
   use clm_varctl      , only : use_century_decomp, use_crop
-  use clm_varcon      , only : h2osno_max, bdsno, c13ratio, c14ratio
+  use clm_varcon      , only : bdsno, c13ratio, c14ratio
   use landunit_varcon , only : istice, istice_mec, istsoil
   use perf_mod        , only : t_startf, t_stopf
   use controlMod      , only : NLFilename
@@ -250,7 +250,7 @@ contains
 
     ! Initialize clm->drv and drv->clm data structures
 
-    call atm2lnd_inst%Init( bounds )
+    call atm2lnd_inst%Init( bounds, NLFilename )
     call lnd2atm_inst%Init( bounds )
 
     ! Initialize glc2lnd and lnd2glc even if running without create_glacier_mec_landunit,

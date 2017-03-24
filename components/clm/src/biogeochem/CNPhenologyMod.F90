@@ -423,12 +423,11 @@ contains
     integer                , intent(in)    :: filter_pcropp(:)! filter for prognostic crop patches
     type(temperature_type) , intent(inout) :: temperature_inst
     type(cnveg_state_type) , intent(inout) :: cnveg_state_inst
-    type(crop_type)        , intent(in)    :: crop_inst
+    type(crop_type)        , intent(inout) :: crop_inst
     !
     ! !LOCAL VARIABLES:
     integer  :: p       ! indices
     integer  :: fp      ! lake filter patch index
-    integer  :: nyrs    ! number of years prognostic crop has run
     real(r8) :: dayspyr ! days per year (days)
     integer  :: kyr     ! current year
     integer  :: kmo     ! month of year  (1, ..., 12)
@@ -439,7 +438,9 @@ contains
     !-----------------------------------------------------------------------
 
     associate(                                                & 
-         t_ref2m        => temperature_inst%t_ref2m_patch ,   & ! Input:  [real(r8) (:) ]  2m air temperature (K)                            
+         nyrs_crop_active => crop_inst%nyrs_crop_active_patch,   & ! InOut:  [integer (:)  ]  number of years this crop patch has been active
+         
+         t_ref2m        => temperature_inst%t_ref2m_patch ,   & ! Input:  [real(r8) (:) ]  2m air temperature (K)
          gdd0           => temperature_inst%gdd0_patch    ,   & ! Output: [real(r8) (:) ]  growing deg. days base 0 deg C (ddays)            
          gdd8           => temperature_inst%gdd8_patch    ,   & ! Output: [real(r8) (:) ]     "     "    "    "   8  "  "    "               
          gdd10          => temperature_inst%gdd10_patch   ,   & ! Output: [real(r8) (:) ]     "     "    "    "  10  "  "    "               
@@ -469,18 +470,17 @@ contains
       if (num_pcropp > 0) then
          ! get time-related info
          call get_curr_date(kyr, kmo, kda, mcsec)
-         nyrs = crop_inst%CropRestYear
       end if
 
       do fp = 1,num_pcropp
          p = filter_pcropp(fp)
-         if (kmo == 1 .and. kda == 1 .and. nyrs == 0) then ! YR 1:
+         if (kmo == 1 .and. kda == 1 .and. nyrs_crop_active(p) == 0) then ! YR 1:
             gdd020(p)  = 0._r8                             ! set gdd..20 variables to 0
             gdd820(p)  = 0._r8                             ! and crops will not be planted
             gdd1020(p) = 0._r8
          end if
          if (kmo == 1 .and. kda == 1 .and. mcsec == 0) then        ! <-- END of EVERY YR:
-            if (nyrs  == 1) then                                   ! <-- END of YR 1
+            if (nyrs_crop_active(p) == 1) then                     ! <-- END of YR 1
                gdd020(p)  = gdd0(p)                                ! <-- END of YR 1
                gdd820(p)  = gdd8(p)                                ! <-- END of YR 1
                gdd1020(p) = gdd10(p)                               ! <-- END of YR 1
@@ -1508,13 +1508,12 @@ contains
          offset_counter    =>    cnveg_state_inst%offset_counter_patch         , & ! Output: [real(r8) (:) ]  offset counter                                    
          
          leafc_xfer        =>    cnveg_carbonstate_inst%leafc_xfer_patch       , & ! Output: [real(r8) (:) ]  (gC/m2)   leaf C transfer                           
-         cropseedc         =>    cnveg_carbonstate_inst%cropseedc_patch        , & ! Output: [real(r8) (:) ]  (gC/m2)   C in crop seed
 
-         crop_seedc_to_leaf =>   cnveg_carbonflux_inst%crop_seedc_to_leaf_col  , & ! Output: [real(r8) (:) ]  (gC/m2/s) seed source to patch-level                
+         crop_seedc_to_leaf =>   cnveg_carbonflux_inst%crop_seedc_to_leaf_patch, & ! Output: [real(r8) (:) ]  (gC/m2/s) seed source to leaf
 
          fert_counter      =>    cnveg_nitrogenflux_inst%fert_counter_patch    , & ! Output: [real(r8) (:) ]  >0 fertilize; <=0 not (seconds)                   
          leafn_xfer        =>    cnveg_nitrogenstate_inst%leafn_xfer_patch     , & ! Output: [real(r8) (:) ]  (gN/m2)   leaf N transfer                           
-         crop_seedn_to_leaf =>   cnveg_nitrogenflux_inst%crop_seedn_to_leaf_col, & ! Output: [real(r8) (:) ]  (gN/m2/s) seed source to patch-level                
+         crop_seedn_to_leaf =>   cnveg_nitrogenflux_inst%crop_seedn_to_leaf_patch, & ! Output: [real(r8) (:) ]  (gN/m2/s) seed source to leaf
          cphase            =>    crop_inst%cphase_patch                        , & ! Output: [real(r8) (:)]   phenology phase
          fert              =>    cnveg_nitrogenflux_inst%fert_patch              & ! Output: [real(r8) (:) ]  (gN/m2/s) fertilizer applied each timestep 
          )
@@ -1626,10 +1625,9 @@ contains
                   harvdate(p)    = NOT_Harvested
                   gddmaturity(p) = hybgdd(ivt(p))
                   leafc_xfer(p)  = initial_seed_at_planting
-                  cropseedc(p)   = leafc_xfer(p)
                   leafn_xfer(p)  = leafc_xfer(p) / leafcn(ivt(p)) ! with onset
-                  crop_seedc_to_leaf(c) = crop_seedc_to_leaf(c) + leafc_xfer(p)/dt
-                  crop_seedn_to_leaf(c) = crop_seedn_to_leaf(c) + leafn_xfer(p)/dt
+                  crop_seedc_to_leaf(p) = leafc_xfer(p)/dt
+                  crop_seedn_to_leaf(p) = leafn_xfer(p)/dt
 
                   ! latest possible date to plant winter cereal and after all other 
                   ! crops were harvested for that year
@@ -1647,10 +1645,9 @@ contains
                   harvdate(p)    = NOT_Harvested
                   gddmaturity(p) = hybgdd(ivt(p))
                   leafc_xfer(p)  = initial_seed_at_planting
-                  cropseedc(p)   = leafc_xfer(p)
                   leafn_xfer(p)  = leafc_xfer(p) / leafcn(ivt(p)) ! with onset
-                  crop_seedc_to_leaf(c) = crop_seedc_to_leaf(c) + leafc_xfer(p)/dt
-                  crop_seedn_to_leaf(c) = crop_seedn_to_leaf(c) + leafn_xfer(p)/dt
+                  crop_seedc_to_leaf(p) = leafc_xfer(p)/dt
+                  crop_seedn_to_leaf(p) = leafn_xfer(p)/dt
                else
                   gddmaturity(p) = 0._r8
                end if
@@ -1693,10 +1690,9 @@ contains
                   end if
 
                   leafc_xfer(p)  = initial_seed_at_planting
-                  cropseedc(p)   = leafc_xfer(p)
                   leafn_xfer(p) = leafc_xfer(p) / leafcn(ivt(p)) ! with onset
-                  crop_seedc_to_leaf(c) = crop_seedc_to_leaf(c) + leafc_xfer(p)/dt
-                  crop_seedn_to_leaf(c) = crop_seedn_to_leaf(c) + leafn_xfer(p)/dt
+                  crop_seedc_to_leaf(p) = leafc_xfer(p)/dt
+                  crop_seedn_to_leaf(p) = leafn_xfer(p)/dt
 
                   ! If hit the max planting julian day -- go ahead and plant
                else if (jday == maxplantjday(ivt(p),h) .and. gdd820(p) > 0._r8 .and. &
@@ -1722,10 +1718,9 @@ contains
                   end if
 
                   leafc_xfer(p)  = initial_seed_at_planting
-                  cropseedc(p)   = leafc_xfer(p)
                   leafn_xfer(p) = leafc_xfer(p) / leafcn(ivt(p)) ! with onset
-                  crop_seedc_to_leaf(c) = crop_seedc_to_leaf(c) + leafc_xfer(p)/dt
-                  crop_seedn_to_leaf(c) = crop_seedn_to_leaf(c) + leafn_xfer(p)/dt
+                  crop_seedc_to_leaf(p) = leafc_xfer(p)/dt
+                  crop_seedn_to_leaf(p) = leafn_xfer(p)/dt
 
                else
                   gddmaturity(p) = 0._r8
@@ -1885,9 +1880,14 @@ contains
                   offset_flag(p) = 1._r8
                   offset_counter(p) = dt
                else                      ! plant never emerged from the ground
-                  crop_seedc_to_leaf(c) = crop_seedc_to_leaf(c) - leafc_xfer(p)/dt
-                  crop_seedn_to_leaf(c) = crop_seedn_to_leaf(c) - leafn_xfer(p)/dt
-                  leafc_xfer(p) = 0._r8  ! revert planting transfers
+                  ! Revert planting transfers; this will replenish the crop seed deficit.
+                  ! We subtract from any existing value in crop_seedc_to_leaf /
+                  ! crop_seedn_to_leaf in the unlikely event that we enter this block of
+                  ! code in the same time step where the planting transfer originally
+                  ! occurred.
+                  crop_seedc_to_leaf(p) = crop_seedc_to_leaf(p) - leafc_xfer(p)/dt
+                  crop_seedn_to_leaf(p) = crop_seedn_to_leaf(p) - leafn_xfer(p)/dt
+                  leafc_xfer(p) = 0._r8
                   leafn_xfer(p) = leafc_xfer(p) / leafcn(ivt(p))
                end if
 
@@ -1912,12 +1912,15 @@ contains
               end if
 
          else   ! crop not live
-            ! next 2 lines conserve mass if leaf*_xfer > 0 due to interpinic
-            crop_seedc_to_leaf(c) = crop_seedc_to_leaf(c) - leafc_xfer(p)/dt
-            crop_seedn_to_leaf(c) = crop_seedn_to_leaf(c) - leafn_xfer(p)/dt
+            ! next 2 lines conserve mass if leaf*_xfer > 0 due to interpinic.
+            ! We subtract from any existing value in crop_seedc_to_leaf /
+            ! crop_seedn_to_leaf in the unlikely event that we enter this block of
+            ! code in the same time step where the planting transfer originally
+            ! occurred.
+            crop_seedc_to_leaf(p) = crop_seedc_to_leaf(p) - leafc_xfer(p)/dt
+            crop_seedn_to_leaf(p) = crop_seedn_to_leaf(p) - leafn_xfer(p)/dt
             onset_counter(p) = 0._r8
             leafc_xfer(p) = 0._r8
-            cropseedc(p)  = 0._r8
             leafn_xfer(p) = leafc_xfer(p) / leafcn(ivt(p))
          end if ! croplive
 
@@ -2302,8 +2305,9 @@ contains
          leafc                 =>    cnveg_carbonstate_inst%leafc_patch                , & ! Input:  [real(r8) (:) ]  (gC/m2) leaf C                                    
          frootc                =>    cnveg_carbonstate_inst%frootc_patch               , & ! Input:  [real(r8) (:) ]  (gC/m2) fine root C                               
          grainc                =>    cnveg_carbonstate_inst%grainc_patch               , & ! Input:  [real(r8) (:) ]  (gC/m2) grain C                                   
-         cropseedc             =>    cnveg_carbonstate_inst%cropseedc_patch            , & ! Input:  [real(r8) (:) ]  (gC/m2) crop seed C                                  
+         cropseedc_deficit     =>    cnveg_carbonstate_inst%cropseedc_deficit_patch    , & ! Input:  [real(r8) (:) ]  (gC/m2) crop seed C deficit
          livestemc             =>    cnveg_carbonstate_inst%livestemc_patch            , & ! Input:  [real(r8) (:) ]  (gC/m2) livestem C                                
+         cropseedn_deficit     =>    cnveg_nitrogenstate_inst%cropseedn_deficit_patch  , & ! Input:  [real(r8) (:) ]  (gC/m2) crop seed N deficit
          livestemn             =>    cnveg_nitrogenstate_inst%livestemn_patch          , & ! Input:  [real(r8) (:) ]  (gN/m2) livestem N
 
          cpool_to_grainc       =>    cnveg_carbonflux_inst%cpool_to_grainc_patch       , & ! Input:  [real(r8) (:) ]  allocation to grain C (gC/m2/s)                   
@@ -2318,11 +2322,13 @@ contains
          frootc_to_litter      =>    cnveg_carbonflux_inst%frootc_to_litter_patch      , & ! Output: [real(r8) (:) ]  fine root C litterfall (gC/m2/s)                  
          livestemc_to_litter   =>    cnveg_carbonflux_inst%livestemc_to_litter_patch   , & ! Output: [real(r8) (:) ]  live stem C litterfall (gC/m2/s)                  
          grainc_to_food        =>    cnveg_carbonflux_inst%grainc_to_food_patch        , & ! Output: [real(r8) (:) ]  grain C to food (gC/m2/s)                         
+         grainc_to_seed        =>    cnveg_carbonflux_inst%grainc_to_seed_patch        , & ! Output: [real(r8) (:) ]  grain C to seed (gC/m2/s)
          leafn                 =>    cnveg_nitrogenstate_inst%leafn_patch              , & ! Input:  [real(r8) (:) ]  (gN/m2) leaf N      
          frootn                =>    cnveg_nitrogenstate_inst%frootn_patch             , & ! Input:  [real(r8) (:) ]  (gN/m2) fine root N                        
 
          livestemn_to_litter   =>    cnveg_nitrogenflux_inst%livestemn_to_litter_patch , & ! Output: [real(r8) (:) ]  livestem N to litter (gN/m2/s)                    
          grainn_to_food        =>    cnveg_nitrogenflux_inst%grainn_to_food_patch      , & ! Output: [real(r8) (:) ]  grain N to food (gN/m2/s)                         
+         grainn_to_seed        =>    cnveg_nitrogenflux_inst%grainn_to_seed_patch      , & ! Output: [real(r8) (:) ]  grain N to seed (gN/m2/s)
          leafn_to_litter       =>    cnveg_nitrogenflux_inst%leafn_to_litter_patch     , & ! Output: [real(r8) (:) ]  leaf N litterfall (gN/m2/s)                       
          leafn_to_retransn     =>    cnveg_nitrogenflux_inst%leafn_to_retransn_patch   , & ! Input: [real(r8) (:) ]  leaf N to retranslocated N pool (gN/m2/s)         
          free_retransn_to_npool=>    cnveg_nitrogenflux_inst%free_retransn_to_npool_patch  , & ! Input: [real(r8) (:) ] free leaf N to retranslocated N pool (gN/m2/s)          
@@ -2349,11 +2355,21 @@ contains
                ! if this were ever changed, we'd need to add code to the "else"
                if (ivt(p) >= npcropmin) then
                   if ( subtract_cropseed ) then
-                     grainc_to_food(p) = t1 * grainc(p)  + cpool_to_grainc(p) - t1 * cropseedc(p)
+                     ! Replenish the seed deficits from grain, if there is enough
+                     ! available grain. (If there is not enough available grain, the seed
+                     ! deficits will accumulate until there is eventually enough grain to
+                     ! replenish them.)
+                     grainc_to_seed(p) = t1 * min(-cropseedc_deficit(p), grainc(p))
+                     grainn_to_seed(p) = t1 * min(-cropseedn_deficit(p), grainn(p))
                   else
-                     grainc_to_food(p) = t1 * grainc(p)  + cpool_to_grainc(p) 
+                     ! It's not necessary to explicitly 0 these, but we do it to be clear
+                     grainc_to_seed(p) = 0._r8
+                     grainn_to_seed(p) = 0._r8
                   end if
-                  grainn_to_food(p) = t1 * grainn(p)  + npool_to_grainn(p) 
+                  ! Send the remaining grain to the food product pool
+                  grainc_to_food(p) = t1 * grainc(p)  + cpool_to_grainc(p) - grainc_to_seed(p)
+                  grainn_to_food(p) = t1 * grainn(p)  + npool_to_grainn(p) - grainn_to_seed(p)
+
                   livestemc_to_litter(p) = t1 * livestemc(p)  + cpool_to_livestemc(p)
                end if
             else
