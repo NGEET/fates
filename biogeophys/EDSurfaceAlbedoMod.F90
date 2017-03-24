@@ -20,7 +20,7 @@ module EDSurfaceRadiationMod
   use EDTypesMod        , only : maxSWb
   use EDTypesMod        , only : nclmax
   use EDTypesMod        , only : numpft_ed
-  use EDTypesMod        , only : nlevcan
+  use EDTypesMod        , only : nlevleaf
   use EDCanopyStructureMod, only: calc_areaindex
   use FatesGlobals      , only : fates_log
   
@@ -50,7 +50,7 @@ contains
 
       !
       ! !USES:
-      use pftconMod         , only : pftcon
+      use EDPftvarcon       , only : EDPftvarcon_inst
       use EDtypesMod        , only : ed_patch_type
       use EDTypesMod        , only : ed_site_type
 
@@ -74,10 +74,10 @@ contains
       real(r8) :: sb
       real(r8) :: error                                         ! Error check
       real(r8) :: down_rad, up_rad                              ! Iterative solution do Dif_dn and Dif_up
-      real(r8) :: ftweight(nclmax,numpft_ed,nlevcan)
+      real(r8) :: ftweight(nclmax,numpft_ed,nlevleaf)
       real(r8) :: k_dir(numpft_ed)                              ! Direct beam extinction coefficient
-      real(r8) :: tr_dir_z(nclmax,numpft_ed,nlevcan)         ! Exponential transmittance of direct beam radiation through a single layer
-      real(r8) :: tr_dif_z(nclmax,numpft_ed,nlevcan)         ! Exponential transmittance of diffuse radiation through a single layer
+      real(r8) :: tr_dir_z(nclmax,numpft_ed,nlevleaf)         ! Exponential transmittance of direct beam radiation through a single layer
+      real(r8) :: tr_dif_z(nclmax,numpft_ed,nlevleaf)         ! Exponential transmittance of diffuse radiation through a single layer
       real(r8) :: forc_dir(maxPatchesPerSite,maxSWb)
       real(r8) :: forc_dif(maxPatchesPerSite,maxSWb)
       real(r8) :: weighted_dir_tr(nclmax)
@@ -85,15 +85,15 @@ contains
       real(r8) :: weighted_dif_ratio(nclmax,maxSWb)
       real(r8) :: weighted_dif_down(nclmax)
       real(r8) :: weighted_dif_up(nclmax)
-      real(r8) :: refl_dif(nclmax,numpft_ed,nlevcan,maxSWb)  ! Term for diffuse radiation reflected by laye
-      real(r8) :: tran_dif(nclmax,numpft_ed,nlevcan,maxSWb)  ! Term for diffuse radiation transmitted by layer
-      real(r8) :: dif_ratio(nclmax,numpft_ed,nlevcan,maxSWb) ! Ratio of upward to forward diffuse fluxes
-      real(r8) :: Dif_dn(nclmax,numpft_ed,nlevcan)           ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
-      real(r8) :: Dif_up(nclmax,numpft_ed,nlevcan)           ! Upward diffuse flux above canopy layer J (W/m**2 ground area)
-      real(r8) :: lai_change(nclmax,numpft_ed,nlevcan)       ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
+      real(r8) :: refl_dif(nclmax,numpft_ed,nlevleaf,maxSWb)  ! Term for diffuse radiation reflected by laye
+      real(r8) :: tran_dif(nclmax,numpft_ed,nlevleaf,maxSWb)  ! Term for diffuse radiation transmitted by layer
+      real(r8) :: dif_ratio(nclmax,numpft_ed,nlevleaf,maxSWb) ! Ratio of upward to forward diffuse fluxes
+      real(r8) :: Dif_dn(nclmax,numpft_ed,nlevleaf)           ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
+      real(r8) :: Dif_up(nclmax,numpft_ed,nlevleaf)           ! Upward diffuse flux above canopy layer J (W/m**2 ground area)
+      real(r8) :: lai_change(nclmax,numpft_ed,nlevleaf)       ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
       real(r8) :: f_not_abs(numpft_ed,maxSWb)                   ! Fraction reflected + transmitted. 1-absorbtion.
-      real(r8) :: Abs_dir_z(numpft_ed,nlevcan)
-      real(r8) :: Abs_dif_z(numpft_ed,nlevcan)
+      real(r8) :: Abs_dir_z(numpft_ed,nlevleaf)
+      real(r8) :: Abs_dif_z(numpft_ed,nlevleaf)
       real(r8) :: abs_rad(maxSWb)                               !radiation absorbed by soil
       real(r8) :: tr_soili                                      ! Radiation transmitted to the soil surface.
       real(r8) :: tr_soild                                      ! Radiation transmitted to the soil surface.
@@ -117,11 +117,11 @@ contains
       !-----------------------------------------------------------------------
 
       associate(&
-            rhol         =>    pftcon%rhol                     , & ! Input:  [real(r8) (:)   ] leaf reflectance: 1=vis, 2=nir
-            rhos         =>    pftcon%rhos                     , & ! Input:  [real(r8) (:)   ] stem reflectance: 1=vis, 2=nir
-            taul         =>    pftcon%taul                     , & ! Input:  [real(r8) (:)   ] leaf transmittance: 1=vis, 2=nir
-            taus         =>    pftcon%taus                     , & ! Input:  [real(r8) (:)   ] stem transmittance: 1=vis, 2=nir
-            xl           =>    pftcon%xl)                          ! Input:  [real(r8) (:)   ] ecophys const - leaf/stem orientation index
+            rhol         =>    EDPftvarcon_inst%rhol                     , & ! Input:  [real(r8) (:)   ] leaf reflectance: 1=vis, 2=nir
+            rhos         =>    EDPftvarcon_inst%rhos                     , & ! Input:  [real(r8) (:)   ] stem reflectance: 1=vis, 2=nir
+            taul         =>    EDPftvarcon_inst%taul                     , & ! Input:  [real(r8) (:)   ] leaf transmittance: 1=vis, 2=nir
+            taus         =>    EDPftvarcon_inst%taus                     , & ! Input:  [real(r8) (:)   ] stem transmittance: 1=vis, 2=nir
+            xl           =>    EDPftvarcon_inst%xl)                          ! Input:  [real(r8) (:)   ] ecophys const - leaf/stem orientation index
             
 !            albd         =>    surfalb_inst%albd_patch         , & ! Output: [real(r8) (:,:) ] surface albedo (direct) (USED IN LND2ATM,BALANCE_CHECK)
 !            albi         =>    surfalb_inst%albi_patch         , & ! Output: [real(r8) (:,:) ] surface albedo (diffuse) (LND2ATM,BALANCE_CHECK)

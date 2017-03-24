@@ -14,7 +14,7 @@ module FatesInterfaceMod
    use EDTypesMod          , only : maxCohortsPerPatch
    use EDTypesMod          , only : maxSWb
    use EDTypesMod          , only : nclmax
-   use EDTypesMod          , only : nlevcan
+   use EDTypesMod          , only : nlevleaf
    use EDTypesMod          , only : numpft_ed
    use FatesConstantsMod   , only : r8 => fates_r8
    use FatesGlobals        , only : fates_global_verbose
@@ -646,7 +646,7 @@ contains
       if (use_fates) then
 
          fates_maxElementsPerPatch = max(maxCohortsPerPatch, &
-              numpft_ed * nclmax * nlevcan)
+              numpft_ed * nclmax * nlevleaf)
       
          fates_maxElementsPerSite = maxPatchesPerSite * fates_maxElementsPerPatch
 

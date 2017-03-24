@@ -7,14 +7,16 @@ module EDCanopyStructureMod
 
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesGlobals          , only : fates_log
-  use pftconMod             , only : pftcon
+  use EDPftvarcon             , only : EDPftvarcon_inst
   use EDGrowthFunctionsMod  , only : c_area
   use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type, ncwd
   use EDTypesMod            , only : nclmax
-  use EDTypesMod            , only : nlevcan
+  use EDTypesMod            , only : nlevleaf
   use EDTypesMod            , only : numpft_ed
+  use EDtypesMod            , only : AREA
   use FatesGlobals          , only : endrun => fates_endrun
+  use FatesInterfaceMod     , only : hlm_days_per_year
 
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -96,10 +98,10 @@ contains
     real(r8) :: cc_loss
     real(r8) :: lossarea
     real(r8) :: newarea
-    real(r8) :: arealayer(nlevcan) ! Amount of plant area currently in each canopy layer
-    real(r8) :: sumdiff(nlevcan)   ! The total of the exclusion weights for all cohorts in layer z 
+    real(r8) :: arealayer(nlevleaf) ! Amount of plant area currently in each canopy layer
+    real(r8) :: sumdiff(nlevleaf)   ! The total of the exclusion weights for all cohorts in layer z 
     real(r8) :: weight                ! The amount of the total lost area that comes from this cohort
-    real(r8) :: sum_weights(nlevcan)
+    real(r8) :: sum_weights(nlevleaf)
     real(r8) :: new_total_area_check
     real(r8) :: missing_area, promarea,cc_gain,sumgain
     integer  :: promswitch,lower_cohort_switch
@@ -229,14 +231,33 @@ contains
 
                             enddo
 
-                                currentPatch%leaf_litter(currentCohort%pft)  = &
-                                     currentPatch%leaf_litter(currentCohort%pft) + (currentCohort%bl)* &
-                                          currentCohort%n/currentPatch%area ! leaf litter flux per m2.
-
-                                currentPatch%root_litter(currentCohort%pft)  = &
-                                     currentPatch%root_litter(currentCohort%pft) + &
-                                     (currentCohort%br+currentCohort%bstore)*currentCohort%n/currentPatch%area
-   									
+                            currentPatch%leaf_litter(currentCohort%pft)  = &
+                                 currentPatch%leaf_litter(currentCohort%pft) + (currentCohort%bl)* &
+                                 currentCohort%n/currentPatch%area ! leaf litter flux per m2.
+                            
+                            currentPatch%root_litter(currentCohort%pft)  = &
+                                 currentPatch%root_litter(currentCohort%pft) + &
+                                 (currentCohort%br+currentCohort%bstore)*currentCohort%n/currentPatch%area
+                            
+                            ! keep track of the above fluxes at the site level as a CWD/litter input flux (in kg / site-m2 / yr)
+                            do c=1,ncwd
+                               currentSite%CWD_AG_diagnostic_input_carbonflux(c) = &
+                                    currentSite%CWD_AG_diagnostic_input_carbonflux(c) &
+                                    + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
+                                    SF_val_CWD_frac(c) * ED_val_ag_biomass * hlm_days_per_year / AREA
+                               currentSite%CWD_BG_diagnostic_input_carbonflux(c) = &
+                                    currentSite%CWD_BG_diagnostic_input_carbonflux(c) &
+                                    + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
+                                    SF_val_CWD_frac(c) * (1.0_r8 -  ED_val_ag_biomass)  * hlm_days_per_year / AREA
+                            enddo
+                            
+                            currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
+                                 currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) +  &
+                                 currentCohort%n * (currentCohort%bl) * hlm_days_per_year  / AREA
+                            currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
+                                 currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) + &
+                                 currentCohort%n * (currentCohort%br+currentCohort%bstore) * hlm_days_per_year  / AREA
+                               									
                             currentCohort%n = 0.0_r8
                             currentCohort%c_area = 0._r8
                          else  
@@ -280,13 +301,33 @@ contains
 
                             enddo
 
-                                currentPatch%leaf_litter(currentCohort%pft)  = &
-                                     currentPatch%leaf_litter(currentCohort%pft) + currentCohort%bl* &
-                                          currentCohort%n/currentPatch%area ! leaf litter flux per m2.
+                            currentPatch%leaf_litter(currentCohort%pft)  = &
+                                 currentPatch%leaf_litter(currentCohort%pft) + currentCohort%bl* &
+                                 currentCohort%n/currentPatch%area ! leaf litter flux per m2.
+                            
+                            currentPatch%root_litter(currentCohort%pft)  = &
+                                 currentPatch%root_litter(currentCohort%pft) + &
+                                 (currentCohort%br+currentCohort%bstore)*currentCohort%n/currentPatch%area
+                            
+                            ! keep track of the above fluxes at the site level as a CWD/litter input flux (in kg / site-m2 / yr)
+                            do c=1,ncwd
+                               currentSite%CWD_AG_diagnostic_input_carbonflux(c) = &
+                                    currentSite%CWD_AG_diagnostic_input_carbonflux(c) &
+                                    + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
+                                    SF_val_CWD_frac(c) * ED_val_ag_biomass * hlm_days_per_year / AREA
+                               currentSite%CWD_BG_diagnostic_input_carbonflux(c) = &
+                                    currentSite%CWD_BG_diagnostic_input_carbonflux(c) &
+                                    + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
+                                    SF_val_CWD_frac(c) * (1.0_r8 -  ED_val_ag_biomass)  * hlm_days_per_year / AREA
+                            enddo
+                            
+                            currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
+                                 currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) +  &
+                                 currentCohort%n * (currentCohort%bl) * hlm_days_per_year  / AREA
+                            currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
+                                 currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) + &
+                                 currentCohort%n * (currentCohort%br+currentCohort%bstore) * hlm_days_per_year  / AREA
 
-                                currentPatch%root_litter(currentCohort%pft)  = &
-                                     currentPatch%root_litter(currentCohort%pft) + &
-                                     (currentCohort%br+currentCohort%bstore)*currentCohort%n/currentPatch%area
                             currentCohort%n = 0.0_r8
                             currentCohort%c_area = 0._r8
 
@@ -635,7 +676,7 @@ contains
     ! !LOCAL VARIABLES:
     type (ed_cohort_type), pointer :: currentCohort
     type (ed_patch_type) , pointer :: currentPatch
-    real(r8) :: arealayer(nlevcan) ! Amount of canopy in each layer. 
+    real(r8) :: arealayer(nlevleaf) ! Amount of canopy in each layer. 
     real(r8) :: inc                   ! Arbitrary daily incremental change in canopy area 
     integer  :: z
     !----------------------------------------------------------------------
@@ -651,7 +692,7 @@ contains
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
           currentCohort%c_area = c_area(currentCohort) 
-          if(pftcon%woody(currentCohort%pft) == 1)then
+          if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
              arealayer(currentCohort%canopy_layer) = arealayer(currentCohort%canopy_layer) + currentCohort%c_area
           endif
           currentCohort => currentCohort%shorter
@@ -694,11 +735,11 @@ contains
     use FatesInterfaceMod    , only : bc_in_type
     use EDPatchDynamicsMod   , only : set_patchno
     use EDPatchDYnamicsMod   , only : set_root_fraction
-    use EDCohortDynamicsMod  , only : size_and_type_class_index
+    use EDTypesMod           , only : sizetype_class_index
     use EDGrowthFunctionsMod , only : tree_lai, c_area
     use EDEcophysConType     , only : EDecophyscon
     use EDtypesMod           , only : area
-    use pftconMod            , only : pftcon
+    use EDPftvarcon            , only : EDPftvarcon_inst
 
     ! !ARGUMENTS    
     integer                 , intent(in)            :: nsites
@@ -750,8 +791,8 @@ contains
              
              ! Update the cohort's index within the size bin classes
              ! Update the cohort's index within the SCPF classification system
-             call size_and_type_class_index(currentCohort%dbh,currentCohort%pft, &
-                                            currentCohort%size_class,currentCohort%size_by_pft_class)
+             call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
+                                       currentCohort%size_class,currentCohort%size_by_pft_class)
 
              
              currentCohort%b = currentCohort%balive+currentCohort%bdead+currentCohort%bstore
@@ -762,20 +803,23 @@ contains
                   
              if(currentCohort%canopy_layer==1)then
                 currentPatch%total_canopy_area = currentPatch%total_canopy_area + currentCohort%c_area
-                if(pftcon%woody(ft)==1)then
+                if(EDPftvarcon_inst%woody(ft)==1)then
                    currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
                 endif
              endif
              
              ! Check for erroneous zero values. 
              if(currentCohort%dbh <= 0._r8 .or. currentCohort%n == 0._r8)then
-                write(fates_log(),*) 'ED: dbh or n is zero in canopy_summarization', currentCohort%dbh,currentCohort%n
+                write(fates_log(),*) 'ED: dbh or n is zero in canopy_summarization', &
+                      currentCohort%dbh,currentCohort%n
              endif
              if(currentCohort%pft == 0.or.currentCohort%canopy_trim <= 0._r8)then
-                write(fates_log(),*) 'ED: PFT or trim is zero in canopy_summarization',currentCohort%pft,currentCohort%canopy_trim
+                write(fates_log(),*) 'ED: PFT or trim is zero in canopy_summarization', &
+                      currentCohort%pft,currentCohort%canopy_trim
              endif
              if(currentCohort%balive <= 0._r8)then
-                write(fates_log(),*) 'ED: balive is zero in canopy_summarization',currentCohort%balive
+                write(fates_log(),*) 'ED: balive is zero in canopy_summarization', &
+                      currentCohort%balive
              endif
 
              currentCohort => currentCohort%taller
@@ -783,7 +827,8 @@ contains
           enddo ! ends 'do while(associated(currentCohort))
           
           if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
-             write(fates_log(),*) 'ED: canopy area bigger than area',currentPatch%total_canopy_area ,currentPatch%area
+             write(fates_log(),*) 'ED: canopy area bigger than area', &
+                   currentPatch%total_canopy_area ,currentPatch%area
              currentPatch%total_canopy_area = currentPatch%area
           endif
 
@@ -1024,11 +1069,11 @@ contains
              do iv = 1,currentCohort%NV-1 
                 
                 ! what is the height of this layer? (for snow burial purposes...)  
-                ! pftcon%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile. 
+                ! EDPftvarcon_inst%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile. 
                 layer_top_hite = currentCohort%hite-((iv/currentCohort%NV) * currentCohort%hite * &
                       EDecophyscon%crown(currentCohort%pft) )
                 layer_bottom_hite = currentCohort%hite-(((iv+1)/currentCohort%NV) * currentCohort%hite * &
-                      EDecophyscon%crown(currentCohort%pft)) ! pftcon%vertical_canopy_frac(ft))
+                      EDecophyscon%crown(currentCohort%pft)) ! EDPftvarcon_inst%vertical_canopy_frac(ft))
                 
                 fraction_exposed =1.0_r8
                 
@@ -1057,10 +1102,10 @@ contains
                   
              !Bottom layer
              iv = currentCohort%NV
-             ! pftcon%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile.
+             ! EDPftvarcon_inst%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile.
              layer_top_hite = currentCohort%hite-((iv/currentCohort%NV) * currentCohort%hite * &
                    EDecophyscon%crown(currentCohort%pft) )
-             ! pftcon%vertical_canopy_frac(ft))
+             ! EDPftvarcon_inst%vertical_canopy_frac(ft))
              layer_bottom_hite = currentCohort%hite-(((iv+1)/currentCohort%NV) * currentCohort%hite * &
                    EDecophyscon%crown(currentCohort%pft))
              
@@ -1136,10 +1181,10 @@ contains
                          /currentPatch%tlai_profile(L,ft,iv)
                 enddo
                 
-                currentPatch%tlai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevcan) = 0._r8
-                currentPatch%tsai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevcan) = 0._r8
-                currentPatch%elai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevcan) = 0._r8 
-                currentPatch%esai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevcan) = 0._r8
+                currentPatch%tlai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevleaf) = 0._r8
+                currentPatch%tsai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevleaf) = 0._r8
+                currentPatch%elai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevleaf) = 0._r8 
+                currentPatch%esai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevleaf) = 0._r8
                 
              enddo
           enddo
