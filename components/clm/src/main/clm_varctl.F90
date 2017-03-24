@@ -196,7 +196,7 @@ module clm_varctl
   !----------------------------------------------------------
 
   logical, public :: use_ed = .false.            ! true => use  ED
-  logical, public :: use_ed_spit_fire = .false.  ! true => use spitfire model
+  logical, public :: use_ed_spitfire = .false.  ! true => use spitfire model
 
   !----------------------------------------------------------
   !  LUNA switches		
