@@ -1545,11 +1545,11 @@ contains
             ! put litter_in flux onto site level variable so as to be able to append site-level distubance-related input flux after patch loop
             hio_litter_in_si(io_si) = hio_litter_in_si(io_si) + &
                  (sum(cpatch%CWD_AG_in) +sum(cpatch%leaf_litter_in) + sum(cpatch%root_litter_in)) &
-                 * 1.e3_r8 * cpatch%area * AREA_INV * years_per_day * days_per_sec
+                 * g_per_kg * cpatch%area * AREA_INV * years_per_day * days_per_sec
             ! keep litter_out at patch level
             hio_litter_out_pa(io_pa)           = (sum(cpatch%CWD_AG_out)+sum(cpatch%leaf_litter_out) &
                  + sum(cpatch%root_litter_out)) &
-                 * 1.e3_r8 * patch_scaling_scalar * years_per_day * days_per_sec
+                 * g_per_kg * patch_scaling_scalar * years_per_day * days_per_sec
             
             hio_seeds_in_pa(io_pa)             = sum(cpatch%seeds_in) * &
                  g_per_kg * patch_scaling_scalar * years_per_day * days_per_sec
