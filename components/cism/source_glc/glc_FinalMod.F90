@@ -20,7 +20,6 @@
 ! !USES:
 
    use glc_kinds_mod
-   use glc_ErrorMod
    use glc_communicate, only: exit_message_environment
    use glc_fields, only: ice_sheet
    use glad_main, only: end_glad
@@ -52,7 +51,7 @@
 ! !IROUTINE: glc_final
 ! !INTERFACE:
 
- subroutine glc_final(ErrorCode)
+ subroutine glc_final()
 
 ! !DESCRIPTION:
 !  This routine shuts down glc by exiting all relevent environments.
@@ -64,12 +63,6 @@
 ! !REVISION HISTORY:
 !  same as module
 
-! !INPUT/OUTPUT PARAMETERS:
-
-   integer (i4), intent(inout) :: &
-      ErrorCode              ! On input, error code from Init,Run method
-                             ! On output, status of this routine
-
 !EOP
 !BOC
 !-----------------------------------------------------------------------
@@ -77,6 +70,8 @@
 !  local variables
 !
 !-----------------------------------------------------------------------
+
+   integer :: ierr
 
 !-----------------------------------------------------------------------
 !
@@ -88,29 +83,12 @@
 
 !-----------------------------------------------------------------------
 !
-!  call Error Logging to print any error messages.
-!
-!-----------------------------------------------------------------------
-
-   call glc_ErrorPrint(ErrorCode)
-
-!-----------------------------------------------------------------------
-!
-!  write final message to glc output log
-!
-!-----------------------------------------------------------------------
-    write(stdout,*) '==================='
-    write(stdout,*) 'completed glc_final'
-    write(stdout,*) '==================='
-
-!-----------------------------------------------------------------------
-!
 !  exit the communication environment
 !
 !-----------------------------------------------------------------------
 
-   !call glc_CommExitEnvironment(ErrorCode)
-   call exit_message_environment(ErrorCode)
+   call exit_message_environment(ierr)
+   ! note that ierr isn't checked here...
 
 !-----------------------------------------------------------------------
 !EOC

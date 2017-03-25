@@ -75,6 +75,32 @@
     </machines>
   </test>
 
+  <test name="ERS_D_Ly3" grid="f09_g16_gl5" compset="TG1" testmods="cism/noevolve">
+    <machines>
+
+      <machine name="yellowstone" compiler="gnu" category="aux_glc">
+        <options>
+          <option name="wallclock">0:20</option>
+          <option name="comment">ice evolution off is the typical operation of cism within cesm, so test that for both CISM1 and CISM2</option>
+        </options>
+      </machine>
+
+    </machines>
+  </test>
+
+  <test name="ERS_D_Ly3" grid="f09_g16_gl4" compset="TG" testmods="cism/noevolve">
+    <machines>
+
+      <machine name="yellowstone" compiler="pgi" category="aux_glc">
+        <options>
+          <option name="wallclock">0:30</option>
+          <option name="comment">ice evolution off is the typical operation of cism within cesm, so test that for both CISM1 and CISM2</option>
+        </options>
+      </machine>
+
+    </machines>
+  </test>
+
   <test name="ERS_Ly20_N2_P2" grid="f09_g16_gl10" compset="TG1">
     <machines>
 

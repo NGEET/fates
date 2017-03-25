@@ -7,17 +7,17 @@ from CIME.XML.standard_module_setup import *
 from CIME.preview_namelists import create_namelists
 from CIME.compare_namelists import is_namelist_file, compare_namelist_files
 from CIME.simple_compare import compare_files
-from CIME.utils import get_current_branch, append_status
+from CIME.utils import append_status
 from CIME.test_status import *
 
 import os, shutil, traceback, stat, glob
 
 logger = logging.getLogger(__name__)
 
-def _do_full_nl_comp(case, test, compare_name):
+def _do_full_nl_comp(case, test, compare_name, baseline_root=None):
     test_dir       = case.get_value("CASEROOT")
     casedoc_dir    = os.path.join(test_dir, "CaseDocs")
-    baseline_root  = case.get_value("BASELINE_ROOT")
+    baseline_root  = case.get_value("BASELINE_ROOT") if baseline_root is None else baseline_root
 
     all_match         = True
     baseline_dir      = os.path.join(baseline_root, compare_name, test)
@@ -32,7 +32,7 @@ def _do_full_nl_comp(case, test, compare_name):
                             and not os.path.basename(item).startswith(".")] + \
                             glob.glob("%s/*user_nl*" % test_dir)
 
-    comments = ""
+    comments = "NLCOMP\n"
     for item in all_items_to_compare:
         baseline_counterpart = os.path.join(baseline_casedocs \
                                             if os.path.dirname(item).endswith("CaseDocs") \
@@ -47,15 +47,18 @@ def _do_full_nl_comp(case, test, compare_name):
                 success, current_comments = compare_files(baseline_counterpart, item, test)
 
             all_match &= success
+            if not success:
+                comments += "Comparison failed between '%s' with '%s'\n" % (item, baseline_counterpart)
+
             comments += current_comments
 
     logging.info(comments)
     return all_match, comments
 
-def _do_full_nl_gen(case, test, generate_name):
+def _do_full_nl_gen(case, test, generate_name, baseline_root=None):
     test_dir       = case.get_value("CASEROOT")
     casedoc_dir    = os.path.join(test_dir, "CaseDocs")
-    baseline_root  = case.get_value("BASELINE_ROOT")
+    baseline_root  = case.get_value("BASELINE_ROOT") if baseline_root is None else baseline_root
 
     baseline_dir      = os.path.join(baseline_root, generate_name, test)
     baseline_casedocs = os.path.join(baseline_dir, "CaseDocs")
@@ -79,7 +82,7 @@ def _do_full_nl_gen(case, test, generate_name):
         shutil.copy2(item, baseline_dir)
         os.chmod(preexisting_baseline, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP)
 
-def case_cmpgen_namelists(case, compare=False, generate=False, compare_name=None, generate_name=None):
+def case_cmpgen_namelists(case, compare=False, generate=False, compare_name=None, generate_name=None, baseline_root=None, logfile_name="TestStatus.log"):
     expect(case.get_value("TEST"), "Only makes sense to run this for a test case")
 
     caseroot, casebaseid = case.get_value("CASEROOT"), case.get_value("CASEBASEID")
@@ -90,7 +93,7 @@ def case_cmpgen_namelists(case, compare=False, generate=False, compare_name=None
         generate = case.get_value("GENERATE_BASELINE")
 
     if not compare and not generate:
-        logging.info("Nothing to do")
+        logging.debug("No namelists compares requested")
         return True
 
     # create namelists for case if they haven't been already
@@ -105,21 +108,19 @@ def case_cmpgen_namelists(case, compare=False, generate=False, compare_name=None
             # baseline operations which may not directly impact the functioning of the viability of this case
             if compare and not compare_name:
                 compare_name = case.get_value("BASELINE_NAME_CMP")
-                compare_name = get_current_branch() if compare_name is None else compare_name
                 expect(compare_name, "Was asked to do baseline compare but unable to determine baseline name")
                 logging.info("Comparing namelists with baselines '%s'" % compare_name)
             if generate and not generate_name:
                 generate_name = case.get_value("BASELINE_NAME_GEN")
-                generate_name = get_current_branch() if generate_name is None else generate_name
                 expect(generate_name, "Was asked to do baseline generation but unable to determine baseline name")
                 logging.info("Generating namelists to baselines '%s'" % generate_name)
 
             success = True
             output = ""
             if compare:
-                success, output = _do_full_nl_comp(case, test_name, compare_name)
+                success, output = _do_full_nl_comp(case, test_name, compare_name, baseline_root)
             if generate:
-                _do_full_nl_gen(case, test_name, generate_name)
+                _do_full_nl_gen(case, test_name, generate_name, baseline_root)
         except:
             ts.set_status(NAMELIST_PHASE, TEST_FAIL_STATUS)
             success = False
@@ -128,7 +129,7 @@ def case_cmpgen_namelists(case, compare=False, generate=False, compare_name=None
             logging.warning(warn)
         finally:
             ts.set_status(NAMELIST_PHASE, TEST_PASS_STATUS if success else TEST_FAIL_STATUS)
-            append_status(output, caseroot=caseroot, sfile="TestStatus.log")
+            append_status(output, caseroot=caseroot, sfile=logfile_name)
 
         return success
 

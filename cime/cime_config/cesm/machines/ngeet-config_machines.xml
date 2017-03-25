@@ -1,0 +1,176 @@
+  <machine MACH="eddi">
+    <DESC>eddi linux PC</DESC>
+    <OS>LINUX</OS>            
+    <COMPILERS>gnu</COMPILERS>
+    <MPILIBS>openmpi,mpi-serial</MPILIBS>
+    <CESMSCRATCHROOT>/home/lbleco/cesm</CESMSCRATCHROOT>
+    <RUNDIR>/home/lbleco/cesm/$CASE/run</RUNDIR>
+    <EXEROOT>/home/lbleco/cesm/$CASE/bld</EXEROOT>
+    <DIN_LOC_ROOT>/home/lbleco/cesm/cesm_input_datasets/</DIN_LOC_ROOT>
+    <DIN_LOC_ROOT_CLMFORC>/home/lbleco/cesm/cesm_input_datasets/atm/datm7</DIN_LOC_ROOT_CLMFORC>
+    <DOUT_S_ROOT>/home/lbleco/cesm/cesm_archive/$CASE</DOUT_S_ROOT>
+    <DOUT_L_MSROOT>csm/$CASE</DOUT_L_MSROOT>
+    <CCSM_BASELINE>/home/lbleco/cesm/cesm_baselines</CCSM_BASELINE>
+    <CCSM_CPRNC>/home/lbleco/cesm/cesm_tools/cprnc/cprnc</CCSM_CPRNC>
+    <BATCHQUERY>squeue</BATCHQUERY>
+    <BATCHREDIRECT></BATCHREDIRECT>
+    <BATCHSUBMIT>sbatch</BATCHSUBMIT>
+    <SUPPORTED_BY>rgknox-that-weird-a-with-circle-dot-lbl-dot-guvment</SUPPORTED_BY>
+    <GMAKE_J>1</GMAKE_J>
+    <MAX_TASKS_PER_NODE>4</MAX_TASKS_PER_NODE>
+    <PES_PER_NODE>4</PES_PER_NODE>
+    <batch_system type="slurm" version="2.6.5">
+      <queues>
+        <queue walltimemin="0" walltimemax="72:00:00" jobmin="0" jobmax="2" default="true">normal</queue>
+      </queues>
+      <walltimes>
+        <walltime default="true">11:59:00</walltime>
+      </walltimes>
+    </batch_system>
+    <mpirun mpilib="mpi-serial">
+      <executable>mpirun</executable>
+      <arguments>
+        <arg name="num_tasks">-np {{ num_tasks }}</arg>
+        <arg name="tasks_per_node"> -npernode {{ tasks_per_node }}</arg>
+      </arguments>
+    </mpirun>
+    <mpirun mpilib="default">
+      <executable>mpirun</executable>
+      <arguments>
+        <arg name="num_tasks">-np {{ num_tasks }}</arg>
+        <arg name="tasks_per_node"> -npernode {{ tasks_per_node }}</arg>
+      </arguments>
+    </mpirun>
+  </machine>
+  
+  <machine MACH="lawrencium-lr3">
+     <DESC>Lawrencium LR3 cluster at LBL, OS is Linux (intel), batch system is SLURM</DESC>
+     <OS>LINUX</OS>
+     <COMPILERS>intel</COMPILERS>
+     <MPILIBS>openmpi,mpi-serial</MPILIBS>
+     <CESMSCRATCHROOT>/global/scratch/$ENV{USER}</CESMSCRATCHROOT>
+     <RUNDIR>$CESMSCRATCHROOT/$CASE/run</RUNDIR>
+     <EXEROOT>$CESMSCRATCHROOT/$CASE/bld</EXEROOT>
+     <DIN_LOC_ROOT>/global/scratch/$ENV{USER}/cesm_input_datasets/</DIN_LOC_ROOT>
+     <DIN_LOC_ROOT_CLMFORC>/global/scratch/$ENV{USER}/cesm_input_datasets/atm/datm7</DIN_LOC_ROOT_CLMFORC>
+     <DOUT_S_ROOT>$CESMSCRATCHROOT/cesm_archive/$CASE</DOUT_S_ROOT>
+     <DOUT_L_MSROOT>csm/$CASE</DOUT_L_MSROOT>
+     <CCSM_BASELINE>$CESMSCRATCHROOT/cesm_baselines</CCSM_BASELINE>
+     <CCSM_CPRNC>/$CESMSCRATCHROOT/cesm_tools/cprnc/cprnc</CCSM_CPRNC>
+     <BATCHQUERY>squeue</BATCHQUERY>
+     <BATCHREDIRECT></BATCHREDIRECT>
+     <BATCHSUBMIT>sbatch</BATCHSUBMIT>
+     <SUPPORTED_BY>jnjohnson at lbl dot gov and rgknox at same</SUPPORTED_BY>
+     <GMAKE_J>4</GMAKE_J>
+     <MAX_TASKS_PER_NODE>16</MAX_TASKS_PER_NODE>
+     <PES_PER_NODE>16</PES_PER_NODE>
+     <PROJECT_REQUIRED>TRUE</PROJECT_REQUIRED>
+     <batch_system type="slurm" version="2.0">
+        <queues>
+           <queue walltimemin="0" walltimemax="72:00:00" jobmin="0" jobmax="64" default="true">lr3</queue>
+        </queues>
+        <walltimes>
+           <walltime default="true">01:59:00</walltime>
+        </walltimes>
+     </batch_system>
+     <mpirun mpilib="mpi-serial">
+        <executable></executable>
+     </mpirun>
+     <mpirun mpilib="default">
+        <executable>mpirun</executable>
+        <arguments>
+           <arg name="num_tasks">-np {{ num_tasks }}</arg>
+           <arg name="tasks_per_node"> -npernode {{ tasks_per_node }}</arg>
+        </arguments>
+     </mpirun>
+     <module_system type="module">
+        <init_path lang="sh">/etc/profile.d/modules.sh</init_path>
+        <init_path lang="csh">/etc/profile.d/modules.csh</init_path>
+        <init_path lang="perl">/usr/Modules/init/perl.pm</init_path>
+        <cmd_path lang="sh">module</cmd_path>
+        <cmd_path lang="csh">module</cmd_path>
+        <cmd_path lang="perl">/usr/Modules/bin/modulecmd perl</cmd_path>
+        <modules>
+           <command name="purge"/>
+           <command name="load">cmake</command>
+           <command name="load">perl xml-libxml switch</command>
+        </modules>
+	<modules compiler="intel">
+	  <command name="load">intel/2015.6.233</command>
+          <command name="load">mkl</command>
+	</modules>
+	<modules compiler="intel" mpilib="mpi-serial">
+          <command name="load">netcdf/4.4.0-intel-s</command>
+	</modules>
+        <modules compiler="intel" mpilib="!mpi-serial">
+          <command name="load">openmpi</command>
+          <command name="load">netcdf/4.4.0-intel-p</command>
+        </modules>
+     </module_system>
+  </machine>
+
+  <machine MACH="lawrencium-lr2">
+     <DESC>Lawrencium LR2 cluster at LBL, OS is Linux (intel), batch system is SLURM</DESC>
+     <OS>LINUX</OS>
+     <COMPILERS>intel</COMPILERS>
+     <MPILIBS>openmpi,mpi-serial</MPILIBS>
+     <CESMSCRATCHROOT>/global/scratch/$ENV{USER}</CESMSCRATCHROOT>
+     <RUNDIR>$CESMSCRATCHROOT/$CASE/run</RUNDIR>
+     <EXEROOT>$CESMSCRATCHROOT/$CASE/bld</EXEROOT>
+     <DIN_LOC_ROOT>/global/scratch/$ENV{USER}/cesm_input_datasets/</DIN_LOC_ROOT>
+     <DIN_LOC_ROOT_CLMFORC>/global/scratch/$ENV{USER}/cesm_input_datasets/atm/datm7</DIN_LOC_ROOT_CLMFORC>
+     <DOUT_S_ROOT>$CESMSCRATCHROOT/cesm_archive/$CASE</DOUT_S_ROOT>
+     <DOUT_L_MSROOT>csm/$CASE</DOUT_L_MSROOT>
+     <CCSM_BASELINE>$CESMSCRATCHROOT/cesm_baselines</CCSM_BASELINE>
+     <CCSM_CPRNC>/$CESMSCRATCHROOT/cesm_tools/cprnc/cprnc</CCSM_CPRNC>
+     <BATCHQUERY>squeue</BATCHQUERY>
+     <BATCHREDIRECT></BATCHREDIRECT>
+     <BATCHSUBMIT>sbatch</BATCHSUBMIT>
+     <SUPPORTED_BY>jnjohnson at lbl dot gov and rgknox at same</SUPPORTED_BY>
+     <GMAKE_J>4</GMAKE_J>
+     <MAX_TASKS_PER_NODE>12</MAX_TASKS_PER_NODE>
+     <PES_PER_NODE>12</PES_PER_NODE>
+     <PROJECT_REQUIRED>TRUE</PROJECT_REQUIRED>
+     <batch_system type="slurm" version="2.0">
+        <queues>
+           <queue walltimemin="0" walltimemax="72:00:00" jobmin="0" jobmax="64" default="true">lr2</queue>
+        </queues>
+        <walltimes>
+           <walltime default="true">01:59:00</walltime>
+        </walltimes>
+     </batch_system>
+     <mpirun mpilib="mpi-serial">
+        <executable></executable>
+     </mpirun>
+     <mpirun mpilib="default">
+        <executable>mpirun</executable>
+        <arguments>
+           <arg name="num_tasks">-np {{ num_tasks }}</arg>
+           <arg name="tasks_per_node"> -npernode {{ tasks_per_node }}</arg>
+        </arguments>
+     </mpirun> 
+     <module_system type="module">
+       <init_path lang="sh">/etc/profile.d/modules.sh</init_path>
+       <init_path lang="csh">/etc/profile.d/modules.csh</init_path>
+       <init_path lang="perl">/usr/Modules/init/perl.pm</init_path>
+       <cmd_path lang="sh">module</cmd_path>
+       <cmd_path lang="csh">module</cmd_path>
+       <cmd_path lang="perl">/usr/Modules/bin/modulecmd perl</cmd_path>
+       <modules>
+         <command name="purge"/>
+         <command name="load">cmake</command>
+         <command name="load">perl xml-libxml switch</command>
+       </modules>
+       <modules compiler="intel">
+	 <command name="load">intel/2015.6.233</command>
+         <command name="load">mkl</command>
+       </modules>
+       <modules compiler="intel" mpilib="mpi-serial">
+         <command name="load">netcdf/4.4.0-intel-s</command>
+       </modules>
+       <modules compiler="intel" mpilib="!mpi-serial">
+         <command name="load">openmpi</command>
+         <command name="load">netcdf/4.4.0-intel-p</command>
+       </modules>
+     </module_system>
+  </machine>

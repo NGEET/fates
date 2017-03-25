@@ -1,0 +1,54 @@
+  <batch_system type="moab" version="x.y">
+    <batch_query>showq</batch_query>
+    <batch_submit>msub </batch_submit>
+    <batch_directive>#MSUB</batch_directive>
+    <jobid_pattern>(\d+)$</jobid_pattern>
+    <depend_string> -W depend=afterok:jobid</depend_string>
+    <directives>
+      <directive> -N {{ job_id }}</directive>
+      <directive> -l walltime={{ wall_time }}</directive>
+      <directive> -j oe </directive>
+      <directive default="n"> -r {{ rerunnable }} </directive>
+      <directive default="ae"  > -m {{ mail_options }} </directive>
+      <directive default="/bin/bash" > -S {{ shell }}</directive>
+    </directives>
+  </batch_system>
+
+  <batch_system MACH="wolf" version="x.y">
+    <batch_directive>#MSUB</batch_directive>
+    <directives>
+      <directive>-l nodes={{ num_nodes }}:ppn={{ tasks_per_node }}</directive>
+    </directives>
+  </batch_system>
+  
+  <batch_system MACH="conejo" version="x.y">
+    <batch_directive>#MSUB</batch_directive>
+    <directives>
+      <directive>-l nodes={{ num_nodes }}:ppn={{ tasks_per_node }}</directive>
+    </directives>
+  </batch_system>
+  
+   <batch_system MACH="eddi" version="x.y">
+     <directives>
+       <directive>--partition=normal</directive>
+     </directives>
+   </batch_system>
+   
+   <batch_system MACH="lawrencium-lr2" version="x.y">
+     <directives>
+       <directive>--partition=lr2</directive>
+       <directive>--qos=lr_normal</directive>
+       <directive>--account={{ project }}</directive>
+       <directive>--exclusive</directive>
+     </directives>
+   </batch_system>
+   
+   <batch_system MACH="lawrencium-lr3" version="x.y">
+     <directives>
+       <directive>--partition=lr3</directive>
+       <directive>--qos=lr_normal</directive>
+       <directive>--account={{ project }}</directive>
+       <directive>--exclusive</directive>
+     </directives>
+   </batch_system>
+

@@ -107,7 +107,6 @@
 !-----------------------------------------------------------------------
 
    if (first_call) then
-      write(stdout,*) 'In glc_run, first_call =', first_call
       ! this line should set cpl_stop_now = 1 (flag id index)
       cpl_stop_now  = init_time_flag('stop_now',default=.false.)
       tavg_flag     = init_time_flag('tavg')      

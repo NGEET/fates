@@ -483,15 +483,6 @@ add_default($nl, 'evolve_ice',
 add_default($nl, 'test_coupling');
 $nl->write_cism_config($fh, "cism_config_climate");
 
-print $fh "\n[projection]\n";
-add_default($nl, 'type');
-add_default($nl, 'centre_latitude');
-add_default($nl, 'centre_longitude');
-add_default($nl, 'false_easting');
-add_default($nl, 'false_northing');
-add_default($nl, 'standard_parallel');
-$nl->write_cism_config($fh, "cism_config_projection");
-
 print $fh "\n[options]\n";
 add_default($nl, 'dycore');
 add_default($nl, 'temperature');
@@ -996,17 +987,19 @@ sub check_consistency {
 # ----------------------------------------------------------------------
 # Requirements for running with more than one MPI task per ensemble member
 # ----------------------------------------------------------------------
+    my $NTASKS_GLC = `$CASEROOT/xmlquery NTASKS --subgroup GLC --value --caseroot $CASEROOT`;
+    my $NINST_GLC = `$CASEROOT/xmlquery NINST --subgroup GLC --value --caseroot $CASEROOT`;
 
-    if ($xmlvars->{'NTASKS_GLC'} > $xmlvars->{'NINST_GLC'}) {
+    if ($NTASKS_GLC > $NINST_GLC) {
 	if ($nl->get_value('dycore') == 0) {
 	    print "$ProgName: ERROR: With dycore=0 (glide dycore), can only have 1 GLC task per instance\n";
-	    print "NTASKS_GLC = " . $xmlvars->{'NTASKS_GLC'} . ", NINST_GLC = " . $xmlvars->{'NINST_GLC'} . "\n";
+	    print "NTASKS_GLC = " . $NTASKS_GLC . ", NINST_GLC = " . $NINST_GLC . "\n";
 	    $num_errors += 1;
 	}
 
 	if ($nl->get_value('dycore') == 1 && $nl->get_value('which_ho_sparse') != 4) {
 	    print "$ProgName: ERROR: To run with more than 1 GLC task per instance, with dycore=1, must use trilinos solver (which_ho_sparse=4)\n";
-	    print "NTASKS_GLC = " . $xmlvars->{'NTASKS_GLC'} . ", NINST_GLC = " . $xmlvars->{'NINST_GLC'} . "\n";
+	    print "NTASKS_GLC = " . $NTASKS_GLC . ", NINST_GLC = " . $NINST_GLC . "\n";
 	    print "which_ho_sparse = " . $nl->get_value('which_ho_sparse') . "\n";
 	    $num_errors += 1;
 	}

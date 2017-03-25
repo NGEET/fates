@@ -177,7 +177,7 @@ contains
 
     if(ierr/= PIO_NOERR) then
        call shr_sys_abort(subname//'ERROR: Failed to open file')
-    else if(pio_iotask_rank(pio_subsystem)==0) then
+    else if(pio_iotask_rank(pio_subsystem)==0 .and. masterproc) then
        write(iulog,*) 'Opened existing file ', trim(fname), file%fh
     end if
 
@@ -220,7 +220,7 @@ contains
 
     if(ierr/= PIO_NOERR) then
        call shr_sys_abort( subname//' ERROR: Failed to open file to write: '//trim(fname))
-    else if(pio_iotask_rank(pio_subsystem)==0) then
+    else if(pio_iotask_rank(pio_subsystem)==0 .and. masterproc) then
        write(iulog,*) 'Opened file ', trim(fname),  ' to write', file%fh
     end if
 
@@ -1281,6 +1281,7 @@ contains
           end do
           if ( count(1) > size(tmpString) )then
              write(iulog,*) subname//' ERROR: input string size is too large:'//trim(data)
+             call shr_sys_abort( )
           end if
           start(1) = 1
           start(2) = nt
