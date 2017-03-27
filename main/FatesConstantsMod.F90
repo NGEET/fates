@@ -37,14 +37,27 @@ module FatesConstantsMod
   
   ! Conversion factor: micromoles per mole
   real(fates_r8), parameter :: umol_per_mol = 1.0E6_fates_r8
-  
+
+  ! Conversion factor: m2 per ha
+  real(fates_r8), parameter :: m2_per_ha = 1.0e4_fates_r8
+
+  ! Conversion factor :: ha per m2
+  real(fates_r8), parameter :: ha_per_m2 = 1.0e-4_fates_r8
 
   ! Conversion: seconds per minute
   real(fates_r8), parameter :: sec_per_min = 60.0_fates_r8
 
   ! Conversion: seconds per day
   real(fates_r8), parameter :: sec_per_day = 86400.0_fates_r8
+
+  ! Conversion: days per second
+  real(fates_r8), parameter :: days_per_sec = 1.0_fates_r8/86400.0_fates_r8
+
+  ! Conversion: days per year. assume HLM uses 365 day calendar.  If we need to link to 365.25-day-calendared HLM, rewire to pass through interface
+  real(fates_r8), parameter :: days_per_year = 365.00_fates_r8
   
+   ! Conversion: years per day. assume HLM uses 365 day calendar.  If we need to link to 365.25-day-calendared HLM, rewire to pass through interface
+  real(fates_r8), parameter :: years_per_day = 1.0_fates_r8/365.00_fates_r8
   
   ! Physical constants
 

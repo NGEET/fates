@@ -25,7 +25,7 @@ module FATESPlantRespPhotosynthMod
    use FatesConstantsMod, only : r8 => fates_r8
    use EDTypesMod, only        : use_fates_plant_hydro
    use EDTypesMod, only        : numpft_ed
-   use EDTypesMod, only        : nlevcan
+   use EDTypesMod, only        : nlevleaf
    use EDTypesMod, only        : nclmax
    
    ! CIME Globals
@@ -115,17 +115,17 @@ contains
     ! -----------------------------------------------------------------------------------
 
     ! leaf maintenance (dark) respiration (umol CO2/m**2/s) Double check this
-    real(r8) :: lmr_z(nlevcan,mxpft,nclmax)
+    real(r8) :: lmr_z(nlevleaf,mxpft,nclmax)
 
     ! stomatal resistance s/m
-    real(r8) :: rs_z(nlevcan,mxpft,nclmax)    
+    real(r8) :: rs_z(nlevleaf,mxpft,nclmax)    
 
     ! net leaf photosynthesis averaged over sun and shade leaves. (umol CO2/m**2/s) 
-    real(r8) :: anet_av_z(nlevcan,mxpft,nclmax)  
+    real(r8) :: anet_av_z(nlevleaf,mxpft,nclmax)  
     
     ! Mask used to determine which leaf-layer biophysical rates have been
     ! used already
-    logical :: rate_mask_z(nlevcan,mxpft,nclmax)
+    logical :: rate_mask_z(nlevleaf,mxpft,nclmax)
 
     real(r8) :: vcmax_z            ! leaf layer maximum rate of carboxylation 
                                    ! (umol co2/m**2/s)
