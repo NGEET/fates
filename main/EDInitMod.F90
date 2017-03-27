@@ -8,7 +8,7 @@ module EDInitMod
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax
   use FatesGlobals              , only : fates_log
-  use clm_varctl                , only : use_ed_spit_fire 
+  use clm_varctl                , only : use_ed_spitfire 
   use clm_time_manager          , only : is_restart
   use EDPftvarcon                 , only : EDPftvarcon_inst
   use EDEcophysConType          , only : EDecophyscon
