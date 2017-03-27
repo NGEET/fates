@@ -67,6 +67,7 @@ module EDPftvarcon
      real(r8), allocatable :: smpso(:)
      real(r8), allocatable :: smpsc(:)
      real(r8), allocatable :: grperc(:) ! NOTE(bja, 2017-01) moved from EDParamsMod, was allocated as (maxPft=79), not (0:mxpft=78)!
+     real(r8), allocatable :: xxx(:)
      real(r8), allocatable :: rhol(:, :)
      real(r8), allocatable :: rhos(:, :)
      real(r8), allocatable :: taul(:, :)
@@ -339,6 +340,10 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_xxx'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
 
   end subroutine Register_PFT
 
@@ -537,6 +542,10 @@ contains
     name = 'fates_grperc'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%grperc)
+
+    name = 'fates_xxx'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%xxx)
 
   end subroutine Receive_PFT
 
