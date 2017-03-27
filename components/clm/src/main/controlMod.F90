@@ -203,7 +203,8 @@ contains
 
     namelist /clm_inparm/ use_c13, use_c14
 
-    namelist /clm_inparm/ fates_paramfile, use_ed, use_ed_spit_fire
+
+    namelist /clm_inparm/ fates_paramfile, use_ed, use_ed_spitfire
 
     ! CLM 5.0 nitrogen flags
     namelist /clm_inparm/ use_flexibleCN, use_luna
@@ -575,7 +576,8 @@ contains
     call mpi_bcast (use_c14, 1, MPI_LOGICAL, 0, mpicom, ier)
 
     call mpi_bcast (use_ed, 1, MPI_LOGICAL, 0, mpicom, ier)
-    call mpi_bcast (use_ed_spit_fire, 1, MPI_LOGICAL, 0, mpicom, ier)
+
+    call mpi_bcast (use_ed_spitfire, 1, MPI_LOGICAL, 0, mpicom, ier)
     call mpi_bcast (fates_paramfile, len(fates_paramfile) , MPI_CHARACTER, 0, mpicom, ier)
 
     ! flexibleCN nitrogen model
@@ -915,7 +917,7 @@ contains
     write(iulog, *) '  ED/FATES: '
     write(iulog, *) '    use_ed = ', use_ed
     if (use_ed) then
-       write(iulog, *) '    use_ed_spit_fire = ', use_ed_spit_fire
+       write(iulog, *) '    use_ed_spitfire = ', use_ed_spitfire
        write(iulog, *) '    fates_paramfile = ', fates_paramfile
     end if
   end subroutine control_print
