@@ -800,6 +800,14 @@ contains
                          currentCohort%imort = (currentCohort%n*currentCohort%imort + nextc%n*nextc%imort)/newn
                          currentCohort%fmort = (currentCohort%n*currentCohort%fmort + nextc%n*nextc%fmort)/newn
 
+
+			  ! logging mortality, Yi Xu
+			 currentCohort%lmort_logging=(currentCohort%n*currentCohort%lmort_logging + nextc%n*nextc%lmort_logging)/newn
+			 currentCohort%lmort_collateral=(currentCohort%n*currentCohort%lmort_collateral + nextc%n*nextc%lmort_collateral)/newn
+			 currentCohort%lmort_infra=(currentCohort%n*currentCohort%lmort_infra + nextc%n*nextc%lmort_infra)/newn
+						
+
+
                          ! npp diagnostics
                          currentCohort%npp_leaf  = (currentCohort%n*currentCohort%npp_leaf  + nextc%n*nextc%npp_leaf)/newn
                          currentCohort%npp_froot = (currentCohort%n*currentCohort%npp_froot + nextc%n*nextc%npp_froot)/newn
@@ -1152,6 +1160,11 @@ contains
     n%imort = o%imort
     n%fmort = o%fmort
     n%hmort = o%hmort
+
+    ! logging mortalities, Yi Xu
+    n%lmort_logging=o%lmort_logging
+    n%lmort_collateral =o%lmort_collateral
+    n%lmort_infra =o%lmort_infra
 
     ! Flags
     n%isnew = o%isnew

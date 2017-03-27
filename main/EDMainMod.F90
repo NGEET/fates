@@ -49,6 +49,7 @@ module EDMainMod
 !  use EDTypesMod           , only : do_ed_recruitment
 !  use EDTypesMod           , only : do_ed_mort_dist
   use EDTypesMod           , only : do_ed_dynamics
+  use EDtypesMod           ,  only : AREA
 
   implicit none
   private
@@ -105,8 +106,10 @@ contains
        call fire_model(currentSite, bc_in) 
 
        ! Calculate disturbance and mortality based on previous timestep vegetation.
+       ! disturbance_rates calls logging mortality and other mortalities, Yi Xu
        call disturbance_rates(currentSite)
     end if
+
 
     if (do_ed_dynamics) then
        ! Integrate state variables from annual rates to daily timestep
@@ -489,6 +492,21 @@ contains
           currentCohort => currentCohort%shorter;
           
        enddo !end cohort loop 
+
+       ! Modify biomass for logging
+       ! Yi Xu
+       ! 03/2017
+  
+	if (currentPatch%logging==1 .and. currentPatch%after_spawn_patch==1) then  
+
+	   !currentPatch%trunk_product unit is kGC/m2
+	   biomass_stock =  biomass_stock + currentPatch%trunk_product* AREA
+	   ! turn off this flag after spawn patch , since flux_in and flux_out are cleaned in every balance check 
+	   currentPatch%after_spawn_patch = 0
+
+	end if 
+
+
 
        currentPatch => currentPatch%younger
 

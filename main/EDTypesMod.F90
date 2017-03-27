@@ -72,8 +72,8 @@ module EDTypesMod
   integer , parameter :: external_recruitment = 0          ! external recruitment flag 1=yes  
   integer , parameter :: SENES                = 10         ! Window of time over which we track temp for cold sensecence (days)
   real(r8), parameter :: DINC_ED              = 1.0_r8     ! size of LAI bins. 
-  integer , parameter :: N_DIST_TYPES         = 2          ! number of disturbance types (mortality, fire)
-  
+  !integer , parameter :: N_DIST_TYPES         = 2          ! number of disturbance types (mortality, fire)
+  integer , parameter :: N_DIST_TYPES         = 3           ! add selective logging disturbance
 
   ! SPITFIRE     
   integer,  parameter :: NCWD                 = 4          ! number of coarse woody debris pools
@@ -277,6 +277,13 @@ module EDTypesMod
      real(r8) ::  imort                                  ! mortality from impacts by others n/year
      real(r8) ::  fmort                                  ! fire mortality                   n/year
 
+      ! Logging Mortality Rate 
+	 ! Yi Xu
+     real(r8) ::  lmort_logging                          ! directly logging rate            %/per logging activity
+     real(r8) ::  lmort_collateral                       ! collaterally damaged rate        %/per logging activity
+     real(r8) ::  lmort_infra							 ! mechanically damaged rate        %/per logging activity
+	      
+
      ! NITROGEN POOLS      
      ! ----------------------------------------------------------------------------------
      ! Nitrogen pools are not prognostic in the current implementation.
@@ -397,7 +404,7 @@ module EDTypesMod
      real(r8) ::  btran_ft(numpft_ed)                              ! btran calculated seperately for each PFT:-   
 
      ! DISTURBANCE 
-     real(r8) ::  disturbance_rates(n_dist_types)                  ! disturbance rate from 1) mortality and 2) fire: fraction/day
+     real(r8) ::  disturbance_rates(n_dist_types)                  ! disturbance rate from 1) mortality , 2) fire: fraction/day 3) logging mortatliy
      real(r8) ::  disturbance_rate                                 ! larger effective disturbance rate: fraction/day
 
      ! LITTER AND COARSE WOODY DEBRIS 
@@ -459,9 +466,16 @@ module EDTypesMod
      real(r8) ::  tfc_ros                                          ! total fuel consumed - no trunks.  KgC/m2/day
      real(r8) ::  burnt_frac_litter(nfsc)                          ! fraction of each litter pool burned:-
 
+
      ! PLANT HYDRAULICS     
      type(ed_patch_hydr_type) , pointer :: pa_hydr                 ! All patch hydraulics data, see FatesHydraulicsMemMod.F90
 
+     ! LOGGING EFFECTS
+	 
+     integer  ::  logging                                            ! 1=logging; 0=no logging
+     integer  ::  after_spawn_patch                                  ! 1=after spawn patch; 0=before spawn patch
+     real(r8) ::  trunk_product					     ! kGC/m2
+	
    contains
 
   end type ed_patch_type
@@ -522,6 +536,9 @@ module EDTypesMod
      real(r8) ::  disturbance_fire                             ! site level disturbance rates from fire.  
      integer  ::  dist_type                                    ! disturbance dist_type id.
      real(r8) ::  disturbance_rate                             ! site total dist rate
+
+     !YX , 3/2017
+     real(r8) ::  disturbance_logging                          ! site level disturbance rates from logging 
 
      ! PHENOLOGY 
      real(r8) ::  ED_GDD_site                                  ! ED Phenology growing degree days.
