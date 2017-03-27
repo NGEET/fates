@@ -13,7 +13,7 @@ module EDCohortDynamicsMod
   use EDEcophysContype      , only : EDecophyscon
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDTypesMod            , only : fusetol
+  use EDParamsMod           , only : ED_val_cohort_fusion_tol
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : ncwd
   use EDTypesMod            , only : maxCohortsPerPatch
@@ -638,7 +638,7 @@ contains
     !----------------------------------------------------------------------
     
     !set initial fusion tolerance
-    dynamic_fusion_tolerance = fusetol
+    dynamic_fusion_tolerance = ED_val_cohort_fusion_tol
    
     !This needs to be a function of the canopy layer, because otherwise, at canopy closure
     !the number of cohorts doubles and very dissimilar cohorts are fused together

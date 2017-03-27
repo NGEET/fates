@@ -25,6 +25,7 @@ module EDParamsMod
    real(r8),protected :: ED_val_nfires
    real(r8),protected :: ED_val_understorey_death
    real(r8),protected :: ED_val_profile_tol
+   real(r8),protected :: ED_val_cohort_fusion_tol
    real(r8),protected :: ED_val_ag_biomass
   
    character(len=param_string_length),parameter :: ED_name_grass_spread = "fates_grass_spread"
@@ -37,6 +38,7 @@ module EDParamsMod
    character(len=param_string_length),parameter :: ED_name_nfires = "fates_nfires"
    character(len=param_string_length),parameter :: ED_name_understorey_death = "fates_understorey_death"
    character(len=param_string_length),parameter :: ED_name_profile_tol = "fates_profile_tol"
+   character(len=param_string_length),parameter :: ED_name_cohort_fusion_tol = "fates_cohort_fusion_tol"
    character(len=param_string_length),parameter :: ED_name_ag_biomass= "fates_ag_biomass"   
    
    public :: FatesParamsInit
@@ -64,6 +66,7 @@ contains
     ED_val_nfires = nan
     ED_val_understorey_death = nan
     ED_val_profile_tol = nan
+    ED_val_cohort_fusion_tol = nan
     ED_val_ag_biomass = nan
 
   end subroutine FatesParamsInit
@@ -120,6 +123,9 @@ contains
     call fates_params%RegisterParameter(name=ED_name_profile_tol, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
+    call fates_params%RegisterParameter(name=ED_name_cohort_fusion_tol, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
     call fates_params%RegisterParameter(name=ED_name_ag_biomass, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
@@ -169,6 +175,9 @@ contains
 
     call fates_params%RetreiveParameter(name=ED_name_profile_tol, &
          data=ED_val_profile_tol)
+
+    call fates_params%RetreiveParameter(name=ED_name_cohort_fusion_tol, &
+         data=ED_val_cohort_fusion_tol)
 
     call fates_params%RetreiveParameter(name=ED_name_ag_biomass, &
          data=ED_val_ag_biomass)
