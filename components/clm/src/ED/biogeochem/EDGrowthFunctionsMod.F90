@@ -229,6 +229,9 @@ contains
     type(ed_cohort_type), intent(in) :: cohort_in       
 
     real(r8) :: dbh ! Tree diameter at breat height. cm. 
+    real(r8) :: crown_area_to_dbh_exponent
+
+    crown_area_to_dbh_exponent = EDecophyscon%crown_area_to_dbh_exponent(cohort_in%pft)
 
     if (DEBUG_growth) then
        write(fates_log(),*) 'z_area 1',cohort_in%dbh,cohort_in%pft
@@ -241,11 +244,12 @@ contains
     end if
 
     dbh = min(cohort_in%dbh,EDecophyscon%max_dbh(cohort_in%pft))
+    !++CDK note below a  magic numebr which ought to be PI; though this will be answer-changing...
     if(EDPftvarcon_inst%woody(cohort_in%pft) == 1)then 
        c_area = 3.142_r8 * cohort_in%n * &
-            (cohort_in%patchptr%spread(cohort_in%canopy_layer)*dbh)**1.56_r8
+            (cohort_in%patchptr%spread(cohort_in%canopy_layer)*dbh)**crown_area_to_dbh_exponent
     else
-       c_area = 3.142_r8 * cohort_in%n * (ED_val_grass_spread*dbh)**1.56_r8      
+       c_area = 3.142_r8 * cohort_in%n * (ED_val_grass_spread*dbh)**crown_area_to_dbh_exponent
     end if
 
   end function c_area
