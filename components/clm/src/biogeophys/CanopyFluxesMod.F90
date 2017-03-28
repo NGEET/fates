@@ -564,7 +564,9 @@ contains
       !    frac_veg_nosno_patch > 0
       ! -----------------------------------------------------------------
 
-      call clm_fates%prep_canopyfluxes(nc, fn, filterp, photosyns_inst)
+      if (use_ed) then
+         call clm_fates%prep_canopyfluxes(nc, fn, filterp, photosyns_inst)
+      end if
 
       ! Initialize
 

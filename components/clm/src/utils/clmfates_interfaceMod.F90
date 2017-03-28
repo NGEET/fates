@@ -40,7 +40,7 @@ module CLMFatesInterfaceMod
    use TemperatureType   , only : temperature_type
    use EnergyFluxType    , only : energyflux_type
    use SoilStateType     , only : soilstate_type
-   use clm_varctl        , only : iulog, use_ed
+   use clm_varctl        , only : iulog
    use clm_varcon        , only : tfrz
    use clm_varcon        , only : spval
    use clm_varcon        , only : ispval
@@ -167,11 +167,16 @@ module CLMFatesInterfaceMod
 
    end type hlm_fates_interface_type
 
+   ! hlm_bounds_to_fates_bounds is not currently called outside the interface.
+   ! Although there may be good reasons to, I privatized it so that the next
+   ! developer will at least question its usage (RGK)
+   private :: hlm_bounds_to_fates_bounds
+
    logical :: DEBUG  = .false.
 
-  character(len=*), parameter, private :: sourcefile = &
-       __FILE__
-
+   character(len=*), parameter, private :: sourcefile = &
+        __FILE__
+   
 contains
 
   ! ====================================================================================
@@ -218,9 +223,6 @@ contains
       type(bounds_type)                              :: bounds_clump
       integer                                        :: nmaxcol
 
-      if(.not.use_ed) return
-
-         
       ! Initialize the FATES communicators with the HLM
       ! This involves to stages
       ! 1) allocate the vectors
@@ -391,6 +393,11 @@ contains
     ! ===================================================================================
    
     subroutine check_hlm_active(this, nc, bounds_clump)
+
+      ! ---------------------------------------------------------------------------------
+      ! This subroutine is not currently used.  It is just a utility that may come
+      ! in handy when we have dynamic sites in FATES
+      ! ---------------------------------------------------------------------------------
       
       implicit none
       class(hlm_fates_interface_type), intent(inout) :: this
@@ -400,9 +407,6 @@ contains
       ! local variables
       integer :: c
 
-      
-      if (.not.use_ed) return
-      
       do c = bounds_clump%begc,bounds_clump%endc
 
          ! FATES ACTIVE BUT HLM IS NOT
@@ -466,8 +470,6 @@ contains
       real(r8) :: model_day
       real(r8) :: day_of_year
       !-----------------------------------------------------------------------
-
-      if(.not.use_ed) return
 
       ! ---------------------------------------------------------------------------------
       ! Part I.
@@ -614,8 +616,6 @@ contains
      integer :: p       ! HLM patch index
      integer :: s       ! site index
      integer :: c       ! column index
-
-     if (.not.use_ed) return
 
      associate(                                &
          tlai => canopystate_inst%tlai_patch , &
@@ -781,7 +781,6 @@ contains
 
       logical, save           :: initialized = .false.
 
-      if (.not.use_ed) return
 
       nclumps = get_proc_clumps()
 
@@ -1000,8 +999,6 @@ contains
      integer :: c
      integer :: g
 
-     if(.not.use_ed) return
-
      nclumps = get_proc_clumps()
 
      !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,s,c,g)
@@ -1080,8 +1077,6 @@ contains
       type(ed_patch_type), pointer :: cpatch  ! c"urrent" patch  INTERF-TODO: SHOULD
                                               ! BE HIDDEN AS A FATES PRIVATE
 
-      if(.not.use_ed) return
-      
       associate( forc_solad => atm2lnd_inst%forc_solad_grc, &
                  forc_solai => atm2lnd_inst%forc_solai_grc, &
                  fsun       => canopystate_inst%fsun_patch, &
@@ -1158,8 +1153,6 @@ contains
      ! parameters
      integer,parameter                              :: rsmax0 = 2.e4_r8
 
-     if (.not.use_ed) return
-     
      do s = 1, this%fates(nc)%nsites
         ! filter flag == 1 means that this patch has not been called for photosynthesis
         this%fates(nc)%bc_in(s)%filter_photo_pa(:) = 1
@@ -1205,8 +1198,6 @@ contains
       integer  :: ifp
       integer  :: p
 
-      if (.not.use_ed) return
-      
       associate(& 
          sucsat      => soilstate_inst%sucsat_col           , & ! Input:  [real(r8) (:,:) ]  minimum soil suction (mm) 
          watsat      => soilstate_inst%watsat_col           , & ! Input:  [real(r8) (:,:) ]  volumetric soil water at saturation (porosity)
@@ -1377,8 +1368,6 @@ contains
     integer                                        :: s,c,p,ifp,j,icp
     real(r8)                                       :: dtime
 
-    if (.not.use_ed) return
-
     call t_startf('edpsn')
     associate(&
           t_soisno  => temperature_inst%t_soisno_col , &
@@ -1479,7 +1468,6 @@ contains
    integer                                        :: s,c,p,ifp,icp
    real(r8)                                       :: dtime
 
-   if (.not.use_ed) return
 
     ! Run a check on the filter
     do icp = 1,fn
@@ -1527,8 +1515,6 @@ contains
     
     ! locals
     integer                                    :: s,c,p,ifp,icp
-
-    if (.not.use_ed) return
 
     associate(&
          albgrd_col   =>    surfalb_inst%albgrd_col         , & !in
@@ -1615,8 +1601,6 @@ contains
     logical  :: is_beg_day
     integer :: s,c
 
-    if (.not.use_ed) return
-
     associate(& 
         hr            => soilbiogeochem_carbonflux_inst%hr_col,      & ! (gC/m2/s) total heterotrophic respiration
         totsomc       => soilbiogeochem_carbonstate_inst%totsomc_col, & ! (gC/m2) total soil organic matter carbon
@@ -1674,8 +1658,6 @@ contains
     integer :: ifp  ! Fates patch index
     integer :: p    ! CLM patch index
 
-    if (.not.use_ed) return
-
     ci = bounds_clump%clump_index
 
     do s = 1, this%fates(ci)%nsites
@@ -1731,10 +1713,6 @@ contains
    ! not the variables themselves, just the types
    ! ---------------------------------------------------------------------------------
 
-   if(.not.use_ed) return
-   
-   !associate(hio => this%fates_hist)
-   
    nclumps = get_proc_clumps()
 
    ! ------------------------------------------------------------------------------------
@@ -1896,7 +1874,7 @@ contains
         case default
            write(iulog,*) 'A FATES iotype was created that was not registerred'
            write(iulog,*) 'in CLM.:',trim(ioname)
-           call endrun(msg=errMsg(__FILE__, __LINE__))
+           call endrun(msg=errMsg(sourcefile, __LINE__))
         end select
           
       end associate
@@ -1913,8 +1891,6 @@ contains
 
    type(bounds_type), intent(in) :: hlm
    type(fates_bounds_type), intent(out) :: fates
-
-   if (.not.use_ed) return
 
    fates%cohort_begin = hlm%begcohort
    fates%cohort_end = hlm%endcohort

@@ -16,7 +16,7 @@ module CanopyTemperatureMod
   use shr_const_mod        , only : SHR_CONST_PI
   use decompMod            , only : bounds_type
   use abortutils           , only : endrun
-  use clm_varctl           , only : iulog
+  use clm_varctl           , only : iulog, use_ed
   use PhotosynthesisMod    , only : Photosynthesis, PhotosynthesisTotal, Fractionation
   use SurfaceResistanceMod , only : calc_soilevap_resis
   use pftconMod            , only : pftcon
@@ -401,8 +401,9 @@ contains
       ! of its dynamics call.  If and when crops are
       ! enabled simultaneously with FATES, we will 
       ! have to apply a filter here.
-
-      call clm_fates%TransferZ0mDisp(bounds,frictionvel_inst,canopystate_inst)
+      if(use_ed) then
+         call clm_fates%TransferZ0mDisp(bounds,frictionvel_inst,canopystate_inst)
+      end if
 
       do fp = 1,num_nolakep
          p = filter_nolakep(fp)
