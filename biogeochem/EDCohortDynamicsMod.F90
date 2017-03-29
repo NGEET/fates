@@ -14,7 +14,6 @@ module EDCohortDynamicsMod
   use EDEcophysContype      , only : EDecophyscon
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDParamsMod           , only : ED_val_cohort_fusion_tol
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : ncwd
   use EDTypesMod            , only : maxCohortsPerPatch
@@ -638,6 +637,7 @@ contains
     !
     ! !USES:
     use EDTypesMod  , only :  nlevleaf
+    use EDParamsMod , only :  ED_val_cohort_fusion_tol
     !
     ! !ARGUMENTS    
     type (ed_patch_type), intent(inout), target :: patchptr

@@ -82,6 +82,7 @@ contains
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use FatesParameterDerivedMod, only : param_derived
     use EDPatchDynamicsMod, only: set_root_fraction
+    use EDParamsMod, only : ED_val_bbopt_c3, ED_val_bbopt_c4, ED_val_base_mr_20
 
 
     ! ARGUMENTS:
@@ -208,9 +209,9 @@ contains
          frootcn   => EDPftvarcon_inst%frootcn, & ! froot C:N (gc/gN)   ! slope of BB relationship
          q10       => FatesSynchronizedParamsInst%Q10 )
 
-      base_mr_20 = 
-      bbbopt[1] =
-      bbbopt[2] = 
+      base_mr_20 = ED_val_base_mr_20
+      bbbopt[1] = ED_val_bbopt_c3
+      bbbopt[2] = ED_val_bbopt_c4
 
       do s = 1,nsites
 
