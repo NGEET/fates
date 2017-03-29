@@ -258,6 +258,10 @@ contains
     !
     ! !USES:
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+    use EDParamsMod, only : ED_val_phen_drought_threshold, ED_val_phen_doff_time
+    use EDParamsMod, only : ED_val_phen_a, ED_val_phen_b, ED_val_phen_c, ED_val_phen_chiltemp
+    use EDParamsMod, only : ED_val_phen_mindayson, ED_val_phen_ncolddayslim, ED_val_phen_coldtemp
+         
 
     !
     ! !ARGUMENTS:
@@ -293,20 +297,20 @@ contains
 
     ! Parameter of drought decid leaf loss in mm in top layer...FIX(RF,032414) 
     ! - this is arbitrary and poorly understood. Needs work. ED_
-    drought_threshold = EDecophyscon%fates_ph_drought_threshold
-    off_time = EDecophyscon%fates_ph_doff_time
+    drought_threshold = ED_val_phen_drought_threshold
+    off_time = ED_val_phen_doff_time
 
     !Parameters: defaults from Botta et al. 2000 GCB,6 709-725 
-    a = EDecophyscon%fates_ph_a
-    b = EDecophyscon%fates_ph_b
-    c = EDecophyscon%fates_ph_c
-    coldday = EDecophyscon%fates_ph_chiltemp
+    a = ED_val_phen_a
+    b = ED_val_phen_b
+    c = ED_val_phen_c
+    coldday = ED_val_phen_chiltemp
      
-    mindayson = EDecophyscon%fates_ph_mindayson
+    mindayson = ED_val_phen_mindayson
 
     !Parameters, default from from SDGVM model of senesence
-    ncolddayslim = EDecophyscon%fates_ph_ncolddayslim
-    cold_t   = EDecophyscon%fates_ph_coldtemp
+    ncolddayslim = ED_val_phen_ncolddayslim
+    cold_t   = ED_val_phen_coldtemp
 
     t  = hlm_day_of_year
     temp_in_C = bc_in%t_veg24_si - tfrz
@@ -716,6 +720,7 @@ contains
     !  Flux from seed pool into leaf litter pool    
     !
     ! !USES:
+    use EDPftvarcon       , only : EDPftvarcon_inst
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
@@ -723,14 +728,13 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer  ::  p
-    real(r8) :: seed_turnover !complete seed turnover rate in yr-1. 
     !----------------------------------------------------------------------
 
-    seed_turnover = EDecophyscon%seed_turnover  ! default value from Liscke and Loffler 2006  
+    ! default value from Liscke and Loffler 2006 ; making this a PFT-specific parameter
     ! decays the seed pool according to exponential model
-    ! sd_mort is in yr-1
+    ! seed_decay_turnover is in yr-1
     do p = 1,numpft_ed 
-       currentPatch%seed_decay(p) =  currentSite%seed_bank(p) * seed_turnover
+       currentPatch%seed_decay(p) =  currentSite%seed_bank(p) * EDPftvarcon_inst%seed_decay_turnover(p)
     enddo
  
   end subroutine seed_decay
@@ -742,6 +746,7 @@ contains
     !  Flux from seed pool into sapling pool    
     !
     ! !USES:
+    use EDPftvarcon       , only : EDPftvarcon_inst
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
@@ -750,15 +755,16 @@ contains
     ! !LOCAL VARIABLES:
     integer :: p
     real(r8) max_germination !cap on germination rates. KgC/m2/yr Lishcke et al. 2009
-    real(r8) germination_timescale !yr-1
     !----------------------------------------------------------------------
 
-    germination_timescale = EDecophyscon%germination_timescale
     max_germination = 1.0_r8 !this is arbitrary
 
+    ! germination_timescale is being pulled to PFT parameter; units are 1/yr
+    ! thus the mortality rate of seed -> recruit (in units of carbon) is seed_decay_turnover(p)/germination_timescale(p)
+    ! and thus the mortlaity rate (in units of individuals) is the product of that times the ratio of (hypothetical) seed mass to recruit biomass
     do p = 1,numpft_ed
        currentPatch%seed_germination(p) =  min(currentSite%seed_bank(p) * &
-             germination_timescale,max_germination)
+             EDPftvarcon_inst%germination_timescale(p),max_germination)
     enddo
 
   end subroutine seed_germination
@@ -1348,6 +1354,7 @@ contains
     use FatesInterfaceMod, only : bc_in_type, bc_out_type
     use clm_varctl, only : use_vertsoilc
     use FatesGlobals, only : endrun => fates_endrun
+    use EDParamsMod , only : ED_val_cwd_flig, ED_val_cwd_fcel
 
 
     ! INTERF-TODO: remove the control parameters: exponential_rooting_profile, 
@@ -1402,12 +1409,6 @@ contains
     real(r8) :: croot_prof(1:nsites, 1:hlm_numlevdecomp)
     real(r8) :: stem_prof(1:nsites, 1:hlm_numlevdecomp)
 
-    real(r8) :: cwd_fcel
-    real(r8) :: cwd_flig
-    
-    cwd_fcel = 
-    cwd_flig = 
-    
     delta = 0.001_r8    
     !no of seconds in a year. 
     time_convert =  365.0_r8*sec_per_day
@@ -1631,26 +1632,26 @@ contains
             ! now disaggregate, vertically and by decomposition substrate type, the actual fluxes from CWD and litter pools
             !
             ! do c = 1, ncwd
-            !    write(fates_log(),*)'cdk CWD_AG_out', c, currentpatch%CWD_AG_out(c), cwd_fcel, currentpatch%area/AREA
-            !    write(fates_log(),*)'cdk CWD_BG_out', c, currentpatch%CWD_BG_out(c), cwd_fcel, currentpatch%area/AREA
+            !    write(fates_log(),*)'cdk CWD_AG_out', c, currentpatch%CWD_AG_out(c), ED_val_cwd_fcel, currentpatch%area/AREA
+            !    write(fates_log(),*)'cdk CWD_BG_out', c, currentpatch%CWD_BG_out(c), ED_val_cwd_fcel, currentpatch%area/AREA
             ! end do
             ! do ft = 1,numpft_ed
-            !    write(fates_log(),*)'cdk leaf_litter_out', ft, currentpatch%leaf_litter_out(ft), cwd_fcel, currentpatch%area/AREA
-            !    write(fates_log(),*)'cdk root_litter_out', ft, currentpatch%root_litter_out(ft), cwd_fcel, currentpatch%area/AREA
+            !    write(fates_log(),*)'cdk leaf_litter_out', ft, currentpatch%leaf_litter_out(ft), ED_val_cwd_fcel, currentpatch%area/AREA
+            !    write(fates_log(),*)'cdk root_litter_out', ft, currentpatch%root_litter_out(ft), ED_val_cwd_fcel, currentpatch%area/AREA
             ! end do
             ! !
             ! CWD pools fragmenting into decomposing litter pools. 
             do ci = 1, ncwd
                do j = 1, hlm_numlevdecomp
                   bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + &
-                       currentpatch%CWD_AG_out(ci) * cwd_fcel * currentpatch%area/AREA * stem_prof(s,j)  
+                       currentpatch%CWD_AG_out(ci) * ED_val_cwd_fcel * currentpatch%area/AREA * stem_prof(s,j)  
                   bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + &
-                       currentpatch%CWD_AG_out(ci) * cwd_flig * currentpatch%area/AREA * stem_prof(s,j)
+                       currentpatch%CWD_AG_out(ci) * ED_val_cwd_flig * currentpatch%area/AREA * stem_prof(s,j)
                   !
                   bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + &
-                       currentpatch%CWD_BG_out(ci) * cwd_fcel * currentpatch%area/AREA * croot_prof_perpatch(j)
+                       currentpatch%CWD_BG_out(ci) * ED_val_cwd_fcel * currentpatch%area/AREA * croot_prof_perpatch(j)
                   bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + &
-                       currentpatch%CWD_BG_out(ci) * cwd_flig * currentpatch%area/AREA * croot_prof_perpatch(j)
+                       currentpatch%CWD_BG_out(ci) * ED_val_cwd_flig * currentpatch%area/AREA * croot_prof_perpatch(j)
                end do
             end do
             
