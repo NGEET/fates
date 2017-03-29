@@ -231,7 +231,8 @@ contains
     real(r8) :: dbh ! Tree diameter at breat height. cm. 
     real(r8) :: crown_area_to_dbh_exponent
 
-    crown_area_to_dbh_exponent = EDecophyscon%crown_area_to_dbh_exponent(cohort_in%pft)
+    ! use the same exponent as the dbh to bleaf exponent so that per-plant canopy depth remains invariant during growth
+    crown_area_to_dbh_exponent = EDecophyscon%dbh2bl_b(cohort_in%pft)
 
     if (DEBUG_growth) then
        write(fates_log(),*) 'z_area 1',cohort_in%dbh,cohort_in%pft
@@ -244,7 +245,7 @@ contains
     end if
 
     dbh = min(cohort_in%dbh,EDecophyscon%max_dbh(cohort_in%pft))
-    !++CDK note below a  magic numebr which ought to be PI; though this will be answer-changing...
+    !++CDK note below a  magic number which ought to be Pi; though this will be answer-changing...
     if(EDPftvarcon_inst%woody(cohort_in%pft) == 1)then 
        c_area = 3.142_r8 * cohort_in%n * &
             (cohort_in%patchptr%spread(cohort_in%canopy_layer)*dbh)**crown_area_to_dbh_exponent
