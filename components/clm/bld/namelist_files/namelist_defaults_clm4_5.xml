@@ -1974,6 +1974,6 @@ lnd/clm2/surfdata_map/surfdata_ne120np4_78pfts_simyr1850_c160216.nc</fsurdat>
 <use_lch4            bgc_mode="ed"  >.false.</use_lch4>
 <use_nitrif_denitrif bgc_mode="ed"  >.false.</use_nitrif_denitrif>
 
-<use_ed_spit_fire    use_ed=".true.">.false.</use_ed_spit_fire>
+<use_ed_spitfire    use_ed=".true.">.false.</use_ed_spitfire>
 
 </namelist_defaults>
