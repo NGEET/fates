@@ -22,7 +22,7 @@ module EDParamsMod
    real(r8),protected :: ED_val_maxspread
    real(r8),protected :: ED_val_minspread
    real(r8),protected :: ED_val_init_litter
-   real(r8),protected :: ED_val_nfires
+   real(r8),protected :: ED_val_nignitions
    real(r8),protected :: ED_val_understorey_death
    real(r8),protected :: ED_val_ag_biomass
    real(r8),protected :: ED_val_cwd_fcel
@@ -49,7 +49,7 @@ module EDParamsMod
    character(len=param_string_length),parameter :: ED_name_maxspread = "fates_maxspread"
    character(len=param_string_length),parameter :: ED_name_minspread = "fates_minspread"
    character(len=param_string_length),parameter :: ED_name_init_litter = "fates_init_litter"
-   character(len=param_string_length),parameter :: ED_name_nfires = "fates_nfires"
+   character(len=param_string_length),parameter :: ED_name_nignitions = "fates_nfires"
    character(len=param_string_length),parameter :: ED_name_understorey_death = "fates_understorey_death"
    character(len=param_string_length),parameter :: ED_name_ag_biomass= "fates_ag_biomass"   
    character(len=param_string_length),parameter :: ED_name_cwd_fcel= "fates_cwd_fcel"   
@@ -91,7 +91,7 @@ contains
     ED_val_maxspread = nan
     ED_val_minspread = nan
     ED_val_init_litter = nan
-    ED_val_nfires = nan
+    ED_val_nignitions = nan
     ED_val_understorey_death = nan
     ED_val_ag_biomass = nan
     ED_val_cwd_fcel = nan
@@ -156,7 +156,7 @@ contains
     call fates_params%RegisterParameter(name=ED_name_init_litter, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=ED_name_nfires, dimension_shape=dimension_shape_1d, &
+    call fates_params%RegisterParameter(name=ED_name_nignitions, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
     call fates_params%RegisterParameter(name=ED_name_understorey_death, dimension_shape=dimension_shape_1d, &
@@ -214,6 +214,7 @@ contains
          dimension_names=dim_names)
 
   end subroutine FatesRegisterParams
+
   
   !-----------------------------------------------------------------------
   subroutine FatesReceiveParams(fates_params)
@@ -251,8 +252,8 @@ contains
     call fates_params%RetreiveParameter(name=ED_name_init_litter, &
          data=ED_val_init_litter)
 
-    call fates_params%RetreiveParameter(name=ED_name_nfires, &
-         data=ED_val_nfires)
+    call fates_params%RetreiveParameter(name=ED_name_nignitions, &
+         data=ED_val_nignitions)
 
     call fates_params%RetreiveParameter(name=ED_name_understorey_death, &
          data=ED_val_understorey_death)
