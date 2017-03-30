@@ -24,8 +24,6 @@ module EDParamsMod
    real(r8),protected :: ED_val_init_litter
    real(r8),protected :: ED_val_nfires
    real(r8),protected :: ED_val_understorey_death
-   real(r8),protected :: ED_val_profile_tol
-   real(r8),protected :: ED_val_cohort_fusion_tol
    real(r8),protected :: ED_val_ag_biomass
    real(r8),protected :: ED_val_cwd_fcel
    real(r8),protected :: ED_val_cwd_flig
@@ -53,8 +51,6 @@ module EDParamsMod
    character(len=param_string_length),parameter :: ED_name_init_litter = "fates_init_litter"
    character(len=param_string_length),parameter :: ED_name_nfires = "fates_nfires"
    character(len=param_string_length),parameter :: ED_name_understorey_death = "fates_understorey_death"
-   character(len=param_string_length),parameter :: ED_name_profile_tol = "fates_profile_tol"
-   character(len=param_string_length),parameter :: ED_name_cohort_fusion_tol = "fates_cohort_fusion_tol"
    character(len=param_string_length),parameter :: ED_name_ag_biomass= "fates_ag_biomass"   
    character(len=param_string_length),parameter :: ED_name_cwd_fcel= "fates_cwd_fcel"   
    character(len=param_string_length),parameter :: ED_name_cwd_flig= "fates_cwd_flig"   
@@ -97,8 +93,6 @@ contains
     ED_val_init_litter = nan
     ED_val_nfires = nan
     ED_val_understorey_death = nan
-    ED_val_profile_tol = nan
-    ED_val_cohort_fusion_tol = nan
     ED_val_ag_biomass = nan
     ED_val_cwd_fcel = nan
     ED_val_cwd_flig = nan
@@ -166,12 +160,6 @@ contains
          dimension_names=dim_names)
 
     call fates_params%RegisterParameter(name=ED_name_understorey_death, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
-    call fates_params%RegisterParameter(name=ED_name_profile_tol, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
-    call fates_params%RegisterParameter(name=ED_name_cohort_fusion_tol, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
     call fates_params%RegisterParameter(name=ED_name_ag_biomass, dimension_shape=dimension_shape_1d, &
@@ -268,12 +256,6 @@ contains
 
     call fates_params%RetreiveParameter(name=ED_name_understorey_death, &
          data=ED_val_understorey_death)
-
-    call fates_params%RetreiveParameter(name=ED_name_profile_tol, &
-         data=ED_val_profile_tol)
-
-    call fates_params%RetreiveParameter(name=ED_name_cohort_fusion_tol, &
-         data=ED_val_cohort_fusion_tol)
 
     call fates_params%RetreiveParameter(name=ED_name_ag_biomass, &
          data=ED_val_ag_biomass)
