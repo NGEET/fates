@@ -230,8 +230,10 @@ contains
     real(r8) :: dbh ! Tree diameter at breat height. cm. 
     real(r8) :: crown_area_to_dbh_exponent
 
-    ! use the same exponent as the dbh to bleaf exponent so that per-plant canopy depth remains invariant during growth
-    crown_area_to_dbh_exponent = EDPftvarcon_inst%dbh2bl_b(cohort_in%pft)
+    ! default is to use the same exponent as the dbh to bleaf exponent so that per-plant canopy depth remains invariant during growth,
+    ! but allowed to vary via the dbh2bl_dbh2carea_expnt_diff term (which has default value of zero)
+    crown_area_to_dbh_exponent = EDPftvarcon_inst%dbh2bl_b(cohort_in%pft) + &
+         EDPftvarcon_inst%dbh2bl_dbh2carea_expnt_diff(cohort_in%pft)
 
     if (DEBUG_growth) then
        write(fates_log(),*) 'z_area 1',cohort_in%dbh,cohort_in%pft

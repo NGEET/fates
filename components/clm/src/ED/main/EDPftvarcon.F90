@@ -70,6 +70,7 @@ module EDPftvarcon
      real(r8), allocatable :: dbh2h_c(:)
      real(r8), allocatable :: dbh2bl_a(:)
      real(r8), allocatable :: dbh2bl_b(:)
+     real(r8), allocatable :: dbh2bl_dbh2carea_expnt_diff(:)
      real(r8), allocatable :: dbh2bl_c(:)
      real(r8), allocatable :: dbh2bl_slascaler(:)
      real(r8), allocatable :: sai_scaler(:)
@@ -378,6 +379,10 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_dbh2bl_dbh2carea_expnt_diff'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_dbh2bl_c'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -672,6 +677,10 @@ contains
     name = 'fates_dbh2bl_b'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%dbh2bl_b)
+
+    name = 'fates_dbh2bl_dbh2carea_expnt_diff'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%dbh2bl_dbh2carea_expnt_diff)
 
     name = 'fates_dbh2bl_c'
     call fates_params%RetreiveParameterAllocate(name=name, &
