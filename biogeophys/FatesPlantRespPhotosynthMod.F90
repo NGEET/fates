@@ -183,8 +183,6 @@ contains
     ! (gC/gN/s)
     ! ------------------------------------------------------------------------
 
-    real(r8) :: base_mr_20
-
     ! -----------------------------------------------------------------------------------
     ! Photosynthesis and stomatal conductance parameters, from:
     ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593
@@ -208,7 +206,6 @@ contains
          frootcn   => EDPftvarcon_inst%frootcn, & ! froot C:N (gc/gN)   ! slope of BB relationship
          q10       => FatesSynchronizedParamsInst%Q10 )
 
-      base_mr_20 = ED_val_base_mr_20
       bbbopt(1) = ED_val_bbopt_c3
       bbbopt(2) = ED_val_bbopt_c4
 
@@ -535,7 +532,7 @@ contains
                      if (woody(ft) == 1) then
                         tcwood = q10**((bc_in(s)%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8) 
                         ! kgC/s = kgN * kgC/kgN/s
-                        currentCohort%livestem_mr  = live_stem_n * base_mr_20 * tcwood
+                        currentCohort%livestem_mr  = live_stem_n * ED_val_base_mr_20 * tcwood
                      else
                         currentCohort%livestem_mr  = 0._r8
                      end if
@@ -547,7 +544,7 @@ contains
                      do j = 1,hlm_numlevsoil
                         tcsoi  = q10**((bc_in(s)%t_soisno_gl(j)-tfrz - 20.0_r8)/10.0_r8)
                         currentCohort%froot_mr = currentCohort%froot_mr + &
-                              froot_n * base_mr_20 * tcsoi * currentPatch%rootfr_ft(ft,j)
+                              froot_n * ED_val_base_mr_20 * tcsoi * currentPatch%rootfr_ft(ft,j)
                      enddo
                      
                      ! Coarse Root MR (kgC/plant/s) (below ground sapwood)
@@ -558,7 +555,7 @@ contains
                            ! Soil temperature used to adjust base rate of MR
                            tcsoi  = q10**((bc_in(s)%t_soisno_gl(j)-tfrz - 20.0_r8)/10.0_r8)
                            currentCohort%livecroot_mr = currentCohort%livecroot_mr + &
-                                 live_croot_n * base_mr_20 * tcsoi * &
+                                 live_croot_n * ED_val_base_mr_20 * tcsoi * &
                                  currentPatch%rootfr_ft(ft,j)
                         enddo
                      else
