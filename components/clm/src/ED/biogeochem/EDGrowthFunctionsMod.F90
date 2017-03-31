@@ -120,7 +120,8 @@ contains
     if(cohort_in%dbh <= EDPftvarcon_inst%max_dbh(cohort_in%pft))then
        bleaf = dbh2bl_a * (cohort_in%dbh**dbh2bl_b) * EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bl_c 
     else  
-       bleaf = dbh2bl_a * (EDPftvarcon_inst%max_dbh(cohort_in%pft)**dbh2bl_b) * EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bl_c
+       bleaf = dbh2bl_a * (EDPftvarcon_inst%max_dbh(cohort_in%pft)**dbh2bl_b) * &
+            EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bl_c
     endif  
 
     bleaf = bleaf * slascaler
