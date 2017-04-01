@@ -7,6 +7,7 @@ module EDCohortDynamicsMod
   use FatesGlobals          , only : endrun => fates_endrun
   use FatesGlobals          , only : fates_log
   use FatesInterfaceMod     , only : hlm_freq_day
+  use FatesInterfaceMod     , only : bc_in_type
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
   use FatesInterfaceMod     , only : hlm_days_per_year
@@ -21,7 +22,15 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : sclass_ed,nlevsclass_ed,AREA
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
-  use EDTypesMod            , only : sizetype_class_index
+  use EDTypesMod             , only : use_fates_plant_hydro
+  use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
+  use FatesPlantHydraulicsMod, only : CopyCohortHydraulics
+  use FatesPlantHydraulicsMod, only : updateSizeDepTreeHydProps
+  use FatesPlantHydraulicsMod, only : initTreeHydStates
+  use FatesPlantHydraulicsMod, only : InitHydrCohort
+  use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
+  use EDTypesMod             , only : sizetype_class_index
+
   ! CIME globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   !
@@ -51,7 +60,7 @@ contains
 
   !-------------------------------------------------------------------------------------!
   subroutine create_cohort(patchptr, pft, nn, hite, dbh, &
-       balive, bdead, bstore, laimemory, status, ctrim, clayer)
+       balive, bdead, bstore, laimemory, status, ctrim, clayer, bc_in)
     !
     ! !DESCRIPTION:
     ! create new cohort
@@ -71,6 +80,7 @@ contains
     real(r8), intent(in)   :: bstore    ! stored carbon: kGC per indiv
     real(r8), intent(in)   :: laimemory ! target leaf biomass- set from previous year: kGC per indiv
     real(r8), intent(in)   :: ctrim     ! What is the fraction of the maximum leaf biomass that we are targeting? :-
+    type(bc_in_type), intent(in) :: bc_in ! External boundary conditions
     !
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer :: new_cohort         ! Pointer to New Cohort structure.
@@ -164,6 +174,12 @@ contains
     ! growth, disturbance and mortality.
     new_cohort%isnew = .true.
 
+    if( use_fates_plant_hydro ) then
+       call InitHydrCohort(new_cohort)
+       call updateSizeDepTreeHydProps(new_cohort, bc_in) 
+       call initTreeHydStates(new_cohort, bc_in) 
+    endif
+    
     call insert_cohort(new_cohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
          storebigcohort, storesmallcohort)
 
@@ -614,13 +630,15 @@ contains
                      + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
                      SF_val_CWD_frac(c) * (1.0_r8 -  ED_val_ag_biomass)  * hlm_days_per_year / AREA
              enddo
-
+             
              currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
                   currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) +  &
                   currentCohort%n * (currentCohort%bl) * hlm_days_per_year  / AREA
              currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
                   currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) + &
                   currentCohort%n * (currentCohort%br+currentCohort%bstore) * hlm_days_per_year  / AREA
+
+             if (use_fates_plant_hydro) call DeallocateHydrCohort(currentCohort)
 
              deallocate(currentCohort)     
           endif
@@ -631,7 +649,7 @@ contains
   end subroutine terminate_cohorts
 
   !-------------------------------------------------------------------------------------!
-  subroutine fuse_cohorts(patchptr)  
+  subroutine fuse_cohorts(patchptr, bc_in)  
     !
     ! !DESCRIPTION:
     ! Join similar cohorts to reduce total number            
@@ -641,6 +659,7 @@ contains
     !
     ! !ARGUMENTS    
     type (ed_patch_type), intent(inout), target :: patchptr
+    type (bc_in_type), intent(in)               :: bc_in
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type)  , pointer :: currentPatch
@@ -802,6 +821,8 @@ contains
                             endif
                          enddo
                          
+                         if(use_fates_plant_hydro) call FuseCohortHydraulics(currentCohort,nextc,bc_in,newn)
+                         
                          currentCohort%n = newn     
                          !remove fused cohort from the list
                          nextc%taller%shorter => nextnextc        
@@ -812,6 +833,7 @@ contains
                          endif
 
                          if (associated(nextc)) then       
+                            if(use_fates_plant_hydro) call DeallocateHydrCohort(nextc)
                             deallocate(nextc)            
                          endif
 
@@ -1151,6 +1173,10 @@ contains
     n%fire_mort       = o%fire_mort
     n%crownfire_mort  = o%crownfire_mort
     n%cambial_mort    = o%cambial_mort
+
+    ! Plant Hydraulics
+    
+    if( use_fates_plant_hydro ) call CopyCohortHydraulics(n,o)
 
     !Pointers
     n%taller          => NULL()     ! pointer to next tallest cohort     

@@ -41,7 +41,7 @@ module EDCanopyStructureMod
 contains
 
   ! ============================================================================
-  subroutine canopy_structure( currentSite )
+  subroutine canopy_structure( currentSite , bc_in )
     !
     ! !DESCRIPTION:
     ! create cohort instance
@@ -84,9 +84,12 @@ contains
     use EDParamsMod, only : ED_val_comp_excln, ED_val_ag_biomass
     use SFParamsMod, only : SF_val_cwd_frac
     use EDtypesMod , only : ncwd, min_patch_area
+    use FatesInterfaceMod, only : bc_in_type
     !
     ! !ARGUMENTS    
     type(ed_site_type) , intent(inout), target   :: currentSite
+    type(bc_in_type), intent(in)                 :: bc_in
+
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type) , pointer :: currentPatch
@@ -382,7 +385,7 @@ contains
 
        enddo !is there still excess area in any layer?      
 
-       call fuse_cohorts(currentPatch)
+       call fuse_cohorts(currentPatch, bc_in)
        call terminate_cohorts(currentSite, currentPatch)
 
        ! ----------- Check cohort area ------------------------------!
@@ -602,7 +605,7 @@ contains
           endif
        enddo !is there still not enough canopy area in any layer?         
 
-       call fuse_cohorts(currentPatch)
+       call fuse_cohorts(currentPatch, bc_in)
        call terminate_cohorts(currentSite, currentPatch)
 
        if(promswitch == 1)then
@@ -734,7 +737,7 @@ contains
 
     use FatesInterfaceMod    , only : bc_in_type
     use EDPatchDynamicsMod   , only : set_patchno
-    use EDPatchDYnamicsMod   , only : set_root_fraction
+    use EDPatchDynamicsMod   , only : set_root_fraction
     use EDTypesMod           , only : sizetype_class_index
     use EDGrowthFunctionsMod , only : tree_lai, c_area
     use EDEcophysConType     , only : EDecophyscon
@@ -774,7 +777,7 @@ contains
 
        do while(associated(currentPatch))
           
-          call set_root_fraction(currentPatch,bc_in(s)%depth_gl)
+          call set_root_fraction(currentPatch,bc_in(s)%zi_sisl)
 
           !zero cohort-summed variables. 
           currentPatch%total_canopy_area = 0.0_r8

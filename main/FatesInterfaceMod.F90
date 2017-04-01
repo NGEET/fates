@@ -19,7 +19,12 @@ module FatesInterfaceMod
    use FatesConstantsMod   , only : r8 => fates_r8
    use FatesGlobals        , only : fates_global_verbose
    use FatesGlobals        , only : fates_log
-   
+   use EDTypesMod          , only : use_fates_plant_hydro
+   use FatesGlobals        , only : endrun => fates_endrun
+
+   ! CIME Globals
+   use shr_log_mod         , only : errMsg => shr_log_errMsg
+   use shr_infnan_mod      , only : nan => shr_infnan_nan, assignment(=)
 
    implicit none
 
@@ -28,6 +33,9 @@ module FatesInterfaceMod
    public :: SetFatesTime
    public :: set_fates_global_elements
 
+   character(len=*), parameter, private :: sourcefile = &
+         __FILE__
+   
    ! -------------------------------------------------------------------------------------
    ! Parameters that are dictated by the Host Land Model
    ! THESE ARE NOT DYNAMIC. SHOULD BE SET ONCE DURING INTIALIZATION.
@@ -71,6 +79,13 @@ module FatesInterfaceMod
                                          ! for knowing if the current machine should be 
                                          ! printing out messages to the logs or terminals
                                          ! 1 = TRUE (is master) 0 = FALSE (is not master)
+
+   integer, protected :: hlm_ipedof      ! The HLM pedotransfer index
+                                         ! this is only used by the plant hydraulics
+                                         ! submodule to check and/or enable consistency
+                                         ! between the pedotransfer functions of the HLM
+                                         ! and how it moves and stores water in its
+                                         ! rhizosphere shells
    
 
    ! -------------------------------------------------------------------------------------
@@ -142,6 +157,16 @@ module FatesInterfaceMod
       ! The actual number of FATES' ED patches
       integer :: npatches
 
+
+      ! Soil layer structure
+      real(r8),allocatable :: zi_sisl(:)         ! interface level below a "z" level (m)
+                                                 ! this contains a zero index for surface.
+      real(r8),allocatable :: dz_sisl(:)         ! layer thickness (m)
+      real(r8),allocatable :: z_sisl(:)          ! layer depth (m) (1:hlm_nlevsoil) 
+
+      ! Decomposition Layer Structure
+      real(r8), allocatable :: dz_decomp_sisl(:)
+
       ! Vegetation Dynamics
       ! ---------------------------------------------------------------------------------
 
@@ -155,12 +180,6 @@ module FatesInterfaceMod
       ! Patch 24 hour vegetation temperature [K]
       real(r8),allocatable :: t_veg24_pa(:)  
       
-      ! NOTE: h2osoi_vol_si is used to update surface water memory
-      ! CLM/ALM may be using "waterstate%h2osoi_vol_col" on the first index (coli,1)
-      ! to inform this. I think this should be re-evaluated (RGK 01/2017)
-      ! Site volumetric soil water (0<=h2osoi_vol<=watsat) [m3/m3]
-      real(r8) :: h2osoi_vol_si 
-
       ! Fire Model
 
       ! Average precipitation over the last 24 hours [mm/s]
@@ -182,26 +201,7 @@ module FatesInterfaceMod
       ! Downwelling diffuse (I-ndirect) radiation (patch,radiation-band) [W/m2]
       real(r8), allocatable :: solai_parb(:,:)
 
-      ! Hydrology variables for BTRAN
-      ! ---------------------------------------------------------------------------------
 
-      ! Soil suction potential of layers in each site, negative, [mm]
-      real(r8), allocatable :: smp_gl(:)
-
-      ! Effective porosity = porosity - vol_ic, of layers in each site [-]
-      real(r8), allocatable :: eff_porosity_gl(:)
-
-      ! volumetric soil water at saturation (porosity)
-      real(r8), allocatable :: watsat_gl(:)
-
-      ! Temperature of ground layers [K]
-      real(r8), allocatable :: tempk_gl(:)
-
-      ! Liquid volume in ground layer
-      real(r8), allocatable :: h2o_liqvol_gl(:)
-
-      ! Site level filter for uptake response functions
-      logical               :: filter_btran
 
       ! Photosynthesis variables
       ! ---------------------------------------------------------------------------------
@@ -278,10 +278,43 @@ module FatesInterfaceMod
       real(r8) :: snow_depth_si    ! Depth of snow in snowy areas of site (m)
       real(r8) :: frac_sno_eff_si  ! Fraction of ground covered by snow (0-1)
 
-      ! Ground Layer Structure
-      real(r8),allocatable :: depth_gl(:)      ! Depth in vertical direction of ground layers
-                                   ! Interface level below a "z" level (m) (1:cp_nlevgrnd) 
+      ! Hydrology variables for BTRAN
+      ! ---------------------------------------------------------------------------------
 
+      ! Soil suction potential of layers in each site, negative, [mm]
+      real(r8), allocatable :: smp_gl(:)
+
+      ! Effective porosity = porosity - vol_ic, of layers in each site [-]
+      real(r8), allocatable :: eff_porosity_gl(:)
+
+      ! volumetric soil water at saturation (porosity)
+      real(r8), allocatable :: watsat_gl(:)
+
+      ! Temperature of ground layers [K]
+      real(r8), allocatable :: tempk_gl(:)
+
+      ! Liquid volume in ground layer (m3/m3)
+      real(r8), allocatable :: h2o_liqvol_gl(:)
+
+      ! Site level filter for uptake response functions
+      logical               :: filter_btran
+
+      ! Plant-Hydro
+      ! ---------------------------------------------------------------------------------
+
+      
+      real(r8),allocatable :: qflx_transp_pa(:)    ! Transpiration flux as dictated by the HLM's
+                                                   ! canopy solver. [mm H2O/s] [+ into root]
+      real(r8),allocatable :: swrad_net_pa(:)      ! Net absorbed shortwave radiation (W/m2)
+      real(r8),allocatable :: lwrad_net_pa(:)      ! Net absorbed longwave radiation (W/m2)
+      real(r8),allocatable :: watsat_sisl(:)       ! volumetric soil water at saturation (porosity)
+      real(r8),allocatable :: watres_sisl(:)       ! volumetric residual soil water
+      real(r8),allocatable :: sucsat_sisl(:)       ! minimum soil suction (mm) (hlm_nlevsoil) 
+      real(r8),allocatable :: bsw_sisl(:)          ! Clapp and Hornberger "b" (hlm_nlevsoil)
+      real(r8),allocatable :: hksat_sisl(:)        ! hydraulic conductivity at saturation (mm H2O /s)
+      real(r8),allocatable :: h2o_liq_sisl(:)      ! Liquid water mass in each layer (kg/m2)
+      real(r8) :: smpmin_si                        ! restriction for min of soil potential (mm)
+      
    end type bc_in_type
 
 
@@ -358,6 +391,8 @@ module FatesInterfaceMod
       !total lignin    litter coming from ED. gC/m3/s
       real(r8), allocatable :: FATES_c_to_litr_lig_c_col(:)      
 
+      
+
       ! Canopy Structure
 
       real(r8), allocatable :: elai_pa(:)  ! exposed leaf area index
@@ -377,7 +412,18 @@ module FatesInterfaceMod
                                                         ! vegetation in the patch is exposed.
                                                         ! [0,1]
 
+      ! FATES Hydraulics
+
+      real(r8) :: plant_stored_h2o_si             ! stored water in vegetation (kg/m2 H2O)
+                                                  ! Assuming density of 1Mg/m3 ~= mm/m2 H2O
+                                                  ! This must be set and transfered prior to clm_drv()
+                                                  ! following the calls to ed_update_site()
+                                                  ! ed_update_site() is called during both the restart
+                                                  ! and coldstart process
       
+      real(r8),allocatable :: qflx_soil2root_sisl(:)   ! Water flux from soil into root by site and soil layer
+                                                       ! [mm H2O/s] [+ into root]
+
    end type bc_out_type
 
 
@@ -465,7 +511,12 @@ contains
       type(bc_in_type), intent(inout) :: bc_in
       
       ! Allocate input boundaries
-      
+      allocate(bc_in%zi_sisl(0:hlm_numlevsoil))
+      allocate(bc_in%dz_sisl(hlm_numlevsoil))
+      allocate(bc_in%z_sisl(hlm_numlevsoil))
+
+      allocate(bc_in%dz_decomp_sisl(hlm_numlevdecomp_full))
+
       ! Vegetation Dynamics
       allocate(bc_in%t_veg24_pa(maxPatchesPerSite))
 
@@ -502,11 +553,19 @@ contains
       allocate(bc_in%albgr_dir_rb(hlm_numSWb))
       allocate(bc_in%albgr_dif_rb(hlm_numSWb))
 
-      ! Carbon Balance Checking
-      ! (snow-depth and snow fraction are site level and not vectors)
+      ! Plant-Hydro BC's
+      if (use_fates_plant_hydro) then
       
-      ! Ground layer structure
-      allocate(bc_in%depth_gl(0:hlm_numlevgrnd))
+         allocate(bc_in%qflx_transp_pa(maxPatchesPerSite))
+         allocate(bc_in%swrad_net_pa(maxPatchesPerSite))
+         allocate(bc_in%lwrad_net_pa(maxPatchesPerSite))
+         allocate(bc_in%watsat_sisl(hlm_numlevsoil))
+         allocate(bc_in%watres_sisl(hlm_numlevsoil))
+         allocate(bc_in%sucsat_sisl(hlm_numlevsoil))
+         allocate(bc_in%bsw_sisl(hlm_numlevsoil))
+         allocate(bc_in%hksat_sisl(hlm_numlevsoil))
+         allocate(bc_in%h2o_liq_sisl(hlm_numlevsoil)); bc_in%h2o_liq_sisl = nan
+      end if
 
       return
    end subroutine allocate_bcin
@@ -560,6 +619,10 @@ contains
       allocate(bc_out%canopy_fraction_pa(maxPatchesPerSite))
       allocate(bc_out%frac_veg_nosno_alb_pa(maxPatchesPerSite))
 
+      ! Plant-Hydro BC's
+      if (use_fates_plant_hydro) then
+         allocate(bc_out%qflx_soil2root_sisl(hlm_numlevsoil))
+      end if
 
       return
    end subroutine allocate_bcout
@@ -573,10 +636,13 @@ contains
       integer, intent(in) :: s
 
       ! Input boundaries
-
+      this%bc_in(s)%zi_sisl(:)     = 0.0_r8
+      this%bc_in(s)%dz_sisl(:)     = 0.0_r8
+      this%bc_in(s)%z_sisl(:)      = 0.0_r8
+      this%bc_in(s)%dz_decomp_sisl = 0.0_r8
+      
       this%bc_in(s)%t_veg24_si     = 0.0_r8
       this%bc_in(s)%t_veg24_pa(:)  = 0.0_r8
-      this%bc_in(s)%h2osoi_vol_si  = 0.0_r8
       this%bc_in(s)%precip24_pa(:) = 0.0_r8
       this%bc_in(s)%relhumid24_pa(:) = 0.0_r8
       this%bc_in(s)%wind24_pa(:)     = 0.0_r8
@@ -598,8 +664,20 @@ contains
       this%bc_in(s)%tot_litc            = 0.0_r8
       this%bc_in(s)%snow_depth_si       = 0.0_r8
       this%bc_in(s)%frac_sno_eff_si     = 0.0_r8
-      this%bc_in(s)%depth_gl(:)         = 0.0_r8
-      
+
+      if (use_fates_plant_hydro) then
+  
+         this%bc_in(s)%qflx_transp_pa(:) = 0.0_r8
+         this%bc_in(s)%swrad_net_pa(:) = 0.0_r8
+         this%bc_in(s)%lwrad_net_pa(:) = 0.0_r8
+         this%bc_in(s)%watsat_sisl(:) = 0.0_r8
+         this%bc_in(s)%watres_sisl(:) = 0.0_r8
+         this%bc_in(s)%sucsat_sisl(:) = 0.0_r8
+         this%bc_in(s)%bsw_sisl(:) = 0.0_r8
+         this%bc_in(s)%hksat_sisl(:) = 0.0_r8
+      end if
+
+
       ! Output boundaries
       this%bc_out(s)%active_suction_gl(:) = .false.
       this%bc_out(s)%fsun_pa(:)      = 0.0_r8
@@ -631,9 +709,14 @@ contains
       this%bc_out(s)%hbot_pa(:) = 0.0_r8
       this%bc_out(s)%canopy_fraction_pa(:) = 0.0_r8
       this%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
-      
+
+      if (use_fates_plant_hydro) then
+         this%bc_out(s)%plant_stored_h2o_si = 0.0_r8
+         this%bc_out(s)%qflx_soil2root_sisl(:) = 0.0_r8
+      end if
+
       return
-    end subroutine zero_bcs
+   end subroutine zero_bcs
 
 
     ! ===================================================================================
@@ -750,6 +833,7 @@ contains
          hlm_name         = 'unset'
          hlm_hio_ignore_val   = unset_double
          hlm_masterproc   = unset_int
+         hlm_ipedof       = unset_int
 
       case('check_allset')
          
@@ -757,16 +841,14 @@ contains
             if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES dimension/parameter unset: num_sw_rad_bbands'
             end if
-            ! INTERF-TODO: FATES NEEDS INTERNAL end_run
-            ! end_run('MESSAGE')
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_masterproc .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES parameter unset: hlm_masterproc'
             end if
-            ! INTERF-TODO: FATES NEEDS INTERNAL end_run
-            ! end_run('MESSAGE')
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_numSWb > maxSWb) then
@@ -779,56 +861,58 @@ contains
                write(fates_log(), *) 'please increase maxSWb in EDTypes to match'
                write(fates_log(), *) 'or exceed this value'
             end if
-            ! end_run('MESSAGE')
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_numlevgrnd .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES dimension/parameter unset: numlevground'
             end if
-            ! INTERF-TODO: FATES NEEDS INTERNAL end_run
-            ! end_run('MESSAGE')
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_numlevsoil .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES dimension/parameter unset: numlevground'
             end if
-            ! INTERF-TODO: FATES NEEDS INTERNAL end_run
-            ! end_run('MESSAGE')
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_numlevdecomp_full .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES dimension/parameter unset: numlevdecomp_full'
             end if
-            ! INTERF-TODO: FATES NEEDS INTERNAL end_run
-            ! end_run('MESSAGE')
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_numlevdecomp .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES dimension/parameter unset: numlevdecomp'
             end if
-            ! INTERF-TODO: FATES NEEDS INTERNAL end_run
-            ! end_run('MESSAGE')
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(trim(hlm_name) .eq. 'unset') then
             if (fates_global_verbose()) then
                write(fates_log(),*) 'FATES dimension/parameter unset: hlm_name'
             end if
-            ! INTERF-TODO: FATES NEEDS INTERNAL end_run
-            ! end_run('MESSAGE')
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if( abs(hlm_hio_ignore_val-unset_double)<1e-10 ) then
             if (fates_global_verbose()) then
                write(fates_log(),*) 'FATES dimension/parameter unset: hio_ignore'
             end if
-            ! INTERF-TODO: FATES NEEDS INTERNAL end_run
-            ! end_run('MESSAGE')
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
+
+         if(hlm_ipedof .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'index for the HLMs pedotransfer function unset: hlm_ipedof'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
 
          if (fates_global_verbose()) then
             write(fates_log(), *) 'Checked. All control parameters sent to FATES.'
@@ -874,6 +958,12 @@ contains
                hlm_numlevdecomp = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering num_levdecomp = ',ival,' to FATES'
+               end if
+
+            case('soilwater_ipedof')
+               hlm_ipedof = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_ipedof = ',ival,' to FATES'
                end if
 
             case default
