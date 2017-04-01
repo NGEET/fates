@@ -36,7 +36,18 @@ module EDMainMod
   use EDtypesMod           , only : ed_cohort_type
   use FatesInterfaceMod    , only : bc_in_type
   use FatesInterfaceMod    , only : hlm_masterproc
-  
+  use FatesPlantHydraulicsMod, only : do_growthrecruiteffects
+  use FatesPlantHydraulicsMod, only : updateSizeDepTreeHydProps
+  use FatesPlantHydraulicsMod, only : updateSizeDepTreeHydStates
+  use FatesPlantHydraulicsMod, only : initTreeHydStates
+  use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydProps 
+!  use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydStates
+  use EDTypesMod           , only : use_fates_plant_hydro 
+  use EDTypesMod           , only : do_ed_phenology
+!  use EDTypesMod           , only : do_ed_growth
+!  use EDTypesMod           , only : do_ed_recruitment
+!  use EDTypesMod           , only : do_ed_mort_dist
+  use EDTypesMod           , only : do_ed_dynamics
 
   implicit none
   private
@@ -50,6 +61,7 @@ module EDMainMod
   
   private :: ed_integrate_state_variables
   private :: ed_total_balance_check
+  private :: bypass_dynamics
   
   logical :: DEBUG  = .false.
   !
@@ -84,47 +96,68 @@ contains
    
     call ed_total_balance_check(currentSite, 0)
     
-    call phenology(currentSite, bc_in )
+    if (do_ed_phenology) then
+       call phenology(currentSite, bc_in )
+    end if
 
-    call fire_model(currentSite, bc_in) 
+    if (do_ed_dynamics) then
+       call fire_model(currentSite, bc_in) 
 
-    ! Calculate disturbance and mortality based on previous timestep vegetation.
-    call disturbance_rates(currentSite)
+       ! Calculate disturbance and mortality based on previous timestep vegetation.
+       call disturbance_rates(currentSite)
+    end if
 
-    ! Integrate state variables from annual rates to daily timestep
-    call ed_integrate_state_variables(currentSite, bc_in ) 
+    if (do_ed_dynamics) then
+       ! Integrate state variables from annual rates to daily timestep
+       call ed_integrate_state_variables(currentSite, bc_in ) 
+
+    else
+       ! ed_intergrate_state_variables is where the new cohort flag
+       ! is set. This flag designates wether a cohort has
+       ! experienced a day, and therefore has been populated with non-nonsense
+       ! values.  If we aren't entering that sequence, we need to set the flag
+       ! Make sure cohorts are marked as non-recruits
+
+       call bypass_dynamics(currentSite)
+       
+    end if
 
     !******************************************************************************
     ! Reproduction, Recruitment and Cohort Dynamics : controls cohort organisation 
     !******************************************************************************
 
-    currentPatch => currentSite%oldest_patch
-    do while (associated(currentPatch))                 
-
-       ! adds small cohort of each PFT
-       call recruitment(0, currentSite, currentPatch)                
-
-       currentPatch => currentPatch%younger
-    enddo
+    if(do_ed_dynamics) then
+       currentPatch => currentSite%oldest_patch
+       do while (associated(currentPatch))                 
+          
+          ! adds small cohort of each PFT
+          call recruitment(0, currentSite, currentPatch, bc_in)
+          
+          currentPatch => currentPatch%younger
+       enddo
+    end if
+    
        
     call ed_total_balance_check(currentSite,1)
 
-    currentPatch => currentSite%oldest_patch
-    do while (associated(currentPatch))
-
-       ! puts cohorts in right order
-       call sort_cohorts(currentPatch)            
-
-       ! fuses similar cohorts
-       call fuse_cohorts(currentPatch)            
-
-       ! kills cohorts that are too small
-       call terminate_cohorts(currentSite, currentPatch)
-
-
-       currentPatch => currentPatch%younger
-    enddo
-   
+    if( do_ed_dynamics ) then
+       currentPatch => currentSite%oldest_patch
+       do while (associated(currentPatch))
+          
+          ! puts cohorts in right order
+          call sort_cohorts(currentPatch)            
+          
+          ! fuses similar cohorts
+          call fuse_cohorts(currentPatch, bc_in )
+          
+          ! kills cohorts that are too small
+          call terminate_cohorts(currentSite, currentPatch)
+          
+          
+          currentPatch => currentPatch%younger
+       enddo
+    end if
+       
     call ed_total_balance_check(currentSite,2)
 
     !*********************************************************************************
@@ -132,17 +165,36 @@ contains
     !*********************************************************************************
 
     ! make new patches from disturbed land
-    call spawn_patches(currentSite)       
+    if ( do_ed_dynamics ) then
+       call spawn_patches(currentSite, bc_in)
+    end if
    
     call ed_total_balance_check(currentSite,3)
 
     ! fuse on the spawned patches.
-    call fuse_patches(currentSite)        
-   
+    if ( do_ed_dynamics ) then
+       call fuse_patches(currentSite, bc_in )        
+       
+       ! If using BC FATES hydraulics, update the rhizosphere geometry
+       ! based on the new cohort-patch structure
+       ! 'rhizosphere geometry' (column-level root biomass + rootfr --> root length 
+       ! density --> node radii and volumes)
+       if(use_fates_plant_hydro .and. do_growthrecruiteffects) then
+          call updateSizeDepRhizHydProps(currentSite, bc_in)
+          !       call updateSizeDepRhizHydStates(currentSite, bc_in)
+          !       if(nshell > 1) then  (THIS BEING CHECKED INSIDE OF the update)
+          !          call updateSizeDepRhizHydStates(currentSite, c, soilstate_inst, &
+          !                waterstate_inst)
+          !       end if
+       end if
+    end if
+
     call ed_total_balance_check(currentSite,4)
 
     ! kill patches that are too small
-    call terminate_patches(currentSite)   
+    if ( do_ed_dynamics ) then
+       call terminate_patches(currentSite)   
+    end if
    
     call ed_total_balance_check(currentSite,5)
 
@@ -232,6 +284,14 @@ contains
           currentCohort%resp_acc = 0.0_r8
           
           call allocate_live_biomass(currentCohort,1)
+
+          ! BOC...update tree 'hydraulic geometry' 
+          ! (size --> heights of elements --> hydraulic path lengths --> 
+          ! maximum node-to-node conductances)
+          if(use_fates_plant_hydro .and. do_growthrecruiteffects) then
+             call updateSizeDepTreeHydProps(currentCohort, bc_in)
+             call updateSizeDepTreeHydStates(currentCohort)
+          end if
   
           currentCohort => currentCohort%taller
 
@@ -335,7 +395,7 @@ contains
 
     call ed_total_balance_check(currentSite,6)
 
-    call canopy_structure(currentSite)
+    call canopy_structure(currentSite, bc_in)
 
     call ed_total_balance_check(currentSite,7)
 
@@ -454,5 +514,59 @@ contains
     currentSite%old_stock = total_stock
 
  end subroutine ed_total_balance_check
+ 
+ ! =====================================================================================
+ 
+ subroutine bypass_dynamics(currentSite)
+
+    ! ----------------------------------------------------------------------------------
+    ! If dynamics are bypassed, various fluxes, rates and flags need to be set
+    ! to trivial values.
+    ! WARNING: Turning off things like dynamics is experimental. The setting of
+    ! variables to trivial values may not be complete, use at your own risk.
+    ! ----------------------------------------------------------------------------------
+
+    ! Arguments
+    type(ed_site_type)      , intent(inout), target  :: currentSite
+    
+    ! Locals
+    type(ed_patch_type), pointer :: currentPatch
+    type(ed_cohort_type), pointer :: currentCohort
+    
+    currentPatch => currentSite%youngest_patch
+    do while(associated(currentPatch))
+       currentCohort => currentPatch%shortest
+       do while(associated(currentCohort)) 
+
+          currentCohort%isnew=.false.
+
+          currentCohort%npp_acc_hold  = currentCohort%npp_acc  * dble(hlm_days_per_year)
+          currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * dble(hlm_days_per_year)
+          currentCohort%resp_acc_hold = currentCohort%resp_acc * dble(hlm_days_per_year)
+
+          currentCohort%npp_acc  = 0.0_r8
+          currentCohort%gpp_acc  = 0.0_r8
+          currentCohort%resp_acc = 0.0_r8
+
+          currentCohort%npp_leaf  = 0.0_r8
+          currentCohort%npp_froot = 0.0_r8
+          currentCohort%npp_bsw   = 0.0_r8
+          currentCohort%npp_bdead = 0.0_r8
+          currentCohort%npp_bseed = 0.0_r8
+          currentCohort%npp_store = 0.0_r8
+
+          currentCohort%bmort = 0.0_r8
+          currentCohort%hmort = 0.0_r8
+          currentCohort%cmort = 0.0_r8
+          currentCohort%imort = 0.0_r8
+          currentCohort%fmort = 0.0_r8
+
+          currentCohort => currentCohort%taller
+       enddo
+       currentPatch => currentPatch%older
+    enddo
+    
+ end subroutine bypass_dynamics
+
 
 end module EDMainMod

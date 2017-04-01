@@ -70,6 +70,12 @@ module FatesConstantsMod
   ! freezing point of water at triple point (K)
   real(fates_r8), parameter :: t_water_freeze_k_triple = 273.16_fates_r8      
 
+  ! Density of fresh liquid water (kg/m3)
+  real(fates_r8), parameter :: dens_fresh_liquid_water = 1.0E3_fates_r8
+
+  ! Gravity constant on earth [m/s]
+  real(fates_r8), parameter :: grav_earth = 9.8_fates_r8
+
 
   ! For numerical inquiry
   real(fates_r8), parameter :: fates_huge = huge(g_per_kg)

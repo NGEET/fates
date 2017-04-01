@@ -19,6 +19,8 @@ module EDInitMod
   use EDTypesMod                , only : ncwd
   use EDTypesMod                , only : nuMWaterMem
   use EDTypesMod                , only : numpft_ed
+  use FatesInterfaceMod         , only : bc_in_type
+  use EDTypesMod                , only : use_fates_plant_hydro
   
   implicit none
   private
@@ -181,17 +183,19 @@ contains
   end subroutine set_site_properties
 
   ! ============================================================================
-  subroutine init_patches( nsites, sites)
+  subroutine init_patches( nsites, sites, bc_in)
     !
     ! !DESCRIPTION:
     !initialize patches on new ground
     !
     ! !USES:
-    use EDParamsMod ,  only : ED_val_maxspread
+    use EDParamsMod ,  only : ED_val_maxspread  
+    use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydProps 
     !
     ! !ARGUMENTS    
     integer, intent(in)                        :: nsites
     type(ed_site_type) , intent(inout), target :: sites(nsites)
+    type(bc_in_type), intent(in)               :: bc_in(nsites)
     !
     ! !LOCAL VARIABLES:
     integer  :: s
@@ -228,15 +232,22 @@ contains
        call create_patch(sites(s), newp, age, AREA, &
             spread_local, cwd_ag_local, cwd_bg_local, leaf_litter_local,  &
             root_litter_local) 
+
+       call init_cohorts(newp, bc_in(s))
        
-       call init_cohorts(newp)
+       ! This sets the rhizosphere shells based on the plant initialization
+       ! The initialization of the plant-relevant hydraulics variables
+       ! were set from a call inside of the init_cohorts()->create_cohort() subroutine
+       if (use_fates_plant_hydro) then
+          call updateSizeDepRhizHydProps(sites(s), bc_in(s))
+       end if
 
     enddo
 
   end subroutine init_patches
 
   ! ============================================================================
-  subroutine init_cohorts( patch_in )
+  subroutine init_cohorts( patch_in, bc_in)
     !
     ! !DESCRIPTION:
     ! initialize new cohorts on bare ground
@@ -245,6 +256,7 @@ contains
     !
     ! !ARGUMENTS    
     type(ed_patch_type), intent(inout), pointer  :: patch_in
+    type(bc_in_type), intent(in)                 :: bc_in
     !
     ! !LOCAL VARIABLES:
     type(ed_cohort_type),pointer :: temp_cohort
@@ -264,6 +276,8 @@ contains
        temp_cohort%pft         = pft
        temp_cohort%n           = EDecophyscon%initd(pft) * patch_in%area
        temp_cohort%hite        = EDecophyscon%hgt_min(pft)
+       !temp_cohort%n           = 0.5_r8 * 0.0028_r8 * patch_in%area  ! BOC for fixed size runs EDecophyscon%initd(pft) * patch_in%area
+       !temp_cohort%hite        = 28.65_r8                            ! BOC translates to DBH of 50cm. EDecophyscon%hgt_min(pft)
        temp_cohort%dbh         = Dbh(temp_cohort) ! FIX(RF, 090314) - comment out addition of ' + 0.0001_r8*pft   '  - seperate out PFTs a little bit...
        temp_cohort%canopy_trim = 1.0_r8
        temp_cohort%bdead       = Bdead(temp_cohort)
@@ -300,7 +314,7 @@ contains
 
        call create_cohort(patch_in, pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
             temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore, &
-            temp_cohort%laimemory,  cstatus, temp_cohort%canopy_trim, 1)
+            temp_cohort%laimemory,  cstatus, temp_cohort%canopy_trim, 1, bc_in)
 
        deallocate(temp_cohort) ! get rid of temporary cohort
 
@@ -308,7 +322,7 @@ contains
 
     enddo !numpft
 
-    call fuse_cohorts(patch_in)
+    call fuse_cohorts(patch_in,bc_in)
     call sort_cohorts(patch_in)
 
   end subroutine init_cohorts
