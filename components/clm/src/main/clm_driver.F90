@@ -292,6 +292,7 @@ contains
             filter(nc)%num_lakec, filter(nc)%lakec,           &
             filter(nc)%num_hydrologyc, filter(nc)%hydrologyc, &
             soilhydrology_inst, waterstate_inst)
+
        call t_stopf('begwbal')
 
        call t_startf('begcnbal_col')
@@ -939,16 +940,6 @@ contains
                clm_fates,                                       &
                aerosol_inst, canopystate_inst, waterstate_inst, &
                lakestate_inst, temperature_inst, surfalb_inst)
-
-          ! INTERF-TOD: THIS ACTUALLY WON'T BE TO HARD TO PULL OUT
-          ! ED_Norman_Radiation() is the last thing called
-          ! in SurfaceAlbedo, we can simply remove it
-          ! The clm_fates interfac called below will split
-          ! ED norman radiation into two parts
-          ! the calculation of values relevant to FATES
-          ! and then the transfer back to CLM/ALM memory stucts
-          
-          !call clm_fates%radiation()
 
           call t_stopf('surfalb')
 

@@ -15,6 +15,7 @@ module EDBtranMod
    use shr_kind_mod      , only : r8 => shr_kind_r8
    use FatesInterfaceMod , only : bc_in_type, &
                                   bc_out_type
+   use EDTypesMod        , only : use_fates_plant_hydro
    use FatesGlobals      , only : fates_log
 
    !
@@ -76,6 +77,9 @@ contains
   ! =====================================================================================
 
   subroutine btran_ed( nsites, sites, bc_in, bc_out)
+
+    use FatesPlantHydraulicsMod, only : BTranForHLMDiagnosticsFromCohortHydr
+
       
       ! ---------------------------------------------------------------------------------
       ! Calculate the transpiration wetness function (BTRAN) and the root uptake
@@ -107,7 +111,8 @@ contains
       real(r8) :: rresis            ! suction limitation to transpiration independent
                                     ! of root density
       real(r8) :: pftgs(numpft_ed)  ! pft weighted stomatal conductance s/m
-      real(r8) :: temprootr                   
+      real(r8) :: temprootr              
+      real(r8) :: balive_patch
       !------------------------------------------------------------------------------
       
       associate(                                 &
@@ -192,21 +197,26 @@ contains
                     end if
                  enddo
               enddo
+              
+              ! Calculate the BTRAN that is passed back to the HLM
+              ! used only for diagnostics. If plant hydraulics is turned off
+              ! we are using the patchxpft level btran calculation
+              
+              if(.not.use_fates_plant_hydro) then
+                 !weight patch level output BTRAN for the
+                 bc_out(s)%btran_pa(ifp) = 0.0_r8
+                 do ft = 1,numpft_ed
+                    if(sum(pftgs) > 0._r8)then !prevent problem with the first timestep - might fail
+                       !bit-retart test as a result? FIX(RF,032414)   
+                       bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft)  * pftgs(ft)/sum(pftgs)
+                    else
+                       bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft) * 1./numpft_ed
+                    end if
+                 enddo
+              end if
 
-              !weight patch level output BTRAN for the
-              bc_out(s)%btran_pa(ifp) = 0.0_r8
-              do ft = 1,numpft_ed
-                 if(sum(pftgs) > 0._r8)then !prevent problem with the first timestep - might fail
-                    !bit-retart test as a result? FIX(RF,032414)   
-                    bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft)  * pftgs(ft)/sum(pftgs)
-                 else
-                    bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft) * 1./numpft_ed
-                 end if
-              enddo
-
-              ! While the in-pft root profiles summed to unity, averaging them weighted
-              ! by conductance, or not, will break sum to unity.  Thus, re-normalize.
               temprootr = sum(bc_out(s)%rootr_pagl(ifp,1:hlm_numlevgrnd))
+
               if(abs(1.0_r8-temprootr) > 1.0e-10_r8 .and. temprootr > 1.0e-10_r8)then
                  write(fates_log(),*) 'error with rootr in canopy fluxes',temprootr,sum(pftgs)
                  do j = 1,hlm_numlevgrnd
@@ -217,8 +227,11 @@ contains
               cpatch => cpatch%younger
            end do
         
-
         end do
+           
+        if(use_fates_plant_hydro) then
+           call BTranForHLMDiagnosticsFromCohortHydr(nsites,sites,bc_out)
+        end if
         
       end associate
       

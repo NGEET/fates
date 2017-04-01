@@ -1275,6 +1275,12 @@ contains
            ram       = frictionvel_inst%ram1_patch(bounds%begp:bounds%endp), &
            tlai      = canopystate_inst%tlai_patch(bounds%begp:bounds%endp))
 
+
+      if ( use_ed ) then
+         call clm_fates%wrap_hydraulics_drive(bounds,nc,soilstate_inst, &
+               waterstate_inst,waterflux_inst,solarabs_inst,energyflux_inst)
+      end if
+
       !---------------------------------------------------------
       !update Vc,max and Jmax by LUNA model
       if(use_luna)then
