@@ -1429,6 +1429,11 @@ contains
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
     if (use_vertsoilc) then
+
+       ! initialize profiles to zero
+       leaf_prof(1:nsites, :)               = 0._r8
+       froot_prof(1:nsites, 1:numpft_ed, :) = 0._r8
+       stem_prof(1:nsites, :)               = 0._r8
        
        do s = 1,nsites
           ! define a single shallow surface profile for surface additions (leaves, stems, and N deposition)
@@ -1436,12 +1441,6 @@ contains
           do j = 1, hlm_numlevdecomp
              surface_prof(j) = exp(-surfprof_exp * bc_in(s)%zi_sisl(j)) / bc_in(s)%dz_decomp_sisl(j)
           end do
-          
-          ! initialize profiles to zero
-          leaf_prof(1:nsites, :)      = 0._r8
-          froot_prof(1:nsites, 1:numpft_ed, :)     = 0._r8
-          croot_prof(1:nsites, :)     = 0._r8
-          stem_prof(1:nsites, :)      = 0._r8
           
           cinput_rootfr(1:numpft_ed, :)     = 0._r8
           
