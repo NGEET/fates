@@ -211,8 +211,4 @@ module FatesHydraulicsMemMod
        return
     end subroutine InitHydrSite
 
-    
-
-
-
 end module FatesHydraulicsMemMod
