@@ -7,6 +7,9 @@ module EDEcophysConType
   ! !USES:
   use shr_kind_mod   , only : r8 => shr_kind_r8
   use shr_infnan_mod , only : nan => shr_infnan_nan, assignment(=)
+  use shr_log_mod , only      : errMsg => shr_log_errMsg
+  use FatesGlobals, only      : endrun => fates_endrun
+  use FatesGlobals, only      : fates_log
 
   use FatesHydraulicsMemMod , only : n_porous_media
   use FatesHydraulicsMemMod , only : porous_media
@@ -22,6 +25,10 @@ module EDEcophysConType
   implicit none
   save
   private
+
+  character(len=*), parameter, private :: sourcefile = &
+        __FILE__
+
   !
   ! !PUBLIC MEMBER FUNCTIONS:
   public :: EDecophysconInit
@@ -226,5 +233,16 @@ contains
     end if
 
   end subroutine EDecophysconInit
+
+  subroutine SetHydraulicsTestingParams(EDEcophyscon)
+     
+     ! Arguments
+     type(EDecophyscon_type), intent(inout) :: EDEcophyscon
+     
+     write(fates_log(),*) 'FATES Plant Hydraulics is still under development, ending run.'
+     call endrun(msg=errMsg(sourcefile, __LINE__))
+     
+     
+  end subroutine SetHydraulicsTestingParams
 
 end module EDEcophysConType
