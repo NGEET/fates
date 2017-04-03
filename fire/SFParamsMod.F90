@@ -3,7 +3,7 @@ module SFParamsMod
    ! module that deals with reading the SF parameter file
    !
    use FatesConstantsMod , only: r8 => fates_r8
-   use EDtypesMod        , only: NLSC,NFSC,NCWD
+   use EDtypesMod        , only: NFSC,NCWD
    use FatesParametersInterface, only : param_string_length
 
    implicit none
@@ -24,12 +24,9 @@ module SFParamsMod
    real(r8),protected :: SF_val_max_durat
    real(r8),protected :: SF_val_durat_slope
    real(r8),protected :: SF_val_alpha_SH
-
+   real(r8),protected :: SF_val_alpha_FMC(NFSC)
    real(r8),protected :: SF_val_CWD_frac(NCWD)
-
-   real(r8),protected :: SF_val_alpha_FMC(NLSC)
-   real(r8),protected :: SF_val_max_decomp(NLSC)
-
+   real(r8),protected :: SF_val_max_decomp(NFSC)
    real(r8),protected :: SF_val_SAV(NFSC)
    real(r8),protected :: SF_val_FBD(NFSC)
    real(r8),protected :: SF_val_min_moisture(NFSC)
@@ -70,9 +67,6 @@ module SFParamsMod
   
    private :: SpitFireRegisterNCWD
    private :: SpitFireReceiveNCWD
-  
-   private :: SpitFireRegisterNLSC
-   private :: SpitFireReceiveNLSC
   
    private :: SpitFireRegisterNFSC
    private :: SpitFireReceiveNFSC
@@ -126,7 +120,6 @@ contains
     call SpitFireParamsInit()
     call SpitFireRegisterScalars(fates_params)
     call SpitFireRegisterNCWD(fates_params)
-    call SpitFireRegisterNLSC(fates_params)
     call SpitFireRegisterNFSC(fates_params)
 
  end subroutine SpitFireRegisterParams
@@ -142,7 +135,6 @@ contains
     
     call SpitFireReceiveScalars(fates_params)
     call SpitFireReceiveNCWD(fates_params)
-    call SpitFireReceiveNLSC(fates_params)
     call SpitFireReceiveNFSC(fates_params)
     
   end subroutine SpitFireReceiveParams
@@ -262,42 +254,6 @@ contains
   end subroutine SpitFireReceiveNCWD
 
   !-----------------------------------------------------------------------
-  subroutine SpitFireRegisterNLSC(fates_params)
-
-    use FatesParametersInterface, only : fates_parameters_type, dimension_name_lsc, dimension_shape_1d
-
-    implicit none
-
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_lsc/)
-
-    call fates_params%RegisterParameter(name=SF_name_alpha_FMC, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-    
-    call fates_params%RegisterParameter(name=SF_name_max_decomp, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
-  end subroutine SpitFireRegisterNLSC
-
- !-----------------------------------------------------------------------
- subroutine SpitFireReceiveNLSC(fates_params)
-   
-    use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar
-
-    implicit none
-
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    call fates_params%RetreiveParameter(name=SF_name_alpha_FMC, &
-         data=SF_val_alpha_FMC)
-    
-    call fates_params%RetreiveParameter(name=SF_name_max_decomp, &
-         data=SF_val_max_decomp)
-
-  end subroutine SpitFireReceiveNLSC
-
-  !-----------------------------------------------------------------------
   subroutine SpitFireRegisterNFSC(fates_params)
 
     use FatesParametersInterface, only : fates_parameters_type, dimension_name_fsc, dimension_shape_1d
@@ -330,6 +286,12 @@ contains
          dimension_names=dim_names)
 
     call fates_params%RegisterParameter(name=SF_name_mid_moisture_S, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=SF_name_alpha_FMC, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=SF_name_max_decomp, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
   end subroutine SpitFireRegisterNFSC
@@ -367,6 +329,12 @@ contains
 
     call fates_params%RetreiveParameter(name=SF_name_mid_moisture_S, &
          data=SF_val_mid_moisture_S)
+
+    call fates_params%RetreiveParameter(name=SF_name_alpha_FMC, &
+         data=SF_val_alpha_FMC)
+
+    call fates_params%RetreiveParameter(name=SF_name_max_decomp, &
+         data=SF_val_max_decomp)
 
   end subroutine SpitFireReceiveNFSC
   !-----------------------------------------------------------------------
