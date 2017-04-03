@@ -217,97 +217,11 @@ contains
        allocate( EDecophyscon%intercept_node   (0:numpft,1:n_porous_media) ); EDecophyscon%intercept_node   (:,:) = nan
        allocate( EDecophyscon%corrInt_node     (0:numpft,1:n_porous_media) ); EDecophyscon%corrInt_node     (:,:) = nan
 
-       do m = 0,numpft
-
-       !BOC...new hydraulics constants
-       EDecophyscon%wd(m)                    =  0.73_r8                                                          ! EDPftvarcon_inst%wd(m)
-       EDecophyscon%lma(m)                   = 96.06_r8                                                          ! EDPftvarcon_inst%lma(m)
-       EDecophyscon%n(m)                     = 20.87_r8                                                          ! EDPftvarcon_inst%n(m)
-       EDecophyscon%p(m)                     =  0.59_r8                                                          ! EDPftvarcon_inst%p(m)
-       EDecophyscon%ldmc(m)                  = -0.207_r8*log(10**4._r8/EDecophyscon%lma(m))+1.431_r8             ! EDPftvarcon_inst%ldmc(m)
-       EDecophyscon%lmv(m)                   = (-2.3231_r8*(10**4._r8/EDecophyscon%lma(m))+781.899_r8)/1000._r8  ! EDPftvarcon_inst%lmv(m)
-       EDecophyscon%psi0(m)                  = -0.08_r8                                                          ! EDPftvarcon_inst%psi0(m)
-       EDecophyscon%psicap(m)                = -0.39_r8                                                          ! EDPftvarcon_inst%psicap(m)
-       EDecophyscon%rhoc(m)                  =  1.54_r8                                                          ! EDPftvarcon_inst%rhoc(m)
-       EDecophyscon%rint_petiole(m)          = 10._r8                                                            ! EDPftvarcon_inst%rint_petiole(m)
-       EDecophyscon%rint_jansenchoat(m)      = 22._r8                                                            ! EDPftvarcon_inst%rint_jansenchoat(m)
-       EDecophyscon%Amaxh(m)                 = 11.53_r8                                                          ! EDPftvarcon_inst%Amaxh(m)
-       EDecophyscon%rs2(m)                   = 0.001_r8                                                          ! EDPftvarcon_inst%rs2(m)
-       EDecophyscon%srl(m)                   = 15000._r8                                                         ! EDPftvarcon_inst%srl(m)
-       EDecophyscon%ccontent(m)              = 0.47_r8                                                           ! EDPftvarcon_inst%ccontent(m)
-       EDecophyscon%rfrac_stem(m)            = 0.625_r8                                                          ! EDPftvarcon_inst%rfrac_stem(m)
-       EDecophyscon%rootshoot(m)             = 0.20_r8                                                           ! EDPftvarcon_inst%rootshoot(m)
-       n = 2
-       EDecophyscon%kmax_node(m,n)        =  3.00_r8                                                            ! TESTING: intermediate
-       EDecophyscon%p50_node(m,n)         = -1.00_r8                                                            ! TESTING: hi
-       EDecophyscon%avuln_node(m,n)       =  4.40_r8                                                             ! TESTING: lo
-       EDecophyscon%thetas_node(m,n)      =  1._r8 - EDecophyscon%wd(m)/EDecophyscon%rhoc(m)                    ! 0.530_r8
-       EDecophyscon%epsil_node(m,n)       = 22.41_r8
-       EDecophyscon%pinot_node(m,n)       = -2.146_r8
-       EDecophyscon%pitlp_node(m,n)       = -2.373_r8
-       EDecophyscon%resid_node(m,n)       =  0.479_r8
-       EDecophyscon%rwctlp_node(m,n)      =  0.912_r8
-       EDecophyscon%fcap_node(m,n)        =  0.080_r8
-       EDecophyscon%rwcft_node(m,n)       =  0.958_r8
-       EDecophyscon%rwccap_node(m,n)      =  0.947_r8
-       EDecophyscon%slp_node(m,n)         = &
-             (EDecophyscon%psi0(m) - EDecophyscon%psicap(m))/(1._r8 - EDecophyscon%rwccap_node(m,n))      ! 5.795_r8
-       EDecophyscon%intercept_node(m,n)   = -EDecophyscon%slp_node(m,n) + EDecophyscon%psi0(m)                                           !-5.875_r8
-       EDecophyscon%corrInt_node(m,n)     = -EDecophyscon%intercept_node(m,n)/EDecophyscon%slp_node(m,n)                                 ! 1.014_r8
-       n = 1
-       EDecophyscon%kmax_node(m,n)        =  &
-             EDecophyscon%kmax_node(m,2)*((EDecophyscon%rint_petiole(m)/EDecophyscon%rint_jansenchoat(m))**2._r8)   !0.480_r8
-       EDecophyscon%avuln_node(m,n)       =  EDecophyscon%avuln_node(m,2)
-       EDecophyscon%p50_node(m,n)         =  EDecophyscon%p50_node(m,2)
-       EDecophyscon%thetas_node(m,n)      =  EDecophyscon%lmv(m)*(1.0_r8/EDecophyscon%ldmc(m)-1.0_r8)
-       EDecophyscon%epsil_node(m,n)       =  22.56_r8
-       EDecophyscon%pinot_node(m,n)       = -1.943_r8
-       EDecophyscon%pitlp_node(m,n)       = -1.789_r8
-       EDecophyscon%resid_node(m,n)       =  0.413_r8
-       EDecophyscon%rwctlp_node(m,n)      =  0.953_r8
-       EDecophyscon%fcap_node(m,n)        =  0._r8
-       EDecophyscon%rwcft_node(m,n)       =  1._r8
-       EDecophyscon%rwccap_node(m,n)      =  1._r8
-       EDecophyscon%slp_node(m,n)         =  0._r8
-       EDecophyscon%intercept_node(m,n)   =  0._r8
-       EDecophyscon%corrInt_node(m,n)     =  1._r8
-       do n = 3,n_porous_media
-          EDecophyscon%kmax_node(m,n)        = EDecophyscon%kmax_node(m,2)
-          EDecophyscon%avuln_node(m,n)       = EDecophyscon%avuln_node(m,2)
-          EDecophyscon%p50_node(m,n)         = EDecophyscon%p50_node(m,2)
-          EDecophyscon%thetas_node(m,n)      = EDecophyscon%thetas_node(m,2)
-          EDecophyscon%epsil_node(m,n)       = EDecophyscon%epsil_node(m,2)
-          EDecophyscon%pinot_node(m,n)       = EDecophyscon%pinot_node(m,2)
-          EDecophyscon%pitlp_node(m,n)       = EDecophyscon%pitlp_node(m,2)
-          EDecophyscon%resid_node(m,n)       = EDecophyscon%resid_node(m,2)
-          EDecophyscon%rwctlp_node(m,n)      = EDecophyscon%rwctlp_node(m,2)
-          EDecophyscon%fcap_node(m,n)        = EDecophyscon%fcap_node(m,2)
-          EDecophyscon%rwcft_node(m,n)       = EDecophyscon%rwcft_node(m,2)
-          EDecophyscon%rwccap_node(m,n)      = EDecophyscon%rwccap_node(m,2)
-          EDecophyscon%slp_node(m,n)         = EDecophyscon%slp_node(m,2)
-          EDecophyscon%intercept_node(m,n)   = EDecophyscon%intercept_node(m,2)
-          EDecophyscon%corrInt_node(m,n)     = EDecophyscon%corrInt_node(m,2)
-       end do
-       EDecophyscon%latosa(m)                = 10000._r8*exp(-0.69_r8)*(EDecophyscon%kmax_node(m,2)**0.41_r8)    ! EDPftvarcon_inst%latosa(m)
-       EDecophyscon%p50_gs(m)                = -6.0_r8                                                           ! testing: lo
-       EDecophyscon%avuln_gs(m)              = 60.15_r8*(-EDecophyscon%p50_gs(m))**(-1.25_r8)                    ! Christoffersen et al. (2016)
-
-       do k = 1,npool_tot
-          if(k <= npool_leaf) then
-             porous_media(k) = 1
-          else if(k <= (npool_leaf+npool_stem)) then
-             porous_media(k) = 2
-          else if(k <= (npool_leaf+npool_stem+npool_troot)) then
-             porous_media(k) = 3
-          else if(k <= (npool_leaf+npool_stem+npool_troot+npool_aroot)) then
-             porous_media(k) = 4
-          else
-             porous_media(k) = 5
-          end if
-       enddo
-
-    end do
-
+       ! ------------------------------------------------------------------------------------------------
+       ! Until the hydraulics parameter are added to the parameter file, they need a location to be set.
+       ! This happens here until further notice.
+       ! ------------------------------------------------------------------------------------------------
+       call SetHydraulicsTestingParams(EDecophyscon)
 
     end if
 
