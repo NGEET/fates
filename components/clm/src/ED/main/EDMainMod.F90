@@ -22,6 +22,7 @@ module EDMainMod
   use EDPatchDynamicsMod   , only : fuse_patches
   use EDPatchDynamicsMod   , only : spawn_patches
   use EDPatchDynamicsMod   , only : terminate_patches
+  use EDTypesMod           , only : get_age_class_index
   use EDPhysiologyMod      , only : canopy_derivs
   use EDPhysiologyMod      , only : non_canopy_derivs
   use EDPhysiologyMod      , only : phenology
@@ -190,7 +191,7 @@ contains
        endif
 
        ! check to see if the patch has moved to the next age class
-       currentPatch%age_class = count(currentPatch%age-ageclass_ed.ge.0.0_r8)
+       currentPatch%age_class = get_age_class_index(currentPatch%age)
 
        ! Find the derivatives of the growth and litter processes. 
        call canopy_derivs(currentSite, currentPatch, bc_in)

@@ -650,7 +650,7 @@ my %failtest = (
                                      conopts=>"-phys clm4_0",
                                    },
      "usespitfireButNOTED"       =>{ options=>"-envxml_dir . -no-megan",
-                                     namelst=>"use_ed_spit_fire=.true.",
+                                     namelst=>"use_ed_spitfire=.true.",
                                      GLC_TWO_WAY_COUPLING=>"FALSE",
                                      conopts=>"-phys clm4_5",
                                    },

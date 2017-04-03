@@ -110,11 +110,11 @@ sub test_ed_mode__use_vertsoilc : Tests {
     is($result, '.true.' ) || diag($msg);
 }
 
-# Test 3: use_ed_spit_fire is default with ed_mode
-sub test_ed_mode__use_ed_spit_fire : Tests {
+# Test 3: use_ed_spitfire is default with ed_mode
+sub test_ed_mode__use_ed_spitfire : Tests {
     my $self = shift;
 
-    my $msg = "Tests that use_ed_spit_fire is default on ed_mode.\n";
+    my $msg = "Tests that use_ed_spitfire is default on ed_mode.\n";
 
     my $opts = { bgc => "ed"};
     my $nl_flags = { crop => "off", };
@@ -123,8 +123,8 @@ sub test_ed_mode__use_ed_spit_fire : Tests {
     CLMBuildNamelist::setup_cmdl_ed_mode($opts, $nl_flags, $self->{definition}, $self->{defaults}, $self->{nl}, $self->{physv});
     CLMBuildNamelist::setup_logic_ed($self->{test_files}, $nl_flags, $self->{definition}, $self->{defaults}, $self->{nl}, $self->{physv});
 
-    my $group = $self->{definition}->get_group_name("use_ed_spit_fire");
-    my $result = $self->{nl}->get_variable_value($group, "use_ed_spit_fire");
+    my $group = $self->{definition}->get_group_name("use_ed_spitfire");
+    my $result = $self->{nl}->get_variable_value($group, "use_ed_spitfire");
     is($result, '.true.' ) || diag($msg);
 }
 
@@ -196,23 +196,23 @@ sub test_ed_mode__crop_on_nl_contradicts_cmdl : Tests {
 						   $self->{physv}) }) || diag($msg);
 }
 
-# Test 8: test that use_ed_spit_fire = false generates a false
-sub test_ed_mode__use_ed_spit_fire_false : Tests {
+# Test 8: test that use_ed_spitfire = false generates a false
+sub test_ed_mode__use_ed_spitfire_false : Tests {
     my $self = shift;
 
-    my $msg = "Tests that use_ed_spit_fire can be turned to false.\n";
+    my $msg = "Tests that use_ed_spitfire can be turned to false.\n";
 
     my $opts = { bgc => "ed"};
     my $nl_flags = { crop => "off", };
 
-    my $group = $self->{definition}->get_group_name("use_ed_spit_fire");
-    $self->{nl}->set_variable_value($group, "use_ed_spit_fire", '.false.' );
+    my $group = $self->{definition}->get_group_name("use_ed_spitfire");
+    $self->{nl}->set_variable_value($group, "use_ed_spitfire", '.false.' );
 
     CLMBuildNamelist::setup_cmdl_bgc($opts, $nl_flags, $self->{definition}, $self->{defaults}, $self->{nl}, $self->{cfg},$self->{physv});
     CLMBuildNamelist::setup_cmdl_ed_mode($opts, $nl_flags, $self->{definition}, $self->{defaults}, $self->{nl}, $self->{physv});
     CLMBuildNamelist::setup_logic_ed($self->{test_files}, $nl_flags, $self->{definition}, $self->{defaults}, $self->{nl}, $self->{physv});
 
-    my $result = $self->{nl}->get_variable_value($group, "use_ed_spit_fire");
+    my $result = $self->{nl}->get_variable_value($group, "use_ed_spitfire");
     is($result, '.false.' ) || diag($msg);
 
 }
