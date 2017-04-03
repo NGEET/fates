@@ -8,7 +8,7 @@ module EDInitMod
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax
   use FatesGlobals              , only : fates_log
-  use clm_varctl                , only : use_ed_spit_fire 
+  use clm_varctl                , only : use_ed_spitfire 
   use clm_time_manager          , only : is_restart
   use EDPftvarcon                 , only : EDPftvarcon_inst
   use EDEcophysConType          , only : EDecophyscon
@@ -91,6 +91,12 @@ contains
     site_in%demotion_carbonflux = 0._r8
     site_in%promotion_rate(:) = 0._r8
     site_in%promotion_carbonflux = 0._r8
+
+    ! diagnostic site-level cwd and litter fluxes
+    site_in%CWD_AG_diagnostic_input_carbonflux(:) = 0._r8
+    site_in%CWD_BG_diagnostic_input_carbonflux(:) = 0._r8
+    site_in%leaf_litter_diagnostic_input_carbonflux(:) = 0._r8
+    site_in%root_litter_diagnostic_input_carbonflux(:) = 0._r8
 
   end subroutine zero_site
 
