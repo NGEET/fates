@@ -95,6 +95,7 @@ module FatesPlantHydraulicsMod
    public :: updateSizeDepTreeHydStates
    public :: initTreeHydStates
    public :: updateSizeDepRhizHydProps
+   public :: SetHydraulicsTestingParams
 
    !------------------------------------------------------------------------------
    ! 01/18/16: Created by Brad Christoffersen
@@ -342,5 +343,21 @@ end subroutine updateSizeDepRhizHydStates
      
    end subroutine BTranForHLMDiagnosticsFromCohortHydr
 
+
+   ! ====================================================================================
+
+
+   subroutine SetHydraulicsTestingParams(EDEcophyscon)
+
+      use EDEcophysconType, only : EDecophyscon_type
+
+      ! Arguments
+      type(EDecophyscon_type), intent(inout) :: EDEcophyscon
+
+      write(fates_log(),*) 'FATES Plant Hydraulics is still under development, ending run.'
+      call endrun(msg=errMsg(sourcefile, __LINE__))
+
+
+   end subroutine SetHydraulicsTestingParams
 
 end module FatesPlantHydraulicsMod
