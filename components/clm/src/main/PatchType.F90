@@ -113,9 +113,18 @@ module PatchType
      logical , pointer :: active   (:) ! true=>do computations on this patch
 
      ! ED only
-     logical , pointer :: is_veg   (:)
+     logical , pointer :: is_veg   (:) ! This is an ACTIVE fates patch
      logical , pointer :: is_bareground  (:)
      real(r8), pointer :: wt_ed       (:) !TODO mv ? can this be removed
+
+     
+     logical, pointer  :: is_fates (:) ! true for patch vector space reserved
+                                       ! for FATES.
+                                       ! this is static and is true for all 
+                                       ! patches within fates jurisdiction
+                                       ! including patches which are not currently
+                                       ! associated with a FATES linked-list patch
+
 
    contains
 
@@ -157,9 +166,9 @@ contains
     ! is used in RootBiogeophysMod in zeng2001_rootfr- a filter is not used
     ! in that routine - which would elimate this problem
 
-    !    if (.not. use_ed) then
     allocate(this%itype      (begp:endp)); this%itype      (:) = ispval
-    !    end if
+
+    allocate(this%is_fates   (begp:endp)); this%is_fates   (:) = .false.
 
     if (use_ed) then
        allocate(this%is_veg  (begp:endp)); this%is_veg  (:) = .false.
@@ -185,7 +194,8 @@ contains
     deallocate(this%itype   )
     deallocate(this%mxy     )
     deallocate(this%active  )
-    
+    deallocate(this%is_fates)
+
     if (use_ed) then
        deallocate(this%is_veg)
        deallocate(this%is_bareground)
