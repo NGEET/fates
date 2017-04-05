@@ -1439,7 +1439,7 @@ contains
           ! define a single shallow surface profile for surface additions (leaves, stems, and N deposition)
           surface_prof(:) = 0._r8
           do j = 1, hlm_numlevdecomp
-             surface_prof(j) = exp(-surfprof_exp * bc_in(s)%zi_sisl(j)) / bc_in(s)%dz_decomp_sisl(j)
+             surface_prof(j) = exp(-surfprof_exp * bc_in(s)%z_sisl(j)) / bc_in(s)%dz_decomp_sisl(j)
           end do
           
           cinput_rootfr(1:numpft_ed, :)     = 0._r8
