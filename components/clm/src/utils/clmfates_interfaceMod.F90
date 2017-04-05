@@ -656,19 +656,24 @@ contains
             this%f2hmap(nc)%fcolumn, &
             this%fates(nc)%bc_out )
 
-       ! Diagnose water storage in canopy if hydraulics is on
-       ! This updates the internal value and the bc_out value.
-       ! If hydraulics is off, it returns 0 storage
-       if ( use_fates_plant_hydro ) &
-             call UpdateH2OVeg(this%fates(nc)%nsites, &
-             this%fates(nc)%sites,  &
-             this%fates(nc)%bc_out)
-
-       do s = 1, this%fates(nc)%nsites
-          c = this%f2hmap(nc)%fcolumn(s)
-          waterstate_inst%total_plant_stored_h2o_col(c) = &
-                this%fates(nc)%bc_out(s)%plant_stored_h2o_si
-       end do
+       !---------------------------------------------------------------------------------
+       ! CHANGING STORED WATER DURING PLANT DYNAMICS IS NOT FULLY IMPLEMENTED 
+       ! LEAVING AS A PLACE-HOLDER FOR NOW. 
+       !       ! Diagnose water storage in canopy if hydraulics is on
+       !       ! This updates the internal value and the bc_out value.
+       !       ! If hydraulics is off, it returns 0 storage
+       !       if ( use_fates_plant_hydro ) then
+       !          call UpdateH2OVeg(this%fates(nc)%nsites, &
+       !                this%fates(nc)%sites,  &
+       !                this%fates(nc)%bc_out)
+       !
+       !          do s = 1, this%fates(nc)%nsites
+       !             c = this%f2hmap(nc)%fcolumn(s)
+       !             waterstate_inst%total_plant_stored_h2o_col(c) = &
+       !                   this%fates(nc)%bc_out(s)%plant_stored_h2o_si
+       !          end do
+       !       end if
+       !---------------------------------------------------------------------------------
        
        ! Convert FATES dynamics into HLM usable information
        ! Initialize weighting variables (note FATES is the only HLM module

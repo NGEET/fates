@@ -541,7 +541,6 @@ contains
     real(r8) :: dsmpds                                       !temporary variable
     real(r8) :: dhkds                                        !temporary variable
     real(r8) :: hktmp                                        !temporary variable
-    real(r8) :: vert_trans_sink(bounds%begc:bounds%endc,1:nlevsoi)  ! vertically distributed transpiration sink (mm H2O/s) (+ = to atm)
     integer :: nstep
     !-----------------------------------------------------------------------
 
@@ -1107,7 +1106,6 @@ contains
     real(r8) :: bmx(bounds%begc:bounds%endc,1:nlevsoi)       ! "b" diagonal column for tridiagonal matrix
     real(r8) :: cmx(bounds%begc:bounds%endc,1:nlevsoi)       ! "c" right off diagonal tridiagonal matrix
     real(r8) :: rmx(bounds%begc:bounds%endc,1:nlevsoi)       ! "r" forcing term of tridiagonal matrix
-    real(r8) :: vert_trans_sink(bounds%begc:bounds%endc,1:nlevsoi)  ! vertically distributed transpiration sink (mm H2O/s) (+ = to atm)
     real(r8) :: dLow(1:nlevsoi-1)                            ! lower diagonal vector
     real(r8) :: dUpp(1:nlevsoi-1)                            ! upper diagonal vector
     real(r8) :: diag(1:nlevsoi)                              ! diagonal vector
