@@ -711,9 +711,9 @@ contains
       this%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
 
       if (use_fates_plant_hydro) then
-         this%bc_out(s)%plant_stored_h2o_si = 0.0_r8
          this%bc_out(s)%qflx_soil2root_sisl(:) = 0.0_r8
       end if
+      this%bc_out(s)%plant_stored_h2o_si = 0.0_r8
 
       return
    end subroutine zero_bcs
