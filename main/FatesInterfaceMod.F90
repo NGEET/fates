@@ -367,6 +367,10 @@ module FatesInterfaceMod
       real(r8), allocatable :: htop_pa(:)  ! top of the canopy [m]
       real(r8), allocatable :: hbot_pa(:)  ! bottom of canopy? [m]
 
+      real(r8), allocatable :: z0m_pa(:)   ! roughness length [m]
+      real(r8), allocatable :: displa_pa(:) ! displacement height [m]
+      real(r8), allocatable :: dleaf_pa(:)  ! leaf characteristic dimension/width/diameter [m]
+
       real(r8), allocatable :: canopy_fraction_pa(:) ! Area fraction of each patch in the site
                                                      ! Use most likely for weighting
                                                      ! This is currently the projected canopy
@@ -557,6 +561,11 @@ contains
       allocate(bc_out%tsai_pa(maxPatchesPerSite))
       allocate(bc_out%htop_pa(maxPatchesPerSite))
       allocate(bc_out%hbot_pa(maxPatchesPerSite))
+      allocate(bc_out%dleaf_pa(maxPatchesPerSite))
+
+      allocate(bc_out%displa_pa(maxPatchesPerSite))
+      allocate(bc_out%z0m_pa(maxPatchesPerSite))
+
       allocate(bc_out%canopy_fraction_pa(maxPatchesPerSite))
       allocate(bc_out%frac_veg_nosno_alb_pa(maxPatchesPerSite))
 
@@ -623,12 +632,16 @@ contains
       this%bc_out(s)%ftid_parb(:,:) = 0.0_r8
       this%bc_out(s)%ftii_parb(:,:) = 0.0_r8
 
-      this%bc_out(s)%elai_pa(:) = 0.0_r8
-      this%bc_out(s)%esai_pa(:) = 0.0_r8
-      this%bc_out(s)%tlai_pa(:) = 0.0_r8
-      this%bc_out(s)%tsai_pa(:) = 0.0_r8
-      this%bc_out(s)%htop_pa(:) = 0.0_r8
-      this%bc_out(s)%hbot_pa(:) = 0.0_r8
+      this%bc_out(s)%elai_pa(:)   = 0.0_r8
+      this%bc_out(s)%esai_pa(:)   = 0.0_r8
+      this%bc_out(s)%tlai_pa(:)   = 0.0_r8
+      this%bc_out(s)%tsai_pa(:)   = 0.0_r8
+      this%bc_out(s)%htop_pa(:)   = 0.0_r8
+      this%bc_out(s)%hbot_pa(:)   = 0.0_r8
+      this%bc_out(s)%displa_pa(:) = 0.0_r8
+      this%bc_out(s)%z0m_pa(:)    = 0.0_r8
+      this%bc_out(s)%dleaf_pa(:)   = 0.0_r8
+
       this%bc_out(s)%canopy_fraction_pa(:) = 0.0_r8
       this%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
       

@@ -26,6 +26,9 @@ module EDPftvarcon
      real(r8), allocatable :: wood_density       (:) ! wood density  g cm^-3  ...
      real(r8), allocatable :: alpha_stem         (:) ! live stem turnover rate. y-1
      real(r8), allocatable :: hgt_min            (:) ! sapling height m
+     real(r8), allocatable :: dleaf              (:) ! leaf characteristic dimension length (m)
+     real(r8), allocatable :: z0mr               (:) ! ratio of roughness length of vegetation to height (-) 
+     real(r8), allocatable :: displar            (:) ! ratio of displacement height to canopy top height (-)
      real(r8), allocatable :: cushion            (:) ! labile carbon storage target as multiple of leaf pool.
      real(r8), allocatable :: leaf_stor_priority (:) ! leaf turnover vs labile carbon use prioritisation. (1 = lose  leaves, 0 = use store).
      real(r8), allocatable :: leafwatermax       (:) ! degree to which respiration is limited by btran if btran = 0
@@ -463,7 +466,20 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_dleaf'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_z0mr'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_displar'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+
+    
   end subroutine Register_PFT
 
   !-----------------------------------------------------------------------
@@ -761,6 +777,19 @@ contains
     name = 'fates_seed_decay_turnover'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seed_decay_turnover)
+
+    name = 'fates_dleaf'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%dleaf)
+
+    name = 'fates_z0mr'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%z0mr)
+
+    name = 'fates_displar'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%displar)
+
 
   end subroutine Receive_PFT
 
