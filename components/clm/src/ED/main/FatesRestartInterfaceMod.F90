@@ -1423,7 +1423,8 @@ contains
                 if ((mod(fto, 2)  ==  0 )) then
                    ft=1
                 endif
-                
+                temp_cohort%pft = ft
+
                 cohortstatus = newp%siteptr%status
 
                 if(EDPftvarcon_inst%stress_decid(ft) == 1)then !drought decidous, override status. 
