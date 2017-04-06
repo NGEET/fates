@@ -172,7 +172,7 @@ module CLMFatesInterfaceMod
       procedure, private :: init_history_io
       procedure, private :: wrap_update_hlmfates_dyn
       procedure, private :: init_soil_depths
-      procedure, public  :: TransferRootSoilFlux
+      procedure, public  :: ComputeRootSoilFlux
       procedure, public  :: wrap_hydraulics_drive
 
    end type hlm_fates_interface_type
@@ -2000,7 +2000,7 @@ contains
 
  ! ======================================================================================
 
- subroutine TransferRootSoilFlux(this, bounds_clump, num_filterc, filterc, &
+ subroutine ComputeRootSoilFlux(this, bounds_clump, num_filterc, filterc, &
        soilstate_inst, waterflux_inst)
 
     class(hlm_fates_interface_type), intent(inout) :: this
@@ -2049,7 +2049,7 @@ contains
 
 !    end if
 
- end subroutine TransferRootSoilFlux
+ end subroutine ComputeRootSoilFlux
 
  ! ======================================================================================
 !

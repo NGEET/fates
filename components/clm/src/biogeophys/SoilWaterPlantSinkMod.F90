@@ -138,7 +138,7 @@ contains
          call Compute_EffecRootFrac_And_VertTranSink_Default(bounds, num_filterc, &
                filterc, soilstate_inst, waterflux_inst)
 
-         call clm_fates%TransferRootSoilFlux(bounds, num_filterc, filterc, soilstate_inst, waterflux_inst)
+         call clm_fates%ComputeRootSoilFlux(bounds, num_filterc, filterc, soilstate_inst, waterflux_inst)
                   
       end if
 
