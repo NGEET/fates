@@ -8,6 +8,8 @@ module EDBGCDynMod
   use clm_varctl                      , only : use_c13, use_c14, use_ed
   use decompMod                       , only : bounds_type
   use perf_mod                        , only : t_startf, t_stopf
+  use shr_log_mod                     , only : errMsg => shr_log_errMsg
+  use abortutils                      , only : endrun
   use clm_varctl                      , only : use_century_decomp, use_nitrif_denitrif
   use CNVegCarbonStateType	      , only : cnveg_carbonstate_type
   use CNVegCarbonFluxType	      , only : cnveg_carbonflux_type
@@ -30,6 +32,9 @@ module EDBGCDynMod
   ! public :: EDBGCDynInit         ! BGC dynamics: initialization
   public :: EDBGCDyn             ! BGC Dynamics
   public :: EDBGCDynSummary      ! BGC dynamics: summary
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
 
 contains
 
@@ -346,7 +351,7 @@ contains
     ! ----------------------------------------------
     ! calculate balance checks on entire carbon cycle (FATES + BGC)
     ! ----------------------------------------------
-    
+
     call clm_fates%wrap_bgc_summary(nc, soilbiogeochem_carbonflux_inst, &
                                         soilbiogeochem_carbonstate_inst)
 
