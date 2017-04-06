@@ -1046,7 +1046,7 @@ contains
     !  Decide to fuse patches if their cohort structures are similar           
     !
     ! !USES:
-    use EDTypesMod , only : patchfusion_profile_tolerance
+    use EDParamsMod , only : ED_val_patch_fusion_tol
     !
     ! !ARGUMENTS:
     type(ed_site_type), intent(inout), target  :: csite
@@ -1068,7 +1068,7 @@ contains
 
     currentSite => csite 
 
-    profiletol = patchfusion_profile_tolerance
+    profiletol = ED_val_patch_fusion_tol
 
     nopatches = 0
     currentPatch => currentSite%youngest_patch

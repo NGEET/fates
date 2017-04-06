@@ -58,11 +58,7 @@ module EDTypesMod
   integer,  parameter :: lb_sf                = 4          ! array index of lrge branch pool for spitfire 
   real(r8), parameter :: fire_threshold       = 35.0_r8    ! threshold for fires that spread or go out. KWm-2
 
-  ! COHORT FUSION          
-  real(r8), parameter :: FUSETOL              = 0.05_r8     ! min fractional difference in dbh between cohorts
-
   ! PATCH FUSION 
-  real(r8), parameter :: patchfusion_profile_tolerance = 0.05_r8  ! minimum fraction in difference in profiles between patches
   real(r8), parameter :: NTOL                 = 0.05_r8    ! min plant density for hgt bin to be used in height profile comparisons 
   real(r8), parameter :: HITEMAX              = 30.0_r8    ! max dbh value used in hgt profile comparison 
   real(r8), parameter :: DBHMAX               = 150.0_r8   ! max dbh value used in hgt profile comparison 
