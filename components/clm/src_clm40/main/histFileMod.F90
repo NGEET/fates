@@ -1770,7 +1770,7 @@ contains
     call ncd_putatt(lnfid, ncd_global, 'version' , trim(version))
 
     str = &
-    '$Id: histFileMod.F90 84186 2017-04-03 12:45:05Z sacks $'
+    '$Id: histFileMod.F90 84241 2017-04-05 22:06:48Z erik $'
     call ncd_putatt(lnfid, ncd_global, 'revision_id', trim(str))
     call ncd_putatt(lnfid, ncd_global, 'case_title', trim(ctitle))
     call ncd_putatt(lnfid, ncd_global, 'case_id', trim(caseid))
