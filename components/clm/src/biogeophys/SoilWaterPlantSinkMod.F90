@@ -1,7 +1,6 @@
 module SoilWaterPlantSinkMod
 
    use clm_varctl       , only : use_hydrstress
-   use clm_varctl       , only : use_ed
    use decompMod        , only : bounds_type
    use shr_kind_mod          , only : r8 => shr_kind_r8
    use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -17,7 +16,7 @@ module SoilWaterPlantSinkMod
 contains
    
    subroutine Compute_EffecRootFrac_And_VertTranSink(bounds, num_hydrologyc, &
-         filter_hydrologyc, soilstate_inst, canopystate_inst, waterflux_inst, clm_fates)
+         filter_hydrologyc, soilstate_inst, canopystate_inst, waterflux_inst)
       
       ! ---------------------------------------------------------------------------------
       ! This is a wrapper for calculating the effective root fraction and soil
@@ -42,7 +41,7 @@ contains
       use SoilStateType       , only : soilstate_type
       use WaterFluxType       , only : waterflux_type
       use CanopyStateType     , only : canopystate_type
-      use CLMFatesInterfaceMod, only : hlm_fates_interface_type
+      
       use ColumnType          , only : col 
       use LandunitType        , only : lun
 
@@ -50,7 +49,6 @@ contains
       type(bounds_type)       , intent(in)    :: bounds               ! bounds
       integer                 , intent(in)    :: num_hydrologyc       ! number of column soil points in column filter
       integer                 , intent(in)    :: filter_hydrologyc(num_hydrologyc) ! column filter for soil points
-      type(hlm_fates_interface_type), intent(inout) :: clm_fates
       type(soilstate_type)    , intent(inout) :: soilstate_inst
       type(waterflux_type)    , intent(inout) :: waterflux_inst
       type(canopystate_type)  , intent(in)    :: canopystate_inst
@@ -65,9 +63,8 @@ contains
       integer  :: l
 
       num_filterc_tot = 0
-   
 
-      ! 1) impervious roads
+      ! 1) pervious roads
       num_filterc = 0
       do fc = 1, num_hydrologyc
          c = filter_hydrologyc(fc)
@@ -86,9 +83,13 @@ contains
       end if
 
 
+      ! Note: 2 and 3 really don't need to be split.  But I am leaving
+      ! it split in case someone wants to calculate uptake in a special
+      ! way for a specific LU or coverage type (RGK 04/2017).  Feel
+      ! free to consolidate if there are no plans to do such a thing.
 
          
-      ! 2) not-road or natural vegetation, everything else
+      ! 2) not ( pervious road or natural vegetation) , everything else
       num_filterc = 0
       do fc = 1, num_hydrologyc
          c = filter_hydrologyc(fc)
@@ -108,8 +109,6 @@ contains
       end if
       
 
-
-      
       ! 3) Natural vegetation
       num_filterc = 0
       do fc = 1, num_hydrologyc
@@ -120,26 +119,13 @@ contains
             filterc(num_filterc) = c
          end if
       end do
-
       num_filterc_tot = num_filterc_tot+num_filterc
-
-      if( .not. use_ed ) then
-
-         if(use_hydrstress) then
-            call Compute_EffecRootFrac_And_VertTranSink_HydStress(bounds, &
-               num_filterc, filterc, waterflux_inst, soilstate_inst, canopystate_inst)
-         else
-            call Compute_EffecRootFrac_And_VertTranSink_Default(bounds, &
-                  num_filterc,filterc, soilstate_inst, waterflux_inst)
-         end if
-
+      if (use_hydrstress) then
+         call Compute_EffecRootFrac_And_VertTranSink_HydStress(bounds, &
+              num_filterc, filterc, waterflux_inst, soilstate_inst, canopystate_inst)
       else
-
-         call Compute_EffecRootFrac_And_VertTranSink_Default(bounds, num_filterc, &
-               filterc, soilstate_inst, waterflux_inst)
-
-         call clm_fates%ComputeRootSoilFlux(bounds, num_filterc, filterc, soilstate_inst, waterflux_inst)
-                  
+         call Compute_EffecRootFrac_And_VertTranSink_Default(bounds, &
+              num_filterc,filterc, soilstate_inst, waterflux_inst)
       end if
 
       if (num_hydrologyc /= num_filterc_tot) then

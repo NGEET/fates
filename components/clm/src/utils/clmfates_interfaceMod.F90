@@ -2013,14 +2013,26 @@ contains
     ! locals
     integer :: s
     integer :: c 
+    integer :: l
     integer :: nc
+    integer :: num_filter_fates
 
 
     if( .not. use_fates_plant_hydro ) return
        
     nc = bounds_clump%clump_index
     
-    if(num_filterc .ne. this%fates(nc)%nsites )then
+    ! Perform a check that the number of columns submitted to fates for 
+    ! root water sink is the same that was expected in the hydrology filter
+    num_filter_fates = 0
+    do s = 1,num_filterc
+       l = col%landunit(filterc(s))
+       if (lun%itype(l) == istsoil ) then
+          num_filter_fates = num_filter_fates + 1
+       end if
+    end do
+    
+    if(num_filter_fates .ne. this%fates(nc)%nsites )then
        write(iulog,*) 'The HLM list of natural veg columns during root water transfer'
        write(iulog,*) 'is not the same size as the fates site list?'
        call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -2028,27 +2040,9 @@ contains
     
     do s = 1, this%fates(nc)%nsites
        c = this%f2hmap(nc)%fcolumn(s)
-       
-       if(filterc(s) .ne. c )then
-          write(iulog,*) 'The HLM filter for natural vegetation during root water transfer'
-          write(iulog,*) 'does not match the FATES filter.'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-       
        waterflux_inst%qflx_rootsoi_col(c,:) = this%fates(nc)%bc_out(s)%qflx_soil2root_sisl(:)
-       
     end do
     
-!    else
-
-       ! If we want to avoid calling HLM subroutines from the HLM-FATES interface
-       ! then we can just place this call in the HLM side immediately before
-       ! this subroutine is called
-!       call Compute_EffecRootFrac_And_VertTranSink_Default(bounds_clump, num_filterc, &
-!             filterc, soilstate_inst, waterflux_inst)
-
-!    end if
-
  end subroutine ComputeRootSoilFlux
 
  ! ======================================================================================

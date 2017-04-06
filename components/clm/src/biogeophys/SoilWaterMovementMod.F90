@@ -11,7 +11,7 @@ module SoilWaterMovementMod
   use shr_kind_mod      , only : r8 => shr_kind_r8
   use shr_sys_mod         , only : shr_sys_flush
   use clm_instMod    , only : clm_fates
-  use SoilWaterPlantSinkMod , only : Compute_EffecRootFrac_And_VertTranSink
+ 
   !
   implicit none
   private
@@ -268,6 +268,7 @@ contains
       h2osoi_vol         =>    waterstate_inst%h2osoi_vol_col        , & ! Output: [real(r8) (:,:) ] liquid water (kg/m2)
       h2osoi_liq         =>    waterstate_inst%h2osoi_liq_col          & ! Output: [real(r8) (:,:) ] liquid water (kg/m2)
     )      
+
     select case(soilwater_movement_method)
 
     case (zengdecker_2009)
@@ -583,9 +584,7 @@ contains
       nstep = get_nstep()
       dtime = get_step_size()
 
-      ! This returns waterflux_inst%qflx_rootsoi_col(c,j)
-      call Compute_EffecRootFrac_And_VertTranSink(bounds, num_hydrologyc, &
-            filter_hydrologyc, soilstate_inst, canopystate_inst, waterflux_inst, clm_fates)
+     
  
       ! Because the depths in this routine are in mm, use local
       ! variable arrays instead of pointers
@@ -1166,10 +1165,6 @@ contains
 
       nstep = get_nstep()
       dtime = get_step_size()
-
-      ! This returns waterflux_inst%qflx_rootsoi_col(c,j)
-      call Compute_EffecRootFrac_And_VertTranSink(bounds, num_hydrologyc, &
-            filter_hydrologyc, soilstate_inst, canopystate_inst, waterflux_inst, clm_fates)
 
       ! main spatial loop
       do fc = 1, num_hydrologyc
