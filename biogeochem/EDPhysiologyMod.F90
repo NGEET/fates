@@ -259,6 +259,10 @@ contains
     !
     ! !USES:
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+    use EDParamsMod, only : ED_val_phen_drought_threshold, ED_val_phen_doff_time
+    use EDParamsMod, only : ED_val_phen_a, ED_val_phen_b, ED_val_phen_c, ED_val_phen_chiltemp
+    use EDParamsMod, only : ED_val_phen_mindayson, ED_val_phen_ncolddayslim, ED_val_phen_coldtemp
+         
 
     !
     ! !ARGUMENTS:
@@ -270,7 +274,6 @@ contains
 
     integer  :: t            ! day of year
     integer  :: ncolddays    ! no days underneath the threshold for leaf drop
-    integer  :: ncolddayslim ! critical no days underneath the threshold for leaf drop
     integer  :: i
     integer  :: timesincedleafon,timesincedleafoff,timesinceleafon,timesinceleafoff
     integer  :: refdate
@@ -282,30 +285,15 @@ contains
     integer  :: sec                      ! seconds of the day
 
     real(r8) :: gdd_threshold
-    real(r8) :: a,b,c        ! params of leaf-pn model from botta et al. 2000. 
-    real(r8) :: cold_t       ! threshold below which cold days are counted 
-    real(r8) :: coldday      ! definition of a 'chilling day' for botta model 
     integer  :: ncdstart     ! beginning of counting period for chilling degree days.
     integer  :: gddstart     ! beginning of counting period for growing degree days.
-    real(r8) :: drought_threshold
-    real(r8) :: off_time     ! minimum number of days between leaf off and leaf on for drought phenology 
     real(r8) :: temp_in_C    ! daily averaged temperature in celcius
-    real(r8), parameter :: mindayson = 30.0
 
     ! Parameter of drought decid leaf loss in mm in top layer...FIX(RF,032414) 
     ! - this is arbitrary and poorly understood. Needs work. ED_
-    drought_threshold = 0.15 
-    off_time = 100.0_r8
 
-    !Parameters of Botta et al. 2000 GCB,6 709-725 
-    a = -68.0_r8
-    b = 638.0_r8
-    c = -0.001_r8
-    coldday = 5.0_r8    !ed_ph_chiltemp
-     
-    !Parameters from SDGVM model of senesence
-    ncolddayslim = 5
-    cold_t   = 7.5_r8  ! ed_ph_coldtemp
+    !Parameters: defaults from Botta et al. 2000 GCB,6 709-725 
+    !Parameters, default from from SDGVM model of senesence
 
     t  = hlm_day_of_year
     temp_in_C = bc_in%t_veg24_si - tfrz
@@ -327,11 +315,12 @@ contains
     endif
 
     !Accumulate growing/chilling days after start of counting period
-    if (temp_in_C  <  coldday)then
+    if (temp_in_C  <  ED_val_phen_chiltemp)then
        currentSite%ncd = currentSite%ncd + 1.0_r8
     endif
 
-    gdd_threshold = a + b*exp(c*currentSite%ncd) !GDD accumulation function, which also depends on chilling days.
+    !GDD accumulation function, which also depends on chilling days.
+    gdd_threshold = ED_val_phen_a + ED_val_phen_b*exp(ED_val_phen_c*currentSite%ncd)
 
     !Accumulate temperature of last 10 days.
     currentSite%last_n_days(2:senes) =  currentSite%last_n_days(1:senes-1)
@@ -339,7 +328,7 @@ contains
     !count number of days for leaves off
     ncolddays = 0
     do i = 1,senes
-       if (currentSite%last_n_days(i) < cold_t)then
+       if (currentSite%last_n_days(i) < ED_val_phen_coldtemp)then
           ncolddays = ncolddays + 1
        endif
     enddo
@@ -383,8 +372,8 @@ contains
     !3) The leaves should not be off already
     !4) The day of the year should be larger than the counting period. (not sure if we need this/if it will break the restarting)
     
-    if (ncolddays > ncolddayslim)then
-     if (timesinceleafon > mindayson)then
+    if (ncolddays > ED_val_phen_ncolddayslim)then
+     if (timesinceleafon > ED_val_phen_mindayson)then
        if (currentSite%status == 2)then
           currentSite%status = 1        !alter status of site to 'leaves on'
           currentSite%leafoffdate = hlm_model_day   !record leaf off date   
@@ -464,9 +453,9 @@ contains
          currentSite%dleafondate < 15))then ! are we in the window?
        ! TODO: CHANGE THIS MATH, MOVE THE DENOMENATOR OUTSIDE OF THE SUM (rgk 01-2017)
        if (sum(currentSite%water_memory(1:numWaterMem)/dble(numWaterMem)) &
-            >= drought_threshold.and.currentSite%dstatus == 1.and.t >= 10)then 
+            >= ED_val_phen_drought_threshold.and.currentSite%dstatus == 1.and.t >= 10)then 
           ! leave some minimum time between leaf off and leaf on to prevent 'flickering'.  
-          if (timesincedleafoff > off_time)then  
+          if (timesincedleafoff > ED_val_phen_doff_time)then  
              currentSite%dstatus = 2     !alter status of site to 'leaves on'
              currentSite%dleafondate = t   !record leaf on date
           endif
@@ -490,7 +479,7 @@ contains
 
     !LEAF OFF: DROUGHT DECIDUOUS DRYNESS - if the soil gets too dry, and the leaves have already been on a while... 
     if (currentSite%dstatus == 2.and.t >= 10)then  !D*
-       if (sum(currentSite%water_memory(1:10)/10._r8) <= drought_threshold)then 
+       if (sum(currentSite%water_memory(1:10)/10._r8) <= ED_val_phen_drought_threshold)then 
           if (timesincedleafon > 100)then !B* Have the leaves been on for some reasonable length of time? To prevent flickering. 
              currentSite%dstatus = 1      !alter status of site to 'leaves on'
              currentSite%dleafoffdate = t !record leaf on date           
@@ -715,6 +704,7 @@ contains
     !  Flux from seed pool into leaf litter pool    
     !
     ! !USES:
+    use EDPftvarcon       , only : EDPftvarcon_inst
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
@@ -722,14 +712,13 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer  ::  p
-    real(r8) :: seed_turnover !complete seed turnover rate in yr-1. 
     !----------------------------------------------------------------------
 
-    seed_turnover = 0.51_r8  ! from Liscke and Loffler 2006  
+    ! default value from Liscke and Loffler 2006 ; making this a PFT-specific parameter
     ! decays the seed pool according to exponential model
-    ! sd_mort is in yr-1
+    ! seed_decay_turnover is in yr-1
     do p = 1,numpft_ed 
-       currentPatch%seed_decay(p) =  currentSite%seed_bank(p) * seed_turnover
+       currentPatch%seed_decay(p) =  currentSite%seed_bank(p) * EDPftvarcon_inst%seed_decay_turnover(p)
     enddo
  
   end subroutine seed_decay
@@ -741,6 +730,7 @@ contains
     !  Flux from seed pool into sapling pool    
     !
     ! !USES:
+    use EDPftvarcon       , only : EDPftvarcon_inst
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
@@ -749,15 +739,16 @@ contains
     ! !LOCAL VARIABLES:
     integer :: p
     real(r8) max_germination !cap on germination rates. KgC/m2/yr Lishcke et al. 2009
-    real(r8) germination_timescale !yr-1
     !----------------------------------------------------------------------
 
-    germination_timescale = 0.5_r8 !this is arbitrary
     max_germination = 1.0_r8 !this is arbitrary
 
+    ! germination_timescale is being pulled to PFT parameter; units are 1/yr
+    ! thus the mortality rate of seed -> recruit (in units of carbon) is seed_decay_turnover(p)/germination_timescale(p)
+    ! and thus the mortlaity rate (in units of individuals) is the product of that times the ratio of (hypothetical) seed mass to recruit biomass
     do p = 1,numpft_ed
        currentPatch%seed_germination(p) =  min(currentSite%seed_bank(p) * &
-             germination_timescale,max_germination)
+             EDPftvarcon_inst%germination_timescale(p),max_germination)
     enddo
 
   end subroutine seed_germination
@@ -1350,6 +1341,7 @@ contains
     use FatesInterfaceMod, only : bc_in_type, bc_out_type
     use clm_varctl, only : use_vertsoilc
     use FatesGlobals, only : endrun => fates_endrun
+    use EDParamsMod , only : ED_val_cwd_flig, ED_val_cwd_fcel
 
 
     ! INTERF-TODO: remove the control parameters: exponential_rooting_profile, 
@@ -1404,12 +1396,6 @@ contains
     real(r8) :: croot_prof(1:nsites, 1:hlm_numlevdecomp)
     real(r8) :: stem_prof(1:nsites, 1:hlm_numlevdecomp)
 
-    ! INTERF-TODO: THESE PARAMETERS WERE ORIGINALLY SET BY params_inst%
-    ! THEY NEED THEIR OWN ENTRIES IN THE PARAMETER FILE (RGK)
-    real(r8), parameter :: cwd_fcel = 0.76
-    real(r8), parameter :: cwd_flig = 0.24
-    
-    
     delta = 0.001_r8    
     !no of seconds in a year. 
     time_convert =  365.0_r8*sec_per_day
@@ -1634,26 +1620,26 @@ contains
             ! now disaggregate, vertically and by decomposition substrate type, the actual fluxes from CWD and litter pools
             !
             ! do c = 1, ncwd
-            !    write(fates_log(),*)'cdk CWD_AG_out', c, currentpatch%CWD_AG_out(c), cwd_fcel, currentpatch%area/AREA
-            !    write(fates_log(),*)'cdk CWD_BG_out', c, currentpatch%CWD_BG_out(c), cwd_fcel, currentpatch%area/AREA
+            !    write(fates_log(),*)'cdk CWD_AG_out', c, currentpatch%CWD_AG_out(c), ED_val_cwd_fcel, currentpatch%area/AREA
+            !    write(fates_log(),*)'cdk CWD_BG_out', c, currentpatch%CWD_BG_out(c), ED_val_cwd_fcel, currentpatch%area/AREA
             ! end do
             ! do ft = 1,numpft_ed
-            !    write(fates_log(),*)'cdk leaf_litter_out', ft, currentpatch%leaf_litter_out(ft), cwd_fcel, currentpatch%area/AREA
-            !    write(fates_log(),*)'cdk root_litter_out', ft, currentpatch%root_litter_out(ft), cwd_fcel, currentpatch%area/AREA
+            !    write(fates_log(),*)'cdk leaf_litter_out', ft, currentpatch%leaf_litter_out(ft), ED_val_cwd_fcel, currentpatch%area/AREA
+            !    write(fates_log(),*)'cdk root_litter_out', ft, currentpatch%root_litter_out(ft), ED_val_cwd_fcel, currentpatch%area/AREA
             ! end do
             ! !
             ! CWD pools fragmenting into decomposing litter pools. 
             do ci = 1, ncwd
                do j = 1, hlm_numlevdecomp
                   bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + &
-                       currentpatch%CWD_AG_out(ci) * cwd_fcel * currentpatch%area/AREA * stem_prof(s,j)  
+                       currentpatch%CWD_AG_out(ci) * ED_val_cwd_fcel * currentpatch%area/AREA * stem_prof(s,j)  
                   bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + &
-                       currentpatch%CWD_AG_out(ci) * cwd_flig * currentpatch%area/AREA * stem_prof(s,j)
+                       currentpatch%CWD_AG_out(ci) * ED_val_cwd_flig * currentpatch%area/AREA * stem_prof(s,j)
                   !
                   bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + &
-                       currentpatch%CWD_BG_out(ci) * cwd_fcel * currentpatch%area/AREA * croot_prof_perpatch(j)
+                       currentpatch%CWD_BG_out(ci) * ED_val_cwd_fcel * currentpatch%area/AREA * croot_prof_perpatch(j)
                   bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + &
-                       currentpatch%CWD_BG_out(ci) * cwd_flig * currentpatch%area/AREA * croot_prof_perpatch(j)
+                       currentpatch%CWD_BG_out(ci) * ED_val_cwd_flig * currentpatch%area/AREA * croot_prof_perpatch(j)
                end do
             end do
             
