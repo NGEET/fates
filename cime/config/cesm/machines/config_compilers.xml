@@ -963,6 +963,20 @@ using a fortran linker.
   <PNETCDF_PATH>$ENV{PNETCDF}</PNETCDF_PATH>
 </compiler>
 
+<compiler COMPILER="gnu" MACH="eddi">
+  <CPPDEFS>
+    <append MODEL="gptl"> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY -DHAVE_BACKTRACE </append>
+  </CPPDEFS>
+  <NETCDF_PATH>$(NETCDF_HOME)</NETCDF_PATH> 
+  <FFLAGS>
+    <append DEBUG="FALSE">  -ffree-line-length-132 </append>
+    <append DEBUG="TRUE"> -g -fbacktrace -fbounds-check -ffpe-trap=invalid,zero,overflow -Wline-truncation </append>
+  </FFLAGS>
+  <SLIBS>
+    <append> -L$(NETCDF_HOME)/lib/ -lnetcdff -lnetcdf -lcurl -llapack -lblas </append>
+  </SLIBS>
+</compiler>
+
 <compiler MACH="cheyenne">
   <CPPDEFS>
     <!-- these flags enable nano timers -->

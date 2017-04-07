@@ -268,7 +268,6 @@
     </queues>
   </batch_system>
 
-
   <batch_system MACH="mira" type="cobalt">
     <queues>
       <queue walltimemax="06:00:00" jobmin="1" jobmax="786432" default="true">default</queue>
@@ -286,7 +285,7 @@
     <queues>
       <queue walltimemin="0" walltimemax="00:59:00" jobmin="0" jobmax="9999" default="true">queue</queue>
     </queues>
-    </batch_system>
+  </batch_system>
 
 
 
