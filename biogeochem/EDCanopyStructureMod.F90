@@ -1272,6 +1272,10 @@ contains
      use EDTypesMod        , only : ed_patch_type, ed_cohort_type, &
                                     ed_site_type, AREA
      use FatesInterfaceMod , only : bc_out_type
+     use PatchType         , only : patch
+     use ColumnType        , only : col
+     use EDPftvarcon       , only : EDPftvarcon_inst
+
 
      !
      ! !ARGUMENTS    
@@ -1281,7 +1285,7 @@ contains
      type(bc_out_type),  intent(inout)         :: bc_out(nsites)
 
      ! Locals
-     integer :: s, ifp, c
+     integer :: s, ifp, c, p
      type (ed_patch_type)  , pointer :: currentPatch
      real(r8) :: bare_frac_area
      real(r8) :: total_patch_area
@@ -1310,7 +1314,18 @@ contains
            
            bc_out(s)%hbot_pa(ifp) = max(0._r8, min(0.2_r8, bc_out(s)%htop_pa(ifp)- 1.0_r8))
 
+           ! Temporary: Recreate the roughness, leaf width and displacment height of the
+           ! previous code, before calculating more reasonable values.
+           p = col%patchi(c) + ifp
            
+           bc_out(s)%z0m_pa(ifp)    = EDPftvarcon_inst%z0mr(patch%itype(p)) * bc_out(s)%htop_pa(ifp)
+           bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(patch%itype(p)) * bc_out(s)%htop_pa(ifp)
+           bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(patch%itype(p))
+           
+!           bc_out(s)%z0m_pa(ifp)    = pftcon%z0mr(1) * bc_out(s)%htop_pa(ifp)
+!           bc_out(s)%displa_pa(ifp) = pftcon%displar(1) * bc_out(s)%htop_pa(ifp)
+!           bc_out(s)%dleaf_pa(ifp)  = pftcon%dleaf(1)
+
            ! We are assuming here that grass is all located underneath tree canopies. 
            ! The alternative is to assume it is all spatial distinct from tree canopies.
            ! In which case, the bare area would have to be reduced by the grass area...

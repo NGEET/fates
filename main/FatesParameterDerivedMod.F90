@@ -63,6 +63,7 @@ contains
     real(r8) :: lnc                ! leaf N concentration (gN leaf/m^2)
     
     associate( &
+
          slatop    => EDPftvarcon_inst%slatop , & ! specific leaf area at top of canopy, 
                                         ! projected area basis [m^2/gC]
          fnitr     => EDPftvarcon_inst%fnitr  , & ! foliage nitrogen limitation factor (-)
