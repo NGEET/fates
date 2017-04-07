@@ -412,9 +412,7 @@ contains
        ! over the patch index range defined by bounds_clump%begp:bounds_proc%endp
 
        if(use_ed) then
-
           call clm_fates%wrap_sunfrac(nc,atm2lnd_inst, canopystate_inst)
-          
        else
           call CanopySunShadeFracs(filter(nc)%nourbanp,filter(nc)%num_nourbanp,     &
                                    atm2lnd_inst, surfalb_inst, canopystate_inst,    &
@@ -451,6 +449,7 @@ contains
        call CanopyTemperature(bounds_clump,                                   &
             filter(nc)%num_nolakec, filter(nc)%nolakec,                       &
             filter(nc)%num_nolakep, filter(nc)%nolakep,                       &
+            clm_fates,                                                        &
             atm2lnd_inst, canopystate_inst, soilstate_inst, frictionvel_inst, &
             waterstate_inst, waterflux_inst, energyflux_inst, temperature_inst)
        call t_stopf('bgp1')
@@ -822,7 +821,8 @@ contains
 
           call clm_fates%dynamics_driv( nc, bounds_clump,                        &
                atm2lnd_inst, soilstate_inst, temperature_inst,                   &
-               waterstate_inst, canopystate_inst, soilbiogeochem_carbonflux_inst)
+               waterstate_inst, canopystate_inst, soilbiogeochem_carbonflux_inst,&
+               frictionvel_inst)
           
           ! TODO(wjs, 2016-04-01) I think this setFilters call should be replaced by a
           ! call to reweight_wrapup, if it's needed at all.

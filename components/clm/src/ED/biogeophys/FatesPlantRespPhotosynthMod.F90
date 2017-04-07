@@ -63,15 +63,14 @@ contains
 
     use clm_varpar        , only : mxpft   ! THIS WILL BE DEPRECATED WHEN PARAMETER
                                            ! READS ARE REFACTORED (RGK 10-13-2016)
-    use EDPftvarcon         , only : EDPftvarcon_inst  ! THIS WILL BE DEPRECATED WHEN PARAMETER
-                                           ! READS ARE REFACTORED (RGK 10-13-2016)
+    use EDPftvarcon         , only : EDPftvarcon_inst 
+
     use EDParamsMod       , only : ED_val_ag_biomass
     use FatesSynchronizedParamsMod , only : FatesSynchronizedParamsInst
     use EDTypesMod        , only : ed_patch_type
     use EDTypesMod        , only : ed_cohort_type
     use EDTypesMod        , only : ed_site_type
     use FatesInterfaceMod , only : hlm_numlevsoil
-    use EDEcophysContype  , only : EDecophyscon
     use FatesInterfaceMod , only : bc_in_type
     use FatesInterfaceMod , only : bc_out_type
     use EDCanopyStructureMod, only : calc_areaindex
@@ -82,6 +81,7 @@ contains
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use FatesParameterDerivedMod, only : param_derived
     use EDPatchDynamicsMod, only: set_root_fraction
+    use EDParamsMod, only : ED_val_bbopt_c3, ED_val_bbopt_c4, ED_val_base_mr_20
 
 
     ! ARGUMENTS:
@@ -183,8 +183,6 @@ contains
     ! (gC/gN/s)
     ! ------------------------------------------------------------------------
 
-    real(r8),parameter :: base_mr_20 = 2.525e-6_r8
-
     ! -----------------------------------------------------------------------------------
     ! Photosynthesis and stomatal conductance parameters, from:
     ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593
@@ -193,9 +191,7 @@ contains
     ! Ball-Berry minimum leaf conductance, unstressed (umol H2O/m**2/s)
     ! For C3 and C4 plants
     ! -----------------------------------------------------------------------------------
-    ! TO-DO: bbbopt is slated to be transferred to the parameter file
-    ! -----------------------------------------------------------------------------------
-    real(r8),parameter, dimension(2) :: bbbopt = [10000._r8,40000._r8] 
+    real(r8), dimension(2) :: bbbopt 
 
 
     associate(  &
@@ -210,6 +206,8 @@ contains
          frootcn   => EDPftvarcon_inst%frootcn, & ! froot C:N (gc/gN)   ! slope of BB relationship
          q10       => FatesSynchronizedParamsInst%Q10 )
 
+      bbbopt(1) = ED_val_bbopt_c3
+      bbbopt(2) = ED_val_bbopt_c4
 
       do s = 1,nsites
 
@@ -499,11 +497,11 @@ contains
                      ! ------------------------------------------------------------------
                      
                      leaf_frac = 1.0_r8/(currentCohort%canopy_trim + &
-                          EDecophyscon%sapwood_ratio(currentCohort%pft) * &
+                          EDPftvarcon_inst%sapwood_ratio(currentCohort%pft) * &
                           currentCohort%hite + EDPftvarcon_inst%froot_leaf(currentCohort%pft))
                      
                      
-                     currentCohort%bsw = EDecophyscon%sapwood_ratio(currentCohort%pft) * &
+                     currentCohort%bsw = EDPftvarcon_inst%sapwood_ratio(currentCohort%pft) * &
                           currentCohort%hite * &
                           (currentCohort%balive + currentCohort%laimemory)*leaf_frac
                      
@@ -535,7 +533,7 @@ contains
                      if (woody(ft) == 1) then
                         tcwood = q10**((bc_in(s)%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8) 
                         ! kgC/s = kgN * kgC/kgN/s
-                        currentCohort%livestem_mr  = live_stem_n * base_mr_20 * tcwood
+                        currentCohort%livestem_mr  = live_stem_n * ED_val_base_mr_20 * tcwood
                      else
                         currentCohort%livestem_mr  = 0._r8
                      end if
@@ -547,7 +545,7 @@ contains
                      do j = 1,hlm_numlevsoil
                         tcsoi  = q10**((bc_in(s)%t_soisno_gl(j)-tfrz - 20.0_r8)/10.0_r8)
                         currentCohort%froot_mr = currentCohort%froot_mr + &
-                              froot_n * base_mr_20 * tcsoi * currentPatch%rootfr_ft(ft,j)
+                              froot_n * ED_val_base_mr_20 * tcsoi * currentPatch%rootfr_ft(ft,j)
                      enddo
                      
                      ! Coarse Root MR (kgC/plant/s) (below ground sapwood)
@@ -558,7 +556,7 @@ contains
                            ! Soil temperature used to adjust base rate of MR
                            tcsoi  = q10**((bc_in(s)%t_soisno_gl(j)-tfrz - 20.0_r8)/10.0_r8)
                            currentCohort%livecroot_mr = currentCohort%livecroot_mr + &
-                                 live_croot_n * base_mr_20 * tcsoi * &
+                                 live_croot_n * ED_val_base_mr_20 * tcsoi * &
                                  currentPatch%rootfr_ft(ft,j)
                         enddo
                      else
@@ -687,7 +685,6 @@ contains
     ! Other arguments or variables may be indicative of scales broader than the LSL.
     ! ------------------------------------------------------------------------------------
     
-    use EDEcophysContype  , only : EDecophyscon
     use EDPftvarcon       , only : EDPftvarcon_inst
     
     ! Arguments
@@ -782,7 +779,7 @@ contains
    ! empirical curvature parameter for ap photosynthesis co-limitation
    real(r8),parameter :: theta_ip = 0.95_r8
 
-   associate( bb_slope  => EDecophyscon%BB_slope ) ! slope of BB relationship
+   associate( bb_slope  => EDPftvarcon_inst%BB_slope ) ! slope of BB relationship
      
      if (nint(EDPftvarcon_inst%c3psn(ft)) == 1) then! photosynthetic pathway: 0. = c4, 1. = c3
         pp_type = 1
@@ -1584,21 +1581,34 @@ contains
       
       ! Parameters
       ! ---------------------------------------------------------------------------------
-      real(r8), parameter :: vcmaxha = 65330._r8    ! activation energy for vcmax (J/mol)
-      real(r8), parameter :: jmaxha  = 43540._r8    ! activation energy for jmax (J/mol)
-      real(r8), parameter :: tpuha   = 53100._r8    ! activation energy for tpu (J/mol)
-      real(r8), parameter :: vcmaxhd = 149250._r8   ! deactivation energy for vcmax (J/mol)
-      real(r8), parameter :: jmaxhd  = 152040._r8   ! deactivation energy for jmax (J/mol)
-      real(r8), parameter :: tpuhd   = 150650._r8   ! deactivation energy for tpu (J/mol)
-      real(r8), parameter :: vcmaxse = 485._r8      ! entropy term for vcmax (J/mol/K)
-      real(r8), parameter :: jmaxse  = 495._r8      ! entropy term for jmax (J/mol/K)
-      real(r8), parameter :: tpuse   = 490._r8      ! entropy term for tpu (J/mol/K)
-      real(r8), parameter :: vcmaxc = 1.1534040_r8  ! scaling factor for high 
-                                                    ! temperature inhibition (25 C = 1.0)
-      real(r8), parameter :: jmaxc  = 1.1657242_r8  ! scaling factor for high 
-                                                    ! temperature inhibition (25 C = 1.0)
-      real(r8), parameter :: tpuc   = 1.1591239_r8  ! scaling factor for high 
-                                                    ! temperature inhibition (25 C = 1.0)
+      real(r8) :: vcmaxha        ! activation energy for vcmax (J/mol)
+      real(r8) :: jmaxha         ! activation energy for jmax (J/mol)
+      real(r8) :: tpuha          ! activation energy for tpu (J/mol)
+      real(r8) :: vcmaxhd        ! deactivation energy for vcmax (J/mol)
+      real(r8) :: jmaxhd         ! deactivation energy for jmax (J/mol)
+      real(r8) :: tpuhd          ! deactivation energy for tpu (J/mol)
+      real(r8) :: vcmaxse        ! entropy term for vcmax (J/mol/K)
+      real(r8) :: jmaxse         ! entropy term for jmax (J/mol/K)
+      real(r8) :: tpuse          ! entropy term for tpu (J/mol/K)
+      real(r8) :: vcmaxc         ! scaling factor for high temperature inhibition (25 C = 1.0)
+      real(r8) :: jmaxc          ! scaling factor for high temperature inhibition (25 C = 1.0)
+      real(r8) :: tpuc           ! scaling factor for high temperature inhibition (25 C = 1.0)
+
+      vcmaxha = EDPftvarcon_inst%vcmaxha(FT)
+      jmaxha  = EDPftvarcon_inst%jmaxha(FT)
+      tpuha   = EDPftvarcon_inst%tpuha(FT)
+      
+      vcmaxhd = EDPftvarcon_inst%vcmaxhd(FT)
+      jmaxhd  = EDPftvarcon_inst%jmaxhd(FT)
+      tpuhd   = EDPftvarcon_inst%tpuhd(FT)
+      
+      vcmaxse = EDPftvarcon_inst%vcmaxse(FT)
+      jmaxse  = EDPftvarcon_inst%jmaxse(FT)
+      tpuse   = EDPftvarcon_inst%tpuse(FT)
+
+      vcmaxc = fth25_f(vcmaxhd, vcmaxse)
+      jmaxc  = fth25_f(jmaxhd, jmaxse)
+      tpuc   = fth25_f(tpuhd, tpuse)
 
       if ( parsun_lsl <= 0._r8) then           ! night time
          vcmax             = 0._r8

@@ -398,7 +398,9 @@ contains
     
     ! Initialize the Functionaly Assembled Terrestrial Ecosystem Simulator (FATES)
     ! 
-    call clm_fates%Init(bounds)
+    if (use_ed) then
+       call clm_fates%Init(bounds)
+    end if
 
     deallocate (h2osno_col)
     deallocate (snow_depth_col)
@@ -528,7 +530,9 @@ contains
     if (use_ed) then
 
        call clm_fates%restart(bounds, ncid, flag=flag,  &
-            waterstate_inst=waterstate_inst, canopystate_inst=canopystate_inst )
+            waterstate_inst=waterstate_inst, &
+            canopystate_inst=canopystate_inst, &
+            frictionvel_inst=frictionvel_inst)
 
     end if
 
