@@ -1671,7 +1671,7 @@
     <PES_PER_NODE>16</PES_PER_NODE>
     <PROJECT_REQUIRED>TRUE</PROJECT_REQUIRED>
     <mpirun mpilib="mpi-serial">
-      <executable></executable>
+      <executable>mpirun</executable>
     </mpirun>
     <mpirun mpilib="default">
       <executable>mpirun</executable> 
