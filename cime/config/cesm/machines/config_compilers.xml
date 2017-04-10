@@ -963,6 +963,21 @@ using a fortran linker.
   <PNETCDF_PATH>$ENV{PNETCDF}</PNETCDF_PATH>
 </compiler>
 
+<compiler COMPILER="intel" MACH="lawrencium-lr3">
+  <CPPDEFS>
+    <append MODEL="gptl"> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY </append>
+  </CPPDEFS>
+  <SLIBS>
+    <append> -L$(NETCDF_HOME)/lib/ -lnetcdff -lnetcdf -mkl </append>
+  </SLIBS>
+  <FFLAGS>
+    <append DEBUG="TRUE"> -ftrapuv </append>
+  </FFLAGS>
+  <CFLAGS>
+    <append DEBUG="TRUE"> -ftrapuv </append>
+  </CFLAGS>
+</compiler>
+
 <compiler COMPILER="gnu" MACH="eddi">
   <SUPPORTS_CXX>TRUE</SUPPORTS_CXX>
   <CPPDEFS>

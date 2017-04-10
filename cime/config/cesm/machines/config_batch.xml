@@ -435,6 +435,16 @@
     </queues>
   </batch_system>
 
+  <batch_system MACH="lawrencium-lr3" type="slurm">
+    <directives>
+       <directive>--ntasks-per-node={{ tasks_per_node }}</directive>
+       <directive>--exclusive</directive>
+    </directives>
+    <queues>
+      <queue walltimemin="0" walltimemax="72:00:00" jobmin="0" jobmax="64" default="true">lr3</queue>
+    </queues>
+  </batch_system>
+
   <batch_jobs>
     <!-- order matters, with no-batch jobs will be run in the order listed here -->
     <job name="case.run">
