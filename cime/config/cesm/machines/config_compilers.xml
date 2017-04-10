@@ -964,6 +964,7 @@ using a fortran linker.
 </compiler>
 
 <compiler COMPILER="gnu" MACH="eddi">
+  <SUPPORTS_CXX>TRUE</SUPPORTS_CXX>
   <CPPDEFS>
     <append MODEL="gptl"> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY -DHAVE_BACKTRACE </append>
   </CPPDEFS>
@@ -974,7 +975,9 @@ using a fortran linker.
   </FFLAGS>
   <SLIBS>
     <append> -L$(NETCDF_HOME)/lib/ -lnetcdff -lnetcdf -lcurl -llapack -lblas </append>
-  </SLIBS>
+  </SLIBS>  
+  <SCC MPILIB="mpi-serial">gcc</SCC>
+  <SFC MPILIB="mpi-serial">gfortran</SFC>
 </compiler>
 
 <compiler MACH="cheyenne">
