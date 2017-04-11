@@ -1671,10 +1671,10 @@
     <PES_PER_NODE>16</PES_PER_NODE>
     <PROJECT_REQUIRED>TRUE</PROJECT_REQUIRED>
     <mpirun mpilib="mpi-serial">
-      <executable>mpirun</executable>
+      <executable></executable>
     </mpirun>
     <mpirun mpilib="default">
-      <executable>mpirun</executable> 
+      <executable>mpirun</executable>
     </mpirun>
     <module_system type="module">
       <init_path lang="sh">/etc/profile.d/modules.sh</init_path>
@@ -1692,7 +1692,7 @@
       </modules>
       <modules compiler="intel">
 	<command name="load">intel/2015.6.233</command>
-      <command name="load">mkl</command>
+	<command name="load">mkl</command>
       </modules>
       <modules compiler="intel" mpilib="mpi-serial">
 	<command name="load">netcdf/4.4.0-intel-s</command>
@@ -1701,7 +1701,7 @@
 	<command name="load">openmpi</command>
 	<command name="load">netcdf/4.4.0-intel-p</command>
       </modules>
-    </module_system>
+    </module_system> 
   </machine>
 
 

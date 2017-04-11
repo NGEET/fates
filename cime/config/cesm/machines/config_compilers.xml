@@ -968,14 +968,16 @@ using a fortran linker.
     <append MODEL="gptl"> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY </append>
   </CPPDEFS>
   <SLIBS>
-    <append> -L$(NETCDF_HOME)/lib/ -lnetcdff -lnetcdf -mkl </append>
+    <append> -lnetcdff -lnetcdf -mkl </append>
   </SLIBS>
   <FFLAGS>
     <append DEBUG="TRUE"> -ftrapuv </append>
   </FFLAGS>
   <CFLAGS>
     <append DEBUG="TRUE"> -ftrapuv </append>
-  </CFLAGS>
+  </CFLAGS> 
+  <NETCDF_PATH>$ENV{NETCDF_DIR}</NETCDF_PATH>
+  <PNETCDF_PATH MPILIB="!mpi-serial">$ENV{NETCDF_DIR}</PNETCDF_PATH>
 </compiler>
 
 <compiler COMPILER="gnu" MACH="eddi">
