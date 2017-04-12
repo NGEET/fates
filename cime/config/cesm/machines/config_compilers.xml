@@ -963,9 +963,9 @@ using a fortran linker.
   <PNETCDF_PATH>$ENV{PNETCDF}</PNETCDF_PATH>
 </compiler>
 
-<compiler COMPILER="intel" MACH="lawrencium-lr3">
+<compiler COMPILER="intel" MACH="lbl-lr3">
   <CPPDEFS>
-    <append MODEL="gptl"> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY </append>
+    <append MODEL="gptl"> -DHAVE_VPRINTF -DHAVE_TIMES -DHAVE_GETTIMEOFDAY </append>
   </CPPDEFS>
   <SLIBS>
     <append> -lnetcdff -lnetcdf -mkl </append>
@@ -977,7 +977,22 @@ using a fortran linker.
     <append DEBUG="TRUE"> -ftrapuv </append>
   </CFLAGS> 
   <NETCDF_PATH>$ENV{NETCDF_DIR}</NETCDF_PATH>
-  <PNETCDF_PATH MPILIB="!mpi-serial">$ENV{NETCDF_DIR}</PNETCDF_PATH>
+</compiler>
+
+<compiler COMPILER="intel" MACH="lbl-lr2">
+  <CPPDEFS>
+    <append MODEL="gptl"> -DHAVE_VPRINTF -DHAVE_TIMES -DHAVE_GETTIMEOFDAY </append>
+  </CPPDEFS>
+  <SLIBS>
+    <append> -lnetcdff -lnetcdf -mkl </append>
+  </SLIBS>
+  <FFLAGS>
+    <append DEBUG="TRUE"> -ftrapuv </append>
+  </FFLAGS>
+  <CFLAGS>
+    <append DEBUG="TRUE"> -ftrapuv </append>
+  </CFLAGS> 
+  <NETCDF_PATH>$ENV{NETCDF_DIR}</NETCDF_PATH>
 </compiler>
 
 <compiler COMPILER="gnu" MACH="eddi">
