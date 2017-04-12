@@ -24,7 +24,8 @@ module histFileMod
   use EDtypesMod     , only : nlevsclass_ed, nlevage_ed
   use EDtypesMod     , only : nfsc, ncwd
   use EDtypesMod     , only : nlevleaf, nclmax, numpft_ed
-  use clm_varpar     , only : mxpft
+  use EDTypesMod     , only : maxpft
+
   !
   implicit none
   save
@@ -1684,7 +1685,6 @@ contains
     ! !USES:
     use clm_varpar      , only : nlevgrnd, nlevsno, nlevlak, nlevurb, numrad, nlevcan, nvegwcs
     use clm_varpar      , only : natpft_size, cft_size, maxpatch_glcmec, nlevdecomp_full
-    use clm_varpar      , only : mxpft
     use landunit_varcon , only : max_lunit
     use clm_varctl      , only : caseid, ctitle, fsurdat, finidat, paramfile
     use clm_varctl      , only : version, hostname, username, conventions, source
@@ -1854,11 +1854,11 @@ contains
     if(use_ed)then
        call ncd_defdim(lnfid, 'fates_levscag', nlevsclass_ed * nlevage_ed, dimid)
        call ncd_defdim(lnfid, 'fates_levscls', nlevsclass_ed, dimid)
-       call ncd_defdim(lnfid, 'fates_levpft', mxpft, dimid)
+       call ncd_defdim(lnfid, 'fates_levpft', maxpft, dimid)
        call ncd_defdim(lnfid, 'fates_levage', nlevage_ed, dimid)
        call ncd_defdim(lnfid, 'fates_levfuel', nfsc, dimid)
        call ncd_defdim(lnfid, 'fates_levcwdsc', ncwd, dimid)
-       call ncd_defdim(lnfid, 'fates_levscpf', nlevsclass_ed*mxpft, dimid)
+       call ncd_defdim(lnfid, 'fates_levscpf', nlevsclass_ed*maxpft, dimid)
        call ncd_defdim(lnfid, 'fates_levcan', nclmax, dimid)
        call ncd_defdim(lnfid, 'fates_levcnlf', nlevleaf * nclmax, dimid)
        call ncd_defdim(lnfid, 'fates_levcnlfpf', nlevleaf * nclmax * numpft_ed, dimid)
@@ -4414,7 +4414,7 @@ contains
     !
     ! !USES:
     use clm_varpar      , only : nlevgrnd, nlevsno, nlevlak, numrad, nlevdecomp_full, nlevcan, nvegwcs
-    use clm_varpar      , only : natpft_size, cft_size, maxpatch_glcmec, mxpft
+    use clm_varpar      , only : natpft_size, cft_size, maxpatch_glcmec
     use landunit_varcon , only : max_lunit
     !
     ! !ARGUMENTS:
@@ -4495,7 +4495,7 @@ contains
     case ('fates_levscls')
        num2d = nlevsclass_ed
     case ('fates_levpft')
-       num2d = mxpft
+       num2d = maxpft
     case ('fates_levage')
        num2d = nlevage_ed
     case ('fates_levfuel')
@@ -4503,7 +4503,7 @@ contains
     case ('fates_levcwdsc')
        num2d = ncwd
     case ('fates_levscpf')
-       num2d = nlevsclass_ed*mxpft
+       num2d = nlevsclass_ed*maxpft
     case ('fates_levscag')
        num2d = nlevsclass_ed*nlevage_ed
     case ('fates_levcan')

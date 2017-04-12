@@ -1451,7 +1451,7 @@ contains
     use abortutils        , only : endrun
     use decompMod         , only : bounds_type
     use clm_varcon        , only : rgas, tfrz, namep  
-    use clm_varpar        , only : nlevsoi, mxpft
+    use clm_varpar        , only : nlevsoi
     use clm_varctl        , only : iulog
     use pftconMod         , only : pftcon
     use perf_mod          , only : t_startf, t_stopf
@@ -2252,7 +2252,8 @@ contains
    use EDtypesMod, only : nlevsclass_ed, nlevage_ed
    use EDtypesMod, only : nfsc, ncwd
    use EDtypesMod, only : nlevleaf, nclmax, numpft_ed
-   use clm_varpar, only : mxpft, nlevgrnd
+   use EDTypesMod, only : maxpft
+   use clm_varpar, only : nlevgrnd
 
    implicit none
 
@@ -2272,13 +2273,13 @@ contains
    fates%ground_end = nlevgrnd
    
    fates%sizepft_class_begin = 1
-   fates%sizepft_class_end = nlevsclass_ed * mxpft
+   fates%sizepft_class_end = nlevsclass_ed * maxpft
    
    fates%size_class_begin = 1
    fates%size_class_end = nlevsclass_ed
 
    fates%pft_class_begin = 1
-   fates%pft_class_end = mxpft
+   fates%pft_class_end = maxpft
 
    fates%age_class_begin = 1
    fates%age_class_end = nlevage_ed
