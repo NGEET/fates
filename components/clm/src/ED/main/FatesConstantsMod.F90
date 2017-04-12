@@ -16,6 +16,14 @@ module FatesConstantsMod
 
   ! Unset and various other 'special' values
   integer, parameter :: fates_unset_int = -9999
+
+  
+  ! Integer equivalent of true  (in case some compilers dont auto convert)
+  integer, parameter :: itrue = 1
+
+  ! Integer equivalent of false (in case come compilers dont auto convert)
+  integer, parameter :: ifalse = 0
+
   
   ! Unit conversion constants:
 

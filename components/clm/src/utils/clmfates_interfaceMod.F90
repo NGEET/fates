@@ -42,7 +42,9 @@ module CLMFatesInterfaceMod
    use EnergyFluxType    , only : energyflux_type
 
    use SoilStateType     , only : soilstate_type 
-   use clm_varctl        , only : iulog, use_ed
+   use clm_varctl        , only : iulog
+   use clm_varctl        , only : use_vertsoilc 
+   use clm_varctl        , only : use_ed_spitfire
    use clm_varcon        , only : tfrz
    use clm_varcon        , only : spval 
    use clm_varcon        , only : denice
@@ -227,6 +229,8 @@ contains
       integer                                        :: nclumps   ! Number of threads
       logical :: verbose_output
       integer :: pass_masterproc
+      integer :: pass_vertsoilc
+      integer :: pass_spitfire
       integer                                        :: nc        ! thread index
       integer                                        :: s         ! FATES site index
       integer                                        :: c         ! HLM column index
@@ -268,6 +272,20 @@ contains
       call set_fates_ctrlparms('hlm_name',cval='CLM')
       call set_fates_ctrlparms('hio_ignore_val',rval=spval)
       call set_fates_ctrlparms('soilwater_ipedof',ival=get_ipedof(0))
+
+      if(use_vertsoilc) then
+         pass_vertsoilc = 1
+      else
+         pass_vertsoilc = 0
+      end if
+      call set_fates_ctrlparms('use_vertsoilc',ival=pass_vertsoilc)
+      
+      if(use_ed_spitfire) then
+         pass_spitfire = 1
+      else
+         pass_spitfire = 0
+      end if
+      call set_fates_ctrlparms('use_spitfire',ival=pass_spitfire)
 
       if(masterproc)then
          pass_masterproc = 1

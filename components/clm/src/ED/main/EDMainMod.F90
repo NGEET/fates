@@ -36,6 +36,7 @@ module EDMainMod
   use EDtypesMod           , only : ed_cohort_type
   use FatesInterfaceMod    , only : bc_in_type
   use FatesInterfaceMod    , only : hlm_masterproc
+  use FatesConstantsMod    , only : itrue
   use FatesPlantHydraulicsMod, only : do_growthrecruiteffects
   use FatesPlantHydraulicsMod, only : updateSizeDepTreeHydProps
   use FatesPlantHydraulicsMod, only : updateSizeDepTreeHydStates
@@ -84,7 +85,7 @@ contains
     type(ed_patch_type), pointer :: currentPatch
     !-----------------------------------------------------------------------
 
-    if ( hlm_masterproc==1 ) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
+    if ( hlm_masterproc==itrue ) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
           hlm_current_year,'-',hlm_current_month,'-',hlm_current_day
 
     !**************************************************************************
