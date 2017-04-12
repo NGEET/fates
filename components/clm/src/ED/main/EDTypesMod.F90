@@ -2,7 +2,11 @@ module EDTypesMod
 
   use FatesConstantsMod , only : r8 => fates_r8
   use clm_varpar   , only : mxpft
+  use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
 
+  use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
+  use FatesHydraulicsMemMod, only : ed_patch_hydr_type
+  use FatesHydraulicsMemMod, only : ed_site_hydr_type
 
   implicit none
   save
@@ -21,7 +25,7 @@ module EDTypesMod
  
   integer, parameter :: numpft_ed = 2             ! number of PFTs used in ED. 
 
-  ! TODO: we use this cp_maxSWb only because we have a static array (size=2) of
+  ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
   ! land-ice abledo for vis and nir.  This should be a parameter, which would
   ! get us on track to start using multi-spectral or hyper-spectral (RGK 02-2017)
   integer, parameter :: maxSWb = 2      ! maximum number of broad-bands in the
@@ -33,8 +37,20 @@ module EDTypesMod
   ! Module switches (this will be read in one day)
   ! This variable only exists now to serve as a place holder
   !!!!!!!!!! THIS SHOULD NOT BE SET TO TRUE !!!!!!!!!!!!!!!!!
-  logical, parameter :: use_fates_plant_hydro = .false.
+  logical,parameter :: use_fates_plant_hydro = .false.
+  
 
+  ! Switches that turn on/off ED dynamics process (names are self explanatory)
+  ! IMPORTANT NOTE!!! THESE SWITCHES ARE EXPERIMENTAL.  
+  ! THEY SHOULD CORRECTLY TURN OFF OR ON THE PROCESS, BUT.. THERE ARE VARIOUS 
+  ! ASPECTS REGARDING DIAGNOSING RATES AND HOW THEY ARE REPORTED WHEN THESE 
+  ! PROCESSES ARE OFF THAT NEED TO BE DISCUSSED AND CONSIDERED.
+  ! TO-DO: THESE SHOULD BE PARAMETERS IN THE FILE OR NAMELIST - ADDING THESE
+  ! WAS OUTSIDE THE SCOPE OF THE VERY LARGE CHANGESET WHERE THESE WERE FIRST
+  ! INTRODUCED (RGK 03-2017)
+  logical, parameter :: do_ed_phenology = .true.
+  logical, parameter :: do_ed_dynamics = .true.
+ 
 
   ! MODEL PARAMETERS
   real(r8), parameter :: AREA                 = 10000.0_r8 ! Notional area of simulated forest m2
@@ -212,6 +228,7 @@ module EDTypesMod
 
      real(r8) ::  npp_leaf                               ! NPP into leaves (includes replacement of turnover):  KgC/indiv/year
      real(r8) ::  npp_froot                              ! NPP into fine roots (includes replacement of turnover):  KgC/indiv/year
+
      real(r8) ::  npp_bsw                                ! NPP into sapwood: KgC/indiv/year
      real(r8) ::  npp_bdead                              ! NPP into deadwood (structure):  KgC/indiv/year
      real(r8) ::  npp_bseed                              ! NPP into seeds: KgC/indiv/year
@@ -270,6 +287,10 @@ module EDTypesMod
      real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char:-
      real(r8) ::  crownfire_mort                         ! probability of tree post-fire mortality due to crown scorch:-
      real(r8) ::  fire_mort                              ! post-fire mortality from cambial and crown damage assuming two are independent:-
+
+     ! Hydraulics
+     type(ed_cohort_hydr_type), pointer :: co_hydr       ! All cohort hydraulics data, see FatesHydraulicsMemMod.F90
+
 
   end type ed_cohort_type
 
@@ -427,6 +448,9 @@ module EDTypesMod
      real(r8) ::  tfc_ros                                          ! total fuel consumed - no trunks.  KgC/m2/day
      real(r8) ::  burnt_frac_litter(nfsc)                          ! fraction of each litter pool burned:-
 
+     ! PLANT HYDRAULICS     
+     type(ed_patch_hydr_type) , pointer :: pa_hydr                 ! All patch hydraulics data, see FatesHydraulicsMemMod.F90
+
    contains
 
   end type ed_patch_type
@@ -513,7 +537,11 @@ module EDTypesMod
      real(r8) ::  cwd_ag_burned(ncwd)
      real(r8) ::  leaf_litter_burned(numpft_ed)
 
+     ! PLANT HYDRAULICS
+     type(ed_site_hydr_type), pointer :: si_hydr
+        
      ! TERMINATION, RECRUITMENT, DEMOTION, and DISTURBANCE
+
      real(r8) :: terminated_nindivs(1:nlevsclass_ed,1:mxpft,2) ! number of individuals that were in cohorts which were terminated this timestep, on size x pft x canopy array. 
      real(r8) :: termination_carbonflux(2)                     ! carbon flux from live to dead pools associated with termination mortality, per canopy level
      real(r8) :: recruitment_rate(1:mxpft)                     ! number of individuals that were recruited into new cohorts
@@ -534,7 +562,8 @@ module EDTypesMod
 
 contains
 
-  !-------------------------------------------------------------------------------------!
+
+   !-------------------------------------------------------------------------------------!
   subroutine ed_hist_scpfmaps
     ! This subroutine allocates and populates the variables
     ! that define the mapping of variables in history files in the "scpf" format

@@ -336,7 +336,7 @@ for mct, etc.
 	<ALBANY_PATH>$(ALBANY_PATH)</ALBANY_PATH>
 </compiler>
 
-<compiler MACH="wolf" COMPILER="intel">
+<compiler MACH="pinto" COMPILER="intel">
   <MPICC>mpicc</MPICC>
   <MPIFC>mpif90</MPIFC>
   <MPICXX>mpic++</MPICXX>
@@ -344,6 +344,39 @@ for mct, etc.
   <SCC>icc</SCC>
   <SCXX>icpc</SCXX>
   <ADD_SLIBS>$(shell $(NETCDF_PATH)/bin/nf-config --flibs) -llapack -lblas</ADD_SLIBS>
+  <GPTL_CPPDEFS> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY </GPTL_CPPDEFS>
+  <TRILINOS_PATH>$(TRILINOS_PATH)</TRILINOS_PATH>
+  <ADD_SLIBS MPILIB="mpich"> -mkl=cluster </ADD_SLIBS>
+  <ADD_SLIBS MPILIB="mpich2"> -mkl=cluster </ADD_SLIBS>
+  <ADD_SLIBS MPILIB="mpt"> -mkl=cluster </ADD_SLIBS>
+  <ADD_SLIBS MPILIB="openmpi"> -mkl=cluster </ADD_SLIBS>
+  <ADD_SLIBS MPILIB="mvapich"> -mkl=cluster </ADD_SLIBS>
+  <ADD_SLIBS MPILIB="impi"> -mkl=cluster </ADD_SLIBS>
+  <ADD_SLIBS MPILIB="mpi-serial"> -mkl </ADD_SLIBS>
+</compiler>
+
+<compiler MACH="pinto" COMPILER="gnu">
+  <MPICC>mpicc</MPICC>
+  <MPIFC>mpif90</MPIFC>
+  <MPICXX>mpic++</MPICXX>
+  <SFC>gfortran</SFC>
+  <SCC>gcc</SCC>
+  <SCXX>g++</SCXX>
+  <ADD_SLIBS>$(shell $(NETCDF_PATH)/bin/nf-config --flibs) -llapack -lblas</ADD_SLIBS>
+        <CXX_LIBS>-lstdc++ -lmpi_cxx</CXX_LIBS>
+	<TRILINOS_PATH>$(TRILINOS_PATH)</TRILINOS_PATH>
+	<ALBANY_PATH>$(ALBANY_PATH)</ALBANY_PATH>
+</compiler>
+
+<compiler MACH="wolf" COMPILER="intel">
+  <MPICC>mpicc</MPICC>
+  <MPIFC>mpif90</MPIFC>
+  <MPICXX>mpic++</MPICXX>
+  <SFC>ifort</SFC>
+  <SCC>icc</SCC>
+  <SCXX>icpc</SCXX>
+  <GPTL_CPPDEFS> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY </GPTL_CPPDEFS>
+  <ADD_SLIBS> -L$(NETCDF_PATH)/lib/ -lnetcdff -lnetcdf -lcurl -llapack -lblas</ADD_SLIBS>
   <TRILINOS_PATH>$(TRILINOS_PATH)</TRILINOS_PATH>
   <ADD_SLIBS MPILIB="mpich"> -mkl=cluster </ADD_SLIBS>
   <ADD_SLIBS MPILIB="mpich2"> -mkl=cluster </ADD_SLIBS>

@@ -660,9 +660,7 @@ contains
     ! --------------------------------------------------------------
    
     if ( use_ed .and. .not.is_restart() .and. finidat == ' ') then
-
-       call clm_fates%init_coldstart(waterstate_inst,canopystate_inst, frictionvel_inst)
-       
+       call clm_fates%init_coldstart(waterstate_inst,canopystate_inst,soilstate_inst, frictionvel_inst)
     end if
 
     ! topo_glc_mec was allocated in initialize1, but needed to be kept around through

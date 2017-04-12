@@ -92,7 +92,8 @@ contains
          h2ocan             => waterstate_inst%h2ocan_col            , & ! Input:  [real(r8) (:)   ]  canopy water (mm H2O)                             
          h2osfc             => waterstate_inst%h2osfc_col            , & ! Input:  [real(r8) (:)   ]  surface water (mm)                                
          h2osno             => waterstate_inst%h2osno_col            , & ! Input:  [real(r8) (:)   ]  snow water (mm H2O)                               
-         begwb              => waterstate_inst%begwb_col             , & ! Input:  [real(r8) (:)   ]  water mass begining of the time step              
+         begwb              => waterstate_inst%begwb_col             , & ! Input:  [real(r8) (:)   ]  water mass begining of the time step     
+         total_plant_stored_h2o => waterstate_inst%total_plant_stored_h2o_col, & ! Input [real(r8) (:) dynamic water stored in plants]         
          endwb              => waterstate_inst%endwb_col             , & ! Output: [real(r8) (:)   ]  water mass end of the time step                   
          h2osoi_ice         => waterstate_inst%h2osoi_ice_col        , & ! Output: [real(r8) (:,:) ]  ice lens (kg/m2)                                
          h2osoi_liq         => waterstate_inst%h2osoi_liq_col        , & ! Output: [real(r8) (:,:) ]  liquid water (kg/m2)                            
@@ -177,6 +178,20 @@ contains
             else
                endwb(c) = endwb(c) + h2osoi_ice(c,j) + h2osoi_liq(c,j)
             end if
+         end do
+      end do
+
+      ! ---------------------------------------------------------------------------------
+      ! Add stored plant water to the column water balance
+      ! currently, stored plant water is only dynamic when FATES is turned on.
+      ! Other orthogonal modules should not need to worry about this term,
+      ! and it should be zero in all other cases and all other columns.
+      ! (rgk 02-02-2017)
+      ! ---------------------------------------------------------------------------------
+      do j = 1, nlevgrnd
+         do fc = 1, num_nolakec
+            c = filter_nolakec(fc)
+            endwb(c) = endwb(c) + total_plant_stored_h2o(c)
          end do
       end do
 

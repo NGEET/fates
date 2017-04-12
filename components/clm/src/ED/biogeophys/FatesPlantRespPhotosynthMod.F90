@@ -291,7 +291,7 @@ contains
                   
                end do !ft 
 
-               call set_root_fraction(currentPatch,bc_in(s)%depth_gl)
+               call set_root_fraction(currentPatch,bc_in(s)%zi_sisl)
 
                ! ------------------------------------------------------------------------
                ! Part VI: Loop over all leaf layers.
@@ -350,14 +350,15 @@ contains
                            if ( .not.rate_mask_z(iv,ft,cl) .or. use_fates_plant_hydro ) then
                               
                               if (use_fates_plant_hydro) then
-                                 write(fates_log(),*) 'use_fates_plant_hydro in EDTypes'
-                                 write(fates_log(),*) 'has been set to true.  You have inadvertently'
-                                 write(fates_log(),*) 'turned on a future feature that is not in the'
-                                 write(fates_log(),*) 'FATES codeset yet. Please set this to'
-                                 write(fates_log(),*) 'false and re-compile.'
-                                 call endrun(msg=errMsg(sourcefile, __LINE__))
-                                 !!       !! bbb   = max (bbbopt(ps)*currentCohort%btran(iv), 1._r8)
-                                 !!       !! btran = currentCohort%btran(iv) 
+!                                 write(fates_log(),*) 'use_fates_plant_hydro in EDTypes'
+!                                 write(fates_log(),*) 'has been set to true.  You have inadvertently'
+!                                 write(fates_log(),*) 'turned on a future feature that is not in the'
+!                                 write(fates_log(),*) 'FATES codeset yet. Please set this to'
+!                                 write(fates_log(),*) 'false and re-compile.'
+!                                 call endrun(msg=errMsg(sourcefile, __LINE__))
+
+                                 bbb   = max (bbbopt(nint(c3psn(ft)))*currentCohort%co_hydr%btran(1), 1._r8)
+                                 btran_eff = currentCohort%co_hydr%btran(1) 
                               else
                                  bbb   = max (bbbopt(nint(c3psn(ft)))*currentPatch%btran_ft(ft), 1._r8)
                                  btran_eff = currentPatch%btran_ft(ft)

@@ -13,12 +13,16 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : nclmax
+  use EDTypesMod           , only : use_fates_plant_hydro
   use FatesInterfaceMod    , only : hlm_numlevgrnd
   use FatesInterfaceMod    , only : hlm_numlevsoil
   use FatesInterfaceMod    , only : hlm_numSWb
+  use FatesInterfaceMod    , only : bc_in_type
   use FatesInterfaceMod    , only : hlm_days_per_year
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
+  use FatesPlantHydraulicsMod, only : InitHydrCohort
+  use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
 
   ! CIME globals
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
@@ -162,7 +166,7 @@ contains
   end subroutine disturbance_rates
 
     ! ============================================================================
-  subroutine spawn_patches( currentSite )
+  subroutine spawn_patches( currentSite, bc_in)
     !
     ! !DESCRIPTION:
     ! In this subroutine, the following happens
@@ -181,9 +185,11 @@ contains
     
     use EDParamsMod         , only : ED_val_maxspread, ED_val_understorey_death
     use EDCohortDynamicsMod , only : zero_cohort, copy_cohort, terminate_cohorts 
+    
     !
     ! !ARGUMENTS:
     type (ed_site_type), intent(inout), target :: currentSite
+    type (bc_in_type), intent(in)              :: bc_in
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type) , pointer :: new_patch
@@ -263,6 +269,7 @@ contains
           do while(associated(currentCohort))       
 
              allocate(nc)             
+             if(use_fates_plant_hydro) call InitHydrCohort(nc)
              call zero_cohort(nc)
 
              ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort
@@ -379,6 +386,7 @@ contains
                 new_patch%tallest  => storebigcohort 
                 new_patch%shortest => storesmallcohort   
              else
+                if(use_fates_plant_hydro) call DeallocateHydrCohort(nc)
                 deallocate(nc) !get rid of the new memory.
              endif
 
@@ -394,7 +402,8 @@ contains
           currentPatch%area = currentPatch%area - patch_site_areadis
 
           !sort out the cohorts, since some of them may be so small as to need removing. 
-          call fuse_cohorts(currentPatch)
+
+          call fuse_cohorts(currentPatch, bc_in)
           call terminate_cohorts(currentSite, currentPatch)
           call sort_cohorts(currentPatch)
 
@@ -411,7 +420,7 @@ contains
        currentPatch%younger       => new_patch
        currentSite%youngest_patch => new_patch
 
-       call fuse_cohorts(new_patch)
+       call fuse_cohorts(new_patch, bc_in)
        call terminate_cohorts(currentSite, new_patch)
        call sort_cohorts(new_patch)
 
@@ -1040,7 +1049,7 @@ contains
   end subroutine zero_patch
 
   ! ============================================================================
-  subroutine fuse_patches( csite )
+  subroutine fuse_patches( csite, bc_in )
     !
     ! !DESCRIPTION:
     !  Decide to fuse patches if their cohort structures are similar           
@@ -1050,6 +1059,7 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type), intent(inout), target  :: csite
+    type(bc_in_type), intent(in)               :: bc_in
     !
     ! !LOCAL VARIABLES:
     type(ed_site_type) , pointer :: currentSite
@@ -1142,7 +1152,7 @@ contains
                    if(fuse_flag  ==  1)then 
                       tmpptr => currentPatch%older       
                       call fuse_2_patches(currentPatch, tpp)
-                      call fuse_cohorts(tpp)
+                      call fuse_cohorts(tpp, bc_in)
                       call sort_cohorts(tpp)
                       currentPatch => tmpptr
                    else
@@ -1433,6 +1443,7 @@ contains
     do while(associated(ccohort))
        
        ncohort => ccohort%taller
+       if(use_fates_plant_hydro) call DeallocateHydrCohort(ccohort)
        deallocate(ccohort)
        ccohort => ncohort
 
@@ -1553,7 +1564,7 @@ contains
 
    ! ====================================================================================
 
-  subroutine set_root_fraction( cpatch , depth_gl )
+  subroutine set_root_fraction( cpatch , zi )
     !
     ! !DESCRIPTION:
     !  Calculates the fractions of the root biomass in each layer for each pft. 
@@ -1563,7 +1574,7 @@ contains
     !
     ! !ARGUMENTS
     type(ed_patch_type),intent(inout), target :: cpatch
-    real(r8),intent(in)  :: depth_gl(0:hlm_numlevgrnd)
+    real(r8),intent(in)  :: zi(0:hlm_numlevsoil)
     !
     ! !LOCAL VARIABLES:
     integer :: lev,p,c,ft
@@ -1576,10 +1587,10 @@ contains
 
        do lev = 1, hlm_numlevsoil-1
           cpatch%rootfr_ft(ft,lev) = .5_r8*( &
-                 exp(-EDPftvarcon_inst%roota_par(ft) * depth_gl(lev-1))  &
-               + exp(-EDPftvarcon_inst%rootb_par(ft) * depth_gl(lev-1))  &
-               - exp(-EDPftvarcon_inst%roota_par(ft) * depth_gl(lev))    &
-               - exp(-EDPftvarcon_inst%rootb_par(ft) * depth_gl(lev)))
+                 exp(-EDPftvarcon_inst%roota_par(ft) * zi(lev-1))  &
+               + exp(-EDPftvarcon_inst%rootb_par(ft) * zi(lev-1))  &
+               - exp(-EDPftvarcon_inst%roota_par(ft) * zi(lev))    &
+               - exp(-EDPftvarcon_inst%rootb_par(ft) * zi(lev)))
        end do
     end do
 
