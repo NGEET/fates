@@ -6,14 +6,14 @@ module SFMainMod
   ! ============================================================================
 
   use FatesConstantsMod     , only : r8 => fates_r8
-
+  use FatesConstantsMod     , only : itrue, ifalse
   use FatesInterfaceMod     , only : hlm_masterproc ! 1= master process, 0=not master process
   use EDTypesMod            , only : numWaterMem
   use FatesGlobals          , only : fates_log
 
   use FatesInterfaceMod     , only : bc_in_type
   use pftconMod             , only : pftcon
-  use EDPftvarcon        , only : EDPftvarcon_inst
+  use EDPftvarcon           , only : EDPftvarcon_inst
   use EDEcophysconType      , only : EDecophyscon
 
   use EDtypesMod            , only : ed_site_type
@@ -57,7 +57,7 @@ contains
   ! ============================================================================
   subroutine fire_model( currentSite, bc_in)
 
-    use clm_varctl,   only : use_ed_spitfire
+    use FatesInterfaceMod, only : hlm_use_spitfire
 
     type(ed_site_type)     , intent(inout), target :: currentSite
     type(bc_in_type)       , intent(in)            :: bc_in
@@ -75,10 +75,10 @@ contains
     enddo
 
     if(write_SF==1)then
-       write(fates_log(),*) 'use_ed_spitfire',use_ed_spitfire
+       write(fates_log(),*) 'use_spitfire',hlm_use_spitfire
     endif
 
-    if(use_ed_spitfire)then
+    if( hlm_use_spitfire == itrue )then
        call fire_danger_index(currentSite, bc_in)
        call wind_effect(currentSite, bc_in) 
        call charecteristics_of_fuel(currentSite)
@@ -186,16 +186,16 @@ contains
        currentPatch%sum_fuel       = 0.0_r8
        currentPatch%fuel_frac      = 0.0_r8
 
-       if(write_sf == 1)then
-          if ( hlm_masterproc == 1 ) write(fates_log(),*) ' leaf_litter1 ',currentPatch%leaf_litter
-          if ( hlm_masterproc == 1 ) write(fates_log(),*) ' leaf_litter2 ',sum(currentPatch%CWD_AG)
-          if ( hlm_masterproc == 1 ) write(fates_log(),*) ' leaf_litter3 ',currentPatch%livegrass
-          if ( hlm_masterproc == 1 ) write(fates_log(),*) ' sum fuel', currentPatch%sum_fuel
+       if(write_sf == itrue)then
+          if ( hlm_masterproc == itrue ) write(fates_log(),*) ' leaf_litter1 ',currentPatch%leaf_litter
+          if ( hlm_masterproc == itrue ) write(fates_log(),*) ' leaf_litter2 ',sum(currentPatch%CWD_AG)
+          if ( hlm_masterproc == itrue ) write(fates_log(),*) ' leaf_litter3 ',currentPatch%livegrass
+          if ( hlm_masterproc == itrue ) write(fates_log(),*) ' sum fuel', currentPatch%sum_fuel
        endif
 
        currentPatch%sum_fuel =  sum(currentPatch%leaf_litter) + sum(currentPatch%CWD_AG) + currentPatch%livegrass
-       if(write_SF == 1)then
-          if ( hlm_masterproc == 1 ) write(fates_log(),*) 'sum fuel', currentPatch%sum_fuel,currentPatch%area
+       if(write_SF == itrue)then
+          if ( hlm_masterproc == itrue ) write(fates_log(),*) 'sum fuel', currentPatch%sum_fuel,currentPatch%area
        endif
        ! ===============================================
        ! Average moisture, bulk density, surface area-volume and moisture extinction of fuel
@@ -206,10 +206,10 @@ contains
           currentPatch%fuel_frac(dl_sf)       = sum(currentPatch%leaf_litter)/ currentPatch%sum_fuel
           currentPatch%fuel_frac(dl_sf+1:tr_sf) = currentPatch%CWD_AG          / currentPatch%sum_fuel    
 
-          if(write_sf == 1)then
-             if ( hlm_masterproc == 1 ) write(fates_log(),*) 'ff1 ',currentPatch%fuel_frac
-             if ( hlm_masterproc == 1 ) write(fates_log(),*) 'ff2 ',currentPatch%fuel_frac
-             if ( hlm_masterproc == 1 ) write(fates_log(),*) 'ff2a ',lg_sf,currentPatch%livegrass,currentPatch%sum_fuel
+          if(write_sf == itrue)then
+             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ff1 ',currentPatch%fuel_frac
+             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ff2 ',currentPatch%fuel_frac
+             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ff2a ',lg_sf,currentPatch%livegrass,currentPatch%sum_fuel
           endif
 
           currentPatch%fuel_frac(lg_sf)       = currentPatch%livegrass       / currentPatch%sum_fuel   
@@ -219,11 +219,11 @@ contains
           ! Equation 6 in Thonicke et al. 2010. 
           fuel_moisture(dl_sf+1:tr_sf)  = exp(-1.0_r8 * SF_val_alpha_FMC(dl_sf+1:tr_sf) * currentSite%acc_NI) 
  
-          if(write_SF == 1)then
-             if ( hlm_masterproc == 1 ) write(fates_log(),*) 'ff3 ',currentPatch%fuel_frac
-             if ( hlm_masterproc == 1 ) write(fates_log(),*) 'fm ',fuel_moisture
-             if ( hlm_masterproc == 1 ) write(fates_log(),*) 'csa ',currentSite%acc_NI
-             if ( hlm_masterproc == 1 ) write(fates_log(),*) 'sfv ',SF_val_alpha_FMC
+          if(write_SF == itrue)then
+             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ff3 ',currentPatch%fuel_frac
+             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'fm ',fuel_moisture
+             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'csa ',currentSite%acc_NI
+             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'sfv ',SF_val_alpha_FMC
           endif
           ! FIX(RF,032414): needs refactoring. 
           ! average water content !is this the correct metric?         
@@ -237,8 +237,8 @@ contains
           currentPatch%fuel_sav       = sum(currentPatch%fuel_frac(dl_sf:lb_sf) * SF_val_SAV(dl_sf:lb_sf))              
           currentPatch%fuel_mef       = sum(currentPatch%fuel_frac(dl_sf:lb_sf) * MEF(dl_sf:lb_sf))              
           currentPatch%fuel_eff_moist = sum(currentPatch%fuel_frac(dl_sf:lb_sf) * fuel_moisture(dl_sf:lb_sf))         
-          if(write_sf == 1)then
-             if ( hlm_masterproc == 1 ) write(fates_log(),*) 'ff4 ',currentPatch%fuel_eff_moist
+          if(write_sf == itrue)then
+             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ff4 ',currentPatch%fuel_eff_moist
           endif
           ! Add on properties of live grass multiplied by grass fraction. (6)
           currentPatch%fuel_bulkd     = currentPatch%fuel_bulkd     + currentPatch%fuel_frac(lg_sf)  * SF_val_FBD(lg_sf)      
@@ -263,16 +263,16 @@ contains
 
        else
 
-          if(write_SF == 1)then
+          if(write_SF == itrue)then
 
-             if ( hlm_masterproc == 1 ) write(fates_log(),*) 'no litter fuel at all',currentPatch%patchno, &
+             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'no litter fuel at all',currentPatch%patchno, &
                   currentPatch%sum_fuel,sum(currentPatch%cwd_ag),                         &
                   sum(currentPatch%cwd_bg),sum(currentPatch%leaf_litter)
 
           endif
           currentPatch%fuel_sav = sum(SF_val_SAV(1:nfsc))/(nfsc) ! make average sav to avoid crashing code. 
 
-          if ( hlm_masterproc == 1 ) write(fates_log(),*) 'problem with spitfire fuel averaging'
+          if ( hlm_masterproc == itrue ) write(fates_log(),*) 'problem with spitfire fuel averaging'
 
           ! FIX(SPM,032414) refactor...should not have 0 fuel unless everything is burnt
           ! off.
@@ -286,9 +286,9 @@ contains
        endif
        ! check values. 
        ! FIX(SPM,032414) refactor...
-       if(write_SF == 1.and.currentPatch%fuel_sav <= 0.0_r8.or.currentPatch%fuel_bulkd <=  &
+       if(write_SF == itrue.and.currentPatch%fuel_sav <= 0.0_r8.or.currentPatch%fuel_bulkd <=  &
             0.0_r8.or.currentPatch%fuel_mef <= 0.0_r8.or.currentPatch%fuel_eff_moist <= 0.0_r8)then
-            if ( hlm_masterproc == 1 ) write(fates_log(),*) 'problem with spitfire fuel averaging'
+            if ( hlm_masterproc == itrue ) write(fates_log(),*) 'problem with spitfire fuel averaging'
        endif 
        
        currentPatch => currentPatch%younger
@@ -326,8 +326,8 @@ contains
     iofp = currentSite%oldest_patch%patchno
     wind = bc_in%wind24_pa(iofp) * sec_per_min  ! Convert to m/min for SPITFIRE units.
 
-    if(write_SF == 1)then
-       if ( hlm_masterproc == 1 ) write(fates_log(),*) 'wind24', wind
+    if(write_SF == itrue)then
+       if ( hlm_masterproc == itrue ) write(fates_log(),*) 'wind24', wind
     endif
     ! --- influence of wind speed, corrected for surface roughness----
     ! --- averaged over the whole grid cell to prevent extreme divergence 
@@ -342,7 +342,7 @@ contains
  
        do while(associated(currentCohort))
           write(fates_log(),*) 'SF currentCohort%c_area ',currentCohort%c_area
-          if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
+          if(EDPftvarcon_inst%woody(currentCohort%pft) == itrue)then
              currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
           else
              total_grass_area = total_grass_area + currentCohort%c_area
@@ -365,8 +365,8 @@ contains
     !if there is a cover of more than one, then the grasses are under the trees
     grass_fraction = min(grass_fraction,1.0_r8-tree_fraction) 
     bare_fraction = 1.0 - tree_fraction - grass_fraction
-    if(write_sf == 1)then
-       if ( hlm_masterproc == 1 ) write(fates_log(),*) 'grass, trees, bare',grass_fraction, tree_fraction, bare_fraction
+    if(write_sf == itrue)then
+       if ( hlm_masterproc == itrue ) write(fates_log(),*) 'grass, trees, bare',grass_fraction, tree_fraction, bare_fraction
     endif
 
     currentPatch=>currentSite%oldest_patch;
@@ -420,8 +420,8 @@ contains
 
        ! ----start spreading---
 
-       if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - currentPatch%fuel_bulkd ',currentPatch%fuel_bulkd
-       if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - SF_val_part_dens ',SF_val_part_dens
+       if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - currentPatch%fuel_bulkd ',currentPatch%fuel_bulkd
+       if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - SF_val_part_dens ',SF_val_part_dens
 
        ! beta = packing ratio (unitless)
        ! fraction of fuel array volume occupied by fuel or compactness of fuel bed 
@@ -432,12 +432,12 @@ contains
        ! packing ratio (unitless) 
        beta_op = 0.200395_r8 *(currentPatch%fuel_sav**(-0.8189_r8))
 
-       if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - beta ',beta
-       if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - beta_op ',beta_op
+       if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - beta ',beta
+       if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - beta_op ',beta_op
        bet = beta/beta_op   !unitless
 
-       if(write_sf == 1)then
-          if ( hlm_masterproc == 1 ) write(fates_log(),*) 'esf ',currentPatch%fuel_eff_moist
+       if(write_sf == itrue)then
+          if ( hlm_masterproc == itrue ) write(fates_log(),*) 'esf ',currentPatch%fuel_eff_moist
        endif
 
        ! ---heat of pre-ignition---
@@ -457,11 +457,11 @@ contains
        e = 0.715_r8 * (exp(-0.01094_r8 * currentPatch%fuel_sav))
 
        if (DEBUG) then
-          if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - c ',c
-          if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - currentPatch%effect_wspeed ',currentPatch%effect_wspeed
-          if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - b ',b
-          if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - bet ',bet
-          if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - e ',e
+          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - c ',c
+          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - currentPatch%effect_wspeed ',currentPatch%effect_wspeed
+          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - b ',b
+          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - bet ',bet
+          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - e ',e
        endif
 
        ! Equation A5 in Thonicke et al. 2010
@@ -498,7 +498,7 @@ contains
             (3.52_r8*(mw_weight**3.0_r8))))
 
        ! FIX(SPM, 040114) ask RF if this should be an endrun
-       ! if(write_SF == 1)then
+       ! if(write_SF == itrue)then
        ! write(fates_log(),*) 'moist_damp' ,moist_damp,mw_weight,currentPatch%fuel_eff_moist,currentPatch%fuel_mef
        ! endif
        
@@ -618,7 +618,7 @@ contains
     !currentPatch%ROS_front  forward ROS (m/min) 
     !currentPatch%TFC_ROS total fuel consumed by flaming front (kgC/m2)
 
-    use clm_varctl,   only : use_ed_spitfire
+    use FatesInterfaceMod, only : hlm_use_spitfire
     use SFParamsMod,  only : SF_val_fdi_alpha,SF_val_fuel_energy, &
          SF_val_max_durat, SF_val_durat_slope
 
@@ -636,8 +636,8 @@ contains
        ROS   = currentPatch%ROS_front / 60.0_r8 !m/min to m/sec 
        W     = currentPatch%TFC_ROS / 0.45_r8 !kgC/m2 to kgbiomass/m2
        currentPatch%FI = SF_val_fuel_energy * W * ROS !kj/m/s, or kW/m
-       if(write_sf == 1)then
-          if( hlm_masterproc == 1 ) write(fates_log(),*) 'fire_intensity',currentPatch%fi,W,currentPatch%ROS_front
+       if(write_sf == itrue)then
+          if( hlm_masterproc == itrue ) write(fates_log(),*) 'fire_intensity',currentPatch%fi,W,currentPatch%ROS_front
        endif
        !'decide_fire' subroutine shortened and put in here... 
        if (currentPatch%FI >= fire_threshold) then  ! 50kW/m is the threshold for a self-sustaining fire
@@ -648,8 +648,8 @@ contains
           ! Equation 14 in Thonicke et al. 2010
           ! fire duration in minutes
           currentPatch%FD = SF_val_max_durat / (1.0_r8 + SF_val_max_durat * exp(SF_val_durat_slope*d_FDI))
-          if(write_SF == 1)then
-             if ( hlm_masterproc == 1 ) write(fates_log(),*) 'fire duration minutes',currentPatch%fd
+          if(write_SF == itrue)then
+             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'fire duration minutes',currentPatch%fd
           endif
           !equation 15 in Arora and Boer CTEM model.Average fire is 1 day long.
           !currentPatch%FD = 60.0_r8 * 24.0_r8 !no minutes in a day      
@@ -659,7 +659,7 @@ contains
        endif
        !  FIX(SPM,032414) needs a refactor
        !  FIX(RF,032414) : should happen outside of SF loop - doing all spitfire code is inefficient otherwise. 
-       if(.not. use_ed_spitfire)then   
+       if( hlm_use_spitfire == ifalse )then   
           currentPatch%fire = 0 !fudge to turn fire off
        endif
 
@@ -697,7 +697,7 @@ contains
        currentPatch%frac_burnt = 0.0_r8
        lb = 0.0_r8; db = 0.0_r8; df = 0.0_r8
 
-       if (currentPatch%fire == 1) then
+       if (currentPatch%fire == itrue) then
        ! The feedback between vegetation structure and ellipse size if turned off for now, 
        ! to reduce the positive feedback in the syste,
        ! This will also be investigated by William Hoffmans proposal. 
@@ -742,19 +742,19 @@ contains
              patch_area_in_m2 = gridarea*currentPatch%area/area
              if (currentPatch%AB > patch_area_in_m2 ) then !all of patch burnt. 
 
-                if ( hlm_masterproc == 1 ) write(fates_log(),*) 'burnt all of patch',currentPatch%patchno, &
+                if ( hlm_masterproc == itrue ) write(fates_log(),*) 'burnt all of patch',currentPatch%patchno, &
                      currentPatch%area/area,currentPatch%ab,patch_area_in_m2   
-                if ( hlm_masterproc == 1 ) write(fates_log(),*) 'ros',currentPatch%ROS_front,currentPatch%FD, &
+                if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ros',currentPatch%ROS_front,currentPatch%FD, &
                      currentPatch%NF,currentPatch%FI,size_of_fire
 
-                if ( hlm_masterproc == 1 ) write(fates_log(),*) 'litter', &
+                if ( hlm_masterproc == itrue ) write(fates_log(),*) 'litter', &
                       currentPatch%sum_fuel,currentPatch%CWD_AG,currentPatch%leaf_litter
                 ! turn km2 into m2. work out total area burnt. 
                 currentPatch%AB = patch_area_in_m2 
              endif
              currentPatch%frac_burnt = currentPatch%AB / patch_area_in_m2
-             if(write_SF == 1)then
-                if ( hlm_masterproc == 1 ) write(fates_log(),*) 'frac_burnt',currentPatch%frac_burnt
+             if(write_SF == itrue)then
+                if ( hlm_masterproc == itrue ) write(fates_log(),*) 'frac_burnt',currentPatch%frac_burnt
              endif
           endif
        endif! fire
@@ -788,10 +788,10 @@ contains
 
        tree_ag_biomass = 0.0_r8
        f_ag_bmass = 0.0_r8
-       if (currentPatch%fire == 1) then
+       if (currentPatch%fire == itrue) then
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
-             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
+             if (EDPftvarcon_inst%woody(currentCohort%pft) == itrue) then !trees only
                 tree_ag_biomass = tree_ag_biomass+(currentCohort%bl+ED_val_ag_biomass* &
                      (currentCohort%bsw + currentCohort%bdead))*currentCohort%n
              endif !trees only
@@ -806,12 +806,12 @@ contains
           currentPatch%SH = 0.0_r8
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))
-             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1.and.(tree_ag_biomass > 0.0_r8)) then !trees only
+             if (EDPftvarcon_inst%woody(currentCohort%pft) == itrue.and.(tree_ag_biomass > 0.0_r8)) then !trees only
                 f_ag_bmass = ((currentCohort%bl+ED_val_ag_biomass*(currentCohort%bsw + &
                      currentCohort%bdead))*currentCohort%n)/tree_ag_biomass
                 !equation 16 in Thonicke et al. 2010
-                if(write_SF == 1)then
-                   if ( hlm_masterproc == 1 ) write(fates_log(),*) 'currentPatch%SH',currentPatch%SH,f_ag_bmass
+                if(write_SF == itrue)then
+                   if ( hlm_masterproc == itrue ) write(fates_log(),*) 'currentPatch%SH',currentPatch%SH,f_ag_bmass
                 endif
                 !2/3 Byram (1959)
                 currentPatch%SH = currentPatch%SH + f_ag_bmass * SF_val_alpha_SH * (currentPatch%FI**0.667_r8) 
@@ -840,13 +840,13 @@ contains
     currentPatch => currentSite%oldest_patch
 
     do while(associated(currentPatch)) 
-       if (currentPatch%fire == 1) then
+       if (currentPatch%fire == itrue) then
 
           currentCohort=>currentPatch%tallest
 
           do while(associated(currentCohort))  
              currentCohort%cfa = 0.0_r8
-             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
+             if (EDPftvarcon_inst%woody(currentCohort%pft) == itrue) then !trees only
                 ! Flames lower than bottom of canopy. 
                 ! c%hite is height of cohort
                 if (currentPatch%SH < (currentCohort%hite-currentCohort%hite*EDecophyscon%crown(currentCohort%pft))) then 
@@ -904,10 +904,10 @@ contains
 
     do while(associated(currentPatch)) 
 
-       if (currentPatch%fire == 1) then
+       if (currentPatch%fire == itrue) then
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
-             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
+             if (EDPftvarcon_inst%woody(currentCohort%pft) == itrue) then !trees only
                 ! Equation 21 in Thonicke et al 2010
                 bt = EDecophyscon%bark_scaler(currentCohort%pft)*currentCohort%dbh ! bark thickness. 
                 ! Equation 20 in Thonicke et al. 2010. 
@@ -954,12 +954,12 @@ contains
 
     do while(associated(currentPatch)) 
 
-       if (currentPatch%fire == 1) then 
+       if (currentPatch%fire == itrue) then 
           currentCohort => currentPatch%tallest
           do while(associated(currentCohort))  
              currentCohort%fire_mort = 0.0_r8
              currentCohort%crownfire_mort = 0.0_r8
-             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then
+             if (EDPftvarcon_inst%woody(currentCohort%pft) == itrue) then
                 ! Equation 22 in Thonicke et al. 2010. 
                 currentCohort%crownfire_mort = EDecophyscon%crown_kill(currentCohort%pft)*currentCohort%cfa**3.0_r8
                 ! Equation 18 in Thonicke et al. 2010. 

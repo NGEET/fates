@@ -86,7 +86,16 @@ module FatesInterfaceMod
                                          ! between the pedotransfer functions of the HLM
                                          ! and how it moves and stores water in its
                                          ! rhizosphere shells
+
+   integer, protected :: hlm_use_vertsoilc ! This flag signals whether or not the 
+                                           ! host model is using vertically discretized
+                                           ! soil carbon
+                                           ! 1 = TRUE,  0 = FALSE
    
+                                           ! SOON TO BE DEPRECATED, WILL BE READ IN VIA
+                                           ! FATES NL OR PARAM FILE.
+   integer, protected :: hlm_use_spitfire  ! This flag signals whether or not to use SPITFIRE
+                                           ! 1 = TRUE, 0 = FALSE
 
    ! -------------------------------------------------------------------------------------
    ! Parameters that are dictated by FATES and known to be required knowledge
@@ -838,6 +847,7 @@ contains
          if (fates_global_verbose()) then
             write(fates_log(), *) 'Flushing FATES control parameters prior to transfer from host'
          end if
+
          hlm_numSwb     = unset_int
          hlm_numlevgrnd = unset_int
          hlm_numlevsoil = unset_int
@@ -847,6 +857,8 @@ contains
          hlm_hio_ignore_val   = unset_double
          hlm_masterproc   = unset_int
          hlm_ipedof       = unset_int
+         hlm_use_vertsoilc = unset_int
+         hlm_use_spitfire  = unset_int
 
       case('check_allset')
          
@@ -926,6 +938,19 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_use_vertsoilc .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'switch for the HLMs soil carbon discretization unset: hlm_use_vertsoilc'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_use_spitfire .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'switch for SPITFIRE unset: hlm_use_spitfire'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
 
          if (fates_global_verbose()) then
             write(fates_log(), *) 'Checked. All control parameters sent to FATES.'
@@ -977,6 +1002,18 @@ contains
                hlm_ipedof = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_ipedof = ',ival,' to FATES'
+               end if
+
+            case('use_vertsoilc')
+               hlm_use_vertsoilc = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_vertsoilc= ',ival,' to FATES'
+               end if
+
+            case('use_spitfire')
+               hlm_use_spitfire = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_spitfire= ',ival,' to FATES'
                end if
 
             case default
