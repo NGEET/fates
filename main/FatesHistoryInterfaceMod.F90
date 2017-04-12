@@ -1070,19 +1070,19 @@ contains
     ! after Ecosystem Dynamics have been processed.
     ! ---------------------------------------------------------------------------------
     
-    use EDtypesMod          , only : ed_site_type,   &
-                                     ed_cohort_type, &
-                                     ed_patch_type,  &
-                                     AREA,           &
-                                     AREA_INV,       &
-                                     nlevsclass_ed,  &
-                                     nlevage_ed,    &
-                                     do_ed_dynamics, &
-                                     mxpft,         &
-                                     nfsc,          &
-                                     ncwd,          &
-                                     ican_upper,    &
-                                     ican_ustory
+    use EDtypesMod          , only : ed_site_type
+    use EDtypesMod          , only : ed_cohort_type
+    use EDtypesMod          , only : ed_patch_type
+    use EDtypesMod          , only : AREA
+    use EDtypesMod          , only : AREA_INV
+    use EDtypesMod          , only : nlevsclass_ed
+    use EDtypesMod          , only : nlevage_ed
+    use EDtypesMod          , only : do_ed_dynamics
+    use EDtypesMod          , only : nfsc
+    use EDtypesMod          , only : ncwd
+    use EDtypesMod          , only : ican_upper
+    use EDtypesMod          , only : ican_ustory
+    use EDTypesMod          , only : maxpft
 
     use EDParamsMod       , only : ED_val_ag_biomass
     use EDTypesMod        , only : get_sizeage_class_index
@@ -1633,7 +1633,7 @@ contains
 
          ! pass the cohort termination mortality as a flux to the history, and then reset the termination mortality buffer
          ! note there are various ways of reporting the total mortality, so pass to these as well
-         do i_pft = 1, mxpft
+         do i_pft = 1, maxpft
             do i_scls = 1,nlevsclass_ed
                i_scpf = (i_pft-1)*nlevsclass_ed + i_scls
                hio_m6_si_scpf(io_si,i_scpf) = (sites(s)%terminated_nindivs(i_scls,i_pft,1) + &
@@ -1651,13 +1651,13 @@ contains
          sites(s)%terminated_nindivs(:,:,:) = 0._r8
 
          ! pass the recruitment rate as a flux to the history, and then reset the recruitment buffer
-         do i_pft = 1, mxpft
+         do i_pft = 1, maxpft
             hio_recruitment_si_pft(io_si,i_pft) = sites(s)%recruitment_rate(i_pft) * days_per_year
          end do
          sites(s)%recruitment_rate(:) = 0._r8
 
          ! summarize all of the mortality fluxes by PFT
-         do i_pft = 1, mxpft
+         do i_pft = 1, maxpft
             do i_scls = 1,nlevsclass_ed
                i_scpf = (i_pft-1)*nlevsclass_ed + i_scls
                hio_mortality_si_pft(io_si,i_pft) = hio_mortality_si_pft(io_si,i_pft) + &
@@ -2067,7 +2067,7 @@ contains
     use FatesHydraulicsMemMod, only : nlevsoi_hyd
     use EDTypesMod           , only : nlevsclass_ed
     use EDTypesMod           , only : do_ed_dynamics
-    use clm_varpar           , only : mxpft
+    use EDTypesMod           , only : maxpft
     
     ! Arguments
     class(fates_history_interface_type)             :: this
@@ -2087,7 +2087,7 @@ contains
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
     real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
-    real(r8) :: ncohort_scpf(nlevsclass_ed*mxpft)  ! Bins to count up cohorts counts used in weighting
+    real(r8) :: ncohort_scpf(nlevsclass_ed*maxpft)  ! Bins to count up cohorts counts used in weighting
                                                    ! should be "hio_nplant_si_scpf"
     real(r8) :: number_fraction
     real(r8) :: number_fraction_rate
@@ -2277,7 +2277,7 @@ contains
          end do !patch loop
 
          if(do_ed_dynamics) then
-            do scpf=1,nlevsclass_ed*mxpft
+            do scpf=1,nlevsclass_ed*maxpft
                if( abs(hio_nplant_si_scpf(io_si, scpf)-ncohort_scpf(scpf)) > 1.0E-8_r8 ) then
                   write(fates_log(),*) 'nplant check on hio_nplant_si_scpf fails during hydraulics history updates'
                   call endrun(msg=errMsg(sourcefile, __LINE__))

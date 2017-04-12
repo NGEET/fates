@@ -1,7 +1,6 @@
 module EDTypesMod
 
   use FatesConstantsMod , only : r8 => fates_r8
-  use clm_varpar   , only : mxpft
   use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
 
   use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
@@ -542,9 +541,9 @@ module EDTypesMod
         
      ! TERMINATION, RECRUITMENT, DEMOTION, and DISTURBANCE
 
-     real(r8) :: terminated_nindivs(1:nlevsclass_ed,1:mxpft,2) ! number of individuals that were in cohorts which were terminated this timestep, on size x pft x canopy array. 
+     real(r8) :: terminated_nindivs(1:nlevsclass_ed,1:maxpft,2) ! number of individuals that were in cohorts which were terminated this timestep, on size x pft x canopy array. 
      real(r8) :: termination_carbonflux(2)                     ! carbon flux from live to dead pools associated with termination mortality, per canopy level
-     real(r8) :: recruitment_rate(1:mxpft)                     ! number of individuals that were recruited into new cohorts
+     real(r8) :: recruitment_rate(1:maxpft)                     ! number of individuals that were recruited into new cohorts
      real(r8) :: demotion_rate(1:nlevsclass_ed)                ! rate of individuals demoted from canopy to understory per FATES timestep
      real(r8) :: demotion_carbonflux                           ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
      real(r8) :: promotion_rate(1:nlevsclass_ed)               ! rate of individuals promoted from understory to canopy per FATES timestep
@@ -553,8 +552,8 @@ module EDTypesMod
      ! some diagnostic-only (i.e. not resolved by ODE solver) flux of carbon to CWD and litter pools from termination and canopy mortality
      real(r8) :: CWD_AG_diagnostic_input_carbonflux(1:ncwd)       ! diagnostic flux to AG CWD [kg C / m2 / yr]
      real(r8) :: CWD_BG_diagnostic_input_carbonflux(1:ncwd)       ! diagnostic flux to BG CWD [kg C / m2 / yr]
-     real(r8) :: leaf_litter_diagnostic_input_carbonflux(1:mxpft) ! diagnostic flux to AG litter [kg C / m2 / yr]
-     real(r8) :: root_litter_diagnostic_input_carbonflux(1:mxpft) ! diagnostic flux to BG litter [kg C / m2 / yr]
+     real(r8) :: leaf_litter_diagnostic_input_carbonflux(1:maxpft) ! diagnostic flux to AG litter [kg C / m2 / yr]
+     real(r8) :: root_litter_diagnostic_input_carbonflux(1:maxpft) ! diagnostic flux to BG litter [kg C / m2 / yr]
 
   end type ed_site_type
 
@@ -580,9 +579,9 @@ contains
     integer :: iage
 
     allocate( fates_hdim_levsclass(1:nlevsclass_ed   ))
-    allocate( fates_hdim_pfmap_levscpf(1:nlevsclass_ed*mxpft))
-    allocate( fates_hdim_scmap_levscpf(1:nlevsclass_ed*mxpft))
-    allocate( fates_hdim_levpft(1:mxpft   ))
+    allocate( fates_hdim_pfmap_levscpf(1:nlevsclass_ed*maxpft))
+    allocate( fates_hdim_scmap_levscpf(1:nlevsclass_ed*maxpft))
+    allocate( fates_hdim_levpft(1:maxpft   ))
     allocate( fates_hdim_levfuel(1:NFSC   ))
     allocate( fates_hdim_levcwdsc(1:NCWD   ))
     allocate( fates_hdim_levage(1:nlevage_ed   ))
@@ -604,7 +603,7 @@ contains
     fates_hdim_levage(:) = ageclass_ed(:)
 
     ! make pft array
-    do ipft=1,mxpft
+    do ipft=1,maxpft
        fates_hdim_levpft(ipft) = ipft
     end do
 
@@ -625,7 +624,7 @@ contains
 
     ! Fill the IO arrays that match pft and size class to their combined array
     i=0
-    do ipft=1,mxpft
+    do ipft=1,maxpft
        do isc=1,nlevsclass_ed
           i=i+1
           fates_hdim_pfmap_levscpf(i) = ipft

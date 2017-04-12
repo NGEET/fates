@@ -6,7 +6,7 @@ module EDPftvarcon
   ! read and initialize vegetation (PFT) constants.
   !
   ! !USES:
-  use clm_varpar  , only : mxpft, numrad, ivis, inir, nvariants
+  use clm_varpar  , only : numrad, ivis, inir, nvariants
   use shr_kind_mod, only : r8 => shr_kind_r8
 
   use FatesGlobals, only : fates_log
