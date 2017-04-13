@@ -1,4 +1,611 @@
 ===============================================================
+Tag name:  clm4_5_15_r233
+Originator(s):  erik (Erik Kluzek)
+Date: Tue Apr 11 23:30:45 MDT 2017
+One-line Summary: Pull out some constants and options to namelist
+
+Purpose of changes
+------------------
+
+Pull out a list of constants and options to namelist control. Decrease a few error tolderances.
+Add in reseed_dead_plants namelist option, so can reseed dead plants for BGC on a restart.
+Reenable LND_TUNING_MODE, although currently set the same for all options. Add some new 
+compsets in. Fix a few bugs, including Jim Edward's fix for vector output.
+Start adding in the stream option for finundated. Add option to turn Medlyn photosynthesis on.
+Replace & with &amp; in namelist_definition_clm4_5.xml
+
+Bugs fixed or introduced
+------------------------
+
+Bugs fixed (include bugzilla ID):
+   2440 Remove use of mct_gsmap_op and replace with mct_gsMap_orderedPoints
+   2430 Problem with units on new landuse.timeseries datasets
+   2184 vector (1d) history output crashes for some fields
+
+Notes of particular relevance for users
+---------------------------------------
+
+Caveats for users (e.g., need to interpolate initial conditions): None
+
+Changes to CLM's user interface (e.g., new/renamed XML or namelist variables): Added new parameters to namelist
+   New namelists: cnvegcarbonstate and cn_general
+   New namelist items:
+         modifyphoto_and_lmr_forcrop, stomatalcond_method, lfuel, ufuel, cmb_complt_fact,
+         initial_Cstocks_depth, ndep_taxmode, ndep_varlist, init_interp_attributes, reseed_dead_plants,
+         initial_vegC, finundation_method
+   New output history variables: Remove RSCANOPY unless use_ed add: VCMX25T, JMX25T, TPU25T
+   New compsets I1850GSWCLM50BGCCROP, IM1850GSWCLM50BGCCROP, IGM1850GSWCLM50BGCCROP, IGMHISTGSWCLM50BGCCROP
+
+Changes made to namelist defaults (e.g., changed parameter values): None
+
+Changes to the datasets (e.g., parameter, surface or initial files): params files
+
+Substantial timing or memory changes: None
+
+Notes of particular relevance for developers: (including Code reviews and testing)
+---------------------------------------------
+
+Caveats for developers (e.g., code that is duplicated that requires double maintenance): None
+
+Changes to tests or testing: None
+
+Code reviewed by: self
+
+Did you follow the steps in .CLMTrunkChecklist: yes
+
+CLM testing: regular
+
+ [PASS means all tests PASS and OK means tests PASS other than expected fails.]
+
+  build-namelist tests:
+
+    yellowstone - OK (183 test fail comparison to previous namelists)
+
+  unit-tests (components/clm/src):
+
+    yellowstone - PASS
+
+  regular tests (aux_clm40, aux_clm45):
+
+    yellowstone_intel - OK
+    yellowstone_pgi - OK
+    yellowstone_gnu (clm45 only) - OK
+    hobart_nag - OK
+
+CLM tag used for the baseline comparisons:  clm4_5_15_r232
+
+
+Answer changes
+--------------
+
+Changes answers relative to baseline: None bit-for-bit
+
+Detailed list of changes
+------------------------
+
+List any svn externals directories updated (cime, rtm, mosart, cism, etc.): None
+
+List all files eliminated: None
+
+List all files added and what they do:
+
+-------- Start adding ability to read finundated streams data (currently disabled)
+   A   components/clm/src/biogeochem/ch4FInundatedStreamType.F90
+
+List all existing files that have been modified, and describe the changes:
+
+   M   components/clm/bld/CLMBuildNamelist.pm --- Add setup_logic_cnvegcarbonstate, 
+         new namelists: cnvegcarbonstate and cn_general, refactor how finidat files
+         were being found to a better more general methodology that allows a second
+         go to find finidat file to interpolate from (currently disabled)
+   M   components/clm/bld/namelist_files/namelist_defaults_clm4_5.xml ---- New settings:
+         modifyphoto_and_lmr_forcrop, stomatalcond_method, use_init_interp, init_interp_attributes
+         initial_Cstocks_depth, initial_vegC, and new params file with medlynslope/intercept
+   M   components/clm/bld/namelist_files/namelist_definition_clm4_5.xml -- New namelist items:
+         modifyphoto_and_lmr_forcrop, stomatalcond_method, lfuel, ufuel, cmb_complt_fact,
+         initial_Cstocks_depth, ndep_taxmode, ndep_varlist, init_interp_attributes, reseed_dead_plants,
+         initial_vegC, finundation_method
+   M   components/clm/bld/unit_testers/build-namelist_test.pl -- Test that use_init_interp=.true. with
+         finidat blank is fails
+
+   M   components/clm/cime_config/config_component.xml - Set LND_TUNING_MODE by compset
+   M   components/clm/cime_config/config_compsets.xml -- Add: I1850GSWCLM50BGCCROP, IM1850GSWCLM50BGCCROP, 
+         IGM1850GSWCLM50BGCCROP, IGMHISTGSWCLM50BGCCROP compsets
+
+   M   components/clm/src/biogeochem/CNBalanceCheckMod.F90 --- Decrease carbon error tolerance from 1xe-8 to 1xe-7
+          and nitrogen error tolerance from 1xe-4 to 1xe-3
+   M   components/clm/src/biogeochem/CNFireBaseMod.F90 ---------- Add lfuel, ufuel, cmb_cmplt_fact to namelist
+   M   components/clm/src/biogeochem/CNVegCarbonStateType.F90 --- Add InitReadNML and read in initial_vegC in
+          new cnvegcarbonstate namelist, handle reseeding with reseed_patch filter
+   M   components/clm/src/biogeochem/CNVegNitrogenStateType.F90 - Handle reseeding with reseed_patch filter for
+          restart read
+   M   components/clm/src/biogeochem/CNVegStateType.F90 --------- Handle reseeding with reseed_patch filter for
+   M   components/clm/src/biogeochem/CNVegetationFacade.F90 ----- Add namelist read CNReadNML for cn_general
+          and  reseed_dead_plants option, pass it and/or reseed filter down as appropriate
+   M   components/clm/src/biogeochem/CropType.F90 ------ Check validity of baset_mapping, set latbaset_patch to nan
+          if not used, switch logic of how activated
+   M   components/clm/src/biogeochem/ch4varcon.F90 ----- Make default private, explicitly make items public as needed
+          add finundation_mtd and valid settings, read finundation_method in namelist and check it
+   M   components/clm/src/biogeochem/dynHarvestMod.F90 - Validate units of harvest fields abort if not right
+
+   M   components/clm/src/biogeophys/CanopyStateType.F90 --- Only send RSCANOPY to history if use_ed is on
+   M   components/clm/src/biogeophys/PhotosynthesisMod.F90 - Add: stomatalcond_mtd, modifyphoto_and_lmr_forcrop namelist
+         items, add extra history output: VCMX25T, JMX25T, TPU25T
+
+   M   components/clm/src/main/GetGlobalValuesMod.F90 - Replace mct_gsMap_orderedPoints for mct_gsMap_OP
+   M   components/clm/src/main/histFileMod.F90 -------- Fix for bug 2184 from Jim Edwards
+   M   components/clm/src/main/init_hydrology.F90 ----- Call init_root_moist_stress
+   M   components/clm/src/main/ncdio_pio.F90.in ------- Replace mct_gsMap_orderedPoints for mct_gsMap_OP
+   M   components/clm/src/main/ndepStreamMod.F90 ------ Add: ndep_taxmode, ndep_varlist to namelist
+   M   components/clm/src/main/pftconMod.F90 ---------- Add: medlynslope/intercept to data/alloc/read/clean
+
+   M   components/clm/src/soilbiogeochem/SoilBiogeochemCarbonStateType.F90 ------ Use decomp_cascade_con%initial_stock_soildepth
+          in place of hardcoded 0.3
+   M   components/clm/src/soilbiogeochem/SoilBiogeochemCompetitionMod.F90 ------- Increase error tolerence allowed
+          for endrun for too much NH4 uptake predicted by FUN
+   M   components/clm/src/soilbiogeochem/SoilBiogeochemDecompCascadeBGCMod.F90 -- Add initial_Cstocks_depth to namelist
+   M   components/clm/src/soilbiogeochem/SoilBiogeochemDecompCascadeConType.F90 - Add initial_stock_soildepth set to 0.3
+
+   M   components/clm/src/unit_test_stubs/csm_share/mct_mod_stub.F90 - Replace mct_gsMap_OP with mct_gsMap_orderedPoints
+
+   M   components/clm/src/utils/quadraticMod.F90 - Allow for situations where a sqrt of a slightly negative number
+          would crash the code.
+
+===============================================================
+===============================================================
+Tag name:  clm4_5_15_r232
+Originator(s):  erik (Erik Kluzek)
+Date: Wed Apr  5 23:04:37 MDT 2017
+One-line Summary: Some small changes that affect both clm4_5 and clm5_0 answers (can be considered bug fixes to clm4_5)
+
+Purpose of changes
+------------------
+
+A set of some small changes that affect answers for both CLM45 and CLM50. A fix to a rare problem where soil albedo
+could go negative from Keith Oleson and Sean Swenson, by making sure a calculated value could not go below a small value.
+A change from Will Weider to lower leaf maintence respiration (LMR) for low LAI. Always calculate btran2 even for low
+temperatures and/or low liquid water this lowers fires in boreal forests. For crop at peak LAI set hui to max of hui and 
+huigrain. Change the handling of GDDPLANT accumulator field from Keith Oleson. Get rid of the use_voc logic that just
+prevented MEGAN from activating for crop, since now MEGAN handles the crop case (since clm4_5_13_r204).
+
+Bugs fixed or introduced
+------------------------
+   2437 -- lower leaf maintence respiration for low LAI
+   2436 -- some adjustments to crop
+   2435 -- always calculate btran to lower fires in boreal forests
+   2431 -- Rare condition under which soil albedo goes negative
+   2368 -- Remove use_voc as MEGAN can now work with crop
+
+Bugs fixed (include bugzilla ID):
+
+Notes of particular relevance for users
+---------------------------------------
+
+Caveats for users (e.g., need to interpolate initial conditions): None
+
+Changes to CLM's user interface (e.g., new/renamed XML or namelist variables): None
+
+Changes made to namelist defaults (e.g., changed parameter values): None
+
+Changes to the datasets (e.g., parameter, surface or initial files): None
+
+Substantial timing or memory changes: None
+
+Notes of particular relevance for developers: (including Code reviews and testing)
+---------------------------------------------
+
+Caveats for developers (e.g., code that is duplicated that requires double maintenance): None
+
+Changes to tests or testing: None
+
+Code reviewed by: self, oleson, dll, dlawren, wweider, fangli
+
+Did you follow the steps in .CLMTrunkChecklist: Yes
+
+CLM testing: regular
+
+ [PASS means all tests PASS and OK means tests PASS other than expected fails.]
+
+  build-namelist tests:
+
+    yellowstone - PASS
+
+  unit-tests (components/clm/src):
+
+    yellowstone - PASS
+
+  regular tests (aux_clm40, aux_clm45):
+
+    yellowstone_intel - OK
+    yellowstone_pgi - OK
+    yellowstone_gnu (clm45 only) - OK
+    hobart_nag - OK
+
+CLM tag used for the baseline comparisons:  clm4_5_14_r231
+
+
+Answer changes
+--------------
+
+Changes answers relative to baseline: Yes!
+
+  Summarize any changes to answers, i.e.,
+    - what code configurations:
+    - what platforms/compilers:
+    - nature of change (roundoff; larger than roundoff/same climate; new climate): 
+
+Detailed list of changes
+------------------------
+
+List any svn externals directories updated (cime, rtm, mosart, cism, etc.): None
+
+List all files eliminated: None
+
+List all files added and what they do: None
+
+List all existing files that have been modified, and describe the changes:
+
+   M  components/clm/src/biogeophys/SurfaceAlbedoMod.F90 --- Fix bug 2431 where soil albedo can got negative
+         make sure a calculated value doesn't go too small
+   M  components/clm/src/biogeophys/PhotosynthesisMod.F90 -- Add check for divide by zero fo lnc, reduce
+         lmr for low LAI
+   M  components/clm/src/biogeophys/SoilMoistStressMod.F90 - Always calculate btran2 even for low temperature
+         and/or low liquid water this lowers fires in boreal forests
+   M  components/clm/src/biogeochem/CNPhenologyMod.F90 ----- For crop at peak lai set hui to max of hui and huigrain
+   M  components/clm/src/biogeochem/CropType.F90 ----------- Change handling of GDDPLANT
+
+----------- Remove use_voc logic
+   M  components/clm/src/cpl/clm_cpl_indices.F90 ----------- Remove use_voc
+   M  components/clm/src/main/clm_instMod.F90 -------------- Remove use_voc
+   M  components/clm/src/main/controlMod.F90 --------------- Remove use_voc
+   M  components/clm/src/main/clm_varctl.F90 --------------- Remove use_voc
+   M  components/clm/src/main/clm_driver.F90 --------------- Remove use_voc
+   M  components/clm/src/main/lnd2atmMod.F90 --------------- Remove use_voc
+
+===============================================================
+===============================================================
+Tag name:  clm4_5_14_r231
+Originator(s):  sacks (Bill Sacks)
+Date: Sun Apr  2 19:36:02 MDT 2017
+One-line Summary: Add option to reset snow pack over non-glacier columns
+
+Purpose of changes
+------------------
+
+When going from a CLM spinup under one set of atmospheric forcings to a
+different set of atmospheric forcings, there is the possibility that columns
+that reached large snow depths in the spinup should really have only seasonal
+snow cover under the new atmosphere. This is a particular concern for the LIWG
+in some areas of Greenland that have only seasonal snow cover: there is a
+concern that the offline spinup can bake in too-high snow cover in some
+regions. This can especially be a problem because of feedbacks: starting out
+with a too-high snow cover can cool the overlying atmosphere, leading to
+persistence of the snow pack. This is also a problem because, once the snow pack
+becomes very deep, it seems that its refreezing can make it less likely that the
+snow pack will ever melt.
+
+To deal with these issues, this tag introduces a new namelist item,
+reset_snow. This is typically .false. If you set it to .true., then all snow in
+non-glacier columns is reset to 35 mm SWE over the first few time steps of the
+run.
+
+This resetting is accomplished via the snow capping mechanism. This
+implementation was chosen because it is challenging to reset the snow pack
+directly, since there are so many snow-related variables that must be kept in
+sync. The snow capping mechanism already handles this properly, so it's easiest
+to reuse this mechanism. However, unlike standard snow capping, the flux of snow
+lost through this resetting is sent into a new flux that simply disappears into
+nothingness - rather than being sent to glc and/or rof. Thus, note that - by
+design! - the flux from this snow resetting breaks conservation: We do not want
+this lost snow to affect ocean circulation, since this is essentially just a
+mechanism for adjusting an initial conditions file.
+
+
+Notes of particular relevance for users
+---------------------------------------
+
+Caveats for users (e.g., need to interpolate initial conditions):
+- Specifying reset_snow = .true. will lead to a loss of conservation for the
+  first few time steps of the run
+
+Changes to CLM's user interface (e.g., new/renamed XML or namelist variables):
+- New namelist variable: reset_snow
+
+Changes made to namelist defaults (e.g., changed parameter values): none
+
+Changes to the datasets (e.g., parameter, surface or initial files): none
+
+Substantial timing or memory changes: none
+
+Notes of particular relevance for developers: (including Code reviews and testing)
+---------------------------------------------
+
+Caveats for developers (e.g., code that is duplicated that requires double maintenance): none
+
+Changes to tests or testing: none
+
+Code reviewed by: Leo van Kampenhout reviewed an initial prototype
+
+Did you follow the steps in .CLMTrunkChecklist: yes
+
+CLM testing:
+
+ [PASS means all tests PASS and OK means tests PASS other than expected fails.]
+
+  build-namelist tests:
+
+    yellowstone - ok
+    tests pass; namelists differ from baseline, as expected
+
+  unit-tests (components/clm/src):
+
+    yellowstone - pass
+
+  tools-tests (components/clm/test/tools):
+
+    yellowstone - not run
+
+  PTCLM testing (components/clm/tools/shared/PTCLM/test):
+
+     yellowstone - not run
+
+  regular tests (aux_clm40, aux_clm45):
+
+    yellowstone_intel - ok
+    yellowstone_pgi - ok
+    yellowstone_gnu (clm45 only) - ok
+    hobart_nag - ok
+
+    ok means tests pass, NLCOMP failures as expected
+
+CLM tag used for the baseline comparisons: clm4_5_14_r230
+
+
+Answer changes
+--------------
+
+Changes answers relative to baseline: no - bit-for-bit
+
+Detailed list of changes
+------------------------
+
+List any svn externals directories updated (cime, rtm, mosart, cism, etc.): none
+
+List all files eliminated:
+
+List all files added and what they do:
+
+========= Unit test of new logic
+A       components/clm/src/biogeophys/test/SnowHydrology_test/test_SnowHydrology_SnowCappingExcess.pf
+
+List all existing files that have been modified, and describe the changes:
+
+========= Changes as described above
+M       components/clm/bld/CLMBuildNamelist.pm
+M       components/clm/bld/namelist_files/namelist_defaults_clm4_5.xml
+M       components/clm/bld/namelist_files/namelist_definition_clm4_5.xml
+M       components/clm/src/biogeophys/LakeHydrologyMod.F90
+M       components/clm/src/biogeophys/BalanceCheckMod.F90
+M       components/clm/src/biogeophys/WaterfluxType.F90
+M       components/clm/src/biogeophys/SnowHydrologyMod.F90
+M       components/clm/src/biogeophys/HydrologyDrainageMod.F90
+M       components/clm/src/biogeophys/test/SnowHydrology_test/CMakeLists.txt
+
+===============================================================
+===============================================================
+Tag name:  clm4_5_14_r230
+Originator(s):  sacks (Bill Sacks)
+Date: Fri Mar 31 16:25:49 MDT 2017
+One-line Summary: Fix dynamic landunits water and energy conservation
+
+Purpose of changes
+------------------
+
+Fixes water and energy conservation with dynamic landunits. This conservation
+works by summing the water and energy contents of each grid cell before and
+after the dynamic landunits transitions, then dealing with the difference
+through runoff and sensible heat fluxes. However, the code for counting the
+water and energy contents was wrong - slightly wrong for water, and
+substantially wrong for energy. The energy counts were 6 orders of magnitude too
+small, and also were missing some terms.
+
+This tag fixes these counts, and reconciles the dynamic landunits water and
+energy accounting with the accounting done for the balance checks. It also
+refactors some of the code used in the balance checks to facilitate code sharing
+between various places.
+
+Also: adds wa_col (water in the unconfined aquifer) to the list of fields copied
+to newly-initializing columns, to avoid spurious dynlu adjustment fluxes due to
+changes in wa_col.
+
+
+Bugs fixed or introduced
+------------------------
+
+Known bugs introduced in this tag (include bugzilla ID): [If none, remove this line]
+- https://github.com/NCAR/CLM/issues/2 - Count energy of water in lakes in total
+  gridcell heat content
+- https://github.com/NCAR/CLM/issues/3 - Perform gridcell-level water balance
+  checks bracketing the entire run loop
+
+Notes of particular relevance for users
+---------------------------------------
+
+Caveats for users (e.g., need to interpolate initial conditions): none
+
+Changes to CLM's user interface (e.g., new/renamed XML or namelist variables):
+- Some renamed history variables: see below
+
+Changes made to namelist defaults (e.g., changed parameter values): none
+
+Changes to the datasets (e.g., parameter, surface or initial files): none
+
+Substantial timing or memory changes: not investigated, but no major changes expected
+
+Notes of particular relevance for developers: (including Code reviews and testing)
+---------------------------------------------
+
+Caveats for developers (e.g., code that is duplicated that requires double maintenance): none
+
+Changes to tests or testing: none
+
+Code reviewed by: Dave Lawrence and Keith Oleson reviewed the new code
+conceptually for scientifc correctness; Ryan Knox reviewed a slightly older
+version of the new code for counting water and energy contents
+
+Did you follow the steps in .CLMTrunkChecklist: yes
+
+CLM testing:
+
+ [PASS means all tests PASS and OK means tests PASS other than expected fails.]
+
+  build-namelist tests:
+
+    yellowstone - not run
+
+  unit-tests (components/clm/src):
+
+    yellowstone - pass
+
+  tools-tests (components/clm/test/tools):
+
+    yellowstone - not run
+
+  PTCLM testing (components/clm/tools/shared/PTCLM/test):
+
+     yellowstone - not run
+
+  regular tests (aux_clm40, aux_clm45):
+
+    yellowstone_intel - ok
+    yellowstone_pgi - ok
+    yellowstone_gnu (clm45 only) - ok
+    hobart_nag - ok
+
+    ok means tests pass, answers change as expected
+
+CLM tag used for the baseline comparisons: clm4_5_14_r229
+
+
+Answer changes
+--------------
+
+Changes answers relative to baseline: YES
+
+  If a tag changes answers relative to baseline comparison the
+  following should be filled in (otherwise remove this section):
+
+  Summarize any changes to answers, i.e.,
+    - what code configurations: ALL
+    - what platforms/compilers: ALL
+    - nature of change (roundoff; larger than roundoff/same climate; new climate): 
+
+    (1) Roundoff-level changes for all cases
+
+    (2) Large changes in diagnostics of total gridcell water and total gridcell
+        heat, due to various fixes
+
+    (3) Dynamic landunit water adjustments change substantially for glacier
+        transitions, and somewhat for transient crops
+
+    (4) Dynamic landunit heat adjustments change substantially for all runs with
+        dynamic landunits (transient glacier, transient crop): change by about
+        6 orders of magnitude
+
+    (5) Changes in transient crop cases due to copying wa_col to
+        newly-initiating columns (though answer changes may be minor for clm5
+        cases?)
+
+    (6) Possibly other changes that I'm forgetting?
+
+   If bitwise differences were observed, how did you show they were no worse
+   than roundoff? N/A
+
+   If this tag changes climate describe the run(s) done to evaluate the new
+   climate (put details of the simulations in the experiment database)
+       - casename: N/A
+
+   URL for LMWG diagnostics output used to validate new climate: N/A
+	
+
+Detailed list of changes
+------------------------
+
+List any svn externals directories updated (cime, rtm, mosart, cism, etc.): none
+
+List all files eliminated: none
+
+List all files added and what they do:
+
+========= Moved code that sums water and energy contents to here, to facilitate
+          code sharing; added unit tests for *some* of it
+A       components/clm/src/biogeophys/TotalWaterAndHeatMod.F90
+A       components/clm/src/biogeophys/test/TotalWaterAndHeat_test/test_total_water_and_heat.pf
+A       components/clm/src/biogeophys/test/TotalWaterAndHeat_test/CMakeLists.txt
+A       components/clm/src/biogeophys/test/TotalWaterAndHeat_test
+
+List all existing files that have been modified, and describe the changes:
+
+========= Major rework: Use new shared routines for calculating heat and water
+          contents; adjust dynlu adjustment heat flux based on heat content of
+          dynlu adjustment runoff flux
+M       components/clm/src/dyn_subgrid/dynConsBiogeophysMod.F90
+M       components/clm/src/biogeophys/BalanceCheckMod.F90
+
+========= Copy wa_col (water in the unconfined aquifer), to avoid large adjustments
+M       components/clm/src/dyn_subgrid/dynInitColumnsMod.F90
+M       components/clm/src/dyn_subgrid/test/dynInitColumns_test/test_init_columns.pf
+
+========= Use new routines for water content
+M       components/clm/src/biogeophys/HydrologyDrainageMod.F90
+M       components/clm/src/biogeophys/LakeHydrologyMod.F90
+
+========= New constant for baseline wa_col (water in the unconfined aquifer),
+          replacing hard-coded constants
+M       components/clm/src/main/clm_varcon.F90
+M       components/clm/src/biogeophys/SoilHydrologyMod.F90
+M       components/clm/src/biogeophys/SoilHydrologyInitTimeConstMod.F90
+
+========= For performance: introduce col%hydrologically_active, used in place of
+          is_hydrologically_active function call
+M       components/clm/src/main/ColumnType.F90
+M       components/clm/src/main/filterMod.F90
+M       components/clm/src/main/initSubgridMod.F90
+M       components/clm/src/main/glcBehaviorMod.F90
+
+========= Changes to diagnostic fields: Remove incorrect HCSOI, HC; rename
+          GC_HEAT1 and GC_HEAT2 to HEAT_CONTENT1 and HEAT_CONTENT2; add
+          HEAT_CONTENT1_VEG; add LIQUID_WATER_TEMP1
+M       components/clm/src/biogeophys/TemperatureType.F90
+M       components/clm/src/biogeophys/SoilTemperatureMod.F90
+M       components/clm/src/biogeophys/LakeTemperatureMod.F90
+
+========= Changes to diagnostic fields: Rename GC_LIQ1/2 to LIQUID_CONTENT1/2,
+          and similar for ICE; also remove some now-unused fields
+M       components/clm/src/biogeophys/WaterStateType.F90
+
+========= Minor changes to some calls
+M       components/clm/src/dyn_subgrid/dynSubgridDriverMod.F90
+M       components/clm/src/main/clm_driver.F90
+
+========= New stub routines
+M       components/clm/src/unit_test_stubs/main/ncdio_pio_fake.F90.in
+
+========= New unit tests
+M       components/clm/src/biogeophys/CMakeLists.txt
+M       components/clm/src/biogeophys/test/CMakeLists.txt
+
+========= Add some comments
+M       components/clm/src/main/subgridAveMod.F90
+M       components/clm/src/main/column_varcon.F90
+
+========= Remove unneeded use statements and associates
+M       components/clm/src/biogeophys/UrbanParamsType.F90
+M       components/clm/src/biogeophys/HydrologyNoDrainageMod.F90
+M       components/clm/src/main/initVerticalMod.F90
+
+===============================================================
+===============================================================
 Tag name:  clm4_5_14_r229
 Originator(s):  erik (Erik Kluzek)
 Date: Fri Mar 10 11:32:20 MST 2017

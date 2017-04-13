@@ -10,7 +10,7 @@ module clm_driver
   ! !USES:
   use shr_kind_mod           , only : r8 => shr_kind_r8
   use clm_varctl             , only : wrtdia, iulog, create_glacier_mec_landunit, use_ed
-  use clm_varctl             , only : use_cn, use_lch4, use_voc, use_noio, use_c13, use_c14
+  use clm_varctl             , only : use_cn, use_lch4, use_noio, use_c13, use_c14
   use clm_varctl             , only : use_crop
   use clm_varctl             , only : is_cold_start, is_interpolated_start
   use clm_time_manager       , only : get_nstep, is_beg_curr_day
@@ -305,7 +305,7 @@ contains
 
     call t_startf('dyn_subgrid')
     call dynSubgrid_driver(bounds_proc,                                               &
-         urbanparams_inst, soilstate_inst, soilhydrology_inst, lakestate_inst,        &
+         urbanparams_inst, soilstate_inst, soilhydrology_inst,                        &
          waterstate_inst, waterflux_inst, temperature_inst, energyflux_inst,          &
          canopystate_inst, photosyns_inst, crop_inst, glc2lnd_inst, bgc_vegetation_inst, &
          soilbiogeochem_state_inst, soilbiogeochem_carbonstate_inst,                  &
@@ -337,7 +337,6 @@ contains
        call BeginWaterBalance(bounds_clump,                   &
             filter(nc)%num_nolakec, filter(nc)%nolakec,       &
             filter(nc)%num_lakec, filter(nc)%lakec,           &
-            filter(nc)%num_hydrologyc, filter(nc)%hydrologyc, &
             soilhydrology_inst, waterstate_inst)
        call t_stopf('begwbal')
 
@@ -618,12 +617,10 @@ contains
             atm2lnd_inst, frictionvel_inst, dust_inst)
 
        ! VOC emission (A. Guenther's MEGAN (2006) model)
-       if (use_voc) then
-          call VOCEmission(bounds_clump,                                         &
+       call VOCEmission(bounds_clump,                                         &
                filter(nc)%num_soilp, filter(nc)%soilp,                           &
                atm2lnd_inst, canopystate_inst, photosyns_inst, temperature_inst, &
                vocemis_inst)
-       end if
 
        call t_stopf('bgc')
 
@@ -677,7 +674,7 @@ contains
        call t_startf('patch2col')
        call clm_drv_patch2col(bounds_clump, &
             filter(nc)%num_allc, filter(nc)%allc, filter(nc)%num_nolakec, filter(nc)%nolakec, &
-            waterstate_inst, energyflux_inst, waterflux_inst)
+            energyflux_inst, waterflux_inst)
        call t_stopf('patch2col')
 
        ! ============================================================================
@@ -1284,12 +1281,11 @@ contains
   !-----------------------------------------------------------------------
   subroutine clm_drv_patch2col (bounds, &
        num_allc, filter_allc, num_nolakec, filter_nolakec, &
-       waterstate_inst, energyflux_inst, waterflux_inst)
+       energyflux_inst, waterflux_inst)
     !
     ! !DESCRIPTION:
-    ! Averages over all patchs for variables defined over both soil and lake
-    ! to provide the column-level averages of state and flux variables
-    ! defined at the patch level.
+    ! Averages over all patches for variables defined over both soil and lake to provide
+    ! the column-level averages of flux variables defined at the patch level.
     !
     ! !USES:
     use WaterStateType , only : waterstate_type
@@ -1304,7 +1300,6 @@ contains
     integer               , intent(in)    :: filter_allc(:)    ! column filter for all active points
     integer               , intent(in)    :: num_nolakec       ! number of column non-lake points in column filter
     integer               , intent(in)    :: filter_nolakec(:) ! column filter for non-lake points
-    type(waterstate_type) , intent(inout) :: waterstate_inst
     type(waterflux_type)  , intent(inout) :: waterflux_inst
     type(energyflux_type) , intent(inout) :: energyflux_inst
     !
@@ -1320,12 +1315,6 @@ contains
     ! fields are explicitly set in LakeHydrologyMod. (The fields that
     ! are included here for lakes are computed elsewhere, e.g., in
     ! LakeFluxesMod.)
-
-    ! Averaging for patch water state variables
-
-    call p2c (bounds, num_nolakec, filter_nolakec, &
-         waterstate_inst%h2ocan_patch(bounds%begp:bounds%endp), &
-         waterstate_inst%h2ocan_col(bounds%begc:bounds%endc))
 
     ! Averaging for patch evaporative flux variables
 

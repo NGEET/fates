@@ -18,6 +18,7 @@ module HydrologyDrainageMod
   use WaterstateType    , only : waterstate_type
   use IrrigationMod     , only : irrigation_type
   use GlacierSurfaceMassBalanceMod, only : glacier_smb_type
+  use TotalWaterAndHeatMod, only : ComputeWaterMassNonLake
   use LandunitType      , only : lun                
   use ColumnType        , only : col                
   !
@@ -87,11 +88,6 @@ contains
          forc_rain          => atm2lnd_inst%forc_rain_downscaled_col , & ! Input:  [real(r8) (:)   ]  rain rate [mm/s]                                  
          forc_snow          => atm2lnd_inst%forc_snow_downscaled_col , & ! Input:  [real(r8) (:)   ]  snow rate [mm/s]                                  
 
-         wa                 => soilhydrology_inst%wa_col             , & ! Input:  [real(r8) (:)   ]  water in the unconfined aquifer (mm)              
-         
-         h2ocan             => waterstate_inst%h2ocan_col            , & ! Input:  [real(r8) (:)   ]  canopy water (mm H2O)                             
-         h2osfc             => waterstate_inst%h2osfc_col            , & ! Input:  [real(r8) (:)   ]  surface water (mm)                                
-         h2osno             => waterstate_inst%h2osno_col            , & ! Input:  [real(r8) (:)   ]  snow water (mm H2O)                               
          begwb              => waterstate_inst%begwb_col             , & ! Input:  [real(r8) (:)   ]  water mass begining of the time step              
          endwb              => waterstate_inst%endwb_col             , & ! Output: [real(r8) (:)   ]  water mass end of the time step                   
          h2osoi_ice         => waterstate_inst%h2osoi_ice_col        , & ! Output: [real(r8) (:,:) ]  ice lens (kg/m2)                                
@@ -100,6 +96,8 @@ contains
 
          qflx_evap_tot      => waterflux_inst%qflx_evap_tot_col      , & ! Input:  [real(r8) (:)   ]  qflx_evap_soi + qflx_evap_can + qflx_tran_veg     
          qflx_snwcp_ice     => waterflux_inst%qflx_snwcp_ice_col     , & ! Input: [real(r8) (:)   ]  excess solid h2o due to snow capping (outgoing) (mm H2O /s) [+]`
+         qflx_snwcp_discarded_ice => waterflux_inst%qflx_snwcp_discarded_ice_col, & ! Input: [real(r8) (:)   ]  excess solid h2o due to snow capping, which we simply discard in order to reset the snow pack (mm H2O /s) [+]
+         qflx_snwcp_discarded_liq => waterflux_inst%qflx_snwcp_discarded_liq_col, & ! Input: [real(r8) (:)   ]  excess liquid h2o due to snow capping, which we simply discard in order to reset the snow pack (mm H2O /s) [+]
          qflx_h2osfc_surf   => waterflux_inst%qflx_h2osfc_surf_col   , & ! Output: [real(r8) (:)   ]  surface water runoff (mm/s)                        
          qflx_drain_perched => waterflux_inst%qflx_drain_perched_col , & ! Output: [real(r8) (:)   ]  sub-surface runoff from perched zwt (mm H2O /s)   
          qflx_rsub_sat      => waterflux_inst%qflx_rsub_sat_col      , & ! Output: [real(r8) (:)   ]  soil saturation excess [mm h2o/s]                 
@@ -154,31 +152,8 @@ contains
          end do
       end do
 
-      do fc = 1, num_nolakec
-         c = filter_nolakec(fc)
-         l = col%landunit(c)
-
-         if (ctype(c) == icol_roof .or. ctype(c) == icol_sunwall &
-              .or. ctype(c) == icol_shadewall .or. ctype(c) == icol_road_imperv) then
-            endwb(c) = h2ocan(c) + h2osno(c)
-         else
-            ! add h2osfc to water balance
-            endwb(c) = h2ocan(c) + h2osno(c) + h2osfc(c) + wa(c)
-
-         end if
-      end do
-
-      do j = 1, nlevgrnd
-         do fc = 1, num_nolakec
-            c = filter_nolakec(fc)
-            if ((ctype(c) == icol_sunwall .or. ctype(c) == icol_shadewall &
-                 .or. ctype(c) == icol_roof) .and. j > nlevurb) then
-
-            else
-               endwb(c) = endwb(c) + h2osoi_ice(c,j) + h2osoi_liq(c,j)
-            end if
-         end do
-      end do
+      call ComputeWaterMassNonLake(bounds, num_nolakec, filter_nolakec, &
+           soilhydrology_inst, waterstate_inst, endwb(bounds%begc:bounds%endc))
 
       ! Determine wetland and land ice hydrology (must be placed here
       ! since need snow updated from CombineSnowLayers)
@@ -197,6 +172,7 @@ contains
             qflx_surf(c)          = 0._r8
             qflx_infl(c)          = 0._r8
             qflx_qrgwl(c) = forc_rain(c) + forc_snow(c) + qflx_floodg(g) - qflx_evap_tot(c) - qflx_snwcp_ice(c) - &
+                 qflx_snwcp_discarded_ice(c) - qflx_snwcp_discarded_liq(c) - &
                  (endwb(c)-begwb(c))/dtime
 
          else if (lun%urbpoi(l) .and. ctype(c) /= icol_road_perv) then
