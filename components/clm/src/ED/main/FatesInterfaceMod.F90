@@ -13,6 +13,8 @@ module FatesInterfaceMod
    use EDTypesMod          , only : maxPatchesPerSite
    use EDTypesMod          , only : maxCohortsPerPatch
    use EDTypesMod          , only : maxSWb
+   use EDTypesMod          , only : ivis
+   use EDTypesMod          , only : inir
    use EDTypesMod          , only : nclmax
    use EDTypesMod          , only : nlevleaf
    use EDTypesMod          , only : numpft_ed
@@ -45,6 +47,13 @@ module FatesInterfaceMod
    integer, protected :: hlm_numSWb  ! Number of broad-bands in the short-wave radiation
                                      ! specturm to track 
                                      ! (typically 2 as a default, VIS/NIR, in ED variants <2016)
+
+   integer, protected :: hlm_ivis    ! The HLMs assumption of the array index associated with the 
+                                     ! visible portion of the spectrum in short-wave radiation arrays
+
+   integer, protected :: hlm_inir    ! The HLMs assumption of the array index associated with the 
+                                     ! NIR portion of the spectrum in short-wave radiation arrays
+
 
    integer, protected :: hlm_numlevgrnd   ! Number of ground layers
    integer, protected :: hlm_numlevsoil   ! Number of soil layers
@@ -848,7 +857,9 @@ contains
             write(fates_log(), *) 'Flushing FATES control parameters prior to transfer from host'
          end if
 
-         hlm_numSwb     = unset_int
+         hlm_numSWb     = unset_int
+         hlm_inir       = unset_int
+         hlm_ivis       = unset_int
          hlm_numlevgrnd = unset_int
          hlm_numlevsoil = unset_int
          hlm_numlevdecomp_full = unset_int
@@ -885,6 +896,22 @@ contains
                write(fates_log(), *) 'FATES with:',hlm_numSWb,' bands.'
                write(fates_log(), *) 'please increase maxSWb in EDTypes to match'
                write(fates_log(), *) 'or exceed this value'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_ivis .ne. ivis) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'FATES assumption about the index of visible shortwave'
+               write(fates_log(), *) 'radiation is different from the HLM'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
+         if(hlm_inir .ne. inir) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'FATES assumption about the index of NIR shortwave'
+               write(fates_log(), *) 'radiation is different from the HLM'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -974,6 +1001,18 @@ contains
                   write(fates_log(),*) 'Transfering num_sw_bbands = ',ival,' to FATES'
                end if
                
+            case('vis_sw_index')
+               hlm_ivis = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering index associated with visible SW rad = ',ival,' to FATES'
+               end if
+            
+            case('nir_sw_index')
+               hlm_inir = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering index associated with NIR SW rad = ',ival,' to FATES'
+               end if
+
             case('num_lev_ground')
                hlm_numlevgrnd = ival
                if (fates_global_verbose()) then

@@ -33,6 +33,17 @@ module EDTypesMod
                                         ! if cp_numSWb is larger than this value
                                         ! simply bump this number up as needed
 
+  integer, parameter :: ivis = 1        ! This is the array index for short-wave
+                                        ! radiation in the visible spectrum, as expected
+                                        ! in boundary condition files and parameter
+                                        ! files.  This will be compared with 
+                                        ! the HLM's expectation in FatesInterfaceMod
+  integer, parameter :: inir = 2        ! This is the array index for short-wave
+                                        ! radiation in the near-infrared spectrum, as expected
+                                        ! in boundary condition files and parameter
+                                        ! files.  This will be compared with 
+                                        ! the HLM's expectation in FatesInterfaceMod
+
   ! Module switches (this will be read in one day)
   ! This variable only exists now to serve as a place holder
   !!!!!!!!!! THIS SHOULD NOT BE SET TO TRUE !!!!!!!!!!!!!!!!!

@@ -50,12 +50,14 @@ module CLMFatesInterfaceMod
    use clm_varcon        , only : denice
    use clm_varcon        , only : ispval
 
-   use clm_varpar        , only : numpft,            &
-                                  numrad,            &
-                                  nlevgrnd,          &
-                                  nlevsoi,           &
-                                  nlevdecomp,        &
-                                  nlevdecomp_full
+   use clm_varpar        , only : numpft
+   use clm_varpar        , only : numrad
+   use clm_varpar        , only : ivis
+   use clm_varpar        , only : inir
+   use clm_varpar        , only : nlevgrnd
+   use clm_varpar        , only : nlevsoi
+   use clm_varpar        , only : nlevdecomp
+   use clm_varpar        , only : nlevdecomp_full
    use PhotosynthesisMod , only : photosyns_type
    use atm2lndType       , only : atm2lnd_type
    use SurfaceAlbedoType , only : surfalb_type
@@ -265,6 +267,8 @@ contains
       
       ! Send parameters individually
       call set_fates_ctrlparms('num_sw_bbands',ival=numrad)
+      call set_fates_ctrlparms('vis_sw_index',ival=ivis)
+      call set_fates_ctrlparms('nir_sw_index',ival=inir)
       call set_fates_ctrlparms('num_lev_ground',ival=nlevgrnd)
       call set_fates_ctrlparms('num_lev_soil',ival=nlevsoi)
       call set_fates_ctrlparms('num_levdecomp',ival=nlevdecomp)
