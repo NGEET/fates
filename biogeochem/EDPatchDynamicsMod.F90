@@ -1530,17 +1530,15 @@ contains
   end subroutine patch_pft_size_profile
 
   ! =====================================================================================
-  function countPatches( bounds, nsites, sites ) result ( totNumPatches ) 
+  function countPatches( nsites, sites ) result ( totNumPatches ) 
     !
     ! !DESCRIPTION:
     !  Loop over all Patches to count how many there are
     !
     ! !USES:
-    use decompMod  , only : bounds_type
     use EDTypesMod , only : ed_site_type
     !
     ! !ARGUMENTS:
-    type(bounds_type)  , intent(in)            :: bounds
     integer,             intent(in)            :: nsites
     type(ed_site_type) , intent(inout), target :: sites(nsites)
     !
