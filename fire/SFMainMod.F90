@@ -12,7 +12,6 @@ module SFMainMod
   use FatesGlobals          , only : fates_log
 
   use FatesInterfaceMod     , only : bc_in_type
-  use pftconMod             , only : pftcon
   use EDPftvarcon           , only : EDPftvarcon_inst
   use EDEcophysconType      , only : EDecophyscon
 
