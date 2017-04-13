@@ -69,6 +69,9 @@ module FatesInterfaceMod
                                           ! biogeochemistry; can be either 1 or the total
                                           ! number of soil layers
 
+   integer, protected :: hlm_is_restart   ! Is the HLM signalling that this is a restart
+                                          ! type simulation?
+                                          ! 1=TRUE, 0=FALSE
    
    character(len=16), protected :: hlm_name ! This character string passed by the HLM
                                             ! is used during the processing of IO data, 
@@ -860,6 +863,7 @@ contains
          hlm_numSWb     = unset_int
          hlm_inir       = unset_int
          hlm_ivis       = unset_int
+         hlm_is_restart = unset_int
          hlm_numlevgrnd = unset_int
          hlm_numlevsoil = unset_int
          hlm_numlevdecomp_full = unset_int
@@ -912,6 +916,13 @@ contains
             if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES assumption about the index of NIR shortwave'
                write(fates_log(), *) 'radiation is different from the HLM'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_is_restart .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'FATES parameter unset: hlm_is_restart'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -1011,6 +1022,12 @@ contains
                hlm_inir = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering index associated with NIR SW rad = ',ival,' to FATES'
+               end if
+
+            case('is_restart')
+               hlm_is_restart = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering flag signaling restart / not-restart = ',ival,' to FATES'
                end if
 
             case('num_lev_ground')

@@ -233,6 +233,7 @@ contains
       integer :: pass_masterproc
       integer :: pass_vertsoilc
       integer :: pass_spitfire
+      integer :: pass_is_restart
       integer                                        :: nc        ! thread index
       integer                                        :: s         ! FATES site index
       integer                                        :: c         ! HLM column index
@@ -269,6 +270,7 @@ contains
       call set_fates_ctrlparms('num_sw_bbands',ival=numrad)
       call set_fates_ctrlparms('vis_sw_index',ival=ivis)
       call set_fates_ctrlparms('nir_sw_index',ival=inir)
+      
       call set_fates_ctrlparms('num_lev_ground',ival=nlevgrnd)
       call set_fates_ctrlparms('num_lev_soil',ival=nlevsoi)
       call set_fates_ctrlparms('num_levdecomp',ival=nlevdecomp)
@@ -276,6 +278,13 @@ contains
       call set_fates_ctrlparms('hlm_name',cval='CLM')
       call set_fates_ctrlparms('hio_ignore_val',rval=spval)
       call set_fates_ctrlparms('soilwater_ipedof',ival=get_ipedof(0))
+
+      if(is_restart()) then
+         pass_is_restart = 1
+      else
+         pass_is_restart = 0
+      end if
+      call set_fates_ctrlparms('is_restart',ival=pass_is_restart)
 
       if(use_vertsoilc) then
          pass_vertsoilc = 1
