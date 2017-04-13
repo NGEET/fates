@@ -1318,15 +1318,17 @@ contains
            ! Use leaf area weighting for all cohorts in the patch to define the characteristic
            ! leaf width used by the HLM
            ! ----------------------------------------------------------------------------
-           bc_out(s)%dleaf_pa(ifp) = 0.0_r8
-           currentCohort => currentPatch%shortest
-           do while(associated(currentCohort))
-              weight = min(1.0_r8,currentCohort%lai/currentPatch%lai)
-              bc_out(s)%dleaf_pa(ifp) = bc_out(s)%dleaf_pa(ifp) + &
-                   EDPftvarcon_inst%dleaf(currentCohort%pft)*weight
-              currentCohort => currentCohort%taller  
-           enddo
-           
+!           bc_out(s)%dleaf_pa(ifp) = 0.0_r8
+!           if(currentPatch%lai>1.0e-9_r8) then
+!              currentCohort => currentPatch%shortest
+!              do while(associated(currentCohort))
+!                 weight = min(1.0_r8,currentCohort%lai/currentPatch%lai)
+!                 bc_out(s)%dleaf_pa(ifp) = bc_out(s)%dleaf_pa(ifp) + &
+!                       EDPftvarcon_inst%dleaf(currentCohort%pft)*weight
+!                 currentCohort => currentCohort%taller  
+!              enddo
+!           end if
+
            ! Roughness length and displacement height are not PFT properties, they are
            ! properties of the canopy assemblage.  Defining this needs an appropriate model.
            ! Right now z0 and d are pft level parameters.  For the time being we will just
@@ -1334,6 +1336,7 @@ contains
            ! -----------------------------------------------------------------------------
            bc_out(s)%z0m_pa(ifp)    = EDPftvarcon_inst%z0mr(1) * bc_out(s)%htop_pa(ifp)
            bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(1) * bc_out(s)%htop_pa(ifp)
+           bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
 
 
            ! We are assuming here that grass is all located underneath tree canopies. 
