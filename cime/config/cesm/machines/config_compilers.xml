@@ -963,8 +963,6 @@ using a fortran linker.
   <PNETCDF_PATH>$ENV{PNETCDF}</PNETCDF_PATH>
 </compiler>
 
-
-
 <compiler MACH="cheyenne">
   <CPPDEFS>
     <!-- these flags enable nano timers -->
