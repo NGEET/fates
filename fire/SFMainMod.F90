@@ -208,7 +208,8 @@ contains
           if(write_sf == itrue)then
              if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ff1 ',currentPatch%fuel_frac
              if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ff2 ',currentPatch%fuel_frac
-             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ff2a ',lg_sf,currentPatch%livegrass,currentPatch%sum_fuel
+             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ff2a ', &
+                  lg_sf,currentPatch%livegrass,currentPatch%sum_fuel
           endif
 
           currentPatch%fuel_frac(lg_sf)       = currentPatch%livegrass       / currentPatch%sum_fuel   
@@ -341,7 +342,7 @@ contains
  
        do while(associated(currentCohort))
           write(fates_log(),*) 'SF currentCohort%c_area ',currentCohort%c_area
-          if(EDPftvarcon_inst%woody(currentCohort%pft) == itrue)then
+          if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
              currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
           else
              total_grass_area = total_grass_area + currentCohort%c_area
@@ -365,7 +366,8 @@ contains
     grass_fraction = min(grass_fraction,1.0_r8-tree_fraction) 
     bare_fraction = 1.0 - tree_fraction - grass_fraction
     if(write_sf == itrue)then
-       if ( hlm_masterproc == itrue ) write(fates_log(),*) 'grass, trees, bare',grass_fraction, tree_fraction, bare_fraction
+       if ( hlm_masterproc == itrue ) write(fates_log(),*) 'grass, trees, bare', &
+            grass_fraction, tree_fraction, bare_fraction
     endif
 
     currentPatch=>currentSite%oldest_patch;
@@ -419,8 +421,10 @@ contains
 
        ! ----start spreading---
 
-       if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - currentPatch%fuel_bulkd ',currentPatch%fuel_bulkd
-       if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - SF_val_part_dens ',SF_val_part_dens
+       if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) &
+            'SF - currentPatch%fuel_bulkd ',currentPatch%fuel_bulkd
+       if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) &
+            'SF - SF_val_part_dens ',SF_val_part_dens
 
        ! beta = packing ratio (unitless)
        ! fraction of fuel array volume occupied by fuel or compactness of fuel bed 
@@ -457,7 +461,8 @@ contains
 
        if (DEBUG) then
           if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - c ',c
-          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - currentPatch%effect_wspeed ',currentPatch%effect_wspeed
+          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) &
+               'SF - currentPatch%effect_wspeed ',currentPatch%effect_wspeed
           if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - b ',b
           if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - bet ',bet
           if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - e ',e
@@ -696,7 +701,7 @@ contains
        currentPatch%frac_burnt = 0.0_r8
        lb = 0.0_r8; db = 0.0_r8; df = 0.0_r8
 
-       if (currentPatch%fire == itrue) then
+       if (currentPatch%fire == 1) then
        ! The feedback between vegetation structure and ellipse size if turned off for now, 
        ! to reduce the positive feedback in the syste,
        ! This will also be investigated by William Hoffmans proposal. 
@@ -787,10 +792,10 @@ contains
 
        tree_ag_biomass = 0.0_r8
        f_ag_bmass = 0.0_r8
-       if (currentPatch%fire == itrue) then
+       if (currentPatch%fire == 1) then
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
-             if (EDPftvarcon_inst%woody(currentCohort%pft) == itrue) then !trees only
+             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 tree_ag_biomass = tree_ag_biomass+(currentCohort%bl+ED_val_ag_biomass* &
                      (currentCohort%bsw + currentCohort%bdead))*currentCohort%n
              endif !trees only
@@ -805,7 +810,8 @@ contains
           currentPatch%SH = 0.0_r8
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))
-             if (EDPftvarcon_inst%woody(currentCohort%pft) == itrue.and.(tree_ag_biomass > 0.0_r8)) then !trees only
+             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1 &
+                  .and. (tree_ag_biomass > 0.0_r8)) then !trees only
                 f_ag_bmass = ((currentCohort%bl+ED_val_ag_biomass*(currentCohort%bsw + &
                      currentCohort%bdead))*currentCohort%n)/tree_ag_biomass
                 !equation 16 in Thonicke et al. 2010
@@ -839,13 +845,13 @@ contains
     currentPatch => currentSite%oldest_patch
 
     do while(associated(currentPatch)) 
-       if (currentPatch%fire == itrue) then
+       if (currentPatch%fire == 1) then
 
           currentCohort=>currentPatch%tallest
 
           do while(associated(currentCohort))  
              currentCohort%cfa = 0.0_r8
-             if (EDPftvarcon_inst%woody(currentCohort%pft) == itrue) then !trees only
+             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 ! Flames lower than bottom of canopy. 
                 ! c%hite is height of cohort
                 if (currentPatch%SH < (currentCohort%hite-currentCohort%hite*EDecophyscon%crown(currentCohort%pft))) then 
@@ -903,10 +909,10 @@ contains
 
     do while(associated(currentPatch)) 
 
-       if (currentPatch%fire == itrue) then
+       if (currentPatch%fire == 1) then
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
-             if (EDPftvarcon_inst%woody(currentCohort%pft) == itrue) then !trees only
+             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 ! Equation 21 in Thonicke et al 2010
                 bt = EDecophyscon%bark_scaler(currentCohort%pft)*currentCohort%dbh ! bark thickness. 
                 ! Equation 20 in Thonicke et al. 2010. 
@@ -953,12 +959,12 @@ contains
 
     do while(associated(currentPatch)) 
 
-       if (currentPatch%fire == itrue) then 
+       if (currentPatch%fire == 1) then 
           currentCohort => currentPatch%tallest
           do while(associated(currentCohort))  
              currentCohort%fire_mort = 0.0_r8
              currentCohort%crownfire_mort = 0.0_r8
-             if (EDPftvarcon_inst%woody(currentCohort%pft) == itrue) then
+             if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then
                 ! Equation 22 in Thonicke et al. 2010. 
                 currentCohort%crownfire_mort = EDecophyscon%crown_kill(currentCohort%pft)*currentCohort%cfa**3.0_r8
                 ! Equation 18 in Thonicke et al. 2010. 

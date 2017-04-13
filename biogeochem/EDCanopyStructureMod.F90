@@ -1272,8 +1272,6 @@ contains
      use EDTypesMod        , only : ed_patch_type, ed_cohort_type, &
                                     ed_site_type, AREA
      use FatesInterfaceMod , only : bc_out_type
-     use PatchType         , only : patch
-     use ColumnType        , only : col
      use EDPftvarcon       , only : EDPftvarcon_inst
 
 
@@ -1285,10 +1283,13 @@ contains
      type(bc_out_type),  intent(inout)         :: bc_out(nsites)
 
      ! Locals
+     type (ed_cohort_type) , pointer :: currentCohort
      integer :: s, ifp, c, p
      type (ed_patch_type)  , pointer :: currentPatch
      real(r8) :: bare_frac_area
      real(r8) :: total_patch_area
+     real(r8) :: weight  ! Weighting for cohort variables in patch
+
 
      do s = 1,nsites
 
@@ -1314,17 +1315,26 @@ contains
            
            bc_out(s)%hbot_pa(ifp) = max(0._r8, min(0.2_r8, bc_out(s)%htop_pa(ifp)- 1.0_r8))
 
-           ! Temporary: Recreate the roughness, leaf width and displacment height of the
-           ! previous code, before calculating more reasonable values.
-           p = col%patchi(c) + ifp
+           ! Use leaf area weighting for all cohorts in the patch to define the characteristic
+           ! leaf width used by the HLM
+           ! ----------------------------------------------------------------------------
+           bc_out(s)%dleaf_pa(ifp) = 0.0_r8
+           currentCohort => currentPatch%shortest
+           do while(associated(currentCohort))
+              weight = min(1.0_r8,currentCohort%lai/currentPatch%lai)
+              bc_out(s)%dleaf_pa(ifp) = bc_out(s)%dleaf_pa(ifp) + &
+                   EDPftvarcon_inst%dleaf(currentCohort%pft)*weight
+              currentCohort => currentCohort%taller  
+           enddo
            
-           bc_out(s)%z0m_pa(ifp)    = EDPftvarcon_inst%z0mr(patch%itype(p)) * bc_out(s)%htop_pa(ifp)
-           bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(patch%itype(p)) * bc_out(s)%htop_pa(ifp)
-           bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(patch%itype(p))
-           
-!           bc_out(s)%z0m_pa(ifp)    = pftcon%z0mr(1) * bc_out(s)%htop_pa(ifp)
-!           bc_out(s)%displa_pa(ifp) = pftcon%displar(1) * bc_out(s)%htop_pa(ifp)
-!           bc_out(s)%dleaf_pa(ifp)  = pftcon%dleaf(1)
+           ! Roughness length and displacement height are not PFT properties, they are
+           ! properties of the canopy assemblage.  Defining this needs an appropriate model.
+           ! Right now z0 and d are pft level parameters.  For the time being we will just
+           ! use the 1st index until a suitable model is defined. (RGK 04-2017)
+           ! -----------------------------------------------------------------------------
+           bc_out(s)%z0m_pa(ifp)    = EDPftvarcon_inst%z0mr(1) * bc_out(s)%htop_pa(ifp)
+           bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(1) * bc_out(s)%htop_pa(ifp)
+
 
            ! We are assuming here that grass is all located underneath tree canopies. 
            ! The alternative is to assume it is all spatial distinct from tree canopies.
