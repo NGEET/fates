@@ -173,8 +173,8 @@ module RtmHistFile
 !
 ! NetCDF  Id's
 !
-  type(file_desc_t) :: nfid(max_tapes)       ! file ids
-  type(file_desc_t) :: ncid_hist(max_tapes)  ! file ids for history restart files
+  type(file_desc_t), target :: nfid(max_tapes)       ! file ids
+  type(file_desc_t), target :: ncid_hist(max_tapes)  ! file ids for history restart files
   integer :: time_dimid                      ! time dimension id
   integer :: hist_interval_dimid             ! time bounds dimension id
   integer :: strlen_dimid                    ! string dimension id
@@ -671,7 +671,7 @@ contains
     integer :: dtime               ! timestep size
     integer :: sec_hist_nhtfrq     ! rtmhist_nhtfrq converted to seconds
     logical :: lhistrest           ! local history restart flag
-    type(file_desc_t) :: lnfid     ! local file id
+    type(file_desc_t), pointer :: lnfid     ! local file id
     character(len=  8) :: curdate  ! current date
     character(len=  8) :: curtime  ! current time
     character(len=256) :: name     ! name of attribute
@@ -689,6 +689,11 @@ contains
 
     ! Define output write precsion for tape
     ncprec = tape(t)%ncprec
+    if (lhistrest) then
+       lnfid => ncid_hist(t)
+    else
+       lnfid => nfid(t)
+    endif
 
     ! Create new netCDF file. It will be in define mode
     if ( .not. lhistrest )then
@@ -778,14 +783,12 @@ contains
     if ( .not. lhistrest )then
        call ncd_defdim(lnfid, 'hist_interval', 2, hist_interval_dimid)
        call ncd_defdim(lnfid, 'time', ncd_unlimited, time_dimid)
-       nfid(t) = lnfid
        if (masterproc)then
           write(iulog,*) trim(subname), &
                           ' : Successfully defined netcdf history file ',t
           call shr_sys_flush(iulog)
        end if
     else
-       ncid_hist(t) = lnfid
        if (masterproc)then
           write(iulog,*) trim(subname), &
                           ' : Successfully defined netcdf restart history file ',t

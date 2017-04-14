@@ -1674,7 +1674,7 @@ contains
              endif
           else if (trim(qgwl_runoff_option) == 'threshold') then
              ! --- calculate volume of qgwl flux during timestep
-             qgwl_volume = TRunoff%qgwl(nr,nt) * rtmCTL%area(nr) * delt_mosart
+             qgwl_volume = TRunoff%qgwl(nr,nt) * rtmCTL%area(nr) * coupling_period
              river_volume_minimum = river_depth_minimum * rtmCTL%area(nr)
              ! if qgwl is negative, and adding it to the main channel 
              ! would bring main channel storage below a threshold, 
@@ -2211,6 +2211,7 @@ contains
   type(mct_avect) :: avtmp, avtmpG ! temporary avects
   type(mct_sMat)  :: sMat          ! temporary sparse matrix, needed for sMatP
   real(r8):: areatot_prev, areatot_tmp, areatot_new
+  real(r8):: hlen_max, rlen_min
   integer :: tcnt
   character(len=16384) :: rList             ! list of fields for SM multiply
   character(len=1000) :: fname
@@ -2550,13 +2551,6 @@ contains
    ! control parameters and some other derived parameters
    ! estimate derived input variables
 
-!add minimum value to rlen (length of main channel)
-     do iunit=rtmCTL%begr,rtmCTL%endr
-        if(TUnit%rlen(iunit) < 4.e4_r8) then
-           TUnit%rlen(iunit) = 4.e4_r8
-        end if
-     end do     
-!
      do iunit=rtmCTL%begr,rtmCTL%endr
         if(TUnit%Gxr(iunit) > 0._r8) then
            TUnit%rlenTotal(iunit) = TUnit%area(iunit)*TUnit%Gxr(iunit)
@@ -2573,16 +2567,23 @@ contains
       
         if(TUnit%rlen(iunit) > 0._r8) then
            TUnit%hlen(iunit) = TUnit%area(iunit) / TUnit%rlenTotal(iunit) / 2._r8
-           if(TUnit%hlen(iunit) > 50000._r8) then
-              TUnit%hlen(iunit) = 50000._r8   ! allievate the outlier in drainage density estimation. TO DO
+		   hlen_max = max(1000.0_r8, sqrt(TUnit%area(iunit))) ! constrain the hillslope length
+           if(TUnit%hlen(iunit) > hlen_max) then
+              TUnit%hlen(iunit) = hlen_max   ! allievate the outlier in drainage density estimation. TO DO
            end if
-           TUnit%tlen(iunit) = TUnit%area(iunit) / TUnit%rlen(iunit) / 2._r8 - TUnit%hlen(iunit)
+		   rlen_min = sqrt(TUnit%area(iunit))
+		   if(TUnit%rlen(iunit) < rlen_min) then
+               TUnit%tlen(iunit) = TUnit%area(iunit) / rlen_min / 2._r8 - TUnit%hlen(iunit)
+		   else
+               TUnit%tlen(iunit) = TUnit%area(iunit) / TUnit%rlen(iunit) / 2._r8 - TUnit%hlen(iunit)
+		   end if
+		   
            if(TUnit%twidth(iunit) < 0._r8) then
               TUnit%twidth(iunit) = 0._r8
            end if
            if(TUnit%tlen(iunit) > 0._r8 .and. (TUnit%rlenTotal(iunit)-TUnit%rlen(iunit))/TUnit%tlen(iunit) > 1._r8) then
-              TUnit%twidth(iunit) = TPara%c_twid(iunit) * TUnit%twidth(iunit) * &
-                                    ((TUnit%rlenTotal(iunit)-TUnit%rlen(iunit))/TUnit%tlen(iunit))
+              TUnit%twidth(iunit) = TPara%c_twid(iunit)*TUnit%twidth(iunit)* &
+                   ((TUnit%rlenTotal(iunit)-TUnit%rlen(iunit))/TUnit%tlen(iunit))
            end if
           
            if(TUnit%tlen(iunit) > 0._r8 .and. TUnit%twidth(iunit) <= 0._r8) then

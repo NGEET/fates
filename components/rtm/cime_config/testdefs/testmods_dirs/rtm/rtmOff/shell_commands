@@ -1,0 +1,5 @@
+#!/bin/bash
+
+./xmlchange RTM_MODE="NULL"
+./xmlchange RTM_FLOOD_MODE="NULL"
+
