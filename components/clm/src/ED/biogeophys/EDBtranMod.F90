@@ -5,17 +5,18 @@ module EDBtranMod
    ! 
    ! ------------------------------------------------------------------------------------
    
-   use pftconMod         , only : pftcon
-   use clm_varcon        , only : tfrz
+   use EDPftvarcon       , only : EDPftvarcon_inst
+   use FatesConstantsMod , only : tfrz => t_water_freeze_k_1atm 
    use EDTypesMod        , only : ed_site_type,       &
                                   ed_patch_type,      &
                                   ed_cohort_type,     &
-                                  numpft_ed,          &
-                                  cp_numlevgrnd
+                                  numpft_ed
+   use FatesInterfaceMod , only : hlm_numlevgrnd
    use shr_kind_mod      , only : r8 => shr_kind_r8
    use FatesInterfaceMod , only : bc_in_type, &
                                   bc_out_type
-   use clm_varctl        , only : iulog   !INTERF-TODO: THIS SHOULD BE MOVED
+   use EDTypesMod        , only : use_fates_plant_hydro
+   use FatesGlobals      , only : fates_log
 
    !
    implicit none
@@ -63,7 +64,7 @@ contains
     
       do s = 1,nsites
          if (bc_in(s)%filter_btran) then
-            do j = 1,cp_numlevgrnd
+            do j = 1,hlm_numlevgrnd
                bc_out(s)%active_suction_gl(j) = check_layer_water( bc_in(s)%h2o_liqvol_gl(j),bc_in(s)%tempk_gl(j) )
             end do
          else
@@ -76,6 +77,9 @@ contains
   ! =====================================================================================
 
   subroutine btran_ed( nsites, sites, bc_in, bc_out)
+
+    use FatesPlantHydraulicsMod, only : BTranForHLMDiagnosticsFromCohortHydr
+
       
       ! ---------------------------------------------------------------------------------
       ! Calculate the transpiration wetness function (BTRAN) and the root uptake
@@ -107,12 +111,13 @@ contains
       real(r8) :: rresis            ! suction limitation to transpiration independent
                                     ! of root density
       real(r8) :: pftgs(numpft_ed)  ! pft weighted stomatal conductance s/m
-      real(r8) :: temprootr                   
+      real(r8) :: temprootr              
+      real(r8) :: balive_patch
       !------------------------------------------------------------------------------
       
       associate(                                 &
-            smpsc     => pftcon%smpsc          , &  ! INTERF-TODO: THESE SHOULD BE FATES PARAMETERS
-            smpso     => pftcon%smpso            &  ! INTERF-TODO: THESE SHOULD BE FATES PARAMETERS
+            smpsc     => EDPftvarcon_inst%smpsc          , &  ! INTERF-TODO: THESE SHOULD BE FATES PARAMETERS
+            smpso     => EDPftvarcon_inst%smpso            &  ! INTERF-TODO: THESE SHOULD BE FATES PARAMETERS
             )
         
         do s = 1,nsites
@@ -128,7 +133,7 @@ contains
               
               do ft = 1,numpft_ed
                  cpatch%btran_ft(ft) = 0.0_r8
-                 do j = 1,cp_numlevgrnd
+                 do j = 1,hlm_numlevgrnd
                     
                     ! Calculations are only relevant where liquid water exists
                     ! see clm_fates%wrap_btran for calculation with CLM/ALM
@@ -155,7 +160,7 @@ contains
                  end do !j
                  
                  ! Normalize root resistances to get layer contribution to ET
-                 do j = 1,cp_numlevgrnd    
+                 do j = 1,hlm_numlevgrnd    
                     if (cpatch%btran_ft(ft)  >  0.0_r8) then
                        cpatch%rootr_ft(ft,j) = cpatch%rootr_ft(ft,j)/cpatch%btran_ft(ft)
                     else
@@ -179,7 +184,7 @@ contains
               ! pass the host a total transpiration for the patch.  This needs rootr to be
               ! distributed over the soil layers.
               
-              do j = 1,cp_numlevgrnd
+              do j = 1,hlm_numlevgrnd
                  bc_out(s)%rootr_pagl(ifp,j) = 0._r8
                  do ft = 1,numpft_ed
                     if(sum(pftgs) > 0._r8)then !prevent problem with the first timestep - might fail
@@ -192,23 +197,29 @@ contains
                     end if
                  enddo
               enddo
+              
+              ! Calculate the BTRAN that is passed back to the HLM
+              ! used only for diagnostics. If plant hydraulics is turned off
+              ! we are using the patchxpft level btran calculation
+              
+              if(.not.use_fates_plant_hydro) then
+                 !weight patch level output BTRAN for the
+                 bc_out(s)%btran_pa(ifp) = 0.0_r8
+                 do ft = 1,numpft_ed
+                    if(sum(pftgs) > 0._r8)then !prevent problem with the first timestep - might fail
+                       !bit-retart test as a result? FIX(RF,032414)   
+                       bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft)  * pftgs(ft)/sum(pftgs)
+                    else
+                       bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft) * 1./numpft_ed
+                    end if
+                 enddo
+              end if
 
-              !weight patch level output BTRAN for the
-              bc_out(s)%btran_pa(ifp) = 0.0_r8
-              do ft = 1,numpft_ed
-                 if(sum(pftgs) > 0._r8)then !prevent problem with the first timestep - might fail
-                    !bit-retart test as a result? FIX(RF,032414)   
-                    bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft)  * pftgs(ft)/sum(pftgs)
-                 else
-                    bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft) * 1./numpft_ed
-                 end if
-              enddo
+              temprootr = sum(bc_out(s)%rootr_pagl(ifp,1:hlm_numlevgrnd))
 
-              ! While the in-pft root profiles summed to unity, averaging them weighted
-              ! by conductance, or not, will break sum to unity.  Thus, re-normalize.
-              temprootr = sum(bc_out(s)%rootr_pagl(ifp,1:cp_numlevgrnd))
               if(abs(1.0_r8-temprootr) > 1.0e-10_r8 .and. temprootr > 1.0e-10_r8)then
-                 do j = 1,cp_numlevgrnd
+                 write(fates_log(),*) 'error with rootr in canopy fluxes',temprootr,sum(pftgs)
+                 do j = 1,hlm_numlevgrnd
                     bc_out(s)%rootr_pagl(ifp,j) = bc_out(s)%rootr_pagl(ifp,j)/temprootr
                  enddo
               end if
@@ -216,8 +227,11 @@ contains
               cpatch => cpatch%younger
            end do
         
-
         end do
+           
+        if(use_fates_plant_hydro) then
+           call BTranForHLMDiagnosticsFromCohortHydr(nsites,sites,bc_out)
+        end if
         
       end associate
       
@@ -301,7 +315,7 @@ contains
 !                  weighted_swp = weighted_swp/totestevap 
 !                  ! weight SWP for the total evaporation 
 !               else   
-!                  write(iulog,*) 'empty soil', totestevap
+!                  write(fates_log(),*) 'empty soil', totestevap
 !                  ! error check
 !                  weighted_swp = minlwp
 !               end if

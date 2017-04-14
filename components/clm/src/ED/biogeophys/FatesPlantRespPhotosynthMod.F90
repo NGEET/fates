@@ -20,12 +20,17 @@ module FATESPlantRespPhotosynthMod
    
    ! !USES:
 
-   use abortutils, only        : endrun
+   use FatesGlobals, only      : endrun => fates_endrun
    use FatesGlobals, only      : fates_log
    use FatesConstantsMod, only : r8 => fates_r8
-   use shr_log_mod , only      : errMsg => shr_log_errMsg
    use EDTypesMod, only        : use_fates_plant_hydro
+   use EDTypesMod, only        : numpft_ed
+   use EDTypesMod, only        : nlevleaf
+   use EDTypesMod, only        : nclmax
    
+   ! CIME Globals
+   use shr_log_mod , only      : errMsg => shr_log_errMsg
+
    implicit none
    private
    
@@ -58,19 +63,14 @@ contains
 
     use clm_varpar        , only : mxpft   ! THIS WILL BE DEPRECATED WHEN PARAMETER
                                            ! READS ARE REFACTORED (RGK 10-13-2016)
-    use pftconMod         , only : pftcon  ! THIS WILL BE DEPRECATED WHEN PARAMETER
-                                           ! READS ARE REFACTORED (RGK 10-13-2016)
-    use EDParamsMod       , only : ED_val_grperc
+    use EDPftvarcon         , only : EDPftvarcon_inst 
+
     use EDParamsMod       , only : ED_val_ag_biomass
-    use EDSharedParamsMod , only : EDParamsShareInst
+    use FatesSynchronizedParamsMod , only : FatesSynchronizedParamsInst
     use EDTypesMod        , only : ed_patch_type
     use EDTypesMod        , only : ed_cohort_type
     use EDTypesMod        , only : ed_site_type
-    use EDTypesMod        , only : numpft_ed
-    use EDTypesMod        , only : cp_numlevsoil
-    use EDTypesMod        , only : cp_nlevcan
-    use EDTypesMod        , only : cp_nclmax
-    use EDEcophysContype  , only : EDecophyscon
+    use FatesInterfaceMod , only : hlm_numlevsoil
     use FatesInterfaceMod , only : bc_in_type
     use FatesInterfaceMod , only : bc_out_type
     use EDCanopyStructureMod, only : calc_areaindex
@@ -80,6 +80,8 @@ contains
     use FatesConstantsMod, only : rgas => rgas_J_K_kmol
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use FatesParameterDerivedMod, only : param_derived
+    use EDPatchDynamicsMod, only: set_root_fraction
+    use EDParamsMod, only : ED_val_bbopt_c3, ED_val_bbopt_c4, ED_val_base_mr_20
 
 
     ! ARGUMENTS:
@@ -113,17 +115,17 @@ contains
     ! -----------------------------------------------------------------------------------
 
     ! leaf maintenance (dark) respiration (umol CO2/m**2/s) Double check this
-    real(r8) :: lmr_z(cp_nlevcan,mxpft,cp_nclmax)
+    real(r8) :: lmr_z(nlevleaf,mxpft,nclmax)
 
     ! stomatal resistance s/m
-    real(r8) :: rs_z(cp_nlevcan,mxpft,cp_nclmax)    
+    real(r8) :: rs_z(nlevleaf,mxpft,nclmax)    
 
     ! net leaf photosynthesis averaged over sun and shade leaves. (umol CO2/m**2/s) 
-    real(r8) :: anet_av_z(cp_nlevcan,mxpft,cp_nclmax)  
+    real(r8) :: anet_av_z(nlevleaf,mxpft,nclmax)  
     
     ! Mask used to determine which leaf-layer biophysical rates have been
     ! used already
-    logical :: rate_mask_z(cp_nlevcan,mxpft,cp_nclmax)
+    logical :: rate_mask_z(nlevleaf,mxpft,nclmax)
 
     real(r8) :: vcmax_z            ! leaf layer maximum rate of carboxylation 
                                    ! (umol co2/m**2/s)
@@ -181,8 +183,6 @@ contains
     ! (gC/gN/s)
     ! ------------------------------------------------------------------------
 
-    real(r8),parameter :: base_mr_20 = 2.525e-6_r8
-
     ! -----------------------------------------------------------------------------------
     ! Photosynthesis and stomatal conductance parameters, from:
     ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593
@@ -191,23 +191,23 @@ contains
     ! Ball-Berry minimum leaf conductance, unstressed (umol H2O/m**2/s)
     ! For C3 and C4 plants
     ! -----------------------------------------------------------------------------------
-    ! TO-DO: bbbopt is slated to be transferred to the parameter file
-    ! -----------------------------------------------------------------------------------
-    real(r8),parameter, dimension(2) :: bbbopt = [10000._r8,40000._r8] 
+    real(r8), dimension(2) :: bbbopt 
 
 
     associate(  &
-         c3psn     => pftcon%c3psn  , &
-         slatop    => pftcon%slatop , & ! specific leaf area at top of canopy, 
+         c3psn     => EDPftvarcon_inst%c3psn  , &
+         slatop    => EDPftvarcon_inst%slatop , & ! specific leaf area at top of canopy, 
                                         ! projected area basis [m^2/gC]
-         flnr      => pftcon%flnr   , & ! fraction of leaf N in the Rubisco 
+         flnr      => EDPftvarcon_inst%flnr   , & ! fraction of leaf N in the Rubisco 
                                         ! enzyme (gN Rubisco / gN leaf)
-         woody     => pftcon%woody  , & ! Is vegetation woody or not? 
-         fnitr     => pftcon%fnitr  , & ! foliage nitrogen limitation factor (-)
-         leafcn    => pftcon%leafcn , & ! leaf C:N (gC/gN)
-         frootcn   => pftcon%frootcn, & ! froot C:N (gc/gN)   ! slope of BB relationship
-         q10       => EDParamsShareInst%Q10 )
+         woody     => EDPftvarcon_inst%woody  , & ! Is vegetation woody or not? 
+         fnitr     => EDPftvarcon_inst%fnitr  , & ! foliage nitrogen limitation factor (-)
+         leafcn    => EDPftvarcon_inst%leafcn , & ! leaf C:N (gC/gN)
+         frootcn   => EDPftvarcon_inst%frootcn, & ! froot C:N (gc/gN)   ! slope of BB relationship
+         q10       => FatesSynchronizedParamsInst%Q10 )
 
+      bbbopt(1) = ED_val_bbopt_c3
+      bbbopt(2) = ED_val_bbopt_c4
 
       do s = 1,nsites
 
@@ -291,7 +291,7 @@ contains
                   
                end do !ft 
 
-               call currentPatch%set_root_fraction(bc_in(s)%depth_gl)
+               call set_root_fraction(currentPatch,bc_in(s)%zi_sisl)
 
                ! ------------------------------------------------------------------------
                ! Part VI: Loop over all leaf layers.
@@ -350,14 +350,15 @@ contains
                            if ( .not.rate_mask_z(iv,ft,cl) .or. use_fates_plant_hydro ) then
                               
                               if (use_fates_plant_hydro) then
-                                 write(fates_log(),*) 'use_fates_plant_hydro in EDTypes'
-                                 write(fates_log(),*) 'has been set to true.  You have inadvertently'
-                                 write(fates_log(),*) 'turned on a future feature that is not in the'
-                                 write(fates_log(),*) 'FATES codeset yet. Please set this to'
-                                 write(fates_log(),*) 'false and re-compile.'
-                                 call endrun(msg=errMsg(sourcefile, __LINE__))
-                                 !!       !! bbb   = max (bbbopt(ps)*currentCohort%btran(iv), 1._r8)
-                                 !!       !! btran = currentCohort%btran(iv) 
+!                                 write(fates_log(),*) 'use_fates_plant_hydro in EDTypes'
+!                                 write(fates_log(),*) 'has been set to true.  You have inadvertently'
+!                                 write(fates_log(),*) 'turned on a future feature that is not in the'
+!                                 write(fates_log(),*) 'FATES codeset yet. Please set this to'
+!                                 write(fates_log(),*) 'false and re-compile.'
+!                                 call endrun(msg=errMsg(sourcefile, __LINE__))
+
+                                 bbb   = max (bbbopt(nint(c3psn(ft)))*currentCohort%co_hydr%btran(1), 1._r8)
+                                 btran_eff = currentCohort%co_hydr%btran(1) 
                               else
                                  bbb   = max (bbbopt(nint(c3psn(ft)))*currentPatch%btran_ft(ft), 1._r8)
                                  btran_eff = currentPatch%btran_ft(ft)
@@ -496,11 +497,11 @@ contains
                      ! ------------------------------------------------------------------
                      
                      leaf_frac = 1.0_r8/(currentCohort%canopy_trim + &
-                          EDecophyscon%sapwood_ratio(currentCohort%pft) * &
-                          currentCohort%hite + pftcon%froot_leaf(currentCohort%pft))
+                          EDPftvarcon_inst%sapwood_ratio(currentCohort%pft) * &
+                          currentCohort%hite + EDPftvarcon_inst%froot_leaf(currentCohort%pft))
                      
                      
-                     currentCohort%bsw = EDecophyscon%sapwood_ratio(currentCohort%pft) * &
+                     currentCohort%bsw = EDPftvarcon_inst%sapwood_ratio(currentCohort%pft) * &
                           currentCohort%hite * &
                           (currentCohort%balive + currentCohort%laimemory)*leaf_frac
                      
@@ -532,7 +533,7 @@ contains
                      if (woody(ft) == 1) then
                         tcwood = q10**((bc_in(s)%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8) 
                         ! kgC/s = kgN * kgC/kgN/s
-                        currentCohort%livestem_mr  = live_stem_n * base_mr_20 * tcwood
+                        currentCohort%livestem_mr  = live_stem_n * ED_val_base_mr_20 * tcwood
                      else
                         currentCohort%livestem_mr  = 0._r8
                      end if
@@ -541,21 +542,21 @@ contains
                      ! Fine Root MR  (kgC/plant/s)
                      ! ------------------------------------------------------------------
                      currentCohort%froot_mr = 0._r8
-                     do j = 1,cp_numlevsoil
+                     do j = 1,hlm_numlevsoil
                         tcsoi  = q10**((bc_in(s)%t_soisno_gl(j)-tfrz - 20.0_r8)/10.0_r8)
                         currentCohort%froot_mr = currentCohort%froot_mr + &
-                              froot_n * base_mr_20 * tcsoi * currentPatch%rootfr_ft(ft,j)
+                              froot_n * ED_val_base_mr_20 * tcsoi * currentPatch%rootfr_ft(ft,j)
                      enddo
                      
                      ! Coarse Root MR (kgC/plant/s) (below ground sapwood)
                      ! ------------------------------------------------------------------
                      if (woody(ft) == 1) then
                         currentCohort%livecroot_mr = 0._r8
-                        do j = 1,cp_numlevsoil
+                        do j = 1,hlm_numlevsoil
                            ! Soil temperature used to adjust base rate of MR
                            tcsoi  = q10**((bc_in(s)%t_soisno_gl(j)-tfrz - 20.0_r8)/10.0_r8)
                            currentCohort%livecroot_mr = currentCohort%livecroot_mr + &
-                                 live_croot_n * base_mr_20 * tcsoi * &
+                                 live_croot_n * ED_val_base_mr_20 * tcsoi * &
                                  currentPatch%rootfr_ft(ft,j)
                         enddo
                      else
@@ -583,7 +584,7 @@ contains
 
                      ! no drought response right now.. something like:
                      ! resp_m = resp_m * (1.0_r8 - currentPatch%btran_ft(currentCohort%pft) * &
-                     !                    pftcon%resp_drought_response(ft))   
+                     !                    EDPftvarcon_inst%resp_drought_response(ft))   
 
                      currentCohort%resp_m = currentCohort%resp_m + currentCohort%rdark
                      
@@ -596,7 +597,7 @@ contains
                      if ( DEBUG ) write(fates_log(),*) 'EDPhoto 912 ', currentCohort%resp_tstep
                      if ( DEBUG ) write(fates_log(),*) 'EDPhoto 913 ', currentCohort%resp_m
                      
-                     currentCohort%resp_g     = ED_val_grperc(ft) * &
+                     currentCohort%resp_g     = EDPftvarcon_inst%grperc(ft) * &
                                                 (max(0._r8,currentCohort%gpp_tstep - &
                                                 currentCohort%resp_m))
                      currentCohort%resp_tstep = currentCohort%resp_m + &
@@ -684,8 +685,7 @@ contains
     ! Other arguments or variables may be indicative of scales broader than the LSL.
     ! ------------------------------------------------------------------------------------
     
-    use EDEcophysContype  , only : EDecophyscon
-    use pftconMod         , only : pftcon
+    use EDPftvarcon       , only : EDPftvarcon_inst
     
     ! Arguments
     ! ------------------------------------------------------------------------------------
@@ -779,9 +779,9 @@ contains
    ! empirical curvature parameter for ap photosynthesis co-limitation
    real(r8),parameter :: theta_ip = 0.95_r8
 
-   associate( bb_slope  => EDecophyscon%BB_slope ) ! slope of BB relationship
+   associate( bb_slope  => EDPftvarcon_inst%BB_slope ) ! slope of BB relationship
      
-     if (nint(pftcon%c3psn(ft)) == 1) then! photosynthetic pathway: 0. = c4, 1. = c3
+     if (nint(EDPftvarcon_inst%c3psn(ft)) == 1) then! photosynthetic pathway: 0. = c4, 1. = c3
         pp_type = 1
         init_co2_intra_c = init_a2l_co2_c3 * can_co2_ppress
      else
@@ -1310,8 +1310,7 @@ contains
       ! profile).
       ! ---------------------------------------------------------------------------------
       
-      use EDTypesMod , only : cp_nclmax
-      use EDTypesMOd , only : numpft_ed
+      
       use EDTypesMod , only : ed_patch_type
       use EDTypesMod , only : ed_cohort_type
 
@@ -1347,7 +1346,7 @@ contains
       currentPatch%nrad = currentPatch%ncan
 
       ! Now loop through and identify which layer and pft combo has scattering elements
-      do cl = 1,cp_nclmax
+      do cl = 1,nclmax
          do ft = 1,numpft_ed
             currentPatch%present(cl,ft) = 0
             do iv = 1, currentPatch%nrad(cl,ft);
@@ -1474,8 +1473,8 @@ contains
                                               lmr)
 
       use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-      use pftconMod        , only : pftcon
-      
+      use EDPftvarcon         , only : EDPftvarcon_inst
+ 
       ! Arguments
       real(r8), intent(in)  :: lmr25top_ft  ! canopy top leaf maint resp rate at 25C 
                                             ! for this pft (umol CO2/m**2/s)
@@ -1498,7 +1497,7 @@ contains
       ! ----------------------------------------------------------------------------------
       lmr25 = lmr25top_ft * nscaler 
       
-      if ( nint(pftcon%c3psn(ft)) == 1)then
+      if ( nint(EDpftvarcon_inst%c3psn(ft)) == 1)then
          lmr = lmr25 * ft1_f(veg_tempk, lmrha) * &
                fth_f(veg_tempk, lmrhd, lmrse, lmrc)
       else
@@ -1541,7 +1540,7 @@ contains
       ! co2_rcurve_islope: initial slope of CO2 response curve (C4 plants)
       ! ---------------------------------------------------------------------------------
 
-      use pftconMod        , only : pftcon
+      use EDPftvarcon         , only : EDPftvarcon_inst
       use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
 
       ! Arguments
@@ -1582,21 +1581,34 @@ contains
       
       ! Parameters
       ! ---------------------------------------------------------------------------------
-      real(r8), parameter :: vcmaxha = 65330._r8    ! activation energy for vcmax (J/mol)
-      real(r8), parameter :: jmaxha  = 43540._r8    ! activation energy for jmax (J/mol)
-      real(r8), parameter :: tpuha   = 53100._r8    ! activation energy for tpu (J/mol)
-      real(r8), parameter :: vcmaxhd = 149250._r8   ! deactivation energy for vcmax (J/mol)
-      real(r8), parameter :: jmaxhd  = 152040._r8   ! deactivation energy for jmax (J/mol)
-      real(r8), parameter :: tpuhd   = 150650._r8   ! deactivation energy for tpu (J/mol)
-      real(r8), parameter :: vcmaxse = 485._r8      ! entropy term for vcmax (J/mol/K)
-      real(r8), parameter :: jmaxse  = 495._r8      ! entropy term for jmax (J/mol/K)
-      real(r8), parameter :: tpuse   = 490._r8      ! entropy term for tpu (J/mol/K)
-      real(r8), parameter :: vcmaxc = 1.1534040_r8  ! scaling factor for high 
-                                                    ! temperature inhibition (25 C = 1.0)
-      real(r8), parameter :: jmaxc  = 1.1657242_r8  ! scaling factor for high 
-                                                    ! temperature inhibition (25 C = 1.0)
-      real(r8), parameter :: tpuc   = 1.1591239_r8  ! scaling factor for high 
-                                                    ! temperature inhibition (25 C = 1.0)
+      real(r8) :: vcmaxha        ! activation energy for vcmax (J/mol)
+      real(r8) :: jmaxha         ! activation energy for jmax (J/mol)
+      real(r8) :: tpuha          ! activation energy for tpu (J/mol)
+      real(r8) :: vcmaxhd        ! deactivation energy for vcmax (J/mol)
+      real(r8) :: jmaxhd         ! deactivation energy for jmax (J/mol)
+      real(r8) :: tpuhd          ! deactivation energy for tpu (J/mol)
+      real(r8) :: vcmaxse        ! entropy term for vcmax (J/mol/K)
+      real(r8) :: jmaxse         ! entropy term for jmax (J/mol/K)
+      real(r8) :: tpuse          ! entropy term for tpu (J/mol/K)
+      real(r8) :: vcmaxc         ! scaling factor for high temperature inhibition (25 C = 1.0)
+      real(r8) :: jmaxc          ! scaling factor for high temperature inhibition (25 C = 1.0)
+      real(r8) :: tpuc           ! scaling factor for high temperature inhibition (25 C = 1.0)
+
+      vcmaxha = EDPftvarcon_inst%vcmaxha(FT)
+      jmaxha  = EDPftvarcon_inst%jmaxha(FT)
+      tpuha   = EDPftvarcon_inst%tpuha(FT)
+      
+      vcmaxhd = EDPftvarcon_inst%vcmaxhd(FT)
+      jmaxhd  = EDPftvarcon_inst%jmaxhd(FT)
+      tpuhd   = EDPftvarcon_inst%tpuhd(FT)
+      
+      vcmaxse = EDPftvarcon_inst%vcmaxse(FT)
+      jmaxse  = EDPftvarcon_inst%jmaxse(FT)
+      tpuse   = EDPftvarcon_inst%tpuse(FT)
+
+      vcmaxc = fth25_f(vcmaxhd, vcmaxse)
+      jmaxc  = fth25_f(jmaxhd, jmaxse)
+      tpuc   = fth25_f(tpuhd, tpuse)
 
       if ( parsun_lsl <= 0._r8) then           ! night time
          vcmax             = 0._r8
@@ -1614,7 +1626,7 @@ contains
          jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc)
          tpu   = tpu25 * ft1_f(veg_tempk, tpuha) * fth_f(veg_tempk, tpuhd, tpuse, tpuc)
          
-         if (nint(pftcon%c3psn(ft))  /=  1) then
+         if (nint(EDPftvarcon_inst%c3psn(ft))  /=  1) then
             vcmax = vcmax25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
             vcmax = vcmax / (1._r8 + exp( 0.2_r8*((tfrz+15._r8)-veg_tempk ) ))
             vcmax = vcmax / (1._r8 + exp( 0.3_r8*(veg_tempk-(tfrz+40._r8)) ))

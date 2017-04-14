@@ -1,65 +1,80 @@
 module EDTypesMod
 
-  use shr_kind_mod , only : r8 => shr_kind_r8;
-  use decompMod    , only : bounds_type 
-  use clm_varpar   , only : nlevgrnd, mxpft
-  use domainMod    , only : domain_type
-  use shr_sys_mod  , only : shr_sys_flush
+  use FatesConstantsMod , only : r8 => fates_r8
+  use clm_varpar   , only : mxpft
+  use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
+
+  use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
+  use FatesHydraulicsMemMod, only : ed_patch_hydr_type
+  use FatesHydraulicsMemMod, only : ed_site_hydr_type
 
   implicit none
   save
 
-  !SWITCHES THAT ARE READ IN
-  integer         RESTART                                  ! restart flag, 1= read initial system state 0 = bare ground
+  integer, parameter :: maxPatchesPerSite  = 10   ! maximum number of patches to live on a site
+  integer, parameter :: maxCohortsPerPatch = 160  ! maximum number of cohorts to live on a patch
+  integer, parameter :: nclmax = 2                ! Maximum number of canopy layers
+  integer, parameter :: ican_upper = 1            ! Nominal index for the upper canopy
+  integer, parameter :: ican_ustory = 2           ! Nominal index for understory in two-canopy system
+
+  integer, parameter :: nlevleaf = 40              ! number of leaf layers in canopy layer
+  integer, parameter :: maxpft = 10               ! maximum number of PFTs allowed
+                                                  ! the parameter file may determine that fewer
+                                                  ! are used, but this helps allocate scratch
+                                                  ! space and output arrays.
+ 
+  integer, parameter :: numpft_ed = 2             ! number of PFTs used in ED. 
+
+  ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
+  ! land-ice abledo for vis and nir.  This should be a parameter, which would
+  ! get us on track to start using multi-spectral or hyper-spectral (RGK 02-2017)
+  integer, parameter :: maxSWb = 2      ! maximum number of broad-bands in the
+                                        ! shortwave spectrum cp_numSWb <= cp_maxSWb
+                                        ! this is just for scratch-array purposes
+                                        ! if cp_numSWb is larger than this value
+                                        ! simply bump this number up as needed
+
+  ! Module switches (this will be read in one day)
+  ! This variable only exists now to serve as a place holder
+  !!!!!!!!!! THIS SHOULD NOT BE SET TO TRUE !!!!!!!!!!!!!!!!!
+  logical,parameter :: use_fates_plant_hydro = .false.
+  
+
+  ! Switches that turn on/off ED dynamics process (names are self explanatory)
+  ! IMPORTANT NOTE!!! THESE SWITCHES ARE EXPERIMENTAL.  
+  ! THEY SHOULD CORRECTLY TURN OFF OR ON THE PROCESS, BUT.. THERE ARE VARIOUS 
+  ! ASPECTS REGARDING DIAGNOSING RATES AND HOW THEY ARE REPORTED WHEN THESE 
+  ! PROCESSES ARE OFF THAT NEED TO BE DISCUSSED AND CONSIDERED.
+  ! TO-DO: THESE SHOULD BE PARAMETERS IN THE FILE OR NAMELIST - ADDING THESE
+  ! WAS OUTSIDE THE SCOPE OF THE VERY LARGE CHANGESET WHERE THESE WERE FIRST
+  ! INTRODUCED (RGK 03-2017)
+  logical, parameter :: do_ed_phenology = .true.
+  logical, parameter :: do_ed_dynamics = .true.
+ 
 
   ! MODEL PARAMETERS
-  real(r8)            :: timestep_secs                     ! subdaily timestep in seconds (e.g. 1800 or 3600) 
-  
   real(r8), parameter :: AREA                 = 10000.0_r8 ! Notional area of simulated forest m2
-  integer  doy
-
-  integer, parameter  :: invalidValue         = -9999      ! invalid value for gcells,
-  ! cohorts, and patches
-
-  ! for setting number of patches per gridcell and number of cohorts per patch
-  ! for I/O and converting to a vector
-
-  integer, parameter :: maxPatchesPerCol      = 10          !
-  integer, parameter :: maxCohortsPerPatch    = 160         !
-  integer, parameter :: cohorts_per_col       = 1600        ! This is the max number of individual items one can store per 
-
-                                                           ! each grid cell and effects the striding in the ED restart 
-                                                           ! data as some fields are arrays where each array is
-                                                           ! associated with one cohort
+  real(r8), parameter :: AREA_INV             = 1.0e-4_r8  ! Inverse of the notion area (faster math)
 
   integer, parameter :: numWaterMem           = 10         ! watermemory saved as site level var
 
   ! BIOLOGY/BIOGEOCHEMISTRY        
-  integer , parameter :: INTERNAL_RECRUITMENT = 1          ! internal recruitment fla  1=yes  
-  integer , parameter :: EXTERNAL_RECRUITMENT = 0          ! external recruitment flag 1=yes  
+  integer , parameter :: external_recruitment = 0          ! external recruitment flag 1=yes  
   integer , parameter :: SENES                = 10         ! Window of time over which we track temp for cold sensecence (days)
   real(r8), parameter :: DINC_ED              = 1.0_r8     ! size of LAI bins. 
   integer , parameter :: N_DIST_TYPES         = 2          ! number of disturbance types (mortality, fire)
-  integer , parameter :: numpft_ed            = 2          ! number of PFTs used in ED. 
-  integer , parameter :: maxPft               = 79         ! max number of PFTs potentially used by CLM 
-
+  
 
   ! SPITFIRE     
-  integer , parameter :: NLSC                 = 6          ! number carbon compartments in above ground litter array 
-  integer , parameter :: NFSC                 = 6          ! number fuel size classes  
-  integer , parameter :: N_EF                 = 7          ! number of emission factors. One per trace gas or aerosol species.
   integer,  parameter :: NCWD                 = 4          ! number of coarse woody debris pools
+  integer , parameter :: NFSC                 = NCWD+2     ! number fuel size classes  (really this is a mix of cwd size classes, leaf litter, and grass types)
   integer,  parameter :: lg_sf                = 6          ! array index of live grass pool for spitfire
-  integer,  parameter :: dg_sf                = 1          ! array index of dead grass pool for spitfire
+  integer,  parameter :: dl_sf                = 1          ! array index of dead leaf pool for spitfire (dead grass and dead leaves)
   integer,  parameter :: tr_sf                = 5          ! array index of dead trunk pool for spitfire
   integer,  parameter :: lb_sf                = 4          ! array index of lrge branch pool for spitfire 
   real(r8), parameter :: fire_threshold       = 35.0_r8    ! threshold for fires that spread or go out. KWm-2
 
-  ! COHORT FUSION          
-  real(r8), parameter :: FUSETOL              = 0.05_r8     ! min fractional difference in dbh between cohorts
-
   ! PATCH FUSION 
-  real(r8), parameter :: patchfusion_profile_tolerance = 0.05_r8  ! minimum fraction in difference in profiles between patches
   real(r8), parameter :: NTOL                 = 0.05_r8    ! min plant density for hgt bin to be used in height profile comparisons 
   real(r8), parameter :: HITEMAX              = 30.0_r8    ! max dbh value used in hgt profile comparison 
   real(r8), parameter :: DBHMAX               = 150.0_r8   ! max dbh value used in hgt profile comparison 
@@ -67,14 +82,16 @@ module EDTypesMod
   integer , parameter :: N_DBH_BINS           = 5          ! no. of dbh bins used when comparing patches
 
 
-  real(r8), parameter :: min_npm2       = 1.0d-5   ! minimum cohort number density per m2 before termination
-  real(r8), parameter :: min_patch_area = 0.001_r8 ! smallest allowable patch area before termination
-  real(r8), parameter :: min_nppatch    = 1.0d-8   ! minimum number of cohorts per patch (min_npm2*min_patch_area)
-  real(r8), parameter :: min_n_safemath = 1.0d-15  ! in some cases, we want to immediately remove super small
-                                                   ! number densities of cohorts to prevent FPEs, this is usually
-                                                   ! just relevant in the first day after recruitment
-
+  real(r8), parameter :: min_npm2       = 1.0E-8_r8  ! minimum cohort number density per m2 before termination
+  real(r8), parameter :: min_patch_area = 0.001_r8   ! smallest allowable patch area before termination
+  real(r8), parameter :: min_nppatch    = 1.0E-11_r8 ! minimum number of cohorts per patch (min_npm2*min_patch_area)
+  real(r8), parameter :: min_n_safemath = 1.0E-15_r8 ! in some cases, we want to immediately remove super small
+                                                     ! number densities of cohorts to prevent FPEs, this is usually
+                                                     ! just relevant in the first day after recruitment
   character*4 yearchar                    
+
+  ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
+  logical, parameter :: homogenize_seed_pfts  = .false.
 
   !the lower limit of the size classes of ED cohorts
   !0-10,10-20...
@@ -99,72 +116,34 @@ module EDTypesMod
                                                ! Number of ways to die
                                                ! (background,hydraulic,carbon,impact,fire)
 
-  character(len = 10), parameter,dimension(5) :: char_list = (/"background","hydraulic ","carbon    ","impact    ","fire      "/)
+  character(len = 10), parameter,dimension(nlevmclass_ed) :: char_list = &
+       (/"background","hydraulic ","carbon    ","impact    ","fire      "/)
 
 
+  ! -------------------------------------------------------------------------------------
   ! These vectors are used for history output mapping
-  real(r8) ,allocatable :: levsclass_ed(:) ! The lower bound on size classes for ED trees. This 
-                                           ! is used really for IO into the
-                                           ! history tapes. It gets copied from
-                                           ! the parameter array sclass_ed.
-  integer , allocatable :: pft_levscpf_ed(:)
-  integer , allocatable :: scls_levscpf_ed(:) 
-  real(r8), allocatable :: levage_ed(:) 
-  integer , allocatable :: levpft_ed(:) 
-
-  
-  ! Control Parameters (cp_)            
+  ! CLM/ALM have limited support for multi-dimensional history output arrays.
+  ! FATES structure and composition is multi-dimensional, so we end up "multi-plexing"
+  ! multiple dimensions into one dimension.  These new dimensions need definitions,
+  ! mapping to component dimensions, and definitions for those component dimensions as
+  ! well.
   ! -------------------------------------------------------------------------------------
 
-  ! These parameters are dictated by FATES internals
-  
-  integer, parameter :: cp_nclmax = 2       ! Maximum number of canopy layers
-
-  integer, parameter :: cp_nlevcan = 40     ! number of leaf layers in canopy layer
-  
-  integer, parameter :: cp_maxSWb = 2       ! maximum number of broad-bands in the
-                                            ! shortwave spectrum cp_numSWb <= cp_maxSWb
-                                            ! this is just for scratch-array purposes
-                                            ! if cp_numSWb is larger than this value
-                                            ! simply bump this number up as needed
-  ! These parameters are dictated by the host model or driver
-  
-  integer :: cp_numSWb       ! Number of broad-bands in the short-wave radiation
-                             ! specturm to track 
-                             ! (typically 2 as a default, VIS/NIR, in ED variants <2016)
-
-  integer :: cp_numlevgrnd   ! Number of ground layers
-  integer :: cp_numlevsoil   ! Number of soil layers
-
-  ! Number of GROUND layers for the purposes of biogeochemistry; can be either 1 
-  ! or the total number of soil layers (includes bedrock)
-  integer :: cp_numlevdecomp_full  
-
-  ! Number of SOIL layers for the purposes of biogeochemistry; can be either 1 
-  ! or the total number of soil layers
-  integer :: cp_numlevdecomp
-
-  ! This character string passed by the HLM is used during the processing of IO
-  ! data, so that FATES knows which IO variables it should prepare.  For instance
-  ! ATS, ALM and CLM will only want variables specficially packaged for them.
-  ! This string will dictate which filter is enacted.
-  character(len=16) :: cp_hlm_name
-
-  ! This value can be flushed to history diagnostics, such that the
-  ! HLM will interpret that the value should not be included in the average.
-  real(r8) :: cp_hio_ignore_val
-
-
-  ! Is this the master processor, typically useful for knowing if 
-  ! the current machine should be printing out messages to the logs or terminals
-  ! 1 = TRUE (is master) 0 = FALSE (is not master)
-  integer :: cp_masterproc
-
-
-  ! Module switches (this will be read in one day)
-  ! This variable only exists now to serve as a place holder
-  !!!!!!!!!! THIS SHOULD NOT BE SET TO TRUE !!!!!!!!!!!!!!!!!
-  logical,parameter :: use_fates_plant_hydro = .false.
+  real(r8) ,allocatable :: fates_hdim_levsclass(:)       ! plant size class lower bound dimension
+  integer , allocatable :: fates_hdim_pfmap_levscpf(:)   ! map of pfts into size-class x pft dimension
+  integer , allocatable :: fates_hdim_scmap_levscpf(:)   ! map of size-class into size-class x pft dimension
+  real(r8), allocatable :: fates_hdim_levage(:)          ! patch age lower bound dimension
+  integer , allocatable :: fates_hdim_levpft(:)          ! plant pft dimension
+  integer , allocatable :: fates_hdim_levfuel(:)         ! fire fuel class dimension
+  integer , allocatable :: fates_hdim_levcwdsc(:)        ! cwd class dimension
+  integer , allocatable :: fates_hdim_levcan(:)          ! canopy-layer dimension 
+  integer , allocatable :: fates_hdim_canmap_levcnlf(:)  ! canopy-layer map into the canopy-layer x leaf-layer dimension
+  integer , allocatable :: fates_hdim_lfmap_levcnlf(:)   ! leaf-layer map into the canopy-layer x leaf-layer dimension
+  integer , allocatable :: fates_hdim_canmap_levcnlfpf(:) ! canopy-layer map into the canopy-layer x pft x leaf-layer dimension
+  integer , allocatable :: fates_hdim_lfmap_levcnlfpf(:)  ! leaf-layer map into the canopy-layer x pft x leaf-layer dimension
+  integer , allocatable :: fates_hdim_pftmap_levcnlfpf(:) ! pft map into the canopy-layer x pft x leaf-layer dimension
+  integer , allocatable :: fates_hdim_scmap_levscag(:)   ! map of size-class into size-class x patch age dimension
+  integer , allocatable :: fates_hdim_agmap_levscag(:)   ! map of patch-age into size-class x patch age dimension
 
   !************************************
   !** COHORT type structure          **
@@ -188,6 +167,7 @@ module EDTypesMod
      real(r8) ::  bstore                                 ! stored carbon: kGC per indiv
      real(r8) ::  laimemory                              ! target leaf biomass- set from previous year: kGC per indiv
      integer  ::  canopy_layer                           ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)
+     real(r8) ::  canopy_layer_yesterday                 ! recent canopy status of cohort (1 = canopy, 2 = understorey, etc.)  real to be conservative during fusion
      real(r8) ::  b                                      ! total biomass: kGC per indiv
      real(r8) ::  bsw                                    ! sapwood in stem and roots: kGC per indiv
      real(r8) ::  bl                                     ! leaf biomass: kGC per indiv
@@ -246,15 +226,16 @@ module EDTypesMod
 
      ! Net Primary Production Partitions
 
-     real(r8) ::  npp_leaf                               ! NPP into leaves (includes replacement of turnover):  KgC/indiv/day
-     real(r8) ::  npp_froot                              ! NPP into fine roots (includes replacement of turnover):  KgC/indiv/day
-     real(r8) ::  npp_bsw                                ! NPP into sapwood: KgC/indiv/day
-     real(r8) ::  npp_bdead                              ! NPP into deadwood (structure):  KgC/indiv/day
-     real(r8) ::  npp_bseed                              ! NPP into seeds: KgC/indiv/day
-     real(r8) ::  npp_store                              ! NPP into storage: KgC/indiv/day
+     real(r8) ::  npp_leaf                               ! NPP into leaves (includes replacement of turnover):  KgC/indiv/year
+     real(r8) ::  npp_froot                              ! NPP into fine roots (includes replacement of turnover):  KgC/indiv/year
 
-     real(r8) ::  ts_net_uptake(cp_nlevcan)              ! Net uptake of leaf layers: kgC/m2/s
-     real(r8) ::  year_net_uptake(cp_nlevcan)            ! Net uptake of leaf layers: kgC/m2/year
+     real(r8) ::  npp_bsw                                ! NPP into sapwood: KgC/indiv/year
+     real(r8) ::  npp_bdead                              ! NPP into deadwood (structure):  KgC/indiv/year
+     real(r8) ::  npp_bseed                              ! NPP into seeds: KgC/indiv/year
+     real(r8) ::  npp_store                              ! NPP into storage: KgC/indiv/year
+
+     real(r8) ::  ts_net_uptake(nlevleaf)              ! Net uptake of leaf layers: kgC/m2/s
+     real(r8) ::  year_net_uptake(nlevleaf)            ! Net uptake of leaf layers: kgC/m2/year
 
      ! RESPIRATION COMPONENTS
      real(r8) ::  rdark                                  ! Dark respiration: kgC/indiv/s
@@ -307,6 +288,10 @@ module EDTypesMod
      real(r8) ::  crownfire_mort                         ! probability of tree post-fire mortality due to crown scorch:-
      real(r8) ::  fire_mort                              ! post-fire mortality from cambial and crown damage assuming two are independent:-
 
+     ! Hydraulics
+     type(ed_cohort_hydr_type), pointer :: co_hydr       ! All cohort hydraulics data, see FatesHydraulicsMemMod.F90
+
+
   end type ed_cohort_type
 
   !************************************
@@ -325,9 +310,6 @@ module EDTypesMod
      !INDICES
      integer  :: patchno                                           ! unique number given to each new patch created for tracking
 
-     ! INTERF-TODO: THIS VARIABLE SHOULD BE REMOVED
-     integer  :: clm_pno                                           ! clm patch number (index of p vector)
-
      ! PATCH INFO
      real(r8) ::  age                                              ! average patch age: years                   
      integer  ::  age_class                                        ! age class of the patch for history binning purposes
@@ -336,42 +318,42 @@ module EDTypesMod
      integer  ::  ncl_p                                            ! Number of occupied canopy layers
 
      ! LEAF ORGANIZATION
-     real(r8) ::  spread(cp_nclmax)                                   ! dynamic ratio of dbh to canopy area: cm/m2
+     real(r8) ::  spread(nclmax)                                   ! dynamic ratio of dbh to canopy area: cm/m2
      real(r8) ::  pft_agb_profile(numpft_ed,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
-     real(r8) ::  canopy_layer_lai(cp_nclmax)                         ! lai that is shading this canopy layer: m2/m2 
+     real(r8) ::  canopy_layer_lai(nclmax)                         ! lai that is shading this canopy layer: m2/m2 
      real(r8) ::  total_canopy_area                                ! area that is covered by vegetation : m2
      real(r8) ::  total_tree_area                                  ! area that is covered by woody vegetation : m2
      real(r8) ::  canopy_area                                      ! area that is covered by vegetation : m2 (is this different to total_canopy_area?
      real(r8) ::  bare_frac_area                                   ! bare soil in this patch expressed as a fraction of the total soil surface.
      real(r8) ::  lai                                              ! leaf area index of patch
 
-     real(r8) ::  tlai_profile(cp_nclmax,numpft_ed,cp_nlevcan)        ! total   leaf area in each canopy layer, pft, and leaf layer. m2/m2
-     real(r8) ::  elai_profile(cp_nclmax,numpft_ed,cp_nlevcan)        ! exposed leaf area in each canopy layer, pft, and leaf layer. m2/m2
-     real(r8) ::  tsai_profile(cp_nclmax,numpft_ed,cp_nlevcan)        ! total   stem area in each canopy layer, pft, and leaf layer. m2/m2
-     real(r8) ::  esai_profile(cp_nclmax,numpft_ed,cp_nlevcan)        ! exposed stem area in each canopy layer, pft, and leaf layer. m2/m2
-     real(r8) ::  layer_height_profile(cp_nclmax,numpft_ed,cp_nlevcan)
-     real(r8) ::  canopy_area_profile(cp_nclmax,numpft_ed,cp_nlevcan) ! fraction of canopy in each canopy 
+     real(r8) ::  tlai_profile(nclmax,numpft_ed,nlevleaf)        ! total   leaf area in each canopy layer, pft, and leaf layer. m2/m2
+     real(r8) ::  elai_profile(nclmax,numpft_ed,nlevleaf)        ! exposed leaf area in each canopy layer, pft, and leaf layer. m2/m2
+     real(r8) ::  tsai_profile(nclmax,numpft_ed,nlevleaf)        ! total   stem area in each canopy layer, pft, and leaf layer. m2/m2
+     real(r8) ::  esai_profile(nclmax,numpft_ed,nlevleaf)        ! exposed stem area in each canopy layer, pft, and leaf layer. m2/m2
+     real(r8) ::  layer_height_profile(nclmax,numpft_ed,nlevleaf)
+     real(r8) ::  canopy_area_profile(nclmax,numpft_ed,nlevleaf) ! fraction of canopy in each canopy 
      ! layer, pft, and leaf layer:-
-     integer  ::  present(cp_nclmax,numpft_ed)                        ! is there any of this pft in this canopy layer?      
-     integer  ::  nrad(cp_nclmax,numpft_ed)                           ! number of exposed leaf layers for each canopy layer and pft
-     integer  ::  ncan(cp_nclmax,numpft_ed)                           ! number of total   leaf layers for each canopy layer and pft
+     integer  ::  present(nclmax,numpft_ed)                        ! is there any of this pft in this canopy layer?      
+     integer  ::  nrad(nclmax,numpft_ed)                           ! number of exposed leaf layers for each canopy layer and pft
+     integer  ::  ncan(nclmax,numpft_ed)                           ! number of total   leaf layers for each canopy layer and pft
 
      !RADIATION FLUXES      
-     real(r8) ::  fabd_sun_z(cp_nclmax,numpft_ed,cp_nlevcan)          ! sun fraction of direct light absorbed by each canopy 
+     real(r8) ::  fabd_sun_z(nclmax,numpft_ed,nlevleaf)          ! sun fraction of direct light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
-     real(r8) ::  fabd_sha_z(cp_nclmax,numpft_ed,cp_nlevcan)          ! shade fraction of direct light absorbed by each canopy 
+     real(r8) ::  fabd_sha_z(nclmax,numpft_ed,nlevleaf)          ! shade fraction of direct light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
-     real(r8) ::  fabi_sun_z(cp_nclmax,numpft_ed,cp_nlevcan)          ! sun fraction of indirect light absorbed by each canopy 
+     real(r8) ::  fabi_sun_z(nclmax,numpft_ed,nlevleaf)          ! sun fraction of indirect light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
-     real(r8) ::  fabi_sha_z(cp_nclmax,numpft_ed,cp_nlevcan)          ! shade fraction of indirect light absorbed by each canopy 
+     real(r8) ::  fabi_sha_z(nclmax,numpft_ed,nlevleaf)          ! shade fraction of indirect light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
 
-     real(r8) ::  ed_laisun_z(cp_nclmax,numpft_ed,cp_nlevcan)         ! amount of LAI in the sun   in each canopy layer, 
+     real(r8) ::  ed_laisun_z(nclmax,numpft_ed,nlevleaf)         ! amount of LAI in the sun   in each canopy layer, 
      ! pft, and leaf layer. m2/m2
-     real(r8) ::  ed_laisha_z(cp_nclmax,numpft_ed,cp_nlevcan)         ! amount of LAI in the shade in each canopy layer,
-     real(r8) ::  ed_parsun_z(cp_nclmax,numpft_ed,cp_nlevcan)         ! PAR absorbed  in the sun   in each canopy layer,
-     real(r8) ::  ed_parsha_z(cp_nclmax,numpft_ed,cp_nlevcan)         ! PAR absorbed  in the shade in each canopy layer,
-     real(r8) ::  f_sun(cp_nclmax,numpft_ed,cp_nlevcan)               ! fraction of leaves in the sun in each canopy layer, pft, 
+     real(r8) ::  ed_laisha_z(nclmax,numpft_ed,nlevleaf)         ! amount of LAI in the shade in each canopy layer,
+     real(r8) ::  ed_parsun_z(nclmax,numpft_ed,nlevleaf)         ! PAR absorbed  in the sun   in each canopy layer,
+     real(r8) ::  ed_parsha_z(nclmax,numpft_ed,nlevleaf)         ! PAR absorbed  in the shade in each canopy layer,
+     real(r8) ::  f_sun(nclmax,numpft_ed,nlevleaf)               ! fraction of leaves in the sun in each canopy layer, pft, 
 
      ! and leaf layer. m2/m2
      real(r8),allocatable ::  tr_soil_dir(:)                              ! fraction of incoming direct  radiation that (cm_numSWb)
@@ -393,7 +375,10 @@ module EDTypesMod
      real(r8) :: seed_germination(numpft_ed)                       ! germination rate of seed pool in KgC/m2/year
 
      ! PHOTOSYNTHESIS       
-     real(r8) ::  psn_z(cp_nclmax,numpft_ed,cp_nlevcan)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
+
+     real(r8) ::  psn_z(nclmax,numpft_ed,nlevleaf)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
+!     real(r8) ::  gpp                                              ! total patch gpp: KgC/m2/year
+!     real(r8) ::  npp                                              ! total patch npp: KgC/m2/year   
 
      ! ROOTS
      real(r8), allocatable ::  rootfr_ft(:,:)                      ! root fraction of each PFT in each soil layer:-
@@ -430,25 +415,21 @@ module EDTypesMod
      real(r8) ::  dleaf_litter_dt(numpft_ed)                       ! rate of change of leaf litter in each size class: KgC/m2/year. 
      real(r8) ::  droot_litter_dt(numpft_ed)                       ! rate of change of root litter in each size class: KgC/m2/year. 
 
-     real(r8) ::  canopy_mortality_woody_litter                    ! flux of wood litter in to litter pool: KgC/m2/year
-     real(r8) ::  canopy_mortality_leaf_litter(numpft_ed)          ! flux in to  leaf litter from tree death: KgC/m2/year
-     real(r8) ::  canopy_mortality_root_litter(numpft_ed)          ! flux in to froot litter  from tree death: KgC/m2/year
-
      real(r8) ::  repro(numpft_ed)                                 ! allocation to reproduction per PFT : KgC/m2
 
      !FUEL CHARECTERISTICS
      real(r8) ::  sum_fuel                                         ! total ground fuel related to ros (omits 1000hr fuels): KgC/m2
-     real(r8) ::  fuel_frac(ncwd+2)                                ! fraction of each litter class in the ros_fuel:-.  
+     real(r8) ::  fuel_frac(nfsc)                                  ! fraction of each litter class in the ros_fuel:-.  
      real(r8) ::  livegrass                                        ! total aboveground grass biomass in patch.  KgC/m2
      real(r8) ::  fuel_bulkd                                       ! average fuel bulk density of the ground fuel 
-     ! (incl. live grasses. omits 1000hr fuels). KgC/m3
+                                                                   ! (incl. live grasses. omits 1000hr fuels). KgC/m3
      real(r8) ::  fuel_sav                                         ! average surface area to volume ratio of the ground fuel 
-     ! (incl. live grasses. omits 1000hr fuels).
+                                                                   ! (incl. live grasses. omits 1000hr fuels).
      real(r8) ::  fuel_mef                                         ! average moisture of extinction factor 
-     ! of the ground fuel (incl. live grasses. omits 1000hr fuels).
+                                                                   ! of the ground fuel (incl. live grasses. omits 1000hr fuels).
      real(r8) ::  fuel_eff_moist                                   ! effective avearage fuel moisture content of the ground fuel 
-     ! (incl. live grasses. omits 1000hr fuels)
-     real(r8) ::  litter_moisture(ncwd+2)
+                                                                   ! (incl. live grasses. omits 1000hr fuels)
+     real(r8) ::  litter_moisture(nfsc)
 
      ! FIRE SPREAD
      real(r8) ::  ros_front                                        ! rate of forward  spread of fire: m/min
@@ -467,9 +448,10 @@ module EDTypesMod
      real(r8) ::  tfc_ros                                          ! total fuel consumed - no trunks.  KgC/m2/day
      real(r8) ::  burnt_frac_litter(nfsc)                          ! fraction of each litter pool burned:-
 
-   contains
+     ! PLANT HYDRAULICS     
+     type(ed_patch_hydr_type) , pointer :: pa_hydr                 ! All patch hydraulics data, see FatesHydraulicsMemMod.F90
 
-     procedure, public :: set_root_fraction
+   contains
 
   end type ed_patch_type
 
@@ -540,7 +522,7 @@ module EDTypesMod
      integer  ::  leafoffdate                                  ! doy of leaf off:-
      integer  ::  dleafondate                                  ! doy of leaf on drought:-
      integer  ::  dleafoffdate                                 ! doy of leaf on drought:-
-     real(r8) ::  water_memory(10)                             ! last 10 days of soil moisture memory...
+     real(r8) ::  water_memory(numWaterMem)                             ! last 10 days of soil moisture memory...
 
      !SEED BANK
      real(r8) :: seed_bank(numpft_ed)                              ! seed pool in KgC/m2/year
@@ -555,27 +537,33 @@ module EDTypesMod
      real(r8) ::  cwd_ag_burned(ncwd)
      real(r8) ::  leaf_litter_burned(numpft_ed)
 
+     ! PLANT HYDRAULICS
+     type(ed_site_hydr_type), pointer :: si_hydr
+        
+     ! TERMINATION, RECRUITMENT, DEMOTION, and DISTURBANCE
+
+     real(r8) :: terminated_nindivs(1:nlevsclass_ed,1:mxpft,2) ! number of individuals that were in cohorts which were terminated this timestep, on size x pft x canopy array. 
+     real(r8) :: termination_carbonflux(2)                     ! carbon flux from live to dead pools associated with termination mortality, per canopy level
+     real(r8) :: recruitment_rate(1:mxpft)                     ! number of individuals that were recruited into new cohorts
+     real(r8) :: demotion_rate(1:nlevsclass_ed)                ! rate of individuals demoted from canopy to understory per FATES timestep
+     real(r8) :: demotion_carbonflux                           ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
+     real(r8) :: promotion_rate(1:nlevsclass_ed)               ! rate of individuals promoted from understory to canopy per FATES timestep
+     real(r8) :: promotion_carbonflux                          ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
+
+     ! some diagnostic-only (i.e. not resolved by ODE solver) flux of carbon to CWD and litter pools from termination and canopy mortality
+     real(r8) :: CWD_AG_diagnostic_input_carbonflux(1:ncwd)       ! diagnostic flux to AG CWD [kg C / m2 / yr]
+     real(r8) :: CWD_BG_diagnostic_input_carbonflux(1:ncwd)       ! diagnostic flux to BG CWD [kg C / m2 / yr]
+     real(r8) :: leaf_litter_diagnostic_input_carbonflux(1:mxpft) ! diagnostic flux to AG litter [kg C / m2 / yr]
+     real(r8) :: root_litter_diagnostic_input_carbonflux(1:mxpft) ! diagnostic flux to BG litter [kg C / m2 / yr]
+
   end type ed_site_type
-
-  !************************************
-  !** Userdata type structure       **
-  !************************************
-
-!  type userdata
-!     integer  ::   cohort_number            ! Counts up the number of cohorts which have been made.
-!     integer  ::   n_sub                    ! num of substeps in year 
-!     real(r8) ::   deltat                   ! fraction of year used for each timestep (1/N_SUB)
-!     integer  ::   time_period              ! Within year timestep (1:N_SUB) day of year
-!     integer  ::   restart_year             ! Which year of simulation are we starting in? 
-!  end type userdata
-!  type(userdata), public, target :: udata   ! THIS WAS NOT THREADSAFE
-  !-------------------------------------------------------------------------------------!
 
   public :: ed_hist_scpfmaps
 
 contains
 
-  !-------------------------------------------------------------------------------------!
+
+   !-------------------------------------------------------------------------------------!
   subroutine ed_hist_scpfmaps
     ! This subroutine allocates and populates the variables
     ! that define the mapping of variables in history files in the "scpf" format
@@ -585,23 +573,54 @@ contains
     integer :: i
     integer :: isc
     integer :: ipft
+    integer :: icwd
+    integer :: ifuel
+    integer :: ican
+    integer :: ileaf
+    integer :: iage
 
-    allocate( levsclass_ed(1:nlevsclass_ed   ))
-    allocate( pft_levscpf_ed(1:nlevsclass_ed*mxpft))
-    allocate(scls_levscpf_ed(1:nlevsclass_ed*mxpft))
-    allocate( levpft_ed(1:mxpft   ))
-    allocate( levage_ed(1:nlevage_ed   ))
+    allocate( fates_hdim_levsclass(1:nlevsclass_ed   ))
+    allocate( fates_hdim_pfmap_levscpf(1:nlevsclass_ed*mxpft))
+    allocate( fates_hdim_scmap_levscpf(1:nlevsclass_ed*mxpft))
+    allocate( fates_hdim_levpft(1:mxpft   ))
+    allocate( fates_hdim_levfuel(1:NFSC   ))
+    allocate( fates_hdim_levcwdsc(1:NCWD   ))
+    allocate( fates_hdim_levage(1:nlevage_ed   ))
+
+    allocate( fates_hdim_levcan(nclmax))
+    allocate( fates_hdim_canmap_levcnlf(nlevleaf*nclmax))
+    allocate( fates_hdim_lfmap_levcnlf(nlevleaf*nclmax))
+    allocate( fates_hdim_canmap_levcnlfpf(nlevleaf*nclmax*numpft_ed))
+    allocate( fates_hdim_lfmap_levcnlfpf(nlevleaf*nclmax*numpft_ed))
+    allocate( fates_hdim_pftmap_levcnlfpf(nlevleaf*nclmax*numpft_ed))
+    allocate( fates_hdim_scmap_levscag(nlevsclass_ed * nlevage_ed ))
+    allocate( fates_hdim_agmap_levscag(nlevsclass_ed * nlevage_ed ))
 
     ! Fill the IO array of plant size classes
     ! For some reason the history files did not like
     ! a hard allocation of sclass_ed
-    levsclass_ed(:) = sclass_ed(:)
+    fates_hdim_levsclass(:) = sclass_ed(:)
     
-    levage_ed(:) = ageclass_ed(:)
+    fates_hdim_levage(:) = ageclass_ed(:)
 
     ! make pft array
     do ipft=1,mxpft
-       levpft_ed(ipft) = ipft
+       fates_hdim_levpft(ipft) = ipft
+    end do
+
+    ! make fuel array
+    do ifuel=1,NFSC
+       fates_hdim_levfuel(ifuel) = ifuel
+    end do
+
+    ! make cwd array
+    do icwd=1,NCWD
+       fates_hdim_levcwdsc(icwd) = icwd
+    end do
+
+    ! make canopy array
+    do ican = 1,nclmax
+       fates_hdim_levcan(ican) = ican
     end do
 
     ! Fill the IO arrays that match pft and size class to their combined array
@@ -609,84 +628,102 @@ contains
     do ipft=1,mxpft
        do isc=1,nlevsclass_ed
           i=i+1
-          pft_levscpf_ed(i) = ipft
-          scls_levscpf_ed(i) = isc
+          fates_hdim_pfmap_levscpf(i) = ipft
+          fates_hdim_scmap_levscpf(i) = isc
+       end do
+    end do
+
+    i=0
+    do ican=1,nclmax
+       do ileaf=1,nlevleaf
+          i=i+1
+          fates_hdim_canmap_levcnlf(i) = ican
+          fates_hdim_lfmap_levcnlf(i) = ileaf
+       end do
+    end do
+
+    i=0
+    do iage=1,nlevage_ed
+       do isc=1,nlevsclass_ed
+          i=i+1
+          fates_hdim_scmap_levscag(i) = isc
+          fates_hdim_agmap_levscag(i) = iage
+       end do
+    end do
+
+    i=0
+    do ipft=1,numpft_ed
+       do ican=1,nclmax
+          do ileaf=1,nlevleaf
+             i=i+1
+             fates_hdim_canmap_levcnlfpf(i) = ican
+             fates_hdim_lfmap_levcnlfpf(i) = ileaf
+             fates_hdim_pftmap_levcnlfpf(i) = ipft
+          end do
        end do
     end do
 
   end subroutine ed_hist_scpfmaps
 
-  !-------------------------------------------------------------------------------------!
-  function map_clmpatch_to_edpatch(site, clmpatch_number) result(edpatch_pointer)
-    !
-    ! !ARGUMENTS    
-    type(ed_site_type), intent(in), target :: site
-    integer, intent(in) :: clmpatch_number 
-    !
-    ! !LOCAL VARIABLES:
-    type(ed_patch_type), pointer :: edpatch_pointer
-    !----------------------------------------------------------------------
-    
-    ! There is a one-to-one mapping between edpatches and clmpatches. To obtain
-    ! this mapping - the following is computed elsewhere in the code base
-    ! (1) what is the weight respective to the column of clmpatch? 
-    !     dynEDMod determines this via the following logic
-    !        if (clm_patch%is_veg(p) .or. clm_patch%is_bareground(p)) then
-    !           clm_patch%wtcol(p) = clm_patch%wt_ed(p)
-    !        else
-    !           clm_patch%wtcol(p)  = 0.0_r8 
-    !        end if
-    ! (2) is the clmpatch active? 
-    !     subgridWeightsMod uses the following logic (in routine is_active_p) to determine if
-    !     clmpatch_number is active ( this is a shortened version of the logic to capture
-    !     only the essential parts relevent here)
-    !         if (clmpatch%wtcol(p) > 0._r8) is_active_p = .true.
-
-    edpatch_pointer => site%oldest_patch    
-    do while ( clmpatch_number /= edpatch_pointer%clm_pno )
-       edpatch_pointer => edpatch_pointer%younger
-    end do
-
-  end function map_clmpatch_to_edpatch
-
-  !-------------------------------------------------------------------------------------!
-  subroutine set_root_fraction( this , depth_gl)
-    !
-    ! !DESCRIPTION:
-    !  Calculates the fractions of the root biomass in each layer for each pft. 
-    !
-    ! !USES:
-    use PatchType   , only : clmpatch => patch
-    use pftconMod   , only : pftcon
-    !
-    ! !ARGUMENTS    
-    class(ed_patch_type) :: this
-    real(r8),intent(in)  :: depth_gl(0:cp_numlevgrnd)
-    !
-    ! !LOCAL VARIABLES:
-    integer :: lev,p,c,ft
-    !----------------------------------------------------------------------
-
-    do ft = 1,numpft_ed 
-       do lev = 1, cp_numlevgrnd
-          this%rootfr_ft(ft,lev) = 0._r8
-       enddo
-
-       do lev = 1, cp_numlevsoil-1
-          this%rootfr_ft(ft,lev) = .5_r8*( &
-                 exp(-pftcon%roota_par(ft) * depth_gl(lev-1))  &
-               + exp(-pftcon%rootb_par(ft) * depth_gl(lev-1))  &
-               - exp(-pftcon%roota_par(ft) * depth_gl(lev))    &
-               - exp(-pftcon%rootb_par(ft) * depth_gl(lev)))
-       end do
-    end do
-
-  end subroutine set_root_fraction
-
-
   ! =====================================================================================
   
- 
+  function get_age_class_index(age) result( patch_age_class ) 
 
+     real(r8), intent(in) :: age
+     
+     integer :: patch_age_class
 
+     patch_age_class = count(age-ageclass_ed.ge.0.0_r8)
+
+  end function get_age_class_index
+
+  ! =====================================================================================
+
+  function get_sizeage_class_index(dbh,age) result(size_by_age_class)
+     
+     ! Arguments
+     real(r8),intent(in) :: dbh
+     real(r8),intent(in) :: age
+
+     integer             :: size_class
+     integer             :: age_class
+     integer             :: size_by_age_class
+     
+     size_class        = get_size_class_index(dbh)
+
+     age_class         = get_age_class_index(age)
+     
+     size_by_age_class = (age_class-1)*nlevage_ed + size_class
+
+  end function get_sizeage_class_index
+
+  ! =====================================================================================
+
+  subroutine sizetype_class_index(dbh,pft,size_class,size_by_pft_class)
+    
+    ! Arguments
+    real(r8),intent(in) :: dbh
+    integer,intent(in)  :: pft
+    integer,intent(out) :: size_class
+    integer,intent(out) :: size_by_pft_class
+    
+    size_class        = get_size_class_index(dbh)
+    
+    size_by_pft_class = (pft-1)*nlevsclass_ed+size_class
+
+    return
+ end subroutine sizetype_class_index
+
+  ! =====================================================================================
+
+  function get_size_class_index(dbh) result(cohort_size_class)
+
+     real(r8), intent(in) :: dbh
+     
+     integer :: cohort_size_class
+     
+     cohort_size_class = count(dbh-sclass_ed.ge.0.0_r8)
+     
+  end function get_size_class_index
+   
 end module EDTypesMod

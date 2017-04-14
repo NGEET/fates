@@ -338,6 +338,7 @@ contains
             filter(nc)%num_nolakec, filter(nc)%nolakec,       &
             filter(nc)%num_lakec, filter(nc)%lakec,           &
             soilhydrology_inst, waterstate_inst)
+
        call t_stopf('begwbal')
 
        call t_startf('begcnbal_col')
@@ -456,9 +457,7 @@ contains
        ! over the patch index range defined by bounds_clump%begp:bounds_proc%endp
 
        if(use_ed) then
-
           call clm_fates%wrap_sunfrac(nc,atm2lnd_inst, canopystate_inst)
-          
        else
           call CanopySunShadeFracs(filter(nc)%nourbanp,filter(nc)%num_nourbanp,     &
                                    atm2lnd_inst, surfalb_inst, canopystate_inst,    &
@@ -495,6 +494,7 @@ contains
        call CanopyTemperature(bounds_clump,                                   &
             filter(nc)%num_nolakec, filter(nc)%nolakec,                       &
             filter(nc)%num_nolakep, filter(nc)%nolakep,                       &
+            clm_fates,                                                        &
             atm2lnd_inst, canopystate_inst, soilstate_inst, frictionvel_inst, &
             waterstate_inst, waterflux_inst, energyflux_inst, temperature_inst)
        call t_stopf('bgp1')
@@ -692,6 +692,7 @@ contains
             filter(nc)%num_urbanc, filter(nc)%urbanc,                        &
             filter(nc)%num_snowc, filter(nc)%snowc,                          &
             filter(nc)%num_nosnowc, filter(nc)%nosnowc,                      &
+            clm_fates,                                                         &
             atm2lnd_inst, soilstate_inst, energyflux_inst, temperature_inst,   &
             waterflux_inst, waterstate_inst, soilhydrology_inst, aerosol_inst, &
             canopystate_inst, soil_water_retention_curve)
@@ -874,7 +875,8 @@ contains
 
           call clm_fates%dynamics_driv( nc, bounds_clump,                        &
                atm2lnd_inst, soilstate_inst, temperature_inst,                   &
-               waterstate_inst, canopystate_inst, soilbiogeochem_carbonflux_inst)
+               waterstate_inst, canopystate_inst, soilbiogeochem_carbonflux_inst,&
+               frictionvel_inst)
           
           ! TODO(wjs, 2016-04-01) I think this setFilters call should be replaced by a
           ! call to reweight_wrapup, if it's needed at all.
@@ -993,16 +995,6 @@ contains
                clm_fates,                                       &
                aerosol_inst, canopystate_inst, waterstate_inst, &
                lakestate_inst, temperature_inst, surfalb_inst)
-
-          ! INTERF-TOD: THIS ACTUALLY WON'T BE TO HARD TO PULL OUT
-          ! ED_Norman_Radiation() is the last thing called
-          ! in SurfaceAlbedo, we can simply remove it
-          ! The clm_fates interfac called below will split
-          ! ED norman radiation into two parts
-          ! the calculation of values relevant to FATES
-          ! and then the transfer back to CLM/ALM memory stucts
-          
-          !call clm_fates%radiation()
 
           call t_stopf('surfalb')
 

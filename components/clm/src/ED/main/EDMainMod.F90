@@ -7,24 +7,47 @@ module EDMainMod
   use shr_kind_mod         , only : r8 => shr_kind_r8
   
   use FatesGlobals         , only : fates_log
-  use FatesGlobals         , only : freq_day
-  use FatesGlobals         , only : day_of_year
-  use FatesGlobals         , only : days_per_year
-  use FatesGlobals         , only : current_year
-  use FatesGlobals         , only : current_month
-  use FatesGlobals         , only : current_day
-  use atm2lndType          , only : atm2lnd_type
-  use SoilStateType        , only : soilstate_type  
-  use TemperatureType      , only : temperature_type
-  use EDCohortDynamicsMod  , only : allocate_live_biomass, terminate_cohorts, fuse_cohorts, sort_cohorts, count_cohorts
-  use EDPatchDynamicsMod   , only : disturbance_rates, fuse_patches, spawn_patches, terminate_patches
-  use EDPhysiologyMod      , only : canopy_derivs, non_canopy_derivs, phenology, recruitment, trim_canopy
+  use FatesInterfaceMod    , only : hlm_freq_day
+  use FatesInterfaceMod    , only : hlm_day_of_year
+  use FatesInterfaceMod    , only : hlm_days_per_year
+  use FatesInterfaceMod    , only : hlm_current_year
+  use FatesInterfaceMod    , only : hlm_current_month
+  use FatesInterfaceMod    , only : hlm_current_day
+  use EDCohortDynamicsMod  , only : allocate_live_biomass
+  use EDCohortDynamicsMod  , only : terminate_cohorts
+  use EDCohortDynamicsMod  , only : fuse_cohorts
+  use EDCohortDynamicsMod  , only : sort_cohorts
+  use EDCohortDynamicsMod  , only : count_cohorts
+  use EDPatchDynamicsMod   , only : disturbance_rates
+  use EDPatchDynamicsMod   , only : fuse_patches
+  use EDPatchDynamicsMod   , only : spawn_patches
+  use EDPatchDynamicsMod   , only : terminate_patches
+  use EDTypesMod           , only : get_age_class_index
+  use EDPhysiologyMod      , only : canopy_derivs
+  use EDPhysiologyMod      , only : non_canopy_derivs
+  use EDPhysiologyMod      , only : phenology
+  use EDPhysiologyMod      , only : recruitment
+  use EDPhysiologyMod      , only : trim_canopy
   use SFMainMod            , only : fire_model
-  use EDtypesMod           , only : ncwd, numpft_ed
-  use EDtypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
+  use EDtypesMod           , only : ncwd
+  use EDTypesMod           , only : numpft_ed
+  use EDtypesMod           , only : ed_site_type
+  use EDtypesMod           , only : ed_patch_type
+  use EDtypesMod           , only : ed_cohort_type
   use FatesInterfaceMod    , only : bc_in_type
-  use EDTypesMod           , only : cp_masterproc
-  
+  use FatesInterfaceMod    , only : hlm_masterproc
+  use FatesPlantHydraulicsMod, only : do_growthrecruiteffects
+  use FatesPlantHydraulicsMod, only : updateSizeDepTreeHydProps
+  use FatesPlantHydraulicsMod, only : updateSizeDepTreeHydStates
+  use FatesPlantHydraulicsMod, only : initTreeHydStates
+  use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydProps 
+!  use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydStates
+  use EDTypesMod           , only : use_fates_plant_hydro 
+  use EDTypesMod           , only : do_ed_phenology
+!  use EDTypesMod           , only : do_ed_growth
+!  use EDTypesMod           , only : do_ed_recruitment
+!  use EDTypesMod           , only : do_ed_mort_dist
+  use EDTypesMod           , only : do_ed_dynamics
 
   implicit none
   private
@@ -38,6 +61,7 @@ module EDMainMod
   
   private :: ed_integrate_state_variables
   private :: ed_total_balance_check
+  private :: bypass_dynamics
   
   logical :: DEBUG  = .false.
   !
@@ -60,8 +84,8 @@ contains
     type(ed_patch_type), pointer :: currentPatch
     !-----------------------------------------------------------------------
 
-    if ( cp_masterproc==1 ) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
-          current_year,'-',current_month,'-',current_day
+    if ( hlm_masterproc==1 ) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
+          hlm_current_year,'-',hlm_current_month,'-',hlm_current_day
 
     !**************************************************************************
     ! Fire, growth, biogeochemistry. 
@@ -72,47 +96,68 @@ contains
    
     call ed_total_balance_check(currentSite, 0)
     
-    call phenology(currentSite, bc_in )
+    if (do_ed_phenology) then
+       call phenology(currentSite, bc_in )
+    end if
 
-    call fire_model(currentSite, bc_in) 
+    if (do_ed_dynamics) then
+       call fire_model(currentSite, bc_in) 
 
-    ! Calculate disturbance and mortality based on previous timestep vegetation.
-    call disturbance_rates(currentSite)
+       ! Calculate disturbance and mortality based on previous timestep vegetation.
+       call disturbance_rates(currentSite)
+    end if
 
-    ! Integrate state variables from annual rates to daily timestep
-    call ed_integrate_state_variables(currentSite, bc_in ) 
+    if (do_ed_dynamics) then
+       ! Integrate state variables from annual rates to daily timestep
+       call ed_integrate_state_variables(currentSite, bc_in ) 
+
+    else
+       ! ed_intergrate_state_variables is where the new cohort flag
+       ! is set. This flag designates wether a cohort has
+       ! experienced a day, and therefore has been populated with non-nonsense
+       ! values.  If we aren't entering that sequence, we need to set the flag
+       ! Make sure cohorts are marked as non-recruits
+
+       call bypass_dynamics(currentSite)
+       
+    end if
 
     !******************************************************************************
     ! Reproduction, Recruitment and Cohort Dynamics : controls cohort organisation 
     !******************************************************************************
 
-    currentPatch => currentSite%oldest_patch
-    do while (associated(currentPatch))                 
-
-       ! adds small cohort of each PFT
-       call recruitment(0, currentSite, currentPatch)                
-
-       currentPatch => currentPatch%younger
-    enddo
+    if(do_ed_dynamics) then
+       currentPatch => currentSite%oldest_patch
+       do while (associated(currentPatch))                 
+          
+          ! adds small cohort of each PFT
+          call recruitment(0, currentSite, currentPatch, bc_in)
+          
+          currentPatch => currentPatch%younger
+       enddo
+    end if
+    
        
     call ed_total_balance_check(currentSite,1)
 
-    currentPatch => currentSite%oldest_patch
-    do while (associated(currentPatch))
-
-       ! puts cohorts in right order
-       call sort_cohorts(currentPatch)            
-
-       ! fuses similar cohorts
-       call fuse_cohorts(currentPatch)            
-
-       ! kills cohorts that are too small
-       call terminate_cohorts(currentPatch)
-
-
-       currentPatch => currentPatch%younger
-    enddo
-   
+    if( do_ed_dynamics ) then
+       currentPatch => currentSite%oldest_patch
+       do while (associated(currentPatch))
+          
+          ! puts cohorts in right order
+          call sort_cohorts(currentPatch)            
+          
+          ! fuses similar cohorts
+          call fuse_cohorts(currentPatch, bc_in )
+          
+          ! kills cohorts that are too small
+          call terminate_cohorts(currentSite, currentPatch)
+          
+          
+          currentPatch => currentPatch%younger
+       enddo
+    end if
+       
     call ed_total_balance_check(currentSite,2)
 
     !*********************************************************************************
@@ -120,17 +165,36 @@ contains
     !*********************************************************************************
 
     ! make new patches from disturbed land
-    call spawn_patches(currentSite)       
+    if ( do_ed_dynamics ) then
+       call spawn_patches(currentSite, bc_in)
+    end if
    
     call ed_total_balance_check(currentSite,3)
 
     ! fuse on the spawned patches.
-    call fuse_patches(currentSite)        
-   
+    if ( do_ed_dynamics ) then
+       call fuse_patches(currentSite, bc_in )        
+       
+       ! If using BC FATES hydraulics, update the rhizosphere geometry
+       ! based on the new cohort-patch structure
+       ! 'rhizosphere geometry' (column-level root biomass + rootfr --> root length 
+       ! density --> node radii and volumes)
+       if(use_fates_plant_hydro .and. do_growthrecruiteffects) then
+          call updateSizeDepRhizHydProps(currentSite, bc_in)
+          !       call updateSizeDepRhizHydStates(currentSite, bc_in)
+          !       if(nshell > 1) then  (THIS BEING CHECKED INSIDE OF the update)
+          !          call updateSizeDepRhizHydStates(currentSite, c, soilstate_inst, &
+          !                waterstate_inst)
+          !       end if
+       end if
+    end if
+
     call ed_total_balance_check(currentSite,4)
 
     ! kill patches that are too small
-    call terminate_patches(currentSite)   
+    if ( do_ed_dynamics ) then
+       call terminate_patches(currentSite)   
+    end if
    
     call ed_total_balance_check(currentSite,5)
 
@@ -171,7 +235,7 @@ contains
 
     do while(associated(currentPatch))
 
-       currentPatch%age = currentPatch%age + freq_day
+       currentPatch%age = currentPatch%age + hlm_freq_day
        ! FIX(SPM,032414) valgrind 'Conditional jump or move depends on uninitialised value'
        if( currentPatch%age  <  0._r8 )then
           write(fates_log(),*) 'negative patch age?',currentPatch%age, &
@@ -179,7 +243,7 @@ contains
        endif
 
        ! check to see if the patch has moved to the next age class
-       currentPatch%age_class = count(currentPatch%age-ageclass_ed.ge.0.0_r8)
+       currentPatch%age_class = get_age_class_index(currentPatch%age)
 
        ! Find the derivatives of the growth and litter processes. 
        call canopy_derivs(currentSite, currentPatch, bc_in)
@@ -189,17 +253,17 @@ contains
        do while(associated(currentCohort)) 
 
           cohort_biomass_store  = (currentCohort%balive+currentCohort%bdead+currentCohort%bstore)
-          currentCohort%dbh    = max(small_no,currentCohort%dbh    + currentCohort%ddbhdt    * freq_day )
-          currentCohort%balive = currentCohort%balive + currentCohort%dbalivedt * freq_day 
-          currentCohort%bdead  = max(small_no,currentCohort%bdead  + currentCohort%dbdeaddt  * freq_day )
+          currentCohort%dbh    = max(small_no,currentCohort%dbh    + currentCohort%ddbhdt    * hlm_freq_day )
+          currentCohort%balive = currentCohort%balive + currentCohort%dbalivedt * hlm_freq_day 
+          currentCohort%bdead  = max(small_no,currentCohort%bdead  + currentCohort%dbdeaddt  * hlm_freq_day )
           if ( DEBUG ) then
              write(fates_log(),*) 'EDMainMod dbstoredt I ',currentCohort%bstore, &
-                  currentCohort%dbstoredt,freq_day
+                  currentCohort%dbstoredt,hlm_freq_day
           end if
-          currentCohort%bstore = currentCohort%bstore + currentCohort%dbstoredt * freq_day 
+          currentCohort%bstore = currentCohort%bstore + currentCohort%dbstoredt * hlm_freq_day 
           if ( DEBUG ) then
              write(fates_log(),*) 'EDMainMod dbstoredt II ',currentCohort%bstore, &
-                  currentCohort%dbstoredt,freq_day
+                  currentCohort%dbstoredt,hlm_freq_day
           end if
 
           if( (currentCohort%balive+currentCohort%bdead+currentCohort%bstore)*currentCohort%n<0._r8)then
@@ -207,10 +271,10 @@ contains
                  currentCohort%bdead,currentCohort%bstore
           endif
 
-          if(abs((currentCohort%balive+currentCohort%bdead+currentCohort%bstore+freq_day*(currentCohort%md+ &
+          if(abs((currentCohort%balive+currentCohort%bdead+currentCohort%bstore+hlm_freq_day*(currentCohort%md+ &
                currentCohort%seed_prod)-cohort_biomass_store)-currentCohort%npp_acc) > 1e-8_r8)then
              write(fates_log(),*) 'issue with c balance in integration', abs(currentCohort%balive+currentCohort%bdead+ &
-                  currentCohort%bstore+freq_day* &
+                  currentCohort%bstore+hlm_freq_day* &
                  (currentCohort%md+currentCohort%seed_prod)-cohort_biomass_store-currentCohort%npp_acc)
           endif  
 
@@ -220,28 +284,32 @@ contains
           currentCohort%resp_acc = 0.0_r8
           
           call allocate_live_biomass(currentCohort,1)
+
+          ! BOC...update tree 'hydraulic geometry' 
+          ! (size --> heights of elements --> hydraulic path lengths --> 
+          ! maximum node-to-node conductances)
+          if(use_fates_plant_hydro .and. do_growthrecruiteffects) then
+             call updateSizeDepTreeHydProps(currentCohort, bc_in)
+             call updateSizeDepTreeHydStates(currentCohort)
+          end if
   
           currentCohort => currentCohort%taller
 
        enddo
       
-       if ( DEBUG ) then
-          write(6,*)'DEBUG18: calling non_canopy_derivs with pno= ',currentPatch%clm_pno
-       endif
-
        call non_canopy_derivs( currentSite, currentPatch, bc_in)
 
        !update state variables simultaneously according to derivatives for this time period. 
 
        ! first update the litter variables that are tracked at the patch level
        do c = 1,ncwd
-          currentPatch%cwd_ag(c) =  currentPatch%cwd_ag(c) + currentPatch%dcwd_ag_dt(c)* freq_day
-          currentPatch%cwd_bg(c) =  currentPatch%cwd_bg(c) + currentPatch%dcwd_bg_dt(c)* freq_day
+          currentPatch%cwd_ag(c) =  currentPatch%cwd_ag(c) + currentPatch%dcwd_ag_dt(c)* hlm_freq_day
+          currentPatch%cwd_bg(c) =  currentPatch%cwd_bg(c) + currentPatch%dcwd_bg_dt(c)* hlm_freq_day
        enddo
 
        do ft = 1,numpft_ed
-          currentPatch%leaf_litter(ft) = currentPatch%leaf_litter(ft) + currentPatch%dleaf_litter_dt(ft)* freq_day
-          currentPatch%root_litter(ft) = currentPatch%root_litter(ft) + currentPatch%droot_litter_dt(ft)* freq_day
+          currentPatch%leaf_litter(ft) = currentPatch%leaf_litter(ft) + currentPatch%dleaf_litter_dt(ft)* hlm_freq_day
+          currentPatch%root_litter(ft) = currentPatch%root_litter(ft) + currentPatch%droot_litter_dt(ft)* hlm_freq_day
        enddo
 
        do c = 1,ncwd
@@ -265,7 +333,7 @@ contains
           endif
           if(currentPatch%root_litter(ft)<small_no)then
                write(fates_log(),*) 'negative root litter numerical error', currentPatch%root_litter(ft), &
-               currentPatch%droot_litter_dt(ft)* freq_day, &
+               currentPatch%droot_litter_dt(ft)* hlm_freq_day, &
                CurrentSite%lat,CurrentSite%lon
             currentPatch%root_litter(ft) = small_no
           endif
@@ -276,7 +344,7 @@ contains
        ! assume the pre-mortality currentCohort%n. 
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort)) 
-         currentCohort%n = max(small_no,currentCohort%n + currentCohort%dndt * freq_day )  
+         currentCohort%n = max(small_no,currentCohort%n + currentCohort%dndt * hlm_freq_day )  
          currentCohort => currentCohort%taller
        enddo
 
@@ -286,7 +354,7 @@ contains
 
     ! at the site level, update the seed bank mass
     do ft = 1,numpft_ed
-       currentSite%seed_bank(ft) = currentSite%seed_bank(ft) + currentSite%dseed_dt(ft)*freq_day
+       currentSite%seed_bank(ft) = currentSite%seed_bank(ft) + currentSite%dseed_dt(ft)*hlm_freq_day
     enddo
 
     ! Check for negative values. Write out warning to show carbon balance. 
@@ -327,14 +395,14 @@ contains
 
     call ed_total_balance_check(currentSite,6)
 
-    call canopy_structure(currentSite)
+    call canopy_structure(currentSite, bc_in)
 
     call ed_total_balance_check(currentSite,7)
 
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
 
-       call terminate_cohorts(currentPatch) 
+       call terminate_cohorts(currentSite, currentPatch) 
 
        ! FIX(SPM,040314) why is this needed for BFB restarts? Look into this at some point
        cohort_number = count_cohorts(currentPatch)  
@@ -359,7 +427,7 @@ contains
 
     ! FIX(RF,032414). This needs to be monthly, not annual
     ! If this is the second to last day of the year, then perform trimming
-    if( day_of_year == days_per_year-1) then
+    if( hlm_day_of_year == hlm_days_per_year-1) then
 
        write(fates_log(),*) 'calling trim canopy' 
        call trim_canopy(currentSite)  
@@ -446,5 +514,59 @@ contains
     currentSite%old_stock = total_stock
 
  end subroutine ed_total_balance_check
+ 
+ ! =====================================================================================
+ 
+ subroutine bypass_dynamics(currentSite)
+
+    ! ----------------------------------------------------------------------------------
+    ! If dynamics are bypassed, various fluxes, rates and flags need to be set
+    ! to trivial values.
+    ! WARNING: Turning off things like dynamics is experimental. The setting of
+    ! variables to trivial values may not be complete, use at your own risk.
+    ! ----------------------------------------------------------------------------------
+
+    ! Arguments
+    type(ed_site_type)      , intent(inout), target  :: currentSite
+    
+    ! Locals
+    type(ed_patch_type), pointer :: currentPatch
+    type(ed_cohort_type), pointer :: currentCohort
+    
+    currentPatch => currentSite%youngest_patch
+    do while(associated(currentPatch))
+       currentCohort => currentPatch%shortest
+       do while(associated(currentCohort)) 
+
+          currentCohort%isnew=.false.
+
+          currentCohort%npp_acc_hold  = currentCohort%npp_acc  * dble(hlm_days_per_year)
+          currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * dble(hlm_days_per_year)
+          currentCohort%resp_acc_hold = currentCohort%resp_acc * dble(hlm_days_per_year)
+
+          currentCohort%npp_acc  = 0.0_r8
+          currentCohort%gpp_acc  = 0.0_r8
+          currentCohort%resp_acc = 0.0_r8
+
+          currentCohort%npp_leaf  = 0.0_r8
+          currentCohort%npp_froot = 0.0_r8
+          currentCohort%npp_bsw   = 0.0_r8
+          currentCohort%npp_bdead = 0.0_r8
+          currentCohort%npp_bseed = 0.0_r8
+          currentCohort%npp_store = 0.0_r8
+
+          currentCohort%bmort = 0.0_r8
+          currentCohort%hmort = 0.0_r8
+          currentCohort%cmort = 0.0_r8
+          currentCohort%imort = 0.0_r8
+          currentCohort%fmort = 0.0_r8
+
+          currentCohort => currentCohort%taller
+       enddo
+       currentPatch => currentPatch%older
+    enddo
+    
+ end subroutine bypass_dynamics
+
 
 end module EDMainMod

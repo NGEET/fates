@@ -10,7 +10,8 @@ module SoilWaterMovementMod
   use shr_log_mod    , only : errMsg => shr_log_errMsg
   use shr_kind_mod      , only : r8 => shr_kind_r8
   use shr_sys_mod         , only : shr_sys_flush
-
+  use clm_instMod    , only : clm_fates
+ 
   !
   implicit none
   private
@@ -22,7 +23,6 @@ module SoilWaterMovementMod
   private :: soilwater_moisture_form
 !  private :: soilwater_mixed_form
 !  private :: soilwater_head_form
-
   private :: compute_hydraulic_properties
   private :: compute_moisture_fluxes_and_derivs
   private :: compute_RHS_moisture_form
@@ -33,8 +33,6 @@ module SoilWaterMovementMod
   !
   ! The following is only public for the sake of unit testing; it should not be called
   ! directly by CLM code outside this module
-  public :: Compute_EffecRootFrac_And_VertTranSink
-  public :: Compute_VertTranSink_PHS
   public :: BaseflowSink
   public :: use_aquifer_layer
   !
@@ -270,6 +268,7 @@ contains
       h2osoi_vol         =>    waterstate_inst%h2osoi_vol_col        , & ! Output: [real(r8) (:,:) ] liquid water (kg/m2)
       h2osoi_liq         =>    waterstate_inst%h2osoi_liq_col          & ! Output: [real(r8) (:,:) ] liquid water (kg/m2)
     )      
+
     select case(soilwater_movement_method)
 
     case (zengdecker_2009)
@@ -345,6 +344,7 @@ contains
    end associate 
   end subroutine SoilWater
 
+<<<<<<< HEAD
 !#4
   !-----------------------------------------------------------------------   
   subroutine Compute_EffecRootFrac_And_VertTranSink(bounds, num_hydrologyc, &
@@ -600,6 +600,8 @@ contains
 
   end subroutine Compute_VertTranSink_PHS
 
+=======
+>>>>>>> 42062ee
 !#5
   !-----------------------------------------------------------------------   
   subroutine BaseflowSink(bounds, num_hydrologyc, &
@@ -732,6 +734,7 @@ contains
     use PatchType                  , only : patch
     use ColumnType                 , only : col
     use clm_varctl                 , only : iulog
+    use SoilWaterPlantSinkMod      , only : COmpute_EffecRootFrac_And_VertTranSink
     !
     ! !ARGUMENTS:
     type(bounds_type)       , intent(in)    :: bounds               ! bounds
@@ -749,6 +752,7 @@ contains
     class(soil_water_retention_curve_type), intent(in) :: soil_water_retention_curve
     !
     ! !LOCAL VARIABLES:
+    character(len=32) :: subname = 'soilwater_zengdecker2009' ! subroutine name 
     integer  :: p,c,fc,j                                     ! do loop indices
     integer  :: jtop(bounds%begc:bounds%endc)                ! top level at each column
     real(r8) :: dtime                                        ! land model time step (sec)
@@ -796,7 +800,6 @@ contains
     real(r8) :: dsmpds                                       !temporary variable
     real(r8) :: dhkds                                        !temporary variable
     real(r8) :: hktmp                                        !temporary variable
-    real(r8) :: vert_trans_sink(bounds%begc:bounds%endc,1:nlevsoi)  ! vertically distributed transpiration sink (mm H2O/s) (+ = to atm)
     integer :: nstep
     !-----------------------------------------------------------------------
 
@@ -828,7 +831,7 @@ contains
          qflx_deficit      =>    waterflux_inst%qflx_deficit_col    , & ! Input:  [real(r8) (:)   ]  water deficit to keep non-negative liquid water content
          qflx_infl         =>    waterflux_inst%qflx_infl_col       , & ! Input:  [real(r8) (:)   ]  infiltration (mm H2O /s)                          
 
-         qflx_rootsoi      =>    waterflux_inst%qflx_rootsoi_col    , & ! Output: [real(r8) (:,:) ]  vegetation/soil water exchange (m H2O/s) (+ = to atm)
+         qflx_rootsoi_col  =>    waterflux_inst%qflx_rootsoi_col    , & ! Output: [real(r8) (:,:) ]  vegetation/soil water exchange (mm H2O/s) (+ = to atm)
          qflx_tran_veg_col =>    waterflux_inst%qflx_tran_veg_col   , & ! Input:  [real(r8) (:)   ]  vegetation transpiration (mm H2O/s) (+ = to atm)
          rootr_col         =>    soilstate_inst%rootr_col           , & ! Input:  [real(r8) (:,:) ]  effective fraction of roots in each soil layer  
          t_soisno          =>    temperature_inst%t_soisno_col        & ! Input:  [real(r8) (:,:) ]  soil temperature (Kelvin)                       
@@ -839,6 +842,7 @@ contains
       nstep = get_nstep()
       dtime = get_step_size()
 
+<<<<<<< HEAD
       call Compute_EffecRootFrac_And_VertTranSink(bounds, num_hydrologyc, &
          filter_hydrologyc, vert_trans_sink(bounds%begc:bounds%endc, 1:), &
          waterflux_inst, soilstate_inst)
@@ -849,6 +853,10 @@ contains
               waterflux_inst, soilstate_inst, canopystate_inst, energyflux_inst)
       end if
 
+=======
+     
+ 
+>>>>>>> 42062ee
       ! Because the depths in this routine are in mm, use local
       ! variable arrays instead of pointers
 
@@ -1042,7 +1050,7 @@ contains
          qout(c,j)   = -hk(c,j)*num/den
          dqodw1(c,j) = -(-hk(c,j)*dsmpdw(c,j)   + num*dhkdw(c,j))/den
          dqodw2(c,j) = -( hk(c,j)*dsmpdw(c,j+1) + num*dhkdw(c,j))/den
-         rmx(c,j) =  qin(c,j) - qout(c,j) - vert_trans_sink(c,j)
+         rmx(c,j) =  qin(c,j) - qout(c,j) - qflx_rootsoi_col(c,j)
          amx(c,j) =  0._r8
          bmx(c,j) =  dzmm(c,j)*(sdamp+1._r8/dtime) + dqodw1(c,j)
          cmx(c,j) =  dqodw2(c,j)
@@ -1066,7 +1074,7 @@ contains
             qout(c,j)   = -hk(c,j)*num/den
             dqodw1(c,j) = -(-hk(c,j)*dsmpdw(c,j)   + num*dhkdw(c,j))/den
             dqodw2(c,j) = -( hk(c,j)*dsmpdw(c,j+1) + num*dhkdw(c,j))/den
-            rmx(c,j)    =  qin(c,j) - qout(c,j) - vert_trans_sink(c,j)
+            rmx(c,j)    =  qin(c,j) - qout(c,j) - qflx_rootsoi_col(c,j)
             amx(c,j)    = -dqidw0(c,j)
             bmx(c,j)    =  dzmm(c,j)/dtime - dqidw1(c,j) + dqodw1(c,j)
             cmx(c,j)    =  dqodw2(c,j)
@@ -1088,7 +1096,7 @@ contains
             dqidw1(c,j) = -( hk(c,j-1)*dsmpdw(c,j)   + num*dhkdw(c,j-1))/den
             qout(c,j)   =  0._r8
             dqodw1(c,j) =  0._r8
-            rmx(c,j)    =  qin(c,j) - qout(c,j) - vert_trans_sink(c,j)
+            rmx(c,j)    =  qin(c,j) - qout(c,j) - qflx_rootsoi_col(c,j)
             amx(c,j)    = -dqidw0(c,j)
             bmx(c,j)    =  dzmm(c,j)/dtime - dqidw1(c,j) + dqodw1(c,j)
             cmx(c,j)    =  0._r8
@@ -1131,7 +1139,7 @@ contains
             dqodw1(c,j) = -(-hk(c,j)*dsmpdw(c,j)   + num*dhkdw(c,j))/den
             dqodw2(c,j) = -( hk(c,j)*dsmpdw1 + num*dhkdw(c,j))/den
 
-            rmx(c,j) =  qin(c,j) - qout(c,j) - vert_trans_sink(c,j)
+            rmx(c,j) =  qin(c,j) - qout(c,j) - qflx_rootsoi_col(c,j)
             amx(c,j) = -dqidw0(c,j)
             bmx(c,j) =  dzmm(c,j)/dtime - dqidw1(c,j) + dqodw1(c,j)
             cmx(c,j) =  dqodw2(c,j)
@@ -1222,14 +1230,7 @@ contains
             endif
          enddo
       enddo
-      if (use_flexibleCN) then
-         do j = 1, nlevsoi
-            do fc = 1, num_hydrologyc
-               c = filter_hydrologyc(fc)
-               qflx_rootsoi(c,j) = qflx_tran_veg_col(c) * rootr_col(c,j) * 1.e-3_r8       ![m H2O/s]
-            enddo
-         enddo
-      end if
+
     end associate 
          
   end subroutine soilwater_zengdecker2009
@@ -1375,7 +1376,6 @@ contains
     real(r8) :: bmx(bounds%begc:bounds%endc,1:nlevsoi)       ! "b" diagonal column for tridiagonal matrix
     real(r8) :: cmx(bounds%begc:bounds%endc,1:nlevsoi)       ! "c" right off diagonal tridiagonal matrix
     real(r8) :: rmx(bounds%begc:bounds%endc,1:nlevsoi)       ! "r" forcing term of tridiagonal matrix
-
     real(r8) :: dLow(1:nlevsoi-1)                            ! lower diagonal vector
     real(r8) :: dUpp(1:nlevsoi-1)                            ! upper diagonal vector
     real(r8) :: diag(1:nlevsoi)                              ! diagonal vector
@@ -1410,7 +1410,6 @@ contains
     real(r8) :: vwc_liq_lb(bounds%begc:bounds%endc)   ! liquid volumetric water content at lower boundary
     real(r8) :: vLiqIter(bounds%begc:bounds%endc,1:nlevsoi)   !  iteration increment for the volumetric liquid water content (v/v)
     real(r8) :: vLiqRes(bounds%begc:bounds%endc,1:nlevsoi)   ! residual for the volumetric liquid water content (v/v)
-    real(r8) :: vert_trans_sink(bounds%begc:bounds%endc,1:nlevsoi)  ! vertically distributed transpiration sink (mm H2O/s) (+ = to atm)
 
     real(r8) :: dwat_temp
     !-----------------------------------------------------------------------
@@ -1429,8 +1428,8 @@ contains
          smp_l             =>    soilstate_inst%smp_l_col           , & ! Input:  [real(r8) (:,:) ]  soil matrix potential [mm]                      
          hk_l              =>    soilstate_inst%hk_l_col            , & ! Input:  [real(r8) (:,:) ]  hydraulic conductivity (mm/s)                   
          h2osoi_ice        =>    waterstate_inst%h2osoi_ice_col     , & ! Input:  [real(r8) (:,:) ]  ice water (kg/m2)                               
-         h2osoi_liq        =>    waterstate_inst%h2osoi_liq_col       & ! Input:  [real(r8) (:,:) ]  liquid water (kg/m2)                            
-
+         h2osoi_liq        =>    waterstate_inst%h2osoi_liq_col     , & ! Input:  [real(r8) (:,:) ]  liquid water (kg/m2)                            
+         qflx_rootsoi_col  =>    waterflux_inst%qflx_rootsoi_col      &
          )  ! end associate statement
 
       ! Get time step
@@ -1438,6 +1437,7 @@ contains
       nstep = get_nstep()
       dtime = get_step_size()
 
+<<<<<<< HEAD
       call Compute_EffecRootFrac_And_VertTranSink(bounds, num_hydrologyc, &
          filter_hydrologyc, vert_trans_sink(bounds%begc:bounds%endc, 1:), &
          waterflux_inst, soilstate_inst)
@@ -1448,6 +1448,8 @@ contains
               waterflux_inst, soilstate_inst, canopystate_inst, energyflux_inst)
       end if
     
+=======
+>>>>>>> 42062ee
       ! main spatial loop
       do fc = 1, num_hydrologyc
          c = filter_hydrologyc(fc)
@@ -1507,7 +1509,7 @@ contains
 
             ! RHS of system of equations
             call compute_RHS_moisture_form(c, nlayers, &           
-                 vert_trans_sink(c,1:nlayers), &
+                 qflx_rootsoi_col(c,1:nlayers), &
                  vwc_liq(c,1:nlayers), &
                  qin(c,1:nlayers), &
                  qout(c,1:nlayers), &
@@ -1600,7 +1602,7 @@ contains
                   endif
 
                   ! compute the net flux
-                  fluxNet0(j) = qin_test - qout_test - vert_trans_sink(c,j) 
+                  fluxNet0(j) = qin_test - qout_test - qflx_rootsoi_col(c,j) 
 
                ! flux calculation is inexpensive
                else
@@ -1611,7 +1613,7 @@ contains
                endif  ! switch between the expensive and inexpensive fluxcalculations
 
                ! compute the net flux at the start of the sub-step
-               fluxNet1(j) = qin(c,j) - qout(c,j) - vert_trans_sink(c,j)
+               fluxNet1(j) = qin(c,j) - qout(c,j) - qflx_rootsoi_col(c,j)
 
             end do  ! looping through layers
 

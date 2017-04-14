@@ -43,6 +43,7 @@ module controlMod
   use SoilHydrologyMod                 , only: soilHydReadNML
   use CNFireFactoryMod                 , only: CNFireReadNML
   use CanopyFluxesMod                  , only: CanopyFluxesReadNML
+  use seq_drydep_mod                   , only: drydep_method, DD_XLND, n_drydep
   use clm_varctl                       
   !
   ! !PUBLIC TYPES:
@@ -208,7 +209,8 @@ contains
 
     namelist /clm_inparm/ use_c13, use_c14
 
-    namelist /clm_inparm/ use_ed, use_ed_spit_fire
+
+    namelist /clm_inparm/ fates_paramfile, use_ed, use_ed_spitfire
 
     ! CLM 5.0 nitrogen flags
     namelist /clm_inparm/ use_flexibleCN, use_luna
@@ -357,10 +359,53 @@ contains
        end if
 
        ! ----------------------------------------------------------------------
-       ! ABORT if use_cn AND use_ed are both true
-       if (use_ed .and. use_cn) then
-          call endrun(msg=' ERROR: use_cn and use_ed cannot both be set to true.'//&
-               errMsg(sourcefile, __LINE__))
+       !TURN OFF MEGAN VOCs if crop prognostic is on
+       ! This is a temporary place holder and should be removed once MEGAN VOCs and
+       ! crop ar compatible
+       if (use_crop) then
+          use_voc = .false.
+       end if
+
+       ! ----------------------------------------------------------------------
+       ! Check compatibility with the FATES model 
+       if ( use_ed ) then
+
+          use_voc = .false.
+
+          if ( use_cn) then
+             call endrun(msg=' ERROR: use_cn and use_ed cannot both be set to true.'//&
+                   errMsg(sourcefile, __LINE__))
+          end if
+          
+          if ( use_hydrstress) then
+             call endrun(msg=' ERROR: use_hydrstress and use_ed cannot both be set to true.'//&
+                   errMsg(sourcefile, __LINE__))
+          end if
+
+          if ( use_crop ) then
+             call endrun(msg=' ERROR: use_crop and use_ed cannot both be set to true.'//&
+                   errMsg(sourcefile, __LINE__))
+          end if
+          
+          if( use_lch4 ) then
+             call endrun(msg=' ERROR: use_lch4 (methane) and use_ed cannot both be set to true.'//&
+                   errMsg(sourcefile, __LINE__))
+          end if
+
+          if ( n_drydep > 0 .and. drydep_method /= DD_XLND ) then
+             call endrun(msg=' ERROR: dry deposition via ML Welsey is not compatible with FATES.'//&
+                   errMsg(sourcefile, __LINE__))
+          end if
+
+          if( use_luna ) then
+             call endrun(msg=' ERROR: luna is not compatible with FATES.'//&
+                  errMsg(sourcefile, __LINE__))
+          end if
+
+          if (use_ozone ) then
+             call endrun(msg=' ERROR: ozone is not compatible with FATES.'//&
+                  errMsg(sourcefile, __LINE__))
+          end if
        end if
 
        ! If nfix_timeconst is equal to the junk default value, then it was not specified
@@ -587,7 +632,9 @@ contains
     call mpi_bcast (use_c14, 1, MPI_LOGICAL, 0, mpicom, ier)
 
     call mpi_bcast (use_ed, 1, MPI_LOGICAL, 0, mpicom, ier)
-    call mpi_bcast (use_ed_spit_fire, 1, MPI_LOGICAL, 0, mpicom, ier)
+
+    call mpi_bcast (use_ed_spitfire, 1, MPI_LOGICAL, 0, mpicom, ier)
+    call mpi_bcast (fates_paramfile, len(fates_paramfile) , MPI_CHARACTER, 0, mpicom, ier)
 
     ! flexibleCN nitrogen model
     call mpi_bcast (use_flexibleCN, 1, MPI_LOGICAL, 0, mpicom, ier)
@@ -906,6 +953,13 @@ contains
        write(iulog, *) '    carbon_resp_opt = ', carbon_resp_opt
     end if
     write(iulog, *) '  use_luna = ', use_luna
+
+    write(iulog, *) '  ED/FATES: '
+    write(iulog, *) '    use_ed = ', use_ed
+    if (use_ed) then
+       write(iulog, *) '    use_ed_spitfire = ', use_ed_spitfire
+       write(iulog, *) '    fates_paramfile = ', fates_paramfile
+    end if
   end subroutine control_print
 
 

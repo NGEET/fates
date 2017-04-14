@@ -476,7 +476,7 @@ contains
     use ncdio_pio   , only : ncd_inqdid, ncd_inqdlen
     use clm_varctl  , only : paramfile, use_ed, use_flexibleCN, use_dynroot
     use spmdMod     , only : masterproc
-    use EDPftvarcon , only : EDpftconrd
+    use CLMFatesParamInterfaceMod, only : FatesReadPFTs
     !
     ! !ARGUMENTS:
     class(pftcon_type) :: this
@@ -996,13 +996,6 @@ contains
     end if
 
     !
-    ! ED variables
-    !
-    if ( use_ed ) then
-       ! The following sets the module variable EDpftcon_inst in EDPftcon
-       call EDpftconrd ( ncid )
-    endif
-    !
     ! Dynamic Root variables for crops
     !
     if ( use_crop .and. use_dynroot )then
@@ -1011,6 +1004,8 @@ contains
     end if
    
     call ncd_pio_closefile(ncid)
+
+    call FatesReadPFTs()
 
     do i = 0, mxpft
        if (.not. use_ed)then
@@ -1381,7 +1376,6 @@ contains
     deallocate( this%FUN_fracfixers)
     
   end subroutine Clean
-
 
 end module pftconMod
 

@@ -4,20 +4,34 @@ module EDCohortDynamicsMod
   ! Cohort stuctures in ED. 
   !
   ! !USES: 
-  use abortutils            , only : endrun
+  use FatesGlobals          , only : endrun => fates_endrun
   use FatesGlobals          , only : fates_log
-  use FatesGlobals          , only : freq_day
+  use FatesInterfaceMod     , only : hlm_freq_day
+  use FatesInterfaceMod     , only : bc_in_type
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
-  use shr_log_mod           , only : errMsg => shr_log_errMsg
-  use pftconMod             , only : pftcon
+  use FatesInterfaceMod     , only : hlm_days_per_year
+  use EDPftvarcon           , only : EDPftvarcon_inst
   use EDEcophysContype      , only : EDecophyscon
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDTypesMod            , only : fusetol, cp_nclmax
-  use EDtypesMod            , only : ncwd, maxcohortsperpatch
-  use EDtypesMod            , only : sclass_ed,nlevsclass_ed,AREA
-  use EDtypesMod            , only : min_npm2, min_nppatch, min_n_safemath
+  use EDTypesMod            , only : nclmax
+  use EDTypesMod            , only : ncwd
+  use EDTypesMod            , only : maxCohortsPerPatch
+  use EDTypesMod            , only : sclass_ed,nlevsclass_ed,AREA
+  use EDTypesMod            , only : min_npm2, min_nppatch
+  use EDTypesMod            , only : min_n_safemath
+  use EDTypesMod             , only : use_fates_plant_hydro
+  use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
+  use FatesPlantHydraulicsMod, only : CopyCohortHydraulics
+  use FatesPlantHydraulicsMod, only : updateSizeDepTreeHydProps
+  use FatesPlantHydraulicsMod, only : initTreeHydStates
+  use FatesPlantHydraulicsMod, only : InitHydrCohort
+  use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
+  use EDTypesMod             , only : sizetype_class_index
+
+  ! CIME globals
+  use shr_log_mod           , only : errMsg => shr_log_errMsg
   !
   implicit none
   private
@@ -31,7 +45,6 @@ module EDCohortDynamicsMod
   public :: sort_cohorts
   public :: copy_cohort
   public :: count_cohorts
-  public :: size_and_type_class_index
   public :: allocate_live_biomass
 
   logical, parameter :: DEBUG  = .false. ! local debug flag
@@ -46,7 +59,7 @@ contains
 
   !-------------------------------------------------------------------------------------!
   subroutine create_cohort(patchptr, pft, nn, hite, dbh, &
-       balive, bdead, bstore, laimemory, status, ctrim, clayer)
+       balive, bdead, bstore, laimemory, status, ctrim, clayer, bc_in)
     !
     ! !DESCRIPTION:
     ! create new cohort
@@ -66,6 +79,7 @@ contains
     real(r8), intent(in)   :: bstore    ! stored carbon: kGC per indiv
     real(r8), intent(in)   :: laimemory ! target leaf biomass- set from previous year: kGC per indiv
     real(r8), intent(in)   :: ctrim     ! What is the fraction of the maximum leaf biomass that we are targeting? :-
+    type(bc_in_type), intent(in) :: bc_in ! External boundary conditions
     !
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer :: new_cohort         ! Pointer to New Cohort structure.
@@ -94,13 +108,14 @@ contains
     new_cohort%dbh          = dbh
     new_cohort%canopy_trim  = ctrim
     new_cohort%canopy_layer = clayer
+    new_cohort%canopy_layer_yesterday = real(clayer, r8)
     new_cohort%laimemory    = laimemory
     new_cohort%bdead        = bdead
     new_cohort%balive       = balive
     new_cohort%bstore       = bstore
 
-    call size_and_type_class_index(new_cohort%dbh,new_cohort%pft, &
-                                   new_cohort%size_class,new_cohort%size_by_pft_class)
+    call sizetype_class_index(new_cohort%dbh,new_cohort%pft, &
+                              new_cohort%size_class,new_cohort%size_by_pft_class)
 
     if ( DEBUG ) write(fates_log(),*) 'EDCohortDyn I ',bstore
 
@@ -116,11 +131,11 @@ contains
              call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
 
-    if (new_cohort%siteptr%status==2 .and. pftcon%season_decid(pft) == 1) then
+    if (new_cohort%siteptr%status==2 .and. EDPftvarcon_inst%season_decid(pft) == 1) then
       new_cohort%laimemory = 0.0_r8
     endif
 
-    if (new_cohort%siteptr%dstatus==2 .and. pftcon%stress_decid(pft) == 1) then
+    if (new_cohort%siteptr%dstatus==2 .and. EDPftvarcon_inst%stress_decid(pft) == 1) then
       new_cohort%laimemory = 0.0_r8
     endif
     
@@ -158,6 +173,12 @@ contains
     ! growth, disturbance and mortality.
     new_cohort%isnew = .true.
 
+    if( use_fates_plant_hydro ) then
+       call InitHydrCohort(new_cohort)
+       call updateSizeDepTreeHydProps(new_cohort, bc_in) 
+       call initTreeHydStates(new_cohort, bc_in) 
+    endif
+    
     call insert_cohort(new_cohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
          storebigcohort, storesmallcohort)
 
@@ -196,37 +217,36 @@ contains
 
     currentCohort => cc_p
     ft = currentcohort%pft
-    leaf_frac = 1.0_r8/(1.0_r8 + EDecophyscon%sapwood_ratio(ft) * currentcohort%hite + pftcon%froot_leaf(ft))     
+    leaf_frac = 1.0_r8/(1.0_r8 + EDecophyscon%sapwood_ratio(ft) * currentcohort%hite + EDPftvarcon_inst%froot_leaf(ft))     
 
     !currentcohort%bl = currentcohort%balive*leaf_frac    
     !for deciduous trees, there are no leaves  
     
-    if (pftcon%evergreen(ft) == 1) then
+    if (EDPftvarcon_inst%evergreen(ft) == 1) then
        currentcohort%laimemory = 0._r8
        currentcohort%status_coh    = 2      
     endif    
 
     ! iagnore the root and stem biomass from the functional balance hypothesis. This is used when the leaves are 
     !fully on. 
-    !currentcohort%br  = pftcon%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
+    !currentcohort%br  = EDPftvarcon_inst%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
     !currentcohort%bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
     !     currentcohort%laimemory)*leaf_frac 
     
     leaves_off_switch = 0
-    if (currentcohort%status_coh == 1.and.pftcon%stress_decid(ft) == 1.and.currentcohort%siteptr%dstatus==1) then !no leaves 
+    if (currentcohort%status_coh == 1.and.EDPftvarcon_inst%stress_decid(ft) == 1.and.currentcohort%siteptr%dstatus==1) then !no leaves 
       leaves_off_switch = 1 !drought decid
     endif
-    if (currentcohort%status_coh == 1.and.pftcon%season_decid(ft) == 1.and.currentcohort%siteptr%status==1) then !no leaves
+    if (currentcohort%status_coh == 1.and.EDPftvarcon_inst%season_decid(ft) == 1.and.currentcohort%siteptr%status==1) then !no leaves
       leaves_off_switch = 1 !cold decid
     endif
   
     ! Use different proportions if the leaves are on vs off
     if(leaves_off_switch==0)then
 
-
        new_bl = currentcohort%balive*leaf_frac
 
-       new_br = pftcon%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
+       new_br = EDpftvarcon_inst%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
 
        new_bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
             currentcohort%laimemory)*leaf_frac
@@ -236,12 +256,12 @@ contains
        if(mode==1)then 
 
           currentcohort%npp_leaf = currentcohort%npp_leaf + &
-                max(0.0_r8,new_bl - currentcohort%bl) / freq_day
+                max(0.0_r8,new_bl - currentcohort%bl) / hlm_freq_day
           
           currentcohort%npp_froot = currentcohort%npp_froot + &
-                max(0._r8,new_br - currentcohort%br) / freq_day
+                max(0._r8,new_br - currentcohort%br) / hlm_freq_day
 
-          currentcohort%npp_bsw =  max(0.0_r8, new_bsw - currentcohort%bsw)/freq_day
+          currentcohort%npp_bsw =  max(0.0_r8, new_bsw - currentcohort%bsw)/hlm_freq_day
 
           currentcohort%npp_bdead =  currentCohort%dbdeaddt
 
@@ -250,7 +270,6 @@ contains
        currentcohort%bl = new_bl
        currentcohort%br = new_br
        currentcohort%bsw = new_bsw
-
 
     else ! Leaves are off (leaves_off_switch==1)
 
@@ -261,11 +280,11 @@ contains
        !not have enough live biomass to support the hypothesized root mass
        !thus, we use 'ratio_balive' to adjust br and bsw. Apologies that this is so complicated! RF
        
-       ideal_balive      = currentcohort%laimemory * pftcon%froot_leaf(ft) +  &
+       ideal_balive      = currentcohort%laimemory * EDPftvarcon_inst%froot_leaf(ft) +  &
             currentcohort%laimemory*  EDecophyscon%sapwood_ratio(ft) * currentcohort%hite
        ratio_balive      = currentcohort%balive / ideal_balive
 
-       new_br  = pftcon%froot_leaf(ft) * (ideal_balive + currentcohort%laimemory) * &
+       new_br  = EDpftvarcon_inst%froot_leaf(ft) * (ideal_balive + currentcohort%laimemory) * &
              leaf_frac *  ratio_balive
        new_bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite * &
              (ideal_balive + currentcohort%laimemory) * leaf_frac * ratio_balive
@@ -274,9 +293,9 @@ contains
        if(mode==1)then
 
           currentcohort%npp_froot = currentcohort%npp_froot + &
-                max(0.0_r8,new_br-currentcohort%br)/freq_day
+                max(0.0_r8,new_br-currentcohort%br)/hlm_freq_day
 
-          currentcohort%npp_bsw = max(0.0_r8, new_bsw-currentcohort%bsw)/freq_day
+          currentcohort%npp_bsw = max(0.0_r8, new_bsw-currentcohort%bsw)/hlm_freq_day
 
           currentcohort%npp_bdead =  currentCohort%dbdeaddt
 
@@ -294,7 +313,7 @@ contains
             currentcohort%status_coh,currentcohort%balive
        write(fates_log(),*) 'actual vs predicted balive',ideal_balive,currentcohort%balive ,ratio_balive,leaf_frac
        write(fates_log(),*) 'leaf,root,stem',currentcohort%bl,currentcohort%br,currentcohort%bsw
-       write(fates_log(),*) 'pft',ft,pftcon%evergreen(ft),pftcon%season_decid(ft),leaves_off_switch
+       write(fates_log(),*) 'pft',ft,EDPftvarcon_inst%evergreen(ft),EDPftvarcon_inst%season_decid(ft),leaves_off_switch
     endif
     currentCohort%b   = currentCohort%bdead + currentCohort%balive
 
@@ -334,6 +353,7 @@ contains
     currentCohort%pft                = fates_unset_int  ! pft number                           
     currentCohort%indexnumber        = fates_unset_int  ! unique number for each cohort. (within clump?)
     currentCohort%canopy_layer       = fates_unset_int  ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)   
+    currentCohort%canopy_layer_yesterday       = nan  ! recent canopy status of cohort (1 = canopy, 2 = understorey, etc.)   
     currentCohort%NV                 = fates_unset_int  ! Number of leaf layers: -
     currentCohort%status_coh         = fates_unset_int  ! growth status of plant  (2 = leaves on , 1 = leaves off)
     currentCohort%size_class         = fates_unset_int  ! size class index
@@ -480,7 +500,7 @@ contains
   end subroutine zero_cohort
 
   !-------------------------------------------------------------------------------------!
-  subroutine terminate_cohorts( patchptr )
+  subroutine terminate_cohorts( currentSite, patchptr )
     !
     ! !DESCRIPTION:
     ! terminates cohorts when they get too small      
@@ -490,6 +510,7 @@ contains
     use SFParamsMod, only : SF_val_CWD_frac
     !
     ! !ARGUMENTS    
+    type (ed_site_type) , intent(inout), target :: currentSite
     type (ed_patch_type), intent(inout), target :: patchptr
     !
     ! !LOCAL VARIABLES:
@@ -498,6 +519,7 @@ contains
     type (ed_cohort_type) , pointer :: nextc
     integer :: terminate   ! do we terminate (1) or not (0) 
     integer :: c           ! counter for litter size class. 
+    integer :: levcan      ! canopy level
     !----------------------------------------------------------------------
 
     currentPatch  => patchptr
@@ -530,7 +552,7 @@ contains
          endif
 
          ! In the third canopy layer
-         if (currentCohort%canopy_layer > cp_nclmax ) then 
+         if (currentCohort%canopy_layer > nclmax ) then 
            terminate = 1
            if ( DEBUG ) then
              write(fates_log(),*) 'terminating cohorts 2', currentCohort%canopy_layer
@@ -559,6 +581,17 @@ contains
        endif
 
        if (terminate == 1) then 
+          ! preserve a record of the to-be-terminated cohort for mortality accounting
+          if (currentCohort%canopy_layer .eq. 1) then
+             levcan = 1
+          else
+             levcan = 2
+          endif
+          currentSite%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) = &
+               currentSite%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) + currentCohort%n
+          !
+          currentSite%termination_carbonflux(levcan) = currentSite%termination_carbonflux(levcan) + &
+               currentCohort%n * currentCohort%b
           if (.not. associated(currentCohort%taller)) then
              currentPatch%tallest => currentCohort%shorter
           else 
@@ -587,6 +620,25 @@ contains
              currentPatch%root_litter(currentCohort%pft) = currentPatch%root_litter(currentCohort%pft) + currentCohort%n* &
                   (currentCohort%br+currentCohort%bstore)/currentPatch%area 
 
+             ! keep track of the above fluxes at the site level as a CWD/litter input flux (in kg / site-m2 / yr)
+             do c=1,ncwd
+                currentSite%CWD_AG_diagnostic_input_carbonflux(c)  = currentSite%CWD_AG_diagnostic_input_carbonflux(c) &
+                     + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
+                     SF_val_CWD_frac(c) * ED_val_ag_biomass * hlm_days_per_year / AREA
+                currentSite%CWD_BG_diagnostic_input_carbonflux(c)  = currentSite%CWD_BG_diagnostic_input_carbonflux(c) &
+                     + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
+                     SF_val_CWD_frac(c) * (1.0_r8 -  ED_val_ag_biomass)  * hlm_days_per_year / AREA
+             enddo
+             
+             currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
+                  currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) +  &
+                  currentCohort%n * (currentCohort%bl) * hlm_days_per_year  / AREA
+             currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
+                  currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) + &
+                  currentCohort%n * (currentCohort%br+currentCohort%bstore) * hlm_days_per_year  / AREA
+
+             if (use_fates_plant_hydro) call DeallocateHydrCohort(currentCohort)
+
              deallocate(currentCohort)     
           endif
        endif
@@ -596,16 +648,18 @@ contains
   end subroutine terminate_cohorts
 
   !-------------------------------------------------------------------------------------!
-  subroutine fuse_cohorts(patchptr)  
+  subroutine fuse_cohorts(patchptr, bc_in)  
     !
     ! !DESCRIPTION:
     ! Join similar cohorts to reduce total number            
     !
     ! !USES:
-    use EDTypesMod  , only :  cp_nlevcan
+    use EDTypesMod  , only :  nlevleaf
+    use EDParamsMod , only :  ED_val_cohort_fusion_tol
     !
     ! !ARGUMENTS    
     type (ed_patch_type), intent(inout), target :: patchptr
+    type (bc_in_type), intent(in)               :: bc_in
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type)  , pointer :: currentPatch
@@ -621,7 +675,7 @@ contains
     !----------------------------------------------------------------------
     
     !set initial fusion tolerance
-    dynamic_fusion_tolerance = fusetol
+    dynamic_fusion_tolerance = ED_val_cohort_fusion_tol
    
     !This needs to be a function of the canopy layer, because otherwise, at canopy closure
     !the number of cohorts doubles and very dissimilar cohorts are fused together
@@ -754,7 +808,11 @@ contains
                          currentCohort%npp_bseed = (currentCohort%n*currentCohort%npp_bseed + nextc%n*nextc%npp_bseed)/newn
                          currentCohort%npp_store = (currentCohort%n*currentCohort%npp_store + nextc%n*nextc%npp_store)/newn
 
-                         do i=1, cp_nlevcan     
+                         ! recent canopy history
+                         currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
+                              nextc%n*nextc%canopy_layer_yesterday)/newn
+
+                         do i=1, nlevleaf     
                             if (currentCohort%year_net_uptake(i) == 999._r8 .or. nextc%year_net_uptake(i) == 999._r8) then
                                currentCohort%year_net_uptake(i) = min(nextc%year_net_uptake(i),currentCohort%year_net_uptake(i))
                             else
@@ -762,6 +820,8 @@ contains
                                   nextc%n*nextc%year_net_uptake(i))/newn                
                             endif
                          enddo
+                         
+                         if(use_fates_plant_hydro) call FuseCohortHydraulics(currentCohort,nextc,bc_in,newn)
                          
                          currentCohort%n = newn     
                          !remove fused cohort from the list
@@ -773,6 +833,7 @@ contains
                          endif
 
                          if (associated(nextc)) then       
+                            if(use_fates_plant_hydro) call DeallocateHydrCohort(nextc)
                             deallocate(nextc)            
                          endif
 
@@ -1031,6 +1092,7 @@ contains
     n%gscan           = o%gscan
     n%leaf_cost       = o%leaf_cost
     n%canopy_layer    = o%canopy_layer
+    n%canopy_layer_yesterday    = o%canopy_layer_yesterday
     n%nv              = o%nv
     n%status_coh      = o%status_coh
     n%canopy_trim     = o%canopy_trim
@@ -1112,6 +1174,10 @@ contains
     n%crownfire_mort  = o%crownfire_mort
     n%cambial_mort    = o%cambial_mort
 
+    ! Plant Hydraulics
+    
+    if( use_fates_plant_hydro ) call CopyCohortHydraulics(n,o)
+
     !Pointers
     n%taller          => NULL()     ! pointer to next tallest cohort     
     n%shorter         => NULL()     ! pointer to next shorter cohort     
@@ -1156,25 +1222,6 @@ contains
 
   end function count_cohorts
 
-  ! =====================================================================================
-
-  subroutine size_and_type_class_index(dbh,pft,size_class,size_by_pft_class)
-    
-    use EDTypesMod, only: sclass_ed
-    use EDTypesMod, only: nlevsclass_ed
-    
-    ! Arguments
-    real(r8),intent(in) :: dbh
-    integer,intent(in)  :: pft
-    integer,intent(out) :: size_class
-    integer,intent(out) :: size_by_pft_class
-    
-    size_class        = count(dbh-sclass_ed.ge.0.0_r8)
-    
-    size_by_pft_class = (pft-1)*nlevsclass_ed+size_class
-
-    return
-  end subroutine size_and_type_class_index
 
 
 

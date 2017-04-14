@@ -572,7 +572,7 @@ Toggle to turn on the ED
 (ED = 'on' is EXPERIMENTAL NOT SUPPORTED!)
 </entry>
 
-<entry id="use_ed_spit_fire" type="logical" category="physics"
+<entry id="use_ed_spitfire" type="logical" category="physics"
         group="clm_inparm" valid_values="" value=".false.">
 Toggle to turn on spit fire (only relevant if ED is being used).
 </entry>
@@ -601,6 +601,11 @@ How LUNA and Photosynthesis (if needed) will get Leaf nitrogen content
        input_pathname="abs" group="clm_inparm" valid_values="" >
 Full pathname datafile with plant function type (PFT) constants combined with
 constants for biogeochem modules
+</entry>
+
+<entry id="fates_paramfile" type="char*256" category="datasets"
+       input_pathname="abs" group="clm_inparm" valid_values="" >
+Full pathname datafile with fates parameters
 </entry>
 
 <entry id="fsurdat" type="char*256"     category="datasets"

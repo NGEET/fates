@@ -37,14 +37,27 @@ module FatesConstantsMod
   
   ! Conversion factor: micromoles per mole
   real(fates_r8), parameter :: umol_per_mol = 1.0E6_fates_r8
-  
+
+  ! Conversion factor: m2 per ha
+  real(fates_r8), parameter :: m2_per_ha = 1.0e4_fates_r8
+
+  ! Conversion factor :: ha per m2
+  real(fates_r8), parameter :: ha_per_m2 = 1.0e-4_fates_r8
 
   ! Conversion: seconds per minute
   real(fates_r8), parameter :: sec_per_min = 60.0_fates_r8
 
   ! Conversion: seconds per day
   real(fates_r8), parameter :: sec_per_day = 86400.0_fates_r8
+
+  ! Conversion: days per second
+  real(fates_r8), parameter :: days_per_sec = 1.0_fates_r8/86400.0_fates_r8
+
+  ! Conversion: days per year. assume HLM uses 365 day calendar.  If we need to link to 365.25-day-calendared HLM, rewire to pass through interface
+  real(fates_r8), parameter :: days_per_year = 365.00_fates_r8
   
+   ! Conversion: years per day. assume HLM uses 365 day calendar.  If we need to link to 365.25-day-calendared HLM, rewire to pass through interface
+  real(fates_r8), parameter :: years_per_day = 1.0_fates_r8/365.00_fates_r8
   
   ! Physical constants
 
@@ -57,6 +70,12 @@ module FatesConstantsMod
   ! freezing point of water at triple point (K)
   real(fates_r8), parameter :: t_water_freeze_k_triple = 273.16_fates_r8      
 
+  ! Density of fresh liquid water (kg/m3)
+  real(fates_r8), parameter :: dens_fresh_liquid_water = 1.0E3_fates_r8
+
+  ! Gravity constant on earth [m/s]
+  real(fates_r8), parameter :: grav_earth = 9.8_fates_r8
+
 
   ! For numerical inquiry
   real(fates_r8), parameter :: fates_huge = huge(g_per_kg)
@@ -67,7 +86,5 @@ module FatesConstantsMod
   
   ! PI
   real(fates_r8), parameter :: pi_const = 3.14159265359_fates_r8
-
-
 
 end module FatesConstantsMod

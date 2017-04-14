@@ -758,7 +758,7 @@ sub setup_cmdl_ed_mode {
 
       # The following variables may be set by the user and are compatible with use_ed
       # no need to set defaults, covered in a different routine
-      my @list  = (  "use_ed_spit_fire", "use_vertsoilc", "use_century_decomp", "use_lch4" );
+      my @list  = (  "use_ed_spitfire", "use_vertsoilc", "use_century_decomp", "use_lch4" );
       foreach my $var ( @list ) {
 	  if ( defined($nl->get_value($var))  ) {
 	      $nl_flags->{$var} = $nl->get_value($var);
@@ -777,7 +777,7 @@ sub setup_cmdl_ed_mode {
 
     } else {
 	# we only dis-allow ed_spit_fire with non-ed runs
-       $var = "use_ed_spit_fire";
+       $var = "use_ed_spitfire";
        if ( defined($nl->get_value($var)) ) {
            fatal_error("$var is being set, but can ONLY be set when -bgc ed option is used.\n");
        }
@@ -2054,8 +2054,8 @@ sub setup_logic_params_file {
   my ($test_files, $nl_flags, $definition, $defaults, $nl, $physv) = @_;
 
   if ( $physv->as_long() >= $physv->as_long("clm4_5") ) {
-    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'paramfile',
-                'use_ed'=>$nl_flags->{'use_ed'}, 'phys'=>$nl_flags->{'phys'},
+    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'paramfile', 
+                'phys'=>$nl_flags->{'phys'},
                 'use_flexibleCN'=>$nl_flags->{'use_flexibleCN'} );
   } else {
     add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'fpftcon');
@@ -3608,7 +3608,8 @@ sub setup_logic_ed {
     my ($test_files, $nl_flags, $definition, $defaults, $nl, $physv) = @_;
 
     if ($physv->as_long() >= $physv->as_long("clm4_5") && value_is_true( $nl_flags->{'use_ed'})  ) {
- 	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_ed_spit_fire', 'use_ed'=>$nl_flags->{'use_ed'} );
+ 	add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_ed_spitfire', 'use_ed'=>$nl_flags->{'use_ed'} );
+        add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'fates_paramfile', 'phys'=>$nl_flags->{'phys'});
     }
 }
 
