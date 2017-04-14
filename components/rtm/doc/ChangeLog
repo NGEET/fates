@@ -1,4 +1,96 @@
 ===============================================================
+Tag name:  rtm1_0_61
+Originator(s): andre
+Date: March 17, 2017
+One-line Summary: histfile pointer bugfix bugz-2184
+
+Bugfix from bugzilla issue 2184. The histfile infrastructure rtm
+inherited from clm needs to use pointers to refer to pio/netcdf file
+handles. Bug 2184 has never occured in rtm, but the same problem
+existed.
+
+Testing:
+
+    NOTE: testing done with a franken-branch of clm4_5_14_r229 and
+    rtm1_0_60.
+
+    rtm - pass - yellowstone gnu, intel, pgi. baseline rtm1_0_60_clm4_5_14_r229.
+
+    aux_clm4{0,5}: ok vs clm4_5_14_r229 baselines, yellowstone gnu, intel, pgi
+
+	Notes: Expected failures from clm + expected failures from rtm1_0_60.
+
+	ERP_D.f19_g16.IRCP85CN.yellowstone_pgi.clm-40default
+	ERP_P180x2_Ld5.f19_g16.I1850CN.yellowstone_pgi.clm-40default
+	SMS.f19_g16.IRCP45CN.yellowstone_pgi
+	SSP_D_Ld10.f19_g16.I1850CLM45BGC.yellowstone_intel.clm-default
+	SSP_Ld10.f19_g16.I1850CLM45BGC.yellowstone_pgi.clm-default
+
+
+Modified files: fix for bugzilla #2184
+
+    components/rtm/src/riverroute/RtmHistFile.F90
+
+
+===============================================================
+Tag name:  rtm1_0_60
+Originator(s): mvertens, andre
+Date: March 14, 2017
+One-line Summary: cime5 python namelist generation
+
+Changes from Mariana Vertenstein to convert namelist generation to use
+the cime5 python namelist infrastructure.
+
+Testing:
+
+  aux_clm4{0,5}: ok vs clm4_5_14_r227 baseline
+
+	Notes: new expected failures for clm. The new namelist
+	infrastructure does not support automatically setting up cases
+	where rtm reads initial conditions from the clm file. The
+	functionality is discouraged from being used in the future. The
+	following tests in the clm test suites are new expected failures
+	because of this change in behavior:
+
+	ERP_D.f19_g16.IRCP85CN.yellowstone_pgi.clm-40default
+	ERP_P180x2_Ld5.f19_g16.I1850CN.yellowstone_pgi.clm-40default
+	SMS.f19_g16.IRCP45CN.yellowstone_pgi
+	SSP_D_Ld10.f19_g16.I1850CLM45BGC.yellowstone_intel.clm-default
+	SSP_Ld10.f19_g16.I1850CLM45BGC.yellowstone_pgi.clm-default
+
+
+  rtm: pass vs clm4_5_14_r227 baseline
+
+Deleted files: old perl build namelist and xml files.
+   bld
+   bld/build-namelist
+   bld/namelist_files
+   bld/namelist_files/namelist_defaults_rtm.xml
+   bld/namelist_files/namelist_definition_rtm.xml
+
+Added files: new python buildnml and xml files
+
+   cime_config/namelist_definition_rtm.xml
+   cime_config/buildlib
+   cime_config/buildnml
+   cime_config/config_component.xml
+
+Modified files: update tests to use xmlchange, bugfix rtm_effvel not
+                being set correctly in some tests.
+
+    cime_config/testdefs/testmods_dirs/rtm/rtmOnFloodOnEffvelOff/shell_commands
+    cime_config/testdefs/testmods_dirs/rtm/rtmOnFloodOnEffvelOff/user_nl_rtm
+    cime_config/testdefs/testmods_dirs/rtm/rtmOnFloodOnEffvelOn/shell_commands
+    cime_config/testdefs/testmods_dirs/rtm/rtmOnFloodOnEffvelOn/user_nl_rtm
+    cime_config/testdefs/testmods_dirs/rtm/rtmOnIceOff/shell_commands
+    cime_config/testdefs/testmods_dirs/rtm/rtmOnIceOff/user_nl_rtm
+    cime_config/testdefs/testmods_dirs/rtm/rtmOff/shell_commands
+    cime_config/testdefs/testmods_dirs/rtm/rtmOff/user_nl_rtm
+    cime_config/testdefs/testmods_dirs/rtm/rtmOnIceOn/shell_commands
+    cime_config/testdefs/testmods_dirs/rtm/rtmOnIceOn/user_nl_rtm
+
+
+===============================================================
 Tag name:  rtm1_0_59
 Originator(s): swenson, sacks
 Date: Oct 17, 2016

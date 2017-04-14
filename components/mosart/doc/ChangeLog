@@ -1,4 +1,95 @@
 ===============================================================
+Tag name:  mosart1_0_23
+Originator(s): andre
+Date: March 17, 2017
+One-line Summary: answer changing improvements and bugfix
+
+Answer changing improvements to channel storage from HongYi Li for
+faster spinup. Bugfix from Tony Craig to use correct delta time for
+qgwl flux.
+
+Changes reviewed by Sean Swenson.
+
+Testing:
+
+    Test suite: mosart - yellowstone gnu, intel, pgi
+    Test baseline mosart1_0_22_clm4_5_14_r229
+    Test status: pass, answer changing as expected when mosart on
+
+    Test suite: aux_clm4{0,5} - yellowstone gnu, intel, pgi
+    Test baseline: clm4_5_14_r229
+    Test status: ok - only expected failures. Bit for bit except for
+                 tests with mosart as expected.
+
+    Dave Lawrence and Sean Swenson ran branch in a long cesm2 coupled
+    simulation and verified the results were ok.
+
+Modified files: 
+
+    components/mosart/src/riverroute/RtmMod.F90
+
+
+===============================================================
+Tag name:  mosart1_0_22
+Originator(s): andre
+Date: March 17, 2017
+One-line Summary: histfile pointer bugfix bugz-2184
+
+Bugfix from bugzilla issue 2184. The histfile infrastructure mosart
+inherited from clm via rtm needs to use pointers to refer to
+pio/netcdf file handles. Bug 2184 has never occured in mosart, but the
+same problem existed.
+
+Testing:
+
+    NOTE: testing done with a franken-branch of clm4_5_14_r229 and
+    mosart1_0_21.
+
+    mosart - pass - yellowstone gnu, intel, pgi. baseline mosart1_0_21_clm4_5_14_r229.
+
+    aux_clm4{0,5}: ok vs clm4_5_14_r229 baselines yellowstone gnu, intel, pgi
+        Only clm expected fails
+
+
+Modified files: fix for bugzilla #2184
+
+    components/mosart/src/riverroute/RtmHistFile.F90
+
+
+===============================================================
+Tag name:  mosart1_0_21
+Originator(s): mvertens, andre
+Date: March 14, 2017
+One-line Summary: cime5 python namelist generation
+
+Changes from Mariana Vertenstein to convert namelist generation to use
+the cime5 python namelist infrastructure.
+
+Testing:
+
+  aux_clm45 vs clm4_5_14_r227 - passed except for expected failures.
+
+  mosart vs clm4_5_14_r227 generated baselines - pass
+
+  mvertens
+    ERI_Ld9.f10_f10.IMCRUCLM50BGC.yellowstone_intel.clm-default
+    ERS_Ld7.f19_g16.B1850.yellowstone_intel.allactive-defaultio -
+        was bfb with cesm2_0_alpha06f
+
+Deleted files: perl based namelist generation and xml files.
+   bld
+   bld/build-namelist
+   bld/namelist_files
+   bld/namelist_files/namelist_defaults_mosart.xml
+   bld/namelist_files/namelist_definition_mosart.xml
+
+Added files: python based namelist generation and xml files
+   cime_config/buildlib
+   cime_config/buildnml
+   cime_config/config_component.xml
+   cime_config/namelist_definition_mosart.xml
+
+===============================================================
 Tag name:  mosart1_0_20
 Originator(s): erik
 Date: Feb 21 2017
