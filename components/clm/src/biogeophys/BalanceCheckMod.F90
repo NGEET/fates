@@ -70,14 +70,12 @@ contains
 
     associate(                                               & 
          zi           =>    col%zi                         , & ! Input:  [real(r8) (:,:) ]  interface level below a "z" level (m) 
-<<<<<<< HEAD
-         
          zwt          =>    soilhydrology_inst%zwt_col     , & ! Input:  [real(r8) (:)   ]  water table depth (m)                   
          wa           =>    soilhydrology_inst%wa_col      , & ! Output: [real(r8) (:)   ]  water in the unconfined aquifer (mm)    
          begwb        =>    waterstate_inst%begwb_col        & ! Output: [real(r8) (:)   ]  water mass begining of the time step    
          )
 
-    do fc = 1, num_nolakec
+   do fc = 1, num_nolakec
        c = filter_nolakec(fc)
        if (col%hydrologically_active(c)) then
           if(zwt(c) <= zi(c,nlevsoi)) then
@@ -91,75 +89,6 @@ contains
 
     call ComputeWaterMassLake(bounds, num_lakec, filter_lakec, &
          waterstate_inst, begwb(bounds%begc:bounds%endc))
-=======
-
-         h2ocan_patch =>    waterstate_inst%h2ocan_patch   , & ! Input:  [real(r8) (:)   ]  canopy water (mm H2O) (patch-level)       
-         h2osfc       =>    waterstate_inst%h2osfc_col     , & ! Input:  [real(r8) (:)   ]  surface water (mm)                      
-         h2osno       =>    waterstate_inst%h2osno_col     , & ! Input:  [real(r8) (:)   ]  snow water (mm H2O)                     
-         h2osoi_ice   =>    waterstate_inst%h2osoi_ice_col , & ! Input:  [real(r8) (:,:) ]  ice lens (kg/m2)                      
-         h2osoi_liq   =>    waterstate_inst%h2osoi_liq_col , & ! Input:  [real(r8) (:,:) ]  liquid water (kg/m2)                  
-         total_plant_stored_h2o => waterstate_inst%total_plant_stored_h2o_col, & ! Input [real(r8) (:) dynamic water stored in plants]
-         zwt          =>    soilhydrology_inst%zwt_col     , & ! Input:  [real(r8) (:)   ]  water table depth (m)                   
-         wa           =>    soilhydrology_inst%wa_col      , & ! Output: [real(r8) (:)   ]  water in the unconfined aquifer (mm)    
-         h2ocan_col   =>    waterstate_inst%h2ocan_col     , & ! Output: [real(r8) (:)   ]  canopy water (mm H2O) (column level)    
-         begwb        =>    waterstate_inst%begwb_col        & ! Output: [real(r8) (:)   ]  water mass begining of the time step   
-         )
-
-      ! Determine beginning water balance for time step
-      ! patch-level canopy water averaged to column
-
-      call p2c(bounds, num_nolakec, filter_nolakec, &
-           h2ocan_patch(bounds%begp:bounds%endp), &
-           h2ocan_col(bounds%begc:bounds%endc))
-
-      do f = 1, num_hydrologyc
-         c = filter_hydrologyc(f)
-         if(zwt(c) <= zi(c,nlevsoi)) then
-            wa(c) = 5000._r8
-         end if
-      end do
-
-      do f = 1, num_nolakec
-         c = filter_nolakec(f)
-         if (col%itype(c) == icol_roof .or. col%itype(c) == icol_sunwall &
-              .or. col%itype(c) == icol_shadewall .or. col%itype(c) == icol_road_imperv) then
-            begwb(c) = h2ocan_col(c) + h2osno(c)
-         else
-            begwb(c) = h2ocan_col(c) + h2osno(c) + h2osfc(c) + wa(c)
-         end if
-
-      end do
-      do j = 1, nlevgrnd
-         do f = 1, num_nolakec
-            c = filter_nolakec(f)
-            if ((col%itype(c) == icol_sunwall .or. col%itype(c) == icol_shadewall &
-                 .or. col%itype(c) == icol_roof) .and. j > nlevurb) then
-            else
-               begwb(c) = begwb(c) + h2osoi_ice(c,j) + h2osoi_liq(c,j)
-            end if
-         end do
-      end do
-
-      ! ---------------------------------------------------------------------------------
-      ! Add stored plant water to the column water balance
-      ! currently, stored plant water is only dynamic when FATES is turned on.
-      ! Other orthogonal modules should not need to worry about this term,
-      ! and it should be zero in all other cases and all other columns.
-      ! (rgk 02-02-2017)
-      ! ---------------------------------------------------------------------------------
-      do j = 1, nlevgrnd
-         do f = 1, num_nolakec
-            c = filter_nolakec(f)
-            begwb(c) = begwb(c) + total_plant_stored_h2o(c)
-         end do
-      end do
-      
-
-      do f = 1, num_lakec
-         c = filter_lakec(f)
-         begwb(c) = h2osno(c)
-      end do
->>>>>>> 42062ee
 
     end associate 
 
@@ -394,14 +323,10 @@ contains
              write(iulog,*)'qflx_drain            = ',qflx_drain(indexc)*dtime
              write(iulog,*)'qflx_ice_runoff_snwcp = ',qflx_ice_runoff_snwcp(indexc)*dtime
              write(iulog,*)'qflx_ice_runoff_xs    = ',qflx_ice_runoff_xs(indexc)*dtime
-<<<<<<< HEAD
              write(iulog,*)'qflx_snwcp_discarded_ice = ',qflx_snwcp_discarded_ice(indexc)*dtime
              write(iulog,*)'qflx_snwcp_discarded_liq = ',qflx_snwcp_discarded_liq(indexc)*dtime
-
-=======
              write(iulog,*)'qflx_rootsoi_col(1:nlevsoil)  = ',qflx_rootsoi_col(indexc,:)*dtime
              write(iulog,*)'total_plant_stored_h2o_col = ',total_plant_stored_h2o_col(indexc)
->>>>>>> 42062ee
              write(iulog,*)'deltawb          = ',endwb(indexc)-begwb(indexc)
              write(iulog,*)'deltawb/dtime    = ',(endwb(indexc)-begwb(indexc))/dtime
              write(iulog,*)'deltaflux        = ',forc_rain_col(indexc)+forc_snow_col(indexc) - (qflx_evap_tot(indexc) + &
@@ -432,12 +357,9 @@ contains
              write(iulog,*)'qflx_ice_runoff_snwcp = ',qflx_ice_runoff_snwcp(indexc)*dtime
              write(iulog,*)'qflx_ice_runoff_xs    = ',qflx_ice_runoff_xs(indexc)*dtime
              write(iulog,*)'qflx_glcice_dyn_water_flux = ', qflx_glcice_dyn_water_flux(indexc)*dtime
-<<<<<<< HEAD
              write(iulog,*)'qflx_snwcp_discarded_ice = ',qflx_snwcp_discarded_ice(indexc)*dtime
              write(iulog,*)'qflx_snwcp_discarded_liq = ',qflx_snwcp_discarded_liq(indexc)*dtime
-=======
              write(iulog,*)'qflx_rootsoi_col(1:nlevsoil)  = ',qflx_rootsoi_col(indexc,:)*dtime
->>>>>>> 42062ee
              write(iulog,*)'clm model is stopping'
              call endrun(decomp_index=indexc, clmlevel=namec, msg=errmsg(sourcefile, __LINE__))
           end if

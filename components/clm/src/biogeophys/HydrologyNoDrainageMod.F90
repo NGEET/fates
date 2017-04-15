@@ -188,7 +188,7 @@ contains
            waterflux_inst, waterstate_inst)
 
       call Compute_EffecRootFrac_And_VertTranSink(bounds, num_hydrologyc, &
-           filter_hydrologyc, soilstate_inst, canopystate_inst, waterflux_inst)
+           filter_hydrologyc, soilstate_inst, canopystate_inst, waterflux_inst, energyflux_inst)
       
       if ( use_ed ) call clm_fates%ComputeRootSoilFlux(bounds, num_hydrologyc, filter_hydrologyc, soilstate_inst, waterflux_inst)
       

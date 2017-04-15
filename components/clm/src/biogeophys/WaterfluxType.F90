@@ -401,6 +401,12 @@ contains
          ptr_patch=this%qflx_evap_soi_patch, c2l_scale_type='urbanf', l2g_scale_type='ice', &
          default='inactive')
 
+    ! BEN/BILL/ETC: COULD YOU PLEASE CHECK ON THE PARAMETERS HERE?
+    ! I AM NOT AS FAMILIAR WITH THESE SET_SPEC AND SCALE_TYPES
+    call hist_addfld2d (fname='QROOTSINK',  units='mm/s', type2d='levsoi', &
+         avgflag='A', long_name='water flux from soil to root in each soil-layer', &
+         ptr_col=this%qflx_rootsoi_col, set_spec=spval, l2g_scale_type='veg' )
+
     this%qflx_evap_can_patch(begp:endp) = spval
     call hist_addfld1d (fname='QVEGE', units='mm/s',  &
          avgflag='A', long_name='canopy evaporation', &
