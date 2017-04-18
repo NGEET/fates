@@ -359,20 +359,6 @@ contains
        end if
 
        ! ----------------------------------------------------------------------
-       !TURN OFF MEGAN VOCs if crop prognostic is on
-       ! This is a temporary place holder and should be removed once MEGAN VOCs and
-       ! crop ar compatible
-       if (use_crop) then
-
-          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-          ! use_crop seems to have disappeared, but its non-compliance with use_crop
-          ! is not something we set in fates.  Why is it still here in this branch?
-          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-!!!          use_voc = .false.
-       end if
-
-       ! ----------------------------------------------------------------------
        ! Check compatibility with the FATES model 
        if ( use_ed ) then
 
