@@ -47,7 +47,7 @@ module EDTypesMod
   ! Module switches (this will be read in one day)
   ! This variable only exists now to serve as a place holder
   !!!!!!!!!! THIS SHOULD NOT BE SET TO TRUE !!!!!!!!!!!!!!!!!
-  logical,parameter :: use_fates_plant_hydro = .false.
+  logical,parameter :: use_fates_plant_hydro = .true.
   
 
   ! Switches that turn on/off ED dynamics process (names are self explanatory)
@@ -58,8 +58,8 @@ module EDTypesMod
   ! TO-DO: THESE SHOULD BE PARAMETERS IN THE FILE OR NAMELIST - ADDING THESE
   ! WAS OUTSIDE THE SCOPE OF THE VERY LARGE CHANGESET WHERE THESE WERE FIRST
   ! INTRODUCED (RGK 03-2017)
-  logical, parameter :: do_ed_phenology = .true.
-  logical, parameter :: do_ed_dynamics = .true.
+  logical, parameter :: do_ed_phenology = .false.
+  logical, parameter :: do_ed_dynamics = .false.
  
 
   ! MODEL PARAMETERS
