@@ -1,0 +1,89 @@
+<!-- NGEET supported machines -->
+
+<compiler COMPILER="intel" MACH="lawrencium-lr2">
+  <ADD_SLIBS> -lnetcdff -lnetcdf -mkl</ADD_SLIBS>
+  <ADD_FFLAGS DEBUG="TRUE"> -ftrapuv </ADD_FFLAGS>
+  <ADD_CFLAGS DEBUG="TRUE"> -ftrapuv </ADD_CFLAGS>
+  <GPTL_CPPDEFS> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY </GPTL_CPPDEFS>
+</compiler>
+
+<compiler COMPILER="intel" MACH="lawrencium-lr3">
+  <ADD_SLIBS> -lnetcdff -lnetcdf -mkl</ADD_SLIBS>
+  <ADD_FFLAGS DEBUG="TRUE"> -ftrapuv </ADD_FFLAGS>
+  <ADD_CFLAGS DEBUG="TRUE"> -ftrapuv </ADD_CFLAGS>
+  <GPTL_CPPDEFS> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY </GPTL_CPPDEFS>
+</compiler>
+
+<compiler COMPILER="gnu" MACH="eddi">
+  <NETCDF_PATH>$(NETCDF_HOME)</NETCDF_PATH>
+  <ADD_CPPDEFS> -DLinux -DCPRGNU </ADD_CPPDEFS>
+  <ADD_FFLAGS DEBUG="FALSE"> -ffree-line-length-132 </ADD_FFLAGS>
+  <ADD_FFLAGS DEBUG="TRUE"> -g -fbacktrace -fbounds-check -ffpe-trap=invalid,zero,overflow -Wline-truncation</ADD_FFLAGS>  
+  <ADD_SLIBS> -L$(NETCDF_HOME)/lib/ -lnetcdff -lnetcdf -lcurl -llapack -lblas</ADD_SLIBS>
+  <GPTL_CPPDEFS> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY </GPTL_CPPDEFS>
+  <ESMF_LIBDIR></ESMF_LIBDIR>
+</compiler>
+
+<compiler MACH="conejo" COMPILER="intel">
+  <MPICC>mpicc</MPICC>
+  <MPIFC>mpif90</MPIFC>
+  <MPICXX>mpic++</MPICXX>
+  <SFC>ifort</SFC>
+  <SCC>icc</SCC>
+  <SCXX>icpc</SCXX>
+  <ADD_SLIBS>$(shell $(NETCDF_PATH)/bin/nf-config --flibs) -llapack -lblas</ADD_SLIBS>
+  <GPTL_CPPDEFS> -DHAVE_VPRINTF -DHAVE_GETTIMEOFDAY </GPTL_CPPDEFS>
+  <TRILINOS_PATH>$(TRILINOS_PATH)</TRILINOS_PATH>
+  <ADD_SLIBS MPILIB="mpich"> -mkl=cluster </ADD_SLIBS>
+  <ADD_SLIBS MPILIB="mpich2"> -mkl=cluster </ADD_SLIBS>
+  <ADD_SLIBS MPILIB="mpt"> -mkl=cluster </ADD_SLIBS>
+  <ADD_SLIBS MPILIB="openmpi"> -mkl=cluster </ADD_SLIBS>
+  <ADD_SLIBS MPILIB="mvapich"> -mkl=cluster </ADD_SLIBS>
+  <ADD_SLIBS MPILIB="impi"> -mkl=cluster </ADD_SLIBS>
+  <ADD_SLIBS MPILIB="mpi-serial"> -mkl </ADD_SLIBS>
+</compiler>
+
+<compiler MACH="conejo" COMPILER="gnu">
+  <MPICC>mpicc</MPICC>
+  <MPIFC>mpif90</MPIFC>
+  <MPICXX>mpic++</MPICXX>
+  <SFC>gfortran</SFC>
+  <SCC>gcc</SCC>
+  <SCXX>g++</SCXX>
+  <ADD_SLIBS>$(shell $(NETCDF_PATH)/bin/nf-config --flibs) -llapack -lblas</ADD_SLIBS>
+        <CXX_LIBS>-lstdc++ -lmpi_cxx</CXX_LIBS>
+	<TRILINOS_PATH>$(TRILINOS_PATH)</TRILINOS_PATH>
+	<ALBANY_PATH>$(ALBANY_PATH)</ALBANY_PATH>
+</compiler>
+
+<compiler MACH="wolf" COMPILER="intel">
+  <MPICC>mpicc</MPICC>
+  <MPIFC>mpif90</MPIFC>
+  <MPICXX>mpic++</MPICXX>
+  <SFC>ifort</SFC>
+  <SCC>icc</SCC>
+  <SCXX>icpc</SCXX>
+  <ADD_SLIBS>$(shell $(NETCDF_PATH)/bin/nf-config --flibs) -llapack -lblas</ADD_SLIBS>
+  <TRILINOS_PATH>$(TRILINOS_PATH)</TRILINOS_PATH>
+  <ADD_SLIBS MPILIB="mpich"> -mkl=cluster </ADD_SLIBS>
+  <ADD_SLIBS MPILIB="mpich2"> -mkl=cluster </ADD_SLIBS>
+  <ADD_SLIBS MPILIB="mpt"> -mkl=cluster </ADD_SLIBS>
+  <ADD_SLIBS MPILIB="openmpi"> -mkl=cluster </ADD_SLIBS>
+  <ADD_SLIBS MPILIB="mvapich"> -mkl=cluster </ADD_SLIBS>
+  <ADD_SLIBS MPILIB="impi"> -mkl=cluster </ADD_SLIBS>
+  <ADD_SLIBS MPILIB="mpi-serial"> -mkl </ADD_SLIBS>
+</compiler>
+
+<compiler MACH="wolf" COMPILER="gnu">
+  <MPICC>mpicc</MPICC>
+  <MPIFC>mpif90</MPIFC>
+  <MPICXX>mpic++</MPICXX>
+  <SFC>gfortran</SFC>
+  <SCC>gcc</SCC>
+  <SCXX>g++</SCXX>
+  <ADD_SLIBS>$(shell $(NETCDF_PATH)/bin/nf-config --flibs) -llapack -lblas</ADD_SLIBS>
+        <CXX_LIBS>-lstdc++ -lmpi_cxx</CXX_LIBS>
+	<TRILINOS_PATH>$(TRILINOS_PATH)</TRILINOS_PATH>
+	<ALBANY_PATH>$(ALBANY_PATH)</ALBANY_PATH>
+</compiler>
+

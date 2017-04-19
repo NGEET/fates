@@ -24,6 +24,10 @@ module unittestSimpleSubgridSetupsMod
   ! Create a grid that has a single gridcell with N vegetated patches
   public :: setup_n_veg_patches
 
+  ! Create a grid that has a single gridcell with one landunit of a given type with N
+  ! columns, each with a single patch of type noveg
+  public :: setup_landunit_ncols
+
   ! Create a grid that has N grid cells, each with a single vegetated patch
   public :: setup_ncells_single_veg_patch
 
@@ -43,6 +47,9 @@ module unittestSimpleSubgridSetupsMod
 
   ! Create a landunit of a given type with N columns, each with a single patch of type noveg
   public :: create_landunit_ncols
+
+  ! Create a vegetated landunit with N patches
+  public :: create_vegetated_landunit_n_patches
 
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -88,38 +95,47 @@ contains
 
     ! If given, this gives the pft type for each patch. If not given, pft types go 1..N.
     integer, optional, intent(in) :: pft_types(:)
+
     !
     ! !LOCAL VARIABLES:
-    integer :: npatches
-    integer :: p
-    integer, allocatable :: l_pft_types(:)
 
     character(len=*), parameter :: subname = 'setup_n_veg_patches'
     !-----------------------------------------------------------------------
 
-    npatches = size(pwtcol)
-    allocate(l_pft_types(npatches))
-    if (present(pft_types)) then
-       SHR_ASSERT((size(pft_types) == npatches), errMsg(sourcefile, __LINE__))
-       l_pft_types = pft_types
-    else
-       do p = 1, npatches
-          l_pft_types(p) = p
-       end do
-    end if
-
     call unittest_subgrid_setup_start()
-
     call unittest_add_gridcell()
-    call unittest_add_landunit(my_gi=gi, ltype=istsoil, wtgcell=1._r8)
-    call unittest_add_column(my_li=li, ctype=1, wtlunit=1._r8)
-    do p = 1, npatches
-       call unittest_add_patch(my_ci=ci, ptype=l_pft_types(p), wtcol=pwtcol(p))
-    end do
-
+    call create_vegetated_landunit_n_patches(lweight = 1._r8, &
+         pwtcol = pwtcol, pft_types = pft_types)
     call unittest_subgrid_setup_end()
 
   end subroutine setup_n_veg_patches
+
+  !-----------------------------------------------------------------------
+  subroutine setup_landunit_ncols(ltype, ctypes, cweights)
+    !
+    ! !DESCRIPTION:
+    ! Create a grid that has a single gridcell with one landunit of a given type with N
+    ! columns, each with a single patch of type noveg
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS:
+    integer, intent(in) :: ltype ! landunit type
+    integer, intent(in) :: ctypes(:)  ! array of column types; one column is created for each element in the array
+    real(r8), intent(in) :: cweights(:) ! array of column weights on the landunit
+    !
+    ! !LOCAL VARIABLES:
+
+    character(len=*), parameter :: subname = 'setup_landunit_ncols'
+    !-----------------------------------------------------------------------
+
+    call unittest_subgrid_setup_start()
+    call unittest_add_gridcell()
+    call create_landunit_ncols(ltype = ltype, lweight = 1._r8, &
+         ctypes = ctypes, cweights = cweights)
+    call unittest_subgrid_setup_end()
+
+  end subroutine setup_landunit_ncols
 
 
   !-----------------------------------------------------------------------
@@ -220,6 +236,50 @@ contains
     end do
 
   end subroutine create_landunit_ncols
+
+  !-----------------------------------------------------------------------
+  subroutine create_vegetated_landunit_n_patches(lweight, pwtcol, pft_types)
+    !
+    ! !DESCRIPTION:
+    ! Create a vegetated landunit with N patches on one column
+    !
+    ! Assumes that unittest_add_gridcell has already been called
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS:
+    real(r8), intent(in) :: lweight ! landunit weight on the gridcell
+    real(r8), intent(in) :: pwtcol(:) ! patch weights on the column
+
+    ! If given, this gives the pft type for each patch. If not given, pft types go 1..N.
+    integer, optional, intent(in) :: pft_types(:)
+    !
+    ! !LOCAL VARIABLES:
+    integer :: npatches
+    integer :: p
+    integer, allocatable :: l_pft_types(:)
+
+    character(len=*), parameter :: subname = 'create_vegetated_landunit_n_patches'
+    !-----------------------------------------------------------------------
+
+    npatches = size(pwtcol)
+    allocate(l_pft_types(npatches))
+    if (present(pft_types)) then
+       SHR_ASSERT((size(pft_types) == npatches), errMsg(sourcefile, __LINE__))
+       l_pft_types = pft_types
+    else
+       do p = 1, npatches
+          l_pft_types(p) = p
+       end do
+    end if
+
+    call unittest_add_landunit(my_gi=gi, ltype=istsoil, wtgcell=lweight)
+    call unittest_add_column(my_li=li, ctype=1, wtlunit=1._r8)
+    do p = 1, npatches
+       call unittest_add_patch(my_ci=ci, ptype=l_pft_types(p), wtcol=pwtcol(p))
+    end do
+
+  end subroutine create_vegetated_landunit_n_patches
 
 
 

@@ -1,164 +1,217 @@
-#! /usr/bin/env perl
-use strict;
-use Cwd;
+#!/usr/bin/env python
 
-if ($#ARGV == -1) {
-    die " ERROR rtm buildnml: must specify a caseroot input argument";
-}
-my ($CASEROOT) = @ARGV;
-chdir "${CASEROOT}";
+"""Namelist creator for RTM
+"""
 
-my $CIMEROOT		= `./xmlquery  CIMEROOT	         -value`;
-my $SRCROOT		= `./xmlquery  SRCROOT		 -value`;
-my $DIN_LOC_ROOT	= `./xmlquery  DIN_LOC_ROOT	 -value`;
-my $NINST_ROF		= `./xmlquery  NINST_ROF	 -value`;
-my $GET_REFCASE		= `./xmlquery  GET_REFCASE	 -value`;
-my $ROF_GRID		= `./xmlquery  ROF_GRID     	 -value`;
-my $RTM_BLDNML_OPTS     = `./xmlquery  RTM_BLDNML_OPTS 	 -value`;
-my $RTM_NAMELIST_OPTS   = `./xmlquery  RTM_NAMELIST_OPTS -value`;
-my $RUNDIR		= `./xmlquery  RUNDIR     	 -value`;
-my $RUN_TYPE		= `./xmlquery  RUN_TYPE		 -value`;
-my $RUN_STARTDATE	= `./xmlquery  RUN_STARTDATE	 -value`;
-my $RUN_REFCASE	        = `./xmlquery  RUN_REFCASE 	 -value`;
-my $RUN_REFDATE	        = `./xmlquery  RUN_REFDATE	 -value`;
-my $RUN_REFTOD	        = `./xmlquery  RUN_REFTOD 	 -value`;
-my $TESTCASE            = `./xmlquery  TESTCASE		 -value`;
+# Typically ignore this.
+# pylint: disable=invalid-name
 
-my @dirs = ("${CIMEROOT}/utils/perl5lib");
-unshift @INC, @dirs;
-require Config::SetupTools;
-my $sysmod; 
+# Disable these because this is our standard setup
+# pylint: disable=wildcard-import,unused-wildcard-import,wrong-import-position
 
-if (! -d "$CASEROOT/Buildconf/rtmconf" ) {
-    $sysmod = "mkdir $CASEROOT/Buildconf/rtmconf";
-    system($sysmod) == 0 or die "ERROR rtm buildnml: $sysmod failed: $?\n";
-}
-chdir "$CASEROOT/Buildconf/rtmconf";
+import os, shutil, sys, glob
 
-#--------------------------------------------------------------------
-# Verify rof grid is supported
-#--------------------------------------------------------------------
+CIMEROOT = os.environ.get("CIMEROOT")
+if CIMEROOT is None:
+    raise SystemExit("ERROR: must set CIMEROOT environment variable")
+sys.path.append(os.path.join(CIMEROOT, "scripts", "Tools"))
 
-my $check_grid = "fail";
-my @rof_grid_supported = ("null", "r05", "r01");
-foreach my $grid (@rof_grid_supported) {
-    if (${ROF_GRID} eq $grid) {
-	$check_grid = "OK";
-    }
-}
-if (${check_grid} ne "OK") {
-    print " ROF_GRID=${ROF_GRID} not supported in rtm";
-    die " rtm only support on null (for single point runs), r05 and r01 ROF_GRIDs only \n";
-}
+from standard_script_setup import *
+from CIME.case import Case
+from CIME.nmlgen import NamelistGenerator
+from CIME.utils import expect
+from CIME.buildnml import create_namelist_infile
 
-#--------------------------------------------------------------------
-# Invoke rtm build-namelist - output will go in $CASEROOT/Buildconf/rtmconf
-#--------------------------------------------------------------------
+logger = logging.getLogger(__name__)
 
-my $inst_string;
-my $inst_counter = 1;
-while ($inst_counter <= $NINST_ROF) {
-    
-    # -----------------------------------------------------
-    # determine instance string 
-    # -----------------------------------------------------
+# pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
+####################################################################################
+def _create_namelist(case, confdir, inst_string, infile, nmlgen):
+####################################################################################
+    """Write out the namelist for this component.
 
-    $inst_string = "";
-    if ($NINST_ROF > 1) {
-	$inst_string = `printf _%04d $inst_counter`;
+    Most arguments are the same as those for `NamelistGenerator`. The
+    `inst_string` argument is used as a suffix to distinguish files for
+    different instances. The `confdir` argument is used to specify the directory
+    in which output files will be placed.
+    """
+    #----------------------------------------------------
+    # Create config dictionary
+    #----------------------------------------------------
+    config = {}
+    config['rtm_mode'] = case.get_value("RTM_MODE")
+    config['rtm_flood_mode']  = case.get_value("RTM_FLOOD_MODE")
+    config['clm_accelerated_spinup'] = case.get_value("CLM_ACCELERATED_SPINUP")
+    config['rof_grid'] = case.get_value("ROF_GRID")
+    config['lnd_grid'] = case.get_value("LND_GRID")
+    config['rof_ncpl'] = case.get_value("ROF_NCPL")
+    config["simyr"] = case.get_value("RTM_SIM_YEAR")
+    config["compset"] = case.get_value("COMPSET")
 
-	# If multi-instance case does not have restart file, use single-case restart
-	# for each instance
-	if ( (! -e "$RUNDIR/rpointer.rof${inst_string}") && (-e "$RUNDIR/rpointer.rof") ) {
-	    $sysmod = "cp -v $RUNDIR/rpointer.rof $RUNDIR/rpointer.rof${inst_string}";
-	    system($sysmod) == 0 or die "ERROR rtm buildnml: $sysmod failed: $?\n";
-	}
-    }
+    #----------------------------------------------------
+    # Check for incompatible options.
+    #----------------------------------------------------
+    if config["rof_grid"] == "null" and config["rtm_mode"] != "NULL":
+        expect (False, "ROF_GRID is null RTM_MODE not NULL")
 
-    # -----------------------------------------------------
-    # create rtmconf/namelist
-    # -----------------------------------------------------
+    #----------------------------------------------------
+    # Clear out old data.
+    #----------------------------------------------------
+    data_list_path = os.path.join(case.get_case_root(), "Buildconf", "rtm.input_data_list")
+    if os.path.exists(data_list_path):
+        os.remove(data_list_path)
 
-    if (-e "$CASEROOT/Buildconf/rtm.input_data_list") {
-	$sysmod = "rm $CASEROOT/Buildconf/rtm.input_data_list";
-	system($sysmod) == 0 or die "ERROR rtm buildnml: $sysmod failed: $?\n";
-    }
-    
-    # The following is for backwards compatibility when runoff restart data was on clm restart files
-    my $infile_text = "";
-    if (${ROF_GRID} ne "null") {
+    #----------------------------------------------------
+    # Initialize namelist defaults
+    #----------------------------------------------------
+    nmlgen.init_defaults(infile, config)
 
-	my $refdir;
-	my $fncheck;
-	if (($RUN_TYPE eq'hybrid') || ($RUN_TYPE eq "branch")) {
-	    # set search directory
-	    $refdir = "$RUNDIR";
-	    if ($GET_REFCASE eq 'TRUE') {
-		$refdir = "$DIN_LOC_ROOT/ccsm4_init/$RUN_REFCASE/$RUN_REFDATE";
-	    }
+    #----------------------------------------------------
+    # Set values not obtained in the default settings
+    #----------------------------------------------------
 
-	    # search for clm or rtm files with instance or not
-	    $fncheck = "${RUN_REFCASE}.rtm${inst_string}.r.${RUN_REFDATE}-${RUN_REFTOD}.nc";
-	    if (! -e "$refdir/$fncheck") {
-		$fncheck = "${RUN_REFCASE}.rtm.r.${RUN_REFDATE}-${RUN_REFTOD}.nc";
-		if (! -e "$refdir/$fncheck") {
-		    $fncheck = "${RUN_REFCASE}.clm2${inst_string}.r.${RUN_REFDATE}-${RUN_REFTOD}.nc";
-		    if (! -e "$refdir/$fncheck") {
-			$fncheck = "${RUN_REFCASE}.clm2.r.${RUN_REFDATE}-${RUN_REFTOD}.nc";
-			if (! -e "$refdir/$fncheck") {
-			    print "WARNING:: rtm buildnml could not find restart file for branch or hybrid start \n";
-			    if ($GET_REFCASE eq 'TRUE') {
-				if ($TESTCASE eq 'SBN') {
-				    # do nothing
-				} else {
-				    die "ERROR rtm buildnml: GET_REFASE is TRUE, so aborting because couldn't find files";
-				}
-			    }
-			}
-		    }
-		}
-	    }
-	}
+    run_type = case.get_value("RUN_TYPE")
+    if run_type == 'branch' or run_type == 'hybrid':
+        run_refcase = case.get_value("RUN_REFCASE")
+        run_refdate = case.get_value("RUN_REFDATE")
+        run_tod     = case.get_value("RUN_REFTOD")
+        if inst_string:
+            filename = "%s.rtm%s.r.%s-%s.nc" %(run_refcase, inst_string, run_refdate, run_tod)
+        else:
+            filename = "%s.rtm.r.%s-%s.nc" %(run_refcase, run_refdate, run_tod)
+        if run_type == "hybrid":
+            nmlgen.add_default("finidat_rtm", value=filename, ignore_abs_path=True)
+        else:
+            nmlgen.add_default("nrevsn_rtm", value=filename)
+    else:
+        if nmlgen.get_default('finidat_rtm') == 'UNSET':
+            nmlgen.add_default('finidat_rtm', value='', ignore_abs_path=True)
+        else:
+            nmlgen.add_default("finidat_rtm")
 
-	if ($RUN_TYPE eq "hybrid") {$infile_text .= "finidat_rtm = \'$fncheck\'\n";}
-	if ($RUN_TYPE eq "branch") {$infile_text .= "nrevsn_rtm  = \'$refdir/$fncheck\'\n";}
+    ncpl_base_period  = case.get_value('NCPL_BASE_PERIOD')
+    if ncpl_base_period == 'hour':
+        basedt = 3600
+    elif ncpl_base_period == 'day':
+        basedt = 3600 * 24
+    elif ncpl_base_period == 'year':
+        if case.get_value('CALENDAR') == 'NO_LEAP':
+            basedt = 3600 * 24 * 365
+        else:
+            expect(False, "Invalid CALENDAR for NCPL_BASE_PERIOD %s " %ncpl_base_period)
+    elif ncpl_base_period == 'decade':
+        if case.get_value('CALENDAR') == 'NO_LEAP':
+            basedt = 3600 * 24 * 365 * 10
+        else:
+            expect(False, "invalid NCPL_BASE_PERIOD NCPL_BASE_PERIOD %s " %ncpl_base_period)
+    else:
+        expect(False, "invalid NCPL_BASE_PERIOD NCPL_BASE_PERIOD %s " %ncpl_base_period)
 
-    }
+    if basedt < 0:
+        expect(False, "basedt invalid overflow for NCPL_BASE_PERIOD %s " %ncpl_base_period)
 
-    SetupTools::create_namelist_infile("$CASEROOT", 
-				       "$CASEROOT/user_nl_rtm${inst_string}", 
-				       "$CASEROOT/Buildconf/rtmconf/namelist", 
-				       "$infile_text");
+    rof_ncpl = case.get_value("ROF_NCPL")
+    if basedt % rof_ncpl != 0:
+        expect(False, "rof_ncpl %s doesn't divide evenly into basedt \n" 
+               %(rof_ncpl, basedt))
+    else:
+        rtm_tstep = basedt / rof_ncpl
+    nmlgen.set_value("rtm_tstep", value=rtm_tstep)
 
-    # -----------------------------------------------------
-    # call build-namelist
-    # -----------------------------------------------------
-    
-    $sysmod = "$SRCROOT/components/rtm/bld/build-namelist ";
-    $sysmod = "$sysmod -infile $CASEROOT/Buildconf/rtmconf/namelist";
-    $sysmod = "$sysmod -caseroot $CASEROOT";
-    $sysmod = "$sysmod -cimeroot $CIMEROOT";  
-    $sysmod = "$sysmod -namelist \" \&rtmexp $RTM_NAMELIST_OPTS \/\" ";
-    $sysmod = "$sysmod -inst_string \"$inst_string\" $RTM_BLDNML_OPTS";
-    system($sysmod) == 0 or die "ERROR rtm buildnml: $sysmod failed: $?\n";
-    
-    # -----------------------------------------------------
-    # move rof_in to $RUNDIR
-    # -----------------------------------------------------
-    
-    if (-d ${RUNDIR}) {
-	$sysmod = "cp $CASEROOT/Buildconf/rtmconf/rof_in ${RUNDIR}/rof_in${inst_string}";
-	system($sysmod) == 0 or die "ERROR rtm buildnml: $sysmod failed: $?\n";
-    }
-    
-    # -----------------------------------------------------
-    # increment instance counter
-    # -----------------------------------------------------
+    #----------------------------------------------------
+    # Write output namelist
+    #----------------------------------------------------
+    namelist_file = os.path.join(confdir, "rof_in")
+    nmlgen.write_output_file(namelist_file, data_list_path, groups=['rtm_inparm'])
 
-    $inst_counter = $inst_counter + 1;
-}
+###############################################################################
+def buildnml(case, caseroot, compname):
+###############################################################################
+    """Build the namelist """
 
-exit (0);
+    # Build the component namelist 
+    if compname != "rtm":
+        raise AttributeError
 
+    srcroot = case.get_value("SRCROOT") 
+    rundir = case.get_value("RUNDIR")
+    ninst = case.get_value("NINST_ROF")
 
+    # Determine configuration directory
+    confdir = os.path.join(caseroot,"Buildconf","rtmconf")
+    if not os.path.isdir(confdir):
+        os.makedirs(confdir)
 
+    #----------------------------------------------------
+    # Construct the namelist generator 
+    #----------------------------------------------------
+    # determine directory for user modified namelist_definitions.xml and namelist_defaults.xml
+    user_xml_dir = os.path.join(caseroot, "SourceMods", "src.rtm")
+    expect (os.path.isdir(user_xml_dir),
+            "user_xml_dir %s does not exist " %user_xml_dir)
+
+    # NOTE: User definition *replaces* existing definition.
+    namelist_xml_dir = os.path.join(srcroot, "components", "rtm", "cime_config")
+    definition_file = [os.path.join(namelist_xml_dir, "namelist_definition_rtm.xml")]
+    user_definition = os.path.join(user_xml_dir, "namelist_definition_rtm.xml")
+    if os.path.isfile(user_definition):
+        definition_file = [user_definition]
+    for file_ in definition_file:
+        expect(os.path.isfile(file_), "Namelist XML file %s not found!" % file_)
+
+    # Create the namelist generator object - independent of instance
+    nmlgen = NamelistGenerator(case, definition_file)
+
+    #----------------------------------------------------
+    # Loop over instances
+    #----------------------------------------------------
+    for inst_counter in range(1, ninst+1):
+
+        # determine instance string
+        inst_string = ""
+        if ninst > 1:
+            inst_string = '_' + '%04d' % inst_counter
+
+        # If multi-instance case does not have restart file, use
+        # single-case restart for each instance
+        rpointer = "rpointer.rof" 
+        if (os.path.isfile(os.path.join(rundir,rpointer)) and
+            (not os.path.isfile(os.path.join(rundir,rpointer + inst_string)))):
+            shutil.copy(os.path.join(rundir, rpointer),
+                        os.path.join(rundir, rpointer + inst_string))
+
+        inst_string_label = inst_string
+        if not inst_string_label:
+            inst_string_label = "\"\""
+
+        # create namelist output infile using user_nl_file as input
+        user_nl_file = os.path.join(caseroot, "user_nl_rtm" + inst_string)
+        expect(os.path.isfile(user_nl_file),
+               "Missing required user_nl_file %s " %(user_nl_file))
+        infile = os.path.join(confdir, "namelist_infile")
+        create_namelist_infile(case, user_nl_file, infile)
+        namelist_infile = [infile]
+
+        # create namelist 
+        _create_namelist(case, confdir, inst_string, namelist_infile, nmlgen)
+
+        # copy namelist files and stream text files, to rundir
+        if os.path.isdir(rundir):
+            file_src  = os.path.join(confdir, 'rof_in')
+            file_dest = os.path.join(rundir, 'rof_in')
+            if inst_string:
+                file_dest += inst_string
+            shutil.copy(file_src, file_dest)
+            
+            for txtfile in glob.glob(os.path.join(confdir, "*txt*")):
+                shutil.copy(txtfile, rundir)
+                
+###############################################################################
+def _main_func():
+
+    caseroot = parse_input(sys.argv)
+    with Case(caseroot) as case:
+        buildnml(case, caseroot, "rtm")
+
+if __name__ == "__main__":
+    _main_func()

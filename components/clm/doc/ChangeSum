@@ -1,5 +1,44 @@
 Tag                   Who      Date  Summary
 ============================================================================================================================
+  clm4_5_15_r234    andre 04/14/2017 Update rtm and mosart externals
+  clm4_5_15_r232     erik 04/11/2017 Some small changes that affect both clm4_5 and clm5_0 answers (can be considered bug fixes to clm4_5)
+  clm4_5_14_r231    sacks 04/02/2017 Add option to reset snow pack over non-glacier columns
+  clm4_5_14_r230    sacks 03/31/2017 Fix dynamic landunits water and energy conservation
+  clm4_5_14_r229     erik 03/10/2017 Update cime and make some changes to drv_flds_in namelist, fix some minor bugs
+  clm4_5_14_r228     erik 03/07/2017 Bring in changes that were accidentally dropped as part of the clm4_5_14_r226 tag
+  clm4_5_14_r227    sacks 03/06/2017 Improve performance of dynamic landunits code
+  clm4_5_14_r226     erik 03/02/2017 Update cime, mosart and ccism to a version that is cesm2_0_beta05 or part of beta06
+  clm4_5_14_r225    sacks 02/19/2017 Fix GDD accumulation in new crop columns
+  clm4_5_14_r224    sacks 02/10/2017 Tweaks for glaciers and snow
+  clm4_5_14_r223    sacks 02/03/2017 Handle patch-level C&N variables correctly with dynamic landunits
+  clm4_5_14_r222    sacks 01/27/2017 Fix energy budget bug with fractional snow on glacier and wetland columns
+  clm4_5_14_r221    sacks 01/24/2017 Change rain-snow partitioning and ice albedo for glacier columns
+  clm4_5_14_r220    sacks 01/22/2017 Fix crop seeding
+  clm4_5_14_r219     erik 01/21/2017 Answer changes for CLM50 for several issues that lead to dead crops
+  clm4_5_14_r218    sacks 01/13/2017 For newly initiating columns: do not copy snow state
+  clm4_5_14_r217    sacks 01/13/2017 Bug fix for snow radiation absorption
+  clm4_5_14_r216     erik 01/12/2017 Fix previous broken tag
+  clm4_5_14_r215     erik 01/12/2017 Update mksurfdata_map to work with new updated datasets from Peter, and use hand-edited surfdata/landuse.timeseries datasets for f09/f19
+  clm4_5_14_r214    sacks 01/03/2017 Update column states based on dwt terms between dyn_cnbal_patch and dyn_cnbal_col, and minor fixes
+  clm4_5_14_r213    sacks 12/30/2016 Convert buildnml to python
+  clm4_5_14_r212    sacks 12/22/2016 Bump science version number due to changes in clm4_5_13_r211
+  clm4_5_13_r211    sacks 12/22/2016 Apply transient land cover and harvest all at once in first time step of year
+  clm4_5_13_r210    sacks 12/17/2016 Update cime to cesm2_0_beta04 version
+  clm4_5_13_r209    sacks 12/11/2016 Change definition of NBP; bring back some r205 changes that were lost in r207
+  clm4_5_13_r208    sacks 12/10/2016 Rework irrigation; remove glc_smb logical
+  clm4_5_13_r207    andre 12/08/2016 PHS - Calculate separate root water uptake resistances for soil and root pathways
+  clm4_5_13_r206    andre 11/29/2016 Bugfix for Luna causing arctic to die
+  clm4_5_13_r205    sacks 11/16/2016 Add diagnostics for snow and glacier; fix crash in Megan
+  clm4_5_13_r204     erik 11/15/2016 A few answer changing bug fixes
+  clm4_5_12_r203    sacks 11/10/2016 Bug fixes for snow-on-lake
+  clm4_5_12_r202    sacks 11/09/2016 Update to cime version used in cesm2_0_beta03
+  clm4_5_12_r201    sacks 11/09/2016 Rework initialization of transient weights - important with use_init_interp
+  clm4_5_12_r200     erik 11/08/2016 Latest parameter updates from simulations, ignore surface soil layer for plant hydraulic stress 
+                                     for greater variability in surface soil moisture
+  clm4_5_12_r199    sacks 10/29/2016 Use CISM2 by default
+  clm4_5_12_r198    sacks 10/20/2016 Rework mapping of irrigation from CLM to ROF
+  clm4_5_12_r197     erik 10/14/2016 Some cleanup for plant hydraulic stress and adding more namelist parameters
+  clm4_5_12_r196     erik 09/27/2016 Bring new cime5 to clm trunk
   clm4_5_12_r195    sacks 09/18/2016 Remove dependence on column weights in fire code
   clm4_5_12_r194    sacks 09/01/2016 Dribble annual dyn landunit adjustment fluxes; initialize water state for new crop columns
   clm4_5_12_r193    andre 08/30/2016 Bugfix in BalanceCheckMod: revert tolerance change and removal of endrun call introduced in r192

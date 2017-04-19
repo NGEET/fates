@@ -27,6 +27,7 @@ module clm_cpl_indices
   integer, public ::index_l2x_Flrl_rofgwl     ! lnd->rtm input liquid gwl fluxes
   integer, public ::index_l2x_Flrl_rofsub     ! lnd->rtm input liquid subsurface fluxes
   integer, public ::index_l2x_Flrl_rofi       ! lnd->rtm input frozen fluxes
+  integer, public ::index_l2x_Flrl_irrig      ! irrigation withdrawal
 
   integer, public ::index_l2x_Sl_t            ! temperature
   integer, public ::index_l2x_Sl_tref         ! 2m reference temperature
@@ -103,7 +104,7 @@ module clm_cpl_indices
   integer, public ::index_x2l_Faxa_dstdry3    ! flux: Size 3 dust -- dry deposition
   integer, public ::index_x2l_Faxa_dstdry4    ! flux: Size 4 dust -- dry deposition
  
-  integer, public ::index_x2l_Flrr_flood      ! rtm->lnd rof (flood) flux
+  integer, public ::index_x2l_Flrr_flood      ! rtm->lnd rof flood flux
   integer, public ::index_x2l_Flrr_volr       ! rtm->lnd rof volr total volume
   integer, public ::index_x2l_Flrr_volrmch    ! rtm->lnd rof volr main channel volume
 
@@ -135,7 +136,6 @@ contains
     use seq_drydep_mod , only: drydep_fields_token, lnd_drydep
     use shr_megan_mod  , only: shr_megan_fields_token, shr_megan_mechcomps_n
     use shr_fire_emis_mod,only: shr_fire_emis_fields_token, shr_fire_emis_ztop_token, shr_fire_emis_mechcomps_n
-    use clm_varctl     , only: use_voc
     use glc_elevclass_mod, only: glc_get_num_elevation_classes, glc_elevclass_as_string
     !
     ! !ARGUMENTS:
@@ -171,6 +171,7 @@ contains
     index_l2x_Flrl_rofgwl   = mct_avect_indexra(l2x,'Flrl_rofgwl')
     index_l2x_Flrl_rofsub   = mct_avect_indexra(l2x,'Flrl_rofsub')
     index_l2x_Flrl_rofi     = mct_avect_indexra(l2x,'Flrl_rofi')
+    index_l2x_Flrl_irrig    = mct_avect_indexra(l2x,'Flrl_irrig')
 
     index_l2x_Sl_t          = mct_avect_indexra(l2x,'Sl_t')
     index_l2x_Sl_snowh      = mct_avect_indexra(l2x,'Sl_snowh')
@@ -184,6 +185,7 @@ contains
     index_l2x_Sl_ram1       = mct_avect_indexra(l2x,'Sl_ram1')
     index_l2x_Sl_fv         = mct_avect_indexra(l2x,'Sl_fv')
     index_l2x_Sl_soilw      = mct_avect_indexra(l2x,'Sl_soilw',perrwith='quiet')
+
     if ( lnd_drydep )then
        index_l2x_Sl_ddvel = mct_avect_indexra(l2x, trim(drydep_fields_token))
     else
@@ -207,9 +209,7 @@ contains
     index_l2x_Fall_methane  = mct_avect_indexra(l2x,'Fall_methane',perrWith='quiet')
 
     ! MEGAN fluxes
-    ! use_voc is a temporary logic to enable turning off MEGAN fluxes when prognostic crop
-    ! is used
-    if (shr_megan_mechcomps_n>0 .and. use_voc) then
+    if (shr_megan_mechcomps_n>0) then
        index_l2x_Fall_flxvoc = mct_avect_indexra(l2x,trim(shr_megan_fields_token))
     else
        index_l2x_Fall_flxvoc = 0

@@ -19,7 +19,7 @@ module decompInitMod
   use PatchType       , only : patch
   use glcBehaviorMod  , only : glc_behavior_type
   use decompMod
-  use mct_mod
+  use mct_mod         , only : mct_gsMap_init, mct_gsMap_ngseg, mct_gsMap_nlseg, mct_gsmap_gsize
   use FatesInterfaceMod, only : fates_maxElementsPerSite
   !
   ! !PUBLIC TYPES:
@@ -484,7 +484,6 @@ contains
     use spmdMod
     use spmdGathScatMod
     use subgridMod,       only : subgrid_get_gcellinfo
-    use mct_mod
     !
     ! !ARGUMENTS:
     implicit none

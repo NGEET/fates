@@ -238,8 +238,8 @@ module histFileMod
   !
   ! NetCDF  Id's
   !
-  type(file_desc_t) :: nfid(max_tapes)       ! file ids
-  type(file_desc_t) :: ncid_hist(max_tapes)  ! file ids for history restart files
+  type(file_desc_t), target :: nfid(max_tapes)       ! file ids
+  type(file_desc_t), target :: ncid_hist(max_tapes)  ! file ids for history restart files
   integer :: time_dimid                      ! time dimension id
   integer :: hist_interval_dimid             ! time bounds dimension id
   integer :: strlen_dimid                    ! string dimension id
@@ -247,6 +247,11 @@ module histFileMod
   ! Time Constant variable names and filename
   !
   character(len=max_chars) :: TimeConst3DVars_Filename = ' '
+  !
+  ! time_period_freq variable
+  !
+  character(len=max_chars) :: time_period_freq         = ' '
+
   character(len=max_chars) :: TimeConst3DVars          = ' '
 
   character(len=*), parameter, private :: sourcefile = &
@@ -1682,7 +1687,7 @@ contains
     ! wrapper calls to define the history file contents.
     !
     ! !USES:
-    use clm_varpar      , only : nlevgrnd, nlevsno, nlevlak, nlevurb, numrad, nlevcan, nvegwcs
+    use clm_varpar      , only : nlevgrnd, nlevsno, nlevlak, nlevurb, numrad, nlevcan, nvegwcs,nlevsoi
     use clm_varpar      , only : natpft_size, cft_size, maxpatch_glcmec, nlevdecomp_full
     use clm_varpar      , only : mxpft
     use landunit_varcon , only : max_lunit
@@ -1714,7 +1719,7 @@ contains
     integer :: numa                ! total number of atm cells across all processors
     logical :: avoid_pnetcdf       ! whether we should avoid using pnetcdf
     logical :: lhistrest           ! local history restart flag
-    type(file_desc_t) :: lnfid     ! local file id
+    type(file_desc_t), pointer :: lnfid     ! local file id
     character(len=  8) :: curdate  ! current date
     character(len=  8) :: curtime  ! current time
     character(len=256) :: name     ! name of attribute
@@ -1736,6 +1741,11 @@ contains
     ! define output write precsion for tape
 
     ncprec = tape(t)%ncprec
+    if (lhistrest) then
+       lnfid => ncid_hist(t)
+    else
+       lnfid => nfid(t)
+    endif
     
     ! BUG(wjs, 2014-10-20, bugz 1730) Workaround for
     ! http://bugs.cgd.ucar.edu/show_bug.cgi?id=1730
@@ -1821,6 +1831,7 @@ contains
 
     ! "level" dimensions
     call ncd_defdim(lnfid, 'levgrnd', nlevgrnd, dimid)
+    call ncd_defdim(lnfid, 'levsoi', nlevsoi, dimid)
     if (nlevurb > 0) then
        call ncd_defdim(lnfid, 'levurb' , nlevurb, dimid)
     end if
@@ -1867,14 +1878,12 @@ contains
     if ( .not. lhistrest )then
        call ncd_defdim(lnfid, 'hist_interval', 2, hist_interval_dimid)
        call ncd_defdim(lnfid, 'time', ncd_unlimited, time_dimid)
-       nfid(t) = lnfid
        if (masterproc)then
           write(iulog,*) trim(subname), &
                           ' : Successfully defined netcdf history file ',t
           call shr_sys_flush(iulog)
        end if
     else
-       ncid_hist(t) = lnfid
        if (masterproc)then
           write(iulog,*) trim(subname), &
                           ' : Successfully defined netcdf restart history file ',t
@@ -2268,11 +2277,12 @@ contains
     !
     ! !DESCRIPTION:
     ! Write time constant values to primary history tape.
+    use clm_time_manager, only : get_step_size
     ! Issue the required netcdf wrapper calls to define the history file
     ! contents.
     !
     ! !USES:
-    use clm_varcon      , only : zsoi, zlak, secspday
+    use clm_varcon      , only : zsoi, zlak, secspday, isecspday, isecsphr, isecspmin
     use domainMod       , only : ldomain, lon1d, lat1d
     use clm_time_manager, only : get_nstep, get_curr_date, get_curr_time
     use clm_time_manager, only : get_ref_date, get_calendar, NO_LEAP_C, GREGORIAN_C
@@ -2285,8 +2295,10 @@ contains
     !
     ! !ARGUMENTS:
     integer, intent(in) :: t              ! tape index
+    integer :: dtime                      ! timestep size
     character(len=*), intent(in) :: mode  ! 'define' or 'write'
     !
+    integer :: sec_hist_nhtfrq            ! hist_nhtfrq converted to seconds
     ! !LOCAL VARIABLES:
     integer :: vid,n,i,j,m                ! indices
     integer :: nstep                      ! current step
@@ -2430,6 +2442,32 @@ contains
        dim1id(1) = time_dimid
        call ncd_defvar(nfid(t) , 'mcdate', ncd_int, 1, dim1id , varid, &
           long_name = 'current date (YYYYMMDD)')
+       !
+       ! add global attribute time_period_freq
+       !
+       if (hist_nhtfrq(t) < 0) then !hour need to convert to seconds
+          sec_hist_nhtfrq = abs(hist_nhtfrq(t))*3600
+       else
+          sec_hist_nhtfrq = hist_nhtfrq(t)
+       end if
+   
+       dtime = get_step_size()
+       if (sec_hist_nhtfrq == 0) then !month
+          time_period_freq = 'month_1'
+       else if (mod(sec_hist_nhtfrq*dtime,isecspday) == 0) then ! day
+          write(time_period_freq,999) 'day_',sec_hist_nhtfrq*dtime/isecspday
+       else if (mod(sec_hist_nhtfrq*dtime,isecsphr) == 0) then ! hour
+          write(time_period_freq,999) 'hour_',(sec_hist_nhtfrq*dtime)/isecsphr
+       else if (mod(sec_hist_nhtfrq*dtime,isecspmin) == 0) then ! minute
+          write(time_period_freq,999) 'minute_',(sec_hist_nhtfrq*dtime)/isecspmin
+       else                     ! second
+          write(time_period_freq,999) 'second_',sec_hist_nhtfrq*dtime
+       end if
+999    format(a,i0)
+
+       call ncd_putatt(nfid(t), ncd_global, 'time_period_freq',          &
+                          trim(time_period_freq))
+
        call ncd_defvar(nfid(t) , 'mcsec' , ncd_int, 1, dim1id , varid, &
           long_name = 'current seconds of current date', units='s')
        call ncd_defvar(nfid(t) , 'mdcur' , ncd_int, 1, dim1id , varid, &
@@ -2773,14 +2811,14 @@ contains
     integer , pointer :: icarr(:)        ! temporary
     integer , pointer :: ilarr(:)        ! temporary
     integer , pointer :: iparr(:)        ! temporary
-    type(file_desc_t) :: ncid            ! netcdf file
+    type(file_desc_t), pointer :: ncid            ! netcdf file
     type(bounds_type) :: bounds          
     character(len=*),parameter :: subname = 'hfields_1dinfo'
 !-----------------------------------------------------------------------
 
     call get_proc_bounds(bounds)
 
-    ncid = nfid(t)
+    ncid => nfid(t)
 
     if (mode == 'define') then
 
@@ -4413,7 +4451,7 @@ contains
     ! initial or branch run to initialize the actual history tapes.
     !
     ! !USES:
-    use clm_varpar      , only : nlevgrnd, nlevsno, nlevlak, numrad, nlevdecomp_full, nlevcan, nvegwcs
+    use clm_varpar      , only : nlevgrnd, nlevsno, nlevlak, numrad, nlevdecomp_full, nlevcan, nvegwcs,nlevsoi
     use clm_varpar      , only : natpft_size, cft_size, maxpatch_glcmec, mxpft
     use landunit_varcon , only : max_lunit
     !
@@ -4486,6 +4524,8 @@ contains
     select case (type2d)
     case ('levgrnd')
        num2d = nlevgrnd
+    case ('levsoi')
+       num2d = nlevsoi
     case ('levlak')
        num2d = nlevlak
     case ('numrad')
@@ -4551,7 +4591,7 @@ contains
     case default
        write(iulog,*) trim(subname),' ERROR: unsupported 2d type ',type2d, &
           ' currently supported types for multi level fields are: ', &
-          '[levgrnd,levlak,numrad,levdcmp,levtrc,ltype,natpft,cft,glc_nec,elevclas,levsno,nvegwcs]'
+          '[levgrnd,levsoi,levlak,numrad,levdcmp,levtrc,ltype,natpft,cft,glc_nec,elevclas,levsno,nvegwcs]'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
 

@@ -63,7 +63,7 @@ module history_tape_base
 contains
 
   !-----------------------------------------------------------------------
-  subroutine write_history(this, instance, EClock, force_write)
+  subroutine write_history(this, instance, EClock, initial_history)
     !
     ! !DESCRIPTION:
     ! Write a CISM history file, if it's time to do so.
@@ -71,8 +71,9 @@ contains
     ! This routine should be called every time step. It will return without doing
     ! anything if it isn't yet time to write a history file.
     !
-    ! If force_write is present and true, then a history file is written regardless of
-    ! the check for whether it's time to do so.
+    ! If initial_history is present and true, that means that we're writing a history file
+    ! in initialization. This is written regardless of the check for whether it's time to
+    ! do so, with a different extension than standard history files.
     !
     ! !USES:
     use glc_io, only : glc_io_write_history
@@ -83,22 +84,26 @@ contains
     class(history_tape_base_type), intent(in) :: this
     type(glad_instance), intent(inout) :: instance
     type(ESMF_Clock),     intent(in)    :: EClock
-    logical, intent(in), optional :: force_write
+    logical, intent(in), optional :: initial_history
     !
     ! !LOCAL VARIABLES:
-    logical :: l_force_write   ! local version of force_write
+    logical :: l_initial_history   ! local version of initial_history
 
     character(len=*), parameter :: subname = 'write_history'
     !-----------------------------------------------------------------------
 
-    l_force_write = .false.
-    if (present(force_write)) then
-       l_force_write = force_write
+    l_initial_history = .false.
+    if (present(initial_history)) then
+       l_initial_history = initial_history
     end if
 
-    if (l_force_write .or. this%is_time_to_write_hist(EClock)) then
+    if (l_initial_history) then
        call glc_io_write_history(instance, EClock, &
-            this%history_vars, this%history_frequency_string())
+            this%history_vars, initial_history = .true.)
+    else if (this%is_time_to_write_hist(EClock)) then
+       call glc_io_write_history(instance, EClock, &
+            this%history_vars, initial_history = .false., &
+            history_frequency_metadata = this%history_frequency_string())
     end if
     
   end subroutine write_history

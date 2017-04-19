@@ -37,37 +37,19 @@
     <desc>mode for rtm flood feature, NULL means rtm flood is turned off</desc>
   </entry>
 
-  <entry id="RTM_BLDNML_OPTS"> 
+  <entry id="RTM_SIM_YEAR"> 
     <type>char</type>
     <valid_values></valid_values>
-    <default_value>-simyr 2000</default_value>
+    <default_value>2000</default_value>
     <values>
-      <value compset="1850.*_RTM">-simyr 1850</value>
-      <value compset="HIST.*_RTM">-simyr 1850</value>
-      <value compset="PIPD.*_RTM">-simyr 1850</value>
-      <value compset="2000.*_RTM">-simyr 2000</value>
+      <value compset="1850.*_RTM">1850</value>
+      <value compset="HIST.*_RTM">1850</value>
+      <value compset="PIPD.*_RTM">1850</value>
+      <value compset="2000.*_RTM">2000</value>
     </values>
     <group>run_component_rtm</group>
     <file>env_run.xml</file>
     <desc>RTM build-namelist options</desc>
-  </entry>
-
-  <entry id="RTM_NAMELIST_OPTS">
-    <type>char</type>
-    <valid_values></valid_values>
-    <default_value></default_value>
-    <values>
-      <value compset="_CLM45">rtm_effvel=&apos;ACTIVE&apos;</value>
-      <value compset="_CLM50">rtm_effvel=&apos;ACTIVE&apos;</value>
-    </values>
-    <group>run_component_rtm</group>
-    <file>env_run.xml</file>
-    <desc>RTM-specific namelist settings in the RTM build-namelist.
-      RTM_NAMELIST_OPTS is normally set as a compset variable
-      and in general should not be modified for supported compsets. 
-      It is recommended that if you want to modify this value for your experiment, 
-      you should use your own user-defined component sets via using create_newcase 
-      with a compset_file argument.</desc>
   </entry>
 
   <description>

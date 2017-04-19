@@ -17,7 +17,7 @@ module controlMod
   use abortutils                       , only: endrun
   use spmdMod                          , only: masterproc
   use decompMod                        , only: clump_pproc
-  use clm_varcon                       , only: h2osno_max
+  use clm_varcon                       , only: h2osno_max, int_snow_max, n_melt_glcmec
   use clm_varpar                       , only: maxpatch_pft, maxpatch_glcmec, numrad, nlevsno
   use histFileMod                      , only: max_tapes, max_namlen 
   use histFileMod                      , only: hist_empty_htapes, hist_dov2xy, hist_avgflag_pertape, hist_type1d_pertape 
@@ -110,9 +110,14 @@ contains
     ! Initialize CLM run control information
     !
     ! !USES:
-    use clm_time_manager , only : set_timemgr_init
-    use fileutils        , only : getavu, relavu
-    use CNMRespMod       , only : CNMRespReadNML
+    use clm_time_manager                 , only : set_timemgr_init
+    use fileutils                        , only : getavu, relavu
+    use CNMRespMod                       , only : CNMRespReadNML
+    use LunaMod                          , only : LunaReadNML
+    use FrictionVelocityMod              , only : FrictionVelReadNML
+    use CNNDynamicsMod                   , only : CNNDynamicsReadNML
+    use SoilBiogeochemDecompCascadeBGCMod, only : DecompCascadeBGCreadNML
+    use CNPhenologyMod                   , only : CNPhenologyReadNML
     !
     ! !LOCAL VARIABLES:
     integer :: i                    ! loop indices
@@ -180,9 +185,9 @@ contains
 
     ! Glacier_mec info
     namelist /clm_inparm/ &    
-         maxpatch_glcmec, glc_smb, glc_do_dynglacier, &
-         glcmec_downscale_longwave, glc_snow_persistence_max_days, &
-         nlevsno, h2osno_max
+         maxpatch_glcmec, glc_do_dynglacier, &
+         glc_snow_persistence_max_days, &
+         nlevsno, h2osno_max, int_snow_max, n_melt_glcmec
 
     ! Other options
 
@@ -190,7 +195,7 @@ contains
          clump_pproc, wrtdia, &
          create_crop_landunit, nsegspc, co2_ppmv, override_nsrest, &
          albice, soil_layerstruct, subgridflag, &
-         irrigate, all_active, repartition_rain_snow
+         irrigate, all_active
 
     ! vertical soil mixing variables
     namelist /clm_inparm/  &
@@ -222,8 +227,6 @@ contains
     namelist /clm_inparm/ use_hydrstress
 
     namelist /clm_inparm/ use_dynroot
-
-    namelist /clm_inparm/ limit_irrigation
 
     namelist /clm_inparm/  &
          use_c14_bombspike, atm_c14_filename
@@ -356,18 +359,8 @@ contains
        end if
 
        ! ----------------------------------------------------------------------
-       !TURN OFF MEGAN VOCs if crop prognostic is on
-       ! This is a temporary place holder and should be removed once MEGAN VOCs and
-       ! crop ar compatible
-       if (use_crop) then
-          use_voc = .false.
-       end if
-
-       ! ----------------------------------------------------------------------
        ! Check compatibility with the FATES model 
        if ( use_ed ) then
-
-          use_voc = .false.
 
           if ( use_cn) then
              call endrun(msg=' ERROR: use_cn and use_ed cannot both be set to true.'//&
@@ -403,7 +396,6 @@ contains
              call endrun(msg=' ERROR: ozone is not compatible with FATES.'//&
                   errMsg(sourcefile, __LINE__))
           end if
-
        end if
 
        ! If nfix_timeconst is equal to the junk default value, then it was not specified
@@ -418,8 +410,9 @@ contains
           end if
        end if
 
-       ! If nlevsno, h2osno_max are equal to their junk default value, then they were not specified
-       ! by the user namelist and we generate an error message. Also check nlevsno for bounds.
+       ! If nlevsno, h2osno_max, int_snow_max or n_melt_glcmec are equal to their junk
+       ! default value, then they were not specified by the user namelist and we generate
+       ! an error message. Also check nlevsno for bounds.
        if (nlevsno < 3 .or. nlevsno > 12)  then
           write(iulog,*)'ERROR: nlevsno = ',nlevsno,' is not supported, must be in range 3-12.'
           call endrun(msg=' ERROR: invalid value for nlevsno in CLM namelist. '//&
@@ -428,6 +421,16 @@ contains
        if (h2osno_max <= 0.0_r8) then
           write(iulog,*)'ERROR: h2osno_max = ',h2osno_max,' is not supported, must be greater than 0.0.'
           call endrun(msg=' ERROR: invalid value for h2osno_max in CLM namelist. '//&
+               errMsg(sourcefile, __LINE__))
+       endif
+       if (int_snow_max <= 0.0_r8) then
+          write(iulog,*)'ERROR: int_snow_max = ',int_snow_max,' is not supported, must be greater than 0.0.'
+          call endrun(msg=' ERROR: invalid value for int_snow_max in CLM namelist. '//&
+               errMsg(sourcefile, __LINE__))
+       endif
+       if (n_melt_glcmec <= 0.0_r8) then
+          write(iulog,*)'ERROR: n_melt_glcmec = ',n_melt_glcmec,' is not supported, must be greater than 0.0.'
+          call endrun(msg=' ERROR: invalid value for n_melt_glcmec in CLM namelist. '//&
                errMsg(sourcefile, __LINE__))
        endif
 
@@ -450,6 +453,8 @@ contains
     call SnowHydrology_readnl   ( NLFilename )
     call UrbanReadNML           ( NLFilename )
     call HumanIndexReadNML      ( NLFilename )
+    call LunaReadNML            ( NLFilename )
+    call FrictionVelReadNML     ( NLFilename )
 
     ! ----------------------------------------------------------------------
     ! Broadcast all control information if appropriate
@@ -470,6 +475,11 @@ contains
        call nitrifReadNML(             NLFilename )
        call CNFireReadNML(             NLFilename )
        call CNPrecisionControlReadNML( NLFilename )
+       call CNNDynamicsReadNML       ( NLFilename )
+       call CNPhenologyReadNML       ( NLFilename )
+    end if
+    if ( use_century_decomp ) then
+       call DecompCascadeBGCreadNML( NLFilename )
     end if
 
     ! ----------------------------------------------------------------------
@@ -569,7 +579,6 @@ contains
     call mpi_bcast (use_crop, 1, MPI_LOGICAL, 0, mpicom, ier)
     call mpi_bcast (use_fertilizer, 1, MPI_LOGICAL, 0, mpicom, ier)
     call mpi_bcast (use_grainproduct, 1, MPI_LOGICAL, 0, mpicom, ier)
-    call mpi_bcast (use_voc, 1, MPI_LOGICAL, 0, mpicom, ier)
     call mpi_bcast (use_ozone, 1, MPI_LOGICAL, 0, mpicom, ier)
     call mpi_bcast (use_snicar_frc, 1, MPI_LOGICAL, 0, mpicom, ier)
     call mpi_bcast (use_vancouver, 1, MPI_LOGICAL, 0, mpicom, ier)
@@ -645,8 +654,6 @@ contains
 
     call mpi_bcast (use_dynroot, 1, MPI_LOGICAL, 0, mpicom, ier)
 
-    call mpi_bcast (limit_irrigation, 1, MPI_LOGICAL, 0, mpicom, ier)
-
     if (use_cn .and. use_vertsoilc) then
        ! vertical soil mixing variables
        call mpi_bcast (som_adv_flux, 1, MPI_REAL8,  0, mpicom, ier)
@@ -681,7 +688,6 @@ contains
     ! physics variables
     call mpi_bcast (nsegspc, 1, MPI_INTEGER, 0, mpicom, ier)
     call mpi_bcast (subgridflag , 1, MPI_INTEGER, 0, mpicom, ier)
-    call mpi_bcast (repartition_rain_snow, 1, MPI_LOGICAL, 0, mpicom, ier)
     call mpi_bcast (wrtdia, 1, MPI_LOGICAL, 0, mpicom, ier)
     call mpi_bcast (single_column,1, MPI_LOGICAL, 0, mpicom, ier)
     call mpi_bcast (scmlat, 1, MPI_REAL8,0, mpicom, ier)
@@ -693,13 +699,13 @@ contains
     ! snow pack variables
     call mpi_bcast (nlevsno, 1, MPI_INTEGER, 0, mpicom, ier)
     call mpi_bcast (h2osno_max, 1, MPI_REAL8, 0, mpicom, ier)
+    call mpi_bcast (int_snow_max, 1, MPI_REAL8, 0, mpicom, ier)
+    call mpi_bcast (n_melt_glcmec, 1, MPI_REAL8, 0, mpicom, ier)
 
     ! glacier_mec variables
     call mpi_bcast (create_glacier_mec_landunit, 1, MPI_LOGICAL, 0, mpicom, ier)
     call mpi_bcast (maxpatch_glcmec, 1, MPI_INTEGER, 0, mpicom, ier)
-    call mpi_bcast (glc_smb, 1, MPI_LOGICAL, 0, mpicom, ier)
     call mpi_bcast (glc_do_dynglacier, 1, MPI_LOGICAL, 0, mpicom, ier)
-    call mpi_bcast (glcmec_downscale_longwave, 1, MPI_LOGICAL, 0, mpicom, ier)
     call mpi_bcast (glc_snow_persistence_max_days, 1, MPI_INTEGER, 0, mpicom, ier)
 
     ! history file variables
@@ -848,29 +854,17 @@ contains
 
     write(iulog,*) '   Number of snow layers =', nlevsno
     write(iulog,*) '   Max snow depth (mm) =', h2osno_max
-    if (repartition_rain_snow) then
-       write(iulog,*) 'Rain vs. snow will be repartitioned based on surface temperature'
-    else
-       write(iulog,*) 'Rain vs. snow will NOT be repartitioned based on surface temperature'
-    end if
+    write(iulog,*) '   Limit applied to integrated snowfall when determining changes in'
+    write(iulog,*) '       snow-covered fraction during melt (mm) =', int_snow_max
+    write(iulog,*) '   SCA shape parameter for glc_mec columns (n_melt_glcmec) =', n_melt_glcmec
 
     if (create_glacier_mec_landunit) then
        write(iulog,*) '   glc number of elevation classes =', maxpatch_glcmec
-       if (glcmec_downscale_longwave) then
-          write(iulog,*) '   Longwave radiation will be downscaled'
-       else
-          write(iulog,*) '   Longwave radiation will NOT be downscaled'
-       endif
        if (glc_do_dynglacier) then
           write(iulog,*) '   glc CLM glacier areas and topography WILL evolve dynamically'
        else
           write(iulog,*) '   glc CLM glacier areas and topography will NOT evolve dynamically'
        end if
-       if (glc_smb) then
-          write(iulog,*) '   glc surface mass balance will be passed to ice sheet model'
-       else
-          write(iulog,*) '   glc positive-degree-day info will be passed to ice sheet model'
-       endif
        write(iulog,*) '   glc snow persistence max days = ', glc_snow_persistence_max_days
     endif
 
@@ -930,7 +924,6 @@ contains
     write(iulog,*) 'Albedo over melting lakes will approach values (visible, NIR):', lake_melt_icealb, &
                    'as compared with 0.60, 0.40 for cold frozen lakes with no snow.'
 
-    write(iulog, *) 'limit_irrigation = ', limit_irrigation
     write(iulog, *) 'plant nitrogen model namelists:'
     write(iulog, *) '  use_flexibleCN = ', use_flexibleCN                       
     if (use_flexibleCN) then

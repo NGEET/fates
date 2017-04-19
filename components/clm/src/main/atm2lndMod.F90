@@ -20,7 +20,8 @@ module atm2lndMod
   use TopoMod        , only : topo_type
   use filterColMod   , only : filter_col_type
   use LandunitType   , only : lun                
-  use ColumnType     , only : col                
+  use ColumnType     , only : col
+  use landunit_varcon, only : istice, istice_mec
   !
   ! !PUBLIC TYPES:
   implicit none
@@ -69,7 +70,7 @@ contains
     ! (rain vs. snow partitioning) is adjusted everywhere.
     !
     ! !USES:
-    use clm_varcon      , only : rair, cpair, grav, lapse_glcmec
+    use clm_varcon      , only : rair, cpair, grav
     use QsatMod         , only : Qsat
     !
     ! !ARGUMENTS:
@@ -97,6 +98,9 @@ contains
     SHR_ASSERT_ALL((ubound(eflx_sh_precip_conversion) == (/bounds%endc/)), errMsg(sourcefile, __LINE__))
 
     associate(&
+         ! Parameters:
+         lapse_rate => atm2lnd_inst%params%lapse_rate              , & ! Input:  [real(r8)] Surface temperature lapse rate (K m-1)
+
          ! Gridcell-level metadata:
          forc_topo_g  => atm2lnd_inst%forc_topo_grc                , & ! Input:  [real(r8) (:)]  atmospheric surface height (m)
 
@@ -152,7 +156,7 @@ contains
          pbot_g  = forc_pbot_g(g)                        ! atm sfc pressure
          rhos_g  = forc_rho_g(g)                         ! atm density
          zbot    = atm2lnd_inst%forc_hgt_grc(g)          ! atm ref height
-         tbot_c  = tbot_g-lapse_glcmec*(hsurf_c-hsurf_g) ! sfc temp for column
+         tbot_c  = tbot_g-lapse_rate*(hsurf_c-hsurf_g)   ! sfc temp for column
          Hbot    = rair*0.5_r8*(tbot_g+tbot_c)/grav      ! scale ht at avg temp
          pbot_c  = pbot_g*exp(-(hsurf_c-hsurf_g)/Hbot)   ! column sfc press
 
@@ -249,18 +253,17 @@ contains
     ! Note that, unlike the other downscalings done here, this is currently applied over
     ! all points - not just those within the downscale filter.
     !
-    ! !USES:
-    use clm_varctl      , only : repartition_rain_snow
-    !
     ! !ARGUMENTS:
     type(bounds_type)  , intent(in)    :: bounds  
     type(atm2lnd_type) , intent(inout) :: atm2lnd_inst
     real(r8), intent(inout) :: eflx_sh_precip_conversion(bounds%begc:) ! sensible heat flux from precipitation conversion (W/m**2) [+ to atm]
     !
     ! !LOCAL VARIABLES:
-    integer  :: c,g       ! indices
-    real(r8) :: rain_old  ! rain before conversion
-    real(r8) :: snow_old  ! snow before conversion
+    integer  :: c,l,g      ! indices
+    real(r8) :: rain_old   ! rain before conversion
+    real(r8) :: snow_old   ! snow before conversion
+    real(r8) :: all_snow_t ! temperature at which all precip falls as snow (K)
+    real(r8) :: frac_rain_slope ! slope of the frac_rain vs. temperature relationship
 
     character(len=*), parameter :: subname = 'partition_precip'
     !-----------------------------------------------------------------------
@@ -289,13 +292,23 @@ contains
     end do
 
     ! Optionally, convert rain to snow or vice versa based on forc_t_c
-    if (repartition_rain_snow) then
+    if (atm2lnd_inst%params%repartition_rain_snow) then
        do c = bounds%begc, bounds%endc
           if (col%active(c)) then
+             l = col%landunit(c)
              rain_old = forc_rain_c(c)
              snow_old = forc_snow_c(c)
+             if (lun%itype(l) == istice .or. lun%itype(l) == istice_mec) then
+                all_snow_t = atm2lnd_inst%params%precip_repartition_glc_all_snow_t
+                frac_rain_slope = atm2lnd_inst%params%precip_repartition_glc_frac_rain_slope
+             else
+                all_snow_t = atm2lnd_inst%params%precip_repartition_nonglc_all_snow_t
+                frac_rain_slope = atm2lnd_inst%params%precip_repartition_nonglc_frac_rain_slope
+             end if
              call repartition_rain_snow_one_col(&
                   temperature = forc_t_c(c), &
+                  all_snow_t = all_snow_t, &
+                  frac_rain_slope = frac_rain_slope, &
                   rain = forc_rain_c(c), &
                   snow = forc_snow_c(c))
              call sens_heat_from_precip_conversion(&
@@ -313,18 +326,18 @@ contains
   end subroutine partition_precip
 
   !-----------------------------------------------------------------------
-  subroutine repartition_rain_snow_one_col(temperature, rain, snow)
+  subroutine repartition_rain_snow_one_col(temperature, all_snow_t, frac_rain_slope, &
+       rain, snow)
     !
     ! !DESCRIPTION:
     ! Re-partition precipitation into rain/snow for a single column.
     !
     ! Rain and snow variables should be set initially, and are updated here
     !
-    ! !USES:
-    use shr_precip_mod, only : shr_precip_partition_rain_snow_ramp
-    !
     ! !ARGUMENTS:
     real(r8) , intent(in)    :: temperature ! near-surface temperature (K)
+    real(r8) , intent(in)    :: all_snow_t  ! temperature at which precip falls entirely as snow (K)
+    real(r8) , intent(in)    :: frac_rain_slope ! slope of the frac_rain vs. T relationship
     real(r8) , intent(inout) :: rain        ! atm rain rate [mm/s]
     real(r8) , intent(inout) :: snow        ! atm snow rate [(mm water equivalent)/s]
     !
@@ -335,7 +348,10 @@ contains
     character(len=*), parameter :: subname = 'repartition_rain_snow_one_col'
     !-----------------------------------------------------------------------
 
-    call shr_precip_partition_rain_snow_ramp(temperature, frac_rain)
+    frac_rain = (temperature - all_snow_t) * frac_rain_slope
+
+    ! bound in [0,1]
+    frac_rain = min(1.0_r8,max(0.0_r8,frac_rain))
 
     total_precip = rain + snow
     rain = total_precip * frac_rain
@@ -390,10 +406,6 @@ contains
     ! Downscale longwave radiation from gridcell to column
     ! Must be done AFTER temperature downscaling
     !
-    ! !USES:
-    use clm_varcon      , only : lapse_glcmec
-    use clm_varctl      , only : glcmec_downscale_longwave
-    !
     ! !ARGUMENTS:
     type(bounds_type)     , intent(in)    :: bounds
     type(filter_col_type) , intent(in)    :: downscale_filter_c
@@ -414,6 +426,10 @@ contains
     !-----------------------------------------------------------------------
 
     associate(&
+         ! Parameters:
+         lapse_rate_longwave => atm2lnd_inst%params%lapse_rate_longwave  , & ! Input:  [real(r8)] longwave radiation lapse rate (W m-2 m-1)
+         longwave_downscaling_limit => atm2lnd_inst%params%longwave_downscaling_limit, & ! Input:  [real(r8)] Relative limit for how much longwave downscaling can be done (unitless)
+
          ! Gridcell-level metadata:
          forc_topo_g  => atm2lnd_inst%forc_topo_grc                , & ! Input:  [real(r8) (:)]  atmospheric surface height (m)
 
@@ -421,11 +437,9 @@ contains
          topo_c       => topo_inst%topo_col                        , & ! Input:  [real(r8) (:)] column surface height (m)
 
          ! Gridcell-level fields:
-         forc_t_g     => atm2lnd_inst%forc_t_not_downscaled_grc    , & ! Input:  [real(r8) (:)]  atmospheric temperature (Kelvin)        
          forc_lwrad_g => atm2lnd_inst%forc_lwrad_not_downscaled_grc, & ! Input:  [real(r8) (:)]  downward longwave (W/m**2)
          
          ! Column-level (downscaled) fields:
-         forc_t_c     => atm2lnd_inst%forc_t_downscaled_col        , & ! Input:  [real(r8) (:)]  atmospheric temperature (Kelvin)        
          forc_lwrad_c => atm2lnd_inst%forc_lwrad_downscaled_col      & ! Output: [real(r8) (:)]  downward longwave (W/m**2)
          )
     
@@ -438,7 +452,7 @@ contains
       end do
 
       ! Optionally, downscale the longwave radiation, conserving energy
-      if (glcmec_downscale_longwave) then
+      if (atm2lnd_inst%params%glcmec_downscale_longwave) then
 
          ! Initialize variables related to normalization
          do g = bounds%begg, bounds%endg
@@ -456,14 +470,19 @@ contains
             hsurf_g = forc_topo_g(g)
             hsurf_c = topo_c(c)
 
-            ! Here we assume that deltaLW = (dLW/dT)*(dT/dz)*deltaz
-            ! We get dLW/dT = 4*eps*sigma*T^3 = 4*LW/T from the Stefan-Boltzmann law,
-            ! evaluated at the mean temp.
-            ! We assume the same temperature lapse rate as above.
-
-            forc_lwrad_c(c) = forc_lwrad_g(g) - &
-                 4.0_r8 * forc_lwrad_g(g)/(0.5_r8*(forc_t_c(c)+forc_t_g(g))) * &
-                 lapse_glcmec * (hsurf_c - hsurf_g)
+            ! Assume a linear decrease in downwelling longwave radiation with increasing
+            ! elevation, based on Van Tricht et al. (2016, TC) Figure 6,
+            ! doi:10.5194/tc-10-2379-2016
+            forc_lwrad_c(c) = forc_lwrad_g(g) - lapse_rate_longwave * (hsurf_c-hsurf_g)
+            ! But ensure that we don't depart too far from the atmospheric forcing value:
+            ! negative values of lwrad are certainly bad, but small positive values might
+            ! also be bad. We can especially run into trouble due to the normalization: a
+            ! small lwrad value in one column can lead to a big normalization factor,
+            ! leading to huge lwrad values in other columns.
+            forc_lwrad_c(c) = min(forc_lwrad_c(c), &
+                 forc_lwrad_g(g) * (1._r8 + longwave_downscaling_limit))
+            forc_lwrad_c(c) = max(forc_lwrad_c(c), &
+                 forc_lwrad_g(g) * (1._r8 - longwave_downscaling_limit))
 
             ! Keep track of the gridcell-level weighted sum for later normalization.
             !
@@ -561,8 +580,12 @@ contains
        norms = 1.0_r8
 
     elsewhere (sum_field == 0._r8)
-       ! Avoid divide by zero; this should only happen if the gridcell-level value is 0,
-       ! in which case the normalization doesn't matter
+       ! Avoid divide by zero. If this is because both sum_field and orig_field are 0,
+       ! then the normalization doesn't matter. If sum_field == 0 while orig_field /= 0,
+       ! then we have a problem: no normalization will allow us to recover the original
+       ! gridcell mean. We should probably catch this and abort, but for now we're
+       ! relying on error checking in the caller (checking for conservation) to catch
+       ! this potential problem.
        norms = 1.0_r8
 
     elsewhere
@@ -614,7 +637,9 @@ contains
          forc_snow_c  => atm2lnd_inst%forc_snow_downscaled_col      , & ! Input:  [real(r8) (:)]  snow rate [mm/s]
          forc_lwrad_c => atm2lnd_inst%forc_lwrad_downscaled_col       & ! Input:  [real(r8) (:)]  downward longwave (W/m**2)
          )
-    
+
+    ! BUG(wjs, 2016-11-15, bugz 2377)
+    !
     ! Make sure that, for urban points, the column-level forcing fields are identical to
     ! the gridcell-level forcing fields. This is needed because the urban-specific code
     ! sometimes uses the gridcell-level forcing fields (and it would take a large

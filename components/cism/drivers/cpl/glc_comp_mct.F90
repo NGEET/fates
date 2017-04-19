@@ -18,7 +18,6 @@ module glc_comp_mct
   use glc_import_export
   use glc_cpl_indices
   use glc_constants,       only: verbose, stdout, stderr, nml_in, radius
-  use glc_errormod,        only: glc_success
   use glc_InitMod,         only: glc_initialize
   use glc_RunMod,          only: glc_run
   use glc_FinalMod,        only: glc_final
@@ -41,9 +40,6 @@ module glc_comp_mct
 
   !--- stdin input stuff ---
   character(CS) :: str                  ! cpp  defined model name
-  
-  !--- other ---
-  integer(IN)   :: errorcode            ! glc error code
   
   ! my_task_local and master_task_local are needed for some checks that are done before
   ! init_communicate is called (although, it's possible that init_communicate could be
@@ -152,7 +148,6 @@ CONTAINS
     call shr_file_getLogLevel(shrloglev)
     call shr_file_setLogUnit (stdout)
 
-    errorCode = glc_Success
     if (verbose .and. my_task_local == master_task_local) then
        write(stdout,F00) ' Starting'
        write(stdout,*) subname, 'COMPID: ', COMPID
@@ -160,10 +155,10 @@ CONTAINS
        call shr_sys_flush(stdout)
     endif
     call init_communicate(mpicom)
-    call glc_initialize(EClock, errorCode)
+    call glc_initialize(EClock)
     if (verbose .and. my_task == master_task) then
        write(stdout,F01) ' GLC Initial Date ',iyear,imonth,iday,ihour,iminute,isecond
-       write(stdout,F01) ' Initialize Done', errorCode
+       write(stdout,F00) ' Initialize Done'
        call shr_sys_flush(stdout)
     endif
 
@@ -267,7 +262,6 @@ subroutine glc_run_mct( EClock, cdata, x2g, g2x)
 
     ! Set internal time info
  
-    errorCode = glc_Success
     call seq_timemgr_EClockGetData(EClock,curr_ymd=cesmYMD, curr_tod=cesmTOD)
     stop_alarm = seq_timemgr_StopAlarmIsOn( EClock )
 
@@ -392,12 +386,10 @@ subroutine glc_final_mct( EClock, cdata, x2d, d2x)
       write(stdout,F91) 
    end if
       
-   errorCode = glc_Success
-
-   call glc_final(errorCode)
+   call glc_final()
 
    if (verbose .and. my_task == master_task) then
-      write(stdout,F01) ' Done',errorCode
+      write(stdout,F00) ' Done'
       call shr_sys_flush(stdout)
    endif
 

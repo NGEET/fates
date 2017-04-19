@@ -243,13 +243,9 @@ contains
          h2osoi_ice      =>   waterstate_inst%h2osoi_ice_col       , & ! Input:  [real(r8) (:,:) ]  ice lens (kg/m2) [for snow & soil layers]
          frac_iceold     =>   waterstate_inst%frac_iceold_col      , & ! Output: [real(r8) (:,:) ]  fraction of ice relative to the tot water
 
-         qflx_snofrz_col =>   waterflux_inst%qflx_snofrz_col       , & ! Output: [real(r8) (:)   ]  column-integrated snow freezing rate (kg m-2 s-1) [+]
-
          t_grnd          =>   temperature_inst%t_grnd_col          , & ! Input:  [real(r8) (:)   ]  ground temperature (Kelvin)             
          t_soisno        =>   temperature_inst%t_soisno_col        , & ! Output: [real(r8) (:,:) ]  soil (or snow) temperature (Kelvin)   
          t_lake          =>   temperature_inst%t_lake_col          , & ! Output: [real(r8) (:,:) ]  col lake temperature (Kelvin)             
-         hc_soi          =>   temperature_inst%hc_soi_col          , & ! Output: [real(r8) (:)   ]  soil heat content (MJ/m2)               
-         hc_soisno       =>   temperature_inst%hc_soisno_col       , & ! Output: [real(r8) (:)   ]  soil plus snow plus lake heat content (MJ/m2)
 
          beta            =>   lakestate_inst%betaprime_col         , & ! Output: [real(r8) (:)   ]  col effective beta: sabg_lyr(p,jtop) for snow layers, beta otherwise
          lake_icefrac    =>   lakestate_inst%lake_icefrac_col      , & ! Output: [real(r8) (:,:) ]  col mass fraction of lake layer that is frozen
@@ -294,8 +290,6 @@ contains
        ncvts(c) = 0._r8
        esum1(c) = 0._r8
        esum2(c) = 0._r8
-       hc_soisno(c) = 0._r8
-       hc_soi(c)    = 0._r8
        if (use_lch4) then
           jconvect(c) = 0
           jconvectbot(c) = nlevlak+1
@@ -303,7 +297,6 @@ contains
        end if
        bottomconvect(bounds%begc:bounds%endc) = .false.
 
-       qflx_snofrz_col(c) = 0._r8
     end do
 
     ! Initialize set of previous time-step variables as in DriverInit,
@@ -1000,8 +993,6 @@ contains
           ncvts(c) = ncvts(c) + cv_lake(c,j)*(t_lake(c,j)-tfrz) &
                    + cfus*dz_lake(c,j)*(1._r8-lake_icefrac(c,j)) 
           fin(c) = fin(c) + phi(c,j)
-          ! New for CLM 4
-          hc_soisno(c) = hc_soisno(c) + cv_lake(c,j)*t_lake(c,j)/1.e6
        end do
     end do
 
@@ -1016,8 +1007,6 @@ contains
              if (j == 1 .and. h2osno(c) > 0._r8 .and. j == jtop(c)) then
                 ncvts(c) = ncvts(c) - h2osno(c)*hfus
              end if
-             hc_soisno(c) = hc_soisno(c) + cv(c,j)*t_soisno(c,j)/1.e6
-             if (j >= 1) hc_soi(c) = hc_soi(c) + cv(c,j)*t_soisno(c,j)/1.e6
           end if
           if (j == 1) fin(c) = fin(c) + phi_soil(c)
        end do
@@ -1309,10 +1298,11 @@ contains
 
           lake_icefrac    => lakestate_inst%lake_icefrac_col    , & ! Input:  [real(r8)  (:,:) ] mass fraction of lake layer that is frozen
           
-          qflx_snofrz_lyr => waterflux_inst%qflx_snofrz_lyr_col , & ! Input:  [real(r8)  (:,:) ] snow freezing rate (positive definite) (col,lyr) [kg m-2 s-1]
+          qflx_snofrz_lyr => waterflux_inst%qflx_snofrz_lyr_col , & ! Output:  [real(r8)  (:,:) ] snow freezing rate (positive definite) (col,lyr) [kg m-2 s-1]
+          qflx_snomelt_lyr => waterflux_inst%qflx_snomelt_lyr_col, & ! Output: [real(r8) (:)   ] snow melt in each layer (mm H2O /s)
           qflx_snow_drain => waterflux_inst%qflx_snow_drain_col , & ! Output: [real(r8)  (:)   ] drainage from snow column                           
           qflx_snomelt    => waterflux_inst%qflx_snomelt_col    , & ! Output: [real(r8)  (:)   ] snow melt (mm H2O /s)                   
-          qflx_snofrz_col => waterflux_inst%qflx_snofrz_col     , & ! Output: [real(r8)  (:)   ] column-integrated snow freezing rate (kg m-2 s-1) [+]
+          qflx_snofrz     => waterflux_inst%qflx_snofrz_col     , & ! Output: [real(r8)  (:)   ] column-integrated snow freezing rate (kg m-2 s-1) [+]
 
           t_soisno        => temperature_inst%t_soisno_col      , & ! Input:  [real(r8)  (:,:) ] soil temperature (Kelvin)             
           t_lake          => temperature_inst%t_lake_col        , & ! Input:  [real(r8)  (:,:) ] lake temperature (Kelvin)             
@@ -1331,6 +1321,7 @@ contains
           c = filter_lakec(fc)
 
           qflx_snomelt(c)   = 0._r8
+          qflx_snofrz(c)    = 0._r8
           eflx_snomelt(c)   = 0._r8
           lhabs(c)          = 0._r8
           qflx_snow_drain(c) = 0._r8
@@ -1340,8 +1331,9 @@ contains
           do fc = 1,num_lakec
              c = filter_lakec(fc)
 
-             qflx_snofrz_lyr(c,j) = 0._r8
-             ! Do for all possible snow layers in case snl changes over timestep. ! Bug corrected ZMS 10/14/11
+             ! Do for all possible snow layers in case snl changes over timestep.
+             qflx_snomelt_lyr(c,j) = 0._r8
+             qflx_snofrz_lyr(c,j)  = 0._r8
              imelt(c,j) = 0
           end do
        end do
@@ -1361,6 +1353,7 @@ contains
              h2osno(c) = h2osno(c) - melt
              lhabs(c) = lhabs(c) + melt*hfus
              qflx_snomelt(c)   = qflx_snomelt(c)   + melt/dtime
+             ! no snow layers, so qflx_snomelt_lyr is not set
              qflx_snow_drain(c) = qflx_snow_drain(c) + melt/dtime
              ! Prevent tiny residuals
              if (h2osno(c) < smallnumber) h2osno(c) = 0._r8
@@ -1422,7 +1415,8 @@ contains
                    !catch small negative value to keep t at tfrz
                    if (j <= 0) then !snow
                       imelt(c,j) = 1
-                      qflx_snomelt(c) = qflx_snomelt(c) + melt/dtime
+                      qflx_snomelt_lyr(c,j) = melt/dtime
+                      qflx_snomelt(c)       = qflx_snomelt(c) + qflx_snomelt_lyr(c,j)
                    end if
                 else if (t_soisno(c,j) < tfrz .and. h2osoi_liq(c,j) > 0._r8) then !freezing
                    dophasechangeflag = .true.
@@ -1432,12 +1426,9 @@ contains
                    !catch small positive value to keep t at tfrz
                    if (j <= 0) then !snow
                       imelt(c,j) = 2
-                      !qflx_snomelt(c) = qflx_snomelt(c) + melt
-                      ! Does this works for both signs of melt in SnowHydrology? I think
-                      ! qflx_snomelt(c) is just output.
-                      ! It looks like qflx_snomelt is just supposed to be positive.
-                      ! New variable for CLM 4
+                      ! layer freezing mass flux (positive):
                       qflx_snofrz_lyr(c,j) = -melt/dtime
+                      qflx_snofrz(c)       = qflx_snofrz(c) + qflx_snofrz_lyr(c,j)
                    end if
                 end if
 
@@ -1462,12 +1453,6 @@ contains
        do fc = 1,num_lakec
           c = filter_lakec(fc)
           eflx_snomelt(c) = qflx_snomelt(c)*hfus
-       end do
-       do j = -nlevsno+1,0
-          do fc = 1,num_lakec
-             c = filter_lakec(fc)
-             qflx_snofrz_col(c) = qflx_snofrz_col(c) + qflx_snofrz_lyr(c,j)
-          end do
        end do
 
      end associate

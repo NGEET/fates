@@ -51,11 +51,6 @@ module CNFireLi2016Mod
   !
   type, extends(cnfire_base_type) :: cnfire_li2016_type
      private
-     ! COMPILER_BUG(wjs, 2015-11-24, intel15.0.3) Without this 'dummy' field, the intel
-     ! compiler sometimes gives a segmentation fault in the constructor: 'Segmentation
-     ! fault - invalid memory reference' -- presumably because there are no data fields
-     ! in the type.
-     integer :: dummy
   contains
      !
      ! !PUBLIC MEMBER FUNCTIONS:
@@ -84,7 +79,7 @@ contains
     ! Creates an object of type cnfire_base_type.
     ! !ARGUMENTS:
 
-    constructor%dummy = 0
+    constructor%need_lightning_and_popdens = .true.
   end function constructor
 
   !-----------------------------------------------------------------------
@@ -102,7 +97,7 @@ contains
     use clm_varctl           , only: spinup_state
     use pftconMod            , only: nc4_grass, nc3crop, ndllf_evr_tmp_tree
     use pftconMod            , only: nbrdlf_evr_trp_tree, nbrdlf_dcd_trp_tree, nbrdlf_evr_shrub
-    use dynSubgridControlMod , only : get_do_transient_pfts
+    use dynSubgridControlMod , only : run_has_transient_landcover
     !
     ! !ARGUMENTS:
     class(cnfire_li2016_type)                             :: this
@@ -142,7 +137,7 @@ contains
     real(r8) :: arh, arh30 !combustability of fuel related to RH and RH30
     real(r8) :: afuel    !weight for arh and arh30
     real(r8) :: btran_col(bounds%begc:bounds%endc)
-    logical  :: do_transient_pfts ! whether transient pfts are active in this run
+    logical  :: transient_landcover  ! whether this run has any prescribed transient landcover
     real(r8), target  :: prec60_col_target(bounds%begc:bounds%endc)
     real(r8), target  :: prec10_col_target(bounds%begc:bounds%endc)
     real(r8), target  :: rh30_col_target(bounds%begc:bounds%endc) 
@@ -190,7 +185,7 @@ contains
          prec60             => atm2lnd_inst%prec60_patch                       , & ! Input:  [real(r8) (:)     ]  60-day running mean of tot. precipitation         
          prec10             => atm2lnd_inst%prec10_patch                       , & ! Input:  [real(r8) (:)     ]  10-day running mean of tot. precipitation         
          rh30               => atm2lnd_inst%rh30_patch                         , & ! Input:  [real(r8) (:)     ]  10-day running mean of tot. precipitation 
-         lfpftd             => cnveg_state_inst%lfpftd_patch                   , & ! Input:  [real(r8) (:)     ]  decrease of patch weight (0-1) on the col. for dt
+         dwt_smoothed       => cnveg_state_inst%dwt_smoothed_patch             , & ! Input:  [real(r8) (:)     ]  change in patch weight (-1 to 1) on the gridcell, smoothed over the year
          cropf_col          => cnveg_state_inst%cropf_col                      , & ! Input:  [real(r8) (:)     ]  cropland fraction in veg column                   
          gdp_lf             => cnveg_state_inst%gdp_lf_col                     , & ! Input:  [real(r8) (:)     ]  gdp data                                          
          peatf_lf           => cnveg_state_inst%peatf_lf_col                   , & ! Input:  [real(r8) (:)     ]  peatland fraction data                            
@@ -235,7 +230,7 @@ contains
          fuelc_crop         => cnveg_carbonstate_inst%fuelc_crop_col             & ! Output: [real(r8) (:)     ]  fuel load for cropland                 
          )
  
-      do_transient_pfts = get_do_transient_pfts()
+      transient_landcover = run_has_transient_landcover()
 
       !pft to column average 
       prec10_col =>prec10_col_target
@@ -344,7 +339,7 @@ contains
         wtlf(c)      = 0._r8
         trotr1_col(c)= 0._r8
         trotr2_col(c)= 0._r8
-        if (do_transient_pfts) then
+        if (transient_landcover) then
            dtrotr_col(c)=0._r8
         end if
      end do
@@ -363,16 +358,55 @@ contains
                        wtlf(c)      = wtlf(c)+patch%wtcol(p)
                     end if
                  end if
+
+                 ! NOTE(wjs, 2016-12-15) These calculations of the fraction of evergreen
+                 ! and deciduous tropical trees (used to determine if a column is
+                 ! tropical closed forest) use the current fractions. However, I think
+                 ! they are used in code that applies to land cover change. Note that
+                 ! land cover change is currently generated on the first time step of the
+                 ! year (even though the fire code sees the annually-smoothed dwt). Thus,
+                 ! I think that, for this to be totally consistent, this code should
+                 ! consider the fractional coverage of each PFT prior to the relevant
+                 ! land cover change event. (These fractions could be computed in the
+                 ! code that handles land cover change, so that the fire code remains
+                 ! agnostic to exactly how and when land cover change happens.)
+                 !
+                 ! For example, if a year started with fractional coverages of
+                 ! nbrdlf_evr_trp_tree = 0.35 and nbrdlf_dcd_trp_tree = 0.35, but then
+                 ! the start-of-year land cover change reduced both of these to 0.2: The
+                 ! current code would consider the column to NOT be tropical closed
+                 ! forest (because nbrdlf_evr_trp_tree+nbrdlf_dcd_trp_tree < 0.6),
+                 ! whereas in fact the land cover change occurred when the column *was*
+                 ! tropical closed forest.
                  if( patch%itype(p) == nbrdlf_evr_trp_tree .and. patch%wtcol(p)  >  0._r8 )then
                     trotr1_col(c)=trotr1_col(c)+patch%wtcol(p)
                  end if
                  if( patch%itype(p) == nbrdlf_dcd_trp_tree .and. patch%wtcol(p)  >  0._r8 )then
                     trotr2_col(c)=trotr2_col(c)+patch%wtcol(p)
                  end if
-                 if (do_transient_pfts) then
+
+                 if (transient_landcover) then
                     if( patch%itype(p) == nbrdlf_evr_trp_tree .or. patch%itype(p) == nbrdlf_dcd_trp_tree )then
-                       if(lfpftd(p) > 0._r8)then
-                          dtrotr_col(c)=dtrotr_col(c)+lfpftd(p)*col%wtgcell(c)
+                       if(dwt_smoothed(p) < 0._r8)then
+                          ! Land cover change in CLM happens all at once on the first time
+                          ! step of the year. However, the fire code needs deforestation
+                          ! rates throughout the year, in order to combine these
+                          ! deforestation rates with the current season's climate. So we
+                          ! use a smoothed version of dwt.
+                          !
+                          ! This isn't ideal, because the carbon stocks that the fire code
+                          ! is operating on will have decreased by the full annual amount
+                          ! before the fire code does anything. But the biggest effect of
+                          ! these deforestation fires is as a trigger for other fires, and
+                          ! the C fluxes are merely diagnostic so don't need to be
+                          ! conservative, so this isn't a big issue.
+                          !
+                          ! (Actually, it would be even better if the fire code had a
+                          ! realistic breakdown of annual deforestation into the
+                          ! different seasons. But having deforestation spread evenly
+                          ! throughout the year is much better than having it all
+                          ! concentrated on January 1.)
+                          dtrotr_col(c)=dtrotr_col(c)-dwt_smoothed(p)
                        end if
                     end if
                  end if
@@ -444,7 +478,7 @@ contains
      ! estimate annual decreased fractional coverage of BET+BDT
      ! land cover conversion in CLM4.5 is the same for each timestep except for the beginning  
 
-     if (do_transient_pfts) then
+     if (transient_landcover) then
         do fc = 1,num_soilc
            c = filter_soilc(fc)
            if( dtrotr_col(c)  >  0._r8 )then
@@ -497,7 +531,7 @@ contains
 
                  ! crop fire only for generic crop types at this time
                  ! managed crops are treated as grasses if crop model is turned on
-                 baf_crop(c) = baf_crop(c) + cropfire_a1/secsphr*fb*fhd*fgdp*patch%wtcol(p)
+                 baf_crop(c) = baf_crop(c) + cropfire_a1/secsphr*fhd*fgdp*patch%wtcol(p)
                  if( fb*fhd*fgdp*patch%wtcol(p)  >  0._r8)then
                     burndate(p)=kda
                  end if
@@ -587,7 +621,7 @@ contains
            ! if landuse change data is used, calculate deforestation fires and 
            ! add it in the total of burned area fraction
            !
-           if (do_transient_pfts) then
+           if (transient_landcover) then
               if( trotr1_col(c)+trotr2_col(c) > 0.6_r8 )then
                  if(( kmo == 1 .and. kda == 1 .and. mcsec == 0) .or. &
                       dtrotr_col(c) <=0._r8 )then

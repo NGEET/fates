@@ -8,9 +8,9 @@ module clm_instMod
   use shr_kind_mod    , only : r8 => shr_kind_r8
   use decompMod       , only : bounds_type
   use clm_varpar      , only : ndecomp_pools, nlevdecomp_full
-  use clm_varctl      , only : use_cn, use_c13, use_c14, use_lch4, use_cndv, use_ed, use_voc
+  use clm_varctl      , only : use_cn, use_c13, use_c14, use_lch4, use_cndv, use_ed
   use clm_varctl      , only : use_century_decomp, use_crop
-  use clm_varcon      , only : h2osno_max, bdsno, c13ratio, c14ratio
+  use clm_varcon      , only : bdsno, c13ratio, c14ratio
   use landunit_varcon , only : istice, istice_mec, istsoil
   use perf_mod        , only : t_startf, t_stopf
   use controlMod      , only : NLFilename
@@ -162,6 +162,9 @@ contains
     ! Read in any namelists that must be read for any clm object instances that need it
     call canopystate_inst%ReadNML( NLFilename )
     call photosyns_inst%ReadNML(   NLFilename )
+    if (use_cn .or. use_ed) then
+       call crop_inst%ReadNML(     NLFilename )
+    end if
 
   end subroutine clm_instReadNML
 
@@ -247,7 +250,7 @@ contains
 
     ! Initialize clm->drv and drv->clm data structures
 
-    call atm2lnd_inst%Init( bounds )
+    call atm2lnd_inst%Init( bounds, NLFilename )
     call lnd2atm_inst%Init( bounds )
 
     ! Initialize glc2lnd and lnd2glc even if running without create_glacier_mec_landunit,
@@ -321,16 +324,14 @@ contains
     allocate(soil_water_retention_curve, &
          source=create_soil_water_retention_curve())
 
-    call irrigation_inst%init(bounds, soilstate_inst, soil_water_retention_curve)
+    call irrigation_inst%init(bounds, nlfilename, soilstate_inst, soil_water_retention_curve)
 
     call topo_inst%Init(bounds)
 
     ! Note - always initialize the memory for ch4_inst
     call ch4_inst%Init(bounds, soilstate_inst%cellorg_col(begc:endc, 1:), fsurdat)
 
-    if (use_voc ) then
-       call vocemis_inst%Init(bounds)
-    end if
+    call vocemis_inst%Init(bounds)
 
     call fireemis_inst%Init(bounds)
 
@@ -348,7 +349,8 @@ contains
 
        call init_decomp_cascade_constants()
        if (use_century_decomp) then
-          call init_decompcascade_bgc(bounds, soilbiogeochem_state_inst, soilstate_inst)
+          call init_decompcascade_bgc(bounds, soilbiogeochem_state_inst, &
+                                      soilstate_inst )
        else 
           call init_decompcascade_cn(bounds, soilbiogeochem_state_inst)
        end if
@@ -419,6 +421,8 @@ contains
     call temperature_inst%InitAccBuffer(bounds)
     
     call waterflux_inst%InitAccBuffer(bounds)
+
+    call energyflux_inst%InitAccBuffer(bounds)
 
     call canopystate_inst%InitAccBuffer(bounds)
 

@@ -1089,10 +1089,10 @@ contains
        call t_startf('RTMbudget')
        budget1 = 0.0_r8
        do nt = 1,nt_rtm
-       do nr = runoff%begr,runoff%endr
-          budget1(nt) = budget1(nt) + totrunin(nr,nt)*runoff%area(nr)*0.001_r8 &
-                                    + runoff%volr(nr,nt)/delt_rtm
-       enddo
+          do nr = runoff%begr,runoff%endr
+             budget1(nt) = budget1(nt) + totrunin(nr,nt)*runoff%area(nr)*0.001_r8 &
+                  + runoff%volr(nr,nt)/delt_rtm
+          enddo
        enddo
        call t_stopf('RTMbudget')
     endif

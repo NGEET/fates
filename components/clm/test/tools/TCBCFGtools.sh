@@ -1,12 +1,12 @@
 #!/bin/sh 
 #
 
-if [ $# -ne 3 ]; then
+if [ $# -ne 2 ]; then
     echo "TCBCFGtools.sh: incorrect number of input arguments" 
     exit 1
 fi
 
-test_name=TCBCFGtools.$1.$2.$3
+test_name=TCBCFGtools.$1.$2
 
 if [ -f ${CLM_TESTDIR}/${test_name}/TestStatus ]; then
     if grep -c PASS ${CLM_TESTDIR}/${test_name}/TestStatus > /dev/null; then
@@ -31,7 +31,7 @@ if [ -f ${CLM_TESTDIR}/${test_name}/TestStatus ]; then
     fi
 fi
 
-cfgdir=`ls -1d ${CLM_ROOT}/components/clm/tools/$1/$2`
+cfgdir=`ls -1d ${CLM_ROOT}/components/clm/tools/$1`
 blddir=${CLM_TESTDIR}/${test_name}/src
 if [ -d ${blddir} ]; then
     rm -r ${blddir}
@@ -60,8 +60,8 @@ done < ${cfgdir}/src/Filepath
 #
 # Figure out configuration
 #
-if [ ! -f ${CLM_SCRIPTDIR}/config_files/$2 ]; then
-    echo "TCB.sh: configure options file ${CLM_SCRIPTDIR}/config_files/$2 not found"
+if [ ! -f ${CLM_SCRIPTDIR}/config_files/$1 ]; then
+    echo "TCB.sh: configure options file ${CLM_SCRIPTDIR}/config_files/$1 not found"
     echo "FAIL.job${JOBID}" > TestStatus
     exit 4
 fi
@@ -70,13 +70,13 @@ fi
 config_string=" "
 while read config_arg; do
     config_string="${config_string}${config_arg} "
-done < ${CLM_SCRIPTDIR}/config_files/$2
+done < ${CLM_SCRIPTDIR}/config_files/$1
 
 if [ "$TOOLSLIBS" != "" ]; then
    export SLIBS=$TOOLSLIBS
 fi
-echo "env CIMEROOT=$CLM_ROOT/cime $config_string $CLM_ROOT/cime/tools/configure -mach $CESM_MACH -compiler $CESM_COMP $TOOLS_CONF_STRING"
-env CIMEROOT=$CLM_ROOT/cime $config_string $CLM_ROOT/cime/tools/configure -mach $CESM_MACH -compiler $CESM_COMP  $TOOLS_CONF_STRING >> test.log 2>&1
+echo "env CIMEROOT=$CLM_ROOT/cime COMPILER=$CESM_COMP $config_string $CLM_ROOT/cime/tools/configure --macros-format Makefile --machine $CESM_MACH $TOOLS_CONF_STRING"
+env       CIMEROOT=$CLM_ROOT/cime COMPILER=$CESM_COMP $config_string $CLM_ROOT/cime/tools/configure --macros-format Makefile --machine $CESM_MACH $TOOLS_CONF_STRING >> test.log 2>&1
 rc=$?
 if [ $rc -ne 0 ]; then
    echo "TCBCFGtools.sh: configure failed, error from configure= $rc" 
@@ -85,15 +85,16 @@ if [ $rc -ne 0 ]; then
    exit 5
 fi
 
-ln -s Macros.make Macros
+. ./.env_mach_specific.sh
+
 attempt=1
 still_compiling="TRUE"
 while [ $still_compiling = "TRUE" ]; do
 
     echo "TCBCFGtools.sh: call to make:" 
-    echo "        ${MAKE_CMD} "
+    echo "        ${MAKE_CMD} USER_CPPDEFS=-DLINUX"
     if [ "$debug" != "YES" ]; then
-       ${MAKE_CMD} >> test.log 2>&1
+       ${MAKE_CMD} USER_CPPDEFS=-DLINUX >> test.log 2>&1
        status="PASS"
        rc=$?
     else

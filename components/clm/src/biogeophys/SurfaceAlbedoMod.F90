@@ -691,11 +691,11 @@ contains
                 endif
              else
                 if (ib == 1) then
-                   flx_absdv(c,i) = flx_absd_snw(c,i,ib)*(1.-albsnd(c,ib))
-                   flx_absiv(c,i) = flx_absi_snw(c,i,ib)*(1.-albsni(c,ib))
+                   flx_absdv(c,i) = flx_absd_snw(c,i,ib)
+                   flx_absiv(c,i) = flx_absi_snw(c,i,ib)
                 elseif (ib == 2) then
-                   flx_absdn(c,i) = flx_absd_snw(c,i,ib)*(1.-albsnd(c,ib))
-                   flx_absin(c,i) = flx_absi_snw(c,i,ib)*(1.-albsni(c,ib))
+                   flx_absdn(c,i) = flx_absd_snw(c,i,ib)
+                   flx_absin(c,i) = flx_absi_snw(c,i,ib)
                 endif
              endif
              enddo
@@ -1218,7 +1218,11 @@ contains
        gdir(p) = phi1 + phi2*cosz
        twostext(p) = gdir(p)/cosz
        avmu(p) = ( 1._r8 - phi1/phi2 * log((phi1+phi2)/phi1) ) / phi2
-       temp0(p) = gdir(p) + phi2*cosz
+       ! Restrict this calculation of temp0. We have seen cases where small temp0
+       ! can cause unrealistic single scattering albedo (asu) associated with the
+       ! log calculation in temp2 below, thereby eventually causing a negative soil albedo
+       ! See bugzilla bug 2431: http://bugs.cgd.ucar.edu/show_bug.cgi?id=2431
+       temp0(p) = max(gdir(p) + phi2*cosz,1.e-6_r8)
        temp1 = phi1*cosz
        temp2(p) = ( 1._r8 - temp1/temp0(p) * log((temp1+temp0(p))/temp1) )
     end do

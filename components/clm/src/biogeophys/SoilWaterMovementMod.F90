@@ -584,8 +584,7 @@ contains
       nstep = get_nstep()
       dtime = get_step_size()
 
-     
- 
+
       ! Because the depths in this routine are in mm, use local
       ! variable arrays instead of pointers
 
@@ -1334,8 +1333,8 @@ contains
             end do  ! looping through layers
 
             ! compute absolute errors
-            errorVec = abs(fluxNet1 - fluxNet0)*dtsub*0.5_r8
-            errorMax = maxval(errorVec)
+            errorVec(:nlayers) = abs(fluxNet1(:nlayers) - fluxNet0(:nlayers))*dtsub*0.5_r8
+            errorMax = maxval(errorVec(:nlayers))
 
             ! check if the error is above the upper tolerance
             if(errorMax(1) > xTolerUpper .and. dtsub > dtmin)then

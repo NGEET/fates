@@ -15,7 +15,7 @@ module RtmHistFile
                              ctitle, version, hostname, username, conventions, source
   use RtmFileUtils  , only : get_filename, getfil
   use RtmTimeManager, only : get_nstep, get_curr_date, get_curr_time, get_ref_date, &
-                             get_prev_time, get_prev_date, is_last_step
+                             get_prev_time, get_prev_date, is_last_step, get_step_size
   use RtmSpmd       , only : masterproc
   use RtmIO
   use RtmDateTime
@@ -53,6 +53,10 @@ module RtmHistFile
   character(len=max_namlen+2), public :: rtmhist_fincl1(max_flds) = ' '       
   character(len=max_namlen+2), public :: rtmhist_fincl2(max_flds) = ' '
   character(len=max_namlen+2), public :: rtmhist_fincl3(max_flds) = ' '
+  !
+  ! time_period_freq variable
+  !
+  character(len=max_namlen+2), public :: time_period_freq = ' '
 
   ! list of fields to remove
   character(len=max_namlen+2), public :: rtmhist_fexcl1(max_flds) = ' ' 
@@ -169,8 +173,8 @@ module RtmHistFile
 !
 ! NetCDF  Id's
 !
-  type(file_desc_t) :: nfid(max_tapes)       ! file ids
-  type(file_desc_t) :: ncid_hist(max_tapes)  ! file ids for history restart files
+  type(file_desc_t), target :: nfid(max_tapes)       ! file ids
+  type(file_desc_t), target :: ncid_hist(max_tapes)  ! file ids for history restart files
   integer :: time_dimid                      ! time dimension id
   integer :: hist_interval_dimid             ! time bounds dimension id
   integer :: strlen_dimid                    ! string dimension id
@@ -642,6 +646,8 @@ contains
     ! Define contents of history file t. Issue the required netcdf
     ! wrapper calls to define the history file contents.
     !
+    ! !USES:
+    use RtmVar   , only: isecspday
 
     ! !ARGUMENTS:
     implicit none
@@ -662,8 +668,10 @@ contains
     integer :: num_lndrof          ! total number of land runoff across all procs
     integer :: num_ocnrof          ! total number of ocean runoff across all procs
     integer :: numrtm              ! total number of rtm cells on all procs
+    integer :: dtime               ! timestep size
+    integer :: sec_hist_nhtfrq     ! rtmhist_nhtfrq converted to seconds
     logical :: lhistrest           ! local history restart flag
-    type(file_desc_t) :: lnfid     ! local file id
+    type(file_desc_t), pointer :: lnfid     ! local file id
     character(len=  8) :: curdate  ! current date
     character(len=  8) :: curtime  ! current time
     character(len=256) :: name     ! name of attribute
@@ -681,6 +689,11 @@ contains
 
     ! Define output write precsion for tape
     ncprec = tape(t)%ncprec
+    if (lhistrest) then
+       lnfid => ncid_hist(t)
+    else
+       lnfid => nfid(t)
+    endif
 
     ! Create new netCDF file. It will be in define mode
     if ( .not. lhistrest )then
@@ -728,6 +741,30 @@ contains
     str = get_filename(frivinp_rtm)
     call ncd_putatt(lnfid, ncd_global, 'RTM_input_dataset', trim(str))
 
+    !     
+    ! add global attribute time_period_freq
+    !     
+    sec_hist_nhtfrq = rtmhist_nhtfrq(t)
+    if (rtmhist_nhtfrq(t) < 0) then !hour need to convert to seconds
+        sec_hist_nhtfrq = abs(rtmhist_nhtfrq(t))*3600
+    end if
+
+    dtime = get_step_size()
+    if (sec_hist_nhtfrq == 0) then !month
+       time_period_freq = 'month_1'
+    else if (mod(sec_hist_nhtfrq*dtime,isecspday) == 0) then ! day
+       write(time_period_freq,999) 'day_',sec_hist_nhtfrq*dtime/isecspday
+    else if (mod(sec_hist_nhtfrq*dtime,3600) == 0) then ! hour
+       write(time_period_freq,999) 'hour_',(sec_hist_nhtfrq*dtime)/3600
+    else if (mod(sec_hist_nhtfrq*dtime,60) == 0) then ! minute
+       write(time_period_freq,999) 'minute_',(sec_hist_nhtfrq*dtime)/60
+    else                     ! second
+      write(time_period_freq,999) 'second_',sec_hist_nhtfrq*dtime
+    end if
+999 format(a,i0)
+
+    call ncd_putatt(lnfid, ncd_global, 'time_period_freq', trim(time_period_freq))
+
     ! Define dimensions.
     ! Time is an unlimited dimension. Character string is treated as an array of characters.
 
@@ -746,14 +783,12 @@ contains
     if ( .not. lhistrest )then
        call ncd_defdim(lnfid, 'hist_interval', 2, hist_interval_dimid)
        call ncd_defdim(lnfid, 'time', ncd_unlimited, time_dimid)
-       nfid(t) = lnfid
        if (masterproc)then
           write(iulog,*) trim(subname), &
                           ' : Successfully defined netcdf history file ',t
           call shr_sys_flush(iulog)
        end if
     else
-       ncid_hist(t) = lnfid
        if (masterproc)then
           write(iulog,*) trim(subname), &
                           ' : Successfully defined netcdf restart history file ',t
@@ -784,6 +819,7 @@ contains
     integer :: mdcur                      ! current day
     integer :: mscur                      ! seconds of current day
     integer :: mcdate                     ! current date
+    integer :: dtime                      ! timestep size
     integer :: yr,mon,day,nbsec           ! year,month,day,seconds components of a date
     integer :: hours,minutes,secs         ! hours,minutes,seconds of hh:mm:ss
     character(len= 10) :: basedate        ! base date (yyyymmdd)

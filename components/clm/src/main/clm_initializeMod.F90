@@ -9,10 +9,11 @@ module clm_initializeMod
   use spmdMod         , only : masterproc
   use decompMod       , only : bounds_type, get_proc_bounds, get_proc_clumps, get_clump_bounds
   use abortutils      , only : endrun
-  use clm_varctl      , only : nsrest, nsrStartup, nsrContinue, nsrBranch, is_cold_start
+  use clm_varctl      , only : nsrest, nsrStartup, nsrContinue, nsrBranch
+  use clm_varctl      , only : is_cold_start, is_interpolated_start
   use clm_varctl      , only : create_glacier_mec_landunit, iulog
   use clm_varctl      , only : use_lch4, use_cn, use_cndv, use_c13, use_c14, use_ed
-  use clm_instur      , only : wt_lunit, urban_valid, wt_nat_patch, wt_cft, wt_glc_mec, topo_glc_mec
+  use clm_instur      , only : wt_lunit, urban_valid, wt_nat_patch, wt_cft, fert_cft, wt_glc_mec, topo_glc_mec
   use perf_mod        , only : t_startf, t_stopf
   use readParamsMod   , only : readParameters
   use ncdio_pio       , only : file_desc_t
@@ -161,6 +162,7 @@ contains
     allocate (urban_valid  (begg:endg                      ))
     allocate (wt_nat_patch (begg:endg, natpft_lb:natpft_ub ))
     allocate (wt_cft       (begg:endg, cft_lb:cft_ub       ))
+    allocate (fert_cft     (begg:endg, cft_lb:cft_ub       ))
     if (create_glacier_mec_landunit) then
        allocate (wt_glc_mec  (begg:endg, maxpatch_glcmec))
        allocate (topo_glc_mec(begg:endg, maxpatch_glcmec))
@@ -420,6 +422,11 @@ contains
          avgflag='A', long_name='Snow layer thicknesses', &
          ptr_col=data2dptr, no_snow_behavior=no_snow_normal, default='inactive')
 
+    call hist_addfld2d (fname='SNO_Z_ICE', units='m', type2d='levsno',  &
+         avgflag='A', long_name='Snow layer thicknesses (ice landunits only)', &
+         ptr_col=data2dptr, no_snow_behavior=no_snow_normal, &
+         l2g_scale_type='ice', default='inactive')
+
     col%zii(bounds_proc%begc:bounds_proc%endc) = spval
     call hist_addfld1d (fname='ZII', units='m', &
          avgflag='A', long_name='convective boundary height', &
@@ -452,7 +459,7 @@ contains
 
     call t_startf('init_dyn_subgrid')
     call init_subgrid_weights_mod(bounds_proc)
-    call dynSubgrid_init(bounds_proc)
+    call dynSubgrid_init(bounds_proc, glc_behavior, crop_inst)
     call t_stopf('init_dyn_subgrid')
 
     ! ------------------------------------------------------------------------
@@ -497,6 +504,7 @@ contains
     ! ------------------------------------------------------------------------
 
     is_cold_start = .false.
+    is_interpolated_start = .false.
 
     if (nsrest == nsrStartup) then
 
@@ -534,6 +542,8 @@ contains
     ! ------------------------------------------------------------------------
 
     if (nsrest == nsrStartup .and. finidat_interp_source /= ' ') then
+
+       is_interpolated_start = .true.
 
        ! Check that finidat is not cold start - abort if it is
        if (finidat /= ' ') then
@@ -591,7 +601,7 @@ contains
     call atm2lnd_inst%initAccVars(bounds_proc)
     call temperature_inst%initAccVars(bounds_proc)
     call waterflux_inst%initAccVars(bounds_proc)
-
+    call energyflux_inst%initAccVars(bounds_proc)
     call canopystate_inst%initAccVars(bounds_proc)
 
     call bgc_vegetation_inst%initAccVars(bounds_proc)
@@ -667,7 +677,7 @@ contains
     ! initialize2 because it is used to initialize other variables; now it can be
     ! deallocated
 
-    deallocate(topo_glc_mec)
+    deallocate(topo_glc_mec, fert_cft)
 
     !------------------------------------------------------------       
     ! Write log output for end of initialization

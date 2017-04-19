@@ -15,8 +15,11 @@ module RtmSpmd
 !EOP
 !-----------------------------------------------------------------------
   implicit none
-  save
   private
+
+#include <mpif.h>  
+
+  save     ! This statement won't be needed once all compilers we support are compliant with FORTRAN-2008
 
   ! Default settings valid even if there is no spmd 
 
@@ -48,8 +51,6 @@ module RtmSpmd
   public :: MPI_CHARACTER
   public :: MPI_COMM_WORLD
   public :: MPI_MAX_PROCESSOR_NAME
-
-#include <mpif.h>  
 
 contains
 

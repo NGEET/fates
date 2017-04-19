@@ -145,11 +145,7 @@ contains
     allocate(this%dleaf_patch              (begp:endp))           ; this%dleaf_patch              (:)   = nan
     allocate(this%rscanopy_patch           (begp:endp))           ; this%rscanopy_patch           (:)   = nan
 !    allocate(this%gccanopy_patch           (begp:endp))           ; this%gccanopy_patch           (:)   = 0.0_r8     
-    if( use_hydrstress )then
-       ! NOTE(kwo, 2015-09) because these variables are only allocated when use_hydrstress
-       ! is turned on, they can not be placed into associate statements.
-       allocate(this%vegwp_patch           (begp:endp,1:nvegwcs)) ; this%vegwp_patch              (:,:) = nan
-    end if
+    allocate(this%vegwp_patch              (begp:endp,1:nvegwcs)) ; this%vegwp_patch              (:,:) = nan
 
   end subroutine InitAllocate
 
@@ -284,10 +280,12 @@ contains
          ptr_patch=this%elai240_patch, default='inactive')
 
     ! Ed specific field
-    this%rscanopy_patch(begp:endp) = spval
-    call hist_addfld1d (fname='RSCANOPY', units=' s m-1',  &
-         avgflag='A', long_name='canopy resistance', &
-         ptr_patch=this%rscanopy_patch, set_lake=0._r8, set_urb=0._r8)
+    if ( use_ed ) then
+       this%rscanopy_patch(begp:endp) = spval
+       call hist_addfld1d (fname='RSCANOPY', units=' s m-1',  &
+            avgflag='A', long_name='canopy resistance', &
+            ptr_patch=this%rscanopy_patch, set_lake=0._r8, set_urb=0._r8)
+    end if
 
 !    call hist_addfld1d (fname='GCCANOPY', units='none',  &
 !         avgflag='A', long_name='Canopy Conductance: mmol m-2 s-1', &
@@ -518,9 +516,7 @@ contains
        this%htop_patch(p)       = 0._r8
        this%hbot_patch(p)       = 0._r8
        this%dewmx_patch(p)      = 0.1_r8
-       if ( use_hydrstress ) then
-          this%vegwp_patch(p,:) = -2.5e4_r8
-       end if
+       this%vegwp_patch(p,:)    = -2.5e4_r8
 
        if (lun%itype(l) == istsoil .or. lun%itype(l) == istcrop) then
           this%laisun_patch(p) = 0._r8
@@ -604,6 +600,7 @@ contains
     call restartvar(ncid=ncid, flag=flag, varname='fsun', xtype=ncd_double,  &
          dim1name='pft', long_name='sunlit fraction of canopy', units='', &
          interpinic_flag='interp', readvar=readvar, data=this%fsun_patch)
+
     if (flag=='read' )then
        do p = bounds%begp,bounds%endp
           if (shr_infnan_isnan(this%fsun_patch(p)) ) then

@@ -49,6 +49,9 @@ module CNFireBaseMod
   ! !PUBLIC TYPES:
   public :: cnfire_base_type
 
+  integer, private, parameter :: num_fp = 2   ! Number of pools relevent for fire
+  integer, private, parameter :: lit_fp = 1   ! Pool for liter
+  integer, private, parameter :: cwd_fp = 2   ! Pool for CWD Course woody debris
   type, public :: cnfire_const_type
       ! !PRIVATE MEMBER DATA:
       real(r8) :: borealat = 40._r8                    ! Latitude for boreal peat fires
@@ -65,6 +68,8 @@ module CNFireBaseMod
       real(r8) :: non_boreal_peatfire_c  = 0.001_r8    ! c parameter for non-boreal peatland fire in Li et. al. (2013) (/hr)
       real(r8) :: cropfire_a1 = 0.3_r8                 ! a1 parameter for cropland fire in (Li et. al., 2014) (/hr)
       real(r8) :: occur_hi_gdp_tree = 0.39_r8          ! fire occurance for high GDP areas that are tree dominated (fraction)
+
+      real(r8) :: cmb_cmplt_fact(num_fp) = (/ 0.5_r8, 0.25_r8 /) ! combustion completion factor (unitless)
   end type
 
   !
@@ -117,17 +122,19 @@ contains
     character(len=*),  intent(in) :: NLFilename
     !-----------------------------------------------------------------------
 
-    ! Allocate lightning forcing data
-    allocate( this%forc_lnfm(bounds%begg:bounds%endg) )
-    this%forc_lnfm(bounds%begg:) = nan
-    ! Allocate pop dens forcing data
-    allocate( this%forc_hdm(bounds%begg:bounds%endg) )
-    this%forc_hdm(bounds%begg:) = nan
+    if ( this%need_lightning_and_popdens ) then
+       ! Allocate lightning forcing data
+       allocate( this%forc_lnfm(bounds%begg:bounds%endg) )
+       this%forc_lnfm(bounds%begg:) = nan
+       ! Allocate pop dens forcing data
+       allocate( this%forc_hdm(bounds%begg:bounds%endg) )
+       this%forc_hdm(bounds%begg:) = nan
 
-    call this%hdm_init(bounds, NLFilename)
-    call this%hdm_interp(bounds)
-    call this%lnfm_init(bounds, NLFilename)
-    call this%lnfm_interp(bounds)
+       call this%hdm_init(bounds, NLFilename)
+       call this%hdm_interp(bounds)
+       call this%lnfm_init(bounds, NLFilename)
+       call this%lnfm_interp(bounds)
+    end if
 
   end subroutine CNFireInit
 
@@ -155,70 +162,83 @@ contains
     character(len=*), parameter :: subname = 'CNFireReadNML'
     character(len=*), parameter :: nmlname = 'lifire_inparm'
     !-----------------------------------------------------------------------
-    real(r8) :: cli_scale, boreal_peatfire_c, pot_hmn_ign_counts_alpha, &
-                non_boreal_peatfire_c, cropfire_a1,   &
-                rh_low, rh_hgh, bt_min, bt_max, occur_hi_gdp_tree
+    real(r8) :: cli_scale, boreal_peatfire_c, pot_hmn_ign_counts_alpha
+    real(r8) :: non_boreal_peatfire_c, cropfire_a1
+    real(r8) :: rh_low, rh_hgh, bt_min, bt_max, occur_hi_gdp_tree
+    real(r8) :: lfuel, ufuel, cmb_cmplt_fact(num_fp)
 
     namelist /lifire_inparm/ cli_scale, boreal_peatfire_c, pot_hmn_ign_counts_alpha, &
                              non_boreal_peatfire_c, cropfire_a1,                &
-                             rh_low, rh_hgh, bt_min, bt_max, occur_hi_gdp_tree
+                             rh_low, rh_hgh, bt_min, bt_max, occur_hi_gdp_tree, &
+                             lfuel, ufuel, cmb_cmplt_fact
 
-    cli_scale                 = cnfire_const%cli_scale
-    boreal_peatfire_c         = cnfire_const%boreal_peatfire_c
-    non_boreal_peatfire_c     = cnfire_const%non_boreal_peatfire_c
-    pot_hmn_ign_counts_alpha  = cnfire_const%pot_hmn_ign_counts_alpha
-    cropfire_a1               = cnfire_const%cropfire_a1
-    rh_low                    = cnfire_const%rh_low
-    rh_hgh                    = cnfire_const%rh_hgh
-    bt_min                    = cnfire_const%bt_min
-    bt_max                    = cnfire_const%bt_max
-    occur_hi_gdp_tree         = cnfire_const%occur_hi_gdp_tree
-    ! Initialize options to default values, in case they are not specified in
-    ! the namelist
+    if ( this%need_lightning_and_popdens ) then
+       cli_scale                 = cnfire_const%cli_scale
+       boreal_peatfire_c         = cnfire_const%boreal_peatfire_c
+       non_boreal_peatfire_c     = cnfire_const%non_boreal_peatfire_c
+       pot_hmn_ign_counts_alpha  = cnfire_const%pot_hmn_ign_counts_alpha
+       cropfire_a1               = cnfire_const%cropfire_a1
+       rh_low                    = cnfire_const%rh_low
+       rh_hgh                    = cnfire_const%rh_hgh
+       lfuel                     = cnfire_const%lfuel
+       ufuel                     = cnfire_const%ufuel
+       bt_min                    = cnfire_const%bt_min
+       bt_max                    = cnfire_const%bt_max
+       occur_hi_gdp_tree         = cnfire_const%occur_hi_gdp_tree
+       cmb_cmplt_fact(:)         = cnfire_const%cmb_cmplt_fact(:)
+       ! Initialize options to default values, in case they are not specified in
+       ! the namelist
 
-    if (masterproc) then
-       unitn = getavu()
-       write(iulog,*) 'Read in '//nmlname//'  namelist'
-       call opnfil (NLFilename, unitn, 'F')
-       call shr_nl_find_group_name(unitn, nmlname, status=ierr)
-       if (ierr == 0) then
-          read(unitn, nml=lifire_inparm, iostat=ierr)
-          if (ierr /= 0) then
-             call endrun(msg="ERROR reading "//nmlname//"namelist"//errmsg(sourcefile, __LINE__))
+       if (masterproc) then
+          unitn = getavu()
+          write(iulog,*) 'Read in '//nmlname//'  namelist'
+          call opnfil (NLFilename, unitn, 'F')
+          call shr_nl_find_group_name(unitn, nmlname, status=ierr)
+          if (ierr == 0) then
+             read(unitn, nml=lifire_inparm, iostat=ierr)
+             if (ierr /= 0) then
+                call endrun(msg="ERROR reading "//nmlname//"namelist"//errmsg(sourcefile, __LINE__))
+             end if
+          else
+             call endrun(msg="ERROR could NOT find "//nmlname//"namelist"//errmsg(sourcefile, __LINE__))
           end if
-       else
-          call endrun(msg="ERROR could NOT find "//nmlname//"namelist"//errmsg(sourcefile, __LINE__))
+          call relavu( unitn )
        end if
-       call relavu( unitn )
-    end if
 
-    call shr_mpi_bcast (cli_scale               , mpicom)
-    call shr_mpi_bcast (boreal_peatfire_c       , mpicom)
-    call shr_mpi_bcast (pot_hmn_ign_counts_alpha, mpicom)
-    call shr_mpi_bcast (non_boreal_peatfire_c   , mpicom)
-    call shr_mpi_bcast (cropfire_a1             , mpicom)
-    call shr_mpi_bcast (rh_low                  , mpicom)
-    call shr_mpi_bcast (rh_hgh                  , mpicom)
-    call shr_mpi_bcast (bt_min                  , mpicom)
-    call shr_mpi_bcast (bt_max                  , mpicom)
-    call shr_mpi_bcast (occur_hi_gdp_tree       , mpicom)
+       call shr_mpi_bcast (cli_scale               , mpicom)
+       call shr_mpi_bcast (boreal_peatfire_c       , mpicom)
+       call shr_mpi_bcast (pot_hmn_ign_counts_alpha, mpicom)
+       call shr_mpi_bcast (non_boreal_peatfire_c   , mpicom)
+       call shr_mpi_bcast (cropfire_a1             , mpicom)
+       call shr_mpi_bcast (rh_low                  , mpicom)
+       call shr_mpi_bcast (rh_hgh                  , mpicom)
+       call shr_mpi_bcast (lfuel                   , mpicom)
+       call shr_mpi_bcast (ufuel                   , mpicom)
+       call shr_mpi_bcast (bt_min                  , mpicom)
+       call shr_mpi_bcast (bt_max                  , mpicom)
+       call shr_mpi_bcast (occur_hi_gdp_tree       , mpicom)
+       call shr_mpi_bcast (cmb_cmplt_fact          , mpicom)
 
-    cnfire_const%cli_scale                 = cli_scale
-    cnfire_const%boreal_peatfire_c         = boreal_peatfire_c
-    cnfire_const%non_boreal_peatfire_c     = non_boreal_peatfire_c
-    cnfire_const%pot_hmn_ign_counts_alpha  = pot_hmn_ign_counts_alpha
-    cnfire_const%cropfire_a1               = cropfire_a1
-    cnfire_const%rh_low                    = rh_low
-    cnfire_const%rh_hgh                    = rh_hgh
-    cnfire_const%bt_min                    = bt_min
-    cnfire_const%bt_max                    = bt_max
-    cnfire_const%occur_hi_gdp_tree         = occur_hi_gdp_tree
+       cnfire_const%cli_scale                 = cli_scale
+       cnfire_const%boreal_peatfire_c         = boreal_peatfire_c
+       cnfire_const%non_boreal_peatfire_c     = non_boreal_peatfire_c
+       cnfire_const%pot_hmn_ign_counts_alpha  = pot_hmn_ign_counts_alpha
+       cnfire_const%cropfire_a1               = cropfire_a1
+       cnfire_const%rh_low                    = rh_low
+       cnfire_const%rh_hgh                    = rh_hgh
+       cnfire_const%lfuel                     = lfuel
+       cnfire_const%ufuel                     = ufuel
+       cnfire_const%bt_min                    = bt_min
+       cnfire_const%bt_max                    = bt_max
+       cnfire_const%occur_hi_gdp_tree         = occur_hi_gdp_tree
+       cnfire_const%cmb_cmplt_fact(:)         = cmb_cmplt_fact(:)
 
-    if (masterproc) then
-       write(iulog,*) ' '
-       write(iulog,*) nmlname//' settings:'
-       write(iulog,nml=lifire_inparm)
-       write(iulog,*) ' '
+       if (masterproc) then
+          write(iulog,*) ' '
+          write(iulog,*) nmlname//' settings:'
+          write(iulog,nml=lifire_inparm)
+          write(iulog,*) ' '
+       end if
     end if
 
   end subroutine CNFireReadNML
@@ -234,8 +254,10 @@ contains
     type(bounds_type), intent(in) :: bounds  
     !-----------------------------------------------------------------------
 
-    call this%hdm_interp(bounds)
-    call this%lnfm_interp(bounds)
+    if ( this%need_lightning_and_popdens ) then
+       call this%hdm_interp(bounds)
+       call this%lnfm_interp(bounds)
+    end if
 
   end subroutine CNFireInterp
 
@@ -294,7 +316,7 @@ contains
    use clm_varctl           , only: use_cndv, spinup_state
    use clm_varcon           , only: secspday
    use pftconMod            , only: nc3crop
-   use dynSubgridControlMod , only: get_do_transient_pfts
+   use dynSubgridControlMod , only: run_has_transient_landcover
    use clm_varpar           , only: nlevdecomp_full, ndecomp_pools, nlevdecomp
    !
    ! !ARGUMENTS:
@@ -326,7 +348,7 @@ contains
    real(r8):: m                    ! acceleration factor for fuel carbon
    real(r8):: dt                   ! time step variable (s)
    real(r8):: dayspyr              ! days per year
-   logical :: do_transient_pfts    ! whether transient pfts are active in this run
+   logical :: transient_landcover  ! whether this run has any prescribed transient landcover
    !-----------------------------------------------------------------------
 
     SHR_ASSERT_ALL((ubound(leaf_prof_patch)      == (/bounds%endp,nlevdecomp_full/))               , errMsg(sourcefile, __LINE__))
@@ -380,6 +402,8 @@ contains
          fr_flab                             => pftcon%fr_flab                                                    , & ! Input: 
          fr_fcel                             => pftcon%fr_fcel                                                    , & ! Input: 
          fr_flig                             => pftcon%fr_flig                                                    , & ! Input: 
+
+         cmb_cmplt_fact                      => cnfire_const%cmb_cmplt_fact                                       , & ! Input:  [real(r8) (:)     ]  Combustion completion factor (unitless)
          
          nind                                => dgvs_inst%nind_patch                                              , & ! Input:  [real(r8) (:)     ]  number of individuals (#/m2)                      
          
@@ -532,7 +556,7 @@ contains
          m_n_to_litr_lig_fire                => cnveg_nitrogenflux_inst%m_n_to_litr_lig_fire_col                    & ! Output: [real(r8) (:,:)   ]                                                  
          )
 
-     do_transient_pfts = get_do_transient_pfts()
+     transient_landcover = run_has_transient_landcover()
 
      ! Get model step size
      ! calculate burned area fraction per sec
@@ -548,7 +572,7 @@ contains
 
         if( patch%itype(p) < nc3crop .and. cropf_col(c) < 1.0_r8)then
            ! For non-crop (bare-soil and natural vegetation)
-           if (do_transient_pfts) then
+           if (transient_landcover) then
               f = (fbac(c)-baf_crop(c))/(1.0_r8-cropf_col(c))
            else
               f = (farea_burned(c)-baf_crop(c))/(1.0_r8-cropf_col(c))
@@ -843,28 +867,28 @@ contains
 
         f = farea_burned(c) 
 
-        ! change CC for litter from 0.4_r8 to 0.5_r8 and CC for CWD from 0.2_r8
-        ! to 0.25_r8 according to Li et al.(2014) 
         do j = 1, nlevdecomp
            ! carbon fluxes
            do l = 1, ndecomp_pools
               if ( is_litter(l) ) then
-                 m_decomp_cpools_to_fire_vr(c,j,l) = decomp_cpools_vr(c,j,l) * f * 0.5_r8 
+                 m_decomp_cpools_to_fire_vr(c,j,l) = decomp_cpools_vr(c,j,l) * f * &
+                      cmb_cmplt_fact(lit_fp)
               end if
               if ( is_cwd(l) ) then
                  m_decomp_cpools_to_fire_vr(c,j,l) = decomp_cpools_vr(c,j,l) * &
-                      (f-baf_crop(c)) * 0.25_r8
+                      (f-baf_crop(c)) * cmb_cmplt_fact(cwd_fp)
               end if
            end do
 
            ! nitrogen fluxes
            do l = 1, ndecomp_pools
               if ( is_litter(l) ) then
-                 m_decomp_npools_to_fire_vr(c,j,l) = decomp_npools_vr(c,j,l) * f * 0.5_r8
+                 m_decomp_npools_to_fire_vr(c,j,l) = decomp_npools_vr(c,j,l) * f * &
+                      cmb_cmplt_fact(lit_fp)
               end if
               if ( is_cwd(l) ) then
                  m_decomp_npools_to_fire_vr(c,j,l) = decomp_npools_vr(c,j,l) * &
-                      (f-baf_crop(c)) * 0.25_r8
+                      (f-baf_crop(c)) * cmb_cmplt_fact(cwd_fp)
               end if
            end do
 
@@ -873,7 +897,7 @@ contains
 
      ! carbon loss due to deforestation fires
 
-     if (do_transient_pfts) then
+     if (transient_landcover) then
         call get_curr_date (kyr, kmo, kda, mcsec)
         do fc = 1,num_soilc
            c = filter_soilc(fc)

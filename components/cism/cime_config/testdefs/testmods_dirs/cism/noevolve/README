@@ -1,0 +1,2 @@
+This testmod tests turning off ice evolution. This is important to test because
+this is the typical operation of cism within cesm.

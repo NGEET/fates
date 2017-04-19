@@ -41,7 +41,7 @@ module MEGANFactorsMod
   integer , pointer :: hash_table_indices (:)            !  [integer (:)]  pointer to hash table indices 
   integer, parameter :: tbl_hash_sz = 2**16           ! hash table size
   !
-  character(len=32), allocatable :: comp_names(:)     ! MEGAN compound names
+  character(len=40), allocatable :: comp_names(:)     ! MEGAN compound names
   real(r8),          allocatable :: comp_molecwghts(:)! MEGAN compound molecular weights
 
   character(len=*), parameter, private :: sourcefile = &
@@ -124,7 +124,7 @@ contains
     call ncd_inqdlen( ncid, dimid, n_classes, name='Class_Num')
     call ncd_inqdlen( ncid, dimid, n_patchs, name='PFT_Num')
 
-    if ( n_patchs /= mxpft+1 )then
+    if ( n_patchs /= mxpft )then
        call endrun(msg='PFT_Num does NOT equal mxpft: '//errMsg(sourcefile, __LINE__))
     end if
     npfts = n_patchs

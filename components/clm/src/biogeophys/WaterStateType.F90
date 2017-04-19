@@ -32,7 +32,6 @@ module WaterstateType
      real(r8), pointer :: snow_layer_unity_col   (:,:) ! value 1 for each snow layer, used for history diagnostics
      real(r8), pointer :: bw_col                 (:,:) ! col partial density of water in the snow pack (ice + liquid) [kg/m3] 
 
-     real(r8), pointer :: smp_l_col              (:,:) ! col liquid phase soil matric potential, mm
      real(r8), pointer :: h2osno_col             (:)   ! col snow water (mm H2O)
      real(r8), pointer :: h2osno_old_col         (:)   ! col snow mass for previous time step (kg/m2) (new)
      real(r8), pointer :: h2osoi_liq_col         (:,:) ! col liquid water (kg/m2) (new) (-nlevsno+1:nlevgrnd)    
@@ -42,7 +41,6 @@ module WaterstateType
      real(r8), pointer :: air_vol_col            (:,:) ! col air filled porosity
      real(r8), pointer :: h2osoi_liqvol_col      (:,:) ! col volumetric liquid water content (v/v)
      real(r8), pointer :: h2ocan_patch           (:)   ! patch canopy water (mm H2O)
-     real(r8), pointer :: h2ocan_col             (:)   ! col canopy water (mm H2O)
      real(r8), pointer :: h2osfc_col             (:)   ! col surface water (mm H2O)
      real(r8), pointer :: snocan_patch           (:)   ! patch canopy snow water (mm H2O)
      real(r8), pointer :: liqcan_patch           (:)   ! patch canopy liquid water (mm H2O)
@@ -83,6 +81,7 @@ module WaterstateType
      real(r8), pointer :: frac_sno_eff_col       (:)   ! col fraction of ground covered by snow (0 to 1)
      real(r8), pointer :: frac_iceold_col        (:,:) ! col fraction of ice relative to the tot water (new) (-nlevsno+1:nlevgrnd) 
      real(r8), pointer :: frac_h2osfc_col        (:)   ! col fractional area with surface water greater than zero
+     real(r8), pointer :: frac_h2osfc_nosnow_col (:)   ! col fractional area with surface water greater than zero (if no snow present)
      real(r8), pointer :: wf_col                 (:)   ! col soil water as frac. of whc for top 0.05 m (0-1) 
      real(r8), pointer :: wf2_col                (:)   ! col soil water as frac. of whc for top 0.17 m (0-1) 
      real(r8), pointer :: fwet_patch             (:)   ! patch canopy fraction that is wet (0 to 1)
@@ -91,9 +90,7 @@ module WaterstateType
 
      ! Balance Checks
 
-     real(r8), pointer :: begwb_patch            (:)   ! water mass begining of the time step
      real(r8), pointer :: begwb_col              (:)   ! water mass begining of the time step
-     real(r8), pointer :: endwb_patch            (:)   ! water mass end of the time step
      real(r8), pointer :: endwb_col              (:)   ! water mass end of the time step
      real(r8), pointer :: errh2o_patch           (:)   ! water conservation error (mm H2O)
      real(r8), pointer :: errh2o_col             (:)   ! water conservation error (mm H2O)
@@ -181,8 +178,6 @@ contains
     allocate(this%int_snow_col           (begc:endc))                     ; this%int_snow_col           (:)   = nan   
     allocate(this%snow_layer_unity_col   (begc:endc,-nlevsno+1:0))        ; this%snow_layer_unity_col   (:,:) = nan
     allocate(this%bw_col                 (begc:endc,-nlevsno+1:0))        ; this%bw_col                 (:,:) = nan   
-
-    allocate(this%smp_l_col              (begc:endc,-nlevsno+1:nlevgrnd)) ; this%smp_l_col              (:,:) = nan
     allocate(this%h2osno_col             (begc:endc))                     ; this%h2osno_col             (:)   = nan   
     allocate(this%h2osno_old_col         (begc:endc))                     ; this%h2osno_old_col         (:)   = nan   
     allocate(this%h2osoi_liqice_10cm_col (begc:endc))                     ; this%h2osoi_liqice_10cm_col (:)   = nan   
@@ -192,7 +187,6 @@ contains
     allocate(this%h2osoi_ice_col         (begc:endc,-nlevsno+1:nlevgrnd)) ; this%h2osoi_ice_col         (:,:) = nan
     allocate(this%h2osoi_liq_col         (begc:endc,-nlevsno+1:nlevgrnd)) ; this%h2osoi_liq_col         (:,:) = nan
     allocate(this%h2ocan_patch           (begp:endp))                     ; this%h2ocan_patch           (:)   = nan  
-    allocate(this%h2ocan_col             (begc:endc))                     ; this%h2ocan_col             (:)   = nan
     allocate(this%snocan_patch           (begp:endp))                     ; this%snocan_patch           (:)   = nan  
     allocate(this%liqcan_patch           (begp:endp))                     ; this%liqcan_patch           (:)   = nan  
     allocate(this%snounload_patch        (begp:endp))                     ; this%snounload_patch        (:)   = nan  
@@ -228,15 +222,14 @@ contains
     allocate(this%frac_sno_eff_col       (begc:endc))                     ; this%frac_sno_eff_col       (:)   = nan
     allocate(this%frac_iceold_col        (begc:endc,-nlevsno+1:nlevgrnd)) ; this%frac_iceold_col        (:,:) = nan
     allocate(this%frac_h2osfc_col        (begc:endc))                     ; this%frac_h2osfc_col        (:)   = nan 
+    allocate(this%frac_h2osfc_nosnow_col (begc:endc))                     ; this%frac_h2osfc_nosnow_col        (:)   = nan 
     allocate(this%wf_col                 (begc:endc))                     ; this%wf_col                 (:)   = nan
     allocate(this%wf2_col                (begc:endc))                     ; 
     allocate(this%fwet_patch             (begp:endp))                     ; this%fwet_patch             (:)   = nan
     allocate(this%fcansno_patch          (begp:endp))                     ; this%fcansno_patch          (:)   = nan
     allocate(this%fdry_patch             (begp:endp))                     ; this%fdry_patch             (:)   = nan
 
-    allocate(this%begwb_patch            (begp:endp))                     ; this%begwb_patch            (:)   = nan
     allocate(this%begwb_col              (begc:endc))                     ; this%begwb_col              (:)   = nan
-    allocate(this%endwb_patch            (begp:endp))                     ; this%endwb_patch            (:)   = nan
     allocate(this%endwb_col              (begc:endc))                     ; this%endwb_col              (:)   = nan
     allocate(this%errh2o_patch           (begp:endp))                     ; this%errh2o_patch           (:)   = nan
     allocate(this%errh2o_col             (begc:endc))                     ; this%errh2o_col             (:)   = nan
@@ -329,23 +322,28 @@ contains
          avgflag='A', long_name='snow depth (liquid water)', &
          ptr_col=this%h2osno_col, c2l_scale_type='urbanf')
 
+    call hist_addfld1d (fname='H2OSNO_ICE', units='mm',  &
+         avgflag='A', long_name='snow depth (liquid water, ice landunits only)', &
+         ptr_col=this%h2osno_col, c2l_scale_type='urbanf', l2g_scale_type='ice', &
+         default='inactive')
+
     this%liq1_grc(begg:endg) = spval
-    call hist_addfld1d (fname='GC_LIQ1',  units='mm',  &
+    call hist_addfld1d (fname='LIQUID_CONTENT1',  units='mm',  &
          avgflag='A', long_name='initial gridcell total liq content', &
          ptr_lnd=this%liq1_grc)
 
     this%liq2_grc(begg:endg) = spval
-    call hist_addfld1d (fname='GC_LIQ2',  units='mm',  &  
+    call hist_addfld1d (fname='LIQUID_CONTENT2',  units='mm',  &  
          avgflag='A', long_name='post landuse change gridcell total liq content', &              
          ptr_lnd=this%liq2_grc, default='inactive')     
 
     this%ice1_grc(begg:endg) = spval
-    call hist_addfld1d (fname='GC_ICE1',  units='mm',  &  
+    call hist_addfld1d (fname='ICE_CONTENT1',  units='mm',  &  
          avgflag='A', long_name='initial gridcell total ice content', &              
          ptr_lnd=this%ice1_grc)     
 
     this%ice2_grc(begg:endg) = spval
-    call hist_addfld1d (fname='GC_ICE2',  units='mm',  &  
+    call hist_addfld1d (fname='ICE_CONTENT2',  units='mm',  &  
          avgflag='A', long_name='post land cover change total ice content', &              
          ptr_lnd=this%ice2_grc, default='inactive')
 
@@ -407,6 +405,12 @@ contains
          avgflag='A', long_name='fraction of ground covered by surface water', &
          ptr_col=this%frac_h2osfc_col)
 
+    this%frac_h2osfc_nosnow_col(begc:endc) = spval
+    call hist_addfld1d (fname='FH2OSFC_NOSNOW',  units='unitless',  &
+         avgflag='A', &
+         long_name='fraction of ground covered by surface water (if no snow present)', &
+         ptr_col=this%frac_h2osfc_nosnow_col, default='inactive')
+
     this%frac_sno_col(begc:endc) = spval
     call hist_addfld1d (fname='FSNO',  units='unitless',  &
          avgflag='A', long_name='fraction of ground covered by snow', &
@@ -452,6 +456,11 @@ contains
          avgflag='A', long_name='snow height of snow covered area', &
          ptr_col=this%snow_depth_col, c2l_scale_type='urbanf')!, default='inactive')
 
+    call hist_addfld1d (fname='SNOW_DEPTH_ICE', units='m',  &
+         avgflag='A', long_name='snow height of snow covered area (ice landunits only)', &
+         ptr_col=this%snow_depth_col, c2l_scale_type='urbanf', l2g_scale_type='ice', &
+         default='inactive')
+
     this%snowdp_col(begc:endc) = spval
     call hist_addfld1d (fname='SNOWDP',  units='m',  &
          avgflag='A', long_name='gridcell mean snow height', &
@@ -470,7 +479,13 @@ contains
     this%int_snow_col(begc:endc) = spval
     call hist_addfld1d (fname='INT_SNOW',  units='mm',  &
          avgflag='A', long_name='accumulated swe (vegetated landunits only)', &
-         ptr_col=this%int_snow_col, l2g_scale_type='veg')
+         ptr_col=this%int_snow_col, l2g_scale_type='veg', &
+         default='inactive')
+
+    call hist_addfld1d (fname='INT_SNOW_ICE',  units='mm',  &
+         avgflag='A', long_name='accumulated swe (ice landunits only)', &
+         ptr_col=this%int_snow_col, l2g_scale_type='ice', &
+         default='inactive')
 
     if (create_glacier_mec_landunit) then
        this%snow_persistence_col(begc:endc) = spval
@@ -515,11 +530,21 @@ contains
          avgflag='A', long_name='Partial density of water in the snow pack (ice + liquid)', &
          ptr_col=data2dptr, no_snow_behavior=no_snow_normal, default='inactive')
 
+    call hist_addfld2d (fname='SNO_BW_ICE', units='kg/m3', type2d='levsno', &
+         avgflag='A', long_name='Partial density of water in the snow pack (ice + liquid, ice landunits only)', &
+         ptr_col=data2dptr, no_snow_behavior=no_snow_normal, &
+         l2g_scale_type='ice', default='inactive')
+
     this%snw_rds_col(begc:endc,-nlevsno+1:0) = spval
     data2dptr => this%snw_rds_col(:,-nlevsno+1:0)
     call hist_addfld2d (fname='SNO_GS', units='Microns', type2d='levsno',  &
          avgflag='A', long_name='Mean snow grain size', &
          ptr_col=data2dptr, no_snow_behavior=no_snow_normal, default='inactive')
+
+    call hist_addfld2d (fname='SNO_GS_ICE', units='Microns', type2d='levsno',  &
+         avgflag='A', long_name='Mean snow grain size (ice landunits only)', &
+         ptr_col=data2dptr, no_snow_behavior=no_snow_normal, &
+         l2g_scale_type='ice', default='inactive')
 
     this%errh2o_col(begc:endc) = spval
     call hist_addfld1d (fname='ERRH2O', units='mm',  &
@@ -551,7 +576,7 @@ contains
     use column_varcon   , only : icol_shadewall, icol_road_perv
     use column_varcon   , only : icol_road_imperv, icol_roof, icol_sunwall
     use clm_varcon      , only : denice, denh2o, spval, sb, bdsno 
-    use clm_varcon      , only : h2osno_max, zlnd, tfrz, spval, pc
+    use clm_varcon      , only : zlnd, tfrz, spval, pc
     use clm_varctl      , only : fsurdat, iulog
     use clm_varctl        , only : use_bedrock
     use spmdMod         , only : masterproc
@@ -620,7 +645,6 @@ contains
 
       this%h2osfc_col(bounds%begc:bounds%endc) = 0._r8
       this%h2ocan_patch(bounds%begp:bounds%endp) = 0._r8
-      this%h2ocan_col(bounds%begc:bounds%endc) = 0._r8
       this%snocan_patch(bounds%begp:bounds%endp) = 0._r8
       this%liqcan_patch(bounds%begp:bounds%endp) = 0._r8
       this%snounload_patch(bounds%begp:bounds%endp) = 0._r8

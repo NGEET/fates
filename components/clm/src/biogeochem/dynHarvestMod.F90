@@ -51,7 +51,8 @@ module dynHarvestMod
 
   real(r8) , allocatable   :: harvest(:) ! harvest rates
   logical                  :: do_harvest ! whether we're in a period when we should do harvest
-
+  character(len=*), parameter :: string_not_set = "not_set"  ! string to initialize with to indicate string wasn't set
+  character(len=64)        :: harvest_units = string_not_set ! units from harvest variables 
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
   !---------------------------------------------------------------------------
@@ -67,7 +68,7 @@ contains
     ! 
     ! !USES:
     use dynVarTimeUninterpMod , only : dyn_var_time_uninterp_type
-    use dynTimeInfoMod        , only : YEAR_POSITION_END_OF_TIMESTEP
+    use dynTimeInfoMod        , only : YEAR_POSITION_START_OF_TIMESTEP
     !
     ! !ARGUMENTS:
     type(bounds_type) , intent(in) :: bounds           ! proc-level bounds
@@ -77,6 +78,7 @@ contains
     integer :: varnum     ! counter for harvest variables
     integer :: num_points ! number of spatial points
     integer :: ier        ! error code
+    character(len=64) :: units = string_not_set
     
     character(len=*), parameter :: subname = 'dynHarvest_init'
     !-----------------------------------------------------------------------
@@ -88,9 +90,10 @@ contains
        call endrun(msg=' allocation error for harvest'//errMsg(sourcefile, __LINE__))
     end if
 
-    ! Get the year from the END of the timestep for compatibility with how things were
-    ! done before, even though that doesn't necessarily make the most sense conceptually.
-    dynHarvest_file = dyn_file_type(harvest_filename, YEAR_POSITION_END_OF_TIMESTEP)
+    ! Get the year from the START of the timestep for consistency with other dyn file
+    ! stuff (though it shouldn't actually matter for harvest, given the way the
+    ! once-per-year harvest is applied).
+    dynHarvest_file = dyn_file_type(harvest_filename, YEAR_POSITION_START_OF_TIMESTEP)
     
     ! Get initial harvest data
     num_points = (bounds%endg - bounds%begg + 1)
@@ -99,6 +102,20 @@ contains
             dyn_file=dynHarvest_file, varname=harvest_varnames(varnum), &
             dim1name=grlnd, conversion_factor=1.0_r8, &
             do_check_sums_equal_1=.false., data_shape=[num_points])
+       call harvest_inst(varnum)%get_att("units",units)
+       if ( trim(units) == string_not_set ) then
+          units = "unitless"
+       else if ( trim(units) == "unitless" ) then
+
+       else if ( trim(units) /= "gC/m2/yr" ) then
+          call endrun(msg=' bad units read in from file='//trim(units)//errMsg(sourcefile, __LINE__))
+       end if
+       if ( varnum > 1 .and. trim(units) /= trim(harvest_units) )then
+          call endrun(msg=' harvest units are inconsitent on file ='// &
+               trim(harvest_filename)//errMsg(sourcefile, __LINE__))
+       end if
+       harvest_units = units
+       units = string_not_set
     end do
     
   end subroutine dynHarvest_init
@@ -167,7 +184,7 @@ contains
     ! !USES:
     use pftconMod       , only : noveg, nbrdlf_evr_shrub
     use clm_varcon      , only : secspday
-    use clm_time_manager, only : get_days_per_year
+    use clm_time_manager, only : get_step_size_real, is_beg_curr_year
     !
     ! !ARGUMENTS:
     integer                         , intent(in)    :: num_soilc       ! number of soil columns in filter
@@ -184,9 +201,10 @@ contains
     integer :: p                         ! patch index
     integer :: g                         ! gridcell index
     integer :: fp                        ! patch filter index
+    real(r8):: cm                        ! rate for carbon harvest mortality (gC/m2/yr)
     real(r8):: am                        ! rate for fractional harvest mortality (1/yr)
     real(r8):: m                         ! rate for fractional harvest mortality (1/s)
-    real(r8):: days_per_year             ! days per year
+    real(r8):: dtime                     ! model time step (s)
     !-----------------------------------------------------------------------
 
     associate(& 
@@ -277,8 +295,7 @@ contains
          hrv_deadcrootn_xfer_to_litter       =>    cnveg_nitrogenflux_inst%hrv_deadcrootn_xfer_to_litter_patch      & ! Output: [real(r8) (:)]                                                    
          )
 
-      
-      days_per_year = get_days_per_year()
+      dtime = get_step_size_real()
 
       ! patch loop
       do fp = 1,num_soilp
@@ -291,8 +308,23 @@ contains
          if (ivt(p) > noveg .and. ivt(p) < nbrdlf_evr_shrub) then
 
             if (do_harvest) then
-               am = harvest(g)
-               m  = am/(days_per_year * secspday)
+               if (harvest_units == "gC/m2/yr") then
+                  cm = harvest(g)
+                  if (deadstemc(p) > 0.0_r8) then
+                     am = min(1._r8,cm/deadstemc(p))
+                  else
+                     am = 0._r8
+                  end if
+               else
+                  am = harvest(g)
+               end if
+
+               ! Apply all harvest at the start of the year
+               if (is_beg_curr_year()) then
+                  m  = am/dtime
+               else
+                  m = 0._r8
+               end if
             else
                m = 0._r8
             end if

@@ -33,8 +33,9 @@ module clm_varctl
   character(len=256), public :: ctitle  = ' '                            
 
   ! Type of run
-  integer, public :: nsrest             = iundef                         
-  logical, public :: is_cold_start      = .false.
+  integer, public :: nsrest                = iundef                         
+  logical, public :: is_cold_start         = .false.
+  logical, public :: is_interpolated_start = .false. ! True if we're starting from initial conditions that have been run through init_interp
 
   ! Startup from initial conditions
   integer, public, parameter :: nsrStartup  = 0                          
@@ -93,12 +94,6 @@ module clm_varctl
   character(len=fname_len), public :: fsnowaging   = ' '      ! snow aging parameters file name
 
   !----------------------------------------------------------
-  ! Flag to turn on MEGAN VOC's
-  !----------------------------------------------------------
-
-  logical, public :: use_voc = .true. 
-
-  !----------------------------------------------------------
   ! Interpolation of finidat if requested
   !----------------------------------------------------------
 
@@ -124,9 +119,6 @@ module clm_varctl
   
   ! do not irrigate by default
   logical, public :: irrigate = .false.            
-
-  ! true => limit irrigation when river storage
-  logical, public :: limit_irrigation = .false.
 
   !----------------------------------------------------------
   ! Other subgrid logic
@@ -174,9 +166,6 @@ module clm_varctl
 
   ! use subgrid fluxes
   integer,  public :: subgridflag = 1                   
-
-  ! true => repartition rain/snow from atm based on temperature
-  logical,  public :: repartition_rain_snow = .false.
 
   ! true => write global average diagnostics to std out
   logical,  public :: wrtdia       = .false.            
@@ -252,22 +241,13 @@ module clm_varctl
 
   !----------------------------------------------------------
   ! glacier_mec control variables: default values (may be overwritten by namelist)
-  ! NOTE: glc_smb must have the same values for CLM and GLC
   !----------------------------------------------------------
 
   ! glacier_mec landunit is not created (set in controlMod)
   logical , public :: create_glacier_mec_landunit = .false. 
 
-  ! if true, pass surface mass balance info to GLC
-  logical , public :: glc_smb = .true.                      
-
-  ! if false, pass positive-degree-day info to GLC
-
   ! true => CLM glacier area & topography changes dynamically 
   logical , public :: glc_do_dynglacier = .false.           
-
-  ! true => downscale longwave radiation
-  logical , public :: glcmec_downscale_longwave = .true.    
 
   ! number of days before one considers the perennially snow-covered point 'land ice'
   integer , public :: glc_snow_persistence_max_days = 7300  

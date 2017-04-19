@@ -10,10 +10,11 @@ module clm_driver
   ! !USES:
   use shr_kind_mod           , only : r8 => shr_kind_r8
   use clm_varctl             , only : wrtdia, iulog, create_glacier_mec_landunit, use_ed
-  use clm_varctl             , only : use_cn, use_lch4, use_voc, use_noio, use_c13, use_c14
+  use clm_varctl             , only : use_cn, use_lch4, use_noio, use_c13, use_c14
   use clm_varctl             , only : use_crop
+  use clm_varctl             , only : is_cold_start, is_interpolated_start
   use clm_time_manager       , only : get_nstep, is_beg_curr_day
-  use clm_time_manager       , only : get_prev_date
+  use clm_time_manager       , only : get_prev_date, is_first_step
   use clm_varpar             , only : nlevsno, nlevgrnd
   use spmdMod                , only : masterproc, mpicom
   use decompMod              , only : get_proc_clumps, get_clump_bounds, get_proc_bounds, bounds_type
@@ -23,7 +24,7 @@ module clm_driver
   use restFileMod            , only : restFile_write, restFile_filename
   use abortutils             , only : endrun
   !
-  use dynSubgridDriverMod    , only : dynSubgrid_driver
+  use dynSubgridDriverMod    , only : dynSubgrid_driver, dynSubgrid_wrapup_weight_changes
   use BalanceCheckMod        , only : BeginWaterBalance, BalanceCheck
   !
   use CanopyTemperatureMod   , only : CanopyTemperature ! (formerly Biogeophysics1Mod)
@@ -97,7 +98,7 @@ module clm_driver
 contains
 
   !-----------------------------------------------------------------------
-  subroutine clm_drv(doalb, nextsw_cday, declinp1, declin, rstwr, nlend, rdate)
+  subroutine clm_drv(doalb, nextsw_cday, declinp1, declin, rstwr, nlend, rdate, rof_prognostic)
     !
     ! !DESCRIPTION:
     !
@@ -116,6 +117,11 @@ contains
     logical,         intent(in) :: rstwr       ! true => write restart file this step
     logical,         intent(in) :: nlend       ! true => end of run on this step
     character(len=*),intent(in) :: rdate       ! restart file time stamp for name
+
+    ! Whether we're running with a prognostic ROF component. This shouldn't change from
+    ! timestep to timestep, but we pass it into the driver loop because it isn't available
+    ! in initialization.
+    logical,         intent(in) :: rof_prognostic  ! whether we're running with a prognostic ROF component
     !
     ! !LOCAL VARIABLES:
     integer              :: nstep                   ! time step number
@@ -131,6 +137,7 @@ contains
     integer              :: sec_prev                ! seconds of the day at start of timestep
     character(len=256)   :: filer                   ! restart file name
     integer              :: ier                     ! error code
+    logical              :: need_glacier_initialization ! true if we need to initialize glacier areas in this time step
     type(bounds_type)    :: bounds_clump    
     type(bounds_type)    :: bounds_proc     
 
@@ -143,6 +150,8 @@ contains
     real(r8), allocatable :: annsum_npp_patch(:)
     real(r8), allocatable :: rr_patch(:)
     real(r8), allocatable :: net_carbon_exchange_grc(:)
+    real(r8), allocatable :: froot_carbon(:)
+    real(r8), allocatable :: croot_carbon(:)
 
     ! COMPILER_BUG(wjs, 2014-11-29, pgi 14.7) Workaround for internal compiler error with
     ! pgi 14.7 ('normalize_forall_array: non-conformable'), which appears in the call to
@@ -155,9 +164,55 @@ contains
     call get_proc_bounds(bounds_proc)
     nclumps = get_proc_clumps()
 
-    ! Update time-related info
+    ! ========================================================================
+    ! In the first time step of a run that used cold start or init_interp, glacier areas
+    ! will start at whatever is specified on the surface dataset, because coupling fields
+    ! from GLC aren't received until the run loop. Thus, CLM will see a potentially large,
+    ! fictitious glacier area change in the first time step after cold start or
+    ! init_interp. We don't want this fictitious area change to result in any state or
+    ! flux adjustments. Thus, we apply this area change here, at the start of the driver
+    ! loop, so that in dynSubgrid_driver, it will look like there is no glacier area
+    ! change in the first time step.
+    !
+    ! This needs to happen very early in the run loop, before any balance checks are
+    ! initialized, because - by design - this doesn't conserve mass at the grid cell
+    ! level. (The whole point of this code block is that we adjust areas without doing
+    ! the typical state or flux adjustments that need to accompany those area changes for
+    ! conservation.)
+    !
+    ! This accomplishes approximately the same effect that we would get if we were able to
+    ! update glacier areas in initialization. The one difference - and minor, theoretical
+    ! problem - that could arise from this start-of-run-loop update is: If the first time
+    ! step of the CESM run loop looked like: (1) GLC runs and updates glacier area (i.e.,
+    ! glacier area changes in the first time step compared with what was set in
+    ! initialization); (2) coupler passes new glacier area to CLM; (3) CLM runs. Then the
+    ! code here would mean that the true change in glacier area between initialization and
+    ! the first time step would be ignored as far as state and flux adjustments are
+    ! concerned. But this is unlikely to be an issue in practice: Currently GLC doesn't
+    ! update this frequently, and even if it did, the change in glacier area in a single
+    ! time step would typically be very small.
+    !
+    ! If we are ever able to change the CESM initialization sequence so that GLC fields
+    ! are passed to CLM in initialization, then this code block can be removed.
+    ! ========================================================================
 
-    call crop_inst%CropRestIncYear()
+    need_glacier_initialization = (is_first_step() .and. &
+         (is_cold_start .or. is_interpolated_start))
+
+    if (create_glacier_mec_landunit .and. need_glacier_initialization) then
+       !$OMP PARALLEL DO PRIVATE (nc, bounds_clump)
+       do nc = 1, nclumps
+          call get_clump_bounds(nc, bounds_clump)
+
+          call glc2lnd_inst%update_glc2lnd_non_topo( &
+               bounds = bounds_clump, &
+               glc_behavior = glc_behavior)
+
+          call dynSubgrid_wrapup_weight_changes(bounds_clump, glc_behavior)
+
+       end do
+       !$OMP END PARALLEL DO
+    end if
 
     ! ============================================================================
     ! Specified phenology
@@ -237,14 +292,6 @@ contains
           call bgc_vegetation_inst%InitEachTimeStep(bounds_clump, &
                filter(nc)%num_soilc, filter(nc)%soilc)
 
-          call soilbiogeochem_carbonflux_inst%ZeroDWT(bounds_clump)
-          if (use_c13) then
-             call c13_soilbiogeochem_carbonflux_inst%ZeroDWT(bounds_clump)
-          end if
-          if (use_c14) then
-             call c14_soilbiogeochem_carbonflux_inst%ZeroDWT(bounds_clump)
-          end if
-
           call t_stopf('cninit')
        end do
        !$OMP END PARALLEL DO
@@ -258,9 +305,9 @@ contains
 
     call t_startf('dyn_subgrid')
     call dynSubgrid_driver(bounds_proc,                                               &
-         urbanparams_inst, soilstate_inst, soilhydrology_inst, lakestate_inst,        &
+         urbanparams_inst, soilstate_inst, soilhydrology_inst,                        &
          waterstate_inst, waterflux_inst, temperature_inst, energyflux_inst,          &
-         canopystate_inst, photosyns_inst, glc2lnd_inst, bgc_vegetation_inst,         &
+         canopystate_inst, photosyns_inst, crop_inst, glc2lnd_inst, bgc_vegetation_inst, &
          soilbiogeochem_state_inst, soilbiogeochem_carbonstate_inst,                  &
          c13_soilbiogeochem_carbonstate_inst, c14_soilbiogeochem_carbonstate_inst,    &
          soilbiogeochem_nitrogenstate_inst, soilbiogeochem_carbonflux_inst, ch4_inst, &
@@ -290,7 +337,6 @@ contains
        call BeginWaterBalance(bounds_clump,                   &
             filter(nc)%num_nolakec, filter(nc)%nolakec,       &
             filter(nc)%num_lakec, filter(nc)%lakec,           &
-            filter(nc)%num_hydrologyc, filter(nc)%hydrologyc, &
             soilhydrology_inst, waterstate_inst)
 
        call t_stopf('begwbal')
@@ -345,7 +391,7 @@ contains
     ! Get time as of beginning of time step
     call get_prev_date(yr_prev, mon_prev, day_prev, sec_prev)
 
-    !$OMP PARALLEL DO PRIVATE (nc,l,c, bounds_clump, downreg_patch, leafn_patch, agnpp_patch, bgnpp_patch, annsum_npp_patch, rr_patch)
+    !$OMP PARALLEL DO PRIVATE (nc,l,c, bounds_clump, downreg_patch, leafn_patch, agnpp_patch, bgnpp_patch, annsum_npp_patch, rr_patch, froot_carbon, croot_carbon)
     do nc = 1,nclumps
        call get_clump_bounds(nc, bounds_clump)
 
@@ -375,9 +421,8 @@ contains
             canopystate_inst%frac_veg_nosno_patch(bounds_clump%begp:bounds_clump%endp))
 
        ! Irrigation flux
-
-       call irrigation_inst%ApplyIrrigation(bounds_clump, &
-            volr = atm2lnd_inst%volr_grc(bounds_clump%begg:bounds_clump%endg))
+       ! input is main channel storage
+       call irrigation_inst%ApplyIrrigation(bounds_clump)
        call t_stopf('drvinit')
 
        ! ============================================================================
@@ -487,6 +532,12 @@ contains
        downreg_patch = bgc_vegetation_inst%get_downreg_patch(bounds_clump)
        leafn_patch = bgc_vegetation_inst%get_leafn_patch(bounds_clump)
 
+       allocate(froot_carbon(bounds_clump%begp:bounds_clump%endp))
+       allocate(croot_carbon(bounds_clump%begp:bounds_clump%endp))
+       froot_carbon = bgc_vegetation_inst%get_froot_carbon_patch( &
+            bounds_clump, canopystate_inst%tlai_patch(bounds_clump%begp:bounds_clump%endp))
+       croot_carbon = bgc_vegetation_inst%get_croot_carbon_patch( &
+            bounds_clump, canopystate_inst%tlai_patch(bounds_clump%begp:bounds_clump%endp))
 
        call CanopyFluxes(bounds_clump,                                                      &
             filter(nc)%num_exposedvegp, filter(nc)%exposedvegp,                             &
@@ -496,8 +547,10 @@ contains
             temperature_inst, waterflux_inst, waterstate_inst, ch4_inst, ozone_inst, photosyns_inst, &
             humanindex_inst, soil_water_retention_curve, &
             downreg_patch = downreg_patch(bounds_clump%begp:bounds_clump%endp), &
-            leafn_patch = leafn_patch(bounds_clump%begp:bounds_clump%endp))
-       deallocate(downreg_patch, leafn_patch)
+            leafn_patch = leafn_patch(bounds_clump%begp:bounds_clump%endp), &
+            froot_carbon = froot_carbon(bounds_clump%begp:bounds_clump%endp), &
+            croot_carbon = croot_carbon(bounds_clump%begp:bounds_clump%endp))
+       deallocate(downreg_patch, leafn_patch, froot_carbon, croot_carbon)
        call t_stopf('canflux')
 
        ! Fluxes for all urban landunits
@@ -528,7 +581,10 @@ contains
        ! Determine irrigation needed for future time steps
        ! ============================================================================
 
-       ! This needs to be called after btran is computed
+       ! NOTE(wjs, 2016-09-08) The placement of this call in the driver is historical: it
+       ! used to be that it had to come after btran was computed. Now it no longer depends
+       ! on btran, so it could be moved earlier in the driver loop - possibly even
+       ! immediately before ApplyIrrigation, which would be a more clear place to put it.
 
        call t_startf('irrigationneeded')
        call irrigation_inst%CalcIrrigationNeeded( &
@@ -537,11 +593,11 @@ contains
             filter_exposedvegp = filter(nc)%exposedvegp, &
             time_prev          = sec_prev, &
             elai               = canopystate_inst%elai_patch(bounds_clump%begp:bounds_clump%endp), &
-            btran              = energyflux_inst%btran_patch(bounds_clump%begp:bounds_clump%endp), &
-            rootfr             = soilstate_inst%rootfr_patch(bounds_clump%begp:bounds_clump%endp    , 1:nlevgrnd), &
             t_soisno           = temperature_inst%t_soisno_col(bounds_clump%begc:bounds_clump%endc  , 1:nlevgrnd), &
             eff_porosity       = soilstate_inst%eff_porosity_col(bounds_clump%begc:bounds_clump%endc, 1:nlevgrnd), &
-            h2osoi_liq         = waterstate_inst%h2osoi_liq_col(bounds_clump%begc:bounds_clump%endc , 1:nlevgrnd))
+            h2osoi_liq         = waterstate_inst%h2osoi_liq_col(bounds_clump%begc:bounds_clump%endc , 1:nlevgrnd), &
+            volr               = atm2lnd_inst%volrmch_grc(bounds_clump%begg:bounds_clump%endg), &
+            rof_prognostic     = rof_prognostic)
        call t_stopf('irrigationneeded')
 
        ! ============================================================================
@@ -561,12 +617,10 @@ contains
             atm2lnd_inst, frictionvel_inst, dust_inst)
 
        ! VOC emission (A. Guenther's MEGAN (2006) model)
-       if (use_voc) then
-          call VOCEmission(bounds_clump,                                         &
+       call VOCEmission(bounds_clump,                                         &
                filter(nc)%num_soilp, filter(nc)%soilp,                           &
                atm2lnd_inst, canopystate_inst, photosyns_inst, temperature_inst, &
                vocemis_inst)
-       end if
 
        call t_stopf('bgc')
 
@@ -620,7 +674,7 @@ contains
        call t_startf('patch2col')
        call clm_drv_patch2col(bounds_clump, &
             filter(nc)%num_allc, filter(nc)%allc, filter(nc)%num_nolakec, filter(nc)%nolakec, &
-            waterstate_inst, energyflux_inst, waterflux_inst)
+            energyflux_inst, waterflux_inst)
        call t_stopf('patch2col')
 
        ! ============================================================================
@@ -1034,6 +1088,8 @@ contains
 
        call waterflux_inst%UpdateAccVars(bounds_proc)
 
+       call energyflux_inst%UpdateAccVars(bounds_proc)
+
        ! COMPILER_BUG(wjs, 2014-11-30, pgi 14.7) For pgi 14.7 to be happy when
        ! compiling this threaded, I needed to change the dummy arguments to be
        ! pointers, and get rid of the explicit bounds in the subroutine call.
@@ -1131,7 +1187,6 @@ contains
     use shr_kind_mod       , only : r8 => shr_kind_r8
     use shr_infnan_mod     , only : nan => shr_infnan_nan, assignment(=)
     use clm_varpar         , only : nlevsno
-    use clm_varcon         , only : h2osno_max
     use CanopyStateType    , only : canopystate_type
     use WaterStateType     , only : waterstate_type
     use WaterFluxType      , only : waterflux_type
@@ -1218,12 +1273,11 @@ contains
   !-----------------------------------------------------------------------
   subroutine clm_drv_patch2col (bounds, &
        num_allc, filter_allc, num_nolakec, filter_nolakec, &
-       waterstate_inst, energyflux_inst, waterflux_inst)
+       energyflux_inst, waterflux_inst)
     !
     ! !DESCRIPTION:
-    ! Averages over all patchs for variables defined over both soil and lake
-    ! to provide the column-level averages of state and flux variables
-    ! defined at the patch level.
+    ! Averages over all patches for variables defined over both soil and lake to provide
+    ! the column-level averages of flux variables defined at the patch level.
     !
     ! !USES:
     use WaterStateType , only : waterstate_type
@@ -1238,7 +1292,6 @@ contains
     integer               , intent(in)    :: filter_allc(:)    ! column filter for all active points
     integer               , intent(in)    :: num_nolakec       ! number of column non-lake points in column filter
     integer               , intent(in)    :: filter_nolakec(:) ! column filter for non-lake points
-    type(waterstate_type) , intent(inout) :: waterstate_inst
     type(waterflux_type)  , intent(inout) :: waterflux_inst
     type(energyflux_type) , intent(inout) :: energyflux_inst
     !
@@ -1254,12 +1307,6 @@ contains
     ! fields are explicitly set in LakeHydrologyMod. (The fields that
     ! are included here for lakes are computed elsewhere, e.g., in
     ! LakeFluxesMod.)
-
-    ! Averaging for patch water state variables
-
-    call p2c (bounds, num_nolakec, filter_nolakec, &
-         waterstate_inst%h2ocan_patch(bounds%begp:bounds%endp), &
-         waterstate_inst%h2ocan_col(bounds%begc:bounds%endc))
 
     ! Averaging for patch evaporative flux variables
 

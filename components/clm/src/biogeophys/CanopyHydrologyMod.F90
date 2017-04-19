@@ -155,7 +155,7 @@ contains
      ! temperature in the subroutine clm\_leaftem.f90, not in this subroutine.
      !
      ! !USES:
-     use clm_varcon         , only : hfus, denice, zlnd, rpi, spval, tfrz
+     use clm_varcon         , only : hfus, denice, zlnd, rpi, spval, tfrz, int_snow_max
      use column_varcon      , only : icol_roof, icol_sunwall, icol_shadewall
      use landunit_varcon    , only : istcrop, istice, istwet, istsoil, istice_mec 
      use clm_varctl         , only : subgridflag
@@ -214,6 +214,7 @@ contains
      real(r8) :: delf_melt
      real(r8) :: fsno_new
      real(r8) :: accum_factor
+     real(r8) :: int_snow_limited ! integrated snowfall, limited to be no greater than int_snow_max [mm]
      real(r8) :: newsnow(bounds%begc:bounds%endc)
      real(r8) :: snowmelt(bounds%begc:bounds%endc)
      integer  :: j
@@ -525,7 +526,8 @@ contains
              ! first compute change from melt during previous time step
              if(snowmelt(c) > 0._r8) then
 
-                smr=min(1._r8,(h2osno(c))/(int_snow(c)))
+                int_snow_limited = min(int_snow(c), int_snow_max)
+                smr=min(1._r8,h2osno(c)/int_snow_limited)
 
                 frac_sno(c) = 1. - (acos(min(1._r8,(2.*smr - 1._r8)))/rpi)**(n_melt(c))
 
@@ -613,7 +615,7 @@ contains
           dz_snowf = (snow_depth(c) - temp_snow_depth) / dtime
 
           ! set frac_sno_eff variable
-          if (lun%itype(l) == istsoil .or. lun%itype(l) == istcrop) then
+          if (.not. lun%urbpoi(l)) then
              if (subgridflag ==1) then 
                 frac_sno_eff(c) = frac_sno(c)
              else
@@ -780,7 +782,8 @@ contains
           h2osfc       => waterstate_inst%h2osfc_col       , & ! Output: [real(r8) (:)   ] surface water (mm)                                
           frac_sno     => waterstate_inst%frac_sno_col     , & ! Output: [real(r8) (:)   ] fraction of ground covered by snow (0 to 1)       
           frac_sno_eff => waterstate_inst%frac_sno_eff_col , & ! Output: [real(r8) (:)   ] eff. fraction of ground covered by snow (0 to 1)  
-          frac_h2osfc  => waterstate_inst%frac_h2osfc_col    & ! Output: [real(r8) (:)   ] col fractional area with surface water greater than zero 
+          frac_h2osfc  => waterstate_inst%frac_h2osfc_col,   & ! Output: [real(r8) (:)   ] col fractional area with surface water greater than zero 
+          frac_h2osfc_nosnow  => waterstate_inst%frac_h2osfc_nosnow_col    & ! Output: [real(r8) (:)   ] col fractional area with surface water greater than zero (if no snow present)
           )
 
        ! arbitrary lower limit on h2osfc for safer numerics...
@@ -818,6 +821,9 @@ contains
                 h2osoi_liq(c,1) = h2osoi_liq(c,1) + h2osfc(c)
                 h2osfc(c)=0._r8
              endif
+
+             frac_h2osfc_nosnow(c) = frac_h2osfc(c)
+
 
              if (.not. present(no_update)) then
 

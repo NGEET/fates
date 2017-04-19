@@ -4,6 +4,558 @@ This file describes what main-trunk tags were created and why
 
 ================================================================================
 Originator: sacks
+Date: Dec 30, 2016
+Model: cism
+Version: cism2_1_29
+One-line summary: Add two tests to the aux_glc test suite
+
+Purpose of changes:
+
+   Add two tests with ice evolution turned off, since we weren't testing this
+   configuration, which is the most common configuration in coupled CESM runs.
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/): none
+
+List all modified files, and describe the changes:
+
+A       cime_config/testdefs/testmods_dirs/cism/noevolve/shell_commands
+A       cime_config/testdefs/testmods_dirs/cism/noevolve/README
+A       cime_config/testdefs/testmods_dirs/cism/noevolve
+M       cime_config/testdefs/testlist_cism.xml
+
+Summary of testing:
+
+   Just ran the two new tests:
+   ERS_D_Ly3.f09_g16_gl5.TG1.yellowstone_gnu.cism-noevolve
+   ERS_D_Ly3.f09_g16_gl4.TG.yellowstone_pgi.cism-noevolve
+
+Externals used for testing: cesm2_0_alpha05b with cime at cism4km_new_grid
+
+cism tag used for baseline comparisons: N/A
+
+Any other externals that differed in baseline: N/A
+
+================================================================================
+Originator: sacks
+Date: Dec 29, 2016
+Model: cism
+Version: cism2_1_28
+One-line summary: Just update ChangeLog entry for cism2_1_27
+
+Purpose of changes:
+
+   I forgot to mention a few things in the ChangeLog entry for cism2_1_27
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/): none
+
+List all modified files, and describe the changes:
+
+M       ChangeLog
+
+Summary of testing: NONE
+
+Externals used for testing: N/A
+
+cism tag used for baseline comparisons: N/A
+
+Any other externals that differed in baseline: N/A
+
+================================================================================
+Originator: sacks
+Date: Dec 29, 2016
+Model: cism
+Version: cism2_1_27
+One-line summary: Use new 4-km input file, with epsg3413 projection
+
+Purpose of changes:
+
+   Joe Kennedy has created a new 4-km input file, which uses the epsg3413
+   projection. This projection is more commonly used, so facilitates comparisons
+   with observations, etc. This tag switches to this new input file.
+
+   In addition to changing the projection, this input file also updates the
+   glacier / ice sheet cover - particularly, including peripheral glaciers.
+
+   In addition, this new file has: (1) spatially-varying bheatflx; (2) no
+   tempstag field, so it is not spun-up in this respect; (3) no beta field.
+
+   Some related changes in this tag are:
+
+     (1) Change default which_ho_babc to 4 for 4km runs, because the new input
+         file does not have a beta field.
+
+     (2) No longer set projection section in cism.config file. This seems to no
+         longer be needed now that glint is gone, and the default values are
+         wrong for this new 4km file.
+
+   And some unrelated changes in this tag are:
+
+     (1) Fix from Jim Edwards to allow build-namelist to work with latest
+         version of cime, where NTASKS and NINST have been reworked
+
+     (2) Rename xmlchange_cmnds to shell_commands in a testmod: xmlchange_cmnds
+         has been deprecated
+
+   This tag depends on a new version of cime (currently on the cism4km_new_grid
+   branch, which will soon have a PR to master). This cime version has new
+   mapping files to go with the new 4km grid.
+
+Changes answers relative to previous tag: YES
+
+   Changes answers for all cases that use the 4km grid
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/): none
+
+List all modified files, and describe the changes:
+
+M       bld/namelist_files/namelist_definition_cism.xml
+M       bld/namelist_files/namelist_defaults_cism.xml
+M       bld/build-namelist
+D       cime_config/testdefs/testmods_dirs/cism/oneway/xmlchange_cmnds
+A       cime_config/testdefs/testmods_dirs/cism/oneway/shell_commands
+
+Summary of testing:
+
+   Full aux_glc test suite on yellowstone and hobart. All tests passed except
+   for expected NLCOMP failures, and expected BASELINE failures in 4km tests:
+
+     FAIL ERS_Ly3.f09_g16_gl4.TG.yellowstone_intel BASELINE
+     FAIL ERS_Ly5.T31_g37_gl4.IGCLM45.yellowstone_intel.clm-glcMEC_long BASELINE
+     FAIL ERS_D_Ld9.f19_g16_gl4.IGCLM45.yellowstone_pgi.cism-override_glc_frac BASELINE
+
+   In addition, ran B compset tests:
+
+     (1) SMS_D_Ld5.T31_g37_gl4.B1850C5L45BGCRG.yellowstone_intel.allactive-defaultio
+
+     (2) ./create_newcase -case test_b_mapping_1228a -compset B1850 -res f09_g16_gl4
+
+         with CISM_EVOLVE=TRUE, and test_coupling = .true.
+
+Externals used for testing: cesm2_0_alpha05b with cime at cism4km_new_grid
+
+cism tag used for baseline comparisons: cism2_1_25
+
+Any other externals that differed in baseline: Baseline used out-of-the-box
+cesm2_0_alpha05b (so an earlier version of cime)
+
+================================================================================
+Originator: sacks
+Date: Dec 6, 2016
+Model: cism
+Version: cism2_1_26
+One-line summary: Change time units to common_year
+
+Purpose of changes:
+
+    CF/Udunits defines common_year to be 365 days, which is what we
+    use. ('year' means exactly 365.242198781 days.) This change is needed for
+    the post-processing tools.
+
+    Also change time_vars.def for this and the previous change, although it
+    doesn't look like that file is used anywhere.
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/): none
+
+List all modified files, and describe the changes:
+
+*** remove_zero_gcm_fluxes_n03 -> remove_zero_gcm_fluxes_n04
+M       SVN_EXTERNAL_DIRECTORIES
+
+Summary of testing:
+
+   aux_glc tests just on hobart-nag
+
+Externals used for testing: clm4_5_12_r203
+
+cism tag used for baseline comparisons: N/A
+
+Any other externals that differed in baseline: N/A
+
+================================================================================
+Originator: sacks
+Date: Nov 15, 2016
+Model: cism
+Version: cism2_1_25
+One-line summary: Fix calendar attribute on hist files; remove debug print statements
+
+Purpose of changes:
+
+(1) Fix calendar attribute on hist files; this is needed by post-processing
+    tools. For now, assume a noleap calendar, since the use of a 365-day year is
+    hard-coded throughout CISM. (This change came in via an update in the
+    glimmer-cism external.)
+
+(2) Remove some write statements that were being done by all tasks (both in the
+    glimmer-cism external and in the glc code), in order to reduce output to cesm.log.
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/): none
+
+List all modified files, and describe the changes:
+
+*** remove_zero_gcm_fluxes_n02 -> remove_zero_gcm_fluxes_n03
+M       SVN_EXTERNAL_DIRECTORIES
+
+*** This module was not being used consistently - e.g., the error flag was never
+    being set. It was just leading to unnecessary prints in finalization from
+    all tasks.
+D       source_glc/glc_ErrorMod.F90
+
+*** Remove uses of glc_ErrorMod and a few other write statements that were
+    called from all tasks
+M       drivers/cpl/glc_comp_mct.F90
+M       drivers/cpl/glc_comp_esmf.F90
+M       source_glc/glc_InitMod.F90
+M       source_glc/glc_RunMod.F90
+M       source_glc/glc_FinalMod.F90
+
+Summary of testing:
+
+   Full aux_glc test suite on yellowstone and hobart. All tests passed.
+
+Externals used for testing: clm4_5_12_r203
+
+cism tag used for baseline comparisons: cism2_1_24
+
+Any other externals that differed in baseline: none
+
+================================================================================
+Originator: sacks
+Date: Oct 29, 2016
+Model: cism
+Version: cism2_1_24
+One-line summary: Remove problematic diagnostic prints
+
+Purpose of changes:
+
+   Updates the glimmer-cism external to remove some diagnostic prints that could
+   lead to array out-of-bounds errors when restarting in debug mode.
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+M       SVN_EXTERNAL_DIRECTORIES
+
+Summary of testing:
+
+   Full aux_glc test suite on yellowstone and hobart. All tests passed.
+
+Externals used for testing:
+https://svn-ccsm-models.cgd.ucar.edu/clm2/branch_tags/cism2_default_tags/cism2_default_n02_clm4_5_12_r198
+
+cism tag used for baseline comparisons: cism2_1_23
+
+Any other externals that differed in baseline: essentially the same:
+https://svn-ccsm-models.cgd.ucar.edu/clm2/branch_tags/cism2_default_tags/cism2_default_n02_clm4_5_12_r198
+
+================================================================================
+Originator: sacks
+Date: Oct 27, 2016
+Model: cism
+Version: cism2_1_23
+One-line summary: Change TG compset aliases, make CISM2 the default
+
+Purpose of changes:
+
+   (1) Change TG compset aliases to follow the new CESM convention, putting 'G'
+       at the end - so, e.g., rather than TG1850 we now have T1850G
+
+   (2) Make CISM2 the default in compset aliases - so, e.g., TG means CISM2,
+       whereas TG1 means CISM1
+
+Changes answers relative to previous tag: NO - but caveat: due to compset
+renaming, comparisons against baselines either BFAIL or FAIL, unless you do the
+appropriate sym linking.
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+M       cime_config/config_component.xml
+M       cime_config/config_compsets.xml
+M       cime_config/testdefs/testlist_cism.xml
+
+Summary of testing:
+
+   Ran aux_glc test suite, just on yellowstone
+
+   All tests passed except for expected MEMLEAKs and BFAILs
+
+Externals used for testing:
+https://svn-ccsm-models.cgd.ucar.edu/clm2/branch_tags/cism2_default_tags/cism2_default_n01_clm4_5_12_r198
+
+Cism tag used for baseline comparisons: cism2_1_22
+
+Any other externals that differed in baseline: Used clm4_5_12_r198
+
+   Made sym links in baseline directory, applying the compset renames. However,
+   IG tests that used to use CISM1 still BFAILed (as expected), because the new
+   CLM branch has been changed to use CISM2-4km rather than CISM1-5km in its
+   out-of-the-box compsets.
+
+================================================================================
+Originator: sacks
+Date: Oct 27, 2016
+Model: cism
+Version: cism2_1_22
+One-line summary: Use new 4km input file, tweak test list
+
+Purpose of changes:
+
+   (1) Point to a new input file for cism2 4km runs. This new file is based on
+       the file we are currently using for the branch that will become cism2.1.
+       In particular, it uses thk and topg from that new file, and the set of
+       fields present on the file match that new file pretty closely. However,
+       some aspects of the old file are maintained for now, so that the only
+       differences in an out-of-the-box 4km run are due to the differences in
+       thk and topg.
+
+       This file was created like this:
+
+         ncks -x -v bheatflx greenland_4km_2015_06_03.mcb_c160418.nc greenland_4km_2015_06_03.mcb_trunk_c161025.nc
+
+         ncks -A -v bheatflx,beta,tempstag greenland_4km.glissade.10kyr.beta6.SSacab_c150415a.nc greenland_4km_2015_06_03.mcb_trunk_c161025.nc
+
+   (2) Tweak the xml test list
+
+       (a) Update to v2 testlist format
+
+       (b) Add wallclock times to tests
+
+       (c) Add memleak_tolerance for a couple of tests
+
+       (d) A few small tweaks to the aux_glc and other test lists: remove some
+           unneeded tests, remove titan, change hopper to bluewaters
+
+Changes answers relative to previous tag: YES
+
+   Changes answers for cism2 at 4km; other configurations are bit-for-bit
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+
+List all modified files, and describe the changes:
+
+*** Point to new 4km input file
+M       bld/namelist_files/namelist_defaults_cism.xml
+
+*** Tweak test list, as noted above
+M       cime_config/testdefs/testlist_cism.xml
+
+*** Update ChangeLog for last tag with some additional test results
+M       ChangeLog
+
+
+Summary of testing:
+
+   Ran full aux_glc test suite: yellowstone and hobart. All tests passed except
+   for expected MEMLEAKs (now added to the testlist as new memleak_tolerance
+   values) and expected answer change for CISM2 at 4km.
+
+   Also ran SMS_Ly3_P24x1.f09_g16_gl4.TGIS2.hobart_intel with comparison to
+   baseline for a tweaked input file, which was similar to the new one, but with
+   thk and topg copied from the old file:
+
+     ncks -x -v bheatflx,thk,topg greenland_4km_2015_06_03.mcb_c160418.nc greenland_4km_2015_06_03.mcb_trunk_temporary_c161024a.nc
+
+     ncks -A -v bheatflx,thk,topg,beta,tempstag greenland_4km.glissade.10kyr.beta6.SSacab_c150415a.nc greenland_4km_2015_06_03.mcb_trunk_temporary_c161024a.nc
+
+   This was bit-for-bit with the trunk, confirming that the differences in this
+   new tag arise only from differences in thk and topg.
+
+Externals used for testing: cism2_1_21
+
+cism tag used for baseline comparisons: cesm2_0_beta02
+
+Any other externals that differed in baseline: none
+
+================================================================================
+Originator: sacks
+Date: Sept 27, 2016
+Model: cism
+Version: cism2_1_21
+One-line summary: Change extension on initial history file
+
+Purpose of changes:
+
+   The glc code is set up to output a history file in initialization, giving the
+   results of the initial, diagnostic solve. With cime5, this causes failures to
+   be reported for some tests (particularly ERI tests, and maybe some others),
+   where there is an initial history file for one run that has no counterpart in
+   the other run of a multi-run test.
+
+   This tag implements a work-around for this problem by changing the extension
+   of the initial history file to .initial_hist rather than .h: The test system
+   only picks up .h files in doing its comparisons.
+
+Changes answers relative to previous tag: NO
+
+   However, this test is reported as a failure:
+
+   FAIL ERS_D_Ld9.f19_g16_gl5.IGCLM45.yellowstone_pgi.cism-override_glc_frac COMPARE_baseline
+
+   simply because there is no longer a cism.h file in the new code.
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/):
+2355 - need to change extension on initial history file so it's not picked up in CESM testing
+
+List all modified files, and describe the changes:
+
+M       source_glc/history_tape_base.F90
+M       source_glc/glc_history.F90
+M       source_glc/glc_InitMod.F90
+M       source_glc/glc_io.F90
+
+Summary of testing:
+
+   Ran full aux_glc test suite: yellowstone and hobart. All tests passed, except
+   for these expected failures:
+
+FAIL ERS_Ly5.T31_g37_gl5.IGCLM45.yellowstone_intel.clm-glcMEC_long MEMLEAK memleak detected, memory went from 504.810000 to 590.900000 in 11129 days
+- seems to be a false positive (i.e., memory was expected to increase like this)
+
+FAIL SMS_D_Ld5_P24x1.T31_g37_gl20.IGCLM45IS2.hobart_nag.cism-test_coupling MEMLEAK memleak detected, memory went from 195.220000 to 219.040000 in 3 days
+- I'm not concerned about this memleak failure for a test_coupling test (a
+  testing-only configuration) on nag (a testing-only compiler)
+
+   and this MEMCOMP failure, which I'm ignoring since it's the only one:
+
+FAIL ERS_Ly11.f09_g16_gl20.TG1850IS2.yellowstone_gnu MEMCOMP Error: Memory usage increase > 10% from baseline
+
+Externals used for testing: cesm2_0_beta01, with cime at
+db03e895f4c54428ff207dc1b85a57e2ecb73be9
+
+cism tag used for baseline comparisons: cism2_1_20
+
+Any other externals that differed in baseline: same, but cime at
+f55da30e17efbbae8cb1c026fc8f32e406ee9934
+
+================================================================================
+Originator: sacks
+Date: Sept 13, 2016
+Model: cism
+Version: cism2_1_20
+One-line summary: Exclude some history fields when ice evolution is turned off
+
+Purpose of changes:
+
+   A few diagnostic history fields do not restart properly when ice evolution is
+   turned off: uflx and vflx for cism1, and beta_internal for cism2 (see also
+   https://github.com/ACME-Climate/cism-piscees/issues/59 for the beta_internal
+   issue).
+
+   Since these diagnostic fields are not important with ice evolution turned
+   off, this tag implements a workaround where we simply do not add these fields
+   to the default list of history fields if running with the CISM_EVOLVE xml
+   variable set to FALSE.
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/): none
+
+List all modified files, and describe the changes:
+
+M       bld/build-namelist
+M       bld/namelist_files/namelist_defaults_cism.xml
+
+Summary of testing:
+
+   Ran aux_glc test suite just on yellowstone. All tests passed, except for this
+   BFAIL:
+
+BFAIL (baseline directory /glade/scratch/sacks/cesm_baselines/cesm1_5_beta07/SMS_Ly5_N2_P2_D.f09_g16_gl5.TG1850.yellowstone_intel does not exist)
+
+Externals used for testing: cesm1_5_beta07
+
+cism tag used for baseline comparisons: cism2_1_17
+
+Any other externals that differed in baseline: none
+
+================================================================================
+Originator: sacks
+Date: Sept 12, 2016
+Model: cism
+Version: cism2_1_19
+One-line summary: Remove apply_to_multiinstance testmods
+
+Purpose of changes:
+
+   The apply_to_multiinstance testmods are no longer needed with cime5
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/): none
+
+List all modified files, and describe the changes:
+
+D       cime_config/testdefs/testmods_dirs/cism/apply_to_multiinstance
+D       cime_config/testdefs/testmods_dirs/cism/apply_to_multiinstance/README
+D       cime_config/testdefs/testmods_dirs/cism/apply_to_multiinstance/shell_commands
+D       cime_config/testdefs/testmods_dirs/cism/override_glc_frac/include_user_mods
+D       cime_config/testdefs/testmods_dirs/cism/test_coupling/include_user_mods
+D       cime_config/testdefs/testmods_dirs/cism/trilinos/include_user_mods
+
+Summary of testing: None!
+
+Externals used for testing: n/a
+
+cism tag used for baseline comparisons: n/a
+
+Any other externals that differed in baseline: n/a
+
+================================================================================
+Originator: sacks
+Date: June 30, 2016
+Model: cism
+Version: cism2_1_18
+One-line summary: Remove some tests
+
+Purpose of changes:
+
+  Remove ESMF and PEA tests.
+
+  We are no longer supporting ESMF, so I am removing CME and _E tests. In most
+  cases, the fundamental configuration covered by these tests was already
+  covered by one or more other tests. In one case, though, I changed a CME test
+  to an SMS test:
+
+  CME_Ly5_N2_P2_D.f09_g16_gl5.TG1850.yellowstone_intel ->
+  SMS_Ly5_N2_P2_D.f09_g16_gl5.TG1850.yellowstone_intel  # include a multi-instance debug test
+
+  Also, temporarily removing PEA tests because they are not supported by
+  ESMCI's CIME. I will add them back in later:
+
+  PEA_P1.f09_g16_gl5.TGHIST.yellowstone_pgi
+
+  PEA_P1_Ly2.f09_g16_gl20.TGIS2.yellowstone_intel # needs to be at least 2 years for there to be enough cpl fields for the cpl log comparison to work
+
+Changes answers relative to previous tag: NO
+
+Bugs fixed (include bugzilla ID) (http://bugs.cgd.ucar.edu/): none
+
+List all modified files, and describe the changes:
+
+M       cime_config/testdefs/testlist_cism.xml
+
+Summary of testing: NONE
+
+Externals used for testing: N/A
+
+cism tag used for baseline comparisons: N/A
+
+Any other externals that differed in baseline: N/A
+
+================================================================================
+Originator: sacks
 Date: May 19, 2016
 Model: cism
 Version: cism2_1_17

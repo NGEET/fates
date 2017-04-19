@@ -7,13 +7,10 @@ module ndepStreamMod
   ! interpolation.
   !
   ! !USES
-  use shr_kind_mod, only: r8 => shr_kind_r8, CL => shr_kind_cl
-  use shr_strdata_mod
-  use shr_stream_mod
-  use shr_string_mod
-  use shr_sys_mod
-  use shr_mct_mod
-  use mct_mod
+  use shr_kind_mod, only: r8 => shr_kind_r8, CL => shr_kind_cl 
+  use shr_strdata_mod, only: shr_strdata_type, shr_strdata_create
+  use shr_strdata_mod, only: shr_strdata_print, shr_strdata_advance
+  use mct_mod     , only: mct_ggrid
   use spmdMod     , only: mpicom, masterproc, comp_id, iam
   use clm_varctl  , only: iulog
   use abortutils  , only: endrun
@@ -50,12 +47,14 @@ contains
    ! Initialize data stream information.  
    !
    ! Uses:
+   use shr_kind_mod     , only : CS => shr_kind_cs
    use clm_varctl       , only : inst_name
    use clm_time_manager , only : get_calendar
    use ncdio_pio        , only : pio_subsystem
    use shr_pio_mod      , only : shr_pio_getiotype
    use shr_nl_mod       , only : shr_nl_find_group_name
    use shr_log_mod      , only : errMsg => shr_log_errMsg
+   use shr_mpi_mod      , only : shr_mpi_bcast
    !
    ! arguments
    implicit none
@@ -68,16 +67,19 @@ contains
    type(mct_ggrid)    :: dom_clm   ! domain information 
    character(len=CL)  :: stream_fldFileName_ndep
    character(len=CL)  :: ndepmapalgo = 'bilinear'
+   character(len=CS)  :: ndep_taxmode = 'extend'
+   character(len=CL)  :: ndep_varlist = 'NDEP_year'
    character(*), parameter :: shr_strdata_unset = 'NOT_SET'
    character(*), parameter :: subName = "('ndepdyn_init')"
    character(*), parameter :: F00 = "('(ndepdyn_init) ',4a)"
    !-----------------------------------------------------------------------
 
-   namelist /ndepdyn_nml/        &
-        stream_year_first_ndep,  &
-	stream_year_last_ndep,   &
-        model_year_align_ndep,   &
-        ndepmapalgo,             &
+   namelist /ndepdyn_nml/          &
+        stream_year_first_ndep,    &
+	stream_year_last_ndep,     &
+        model_year_align_ndep,     &
+        ndepmapalgo, ndep_taxmode, &
+        ndep_varlist,              &
         stream_fldFileName_ndep
 
    ! Default values for namelist
@@ -139,12 +141,12 @@ contains
         domMaskName='mask',                        &
         filePath='',                               &
         filename=(/trim(stream_fldFileName_ndep)/),&
-        fldListFile='NDEP_year',                   &
-        fldListModel='NDEP_year',                  &
+        fldListFile=ndep_varlist,                  &
+        fldListModel=ndep_varlist,                 &
         fillalgo='none',                           &
         mapalgo=ndepmapalgo,                       &
         calendar=get_calendar(),                   &
-	taxmode='extend'                           )
+	taxmode=ndep_taxmode                       )
 
    if (masterproc) then
       call shr_strdata_print(sdat,'CLMNDEP data')
@@ -196,6 +198,9 @@ contains
     use clm_varcon  , only : re
     use domainMod   , only : ldomain
     use seq_flds_mod
+    use mct_mod     , only : mct_ggrid, mct_gsMap_lsize, mct_gGrid_init
+    use mct_mod     , only : mct_gsMap_orderedPoints, mct_gGrid_importIAttr
+    use mct_mod     , only : mct_gGrid_importRAttr
     implicit none
     ! 
     ! arguments

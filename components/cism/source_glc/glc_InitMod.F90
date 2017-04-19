@@ -20,7 +20,6 @@
 ! !USES:
 
    use glc_kinds_mod
-   use glc_ErrorMod
    use glc_communicate, only: my_task, master_task
    use glc_broadcast,   only: broadcast_scalar, broadcast_array
    use glc_time_management, only: iyear0, imonth0, iday0, elapsed_days0,  &
@@ -60,7 +59,7 @@
 ! !IROUTINE: glc_initialize
 ! !INTERFACE:
 
- subroutine glc_initialize(EClock, errorCode)
+ subroutine glc_initialize(EClock)
 
 ! !DESCRIPTION:
 !  This routine is the initialization driver that initializes a glc run 
@@ -95,8 +94,6 @@
 ! !INPUT/OUTPUT PARAMETERS:
 
    type(ESMF_Clock),     intent(in)    :: EClock
-   integer (i4), intent(inout) :: &
-      errorCode              ! Returns an error code if any init fails
 
 !EOP
 !BOC
@@ -142,12 +139,6 @@
   
   namelist /cism_params/  paramfile, cism_debug, ice_flux_routing, zero_gcm_fluxes
  
-!-----------------------------------------------------------------------
-!  initialize return flag
-!-----------------------------------------------------------------------
-
-   ErrorCode = glc_Success
-
 ! TODO - Write version info?
 !-----------------------------------------------------------------------
 !  write version information to output log after output redirection
@@ -345,7 +336,7 @@
 
    if (.not. cesm_restart) then
       ! TODO loop over instances
-      call glc_history_write(ice_sheet%instances(1), EClock, force_write=.true.)
+      call glc_history_write(ice_sheet%instances(1), EClock, initial_history=.true.)
    end if
    
 !-----------------------------------------------------------------------

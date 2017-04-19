@@ -14,11 +14,16 @@ module CNVegCarbonFluxType
   use clm_varpar                         , only : nlevdecomp_full, nlevgrnd, nlevdecomp
   use clm_varcon                         , only : spval, dzsoi_decomp
   use clm_varctl                         , only : use_cndv, use_c13, use_nitrif_denitrif, use_crop
+  use clm_varctl                         , only : use_grainproduct
+  use clm_varctl                         , only : iulog
   use landunit_varcon                    , only : istsoil, istcrop, istdlak 
   use pftconMod                          , only : npcropmin
   use LandunitType                       , only : lun                
   use ColumnType                         , only : col                
   use PatchType                          , only : patch                
+  use AnnualFluxDribbler                 , only : annual_flux_dribbler_type, annual_flux_dribbler_gridcell
+  use dynSubgridControlMod               , only : get_for_testing_allow_non_annual_changes
+  use abortutils                         , only : endrun
   ! 
   ! !PUBLIC TYPES:
   implicit none
@@ -129,6 +134,7 @@ module CNVegCarbonFluxType
      real(r8), pointer :: frootc_to_litter_patch                    (:)     ! fine root C litterfall (gC/m2/s)
      real(r8), pointer :: livestemc_to_litter_patch                 (:)     ! live stem C litterfall (gC/m2/s)
      real(r8), pointer :: grainc_to_food_patch                      (:)     ! grain C to food for prognostic crop(gC/m2/s)
+     real(r8), pointer :: grainc_to_seed_patch                      (:)     ! grain C to seed for prognostic crop(gC/m2/s)
 
      ! maintenance respiration fluxes     
      real(r8), pointer :: cpool_to_resp_patch                       (:)     ! CNflex excess C maintenance respiration (gC/m2/s)
@@ -248,21 +254,23 @@ module CNVegCarbonFluxType
      real(r8), pointer :: m_c_to_litr_lig_fire_col                  (:,:)   ! C from leaf, froot, xfer and storage C to litter lignin C by fire (gC/m3/s) 
 
      ! dynamic landcover fluxes
-     real(r8), pointer :: dwt_seedc_to_leaf_col                     (:)     ! (gC/m2/s) seed source to patch-level
-     real(r8), pointer :: dwt_seedc_to_deadstem_col                 (:)     ! (gC/m2/s) seed source to patch-level
-     real(r8), pointer :: dwt_conv_cflux_col                        (:)     ! (gC/m2/s) conversion C flux (immediate loss to atm)
-     real(r8), pointer :: dwt_productc_gain_patch                   (:)     ! (gC/m2/s) addition to wood product pools; although this is a patch-level flux, it is expressed per unit COLUMN area
+     real(r8), pointer :: dwt_seedc_to_leaf_patch                   (:)     ! (gC/m2/s) seed source to patch-level; although this is a patch-level flux, it is expressed per unit GRIDCELL area
+     real(r8), pointer :: dwt_seedc_to_leaf_grc                     (:)     ! (gC/m2/s) dwt_seedc_to_leaf_patch summed to the gridcell-level
+     real(r8), pointer :: dwt_seedc_to_deadstem_patch               (:)     ! (gC/m2/s) seed source to patch-level; although this is a patch-level flux, it is expressed per unit GRIDCELL area
+     real(r8), pointer :: dwt_seedc_to_deadstem_grc                 (:)     ! (gC/m2/s) dwt_seedc_to_leaf_patch summed to the gridcell-level
+     real(r8), pointer :: dwt_conv_cflux_patch                      (:)     ! (gC/m2/s) conversion C flux (immediate loss to atm); although this is a patch-level flux, it is expressed per unit GRIDCELL area
+     real(r8), pointer :: dwt_conv_cflux_grc                        (:)     ! (gC/m2/s) dwt_conv_cflux_patch summed to the gridcell-level
+     real(r8), pointer :: dwt_conv_cflux_dribbled_grc               (:)     ! (gC/m2/s) dwt_conv_cflux_grc dribbled evenly throughout the year
+     real(r8), pointer :: dwt_wood_productc_gain_patch              (:)     ! (gC/m2/s) addition to wood product pools from landcover change; although this is a patch-level flux, it is expressed per unit GRIDCELL area
+     real(r8), pointer :: dwt_crop_productc_gain_patch              (:)     ! (gC/m2/s) addition to crop product pools from landcover change; although this is a patch-level flux, it is expressed per unit GRIDCELL area
      real(r8), pointer :: dwt_frootc_to_litr_met_c_col              (:,:)   ! (gC/m3/s) fine root to litter due to landcover change
      real(r8), pointer :: dwt_frootc_to_litr_cel_c_col              (:,:)   ! (gC/m3/s) fine root to litter due to landcover change
      real(r8), pointer :: dwt_frootc_to_litr_lig_c_col              (:,:)   ! (gC/m3/s) fine root to litter due to landcover change
      real(r8), pointer :: dwt_livecrootc_to_cwdc_col                (:,:)   ! (gC/m3/s) live coarse root to CWD due to landcover change
      real(r8), pointer :: dwt_deadcrootc_to_cwdc_col                (:,:)   ! (gC/m3/s) dead coarse root to CWD due to landcover change
-     real(r8), pointer :: dwt_closs_col                             (:)     ! (gC/m2/s) total carbon loss from product pools and conversion
 
-     ! FIXME(wjs, 2016-07-08) Remove these once we update column states immediately after
-     ! dyn_cnbal_patch
-     real(r8), pointer :: dwt_to_litrc_col(:)
-     real(r8), pointer :: dwt_seedc_col(:)
+     ! crop fluxes
+     real(r8), pointer :: crop_seedc_to_leaf_patch                  (:)     ! (gC/m2/s) seed source to leaf, for crops
 
      ! summary (diagnostic) flux variables, not involved in mass balance
      real(r8), pointer :: gpp_before_downreg_patch                  (:)     ! (gC/m2/s) gross primary production before down regulation
@@ -300,7 +308,6 @@ module CNVegCarbonFluxType
      real(r8), pointer :: agnpp_patch                               (:)     ! (gC/m2/s) aboveground NPP
      real(r8), pointer :: bgnpp_patch                               (:)     ! (gC/m2/s) belowground NPP
      real(r8), pointer :: litfall_patch                             (:)     ! (gC/m2/s) patch litterfall (leaves and fine roots)
-     real(r8), pointer :: litfall_col                               (:)     ! (gC/m2/s) column litterfall C loss (p2c)       
      real(r8), pointer :: wood_harvestc_patch                       (:)     ! (gC/m2/s) patch-level wood harvest (to product pools)
      real(r8), pointer :: wood_harvestc_col                         (:)     ! (gC/m2/s) column-level wood harvest (to product pools) (p2c)
      real(r8), pointer :: cinputs_patch                             (:)     ! (gC/m2/s) patch-level carbon inputs (for balance checking)
@@ -327,12 +334,11 @@ module CNVegCarbonFluxType
 
      ! Summary C fluxes. 
      real(r8), pointer :: nep_col        (:) ! (gC/m2/s) net ecosystem production, excludes fire, landuse, and harvest flux, positive for sink
-     real(r8), pointer :: nbp_col        (:) ! (gC/m2/s) net biome production, includes fire, excludes landuse and harvest flux, positive for sink  
-     real(r8), pointer :: nee_col        (:) ! (gC/m2/s) net ecosystem exchange of carbon, includes fire and hrv_xsmrpool, excludes landuse and harvest flux, positive for source 
-     real(r8), pointer :: net_carbon_exchange_grc(:) ! (gC/m2/s) net carbon exchange between land and atmosphere, includes fire, landuse, harvest and hrv_xsmrpool flux, positive for source
+     real(r8), pointer :: nbp_grc        (:) ! (gC/m2/s) net biome production, includes fire, landuse, harvest and hrv_xsmrpool flux, positive for sink (same as net carbon exchange between land and atmosphere)
+     real(r8), pointer :: nee_grc        (:) ! (gC/m2/s) net ecosystem exchange of carbon, includes fire and hrv_xsmrpool, excludes landuse and harvest flux, positive for source 
 
      ! Dynamic landcover fluxnes
-     real(r8), pointer :: landuseflux_grc(:) ! (gC/m2/s) dwt_closs+product_closs
+     real(r8), pointer :: landuseflux_grc(:) ! (gC/m2/s) dwt_conv_cflux+product_closs
      real(r8), pointer :: npp_Nactive_patch                         (:)     ! C used by mycorrhizal uptake    (gC/m2/s)
      real(r8), pointer :: npp_burnedoff_patch                       (:)     ! C that cannot be used for N uptake   (gC/m2/s)
      real(r8), pointer :: npp_Nnonmyc_patch                         (:)     ! C used by non-myc uptake        (gC/m2/s)
@@ -354,6 +360,11 @@ module CNVegCarbonFluxType
      real(r8), pointer :: soilc_change_patch                        (:)     ! Total used C from soil          (gC/m2/s)
  
 !     real(r8), pointer :: soilc_change_col                          (:)     ! Total used C from soil          (gC/m2/s)
+
+     ! Objects that help convert once-per-year dynamic land cover changes into fluxes
+     ! that are dribbled throughout the year
+     type(annual_flux_dribbler_type) :: dwt_conv_cflux_dribbler
+     type(annual_flux_dribbler_type) :: hrv_xsmrpool_to_atm_dribbler
    contains
 
      procedure , public  :: Init   
@@ -361,6 +372,8 @@ module CNVegCarbonFluxType
      procedure , private :: InitHistory
      procedure , private :: InitCold
      procedure , public  :: Restart
+     procedure , private :: RestartBulkOnly    ! Handle restart fields only present for bulk C
+     procedure , private :: RestartAllIsotopes ! Handle restart fields present for both bulk C and isotopes
      procedure , public  :: SetValues
      procedure , public  :: ZeroDWT
      procedure , public  :: Summary => Summary_carbonflux 
@@ -380,23 +393,26 @@ contains
     type(bounds_type), intent(in) :: bounds  
     character(len=3) , intent(in) :: carbon_type ! one of ['c12', c13','c14']
 
-    call this%InitAllocate ( bounds)
+    call this%InitAllocate ( bounds, carbon_type)
     call this%InitHistory ( bounds, carbon_type )
     call this%InitCold (bounds )
 
   end subroutine Init
 
   !------------------------------------------------------------------------
-  subroutine InitAllocate(this, bounds)
+  subroutine InitAllocate(this, bounds, carbon_type)
     !
     ! !ARGUMENTS:
     class (cnveg_carbonflux_type) :: this 
-    type(bounds_type), intent(in)    :: bounds 
+    type(bounds_type), intent(in) :: bounds 
+    character(len=*) , intent(in) :: carbon_type ! one of ['c12', c13','c14']
     !
     ! !LOCAL VARIABLES:
     integer           :: begp,endp
     integer           :: begc,endc
     integer           :: begg,endg
+    logical           :: allows_non_annual_delta
+    character(len=:), allocatable :: carbon_type_suffix
     !------------------------------------------------------------------------
 
     begp = bounds%begp; endp = bounds%endp
@@ -577,6 +593,7 @@ contains
     allocate(this%cpool_to_grainc_storage_patch             (begp:endp)) ; this%cpool_to_grainc_storage_patch             (:) = nan
     allocate(this%livestemc_to_litter_patch                 (begp:endp)) ; this%livestemc_to_litter_patch                 (:) = nan
     allocate(this%grainc_to_food_patch                      (begp:endp)) ; this%grainc_to_food_patch                      (:) = nan
+    allocate(this%grainc_to_seed_patch                      (begp:endp)) ; this%grainc_to_seed_patch                      (:) = nan
     allocate(this%grainc_xfer_to_grainc_patch               (begp:endp)) ; this%grainc_xfer_to_grainc_patch               (:) = nan
     allocate(this%cpool_grain_gr_patch                      (begp:endp)) ; this%cpool_grain_gr_patch                      (:) = nan
     allocate(this%cpool_grain_storage_gr_patch              (begp:endp)) ; this%cpool_grain_storage_gr_patch              (:) = nan
@@ -616,14 +633,17 @@ contains
     allocate(this%dwt_livecrootc_to_cwdc_col        (begc:endc,1:nlevdecomp_full)); this%dwt_livecrootc_to_cwdc_col   (:,:)=nan
     allocate(this%dwt_deadcrootc_to_cwdc_col        (begc:endc,1:nlevdecomp_full)); this%dwt_deadcrootc_to_cwdc_col   (:,:)=nan
 
-    allocate(this%dwt_closs_col                     (begc:endc))                  ; this%dwt_closs_col             (:)  =nan
-    allocate(this%dwt_seedc_to_leaf_col             (begc:endc))                  ; this%dwt_seedc_to_leaf_col     (:)  =nan
-    allocate(this%dwt_seedc_to_deadstem_col         (begc:endc))                  ; this%dwt_seedc_to_deadstem_col (:)  =nan
-    allocate(this%dwt_conv_cflux_col                (begc:endc))                  ; this%dwt_conv_cflux_col        (:)  =nan
-    allocate(this%dwt_productc_gain_patch           (begp:endp))                  ; this%dwt_productc_gain_patch   (:)  =nan
+    allocate(this%dwt_seedc_to_leaf_patch           (begp:endp))                  ; this%dwt_seedc_to_leaf_patch   (:)  =nan
+    allocate(this%dwt_seedc_to_leaf_grc             (begg:endg))                  ; this%dwt_seedc_to_leaf_grc     (:)  =nan
+    allocate(this%dwt_seedc_to_deadstem_patch       (begp:endp))                  ; this%dwt_seedc_to_deadstem_patch(:)  =nan
+    allocate(this%dwt_seedc_to_deadstem_grc         (begg:endg))                  ; this%dwt_seedc_to_deadstem_grc (:)  =nan
+    allocate(this%dwt_conv_cflux_patch              (begp:endp))                  ; this%dwt_conv_cflux_patch      (:)  =nan
+    allocate(this%dwt_conv_cflux_grc                (begg:endg))                  ; this%dwt_conv_cflux_grc        (:)  =nan
+    allocate(this%dwt_conv_cflux_dribbled_grc       (begg:endg))                  ; this%dwt_conv_cflux_dribbled_grc(:)  =nan
+    allocate(this%dwt_wood_productc_gain_patch      (begp:endp))                  ; this%dwt_wood_productc_gain_patch(:)  =nan
+    allocate(this%dwt_crop_productc_gain_patch      (begp:endp))                  ; this%dwt_crop_productc_gain_patch(:) =nan
 
-    allocate(this%dwt_to_litrc_col(begc:endc)); this%dwt_to_litrc_col(:) = nan
-    allocate(this%dwt_seedc_col(begc:endc)); this%dwt_seedc_col(:) = nan
+    allocate(this%crop_seedc_to_leaf_patch          (begp:endp))                  ; this%crop_seedc_to_leaf_patch  (:)  =nan
 
     allocate(this%cwdc_hr_col                       (begc:endc))                  ; this%cwdc_hr_col               (:)  =nan
     allocate(this%cwdc_loss_col                     (begc:endc))                  ; this%cwdc_loss_col             (:)  =nan
@@ -671,7 +691,6 @@ contains
     allocate(this%npp_col                 (begc:endc)) ; this%npp_col                 (:) = nan
     allocate(this%fire_closs_p2c_col      (begc:endc)) ; this%fire_closs_p2c_col      (:) = nan
     allocate(this%fire_closs_col          (begc:endc)) ; this%fire_closs_col          (:) = nan
-    allocate(this%litfall_col             (begc:endc)) ; this%litfall_col             (:) = nan
     allocate(this%wood_harvestc_col       (begc:endc)) ; this%wood_harvestc_col       (:) = nan
     allocate(this%hrv_xsmrpool_to_atm_col (begc:endc)) ; this%hrv_xsmrpool_to_atm_col (:) = nan 
     allocate(this%tempsum_npp_patch       (begp:endp)) ; this%tempsum_npp_patch       (:) = nan
@@ -682,9 +701,8 @@ contains
     allocate(this%lag_npp_col             (begc:endc)) ; this%lag_npp_col             (:) = spval
 
     allocate(this%nep_col                 (begc:endc)) ; this%nep_col                 (:) = nan
-    allocate(this%nbp_col                 (begc:endc)) ; this%nbp_col                 (:) = nan
-    allocate(this%nee_col                 (begc:endc)) ; this%nee_col                 (:) = nan
-    allocate(this%net_carbon_exchange_grc (begg:endg)) ; this%net_carbon_exchange_grc (:) = nan
+    allocate(this%nbp_grc                 (begg:endg)) ; this%nbp_grc                 (:) = nan
+    allocate(this%nee_grc                 (begg:endg)) ; this%nee_grc                 (:) = nan
     allocate(this%landuseflux_grc         (begg:endg)) ; this%landuseflux_grc         (:) = nan
     allocate(this%npp_Nactive_patch       (begp:endp)) ; this%npp_Nactive_patch       (:) = nan
     allocate(this%npp_burnedoff_patch     (begp:endp)) ; this%npp_burnedoff_patch     (:) = nan
@@ -706,7 +724,48 @@ contains
     allocate(this%leafc_change_patch      (begp:endp)) ; this%leafc_change_patch      (:) = nan
     allocate(this%soilc_change_patch      (begp:endp)) ; this%soilc_change_patch      (:) = nan
 
-  end subroutine InitAllocate; 
+    ! Construct restart field names consistently to what is done in SpeciesNonIsotope &
+    ! SpeciesIsotope, to aid future migration to that infrastructure
+    if (carbon_type == 'c12') then
+       carbon_type_suffix = 'c'
+    else if (carbon_type == 'c13') then
+       carbon_type_suffix = 'c_13'
+    else if (carbon_type == 'c14') then
+       carbon_type_suffix = 'c_14'
+    else
+       write(iulog,*) 'CNVegCarbonFluxType InitAllocate: Unknown carbon_type: ', trim(carbon_type)
+       call endrun(msg='CNVegCarbonFluxType InitAllocate: Unknown carbon_type: ' // &
+            errMsg(sourcefile, __LINE__))
+    end if
+
+    ! Note that, for both of these dribblers, we set allows_non_annual_delta to false
+    ! because we expect both land cover change and harvest to be applied entirely at the
+    ! start of the year, and want to be notified if this changes. If this behavior is
+    ! changed intentionally, then this setting of allows_non_annual_delta to .false. can
+    ! safely be removed.
+    !
+    ! However, we do keep allows_non_annual_delta = .true. for the dwt_conv_cflux_dribbler if
+    ! running with CNDV, because (in contrast with other land cover change) CNDV currently
+    ! still interpolates land cover change throughout the year.
+    if (get_for_testing_allow_non_annual_changes()) then
+       allows_non_annual_delta = .true.
+    else if (use_cndv) then
+       allows_non_annual_delta = .true.
+    else
+       allows_non_annual_delta = .false.
+    end if
+    this%dwt_conv_cflux_dribbler = annual_flux_dribbler_gridcell( &
+         bounds = bounds, &
+         name = 'dwt_conv_flux_' // carbon_type_suffix, &
+         units = 'gC/m^2', &
+         allows_non_annual_delta = allows_non_annual_delta)
+    this%hrv_xsmrpool_to_atm_dribbler = annual_flux_dribbler_gridcell( &
+         bounds = bounds, &
+         name = 'hrv_xsmrpool_to_atm_' // carbon_type_suffix, &
+         units = 'gC/m^2', &
+         allows_non_annual_delta = .false.)
+
+  end subroutine InitAllocate
 
   !------------------------------------------------------------------------
   subroutine InitHistory(this, bounds, carbon_type)
@@ -759,6 +818,11 @@ contains
           call hist_addfld1d (fname='GRAINC_TO_FOOD', units='gC/m^2/s', &
                avgflag='A', long_name='grain C to food', &
                ptr_patch=this%grainc_to_food_patch)
+
+          this%grainc_to_seed_patch(begp:endp) = spval
+          call hist_addfld1d (fname='GRAINC_TO_SEED', units='gC/m^2/s', &
+               avgflag='A', long_name='grain C to seed', &
+               ptr_patch=this%grainc_to_seed_patch)
        end if
 
        this%litterc_loss_col(begc:endc) = spval
@@ -2758,20 +2822,49 @@ contains
           endif
        end do
 
-       this%dwt_seedc_to_leaf_col(begc:endc) = spval
+       this%dwt_seedc_to_leaf_grc(begg:endg) = spval
        call hist_addfld1d (fname='DWT_SEEDC_TO_LEAF', units='gC/m^2/s', &
             avgflag='A', long_name='seed source to patch-level leaf', &
-            ptr_col=this%dwt_seedc_to_leaf_col)
+            ptr_gcell=this%dwt_seedc_to_leaf_grc)
 
-       this%dwt_seedc_to_deadstem_col(begc:endc) = spval
+       this%dwt_seedc_to_leaf_patch(begp:endp) = spval
+       call hist_addfld1d (fname='DWT_SEEDC_TO_LEAF_PATCH', units='gC/m^2/s', &
+            avgflag='A', &
+            long_name='patch-level seed source to patch-level leaf ' // &
+            '(per-area-gridcell; only makes sense with dov2xy=.false.)', &
+            ptr_patch=this%dwt_seedc_to_leaf_patch, default='inactive')
+
+       this%dwt_seedc_to_deadstem_grc(begg:endg) = spval
        call hist_addfld1d (fname='DWT_SEEDC_TO_DEADSTEM', units='gC/m^2/s', &
             avgflag='A', long_name='seed source to patch-level deadstem', &
-            ptr_col=this%dwt_seedc_to_deadstem_col)
+            ptr_gcell=this%dwt_seedc_to_deadstem_grc)
 
-       this%dwt_conv_cflux_col(begc:endc) = spval
+       this%dwt_seedc_to_deadstem_patch(begp:endp) = spval
+       call hist_addfld1d (fname='DWT_SEEDC_TO_DEADSTEM_PATCH', units='gC/m^2/s', &
+            avgflag='A', &
+            long_name='patch-level seed source to patch-level deadstem ' // &
+            '(per-area-gridcell; only makes sense with dov2xy=.false.)', &
+            ptr_patch=this%dwt_seedc_to_deadstem_patch, default='inactive')
+
+       this%dwt_conv_cflux_grc(begg:endg) = spval
        call hist_addfld1d (fname='DWT_CONV_CFLUX', units='gC/m^2/s', &
-            avgflag='A', long_name='conversion C flux (immediate loss to atm)', &
-            ptr_col=this%dwt_conv_cflux_col)
+            avgflag='A', &
+            long_name='conversion C flux (immediate loss to atm) (0 at all times except first timestep of year)', &
+            ptr_gcell=this%dwt_conv_cflux_grc)
+
+       this%dwt_conv_cflux_patch(begp:endp) = spval
+       call hist_addfld1d (fname='DWT_CONV_CFLUX_PATCH', units='gC/m^2/s', &
+            avgflag='A', &
+            long_name='patch-level conversion C flux (immediate loss to atm) ' // &
+            '(0 at all times except first timestep of year) ' // &
+            '(per-area-gridcell; only makes sense with dov2xy=.false.)', &
+            ptr_patch=this%dwt_conv_cflux_patch, default='inactive')
+
+       this%dwt_conv_cflux_dribbled_grc(begg:endg) = spval
+       call hist_addfld1d (fname='DWT_CONV_CFLUX_DRIBBLED', units='gC/m^2/s', &
+            avgflag='A', &
+            long_name='conversion C flux (immediate loss to atm), dribbled throughout the year', &
+            ptr_gcell=this%dwt_conv_cflux_dribbled_grc)
 
        this%dwt_frootc_to_litr_met_c_col(begc:endc,:) = spval
        call hist_addfld_decomp (fname='DWT_FROOTC_TO_LITR_MET_C', units='gC/m^2/s',  type2d='levdcmp', &
@@ -2798,10 +2891,10 @@ contains
             avgflag='A', long_name='dead coarse root to CWD due to landcover change', &
             ptr_col=this%dwt_deadcrootc_to_cwdc_col, default='inactive')
 
-       this%dwt_closs_col(begc:endc) = spval
-       call hist_addfld1d (fname='DWT_CLOSS', units='gC/m^2/s', &
-            avgflag='A', long_name='total carbon loss from land cover conversion', &
-            ptr_col=this%dwt_closs_col)
+       this%crop_seedc_to_leaf_patch(begp:endp) = spval
+       call hist_addfld1d (fname='CROP_SEEDC_TO_LEAF', units='gC/m^2/s', &
+            avgflag='A', long_name='crop seed source to leaf', &
+            ptr_patch=this%crop_seedc_to_leaf_patch)
 
         this%sr_col(begc:endc) = spval
         call hist_addfld1d (fname='SR', units='gC/m^2/s', &
@@ -2848,27 +2941,25 @@ contains
             avgflag='A', long_name='net ecosystem production, excludes fire, landuse, and harvest flux, positive for sink', &
             ptr_col=this%nep_col)
 
-       this%nbp_col(begc:endc) = spval
+       this%nbp_grc(begg:endg) = spval
        call hist_addfld1d (fname='NBP', units='gC/m^2/s', &
-            avgflag='A', long_name='net biome production, includes fire, excludes landuse and harvest flux, positive for sink', &
-            ptr_col=this%nbp_col)
+            avgflag='A', long_name='net biome production, includes fire, landuse,'&
+            //' harvest and hrv_xsmrpool flux (latter smoothed over the year), positive for sink'&
+            //' (same as net carbon exchange between land and atmosphere)', &
+            ptr_gcell=this%nbp_grc)
 
-       this%nee_col(begc:endc) = spval
+       this%nee_grc(begg:endg) = spval
        call hist_addfld1d (fname='NEE', units='gC/m^2/s', &
-            avgflag='A', long_name='net ecosystem exchange of carbon, includes fire and hrv_xsmrpool,'&
+            avgflag='A', long_name='net ecosystem exchange of carbon,'&
+            //' includes fire and hrv_xsmrpool (latter smoothed over the year),'&
             //' excludes landuse and harvest flux, positive for source', &
-            ptr_col=this%nee_col)
-
-       this%net_carbon_exchange_grc(begg:endg) = spval
-       call hist_addfld1d (fname='NET_CARBON_EXCHANGE', units='gC/m^2/s', &
-            avgflag='A', long_name='net carbon exchange between land and atmosphere, includes fire, landuse,'&
-            //' harvest and hrv_xsmrpool flux, positive for source', &
-            ptr_gcell=this%net_carbon_exchange_grc)
+            ptr_gcell=this%nee_grc)
 
        this%landuseflux_grc(begg:endg) = spval
        call hist_addfld1d (fname='LAND_USE_FLUX', units='gC/m^2/s', &
             avgflag='A', &
-            long_name='total C emitted from land cover conversion and wood and grain product pools (NOTE: not a net value)', &
+            long_name='total C emitted from land cover conversion (smoothed over the year)'&
+            //' and wood and grain product pools (NOTE: not a net value)', &
             ptr_gcell=this%landuseflux_grc)
 
    end if
@@ -2900,20 +2991,49 @@ contains
           endif
        end do
 
-       this%dwt_seedc_to_leaf_col(begc:endc) = spval
+       this%dwt_seedc_to_leaf_grc(begg:endg) = spval
        call hist_addfld1d (fname='C13_DWT_SEEDC_TO_LEAF', units='gC13/m^2/s', &
             avgflag='A', long_name='C13 seed source to patch-level leaf', &
-            ptr_col=this%dwt_seedc_to_leaf_col)
+            ptr_gcell=this%dwt_seedc_to_leaf_grc)
 
-       this%dwt_seedc_to_deadstem_col(begc:endc) = spval
+       this%dwt_seedc_to_leaf_patch(begp:endp) = spval
+       call hist_addfld1d (fname='C13_DWT_SEEDC_TO_LEAF_PATCH', units='gC13/m^2/s', &
+            avgflag='A', &
+            long_name='patch-level C13 seed source to patch-level leaf ' // &
+            '(per-area-gridcell; only makes sense with dov2xy=.false.)', &
+            ptr_patch=this%dwt_seedc_to_leaf_patch, default='inactive')
+
+       this%dwt_seedc_to_deadstem_grc(begg:endg) = spval
        call hist_addfld1d (fname='C13_DWT_SEEDC_TO_DEADSTEM', units='gC13/m^2/s', &
             avgflag='A', long_name='C13 seed source to patch-level deadstem', &
-            ptr_col=this%dwt_seedc_to_deadstem_col)
+            ptr_gcell=this%dwt_seedc_to_deadstem_grc)
 
-       this%dwt_conv_cflux_col(begc:endc) = spval
+       this%dwt_seedc_to_deadstem_patch(begp:endp) = spval
+       call hist_addfld1d (fname='C13_DWT_SEEDC_TO_DEADSTEM_PATCH', units='gC13/m^2/s', &
+            avgflag='A', &
+            long_name='patch-level C13 seed source to patch-level deadstem ' // &
+            '(per-area-gridcell; only makes sense with dov2xy=.false.)', &
+            ptr_patch=this%dwt_seedc_to_deadstem_patch, default='inactive')
+
+       this%dwt_conv_cflux_grc(begg:endg) = spval
        call hist_addfld1d (fname='C13_DWT_CONV_CFLUX', units='gC13/m^2/s', &
-            avgflag='A', long_name='C13 conversion C flux (immediate loss to atm)', &
-            ptr_col=this%dwt_conv_cflux_col)
+            avgflag='A', long_name='C13 conversion C flux (immediate loss to atm) ' // &
+            '(0 at all times except first timestep of year)', &
+            ptr_gcell=this%dwt_conv_cflux_grc)
+
+       this%dwt_conv_cflux_patch(begp:endp) = spval
+       call hist_addfld1d (fname='C13_DWT_CONV_CFLUX_PATCH', units='gC13/m^2/s', &
+            avgflag='A', &
+            long_name='patch-level C13 conversion C flux (immediate loss to atm) ' // &
+            '(0 at all times except first timestep of year) ' // &
+            '(per-area-gridcell; only makes sense with dov2xy=.false.)', &
+            ptr_patch=this%dwt_conv_cflux_patch, default='inactive')
+
+       this%dwt_conv_cflux_dribbled_grc(begg:endg) = spval
+       call hist_addfld1d (fname='C13_DWT_CONV_CFLUX_DRIBBLED', units='gC13/m^2/s', &
+            avgflag='A', &
+            long_name='C13 conversion C flux (immediate loss to atm), dribbled throughout the year', &
+            ptr_gcell=this%dwt_conv_cflux_dribbled_grc)
 
        this%dwt_frootc_to_litr_met_c_col(begc:endc,:) = spval
        call hist_addfld_decomp (fname='C13_DWT_FROOTC_TO_LITR_MET_C', units='gC13/m^2/s',  type2d='levdcmp', &
@@ -2940,10 +3060,10 @@ contains
             avgflag='A', long_name='C13 dead coarse root to CWD due to landcover change', &
             ptr_col=this%dwt_deadcrootc_to_cwdc_col, default='inactive')
 
-       this%dwt_closs_col(begc:endc) = spval
-       call hist_addfld1d (fname='C13_DWT_CLOSS', units='gC13/m^2/s', &
-            avgflag='A', long_name='C13 total carbon loss from land cover conversion', &
-            ptr_col=this%dwt_closs_col)
+       this%crop_seedc_to_leaf_patch(begp:endp) = spval
+       call hist_addfld1d (fname='C13_CROP_SEEDC_TO_LEAF', units='gC13/m^2/s', &
+            avgflag='A', long_name='C13 crop seed source to leaf', &
+            ptr_patch=this%crop_seedc_to_leaf_patch)
 
         this%sr_col(begc:endc) = spval
         call hist_addfld1d (fname='C13_SR', units='gC13/m^2/s', &
@@ -2980,10 +3100,10 @@ contains
              avgflag='A', long_name='C13 net ecosystem production, excludes fire flux, positive for sink', &
              ptr_col=this%nep_col)
 
-        this%nee_col(begc:endc) = spval
+        this%nee_grc(begg:endg) = spval
         call hist_addfld1d (fname='C13_NEE', units='gC13/m^2/s', &
              avgflag='A', long_name='C13 net ecosystem exchange of carbon, includes fire flux, positive for source', &
-             ptr_col=this%nee_col)
+             ptr_gcell=this%nee_grc)
 
     endif
 
@@ -3015,20 +3135,49 @@ contains
           endif
        end do
 
-       this%dwt_seedc_to_leaf_col(begc:endc) = spval
+       this%dwt_seedc_to_leaf_grc(begg:endg) = spval
        call hist_addfld1d (fname='C14_DWT_SEEDC_TO_LEAF', units='gC14/m^2/s', &
             avgflag='A', long_name='C14 seed source to patch-level leaf', &
-            ptr_col=this%dwt_seedc_to_leaf_col)
+            ptr_gcell=this%dwt_seedc_to_leaf_grc)
 
-       this%dwt_seedc_to_deadstem_col(begc:endc) = spval
+       this%dwt_seedc_to_leaf_patch(begp:endp) = spval
+       call hist_addfld1d (fname='C14_DWT_SEEDC_TO_LEAF_PATCH', units='gC14/m^2/s', &
+            avgflag='A', &
+            long_name='patch-level C14 seed source to patch-level leaf ' // &
+            '(per-area-gridcell; only makes sense with dov2xy=.false.)', &
+            ptr_patch=this%dwt_seedc_to_leaf_patch, default='inactive')
+
+       this%dwt_seedc_to_deadstem_grc(begg:endg) = spval
        call hist_addfld1d (fname='C14_DWT_SEEDC_TO_DEADSTEM', units='gC14/m^2/s', &
             avgflag='A', long_name='C14 seed source to patch-level deadstem', &
-            ptr_col=this%dwt_seedc_to_deadstem_col)
+            ptr_gcell=this%dwt_seedc_to_deadstem_grc)
 
-       this%dwt_conv_cflux_col(begc:endc) = spval
+       this%dwt_seedc_to_deadstem_patch(begp:endp) = spval
+       call hist_addfld1d (fname='C14_DWT_SEEDC_TO_DEADSTEM_PATCH', units='gC14/m^2/s', &
+            avgflag='A', &
+            long_name='patch-level C14 seed source to patch-level deadstem ' // &
+            '(per-area-gridcell; only makes sense with dov2xy=.false.)', &
+            ptr_patch=this%dwt_seedc_to_deadstem_patch, default='inactive')
+
+       this%dwt_conv_cflux_grc(begg:endg) = spval
        call hist_addfld1d (fname='C14_DWT_CONV_CFLUX', units='gC14/m^2/s', &
-            avgflag='A', long_name='C14 conversion C flux (immediate loss to atm)', &
-            ptr_col=this%dwt_conv_cflux_col)
+            avgflag='A', long_name='C14 conversion C flux (immediate loss to atm) ' // &
+            '(0 at all times except first timestep of year)', &
+            ptr_gcell=this%dwt_conv_cflux_grc)
+
+       this%dwt_conv_cflux_patch(begp:endp) = spval
+       call hist_addfld1d (fname='C14_DWT_CONV_CFLUX_PATCH', units='gC14/m^2/s', &
+            avgflag='A', &
+            long_name='patch-level C14 conversion C flux (immediate loss to atm) ' // &
+            '(0 at all times except first timestep of year) ' // &
+            '(per-area-gridcell; only makes sense with dov2xy=.false.)', &
+            ptr_patch=this%dwt_conv_cflux_patch, default='inactive')
+
+       this%dwt_conv_cflux_dribbled_grc(begg:endg) = spval
+       call hist_addfld1d (fname='C14_DWT_CONV_CFLUX_DRIBBLED', units='gC14/m^2/s', &
+            avgflag='A', &
+            long_name='C14 conversion C flux (immediate loss to atm), dribbled throughout the year', &
+            ptr_gcell=this%dwt_conv_cflux_dribbled_grc)
 
        this%dwt_frootc_to_litr_met_c_col(begc:endc,:) = spval
        call hist_addfld_decomp (fname='C14_DWT_FROOTC_TO_LITR_MET_C', units='gC14/m^2/s',  type2d='levdcmp', &
@@ -3055,10 +3204,10 @@ contains
             avgflag='A', long_name='C14 dead coarse root to CWD due to landcover change', &
             ptr_col=this%dwt_deadcrootc_to_cwdc_col, default='inactive')
 
-       this%dwt_closs_col(begc:endc) = spval
-       call hist_addfld1d (fname='C14_DWT_CLOSS', units='gC14/m^2/s', &
-            avgflag='A', long_name='C14 total carbon loss from land cover conversion', &
-            ptr_col=this%dwt_closs_col)
+       this%crop_seedc_to_leaf_patch(begp:endp) = spval
+       call hist_addfld1d (fname='C14_CROP_SEEDC_TO_LEAF', units='gC14/m^2/s', &
+            avgflag='A', long_name='C14 crop seed source to leaf', &
+            ptr_patch=this%crop_seedc_to_leaf_patch)
 
         this%sr_col(begc:endc) = spval
         call hist_addfld1d (fname='C14_SR', units='gC14/m^2/s', &
@@ -3095,10 +3244,10 @@ contains
              avgflag='A', long_name='C14 net ecosystem production, excludes fire flux, positive for sink', &
              ptr_col=this%nep_col)
 
-        this%nee_col(begc:endc) = spval
+        this%nee_grc(begg:endg) = spval
         call hist_addfld1d (fname='C14_NEE', units='gC14/m^2/s', &
              avgflag='A', long_name='C14 net ecosystem exchange of carbon, includes fire flux, positive for source', &
-             ptr_col=this%nee_col)
+             ptr_gcell=this%nee_grc)
 
     endif
 
@@ -3176,9 +3325,6 @@ contains
        ! also initialize dynamic landcover fluxes so that they have
        ! real values on first timestep, prior to calling pftdyn_cnbal
        if (lun%itype(l) == istsoil .or. lun%itype(l) == istcrop) then
-          this%dwt_seedc_to_leaf_col(c)     = 0._r8
-          this%dwt_seedc_to_deadstem_col(c) = 0._r8
-          this%dwt_conv_cflux_col(c)        = 0._r8
           do j = 1, nlevdecomp_full
              this%dwt_frootc_to_litr_met_c_col(c,j) = 0._r8
              this%dwt_frootc_to_litr_cel_c_col(c,j) = 0._r8
@@ -3186,17 +3332,7 @@ contains
              this%dwt_livecrootc_to_cwdc_col(c,j)   = 0._r8
              this%dwt_deadcrootc_to_cwdc_col(c,j)   = 0._r8
           end do
-          this%dwt_closs_col(c)  = 0._r8
-          this%dwt_to_litrc_col(c) = 0._r8
-          this%dwt_seedc_col(c) = 0._r8
        end if
-    end do
-
-    ! initialize fields for special filters
-
-    do fc = 1,num_special_col
-       c = special_col(fc)
-       this%dwt_closs_col(c)   = 0._r8
     end do
 
     do p = bounds%begp,bounds%endp
@@ -3240,10 +3376,36 @@ contains
   end subroutine InitCold
 
   !-----------------------------------------------------------------------
-  subroutine Restart ( this, bounds, ncid, flag )
+  subroutine Restart ( this, bounds, ncid, flag, carbon_type )
     !
     ! !DESCRIPTION: 
-    ! Read/write CN restart data for carbon state
+    ! Read/write CN restart data for carbon fluxes
+    !
+    ! !USES:
+    use ncdio_pio, only : file_desc_t
+    !
+    ! !ARGUMENTS:
+    class (cnveg_carbonflux_type) :: this
+    type(bounds_type) , intent(in)    :: bounds 
+    type(file_desc_t) , intent(inout) :: ncid   ! netcdf id
+    character(len=*)  , intent(in)    :: flag   !'read' or 'write'
+    character(len=*)  , intent(in)    :: carbon_type ! 'c12' or 'c13' or 'c14'
+    !------------------------------------------------------------------------
+
+    if (carbon_type == 'c12') then
+       call this%RestartBulkOnly(bounds, ncid, flag)
+    end if
+
+    call this%RestartAllIsotopes(bounds, ncid, flag)
+
+  end subroutine Restart
+
+
+  !-----------------------------------------------------------------------
+  subroutine RestartBulkOnly ( this, bounds, ncid, flag )
+    !
+    ! !DESCRIPTION: 
+    ! Read/write CN restart data for carbon fluxes - fields only present for bulk C
     !
     ! !USES:
     use shr_infnan_mod   , only : isnan => shr_infnan_isnan, nan => shr_infnan_nan, assignment(=)
@@ -3386,7 +3548,29 @@ contains
             interpinic_flag='interp', readvar=readvar, data=this%leafc_to_litter_fun_patch)
     end if
 
-  end subroutine Restart
+  end subroutine RestartBulkOnly
+
+
+  !-----------------------------------------------------------------------
+  subroutine RestartAllIsotopes ( this, bounds, ncid, flag )
+    !
+    ! !DESCRIPTION: 
+    ! Read/write CN restart data for carbon fluxes - fields present for both bulk C and isotopes
+    !
+    ! !USES:
+    use ncdio_pio, only : file_desc_t
+    !
+    ! !ARGUMENTS:
+    class (cnveg_carbonflux_type) :: this
+    type(bounds_type) , intent(in)    :: bounds 
+    type(file_desc_t) , intent(inout) :: ncid   ! netcdf id
+    character(len=*)  , intent(in)    :: flag   !'read' or 'write'
+    !-----------------------------------------------------------------------
+
+    call this%dwt_conv_cflux_dribbler%Restart(bounds, ncid, flag)
+    call this%hrv_xsmrpool_to_atm_dribbler%Restart(bounds, ncid, flag)
+
+  end subroutine RestartAllIsotopes
 
   !-----------------------------------------------------------------------
   subroutine SetValues ( this, &
@@ -3584,6 +3768,7 @@ contains
        this%woodc_alloc_patch(i)                         = value_patch
        this%woodc_loss_patch(i)                          = value_patch
 
+       this%crop_seedc_to_leaf_patch(i)                  = value_patch
        this%grainc_to_cropprodc_patch(i)                 = value_patch
     end do
 
@@ -3593,6 +3778,7 @@ contains
           this%xsmrpool_to_atm_patch(i)         = value_patch
           this%livestemc_to_litter_patch(i)     = value_patch
           this%grainc_to_food_patch(i)          = value_patch
+          this%grainc_to_seed_patch(i)          = value_patch
           this%grainc_xfer_to_grainc_patch(i)   = value_patch
           this%cpool_to_grainc_patch(i)         = value_patch
           this%cpool_to_grainc_storage_patch(i) = value_patch
@@ -3707,13 +3893,10 @@ contains
        this%gpp_col(i)                 = value_column 
        this%npp_col(i)                 = value_column 
        this%fire_closs_col(i)          = value_column 
-       this%litfall_col(i)             = value_column       
        this%wood_harvestc_col(i)       = value_column 
        this%hrv_xsmrpool_to_atm_col(i) = value_column
 
        this%nep_col(i)                 = value_column
-       this%nbp_col(i)                 = value_column
-       this%nee_col(i)                 = value_column
 
     end do
 
@@ -3730,17 +3913,15 @@ contains
     type(bounds_type), intent(in)  :: bounds 
     !
     ! !LOCAL VARIABLES:
-    integer  :: c, j          ! indices
+    integer  :: c, g, j          ! indices
     !-----------------------------------------------------------------------
 
     ! set conversion and product pool fluxes to 0 at the beginning of every timestep
 
-    do c = bounds%begc,bounds%endc
-       this%dwt_seedc_to_leaf_col(c)        = 0._r8
-       this%dwt_seedc_to_deadstem_col(c)    = 0._r8
-       this%dwt_conv_cflux_col(c)           = 0._r8
-       this%dwt_to_litrc_col(c) = 0._r8
-       this%dwt_seedc_col(c) = 0._r8
+    do g = bounds%begg, bounds%endg
+       this%dwt_seedc_to_leaf_grc(g)        = 0._r8
+       this%dwt_seedc_to_deadstem_grc(g)    = 0._r8
+       this%dwt_conv_cflux_grc(g)           = 0._r8
     end do
 
     do j = 1, nlevdecomp_full
@@ -3791,13 +3972,19 @@ contains
     integer  :: fp,fc           ! lake filter indices
     real(r8) :: nfixlags, dtime ! temp variables for making lagged npp
     real(r8) :: maxdepth        ! depth to integrate soil variables
-    real(r8) :: dwt_closs_grc(bounds%begg:bounds%endg)  ! dwt_closs_col averaged to gridcell
-    real(r8) :: nee_grc(bounds%begg:bounds%endg)        ! nee_col averaged to gridcell
+    real(r8) :: nep_grc(bounds%begg:bounds%endg)        ! nep_col averaged to gridcell
+    real(r8) :: fire_closs_grc(bounds%begg:bounds%endg) ! fire_closs_col averaged to gridcell
+    real(r8) :: hrv_xsmrpool_to_atm_grc(bounds%begg:bounds%endg) ! hrv_xsmrpool_to_atm_col averaged to gridcell (gC/m2/s)
+    real(r8) :: hrv_xsmrpool_to_atm_delta_grc(bounds%begg:bounds%endg) ! hrv_xsmrpool_to_atm_col averaged to gridcell, expressed as a delta (not a flux) (gC/m2)
+    real(r8) :: hrv_xsmrpool_to_atm_dribbled_grc(bounds%begg:bounds%endg) ! hrv_xsmrpool_to_atm, dribbled over the year (gC/m2/s)
+    real(r8) :: dwt_conv_cflux_delta_grc(bounds%begg:bounds%endg)    ! dwt_conv_cflux_grc expressed as a total delta (not a flux) (gC/m2)
     !-----------------------------------------------------------------------
 
     SHR_ASSERT_ALL((ubound(product_closs_grc) == (/bounds%endg/)), errMsg(sourcefile, __LINE__))
 
     ! calculate patch-level summary carbon fluxes and states
+
+    dtime = get_step_size()
 
     do fp = 1,num_soilp
        p = filter_soilp(fp)
@@ -4028,8 +4215,13 @@ contains
        if ( use_crop .and. patch%itype(p) >= npcropmin )then
           this%litfall_patch(p) =      &
                this%litfall_patch(p) + &
-               this%livestemc_to_litter_patch(p)          + &
-               this%grainc_to_food_patch(p)
+               this%livestemc_to_litter_patch(p)
+
+          if (.not. use_grainproduct) then
+             this%litfall_patch(p) = &
+                  this%litfall_patch(p) + &
+                  this%grainc_to_food_patch(p)
+          end if
        end if
 
        ! update the annual litfall accumulator, for use in mortality code
@@ -4144,10 +4336,6 @@ contains
          this%fire_closs_p2c_col(bounds%begc:bounds%endc))
 
     call p2c(bounds, num_soilc, filter_soilc, &
-         this%litfall_patch(bounds%begp:bounds%endp), &
-         this%litfall_col(bounds%begc:bounds%endc))
-
-    call p2c(bounds, num_soilc, filter_soilc, &
          this%npp_patch(bounds%begp:bounds%endp), &
          this%npp_col(bounds%begc:bounds%endc))
 
@@ -4167,7 +4355,6 @@ contains
 
     if ( trim(isotope) == 'bulk') then
        if (nfix_timeconst > 0._r8 .and. nfix_timeconst < 500._r8 ) then
-          dtime = get_step_size()
           nfixlags = nfix_timeconst * secspday
           do fc = 1,num_soilc
              c = filter_soilc(fc)
@@ -4199,6 +4386,8 @@ contains
     do fc = 1,num_soilc
        c = filter_soilc(fc)
 
+       g = col%gridcell(c)
+
        ! litter fire losses (LITFIRE)
        this%litfire_col(c) = 0._r8
 
@@ -4217,10 +4406,6 @@ contains
                this%fire_closs_col(c) + &
                this%m_decomp_cpools_to_fire_col(c,l)
        end do
-
-       ! carbon losses due to landcover change
-       this%dwt_closs_col(c) = &
-            this%dwt_conv_cflux_col(c)
 
        ! total soil respiration, heterotrophic + root respiration (SR)
        this%sr_col(c) = &
@@ -4241,40 +4426,54 @@ contains
             this%gpp_col(c) - &
             this%er_col(c)
 
-       ! net biome production of carbon, includes depletion from fire flux,
-       ! positive for sink (NBP)
-       this%nbp_col(c) =  &
-            this%nep_col(c)        - &
-            this%fire_closs_col(c)
-
-       ! net ecosystem exchange of carbon, includes fire flux and hrv_xsmrpool flux,
-       ! positive for source (NEE)
-       this%nee_col(c) = &
-            -this%nep_col(c)          + &
-            this%fire_closs_col(c)    + &
-            this%hrv_xsmrpool_to_atm_col(c)
-
     end do
 
     call c2g( bounds = bounds, &
-         carr = this%dwt_closs_col(bounds%begc:bounds%endc), &
-         garr = dwt_closs_grc(bounds%begg:bounds%endg), &
+         carr = this%nep_col(bounds%begc:bounds%endc), &
+         garr = nep_grc(bounds%begg:bounds%endg), &
          c2l_scale_type = 'unity', &
          l2g_scale_type = 'unity')
 
     call c2g( bounds = bounds, &
-         carr = this%nee_col(bounds%begc:bounds%endc), &
-         garr = nee_grc(bounds%begg:bounds%endg), &
+         carr = this%fire_closs_col(bounds%begc:bounds%endc), &
+         garr = fire_closs_grc(bounds%begg:bounds%endg), &
          c2l_scale_type = 'unity', &
          l2g_scale_type = 'unity')
 
+    call c2g( bounds = bounds, &
+         carr = this%hrv_xsmrpool_to_atm_col(bounds%begc:bounds%endc), &
+         garr = hrv_xsmrpool_to_atm_grc(bounds%begg:bounds%endg), &
+         c2l_scale_type = 'unity', &
+         l2g_scale_type = 'unity')
+    hrv_xsmrpool_to_atm_delta_grc(bounds%begg:bounds%endg) = &
+         hrv_xsmrpool_to_atm_grc(bounds%begg:bounds%endg) * dtime
+    call this%hrv_xsmrpool_to_atm_dribbler%set_curr_delta(bounds, &
+         hrv_xsmrpool_to_atm_delta_grc(bounds%begg:bounds%endg))
+    call this%hrv_xsmrpool_to_atm_dribbler%get_curr_flux(bounds, &
+         hrv_xsmrpool_to_atm_dribbled_grc(bounds%begg:bounds%endg))
+
+    dwt_conv_cflux_delta_grc(bounds%begg:bounds%endg) = &
+         this%dwt_conv_cflux_grc(bounds%begg:bounds%endg) * dtime
+    call this%dwt_conv_cflux_dribbler%set_curr_delta(bounds, &
+         dwt_conv_cflux_delta_grc(bounds%begg:bounds%endg))
+    call this%dwt_conv_cflux_dribbler%get_curr_flux(bounds, &
+         this%dwt_conv_cflux_dribbled_grc(bounds%begg:bounds%endg))
+
     do g = bounds%begg, bounds%endg
+       ! net ecosystem exchange of carbon, includes fire flux and hrv_xsmrpool flux,
+       ! positive for source (NEE)
+       this%nee_grc(g) = &
+            -nep_grc(g)       + &
+            fire_closs_grc(g) + &
+            hrv_xsmrpool_to_atm_dribbled_grc(g)
+
        this%landuseflux_grc(g) = &
-            dwt_closs_grc(g)   + &
+            this%dwt_conv_cflux_dribbled_grc(g)   + &
             product_closs_grc(g)
 
-       this%net_carbon_exchange_grc(g) = &
-            nee_grc(g)                 + &
+       ! net biome production of carbon, positive for sink
+       this%nbp_grc(g) = &
+            -this%nee_grc(g)        - &
             this%landuseflux_grc(g)
     end do
 

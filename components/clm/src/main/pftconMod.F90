@@ -142,6 +142,8 @@ module pftconMod
      real(r8), allocatable :: grperc        (:)   ! growth respiration parameter
      real(r8), allocatable :: grpnow        (:)   ! growth respiration parameter
      real(r8), allocatable :: rootprof_beta (:,:) ! CLM rooting distribution parameter for C and N inputs [unitless]
+     real(r8), allocatable :: root_radius   (:)   ! root radius (m)
+     real(r8), allocatable :: root_density  (:)   ! root density (gC/m3)
 
      !  crop
 
@@ -174,6 +176,8 @@ module pftconMod
      real(r8), allocatable :: grnfill       (:)   ! parameter used in CNPhenology
      integer , allocatable :: mxmat         (:)   ! parameter used in CNPhenology
      real(r8), allocatable :: mbbopt        (:)   ! Ball-Berry equation slope used in Photosynthesis
+     real(r8), allocatable :: medlynslope   (:)   ! Medlyn equation slope used in Photosynthesis
+     real(r8), allocatable :: medlynintercept(:)  ! Medlyn equation intercept used in Photosynthesis
      integer , allocatable :: mnNHplantdate (:)   ! minimum planting date for NorthHemisphere (YYYYMMDD)
      integer , allocatable :: mxNHplantdate (:)   ! maximum planting date for NorthHemisphere (YYYYMMDD)
      integer , allocatable :: mnSHplantdate (:)   ! minimum planting date for SouthHemisphere (YYYYMMDD)
@@ -217,7 +221,7 @@ module pftconMod
      real(r8), allocatable :: fd_pft        (:)
 
      ! pft parameters for crop code
-     real(r8), allocatable :: fertnitro     (:)   ! fertilizer
+     real(r8), allocatable :: manunitro     (:)   ! manure
      real(r8), allocatable :: fleafcn       (:)   ! C:N during grain fill; leaf
      real(r8), allocatable :: ffrootcn      (:)   ! C:N during grain fill; fine root
      real(r8), allocatable :: fstemcn       (:)   ! C:N during grain fill; stem
@@ -280,6 +284,9 @@ module pftconMod
   real(r8), parameter :: allom3 =   0.5_r8       ! ...equations
   real(r8), parameter :: allom1s = 250.0_r8      ! modified for shrubs by
   real(r8), parameter :: allom2s =   8.0_r8      ! X.D.Z
+! root radius, density from Bonan, GMD, 2014
+  real(r8), parameter :: root_density = 0.31e06_r8 !(g biomass / m3 root)
+  real(r8), parameter :: root_radius = 0.29e-03_r8 !(m)
 
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -377,6 +384,8 @@ contains
     allocate( this%lfemerg       (0:mxpft) )      
     allocate( this%grnfill       (0:mxpft) )      
     allocate( this%mbbopt        (0:mxpft) )      
+    allocate( this%medlynslope   (0:mxpft) )      
+    allocate( this%medlynintercept(0:mxpft) )      
     allocate( this%mxmat         (0:mxpft) )        
     allocate( this%mnNHplantdate (0:mxpft) )
     allocate( this%mxNHplantdate (0:mxpft) )
@@ -401,6 +410,8 @@ contains
     allocate( this%stress_decid  (0:mxpft) ) 
     allocate( this%season_decid  (0:mxpft) ) 
     allocate( this%dwood         (0:mxpft) )
+    allocate( this%root_density  (0:mxpft) )
+    allocate( this%root_radius   (0:mxpft) )
     allocate( this%pconv         (0:mxpft) )        
     allocate( this%pprod10       (0:mxpft) )      
     allocate( this%pprod100      (0:mxpft) )     
@@ -418,7 +429,7 @@ contains
     allocate( this%fm_droot      (0:mxpft) )
     allocate( this%fsr_pft       (0:mxpft) )
     allocate( this%fd_pft        (0:mxpft) )
-    allocate( this%fertnitro     (0:mxpft) )
+    allocate( this%manunitro     (0:mxpft) )
     allocate( this%fleafcn       (0:mxpft) )  
     allocate( this%ffrootcn      (0:mxpft) ) 
     allocate( this%fstemcn       (0:mxpft) )  
@@ -791,7 +802,7 @@ contains
     call ncd_io('FUN_fracfixers', this%FUN_fracfixers, 'read', ncid, readvar=readv,         posNOTonfile=.true.)
     if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
 
-    call ncd_io('fertnitro', this%fertnitro, 'read', ncid, readvar=readv, posNOTonfile=.true.)
+    call ncd_io('manunitro', this%manunitro, 'read', ncid, readvar=readv, posNOTonfile=.true.)
     if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
 
     call ncd_io('fleafcn', this%fleafcn, 'read', ncid, readvar=readv, posNOTonfile=.true.)
@@ -886,6 +897,12 @@ contains
     call ncd_io('mbbopt', this%mbbopt, 'read', ncid, readvar=readv)  
     if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
 
+    call ncd_io('medlynslope', this%medlynslope, 'read', ncid, readvar=readv)  
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
+    call ncd_io('medlynintercept', this%medlynintercept, 'read', ncid, readvar=readv)  
+    if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
+
     call ncd_io('mxmat', this%mxmat, 'read', ncid, readvar=readv)  
     if ( .not. readv ) call endrun(msg=' ERROR: error in reading in pft data'//errMsg(sourcefile, __LINE__))
 
@@ -952,6 +969,9 @@ contains
     !MV (10-08-14) TODO is this right - used to be numpft - is it okay to set it to mxpft?
     do m = 0,mxpft 
        this%dwood(m) = dwood
+       this%root_radius(m)  = root_radius
+       this%root_density(m) = root_density
+
        if (m <= ntree) then
           this%tree(m) = 1
        else
@@ -1279,6 +1299,8 @@ contains
     deallocate( this%lfemerg)
     deallocate( this%grnfill)
     deallocate( this%mbbopt)
+    deallocate( this%medlynslope)
+    deallocate( this%medlynintercept)
     deallocate( this%mxmat)
     deallocate( this%mnNHplantdate)
     deallocate( this%mxNHplantdate)
@@ -1303,6 +1325,8 @@ contains
     deallocate( this%stress_decid)
     deallocate( this%season_decid)
     deallocate( this%dwood)
+    deallocate( this%root_density)
+    deallocate( this%root_radius)
     deallocate( this%pconv)
     deallocate( this%pprod10)
     deallocate( this%pprod100)
@@ -1320,7 +1344,7 @@ contains
     deallocate( this%fm_droot)
     deallocate( this%fsr_pft)
     deallocate( this%fd_pft)
-    deallocate( this%fertnitro)
+    deallocate( this%manunitro)
     deallocate( this%fleafcn)
     deallocate( this%ffrootcn)
     deallocate( this%fstemcn)

@@ -36,7 +36,7 @@ module SolarAbsorbedType
      real(r8), pointer :: sabg_lyr_patch         (:,:) ! patch absorbed radiation in each snow layer and top soil layer (pft,lyr) [W/m2]
      real(r8), pointer :: sabg_pen_patch         (:)   ! patch (rural) shortwave radiation penetrating top soisno layer [W/m2]
 
-     real(r8), pointer :: sub_surf_abs_SW_col    (:)   ! col percent of solar radiation absorbed below first snow layer
+     real(r8), pointer :: sub_surf_abs_SW_patch  (:)   ! patch fraction of solar radiation absorbed below first snow layer
      real(r8), pointer :: sabv_patch             (:)   ! patch solar radiation absorbed by vegetation (W/m**2) 
 
      real(r8), pointer :: sabs_roof_dir_lun      (:,:) ! lun direct solar absorbed by roof per unit ground area per unit incident flux
@@ -135,7 +135,7 @@ contains
     allocate(this%sabs_improad_dif_lun   (begl:endl,1:numrad))     ; this%sabs_improad_dif_lun   (:,:) = nan
     allocate(this%sabs_perroad_dir_lun   (begl:endl,1:numrad))     ; this%sabs_perroad_dir_lun   (:,:) = nan
     allocate(this%sabs_perroad_dif_lun   (begl:endl,1:numrad))     ; this%sabs_perroad_dif_lun   (:,:) = nan 
-    allocate(this%sub_surf_abs_SW_col    (begc:endc))              ; this%sub_surf_abs_SW_col    (:)   = nan
+    allocate(this%sub_surf_abs_SW_patch  (begp:endp))              ; this%sub_surf_abs_SW_patch  (:)   = nan
     allocate(this%fsr_patch              (begp:endp))              ; this%fsr_patch              (:)   = nan
     allocate(this%fsr_nir_d_patch        (begp:endp))              ; this%fsr_nir_d_patch        (:)   = nan
     allocate(this%fsr_nir_i_patch        (begp:endp))              ; this%fsr_nir_i_patch        (:)   = nan
@@ -178,6 +178,11 @@ contains
          avgflag='A', long_name='absorbed solar radiation', &
          ptr_patch=this%fsa_patch, c2l_scale_type='urbanf')
 
+    call hist_addfld1d (fname='FSA_ICE', units='W/m^2',  &
+         avgflag='A', long_name='absorbed solar radiation (ice landunits only)', &
+         ptr_patch=this%fsa_patch, c2l_scale_type='urbanf', l2g_scale_type='ice', &
+         default='inactive')
+
     this%fsa_r_patch(begp:endp) = spval
     call hist_addfld1d (fname='FSA_R', units='W/m^2',  &
          avgflag='A', long_name='Rural absorbed solar radiation', &
@@ -197,11 +202,21 @@ contains
          avgflag='A', long_name='upwelling shortwave radiation', &
          ptr_patch=this%fsr_patch, c2l_scale_type='urbanf', default='inactive')
 
+    call hist_addfld1d (fname='FSR_ICE', units='W/m^2',  &
+         avgflag='A', long_name='reflected solar radiation (ice landunits only)', &
+         ptr_patch=this%fsr_patch, c2l_scale_type='urbanf', l2g_scale_type='ice', &
+         default='inactive')
+
     this%sabg_lyr_patch(begp:endp,-nlevsno+1:0) = spval
     data2dptr => this%sabg_lyr_patch(:,-nlevsno+1:0)
     call hist_addfld2d (fname='SNO_ABS', units='W/m^2', type2d='levsno',  &
          avgflag='A', long_name='Absorbed solar radiation in each snow layer', &
          ptr_patch=data2dptr, no_snow_behavior=no_snow_normal, default='inactive')
+
+    call hist_addfld2d (fname='SNO_ABS_ICE', units='W/m^2', type2d='levsno',  &
+         avgflag='A', long_name='Absorbed solar radiation in each snow layer (ice landunits only)', &
+         ptr_patch=data2dptr, no_snow_behavior=no_snow_normal, &
+         l2g_scale_type='ice', default='inactive')
 
     this%sabv_patch(begp:endp) = spval
     call hist_addfld1d (fname='SABV', units='W/m^2',  &
@@ -249,10 +264,10 @@ contains
          avgflag='A', long_name='direct nir reflected solar radiation at local noon', &
          ptr_patch=this%fsr_nir_d_ln_patch, c2l_scale_type='urbanf')
 
-    this%sub_surf_abs_SW_col(begc:endc) = spval
-    call hist_addfld1d (fname='SNOINTABS', units='%', &
-         avgflag='A', long_name='Percent of incoming solar absorbed by lower snow layers', &
-         ptr_col=this%sub_surf_abs_SW_col, set_lake=spval, set_urb=spval)
+    this%sub_surf_abs_SW_patch(begp:endp) = spval
+    call hist_addfld1d (fname='SNOINTABS', units='-', &
+         avgflag='A', long_name='Fraction of incoming solar absorbed by lower snow layers', &
+         ptr_patch=this%sub_surf_abs_SW_patch, set_lake=spval, set_urb=spval)
 
     if(use_luna)then
        ptr_1d => this%par240d_z_patch(:,1)

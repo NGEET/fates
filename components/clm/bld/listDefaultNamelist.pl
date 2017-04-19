@@ -51,13 +51,11 @@ require queryDefaultXML;
 
 # Defaults
 my $cesmroot    = abs_path( "$cfgdir/../../../");
-my $datmblddir  = "$cesmroot/cime/components/data_comps/datm/bld";
-my $drvblddir   = "$cesmroot/cime/driver_cpl/bld";
 
 # The namelist defaults file contains default values for all required namelist variables.
 my @nl_defaults_files = ( "$cfgdir/namelist_files/namelist_defaults_overall.xml",
-                          "$drvblddir/namelist_files/namelist_defaults_drv.xml",
-                          "$datmblddir/namelist_files/namelist_defaults_datm.xml" );
+                          "$cfgdir/namelist_files/namelist_defaults_drv.xml",
+                         );
 my $list = "clm.input_data_list";
 my %list_of_all_files;
 
@@ -68,7 +66,6 @@ SYNOPSIS
 OPTIONS
      -help  [or -h]                       Display this help.
      -csmdata [or -d]                     Path to CSMDATA.
-     -phys "name"                         Model physics (either clm4_0 or clm4_5) (default clm4_0)
      -res  "resolution1,resolution2,..."  List of resolution to use for files.
                                           (At least one resolution is required)
                                           (If res is "all" will run over all resolutions)
@@ -101,7 +98,7 @@ sub GetListofNeededFiles {
   my $inputopts_ref = shift;
   my $settings_ref  = shift;
   my $files_ref     = shift;
-  
+
   my $defaults_ref = &queryDefaultXML::ReadDefaultXMLFile( $inputopts_ref, $settings_ref );
   my @keys     = keys(%$defaults_ref);
   my $csmdata  = $$inputopts_ref{'csmdata'};
@@ -114,7 +111,7 @@ sub GetListofNeededFiles {
         $value    =~ m#$csmdata/(.+?)/([^/]+)$#;
         my $dir   = $1;
         my $file  = $2;
-        
+
         # If file is already in the list then do NOT do anything
         if ( defined($list_of_all_files{"$dir/$file"} ) ) {
         # Test that this file exists
@@ -149,14 +146,14 @@ sub GetListofNeededFiles {
 
 #-----------------------------------------------------------------------------------------------
 
-  my %opts = ( 
+  my %opts = (
                res        => undef,
                silent     => undef,
                csmdata    => "default",
                list       => $list,
                usrdat     => undef,
                help       => undef,
-               phys       => "clm4_0",
+               phys       => "clm4_5",
              );
 
   my $cmdline = "@ARGV";
@@ -166,7 +163,6 @@ sub GetListofNeededFiles {
         "s|silent"     => \$opts{'silent'},
         "u|usrdat=s"   => \$opts{'usrdat'},
         "h|elp"        => \$opts{'help'},
-        "phys=s"       => \$opts{'phys'},
   ) or usage();
 
   # Check for unparsed arguments
@@ -192,9 +188,7 @@ sub GetListofNeededFiles {
      }
   }
   my %inputopts;
-  my $datmblddir             = "$cfgdir/../../../cime/components/data_comps/datm/bld";
   my @nl_definition_files    = (
-                                 "$datmblddir/namelist_files/namelist_definition_datm.xml",
                                  "$cfgdir/namelist_files/namelist_definition_$opts{'phys'}.xml"
                                );
   $inputopts{'nldef_files'}    = \@nl_definition_files;
@@ -256,10 +250,10 @@ sub GetListofNeededFiles {
         #
         $settings{'sim_year_range'} = "constant";
         my @rcps = $definition->get_valid_values( "rcp", 'noquotes'=>1 );
-        $settings{'rcp'} = $rcps[0];   
+        $settings{'rcp'} = $rcps[0];
 YEAR:   foreach my $sim_year ( $definition->get_valid_values( "sim_year", 'noquotes'=>1 ) ) {
            print "sim_year = $sim_year\n" if $printing;
-           $settings{'sim_year'} = $sim_year;   
+           $settings{'sim_year'} = $sim_year;
            if ( $sim_year ne 1850 && $sim_year ne 2000 && $sim_year > 1800 ) { next YEAR; }
 
            my @bgcsettings   = $cfg->get_valid_values( "bgc" );
@@ -289,18 +283,14 @@ YEAR:   foreach my $sim_year ( $definition->get_valid_values( "sim_year", 'noquo
                  foreach my $crop ( @crop_vals ) {
                    $settings{'crop'} = $crop;
                    if ( $crop eq "on" ) {
-                     if ($phys eq "clm4_0") { 
-                       $settings{'maxpft'} = 21;
-                     } else {
-                       $settings{'maxpft'} = 25;
-                     }
+                     $settings{'maxpft'} = 78;
                    } else {
                      $settings{'maxpft'} = 17;
                    }
                    my @irrigset;
-                   if ( $glc_nec  == 0 && $sim_year == 2000 ) { 
+                   if ( $glc_nec  == 0 && $sim_year == 2000 ) {
                      @irrigset= ( ".true.", ".false." );
-                   } else { 
+                   } else {
                      @irrigset= ( ".false." );
                    }
                    #
