@@ -10,7 +10,7 @@ module EDPatchDynamicsMod
   use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, area, dbhmax
   use EDTypesMod           , only : numpft_ed
   use EDTypesMod           , only : maxPatchesPerSite
-  use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
+  use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type, ed_resources_management_type
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : nclmax
   use EDTypesMod           , only : use_fates_plant_hydro
@@ -67,21 +67,27 @@ contains
     ! !USES:
     use EDGrowthFunctionsMod , only : c_area, mortality_rates
 	! loging flux
-    use EDLoggingMortalityMod , only : LoggingMortality_rates,No_LoggingMortality_rates
-	
+    use EDLoggingMortalityMod , only : LoggingMortality_rates,No_LoggingMortality_rates, Logging_threshold
+
     ! !ARGUMENTS:
     type(ed_site_type) , intent(inout), target :: site_in
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type) , pointer :: currentPatch
     type (ed_cohort_type), pointer :: currentCohort
+
+    type (ed_resources_management_type) :: resouces_management
+
     real(r8) :: cmort
     real(r8) :: bmort
     real(r8) :: hmort
 	
-	real(r8) :: lmort_logging
-	real(r8) :: lmort_collateral
-	real(r8) :: lmort_infra
+    real(r8) :: lmort_logging
+    real(r8) :: lmort_collateral
+    real(r8) :: lmort_infra
+
+    integer :: threshold_sizeclass
+
     !---------------------------------------------------------------------
 
     !MORTALITY
@@ -127,7 +133,8 @@ contains
 		  if (currentPatch%logging==1) then 
 		     
 			 ! always call this function if turn on logging at the beginning 
-		     call LoggingMortality_rates(currentCohort%pft, currentCohort%size_class,lmort_logging,lmort_collateral,lmort_infra )
+                     call Logging_threshold (site_in%resouces_management%minimum_diameter_logging , threshold_sizeclass)
+		     call LoggingMortality_rates(site_in, currentCohort%pft, currentCohort%size_class,threshold_sizeclass , lmort_logging,lmort_collateral,lmort_infra )
 			 		  
 			  !Morality units:
 			  !logging mortality rates: %/event , the other regular mortality rates : %/year
@@ -498,13 +505,13 @@ contains
 
                 ! Number of members in the new patch, before we impose logging 
 				! nc is the new cohort that goes in the disturbed patch (new_patch)
-                nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
+                !nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
 
                 ! loss of individuals from source patch due to area shrinking
                 currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area) 
 
                 ! loss of individual from fire in new patch.
-                nc%n = nc%n * (1.0_r8 - currentCohort%fire_mort) 
+               ! nc%n = nc%n * (1.0_r8 - currentCohort%fire_mort) 
 
                 nc%fmort = 0.0_r8  ! should double check fmort 
                 nc%imort = 0.0_r8

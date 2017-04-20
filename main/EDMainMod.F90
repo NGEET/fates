@@ -462,6 +462,8 @@ contains
     real(r8) :: error           ! How much carbon did we gain or lose (should be zero!) 
     real(r8) :: net_flux        ! Difference between recorded fluxes in and out. KgC/site
 
+    real(r8) :: trunk_product_site ! trunk product at site level KgC/site
+
     ! nb. There is no time associated with these variables 
     ! because this routine can be called between any two 
     ! arbitrary points in code, even if no time has passed. 
@@ -476,6 +478,8 @@ contains
     biomass_stock   = 0.0_r8
     litter_stock    = 0.0_r8
 
+    trunk_product_site = 0.0_r8
+    
     seed_stock   =  sum(currentSite%seed_bank)
 
     currentPatch => currentSite%oldest_patch 
@@ -500,7 +504,7 @@ contains
 	if (currentPatch%logging==1 .and. currentPatch%after_spawn_patch==1) then  
 
 	   !currentPatch%trunk_product unit is kGC/m2
-	   biomass_stock =  biomass_stock + currentPatch%trunk_product* AREA
+	   trunk_product_site =  trunk_product_site + currentPatch%trunk_product* AREA
 	   ! turn off this flag after spawn patch , since flux_in and flux_out are cleaned in every balance check 
 	   currentPatch%after_spawn_patch = 0
 
@@ -512,8 +516,10 @@ contains
 
     enddo !end patch loop
 
+    currentSite%resouces_management%trunk_product_site = currentSite%resouces_management%trunk_product_site + trunk_product_site
+
     total_stock     = biomass_stock + seed_stock +litter_stock
-    change_in_stock = total_stock - currentSite%old_stock  
+    change_in_stock = total_stock - trunk_product_site - currentSite%old_stock  
     net_flux        = currentSite%flux_in - currentSite%flux_out
     error           = abs(net_flux - change_in_stock)   
 

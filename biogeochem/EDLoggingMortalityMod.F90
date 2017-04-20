@@ -13,28 +13,71 @@ module EDLoggingMortalityMod
 
 !           4. keep carbon balance (in ed_total_balance_check)
 !
-!  Author: Yi Xu
+!  Yi Xu
 !  Date: 2017
 ! ====================================================================================
 
   use shr_kind_mod     , only : r8 => shr_kind_r8
-  use EDTypesMod       , only : ed_cohort_type, ed_patch_type, ncwd
+  use EDTypesMod       , only : ed_cohort_type, ed_patch_type,ncwd, ed_site_type, ed_resources_management_type
   use clm_varctl       , only : logging_time
-  use pftconMod, only : pftcon
+  use pftconMod        , only : pftcon
+
   implicit none
   private
   
   public :: LoggingMortality_rates
   public :: No_LoggingMortality_rates
   public :: logging_litter_fluxes
+  public :: Logging_threshold
   
 contains
-  
- subroutine LoggingMortality_rates( pft_i, size_class, lmort_logging,lmort_collateral,lmort_infra )
+ 
+ subroutine Logging_threshold (minimum_diameter_logging, threshold_sizeclass)
+    ! Calculate the threshold of size class for logging
+	
+	
+	real(r8), intent(in)  :: minimum_diameter_logging
+	integer, intent(out) :: threshold_sizeclass 
+	
+
+	if (minimum_diameter_logging >= 0.0_r8 .and. minimum_diameter_logging< 5.0_r8) then 
+		threshold_sizeclass = 1
+	elseif (minimum_diameter_logging>=5.0_r8 .and. minimum_diameter_logging<10.0_r8) then
+		threshold_sizeclass = 2
+	elseif (minimum_diameter_logging>=10.0_r8 .and. minimum_diameter_logging<15.0_r8) then
+		threshold_sizeclass = 3
+	elseif (minimum_diameter_logging>=15.0_r8 .and. minimum_diameter_logging<20.0_r8) then
+		threshold_sizeclass = 4
+	elseif (minimum_diameter_logging>=20.0_r8 .and. minimum_diameter_logging<30.0_r8) then
+		threshold_sizeclass = 5
+	elseif (minimum_diameter_logging>=30.0_r8 .and. minimum_diameter_logging<40.0_r8) then
+		threshold_sizeclass = 6
+	elseif (minimum_diameter_logging>=40.0_r8 .and. minimum_diameter_logging<50.0_r8) then
+		threshold_sizeclass = 7
+	elseif (minimum_diameter_logging>=50.0_r8 .and. minimum_diameter_logging<60.0_r8) then
+		threshold_sizeclass = 8
+	elseif (minimum_diameter_logging>=60.0_r8 .and. minimum_diameter_logging<70.0_r8) then
+		threshold_sizeclass = 9
+	elseif (minimum_diameter_logging>=70.0_r8 .and. minimum_diameter_logging<80.0_r8) then
+		threshold_sizeclass = 10
+	elseif (minimum_diameter_logging>=80.0_r8 .and. minimum_diameter_logging<90.0_r8) then
+		threshold_sizeclass = 11
+	elseif (minimum_diameter_logging>=90.0_r8 .and. minimum_diameter_logging<100.0_r8) then
+		threshold_sizeclass = 12
+	elseif (minimum_diameter_logging>100.0_r8) then
+		threshold_sizeclass = 13
+	end if
+	
+ 
+ end subroutine Logging_threshold
+ 
+
+ 
+ subroutine LoggingMortality_rates( site_in, pft_i, size_class, threshold_sizeclass, lmort_logging,lmort_collateral,lmort_infra )
 
     
-  
    integer, intent(in) :: size_class  !An index that indicates which diameter size bin the cohort currently resides in
+   integer, intent(in) :: threshold_sizeclass ! threshold of size class for logging 
    integer, intent(in) :: pft_i
    
    real(r8),intent(out) :: lmort_logging ! logging mortality_rates, share same size class
@@ -42,19 +85,31 @@ contains
    real(r8),intent(out) :: lmort_infra  ! infrastructure mortality_rates, share same size class
   
    real(r8)  :: adjustment ! adjustment for mortality rates
-  
+   type(ed_site_type) , intent(inout), target :: site_in
+   
+   
    adjustment=1.0_r8
-   ! Read in new rules of logging mortalities
+   ! Read in rules of logging mortalities
+   
+   
+  
+
+   site_in%resouces_management%logging_collatoral_mortality_rate = site_in%resouces_management%logging_ratio*site_in%resouces_management%fraction_trees_logged          ! collaterally damaged rate        %/per logging activity
+   site_in%resouces_management%logging_infrastructure_mortality_rate = site_in%resouces_management%logging_ratio*site_in%resouces_management%fraction_trees_logged		! mechanically damaged rate        %/per logging activity
+	
+
+ 
    
    if (logging_time) then 
    
       if(pftcon%woody(pft_i) == 1)then ! only set logging rates for trees
 		  ! Log trees whose DBH > 50cm 
-		  if (size_class>7) then
-			lmort_logging=0.15_r8*adjustment
+		  ! Pass logging rates to cohort level 
+		  if (size_class>=threshold_sizeclass) then
+			lmort_logging=site_in%resouces_management%fraction_trees_logged*adjustment
 		  end if
-		  lmort_collateral=0.05_r8*adjustment
-		  lmort_infra=0.05_r8*adjustment
+		  lmort_collateral=site_in%resouces_management%logging_collatoral_mortality_rate*adjustment
+		  lmort_infra=site_in%resouces_management%logging_infrastructure_mortality_rate*adjustment
 	   else
 		  lmort_logging=0.0_r8
 		  lmort_collateral=0.0_r8
@@ -157,6 +212,9 @@ contains
 				 !************************************/ 
 				 ! Number of trees that died because of the selective logging, per m2 of ground. 
 
+				 ! total amount of above-ground tree biomass in patch. kgC/m2 in SFMainMod.F90 
+				 !(currentCohort%bl+ED_val_ag_biomass* (currentCohort%bsw + currentCohort%bdead))*currentCohort%n
+				 ! So remove leaf biomass, stem biomass per tree is (currentCohort%bsw + currentCohort%bdead) * ED_val_ag_biomass  
 					 
 				 ! stem biomass per tree
 				  bstem  = (currentCohort%bsw + currentCohort%bdead) * ED_val_ag_biomass     
@@ -179,12 +237,23 @@ contains
 				  currentPatch%leaf_litter(p) = currentPatch%leaf_litter(p) + dead_tree_density * (currentCohort%bl)
 				  currentPatch%root_litter(p) = currentPatch%root_litter(p) + dead_tree_density * (currentCohort%br+currentCohort%bstore)
       
-	  
-	  
+				  ! track as diagnostic fluxes
+				  currentSite%leaf_litter_diagnostic_input_carbonflux(p) = currentSite%leaf_litter_diagnostic_input_carbonflux(p) + &
+                  (currentCohort%bl) *  (currentCohort%lmort_logging + currentCohort%lmort_collateral + currentCohort%lmort_infra )* currentCohort%n/ AREA
+				  
+                  currentSite%root_litter_diagnostic_input_carbonflux(p) = currentSite%root_litter_diagnostic_input_carbonflux(p) + &
+                  (currentCohort%br+currentCohort%bstore) * (currentCohort%lmort_logging + currentCohort%lmort_collateral + currentCohort%lmort_infra )* currentCohort%n/ AREA
+
+				  
 	              !above ground coarse woody debris of twigs, small branches and large branches are from logged and damaged trees 
 				   do c = 1,3
 						new_patch%cwd_ag(c) = new_patch%cwd_ag(c) + dead_tree_density * SF_val_CWD_frac(c) * bstem
 						currentPatch%cwd_ag(c) = currentPatch%cwd_ag(c) + dead_tree_density * SF_val_CWD_frac(c) * bstem 
+						
+						! track as diagnostic fluxes
+						currentSite%CWD_AG_diagnostic_input_carbonflux(c) = currentSite%CWD_AG_diagnostic_input_carbonflux(c) + &
+						 SF_val_CWD_frac(c) * bstem * (currentCohort%lmort_logging + currentCohort%lmort_collateral + currentCohort%lmort_infra )* currentCohort%n / AREA
+						
 						
 				   enddo
 				   
@@ -205,14 +274,26 @@ contains
 						!currentPatch%trunk_product unit is kGC/m2
 						 currentPatch%trunk_product = currentPatch%trunk_product + logging_density * SF_val_CWD_frac(c) * bstem
 
-						 currentSite%flux_out = currentSite%flux_out + currentPatch%trunk_product * AREA
-
+						 currentSite%flux_out = currentSite%flux_out + logging_density * SF_val_CWD_frac(c) * bstem * AREA
+						 
+						 
+						! track as diagnostic fluxes
+						 currentSite%CWD_AG_diagnostic_input_carbonflux(c) = currentSite%CWD_AG_diagnostic_input_carbonflux(c) + &
+						 SF_val_CWD_frac(c) * bstem * (currentCohort%lmort_logging * currentCohort%n) / AREA
+						
+						
+						
 				   enddo
 			      
 				  !below ground coarse woody debris of all sizes are from logged and damaged trees
 				   do c = 1,ncwd
 						new_patch%cwd_bg(c) = new_patch%cwd_bg(c) + dead_tree_density * SF_val_CWD_frac(c) * bcroot
 						currentPatch%cwd_bg(c) = currentPatch%cwd_bg(c) + dead_tree_density * SF_val_CWD_frac(c) * bcroot
+
+						! track as diagnostic fluxes
+						currentSite%CWD_BG_diagnostic_input_carbonflux(c) = currentSite%CWD_BG_diagnostic_input_carbonflux(c) + &
+						 SF_val_CWD_frac(c) * bcroot * (currentCohort%lmort_logging + currentCohort%lmort_collateral + currentCohort%lmort_infra )* currentCohort%n/ AREA  
+						
 						
 				   enddo
 				   

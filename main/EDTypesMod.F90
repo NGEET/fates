@@ -131,6 +131,8 @@ module EDTypesMod
        (/"background","hydraulic ","carbon    ","impact    ","fire      "/)
 
 
+
+
   ! -------------------------------------------------------------------------------------
   ! These vectors are used for history output mapping
   ! CLM/ALM have limited support for multi-dimensional history output arrays.
@@ -480,15 +482,43 @@ module EDTypesMod
 
   end type ed_patch_type
 
+  
+  !************************************
+  !** Resources management type      **
+  ! YX
+  !************************************
+  type ed_resources_management_type
+    
+     real(r8) ::  minimum_diameter_logging = 50.0_r8 			! min diameter for logged trees    cm 
+	 
+     real(r8) ::  logging_ratio = 0.33_r8                               ! ratio between collaterally logging and directly logging 
+		       
+     real(r8) ::  fraction_trees_logged = 0.15_r8                       ! directly logging rate            %/per logging activity
+	 
+     real(r8) ::  logging_collatoral_mortality_rate        ! collaterally damaged rate        %/per logging activity
+     real(r8) ::  logging_infrastructure_mortality_rate    ! mechanically damaged rate        %/per logging activity
+	
+     real(r8) ::  trunk_product_site                       ! Actual  trunk product at site level KgC/site
+
+  
+  end type ed_resources_management_type
+
+
+
   !************************************
   !** Site type structure           **
   !************************************
 
   type ed_site_type
-
+     
      ! POINTERS  
      type (ed_patch_type), pointer :: oldest_patch => null()   ! pointer to oldest patch at the site  
      type (ed_patch_type), pointer :: youngest_patch => null() ! pointer to yngest patch at the site
+     
+     ! Resource management
+     type (ed_resources_management_type) :: resouces_management ! resouces_management at the site 
+
+
 
      ! INDICES 
      real(r8) ::  lat                                          ! latitude:  degrees 
@@ -585,6 +615,8 @@ module EDTypesMod
      real(r8) :: root_litter_diagnostic_input_carbonflux(1:maxpft) ! diagnostic flux to BG litter [kg C / m2 / yr]
 
   end type ed_site_type
+
+
 
   public :: ed_hist_scpfmaps
 
