@@ -13,6 +13,8 @@ module FatesInterfaceMod
    use EDTypesMod          , only : maxPatchesPerSite
    use EDTypesMod          , only : maxCohortsPerPatch
    use EDTypesMod          , only : maxSWb
+   use EDTypesMod          , only : ivis
+   use EDTypesMod          , only : inir
    use EDTypesMod          , only : nclmax
    use EDTypesMod          , only : nlevleaf
    use EDTypesMod          , only : numpft_ed
@@ -46,6 +48,13 @@ module FatesInterfaceMod
                                      ! specturm to track 
                                      ! (typically 2 as a default, VIS/NIR, in ED variants <2016)
 
+   integer, protected :: hlm_ivis    ! The HLMs assumption of the array index associated with the 
+                                     ! visible portion of the spectrum in short-wave radiation arrays
+
+   integer, protected :: hlm_inir    ! The HLMs assumption of the array index associated with the 
+                                     ! NIR portion of the spectrum in short-wave radiation arrays
+
+
    integer, protected :: hlm_numlevgrnd   ! Number of ground layers
    integer, protected :: hlm_numlevsoil   ! Number of soil layers
 
@@ -60,6 +69,9 @@ module FatesInterfaceMod
                                           ! biogeochemistry; can be either 1 or the total
                                           ! number of soil layers
 
+   integer, protected :: hlm_is_restart   ! Is the HLM signalling that this is a restart
+                                          ! type simulation?
+                                          ! 1=TRUE, 0=FALSE
    
    character(len=16), protected :: hlm_name ! This character string passed by the HLM
                                             ! is used during the processing of IO data, 
@@ -86,7 +98,16 @@ module FatesInterfaceMod
                                          ! between the pedotransfer functions of the HLM
                                          ! and how it moves and stores water in its
                                          ! rhizosphere shells
+
+   integer, protected :: hlm_use_vertsoilc ! This flag signals whether or not the 
+                                           ! host model is using vertically discretized
+                                           ! soil carbon
+                                           ! 1 = TRUE,  0 = FALSE
    
+                                           ! SOON TO BE DEPRECATED, WILL BE READ IN VIA
+                                           ! FATES NL OR PARAM FILE.
+   integer, protected :: hlm_use_spitfire  ! This flag signals whether or not to use SPITFIRE
+                                           ! 1 = TRUE, 0 = FALSE
 
    ! -------------------------------------------------------------------------------------
    ! Parameters that are dictated by FATES and known to be required knowledge
@@ -838,7 +859,11 @@ contains
          if (fates_global_verbose()) then
             write(fates_log(), *) 'Flushing FATES control parameters prior to transfer from host'
          end if
-         hlm_numSwb     = unset_int
+
+         hlm_numSWb     = unset_int
+         hlm_inir       = unset_int
+         hlm_ivis       = unset_int
+         hlm_is_restart = unset_int
          hlm_numlevgrnd = unset_int
          hlm_numlevsoil = unset_int
          hlm_numlevdecomp_full = unset_int
@@ -847,6 +872,8 @@ contains
          hlm_hio_ignore_val   = unset_double
          hlm_masterproc   = unset_int
          hlm_ipedof       = unset_int
+         hlm_use_vertsoilc = unset_int
+         hlm_use_spitfire  = unset_int
 
       case('check_allset')
          
@@ -873,6 +900,29 @@ contains
                write(fates_log(), *) 'FATES with:',hlm_numSWb,' bands.'
                write(fates_log(), *) 'please increase maxSWb in EDTypes to match'
                write(fates_log(), *) 'or exceed this value'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_ivis .ne. ivis) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'FATES assumption about the index of visible shortwave'
+               write(fates_log(), *) 'radiation is different from the HLM'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
+         if(hlm_inir .ne. inir) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'FATES assumption about the index of NIR shortwave'
+               write(fates_log(), *) 'radiation is different from the HLM'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_is_restart .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'FATES parameter unset: hlm_is_restart'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -926,6 +976,19 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_use_vertsoilc .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'switch for the HLMs soil carbon discretization unset: hlm_use_vertsoilc'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_use_spitfire .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'switch for SPITFIRE unset: hlm_use_spitfire'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
 
          if (fates_global_verbose()) then
             write(fates_log(), *) 'Checked. All control parameters sent to FATES.'
@@ -949,6 +1012,24 @@ contains
                   write(fates_log(),*) 'Transfering num_sw_bbands = ',ival,' to FATES'
                end if
                
+            case('vis_sw_index')
+               hlm_ivis = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering index associated with visible SW rad = ',ival,' to FATES'
+               end if
+            
+            case('nir_sw_index')
+               hlm_inir = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering index associated with NIR SW rad = ',ival,' to FATES'
+               end if
+
+            case('is_restart')
+               hlm_is_restart = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering flag signaling restart / not-restart = ',ival,' to FATES'
+               end if
+
             case('num_lev_ground')
                hlm_numlevgrnd = ival
                if (fates_global_verbose()) then
@@ -977,6 +1058,18 @@ contains
                hlm_ipedof = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_ipedof = ',ival,' to FATES'
+               end if
+
+            case('use_vertsoilc')
+               hlm_use_vertsoilc = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_vertsoilc= ',ival,' to FATES'
+               end if
+
+            case('use_spitfire')
+               hlm_use_spitfire = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_spitfire= ',ival,' to FATES'
                end if
 
             case default

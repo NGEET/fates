@@ -5,12 +5,12 @@ module EDInitMod
   ! ============================================================================
 
   use FatesConstantsMod         , only : r8 => fates_r8
+  use FatesConstantsMod         , only : ifalse
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax
   use FatesGlobals              , only : fates_log
-  use clm_varctl                , only : use_ed_spitfire 
-  use clm_time_manager          , only : is_restart
-  use EDPftvarcon                 , only : EDPftvarcon_inst
+  use FatesInterfaceMod         , only : hlm_is_restart
+  use EDPftvarcon               , only : EDPftvarcon_inst
   use EDEcophysConType          , only : EDecophyscon
   use EDGrowthFunctionsMod      , only : bdead, bleaf, dbh
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
@@ -128,7 +128,7 @@ contains
     integer  :: dleafon
     !----------------------------------------------------------------------
 
-    if ( .not. is_restart() ) then
+    if ( hlm_is_restart == ifalse ) then
        !initial guess numbers for site condition.
        NCD      = 0.0_r8
        GDD      = 30.0_r8
@@ -164,7 +164,7 @@ contains
        sites(s)%dleafondate  = dleafon
        sites(s)%ED_GDD_site  = GDD
 
-       if ( .not. is_restart() ) then
+       if ( hlm_is_restart == ifalse ) then
           sites(s)%water_memory(1:numWaterMem) = watermem
        end if
 

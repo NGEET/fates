@@ -42,18 +42,22 @@ module CLMFatesInterfaceMod
    use EnergyFluxType    , only : energyflux_type
 
    use SoilStateType     , only : soilstate_type 
-   use clm_varctl        , only : iulog, use_ed
+   use clm_varctl        , only : iulog
+   use clm_varctl        , only : use_vertsoilc 
+   use clm_varctl        , only : use_ed_spitfire
    use clm_varcon        , only : tfrz
    use clm_varcon        , only : spval 
    use clm_varcon        , only : denice
    use clm_varcon        , only : ispval
 
-   use clm_varpar        , only : numpft,            &
-                                  numrad,            &
-                                  nlevgrnd,          &
-                                  nlevsoi,           &
-                                  nlevdecomp,        &
-                                  nlevdecomp_full
+   use clm_varpar        , only : numpft
+   use clm_varpar        , only : numrad
+   use clm_varpar        , only : ivis
+   use clm_varpar        , only : inir
+   use clm_varpar        , only : nlevgrnd
+   use clm_varpar        , only : nlevsoi
+   use clm_varpar        , only : nlevdecomp
+   use clm_varpar        , only : nlevdecomp_full
    use PhotosynthesisMod , only : photosyns_type
    use atm2lndType       , only : atm2lnd_type
    use SurfaceAlbedoType , only : surfalb_type
@@ -227,6 +231,9 @@ contains
       integer                                        :: nclumps   ! Number of threads
       logical :: verbose_output
       integer :: pass_masterproc
+      integer :: pass_vertsoilc
+      integer :: pass_spitfire
+      integer :: pass_is_restart
       integer                                        :: nc        ! thread index
       integer                                        :: s         ! FATES site index
       integer                                        :: c         ! HLM column index
@@ -261,6 +268,9 @@ contains
       
       ! Send parameters individually
       call set_fates_ctrlparms('num_sw_bbands',ival=numrad)
+      call set_fates_ctrlparms('vis_sw_index',ival=ivis)
+      call set_fates_ctrlparms('nir_sw_index',ival=inir)
+      
       call set_fates_ctrlparms('num_lev_ground',ival=nlevgrnd)
       call set_fates_ctrlparms('num_lev_soil',ival=nlevsoi)
       call set_fates_ctrlparms('num_levdecomp',ival=nlevdecomp)
@@ -268,6 +278,27 @@ contains
       call set_fates_ctrlparms('hlm_name',cval='CLM')
       call set_fates_ctrlparms('hio_ignore_val',rval=spval)
       call set_fates_ctrlparms('soilwater_ipedof',ival=get_ipedof(0))
+
+      if(is_restart()) then
+         pass_is_restart = 1
+      else
+         pass_is_restart = 0
+      end if
+      call set_fates_ctrlparms('is_restart',ival=pass_is_restart)
+
+      if(use_vertsoilc) then
+         pass_vertsoilc = 1
+      else
+         pass_vertsoilc = 0
+      end if
+      call set_fates_ctrlparms('use_vertsoilc',ival=pass_vertsoilc)
+      
+      if(use_ed_spitfire) then
+         pass_spitfire = 1
+      else
+         pass_spitfire = 0
+      end if
+      call set_fates_ctrlparms('use_spitfire',ival=pass_spitfire)
 
       if(masterproc)then
          pass_masterproc = 1
@@ -1433,7 +1464,7 @@ contains
     use abortutils        , only : endrun
     use decompMod         , only : bounds_type
     use clm_varcon        , only : rgas, tfrz, namep  
-    use clm_varpar        , only : nlevsoi, mxpft
+    use clm_varpar        , only : nlevsoi
     use clm_varctl        , only : iulog
     use pftconMod         , only : pftcon
     use perf_mod          , only : t_startf, t_stopf
@@ -2234,7 +2265,8 @@ contains
    use EDtypesMod, only : nlevsclass_ed, nlevage_ed
    use EDtypesMod, only : nfsc, ncwd
    use EDtypesMod, only : nlevleaf, nclmax, numpft_ed
-   use clm_varpar, only : mxpft, nlevgrnd
+   use EDTypesMod, only : maxpft
+   use clm_varpar, only : nlevgrnd
 
    implicit none
 
@@ -2254,13 +2286,13 @@ contains
    fates%ground_end = nlevgrnd
    
    fates%sizepft_class_begin = 1
-   fates%sizepft_class_end = nlevsclass_ed * mxpft
+   fates%sizepft_class_end = nlevsclass_ed * maxpft
    
    fates%size_class_begin = 1
    fates%size_class_end = nlevsclass_ed
 
    fates%pft_class_begin = 1
-   fates%pft_class_end = mxpft
+   fates%pft_class_end = maxpft
 
    fates%age_class_begin = 1
    fates%age_class_end = nlevage_ed

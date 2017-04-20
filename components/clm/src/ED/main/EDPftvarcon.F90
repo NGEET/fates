@@ -6,7 +6,7 @@ module EDPftvarcon
   ! read and initialize vegetation (PFT) constants.
   !
   ! !USES:
-  use clm_varpar  , only : mxpft, numrad, ivis, inir, nvariants
+  use EDTypesMod  , only : maxSWb, ivis, inir
   use shr_kind_mod, only : r8 => shr_kind_r8
 
   use FatesGlobals, only : fates_log
@@ -18,7 +18,7 @@ module EDPftvarcon
 
   integer, parameter, public :: lower_bound_pft = 0
   integer, parameter, public :: lower_bound_general = 1
-  
+
   !ED specific variables. 
   type, public ::  EDPftvarcon_type
      real(r8), allocatable :: max_dbh            (:) ! maximum dbh at which height growth ceases...
@@ -890,7 +890,9 @@ contains
     lower_bound_1 = lower_bound_pft
     upper_bound_1 = lower_bound_pft + dimension_sizes(1) - 1
     lower_bound_2 = lower_bound_general
-    upper_bound_2 = numrad
+    upper_bound_2 = maxSWb      ! When we have radiation parameters read in as a vector
+                                ! We will compare the vector dimension size that we
+                                ! read-in to the parameterized size that fates expects
 
     allocate(dummy_data(lower_bound_1:upper_bound_1))
 

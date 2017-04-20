@@ -61,8 +61,6 @@ contains
 
     ! !USES:
 
-    use clm_varpar        , only : mxpft   ! THIS WILL BE DEPRECATED WHEN PARAMETER
-                                           ! READS ARE REFACTORED (RGK 10-13-2016)
     use EDPftvarcon         , only : EDPftvarcon_inst 
 
     use EDParamsMod       , only : ED_val_ag_biomass
@@ -70,6 +68,7 @@ contains
     use EDTypesMod        , only : ed_patch_type
     use EDTypesMod        , only : ed_cohort_type
     use EDTypesMod        , only : ed_site_type
+    use EDTypesMod        , only : maxpft
     use FatesInterfaceMod , only : hlm_numlevsoil
     use FatesInterfaceMod , only : bc_in_type
     use FatesInterfaceMod , only : bc_out_type
@@ -115,17 +114,17 @@ contains
     ! -----------------------------------------------------------------------------------
 
     ! leaf maintenance (dark) respiration (umol CO2/m**2/s) Double check this
-    real(r8) :: lmr_z(nlevleaf,mxpft,nclmax)
+    real(r8) :: lmr_z(nlevleaf,maxpft,nclmax)
 
     ! stomatal resistance s/m
-    real(r8) :: rs_z(nlevleaf,mxpft,nclmax)    
+    real(r8) :: rs_z(nlevleaf,maxpft,nclmax)    
 
     ! net leaf photosynthesis averaged over sun and shade leaves. (umol CO2/m**2/s) 
-    real(r8) :: anet_av_z(nlevleaf,mxpft,nclmax)  
+    real(r8) :: anet_av_z(nlevleaf,maxpft,nclmax)  
     
     ! Mask used to determine which leaf-layer biophysical rates have been
     ! used already
-    logical :: rate_mask_z(nlevleaf,mxpft,nclmax)
+    logical :: rate_mask_z(nlevleaf,maxpft,nclmax)
 
     real(r8) :: vcmax_z            ! leaf layer maximum rate of carboxylation 
                                    ! (umol co2/m**2/s)
@@ -141,7 +140,7 @@ contains
     real(r8) :: co2_cpoint         ! CO2 compensation point (Pa)
     real(r8) :: btran_eff          ! effective transpiration wetness factor (0 to 1) 
     real(r8) :: bbb                ! Ball-Berry minimum leaf conductance (umol H2O/m**2/s)
-    real(r8) :: kn(mxpft)          ! leaf nitrogen decay coefficient
+    real(r8) :: kn(maxpft)          ! leaf nitrogen decay coefficient
     real(r8) :: cf                 ! s m**2/umol -> s/m
     real(r8) :: gb_mol             ! leaf boundary layer conductance (umol H2O/m**2/s)
     real(r8) :: ceair              ! vapor pressure of air, constrained (Pa)

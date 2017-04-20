@@ -1339,7 +1339,8 @@ contains
     use FatesConstantsMod, only : sec_per_day
     use EDParamsMod, only : ED_val_ag_biomass
     use FatesInterfaceMod, only : bc_in_type, bc_out_type
-    use clm_varctl, only : use_vertsoilc
+    use FatesInterfaceMod, only : hlm_use_vertsoilc
+    use FatesConstantsMod, only : itrue
     use FatesGlobals, only : endrun => fates_endrun
     use EDParamsMod , only : ED_val_cwd_flig, ED_val_cwd_fcel
 
@@ -1414,7 +1415,7 @@ contains
     ! (3) a coarse root profile, which is the root-biomass=weighted average of the fine root profiles
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
-    if (use_vertsoilc) then
+    if (hlm_use_vertsoilc == itrue) then
 
        ! initialize profiles to zero
        leaf_prof(1:nsites, :)               = 0._r8
