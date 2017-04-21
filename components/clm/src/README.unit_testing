@@ -1,0 +1,24 @@
+# To run all CIME unit tests on caldera, run the following command:
+# (Note that this must be done from an interactive caldera session, not from yellowstone)
+# (One way to do that is to prepend with the "execca" utility that sends the resulting command to caldera)
+execca ../../../cime/tools/unit_testing/run_tests.py --test-spec-dir=. --compiler=intel --mpilib=mpich2 \
+--mpirun-command=mpirun.lsf --cmake-args=-DPAPI_LIB=/glade/apps/opt/papi/5.3.0/intel/12.1.5/lib64 &
+
+# The inclusion of PAPI_LIB is needed above since config_compilers includes:
+#   <ADD_SLIBS> -Wl,-rpath ${PAPI_LIB} -L${PAPI_LIB} -lpapi</ADD_SLIBS>
+# On a different machine besides yellowstone the path would obviously be different
+#
+
+# NOTE: If the above fails with something like...
+Running make for __command_line_test__/__command_line_test__.
+==================================================
+make: *** No targets specified and no makefile found.  Stop.
+Traceback (most recent call last):
+.
+.
+.
+# Then your build directory has issues and you need to start the build over fresh.
+# Delete the "__command_line_test__" directory as follows...
+#  \rm -rf __command_line_test__/
+# See bugzilla bug 2257 for more on this
+

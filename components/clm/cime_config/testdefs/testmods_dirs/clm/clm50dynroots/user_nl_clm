@@ -1,0 +1,2 @@
+use_dynroot = .true.
+use_hydrstress = .false.

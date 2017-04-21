@@ -1,0 +1,7 @@
+&mosart_inparam
+!  do_rtm = .true.
+!  ice_runoff  = .true. 
+  rtmhist_ndens     = 1,1,1
+  rtmhist_nhtfrq    =-24,-8
+  rtmhist_mfilt     = 1,1
+/

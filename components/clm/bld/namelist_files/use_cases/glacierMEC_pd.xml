@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+
+<!-- Support for running with glacier model -->
+
+<namelist_defaults>
+
+<use_case_desc>Running an IG case with the ice sheet model glimmer</use_case_desc>
+
+<glc_nec>10</glc_nec>
+
+<!-- glc_smb will already be set if glc_nec is set, but set explicitly here -->
+<glc_smb     >.true.</glc_smb>
+
+</namelist_defaults>

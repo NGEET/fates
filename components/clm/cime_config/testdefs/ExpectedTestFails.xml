@@ -1,0 +1,7 @@
+<?xml version= "1.0"?>
+
+<expectedFails>
+   <entry bugz="2239" >RUN ERP_D_Ld5.f09_g16.ICLM45VIC.yellowstone_intel.clm-vrtlay_interp</entry>
+   <entry bugz="2239" >RUN ERP_Ld5.f09_g16.ICLM45VIC.yellowstone_pgi.clm-vrtlay_interp</entry>
+   <entry bugz="2332" >RUN ERP_D_Ld5.f19_g16.ICRUCLM50BGC.yellowstone_intel.clm-fire_emis</entry>
+</expectedFails> 
