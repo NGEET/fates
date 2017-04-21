@@ -1,0 +1,37 @@
+# ignore svn directories
+**/.svn/**
+.svn/
+
+# editor files
+*.swp
+*~
+
+# patch temp files
+*.orig
+*.rej
+
+# mac files
+.DS_Store
+
+# cmake generated files
+build/
+CMakeFiles/
+
+# don't ignore cism build utilities directory
+!components/cism/**/build
+
+# build output
+*.o
+*.mod
+core.*
+*.gz
+*.log
+
+# test and case directories
+*.seaotter_gnu.*/
+*.yellowstone_intel.*/
+tests/
+scripts/testreporter.pl
+
+
+

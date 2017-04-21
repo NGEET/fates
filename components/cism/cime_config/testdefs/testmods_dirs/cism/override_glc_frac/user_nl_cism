@@ -1,0 +1,9 @@
+! Turn on all overrides of the glc fraction
+
+enable_frac_overrides = .true.
+decrease_override_delay = 1
+increase_override_delay = 1
+rearrange_override_delay = 1
+decrease_frac = 0.05
+increase_frac = 0.05
+rearrange_freq = 3

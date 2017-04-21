@@ -1,0 +1,11 @@
+   LIST OF TOOLS IN THE GLC_TOOLS DIRECTORY AND THEIR USES
+
+*********************************
+** Tools to make overlap files **
+*********************************
+
+* glc2scripConvert.ncl                  - converts GLC native grids to SCRIP 
+                                          formatted grid files
+* scrip2CLMoverlap.ncl                  - creates a GLC overlap file from an ESMF
+                                          interpolation weight file and a CLM
+                                          fracdata file
