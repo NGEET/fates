@@ -1,0 +1,7 @@
+#!/bin/bash
+
+#
+# # Use SUBSET rearranger on hobart
+if [ `hostname` == "hobart" ]; then
+  ./xmlchange LND_PIO_REARRANGER=2
+fi
