@@ -703,7 +703,7 @@ contains
 
      age_class         = get_age_class_index(age)
      
-     size_by_age_class = (age_class-1)*nlevage_ed + size_class
+     size_by_age_class = (age_class-1)*nlevsclass_ed + size_class
 
   end function get_sizeage_class_index
 
