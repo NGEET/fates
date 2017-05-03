@@ -1334,7 +1334,6 @@ contains
     use EDTypesMod, only : numpft_ed
     use FatesInterfaceMod, only : hlm_numlevdecomp_full
     use FatesInterfaceMod, only : hlm_numlevdecomp
-    use SoilBiogeochemVerticalProfileMod, only: surfprof_exp
     use EDPftvarcon, only : EDPftvarcon_inst
     use FatesConstantsMod, only : sec_per_day
     use EDParamsMod, only : ED_val_ag_biomass
@@ -1345,11 +1344,8 @@ contains
     use EDParamsMod , only : ED_val_cwd_flig, ED_val_cwd_fcel
 
 
-    ! INTERF-TODO: remove the control parameters: exponential_rooting_profile, 
-    ! pftspecific_rootingprofile, rootprof_exp, surfprof_exp
-    !
     implicit none   
-    !
+
     ! !ARGUMENTS    
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
@@ -1382,6 +1378,10 @@ contains
     ! private function level parameter in RootBiophysMod.F90::exponential_rootfr()
     real(r8), parameter :: rootprof_exp  = 3.  ! how steep profile is
     ! for root C inputs (1/ e-folding depth) (1/m)
+
+    ! NOTE(rgk, 201705) this parameter was brought over from SoilBiogeochemVerticalProfile
+    ! how steep profile is for surface components (1/ e_folding depth) (1/m) 
+    real(r8),  parameter :: surfprof_exp  = 10.
 
     ! NOTE(bja, 201608) as of clm4_5_10_r187 rootprof_beta is now a
     ! two dimensional array with the second dimension being water,1,
