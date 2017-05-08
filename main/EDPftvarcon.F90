@@ -6,7 +6,7 @@ module EDPftvarcon
   ! read and initialize vegetation (PFT) constants.
   !
   ! !USES:
-  use clm_varpar  , only : mxpft, numrad, ivis, inir, nvariants
+  use EDTypesMod  , only : maxSWb, ivis, inir
   use shr_kind_mod, only : r8 => shr_kind_r8
 
   use FatesGlobals, only : fates_log
@@ -18,7 +18,7 @@ module EDPftvarcon
 
   integer, parameter, public :: lower_bound_pft = 0
   integer, parameter, public :: lower_bound_general = 1
-  
+
   !ED specific variables. 
   type, public ::  EDPftvarcon_type
      real(r8), allocatable :: max_dbh            (:) ! maximum dbh at which height growth ceases...
@@ -26,6 +26,9 @@ module EDPftvarcon
      real(r8), allocatable :: wood_density       (:) ! wood density  g cm^-3  ...
      real(r8), allocatable :: alpha_stem         (:) ! live stem turnover rate. y-1
      real(r8), allocatable :: hgt_min            (:) ! sapling height m
+     real(r8), allocatable :: dleaf              (:) ! leaf characteristic dimension length (m)
+     real(r8), allocatable :: z0mr               (:) ! ratio of roughness length of vegetation to height (-) 
+     real(r8), allocatable :: displar            (:) ! ratio of displacement height to canopy top height (-)
      real(r8), allocatable :: cushion            (:) ! labile carbon storage target as multiple of leaf pool.
      real(r8), allocatable :: leaf_stor_priority (:) ! leaf turnover vs labile carbon use prioritisation. (1 = lose  leaves, 0 = use store).
      real(r8), allocatable :: leafwatermax       (:) ! degree to which respiration is limited by btran if btran = 0
@@ -42,7 +45,6 @@ module EDPftvarcon
      real(r8), allocatable :: clone_alloc        (:) ! fraction of carbon balance allocated to clonal reproduction.
      real(r8), allocatable :: seed_alloc         (:) ! fraction of carbon balance allocated to seeds.
      real(r8), allocatable :: sapwood_ratio      (:) ! amount of sapwood per unit leaf carbon and m of height. gC/gC/m
-     real(r8), allocatable :: dbh2h_m            (:) ! allocation parameter m from dbh to height
      real(r8), allocatable :: woody(:)
      real(r8), allocatable :: stress_decid(:)
      real(r8), allocatable :: season_decid(:)
@@ -67,6 +69,31 @@ module EDPftvarcon
      real(r8), allocatable :: smpso(:)
      real(r8), allocatable :: smpsc(:)
      real(r8), allocatable :: grperc(:) ! NOTE(bja, 2017-01) moved from EDParamsMod, was allocated as (maxPft=79), not (0:mxpft=78)!
+     real(r8), allocatable :: dbh2h_m(:)
+     real(r8), allocatable :: dbh2h_c(:)
+     real(r8), allocatable :: dbh2bl_a(:)
+     real(r8), allocatable :: dbh2bl_b(:)
+     real(r8), allocatable :: dbh2bl_dbh2carea_expnt_diff(:)
+     real(r8), allocatable :: dbh2bl_c(:)
+     real(r8), allocatable :: dbh2bl_slascaler(:)
+     real(r8), allocatable :: sai_scaler(:)
+     real(r8), allocatable :: dbh2bd_a(:)
+     real(r8), allocatable :: dbh2bd_b(:)
+     real(r8), allocatable :: dbh2bd_c(:)
+     real(r8), allocatable :: dbh2bd_d(:)
+     real(r8), allocatable :: bmort(:)
+     real(r8), allocatable :: hf_sm_threshold(:)
+     real(r8), allocatable :: vcmaxha(:)
+     real(r8), allocatable :: jmaxha(:)
+     real(r8), allocatable :: tpuha(:)
+     real(r8), allocatable :: vcmaxhd(:)
+     real(r8), allocatable :: jmaxhd(:)
+     real(r8), allocatable :: tpuhd(:)
+     real(r8), allocatable :: vcmaxse(:)
+     real(r8), allocatable :: jmaxse(:)
+     real(r8), allocatable :: tpuse(:)
+     real(r8), allocatable :: germination_timescale(:)
+     real(r8), allocatable :: seed_decay_turnover(:)
      real(r8), allocatable :: rhol(:, :)
      real(r8), allocatable :: rhos(:, :)
      real(r8), allocatable :: taul(:, :)
@@ -339,7 +366,120 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_dbh2h_m'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_dbh2h_c'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_dbh2bl_a'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_dbh2bl_b'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_dbh2bl_dbh2carea_expnt_diff'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_dbh2bl_c'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_dbh2bl_slascaler'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_sai_scaler'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_dbh2bd_a'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_dbh2bd_b'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_dbh2bd_c'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_dbh2bd_d'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_bmort'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_hf_sm_threshold'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_vcmaxha'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_jmaxha'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_tpuha'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_vcmaxhd'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_jmaxhd'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_tpuhd'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_vcmaxse'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_jmaxse'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_tpuse'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_germination_timescale'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_seed_decay_turnover'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_dleaf'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_z0mr'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_displar'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+
+    
   end subroutine Register_PFT
 
   !-----------------------------------------------------------------------
@@ -538,6 +678,119 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%grperc)
 
+    name = 'fates_dbh2h_m'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%dbh2h_m)
+
+    name = 'fates_dbh2h_c'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%dbh2h_c)
+
+    name = 'fates_dbh2bl_a'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%dbh2bl_a)
+
+    name = 'fates_dbh2bl_b'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%dbh2bl_b)
+
+    name = 'fates_dbh2bl_dbh2carea_expnt_diff'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%dbh2bl_dbh2carea_expnt_diff)
+
+    name = 'fates_dbh2bl_c'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%dbh2bl_c)
+
+    name = 'fates_dbh2bl_slascaler'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%dbh2bl_slascaler)
+
+    name = 'fates_sai_scaler'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%sai_scaler)
+
+    name = 'fates_dbh2bd_a'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%dbh2bd_a)
+
+    name = 'fates_dbh2bd_b'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%dbh2bd_b)
+
+    name = 'fates_dbh2bd_c'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%dbh2bd_c)
+
+    name = 'fates_dbh2bd_d'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%dbh2bd_d)
+
+    name = 'fates_bmort'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%bmort)
+
+    name = 'fates_hf_sm_threshold'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%hf_sm_threshold)
+
+    name = 'fates_vcmaxha'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%vcmaxha)
+
+    name = 'fates_jmaxha'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%jmaxha)
+
+    name = 'fates_tpuha'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%tpuha)
+
+    name = 'fates_vcmaxhd'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%vcmaxhd)
+
+    name = 'fates_jmaxhd'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%jmaxhd)
+
+    name = 'fates_tpuhd'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%tpuhd)
+
+    name = 'fates_vcmaxse'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%vcmaxse)
+
+    name = 'fates_jmaxse'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%jmaxse)
+
+    name = 'fates_tpuse'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%tpuse)
+
+    name = 'fates_germination_timescale'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%germination_timescale)
+
+    name = 'fates_seed_decay_turnover'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%seed_decay_turnover)
+
+    name = 'fates_dleaf'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%dleaf)
+
+    name = 'fates_z0mr'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%z0mr)
+
+    name = 'fates_displar'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%displar)
+
+
   end subroutine Receive_PFT
 
   !-----------------------------------------------------------------------
@@ -637,7 +890,9 @@ contains
     lower_bound_1 = lower_bound_pft
     upper_bound_1 = lower_bound_pft + dimension_sizes(1) - 1
     lower_bound_2 = lower_bound_general
-    upper_bound_2 = numrad
+    upper_bound_2 = maxSWb      ! When we have radiation parameters read in as a vector
+                                ! We will compare the vector dimension size that we
+                                ! read-in to the parameterized size that fates expects
 
     allocate(dummy_data(lower_bound_1:upper_bound_1))
 

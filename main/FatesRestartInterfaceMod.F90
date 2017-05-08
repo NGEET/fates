@@ -10,6 +10,7 @@ module FatesRestartInterfaceMod
   use FatesIODimensionsMod, only : fates_io_dimension_type
   use FatesIOVariableKindMod, only : fates_io_variable_kind_type
   use FatesRestartVariableMod, only : fates_restart_variable_type
+  use FatesInterfaceMod, only : bc_in_type
 
   ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -1292,7 +1293,7 @@ contains
 
    ! ====================================================================================
 
-   subroutine create_patchcohort_structure(this, nc, nsites, sites ) 
+   subroutine create_patchcohort_structure(this, nc, nsites, sites, bc_in) 
 
      ! ----------------------------------------------------------------------------------
      ! This subroutine takes a peak at the restart file to determine how to allocate
@@ -1322,6 +1323,7 @@ contains
      integer                     , intent(in)            :: nc
      integer                     , intent(in)            :: nsites
      type(ed_site_type)          , intent(inout), target :: sites(nsites)
+     type(bc_in_type)            , intent(in)            :: bc_in(nsites)
 
      ! local variables
      
@@ -1423,7 +1425,8 @@ contains
                 if ((mod(fto, 2)  ==  0 )) then
                    ft=1
                 endif
-                
+                temp_cohort%pft = ft
+
                 cohortstatus = newp%siteptr%status
 
                 if(EDPftvarcon_inst%stress_decid(ft) == 1)then !drought decidous, override status. 
@@ -1441,7 +1444,8 @@ contains
                 
                 call create_cohort(newp, ft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                      temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore,  &
-                     temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, newp%NCL_p)
+                     temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, newp%NCL_p, &
+                     bc_in(s))
                 
                 deallocate(temp_cohort)
                 

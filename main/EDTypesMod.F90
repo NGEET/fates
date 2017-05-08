@@ -1,8 +1,11 @@
 module EDTypesMod
 
   use FatesConstantsMod , only : r8 => fates_r8
-  use clm_varpar   , only : mxpft
+  use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
 
+  use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
+  use FatesHydraulicsMemMod, only : ed_patch_hydr_type
+  use FatesHydraulicsMemMod, only : ed_site_hydr_type
 
   implicit none
   save
@@ -21,7 +24,7 @@ module EDTypesMod
  
   integer, parameter :: numpft_ed = 2             ! number of PFTs used in ED. 
 
-  ! TODO: we use this cp_maxSWb only because we have a static array (size=2) of
+  ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
   ! land-ice abledo for vis and nir.  This should be a parameter, which would
   ! get us on track to start using multi-spectral or hyper-spectral (RGK 02-2017)
   integer, parameter :: maxSWb = 2      ! maximum number of broad-bands in the
@@ -30,11 +33,34 @@ module EDTypesMod
                                         ! if cp_numSWb is larger than this value
                                         ! simply bump this number up as needed
 
+  integer, parameter :: ivis = 1        ! This is the array index for short-wave
+                                        ! radiation in the visible spectrum, as expected
+                                        ! in boundary condition files and parameter
+                                        ! files.  This will be compared with 
+                                        ! the HLM's expectation in FatesInterfaceMod
+  integer, parameter :: inir = 2        ! This is the array index for short-wave
+                                        ! radiation in the near-infrared spectrum, as expected
+                                        ! in boundary condition files and parameter
+                                        ! files.  This will be compared with 
+                                        ! the HLM's expectation in FatesInterfaceMod
+
   ! Module switches (this will be read in one day)
   ! This variable only exists now to serve as a place holder
   !!!!!!!!!! THIS SHOULD NOT BE SET TO TRUE !!!!!!!!!!!!!!!!!
-  logical, parameter :: use_fates_plant_hydro = .false.
+  logical,parameter :: use_fates_plant_hydro = .false.
+  
 
+  ! Switches that turn on/off ED dynamics process (names are self explanatory)
+  ! IMPORTANT NOTE!!! THESE SWITCHES ARE EXPERIMENTAL.  
+  ! THEY SHOULD CORRECTLY TURN OFF OR ON THE PROCESS, BUT.. THERE ARE VARIOUS 
+  ! ASPECTS REGARDING DIAGNOSING RATES AND HOW THEY ARE REPORTED WHEN THESE 
+  ! PROCESSES ARE OFF THAT NEED TO BE DISCUSSED AND CONSIDERED.
+  ! TO-DO: THESE SHOULD BE PARAMETERS IN THE FILE OR NAMELIST - ADDING THESE
+  ! WAS OUTSIDE THE SCOPE OF THE VERY LARGE CHANGESET WHERE THESE WERE FIRST
+  ! INTRODUCED (RGK 03-2017)
+  logical, parameter :: do_ed_phenology = .true.
+  logical, parameter :: do_ed_dynamics = .true.
+ 
 
   ! MODEL PARAMETERS
   real(r8), parameter :: AREA                 = 10000.0_r8 ! Notional area of simulated forest m2
@@ -59,11 +85,7 @@ module EDTypesMod
   integer,  parameter :: lb_sf                = 4          ! array index of large branch pool for spitfire 
   real(r8), parameter :: fire_threshold       = 35.0_r8    ! threshold for fires that spread or go out. KWm-2
 
-  ! COHORT FUSION          
-  real(r8), parameter :: FUSETOL              = 0.05_r8     ! min fractional difference in dbh between cohorts
-
   ! PATCH FUSION 
-  real(r8), parameter :: patchfusion_profile_tolerance = 0.05_r8  ! minimum fraction in difference in profiles between patches
   real(r8), parameter :: NTOL                 = 0.05_r8    ! min plant density for hgt bin to be used in height profile comparisons 
   real(r8), parameter :: HITEMAX              = 30.0_r8    ! max dbh value used in hgt profile comparison 
   real(r8), parameter :: DBHMAX               = 150.0_r8   ! max dbh value used in hgt profile comparison 
@@ -217,6 +239,7 @@ module EDTypesMod
 
      real(r8) ::  npp_leaf                               ! NPP into leaves (includes replacement of turnover):  KgC/indiv/year
      real(r8) ::  npp_froot                              ! NPP into fine roots (includes replacement of turnover):  KgC/indiv/year
+
      real(r8) ::  npp_bsw                                ! NPP into sapwood: KgC/indiv/year
      real(r8) ::  npp_bdead                              ! NPP into deadwood (structure):  KgC/indiv/year
      real(r8) ::  npp_bseed                              ! NPP into seeds: KgC/indiv/year
@@ -275,6 +298,10 @@ module EDTypesMod
      real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char:-
      real(r8) ::  crownfire_mort                         ! probability of tree post-fire mortality due to crown scorch:-
      real(r8) ::  fire_mort                              ! post-fire mortality from cambial and crown damage assuming two are independent:-
+
+     ! Hydraulics
+     type(ed_cohort_hydr_type), pointer :: co_hydr       ! All cohort hydraulics data, see FatesHydraulicsMemMod.F90
+
 
   end type ed_cohort_type
 
@@ -432,6 +459,9 @@ module EDTypesMod
      real(r8) ::  tfc_ros                                          ! total fuel consumed - no trunks.  KgC/m2/day
      real(r8) ::  burnt_frac_litter(nfsc)                          ! fraction of each litter pool burned:-
 
+     ! PLANT HYDRAULICS     
+     type(ed_patch_hydr_type) , pointer :: pa_hydr                 ! All patch hydraulics data, see FatesHydraulicsMemMod.F90
+
    contains
 
   end type ed_patch_type
@@ -518,10 +548,14 @@ module EDTypesMod
      real(r8) ::  cwd_ag_burned(ncwd)
      real(r8) ::  leaf_litter_burned(numpft_ed)
 
+     ! PLANT HYDRAULICS
+     type(ed_site_hydr_type), pointer :: si_hydr
+        
      ! TERMINATION, RECRUITMENT, DEMOTION, and DISTURBANCE
-     real(r8) :: terminated_nindivs(1:nlevsclass_ed,1:mxpft,2) ! number of individuals that were in cohorts which were terminated this timestep, on size x pft x canopy array. 
+
+     real(r8) :: terminated_nindivs(1:nlevsclass_ed,1:maxpft,2) ! number of individuals that were in cohorts which were terminated this timestep, on size x pft x canopy array. 
      real(r8) :: termination_carbonflux(2)                     ! carbon flux from live to dead pools associated with termination mortality, per canopy level
-     real(r8) :: recruitment_rate(1:mxpft)                     ! number of individuals that were recruited into new cohorts
+     real(r8) :: recruitment_rate(1:maxpft)                     ! number of individuals that were recruited into new cohorts
      real(r8) :: demotion_rate(1:nlevsclass_ed)                ! rate of individuals demoted from canopy to understory per FATES timestep
      real(r8) :: demotion_carbonflux                           ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
      real(r8) :: promotion_rate(1:nlevsclass_ed)               ! rate of individuals promoted from understory to canopy per FATES timestep
@@ -530,8 +564,8 @@ module EDTypesMod
      ! some diagnostic-only (i.e. not resolved by ODE solver) flux of carbon to CWD and litter pools from termination and canopy mortality
      real(r8) :: CWD_AG_diagnostic_input_carbonflux(1:ncwd)       ! diagnostic flux to AG CWD [kg C / m2 / yr]
      real(r8) :: CWD_BG_diagnostic_input_carbonflux(1:ncwd)       ! diagnostic flux to BG CWD [kg C / m2 / yr]
-     real(r8) :: leaf_litter_diagnostic_input_carbonflux(1:mxpft) ! diagnostic flux to AG litter [kg C / m2 / yr]
-     real(r8) :: root_litter_diagnostic_input_carbonflux(1:mxpft) ! diagnostic flux to BG litter [kg C / m2 / yr]
+     real(r8) :: leaf_litter_diagnostic_input_carbonflux(1:maxpft) ! diagnostic flux to AG litter [kg C / m2 / yr]
+     real(r8) :: root_litter_diagnostic_input_carbonflux(1:maxpft) ! diagnostic flux to BG litter [kg C / m2 / yr]
 
   end type ed_site_type
 
@@ -539,7 +573,8 @@ module EDTypesMod
 
 contains
 
-  !-------------------------------------------------------------------------------------!
+
+   !-------------------------------------------------------------------------------------!
   subroutine ed_hist_scpfmaps
     ! This subroutine allocates and populates the variables
     ! that define the mapping of variables in history files in the "scpf" format
@@ -556,9 +591,9 @@ contains
     integer :: iage
 
     allocate( fates_hdim_levsclass(1:nlevsclass_ed   ))
-    allocate( fates_hdim_pfmap_levscpf(1:nlevsclass_ed*mxpft))
-    allocate( fates_hdim_scmap_levscpf(1:nlevsclass_ed*mxpft))
-    allocate( fates_hdim_levpft(1:mxpft   ))
+    allocate( fates_hdim_pfmap_levscpf(1:nlevsclass_ed*maxpft))
+    allocate( fates_hdim_scmap_levscpf(1:nlevsclass_ed*maxpft))
+    allocate( fates_hdim_levpft(1:maxpft   ))
     allocate( fates_hdim_levfuel(1:NFSC   ))
     allocate( fates_hdim_levcwdsc(1:NCWD   ))
     allocate( fates_hdim_levage(1:nlevage_ed   ))
@@ -580,7 +615,7 @@ contains
     fates_hdim_levage(:) = ageclass_ed(:)
 
     ! make pft array
-    do ipft=1,mxpft
+    do ipft=1,maxpft
        fates_hdim_levpft(ipft) = ipft
     end do
 
@@ -601,7 +636,7 @@ contains
 
     ! Fill the IO arrays that match pft and size class to their combined array
     i=0
-    do ipft=1,mxpft
+    do ipft=1,maxpft
        do isc=1,nlevsclass_ed
           i=i+1
           fates_hdim_pfmap_levscpf(i) = ipft
