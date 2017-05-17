@@ -1,4 +1,4 @@
-module SFMainMod
+  module SFMainMod
 
   ! ============================================================================
   ! All subroutines realted to the SPITFIRE fire routine. 
@@ -315,12 +315,13 @@ contains
     type(ed_patch_type) , pointer :: currentPatch
     type(ed_cohort_type), pointer :: currentCohort
 
-    real(r8) :: wind  ! daily wind in m/min
-    real(r8) :: total_grass_area ! per patch,in m2
-    real(r8) :: tree_fraction  !  site level. no units
-    real(r8) :: grass_fraction !  site level. no units
-    real(r8) :: bare_fraction  ! site level. no units 
-    integer  :: iofp           ! index of oldest fates patch
+    real(r8) :: wind                 ! daily wind in m/min
+    real(r8) :: total_grass_area     ! per patch,in m2
+    real(r8) :: tree_fraction        !  site level. no units
+    real(r8) :: grass_fraction       !  site level. no units
+    real(r8) :: bare_fraction        ! site level. no units 
+    integer  :: iofp                 ! index of oldest fates patch
+
 
     ! note - this is a patch level temperature, which probably won't have much inpact, 
     ! unless we decide to ever calculated the NI for each patch.  
@@ -355,10 +356,10 @@ contains
        grass_fraction = grass_fraction + min(currentPatch%area,total_grass_area)/AREA 
        
        if(DEBUG)then
-         !write(fates_log(),*) 'SF  currentPatch%area ',currentPatch%area
-         !write(fates_log(),*) 'SF  currentPatch%total_area ',currentPatch%total_tree_area
-         !write(fates_log(),*) 'SF  total_grass_area ',tree_fraction,grass_fraction
-         !write(fates_log(),*) 'SF  AREA ',AREA
+         write(fates_log(),*) 'SF  currentPatch%area ',currentPatch%area
+         write(fates_log(),*) 'SF  currentPatch%total_area ',currentPatch%total_tree_area
+         write(fates_log(),*) 'SF  total_grass_area ',tree_fraction,grass_fraction
+         write(fates_log(),*) 'SF  AREA ',AREA
        endif
        
        currentPatch => currentPatch%younger
@@ -392,32 +393,37 @@ contains
 
     use SFParamsMod, only  : SF_val_miner_total, SF_val_part_dens, &
          SF_val_miner_damp, SF_val_fuel_energy
+    use FatesInterfaceMod, only : hlm_current_day, hlm_current_month
 
     type(ed_site_type), intent(in), target :: currentSite
 
     type(ed_patch_type), pointer :: currentPatch
-
-    real(r8) dummy
 
     ! Rothermal fire spread model parameters. 
     real(r8) beta,beta_op         !weighted average of packing ratio (unitless)
     real(r8) ir                   !reaction intensity (kJ/m2/min)
     real(r8) xi,eps,phi_wind      !all are unitless
     real(r8) q_ig                 !heat of pre-ignition (kJ/kg)
-    real(r8) reaction_v_opt,reaction_v_max !reaction velocity (per min)
+    real(r8) reaction_v_opt,reaction_v_max !reaction velocity (per min)!optimum and maximum
     real(r8) moist_damp,mw_weight !moisture dampening coefficient and ratio fuel moisture to extinction
-    real(r8) bet                  !ratio of beta/beta_op
-    real(r8) a,b,c,e              !function of fuel sav
+    real(r8) beta_ratio           !ratio of beta/beta_op
+    real(r8) a_beta               !dummy variable for product of a* beta_ratio for react_v_opt equation
+    real(r8) a,b,c,e                         !function of fuel sav
+    real(r8),parameter::wind_max = 45.718_r8 !max wind speed (m/min)=150 ft/min per Lasslop etal 2014
+    real(r8) wind_elev_fire                  !wind speed (m/min) at elevevation relevant for fire
+
+    logical,parameter :: debug_windspeed = .false. !for debugging
 
     currentPatch=>currentSite%oldest_patch;  
 
     do while(associated(currentPatch))
               
         ! ---initialise parameters to zero.--- 
-       bet = 0.0_r8;   q_ig = 0.0_r8;   eps = 0.0_r8;   a = 0.0_r8;   b = 0.0_r8;   c = 0.0_r8;   e = 0.0_r8
+       beta_ratio = 0.0_r8; q_ig = 0.0_r8; eps = 0.0_r8;   a = 0.0_r8;   b = 0.0_r8;   c = 0.0_r8;   e = 0.0_r8
        phi_wind = 0.0_r8;   xi = 0.0_r8;   reaction_v_max = 0.0_r8;  reaction_v_opt = 0.0_r8; mw_weight = 0.0_r8
-       moist_damp = 0.0_r8;   ir = 0.0_r8;   dummy = 0.0_r8;     
+       moist_damp = 0.0_r8;   ir = 0.0_r8; a_beta = 0.0_r8;     
        currentPatch%ROS_front = 0.0_r8
+
        ! remove mineral content from net fuel load per Thonicke 2010 for ir calculation
        currentPatch%sum_fuel  = currentPatch%sum_fuel * (1.0_r8 - SF_val_miner_total) !net of minerals
 
@@ -430,16 +436,15 @@ contains
 
        ! beta = packing ratio (unitless)
        ! fraction of fuel array volume occupied by fuel or compactness of fuel bed 
-
        beta = currentPatch%fuel_bulkd / SF_val_part_dens
        
        ! Equation A6 in Thonicke et al. 2010
        ! packing ratio (unitless) 
        beta_op = 0.200395_r8 *(currentPatch%fuel_sav**(-0.8189_r8))
 
-       if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - beta ',beta
-       if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - beta_op ',beta_op
-       bet = beta/beta_op   !unitless
+       if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - beta ',beta
+       if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - beta_op ',beta_op
+       beta_ratio = beta/beta_op   !unitless
 
        if(write_sf == itrue)then
           if ( hlm_masterproc == itrue ) write(fates_log(),*) 'esf ',currentPatch%fuel_eff_moist
@@ -462,37 +467,48 @@ contains
        e = 0.715_r8 * (exp(-0.01094_r8 * currentPatch%fuel_sav))
 
        if (DEBUG) then
-          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - c ',c
-          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) &
-               'SF - currentPatch%effect_wspeed ',currentPatch%effect_wspeed
-          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - b ',b
-          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - bet ',bet
-          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - e ',e
+          if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - c ',c
+          if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - currentPatch%effect_wspeed ',currentPatch%effect_wspeed
+          if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - b ',b
+          if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - beta_ratio ',beta_ratio
+          if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - e ',e
        endif
 
        ! Equation A5 in Thonicke et al. 2010
-       ! convert effect_wspeed from m/min to ft/min for Rothermel ROS eqn
        ! phi_wind (unitless)
-       phi_wind = c * ((3.281_r8*currentPatch%effect_wspeed)**b)*(bet**(-e)) 
+       ! convert wind_elev_fire from m/min to ft/min for Rothermel ROS eqn
+       ! wind max per Lasslop et al 2014 to lenearly reduce ROS for high wind speeds
+       !OLD! phi_wind = c * ((3.281_r8*currentPatch%effect_wspeed)**b)*(beta_ratio**(-e))
+       if (currentPatch%effect_wspeed .le. wind_max) then
+          wind_elev_fire = currentPatch%effect_wspeed
+          phi_wind = c * ((3.281_r8*wind_elev_fire)**b)*(beta_ratio**(-e))
+          if (debug_windspeed) write(fates_log(),*) 'SF wind LESS max ', currentPatch%effect_wspeed 
+          if (debug_windspeed) write(fates_log(),*) 'month and day', hlm_current_month, hlm_current_day             
+       else
+          ! max conditional 225 ft/min from Lasslop 2014 converted to 68.577 m/min 
+          wind_elev_fire = max(0.0_r8,(68.577-0.5*currentPatch%effect_wspeed))
+          phi_wind = c * ((3.281_r8*wind_elev_fire)**b)*(beta_ratio**(-e))
+          if (debug_windspeed) write(fates_log(),*) 'SF wind GREATER max ', currentPatch%effect_wspeed
+          if (debug_windspeed) write(fates_log(),*) 'month and day', hlm_current_month, hlm_current_day 
+       endif 
 
        ! ---propagating flux----
-       ! Equation A2 in Thonicke et al.
-       ! xi (unitless)        
-
+       ! Equation A2 in Thonicke et al.2010
+       ! xi (unitless)       
        xi = (exp((0.792_r8 + 3.7597_r8 * (currentPatch%fuel_sav**0.5_r8)) * (beta+0.1_r8))) / &
             (192_r8+7.9095_r8 * currentPatch%fuel_sav)      
       
        ! ---reaction intensity----
        ! Equation in table A1 Thonicke et al. 2010. 
        a = 8.9033_r8 * (currentPatch%fuel_sav**(-0.7913_r8))
-       dummy = exp(a*(1-bet))
+       a_beta = exp(a*(1-beta_ratio))  !dummy variable for reaction_v_opt equation
+  
        ! Equation in table A1 Thonicke et al. 2010.
        ! reaction_v_max and reaction_v_opt = reaction velocity in units of per min
-       
-       ! Equation 36 in Rothermal 1972  12 
+       ! reaction_v_max = Equation 36 in Rothermal 1972 and Fig 12 
        reaction_v_max  = 1.0_r8 / (0.0591_r8 + 2.926_r8* (currentPatch%fuel_sav**(-1.5_r8)))
-       ! Equation 38 in Rothermal 1972 and Fig 11
-       reaction_v_opt = reaction_v_max*(bet**a)*dummy
+       ! reaction_v_opt =  Equation 38 in Rothermal 1972 and Fig 11
+       reaction_v_opt = reaction_v_max*(beta_ratio**a)*a_beta
 
        ! mw_weight = relative fuel moisture/fuel moisture of extinction
        ! average values for litter pools (dead leaves, twigs, small and large branches) plus grass
@@ -509,7 +525,7 @@ contains
        ! endif
        
        ! ir = reaction intenisty in kJ/m2/min
-       ! currentPatch%sum_fuel needs to be converted from kgC/m2 to kgBiomass/m2 for ir calculation
+       ! currentPatch%sum_fuel converted from kgC/m2 to kgBiomass/m2 for ir calculation
        ir = reaction_v_opt*(currentPatch%sum_fuel/0.45_r8)*SF_val_fuel_energy*moist_damp*SF_val_miner_damp 
 
        ! write(fates_log(),*) 'ir',gamma_aptr,moist_damp,SF_val_fuel_energy,SF_val_miner_damp
