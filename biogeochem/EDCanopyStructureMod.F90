@@ -84,6 +84,7 @@ contains
     use EDParamsMod, only : ED_val_comp_excln, ED_val_ag_biomass
     use SFParamsMod, only : SF_val_cwd_frac
     use EDtypesMod , only : ncwd, min_patch_area
+    use EDTypesMod , only : get_size_class_index
     use FatesInterfaceMod, only : bc_in_type
     !
     ! !ARGUMENTS    
@@ -107,7 +108,7 @@ contains
     real(r8) :: sum_weights(nlevleaf)
     real(r8) :: new_total_area_check
     real(r8) :: missing_area, promarea,cc_gain,sumgain
-    integer  :: promswitch,lower_cohort_switch
+    integer  :: promswitch,lower_cohort_switch,ipft
     real(r8) :: sumloss,excess_area
     integer  :: count_mi
     !----------------------------------------------------------------------
@@ -122,6 +123,8 @@ contains
     !
     ! Section 1: Check  total canopy area.    
     !
+
+
     new_total_area_check = 0._r8
     do while (associated(currentPatch)) ! Patch loop    
 
@@ -152,6 +155,7 @@ contains
           endif
 
           currentPatch%NCL_p = min(nclmax,z)   ! Set current canopy layer occupancy indicator.  
+
 
           do i = 1,z ! Loop around the currently occupied canopy layers. 
              
@@ -209,8 +213,8 @@ contains
                          ! seperate cohorts. 
                          ! - 0.000000000001_r8 !needs to be a very small number to avoid 
                          ! causing non-linearity issues with c_area.  is this really required? 
-                         currentCohort%dbh = currentCohort%dbh 
-                         copyc%dbh = copyc%dbh !+ 0.000000000001_r8
+!                         currentCohort%dbh = currentCohort%dbh 
+!                         copyc%dbh = copyc%dbh !+ 0.000000000001_r8
 
                          ! keep track of number and biomass of demoted cohort
                          currentSite%demotion_rate(currentCohort%size_class) = &
@@ -280,9 +284,9 @@ contains
                          endif
                          currentCohort%taller => copyc                  
                       else
+
                          currentCohort%canopy_layer = i + 1 !the whole cohort becomes demoted
                          sumloss = sumloss + currentCohort%c_area 
-
                          ! keep track of number and biomass of demoted cohort
                          currentSite%demotion_rate(currentCohort%size_class) = &
                               currentSite%demotion_rate(currentCohort%size_class) + currentCohort%n
@@ -791,7 +795,6 @@ contains
              
              ft = currentCohort%pft
 
-             
              ! Update the cohort's index within the size bin classes
              ! Update the cohort's index within the SCPF classification system
              call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &

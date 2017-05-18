@@ -476,7 +476,7 @@ contains
     currentcohort%resp_acc_hold      = 0._r8
     currentcohort%carbon_balance     = 0._r8
     currentcohort%leaf_litter        = 0._r8
-    currentcohort%year_net_uptake(:) = 999 ! this needs to be 999, or trimming of new cohorts will break. 
+    currentcohort%year_net_uptake(:) = 999._r8 ! this needs to be 999, or trimming of new cohorts will break. 
     currentcohort%ts_net_uptake(:)   = 0._r8
     currentcohort%seed_prod          = 0._r8
     currentcohort%cfa                = 0._r8 
@@ -656,6 +656,7 @@ contains
     ! !USES:
     use EDTypesMod  , only :  nlevleaf
     use EDParamsMod , only :  ED_val_cohort_fusion_tol
+    use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
     !
     ! !ARGUMENTS    
     type (ed_patch_type), intent(inout), target :: patchptr
@@ -690,6 +691,7 @@ contains
     !---------------------------------------------------------------------!
     !  Keep doing this until nocohorts <= maxcohorts                         !
     !---------------------------------------------------------------------!
+
     if (associated(currentPatch%shortest)) then  
        do while(iterate == 1)
 
@@ -727,71 +729,77 @@ contains
 			 ! to fuse with other new cohorts to keep the total number of cohorts
 			 ! down.
 
-                         if( .not.(currentCohort%isnew) .and. .not.(nextc%isnew) ) then
+                         
+			 if( currentCohort%isnew.eqv.nextc%isnew ) then
+
 
                          newn = currentCohort%n + nextc%n
                          fusion_took_place = 1         
-                             
 
-                         currentCohort%balive    = (currentCohort%n*currentCohort%balive    + nextc%n*nextc%balive)/newn
-                         currentCohort%bdead     = (currentCohort%n*currentCohort%bdead     + nextc%n*nextc%bdead)/newn
+			 if ( DEBUG ) write(fates_log(),*) 'Fusing Two Cohorts'
+			 if ( DEBUG ) write(fates_log(),*) 'Cohort I, Cohort II'
 
-                         if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn I ',currentCohort%bstore
+                         currentCohort%balive      = (currentCohort%n*currentCohort%balive      &
+			                              + nextc%n*nextc%balive)/newn
+                         currentCohort%bdead       = (currentCohort%n*currentCohort%bdead       &
+			                              + nextc%n*nextc%bdead)/newn
+                         currentCohort%bstore      = (currentCohort%n*currentCohort%bstore      &
+			                              + nextc%n*nextc%bstore)/newn   
+                         currentCohort%laimemory   = (currentCohort%n*currentCohort%laimemory   &
+			                              + nextc%n*nextc%laimemory)/newn
+                         currentCohort%b           = (currentCohort%n*currentCohort%b           &
+			                              + nextc%n*nextc%b)/newn
+                         currentCohort%bsw         = (currentCohort%n*currentCohort%bsw         &
+                                                      + nextc%n*nextc%bsw)/newn
+                         currentCohort%bl          = (currentCohort%n*currentCohort%bl          &
+			                              + nextc%n*nextc%bl)/newn
+                         currentCohort%br          = (currentCohort%n*currentCohort%br          &
+                                                      + nextc%n*nextc%br)/newn
+                         currentCohort%hite        = (currentCohort%n*currentCohort%hite        &
+                                                      + nextc%n*nextc%hite)/newn         
+                         currentCohort%dbh         = (currentCohort%n*currentCohort%dbh         &
+                                                      + nextc%n*nextc%dbh)/newn
+                         currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim &
+			                              + nextc%n*nextc%canopy_trim)/newn
 
-                         currentCohort%bstore    = (currentCohort%n*currentCohort%bstore    + nextc%n*nextc%bstore)/newn   
+			 call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
+			                           currentCohort%size_class,currentCohort%size_by_pft_class)
+                         
+			 if(use_fates_plant_hydro) call FuseCohortHydraulics(currentCohort,nextc,bc_in,newn)
 
-                         if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn II ',currentCohort%bstore
+			 ! recent canopy history
+                         currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
+                              nextc%n*nextc%canopy_layer_yesterday)/newn
 
-                         currentCohort%seed_prod = (currentCohort%n*currentCohort%seed_prod + nextc%n*nextc%seed_prod)/newn  
-                         currentCohort%root_md   = (currentCohort%n*currentCohort%root_md   + nextc%n*nextc%root_md)/newn   
-                         currentCohort%leaf_md   = (currentCohort%n*currentCohort%leaf_md   + nextc%n*nextc%leaf_md)/newn  
-                         currentCohort%laimemory = (currentCohort%n*currentCohort%laimemory + nextc%n*nextc%laimemory)/newn
-                         currentCohort%md        = (currentCohort%n*currentCohort%md        + nextc%n*nextc%md)/newn
+                         ! Flux and biophysics variables have not been calculated for recruits we just default to 
+			 ! their initization values, which should be the same for eahc
 
+			 if ( .not.currentCohort%isnew) then
+			 
+			 currentCohort%md             = (currentCohort%n*currentCohort%md        + nextc%n*nextc%md)/newn
+                         currentCohort%seed_prod      = (currentCohort%n*currentCohort%seed_prod + nextc%n*nextc%seed_prod)/newn
+                         currentCohort%root_md        = (currentCohort%n*currentCohort%root_md   + nextc%n*nextc%root_md)/newn
+                         currentCohort%leaf_md        = (currentCohort%n*currentCohort%leaf_md   + nextc%n*nextc%leaf_md)/newn
                          currentCohort%carbon_balance = (currentCohort%n*currentCohort%carbon_balance + &
                               nextc%n*nextc%carbon_balance)/newn
-
-                         currentCohort%storage_flux = (currentCohort%n*currentCohort%storage_flux + &
-                              nextc%n*nextc%storage_flux)/newn               
-
-                         currentCohort%b           = (currentCohort%n*currentCohort%b           + nextc%n*nextc%b)/newn
-                         currentCohort%bsw         = (currentCohort%n*currentCohort%bsw         + nextc%n*nextc%bsw)/newn
-                         currentCohort%bl          = (currentCohort%n*currentCohort%bl          + nextc%n*nextc%bl)/newn
-
-                         if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn 569 ',currentCohort%br
-                         if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn 570 ',currentCohort%n
-                         if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn 571 ',nextc%br
-                         if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn 572 ',nextc%n
-
-                         currentCohort%br          = (currentCohort%n*currentCohort%br          + nextc%n*nextc%br)/newn
-                         currentCohort%hite        = (currentCohort%n*currentCohort%hite        + nextc%n*nextc%hite)/newn         
-                         currentCohort%dbh         = (currentCohort%n*currentCohort%dbh         + nextc%n*nextc%dbh)/newn
-
-                         currentCohort%gpp_acc     = (currentCohort%n*currentCohort%gpp_acc     + nextc%n*nextc%gpp_acc)/newn
-
-                         if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn III ',currentCohort%npp_acc
-                         if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn IV ',currentCohort%resp_acc
-
-                         currentCohort%npp_acc     = (currentCohort%n*currentCohort%npp_acc     + nextc%n*nextc%npp_acc)/newn
-                         currentCohort%resp_acc    = (currentCohort%n*currentCohort%resp_acc    + nextc%n*nextc%resp_acc)/newn
-
-                         if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn V ',currentCohort%npp_acc
-                         if ( DEBUG ) write(fates_log(),*) 'EDcohortDyn VI ',currentCohort%resp_acc
-                         
-                         currentCohort%resp_acc_hold = &
+                         currentCohort%storage_flux   = (currentCohort%n*currentCohort%storage_flux + &
+                              nextc%n*nextc%storage_flux)/newn
+                         currentCohort%gpp_acc        = (currentCohort%n*currentCohort%gpp_acc     + nextc%n*nextc%gpp_acc)/newn
+                         currentCohort%npp_acc        = (currentCohort%n*currentCohort%npp_acc     + nextc%n*nextc%npp_acc)/newn
+                         currentCohort%resp_acc       = (currentCohort%n*currentCohort%resp_acc    + nextc%n*nextc%resp_acc)/newn
+                         currentCohort%resp_acc_hold  = &
                                (currentCohort%n*currentCohort%resp_acc_hold + &
                                nextc%n*nextc%resp_acc_hold)/newn
-                         currentCohort%npp_acc_hold  = &
+                         currentCohort%npp_acc_hold   = &
                                (currentCohort%n*currentCohort%npp_acc_hold + &
                                nextc%n*nextc%npp_acc_hold)/newn
-                         currentCohort%gpp_acc_hold  = &
+                         currentCohort%gpp_acc_hold   = &
                                (currentCohort%n*currentCohort%gpp_acc_hold + &
                                nextc%n*nextc%gpp_acc_hold)/newn
-
-                         currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim + nextc%n*nextc%canopy_trim)/newn
-			 currentCohort%dmort       = (currentCohort%n*currentCohort%dmort       + nextc%n*nextc%dmort)/newn
-                         currentCohort%fire_mort   = (currentCohort%n*currentCohort%fire_mort   + nextc%n*nextc%fire_mort)/newn
-                         currentCohort%leaf_litter = (currentCohort%n*currentCohort%leaf_litter + nextc%n*nextc%leaf_litter)/newn
+                         currentCohort%canopy_trim    = (currentCohort%n*currentCohort%canopy_trim + nextc%n*nextc%canopy_trim)/newn
+			 currentCohort%dmort          = (currentCohort%n*currentCohort%dmort       + nextc%n*nextc%dmort)/newn
+                         currentCohort%fire_mort      = (currentCohort%n*currentCohort%fire_mort   + nextc%n*nextc%fire_mort)/newn
+                         currentCohort%leaf_litter    = (currentCohort%n*currentCohort%leaf_litter + nextc%n*nextc%leaf_litter)/newn
 
                          ! mortality diagnostics
                          currentCohort%cmort = (currentCohort%n*currentCohort%cmort + nextc%n*nextc%cmort)/newn
@@ -808,10 +816,6 @@ contains
                          currentCohort%npp_bseed = (currentCohort%n*currentCohort%npp_bseed + nextc%n*nextc%npp_bseed)/newn
                          currentCohort%npp_store = (currentCohort%n*currentCohort%npp_store + nextc%n*nextc%npp_store)/newn
 
-                         ! recent canopy history
-                         currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
-                              nextc%n*nextc%canopy_layer_yesterday)/newn
-
                          do i=1, nlevleaf     
                             if (currentCohort%year_net_uptake(i) == 999._r8 .or. nextc%year_net_uptake(i) == 999._r8) then
                                currentCohort%year_net_uptake(i) = min(nextc%year_net_uptake(i),currentCohort%year_net_uptake(i))
@@ -821,7 +825,8 @@ contains
                             endif
                          enddo
                          
-                         if(use_fates_plant_hydro) call FuseCohortHydraulics(currentCohort,nextc,bc_in,newn)
+
+                         end if !(currentCohort%isnew)
                          
                          currentCohort%n = newn     
                          !remove fused cohort from the list
@@ -837,7 +842,7 @@ contains
                             deallocate(nextc)            
                          endif
 
-                         endif ! Not a recruit
+                         endif ! if( currentCohort%isnew.eqv.nextc%isnew ) then
 
                       endif !canopy layer
                    endif !pft
@@ -879,6 +884,19 @@ contains
        else
           iterate = 0
        endif
+
+       if ( dynamic_fusion_tolerance .gt. 100._r8) then
+           ! something has gone terribly wrong and we need to report what
+           write(fates_log(),*) 'exceeded reasonable expectation of cohort fusion.'
+           currentCohort => currentPatch%tallest
+           nocohorts = 0
+           do while(associated(currentCohort))
+              write(fates_log(),*) 'cohort ', nocohorts, currentCohort%dbh, currentCohort%canopy_layer, currentCohort%n
+              nocohorts = nocohorts + 1
+              currentCohort => currentCohort%shorter
+           enddo
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        endif
 
     enddo !do while nocohorts>maxcohorts
 
@@ -1099,6 +1117,8 @@ contains
     n%status_coh      = o%status_coh               
     n%excl_weight     = o%excl_weight               
     n%prom_weight     = o%prom_weight               
+    n%size_class      = o%size_class
+    n%size_by_pft_class = o%size_by_pft_class
 
     ! CARBON FLUXES
     n%gpp_acc_hold    = o%gpp_acc_hold
