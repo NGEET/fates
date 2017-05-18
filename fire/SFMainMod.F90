@@ -442,8 +442,8 @@ contains
        ! packing ratio (unitless) 
        beta_op = 0.200395_r8 *(currentPatch%fuel_sav**(-0.8189_r8))
 
-       if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - beta ',beta
-       if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - beta_op ',beta_op
+       if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - beta ',beta
+       if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - beta_op ',beta_op
        beta_ratio = beta/beta_op   !unitless
 
        if(write_sf == itrue)then
@@ -467,11 +467,11 @@ contains
        e = 0.715_r8 * (exp(-0.01094_r8 * currentPatch%fuel_sav))
 
        if (DEBUG) then
-          if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - c ',c
-          if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - currentPatch%effect_wspeed ',currentPatch%effect_wspeed
-          if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - b ',b
-          if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - beta_ratio ',beta_ratio
-          if ( hlm_masterproc == 1 .and.DEBUG) write(fates_log(),*) 'SF - e ',e
+          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - c ',c
+          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - currentPatch%effect_wspeed ',currentPatch%effect_wspeed
+          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - b ',b
+          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - beta_ratio ',beta_ratio
+          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - e ',e
        endif
 
        ! Equation A5 in Thonicke et al. 2010
