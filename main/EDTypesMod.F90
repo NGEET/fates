@@ -80,8 +80,9 @@ module EDTypesMod
   integer , parameter :: NFSC                 = NCWD+2     ! number fuel size classes  (really this is a mix of cwd size classes, leaf litter, and grass types)
   integer,  parameter :: lg_sf                = 6          ! array index of live grass pool for spitfire
   integer,  parameter :: dl_sf                = 1          ! array index of dead leaf pool for spitfire (dead grass and dead leaves)
+  integer,  parameter :: tw_sf                = 2          ! array index of twig pool for spitfire
   integer,  parameter :: tr_sf                = 5          ! array index of dead trunk pool for spitfire
-  integer,  parameter :: lb_sf                = 4          ! array index of lrge branch pool for spitfire 
+  integer,  parameter :: lb_sf                = 4          ! array index of large branch pool for spitfire 
   real(r8), parameter :: fire_threshold       = 35.0_r8    ! threshold for fires that spread or go out. KWm-2
 
   ! PATCH FUSION 
