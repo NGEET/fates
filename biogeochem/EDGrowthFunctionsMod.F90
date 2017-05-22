@@ -256,11 +256,11 @@ contains
     ! that are outside the number of alloted canopy spaces.  Ie, a two story canopy
     ! may have a third-story plant, if only for a moment.  However, these plants
     ! still need to generate a crown area to complete the promotion, demotion process.
-    ! So we allow layer index exceedence here and force it down to max and force it up
-    ! to 1 (rgk/cdk 05/2017)
+    ! So we allow layer index exceedence here and force it down to max.
+    ! (rgk/cdk 05/2017)
     ! ----------------------------------------------------------------------------------
 
-    can_layer_index = max(min(cohort_in%canopy_layer,nclmax),1)
+    can_layer_index = min(cohort_in%canopy_layer,nclmax)
 
     if(EDPftvarcon_inst%woody(cohort_in%pft) == 1)then 
        c_area = 3.142_r8 * cohort_in%n * &
