@@ -188,12 +188,15 @@ contains
 	real(r8) :: logging_density      ! # logged trees per m2 (logged trunk)
 	
 	real(r8) :: np_mult           !Fraction of the new patch which came from the current patch (and so needs the same litter) 
+        real(r8) :: flux_out
     integer :: p,c
 	 
     currentSite  => cp_Site
     currentPatch => cp_target
     new_patch => new_patch_target
-	
+
+    flux_out=0.0_r8
+
 
 	 
 	if (currentPatch%logging==1) then ! 
@@ -274,8 +277,7 @@ contains
 						!currentPatch%trunk_product unit is kGC/m2
 						 currentPatch%trunk_product = currentPatch%trunk_product + logging_density * SF_val_CWD_frac(c) * bstem
 
-						 currentSite%flux_out = currentSite%flux_out + logging_density * SF_val_CWD_frac(c) * bstem * AREA
-						 
+						 flux_out = flux_out + logging_density * SF_val_CWD_frac(c) * bstem
 						 
 						! track as diagnostic fluxes
 						 currentSite%CWD_AG_diagnostic_input_carbonflux(c) = currentSite%CWD_AG_diagnostic_input_carbonflux(c) + &
@@ -307,6 +309,20 @@ contains
 			   
 		enddo !currentCohort
 		
+                currentSite%flux_out = currentSite%flux_out + flux_out*currentPatch%area
+     
+                currentCohort => new_patch%shortest
+                do while(associated(currentCohort))
+                        currentCohort%c_area = c_area(currentCohort)
+
+
+                        currentCohort => currentCohort%taller
+
+
+                enddo
+                
+
+
 	
 	end if
 	
