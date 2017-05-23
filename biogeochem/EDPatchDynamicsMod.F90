@@ -1044,6 +1044,7 @@ contains
     currentPatch%fab(:)                     = 0.0_r8
     currentPatch%sabs_dir(:)                = 0.0_r8
     currentPatch%sabs_dif(:)                = 0.0_r8
+    currentPatch%zstar                      = 0.0_r8
 
 
   end subroutine zero_patch
@@ -1267,7 +1268,7 @@ contains
     rp%dleaf_litter_dt(:)   = (dp%dleaf_litter_dt(:)*dp%area + rp%dleaf_litter_dt(:)*rp%area)/(dp%area+rp%area)
     rp%leaf_litter_in(:)    = (dp%leaf_litter_in(:)*dp%area  + rp%leaf_litter_in(:)*rp%area)/(dp%area+rp%area)
     rp%leaf_litter_out(:)   = (dp%leaf_litter_out(:)*dp%area + rp%leaf_litter_out(:)*rp%area)/(dp%area+rp%area)
-
+    rp%zstar                = (dp%zstar*dp%area + rp%zstar*rp%area)/(dp%area+rp%area)
 
     rp%area = rp%area + dp%area !THIS MUST COME AT THE END!
 

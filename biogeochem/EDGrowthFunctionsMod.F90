@@ -397,6 +397,7 @@ contains
     ! ============================================================================
 
     use EDParamsMod,  only : ED_val_stress_mort
+    use EDParamsMod,  only : fates_switch_prescribed_physiology_mode, fates_switch_true
 
     type (ed_cohort_type), intent(in) :: cohort_in
     real(r8),intent(out) :: bmort ! background mortality : Fraction per year
@@ -404,8 +405,10 @@ contains
     real(r8),intent(out) :: hmort  ! hydraulic failure mortality
 
     real(r8) :: frac  ! relativised stored carbohydrate
-
     real(r8) :: hf_sm_threshold    ! hydraulic failure soil moisture threshold 
+
+
+    if (fates_switch_prescribed_physiology_mode .ne. fates_switch_true) then
 
     ! 'Background' mortality (can vary as a function of density as in ED1.0 and ED2.0, but doesn't here for tractability) 
     bmort = EDPftvarcon_inst%bmort(cohort_in%pft) 
@@ -434,6 +437,16 @@ contains
     endif
 
     !mortality_rates = bmort + hmort + cmort
+
+    else ! fates_switch_prescribed_physiology_mode .eq. fates_switch_true
+       if ( cohort_in%canopy_layer .eq. 1) then
+          bmort = EDPftvarcon_inst%prescribed_mortality_canopy(cohort_in%pft)
+       else
+          bmort = EDPftvarcon_inst%prescribed_mortality_understory(cohort_in%pft)
+       endif
+       cmort = 0._r8
+       hmort = 0._r8
+    endif
 
  end subroutine mortality_rates
 

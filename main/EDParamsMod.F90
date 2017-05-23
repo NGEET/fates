@@ -41,6 +41,29 @@ module EDParamsMod
    real(r8),protected :: ED_val_phen_coldtemp
    real(r8),protected :: ED_val_cohort_fusion_tol
    real(r8),protected :: ED_val_patch_fusion_tol
+
+   !!! below are logical switches masquerading as r8 parameters !!!
+
+   ! this is a switch that decouples physiology from veg dynamics in the sense of fixing a presecribed NPP/crown area ratio
+   ! canopy&understory mortality rates, and recruitmetn flux                                                                                                                
+   real(r8),protected :: fates_switch_prescribed_physiology_mode
+
+   !!! below are r8 parameters to be compared to the above r8 switches to determine true/false or case select values !!!
+   ! true/false
+   real(r8),parameter :: fates_switch_true  = 1.0_r8
+   real(r8),parameter :: fates_switch_false = 0.0_r8
+   ! case selects
+   real(r8),parameter :: fates_switch_zero  = 0.0_r8
+   real(r8),parameter :: fates_switch_one   = 1.0_r8
+   real(r8),parameter :: fates_switch_two   = 2.0_r8
+   real(r8),parameter :: fates_switch_three = 3.0_r8
+   real(r8),parameter :: fates_switch_four  = 4.0_r8
+   real(r8),parameter :: fates_switch_five  = 5.0_r8
+   real(r8),parameter :: fates_switch_six   = 6.0_r8
+   real(r8),parameter :: fates_switch_seven = 7.0_r8
+   real(r8),parameter :: fates_switch_eight = 8.0_r8
+   real(r8),parameter :: fates_switch_nine  = 9.0_r8
+   real(r8),parameter :: fates_switch_ten   = 10.0_r8
   
    character(len=param_string_length),parameter :: ED_name_grass_spread = "fates_grass_spread"
    character(len=param_string_length),parameter :: ED_name_comp_excln = "fates_comp_excln"
@@ -68,6 +91,8 @@ module EDParamsMod
    character(len=param_string_length),parameter :: ED_name_phen_coldtemp= "fates_phen_coldtemp"   
    character(len=param_string_length),parameter :: ED_name_cohort_fusion_tol= "fates_cohort_fusion_tol"   
    character(len=param_string_length),parameter :: ED_name_patch_fusion_tol= "fates_patch_fusion_tol"   
+   character(len=param_string_length),parameter :: fates_name_prescribed_physiology_mode = "fates_prescribed_physiology_mode"
+
    
    public :: FatesParamsInit
    public :: FatesRegisterParams
@@ -110,6 +135,7 @@ contains
     ED_val_phen_coldtemp = nan
     ED_val_cohort_fusion_tol = nan
     ED_val_patch_fusion_tol = nan
+    fates_switch_prescribed_physiology_mode = nan
 
   end subroutine FatesParamsInit
 
@@ -213,6 +239,9 @@ contains
     call fates_params%RegisterParameter(name=ED_name_patch_fusion_tol, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
+    call fates_params%RegisterParameter(name=fates_name_prescribed_physiology_mode, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
   end subroutine FatesRegisterParams
 
   
@@ -308,6 +337,9 @@ contains
 
     call fates_params%RetreiveParameter(name=ED_name_patch_fusion_tol, &
          data=ED_val_patch_fusion_tol)
+
+    call fates_params%RetreiveParameter(name=fates_name_prescribed_physiology_mode, &
+         data=fates_switch_prescribed_physiology_mode)
 
   end subroutine FatesReceiveParams
   

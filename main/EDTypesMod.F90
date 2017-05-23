@@ -11,8 +11,7 @@ module EDTypesMod
   save
 
   integer, parameter :: maxPatchesPerSite  = 10   ! maximum number of patches to live on a site
-  integer, parameter :: maxCohortsPerPatch = 160  ! maximum number of cohorts to live on a patch
-  integer, parameter :: nclmax = 2                ! Maximum number of canopy layers
+  integer, parameter :: nclmax = 3                ! Maximum number of canopy layers
   integer, parameter :: ican_upper = 1            ! Nominal index for the upper canopy
   integer, parameter :: ican_ustory = 2           ! Nominal index for understory in two-canopy system
 
@@ -23,6 +22,8 @@ module EDTypesMod
                                                   ! space and output arrays.
  
   integer, parameter :: numpft_ed = 2             ! number of PFTs used in ED. 
+
+  integer, parameter :: maxCohortsPerPatch = nclmax * numpft_ed * nlevleaf  ! maximum number of cohorts to live on a patch
 
   ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
   ! land-ice abledo for vis and nir.  This should be a parameter, which would
@@ -106,16 +107,23 @@ module EDTypesMod
 
   !the lower limit of the size classes of ED cohorts
   !0-10,10-20...
-  integer, parameter :: nlevsclass_ed = 13    ! Number of dbh size classes for size structure analysis
-                                              ! |0-1,1-2,2-3,3-4,4-5,5-10,10-20,20-30,30-40,40-50,50-60,60-70,70-80,80-90,90-100,100+|
+  ! integer, parameter :: nlevsclass_ed = 13    ! Number of dbh size classes for size structure analysis
+  !                                             ! |0-1,1-2,2-3,3-4,4-5,5-10,10-20,20-30,30-40,40-50,50-60,60-70,70-80,80-90,90-100,100+|
 !  real(r8), parameter, dimension(16) ::  sclass_ed  = (/0.0_r8,1.0_r8,2.0_r8,3.0_r8,4.0_r8,5.0_r8,10.0_r8,20.0_r8,30.0_r8,40.0_r8, &
 !                                                       50.0_r8,60.0_r8,70.0_r8,80.0_r8,90.0_r8,100.0_r8/)
 
-  real(r8), parameter, dimension(nlevsclass_ed) ::  sclass_ed  = (/0.0_r8,5.0_r8,10.0_r8,15.0_r8,20.0_r8,30.0_r8,40.0_r8, &
-                                                       50.0_r8,60.0_r8,70.0_r8,80.0_r8,90.0_r8,100.0_r8/)
+  ! real(r8), parameter, dimension(nlevsclass_ed) ::  sclass_ed  = (/0.0_r8,5.0_r8,10.0_r8,15.0_r8,20.0_r8,30.0_r8,40.0_r8, &
+  !                                                      50.0_r8,60.0_r8,70.0_r8,80.0_r8,90.0_r8,100.0_r8/)
 
-  integer, parameter :: nlevage_ed = 7  ! Number of patch-age classes for age structured analyses
-  real(r8), parameter, dimension(nlevage_ed) ::  ageclass_ed  = (/0.0_r8,1.0_r8,2._r8,5.0_r8,10.0_r8,20.0_r8,50.0_r8/)
+  ! exponential bins, starting at 1cm
+  integer, parameter :: nlevsclass_ed = 26    ! Number of dbh size classes for size structure analysis
+  real(r8), parameter, dimension(nlevsclass_ed) ::  sclass_ed  = (/0._r8, 1._r8, 1.22140276_r8, 1.4918247_r8, 1.8221188_r8, 2.22554093_r8, &
+       2.71828183_r8, 3.32011692_r8, 4.05519997_r8, 4.95303242_r8, 6.04964746_r8, 7.3890561_r8, 9.0250135_r8, 11.02317638_r8, 13.46373804_r8, &
+       16.44464677_r8, 20.08553692_r8, 24.5325302_r8, 29.96410005_r8, 36.59823444_r8, 44.70118449_r8, 54.59815003_r8, 66.68633104_r8, 81.45086866_r8, &
+       99.48431564_r8, 121.51041752_r8/)
+
+  integer, parameter :: nlevage_ed = 8  ! Number of patch-age classes for age structured analyses
+  real(r8), parameter, dimension(nlevage_ed) ::  ageclass_ed  = (/0.0_r8,1.0_r8,2._r8,5.0_r8,10.0_r8,20.0_r8,50.0_r8,100._r8/)
   
 
  !  integer, parameter :: nlevsclass_ed = 17
@@ -337,6 +345,7 @@ module EDTypesMod
      real(r8) ::  canopy_area                                      ! area that is covered by vegetation : m2 (is this different to total_canopy_area?
      real(r8) ::  bare_frac_area                                   ! bare soil in this patch expressed as a fraction of the total soil surface.
      real(r8) ::  lai                                              ! leaf area index of patch
+     real(r8) ::  zstar                                            ! height of smallest canopy tree -- only meaningful in "strict PPA" mode
 
      real(r8) ::  tlai_profile(nclmax,numpft_ed,nlevleaf)        ! total   leaf area in each canopy layer, pft, and leaf layer. m2/m2
      real(r8) ::  elai_profile(nclmax,numpft_ed,nlevleaf)        ! exposed leaf area in each canopy layer, pft, and leaf layer. m2/m2

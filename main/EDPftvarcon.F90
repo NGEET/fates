@@ -10,6 +10,7 @@ module EDPftvarcon
   use shr_kind_mod, only : r8 => shr_kind_r8
 
   use FatesGlobals, only : fates_log
+  !use EDParamsMod, only : prescribed_growth_mortality_recruitment
   !
   ! !PUBLIC TYPES:
   implicit none
@@ -99,6 +100,11 @@ module EDPftvarcon
      real(r8), allocatable :: taul(:, :)
      real(r8), allocatable :: taus(:, :)
      real(r8), allocatable :: rootprof_beta(:, :)
+     real(r8), allocatable :: prescribed_npp_canopy(:)               ! this is only for the special prescribed_physiology_mode
+     real(r8), allocatable :: prescribed_npp_understory(:)           ! this is only for the special prescribed_physiology_mode
+     real(r8), allocatable :: prescribed_mortality_canopy(:)         ! this is only for the special prescribed_physiology_mode
+     real(r8), allocatable :: prescribed_mortality_understory(:)     ! this is only for the special prescribed_physiology_mode
+     real(r8), allocatable :: prescribed_recruitment(:)              ! this is only for the special prescribed_physiology_mode
    contains
      procedure, public :: Init => EDpftconInit
      procedure, public :: Register
@@ -365,6 +371,28 @@ contains
     name = 'fates_grperc'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    ! if  ( fates_switch_prescribed_physiology_mode ) then
+       name = 'fates_prescribed_npp_canopy'
+       call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+            dimension_names=dim_names, lower_bounds=dim_lower_bound)
+       
+       name = 'fates_prescribed_npp_understory'
+       call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+            dimension_names=dim_names, lower_bounds=dim_lower_bound)
+       
+       name = 'fates_prescribed_mortality_canopy'
+       call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+            dimension_names=dim_names, lower_bounds=dim_lower_bound)
+       
+       name = 'fates_prescribed_mortality_understory'
+       call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+            dimension_names=dim_names, lower_bounds=dim_lower_bound)
+       
+       name = 'fates_prescribed_recruitment'
+       call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+            dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    ! endif
 
     name = 'fates_dbh2h_m'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -678,6 +706,30 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%grperc)
 
+    ! if  ( fates_switch_prescribed_physiology_mode ) then
+       
+       name = 'fates_prescribed_npp_canopy'
+       call fates_params%RetreiveParameterAllocate(name=name, &
+            data=this%prescribed_npp_canopy)
+       
+       name = 'fates_prescribed_npp_understory'
+       call fates_params%RetreiveParameterAllocate(name=name, &
+            data=this%prescribed_npp_understory)
+       
+       name = 'fates_prescribed_mortality_canopy'
+       call fates_params%RetreiveParameterAllocate(name=name, &
+            data=this%prescribed_mortality_canopy)
+       
+       name = 'fates_prescribed_mortality_understory'
+       call fates_params%RetreiveParameterAllocate(name=name, &
+            data=this%prescribed_mortality_understory)
+       
+       name = 'fates_prescribed_recruitment'
+       call fates_params%RetreiveParameterAllocate(name=name, &
+            data=this%prescribed_recruitment)
+       
+    ! endif
+
     name = 'fates_dbh2h_m'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%dbh2h_m)
@@ -789,7 +841,6 @@ contains
     name = 'fates_displar'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%displar)
-
 
   end subroutine Receive_PFT
 

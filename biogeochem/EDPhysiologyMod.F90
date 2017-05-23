@@ -761,6 +761,7 @@ contains
     !
     ! !USES:
     use EDGrowthFunctionsMod , only : Bleaf, dDbhdBd, dhdbd, hite, mortality_rates,dDbhdBl
+    use EDParamsMod, only : fates_switch_prescribed_physiology_mode, fates_switch_true
 
     !
     ! !ARGUMENTS    
@@ -818,6 +819,14 @@ contains
     currentCohort%npp_acc_hold  = currentCohort%npp_acc  * hlm_days_per_year 
     currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * hlm_days_per_year
     currentCohort%resp_acc_hold = currentCohort%resp_acc * hlm_days_per_year
+
+    if (fates_switch_prescribed_physiology_mode .eq. fates_switch_true) then
+       if (currentCohort%canopy_layer .eq. 1) then
+          currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_canopy(currentCohort%pft) * currentCohort%c_area / currentCohort%n
+       else
+          currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_understory(currentCohort%pft) * currentCohort%c_area / currentCohort%n
+       endif
+    endif
 
     currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
 
@@ -1020,6 +1029,7 @@ contains
     !
     ! !USES:
     use EDGrowthFunctionsMod, only : bdead,dbh, Bleaf
+    use EDParamsMod, only : fates_switch_prescribed_physiology_mode, fates_switch_true
     !
     ! !ARGUMENTS    
     integer, intent(in) :: t
@@ -1047,8 +1057,13 @@ contains
             + EDecophyscon%sapwood_ratio(ft)*temp_cohort%hite)
        temp_cohort%bstore      = EDecophyscon%cushion(ft)*(temp_cohort%balive/ (1.0_r8 + EDPftvarcon_inst%froot_leaf(ft) &
             + EDecophyscon%sapwood_ratio(ft)*temp_cohort%hite))
+       if (fates_switch_prescribed_physiology_mode .ne. fates_switch_true) then ! normal case
        temp_cohort%n           = currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day &
             / (temp_cohort%bdead+temp_cohort%balive+temp_cohort%bstore)
+       else
+          ! prescribed recruitment rates. number per sq. meter per year
+          temp_cohort%n        = currentPatch%area * EDPftvarcon_inst%prescribed_recruitment(ft) * hlm_freq_day
+       endif
  
        if (t == 1)then
           write(fates_log(),*) 'filling in cohorts where there are none left; this will break carbon balance', &

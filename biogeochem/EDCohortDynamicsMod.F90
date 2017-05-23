@@ -880,6 +880,19 @@ contains
           iterate = 0
        endif
 
+       if ( dynamic_fusion_tolerance .gt. 100._r8) then
+          ! something has gone terribly wrong and we need to report what
+          write(fates_log(),*) 'exceeded reasonable expectation of cohort fusion.'
+          currentCohort => currentPatch%tallest
+          nocohorts = 0
+          do while(associated(currentCohort))
+             write(fates_log(),*) 'cohort ', nocohorts, currentCohort%dbh, currentCohort%canopy_layer, currentCohort%n
+             nocohorts = nocohorts + 1
+             currentCohort => currentCohort%shorter
+          enddo
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       endif
+
     enddo !do while nocohorts>maxcohorts
 
     endif ! patch. 
@@ -1177,6 +1190,10 @@ contains
     ! Plant Hydraulics
     
     if( use_fates_plant_hydro ) call CopyCohortHydraulics(n,o)
+
+    ! indices for binning
+    n%size_class      = o%size_class
+    n%size_by_pft_class   = o%size_by_pft_class
 
     !Pointers
     n%taller          => NULL()     ! pointer to next tallest cohort     
