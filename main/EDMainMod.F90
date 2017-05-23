@@ -504,7 +504,7 @@ contains
 	if (currentPatch%logging==1 .and. currentPatch%after_spawn_patch==1) then  
 
 	   !currentPatch%trunk_product unit is kGC/m2
-	   trunk_product_site =  trunk_product_site + currentPatch%trunk_product* AREA
+	   trunk_product_site =  trunk_product_site + currentPatch%trunk_product* currentPatch%area
 	   ! turn off this flag after spawn patch , since flux_in and flux_out are cleaned in every balance check 
 	   currentPatch%after_spawn_patch = 0
 
@@ -519,7 +519,8 @@ contains
     currentSite%resouces_management%trunk_product_site = currentSite%resouces_management%trunk_product_site + trunk_product_site
 
     total_stock     = biomass_stock + seed_stock +litter_stock
-    change_in_stock = total_stock - trunk_product_site - currentSite%old_stock  
+    change_in_stock = total_stock - currentSite%old_stock  
+
     net_flux        = currentSite%flux_in - currentSite%flux_out
     error           = abs(net_flux - change_in_stock)   
 
