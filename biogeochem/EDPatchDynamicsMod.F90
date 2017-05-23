@@ -478,7 +478,7 @@ contains
                 endif
 				
              !else !fire
-			elseif (currentPatch%disturbance_rates(2) > currentPatch%disturbance_rates(1) .and. currentPatch%disturbance_rates(2) > currentPatch%disturbance_rates(3)) then !fire
+	        elseif (currentPatch%disturbance_rates(2) > currentPatch%disturbance_rates(1) .and. currentPatch%disturbance_rates(2) > currentPatch%disturbance_rates(3)) then !fire
 
                 ! Number of members in the new patch, before we impose fire survivorship
                 nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
@@ -495,37 +495,66 @@ contains
                 nc%hmort = currentCohort%hmort
                 nc%bmort = currentCohort%bmort
 
-				nc%lmort_logging = 0.0_r8
-				nc%lmort_collateral = 0.0_r8
-				nc%lmort_infra = 0.0_r8
-				
-			! Logging is dominate  
-			 elseif (currentPatch%disturbance_rates(3) > currentPatch%disturbance_rates(1) .and. currentPatch%disturbance_rates(3) > currentPatch%disturbance_rates(2)) then  ! Logging 
-			 
+		nc%lmort_logging = 0.0_r8
+		nc%lmort_collateral = 0.0_r8
+		nc%lmort_infra = 0.0_r8
+	
+	        ! Logging is dominate  
+                elseif (currentPatch%disturbance_rates(3) > currentPatch%disturbance_rates(1) .and. currentPatch%disturbance_rates(3) > currentPatch%disturbance_rates(2)) then  ! Logging 
+ 
+                    if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
+                           ! Move the survival trees into new patch
+                           ! nc is the new cohort that goes in the disturbed patch (new_patch)
 
-                ! Number of members in the new patch, before we impose logging 
-				! nc is the new cohort that goes in the disturbed patch (new_patch)
-                !nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
+                           ! kill all of the trees who caused the disturbance, no survival trees in logged trees.
+                           nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
+                           nc%n = nc%n * (1.0_r8 -  1.0_r8)
 
-                ! loss of individuals from source patch due to area shrinking
-                currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area) 
+                           ! loss of individuals from source patch due to area shrinking
 
-                ! loss of individual from fire in new patch.
-               ! nc%n = nc%n * (1.0_r8 - currentCohort%fire_mort) 
+                           currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area)
 
-                nc%fmort = 0.0_r8  ! should double check fmort 
-                nc%imort = 0.0_r8
-                nc%cmort = currentCohort%cmort
-                nc%hmort = currentCohort%hmort
-                nc%bmort = currentCohort%bmort
+                           nc%fmort = nan  ! should double check fmort
+                           nc%imort = nan
+                           nc%cmort = currentCohort%cmort
+                           nc%hmort = currentCohort%hmort
+                           nc%bmort = currentCohort%bmort
 
-				    
-				! logging rate at new cohort should be zero
-				nc%lmort_logging =  0.0_r8
-				nc%lmort_collateral =  0.0_r8
-				nc%lmort_infra =  0.0_r8
-				
-             endif
+
+                           ! logging rate at new cohort should be zero
+                           nc%lmort_logging =  0.0_r8
+                           nc%lmort_collateral =  0.0_r8
+                           nc%lmort_infra =  0.0_r8
+
+
+                      else
+
+
+                           ! grass is not killed by mortality disturbance events. Just move it into the new patch area.
+                           ! Just split the grass into the existing and new patch structures
+                           nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
+
+                           ! Those remaining in the existing
+                           currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area)
+
+                           nc%fmort =  nan  ! These should not make it to the diagnostics
+                           nc%imort =  nan  ! If they do.. they should invalidate it
+                           nc%cmort =  currentCohort%cmort  !
+                           nc%hmort =  currentCohort%cmort  !
+                           nc%bmort =  currentCohort%cmort  !
+
+                           ! lmort should be consistent with fmort
+                           nc%lmort_logging = 0.0_r8
+                           nc%lmort_collateral =  0.0_r8
+                           nc%lmort_infra =   0.0_r8
+
+
+                       endif
+               
+
+
+
+               endif
 
              if (nc%n > 0.0_r8) then   
                 storebigcohort   =>  new_patch%tallest
