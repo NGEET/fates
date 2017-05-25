@@ -401,10 +401,13 @@ contains
           !update area of donor patch
           currentPatch%area = currentPatch%area - patch_site_areadis
 
-          !sort out the cohorts, since some of them may be so small as to need removing. 
-
+          ! sort out the cohorts, since some of them may be so small as to need removing. 
+          ! the first call to terminate cohorts removes sparse number densities,
+          ! the second call removes for all other reasons (sparse culling must happen
+          ! before fusion)
+          call terminate_cohorts(currentSite, currentPatch, 1)
           call fuse_cohorts(currentPatch, bc_in)
-          call terminate_cohorts(currentSite, currentPatch)
+          call terminate_cohorts(currentSite, currentPatch, 2)
           call sort_cohorts(currentPatch)
 
           currentPatch => currentPatch%younger
@@ -420,8 +423,13 @@ contains
        currentPatch%younger       => new_patch
        currentSite%youngest_patch => new_patch
 
+       ! sort out the cohorts, since some of them may be so small as to need removing. 
+       ! the first call to terminate cohorts removes sparse number densities,
+       ! the second call removes for all other reasons (sparse culling must happen
+       ! before fusion)
+       call terminate_cohorts(currentSite, new_patch, 1)
        call fuse_cohorts(new_patch, bc_in)
-       call terminate_cohorts(currentSite, new_patch)
+       call terminate_cohorts(currentSite, new_patch, 2)
        call sort_cohorts(new_patch)
 
     endif !end new_patch area 

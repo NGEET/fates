@@ -883,7 +883,6 @@ contains
     currentCohort%npp_froot = max(0.0_r8,min(currentCohort%npp_acc_hold*currentCohort%root_md/currentCohort%md, &
                                   currentCohort%root_md*EDecophyscon%leaf_stor_priority(currentCohort%pft)))
 
-
     if (Bleaf(currentCohort) > 0._r8)then
 
        if ( DEBUG ) write(fates_log(),*) 'EDphys A ',currentCohort%carbon_balance

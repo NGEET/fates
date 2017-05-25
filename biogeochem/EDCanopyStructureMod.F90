@@ -406,10 +406,15 @@ contains
           enddo
           currentPatch%ncl_p = min(z,nclmax)
 
-       enddo !is there still excess area in any layer?      
+       enddo !is there still excess area in any layer?
+
+       ! Remove cohorts that are incredibly sparse
+       call terminate_cohorts(currentSite, currentPatch, 1)
 
        call fuse_cohorts(currentPatch, bc_in)
-       call terminate_cohorts(currentSite, currentPatch)
+
+       ! Remove cohorts for various other reasons
+       call terminate_cohorts(currentSite, currentPatch, 2)
 
        ! ----------- Check cohort area ------------------------------!
        do i = 1,z
@@ -650,8 +655,13 @@ contains
           endif
        enddo !is there still not enough canopy area in any layer?         
 
+       ! remove cohorts that are extremely sparse
+       call terminate_cohorts(currentSite, currentPatch, 1)
+
        call fuse_cohorts(currentPatch, bc_in)
-       call terminate_cohorts(currentSite, currentPatch)
+
+       ! remove cohorts for various other reasons
+       call terminate_cohorts(currentSite, currentPatch, 2)
 
        if(promswitch == 1)then
           !write(fates_log(),*) 'going into cohort check'

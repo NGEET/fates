@@ -2919,12 +2919,12 @@ contains
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_promotion_carbonflux_si )
 
     call this%set_history_var(vname='MORTALITY_CARBONFLUX_CANOPY', units = 'gC/m2/s',               &
-          long='flux of biomass carbon from live to dead pools from mortality of canopy plants', use_default='active',   &
+          long='flux of biomass carbon from live to dead pools from mortality of canopy plants', use_default='inactive',   &
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_canopy_mortality_carbonflux_si )
 
     call this%set_history_var(vname='MORTALITY_CARBONFLUX_UNDERSTORY', units = 'gC/m2/s',               &
-          long='flux of biomass carbon from live to dead pools from mortality of understory plants', use_default='active',   &
+          long='flux of biomass carbon from live to dead pools from mortality of understory plants',use_default='inactive',&
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_understory_mortality_carbonflux_si )
 

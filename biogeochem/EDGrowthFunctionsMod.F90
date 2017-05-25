@@ -225,11 +225,13 @@ contains
     ! ============================================================================
 
     use EDParamsMod              , only : ED_val_grass_spread
+    use EDTypesMod               , only : nclmax
 
     type(ed_cohort_type), intent(in) :: cohort_in       
 
     real(r8) :: dbh ! Tree diameter at breat height. cm. 
     real(r8) :: crown_area_to_dbh_exponent
+    integer  :: can_layer_index
 
     ! default is to use the same exponent as the dbh to bleaf exponent so that per-plant canopy depth remains invariant during growth,
     ! but allowed to vary via the dbh2bl_dbh2carea_expnt_diff term (which has default value of zero)
@@ -247,9 +249,22 @@ contains
     end if
 
     dbh = min(cohort_in%dbh,EDPftvarcon_inst%max_dbh(cohort_in%pft))
+    
+    ! ----------------------------------------------------------------------------------
+    ! The function c_area is called during the process of canopy position demotion
+    ! and promotion. As such, some cohorts are temporarily elevated to canopy positions
+    ! that are outside the number of alloted canopy spaces.  Ie, a two story canopy
+    ! may have a third-story plant, if only for a moment.  However, these plants
+    ! still need to generate a crown area to complete the promotion, demotion process.
+    ! So we allow layer index exceedence here and force it down to max.
+    ! (rgk/cdk 05/2017)
+    ! ----------------------------------------------------------------------------------
+
+    can_layer_index = min(cohort_in%canopy_layer,nclmax)
+
     if(EDPftvarcon_inst%woody(cohort_in%pft) == 1)then 
        c_area = 3.142_r8 * cohort_in%n * &
-            (cohort_in%patchptr%spread(cohort_in%canopy_layer)*dbh)**crown_area_to_dbh_exponent
+            (cohort_in%patchptr%spread(can_layer_index)*dbh)**crown_area_to_dbh_exponent
     else
        c_area = 3.142_r8 * cohort_in%n * (ED_val_grass_spread*dbh)**crown_area_to_dbh_exponent
     end if
