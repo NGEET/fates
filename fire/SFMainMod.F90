@@ -780,7 +780,7 @@ contains
              endif
           endif
        endif! fire
-       currentSite%frac_burnt = currentSite%frac_burnt + currentPatch%frac_burnt     
+       currentSite%frac_burnt = currentSite%frac_burnt + currentPatch%frac_burnt * currentPatch%area/area     
 
        currentPatch => currentPatch%younger
 
