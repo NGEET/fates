@@ -400,15 +400,16 @@ contains
     type(ed_patch_type), pointer :: currentPatch
 
     ! Rothermal fire spread model parameters. 
-    real(r8) beta,beta_op         !weighted average of packing ratio (unitless)
-    real(r8) ir                   !reaction intensity (kJ/m2/min)
-    real(r8) xi,eps,phi_wind      !all are unitless
-    real(r8) q_ig                 !heat of pre-ignition (kJ/kg)
+    real(r8) beta,beta_op         ! weighted average of packing ratio (unitless)
+    real(r8) ir                   ! reaction intensity (kJ/m2/min)
+    real(r8) xi,eps,phi_wind      ! all are unitless
+    real(r8) q_ig                 ! heat of pre-ignition (kJ/kg)
     real(r8) reaction_v_opt,reaction_v_max !reaction velocity (per min)!optimum and maximum
-    real(r8) moist_damp,mw_weight !moisture dampening coefficient and ratio fuel moisture to extinction
-    real(r8) beta_ratio           !ratio of beta/beta_op
-    real(r8) a_beta               !dummy variable for product of a* beta_ratio for react_v_opt equation
-    real(r8) a,b,c,e                         !function of fuel sav
+    real(r8) moist_damp,mw_weight ! moisture dampening coefficient and ratio fuel moisture to extinction
+    real(r8) beta_ratio           ! ratio of beta/beta_op
+    real(r8) a_beta               ! dummy variable for product of a* beta_ratio for react_v_opt equation
+    real(r8) a,b,c,e              ! function of fuel sav
+    real(r8) :: wind              ! daily wind in m/mi
     real(r8),parameter::wind_max = 45.718_r8 !max wind speed (m/min)=150 ft/min per Lasslop etal 2014
     real(r8) wind_elev_fire                  !wind speed (m/min) at elevevation relevant for fire
 
@@ -540,7 +541,8 @@ contains
        endif
        ! Equation 10 in Thonicke et al. 2010
        ! backward ROS from Can FBP System (1992) in m/min
-       currentPatch%ROS_back = currentPatch%ROS_front*exp(-0.012_r8*currentPatch%effect_wspeed) 
+       ! backward ROS wind not changed by vegetation 
+       currentPatch%ROS_back = currentPatch%ROS_front*exp(-0.012_r8*wind) 
 
        currentPatch => currentPatch%younger
 
@@ -669,7 +671,7 @@ contains
           d_FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI) !follows Venevsky et al GCB 2002 
           ! Equation 14 in Thonicke et al. 2010
           ! fire duration in minutes
-          currentPatch%FD = SF_val_max_durat / (1.0_r8 + SF_val_max_durat * exp(SF_val_durat_slope*d_FDI))
+          currentPatch%FD = (SF_val_max_durat+1) / (1.0_r8 + SF_val_max_durat * exp(SF_val_durat_slope*d_FDI))
           if(write_SF == itrue)then
              if ( hlm_masterproc == itrue ) write(fates_log(),*) 'fire duration minutes',currentPatch%fd
           endif
