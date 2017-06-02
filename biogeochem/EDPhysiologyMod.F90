@@ -1293,6 +1293,7 @@ contains
             currentPatch%fragmentation_scaler )
        currentPatch%root_litter_out(ft) = max(0.0_r8,currentPatch%root_litter(ft)* SF_val_max_decomp(dl_sf) * &
             currentPatch%fragmentation_scaler )
+
        if ( currentPatch%leaf_litter_out(ft)<0.0_r8.or.currentPatch%root_litter_out(ft)<0.0_r8)then
          write(fates_log(),*) 'root or leaf out is negative?',SF_val_max_decomp(dl_sf),currentPatch%fragmentation_scaler
        endif
@@ -1360,6 +1361,7 @@ contains
     real(r8) mass_convert    ! ED uses kg, CLM uses g
     integer           :: begp,endp
     integer           :: begc,endc                                    !bounds 
+    integer           :: ipa
     !------------------------------------------------------------------------
     real(r8) :: cinput_rootfr(1:numpft_ed, 1:hlm_numlevdecomp_full)      ! column by pft root fraction used for calculating inputs
     real(r8) :: croot_prof_perpatch(1:hlm_numlevdecomp_full)
@@ -1675,7 +1677,7 @@ contains
            end do !currentPatch
 
         end do  ! do sites(s)
-     
+
         do s = 1, nsites
            do j = 1, hlm_numlevdecomp                    
               ! time unit conversion
