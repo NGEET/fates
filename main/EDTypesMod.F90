@@ -540,7 +540,8 @@ module EDTypesMod
      real(r8) :: dseed_dt(numpft_ed)
      real(r8) :: seed_rain_flux(numpft_ed)                         ! flux of seeds from exterior KgC/m2/year (needed for C balance purposes)
 
-     ! FIRE 
+     ! FIRE
+     real(r8) ::  wind                                         ! daily wind in m/min for Spitfire units 
      real(r8) ::  acc_ni                                       ! daily nesterov index accumulating over time.
      real(r8) ::  ab                                           ! daily burnt area: m2
      real(r8) ::  frac_burnt                                   ! fraction of soil burnt in this day.

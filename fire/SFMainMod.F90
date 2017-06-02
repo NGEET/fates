@@ -305,7 +305,8 @@ contains
   !*****************************************************************.
 
     ! Routine called daily from within ED within a site loop.
-    ! Calculates the effective windspeed based on vegetation charecteristics. 
+    ! Calculates the effective windspeed based on vegetation charecteristics.
+    ! currentSite%wind is daily wind converted to m/min for Spitfire units 
 
     use FatesConstantsMod, only : sec_per_min
 
@@ -315,7 +316,6 @@ contains
     type(ed_patch_type) , pointer :: currentPatch
     type(ed_cohort_type), pointer :: currentCohort
 
-    real(r8) :: wind                 ! daily wind in m/min
     real(r8) :: total_grass_area     ! per patch,in m2
     real(r8) :: tree_fraction        !  site level. no units
     real(r8) :: grass_fraction       !  site level. no units
@@ -327,10 +327,10 @@ contains
     ! unless we decide to ever calculated the NI for each patch.  
 
     iofp = currentSite%oldest_patch%patchno
-    wind = bc_in%wind24_pa(iofp) * sec_per_min  ! Convert to m/min for SPITFIRE units.
+    currentSite%wind = bc_in%wind24_pa(iofp) * sec_per_min !Convert to m/min for SPITFIRE
 
     if(write_SF == itrue)then
-       if ( hlm_masterproc == itrue ) write(fates_log(),*) 'wind24', wind
+       if ( hlm_masterproc == itrue ) write(fates_log(),*) 'wind24', currentSite%wind
     endif
     ! --- influence of wind speed, corrected for surface roughness----
     ! --- averaged over the whole grid cell to prevent extreme divergence 
@@ -378,7 +378,7 @@ contains
     do while(associated(currentPatch))       
        currentPatch%total_tree_area = min(currentPatch%total_tree_area,currentPatch%area)
        ! effect_wspeed in units m/min      
-       currentPatch%effect_wspeed = wind * (tree_fraction*0.4+(grass_fraction+bare_fraction)*0.6)
+       currentPatch%effect_wspeed = currentSite%wind * (tree_fraction*0.4+(grass_fraction+bare_fraction)*0.6)
       
        currentPatch => currentPatch%younger
     enddo !end patch loop
@@ -409,7 +409,6 @@ contains
     real(r8) beta_ratio           ! ratio of beta/beta_op
     real(r8) a_beta               ! dummy variable for product of a* beta_ratio for react_v_opt equation
     real(r8) a,b,c,e              ! function of fuel sav
-    real(r8) :: wind              ! daily wind in m/mi
     real(r8),parameter::wind_max = 45.718_r8 !max wind speed (m/min)=150 ft/min per Lasslop etal 2014
     real(r8) wind_elev_fire                  !wind speed (m/min) at elevevation relevant for fire
 
@@ -542,7 +541,7 @@ contains
        ! Equation 10 in Thonicke et al. 2010
        ! backward ROS from Can FBP System (1992) in m/min
        ! backward ROS wind not changed by vegetation 
-       currentPatch%ROS_back = currentPatch%ROS_front*exp(-0.012_r8*wind) 
+       currentPatch%ROS_back = currentPatch%ROS_front*exp(-0.012_r8*currentSite%wind) 
 
        currentPatch => currentPatch%younger
 
