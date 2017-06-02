@@ -165,6 +165,10 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_mortality_understory_si_scls
   integer, private :: ih_demotion_rate_si_scls
   integer, private :: ih_promotion_rate_si_scls
+  integer, private :: ih_trimming_canopy_si_scls
+  integer, private :: ih_trimming_understory_si_scls
+  integer, private :: ih_crown_area_canopy_si_scls
+  integer, private :: ih_crown_area_understory_si_scls
 
   ! lots of non-default diagnostics for understanding canopy versus understory carbon balances
   integer, private :: ih_rdark_canopy_si_scls
@@ -279,6 +283,10 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_fabd_sha_si_cnlf
   integer, private :: ih_fabi_sun_si_cnlf
   integer, private :: ih_fabi_sha_si_cnlf
+  integer, private :: ih_ts_net_uptake_si_cnlf
+  integer, private :: ih_year_net_uptake_si_cnlf
+  integer, private :: ih_crownarea_si_cnlf
+
 
   ! indices to (site x [canopy layer x leaf layer x pft]) variables
   integer, private :: ih_parsun_z_si_cnlfpft
@@ -299,6 +307,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_fabd_sha_top_si_can
   integer, private :: ih_fabi_sun_top_si_can
   integer, private :: ih_fabi_sha_top_si_can
+  integer, private :: ih_crownarea_si_can
 
   ! The number of variable dim/kind types we have defined (static)
   integer, parameter :: fates_history_num_dimensions = 13
@@ -1086,6 +1095,7 @@ contains
 
     use EDParamsMod       , only : ED_val_ag_biomass
     use EDTypesMod        , only : get_sizeage_class_index
+    use EDTypesMod        , only : nlevleaf
 
     ! Arguments
     class(fates_history_interface_type)                 :: this
@@ -1106,6 +1116,7 @@ contains
     integer  :: i_scpf,i_pft,i_scls     ! iterators for scpf, pft, and scls dims
     integer  :: i_cwd,i_fuel            ! iterators for cwd and fuel dims
     integer  :: iscag        ! size-class x age index
+    integer  :: ican, ileaf, cnlf_indx  ! iterators for leaf and canopy level
     
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
@@ -1196,6 +1207,10 @@ contains
                hio_demotion_rate_si_scls         => this%hvars(ih_demotion_rate_si_scls)%r82d, &
                hio_demotion_carbonflux_si        => this%hvars(ih_demotion_carbonflux_si)%r81d, &
                hio_promotion_rate_si_scls        => this%hvars(ih_promotion_rate_si_scls)%r82d, &
+               hio_trimming_canopy_si_scls         => this%hvars(ih_trimming_canopy_si_scls)%r82d, &
+               hio_trimming_understory_si_scls     => this%hvars(ih_trimming_understory_si_scls)%r82d, &
+               hio_crown_area_canopy_si_scls         => this%hvars(ih_crown_area_canopy_si_scls)%r82d, &
+               hio_crown_area_understory_si_scls     => this%hvars(ih_crown_area_understory_si_scls)%r82d, &
                hio_promotion_carbonflux_si       => this%hvars(ih_promotion_carbonflux_si)%r81d, &
                hio_canopy_mortality_carbonflux_si     => this%hvars(ih_canopy_mortality_carbonflux_si)%r81d, &
                hio_understory_mortality_carbonflux_si => this%hvars(ih_understory_mortality_carbonflux_si)%r81d, &
@@ -1241,6 +1256,8 @@ contains
                hio_cwd_bg_in_si_cwdsc               => this%hvars(ih_cwd_bg_in_si_cwdsc)%r82d, &
                hio_cwd_ag_out_si_cwdsc              => this%hvars(ih_cwd_ag_out_si_cwdsc)%r82d, &
                hio_cwd_bg_out_si_cwdsc              => this%hvars(ih_cwd_bg_out_si_cwdsc)%r82d, &
+               hio_crownarea_si_cnlf                => this%hvars(ih_crownarea_si_cnlf)%r82d, &
+               hio_crownarea_si_can                 => this%hvars(ih_crownarea_si_can)%r82d, &
                hio_nplant_si_scag                   => this%hvars(ih_nplant_si_scag)%r82d)
 
                
@@ -1442,6 +1459,10 @@ contains
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * ccohort%n
                        hio_nplant_canopy_si_scpf(io_si,scpf) = hio_nplant_canopy_si_scpf(io_si,scpf) + ccohort%n
                        hio_nplant_canopy_si_scls(io_si,scls) = hio_nplant_canopy_si_scls(io_si,scls) + ccohort%n
+                       hio_trimming_canopy_si_scls(io_si,scls) = hio_trimming_canopy_si_scls(io_si,scls) + &
+                            ccohort%n * ccohort%canopy_trim
+                       hio_crown_area_canopy_si_scls(io_si,scls) = hio_crown_area_canopy_si_scls(io_si,scls) + &
+                            ccohort%c_area
                        hio_gpp_canopy_si_scpf(io_si,scpf)      = hio_gpp_canopy_si_scpf(io_si,scpf)      + &
                             n_perm2*ccohort%gpp_acc_hold
                        hio_ar_canopy_si_scpf(io_si,scpf)      = hio_ar_canopy_si_scpf(io_si,scpf)      + &
@@ -1497,6 +1518,10 @@ contains
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * ccohort%n
                        hio_nplant_understory_si_scpf(io_si,scpf) = hio_nplant_understory_si_scpf(io_si,scpf) + ccohort%n
                        hio_nplant_understory_si_scls(io_si,scls) = hio_nplant_understory_si_scls(io_si,scls) + ccohort%n
+                       hio_trimming_understory_si_scls(io_si,scls) = hio_trimming_understory_si_scls(io_si,scls) + &
+                            ccohort%n * ccohort%canopy_trim
+                       hio_crown_area_understory_si_scls(io_si,scls) = hio_crown_area_understory_si_scls(io_si,scls) + &
+                            ccohort%c_area
                        hio_gpp_understory_si_scpf(io_si,scpf)      = hio_gpp_understory_si_scpf(io_si,scpf)      + &
                             n_perm2*ccohort%gpp_acc_hold
                        hio_ar_understory_si_scpf(io_si,scpf)      = hio_ar_understory_si_scpf(io_si,scpf)      + &
@@ -1548,6 +1573,17 @@ contains
                     
                   end associate
                end if
+
+               ! resolve some canopy area profiles, both total and of occupied leaves
+               ican = ccohort%canopy_layer
+               !
+               hio_crownarea_si_can(io_si, ican) = hio_crownarea_si_can(io_si, ican) + ccohort%c_area / AREA
+               !
+               do ileaf=1,ccohort%nv
+                  cnlf_indx = ileaf + (ican-1) * nlevleaf
+                  hio_crownarea_si_cnlf(io_si, cnlf_indx) = hio_crownarea_si_cnlf(io_si, cnlf_indx) + &
+                       ccohort%c_area / AREA
+               end do
                
                ccohort => ccohort%taller
             enddo ! cohort loop
@@ -1791,6 +1827,8 @@ contains
                hio_npp_si_age         => this%hvars(ih_npp_si_age)%r82d, &
                hio_parsun_z_si_cnlf     => this%hvars(ih_parsun_z_si_cnlf)%r82d, &
                hio_parsha_z_si_cnlf     => this%hvars(ih_parsha_z_si_cnlf)%r82d, &
+               hio_ts_net_uptake_si_cnlf     => this%hvars(ih_ts_net_uptake_si_cnlf)%r82d, &
+               hio_year_net_uptake_si_cnlf     => this%hvars(ih_year_net_uptake_si_cnlf)%r82d, &
                hio_parsun_z_si_cnlfpft  => this%hvars(ih_parsun_z_si_cnlfpft)%r82d, &
                hio_parsha_z_si_cnlfpft  => this%hvars(ih_parsha_z_si_cnlfpft)%r82d, &
                hio_laisun_z_si_cnlf     => this%hvars(ih_laisun_z_si_cnlf)%r82d, &
@@ -1909,44 +1947,60 @@ contains
 
                   ! accumulate fluxes on canopy- and understory- separated fluxes
                   if (ccohort%canopy_layer .eq. 1) then
+                     !
+                     ! bulk fluxes are in gC / m2 / s
                      hio_gpp_canopy_pa(io_pa) = hio_gpp_canopy_pa(io_pa) + &
                           ccohort%gpp_tstep * g_per_kg * n_density * per_dt_tstep                     
                      hio_ar_canopy_pa(io_pa) = hio_ar_canopy_pa(io_pa) + &
                           ccohort%resp_tstep * g_per_kg * n_density * per_dt_tstep                     
                      !
+                     ! size-resolved respiration fluxes are in kg C / ha / yr
                      hio_rdark_canopy_si_scls(io_si,scls) = hio_rdark_canopy_si_scls(io_si,scls) + &
-                          ccohort%rdark * g_per_kg * ccohort%n * sec_per_day * days_per_year
+                          ccohort%rdark  * ccohort%n * sec_per_day * days_per_year
                      hio_livestem_mr_canopy_si_scls(io_si,scls) = hio_livestem_mr_canopy_si_scls(io_si,scls) + &
-                          ccohort%livestem_mr * g_per_kg * ccohort%n * sec_per_day * days_per_year
+                          ccohort%livestem_mr  * ccohort%n * sec_per_day * days_per_year
                      hio_livecroot_mr_canopy_si_scls(io_si,scls) = hio_livecroot_mr_canopy_si_scls(io_si,scls) + &
-                          ccohort%livecroot_mr * g_per_kg * ccohort%n * sec_per_day * days_per_year
+                          ccohort%livecroot_mr  * ccohort%n * sec_per_day * days_per_year
                      hio_froot_mr_canopy_si_scls(io_si,scls) = hio_froot_mr_canopy_si_scls(io_si,scls) + &
-                          ccohort%froot_mr * g_per_kg * ccohort%n * sec_per_day * days_per_year
+                          ccohort%froot_mr  * ccohort%n * sec_per_day * days_per_year
                      hio_resp_g_canopy_si_scls(io_si,scls) = hio_resp_g_canopy_si_scls(io_si,scls) + &
-                          ccohort%resp_g * g_per_kg * ccohort%n * sec_per_day * days_per_year * per_dt_tstep 
+                          ccohort%resp_g  * ccohort%n * sec_per_day * days_per_year * per_dt_tstep 
                      hio_resp_m_canopy_si_scls(io_si,scls) = hio_resp_m_canopy_si_scls(io_si,scls) + &
-                          ccohort%resp_m * g_per_kg * ccohort%n * sec_per_day * days_per_year * per_dt_tstep 
+                          ccohort%resp_m  * ccohort%n * sec_per_day * days_per_year * per_dt_tstep 
                   else
+                     !
+                     ! bulk fluxes are in gC / m2 / s
                      hio_gpp_understory_pa(io_pa) = hio_gpp_understory_pa(io_pa) + &
                           ccohort%gpp_tstep * g_per_kg * n_density * per_dt_tstep                     
                      hio_ar_understory_pa(io_pa) = hio_ar_understory_pa(io_pa) + &
                           ccohort%resp_tstep * g_per_kg * n_density * per_dt_tstep                     
                      !
+                     ! size-resolved respiration fluxes are in kg C / ha / yr
                      hio_rdark_understory_si_scls(io_si,scls) = hio_rdark_understory_si_scls(io_si,scls) + &
-                          ccohort%rdark * g_per_kg * ccohort%n * sec_per_day * days_per_year
+                          ccohort%rdark  * ccohort%n * sec_per_day * days_per_year
                      hio_livestem_mr_understory_si_scls(io_si,scls) = hio_livestem_mr_understory_si_scls(io_si,scls) + &
-                          ccohort%livestem_mr * g_per_kg * ccohort%n * sec_per_day * days_per_year
+                          ccohort%livestem_mr  * ccohort%n * sec_per_day * days_per_year
                      hio_livecroot_mr_understory_si_scls(io_si,scls) = hio_livecroot_mr_understory_si_scls(io_si,scls) + &
-                          ccohort%livecroot_mr * g_per_kg * ccohort%n * sec_per_day * days_per_year
+                          ccohort%livecroot_mr  * ccohort%n * sec_per_day * days_per_year
                      hio_froot_mr_understory_si_scls(io_si,scls) = hio_froot_mr_understory_si_scls(io_si,scls) + &
-                          ccohort%froot_mr * g_per_kg * ccohort%n * sec_per_day * days_per_year
+                          ccohort%froot_mr  * ccohort%n * sec_per_day * days_per_year
                      hio_resp_g_understory_si_scls(io_si,scls) = hio_resp_g_understory_si_scls(io_si,scls) + &
-                          ccohort%resp_g * g_per_kg * ccohort%n * sec_per_day * days_per_year * per_dt_tstep 
+                          ccohort%resp_g  * ccohort%n * sec_per_day * days_per_year * per_dt_tstep 
                      hio_resp_m_understory_si_scls(io_si,scls) = hio_resp_m_understory_si_scls(io_si,scls) + &
-                          ccohort%resp_m * g_per_kg * ccohort%n * sec_per_day * days_per_year * per_dt_tstep 
+                          ccohort%resp_m  * ccohort%n * sec_per_day * days_per_year * per_dt_tstep 
                   endif
                 end associate
                endif
+
+               !!! resolve some canopy profile terms that are also on the cohort indices
+               ican = ccohort%canopy_layer
+               do ileaf=1,ccohort%nv
+                  cnlf_indx = ileaf + (ican-1) * nlevleaf
+                  hio_ts_net_uptake_si_cnlf(io_si, cnlf_indx) = hio_ts_net_uptake_si_cnlf(io_si, cnlf_indx) + &
+                       ccohort%ts_net_uptake(ileaf) * ccohort%c_area / AREA
+                  hio_year_net_uptake_si_cnlf(io_si, cnlf_indx) = hio_year_net_uptake_si_cnlf(io_si, cnlf_indx) + &
+                       ccohort%year_net_uptake(ileaf) * ccohort%c_area / AREA
+               end do
 
                ccohort => ccohort%taller
             enddo ! cohort loop
@@ -2651,7 +2705,7 @@ contains
          ivar=ivar, initialize=initialize_variables, index = ih_ar_canopy_pa )
 
     call this%set_history_var(vname='GPP_UNDERSTORY', units='gC/m^2/s',                   &
-         long='gross primary production of understory plants',  use_default='inactive',     &
+         long='gross primary production of understory plants',  use_default='active',     &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_gpp_understory_pa )
 
@@ -2805,6 +2859,31 @@ contains
          use_default='inactive',       &
          avgflag='A', vtype=site_can_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fabi_sha_top_si_can )
+
+    !!! canopy-resolved fluxes and structure
+    call this%set_history_var(vname='TS_NET_UPTAKE_CNLF', units='kgC/m2/s',                 &
+         long='net carbon uptake by each canopy and leaf layer er unit ground area (i.e. divide by CROWNAREA_CNLF)', &
+         use_default='inactive',       &
+         avgflag='A', vtype=site_cnlf_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_ts_net_uptake_si_cnlf )
+
+    call this%set_history_var(vname='YEAR_NET_UPTAKE_CNLF', units='kgC/m2/y',                 &
+         long='yearly net carbon uptake by each canopy and leaf layer per unit ground area (i.e. divide by CROWNAREA_CNLF)', &
+         use_default='inactive',       &
+         avgflag='A', vtype=site_cnlf_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_year_net_uptake_si_cnlf )
+
+    call this%set_history_var(vname='CROWNAREA_CNLF', units='m2/m2',                 &
+         long='total crown area that is occupied by leaves in each canopy and leaf layer', &
+         use_default='inactive',       &
+         avgflag='A', vtype=site_cnlf_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_crownarea_si_cnlf )
+
+    call this%set_history_var(vname='CROWNAREA_CAN', units='m2/m2',                 &
+         long='total crown area in each canopy layer', &
+         use_default='active',       &
+         avgflag='A', vtype=site_can_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_crownarea_si_can )
 
     ! slow carbon fluxes associated with mortality from or transfer betweeen canopy and understory
     call this%set_history_var(vname='DEMOTION_CARBONFLUX', units = 'gC/m2/s',               &
@@ -3117,6 +3196,26 @@ contains
           long='total mortality of understory trees by size class', use_default='inactive',   &
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_mortality_understory_si_scls )
+
+    call this%set_history_var(vname='TRIMMING_CANOPY_SCLS', units = 'indiv/ha',               &
+          long='trimming term of canopy plants by size class', use_default='inactive',   &
+          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_trimming_canopy_si_scls )
+
+    call this%set_history_var(vname='TRIMMING_UNDERSTORY_SCLS', units = 'indiv/ha',               &
+          long='trimming term of understory plants by size class', use_default='inactive',   &
+          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_trimming_understory_si_scls )
+
+    call this%set_history_var(vname='CROWN_AREA_CANOPY_SCLS', units = 'm2/ha',               &
+          long='total crown area of canopy plants by size class', use_default='inactive',   &
+          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_crown_area_canopy_si_scls )
+
+    call this%set_history_var(vname='CROWN_AREA_UNDERSTORY_SCLS', units = 'm2/ha',               &
+          long='total crown area of understory plants by size class', use_default='inactive',   &
+          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_crown_area_understory_si_scls )
 
     call this%set_history_var(vname='LEAF_MD_CANOPY_SCLS', units = 'kg C / ha / yr',               &
           long='LEAF_MD for canopy plants by size class', use_default='inactive',   &
