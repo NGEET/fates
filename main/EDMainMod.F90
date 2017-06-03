@@ -147,12 +147,15 @@ contains
           
           ! puts cohorts in right order
           call sort_cohorts(currentPatch)            
-          
+
+          ! kills cohorts that are too few
+          call terminate_cohorts(currentSite, currentPatch, 1)
+
           ! fuses similar cohorts
           call fuse_cohorts(currentPatch, bc_in )
           
-          ! kills cohorts that are too small
-          call terminate_cohorts(currentSite, currentPatch)
+          ! kills cohorts for various other reasons
+          call terminate_cohorts(currentSite, currentPatch, 2)
           
           
           currentPatch => currentPatch%younger
@@ -403,7 +406,9 @@ contains
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
 
-       call terminate_cohorts(currentSite, currentPatch) 
+       ! Is termination really needed here? canopy_structure just called it several times! (rgk)
+       call terminate_cohorts(currentSite, currentPatch, 1) 
+       call terminate_cohorts(currentSite, currentPatch, 2) 
 
        ! FIX(SPM,040314) why is this needed for BFB restarts? Look into this at some point
        cohort_number = count_cohorts(currentPatch)  
