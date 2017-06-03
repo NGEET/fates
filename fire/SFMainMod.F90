@@ -881,8 +881,8 @@ contains
                    if ((currentCohort%hite > 0.0_r8).and.(currentPatch%SH >=  &
                         (currentCohort%hite-currentCohort%hite*EDecophyscon%crown(currentCohort%pft)))) then 
 
-                           currentCohort%cfa =  (currentPatch%SH-currentCohort%hite* &
-                                EDecophyscon%crown(currentCohort%pft))/(currentCohort%hite-currentCohort%hite* &
+                           currentCohort%cfa =  (currentPatch%SH-currentCohort%hite*(1- &
+                                EDecophyscon%crown(currentCohort%pft)))/(currentCohort%hite* &
                                 EDecophyscon%crown(currentCohort%pft)) 
 
                    else 
