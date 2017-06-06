@@ -97,8 +97,8 @@ module EDTypesMod
   real(r8), parameter :: min_patch_area = 0.001_r8   ! smallest allowable patch area before termination
   real(r8), parameter :: min_nppatch    = 1.0E-11_r8 ! minimum number of cohorts per patch (min_npm2*min_patch_area)
   real(r8), parameter :: min_n_safemath = 1.0E-15_r8 ! in some cases, we want to immediately remove super small
-                                                     ! number densities of cohorts to prevent FPEs, this is usually
-                                                     ! just relevant in the first day after recruitment
+                                                     ! number densities of cohorts to prevent FPEs
+
   character*4 yearchar                    
 
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
@@ -753,7 +753,7 @@ contains
 
      age_class         = get_age_class_index(age)
      
-     size_by_age_class = (age_class-1)*nlevage_ed + size_class
+     size_by_age_class = (age_class-1)*nlevsclass_ed + size_class
 
   end function get_sizeage_class_index
 

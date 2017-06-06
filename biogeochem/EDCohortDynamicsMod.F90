@@ -117,7 +117,6 @@ contains
     call sizetype_class_index(new_cohort%dbh,new_cohort%pft, &
                               new_cohort%size_class,new_cohort%size_by_pft_class)
 
-    if ( DEBUG ) write(fates_log(),*) 'EDCohortDyn I ',bstore
 
     ! This routine may be called during restarts, and at this point in the call sequence
     ! the actual cohort data is unknown, as this is really only used for allocation
@@ -476,7 +475,7 @@ contains
     currentcohort%resp_acc_hold      = 0._r8
     currentcohort%carbon_balance     = 0._r8
     currentcohort%leaf_litter        = 0._r8
-    currentcohort%year_net_uptake(:) = 999 ! this needs to be 999, or trimming of new cohorts will break. 
+    currentcohort%year_net_uptake(:) = 999._r8 ! this needs to be 999, or trimming of new cohorts will break. 
     currentcohort%ts_net_uptake(:)   = 0._r8
     currentcohort%seed_prod          = 0._r8
     currentcohort%cfa                = 0._r8 
@@ -500,7 +499,7 @@ contains
   end subroutine zero_cohort
 
   !-------------------------------------------------------------------------------------!
-  subroutine terminate_cohorts( currentSite, patchptr )
+  subroutine terminate_cohorts( currentSite, patchptr, level )
     !
     ! !DESCRIPTION:
     ! terminates cohorts when they get too small      
@@ -512,6 +511,16 @@ contains
     ! !ARGUMENTS    
     type (ed_site_type) , intent(inout), target :: currentSite
     type (ed_patch_type), intent(inout), target :: patchptr
+    integer             , intent(in)            :: level
+
+    ! Important point regarding termination levels.  Termination is typically
+    ! called after fusion.  We do this so that we can re-capture the biomass that would
+    ! otherwise be lost from termination.  The biomass of a fused plant remains in the
+    ! live pool.  However, some plant number densities can be so low that they 
+    ! can cause numerical instabilities.  Thus, we call terminate_cohorts at level=1
+    ! before fusion to get rid of these cohorts that are so incredibly sparse, and then
+    ! terminate the remainder at level 2 for various other reasons.
+
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type)  , pointer :: currentPatch
@@ -529,16 +538,16 @@ contains
        nextc      => currentCohort%shorter    
        terminate = 0 
 
-       ! Check if number density is so low is breaks math
-       if (currentcohort%n <  min_n_safemath) then
+       ! Check if number density is so low is breaks math (level 1)
+       if (currentcohort%n <  min_n_safemath .and. level == 1) then
          terminate = 1
 	 if ( DEBUG ) then
              write(fates_log(),*) 'terminating cohorts 0',currentCohort%n/currentPatch%area,currentCohort%dbh
          endif
        endif
 
-       ! The rest of these are only allowed if we are not dealing with a recruit
-       if (.not.currentCohort%isnew) then
+       ! The rest of these are only allowed if we are not dealing with a recruit (level 2)
+       if (.not.currentCohort%isnew .and. level == 2) then
 
          ! Not enough n or dbh
          if  (currentCohort%n/currentPatch%area <= min_npm2 .or.	&  !
@@ -577,10 +586,10 @@ contains
                            currentCohort%bstore, currentCohort%n
             endif
 
-         endif
-       endif
+         endif 
+      endif    !  if (.not.currentCohort%isnew .and. level == 2) then
 
-       if (terminate == 1) then 
+      if (terminate == 1) then 
           ! preserve a record of the to-be-terminated cohort for mortality accounting
           if (currentCohort%canopy_layer .eq. 1) then
              levcan = 1
@@ -883,18 +892,32 @@ contains
           dynamic_fusion_tolerance = dynamic_fusion_tolerance * 1.1_r8
 
           write(fates_log(),*) 'maxcohorts exceeded',dynamic_fusion_tolerance
+    
 
-       else
-          iterate = 0
-       endif
+        else
+              iterate = 0
+        endif
 
-    enddo !do while nocohorts>maxcohorts
+        if ( dynamic_fusion_tolerance .gt. 100._r8) then
+              ! something has gone terribly wrong and we need to report what
+              write(fates_log(),*) 'exceeded reasonable expectation of cohort fusion.'
+              currentCohort => currentPatch%tallest
+              nocohorts = 0
+              do while(associated(currentCohort))
+                 write(fates_log(),*) 'cohort ', nocohorts, currentCohort%dbh, currentCohort%canopy_layer, currentCohort%n
+                 nocohorts = nocohorts + 1
+                 currentCohort => currentCohort%shorter
+              enddo
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           endif
 
-    endif ! patch. 
+        enddo !do while nocohorts>maxcohorts
 
-    if (fusion_took_place == 1) then  ! if fusion(s) occured sort cohorts 
-       call sort_cohorts(currentPatch)
-    endif
+     endif ! patch. 
+
+     if (fusion_took_place == 1) then  ! if fusion(s) occured sort cohorts 
+        call sort_cohorts(currentPatch)
+     endif
 
   end subroutine fuse_cohorts
 
@@ -1107,6 +1130,8 @@ contains
     n%status_coh      = o%status_coh               
     n%excl_weight     = o%excl_weight               
     n%prom_weight     = o%prom_weight               
+    n%size_class      = o%size_class
+    n%size_by_pft_class = o%size_by_pft_class
 
     ! CARBON FLUXES
     n%gpp_acc_hold    = o%gpp_acc_hold
