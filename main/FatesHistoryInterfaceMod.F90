@@ -1971,41 +1971,47 @@ contains
 
                   ! accumulate fluxes on canopy- and understory- separated fluxes
                   if (ccohort%canopy_layer .eq. 1) then
+                     !
+                     ! bulk fluxes are in gC / m2 / s
                      hio_gpp_canopy_pa(io_pa) = hio_gpp_canopy_pa(io_pa) + &
                           ccohort%gpp_tstep * g_per_kg * n_density * per_dt_tstep                     
                      hio_ar_canopy_pa(io_pa) = hio_ar_canopy_pa(io_pa) + &
                           ccohort%resp_tstep * g_per_kg * n_density * per_dt_tstep                     
                      !
+                     ! size-resolved respiration fluxes are in kg C / ha / yr
                      hio_rdark_canopy_si_scls(io_si,scls) = hio_rdark_canopy_si_scls(io_si,scls) + &
-                          ccohort%rdark * g_per_kg * ccohort%n * sec_per_day * days_per_year
+                          ccohort%rdark  * ccohort%n * sec_per_day * days_per_year
                      hio_livestem_mr_canopy_si_scls(io_si,scls) = hio_livestem_mr_canopy_si_scls(io_si,scls) + &
-                          ccohort%livestem_mr * g_per_kg * ccohort%n * sec_per_day * days_per_year
+                          ccohort%livestem_mr  * ccohort%n * sec_per_day * days_per_year
                      hio_livecroot_mr_canopy_si_scls(io_si,scls) = hio_livecroot_mr_canopy_si_scls(io_si,scls) + &
-                          ccohort%livecroot_mr * g_per_kg * ccohort%n * sec_per_day * days_per_year
+                          ccohort%livecroot_mr  * ccohort%n * sec_per_day * days_per_year
                      hio_froot_mr_canopy_si_scls(io_si,scls) = hio_froot_mr_canopy_si_scls(io_si,scls) + &
-                          ccohort%froot_mr * g_per_kg * ccohort%n * sec_per_day * days_per_year
+                          ccohort%froot_mr  * ccohort%n * sec_per_day * days_per_year
                      hio_resp_g_canopy_si_scls(io_si,scls) = hio_resp_g_canopy_si_scls(io_si,scls) + &
-                          ccohort%resp_g * g_per_kg * ccohort%n * sec_per_day * days_per_year * per_dt_tstep 
+                          ccohort%resp_g  * ccohort%n * sec_per_day * days_per_year * per_dt_tstep 
                      hio_resp_m_canopy_si_scls(io_si,scls) = hio_resp_m_canopy_si_scls(io_si,scls) + &
-                          ccohort%resp_m * g_per_kg * ccohort%n * sec_per_day * days_per_year * per_dt_tstep 
+                          ccohort%resp_m  * ccohort%n * sec_per_day * days_per_year * per_dt_tstep 
                   else
+                     !
+                     ! bulk fluxes are in gC / m2 / s
                      hio_gpp_understory_pa(io_pa) = hio_gpp_understory_pa(io_pa) + &
                           ccohort%gpp_tstep * g_per_kg * n_density * per_dt_tstep                     
                      hio_ar_understory_pa(io_pa) = hio_ar_understory_pa(io_pa) + &
                           ccohort%resp_tstep * g_per_kg * n_density * per_dt_tstep                     
                      !
+                     ! size-resolved respiration fluxes are in kg C / ha / yr
                      hio_rdark_understory_si_scls(io_si,scls) = hio_rdark_understory_si_scls(io_si,scls) + &
-                          ccohort%rdark * g_per_kg * ccohort%n * sec_per_day * days_per_year
+                          ccohort%rdark  * ccohort%n * sec_per_day * days_per_year
                      hio_livestem_mr_understory_si_scls(io_si,scls) = hio_livestem_mr_understory_si_scls(io_si,scls) + &
-                          ccohort%livestem_mr * g_per_kg * ccohort%n * sec_per_day * days_per_year
+                          ccohort%livestem_mr  * ccohort%n * sec_per_day * days_per_year
                      hio_livecroot_mr_understory_si_scls(io_si,scls) = hio_livecroot_mr_understory_si_scls(io_si,scls) + &
-                          ccohort%livecroot_mr * g_per_kg * ccohort%n * sec_per_day * days_per_year
+                          ccohort%livecroot_mr  * ccohort%n * sec_per_day * days_per_year
                      hio_froot_mr_understory_si_scls(io_si,scls) = hio_froot_mr_understory_si_scls(io_si,scls) + &
-                          ccohort%froot_mr * g_per_kg * ccohort%n * sec_per_day * days_per_year
+                          ccohort%froot_mr  * ccohort%n * sec_per_day * days_per_year
                      hio_resp_g_understory_si_scls(io_si,scls) = hio_resp_g_understory_si_scls(io_si,scls) + &
-                          ccohort%resp_g * g_per_kg * ccohort%n * sec_per_day * days_per_year * per_dt_tstep 
+                          ccohort%resp_g  * ccohort%n * sec_per_day * days_per_year * per_dt_tstep 
                      hio_resp_m_understory_si_scls(io_si,scls) = hio_resp_m_understory_si_scls(io_si,scls) + &
-                          ccohort%resp_m * g_per_kg * ccohort%n * sec_per_day * days_per_year * per_dt_tstep 
+                          ccohort%resp_m  * ccohort%n * sec_per_day * days_per_year * per_dt_tstep 
                   endif
                 end associate
                endif
