@@ -175,7 +175,7 @@ contains
        
        ! There are SIX fuel classes
        ! 1) Leaf litter, 2:5) four CWD_AG pools (twig, s branch, l branch, trunk) and  6) live grass
-       ! NCWD =4 
+       ! NCWD =4  NFSC = 6
        ! dl_sf = 1, tw_sf = 2, lb_sf = 4, tr_sf = 5, lg_sf = 6,
      
             ! zero fire arrays. 
@@ -638,6 +638,7 @@ contains
     !returns the updated currentPatch%FI value for each patch.
 
     !currentPatch%FI  average fire intensity of flaming front during day.  Backward ROS plays no role here. kJ/m/s or kW/m.
+    !currentSite%FDI  probability that an ignition will start a fire
     !currentPatch%ROS_front  forward ROS (m/min) 
     !currentPatch%TFC_ROS total fuel consumed by flaming front (kgC/m2)
 
@@ -645,13 +646,12 @@ contains
     use SFParamsMod,  only : SF_val_fdi_alpha,SF_val_fuel_energy, &
          SF_val_max_durat, SF_val_durat_slope
 
-    type(ed_site_type), intent(in), target :: currentSite
+    type(ed_site_type), intent(inout), target :: currentSite
 
     type(ed_patch_type), pointer :: currentPatch
 
     real(r8) ROS !m/s
     real(r8) W   !kgBiomass/m2
-    real(r8) :: d_fdi      !change in the NI on this day to give fire duration. 
 
     currentPatch => currentSite%oldest_patch;  
 
@@ -666,11 +666,15 @@ contains
        if (currentPatch%FI >= fire_threshold) then  ! 50kW/m is the threshold for a self-sustaining fire
           currentPatch%fire = 1 ! Fire...    :D
           
-          ! This is like but not identical to equation 7 in Thonicke et al. 2010.  WHY? 
-          d_FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI) !follows Venevsky et al GCB 2002 
+          ! Equation 7 from Venevsky et al GCB 2002 (modification of equation 8 in Thonicke et al. 2010) 
+          ! FDI 0.1 = low, 0.3 moderate, 0.75 high, and 1 = extreme ignition potential for alpha 0.000337
+          currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI)  
           ! Equation 14 in Thonicke et al. 2010
           ! fire duration in minutes
-          currentPatch%FD = (SF_val_max_durat+1) / (1.0_r8 + SF_val_max_durat * exp(SF_val_durat_slope*d_FDI))
+
+          currentPatch%FD = (SF_val_max_durat+1) / (1.0_r8 + SF_val_max_durat * &
+                            exp(SF_val_durat_slope*currentSite%FDI))
+
           if(write_SF == itrue)then
              if ( hlm_masterproc == itrue ) write(fates_log(),*) 'fire duration minutes',currentPatch%fd
           endif
@@ -748,7 +752,8 @@ contains
              ! THIS SHOULD HAVE THE COLUMN AND LU AREA WEIGHT ALSO, NO?
 
              gridarea = km2_to_m2     ! 1M m2 in a km2
-             currentPatch%NF = ED_val_nignitions * currentPatch%area/area /365
+             currentPatch%NF = ED_val_nignitions * currentPatch%area/area /365 * &
+                               currentSite%FDI
 
              ! If there are 15  lightening strickes per year, per km2. (approx from NASA product) 
              ! then there are 15/365 s/km2 each day. 
@@ -763,22 +768,23 @@ contains
              currentPatch%AB = size_of_fire * currentPatch%NF 
              
              patch_area_in_m2 = gridarea*currentPatch%area/area
-             if (currentPatch%AB > patch_area_in_m2 ) then !all of patch burnt. 
-
-                if ( hlm_masterproc == itrue ) write(fates_log(),*) 'burnt all of patch',currentPatch%patchno, &
-                     currentPatch%area/area,currentPatch%ab,patch_area_in_m2   
-                if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ros',currentPatch%ROS_front,currentPatch%FD, &
-                     currentPatch%NF,currentPatch%FI,size_of_fire
-
-                if ( hlm_masterproc == itrue ) write(fates_log(),*) 'litter', &
-                      currentPatch%sum_fuel,currentPatch%CWD_AG,currentPatch%leaf_litter
-                ! turn km2 into m2. work out total area burnt. 
-                currentPatch%AB = patch_area_in_m2 
-             endif
+             
              currentPatch%frac_burnt = currentPatch%AB / patch_area_in_m2
              if(write_SF == itrue)then
                 if ( hlm_masterproc == itrue ) write(fates_log(),*) 'frac_burnt',currentPatch%frac_burnt
              endif
+
+             if (currentPatch%frac_burnt > 1 ) then !all of patch burnt. 
+                
+                currentPatch%frac_burnt = 1.0 ! capping at 1 same as %AB/patch_area_in_m2 
+
+                if ( hlm_masterproc == itrue ) write(fates_log(),*) 'burnt all of patch',currentPatch%patchno
+                if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ros',currentPatch%ROS_front,currentPatch%FD, &
+                     currentPatch%NF,currentPatch%FI,size_of_fire
+
+             endif           
+
+
           endif
        endif! fire
        currentSite%frac_burnt = currentSite%frac_burnt + currentPatch%frac_burnt * currentPatch%area/area     
