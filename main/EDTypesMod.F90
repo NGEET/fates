@@ -76,14 +76,14 @@ module EDTypesMod
   
 
   ! SPITFIRE     
-  integer,  parameter :: NCWD                 = 4          ! number of coarse woody debris pools
-  integer , parameter :: NFSC                 = NCWD+2     ! number fuel size classes  (really this is a mix of cwd size classes, leaf litter, and grass types)
+  integer,  parameter :: NCWD                 = 4          ! number of coarse woody debris pools (twig,s branch,l branch, trunk)
+  integer , parameter :: NFSC                 = NCWD+2     ! number fuel size classes  (4 cwd size classes, leaf litter, and grass)
   integer,  parameter :: lg_sf                = 6          ! array index of live grass pool for spitfire
   integer,  parameter :: dl_sf                = 1          ! array index of dead leaf pool for spitfire (dead grass and dead leaves)
   integer,  parameter :: tw_sf                = 2          ! array index of twig pool for spitfire
   integer,  parameter :: tr_sf                = 5          ! array index of dead trunk pool for spitfire
   integer,  parameter :: lb_sf                = 4          ! array index of large branch pool for spitfire 
-  real(r8), parameter :: fire_threshold       = 35.0_r8    ! threshold for fires that spread or go out. KWm-2
+  real(r8), parameter :: fire_threshold       = 50.0_r8    ! threshold for fires that spread or go out. KWm-2 (Pyne 1986)
 
   ! PATCH FUSION 
   real(r8), parameter :: NTOL                 = 0.05_r8    ! min plant density for hgt bin to be used in height profile comparisons 
@@ -540,9 +540,10 @@ module EDTypesMod
      real(r8) :: dseed_dt(numpft_ed)
      real(r8) :: seed_rain_flux(numpft_ed)                         ! flux of seeds from exterior KgC/m2/year (needed for C balance purposes)
 
-     ! FIRE 
+     ! FIRE
+     real(r8) ::  wind                                         ! daily wind in m/min for Spitfire units 
      real(r8) ::  acc_ni                                       ! daily nesterov index accumulating over time.
-     real(r8) ::  ab                                           ! daily burnt area: m2
+     real(r8) ::  fdi                                          ! daily probability an ignition event will start a fire
      real(r8) ::  frac_burnt                                   ! fraction of soil burnt in this day.
      real(r8) ::  total_burn_flux_to_atm                       ! total carbon burnt to the atmosphere in this day. KgC/site
      real(r8) ::  cwd_ag_burned(ncwd)
