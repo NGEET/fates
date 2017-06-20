@@ -21,11 +21,19 @@ module EDInitMod
   use EDTypesMod                , only : numpft_ed
   use FatesInterfaceMod         , only : bc_in_type
   use EDTypesMod                , only : use_fates_plant_hydro
-  
+
+  ! CIME GLOBALS
+  use shr_log_mod               , only : errMsg => shr_log_errMsg
+
   implicit none
   private
 
   logical   ::  DEBUG = .false.
+
+  logical, parameter :: do_inv_init = .true.
+
+  character(len=*), parameter, private :: sourcefile = &
+        __FILE__
 
   public  :: zero_site
   public  :: init_patches
@@ -186,11 +194,19 @@ contains
   subroutine init_patches( nsites, sites, bc_in)
     !
     ! !DESCRIPTION:
-    !initialize patches on new ground
+    ! initialize patches
+    ! This may be call a near bare ground initialization, or it may
+    ! load patches from an inventory.
+     
     !
     ! !USES:
     use EDParamsMod ,  only : ED_val_maxspread  
     use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydProps 
+    use FatesInventoryInitMod,   only : get_inventory_file_unit
+    use FatesInventoryInitMod,   only : inv_file_list
+    use FatesInventoryInitMod,   only : count_inventory_sites
+    use FatesInventoryInitMod,   only : assess_inventory_sites
+
     !
     ! !ARGUMENTS    
     integer, intent(in)                        :: nsites
@@ -206,43 +222,119 @@ contains
     real(r8) :: root_litter_local(numpft_ed)
     real(r8) :: age !notional age of this patch
     type(ed_patch_type), pointer :: newp
+   
+
+    ! Census Initialization variables
+    integer  :: file_unit
+    integer  :: nfilesites ! number of sites in the inventory file list
+    logical  :: lod       ! logical, file "O"pene"D"
+    logical  :: lex       ! logical, file "EX"ists
+    integer  :: ios       ! integer, "IO" status
+    character(len=512) :: iostr
+    logical, parameter :: do_inv_init = .true.
+    character(len=256), allocatable :: inv_css_list(:)
+    character(len=256), allocatable :: inv_pss_list(:)
+    real(r8), allocatable           :: inv_lat_list(:)
+    real(r8), allocatable           :: inv_lon_list(:)
+    
     !----------------------------------------------------------------------
 
-    cwd_ag_local(:)      = 0.0_r8 !ED_val_init_litter -- arbitrary value for litter pools. kgC m-2
-    cwd_bg_local(:)      = 0.0_r8 !ED_val_init_litter
-    leaf_litter_local(:) = 0.0_r8
-    root_litter_local(:) = 0.0_r8
-    spread_local(:)      = ED_val_maxspread
-    age                  = 0.0_r8
+    if (do_inv_init) then
 
-    !FIX(SPM,032414) clean this up...inits out of this loop
-    do s = 1, nsites
+       ! I. Load the inventory list file, do some file handle checks
+       ! ------------------------------------------------------------------------------------------
 
-       allocate(newp)
-
-       newp%patchno = 1
-       newp%younger => null()
-       newp%older   => null()
-
-       sites(s)%youngest_patch => newp
-       sites(s)%youngest_patch => newp
-       sites(s)%oldest_patch   => newp
-
-       ! make new patch...
-       call create_patch(sites(s), newp, age, AREA, &
-            spread_local, cwd_ag_local, cwd_bg_local, leaf_litter_local,  &
-            root_litter_local) 
-
-       call init_cohorts(newp, bc_in(s))
-       
-       ! This sets the rhizosphere shells based on the plant initialization
-       ! The initialization of the plant-relevant hydraulics variables
-       ! were set from a call inside of the init_cohorts()->create_cohort() subroutine
-       if (use_fates_plant_hydro) then
-          call updateSizeDepRhizHydProps(sites(s), bc_in(s))
+       file_unit = get_inventory_file_unit()
+       inquire(file=trim(inv_file_list),exist=lex,opened=lod)
+       if( .not.lex ) then   ! The inventory file list DOE
+          write(fates_log(), *) 'An inventory Initialization was requested.'
+          write(fates_log(), *) 'However the inventory file: ',trim(inv_file_list),' DNE'
+          write(fates_log(), *) 'Aborting'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
+       if( lod ) then        ! The inventory file should not be open
+          write(fates_log(), *) 'The inventory list file is open but should not be.'
+          write(fates_log(), *) 'Aborting.'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+       
+       open(unit=file_unit,file=trim(inv_file_list),status='OLD',action='READ',form='FORMATTED')
+       rewind(file_unit)
 
-    enddo
+       ! There should be at least 1 line
+       read(file_unit,fmt='(A)',iostat=ios) iostr
+       read(file_unit,fmt='(A)',iostat=ios) iostr
+       if( ios /= 0 ) then
+          write(fates_log(), *) 'The inventory file does not contain at least two lines'
+          write(fates_log(), *) 'of data, ie a header and 1 site.  Aborting.'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+       rewind(unit=file_unit)
+
+
+       ! Count the number of sites that are listed in this file, and allocate storage arrays
+       ! ------------------------------------------------------------------------------------------
+
+       nfilesites = count_inventory_sites(file_unit)
+       
+       allocate(inv_pss_list(nfilesites))
+       allocate(inv_css_list(nfilesites))
+       allocate(inv_lat_list(nfilesites))
+       allocate(inv_lon_list(nfilesites))
+       
+
+       ! Check through the sites that are listed and do some sanity checks
+       ! ------------------------------------------------------------------------------------------
+       call assess_inventory_sites(file_unit,nfilesites,      &
+                                   inv_pss_list,inv_css_list, &
+                                   inv_lat_list,inv_lon_list)
+
+       ! For each site, identify the most proximal PSS/CSS couplet, read-in the data
+       ! allocate linked lists and assign to memory
+!       do s = 1, nsites
+!       end do
+
+       deallocate(inv_pss_list,inv_css_list,inv_lat_list,inv_lon_list)
+
+    else
+
+       cwd_ag_local(:)      = 0.0_r8 !ED_val_init_litter -- arbitrary value for litter pools. kgC m-2
+       cwd_bg_local(:)      = 0.0_r8 !ED_val_init_litter
+       leaf_litter_local(:) = 0.0_r8
+       root_litter_local(:) = 0.0_r8
+       spread_local(:)      = ED_val_maxspread
+       age                  = 0.0_r8
+
+       !FIX(SPM,032414) clean this up...inits out of this loop
+       do s = 1, nsites
+
+          allocate(newp)
+
+          newp%patchno = 1
+          newp%younger => null()
+          newp%older   => null()
+
+          sites(s)%youngest_patch => newp
+          sites(s)%youngest_patch => newp
+          sites(s)%oldest_patch   => newp
+
+          ! make new patch...
+          call create_patch(sites(s), newp, age, AREA, &
+                spread_local, cwd_ag_local, cwd_bg_local, leaf_litter_local,  &
+                root_litter_local) 
+
+          call init_cohorts(newp, bc_in(s))
+
+          ! This sets the rhizosphere shells based on the plant initialization
+          ! The initialization of the plant-relevant hydraulics variables
+          ! were set from a call inside of the init_cohorts()->create_cohort() subroutine
+          if (use_fates_plant_hydro) then
+             call updateSizeDepRhizHydProps(sites(s), bc_in(s))
+          end if
+
+       enddo
+
+    end if
 
   end subroutine init_patches
 
