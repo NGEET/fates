@@ -41,6 +41,7 @@ module EDPatchDynamicsMod
   public :: check_patch_area
   public :: set_patchno
   public :: set_root_fraction
+  public :: dealloc_patch
   private:: fuse_2_patches
 
 
