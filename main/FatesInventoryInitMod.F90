@@ -51,7 +51,7 @@ module FatesInventoryInitMod
 
    character(len=*), parameter, private :: sourcefile =  __FILE__
 
-   logical, parameter :: debug_inv = .true.       ! Debug flag for devs
+   logical, parameter :: debug_inv = .false.       ! Debug flag for devs
 
    ! String length specifiers
    integer, parameter :: patchname_strlen = 64   

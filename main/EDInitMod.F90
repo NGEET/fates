@@ -221,7 +221,7 @@ contains
      real(r8) :: root_litter_local(numpft_ed)
      real(r8) :: age !notional age of this patch
      type(ed_patch_type), pointer :: newp
-     logical, parameter :: do_inv_init = .true.
+     logical, parameter :: do_inv_init = .false.
 
      ! List out some nominal patch values that are used for Near Bear Ground initializations
      ! as well as initializing inventory
