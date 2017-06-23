@@ -240,10 +240,7 @@ contains
 
      if (do_inv_init) then
 
-        call initialize_sites_by_inventory(nsites,sites,bc_in, &
-              ncwd, numpft_ed, nclmax, &
-              cwd_ag_local, cwd_bg_local, leaf_litter_local, &
-              root_litter_local, spread_local)
+        call initialize_sites_by_inventory(nsites,sites,bc_in)
 
         do s = 1, nsites
            if (use_fates_plant_hydro) then

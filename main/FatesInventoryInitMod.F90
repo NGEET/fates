@@ -20,32 +20,41 @@ module FatesInventoryInitMod
 
    ! CIME GLOBALS
 
-   use shr_log_mod , only      : errMsg => shr_log_errMsg
+   use shr_log_mod      , only : errMsg => shr_log_errMsg
 
    ! FATES GLOBALS
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesGlobals     , only : endrun => fates_endrun
    use FatesGlobals     , only : fates_log
    use FatesInterfaceMod, only : bc_in_type
-   use EDTypesMod       , only : ed_site_type, ed_patch_type, ed_cohort_type, area
-   use EDPftvarcon               , only : EDPftvarcon_inst
-   use EDEcophysConType          , only : EDecophyscon
+   use EDTypesMod       , only : ed_site_type
+   use EDTypesMod       , only : ed_patch_type
+   use EDTypesMod       , only : ed_cohort_type 
+   use EDTypesMod       , only : area
+   use EDPftvarcon      , only : EDPftvarcon_inst
+   use EDEcophysConType , only : EDecophyscon
 
    implicit none
    private
 
+   ! This derived type is to allow an array of pointers to the LL patch structure
+   ! This is different than allocating a vector of patches. This is needed for
+   ! quickly matching cohort string identifiers, the indices that match thos identifiers
+   ! with a patch.  BY having a vector of patch pointers that lines up with the string
+   ! identifier array, this can be done quickly.
    type pp_array
       type(ed_patch_type), pointer :: cpatch
    end type pp_array
 
-   character(len=*), parameter :: inv_file_list = 'inventory_file_list.txt'
+   ! For now we will use a hard-coded file name for the inventory file list
+   character(len=*), parameter          :: inv_file_list = 'inventory_file_list.txt'
 
-   character(len=*), parameter, private :: sourcefile = &
-         __FILE__
+   character(len=*), parameter, private :: sourcefile =  __FILE__
 
-   logical, parameter :: debug_inv = .true.
+   logical, parameter :: debug_inv = .true.       ! Debug flag for devs
 
-   integer, parameter :: patchname_strlen = 64
+   ! String length specifiers
+   integer, parameter :: patchname_strlen = 64   
    integer, parameter :: line_strlen = 512
    integer, parameter :: path_strlen = 256
 
@@ -56,54 +65,56 @@ contains
 
    ! ==============================================================================================
 
-   subroutine initialize_sites_by_inventory(nsites,sites,bc_in, &
-         ncwd, npft, nclmax, cwd_ag_local, cwd_bg_local, &
-         leaf_litter_local, root_litter_local, spread_local)
+   subroutine initialize_sites_by_inventory(nsites,sites,bc_in)
 
       ! !USES:
       use shr_file_mod, only        : shr_file_getUnit
       use shr_file_mod, only        : shr_file_freeUnit
+      use EDTypesMod, only          : nclmax
+      use EDTypesMod, only          : numpft_ed
+      use EDTypesMod, only          : maxpft
+      use EDTypesMod, only          : ncwd
+      use EDParamsMod, only         : ED_val_maxspread
       use EDPatchDynamicsMod, only  : create_patch
       use EDPatchDynamicsMod, only  : fuse_patches
       use EDCohortDynamicsMod, only : fuse_cohorts
       use EDCohortDynamicsMod, only : sort_cohorts
 
       ! Arguments
-      integer, intent(in)                        :: nsites
-      type(ed_site_type) , intent(inout), target :: sites(nsites)
-      type(bc_in_type), intent(in)               :: bc_in(nsites)
-      integer  :: ncwd
-      integer  :: npft
-      integer  :: nclmax
-      real(r8) :: cwd_ag_local(ncwd)
-      real(r8) :: cwd_bg_local(ncwd)
-      real(r8) :: spread_local(nclmax)
-      real(r8) :: leaf_litter_local(npft)
-      real(r8) :: root_litter_local(npft)
+      integer,            intent(in)               :: nsites
+      type(ed_site_type), intent(inout), target    :: sites(nsites)
+      type(bc_in_type),   intent(in)               :: bc_in(nsites)
 
       ! Locals
-      type(ed_patch_type), pointer               :: currentpatch
-      type(ed_patch_type), pointer               :: newpatch
-      type(ed_patch_type), pointer               :: olderpatch
-      integer  :: file_unit
-      integer  :: nfilesites ! number of sites in the inventory file list
-      logical  :: lod        ! logical, file "O"pene"D"
-      logical  :: lex        ! logical, file "EX"ists
-      integer  :: ios        ! integer, "IO" status
-      character(len=line_strlen) :: header_str
-      
-      integer                                 :: s
-      integer                                 :: ipa
-      integer, allocatable                    :: inv_format_list(:)
-      character(len=path_strlen), allocatable :: inv_css_list(:)
-      character(len=path_strlen), allocatable :: inv_pss_list(:)
-      real(r8), allocatable                   :: inv_lat_list(:)
-      real(r8), allocatable                   :: inv_lon_list(:)
-      integer                                 :: invsite
-      character(len=patchname_strlen)         :: patch_name
-      integer                                 :: npatches
-      type(pp_array), allocatable             :: patch_pointer_vec(:)
-      character(len=patchname_strlen), allocatable :: patch_name_vec(:)
+      type(ed_patch_type), pointer                 :: currentpatch
+      type(ed_patch_type), pointer                 :: newpatch
+      type(ed_patch_type), pointer                 :: olderpatch
+      integer                                      :: file_unit
+      integer                                      :: nfilesites           ! number of sites in file list
+      logical                                      :: lod                  ! logical, file "O"pene"D"
+      logical                                      :: lex                  ! logical, file "EX"ists
+      integer                                      :: ios                  ! integer, "IO" status
+      character(len=line_strlen)                   :: header_str           ! large string for whole lines
+      real(r8)                                     :: age_init             ! dummy value for creating a patch
+      real(r8)                                     :: area_init            ! dummy value for creating a patch
+      real(r8)                                     :: spread_init(nclmax)  ! dummy value for creating a patch
+      real(r8)                                     :: cwd_ag_init(ncwd)    ! dummy value for creating a patch
+      real(r8)                                     :: cwd_bg_init(ncwd)    ! dummy value for creating a patch
+      real(r8)                                     :: leaf_litter_init(maxpft) ! dummy value for creating a patch
+      real(r8)                                     :: root_litter_init(maxpft) ! dummy value for creating a patch
+      integer                                      :: s                    ! site index
+      integer                                      :: ipa                  ! patch index
+      integer,                         allocatable :: inv_format_list(:)   ! list of format specs
+      character(len=path_strlen),      allocatable :: inv_css_list(:)      ! list of css file names
+      character(len=path_strlen),      allocatable :: inv_pss_list(:)      ! list of pss file names
+      real(r8),                        allocatable :: inv_lat_list(:)      ! list of lat coords
+      real(r8),                        allocatable :: inv_lon_list(:)      ! list of lon coords
+      integer                                      :: invsite              ! index of inventory site 
+                                                                           ! closest to actual site
+      character(len=patchname_strlen)              :: patch_name           ! patch ID string in the file
+      integer                                      :: npatches             ! number of patches found in PSS
+      type(pp_array),                  allocatable :: patch_pointer_vec(:) ! vector of pointers to patch LL
+      character(len=patchname_strlen), allocatable :: patch_name_vec(:)    ! vector of patch ID strings
 
       ! I. Load the inventory list file, do some file handle checks
       ! ------------------------------------------------------------------------------------------
@@ -154,7 +165,7 @@ contains
             inv_pss_list, inv_css_list, &
             inv_lat_list, inv_lon_list)
 
-      ! We can close the list file now.
+      ! We can close the list file now
       close(file_unit, iostat = ios)
       if( ios /= 0 ) then
          write(fates_log(), *) 'The inventory file needed to be closed, but was still open'
@@ -168,14 +179,16 @@ contains
       ! allocate linked lists and assign to memory
       do s = 1, nsites
          invsite = &
-               minloc( (sites(s)%lat-inv_lat_list(:))**2.0_r8 + (sites(s)%lon-inv_lon_list(:))**2.0_r8 , dim=1)
+               minloc( (sites(s)%lat-inv_lat_list(:))**2.0_r8 + &
+               (sites(s)%lon-inv_lon_list(:))**2.0_r8 , dim=1)
 
          ! Open the PSS/CSS couplet and initialize the ED data structures.
          ! Lets start withe the PSS
          ! ---------------------------------------------------------------------------------------
 
          file_unit = shr_file_getUnit()
-         open(unit=file_unit,file=trim(inv_pss_list(invsite)),status='OLD',action='READ',form='FORMATTED')
+         open(unit=file_unit,file=trim(inv_pss_list(invsite)), &
+               status='OLD',action='READ',form='FORMATTED')
          rewind(file_unit)
          read(file_unit,fmt=*) header_str
 
@@ -203,10 +216,21 @@ contains
             newpatch%older   => null()
 
             ! This call doesn't do much asside from initializing the patch with
-            ! nominal values, NaNs, zero's and allocating some vectors
-            call create_patch(sites(s), newpatch, 0.0_r8, 0.0_r8, &
-                  spread_local, cwd_ag_local, cwd_bg_local, leaf_litter_local,  &
-                  root_litter_local) 
+            ! nominal values, NaNs, zero's and allocating some vectors. We should
+            ! be able to get the following values from the patch files. But on 
+            ! the patch creation step, we don't have that information.
+
+            age_init            = 0.0_r8
+            area_init           = 0.0_r8 
+            spread_init(:)      = ED_val_maxspread
+            cwd_ag_init(:)      = 0.0_r8
+            cwd_bg_init(:)      = 0.0_r8
+            leaf_litter_init(1:numpft_ed) = 0.0_r8
+            root_litter_init(1:numpft_ed) = 0.0_r8
+
+            call create_patch(sites(s), newpatch, age_init, area_init, spread_init, &
+                  cwd_ag_init, cwd_bg_init, &
+                  leaf_litter_init(1:numpft_ed), root_litter_init(1:numpft_ed) )
 
             if( inv_format_list(invsite) == 1 ) then
                call set_inventory_edpatch_type1(newpatch,file_unit,ipa,ios,patch_name)
@@ -246,7 +270,6 @@ contains
                else
                   currentpatch => sites(s)%youngest_patch
                   do while(associated(currentpatch))
-
                      olderpatch => currentpatch%older
                      if(associated(currentpatch%older)) then
                         if(newpatch%age >= currentpatch%age .and. &
@@ -260,13 +283,10 @@ contains
                            olderpatch%younger => newpatch
                         end if
                      end if
-
                      currentPatch => olderpatch
                   enddo
-
                end if
             end if
-
          end do
 
          close(file_unit,iostat=ios)
@@ -277,32 +297,39 @@ contains
          end if
          call shr_file_freeUnit(file_unit)
 
-         currentpatch => sites(s)%youngest_patch
-         do while(associated(currentpatch))
-            print*,"NEW INVENTORY PATCH, AGE: ",currentpatch%age," AREA: ",currentpatch%area
-            currentPatch => currentpatch%older
-         enddo
+         if(debug_inv) then
+            write(fates_log(),*) 'Raw List of Inventory Patches, Age Sorted:'
+            currentpatch => sites(s)%youngest_patch
+            do while(associated(currentpatch))
+               write(fates_log(),*) ' AGE: ',currentpatch%age,' AREA: ',currentpatch%area
+               currentPatch => currentpatch%older
+            enddo
+         end if
          
-
-         ! OPEN THE CSS FILE AND ASSOCIATE IT WITH THE RIGHT PATCH
+         ! OPEN THE CSS FILE
          ! ---------------------------------------------------------------------------------------
          file_unit = shr_file_getUnit()
-         open(unit=file_unit,file=trim(inv_css_list(invsite)),status='OLD',action='READ',form='FORMATTED')
+         open(unit=file_unit,file=trim(inv_css_list(invsite)), &
+               status='OLD',action='READ',form='FORMATTED')
          rewind(file_unit)
          read(file_unit,fmt=*) header_str
 
+         ! Read in each cohort line. Each line is associated with a patch from the PSS
+         ! file via a patch name identification string.  We pass the whole site pointer
+         ! to this routine, because inside the routine we identify the patch by making
+         ! comparisons with patch_name_vec and identifying the patch pointer 
+         ! from patch_pointer_vec
+
          invcohortloop: do
-            if( inv_format_list(invsite) == 1 ) then
+            if ( inv_format_list(invsite) == 1 ) then
                call set_inventory_edcohort_type1(sites(s),bc_in(s),file_unit, &
                      npatches, patch_pointer_vec,patch_name_vec, ios)
             end if
-            if(ios/=0) then
-               exit
-            end if
+            if ( ios/=0 ) exit
          end do invcohortloop
 
          close(file_unit,iostat=ios)
-         if( ios /= 0 ) then
+         if( ios/=0 ) then
             write(fates_log(), *) 'The css file: ',inv_css_list(invsite),' could not be closed'
             write(fates_log(), *) 'aborting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -330,29 +357,27 @@ contains
          ! ----------------------------------------------------------------------------------------
          call fuse_patches(sites(s), bc_in(s) ) 
 
-
       end do
 
       deallocate(inv_format_list, inv_pss_list, inv_css_list, inv_lat_list, inv_lon_list)
 
-
+      return
    end subroutine initialize_sites_by_inventory
 
    ! ==============================================================================================
 
    function count_inventory_sites(file_unit) result(nsites)
 
-      integer, intent(in) :: file_unit
+      ! Simple function that counts the number of lines in the inventory descriptor file
 
+      ! Arguments
+      integer, intent(in)        :: file_unit
+
+      ! Locals
       character(len=line_strlen) :: header_str
       character(len=line_strlen) :: site_str
-      integer          :: ios
-      real(r8)         :: site_lat
-      real(r8)         :: site_lon
-      character(len=path_strlen) :: pss_file
-      character(len=path_strlen) :: css_file
-
-      integer          :: nsites
+      integer                    :: ios
+      integer                    :: nsites
 
 
       ! Set the file position to the top of the file
@@ -376,25 +401,36 @@ contains
          inv_pss_list,inv_css_list, &
          inv_lat_list,inv_lon_list)
 
-      integer, intent(in) :: file_unit
-      integer, intent(in) :: nsites
-      integer, intent(inout)           :: inv_format_list(nsites)
+      ! -------------------------------------------------------------------------------------------
+      ! This subroutine looks through the inventory descriptor file
+      ! and line by line reads information about the available inventory
+      ! sites, and saves their information (such as location and file path)
+      ! to arrays.  This routine also does some simple checks to make
+      ! sure it is not reading nonsense
+      ! -------------------------------------------------------------------------------------------
+
+
+      ! Arguments
+      integer, intent(in)                      :: file_unit
+      integer, intent(in)                      :: nsites
+      integer, intent(inout)                   :: inv_format_list(nsites)
       character(len=path_strlen),intent(inout) :: inv_pss_list(nsites)
       character(len=path_strlen),intent(inout) :: inv_css_list(nsites)
-      real(r8),intent(inout)           :: inv_lat_list(nsites)
-      real(r8),intent(inout)           :: inv_lon_list(nsites)
+      real(r8),intent(inout)                   :: inv_lat_list(nsites)
+      real(r8),intent(inout)                   :: inv_lon_list(nsites)
 
-      character(len=line_strlen) :: header_str
-      character(len=line_strlen) :: site_str
-      integer            :: isite
-      integer            :: ios
-      character(len=path_strlen) :: pss_file
-      character(len=path_strlen) :: css_file
-      real(r8)           :: site_lat
-      real(r8)           :: site_lon
-      integer            :: iblnk
-      integer            :: file_format
-      logical            :: lex
+      ! Locals
+      character(len=line_strlen)               :: header_str
+      character(len=line_strlen)               :: site_str
+      integer                                  :: isite       ! site index
+      integer                                  :: ios         ! fortran read status flag
+      character(len=path_strlen)               :: pss_file
+      character(len=path_strlen)               :: css_file
+      real(r8)                                 :: site_lat    ! inventory site latitude
+      real(r8)                                 :: site_lon    ! site longitude
+      integer                                  :: iblnk       ! Index used for string parsing
+      integer                                  :: file_format ! format type (1=legacy ED pss/css)
+      logical                                  :: lex         ! file existence flag
 
       rewind(unit=file_unit)
       read(file_unit,fmt='(4A)') header_str
@@ -468,8 +504,7 @@ contains
 
       end do
 
-
-
+      return
    end subroutine assess_inventory_sites
 
    ! ==============================================================================================
@@ -504,41 +539,33 @@ contains
       use SFParamsMod , only : SF_val_CWD_frac
       use EDParamsMod , only : ED_val_ag_biomass
 
-
-
       ! Arguments
-      type(ed_patch_type),intent(inout), target :: newpatch ! Patch structure
-      integer,intent(in)                       :: file_unit ! Self explanatory
-      integer,intent(in)                       :: ipa       ! Patch index (line number)
-      integer,intent(out)                      :: ios       ! Return flag
-      character(len=patchname_strlen),intent(out)            :: patch_name ! unique string identifier of patch
+      type(ed_patch_type),intent(inout), target   :: newpatch   ! Patch structure
+      integer,intent(in)                          :: file_unit  ! Self explanatory
+      integer,intent(in)                          :: ipa        ! Patch index (line number)
+      integer,intent(out)                         :: ios        ! Return flag
+      character(len=patchname_strlen),intent(out) :: patch_name ! unique string identifier of patch
 
-      real(r8)                        :: p_time  ! Time patch was recorded
-      real(r8)                        :: p_trk   ! Land Use index
-      ! 0 = Agriculture, 1 = Secondary Forest
-      ! 2 = Primary Forest, 3 = Forest Plantation
-      ! 4 = Burnt Patch, 5 = Abandoned (secondary growth)
-      ! 6 = Logged Forest
-      character(len=patchname_strlen)               :: p_name    ! unique string identifier of patch
-      real(r8)                        :: p_age   ! Patch age [years]
-      real(r8)                        :: p_area  ! Patch area [fraction]
-      real(r8)                        :: p_water ! Patch water (unused)
-      real(r8)                        :: p_fsc   ! Patch fast soil carbon
-      real(r8)                        :: p_stsc  ! Patch structural soil carbon
-      real(r8)                        :: p_stsl  ! Patch structural soil lignans
-      real(r8)                        :: p_ssc   ! Patch slow soil carbon
-      real(r8)                        :: p_psc   ! Patch P soil carbon
-      real(r8)                        :: p_msn   ! Patch mean soil nitrogen
-      real(r8)                        :: p_fsn   ! Patch fast soil nitrogen
-      integer                         :: icwd    ! index for counting CWD pools
-      integer                         :: ipft    ! index for counting PFTs
-      real(r8)                        :: pftfrac ! the inverse of the total number of PFTs
+      ! Locals
+      real(r8)                                    :: p_time     ! Time patch was recorded
+      real(r8)                                    :: p_trk      ! Land Use index (see above descriptions)
+      character(len=patchname_strlen)             :: p_name     ! unique string identifier of patch
+      real(r8)                                    :: p_age      ! Patch age [years]
+      real(r8)                                    :: p_area     ! Patch area [fraction]
+      real(r8)                                    :: p_water    ! Patch water (unused)
+      real(r8)                                    :: p_fsc      ! Patch fast soil carbon
+      real(r8)                                    :: p_stsc     ! Patch structural soil carbon
+      real(r8)                                    :: p_stsl     ! Patch structural soil lignans
+      real(r8)                                    :: p_ssc      ! Patch slow soil carbon
+      real(r8)                                    :: p_psc      ! Patch P soil carbon
+      real(r8)                                    :: p_msn      ! Patch mean soil nitrogen
+      real(r8)                                    :: p_fsn      ! Patch fast soil nitrogen
+      integer                                     :: icwd       ! index for counting CWD pools
+      integer                                     :: ipft       ! index for counting PFTs
+      real(r8)                                    :: pftfrac    ! the inverse of the total number of PFTs
 
       character(len=128),parameter    :: wr_fmt = &
             '(F5.2,2X,A4,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2)'
-
-      real(r8), parameter             :: cwdfrac = 0.95  ! CWD is 95% of structural biomass (GUESS, BAD ONE)
-      real(r8), parameter             :: leaffrac = 0.5  ! leaf litter is this fraction of total
 
 
       read(file_unit,fmt=*,iostat=ios) p_time, p_name, p_trk, p_age, p_area, &
@@ -589,7 +616,6 @@ contains
       end do
 
       return
-
    end subroutine set_inventory_edpatch_type1
 
 
@@ -623,30 +649,36 @@ contains
       use EDCohortDynamicsMod , only : create_cohort
 
       ! Arguments
-      type(ed_site_type),intent(inout), target     :: csite     ! current site
-      type(bc_in_type),intent(in)                  :: bc_in     ! boundary conditions
-      integer, intent(in)                          :: file_unit ! Self explanatory
-      integer, intent(in)                          :: npatches
-      type(pp_array), intent(in)                   :: patch_pointer_vec(npatches)
-      character(len=patchname_strlen), intent(in)  :: patch_name_vec(npatches)
-      integer,intent(out)                          :: ios       ! Return flag
+      type(ed_site_type),intent(inout), target    :: csite         ! current site
+      type(bc_in_type),intent(in)                 :: bc_in         ! boundary conditions
+      integer, intent(in)                         :: file_unit     ! Self explanatory
+      integer, intent(in)                         :: npatches      ! number of patches
+      type(pp_array), intent(in)                  :: patch_pointer_vec(npatches)
+      character(len=patchname_strlen), intent(in) :: patch_name_vec(npatches)
+      integer,intent(out)                         :: ios           ! Return flag
+      
+      ! Locals
+      real(r8)                                    :: c_time        ! Time patch was recorded
+      character(len=patchname_strlen)             :: p_name        ! The patch associated with this cohort
+      integer                                     :: c_index       ! cohort index
+      real(r8)                                    :: c_dbh         ! diameter at breast height (cm)
+      real(r8)                                    :: c_height      ! tree height (m)
+      integer                                     :: c_pft         ! plant functional type index
+      real(r8)                                    :: c_nplant      ! plant density (/m2)
+      real(r8)                                    :: c_bdead       ! dead biomass (kg)
+      real(r8)                                    :: c_balive      ! live biomass (kg)
+      real(r8)                                    :: c_avgRG       ! avg radial growth (NOT USED)
+      integer                                     :: cstatus       ! 
+      type(ed_patch_type), pointer                :: cpatch        ! current patch pointer
+      type(ed_cohort_type), pointer               :: temp_cohort   ! temporary patch (needed for allom funcs)
+      integer                                     :: ipa           ! patch idex
+      logical                                     :: matched_patch ! check if cohort was matched w/ patch
 
-      real(r8)                        :: c_time   ! Time patch was recorded
-      character(len=patchname_strlen) :: p_name   ! The patch associated with this cohort
-      integer                         :: c_index  ! cohort index
-      real(r8)                        :: c_dbh    ! diameter at breast height (cm)
-      real(r8)                        :: c_height ! tree height (m)
-      integer                         :: c_pft    ! plant functional type index
-      real(r8)                        :: c_nplant ! plant density (/m2)
-      real(r8)                        :: c_bdead  ! dead biomass (kg)
-      real(r8)                        :: c_balive ! live biomass (kg)
-      real(r8)                        :: c_avgRG  ! avg radial growth (NOT USED)
-      integer                         :: cstatus
-      type(ed_patch_type), pointer    :: cpatch
-      type(ed_cohort_type), pointer   :: temp_cohort
-      integer                         :: ipa
       character(len=128),parameter    :: wr_fmt = &
-            '(F5.2,2X,A4,2X,I4,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2)'
+            '(F5.2,2X,A4,2X,I4,2X,F5.2,2X,F5.2,2X,I4,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2)'
+
+      real(r8), parameter :: abnormal_large_nplant = 1000.0_r8  ! Used to catch bad values
+      real(r8), parameter :: abnormal_large_dbh    = 500.0_r8   ! I've never heard of a tree > 3m
 
       read(file_unit,fmt=*,iostat=ios) c_time, p_name, c_index, c_dbh, c_height, &
             c_pft, c_nplant, c_bdead, c_balive, c_avgRG
@@ -660,11 +692,21 @@ contains
       end if
 
       ! Identify the patch based on the patch_name
+      matched_patch = .false.
       do ipa=1,npatches
          if( trim(p_name) == trim(patch_name_vec(ipa))) then
             cpatch => patch_pointer_vec(ipa)%cpatch
+            matched_patch = .true.
          end if
       end do
+
+      if(.not.matched_patch)then
+         write(fates_log(), *) 'could not match a cohort with a patch'
+         write(fates_log(),fmt=wr_fmt) &
+               c_time, p_name, c_index, c_dbh, c_height, &
+               c_pft, c_nplant, c_bdead, c_balive, c_avgRG
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
 
 
       ! ===================================================================
@@ -672,12 +714,47 @@ contains
       c_pft = 1
       ! ===================================================================
 
+      ! Run some sanity checks on the input data
+      ! pft, nplant and dbh are the critical ones in this format specification
+      ! -------------------------------------------------------------------------------------------
+      
       if (c_pft > numpft_ed ) then
+         write(fates_log(), *) 'inventory pft: ',c_pft
          write(fates_log(), *) 'An inventory cohort file specified a pft index'
          write(fates_log(), *) 'greater than the maximum specified pfts ed_numpft'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
+      if (c_pft <= 0 ) then
+         write(fates_log(), *) 'inventory pft: ',c_pft
+         write(fates_log(), *) 'The inventory produced a cohort with <=0 pft index'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+
+      if (c_dbh <=0 ) then
+         write(fates_log(), *) 'inventory dbh: ', c_dbh
+         write(fates_log(), *) 'The inventory produced a cohort with <= 0 dbh'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+      
+      if (c_dbh > abnormal_large_dbh ) then
+         write(fates_log(), *) 'inventory dbh: ', c_nplant
+         write(fates_log(), *) 'The inventory produced a cohort with very large diameter [cm]'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+
+      if (c_nplant <=0 ) then
+         write(fates_log(), *) 'inventory nplant: ', c_nplant
+         write(fates_log(), *) 'The inventory produced a cohort with <= 0 density /m2'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+
+      if (c_nplant > abnormal_large_nplant ) then
+         write(fates_log(), *) 'inventory nplant: ', c_nplant
+         write(fates_log(), *) 'The inventory produced a cohort with very large density /m2'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+      
       allocate(temp_cohort)   ! A temporary cohort is needed because we want to make
                               ! use of the allometry functions
       
@@ -723,7 +800,6 @@ contains
       deallocate(temp_cohort) ! get rid of temporary cohort
 
       return
-
    end subroutine set_inventory_edcohort_type1
 
 end module FatesInventoryInitMod
