@@ -59,6 +59,11 @@ module FatesInventoryInitMod
    integer, parameter :: path_strlen = 256
 
 
+   real(r8), parameter :: max_site_adjacency_deg = 0.05_r8 ! The maximum distance in degrees
+                                                           ! allowed between a site's coordinate
+                                                           ! defined in model memory and a physical
+                                                           ! site listed in the file
+
    public :: initialize_sites_by_inventory
 
 contains
@@ -181,6 +186,18 @@ contains
          invsite = &
                minloc( (sites(s)%lat-inv_lat_list(:))**2.0_r8 + &
                (sites(s)%lon-inv_lon_list(:))**2.0_r8 , dim=1)
+
+         ! Do a sanity check on the distance separation between physical site and model site
+         if ( sqrt( (sites(s)%lat-inv_lat_list(invsite))**2.0_r8 + &
+               (sites(s)%lon-inv_lon_list(invsite))**2.0_r8 ) > max_site_adjacency_deg ) then
+            write(fates_log(), *) 'Model site at lat:',sites(s)%lat,' lon:',sites(s)%lon
+            write(fates_log(), *) 'has no reasonably proximal site in the inventory site list.'
+            write(fates_log(), *) 'Closest is at lat:',inv_lat_list(invsite),' lon:',inv_lon_list(invsite)
+            write(fates_log(), *) 'Separation must be less than ',max_site_adjacency_deg,' degrees'
+            write(fates_log(), *) 'Exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
 
          ! Open the PSS/CSS couplet and initialize the ED data structures.
          ! Lets start withe the PSS
@@ -474,7 +491,11 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if ( site_lon < -180.0_r8 .or. site_lon > 360.0_r8 ) then
+         ! Longitude should be converted to positive coordinate
+
+         if( site_lon<0.0_r8 ) site_lon = 360.0_r8 + site_lon
+
+         if ( site_lon < 0.0_r8 .or. site_lon > 360.0_r8 ) then
             write(fates_log(), *) 'read invalid longitude: ',site_lon,' from inventory site list'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -708,16 +729,10 @@ contains
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
-
-      ! ===================================================================
-      ! KLUGE KLUGE KLUGE KLUGE KLUGE KLUGE KLUGE KLUGE KLUGE KLUGE KLUGE
-      c_pft = 1
-      ! ===================================================================
-
       ! Run some sanity checks on the input data
       ! pft, nplant and dbh are the critical ones in this format specification
       ! -------------------------------------------------------------------------------------------
-      
+
       if (c_pft > numpft_ed ) then
          write(fates_log(), *) 'inventory pft: ',c_pft
          write(fates_log(), *) 'An inventory cohort file specified a pft index'
@@ -758,6 +773,8 @@ contains
       allocate(temp_cohort)   ! A temporary cohort is needed because we want to make
                               ! use of the allometry functions
       
+     
+
       temp_cohort%pft         = c_pft
       temp_cohort%n           = c_nplant * cpatch%area
       temp_cohort%hite        = Hite(temp_cohort)

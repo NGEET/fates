@@ -6,6 +6,7 @@ module EDInitMod
 
   use FatesConstantsMod         , only : r8 => fates_r8
   use FatesConstantsMod         , only : ifalse
+  use FatesConstantsMod         , only : itrue
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax
   use FatesGlobals              , only : fates_log
@@ -30,7 +31,7 @@ module EDInitMod
 
   logical   ::  DEBUG = .false.
 
-  logical, parameter :: do_inv_init = .true.
+  integer, parameter :: do_inv_init = ifalse
 
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
@@ -201,7 +202,6 @@ contains
      !
      
 
-     use EDPatchDynamicsMod     , only : dealloc_patch
      use EDParamsMod            , only : ED_val_maxspread
      use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydProps 
      use FatesInventoryInitMod,   only : initialize_sites_by_inventory
@@ -221,7 +221,6 @@ contains
      real(r8) :: root_litter_local(numpft_ed)
      real(r8) :: age !notional age of this patch
      type(ed_patch_type), pointer :: newp
-     logical, parameter :: do_inv_init = .false.
 
      ! List out some nominal patch values that are used for Near Bear Ground initializations
      ! as well as initializing inventory
@@ -238,7 +237,7 @@ contains
      ! Two primary options, either a Near Bear Ground (NBG) or Inventory based cold-start
      ! ---------------------------------------------------------------------------------------------
 
-     if (do_inv_init) then
+     if (do_inv_init .eq. itrue) then
 
         call initialize_sites_by_inventory(nsites,sites,bc_in)
 
