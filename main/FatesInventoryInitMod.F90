@@ -94,10 +94,12 @@ contains
       type(ed_patch_type), pointer                 :: currentpatch
       type(ed_patch_type), pointer                 :: newpatch
       type(ed_patch_type), pointer                 :: olderpatch
-      integer                                      :: file_unit
+      integer                                      :: sitelist_file_unit   ! fortran file unit for site list
+      integer                                      :: pss_file_unit        ! fortran file unit for the pss file
+      integer                                      :: css_file_unit        ! fortran file unit for the css file
       integer                                      :: nfilesites           ! number of sites in file list
-      logical                                      :: lod                  ! logical, file "O"pene"D"
-      logical                                      :: lex                  ! logical, file "EX"ists
+      logical                                      :: lopen                ! logical, file is open
+      logical                                      :: lexist               ! logical, file exists
       integer                                      :: ios                  ! integer, "IO" status
       character(len=line_strlen)                   :: header_str           ! large string for whole lines
       real(r8)                                     :: age_init             ! dummy value for creating a patch
@@ -124,38 +126,38 @@ contains
       ! I. Load the inventory list file, do some file handle checks
       ! ------------------------------------------------------------------------------------------
 
-      file_unit = shr_file_getUnit()
-      inquire(file=trim(inv_file_list),exist=lex,opened=lod)
-      if( .not.lex ) then   ! The inventory file list DOE
+      sitelist_file_unit = shr_file_getUnit()
+      inquire(file=trim(inv_file_list),exist=lexist,opened=lopen)
+      if( .not.lexist ) then   ! The inventory file list DNE
          write(fates_log(), *) 'An inventory Initialization was requested.'
          write(fates_log(), *) 'However the inventory file: ',trim(inv_file_list),' DNE'
          write(fates_log(), *) 'Aborting'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
-      if( lod ) then        ! The inventory file should not be open
+      if( lopen ) then        ! The inventory file should not be open
          write(fates_log(), *) 'The inventory list file is open but should not be.'
          write(fates_log(), *) 'Aborting.'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
-      open(unit=file_unit,file=trim(inv_file_list),status='OLD',action='READ',form='FORMATTED')
-      rewind(file_unit)
+      open(unit=sitelist_file_unit,file=trim(inv_file_list),status='OLD',action='READ',form='FORMATTED')
+      rewind(sitelist_file_unit)
 
       ! There should be at least 1 line
-      read(file_unit,fmt='(A)',iostat=ios) header_str
-      read(file_unit,fmt='(A)',iostat=ios) header_str
+      read(sitelist_file_unit,fmt='(A)',iostat=ios) header_str
+      read(sitelist_file_unit,fmt='(A)',iostat=ios) header_str
       if( ios /= 0 ) then
          write(fates_log(), *) 'The inventory file does not contain at least two lines'
          write(fates_log(), *) 'of data, ie a header and 1 site.  Aborting.'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
-      rewind(unit=file_unit)
+      rewind(unit=sitelist_file_unit)
 
 
       ! Count the number of sites that are listed in this file, and allocate storage arrays
       ! ------------------------------------------------------------------------------------------
 
-      nfilesites = count_inventory_sites(file_unit)
+      nfilesites = count_inventory_sites(sitelist_file_unit)
 
       allocate(inv_format_list(nfilesites))
       allocate(inv_pss_list(nfilesites))
@@ -166,18 +168,18 @@ contains
 
       ! Check through the sites that are listed and do some sanity checks
       ! ------------------------------------------------------------------------------------------
-      call assess_inventory_sites(file_unit, nfilesites, inv_format_list, &
+      call assess_inventory_sites(sitelist_file_unit, nfilesites, inv_format_list, &
             inv_pss_list, inv_css_list, &
             inv_lat_list, inv_lon_list)
 
       ! We can close the list file now
-      close(file_unit, iostat = ios)
+      close(sitelist_file_unit, iostat = ios)
       if( ios /= 0 ) then
          write(fates_log(), *) 'The inventory file needed to be closed, but was still open'
          write(fates_log(), *) 'aborting'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
-      call shr_file_freeUnit(file_unit)
+      call shr_file_freeUnit(sitelist_file_unit)
 
 
       ! For each site, identify the most proximal PSS/CSS couplet, read-in the data
@@ -203,21 +205,21 @@ contains
          ! Lets start withe the PSS
          ! ---------------------------------------------------------------------------------------
 
-         file_unit = shr_file_getUnit()
-         open(unit=file_unit,file=trim(inv_pss_list(invsite)), &
+         pss_file_unit = shr_file_getUnit()
+         open(unit=pss_file_unit,file=trim(inv_pss_list(invsite)), &
                status='OLD',action='READ',form='FORMATTED')
-         rewind(file_unit)
-         read(file_unit,fmt=*) header_str
+         rewind(pss_file_unit)
+         read(pss_file_unit,fmt=*) header_str
 
          ! Do one quick pass through just to count lines
          ipa = 0
          countpatchloop: do
-            read(file_unit,fmt=*,iostat=ios) header_str
+            read(pss_file_unit,fmt=*,iostat=ios) header_str
             if(ios/=0) exit
             ipa = ipa + 1
          end do countpatchloop
-         rewind(file_unit)
-         read(file_unit,fmt=*) header_str
+         rewind(pss_file_unit)
+         read(pss_file_unit,fmt=*) header_str
 
          npatches = ipa
          allocate(patch_name_vec(npatches))
@@ -250,7 +252,7 @@ contains
                   leaf_litter_init(1:numpft_ed), root_litter_init(1:numpft_ed) )
 
             if( inv_format_list(invsite) == 1 ) then
-               call set_inventory_edpatch_type1(newpatch,file_unit,ipa,ios,patch_name)
+               call set_inventory_edpatch_type1(newpatch,pss_file_unit,ipa,ios,patch_name)
             end if
 
             ! Add it to the site's patch list
@@ -306,13 +308,13 @@ contains
             end if
          end do
 
-         close(file_unit,iostat=ios)
+         close(pss_file_unit,iostat=ios)
          if( ios /= 0 ) then
             write(fates_log(), *) 'The pss file: ',inv_pss_list(invsite),' could not be closed'
             write(fates_log(), *) 'aborting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
-         call shr_file_freeUnit(file_unit)
+         call shr_file_freeUnit(pss_file_unit)
 
          if(debug_inv) then
             write(fates_log(),*) 'Raw List of Inventory Patches, Age Sorted:'
@@ -325,11 +327,11 @@ contains
          
          ! OPEN THE CSS FILE
          ! ---------------------------------------------------------------------------------------
-         file_unit = shr_file_getUnit()
-         open(unit=file_unit,file=trim(inv_css_list(invsite)), &
+         css_file_unit = shr_file_getUnit()
+         open(unit=css_file_unit,file=trim(inv_css_list(invsite)), &
                status='OLD',action='READ',form='FORMATTED')
-         rewind(file_unit)
-         read(file_unit,fmt=*) header_str
+         rewind(css_file_unit)
+         read(css_file_unit,fmt=*) header_str
 
          ! Read in each cohort line. Each line is associated with a patch from the PSS
          ! file via a patch name identification string.  We pass the whole site pointer
@@ -339,19 +341,19 @@ contains
 
          invcohortloop: do
             if ( inv_format_list(invsite) == 1 ) then
-               call set_inventory_edcohort_type1(sites(s),bc_in(s),file_unit, &
+               call set_inventory_edcohort_type1(sites(s),bc_in(s),css_file_unit, &
                      npatches, patch_pointer_vec,patch_name_vec, ios)
             end if
             if ( ios/=0 ) exit
          end do invcohortloop
 
-         close(file_unit,iostat=ios)
+         close(css_file_unit,iostat=ios)
          if( ios/=0 ) then
             write(fates_log(), *) 'The css file: ',inv_css_list(invsite),' could not be closed'
             write(fates_log(), *) 'aborting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
-         call shr_file_freeUnit(file_unit)
+         call shr_file_freeUnit(css_file_unit)
 
          deallocate(patch_pointer_vec,patch_name_vec)
 
@@ -383,12 +385,12 @@ contains
 
    ! ==============================================================================================
 
-   function count_inventory_sites(file_unit) result(nsites)
+   function count_inventory_sites(sitelist_file_unit) result(nsites)
 
       ! Simple function that counts the number of lines in the inventory descriptor file
 
       ! Arguments
-      integer, intent(in)        :: file_unit
+      integer, intent(in)        :: sitelist_file_unit
 
       ! Locals
       character(len=line_strlen) :: header_str
@@ -400,11 +402,11 @@ contains
       ! Set the file position to the top of the file
       ! Read in the header line
       ! Read through sites and check coordinates and file existence
-      rewind(unit=file_unit)
-      read(file_unit,fmt='(A)') header_str
+      rewind(unit=sitelist_file_unit)
+      read(sitelist_file_unit,fmt='(A)') header_str
       nsites = 0
       do
-         read(file_unit,fmt='(A)',iostat=ios) site_str
+         read(sitelist_file_unit,fmt='(A)',iostat=ios) site_str
          if (ios/=0) exit
          nsites = nsites + 1
       end do
@@ -414,7 +416,7 @@ contains
 
    ! ==============================================================================================
 
-   subroutine assess_inventory_sites(file_unit,nsites, inv_format_list, &
+   subroutine assess_inventory_sites(sitelist_file_unit,nsites, inv_format_list, &
          inv_pss_list,inv_css_list, &
          inv_lat_list,inv_lon_list)
 
@@ -424,21 +426,40 @@ contains
       ! sites, and saves their information (such as location and file path)
       ! to arrays.  This routine also does some simple checks to make
       ! sure it is not reading nonsense
+      !
+      ! File Format for the inventory site file:
+      ! 1 line header
+      ! 1 line listing each available inventory site with the following fields:
+      ! type     latitude    longitude   pss-name   css-name
+      !
+      ! The fields for each site are described as follows:
+      !
+      ! <short-name>    <value-kind>     <description>
+      !
+      ! type            integer          We will accomodate different file format with different
+      !                                  field values as the need arises. format 1 will read in 
+      !                                  datasets via "set_inventory_edpatch_type1()", 
+      !                                  "set_inventory_edcohort_type1()"
+      ! 
+      ! latitude        float            The geographic latitude coordinate of the site
+      ! longitude       float            The geogarphic longitude coordinate of the site
+      ! pss-name        string           The full path to the patch descriptor file (PSS)
+      ! css-name        string           The full path to the cohort descriptor file (CSS)
       ! -------------------------------------------------------------------------------------------
 
 
       ! Arguments
-      integer, intent(in)                      :: file_unit
-      integer, intent(in)                      :: nsites
-      integer, intent(inout)                   :: inv_format_list(nsites)
-      character(len=path_strlen),intent(inout) :: inv_pss_list(nsites)
-      character(len=path_strlen),intent(inout) :: inv_css_list(nsites)
-      real(r8),intent(inout)                   :: inv_lat_list(nsites)
-      real(r8),intent(inout)                   :: inv_lon_list(nsites)
+      integer, intent(in)                      :: sitelist_file_unit       ! file unit for sitelist
+      integer, intent(in)                      :: nsites                   ! number of inventory sites
+      integer, intent(inout)                   :: inv_format_list(nsites)  ! array of formats for each inventory site
+      character(len=path_strlen),intent(inout) :: inv_pss_list(nsites)     ! array of pss file paths for each site
+      character(len=path_strlen),intent(inout) :: inv_css_list(nsites)     ! array of css file paths for each site
+      real(r8),intent(inout)                   :: inv_lat_list(nsites)     ! array of latitudes for each site
+      real(r8),intent(inout)                   :: inv_lon_list(nsites)     ! array of longitudes for each site
 
       ! Locals
-      character(len=line_strlen)               :: header_str
-      character(len=line_strlen)               :: site_str
+      character(len=line_strlen)               :: header_str  ! a string to hold the header information
+      character(len=line_strlen)               :: site_str    ! a string to hold each site-line in the file
       integer                                  :: isite       ! site index
       integer                                  :: ios         ! fortran read status flag
       character(len=path_strlen)               :: pss_file
@@ -447,15 +468,15 @@ contains
       real(r8)                                 :: site_lon    ! site longitude
       integer                                  :: iblnk       ! Index used for string parsing
       integer                                  :: file_format ! format type (1=legacy ED pss/css)
-      logical                                  :: lex         ! file existence flag
+      logical                                  :: lexist      ! file existence flag
 
-      rewind(unit=file_unit)
-      read(file_unit,fmt='(4A)') header_str
+      rewind(unit=sitelist_file_unit)
+      read(sitelist_file_unit,fmt='(4A)') header_str
 
       do isite=1,nsites
 
          ! Read in the whole line
-         read(file_unit,fmt='(a)',iostat=ios) site_str
+         read(sitelist_file_unit,fmt='(a)',iostat=ios) site_str
 
          ! Parse the format identifier
          read(site_str,*) file_format
@@ -500,15 +521,15 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         inquire(file=trim(pss_file),exist=lex)
-         if( .not.lex ) then
+         inquire(file=trim(pss_file),exist=lexist)
+         if( .not.lexist ) then
             write(fates_log(), *) 'the following pss file could not be found:'
             write(fates_log(), *) trim(pss_file)
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         inquire(file=trim(css_file),exist=lex)
-         if( .not.lex ) then
+         inquire(file=trim(css_file),exist=lexist)
+         if( .not.lexist ) then
             write(fates_log(), *) 'the following css file could not be found:'
             write(fates_log(), *) trim(css_file)
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -530,14 +551,16 @@ contains
 
    ! ==============================================================================================
 
-   subroutine set_inventory_edpatch_type1(newpatch,file_unit,ipa,ios,patch_name)
+   subroutine set_inventory_edpatch_type1(newpatch,pss_file_unit,ipa,ios,patch_name)
 
       ! --------------------------------------------------------------------------------------------
       ! This subroutine reads in a line of an inventory patch file (pss)
       ! And populates a new patch with that information.
       ! This routine specifically reads PSS files that are "Type 1" formatted
       ! 
-      ! FILE FORMAT:
+      ! The file is formatted text, which contains 1 header line to label columns
+      ! and then 1 line for each patch containing the following fields:
+      !
       ! time	(year)     year of measurement
       ! patch	(string)   patch id string
       ! trk	(integer)  LU type index (0 non-forest, 1 secondary, 2 primary
@@ -550,7 +573,7 @@ contains
       ! ssc	(kg/m2)    Slow Soil Carbon
       ! psc	(NA)       Passive Soil Carbon (NOT USED)
       ! msn	(kg/m2)    Mineralized Soil Nitrogen
-      ! fsn      (kg/m2)    Fast Soil Nitrogen
+      ! fsn     (kg/m2)    Fast Soil Nitrogen
       ! --------------------------------------------------------------------------------------------
 
       use EDTypesMod, only: get_age_class_index
@@ -561,11 +584,11 @@ contains
       use EDParamsMod , only : ED_val_ag_biomass
 
       ! Arguments
-      type(ed_patch_type),intent(inout), target   :: newpatch   ! Patch structure
-      integer,intent(in)                          :: file_unit  ! Self explanatory
-      integer,intent(in)                          :: ipa        ! Patch index (line number)
-      integer,intent(out)                         :: ios        ! Return flag
-      character(len=patchname_strlen),intent(out) :: patch_name ! unique string identifier of patch
+      type(ed_patch_type),intent(inout), target   :: newpatch      ! Patch structure
+      integer,intent(in)                          :: pss_file_unit ! Self explanatory
+      integer,intent(in)                          :: ipa           ! Patch index (line number)
+      integer,intent(out)                         :: ios           ! Return flag
+      character(len=patchname_strlen),intent(out) :: patch_name    ! unique string identifier of patch
 
       ! Locals
       real(r8)                                    :: p_time     ! Time patch was recorded
@@ -589,7 +612,7 @@ contains
             '(F5.2,2X,A4,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2)'
 
 
-      read(file_unit,fmt=*,iostat=ios) p_time, p_name, p_trk, p_age, p_area, &
+      read(pss_file_unit,fmt=*,iostat=ios) p_time, p_name, p_trk, p_age, p_area, &
             p_water,p_fsc, p_stsc, p_stsl, p_ssc, &
             p_psc, p_msn, p_fsn
 
@@ -642,13 +665,16 @@ contains
 
    ! ==============================================================================================
 
-   subroutine set_inventory_edcohort_type1(csite,bc_in,file_unit,npatches, &
+   subroutine set_inventory_edcohort_type1(csite,bc_in,css_file_unit,npatches, &
                                            patch_pointer_vec,patch_name_vec,ios)
 
       ! --------------------------------------------------------------------------------------------
       ! This subroutine reads in a line of an inventory cohort file (css)
       ! And populates a new cohort with that information.
       ! This routine specifically reads CSS files that are "Type 1" formatted
+      ! 
+      ! The file formatted text, which contains 1 header line to label columns
+      ! and then 1 line for each cohort containing the following fields:
       ! 
       ! FILE FORMAT:
       ! time	(year)     year of measurement
@@ -672,7 +698,7 @@ contains
       ! Arguments
       type(ed_site_type),intent(inout), target    :: csite         ! current site
       type(bc_in_type),intent(in)                 :: bc_in         ! boundary conditions
-      integer, intent(in)                         :: file_unit     ! Self explanatory
+      integer, intent(in)                         :: css_file_unit     ! Self explanatory
       integer, intent(in)                         :: npatches      ! number of patches
       type(pp_array), intent(in)                  :: patch_pointer_vec(npatches)
       character(len=patchname_strlen), intent(in) :: patch_name_vec(npatches)
@@ -701,9 +727,9 @@ contains
       real(r8), parameter :: abnormal_large_nplant = 1000.0_r8  ! Used to catch bad values
       real(r8), parameter :: abnormal_large_dbh    = 500.0_r8   ! I've never heard of a tree > 3m
 
-      read(file_unit,fmt=*,iostat=ios) c_time, p_name, c_index, c_dbh, c_height, &
+      read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_index, c_dbh, c_height, &
             c_pft, c_nplant, c_bdead, c_balive, c_avgRG
-
+      
       if (ios/=0) return
 
       if( debug_inv) then

@@ -31,7 +31,7 @@ module EDInitMod
 
   logical   ::  DEBUG = .false.
 
-  integer, parameter :: do_inv_init = ifalse
+  integer, parameter :: do_inv_init = itrue
 
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
