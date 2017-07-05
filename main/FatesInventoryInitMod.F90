@@ -55,6 +55,7 @@ module FatesInventoryInitMod
 
    ! String length specifiers
    integer, parameter :: patchname_strlen = 64   
+   integer, parameter :: cohortname_strlen = 64
    integer, parameter :: line_strlen = 512
    integer, parameter :: path_strlen = 256
 
@@ -84,6 +85,7 @@ contains
       use EDPatchDynamicsMod, only  : fuse_patches
       use EDCohortDynamicsMod, only : fuse_cohorts
       use EDCohortDynamicsMod, only : sort_cohorts
+      use EDcohortDynamicsMod, only : count_cohorts
 
       ! Arguments
       integer,            intent(in)               :: nsites
@@ -111,6 +113,7 @@ contains
       real(r8)                                     :: root_litter_init(maxpft) ! dummy value for creating a patch
       integer                                      :: s                    ! site index
       integer                                      :: ipa                  ! patch index
+      integer                                      :: total_cohorts        ! cohort counter for error checking
       integer,                         allocatable :: inv_format_list(:)   ! list of format specs
       character(len=path_strlen),      allocatable :: inv_css_list(:)      ! list of css file names
       character(len=path_strlen),      allocatable :: inv_pss_list(:)      ! list of pss file names
@@ -360,6 +363,7 @@ contains
          ! Update the patch index numbers and fuse the cohorts in the patches
          ! ----------------------------------------------------------------------------------------
          ipa=1
+         total_cohorts = 0
          currentpatch => sites(s)%youngest_patch
          do while(associated(currentpatch))
             currentpatch%patchno = ipa
@@ -368,9 +372,16 @@ contains
             ! Perform Cohort Fusion
             call fuse_cohorts(currentpatch,bc_in(s))
             call sort_cohorts(currentpatch)
+            total_cohorts = total_cohorts + count_cohorts(currentpatch)
 
             currentPatch => currentpatch%older
          enddo
+
+         if(total_cohorts .eq. 0)then
+            write(fates_log(), *) 'The inventory initialization produced no cohorts.'
+            write(fates_log(), *) 'aborting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
 
          ! Fuse patches
          ! ----------------------------------------------------------------------------------------
@@ -707,7 +718,7 @@ contains
       ! Locals
       real(r8)                                    :: c_time        ! Time patch was recorded
       character(len=patchname_strlen)             :: p_name        ! The patch associated with this cohort
-      integer                                     :: c_index       ! cohort index
+      character(len=cohortname_strlen)            :: c_name        ! cohort index
       real(r8)                                    :: c_dbh         ! diameter at breast height (cm)
       real(r8)                                    :: c_height      ! tree height (m)
       integer                                     :: c_pft         ! plant functional type index
@@ -722,21 +733,21 @@ contains
       logical                                     :: matched_patch ! check if cohort was matched w/ patch
 
       character(len=128),parameter    :: wr_fmt = &
-            '(F5.2,2X,A4,2X,I4,2X,F5.2,2X,F5.2,2X,I4,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2)'
+           '(F7.1,2X,A20,2X,A20,2X,F5.2,2X,F5.2,2X,I4,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2)'
 
       real(r8), parameter :: abnormal_large_nplant = 1000.0_r8  ! Used to catch bad values
       real(r8), parameter :: abnormal_large_dbh    = 500.0_r8   ! I've never heard of a tree > 3m
 
-      read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_index, c_dbh, c_height, &
+      read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_name, c_dbh, c_height, &
             c_pft, c_nplant, c_bdead, c_balive, c_avgRG
       
-      if (ios/=0) return
-
       if( debug_inv) then
          write(*,fmt=wr_fmt) &
-               c_time, p_name, c_index, c_dbh, c_height, &
-               c_pft, c_nplant, c_bdead, c_balive, c_avgRG
+              c_time, p_name, c_name, c_dbh, c_height, &
+              c_pft, c_nplant, c_bdead, c_balive, c_avgRG
       end if
+
+      if (ios/=0) return
 
       ! Identify the patch based on the patch_name
       matched_patch = .false.
@@ -750,7 +761,7 @@ contains
       if(.not.matched_patch)then
          write(fates_log(), *) 'could not match a cohort with a patch'
          write(fates_log(),fmt=wr_fmt) &
-               c_time, p_name, c_index, c_dbh, c_height, &
+               c_time, p_name, c_name, c_dbh, c_height, &
                c_pft, c_nplant, c_bdead, c_balive, c_avgRG
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
