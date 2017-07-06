@@ -24,6 +24,7 @@ module FatesInventoryInitMod
 
    ! FATES GLOBALS
    use FatesConstantsMod, only : r8 => fates_r8
+   use FatesConstantsMod, only : pi_const
    use FatesGlobals     , only : endrun => fates_endrun
    use FatesGlobals     , only : fates_log
    use FatesInterfaceMod, only : bc_in_type
@@ -94,6 +95,7 @@ contains
 
       ! Locals
       type(ed_patch_type), pointer                 :: currentpatch
+      type(ed_cohort_type), pointer                :: currentcohort
       type(ed_patch_type), pointer                 :: newpatch
       type(ed_patch_type), pointer                 :: olderpatch
       integer                                      :: sitelist_file_unit   ! fortran file unit for site list
@@ -125,6 +127,11 @@ contains
       integer                                      :: npatches             ! number of patches found in PSS
       type(pp_array),                  allocatable :: patch_pointer_vec(:) ! vector of pointers to patch LL
       character(len=patchname_strlen), allocatable :: patch_name_vec(:)    ! vector of patch ID strings
+      real(r8)                                     :: basal_area_postf     ! basal area before fusion (m2/ha)
+      real(r8)                                     :: basal_area_pref      ! basal area after fusion (m2/ha)
+
+      real(r8), parameter                          :: max_ba_diff = 1.0e-2 ! 1% is the maximum allowable
+                                                                           ! change in BA due to fusion
 
       ! I. Load the inventory list file, do some file handle checks
       ! ------------------------------------------------------------------------------------------
@@ -360,6 +367,26 @@ contains
 
          deallocate(patch_pointer_vec,patch_name_vec)
 
+         ! Report Basal Area (as a check on if things were read in)
+         ! ------------------------------------------------------------------------------
+         basal_area_pref = 0.0_r8
+         currentpatch => sites(s)%youngest_patch
+         do while(associated(currentpatch))
+            currentcohort => currentpatch%tallest
+            do while(associated(currentcohort))
+               basal_area_pref = basal_area_pref + &
+                     currentcohort%n*0.25*((currentcohort%dbh/100.0_r8)**2.0_r8)*pi_const
+               currentcohort => currentcohort%shorter
+            end do
+            currentPatch => currentpatch%older
+         enddo
+
+         write(fates_log(),*) '-------------------------------------------------------'
+         write(fates_log(),*) 'Basal Area from inventory, BEFORE fusion'
+         write(fates_log(),*) 'Lat: ',sites(s)%lat,' Lon: ',sites(s)%lon
+         write(fates_log(),*) basal_area_pref,' [m2/ha]'
+         write(fates_log(),*) '-------------------------------------------------------'
+
          ! Update the patch index numbers and fuse the cohorts in the patches
          ! ----------------------------------------------------------------------------------------
          ipa=1
@@ -387,6 +414,36 @@ contains
          ! ----------------------------------------------------------------------------------------
          call fuse_patches(sites(s), bc_in(s) ) 
 
+         ! Report Basal Area (as a check on if things were read in)
+         ! ----------------------------------------------------------------------------------------
+         basal_area_postf = 0.0_r8
+         currentpatch => sites(s)%youngest_patch
+         do while(associated(currentpatch))
+            currentcohort => currentpatch%tallest
+            do while(associated(currentcohort))
+               basal_area_postf = basal_area_postf + &
+                     currentcohort%n*0.25*((currentcohort%dbh/100.0_r8)**2.0_r8)*pi_const
+               currentcohort => currentcohort%shorter
+            end do
+            currentPatch => currentpatch%older
+         enddo
+
+         write(fates_log(),*) '-------------------------------------------------------'
+         write(fates_log(),*) 'Basal Area from inventory, AFTER fusion'
+         write(fates_log(),*) 'Lat: ',sites(s)%lat,' Lon: ',sites(s)%lon
+         write(fates_log(),*) basal_area_postf,' [m2/ha]'
+         write(fates_log(),*) '-------------------------------------------------------'
+
+         ! Check to see if the fusion process has changed too much
+         ! We are sensitive to fusion in inventories because we may be asking for a massive amount
+         ! of fusion. For instance some init files are directly from inventory, where a cohort
+         ! is synomomous with a single plant.
+
+         if( abs(basal_area_postf-basal_area_pref)/basal_area_pref > max_ba_diff ) then
+            write(fates_log(),*) 'Inventory Fusion Changed total biomass beyond reasonable limit'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
       end do
 
       deallocate(inv_format_list, inv_pss_list, inv_css_list, inv_lat_list, inv_lon_list)
