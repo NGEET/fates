@@ -15,7 +15,7 @@ module EDTypesMod
   integer, parameter :: ican_upper = 1            ! Nominal index for the upper canopy
   integer, parameter :: ican_ustory = 2           ! Nominal index for understory in two-canopy system
 
-  integer, parameter :: nlevleaf = 40              ! number of leaf layers in canopy layer
+  integer, parameter :: nlevleaf = 40             ! number of leaf layers in canopy layer
   integer, parameter :: maxpft = 10               ! maximum number of PFTs allowed
                                                   ! the parameter file may determine that fewer
                                                   ! are used, but this helps allocate scratch

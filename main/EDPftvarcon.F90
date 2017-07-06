@@ -16,7 +16,7 @@ module EDPftvarcon
   save
   private
 
-  integer, parameter, public :: lower_bound_pft = 0
+  integer, parameter, public :: lower_bound_pft = 1
   integer, parameter, public :: lower_bound_general = 1
 
   !ED specific variables. 
@@ -24,14 +24,12 @@ module EDPftvarcon
      real(r8), allocatable :: max_dbh            (:) ! maximum dbh at which height growth ceases...
      real(r8), allocatable :: freezetol          (:) ! minimum temperature tolerance...
      real(r8), allocatable :: wood_density       (:) ! wood density  g cm^-3  ...
-     real(r8), allocatable :: alpha_stem         (:) ! live stem turnover rate. y-1
      real(r8), allocatable :: hgt_min            (:) ! sapling height m
      real(r8), allocatable :: dleaf              (:) ! leaf characteristic dimension length (m)
      real(r8), allocatable :: z0mr               (:) ! ratio of roughness length of vegetation to height (-) 
      real(r8), allocatable :: displar            (:) ! ratio of displacement height to canopy top height (-)
      real(r8), allocatable :: cushion            (:) ! labile carbon storage target as multiple of leaf pool.
      real(r8), allocatable :: leaf_stor_priority (:) ! leaf turnover vs labile carbon use prioritisation. (1 = lose  leaves, 0 = use store).
-     real(r8), allocatable :: leafwatermax       (:) ! degree to which respiration is limited by btran if btran = 0
      real(r8), allocatable :: rootresist         (:)
      real(r8), allocatable :: soilbeta           (:)
      real(r8), allocatable :: crown              (:)
@@ -198,10 +196,6 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_alpha_stem'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
     name = 'fates_hgt_min'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -214,10 +208,6 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_leafwatermax'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
     name = 'fates_rootresist'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -226,7 +216,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_crown'
+    name = 'fates_crown_depth_frac'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -342,7 +332,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_fnitr'
+    name = 'fates_vcmax25top'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -510,10 +500,6 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%wood_density)
 
-    name = 'fates_alpha_stem'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%alpha_stem)
-
     name = 'fates_hgt_min'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%hgt_min)
@@ -526,10 +512,6 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%leaf_stor_priority)
 
-    name = 'fates_leafwatermax'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%leafwatermax)
-
     name = 'fates_rootresist'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%rootresist)
@@ -538,7 +520,7 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%soilbeta)
 
-    name = 'fates_crown'
+    name = 'fates_crown_depth_frac'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%crown)
 
@@ -654,7 +636,7 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%flnr)
 
-    name = 'fates_fnitr'
+    name = 'fates_vcmax25top'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%fnitr)
 

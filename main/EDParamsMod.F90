@@ -18,9 +18,8 @@ module EDParamsMod
    real(r8),protected :: ED_val_grass_spread
    real(r8),protected :: ED_val_comp_excln
    real(r8),protected :: ED_val_stress_mort
-   real(r8),protected :: ED_val_dispersal
-   real(r8),protected :: ED_val_maxspread
-   real(r8),protected :: ED_val_minspread
+   real(r8),protected :: ED_val_maxspread                  ! maximum ratio of dbh to canopy area (cm/m2)
+   real(r8),protected :: ED_val_minspread                  ! minimum ratio of dbh to canopy area (cm/m2)
    real(r8),protected :: ED_val_init_litter
    real(r8),protected :: ED_val_nignitions
    real(r8),protected :: ED_val_understorey_death
@@ -45,11 +44,10 @@ module EDParamsMod
    character(len=param_string_length),parameter :: ED_name_grass_spread = "fates_grass_spread"
    character(len=param_string_length),parameter :: ED_name_comp_excln = "fates_comp_excln"
    character(len=param_string_length),parameter :: ED_name_stress_mort = "fates_stress_mort"
-   character(len=param_string_length),parameter :: ED_name_dispersal = "fates_dispersal"
    character(len=param_string_length),parameter :: ED_name_maxspread = "fates_maxspread"
    character(len=param_string_length),parameter :: ED_name_minspread = "fates_minspread"
    character(len=param_string_length),parameter :: ED_name_init_litter = "fates_init_litter"
-   character(len=param_string_length),parameter :: ED_name_nignitions = "fates_nfires"
+   character(len=param_string_length),parameter :: ED_name_nignitions = "fates_nignitions"
    character(len=param_string_length),parameter :: ED_name_understorey_death = "fates_understorey_death"
    character(len=param_string_length),parameter :: ED_name_ag_biomass= "fates_ag_biomass"   
    character(len=param_string_length),parameter :: ED_name_cwd_fcel= "fates_cwd_fcel"   
@@ -89,7 +87,6 @@ contains
     ED_val_grass_spread = nan
     ED_val_comp_excln = nan
     ED_val_stress_mort = nan
-    ED_val_dispersal = nan
     ED_val_maxspread = nan
     ED_val_minspread = nan
     ED_val_init_litter = nan
@@ -144,9 +141,6 @@ contains
          dimension_names=dim_names)
 
     call fates_params%RegisterParameter(name=ED_name_stress_mort, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
-    call fates_params%RegisterParameter(name=ED_name_dispersal, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
     call fates_params%RegisterParameter(name=ED_name_maxspread, dimension_shape=dimension_shape_1d, &
@@ -241,9 +235,6 @@ contains
 
     call fates_params%RetreiveParameter(name=ED_name_stress_mort, &
          data=ED_val_stress_mort)
-
-    call fates_params%RetreiveParameter(name=ED_name_dispersal, &
-         data=ED_val_dispersal)
 
     call fates_params%RetreiveParameter(name=ED_name_maxspread, &
          data=ED_val_maxspread)

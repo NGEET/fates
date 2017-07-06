@@ -38,18 +38,16 @@ module EDEcophysConType
      real(r8), pointer :: max_dbh            (:) ! maximum dbh at which height growth ceases... 
      real(r8), pointer :: freezetol          (:) ! minimum temperature tolerance... 
      real(r8), pointer :: wood_density       (:) ! wood density  g cm^-3  ...  
-     real(r8), pointer :: alpha_stem         (:) ! live stem turnover rate. y-1 
      real(r8), pointer :: hgt_min            (:) ! sapling height m 
      real(r8), pointer :: cushion            (:) ! labile carbon storage target as multiple of leaf pool. 
      real(r8), pointer :: leaf_stor_priority (:) ! leaf turnover vs labile carbon use prioritisation. ! (1=lose leaves, 0=use store). 
-     real(r8), pointer :: leafwatermax       (:) ! amount of water allowed on leaf   surfaces
-     real(r8), pointer :: rootresist         (:)
-     real(r8), pointer :: soilbeta           (:)
+     real(r8), pointer :: rootresist         (:) ! SPA parameter (NOT USED)
+     real(r8), pointer :: soilbeta           (:) ! SPA parameter (NOT USED)
      real(r8), pointer :: crown              (:) ! fraction of the height of the plant that is occupied by crown. For fire model. 
      real(r8), pointer :: bark_scaler        (:) ! scaler from dbh to bark thickness. For fire model. 
      real(r8), pointer :: crown_kill         (:) ! scaler on fire death. For fire model. 
      real(r8), pointer :: initd              (:) ! initial seedling density 
-     real(r8), pointer :: sd_mort            (:) ! rate of death of seeds produced from reproduction. 
+     real(r8), pointer :: sd_mort            (:) ! rate of death of seeds produced from reproduction (NOT USED). 
      real(r8), pointer :: seed_rain          (:) ! seeds that come from outside the gridbox.  
      real(r8), pointer :: BB_slope           (:) ! ball berry slope parameter
      real(r8), pointer :: root_long          (:) ! root longevity (yrs)
@@ -142,11 +140,9 @@ contains
     allocate( EDecophyscon%max_dbh            (0:numpft)); EDecophyscon%max_dbh            (:) = nan
     allocate( EDecophyscon%freezetol          (0:numpft)); EDecophyscon%freezetol          (:) = nan
     allocate( EDecophyscon%wood_density       (0:numpft)); EDecophyscon%wood_density       (:) = nan           
-    allocate( EDecophyscon%alpha_stem         (0:numpft)); EDecophyscon%alpha_stem         (:) = nan             
     allocate( EDecophyscon%hgt_min            (0:numpft)); EDecophyscon%hgt_min            (:) = nan                
     allocate( EDecophyscon%cushion            (0:numpft)); EDecophyscon%cushion            (:) = nan                
     allocate( EDecophyscon%leaf_stor_priority (0:numpft)); EDecophyscon%leaf_stor_priority (:) = nan     
-    allocate( EDecophyscon%leafwatermax       (0:numpft)); EDecophyscon%leafwatermax       (:) = nan           
     allocate( EDecophyscon%rootresist         (0:numpft)); EDecophyscon%rootresist         (:) = nan             
     allocate( EDecophyscon%soilbeta           (0:numpft)); EDecophyscon%soilbeta           (:) = nan               
     allocate( EDecophyscon%crown              (0:numpft)); EDecophyscon%crown              (:) = nan                  
@@ -165,11 +161,9 @@ contains
        EDecophyscon%max_dbh(m)               = EDPftvarcon_inst%max_dbh(m)
        EDecophyscon%freezetol(m)             = EDPftvarcon_inst%freezetol(m)
        EDecophyscon%wood_density(m)          = EDPftvarcon_inst%wood_density(m)
-       EDecophyscon%alpha_stem(m)            = EDPftvarcon_inst%alpha_stem(m)
        EDecophyscon%hgt_min(m)               = EDPftvarcon_inst%hgt_min(m)
        EDecophyscon%cushion(m)               = EDPftvarcon_inst%cushion(m)
        EDecophyscon%leaf_stor_priority(m)    = EDPftvarcon_inst%leaf_stor_priority(m)
-       EDecophyscon%leafwatermax(m)          = EDPftvarcon_inst%leafwatermax(m)
        EDecophyscon%rootresist(m)            = EDPftvarcon_inst%rootresist(m)
        EDecophyscon%soilbeta(m)              = EDPftvarcon_inst%soilbeta(m)
        EDecophyscon%crown(m)                 = EDPftvarcon_inst%crown(m)
