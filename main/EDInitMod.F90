@@ -12,6 +12,7 @@ module EDInitMod
   use FatesGlobals              , only : fates_log
   use FatesInterfaceMod         , only : hlm_is_restart
   use EDPftvarcon               , only : EDPftvarcon_inst
+  use EDParamsMod               , only : ED_do_inventory_init
   use EDEcophysConType          , only : EDecophyscon
   use EDGrowthFunctionsMod      , only : bdead, bleaf, dbh
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
@@ -30,8 +31,6 @@ module EDInitMod
   private
 
   logical   ::  DEBUG = .false.
-
-  integer, parameter :: do_inv_init = ifalse
 
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
@@ -237,7 +236,13 @@ contains
      ! Two primary options, either a Near Bear Ground (NBG) or Inventory based cold-start
      ! ---------------------------------------------------------------------------------------------
 
-     if (do_inv_init .eq. itrue) then
+     if ( int(ED_do_inventory_init) < 0 .or. int(ED_do_inventory_init) > 1 ) then
+        write(fates_log(), *) 'Flag to turn on or off inventory initialization is out of bounds'
+        write(fates_log(), *) 'ED_do_inv_init = ',ED_do_inventory_init
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+     end if
+
+     if ( int(ED_do_inventory_init) .eq. itrue) then
 
         call initialize_sites_by_inventory(nsites,sites,bc_in)
 
