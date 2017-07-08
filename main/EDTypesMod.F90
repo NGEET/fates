@@ -125,30 +125,7 @@ module EDTypesMod
        (/"background","hydraulic ","carbon    ","impact    ","fire      "/)
 
 
-  ! -------------------------------------------------------------------------------------
-  ! These vectors are used for history output mapping
-  ! CLM/ALM have limited support for multi-dimensional history output arrays.
-  ! FATES structure and composition is multi-dimensional, so we end up "multi-plexing"
-  ! multiple dimensions into one dimension.  These new dimensions need definitions,
-  ! mapping to component dimensions, and definitions for those component dimensions as
-  ! well.
-  ! -------------------------------------------------------------------------------------
 
-  real(r8) ,allocatable :: fates_hdim_levsclass(:)       ! plant size class lower bound dimension
-  integer , allocatable :: fates_hdim_pfmap_levscpf(:)   ! map of pfts into size-class x pft dimension
-  integer , allocatable :: fates_hdim_scmap_levscpf(:)   ! map of size-class into size-class x pft dimension
-  real(r8), allocatable :: fates_hdim_levage(:)          ! patch age lower bound dimension
-  integer , allocatable :: fates_hdim_levpft(:)          ! plant pft dimension
-  integer , allocatable :: fates_hdim_levfuel(:)         ! fire fuel class dimension
-  integer , allocatable :: fates_hdim_levcwdsc(:)        ! cwd class dimension
-  integer , allocatable :: fates_hdim_levcan(:)          ! canopy-layer dimension 
-  integer , allocatable :: fates_hdim_canmap_levcnlf(:)  ! canopy-layer map into the canopy-layer x leaf-layer dimension
-  integer , allocatable :: fates_hdim_lfmap_levcnlf(:)   ! leaf-layer map into the canopy-layer x leaf-layer dimension
-  integer , allocatable :: fates_hdim_canmap_levcnlfpf(:) ! canopy-layer map into the canopy-layer x pft x leaf-layer dimension
-  integer , allocatable :: fates_hdim_lfmap_levcnlfpf(:)  ! leaf-layer map into the canopy-layer x pft x leaf-layer dimension
-  integer , allocatable :: fates_hdim_pftmap_levcnlfpf(:) ! pft map into the canopy-layer x pft x leaf-layer dimension
-  integer , allocatable :: fates_hdim_scmap_levscag(:)   ! map of size-class into size-class x patch age dimension
-  integer , allocatable :: fates_hdim_agmap_levscag(:)   ! map of patch-age into size-class x patch age dimension
 
   !************************************
   !** COHORT type structure          **
@@ -565,112 +542,7 @@ module EDTypesMod
 
   end type ed_site_type
 
-  public :: ed_hist_scpfmaps
-
 contains
-
-
-   !-------------------------------------------------------------------------------------!
-  subroutine ed_hist_scpfmaps
-    ! This subroutine allocates and populates the variables
-    ! that define the mapping of variables in history files in the "scpf" format
-    ! back to
-    ! its respective size-class "sc" and pft "pf"
-
-    integer :: i
-    integer :: isc
-    integer :: ipft
-    integer :: icwd
-    integer :: ifuel
-    integer :: ican
-    integer :: ileaf
-    integer :: iage
-
-    allocate( fates_hdim_levsclass(1:nlevsclass_ed   ))
-    allocate( fates_hdim_pfmap_levscpf(1:nlevsclass_ed*maxpft))
-    allocate( fates_hdim_scmap_levscpf(1:nlevsclass_ed*maxpft))
-    allocate( fates_hdim_levpft(1:maxpft   ))
-    allocate( fates_hdim_levfuel(1:NFSC   ))
-    allocate( fates_hdim_levcwdsc(1:NCWD   ))
-    allocate( fates_hdim_levage(1:nlevage_ed   ))
-
-    allocate( fates_hdim_levcan(nclmax))
-    allocate( fates_hdim_canmap_levcnlf(nlevleaf*nclmax))
-    allocate( fates_hdim_lfmap_levcnlf(nlevleaf*nclmax))
-    allocate( fates_hdim_canmap_levcnlfpf(nlevleaf*nclmax*numpft_ed))
-    allocate( fates_hdim_lfmap_levcnlfpf(nlevleaf*nclmax*numpft_ed))
-    allocate( fates_hdim_pftmap_levcnlfpf(nlevleaf*nclmax*numpft_ed))
-    allocate( fates_hdim_scmap_levscag(nlevsclass_ed * nlevage_ed ))
-    allocate( fates_hdim_agmap_levscag(nlevsclass_ed * nlevage_ed ))
-
-    ! Fill the IO array of plant size classes
-    ! For some reason the history files did not like
-    ! a hard allocation of sclass_ed
-    fates_hdim_levsclass(:) = sclass_ed(:)
-    
-    fates_hdim_levage(:) = ageclass_ed(:)
-
-    ! make pft array
-    do ipft=1,maxpft
-       fates_hdim_levpft(ipft) = ipft
-    end do
-
-    ! make fuel array
-    do ifuel=1,NFSC
-       fates_hdim_levfuel(ifuel) = ifuel
-    end do
-
-    ! make cwd array
-    do icwd=1,NCWD
-       fates_hdim_levcwdsc(icwd) = icwd
-    end do
-
-    ! make canopy array
-    do ican = 1,nclmax
-       fates_hdim_levcan(ican) = ican
-    end do
-
-    ! Fill the IO arrays that match pft and size class to their combined array
-    i=0
-    do ipft=1,maxpft
-       do isc=1,nlevsclass_ed
-          i=i+1
-          fates_hdim_pfmap_levscpf(i) = ipft
-          fates_hdim_scmap_levscpf(i) = isc
-       end do
-    end do
-
-    i=0
-    do ican=1,nclmax
-       do ileaf=1,nlevleaf
-          i=i+1
-          fates_hdim_canmap_levcnlf(i) = ican
-          fates_hdim_lfmap_levcnlf(i) = ileaf
-       end do
-    end do
-
-    i=0
-    do iage=1,nlevage_ed
-       do isc=1,nlevsclass_ed
-          i=i+1
-          fates_hdim_scmap_levscag(i) = isc
-          fates_hdim_agmap_levscag(i) = iage
-       end do
-    end do
-
-    i=0
-    do ipft=1,numpft_ed
-       do ican=1,nclmax
-          do ileaf=1,nlevleaf
-             i=i+1
-             fates_hdim_canmap_levcnlfpf(i) = ican
-             fates_hdim_lfmap_levcnlfpf(i) = ileaf
-             fates_hdim_pftmap_levcnlfpf(i) = ipft
-          end do
-       end do
-    end do
-
-  end subroutine ed_hist_scpfmaps
 
   ! =====================================================================================
   
