@@ -289,6 +289,11 @@ contains
     integer  :: gddstart     ! beginning of counting period for growing degree days.
     real(r8) :: temp_in_C    ! daily averaged temperature in celcius
 
+    real(r8), parameter :: canopy_leaf_lifespan = 365.0_r8    ! Mean lifespan canopy leaves
+                                                              ! FIX(RGK 07/10/17)
+                                                              ! This is a band-aid on unusual code
+                                                              
+
     ! Parameter of drought decid leaf loss in mm in top layer...FIX(RF,032414) 
     ! - this is arbitrary and poorly understood. Needs work. ED_
 
@@ -470,8 +475,10 @@ contains
 
     !LEAF OFF: DROUGHT DECIDUOUS LIFESPAN - if the leaf gets to the end of its useful life. A*, E*
     if (currentSite%dstatus == 2.and.t >= 10)then  !D*
-       !Are the leaves at the end of their lives? !FIX(RF,0401014)- this is hardwiring....
-       if (timesincedleafon > 365.0*EDPftvarcon_inst%leaf_long(7))then 
+       !Are the leaves at the end of their lives? 
+       !FIX(RF,0401014)- this is hardwiring....
+       !FIX(RGK:changed from hard-coded pft 7 leaf lifespan to labeled constant (1 year)
+       if ( timesincedleafon > canopy_leaf_lifespan )then 
           currentSite%dstatus = 1         !alter status of site to 'leaves on'
           currentSite%dleafoffdate = t    !record leaf on date          
        endif

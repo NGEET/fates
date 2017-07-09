@@ -135,7 +135,15 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer :: m, ib, n, k
+    integer :: lb
     !------------------------------------------------------------------------
+
+
+    if( lbound(EDPftvarcon_inst%max_dbh,dim=1) .eq. 0) then
+    	lb = 0
+    else
+        lb = 1
+    end if
 
     allocate( EDecophyscon%max_dbh            (0:numpft)); EDecophyscon%max_dbh            (:) = nan
     allocate( EDecophyscon%freezetol          (0:numpft)); EDecophyscon%freezetol          (:) = nan
@@ -157,7 +165,7 @@ contains
     allocate( EDecophyscon%clone_alloc        (0:numpft)); EDecophyscon%clone_alloc        (:) = nan              
     allocate( EDecophyscon%sapwood_ratio      (0:numpft)); EDecophyscon%sapwood_ratio      (:) = nan            
 
-    do m = 0,numpft
+    do m = lb,numpft
        EDecophyscon%max_dbh(m)               = EDPftvarcon_inst%max_dbh(m)
        EDecophyscon%freezetol(m)             = EDPftvarcon_inst%freezetol(m)
        EDecophyscon%wood_density(m)          = EDPftvarcon_inst%wood_density(m)
