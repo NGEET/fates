@@ -31,7 +31,7 @@ module EDPhysiologyMod
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use FatesGlobals          , only : fates_log
   use FatesGlobals          , only : endrun => fates_endrun
-
+  use EDParamsMod           , only : fates_mortality_disturbance_fraction
 
   implicit none
   private
@@ -788,11 +788,12 @@ contains
 
     ! Mortality for trees in the understorey. 
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
+    call mortality_rates(currentCohort,cmort,hmort,bmort)
     if (currentCohort%canopy_layer > 1)then 
-       call mortality_rates(currentCohort,cmort,hmort,bmort)
        currentCohort%dndt = -1.0_r8 * (cmort+hmort+bmort) * currentCohort%n
     else
-       currentCohort%dndt = 0._r8
+       currentCohort%dndt = -(1.0_r8 - fates_mortality_disturbance_fraction) &
+            * (cmort+hmort+bmort) * currentCohort%n
     endif
 
     ! Height

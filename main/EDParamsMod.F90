@@ -72,6 +72,8 @@ module EDParamsMod
    public :: FatesParamsInit
    public :: FatesRegisterParams
    public :: FatesReceiveParams
+
+  real(r8), protected :: fates_mortality_disturbance_fraction  = 0.5_r8 ! the fraction of canopy mortality that results in disturbance (i.e. transfer of area from new to old patch)                                                              
   
 contains
 
