@@ -1468,7 +1468,7 @@ contains
                     if (ccohort%canopy_layer .eq. 1) then
                        hio_nplant_canopy_si_scag(io_si,iscag) = hio_nplant_canopy_si_scag(io_si,iscag) + ccohort%n
                        hio_mortality_canopy_si_scag(io_si,iscag) = hio_mortality_canopy_si_scag(io_si,iscag) + &
-                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * ccohort%n
+                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%fmort) * ccohort%n
                        hio_ddbh_canopy_si_scag(io_si,iscag) = hio_ddbh_canopy_si_scag(io_si,iscag) + &
                             ccohort%ddbhdt*ccohort%n
                        hio_bstor_canopy_si_scpf(io_si,scpf) = hio_bstor_canopy_si_scpf(io_si,scpf) + &
@@ -1534,7 +1534,7 @@ contains
                     else
                        hio_nplant_understory_si_scag(io_si,iscag) = hio_nplant_understory_si_scag(io_si,iscag) + ccohort%n
                        hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
-                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * ccohort%n
+                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%fmort) * ccohort%n
                        hio_ddbh_understory_si_scag(io_si,iscag) = hio_ddbh_understory_si_scag(io_si,iscag) + &
                             ccohort%ddbhdt*ccohort%n
                        hio_bstor_understory_si_scpf(io_si,scpf) = hio_bstor_understory_si_scpf(io_si,scpf) + &
@@ -1607,6 +1607,8 @@ contains
                     hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
                          (ccohort%imort) * &
                          ccohort%b * ccohort%n * g_per_kg * days_per_sec * years_per_day * ha_per_m2
+                    hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
+                         (ccohort%imort) * ccohort%n
                     !
                     ccohort%canopy_layer_yesterday = real(ccohort%canopy_layer, r8)
                     
