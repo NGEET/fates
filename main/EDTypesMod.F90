@@ -22,7 +22,7 @@ module EDTypesMod
                                                   ! are used, but this helps allocate scratch
                                                   ! space and output arrays.
  
-  integer, parameter :: numpft_ed = 2             ! number of PFTs used in ED. 
+  integer, parameter :: numpft_ed = 1             ! number of PFTs used in ED. 
 
   ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
   ! land-ice abledo for vis and nir.  This should be a parameter, which would
