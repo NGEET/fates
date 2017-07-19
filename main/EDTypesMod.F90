@@ -24,6 +24,8 @@ module EDTypesMod
  
   integer, parameter :: numpft_ed = 2             ! number of PFTs used in ED. 
 
+  integer, parameter :: maxCohortsPerPatch = nclmax * numpft_ed * nlevleaf  ! maximum number of cohorts to live on a patch
+
   ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
   ! land-ice abledo for vis and nir.  This should be a parameter, which would
   ! get us on track to start using multi-spectral or hyper-spectral (RGK 02-2017)
