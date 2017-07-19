@@ -1248,6 +1248,10 @@ contains
     
     if( use_fates_plant_hydro ) call CopyCohortHydraulics(n,o)
 
+    ! indices for binning
+    n%size_class      = o%size_class
+    n%size_by_pft_class   = o%size_by_pft_class
+
     !Pointers
     n%taller          => NULL()     ! pointer to next tallest cohort     
     n%shorter         => NULL()     ! pointer to next shorter cohort     
