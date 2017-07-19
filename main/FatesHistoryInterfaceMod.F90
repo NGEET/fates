@@ -1311,7 +1311,7 @@ contains
             hio_npatches_si_age(io_si,cpatch%age_class) = hio_npatches_si_age(io_si,cpatch%age_class) + 1._r8
             if ( ED_val_comp_excln .lt. 0._r8 ) then ! only valid when "strict ppa" enabled
                hio_zstar_si_age(io_si,cpatch%age_class) = hio_zstar_si_age(io_si,cpatch%age_class) &
-                    + cpatch%zstar * cpatch%area
+                    + cpatch%zstar * cpatch%area * AREA_INV
             endif
             
             ccohort => cpatch%shortest
