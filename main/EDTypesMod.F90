@@ -11,7 +11,7 @@ module EDTypesMod
   save
 
   integer, parameter :: maxPatchesPerSite  = 10   ! maximum number of patches to live on a site
-  integer, parameter :: maxCohortsPerPatch = 160  ! maximum number of cohorts to live on a patch
+  integer, parameter :: maxCohortsPerPatch = 240  ! maximum number of cohorts to live on a patch
   integer, parameter :: nclmax = 2                ! Maximum number of canopy layers
   integer, parameter :: ican_upper = 1            ! Nominal index for the upper canopy
   integer, parameter :: ican_ustory = 2           ! Nominal index for understory in two-canopy system
@@ -22,7 +22,7 @@ module EDTypesMod
                                                   ! are used, but this helps allocate scratch
                                                   ! space and output arrays.
  
-  integer, parameter :: numpft_ed = 2             ! number of PFTs used in ED. 
+  integer, parameter :: numpft_ed = 3             ! number of PFTs used in ED. 
 
   ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
   ! land-ice abledo for vis and nir.  This should be a parameter, which would
@@ -490,16 +490,20 @@ module EDTypesMod
   type ed_resources_management_type
     
      real(r8) ::  minimum_diameter_logging = 50.0_r8 			! min diameter for logged trees    cm 
-	 
+
      real(r8) ::  logging_ratio = 0.33_r8                               ! ratio between collaterally logging and directly logging 
-		       
+       
      real(r8) ::  fraction_trees_logged = 0.15_r8                       ! directly logging rate            %/per logging activity
-	 
+ 
      real(r8) ::  logging_collatoral_mortality_rate        ! collaterally damaged rate        %/per logging activity
      real(r8) ::  logging_infrastructure_mortality_rate    ! mechanically damaged rate        %/per logging activity
-	
+
      real(r8) ::  trunk_product_site                       ! Actual  trunk product at site level KgC/site
 
+     !debug variables
+     real(r8) ::  delta_litter_stock
+     real(r8) ::  delta_biomass_stock
+     real(r8) ::  delta_individual
   
   end type ed_resources_management_type
 
