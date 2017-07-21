@@ -165,15 +165,9 @@ contains
     type (ed_cohort_type) , pointer :: currentCohort
     type (ed_patch_type)  , pointer :: currentPatch
 
-    real(r8) :: inc        ! rate at which canopy acclimates to uptake 
-    real(r8) :: trim_limit ! this is the limit of the canopy trimming routine, so that trees 
-                           ! can't just lose all their leaves and have no reproductive costs.
     integer  :: z          ! leaf layer
     integer  :: trimmed    ! was this layer trimmed in this year? If not expand the canopy. 
 
-    trim_limit = 0.3_r8    ! Arbitrary limit to reductions in leaf area with stress. Without this nothing ever dies.  
-    inc = 0.03_r8          ! Arbitrary incremental change in trimming function. Controls 
-                           ! rate at which leaves are optimised to their environment. 
     !----------------------------------------------------------------------
 
     currentPatch => currentSite%youngest_patch
@@ -210,7 +204,7 @@ contains
                    currentCohort%leaf_cost = currentCohort%leaf_cost * (EDPftvarcon_inst%grperc(currentCohort%pft) + 1._r8)
                 endif
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost)then
-                   if (currentCohort%canopy_trim > trim_limit)then
+                   if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(currentCohort%pft))then
 
                       if ( DEBUG ) then
                          write(fates_log(),*) 'trimming leaves',currentCohort%canopy_trim,currentCohort%leaf_cost
@@ -218,9 +212,9 @@ contains
 
                       ! keep trimming until none of the canopy is in negative carbon balance.              
                       if (currentCohort%hite > EDecophyscon%hgt_min(currentCohort%pft))then
-                         currentCohort%canopy_trim = currentCohort%canopy_trim - inc    
+                         currentCohort%canopy_trim = currentCohort%canopy_trim - EDPftvarcon_inst%trim_inc(currentCohort%pft)
                          if (EDPftvarcon_inst%evergreen(currentCohort%pft) /= 1)then
-                            currentCohort%laimemory = currentCohort%laimemory*(1.0_r8 - inc) 
+                            currentCohort%laimemory = currentCohort%laimemory*(1.0_r8 - EDPftvarcon_inst%trim_inc(currentCohort%pft)) 
                          endif
                          trimmed = 1
                       endif
@@ -236,7 +230,7 @@ contains
 
           currentCohort%year_net_uptake(:) = 999.0_r8
           if (trimmed == 0.and.currentCohort%canopy_trim < 1.0_r8)then
-             currentCohort%canopy_trim = currentCohort%canopy_trim + inc
+             currentCohort%canopy_trim = currentCohort%canopy_trim + EDPftvarcon_inst%trim_inc(currentCohort%pft)
           endif 
 
           if ( DEBUG ) then

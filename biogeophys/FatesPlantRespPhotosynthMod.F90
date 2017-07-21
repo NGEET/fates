@@ -196,11 +196,8 @@ contains
     associate(  &
          c3psn     => EDPftvarcon_inst%c3psn  , &
          slatop    => EDPftvarcon_inst%slatop , & ! specific leaf area at top of canopy, 
-                                        ! projected area basis [m^2/gC]
-         flnr      => EDPftvarcon_inst%flnr   , & ! fraction of leaf N in the Rubisco 
-                                        ! enzyme (gN Rubisco / gN leaf)
+                                                  ! projected area basis [m^2/gC]
          woody     => EDPftvarcon_inst%woody  , & ! Is vegetation woody or not? 
-         fnitr     => EDPftvarcon_inst%fnitr  , & ! foliage nitrogen limitation factor (-)
          leafcn    => EDPftvarcon_inst%leafcn , & ! leaf C:N (gC/gN)
          frootcn   => EDPftvarcon_inst%frootcn, & ! froot C:N (gc/gN)   ! slope of BB relationship
          q10       => FatesSynchronizedParamsInst%Q10 )
@@ -285,7 +282,7 @@ contains
                   if (bc_in(s)%dayl_factor_pa(ifp)  ==  0._r8) then
                      kn(ft) =  0._r8
                   else
-                     kn(ft) = exp(0.00963_r8 * param_derived%vcmax25top(ft) - 2.43_r8)
+                     kn(ft) = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(ft) - 2.43_r8)
                   end if
                   
                end do !ft 
@@ -394,7 +391,7 @@ contains
 
                               call LeafLayerBiophysicalRates(currentPatch%ed_parsun_z(cl,ft,iv), &  ! in
                                                              ft,                                 &  ! in
-                                                             param_derived%vcmax25top(ft),       &  ! in
+                                                             EDPftvarcon_inst%vcmax25top(ft),    &  ! in
                                                              param_derived%jmax25top(ft),        &  ! in
                                                              param_derived%tpu25top(ft),         &  ! in
                                                              param_derived%kp25top(ft),          &  ! in

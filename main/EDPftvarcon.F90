@@ -22,7 +22,7 @@ module EDPftvarcon
   !ED specific variables. 
   type, public ::  EDPftvarcon_type
      real(r8), allocatable :: max_dbh            (:) ! maximum dbh at which height growth ceases...
-     real(r8), allocatable :: freezetol          (:) ! minimum temperature tolerance...
+     real(r8), allocatable :: freezetol          (:) ! minimum temperature tolerance (NOT CURRENTY USED)
      real(r8), allocatable :: wood_density       (:) ! wood density  g cm^-3  ...
      real(r8), allocatable :: hgt_min            (:) ! sapling height m
      real(r8), allocatable :: dleaf              (:) ! leaf characteristic dimension length (m)
@@ -30,13 +30,13 @@ module EDPftvarcon
      real(r8), allocatable :: displar            (:) ! ratio of displacement height to canopy top height (-)
      real(r8), allocatable :: cushion            (:) ! labile carbon storage target as multiple of leaf pool.
      real(r8), allocatable :: leaf_stor_priority (:) ! leaf turnover vs labile carbon use prioritisation. (1 = lose  leaves, 0 = use store).
-     real(r8), allocatable :: rootresist         (:)
-     real(r8), allocatable :: soilbeta           (:)
+     real(r8), allocatable :: rootresist         (:) ! root resistance used in SPA (NOT CURRENTLY USED)
+     real(r8), allocatable :: soilbeta           (:) ! parameter used in SPA (NOT CURRENTLY USED)
      real(r8), allocatable :: crown              (:)
      real(r8), allocatable :: bark_scaler        (:)
      real(r8), allocatable :: crown_kill         (:)
      real(r8), allocatable :: initd              (:)
-     real(r8), allocatable :: sd_mort            (:)
+     real(r8), allocatable :: sd_mort            (:) ! rate of death of seeds (NOT CURRENTLY USED)
      real(r8), allocatable :: seed_rain          (:)
      real(r8), allocatable :: BB_slope           (:)
      real(r8), allocatable :: root_long          (:) ! root longevity (yrs)
@@ -60,8 +60,7 @@ module EDPftvarcon
      real(r8), allocatable :: fr_flig(:)
      real(r8), allocatable :: xl(:)
      real(r8), allocatable :: c3psn(:)
-     real(r8), allocatable :: flnr(:)
-     real(r8), allocatable :: fnitr(:)
+     real(r8), allocatable :: vcmax25top(:)
      real(r8), allocatable :: leafcn(:)
      real(r8), allocatable :: frootcn(:)
      real(r8), allocatable :: smpso(:)
@@ -92,6 +91,8 @@ module EDPftvarcon
      real(r8), allocatable :: tpuse(:)
      real(r8), allocatable :: germination_timescale(:)
      real(r8), allocatable :: seed_decay_turnover(:)
+     real(r8), allocatable :: trim_limit(:)              ! Limit to reductions in leaf area w stress (m2/m2)
+     real(r8), allocatable :: trim_inc(:)                ! Incremental change in trimming function   (m2/m2)
      real(r8), allocatable :: rhol(:, :)
      real(r8), allocatable :: rhos(:, :)
      real(r8), allocatable :: taul(:, :)
@@ -328,10 +329,6 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_flnr'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
     name = 'fates_vcmax25top'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -456,6 +453,14 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_trim_limit'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_trim_inc'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
     name = 'fates_dleaf'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -632,13 +637,9 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%c3psn)
 
-    name = 'fates_flnr'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%flnr)
-
     name = 'fates_vcmax25top'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%fnitr)
+         data=this%vcmax25top)
 
     name = 'fates_leafcn'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -759,6 +760,14 @@ contains
     name = 'fates_seed_decay_turnover'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seed_decay_turnover)
+
+    name = 'fates_trim_limit'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%trim_limit)
+
+    name = 'fates_trim_inc'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%trim_inc)
 
     name = 'fates_dleaf'
     call fates_params%RetreiveParameterAllocate(name=name, &
