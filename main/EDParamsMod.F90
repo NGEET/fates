@@ -19,6 +19,7 @@ module EDParamsMod
                                                            ! 0 is false, 1 is true
    real(r8),protected :: ED_size_diagnostic_scale          ! Flag to switch between a linear and exponential
                                                            ! scale on the plant size axis in diagnostics (NOT USED YET)
+   real(r8),protected :: ED_mort_disturb_frac              ! the fraction of canopy mortality that results in disturbance
    real(r8),protected :: ED_val_grass_spread
    real(r8),protected :: ED_val_comp_excln
    real(r8),protected :: ED_val_stress_mort
@@ -47,6 +48,7 @@ module EDParamsMod
 
    character(len=param_string_length),parameter :: ED_name_do_inventory_init = "fates_do_inventory_init"
    character(len=param_string_length),parameter :: ED_name_size_diagnostic_scale = "fates_size_diagnostic_scale"
+   character(len=param_string_length),parameter :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
    character(len=param_string_length),parameter :: ED_name_grass_spread = "fates_grass_spread"
    character(len=param_string_length),parameter :: ED_name_comp_excln = "fates_comp_excln"
    character(len=param_string_length),parameter :: ED_name_stress_mort = "fates_stress_mort"
@@ -92,6 +94,7 @@ contains
 
     ED_do_inventory_init = nan
     ED_size_diagnostic_scale = nan
+    ED_mort_disturb_frac = nan
     ED_val_grass_spread = nan
     ED_val_comp_excln = nan
     ED_val_stress_mort = nan
@@ -140,6 +143,9 @@ contains
          dimension_names=dim_names)
   
     call fates_params%RegisterParameter(name=ED_name_size_diagnostic_scale, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
+    call fates_params%RegisterParameter(name=ED_name_mort_disturb_frac, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
     call fates_params%RegisterParameter(name=ED_name_grass_spread, dimension_shape=dimension_shape_1d, &
@@ -240,6 +246,9 @@ contains
 
     call fates_params%RetreiveParameter(name=ED_name_size_diagnostic_scale, &
          data=ED_size_diagnostic_scale)
+
+    call fates_params%RetreiveParameter(name=ED_name_mort_disturb_frac, &
+          data=ED_mort_disturb_frac)
 
     call fates_params%RetreiveParameter(name=ED_name_grass_spread, &
          data=ED_val_grass_spread)
