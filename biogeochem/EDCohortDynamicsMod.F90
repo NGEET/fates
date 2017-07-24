@@ -860,6 +860,12 @@ contains
                                    currentCohort%npp_bseed = (currentCohort%n*currentCohort%npp_bseed + nextc%n*nextc%npp_bseed)/newn
                                    currentCohort%npp_store = (currentCohort%n*currentCohort%npp_store + nextc%n*nextc%npp_store)/newn
 
+                                   ! biomass and dbh tendencies
+                                   currentCohort%ddbhdt     = (currentCohort%n*currentCohort%ddbhdt  + nextc%n*nextc%ddbhdt)/newn
+                                   currentCohort%dbalivedt  = (currentCohort%n*currentCohort%dbalivedt  + nextc%n*nextc%dbalivedt)/newn
+                                   currentCohort%dbdeaddt   = (currentCohort%n*currentCohort%dbdeaddt  + nextc%n*nextc%dbdeaddt)/newn
+                                   currentCohort%dbstoredt  = (currentCohort%n*currentCohort%dbstoredt  + nextc%n*nextc%dbstoredt)/newn
+
                                    do i=1, nlevleaf     
                                       if (currentCohort%year_net_uptake(i) == 999._r8 .or. nextc%year_net_uptake(i) == 999._r8) then
                                          currentCohort%year_net_uptake(i) = &
@@ -1241,6 +1247,10 @@ contains
     ! Plant Hydraulics
     
     if( use_fates_plant_hydro ) call CopyCohortHydraulics(n,o)
+
+    ! indices for binning
+    n%size_class      = o%size_class
+    n%size_by_pft_class   = o%size_by_pft_class
 
     !Pointers
     n%taller          => NULL()     ! pointer to next tallest cohort     
