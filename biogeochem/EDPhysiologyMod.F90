@@ -960,7 +960,7 @@ contains
        !FIX(RF,032414) - to fix high bl's. needed to prevent numerical errors without the ODEINT.  
        if (currentCohort%balive > target_balive*1.1_r8)then  
           va = 0.0_r8; vs = 1._r8
-          write(fates_log(),*) 'using high bl cap',target_balive,currentCohort%balive                        
+          if (DEBUG) write(fates_log(),*) 'using high bl cap',target_balive,currentCohort%balive                        
        endif
 
     else         
