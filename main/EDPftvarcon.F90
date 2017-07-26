@@ -389,6 +389,14 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_allom_latosa_int'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_allom_latosa_slp'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_allom_agb_frac'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -621,10 +629,6 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%evergreen)
 
-    name = 'fates_allom_l2fr'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%allom_l2fr)
-
     name = 'fates_slatop'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%slatop)
@@ -720,6 +724,18 @@ contains
     name = 'fates_allom_smode'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%allom_smode)
+
+    name = 'fates_allom_latosa_int'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_latosa_int)
+
+    name = 'fates_allom_latosa_slp'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_latosa_slp)
+
+    name = 'fates_allom_l2fr'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_l2fr)
 
     name = 'fates_allom_agb_frac'
     call fates_params%RetreiveParameterAllocate(name=name, &

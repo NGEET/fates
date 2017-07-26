@@ -56,7 +56,6 @@ module EDParamsMod
    character(len=param_string_length),parameter :: ED_name_init_litter = "fates_init_litter"
    character(len=param_string_length),parameter :: ED_name_nignitions = "fates_nignitions"
    character(len=param_string_length),parameter :: ED_name_understorey_death = "fates_understorey_death"
-   character(len=param_string_length),parameter :: ED_name_ag_biomass= "fates_ag_biomass"   
    character(len=param_string_length),parameter :: ED_name_cwd_fcel= "fates_cwd_fcel"   
    character(len=param_string_length),parameter :: ED_name_cwd_flig= "fates_cwd_flig"   
    character(len=param_string_length),parameter :: ED_name_bbopt_c3= "fates_bbopt_c3"   
@@ -174,9 +173,6 @@ contains
          dimension_names=dim_names)
 
     call fates_params%RegisterParameter(name=ED_name_understorey_death, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
-    call fates_params%RegisterParameter(name=ED_name_ag_biomass, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
     call fates_params%RegisterParameter(name=ED_name_cwd_fcel, dimension_shape=dimension_shape_1d, &
