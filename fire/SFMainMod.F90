@@ -804,7 +804,6 @@ contains
     !currentPatch%FI  average fire intensity of flaming front during day.  kW/m.
 
     use SFParamsMod,  only : SF_val_alpha_SH
-    use EDParamsMod,  only : ED_val_ag_biomass
 
     type(ed_site_type), intent(in), target :: currentSite
 
@@ -823,7 +822,7 @@ contains
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
-                tree_ag_biomass = tree_ag_biomass+(currentCohort%bl+ED_val_ag_biomass* &
+                tree_ag_biomass = tree_ag_biomass+(currentCohort%bl+EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)* &
                      (currentCohort%bsw + currentCohort%bdead))*currentCohort%n
              endif !trees only
 
@@ -839,7 +838,7 @@ contains
           do while(associated(currentCohort))
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1 &
                   .and. (tree_ag_biomass > 0.0_r8)) then !trees only
-                f_ag_bmass = ((currentCohort%bl+ED_val_ag_biomass*(currentCohort%bsw + &
+                f_ag_bmass = ((currentCohort%bl+EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)*(currentCohort%bsw + &
                      currentCohort%bdead))*currentCohort%n)/tree_ag_biomass
                 !equation 16 in Thonicke et al. 2010
                 if(write_SF == itrue)then

@@ -649,7 +649,6 @@ contains
       use EDTypesMod, only: numpft_ed
       use EDTypesMod, only: ncwd
       use SFParamsMod , only : SF_val_CWD_frac
-      use EDParamsMod , only : ED_val_ag_biomass
 
       ! Arguments
       type(ed_patch_type),intent(inout), target   :: newpatch      ! Patch structure
@@ -875,8 +874,8 @@ contains
       temp_cohort%dbh         = c_dbh
       temp_cohort%canopy_trim = 1.0_r8
       temp_cohort%bdead       = Bdead(temp_cohort)
-      temp_cohort%balive      = Bleaf(temp_cohort)*(1.0_r8 + EDPftvarcon_inst%froot_leaf(c_pft) &
-            + EDecophyscon%sapwood_ratio(c_pft)*temp_cohort%hite)
+      temp_cohort%balive      = Bleaf(temp_cohort)*(1.0_r8 + EDPftvarcon_inst%allom_l2fr(c_pft) &
+            + EDpftvarcon_inst%allom_latosa_int(c_pft)*temp_cohort%hite)
       temp_cohort%b           = temp_cohort%balive + temp_cohort%bdead
       
       if( EDPftvarcon_inst%evergreen(c_pft) == 1) then

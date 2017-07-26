@@ -42,12 +42,11 @@ module EDPftvarcon
      real(r8), allocatable :: root_long          (:) ! root longevity (yrs)
      real(r8), allocatable :: clone_alloc        (:) ! fraction of carbon balance allocated to clonal reproduction.
      real(r8), allocatable :: seed_alloc         (:) ! fraction of carbon balance allocated to seeds.
-     real(r8), allocatable :: sapwood_ratio      (:) ! amount of sapwood per unit leaf carbon and m of height. gC/gC/m
+!     real(r8), allocatable :: sapwood_ratio      (:) ! amount of sapwood per unit leaf carbon and m of height. gC/gC/m
      real(r8), allocatable :: woody(:)
      real(r8), allocatable :: stress_decid(:)
      real(r8), allocatable :: season_decid(:)
      real(r8), allocatable :: evergreen(:)
-     real(r8), allocatable :: froot_leaf(:)
      real(r8), allocatable :: slatop(:)
      real(r8), allocatable :: leaf_long(:)
      real(r8), allocatable :: roota_par(:)
@@ -66,18 +65,8 @@ module EDPftvarcon
      real(r8), allocatable :: smpso(:)
      real(r8), allocatable :: smpsc(:)
      real(r8), allocatable :: grperc(:) ! NOTE(bja, 2017-01) moved from EDParamsMod, was allocated as (maxPft=79), not (0:mxpft=78)!
-     real(r8), allocatable :: dbh2h_m(:)
-     real(r8), allocatable :: dbh2h_c(:)
-     real(r8), allocatable :: dbh2bl_a(:)
-     real(r8), allocatable :: dbh2bl_b(:)
-     real(r8), allocatable :: dbh2bl_dbh2carea_expnt_diff(:)
-     real(r8), allocatable :: dbh2bl_c(:)
      real(r8), allocatable :: dbh2bl_slascaler(:)
      real(r8), allocatable :: sai_scaler(:)
-     real(r8), allocatable :: dbh2bd_a(:)
-     real(r8), allocatable :: dbh2bd_b(:)
-     real(r8), allocatable :: dbh2bd_c(:)
-     real(r8), allocatable :: dbh2bd_d(:)
      real(r8), allocatable :: bmort(:)
      real(r8), allocatable :: hf_sm_threshold(:)
      real(r8), allocatable :: vcmaxha(:)
@@ -98,6 +87,33 @@ module EDPftvarcon
      real(r8), allocatable :: taul(:, :)
      real(r8), allocatable :: taus(:, :)
      real(r8), allocatable :: rootprof_beta(:, :)
+
+     ! Allometry Parameters
+     ! --------------------------------------------------------------------------------------------
+     real(r8), allocatable :: allom_hmode(:)        ! height allometry function type
+     real(r8), allocatable :: allom_lmode(:)        ! maximum leaf allometry function type
+     real(r8), allocatable :: allom_fmode(:)        ! maximum root allometry function type
+     real(r8), allocatable :: allom_amode(:)        ! AGB allometry function type
+     real(r8), allocatable :: allom_cmode(:)        ! Coarse root allometry function type
+     real(r8), allocatable :: allom_smode(:)        ! sapwood allometry function type
+     real(r8), allocatable :: allom_latosa_int(:)   ! Leaf area to sap area ratio, intercept [m2/cm2]
+     real(r8), allocatable :: allom_latosa_slp(:)   ! Leaf area to sap area ratio, slope on diameter
+                                                    ! [m2/cm2/cm]
+     real(r8), allocatable :: allom_l2fr(:)         ! Fine root biomass per leaf biomass ratio [kgC/kgC]
+     real(r8), allocatable :: allom_agb_frac(:)     ! Fraction of stem above ground [-]
+     real(r8), allocatable :: allom_d2h1(:)         ! Parameter 1 for d2h allometry (intercept, or "c")
+     real(r8), allocatable :: allom_d2h2(:)         ! Parameter 2 for d2h allometry (slope, or "m")
+     real(r8), allocatable :: allom_d2h3(:)         ! Parameter 3 for d2h allometry (optional)
+     real(r8), allocatable :: allom_d2bl1(:)        ! Parameter 1 for d2bl allometry (intercept)
+     real(r8), allocatable :: allom_d2bl2(:)        ! Parameter 2 for d2bl allometry (slope)
+     real(r8), allocatable :: allom_d2bl3(:)        ! Parameter 3 for d2bl allometry (optional)
+     real(r8), allocatable :: allom_blca_expnt_diff(:) ! Any difference in the exponent between the leaf
+                                                       ! biomass and crown area scaling
+     real(r8), allocatable :: allom_agb1(:)         ! Parameter 1 for agb allometry
+     real(r8), allocatable :: allom_agb2(:)         ! Parameter 2 for agb allometry
+     real(r8), allocatable :: allom_agb3(:)         ! Parameter 3 for agb allometry
+     real(r8), allocatable :: allom_agb4(:)         ! Parameter 3 for agb allometry
+
    contains
      procedure, public :: Init => EDpftconInit
      procedure, public :: Register
@@ -257,10 +273,6 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_sapwood_ratio'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
     name = 'fates_woody'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -277,7 +289,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_froot_leaf'
+    name = 'fates_allom_l2fr'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -353,27 +365,55 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_dbh2h_m'
+    name = 'fates_allom_hmode'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_allom_lmode'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_allom_fmode'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_allom_amode'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_allom_cmode'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_allom_smode'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_allom_agb_frac'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_allom_d2h1'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_dbh2h_c'
+    name = 'fates_allom_d2h2'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_dbh2bl_a'
+    name = 'fates_allom_d2bl1'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_dbh2bl_b'
+    name = 'fates_allom_d2bl2'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_dbh2bl_dbh2carea_expnt_diff'
+    name = 'fates_allom_blca_expnt_diff'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_dbh2bl_c'
+    name = 'fates_allom_d2bl3'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -385,19 +425,19 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_dbh2bd_a'
+    name = 'fates_allom_agb1'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_dbh2bd_b'
+    name = 'fates_allom_agb2'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_dbh2bd_c'
+    name = 'fates_allom_agb3'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_dbh2bd_d'
+    name = 'fates_allom_agb4'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -565,10 +605,6 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seed_alloc)
 
-    name = 'fates_sapwood_ratio'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%sapwood_ratio)
-
     name = 'fates_woody'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%woody)
@@ -585,9 +621,9 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%evergreen)
 
-    name = 'fates_froot_leaf'
+    name = 'fates_allom_l2fr'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%froot_leaf)
+         data=this%allom_l2fr)
 
     name = 'fates_slatop'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -661,29 +697,57 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%grperc)
 
-    name = 'fates_dbh2h_m'
+    name = 'fates_allom_hmode'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%dbh2h_m)
+         data=this%allom_hmode)
 
-    name = 'fates_dbh2h_c'
+    name = 'fates_allom_lmode'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%dbh2h_c)
+         data=this%allom_lmode)
 
-    name = 'fates_dbh2bl_a'
+    name = 'fates_allom_fmode'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%dbh2bl_a)
+         data=this%allom_fmode)
 
-    name = 'fates_dbh2bl_b'
+    name = 'fates_allom_amode'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%dbh2bl_b)
+         data=this%allom_amode)
 
-    name = 'fates_dbh2bl_dbh2carea_expnt_diff'
+    name = 'fates_allom_cmode'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%dbh2bl_dbh2carea_expnt_diff)
+         data=this%allom_cmode)
 
-    name = 'fates_dbh2bl_c'
+    name = 'fates_allom_smode'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%dbh2bl_c)
+         data=this%allom_smode)
+
+    name = 'fates_allom_agb_frac'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_agb_frac)
+
+    name = 'fates_allom_d2h1'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_d2h1)
+
+    name = 'fates_allom_d2h2'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_d2h2)
+
+    name = 'fates_allom_d2bl1'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_d2bl1)
+
+    name = 'fates_allom_d2bl2'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_d2bl2)
+
+    name = 'fates_allom_blca_expnt_diff'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_blca_expnt_diff)
+
+    name = 'fates_allom_d2bl3'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_d2bl3)
 
     name = 'fates_dbh2bl_slascaler'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -693,21 +757,21 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%sai_scaler)
 
-    name = 'fates_dbh2bd_a'
+    name = 'fates_allom_agb1'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%dbh2bd_a)
+         data=this%allom_agb1)
 
-    name = 'fates_dbh2bd_b'
+    name = 'fates_allom_agb2'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%dbh2bd_b)
+         data=this%allom_agb2)
 
-    name = 'fates_dbh2bd_c'
+    name = 'fates_allom_agb3'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%dbh2bd_c)
+         data=this%allom_agb3)
 
-    name = 'fates_dbh2bd_d'
+    name = 'fates_allom_agb4'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%dbh2bd_d)
+         data=this%allom_agb4)
 
     name = 'fates_bmort'
     call fates_params%RetreiveParameterAllocate(name=name, &

@@ -1100,8 +1100,6 @@ contains
     use EDtypesMod          , only : ican_upper
     use EDtypesMod          , only : ican_ustory
     use EDTypesMod          , only : maxpft
-
-    use EDParamsMod       , only : ED_val_ag_biomass
     use EDTypesMod        , only : get_sizeage_class_index
     use EDTypesMod        , only : nlevleaf
 
@@ -1406,13 +1404,17 @@ contains
                     hio_npp_fnrt_si_scpf(io_si,scpf) = hio_npp_fnrt_si_scpf(io_si,scpf) + &
                                                        ccohort%npp_froot*n_perm2
                     hio_npp_bgsw_si_scpf(io_si,scpf) = hio_npp_bgsw_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_bsw*(1._r8-ED_val_ag_biomass)*n_perm2
+                                                       ccohort%npp_bsw*n_perm2*           &
+                                                       (1._r8-EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
                     hio_npp_agsw_si_scpf(io_si,scpf) = hio_npp_agsw_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_bsw*ED_val_ag_biomass*n_perm2
+                                                       ccohort%npp_bsw*n_perm2*           &
+                                                       EDPftvarcon_inst%allom_agb_frac(ccohort%pft)
                     hio_npp_bgdw_si_scpf(io_si,scpf) = hio_npp_bgdw_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_bdead*(1._r8-ED_val_ag_biomass)*n_perm2
+                                                       ccohort%npp_bdead*n_perm2*         &
+                                                       (1._r8-EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
                     hio_npp_agdw_si_scpf(io_si,scpf) = hio_npp_agdw_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_bdead*ED_val_ag_biomass*n_perm2
+                                                       ccohort%npp_bdead*n_perm2*         &
+                                                       EDPftvarcon_inst%allom_agb_frac(ccohort%pft)
                     hio_npp_seed_si_scpf(io_si,scpf) = hio_npp_seed_si_scpf(io_si,scpf) + &
                                                        ccohort%npp_bseed*n_perm2
                     hio_npp_stor_si_scpf(io_si,scpf) = hio_npp_stor_si_scpf(io_si,scpf) + &

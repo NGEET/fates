@@ -63,7 +63,6 @@ contains
 
     use EDPftvarcon         , only : EDPftvarcon_inst 
 
-    use EDParamsMod       , only : ED_val_ag_biomass
     use FatesSynchronizedParamsMod , only : FatesSynchronizedParamsInst
     use EDTypesMod        , only : ed_patch_type
     use EDTypesMod        , only : ed_cohort_type
@@ -493,11 +492,11 @@ contains
                      ! ------------------------------------------------------------------
                      
                      leaf_frac = 1.0_r8/(currentCohort%canopy_trim + &
-                          EDPftvarcon_inst%sapwood_ratio(currentCohort%pft) * &
-                          currentCohort%hite + EDPftvarcon_inst%froot_leaf(currentCohort%pft))
+                          EDPftvarcon_inst%allom_latosa_int(currentCohort%pft) * &
+                          currentCohort%hite + EDPftvarcon_inst%allom_l2fr(currentCohort%pft))
                      
                      
-                     currentCohort%bsw = EDPftvarcon_inst%sapwood_ratio(currentCohort%pft) * &
+                     currentCohort%bsw = EDPftvarcon_inst%allom_latosa_int(currentCohort%pft) * &
                           currentCohort%hite * &
                           (currentCohort%balive + currentCohort%laimemory)*leaf_frac
                      
@@ -508,9 +507,9 @@ contains
                      ! the sapwood pools.
                      ! Units are in (kgN/plant)
                      ! ------------------------------------------------------------------
-                     live_stem_n = ED_val_ag_biomass * currentCohort%bsw / &
+                     live_stem_n = EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * currentCohort%bsw / &
                            frootcn(currentCohort%pft)
-                     live_croot_n = (1.0_r8-ED_val_ag_biomass) * currentCohort%bsw  / &
+                     live_croot_n = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * currentCohort%bsw  / &
                            frootcn(currentCohort%pft)
                      froot_n       = currentCohort%br / frootcn(currentCohort%pft) 
                      

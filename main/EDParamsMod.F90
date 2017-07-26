@@ -28,7 +28,6 @@ module EDParamsMod
    real(r8),protected :: ED_val_init_litter
    real(r8),protected :: ED_val_nignitions
    real(r8),protected :: ED_val_understorey_death
-   real(r8),protected :: ED_val_ag_biomass
    real(r8),protected :: ED_val_cwd_fcel
    real(r8),protected :: ED_val_cwd_flig
    real(r8),protected :: ED_val_bbopt_c3
@@ -103,7 +102,6 @@ contains
     ED_val_init_litter = nan
     ED_val_nignitions = nan
     ED_val_understorey_death = nan
-    ED_val_ag_biomass = nan
     ED_val_cwd_fcel = nan
     ED_val_cwd_flig = nan
     ED_val_bbopt_c3 = nan
@@ -279,9 +277,6 @@ contains
 
     call fates_params%RetreiveParameter(name=ED_name_understorey_death, &
          data=ED_val_understorey_death)
-
-    call fates_params%RetreiveParameter(name=ED_name_ag_biomass, &
-         data=ED_val_ag_biomass)
 
     call fates_params%RetreiveParameter(name=ED_name_cwd_fcel, &
          data=ED_val_cwd_fcel)

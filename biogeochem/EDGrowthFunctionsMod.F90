@@ -44,11 +44,11 @@ contains
     type(ed_cohort_type), intent(in) :: cohort_in
 
     !FIX(SPM,040214) - move to param file
-    real(r8) :: m !parameter of allometric equation (needs to not be hardwired...
-    real(r8) :: c !parameter of allometric equation (needs to not be hardwired...
+    real(r8) :: m ! parameter of allometric equation
+    real(r8) :: c ! parameter of allometric equation
 
-    m = EDPftvarcon_inst%dbh2h_m(cohort_in%pft)
-    c = EDPftvarcon_inst%dbh2h_c(cohort_in%pft)
+    m = EDPftvarcon_inst%allom_d2h1(cohort_in%pft)
+    c = EDPftvarcon_inst%allom_d2h2(cohort_in%pft)
 
     dbh = (10.0_r8**((log10(cohort_in%hite) - c)/m))
 
@@ -71,8 +71,8 @@ contains
     real(r8) :: c
     real(r8) :: h
 
-    m = EDPftvarcon_inst%dbh2h_m(cohort_in%pft)
-    c = EDPftvarcon_inst%dbh2h_c(cohort_in%pft)       
+    m = EDPftvarcon_inst%allom_d2h1(cohort_in%pft)
+    c = EDPftvarcon_inst%allom_d2h2(cohort_in%pft)
 
     if(cohort_in%dbh <= 0._r8)then
        write(fates_log(),*) 'ED: dbh less than zero problem!'
@@ -107,10 +107,11 @@ contains
     real(r8) :: dbh2bl_b
     real(r8) :: dbh2bl_c
     real(r8) :: slascaler ! changes the target biomass according to the SLA
-    
-    dbh2bl_a =  EDPftvarcon_inst%dbh2bl_a(cohort_in%pft)
-    dbh2bl_b =  EDPftvarcon_inst%dbh2bl_b(cohort_in%pft)
-    dbh2bl_c =  EDPftvarcon_inst%dbh2bl_c(cohort_in%pft)
+
+    dbh2bl_a =  EDPftvarcon_inst%allom_d2bl1(cohort_in%pft)
+    dbh2bl_b =  EDPftvarcon_inst%allom_d2bl2(cohort_in%pft)
+    dbh2bl_c =  EDPftvarcon_inst%allom_d2bl3(cohort_in%pft)
+
     slascaler = EDPftvarcon_inst%dbh2bl_slascaler(cohort_in%pft)/EDPftvarcon_inst%slatop(cohort_in%pft)
     
     if(cohort_in%dbh < 0._r8.or.cohort_in%pft == 0.or.cohort_in%dbh > 1000.0_r8)then
@@ -234,10 +235,10 @@ contains
     integer  :: can_layer_index
 
     ! default is to use the same exponent as the dbh to bleaf exponent so that per-plant canopy depth remains invariant during growth,
-    ! but allowed to vary via the dbh2bl_dbh2carea_expnt_diff term (which has default value of zero)
-    crown_area_to_dbh_exponent = EDPftvarcon_inst%dbh2bl_b(cohort_in%pft) + &
-         EDPftvarcon_inst%dbh2bl_dbh2carea_expnt_diff(cohort_in%pft)
-
+    ! but allowed to vary via the allom_blca_expnt_diff term (which has default value of zero)
+    crown_area_to_dbh_exponent = EDPftvarcon_inst%allom_d2bl2(cohort_in%pft) + &
+          EDPftvarcon_inst%allom_blca_expnt_diff(cohort_in%pft)
+    
     if (DEBUG_growth) then
        write(fates_log(),*) 'z_area 1',cohort_in%dbh,cohort_in%pft
        write(fates_log(),*) 'z_area 2',EDPftvarcon_inst%max_dbh
@@ -247,7 +248,7 @@ contains
        write(fates_log(),*) 'z_area 6',cohort_in%canopy_layer
        write(fates_log(),*) 'z_area 7',ED_val_grass_spread
     end if
-
+    
     dbh = min(cohort_in%dbh,EDPftvarcon_inst%max_dbh(cohort_in%pft))
     
     ! ----------------------------------------------------------------------------------
@@ -278,7 +279,12 @@ contains
     ! ============================================================================
     ! Calculate stem biomass from height(m) dbh(cm) and wood density(g/cm3)
     ! default params using allometry of J.G. Saldarriaga et al 1988 - Rio Negro                                  
-    ! Journal of Ecology vol 76 p938-958                                       
+    ! Journal of Ecology vol 76 p938-958  
+    !
+    ! NOTE (RGK 07-2017) Various other biomass allometries calculate above ground
+    ! biomass, and it appear Saldariagga may be an outlier that calculates total
+    ! biomass (these parameters will have to be a placeholder for both)
+    !
     ! ============================================================================
 
     type(ed_cohort_type), intent(in) :: cohort_in       
@@ -288,10 +294,10 @@ contains
    real(r8) :: dbh2bd_c
    real(r8) :: dbh2bd_d
    
-   dbh2bd_a =  EDPftvarcon_inst%dbh2bd_a(cohort_in%pft)
-   dbh2bd_b =  EDPftvarcon_inst%dbh2bd_b(cohort_in%pft)
-   dbh2bd_c =  EDPftvarcon_inst%dbh2bd_c(cohort_in%pft)  
-   dbh2bd_d =  EDPftvarcon_inst%dbh2bd_d(cohort_in%pft)
+   dbh2bd_a =  EDPftvarcon_inst%allom_agb1(cohort_in%pft)
+   dbh2bd_b =  EDPftvarcon_inst%allom_agb2(cohort_in%pft)
+   dbh2bd_c =  EDPftvarcon_inst%allom_agb3(cohort_in%pft)  
+   dbh2bd_d =  EDPftvarcon_inst%allom_agb4(cohort_in%pft)
 
    bdead = dbh2bd_a*(cohort_in%hite**dbh2bd_b)*(cohort_in%dbh**dbh2bd_c)* &
         (EDPftvarcon_inst%wood_density(cohort_in%pft)** dbh2bd_d)  
@@ -315,10 +321,10 @@ contains
     real(r8) :: dbh2bd_c
     real(r8) :: dbh2bd_d
     
-    dbh2bd_a =  EDPftvarcon_inst%dbh2bd_a(cohort_in%pft)
-    dbh2bd_b =  EDPftvarcon_inst%dbh2bd_b(cohort_in%pft)
-    dbh2bd_c =  EDPftvarcon_inst%dbh2bd_c(cohort_in%pft)  
-    dbh2bd_d =  EDPftvarcon_inst%dbh2bd_d(cohort_in%pft)
+    dbh2bd_a =  EDPftvarcon_inst%allom_agb1(cohort_in%pft)
+    dbh2bd_b =  EDPftvarcon_inst%allom_agb2(cohort_in%pft)
+    dbh2bd_c =  EDPftvarcon_inst%allom_agb3(cohort_in%pft)  
+    dbh2bd_d =  EDPftvarcon_inst%allom_agb4(cohort_in%pft)
     
     dbddh =  dbh2bd_a*dbh2bd_b*(cohort_in%hite**(dbh2bd_b-1.0_r8))*(cohort_in%dbh**dbh2bd_c)* &
          (EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bd_d)
@@ -347,14 +353,14 @@ contains
     real(r8) :: dbh2bd_b
     real(r8) :: dbh2bd_c
     real(r8) :: dbh2bd_d
+
+    m = EDPftvarcon_inst%allom_d2h1(cohort_in%pft)
+    c = EDPftvarcon_inst%allom_d2h2(cohort_in%pft)
     
-    m = EDPftvarcon_inst%dbh2h_m(cohort_in%pft)
-    c = EDPftvarcon_inst%dbh2h_c(cohort_in%pft)
-    
-    dbh2bd_a =  EDPftvarcon_inst%dbh2bd_a(cohort_in%pft)
-    dbh2bd_b =  EDPftvarcon_inst%dbh2bd_b(cohort_in%pft)
-    dbh2bd_c =  EDPftvarcon_inst%dbh2bd_c(cohort_in%pft)  
-    dbh2bd_d =  EDPftvarcon_inst%dbh2bd_d(cohort_in%pft)
+    dbh2bd_a =  EDPftvarcon_inst%allom_agb1(cohort_in%pft)
+    dbh2bd_b =  EDPftvarcon_inst%allom_agb1(cohort_in%pft)
+    dbh2bd_c =  EDPftvarcon_inst%allom_agb1(cohort_in%pft)  
+    dbh2bd_d =  EDPftvarcon_inst%allom_agb1(cohort_in%pft)
     
     dBD_dDBH =  dbh2bd_c*dbh2bd_a*(cohort_in%hite**dbh2bd_b)*(cohort_in%dbh**(dbh2bd_c-1.0_r8))* &
          (EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bd_d)  
@@ -387,9 +393,11 @@ contains
     real(r8) :: dbh2bl_b
     real(r8) :: dbh2bl_c
     
-    dbh2bl_a =  EDPftvarcon_inst%dbh2bl_a(cohort_in%pft)
-    dbh2bl_b =  EDPftvarcon_inst%dbh2bl_b(cohort_in%pft)
-    dbh2bl_c =  EDPftvarcon_inst%dbh2bl_c(cohort_in%pft)  
+    dbh2bl_a =  EDPftvarcon_inst%allom_d2bl1(cohort_in%pft)
+    dbh2bl_b =  EDPftvarcon_inst%allom_d2bl2(cohort_in%pft)
+    dbh2bl_c =  EDPftvarcon_inst%allom_d2bl3(cohort_in%pft)
+
+
     dblddbh = dbh2bl_b*dbh2bl_a*(cohort_in%dbh**dbh2bl_b)*(EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bl_c)
     dblddbh = dblddbh*cohort_in%canopy_trim
 

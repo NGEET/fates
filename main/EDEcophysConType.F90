@@ -53,9 +53,6 @@ module EDEcophysConType
      real(r8), pointer :: root_long          (:) ! root longevity (yrs)
      real(r8), pointer :: clone_alloc        (:) ! fraction of carbon balance allocated to clonal reproduction. 
      real(r8), pointer :: seed_alloc         (:) ! fraction of carbon balance allocated to seeds. 
-     real(r8), pointer :: sapwood_ratio      (:) ! amount of sapwood per unit leaf carbon and m height 
-
-
 
      ! pft parameters for plant hydraulics (PFT)
      real(r8), pointer :: wd                 (:)   ! wood density (distinct from wood_density for testing)    [g m-3]
@@ -163,7 +160,6 @@ contains
     allocate( EDecophyscon%root_long          (0:numpft)); EDecophyscon%root_long          (:) = nan                
     allocate( EDecophyscon%seed_alloc         (0:numpft)); EDecophyscon%seed_alloc         (:) = nan               
     allocate( EDecophyscon%clone_alloc        (0:numpft)); EDecophyscon%clone_alloc        (:) = nan              
-    allocate( EDecophyscon%sapwood_ratio      (0:numpft)); EDecophyscon%sapwood_ratio      (:) = nan            
 
     do m = lb,numpft
        EDecophyscon%max_dbh(m)               = EDPftvarcon_inst%max_dbh(m)
@@ -184,7 +180,6 @@ contains
        EDecophyscon%root_long(m)             = EDPftvarcon_inst%root_long(m)
        EDecophyscon%seed_alloc(m)            = EDPftvarcon_inst%seed_alloc(m)
        EDecophyscon%clone_alloc(m)           = EDPftvarcon_inst%clone_alloc(m)
-       EDecophyscon%sapwood_ratio(m)         = EDPftvarcon_inst%sapwood_ratio(m)
     end do
 
 

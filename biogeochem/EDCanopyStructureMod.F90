@@ -81,7 +81,7 @@ contains
     !
     ! !USES:
 
-    use EDParamsMod, only : ED_val_comp_excln, ED_val_ag_biomass
+    use EDParamsMod, only : ED_val_comp_excln
     use SFParamsMod, only : SF_val_cwd_frac
     use EDtypesMod , only : ncwd, min_patch_area
     use FatesInterfaceMod, only : bc_in_type
@@ -225,11 +225,11 @@ contains
                             do c=1,ncwd
 
                                currentPatch%CWD_AG(c)  = currentPatch%CWD_AG(c) + (currentCohort%bdead+currentCohort%bsw) * &
-                                    ED_val_ag_biomass * &
+                                    EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
                                     SF_val_CWD_frac(c)*currentCohort%n/currentPatch%area  
          
                                currentPatch%CWD_BG(c)  = currentPatch%CWD_BG(c) + (currentCohort%bdead+currentCohort%bsw) * &
-                                    (1.0_r8-ED_val_ag_biomass) * &
+                                    (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * &
                                     SF_val_CWD_frac(c)*currentCohort%n/currentPatch%area !litter flux per m2.
 
                             enddo
@@ -247,11 +247,13 @@ contains
                                currentSite%CWD_AG_diagnostic_input_carbonflux(c) = &
                                     currentSite%CWD_AG_diagnostic_input_carbonflux(c) &
                                     + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
-                                    SF_val_CWD_frac(c) * ED_val_ag_biomass * hlm_days_per_year / AREA
+                                    SF_val_CWD_frac(c) * EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) &
+                                    * hlm_days_per_year / AREA
                                currentSite%CWD_BG_diagnostic_input_carbonflux(c) = &
                                     currentSite%CWD_BG_diagnostic_input_carbonflux(c) &
                                     + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
-                                    SF_val_CWD_frac(c) * (1.0_r8 -  ED_val_ag_biomass)  * hlm_days_per_year / AREA
+                                    SF_val_CWD_frac(c) * (1.0_r8 -  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) &
+                                    * hlm_days_per_year / AREA
                             enddo
                             
                             currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
@@ -296,10 +298,10 @@ contains
                             do c=1,ncwd
 
                                currentPatch%CWD_AG(c)  = currentPatch%CWD_AG(c) + (currentCohort%bdead+currentCohort%bsw) * &
-                                    ED_val_ag_biomass * &
+                                    EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
                                     SF_val_CWD_frac(c)*currentCohort%n/currentPatch%area           
                                currentPatch%CWD_BG(c)  = currentPatch%CWD_BG(c) + (currentCohort%bdead+currentCohort%bsw) * &
-                                    (1.0_r8-ED_val_ag_biomass) * &
+                                    (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * &
                                     SF_val_CWD_frac(c)*currentCohort%n/currentPatch%area !litter flux per m2.
 
                             enddo
@@ -317,11 +319,13 @@ contains
                                currentSite%CWD_AG_diagnostic_input_carbonflux(c) = &
                                     currentSite%CWD_AG_diagnostic_input_carbonflux(c) &
                                     + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
-                                    SF_val_CWD_frac(c) * ED_val_ag_biomass * hlm_days_per_year / AREA
+                                    SF_val_CWD_frac(c) * EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) &
+                                    * hlm_days_per_year / AREA
                                currentSite%CWD_BG_diagnostic_input_carbonflux(c) = &
                                     currentSite%CWD_BG_diagnostic_input_carbonflux(c) &
                                     + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
-                                    SF_val_CWD_frac(c) * (1.0_r8 -  ED_val_ag_biomass)  * hlm_days_per_year / AREA
+                                    SF_val_CWD_frac(c) * (1.0_r8 -  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) &
+                                    * hlm_days_per_year / AREA
                             enddo
                             
                             currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
