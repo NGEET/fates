@@ -496,6 +496,7 @@ contains
        
        do while(associated(currentCohort))
           
+          !kgC/10000m2
           biomass_stock =  biomass_stock + (currentCohort%bdead + currentCohort%balive + &
                 currentCohort%bstore) * currentCohort%n
           currentCohort => currentCohort%shorter;
@@ -508,8 +509,6 @@ contains
   
 	if (currentPatch%logging==1 .and. currentPatch%after_spawn_patch==1) then  
 
-	   !currentPatch%trunk_product unit is kGC/m2
-	   trunk_product_site =  trunk_product_site + currentPatch%trunk_product* currentPatch%area
 	   ! turn off this flag after spawn patch , since flux_in and flux_out are cleaned in every balance check 
 	   currentPatch%after_spawn_patch = 0
 
@@ -521,7 +520,6 @@ contains
 
     enddo !end patch loop
 
-    currentSite%resouces_management%trunk_product_site = currentSite%resouces_management%trunk_product_site + trunk_product_site
 
     total_stock     = biomass_stock + seed_stock +litter_stock
     change_in_stock = total_stock - currentSite%old_stock  
