@@ -21,6 +21,7 @@ module EDPftvarcon
 
   !ED specific variables. 
   type, public ::  EDPftvarcon_type
+     real(r8), allocatable :: pft_used           (:) ! Switch to turn on and off PFTs
      real(r8), allocatable :: max_dbh            (:) ! maximum dbh at which height growth ceases...
      real(r8), allocatable :: freezetol          (:) ! minimum temperature tolerance (NOT CURRENTY USED)
      real(r8), allocatable :: wood_density       (:) ! wood density  g cm^-3  ...
@@ -29,20 +30,17 @@ module EDPftvarcon
      real(r8), allocatable :: z0mr               (:) ! ratio of roughness length of vegetation to height (-) 
      real(r8), allocatable :: displar            (:) ! ratio of displacement height to canopy top height (-)
      real(r8), allocatable :: cushion            (:) ! labile carbon storage target as multiple of leaf pool.
-     real(r8), allocatable :: leaf_stor_priority (:) ! leaf turnover vs labile carbon use prioritisation. (1 = lose  leaves, 0 = use store).
-     real(r8), allocatable :: rootresist         (:) ! root resistance used in SPA (NOT CURRENTLY USED)
-     real(r8), allocatable :: soilbeta           (:) ! parameter used in SPA (NOT CURRENTLY USED)
+     real(r8), allocatable :: leaf_stor_priority (:) ! leaf turnover vs labile carbon use prioritisation
+                                                     ! (1 = lose  leaves, 0 = use store).
      real(r8), allocatable :: crown              (:)
      real(r8), allocatable :: bark_scaler        (:)
      real(r8), allocatable :: crown_kill         (:)
      real(r8), allocatable :: initd              (:)
-     real(r8), allocatable :: sd_mort            (:) ! rate of death of seeds (NOT CURRENTLY USED)
      real(r8), allocatable :: seed_rain          (:)
      real(r8), allocatable :: BB_slope           (:)
      real(r8), allocatable :: root_long          (:) ! root longevity (yrs)
      real(r8), allocatable :: clone_alloc        (:) ! fraction of carbon balance allocated to clonal reproduction.
      real(r8), allocatable :: seed_alloc         (:) ! fraction of carbon balance allocated to seeds.
-!     real(r8), allocatable :: sapwood_ratio      (:) ! amount of sapwood per unit leaf carbon and m of height. gC/gC/m
      real(r8), allocatable :: woody(:)
      real(r8), allocatable :: stress_decid(:)
      real(r8), allocatable :: season_decid(:)
@@ -64,9 +62,9 @@ module EDPftvarcon
      real(r8), allocatable :: frootcn(:)
      real(r8), allocatable :: smpso(:)
      real(r8), allocatable :: smpsc(:)
-     real(r8), allocatable :: grperc(:) ! NOTE(bja, 2017-01) moved from EDParamsMod, was allocated as (maxPft=79), not (0:mxpft=78)!
-     real(r8), allocatable :: dbh2bl_slascaler(:)
-     real(r8), allocatable :: sai_scaler(:)
+     real(r8), allocatable :: grperc(:) 
+     
+     
      real(r8), allocatable :: bmort(:)
      real(r8), allocatable :: hf_sm_threshold(:)
      real(r8), allocatable :: vcmaxha(:)
@@ -80,6 +78,7 @@ module EDPftvarcon
      real(r8), allocatable :: tpuse(:)
      real(r8), allocatable :: germination_timescale(:)
      real(r8), allocatable :: seed_decay_turnover(:)
+     real(r8), allocatable :: branch_turnover(:)         ! Turnover time for branchfall on live trees [yr-1]
      real(r8), allocatable :: trim_limit(:)              ! Limit to reductions in leaf area w stress (m2/m2)
      real(r8), allocatable :: trim_inc(:)                ! Incremental change in trimming function   (m2/m2)
      real(r8), allocatable :: rhol(:, :)
@@ -87,6 +86,7 @@ module EDPftvarcon
      real(r8), allocatable :: taul(:, :)
      real(r8), allocatable :: taus(:, :)
      real(r8), allocatable :: rootprof_beta(:, :)
+     
 
      ! Allometry Parameters
      ! --------------------------------------------------------------------------------------------
@@ -106,14 +106,17 @@ module EDPftvarcon
      real(r8), allocatable :: allom_d2h3(:)         ! Parameter 3 for d2h allometry (optional)
      real(r8), allocatable :: allom_d2bl1(:)        ! Parameter 1 for d2bl allometry (intercept)
      real(r8), allocatable :: allom_d2bl2(:)        ! Parameter 2 for d2bl allometry (slope)
-     real(r8), allocatable :: allom_d2bl3(:)        ! Parameter 3 for d2bl allometry (optional)
+     real(r8), allocatable :: allom_d2bl3(:)           ! Parameter 3 for d2bl allometry (optional)
+     real(r8), allocatable :: allom_sai_scaler(:)      ! 
+     real(r8), allocatable :: allom_d2bl_slascaler(:)  ! 
      real(r8), allocatable :: allom_blca_expnt_diff(:) ! Any difference in the exponent between the leaf
                                                        ! biomass and crown area scaling
      real(r8), allocatable :: allom_agb1(:)         ! Parameter 1 for agb allometry
      real(r8), allocatable :: allom_agb2(:)         ! Parameter 2 for agb allometry
      real(r8), allocatable :: allom_agb3(:)         ! Parameter 3 for agb allometry
      real(r8), allocatable :: allom_agb4(:)         ! Parameter 3 for agb allometry
-
+     
+     
    contains
      procedure, public :: Init => EDpftconInit
      procedure, public :: Register
@@ -201,6 +204,10 @@ contains
     !X!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
     !X!         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_pft_used'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_max_dbh'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -225,14 +232,6 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_rootresist'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_soilbeta'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
     name = 'fates_crown_depth_frac'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -246,10 +245,6 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_initd'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_sd_mort'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -409,6 +404,10 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_allom_d2h3'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_allom_d2bl1'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -417,19 +416,19 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_allom_blca_expnt_diff'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
     name = 'fates_allom_d2bl3'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_dbh2bl_slascaler'
+    name = 'fates_allom_blca_expnt_diff'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_sai_scaler'
+    name = 'fates_allom_d2bl_slascaler'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_allom_sai_scaler'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -501,6 +500,10 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_branch_turnover'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_trim_limit'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -541,6 +544,10 @@ contains
     !X!    call fates_params%RetreiveParameter(name=name, &
     !X!         data=this%)
 
+    name = 'fates_pft_used'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%pft_used)
+
     name = 'fates_max_dbh'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%max_dbh)
@@ -565,14 +572,6 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%leaf_stor_priority)
 
-    name = 'fates_rootresist'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%rootresist)
-
-    name = 'fates_soilbeta'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%soilbeta)
-
     name = 'fates_crown_depth_frac'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%crown)
@@ -588,10 +587,6 @@ contains
     name = 'fates_initd'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%initd)
-
-    name = 'fates_sd_mort'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%sd_mort)
 
     name = 'fates_seed_rain'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -749,6 +744,10 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%allom_d2h2)
 
+    name = 'fates_allom_d2h3'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_d2h3)
+
     name = 'fates_allom_d2bl1'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%allom_d2bl1)
@@ -757,21 +756,21 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%allom_d2bl2)
 
-    name = 'fates_allom_blca_expnt_diff'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%allom_blca_expnt_diff)
-
     name = 'fates_allom_d2bl3'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%allom_d2bl3)
 
-    name = 'fates_dbh2bl_slascaler'
+    name = 'fates_allom_blca_expnt_diff'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%dbh2bl_slascaler)
+         data=this%allom_blca_expnt_diff)
 
-    name = 'fates_sai_scaler'
+    name = 'fates_allom_d2bl_slascaler'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%sai_scaler)
+         data=this%allom_d2bl_slascaler)
+
+    name = 'fates_allom_sai_scaler'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_sai_scaler)
 
     name = 'fates_allom_agb1'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -840,6 +839,10 @@ contains
     name = 'fates_seed_decay_turnover'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seed_decay_turnover)
+
+    name = 'fates_branch_turnover'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%branch_turnover)
 
     name = 'fates_trim_limit'
     call fates_params%RetreiveParameterAllocate(name=name, &

@@ -41,13 +41,10 @@ module EDEcophysConType
      real(r8), pointer :: hgt_min            (:) ! sapling height m 
      real(r8), pointer :: cushion            (:) ! labile carbon storage target as multiple of leaf pool. 
      real(r8), pointer :: leaf_stor_priority (:) ! leaf turnover vs labile carbon use prioritisation. ! (1=lose leaves, 0=use store). 
-     real(r8), pointer :: rootresist         (:) ! SPA parameter (NOT USED)
-     real(r8), pointer :: soilbeta           (:) ! SPA parameter (NOT USED)
      real(r8), pointer :: crown              (:) ! fraction of the height of the plant that is occupied by crown. For fire model. 
      real(r8), pointer :: bark_scaler        (:) ! scaler from dbh to bark thickness. For fire model. 
      real(r8), pointer :: crown_kill         (:) ! scaler on fire death. For fire model. 
      real(r8), pointer :: initd              (:) ! initial seedling density 
-     real(r8), pointer :: sd_mort            (:) ! rate of death of seeds produced from reproduction (NOT USED). 
      real(r8), pointer :: seed_rain          (:) ! seeds that come from outside the gridbox.  
      real(r8), pointer :: BB_slope           (:) ! ball berry slope parameter
      real(r8), pointer :: root_long          (:) ! root longevity (yrs)
@@ -148,13 +145,10 @@ contains
     allocate( EDecophyscon%hgt_min            (0:numpft)); EDecophyscon%hgt_min            (:) = nan                
     allocate( EDecophyscon%cushion            (0:numpft)); EDecophyscon%cushion            (:) = nan                
     allocate( EDecophyscon%leaf_stor_priority (0:numpft)); EDecophyscon%leaf_stor_priority (:) = nan     
-    allocate( EDecophyscon%rootresist         (0:numpft)); EDecophyscon%rootresist         (:) = nan             
-    allocate( EDecophyscon%soilbeta           (0:numpft)); EDecophyscon%soilbeta           (:) = nan               
     allocate( EDecophyscon%crown              (0:numpft)); EDecophyscon%crown              (:) = nan                  
     allocate( EDecophyscon%bark_scaler        (0:numpft)); EDecophyscon%bark_scaler        (:) = nan            
     allocate( EDecophyscon%crown_kill         (0:numpft)); EDecophyscon%crown_kill         (:) = nan             
     allocate( EDecophyscon%initd              (0:numpft)); EDecophyscon%initd              (:) = nan                  
-    allocate( EDecophyscon%sd_mort            (0:numpft)); EDecophyscon%sd_mort            (:) = nan                
     allocate( EDecophyscon%seed_rain          (0:numpft)); EDecophyscon%seed_rain          (:) = nan              
     allocate( EDecophyscon%BB_slope           (0:numpft)); EDecophyscon%BB_slope           (:) = nan               
     allocate( EDecophyscon%root_long          (0:numpft)); EDecophyscon%root_long          (:) = nan                
@@ -168,13 +162,10 @@ contains
        EDecophyscon%hgt_min(m)               = EDPftvarcon_inst%hgt_min(m)
        EDecophyscon%cushion(m)               = EDPftvarcon_inst%cushion(m)
        EDecophyscon%leaf_stor_priority(m)    = EDPftvarcon_inst%leaf_stor_priority(m)
-       EDecophyscon%rootresist(m)            = EDPftvarcon_inst%rootresist(m)
-       EDecophyscon%soilbeta(m)              = EDPftvarcon_inst%soilbeta(m)
        EDecophyscon%crown(m)                 = EDPftvarcon_inst%crown(m)
        EDecophyscon%bark_scaler(m)           = EDPftvarcon_inst%bark_scaler(m)
        EDecophyscon%crown_kill(m)            = EDPftvarcon_inst%crown_kill(m)
        EDecophyscon%initd(m)                 = EDPftvarcon_inst%initd(m)
-       EDecophyscon%sd_mort(m)               = EDPftvarcon_inst%sd_mort(m)
        EDecophyscon%seed_rain(m)             = EDPftvarcon_inst%seed_rain(m)
        EDecophyscon%bb_slope(m)              = EDPftvarcon_inst%bb_slope(m)
        EDecophyscon%root_long(m)             = EDPftvarcon_inst%root_long(m)

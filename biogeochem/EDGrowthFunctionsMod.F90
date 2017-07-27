@@ -108,11 +108,10 @@ contains
     real(r8) :: dbh2bl_c
     real(r8) :: slascaler ! changes the target biomass according to the SLA
 
-    dbh2bl_a =  EDPftvarcon_inst%allom_d2bl1(cohort_in%pft)
-    dbh2bl_b =  EDPftvarcon_inst%allom_d2bl2(cohort_in%pft)
-    dbh2bl_c =  EDPftvarcon_inst%allom_d2bl3(cohort_in%pft)
-
-    slascaler = EDPftvarcon_inst%dbh2bl_slascaler(cohort_in%pft)/EDPftvarcon_inst%slatop(cohort_in%pft)
+    dbh2bl_a  =  EDPftvarcon_inst%allom_d2bl1(cohort_in%pft)
+    dbh2bl_b  =  EDPftvarcon_inst%allom_d2bl2(cohort_in%pft)
+    dbh2bl_c  =  EDPftvarcon_inst%allom_d2bl3(cohort_in%pft)
+    slascaler = EDPftvarcon_inst%allom_d2bl_slascaler(cohort_in%pft)/EDPftvarcon_inst%slatop(cohort_in%pft)
     
     if(cohort_in%dbh < 0._r8.or.cohort_in%pft == 0.or.cohort_in%dbh > 1000.0_r8)then
        write(fates_log(),*) 'problems in bleaf',cohort_in%dbh,cohort_in%pft
@@ -192,7 +191,7 @@ contains
     real(r8) :: bdead_per_unitarea ! KgC of leaf per m2 area of ground.
     real(r8) :: sai_scaler     
 
-    sai_scaler = EDPftvarcon_inst%sai_scaler(cohort_in%pft) 
+    sai_scaler = EDPftvarcon_inst%allom_sai_scaler(cohort_in%pft) 
 
     if( cohort_in%bdead  <  0._r8 .or. cohort_in%pft  ==  0 ) then
        write(fates_log(),*) 'problem in treesai',cohort_in%bdead,cohort_in%pft
@@ -358,9 +357,9 @@ contains
     c = EDPftvarcon_inst%allom_d2h2(cohort_in%pft)
     
     dbh2bd_a =  EDPftvarcon_inst%allom_agb1(cohort_in%pft)
-    dbh2bd_b =  EDPftvarcon_inst%allom_agb1(cohort_in%pft)
-    dbh2bd_c =  EDPftvarcon_inst%allom_agb1(cohort_in%pft)  
-    dbh2bd_d =  EDPftvarcon_inst%allom_agb1(cohort_in%pft)
+    dbh2bd_b =  EDPftvarcon_inst%allom_agb2(cohort_in%pft)
+    dbh2bd_c =  EDPftvarcon_inst%allom_agb3(cohort_in%pft)  
+    dbh2bd_d =  EDPftvarcon_inst%allom_agb4(cohort_in%pft)
     
     dBD_dDBH =  dbh2bd_c*dbh2bd_a*(cohort_in%hite**dbh2bd_b)*(cohort_in%dbh**(dbh2bd_c-1.0_r8))* &
          (EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bd_d)  
