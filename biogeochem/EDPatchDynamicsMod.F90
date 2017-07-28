@@ -23,6 +23,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
+  use EDParamsMod          , only : fates_mortality_disturbance_fraction
 
   ! CIME globals
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
@@ -86,7 +87,7 @@ contains
           currentCohort%patchptr => currentPatch
 
           call mortality_rates(currentCohort,cmort,hmort,bmort)
-	  currentCohort%dmort  = cmort+hmort+bmort	
+          currentCohort%dmort  = cmort+hmort+bmort
           currentCohort%c_area = c_area(currentCohort)
 
           ! Initialize diagnostic mortality rates
@@ -99,6 +100,7 @@ contains
           if(currentCohort%canopy_layer == 1)then
 
              currentPatch%disturbance_rates(1) = currentPatch%disturbance_rates(1) + &
+                  fates_mortality_disturbance_fraction * &
                   min(1.0_r8,currentCohort%dmort)*hlm_freq_day*currentCohort%c_area/currentPatch%area
 
           endif
@@ -289,7 +291,8 @@ contains
                    ! because this is the part of the original patch where no trees have actually fallen
                    ! The diagnostic cmort,bmort and hmort rates have already been saved         
 
-                   currentCohort%n = currentCohort%n * (1.0_r8 - min(1.0_r8,currentCohort%dmort * hlm_freq_day))
+                   currentCohort%n = currentCohort%n * (1.0_r8 - fates_mortality_disturbance_fraction * &
+                        min(1.0_r8,currentCohort%dmort * hlm_freq_day))
 
                    nc%n = 0.0_r8      ! kill all of the trees who caused the disturbance.         
                    nc%cmort = nan     ! The mortality diagnostics are set to nan because the cohort should dissappear
