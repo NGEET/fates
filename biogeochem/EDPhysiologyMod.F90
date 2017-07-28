@@ -874,7 +874,6 @@ contains
     currentCohort%npp_froot = max(0.0_r8,min(currentCohort%npp_acc_hold*currentCohort%root_md/currentCohort%md, &
                                   currentCohort%root_md*EDecophyscon%leaf_stor_priority(currentCohort%pft)))
 
-
     if (Bleaf(currentCohort) > 0._r8)then
 
        if ( DEBUG ) write(fates_log(),*) 'EDphys A ',currentCohort%carbon_balance
@@ -961,7 +960,7 @@ contains
        !FIX(RF,032414) - to fix high bl's. needed to prevent numerical errors without the ODEINT.  
        if (currentCohort%balive > target_balive*1.1_r8)then  
           va = 0.0_r8; vs = 1._r8
-          write(fates_log(),*) 'using high bl cap',target_balive,currentCohort%balive                        
+          if (DEBUG) write(fates_log(),*) 'using high bl cap',target_balive,currentCohort%balive                        
        endif
 
     else         

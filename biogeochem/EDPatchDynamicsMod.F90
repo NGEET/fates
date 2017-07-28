@@ -401,10 +401,13 @@ contains
           !update area of donor patch
           currentPatch%area = currentPatch%area - patch_site_areadis
 
-          !sort out the cohorts, since some of them may be so small as to need removing. 
-
+          ! sort out the cohorts, since some of them may be so small as to need removing. 
+          ! the first call to terminate cohorts removes sparse number densities,
+          ! the second call removes for all other reasons (sparse culling must happen
+          ! before fusion)
+          call terminate_cohorts(currentSite, currentPatch, 1)
           call fuse_cohorts(currentPatch, bc_in)
-          call terminate_cohorts(currentSite, currentPatch)
+          call terminate_cohorts(currentSite, currentPatch, 2)
           call sort_cohorts(currentPatch)
 
           currentPatch => currentPatch%younger
@@ -420,8 +423,13 @@ contains
        currentPatch%younger       => new_patch
        currentSite%youngest_patch => new_patch
 
+       ! sort out the cohorts, since some of them may be so small as to need removing. 
+       ! the first call to terminate cohorts removes sparse number densities,
+       ! the second call removes for all other reasons (sparse culling must happen
+       ! before fusion)
+       call terminate_cohorts(currentSite, new_patch, 1)
        call fuse_cohorts(new_patch, bc_in)
-       call terminate_cohorts(currentSite, new_patch)
+       call terminate_cohorts(currentSite, new_patch, 2)
        call sort_cohorts(new_patch)
 
     endif !end new_patch area 
@@ -514,6 +522,14 @@ contains
     do p = 1,numpft_ed !move litter pool en mass into the new patch
        newPatch%root_litter(p) = newPatch%root_litter(p) + currentPatch%root_litter(p) * patch_site_areadis/newPatch%area
        newPatch%leaf_litter(p) = newPatch%leaf_litter(p) + currentPatch%leaf_litter(p) * patch_site_areadis/newPatch%area
+
+       ! The fragmentation/decomposition flux from donor patches has already occured in existing patches.  However
+       ! some of their area has been carved out for this new patches which is receiving donations.
+       ! Lets maintain conservation on that pre-existing mass flux in these newly disturbed patches
+       
+       newPatch%root_litter_out(p) = newPatch%root_litter_out(p) + currentPatch%root_litter_out(p) * patch_site_areadis/newPatch%area
+       newPatch%leaf_litter_out(p) = newPatch%leaf_litter_out(p) + currentPatch%leaf_litter_out(p) * patch_site_areadis/newPatch%area
+
     enddo
 
     newPatch%spread = newPatch%spread + currentPatch%spread * patch_site_areadis/newPatch%area    
@@ -829,9 +845,10 @@ contains
     
        new_patch%leaf_litter(p) = new_patch%leaf_litter(p) + canopy_mortality_leaf_litter(p) / litter_area * np_mult
        new_patch%root_litter(p) = new_patch%root_litter(p) + canopy_mortality_root_litter(p) / litter_area * np_mult 
+
        currentPatch%leaf_litter(p) = currentPatch%leaf_litter(p) + canopy_mortality_leaf_litter(p) / litter_area
        currentPatch%root_litter(p) = currentPatch%root_litter(p) + canopy_mortality_root_litter(p) / litter_area
-       
+
        ! track as diagnostic fluxes
        currentSite%leaf_litter_diagnostic_input_carbonflux(p) = currentSite%leaf_litter_diagnostic_input_carbonflux(p) + &
             canopy_mortality_leaf_litter(p) * hlm_days_per_year / AREA
@@ -921,10 +938,7 @@ contains
     new_patch%total_tree_area    = 0.0_r8  
     new_patch%NCL_p              = 1
 
-    new_patch%leaf_litter_in(:)  = 0._r8
-    new_patch%leaf_litter_out(:) = 0._r8
-
-   
+    
 
   end subroutine create_patch
 
@@ -1000,11 +1014,17 @@ contains
     ! LITTER
     currentPatch%cwd_ag(:)                  = 0.0_r8 ! above ground coarse woody debris gc/m2. 
     currentPatch%cwd_bg(:)                  = 0.0_r8 ! below ground coarse woody debris
-    currentPatch%root_litter(:)             = 0.0_r8
-    currentPatch%leaf_litter(:)             = 0.0_r8
+    currentPatch%root_litter(:)             = 0.0_r8 ! In new disturbed patches, loops over donors to increment total, needs zero here
+    currentPatch%leaf_litter(:)             = 0.0_r8 ! In new disturbed patches, loops over donors to increment total, needs zero here
 
-    currentPatch%leaf_litter_in(:)          = 0.0_r8
-    currentPatch%leaf_litter_out(:)         = 0.0_r8
+    ! Cold-start initialized patches should have no litter flux in/out as they have not undergone any time.
+    ! Litter fluxes in/out also need to be initialized to zero for newly disturbed patches, as they
+    ! will incorporate the fluxes from donors over a loop, and need an initialization
+
+    currentPatch%leaf_litter_in(:)  = 0.0_r8 ! As a newly created patch with no age, there is no flux in
+    currentPatch%leaf_litter_out(:) = 0.0_r8 ! As a newly created patch with no age, no frag or decomp has happened yet
+    currentPatch%root_litter_in(:)  = 0.0_r8 ! As a newly created patch with no age, there is no flux in
+    currentPatch%root_litter_out(:) = 0.0_r8 ! As a newly created patch with no age, no frag or decomp has happened yet
 
     ! FIRE
     currentPatch%fuel_eff_moist             = 0.0_r8 ! average fuel moisture content of the ground fuel 
@@ -1197,6 +1217,7 @@ contains
   end subroutine fuse_patches
 
   ! ============================================================================
+
   subroutine fuse_2_patches(dp, rp)
     !
     ! !DESCRIPTION:
@@ -1217,57 +1238,66 @@ contains
     type (ed_cohort_type), pointer :: nextc         ! Remembers next cohort in list 
     type (ed_cohort_type), pointer :: storesmallcohort
     type (ed_cohort_type), pointer :: storebigcohort  
-    integer :: c,p !counters for pft and litter size class. 
-    integer :: tnull,snull  ! are the tallest and shortest cohorts associated?
-    type(ed_patch_type), pointer :: youngerp   ! pointer to the patch younger than donor
-    type(ed_patch_type), pointer :: olderp     ! pointer to the patch older than donor
-    type(ed_site_type),  pointer :: csite      ! pointer to the donor patch's site
-    !---------------------------------------------------------------------
+    integer                        :: c,p          !counters for pft and litter size class. 
+    integer                        :: tnull,snull  ! are the tallest and shortest cohorts associated?
+    type(ed_patch_type), pointer   :: youngerp     ! pointer to the patch younger than donor
+    type(ed_patch_type), pointer   :: olderp       ! pointer to the patch older than donor
+    type(ed_site_type),  pointer   :: csite        ! pointer to the donor patch's site
+    real(r8)                       :: inv_sum_area ! Inverse of the sum of the two patches areas
+    !-----------------------------------------------------------------------------------------------
 
-    !area weighted average of ages & litter
-    rp%age = (dp%age * dp%area + rp%age * rp%area)/(dp%area + rp%area)  
+    ! Generate a litany of area weighted averages
+
+    inv_sum_area = 1.0_r8/(dp%area + rp%area)
+    
+    rp%age = (dp%age * dp%area + rp%age * rp%area) * inv_sum_area
+
     rp%age_class = get_age_class_index(rp%age)
 
-    do p = 1,numpft_ed
-       rp%seeds_in(p)         = (rp%seeds_in(p)*rp%area + dp%seeds_in(p)*dp%area)/(rp%area + dp%area)
-       rp%seed_decay(p)       = (rp%seed_decay(p)*rp%area + dp%seed_decay(p)*dp%area)/(rp%area + dp%area)
-       rp%seed_germination(p) = (rp%seed_germination(p)*rp%area + dp%seed_germination(p)*dp%area)/(rp%area + dp%area)
-    enddo
 
     do c = 1,ncwd
-       rp%cwd_ag(c) = (dp%cwd_ag(c)*dp%area + rp%cwd_ag(c)*rp%area)/(dp%area + rp%area)
-       rp%cwd_bg(c) = (dp%cwd_bg(c)*dp%area + rp%cwd_bg(c)*rp%area)/(dp%area + rp%area)
-    enddo
-
-    do p = 1,numpft_ed
-       rp%leaf_litter(p) = (dp%leaf_litter(p)*dp%area + rp%leaf_litter(p)*rp%area)/(dp%area + rp%area)
-       rp%root_litter(p) = (dp%root_litter(p)*dp%area + rp%root_litter(p)*rp%area)/(dp%area + rp%area)
+       rp%cwd_ag(c) = (dp%cwd_ag(c)*dp%area + rp%cwd_ag(c)*rp%area) * inv_sum_area
+       rp%cwd_bg(c) = (dp%cwd_bg(c)*dp%area + rp%cwd_bg(c)*rp%area) * inv_sum_area
     enddo
     
-    rp%fuel_eff_moist       = (dp%fuel_eff_moist*dp%area + rp%fuel_eff_moist*rp%area)/(dp%area + rp%area)
-    rp%livegrass            = (dp%livegrass*dp%area + rp%livegrass*rp%area)/(dp%area + rp%area)
-    rp%sum_fuel             = (dp%sum_fuel*dp%area + rp%sum_fuel*rp%area)/(dp%area + rp%area)
-    rp%fuel_bulkd           = (dp%fuel_bulkd*dp%area + rp%fuel_bulkd*rp%area)/(dp%area + rp%area)
-    rp%fuel_sav             = (dp%fuel_sav*dp%area + rp%fuel_sav*rp%area)/(dp%area + rp%area)
-    rp%fuel_mef             = (dp%fuel_mef*dp%area + rp%fuel_mef*rp%area)/(dp%area + rp%area)
-    rp%ros_front            = (dp%ros_front*dp%area + rp%ros_front*rp%area)/(dp%area + rp%area)
-    rp%effect_wspeed        = (dp%effect_wspeed*dp%area + rp%effect_wspeed*rp%area)/(dp%area + rp%area)
-    rp%tau_l                = (dp%tau_l*dp%area + rp%tau_l*rp%area)/(dp%area + rp%area)
-    rp%fuel_frac(:)         = (dp%fuel_frac(:)*dp%area + rp%fuel_frac(:)*rp%area)/(dp%area + rp%area)
-    rp%tfc_ros              = (dp%tfc_ros*dp%area + rp%tfc_ros*rp%area)/(dp%area + rp%area)
-    rp%fi                   = (dp%fi*dp%area + rp%fi*rp%area)/(dp%area + rp%area)
-    rp%fd                   = (dp%fd*dp%area + rp%fd*rp%area)/(dp%area + rp%area)
-    rp%ros_back             = (dp%ros_back*dp%area + rp%ros_back*rp%area)/(dp%area + rp%area)
-    rp%ab                   = (dp%ab*dp%area + rp%ab*rp%area)/(dp%area + rp%area)
-    rp%nf                   = (dp%nf*dp%area + rp%nf*rp%area)/(dp%area + rp%area)
-    rp%sh                   = (dp%sh*dp%area + rp%sh*rp%area)/(dp%area + rp%area)
-    rp%frac_burnt           = (dp%frac_burnt*dp%area + rp%frac_burnt*rp%area)/(dp%area + rp%area)
-    rp%burnt_frac_litter(:) = (dp%burnt_frac_litter(:)*dp%area + rp%burnt_frac_litter(:)*rp%area)/(dp%area + rp%area)
-    rp%btran_ft(:)          = (dp%btran_ft(:)*dp%area + rp%btran_ft(:)*rp%area)/(dp%area + rp%area)
-    rp%dleaf_litter_dt(:)   = (dp%dleaf_litter_dt(:)*dp%area + rp%dleaf_litter_dt(:)*rp%area)/(dp%area+rp%area)
-    rp%leaf_litter_in(:)    = (dp%leaf_litter_in(:)*dp%area  + rp%leaf_litter_in(:)*rp%area)/(dp%area+rp%area)
-    rp%leaf_litter_out(:)   = (dp%leaf_litter_out(:)*dp%area + rp%leaf_litter_out(:)*rp%area)/(dp%area+rp%area)
+    do p = 1,numpft_ed 
+       rp%seeds_in(p)         = (rp%seeds_in(p)*rp%area + dp%seeds_in(p)*dp%area) * inv_sum_area
+       rp%seed_decay(p)       = (rp%seed_decay(p)*rp%area + dp%seed_decay(p)*dp%area) * inv_sum_area
+       rp%seed_germination(p) = (rp%seed_germination(p)*rp%area + dp%seed_germination(p)*dp%area) * inv_sum_area
 
+       rp%leaf_litter(p)      = (dp%leaf_litter(p)*dp%area + rp%leaf_litter(p)*rp%area) * inv_sum_area
+       rp%root_litter(p)      = (dp%root_litter(p)*dp%area + rp%root_litter(p)*rp%area) * inv_sum_area
+
+       rp%root_litter_out(p)  = (dp%root_litter_out(p)*dp%area + rp%root_litter_out(p)*rp%area) * inv_sum_area
+       rp%leaf_litter_out(p)  = (dp%leaf_litter_out(p)*dp%area + rp%leaf_litter_out(p)*rp%area) * inv_sum_area
+
+       rp%root_litter_in(p)   = (dp%root_litter_in(p)*dp%area + rp%root_litter_in(p)*rp%area) * inv_sum_area
+       rp%leaf_litter_in(p)   = (dp%leaf_litter_in(p)*dp%area + rp%leaf_litter_in(p)*rp%area) * inv_sum_area
+
+       rp%dleaf_litter_dt(p)  = (dp%dleaf_litter_dt(p)*dp%area + rp%dleaf_litter_dt(p)*rp%area) * inv_sum_area
+       rp%droot_litter_dt(p)  = (dp%droot_litter_dt(p)*dp%area + rp%droot_litter_dt(p)*rp%area) * inv_sum_area
+    enddo
+    
+    rp%fuel_eff_moist       = (dp%fuel_eff_moist*dp%area + rp%fuel_eff_moist*rp%area) * inv_sum_area
+    rp%livegrass            = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
+    rp%sum_fuel             = (dp%sum_fuel*dp%area + rp%sum_fuel*rp%area) * inv_sum_area
+    rp%fuel_bulkd           = (dp%fuel_bulkd*dp%area + rp%fuel_bulkd*rp%area) * inv_sum_area
+    rp%fuel_sav             = (dp%fuel_sav*dp%area + rp%fuel_sav*rp%area) * inv_sum_area
+    rp%fuel_mef             = (dp%fuel_mef*dp%area + rp%fuel_mef*rp%area) * inv_sum_area
+    rp%ros_front            = (dp%ros_front*dp%area + rp%ros_front*rp%area) * inv_sum_area
+    rp%effect_wspeed        = (dp%effect_wspeed*dp%area + rp%effect_wspeed*rp%area) * inv_sum_area
+    rp%tau_l                = (dp%tau_l*dp%area + rp%tau_l*rp%area) * inv_sum_area
+    rp%fuel_frac(:)         = (dp%fuel_frac(:)*dp%area + rp%fuel_frac(:)*rp%area) * inv_sum_area
+    rp%tfc_ros              = (dp%tfc_ros*dp%area + rp%tfc_ros*rp%area) * inv_sum_area
+    rp%fi                   = (dp%fi*dp%area + rp%fi*rp%area) * inv_sum_area
+    rp%fd                   = (dp%fd*dp%area + rp%fd*rp%area) * inv_sum_area
+    rp%ros_back             = (dp%ros_back*dp%area + rp%ros_back*rp%area) * inv_sum_area
+    rp%ab                   = (dp%ab*dp%area + rp%ab*rp%area) * inv_sum_area
+    rp%nf                   = (dp%nf*dp%area + rp%nf*rp%area) * inv_sum_area
+    rp%sh                   = (dp%sh*dp%area + rp%sh*rp%area) * inv_sum_area
+    rp%frac_burnt           = (dp%frac_burnt*dp%area + rp%frac_burnt*rp%area) * inv_sum_area
+    rp%burnt_frac_litter(:) = (dp%burnt_frac_litter(:)*dp%area + rp%burnt_frac_litter(:)*rp%area) * inv_sum_area
+    rp%btran_ft(:)          = (dp%btran_ft(:)*dp%area + rp%btran_ft(:)*rp%area) * inv_sum_area
 
     rp%area = rp%area + dp%area !THIS MUST COME AT THE END!
 
