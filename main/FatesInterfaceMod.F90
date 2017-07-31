@@ -179,21 +179,21 @@ module FatesInterfaceMod
    ! well.
    ! -------------------------------------------------------------------------------------
    
-   real(r8), protected, allocatable :: fates_hdim_levsclass(:)        ! plant size class lower bound dimension
-   integer , protected, allocatable :: fates_hdim_pfmap_levscpf(:)    ! map of pfts into size-class x pft dimension
-   integer , protected, allocatable :: fates_hdim_scmap_levscpf(:)    ! map of size-class into size-class x pft dimension
-   real(r8), protected, allocatable :: fates_hdim_levage(:)           ! patch age lower bound dimension
-   integer , protected, allocatable :: fates_hdim_levpft(:)           ! plant pft dimension
-   integer , protected, allocatable :: fates_hdim_levfuel(:)          ! fire fuel class dimension
-   integer , protected, allocatable :: fates_hdim_levcwdsc(:)         ! cwd class dimension
-   integer , protected, allocatable :: fates_hdim_levcan(:)           ! canopy-layer dimension 
-   integer , protected, allocatable :: fates_hdim_canmap_levcnlf(:)   ! canopy-layer map into the canopy-layer x leaf-layer dim
-   integer , protected, allocatable :: fates_hdim_lfmap_levcnlf(:)    ! leaf-layer map into the can-layer x leaf-layer dimension
-   integer , protected, allocatable :: fates_hdim_canmap_levcnlfpf(:) ! can-layer map into the can-layer x pft x leaf-layer dim
-   integer , protected, allocatable :: fates_hdim_lfmap_levcnlfpf(:)  ! leaf-layer map into the can-layer x pft x leaf-layer dim
-   integer , protected, allocatable :: fates_hdim_pftmap_levcnlfpf(:) ! pft map into the canopy-layer x pft x leaf-layer dim
-   integer , protected, allocatable :: fates_hdim_scmap_levscag(:)    ! map of size-class into size-class x patch age dimension
-   integer , protected, allocatable :: fates_hdim_agmap_levscag(:)    ! map of patch-age into size-class x patch age dimension
+   real(r8), allocatable :: fates_hdim_levsclass(:)        ! plant size class lower bound dimension
+   integer , allocatable :: fates_hdim_pfmap_levscpf(:)    ! map of pfts into size-class x pft dimension
+   integer , allocatable :: fates_hdim_scmap_levscpf(:)    ! map of size-class into size-class x pft dimension
+   real(r8), allocatable :: fates_hdim_levage(:)           ! patch age lower bound dimension
+   integer , allocatable :: fates_hdim_levpft(:)           ! plant pft dimension
+   integer , allocatable :: fates_hdim_levfuel(:)          ! fire fuel class dimension
+   integer , allocatable :: fates_hdim_levcwdsc(:)         ! cwd class dimension
+   integer , allocatable :: fates_hdim_levcan(:)           ! canopy-layer dimension 
+   integer , allocatable :: fates_hdim_canmap_levcnlf(:)   ! canopy-layer map into the canopy-layer x leaf-layer dim
+   integer , allocatable :: fates_hdim_lfmap_levcnlf(:)    ! leaf-layer map into the can-layer x leaf-layer dimension
+   integer , allocatable :: fates_hdim_canmap_levcnlfpf(:) ! can-layer map into the can-layer x pft x leaf-layer dim
+   integer , allocatable :: fates_hdim_lfmap_levcnlfpf(:)  ! leaf-layer map into the can-layer x pft x leaf-layer dim
+   integer , allocatable :: fates_hdim_pftmap_levcnlfpf(:) ! pft map into the canopy-layer x pft x leaf-layer dim
+   integer , allocatable :: fates_hdim_scmap_levscag(:)    ! map of size-class into size-class x patch age dimension
+   integer , allocatable :: fates_hdim_agmap_levscag(:)    ! map of patch-age into size-class x patch age dimension
 
    ! ------------------------------------------------------------------------------------
    !                              DYNAMIC BOUNDARY CONDITIONS
