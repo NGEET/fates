@@ -13,7 +13,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : nclmax
-  use EDTypesMod           , only : use_fates_plant_hydro
+  use FatesInterfaceMod    , only : hlm_use_planthydro
   use FatesInterfaceMod    , only : hlm_numlevgrnd
   use FatesInterfaceMod    , only : hlm_numlevsoil
   use FatesInterfaceMod    , only : hlm_numSWb
@@ -21,6 +21,7 @@ module EDPatchDynamicsMod
   use FatesInterfaceMod    , only : hlm_days_per_year
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
+  use FatesConstantsMod    , only : itrue
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
@@ -271,7 +272,7 @@ contains
           do while(associated(currentCohort))       
 
              allocate(nc)             
-             if(use_fates_plant_hydro) call InitHydrCohort(nc)
+             if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(nc)
              call zero_cohort(nc)
 
              ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort
@@ -389,7 +390,7 @@ contains
                 new_patch%tallest  => storebigcohort 
                 new_patch%shortest => storesmallcohort   
              else
-                if(use_fates_plant_hydro) call DeallocateHydrCohort(nc)
+                if(hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(nc)
                 deallocate(nc) !get rid of the new memory.
              endif
 
@@ -1479,7 +1480,7 @@ contains
     do while(associated(ccohort))
        
        ncohort => ccohort%taller
-       if(use_fates_plant_hydro) call DeallocateHydrCohort(ccohort)
+       if(hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(ccohort)
        deallocate(ccohort)
        ccohort => ncohort
 

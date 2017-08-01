@@ -19,9 +19,9 @@ module FatesInterfaceMod
    use EDTypesMod          , only : nlevleaf
    use EDTypesMod          , only : numpft_ed
    use FatesConstantsMod   , only : r8 => fates_r8
+   use FatesConstantsMod   , only : itrue
    use FatesGlobals        , only : fates_global_verbose
    use FatesGlobals        , only : fates_log
-   use EDTypesMod          , only : use_fates_plant_hydro
    use FatesGlobals        , only : endrun => fates_endrun
 
    ! CIME Globals
@@ -104,10 +104,46 @@ module FatesInterfaceMod
                                            ! soil carbon
                                            ! 1 = TRUE,  0 = FALSE
    
-                                           ! SOON TO BE DEPRECATED, WILL BE READ IN VIA
-                                           ! FATES NL OR PARAM FILE.
    integer, protected :: hlm_use_spitfire  ! This flag signals whether or not to use SPITFIRE
                                            ! 1 = TRUE, 0 = FALSE
+
+   integer, protected :: hlm_use_planthydro    ! This flag signals whether or not to use
+                                               ! plant hydraulics (bchristo/xu methods)
+                                               ! 1 = TRUE, 0 = FALSE
+                                               ! THIS IS CURRENTLY NOT SUPPORTED 
+
+   integer, protected :: hlm_use_ed_st3        ! This flag signals whether or not to use
+                                               ! (ST)atic (ST)and (ST)ructure mode (ST3)
+                                               ! Essentially, this gives us the ability
+                                               ! to turn off "dynamics", ie growth, disturbance
+                                               ! recruitment and mortality.
+                                               ! (EXPERIMENTAL!!!!! - RGK 07-2017)
+                                               ! 1 = TRUE, 0 = FALSE
+                                               ! default should be FALSE (dynamics on)
+                                               ! cannot be true with prescribed_phys
+
+   integer, protected :: hlm_use_ed_prescribed_phys ! This flag signals whether or not to use
+                                                    ! prescribed physiology, somewhat the opposite
+                                                    ! to ST3, in this case can turn off
+                                                    ! fast processes like photosynthesis and respiration
+                                                    ! and prescribe NPP
+                                                    ! (NOT CURRENTLY IMPLEMENTED - PLACEHOLDER)
+                                                    ! 1 = TRUE, 0 = FALSE
+                                                    ! default should be FALSE (biophysics on)
+                                                    ! cannot be true with st3 mode
+
+   integer, protected :: hlm_use_inventory_init     ! Initialize this simulation from
+                                                    ! an inventory file. If this is toggled on
+                                                    ! an inventory control file must be specified
+                                                    ! as well.
+                                                    ! 1 = TRUE, 0 = FALSE
+   
+   character(len=256), protected :: hlm_inventory_ctrl_file ! This is the full path to the
+                                                            ! inventory control file that
+                                                            ! specifieds the availabel inventory datasets
+                                                            ! there locations and their formats
+                                                            ! This need only be defined when
+                                                            ! hlm_use_inventory_init = 1
 
    ! -------------------------------------------------------------------------------------
    ! Parameters that are dictated by FATES and known to be required knowledge
@@ -579,7 +615,7 @@ contains
       allocate(bc_in%albgr_dif_rb(hlm_numSWb))
 
       ! Plant-Hydro BC's
-      if (use_fates_plant_hydro) then
+      if (hlm_use_planthydro.eq.itrue) then
       
          allocate(bc_in%qflx_transp_pa(maxPatchesPerSite))
          allocate(bc_in%swrad_net_pa(maxPatchesPerSite))
@@ -650,7 +686,7 @@ contains
       allocate(bc_out%frac_veg_nosno_alb_pa(maxPatchesPerSite))
 
       ! Plant-Hydro BC's
-      if (use_fates_plant_hydro) then
+      if (hlm_use_planthydro.eq.itrue) then
          allocate(bc_out%qflx_soil2root_sisl(hlm_numlevsoil))
       end if
 
@@ -695,7 +731,7 @@ contains
       this%bc_in(s)%snow_depth_si       = 0.0_r8
       this%bc_in(s)%frac_sno_eff_si     = 0.0_r8
 
-      if (use_fates_plant_hydro) then
+      if (hlm_use_planthydro.eq.itrue) then
   
          this%bc_in(s)%qflx_transp_pa(:) = 0.0_r8
          this%bc_in(s)%swrad_net_pa(:) = 0.0_r8
@@ -744,7 +780,7 @@ contains
       this%bc_out(s)%canopy_fraction_pa(:) = 0.0_r8
       this%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
 
-      if (use_fates_plant_hydro) then
+      if (hlm_use_planthydro.eq.itrue) then
          this%bc_out(s)%qflx_soil2root_sisl(:) = 0.0_r8
       end if
       this%bc_out(s)%plant_stored_h2o_si = 0.0_r8
@@ -874,6 +910,11 @@ contains
          hlm_ipedof       = unset_int
          hlm_use_vertsoilc = unset_int
          hlm_use_spitfire  = unset_int
+         hlm_use_planthydro = unset_int
+         hlm_use_ed_st3    = unset_int
+         hlm_use_ed_prescribed_phys = unset_int
+         hlm_use_inventory_init = unset_int
+         hlm_inventory_ctrl_file = 'unset'
 
       case('check_allset')
          
@@ -903,11 +944,54 @@ contains
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
+         
+         if (  .not.((hlm_use_planthydro.eq.1).or.(hlm_use_planthydro.eq.0))    ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'The FATES namelist planthydro flag must be 0 or 1, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if (  .not.((hlm_use_ed_st3.eq.1).or.(hlm_use_ed_st3.eq.0))    ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'The FATES namelist stand structure flag must be 0 or 1, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if (  .not.((hlm_use_ed_prescribed_phys.eq.1).or.(hlm_use_ed_prescribed_phys.eq.0))    ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'The FATES namelist prescribed physiology flag must be 0 or 1, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if ( hlm_use_ed_prescribed_phys.eq.1 .and. hlm_use_ed_st3.eq.1 ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'FATES ST3 and prescribed physiology cannot both be turned on.'
+               write(fates_log(), *) 'Review the namelist entries, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
+         if (  .not.((hlm_use_inventory_init.eq.1).or.(hlm_use_inventory_init.eq.0))    ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'The FATES NL inventory flag must be 0 or 1, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
+         if(trim(hlm_inventory_ctrl_file) .eq. 'unset') then
+            if (fates_global_verbose()) then
+               write(fates_log(),*) 'namelist entry for fates inventory control file is unset, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
 
          if(hlm_ivis .ne. ivis) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES assumption about the index of visible shortwave'
-               write(fates_log(), *) 'radiation is different from the HLM'
+               write(fates_log(), *) 'radiation is different from the HLM, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -915,49 +999,49 @@ contains
          if(hlm_inir .ne. inir) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES assumption about the index of NIR shortwave'
-               write(fates_log(), *) 'radiation is different from the HLM'
+               write(fates_log(), *) 'radiation is different from the HLM, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_is_restart .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES parameter unset: hlm_is_restart'
+               write(fates_log(), *) 'FATES parameter unset: hlm_is_restart, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_numlevgrnd .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES dimension/parameter unset: numlevground'
+               write(fates_log(), *) 'FATES dimension/parameter unset: numlevground, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_numlevsoil .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES dimension/parameter unset: numlevground'
+               write(fates_log(), *) 'FATES dimension/parameter unset: numlevground, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_numlevdecomp_full .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES dimension/parameter unset: numlevdecomp_full'
+               write(fates_log(), *) 'FATES dimension/parameter unset: numlevdecomp_full, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_numlevdecomp .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES dimension/parameter unset: numlevdecomp'
+               write(fates_log(), *) 'FATES dimension/parameter unset: numlevdecomp, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(trim(hlm_name) .eq. 'unset') then
             if (fates_global_verbose()) then
-               write(fates_log(),*) 'FATES dimension/parameter unset: hlm_name'
+               write(fates_log(),*) 'FATES dimension/parameter unset: hlm_name, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -971,21 +1055,21 @@ contains
 
          if(hlm_ipedof .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'index for the HLMs pedotransfer function unset: hlm_ipedof'
+               write(fates_log(), *) 'index for the HLMs pedotransfer function unset: hlm_ipedof, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_use_vertsoilc .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'switch for the HLMs soil carbon discretization unset: hlm_use_vertsoilc'
+               write(fates_log(), *) 'switch for the HLMs soil carbon discretization unset: hlm_use_vertsoilc, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_use_spitfire .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'switch for SPITFIRE unset: hlm_use_spitfire'
+               write(fates_log(), *) 'switch for SPITFIRE unset: hlm_use_spitfire, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -1071,6 +1155,30 @@ contains
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_spitfire= ',ival,' to FATES'
                end if
+               
+            case('use_planthydro')
+               hlm_use_planthydro = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_planthydro= ',ival,' to FATES'
+               end if
+
+            case('use_ed_st3')
+               hlm_use_ed_st3 = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_ed_st3= ',ival,' to FATES'
+               end if
+
+            case('use_ed_prescribed_phys')
+               hlm_use_ed_prescribed_phys = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_ed_prescribed_phys= ',ival,' to FATES'
+               end if
+
+            case('use_inventory_init')
+               hlm_use_inventory_init = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_inventory_init= ',ival,' to FATES'
+               end if
 
             case default
                if (fates_global_verbose()) then
@@ -1105,6 +1213,12 @@ contains
                   write(fates_log(),*) 'Transfering the HLM name = ',trim(cval)
                end if
 
+            case('inventory_ctrl_file')
+               hlm_inventory_ctrl_file = trim(cval)
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering the name of the inventory control file = ',trim(cval)
+               end if
+               
             case default
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'tag not recognized:',trim(tag)

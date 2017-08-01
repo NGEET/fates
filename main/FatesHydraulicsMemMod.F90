@@ -5,8 +5,7 @@ module FatesHydraulicsMemMod
 
    implicit none
 
-   integer,parameter :: nlevsoi_hyd = 10    ! use_fates_plant_hydro parameter:
-                                            ! Number of soil layers for indexing 
+   integer,parameter :: nlevsoi_hyd = 10    ! Number of soil layers for indexing 
                                             ! cohort fine root quanitities
 
 

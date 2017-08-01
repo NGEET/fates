@@ -18,8 +18,8 @@ module EDEcophysConType
   use FatesHydraulicsMemMod , only : npool_stem
   use FatesHydraulicsMemMod , only : npool_aroot
   use FatesHydraulicsMemMod , only : npool_troot
-
-  use EDTypesMod, only : use_fates_plant_hydro
+  use FatesConstantsMod, only : itrue,ifalse
+  use FatesInterfaceMod, only : hlm_use_planthydro
   
   !
   implicit none
@@ -174,7 +174,7 @@ contains
     end do
 
 
-    if (use_fates_plant_hydro) then
+    if (hlm_use_planthydro.eq.itrue) then
        allocate( EDecophyscon%wd               (0:numpft) );                  EDecophyscon%wd               (:) = nan
        allocate( EDecophyscon%lma              (0:numpft) );                  EDecophyscon%lma              (:) = nan
        allocate( EDecophyscon%n                (0:numpft) );                  EDecophyscon%n                (:) = nan

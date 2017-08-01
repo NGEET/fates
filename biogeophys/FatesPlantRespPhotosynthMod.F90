@@ -23,7 +23,8 @@ module FATESPlantRespPhotosynthMod
    use FatesGlobals, only      : endrun => fates_endrun
    use FatesGlobals, only      : fates_log
    use FatesConstantsMod, only : r8 => fates_r8
-   use EDTypesMod, only        : use_fates_plant_hydro
+   use FatesConstantsMod, only : itrue
+   use FatesInterfaceMod, only : hlm_use_planthydro
    use EDTypesMod, only        : numpft_ed
    use EDTypesMod, only        : nlevleaf
    use EDTypesMod, only        : nclmax
@@ -342,10 +343,10 @@ contains
                            ! not been done yet.
                            ! ------------------------------------------------------------
                            
-                           if ( .not.rate_mask_z(iv,ft,cl) .or. use_fates_plant_hydro ) then
+                           if ( .not.rate_mask_z(iv,ft,cl) .or. (hlm_use_planthydro.eq.itrue) ) then
                               
-                              if (use_fates_plant_hydro) then
-!                                 write(fates_log(),*) 'use_fates_plant_hydro in EDTypes'
+                              if (hlm_use_planthydro.eq.itrue) then
+!                                 write(fates_log(),*) 'hlm_use_planthydro'
 !                                 write(fates_log(),*) 'has been set to true.  You have inadvertently'
 !                                 write(fates_log(),*) 'turned on a future feature that is not in the'
 !                                 write(fates_log(),*) 'FATES codeset yet. Please set this to'

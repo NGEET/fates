@@ -15,8 +15,6 @@ module EDParamsMod
    ! this is what the user can use for the actual values
    !
    
-   real(r8),protected :: ED_do_inventory_init              ! flag to turn on or off inventory initialization
-                                                           ! 0 is false, 1 is true
    real(r8),protected :: ED_size_diagnostic_scale          ! Flag to switch between a linear and exponential
                                                            ! scale on the plant size axis in diagnostics (NOT USED YET)
    real(r8),protected :: ED_mort_disturb_frac              ! the fraction of canopy mortality that results in disturbance
@@ -45,7 +43,6 @@ module EDParamsMod
    real(r8),protected :: ED_val_cohort_fusion_tol
    real(r8),protected :: ED_val_patch_fusion_tol
 
-   character(len=param_string_length),parameter :: ED_name_do_inventory_init = "fates_do_inventory_init"
    character(len=param_string_length),parameter :: ED_name_size_diagnostic_scale = "fates_size_diagnostic_scale"
    character(len=param_string_length),parameter :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
    character(len=param_string_length),parameter :: ED_name_grass_spread = "fates_grass_spread"
@@ -90,7 +87,6 @@ contains
 
     implicit none
 
-    ED_do_inventory_init = nan
     ED_size_diagnostic_scale = nan
     ED_mort_disturb_frac = nan
     ED_val_grass_spread = nan
@@ -136,9 +132,6 @@ contains
 
     call FatesParamsInit()
 
-    call fates_params%RegisterParameter(name=ED_name_do_inventory_init, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-  
     call fates_params%RegisterParameter(name=ED_name_size_diagnostic_scale, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
@@ -234,9 +227,6 @@ contains
     implicit none
 
     class(fates_parameters_type), intent(inout) :: fates_params
-
-    call fates_params%RetreiveParameter(name=ED_name_do_inventory_init, &
-         data=ED_do_inventory_init)
 
     call fates_params%RetreiveParameter(name=ED_name_size_diagnostic_scale, &
          data=ED_size_diagnostic_scale)

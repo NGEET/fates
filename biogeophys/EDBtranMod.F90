@@ -7,6 +7,7 @@ module EDBtranMod
    
    use EDPftvarcon       , only : EDPftvarcon_inst
    use FatesConstantsMod , only : tfrz => t_water_freeze_k_1atm 
+   use FatesConstantsMod , only : itrue,ifalse
    use EDTypesMod        , only : ed_site_type,       &
                                   ed_patch_type,      &
                                   ed_cohort_type,     &
@@ -15,7 +16,7 @@ module EDBtranMod
    use shr_kind_mod      , only : r8 => shr_kind_r8
    use FatesInterfaceMod , only : bc_in_type, &
                                   bc_out_type
-   use EDTypesMod        , only : use_fates_plant_hydro
+   use FatesInterfaceMod , only : hlm_use_planthydro
    use FatesGlobals      , only : fates_log
 
    !
@@ -202,7 +203,7 @@ contains
               ! used only for diagnostics. If plant hydraulics is turned off
               ! we are using the patchxpft level btran calculation
               
-              if(.not.use_fates_plant_hydro) then
+              if(hlm_use_planthydro.eq.ifalse) then
                  !weight patch level output BTRAN for the
                  bc_out(s)%btran_pa(ifp) = 0.0_r8
                  do ft = 1,numpft_ed
@@ -229,7 +230,7 @@ contains
         
         end do
            
-        if(use_fates_plant_hydro) then
+        if(hlm_use_planthydro.eq.itrue) then
            call BTranForHLMDiagnosticsFromCohortHydr(nsites,sites,bc_out)
         end if
         

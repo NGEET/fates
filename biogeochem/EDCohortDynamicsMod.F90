@@ -10,6 +10,7 @@ module EDCohortDynamicsMod
   use FatesInterfaceMod     , only : bc_in_type
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
+  use FatesConstantsMod     , only : itrue
   use FatesInterfaceMod     , only : hlm_days_per_year
   use EDPftvarcon           , only : EDPftvarcon_inst
   use EDEcophysContype      , only : EDecophyscon
@@ -21,7 +22,7 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : sclass_ed,nlevsclass_ed,AREA
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
-  use EDTypesMod             , only : use_fates_plant_hydro
+  use FatesInterfaceMod      , only : hlm_use_planthydro
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
   use FatesPlantHydraulicsMod, only : CopyCohortHydraulics
   use FatesPlantHydraulicsMod, only : updateSizeDepTreeHydProps
@@ -172,7 +173,7 @@ contains
     ! growth, disturbance and mortality.
     new_cohort%isnew = .true.
 
-    if( use_fates_plant_hydro ) then
+    if( hlm_use_planthydro.eq.itrue ) then
        call InitHydrCohort(new_cohort)
        call updateSizeDepTreeHydProps(new_cohort, bc_in) 
        call initTreeHydStates(new_cohort, bc_in) 
@@ -645,7 +646,7 @@ contains
                   currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) + &
                   currentCohort%n * (currentCohort%br+currentCohort%bstore) * hlm_days_per_year  / AREA
 
-             if (use_fates_plant_hydro) call DeallocateHydrCohort(currentCohort)
+             if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
 
              deallocate(currentCohort)     
           endif
@@ -798,7 +799,7 @@ contains
                                 call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
                                       currentCohort%size_class,currentCohort%size_by_pft_class)
 
-                                if(use_fates_plant_hydro) call FuseCohortHydraulics(currentCohort,nextc,bc_in,newn)
+                                if(hlm_use_planthydro.eq.itrue) call FuseCohortHydraulics(currentCohort,nextc,bc_in,newn)
 
                                 ! recent canopy history
                                 currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
@@ -887,7 +888,7 @@ contains
                                 endif
 
                                 if (associated(nextc)) then       
-                                   if(use_fates_plant_hydro) call DeallocateHydrCohort(nextc)
+                                   if(hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(nextc)
                                    deallocate(nextc)            
                                 endif
 
@@ -1245,7 +1246,7 @@ contains
 
     ! Plant Hydraulics
     
-    if( use_fates_plant_hydro ) call CopyCohortHydraulics(n,o)
+    if( hlm_use_planthydro.eq.itrue ) call CopyCohortHydraulics(n,o)
 
     ! indices for binning
     n%size_class      = o%size_class
