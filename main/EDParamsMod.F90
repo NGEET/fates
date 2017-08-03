@@ -15,9 +15,9 @@ module EDParamsMod
    ! this is what the user can use for the actual values
    !
    
-   real(r8),protected :: ED_size_diagnostic_scale          ! Flag to switch between a linear and exponential
-                                                           ! scale on the plant size axis in diagnostics (NOT USED YET)
-   real(r8),protected :: ED_mort_disturb_frac              ! the fraction of canopy mortality that results in disturbance
+   real(r8),protected :: ED_size_diagnostic_scale             ! Flag to switch between a linear and exponential
+                                                              ! scale on the plant size axis in diagnostics (NOT USED YET)
+   real(r8),protected :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
    real(r8),protected :: ED_val_grass_spread
    real(r8),protected :: ED_val_comp_excln
    real(r8),protected :: ED_val_stress_mort
@@ -74,7 +74,6 @@ module EDParamsMod
    public :: FatesRegisterParams
    public :: FatesReceiveParams
 
-  real(r8), protected :: fates_mortality_disturbance_fraction  = 1.0_r8 ! the fraction of canopy mortality that results in disturbance (i.e. transfer of area from new to old patch)                                                              
   
 contains
 
@@ -88,7 +87,7 @@ contains
     implicit none
 
     ED_size_diagnostic_scale = nan
-    ED_mort_disturb_frac = nan
+    fates_mortality_disturbance_fraction = nan
     ED_val_grass_spread = nan
     ED_val_comp_excln = nan
     ED_val_stress_mort = nan
@@ -232,7 +231,7 @@ contains
          data=ED_size_diagnostic_scale)
 
     call fates_params%RetreiveParameter(name=ED_name_mort_disturb_frac, &
-          data=ED_mort_disturb_frac)
+          data=fates_mortality_disturbance_fraction)
 
     call fates_params%RetreiveParameter(name=ED_name_grass_spread, &
          data=ED_val_grass_spread)

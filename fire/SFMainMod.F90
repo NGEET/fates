@@ -555,8 +555,8 @@ contains
     !returns the  the hypothetic fuel consumed by the fire
 
     use SFParamsMod, only : SF_val_miner_total, SF_val_min_moisture, &
-         SF_val_mid_moisture, SF_val_low_moisture_C, SF_val_low_moisture_S, &
-         SF_val_mid_moisture_C, SF_val_mid_moisture_S
+         SF_val_mid_moisture, SF_val_low_moisture_Coeff, SF_val_low_moisture_Slope, &
+         SF_val_mid_moisture_Coeff, SF_val_mid_moisture_Slope
 
     type(ed_site_type) , intent(in), target :: currentSite
 
@@ -582,13 +582,13 @@ contains
           endif
           ! 2. Low to medium moistures
           if (moist > SF_val_min_moisture(c).and.moist <= SF_val_mid_moisture(c)) then
-             currentPatch%burnt_frac_litter(c) = max(0.0_r8,min(1.0_r8,SF_val_low_moisture_C(c)- &
-                  SF_val_low_moisture_S(c)*moist)) 
+             currentPatch%burnt_frac_litter(c) = max(0.0_r8,min(1.0_r8,SF_val_low_moisture_Coeff(c)- &
+                  SF_val_low_moisture_Slope(c)*moist)) 
           else
           ! For medium to high moistures. 
              if (moist > SF_val_mid_moisture(c).and.moist <= 1.0_r8) then
-                currentPatch%burnt_frac_litter(c) = max(0.0_r8,min(1.0_r8,SF_val_mid_moisture_C(c)- &
-                     SF_val_mid_moisture_S(c)*moist))
+                currentPatch%burnt_frac_litter(c) = max(0.0_r8,min(1.0_r8,SF_val_mid_moisture_Coeff(c)- &
+                     SF_val_mid_moisture_Slope(c)*moist))
              endif
 
           endif
