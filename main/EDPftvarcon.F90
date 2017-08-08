@@ -116,7 +116,26 @@ module EDPftvarcon
      real(r8), allocatable :: allom_agb3(:)         ! Parameter 3 for agb allometry
      real(r8), allocatable :: allom_agb4(:)         ! Parameter 3 for agb allometry
      
-     
+     ! Plant Hydraulic Parameters
+     ! ---------------------------------------------------------------------------------------------
+
+     ! PFT Dimension
+     real(r8), allocatable :: hydr_p_taper(:)       ! xylem taper exponent
+     real(r8), allocatable :: hydr_rs2(:)           ! absorbing root radius (mm)
+     real(r8), allocatable :: hydr_srl(:)           ! specific root length (m g-1)
+     real(r8), allocatable :: hydr_rfrac_stem(:)    ! fraction of total tree resistance from troot to canopy
+     real(r8), allocatable :: hydr_kmax_stem(:)     ! maximum xylem conductivity per unit sapwood area (kg m-1 s-1 MPa)
+     real(r8), allocatable :: hydr_avuln_gs(:)      ! 
+     real(r8), allocatable :: hydr_p50_gs(:)        !
+
+     ! PFT x Organ Dimension  (organs are: 1=leaf, 2=stem, 3=transporting root, 4=absorbing root)
+     real(r8), allocatable :: hydr_avuln_node(:,:)  ! xylem vulernability curve shape parameter 
+     real(r8), allocatable :: hydr_p50_node(:,:)    ! xylem water potential at 50% conductivity loss (MPa)
+     real(r8), allocatable :: hydr_thetas_node(:,:) ! saturated water content (cm3/cm3)
+     real(r8), allocatable :: hydr_epsil_node(:,:)  ! bulk elastic modulus (MPa)
+     real(r8), allocatable :: hydr_pitlp_node(:,:)  ! turgor loss point (MPa)
+     real(r8), allocatable :: hydr_resid_node(:,:)  ! residual fraction (fraction)
+
    contains
      procedure, public :: Init => EDpftconInit
      procedure, public :: Register
@@ -125,6 +144,8 @@ module EDPftvarcon
      procedure, private :: Receive_PFT
      procedure, private :: Register_PFT_nvariants
      procedure, private :: Receive_PFT_nvariants
+     procedure, private :: Register_PFT_hydr_organs
+     procedure, private :: Receive_PFT_hydr_organs
      procedure, private :: Register_PFT_numrad
      procedure, private :: Receive_PFT_numrad
   end type EDPftvarcon_type
@@ -155,6 +176,7 @@ contains
   subroutine Register(this, fates_params)
 
     use FatesParametersInterface, only : fates_parameters_type
+    use FatesInterfaceMod       , only : hlm_use_planthydro
 
     implicit none
 
@@ -164,7 +186,8 @@ contains
     call this%Register_PFT(fates_params)
     call this%Register_PFT_numrad(fates_params)
     call this%Register_PFT_nvariants(fates_params)
-
+    call this%Register_PFT_hydr_organs(fates_params)
+    
   end subroutine Register
 
   !-----------------------------------------------------------------------
@@ -180,6 +203,7 @@ contains
     call this%Receive_PFT(fates_params)
     call this%Receive_PFT_numrad(fates_params)
     call this%Receive_PFT_nvariants(fates_params)
+    call this%Receive_PFT_hydr_organs(fates_params)
 
   end subroutine Receive
 
@@ -448,6 +472,34 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_hydr_p_taper'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_hydr_rs2'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_hydr_srl'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_hydr_rfrac_stem'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_hydr_kmax_stem'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_hydr_avuln_gs'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_hydr_p50_gs'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
     name = 'fates_bmort'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -788,6 +840,34 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%allom_agb4)
 
+    name = 'fates_hydr_p_taper'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%hydr_p_taper)
+
+    name = 'fates_hydr_rs2'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%hydr_rs2)
+    
+    name = 'fates_hydr_srl'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%hydr_srl)
+    
+    name = 'fates_hydr_rfrac_stem'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%hydr_rfrac_stem)
+
+    name = 'fates_hydr_kmax_stem'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%hydr_kmax_stem)
+    
+    name = 'fates_hydr_avuln_gs'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%hydr_avuln_gs)
+    
+    name = 'fates_hydr_p50_gs'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%hydr_p50_gs)
+
     name = 'fates_bmort'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%bmort)
@@ -1084,6 +1164,56 @@ contains
          data=this%rootprof_beta)
 
   end subroutine Receive_PFT_nvariants
+
+  ! -----------------------------------------------------------------------
+  
+  subroutine Register_PFT_hydr_organs(this, fates_params)
+
+    use FatesParametersInterface, only : fates_parameters_type, param_string_length
+    use FatesParametersInterface, only : max_dimensions, dimension_name_hydr_organs
+    use FatesParametersInterface, only : dimension_name_pft, dimension_shape_2d
+
+    implicit none
+
+    class(EDPftvarcon_type), intent(inout) :: this
+    class(fates_parameters_type), intent(inout) :: fates_params
+
+    integer, parameter :: dim_lower_bound(2) = (/ lower_bound_pft, lower_bound_general /)
+    character(len=param_string_length) :: dim_names(2)
+    character(len=param_string_length) :: name
+
+    ! NOTE(bja, 2017-01) initialization doesn't seem to work correctly
+    ! if dim_names has a parameter qualifier.
+    dim_names(1) = dimension_name_pft
+    dim_names(2) = dimension_name_hydr_organs
+
+    name = 'fates_hydr_avuln_node'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+  end subroutine Register_PFT_hydr_organs
+
+  !-----------------------------------------------------------------------
+
+  subroutine Receive_PFT_hydr_organs(this, fates_params)
+     
+     use FatesParametersInterface, only : fates_parameters_type
+     use FatesParametersInterface, only : param_string_length
+     
+     implicit none
+     
+     class(EDPftvarcon_type), intent(inout) :: this
+     class(fates_parameters_type), intent(inout) :: fates_params
+     
+     character(len=param_string_length) :: name
+     
+     name = 'fates_hydr_avuln_node'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+           data=this%hydr_avuln_node)
+
+  end subroutine Receive_PFT_hydr_organs
+
+
 
 end module EDPftvarcon
 

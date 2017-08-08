@@ -391,8 +391,11 @@ contains
     !Routine called daily from within ED within a site loop.
     !Returns the updated currentPatch%ROS_front value for each patch.
 
-    use SFParamsMod, only  : SF_val_miner_total, SF_val_part_dens, &
-         SF_val_miner_damp, SF_val_fuel_energy
+    use SFParamsMod, only  : SF_val_miner_total, &
+                             SF_val_part_dens,   &
+                             SF_val_miner_damp,  &
+                             SF_val_fuel_energy, &
+                             SF_val_wind_max
     use FatesInterfaceMod, only : hlm_current_day, hlm_current_month
 
     type(ed_site_type), intent(in), target :: currentSite
@@ -409,7 +412,6 @@ contains
     real(r8) beta_ratio           ! ratio of beta/beta_op
     real(r8) a_beta               ! dummy variable for product of a* beta_ratio for react_v_opt equation
     real(r8) a,b,c,e              ! function of fuel sav
-    real(r8),parameter::wind_max = 45.718_r8 !max wind speed (m/min)=150 ft/min per Lasslop etal 2014
     real(r8) wind_elev_fire                  !wind speed (m/min) at elevevation relevant for fire
 
     logical,parameter :: debug_windspeed = .false. !for debugging
@@ -479,7 +481,7 @@ contains
        ! convert wind_elev_fire from m/min to ft/min for Rothermel ROS eqn
        ! wind max per Lasslop et al 2014 to linearly reduce ROS for high wind speeds
        !OLD! phi_wind = c * ((3.281_r8*currentPatch%effect_wspeed)**b)*(beta_ratio**(-e))
-       if (currentPatch%effect_wspeed .le. wind_max) then
+       if (currentPatch%effect_wspeed .le. SF_val_wind_max) then
           wind_elev_fire = currentPatch%effect_wspeed
           phi_wind = c * ((3.281_r8*wind_elev_fire)**b)*(beta_ratio**(-e))
           if (debug_windspeed) write(fates_log(),*) 'SF wind LESS max ', currentPatch%effect_wspeed 

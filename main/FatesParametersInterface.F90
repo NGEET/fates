@@ -28,6 +28,7 @@ module FatesParametersInterface
   character(len=*), parameter, public :: dimension_name_fsc = 'fates_litterclass'
   character(len=*), parameter, public :: dimension_name_allpfts = 'fates_allpfts'
   character(len=*), parameter, public :: dimension_name_variants = 'fates_variants'
+  character(len=*), parameter, public :: dimension_name_hydr_organs = 'fates_hydr_organs'
 
   ! Dimensions in the host namespace:
   character(len=*), parameter, public :: dimension_name_host_allpfts = 'allpfts'
