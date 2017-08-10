@@ -23,6 +23,9 @@ module FatesInterfaceMod
    use FatesGlobals        , only : fates_global_verbose
    use FatesGlobals        , only : fates_log
    use FatesGlobals        , only : endrun => fates_endrun
+   use EDPftvarcon         , only : FatesReportPFTParams
+   use EDParamsMod         , only : FatesReportParams
+
 
    ! CIME Globals
    use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -34,6 +37,7 @@ module FatesInterfaceMod
    public :: set_fates_ctrlparms
    public :: SetFatesTime
    public :: set_fates_global_elements
+   public :: FatesReportParameters
 
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
@@ -1231,6 +1235,23 @@ contains
             
       return
    end subroutine set_fates_ctrlparms
+   
+   ! ====================================================================================
 
+   subroutine FatesReportParameters(masterproc)
+      
+      ! -----------------------------------------------------
+      ! Simple parameter reporting functions
+      ! A debug like print flag is contained in each routine
+      ! -----------------------------------------------------
+
+      logical,intent(in) :: masterproc
+
+      call FatesReportPFTParams(masterproc)
+      call FatesReportParams(masterproc)
+      
+      
+      return
+   end subroutine FatesReportParameters
 
 end module FatesInterfaceMod

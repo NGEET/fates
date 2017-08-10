@@ -6,10 +6,14 @@ module EDPftvarcon
   ! read and initialize vegetation (PFT) constants.
   !
   ! !USES:
-  use EDTypesMod  , only : maxSWb, ivis, inir
-  use shr_kind_mod, only : r8 => shr_kind_r8
+  use EDTypesMod  ,   only : maxSWb, ivis, inir
+  use FatesConstantsMod, only : r8 => fates_r8
+  use FatesGlobals,   only : fates_log
+  use FatesGlobals,   only : endrun => fates_endrun
 
-  use FatesGlobals, only : fates_log
+   ! CIME Globals
+  use shr_log_mod ,   only : errMsg => shr_log_errMsg
+  
   !
   ! !PUBLIC TYPES:
   implicit none
@@ -124,9 +128,8 @@ module EDPftvarcon
      real(r8), allocatable :: hydr_rs2(:)           ! absorbing root radius (mm)
      real(r8), allocatable :: hydr_srl(:)           ! specific root length (m g-1)
      real(r8), allocatable :: hydr_rfrac_stem(:)    ! fraction of total tree resistance from troot to canopy
-     real(r8), allocatable :: hydr_kmax_stem(:)     ! maximum xylem conductivity per unit sapwood area (kg m-1 s-1 MPa)
-     real(r8), allocatable :: hydr_avuln_gs(:)      ! 
-     real(r8), allocatable :: hydr_p50_gs(:)        !
+     real(r8), allocatable :: hydr_avuln_gs(:)      ! shape parameter for stomatal control of water vapor exiting leaf 
+     real(r8), allocatable :: hydr_p50_gs(:)        ! water potential at 50% loss of stomatal conductance
 
      ! PFT x Organ Dimension  (organs are: 1=leaf, 2=stem, 3=transporting root, 4=absorbing root)
      real(r8), allocatable :: hydr_avuln_node(:,:)  ! xylem vulernability curve shape parameter 
@@ -135,6 +138,8 @@ module EDPftvarcon
      real(r8), allocatable :: hydr_epsil_node(:,:)  ! bulk elastic modulus (MPa)
      real(r8), allocatable :: hydr_pitlp_node(:,:)  ! turgor loss point (MPa)
      real(r8), allocatable :: hydr_resid_node(:,:)  ! residual fraction (fraction)
+     real(r8), allocatable :: hydr_fcap_node(:,:)   ! fraction of (1-resid_node) that is capillary in source
+     real(r8), allocatable :: hydr_pinot_node(:,:)  ! osmotic potential at full turgor
 
    contains
      procedure, public :: Init => EDpftconInit
@@ -156,7 +161,7 @@ module EDPftvarcon
        __FILE__
   !
   ! !PUBLIC MEMBER FUNCTIONS:
-
+  public :: FatesReportPFTParams
   !-----------------------------------------------------------------------
 
 contains
@@ -176,7 +181,6 @@ contains
   subroutine Register(this, fates_params)
 
     use FatesParametersInterface, only : fates_parameters_type
-    use FatesInterfaceMod       , only : hlm_use_planthydro
 
     implicit none
 
@@ -488,10 +492,6 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
-    name = 'fates_hydr_kmax_stem'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
     name = 'fates_hydr_avuln_gs'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -856,10 +856,6 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%hydr_rfrac_stem)
 
-    name = 'fates_hydr_kmax_stem'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-          data=this%hydr_kmax_stem)
-    
     name = 'fates_hydr_avuln_gs'
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%hydr_avuln_gs)
@@ -1191,6 +1187,35 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
+    name = 'fates_hydr_p50_node'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_hydr_thetas_node'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_hydr_epsil_node'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_hydr_pitlp_node'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_hydr_resid_node'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_hydr_fcap_node'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_hydr_pinot_node'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+
   end subroutine Register_PFT_hydr_organs
 
   !-----------------------------------------------------------------------
@@ -1211,9 +1236,149 @@ contains
      call fates_params%RetreiveParameterAllocate(name=name, &
            data=this%hydr_avuln_node)
 
+     name = 'fates_hydr_p50_node'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+           data=this%hydr_p50_node)
+
+     name = 'fates_hydr_thetas_node'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+           data=this%hydr_thetas_node)
+     
+     name = 'fates_hydr_epsil_node'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+           data=this%hydr_epsil_node)
+     
+     name = 'fates_hydr_pitlp_node'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+           data=this%hydr_pitlp_node)
+     
+     name = 'fates_hydr_resid_node'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+           data=this%hydr_resid_node)
+     
+     name = 'fates_hydr_fcap_node'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+           data=this%hydr_fcap_node)
+
+
   end subroutine Receive_PFT_hydr_organs
 
+  ! ===============================================================================================
+  
+  subroutine FatesReportPFTParams(is_master)
+     
+     ! Argument
+     logical, intent(in) :: is_master  ! Only log if this is the master proc
 
+     logical, parameter :: debug_report = .true.
+
+     if(debug_report .and. is_master) then
+        
+        write(fates_log(),*) '-----------  FATES PFT Parameters -----------------'
+        write(fates_log(),*) 'pft_used = ',EDPftvarcon_inst%pft_used
+        write(fates_log(),*) 'max_dbh = ',EDPftvarcon_inst%max_dbh
+        write(fates_log(),*) 'freezetol = ',EDPftvarcon_inst%freezetol
+        write(fates_log(),*) 'wood_density = ',EDPftvarcon_inst%wood_density
+        write(fates_log(),*) 'hgt_min = ',EDPftvarcon_inst%hgt_min
+        write(fates_log(),*) 'dleaf = ',EDPftvarcon_inst%dleaf
+        write(fates_log(),*) 'z0mr = ',EDPftvarcon_inst%z0mr
+        write(fates_log(),*) 'displar = ',EDPftvarcon_inst%displar
+        write(fates_log(),*) 'cushion = ',EDPftvarcon_inst%cushion
+        write(fates_log(),*) 'leaf_stor_priority = ',EDPftvarcon_inst%leaf_stor_priority
+        write(fates_log(),*) 'crown = ',EDPftvarcon_inst%crown
+        write(fates_log(),*) 'bark_scaler = ',EDPftvarcon_inst%bark_scaler
+        write(fates_log(),*) 'crown_kill = ',EDPftvarcon_inst%crown_kill
+        write(fates_log(),*) 'initd = ',EDPftvarcon_inst%initd
+        write(fates_log(),*) 'seed_rain = ',EDPftvarcon_inst%seed_rain
+        write(fates_log(),*) 'BB_slope = ',EDPftvarcon_inst%BB_slope
+        write(fates_log(),*) 'root_long = ',EDPftvarcon_inst%root_long
+        write(fates_log(),*) 'clone_alloc = ',EDPftvarcon_inst%clone_alloc
+        write(fates_log(),*) 'seed_alloc = ',EDPftvarcon_inst%seed_alloc
+        write(fates_log(),*) 'woody = ',EDPftvarcon_inst%woody
+        write(fates_log(),*) 'stress_decid = ',EDPftvarcon_inst%stress_decid
+        write(fates_log(),*) 'season_decid = ',EDPftvarcon_inst%season_decid
+        write(fates_log(),*) 'evergreen = ',EDPftvarcon_inst%evergreen
+        write(fates_log(),*) 'slatop = ',EDPftvarcon_inst%slatop
+        write(fates_log(),*) 'leaf_long = ',EDPftvarcon_inst%leaf_long
+        write(fates_log(),*) 'roota_par = ',EDPftvarcon_inst%roota_par
+        write(fates_log(),*) 'rootb_par = ',EDPftvarcon_inst%rootb_par
+        write(fates_log(),*) 'lf_flab = ',EDPftvarcon_inst%lf_flab
+        write(fates_log(),*) 'lf_fcel = ',EDPftvarcon_inst%lf_fcel
+        write(fates_log(),*) 'lf_flig = ',EDPftvarcon_inst%lf_flig
+        write(fates_log(),*) 'fr_flab = ',EDPftvarcon_inst%fr_flab
+        write(fates_log(),*) 'fr_fcel = ',EDPftvarcon_inst%fr_fcel
+        write(fates_log(),*) 'fr_flig = ',EDPftvarcon_inst%fr_flig
+        write(fates_log(),*) 'xl = ',EDPftvarcon_inst%xl
+        write(fates_log(),*) 'c3psn = ',EDPftvarcon_inst%c3psn
+        write(fates_log(),*) 'vcmax25top = ',EDPftvarcon_inst%vcmax25top
+        write(fates_log(),*) 'leafcn = ',EDPftvarcon_inst%leafcn
+        write(fates_log(),*) 'frootcn = ',EDPftvarcon_inst%frootcn
+        write(fates_log(),*) 'smpso = ',EDPftvarcon_inst%smpso
+        write(fates_log(),*) 'smpsc = ',EDPftvarcon_inst%smpsc
+        write(fates_log(),*) 'grperc = ',EDPftvarcon_inst%grperc
+        write(fates_log(),*) 'bmort = ',EDPftvarcon_inst%bmort
+        write(fates_log(),*) 'hf_sm_threshold = ',EDPftvarcon_inst%hf_sm_threshold
+        write(fates_log(),*) 'vcmaxha = ',EDPftvarcon_inst%vcmaxha
+        write(fates_log(),*) 'jmaxha = ',EDPftvarcon_inst%jmaxha
+        write(fates_log(),*) 'tpuha = ',EDPftvarcon_inst%tpuha
+        write(fates_log(),*) 'vcmaxhd = ',EDPftvarcon_inst%vcmaxhd
+        write(fates_log(),*) 'jmaxhd = ',EDPftvarcon_inst%jmaxhd
+        write(fates_log(),*) 'tpuhd = ',EDPftvarcon_inst%tpuhd
+        write(fates_log(),*) 'vcmaxse = ',EDPftvarcon_inst%vcmaxse
+        write(fates_log(),*) 'jmaxse = ',EDPftvarcon_inst%jmaxse
+        write(fates_log(),*) 'tpuse = ',EDPftvarcon_inst%tpuse
+        write(fates_log(),*) 'germination_timescale = ',EDPftvarcon_inst%germination_timescale
+        write(fates_log(),*) 'seed_decay_turnover = ',EDPftvarcon_inst%seed_decay_turnover
+        write(fates_log(),*) 'branch_turnover = ',EDPftvarcon_inst%branch_turnover
+        write(fates_log(),*) 'trim_limit = ',EDPftvarcon_inst%trim_limit
+        write(fates_log(),*) 'trim_inc = ',EDPftvarcon_inst%trim_inc
+        write(fates_log(),*) 'rhol = ',EDPftvarcon_inst%rhol
+        write(fates_log(),*) 'rhos = ',EDPftvarcon_inst%rhos
+        write(fates_log(),*) 'taul = ',EDPftvarcon_inst%taul 
+        write(fates_log(),*) 'taus = ',EDPftvarcon_inst%taus
+        write(fates_log(),*) 'rootprof_beta = ',EDPftvarcon_inst%rootprof_beta
+        write(fates_log(),*) 'allom_hmode = ',EDPftvarcon_inst%allom_hmode
+        write(fates_log(),*) 'allom_lmode = ',EDPftvarcon_inst%allom_lmode
+        write(fates_log(),*) 'allom_fmode = ',EDPftvarcon_inst%allom_fmode
+        write(fates_log(),*) 'allom_amode = ',EDPftvarcon_inst%allom_amode
+        write(fates_log(),*) 'allom_cmode = ',EDPftvarcon_inst%allom_cmode
+        write(fates_log(),*) 'allom_smode = ',EDPftvarcon_inst%allom_smode
+        write(fates_log(),*) 'allom_latosa_int = ',EDPftvarcon_inst%allom_latosa_int
+        write(fates_log(),*) 'allom_latosa_slp = ',EDPftvarcon_inst%allom_latosa_slp
+        write(fates_log(),*) 'allom_l2fr = ',EDPftvarcon_inst%allom_l2fr
+        write(fates_log(),*) 'allom_agb_frac = ',EDPftvarcon_inst%allom_agb_frac
+        write(fates_log(),*) 'allom_d2h1 = ',EDPftvarcon_inst%allom_d2h1
+        write(fates_log(),*) 'allom_d2h2 = ',EDPftvarcon_inst%allom_d2h2
+        write(fates_log(),*) 'allom_d2h3 = ',EDPftvarcon_inst%allom_d2h3
+        write(fates_log(),*) 'allom_d2bl1 = ',EDPftvarcon_inst%allom_d2bl1
+        write(fates_log(),*) 'allom_d2bl2 = ',EDPftvarcon_inst%allom_d2bl2
+        write(fates_log(),*) 'allom_d2bl3 = ',EDPftvarcon_inst%allom_d2bl3
+        write(fates_log(),*) 'allom_sai_scaler = ',EDPftvarcon_inst%allom_sai_scaler
+        write(fates_log(),*) 'allom_d2bl_slascaler = ',EDPftvarcon_inst%allom_d2bl_slascaler
+        write(fates_log(),*) 'allom_blca_expnt_diff = ',EDPftvarcon_inst%allom_blca_expnt_diff
+        write(fates_log(),*) 'allom_agb1 = ',EDPftvarcon_inst%allom_agb1
+        write(fates_log(),*) 'allom_agb2 = ',EDPftvarcon_inst%allom_agb2
+        write(fates_log(),*) 'allom_agb3 = ',EDPftvarcon_inst%allom_agb3
+        write(fates_log(),*) 'allom_agb4 = ',EDPftvarcon_inst%allom_agb4
+        write(fates_log(),*) 'hydr_p_taper = ',EDPftvarcon_inst%hydr_p_taper
+        write(fates_log(),*) 'hydr_rs2 = ',EDPftvarcon_inst%hydr_rs2
+        write(fates_log(),*) 'hydr_srl = ',EDPftvarcon_inst%hydr_srl
+        write(fates_log(),*) 'hydr_rfrac_stem = ',EDPftvarcon_inst%hydr_rfrac_stem
+        write(fates_log(),*) 'hydr_avuln_gs = ',EDPftvarcon_inst%hydr_avuln_gs
+        write(fates_log(),*) 'hydr_p50_gs = ',EDPftvarcon_inst%hydr_p50_gs
+        write(fates_log(),*) 'hydr_avuln_node = ',EDPftvarcon_inst%hydr_avuln_node
+        write(fates_log(),*) 'hydr_p50_node = ',EDPftvarcon_inst%hydr_p50_node
+        write(fates_log(),*) 'hydr_thetas_node = ',EDPftvarcon_inst%hydr_thetas_node 
+        write(fates_log(),*) 'hydr_epsil_node = ',EDPftvarcon_inst%hydr_epsil_node
+        write(fates_log(),*) 'hydr_pitlp_node = ',EDPftvarcon_inst%hydr_pitlp_node
+        write(fates_log(),*) 'hydr_resid_node = ',EDPftvarcon_inst%hydr_resid_node
+        write(fates_log(),*) 'hydr_fcap_node = ',EDPftvarcon_inst%hydr_fcap_node
+        write(fates_log(),*) 'hydr_pinot_node = ',EDPftvarcon_inst%hydr_pinot_node
+        write(fates_log(),*) '-------------------------------------------------'
+
+     end if
+
+  end subroutine FatesReportPFTParams
 
 end module EDPftvarcon
 

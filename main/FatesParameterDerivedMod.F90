@@ -6,6 +6,7 @@ module FatesParameterDerivedMod
   ! and are based off of simple relationships from parameters that the user can
   ! vary.  This should be called once, and early in the model initialization call
   ! sequence immediately after FATES parameters are read in.
+  !
   ! -------------------------------------------------------------------------------------
 
   use FatesConstantsMod, only : r8 => fates_r8
