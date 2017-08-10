@@ -23,7 +23,6 @@ module SFParamsMod
    real(r8),protected :: SF_val_miner_damp
    real(r8),protected :: SF_val_max_durat
    real(r8),protected :: SF_val_durat_slope
-   real(r8),protected :: SF_val_alpha_SH
    real(r8),protected :: SF_val_wind_max          ! Maximum wind speed expected by fire model (m/min)
    real(r8),protected :: SF_val_alpha_FMC(NFSC)
    real(r8),protected :: SF_val_CWD_frac(NCWD)
@@ -36,7 +35,7 @@ module SFParamsMod
    real(r8),protected :: SF_val_low_moisture_Slope(NFSC)
    real(r8),protected :: SF_val_mid_moisture_Coeff(NFSC)
    real(r8),protected :: SF_val_mid_moisture_Slope(NFSC)
-  
+
    character(len=param_string_length),parameter :: SF_name_fdi_a = "fates_fdi_a"
    character(len=param_string_length),parameter :: SF_name_fdi_b = "fates_fdi_b"
    character(len=param_string_length),parameter :: SF_name_fdi_alpha = "fates_fdi_alpha"
@@ -46,7 +45,6 @@ module SFParamsMod
    character(len=param_string_length),parameter :: SF_name_miner_damp = "fates_miner_damp"
    character(len=param_string_length),parameter :: SF_name_max_durat = "fates_max_durat"
    character(len=param_string_length),parameter :: SF_name_durat_slope = "fates_durat_slope"
-   character(len=param_string_length),parameter :: SF_name_alpha_SH = "fates_alpha_SH"
    character(len=param_string_length),parameter :: SF_name_alpha_FMC = "fates_alpha_FMC"
    character(len=param_string_length),parameter :: SF_name_CWD_frac = "fates_CWD_frac"
    character(len=param_string_length),parameter :: SF_name_max_decomp = "fates_max_decomp"
@@ -92,7 +90,6 @@ contains
     SF_val_miner_damp = nan
     SF_val_max_durat = nan
     SF_val_durat_slope = nan
-    SF_val_alpha_SH = nan
     SF_val_wind_max = nan
 
     SF_val_CWD_frac(:) = nan
@@ -183,9 +180,6 @@ contains
     call fates_params%RegisterParameter(name=SF_name_durat_slope, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=SF_name_alpha_SH, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
   end subroutine SpitFireRegisterScalars
 
  !-----------------------------------------------------------------------
@@ -226,9 +220,6 @@ contains
 
     call fates_params%RetreiveParameter(name=SF_name_durat_slope, &
          data=SF_val_durat_slope)
-
-    call fates_params%RetreiveParameter(name=SF_name_alpha_SH, &
-         data=SF_val_alpha_SH)
 
   end subroutine SpitFireReceiveScalars
 

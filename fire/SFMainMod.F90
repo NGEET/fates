@@ -805,8 +805,6 @@ contains
     !currentPatch%SH !average scorch height for the patch(m)
     !currentPatch%FI  average fire intensity of flaming front during day.  kW/m.
 
-    use SFParamsMod,  only : SF_val_alpha_SH
-
     type(ed_site_type), intent(in), target :: currentSite
 
     type(ed_patch_type), pointer :: currentPatch
@@ -847,7 +845,9 @@ contains
                    if ( hlm_masterproc == itrue ) write(fates_log(),*) 'currentPatch%SH',currentPatch%SH,f_ag_bmass
                 endif
                 !2/3 Byram (1959)
-                currentPatch%SH = currentPatch%SH + f_ag_bmass * SF_val_alpha_SH * (currentPatch%FI**0.667_r8) 
+                currentPatch%SH = currentPatch%SH + f_ag_bmass * &
+                      EDPftvarcon_inst%fire_alpha_SH(currentCohort%pft) * (currentPatch%FI**0.667_r8) 
+
              endif !trees only
              currentCohort=>currentCohort%shorter;
           enddo !end cohort loop
