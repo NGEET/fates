@@ -406,7 +406,7 @@ contains
      logical,intent(in) :: is_master
 
      character(len=32),parameter :: fmt0 = '(a,(F12.4))'
-     logical, parameter :: debug_report = .true.
+     logical, parameter :: debug_report = .false.
      
      if(debug_report .and. is_master) then
         
