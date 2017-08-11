@@ -1304,7 +1304,7 @@ contains
                 write(fates_log(), *) 'ED: canopy-area-profile wrong', &
                       sum(currentPatch%canopy_area_profile(L,1:numpft_ed,1)), &
                       currentPatch%patchno, L
-                write(fates_log(), *) 'ED: areas',currentPatch%canopy_area_profile(L,1:2,1),currentPatch%patchno
+                write(fates_log(), *) 'ED: areas',currentPatch%canopy_area_profile(L,1:numpft_ed,1),currentPatch%patchno
                 
                 currentCohort => currentPatch%shortest
                 

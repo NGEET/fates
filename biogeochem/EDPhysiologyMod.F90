@@ -31,7 +31,7 @@ module EDPhysiologyMod
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use FatesGlobals          , only : fates_log
   use FatesGlobals          , only : endrun => fates_endrun
-
+  use EDParamsMod           , only : fates_mortality_disturbance_fraction
 
   implicit none
   private
@@ -789,11 +789,12 @@ contains
 
     ! Mortality for trees in the understorey. 
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
+    call mortality_rates(currentCohort,cmort,hmort,bmort)
     if (currentCohort%canopy_layer > 1)then 
-       call mortality_rates(currentCohort,cmort,hmort,bmort)
        currentCohort%dndt = -1.0_r8 * (cmort+hmort+bmort) * currentCohort%n
     else
-       currentCohort%dndt = 0._r8
+       currentCohort%dndt = -(1.0_r8 - fates_mortality_disturbance_fraction) &
+            * (cmort+hmort+bmort) * currentCohort%n
     endif
 
     ! Height
@@ -969,7 +970,7 @@ contains
        !FIX(RF,032414) - to fix high bl's. needed to prevent numerical errors without the ODEINT.  
        if (currentCohort%balive > target_balive*1.1_r8)then  
           va = 0.0_r8; vs = 1._r8
-          write(fates_log(),*) 'using high bl cap',target_balive,currentCohort%balive                        
+          if (DEBUG) write(fates_log(),*) 'using high bl cap',target_balive,currentCohort%balive                        
        endif
 
     else         
