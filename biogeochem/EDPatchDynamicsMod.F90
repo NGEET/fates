@@ -1071,6 +1071,7 @@ contains
     currentPatch%fab(:)                     = 0.0_r8
     currentPatch%sabs_dir(:)                = 0.0_r8
     currentPatch%sabs_dif(:)                = 0.0_r8
+    currentPatch%zstar                      = 0.0_r8
 
 
   end subroutine zero_patch
@@ -1305,6 +1306,7 @@ contains
     rp%frac_burnt           = (dp%frac_burnt*dp%area + rp%frac_burnt*rp%area) * inv_sum_area
     rp%burnt_frac_litter(:) = (dp%burnt_frac_litter(:)*dp%area + rp%burnt_frac_litter(:)*rp%area) * inv_sum_area
     rp%btran_ft(:)          = (dp%btran_ft(:)*dp%area + rp%btran_ft(:)*rp%area) * inv_sum_area
+    rp%zstar                = (dp%zstar*dp%area + rp%zstar*rp%area) * inv_sum_area
 
     rp%area = rp%area + dp%area !THIS MUST COME AT THE END!
 
