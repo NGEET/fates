@@ -28,6 +28,7 @@ module FatesInventoryInitMod
    use FatesGlobals     , only : endrun => fates_endrun
    use FatesGlobals     , only : fates_log
    use FatesInterfaceMod, only : bc_in_type
+   use FatesInterfaceMod, only : hlm_inventory_ctrl_file
    use EDTypesMod       , only : ed_site_type
    use EDTypesMod       , only : ed_patch_type
    use EDTypesMod       , only : ed_cohort_type 
@@ -46,9 +47,6 @@ module FatesInventoryInitMod
    type pp_array
       type(ed_patch_type), pointer :: cpatch
    end type pp_array
-
-   ! For now we will use a hard-coded file name for the inventory file list
-   character(len=*), parameter          :: inv_file_list = 'inventory_file_list.txt'
 
    character(len=*), parameter, private :: sourcefile =  __FILE__
 
@@ -137,10 +135,10 @@ contains
       ! ------------------------------------------------------------------------------------------
 
       sitelist_file_unit = shr_file_getUnit()
-      inquire(file=trim(inv_file_list),exist=lexist,opened=lopen)
+      inquire(file=trim(hlm_inventory_ctrl_file),exist=lexist,opened=lopen)
       if( .not.lexist ) then   ! The inventory file list DNE
          write(fates_log(), *) 'An inventory Initialization was requested.'
-         write(fates_log(), *) 'However the inventory file: ',trim(inv_file_list),' DNE'
+         write(fates_log(), *) 'However the inventory file: ',trim(hlm_inventory_ctrl_file),' DNE'
          write(fates_log(), *) 'Aborting'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
@@ -150,7 +148,7 @@ contains
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
-      open(unit=sitelist_file_unit,file=trim(inv_file_list),status='OLD',action='READ',form='FORMATTED')
+      open(unit=sitelist_file_unit,file=trim(hlm_inventory_ctrl_file),status='OLD',action='READ',form='FORMATTED')
       rewind(sitelist_file_unit)
 
       ! There should be at least 1 line
@@ -649,7 +647,6 @@ contains
       use EDTypesMod, only: numpft_ed
       use EDTypesMod, only: ncwd
       use SFParamsMod , only : SF_val_CWD_frac
-      use EDParamsMod , only : ED_val_ag_biomass
 
       ! Arguments
       type(ed_patch_type),intent(inout), target   :: newpatch      ! Patch structure
@@ -875,8 +872,8 @@ contains
       temp_cohort%dbh         = c_dbh
       temp_cohort%canopy_trim = 1.0_r8
       temp_cohort%bdead       = Bdead(temp_cohort)
-      temp_cohort%balive      = Bleaf(temp_cohort)*(1.0_r8 + EDPftvarcon_inst%froot_leaf(c_pft) &
-            + EDecophyscon%sapwood_ratio(c_pft)*temp_cohort%hite)
+      temp_cohort%balive      = Bleaf(temp_cohort)*(1.0_r8 + EDPftvarcon_inst%allom_l2fr(c_pft) &
+            + EDpftvarcon_inst%allom_latosa_int(c_pft)*temp_cohort%hite)
       temp_cohort%b           = temp_cohort%balive + temp_cohort%bdead
       
       if( EDPftvarcon_inst%evergreen(c_pft) == 1) then

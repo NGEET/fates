@@ -6,6 +6,7 @@ module FatesParameterDerivedMod
   ! and are based off of simple relationships from parameters that the user can
   ! vary.  This should be called once, and early in the model initialization call
   ! sequence immediately after FATES parameters are read in.
+  !
   ! -------------------------------------------------------------------------------------
 
   use FatesConstantsMod, only : r8 => fates_r8
@@ -64,10 +65,10 @@ contains
     
     associate( &
 
-         slatop    => EDPftvarcon_inst%slatop , & ! specific leaf area at top of canopy, 
-                                        ! projected area basis [m^2/gC]
-         fnitr     => EDPftvarcon_inst%fnitr  , & ! foliage nitrogen limitation factor (-)
-         leafcn    => EDPftvarcon_inst%leafcn )   ! leaf C:N (gC/gN)
+         vcmax25top => EDPftvarcon_inst%vcmax25top, & ! 
+         slatop     => EDPftvarcon_inst%slatop    , & ! specific leaf area at top of canopy, 
+                                                      ! projected area basis [m^2/gC]
+         leafcn     => EDPftvarcon_inst%leafcn )      ! leaf C:N (gC/gN)
     
       call this%InitAllocate(maxpft)
       
@@ -75,11 +76,6 @@ contains
 
          ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
          lnc  = 1._r8 / (slatop(ft) * leafcn(ft))
-         
-         ! at the moment in ED we assume that there is no active N cycle. 
-         ! This should change, of course. FIX(RF,032414) Sep2011. 
-         ! fudge - shortcut using fnitr as a proxy for vcmax... 
-         this%vcmax25top(ft) = fnitr(ft)
          
          ! Parameters derived from vcmax25top. 
          ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593
@@ -92,9 +88,9 @@ contains
          ! jmax25top(ft) =  &
          ! (2.59_r8 - 0.035_r8*min(max((t10(p)-tfrzc),11._r8),35._r8)) * vcmax25top(ft)
          
-         this%jmax25top(ft) = 1.67_r8   * this%vcmax25top(ft)
-         this%tpu25top(ft)  = 0.167_r8  * this%vcmax25top(ft)
-         this%kp25top(ft)   = 20000._r8 * this%vcmax25top(ft)
+         this%jmax25top(ft) = 1.67_r8   * vcmax25top(ft)
+         this%tpu25top(ft)  = 0.167_r8  * vcmax25top(ft)
+         this%kp25top(ft)   = 20000._r8 * vcmax25top(ft)
          
          ! Leaf maintenance respiration to match the base rate used in CN
          ! but with the new temperature functions for C3 and C4 plants.

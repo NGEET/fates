@@ -1,29 +1,31 @@
 module FatesHistoryInterfaceMod
 
-  
-  use FatesConstantsMod, only : r8 => fates_r8
-  use FatesConstantsMod, only : fates_avg_flag_length, fates_short_string_length, fates_long_string_length
-  use FatesGlobals    , only : fates_log
-  use FatesGlobals, only      : endrun => fates_endrun
+  use FatesConstantsMod        , only : r8 => fates_r8
+  use FatesConstantsMod        , only : fates_avg_flag_length, fates_short_string_length, fates_long_string_length
+  use FatesConstantsMod        , only : itrue,ifalse
+  use FatesGlobals             , only : fates_log
+  use FatesGlobals             , only : endrun => fates_endrun
 
-  use FatesIODimensionsMod, only : fates_io_dimension_type
-  use FatesIOVariableKindMod, only : fates_io_variable_kind_type
-  use FatesHistoryVariableType, only : fates_history_variable_type
-  use FatesInterfaceMod, only : hlm_hio_ignore_val
-  use EDParamsMod, only : ED_val_comp_excln
+  use FatesIODimensionsMod     , only : fates_io_dimension_type
+  use FatesIOVariableKindMod   , only : fates_io_variable_kind_type
+  use FatesHistoryVariableType , only : fates_history_variable_type
+  use FatesInterfaceMod        , only : hlm_hio_ignore_val
+  use FatesInterfaceMod        , only : hlm_use_planthydro
+  use FatesInterfaceMod        , only : hlm_use_ed_st3
+  use EDParamsMod              , only : ED_val_comp_excln
 
   ! FIXME(bja, 2016-10) need to remove CLM dependancy 
-  use EDPftvarcon       , only : EDPftvarcon_inst
+  use EDPftvarcon              , only : EDPftvarcon_inst
 
   ! CIME Globals
-  use shr_log_mod , only      : errMsg => shr_log_errMsg
-  use shr_infnan_mod   , only : isnan => shr_infnan_isnan
-  use FatesConstantsMod, only : g_per_kg
-  use FatesConstantsMod, only : ha_per_m2
-  use FatesConstantsMod, only : days_per_sec
-  use FatesConstantsMod, only : sec_per_day
-  use FatesConstantsMod, only : days_per_year
-  use FatesConstantsMod, only : years_per_day
+  use shr_log_mod              , only : errMsg => shr_log_errMsg
+  use shr_infnan_mod           , only : isnan => shr_infnan_isnan
+  use FatesConstantsMod        , only : g_per_kg
+  use FatesConstantsMod        , only : ha_per_m2
+  use FatesConstantsMod        , only : days_per_sec
+  use FatesConstantsMod        , only : sec_per_day
+  use FatesConstantsMod        , only : days_per_year
+  use FatesConstantsMod        , only : years_per_day
 
   implicit none
 
@@ -1096,14 +1098,11 @@ contains
     use EDtypesMod          , only : AREA_INV
     use EDtypesMod          , only : nlevsclass_ed
     use EDtypesMod          , only : nlevage_ed
-    use EDtypesMod          , only : do_ed_dynamics
     use EDtypesMod          , only : nfsc
     use EDtypesMod          , only : ncwd
     use EDtypesMod          , only : ican_upper
     use EDtypesMod          , only : ican_ustory
     use EDTypesMod          , only : maxpft
-
-    use EDParamsMod       , only : ED_val_ag_biomass
     use EDTypesMod        , only : get_sizeage_class_index
     use EDTypesMod        , only : nlevleaf
 
@@ -1288,7 +1287,7 @@ contains
 
 
       ! If we don't have dynamics turned on, we just abort these diagnostics
-      if (.not.do_ed_dynamics) return
+      if (hlm_use_ed_st3.eq.itrue) return
 
       ! ---------------------------------------------------------------------------------
       ! Loop through the FATES scale hierarchy and fill the history IO arrays
@@ -1413,13 +1412,17 @@ contains
                     hio_npp_fnrt_si_scpf(io_si,scpf) = hio_npp_fnrt_si_scpf(io_si,scpf) + &
                                                        ccohort%npp_froot*n_perm2
                     hio_npp_bgsw_si_scpf(io_si,scpf) = hio_npp_bgsw_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_bsw*(1._r8-ED_val_ag_biomass)*n_perm2
+                                                       ccohort%npp_bsw*n_perm2*           &
+                                                       (1._r8-EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
                     hio_npp_agsw_si_scpf(io_si,scpf) = hio_npp_agsw_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_bsw*ED_val_ag_biomass*n_perm2
+                                                       ccohort%npp_bsw*n_perm2*           &
+                                                       EDPftvarcon_inst%allom_agb_frac(ccohort%pft)
                     hio_npp_bgdw_si_scpf(io_si,scpf) = hio_npp_bgdw_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_bdead*(1._r8-ED_val_ag_biomass)*n_perm2
+                                                       ccohort%npp_bdead*n_perm2*         &
+                                                       (1._r8-EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
                     hio_npp_agdw_si_scpf(io_si,scpf) = hio_npp_agdw_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_bdead*ED_val_ag_biomass*n_perm2
+                                                       ccohort%npp_bdead*n_perm2*         &
+                                                       EDPftvarcon_inst%allom_agb_frac(ccohort%pft)
                     hio_npp_seed_si_scpf(io_si,scpf) = hio_npp_seed_si_scpf(io_si,scpf) + &
                                                        ccohort%npp_bseed*n_perm2
                     hio_npp_stor_si_scpf(io_si,scpf) = hio_npp_stor_si_scpf(io_si,scpf) + &
@@ -2165,10 +2168,8 @@ contains
                                      nlevsclass_ed
 
     use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
-    use EDTypesMod           , only : use_fates_plant_hydro
     use FatesHydraulicsMemMod, only : nlevsoi_hyd
     use EDTypesMod           , only : nlevsclass_ed
-    use EDTypesMod           , only : do_ed_dynamics
     use EDTypesMod           , only : maxpft
     
     ! Arguments
@@ -2204,7 +2205,7 @@ contains
     real(r8), parameter :: daysecs = 86400.0_r8 ! What modeler doesn't recognize 86400?
     real(r8), parameter :: yeardays = 365.0_r8  ! Should this be 365.25?
     
-    if(.not.use_fates_plant_hydro) return
+    if(hlm_use_planthydro.eq.ifalse) return
 
     associate( hio_errh2o_scpf  => this%hvars(ih_errh2o_scpf)%r82d, &
           hio_tran_scpf         => this%hvars(ih_tran_scpf)%r82d, &
@@ -2378,7 +2379,7 @@ contains
             cpatch => cpatch%younger
          end do !patch loop
 
-         if(do_ed_dynamics) then
+         if(hlm_use_ed_st3.eq.ifalse) then
             do scpf=1,nlevsclass_ed*maxpft
                if( abs(hio_nplant_si_scpf(io_si, scpf)-ncohort_scpf(scpf)) > 1.0E-8_r8 ) then
                   write(fates_log(),*) 'nplant check on hio_nplant_si_scpf fails during hydraulics history updates'
@@ -2458,7 +2459,8 @@ contains
     use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8    
     use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
-    use EDTypesMod            , only : use_fates_plant_hydro
+    use FatesInterfaceMod     , only : hlm_use_planthydro
+    
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
     use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
 
@@ -3573,7 +3575,7 @@ contains
 
     ! PLANT HYDRAULICS
 
-    if(use_fates_plant_hydro) then
+    if(hlm_use_planthydro.eq.itrue) then
        
        call this%set_history_var(vname='FATES_ERRH2O_SCPF', units='kg/indiv/s', &
              long='mean individual water balance error', use_default='active', &

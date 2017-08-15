@@ -13,7 +13,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : nclmax
-  use EDTypesMod           , only : use_fates_plant_hydro
+  use FatesInterfaceMod    , only : hlm_use_planthydro
   use FatesInterfaceMod    , only : hlm_numlevgrnd
   use FatesInterfaceMod    , only : hlm_numlevsoil
   use FatesInterfaceMod    , only : hlm_numSWb
@@ -21,6 +21,7 @@ module EDPatchDynamicsMod
   use FatesInterfaceMod    , only : hlm_days_per_year
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
+  use FatesConstantsMod    , only : itrue
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
@@ -271,7 +272,7 @@ contains
           do while(associated(currentCohort))       
 
              allocate(nc)             
-             if(use_fates_plant_hydro) call InitHydrCohort(nc)
+             if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(nc)
              call zero_cohort(nc)
 
              ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort
@@ -389,7 +390,7 @@ contains
                 new_patch%tallest  => storebigcohort 
                 new_patch%shortest => storesmallcohort   
              else
-                if(use_fates_plant_hydro) call DeallocateHydrCohort(nc)
+                if(hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(nc)
                 deallocate(nc) !get rid of the new memory.
              endif
 
@@ -549,7 +550,6 @@ contains
     !  Burn live grasses and kill them. 
     !
     ! !USES:
-    use EDParamsMod,          only : ED_val_ag_biomass
     use SFParamsMod,          only : SF_VAL_CWD_FRAC
     use EDGrowthFunctionsMod, only : c_area
     use EDtypesMod          , only : dl_sf
@@ -610,9 +610,9 @@ contains
              ! Divide their litter into the four litter streams, and spread evenly across ground surface. 
              !************************************/  
              ! stem biomass per tree
-             bstem  = (currentCohort%bsw + currentCohort%bdead) * ED_val_ag_biomass           
+             bstem  = (currentCohort%bsw + currentCohort%bdead) * EDPftvarcon_inst%allom_agb_frac(p)
              ! coarse root biomass per tree
-             bcroot = (currentCohort%bsw + currentCohort%bdead) * (1.0_r8 - ED_val_ag_biomass) 
+             bcroot = (currentCohort%bsw + currentCohort%bdead) * (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(p) )
              ! density of dead trees per m2. 
              dead_tree_density  = (currentCohort%fire_mort * currentCohort%n*patch_site_areadis/currentPatch%area) / AREA  
 
@@ -743,7 +743,7 @@ contains
     !  Carbon going from ongoing mortality into CWD pools. 
     !
     ! !USES:
-    use EDParamsMod,  only : ED_val_ag_biomass, ED_val_understorey_death
+    use EDParamsMod,  only : ED_val_understorey_death
     use SFParamsMod,  only : SF_val_cwd_frac
     !
     ! !ARGUMENTS:
@@ -765,6 +765,7 @@ contains
     real(r8) :: canopy_mortality_woody_litter               ! flux of wood litter in to litter pool: KgC/m2/day
     real(r8) :: canopy_mortality_leaf_litter(numpft_ed)     ! flux in to  leaf litter from tree death: KgC/m2/day
     real(r8) :: canopy_mortality_root_litter(numpft_ed)     ! flux in to froot litter  from tree death: KgC/m2/day
+    real(r8) :: mean_agb_frac                               ! mean fraction of AGB to total woody biomass (stand mean)
     !---------------------------------------------------------------------
 
     currentPatch => cp_target
@@ -828,20 +829,23 @@ contains
     ! (currentPatch%area-patch_site_areadis) +patch_site_areadis...
     ! For the new patch, only some fraction of its land area (patch_areadis/np%area) is derived from the current patch
     ! so we need to multiply by patch_areadis/np%area
+
+    mean_agb_frac = sum(EDPftvarcon_inst%allom_agb_frac(1:numpft_ed))/dble(numpft_ed)
+
     do c = 1,ncwd
     
        cwd_litter_density = SF_val_CWD_frac(c) * canopy_mortality_woody_litter / litter_area
        
-       new_patch%cwd_ag(c)    = new_patch%cwd_ag(c)    + ED_val_ag_biomass         * cwd_litter_density * np_mult
-       currentPatch%cwd_ag(c) = currentPatch%cwd_ag(c) + ED_val_ag_biomass         * cwd_litter_density
-       new_patch%cwd_bg(c)    = new_patch%cwd_bg(c)    + (1._r8-ED_val_ag_biomass) * cwd_litter_density * np_mult 
-       currentPatch%cwd_bg(c) = currentPatch%cwd_bg(c) + (1._r8-ED_val_ag_biomass) * cwd_litter_density 
+       new_patch%cwd_ag(c)    = new_patch%cwd_ag(c)    + mean_agb_frac * cwd_litter_density * np_mult
+       currentPatch%cwd_ag(c) = currentPatch%cwd_ag(c) + mean_agb_frac * cwd_litter_density
+       new_patch%cwd_bg(c)    = new_patch%cwd_bg(c)    + (1._r8-mean_agb_frac) * cwd_litter_density * np_mult 
+       currentPatch%cwd_bg(c) = currentPatch%cwd_bg(c) + (1._r8-mean_agb_frac) * cwd_litter_density 
        
        ! track as diagnostic fluxes
        currentSite%CWD_AG_diagnostic_input_carbonflux(c) = currentSite%CWD_AG_diagnostic_input_carbonflux(c) + &
-            SF_val_CWD_frac(c) * canopy_mortality_woody_litter * hlm_days_per_year * ED_val_ag_biomass/ AREA 
+            SF_val_CWD_frac(c) * canopy_mortality_woody_litter * hlm_days_per_year * mean_agb_frac/ AREA 
        currentSite%CWD_BG_diagnostic_input_carbonflux(c) = currentSite%CWD_BG_diagnostic_input_carbonflux(c) + &
-            SF_val_CWD_frac(c) * canopy_mortality_woody_litter * hlm_days_per_year * (1.0_r8 - ED_val_ag_biomass) / AREA
+            SF_val_CWD_frac(c) * canopy_mortality_woody_litter * hlm_days_per_year * (1.0_r8 - mean_agb_frac) / AREA
     enddo 
 
     do p = 1,numpft_ed
@@ -1478,7 +1482,7 @@ contains
     do while(associated(ccohort))
        
        ncohort => ccohort%taller
-       if(use_fates_plant_hydro) call DeallocateHydrCohort(ccohort)
+       if(hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(ccohort)
        deallocate(ccohort)
        ccohort => ncohort
 

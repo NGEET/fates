@@ -21,7 +21,8 @@ module EDInitMod
   use EDTypesMod                , only : nuMWaterMem
   use EDTypesMod                , only : numpft_ed
   use FatesInterfaceMod         , only : bc_in_type
-  use EDTypesMod                , only : use_fates_plant_hydro
+  use FatesInterfaceMod         , only : hlm_use_planthydro
+  use FatesInterfaceMod         , only : hlm_use_inventory_init
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -30,8 +31,6 @@ module EDInitMod
   private
 
   logical   ::  DEBUG = .false.
-
-  integer, parameter :: do_inv_init = ifalse
 
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
@@ -237,12 +236,12 @@ contains
      ! Two primary options, either a Near Bear Ground (NBG) or Inventory based cold-start
      ! ---------------------------------------------------------------------------------------------
 
-     if (do_inv_init .eq. itrue) then
+     if ( hlm_use_inventory_init.eq.itrue ) then
 
         call initialize_sites_by_inventory(nsites,sites,bc_in)
 
         do s = 1, nsites
-           if (use_fates_plant_hydro) then
+           if (hlm_use_planthydro.eq.itrue) then
               call updateSizeDepRhizHydProps(sites(s), bc_in(s))
            end if
         enddo
@@ -272,7 +271,7 @@ contains
            ! This sets the rhizosphere shells based on the plant initialization
            ! The initialization of the plant-relevant hydraulics variables
            ! were set from a call inside of the init_cohorts()->create_cohort() subroutine
-           if (use_fates_plant_hydro) then
+           if (hlm_use_planthydro.eq.itrue) then
               call updateSizeDepRhizHydProps(sites(s), bc_in(s))
            end if
 
@@ -317,8 +316,8 @@ contains
        temp_cohort%dbh         = Dbh(temp_cohort) ! FIX(RF, 090314) - comment out addition of ' + 0.0001_r8*pft   '  - seperate out PFTs a little bit...
        temp_cohort%canopy_trim = 1.0_r8
        temp_cohort%bdead       = Bdead(temp_cohort)
-       temp_cohort%balive      = Bleaf(temp_cohort)*(1.0_r8 + EDPftvarcon_inst%froot_leaf(pft) &
-            + EDecophyscon%sapwood_ratio(temp_cohort%pft)*temp_cohort%hite)
+       temp_cohort%balive      = Bleaf(temp_cohort)*(1.0_r8 + EDPftvarcon_inst%allom_l2fr(pft) &
+            + EDPftvarcon_inst%allom_latosa_int(temp_cohort%pft)*temp_cohort%hite)
        temp_cohort%b           = temp_cohort%balive + temp_cohort%bdead
 
        if( EDPftvarcon_inst%evergreen(pft) == 1) then
