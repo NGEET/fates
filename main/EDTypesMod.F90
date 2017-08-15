@@ -11,6 +11,7 @@ module EDTypesMod
   save
 
   integer, parameter :: maxPatchesPerSite  = 10   ! maximum number of patches to live on a site
+  integer, parameter :: maxCohortsPerPatch = 160  ! maximum number of cohorts per patch
   integer, parameter :: nclmax = 2                ! Maximum number of canopy layers
   integer, parameter :: ican_upper = 1            ! Nominal index for the upper canopy
   integer, parameter :: ican_ustory = 2           ! Nominal index for understory in two-canopy system
@@ -21,9 +22,6 @@ module EDTypesMod
                                                   ! are used, but this helps allocate scratch
                                                   ! space and output arrays.
  
-  integer, parameter :: numpft_ed = 2             ! number of PFTs used in ED. 
-
-  integer, parameter :: maxCohortsPerPatch = nclmax * numpft_ed * nlevleaf  ! maximum number of cohorts to live on a patch
 
   ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
   ! land-ice abledo for vis and nir.  This should be a parameter, which would
@@ -301,7 +299,7 @@ module EDTypesMod
 
      ! LEAF ORGANIZATION
      real(r8) ::  spread(nclmax)                                   ! dynamic ratio of dbh to canopy area: cm/m2
-     real(r8) ::  pft_agb_profile(numpft_ed,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
+     real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
      real(r8) ::  canopy_layer_lai(nclmax)                         ! lai that is shading this canopy layer: m2/m2 
      real(r8) ::  total_canopy_area                                ! area that is covered by vegetation : m2
      real(r8) ::  total_tree_area                                  ! area that is covered by woody vegetation : m2
@@ -310,33 +308,33 @@ module EDTypesMod
      real(r8) ::  lai                                              ! leaf area index of patch
      real(r8) ::  zstar                                            ! height of smallest canopy tree -- only meaningful in "strict PPA" mode
 
-     real(r8) ::  tlai_profile(nclmax,numpft_ed,nlevleaf)        ! total   leaf area in each canopy layer, pft, and leaf layer. m2/m2
-     real(r8) ::  elai_profile(nclmax,numpft_ed,nlevleaf)        ! exposed leaf area in each canopy layer, pft, and leaf layer. m2/m2
-     real(r8) ::  tsai_profile(nclmax,numpft_ed,nlevleaf)        ! total   stem area in each canopy layer, pft, and leaf layer. m2/m2
-     real(r8) ::  esai_profile(nclmax,numpft_ed,nlevleaf)        ! exposed stem area in each canopy layer, pft, and leaf layer. m2/m2
-     real(r8) ::  layer_height_profile(nclmax,numpft_ed,nlevleaf)
-     real(r8) ::  canopy_area_profile(nclmax,numpft_ed,nlevleaf) ! fraction of canopy in each canopy 
+     real(r8) ::  tlai_profile(nclmax,maxpft,nlevleaf)        ! total   leaf area in each canopy layer, pft, and leaf layer. m2/m2
+     real(r8) ::  elai_profile(nclmax,maxpft,nlevleaf)        ! exposed leaf area in each canopy layer, pft, and leaf layer. m2/m2
+     real(r8) ::  tsai_profile(nclmax,maxpft,nlevleaf)        ! total   stem area in each canopy layer, pft, and leaf layer. m2/m2
+     real(r8) ::  esai_profile(nclmax,maxpft,nlevleaf)        ! exposed stem area in each canopy layer, pft, and leaf layer. m2/m2
+     real(r8) ::  layer_height_profile(nclmax,maxpft,nlevleaf)
+     real(r8) ::  canopy_area_profile(nclmax,maxpft,nlevleaf) ! fraction of canopy in each canopy 
      ! layer, pft, and leaf layer:-
-     integer  ::  present(nclmax,numpft_ed)                        ! is there any of this pft in this canopy layer?      
-     integer  ::  nrad(nclmax,numpft_ed)                           ! number of exposed leaf layers for each canopy layer and pft
-     integer  ::  ncan(nclmax,numpft_ed)                           ! number of total   leaf layers for each canopy layer and pft
+     integer  ::  present(nclmax,maxpft)                        ! is there any of this pft in this canopy layer?      
+     integer  ::  nrad(nclmax,maxpft)                           ! number of exposed leaf layers for each canopy layer and pft
+     integer  ::  ncan(nclmax,maxpft)                           ! number of total   leaf layers for each canopy layer and pft
 
      !RADIATION FLUXES      
-     real(r8) ::  fabd_sun_z(nclmax,numpft_ed,nlevleaf)          ! sun fraction of direct light absorbed by each canopy 
+     real(r8) ::  fabd_sun_z(nclmax,maxpft,nlevleaf)          ! sun fraction of direct light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
-     real(r8) ::  fabd_sha_z(nclmax,numpft_ed,nlevleaf)          ! shade fraction of direct light absorbed by each canopy 
+     real(r8) ::  fabd_sha_z(nclmax,maxpft,nlevleaf)          ! shade fraction of direct light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
-     real(r8) ::  fabi_sun_z(nclmax,numpft_ed,nlevleaf)          ! sun fraction of indirect light absorbed by each canopy 
+     real(r8) ::  fabi_sun_z(nclmax,maxpft,nlevleaf)          ! sun fraction of indirect light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
-     real(r8) ::  fabi_sha_z(nclmax,numpft_ed,nlevleaf)          ! shade fraction of indirect light absorbed by each canopy 
+     real(r8) ::  fabi_sha_z(nclmax,maxpft,nlevleaf)          ! shade fraction of indirect light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
 
-     real(r8) ::  ed_laisun_z(nclmax,numpft_ed,nlevleaf)         ! amount of LAI in the sun   in each canopy layer, 
+     real(r8) ::  ed_laisun_z(nclmax,maxpft,nlevleaf)         ! amount of LAI in the sun   in each canopy layer, 
      ! pft, and leaf layer. m2/m2
-     real(r8) ::  ed_laisha_z(nclmax,numpft_ed,nlevleaf)         ! amount of LAI in the shade in each canopy layer,
-     real(r8) ::  ed_parsun_z(nclmax,numpft_ed,nlevleaf)         ! PAR absorbed  in the sun   in each canopy layer,
-     real(r8) ::  ed_parsha_z(nclmax,numpft_ed,nlevleaf)         ! PAR absorbed  in the shade in each canopy layer,
-     real(r8) ::  f_sun(nclmax,numpft_ed,nlevleaf)               ! fraction of leaves in the sun in each canopy layer, pft, 
+     real(r8) ::  ed_laisha_z(nclmax,maxpft,nlevleaf)         ! amount of LAI in the shade in each canopy layer,
+     real(r8) ::  ed_parsun_z(nclmax,maxpft,nlevleaf)         ! PAR absorbed  in the sun   in each canopy layer,
+     real(r8) ::  ed_parsha_z(nclmax,maxpft,nlevleaf)         ! PAR absorbed  in the shade in each canopy layer,
+     real(r8) ::  f_sun(nclmax,maxpft,nlevleaf)               ! fraction of leaves in the sun in each canopy layer, pft, 
 
      ! and leaf layer. m2/m2
      real(r8),allocatable ::  tr_soil_dir(:)                              ! fraction of incoming direct  radiation that (cm_numSWb)
@@ -353,20 +351,20 @@ module EDTypesMod
 
 
      !SEED BANK
-     real(r8) :: seeds_in(numpft_ed)                               ! seed production KgC/m2/year
-     real(r8) :: seed_decay(numpft_ed)                             ! seed decay in KgC/m2/year
-     real(r8) :: seed_germination(numpft_ed)                       ! germination rate of seed pool in KgC/m2/year
+     real(r8) :: seeds_in(maxpft)                               ! seed production KgC/m2/year
+     real(r8) :: seed_decay(maxpft)                             ! seed decay in KgC/m2/year
+     real(r8) :: seed_germination(maxpft)                       ! germination rate of seed pool in KgC/m2/year
 
      ! PHOTOSYNTHESIS       
 
-     real(r8) ::  psn_z(nclmax,numpft_ed,nlevleaf)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
+     real(r8) ::  psn_z(nclmax,maxpft,nlevleaf)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
 !     real(r8) ::  gpp                                              ! total patch gpp: KgC/m2/year
 !     real(r8) ::  npp                                              ! total patch npp: KgC/m2/year   
 
      ! ROOTS
      real(r8), allocatable ::  rootfr_ft(:,:)                      ! root fraction of each PFT in each soil layer:-
      real(r8), allocatable ::  rootr_ft(:,:)                       ! fraction of water taken from each PFT and soil layer:-
-     real(r8) ::  btran_ft(numpft_ed)                              ! btran calculated seperately for each PFT:-   
+     real(r8) ::  btran_ft(maxpft)                              ! btran calculated seperately for each PFT:-   
 
      ! DISTURBANCE 
      real(r8) ::  disturbance_rates(n_dist_types)                  ! disturbance rate from 1) mortality and 2) fire: fraction/day
@@ -376,8 +374,8 @@ module EDTypesMod
      ! Pools of litter (non respiring) 
      real(r8) ::  cwd_ag(ncwd)                                     ! above ground coarse wood debris litter that does not respire. KgC/m2
      real(r8) ::  cwd_bg(ncwd)                                     ! below ground coarse wood debris litter that does not respire. KgC/m2
-     real(r8) ::  leaf_litter(numpft_ed)                           ! above ground leaf litter that does not respire. KgC/m2
-     real(r8) ::  root_litter(numpft_ed)                           ! below ground fine root litter that does not respire. KgC/m2
+     real(r8) ::  leaf_litter(maxpft)                           ! above ground leaf litter that does not respire. KgC/m2
+     real(r8) ::  root_litter(maxpft)                           ! below ground fine root litter that does not respire. KgC/m2
 
      ! Fluxes of litter (non respiring) 
      real(r8) :: fragmentation_scaler                              ! Scale rate of litter fragmentation. 0 to 1.
@@ -387,18 +385,18 @@ module EDTypesMod
      real(r8) :: cwd_bg_out(ncwd)                                  ! Flux out of BG CWD into BG litter KgC/m2/
 
 
-     real(r8) :: leaf_litter_in(numpft_ed)                         ! Flux in  to AG leaf litter from leaf turnover and mortality KgC/m2/y
-     real(r8) :: leaf_litter_out(numpft_ed)                        ! Flux out of AG leaf litter from fragmentation KgC/m2/y
-     real(r8) :: root_litter_in(numpft_ed)                         ! Flux in  to BG root litter from leaf turnover and mortality KgC/m2/y
-     real(r8) :: root_litter_out(numpft_ed)                        ! Flux out of BG root from fragmentation KgC/m2/y
+     real(r8) :: leaf_litter_in(maxpft)                         ! Flux in  to AG leaf litter from leaf turnover and mortality KgC/m2/y
+     real(r8) :: leaf_litter_out(maxpft)                        ! Flux out of AG leaf litter from fragmentation KgC/m2/y
+     real(r8) :: root_litter_in(maxpft)                         ! Flux in  to BG root litter from leaf turnover and mortality KgC/m2/y
+     real(r8) :: root_litter_out(maxpft)                        ! Flux out of BG root from fragmentation KgC/m2/y
 
      ! Derivatives of litter (non respiring) 
      real(r8) ::  dcwd_AG_dt(ncwd)                                 ! rate of change of above ground CWD in each size class: KgC/m2/year. 
      real(r8) ::  dcwd_BG_dt(ncwd)                                 ! rate of change of below ground CWD in each size class: KgC/m2/year. 
-     real(r8) ::  dleaf_litter_dt(numpft_ed)                       ! rate of change of leaf litter in each size class: KgC/m2/year. 
-     real(r8) ::  droot_litter_dt(numpft_ed)                       ! rate of change of root litter in each size class: KgC/m2/year. 
+     real(r8) ::  dleaf_litter_dt(maxpft)                       ! rate of change of leaf litter in each size class: KgC/m2/year. 
+     real(r8) ::  droot_litter_dt(maxpft)                       ! rate of change of root litter in each size class: KgC/m2/year. 
 
-     real(r8) ::  repro(numpft_ed)                                 ! allocation to reproduction per PFT : KgC/m2
+     real(r8) ::  repro(maxpft)                                 ! allocation to reproduction per PFT : KgC/m2
 
      !FUEL CHARECTERISTICS
      real(r8) ::  sum_fuel                                         ! total ground fuel related to ros (omits 1000hr fuels): KgC/m2
@@ -508,9 +506,9 @@ module EDTypesMod
      real(r8) ::  water_memory(numWaterMem)                             ! last 10 days of soil moisture memory...
 
      !SEED BANK
-     real(r8) :: seed_bank(numpft_ed)                              ! seed pool in KgC/m2/year
-     real(r8) :: dseed_dt(numpft_ed)
-     real(r8) :: seed_rain_flux(numpft_ed)                         ! flux of seeds from exterior KgC/m2/year (needed for C balance purposes)
+     real(r8) :: seed_bank(maxpft)                              ! seed pool in KgC/m2/year
+     real(r8) :: dseed_dt(maxpft)
+     real(r8) :: seed_rain_flux(maxpft)                         ! flux of seeds from exterior KgC/m2/year (needed for C balance purposes)
 
      ! FIRE
      real(r8) ::  wind                                         ! daily wind in m/min for Spitfire units 
@@ -519,7 +517,7 @@ module EDTypesMod
      real(r8) ::  frac_burnt                                   ! fraction of soil burnt in this day.
      real(r8) ::  total_burn_flux_to_atm                       ! total carbon burnt to the atmosphere in this day. KgC/site
      real(r8) ::  cwd_ag_burned(ncwd)
-     real(r8) ::  leaf_litter_burned(numpft_ed)
+     real(r8) ::  leaf_litter_burned(maxpft)
 
      ! PLANT HYDRAULICS
      type(ed_site_hydr_type), pointer :: si_hydr

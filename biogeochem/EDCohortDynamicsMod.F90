@@ -676,8 +676,8 @@ contains
      type (ed_cohort_type) , pointer :: currentCohort, nextc, nextnextc
      integer  :: i  
      integer  :: fusion_took_place
-     integer  :: maxcohorts !maximum total no of cohorts. Needs to be >numpft_edx2 
-     integer  :: iterate    !do we need to keep fusing to get below maxcohorts?
+     integer  :: maxcohorts ! maximum total no of cohorts.
+     integer  :: iterate    ! do we need to keep fusing to get below maxcohorts?
      integer  :: nocohorts
      real(r8) :: newn
      real(r8) :: diff

@@ -19,10 +19,11 @@ module EDInitMod
   use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type, area
   use EDTypesMod                , only : ncwd
   use EDTypesMod                , only : nuMWaterMem
-  use EDTypesMod                , only : numpft_ed
+  use EDTypesMod                , only : maxpft
   use FatesInterfaceMod         , only : bc_in_type
   use FatesInterfaceMod         , only : hlm_use_planthydro
   use FatesInterfaceMod         , only : hlm_use_inventory_init
+  use FatesInterfaceMod         , only : numpft
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -216,8 +217,8 @@ contains
      real(r8) :: cwd_ag_local(ncwd)
      real(r8) :: cwd_bg_local(ncwd)
      real(r8) :: spread_local(nclmax)
-     real(r8) :: leaf_litter_local(numpft_ed)
-     real(r8) :: root_litter_local(numpft_ed)
+     real(r8) :: leaf_litter_local(maxpft)
+     real(r8) :: root_litter_local(maxpft)
      real(r8) :: age !notional age of this patch
      type(ed_patch_type), pointer :: newp
 
@@ -302,7 +303,7 @@ contains
     patch_in%tallest  => null()
     patch_in%shortest => null()
 
-    do pft =  1,numpft_ed !FIX(RF,032414) - turning off veg dynamics
+    do pft =  1,numpft
 
        if(EDecophyscon%initd(pft)>1.0E-7) then
 

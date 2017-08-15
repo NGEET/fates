@@ -17,13 +17,14 @@ module FatesInterfaceMod
    use EDTypesMod          , only : inir
    use EDTypesMod          , only : nclmax
    use EDTypesMod          , only : nlevleaf
-   use EDTypesMod          , only : numpft_ed
+   use EDTypesMod          , only : maxpft
    use FatesConstantsMod   , only : r8 => fates_r8
    use FatesConstantsMod   , only : itrue
    use FatesGlobals        , only : fates_global_verbose
    use FatesGlobals        , only : fates_log
    use FatesGlobals        , only : endrun => fates_endrun
    use EDPftvarcon         , only : FatesReportPFTParams
+   use EDPftvarcon         , only : EDPftvarcon_inst
    use EDParamsMod         , only : FatesReportParams
 
 
@@ -218,6 +219,16 @@ module FatesInterfaceMod
    real(r8), protected :: hlm_freq_day        ! fraction of year for daily time-step 
                                               ! (1/days_per_year_, this is a frequency
    
+
+   ! -------------------------------------------------------------------------------------
+   !
+   ! Constant parameters that are dictated by the fates parameter file
+   !
+   ! -------------------------------------------------------------------------------------
+
+   integer, protected :: numpft   ! The total number of PFTs defined in the simulation
+   
+
    ! -------------------------------------------------------------------------------------
    ! Structured Boundary Conditions (SITE/PATCH SCALE)
    ! For floating point arrays, it is sometimes the convention to define the arrays as
@@ -854,7 +865,7 @@ contains
 
          if(numpft>maxpft) then
             write(fates_log(), *) 'The number of PFTs dictated by the FATES parameter file'
-            write(fates_log(), *) 'is larger than the maximum allowed. Increase the parameter constant:'
+            write(fates_log(), *) 'is larger than the maximum allowed. Increase the FATES parameter constant'
             write(fates_log(), *) 'FatesInterfaceMod.F90:maxpft accordingly'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -862,10 +873,10 @@ contains
 
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
-
+         
          fates_maxElementsPerPatch = max(maxCohortsPerPatch, &
-              numpft_ed * nclmax * nlevleaf)
-      
+               numpft * nclmax * nlevleaf)
+         
          fates_maxElementsPerSite = maxPatchesPerSite * fates_maxElementsPerPatch
 
 

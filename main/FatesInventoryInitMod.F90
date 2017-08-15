@@ -76,7 +76,6 @@ contains
       use shr_file_mod, only        : shr_file_getUnit
       use shr_file_mod, only        : shr_file_freeUnit
       use EDTypesMod, only          : nclmax
-      use EDTypesMod, only          : numpft_ed
       use EDTypesMod, only          : maxpft
       use EDTypesMod, only          : ncwd
       use EDParamsMod, only         : ED_val_maxspread
@@ -252,12 +251,12 @@ contains
             spread_init(:)      = ED_val_maxspread
             cwd_ag_init(:)      = 0.0_r8
             cwd_bg_init(:)      = 0.0_r8
-            leaf_litter_init(1:numpft_ed) = 0.0_r8
-            root_litter_init(1:numpft_ed) = 0.0_r8
+            leaf_litter_init(:) = 0.0_r8
+            root_litter_init(:) = 0.0_r8
 
             call create_patch(sites(s), newpatch, age_init, area_init, spread_init, &
                   cwd_ag_init, cwd_bg_init, &
-                  leaf_litter_init(1:numpft_ed), root_litter_init(1:numpft_ed) )
+                  leaf_litter_init, root_litter_init )
 
             if( inv_format_list(invsite) == 1 ) then
                call set_inventory_edpatch_type1(newpatch,pss_file_unit,ipa,ios,patch_name)
@@ -644,7 +643,6 @@ contains
 
       use EDTypesMod, only: get_age_class_index
       use EDtypesMod, only: AREA
-      use EDTypesMod, only: numpft_ed
       use EDTypesMod, only: ncwd
       use SFParamsMod , only : SF_val_CWD_frac
 
@@ -719,10 +717,10 @@ contains
          newpatch%cwd_bg(icwd) = 0.0_r8
       end do
 
-      do ipft = 1, numpft_ed
-         newpatch%leaf_litter(ipft) = 0.0_r8
-         newpatch%root_litter(ipft) = 0.0_r8
-      end do
+
+      newpatch%leaf_litter(:) = 0.0_r8
+      newpatch%root_litter(:) = 0.0_r8
+
 
       return
    end subroutine set_inventory_edpatch_type1
@@ -754,11 +752,11 @@ contains
       ! avgRG    (cm/yr?)   Average Radial Growth (NOT USED)
       ! --------------------------------------------------------------------------------------------
 
-      use EDTypesMod          , only : numpft_ed
       use EDGrowthFunctionsMod, only : hite
       use EDGrowthFunctionsMod, only : bleaf
       use EDGrowthFunctionsMod, only : bdead
       use EDCohortDynamicsMod , only : create_cohort
+      use FatesInterfaceMod   , only : numpft
 
       ! Arguments
       type(ed_site_type),intent(inout), target    :: csite         ! current site
@@ -824,10 +822,10 @@ contains
       ! pft, nplant and dbh are the critical ones in this format specification
       ! -------------------------------------------------------------------------------------------
 
-      if (c_pft > numpft_ed ) then
+      if (c_pft > numpft ) then
          write(fates_log(), *) 'inventory pft: ',c_pft
          write(fates_log(), *) 'An inventory cohort file specified a pft index'
-         write(fates_log(), *) 'greater than the maximum specified pfts ed_numpft'
+         write(fates_log(), *) 'greater than the maximum specified pfts numpft'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 

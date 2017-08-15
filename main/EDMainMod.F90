@@ -17,6 +17,7 @@ module EDMainMod
   use FatesInterfaceMod        , only : hlm_use_ed_st3 
   use FatesInterfaceMod        , only : bc_in_type
   use FatesInterfaceMod        , only : hlm_masterproc
+  use FatesInterfaceMod        , only : numpft
   use EDCohortDynamicsMod      , only : allocate_live_biomass
   use EDCohortDynamicsMod      , only : terminate_cohorts
   use EDCohortDynamicsMod      , only : fuse_cohorts
@@ -34,7 +35,6 @@ module EDMainMod
   use SFMainMod                , only : fire_model 
   use EDTypesMod               , only : get_age_class_index
   use EDtypesMod               , only : ncwd
-  use EDTypesMod               , only : numpft_ed
   use EDtypesMod               , only : ed_site_type
   use EDtypesMod               , only : ed_patch_type
   use EDtypesMod               , only : ed_cohort_type
@@ -228,9 +228,7 @@ contains
 
     small_no = 0.0000000000_r8  ! Obviously, this is arbitrary.  RF - changed to zero
 
-    do ft = 1,numpft_ed
-       currentSite%dseed_dt(ft) = 0._r8  ! zero the dseed_dt at the site level before looping through patches and adding the fluxes from each patch
-    end do
+    currentSite%dseed_dt(:)       = 0._r8
     currentSite%seed_rain_flux(:) = 0._r8  
 
     currentPatch => currentSite%youngest_patch
@@ -309,7 +307,7 @@ contains
           currentPatch%cwd_bg(c) =  currentPatch%cwd_bg(c) + currentPatch%dcwd_bg_dt(c)* hlm_freq_day
        enddo
 
-       do ft = 1,numpft_ed
+       do ft = 1,numpft
           currentPatch%leaf_litter(ft) = currentPatch%leaf_litter(ft) + currentPatch%dleaf_litter_dt(ft)* hlm_freq_day
           currentPatch%root_litter(ft) = currentPatch%root_litter(ft) + currentPatch%droot_litter_dt(ft)* hlm_freq_day
        enddo
@@ -325,7 +323,7 @@ contains
           endif
        enddo
 
-       do ft = 1,numpft_ed
+       do ft = 1,numpft
           if(currentPatch%leaf_litter(ft)<small_no)then
             write(fates_log(),*) 'negative leaf litter numerical error', &
                   currentPatch%leaf_litter(ft),CurrentSite%lat,CurrentSite%lon,&
@@ -355,12 +353,12 @@ contains
     enddo
 
     ! at the site level, update the seed bank mass
-    do ft = 1,numpft_ed
+    do ft = 1,numpft
        currentSite%seed_bank(ft) = currentSite%seed_bank(ft) + currentSite%dseed_dt(ft)*hlm_freq_day
     enddo
 
     ! Check for negative values. Write out warning to show carbon balance. 
-    do ft = 1,numpft_ed
+    do ft = 1,numpft
        if(currentSite%seed_bank(ft)<small_no)then
           write(fates_log(),*) 'negative seedbank', currentSite%seed_bank(ft)
           currentSite%seed_bank(ft) = small_no
