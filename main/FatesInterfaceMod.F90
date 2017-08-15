@@ -103,6 +103,15 @@ module FatesInterfaceMod
                                          ! between the pedotransfer functions of the HLM
                                          ! and how it moves and stores water in its
                                          ! rhizosphere shells
+   
+   integer, protected :: hlm_max_patch_per_site ! The HLM needs to exchange some patch
+                                                ! level quantities with FATES
+                                                ! FATES does not dictate those allocations
+                                                ! since it happens pretty early in
+                                                ! the model initialization sequence.
+                                                ! So we want to at least query it,
+                                                ! compare it to our maxpatchpersite,
+                                                ! and gracefully halt if we are over-allocating
 
    integer, protected :: hlm_use_vertsoilc ! This flag signals whether or not the 
                                            ! host model is using vertically discretized
@@ -1107,6 +1116,7 @@ contains
          hlm_hio_ignore_val   = unset_double
          hlm_masterproc   = unset_int
          hlm_ipedof       = unset_int
+         hlm_max_patch_per_site = unset_int
          hlm_use_vertsoilc = unset_int
          hlm_use_spitfire  = unset_int
          hlm_use_planthydro = unset_int
@@ -1259,6 +1269,21 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_max_patch_per_site .eq. unset_int ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'the number of patch-space per site unset: hlm_max_patch_per_site, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         elseif(hlm_max_patch_per_site < maxPatchesPerSite ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'FATES is trying to allocate space for more patches per site, than the HLM has space for.'
+               write(fates_log(), *) 'hlm_max_patch_per_site (HLM side): ', hlm_max_patch_per_site
+               write(fates_log(), *) 'maxPatchesPerSite (FATES side): ', maxPatchesPerSite
+               write(fates_log(), *)
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if(hlm_use_vertsoilc .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'switch for the HLMs soil carbon discretization unset: hlm_use_vertsoilc, exiting'
@@ -1341,6 +1366,12 @@ contains
                hlm_ipedof = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_ipedof = ',ival,' to FATES'
+               end if
+
+            case('max_patch_per_site')
+               hlm_max_patch_per_site = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_max_patch_per_site = ',ival,' to FATES'
                end if
 
             case('use_vertsoilc')
