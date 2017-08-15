@@ -105,6 +105,10 @@ contains
       real(r8),parameter :: tolerance = 0.000000001_r8
       real(r8), parameter :: pi   = 3.141592654                 ! PI
 
+      
+      integer, parameter :: max_diag_nlevleaf = 4
+      integer, parameter :: diag_nlevleaf = min(nlevleaf,max_diag_nlevleaf)  ! for diagnostics, write a small number of leaf layers
+
       real(r8) :: denom
       real(r8) :: lai_reduction(2)
 
@@ -535,11 +539,11 @@ contains
                              if (L == currentPatch%NCL_p.and.currentPatch%NCL_p > 1)then !is this the (incomplete) understorey?
                                 !Add on the radiation coming up through the canopy gaps.
                                 !diffuse to diffuse
-                                weighted_dif_up(L) = weighted_dif_up(L) +(1.0-sum(ftweight(L,:,1))) * &
+                                weighted_dif_up(L) = weighted_dif_up(L) +(1.0-sum(ftweight(L,1:numpft,1))) * &
                                      weighted_dif_down(L-1) * bc_in(s)%albgr_dif_rb(ib)
                                 !direct to diffuse
                                 weighted_dif_up(L) = weighted_dif_up(L) + forc_dir(ifp,ib) * &
-                                     weighted_dir_tr(L-1) * (1.0-sum(ftweight(L,:,1)))*bc_in(s)%albgr_dir_rb(ib)
+                                     weighted_dir_tr(L-1) * (1.0-sum(ftweight(L,1:numpft,1)))*bc_in(s)%albgr_dir_rb(ib)
                              endif
                           end do !L
                           !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
@@ -606,7 +610,8 @@ contains
                                    endif !present
                                 end do!ft
                                 if (L == currentPatch%NCL_p.and.currentPatch%NCL_p > 1)then !is this the (incomplete) understorey?
-                                   weighted_dif_down(L) = weighted_dif_down(L) + weighted_dif_down(L-1)*(1.0-sum(ftweight(L,:,1)))
+                                   weighted_dif_down(L) = weighted_dif_down(L) + weighted_dif_down(L-1) * &
+                                         (1.0-sum(ftweight(L,1:numpft,1)))
                                 end if
                              end do ! do L loop
 
@@ -650,10 +655,10 @@ contains
 
                                 if (L == currentPatch%NCL_p.and.currentPatch%NCL_p > 1)then  !is this the (incomplete) understorey?
                                    !Add on the radiation coming up through the canopy gaps.
-                                   weighted_dif_up(L) = weighted_dif_up(L) +(1.0_r8-sum(ftweight(L,:,1))) * &
+                                   weighted_dif_up(L) = weighted_dif_up(L) +(1.0_r8-sum(ftweight(L,1:numpft,1))) * &
                                         weighted_dif_down(L-1) * bc_in(s)%albgr_dif_rb(ib)
                                    weighted_dif_up(L) = weighted_dif_up(L) + forc_dir(ifp,ib) * &
-                                        weighted_dir_tr(L-1) * (1.0_r8-sum(ftweight(L,:,1)))*bc_in(s)%albgr_dir_rb(ib)
+                                        weighted_dir_tr(L-1) * (1.0_r8-sum(ftweight(L,1:numpft,1)))*bc_in(s)%albgr_dir_rb(ib)
                                 end if
                              end do!L
                           end do ! do while over iter
@@ -758,11 +763,11 @@ contains
                              !radiation absorbed from fluxes through unfilled part of lower canopy.
                              if (currentPatch%NCL_p > 1.and.L == currentPatch%NCL_p)then 
                                 abs_rad(ib) = abs_rad(ib) + weighted_dif_down(L-1) * &
-                                     (1.0_r8-sum(ftweight(L,:,1)))*(1.0_r8-bc_in(s)%albgr_dif_rb(ib))
+                                     (1.0_r8-sum(ftweight(L,1:numpft,1)))*(1.0_r8-bc_in(s)%albgr_dif_rb(ib))
                                 abs_rad(ib) = abs_rad(ib) + forc_dir(ifp,ib) * weighted_dir_tr(L-1) * &
-                                     (1.0_r8-sum(ftweight(L,:,1)))*(1.0_r8-bc_in(s)%albgr_dir_rb(ib))
-                                tr_soili = tr_soili + weighted_dif_down(L-1) * (1.0_r8-sum(ftweight(L,:,1)))
-                                tr_soild = tr_soild + forc_dir(ifp,ib) * weighted_dir_tr(L-1) * (1.0_r8-sum(ftweight(L,:,1)))
+                                     (1.0_r8-sum(ftweight(L,1:numpft,1)))*(1.0_r8-bc_in(s)%albgr_dir_rb(ib))
+                                tr_soili = tr_soili + weighted_dif_down(L-1) * (1.0_r8-sum(ftweight(L,1:numpft,1)))
+                                tr_soild = tr_soild + forc_dir(ifp,ib) * weighted_dir_tr(L-1) * (1.0_r8-sum(ftweight(L,1:numpft,1)))
                              endif
                              
                              if (radtype == 1)then
@@ -792,7 +797,7 @@ contains
                              if ( abs(error) > 0.0001)then
                                 write(fates_log(),*)'dir ground absorption error',ifp,s,error,currentPatch%sabs_dir(ib), &
                                      currentPatch%tr_soil_dir(ib)* &
-                                     (1.0_r8-bc_in(s)%albgr_dir_rb(ib)),currentPatch%NCL_p,ib,sum(ftweight(1,:,1))
+                                     (1.0_r8-bc_in(s)%albgr_dir_rb(ib)),currentPatch%NCL_p,ib,sum(ftweight(1,1:numpft,1))
                                 write(fates_log(),*) 'albedos',currentPatch%sabs_dir(ib) ,currentPatch%tr_soil_dir(ib), &
                                      (1.0_r8-bc_in(s)%albgr_dir_rb(ib)),currentPatch%lai
                                 
@@ -807,7 +812,7 @@ contains
                                   (1.0_r8-bc_in(s)%albgr_dif_rb(ib)))) > 0.0001)then
                                 write(fates_log(),*)'dif ground absorption error',ifp,s,currentPatch%sabs_dif(ib) , &
                                      (currentPatch%tr_soil_dif(ib)* &
-                                     (1.0_r8-bc_in(s)%albgr_dif_rb(ib))),currentPatch%NCL_p,ib,sum(ftweight(1,:,1))
+                                     (1.0_r8-bc_in(s)%albgr_dif_rb(ib))),currentPatch%NCL_p,ib,sum(ftweight(1,1:numpft,1))
                              endif
                           endif
                           
@@ -831,25 +836,6 @@ contains
                              enddo
                           enddo
                           
-                          if (lai_change(1,2,1).gt.0.0.and.lai_change(1,2,2).gt.0.0)then
-                             !                        write(fates_log(),*) 'lai_change(1,2,12)',lai_change(1,2,1:4)
-                          endif
-                          if (lai_change(1,2,2).gt.0.0.and.lai_change(1,2,3).gt.0.0)then
-                             !                        write(fates_log(),*) ' lai_change (1,2,23)',lai_change(1,2,1:4)
-                          endif
-                          if (lai_change(1,1,3).gt.0.0.and.lai_change(1,1,2).gt.0.0)then
-                             ! NO-OP
-                             ! write(fates_log(),*) 'first layer of lai_change 2 3',lai_change(1,1,1:3)
-                          endif
-                          if (lai_change(1,1,3).gt.0.0.and.lai_change(1,1,4).gt.0.0)then
-                             ! NO-OP
-                             ! write(fates_log(),*) 'first layer of lai_change 3 4',lai_change(1,1,1:4)
-                          endif
-                          if (lai_change(1,1,4).gt.0.0.and.lai_change(1,1,5).gt.0.0)then
-                             ! NO-OP
-                             ! write(fates_log(),*) 'first layer of lai_change 4 5',lai_change(1,1,1:5)                            
-                          endif
-                          
                           if (radtype == 1)then
                              !here we are adding a within-ED radiation scheme tolerance, and then adding the diffrence onto the albedo
                              !it is important that the lower boundary for this is ~1000 times smaller than the tolerance in surface albedo. 
@@ -866,10 +852,10 @@ contains
                                 write(fates_log(),*) 'Large Dir Radn consvn error',error ,ifp,ib
                                 write(fates_log(),*) 'diags', bc_out(s)%albd_parb(ifp,ib), bc_out(s)%ftdd_parb(ifp,ib), &
                                      bc_out(s)%ftid_parb(ifp,ib), bc_out(s)%fabd_parb(ifp,ib)
-                                write(fates_log(),*) 'lai_change',lai_change(currentpatch%ncl_p,1:numpft,1:4)
-                                write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft,1:4)
-                                write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft,1:4)
-                                write(fates_log(),*) 'ftweight',ftweight(1,1:numpft,1:4)
+                                write(fates_log(),*) 'lai_change',lai_change(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                                write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                                write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                                write(fates_log(),*) 'ftweight',ftweight(1,1:numpft,1:diag_nlevleaf)
                                 write(fates_log(),*) 'cp',currentPatch%area, currentPatch%patchno
                                 write(fates_log(),*) 'bc_in(s)%albgr_dir_rb(ib)',bc_in(s)%albgr_dir_rb(ib)
                                 
@@ -885,14 +871,14 @@ contains
                                 write(fates_log(),*)  '>5% Dif Radn consvn error',error ,ifp,ib
                                 write(fates_log(),*) 'diags', bc_out(s)%albi_parb(ifp,ib), bc_out(s)%ftii_parb(ifp,ib), &
                                      bc_out(s)%fabi_parb(ifp,ib)
-                                write(fates_log(),*) 'lai_change',lai_change(currentpatch%ncl_p,1:numpft,1:4)
-                                write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft,1:4)
-                                write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft,1:4)
-                                write(fates_log(),*) 'ftweight',ftweight(currentpatch%ncl_p,1:numpft,1:4)
+                                write(fates_log(),*) 'lai_change',lai_change(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                                write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                                write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                                write(fates_log(),*) 'ftweight',ftweight(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
                                 write(fates_log(),*) 'cp',currentPatch%area, currentPatch%patchno
                                 write(fates_log(),*) 'bc_in(s)%albgr_dif_rb(ib)',bc_in(s)%albgr_dif_rb(ib)
                                 write(fates_log(),*) 'rhol',rhol(1:numpft,:)
-                                write(fates_log(),*) 'ftw',sum(ftweight(1,:,1)),ftweight(1,1:numpft,1)
+                                write(fates_log(),*) 'ftw',sum(ftweight(1,1:numpft,1)),ftweight(1,1:numpft,1)
                                 write(fates_log(),*) 'present',currentPatch%present(1,1:numpft)
                                 write(fates_log(),*) 'CAP',currentPatch%canopy_area_profile(1,1:numpft,1)
                                 

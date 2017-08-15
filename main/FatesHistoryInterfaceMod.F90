@@ -1103,7 +1103,6 @@ contains
     use EDtypesMod          , only : ncwd
     use EDtypesMod          , only : ican_upper
     use EDtypesMod          , only : ican_ustory
-    use EDTypesMod          , only : maxpft
     use EDTypesMod        , only : get_sizeage_class_index
     use EDTypesMod        , only : nlevleaf
 

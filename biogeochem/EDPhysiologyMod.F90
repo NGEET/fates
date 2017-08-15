@@ -1428,7 +1428,7 @@ contains
              surface_prof(j) = exp(-surfprof_exp * bc_in(s)%z_sisl(j)) / bc_in(s)%dz_decomp_sisl(j)
           end do
           
-          cinput_rootfr(1:numpft, :)     = 0._r8
+          cinput_rootfr(:,:)     = 0._r8
           
           ! calculate pft-specific rooting profiles in the absence of permafrost or bedrock limitations
           if ( exponential_rooting_profile ) then

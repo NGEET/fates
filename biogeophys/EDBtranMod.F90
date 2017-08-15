@@ -115,6 +115,7 @@ contains
       real(r8) :: pftgs(maxpft)     ! pft weighted stomatal conductance s/m
       real(r8) :: temprootr              
       real(r8) :: balive_patch
+      real(r8) :: sum_pftgs         ! sum of weighted conductances (for normalization)
       !------------------------------------------------------------------------------
       
       associate(                                 &
@@ -185,14 +186,15 @@ contains
               ! sink term across the different layers in driver/host.  Photosynthesis will
               ! pass the host a total transpiration for the patch.  This needs rootr to be
               ! distributed over the soil layers.
-              
+              sum_pftgs = sum(pftgs(1:numpft))
+
               do j = 1,hlm_numlevgrnd
                  bc_out(s)%rootr_pagl(ifp,j) = 0._r8
                  do ft = 1,numpft
-                    if(sum(pftgs) > 0._r8)then !prevent problem with the first timestep - might fail
+                    if( sum_pftgs > 0._r8)then !prevent problem with the first timestep - might fail
                        !bit-retart test as a result? FIX(RF,032414)  
                        bc_out(s)%rootr_pagl(ifp,j) = bc_out(s)%rootr_pagl(ifp,j) + &
-                            cpatch%rootr_ft(ft,j) * pftgs(ft)/sum(pftgs)
+                            cpatch%rootr_ft(ft,j) * pftgs(ft)/sum_pftgs
                     else
                        bc_out(s)%rootr_pagl(ifp,j) = bc_out(s)%rootr_pagl(ifp,j) + &
                             cpatch%rootr_ft(ft,j) * 1./numpft
@@ -208,9 +210,9 @@ contains
                  !weight patch level output BTRAN for the
                  bc_out(s)%btran_pa(ifp) = 0.0_r8
                  do ft = 1,numpft
-                    if(sum(pftgs) > 0._r8)then !prevent problem with the first timestep - might fail
+                    if( sum_pftgs > 0._r8)then !prevent problem with the first timestep - might fail
                        !bit-retart test as a result? FIX(RF,032414)   
-                       bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft)  * pftgs(ft)/sum(pftgs)
+                       bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft)  * pftgs(ft)/sum_pftgs
                     else
                        bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft) * 1./numpft
                     end if
@@ -220,7 +222,7 @@ contains
               temprootr = sum(bc_out(s)%rootr_pagl(ifp,1:hlm_numlevgrnd))
 
               if(abs(1.0_r8-temprootr) > 1.0e-10_r8 .and. temprootr > 1.0e-10_r8)then
-                 write(fates_log(),*) 'error with rootr in canopy fluxes',temprootr,sum(pftgs)
+                 write(fates_log(),*) 'error with rootr in canopy fluxes',temprootr,sum_pftgs
                  do j = 1,hlm_numlevgrnd
                     bc_out(s)%rootr_pagl(ifp,j) = bc_out(s)%rootr_pagl(ifp,j)/temprootr
                  enddo
