@@ -7,7 +7,7 @@ module EDCanopyStructureMod
 
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesGlobals          , only : fates_log
-  use EDPftvarcon             , only : EDPftvarcon_inst
+  use EDPftvarcon           , only : EDPftvarcon_inst
   use EDGrowthFunctionsMod  , only : c_area
   use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type, ncwd
@@ -825,7 +825,6 @@ contains
     use EDPatchDynamicsMod   , only : set_root_fraction
     use EDTypesMod           , only : sizetype_class_index
     use EDGrowthFunctionsMod , only : tree_lai, c_area
-    use EDEcophysConType     , only : EDecophyscon
     use EDtypesMod           , only : area
     use EDPftvarcon            , only : EDPftvarcon_inst
 
@@ -941,7 +940,6 @@ contains
 
     use EDGrowthFunctionsMod , only : tree_lai, tree_sai, c_area 
     use EDtypesMod           , only : area, dinc_ed, hitemax, n_hite_bins
-    use EDEcophysConType     , only : EDecophyscon
   
     !
     ! !ARGUMENTS    
@@ -1051,19 +1049,19 @@ contains
           currentCohort => currentPatch%shortest
           do while(associated(currentCohort))  
              ft = currentCohort%pft
-             min_chite = currentCohort%hite - currentCohort%hite * EDecophyscon%crown(ft)
+             min_chite = currentCohort%hite - currentCohort%hite * EDPftvarcon_inst%crown(ft)
              max_chite = currentCohort%hite  
              do iv = 1,N_HITE_BINS  
                 frac_canopy(iv) = 0.0_r8
                 ! this layer is in the middle of the canopy
                 if(max_chite > maxh(iv).and.min_chite < minh(iv))then 
-                   frac_canopy(iv)= min(1.0_r8,dh / (currentCohort%hite*EDecophyscon%crown(ft)))
+                   frac_canopy(iv)= min(1.0_r8,dh / (currentCohort%hite*EDPftvarcon_inst%crown(ft)))
                    ! this is the layer with the bottom of the canopy in it. 
                 elseif(min_chite < maxh(iv).and.min_chite > minh(iv).and.max_chite > maxh(iv))then 
-                   frac_canopy(iv) = (maxh(iv) -min_chite ) / (currentCohort%hite*EDecophyscon%crown(ft))
+                   frac_canopy(iv) = (maxh(iv) -min_chite ) / (currentCohort%hite*EDPftvarcon_inst%crown(ft))
                    ! this is the layer with the top of the canopy in it. 
                 elseif(max_chite > minh(iv).and.max_chite < maxh(iv).and.min_chite < minh(iv))then 
-                   frac_canopy(iv) = (max_chite - minh(iv)) / (currentCohort%hite*EDecophyscon%crown(ft))
+                   frac_canopy(iv) = (max_chite - minh(iv)) / (currentCohort%hite*EDPftvarcon_inst%crown(ft))
                 elseif(max_chite < maxh(iv).and.min_chite > minh(iv))then !the whole cohort is within this layer. 
                    frac_canopy(iv) = 1.0_r8
                 endif
@@ -1159,9 +1157,9 @@ contains
                 ! what is the height of this layer? (for snow burial purposes...)  
                 ! EDPftvarcon_inst%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile. 
                 layer_top_hite = currentCohort%hite-((iv/currentCohort%NV) * currentCohort%hite * &
-                      EDecophyscon%crown(currentCohort%pft) )
+                      EDPftvarcon_inst%crown(currentCohort%pft) )
                 layer_bottom_hite = currentCohort%hite-(((iv+1)/currentCohort%NV) * currentCohort%hite * &
-                      EDecophyscon%crown(currentCohort%pft)) ! EDPftvarcon_inst%vertical_canopy_frac(ft))
+                      EDPftvarcon_inst%crown(currentCohort%pft)) ! EDPftvarcon_inst%vertical_canopy_frac(ft))
                 
                 fraction_exposed =1.0_r8
                 
@@ -1192,10 +1190,10 @@ contains
              iv = currentCohort%NV
              ! EDPftvarcon_inst%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile.
              layer_top_hite = currentCohort%hite-((iv/currentCohort%NV) * currentCohort%hite * &
-                   EDecophyscon%crown(currentCohort%pft) )
+                   EDPftvarcon_inst%crown(currentCohort%pft) )
              ! EDPftvarcon_inst%vertical_canopy_frac(ft))
              layer_bottom_hite = currentCohort%hite-(((iv+1)/currentCohort%NV) * currentCohort%hite * &
-                   EDecophyscon%crown(currentCohort%pft))
+                   EDPftvarcon_inst%crown(currentCohort%pft))
              
              fraction_exposed = 1.0_r8 !default. 
              snow_depth_avg = snow_depth_si * frac_sno_eff_si

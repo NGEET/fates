@@ -34,7 +34,6 @@ module FatesInventoryInitMod
    use EDTypesMod       , only : ed_cohort_type 
    use EDTypesMod       , only : area
    use EDPftvarcon      , only : EDPftvarcon_inst
-   use EDEcophysConType , only : EDecophyscon
 
    implicit none
    private
@@ -875,13 +874,13 @@ contains
       temp_cohort%b           = temp_cohort%balive + temp_cohort%bdead
       
       if( EDPftvarcon_inst%evergreen(c_pft) == 1) then
-         temp_cohort%bstore = Bleaf(temp_cohort) * EDecophyscon%cushion(c_pft)
+         temp_cohort%bstore = Bleaf(temp_cohort) * EDPftvarcon_inst%cushion(c_pft)
          temp_cohort%laimemory = 0._r8
          cstatus = 2
       endif
       
       if( EDPftvarcon_inst%season_decid(c_pft) == 1 ) then !for dorment places
-         temp_cohort%bstore = Bleaf(temp_cohort) * EDecophyscon%cushion(c_pft) !stored carbon in new seedlings.
+         temp_cohort%bstore = Bleaf(temp_cohort) * EDPftvarcon_inst%cushion(c_pft) !stored carbon in new seedlings.
          if(csite%status == 2)then 
             temp_cohort%laimemory = 0.0_r8
          else
@@ -893,7 +892,7 @@ contains
       endif
       
       if ( EDPftvarcon_inst%stress_decid(c_pft) == 1 ) then
-         temp_cohort%bstore = Bleaf(temp_cohort) * EDecophyscon%cushion(c_pft)
+         temp_cohort%bstore = Bleaf(temp_cohort) * EDPftvarcon_inst%cushion(c_pft)
          temp_cohort%laimemory = Bleaf(temp_cohort)
          temp_cohort%balive = temp_cohort%balive - temp_cohort%laimemory
          cstatus = csite%dstatus

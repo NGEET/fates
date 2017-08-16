@@ -13,9 +13,7 @@ module EDPhysiologyMod
   use FatesInterfaceMod, only    : hlm_day_of_year
   use FatesInterfaceMod, only    : numpft
   use FatesConstantsMod, only    : r8 => fates_r8
-  use EDEcophysContype , only    : EDecophyscon
   use EDPftvarcon      , only    : EDPftvarcon_inst
-  use EDEcophysContype , only    : EDecophyscon
   use FatesInterfaceMod, only    : bc_in_type
   use EDCohortDynamicsMod , only : allocate_live_biomass, zero_cohort
   use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
@@ -194,14 +192,14 @@ contains
                    currentCohort%leaf_cost =  1._r8/(EDPftvarcon_inst%slatop(currentCohort%pft)*1000.0_r8)
                    currentCohort%leaf_cost = currentCohort%leaf_cost + &
                         1.0_r8/(EDPftvarcon_inst%slatop(currentCohort%pft)*1000.0_r8) * &
-                        EDPftvarcon_inst%allom_l2fr(currentCohort%pft) / EDecophyscon%root_long(currentCohort%pft)
+                        EDPftvarcon_inst%allom_l2fr(currentCohort%pft) / EDPftvarcon_inst%root_long(currentCohort%pft)
                    currentCohort%leaf_cost = currentCohort%leaf_cost * (EDPftvarcon_inst%grperc(currentCohort%pft) + 1._r8)
                 else !evergreen costs
                    currentCohort%leaf_cost = 1.0_r8/(EDPftvarcon_inst%slatop(currentCohort%pft)* &
                         EDPftvarcon_inst%leaf_long(currentCohort%pft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
                    currentCohort%leaf_cost = currentCohort%leaf_cost + &
                         1.0_r8/(EDPftvarcon_inst%slatop(currentCohort%pft)*1000.0_r8) * &
-                        EDPftvarcon_inst%allom_l2fr(currentCohort%pft) / EDecophyscon%root_long(currentCohort%pft)
+                        EDPftvarcon_inst%allom_l2fr(currentCohort%pft) / EDPftvarcon_inst%root_long(currentCohort%pft)
                    currentCohort%leaf_cost = currentCohort%leaf_cost * (EDPftvarcon_inst%grperc(currentCohort%pft) + 1._r8)
                 endif
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost)then
@@ -212,7 +210,7 @@ contains
                       endif
 
                       ! keep trimming until none of the canopy is in negative carbon balance.              
-                      if (currentCohort%hite > EDecophyscon%hgt_min(currentCohort%pft))then
+                      if (currentCohort%hite > EDPftvarcon_inst%hgt_min(currentCohort%pft))then
                          currentCohort%canopy_trim = currentCohort%canopy_trim - EDPftvarcon_inst%trim_inc(currentCohort%pft)
                          if (EDPftvarcon_inst%evergreen(currentCohort%pft) /= 1)then
                             currentCohort%laimemory = currentCohort%laimemory*(1.0_r8 - EDPftvarcon_inst%trim_inc(currentCohort%pft)) 
@@ -689,9 +687,9 @@ contains
        if (external_recruitment == 1) then !external seed rain - needed to prevent extinction  
           do p = 1,numpft
            currentPatch%seeds_in(p) = currentPatch%seeds_in(p) + &
-                 EDecophyscon%seed_rain(p) !KgC/m2/year
+                 EDPftvarcon_inst%seed_rain(p) !KgC/m2/year
            currentSite%seed_rain_flux(p) = currentSite%seed_rain_flux(p) + &
-                 EDecophyscon%seed_rain(p) * currentPatch%area/AREA !KgC/m2/year
+                 EDPftvarcon_inst%seed_rain(p) * currentPatch%area/AREA !KgC/m2/year
           enddo
        endif
        currentPatch => currentPatch%younger
@@ -827,7 +825,7 @@ contains
     ! Maintenance demands     
     if (EDPftvarcon_inst%evergreen(currentCohort%pft) == 1)then !grass and EBT
        currentCohort%leaf_md = currentCohort%bl / EDPftvarcon_inst%leaf_long(currentCohort%pft)
-       currentCohort%root_md = currentCohort%br / EDecophyscon%root_long(currentCohort%pft)
+       currentCohort%root_md = currentCohort%br / EDPftvarcon_inst%root_long(currentCohort%pft)
        currentCohort%md      = currentCohort%root_md + currentCohort%leaf_md
     endif
 
@@ -837,13 +835,13 @@ contains
     !are still in an expansion phase. 
 
     if (EDPftvarcon_inst%season_decid(currentCohort%pft) == 1)then 
-       currentCohort%root_md = currentCohort%br /EDecophyscon%root_long(currentCohort%pft)
+       currentCohort%root_md = currentCohort%br /EDPftvarcon_inst%root_long(currentCohort%pft)
        currentCohort%leaf_md = 0._r8
        currentCohort%md = currentCohort%root_md + currentCohort%leaf_md
     endif
 
     if (EDPftvarcon_inst%stress_decid(currentCohort%pft) == 1)then 
-       currentCohort%root_md = currentCohort%br /EDecophyscon%root_long(currentCohort%pft)
+       currentCohort%root_md = currentCohort%br /EDPftvarcon_inst%root_long(currentCohort%pft)
        currentCohort%leaf_md = 0._r8
        currentCohort%md = currentCohort%root_md + currentCohort%leaf_md
     endif
@@ -865,17 +863,17 @@ contains
     ! this is the fraction of maintenance demand we -have- to do...
 
     if ( DEBUG ) write(fates_log(),*) 'EDphys 760 ',currentCohort%npp_acc_hold, currentCohort%md, &
-                   EDecophyscon%leaf_stor_priority(currentCohort%pft)
+                   EDPftvarcon_inst%leaf_stor_priority(currentCohort%pft)
 
     currentCohort%carbon_balance = currentCohort%npp_acc_hold - &
-          currentCohort%md *  EDecophyscon%leaf_stor_priority(currentCohort%pft)
+          currentCohort%md * EDPftvarcon_inst%leaf_stor_priority(currentCohort%pft)
 
     ! Allowing only carbon from NPP pool to account for npp flux into the maintenance turnover pools
     ! ie this does not include any use of storage carbon or balive to make up for missing carbon balance in the transfer
     currentCohort%npp_leaf  = max(0.0_r8,min(currentCohort%npp_acc_hold*currentCohort%leaf_md/currentCohort%md, &
-                                  currentCohort%leaf_md*EDecophyscon%leaf_stor_priority(currentCohort%pft)))
+                                  currentCohort%leaf_md*EDPftvarcon_inst%leaf_stor_priority(currentCohort%pft)))
     currentCohort%npp_froot = max(0.0_r8,min(currentCohort%npp_acc_hold*currentCohort%root_md/currentCohort%md, &
-                                  currentCohort%root_md*EDecophyscon%leaf_stor_priority(currentCohort%pft)))
+                                  currentCohort%root_md*EDPftvarcon_inst%leaf_stor_priority(currentCohort%pft)))
 
     if (Bleaf(currentCohort) > 0._r8)then
 
@@ -884,7 +882,7 @@ contains
        if (currentCohort%carbon_balance > 0._r8)then !spend C on growing and storing
 
           !what fraction of the target storage do we have? 
-          frac = max(0.0_r8,currentCohort%bstore/(Bleaf(currentCohort) * EDecophyscon%cushion(currentCohort%pft)))
+          frac = max(0.0_r8,currentCohort%bstore/(Bleaf(currentCohort) * EDPftvarcon_inst%cushion(currentCohort%pft)))
           ! FIX(SPM,080514,fstore never used ) 
           f_store = max(exp(-1.*frac**4._r8) - exp( -1.0_r8 ),0.0_r8)  
           !what fraction of allocation do we divert to storage?
@@ -916,14 +914,14 @@ contains
 
     !Do we have enough carbon left over to make up the rest of the turnover demand? 
     balive_loss = 0._r8
-    if (currentCohort%carbon_balance > currentCohort%md*(1.0_r8- EDecophyscon%leaf_stor_priority(currentCohort%pft)))then ! Yes...
+    if (currentCohort%carbon_balance > currentCohort%md*(1.0_r8- EDPftvarcon_inst%leaf_stor_priority(currentCohort%pft)))then ! Yes...
        currentCohort%carbon_balance = currentCohort%carbon_balance - currentCohort%md * (1.0_r8 - &
-             EDecophyscon%leaf_stor_priority(currentCohort%pft))
+             EDPftvarcon_inst%leaf_stor_priority(currentCohort%pft))
 
        currentCohort%npp_leaf  = currentCohort%npp_leaf  + &
-            currentCohort%leaf_md *  (1.0_r8-EDecophyscon%leaf_stor_priority(currentCohort%pft))
+            currentCohort%leaf_md *  (1.0_r8-EDPftvarcon_inst%leaf_stor_priority(currentCohort%pft))
        currentCohort%npp_froot = currentCohort%npp_froot + &
-            currentCohort%root_md *  (1.0_r8-EDecophyscon%leaf_stor_priority(currentCohort%pft))
+            currentCohort%root_md *  (1.0_r8-EDPftvarcon_inst%leaf_stor_priority(currentCohort%pft))
 
     else ! we can't maintain constant leaf area and root area. Balive is reduced
 
@@ -932,7 +930,7 @@ contains
        currentCohort%npp_froot = currentCohort%npp_froot + &
              max(0.0_r8,currentCohort%carbon_balance*(currentCohort%root_md/currentCohort%md))
 
-       balive_loss = currentCohort%md *(1.0_r8- EDecophyscon%leaf_stor_priority(currentCohort%pft))- currentCohort%carbon_balance
+       balive_loss = currentCohort%md *(1.0_r8- EDPftvarcon_inst%leaf_stor_priority(currentCohort%pft))- currentCohort%carbon_balance
        currentCohort%carbon_balance = 0._r8
     endif
 
@@ -944,7 +942,7 @@ contains
     !only if carbon balance is +ve
     if ((currentCohort%balive >= target_balive).AND.(currentCohort%carbon_balance >  0._r8))then 
        ! fraction of carbon going into active vs structural carbon        
-       if (currentCohort%dbh <= EDecophyscon%max_dbh(currentCohort%pft))then ! cap on leaf biomass
+       if (currentCohort%dbh <= EDPftvarcon_inst%max_dbh(currentCohort%pft))then ! cap on leaf biomass
           dbldbd = dDbhdBd(currentCohort)/dDbhdBl(currentCohort) 
           dbrdbd = EDPftvarcon_inst%allom_l2fr(currentCohort%pft) * dbldbd
           dhdbd_fn = dhdbd(currentCohort)
@@ -952,12 +950,12 @@ contains
           u  = 1.0_r8 / (dbldbd + dbrdbd + dbswdbd)     
           va = 1.0_r8 / (1.0_r8 + u)
           vs = u / (1.0_r8 + u)
-          gr_fract = 1.0_r8 - EDecophyscon%seed_alloc(currentCohort%pft)
+          gr_fract = 1.0_r8 - EDPftvarcon_inst%seed_alloc(currentCohort%pft)
        else
           dbldbd = 0._r8; dbrdbd = 0._r8 ;dbswdbd = 0._r8      
           va = 0.0_r8
           vs = 1.0_r8
-          gr_fract = 1.0_r8 - (EDecophyscon%seed_alloc(currentCohort%pft) + EDecophyscon%clone_alloc(currentCohort%pft))
+          gr_fract = 1.0_r8 - (EDPftvarcon_inst%seed_alloc(currentCohort%pft) + EDPftvarcon_inst%clone_alloc(currentCohort%pft))
        endif
 
        !FIX(RF,032414) - to fix high bl's. needed to prevent numerical errors without the ODEINT.  
@@ -987,7 +985,7 @@ contains
        write(fates_log(),*) 'cohort fluxes',currentCohort%pft,currentCohort%canopy_layer,currentCohort%n, &
             currentCohort%npp_acc_hold,currentCohort%dbalivedt,balive_loss, &
             currentCohort%dbdeaddt,currentCohort%dbstoredt,currentCohort%seed_prod,currentCohort%md * &
-            EDecophyscon%leaf_stor_priority(currentCohort%pft)
+            EDPftvarcon_inst%leaf_stor_priority(currentCohort%pft)
        write(fates_log(),*) 'proxies' ,target_balive,currentCohort%balive,currentCohort%dbh,va,vs,gr_fract
     endif
 
@@ -1042,12 +1040,12 @@ contains
 
        temp_cohort%canopy_trim = 0.8_r8  !starting with the canopy not fully expanded 
        temp_cohort%pft         = ft
-       temp_cohort%hite        = EDecophyscon%hgt_min(ft)
+       temp_cohort%hite        = EDPftvarcon_inst%hgt_min(ft)
        temp_cohort%dbh         = Dbh(temp_cohort)
        temp_cohort%bdead       = Bdead(temp_cohort)
        temp_cohort%balive      = Bleaf(temp_cohort)*(1.0_r8 + EDPftvarcon_inst%allom_l2fr(ft) &
             + EDpftvarcon_inst%allom_latosa_int(ft)*temp_cohort%hite)
-       temp_cohort%bstore      = EDecophyscon%cushion(ft)*(temp_cohort%balive/ (1.0_r8 + EDPftvarcon_inst%allom_l2fr(ft) &
+       temp_cohort%bstore      = EDPftvarcon_inst%cushion(ft)*(temp_cohort%balive/ (1.0_r8 + EDPftvarcon_inst%allom_l2fr(ft) &
             + EDpftvarcon_inst%allom_latosa_int(ft)*temp_cohort%hite))
        temp_cohort%n           = currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day &
             / (temp_cohort%bdead+temp_cohort%balive+temp_cohort%bstore)

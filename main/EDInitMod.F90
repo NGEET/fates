@@ -12,7 +12,6 @@ module EDInitMod
   use FatesGlobals              , only : fates_log
   use FatesInterfaceMod         , only : hlm_is_restart
   use EDPftvarcon               , only : EDPftvarcon_inst
-  use EDEcophysConType          , only : EDecophyscon
   use EDGrowthFunctionsMod      , only : bdead, bleaf, dbh
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDPatchDynamicsMod        , only : create_patch
@@ -305,15 +304,15 @@ contains
 
     do pft =  1,numpft
 
-       if(EDecophyscon%initd(pft)>1.0E-7) then
+       if(EDPftvarcon_inst%initd(pft)>1.0E-7) then
 
        allocate(temp_cohort) ! temporary cohort
 
        temp_cohort%pft         = pft
-       temp_cohort%n           = EDecophyscon%initd(pft) * patch_in%area
-       temp_cohort%hite        = EDecophyscon%hgt_min(pft)
-       !temp_cohort%n           = 0.5_r8 * 0.0028_r8 * patch_in%area  ! BOC for fixed size runs EDecophyscon%initd(pft) * patch_in%area
-       !temp_cohort%hite        = 28.65_r8                            ! BOC translates to DBH of 50cm. EDecophyscon%hgt_min(pft)
+       temp_cohort%n           = EDPftvarcon_inst%initd(pft) * patch_in%area
+       temp_cohort%hite        = EDPftvarcon_inst%hgt_min(pft)
+       !temp_cohort%n           = 0.5_r8 * 0.0028_r8 * patch_in%area  ! BOC for fixed size runs EDPftvarcon_inst%initd(pft) * patch_in%area
+       !temp_cohort%hite        = 28.65_r8                            ! BOC translates to DBH of 50cm. EDPftvarcon_inst%hgt_min(pft)
        temp_cohort%dbh         = Dbh(temp_cohort) ! FIX(RF, 090314) - comment out addition of ' + 0.0001_r8*pft   '  - seperate out PFTs a little bit...
        temp_cohort%canopy_trim = 1.0_r8
        temp_cohort%bdead       = Bdead(temp_cohort)
@@ -322,13 +321,13 @@ contains
        temp_cohort%b           = temp_cohort%balive + temp_cohort%bdead
 
        if( EDPftvarcon_inst%evergreen(pft) == 1) then
-          temp_cohort%bstore = Bleaf(temp_cohort) * EDecophyscon%cushion(pft)
+          temp_cohort%bstore = Bleaf(temp_cohort) * EDPftvarcon_inst%cushion(pft)
           temp_cohort%laimemory = 0._r8
           cstatus = 2
        endif
 
        if( EDPftvarcon_inst%season_decid(pft) == 1 ) then !for dorment places
-          temp_cohort%bstore = Bleaf(temp_cohort) * EDecophyscon%cushion(pft) !stored carbon in new seedlings.
+          temp_cohort%bstore = Bleaf(temp_cohort) * EDPftvarcon_inst%cushion(pft) !stored carbon in new seedlings.
           if(patch_in%siteptr%status == 2)then 
              temp_cohort%laimemory = 0.0_r8
           else
@@ -340,7 +339,7 @@ contains
        endif
 
        if ( EDPftvarcon_inst%stress_decid(pft) == 1 ) then
-          temp_cohort%bstore = Bleaf(temp_cohort) * EDecophyscon%cushion(pft)
+          temp_cohort%bstore = Bleaf(temp_cohort) * EDPftvarcon_inst%cushion(pft)
           temp_cohort%laimemory = Bleaf(temp_cohort)
           temp_cohort%balive = temp_cohort%balive - temp_cohort%laimemory
           cstatus = patch_in%siteptr%dstatus
