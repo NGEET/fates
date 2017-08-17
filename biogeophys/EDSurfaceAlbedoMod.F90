@@ -830,11 +830,12 @@ contains
                                 endif
                              enddo
                           enddo
+                          
                           if (lai_change(1,2,1).gt.0.0.and.lai_change(1,2,2).gt.0.0)then
-                             !                           write(fates_log(),*) 'lai_change(1,2,12)',lai_change(1,2,1:4)
+                             !                        write(fates_log(),*) 'lai_change(1,2,12)',lai_change(1,2,1:4)
                           endif
                           if (lai_change(1,2,2).gt.0.0.and.lai_change(1,2,3).gt.0.0)then
-                             !                           write(fates_log(),*) ' lai_change (1,2,23)',lai_change(1,2,1:4)
+                             !                        write(fates_log(),*) ' lai_change (1,2,23)',lai_change(1,2,1:4)
                           endif
                           if (lai_change(1,1,3).gt.0.0.and.lai_change(1,1,2).gt.0.0)then
                              ! NO-OP
@@ -846,7 +847,7 @@ contains
                           endif
                           if (lai_change(1,1,4).gt.0.0.and.lai_change(1,1,5).gt.0.0)then
                              ! NO-OP
-                             ! write(fates_log(),*) 'first layer of lai_change 4 5',lai_change(1,1,1:5)
+                             ! write(fates_log(),*) 'first layer of lai_change 4 5',lai_change(1,1,1:5)                            
                           endif
                           
                           if (radtype == 1)then
@@ -865,10 +866,10 @@ contains
                                 write(fates_log(),*) 'Large Dir Radn consvn error',error ,ifp,ib
                                 write(fates_log(),*) 'diags', bc_out(s)%albd_parb(ifp,ib), bc_out(s)%ftdd_parb(ifp,ib), &
                                      bc_out(s)%ftid_parb(ifp,ib), bc_out(s)%fabd_parb(ifp,ib)
-                                write(fates_log(),*) 'lai_change',lai_change(currentpatch%ncl_p,1:2,1:4)
-                                write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:2,1:4)
-                                write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:2,1:4)
-                                write(fates_log(),*) 'ftweight',ftweight(1,1:2,1:4)
+                                write(fates_log(),*) 'lai_change',lai_change(currentpatch%ncl_p,1:numpft_ed,1:4)
+                                write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft_ed,1:4)
+                                write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft_ed,1:4)
+                                write(fates_log(),*) 'ftweight',ftweight(1,1:numpft_ed,1:4)
                                 write(fates_log(),*) 'cp',currentPatch%area, currentPatch%patchno
                                 write(fates_log(),*) 'bc_in(s)%albgr_dir_rb(ib)',bc_in(s)%albgr_dir_rb(ib)
                                 
@@ -884,16 +885,16 @@ contains
                                 write(fates_log(),*)  '>5% Dif Radn consvn error',error ,ifp,ib
                                 write(fates_log(),*) 'diags', bc_out(s)%albi_parb(ifp,ib), bc_out(s)%ftii_parb(ifp,ib), &
                                      bc_out(s)%fabi_parb(ifp,ib)
-                                write(fates_log(),*) 'lai_change',lai_change(currentpatch%ncl_p,1:2,1:4)
-                                write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:2,1:4)
-                                write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:2,1:4)
-                                write(fates_log(),*) 'ftweight',ftweight(currentpatch%ncl_p,1:2,1:4)
+                                write(fates_log(),*) 'lai_change',lai_change(currentpatch%ncl_p,1:numpft_ed,1:4)
+                                write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft_ed,1:4)
+                                write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft_ed,1:4)
+                                write(fates_log(),*) 'ftweight',ftweight(currentpatch%ncl_p,1:numpft_ed,1:4)
                                 write(fates_log(),*) 'cp',currentPatch%area, currentPatch%patchno
                                 write(fates_log(),*) 'bc_in(s)%albgr_dif_rb(ib)',bc_in(s)%albgr_dif_rb(ib)
-                                write(fates_log(),*) 'rhol',rhol(1:2,:)
-                                write(fates_log(),*) 'ftw',sum(ftweight(1,:,1)),ftweight(1,1:2,1)
-                                write(fates_log(),*) 'present',currentPatch%present(1,1:2)
-                                write(fates_log(),*) 'CAP',currentPatch%canopy_area_profile(1,1:2,1)
+                                write(fates_log(),*) 'rhol',rhol(1:numpft_ed,:)
+                                write(fates_log(),*) 'ftw',sum(ftweight(1,:,1)),ftweight(1,1:numpft_ed,1)
+                                write(fates_log(),*) 'present',currentPatch%present(1,1:numpft_ed)
+                                write(fates_log(),*) 'CAP',currentPatch%canopy_area_profile(1,1:numpft_ed,1)
                                 
                                 bc_out(s)%albi_parb(ifp,ib) = bc_out(s)%albi_parb(ifp,ib) + error
                              end if

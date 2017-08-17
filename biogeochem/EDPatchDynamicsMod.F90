@@ -13,7 +13,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type, ed_resources_management_type
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : nclmax
-  use EDTypesMod           , only : use_fates_plant_hydro
+  use FatesInterfaceMod    , only : hlm_use_planthydro
   use FatesInterfaceMod    , only : hlm_numlevgrnd
   use FatesInterfaceMod    , only : hlm_numlevsoil
   use FatesInterfaceMod    , only : hlm_numSWb
@@ -21,11 +21,12 @@ module EDPatchDynamicsMod
   use FatesInterfaceMod    , only : hlm_days_per_year
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
+  use FatesConstantsMod    , only : itrue
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
-  ! logging flux, Yi Xu
-  use EDLoggingMortalityMod, only : logging_litter_fluxes
-  use pftconMod        	   , only : pftcon  
+  use EDLoggingMortalityMod, only : logging_litter_fluxes ! logging flux, Yi Xu
+  use EDParamsMod          , only : fates_mortality_disturbance_fraction
+
 
   ! CIME globals
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
@@ -107,7 +108,7 @@ contains
           currentCohort%patchptr => currentPatch
 
           call mortality_rates(currentCohort,cmort,hmort,bmort)
-	  currentCohort%dmort  = cmort+hmort+bmort	
+          currentCohort%dmort  = cmort+hmort+bmort
           currentCohort%c_area = c_area(currentCohort)
 
           ! Initialize diagnostic mortality rates
@@ -124,6 +125,7 @@ contains
           if(currentCohort%canopy_layer == 1)then
 
              currentPatch%disturbance_rates(1) = currentPatch%disturbance_rates(1) + &
+                  fates_mortality_disturbance_fraction * &
                   min(1.0_r8,currentCohort%dmort)*hlm_freq_day*currentCohort%c_area/currentPatch%area
 
           endif
@@ -367,16 +369,19 @@ contains
             ! 3/2017
   
           !if (currentSite%disturbance_mortality > currentSite%disturbance_fire) then !mortality is dominant disturbance
-          if (currentSite%disturbance_mortality > currentSite%disturbance_fire .and. currentSite%disturbance_mortality > currentSite%disturbance_logging) then !mortality is dominant disturbance
+          if (currentSite%disturbance_mortality > currentSite%disturbance_fire .and. &
+                currentSite%disturbance_mortality > currentSite%disturbance_logging) then !mortality is dominant disturbance
  
              call mortality_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)
          
           !else
-           elseif (currentSite%disturbance_fire > currentSite%disturbance_mortality .and. currentSite%disturbance_fire > currentSite%disturbance_logging) then 
+           elseif (currentSite%disturbance_fire > currentSite%disturbance_mortality .and. &
+                 currentSite%disturbance_fire > currentSite%disturbance_logging) then 
            
              call fire_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)  
           
-           elseif (currentSite%disturbance_logging>currentSite%disturbance_mortality .and. currentSite%disturbance_logging>currentSite%disturbance_fire) then 
+           elseif (currentSite%disturbance_logging>currentSite%disturbance_mortality .and. &
+                 currentSite%disturbance_logging>currentSite%disturbance_fire) then 
     
               call logging_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)
     
@@ -387,7 +392,7 @@ contains
           do while(associated(currentCohort))       
 
              allocate(nc)             
-             if(use_fates_plant_hydro) call InitHydrCohort(nc)
+             if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(nc)
              call zero_cohort(nc)
 
              ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort
@@ -401,14 +406,16 @@ contains
 
              !mortality is dominant disturbance              
              !if(currentPatch%disturbance_rates(1) > currentPatch%disturbance_rates(2))then 
-              if(currentPatch%disturbance_rates(1) > currentPatch%disturbance_rates(2) .and. currentPatch%disturbance_rates(1) > currentPatch%disturbance_rates(3))then 
+              if(currentPatch%disturbance_rates(1) > currentPatch%disturbance_rates(2) .and. &
+                    currentPatch%disturbance_rates(1) > currentPatch%disturbance_rates(3))then 
                 if(currentCohort%canopy_layer == 1)then
                    ! In the donor patch we are left with fewer trees because the area has decreased
                    ! the plant density for large trees does not actually decrease in the donor patch
                    ! because this is the part of the original patch where no trees have actually fallen
                    ! The diagnostic cmort,bmort and hmort rates have already been saved         
 
-                   currentCohort%n = currentCohort%n * (1.0_r8 - min(1.0_r8,currentCohort%dmort * hlm_freq_day))
+                   currentCohort%n = currentCohort%n * (1.0_r8 - fates_mortality_disturbance_fraction * &
+                        min(1.0_r8,currentCohort%dmort * hlm_freq_day))
 
                    nc%n = 0.0_r8      ! kill all of the trees who caused the disturbance.         
                    nc%cmort = nan     ! The mortality diagnostics are set to nan because the cohort should dissappear
@@ -481,7 +488,8 @@ contains
                 endif
 
              !else !fire
-               elseif (currentPatch%disturbance_rates(2) > currentPatch%disturbance_rates(1) .and. currentPatch%disturbance_rates(2) > currentPatch%disturbance_rates(3)) then !fire
+               elseif (currentPatch%disturbance_rates(2) > currentPatch%disturbance_rates(1) .and. &
+                     currentPatch%disturbance_rates(2) > currentPatch%disturbance_rates(3)) then !fire
 
                 ! Number of members in the new patch, before we impose fire survivorship
                 nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
@@ -503,7 +511,8 @@ contains
                 nc%lmort_infra = 0.0_r8
 
               ! Logging is dominate  
-                elseif (currentPatch%disturbance_rates(3) > currentPatch%disturbance_rates(1) .and. currentPatch%disturbance_rates(3) > currentPatch%disturbance_rates(2)) then  ! Logging 
+                elseif (currentPatch%disturbance_rates(3) > currentPatch%disturbance_rates(1) .and. &
+                      currentPatch%disturbance_rates(3) > currentPatch%disturbance_rates(2)) then  ! Logging 
  
                     if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
                            ! Move the survival trees into new patch
@@ -515,7 +524,8 @@ contains
 
                            
                            !currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area)
-                           currentCohort%n = currentCohort%n * (1._r8 -currentCohort%lmort_logging - currentCohort%lmort_collateral -currentCohort%lmort_infra) 
+                           currentCohort%n = currentCohort%n * &
+                                 (1._r8 -currentCohort%lmort_logging - currentCohort%lmort_collateral -currentCohort%lmort_infra) 
                                         
                          
                            nc%fmort = nan  ! should double check fmort
@@ -589,7 +599,7 @@ contains
                 new_patch%tallest  => storebigcohort 
                 new_patch%shortest => storesmallcohort   
              else
-                if(use_fates_plant_hydro) call DeallocateHydrCohort(nc)
+                if(hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(nc)
                 deallocate(nc) !get rid of the new memory.
              endif
 
@@ -759,7 +769,6 @@ contains
     !  Burn live grasses and kill them. 
     !
     ! !USES:
-    use EDParamsMod,          only : ED_val_ag_biomass
     use SFParamsMod,          only : SF_VAL_CWD_FRAC
     use EDGrowthFunctionsMod, only : c_area
     use EDtypesMod          , only : dl_sf
@@ -820,9 +829,9 @@ contains
              ! Divide their litter into the four litter streams, and spread evenly across ground surface. 
              !************************************/  
              ! stem biomass per tree
-             bstem  = (currentCohort%bsw + currentCohort%bdead) * ED_val_ag_biomass           
+             bstem  = (currentCohort%bsw + currentCohort%bdead) * EDPftvarcon_inst%allom_agb_frac(p)
              ! coarse root biomass per tree
-             bcroot = (currentCohort%bsw + currentCohort%bdead) * (1.0_r8 - ED_val_ag_biomass) 
+             bcroot = (currentCohort%bsw + currentCohort%bdead) * (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(p) )
              ! density of dead trees per m2. 
              dead_tree_density  = (currentCohort%fire_mort * currentCohort%n*patch_site_areadis/currentPatch%area) / AREA  
 
@@ -953,7 +962,7 @@ contains
     !  Carbon going from ongoing mortality into CWD pools. 
     !
     ! !USES:
-    use EDParamsMod,  only : ED_val_ag_biomass, ED_val_understorey_death
+    use EDParamsMod,  only : ED_val_understorey_death
     use SFParamsMod,  only : SF_val_cwd_frac
     !
     ! !ARGUMENTS:
@@ -975,6 +984,7 @@ contains
     real(r8) :: canopy_mortality_woody_litter               ! flux of wood litter in to litter pool: KgC/m2/day
     real(r8) :: canopy_mortality_leaf_litter(numpft_ed)     ! flux in to  leaf litter from tree death: KgC/m2/day
     real(r8) :: canopy_mortality_root_litter(numpft_ed)     ! flux in to froot litter  from tree death: KgC/m2/day
+    real(r8) :: mean_agb_frac                               ! mean fraction of AGB to total woody biomass (stand mean)
     !---------------------------------------------------------------------
 
     currentPatch => cp_target
@@ -1038,20 +1048,23 @@ contains
     ! (currentPatch%area-patch_site_areadis) +patch_site_areadis...
     ! For the new patch, only some fraction of its land area (patch_areadis/np%area) is derived from the current patch
     ! so we need to multiply by patch_areadis/np%area
+
+    mean_agb_frac = sum(EDPftvarcon_inst%allom_agb_frac(1:numpft_ed))/dble(numpft_ed)
+
     do c = 1,ncwd
     
        cwd_litter_density = SF_val_CWD_frac(c) * canopy_mortality_woody_litter / litter_area
        
-       new_patch%cwd_ag(c)    = new_patch%cwd_ag(c)    + ED_val_ag_biomass         * cwd_litter_density * np_mult
-       currentPatch%cwd_ag(c) = currentPatch%cwd_ag(c) + ED_val_ag_biomass         * cwd_litter_density
-       new_patch%cwd_bg(c)    = new_patch%cwd_bg(c)    + (1._r8-ED_val_ag_biomass) * cwd_litter_density * np_mult 
-       currentPatch%cwd_bg(c) = currentPatch%cwd_bg(c) + (1._r8-ED_val_ag_biomass) * cwd_litter_density 
+       new_patch%cwd_ag(c)    = new_patch%cwd_ag(c)    + mean_agb_frac * cwd_litter_density * np_mult
+       currentPatch%cwd_ag(c) = currentPatch%cwd_ag(c) + mean_agb_frac * cwd_litter_density
+       new_patch%cwd_bg(c)    = new_patch%cwd_bg(c)    + (1._r8-mean_agb_frac) * cwd_litter_density * np_mult 
+       currentPatch%cwd_bg(c) = currentPatch%cwd_bg(c) + (1._r8-mean_agb_frac) * cwd_litter_density 
        
        ! track as diagnostic fluxes
        currentSite%CWD_AG_diagnostic_input_carbonflux(c) = currentSite%CWD_AG_diagnostic_input_carbonflux(c) + &
-            SF_val_CWD_frac(c) * canopy_mortality_woody_litter * hlm_days_per_year * ED_val_ag_biomass/ AREA 
+            SF_val_CWD_frac(c) * canopy_mortality_woody_litter * hlm_days_per_year * mean_agb_frac/ AREA 
        currentSite%CWD_BG_diagnostic_input_carbonflux(c) = currentSite%CWD_BG_diagnostic_input_carbonflux(c) + &
-            SF_val_CWD_frac(c) * canopy_mortality_woody_litter * hlm_days_per_year * (1.0_r8 - ED_val_ag_biomass) / AREA
+            SF_val_CWD_frac(c) * canopy_mortality_woody_litter * hlm_days_per_year * (1.0_r8 - mean_agb_frac) / AREA
     enddo 
 
     do p = 1,numpft_ed
@@ -1694,7 +1707,7 @@ contains
     do while(associated(ccohort))
        
        ncohort => ccohort%taller
-       if(use_fates_plant_hydro) call DeallocateHydrCohort(ccohort)
+       if(hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(ccohort)
        deallocate(ccohort)
        ccohort => ncohort
 

@@ -11,18 +11,20 @@ module EDTypesMod
   save
 
   integer, parameter :: maxPatchesPerSite  = 10   ! maximum number of patches to live on a site
-  integer, parameter :: maxCohortsPerPatch = 240  ! maximum number of cohorts to live on a patch
+
   integer, parameter :: nclmax = 2                ! Maximum number of canopy layers
   integer, parameter :: ican_upper = 1            ! Nominal index for the upper canopy
   integer, parameter :: ican_ustory = 2           ! Nominal index for understory in two-canopy system
 
-  integer, parameter :: nlevleaf = 40              ! number of leaf layers in canopy layer
+  integer, parameter :: nlevleaf = 40             ! number of leaf layers in canopy layer
   integer, parameter :: maxpft = 10               ! maximum number of PFTs allowed
                                                   ! the parameter file may determine that fewer
                                                   ! are used, but this helps allocate scratch
                                                   ! space and output arrays.
  
   integer, parameter :: numpft_ed = 3             ! number of PFTs used in ED. 
+
+  integer, parameter :: maxCohortsPerPatch = nclmax * numpft_ed * nlevleaf  ! maximum number of cohorts to live on a patch
 
   ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
   ! land-ice abledo for vis and nir.  This should be a parameter, which would
@@ -44,12 +46,6 @@ module EDTypesMod
                                         ! files.  This will be compared with 
                                         ! the HLM's expectation in FatesInterfaceMod
 
-  ! Module switches (this will be read in one day)
-  ! This variable only exists now to serve as a place holder
-  !!!!!!!!!! THIS SHOULD NOT BE SET TO TRUE !!!!!!!!!!!!!!!!!
-  logical,parameter :: use_fates_plant_hydro = .false.
-  
-
   ! Switches that turn on/off ED dynamics process (names are self explanatory)
   ! IMPORTANT NOTE!!! THESE SWITCHES ARE EXPERIMENTAL.  
   ! THEY SHOULD CORRECTLY TURN OFF OR ON THE PROCESS, BUT.. THERE ARE VARIOUS 
@@ -59,8 +55,7 @@ module EDTypesMod
   ! WAS OUTSIDE THE SCOPE OF THE VERY LARGE CHANGESET WHERE THESE WERE FIRST
   ! INTRODUCED (RGK 03-2017)
   logical, parameter :: do_ed_phenology = .true.
-  logical, parameter :: do_ed_dynamics = .true.
- 
+
 
   ! MODEL PARAMETERS
   real(r8), parameter :: AREA                 = 10000.0_r8 ! Notional area of simulated forest m2
