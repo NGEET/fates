@@ -25,7 +25,8 @@ module FATESPlantRespPhotosynthMod
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : itrue
    use FatesInterfaceMod, only : hlm_use_planthydro
-   use EDTypesMod, only        : numpft_ed
+   use FatesInterfaceMod, only : numpft
+   use EDTypesMod, only        : maxpft
    use EDTypesMod, only        : nlevleaf
    use EDTypesMod, only        : nclmax
    
@@ -272,7 +273,7 @@ contains
                ! but not environmentally dependent
                ! ------------------------------------------------------------------------
 
-               do ft = 1,numpft_ed
+               do ft = 1,numpft
 
                   ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 used
                   ! kn = 0.11. Here, derive kn from vcmax25 as in Lloyd et al 
@@ -308,7 +309,7 @@ contains
                ! NOTE: Only need to flush mask on the number of used pfts, not the whole 
                ! scratch space.
                ! ------------------------------------------------------------------------
-               rate_mask_z(:,1:numpft_ed,:) = .false.
+               rate_mask_z(:,1:numpft,:) = .false.
 
                if(currentPatch%countcohorts > 0.0)then   ! Ignore empty patches
 
@@ -1343,7 +1344,7 @@ contains
 
       ! Now loop through and identify which layer and pft combo has scattering elements
       do cl = 1,nclmax
-         do ft = 1,numpft_ed
+         do ft = 1,numpft
             currentPatch%present(cl,ft) = 0
             do iv = 1, currentPatch%nrad(cl,ft);
                if(currentPatch%canopy_area_profile(cl,ft,iv) > 0._r8)then

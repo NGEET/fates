@@ -36,12 +36,12 @@ module EDPftvarcon
      real(r8), allocatable :: cushion            (:) ! labile carbon storage target as multiple of leaf pool.
      real(r8), allocatable :: leaf_stor_priority (:) ! leaf turnover vs labile carbon use prioritisation
                                                      ! (1 = lose  leaves, 0 = use store).
-     real(r8), allocatable :: crown              (:)
-     real(r8), allocatable :: bark_scaler        (:)
-     real(r8), allocatable :: crown_kill         (:)
-     real(r8), allocatable :: initd              (:)
-     real(r8), allocatable :: seed_rain          (:)
-     real(r8), allocatable :: BB_slope           (:)
+     real(r8), allocatable :: crown              (:) ! fraction of the height of the plant that is occupied by crown. For fire model. 
+     real(r8), allocatable :: bark_scaler        (:) ! scaler from dbh to bark thickness. For fire model.
+     real(r8), allocatable :: crown_kill         (:) ! scaler on fire death. For fire model. 
+     real(r8), allocatable :: initd              (:) ! initial seedling density 
+     real(r8), allocatable :: seed_rain          (:) ! seeds that come from outside the gridbox.
+     real(r8), allocatable :: BB_slope           (:) ! ball berry slope parameter
      real(r8), allocatable :: root_long          (:) ! root longevity (yrs)
      real(r8), allocatable :: clone_alloc        (:) ! fraction of carbon balance allocated to clonal reproduction.
      real(r8), allocatable :: seed_alloc         (:) ! fraction of carbon balance allocated to seeds.
