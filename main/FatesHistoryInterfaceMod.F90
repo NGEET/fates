@@ -12,6 +12,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceMod        , only : hlm_hio_ignore_val
   use FatesInterfaceMod        , only : hlm_use_planthydro
   use FatesInterfaceMod        , only : hlm_use_ed_st3
+  use FatesInterfaceMod        , only : numpft
   use EDParamsMod              , only : ED_val_comp_excln
 
   ! FIXME(bja, 2016-10) need to remove CLM dependancy 
@@ -1105,7 +1106,6 @@ contains
     use EDtypesMod          , only : ncwd
     use EDtypesMod          , only : ican_upper
     use EDtypesMod          , only : ican_ustory
-    use EDTypesMod          , only : maxpft
     use EDTypesMod        , only : get_sizeage_class_index
     use EDTypesMod        , only : nlevleaf
 
@@ -1755,7 +1755,7 @@ contains
 
          ! pass the cohort termination mortality as a flux to the history, and then reset the termination mortality buffer
          ! note there are various ways of reporting the total mortality, so pass to these as well
-         do i_pft = 1, maxpft
+         do i_pft = 1, numpft
             do i_scls = 1,nlevsclass_ed
                i_scpf = (i_pft-1)*nlevsclass_ed + i_scls
                hio_m6_si_scpf(io_si,i_scpf) = (sites(s)%terminated_nindivs(i_scls,i_pft,1) + &
@@ -1773,13 +1773,13 @@ contains
          sites(s)%terminated_nindivs(:,:,:) = 0._r8
 
          ! pass the recruitment rate as a flux to the history, and then reset the recruitment buffer
-         do i_pft = 1, maxpft
+         do i_pft = 1, numpft
             hio_recruitment_si_pft(io_si,i_pft) = sites(s)%recruitment_rate(i_pft) * days_per_year
          end do
          sites(s)%recruitment_rate(:) = 0._r8
 
          ! summarize all of the mortality fluxes by PFT
-         do i_pft = 1, maxpft
+         do i_pft = 1, numpft
             do i_scls = 1,nlevsclass_ed
                i_scpf = (i_pft-1)*nlevsclass_ed + i_scls
                !hio_mortality_si_pft(io_si,i_pft) = hio_mortality_si_pft(io_si,i_pft) + &
@@ -1862,7 +1862,7 @@ contains
                                      AREA_INV,       &
                                      nlevage_ed,     &
                                      nlevsclass_ed
-    use EDTypesMod, only : numpft_ed, nclmax, nlevleaf
+    use EDTypesMod          , only : nclmax, nlevleaf
     !
     ! Arguments
     class(fates_history_interface_type)                 :: this
@@ -2104,7 +2104,7 @@ contains
             enddo ! cohort loop
 
             ! summarize radiation profiles through the canopy
-            do ipft=1,numpft_ed
+            do ipft=1,numpft
                do ican=1,nclmax
                   do ileaf=1,nlevleaf
                      ! calculate where we are on multiplexed dimensions
@@ -2218,6 +2218,7 @@ contains
     use FatesHydraulicsMemMod, only : nlevsoi_hyd
     use EDTypesMod           , only : nlevsclass_ed
     use EDTypesMod           , only : maxpft
+
     
     ! Arguments
     class(fates_history_interface_type)             :: this
@@ -2427,7 +2428,7 @@ contains
          end do !patch loop
 
          if(hlm_use_ed_st3.eq.ifalse) then
-            do scpf=1,nlevsclass_ed*maxpft
+            do scpf=1,nlevsclass_ed*numpft
                if( abs(hio_nplant_si_scpf(io_si, scpf)-ncohort_scpf(scpf)) > 1.0E-8_r8 ) then
                   write(fates_log(),*) 'nplant check on hio_nplant_si_scpf fails during hydraulics history updates'
                   call endrun(msg=errMsg(sourcefile, __LINE__))

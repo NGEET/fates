@@ -7,16 +7,16 @@ module EDCanopyStructureMod
 
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesGlobals          , only : fates_log
-  use EDPftvarcon             , only : EDPftvarcon_inst
+  use EDPftvarcon           , only : EDPftvarcon_inst
   use EDGrowthFunctionsMod  , only : c_area
   use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type, ncwd
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : nlevleaf
-  use EDTypesMod            , only : numpft_ed
   use EDtypesMod            , only : AREA
   use FatesGlobals          , only : endrun => fates_endrun
   use FatesInterfaceMod     , only : hlm_days_per_year
+  use FatesInterfaceMod     , only : numpft
 
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -825,7 +825,6 @@ contains
     use EDPatchDynamicsMod   , only : set_root_fraction
     use EDTypesMod           , only : sizetype_class_index
     use EDGrowthFunctionsMod , only : tree_lai, c_area
-    use EDEcophysConType     , only : EDecophyscon
     use EDtypesMod           , only : area
     use EDPftvarcon            , only : EDPftvarcon_inst
 
@@ -941,7 +940,6 @@ contains
 
     use EDGrowthFunctionsMod , only : tree_lai, tree_sai, c_area 
     use EDtypesMod           , only : area, dinc_ed, hitemax, n_hite_bins
-    use EDEcophysConType     , only : EDecophyscon
   
     !
     ! !ARGUMENTS    
@@ -1051,19 +1049,19 @@ contains
           currentCohort => currentPatch%shortest
           do while(associated(currentCohort))  
              ft = currentCohort%pft
-             min_chite = currentCohort%hite - currentCohort%hite * EDecophyscon%crown(ft)
+             min_chite = currentCohort%hite - currentCohort%hite * EDPftvarcon_inst%crown(ft)
              max_chite = currentCohort%hite  
              do iv = 1,N_HITE_BINS  
                 frac_canopy(iv) = 0.0_r8
                 ! this layer is in the middle of the canopy
                 if(max_chite > maxh(iv).and.min_chite < minh(iv))then 
-                   frac_canopy(iv)= min(1.0_r8,dh / (currentCohort%hite*EDecophyscon%crown(ft)))
+                   frac_canopy(iv)= min(1.0_r8,dh / (currentCohort%hite*EDPftvarcon_inst%crown(ft)))
                    ! this is the layer with the bottom of the canopy in it. 
                 elseif(min_chite < maxh(iv).and.min_chite > minh(iv).and.max_chite > maxh(iv))then 
-                   frac_canopy(iv) = (maxh(iv) -min_chite ) / (currentCohort%hite*EDecophyscon%crown(ft))
+                   frac_canopy(iv) = (maxh(iv) -min_chite ) / (currentCohort%hite*EDPftvarcon_inst%crown(ft))
                    ! this is the layer with the top of the canopy in it. 
                 elseif(max_chite > minh(iv).and.max_chite < maxh(iv).and.min_chite < minh(iv))then 
-                   frac_canopy(iv) = (max_chite - minh(iv)) / (currentCohort%hite*EDecophyscon%crown(ft))
+                   frac_canopy(iv) = (max_chite - minh(iv)) / (currentCohort%hite*EDPftvarcon_inst%crown(ft))
                 elseif(max_chite < maxh(iv).and.min_chite > minh(iv))then !the whole cohort is within this layer. 
                    frac_canopy(iv) = 1.0_r8
                 endif
@@ -1111,7 +1109,7 @@ contains
              currentCohort => currentCohort%taller   
           enddo !currentCohort
           lai = 0.0_r8
-          do ft = 1,numpft_ed
+          do ft = 1,numpft
              lai = lai+ sum(currentPatch%tlai_profile(1,ft,:))
           enddo
           
@@ -1159,9 +1157,9 @@ contains
                 ! what is the height of this layer? (for snow burial purposes...)  
                 ! EDPftvarcon_inst%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile. 
                 layer_top_hite = currentCohort%hite-((iv/currentCohort%NV) * currentCohort%hite * &
-                      EDecophyscon%crown(currentCohort%pft) )
+                      EDPftvarcon_inst%crown(currentCohort%pft) )
                 layer_bottom_hite = currentCohort%hite-(((iv+1)/currentCohort%NV) * currentCohort%hite * &
-                      EDecophyscon%crown(currentCohort%pft)) ! EDPftvarcon_inst%vertical_canopy_frac(ft))
+                      EDPftvarcon_inst%crown(currentCohort%pft)) ! EDPftvarcon_inst%vertical_canopy_frac(ft))
                 
                 fraction_exposed =1.0_r8
                 
@@ -1192,10 +1190,10 @@ contains
              iv = currentCohort%NV
              ! EDPftvarcon_inst%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile.
              layer_top_hite = currentCohort%hite-((iv/currentCohort%NV) * currentCohort%hite * &
-                   EDecophyscon%crown(currentCohort%pft) )
+                   EDPftvarcon_inst%crown(currentCohort%pft) )
              ! EDPftvarcon_inst%vertical_canopy_frac(ft))
              layer_bottom_hite = currentCohort%hite-(((iv+1)/currentCohort%NV) * currentCohort%hite * &
-                   EDecophyscon%crown(currentCohort%pft))
+                   EDPftvarcon_inst%crown(currentCohort%pft))
              
              fraction_exposed = 1.0_r8 !default. 
              snow_depth_avg = snow_depth_si * frac_sno_eff_si
@@ -1251,7 +1249,7 @@ contains
           enddo !cohort
           
           do L = 1,currentPatch%NCL_p
-             do ft = 1,numpft_ed
+             do ft = 1,numpft
                 do iv = 1,currentPatch%nrad(L,ft)
                    !account for total canopy area
                    currentPatch%tlai_profile(L,ft,iv) = currentPatch%tlai_profile(L,ft,iv) / &
@@ -1279,7 +1277,7 @@ contains
           
           currentPatch%nrad = currentPatch%ncan
           do L = 1,currentPatch%NCL_p
-             do ft = 1,numpft_ed
+             do ft = 1,numpft
                 if(currentPatch%nrad(L,ft) > 30)then
                    write(fates_log(), *) 'ED: issue w/ nrad'
                 endif
@@ -1291,24 +1289,24 @@ contains
                 end do !iv
              enddo !ft
              
-             if ( L == 1 .and. abs(sum(currentPatch%canopy_area_profile(1,1:numpft_ed,1))) < 0.99999  &
+             if ( L == 1 .and. abs(sum(currentPatch%canopy_area_profile(1,1:numpft,1))) < 0.99999  &
                    .and. currentPatch%NCL_p > 1 ) then
-                write(fates_log(), *) 'ED: canopy area too small',sum(currentPatch%canopy_area_profile(1,1:numpft_ed,1))
-                write(fates_log(), *) 'ED: cohort areas', currentPatch%canopy_area_profile(1,1:numpft_ed,:)
+                write(fates_log(), *) 'ED: canopy area too small',sum(currentPatch%canopy_area_profile(1,1:numpft,1))
+                write(fates_log(), *) 'ED: cohort areas', currentPatch%canopy_area_profile(1,1:numpft,:)
              endif
              
              if (L == 1 .and. currentPatch%NCL_p > 1 .and.  &
-                   abs(sum(currentPatch%canopy_area_profile(1,1:numpft_ed,1))) < 0.99999) then
+                   abs(sum(currentPatch%canopy_area_profile(1,1:numpft,1))) < 0.99999) then
                 write(fates_log(), *) 'ED: not enough area in the top canopy', &
-                      sum(currentPatch%canopy_area_profile(L,1:numpft_ed,1)), &
-                      currentPatch%canopy_area_profile(L,1:numpft_ed,1)
+                      sum(currentPatch%canopy_area_profile(L,1:numpft,1)), &
+                      currentPatch%canopy_area_profile(L,1:numpft,1)
              endif
              
-             if(abs(sum(currentPatch%canopy_area_profile(L,1:numpft_ed,1))) > 1.00001)then
+             if(abs(sum(currentPatch%canopy_area_profile(L,1:numpft,1))) > 1.00001)then
                 write(fates_log(), *) 'ED: canopy-area-profile wrong', &
-                      sum(currentPatch%canopy_area_profile(L,1:numpft_ed,1)), &
+                      sum(currentPatch%canopy_area_profile(L,1:numpft,1)), &
                       currentPatch%patchno, L
-                write(fates_log(), *) 'ED: areas',currentPatch%canopy_area_profile(L,1:numpft_ed,1),currentPatch%patchno
+                write(fates_log(), *) 'ED: areas',currentPatch%canopy_area_profile(L,1:numpft,1),currentPatch%patchno
                 
                 currentCohort => currentPatch%shortest
                 
@@ -1328,7 +1326,7 @@ contains
           enddo ! loop over L
           
           do L = 1,currentPatch%NCL_p
-             do ft = 1,numpft_ed
+             do ft = 1,numpft
                 if(currentPatch%present(L,FT) > 1)then
                    write(fates_log(), *) 'ED: present issue',L,ft,currentPatch%present(L,FT)
                    currentPatch%present(L,ft) = 1
@@ -1500,28 +1498,28 @@ contains
      ai = 0._r8
      if     (trim(ai_type) == 'elai') then
         do cl = 1,cpatch%NCL_p
-           do ft = 1,numpft_ed
+           do ft = 1,numpft
               ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
                     cpatch%elai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
            enddo
         enddo
      elseif (trim(ai_type) == 'tlai') then
         do cl = 1,cpatch%NCL_p
-           do ft = 1,numpft_ed
+           do ft = 1,numpft
               ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
                     cpatch%tlai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
            enddo
         enddo
      elseif (trim(ai_type) == 'esai') then
          do cl = 1,cpatch%NCL_p
-           do ft = 1,numpft_ed
+           do ft = 1,numpft
               ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
                     cpatch%esai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
            enddo
         enddo
      elseif (trim(ai_type) == 'tsai') then
         do cl = 1,cpatch%NCL_p
-           do ft = 1,numpft_ed
+           do ft = 1,numpft
               ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
                     cpatch%tsai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
            enddo

@@ -24,8 +24,6 @@ module FatesPlantHydraulicsMod
    use FatesInterfaceMod  , only : bc_out_type
    use FatesInterfaceMod  , only : hlm_numlevsoil
    
-   use EDEcophysconType, only : EDecophyscon
-
    use FatesHydraulicsMemMod, only: ed_site_hydr_type
    use FatesHydraulicsMemMod, only: ed_patch_hydr_type
    use FatesHydraulicsMemMod, only: ed_cohort_hydr_type
@@ -41,6 +39,8 @@ module FatesPlantHydraulicsMod
    use FatesHydraulicsMemMod, only: npool_bg
    use FatesHydraulicsMemMod, only: porous_media
    use FatesHydraulicsMemMod, only: nlevsoi_hyd
+
+   use EDPftvarcon, only : EDPftvarcon_inst
 
    ! CIME Globals
    use shr_log_mod , only      : errMsg => shr_log_errMsg
@@ -125,7 +125,6 @@ contains
     ! !DESCRIPTION: 
     !
     ! !USES:
-    use EDEcophysConType     , only : EDecophyscon
 
     ! !ARGUMENTS:
     type(ed_cohort_type), intent(inout), target  :: cc_p ! current cohort pointer
@@ -146,7 +145,6 @@ contains
     !
     ! !USES:
     use FatesConstantsMod  , only : pi_const
-    use EDEcophysConType   , only : EDecophyscon
     use shr_sys_mod        , only : shr_sys_abort
     !
     ! !ARGUMENTS:

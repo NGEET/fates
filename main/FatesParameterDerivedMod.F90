@@ -36,28 +36,28 @@ module FatesParameterDerivedMod
   
 contains
   
-  subroutine InitAllocate(this,maxpft)
+  subroutine InitAllocate(this,numpft)
     
     class(param_derived_type), intent(inout) :: this
-    integer, intent(in)                                 :: maxpft
+    integer, intent(in)                      :: numpft
     
-    allocate(this%vcmax25top(maxpft))
-    allocate(this%jmax25top(maxpft))
-    allocate(this%tpu25top(maxpft))
-    allocate(this%kp25top(maxpft))
-    allocate(this%lmr25top(maxpft))
+    allocate(this%vcmax25top(numpft))
+    allocate(this%jmax25top(numpft))
+    allocate(this%tpu25top(numpft))
+    allocate(this%kp25top(numpft))
+    allocate(this%lmr25top(numpft))
     
     return
   end subroutine InitAllocate
 
   ! =====================================================================================
   
-  subroutine Init(this,maxpft)
+  subroutine Init(this,numpft)
 
     use EDPftvarcon, only: EDPftvarcon_inst
 
     class(param_derived_type), intent(inout) :: this
-    integer, intent(in)                      :: maxpft
+    integer, intent(in)                      :: numpft
     
     ! local variables
     integer  :: ft                 ! pft index
@@ -70,9 +70,9 @@ contains
                                                       ! projected area basis [m^2/gC]
          leafcn     => EDPftvarcon_inst%leafcn )      ! leaf C:N (gC/gN)
     
-      call this%InitAllocate(maxpft)
+      call this%InitAllocate(numpft)
       
-      do ft = 1,maxpft
+      do ft = 1,numpft
 
          ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
          lnc  = 1._r8 / (slatop(ft) * leafcn(ft))

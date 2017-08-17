@@ -8,17 +8,18 @@ module EDPatchDynamicsMod
   use EDPftvarcon          , only : EDPftvarcon_inst
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
   use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, area, dbhmax
-  use EDTypesMod           , only : numpft_ed
   use EDTypesMod           , only : maxPatchesPerSite
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type, ed_resources_management_type
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : nclmax
+  use EDTypesMod           , only : maxpft
   use FatesInterfaceMod    , only : hlm_use_planthydro
   use FatesInterfaceMod    , only : hlm_numlevgrnd
   use FatesInterfaceMod    , only : hlm_numlevsoil
   use FatesInterfaceMod    , only : hlm_numSWb
   use FatesInterfaceMod    , only : bc_in_type
   use FatesInterfaceMod    , only : hlm_days_per_year
+  use FatesInterfaceMod    , only : numpft
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue
@@ -308,8 +309,8 @@ contains
     real(r8) :: age                          ! notional age of this patch in years
     integer  :: tnull                        ! is there a tallest cohort?
     integer  :: snull                        ! is there a shortest cohort?
-    real(r8) :: root_litter_local(numpft_ed) ! initial value of root litter. KgC/m2
-    real(r8) :: leaf_litter_local(numpft_ed) ! initial value of leaf litter. KgC/m2
+    real(r8) :: root_litter_local(maxpft)    ! initial value of root litter. KgC/m2
+    real(r8) :: leaf_litter_local(maxpft)    ! initial value of leaf litter. KgC/m2
     real(r8) :: cwd_ag_local(ncwd)           ! initial value of above ground coarse woody debris. KgC/m2
     real(r8) :: cwd_bg_local(ncwd)           ! initial value of below ground coarse woody debris. KgC/m2
     real(r8) :: spread_local(nclmax)         ! initial value of canopy spread parameter.no units 
@@ -742,7 +743,7 @@ contains
        newPatch%cwd_bg(c) = newPatch%cwd_bg(c) + currentPatch%cwd_bg(c) * patch_site_areadis/newPatch%area
     enddo
 
-    do p = 1,numpft_ed !move litter pool en mass into the new patch
+    do p = 1,numpft !move litter pool en mass into the new patch
        newPatch%root_litter(p) = newPatch%root_litter(p) + currentPatch%root_litter(p) * patch_site_areadis/newPatch%area
        newPatch%leaf_litter(p) = newPatch%leaf_litter(p) + currentPatch%leaf_litter(p) * patch_site_areadis/newPatch%area
 
@@ -808,7 +809,7 @@ contains
           currentSite%total_burn_flux_to_atm = currentSite%total_burn_flux_to_atm + burned_litter * new_patch%area !kG/site/day
        enddo
 
-       do p = 1,numpft_ed
+       do p = 1,numpft
           burned_litter = new_patch%leaf_litter(p) * patch_site_areadis/new_patch%area * currentPatch%burnt_frac_litter(dl_sf)
           new_patch%leaf_litter(p) = new_patch%leaf_litter(p) - burned_litter
           currentSite%flux_out = currentSite%flux_out + burned_litter * new_patch%area !kG/site/day
@@ -903,7 +904,7 @@ contains
              enddo
              
              !burned leaves. 
-             do p = 1,numpft_ed                  
+             do p = 1,numpft                  
 
                 currentSite%leaf_litter_burned(p) = currentSite%leaf_litter_burned(p) + &
                      dead_tree_density * currentCohort%bl * currentCohort%cfa
@@ -982,8 +983,8 @@ contains
     real(r8) :: np_mult           !Fraction of the new patch which came from the current patch (and so needs the same litter) 
     integer :: p,c
     real(r8) :: canopy_mortality_woody_litter               ! flux of wood litter in to litter pool: KgC/m2/day
-    real(r8) :: canopy_mortality_leaf_litter(numpft_ed)     ! flux in to  leaf litter from tree death: KgC/m2/day
-    real(r8) :: canopy_mortality_root_litter(numpft_ed)     ! flux in to froot litter  from tree death: KgC/m2/day
+    real(r8) :: canopy_mortality_leaf_litter(maxpft)     ! flux in to  leaf litter from tree death: KgC/m2/day
+    real(r8) :: canopy_mortality_root_litter(maxpft)     ! flux in to froot litter  from tree death: KgC/m2/day
     real(r8) :: mean_agb_frac                               ! mean fraction of AGB to total woody biomass (stand mean)
     !---------------------------------------------------------------------
 
@@ -1049,7 +1050,7 @@ contains
     ! For the new patch, only some fraction of its land area (patch_areadis/np%area) is derived from the current patch
     ! so we need to multiply by patch_areadis/np%area
 
-    mean_agb_frac = sum(EDPftvarcon_inst%allom_agb_frac(1:numpft_ed))/dble(numpft_ed)
+    mean_agb_frac = sum(EDPftvarcon_inst%allom_agb_frac(1:numpft))/dble(numpft)
 
     do c = 1,ncwd
     
@@ -1067,7 +1068,7 @@ contains
             SF_val_CWD_frac(c) * canopy_mortality_woody_litter * hlm_days_per_year * (1.0_r8 - mean_agb_frac) / AREA
     enddo 
 
-    do p = 1,numpft_ed
+    do p = 1,numpft
     
        new_patch%leaf_litter(p) = new_patch%leaf_litter(p) + canopy_mortality_leaf_litter(p) / litter_area * np_mult
        new_patch%root_litter(p) = new_patch%root_litter(p) + canopy_mortality_root_litter(p) / litter_area * np_mult 
@@ -1116,8 +1117,8 @@ contains
     allocate(new_patch%fabi(hlm_numSWb))
     allocate(new_patch%sabs_dir(hlm_numSWb))
     allocate(new_patch%sabs_dif(hlm_numSWb))
-    allocate(new_patch%rootfr_ft(numpft_ed,hlm_numlevgrnd))
-    allocate(new_patch%rootr_ft(numpft_ed,hlm_numlevgrnd)) 
+    allocate(new_patch%rootfr_ft(numpft,hlm_numlevgrnd))
+    allocate(new_patch%rootr_ft(numpft,hlm_numlevgrnd)) 
     
     call zero_patch(new_patch) !The nan value in here is not working??
 
@@ -1377,7 +1378,7 @@ contains
                    !---------------------------------------------------------------------!
                    ! Calculate the difference criteria for each pft and dbh class        !
                    !---------------------------------------------------------------------!   
-                   do ft = 1,numpft_ed        ! loop over pfts
+                   do ft = 1,numpft        ! loop over pfts
                       do z = 1,n_dbh_bins      ! loop over hgt bins 
                          !is there biomass in this category?
                          if(currentPatch%pft_agb_profile(ft,z)  > 0.0_r8.or.tpp%pft_agb_profile(ft,z) > 0.0_r8)then 
@@ -1493,7 +1494,7 @@ contains
        rp%cwd_bg(c) = (dp%cwd_bg(c)*dp%area + rp%cwd_bg(c)*rp%area) * inv_sum_area
     enddo
     
-    do p = 1,numpft_ed 
+    do p = 1,numpft 
        rp%seeds_in(p)         = (rp%seeds_in(p)*rp%area + dp%seeds_in(p)*dp%area) * inv_sum_area
        rp%seed_decay(p)       = (rp%seed_decay(p)*rp%area + dp%seed_decay(p)*dp%area) * inv_sum_area
        rp%seed_germination(p) = (rp%seed_germination(p)*rp%area + dp%seed_germination(p)*dp%area) * inv_sum_area
@@ -1756,11 +1757,7 @@ contains
 
     delta_dbh = (DBHMAX/N_DBH_BINS)
 
-    do p = 1,numpft_ed
-       do j = 1,N_DBH_BINS
-          currentPatch%pft_agb_profile(p,j) = 0.0_r8
-       enddo
-    enddo
+    currentPatch%pft_agb_profile(:,:) = 0.0_r8
 
     do j = 1,N_DBH_BINS   
         if (j == 1) then
@@ -1842,7 +1839,7 @@ contains
     integer :: lev,p,c,ft
     !----------------------------------------------------------------------
     
-    do ft = 1,numpft_ed 
+    do ft = 1,numpft
        do lev = 1, hlm_numlevgrnd
           cpatch%rootfr_ft(ft,lev) = 0._r8
        enddo
