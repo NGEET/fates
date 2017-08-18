@@ -249,7 +249,7 @@ module EDTypesMod
 	 ! Yi Xu
      real(r8) ::  lmort_logging                          ! directly logging rate            %/per logging activity
      real(r8) ::  lmort_collateral                       ! collaterally damaged rate        %/per logging activity
-     real(r8) ::  lmort_infra							 ! mechanically damaged rate        %/per logging activity
+     real(r8) ::  lmort_infra                            ! mechanically damaged rate        %/per logging activity
 	      
 
      ! NITROGEN POOLS      
@@ -373,7 +373,9 @@ module EDTypesMod
      real(r8) ::  btran_ft(maxpft)                              ! btran calculated seperately for each PFT:-   
 
      ! DISTURBANCE 
-     real(r8) ::  disturbance_rates(n_dist_types)                  ! disturbance rate from 1) mortality , 2) fire: fraction/day 3) logging mortatliy
+     real(r8) ::  disturbance_rates(n_dist_types)                  ! disturbance rate from 1) mortality 
+                                                                   !                       2) fire: fraction/day 
+                                                                   !                       3) logging mortatliy
      real(r8) ::  disturbance_rate                                 ! larger effective disturbance rate: fraction/day
 
      ! LITTER AND COARSE WOODY DEBRIS 
@@ -456,15 +458,6 @@ module EDTypesMod
   !************************************
   type ed_resources_management_type
     
-     real(r8) ::  minimum_diameter_logging = 50.0_r8 			! min diameter for logged trees    cm 
-
-     real(r8) ::  logging_ratio = 0.33_r8                               ! ratio between collaterally logging and directly logging 
-       
-     real(r8) ::  fraction_trees_logged = 0.15_r8                       ! directly logging rate            %/per logging activity
- 
-     real(r8) ::  logging_collatoral_mortality_rate        ! collaterally damaged rate        %/per logging activity
-     real(r8) ::  logging_infrastructure_mortality_rate    ! mechanically damaged rate        %/per logging activity
-
      real(r8) ::  trunk_product_site                       ! Actual  trunk product at site level KgC/site
 
      !debug variables
@@ -487,7 +480,7 @@ module EDTypesMod
      type (ed_patch_type), pointer :: youngest_patch => null() ! pointer to yngest patch at the site
      
      ! Resource management
-     type (ed_resources_management_type) :: resouces_management ! resouces_management at the site 
+     type (ed_resources_management_type) :: resources_management ! resources_management at the site 
 
 
 

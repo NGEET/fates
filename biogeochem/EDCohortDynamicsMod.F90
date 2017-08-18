@@ -31,8 +31,6 @@ module EDCohortDynamicsMod
   use EDTypesMod             , only : sizetype_class_index
 
 
-  use clm_varctl          , only : logging_time
-
   ! CIME globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   !
@@ -855,18 +853,12 @@ contains
                                    currentCohort%fmort = (currentCohort%n*currentCohort%fmort + nextc%n*nextc%fmort)/newn
 
                                    ! logging mortality, Yi Xu
-                                   if (currentPatch%logging==1 .and. logging_time) then
-                                      currentCohort%lmort_logging = (currentCohort%n*currentCohort%lmort_logging + &
-                                            nextc%n*nextc%lmort_logging)/newn
-                                      currentCohort%lmort_collateral = (currentCohort%n*currentCohort%lmort_collateral + &
-                                            nextc%n*nextc%lmort_collateral)/newn
-                                      currentCohort%lmort_infra = (currentCohort%n*currentCohort%lmort_infra + &
-                                            nextc%n*nextc%lmort_infra)/newn
-                                   else
-                                      currentCohort%lmort_logging=0.0_r8
-                                      currentCohort%lmort_collateral=0.0_r8
-                                      currentCohort%lmort_infra=0.0_r8
-                                   endif
+                                   currentCohort%lmort_logging = (currentCohort%n*currentCohort%lmort_logging + &
+                                         nextc%n*nextc%lmort_logging)/newn
+                                   currentCohort%lmort_collateral = (currentCohort%n*currentCohort%lmort_collateral + &
+                                         nextc%n*nextc%lmort_collateral)/newn
+                                   currentCohort%lmort_infra = (currentCohort%n*currentCohort%lmort_infra + &
+                                         nextc%n*nextc%lmort_infra)/newn
                                    
                                    ! npp diagnostics
                                    currentCohort%npp_leaf  = (currentCohort%n*currentCohort%npp_leaf  + nextc%n*nextc%npp_leaf)/newn

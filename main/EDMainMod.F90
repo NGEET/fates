@@ -46,6 +46,7 @@ module EDMainMod
   use FatesPlantHydraulicsMod  , only : initTreeHydStates
   use FatesPlantHydraulicsMod  , only : updateSizeDepRhizHydProps 
 !  use FatesPlantHydraulicsMod , only : updateSizeDepRhizHydStates
+  use EDLoggingMortalityMod    , only : IsItLoggingTime
 
   implicit none
   private
@@ -88,6 +89,8 @@ contains
     !**************************************************************************
     ! Fire, growth, biogeochemistry. 
     !**************************************************************************
+
+    call IsItLoggingTime()
 
     !FIX(SPM,032414) take this out.  On startup these values are all zero and on restart it
     !zeros out values read in the restart file
