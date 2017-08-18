@@ -31,6 +31,7 @@ module EDLoggingMortalityMod
    use FatesInterfaceMod , only : hlm_current_day
    use FatesInterfaceMod , only : hlm_model_day
    use FatesInterfaceMod , only : hlm_day_of_year
+   use FatesConstantsMod , only : itrue
    use FatesGlobals      , only : endrun => fates_endrun 
    use FatesGlobals      , only : fates_log
    use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -51,7 +52,7 @@ module EDLoggingMortalityMod
 
 contains
 
-   subroutine IsItLoggingTime()
+   subroutine IsItLoggingTime(is_master)
 
       ! -------------------------------------------------------------------------------
       ! This subroutine determines if the current dynamics step should enact
@@ -60,10 +61,13 @@ contains
       ! ids.  If there is a match, it is logging time.
       ! -------------------------------------------------------------------------------
 
+      integer, intent(in) :: is_master
+
       integer :: icode   ! Integer equivalent of the event code (parameter file only allows reals)
       integer :: log_date  ! Day of month for logging exctracted from event code
       integer :: log_month ! Month of year for logging extraced from event code
       integer :: log_year  ! Year for logging extracted from event code
+      character(len=64) :: fmt = '(a,i2.2,a,i2.2,a,i4.4)'
 
       logging_time = .false.
       icode = int(logging_event_code)
@@ -96,9 +100,9 @@ contains
 
       else if(icode > 10000 ) then
          ! Specific Event: YYYYMMDD
-         log_date  = icode - int(100*(real(icode)/100))
-         log_month = icode - log_date - int(10000*(real(icode)/10000))
-         log_year  = icode - log_month*100 - log_date
+         log_date  = icode - int(100* floor(real(icode)/100))
+         log_year  = floor(real(icode)/10000)
+         log_month = floor(real(icode)/100) - log_year*100
 
          if( hlm_current_day.eq.log_date    .and. &
                hlm_current_month.eq.log_month .and. &
@@ -113,6 +117,11 @@ contains
          write(fates_log(),*) 'fates_logging_event_code in the file accordingly.'
          write(fates_log(),*) 'exiting'
          call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+
+      if(logging_time .and. (is_master.eq.itrue) ) then
+         write(fates_log(),fmt) 'Logging Event Enacted on date: ', &
+               hlm_current_month,'-',hlm_current_day,'-',hlm_current_year
       end if
 
       return

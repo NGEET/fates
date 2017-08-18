@@ -86,12 +86,14 @@ contains
     if ( hlm_masterproc==itrue ) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
           hlm_current_year,'-',hlm_current_month,'-',hlm_current_day
 
+    ! Call a routine that simply identifies if logging should occur
+    ! This is limited to a global event until more structured event handling is enabled
+    call IsItLoggingTime(hlm_masterproc)
+
     !**************************************************************************
     ! Fire, growth, biogeochemistry. 
     !**************************************************************************
-
-    call IsItLoggingTime()
-
+    
     !FIX(SPM,032414) take this out.  On startup these values are all zero and on restart it
     !zeros out values read in the restart file
    
