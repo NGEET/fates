@@ -680,13 +680,14 @@ contains
     end subroutine InitHydrSites
 
     ! ===================================================================================
-  subroutine HydrSiteColdStart(sites, bc_in)
+  subroutine HydrSiteColdStart(sites, bc_in )! , bc_out)
        
 
      ! Arguments
      type(ed_site_type),intent(inout),target :: sites(:)
-     type(bc_in_type),intent(inout)      :: bc_in(:)
-
+     type(bc_in_type),intent(in)             :: bc_in(:)
+!     type(bc_out_type),intent(inout)         :: bc_out(:)
+     
      ! Local
      type(ed_site_hydr_type), pointer :: site_hydr
      real(r8) :: smp  ! matric potential temp
@@ -729,6 +730,10 @@ contains
         site_hydr%l_aroot_layer(1:nlevsoi_hyd) = 0.0_r8
 
      end do
+
+     ! 
+!!     call UpdateH2OVeg(nsites,sites,bc_out)
+
      ! --------------------------------------------------------------------------------
      ! All other ed_Hydr_site_type variables are initialized elsewhere:
      !
