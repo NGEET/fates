@@ -195,31 +195,32 @@ contains
       use EDGrowthFunctionsMod, only : c_area
 
       ! !ARGUMENTS:
-      type(ed_site_type)  , intent(inout), target :: cp_Site 
-      type(ed_patch_type) , intent(inout), target :: cp_target 
-      type(ed_patch_type) , intent(inout), target :: new_patch_target
+      type(ed_site_type)  , intent(inout), target  :: cp_Site 
+      type(ed_patch_type) , intent(inout), target  :: cp_target 
+      type(ed_patch_type) , intent(inout), target  :: new_patch_target
 
-      real(r8)            , intent(inout)            :: patch_site_areadis
+      real(r8)            , intent(inout)          :: patch_site_areadis
       !LOCAL VARIABLES:
-      real(r8) :: cwd_litter_density
-      real(r8) :: litter_area ! area over which to distribute this litter. 
-      type(ed_site_type)  , pointer :: currentSite
-      type(ed_patch_type) , pointer :: currentPatch 
-      type(ed_patch_type) , pointer :: new_patch
-      type(ed_cohort_type), pointer :: currentCohort
-      real(r8) :: bcroot               ! amount of below ground coarse root per cohort  kgC. (goes into CWD_BG)
-      real(r8) :: bstem                ! amount of above ground stem biomass per cohort  kgC.(goes into CWG_AG)
-      real(r8) :: dead_tree_density    ! # trees killed by all logging per m2
-      real(r8) :: damaged_dead_tree_density    ! # trees killed by collateral and mechanical damages per m2
-      real(r8) :: logging_density      ! # logged trees per m2 (logged trunk)
-      real(r8) :: np_mult           !Fraction of the new patch which came from the current patch (and so needs the same litter) 
-      real(r8) :: flux_out
-      real(r8) :: trunk_product_site !kgC/m2
+      real(r8)                                     :: cwd_litter_density
+      real(r8)                                     :: litter_area ! area over which to distribute this litter. 
+      type(ed_site_type)  , pointer                :: currentSite
+      type(ed_patch_type) , pointer                :: currentPatch 
+      type(ed_patch_type) , pointer                :: new_patch
+      type(ed_cohort_type), pointer                :: currentCohort
+      real(r8)                                     :: bcroot ! amount of below ground coarse root per cohort  kgC. (goes into CWD_BG)
+      real(r8)                                     :: bstem  ! amount of above ground stem biomass per cohort  kgC.(goes into CWG_AG)
+      real(r8)                                     :: dead_tree_density ! # trees killed by all logging per m2
+      real(r8)                                     :: damaged_dead_tree_density ! # trees killed by collateral and mechanical damages per m2
+      real(r8)                                     :: logging_density ! # logged trees per m2 (logged trunk)
+      real(r8)                                     :: np_mult 
+                                                      !Fraction of the new patch which came from the current patch
+      real(r8)                                     :: flux_out
+      real(r8)                                     :: trunk_product_site !kgC/m2
       !debug
-      real(r8) :: delta_litter_stock !kgC/m2
-      real(r8) :: delta_biomass_stock !kgC/m2 
-      real(r8) :: delta_individual 
-      integer :: p,c
+      real(r8)                                     :: delta_litter_stock !kgC/m2
+      real(r8)                                     :: delta_biomass_stock !kgC/m2 
+      real(r8)                                     :: delta_individual 
+      integer                                      :: p,c
 
       currentSite  => cp_Site
       currentPatch => cp_target
@@ -239,20 +240,22 @@ contains
          do while(associated(currentCohort))       
             p = currentCohort%pft
             if(currentPatch%disturbance_rates(3) > currentPatch%disturbance_rates(2) .and. &
-                  currentPatch%disturbance_rates(3) > currentPatch%disturbance_rates(1) )then !mortality is dominant disturbance 
+                  currentPatch%disturbance_rates(3) > currentPatch%disturbance_rates(1) )then 
+                  !mortality is dominant disturbance 
 
-               if(EDPftvarcon_inst%woody(p) == 1)then   !woody=1 trees only, woody=0 grass, canopy_layer=0 woody=1 small trees
+               if(EDPftvarcon_inst%woody(p) == 1)then   
+                  !woody=1 trees only, woody=0 grass, canopy_layer=0 woody=1 small trees
                   !******************************************/
                   ! PART 1) Put twig, small branch and large branch of dead trees biomass from logging 
                   !           and damage into above ground litter pool.
-                  !         Put below ground dead trees biomass from logging and damage into below ground litter pool
-                  ! This happens before the plant number of selective logging have been updated (need to check other codes), 
-                  ! but the effects of other mortalities due on plant number have been updated in ED_integrate_state_variable
+                  !         Put below ground dead trees biomass 
+                  !         from logging and damage into below ground litter pool
+                  ! This happens before the plant number was updated, caused by selective logging. 
+                  ! but the plant number caused by other mortalities have been updated 
+                  ! in ED_integrate_state_variable
 
                   !************************************/ 
                   ! Number of trees that died because of the selective logging, per m2 of ground. 
-
-
                   ! stem biomass per tree goes to CWD_ag
                   ! Total stem biomass = dead biomass + alive biomass + store biomass (bstore) - 
                   !                       root biomoass (br+bstore) - leaf biomass(bl) 
@@ -260,38 +263,45 @@ contains
 
                   ! balive = bl + br + bsw 
                   ! stem biomass per tree
-                  bstem  = (currentCohort%bsw + currentCohort%bdead) * EDPftvarcon_inst%allom_agb_frac(p)
+                  bstem  = (currentCohort%bsw + currentCohort%bdead) * &
+                     EDPftvarcon_inst%allom_agb_frac(p)
 
                   ! coarse root biomass per tree
-                  bcroot = (currentCohort%bsw + currentCohort%bdead) * (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(p))
+                  bcroot = (currentCohort%bsw + currentCohort%bdead) * &
+                     (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(p))
 
-                  ! density of dead trees per m2. Beware /AREA= 10000.0_r8 ! This is site-level density, not patch level 
-                  dead_tree_density  = (currentCohort%lmort_logging + currentCohort%lmort_collateral + &
+                  ! density of dead trees per m2. Beware /AREA= 10000.0_r8 
+                  ! This is site-level density, not patch level 
+                  dead_tree_density  = (currentCohort%lmort_logging + &
+                     currentCohort%lmort_collateral + currentCohort%lmort_infra )* &
+                     currentCohort%n / AREA  
+
+                  ! direct logged dead tree per m2 Beware /AREA= 10000.0_r8 
+                  ! This is site-level density, not patch level 
+                  damaged_dead_tree_density = (currentCohort%lmort_collateral + &
                      currentCohort%lmort_infra )* currentCohort%n / AREA  
 
-                  ! direct logged dead tree per m2 Beware /AREA= 10000.0_r8 ! This is site-level density, not patch level 
-                  damaged_dead_tree_density = (currentCohort%lmort_collateral + currentCohort%lmort_infra )* currentCohort%n / AREA  
-
-
-
-                  new_patch%leaf_litter(p) = new_patch%leaf_litter(p) + dead_tree_density * &
-                     (currentCohort%bl) * AREA/currentPatch%area * patch_site_areadis/new_patch%area
-                  new_patch%root_litter(p) = new_patch%root_litter(p) + dead_tree_density * &
-                     (currentCohort%br+currentCohort%bstore)*AREA/currentPatch%area*patch_site_areadis/new_patch%area
+                  new_patch%leaf_litter(p) = new_patch%leaf_litter(p) + & 
+                     dead_tree_density * (currentCohort%bl) * AREA/currentPatch%area * &
+                     patch_site_areadis/new_patch%area
+                  new_patch%root_litter(p) = new_patch%root_litter(p) + &
+                     dead_tree_density * (currentCohort%br+currentCohort%bstore)* &
+                     AREA/currentPatch%area*patch_site_areadis/new_patch%area
 
                   !KGC/m2 this is patch level density, integrated from site level 
-                  currentPatch%leaf_litter(p) = currentPatch%leaf_litter(p) + dead_tree_density * &
-                     (currentCohort%bl)*AREA/currentPatch%area
-                  currentPatch%root_litter(p) = currentPatch%root_litter(p) + dead_tree_density * &
-                     (currentCohort%br+currentCohort%bstore)*AREA/currentPatch%area
-
+                  currentPatch%leaf_litter(p) = currentPatch%leaf_litter(p) + &
+                     dead_tree_density * (currentCohort%bl)*AREA/currentPatch%area
+                  currentPatch%root_litter(p) = currentPatch%root_litter(p) + &
+                     dead_tree_density * (currentCohort%br+currentCohort%bstore) * &
+                     AREA/currentPatch%area
 
                   !debug******************************************************
                   !kGC/m2 delta litter !kGC/m2
-                  delta_litter_stock = delta_litter_stock +dead_tree_density * (currentCohort%bl) + &
-                     dead_tree_density *(currentCohort%br+currentCohort%bstore)
-                  delta_biomass_stock = delta_biomass_stock +dead_tree_density * (currentCohort%bdead + &
-                     currentCohort%balive +currentCohort%bstore )
+                  delta_litter_stock = delta_litter_stock +dead_tree_density * &
+                     (currentCohort%bl) + dead_tree_density * &
+                     (currentCohort%br+currentCohort%bstore)
+                  delta_biomass_stock = delta_biomass_stock +dead_tree_density * &
+                     (currentCohort%bdead + currentCohort%balive +currentCohort%bstore )
                   delta_individual = delta_individual +dead_tree_density
                   !***********************************************************
 
@@ -304,79 +314,82 @@ contains
                      currentSite%root_litter_diagnostic_input_carbonflux(p) + &
                      (currentCohort%br+currentCohort%bstore) * dead_tree_density
 
-                  !above ground coarse woody debris of twigs, small branches and large branches are from logged and damaged trees 
+                  !above ground coarse woody debris of twigs, 
+                  !small branches and large branches are from logged and damaged trees 
                   do c = 1,3
                      new_patch%cwd_ag(c) = new_patch%cwd_ag(c) + dead_tree_density * &
-                        SF_val_CWD_frac(c) * bstem *AREA/currentPatch%area * patch_site_areadis/new_patch%area
-                     currentPatch%cwd_ag(c) = currentPatch%cwd_ag(c) + dead_tree_density * SF_val_CWD_frac(c) &
-                        * bstem *AREA/currentPatch%area
+                        SF_val_CWD_frac(c) * bstem *AREA/currentPatch%area * &
+                        patch_site_areadis/new_patch%area
+                     currentPatch%cwd_ag(c) = currentPatch%cwd_ag(c) + &
+                        dead_tree_density * SF_val_CWD_frac(c) * &
+                        bstem *AREA/currentPatch%area
 
                      !debug***************************************************
                      !kGC/m2 delta litter !kGC/m2
-                     delta_litter_stock =delta_litter_stock + dead_tree_density * SF_val_CWD_frac(c) * bstem 
+                     delta_litter_stock =delta_litter_stock + dead_tree_density &
+                        * SF_val_CWD_frac(c) * bstem 
                      !********************************************************
 
                      ! track as diagnostic fluxes
-                     currentSite%CWD_AG_diagnostic_input_carbonflux(c) = currentSite%CWD_AG_diagnostic_input_carbonflux(c) + &
-                           SF_val_CWD_frac(c) * bstem * dead_tree_density
+                     currentSite%CWD_AG_diagnostic_input_carbonflux(c) = &
+                        currentSite%CWD_AG_diagnostic_input_carbonflux(c) + &
+                        SF_val_CWD_frac(c) * bstem * dead_tree_density
                   enddo
 
-
-                  ! above ground coarse woody debris of trunk are only from damaged trees.The logged trees of this part are transported off-site. 
+                  ! above ground coarse woody debris of trunk are only from damaged trees.
+                  !The logged trees of this part are transported off-site. 
                   do c = 4,4
                      !This is patch level density, integrated from site level
-                     new_patch%cwd_ag(c) = new_patch%cwd_ag(c) + damaged_dead_tree_density * SF_val_CWD_frac(c) * bstem *AREA/currentPatch%area * patch_site_areadis/new_patch%area
-                     currentPatch%cwd_ag(c) = currentPatch%cwd_ag(c) + damaged_dead_tree_density * SF_val_CWD_frac(c) * bstem*AREA/currentPatch%area
+                     new_patch%cwd_ag(c) = new_patch%cwd_ag(c) + &
+                        damaged_dead_tree_density * SF_val_CWD_frac(c) * &
+                        bstem *AREA/currentPatch%area * patch_site_areadis/new_patch%area
+                     currentPatch%cwd_ag(c) = currentPatch%cwd_ag(c) + &
+                        damaged_dead_tree_density * SF_val_CWD_frac(c) * &
+                        bstem*AREA/currentPatch%area
 
                      !kGC/m2 delta litter !kGC/m2
-                     delta_litter_stock =delta_litter_stock + damaged_dead_tree_density * SF_val_CWD_frac(c) * bstem
-                     !**************************************************************
+                     delta_litter_stock =delta_litter_stock + &
+                        damaged_dead_tree_density * SF_val_CWD_frac(c) * bstem
 
                      !*******************************************************************/
                      ! PART 2 Save logged trunk into product tool
                      ! PART 3 Pass product tool into flux out for carbon balance check 
                      !*******************************************************************/
-
-
                      logging_density = (currentCohort%lmort_logging * currentCohort%n) / AREA  
 
                      !kGC/m2
                      flux_out = flux_out + logging_density * SF_val_CWD_frac(c) * bstem
-                     trunk_product_site = trunk_product_site + logging_density * SF_val_CWD_frac(c) * bstem  
-
+                     trunk_product_site = trunk_product_site + &
+                        logging_density * SF_val_CWD_frac(c) * bstem  
 
                      ! track as diagnostic fluxes
-                     currentSite%CWD_AG_diagnostic_input_carbonflux(c) = currentSite%CWD_AG_diagnostic_input_carbonflux(c) + &
-                           SF_val_CWD_frac(c) * bstem * damaged_dead_tree_density
-
-
-
+                     currentSite%CWD_AG_diagnostic_input_carbonflux(c) = &
+                        currentSite%CWD_AG_diagnostic_input_carbonflux(c) + &
+                        SF_val_CWD_frac(c) * bstem * damaged_dead_tree_density
                   enddo
 
                   !below ground coarse woody debris of all sizes are from logged and damaged trees
                   do c = 1,ncwd
+                     new_patch%cwd_bg(c) = new_patch%cwd_bg(c) + dead_tree_density * &
+                        SF_val_CWD_frac(c) * bcroot *AREA/currentPatch%area * &
+                        patch_site_areadis/new_patch%area
 
-                     new_patch%cwd_bg(c) = new_patch%cwd_bg(c) + dead_tree_density * SF_val_CWD_frac(c) * bcroot *AREA/currentPatch%area * patch_site_areadis/new_patch%area
-
-                     currentPatch%cwd_bg(c) = currentPatch%cwd_bg(c) + dead_tree_density * SF_val_CWD_frac(c) * bcroot *AREA/currentPatch%area
+                     currentPatch%cwd_bg(c) = currentPatch%cwd_bg(c) + &
+                        dead_tree_density * SF_val_CWD_frac(c) * bcroot * &
+                        AREA/currentPatch%area
 
                      !kGC/m2 delta litter !kGC/m2
-                     delta_litter_stock =delta_litter_stock + dead_tree_density * SF_val_CWD_frac(c) * bcroot
+                     delta_litter_stock =delta_litter_stock + &
+                        dead_tree_density * SF_val_CWD_frac(c) * bcroot
 
                      ! track as diagnostic fluxes
-                     currentSite%CWD_BG_diagnostic_input_carbonflux(c) = currentSite%CWD_BG_diagnostic_input_carbonflux(c) + &
-                           SF_val_CWD_frac(c) * bcroot * dead_tree_density
-
-
+                     currentSite%CWD_BG_diagnostic_input_carbonflux(c) = &
+                        currentSite%CWD_BG_diagnostic_input_carbonflux(c) + &
+                        SF_val_CWD_frac(c) * bcroot * dead_tree_density
                   enddo
-
                end if
-
             end if
-
             currentCohort => currentCohort%taller      
-
-
          enddo !currentCohort
 
          !flux_out has been averaged to site level , not patch level
@@ -384,35 +397,27 @@ contains
 
          ! NOTE (RGK): Are these components being initialized correctly in all cases?
          currentSite%resources_management%trunk_product_site  = &
-               currentSite%resources_management%trunk_product_site + trunk_product_site*AREA
+               currentSite%resources_management%trunk_product_site + &
+               trunk_product_site*AREA
 
          currentSite%resources_management%delta_litter_stock  = &
-               currentSite%resources_management%delta_litter_stock + delta_litter_stock* AREA
+               currentSite%resources_management%delta_litter_stock + &
+               delta_litter_stock* AREA
 
          currentSite%resources_management%delta_biomass_stock = &
-               currentSite%resources_management%delta_biomass_stock + delta_biomass_stock* AREA
+               currentSite%resources_management%delta_biomass_stock + &
+               delta_biomass_stock* AREA
 
          currentSite%resources_management%delta_individual    = &
-               currentSite%resources_management%delta_individual + delta_individual* AREA
-
-
+               currentSite%resources_management%delta_individual + &
+               delta_individual* AREA
 
          currentCohort => new_patch%shortest
          do while(associated(currentCohort))
             currentCohort%c_area = c_area(currentCohort)
-
-
             currentCohort => currentCohort%taller
-
-
          enddo
-
-
-
-
       end if
-
-
    end subroutine logging_litter_fluxes
 
 end module EDLoggingMortalityMod
