@@ -3,8 +3,8 @@ module EDLoggingMortalityMod
 
    ! ====================================================================================
    !  Purpose: 1. create logging mortalities: 
-   !           (a)logging mortality (size class level)
-   !           (b)collateral mortality (size class level)
+   !           (a)logging mortality (cohort level)
+   !           (b)collateral mortality (cohort level)
    !           (c)infrastructure mortality (cohort level)
    !           2. move the logged trunk fluxes from live into product pool 
    !           3. move logging-associated mortality fluxes from live to CWD
