@@ -121,7 +121,7 @@ contains
           currentCohort%hmort = hmort
           currentCohort%imort = 0.0_r8 ! Impact mortality is always zero except in new patches
           currentCohort%fmort = 0.0_r8 ! Fire mortality is initialized as zero, but may be changed
-          ! Yi Xu
+         
           currentCohort%lmort_logging=0.0_r8 
           currentCohort%lmort_collateral=0.0_r8 
           currentCohort%lmort_infra=0.0_r8 
@@ -162,14 +162,11 @@ contains
                                   currentCohort%lmort_infra ) *                         &
                                   currentCohort%c_area/currentPatch%area
                 
-             end if
-             
+             end if    
           else
-             
              currentCohort%lmort_logging    = 0.0_r8
              currentCohort%lmort_collateral = 0.0_r8
              currentCohort%lmort_infra      = 0.0_r8
-
           end if
 
           currentCohort => currentCohort%taller
@@ -185,7 +182,7 @@ contains
        endif
    
        if (currentPatch%disturbance_rates(3) > currentPatch%disturbance_rates(1) .and. &
-             currentPatch%disturbance_rates(3) > currentPatch%disturbance_rates(2) ) then ! DISTURBANCE IS SELECTIVE LOGGING
+             currentPatch%disturbance_rates(3) > currentPatch%disturbance_rates(2) ) then 
           
           ! logging disturbance dominates
           ! Y.X. 3/2017
@@ -198,7 +195,6 @@ contains
                 currentCohort%hmort=0.0_r8
                 currentCohort%bmort=0.0_r8
                 currentCohort%fmort=0.0_r8
-
              end if
 
              currentCohort => currentCohort%taller
@@ -220,7 +216,6 @@ contains
                 currentCohort%bmort=0.0_r8
              end if
 
-             !Y.X.
               currentCohort%lmort_logging=0.0_r8
               currentCohort%lmort_collateral=0.0_r8
               currentCohort%lmort_infra =0.0_r8
@@ -541,13 +536,11 @@ contains
                                   currentCohort%lmort_collateral - &
                                   currentCohort%lmort_infra) 
 
-
                    nc%fmort = nan  ! should double check fmort
                    nc%imort = nan
                    nc%cmort = currentCohort%cmort
                    nc%hmort = currentCohort%hmort
                    nc%bmort = currentCohort%bmort
-
 
                    ! logging rate at new cohort should be zero
                    nc%lmort_logging    = 0.0_r8
@@ -556,7 +549,8 @@ contains
 
                 else
 
-                   ! grass is not killed by mortality disturbance events. Just move it into the new patch area.
+                   ! grass is not killed by mortality disturbance events. 
+		   ! Just move it into the new patch area.
                    ! Just split the grass into the existing and new patch structures
                    !nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
 
@@ -564,13 +558,11 @@ contains
                                              currentCohort%lmort_collateral + &
                                              currentCohort%lmort_infra) 
 
-
                    ! Those remaining in the existing
                    !currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area)
                    currentCohort%n = currentCohort%n * (1._r8 - currentCohort%lmort_logging - &
                                                                 currentCohort%lmort_collateral - &
                                                                 currentCohort%lmort_infra)
-
 
                    nc%fmort =  nan  ! These should not make it to the diagnostics
                    nc%imort =  nan  ! If they do.. they should invalidate it
@@ -635,16 +627,11 @@ contains
           call terminate_cohorts(currentSite, currentPatch, 2)
           call sort_cohorts(currentPatch)
 
-           if (currentPatch%logging==1 .and. logging_time) then 
-           
+           if (currentPatch%logging==1 .and. logging_time) then            
                  currentPatch%after_spawn_patch= 1
-
           else
                  currentPatch%after_spawn_patch= 0
-
           endif
-  
-  
           currentPatch => currentPatch%younger
 
        enddo ! currentPatch patch loop. 
