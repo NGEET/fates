@@ -276,6 +276,6 @@ contains
        !end_run
     end select
     
-  end subroutine Flush
+ end subroutine Flush
 
 end module FatesHistoryVariableType

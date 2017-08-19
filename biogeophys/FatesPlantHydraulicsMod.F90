@@ -15,8 +15,8 @@ module FatesPlantHydraulicsMod
    use FatesConstantsMod, only : fates_huge
    use FatesConstantsMod, only : denh2o => dens_fresh_liquid_water
    use FatesConstantsMod, only : grav => grav_earth
+   use FatesConstantsMod, only : ifalse, itrue
 
-   use EDTypesMod, only        : use_fates_plant_hydro
    use EDTypesMod        , only : ed_site_type
    use EDTypesMod        , only : ed_patch_type
    use EDTypesMod        , only : ed_cohort_type
@@ -24,9 +24,8 @@ module FatesPlantHydraulicsMod
    use FatesInterfaceMod  , only : bc_in_type
    use FatesInterfaceMod  , only : bc_out_type
    use FatesInterfaceMod  , only : hlm_numlevsoil
+   use FatesInterfaceMod  , only : hlm_use_planthydro
    
-   use EDEcophysconType, only : EDecophyscon
-
    use FatesHydraulicsMemMod, only: ed_site_hydr_type
    use FatesHydraulicsMemMod, only: ed_patch_hydr_type
    use FatesHydraulicsMemMod, only: ed_cohort_hydr_type
@@ -42,6 +41,10 @@ module FatesPlantHydraulicsMod
    use FatesHydraulicsMemMod, only: npool_bg
    use FatesHydraulicsMemMod, only: porous_media
    use FatesHydraulicsMemMod, only: nlevsoi_hyd
+
+   use FatesConstantsMod,     only: cm2_per_m2
+
+   use EDPftvarcon, only : EDPftvarcon_inst
 
    ! CIME Globals
    use shr_log_mod , only      : errMsg => shr_log_errMsg
@@ -77,6 +80,19 @@ module FatesPlantHydraulicsMod
                                                           ! when recruitment happens?
    logical, public :: do_static_ed              = .true.  ! should growth, mortality, and patch
                                                           ! dynamics be turned off?
+
+
+   ! Some Parameters
+
+   real(r8), parameter :: C2B        = 2.0_r8   ! Carbon 2 biomass ratio
+   real(r8), parameter :: psi0       = -0.08_r8 ! sapwood water potential at saturation                [MPa]
+   real(r8), parameter :: psicap     = -0.39_r8 ! sapwood water potential at rwcft                     [MPa]
+   real(r8), parameter,dimension(4) :: rwcft   = (/1.0_r8,0.958_r8,0.958_r8,0.958_r8/)    ! P-V curve: total RWC @ which elastic drainage begins     [-]
+   real(r8), parameter,dimension(4) :: rwccap  = (/1.0_r8,0.947_r8,0.947_r8,0.947_r8/)    ! P-V curve: total RWC @ which capillary reserves exhausted
+   real(r8), parameter,dimension(4) :: cap_slp = (/0.0_r8,5.795_r8,5.795_r8,5.795_r8/)    ! (psi0 - psicap )/(1._r8 - rwccap)  P-V curve: slope of capillary region of curve
+   real(r8), parameter,dimension(4) :: cap_int = (/0.0_r8,-5.929_r8,-5.929_r8,-5.929_r8/) !-sapcap_slp + psi0         ! P-V curve: intercept of capillary region of curve
+   real(r8), parameter,dimension(4) :: cap_corr= (/1.0_r8,1.0136_r8,1.0136_r8,1.0136_r8/) !-sapcap_int/sapcap_slp                 ! P-V curve: correction for nonzero psi0
+
 
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
@@ -139,7 +155,6 @@ contains
     ! !DESCRIPTION: 
     !
     ! !USES:
-    use EDEcophysConType     , only : EDecophyscon
 
     ! !ARGUMENTS:
     type(ed_cohort_type), intent(inout), target  :: cc_p ! current cohort pointer
@@ -220,9 +235,7 @@ contains
     !   shell radii, volumes
     !
     ! !USES:
-    use pftconMod          , only : pftcon
     use FatesConstantsMod  , only : pi_const
-    use EDEcophysConType   , only : EDecophyscon
     use shr_sys_mod        , only : shr_sys_abort
     !
     ! !ARGUMENTS:
@@ -284,19 +297,19 @@ contains
     ccohort_hydr               => cc_p%co_hydr
     cPatch                     => cCohort%patchptr
     FT                         =  cCohort%pft
-    roota                      =  pftcon%roota_par(FT)
-    rootb                      =  pftcon%rootb_par(FT)
+    roota                      =  EDPftvarcon_inst%roota_par(FT)
+    rootb                      =  EDPftvarcon_inst%rootb_par(FT)
     !roota                      =  4.372_r8                           ! TESTING: deep (see Zeng 2001 Table 1)
     !rootb                      =  0.978_r8                           ! TESTING: deep (see Zeng 2001 Table 1)
     !roota                      =  8.992_r8                          ! TESTING: shallow (see Zeng 2001 Table 1)
     !rootb                      =  8.992_r8                          ! TESTING: shallow (see Zeng 2001 Table 1)
     
     b_woody_carb               = cCohort%bsw + cCohort%bdead
-    b_woody_bg_carb            = EDecophyscon%rootshoot(FT)/(1._r8 + EDecophyscon%rootshoot(FT)) * b_woody_carb
+    b_woody_bg_carb            = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(FT)) * b_woody_carb
     
     b_tot_carb                 = cCohort%bsw + cCohort%bdead + cCohort%bl + cCohort%br
     b_canopy_carb              = cCohort%bl
-    b_bg_carb                  = EDecophyscon%rootshoot(FT)/(1._r8 + EDecophyscon%rootshoot(FT)) * b_tot_carb
+    b_bg_carb                  = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(FT)) * b_tot_carb
 
     ! SAVE INITIAL VOLUMES
     ccohort_hydr%v_ag_init(:)          =  ccohort_hydr%v_ag(:)
@@ -314,8 +327,12 @@ contains
        ccohort_hydr%z_node_ag(k)    = ccohort_hydr%z_lower_ag(k) + 0.5_r8*dz_canopy
        ccohort_hydr%z_upper_ag(k)   = ccohort_hydr%z_lower_ag(k) + dz_canopy
     enddo
-    b_canopy_biom              = b_canopy_carb / EDecophyscon%ccontent(FT)
-    sla                        = 1.e4_r8 / EDecophyscon%lma(FT) ! cm2/g
+    b_canopy_biom              = b_canopy_carb * C2B
+
+    ! NOTE: SLATOP currently does not use any vertical scaling functions
+    ! but that may not be so forever. ie sla = slatop (RGK-082017)
+    sla                        = EDPftvarcon_inst%slatop(FT) * cm2_per_m2 ! m2/gC * cm2/m2 -> cm2/gC
+
     denleaf                    = -2.3231_r8*sla + 781.899_r8    ! empirical regression data from leaves at Caxiuana (~ 8 spp)
     v_canopy                   = b_canopy_biom / denleaf
     ccohort_hydr%v_ag(1:npool_leaf) = v_canopy / npool_leaf
@@ -330,12 +347,12 @@ contains
        ccohort_hydr%z_node_ag(k)    = ccohort_hydr%z_upper_ag(k) - 0.5_r8*dz_stem
        ccohort_hydr%z_lower_ag(k)   = ccohort_hydr%z_upper_ag(k) - dz_stem
     enddo
-    b_stem_carb                = b_tot_carb - b_bg_carb - b_canopy_carb
-    b_stem_biom                = b_stem_carb / EDecophyscon%ccontent(FT)         ! kg DM
-    v_stem                     = b_stem_biom / (EDecophyscon%wd(FT)*1.e3_r8)     !BOC...may be needed for testing/comparison w/ v_sapwood
-    a_leaf_tot                 = b_canopy_biom * sla * 1.e3_r8 / 1.e4_r8         ! m2 leaf = kg leaf DM * cm2/g * 1000g/1kg * 1m2/10000cm2
-    a_sapwood                  = a_leaf_tot / EDecophyscon%latosa(FT)            ! m2 sapwood = m2 leaf * m2 sapwood/m2 leaf 
-    v_sapwood                  = a_sapwood * z_stem
+    b_stem_carb  = b_tot_carb - b_bg_carb - b_canopy_carb
+    b_stem_biom  = b_stem_carb * C2B                               ! kg DM
+    v_stem       = b_stem_biom / (EDPftvarcon_inst%wood_density(FT)*1.e3_r8) !BOC...may be needed for testing/comparison w/ v_sapwood
+    a_leaf_tot   = b_canopy_biom * sla * 1.e3_r8 / 1.e4_r8         ! m2 leaf = kg leaf DM * cm2/g * 1000g/1kg * 1m2/10000cm2
+    a_sapwood    = a_leaf_tot / EDPftvarcon_inst%allom_latosa_int(FT)            ! m2 sapwood = m2 leaf * m2 sapwood/m2 leaf 
+    v_sapwood    = a_sapwood * z_stem
     ccohort_hydr%v_ag(npool_leaf+1:npool_ag) = v_sapwood / npool_stem
 
     ! TRANSPORTING ROOT DEPTH & VOLUME
@@ -363,16 +380,16 @@ contains
     !then subtract out the fine root biomass to get coarse (transporting) root biomass
     !b_troot_carb               = b_bg_carb - cCohort%br   ! this can give negative values
     b_troot_carb               = b_woody_bg_carb
-    b_troot_biom               = b_troot_carb / EDecophyscon%ccontent(FT)
-    v_troot                    = b_troot_biom / (EDecophyscon%wd(FT)*1.e3_r8)
+    b_troot_biom               = b_troot_carb * C2B 
+    v_troot                    = b_troot_biom / (EDPftvarcon_inst%wood_density(FT)*1.e3_r8)
     ccohort_hydr%v_bg(:)            = v_troot / npool_troot    !! BOC not sure if/how we should multiply this by the sapwood fraction
     
     ! ABSORBING ROOT DEPTH, LENGTH & VOLUME
 
     ccohort_hydr%z_node_aroot(:)    = -bc_in%z_sisl(:)
-    ccohort_hydr%l_aroot_tot        = cCohort%br/EDecophyscon%ccontent(FT)*EDecophyscon%SRL(FT)
+    ccohort_hydr%l_aroot_tot        = cCohort%br*C2B*EDPftvarcon_inst%hydr_srl(FT)
     !ccohort_hydr%v_aroot_tot       = cCohort%br/EDecophyscon%ccontent(FT)/EDecophyscon%rootdens(FT)
-    ccohort_hydr%v_aroot_tot        = pi_const*(EDecophyscon%rs2(FT)**2._r8)*ccohort_hydr%l_aroot_tot
+    ccohort_hydr%v_aroot_tot        = pi_const*(EDPftvarcon_inst%hydr_rs2(FT)**2._r8)*ccohort_hydr%l_aroot_tot
     !ccohort_hydr%l_aroot_tot       = ccohort_hydr%v_aroot_tot/(pi_const*EDecophyscon%rs2(FT)**2)
     if(nlevsoi_hyd == 1) then
        ccohort_hydr%l_aroot_layer(nlevsoi_hyd) = ccohort_hydr%l_aroot_tot
@@ -404,8 +421,8 @@ contains
        else
           dz_node1_nodekplus1   = ccohort_hydr%z_node_ag(npool_leaf) - ccohort_hydr%z_node_bg(1)
        end if
-       kmax_node1_nodekplus1(k) = EDecophyscon%kmax_node(FT,1) * a_sapwood / dz_node1_nodekplus1
-       kmax_node1_lowerk(k)     = EDecophyscon%kmax_node(FT,1) * a_sapwood / dz_node1_lowerk
+       kmax_node1_nodekplus1(k) = EDPftvarcon_inst%hydr_kmax_node(FT,1) * a_sapwood / dz_node1_nodekplus1
+       kmax_node1_lowerk(k)     = EDPftvarcon_inst%hydr_kmax_node(FT,1) * a_sapwood / dz_node1_lowerk
        chi_node1_nodekplus1(k)  = xylemtaper(p, dz_node1_nodekplus1)
        chi_node1_lowerk(k)      = xylemtaper(p, dz_node1_lowerk)
        if(.not.do_kbound_upstream) then
@@ -446,7 +463,7 @@ contains
     enddo
     ! finally, estimate the remaining tree conductance belowground as a residual
     kmax_treeag_tot              = sum(1._r8/ccohort_hydr%kmax_bound(npool_leaf:npool_ag))**(-1._r8)
-    kmax_tot                     = EDecophyscon%rfrac_stem(FT) * kmax_treeag_tot
+    kmax_tot                     = EDPftvarcon_inst%hydr_rfrac_stem(FT) * kmax_treeag_tot
     ccohort_hydr%kmax_treebg_tot      = ( 1._r8/kmax_tot - 1._r8/kmax_treeag_tot ) ** (-1._r8)
     if(nlevsoi_hyd == 1) then
        ccohort_hydr%kmax_treebg_layer(:) = ccohort_hydr%kmax_treebg_tot * cPatch%rootfr_ft(FT,:)
@@ -616,7 +633,7 @@ contains
     type(ed_cohort_type), target :: currentCohort
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
 
-    if ( .not.use_fates_plant_hydro ) return
+    if ( hlm_use_planthydro.eq.ifalse ) return
     allocate(ccohort_hydr)
     currentCohort%co_hydr => ccohort_hydr
 
@@ -629,7 +646,7 @@ contains
     type(ed_cohort_type), target :: currentCohort
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
 
-    if ( .not.use_fates_plant_hydro ) return
+    if ( hlm_use_planthydro.eq.ifalse ) return
     
     ccohort_hydr => currentCohort%co_hydr
 
@@ -651,7 +668,7 @@ contains
        type(ed_site_hydr_type),pointer :: csite_hydr
        
 
-       if ( .not.use_fates_plant_hydro ) return
+       if ( hlm_use_planthydro.eq.ifalse ) return
        
        nsites = ubound(sites,1)
        do s=1,nsites
@@ -774,7 +791,7 @@ contains
         bc_out(s)%plant_stored_h2o_si = 0.0_r8
      end do
 
-     if(.not.use_fates_plant_hydro) return
+     if( hlm_use_planthydro.eq.ifalse ) return
 
      do s = 1,nsites
 
@@ -821,7 +838,6 @@ contains
     ! the same.  
     !
     ! !USES:
-    use pftconMod            , only : pftcon
     use FatesConstantsMod    , only : pi_const
     use EDTypesMod           , only : AREA
     
@@ -939,7 +955,6 @@ contains
     ! the same.  
     !
     ! !USES:
-    use pftconMod            , only : pftcon
     !
     ! !ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite
@@ -1629,8 +1644,9 @@ end subroutine updateSizeDepRhizHydStates
                       end select
                    end if
 		   do k=1,npool_ag+npool_bg+1
-		      ths_node(k) = EDecophyscon%thetas_node(ft,porous_media(k))
-		      thr_node(k) = EDecophyscon%thetas_node(ft,porous_media(k)) * EDecophyscon%resid_node(ft,porous_media(k))
+		      ths_node(k) = EDPftvarcon_inst%hydr_thetas_node(ft,porous_media(k))
+                      thr_node(k) = EDPftvarcon_inst%hydr_thetas_node(ft,porous_media(k)) * &
+                                    EDPftvarcon_inst%hydr_resid_node(ft,porous_media(k))
 		   enddo
 
 		   ! SET BOUNDARY MAX CONDUCTANCES
@@ -1939,6 +1955,7 @@ end subroutine updateSizeDepRhizHydStates
                          site_hydr%h2oveg                   = site_hydr%h2oveg + dwat_veg_coh*ccohort%n/AREA!*patch_wgt
                          ccohort_hydr%errh2o                    = ccohort_hydr%errh2o + we_area_outer                                               
                          !! kg/m2 ground/individual
+                         
                          site_hydr%errh2o_hyd               = site_hydr%errh2o_hyd + &
                                                              we_area_outer*(ccohort%c_area / ccohort%n)/AREA!*patch_wgt
                          ccohort_hydr%qtop_dt                   = ccohort_hydr%qtop_dt  + qtop_dt                             ! 
@@ -2566,7 +2583,7 @@ end subroutine updateSizeDepRhizHydStates
     cCohort => cc_p
     FT       = cCohort%pft
     ccohort%co_hydr%btran(:) = &
-          (1._r8 + (lwp/EDecophyscon%p50_gs(ft))**EDecophyscon%avuln_gs(ft))**(-1._r8)
+          (1._r8 + (lwp/EDPftvarcon_inst%hydr_p50_gs(ft))**EDPftvarcon_inst%hydr_avuln_gs(ft))**(-1._r8)
 
   end subroutine flc_gs_from_psi
   
@@ -2586,10 +2603,9 @@ end subroutine updateSizeDepRhizHydStates
     !----------------------------------------------------------------------
   
     associate(& 
-         avuln_gs => EDecophyscon%avuln_gs , & ! Input: [real(r8) (:) ] stomatal PLC curve: shape parameter                        [-]
-         p50_gs   => EDecophyscon%p50_gs     & ! Input: [real(r8) (:) ] stomatal PLC curve: water potential at 50% loss of gs,max  [Pa]
+         avuln_gs => EDPftvarcon_inst%hydr_avuln_gs, & ! Input: [real(r8) (:) ] stomatal PLC curve: shape parameter                        [-]
+         p50_gs   => EDPftvarcon_inst%hydr_p50_gs     & ! Input: [real(r8) (:) ] stomatal PLC curve: water potential at 50% loss of gs,max  [Pa]
          )
-    
 
     dflcgsdpsi = -1._r8 * (1._r8 + (lwp/p50_gs(FT))**avuln_gs(FT))**(-2._r8) * &
                           avuln_gs(FT)/p50_gs(FT)*(lwp/p50_gs(FT))**(avuln_gs(FT)-1._r8)
@@ -2618,8 +2634,8 @@ end subroutine updateSizeDepRhizHydStates
     !----------------------------------------------------------------------
   
     associate(& 
-         avuln    => EDecophyscon%avuln_node            , & ! Input: [real(r8) (:,:) ] PLC curve: vulnerability curve shape parameter          [-]
-         p50      => EDecophyscon%p50_node                & ! Input: [real(r8) (:,:) ] PLC curve: water potential at 50% loss of conductivity  [Pa]
+         avuln    => EDPftvarcon_inst%hydr_avuln_node , & ! Input: [real(r8) (:,:) ] PLC curve: vulnerability curve shape parameter          [-]
+         p50      => EDPftvarcon_inst%hydr_p50_node     & ! Input: [real(r8) (:,:) ] PLC curve: water potential at 50% loss of conductivity  [Pa]
          )
     
     if(pm <= 4) then
@@ -2671,8 +2687,8 @@ end subroutine updateSizeDepRhizHydStates
     !----------------------------------------------------------------------
   
     associate(& 
-         avuln    => EDecophyscon%avuln_node            , & ! Input: [real(r8) (:,:) ] PLC curve: vulnerability curve shape parameter          [-]
-         p50      => EDecophyscon%p50_node                & ! Input: [real(r8) (:,:) ] PLC curve: water potential at 50% loss of conductivity  [Pa]
+         avuln    => EDPftvarcon_inst%hydr_avuln_node, & ! Input: [real(r8) (:,:) ] PLC curve: vulnerability curve shape parameter          [-]
+         p50      => EDPftvarcon_inst%hydr_p50_node    & ! Input: [real(r8) (:,:) ] PLC curve: water potential at 50% loss of conductivity  [Pa]
          )
     
     if(pm <= 4) then
@@ -2725,17 +2741,17 @@ end subroutine updateSizeDepRhizHydStates
     real(r8) :: ytol                 ! error tolerance for y-variable          [MPa]
     real(r8) :: satfrac              ! soil saturation fraction                [0-1]
     real(r8) :: psi_check
+                                              
     !----------------------------------------------------------------------
   
     associate(& 
-         thetas   => EDecophyscon%thetas_node           , & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content
-         resid    => EDecophyscon%resid_node            , & ! Input: [real(r8) (:,:) ] P-V curve: residual water fraction
-         corrint  => EDecophyscon%corrint_node            & ! Input: [real(r8) (:,:) ] P-V curve: correction for nonzero psi0
+         thetas   => EDPftvarcon_inst%hydr_thetas_node  , & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content
+         resid    => EDPftvarcon_inst%hydr_resid_node     & ! Input: [real(r8) (:,:) ] P-V curve: residual water fraction
          )
    
     if(pm <= 4) then
 
-       lower  = thetas(ft,pm)*(resid(ft,pm) + 0.0001_r8)/corrint(ft,pm)
+       lower  = thetas(ft,pm)*(resid(ft,pm) + 0.0001_r8)/cap_corr(pm)
        upper  = thetas(ft,pm)
        xtol   = 1.e-16_r8
        ytol   = 1.e-8_r8
@@ -2854,13 +2870,9 @@ end subroutine updateSizeDepRhizHydStates
     real(r8) :: satfrac                  ! saturation fraction [0-1]
     !----------------------------------------------------------------------
   
-    associate(& 
-         corrint  => EDecophyscon%corrint_node            & ! Input: [real(r8) (:,:) ] P-V curve: correction for nonzero psi0 (pft x porous_media)
-         )
-   
     if(pm <= 4) then       ! plant
 
-       call tq2(ft, pm, th_node*corrint(ft,pm), psi_node)
+       call tq2(ft, pm, th_node*cap_corr(pm), psi_node)
 
     else if(pm == 5) then  ! soil
 
@@ -2891,8 +2903,6 @@ end subroutine updateSizeDepRhizHydStates
 
     end if
 	     
-    end associate
-
   end subroutine psi_from_th
   
   !-------------------------------------------------------------------------------!
@@ -2916,12 +2926,8 @@ end subroutine updateSizeDepRhizHydStates
     real(r8) :: satfrac                  ! saturation fraction [0-1]
     !----------------------------------------------------------------------
   
-    associate(& 
-         corrint  => EDecophyscon%corrint_node            & ! Input: [real(r8) (:,:) ] P-V curve: correction for nonzero psi0
-         )
-   
     if(pm <= 4) then       ! plant
-       call dtq2dth(ft, pm, th_node*corrint(ft,pm), y)
+       call dtq2dth(ft, pm, th_node*cap_corr(pm), y)
     else if(pm == 5) then  ! soil
        select case (iswc)
        case (van_genuchten)
@@ -2947,8 +2953,6 @@ end subroutine updateSizeDepRhizHydStates
        end select
     end if
 	     
-    end associate
-
   end subroutine dpsidth_from_th
   
   !-------------------------------------------------------------------------------!
@@ -3394,14 +3398,13 @@ end subroutine updateSizeDepRhizHydStates
     !----------------------------------------------------------------------
   
     associate(& 
-         pinot   => EDecophyscon%pinot_node     , & ! Input: [real(r8) (:,:) ] P-V curve: osmotic potential at full turgor              [MPa]
-         thetas  => EDecophyscon%thetas_node    , & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content for node   [m3 m-3]
-	 rwcft   => EDecophyscon%rwcft_node     , & ! Input: [real(r8) (:,:) ] P-V curve: total RWC @ which elastic drainage begins     [-]
-	 resid   => EDecophyscon%resid_node       & ! Input: [real(r8) (:,:) ] P-V curve: residual fraction                             [-]
+         pinot   => EDPftvarcon_inst%hydr_pinot_node,  & ! Input: [real(r8) (:,:) ] P-V curve: osmotic potential at full turgor              [MPa]
+         thetas  => EDPftvarcon_inst%hydr_thetas_node, & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content for node   [m3 m-3]
+	 resid   => EDPftvarcon_inst%hydr_resid_node   & ! Input: [real(r8) (:,:) ] P-V curve: residual fraction                             [-]
          )
     
-    y = pinot(ft,pm)*thetas(ft,pm)*(rwcft(ft,pm) - resid(ft,pm)) / &
-        (x - thetas(ft,pm)*resid(ft,pm))
+      y = pinot(ft,pm)*thetas(ft,pm)*(rwcft(pm) - resid(ft,pm)) / &
+            (x - thetas(ft,pm)*resid(ft,pm))
 	     
     end associate
 
@@ -3424,14 +3427,13 @@ end subroutine updateSizeDepRhizHydStates
     !----------------------------------------------------------------------
   
     associate(& 
-         pinot   => EDecophyscon%pinot_node     , & ! Input: [real(r8) (:,:) ] P-V curve: osmotic potential at full turgor              [MPa]
-         thetas  => EDecophyscon%thetas_node    , & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content for node   [m3 m-3]
-	 rwcft   => EDecophyscon%rwcft_node     , & ! Input: [real(r8) (:,:) ] P-V curve: total RWC @ which elastic drainage begins     [-]
-	 resid   => EDecophyscon%resid_node       & ! Input: [real(r8) (:,:) ] P-V curve: residual fraction                             [-]
+         pinot   => EDPftvarcon_inst%hydr_pinot_node     , & ! Input: [real(r8) (:,:) ] P-V curve: osmotic potential at full turgor              [MPa]
+         thetas  => EDPftvarcon_inst%hydr_thetas_node    , & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content for node   [m3 m-3]
+	 resid   => EDPftvarcon_inst%hydr_resid_node       & ! Input: [real(r8) (:,:) ] P-V curve: residual fraction                             [-]
          )
     
-    y = -1._r8*thetas(ft,pm)*pinot(ft,pm)*(rwcft(ft,pm) - resid(ft,pm)) / &
-        ((x - thetas(ft,pm)*resid(ft,pm))**2._r8)
+      y = -1._r8*thetas(ft,pm)*pinot(ft,pm)*(rwcft(pm) - resid(ft,pm)) / &
+            ((x - thetas(ft,pm)*resid(ft,pm))**2._r8)
 	     
     end associate
 
@@ -3455,15 +3457,14 @@ end subroutine updateSizeDepRhizHydStates
     !----------------------------------------------------------------------
   
     associate(& 
-         pinot   => EDecophyscon%pinot_node     , & ! Input: [real(r8) (:,:) ] P-V curve: osmotic potential at full turgor              [MPa]
-         thetas  => EDecophyscon%thetas_node    , & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content for node   [m3 m-3]
-	 rwcft   => EDecophyscon%rwcft_node     , & ! Input: [real(r8) (:,:) ] P-V curve: total RWC @ which elastic drainage begins     [-]
-	 resid   => EDecophyscon%resid_node     , & ! Input: [real(r8) (:,:) ] P-V curve: residual fraction                             [-]
-         epsil   => EDecophyscon%epsil_node       & ! Input: [real(r8) (:,:) ] P-V curve: bulk elastic modulus                          [MPa]
+         pinot   => EDPftvarcon_inst%hydr_pinot_node     , & ! Input: [real(r8) (:,:) ] P-V curve: osmotic potential at full turgor              [MPa]
+         thetas  => EDPftvarcon_inst%hydr_thetas_node    , & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content for node   [m3 m-3]
+	 resid   => EDPftvarcon_inst%hydr_resid_node     , & ! Input: [real(r8) (:,:) ] P-V curve: residual fraction                             [-]
+         epsil   => EDPftvarcon_inst%hydr_epsil_node       & ! Input: [real(r8) (:,:) ] P-V curve: bulk elastic modulus                          [MPa]
          )
-   
-    y = epsil(ft,pm) * (x - thetas(ft,pm)*rwcft(ft,pm)) / &
-                      (thetas(ft,pm)*(rwcft(ft,pm)-resid(ft,pm))) - pinot(ft,pm)
+      
+      y = epsil(ft,pm) * (x - thetas(ft,pm)*rwcft(pm)) / &
+            (thetas(ft,pm)*(rwcft(pm)-resid(ft,pm))) - pinot(ft,pm)
 	     
     end associate
 
@@ -3486,13 +3487,12 @@ end subroutine updateSizeDepRhizHydStates
     !----------------------------------------------------------------------
   
     associate(& 
-         thetas  => EDecophyscon%thetas_node    , & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content for node   [m3 m-3]
-	 rwcft   => EDecophyscon%rwcft_node     , & ! Input: [real(r8) (:,:) ] P-V curve: total RWC @ which elastic drainage begins     [-]
-	 resid   => EDecophyscon%resid_node     , & ! Input: [real(r8) (:,:) ] P-V curve: residual fraction                             [-]
-         epsil   => EDecophyscon%epsil_node       & ! Input: [real(r8) (:,:) ] P-V curve: bulk elastic modulus                          [MPa]
+         thetas  => EDPftvarcon_inst%hydr_thetas_node, & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content for node   [m3 m-3]
+	 resid   => EDPftvarcon_inst%hydr_resid_node , & ! Input: [real(r8) (:,:) ] P-V curve: residual fraction                             [-]
+         epsil   => EDPftvarcon_inst%hydr_epsil_node   & ! Input: [real(r8) (:,:) ] P-V curve: bulk elastic modulus                          [MPa]
          )
-   
-    y = epsil(ft,pm)/(thetas(ft,pm)*(rwcft(ft,pm) - resid(ft,pm)))
+      
+      y = epsil(ft,pm)/(thetas(ft,pm)*(rwcft(pm) - resid(ft,pm)))
 	     
     end associate
 
@@ -3516,12 +3516,10 @@ end subroutine updateSizeDepRhizHydStates
     !----------------------------------------------------------------------
 
     associate(& 
-         intercept => EDecophyscon%intercept_node     , & ! Input: [real(r8) (:,:) ] P-V curve: intercept of capillary region of curve (sapwood only)
-         slp       => EDecophyscon%slp_node           , & ! Input: [real(r8) (:,:) ] P-V curve: slope of capillary region of curve (sapwood only)
-         thetas    => EDecophyscon%thetas_node          & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content for node   [m3 m-3]
+         thetas    => EDPftvarcon_inst%hydr_thetas_node     & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content for node   [m3 m-3]
          )
    
-    y = intercept(ft,pm) + slp(ft,pm)/thetas(ft,pm)*x
+      y = cap_int(pm) + cap_slp(pm)/thetas(ft,pm)*x
 	     
     end associate
 
@@ -3544,11 +3542,10 @@ end subroutine updateSizeDepRhizHydStates
     !----------------------------------------------------------------------
 
     associate(& 
-         slp       => EDecophyscon%slp_node           , & ! Input: [real(r8) (:,:) ] P-V curve: slope of capillary region of curve (sapwood only)
-         thetas    => EDecophyscon%thetas_node          & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content for node   [m3 m-3]
+         thetas    => EDPftvarcon_inst%hydr_thetas_node    & ! Input: [real(r8) (:,:) ] P-V curve: saturated volumetric water content for node   [m3 m-3]
          )
    
-    y = slp(ft,pm)/thetas(ft,pm)
+    y = cap_slp(pm)/thetas(ft,pm)
 	     
     end associate
 

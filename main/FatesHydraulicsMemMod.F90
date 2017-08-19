@@ -2,11 +2,11 @@ module FatesHydraulicsMemMod
 
    use FatesConstantsMod, only : r8 => fates_r8
    use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
+   use FatesConstantsMod, only : itrue,ifalse
 
    implicit none
 
-   integer,parameter :: nlevsoi_hyd = 10    ! use_fates_plant_hydro parameter:
-                                            ! Number of soil layers for indexing 
+   integer,parameter :: nlevsoi_hyd = 10    ! Number of soil layers for indexing 
                                             ! cohort fine root quanitities
 
 
@@ -21,14 +21,16 @@ module FatesHydraulicsMemMod
    integer , parameter :: npool_ag    = npool_leaf+npool_stem  ! number of aboveground plant water storage nodes
    integer , parameter :: npool_bg    = npool_troot            ! number of belowground plant water storage nodes
    integer , parameter :: npool_tot   = npool_ag + 2 + nshell  ! total number of water storage nodes
-   integer             :: porous_media(npool_tot)              ! vector indexing the type of 
-                                                               ! porous medium over an arbitrary 
-                                                               ! number of plant pools
+
+   ! vector indexing the type of porous medium over an arbitrary number of plant pools
+   integer, parameter,dimension(npool_tot) :: porous_media = (/1,2,3,4,5,5,5,5,5/) 
+
+
    integer, parameter :: numLWPmem             = 4             ! number of previous timestep's leaf water 
                                                                ! potential to be retained
    integer, parameter :: nlevcan_hyd = 2                       ! mirror of nlevcan, hard-set for simplicity
                                                                ! TODO: remove nlevcan_hyd on a rainy day
-   real(r8), parameter :: fine_root_radius_const = 0.001_r8    ! Mean fine root radius expected in the bulk soil
+   real(r8), parameter:: fine_root_radius_const = 0.001_r8    ! Mean fine root radius expected in the bulk soil
 
    type ed_site_hydr_type
 
@@ -210,5 +212,32 @@ module FatesHydraulicsMemMod
        this%h2oveg         = nan
        return
     end subroutine InitHydrSite
+    
+    ! ===================================================================================
+!    THIS SUBROUTINE, FOR SOME STRANGE REASON, GENERATES INTERNAL COMPILER ERRORS IN GNU 5.4
+!    (RGK: 08-2017)
+!    subroutine InitHydraulicsMem()
+!    
+!       
+!       integer :: k   ! Pool counting index
+!
+!       if(hlm_use_planthydro.eq.ifalse) return
+!       do k = 1,npool_tot
+!          if(k <= npool_leaf) then
+!             porous_media(k) = 1
+!          else if(k <= (npool_leaf+npool_stem)) then
+!             porous_media(k) = 2
+!          else if(k <= (npool_leaf+npool_stem+npool_troot)) then
+!             porous_media(k) = 3
+!          else if(k <= (npool_leaf+npool_stem+npool_troot+npool_aroot)) then
+!             porous_media(k) = 4
+!          else
+!             porous_media(k) = 5
+!          end if
+!       enddo!
+
+!    end subroutine InitHydraulicsMem
+
+
 
 end module FatesHydraulicsMemMod

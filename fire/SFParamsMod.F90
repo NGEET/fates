@@ -23,7 +23,7 @@ module SFParamsMod
    real(r8),protected :: SF_val_miner_damp
    real(r8),protected :: SF_val_max_durat
    real(r8),protected :: SF_val_durat_slope
-   real(r8),protected :: SF_val_alpha_SH
+   real(r8),protected :: SF_val_wind_max          ! Maximum wind speed expected by fire model (m/min)
    real(r8),protected :: SF_val_alpha_FMC(NFSC)
    real(r8),protected :: SF_val_CWD_frac(NCWD)
    real(r8),protected :: SF_val_max_decomp(NFSC)
@@ -31,11 +31,11 @@ module SFParamsMod
    real(r8),protected :: SF_val_FBD(NFSC)
    real(r8),protected :: SF_val_min_moisture(NFSC)
    real(r8),protected :: SF_val_mid_moisture(NFSC)
-   real(r8),protected :: SF_val_low_moisture_C(NFSC)
-   real(r8),protected :: SF_val_low_moisture_S(NFSC)
-   real(r8),protected :: SF_val_mid_moisture_C(NFSC)
-   real(r8),protected :: SF_val_mid_moisture_S(NFSC)
-  
+   real(r8),protected :: SF_val_low_moisture_Coeff(NFSC)
+   real(r8),protected :: SF_val_low_moisture_Slope(NFSC)
+   real(r8),protected :: SF_val_mid_moisture_Coeff(NFSC)
+   real(r8),protected :: SF_val_mid_moisture_Slope(NFSC)
+
    character(len=param_string_length),parameter :: SF_name_fdi_a = "fates_fdi_a"
    character(len=param_string_length),parameter :: SF_name_fdi_b = "fates_fdi_b"
    character(len=param_string_length),parameter :: SF_name_fdi_alpha = "fates_fdi_alpha"
@@ -45,7 +45,6 @@ module SFParamsMod
    character(len=param_string_length),parameter :: SF_name_miner_damp = "fates_miner_damp"
    character(len=param_string_length),parameter :: SF_name_max_durat = "fates_max_durat"
    character(len=param_string_length),parameter :: SF_name_durat_slope = "fates_durat_slope"
-   character(len=param_string_length),parameter :: SF_name_alpha_SH = "fates_alpha_SH"
    character(len=param_string_length),parameter :: SF_name_alpha_FMC = "fates_alpha_FMC"
    character(len=param_string_length),parameter :: SF_name_CWD_frac = "fates_CWD_frac"
    character(len=param_string_length),parameter :: SF_name_max_decomp = "fates_max_decomp"
@@ -53,10 +52,11 @@ module SFParamsMod
    character(len=param_string_length),parameter :: SF_name_FBD = "fates_FBD"
    character(len=param_string_length),parameter :: SF_name_min_moisture = "fates_min_moisture"
    character(len=param_string_length),parameter :: SF_name_mid_moisture = "fates_mid_moisture"
-   character(len=param_string_length),parameter :: SF_name_low_moisture_C = "fates_low_moisture_C"
-   character(len=param_string_length),parameter :: SF_name_low_moisture_S = "fates_low_moisture_S"
-   character(len=param_string_length),parameter :: SF_name_mid_moisture_C = "fates_mid_moisture_C"
-   character(len=param_string_length),parameter :: SF_name_mid_moisture_S = "fates_mid_moisture_S"
+   character(len=param_string_length),parameter :: SF_name_low_moisture_Coeff = "fates_low_moisture_Coeff"
+   character(len=param_string_length),parameter :: SF_name_low_moisture_Slope = "fates_low_moisture_Slope"
+   character(len=param_string_length),parameter :: SF_name_mid_moisture_Coeff = "fates_mid_moisture_Coeff"
+   character(len=param_string_length),parameter :: SF_name_mid_moisture_Slope = "fates_mid_moisture_Slope"
+   character(len=param_string_length),parameter :: SF_name_wind_max = "fates_fire_wind_max"
 
    public :: SpitFireRegisterParams
    public :: SpitFireReceiveParams
@@ -90,7 +90,7 @@ contains
     SF_val_miner_damp = nan
     SF_val_max_durat = nan
     SF_val_durat_slope = nan
-    SF_val_alpha_SH = nan
+    SF_val_wind_max = nan
 
     SF_val_CWD_frac(:) = nan
 
@@ -101,10 +101,10 @@ contains
     SF_val_FBD(:) = nan
     SF_val_min_moisture(:) = nan
     SF_val_mid_moisture(:) = nan
-    SF_val_low_moisture_C(:) = nan
-    SF_val_low_moisture_S(:) = nan
-    SF_val_mid_moisture_C(:) = nan
-    SF_val_mid_moisture_S(:) = nan
+    SF_val_low_moisture_Coeff(:) = nan
+    SF_val_low_moisture_Slope(:) = nan
+    SF_val_mid_moisture_Coeff(:) = nan
+    SF_val_mid_moisture_Slope(:) = nan
 
   end subroutine SpitFireParamsInit
 
@@ -149,6 +149,9 @@ contains
     class(fates_parameters_type), intent(inout) :: fates_params
 
     character(len=param_string_length), parameter :: dim_names_scalar(1) = (/dimension_name_scalar/)
+    
+    call fates_params%RegisterParameter(name=SF_name_wind_max, dimension_shape=dimension_shape_scalar, &
+          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=SF_name_fdi_a, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
@@ -177,9 +180,6 @@ contains
     call fates_params%RegisterParameter(name=SF_name_durat_slope, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=SF_name_alpha_SH, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
   end subroutine SpitFireRegisterScalars
 
  !-----------------------------------------------------------------------
@@ -190,7 +190,10 @@ contains
     implicit none
 
     class(fates_parameters_type), intent(inout) :: fates_params
-    
+
+    call fates_params%RetreiveParameter(name=SF_name_wind_max, &
+          data=SF_val_wind_max)
+
     call fates_params%RetreiveParameter(name=SF_name_fdi_a, &
          data=SF_val_fdi_a)
 
@@ -217,9 +220,6 @@ contains
 
     call fates_params%RetreiveParameter(name=SF_name_durat_slope, &
          data=SF_val_durat_slope)
-
-    call fates_params%RetreiveParameter(name=SF_name_alpha_SH, &
-         data=SF_val_alpha_SH)
 
   end subroutine SpitFireReceiveScalars
 
@@ -276,16 +276,16 @@ contains
     call fates_params%RegisterParameter(name=SF_name_mid_moisture, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=SF_name_low_moisture_C, dimension_shape=dimension_shape_1d, &
+    call fates_params%RegisterParameter(name=SF_name_low_moisture_Coeff, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=SF_name_low_moisture_S, dimension_shape=dimension_shape_1d, &
+    call fates_params%RegisterParameter(name=SF_name_low_moisture_Slope, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=SF_name_mid_moisture_C, dimension_shape=dimension_shape_1d, &
+    call fates_params%RegisterParameter(name=SF_name_mid_moisture_Coeff, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=SF_name_mid_moisture_S, dimension_shape=dimension_shape_1d, &
+    call fates_params%RegisterParameter(name=SF_name_mid_moisture_Slope, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
     call fates_params%RegisterParameter(name=SF_name_alpha_FMC, dimension_shape=dimension_shape_1d, &
@@ -318,17 +318,17 @@ contains
     call fates_params%RetreiveParameter(name=SF_name_mid_moisture, &
          data=SF_val_mid_moisture)
 
-    call fates_params%RetreiveParameter(name=SF_name_low_moisture_C, &
-         data=SF_val_low_moisture_C)
+    call fates_params%RetreiveParameter(name=SF_name_low_moisture_Coeff, &
+         data=SF_val_low_moisture_Coeff)
 
-    call fates_params%RetreiveParameter(name=SF_name_low_moisture_S, &
-         data=SF_val_low_moisture_S)
+    call fates_params%RetreiveParameter(name=SF_name_low_moisture_Slope, &
+         data=SF_val_low_moisture_Slope)
 
-    call fates_params%RetreiveParameter(name=SF_name_mid_moisture_C, &
-         data=SF_val_mid_moisture_C)
+    call fates_params%RetreiveParameter(name=SF_name_mid_moisture_Coeff, &
+         data=SF_val_mid_moisture_Coeff)
 
-    call fates_params%RetreiveParameter(name=SF_name_mid_moisture_S, &
-         data=SF_val_mid_moisture_S)
+    call fates_params%RetreiveParameter(name=SF_name_mid_moisture_Slope, &
+         data=SF_val_mid_moisture_Slope)
 
     call fates_params%RetreiveParameter(name=SF_name_alpha_FMC, &
          data=SF_val_alpha_FMC)

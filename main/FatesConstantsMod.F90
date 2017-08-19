@@ -52,6 +52,9 @@ module FatesConstantsMod
   ! Conversion factor :: ha per m2
   real(fates_r8), parameter :: ha_per_m2 = 1.0e-4_fates_r8
 
+  ! Conversion factor :: cm2 per m2
+  real(fates_r8), parameter :: cm2_per_m2 = 1.0e4_fates_r8
+
   ! Conversion: seconds per minute
   real(fates_r8), parameter :: sec_per_min = 60.0_fates_r8
 
