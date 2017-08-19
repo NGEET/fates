@@ -25,7 +25,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : itrue
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
-  use EDLoggingMortalityMod, only : logging_litter_fluxes ! logging flux, Yi Xu
+  use EDLoggingMortalityMod, only : logging_litter_fluxes 
   use EDLoggingMortalityMod, only : logging_time
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
 
