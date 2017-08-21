@@ -1,29 +1,32 @@
 module FatesHistoryInterfaceMod
 
-  
-  use FatesConstantsMod, only : r8 => fates_r8
-  use FatesConstantsMod, only : fates_avg_flag_length, fates_short_string_length, fates_long_string_length
-  use FatesGlobals    , only : fates_log
-  use FatesGlobals, only      : endrun => fates_endrun
+  use FatesConstantsMod        , only : r8 => fates_r8
+  use FatesConstantsMod        , only : fates_avg_flag_length, fates_short_string_length, fates_long_string_length
+  use FatesConstantsMod        , only : itrue,ifalse
+  use FatesGlobals             , only : fates_log
+  use FatesGlobals             , only : endrun => fates_endrun
 
-  use FatesIODimensionsMod, only : fates_io_dimension_type
-  use FatesIOVariableKindMod, only : fates_io_variable_kind_type
-  use FatesHistoryVariableType, only : fates_history_variable_type
-  use FatesInterfaceMod, only : hlm_hio_ignore_val
-  use EDParamsMod, only : ED_val_comp_excln
+  use FatesIODimensionsMod     , only : fates_io_dimension_type
+  use FatesIOVariableKindMod   , only : fates_io_variable_kind_type
+  use FatesHistoryVariableType , only : fates_history_variable_type
+  use FatesInterfaceMod        , only : hlm_hio_ignore_val
+  use FatesInterfaceMod        , only : hlm_use_planthydro
+  use FatesInterfaceMod        , only : hlm_use_ed_st3
+  use FatesInterfaceMod        , only : numpft
+  use EDParamsMod              , only : ED_val_comp_excln
 
   ! FIXME(bja, 2016-10) need to remove CLM dependancy 
-  use EDPftvarcon       , only : EDPftvarcon_inst
+  use EDPftvarcon              , only : EDPftvarcon_inst
 
   ! CIME Globals
-  use shr_log_mod , only      : errMsg => shr_log_errMsg
-  use shr_infnan_mod   , only : isnan => shr_infnan_isnan
-  use FatesConstantsMod, only : g_per_kg
-  use FatesConstantsMod, only : ha_per_m2
-  use FatesConstantsMod, only : days_per_sec
-  use FatesConstantsMod, only : sec_per_day
-  use FatesConstantsMod, only : days_per_year
-  use FatesConstantsMod, only : years_per_day
+  use shr_log_mod              , only : errMsg => shr_log_errMsg
+  use shr_infnan_mod           , only : isnan => shr_infnan_isnan
+  use FatesConstantsMod        , only : g_per_kg
+  use FatesConstantsMod        , only : ha_per_m2
+  use FatesConstantsMod        , only : days_per_sec
+  use FatesConstantsMod        , only : sec_per_day
+  use FatesConstantsMod        , only : days_per_year
+  use FatesConstantsMod        , only : years_per_day
 
   implicit none
 
@@ -83,6 +86,12 @@ module FatesHistoryInterfaceMod
   
   ! Indices to site by size-class by pft variables
   integer, private :: ih_nplant_si_scag
+  integer, private :: ih_nplant_canopy_si_scag
+  integer, private :: ih_nplant_understory_si_scag
+  integer, private :: ih_ddbh_canopy_si_scag
+  integer, private :: ih_ddbh_understory_si_scag
+  integer, private :: ih_mortality_canopy_si_scag
+  integer, private :: ih_mortality_understory_si_scag
 
   ! Indices to (site) variables
   integer, private :: ih_nep_si
@@ -173,6 +182,8 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_trimming_understory_si_scls
   integer, private :: ih_crown_area_canopy_si_scls
   integer, private :: ih_crown_area_understory_si_scls
+  integer, private :: ih_ddbh_canopy_si_scls
+  integer, private :: ih_ddbh_understory_si_scls
 
   ! lots of non-default diagnostics for understanding canopy versus understory carbon balances
   integer, private :: ih_rdark_canopy_si_scls
@@ -1091,14 +1102,10 @@ contains
     use EDtypesMod          , only : AREA_INV
     use EDtypesMod          , only : nlevsclass_ed
     use EDtypesMod          , only : nlevage_ed
-    use EDtypesMod          , only : do_ed_dynamics
     use EDtypesMod          , only : nfsc
     use EDtypesMod          , only : ncwd
     use EDtypesMod          , only : ican_upper
     use EDtypesMod          , only : ican_ustory
-    use EDTypesMod          , only : maxpft
-
-    use EDParamsMod       , only : ED_val_ag_biomass
     use EDTypesMod        , only : get_sizeage_class_index
     use EDTypesMod        , only : nlevleaf
 
@@ -1191,6 +1198,8 @@ contains
                hio_nplant_understory_si_scpf => this%hvars(ih_nplant_understory_si_scpf)%r82d, &
                hio_ddbh_canopy_si_scpf       => this%hvars(ih_ddbh_canopy_si_scpf)%r82d, &
                hio_ddbh_understory_si_scpf   => this%hvars(ih_ddbh_understory_si_scpf)%r82d, &
+               hio_ddbh_canopy_si_scls       => this%hvars(ih_ddbh_canopy_si_scls)%r82d, &
+               hio_ddbh_understory_si_scls   => this%hvars(ih_ddbh_understory_si_scls)%r82d, &
                hio_gpp_canopy_si_scpf        => this%hvars(ih_gpp_canopy_si_scpf)%r82d, &
                hio_gpp_understory_si_scpf    => this%hvars(ih_gpp_understory_si_scpf)%r82d, &
                hio_ar_canopy_si_scpf         => this%hvars(ih_ar_canopy_si_scpf)%r82d, &
@@ -1267,7 +1276,13 @@ contains
                hio_cwd_bg_out_si_cwdsc              => this%hvars(ih_cwd_bg_out_si_cwdsc)%r82d, &
                hio_crownarea_si_cnlf                => this%hvars(ih_crownarea_si_cnlf)%r82d, &
                hio_crownarea_si_can                 => this%hvars(ih_crownarea_si_can)%r82d, &
-               hio_nplant_si_scag                   => this%hvars(ih_nplant_si_scag)%r82d)
+               hio_nplant_si_scag                   => this%hvars(ih_nplant_si_scag)%r82d, &
+               hio_nplant_canopy_si_scag            => this%hvars(ih_nplant_canopy_si_scag)%r82d, &
+               hio_nplant_understory_si_scag        => this%hvars(ih_nplant_understory_si_scag)%r82d, &
+               hio_ddbh_canopy_si_scag              => this%hvars(ih_ddbh_canopy_si_scag)%r82d, &
+               hio_ddbh_understory_si_scag          => this%hvars(ih_ddbh_understory_si_scag)%r82d, &
+               hio_mortality_canopy_si_scag         => this%hvars(ih_mortality_canopy_si_scag)%r82d, &
+               hio_mortality_understory_si_scag     => this%hvars(ih_mortality_understory_si_scag)%r82d)
 
                
       ! ---------------------------------------------------------------------------------
@@ -1278,7 +1293,7 @@ contains
 
 
       ! If we don't have dynamics turned on, we just abort these diagnostics
-      if (.not.do_ed_dynamics) return
+      if (hlm_use_ed_st3.eq.itrue) return
 
       ! ---------------------------------------------------------------------------------
       ! Loop through the FATES scale hierarchy and fill the history IO arrays
@@ -1403,13 +1418,17 @@ contains
                     hio_npp_fnrt_si_scpf(io_si,scpf) = hio_npp_fnrt_si_scpf(io_si,scpf) + &
                                                        ccohort%npp_froot*n_perm2
                     hio_npp_bgsw_si_scpf(io_si,scpf) = hio_npp_bgsw_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_bsw*(1._r8-ED_val_ag_biomass)*n_perm2
+                                                       ccohort%npp_bsw*n_perm2*           &
+                                                       (1._r8-EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
                     hio_npp_agsw_si_scpf(io_si,scpf) = hio_npp_agsw_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_bsw*ED_val_ag_biomass*n_perm2
+                                                       ccohort%npp_bsw*n_perm2*           &
+                                                       EDPftvarcon_inst%allom_agb_frac(ccohort%pft)
                     hio_npp_bgdw_si_scpf(io_si,scpf) = hio_npp_bgdw_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_bdead*(1._r8-ED_val_ag_biomass)*n_perm2
+                                                       ccohort%npp_bdead*n_perm2*         &
+                                                       (1._r8-EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
                     hio_npp_agdw_si_scpf(io_si,scpf) = hio_npp_agdw_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_bdead*ED_val_ag_biomass*n_perm2
+                                                       ccohort%npp_bdead*n_perm2*         &
+                                                       EDPftvarcon_inst%allom_agb_frac(ccohort%pft)
                     hio_npp_seed_si_scpf(io_si,scpf) = hio_npp_seed_si_scpf(io_si,scpf) + &
                                                        ccohort%npp_bseed*n_perm2
                     hio_npp_stor_si_scpf(io_si,scpf) = hio_npp_stor_si_scpf(io_si,scpf) + &
@@ -1441,8 +1460,9 @@ contains
                        hio_m5_si_scpf(io_si,scpf) = hio_m5_si_scpf(io_si,scpf) + ccohort%fmort*ccohort%n
                        
 
-                      !need to update here , Yi Xu 
-		       hio_m7_si_scpf(io_si,scpf) = hio_m7_si_scpf(io_si,scpf) + (ccohort%lmort_logging+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n
+                      !Y.X. 
+		       hio_m7_si_scpf(io_si,scpf) = hio_m7_si_scpf(io_si,scpf) + &
+		       	    (ccohort%lmort_logging+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n
 
 
                        ! basal area  [m2/ha]
@@ -1468,18 +1488,23 @@ contains
 
                     ! update SCPF/SCLS- and canopy/subcanopy- partitioned quantities
                     if (ccohort%canopy_layer .eq. 1) then
+                       hio_nplant_canopy_si_scag(io_si,iscag) = hio_nplant_canopy_si_scag(io_si,iscag) + ccohort%n
+                       hio_mortality_canopy_si_scag(io_si,iscag) = hio_mortality_canopy_si_scag(io_si,iscag) + &
+                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%fmort) * ccohort%n
+                       hio_ddbh_canopy_si_scag(io_si,iscag) = hio_ddbh_canopy_si_scag(io_si,iscag) + &
+                            ccohort%ddbhdt*ccohort%n
                        hio_bstor_canopy_si_scpf(io_si,scpf) = hio_bstor_canopy_si_scpf(io_si,scpf) + &
                             ccohort%bstore * ccohort%n
                        hio_bleaf_canopy_si_scpf(io_si,scpf) = hio_bleaf_canopy_si_scpf(io_si,scpf) + &
                             ccohort%bl * ccohort%n
                        hio_canopy_biomass_pa(io_pa) = hio_canopy_biomass_pa(io_pa) + n_density * ccohort%b * g_per_kg
+
                        !hio_mortality_canopy_si_scpf(io_si,scpf) = hio_mortality_canopy_si_scpf(io_si,scpf)+ &
-                        !    (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * ccohort%n
+                       !    (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * ccohort%n
 
                         hio_mortality_canopy_si_scpf(io_si,scpf) = hio_mortality_canopy_si_scpf(io_si,scpf)+ &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort+ &
 			    ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra) * ccohort%n
-
 
                        hio_nplant_canopy_si_scpf(io_si,scpf) = hio_nplant_canopy_si_scpf(io_si,scpf) + ccohort%n
                        hio_nplant_canopy_si_scls(io_si,scls) = hio_nplant_canopy_si_scls(io_si,scls) + ccohort%n
@@ -1494,28 +1519,19 @@ contains
                        ! growth increment
                        hio_ddbh_canopy_si_scpf(io_si,scpf) = hio_ddbh_canopy_si_scpf(io_si,scpf) + &
                             ccohort%ddbhdt*ccohort%n
+                       hio_ddbh_canopy_si_scls(io_si,scls) = hio_ddbh_canopy_si_scls(io_si,scls) + &
+                            ccohort%ddbhdt*ccohort%n
+
                        ! sum of all mortality
-                      ! hio_mortality_canopy_si_scls(io_si,scls) = hio_mortality_canopy_si_scls(io_si,scls) + &
-                       !     (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * ccohort%n
-
                        hio_mortality_canopy_si_scls(io_si,scls) = hio_mortality_canopy_si_scls(io_si,scls) + &
-                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort + &
-			    ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra) * ccohort%n
-
-
-
-                       !hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
-                        !    (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * &
-                         !   ccohort%b * ccohort%n * g_per_kg * days_per_sec * years_per_day * ha_per_m2
-                       
+                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort + &
+                             ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra) * ccohort%n
 
                        hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * &
                             ccohort%b * ccohort%n * g_per_kg * days_per_sec * years_per_day * ha_per_m2 + &
-                            (ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra)* ccohort%b * ccohort%n * g_per_kg * ha_per_m2
-
-
-
+                            (ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra)* ccohort%b * &
+                            ccohort%n * g_per_kg * ha_per_m2
 
                        hio_leaf_md_canopy_si_scls(io_si,scls) = hio_leaf_md_canopy_si_scls(io_si,scls) + &
                             ccohort%leaf_md * ccohort%n
@@ -1549,6 +1565,11 @@ contains
                             hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) + &
                             ccohort%canopy_layer_yesterday * ccohort%n
                     else
+                       hio_nplant_understory_si_scag(io_si,iscag) = hio_nplant_understory_si_scag(io_si,iscag) + ccohort%n
+                       hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
+                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%fmort) * ccohort%n
+                       hio_ddbh_understory_si_scag(io_si,iscag) = hio_ddbh_understory_si_scag(io_si,iscag) + &
+                            ccohort%ddbhdt*ccohort%n
                        hio_bstor_understory_si_scpf(io_si,scpf) = hio_bstor_understory_si_scpf(io_si,scpf) + &
                             ccohort%bstore * ccohort%n
                        hio_bleaf_understory_si_scpf(io_si,scpf) = hio_bleaf_understory_si_scpf(io_si,scpf) + &
@@ -1561,9 +1582,6 @@ contains
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort + &
 			    ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra) * ccohort%n   
 
-
-
-
                        hio_nplant_understory_si_scpf(io_si,scpf) = hio_nplant_understory_si_scpf(io_si,scpf) + ccohort%n
                        hio_nplant_understory_si_scls(io_si,scls) = hio_nplant_understory_si_scls(io_si,scls) + ccohort%n
                        hio_trimming_understory_si_scls(io_si,scls) = hio_trimming_understory_si_scls(io_si,scls) + &
@@ -1574,26 +1592,23 @@ contains
                             n_perm2*ccohort%gpp_acc_hold
                        hio_ar_understory_si_scpf(io_si,scpf)      = hio_ar_understory_si_scpf(io_si,scpf)      + &
                             n_perm2*ccohort%resp_acc_hold
+
                        ! growth increment
                        hio_ddbh_understory_si_scpf(io_si,scpf) = hio_ddbh_understory_si_scpf(io_si,scpf) + &
                             ccohort%ddbhdt*ccohort%n
+                       hio_ddbh_understory_si_scls(io_si,scls) = hio_ddbh_understory_si_scls(io_si,scls) + &
+                            ccohort%ddbhdt*ccohort%n
+
                        ! sum of all mortality
-                       !hio_mortality_understory_si_scls(io_si,scls) = hio_mortality_understory_si_scls(io_si,scls) + &
-                        !    (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * ccohort%n
                        hio_mortality_understory_si_scls(io_si,scls) = hio_mortality_understory_si_scls(io_si,scls) + &
-                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort +&
-			    ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra) * ccohort%n                    
-
-
-                       !hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
-                        !    (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * &
-                         !   ccohort%b * ccohort%n * g_per_kg * days_per_sec * years_per_day * ha_per_m2
-                        hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
-                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * &
-                            ccohort%b * ccohort%n * g_per_kg * days_per_sec * years_per_day * ha_per_m2 + &
-			    (ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra) * ccohort%b * ccohort%n * g_per_kg * ha_per_m2
-							
-
+                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort +&
+                             ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra) * ccohort%n
+                       
+                       hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
+                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * &
+                             ccohort%b * ccohort%n * g_per_kg * days_per_sec * years_per_day * ha_per_m2 + &
+                             (ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra) * ccohort%b * &
+                             ccohort%n * g_per_kg * ha_per_m2
 
                        !
                        hio_leaf_md_understory_si_scls(io_si,scls) = hio_leaf_md_understory_si_scls(io_si,scls) + &
@@ -1628,6 +1643,18 @@ contains
                             hio_yesterdaycanopylevel_understory_si_scls(io_si,scls) + &
                             ccohort%canopy_layer_yesterday * ccohort%n
                     endif
+                    !
+                    ! consider imort as understory mortality even if it happens in 
+                    ! cohorts that may have been promoted as part of the patch creation...
+                    hio_mortality_understory_si_scpf(io_si,scpf) = hio_mortality_understory_si_scpf(io_si,scpf)+ &
+                            (ccohort%imort) * ccohort%n
+                    hio_mortality_understory_si_scls(io_si,scls) = hio_mortality_understory_si_scls(io_si,scls) + &
+                         (ccohort%imort) * ccohort%n
+                    hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
+                         (ccohort%imort) * &
+                         ccohort%b * ccohort%n * g_per_kg * days_per_sec * years_per_day * ha_per_m2
+                    hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
+                         (ccohort%imort) * ccohort%n
                     !
                     ccohort%canopy_layer_yesterday = real(ccohort%canopy_layer, r8)
                     
@@ -1729,7 +1756,7 @@ contains
 
          ! pass the cohort termination mortality as a flux to the history, and then reset the termination mortality buffer
          ! note there are various ways of reporting the total mortality, so pass to these as well
-         do i_pft = 1, maxpft
+         do i_pft = 1, numpft
             do i_scls = 1,nlevsclass_ed
                i_scpf = (i_pft-1)*nlevsclass_ed + i_scls
                hio_m6_si_scpf(io_si,i_scpf) = (sites(s)%terminated_nindivs(i_scls,i_pft,1) + &
@@ -1747,13 +1774,13 @@ contains
          sites(s)%terminated_nindivs(:,:,:) = 0._r8
 
          ! pass the recruitment rate as a flux to the history, and then reset the recruitment buffer
-         do i_pft = 1, maxpft
+         do i_pft = 1, numpft
             hio_recruitment_si_pft(io_si,i_pft) = sites(s)%recruitment_rate(i_pft) * days_per_year
          end do
          sites(s)%recruitment_rate(:) = 0._r8
 
          ! summarize all of the mortality fluxes by PFT
-         do i_pft = 1, maxpft
+         do i_pft = 1, numpft
             do i_scls = 1,nlevsclass_ed
                i_scpf = (i_pft-1)*nlevsclass_ed + i_scls
                !hio_mortality_si_pft(io_si,i_pft) = hio_mortality_si_pft(io_si,i_pft) + &
@@ -1836,7 +1863,7 @@ contains
                                      AREA_INV,       &
                                      nlevage_ed,     &
                                      nlevsclass_ed
-    use EDTypesMod, only : numpft_ed, nclmax, nlevleaf
+    use EDTypesMod          , only : nclmax, nlevleaf
     !
     ! Arguments
     class(fates_history_interface_type)                 :: this
@@ -2078,7 +2105,7 @@ contains
             enddo ! cohort loop
 
             ! summarize radiation profiles through the canopy
-            do ipft=1,numpft_ed
+            do ipft=1,numpft
                do ican=1,nclmax
                   do ileaf=1,nlevleaf
                      ! calculate where we are on multiplexed dimensions
@@ -2189,11 +2216,10 @@ contains
                                      nlevsclass_ed
 
     use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
-    use EDTypesMod           , only : use_fates_plant_hydro
     use FatesHydraulicsMemMod, only : nlevsoi_hyd
     use EDTypesMod           , only : nlevsclass_ed
-    use EDTypesMod           , only : do_ed_dynamics
     use EDTypesMod           , only : maxpft
+
     
     ! Arguments
     class(fates_history_interface_type)             :: this
@@ -2228,7 +2254,7 @@ contains
     real(r8), parameter :: daysecs = 86400.0_r8 ! What modeler doesn't recognize 86400?
     real(r8), parameter :: yeardays = 365.0_r8  ! Should this be 365.25?
     
-    if(.not.use_fates_plant_hydro) return
+    if(hlm_use_planthydro.eq.ifalse) return
 
     associate( hio_errh2o_scpf  => this%hvars(ih_errh2o_scpf)%r82d, &
           hio_tran_scpf         => this%hvars(ih_tran_scpf)%r82d, &
@@ -2402,8 +2428,8 @@ contains
             cpatch => cpatch%younger
          end do !patch loop
 
-         if(do_ed_dynamics) then
-            do scpf=1,nlevsclass_ed*maxpft
+         if(hlm_use_ed_st3.eq.ifalse) then
+            do scpf=1,nlevsclass_ed*numpft
                if( abs(hio_nplant_si_scpf(io_si, scpf)-ncohort_scpf(scpf)) > 1.0E-8_r8 ) then
                   write(fates_log(),*) 'nplant check on hio_nplant_si_scpf fails during hydraulics history updates'
                   call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -2482,7 +2508,8 @@ contains
     use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8    
     use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
-    use EDTypesMod            , only : use_fates_plant_hydro
+    use FatesInterfaceMod     , only : hlm_use_planthydro
+    
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
     use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
 
@@ -2996,6 +3023,36 @@ contains
           avgflag='A', vtype=site_scag_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nplant_si_scag )
 
+    call this%set_history_var(vname='NPLANT_CANOPY_SCAG',units = 'plants/ha',               &
+          long='number of plants per hectare in canopy in each size x age class', use_default='inactive',   &
+          avgflag='A', vtype=site_scag_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nplant_canopy_si_scag )
+
+    call this%set_history_var(vname='NPLANT_UNDERSTORY_SCAG',units = 'plants/ha',               &
+          long='number of plants per hectare in understory in each size x age class', use_default='inactive',   &
+          avgflag='A', vtype=site_scag_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nplant_understory_si_scag )
+
+    call this%set_history_var(vname='DDBH_CANOPY_SCAG',units = 'cm/yr/ha',               &
+          long='growth rate of canopy plantsnumber of plants per hectare in canopy in each size x age class', use_default='inactive',   &
+          avgflag='A', vtype=site_scag_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ddbh_canopy_si_scag )
+
+    call this%set_history_var(vname='DDBH_UNDERSTORY_SCAG',units = 'cm/yr/ha',               &
+          long='growth rate of understory plants in each size x age class', use_default='inactive',   &
+          avgflag='A', vtype=site_scag_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ddbh_understory_si_scag )
+
+    call this%set_history_var(vname='MORTALITY_CANOPY_SCAG',units = 'plants/ha/yr',               &
+          long='mortality rate of canopy plants in each size x age class', use_default='inactive',   &
+          avgflag='A', vtype=site_scag_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_mortality_canopy_si_scag )
+
+    call this%set_history_var(vname='MORTALITY_UNDERSTORY_SCAG',units = 'plants/ha/yr',               &
+          long='mortality rate of understory plantsin each size x age class', use_default='inactive',   &
+          avgflag='A', vtype=site_scag_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_mortality_understory_si_scag )
+
 
     ! Carbon Flux (grid dimension x scpf) (THESE ARE DEFAULT INACTIVE!!!
     !                                     (BECAUSE THEY TAKE UP SPACE!!!
@@ -3247,6 +3304,16 @@ contains
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_frootm_si_scpf )
 
     ! size-class only variables
+
+    call this%set_history_var(vname='DDBH_CANOPY_SCLS', units = 'cm/yr/ha',         &
+          long='diameter growth increment by pft/size',use_default='inactive', &
+          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ddbh_canopy_si_scls )
+
+    call this%set_history_var(vname='DDBH_UNDERSTORY_SCLS', units = 'cm/yr/ha',         &
+          long='diameter growth increment by pft/size',use_default='inactive', &
+          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ddbh_understory_si_scls )
 
     call this%set_history_var(vname='YESTERDAYCANLEV_CANOPY_SCLS', units = 'indiv/ha',               &
           long='Yesterdays canopy level for canopy plants by size class', use_default='inactive',   &
@@ -3569,7 +3636,7 @@ contains
 
     ! PLANT HYDRAULICS
 
-    if(use_fates_plant_hydro) then
+    if(hlm_use_planthydro.eq.itrue) then
        
        call this%set_history_var(vname='FATES_ERRH2O_SCPF', units='kg/indiv/s', &
              long='mean individual water balance error', use_default='active', &
