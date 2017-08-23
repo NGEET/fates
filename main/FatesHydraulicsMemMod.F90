@@ -1,36 +1,71 @@
 module FatesHydraulicsMemMod
 
    use FatesConstantsMod, only : r8 => fates_r8
-   use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
+   use shr_infnan_mod   , only : nan => shr_infnan_nan, assignment(=)
    use FatesConstantsMod, only : itrue,ifalse
-
+   use EDParamsMod      , only : hydr_psi0
+   use EDParamsMod      , only : hydr_psicap
+   
    implicit none
 
-   integer,parameter :: nlevsoi_hyd = 10    ! Number of soil layers for indexing 
-                                            ! cohort fine root quanitities
+   ! Number of soil layers for indexing cohort fine root quanitities
+   integer, parameter                            :: nlevsoi_hyd = 10
 
+   ! number of distinct types of plant porous media (leaf, stem, troot, aroot)
+   integer, parameter                            :: n_porous_media = 4
 
-   integer , parameter :: n_porous_media = 4                   ! number of distinct types 
-                                                               ! of plant porous media 
-                                                               ! (leaf, stem, troot, aroot)
-   integer , parameter :: npool_leaf  = 1                      ! 
-   integer , parameter :: npool_stem  = 1                      ! 
-   integer , parameter :: npool_troot = 1                      ! 
-   integer , parameter :: npool_aroot = 1                      ! 
-   integer , parameter :: nshell      = 5                      !
-   integer , parameter :: npool_ag    = npool_leaf+npool_stem  ! number of aboveground plant water storage nodes
-   integer , parameter :: npool_bg    = npool_troot            ! number of belowground plant water storage nodes
-   integer , parameter :: npool_tot   = npool_ag + 2 + nshell  ! total number of water storage nodes
+   integer, parameter                            :: npool_leaf  = 1
+   integer, parameter                            :: npool_stem  = 1
+   integer, parameter                            :: npool_troot = 1
+   integer, parameter                            :: npool_aroot = 1
+   integer, parameter                            :: nshell      = 5
+
+   ! number of aboveground plant water storage nodes
+   integer, parameter                            :: npool_ag    = npool_leaf+npool_stem
+
+   ! number of belowground plant water storage nodes
+   integer, parameter                            :: npool_bg    = npool_troot
+
+   ! total number of water storage nodes
+   integer, parameter                            :: npool_tot   = npool_ag + 2 + nshell
 
    ! vector indexing the type of porous medium over an arbitrary number of plant pools
-   integer, parameter,dimension(npool_tot) :: porous_media = (/1,2,3,4,5,5,5,5,5/) 
+   integer, parameter,dimension(npool_tot)       :: porous_media = (/1,2,3,4,5,5,5,5,5/) 
 
+   ! number of previous timestep's leaf water potential to be retained
+   integer, parameter                            :: numLWPmem             = 4
 
-   integer, parameter :: numLWPmem             = 4             ! number of previous timestep's leaf water 
-                                                               ! potential to be retained
-   integer, parameter :: nlevcan_hyd = 2                       ! mirror of nlevcan, hard-set for simplicity
-                                                               ! TODO: remove nlevcan_hyd on a rainy day
-   real(r8), parameter:: fine_root_radius_const = 0.001_r8    ! Mean fine root radius expected in the bulk soil
+   ! mirror of nlevcan, hard-set for simplicity, remove nlevcan_hyd on a rainy day
+   ! Note (RGK): uscing nclmax causes annoying circular dependency (this needs EDTypes, EDTypes needs this)
+   ! way around that: dynamic allocation, or just keep this, but set the value high
+   integer, parameter                            :: nlevcan_hyd = 2                       
+                       
+   ! Mean fine root radius expected in the bulk soil                
+   real(r8), parameter                           :: fine_root_radius_const = 0.001_r8               
+   
+   ! Constant parameters (for time being, C2B is constant, 
+   ! slated for addition to parameter file (RGK 08-2017))
+   ! Carbon 2 biomass ratio
+   real(r8), parameter                           :: C2B        = 2.0_r8 
+              
+   ! P-V curve: total RWC @ which elastic drainage begins     [-]        
+   real(r8), parameter,dimension(n_porous_media) :: rwcft   = (/1.0_r8,0.958_r8,0.958_r8,0.958_r8/)
+
+   ! P-V curve: total RWC @ which capillary reserves exhausted
+   real(r8), parameter,dimension(n_porous_media) :: rwccap  = (/1.0_r8,0.947_r8,0.947_r8,0.947_r8/) 
+
+   ! Derived parameters
+   ! ----------------------------------------------------------------------------------------------
+
+   ! P-V curve: slope of capillary region of curve
+   real(r8), dimension(n_porous_media)           :: cap_slp                                         
+
+   ! P-V curve: intercept of capillary region of curve
+   real(r8), dimension(n_porous_media)           :: cap_int   
+
+   ! P-V curve: correction for nonzero psi0x
+   real(r8), dimension(n_porous_media)           :: cap_corr                                        
+
 
    type ed_site_hydr_type
 
@@ -81,7 +116,7 @@ module FatesHydraulicsMemMod
      
      real(r8),allocatable :: psisoi_liq_innershell(:) ! Matric potential of the inner rhizosphere shell (MPa)
     
-     real(r8) :: l_aroot_1D                     ! Total (across cohorts) absorbing root 
+     real(r8) :: l_aroot_1D                         ! Total (across cohorts) absorbing root 
                                                     ! length across all layers
 
      real(r8) :: errh2o_hyd                         ! plant hydraulics error summed across 
@@ -91,10 +126,14 @@ module FatesHydraulicsMemMod
      real(r8) :: h2oveg                             ! stored water in vegetation (kg)
      
      !     Hold Until Van Genuchten is implemented
-     !     real(r8), allocatable :: alpha_VG(:) ! col inverse of air-entry pressure     [MPa-1]  (for van Genuchten SWC only)
-     !     real(r8), allocatable :: n_VG(:)     ! col pore-size distribution index      [-]      (for van Genuchten SWC only)
-     !     real(r8), allocatable :: m_VG(:)     ! = 1 - 1/n_VG                          [-]      (for van Genuchten SWC only)
-     !     real(r8), allocatable :: l_VG(:)     ! col pore tortuosity parameter         [-]      (for van Genuchten SWC only)
+     ! col inverse of air-entry pressure     [MPa-1]  (for van Genuchten SWC only)
+     !     real(r8), allocatable :: alpha_VG(:)  
+     ! col pore-size distribution index      [-]      (for van Genuchten SWC only)
+     !     real(r8), allocatable :: n_VG(:) 
+     ! = 1 - 1/n_VG                          [-]      (for van Genuchten SWC only)   
+     !     real(r8), allocatable :: m_VG(:) 
+     ! col pore tortuosity parameter         [-]      (for van Genuchten SWC only)    
+     !     real(r8), allocatable :: l_VG(:)     
      
   contains
      
@@ -151,7 +190,7 @@ module FatesHydraulicsMemMod
      real(r8) ::  flc_min_aroot(nlevsoi_hyd)             ! min attained fractional loss of conductivity in absorbing roots (for tracking xylem refilling dynamics)          [-]
      real(r8) ::  refill_thresh                          ! water potential threshold for xylem refilling to occur            [MPa]
      real(r8) ::  refill_days                            ! number of days required for 50% of xylem refilling to occur       [days]
-     real(r8) ::  btran(nlevcan_hyd)                         ! leaf water potential limitation on gs                             [0-1]
+     real(r8) ::  btran(nlevcan_hyd)                          ! leaf water potential limitation on gs                             [0-1]
      real(r8) ::  supsub_flag                            ! k index of last node to encounter supersaturation or sub-residual water content  (+ supersaturation; - subsaturation)
      real(r8) ::  iterh1                                 ! number of iterations required to achieve tolerable water balance error
      real(r8) ::  iterh2                                 ! number of inner iterations
@@ -214,14 +253,26 @@ module FatesHydraulicsMemMod
     end subroutine InitHydrSite
     
     ! ===================================================================================
-!    THIS SUBROUTINE, FOR SOME STRANGE REASON, GENERATES INTERNAL COMPILER ERRORS IN GNU 5.4
-!    (RGK: 08-2017)
-!    subroutine InitHydraulicsMem()
-!    
-!       
-!       integer :: k   ! Pool counting index
-!
-!       if(hlm_use_planthydro.eq.ifalse) return
+    
+    subroutine InitHydraulicsDerived()
+    
+       integer :: k   ! Pool counting index
+
+       do k = 1,n_porous_media
+          
+          if (k.eq.1) then   ! Leaf tissue
+             cap_slp(k)    = 0.0_r8
+             cap_int(k)    = 0.0_r8
+             cap_corr(k)   = 1.0_r8
+          else               ! Non leaf tissues
+             cap_slp(k)    = (hydr_psi0 - hydr_psicap )/(1.0_r8 - rwccap(k))  
+             cap_int(k)    = -cap_slp(k) + hydr_psi0    
+             cap_corr(k)   = -cap_int(k)/cap_slp(k)
+          end if
+       end do
+
+       ! FOR SOME STRANGE REASON, GENERATES INTERNAL COMPILER ERRORS IN GNU 5.4
+       ! (RGK: 08-2017)
 !       do k = 1,npool_tot
 !          if(k <= npool_leaf) then
 !             porous_media(k) = 1
@@ -235,8 +286,8 @@ module FatesHydraulicsMemMod
 !             porous_media(k) = 5
 !          end if
 !       enddo!
-
-!    end subroutine InitHydraulicsMem
+       return
+    end subroutine InitHydraulicsDerived
 
 
 

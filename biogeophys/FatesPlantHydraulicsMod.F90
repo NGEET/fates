@@ -62,6 +62,12 @@ module FatesPlantHydraulicsMod
    use FatesHydraulicsMemMod, only: npool_bg
    use FatesHydraulicsMemMod, only: porous_media
    use FatesHydraulicsMemMod, only: nlevsoi_hyd
+   use FatesHydraulicsMemMod, only: cap_slp
+   use FatesHydraulicsMemMod, only: cap_int
+   use FatesHydraulicsMemMod, only: cap_corr
+   use FatesHydraulicsMemMod, only: rwcft
+   use FatesHydraulicsMemMod, only: C2B
+   use FatesHydraulicsMemMod, only: InitHydraulicsDerived
 
    use FatesConstantsMod,     only: cm2_per_m2
 
@@ -99,21 +105,6 @@ module FatesPlantHydraulicsMod
                                                           ! hydraulic properties and states be 
                                                           ! updated every day when trees grow or 
                                                           ! when recruitment happens?
-   logical, public :: do_static_ed              = .true.  ! should growth, mortality, and patch
-                                                          ! dynamics be turned off?
-
-
-   ! Some Parameters
-
-   real(r8), parameter :: C2B        = 2.0_r8   ! Carbon 2 biomass ratio
-   real(r8), parameter :: psi0       = -0.08_r8 ! sapwood water potential at saturation                [MPa]
-   real(r8), parameter :: psicap     = -0.39_r8 ! sapwood water potential at rwcft                     [MPa]
-   real(r8), parameter,dimension(4) :: rwcft   = (/1.0_r8,0.958_r8,0.958_r8,0.958_r8/)    ! P-V curve: total RWC @ which elastic drainage begins     [-]
-   real(r8), parameter,dimension(4) :: rwccap  = (/1.0_r8,0.947_r8,0.947_r8,0.947_r8/)    ! P-V curve: total RWC @ which capillary reserves exhausted
-   real(r8), parameter,dimension(4) :: cap_slp = (/0.0_r8,5.795_r8,5.795_r8,5.795_r8/)    ! (psi0 - psicap )/(1._r8 - rwccap)  P-V curve: slope of capillary region of curve
-   real(r8), parameter,dimension(4) :: cap_int = (/0.0_r8,-5.929_r8,-5.929_r8,-5.929_r8/) !-sapcap_slp + psi0         ! P-V curve: intercept of capillary region of curve
-   real(r8), parameter,dimension(4) :: cap_corr= (/1.0_r8,1.0136_r8,1.0136_r8,1.0136_r8/) !-sapcap_int/sapcap_slp                 ! P-V curve: correction for nonzero psi0
-
 
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
@@ -690,6 +681,9 @@ contains
        
 
        if ( hlm_use_planthydro.eq.ifalse ) return
+       
+       ! Initialize any derived hydraulics parameters
+       call InitHydraulicsDerived()
        
        nsites = ubound(sites,1)
        do s=1,nsites
