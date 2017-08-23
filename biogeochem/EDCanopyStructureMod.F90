@@ -5,18 +5,21 @@ module EDCanopyStructureMod
   ! This is obviosuly far too complicated for it's own good and needs re-writing.  
   ! ============================================================================
 
-  use FatesConstantsMod     , only : r8 => fates_r8
-  use FatesGlobals          , only : fates_log
-  use EDPftvarcon           , only : EDPftvarcon_inst
-  use EDGrowthFunctionsMod  , only : c_area
-  use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
-  use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type, ncwd
-  use EDTypesMod            , only : nclmax
-  use EDTypesMod            , only : nlevleaf
-  use EDtypesMod            , only : AREA
-  use FatesGlobals          , only : endrun => fates_endrun
-  use FatesInterfaceMod     , only : hlm_days_per_year
-  use FatesInterfaceMod     , only : numpft
+  use FatesConstantsMod      , only : r8 => fates_r8
+  use FatesConstantsMod      , only : itrue
+  use FatesGlobals           , only : fates_log
+  use EDPftvarcon            , only : EDPftvarcon_inst
+  use EDGrowthFunctionsMod   , only : c_area
+  use EDCohortDynamicsMod    , only : copy_cohort, terminate_cohorts, fuse_cohorts
+  use EDtypesMod             , only : ed_site_type, ed_patch_type, ed_cohort_type, ncwd
+  use EDTypesMod             , only : nclmax
+  use EDTypesMod             , only : nlevleaf
+  use EDtypesMod             , only : AREA
+  use FatesGlobals           , only : endrun => fates_endrun
+  use FatesInterfaceMod      , only : hlm_days_per_year
+  use FatesInterfaceMod      , only : hlm_use_planthydro
+  use FatesInterfaceMod      , only : numpft
+  use FatesPlantHydraulicsMod, only : UpdateH2OVeg
 
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -1465,9 +1468,13 @@ contains
         if(abs(total_patch_area-1.0_r8)>1e-9)then
            write(fates_log(),*) 'total area is wrong in update_hlm_dynamics',total_patch_area
         endif
-        
 
      end do
+
+     ! If hydraulics is turned on, update the amount of water bound in vegetation
+     if (hlm_use_planthydro.eq.itrue) then
+        call UpdateH2OVeg(nsites,sites,bc_out)
+     end if
 
 
   end subroutine update_hlm_dynamics

@@ -240,12 +240,6 @@ contains
 
         call initialize_sites_by_inventory(nsites,sites,bc_in)
 
-        do s = 1, nsites
-           if (hlm_use_planthydro.eq.itrue) then
-              call updateSizeDepRhizHydProps(sites(s), bc_in(s))
-           end if
-        enddo
-
      else
 
         !FIX(SPM,032414) clean this up...inits out of this loop
@@ -268,17 +262,20 @@ contains
 
            call init_cohorts(newp, bc_in(s))
 
-           ! This sets the rhizosphere shells based on the plant initialization
-           ! The initialization of the plant-relevant hydraulics variables
-           ! were set from a call inside of the init_cohorts()->create_cohort() subroutine
-           if (hlm_use_planthydro.eq.itrue) then
-              call updateSizeDepRhizHydProps(sites(s), bc_in(s))
-           end if
-
         enddo
 
      end if
 
+     ! This sets the rhizosphere shells based on the plant initialization
+     ! The initialization of the plant-relevant hydraulics variables
+     ! were set from a call inside of the init_cohorts()->create_cohort() subroutine
+     if (hlm_use_planthydro.eq.itrue) then 
+        do s = 1, nsites
+           call updateSizeDepRhizHydProps(sites(s), bc_in(s))
+        end do
+     end if
+
+     return
   end subroutine init_patches
 
   ! ============================================================================
