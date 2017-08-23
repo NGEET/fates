@@ -1159,6 +1159,14 @@ contains
                write(fates_log(), *) 'The FATES namelist planthydro flag must be 0 or 1, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
+         elseif (hlm_use_planthydro.eq.1 ) then
+               write(fates_log(), *) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+               write(fates_log(), *) ''
+               write(fates_log(), *) ' use_fates_planthydro is an      EXPERIMENTAL FEATURE        '
+               write(fates_log(), *) ' please see header of fates/biogeophys/FatesHydraulicsMod.F90'
+               write(fates_log(), *) ' for more information.'
+               write(fates_log(), *) ''
+               write(fates_log(), *) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
          end if
 
          if (  .not.((hlm_use_ed_st3.eq.1).or.(hlm_use_ed_st3.eq.0))    ) then
