@@ -1,5 +1,26 @@
 module FatesPlantHydraulicsMod
 
+   ! ==============================================================================================
+   ! This module contains the relevant code for plant hydraulics. Currently, one hydraulics module
+   ! is available.  Other methods of estimating plant hydraulics may become available in future
+   ! releases.  For now, please cite the following reference if this module is used to generate
+   ! published research:
+   !     
+   ! Christoffersen, B.O., Gloor, M., Fauset, S., Fyllas, N. M., Galbraith, D. R., Baker, 
+   !   T. R., Kruijt, B., Rowland, L., Fisher, R. A., Binks, O. J., Sevanto, S., Xu, C., Jansen, 
+   !   S., Choat, B., Mencuccini, M., McDowell, N. G., Meir, P. Linking hydraulic traits to 
+   !   tropical forest function in a size-structured and trait-driven model (TFS~v.1-Hydro). 
+   !   Geoscientific Model Development, 9(11), 2016, pp: 4227-4255, 
+   !   https://www.geosci-model-dev.net/9/4227/2016/, DOI = 10.5194/gmd-9-4227-2016.
+   !
+   ! WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+   !
+   !  PLANT HYDRAULICS IS AN EXPERIMENTAL OPTION THAT IS STILL UNDERGOING TESTING.  THERE IS
+   !  ABSOLUTELY NO SUPPORT ON THIS FEATURE FOR THE TIME BEING>
+   ! 
+   ! WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+   !
+   ! ==============================================================================================
 
    ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!99
    ! (TODO: THE ROW WIDTH ON THIS MODULE ARE TOO LARGE. NAG COMPILERS
