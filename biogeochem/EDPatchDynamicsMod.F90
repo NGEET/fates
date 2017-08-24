@@ -924,6 +924,8 @@ contains
     new_patch%leaf_litter_in(:)  = 0._r8
     new_patch%leaf_litter_out(:) = 0._r8
 
+    new_patch%root_litter_in(:) = 0._r8
+    new_patch%root_litter_out(:) = 0._r8
    
 
   end subroutine create_patch
