@@ -16,7 +16,6 @@ module FatesPlantHydraulicsMod
    use FatesConstantsMod, only : denh2o => dens_fresh_liquid_water
    use FatesConstantsMod, only : grav => grav_earth
 
-   use EDTypesMod, only        : use_fates_plant_hydro
    use EDTypesMod        , only : ed_site_type
    use EDTypesMod        , only : ed_patch_type
    use EDTypesMod        , only : ed_cohort_type

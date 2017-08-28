@@ -391,8 +391,11 @@ contains
     !Routine called daily from within ED within a site loop.
     !Returns the updated currentPatch%ROS_front value for each patch.
 
-    use SFParamsMod, only  : SF_val_miner_total, SF_val_part_dens, &
-         SF_val_miner_damp, SF_val_fuel_energy
+    use SFParamsMod, only  : SF_val_miner_total, &
+                             SF_val_part_dens,   &
+                             SF_val_miner_damp,  &
+                             SF_val_fuel_energy, &
+                             SF_val_wind_max
     use FatesInterfaceMod, only : hlm_current_day, hlm_current_month
 
     type(ed_site_type), intent(in), target :: currentSite
@@ -409,7 +412,6 @@ contains
     real(r8) beta_ratio           ! ratio of beta/beta_op
     real(r8) a_beta               ! dummy variable for product of a* beta_ratio for react_v_opt equation
     real(r8) a,b,c,e              ! function of fuel sav
-    real(r8),parameter::wind_max = 45.718_r8 !max wind speed (m/min)=150 ft/min per Lasslop etal 2014
     real(r8) wind_elev_fire                  !wind speed (m/min) at elevevation relevant for fire
 
     logical,parameter :: debug_windspeed = .false. !for debugging
@@ -479,7 +481,7 @@ contains
        ! convert wind_elev_fire from m/min to ft/min for Rothermel ROS eqn
        ! wind max per Lasslop et al 2014 to linearly reduce ROS for high wind speeds
        !OLD! phi_wind = c * ((3.281_r8*currentPatch%effect_wspeed)**b)*(beta_ratio**(-e))
-       if (currentPatch%effect_wspeed .le. wind_max) then
+       if (currentPatch%effect_wspeed .le. SF_val_wind_max) then
           wind_elev_fire = currentPatch%effect_wspeed
           phi_wind = c * ((3.281_r8*wind_elev_fire)**b)*(beta_ratio**(-e))
           if (debug_windspeed) write(fates_log(),*) 'SF wind LESS max ', currentPatch%effect_wspeed 
@@ -555,8 +557,8 @@ contains
     !returns the  the hypothetic fuel consumed by the fire
 
     use SFParamsMod, only : SF_val_miner_total, SF_val_min_moisture, &
-         SF_val_mid_moisture, SF_val_low_moisture_C, SF_val_low_moisture_S, &
-         SF_val_mid_moisture_C, SF_val_mid_moisture_S
+         SF_val_mid_moisture, SF_val_low_moisture_Coeff, SF_val_low_moisture_Slope, &
+         SF_val_mid_moisture_Coeff, SF_val_mid_moisture_Slope
 
     type(ed_site_type) , intent(in), target :: currentSite
 
@@ -582,13 +584,13 @@ contains
           endif
           ! 2. Low to medium moistures
           if (moist > SF_val_min_moisture(c).and.moist <= SF_val_mid_moisture(c)) then
-             currentPatch%burnt_frac_litter(c) = max(0.0_r8,min(1.0_r8,SF_val_low_moisture_C(c)- &
-                  SF_val_low_moisture_S(c)*moist)) 
+             currentPatch%burnt_frac_litter(c) = max(0.0_r8,min(1.0_r8,SF_val_low_moisture_Coeff(c)- &
+                  SF_val_low_moisture_Slope(c)*moist)) 
           else
           ! For medium to high moistures. 
              if (moist > SF_val_mid_moisture(c).and.moist <= 1.0_r8) then
-                currentPatch%burnt_frac_litter(c) = max(0.0_r8,min(1.0_r8,SF_val_mid_moisture_C(c)- &
-                     SF_val_mid_moisture_S(c)*moist))
+                currentPatch%burnt_frac_litter(c) = max(0.0_r8,min(1.0_r8,SF_val_mid_moisture_Coeff(c)- &
+                     SF_val_mid_moisture_Slope(c)*moist))
              endif
 
           endif
@@ -803,9 +805,6 @@ contains
     !currentPatch%SH !average scorch height for the patch(m)
     !currentPatch%FI  average fire intensity of flaming front during day.  kW/m.
 
-    use SFParamsMod,  only : SF_val_alpha_SH
-    use EDParamsMod,  only : ED_val_ag_biomass
-
     type(ed_site_type), intent(in), target :: currentSite
 
     type(ed_patch_type), pointer :: currentPatch
@@ -823,7 +822,7 @@ contains
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
-                tree_ag_biomass = tree_ag_biomass+(currentCohort%bl+ED_val_ag_biomass* &
+                tree_ag_biomass = tree_ag_biomass+(currentCohort%bl+EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)* &
                      (currentCohort%bsw + currentCohort%bdead))*currentCohort%n
              endif !trees only
 
@@ -839,14 +838,16 @@ contains
           do while(associated(currentCohort))
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1 &
                   .and. (tree_ag_biomass > 0.0_r8)) then !trees only
-                f_ag_bmass = ((currentCohort%bl+ED_val_ag_biomass*(currentCohort%bsw + &
+                f_ag_bmass = ((currentCohort%bl+EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)*(currentCohort%bsw + &
                      currentCohort%bdead))*currentCohort%n)/tree_ag_biomass
                 !equation 16 in Thonicke et al. 2010
                 if(write_SF == itrue)then
                    if ( hlm_masterproc == itrue ) write(fates_log(),*) 'currentPatch%SH',currentPatch%SH,f_ag_bmass
                 endif
                 !2/3 Byram (1959)
-                currentPatch%SH = currentPatch%SH + f_ag_bmass * SF_val_alpha_SH * (currentPatch%FI**0.667_r8) 
+                currentPatch%SH = currentPatch%SH + f_ag_bmass * &
+                      EDPftvarcon_inst%fire_alpha_SH(currentCohort%pft) * (currentPatch%FI**0.667_r8) 
+
              endif !trees only
              currentCohort=>currentCohort%shorter;
           enddo !end cohort loop

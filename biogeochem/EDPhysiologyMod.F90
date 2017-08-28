@@ -12,8 +12,8 @@ module EDPhysiologyMod
   use FatesInterfaceMod, only    : hlm_freq_day
   use FatesInterfaceMod, only    : hlm_day_of_year
   use FatesConstantsMod, only    : r8 => fates_r8
-  use EDEcophysContype    , only : EDecophyscon
-  use EDPftvarcon      , only : EDPftvarcon_inst
+  use EDEcophysContype , only    : EDecophyscon
+  use EDPftvarcon      , only    : EDPftvarcon_inst
   use EDEcophysContype , only    : EDecophyscon
   use FatesInterfaceMod, only    : bc_in_type
   use EDCohortDynamicsMod , only : allocate_live_biomass, zero_cohort
@@ -165,15 +165,9 @@ contains
     type (ed_cohort_type) , pointer :: currentCohort
     type (ed_patch_type)  , pointer :: currentPatch
 
-    real(r8) :: inc        ! rate at which canopy acclimates to uptake 
-    real(r8) :: trim_limit ! this is the limit of the canopy trimming routine, so that trees 
-                           ! can't just lose all their leaves and have no reproductive costs.
     integer  :: z          ! leaf layer
     integer  :: trimmed    ! was this layer trimmed in this year? If not expand the canopy. 
 
-    trim_limit = 0.3_r8    ! Arbitrary limit to reductions in leaf area with stress. Without this nothing ever dies.  
-    inc = 0.03_r8          ! Arbitrary incremental change in trimming function. Controls 
-                           ! rate at which leaves are optimised to their environment. 
     !----------------------------------------------------------------------
 
     currentPatch => currentSite%youngest_patch
@@ -199,18 +193,18 @@ contains
                    currentCohort%leaf_cost =  1._r8/(EDPftvarcon_inst%slatop(currentCohort%pft)*1000.0_r8)
                    currentCohort%leaf_cost = currentCohort%leaf_cost + &
                         1.0_r8/(EDPftvarcon_inst%slatop(currentCohort%pft)*1000.0_r8) * &
-                        EDPftvarcon_inst%froot_leaf(currentCohort%pft) / EDecophyscon%root_long(currentCohort%pft)
+                        EDPftvarcon_inst%allom_l2fr(currentCohort%pft) / EDecophyscon%root_long(currentCohort%pft)
                    currentCohort%leaf_cost = currentCohort%leaf_cost * (EDPftvarcon_inst%grperc(currentCohort%pft) + 1._r8)
                 else !evergreen costs
                    currentCohort%leaf_cost = 1.0_r8/(EDPftvarcon_inst%slatop(currentCohort%pft)* &
                         EDPftvarcon_inst%leaf_long(currentCohort%pft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
                    currentCohort%leaf_cost = currentCohort%leaf_cost + &
                         1.0_r8/(EDPftvarcon_inst%slatop(currentCohort%pft)*1000.0_r8) * &
-                        EDPftvarcon_inst%froot_leaf(currentCohort%pft) / EDecophyscon%root_long(currentCohort%pft)
+                        EDPftvarcon_inst%allom_l2fr(currentCohort%pft) / EDecophyscon%root_long(currentCohort%pft)
                    currentCohort%leaf_cost = currentCohort%leaf_cost * (EDPftvarcon_inst%grperc(currentCohort%pft) + 1._r8)
                 endif
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost)then
-                   if (currentCohort%canopy_trim > trim_limit)then
+                   if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(currentCohort%pft))then
 
                       if ( DEBUG ) then
                          write(fates_log(),*) 'trimming leaves',currentCohort%canopy_trim,currentCohort%leaf_cost
@@ -218,9 +212,9 @@ contains
 
                       ! keep trimming until none of the canopy is in negative carbon balance.              
                       if (currentCohort%hite > EDecophyscon%hgt_min(currentCohort%pft))then
-                         currentCohort%canopy_trim = currentCohort%canopy_trim - inc    
+                         currentCohort%canopy_trim = currentCohort%canopy_trim - EDPftvarcon_inst%trim_inc(currentCohort%pft)
                          if (EDPftvarcon_inst%evergreen(currentCohort%pft) /= 1)then
-                            currentCohort%laimemory = currentCohort%laimemory*(1.0_r8 - inc) 
+                            currentCohort%laimemory = currentCohort%laimemory*(1.0_r8 - EDPftvarcon_inst%trim_inc(currentCohort%pft)) 
                          endif
                          trimmed = 1
                       endif
@@ -236,7 +230,7 @@ contains
 
           currentCohort%year_net_uptake(:) = 999.0_r8
           if (trimmed == 0.and.currentCohort%canopy_trim < 1.0_r8)then
-             currentCohort%canopy_trim = currentCohort%canopy_trim + inc
+             currentCohort%canopy_trim = currentCohort%canopy_trim + EDPftvarcon_inst%trim_inc(currentCohort%pft)
           endif 
 
           if ( DEBUG ) then
@@ -288,6 +282,11 @@ contains
     integer  :: ncdstart     ! beginning of counting period for chilling degree days.
     integer  :: gddstart     ! beginning of counting period for growing degree days.
     real(r8) :: temp_in_C    ! daily averaged temperature in celcius
+
+    real(r8), parameter :: canopy_leaf_lifespan = 365.0_r8    ! Mean lifespan canopy leaves
+                                                              ! FIX(RGK 07/10/17)
+                                                              ! This is a band-aid on unusual code
+                                                              
 
     ! Parameter of drought decid leaf loss in mm in top layer...FIX(RF,032414) 
     ! - this is arbitrary and poorly understood. Needs work. ED_
@@ -470,8 +469,10 @@ contains
 
     !LEAF OFF: DROUGHT DECIDUOUS LIFESPAN - if the leaf gets to the end of its useful life. A*, E*
     if (currentSite%dstatus == 2.and.t >= 10)then  !D*
-       !Are the leaves at the end of their lives? !FIX(RF,0401014)- this is hardwiring....
-       if (timesincedleafon > 365.0*EDPftvarcon_inst%leaf_long(7))then 
+       !Are the leaves at the end of their lives? 
+       !FIX(RF,0401014)- this is hardwiring....
+       !FIX(RGK:changed from hard-coded pft 7 leaf lifespan to labeled constant (1 year)
+       if ( timesincedleafon > canopy_leaf_lifespan )then 
           currentSite%dstatus = 1         !alter status of site to 'leaves on'
           currentSite%dleafoffdate = t    !record leaf on date          
        endif
@@ -761,7 +762,7 @@ contains
     !
     ! !USES:
     use EDGrowthFunctionsMod , only : Bleaf, dDbhdBd, dhdbd, hite, mortality_rates,dDbhdBl
-    use EDParamsMod, only : fates_switch_prescribed_physiology_mode, fates_switch_true
+    use FatesInterfaceMod, only : hlm_use_ed_prescribed_phys
 
     !
     ! !ARGUMENTS    
@@ -804,12 +805,12 @@ contains
     call allocate_live_biomass(currentCohort,0)
 
    ! calculate target size of living biomass compartment for a given dbh.   
-    target_balive = Bleaf(currentCohort) * (1.0_r8 + EDPftvarcon_inst%froot_leaf(currentCohort%pft) + &
-         EDecophyscon%sapwood_ratio(currentCohort%pft)*h)
+    target_balive = Bleaf(currentCohort) * (1.0_r8 + EDPftvarcon_inst%allom_l2fr(currentCohort%pft) + &
+         EDpftvarcon_inst%allom_latosa_int(currentCohort%pft)*h)
     !target balive without leaves. 
     if (currentCohort%status_coh == 1)then 
-       target_balive = Bleaf(currentCohort) * (EDPftvarcon_inst%froot_leaf(currentCohort%pft) + &
-            EDecophyscon%sapwood_ratio(currentCohort%pft) * h)
+       target_balive = Bleaf(currentCohort) * (EDPftvarcon_inst%allom_l2fr(currentCohort%pft) + &
+            EDpftvarcon_inst%allom_latosa_int(currentCohort%pft) * h)
     endif
 
     ! NPP 
@@ -821,7 +822,8 @@ contains
     currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * hlm_days_per_year
     currentCohort%resp_acc_hold = currentCohort%resp_acc * hlm_days_per_year
 
-    if (fates_switch_prescribed_physiology_mode .eq. fates_switch_true) then
+    if (hlm_use_ed_prescribed_phys .eq. 1) then
+       ! i.e. hlm_use_ed_prescribed_phys is true
        if (currentCohort%canopy_layer .eq. 1) then
           currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_canopy(currentCohort%pft) * currentCohort%c_area / currentCohort%n
        else
@@ -953,9 +955,9 @@ contains
        ! fraction of carbon going into active vs structural carbon        
        if (currentCohort%dbh <= EDecophyscon%max_dbh(currentCohort%pft))then ! cap on leaf biomass
           dbldbd = dDbhdBd(currentCohort)/dDbhdBl(currentCohort) 
-          dbrdbd = EDPftvarcon_inst%froot_leaf(currentCohort%pft) * dbldbd
+          dbrdbd = EDPftvarcon_inst%allom_l2fr(currentCohort%pft) * dbldbd
           dhdbd_fn = dhdbd(currentCohort)
-          dbswdbd = EDecophyscon%sapwood_ratio(currentCohort%pft) * (h*dbldbd + currentCohort%bl*dhdbd_fn)
+          dbswdbd = EDpftvarcon_inst%allom_latosa_int(currentCohort%pft) * (h*dbldbd + currentCohort%bl*dhdbd_fn)
           u  = 1.0_r8 / (dbldbd + dbrdbd + dbswdbd)     
           va = 1.0_r8 / (1.0_r8 + u)
           vs = u / (1.0_r8 + u)
@@ -1029,7 +1031,7 @@ contains
     !
     ! !USES:
     use EDGrowthFunctionsMod, only : bdead,dbh, Bleaf
-    use EDParamsMod, only : fates_switch_prescribed_physiology_mode, fates_switch_true
+    use FatesInterfaceMod, only : hlm_use_ed_prescribed_phys
     !
     ! !ARGUMENTS    
     integer, intent(in) :: t
@@ -1053,14 +1055,16 @@ contains
        temp_cohort%hite        = EDecophyscon%hgt_min(ft)
        temp_cohort%dbh         = Dbh(temp_cohort)
        temp_cohort%bdead       = Bdead(temp_cohort)
-       temp_cohort%balive      = Bleaf(temp_cohort)*(1.0_r8 + EDPftvarcon_inst%froot_leaf(ft) &
-            + EDecophyscon%sapwood_ratio(ft)*temp_cohort%hite)
-       temp_cohort%bstore      = EDecophyscon%cushion(ft)*(temp_cohort%balive/ (1.0_r8 + EDPftvarcon_inst%froot_leaf(ft) &
-            + EDecophyscon%sapwood_ratio(ft)*temp_cohort%hite))
-       if (fates_switch_prescribed_physiology_mode .ne. fates_switch_true) then ! normal case
-       temp_cohort%n           = currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day &
-            / (temp_cohort%bdead+temp_cohort%balive+temp_cohort%bstore)
+       temp_cohort%balive      = Bleaf(temp_cohort)*(1.0_r8 + EDPftvarcon_inst%allom_l2fr(ft) &
+            + EDpftvarcon_inst%allom_latosa_int(ft)*temp_cohort%hite)
+       temp_cohort%bstore      = EDecophyscon%cushion(ft)*(temp_cohort%balive/ (1.0_r8 + EDPftvarcon_inst%allom_l2fr(ft) &
+            + EDpftvarcon_inst%allom_latosa_int(ft)*temp_cohort%hite))
+       if (hlm_use_ed_prescribed_phys .eq. 0) then
+          ! i.e. hlm_use_ed_prescribed_phys is false
+          temp_cohort%n           = currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day &
+               / (temp_cohort%bdead+temp_cohort%balive+temp_cohort%bstore)
        else
+          ! i.e. hlm_use_ed_prescribed_phys is true
           ! prescribed recruitment rates. number per sq. meter per year
           temp_cohort%n        = currentPatch%area * EDPftvarcon_inst%prescribed_recruitment(ft) * hlm_freq_day
        endif
@@ -1074,12 +1078,12 @@ contains
 
        temp_cohort%laimemory = 0.0_r8     
        if (EDPftvarcon_inst%season_decid(temp_cohort%pft) == 1.and.currentSite%status == 1)then
-         temp_cohort%laimemory = (1.0_r8/(1.0_r8 + EDPftvarcon_inst%froot_leaf(ft) + &
-              EDecophyscon%sapwood_ratio(ft)*temp_cohort%hite))*temp_cohort%balive
+         temp_cohort%laimemory = (1.0_r8/(1.0_r8 + EDPftvarcon_inst%allom_l2fr(ft) + &
+              EDpftvarcon_inst%allom_latosa_int(ft)*temp_cohort%hite))*temp_cohort%balive
        endif
        if (EDPftvarcon_inst%stress_decid(temp_cohort%pft) == 1.and.currentSite%dstatus == 1)then
-         temp_cohort%laimemory = (1.0_r8/(1.0_r8 + EDPftvarcon_inst%froot_leaf(ft) + &
-            EDecophyscon%sapwood_ratio(ft)*temp_cohort%hite))*temp_cohort%balive
+         temp_cohort%laimemory = (1.0_r8/(1.0_r8 + EDPftvarcon_inst%allom_l2fr(ft) + &
+            EDpftvarcon_inst%allom_latosa_int(ft)*temp_cohort%hite))*temp_cohort%balive
        endif
 
        cohortstatus = currentSite%status
@@ -1113,7 +1117,6 @@ contains
     !
     ! !USES:
     use SFParamsMod , only : SF_val_CWD_frac
-    use EDParamsMod , only : ED_val_ag_biomass
 
     !
     ! !ARGUMENTS    
@@ -1150,9 +1153,9 @@ contains
       
       do c = 1,ncwd
          currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + currentCohort%woody_turnover * &
-              SF_val_CWD_frac(c) * currentCohort%n/currentPatch%area *ED_val_ag_biomass
+              SF_val_CWD_frac(c) * currentCohort%n/currentPatch%area *EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
          currentPatch%cwd_BG_in(c) = currentPatch%cwd_BG_in(c) + currentCohort%woody_turnover * &
-              SF_val_CWD_frac(c) * currentCohort%n/currentPatch%area *(1.0_r8-ED_val_ag_biomass)
+              SF_val_CWD_frac(c) * currentCohort%n/currentPatch%area *(1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
       enddo
 
       if (currentCohort%canopy_layer > 1)then   
@@ -1169,9 +1172,9 @@ contains
 
           do c = 1,ncwd
              currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + (currentCohort%bdead+currentCohort%bsw) * &
-                   SF_val_CWD_frac(c) * dead_n * ED_val_ag_biomass
+                   SF_val_CWD_frac(c) * dead_n * EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
              currentPatch%cwd_BG_in(c) = currentPatch%cwd_BG_in(c) + (currentCohort%bdead+currentCohort%bsw) * &
-                  SF_val_CWD_frac(c) * dead_n * (1.0_r8-ED_val_ag_biomass)
+                  SF_val_CWD_frac(c) * dead_n * (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
 
              if (currentPatch%cwd_AG_in(c) < 0.0_r8)then
                 write(fates_log(),*) 'negative CWD in flux',currentPatch%cwd_AG_in(c), &
@@ -1351,7 +1354,6 @@ contains
     use FatesInterfaceMod, only : hlm_numlevdecomp
     use EDPftvarcon, only : EDPftvarcon_inst
     use FatesConstantsMod, only : sec_per_day
-    use EDParamsMod, only : ED_val_ag_biomass
     use FatesInterfaceMod, only : bc_in_type, bc_out_type
     use FatesInterfaceMod, only : hlm_use_vertsoilc
     use FatesConstantsMod, only : itrue
@@ -1603,7 +1605,7 @@ contains
             currentCohort => currentPatch%tallest
             do while(associated(currentCohort))      
                biomass_bg_ft(currentCohort%pft) = biomass_bg_ft(currentCohort%pft) + &
-                    currentCohort%b * (currentCohort%n / currentPatch%area) * (1.0_r8-ED_val_ag_biomass)
+                    currentCohort%b * (currentCohort%n / currentPatch%area) * (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
                currentCohort => currentCohort%shorter
             enddo !currentCohort
             ! 

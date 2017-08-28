@@ -10,6 +10,7 @@ module EDCohortDynamicsMod
   use FatesInterfaceMod     , only : bc_in_type
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
+  use FatesConstantsMod     , only : itrue
   use FatesInterfaceMod     , only : hlm_days_per_year
   use EDPftvarcon           , only : EDPftvarcon_inst
   use EDEcophysContype      , only : EDecophyscon
@@ -21,7 +22,7 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : sclass_ed,nlevsclass_ed,AREA
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
-  use EDTypesMod             , only : use_fates_plant_hydro
+  use FatesInterfaceMod      , only : hlm_use_planthydro
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
   use FatesPlantHydraulicsMod, only : CopyCohortHydraulics
   use FatesPlantHydraulicsMod, only : updateSizeDepTreeHydProps
@@ -172,7 +173,7 @@ contains
     ! growth, disturbance and mortality.
     new_cohort%isnew = .true.
 
-    if( use_fates_plant_hydro ) then
+    if( hlm_use_planthydro.eq.itrue ) then
        call InitHydrCohort(new_cohort)
        call updateSizeDepTreeHydProps(new_cohort, bc_in) 
        call initTreeHydStates(new_cohort, bc_in) 
@@ -216,7 +217,7 @@ contains
 
     currentCohort => cc_p
     ft = currentcohort%pft
-    leaf_frac = 1.0_r8/(1.0_r8 + EDecophyscon%sapwood_ratio(ft) * currentcohort%hite + EDPftvarcon_inst%froot_leaf(ft))     
+    leaf_frac = 1.0_r8/(1.0_r8 + EDpftvarcon_inst%allom_latosa_int(ft) * currentcohort%hite + EDPftvarcon_inst%allom_l2fr(ft))     
 
     !currentcohort%bl = currentcohort%balive*leaf_frac    
     !for deciduous trees, there are no leaves  
@@ -228,8 +229,8 @@ contains
 
     ! iagnore the root and stem biomass from the functional balance hypothesis. This is used when the leaves are 
     !fully on. 
-    !currentcohort%br  = EDPftvarcon_inst%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
-    !currentcohort%bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
+    !currentcohort%br  = EDPftvarcon_inst%allom_l2fr(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
+    !currentcohort%bsw = EDpftvarcon_inst%allom_latosa_int(ft) * currentcohort%hite *(currentcohort%balive + &
     !     currentcohort%laimemory)*leaf_frac 
     
     leaves_off_switch = 0
@@ -245,9 +246,9 @@ contains
 
        new_bl = currentcohort%balive*leaf_frac
 
-       new_br = EDpftvarcon_inst%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
+       new_br = EDpftvarcon_inst%allom_l2fr(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
 
-       new_bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
+       new_bsw = EDpftvarcon_inst%allom_latosa_int(ft) * currentcohort%hite *(currentcohort%balive + &
             currentcohort%laimemory)*leaf_frac
 
        !diagnose the root and stem biomass from the functional balance hypothesis. This is used when the leaves are 
@@ -279,13 +280,13 @@ contains
        !not have enough live biomass to support the hypothesized root mass
        !thus, we use 'ratio_balive' to adjust br and bsw. Apologies that this is so complicated! RF
        
-       ideal_balive      = currentcohort%laimemory * EDPftvarcon_inst%froot_leaf(ft) +  &
-            currentcohort%laimemory*  EDecophyscon%sapwood_ratio(ft) * currentcohort%hite
+       ideal_balive      = currentcohort%laimemory * EDPftvarcon_inst%allom_l2fr(ft) +  &
+            currentcohort%laimemory*  EDpftvarcon_inst%allom_latosa_int(ft) * currentcohort%hite
        ratio_balive      = currentcohort%balive / ideal_balive
 
-       new_br  = EDpftvarcon_inst%froot_leaf(ft) * (ideal_balive + currentcohort%laimemory) * &
+       new_br  = EDpftvarcon_inst%allom_l2fr(ft) * (ideal_balive + currentcohort%laimemory) * &
              leaf_frac *  ratio_balive
-       new_bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite * &
+       new_bsw = EDpftvarcon_inst%allom_latosa_int(ft) * currentcohort%hite * &
              (ideal_balive + currentcohort%laimemory) * leaf_frac * ratio_balive
 
        ! Diagnostics
@@ -505,7 +506,6 @@ contains
     ! terminates cohorts when they get too small      
     !
     ! !USES:
-    use EDParamsMod, only : ED_val_ag_biomass
     use SFParamsMod, only : SF_val_CWD_frac
     !
     ! !ARGUMENTS    
@@ -618,10 +618,10 @@ contains
 
                 currentPatch%CWD_AG(c)  = currentPatch%CWD_AG(c) + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) / &
                      currentPatch%area &
-                     * SF_val_CWD_frac(c) * ED_val_ag_biomass 
+                     * SF_val_CWD_frac(c) * EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) 
                 currentPatch%CWD_BG(c)  = currentPatch%CWD_BG(c) + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) / &
                      currentPatch%area &
-                     * SF_val_CWD_frac(c) * (1.0_r8 -  ED_val_ag_biomass) 
+                     * SF_val_CWD_frac(c) * (1.0_r8 -  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) 
              enddo
 
              currentPatch%leaf_litter(currentCohort%pft) = currentPatch%leaf_litter(currentCohort%pft) + currentCohort%n* &
@@ -633,10 +633,10 @@ contains
              do c=1,ncwd
                 currentSite%CWD_AG_diagnostic_input_carbonflux(c)  = currentSite%CWD_AG_diagnostic_input_carbonflux(c) &
                      + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
-                     SF_val_CWD_frac(c) * ED_val_ag_biomass * hlm_days_per_year / AREA
+                     SF_val_CWD_frac(c) * EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * hlm_days_per_year / AREA
                 currentSite%CWD_BG_diagnostic_input_carbonflux(c)  = currentSite%CWD_BG_diagnostic_input_carbonflux(c) &
                      + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
-                     SF_val_CWD_frac(c) * (1.0_r8 -  ED_val_ag_biomass)  * hlm_days_per_year / AREA
+                     SF_val_CWD_frac(c) * (1.0_r8 -  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))  * hlm_days_per_year / AREA
              enddo
              
              currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
@@ -646,7 +646,7 @@ contains
                   currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) + &
                   currentCohort%n * (currentCohort%br+currentCohort%bstore) * hlm_days_per_year  / AREA
 
-             if (use_fates_plant_hydro) call DeallocateHydrCohort(currentCohort)
+             if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
 
              deallocate(currentCohort)     
           endif
@@ -799,7 +799,7 @@ contains
                                 call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
                                       currentCohort%size_class,currentCohort%size_by_pft_class)
 
-                                if(use_fates_plant_hydro) call FuseCohortHydraulics(currentCohort,nextc,bc_in,newn)
+                                if(hlm_use_planthydro.eq.itrue) call FuseCohortHydraulics(currentCohort,nextc,bc_in,newn)
 
                                 ! recent canopy history
                                 currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
@@ -888,7 +888,7 @@ contains
                                 endif
 
                                 if (associated(nextc)) then       
-                                   if(use_fates_plant_hydro) call DeallocateHydrCohort(nextc)
+                                   if(hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(nextc)
                                    deallocate(nextc)            
                                 endif
 
@@ -1246,7 +1246,7 @@ contains
 
     ! Plant Hydraulics
     
-    if( use_fates_plant_hydro ) call CopyCohortHydraulics(n,o)
+    if( hlm_use_planthydro.eq.itrue ) call CopyCohortHydraulics(n,o)
 
     ! indices for binning
     n%size_class      = o%size_class

@@ -23,7 +23,8 @@ module FATESPlantRespPhotosynthMod
    use FatesGlobals, only      : endrun => fates_endrun
    use FatesGlobals, only      : fates_log
    use FatesConstantsMod, only : r8 => fates_r8
-   use EDTypesMod, only        : use_fates_plant_hydro
+   use FatesConstantsMod, only : itrue
+   use FatesInterfaceMod, only : hlm_use_planthydro
    use EDTypesMod, only        : numpft_ed
    use EDTypesMod, only        : nlevleaf
    use EDTypesMod, only        : nclmax
@@ -63,7 +64,6 @@ contains
 
     use EDPftvarcon         , only : EDPftvarcon_inst 
 
-    use EDParamsMod       , only : ED_val_ag_biomass
     use FatesSynchronizedParamsMod , only : FatesSynchronizedParamsInst
     use EDTypesMod        , only : ed_patch_type
     use EDTypesMod        , only : ed_cohort_type
@@ -196,11 +196,8 @@ contains
     associate(  &
          c3psn     => EDPftvarcon_inst%c3psn  , &
          slatop    => EDPftvarcon_inst%slatop , & ! specific leaf area at top of canopy, 
-                                        ! projected area basis [m^2/gC]
-         flnr      => EDPftvarcon_inst%flnr   , & ! fraction of leaf N in the Rubisco 
-                                        ! enzyme (gN Rubisco / gN leaf)
+                                                  ! projected area basis [m^2/gC]
          woody     => EDPftvarcon_inst%woody  , & ! Is vegetation woody or not? 
-         fnitr     => EDPftvarcon_inst%fnitr  , & ! foliage nitrogen limitation factor (-)
          leafcn    => EDPftvarcon_inst%leafcn , & ! leaf C:N (gC/gN)
          frootcn   => EDPftvarcon_inst%frootcn, & ! froot C:N (gc/gN)   ! slope of BB relationship
          q10       => FatesSynchronizedParamsInst%Q10 )
@@ -285,7 +282,7 @@ contains
                   if (bc_in(s)%dayl_factor_pa(ifp)  ==  0._r8) then
                      kn(ft) =  0._r8
                   else
-                     kn(ft) = exp(0.00963_r8 * param_derived%vcmax25top(ft) - 2.43_r8)
+                     kn(ft) = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(ft) - 2.43_r8)
                   end if
                   
                end do !ft 
@@ -346,10 +343,10 @@ contains
                            ! not been done yet.
                            ! ------------------------------------------------------------
                            
-                           if ( .not.rate_mask_z(iv,ft,cl) .or. use_fates_plant_hydro ) then
+                           if ( .not.rate_mask_z(iv,ft,cl) .or. (hlm_use_planthydro.eq.itrue) ) then
                               
-                              if (use_fates_plant_hydro) then
-!                                 write(fates_log(),*) 'use_fates_plant_hydro in EDTypes'
+                              if (hlm_use_planthydro.eq.itrue) then
+!                                 write(fates_log(),*) 'hlm_use_planthydro'
 !                                 write(fates_log(),*) 'has been set to true.  You have inadvertently'
 !                                 write(fates_log(),*) 'turned on a future feature that is not in the'
 !                                 write(fates_log(),*) 'FATES codeset yet. Please set this to'
@@ -394,7 +391,7 @@ contains
 
                               call LeafLayerBiophysicalRates(currentPatch%ed_parsun_z(cl,ft,iv), &  ! in
                                                              ft,                                 &  ! in
-                                                             param_derived%vcmax25top(ft),       &  ! in
+                                                             EDPftvarcon_inst%vcmax25top(ft),    &  ! in
                                                              param_derived%jmax25top(ft),        &  ! in
                                                              param_derived%tpu25top(ft),         &  ! in
                                                              param_derived%kp25top(ft),          &  ! in
@@ -496,11 +493,11 @@ contains
                      ! ------------------------------------------------------------------
                      
                      leaf_frac = 1.0_r8/(currentCohort%canopy_trim + &
-                          EDPftvarcon_inst%sapwood_ratio(currentCohort%pft) * &
-                          currentCohort%hite + EDPftvarcon_inst%froot_leaf(currentCohort%pft))
+                          EDPftvarcon_inst%allom_latosa_int(currentCohort%pft) * &
+                          currentCohort%hite + EDPftvarcon_inst%allom_l2fr(currentCohort%pft))
                      
                      
-                     currentCohort%bsw = EDPftvarcon_inst%sapwood_ratio(currentCohort%pft) * &
+                     currentCohort%bsw = EDPftvarcon_inst%allom_latosa_int(currentCohort%pft) * &
                           currentCohort%hite * &
                           (currentCohort%balive + currentCohort%laimemory)*leaf_frac
                      
@@ -511,9 +508,9 @@ contains
                      ! the sapwood pools.
                      ! Units are in (kgN/plant)
                      ! ------------------------------------------------------------------
-                     live_stem_n = ED_val_ag_biomass * currentCohort%bsw / &
+                     live_stem_n = EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * currentCohort%bsw / &
                            frootcn(currentCohort%pft)
-                     live_croot_n = (1.0_r8-ED_val_ag_biomass) * currentCohort%bsw  / &
+                     live_croot_n = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * currentCohort%bsw  / &
                            frootcn(currentCohort%pft)
                      froot_n       = currentCohort%br / frootcn(currentCohort%pft) 
                      

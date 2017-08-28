@@ -4,51 +4,50 @@ module EDMainMod
   ! Main ED module.    
   ! ============================================================================
 
-  use shr_kind_mod         , only : r8 => shr_kind_r8
+  use shr_kind_mod             , only : r8 => shr_kind_r8
   
-  use FatesGlobals         , only : fates_log
-  use FatesInterfaceMod    , only : hlm_freq_day
-  use FatesInterfaceMod    , only : hlm_day_of_year
-  use FatesInterfaceMod    , only : hlm_days_per_year
-  use FatesInterfaceMod    , only : hlm_current_year
-  use FatesInterfaceMod    , only : hlm_current_month
-  use FatesInterfaceMod    , only : hlm_current_day
-  use EDCohortDynamicsMod  , only : allocate_live_biomass
-  use EDCohortDynamicsMod  , only : terminate_cohorts
-  use EDCohortDynamicsMod  , only : fuse_cohorts
-  use EDCohortDynamicsMod  , only : sort_cohorts
-  use EDCohortDynamicsMod  , only : count_cohorts
-  use EDPatchDynamicsMod   , only : disturbance_rates
-  use EDPatchDynamicsMod   , only : fuse_patches
-  use EDPatchDynamicsMod   , only : spawn_patches
-  use EDPatchDynamicsMod   , only : terminate_patches
-  use EDTypesMod           , only : get_age_class_index
-  use EDPhysiologyMod      , only : canopy_derivs
-  use EDPhysiologyMod      , only : non_canopy_derivs
-  use EDPhysiologyMod      , only : phenology
-  use EDPhysiologyMod      , only : recruitment
-  use EDPhysiologyMod      , only : trim_canopy
-  use SFMainMod            , only : fire_model
-  use EDtypesMod           , only : ncwd
-  use EDTypesMod           , only : numpft_ed
-  use EDtypesMod           , only : ed_site_type
-  use EDtypesMod           , only : ed_patch_type
-  use EDtypesMod           , only : ed_cohort_type
-  use FatesInterfaceMod    , only : bc_in_type
-  use FatesInterfaceMod    , only : hlm_masterproc
-  use FatesConstantsMod    , only : itrue
-  use FatesPlantHydraulicsMod, only : do_growthrecruiteffects
-  use FatesPlantHydraulicsMod, only : updateSizeDepTreeHydProps
-  use FatesPlantHydraulicsMod, only : updateSizeDepTreeHydStates
-  use FatesPlantHydraulicsMod, only : initTreeHydStates
-  use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydProps 
-!  use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydStates
-  use EDTypesMod           , only : use_fates_plant_hydro 
-  use EDTypesMod           , only : do_ed_phenology
-!  use EDTypesMod           , only : do_ed_growth
-!  use EDTypesMod           , only : do_ed_recruitment
-!  use EDTypesMod           , only : do_ed_mort_dist
-  use EDTypesMod           , only : do_ed_dynamics
+  use FatesGlobals             , only : fates_log
+  use FatesInterfaceMod        , only : hlm_freq_day
+  use FatesInterfaceMod        , only : hlm_day_of_year
+  use FatesInterfaceMod        , only : hlm_days_per_year
+  use FatesInterfaceMod        , only : hlm_current_year
+  use FatesInterfaceMod        , only : hlm_current_month
+  use FatesInterfaceMod        , only : hlm_current_day 
+  use FatesInterfaceMod        , only : hlm_use_planthydro 
+  use FatesInterfaceMod        , only : hlm_use_ed_st3 
+  use FatesInterfaceMod        , only : bc_in_type
+  use FatesInterfaceMod        , only : hlm_masterproc
+  use EDCohortDynamicsMod      , only : allocate_live_biomass
+  use EDCohortDynamicsMod      , only : terminate_cohorts
+  use EDCohortDynamicsMod      , only : fuse_cohorts
+  use EDCohortDynamicsMod      , only : sort_cohorts
+  use EDCohortDynamicsMod      , only : count_cohorts
+  use EDPatchDynamicsMod       , only : disturbance_rates
+  use EDPatchDynamicsMod       , only : fuse_patches
+  use EDPatchDynamicsMod       , only : spawn_patches
+  use EDPatchDynamicsMod       , only : terminate_patches
+  use EDPhysiologyMod          , only : canopy_derivs
+  use EDPhysiologyMod          , only : non_canopy_derivs
+  use EDPhysiologyMod          , only : phenology
+  use EDPhysiologyMod          , only : recruitment
+  use EDPhysiologyMod          , only : trim_canopy
+  use SFMainMod                , only : fire_model 
+  use EDTypesMod               , only : get_age_class_index
+  use EDtypesMod               , only : ncwd
+  use EDTypesMod               , only : numpft_ed
+  use EDtypesMod               , only : ed_site_type
+  use EDtypesMod               , only : ed_patch_type
+  use EDtypesMod               , only : ed_cohort_type
+  use EDTypesMod               , only : do_ed_phenology
+  use FatesConstantsMod        , only : itrue,ifalse
+  use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
+  use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydProps
+  use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydStates
+  use FatesPlantHydraulicsMod  , only : initTreeHydStates
+  use FatesPlantHydraulicsMod  , only : updateSizeDepRhizHydProps 
+!  use FatesPlantHydraulicsMod , only : updateSizeDepRhizHydStates
+
+  
 
   implicit none
   private
@@ -101,17 +100,16 @@ contains
        call phenology(currentSite, bc_in )
     end if
 
-    if (do_ed_dynamics) then
+    if (hlm_use_ed_st3.eq.ifalse) then   ! Bypass if ST3
        call fire_model(currentSite, bc_in) 
 
        ! Calculate disturbance and mortality based on previous timestep vegetation.
        call disturbance_rates(currentSite)
     end if
 
-    if (do_ed_dynamics) then
+    if (hlm_use_ed_st3.eq.ifalse) then
        ! Integrate state variables from annual rates to daily timestep
        call ed_integrate_state_variables(currentSite, bc_in ) 
-
     else
        ! ed_intergrate_state_variables is where the new cohort flag
        ! is set. This flag designates wether a cohort has
@@ -127,7 +125,7 @@ contains
     ! Reproduction, Recruitment and Cohort Dynamics : controls cohort organisation 
     !******************************************************************************
 
-    if(do_ed_dynamics) then
+    if(hlm_use_ed_st3.eq.ifalse) then 
        currentPatch => currentSite%oldest_patch
        do while (associated(currentPatch))                 
           
@@ -141,7 +139,7 @@ contains
        
     call ed_total_balance_check(currentSite,1)
 
-    if( do_ed_dynamics ) then
+    if( hlm_use_ed_st3.eq.ifalse ) then 
        currentPatch => currentSite%oldest_patch
        do while (associated(currentPatch))
           
@@ -169,21 +167,21 @@ contains
     !*********************************************************************************
 
     ! make new patches from disturbed land
-    if ( do_ed_dynamics ) then
+    if ( hlm_use_ed_st3.eq.ifalse ) then
        call spawn_patches(currentSite, bc_in)
     end if
    
     call ed_total_balance_check(currentSite,3)
 
     ! fuse on the spawned patches.
-    if ( do_ed_dynamics ) then
+    if ( hlm_use_ed_st3.eq.ifalse ) then
        call fuse_patches(currentSite, bc_in )        
        
        ! If using BC FATES hydraulics, update the rhizosphere geometry
        ! based on the new cohort-patch structure
        ! 'rhizosphere geometry' (column-level root biomass + rootfr --> root length 
        ! density --> node radii and volumes)
-       if(use_fates_plant_hydro .and. do_growthrecruiteffects) then
+       if( (hlm_use_planthydro.eq.itrue) .and. do_growthrecruiteffects) then
           call updateSizeDepRhizHydProps(currentSite, bc_in)
           !       call updateSizeDepRhizHydStates(currentSite, bc_in)
           !       if(nshell > 1) then  (THIS BEING CHECKED INSIDE OF the update)
@@ -196,7 +194,7 @@ contains
     call ed_total_balance_check(currentSite,4)
 
     ! kill patches that are too small
-    if ( do_ed_dynamics ) then
+    if ( hlm_use_ed_st3.eq.ifalse ) then
        call terminate_patches(currentSite)   
     end if
    
@@ -292,7 +290,7 @@ contains
           ! BOC...update tree 'hydraulic geometry' 
           ! (size --> heights of elements --> hydraulic path lengths --> 
           ! maximum node-to-node conductances)
-          if(use_fates_plant_hydro .and. do_growthrecruiteffects) then
+          if( (hlm_use_planthydro.eq.itrue) .and. do_growthrecruiteffects) then
              call updateSizeDepTreeHydProps(currentCohort, bc_in)
              call updateSizeDepTreeHydStates(currentCohort)
           end if
