@@ -20,6 +20,9 @@ module EDLoggingMortalityMod
    use EDTypesMod        , only : ncwd
    use EDTypesMod        , only : ed_site_type
    use EDTypesMod        , only : ed_resources_management_type
+   use EDTypesMod        , only : dtype_ilog
+   use EDTypesMod        , only : dtype_ifall
+   use EDTypesMod        , only : dtype_ifire
    use EDPftvarcon       , only : EDPftvarcon_inst
    use EDParamsMod       , only : logging_event_code
    use EDParamsMod       , only : logging_dbhmin
@@ -31,7 +34,7 @@ module EDLoggingMortalityMod
    use FatesInterfaceMod , only : hlm_current_day
    use FatesInterfaceMod , only : hlm_model_day
    use FatesInterfaceMod , only : hlm_day_of_year
-   use FatesConstantsMod , only : itrue
+   use FatesConstantsMod , only : itrue,ifalse
    use FatesGlobals      , only : endrun => fates_endrun 
    use FatesGlobals      , only : fates_log
    use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -71,6 +74,9 @@ contains
 
       logging_time = .false.
       icode = int(logging_event_code)
+
+!      if(hlm_use_logging.eq.ifalse) return     ! Don't turn on until fates-clm adds
+                                                ! this to the interface (RGK 08-2017)
 
       if(icode .eq. 1) then
          ! Logging is turned off
@@ -239,8 +245,8 @@ contains
          currentCohort => currentPatch%shortest
          do while(associated(currentCohort))       
             p = currentCohort%pft
-            if(currentPatch%disturbance_rates(3) > currentPatch%disturbance_rates(2) .and. &
-                  currentPatch%disturbance_rates(3) > currentPatch%disturbance_rates(1) )then 
+            if(currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifire) .and. &
+                  currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifall) )then 
                   !mortality is dominant disturbance 
 
                if(EDPftvarcon_inst%woody(p) == 1)then   
