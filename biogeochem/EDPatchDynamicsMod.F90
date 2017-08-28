@@ -13,6 +13,9 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : nclmax
   use EDTypesMod           , only : maxpft
+  use EDTypesMod           , only : dtype_ifall
+  use EDTypesMod           , only : dtype_ilog
+  use EDTypesMod           , only : dtype_ifire
   use FatesInterfaceMod    , only : hlm_use_planthydro
   use FatesInterfaceMod    , only : hlm_numlevgrnd
   use FatesInterfaceMod    , only : hlm_numlevsoil
@@ -128,7 +131,7 @@ contains
   
           if(currentCohort%canopy_layer == 1)then
 
-             currentPatch%disturbance_rates(1) = currentPatch%disturbance_rates(1) + &
+             currentPatch%disturbance_rates(dtype_ifall) = currentPatch%disturbance_rates(dtype_ifall) + &
                   fates_mortality_disturbance_fraction * &
                   min(1.0_r8,currentCohort%dmort)*hlm_freq_day*currentCohort%c_area/currentPatch%area
 
@@ -156,7 +159,7 @@ contains
                 
                 !May need to change currentCohort%c_area
                 !disturbance_rates will be reset to 0 at the end of spawn_patches
-                currentPatch%disturbance_rates(3) = currentPatch%disturbance_rates(3) + &
+                currentPatch%disturbance_rates(dtype_ilog) = currentPatch%disturbance_rates(dtype_ilog) + &
                       min(1.0_r8, currentCohort%lmort_logging +                         & 
                                   currentCohort%lmort_collateral +                      &
                                   currentCohort%lmort_infra ) *                         &
@@ -175,18 +178,18 @@ contains
        ! if fires occur at site 
        ! Fudge - fires can't burn the whole patch, as this causes /0 errors.
        ! This is accumulating the daily fires over the whole 30 day patch generation phase.  
-       currentPatch%disturbance_rates(2) = min(0.99_r8,currentPatch%disturbance_rates(2) + currentPatch%frac_burnt)
+       currentPatch%disturbance_rates(dtype_ifire) = min(0.99_r8,currentPatch%disturbance_rates(dtype_ifire) + currentPatch%frac_burnt)
 
-       if (currentPatch%disturbance_rates(2) > 0.98_r8)then
-          write(fates_log(),*) 'very high fire areas',currentPatch%disturbance_rates(2),currentPatch%frac_burnt
+       if (currentPatch%disturbance_rates(dtype_ifire) > 0.98_r8)then
+          write(fates_log(),*) 'very high fire areas',currentPatch%disturbance_rates(dtype_ifire),currentPatch%frac_burnt
        endif
    
-       if (currentPatch%disturbance_rates(3) > currentPatch%disturbance_rates(1) .and. &
-             currentPatch%disturbance_rates(3) > currentPatch%disturbance_rates(2) ) then 
+       if (currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifall) .and. &
+             currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifire) ) then 
           
           ! logging disturbance dominates
           ! Y.X. 3/2017
-          currentPatch%disturbance_rate = currentPatch%disturbance_rates(3)
+          currentPatch%disturbance_rate = currentPatch%disturbance_rates(dtype_ilog)
  
           currentCohort => currentPatch%shortest
           do while(associated(currentCohort))
@@ -200,10 +203,10 @@ contains
              currentCohort => currentCohort%taller
           enddo !currentCohort
 
-         elseif (currentPatch%disturbance_rates(2) > currentPatch%disturbance_rates(1) .and. &
-                 currentPatch%disturbance_rates(2) > currentPatch%disturbance_rates(3) ) then  ! DISTURBANCE IS FIRE
+         elseif (currentPatch%disturbance_rates(dtype_ifire) > currentPatch%disturbance_rates(dtype_ifall) .and. &
+                 currentPatch%disturbance_rates(dtype_ifire) > currentPatch%disturbance_rates(dtype_ilog) ) then  ! DISTURBANCE IS FIRE
 
-          currentPatch%disturbance_rate = currentPatch%disturbance_rates(2)
+          currentPatch%disturbance_rate = currentPatch%disturbance_rates(dtype_ifire)
 
           ! RGK 02-18-2014
           ! Since treefall mortality is not actually being applied
@@ -230,9 +233,9 @@ contains
              currentCohort => currentCohort%taller
           enddo !currentCohort
 
-       elseif (currentPatch%disturbance_rates(1) > currentPatch%disturbance_rates(2) .and. &
-             currentPatch%disturbance_rates(1) > currentPatch%disturbance_rates(3) ) then
-          currentPatch%disturbance_rate = currentPatch%disturbance_rates(1)            ! DISTURBANCE IS MORTALITY
+       elseif (currentPatch%disturbance_rates(dtype_ifall) > currentPatch%disturbance_rates(dtype_ifire) .and. &
+             currentPatch%disturbance_rates(dtype_ifall) > currentPatch%disturbance_rates(dtype_ilog) ) then
+          currentPatch%disturbance_rate = currentPatch%disturbance_rates(dtype_ifall)            ! DISTURBANCE IS MORTALITY
 
        else
           write(fates_log(),*) 'A dominant disturbance mode was not identified somehow'
@@ -241,11 +244,11 @@ contains
        endif
 
        site_in%disturbance_mortality = site_in%disturbance_mortality + &
-            currentPatch%disturbance_rates(1)*currentPatch%area/area  
+            currentPatch%disturbance_rates(dtype_ifall)*currentPatch%area/area  
 
          !disturbance_logging
         site_in%disturbance_logging = site_in%disturbance_logging + &
-          currentPatch%disturbance_rates(3)*currentPatch%area/area  
+          currentPatch%disturbance_rates(dtype_ilog)*currentPatch%area/area  
 
        currentPatch => currentPatch%younger
 
@@ -413,8 +416,8 @@ contains
              nc%canopy_layer_yesterday = 1._r8 
 
              ! treefall mortality is the dominant disturbance
-             if(currentPatch%disturbance_rates(1) > currentPatch%disturbance_rates(2) .and. &
-                    currentPatch%disturbance_rates(1) > currentPatch%disturbance_rates(3))then 
+             if(currentPatch%disturbance_rates(dtype_ifall) > currentPatch%disturbance_rates(dtype_ifire) .and. &
+                    currentPatch%disturbance_rates(dtype_ifall) > currentPatch%disturbance_rates(dtype_ilog))then 
                 if(currentCohort%canopy_layer == 1)then
                    ! In the donor patch we are left with fewer trees because the area has decreased
                    ! the plant density for large trees does not actually decrease in the donor patch
@@ -495,8 +498,8 @@ contains
                 endif
 
              ! Fire is the dominant disturbance 
-             elseif (currentPatch%disturbance_rates(2) > currentPatch%disturbance_rates(1) .and. &
-                     currentPatch%disturbance_rates(2) > currentPatch%disturbance_rates(3)) then !fire
+             elseif (currentPatch%disturbance_rates(dtype_ifire) > currentPatch%disturbance_rates(dtype_ifall) .and. &
+                     currentPatch%disturbance_rates(dtype_ifire) > currentPatch%disturbance_rates(dtype_ilog)) then !fire
 
                 ! Number of members in the new patch, before we impose fire survivorship
                 nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
@@ -518,8 +521,8 @@ contains
                 nc%lmort_infra      = 0.0_r8
 
              ! Logging is the dominant disturbance  
-             elseif (currentPatch%disturbance_rates(3) > currentPatch%disturbance_rates(1) .and. &
-                     currentPatch%disturbance_rates(3) > currentPatch%disturbance_rates(2)) then  ! Logging 
+             elseif (currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifall) .and. &
+                     currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifire)) then  ! Logging 
 
                 if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
                    ! Move the survival trees into new patch
@@ -995,7 +998,7 @@ contains
     currentCohort => currentPatch%shortest
     do while(associated(currentCohort))       
        p = currentCohort%pft
-       if(currentPatch%disturbance_rates(1) > currentPatch%disturbance_rates(2))then !mortality is dominant disturbance 
+       if(currentPatch%disturbance_rates(dtype_ifall) > currentPatch%disturbance_rates(dtype_ifire))then !mortality is dominant disturbance 
           if(currentCohort%canopy_layer == 1)then         
              !currentCohort%dmort = mortality_rates(currentCohort) 
              !the disturbance calculations are done with the previous n, c_area and d_mort. So it's probably &
