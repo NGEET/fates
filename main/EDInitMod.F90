@@ -107,6 +107,9 @@ contains
     site_in%CWD_BG_diagnostic_input_carbonflux(:) = 0._r8
     site_in%leaf_litter_diagnostic_input_carbonflux(:) = 0._r8
     site_in%root_litter_diagnostic_input_carbonflux(:) = 0._r8
+    
+    ! Resources management (logging/harvesting, etc)
+    site_in%resources_management%trunk_product_site  = 0.0_r8
 
   end subroutine zero_site
 

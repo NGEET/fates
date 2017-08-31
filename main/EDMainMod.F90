@@ -88,7 +88,7 @@ contains
 
     ! Call a routine that simply identifies if logging should occur
     ! This is limited to a global event until more structured event handling is enabled
-    call IsItLoggingTime(hlm_masterproc)
+    call IsItLoggingTime(hlm_masterproc,currentSite)
 
     !**************************************************************************
     ! Fire, growth, biogeochemistry. 
@@ -499,19 +499,6 @@ contains
           currentCohort => currentCohort%shorter;
           
        enddo !end cohort loop 
-
-       ! Modify biomass for logging
-       ! Yi Xu
-       ! 03/2017
-  
-	if (currentPatch%logging==1 .and. currentPatch%after_spawn_patch==1) then  
-
-	   ! turn off this flag after spawn patch , since flux_in and flux_out are cleaned in every balance check 
-	   currentPatch%after_spawn_patch = 0
-
-	end if 
-
-
 
        currentPatch => currentPatch%younger
 

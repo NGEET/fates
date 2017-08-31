@@ -443,12 +443,6 @@ module EDTypesMod
      ! PLANT HYDRAULICS     
      type(ed_patch_hydr_type) , pointer :: pa_hydr                 ! All patch hydraulics data, see FatesHydraulicsMemMod.F90
 
-     ! LOGGING EFFECTS
-	 
-     integer  ::  logging                                            ! 1=logging; 0=no logging
-     integer  ::  after_spawn_patch                                  ! 1=after spawn patch; 0=before spawn patch
-     real(r8) ::  trunk_product					     ! kGC/m2
-	
    contains
 
   end type ed_patch_type

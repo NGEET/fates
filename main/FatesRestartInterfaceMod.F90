@@ -69,6 +69,7 @@ module FatesRestartInterfaceMod
   integer, private :: ir_fates_to_bgc_this_ts_si
   integer, private :: ir_fates_to_bgc_last_ts_si
   integer, private :: ir_seedrainflux_si
+  integer, private :: ir_trunk_product_si
   integer, private :: ir_ncohort_pa
   integer, private :: ir_balive_co
   integer, private :: ir_bdead_co
@@ -591,6 +592,12 @@ contains
          units='kgC/m2/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedrainflux_si )
 
+    call this%set_restart_var(vname='fates_trunk_product_site', vtype=site_r8, &
+         long_name='Accumulate trunk product flux at site', &
+         units='kgC/m2', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_trunk_product_si )
+
+
     ! -----------------------------------------------------------------------------------
     ! Variables stored within cohort vectors
     ! Note: Some of these are multi-dimensional variables in the patch/site dimension
@@ -1025,6 +1032,7 @@ contains
            rio_fates_to_bgc_this_ts_si => this%rvars(ir_fates_to_bgc_this_ts_si)%r81d, &
            rio_fates_to_bgc_last_ts_si => this%rvars(ir_fates_to_bgc_last_ts_si)%r81d, &
            rio_seedrainflux_si         => this%rvars(ir_seedrainflux_si)%r81d, &
+           rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
            rio_balive_co               => this%rvars(ir_balive_co)%r81d, &
            rio_bdead_co                => this%rvars(ir_bdead_co)%r81d, &
@@ -1310,8 +1318,11 @@ contains
           rio_fates_to_bgc_this_ts_si(io_idx_si) = sites(s)%fates_to_bgc_this_ts
           rio_fates_to_bgc_last_ts_si(io_idx_si) = sites(s)%fates_to_bgc_last_ts
           rio_seedrainflux_si(io_idx_si)         = sites(s)%tot_seed_rain_flux
-          
+
+          ! Accumulated trunk product
+          rio_trunk_product_si(io_idx_si) = sites(s)%resources_management%trunk_product_site
           ! set numpatches for this column
+
           rio_npatch_si(io_idx_si)  = patchespersite
           
           do i = 1,numWaterMem ! numWaterMem currently 10
@@ -1611,6 +1622,7 @@ contains
           rio_fates_to_bgc_this_ts_si => this%rvars(ir_fates_to_bgc_this_ts_si)%r81d, &
           rio_fates_to_bgc_last_ts_si => this%rvars(ir_fates_to_bgc_last_ts_si)%r81d, &
           rio_seedrainflux_si         => this%rvars(ir_seedrainflux_si)%r81d, &
+          rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
           rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
           rio_balive_co               => this%rvars(ir_balive_co)%r81d, &
           rio_bdead_co                => this%rvars(ir_bdead_co)%r81d, &
@@ -1893,7 +1905,8 @@ contains
           sites(s)%fates_to_bgc_this_ts = rio_fates_to_bgc_this_ts_si(io_idx_si)
           sites(s)%fates_to_bgc_last_ts = rio_fates_to_bgc_last_ts_si(io_idx_si)
           sites(s)%tot_seed_rain_flux   = rio_seedrainflux_si(io_idx_si)
-          
+          sites(s)%resources_management%trunk_product_site = rio_trunk_product_si(io_idx_si)
+
        end do
        
        if ( DEBUG ) then

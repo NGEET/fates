@@ -9,7 +9,7 @@ module EDPatchDynamicsMod
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
   use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, area, dbhmax
   use EDTypesMod           , only : maxPatchesPerSite
-  use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type, ed_resources_management_type
+  use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : nclmax
   use EDTypesMod           , only : maxpft
@@ -86,8 +86,6 @@ contains
     type (ed_patch_type) , pointer :: currentPatch
     type (ed_cohort_type), pointer :: currentCohort
 
-    type (ed_resources_management_type) :: resources_management
-
     real(r8) :: cmort
     real(r8) :: bmort
     real(r8) :: hmort
@@ -142,7 +140,7 @@ contains
           !  Yi Xu  2017
           ! ---------------------------------------------------------------
 
-          if (currentPatch%logging==1 .and. logging_time) then 
+          if (logging_time) then 
              
              ! always call this function if turn on logging at the beginning 
              call LoggingMortality_rates(site_in, currentCohort%pft, currentCohort%dbh, &
@@ -630,11 +628,6 @@ contains
           call terminate_cohorts(currentSite, currentPatch, 2)
           call sort_cohorts(currentPatch)
 
-           if (currentPatch%logging==1 .and. logging_time) then            
-                 currentPatch%after_spawn_patch= 1
-          else
-                 currentPatch%after_spawn_patch= 0
-          endif
           currentPatch => currentPatch%younger
 
        enddo ! currentPatch patch loop. 
@@ -1293,13 +1286,6 @@ contains
     currentPatch%sabs_dir(:)                = 0.0_r8
     currentPatch%sabs_dif(:)                = 0.0_r8
     currentPatch%zstar                      = 0.0_r8
-
-    !LOGGING 
-    !kGC/m2
-    currentPatch%trunk_product              = 0.0_r8
-    currentPatch%logging	            = 1        ! Currently, assume all patch=1, need to change in future
-    currentPatch%after_spawn_patch	    = 0
-    
 
   end subroutine zero_patch
 
