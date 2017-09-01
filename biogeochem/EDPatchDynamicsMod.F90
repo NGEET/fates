@@ -162,8 +162,7 @@ contains
                                   currentCohort%lmort_collateral +                      &
                                   currentCohort%lmort_infra ) *                         &
                                   currentCohort%c_area/currentPatch%area
-                
-             end if    
+             end if
           else
              currentCohort%lmort_logging    = 0.0_r8
              currentCohort%lmort_collateral = 0.0_r8
@@ -522,31 +521,48 @@ contains
              elseif (currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifall) .and. &
                      currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifire)) then  ! Logging 
 
-                if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
-                   ! Move the survival trees into new patch
-                   ! nc is the new cohort that goes in the disturbed patch (new_patch)
 
-                   ! kill all of the trees who caused the disturbance, no survival trees in logged trees.
-                   nc%n =  nc%n * (1.0_r8 - currentCohort%lmort_logging - &
-                                            currentCohort%lmort_collateral - &
-                                            currentCohort%lmort_infra) 
-                   nc%n = nc%n * 0.0_r8 
+                ! If this cohort is in the upper canopy. It generated 
+                if(currentCohort%canopy_layer == 1)then
+                   
+                   ! Number density in new patch
+                   nc%n            = 0.0_r8             
+                   ! Number density in old patch
+                   currentCohort%n = currentCohort%n * & 
+                         (1.0_r8 - currentCohort%lmort_logging - &
+                          currentCohort%lmort_collateral - &
+                          currentCohort%lmort_infra)
 
-                   currentCohort%n = currentCohort%n * &
-                         (1._r8 - currentCohort%lmort_logging - &
-                                  currentCohort%lmort_collateral - &
-                                  currentCohort%lmort_infra) 
-
-                   nc%fmort = nan  ! should double check fmort
+                   ! The mortality diagnostics are set to nan because the cohort should dissappear
+                   nc%cmort = nan
+                   nc%hmort = nan
+                   nc%bmort = nan
+                   nc%fmort = nan
                    nc%imort = nan
-                   nc%cmort = currentCohort%cmort
-                   nc%hmort = currentCohort%hmort
-                   nc%bmort = currentCohort%bmort
+                   nc%lmort_logging    = nan
+                   nc%lmort_collateral = nan
+                   nc%lmort_infra      = nan
 
-                   ! logging rate at new cohort should be zero
-                   nc%lmort_logging    = 0.0_r8
-                   nc%lmort_collateral = 0.0_r8
-                   nc%lmort_infra      = 0.0_r8
+                else
+
+                   if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
+                     
+                      ! The number density of plants in the new patch prior to recieving collateral damage
+                      nc%n = currentCohort%n * patch_site_areadis/currentPatch%area 
+                      
+                      ! remaining survivors of understory plants of those that are knocked over by the overstorey trees dying...  
+                      nc%n = (1.0_r8 - currentCohort%lmort_collateral) * nc%n
+
+                      nc%fmort = 0.0_r8
+                      nc%imort = 0.0_r8                  ! We did not cull survivors via impact mortality
+                      nc%cmort = currentCohort%cmort
+                      nc%hmort = currentCohort%hmort
+                      nc%bmort = currentCohort%bmort
+                      
+                      
+                      nc%lmort_logging    = currentCohort%lmort_logging
+                      nc%lmort_collateral = currentCohort%lmort_collateral
+                      nc%lmort_infra      = currentCohort%lmort_infra
 
                 else
 
