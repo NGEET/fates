@@ -17,6 +17,7 @@ module EDCanopyStructureMod
   use FatesGlobals          , only : endrun => fates_endrun
   use FatesInterfaceMod     , only : hlm_days_per_year
   use FatesInterfaceMod     , only : numpft
+  use ieee_arithmetic
 
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -111,6 +112,8 @@ contains
     real(r8) :: sumloss,excess_area
     integer  :: count_mi
     real(r8) :: rankordered_area_sofar ! the amount of total canopy area occupied by cohorts upto this point
+    integer  :: patch_area_counter
+    integer  :: layer_area_counter
     !----------------------------------------------------------------------
 
     currentPatch => currentSite%oldest_patch    
@@ -126,17 +129,73 @@ contains
     new_total_area_check = 0._r8
     do while (associated(currentPatch)) ! Patch loop    
 
+
+       ! Perform a numerical check on input data structures
+       ! cohort_in%dbh           (c_area)
+       ! cohort_in%pft           (c_area)
+       ! cohort_in%canopy_layer  (c_area)
+       ! cohort_in%n             (c_area)
+       ! currentPatch%area
+       currentCohort => currentPatch%tallest
+       do while (associated(currentCohort))  
+          if(ieee_is_nan( currentCohort%dbh ))then
+             write(fates_log(),*) 'NAN COHORT DBH:'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+          
+          if(ieee_is_nan( currentCohort%n )) then
+             write(fates_log(),*) 'NAN COHORT N'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+
+          if(.not.ieee_is_finite( currentCohort%dbh ) ) then
+             write(fates_log(),*) 'INF DBH'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+          
+          if(.not.ieee_is_finite( currentCohort%n ) ) then
+             write(fates_log(),*) 'INF N'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+          
+          if( currentCohort%pft < 1 .or. currentCohort%pft > numpft ) then
+             write(fates_log(),*) 'BOGUS PFT VALUE: ',currentCohort%pft
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+
+          if( currentCohort%canopy_layer < 1 .or. currentCohort%canopy_layer > nclmax+1 ) then
+             write(fates_log(),*) 'BOGUS CANOPY LAYER: ',currentCohort%canopy_layer
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+          
+
+          currentCohort => currentCohort%shorter
+       enddo
+
+       if(ieee_is_nan( currentPatch%area ))then
+          write(fates_log(),*) 'NAN AREA'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+
+       if(.not.ieee_is_finite(  currentPatch%area ) ) then
+          write(fates_log(),*) 'INF AREA'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+
+       
+
+
        if (currentPatch%area .gt. min_patch_area) then  ! avoid numerical weirdness that shouldn't be happening anyway
 
        excess_area = 1.0_r8   
         
        ! Does any layer have excess area in it? Keep going until it does not...
-       
+       patch_area_counter = 0
        do while(excess_area > 0.000001_r8)
 
           ! Calculate the area currently in each canopy layer. 
           z = 1 
-          arealayer = 0.0_r8
+          arealayer(:) = 0.0_r8
           currentCohort => currentPatch%tallest
           do while (associated(currentCohort))  
              currentCohort%c_area = c_area(currentCohort) ! Reassess cohort area. 
@@ -156,6 +215,8 @@ contains
 
           do i = 1,z ! Loop around the currently occupied canopy layers. 
              
+
+             layer_area_counter = 0
              do while((arealayer(i)-currentPatch%area) > 0.000001_r8) 
              ! Is this layer currently over-occupied? 
              ! In that case, we need to work out which cohorts to demote. 
@@ -381,6 +442,28 @@ contains
                 !Update arealayer for diff calculations of layer below. 
                 arealayer(i + 1) = arealayer(i + 1) + sumloss 
 
+                layer_area_counter=layer_area_counter+1
+                if(layer_area_counter>100) then
+                   write(fates_log(),*) 'LAYER AREA CHECK NOT CLOSING, Z:',z
+                   currentCohort => currentPatch%tallest
+                   do while (associated(currentCohort))  
+                      write(fates_log(),*) '---------------'
+                      write(fates_log(),*) 'coh ilayer:',currentCohort%canopy_layer
+                      write(fates_log(),*) 'coh dbh:',currentCohort%dbh
+                      write(fates_log(),*) 'coh pft:',currentCohort%pft
+                      write(fates_log(),*) 'coh n:',currentCohort%n
+                      write(fates_log(),*) 'coh carea:',currentCohort%c_area
+                      currentCohort => currentCohort%shorter
+                   enddo
+                   write(fates_log(),*) 'patch area:',currentpatch%area
+                   write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
+                   write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
+                   write(fates_log(),*) 'arealayer(i):',arealayer(i)
+                   write(fates_log(),*) 'layer i:',i
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                end if
+                
+
              enddo !arealayer loop
              if(arealayer(i)-currentPatch%area > 0.00001_r8)then
                 write(fates_log(),*) 'lossarea problem', lossarea,sumloss,z,currentPatch%patchno
@@ -409,6 +492,13 @@ contains
              endif
           enddo
           currentPatch%ncl_p = min(z,nclmax)
+
+
+          patch_area_counter=patch_area_counter+1
+          if(patch_area_counter>100) then
+             write(fates_log(),*) 'PATCH AREA CHECK NOT CLOSING'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
 
        enddo !is there still excess area in any layer?
 
