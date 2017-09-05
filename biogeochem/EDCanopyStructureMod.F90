@@ -113,7 +113,9 @@ contains
     integer  :: count_mi
     real(r8) :: rankordered_area_sofar ! the amount of total canopy area occupied by cohorts upto this point
     integer  :: patch_area_counter
+    integer  :: patch2_area_counter
     integer  :: layer_area_counter
+    integer  :: layer2_area_counter
     !----------------------------------------------------------------------
 
     currentPatch => currentSite%oldest_patch    
@@ -139,31 +141,43 @@ contains
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))  
           if(ieee_is_nan( currentCohort%dbh ))then
-             write(fates_log(),*) 'NAN COHORT DBH:'
+             write(fates_log(),*) 'NAN COHORT DBH:' 
+             write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
+             write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
           
           if(ieee_is_nan( currentCohort%n )) then
              write(fates_log(),*) 'NAN COHORT N'
+             write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
+             write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
 
           if(.not.ieee_is_finite( currentCohort%dbh ) ) then
-             write(fates_log(),*) 'INF DBH'
+             write(fates_log(),*) 'INF DBH' 
+             write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
+             write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
           
           if(.not.ieee_is_finite( currentCohort%n ) ) then
-             write(fates_log(),*) 'INF N'
+             write(fates_log(),*) 'INF N' 
+             write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
+             write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
           
-          if( currentCohort%pft < 1 .or. currentCohort%pft > numpft ) then
+          if( currentCohort%pft < 1 .or. currentCohort%pft > numpft ) then 
+             write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
+             write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
              write(fates_log(),*) 'BOGUS PFT VALUE: ',currentCohort%pft
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
 
-          if( currentCohort%canopy_layer < 1 .or. currentCohort%canopy_layer > nclmax+1 ) then
+          if( currentCohort%canopy_layer < 1 .or. currentCohort%canopy_layer > nclmax+1 ) then 
+             write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
+             write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
              write(fates_log(),*) 'BOGUS CANOPY LAYER: ',currentCohort%canopy_layer
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
@@ -173,12 +187,16 @@ contains
        enddo
 
        if(ieee_is_nan( currentPatch%area ))then
-          write(fates_log(),*) 'NAN AREA'
+          write(fates_log(),*) 'NAN AREA' 
+          write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
+          write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
 
        if(.not.ieee_is_finite(  currentPatch%area ) ) then
-          write(fates_log(),*) 'INF AREA'
+          write(fates_log(),*) 'INF AREA' 
+          write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
+          write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
 
@@ -497,16 +515,20 @@ contains
           patch_area_counter=patch_area_counter+1
           if(patch_area_counter>100) then
              write(fates_log(),*) 'PATCH AREA CHECK NOT CLOSING'
+             write(fates_log(),*) 'patch area:',currentpatch%area
+             write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
+             write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
+             write(fates_log(),*) 'excess_area:',excess_area
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
 
        enddo !is there still excess area in any layer?
-
+       
        ! Remove cohorts that are incredibly sparse
        call terminate_cohorts(currentSite, currentPatch, 1)
-
+       
        call fuse_cohorts(currentPatch, bc_in)
-
+       
        ! Remove cohorts for various other reasons
        call terminate_cohorts(currentSite, currentPatch, 2)
 
@@ -535,12 +557,14 @@ contains
 
        missing_area=1.0_r8    
        count_mi = 0
+       patch2_area_counter = 0
        !does any layer have excess area in it? keep going until it does not...
        do while(missing_area > 0.000001_r8.and.z > 1) 
           count_mi = count_mi +1
           do i = 1,z-1 ! if z is greater than one, there is a possibility of too many plants in the understorey. 
              lower_cohort_switch = 1
              ! is the area of the layer less than the area of the patch, if it is supposed to be closed (z>1) 
+             layer2_area_counter = 0
              do while((arealayer(i)-currentPatch%area) < -0.000001_r8.and.lower_cohort_switch == 1) 
 
                 if(arealayer(i+1) <= 0.000001_r8)then
@@ -712,6 +736,29 @@ contains
                    ! write(fates_log(),*) 'cohorts',currentCohort%pft,currentPatch%patchno, &
                         !currentCohort%c_area
                 endif
+
+                layer2_area_counter = layer2_area_counter + 1
+                if(layer2_area_counter>100) then
+                   write(fates_log(),*) 'LAYER2 AREA CHECK NOT CLOSING, Z:',z
+                   currentCohort => currentPatch%tallest
+                   do while (associated(currentCohort))  
+                      write(fates_log(),*) '---------------'
+                      write(fates_log(),*) 'coh ilayer:',currentCohort%canopy_layer
+                      write(fates_log(),*) 'coh dbh:',currentCohort%dbh
+                      write(fates_log(),*) 'coh pft:',currentCohort%pft
+                      write(fates_log(),*) 'coh n:',currentCohort%n
+                      write(fates_log(),*) 'coh carea:',currentCohort%c_area
+                      currentCohort => currentCohort%shorter
+                   enddo
+                   write(fates_log(),*) 'lower_cohort_switch',lower_cohort_switch
+                   write(fates_log(),*) 'patch area:',currentpatch%area
+                   write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
+                   write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
+                   write(fates_log(),*) 'arealayer(i):',arealayer(i)
+                   write(fates_log(),*) 'layer i:',i
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                end if
+
              enddo !arealayer loop
 
              if(currentPatch%area-arealayer(i) < 0.000001_r8)then
@@ -722,7 +769,7 @@ contains
                ! write(fates_log(),*) 'z loop',arealayer(1:3),currentPatch%patchno,z
              endif
           enddo !z  
-
+          
           z = 1
           arealayer = 0.0_r8
           currentCohort => currentPatch%tallest
@@ -747,6 +794,18 @@ contains
           if(promswitch == 1)then
             ! write(fates_log(),*) 'missingarea loop',arealayer(1:3),currentPatch%patchno,missing_area,z
           endif
+
+          patch2_area_counter = patch2_area_counter + 1
+          if(patch2_area_counter>100) then
+             write(fates_log(),*) 'PATCH2 AREA CHECK NOT CLOSING'
+             write(fates_log(),*) 'patch area:',currentpatch%area
+             write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
+             write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
+             write(fates_log(),*) 'missing_area:',missing_area
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+
+
        enddo !is there still not enough canopy area in any layer?         
 
        ! remove cohorts that are extremely sparse
