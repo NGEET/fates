@@ -61,10 +61,12 @@ module FatesConstantsMod
   ! Conversion: days per second
   real(fates_r8), parameter :: days_per_sec = 1.0_fates_r8/86400.0_fates_r8
 
-  ! Conversion: days per year. assume HLM uses 365 day calendar.  If we need to link to 365.25-day-calendared HLM, rewire to pass through interface
+  ! Conversion: days per year. assume HLM uses 365 day calendar.  
+  ! If we need to link to 365.25-day-calendared HLM, rewire to pass through interface
   real(fates_r8), parameter :: days_per_year = 365.00_fates_r8
   
-   ! Conversion: years per day. assume HLM uses 365 day calendar.  If we need to link to 365.25-day-calendared HLM, rewire to pass through interface
+  ! Conversion: years per day. assume HLM uses 365 day calendar.  
+  ! If we need to link to 365.25-day-calendared HLM, rewire to pass through interface
   real(fates_r8), parameter :: years_per_day = 1.0_fates_r8/365.00_fates_r8
   
   ! Physical constants
