@@ -185,12 +185,6 @@ contains
     call fates_params%RegisterParameter(name=ED_name_comp_excln, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=ED_name_grass_spread, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
-    call fates_params%RegisterParameter(name=ED_name_comp_excln, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
     call fates_params%RegisterParameter(name=ED_name_stress_mort, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
@@ -303,12 +297,6 @@ contains
     call fates_params%RetreiveParameter(name=ED_name_comp_excln, &
          data=ED_val_comp_excln)
 
-    call fates_params%RetreiveParameter(name=ED_name_grass_spread, &
-         data=ED_val_grass_spread)
-
-    call fates_params%RetreiveParameter(name=ED_name_comp_excln, &
-         data=ED_val_comp_excln)
-
     call fates_params%RetreiveParameter(name=ED_name_stress_mort, &
          data=ED_val_stress_mort)
 
@@ -412,8 +400,6 @@ contains
         write(fates_log(),*) '-----------  FATES Scalar Parameters -----------------'
         write(fates_log(),fmt0) 'ED_size_diagnostic_scale = ',ED_size_diagnostic_scale
         write(fates_log(),fmt0) 'fates_mortality_disturbance_fraction = ',fates_mortality_disturbance_fraction
-        write(fates_log(),fmt0) 'ED_val_grass_spread = ',ED_val_grass_spread
-        write(fates_log(),fmt0) 'ED_val_comp_excln = ',ED_val_comp_excln
         write(fates_log(),fmt0) 'ED_val_grass_spread = ',ED_val_grass_spread
         write(fates_log(),fmt0) 'ED_val_comp_excln = ', ED_val_comp_excln
         write(fates_log(),fmt0) 'ED_val_stress_mort = ',ED_val_stress_mort
