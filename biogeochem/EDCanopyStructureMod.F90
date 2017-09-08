@@ -17,7 +17,7 @@ module EDCanopyStructureMod
   use FatesGlobals          , only : endrun => fates_endrun
   use FatesInterfaceMod     , only : hlm_days_per_year
   use FatesInterfaceMod     , only : numpft
-  use ieee_arithmetic
+
 
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -136,45 +136,19 @@ contains
 
 
        ! Perform a numerical check on input data structures
-       ! cohort_in%dbh           (c_area)
-       ! cohort_in%pft           (c_area)
-       ! cohort_in%canopy_layer  (c_area)
-       ! cohort_in%n             (c_area)
-       ! currentPatch%area
        currentCohort => currentPatch%tallest
-       do while (associated(currentCohort))  
-          if(ieee_is_nan( currentCohort%dbh ))then
+       do while (associated(currentCohort))
+          if( currentCohort%dbh .ne. currentCohort%dbh ) then
              write(fates_log(),*) 'NAN COHORT DBH:' 
              write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
              write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
           
-          if(ieee_is_nan( currentCohort%n )) then
+          if( currentCohort%n .ne. currentCohort%n ) then
              write(fates_log(),*) 'NAN COHORT N'
              write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
              write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
-
-          if(.not.ieee_is_finite( currentCohort%dbh ) ) then
-             write(fates_log(),*) 'INF DBH' 
-             write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
-             write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
-          
-          if(.not.ieee_is_finite( currentCohort%n ) ) then
-             write(fates_log(),*) 'INF N' 
-             write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
-             write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
-          
-          if( currentCohort%pft < 1 .or. currentCohort%pft > numpft ) then 
-             write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
-             write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
-             write(fates_log(),*) 'BOGUS PFT VALUE: ',currentCohort%pft
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
 
@@ -184,20 +158,12 @@ contains
              write(fates_log(),*) 'BOGUS CANOPY LAYER: ',currentCohort%canopy_layer
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
-          
 
           currentCohort => currentCohort%shorter
        enddo
 
-       if(ieee_is_nan( currentPatch%area ))then
-          write(fates_log(),*) 'NAN AREA' 
-          write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
-          write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-
-       if(.not.ieee_is_finite(  currentPatch%area ) ) then
-          write(fates_log(),*) 'INF AREA' 
+       if( currentPatch%area .ne. currentPatch%area )then
+          write(fates_log(),*) 'NAN PATCH AREA' 
           write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
           write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
           call endrun(msg=errMsg(sourcefile, __LINE__))
