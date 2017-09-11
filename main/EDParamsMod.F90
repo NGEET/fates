@@ -3,7 +3,6 @@ module EDParamsMod
    ! module that deals with reading the ED parameter file
    !
   
-   use EDtypesMod        , only: maxPft
    use FatesParametersInterface, only : param_string_length
    use FatesGlobals        , only : fates_log
    use FatesGlobals        , only : endrun => fates_endrun

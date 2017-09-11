@@ -14,7 +14,6 @@
   use FatesInterfaceMod     , only : bc_in_type
 
   use EDPftvarcon           , only : EDPftvarcon_inst
-  use EDEcophysconType      , only : EDecophyscon
 
   use EDtypesMod            , only : ed_site_type
   use EDtypesMod            , only : ed_patch_type
@@ -882,18 +881,18 @@ contains
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 ! Flames lower than bottom of canopy. 
                 ! c%hite is height of cohort
-                if (currentPatch%SH < (currentCohort%hite-currentCohort%hite*EDecophyscon%crown(currentCohort%pft))) then 
+                if (currentPatch%SH < (currentCohort%hite-currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft))) then 
                    currentCohort%cfa = 0.0_r8
                 else
                    ! Flames part of way up canopy. 
                    ! Equation 17 in Thonicke et al. 2010. 
                    ! flames over bottom of canopy but not over top.
                    if ((currentCohort%hite > 0.0_r8).and.(currentPatch%SH >=  &
-                        (currentCohort%hite-currentCohort%hite*EDecophyscon%crown(currentCohort%pft)))) then 
+                        (currentCohort%hite-currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft)))) then 
 
                            currentCohort%cfa =  (currentPatch%SH-currentCohort%hite*(1- &
-                                EDecophyscon%crown(currentCohort%pft)))/(currentCohort%hite* &
-                                EDecophyscon%crown(currentCohort%pft)) 
+                                EDPftvarcon_inst%crown(currentCohort%pft)))/(currentCohort%hite* &
+                                EDPftvarcon_inst%crown(currentCohort%pft)) 
 
                    else 
                       ! Flames over top of canopy. 
@@ -942,7 +941,7 @@ contains
           do while(associated(currentCohort))  
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 ! Equation 21 in Thonicke et al 2010
-                bt = EDecophyscon%bark_scaler(currentCohort%pft)*currentCohort%dbh ! bark thickness. 
+                bt = EDPftvarcon_inst%bark_scaler(currentCohort%pft)*currentCohort%dbh ! bark thickness. 
                 ! Equation 20 in Thonicke et al. 2010. 
                 tau_c = 2.9_r8*bt**2.0_r8 !calculate time it takes to kill cambium (min)
                 ! Equation 19 in Thonicke et al. 2010
@@ -994,7 +993,7 @@ contains
              currentCohort%crownfire_mort = 0.0_r8
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then
                 ! Equation 22 in Thonicke et al. 2010. 
-                currentCohort%crownfire_mort = EDecophyscon%crown_kill(currentCohort%pft)*currentCohort%cfa**3.0_r8
+                currentCohort%crownfire_mort = EDPftvarcon_inst%crown_kill(currentCohort%pft)*currentCohort%cfa**3.0_r8
                 ! Equation 18 in Thonicke et al. 2010. 
                 currentCohort%fire_mort = currentCohort%crownfire_mort+currentCohort%cambial_mort- &
                      (currentCohort%crownfire_mort*currentCohort%cambial_mort)  !joint prob.   
