@@ -47,7 +47,7 @@ module EDParamsMod
    real(r8),protected :: ED_val_phen_coldtemp
    real(r8),protected :: ED_val_cohort_fusion_tol
    real(r8),protected :: ED_val_patch_fusion_tol
-  
+
    character(len=param_string_length),parameter :: ED_name_size_diagnostic_scale = "fates_size_diagnostic_scale"
    character(len=param_string_length),parameter :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
    character(len=param_string_length),parameter :: ED_name_grass_spread = "fates_grass_spread"
@@ -118,7 +118,6 @@ contains
     use shr_infnan_mod , only : nan => shr_infnan_nan, assignment(=)
 
     implicit none
-
 
     ED_size_diagnostic_scale              = nan
     fates_mortality_disturbance_fraction  = nan

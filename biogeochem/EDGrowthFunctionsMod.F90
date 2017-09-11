@@ -427,6 +427,7 @@ contains
     real(r8),intent(out) :: hmort  ! hydraulic failure mortality
 
     real(r8) :: frac  ! relativised stored carbohydrate
+
     real(r8) :: hf_sm_threshold    ! hydraulic failure soil moisture threshold 
 
 
