@@ -500,7 +500,11 @@ contains
     net_flux        = currentSite%flux_in - currentSite%flux_out
     error           = abs(net_flux - change_in_stock)   
 
-    if ( abs(error) > 10e-6 ) then
+    ! We are not closing this error within 10e-6 very often
+    ! but this is filling up the logs too much
+    ! Encapsulating print statements and making new issue (RGK 09-11-2017)
+
+    if ( abs(error) > 10e-6 .and. DEBUG ) then
        write(fates_log(),*) 'total error: call index: ',call_index, &
                       'in:  ',currentSite%flux_in,   &
                       'out: ',currentSite%flux_out,  &
