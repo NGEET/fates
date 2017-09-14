@@ -6,6 +6,7 @@ module EDInitMod
 
   use FatesConstantsMod         , only : r8 => fates_r8
   use FatesConstantsMod         , only : ifalse
+  use FatesConstantsMod         , only : itrue
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax
   use FatesGlobals              , only : fates_log
@@ -21,11 +22,19 @@ module EDInitMod
   use EDTypesMod                , only : numpft_ed
   use FatesInterfaceMod         , only : bc_in_type
   use EDTypesMod                , only : use_fates_plant_hydro
-  
+
+  ! CIME GLOBALS
+  use shr_log_mod               , only : errMsg => shr_log_errMsg
+
   implicit none
   private
 
   logical   ::  DEBUG = .false.
+
+  integer, parameter :: do_inv_init = ifalse
+
+  character(len=*), parameter, private :: sourcefile = &
+        __FILE__
 
   public  :: zero_site
   public  :: init_patches
@@ -184,65 +193,92 @@ contains
 
   ! ============================================================================
   subroutine init_patches( nsites, sites, bc_in)
-    !
-    ! !DESCRIPTION:
-    !initialize patches on new ground
-    !
-    ! !USES:
-    use EDParamsMod ,  only : ED_val_maxspread  
-    use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydProps 
-    !
-    ! !ARGUMENTS    
-    integer, intent(in)                        :: nsites
-    type(ed_site_type) , intent(inout), target :: sites(nsites)
-    type(bc_in_type), intent(in)               :: bc_in(nsites)
-    !
-    ! !LOCAL VARIABLES:
-    integer  :: s
-    real(r8) :: cwd_ag_local(ncwd)
-    real(r8) :: cwd_bg_local(ncwd)
-    real(r8) :: spread_local(nclmax)
-    real(r8) :: leaf_litter_local(numpft_ed)
-    real(r8) :: root_litter_local(numpft_ed)
-    real(r8) :: age !notional age of this patch
-    type(ed_patch_type), pointer :: newp
-    !----------------------------------------------------------------------
+     !
+     ! !DESCRIPTION:
+     ! initialize patches
+     ! This may be call a near bare ground initialization, or it may
+     ! load patches from an inventory.
 
-    cwd_ag_local(:)      = 0.0_r8 !ED_val_init_litter -- arbitrary value for litter pools. kgC m-2
-    cwd_bg_local(:)      = 0.0_r8 !ED_val_init_litter
-    leaf_litter_local(:) = 0.0_r8
-    root_litter_local(:) = 0.0_r8
-    spread_local(:)      = ED_val_maxspread
-    age                  = 0.0_r8
+     !
+     
 
-    !FIX(SPM,032414) clean this up...inits out of this loop
-    do s = 1, nsites
+     use EDParamsMod            , only : ED_val_maxspread
+     use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydProps 
+     use FatesInventoryInitMod,   only : initialize_sites_by_inventory
 
-       allocate(newp)
+     !
+     ! !ARGUMENTS    
+     integer, intent(in)                        :: nsites
+     type(ed_site_type) , intent(inout), target :: sites(nsites)
+     type(bc_in_type), intent(in)               :: bc_in(nsites)
+     !
+     ! !LOCAL VARIABLES:
+     integer  :: s
+     real(r8) :: cwd_ag_local(ncwd)
+     real(r8) :: cwd_bg_local(ncwd)
+     real(r8) :: spread_local(nclmax)
+     real(r8) :: leaf_litter_local(numpft_ed)
+     real(r8) :: root_litter_local(numpft_ed)
+     real(r8) :: age !notional age of this patch
+     type(ed_patch_type), pointer :: newp
 
-       newp%patchno = 1
-       newp%younger => null()
-       newp%older   => null()
+     ! List out some nominal patch values that are used for Near Bear Ground initializations
+     ! as well as initializing inventory
+     ! ---------------------------------------------------------------------------------------------
+     cwd_ag_local(:)      = 0.0_r8 !ED_val_init_litter -- arbitrary value for litter pools. kgC m-2
+     cwd_bg_local(:)      = 0.0_r8 !ED_val_init_litter
+     leaf_litter_local(:) = 0.0_r8
+     root_litter_local(:) = 0.0_r8
+     spread_local(:)      = ED_val_maxspread
+     age                  = 0.0_r8
+     ! ---------------------------------------------------------------------------------------------
 
-       sites(s)%youngest_patch => newp
-       sites(s)%youngest_patch => newp
-       sites(s)%oldest_patch   => newp
+     ! ---------------------------------------------------------------------------------------------
+     ! Two primary options, either a Near Bear Ground (NBG) or Inventory based cold-start
+     ! ---------------------------------------------------------------------------------------------
 
-       ! make new patch...
-       call create_patch(sites(s), newp, age, AREA, &
-            spread_local, cwd_ag_local, cwd_bg_local, leaf_litter_local,  &
-            root_litter_local) 
+     if (do_inv_init .eq. itrue) then
 
-       call init_cohorts(newp, bc_in(s))
-       
-       ! This sets the rhizosphere shells based on the plant initialization
-       ! The initialization of the plant-relevant hydraulics variables
-       ! were set from a call inside of the init_cohorts()->create_cohort() subroutine
-       if (use_fates_plant_hydro) then
-          call updateSizeDepRhizHydProps(sites(s), bc_in(s))
-       end if
+        call initialize_sites_by_inventory(nsites,sites,bc_in)
 
-    enddo
+        do s = 1, nsites
+           if (use_fates_plant_hydro) then
+              call updateSizeDepRhizHydProps(sites(s), bc_in(s))
+           end if
+        enddo
+
+     else
+
+        !FIX(SPM,032414) clean this up...inits out of this loop
+        do s = 1, nsites
+
+           allocate(newp)
+
+           newp%patchno = 1
+           newp%younger => null()
+           newp%older   => null()
+
+           sites(s)%youngest_patch => newp
+           sites(s)%youngest_patch => newp
+           sites(s)%oldest_patch   => newp
+
+           ! make new patch...
+           call create_patch(sites(s), newp, age, AREA, &
+                 spread_local, cwd_ag_local, cwd_bg_local, leaf_litter_local,  &
+                 root_litter_local) 
+
+           call init_cohorts(newp, bc_in(s))
+
+           ! This sets the rhizosphere shells based on the plant initialization
+           ! The initialization of the plant-relevant hydraulics variables
+           ! were set from a call inside of the init_cohorts()->create_cohort() subroutine
+           if (use_fates_plant_hydro) then
+              call updateSizeDepRhizHydProps(sites(s), bc_in(s))
+           end if
+
+        enddo
+
+     end if
 
   end subroutine init_patches
 

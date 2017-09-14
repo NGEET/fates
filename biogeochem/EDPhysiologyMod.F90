@@ -31,7 +31,7 @@ module EDPhysiologyMod
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use FatesGlobals          , only : fates_log
   use FatesGlobals          , only : endrun => fates_endrun
-
+  use EDParamsMod           , only : fates_mortality_disturbance_fraction
 
   implicit none
   private
@@ -788,11 +788,12 @@ contains
 
     ! Mortality for trees in the understorey. 
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
+    call mortality_rates(currentCohort,cmort,hmort,bmort)
     if (currentCohort%canopy_layer > 1)then 
-       call mortality_rates(currentCohort,cmort,hmort,bmort)
        currentCohort%dndt = -1.0_r8 * (cmort+hmort+bmort) * currentCohort%n
     else
-       currentCohort%dndt = 0._r8
+       currentCohort%dndt = -(1.0_r8 - fates_mortality_disturbance_fraction) &
+            * (cmort+hmort+bmort) * currentCohort%n
     endif
 
     ! Height
@@ -873,7 +874,6 @@ contains
                                   currentCohort%leaf_md*EDecophyscon%leaf_stor_priority(currentCohort%pft)))
     currentCohort%npp_froot = max(0.0_r8,min(currentCohort%npp_acc_hold*currentCohort%root_md/currentCohort%md, &
                                   currentCohort%root_md*EDecophyscon%leaf_stor_priority(currentCohort%pft)))
-
 
     if (Bleaf(currentCohort) > 0._r8)then
 
@@ -961,7 +961,7 @@ contains
        !FIX(RF,032414) - to fix high bl's. needed to prevent numerical errors without the ODEINT.  
        if (currentCohort%balive > target_balive*1.1_r8)then  
           va = 0.0_r8; vs = 1._r8
-          write(fates_log(),*) 'using high bl cap',target_balive,currentCohort%balive                        
+          if (DEBUG) write(fates_log(),*) 'using high bl cap',target_balive,currentCohort%balive                        
        endif
 
     else         
@@ -1334,7 +1334,6 @@ contains
     use EDTypesMod, only : numpft_ed
     use FatesInterfaceMod, only : hlm_numlevdecomp_full
     use FatesInterfaceMod, only : hlm_numlevdecomp
-    use SoilBiogeochemVerticalProfileMod, only: surfprof_exp
     use EDPftvarcon, only : EDPftvarcon_inst
     use FatesConstantsMod, only : sec_per_day
     use EDParamsMod, only : ED_val_ag_biomass
@@ -1345,11 +1344,8 @@ contains
     use EDParamsMod , only : ED_val_cwd_flig, ED_val_cwd_fcel
 
 
-    ! INTERF-TODO: remove the control parameters: exponential_rooting_profile, 
-    ! pftspecific_rootingprofile, rootprof_exp, surfprof_exp
-    !
     implicit none   
-    !
+
     ! !ARGUMENTS    
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
@@ -1382,6 +1378,10 @@ contains
     ! private function level parameter in RootBiophysMod.F90::exponential_rootfr()
     real(r8), parameter :: rootprof_exp  = 3.  ! how steep profile is
     ! for root C inputs (1/ e-folding depth) (1/m)
+
+    ! NOTE(rgk, 201705) this parameter was brought over from SoilBiogeochemVerticalProfile
+    ! how steep profile is for surface components (1/ e_folding depth) (1/m) 
+    real(r8),  parameter :: surfprof_exp  = 10.
 
     ! NOTE(bja, 201608) as of clm4_5_10_r187 rootprof_beta is now a
     ! two dimensional array with the second dimension being water,1,
