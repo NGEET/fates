@@ -48,7 +48,7 @@ module EDLoggingMortalityMod
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
    
-   public :: LoggingMortality_rates
+   public :: LoggingMortality_frac
    public :: logging_litter_fluxes
    public :: logging_time
    public :: IsItLoggingTime
@@ -141,7 +141,7 @@ contains
 
    ! ======================================================================================
 
-   subroutine LoggingMortality_rates( site_in, pft_i, dbh, &
+   subroutine LoggingMortality_frac( site_in, pft_i, dbh, &
          lmort_logging,lmort_collateral,lmort_infra )
 
       ! Arguments
@@ -181,7 +181,7 @@ contains
          lmort_infra      = 0.0_r8
       end if
 
-   end subroutine LoggingMortality_rates
+   end subroutine LoggingMortality_frac
 
    ! ============================================================================
 

@@ -761,6 +761,7 @@ contains
     !
     ! !USES:
     use EDGrowthFunctionsMod , only : Bleaf, dDbhdBd, dhdbd, hite, mortality_rates,dDbhdBl
+    use EDLoggingMortalityMod, only : LoggingMortality_frac
 
     !
     ! !ARGUMENTS    
@@ -783,6 +784,12 @@ contains
     real(r8) :: cmort    ! starvation mortality rate (fraction per year)
     real(r8) :: bmort    ! background mortality rate (fraction per year)
     real(r8) :: hmort    ! hydraulic failure mortality rate (fraction per year)
+
+    real(r8) :: lmort_logging     ! Mortality fraction associated with direct logging
+    real(r8) :: lmort_collateral  ! Mortality fraction associated with logging collateral damage
+    real(r8) :: lmort_infra       ! Mortality fraction associated with logging infrastructure
+    real(r8) :: dndt_log          ! Mortality rate (per day) associated with the a logging event
+    
     real(r8) :: balive_loss
     !----------------------------------------------------------------------
 
@@ -790,7 +797,14 @@ contains
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
     call mortality_rates(currentCohort,cmort,hmort,bmort)
     if (currentCohort%canopy_layer > 1)then 
-       currentCohort%dndt = -1.0_r8 * (cmort+hmort+bmort) * currentCohort%n
+
+       ! Include understory logging mortality rates not associated with disturbance
+       call LoggingMortality_frac( currentSite, currentCohort%pft, currentCohort%dbh, &
+             lmort_logging,lmort_collateral,lmort_infra )
+       
+       dndt_log = (lmort_logging + lmort_collateral + lmort_infra)/ hlm_freq_day
+
+       currentCohort%dndt = -1.0_r8 * (cmort+hmort+bmort+dndt_log) * currentCohort%n
     else
        currentCohort%dndt = -(1.0_r8 - fates_mortality_disturbance_fraction) &
             * (cmort+hmort+bmort) * currentCohort%n
