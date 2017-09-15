@@ -230,14 +230,11 @@ contains
              currentCohort => currentCohort%taller
           enddo !currentCohort
 
-       elseif (currentPatch%disturbance_rates(dtype_ifall) > currentPatch%disturbance_rates(dtype_ifire) .and. &
-             currentPatch%disturbance_rates(dtype_ifall) > currentPatch%disturbance_rates(dtype_ilog) ) then
-          currentPatch%disturbance_rate = currentPatch%disturbance_rates(dtype_ifall)            ! DISTURBANCE IS MORTALITY
+       else  ! If fire and loggin are not greater than treefall, just set disturbance rate to tree-fall
+             ! which is most likely a 0.0
 
-       else
-          write(fates_log(),*) 'A dominant disturbance mode was not identified somehow'
-          write(fates_log(),*) 'aborting'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+          currentPatch%disturbance_rate = currentPatch%disturbance_rates(dtype_ifall)
+
        endif
 
        site_in%disturbance_mortality = site_in%disturbance_mortality + &
