@@ -610,8 +610,7 @@ contains
       do while( (arealayer_current-currentPatch%area) < -area_target_precision .and. layer_below_exists )
          
 
-         ! Not quite sure why we have this block of code, seems like a small subset of cases
-         ! Essentially promote all cohorts from layer below if that whole layer has area smaller
+         ! Promote all cohorts from layer below if that whole layer has area smaller
          ! than the tolerance on the gains needed into current layer
          ! -------------------------------------------------------------------------------------
 
