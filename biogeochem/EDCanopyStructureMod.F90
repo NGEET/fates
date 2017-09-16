@@ -87,7 +87,9 @@ contains
       ! !USES:
 
       use EDParamsMod, only : ED_val_comp_excln
-      use EDtypesMod , only : ncwd, min_patch_area
+      use EDtypesMod , only : ncwd
+      use EDTypesMod , only : min_patch_area
+      use EDTypesMod , only : val_check_ed_vars
       use FatesInterfaceMod, only : bc_in_type
       !
       ! !ARGUMENTS    
@@ -104,7 +106,9 @@ contains
       integer  :: patch_area_counter     ! count iterations used to solve canopy areas
       logical  :: area_not_balanced      ! logical controlling if the patch layer areas
                                          ! have successfully been redistributed
+      integer  :: return_code            ! math checks on variables will return>0 if problems exist
       integer, parameter  :: max_patch_iterations = 100
+      
 
       !----------------------------------------------------------------------
 
@@ -115,46 +119,31 @@ contains
       currentSite%promotion_rate(:) = 0._r8
       currentSite%demotion_carbonflux = 0._r8
       currentSite%promotion_carbonflux = 0._r8
+
       !
       ! Section 1: Check  total canopy area.    
       !
       do while (associated(currentPatch)) ! Patch loop    
 
 
-         ! Perform a numerical check on input data structures
+         ! Perform numerical checks on some cohort and patch structures
+         ! ------------------------------------------------------------------------------
+
+         call val_check_ed_vars(currentPatch,'co_n:co_dbh:pa_area',return_code)
+         ! No need to make error message, already generated in math_check_ed_vars
+         if(return_code>0) call endrun(msg=errMsg(sourcefile, __LINE__))
+
+         ! canopy layer has a special bounds check
          currentCohort => currentPatch%tallest
          do while (associated(currentCohort))
-            if( currentCohort%dbh .ne. currentCohort%dbh ) then
-               write(fates_log(),*) 'NAN COHORT DBH:' 
-               write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
-               write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-            end if
-
-            if( currentCohort%n .ne. currentCohort%n ) then
-               write(fates_log(),*) 'NAN COHORT N'
-               write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
-               write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-            end if
-
             if( currentCohort%canopy_layer < 1 .or. currentCohort%canopy_layer > nclmax+1 ) then 
                write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
                write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
                write(fates_log(),*) 'BOGUS CANOPY LAYER: ',currentCohort%canopy_layer
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
-
             currentCohort => currentCohort%shorter
          enddo
-
-         if( currentPatch%area .ne. currentPatch%area )then
-            write(fates_log(),*) 'NAN PATCH AREA' 
-            write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
-            write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-
 
          if (currentPatch%area .gt. min_patch_area) then  ! avoid numerical weirdness that shouldn't be happening anyway
 
