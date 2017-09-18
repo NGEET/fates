@@ -165,7 +165,7 @@ contains
             if (dbh >= logging_dbhmin ) then
                lmort_logging = logging_direct_frac * adjustment
             else
-               lmort_logging = 0.0_r8   ! Added RGK
+               lmort_logging = 0.0_r8
             end if
             lmort_collateral = logging_collateral_frac * adjustment
             lmort_infra      = logging_mechanical_frac * adjustment
@@ -252,9 +252,6 @@ contains
       currentCohort => currentPatch%shortest
       do while(associated(currentCohort))       
          p = currentCohort%pft
-!         if(currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifire) .and. &
-!              currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifall) )then 
-            !mortality is dominant disturbance 
 
             if(EDPftvarcon_inst%woody(p) == 1)then   
                !woody=1 trees only, woody=0 grass, canopy_layer=0 woody=1 small trees

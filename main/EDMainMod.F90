@@ -535,9 +535,6 @@ contains
        write(*,*) 'biomass,litter,seeds', biomass_stock,litter_stock,seed_stock
        
 
-       write(*,*) 'tfall:',currentSite%disturbance_mortality
-       write(*,*) 'fire:',currentSite%disturbance_fire
-       write(*,*) 'logging:',currentSite%disturbance_logging
        change_in_stock = 0.0_r8
        biomass_stock   = 0.0_r8
        litter_stock    = 0.0_r8

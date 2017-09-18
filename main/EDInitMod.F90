@@ -63,9 +63,7 @@ contains
     site_in%youngest_patch   => null() ! pointer to yngest patch at the site
     
     ! DISTURBANCE
-    site_in%disturbance_rate = 0._r8  ! site level disturbance rates from mortality and fire.
-    site_in%dist_type        = 0      ! disturbance dist_type id.
-    site_in%total_burn_flux_to_atm = 0._r8 !
+    site_in%total_burn_flux_to_atm = 0._r8
 
     ! PHENOLOGY 
     site_in%status           = 0    ! are leaves in this pixel on or off?

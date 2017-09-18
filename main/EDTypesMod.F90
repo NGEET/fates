@@ -521,15 +521,6 @@ module EDTypesMod
      real(r8) :: nbp_integrated                               ! Net biosphere production accumulated over model time-steps [gC/m2]
 
 
-     ! DISTURBANCE
-     real(r8) ::  disturbance_mortality                        ! site level disturbance rates from mortality.
-     real(r8) ::  disturbance_fire                             ! site level disturbance rates from fire.  
-     integer  ::  dist_type                                    ! disturbance dist_type id.
-     real(r8) ::  disturbance_rate                             ! site total dist rate
-
-     !YX , 3/2017
-     real(r8) ::  disturbance_logging                          ! site level disturbance rates from logging 
-
      ! PHENOLOGY 
      real(r8) ::  ED_GDD_site                                  ! ED Phenology growing degree days.
      integer  ::  status                                       ! are leaves in this pixel on or off for cold decid
