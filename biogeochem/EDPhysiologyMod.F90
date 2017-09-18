@@ -828,7 +828,7 @@ contains
     ! NPP 
     if ( DEBUG ) write(fates_log(),*) 'EDphys 716 ',currentCohort%npp_acc
 
-    ! convert from kgC/indiv/day into kgC/indiv/year 
+    ! convert from kgC/indiv/day into kgC/indiv/year
     ! TODO: CONVERT DAYS_PER_YEAR TO DBLE (HOLDING FOR B4B COMPARISONS, RGK-01-2017)
     currentCohort%npp_acc_hold  = currentCohort%npp_acc  * hlm_days_per_year 
     currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * hlm_days_per_year

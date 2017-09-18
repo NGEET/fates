@@ -39,6 +39,7 @@ module EDMainMod
   use EDtypesMod               , only : ed_patch_type
   use EDtypesMod               , only : ed_cohort_type
   use EDTypesMod               , only : do_ed_phenology
+  use EDTypesMod               , only : AREA
   use FatesConstantsMod        , only : itrue,ifalse
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
   use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydProps
@@ -482,7 +483,7 @@ contains
 
     trunk_product_site = 0.0_r8
     
-    seed_stock   =  sum(currentSite%seed_bank)
+    seed_stock   =  sum(currentSite%seed_bank)*AREA
 
     currentPatch => currentSite%oldest_patch 
     do while(associated(currentPatch))
@@ -511,15 +512,54 @@ contains
     net_flux        = currentSite%flux_in - currentSite%flux_out
     error           = abs(net_flux - change_in_stock)   
 
+    ! -----------------------------------------------------------------------------------
+    ! Terms:
+    ! %flux_in:  accumulates npp over all cohorts,  
+    !               currentSite%flux_in = currentSite%flux_in + &
+    !               currentCohort%npp_acc * currentCohort%n
+    ! %flux_out: coarse woody debris going into fragmentation pools:
+    !               currentSite%flux_out + sum(currentPatch%leaf_litter_out) * &
+    !               currentPatch%area *hlm_freq_day!kgC/site/day
+    !            burn fractions:  
+    !               currentSite%flux_out = currentSite%flux_out + &
+    !               burned_litter * new_patch%area !kG/site/day
+    !            
+
     if ( abs(error) > 10e-6 ) then
-       write(fates_log(),*) 'total error: call index: ',call_index, &
+       write(*,*) 'total error: call index: ',call_index, &
                       'in:  ',currentSite%flux_in,   &
                       'out: ',currentSite%flux_out,  &
                       'net: ',net_flux,              &
                       'dstock: ',change_in_stock,    &
                       'error=net_flux-dstock:', error
-       write(fates_log(),*) 'biomass,litter,seeds', biomass_stock,litter_stock,seed_stock
-       write(fates_log(),*) 'lat lon',currentSite%lat,currentSite%lon
+       write(*,*) 'biomass,litter,seeds', biomass_stock,litter_stock,seed_stock
+       
+
+       write(*,*) 'tfall:',currentSite%disturbance_mortality
+       write(*,*) 'fire:',currentSite%disturbance_fire
+       write(*,*) 'logging:',currentSite%disturbance_logging
+       change_in_stock = 0.0_r8
+       biomass_stock   = 0.0_r8
+       litter_stock    = 0.0_r8
+       trunk_product_site = 0.0_r8
+       seed_stock   =  sum(currentSite%seed_bank)*AREA
+       currentPatch => currentSite%oldest_patch 
+       do while(associated(currentPatch))
+          write(*,*) '---------------------------------------'
+          print*, currentPatch%area , sum(currentPatch%cwd_ag), sum(currentPatch%cwd_bg)
+          print*, sum(currentPatch%leaf_litter),sum(currentPatch%root_litter)
+          print*,'---'
+          currentCohort => currentPatch%tallest
+          do while(associated(currentCohort))
+             print*,currentCohort%bdead,currentCohort%balive,currentCohort%bstore,currentCohort%n
+             currentCohort => currentCohort%shorter;
+          enddo !end cohort loop 
+          currentPatch => currentPatch%younger
+       enddo !end patch loop
+       
+
+
+       write(*,*) 'lat lon',currentSite%lat,currentSite%lon
     endif
 
     currentSite%flux_in   = 0.0_r8

@@ -252,8 +252,8 @@ contains
       currentCohort => currentPatch%shortest
       do while(associated(currentCohort))       
          p = currentCohort%pft
-         if(currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifire) .and. &
-              currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifall) )then 
+!         if(currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifire) .and. &
+!              currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifall) )then 
             !mortality is dominant disturbance 
 
             if(EDPftvarcon_inst%woody(p) == 1)then   
@@ -283,8 +283,8 @@ contains
                bcroot = (currentCohort%bsw + currentCohort%bdead) * &
                     (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(p))
 
-               ! density of dead trees per m2. Beware /AREA= 10000.0_r8 
-               ! This is site-level density, not patch level 
+               ! number density of dead trees per m2. Beware /AREA= 10000.0_r8 
+               ! This is site-level number density, not patch level 
                dead_tree_density  = (currentCohort%lmort_logging + &
                     currentCohort%lmort_collateral + currentCohort%lmort_infra )* &
                     currentCohort%n / AREA  
@@ -401,7 +401,7 @@ contains
                        SF_val_CWD_frac(c) * bcroot * dead_tree_density
                enddo
             end if
-         end if
+!         end if
          currentCohort => currentCohort%taller      
       enddo !currentCohort
 

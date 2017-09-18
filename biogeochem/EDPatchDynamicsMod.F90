@@ -433,6 +433,11 @@ contains
                    nc%lmort_logging    = nan
                    nc%lmort_collateral = nan
                    nc%lmort_infra      = nan
+                   currentCohort%lmort_logging    = 0.0_r8
+                   currentCohort%lmort_collateral = 0.0_r8
+                   currentCohort%lmort_infra      = 0.0_r8
+                   
+
 
                 else
                    ! small trees 
@@ -464,13 +469,13 @@ contains
                       nc%bmort = currentCohort%bmort
 
   
-                      ! Logging mortality
-                      ! It is possible that logging is generating mortality in understory
-                      ! plants even though it is not dominating disturbance
-                      nc%lmort_logging    = currentCohort%lmort_logging
-                      nc%lmort_collateral = currentCohort%lmort_collateral
-                      nc%lmort_infra      = currentCohort%lmort_infra
-
+                      ! Logging mortality is not allowed when not dominant mode
+                      nc%lmort_logging               = 0.0_r8
+                      nc%lmort_collateral            = 0.0_r8
+                      nc%lmort_infra                 = 0.0_r8
+                      currentCohort%lmort_logging    = 0.0_r8
+                      currentCohort%lmort_collateral = 0.0_r8
+                      currentCohort%lmort_infra      = 0.0_r8
                       ! understory trees that might potentially be knocked over in the disturbance. 
                       ! The existing (donor) patch should not have any impact mortality, it should
                       ! only lose cohorts due to the decrease in area.  This is not mortality.
@@ -495,7 +500,9 @@ contains
                       nc%lmort_logging    = nan
                       nc%lmort_collateral = nan
                       nc%lmort_infra      = nan
-   
+                      currentCohort%lmort_logging    = 0.0_r8
+                      currentCohort%lmort_collateral = 0.0_r8
+                      currentCohort%lmort_infra      = 0.0_r8  
                    endif
                 endif
 
@@ -513,14 +520,22 @@ contains
                 nc%n = nc%n * (1.0_r8 - currentCohort%fire_mort) 
 
                 nc%fmort = currentCohort%fire_mort/hlm_freq_day
-                nc%imort = 0.0_r8
-                nc%cmort = currentCohort%cmort
-                nc%hmort = currentCohort%hmort
-                nc%bmort = currentCohort%bmort
+                nc%imort            = 0.0_r8
+                nc%cmort            = 0.0_r8
+                nc%hmort            = 0.0_r8
+                nc%bmort            = 0.0_r8
+                nc%lmort_logging    = 0.0_r8
+                nc%lmort_collateral = 0.0_r8
+                nc%lmort_infra      = 0.0_r8
+          
+                currentCohort%imort            = 0.0_r8
+                currentCohort%cmort            = 0.0_r8
+                currentCohort%hmort            = 0.0_r8
+                currentCohort%bmort            = 0.0_r8
+                currentCohort%lmort_logging    = 0.0_r8
+                currentCohort%lmort_collateral = 0.0_r8
+                currentCohort%lmort_infra      = 0.0_r8
                 
-                nc%lmort_logging    = currentCohort%lmort_logging
-                nc%lmort_collateral = currentCohort%lmort_collateral
-                nc%lmort_infra      = currentCohort%lmort_infra
                 
              ! Logging is the dominant disturbance  
              elseif (currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifall) .and. &
