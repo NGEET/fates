@@ -121,13 +121,15 @@ contains
           currentCohort%fmort = 0.0_r8 ! Fire mortality is initialized as zero, but may be changed
 
           call LoggingMortality_frac(site_in, currentCohort%pft, currentCohort%dbh, &
-                                              lmort_logging,lmort_collateral,lmort_infra )
+               lmort_logging,lmort_collateral,lmort_infra )
+         
           currentCohort%lmort_logging    = lmort_logging
           currentCohort%lmort_collateral = lmort_collateral
           currentCohort%lmort_infra      = lmort_infra
-
-
+          
+          currentCohort => currentCohort%taller
        end do
+       currentPatch => currentPatch%younger
     end do
 
     ! ---------------------------------------------------------------------------------------------
@@ -156,9 +158,8 @@ contains
                                currentCohort%lmort_collateral +                      &
                                currentCohort%lmort_infra ) *                         &
                                currentCohort%c_area/currentPatch%area
-
+             
           endif
-
           currentCohort => currentCohort%taller
        enddo !currentCohort
 

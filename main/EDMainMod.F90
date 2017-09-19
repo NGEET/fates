@@ -553,8 +553,6 @@ contains
           enddo !end cohort loop 
           currentPatch => currentPatch%younger
        enddo !end patch loop
-       
-
 
        write(*,*) 'lat lon',currentSite%lat,currentSite%lon
     endif

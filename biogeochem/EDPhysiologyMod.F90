@@ -788,7 +788,7 @@ contains
     real(r8) :: lmort_logging     ! Mortality fraction associated with direct logging
     real(r8) :: lmort_collateral  ! Mortality fraction associated with logging collateral damage
     real(r8) :: lmort_infra       ! Mortality fraction associated with logging infrastructure
-    real(r8) :: dndt_log          ! Mortality rate (per day) associated with the a logging event
+    real(r8) :: dndt_logging      ! Mortality rate (per day) associated with the a logging event
     
     real(r8) :: balive_loss
     !----------------------------------------------------------------------
@@ -800,11 +800,11 @@ contains
                                lmort_logging,lmort_collateral,lmort_infra )
 
     if (currentCohort%canopy_layer > 1)then 
-
+       
        ! Include understory logging mortality rates not associated with disturbance
-       dndt_log = (lmort_logging + lmort_collateral + lmort_infra)/hlm_freq_day
+       dndt_logging = (lmort_logging + lmort_collateral + lmort_infra)/hlm_freq_day
 
-       currentCohort%dndt = -1.0_r8 * (cmort+hmort+bmort+dndt_log) * currentCohort%n
+       currentCohort%dndt = -1.0_r8 * (cmort+hmort+bmort+dndt_logging) * currentCohort%n
     else
        currentCohort%dndt = -(1.0_r8 - fates_mortality_disturbance_fraction) &
             * (cmort+hmort+bmort) * currentCohort%n
