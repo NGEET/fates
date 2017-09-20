@@ -276,6 +276,7 @@ contains
                ! any mortality associated with the logging disturbance
                direct_dead   = 0.0_r8
                indirect_dead = 0.0_r8
+            end if
          end if
 
          agb_frac    = EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
