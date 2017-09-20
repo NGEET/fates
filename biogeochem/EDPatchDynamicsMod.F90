@@ -338,8 +338,6 @@ contains
        new_patch%tallest  => null()
        new_patch%shortest => null()
 
-       print*,"SITE DISTURBED"
-
        currentPatch => currentSite%oldest_patch
        ! loop round all the patches that contribute surviving indivduals and litter pools to the new patch.     
        do while(associated(currentPatch))   

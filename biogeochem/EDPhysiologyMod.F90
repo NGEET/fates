@@ -1211,9 +1211,9 @@ contains
                       SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging)  * &
                       EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
                 
-                ! Send AGB component of boles from direct-logging activities to export/harvest pool
+               
              else
-
+                ! Send AGB component of boles from direct-logging activities to export/harvest pool
                 ! Generate trunk product (kgC/day/site)
                 trunk_product = (currentCohort%bdead+currentCohort%bsw) * &
                       SF_val_CWD_frac(c) * dead_n_dlogging * EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
