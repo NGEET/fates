@@ -147,9 +147,9 @@ contains
       ! Arguments
       integer,  intent(in)  :: pft_i            ! pft index 
       real(r8), intent(in)  :: dbh              ! diameter at breast height (cm)
-      real(r8), intent(out) :: lmort_logging    ! logging mortality_rates, share same size class
-      real(r8), intent(out) :: lmort_collateral ! logging impact mortality_rates, share same size class
-      real(r8), intent(out) :: lmort_infra      ! infrastructure mortality_rates, share same size class
+      real(r8), intent(out) :: lmort_logging    ! direct (harvestable) mortality fraction
+      real(r8), intent(out) :: lmort_collateral ! collateral damage mortality fraction
+      real(r8), intent(out) :: lmort_infra      ! infrastructure mortality fraction
 
       ! Parameters
       real(r8), parameter   :: adjustment = 1.0 ! adjustment for mortality rates
