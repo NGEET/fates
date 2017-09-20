@@ -156,7 +156,7 @@ contains
 
       if (logging_time) then 
          if(EDPftvarcon_inst%woody(pft_i) == 1)then ! only set logging rates for trees
-            ! Log trees whose DBH > 50cm 
+
             ! Pass logging rates to cohort level 
 
             if (dbh >= logging_dbhmin ) then
