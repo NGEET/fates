@@ -120,12 +120,13 @@ contains
           currentCohort%imort = 0.0_r8 ! Impact mortality is always zero except in new patches
           currentCohort%fmort = 0.0_r8 ! Fire mortality is initialized as zero, but may be changed
 
-          call LoggingMortality_frac(site_in, currentCohort%pft, currentCohort%dbh, &
-               lmort_logging,lmort_collateral,lmort_infra )
+          call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, &
+                lmort_logging,lmort_collateral,lmort_infra )
          
           currentCohort%lmort_logging    = lmort_logging
           currentCohort%lmort_collateral = lmort_collateral
           currentCohort%lmort_infra      = lmort_infra
+
           
           currentCohort => currentCohort%taller
        end do
@@ -336,6 +337,8 @@ contains
 
        new_patch%tallest  => null()
        new_patch%shortest => null()
+
+       print*,"SITE DISTURBED"
 
        currentPatch => currentSite%oldest_patch
        ! loop round all the patches that contribute surviving indivduals and litter pools to the new patch.     
@@ -627,6 +630,7 @@ contains
 
        enddo ! currentPatch patch loop. 
 
+          
        !*************************/
        !**  INSERT NEW PATCH INTO LINKED LIST    
        !**********`***************/        
