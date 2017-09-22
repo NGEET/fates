@@ -932,7 +932,7 @@ contains
    use EDTypesMod, only : nclmax
    use EDTypesMod, only : nlevleaf
    use FatesInterfaceMod, only : fates_maxElementsPerPatch
-   use EDTypesMod, only : numpft_ed
+   use FatesInterfaceMod, only : numpft
    use EDTypesMod, only : ed_site_type
    use EDTypesMod, only : ed_cohort_type
    use EDTypesMod, only : ed_patch_type
@@ -1083,7 +1083,7 @@ contains
           io_idx_pa_sunz = io_idx_co_1st
           
           ! write seed_bank info(site-level, but PFT-resolved)
-          do i = 1,numpft_ed
+          do i = 1,numpft
              rio_seed_bank_sift(io_idx_co_1st+i-1) = sites(s)%seed_bank(i)
           end do
           
@@ -1184,9 +1184,9 @@ contains
              !
              ! deal with patch level fields of arrays here
              !
-             ! these are arrays of length numpft_ed, each patch contains one
+             ! these are arrays of length numpft, each patch contains one
              ! vector so we increment 
-             do i = 1,numpft_ed 
+             do i = 1,numpft
                 rio_leaf_litter_paft(io_idx_pa_pft)    = cpatch%leaf_litter(i)
                 rio_root_litter_paft(io_idx_pa_pft)    = cpatch%root_litter(i)
                 rio_leaf_litter_in_paft(io_idx_pa_pft) = cpatch%leaf_litter_in(i)
@@ -1207,10 +1207,10 @@ contains
              
              if ( DEBUG ) write(fates_log(),*) 'CLTV io_idx_pa_sunz 1 ',io_idx_pa_sunz
              
-             if ( DEBUG ) write(fates_log(),*) 'CLTV 1186 ',nlevleaf,numpft_ed,nclmax
+             if ( DEBUG ) write(fates_log(),*) 'CLTV 1186 ',nlevleaf,numpft,nclmax
              
-             do k = 1,nlevleaf ! nlevleaf currently 40
-                do j = 1,numpft_ed ! numpft_ed currently 2
+             do k = 1,nlevleaf     ! nlevleaf currently 40
+                do j = 1,numpft    ! dependent on parameter file
                    do i = 1,nclmax ! nclmax currently 2
                       rio_fsun_paclftls(io_idx_pa_sunz)        = cpatch%f_sun(i,j,k)
                       rio_fabd_sun_z_paclftls(io_idx_pa_sunz)  = cpatch%fabd_sun_z(i,j,k)
@@ -1229,9 +1229,7 @@ contains
              ! by the maximum number of cohorts per patch
              io_idx_co_1st = io_idx_co_1st + fates_maxElementsPerPatch
              
-             ! reset counters so that they are all advanced evenly. Currently
-             ! the offset is 10, the max of numpft_ed, ncwd, nclmax,
-             ! io_idx_si_wmem and the number of allowed cohorts per patch
+             ! reset counters so that they are all advanced evenly.
              io_idx_pa_pft  = io_idx_co_1st
              io_idx_pa_cwd  = io_idx_co_1st
              io_idx_pa_cl   = io_idx_co_1st
@@ -1308,7 +1306,7 @@ contains
      use EDTypesMod,           only : nlevleaf
      use EDTypesMod,           only : nclmax
      use FatesInterfaceMod,    only : fates_maxElementsPerPatch
-     use EDTypesMod,           only : numpft_ed
+     use EDTypesMod,           only : maxpft
      use EDTypesMod,           only : area
      use EDPatchDynamicsMod,   only : zero_patch
      use EDGrowthFunctionsMod, only : Dbh
@@ -1332,8 +1330,8 @@ contains
      real(r8)                          :: cwd_ag_local(ncwd)
      real(r8)                          :: cwd_bg_local(ncwd)
      real(r8)                          :: spread_local(nclmax)
-     real(r8)                          :: leaf_litter_local(numpft_ed)
-     real(r8)                          :: root_litter_local(numpft_ed)
+     real(r8)                          :: leaf_litter_local(maxpft)
+     real(r8)                          :: root_litter_local(maxpft)
      real(r8)                          :: patch_age
      integer                           :: cohortstatus
      integer                           :: s        ! site index
@@ -1503,10 +1501,10 @@ contains
      use EDTypesMod, only : ed_site_type
      use EDTypesMod, only : ed_cohort_type
      use EDTypesMod, only : ed_patch_type
-     use EDTypesMod, only : numpft_ed
      use EDTypesMod, only : ncwd
      use EDTypesMod, only : nlevleaf
      use EDTypesMod, only : nclmax
+     use FatesInterfaceMod, only : numpft
      use FatesInterfaceMod, only : fates_maxElementsPerPatch
      use EDTypesMod, only : numWaterMem
 
@@ -1644,7 +1642,7 @@ contains
           io_idx_si_wmem = io_idx_co_1st
           
           ! read seed_bank info(site-level, but PFT-resolved)
-          do i = 1,numpft_ed 
+          do i = 1,numpft 
              sites(s)%seed_bank(i) = rio_seed_bank_sift(io_idx_co_1st+i-1)
           enddo
           
@@ -1745,10 +1743,10 @@ contains
              !
              ! deal with patch level fields of arrays here
              !
-             ! these are arrays of length numpft_ed, each patch contains one
+             ! these are arrays of length numpft, each patch contains one
              ! vector so we increment 
 
-             do i = 1,numpft_ed
+             do i = 1,numpft
                 cpatch%leaf_litter(i)    = rio_leaf_litter_paft(io_idx_pa_pft)    
                 cpatch%root_litter(i)    = rio_root_litter_paft(io_idx_pa_pft)    
                 cpatch%leaf_litter_in(i) = rio_leaf_litter_in_paft(io_idx_pa_pft) 
@@ -1770,7 +1768,7 @@ contains
              if ( DEBUG ) write(fates_log(),*) 'CVTL io_idx_pa_sunz 1 ',io_idx_pa_sunz
              
              do k = 1,nlevleaf ! nlevleaf currently 40
-                do j = 1,numpft_ed ! numpft_ed currently 2
+                do j = 1,numpft
                    do i = 1,nclmax ! nclmax currently 2
                       cpatch%f_sun(i,j,k)      = rio_fsun_paclftls(io_idx_pa_sunz) 
                       cpatch%fabd_sun_z(i,j,k) = rio_fabd_sun_z_paclftls(io_idx_pa_sunz)

@@ -1,7 +1,8 @@
 module EDTypesMod
 
-  use FatesConstantsMod , only : r8 => fates_r8
-  use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
+  use FatesConstantsMod,     only : r8 => fates_r8
+  use FatesGlobals,          only : fates_log
+  use shr_infnan_mod,        only : nan => shr_infnan_nan, assignment(=)
 
   use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
   use FatesHydraulicsMemMod, only : ed_patch_hydr_type
@@ -11,19 +12,17 @@ module EDTypesMod
   save
 
   integer, parameter :: maxPatchesPerSite  = 10   ! maximum number of patches to live on a site
+  integer, parameter :: maxCohortsPerPatch = 160  ! maximum number of cohorts per patch
   integer, parameter :: nclmax = 2                ! Maximum number of canopy layers
   integer, parameter :: ican_upper = 1            ! Nominal index for the upper canopy
   integer, parameter :: ican_ustory = 2           ! Nominal index for understory in two-canopy system
 
-  integer, parameter :: nlevleaf = 40              ! number of leaf layers in canopy layer
+  integer, parameter :: nlevleaf = 40             ! number of leaf layers in canopy layer
   integer, parameter :: maxpft = 10               ! maximum number of PFTs allowed
                                                   ! the parameter file may determine that fewer
                                                   ! are used, but this helps allocate scratch
                                                   ! space and output arrays.
  
-  integer, parameter :: numpft_ed = 2             ! number of PFTs used in ED. 
-
-  integer, parameter :: maxCohortsPerPatch = nclmax * numpft_ed * nlevleaf  ! maximum number of cohorts to live on a patch
 
   ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
   ! land-ice abledo for vis and nir.  This should be a parameter, which would
@@ -45,12 +44,6 @@ module EDTypesMod
                                         ! files.  This will be compared with 
                                         ! the HLM's expectation in FatesInterfaceMod
 
-  ! Module switches (this will be read in one day)
-  ! This variable only exists now to serve as a place holder
-  !!!!!!!!!! THIS SHOULD NOT BE SET TO TRUE !!!!!!!!!!!!!!!!!
-  logical,parameter :: use_fates_plant_hydro = .false.
-  
-
   ! Switches that turn on/off ED dynamics process (names are self explanatory)
   ! IMPORTANT NOTE!!! THESE SWITCHES ARE EXPERIMENTAL.  
   ! THEY SHOULD CORRECTLY TURN OFF OR ON THE PROCESS, BUT.. THERE ARE VARIOUS 
@@ -60,8 +53,7 @@ module EDTypesMod
   ! WAS OUTSIDE THE SCOPE OF THE VERY LARGE CHANGESET WHERE THESE WERE FIRST
   ! INTRODUCED (RGK 03-2017)
   logical, parameter :: do_ed_phenology = .true.
-  logical, parameter :: do_ed_dynamics = .true.
- 
+
 
   ! MODEL PARAMETERS
   real(r8), parameter :: AREA                 = 10000.0_r8 ! Notional area of simulated forest m2
@@ -132,30 +124,7 @@ module EDTypesMod
        (/"background","hydraulic ","carbon    ","impact    ","fire      "/)
 
 
-  ! -------------------------------------------------------------------------------------
-  ! These vectors are used for history output mapping
-  ! CLM/ALM have limited support for multi-dimensional history output arrays.
-  ! FATES structure and composition is multi-dimensional, so we end up "multi-plexing"
-  ! multiple dimensions into one dimension.  These new dimensions need definitions,
-  ! mapping to component dimensions, and definitions for those component dimensions as
-  ! well.
-  ! -------------------------------------------------------------------------------------
 
-  real(r8) ,allocatable :: fates_hdim_levsclass(:)       ! plant size class lower bound dimension
-  integer , allocatable :: fates_hdim_pfmap_levscpf(:)   ! map of pfts into size-class x pft dimension
-  integer , allocatable :: fates_hdim_scmap_levscpf(:)   ! map of size-class into size-class x pft dimension
-  real(r8), allocatable :: fates_hdim_levage(:)          ! patch age lower bound dimension
-  integer , allocatable :: fates_hdim_levpft(:)          ! plant pft dimension
-  integer , allocatable :: fates_hdim_levfuel(:)         ! fire fuel class dimension
-  integer , allocatable :: fates_hdim_levcwdsc(:)        ! cwd class dimension
-  integer , allocatable :: fates_hdim_levcan(:)          ! canopy-layer dimension 
-  integer , allocatable :: fates_hdim_canmap_levcnlf(:)  ! canopy-layer map into the canopy-layer x leaf-layer dimension
-  integer , allocatable :: fates_hdim_lfmap_levcnlf(:)   ! leaf-layer map into the canopy-layer x leaf-layer dimension
-  integer , allocatable :: fates_hdim_canmap_levcnlfpf(:) ! canopy-layer map into the canopy-layer x pft x leaf-layer dimension
-  integer , allocatable :: fates_hdim_lfmap_levcnlfpf(:)  ! leaf-layer map into the canopy-layer x pft x leaf-layer dimension
-  integer , allocatable :: fates_hdim_pftmap_levcnlfpf(:) ! pft map into the canopy-layer x pft x leaf-layer dimension
-  integer , allocatable :: fates_hdim_scmap_levscag(:)   ! map of size-class into size-class x patch age dimension
-  integer , allocatable :: fates_hdim_agmap_levscag(:)   ! map of patch-age into size-class x patch age dimension
 
   !************************************
   !** COHORT type structure          **
@@ -331,41 +300,42 @@ module EDTypesMod
 
      ! LEAF ORGANIZATION
      real(r8) ::  spread(nclmax)                                   ! dynamic ratio of dbh to canopy area: cm/m2
-     real(r8) ::  pft_agb_profile(numpft_ed,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
+     real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
      real(r8) ::  canopy_layer_lai(nclmax)                         ! lai that is shading this canopy layer: m2/m2 
      real(r8) ::  total_canopy_area                                ! area that is covered by vegetation : m2
      real(r8) ::  total_tree_area                                  ! area that is covered by woody vegetation : m2
      real(r8) ::  canopy_area                                      ! area that is covered by vegetation : m2 (is this different to total_canopy_area?
      real(r8) ::  bare_frac_area                                   ! bare soil in this patch expressed as a fraction of the total soil surface.
      real(r8) ::  lai                                              ! leaf area index of patch
+     real(r8) ::  zstar                                            ! height of smallest canopy tree -- only meaningful in "strict PPA" mode
 
-     real(r8) ::  tlai_profile(nclmax,numpft_ed,nlevleaf)        ! total   leaf area in each canopy layer, pft, and leaf layer. m2/m2
-     real(r8) ::  elai_profile(nclmax,numpft_ed,nlevleaf)        ! exposed leaf area in each canopy layer, pft, and leaf layer. m2/m2
-     real(r8) ::  tsai_profile(nclmax,numpft_ed,nlevleaf)        ! total   stem area in each canopy layer, pft, and leaf layer. m2/m2
-     real(r8) ::  esai_profile(nclmax,numpft_ed,nlevleaf)        ! exposed stem area in each canopy layer, pft, and leaf layer. m2/m2
-     real(r8) ::  layer_height_profile(nclmax,numpft_ed,nlevleaf)
-     real(r8) ::  canopy_area_profile(nclmax,numpft_ed,nlevleaf) ! fraction of canopy in each canopy 
+     real(r8) ::  tlai_profile(nclmax,maxpft,nlevleaf)        ! total   leaf area in each canopy layer, pft, and leaf layer. m2/m2
+     real(r8) ::  elai_profile(nclmax,maxpft,nlevleaf)        ! exposed leaf area in each canopy layer, pft, and leaf layer. m2/m2
+     real(r8) ::  tsai_profile(nclmax,maxpft,nlevleaf)        ! total   stem area in each canopy layer, pft, and leaf layer. m2/m2
+     real(r8) ::  esai_profile(nclmax,maxpft,nlevleaf)        ! exposed stem area in each canopy layer, pft, and leaf layer. m2/m2
+     real(r8) ::  layer_height_profile(nclmax,maxpft,nlevleaf)
+     real(r8) ::  canopy_area_profile(nclmax,maxpft,nlevleaf) ! fraction of canopy in each canopy 
      ! layer, pft, and leaf layer:-
-     integer  ::  present(nclmax,numpft_ed)                        ! is there any of this pft in this canopy layer?      
-     integer  ::  nrad(nclmax,numpft_ed)                           ! number of exposed leaf layers for each canopy layer and pft
-     integer  ::  ncan(nclmax,numpft_ed)                           ! number of total   leaf layers for each canopy layer and pft
+     integer  ::  present(nclmax,maxpft)                        ! is there any of this pft in this canopy layer?      
+     integer  ::  nrad(nclmax,maxpft)                           ! number of exposed leaf layers for each canopy layer and pft
+     integer  ::  ncan(nclmax,maxpft)                           ! number of total   leaf layers for each canopy layer and pft
 
      !RADIATION FLUXES      
-     real(r8) ::  fabd_sun_z(nclmax,numpft_ed,nlevleaf)          ! sun fraction of direct light absorbed by each canopy 
+     real(r8) ::  fabd_sun_z(nclmax,maxpft,nlevleaf)          ! sun fraction of direct light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
-     real(r8) ::  fabd_sha_z(nclmax,numpft_ed,nlevleaf)          ! shade fraction of direct light absorbed by each canopy 
+     real(r8) ::  fabd_sha_z(nclmax,maxpft,nlevleaf)          ! shade fraction of direct light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
-     real(r8) ::  fabi_sun_z(nclmax,numpft_ed,nlevleaf)          ! sun fraction of indirect light absorbed by each canopy 
+     real(r8) ::  fabi_sun_z(nclmax,maxpft,nlevleaf)          ! sun fraction of indirect light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
-     real(r8) ::  fabi_sha_z(nclmax,numpft_ed,nlevleaf)          ! shade fraction of indirect light absorbed by each canopy 
+     real(r8) ::  fabi_sha_z(nclmax,maxpft,nlevleaf)          ! shade fraction of indirect light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
 
-     real(r8) ::  ed_laisun_z(nclmax,numpft_ed,nlevleaf)         ! amount of LAI in the sun   in each canopy layer, 
+     real(r8) ::  ed_laisun_z(nclmax,maxpft,nlevleaf)         ! amount of LAI in the sun   in each canopy layer, 
      ! pft, and leaf layer. m2/m2
-     real(r8) ::  ed_laisha_z(nclmax,numpft_ed,nlevleaf)         ! amount of LAI in the shade in each canopy layer,
-     real(r8) ::  ed_parsun_z(nclmax,numpft_ed,nlevleaf)         ! PAR absorbed  in the sun   in each canopy layer,
-     real(r8) ::  ed_parsha_z(nclmax,numpft_ed,nlevleaf)         ! PAR absorbed  in the shade in each canopy layer,
-     real(r8) ::  f_sun(nclmax,numpft_ed,nlevleaf)               ! fraction of leaves in the sun in each canopy layer, pft, 
+     real(r8) ::  ed_laisha_z(nclmax,maxpft,nlevleaf)         ! amount of LAI in the shade in each canopy layer,
+     real(r8) ::  ed_parsun_z(nclmax,maxpft,nlevleaf)         ! PAR absorbed  in the sun   in each canopy layer,
+     real(r8) ::  ed_parsha_z(nclmax,maxpft,nlevleaf)         ! PAR absorbed  in the shade in each canopy layer,
+     real(r8) ::  f_sun(nclmax,maxpft,nlevleaf)               ! fraction of leaves in the sun in each canopy layer, pft, 
 
      ! and leaf layer. m2/m2
      real(r8),allocatable ::  tr_soil_dir(:)                              ! fraction of incoming direct  radiation that (cm_numSWb)
@@ -382,20 +352,20 @@ module EDTypesMod
 
 
      !SEED BANK
-     real(r8) :: seeds_in(numpft_ed)                               ! seed production KgC/m2/year
-     real(r8) :: seed_decay(numpft_ed)                             ! seed decay in KgC/m2/year
-     real(r8) :: seed_germination(numpft_ed)                       ! germination rate of seed pool in KgC/m2/year
+     real(r8) :: seeds_in(maxpft)                               ! seed production KgC/m2/year
+     real(r8) :: seed_decay(maxpft)                             ! seed decay in KgC/m2/year
+     real(r8) :: seed_germination(maxpft)                       ! germination rate of seed pool in KgC/m2/year
 
      ! PHOTOSYNTHESIS       
 
-     real(r8) ::  psn_z(nclmax,numpft_ed,nlevleaf)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
+     real(r8) ::  psn_z(nclmax,maxpft,nlevleaf)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
 !     real(r8) ::  gpp                                              ! total patch gpp: KgC/m2/year
 !     real(r8) ::  npp                                              ! total patch npp: KgC/m2/year   
 
      ! ROOTS
      real(r8), allocatable ::  rootfr_ft(:,:)                      ! root fraction of each PFT in each soil layer:-
      real(r8), allocatable ::  rootr_ft(:,:)                       ! fraction of water taken from each PFT and soil layer:-
-     real(r8) ::  btran_ft(numpft_ed)                              ! btran calculated seperately for each PFT:-   
+     real(r8) ::  btran_ft(maxpft)                              ! btran calculated seperately for each PFT:-   
 
      ! DISTURBANCE 
      real(r8) ::  disturbance_rates(n_dist_types)                  ! disturbance rate from 1) mortality and 2) fire: fraction/day
@@ -405,8 +375,8 @@ module EDTypesMod
      ! Pools of litter (non respiring) 
      real(r8) ::  cwd_ag(ncwd)                                     ! above ground coarse wood debris litter that does not respire. KgC/m2
      real(r8) ::  cwd_bg(ncwd)                                     ! below ground coarse wood debris litter that does not respire. KgC/m2
-     real(r8) ::  leaf_litter(numpft_ed)                           ! above ground leaf litter that does not respire. KgC/m2
-     real(r8) ::  root_litter(numpft_ed)                           ! below ground fine root litter that does not respire. KgC/m2
+     real(r8) ::  leaf_litter(maxpft)                           ! above ground leaf litter that does not respire. KgC/m2
+     real(r8) ::  root_litter(maxpft)                           ! below ground fine root litter that does not respire. KgC/m2
 
      ! Fluxes of litter (non respiring) 
      real(r8) :: fragmentation_scaler                              ! Scale rate of litter fragmentation. 0 to 1.
@@ -416,18 +386,18 @@ module EDTypesMod
      real(r8) :: cwd_bg_out(ncwd)                                  ! Flux out of BG CWD into BG litter KgC/m2/
 
 
-     real(r8) :: leaf_litter_in(numpft_ed)                         ! Flux in  to AG leaf litter from leaf turnover and mortality KgC/m2/y
-     real(r8) :: leaf_litter_out(numpft_ed)                        ! Flux out of AG leaf litter from fragmentation KgC/m2/y
-     real(r8) :: root_litter_in(numpft_ed)                         ! Flux in  to BG root litter from leaf turnover and mortality KgC/m2/y
-     real(r8) :: root_litter_out(numpft_ed)                        ! Flux out of BG root from fragmentation KgC/m2/y
+     real(r8) :: leaf_litter_in(maxpft)                         ! Flux in  to AG leaf litter from leaf turnover and mortality KgC/m2/y
+     real(r8) :: leaf_litter_out(maxpft)                        ! Flux out of AG leaf litter from fragmentation KgC/m2/y
+     real(r8) :: root_litter_in(maxpft)                         ! Flux in  to BG root litter from leaf turnover and mortality KgC/m2/y
+     real(r8) :: root_litter_out(maxpft)                        ! Flux out of BG root from fragmentation KgC/m2/y
 
      ! Derivatives of litter (non respiring) 
      real(r8) ::  dcwd_AG_dt(ncwd)                                 ! rate of change of above ground CWD in each size class: KgC/m2/year. 
      real(r8) ::  dcwd_BG_dt(ncwd)                                 ! rate of change of below ground CWD in each size class: KgC/m2/year. 
-     real(r8) ::  dleaf_litter_dt(numpft_ed)                       ! rate of change of leaf litter in each size class: KgC/m2/year. 
-     real(r8) ::  droot_litter_dt(numpft_ed)                       ! rate of change of root litter in each size class: KgC/m2/year. 
+     real(r8) ::  dleaf_litter_dt(maxpft)                       ! rate of change of leaf litter in each size class: KgC/m2/year. 
+     real(r8) ::  droot_litter_dt(maxpft)                       ! rate of change of root litter in each size class: KgC/m2/year. 
 
-     real(r8) ::  repro(numpft_ed)                                 ! allocation to reproduction per PFT : KgC/m2
+     real(r8) ::  repro(maxpft)                                 ! allocation to reproduction per PFT : KgC/m2
 
      !FUEL CHARECTERISTICS
      real(r8) ::  sum_fuel                                         ! total ground fuel related to ros (omits 1000hr fuels): KgC/m2
@@ -537,9 +507,9 @@ module EDTypesMod
      real(r8) ::  water_memory(numWaterMem)                             ! last 10 days of soil moisture memory...
 
      !SEED BANK
-     real(r8) :: seed_bank(numpft_ed)                              ! seed pool in KgC/m2/year
-     real(r8) :: dseed_dt(numpft_ed)
-     real(r8) :: seed_rain_flux(numpft_ed)                         ! flux of seeds from exterior KgC/m2/year (needed for C balance purposes)
+     real(r8) :: seed_bank(maxpft)                              ! seed pool in KgC/m2/year
+     real(r8) :: dseed_dt(maxpft)
+     real(r8) :: seed_rain_flux(maxpft)                         ! flux of seeds from exterior KgC/m2/year (needed for C balance purposes)
 
      ! FIRE
      real(r8) ::  wind                                         ! daily wind in m/min for Spitfire units 
@@ -548,7 +518,7 @@ module EDTypesMod
      real(r8) ::  frac_burnt                                   ! fraction of soil burnt in this day.
      real(r8) ::  total_burn_flux_to_atm                       ! total carbon burnt to the atmosphere in this day. KgC/site
      real(r8) ::  cwd_ag_burned(ncwd)
-     real(r8) ::  leaf_litter_burned(numpft_ed)
+     real(r8) ::  leaf_litter_burned(maxpft)
 
      ! PLANT HYDRAULICS
      type(ed_site_hydr_type), pointer :: si_hydr
@@ -571,112 +541,7 @@ module EDTypesMod
 
   end type ed_site_type
 
-  public :: ed_hist_scpfmaps
-
 contains
-
-
-   !-------------------------------------------------------------------------------------!
-  subroutine ed_hist_scpfmaps
-    ! This subroutine allocates and populates the variables
-    ! that define the mapping of variables in history files in the "scpf" format
-    ! back to
-    ! its respective size-class "sc" and pft "pf"
-
-    integer :: i
-    integer :: isc
-    integer :: ipft
-    integer :: icwd
-    integer :: ifuel
-    integer :: ican
-    integer :: ileaf
-    integer :: iage
-
-    allocate( fates_hdim_levsclass(1:nlevsclass_ed   ))
-    allocate( fates_hdim_pfmap_levscpf(1:nlevsclass_ed*maxpft))
-    allocate( fates_hdim_scmap_levscpf(1:nlevsclass_ed*maxpft))
-    allocate( fates_hdim_levpft(1:maxpft   ))
-    allocate( fates_hdim_levfuel(1:NFSC   ))
-    allocate( fates_hdim_levcwdsc(1:NCWD   ))
-    allocate( fates_hdim_levage(1:nlevage_ed   ))
-
-    allocate( fates_hdim_levcan(nclmax))
-    allocate( fates_hdim_canmap_levcnlf(nlevleaf*nclmax))
-    allocate( fates_hdim_lfmap_levcnlf(nlevleaf*nclmax))
-    allocate( fates_hdim_canmap_levcnlfpf(nlevleaf*nclmax*numpft_ed))
-    allocate( fates_hdim_lfmap_levcnlfpf(nlevleaf*nclmax*numpft_ed))
-    allocate( fates_hdim_pftmap_levcnlfpf(nlevleaf*nclmax*numpft_ed))
-    allocate( fates_hdim_scmap_levscag(nlevsclass_ed * nlevage_ed ))
-    allocate( fates_hdim_agmap_levscag(nlevsclass_ed * nlevage_ed ))
-
-    ! Fill the IO array of plant size classes
-    ! For some reason the history files did not like
-    ! a hard allocation of sclass_ed
-    fates_hdim_levsclass(:) = sclass_ed(:)
-    
-    fates_hdim_levage(:) = ageclass_ed(:)
-
-    ! make pft array
-    do ipft=1,maxpft
-       fates_hdim_levpft(ipft) = ipft
-    end do
-
-    ! make fuel array
-    do ifuel=1,NFSC
-       fates_hdim_levfuel(ifuel) = ifuel
-    end do
-
-    ! make cwd array
-    do icwd=1,NCWD
-       fates_hdim_levcwdsc(icwd) = icwd
-    end do
-
-    ! make canopy array
-    do ican = 1,nclmax
-       fates_hdim_levcan(ican) = ican
-    end do
-
-    ! Fill the IO arrays that match pft and size class to their combined array
-    i=0
-    do ipft=1,maxpft
-       do isc=1,nlevsclass_ed
-          i=i+1
-          fates_hdim_pfmap_levscpf(i) = ipft
-          fates_hdim_scmap_levscpf(i) = isc
-       end do
-    end do
-
-    i=0
-    do ican=1,nclmax
-       do ileaf=1,nlevleaf
-          i=i+1
-          fates_hdim_canmap_levcnlf(i) = ican
-          fates_hdim_lfmap_levcnlf(i) = ileaf
-       end do
-    end do
-
-    i=0
-    do iage=1,nlevage_ed
-       do isc=1,nlevsclass_ed
-          i=i+1
-          fates_hdim_scmap_levscag(i) = isc
-          fates_hdim_agmap_levscag(i) = iage
-       end do
-    end do
-
-    i=0
-    do ipft=1,numpft_ed
-       do ican=1,nclmax
-          do ileaf=1,nlevleaf
-             i=i+1
-             fates_hdim_canmap_levcnlfpf(i) = ican
-             fates_hdim_lfmap_levcnlfpf(i) = ileaf
-             fates_hdim_pftmap_levcnlfpf(i) = ipft
-          end do
-       end do
-    end do
-
-  end subroutine ed_hist_scpfmaps
 
   ! =====================================================================================
   
@@ -738,5 +603,215 @@ contains
      cohort_size_class = count(dbh-sclass_ed.ge.0.0_r8)
      
   end function get_size_class_index
-   
+
+  ! =====================================================================================
+
+  subroutine val_check_ed_vars(currentPatch,var_aliases,return_code)
+
+     ! ----------------------------------------------------------------------------------
+     ! Perform numerical checks on variables of interest.
+     ! The input string is of the form:  'VAR1_NAME:VAR2_NAME:VAR3_NAME'
+     ! ----------------------------------------------------------------------------------
+
+
+     use FatesUtilsMod,only : check_hlm_list
+     use FatesUtilsMod,only : check_var_real
+
+     ! Arguments
+     type(ed_patch_type),intent(in), target :: currentPatch
+     character(len=*),intent(in)            :: var_aliases
+     integer,intent(out)                    :: return_code ! return 0 for all fine
+                                                           ! return 1 if a nan detected
+                                                           ! return 10+ if an overflow
+                                                           ! return 100% if an underflow
+     ! Locals
+     type(ed_cohort_type), pointer          :: currentCohort
+
+     
+     ! Check through a registry of variables to check
+     
+     if ( check_hlm_list(trim(var_aliases),'co_n') ) then
+
+        currentCohort => currentPatch%shortest
+        do while(associated(currentCohort))
+           call check_var_real(currentCohort%n,'cohort%n',return_code)
+           if(.not.(return_code.eq.0)) then
+              call dump_site(currentPatch%siteptr)
+              call dump_patch(currentPatch)
+              call dump_cohort(currentCohort)
+              return
+           end if
+           currentCohort => currentCohort%taller
+        end do
+     end if
+     
+     if ( check_hlm_list(trim(var_aliases),'co_dbh') ) then
+
+        currentCohort => currentPatch%shortest
+        do while(associated(currentCohort))        
+           call check_var_real(currentCohort%dbh,'cohort%dbh',return_code)
+           if(.not.(return_code.eq.0)) then
+              call dump_site(currentPatch%siteptr)
+              call dump_patch(currentPatch)
+              call dump_cohort(currentCohort)
+              return
+           end if
+           currentCohort => currentCohort%taller
+        end do
+     end if
+
+     if ( check_hlm_list(trim(var_aliases),'pa_area') ) then
+
+        call check_var_real(currentPatch%area,'patch%area',return_code)
+        if(.not.(return_code.eq.0)) then
+           call dump_site(currentPatch%siteptr)
+           call dump_patch(currentPatch)
+           return
+        end if
+     end if
+     
+
+
+     return
+  end subroutine val_check_ed_vars
+
+  ! =====================================================================================
+
+  subroutine dump_site(csite) 
+
+     type(ed_site_type),intent(in),target :: csite
+
+
+     ! EDTypes is 
+
+     write(fates_log(),*) '----------------------------------------'
+     write(fates_log(),*) ' Site Coordinates                       '
+     write(fates_log(),*) '----------------------------------------'
+     write(fates_log(),*) 'latitude                    = ', csite%lat
+     write(fates_log(),*) 'longitude                   = ', csite%lon
+     write(fates_log(),*) '----------------------------------------'
+     return
+
+  end subroutine dump_site
+
+  ! =====================================================================================
+
+
+  subroutine dump_patch(cpatch)
+
+     type(ed_patch_type),intent(in),target :: cpatch
+
+     write(fates_log(),*) '----------------------------------------'
+     write(fates_log(),*) ' Dumping Patch Information              '
+     write(fates_log(),*) ' (omitting arrays)                      '
+     write(fates_log(),*) '----------------------------------------'
+     write(fates_log(),*) 'pa%patchno            = ',cpatch%patchno
+     write(fates_log(),*) 'pa%age                = ',cpatch%age
+     write(fates_log(),*) 'pa%age_class          = ',cpatch%age_class
+     write(fates_log(),*) 'pa%area               = ',cpatch%area
+     write(fates_log(),*) 'pa%countcohorts       = ',cpatch%countcohorts
+     write(fates_log(),*) 'pa%ncl_p              = ',cpatch%ncl_p
+     write(fates_log(),*) 'pa%total_canopy_area  = ',cpatch%total_canopy_area
+     write(fates_log(),*) 'pa%total_tree_area    = ',cpatch%total_tree_area
+     write(fates_log(),*) 'pa%canopy_area        = ',cpatch%canopy_area
+     write(fates_log(),*) 'pa%bare_frac_area     = ',cpatch%bare_frac_area
+     write(fates_log(),*) 'pa%lai                = ',cpatch%lai
+     write(fates_log(),*) 'pa%zstar              = ',cpatch%zstar
+     write(fates_log(),*) 'pa%disturbance_rate   = ',cpatch%disturbance_rate
+     write(fates_log(),*) '----------------------------------------'
+     return
+
+  end subroutine dump_patch
+
+  ! =====================================================================================
+  
+  subroutine dump_cohort(ccohort)
+
+
+     type(ed_cohort_type),intent(in),target :: ccohort
+     
+     write(fates_log(),*) '----------------------------------------'
+     write(fates_log(),*) ' Dumping Cohort Information             '
+     write(fates_log(),*) '----------------------------------------'
+     write(fates_log(),*) 'co%pft                    = ', ccohort%pft
+     write(fates_log(),*) 'co%n                      = ', ccohort%n                         
+     write(fates_log(),*) 'co%dbh                    = ', ccohort%dbh                                        
+     write(fates_log(),*) 'co%hite                   = ', ccohort%hite                                
+     write(fates_log(),*) 'co%b                      = ', ccohort%b                            
+     write(fates_log(),*) 'co%balive                 = ', ccohort%balive
+     write(fates_log(),*) 'co%bdead                  = ', ccohort%bdead                          
+     write(fates_log(),*) 'co%bstore                 = ', ccohort%bstore
+     write(fates_log(),*) 'co%laimemory              = ', ccohort%laimemory
+     write(fates_log(),*) 'co%bsw                    = ', ccohort%bsw                  
+     write(fates_log(),*) 'co%bl                     = ', ccohort%bl
+     write(fates_log(),*) 'co%br                     = ', ccohort%br
+     write(fates_log(),*) 'co%lai                    = ', ccohort%lai                         
+     write(fates_log(),*) 'co%sai                    = ', ccohort%sai  
+     write(fates_log(),*) 'co%gscan                  = ', ccohort%gscan
+     write(fates_log(),*) 'co%leaf_cost              = ', ccohort%leaf_cost
+     write(fates_log(),*) 'co%canopy_layer           = ', ccohort%canopy_layer
+     write(fates_log(),*) 'co%canopy_layer_yesterday = ', ccohort%canopy_layer_yesterday
+     write(fates_log(),*) 'co%nv                     = ', ccohort%nv
+     write(fates_log(),*) 'co%status_coh             = ', ccohort%status_coh
+     write(fates_log(),*) 'co%canopy_trim            = ', ccohort%canopy_trim
+     write(fates_log(),*) 'co%status_coh             = ', ccohort%status_coh               
+     write(fates_log(),*) 'co%excl_weight            = ', ccohort%excl_weight               
+     write(fates_log(),*) 'co%prom_weight            = ', ccohort%prom_weight               
+     write(fates_log(),*) 'co%size_class             = ', ccohort%size_class
+     write(fates_log(),*) 'co%size_by_pft_class      = ', ccohort%size_by_pft_class
+     write(fates_log(),*) 'co%gpp_acc_hold           = ', ccohort%gpp_acc_hold
+     write(fates_log(),*) 'co%gpp_acc                = ', ccohort%gpp_acc
+     write(fates_log(),*) 'co%gpp_tstep              = ', ccohort%gpp_tstep
+     write(fates_log(),*) 'co%npp_acc_hold           = ', ccohort%npp_acc_hold
+     write(fates_log(),*) 'co%npp_tstep              = ', ccohort%npp_tstep
+     write(fates_log(),*) 'co%npp_acc                = ', ccohort%npp_acc
+     write(fates_log(),*) 'co%resp_tstep             = ', ccohort%resp_tstep
+     write(fates_log(),*) 'co%resp_acc               = ', ccohort%resp_acc
+     write(fates_log(),*) 'co%resp_acc_hold          = ', ccohort%resp_acc_hold
+     write(fates_log(),*) 'co%npp_leaf               = ', ccohort%npp_leaf
+     write(fates_log(),*) 'co%npp_froot              = ', ccohort%npp_froot
+     write(fates_log(),*) 'co%npp_bsw                = ', ccohort%npp_bsw
+     write(fates_log(),*) 'co%npp_bdead              = ', ccohort%npp_bdead
+     write(fates_log(),*) 'co%npp_bseed              = ', ccohort%npp_bseed
+     write(fates_log(),*) 'co%npp_store              = ', ccohort%npp_store
+     write(fates_log(),*) 'co%rdark                  = ', ccohort%rdark
+     write(fates_log(),*) 'co%resp_m                 = ', ccohort%resp_m
+     write(fates_log(),*) 'co%resp_g                 = ', ccohort%resp_g
+     write(fates_log(),*) 'co%livestem_mr            = ', ccohort%livestem_mr
+     write(fates_log(),*) 'co%livecroot_mr           = ', ccohort%livecroot_mr
+     write(fates_log(),*) 'co%froot_mr               = ', ccohort%froot_mr
+     write(fates_log(),*) 'co%md                     = ', ccohort%md
+     write(fates_log(),*) 'co%leaf_md                = ', ccohort%leaf_md
+     write(fates_log(),*) 'co%root_md                = ', ccohort%root_md
+     write(fates_log(),*) 'co%carbon_balance         = ', ccohort%carbon_balance
+     write(fates_log(),*) 'co%dmort                  = ', ccohort%dmort
+     write(fates_log(),*) 'co%seed_prod              = ', ccohort%seed_prod
+     write(fates_log(),*) 'co%treelai                = ', ccohort%treelai
+     write(fates_log(),*) 'co%treesai                = ', ccohort%treesai
+     write(fates_log(),*) 'co%leaf_litter            = ', ccohort%leaf_litter
+     write(fates_log(),*) 'co%c_area                 = ', ccohort%c_area
+     write(fates_log(),*) 'co%woody_turnover         = ', ccohort%woody_turnover
+     write(fates_log(),*) 'co%cmort                  = ', ccohort%cmort
+     write(fates_log(),*) 'co%bmort                  = ', ccohort%bmort
+     write(fates_log(),*) 'co%imort                  = ', ccohort%imort
+     write(fates_log(),*) 'co%fmort                  = ', ccohort%fmort
+     write(fates_log(),*) 'co%hmort                  = ', ccohort%hmort
+     write(fates_log(),*) 'co%isnew                  = ', ccohort%isnew
+     write(fates_log(),*) 'co%dndt                   = ', ccohort%dndt
+     write(fates_log(),*) 'co%dhdt                   = ', ccohort%dhdt
+     write(fates_log(),*) 'co%ddbhdt                 = ', ccohort%ddbhdt
+     write(fates_log(),*) 'co%dbalivedt              = ', ccohort%dbalivedt
+     write(fates_log(),*) 'co%dbdeaddt               = ', ccohort%dbdeaddt
+     write(fates_log(),*) 'co%dbstoredt              = ', ccohort%dbstoredt
+     write(fates_log(),*) 'co%storage_flux           = ', ccohort%storage_flux
+     write(fates_log(),*) 'co%cfa                    = ', ccohort%cfa
+     write(fates_log(),*) 'co%fire_mort              = ', ccohort%fire_mort
+     write(fates_log(),*) 'co%crownfire_mort         = ', ccohort%crownfire_mort
+     write(fates_log(),*) 'co%cambial_mort           = ', ccohort%cambial_mort
+     write(fates_log(),*) 'co%size_class             = ', ccohort%size_class
+     write(fates_log(),*) 'co%size_by_pft_class      = ', ccohort%size_by_pft_class
+     write(fates_log(),*) '----------------------------------------'
+     return
+  end subroutine dump_cohort
+
 end module EDTypesMod
