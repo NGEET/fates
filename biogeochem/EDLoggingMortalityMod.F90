@@ -161,12 +161,18 @@ contains
 
             if (dbh >= logging_dbhmin ) then
                lmort_logging = logging_direct_frac * adjustment
+               lmort_collateral = logging_collateral_frac * adjustment
             else
-               lmort_logging = 0.0_r8
+               lmort_logging = 0.0_r8 
+               lmort_collateral = 0.0_r8
             end if
-            lmort_collateral = logging_collateral_frac * adjustment
+           
             lmort_infra      = logging_mechanical_frac * adjustment
             !damage rates for size class < & > threshold_size need to be specified seperately
+
+            ! Collateral damage to smaller plants below the direct logging size threshold
+            ! will be applied via "understory_death" via the disturbance algorithm
+
          else
             lmort_logging    = 0.0_r8
             lmort_collateral = 0.0_r8
