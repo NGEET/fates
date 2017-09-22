@@ -178,8 +178,8 @@ contains
 
 
        ! ------------------------------------------------------------------------------------------
-       ! Determine which disturbance is dominant, and force mortality in the upper canopy to be
-       ! zero for the non-dominant mode.  Note: upper-canopy tree-fall mortality is 
+       ! Determine which disturbance is dominant, and force mortality diagnostics in the upper 
+       ! canopy to be zero for the non-dominant mode.  Note: upper-canopy tree-fall mortality is 
        ! not always disturbance generating, so when tree-fall mort is non-dominant, make sure
        ! to still diagnose and track the non-disturbance rate
        ! ------------------------------------------------------------------------------------------
@@ -190,6 +190,7 @@ contains
           
           currentPatch%disturbance_rate = currentPatch%disturbance_rates(dtype_ilog)
 
+          ! Update diagnostics
           currentCohort => currentPatch%shortest
           do while(associated(currentCohort))
              if(currentCohort%canopy_layer == 1)then
@@ -209,7 +210,7 @@ contains
 
           currentPatch%disturbance_rate = currentPatch%disturbance_rates(dtype_ifire)
 
-          ! Zero non-fire mortality rates
+          ! Update diagnostics, zero non-fire mortality rates
           currentCohort => currentPatch%shortest
           do while(associated(currentCohort))
              if(currentCohort%canopy_layer == 1)then
@@ -236,7 +237,7 @@ contains
 
           currentPatch%disturbance_rate = currentPatch%disturbance_rates(dtype_ifall)
           
-          ! Zero non-treefall mortality rates
+          ! Update diagnostics, zero non-treefall mortality rates
           currentCohort => currentPatch%shortest
           do while(associated(currentCohort))
              if(currentCohort%canopy_layer == 1)then
@@ -345,7 +346,7 @@ contains
           ! This is the amount of patch area that is disturbed, and donated by the donor
           patch_site_areadis = currentPatch%area * currentPatch%disturbance_rate
 
-          call average_patch_properties(currentPatch, new_patch, patch_site_areadis)  ! MAY BE REDUNDANT CALL
+          call average_patch_properties(currentPatch, new_patch, patch_site_areadis)
           
           if (currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifall) .and. &
                 currentPatch%disturbance_rates(dtype_ilog) > currentPatch%disturbance_rates(dtype_ifire) ) then 
