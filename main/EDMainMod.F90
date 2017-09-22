@@ -39,6 +39,7 @@ module EDMainMod
   use EDtypesMod               , only : ed_patch_type
   use EDtypesMod               , only : ed_cohort_type
   use EDTypesMod               , only : do_ed_phenology
+  use EDTypesMod               , only : AREA
   use FatesConstantsMod        , only : itrue,ifalse
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
   use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydProps
@@ -47,6 +48,12 @@ module EDMainMod
   use FatesPlantHydraulicsMod  , only : updateSizeDepRhizHydProps 
 !  use FatesPlantHydraulicsMod , only : updateSizeDepRhizHydStates
   use EDLoggingMortalityMod    , only : IsItLoggingTime
+  use FatesGlobals             , only : endrun => fates_endrun
+  use ChecksBalancesMod        , only : SiteCarbonStock
+  
+  ! CIME Globals
+  use shr_log_mod         , only : errMsg => shr_log_errMsg
+  use shr_infnan_mod      , only : nan => shr_infnan_nan, assignment(=)
 
   implicit none
   private
@@ -63,6 +70,10 @@ module EDMainMod
   private :: bypass_dynamics
   
   logical :: DEBUG  = .false.
+  
+  character(len=*), parameter, private :: sourcefile = &
+         __FILE__
+  
   !
   ! 10/30/09: Created by Rosie Fisher
   !-----------------------------------------------------------------------
@@ -462,9 +473,8 @@ contains
     real(r8) :: total_stock     ! total ED carbon in KgC/site
     real(r8) :: change_in_stock ! Change since last time we set ed_allsites_inst%old_stock in this routine.  KgC/site
     real(r8) :: error           ! How much carbon did we gain or lose (should be zero!) 
+    real(r8) :: error_frac      ! Error as a fraction of total biomass
     real(r8) :: net_flux        ! Difference between recorded fluxes in and out. KgC/site
-
-    real(r8) :: trunk_product_site ! trunk product at site level KgC/site
 
     ! nb. There is no time associated with these variables 
     ! because this routine can be called between any two 
@@ -477,49 +487,74 @@ contains
     !-----------------------------------------------------------------------
 
     change_in_stock = 0.0_r8
-    biomass_stock   = 0.0_r8
-    litter_stock    = 0.0_r8
-
-    trunk_product_site = 0.0_r8
-    
-    seed_stock   =  sum(currentSite%seed_bank)
-
-    currentPatch => currentSite%oldest_patch 
-    do while(associated(currentPatch))
-
-       litter_stock = litter_stock + currentPatch%area * (sum(currentPatch%cwd_ag)+ &
-             sum(currentPatch%cwd_bg)+sum(currentPatch%leaf_litter)+sum(currentPatch%root_litter))
-       currentCohort => currentPatch%tallest;
-       
-       do while(associated(currentCohort))
-          
-          !kgC/10000m2
-          biomass_stock =  biomass_stock + (currentCohort%bdead + currentCohort%balive + &
-                currentCohort%bstore) * currentCohort%n
-          currentCohort => currentCohort%shorter;
-          
-       enddo !end cohort loop 
-
-       currentPatch => currentPatch%younger
-
-    enddo !end patch loop
 
 
-    total_stock     = biomass_stock + seed_stock +litter_stock
+    call SiteCarbonStock(currentSite,total_stock,biomass_stock,litter_stock,seed_stock)
+
+
     change_in_stock = total_stock - currentSite%old_stock  
 
     net_flux        = currentSite%flux_in - currentSite%flux_out
     error           = abs(net_flux - change_in_stock)   
 
-    if ( abs(error) > 10e-6 ) then
-       write(fates_log(),*) 'total error: call index: ',call_index, &
-                      'in:  ',currentSite%flux_in,   &
-                      'out: ',currentSite%flux_out,  &
-                      'net: ',net_flux,              &
-                      'dstock: ',change_in_stock,    &
-                      'error=net_flux-dstock:', error
-       write(fates_log(),*) 'biomass,litter,seeds', biomass_stock,litter_stock,seed_stock
+    if(change_in_stock>0.0)then
+       error_frac      = error/abs(total_stock)
+    else
+       error_frac      = 0.0_r8
+    end if
+
+    ! -----------------------------------------------------------------------------------
+    ! Terms:
+    ! %flux_in:  accumulates npp over all cohorts,  
+    !               currentSite%flux_in = currentSite%flux_in + &
+    !               currentCohort%npp_acc * currentCohort%n
+    ! %flux_out: coarse woody debris going into fragmentation pools:
+    !               currentSite%flux_out + sum(currentPatch%leaf_litter_out) * &
+    !               currentPatch%area *hlm_freq_day!kgC/site/day
+    !            burn fractions:  
+    !               currentSite%flux_out = currentSite%flux_out + &
+    !               burned_litter * new_patch%area !kG/site/day
+    !            
+    
+    if ( error_frac > 10e-6 ) then
+       write(fates_log(),*) 'carbon balance error detected'
+       write(fates_log(),*) 'call index: ',call_index
+       write(fates_log(),*) 'flux in (npp):  ',currentSite%flux_in
+       write(fates_log(),*) 'flux out (fragmentation/harvest): ',currentSite%flux_out
+       write(fates_log(),*) 'net: ',net_flux
+       write(fates_log(),*) 'dstock: ',change_in_stock
+       write(fates_log(),*) 'error=net_flux-dstock:', error
+       write(fates_log(),*) 'biomass', biomass_stock
+       write(fates_log(),*) 'litter',litter_stock
+       write(fates_log(),*) 'seeds',seed_stock
+       write(fates_log(),*) 'previous total',currentSite%old_stock  
+
+       if(DEBUG)then
+          change_in_stock = 0.0_r8
+          biomass_stock   = 0.0_r8
+          litter_stock    = 0.0_r8
+          
+          seed_stock   =  sum(currentSite%seed_bank)*AREA
+          currentPatch => currentSite%oldest_patch 
+          do while(associated(currentPatch))
+             write(fates_log(),*) '---------------------------------------'
+             write(fates_log(),*) currentPatch%area , sum(currentPatch%cwd_ag), sum(currentPatch%cwd_bg)
+             write(fates_log(),*) sum(currentPatch%leaf_litter),sum(currentPatch%root_litter)
+             write(fates_log(),*)'---'
+             currentCohort => currentPatch%tallest
+             do while(associated(currentCohort))
+                write(fates_log(),*) currentCohort%bdead,currentCohort%balive,currentCohort%bstore,currentCohort%n
+                currentCohort => currentCohort%shorter;
+             enddo !end cohort loop 
+             currentPatch => currentPatch%younger
+          enddo !end patch loop
+       end if
        write(fates_log(),*) 'lat lon',currentSite%lat,currentSite%lon
+       
+       ! Only abort if this is not the first call
+       if(abs(total_stock - currentSite%old_stock)>1.e-15_r8)then
+   !       call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
     endif
 
     currentSite%flux_in   = 0.0_r8

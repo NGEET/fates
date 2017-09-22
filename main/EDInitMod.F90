@@ -15,14 +15,16 @@ module EDInitMod
   use EDGrowthFunctionsMod      , only : bdead, bleaf, dbh
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDPatchDynamicsMod        , only : create_patch
-  use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type, area
+  use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod                , only : ncwd
   use EDTypesMod                , only : nuMWaterMem
   use EDTypesMod                , only : maxpft
+  use EDTypesMod                , only : AREA
   use FatesInterfaceMod         , only : bc_in_type
   use FatesInterfaceMod         , only : hlm_use_planthydro
   use FatesInterfaceMod         , only : hlm_use_inventory_init
   use FatesInterfaceMod         , only : numpft
+  use ChecksBalancesMod         , only : SiteCarbonStock
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -63,9 +65,7 @@ contains
     site_in%youngest_patch   => null() ! pointer to yngest patch at the site
     
     ! DISTURBANCE
-    site_in%disturbance_rate = 0._r8  ! site level disturbance rates from mortality and fire.
-    site_in%dist_type        = 0      ! disturbance dist_type id.
-    site_in%total_burn_flux_to_atm = 0._r8 !
+    site_in%total_burn_flux_to_atm = 0._r8
 
     ! PHENOLOGY 
     site_in%status           = 0    ! are leaves in this pixel on or off?
@@ -222,6 +222,12 @@ contains
      real(r8) :: leaf_litter_local(maxpft)
      real(r8) :: root_litter_local(maxpft)
      real(r8) :: age !notional age of this patch
+
+     ! dummy locals
+     real(r8) :: biomass_stock
+     real(r8) :: litter_stock
+     real(r8) :: seed_stock
+
      type(ed_patch_type), pointer :: newp
 
      ! List out some nominal patch values that are used for Near Bear Ground initializations
@@ -247,8 +253,12 @@ contains
            if (hlm_use_planthydro.eq.itrue) then
               call updateSizeDepRhizHydProps(sites(s), bc_in(s))
            end if
+           ! For carbon balance checks, we need to initialize the 
+           ! total carbon stock
+           call SiteCarbonStock(sites(s),sites(s)%old_stock,biomass_stock,litter_stock,seed_stock)
+           
         enddo
-
+        
      else
 
         !FIX(SPM,032414) clean this up...inits out of this loop
@@ -277,6 +287,11 @@ contains
            if (hlm_use_planthydro.eq.itrue) then
               call updateSizeDepRhizHydProps(sites(s), bc_in(s))
            end if
+
+
+           ! For carbon balance checks, we need to initialize the 
+           ! total carbon stock
+           call SiteCarbonStock(sites(s),sites(s)%old_stock,biomass_stock,litter_stock,seed_stock)
 
         enddo
 
@@ -364,5 +379,8 @@ contains
     call sort_cohorts(patch_in)
 
   end subroutine init_cohorts
+
+  ! ===============================================================================================
+
 
 end module EDInitMod
