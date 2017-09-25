@@ -945,9 +945,7 @@ contains
     new_patch%frac_burnt         = 0._r8  
     new_patch%total_tree_area    = 0.0_r8  
     new_patch%NCL_p              = 1
-
-    
-
+ 
   end subroutine create_patch
 
   ! ============================================================================
