@@ -344,7 +344,7 @@ contains
        currentCohort => currentPatch%tallest
  
        do while(associated(currentCohort))
-          write(fates_log(),*) 'SF currentCohort%c_area ',currentCohort%c_area
+          if (DEBUG) write(fates_log(),*) 'SF currentCohort%c_area ',currentCohort%c_area
           if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
              currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
           else
@@ -477,7 +477,7 @@ contains
        ! Equation A5 in Thonicke et al. 2010
        ! phi_wind (unitless)
        ! convert wind_elev_fire from m/min to ft/min for Rothermel ROS eqn
-       ! wind max per Lasslop et al 2014 to lenearly reduce ROS for high wind speeds
+       ! wind max per Lasslop et al 2014 to linearly reduce ROS for high wind speeds
        !OLD! phi_wind = c * ((3.281_r8*currentPatch%effect_wspeed)**b)*(beta_ratio**(-e))
        if (currentPatch%effect_wspeed .le. wind_max) then
           wind_elev_fire = currentPatch%effect_wspeed
@@ -485,7 +485,7 @@ contains
           if (debug_windspeed) write(fates_log(),*) 'SF wind LESS max ', currentPatch%effect_wspeed 
           if (debug_windspeed) write(fates_log(),*) 'month and day', hlm_current_month, hlm_current_day             
        else
-          ! max conditional 225 ft/min from Lasslop 2014 converted to 68.577 m/min 
+          !max condition 225 ft/min (FIREMIP Rabin table A10 JSBACH-Spitfire) convert to 68.577 m/min 
           wind_elev_fire = max(0.0_r8,(68.577-0.5*currentPatch%effect_wspeed))
           phi_wind = c * ((3.281_r8*wind_elev_fire)**b)*(beta_ratio**(-e))
           if (debug_windspeed) write(fates_log(),*) 'SF wind GREATER max ', currentPatch%effect_wspeed
@@ -493,7 +493,7 @@ contains
        endif 
 
        ! ---propagating flux----
-       ! Equation A2 in Thonicke et al.2010
+       ! Equation A2 in Thonicke et al.2010 and Eq. 42 Rothermal 1972
        ! xi (unitless)       
        xi = (exp((0.792_r8 + 3.7597_r8 * (currentPatch%fuel_sav**0.5_r8)) * (beta+0.1_r8))) / &
             (192_r8+7.9095_r8 * currentPatch%fuel_sav)      
@@ -752,20 +752,22 @@ contains
              ! THIS SHOULD HAVE THE COLUMN AND LU AREA WEIGHT ALSO, NO?
 
              gridarea = km2_to_m2     ! 1M m2 in a km2
-             currentPatch%NF = ED_val_nignitions * currentPatch%area/area /365 * &
-                               currentSite%FDI
+             !NF = number of lighting strikes per day per km2
+             currentPatch%NF = ED_val_nignitions * currentPatch%area/area /365 
 
              ! If there are 15  lightening strickes per year, per km2. (approx from NASA product) 
              ! then there are 15/365 s/km2 each day. 
      
              ! Equation 1 in Thonicke et al. 2010
              ! To Do: Connect here with the Li & Levis GDP fire suppression algorithm. 
-             ! Equation 16 in arora and boer model.
+             ! Equation 16 in arora and boer model JGR 2005
              !currentPatch%AB = currentPatch%AB *3.0_r8
+
+             !size of fire = equation 14 Arora and Boer JGR 2005
              size_of_fire = ((3.1416_r8/(4.0_r8*lb))*((df+db)**2.0_r8))
 
-             !AB is daily area burnt = size of fires in m2 * number of ignitions 
-             currentPatch%AB = size_of_fire * currentPatch%NF 
+             !AB = daily area burnt = size fires in m2 * num ignitions * prob ignition starts fire
+             currentPatch%AB = size_of_fire * currentPatch%NF * currentSite%FDI
              
              patch_area_in_m2 = gridarea*currentPatch%area/area
              

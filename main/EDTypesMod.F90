@@ -11,7 +11,6 @@ module EDTypesMod
   save
 
   integer, parameter :: maxPatchesPerSite  = 10   ! maximum number of patches to live on a site
-  integer, parameter :: maxCohortsPerPatch = 160  ! maximum number of cohorts to live on a patch
   integer, parameter :: nclmax = 2                ! Maximum number of canopy layers
   integer, parameter :: ican_upper = 1            ! Nominal index for the upper canopy
   integer, parameter :: ican_ustory = 2           ! Nominal index for understory in two-canopy system
@@ -23,6 +22,8 @@ module EDTypesMod
                                                   ! space and output arrays.
  
   integer, parameter :: numpft_ed = 2             ! number of PFTs used in ED. 
+
+  integer, parameter :: maxCohortsPerPatch = nclmax * numpft_ed * nlevleaf  ! maximum number of cohorts to live on a patch
 
   ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
   ! land-ice abledo for vis and nir.  This should be a parameter, which would
