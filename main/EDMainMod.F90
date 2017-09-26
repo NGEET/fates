@@ -518,6 +518,7 @@ contains
     
     if ( error_frac > 10e-6 ) then
        write(fates_log(),*) 'carbon balance error detected'
+       write(fates_log(),*) 'error fraction relative to biomass stock:',error_frac
        write(fates_log(),*) 'call index: ',call_index
        write(fates_log(),*) 'flux in (npp):  ',currentSite%flux_in
        write(fates_log(),*) 'flux out (fragmentation/harvest): ',currentSite%flux_out
@@ -549,6 +550,7 @@ contains
              currentPatch => currentPatch%younger
           enddo !end patch loop
        end if
+
        write(fates_log(),*) 'lat lon',currentSite%lat,currentSite%lon
        
        ! Only abort if this is not the first call
