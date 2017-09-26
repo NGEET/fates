@@ -13,6 +13,7 @@ module EDTypesMod
 
   integer, parameter :: maxPatchesPerSite  = 10   ! maximum number of patches to live on a site
   integer, parameter :: maxCohortsPerPatch = 160  ! maximum number of cohorts per patch
+
   integer, parameter :: nclmax = 2                ! Maximum number of canopy layers
   integer, parameter :: ican_upper = 1            ! Nominal index for the upper canopy
   integer, parameter :: ican_ustory = 2           ! Nominal index for understory in two-canopy system
@@ -65,8 +66,10 @@ module EDTypesMod
   integer , parameter :: external_recruitment = 0          ! external recruitment flag 1=yes  
   integer , parameter :: SENES                = 10         ! Window of time over which we track temp for cold sensecence (days)
   real(r8), parameter :: DINC_ED              = 1.0_r8     ! size of LAI bins. 
-  integer , parameter :: N_DIST_TYPES         = 2          ! number of disturbance types (mortality, fire)
-  
+  integer , parameter :: N_DIST_TYPES         = 3          ! Disturbance Modes 1) tree-fall, 2) fire, 3) logging
+  integer , parameter :: dtype_ifall          = 1          ! index for naturally occuring tree-fall generated event
+  integer , parameter :: dtype_ifire          = 2          ! index for fire generated disturbance event
+  integer , parameter :: dtype_ilog           = 3          ! index for logging generated disturbance event
 
   ! SPITFIRE     
   integer,  parameter :: NCWD                 = 4          ! number of coarse woody debris pools (twig,s branch,l branch, trunk)
@@ -122,8 +125,6 @@ module EDTypesMod
 
   character(len = 10), parameter,dimension(nlevmclass_ed) :: char_list = &
        (/"background","hydraulic ","carbon    ","impact    ","fire      "/)
-
-
 
 
   !************************************
@@ -247,6 +248,13 @@ module EDTypesMod
      real(r8) ::  imort                                  ! mortality from impacts by others n/year
      real(r8) ::  fmort                                  ! fire mortality                   n/year
 
+      ! Logging Mortality Rate 
+	 ! Yi Xu
+     real(r8) ::  lmort_logging                          ! directly logging rate            %/per logging activity
+     real(r8) ::  lmort_collateral                       ! collaterally damaged rate        %/per logging activity
+     real(r8) ::  lmort_infra                            ! mechanically damaged rate        %/per logging activity
+	      
+
      ! NITROGEN POOLS      
      ! ----------------------------------------------------------------------------------
      ! Nitrogen pools are not prognostic in the current implementation.
@@ -368,7 +376,9 @@ module EDTypesMod
      real(r8) ::  btran_ft(maxpft)                              ! btran calculated seperately for each PFT:-   
 
      ! DISTURBANCE 
-     real(r8) ::  disturbance_rates(n_dist_types)                  ! disturbance rate from 1) mortality and 2) fire: fraction/day
+     real(r8) ::  disturbance_rates(n_dist_types)                  ! disturbance rate from 1) mortality 
+                                                                   !                       2) fire: fraction/day 
+                                                                   !                       3) logging mortatliy
      real(r8) ::  disturbance_rate                                 ! larger effective disturbance rate: fraction/day
 
      ! LITTER AND COARSE WOODY DEBRIS 
@@ -430,6 +440,7 @@ module EDTypesMod
      real(r8) ::  tfc_ros                                          ! total fuel consumed - no trunks.  KgC/m2/day
      real(r8) ::  burnt_frac_litter(nfsc)                          ! fraction of each litter pool burned:-
 
+
      ! PLANT HYDRAULICS     
      type(ed_patch_hydr_type) , pointer :: pa_hydr                 ! All patch hydraulics data, see FatesHydraulicsMemMod.F90
 
@@ -437,15 +448,38 @@ module EDTypesMod
 
   end type ed_patch_type
 
+  
+  !************************************
+  !** Resources management type      **
+  ! YX
+  !************************************
+  type ed_resources_management_type
+    
+     real(r8) ::  trunk_product_site                       ! Actual  trunk product at site level KgC/site
+
+     !debug variables
+     real(r8) ::  delta_litter_stock
+     real(r8) ::  delta_biomass_stock
+     real(r8) ::  delta_individual
+  
+  end type ed_resources_management_type
+
+
+
   !************************************
   !** Site type structure           **
   !************************************
 
   type ed_site_type
-
+     
      ! POINTERS  
      type (ed_patch_type), pointer :: oldest_patch => null()   ! pointer to oldest patch at the site  
      type (ed_patch_type), pointer :: youngest_patch => null() ! pointer to yngest patch at the site
+     
+     ! Resource management
+     type (ed_resources_management_type) :: resources_management ! resources_management at the site 
+
+
 
      ! INDICES 
      real(r8) ::  lat                                          ! latitude:  degrees 
@@ -487,12 +521,6 @@ module EDTypesMod
      real(r8) :: npp_timeintegrated                           ! Net primary production accumulated over model time-steps [gC/m2]
      real(r8) :: nbp_integrated                               ! Net biosphere production accumulated over model time-steps [gC/m2]
 
-
-     ! DISTURBANCE
-     real(r8) ::  disturbance_mortality                        ! site level disturbance rates from mortality.
-     real(r8) ::  disturbance_fire                             ! site level disturbance rates from fire.  
-     integer  ::  dist_type                                    ! disturbance dist_type id.
-     real(r8) ::  disturbance_rate                             ! site total dist rate
 
      ! PHENOLOGY 
      real(r8) ::  ED_GDD_site                                  ! ED Phenology growing degree days.
