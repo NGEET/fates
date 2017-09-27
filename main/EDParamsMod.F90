@@ -2,7 +2,6 @@ module EDParamsMod
    !
    ! module that deals with reading the ED parameter file
    !
-canopyclosure_threshold
   
    use FatesParametersInterface, only : param_string_length
    use FatesGlobals        , only : fates_log

@@ -122,7 +122,6 @@ contains
     ! !DESCRIPTION:
     !
     ! !USES:
-    use EDParamsMod            , only : ED_val_maxspread
     !
     ! !ARGUMENTS    
 
@@ -141,7 +140,6 @@ contains
     real(r8) :: watermem
     integer  :: dleafoff
     integer  :: dleafon
-    real(r8) :: spread_local
     !----------------------------------------------------------------------
 
     if ( hlm_is_restart == ifalse ) then
@@ -192,7 +190,7 @@ contains
        sites(s)%frac_burnt = 0.0_r8
        sites(s)%old_stock  = 0.0_r8
 
-       sites(s)%spread_local      = 1.0_r8
+       sites(s)%spread     = 1.0_r8
     end do
 
     return

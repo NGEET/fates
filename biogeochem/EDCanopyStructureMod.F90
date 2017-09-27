@@ -811,7 +811,7 @@ contains
     ! !LOCAL VARIABLES:
     type (ed_cohort_type), pointer :: currentCohort
     type (ed_patch_type) , pointer :: currentPatch
-    real(r8) :: arealayer(nlevleaf) ! Amount of canopy in each layer. 
+    real(r8) :: arealayer ! Amount of canopy in each layer. 
     real(r8) :: inc                   ! Arbitrary daily incremental change in canopy area 
     integer  :: z
     !----------------------------------------------------------------------
@@ -842,12 +842,6 @@ contains
        currentSite%spread = currentSite%spread - inc
     else 
        currentSite%spread = currentSite%spread + inc 
-    endif
-    if(currentSite%spread >= 1._r8)then 
-       currentSite%spread = 1._r8
-    endif
-    if(currentSite%spread <=  0._r8)then
-       currentSite%spread = 0._r8
     endif
 
     ! put within bounds to make sure it stays between 0 and 1
