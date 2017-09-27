@@ -10,6 +10,7 @@ module EDGrowthFunctionsMod
   use FatesGlobals     , only : fates_log
   use EDPftvarcon        , only : EDPftvarcon_inst
   use EDTypesMod       , only : ed_cohort_type, nlevleaf, dinc_ed
+  use FatesConstantsMod        , only : itrue,ifalse
 
   implicit none
   private
@@ -431,8 +432,7 @@ contains
     real(r8) :: hf_sm_threshold    ! hydraulic failure soil moisture threshold 
 
 
-    if (hlm_use_ed_prescribed_phys .eq. 0) then
-    ! i.e. hlm_use_ed_prescribed_phys is false
+    if (hlm_use_ed_prescribed_phys .eq. ifalse) then
 
     ! 'Background' mortality (can vary as a function of density as in ED1.0 and ED2.0, but doesn't here for tractability) 
     bmort = EDPftvarcon_inst%bmort(cohort_in%pft) 

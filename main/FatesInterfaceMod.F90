@@ -19,7 +19,7 @@ module FatesInterfaceMod
    use EDTypesMod          , only : nlevleaf
    use EDTypesMod          , only : maxpft
    use FatesConstantsMod   , only : r8 => fates_r8
-   use FatesConstantsMod   , only : itrue
+   use FatesConstantsMod   , only : itrue,ifalse
    use FatesGlobals        , only : fates_global_verbose
    use FatesGlobals        , only : fates_log
    use FatesGlobals        , only : endrun => fates_endrun
@@ -120,6 +120,10 @@ module FatesInterfaceMod
    
    integer, protected :: hlm_use_spitfire  ! This flag signals whether or not to use SPITFIRE
                                            ! 1 = TRUE, 0 = FALSE
+
+
+   integer, protected :: hlm_use_logging       ! This flag signals whether or not to use
+                                               ! the logging module
 
    integer, protected :: hlm_use_planthydro    ! This flag signals whether or not to use
                                                ! plant hydraulics (bchristo/xu methods)
@@ -1120,6 +1124,11 @@ contains
          hlm_use_vertsoilc = unset_int
          hlm_use_spitfire  = unset_int
          hlm_use_planthydro = unset_int
+         hlm_use_logging   = ifalse          ! (RGK: to allow backwards compatibility
+                                             !  defaulting to FALSE, this will allow
+                                             !  the call from the HLM to not necessarily
+                                             !  be forced to exist. Will set this to unset
+                                             !  along with other non backwards compatible changes
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
          hlm_use_inventory_init = unset_int
@@ -1155,6 +1164,13 @@ contains
          end if
          
          if (  .not.((hlm_use_planthydro.eq.1).or.(hlm_use_planthydro.eq.0))    ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'The FATES namelist planthydro flag must be 0 or 1, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if ( .not.((hlm_use_logging .eq.1).or.(hlm_use_logging.eq.0))    ) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'The FATES namelist planthydro flag must be 0 or 1, exiting'
             end if
@@ -1388,6 +1404,12 @@ contains
                
             case('use_planthydro')
                hlm_use_planthydro = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_planthydro= ',ival,' to FATES'
+               end if
+
+            case('use_logging')
+               hlm_use_logging = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_planthydro= ',ival,' to FATES'
                end if
