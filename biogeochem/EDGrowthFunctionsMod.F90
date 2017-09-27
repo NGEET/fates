@@ -225,13 +225,13 @@ contains
     ! ============================================================================
 
     use EDParamsMod              , only : ED_val_grass_spread
+    use EDParamsMod              , only : ED_val_maxspread, ED_val_minspread
     use EDTypesMod               , only : nclmax
 
     type(ed_cohort_type), intent(in) :: cohort_in       
 
     real(r8) :: dbh ! Tree diameter at breat height. cm. 
     real(r8) :: crown_area_to_dbh_exponent
-    integer  :: can_layer_index
 
     ! default is to use the same exponent as the dbh to bleaf exponent so that per-plant canopy depth remains invariant during growth,
     ! but allowed to vary via the allom_blca_expnt_diff term (which has default value of zero)
@@ -259,12 +259,13 @@ contains
     ! So we allow layer index exceedence here and force it down to max.
     ! (rgk/cdk 05/2017)
     ! ----------------------------------------------------------------------------------
-
-    can_layer_index = min(cohort_in%canopy_layer,nclmax)
-
-    if(EDPftvarcon_inst%woody(cohort_in%pft) == 1)then 
+    
+    if(EDPftvarcon_inst%woody(cohort_in%pft) == 1)then
+       ! apply site-level spread elasticity to the cohort crown allometry term
+       spreadterm = cohort_in%siteptr%spread * ED_val_maxspread + (1._r8 - cohort_in%siteptr%spread * ED_val_minspread)
+       !
        c_area = 3.142_r8 * cohort_in%n * &
-            (cohort_in%patchptr%spread(can_layer_index)*dbh)**crown_area_to_dbh_exponent
+            (spreadterm * dbh)**crown_area_to_dbh_exponent
     else
        c_area = 3.142_r8 * cohort_in%n * (ED_val_grass_spread*dbh)**crown_area_to_dbh_exponent
     end if

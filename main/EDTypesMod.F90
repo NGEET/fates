@@ -298,7 +298,6 @@ module EDTypesMod
      integer  ::  ncl_p                                            ! Number of occupied canopy layers
 
      ! LEAF ORGANIZATION
-     real(r8) ::  spread(nclmax)                                   ! dynamic ratio of dbh to canopy area: cm/m2
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
      real(r8) ::  canopy_layer_lai(nclmax)                         ! lai that is shading this canopy layer: m2/m2 
      real(r8) ::  total_canopy_area                                ! area that is covered by vegetation : m2
@@ -538,6 +537,9 @@ module EDTypesMod
      real(r8) :: leaf_litter_diagnostic_input_carbonflux(1:maxpft) ! diagnostic flux to AG litter [kg C / m2 / yr]
      real(r8) :: root_litter_diagnostic_input_carbonflux(1:maxpft) ! diagnostic flux to BG litter [kg C / m2 / yr]
 
+     ! Canopy Spread
+     real(r8) ::  spread                                          ! dynamic canopy allometric term [unitless]
+     
   end type ed_site_type
 
 contains

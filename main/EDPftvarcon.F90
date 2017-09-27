@@ -120,6 +120,8 @@ module EDPftvarcon
      real(r8), allocatable :: allom_d2bl_slascaler(:)  ! 
      real(r8), allocatable :: allom_blca_expnt_diff(:) ! Any difference in the exponent between the leaf
                                                        ! biomass and crown area scaling
+     real(r8), allocatable :: allom_d2ca_coefficient_max(:)  ! upper (savanna) value for crown area to dbh coefficient
+     real(r8), allocatable :: allom_d2ca_coefficient_min(:)  ! lower (closed-canopy forest) value for crown area to dbh coefficient
      real(r8), allocatable :: allom_agb1(:)         ! Parameter 1 for agb allometry
      real(r8), allocatable :: allom_agb2(:)         ! Parameter 2 for agb allometry
      real(r8), allocatable :: allom_agb3(:)         ! Parameter 3 for agb allometry
@@ -459,6 +461,14 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_allom_blca_expnt_diff'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_allom_d2ca_coefficient_max'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_allom_d2ca_coefficient_min'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -829,6 +839,14 @@ contains
     name = 'fates_allom_blca_expnt_diff'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%allom_blca_expnt_diff)
+
+    name = 'fates_allom_d2ca_coefficient_max'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_d2ca_coefficient_max)
+
+    name = 'fates_allom_d2ca_coefficient_min'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_d2ca_coefficient_min)
 
     name = 'fates_allom_d2bl_slascaler'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1394,6 +1412,8 @@ contains
         write(fates_log(),fmt0) 'allom_sai_scaler = ',EDPftvarcon_inst%allom_sai_scaler
         write(fates_log(),fmt0) 'allom_d2bl_slascaler = ',EDPftvarcon_inst%allom_d2bl_slascaler
         write(fates_log(),fmt0) 'allom_blca_expnt_diff = ',EDPftvarcon_inst%allom_blca_expnt_diff
+        write(fates_log(),fmt0) 'allom_d2ca_coefficient_max = ',EDPftvarcon_inst%allom_d2ca_coefficient_max
+        write(fates_log(),fmt0) 'allom_d2ca_coefficient_min = ',EDPftvarcon_inst%allom_d2ca_coefficient_min        
         write(fates_log(),fmt0) 'allom_agb1 = ',EDPftvarcon_inst%allom_agb1
         write(fates_log(),fmt0) 'allom_agb2 = ',EDPftvarcon_inst%allom_agb2
         write(fates_log(),fmt0) 'allom_agb3 = ',EDPftvarcon_inst%allom_agb3

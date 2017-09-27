@@ -756,7 +756,8 @@ contains
     !  Calculates the spatial spread of tree canopies based on canopy closure.                             
     !
     ! !USES:
-    use EDParamsMod , only : ED_val_maxspread, ED_val_minspread 
+    use EDTypesMod        , only : AREA
+    use EDParamsMod, only : ED_val_canopy_closure_thresh    
     !
     ! !ARGUMENTS    
     type (ed_site_type), intent(inout), target :: currentSite
@@ -769,45 +770,42 @@ contains
     integer  :: z
     !----------------------------------------------------------------------
 
-    inc = 0.005_r8
+    inc = 0.05_r8
 
     currentPatch => currentSite%oldest_patch
 
+    arealayer = 0.0_r8   
     do while (associated(currentPatch))
 
-       !calculate canopy area in each canopy storey...
-       arealayer = 0.0_r8   
+       !calculate canopy area in each patch...
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
           currentCohort%c_area = c_area(currentCohort) 
-          if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
-             arealayer(currentCohort%canopy_layer) = arealayer(currentCohort%canopy_layer) + currentCohort%c_area
+          if(EDPftvarcon_inst%woody(currentCohort%pft) .eq. 1 .and. currentCohort%canopy_layer .eq. 1 ) then
+             arealayer = arealayer + currentCohort%c_area
           endif
           currentCohort => currentCohort%shorter
        enddo
 
-       !If the canopy area is approaching closure, squash the tree canopies and make them taller and thinner
-       do z = 1,nclmax  
-         
-          if(arealayer(z)/currentPatch%area > 0.9_r8)then
-             currentPatch%spread(z) = currentPatch%spread(z) - inc
-          else 
-             currentPatch%spread(z) = currentPatch%spread(z) + inc 
-          endif
-          if(currentPatch%spread(z) >= ED_val_maxspread)then 
-             currentPatch%spread(z) = ED_val_maxspread
-          endif
-          if(currentPatch%spread(z) <=  ED_val_minspread)then
-             currentPatch%spread(z) = ED_val_minspread
-          endif
-        enddo !z
-        !write(fates_log(),*) 'spread',currentPatch%spread(1:2)
-        !currentPatch%spread(:) = ED_val_maxspread
-        !FIX(RF,033114) spread is off
-        !write(fates_log(),*) 'canopy_spread',currentPatch%area,currentPatch%spread(1:2)
-        currentPatch => currentPatch%younger
+       currentPatch => currentPatch%younger
 
     enddo !currentPatch
+
+    !If the canopy area is approaching closure, squash the tree canopies and make them taller and thinner
+    if( arealayer/AREA .gt. ED_val_canopy_closure_thresh ) then
+       currentSite%spread = currentSite%spread - inc
+    else 
+       currentSite%spread = currentSite%spread + inc 
+    endif
+    if(currentSite%spread >= 1._r8)then 
+       currentSite%spread = 1._r8
+    endif
+    if(currentSite%spread <=  0._r8)then
+       currentSite%spread = 0._r8
+    endif
+
+    ! put within bounds to make sure it stays between 0 and 1
+    currentSite%spread = max(min(currentSite%spread, 1._r8), 0._r8)
 
   end subroutine canopy_spread
 

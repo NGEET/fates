@@ -114,7 +114,7 @@ module FatesRestartInterfaceMod
   integer, private :: ir_leaf_litter_in_paft
   integer, private :: ir_root_litter_in_paft
   integer, private :: ir_seed_bank_sift
-  integer, private :: ir_spread_pacl
+  integer, private :: ir_spread_si
   integer, private :: ir_livegrass_pa
   integer, private :: ir_age_pa
   integer, private :: ir_area_pa
@@ -815,7 +815,7 @@ contains
     call this%set_restart_var(vname='fates_spread', vtype=cohort_r8, &
          long_name='dynamic ratio of dbh to canopy area, by patch x canopy-layer', &
          units='cm/m2', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_spread_pacl )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_spread_si )
 
     call this%set_restart_var(vname='fates_livegrass', vtype=cohort_r8, &
          long_name='total AGB from grass, by patch', &
@@ -961,7 +961,6 @@ contains
     integer  :: io_idx_co      ! cohort index
     integer  :: io_idx_pa_pft  ! each pft within each patch (pa_pft)
     integer  :: io_idx_pa_cwd  ! each cwd class within each patch (pa_cwd)
-    integer  :: io_idx_pa_cl   ! each canopy layer class within each patch (pa_cl)
     integer  :: io_idx_pa_sunz ! index for the combined dimensions for radiation
     integer  :: io_idx_si_wmem ! each water memory class within each site
     
@@ -1046,7 +1045,7 @@ contains
            rio_leaf_litter_in_paft     => this%rvars(ir_leaf_litter_in_paft)%r81d, &
            rio_root_litter_in_paft     => this%rvars(ir_root_litter_in_paft)%r81d, &
            rio_seed_bank_sift          => this%rvars(ir_seed_bank_sift)%r81d, &
-           rio_spread_pacl             => this%rvars(ir_spread_pacl)%r81d, &
+           rio_spread_si               => this%rvars(ir_spread_si)%r81d, &
            rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
            rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
            rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
@@ -1078,7 +1077,6 @@ contains
           io_idx_co      = io_idx_co_1st
           io_idx_pa_pft  = io_idx_co_1st
           io_idx_pa_cwd  = io_idx_co_1st
-          io_idx_pa_cl   = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
           io_idx_pa_sunz = io_idx_co_1st
           
@@ -1086,6 +1084,9 @@ contains
           do i = 1,numpft
              rio_seed_bank_sift(io_idx_co_1st+i-1) = sites(s)%seed_bank(i)
           end do
+
+          ! canopy spread term
+          rio_spread_si(io_idx_si)   = sites(s)%spread
           
           cpatch => sites(s)%oldest_patch
           
@@ -1200,11 +1201,6 @@ contains
                 io_idx_pa_cwd = io_idx_pa_cwd + 1
              end do
              
-             do i = 1,nclmax ! nclmax currently 2
-                rio_spread_pacl(io_idx_pa_cl)   = cpatch%spread(i)
-                io_idx_pa_cl = io_idx_pa_cl + 1
-             end do
-             
              if ( DEBUG ) write(fates_log(),*) 'CLTV io_idx_pa_sunz 1 ',io_idx_pa_sunz
              
              if ( DEBUG ) write(fates_log(),*) 'CLTV 1186 ',nlevleaf,numpft,nclmax
@@ -1232,7 +1228,6 @@ contains
              ! reset counters so that they are all advanced evenly.
              io_idx_pa_pft  = io_idx_co_1st
              io_idx_pa_cwd  = io_idx_co_1st
-             io_idx_pa_cl   = io_idx_co_1st
              io_idx_co      = io_idx_co_1st
              io_idx_pa_sunz = io_idx_co_1st
              
@@ -1312,7 +1307,6 @@ contains
      use EDGrowthFunctionsMod, only : Dbh
      use EDCohortDynamicsMod,  only : create_cohort
      use EDInitMod,            only : zero_site
-     use EDParamsMod,          only : ED_val_maxspread
      use EDPatchDynamicsMod,   only : create_patch
      use EDPftvarcon,            only : EDPftvarcon_inst
 
@@ -1329,7 +1323,6 @@ contains
      type(ed_cohort_type), allocatable :: temp_cohort
      real(r8)                          :: cwd_ag_local(ncwd)
      real(r8)                          :: cwd_bg_local(ncwd)
-     real(r8)                          :: spread_local(nclmax)
      real(r8)                          :: leaf_litter_local(maxpft)
      real(r8)                          :: root_litter_local(maxpft)
      real(r8)                          :: patch_age
@@ -1348,7 +1341,6 @@ contains
      cwd_bg_local(:)      = 0.0_r8
      leaf_litter_local(:) = 0.0_r8
      root_litter_local(:) = 0.0_r8
-     spread_local(:)      = ED_val_maxspread
      patch_age            = 0.0_r8
 
      ! ----------------------------------------------------------------------------------
@@ -1396,7 +1388,7 @@ contains
              
              ! make new patch
              call create_patch(sites(s), newp, patch_age, area, &
-                  spread_local, cwd_ag_local, cwd_bg_local,  &
+                  cwd_ag_local, cwd_bg_local,  &
                   leaf_litter_local, root_litter_local) 
              
              newp%siteptr => sites(s)
@@ -1537,7 +1529,6 @@ contains
      integer  :: io_idx_co      ! cohort index
      integer  :: io_idx_pa_pft  ! each pft within each patch (pa_pft)
      integer  :: io_idx_pa_cwd  ! each cwd class within each patch (pa_cwd)
-     integer  :: io_idx_pa_cl   ! each canopy layer class within each patch (pa_cl)
      integer  :: io_idx_pa_sunz ! index for the combined dimensions for radiation
      integer  :: io_idx_si_wmem ! each water memory class within each site
 
@@ -1616,7 +1607,7 @@ contains
           rio_leaf_litter_in_paft     => this%rvars(ir_leaf_litter_in_paft)%r81d, &
           rio_root_litter_in_paft     => this%rvars(ir_root_litter_in_paft)%r81d, &
           rio_seed_bank_sift          => this%rvars(ir_seed_bank_sift)%r81d, &
-          rio_spread_pacl             => this%rvars(ir_spread_pacl)%r81d, &
+          rio_spread_si               => this%rvars(ir_spread_si)%r81d, &
           rio_livegrass_pa            => this%rvars(ir_livegrass_pa)%r81d, &
           rio_age_pa                  => this%rvars(ir_age_pa)%r81d, &
           rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
@@ -1637,7 +1628,6 @@ contains
           io_idx_co      = io_idx_co_1st
           io_idx_pa_pft  = io_idx_co_1st
           io_idx_pa_cwd  = io_idx_co_1st
-          io_idx_pa_cl   = io_idx_co_1st
           io_idx_pa_sunz = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
           
@@ -1645,6 +1635,8 @@ contains
           do i = 1,numpft 
              sites(s)%seed_bank(i) = rio_seed_bank_sift(io_idx_co_1st+i-1)
           enddo
+
+          sites(s)%spread = rio_spread_si(io_idx_si) 
           
           ! Perform a check on the number of patches per site
           patchespersite = 0
@@ -1725,7 +1717,6 @@ contains
              cpatch%root_litter(:)    = 0.0_r8
              cpatch%leaf_litter_in(:) = 0.0_r8
              cpatch%root_litter_in(:) = 0.0_r8
-             cpatch%spread(:)         = 0.0_r8
              
              !
              ! deal with patch level fields here
@@ -1760,11 +1751,6 @@ contains
                 io_idx_pa_cwd = io_idx_pa_cwd + 1
              enddo
              
-             do i = 1,nclmax ! nclmax currently 2
-                cpatch%spread(i) = rio_spread_pacl(io_idx_pa_cl) 
-                io_idx_pa_cl  = io_idx_pa_cl + 1
-             enddo
-             
              if ( DEBUG ) write(fates_log(),*) 'CVTL io_idx_pa_sunz 1 ',io_idx_pa_sunz
              
              do k = 1,nlevleaf ! nlevleaf currently 40
@@ -1790,7 +1776,6 @@ contains
              ! and max the number of allowed cohorts per patch
              io_idx_pa_pft  = io_idx_co_1st
              io_idx_pa_cwd  = io_idx_co_1st
-             io_idx_pa_cl   = io_idx_co_1st
              io_idx_co      = io_idx_co_1st
              io_idx_pa_sunz = io_idx_co_1st
              
