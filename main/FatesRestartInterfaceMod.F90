@@ -69,6 +69,7 @@ module FatesRestartInterfaceMod
   integer, private :: ir_fates_to_bgc_this_ts_si
   integer, private :: ir_fates_to_bgc_last_ts_si
   integer, private :: ir_seedrainflux_si
+  integer, private :: ir_trunk_product_si
   integer, private :: ir_ncohort_pa
   integer, private :: ir_balive_co
   integer, private :: ir_bdead_co
@@ -99,6 +100,13 @@ module FatesRestartInterfaceMod
   integer, private :: ir_cmort_co
   integer, private :: ir_imort_co
   integer, private :: ir_fmort_co
+
+   !Logging
+  integer, private :: ir_lmort_logging_co
+  integer, private :: ir_lmort_collateral_co
+  integer, private :: ir_lmort_infra_co
+
+
   integer, private :: ir_ddbhdt_co
   integer, private :: ir_dbalivedt_co
   integer, private :: ir_dbdeaddt_co
@@ -584,6 +592,12 @@ contains
          units='kgC/m2/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedrainflux_si )
 
+    call this%set_restart_var(vname='fates_trunk_product_site', vtype=site_r8, &
+         long_name='Accumulate trunk product flux at site', &
+         units='kgC/m2', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_trunk_product_si )
+
+
     ! -----------------------------------------------------------------------------------
     ! Variables stored within cohort vectors
     ! Note: Some of these are multi-dimensional variables in the patch/site dimension
@@ -734,6 +748,23 @@ contains
          long_name='ed cohort - frost mortality rate', &
          units='/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fmort_co )
+
+
+    call this%set_restart_var(vname='fates_lmort_logging', vtype=cohort_r8, &
+         long_name='ed cohort - directly logging mortality rate', &
+         units='%/event', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_lmort_logging_co )
+
+    call this%set_restart_var(vname='fates_lmort_collateral', vtype=cohort_r8, &
+         long_name='ed cohort - collateral mortality rate', &
+         units='%/event', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_lmort_collateral_co ) 
+  
+    call this%set_restart_var(vname='fates_lmort_in', vtype=cohort_r8, &
+         long_name='ed cohort - mechanical mortality rate', &
+         units='%/event', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_lmort_infra_co ) 
+
 
     call this%set_restart_var(vname='fates_ddbhdt', vtype=cohort_r8, &
          long_name='ed cohort - differential: ddbh/dt', &
@@ -1000,6 +1031,7 @@ contains
            rio_fates_to_bgc_this_ts_si => this%rvars(ir_fates_to_bgc_this_ts_si)%r81d, &
            rio_fates_to_bgc_last_ts_si => this%rvars(ir_fates_to_bgc_last_ts_si)%r81d, &
            rio_seedrainflux_si         => this%rvars(ir_seedrainflux_si)%r81d, &
+           rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
            rio_balive_co               => this%rvars(ir_balive_co)%r81d, &
            rio_bdead_co                => this%rvars(ir_bdead_co)%r81d, &
@@ -1030,6 +1062,14 @@ contains
            rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
            rio_imort_co                => this%rvars(ir_imort_co)%r81d, &
            rio_fmort_co                => this%rvars(ir_fmort_co)%r81d, &
+
+
+
+	   rio_lmort_logging_co                => this%rvars(ir_lmort_logging_co)%r81d, &
+	   rio_lmort_collateral_co              => this%rvars(ir_lmort_collateral_co)%r81d, &
+	   rio_lmort_infra_co                => this%rvars(ir_lmort_infra_co)%r81d, &
+
+
            rio_ddbhdt_co               => this%rvars(ir_ddbhdt_co)%r81d, &
            rio_dbalivedt_co            => this%rvars(ir_dbalivedt_co)%r81d, &
            rio_dbdeaddt_co             => this%rvars(ir_dbdeaddt_co)%r81d, &
@@ -1144,6 +1184,14 @@ contains
                 rio_cmort_co(io_idx_co)        = ccohort%cmort
                 rio_imort_co(io_idx_co)        = ccohort%imort
                 rio_fmort_co(io_idx_co)        = ccohort%fmort
+
+                !Logging
+	        rio_lmort_logging_co(io_idx_co)        = ccohort%lmort_logging
+	        rio_lmort_collateral_co(io_idx_co)     = ccohort%lmort_collateral
+	        rio_lmort_infra_co(io_idx_co)        = ccohort%lmort_infra
+
+
+
                 rio_ddbhdt_co(io_idx_co)       = ccohort%ddbhdt
                 rio_dbalivedt_co(io_idx_co)    = ccohort%dbalivedt
                 rio_dbdeaddt_co(io_idx_co)     = ccohort%dbdeaddt
@@ -1265,8 +1313,11 @@ contains
           rio_fates_to_bgc_this_ts_si(io_idx_si) = sites(s)%fates_to_bgc_this_ts
           rio_fates_to_bgc_last_ts_si(io_idx_si) = sites(s)%fates_to_bgc_last_ts
           rio_seedrainflux_si(io_idx_si)         = sites(s)%tot_seed_rain_flux
-          
+
+          ! Accumulated trunk product
+          rio_trunk_product_si(io_idx_si) = sites(s)%resources_management%trunk_product_site
           ! set numpatches for this column
+
           rio_npatch_si(io_idx_si)  = patchespersite
           
           do i = 1,numWaterMem ! numWaterMem currently 10
@@ -1562,6 +1613,7 @@ contains
           rio_fates_to_bgc_this_ts_si => this%rvars(ir_fates_to_bgc_this_ts_si)%r81d, &
           rio_fates_to_bgc_last_ts_si => this%rvars(ir_fates_to_bgc_last_ts_si)%r81d, &
           rio_seedrainflux_si         => this%rvars(ir_seedrainflux_si)%r81d, &
+          rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
           rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
           rio_balive_co               => this%rvars(ir_balive_co)%r81d, &
           rio_bdead_co                => this%rvars(ir_bdead_co)%r81d, &
@@ -1592,6 +1644,13 @@ contains
           rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
           rio_imort_co                => this%rvars(ir_imort_co)%r81d, &
           rio_fmort_co                => this%rvars(ir_fmort_co)%r81d, &
+
+	  rio_lmort_logging_co                => this%rvars(ir_lmort_logging_co)%r81d, &
+	  rio_lmort_collateral_co                => this%rvars(ir_lmort_collateral_co)%r81d, &
+	  rio_lmort_infra_co                => this%rvars(ir_lmort_infra_co)%r81d, &
+
+
+
           rio_ddbhdt_co               => this%rvars(ir_ddbhdt_co)%r81d, &
           rio_dbalivedt_co            => this%rvars(ir_dbalivedt_co)%r81d, &
           rio_dbdeaddt_co             => this%rvars(ir_dbdeaddt_co)%r81d, &
@@ -1690,6 +1749,14 @@ contains
                 ccohort%cmort        = rio_cmort_co(io_idx_co)
                 ccohort%imort        = rio_imort_co(io_idx_co)
                 ccohort%fmort        = rio_fmort_co(io_idx_co)
+
+		!Logging
+		ccohort%lmort_logging        = rio_lmort_logging_co(io_idx_co)
+		ccohort%lmort_collateral     = rio_lmort_collateral_co(io_idx_co)
+		ccohort%lmort_infra        = rio_lmort_infra_co(io_idx_co)
+
+
+
                 ccohort%ddbhdt       = rio_ddbhdt_co(io_idx_co)
                 ccohort%dbalivedt    = rio_dbalivedt_co(io_idx_co)
                 ccohort%dbdeaddt     = rio_dbdeaddt_co(io_idx_co)
@@ -1823,7 +1890,8 @@ contains
           sites(s)%fates_to_bgc_this_ts = rio_fates_to_bgc_this_ts_si(io_idx_si)
           sites(s)%fates_to_bgc_last_ts = rio_fates_to_bgc_last_ts_si(io_idx_si)
           sites(s)%tot_seed_rain_flux   = rio_seedrainflux_si(io_idx_si)
-          
+          sites(s)%resources_management%trunk_product_site = rio_trunk_product_si(io_idx_si)
+
        end do
        
        if ( DEBUG ) then
