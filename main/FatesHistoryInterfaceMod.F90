@@ -1401,7 +1401,7 @@ contains
 
                ! update total biomass per age bin
                hio_biomass_si_age(io_si,cpatch%age_class) = hio_biomass_si_age(io_si,cpatch%age_class) &
-                    + ccohort%b * ccohort%n
+                    + ccohort%b * ccohort%n * AREA_INV
 
 
                ! Site by Size-Class x PFT (SCPF) 
