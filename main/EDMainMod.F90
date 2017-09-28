@@ -14,6 +14,7 @@ module EDMainMod
   use FatesInterfaceMod        , only : hlm_current_month
   use FatesInterfaceMod        , only : hlm_current_day 
   use FatesInterfaceMod        , only : hlm_use_planthydro 
+  use FatesInterfaceMod        , only : hlm_reference_date
   use FatesInterfaceMod        , only : hlm_use_ed_st3 
   use FatesInterfaceMod        , only : bc_in_type
   use FatesInterfaceMod        , only : hlm_masterproc
@@ -145,7 +146,7 @@ contains
        do while (associated(currentPatch))                 
           
           ! adds small cohort of each PFT
-          call recruitment(0, currentSite, currentPatch, bc_in)
+          call recruitment(currentSite, currentPatch, bc_in)
           
           currentPatch => currentPatch%younger
        enddo
@@ -514,7 +515,7 @@ contains
     !            burn fractions:  
     !               currentSite%flux_out = currentSite%flux_out + &
     !               burned_litter * new_patch%area !kG/site/day
-    !            
+    ! -----------------------------------------------------------------------------------
     
     if ( error_frac > 10e-6 ) then
        write(fates_log(),*) 'carbon balance error detected'
@@ -552,11 +553,13 @@ contains
        end if
 
        write(fates_log(),*) 'lat lon',currentSite%lat,currentSite%lon
-       
-       ! Only abort if this is not the first call
-       if(abs(total_stock - currentSite%old_stock)>1.e-15_r8)then
-   !       call endrun(msg=errMsg(sourcefile, __LINE__))
+
+       ! If this is the first day of simulation, carbon balance reports but does not end the run
+       if( int(hlm_current_year*10000 + hlm_current_month*100 + hlm_current_day).ne.hlm_reference_date ) then
+          write(fates_log(),*) 'aborting on date:',hlm_current_year,hlm_current_month,hlm_current_day
+          call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
+
     endif
 
     currentSite%flux_in   = 0.0_r8
