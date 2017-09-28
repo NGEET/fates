@@ -843,7 +843,7 @@ contains
          units='kgC/m2/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_bank_sift )
 
-    call this%set_restart_var(vname='fates_spread', vtype=cohort_r8, &
+    call this%set_restart_var(vname='fates_spread', vtype=site_r8, &
          long_name='dynamic ratio of dbh to canopy area, by patch x canopy-layer', &
          units='cm/m2', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_spread_si )
