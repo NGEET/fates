@@ -69,8 +69,7 @@ module EDPftvarcon
      real(r8), allocatable :: smpso(:)
      real(r8), allocatable :: smpsc(:)
      real(r8), allocatable :: grperc(:) 
-     
-     
+     real(r8), allocatable :: c2b(:)
      real(r8), allocatable :: bmort(:)
      real(r8), allocatable :: hf_sm_threshold(:)
      real(r8), allocatable :: vcmaxha(:)
@@ -117,6 +116,7 @@ module EDPftvarcon
      real(r8), allocatable :: allom_d2h1(:)         ! Parameter 1 for d2h allometry (intercept, or "c")
      real(r8), allocatable :: allom_d2h2(:)         ! Parameter 2 for d2h allometry (slope, or "m")
      real(r8), allocatable :: allom_d2h3(:)         ! Parameter 3 for d2h allometry (optional)
+     real(r8), allocatable :: allom_eclim(:)        ! Climate parameter for Chave d2h allometry
      real(r8), allocatable :: allom_d2bl1(:)        ! Parameter 1 for d2bl allometry (intercept)
      real(r8), allocatable :: allom_d2bl2(:)        ! Parameter 2 for d2bl allometry (slope)
      real(r8), allocatable :: allom_d2bl3(:)           ! Parameter 3 for d2bl allometry (optional)
@@ -411,6 +411,10 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_c2b'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -484,6 +488,10 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_allom_d2h3'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_allom_eclim'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -807,6 +815,10 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%grperc)
 
+    name = 'fates_c2b'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%c2b)
+
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%prescribed_npp_canopy)
@@ -886,6 +898,10 @@ contains
     name = 'fates_allom_d2h3'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%allom_d2h3)
+
+    name = 'fates_allom_eclim'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_eclim)
 
     name = 'fates_allom_d2bl1'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1431,6 +1447,7 @@ contains
         write(fates_log(),fmt0) 'smpso = ',EDPftvarcon_inst%smpso
         write(fates_log(),fmt0) 'smpsc = ',EDPftvarcon_inst%smpsc
         write(fates_log(),fmt0) 'grperc = ',EDPftvarcon_inst%grperc
+        write(fates_log(),fmt0) 'c2b = ',EDPftvarcon_inst%c2b
         write(fates_log(),fmt0) 'bmort = ',EDPftvarcon_inst%bmort
         write(fates_log(),fmt0) 'hf_sm_threshold = ',EDPftvarcon_inst%hf_sm_threshold
         write(fates_log(),fmt0) 'vcmaxha = ',EDPftvarcon_inst%vcmaxha
@@ -1466,6 +1483,7 @@ contains
         write(fates_log(),fmt0) 'allom_d2h1 = ',EDPftvarcon_inst%allom_d2h1
         write(fates_log(),fmt0) 'allom_d2h2 = ',EDPftvarcon_inst%allom_d2h2
         write(fates_log(),fmt0) 'allom_d2h3 = ',EDPftvarcon_inst%allom_d2h3
+        write(fates_log(),fmt0) 'allom_eclim = ',EDPftvarcon_inst%allom_eclim
         write(fates_log(),fmt0) 'allom_d2bl1 = ',EDPftvarcon_inst%allom_d2bl1
         write(fates_log(),fmt0) 'allom_d2bl2 = ',EDPftvarcon_inst%allom_d2bl2
         write(fates_log(),fmt0) 'allom_d2bl3 = ',EDPftvarcon_inst%allom_d2bl3
