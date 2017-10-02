@@ -249,6 +249,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_ncl_si_age
   integer, private :: ih_npatches_si_age
   integer, private :: ih_zstar_si_age
+  integer, private :: ih_biomass_si_age
 
   ! Indices to hydraulics variables
   
@@ -1267,6 +1268,7 @@ contains
                hio_ncl_si_age          => this%hvars(ih_ncl_si_age)%r82d, &
                hio_npatches_si_age     => this%hvars(ih_npatches_si_age)%r82d, &
                hio_zstar_si_age        => this%hvars(ih_zstar_si_age)%r82d, &
+               hio_biomass_si_age        => this%hvars(ih_biomass_si_age)%r82d, &
                hio_litter_moisture_si_fuel        => this%hvars(ih_litter_moisture_si_fuel)%r82d, &
                hio_cwd_ag_si_cwdsc                  => this%hvars(ih_cwd_ag_si_cwdsc)%r82d, &
                hio_cwd_bg_si_cwdsc                  => this%hvars(ih_cwd_bg_si_cwdsc)%r82d, &
@@ -1398,6 +1400,11 @@ contains
 
                hio_biomass_si_pft(io_si, ft) = hio_biomass_si_pft(io_si, ft) + &
                     (ccohort%n * AREA_INV) * ccohort%b * g_per_kg
+
+               ! update total biomass per age bin
+               hio_biomass_si_age(io_si,cpatch%age_class) = hio_biomass_si_age(io_si,cpatch%age_class) &
+                    + ccohort%b * ccohort%n * AREA_INV
+
 
                ! Site by Size-Class x PFT (SCPF) 
                ! ------------------------------------------------------------------------
@@ -2623,6 +2630,12 @@ contains
          use_default=trim(tempstring),                     &
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_zstar_si_age )
+
+    call this%set_history_var(vname='BIOMASS_BY_AGE', units='m',                   &
+         long='Total Biomass within a given patch age bin (kg C)', &
+         use_default='inactive',                     &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_biomass_si_age )
 
     ! Fire Variables
 
