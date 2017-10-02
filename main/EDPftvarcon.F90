@@ -124,6 +124,14 @@ module EDPftvarcon
      real(r8), allocatable :: allom_agb2(:)         ! Parameter 2 for agb allometry
      real(r8), allocatable :: allom_agb3(:)         ! Parameter 3 for agb allometry
      real(r8), allocatable :: allom_agb4(:)         ! Parameter 3 for agb allometry
+
+     ! Prescribed Physiology Mode Parameters
+     real(r8), allocatable :: prescribed_npp_canopy(:)               ! this is only for the special prescribed_physiology_mode
+     real(r8), allocatable :: prescribed_npp_understory(:)           ! this is only for the special prescribed_physiology_mode
+     real(r8), allocatable :: prescribed_mortality_canopy(:)         ! this is only for the special prescribed_physiology_mode
+     real(r8), allocatable :: prescribed_mortality_understory(:)     ! this is only for the special prescribed_physiology_mode
+     real(r8), allocatable :: prescribed_recruitment(:)              ! this is only for the special prescribed_physiology_mode
+
      
      ! Plant Hydraulic Parameters
      ! ---------------------------------------------------------------------------------------------
@@ -394,6 +402,26 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_prescribed_npp_canopy'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_prescribed_npp_understory'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_prescribed_mortality_canopy'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_prescribed_mortality_understory'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_prescribed_recruitment'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+       
     name = 'fates_alpha_SH'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -758,6 +786,26 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%grperc)
 
+    name = 'fates_prescribed_npp_canopy'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%prescribed_npp_canopy)
+
+    name = 'fates_prescribed_npp_understory'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%prescribed_npp_understory)
+
+    name = 'fates_prescribed_mortality_canopy'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%prescribed_mortality_canopy)
+
+    name = 'fates_prescribed_mortality_understory'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%prescribed_mortality_understory)
+
+    name = 'fates_prescribed_recruitment'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%prescribed_recruitment)
+
     name = 'fates_alpha_SH'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%fire_alpha_SH)
@@ -953,7 +1001,6 @@ contains
     name = 'fates_displar'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%displar)
-
 
   end subroutine Receive_PFT
 

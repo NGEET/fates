@@ -10,6 +10,7 @@ module EDGrowthFunctionsMod
   use FatesGlobals     , only : fates_log
   use EDPftvarcon        , only : EDPftvarcon_inst
   use EDTypesMod       , only : ed_cohort_type, nlevleaf, dinc_ed
+  use FatesConstantsMod        , only : itrue,ifalse
 
   implicit none
   private
@@ -419,6 +420,7 @@ contains
     ! ============================================================================
 
     use EDParamsMod,  only : ED_val_stress_mort
+    use FatesInterfaceMod,  only : hlm_use_ed_prescribed_phys
 
     type (ed_cohort_type), intent(in) :: cohort_in
     real(r8),intent(out) :: bmort ! background mortality : Fraction per year
@@ -428,6 +430,9 @@ contains
     real(r8) :: frac  ! relativised stored carbohydrate
 
     real(r8) :: hf_sm_threshold    ! hydraulic failure soil moisture threshold 
+
+
+    if (hlm_use_ed_prescribed_phys .eq. ifalse) then
 
     ! 'Background' mortality (can vary as a function of density as in ED1.0 and ED2.0, but doesn't here for tractability) 
     bmort = EDPftvarcon_inst%bmort(cohort_in%pft) 
@@ -456,6 +461,16 @@ contains
     endif
 
     !mortality_rates = bmort + hmort + cmort
+
+    else ! i.e. hlm_use_ed_prescribed_phys is true
+       if ( cohort_in%canopy_layer .eq. 1) then
+          bmort = EDPftvarcon_inst%prescribed_mortality_canopy(cohort_in%pft)
+       else
+          bmort = EDPftvarcon_inst%prescribed_mortality_understory(cohort_in%pft)
+       endif
+       cmort = 0._r8
+       hmort = 0._r8
+    endif
 
  end subroutine mortality_rates
 

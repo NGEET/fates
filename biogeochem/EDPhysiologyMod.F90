@@ -31,6 +31,7 @@ module EDPhysiologyMod
   use FatesGlobals          , only : fates_log
   use FatesGlobals          , only : endrun => fates_endrun
   use EDParamsMod           , only : fates_mortality_disturbance_fraction
+  use FatesConstantsMod        , only : itrue,ifalse
 
   implicit none
   private
@@ -761,6 +762,7 @@ contains
     !
     ! !USES:
     use EDGrowthFunctionsMod , only : Bleaf, dDbhdBd, dhdbd, hite, mortality_rates,dDbhdBl
+    use FatesInterfaceMod, only : hlm_use_ed_prescribed_phys
     use EDLoggingMortalityMod, only : LoggingMortality_frac
 
     !
@@ -837,6 +839,14 @@ contains
     currentCohort%npp_acc_hold  = currentCohort%npp_acc  * hlm_days_per_year 
     currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * hlm_days_per_year
     currentCohort%resp_acc_hold = currentCohort%resp_acc * hlm_days_per_year
+
+    if (hlm_use_ed_prescribed_phys .eq. itrue) then
+       if (currentCohort%canopy_layer .eq. 1) then
+          currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_canopy(currentCohort%pft) * currentCohort%c_area / currentCohort%n
+       else
+          currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_understory(currentCohort%pft) * currentCohort%c_area / currentCohort%n
+       endif
+    endif
 
     currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
 
@@ -1039,6 +1049,7 @@ contains
     !
     ! !USES:
     use EDGrowthFunctionsMod, only : bdead,dbh, Bleaf
+    use FatesInterfaceMod, only : hlm_use_ed_prescribed_phys
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
@@ -1065,15 +1076,14 @@ contains
             + EDpftvarcon_inst%allom_latosa_int(ft)*temp_cohort%hite)
        temp_cohort%bstore      = EDPftvarcon_inst%cushion(ft)*(temp_cohort%balive/ (1.0_r8 + EDPftvarcon_inst%allom_l2fr(ft) &
             + EDpftvarcon_inst%allom_latosa_int(ft)*temp_cohort%hite))
-       temp_cohort%n           = currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day &
-            / (temp_cohort%bdead+temp_cohort%balive+temp_cohort%bstore)
 
- !      if (t == 1)then
- !         write(fates_log(),*) 'filling in cohorts where there are none left; this will break carbon balance', &
- !              currentPatch%patchno,currentPatch%area
- !         temp_cohort%n = 0.1_r8*currentPatch%area
- !         write(fates_log(),*) 'cohort n',ft,temp_cohort%n
- !      endif
+       if (hlm_use_ed_prescribed_phys .eq. ifalse) then
+          temp_cohort%n           = currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day &
+               / (temp_cohort%bdead+temp_cohort%balive+temp_cohort%bstore)
+       else
+          ! prescribed recruitment rates. number per sq. meter per year
+          temp_cohort%n        = currentPatch%area * EDPftvarcon_inst%prescribed_recruitment(ft) * hlm_freq_day
+       endif
 
        temp_cohort%laimemory = 0.0_r8     
        if (EDPftvarcon_inst%season_decid(temp_cohort%pft) == 1.and.currentSite%status == 1)then
