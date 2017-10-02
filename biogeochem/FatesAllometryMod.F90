@@ -60,6 +60,14 @@
 ! dbh_max, real, the diameter associated with maximum height [cm]
 !               diagnosed from maxh using non-asymptotic functions
 !
+! Some def
+!
+!
+!
+!
+!
+!
+!
 !
 ! Initial Implementation: Ryan Knox July 2017
 !
@@ -83,6 +91,7 @@ module FatesAllometryMod
   public :: h_allom       ! Generic diameter to height wrapper
   public :: bag_allom     ! Generic AGB wrapper
   public :: blmax_allom   ! Generic maximum leaf biomass wrapper
+  public :: bleaf         ! Generic actual leaf biomass wrapper
   public :: bsap_allom    ! Generic sapwood wrapper
   public :: bcr_allom     ! Generic coarse root wrapper
   public :: bfrmax_allom  ! Generic maximum fine root biomass wrapper
@@ -90,6 +99,8 @@ module FatesAllometryMod
 
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
+
+  logical, parameter :: allow_hcapping = .true.
 
 
 contains
@@ -114,10 +125,10 @@ contains
   subroutine h2d_allom(h,ipft,d,dddh)
 
     
-    real(r8),intent(in)    :: h     ! height of plant [m]
-    integer(i4),intent(in) :: ipft  ! PFT index
-    real(r8),intent(out)   :: d     ! plant diameter [cm]
-    real(r8),intent(out)   :: dddh  ! change in diameter per height [cm/m]
+    real(r8),intent(in)           :: h     ! height of plant [m]
+    integer(i4),intent(in)        :: ipft  ! PFT index
+    real(r8),intent(out)          :: d     ! plant diameter [cm]
+    real(r8),intent(out),optional :: dddh  ! change in diameter per height [cm/m]
 
     real(r8) :: h_sap
     real(r8) :: dhdd_sap
@@ -174,7 +185,7 @@ contains
      real(r8),intent(in)     :: d     ! plant diameter [cm]
      integer(i4),intent(in)  :: ipft  ! PFT index
      real(r8),intent(out)    :: h     ! plant height [m]
-     real(r8),intent(out)    :: dhdd  ! change in height per diameter [m/cm]
+     real(r8),intent(out),optional :: dhdd  ! change in height per diameter [m/cm]
 
      ! Locals
      integer                 :: allom_hmode
@@ -239,7 +250,6 @@ contains
           agb_frac => EDPftvarcon_inst%allom_agb_frac(ipft), &
           allom_amode => EDPftvarcon_inst%allom_amode(ipft))
 
-
       select case(allom_amode)
       case (1) !"chave14") 
          call dh2bag_chave2014(d,h,ipft,p1,p2,wood_density,c2b,bag,dbagdd)
@@ -270,112 +280,102 @@ contains
     real(r8),intent(out)   :: blmax     ! plant leaf biomass [kg]
     real(r8),intent(out)   :: dblmaxdd  ! change leaf bio per diameter [kgC/cm]
 
-    integer :: lallom_mode
     real(r8) :: p1
     real(r8) :: p2
     real(r8) :: p3
-    real(r8) :: blmax_sap
-    real(r8) :: dblmaxdd_sap
-    real(r8) :: blmax_adult
-    real(r8) :: dblmaxdd_adult
 
     associate( &
-         d_adult  => EDPftvarcon_inst%d_adult(ipft),  &
-         d_sap    => EDPftvarcon_inst%d_sap(ipft),    &
-         dbh_maxh => EDPftvarcon_inst%max_dbh(ipft),  &
-         rho      => EDPftvarcon_inst%wood_density(ipft), &
-         c2b      => EDPftvarcon_inst%c2b(ipft))
+          dbh_maxh => EDPftvarcon_inst%max_dbh(ipft),      &
+          rho      => EDPftvarcon_inst%wood_density(ipft), &
+          c2b      => EDPftvarcon_inst%c2b(ipft),          &
+          allom_lmode => EDPftvarcon_inst%lallom_sap_mode(ipft))
+      
+      p1 = EDPftvarcon_inst%allom_d2bl1(ipft)
+      p2 = EDPftvarcon_inst%allom_d2bl2(ipft)
+      p3 = EDPftvarcon_inst%allom_d2bl3(ipft)
 
-      if ( d<=d_sap .or. d>=d_adult) then
-         
-         if(d<=d_sap) then
-            p1 = EDPftvarcon_inst%d2bl1_sap(ipft)
-            p2 = EDPftvarcon_inst%d2bl2_sap(ipft)
-            p3 = EDPftvarcon_inst%d2bl3_sap(ipft)
-            allom_lmode = EDPftvarcon_inst%lallom_sap_mode(ipft)
-         else
-            p1 = EDPftvarcon_inst%d2bl1_ad(ipft)
-            p2 = EDPftvarcon_inst%d2bl2_ad(ipft)
-            p3 = EDPftvarcon_inst%d2bl3_ad(ipft)
-            allom_lmode = EDPftvarcon_inst%lallom_ad_mode(ipft)
-         end if
-         
-         select case(allom_lmode)
-         case(1) !"salda")
-            call d2blmax_salda(d,p1,p2,p3,rho,dbh_maxh,c2b,blmax,dblmaxdd)
-         case(2) !"2par_pwr")
-            call d2blmax_2pwr(d,p1,p2,c2b,blmax,dblmaxdd)
-         case(3) ! dh2blmax_2pwr
-            call dh2blmax_2pwr(d,ipft,p1,p2,c2b,blmax,dblmaxdd)
-         case DEFAULT
-            write(fates_log(),*) 'An undefined leaf allometry was specified: ', &
-                  allom_lmode
-            write(fates_log(),*) 'Aborting'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end select
-         
-      else
-         
-         p1 = EDPftvarcon_inst%d2bl1_sap(ipft)
-         p2 = EDPftvarcon_inst%d2bl2_sap(ipft)
-         p3 = EDPftvarcon_inst%d2bl3_sap(ipft)
-         allom_lmode = EDPftvarcon_inst%lallom_sap_mode(ipft)
-         
-         select case(allom_lmode)
-         case(1) !"salda")
-            call d2blmax_salda(d_sap,p1,p2,p3,rho,dbh_maxh,c2b,blmax_sap,dblmaxdd_sap)
-         case(2) !"2par_pwr")
-            call d2blmax_2pwr(d_sap,p1,p2,c2b,blmax_sap,dblmaxdd_sap)
-         case(3) ! dh2blmax_2pwr
-            call dh2blmax_2pwr(d_sap,ipft,p1,p2,c2b,blmax_sap,dblmaxdd_sap)
-         case DEFAULT
-            write(fates_log(),*) 'An undefined leaf allometry was specified: ', &
-                  allom_lmode
-            write(fates_log(),*) 'Aborting'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end select
-         
-         p1 = EDPftvarcon_inst%d2bl1_ad(ipft)
-         p2 = EDPftvarcon_inst%d2bl2_ad(ipft)
-         p3 = EDPftvarcon_inst%d2bl3_sap(ipft)
-         allom_lmode = EDPftvarcon_inst%lallom_ad_mode(ipft)
-         
-         select case(allom_lmode)
-         case(1) !"salda")
-            call d2blmax_salda(d_adult,p1,p2,p3,rho,dbh_maxh,c2b,blmax_adult,dblmaxdd_adult)
-         case(2) !"2par_pwr")
-            call d2blmax_2pwr(d_adult,p1,p2,c2b,blmax_adult,dblmaxdd_adult)
-         case(3) ! dh2blmax_2pwr
-            call dh2blmax_2pwr(d_adult,ipft,p1,p2,c2b,blmax_adult,dblmaxdd_adult)
-         case DEFAULT
-            write(fates_log(),*) 'An undefined leaf allometry was specified: ',allom_lmode
-            write(fates_log(),*) 'Aborting'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end select     
-         
-         ! Use cubic spline interolation from d_sap to d_adult
-         call cspline(d_sap,d_adult,blmax_sap,blmax_adult,dblmaxdd_sap,dblmaxdd_adult,d,blmax,dblmaxdd)
-
-      end if
+      select case(allom_lmode)
+      case(1) !"salda")
+         call d2blmax_salda(d,p1,p2,p3,rho,dbh_maxh,c2b,blmax,dblmaxdd)
+      case(2) !"2par_pwr")
+         call d2blmax_2pwr(d,p1,p2,c2b,blmax,dblmaxdd)
+      case(3) ! dh2blmax_2pwr
+         call dh2blmax_2pwr(d,ipft,p1,p2,c2b,blmax,dblmaxdd)
+      case DEFAULT
+         write(fates_log(),*) 'An undefined leaf allometry was specified: ', &
+               allom_lmode
+         write(fates_log(),*) 'Aborting'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end select
     end associate
     return
   end subroutine blmax_allom
+
+  ! =====================================================================================
+
+  subroutine bleaf(d,h,ipft,canopy_trim,bleaf,dbleafdd)
+     
+    ! -------------------------------------------------------------------------
+    ! This subroutine calculates the actual target bleaf
+    ! based on trimming and sla scaling. Because trimming
+    ! is not allometry and rather an emergent property,
+    ! this routine is not name-spaces with allom_
+    ! -------------------------------------------------------------------------
+
+    real(r8),intent(in)    :: d         ! plant diameter [cm]
+    real(r8),intent(in)    :: h         ! plant height [m]
+    integer(i4),intent(in) :: ipft      ! PFT index
+    real(r8),intent(out)   :: bleaf     ! plant leaf biomass [kg]
+    real(r8),intent(out),optional :: dbleafdd  ! change leaf bio per diameter [kgC/cm]
+
+    real(r8) :: blmax
+    real(r8) :: dblmaxdd
+    real(r8) :: slascaler
+
+    call blmax_allom(d,h,ipft,blmax,dblmaxdd)
+    
+    ! slascaler seems to be redundant with the slope parameter "a"
+    ! in our leaf allometry equations (rgk oct-2017)
+    ! maybe we should remove this?
+
+    slascaler = EDPftvarcon_inst%allom_d2bl_slascaler(ipft) / &
+                EDPftvarcon_inst%slatop(ipft)
+
+    bleaf = blmax * slascaler
+    
+    ! -------------------------------------------------------------------------
+    ! Adjust for canopies that have become so deep that their bottom layer is 
+    ! not producing any carbon... 
+    ! nb this will change the allometry and the effects of this remain untested
+    ! RF. April 2014  
+    ! -------------------------------------------------------------------------
+    
+    bleaf = bleaf * canopy_trim
+
+
+    return
+ end subroutine bleaf
+
 
   ! ============================================================================
   ! Generic sapwood biomass interface
   ! ============================================================================
   
-  subroutine bsap_allom(d,h,blmax,dblmaxdd,dhdd,ipft,bsap,dbsapdd)
+  subroutine bsap_allom(d,ipft,bsap,dbsapdd)
 
-    
-    real(r8),intent(in)    :: d         ! plant diameter [cm]
-    real(r8),intent(in)    :: h         ! plant height [m]
-    real(r8),intent(in)    :: blmax     ! plant leaf biomass [kgC]
-    real(r8),intent(in)    :: dblmaxdd  ! chage in blmax per diam [kgC/cm]
-    real(r8),intent(in)    :: dhdd      ! change in height per diameter [m/cm]
-    integer(i4),intent(in) :: ipft      ! PFT index
-    real(r8),intent(out)   :: bsap      ! plant leaf biomass [kgC]
-    real(r8),intent(out)   :: dbsapdd   ! change leaf bio per d [kgC/cm]
+    real(r8),intent(in)           :: d         ! plant diameter [cm]
+    integer(i4),intent(in)        :: ipft      ! PFT index
+    real(r8),intent(out)          :: bsap      ! plant leaf biomass [kgC]
+    real(r8),intent(out),optional :: dbsapdd   ! change leaf bio per d [kgC/cm]
+
+    real(r8)    :: h         ! plant height [m]
+    real(r8)    :: blmax     ! plant leaf biomass [kgC]
+    real(r8)    :: dblmaxdd  ! chage in blmax per diam [kgC/cm]
+    real(r8)    :: dhdd      ! change in height per diameter [m/cm]
+
+
+    call h_allom(d,ipft,h,dhdd)
+    call blmax_allom(d,h,ipft,blmax,dblmaxdd)
 
     select case(EDPftvarcon_inst%allom_smode(ipft))
        ! ---------------------------------------------------------------------
@@ -399,15 +399,19 @@ contains
   ! Generic coarse root biomass interface
   ! ============================================================================
   
-  subroutine bcr_allom(d,bag,dbagdd,ipft,bcr,dbcrdd)
+  subroutine bcr_allom(d,h,ipft,bcr,dbcrdd)
 
     
-    real(r8),intent(in)    :: d         ! plant diameter [cm]
-    real(r8),intent(in)    :: bag       ! above ground biomass [kgC]
-    real(r8),intent(in)    :: dbagdd    ! change in agb per diameter [kgC/cm]
-    integer(i4),intent(in) :: ipft      ! PFT index
-    real(r8),intent(out)   :: bcr       ! coarse root biomass [kgC]
-    real(r8),intent(out)   :: dbcrdd    ! change croot bio per diam [kgC/cm]
+    real(r8),intent(in)           :: d         ! plant diameter [cm]
+    real(r8),intent(in)           :: h         ! plant height [m]
+    integer(i4),intent(in)        :: ipft      ! PFT index
+    real(r8),intent(out)          :: bcr       ! coarse root biomass [kgC]
+    real(r8),intent(out),optional :: dbcrdd    ! change croot bio per diam [kgC/cm]
+
+    real(r8)    :: bag       ! above ground biomass [kgC]
+    real(r8)    :: dbagdd    ! change in agb per diameter [kgC/cm]
+
+    call bag_allom(d,h,ipft,bag,dbadd)
 
     select case(EDPftvarcon_inst%allom_cmode(ipft))
     case(1) !"constant")
@@ -451,31 +455,43 @@ contains
   ! Dead biomass interface
   ! ============================================================================
 
-  subroutine bdead_allom(bag,bcr,blmax,bsap,dbagdd,dbcrdd,dblmaxdd,dbsapdd, &
-       bdead,dbdeaddd)
+  subroutine bdead_allom(bag,bcr,bsap,bdead, &
+                         dbagdd,dbcrdd,dbsapdd,dbdeaddd)
 
     
     real(r8),intent(in)  :: bag       ! agb [kgC]
     real(r8),intent(in)  :: bcr       ! coarse root biomass [kgC]
-    real(r8),intent(in)  :: blmax     ! max leaf biomass [kgC]
     real(r8),intent(in)  :: bsap      ! sapwood biomass [kgC]
-
-    real(r8),intent(in)  :: dbagdd    ! change in agb per d [kgC/cm]
-    real(r8),intent(in)  :: dbcrdd    ! change in croot per d [kgC/cm]
-    real(r8),intent(in)  :: dblmaxdd  ! change in blmax per d [kgC/cm]
-    real(r8),intent(in)  :: dbsapdd   ! change in bsap per d [kgC/cm]
-    
     real(r8),intent(out) :: bdead     ! dead biomass (heartw/struct) [kgC]
-    real(r8),intent(out) :: dbdeaddd  ! change in bdead per d [kgC/cm]
+    
+    real(r8),intent(in),optional  :: dbagdd    ! change in agb per d [kgC/cm]
+    real(r8),intent(in),optional  :: dbcrdd    ! change in croot per d [kgC/cm]
+    real(r8),intent(in),optional  :: dbsapdd   ! change in bsap per d [kgC/cm]
+    real(r8),intent(out),optional :: dbdeaddd  ! change in bdead per d [kgC/cm]
 
+    ! If testing b4b with older versions, do not remove sapwood
+    ! Our old methods with saldarriaga did not remove sapwood from the
+    ! bdead pool.  But newer allometries are providing total agb
+    ! which includes sapwood. Although a small quantity, it needs to be removed
+    ! from the agb pool.
+    logical,parameter :: test_b4b = .true.
+    
     ! bdead is diagnosed as the mass balance from all other pools
     ! and therefore, no options are necessary
-    ! We are ignoring blmax right now, because it is insignificant in large
-    ! trees and may cause negatives in treelets and saplings
     
-    !bdead = bag+bcr-blmax-bsap
-    bdead = bag+bcr-bsap
-    dbdeaddd = dbagdd+dbcrdd-dbsapdd
+    if(test_b4b) then
+       bdead = bag+bcr
+    else
+       bdead = bag+bcr-bsap
+    end if
+
+    if(present(dbagdd) .and. present(dbcrdd) .and. present(dbsapdd))then
+       if(test_b4b) then
+          dbdeaddd = dbagdd+dbcrdd
+       else
+          dbdeaddd = dbagdd+dbcrdd-dbsapdd
+       end if
+    end if
 
     return
   end subroutine bdead_allom
@@ -723,34 +739,25 @@ contains
     real(r8)             :: dddh_eff  ! effective diameter to height differential
     real(r8)             :: ddeffdd   ! effective diameter to diameter differential
 
-    associate( &
-         d_adult  => EDPftvarcon_inst%d_adult(ipft))
 
-      
-      
-      ! This call is needed to calculate the effective dbh
-      ! Note that this is only necessary for adult plants
-      ! Because only adult plants are nearing their asymptotic heights
-      if (d>=d_adult) then
-
-         ! This call is needed to calculate the rate of change of
-         ! the actual h with d
-         call h_allom(d,ipft,h,dhdd)
-
-         call h2d_allom(h,ipft,dbh_eff,dddh_eff)
+    ! This call is needed to calculate the rate of change of
+    ! the actual h with d
+    call h_allom(d,ipft,h,dhdd)
+    call h2d_allom(h,ipft,dbh_eff,dddh_eff)
          
-         ! This is the rate of change of the effective diameter
-         ! with respect to the actual diameter (1.0 in non-height capped)
-         ddeffdd  = dddh_eff * dhdd
-      else
-         ! In this case we assume that dbh_eff == d
-         ! because we are not in some forced asymptotic portion of the curve
-         dbh_eff = d
-         ddeffdd = 1.0_r8
-      end if
-      blmax    = p1*dbh_eff**p2/c2b
-      dblmaxdd = p1*p2*dbh_eff**(p2-1.0_r8) / c2b * ddeffdd
-    end associate
+    ! This is the rate of change of the effective diameter
+    ! with respect to the actual diameter (1.0 in non-height capped)
+    ddeffdd  = dddh_eff * dhdd
+    blmax    = p1*dbh_eff**p2/c2b
+
+    ! If this plant has reached its height cap, then it is not
+    ! adding leaf mass.  In this case, dhdd = 0
+    if(dhdd>0.0_r8) then
+       dblmaxdd = p1*p2*dbh_eff**(p2-1.0_r8) / c2b * ddeffdd
+    else
+       dblmaxdd = 0.0_r8
+    end if
+    
     return
   end subroutine dh2blmax_2pwr
 
@@ -801,67 +808,22 @@ contains
     
     real(r8),intent(out) :: h     ! plant height [m]
     real(r8),intent(out) :: dhdd  ! change in height per diameter [m/cm]
-
-    real(r8) :: dbh0,fl,ae
-    real(r8) :: dhpdd
-
-    real(r8),parameter :: ddbh = 0.1_r8 ! 1-mm 
-    real(r8),parameter :: k    = 0.25_r8
-
-    ! For the non derivative solution, if the tree is large and
-    ! close to any cap that is imposed, then we need to perform a
-    ! step-integration because the asymptotic function makes the indefinite
-    ! integral incredibly messy. Thus we use an Euler step, yes ugly,
-    ! but it is a simple function so don't over-think it
-
-    if (d>0.5_r8*dbh_maxh) then
-       dbh0=0.5_r8*dbh_maxh
-       h  = exp( p1 - eclim + p2*log(dbh0) + p3*log(dbh0)**2.0_r8 )
-       do while (dbh0<d) 
-          fl = 1.0_r8/(1.0_r8+exp(-k*(dbh0-dbh_maxh)))
-          ae = p1-eclim
-          dhpdd = exp(ae)* & 
-                ( p3*2.0_r8*dbh0**(p2-1.0_r8)*log(dbh0)* &
-                exp(p3*log(dbh0)**2.0_r8) + p2*dbh0**(p2-1.0_r8)* &
-                exp(p3*log(dbh0)**2.0_r8) )
-          dhdd = dhpdd*(1.0_r8-fl)
-          dbh0 = dbh0+ddbh
-          h    = h+ddbh*dhdd
-       end do
+    real(r8) :: p1e
+    
+    p1e = p1-eclim
+    if(d>=dbh_max .and. hallow_hcapping ) then
+       h    = exp( p1e + p2*log(dbh_maxh) + p3*log(dbh_maxh)**2.0 )
+       dhdd = 0.0_r8
     else
-       h  = exp( p1 - eclim + p2*log(d) + p3*log(d)**2.0 )
+       h    = exp( p1e + p2*log(d) + p3*log(d)**2.0 )
+       dhdd = exp(p1e) * ( 2.0_r8*p3*d**(p2-1.0_r8+p3*log(d))*log(d) + &
+                        p2*d**(p2-1.0_r8+p3*log(d)) )
     end if
-
-      ! Deriviative
-
-      ! Find dbh_max where the non asymoted h crosses h_max
-      ! Find the root for 0 = a + bx + cx**2
-      ! where:  a = a1-E_chave-log(h_max)
-      !         b = a2
-      !         c = a3
-      !         dbh_max = exp(x)
-      ! solution: x = (-(br**2 - 4*ar*cr)**(1/2)-br)/(2*cr)
-      !           x = (+(br**2 - 4*ar*cr)**(1/2)-br)/(2*cr)
-      !           x1 = exp( (-(b**2 - 4*a*c)**(1/2)-b)/(2*c))
-      !    dbh_maxh = exp(((p2**2 - ...
-      !        4*(-log(h_max)+p1-eclim)*p3)**(1/2)-p2)/(2*p3))
-      ! Logistic function
-      fl = 1.0_r8/(1.0_r8+exp(-k*(d-dbh_maxh)))
-      ! Derivative of logistic function wrt d
-      !dfldd = (k.*exp(-k.*(dbh+offset-dbh_max))) ...
-      !          /(1+exp(-k*(dbh+offset-dbh_max)))**2
-      ae = p1-eclim
-      dhpdd = exp(ae)*( p3*2.0_r8*d**(p2-1.0_r8)*log(d)* &
-            exp(p3*log(d)**2.0_r8) + p2*d**(p2-1.0_r8)* &
-            exp(p3*log(d)**2.0_r8) )
-      dhdd = dhpdd*(1.0_r8-fl)
-
-      return
-
+    return
   end subroutine d2h_chave2014
 
   ! ===========================================================================
-
+  
   subroutine d2h_poorter2006(d,p1,p2,p3,h,dhdd)
     
     ! "d2h_poorter2006"
@@ -950,36 +912,13 @@ contains
     real(r8),intent(out)    :: h        ! plant height [m]
     real(r8),intent(out)    :: dhdd     ! change in height per diameter [m/cm]
 
-    real(r8) :: dbh0,fl
-
-    real(r8),parameter :: ddbh = 0.1_r8 ! 1-mm 
-    real(r8),parameter :: k    = 0.25_r8  ! sharpness coef for logistic
-
-    ! For the non derivative solution, if the tree is large and
-    ! close to any cap that is imposed, then we need to perform a
-    ! step-integration because the asymptotic function makes the indefinite
-    ! integral incredibly messy. Thus we use an Euler step, yes ugly.
-    
-    if (d>0.5_r8*dbh_maxh) then
-       dbh0=0.5_r8*dbh_maxh
-       h = p1*dbh0**p2
-       do while(dbh0<d)
-          fl = 1.0_r8/(1.0_r8+exp(-k*(dbh0-dbh_maxh)))
-          dhdd = (p2*p1)*dbh0**(p2-1.0_r8)*(1.0_r8-fl)
-          h    = h+ddbh*dhdd
-          dbh0 = dbh0+ddbh
-       end do
+    if(d>=dbh_maxh .and. hallow_hcapping) then
+       h    = p1*dbh_maxh**p2
+       dhdd = 0.0_r8
     else
-       h = p1*d**p2
+       h    = p1*d**p2
+       dhdd = (p2*p1)*d**(p2-1.0_r8)
     end if
-    
-    ! The diameter at maximum height
-    !    dbh_maxh = (maxh/p1)**(1/p2)
-    ! Logistic function
-    fl = 1.0_r8/(1.0_r8+exp(-k*(d-dbh_maxh)))
-    ! Derivative of logistic function wrt d
-    dhdd = (p2*p1)*d**(p2-1.0_r8)*(1.0_r8-fl)
-
     return
  end subroutine d2h_2pwr
 
@@ -996,7 +935,7 @@ contains
     
     !p1 = 0.64
     !p2 = 0.37
-    if(d>=dbh_maxh) then
+    if(d>=dbh_maxh .and. hallow_hcapping) then
        h    = 10.0_r8**(log10(dbh_maxh)*p1+p2)
        dhdd = 0.0_r8
     else
@@ -1160,10 +1099,15 @@ contains
   subroutine dh2bag_salda(d,h,ipft,d2bag1,d2bag1,d2bag1,d2bag1, &
                           wood_density,c2b,allom_agb_frac,bag,dbagdd)
 
-    ! In the interest of reducing the number of model parameters, and since
-    ! Saldarriaga 1988 seems as though it is being deprecated, we will use
-    ! hard-wired parameter for dh2bag_salda, which would had required 4
-    ! variable parameters.
+    ! --------------------------------------------------------------------
+    ! Calculate stem biomass from height(m) dbh(cm) and wood density(g/cm3)
+    ! default params using allometry of J.G. Saldarriaga et al 1988 - Rio Negro                                  
+    ! Journal of Ecology vol 76 p938-958  
+    ! Saldarriaga 1988 provided calculations on total dead biomass
+    ! So here, we calculate total dead, and then call and remove
+    ! coarse root and sapwood. We ignore fineroot and leaf 
+    ! in the calculations
+    ! --------------------------------------------------------------------
 
     
     real(r8),intent(in)  :: d             ! plant diameter [cm]
@@ -1183,23 +1127,23 @@ contains
     real(r8) :: term1,term2,term3,hj,dhdd
 
 
-   
+    bag = allom_agb_frac*d2bag1*(h**d2bag2)*(d**d2bag3)*(wood_density**d2bag4)
+    
+    ! Add sapwood calculation to this
 
+    ! bag     = a1 * h**a2 * d**a3 * r**a4
+    ! dbag/dd = a1*r**a4 * d/dd (h**a2*d**a3)
+    ! dbag/dd = a1*r**a4 * [ d**a3 *d/dd(h**a2) + h**a2*d/dd(d**a3) ]
+    ! dbag/dd = a1*r**a4 * [ d**a3 * a2*h**(a2-1)dh/dd + h**a2*a3*d**(a3-1)]
+    
+    term1 = allom_agb_frac*d2bag1*(wood_density**d2bag4)
+    term2 = (h**d2bag2)*d2bag3*d**(d2bag3-1.0_r8)
+    
+    call h_allom(d,ipft,hj,dhdd)
+    term3 = d2bag2*h**(d2bag2-1)*(d**d2bag3)*dhdd
+    dbagdd   = term1*(term2+term3)
 
-      bag = allom_agb_frac*d2bag1*(h**d2bag2)*(d**d2bag3)*(wood_density**d2bag4)
-
-      ! bag     = a1 * h**a2 * d**a3 * r**a4
-      ! dbag/dd = a1*r**a4 * d/dd (h**a2*d**a3)
-      ! dbag/dd = a1*r**a4 * [ d**a3 *d/dd(h**a2) + h**a2*d/dd(d**a3) ]
-      ! dbag/dd = a1*r**a4 * [ d**a3 * a2*h**(a2-1)dh/dd + h**a2*a3*d**(a3-1)]
-      
-      term1 = d2bag1*(wood_density**d2bag4)
-      term2 = (h**d2bag2)*d2bag3*d**(d2bag3-1.0_r8)
-      
-      call h_allom(d,ipft,hj,dhdd)
-      term3 = d2bag2*h**(d2bag2-1)*(d**d2bag3)*dhdd
-      dbagdd   = term1*(term2+term3)
-      return
+    return
     end associate
 
   end subroutine dh2bag_salda
@@ -1223,16 +1167,16 @@ contains
     real(r8),intent(out) :: de      ! effective plant diameter [cm]
     real(r8),intent(out) :: ddedh   ! effective change in d per height [cm/m]
 
-    real(r8) :: ar, eroot, dbh1,dhpdd
+    real(r8) :: p1e, eroot, dbh1,dhpdd
 
-    ar    = p1-eclim
-    eroot = (-p2 + sqrt(p2**2.0_r8 + 4.0_r8*log(h*exp(-ar))*p3)) & 
+    p1e   = p1-eclim
+    eroot = (-p2 + sqrt(p2**2.0_r8 + 4.0_r8*log(h*exp(-p1e))*p3)) & 
          /(2.0_r8*p3)
 
     de = exp(eroot)
     
     ! Invert the derivative at d without asymtote
-    dhpdd = exp(ar)*( p3*2.0_r8*de**(p2-1.0_r8)*log(de)* &
+    dhpdd = exp(p1e)*( p3*2.0_r8*de**(p2-1.0_r8)*log(de)* &
          exp(p3*log(de)**2) + p2*de**(p2-1.0_r8)* &
          exp(p3*log(de)**2.0_r8) )
     
@@ -1240,7 +1184,7 @@ contains
     
     !    term1 = exp(-p2/(2*p3))
     !    term2 = exp(p2**2/(4*p3**2))
-    !    term3 = exp(-ar/p3)
+    !    term3 = exp(-p1e/p3)
     !    term4 = h**(1/p3-1.0_r8)/(p3)
     !    d   = term1*term2*term3*term4
     return

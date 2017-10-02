@@ -35,18 +35,18 @@ module EDGrowthFunctionsMod
 
 contains
 
-  real(r8) function Dbh( cohort_in )
+!  real(r8) function Dbh( cohort_in )
 
-    ! ============================================================================
-    !  Creates diameter in cm as a function of height in m
-    !  Height(m) diameter(cm) relationships. O'Brien et al  - for 56 patch at BCI                                    
-    ! ============================================================================
+!    ! ============================================================================
+!    !  Creates diameter in cm as a function of height in m
+!    !  Height(m) diameter(cm) relationships. O'Brien et al  - for 56 patch at BCI                                    
+!    ! ============================================================================
 
-    type(ed_cohort_type), intent(in) :: cohort_in
+!    type(ed_cohort_type), intent(in) :: cohort_in
 
     !FIX(SPM,040214) - move to param file
-    real(r8) :: m ! parameter of allometric equation
-    real(r8) :: c ! parameter of allometric equation
+!    real(r8) :: m ! parameter of allometric equation
+!    real(r8) :: c ! parameter of allometric equation
 
     m = EDPftvarcon_inst%allom_d2h1(cohort_in%pft)
     c = EDPftvarcon_inst%allom_d2h2(cohort_in%pft)

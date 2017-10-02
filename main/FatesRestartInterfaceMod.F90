@@ -1355,12 +1355,12 @@ contains
      use EDTypesMod,           only : maxpft
      use EDTypesMod,           only : area
      use EDPatchDynamicsMod,   only : zero_patch
-     use EDGrowthFunctionsMod, only : Dbh
      use EDCohortDynamicsMod,  only : create_cohort
      use EDInitMod,            only : zero_site
      use EDInitMod,            only : init_site_vars
      use EDPatchDynamicsMod,   only : create_patch
-     use EDPftvarcon,            only : EDPftvarcon_inst
+     use EDPftvarcon,          only : EDPftvarcon_inst
+     use FatesAllometryMod,    only : h2d_allom
 
      ! !ARGUMENTS:
      class(fates_restart_interface_type) , intent(inout) :: this
@@ -1477,10 +1477,9 @@ contains
                 endif
 
                 temp_cohort%hite = 1.25_r8
-                ! the dbh function should only take as an argument, the one
-                ! item it needs, not the entire cohort...refactor
-                temp_cohort%dbh = Dbh(temp_cohort) + 0.0001_r8*ft
-                
+                ! Solve for diameter from height
+                call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
+
                 if (DEBUG) then
                    write(fates_log(),*) 'EDRestVectorMod.F90::createPatchCohortStructure call create_cohort '
                 end if
