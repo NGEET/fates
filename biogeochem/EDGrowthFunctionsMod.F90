@@ -107,12 +107,10 @@ contains
     real(r8) :: dbh2bl_a 
     real(r8) :: dbh2bl_b
     real(r8) :: dbh2bl_c
-    real(r8) :: slascaler ! changes the target biomass according to the SLA
 
     dbh2bl_a  =  EDPftvarcon_inst%allom_d2bl1(cohort_in%pft)
     dbh2bl_b  =  EDPftvarcon_inst%allom_d2bl2(cohort_in%pft)
     dbh2bl_c  =  EDPftvarcon_inst%allom_d2bl3(cohort_in%pft)
-    slascaler = EDPftvarcon_inst%allom_d2bl_slascaler(cohort_in%pft)/EDPftvarcon_inst%slatop(cohort_in%pft)
     
     if(cohort_in%dbh < 0._r8.or.cohort_in%pft == 0.or.cohort_in%dbh > 1000.0_r8)then
        write(fates_log(),*) 'problems in bleaf',cohort_in%dbh,cohort_in%pft
@@ -125,8 +123,6 @@ contains
             EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bl_c
     endif  
 
-    bleaf = bleaf * slascaler
-    
     !write(fates_log(),*) 'bleaf',bleaf, slascaler,cohort_in%pft
     
     !Adjust for canopies that have become so deep that their bottom layer is not producing any carbon... 
