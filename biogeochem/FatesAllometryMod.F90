@@ -95,6 +95,7 @@ module FatesAllometryMod
   public :: bsap_allom    ! Generic sapwood wrapper
   public :: bcr_allom     ! Generic coarse root wrapper
   public :: bfrmax_allom  ! Generic maximum fine root biomass wrapper
+  public :: bfineroot     ! Generic actual fine root biomass wrapper
   public :: bdead_allom   ! Generic bdead wrapper
 
   character(len=*), parameter, private :: sourcefile = &
@@ -340,8 +341,6 @@ contains
 
     slascaler = EDPftvarcon_inst%allom_d2bl_slascaler(ipft) / &
                 EDPftvarcon_inst%slatop(ipft)
-
-    bleaf = blmax * slascaler
     
     ! -------------------------------------------------------------------------
     ! Adjust for canopies that have become so deep that their bottom layer is 
@@ -350,8 +349,8 @@ contains
     ! RF. April 2014  
     ! -------------------------------------------------------------------------
     
-    bleaf = bleaf * canopy_trim
-
+    bleaf = blmax * slascaler * canopy_trim
+    dbleafdd = dblmaxdd * slascaler * canopy_trim
 
     return
  end subroutine bleaf
@@ -426,30 +425,47 @@ contains
   end subroutine bcr_allom
 
   ! ============================================================================
-  ! Generic maximum fine root biomass interface
+  ! Fine root biomass allometry wrapper
   ! ============================================================================
 
-  subroutine bfrmax_allom(d,blmax,dblmaxdd,ipft,bfrmax,dbfrmaxdd)
+  subroutine bfineroot(d,h,ipft,canopy_trim,bfineroot,dbfrdd)
 
-    
+    ! -------------------------------------------------------------------------
+    ! This subroutine calculates the actual target fineroot biomass
+    ! based on functions that may or may not have prognostic properties. 
+    ! -------------------------------------------------------------------------
+
     real(r8),intent(in)    :: d         ! plant diameter [cm]
-    real(r8),intent(in)    :: blmax     ! max leaf biomass [kgC]
-    real(r8),intent(in)    :: dblmaxdd  ! change in blmax per diam [kgC/cm]
+    real(r8),intent(in)    :: h         ! plant height [m]
     integer(i4),intent(in) :: ipft      ! PFT index
-    real(r8),intent(out)   :: bfrmax    ! max fine-root root biomass [kgC]
-    real(r8),intent(out)   :: dbfrmaxdd ! change frmax bio per diam [kgC/cm]
-    
+    real(r8),intent(out)   :: bfineroot ! fine root biomass [kgC]
+    real(r8),intent(out),optional :: dbfrdd  ! change leaf bio per diameter [kgC/cm]
+
+    real(r8) :: slascaler
+    real(r8) :: bfrmax
+    real(r8) :: dbfrmaxdd
+    real(r8) :: slascaler
+
     select case(EDPftvarcon_inst%allom_fmode(ipft))
-    case(1) ! "constant")
+    case(1) ! "constant proportionality with bleaf"
+
+       call blmax_allom(d,h,ipft,blmax,dblmaxdd)
        call bfrmax_const(d,blmax,dblmaxdd,ipft,bfrmax,dbfrmaxdd)
+       slascaler = EDPftvarcon_inst%allom_d2bl_slascaler(ipft) / &
+            EDPftvarcon_inst%slatop(ipft)
+       bfineroot = bfrmax * slascaler * canopy_trim
+       dbfrdd    = dbfrmaxdd * slascaler * canopy_trim
+
     case DEFAULT 
        write(fates_log(),*) 'An undefined fine root allometry was specified: ', &
-             EDPftvarcon_inst%allom_fmode(ipft)
+            EDPftvarcon_inst%allom_fmode(ipft)
        write(fates_log(),*) 'Aborting'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
     return
-  end subroutine bfrmax_allom
+
+  end subroutine bfineroot
+
 
   ! ============================================================================
   ! Dead biomass interface

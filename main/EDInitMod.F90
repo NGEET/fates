@@ -12,7 +12,6 @@ module EDInitMod
   use FatesGlobals              , only : fates_log
   use FatesInterfaceMod         , only : hlm_is_restart
   use EDPftvarcon               , only : EDPftvarcon_inst
-  use EDGrowthFunctionsMod      , only : bdead, bleaf, dbh
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDPatchDynamicsMod        , only : create_patch
   use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type
@@ -30,7 +29,7 @@ module EDInitMod
   use FatesAllometryMod         , only : bag_allom
   use FatesAllometryMod         , only : bcr_allom
   use FatesAllometryMod         , only : bleaf
-  use FatesAllometryMod         , only : bfr_allom
+  use FatesAllometryMod         , only : bfineroot
   use FatesAllometryMod         , only : bsap_allom
   use FatesAllometryMod         , only : bdead_allom
 
@@ -378,7 +377,7 @@ contains
        call bleaf(temp_cohort%dbh,temp_cohort%hite,pft,temp_cohort%canopy_trim,b_leaf)
 
        ! Calculate fine root biomass
-       call bfr_allom(temp_cohort%dbh,temp_cohort%hite,pft,b_fineroot)
+       call bfineroot(temp_cohort%dbh,temp_cohort%hite,pft,temp_cohort%canopy_trim,b_fineroot)
 
        ! Calculate sapwood biomass
        call bsap_allom(temp_cohort%dbh,pft,b_sapwood)
