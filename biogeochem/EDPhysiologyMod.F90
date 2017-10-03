@@ -1006,6 +1006,7 @@ contains
     if ( DEBUG ) write(fates_log(),*) 'EDPhys dbstoredt I ',currentCohort%dbstoredt
 
     currentCohort%seed_prod = (1.0_r8 - gr_fract) * currentCohort%carbon_balance
+
     if (abs(currentCohort%npp_acc_hold-(currentCohort%dbalivedt+currentCohort%dbdeaddt+currentCohort%dbstoredt+ &
          currentCohort%seed_prod+currentCohort%md)) > 0.0000000001_r8)then
        write(fates_log(),*) 'error in carbon check growth derivs',currentCohort%npp_acc_hold- &
@@ -1041,7 +1042,7 @@ contains
   end subroutine Growth_Derivatives
 
   ! ============================================================================
-  subroutine recruitment( t, currentSite, currentPatch, bc_in )
+  subroutine recruitment( currentSite, currentPatch, bc_in )
     !
     ! !DESCRIPTION:
     ! spawn new cohorts of juveniles of each PFT             
@@ -1051,7 +1052,6 @@ contains
     use FatesInterfaceMod, only : hlm_use_ed_prescribed_phys
     !
     ! !ARGUMENTS    
-    integer, intent(in) :: t
     type(ed_site_type), intent(inout), target  :: currentSite
     type(ed_patch_type), intent(inout), pointer :: currentPatch
     type(bc_in_type), intent(in)                :: bc_in
@@ -1076,19 +1076,13 @@ contains
             + EDpftvarcon_inst%allom_latosa_int(ft)*temp_cohort%hite)
        temp_cohort%bstore      = EDPftvarcon_inst%cushion(ft)*(temp_cohort%balive/ (1.0_r8 + EDPftvarcon_inst%allom_l2fr(ft) &
             + EDpftvarcon_inst%allom_latosa_int(ft)*temp_cohort%hite))
+
        if (hlm_use_ed_prescribed_phys .eq. ifalse) then
           temp_cohort%n           = currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day &
                / (temp_cohort%bdead+temp_cohort%balive+temp_cohort%bstore)
        else
           ! prescribed recruitment rates. number per sq. meter per year
           temp_cohort%n        = currentPatch%area * EDPftvarcon_inst%prescribed_recruitment(ft) * hlm_freq_day
-       endif
- 
-       if (t == 1)then
-          write(fates_log(),*) 'filling in cohorts where there are none left; this will break carbon balance', &
-               currentPatch%patchno,currentPatch%area
-          temp_cohort%n = 0.1_r8*currentPatch%area
-          write(fates_log(),*) 'cohort n',ft,temp_cohort%n
        endif
 
        temp_cohort%laimemory = 0.0_r8     
@@ -1198,10 +1192,11 @@ contains
           
           dead_n_natural = dead_n - dead_n_dlogging - dead_n_ilogging
 
+
           currentPatch%leaf_litter_in(pft) = currentPatch%leaf_litter_in(pft) + &
-               (currentCohort%bl+currentCohort%leaf_litter/hlm_freq_day)* dead_n          
+               currentCohort%bl * dead_n          
           currentPatch%root_litter_in(pft) = currentPatch%root_litter_in(pft) + &
-                (currentCohort%br+currentCohort%bstore)     * dead_n
+               (currentCohort%br+currentCohort%bstore)     * dead_n
 
           ! Update diagnostics that track resource management
           currentSite%resources_management%delta_litter_stock  = &
@@ -1223,12 +1218,17 @@ contains
 
              ! Send AGB component of boles from non direct-logging activities to AGB litter pool
              if (c==ncwd) then
-                currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + (currentCohort%bdead+currentCohort%bsw) * &
-                      SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging)  * &
-                      EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
                 
-               
+                currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + (currentCohort%bdead+currentCohort%bsw) * &
+                     SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging)  * &
+                     EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
+                
              else
+
+                currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + (currentCohort%bdead+currentCohort%bsw) * &
+                     SF_val_CWD_frac(c) * dead_n  * &
+                     EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
+
                 ! Send AGB component of boles from direct-logging activities to export/harvest pool
                 ! Generate trunk product (kgC/day/site)
                 trunk_product = (currentCohort%bdead+currentCohort%bsw) * &
