@@ -804,7 +804,7 @@ contains
     ! Mortality for trees in the understorey. 
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
     call mortality_rates(currentCohort,cmort,hmort,bmort)
-    call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, &
+    call LoggingMortality_frac(ipft, currentCohort%dbh, &
                                currentCohort%lmort_logging,                       &
                                currentCohort%lmort_collateral,                    &
                                currentCohort%lmort_infra )
@@ -828,13 +828,21 @@ contains
                        
     call allocate_live_biomass(currentCohort,0)
 
-   ! calculate target size of living biomass compartment for a given dbh.   
+    ! -----------------------------------------------------------------------------------
+    ! calculate target size of living biomass compartment for a given dbh.   
+    ! -----------------------------------------------------------------------------------
+
+    ! Calculate leaf biomass, this wrapper finds the maximum per allometry, and then
+    ! applies trimming
     call bleaf(currentCohort%dbh,currentCohort%hite,ipft,currentCohort%canopy_trim,b_leaf)
 
+    ! Calculate the fine root biomass, this wrapper finds the maximum per allometry,
+    ! and in the current default case, will trim fine root biomass at the same proportion
+    ! that it trims leaves
     call bfineroot(currentCohort%dbh,currentCohort%hite,ipft,b_fineroot)
     
+    ! Calculate sapwood biomass
     call bsap_allom(currentCohort%dbh,ipft,b_sapwood)
-
 
     target_balive = b_leaf + b_fineroot + b_sapwood
 
@@ -854,9 +862,11 @@ contains
 
     if (hlm_use_ed_prescribed_phys .eq. itrue) then
        if (currentCohort%canopy_layer .eq. 1) then
-          currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_canopy(ipft) * currentCohort%c_area / currentCohort%n
+          currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_canopy(ipft) * &
+                currentCohort%c_area / currentCohort%n
        else
-          currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_understory(ipft) * currentCohort%c_area / currentCohort%n
+          currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_understory(ipft) * &
+                currentCohort%c_area / currentCohort%n
        endif
     endif
 
@@ -980,42 +990,57 @@ contains
     !Use remaining carbon to refill balive or to get larger. 
 
     !only if carbon balance is +ve
-    if ((currentCohort%balive >= target_balive).AND.(currentCohort%carbon_balance >  0._r8))then 
+
+    if ((currentCohort%balive >= target_balive).and.(currentCohort%carbon_balance >  0._r8))then 
        ! fraction of carbon going into active vs structural carbon        
 
-       if (currentCohort%dbh <= EDPftvarcon_inst%allom_dbh_maxheight(currentCohort%pft))then ! cap on leaf biomass
-
-          call bleaf(currentCohort%dbh,currentCohort%hite,ipft,currentCohort%canopy_trim,b_leaf,dbleafdd)
-
-          call bfineroot(currentCohort%dbh,currentCohort%hite,ipft,currentCohort%canopy_trim,b_fineroot,dbfrdd)
+       ! fraction of carbon going into active vs structural carbon        
+       if (currentCohort%dbh <= EDPftvarcon_inst%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
+          gr_fract = 1.0_r8 - EDPftvarcon_inst%seed_alloc(ipft)
+       else
+          gr_fract = 1.0_r8 - (EDPftvarcon_inst%seed_alloc(ipft) + EDPftvarcon_inst%clone_alloc(ipft))
+       end if
+       
+       call bleaf(currentCohort%dbh,currentCohort%hite,ipft,currentCohort%canopy_trim,b_leaf,dbleafdd)
+       
+       call bfineroot(currentCohort%dbh,currentCohort%hite,ipft,currentCohort%canopy_trim,b_fineroot,dbfrdd)
+       
+       call bsap_allom(temp_cohort%dbh,pft,b_sap,dbsapdd)
+       
+       ! Tally up the relative change in bdead WRT diameter
+       call bag_allom(currentCohort%dbh,currentCohort%hite,ipft,b_ag,dbagdd)
+       call bcr_allom(currentCohort%dbh,currentCohort%h,pft,b_cr,dbcrdd)
+       call bdead_allom( b_ag, b_cr, b_sap, dbagdd, dbcrdd, dbsapdd, dbdeaddd )
+       
+       ! Change in leaf biomass per dead biomass [kgC/kgC]
+       dbldbd = dbldd/dbdeaddd
+       
+       ! Change in fineroot biomass per dead biomass [kgC/kgC]
+       dbfrdbd = dbfrdd/dbdeaddd
+       
+       ! Change in sapwood biomass per dead biomass [kgC/kgC]
+       dbsapdbd = dbsapdd/dbdeaddd
+       
+       ! Total change in alive biomass relative to dead biomass [kgC/kgC]
+       dbalivedbd = dbldbd + dbfrdbd + dbsapdbd
+       
+       if(dbalivedbd>tiny(dbalivedbd))then
           
-          call bsap_allom(temp_cohort%dbh,pft,b_sap,dbsapdd)
-
-          ! Tally up the relative change in bdead WRT diameter
-          call bag_allom(currentCohort%dbh,currentCohort%hite,ipft,b_ag,dbagdd)
-          call bcr_allom(currentCohort%dbh,currentCohort%h,pft,b_cr,dbcrdd)
-          call bdead_allom( b_ag, b_cr, b_sap, dbagdd, dbcrdd, dbsapdd, dbdeaddd )
-
-          ! Change in leaf biomass per dead biomass
-          dbldbd = dbldd/dbdeaddd
-
-          ! Change in fineroot biomass per dead biomass
-          dbfrdbd = dbfrdd/dbdeaddd
-
-          ! Change in sapwood biomass per dead biomass
-          dbsapdbd = dbsapdd/dbdeaddd
-
           u  = 1.0_r8 / (dbldbd + dbfrdbd + dbsapdbd)     
-
+          
           va = 1.0_r8 / (1.0_r8 + u)
           vs = u / (1.0_r8 + u)
-          gr_fract = 1.0_r8 - EDPftvarcon_inst%seed_alloc(currentCohort%pft)
+          
        else
-          dbldbd = 0._r8; dbrdbd = 0._r8 ;dbswdbd = 0._r8      
+          ! If there is no change in alive biomass per change in dead,
+          ! most likely we are dealing with plants that have surpassed
+          ! an allometric threshold that limits alive biomass.
+          
           va = 0.0_r8
           vs = 1.0_r8
-          gr_fract = 1.0_r8 - (EDPftvarcon_inst%seed_alloc(currentCohort%pft) + EDPftvarcon_inst%clone_alloc(currentCohort%pft))
-       endif
+          
+       end if
+
 
        !FIX(RF,032414) - to fix high bl's. needed to prevent numerical errors without the ODEINT.  
        if (currentCohort%balive > target_balive*1.1_r8)then  
@@ -1024,8 +1049,10 @@ contains
        endif
 
     else         
+
        dbldbd = 0._r8; dbrdbd = 0._r8; dbswdbd = 0._r8
-       va = 1.0_r8; vs = 0._r8                        
+       va = 1.0_r8;
+       vs = 0._r8                        
        gr_fract = 1.0_r8
     endif
 
@@ -1070,7 +1097,7 @@ contains
     ! If the cohort has grown, it is not new
     currentCohort%isnew=.false.
 
-  end subroutine Growth_Derivatives
+ end subroutine Growth_Derivatives
 
   ! ============================================================================
   subroutine recruitment( currentSite, currentPatch, bc_in )

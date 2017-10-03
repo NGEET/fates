@@ -372,11 +372,12 @@ contains
        ! Calculate coarse root biomass from allometry
        call bcr_allom(temp_cohort%dbh,temp_cohort%h,pft,b_cr)
 
-       ! Calculate the leaf biomass (calculates a maximum first, then applies canopy trim
-       ! and sla scaling factors)
+       ! Calculate the leaf biomass 
+       ! (calculates a maximum first, then applies canopy trim)
        call bleaf(temp_cohort%dbh,temp_cohort%hite,pft,temp_cohort%canopy_trim,b_leaf)
 
        ! Calculate fine root biomass
+       ! (calculates a maximum and then trimming value)
        call bfineroot(temp_cohort%dbh,temp_cohort%hite,pft,temp_cohort%canopy_trim,b_fineroot)
 
        ! Calculate sapwood biomass
@@ -386,7 +387,7 @@ contains
 
        call bdead_allom( b_ag, b_cr, b_sapwood, temp_cohort%bdead )
 
-       temp_cohort%b           = temp_cohort%balive + temp_cohort%bdead
+       temp_cohort%b = temp_cohort%balive + temp_cohort%bdead
 
        if( EDPftvarcon_inst%evergreen(pft) == 1) then
           temp_cohort%bstore = b_leaf * EDPftvarcon_inst%cushion(pft)

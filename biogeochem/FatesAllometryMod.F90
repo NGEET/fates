@@ -314,7 +314,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine bleaf(d,h,ipft,canopy_trim,bleaf,dbleafdd)
+  subroutine bleaf(d,h,ipft,canopy_trim,bl,dbldd)
      
     ! -------------------------------------------------------------------------
     ! This subroutine calculates the actual target bleaf
@@ -326,21 +326,14 @@ contains
     real(r8),intent(in)    :: d         ! plant diameter [cm]
     real(r8),intent(in)    :: h         ! plant height [m]
     integer(i4),intent(in) :: ipft      ! PFT index
-    real(r8),intent(out)   :: bleaf     ! plant leaf biomass [kg]
-    real(r8),intent(out),optional :: dbleafdd  ! change leaf bio per diameter [kgC/cm]
+    real(r8),intent(out)   :: bl        ! plant leaf biomass [kg]
+    real(r8),intent(out),optional :: dbldd  ! change leaf bio per diameter [kgC/cm]
 
     real(r8) :: blmax
     real(r8) :: dblmaxdd
     real(r8) :: slascaler
 
     call blmax_allom(d,h,ipft,blmax,dblmaxdd)
-    
-    ! slascaler seems to be redundant with the slope parameter "a"
-    ! in our leaf allometry equations (rgk oct-2017)
-    ! maybe we should remove this?
-
-    slascaler = EDPftvarcon_inst%allom_d2bl_slascaler(ipft) / &
-                EDPftvarcon_inst%slatop(ipft)
     
     ! -------------------------------------------------------------------------
     ! Adjust for canopies that have become so deep that their bottom layer is 
@@ -349,8 +342,8 @@ contains
     ! RF. April 2014  
     ! -------------------------------------------------------------------------
     
-    bleaf = blmax * slascaler * canopy_trim
-    dbleafdd = dblmaxdd * slascaler * canopy_trim
+    bl = blmax * canopy_trim
+    dbldd = dblmaxdd * canopy_trim
 
     return
  end subroutine bleaf
@@ -372,10 +365,6 @@ contains
     real(r8)    :: dblmaxdd  ! chage in blmax per diam [kgC/cm]
     real(r8)    :: dhdd      ! change in height per diameter [m/cm]
 
-
-    call h_allom(d,ipft,h,dhdd)
-    call blmax_allom(d,h,ipft,blmax,dblmaxdd)
-
     select case(EDPftvarcon_inst%allom_smode(ipft))
        ! ---------------------------------------------------------------------
        ! Currently both sapwood area proportionality methods use the same
@@ -383,7 +372,9 @@ contains
        ! checking at the beginning.  For constant proportionality, the slope
        ! of the la:sa to diameter line is zero.
        ! ---------------------------------------------------------------------
-    case(1,2) !"constant","dlinear")
+    case(1,2) !"constant","dlinear") 
+       call h_allom(d,ipft,h,dhdd)
+       call blmax_allom(d,h,ipft,blmax,dblmaxdd)
        call bsap_dlinear(d,h,blmax,dblmaxdd,dhdd,ipft,bsap,dbsapdd)
     case DEFAULT
        write(fates_log(),*) 'An undefined sapwood allometry was specified: ', &
@@ -438,10 +429,9 @@ contains
     real(r8),intent(in)    :: d         ! plant diameter [cm]
     real(r8),intent(in)    :: h         ! plant height [m]
     integer(i4),intent(in) :: ipft      ! PFT index
-    real(r8),intent(out)   :: bfineroot ! fine root biomass [kgC]
+    real(r8),intent(out)   :: bfr       ! fine root biomass [kgC]
     real(r8),intent(out),optional :: dbfrdd  ! change leaf bio per diameter [kgC/cm]
 
-    real(r8) :: slascaler
     real(r8) :: bfrmax
     real(r8) :: dbfrmaxdd
     real(r8) :: slascaler
@@ -451,10 +441,8 @@ contains
 
        call blmax_allom(d,h,ipft,blmax,dblmaxdd)
        call bfrmax_const(d,blmax,dblmaxdd,ipft,bfrmax,dbfrmaxdd)
-       slascaler = EDPftvarcon_inst%allom_d2bl_slascaler(ipft) / &
-            EDPftvarcon_inst%slatop(ipft)
-       bfineroot = bfrmax * slascaler * canopy_trim
-       dbfrdd    = dbfrmaxdd * slascaler * canopy_trim
+       bfr    = bfrmax * canopy_trim
+       dbfrdd = dbfrmaxdd * canopy_trim
 
     case DEFAULT 
        write(fates_log(),*) 'An undefined fine root allometry was specified: ', &
