@@ -811,7 +811,7 @@ contains
     ! !LOCAL VARIABLES:
     type (ed_cohort_type), pointer :: currentCohort
     type (ed_patch_type) , pointer :: currentPatch
-    real(r8) :: arealayer ! Amount of canopy in each layer. 
+    real(r8) :: sitelevel_canopyarea  ! Amount of canopy in top layer at the site level
     real(r8) :: inc                   ! Arbitrary daily incremental change in canopy area 
     integer  :: z
     !----------------------------------------------------------------------
@@ -820,7 +820,7 @@ contains
 
     currentPatch => currentSite%oldest_patch
 
-    arealayer = 0.0_r8   
+    sitelevel_canopyarea = 0.0_r8   
     do while (associated(currentPatch))
 
        !calculate canopy area in each patch...
@@ -828,7 +828,7 @@ contains
        do while (associated(currentCohort))
           currentCohort%c_area = c_area(currentCohort) 
           if(EDPftvarcon_inst%woody(currentCohort%pft) .eq. 1 .and. currentCohort%canopy_layer .eq. 1 ) then
-             arealayer = arealayer + currentCohort%c_area
+             sitelevel_canopyarea = sitelevel_canopyarea + currentCohort%c_area
           endif
           currentCohort => currentCohort%shorter
        enddo
@@ -838,7 +838,7 @@ contains
     enddo !currentPatch
 
     !If the canopy area is approaching closure, squash the tree canopies and make them taller and thinner
-    if( arealayer/AREA .gt. ED_val_canopy_closure_thresh ) then
+    if( sitelevel_canopyarea/AREA .gt. ED_val_canopy_closure_thresh ) then
        currentSite%spread = currentSite%spread - inc
     else 
        currentSite%spread = currentSite%spread + inc 

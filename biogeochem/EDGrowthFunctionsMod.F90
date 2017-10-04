@@ -263,7 +263,7 @@ contains
     spreadterm = cohort_in%siteptr%spread * EDPftvarcon_inst%allom_d2ca_coefficient_max(cohort_in%pft) + &
          (1._r8 - cohort_in%siteptr%spread) * EDPftvarcon_inst%allom_d2ca_coefficient_min(cohort_in%pft)
     !
-    c_area = cohort_in%n * (spreadterm * dbh)**crown_area_to_dbh_exponent
+    c_area = cohort_in%n * spreadterm * dbh ** crown_area_to_dbh_exponent
 
   end function c_area
 
