@@ -116,7 +116,6 @@ module EDPftvarcon
      real(r8), allocatable :: allom_d2h1(:)         ! Parameter 1 for d2h allometry (intercept, or "c")
      real(r8), allocatable :: allom_d2h2(:)         ! Parameter 2 for d2h allometry (slope, or "m")
      real(r8), allocatable :: allom_d2h3(:)         ! Parameter 3 for d2h allometry (optional)
-     real(r8), allocatable :: allom_eclim(:)        ! Climate parameter for Chave d2h allometry
      real(r8), allocatable :: allom_d2bl1(:)        ! Parameter 1 for d2bl allometry (intercept)
      real(r8), allocatable :: allom_d2bl2(:)        ! Parameter 2 for d2bl allometry (slope)
      real(r8), allocatable :: allom_d2bl3(:)           ! Parameter 3 for d2bl allometry (optional)
@@ -491,10 +490,6 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
-    name = 'fates_allom_eclim'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
     name = 'fates_allom_d2bl1'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -898,10 +893,6 @@ contains
     name = 'fates_allom_d2h3'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%allom_d2h3)
-
-    name = 'fates_allom_eclim'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%allom_eclim)
 
     name = 'fates_allom_d2bl1'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1483,7 +1474,6 @@ contains
         write(fates_log(),fmt0) 'allom_d2h1 = ',EDPftvarcon_inst%allom_d2h1
         write(fates_log(),fmt0) 'allom_d2h2 = ',EDPftvarcon_inst%allom_d2h2
         write(fates_log(),fmt0) 'allom_d2h3 = ',EDPftvarcon_inst%allom_d2h3
-        write(fates_log(),fmt0) 'allom_eclim = ',EDPftvarcon_inst%allom_eclim
         write(fates_log(),fmt0) 'allom_d2bl1 = ',EDPftvarcon_inst%allom_d2bl1
         write(fates_log(),fmt0) 'allom_d2bl2 = ',EDPftvarcon_inst%allom_d2bl2
         write(fates_log(),fmt0) 'allom_d2bl3 = ',EDPftvarcon_inst%allom_d2bl3

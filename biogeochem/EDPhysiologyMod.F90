@@ -33,6 +33,15 @@ module EDPhysiologyMod
   use EDParamsMod           , only : fates_mortality_disturbance_fraction
   use FatesConstantsMod        , only : itrue,ifalse
 
+  use FatesAllometryMod  , only : h_allom
+  use FatesAllometryMod  , only : bag_allom
+  use FatesAllometryMod  , only : sap_allom
+  use FatesAllometryMod  , only : bleaf
+  use FatesAllometryMod  , only : bfineroot
+  use FatesAllometryMod  , only : bdead_allom
+  use FatesAllometryMod  , only : bcr_allom
+
+
   implicit none
   private
 
@@ -793,8 +802,26 @@ contains
     real(r8) :: lmort_collateral  ! Mortality fraction associated with logging collateral damage
     real(r8) :: lmort_infra       ! Mortality fraction associated with logging infrastructure
     real(r8) :: dndt_logging      ! Mortality rate (per day) associated with the a logging event
-    real(r8) :: balive_loss
+    real(r8) :: balive_loss       ! Carbon that will be removed from the alive pool due to things
+                                  ! maintenance turnover
 
+    ! Per plant allocation variables
+
+    real(r8) :: b_leaf            ! leaf biomass (kgC) 
+    real(r8) :: db_leaf_dd        ! change in leaf biomass wrt diameter (kgC/cm)
+    real(r8) :: b_fineroot        ! fine root biomass (kgC)
+    real(r8) :: db_fineroot_dd    ! change in fine root biomass wrt diameter (kgC/cm)
+    real(r8) :: b_sap             ! sapwood biomass (kgC)
+    real(r8) :: db_sap_dd         ! change in sapwood biomass wrt diameter (kgC/cm)
+    real(r8) :: b_ag              ! above ground biomass (kgC/cm)
+    real(r8) :: db_ag_dd          ! change in above ground biomass wrt diameter (kgC/cm)
+    real(r8) :: b_cr              ! coarse root biomass (kgC)
+    real(r8) :: db_cr_dd          ! change in coarse root biomass (kgC/cm)
+    real(r8) :: b_dead            ! dead (structural) biomass (kgC)
+    real(r8) :: db_dead_dd        ! change in dead biomass wrt diameter (kgC/cm)
+    real(r8) :: dbalivedbd        ! change in alive biomass wrt dead biomass (kgC/kgC)
+    real(r8) :: jh                ! plant height (unused)
+    real(r8) :: dh_dd             ! change in plant height WRT diameter (m/cm)
     integer  :: ipft              ! local copy of the pft index
     !----------------------------------------------------------------------
 
@@ -828,6 +855,9 @@ contains
                        
     call allocate_live_biomass(currentCohort,0)
 
+    
+
+
     ! -----------------------------------------------------------------------------------
     ! calculate target size of living biomass compartment for a given dbh.   
     ! -----------------------------------------------------------------------------------
@@ -842,13 +872,13 @@ contains
     call bfineroot(currentCohort%dbh,currentCohort%hite,ipft,b_fineroot)
     
     ! Calculate sapwood biomass
-    call bsap_allom(currentCohort%dbh,ipft,b_sapwood)
+    call bsap_allom(currentCohort%dbh,ipft,b_sap)
 
-    target_balive = b_leaf + b_fineroot + b_sapwood
+    target_balive = b_leaf + b_fineroot + b_sap
 
     !target balive without leaves. 
     if (currentCohort%status_coh == 1)then 
-       target_balive = b_fineroot + b_sapwood
+       target_balive = b_fineroot + b_sap
     endif
 
     ! NPP 
@@ -989,6 +1019,11 @@ contains
     !********************************************/
     !Use remaining carbon to refill balive or to get larger. 
 
+    ! Tally up the relative change in dead biomass WRT diameter
+    call bag_allom(currentCohort%dbh,currentCohort%hite,ipft,b_ag,db_ag_dd)
+    call bcr_allom(currentCohort%dbh,currentCohort%h,ipft,b_cr,db_cr_dd)
+    call bdead_allom( b_ag, b_cr, b_sap, db_ag_dd, db_cr_dd, db_sap_dd, db_dead_dd )
+
     !only if carbon balance is +ve
 
     if ((currentCohort%balive >= target_balive).and.(currentCohort%carbon_balance >  0._r8))then 
@@ -1001,37 +1036,29 @@ contains
           gr_fract = 1.0_r8 - (EDPftvarcon_inst%seed_alloc(ipft) + EDPftvarcon_inst%clone_alloc(ipft))
        end if
        
-       call bleaf(currentCohort%dbh,currentCohort%hite,ipft,currentCohort%canopy_trim,b_leaf,dbleafdd)
-       
-       call bfineroot(currentCohort%dbh,currentCohort%hite,ipft,currentCohort%canopy_trim,b_fineroot,dbfrdd)
-       
-       call bsap_allom(temp_cohort%dbh,pft,b_sap,dbsapdd)
-       
-       ! Tally up the relative change in bdead WRT diameter
-       call bag_allom(currentCohort%dbh,currentCohort%hite,ipft,b_ag,dbagdd)
-       call bcr_allom(currentCohort%dbh,currentCohort%h,pft,b_cr,dbcrdd)
-       call bdead_allom( b_ag, b_cr, b_sap, dbagdd, dbcrdd, dbsapdd, dbdeaddd )
-       
-       ! Change in leaf biomass per dead biomass [kgC/kgC]
-       dbldbd = dbldd/dbdeaddd
-       
-       ! Change in fineroot biomass per dead biomass [kgC/kgC]
-       dbfrdbd = dbfrdd/dbdeaddd
-       
-       ! Change in sapwood biomass per dead biomass [kgC/kgC]
-       dbsapdbd = dbsapdd/dbdeaddd
+       ! Tally up the relative change in alive biomass WRT diameter
+       call bleaf(currentCohort%dbh,currentCohort%hite,ipft, &
+                  currentCohort%canopy_trim,b_leaf,db_leaf_dd)
+       call bfineroot(currentCohort%dbh,currentCohort%hite,ipft, &
+                      currentCohort%canopy_trim,b_fineroot,db_fineroot_dd)
+       call bsap_allom(temp_cohort%dbh,pft,b_sap,db_sap_dd)
        
        ! Total change in alive biomass relative to dead biomass [kgC/kgC]
-       dbalivedbd = dbldbd + dbfrdbd + dbsapdbd
-       
+       dbalivedbd = (db_leaf_dd + db_fineroot_dd + db_sap_dd)/db_dead_dd
+
        if(dbalivedbd>tiny(dbalivedbd))then
-          
-          u  = 1.0_r8 / (dbldbd + dbfrdbd + dbsapdbd)     
-          
+       
+          ! In this case, the plant allometry module is telling us that
+          ! the plant is still expected to gain live (leaf,froot,sap) 
+          ! biomass as it grows in size, and therfore it should be 
+          ! allocated in proportion with structural
+
+          u  = 1.0_r8 / dbalivedbd
           va = 1.0_r8 / (1.0_r8 + u)
           vs = u / (1.0_r8 + u)
           
        else
+
           ! If there is no change in alive biomass per change in dead,
           ! most likely we are dealing with plants that have surpassed
           ! an allometric threshold that limits alive biomass.
@@ -1041,21 +1068,28 @@ contains
           
        end if
 
-
-       !FIX(RF,032414) - to fix high bl's. needed to prevent numerical errors without the ODEINT.  
+       ! FIX(RF,032414) - to fix high bl's. needed to 
+       ! prevent numerical errors without the ODEINT.  
        if (currentCohort%balive > target_balive*1.1_r8)then  
           va = 0.0_r8; vs = 1._r8
-          if (DEBUG) write(fates_log(),*) 'using high bl cap',target_balive,currentCohort%balive                        
+          if (DEBUG) write(fates_log(),*) 'using high bl cap',target_balive,currentCohort%balive
        endif
 
     else         
 
-       dbldbd = 0._r8; dbrdbd = 0._r8; dbswdbd = 0._r8
-       va = 1.0_r8;
-       vs = 0._r8                        
-       gr_fract = 1.0_r8
-    endif
+       ! --------------------------------------------------------------------------------
+       ! In this case, either there was not enough carbon generated, or the plant is off
+       ! allometry (ie the alive pools are smaller than the maximums dictated by allometry
+       ! and timming).  So push all carbon into the alive pool (va = 1.0), and none
+       ! into structural (vs = 0.0) or seed (ie non-growth, gr_fract = 1.0).
+       ! --------------------------------------------------------------------------------
 
+       va = 1.0_r8
+       vs = 0.0_r8
+       gr_fract = 1.0_r8
+
+    endif
+    
     ! calculate derivatives of living and dead carbon pools  
     currentCohort%dbalivedt = gr_fract * va * currentCohort%carbon_balance - balive_loss
     currentCohort%dbdeaddt  = gr_fract * vs * currentCohort%carbon_balance
@@ -1090,9 +1124,12 @@ contains
 
     currentCohort%npp_bseed = currentCohort%seed_prod
 
-    ! calculate change in diameter and height 
-    currentCohort%ddbhdt = currentCohort%dbdeaddt * dDbhdBd(currentCohort)
-    currentCohort%dhdt   = currentCohort%dbdeaddt * dHdBd(currentCohort)
+    ! calculate change in diameter 
+    currentCohort%ddbhdt = currentCohort%dbdeaddt / db_dead_dd 
+
+    ! calculate change in hite
+    call h_allom(currentCohort%dbh,ipft,height,dh_dd)
+    currentCohort%dhdt   = currentCohort%ddbhdt * dh_dd
 
     ! If the cohort has grown, it is not new
     currentCohort%isnew=.false.

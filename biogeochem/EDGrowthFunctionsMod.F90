@@ -11,17 +11,11 @@ module EDGrowthFunctionsMod
   use EDPftvarcon        , only : EDPftvarcon_inst
   use EDTypesMod       , only : ed_cohort_type, nlevleaf, dinc_ed
   use FatesConstantsMod        , only : itrue,ifalse
+  use FatesAllometryMod, only : bleaf
 
   implicit none
   private
 
-  public ::  bleaf
-  public ::  hite
-  public ::  ddbhdbd
-  public ::  ddbhdbl
-  public ::  dhdbd
-  public ::  dbh
-  public ::  bdead
   public ::  tree_lai
   public ::  tree_sai
   public ::  c_area
@@ -34,106 +28,6 @@ module EDGrowthFunctionsMod
   ! ============================================================================
 
 contains
-
-!  real(r8) function Dbh( cohort_in )
-
-!    ! ============================================================================
-!    !  Creates diameter in cm as a function of height in m
-!    !  Height(m) diameter(cm) relationships. O'Brien et al  - for 56 patch at BCI                                    
-!    ! ============================================================================
-
-!    type(ed_cohort_type), intent(in) :: cohort_in
-
-    !FIX(SPM,040214) - move to param file
-!    real(r8) :: m ! parameter of allometric equation
-!    real(r8) :: c ! parameter of allometric equation
-
-    m = EDPftvarcon_inst%allom_d2h1(cohort_in%pft)
-    c = EDPftvarcon_inst%allom_d2h2(cohort_in%pft)
-
-    dbh = (10.0_r8**((log10(cohort_in%hite) - c)/m))
-
-    return
-
-  end function dbh
-
-! ============================================================================
-
-  real(r8) function Hite( cohort_in )
-
-    ! ============================================================================
-    !  Creates height in m as a function of diameter in cm. 
-    !  Height(m) diameter(cm) relationships. O'Brien et al  - for 56 pft at BCI                                    
-    ! ============================================================================
-
-    type(ed_cohort_type), intent(inout) :: cohort_in
-
-    real(r8) :: m
-    real(r8) :: c
-    real(r8) :: h
-
-    m = EDPftvarcon_inst%allom_d2h1(cohort_in%pft)
-    c = EDPftvarcon_inst%allom_d2h2(cohort_in%pft)
-
-    if(cohort_in%dbh <= 0._r8)then
-       write(fates_log(),*) 'ED: dbh less than zero problem!'
-       cohort_in%dbh = 0.1_r8
-    endif
-
-    ! if the hite is larger than the maximum allowable height (set by dbhmax) then 
-    ! set the height to the maximum value. 
-    ! this could do with at least re-factoring and probably re-thinking. RF
-    if(cohort_in%dbh <= EDPftvarcon_inst%allom_dbh_maxheight(cohort_in%pft)) then
-       h = (10.0_r8**(log10(cohort_in%dbh) * m + c))
-    else 
-       h = (10.0_r8**(log10(EDPftvarcon_inst%allom_dbh_maxheight(cohort_in%pft))*m + c))
-    endif
-    Hite = h 
-
-    return
-
-  end function Hite
-
-! ============================================================================
-
-  real(r8) function Bleaf( cohort_in )
-
-    ! ============================================================================
-    !  Creates leaf biomass (kGC) as a function of tree diameter.  
-    ! ============================================================================
-
-    type(ed_cohort_type), intent(in) :: cohort_in       
-    
-    real(r8) :: dbh2bl_a 
-    real(r8) :: dbh2bl_b
-    real(r8) :: dbh2bl_c
-
-    dbh2bl_a  =  EDPftvarcon_inst%allom_d2bl1(cohort_in%pft)
-    dbh2bl_b  =  EDPftvarcon_inst%allom_d2bl2(cohort_in%pft)
-    dbh2bl_c  =  EDPftvarcon_inst%allom_d2bl3(cohort_in%pft)
-    
-    if(cohort_in%dbh < 0._r8.or.cohort_in%pft == 0.or.cohort_in%dbh > 1000.0_r8)then
-       write(fates_log(),*) 'problems in bleaf',cohort_in%dbh,cohort_in%pft
-    endif
-
-    if(cohort_in%dbh <= EDPftvarcon_inst%allom_dbh_maxheight(cohort_in%pft))then
-       bleaf = dbh2bl_a * (cohort_in%dbh**dbh2bl_b) * EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bl_c 
-    else  
-       bleaf = dbh2bl_a * (EDPftvarcon_inst%allom_dbh_maxheight(cohort_in%pft)**dbh2bl_b) * &
-            EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bl_c
-    endif  
-
-    !write(fates_log(),*) 'bleaf',bleaf, slascaler,cohort_in%pft
-    
-    !Adjust for canopies that have become so deep that their bottom layer is not producing any carbon... 
-    !nb this will change the allometry and the effects of this remain untested. RF. April 2014  
-    
-     bleaf = bleaf * cohort_in%canopy_trim
-
-    return
-  end function Bleaf
-
-! ============================================================================
 
   real(r8) function tree_lai( cohort_in )
 
@@ -265,145 +159,6 @@ contains
 
 ! ============================================================================
 
-  real(r8) function Bdead( cohort_in )
-
-    ! ============================================================================
-    ! Calculate stem biomass from height(m) dbh(cm) and wood density(g/cm3)
-    ! default params using allometry of J.G. Saldarriaga et al 1988 - Rio Negro                                  
-    ! Journal of Ecology vol 76 p938-958  
-    !
-    ! NOTE (RGK 07-2017) Various other biomass allometries calculate above ground
-    ! biomass, and it appear Saldariagga may be an outlier that calculates total
-    ! biomass (these parameters will have to be a placeholder for both)
-    !
-    ! ============================================================================
-
-    type(ed_cohort_type), intent(in) :: cohort_in       
-
-   real(r8) :: dbh2bd_a
-   real(r8) :: dbh2bd_b
-   real(r8) :: dbh2bd_c
-   real(r8) :: dbh2bd_d
-   
-   dbh2bd_a =  EDPftvarcon_inst%allom_agb1(cohort_in%pft)
-   dbh2bd_b =  EDPftvarcon_inst%allom_agb2(cohort_in%pft)
-   dbh2bd_c =  EDPftvarcon_inst%allom_agb3(cohort_in%pft)  
-   dbh2bd_d =  EDPftvarcon_inst%allom_agb4(cohort_in%pft)
-
-   bdead = dbh2bd_a*(cohort_in%hite**dbh2bd_b)*(cohort_in%dbh**dbh2bd_c)* &
-        (EDPftvarcon_inst%wood_density(cohort_in%pft)** dbh2bd_d)  
-
-  end function Bdead
-
-! ============================================================================
-
-  real(r8) function dHdBd( cohort_in )
-
-    ! ============================================================================
-    ! convert changes in structural biomass to changes in height                                        
-    ! consistent with Bstem and h-dbh allometries                               
-    ! ============================================================================
-
-    type(ed_cohort_type), intent(in)  :: cohort_in
-
-    real(r8) :: dbddh ! rate of change of dead biomass (KgC) per unit change of height (m) 
-    real(r8) :: dbh2bd_a
-    real(r8) :: dbh2bd_b
-    real(r8) :: dbh2bd_c
-    real(r8) :: dbh2bd_d
-    
-    dbh2bd_a =  EDPftvarcon_inst%allom_agb1(cohort_in%pft)
-    dbh2bd_b =  EDPftvarcon_inst%allom_agb2(cohort_in%pft)
-    dbh2bd_c =  EDPftvarcon_inst%allom_agb3(cohort_in%pft)  
-    dbh2bd_d =  EDPftvarcon_inst%allom_agb4(cohort_in%pft)
-    
-    dbddh =  dbh2bd_a*dbh2bd_b*(cohort_in%hite**(dbh2bd_b-1.0_r8))*(cohort_in%dbh**dbh2bd_c)* &
-         (EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bd_d)
-    dHdBd = 1.0_r8/dbddh !m/KgC 
-    
-    return
-
-  end function dHdBd
-
-! ============================================================================
-  real(r8) function dDbhdBd( cohort_in )
-
-    ! ============================================================================
-    ! convert changes in structural biomass to changes in diameter                                        
-    ! consistent with Bstem and h-dbh allometries                               
-    ! ============================================================================
-
-    type(ed_cohort_type), intent(in) :: cohort_in 
-
-    real(r8) :: dBD_dDBH !Rate of change of dead biomass (KgC) with change in DBH (cm) 
-    real(r8) :: dH_dDBH  !Rate of change of height (m) with change in DBH (cm) 
-    real(r8) :: m
-    real(r8) :: c
-    real(r8) :: h
-    real(r8) :: dbh2bd_a
-    real(r8) :: dbh2bd_b
-    real(r8) :: dbh2bd_c
-    real(r8) :: dbh2bd_d
-
-    m = EDPftvarcon_inst%allom_d2h1(cohort_in%pft)
-    c = EDPftvarcon_inst%allom_d2h2(cohort_in%pft)
-    
-    dbh2bd_a =  EDPftvarcon_inst%allom_agb1(cohort_in%pft)
-    dbh2bd_b =  EDPftvarcon_inst%allom_agb2(cohort_in%pft)
-    dbh2bd_c =  EDPftvarcon_inst%allom_agb3(cohort_in%pft)  
-    dbh2bd_d =  EDPftvarcon_inst%allom_agb4(cohort_in%pft)
-    
-    dBD_dDBH =  dbh2bd_c*dbh2bd_a*(cohort_in%hite**dbh2bd_b)*(cohort_in%dbh**(dbh2bd_c-1.0_r8))* &
-         (EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bd_d)  
-
-    if(cohort_in%dbh < EDPftvarcon_inst%allom_dbh_maxheight(cohort_in%pft))then
-       dH_dDBH = (10.0_r8**c)*m*(cohort_in%dbh**(m-1.0_r8))          
-
-       dBD_dDBH =  dBD_dDBH + dbh2bd_b*dbh2bd_a*(cohort_in%hite**(dbh2bd_b - 1.0_r8))* &
-            (cohort_in%dbh**dbh2bd_c)*(EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bd_d)*dH_dDBH 
-    endif
-
-    dDbhdBd = 1.0_r8/dBD_dDBH
-
-    return
-
-  end function dDbhdBd
-
-! ============================================================================
-
-  real(r8) function dDbhdBl( cohort_in )
-
-    ! ============================================================================
-    ! convert changes in leaf biomass (KgC) to changes in DBH (cm)                                
-    ! ============================================================================
-
-    type(ed_cohort_type), intent(in) :: cohort_in
-
-    real(r8) :: dblddbh ! Rate of change of leaf biomass with change in DBH
-    real(r8) :: dbh2bl_a
-    real(r8) :: dbh2bl_b
-    real(r8) :: dbh2bl_c
-    
-    dbh2bl_a =  EDPftvarcon_inst%allom_d2bl1(cohort_in%pft)
-    dbh2bl_b =  EDPftvarcon_inst%allom_d2bl2(cohort_in%pft)
-    dbh2bl_c =  EDPftvarcon_inst%allom_d2bl3(cohort_in%pft)
-
-
-    dblddbh = dbh2bl_b*dbh2bl_a*(cohort_in%dbh**dbh2bl_b)*(EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bl_c)
-    dblddbh = dblddbh*cohort_in%canopy_trim
-
-    if( cohort_in%dbh<EDPftvarcon_inst%allom_dbh_maxheight(cohort_in%pft) ) then
-        dDbhdBl = 1.0_r8/dblddbh
-    else
-        dDbhdBl = 1.0d15  ! At maximum size, the leaf biomass is saturated, dbl=0
-    endif
-
-    return
-
-  end function dDbhdBl
-
-! ============================================================================
-
   subroutine mortality_rates( cohort_in,cmort,hmort,bmort )
 
     ! ============================================================================
@@ -419,7 +174,7 @@ contains
     real(r8),intent(out) :: hmort  ! hydraulic failure mortality
 
     real(r8) :: frac  ! relativised stored carbohydrate
-
+    real(r8) :: b_leaf ! leaf biomass kgC
     real(r8) :: hf_sm_threshold    ! hydraulic failure soil moisture threshold 
 
 
@@ -439,8 +194,9 @@ contains
     
     ! Carbon Starvation induced mortality.
     if ( cohort_in%dbh  >  0._r8 ) then
-       if(Bleaf(cohort_in) > 0._r8 .and. cohort_in%bstore <= Bleaf(cohort_in))then
-          frac = cohort_in%bstore/(Bleaf(cohort_in))
+       call bleaf(cohort_in%d,cohort_in%h,cohort_in%pft,cohort_in%canopy_trim,b_leaf)
+       if( b_leaf > 0._r8 .and. cohort_in%bstore <= b_leaf )then
+          frac = cohort_in%bstore/ b_leaf
           cmort = max(0.0_r8,ED_val_stress_mort*(1.0_r8 - frac))
         else
           cmort = 0.0_r8

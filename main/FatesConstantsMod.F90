@@ -8,7 +8,7 @@ module FatesConstantsMod
 
   ! kinds
   integer, parameter :: fates_r8 = selected_real_kind(12) ! 8 byte real
-  integer, parameter :: fates_int = selected_integer_kind(8) ! 4 byte int
+  integer, parameter :: fates_int = selected_int_kind(8) ! 4 byte int
 
   ! string lengths
   integer, parameter :: fates_avg_flag_length = 3
