@@ -78,8 +78,7 @@ contains
       logging_time = .false.
       icode = int(logging_event_code)
 
-!      if(hlm_use_logging.eq.ifalse) return     ! Don't turn on until fates-clm adds
-                                                ! this to the interface (RGK 08-2017)
+      if(hlm_use_logging.eq.ifalse) return
 
       if(icode .eq. 1) then
          ! Logging is turned off
