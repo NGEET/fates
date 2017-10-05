@@ -26,7 +26,8 @@ module EDPftvarcon
   !ED specific variables. 
   type, public ::  EDPftvarcon_type
      real(r8), allocatable :: pft_used           (:) ! Switch to turn on and off PFTs
-     real(r8), allocatable :: max_dbh            (:) ! maximum dbh at which height growth ceases...
+     real(r8), allocatable :: max_dbh            (:) ! dbh at which height growth ceases (CHANGE TO dbh_maxheight)
+     real(r8), allocatable :: dbh_mature         (:) ! diameter at which mature plants shift allocation
      real(r8), allocatable :: freezetol          (:) ! minimum temperature tolerance (NOT CURRENTY USED)
      real(r8), allocatable :: wood_density       (:) ! wood density  g cm^-3  ...
      real(r8), allocatable :: hgt_min            (:) ! sapling height m
@@ -45,6 +46,7 @@ module EDPftvarcon
      real(r8), allocatable :: root_long          (:) ! root longevity (yrs)
      real(r8), allocatable :: clone_alloc        (:) ! fraction of carbon balance allocated to clonal reproduction.
      real(r8), allocatable :: seed_alloc         (:) ! fraction of carbon balance allocated to seeds.
+     real(r8), allocatable :: c2b                (:) ! Carbon to biomass multiplier [kg/kgC]
      real(r8), allocatable :: woody(:)
      real(r8), allocatable :: stress_decid(:)
      real(r8), allocatable :: season_decid(:)
@@ -251,7 +253,11 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_max_dbh'
+    name = 'fates_dbh_maxheight'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_dbh_mature'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -308,6 +314,10 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_seed_alloc'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_c2b'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -643,9 +653,13 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%pft_used)
 
-    name = 'fates_max_dbh'
+    name = 'fates_dbh_maxheight'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%max_dbh)
+
+    name = 'fates_dbh_mature'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%dbh_mature)
 
     name = 'fates_freezetol'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -702,6 +716,10 @@ contains
     name = 'fates_seed_alloc'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seed_alloc)
+
+    name = 'fates_c2b'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%c2b)
 
     name = 'fates_woody'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1369,7 +1387,8 @@ contains
 
         write(fates_log(),*) '-----------  FATES PFT Parameters -----------------'
         write(fates_log(),fmt0) 'pft_used = ',EDPftvarcon_inst%pft_used
-        write(fates_log(),fmt0) 'max_dbh = ',EDPftvarcon_inst%max_dbh
+        write(fates_log(),fmt0) 'dbh max height = ',EDPftvarcon_inst%max_dbh
+        write(fates_log(),fmt0) 'dbh mature = ',EDPftvarcon_inst%dbh_mature
         write(fates_log(),fmt0) 'freezetol = ',EDPftvarcon_inst%freezetol
         write(fates_log(),fmt0) 'wood_density = ',EDPftvarcon_inst%wood_density
         write(fates_log(),fmt0) 'hgt_min = ',EDPftvarcon_inst%hgt_min
@@ -1387,6 +1406,7 @@ contains
         write(fates_log(),fmt0) 'root_long = ',EDPftvarcon_inst%root_long
         write(fates_log(),fmt0) 'clone_alloc = ',EDPftvarcon_inst%clone_alloc
         write(fates_log(),fmt0) 'seed_alloc = ',EDPftvarcon_inst%seed_alloc
+        write(fates_log(),fmt0) 'C2B = ',EDPftvarcon_inst%c2b
         write(fates_log(),fmt0) 'woody = ',EDPftvarcon_inst%woody
         write(fates_log(),fmt0) 'stress_decid = ',EDPftvarcon_inst%stress_decid
         write(fates_log(),fmt0) 'season_decid = ',EDPftvarcon_inst%season_decid
