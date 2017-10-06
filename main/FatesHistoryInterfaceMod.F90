@@ -41,7 +41,6 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_trimming_pa
   integer, private :: ih_area_plant_pa
   integer, private :: ih_area_treespread_pa
-  integer, private :: ih_canopy_spread_pa
   integer, private :: ih_nesterov_fire_danger_pa
   integer, private :: ih_spitfire_ROS_pa
   integer, private :: ih_effect_wspeed_pa
@@ -121,6 +120,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_promotion_carbonflux_si
   integer, private :: ih_canopy_mortality_carbonflux_si
   integer, private :: ih_understory_mortality_carbonflux_si
+  integer, private :: ih_canopy_spread_si
   
   ! Indices to (site x scpf) variables
   integer, private :: ih_nplant_si_scpf
@@ -249,6 +249,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_ncl_si_age
   integer, private :: ih_npatches_si_age
   integer, private :: ih_zstar_si_age
+  integer, private :: ih_biomass_si_age
 
   ! Indices to hydraulics variables
   
@@ -1146,7 +1147,7 @@ contains
                hio_trimming_pa         => this%hvars(ih_trimming_pa)%r81d, &
                hio_area_plant_pa       => this%hvars(ih_area_plant_pa)%r81d, &
                hio_area_treespread_pa  => this%hvars(ih_area_treespread_pa)%r81d, & 
-               hio_canopy_spread_pa    => this%hvars(ih_canopy_spread_pa)%r81d, &
+               hio_canopy_spread_si    => this%hvars(ih_canopy_spread_si)%r81d, &
                hio_biomass_si_pft      => this%hvars(ih_biomass_si_pft)%r82d, &
                hio_leafbiomass_si_pft  => this%hvars(ih_leafbiomass_si_pft)%r82d, &
                hio_storebiomass_si_pft => this%hvars(ih_storebiomass_si_pft)%r82d, &
@@ -1267,6 +1268,7 @@ contains
                hio_ncl_si_age          => this%hvars(ih_ncl_si_age)%r82d, &
                hio_npatches_si_age     => this%hvars(ih_npatches_si_age)%r82d, &
                hio_zstar_si_age        => this%hvars(ih_zstar_si_age)%r82d, &
+               hio_biomass_si_age        => this%hvars(ih_biomass_si_age)%r82d, &
                hio_litter_moisture_si_fuel        => this%hvars(ih_litter_moisture_si_fuel)%r82d, &
                hio_cwd_ag_si_cwdsc                  => this%hvars(ih_cwd_ag_si_cwdsc)%r82d, &
                hio_cwd_bg_si_cwdsc                  => this%hvars(ih_cwd_bg_si_cwdsc)%r82d, &
@@ -1311,6 +1313,8 @@ contains
          ! The seed bank is a site level variable
          hio_seed_bank_si(io_si) = sum(sites(s)%seed_bank) * g_per_kg
 
+         hio_canopy_spread_si(io_si)        = sites(s)%spread
+            
          ipa = 0
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
@@ -1334,7 +1338,7 @@ contains
                hio_zstar_si_age(io_si,cpatch%age_class) = hio_zstar_si_age(io_si,cpatch%age_class) &
                     + cpatch%zstar * cpatch%area * AREA_INV
             endif
-            
+
             ccohort => cpatch%shortest
             do while(associated(ccohort))
                
@@ -1396,6 +1400,11 @@ contains
 
                hio_biomass_si_pft(io_si, ft) = hio_biomass_si_pft(io_si, ft) + &
                     (ccohort%n * AREA_INV) * ccohort%b * g_per_kg
+
+               ! update total biomass per age bin
+               hio_biomass_si_age(io_si,cpatch%age_class) = hio_biomass_si_age(io_si,cpatch%age_class) &
+                    + ccohort%b * ccohort%n * AREA_INV
+
 
                ! Site by Size-Class x PFT (SCPF) 
                ! ------------------------------------------------------------------------
@@ -1721,8 +1730,6 @@ contains
             hio_seed_germination_pa(io_pa)     = sum(cpatch%seed_germination) * &
                  g_per_kg * patch_scaling_scalar * years_per_day * days_per_sec 
 
-            
-            hio_canopy_spread_pa(io_pa)        = cpatch%spread(1) 
             
             do i_cwd = 1, ncwd
                hio_cwd_ag_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_si_cwdsc(io_si, i_cwd) + &
@@ -2554,8 +2561,8 @@ contains
     call this%set_history_var(vname='CANOPY_SPREAD', units='0-1',               &
          long='Scaling factor between tree basal area and canopy area',         &
          use_default='active',                                                  &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
-         ivar=ivar, initialize=initialize_variables, index = ih_canopy_spread_pa)
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
+         ivar=ivar, initialize=initialize_variables, index = ih_canopy_spread_si)
 
     call this%set_history_var(vname='PFTbiomass', units='gC/m2',                   &
          long='total PFT level biomass', use_default='active',                     &
@@ -2623,6 +2630,12 @@ contains
          use_default=trim(tempstring),                     &
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_zstar_si_age )
+
+    call this%set_history_var(vname='BIOMASS_BY_AGE', units='m',                   &
+         long='Total Biomass within a given patch age bin (kg C)', &
+         use_default='inactive',                     &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_biomass_si_age )
 
     ! Fire Variables
 

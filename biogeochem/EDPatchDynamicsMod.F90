@@ -276,7 +276,7 @@ contains
     !
     ! !USES:
     
-    use EDParamsMod         , only : ED_val_maxspread, ED_val_understorey_death
+    use EDParamsMod         , only : ED_val_understorey_death
     use EDCohortDynamicsMod , only : zero_cohort, copy_cohort, terminate_cohorts 
 
     !
@@ -300,7 +300,6 @@ contains
     real(r8) :: leaf_litter_local(maxpft)    ! initial value of leaf litter. KgC/m2
     real(r8) :: cwd_ag_local(ncwd)           ! initial value of above ground coarse woody debris. KgC/m2
     real(r8) :: cwd_bg_local(ncwd)           ! initial value of below ground coarse woody debris. KgC/m2
-    real(r8) :: spread_local(nclmax)         ! initial value of canopy spread parameter.no units 
     !---------------------------------------------------------------------
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
@@ -328,12 +327,11 @@ contains
        cwd_bg_local = 0.0_r8
        leaf_litter_local = 0.0_r8
        root_litter_local = 0.0_r8
-       spread_local(1:nclmax) = ED_val_maxspread
        age = 0.0_r8
 
        allocate(new_patch)
        call create_patch(currentSite, new_patch, age, site_areadis, &
-            spread_local, cwd_ag_local, cwd_bg_local, leaf_litter_local, &
+            cwd_ag_local, cwd_bg_local, leaf_litter_local, &
             root_litter_local)
 
        new_patch%tallest  => null()
@@ -748,8 +746,6 @@ contains
 
     enddo
 
-    newPatch%spread = newPatch%spread + currentPatch%spread * patch_site_areadis/newPatch%area    
-
   end subroutine average_patch_properties
 
   ! ============================================================================
@@ -1079,7 +1075,7 @@ contains
   end subroutine mortality_litter_fluxes
 
   ! ============================================================================
-  subroutine create_patch(currentSite, new_patch, age, areap, spread_local,cwd_ag_local,cwd_bg_local, &
+  subroutine create_patch(currentSite, new_patch, age, areap,cwd_ag_local,cwd_bg_local, &
        leaf_litter_local,root_litter_local)
     !
     ! !DESCRIPTION:
@@ -1096,7 +1092,6 @@ contains
     real(r8), intent(in) :: cwd_bg_local(:)     ! initial value of below ground coarse woody debris. KgC/m2
     real(r8), intent(in) :: root_litter_local(:)! initial value of root litter. KgC/m2
     real(r8), intent(in) :: leaf_litter_local(:)! initial value of leaf litter. KgC/m2
-    real(r8), intent(in) :: spread_local(:)     ! initial value of canopy spread parameter.no units 
     !
     ! !LOCAL VARIABLES:
     !---------------------------------------------------------------------
@@ -1126,7 +1121,6 @@ contains
     new_patch%age                = age   
     new_patch%age_class          = 1
     new_patch%area               = areap 
-    new_patch%spread             = spread_local
     new_patch%cwd_ag             = cwd_ag_local
     new_patch%cwd_bg             = cwd_bg_local
     new_patch%leaf_litter        = leaf_litter_local
@@ -1221,7 +1215,6 @@ contains
     currentPatch%nrad(:,:)                  = 999    ! number of exposed leaf layers for each canopy layer and pft
     currentPatch%ncan(:,:)                  = 999    ! number of total leaf layers for each canopy layer and pft
     currentPatch%lai                        = nan    ! leaf area index of patch
-    currentPatch%spread(:)                  = nan    ! dynamic ratio of dbh to canopy area.
     currentPatch%pft_agb_profile(:,:)       = nan    
 
     ! DISTURBANCE 

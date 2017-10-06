@@ -225,14 +225,13 @@ contains
     ! Function of DBH (cm) canopy spread (m/cm) and number of individuals. 
     ! ============================================================================
 
-    use EDParamsMod              , only : ED_val_grass_spread
     use EDTypesMod               , only : nclmax
 
     type(ed_cohort_type), intent(in) :: cohort_in       
 
     real(r8) :: dbh ! Tree diameter at breat height. cm. 
     real(r8) :: crown_area_to_dbh_exponent
-    integer  :: can_layer_index
+    real(r8) :: spreadterm
 
     ! default is to use the same exponent as the dbh to bleaf exponent so that per-plant canopy depth remains invariant during growth,
     ! but allowed to vary via the allom_blca_expnt_diff term (which has default value of zero)
@@ -244,9 +243,8 @@ contains
        write(fates_log(),*) 'z_area 2',EDPftvarcon_inst%max_dbh
        write(fates_log(),*) 'z_area 3',EDPftvarcon_inst%woody
        write(fates_log(),*) 'z_area 4',cohort_in%n
-       write(fates_log(),*) 'z_area 5',cohort_in%patchptr%spread
+       write(fates_log(),*) 'z_area 5',cohort_in%siteptr%spread
        write(fates_log(),*) 'z_area 6',cohort_in%canopy_layer
-       write(fates_log(),*) 'z_area 7',ED_val_grass_spread
     end if
     
     dbh = min(cohort_in%dbh,EDPftvarcon_inst%max_dbh(cohort_in%pft))
@@ -260,15 +258,12 @@ contains
     ! So we allow layer index exceedence here and force it down to max.
     ! (rgk/cdk 05/2017)
     ! ----------------------------------------------------------------------------------
-
-    can_layer_index = min(cohort_in%canopy_layer,nclmax)
-
-    if(EDPftvarcon_inst%woody(cohort_in%pft) == 1)then 
-       c_area = 3.142_r8 * cohort_in%n * &
-            (cohort_in%patchptr%spread(can_layer_index)*dbh)**crown_area_to_dbh_exponent
-    else
-       c_area = 3.142_r8 * cohort_in%n * (ED_val_grass_spread*dbh)**crown_area_to_dbh_exponent
-    end if
+    
+    ! apply site-level spread elasticity to the cohort crown allometry term
+    spreadterm = cohort_in%siteptr%spread * EDPftvarcon_inst%allom_d2ca_coefficient_max(cohort_in%pft) + &
+         (1._r8 - cohort_in%siteptr%spread) * EDPftvarcon_inst%allom_d2ca_coefficient_min(cohort_in%pft)
+    !
+    c_area = cohort_in%n * spreadterm * dbh ** crown_area_to_dbh_exponent
 
   end function c_area
 
