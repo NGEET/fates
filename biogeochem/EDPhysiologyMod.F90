@@ -970,7 +970,7 @@ contains
     !only if carbon balance is +ve
     if ((currentCohort%balive >= target_balive).AND.(currentCohort%carbon_balance >  0._r8))then 
        ! fraction of carbon going into active vs structural carbon        
-       if (currentCohort%dbh <= EDPftvarcon_inst%max_dbh(currentCohort%pft))then ! cap on leaf biomass
+       if (currentCohort%dbh <= EDPftvarcon_inst%allom_dbh_maxheight(currentCohort%pft))then ! cap on leaf biomass
           dbldbd = dDbhdBd(currentCohort)/dDbhdBl(currentCohort) 
           dbrdbd = EDPftvarcon_inst%allom_l2fr(currentCohort%pft) * dbldbd
           dhdbd_fn = dhdbd(currentCohort)

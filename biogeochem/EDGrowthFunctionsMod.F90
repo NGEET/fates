@@ -83,10 +83,10 @@ contains
     ! if the hite is larger than the maximum allowable height (set by dbhmax) then 
     ! set the height to the maximum value. 
     ! this could do with at least re-factoring and probably re-thinking. RF
-    if(cohort_in%dbh <= EDPftvarcon_inst%max_dbh(cohort_in%pft)) then
+    if(cohort_in%dbh <= EDPftvarcon_inst%allom_dbh_maxheight(cohort_in%pft)) then
        h = (10.0_r8**(log10(cohort_in%dbh) * m + c))
     else 
-       h = (10.0_r8**(log10(EDPftvarcon_inst%max_dbh(cohort_in%pft))*m + c))
+       h = (10.0_r8**(log10(EDPftvarcon_inst%allom_dbh_maxheight(cohort_in%pft))*m + c))
     endif
     Hite = h 
 
@@ -116,10 +116,10 @@ contains
        write(fates_log(),*) 'problems in bleaf',cohort_in%dbh,cohort_in%pft
     endif
 
-    if(cohort_in%dbh <= EDPftvarcon_inst%max_dbh(cohort_in%pft))then
+    if(cohort_in%dbh <= EDPftvarcon_inst%allom_dbh_maxheight(cohort_in%pft))then
        bleaf = dbh2bl_a * (cohort_in%dbh**dbh2bl_b) * EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bl_c 
     else  
-       bleaf = dbh2bl_a * (EDPftvarcon_inst%max_dbh(cohort_in%pft)**dbh2bl_b) * &
+       bleaf = dbh2bl_a * (EDPftvarcon_inst%allom_dbh_maxheight(cohort_in%pft)**dbh2bl_b) * &
             EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bl_c
     endif  
 
@@ -236,14 +236,14 @@ contains
     
     if (DEBUG_growth) then
        write(fates_log(),*) 'z_area 1',cohort_in%dbh,cohort_in%pft
-       write(fates_log(),*) 'z_area 2',EDPftvarcon_inst%max_dbh
+       write(fates_log(),*) 'z_area 2',EDPftvarcon_inst%allom_dbh_maxheight
        write(fates_log(),*) 'z_area 3',EDPftvarcon_inst%woody
        write(fates_log(),*) 'z_area 4',cohort_in%n
        write(fates_log(),*) 'z_area 5',cohort_in%siteptr%spread
        write(fates_log(),*) 'z_area 6',cohort_in%canopy_layer
     end if
     
-    dbh = min(cohort_in%dbh,EDPftvarcon_inst%max_dbh(cohort_in%pft))
+    dbh = min(cohort_in%dbh,EDPftvarcon_inst%allom_dbh_maxheight(cohort_in%pft))
     
     ! ----------------------------------------------------------------------------------
     ! The function c_area is called during the process of canopy position demotion
@@ -356,7 +356,7 @@ contains
     dBD_dDBH =  dbh2bd_c*dbh2bd_a*(cohort_in%hite**dbh2bd_b)*(cohort_in%dbh**(dbh2bd_c-1.0_r8))* &
          (EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bd_d)  
 
-    if(cohort_in%dbh < EDPftvarcon_inst%max_dbh(cohort_in%pft))then
+    if(cohort_in%dbh < EDPftvarcon_inst%allom_dbh_maxheight(cohort_in%pft))then
        dH_dDBH = (10.0_r8**c)*m*(cohort_in%dbh**(m-1.0_r8))          
 
        dBD_dDBH =  dBD_dDBH + dbh2bd_b*dbh2bd_a*(cohort_in%hite**(dbh2bd_b - 1.0_r8))* &
@@ -392,7 +392,7 @@ contains
     dblddbh = dbh2bl_b*dbh2bl_a*(cohort_in%dbh**dbh2bl_b)*(EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bl_c)
     dblddbh = dblddbh*cohort_in%canopy_trim
 
-    if( cohort_in%dbh<EDPftvarcon_inst%max_dbh(cohort_in%pft) ) then
+    if( cohort_in%dbh<EDPftvarcon_inst%allom_dbh_maxheight(cohort_in%pft) ) then
         dDbhdBl = 1.0_r8/dblddbh
     else
         dDbhdBl = 1.0d15  ! At maximum size, the leaf biomass is saturated, dbl=0

@@ -26,11 +26,11 @@ module EDPftvarcon
   !ED specific variables. 
   type, public ::  EDPftvarcon_type
      real(r8), allocatable :: pft_used           (:) ! Switch to turn on and off PFTs
-     real(r8), allocatable :: max_dbh            (:) ! dbh at which height growth ceases (CHANGE TO dbh_maxheight)
-     real(r8), allocatable :: dbh_mature         (:) ! diameter at which mature plants shift allocation
+    
      real(r8), allocatable :: freezetol          (:) ! minimum temperature tolerance (NOT CURRENTY USED)
      real(r8), allocatable :: wood_density       (:) ! wood density  g cm^-3  ...
      real(r8), allocatable :: hgt_min            (:) ! sapling height m
+     real(r8), allocatable :: dbh_repro_threshold(:) ! diameter at which mature plants shift allocation
      real(r8), allocatable :: dleaf              (:) ! leaf characteristic dimension length (m)
      real(r8), allocatable :: z0mr               (:) ! ratio of roughness length of vegetation to height (-) 
      real(r8), allocatable :: displar            (:) ! ratio of displacement height to canopy top height (-)
@@ -100,7 +100,9 @@ module EDPftvarcon
                                                     ! Equation 16 Thonicke et al 2010
 
      ! Allometry Parameters
-     ! --------------------------------------------------------------------------------------------
+     ! -------------------------------------------------------------------------------------------- 
+     real(r8), allocatable :: allom_dbh_maxheight(:) ! dbh at which height growth ceases
+     
      real(r8), allocatable :: allom_hmode(:)        ! height allometry function type
      real(r8), allocatable :: allom_lmode(:)        ! maximum leaf allometry function type
      real(r8), allocatable :: allom_fmode(:)        ! maximum root allometry function type
@@ -253,11 +255,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_dbh_maxheight'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_dbh_mature'
+    name = 'fates_dbh_repro_threshold'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -436,6 +434,10 @@ contains
     name = 'fates_alpha_SH'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_allom_dbh_maxheight'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_allom_hmode'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -653,13 +655,9 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%pft_used)
 
-    name = 'fates_dbh_maxheight'
+    name = 'fates_dbh_repro_threshold'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%max_dbh)
-
-    name = 'fates_dbh_mature'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%dbh_mature)
+         data=this%dbh_repro_threshold)
 
     name = 'fates_freezetol'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -832,6 +830,10 @@ contains
     name = 'fates_alpha_SH'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%fire_alpha_SH)
+
+    name = 'fates_allom_dbh_maxheight'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%allom_dbh_maxheight)
 
     name = 'fates_allom_hmode'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1387,8 +1389,8 @@ contains
 
         write(fates_log(),*) '-----------  FATES PFT Parameters -----------------'
         write(fates_log(),fmt0) 'pft_used = ',EDPftvarcon_inst%pft_used
-        write(fates_log(),fmt0) 'dbh max height = ',EDPftvarcon_inst%max_dbh
-        write(fates_log(),fmt0) 'dbh mature = ',EDPftvarcon_inst%dbh_mature
+        write(fates_log(),fmt0) 'dbh max height = ',EDPftvarcon_inst%allom_dbh_maxheight
+        write(fates_log(),fmt0) 'dbh mature = ',EDPftvarcon_inst%dbh_repro_threshold
         write(fates_log(),fmt0) 'freezetol = ',EDPftvarcon_inst%freezetol
         write(fates_log(),fmt0) 'wood_density = ',EDPftvarcon_inst%wood_density
         write(fates_log(),fmt0) 'hgt_min = ',EDPftvarcon_inst%hgt_min
