@@ -870,20 +870,17 @@ contains
    class(fates_history_interface_type)        :: this
    integer,intent(in)                     :: nc
    integer,intent(in)                     :: upfreq_in
-
    integer                      :: ivar
-   type(fates_history_variable_type),pointer :: hvar
    integer                      :: lb1,ub1,lb2,ub2
 
    do ivar=1,ubound(this%hvars,1)
-      associate( hvar => this%hvars(ivar) )
-        if (hvar%upfreq == upfreq_in) then ! Only flush variables with update on dynamics step
-           call hvar%Flush(nc, this%dim_bounds, this%dim_kinds)
-        end if
-      end associate
+      if (this%hvars(ivar)%upfreq == upfreq_in) then ! Only flush variables with update on dynamics step
+         call this%hvars(ivar)%flush(nc, this%dim_bounds, this%dim_kinds)
+         
+      end if
    end do
    
- end subroutine flush_hvars
+end subroutine flush_hvars
 
   
   ! =====================================================================================
@@ -916,7 +913,6 @@ contains
                                            ! not used
 
     ! locals
-    type(fates_history_variable_type), pointer :: hvar
     integer :: ub1, lb1, ub2, lb2    ! Bounds for allocating the var
     integer :: ityp
 
@@ -1111,7 +1107,7 @@ contains
     use EDTypesMod        , only : nlevleaf
 
     ! Arguments
-    class(fates_history_interface_type)                 :: this
+    class(fates_history_interface_type)             :: this
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
@@ -1136,7 +1132,6 @@ contains
     real(r8) :: patch_scaling_scalar ! ratio of canopy to patch area for counteracting patch scaling
     real(r8) :: dbh         ! diameter ("at breast height")
 
-    type(fates_history_variable_type),pointer :: hvar
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
 
@@ -1895,7 +1890,6 @@ contains
     real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
     integer  :: ipa2     ! patch incrementer
     integer :: cnlfpft_indx, cnlf_indx, ipft, ican, ileaf ! more iterators and indices
-    type(fates_history_variable_type),pointer :: hvar
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
     real(r8) :: per_dt_tstep          ! Time step in frequency units (/s)
@@ -2253,7 +2247,6 @@ contains
     integer  :: ipa2     ! patch incrementer
     integer  :: iscpf    ! index of the scpf group
 
-    type(fates_history_variable_type),pointer :: hvar
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
