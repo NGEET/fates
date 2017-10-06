@@ -111,6 +111,9 @@ contains
     ! Resources management (logging/harvesting, etc)
     site_in%resources_management%trunk_product_site  = 0.0_r8
 
+    ! canopy spread
+    site_in%spread = 0._r8
+
   end subroutine zero_site
 
   ! ============================================================================
@@ -187,7 +190,7 @@ contains
        sites(s)%frac_burnt = 0.0_r8
        sites(s)%old_stock  = 0.0_r8
 
-
+       sites(s)%spread     = 1.0_r8
     end do
 
     return
@@ -204,7 +207,6 @@ contains
      !
      
 
-     use EDParamsMod            , only : ED_val_maxspread
      use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydProps 
      use FatesInventoryInitMod,   only : initialize_sites_by_inventory
 
@@ -218,7 +220,6 @@ contains
      integer  :: s
      real(r8) :: cwd_ag_local(ncwd)
      real(r8) :: cwd_bg_local(ncwd)
-     real(r8) :: spread_local(nclmax)
      real(r8) :: leaf_litter_local(maxpft)
      real(r8) :: root_litter_local(maxpft)
      real(r8) :: age !notional age of this patch
@@ -237,7 +238,6 @@ contains
      cwd_bg_local(:)      = 0.0_r8 !ED_val_init_litter
      leaf_litter_local(:) = 0.0_r8
      root_litter_local(:) = 0.0_r8
-     spread_local(:)      = ED_val_maxspread
      age                  = 0.0_r8
      ! ---------------------------------------------------------------------------------------------
 
@@ -276,7 +276,7 @@ contains
 
            ! make new patch...
            call create_patch(sites(s), newp, age, AREA, &
-                 spread_local, cwd_ag_local, cwd_bg_local, leaf_litter_local,  &
+                 cwd_ag_local, cwd_bg_local, leaf_litter_local,  &
                  root_litter_local) 
 
            call init_cohorts(newp, bc_in(s))

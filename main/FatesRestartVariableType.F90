@@ -118,7 +118,7 @@ contains
     
      class(fates_restart_variable_type), intent(inout) :: this
      integer, intent(in)  :: thread
-     class(fates_io_dimension_type), intent(in) :: dim_bounds(:)
+     type(fates_io_dimension_type), intent(in) :: dim_bounds(:)
      type(fates_io_variable_kind_type), intent(in) :: dim_kinds(:)
      integer, intent(out) :: lb1
      integer, intent(out) :: ub1
