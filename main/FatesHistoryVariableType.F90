@@ -89,7 +89,7 @@ contains
     call dim_kinds(dk_index)%set_active()
                 
     call this%GetBounds(0, dim_bounds, dim_kinds, lb1, ub1, lb2, ub2)
-          
+
     ! NOTE(rgk, 2016-09) currently, all array spaces are flushed each
     ! time the update is called. The flush here on the initialization
     ! may be redundant, but will prevent issues in the future if we
@@ -167,7 +167,7 @@ contains
   end subroutine Init
   
   ! =====================================================================================
-
+        
   subroutine GetBounds(this, thread, dim_bounds, dim_kinds, lb1, ub1, lb2, ub2)
 
     use FatesIODimensionsMod, only : fates_io_dimension_type
@@ -176,7 +176,7 @@ contains
 
      class(fates_history_variable_type), intent(inout) :: this
      integer, intent(in)  :: thread
-     class(fates_io_dimension_type), intent(in) :: dim_bounds(:)
+     type(fates_io_dimension_type), intent(in) :: dim_bounds(:)
      type(fates_io_variable_kind_type), intent(in) :: dim_kinds(:)
      integer, intent(out) :: lb1
      integer, intent(out) :: ub1
@@ -205,14 +205,17 @@ contains
            ub2 = dim_bounds(d_index)%upper_bound
         end if
      else
+        
         d_index = dim_kinds(this%dim_kinds_index)%dim1_index
         lb1 = dim_bounds(d_index)%clump_lower_bound(thread)
         ub1 = dim_bounds(d_index)%clump_upper_bound(thread)
+        
         if(ndims>1)then
            d_index = dim_kinds(this%dim_kinds_index)%dim2_index
            lb2 = dim_bounds(d_index)%clump_lower_bound(thread)
            ub2 = dim_bounds(d_index)%clump_upper_bound(thread)
         end if
+        
      end if
      
    end subroutine GetBounds

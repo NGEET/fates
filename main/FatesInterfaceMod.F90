@@ -1124,11 +1124,7 @@ contains
          hlm_use_vertsoilc = unset_int
          hlm_use_spitfire  = unset_int
          hlm_use_planthydro = unset_int
-         hlm_use_logging   = ifalse          ! (RGK: to allow backwards compatibility
-                                             !  defaulting to FALSE, this will allow
-                                             !  the call from the HLM to not necessarily
-                                             !  be forced to exist. Will set this to unset
-                                             !  along with other non backwards compatible changes
+         hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
          hlm_use_inventory_init = unset_int
@@ -1172,7 +1168,7 @@ contains
 
          if ( .not.((hlm_use_logging .eq.1).or.(hlm_use_logging.eq.0))    ) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'The FATES namelist planthydro flag must be 0 or 1, exiting'
+               write(fates_log(), *) 'The FATES namelist use_logging flag must be 0 or 1, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -1411,7 +1407,7 @@ contains
             case('use_logging')
                hlm_use_logging = ival
                if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_use_planthydro= ',ival,' to FATES'
+                  write(fates_log(),*) 'Transfering hlm_use_logging= ',ival,' to FATES'
                end if
 
             case('use_ed_st3')
