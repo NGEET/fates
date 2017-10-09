@@ -847,7 +847,7 @@ contains
        ! This subroutine is called directly from the HLM, and is the first FATES routine
        ! that is called.
        !
-       ! This subroutine MUST BE CALLED AFTER the FATES parameter file has been read in,
+       ! This subroutine MUST BE CALLED AFTER the FATES PFT parameter file has been read in,
        ! and the EDPftvarcon_inst structure has been made.
        ! This subroutine must ALSO BE CALLED BEFORE the history file dimensions
        ! are set.
@@ -859,12 +859,17 @@ contains
        ! --------------------------------------------------------------------------------
 
       use EDParamsMod, only : ED_val_history_sizeclass_bin_edges, ED_val_history_ageclass_bin_edges
-
+      use CLMFatesParamInterfaceMod         , only : FatesReadParameters
       implicit none
       
       logical,intent(in) :: use_fates    ! Is fates turned on?
       
+      integer :: i
+      
       if (use_fates) then
+
+         ! first read the non-PFT parameters
+         call FatesReadParameters()
 
          ! Identify the number of PFTs by evaluating a pft array
          ! Using wood density as that is not expected to be deprecated any time soon
@@ -899,6 +904,29 @@ contains
          ! assume these arrays are 1-indexed
          nlevsclass_ed = size(ED_val_history_sizeclass_bin_edges,dim=1)
          nlevage_ed = size(ED_val_history_ageclass_bin_edges,dim=1)
+
+         ! do some checks on the size and age bin arrays to make sure they make sense:
+         ! make sure that both start at zero, and that both are monotonically increasing
+         if ( ED_val_history_sizeclass_bin_edges(1) .ne. 0._r8 ) then
+            write(fates_log(), *) 'size class bins specified in parameter file must start at zero'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         endif
+         if ( ED_val_history_ageclass_bin_edges(1) .ne. 0._r8 ) then
+            write(fates_log(), *) 'age class bins specified in parameter file must start at zero'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         endif
+         do i = 2,nlevsclass_ed
+            if ( (ED_val_history_sizeclass_bin_edges(i) - ED_val_history_sizeclass_bin_edges(i-1)) .le. 0._r8) then
+               write(fates_log(), *) 'age class bins specified in parameter file must be monotonically increasing'
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
+         end do
+         do i = 2,nlevage_ed
+            if ( (ED_val_history_ageclass_bin_edges(i) - ED_val_history_ageclass_bin_edges(i-1)) .le. 0._r8) then
+               write(fates_log(), *) 'age class bins specified in parameter file must be monotonically increasing'
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
+         end do
 
          ! Set Various Mapping Arrays used in history output as well
          ! These will not be used if use_ed or use_fates is false
