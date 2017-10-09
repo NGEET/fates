@@ -239,7 +239,9 @@ module FatesInterfaceMod
    !
    ! -------------------------------------------------------------------------------------
 
-   integer, protected :: numpft   ! The total number of PFTs defined in the simulation
+   integer, protected :: numpft          ! The total number of PFTs defined in the simulation
+   integer, protected :: nlevsclass_ed   ! The total number of cohort size class bins output to history
+   integer, protected :: nlevage_ed      ! The total number of patch age bins output to history
    
 
    ! -------------------------------------------------------------------------------------
@@ -856,6 +858,7 @@ contains
        !
        ! --------------------------------------------------------------------------------
 
+      use EDParamsMod, only : ED_val_history_sizeclass_bin_edges, ED_val_history_ageclass_bin_edges
 
       implicit none
       
@@ -892,6 +895,10 @@ contains
          
          fates_maxElementsPerSite = maxPatchesPerSite * fates_maxElementsPerPatch
 
+         ! Identify number of size and age class bins for history output
+         ! assume these arrays are 1-indexed
+         nlevsclass_ed = size(ED_val_history_sizeclass_bin_edges,dim=1)
+         nlevage_ed = size(ED_val_history_ageclass_bin_edges,dim=1)
 
          ! Set Various Mapping Arrays used in history output as well
          ! These will not be used if use_ed or use_fates is false
@@ -917,15 +924,12 @@ contains
     
     subroutine fates_history_maps
        
-       use EDTypesMod, only : nlevsclass_ed
        use EDTypesMod, only : NFSC
        use EDTypesMod, only : NCWD
-       use EDTypesMod, only : nlevage_ed
-       use EDTypesMod, only : nlevsclass_ed
        use EDTypesMod, only : nclmax
        use EDTypesMod, only : nlevleaf
-       use EDTypesMod, only : sclass_ed
-       use EDTypesMod, only : ageclass_ed
+       use EDParamsMod, only : ED_val_history_sizeclass_bin_edges
+       use EDParamsMod, only : ED_val_history_ageclass_bin_edges
 
        ! ------------------------------------------------------------------------------------------
        ! This subroutine allocates and populates the variables
@@ -962,11 +966,8 @@ contains
        allocate( fates_hdim_agmap_levscag(nlevsclass_ed * nlevage_ed ))
 
        ! Fill the IO array of plant size classes
-       ! For some reason the history files did not like
-       ! a hard allocation of sclass_ed
-       fates_hdim_levsclass(:) = sclass_ed(:)
-
-       fates_hdim_levage(:) = ageclass_ed(:)
+       fates_hdim_levsclass(:) = ED_val_history_sizeclass_bin_edges(:)
+       fates_hdim_levage(:) = ED_val_history_ageclass_bin_edges(:)
 
        ! make pft array
        do ipft=1,numpft

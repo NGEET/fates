@@ -25,6 +25,8 @@ module EDInitMod
   use FatesInterfaceMod         , only : hlm_use_inventory_init
   use FatesInterfaceMod         , only : numpft
   use ChecksBalancesMod         , only : SiteCarbonStock
+  use FatesInterfaceMod         , only : nlevsclass_ed
+  use FatesInterfaceMod         , only : nlevage_ed
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -38,6 +40,7 @@ module EDInitMod
         __FILE__
 
   public  :: zero_site
+  public  :: init_site_vars
   public  :: init_patches
   public  :: set_site_properties
   private :: init_cohorts
@@ -48,6 +51,24 @@ contains
 
   ! ============================================================================
 
+  subroutine init_site_vars( site_in )
+    !
+    ! !DESCRIPTION:
+    !
+    !
+    ! !ARGUMENTS    
+    type(ed_site_type), intent(inout) ::  site_in
+    !
+    ! !LOCAL VARIABLES:
+    !----------------------------------------------------------------------
+    !
+    allocate(site_in%terminated_nindivs(1:nlevsclass_ed,1:maxpft,2))
+    allocate(site_in%demotion_rate(1:nlevsclass_ed))
+    allocate(site_in%promotion_rate(1:nlevsclass_ed))
+    !
+    end subroutine init_site_vars
+
+  ! ============================================================================
   subroutine zero_site( site_in )
     !
     ! !DESCRIPTION:

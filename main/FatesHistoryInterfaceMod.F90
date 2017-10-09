@@ -14,6 +14,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceMod        , only : hlm_use_ed_st3
   use FatesInterfaceMod        , only : numpft
   use EDParamsMod              , only : ED_val_comp_excln
+  use FatesInterfaceMod        , only : nlevsclass_ed, nlevage_ed
 
   ! FIXME(bja, 2016-10) need to remove CLM dependancy 
   use EDPftvarcon              , only : EDPftvarcon_inst
@@ -1097,13 +1098,11 @@ end subroutine flush_hvars
     use EDtypesMod          , only : ed_patch_type
     use EDtypesMod          , only : AREA
     use EDtypesMod          , only : AREA_INV
-    use EDtypesMod          , only : nlevsclass_ed
-    use EDtypesMod          , only : nlevage_ed
     use EDtypesMod          , only : nfsc
     use EDtypesMod          , only : ncwd
     use EDtypesMod          , only : ican_upper
     use EDtypesMod          , only : ican_ustory
-    use EDTypesMod        , only : get_sizeage_class_index
+    use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
     use EDTypesMod        , only : nlevleaf
 
     ! Arguments
@@ -1862,9 +1861,8 @@ end subroutine flush_hvars
                                      ed_cohort_type, &
                                      ed_patch_type,  &
                                      AREA,           &
-                                     AREA_INV,       &
-                                     nlevage_ed,     &
-                                     nlevsclass_ed
+                                     AREA_INV
+
     use EDTypesMod          , only : nclmax, nlevleaf
     !
     ! Arguments
@@ -2211,14 +2209,10 @@ end subroutine flush_hvars
     use EDtypesMod          , only : ed_site_type,   &
                                      ed_cohort_type, &
                                      ed_patch_type,  &
-                                     AREA,           &
-                                     nlevage_ed,     &
-                                     sclass_ed,      &
-                                     nlevsclass_ed
+                                     AREA
 
     use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
     use FatesHydraulicsMemMod, only : nlevsoi_hyd
-    use EDTypesMod           , only : nlevsclass_ed
     use EDTypesMod           , only : maxpft
 
     

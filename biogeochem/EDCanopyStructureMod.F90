@@ -861,7 +861,7 @@ contains
     use FatesInterfaceMod    , only : bc_in_type
     use EDPatchDynamicsMod   , only : set_patchno
     use EDPatchDynamicsMod   , only : set_root_fraction
-    use EDTypesMod           , only : sizetype_class_index
+    use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
     use EDGrowthFunctionsMod , only : tree_lai, c_area
     use EDtypesMod           , only : area
     use EDPftvarcon            , only : EDPftvarcon_inst
