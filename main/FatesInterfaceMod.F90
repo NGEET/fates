@@ -240,8 +240,8 @@ module FatesInterfaceMod
    ! -------------------------------------------------------------------------------------
 
    integer, protected :: numpft          ! The total number of PFTs defined in the simulation
-   integer, protected :: nlevsclass_ed   ! The total number of cohort size class bins output to history
-   integer, protected :: nlevage_ed      ! The total number of patch age bins output to history
+   integer, protected :: nlevsclass   ! The total number of cohort size class bins output to history
+   integer, protected :: nlevage      ! The total number of patch age bins output to history
    
 
    ! -------------------------------------------------------------------------------------
@@ -902,8 +902,8 @@ contains
 
          ! Identify number of size and age class bins for history output
          ! assume these arrays are 1-indexed
-         nlevsclass_ed = size(ED_val_history_sizeclass_bin_edges,dim=1)
-         nlevage_ed = size(ED_val_history_ageclass_bin_edges,dim=1)
+         nlevsclass = size(ED_val_history_sizeclass_bin_edges,dim=1)
+         nlevage = size(ED_val_history_ageclass_bin_edges,dim=1)
 
          ! do some checks on the size and age bin arrays to make sure they make sense:
          ! make sure that both start at zero, and that both are monotonically increasing
@@ -915,13 +915,13 @@ contains
             write(fates_log(), *) 'age class bins specified in parameter file must start at zero'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          endif
-         do i = 2,nlevsclass_ed
+         do i = 2,nlevsclass
             if ( (ED_val_history_sizeclass_bin_edges(i) - ED_val_history_sizeclass_bin_edges(i-1)) .le. 0._r8) then
                write(fates_log(), *) 'age class bins specified in parameter file must be monotonically increasing'
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end do
-         do i = 2,nlevage_ed
+         do i = 2,nlevage
             if ( (ED_val_history_ageclass_bin_edges(i) - ED_val_history_ageclass_bin_edges(i-1)) .le. 0._r8) then
                write(fates_log(), *) 'age class bins specified in parameter file must be monotonically increasing'
                call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -976,13 +976,13 @@ contains
        integer :: ileaf
        integer :: iage
 
-       allocate( fates_hdim_levsclass(1:nlevsclass_ed   ))
-       allocate( fates_hdim_pfmap_levscpf(1:nlevsclass_ed*numpft))
-       allocate( fates_hdim_scmap_levscpf(1:nlevsclass_ed*numpft))
+       allocate( fates_hdim_levsclass(1:nlevsclass   ))
+       allocate( fates_hdim_pfmap_levscpf(1:nlevsclass*numpft))
+       allocate( fates_hdim_scmap_levscpf(1:nlevsclass*numpft))
        allocate( fates_hdim_levpft(1:numpft   ))
        allocate( fates_hdim_levfuel(1:NFSC   ))
        allocate( fates_hdim_levcwdsc(1:NCWD   ))
-       allocate( fates_hdim_levage(1:nlevage_ed   ))
+       allocate( fates_hdim_levage(1:nlevage   ))
 
        allocate( fates_hdim_levcan(nclmax))
        allocate( fates_hdim_canmap_levcnlf(nlevleaf*nclmax))
@@ -990,8 +990,8 @@ contains
        allocate( fates_hdim_canmap_levcnlfpf(nlevleaf*nclmax*numpft))
        allocate( fates_hdim_lfmap_levcnlfpf(nlevleaf*nclmax*numpft))
        allocate( fates_hdim_pftmap_levcnlfpf(nlevleaf*nclmax*numpft))
-       allocate( fates_hdim_scmap_levscag(nlevsclass_ed * nlevage_ed ))
-       allocate( fates_hdim_agmap_levscag(nlevsclass_ed * nlevage_ed ))
+       allocate( fates_hdim_scmap_levscag(nlevsclass * nlevage ))
+       allocate( fates_hdim_agmap_levscag(nlevsclass * nlevage ))
 
        ! Fill the IO array of plant size classes
        fates_hdim_levsclass(:) = ED_val_history_sizeclass_bin_edges(:)
@@ -1020,7 +1020,7 @@ contains
        ! Fill the IO arrays that match pft and size class to their combined array
        i=0
        do ipft=1,numpft
-          do isc=1,nlevsclass_ed
+          do isc=1,nlevsclass
              i=i+1
              fates_hdim_pfmap_levscpf(i) = ipft
              fates_hdim_scmap_levscpf(i) = isc
@@ -1037,8 +1037,8 @@ contains
        end do
 
        i=0
-       do iage=1,nlevage_ed
-          do isc=1,nlevsclass_ed
+       do iage=1,nlevage
+          do isc=1,nlevsclass
              i=i+1
              fates_hdim_scmap_levscag(i) = isc
              fates_hdim_agmap_levscag(i) = iage

@@ -14,7 +14,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceMod        , only : hlm_use_ed_st3
   use FatesInterfaceMod        , only : numpft
   use EDParamsMod              , only : ED_val_comp_excln
-  use FatesInterfaceMod        , only : nlevsclass_ed, nlevage_ed
+  use FatesInterfaceMod        , only : nlevsclass, nlevage
 
   ! FIXME(bja, 2016-10) need to remove CLM dependancy 
   use EDPftvarcon              , only : EDPftvarcon_inst
@@ -1745,7 +1745,7 @@ end subroutine flush_hvars
          end do !patch loop
 
          ! divide so-far-just-summed but to-be-averaged patch-age-class variables by patch-age-class area to get mean values
-         do ipa2 = 1, nlevage_ed
+         do ipa2 = 1, nlevage
             if (hio_area_si_age(io_si, ipa2) .gt. tiny) then
                hio_lai_si_age(io_si, ipa2) = hio_lai_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
                hio_ncl_si_age(io_si, ipa2) = hio_ncl_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
@@ -1758,8 +1758,8 @@ end subroutine flush_hvars
          ! pass the cohort termination mortality as a flux to the history, and then reset the termination mortality buffer
          ! note there are various ways of reporting the total mortality, so pass to these as well
          do i_pft = 1, numpft
-            do i_scls = 1,nlevsclass_ed
-               i_scpf = (i_pft-1)*nlevsclass_ed + i_scls
+            do i_scls = 1,nlevsclass
+               i_scpf = (i_pft-1)*nlevsclass + i_scls
                hio_m6_si_scpf(io_si,i_scpf) = (sites(s)%terminated_nindivs(i_scls,i_pft,1) + &
                     sites(s)%terminated_nindivs(i_scls,i_pft,2)) * days_per_year
                hio_mortality_canopy_si_scls(io_si,i_scls) = hio_mortality_canopy_si_scls(io_si,i_scls) + &
@@ -1782,8 +1782,8 @@ end subroutine flush_hvars
 
          ! summarize all of the mortality fluxes by PFT
          do i_pft = 1, numpft
-            do i_scls = 1,nlevsclass_ed
-               i_scpf = (i_pft-1)*nlevsclass_ed + i_scls
+            do i_scls = 1,nlevsclass
+               i_scpf = (i_pft-1)*nlevsclass + i_scls
                !hio_mortality_si_pft(io_si,i_pft) = hio_mortality_si_pft(io_si,i_pft) + &
                !     hio_m1_si_scpf(io_si,i_scpf) + &
                !     hio_m2_si_scpf(io_si,i_scpf) + &
@@ -1807,7 +1807,7 @@ end subroutine flush_hvars
          end do
 
          ! pass demotion rates and associated carbon fluxes to history
-         do i_scls = 1,nlevsclass_ed
+         do i_scls = 1,nlevsclass
             hio_demotion_rate_si_scls(io_si,i_scls) = sites(s)%demotion_rate(i_scls) * days_per_year
             hio_promotion_rate_si_scls(io_si,i_scls) = sites(s)%promotion_rate(i_scls) * days_per_year
          end do
@@ -1884,7 +1884,7 @@ end subroutine flush_hvars
     integer  :: ft               ! functional type index
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
-    real(r8) :: patch_area_by_age(nlevage_ed) ! patch area in each bin for normalizing purposes
+    real(r8) :: patch_area_by_age(nlevage) ! patch area in each bin for normalizing purposes
     real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
     integer  :: ipa2     ! patch incrementer
     integer :: cnlfpft_indx, cnlf_indx, ipft, ican, ileaf ! more iterators and indices
@@ -2181,7 +2181,7 @@ end subroutine flush_hvars
             cpatch => cpatch%younger
          end do !patch loop
 
-         do ipa2 = 1, nlevage_ed
+         do ipa2 = 1, nlevage
             if (patch_area_by_age(ipa2) .gt. tiny) then
                hio_gpp_si_age(io_si, ipa2) = hio_gpp_si_age(io_si, ipa2) / (patch_area_by_age(ipa2))
                hio_npp_si_age(io_si, ipa2) = hio_npp_si_age(io_si, ipa2) / (patch_area_by_age(ipa2))
@@ -2234,7 +2234,7 @@ end subroutine flush_hvars
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
     real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
-    real(r8) :: ncohort_scpf(nlevsclass_ed*maxpft)  ! Bins to count up cohorts counts used in weighting
+    real(r8) :: ncohort_scpf(nlevsclass*maxpft)  ! Bins to count up cohorts counts used in weighting
                                                    ! should be "hio_nplant_si_scpf"
     real(r8) :: number_fraction
     real(r8) :: number_fraction_rate
@@ -2423,7 +2423,7 @@ end subroutine flush_hvars
          end do !patch loop
 
          if(hlm_use_ed_st3.eq.ifalse) then
-            do scpf=1,nlevsclass_ed*numpft
+            do scpf=1,nlevsclass*numpft
                if( abs(hio_nplant_si_scpf(io_si, scpf)-ncohort_scpf(scpf)) > 1.0E-8_r8 ) then
                   write(fates_log(),*) 'nplant check on hio_nplant_si_scpf fails during hydraulics history updates'
                   call endrun(msg=errMsg(sourcefile, __LINE__))

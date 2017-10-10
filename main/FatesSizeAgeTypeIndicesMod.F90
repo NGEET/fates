@@ -1,7 +1,7 @@
 module FatesSizeAgeTypeIndicesMod
 
   use FatesConstantsMod,     only : r8 => fates_r8
-  use FatesInterfaceMod,     only : nlevsclass_ed
+  use FatesInterfaceMod,     only : nlevsclass
   use EDParamsMod,           only : ED_val_history_sizeclass_bin_edges
   use EDParamsMod,           only : ED_val_history_ageclass_bin_edges
 
@@ -37,7 +37,7 @@ contains
 
      age_class         = get_age_class_index(age)
      
-     size_by_age_class = (age_class-1)*nlevsclass_ed + size_class
+     size_by_age_class = (age_class-1)*nlevsclass + size_class
 
   end function get_sizeage_class_index
 
@@ -53,7 +53,7 @@ contains
     
     size_class        = get_size_class_index(dbh)
     
-    size_by_pft_class = (pft-1)*nlevsclass_ed+size_class
+    size_by_pft_class = (pft-1)*nlevsclass+size_class
 
     return
  end subroutine sizetype_class_index
