@@ -96,6 +96,10 @@ module EDParamsMod
 
    real(r8),protected :: logging_collateral_frac     ! Ratio of collateral mortality to direct logging mortality
    character(len=param_string_length),parameter :: logging_name_collateral_frac = "fates_logging_collateral_frac"
+
+   real(r8),protected :: logging_coll_under_frac ! Fraction of understory plants that die when logging disturbance
+                                                 ! is generated
+   character(len=param_string_length),parameter :: logging_name_coll_under_frac = "fates_logging_coll_under_frac"
    
    real(r8),protected :: logging_direct_frac         ! Fraction of stems logged per event
    character(len=param_string_length),parameter :: logging_name_direct_frac = "fates_logging_direct_frac"
@@ -262,6 +266,9 @@ contains
     call fates_params%RegisterParameter(name=logging_name_collateral_frac, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
+    call fates_params%RegisterParameter(name=logging_name_coll_under_frac, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
     call fates_params%RegisterParameter(name=logging_name_direct_frac, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
@@ -374,6 +381,9 @@ contains
     
     call fates_params%RetreiveParameter(name=logging_name_collateral_frac, &
           data=logging_collateral_frac)
+    
+    call fates_params%RetreiveParameter(name=logging_name_coll_under_frac, &
+          data=logging_coll_under_frac)
 
     call fates_params%RetreiveParameter(name=logging_name_direct_frac, &
           data=logging_direct_frac)

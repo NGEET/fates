@@ -3186,14 +3186,10 @@ end subroutine flush_hvars
 
 
     !Logging
-    call this%set_history_var(vname='M7_SCPF', units = 'N/ha/event',          &
-          long='logging mortalities by pft/size',use_default='inactive', &
+    call this%set_history_var(vname='M7_SCPF', units = 'N/ha/event',               &
+          long='logging mortalities by pft/size',use_default='inactive',           &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m7_si_scpf )
-
-
-
-
 
 
     call this%set_history_var(vname='MORTALITY_CANOPY_SCPF', units = 'N/ha/yr',          &
