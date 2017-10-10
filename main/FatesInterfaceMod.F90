@@ -917,7 +917,7 @@ contains
          endif
          do i = 2,nlevsclass
             if ( (ED_val_history_sizeclass_bin_edges(i) - ED_val_history_sizeclass_bin_edges(i-1)) .le. 0._r8) then
-               write(fates_log(), *) 'age class bins specified in parameter file must be monotonically increasing'
+               write(fates_log(), *) 'size class bins specified in parameter file must be monotonically increasing'
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end do
