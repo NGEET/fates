@@ -1437,7 +1437,7 @@ contains
     ! associated with the secnd patch
     !
     ! !USES:
-    use EDTypesMod, only: get_age_class_index
+    use FatesSizeAgeTypeIndicesMod, only: get_age_class_index
     !
     ! !ARGUMENTS:
     type (ed_patch_type) , intent(inout), pointer :: dp ! Donor Patch
