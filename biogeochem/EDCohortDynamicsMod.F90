@@ -18,7 +18,7 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : ncwd
   use EDTypesMod            , only : maxCohortsPerPatch
-  use EDTypesMod            , only : sclass_ed,nlevsclass_ed,AREA
+  use EDTypesMod            , only : AREA
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
   use FatesInterfaceMod      , only : hlm_use_planthydro
@@ -28,7 +28,7 @@ module EDCohortDynamicsMod
   use FatesPlantHydraulicsMod, only : initTreeHydStates
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
-  use EDTypesMod             , only : sizetype_class_index
+  use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
 
 
   ! CIME globals

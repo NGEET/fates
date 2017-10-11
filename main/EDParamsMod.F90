@@ -46,6 +46,10 @@ module EDParamsMod
    real(r8),protected :: ED_val_patch_fusion_tol
    real(r8),protected :: ED_val_canopy_closure_thresh ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
 
+   ! two special parameters whose size is defined in the parameter file
+   real(r8),protected,allocatable :: ED_val_history_sizeclass_bin_edges(:)
+   real(r8),protected,allocatable :: ED_val_history_ageclass_bin_edges(:)
+
    character(len=param_string_length),parameter :: ED_name_size_diagnostic_scale = "fates_size_diagnostic_scale"
    character(len=param_string_length),parameter :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
    character(len=param_string_length),parameter :: ED_name_comp_excln = "fates_comp_excln"
@@ -71,6 +75,10 @@ module EDParamsMod
    character(len=param_string_length),parameter :: ED_name_patch_fusion_tol= "fates_patch_fusion_tol"
    character(len=param_string_length),parameter :: ED_name_canopy_closure_thresh= "fates_canopy_closure_thresh"      
 
+   ! non-scalar parameter names
+   character(len=param_string_length),parameter :: ED_name_history_sizeclass_bin_edges= "fates_history_sizeclass_bin_edges"      
+   character(len=param_string_length),parameter :: ED_name_history_ageclass_bin_edges= "fates_history_ageclass_bin_edges"      
+
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
    real(r8),protected :: hydr_psi0          !  sapwood water potential at saturation (MPa)
@@ -88,6 +96,10 @@ module EDParamsMod
 
    real(r8),protected :: logging_collateral_frac     ! Ratio of collateral mortality to direct logging mortality
    character(len=param_string_length),parameter :: logging_name_collateral_frac = "fates_logging_collateral_frac"
+
+   real(r8),protected :: logging_coll_under_frac ! Fraction of understory plants that die when logging disturbance
+                                                 ! is generated
+   character(len=param_string_length),parameter :: logging_name_coll_under_frac = "fates_logging_coll_under_frac"
    
    real(r8),protected :: logging_direct_frac         ! Fraction of stems logged per event
    character(len=param_string_length),parameter :: logging_name_direct_frac = "fates_logging_direct_frac"
@@ -158,12 +170,15 @@ contains
     ! that need to be synced with host values.
 
     use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar1d, dimension_shape_1d
+    use FatesParametersInterface, only : dimension_name_history_size_bins, dimension_name_history_age_bins
 
     implicit none
 
     class(fates_parameters_type), intent(inout) :: fates_params
 
     character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_scalar1d/)
+    character(len=param_string_length), parameter :: dim_names_sizeclass(1) = (/dimension_name_history_size_bins/)
+    character(len=param_string_length), parameter :: dim_names_ageclass(1) = (/dimension_name_history_age_bins/)
 
     call FatesParamsInit()
 
@@ -251,6 +266,9 @@ contains
     call fates_params%RegisterParameter(name=logging_name_collateral_frac, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
+    call fates_params%RegisterParameter(name=logging_name_coll_under_frac, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
     call fates_params%RegisterParameter(name=logging_name_direct_frac, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
@@ -260,6 +278,13 @@ contains
     call fates_params%RegisterParameter(name=logging_name_event_code, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
+
+    ! non-scalar parameters
+    call fates_params%RegisterParameter(name=ED_name_history_sizeclass_bin_edges, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_sizeclass)
+
+    call fates_params%RegisterParameter(name=ED_name_history_ageclass_bin_edges, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_ageclass)
 
   end subroutine FatesRegisterParams
 
@@ -356,6 +381,9 @@ contains
     
     call fates_params%RetreiveParameter(name=logging_name_collateral_frac, &
           data=logging_collateral_frac)
+    
+    call fates_params%RetreiveParameter(name=logging_name_coll_under_frac, &
+          data=logging_coll_under_frac)
 
     call fates_params%RetreiveParameter(name=logging_name_direct_frac, &
           data=logging_direct_frac)
@@ -365,6 +393,14 @@ contains
     
     call fates_params%RetreiveParameter(name=logging_name_event_code, &
           data=logging_event_code)
+
+    ! parameters that are arrays of size defined within the params file and thus need allocating as well
+    call fates_params%RetreiveParameterAllocate(name=ED_name_history_sizeclass_bin_edges, &
+          data=ED_val_history_sizeclass_bin_edges)
+
+    call fates_params%RetreiveParameterAllocate(name=ED_name_history_ageclass_bin_edges, &
+          data=ED_val_history_ageclass_bin_edges)
+
 
   end subroutine FatesReceiveParams
   
