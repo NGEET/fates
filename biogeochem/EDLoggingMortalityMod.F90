@@ -30,7 +30,7 @@ module EDLoggingMortalityMod
    use EDParamsMod       , only : logging_collateral_frac 
    use EDParamsMod       , only : logging_direct_frac
    use EDParamsMod       , only : logging_mechanical_frac 
-   use EDParamsMod       , only : ED_val_understorey_death
+   use EDParamsMod       , only : logging_coll_under_frac 
    use FatesInterfaceMod , only : hlm_current_year
    use FatesInterfaceMod , only : hlm_current_month
    use FatesInterfaceMod , only : hlm_current_day
@@ -281,7 +281,7 @@ contains
          else
             if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
                direct_dead   = 0.0_r8
-               indirect_dead = ED_val_understorey_death * currentCohort%n * &
+               indirect_dead = logging_coll_under_frac * currentCohort%n * &
                      (patch_site_areadis/currentPatch%area)  !kgC/site/day
             else
                ! If the cohort of interest is grass, it will not experience
