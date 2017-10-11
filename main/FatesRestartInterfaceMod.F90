@@ -1358,6 +1358,7 @@ contains
      use EDGrowthFunctionsMod, only : Dbh
      use EDCohortDynamicsMod,  only : create_cohort
      use EDInitMod,            only : zero_site
+     use EDInitMod,            only : init_site_vars
      use EDPatchDynamicsMod,   only : create_patch
      use EDPftvarcon,            only : EDPftvarcon_inst
 
@@ -1408,6 +1409,7 @@ contains
           io_idx_si  = this%restart_map(nc)%site_index(s)
           io_idx_co_1st  = this%restart_map(nc)%cohort1_index(s)
           
+          call init_site_vars( sites(s) )
           call zero_site( sites(s) )
           
           ! 

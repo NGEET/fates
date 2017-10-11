@@ -637,7 +637,7 @@ contains
       ! fsn     (kg/m2)    Fast Soil Nitrogen
       ! --------------------------------------------------------------------------------------------
 
-      use EDTypesMod, only: get_age_class_index
+      use FatesSizeAgeTypeIndicesMod, only: get_age_class_index
       use EDtypesMod, only: AREA
       use EDTypesMod, only: ncwd
       use SFParamsMod , only : SF_val_CWD_frac

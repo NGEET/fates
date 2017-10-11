@@ -100,25 +100,6 @@ module EDTypesMod
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
   logical, parameter :: homogenize_seed_pfts  = .false.
 
-  !the lower limit of the size classes of ED cohorts
-  !0-10,10-20...
-  integer, parameter :: nlevsclass_ed = 13    ! Number of dbh size classes for size structure analysis
-                                              ! |0-1,1-2,2-3,3-4,4-5,5-10,10-20,20-30,30-40,40-50,50-60,60-70,70-80,80-90,90-100,100+|
-!  real(r8), parameter, dimension(16) ::  sclass_ed  = (/0.0_r8,1.0_r8,2.0_r8,3.0_r8,4.0_r8,5.0_r8,10.0_r8,20.0_r8,30.0_r8,40.0_r8, &
-!                                                       50.0_r8,60.0_r8,70.0_r8,80.0_r8,90.0_r8,100.0_r8/)
-
-  real(r8), parameter, dimension(nlevsclass_ed) ::  sclass_ed  = (/0.0_r8,5.0_r8,10.0_r8,15.0_r8,20.0_r8,30.0_r8,40.0_r8, &
-                                                       50.0_r8,60.0_r8,70.0_r8,80.0_r8,90.0_r8,100.0_r8/)
-
-  integer, parameter :: nlevage_ed = 7  ! Number of patch-age classes for age structured analyses
-  real(r8), parameter, dimension(nlevage_ed) ::  ageclass_ed  = (/0.0_r8,1.0_r8,2._r8,5.0_r8,10.0_r8,20.0_r8,50.0_r8/)
-  
-
- !  integer, parameter :: nlevsclass_ed = 17
- !  real(r8), parameter, dimension(17) ::  sclass_ed  = (/0.1_r8, 5.0_r8,10.0_r8,15.0_r8,20.0_r8,25.0_r8, & 
- !                                                       30.0_r8,35.0_r8,40.0_r8,45.0_r8,50.0_r8,55.0_r8, &
- !                                                       60.0_r8,65.0_r8,70.0_r8,75.0_r8,80.0_r8/)
-
   integer, parameter :: nlevmclass_ed = 5      ! nlev "mortality" classes in ED
                                                ! Number of ways to die
                                                ! (background,hydraulic,carbon,impact,fire)
@@ -552,12 +533,12 @@ module EDTypesMod
         
      ! TERMINATION, RECRUITMENT, DEMOTION, and DISTURBANCE
 
-     real(r8) :: terminated_nindivs(1:nlevsclass_ed,1:maxpft,2) ! number of individuals that were in cohorts which were terminated this timestep, on size x pft x canopy array. 
+     real(r8), allocatable :: terminated_nindivs(:,:,:) ! number of individuals that were in cohorts which were terminated this timestep, on size x pft x canopy array. 
      real(r8) :: termination_carbonflux(2)                     ! carbon flux from live to dead pools associated with termination mortality, per canopy level
      real(r8) :: recruitment_rate(1:maxpft)                     ! number of individuals that were recruited into new cohorts
-     real(r8) :: demotion_rate(1:nlevsclass_ed)                ! rate of individuals demoted from canopy to understory per FATES timestep
+     real(r8), allocatable :: demotion_rate(:)                ! rate of individuals demoted from canopy to understory per FATES timestep
      real(r8) :: demotion_carbonflux                           ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
-     real(r8) :: promotion_rate(1:nlevsclass_ed)               ! rate of individuals promoted from understory to canopy per FATES timestep
+     real(r8), allocatable :: promotion_rate(:)               ! rate of individuals promoted from understory to canopy per FATES timestep
      real(r8) :: promotion_carbonflux                          ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
 
      ! some diagnostic-only (i.e. not resolved by ODE solver) flux of carbon to CWD and litter pools from termination and canopy mortality
@@ -572,67 +553,6 @@ module EDTypesMod
   end type ed_site_type
 
 contains
-
-  ! =====================================================================================
-  
-  function get_age_class_index(age) result( patch_age_class ) 
-
-     real(r8), intent(in) :: age
-     
-     integer :: patch_age_class
-
-     patch_age_class = count(age-ageclass_ed.ge.0.0_r8)
-
-  end function get_age_class_index
-
-  ! =====================================================================================
-
-  function get_sizeage_class_index(dbh,age) result(size_by_age_class)
-     
-     ! Arguments
-     real(r8),intent(in) :: dbh
-     real(r8),intent(in) :: age
-
-     integer             :: size_class
-     integer             :: age_class
-     integer             :: size_by_age_class
-     
-     size_class        = get_size_class_index(dbh)
-
-     age_class         = get_age_class_index(age)
-     
-     size_by_age_class = (age_class-1)*nlevsclass_ed + size_class
-
-  end function get_sizeage_class_index
-
-  ! =====================================================================================
-
-  subroutine sizetype_class_index(dbh,pft,size_class,size_by_pft_class)
-    
-    ! Arguments
-    real(r8),intent(in) :: dbh
-    integer,intent(in)  :: pft
-    integer,intent(out) :: size_class
-    integer,intent(out) :: size_by_pft_class
-    
-    size_class        = get_size_class_index(dbh)
-    
-    size_by_pft_class = (pft-1)*nlevsclass_ed+size_class
-
-    return
- end subroutine sizetype_class_index
-
-  ! =====================================================================================
-
-  function get_size_class_index(dbh) result(cohort_size_class)
-
-     real(r8), intent(in) :: dbh
-     
-     integer :: cohort_size_class
-     
-     cohort_size_class = count(dbh-sclass_ed.ge.0.0_r8)
-     
-  end function get_size_class_index
 
   ! =====================================================================================
 

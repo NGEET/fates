@@ -34,7 +34,7 @@ module EDMainMod
   use EDPhysiologyMod          , only : recruitment
   use EDPhysiologyMod          , only : trim_canopy
   use SFMainMod                , only : fire_model 
-  use EDTypesMod               , only : get_age_class_index
+  use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
   use EDtypesMod               , only : ncwd
   use EDtypesMod               , only : ed_site_type
   use EDtypesMod               , only : ed_patch_type
@@ -225,7 +225,6 @@ contains
     ! FIX(SPM,032414) refactor so everything goes through interface
     !
     ! !USES:
-    use EDTypesMod, only : ageclass_ed
     !
     ! !ARGUMENTS:
     type(ed_site_type)     , intent(inout) :: currentSite
@@ -380,7 +379,6 @@ contains
           currentSite%seed_bank(ft) = small_no
        endif
     enddo
-
 
   end subroutine ed_integrate_state_variables
 
