@@ -1463,9 +1463,9 @@ end subroutine flush_hvars
                        hio_m5_si_scpf(io_si,scpf) = hio_m5_si_scpf(io_si,scpf) + ccohort%fmort*ccohort%n
                        
 
-                      !Y.X. 
-		       hio_m7_si_scpf(io_si,scpf) = hio_m7_si_scpf(io_si,scpf) + &
-		       	    (ccohort%lmort_logging+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n
+                       !Y.X. 
+                       hio_m7_si_scpf(io_si,scpf) = hio_m7_si_scpf(io_si,scpf) + &
+                           (ccohort%lmort_direct+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n
 
 
                        ! basal area  [m2/ha]
@@ -1507,7 +1507,7 @@ end subroutine flush_hvars
 
                         hio_mortality_canopy_si_scpf(io_si,scpf) = hio_mortality_canopy_si_scpf(io_si,scpf)+ &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort+ &
-			    ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra) * ccohort%n
+                             ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * ccohort%n
 
                        hio_nplant_canopy_si_scpf(io_si,scpf) = hio_nplant_canopy_si_scpf(io_si,scpf) + ccohort%n
                        hio_nplant_canopy_si_scls(io_si,scls) = hio_nplant_canopy_si_scls(io_si,scls) + ccohort%n
@@ -1528,12 +1528,12 @@ end subroutine flush_hvars
                        ! sum of all mortality
                        hio_mortality_canopy_si_scls(io_si,scls) = hio_mortality_canopy_si_scls(io_si,scls) + &
                              (ccohort%bmort + ccohort%hmort + ccohort%cmort  + ccohort%fmort + &
-                             ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra) * ccohort%n
+                             ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * ccohort%n
 
                        hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%fmort) * &
                             ccohort%b * ccohort%n * g_per_kg * days_per_sec * years_per_day * ha_per_m2 + &
-                            (ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra)* ccohort%b * &
+                            (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra)* ccohort%b * &
                             ccohort%n * g_per_kg * ha_per_m2
 
                        hio_leaf_md_canopy_si_scls(io_si,scls) = hio_leaf_md_canopy_si_scls(io_si,scls) + &
@@ -1583,7 +1583,7 @@ end subroutine flush_hvars
 
                        hio_mortality_understory_si_scpf(io_si,scpf) = hio_mortality_understory_si_scpf(io_si,scpf)+ &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort + &
-			    ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra) * ccohort%n   
+                             ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * ccohort%n   
 
                        hio_nplant_understory_si_scpf(io_si,scpf) = hio_nplant_understory_si_scpf(io_si,scpf) + ccohort%n
                        hio_nplant_understory_si_scls(io_si,scls) = hio_nplant_understory_si_scls(io_si,scls) + ccohort%n
@@ -1605,12 +1605,12 @@ end subroutine flush_hvars
                        ! sum of all mortality
                        hio_mortality_understory_si_scls(io_si,scls) = hio_mortality_understory_si_scls(io_si,scls) + &
                              (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort +&
-                             ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra) * ccohort%n
+                             ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * ccohort%n
                        
                        hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
                              (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%imort + ccohort%fmort) * &
                              ccohort%b * ccohort%n * g_per_kg * days_per_sec * years_per_day * ha_per_m2 + &
-                             (ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra) * ccohort%b * &
+                             (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * ccohort%b * &
                              ccohort%n * g_per_kg * ha_per_m2
 
                        !
@@ -1799,7 +1799,7 @@ end subroutine flush_hvars
                     hio_m4_si_scpf(io_si,i_scpf) + &
                     hio_m5_si_scpf(io_si,i_scpf) + &
                     hio_m6_si_scpf(io_si,i_scpf) + &
-		    hio_m7_si_scpf(io_si,i_scpf)
+                    hio_m7_si_scpf(io_si,i_scpf)
 
 
 
