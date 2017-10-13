@@ -60,15 +60,6 @@
 ! dbh_max, real, the diameter associated with maximum height [cm]
 !               diagnosed from maxh using non-asymptotic functions
 !
-! Some def
-!
-!
-!
-!
-!
-!
-!
-!
 ! Initial Implementation: Ryan Knox July 2017
 !
 !===============================================================================
@@ -106,17 +97,9 @@ module FatesAllometryMod
 contains
 
   ! ============================================================================
-  ! Parameter Checks and Defaults (subroutine)
+  ! Parameter Checks
   ! ============================================================================
   
-!  subroutine init_allom()
-
-    ! Perform Auto-initializations
-    
-    ! Calculate DBH at maximum height
-
-!  end subroutine init_allom
-
 
   ! ============================================================================
   ! Generic height to diameter interface
