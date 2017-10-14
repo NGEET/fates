@@ -194,7 +194,7 @@ contains
     
     ! Carbon Starvation induced mortality.
     if ( cohort_in%dbh  >  0._r8 ) then
-       call bleaf(cohort_in%d,cohort_in%h,cohort_in%pft,cohort_in%canopy_trim,b_leaf)
+       call bleaf(cohort_in%dbh,cohort_in%hite,cohort_in%pft,cohort_in%canopy_trim,b_leaf)
        if( b_leaf > 0._r8 .and. cohort_in%bstore <= b_leaf )then
           frac = cohort_in%bstore/ b_leaf
           cmort = max(0.0_r8,ED_val_stress_mort*(1.0_r8 - frac))

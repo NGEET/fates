@@ -69,7 +69,6 @@ module EDPftvarcon
      real(r8), allocatable :: smpso(:)
      real(r8), allocatable :: smpsc(:)
      real(r8), allocatable :: grperc(:) 
-     real(r8), allocatable :: c2b(:)
      real(r8), allocatable :: bmort(:)
      real(r8), allocatable :: hf_sm_threshold(:)
      real(r8), allocatable :: vcmaxha(:)
@@ -407,10 +406,6 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_grperc'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_c2b'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -809,10 +804,6 @@ contains
     name = 'fates_grperc'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%grperc)
-
-    name = 'fates_c2b'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%c2b)
 
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1415,7 +1406,6 @@ contains
         write(fates_log(),fmt0) 'root_long = ',EDPftvarcon_inst%root_long
         write(fates_log(),fmt0) 'clone_alloc = ',EDPftvarcon_inst%clone_alloc
         write(fates_log(),fmt0) 'seed_alloc = ',EDPftvarcon_inst%seed_alloc
-        write(fates_log(),fmt0) 'C2B = ',EDPftvarcon_inst%c2b
         write(fates_log(),fmt0) 'woody = ',EDPftvarcon_inst%woody
         write(fates_log(),fmt0) 'stress_decid = ',EDPftvarcon_inst%stress_decid
         write(fates_log(),fmt0) 'season_decid = ',EDPftvarcon_inst%season_decid

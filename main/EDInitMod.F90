@@ -370,7 +370,7 @@ contains
        call bag_allom(temp_cohort%dbh,temp_cohort%hite,pft,b_ag)
 
        ! Calculate coarse root biomass from allometry
-       call bcr_allom(temp_cohort%dbh,temp_cohort%h,pft,b_cr)
+       call bcr_allom(temp_cohort%dbh,temp_cohort%hite,pft,b_cr)
 
        ! Calculate the leaf biomass 
        ! (calculates a maximum first, then applies canopy trim)

@@ -58,7 +58,11 @@
 ! h_min, real, the height associated with newly recruited plant [m]
 ! dbh_min, real, the dbh associated with a newly recruited plant [cm]
 ! dbh_max, real, the diameter associated with maximum height [cm]
-!               diagnosed from maxh using non-asymptotic functions
+!                diagnosed from maxh using non-asymptotic functions
+!
+! Note - i4 types are expressed explicitly to accomodate unit testing calls
+!        to this module
+!
 !
 ! Initial Implementation: Ryan Knox July 2017
 !
@@ -91,8 +95,6 @@ module FatesAllometryMod
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
 
-  logical, parameter :: allow_hcapping = .true.
-
 
 contains
 
@@ -100,6 +102,11 @@ contains
   ! Parameter Checks
   ! ============================================================================
   
+  ! Checks to make sure parameters are not within expected ranges for each
+  ! functions
+
+  ! Check to make sure Martinez-Cano height cap is not on, or explicitly allowed
+
 
   ! ============================================================================
   ! Generic height to diameter interface
@@ -113,30 +120,12 @@ contains
     real(r8),intent(out)          :: d     ! plant diameter [cm]
     real(r8),intent(out),optional :: dddh  ! change in diameter per height [cm/m]
 
-    real(r8) :: h_sap
-    real(r8) :: dhdd_sap
-    real(r8) :: ddedh_sap
-    real(r8) :: de_sap
-    real(r8) :: h_adult
-    real(r8) :: dhdd_adult
-    real(r8) :: ddedh_adult
-    real(r8) :: de_adult
-    integer  :: hallom_mode
-    real(r8) :: p1
-    real(r8) :: p2
-    real(r8) :: p3
-
     associate(  p1          => EDPftvarcon_inst%allom_d2h1(ipft), &
                 p2          => EDPftvarcon_inst%allom_d2h2(ipft), &
                 p3          => EDPftvarcon_inst%allom_d2h3(ipft), &
                 allom_hmode => EDPftvarcon_inst%allom_hmode(ipft))
 
-
-      print*,huge(ipft)
-      print*,tiny(ipft)
-      stop
-               
-      select case(allom_hmode)
+      select case(int(allom_hmode))
       case (1) ! chave 2014
          call h2d_chave2014(h,p1,p2,p3,d,dddh)
       case (2)  ! poorter 2006
@@ -179,23 +168,23 @@ contains
      real(r8)                :: p2
      real(r8)                :: p3
                   
-     associate( dbh_maxh => EDPftvarcon_inst%max_dbh(ipft), &
+     associate( dbh_maxh => EDPftvarcon_inst%allom_dbh_maxheight(ipft), &
                 p1       => EDPftvarcon_inst%allom_d2h1(ipft), &
                 p2       => EDPftvarcon_inst%allom_d2h2(ipft), &
                 p3       => EDPftvarcon_inst%allom_d2h3(ipft), &
                 allom_hmode => EDPftvarcon_inst%allom_hmode(ipft))
        
-       select case(allom_hmode)
+       select case(int(allom_hmode))
        case (1)   ! "chave14")
           call d2h_chave2014(d,p1,p2,p3,dbh_maxh,h,dhdd)
        case (2)   ! "poorter06"
-          call d2h_poorter2006(d,p1,p2,p3,h,dhdd)
+          call d2h_poorter2006(d,p1,p2,p3,dbh_maxh,h,dhdd)
        case (3)   ! "2parameter power function h=a*d^b "
           call d2h_2pwr(d,p1,p2,dbh_maxh,h,dhdd)
        case (4)   ! "obrien"
           call d2h_obrien(d,p1,p2,dbh_maxh,h,dhdd)
        case (5)   ! Martinez-Cano
-          call d2h_martcano(d,p1,p2,p3,h,dhdd)
+          call d2h_martcano(d,p1,p2,p3,dbh_maxh,h,dhdd)
        case DEFAULT
           write(fates_log(),*) 'An undefined height allometry was specified: ',allom_hmode
           write(fates_log(),*) 'Aborting'
@@ -217,7 +206,7 @@ contains
     real(r8),intent(in)    :: h       ! plant height [m]
     integer(i4),intent(in) :: ipft    ! PFT index
     real(r8),intent(out)   :: bag     ! plant height [m]
-    real(r8),intent(out)   :: dbagdd  ! change in agb per diameter [kgC/cm]
+    real(r8),intent(out),optional   :: dbagdd  ! change in agb per diameter [kgC/cm]
 
 
     associate( &
@@ -230,12 +219,12 @@ contains
           agb_frac => EDPftvarcon_inst%allom_agb_frac(ipft), &
           allom_amode => EDPftvarcon_inst%allom_amode(ipft))
 
-      select case(allom_amode)
+      select case(int(allom_amode))
       case (1) !"chave14") 
          call dh2bag_chave2014(d,h,ipft,p1,p2,wood_density,c2b,bag,dbagdd)
       case (2) !"2par_pwr")
          ! Switch for woodland dbh->drc
-         call d2bag_2pwr(d,ipft,p1,p2,c2b,bag,dbagdd)
+         call d2bag_2pwr(d,p1,p2,c2b,bag,dbagdd)
       case (3) !"salda")
          call dh2bag_salda(d,h,ipft,p1,p2,p3,p4,wood_density,c2b,agb_frac,bag,dbagdd)
       case DEFAULT
@@ -258,10 +247,10 @@ contains
     real(r8),intent(in)    :: h         ! plant height [m]
     integer(i4),intent(in) :: ipft      ! PFT index
     real(r8),intent(out)   :: blmax     ! plant leaf biomass [kg]
-    real(r8),intent(out)   :: dblmaxdd  ! change leaf bio per diameter [kgC/cm]
+    real(r8),intent(out),optional :: dblmaxdd  ! change leaf bio per diameter [kgC/cm]
 
     associate( &
-          dbh_maxh    => EDPftvarcon_inst%max_dbh(ipft),      &
+          dbh_maxh    => EDPftvarcon_inst%allom_dbh_maxheight(ipft), &
           rho         => EDPftvarcon_inst%wood_density(ipft), &
           c2b         => EDPftvarcon_inst%c2b(ipft),          &
           allom_lmode => EDPftvarcon_inst%allom_lmode(ipft),  &
@@ -269,7 +258,7 @@ contains
           p2          => EDPftvarcon_inst%allom_d2bl2(ipft),  &
           p3          => EDPftvarcon_inst%allom_d2bl3(ipft))
       
-      select case(allom_lmode)
+      select case(int(allom_lmode))
       case(1) !"salda")
          call d2blmax_salda(d,p1,p2,p3,rho,dbh_maxh,c2b,blmax,dblmaxdd)
       case(2) !"2par_pwr")
@@ -318,7 +307,10 @@ contains
     ! -------------------------------------------------------------------------
     
     bl = blmax * canopy_trim
-    dbldd = dblmaxdd * canopy_trim
+
+    if(present(dbldd))then
+       dbldd = dblmaxdd * canopy_trim
+    end if
 
     return
  end subroutine bleaf
@@ -340,7 +332,7 @@ contains
     real(r8)    :: dblmaxdd  ! chage in blmax per diam [kgC/cm]
     real(r8)    :: dhdd      ! change in height per diameter [m/cm]
 
-    select case(EDPftvarcon_inst%allom_smode(ipft))
+    select case(int(EDPftvarcon_inst%allom_smode(ipft)))
        ! ---------------------------------------------------------------------
        ! Currently both sapwood area proportionality methods use the same
        ! machinery.  The only differences are related to the parameter
@@ -376,9 +368,9 @@ contains
     real(r8)    :: bag       ! above ground biomass [kgC]
     real(r8)    :: dbagdd    ! change in agb per diameter [kgC/cm]
 
-    call bag_allom(d,h,ipft,bag,dbadd)
+    call bag_allom(d,h,ipft,bag,dbagdd)
 
-    select case(EDPftvarcon_inst%allom_cmode(ipft))
+    select case(int(EDPftvarcon_inst%allom_cmode(ipft)))
     case(1) !"constant")
        call bcr_const(d,bag,dbagdd,ipft,bcr,dbcrdd)
     case DEFAULT
@@ -408,18 +400,21 @@ contains
     real(r8),intent(out)   :: bfr            ! fine root biomass [kgC]
     real(r8),intent(out),optional :: dbfrdd  ! change leaf bio per diameter [kgC/cm]
 
+    real(r8) :: blmax      ! maximum leaf biomss per allometry
+    real(r8) :: dblmaxdd
     real(r8) :: bfrmax
     real(r8) :: dbfrmaxdd
     real(r8) :: slascaler
 
-    select case(EDPftvarcon_inst%allom_fmode(ipft))
+    select case(int(EDPftvarcon_inst%allom_fmode(ipft)))
     case(1) ! "constant proportionality with bleaf"
 
        call blmax_allom(d,h,ipft,blmax,dblmaxdd)
        call bfrmax_const(d,blmax,dblmaxdd,ipft,bfrmax,dbfrmaxdd)
        bfr    = bfrmax * canopy_trim
-       dbfrdd = dbfrmaxdd * canopy_trim
-
+       if(present(dbfrdd))then
+          dbfrdd = dbfrmaxdd * canopy_trim
+       end if
     case DEFAULT 
        write(fates_log(),*) 'An undefined fine root allometry was specified: ', &
             EDPftvarcon_inst%allom_fmode(ipft)
@@ -464,15 +459,15 @@ contains
     else
        bdead = bag+bcr-bsap
     end if
-
-    if(present(dbagdd) .and. present(dbcrdd) .and. present(dbsapdd))then
+    
+    if(present(dbagdd) .and. present(dbcrdd) .and. present(dbsapdd) .and. present(dbdeaddd) )then
        if(test_b4b) then
           dbdeaddd = dbagdd+dbcrdd
        else
           dbdeaddd = dbagdd+dbcrdd-dbsapdd
        end if
     end if
-
+    
     return
  end subroutine bdead_allom
   
@@ -488,14 +483,17 @@ contains
     real(r8),intent(in)    :: dblmaxdd  ! change in blmax per diam [kgC/cm]
     integer(i4),intent(in) :: ipft      ! PFT index
     real(r8),intent(out)   :: bfrmax    ! max fine-root root biomass [kgC]
-    real(r8),intent(out)   :: dbfrmaxdd ! change frmax bio per diam [kgC/cm]
+    real(r8),intent(out),optional :: dbfrmaxdd ! change frmax bio per diam [kgC/cm]
     
     associate( l2fr => EDPftvarcon_inst%allom_l2fr(ipft) )
       
       bfrmax = blmax*l2fr
       
       ! dbfr/dd = dbfrmax/dblmax * dblmax/dd
-      dbfrmaxdd = dblmaxdd*l2fr
+      if(present(dbfrmaxdd))then
+         dbfrmaxdd = dblmaxdd*l2fr
+      end if
+
     end associate
     return
  end subroutine bfrmax_const
@@ -513,7 +511,7 @@ contains
     real(r8),intent(in)    :: dbagdd    ! change in agb per diameter [kg/cm]
     integer(i4),intent(in) :: ipft      ! PFT index
     real(r8),intent(out)   :: bcr       ! coarse root biomass [kg]
-    real(r8),intent(out)   :: dbcrdd    ! change croot bio per diam [kg/cm]
+    real(r8),intent(out),optional :: dbcrdd    ! change croot bio per diam [kg/cm]
 
     associate( agb_fraction => EDPftvarcon_inst%allom_agb_frac(ipft) )
 
@@ -525,7 +523,10 @@ contains
 
       ! Derivative
       ! dbcr/dd = dbcr/dbag * dbag/dd
-      dbcrdd = (1.0_r8/agb_fraction-1.0_r8)*dbagdd
+      if(present(dbcrdd))then
+         dbcrdd = (1.0_r8/agb_fraction-1.0_r8)*dbagdd
+      end if
+
     end associate
     return
  end subroutine bcr_const
@@ -561,7 +562,7 @@ contains
     real(r8),intent(in)    :: dhdd      ! change in height per diameter [m/cm]
     integer(i4),intent(in) :: ipft      ! PFT index
     real(r8),intent(out)   :: bsap      ! plant leaf biomass [kgC]
-    real(r8),intent(out)   :: dbsapdd   ! change leaf bio per diameter [kgC/cm]
+    real(r8),intent(out),optional :: dbsapdd   ! change leaf bio per diameter [kgC/cm]
 
     real(r8)               :: latosa    ! m2 leaf area per cm2 sap area
     real(r8)               :: hbl2bsap  ! sapwood biomass per lineal height
@@ -604,11 +605,12 @@ contains
       ! Derivative
       ! dbldmaxdd is deriv of blmax wrt dbh (use directives to check oop)
       ! dhdd is deriv of height wrt dbh (use directives to check oop)
-      
-      if (bsap<max_agbfrac*bag) then
-         dbsapdd = hbl2bsap*(h*dblmaxdd + blmax*dhdd)
-      else
-         dbsapdd = max_agbfrac*dbagdd
+      if(present(dbsapdd))then
+         if (bsap<max_agbfrac*bag) then
+            dbsapdd = hbl2bsap*(h*dblmaxdd + blmax*dhdd)
+         else
+            dbsapdd = max_agbfrac*dbagdd
+         end if
       end if
     end associate
     return
@@ -630,15 +632,22 @@ contains
     real(r8),intent(in)    :: c2b       ! c to biomass multiplier (~2.0)
 
     real(r8),intent(out)   :: blmax     ! plant leaf biomass [kg]
-    real(r8),intent(out)   :: dblmaxdd  ! change leaf bio per diam [kgC/cm]
+    real(r8),intent(out),optional   :: dblmaxdd  ! change leaf bio per diam [kgC/cm]
       
     if( d<dbh_maxh) then
        blmax = p1 * d**p2 * rho**p3
-       dblmaxdd = p1*p2 * d**(p2-1.0_r8) * rho**p3
     else
        blmax    = p1 * dbh_maxh**p2 * rho**p3
-       dblmaxdd = 0.0
     end if
+
+    if(present(dblmaxdd))then
+       if( d<dbh_maxh) then
+          dblmaxdd = p1*p2 * d**(p2-1.0_r8) * rho**p3
+       else
+          dblmaxdd = 0.0
+       end if
+    end if
+    
     return
  end subroutine d2blmax_salda
 
@@ -678,10 +687,13 @@ contains
     real(r8),intent(in)  :: c2b       ! carbon to biomass multiplier
 
     real(r8),intent(out) :: blmax     ! plant leaf biomass [kg]
-    real(r8),intent(out) :: dblmaxdd  ! change leaf bio per diameter [kgC/cm]
+    real(r8),intent(out),optional :: dblmaxdd  ! change leaf bio per diameter [kgC/cm]
 
     blmax    = p1*d**p2 / c2b
-    dblmaxdd = p1*p2 *d**(p2-1.0_r8) / c2b
+
+    if(present(dblmaxdd))then
+       dblmaxdd = p1*p2 *d**(p2-1.0_r8) / c2b
+    end if
 
     return
  end subroutine d2blmax_2pwr
@@ -691,7 +703,7 @@ contains
   subroutine dh2blmax_2pwr(d,ipft,p1,p2,c2b,blmax,dblmaxdd)
     
     ! -------------------------------------------------------------------------
-    ! This formulation is very similar to dh2blmax_2pwr
+    ! This formulation is very similar to d2blmax_2pwr
     ! The difference is that for very large trees that have reached peak
     ! height, we calculate an effective diameter to estimate the leaf biomass.
     ! The effective diameter is the diameter that matches the height on
@@ -711,7 +723,7 @@ contains
     real(r8),intent(in)  :: c2b       ! carbon 2 biomass multiplier
 
     real(r8),intent(out) :: blmax     ! plant leaf biomass [kg]
-    real(r8),intent(out) :: dblmaxdd  ! change leaf bio per diameter [kgC/cm]
+    real(r8),intent(out),optional :: dblmaxdd  ! change leaf bio per diameter [kgC/cm]
 
     real(r8)             :: h         ! plant height
     real(r8)             :: dhdd      ! height to diameter differential
@@ -732,12 +744,14 @@ contains
 
     ! If this plant has reached its height cap, then it is not
     ! adding leaf mass.  In this case, dhdd = 0
-    if(dhdd>0.0_r8) then
-       dblmaxdd = p1*p2*dbh_eff**(p2-1.0_r8) / c2b * ddeffdd
-    else
-       dblmaxdd = 0.0_r8
+    if(present(dblmaxdd))then
+       if(dhdd>0.0_r8) then
+          dblmaxdd = p1*p2*dbh_eff**(p2-1.0_r8) / c2b * ddeffdd
+       else
+          dblmaxdd = 0.0_r8
+       end if
     end if
-    
+
     return
  end subroutine dh2blmax_2pwr
 
@@ -786,24 +800,30 @@ contains
     real(r8),intent(in)  :: dbh_maxh ! dbh at maximum height [cm]
     
     real(r8),intent(out) :: h     ! plant height [m]
-    real(r8),intent(out) :: dhdd  ! change in height per diameter [m/cm]
+    real(r8),intent(out),optional :: dhdd  ! change in height per diameter [m/cm]
     real(r8) :: p1e
     
     p1e = p1   ! -eclim (assumed that p1 already has eclim removed)
-    if(d>=dbh_max .and. hallow_hcapping ) then
+    if(d>=dbh_maxh) then
        h    = exp( p1e + p2*log(dbh_maxh) + p3*log(dbh_maxh)**2.0 )
-       dhdd = 0.0_r8
     else
        h    = exp( p1e + p2*log(d) + p3*log(d)**2.0 )
-       dhdd = exp(p1e) * ( 2.0_r8*p3*d**(p2-1.0_r8+p3*log(d))*log(d) + &
-                        p2*d**(p2-1.0_r8+p3*log(d)) )
+    end if
+
+    if(present(dhdd))then
+       if(d>=dbh_maxh ) then
+          dhdd = 0.0_r8
+       else
+          dhdd = exp(p1e) * ( 2.0_r8*p3*d**(p2-1.0_r8+p3*log(d))*log(d) + &
+                p2*d**(p2-1.0_r8+p3*log(d)) )
+       end if
     end if
     return
  end subroutine d2h_chave2014
 
   ! ===========================================================================
   
-  subroutine d2h_poorter2006(d,p1,p2,p3,h,dhdd)
+  subroutine d2h_poorter2006(d,p1,p2,p3,dbh_maxh,h,dhdd)
     
     ! "d2h_poorter2006"
     ! "d to height via Poorter et al. 2006, these routines use natively
@@ -829,18 +849,26 @@ contains
     real(r8),intent(in)     :: p1       ! parameter a = h_max
     real(r8),intent(in)     :: p2       ! parameter b
     real(r8),intent(in)     :: p3       ! parameter c
+    real(r8),intent(in)     :: dbh_maxh ! dbh at maximum height
     real(r8),intent(out) :: h     ! plant height [m]
-    real(r8),intent(out) :: dhdd  ! change in height per diameter [m/cm]
+    real(r8),intent(out),optional :: dhdd  ! change in height per diameter [m/cm]
     
-    h = p1*(1.0_r8 - exp(p2*d**p3))
+    h = p1*(1.0_r8 - exp(p2*min(d,dbh_maxh)**p3))
+
     !h = h_max - h_max (exp(a*d**b))
     !f(x) = -h_max*exp(g(x))
     !g(x) = a*d**b
     !d/dx f(g(x) = f'(g(x))*g'(x) = -a1*exp(a2*d**a3) * a3*a2*d**(a3-1)
-    !
-    dhdd = -p1*exp(p2*d**p3) * p3*p2*d**(p3-1.0_r8)
+
+    if(present(dhdd))then
+       if( d>=dbh_maxh ) then
+          dhdd = 0.0_r8
+       else
+          dhdd = -p1*exp(p2*d**p3) * p3*p2*d**(p3-1.0_r8)
+       end if
+    end if
+
     return
-    
  end subroutine d2h_poorter2006
 
   ! ===========================================================================
@@ -889,15 +917,18 @@ contains
     real(r8),intent(in)     :: p2       ! parameter b
     real(r8),intent(in)     :: dbh_maxh ! dbh where max height occurs [cm]
     real(r8),intent(out)    :: h        ! plant height [m]
-    real(r8),intent(out)    :: dhdd     ! change in height per diameter [m/cm]
-
-    if(d>=dbh_maxh .and. hallow_hcapping) then
-       h    = p1*dbh_maxh**p2
-       dhdd = 0.0_r8
-    else
-       h    = p1*d**p2
-       dhdd = (p2*p1)*d**(p2-1.0_r8)
+    real(r8),intent(out),optional    :: dhdd     ! change in height per diameter [m/cm]
+    
+    h    = p1*min(d,dbh_maxh)**p2
+    
+    if(present(dhdd))then
+       if( d>=dbh_maxh ) then
+          dhdd = 0.0_r8
+       else
+          dhdd = (p2*p1)*d**(p2-1.0_r8)
+       end if
     end if
+
     return
  end subroutine d2h_2pwr
 
@@ -910,24 +941,26 @@ contains
     real(r8),intent(in)    :: p2       ! parameter b
     real(r8),intent(in)    :: dbh_maxh ! dbh where max height occurs [cm]
     real(r8),intent(out)   :: h        ! plant height [m]
-    real(r8),intent(out)   :: dhdd     ! change in height per diameter [m/cm]
+    real(r8),intent(out),optional   :: dhdd     ! change in height per diameter [m/cm]
     
     !p1 = 0.64
     !p2 = 0.37
-    if(d>=dbh_maxh .and. hallow_hcapping) then
-       h    = 10.0_r8**(log10(dbh_maxh)*p1+p2)
-       dhdd = 0.0_r8
-    else
-       h    = 10.0_r8**(log10(d)*p1+p2)
-       dhdd = p1*10.0_r8**p2*d**(p1-1.0_r8)
-    end if
+    h    = 10.0_r8**(log10(min(d,dbh_maxh))*p1+p2)
     
+    if(present(dhdd))then
+       if(d>=dbh_maxh ) then
+          dhdd = 0.0_r8
+       else
+          dhdd = p1*10.0_r8**p2*d**(p1-1.0_r8)
+       end if
+    end if
+
     return
  end subroutine d2h_obrien
 
   ! ===========================================================================
   
-  subroutine d2h_martcano(d,p1,p2,p3,h,dhdd)
+  subroutine d2h_martcano(d,p1,p2,p3,dbh_maxh,h,dhdd)
      
      ! =========================================================================
      ! "d2h_martcano"
@@ -949,16 +982,22 @@ contains
      real(r8),intent(in)  :: p1       ! parameter a
      real(r8),intent(in)  :: p2       ! parameter b 
      real(r8),intent(in)  :: p3       ! parameter c
+     real(r8),intent(in)  :: dbh_maxh ! diameter at maximum height
      real(r8),intent(out) :: h     ! plant height [m]
-     real(r8),intent(out) :: dhdd  ! change in height per diameter [m/cm]
+     real(r8),intent(out),optional :: dhdd  ! change in height per diameter [m/cm]
+
+     h = (p1*min(d,dbh_maxh)**p2)/(p3+min(d,dbh_maxh)**p2)
      
-     
-     h = (p1*d**p2)/(p3+d**p2)
-     
-     dhdd = ((p2*p1*d**(p2-1._r8))*(p3+d**p2) - &
-             (p2*d**(p2-1._r8))*(p1*d**p2)        )/ &
-             (p3+d**p2)**2._r8
-       
+     if(present(dhdd))then
+        if(d>=dbh_maxh ) then
+           dhdd = 0.0
+        else
+           dhdd = ((p2*p1*d**(p2-1._r8))*(p3+d**p2) - &
+                 (p2*d**(p2-1._r8))*(p1*d**p2)        )/ &
+                 (p3+d**p2)**2._r8
+        end if
+     end if
+
      return
   end subroutine d2h_martcano
   
@@ -966,7 +1005,7 @@ contains
   ! =========================================================================
   ! Diameter 2 above-ground biomass
   ! =========================================================================
-  
+
   subroutine dh2bag_chave2014(d,h,ipft,d2bag1,d2bag2,wood_density,c2b,bag,dbagdd)
 
     ! =========================================================================
@@ -996,22 +1035,25 @@ contains
     real(r8),intent(in)  :: wood_density
     real(r8),intent(in)  :: c2b
     real(r8),intent(out) :: bag     ! plant height [m]
-    real(r8),intent(out) :: dbagdd  ! change in agb per diameter [kgC/cm]
+    real(r8),intent(out),optional :: dbagdd  ! change in agb per diameter [kgC/cm]
 
     real(r8) :: hj,dhdd
     real(r8) :: dbagdd1,dbagdd2,dbagdd3
 
     bag   = (d2bag1 * (wood_density*d**2.0_r8*h)**d2bag2)/c2b
 
-    ! Need the the derivative of height to diameter to
-    ! solve the derivative of agb with height
-    call h_allom(d,ipft,hj,dhdd)
 
-    dbagdd1  = (d2bag1*wood_density**d2bag2)/c2b
-    dbagdd2  = d2bag2*d**(2.0_r8*d2bag2)*h**(d2bag2-1.0_r8)*dhdd
-    dbagdd3  = h**d2bag2*2.0_r8*d2bag2*d**(2.0_r8*d2bag2-1.0_r8)
-    dbagdd   = dbagdd1*(dbagdd2 + dbagdd3)
-    
+    if(present(dbagdd))then
+       ! Need the the derivative of height to diameter to
+       ! solve the derivative of agb with height
+       call h_allom(d,ipft,hj,dhdd)
+       
+       dbagdd1  = (d2bag1*wood_density**d2bag2)/c2b
+       dbagdd2  = d2bag2*d**(2.0_r8*d2bag2)*h**(d2bag2-1.0_r8)*dhdd
+       dbagdd3  = h**d2bag2*2.0_r8*d2bag2*d**(2.0_r8*d2bag2-1.0_r8)
+       dbagdd   = dbagdd1*(dbagdd2 + dbagdd3)
+    end if
+       
     return
  end subroutine dh2bag_chave2014
 
@@ -1055,21 +1097,12 @@ contains
     real(r8),intent(in)  :: d2bag2  ! allometry parameter 2
     real(r8),intent(in)  :: c2b     ! carbon to biomass multiplier ~2
     real(r8),intent(out) :: bag     ! plant height [m]
-    real(r8),intent(out) :: dbagdd  ! change in agb per diameter [kgC/cm]
-    
-    !max_dbh = EDPftvarcon_inst%maxdbh(ipft)
-    !if(diam>1.10*max_dbh)
-    !    display("-----------------------------------------------------")
-    !    display("Tree diameter is 10! larger than diameter where height")
-    !    display("hits maximum.  However, you specified an AGB allometry")
-    !    display("that does not assume capping. Please consider ")
-    !    display("re-evaluating your allometric assumptions, growth")
-    !    display("formulations or maximum height")
-    !    display("------------------------------------------------------")
-    !end
+    real(r8),intent(out),optional :: dbagdd  ! change in agb per diameter [kgC/cm]
     
     bag    = (d2bag1 * d**d2bag2)/c2b
-    dbagdd = (d2bag2*d2bag1*d**(d2bag2-1.0_r8))/c2b
+    if(present(dbagdd))then
+       dbagdd = (d2bag2*d2bag1*d**(d2bag2-1.0_r8))/c2b
+    end if
     
     return
  end subroutine d2bag_2pwr
@@ -1080,7 +1113,7 @@ contains
 
     ! --------------------------------------------------------------------
     ! Calculate stem biomass from height(m) dbh(cm) and wood density(g/cm3)
-    ! default params using allometry of J.G. Saldarriaga et al 1988 - Rio Negro                                  
+    ! default params using allometry of J.G. Saldarriaga et al 1988 - Rio Negro
     ! Journal of Ecology vol 76 p938-958  
     ! Saldarriaga 1988 provided calculations on total dead biomass
     ! So here, we calculate total dead, and then call and remove
@@ -1101,7 +1134,7 @@ contains
     real(r8),intent(in) :: allom_agb_frac
 
     real(r8),intent(out) :: bag     ! plant biomass [kgC/indiv]
-    real(r8),intent(out) :: dbagdd  ! change in agb per diameter [kgC/cm]
+    real(r8),intent(out),optional :: dbagdd  ! change in agb per diameter [kgC/cm]
 
     real(r8) :: term1,term2,term3,hj,dhdd
 
@@ -1114,13 +1147,15 @@ contains
     ! dbag/dd = a1*r**a4 * d/dd (h**a2*d**a3)
     ! dbag/dd = a1*r**a4 * [ d**a3 *d/dd(h**a2) + h**a2*d/dd(d**a3) ]
     ! dbag/dd = a1*r**a4 * [ d**a3 * a2*h**(a2-1)dh/dd + h**a2*a3*d**(a3-1)]
-    
-    term1 = allom_agb_frac*d2bag1*(wood_density**d2bag4)
-    term2 = (h**d2bag2)*d2bag3*d**(d2bag3-1.0_r8)
-    
-    call h_allom(d,ipft,hj,dhdd)
-    term3 = d2bag2*h**(d2bag2-1)*(d**d2bag3)*dhdd
-    dbagdd   = term1*(term2+term3)
+
+    if(present(dbagdd)) then
+       term1 = allom_agb_frac*d2bag1*(wood_density**d2bag4)
+       term2 = (h**d2bag2)*d2bag3*d**(d2bag3-1.0_r8)
+       
+       call h_allom(d,ipft,hj,dhdd)
+       term3 = d2bag2*h**(d2bag2-1)*(d**d2bag3)*dhdd
+       dbagdd   = term1*(term2+term3)
+    end if
 
     return
  end subroutine dh2bag_salda
@@ -1141,7 +1176,7 @@ contains
     real(r8),intent(in)  :: p3
 
     real(r8),intent(out) :: de      ! effective plant diameter [cm]
-    real(r8),intent(out) :: ddedh   ! effective change in d per height [cm/m]
+    real(r8),intent(out),optional :: ddedh   ! effective change in d per height [cm/m]
 
     real(r8) :: p1e, eroot, dbh1,dhpdd
 
@@ -1151,12 +1186,14 @@ contains
 
     de = exp(eroot)
     
-    ! Invert the derivative at d without asymtote
-    dhpdd = exp(p1e)*( p3*2.0_r8*de**(p2-1.0_r8)*log(de)* &
-         exp(p3*log(de)**2) + p2*de**(p2-1.0_r8)* &
-         exp(p3*log(de)**2.0_r8) )
-    
-    ddedh = 1.0_r8/dhpdd
+    if(present(ddedh))then
+       ! Invert the derivative at d without asymtote
+       dhpdd = exp(p1e)*( p3*2.0_r8*de**(p2-1.0_r8)*log(de)* &
+             exp(p3*log(de)**2) + p2*de**(p2-1.0_r8)* &
+             exp(p3*log(de)**2.0_r8) )
+       
+       ddedh = 1.0_r8/dhpdd
+    end if
     
     !    term1 = exp(-p2/(2*p3))
     !    term2 = exp(p2**2/(4*p3**2))
@@ -1194,7 +1231,7 @@ contains
     real(r8),intent(in)  :: p3
 
     real(r8),intent(out) :: d      ! plant diameter [cm]
-    real(r8),intent(out) :: dddh   ! change in d per height [cm/m]
+    real(r8),intent(out),optional :: dddh   ! change in d per height [cm/m]
     
     ! -------------------------------------------------------------------------
     ! h = a1*(1 - exp(a2*d**a3))
@@ -1212,8 +1249,11 @@ contains
     ! -------------------------------------------------------------------------
     
     d = (log(1.0_r8-h/p1)/p2)**(1.0_r8/p3)
-    dddh = -((log(1-h/p1)/p2)**(1.0_r8/p3-1.0_r8))/ &
-         (p2*p3*(p1-h))
+
+    if(present(dddh))then
+       dddh = -((log(1-h/p1)/p2)**(1.0_r8/p3-1.0_r8))/ &
+             (p2*p3*(p1-h))
+    end if
 
     return
  end subroutine h2d_poorter2006
@@ -1228,13 +1268,16 @@ contains
     real(r8),intent(in)  :: p2     ! parameter 2
 
     real(r8),intent(out) :: d      ! plant diameter [cm]
-    real(r8),intent(out) :: dddh   ! change in d per height [cm/m]
+    real(r8),intent(out),optional :: dddh   ! change in d per height [cm/m]
 
     !h = a1*d**a2
     d = (h/p1)**(1.0_r8/p2)
+
     !    d = (1/a1)**(1/a2)*h**(1/a2)
-    dddh = (1.0_r8/p2)*(1.0_r8/p1)**(1.0_r8/p2) &
-         *h**(1.0_r8/p2-1.0_r8)
+    if(present(dddh)) then
+       dddh = (1.0_r8/p2)*(1.0_r8/p1)**(1.0_r8/p2) &
+             *h**(1.0_r8/p2-1.0_r8)
+    end if
 
     return
  end subroutine h2d_2pwr
@@ -1248,11 +1291,13 @@ contains
     real(r8),intent(in)  :: p2
 
     real(r8),intent(out)   :: d      ! plant diameter [cm]
-    real(r8),intent(out)   :: dddh   ! change in d per height [cm/m]
-    
-    d    = 10.0_r8**((log10(h)-p2)/p1)
-    dddh = 1.0_r8/(p1*10.0_r8**p2*d**(p1-1.0_r8))
+    real(r8),intent(out),optional   :: dddh   ! change in d per height [cm/m]
 
+    d      = 10.0_r8**((log10(h)-p2)/p1)
+
+    if(present(dddh))then
+       dddh = 1.0_r8/(p1*10.0_r8**p2*d**(p1-1.0_r8))
+    end if
 
     return
  end subroutine h2d_obrien
@@ -1284,14 +1329,15 @@ contains
     real(r8),intent(in)  :: p3
 
     real(r8),intent(out)   :: d     ! plant diameter [cm]
-    real(r8),intent(out)   :: dddh  ! change in diameter per height [cm/m]
+    real(r8),intent(out),optional :: dddh  ! change in diameter per height [cm/m]
 
     d = ((h*p3)/(p1-h))**(1._r8/p2)
     
-    dddh =  (((1._r8/p2)*(h*p3)**(1._r8/p2-1._r8))*((p1-h)**(1._r8/p2)) - & 
+    if(present(dddh))then
+       dddh =  (((1._r8/p2)*(h*p3)**(1._r8/p2-1._r8))*((p1-h)**(1._r8/p2)) - & 
              ((1._r8/p2)*(p1-h)**(1._r8/p2-1._r8))* ((h*p3)**(1._r8/p2)) ) / &
-            ((p1-h)**(1._r8/p2))**2._r8
-
+             ((p1-h)**(1._r8/p2))**2._r8
+    end if
     return
   end subroutine h2d_martcano
 

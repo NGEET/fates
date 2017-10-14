@@ -753,7 +753,7 @@ contains
       use FatesAllometryMod         , only : bag_allom
       use FatesAllometryMod         , only : bcr_allom
       use FatesAllometryMod         , only : bleaf
-      use FatesAllometryMod         , only : bfr_allom
+      use FatesAllometryMod         , only : bfineroot
       use FatesAllometryMod         , only : bsap_allom
       use FatesAllometryMod         , only : bdead_allom
 
@@ -871,21 +871,21 @@ contains
 
       temp_cohort%pft         = c_pft
       temp_cohort%n           = c_nplant * cpatch%area
-      call h_allom(c_dbh,ipft,temp_cohort%hite)
+      call h_allom(c_dbh,c_pft,temp_cohort%hite)
       temp_cohort%dbh         = c_dbh
       temp_cohort%canopy_trim = 1.0_r8
       ! Calculate total above-ground biomass from allometry
 
       call bag_allom(temp_cohort%dbh,temp_cohort%hite,c_pft,b_ag)
       ! Calculate coarse root biomass from allometry
-      call bcr_allom(temp_cohort%dbh,temp_cohort%h,c_pft,b_cr)
+      call bcr_allom(temp_cohort%dbh,temp_cohort%hite,c_pft,b_cr)
       
       ! Calculate the leaf biomass (calculates a maximum first, then applies canopy trim
       ! and sla scaling factors)
       call bleaf(temp_cohort%dbh,temp_cohort%hite,c_pft,temp_cohort%canopy_trim,b_leaf)
       
       ! Calculate fine root biomass
-      call bfr_allom(temp_cohort%dbh,temp_cohort%hite,c_pft,b_fineroot)
+      call bfineroot(temp_cohort%dbh,temp_cohort%hite,c_pft,temp_cohort%canopy_trim,b_fineroot)
       
       ! Calculate sapwood biomass
       call bsap_allom(temp_cohort%dbh,c_pft,b_sapwood)
