@@ -1019,7 +1019,7 @@ contains
     ! Tally up the relative change in dead biomass WRT diameter
     call bag_allom(currentCohort%dbh,currentCohort%hite,ipft,b_ag,db_ag_dd)
     call bcr_allom(currentCohort%dbh,currentCohort%hite,ipft,b_cr,db_cr_dd)
-    call bdead_allom( b_ag, b_cr, b_sap, db_ag_dd, db_cr_dd, db_sap_dd, db_dead_dd )
+    call bdead_allom( b_ag, b_cr, b_sap, b_dead, db_ag_dd, db_cr_dd, db_sap_dd, db_dead_dd )
 
     !only if carbon balance is +ve
 
