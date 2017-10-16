@@ -1019,7 +1019,7 @@ contains
     ! Tally up the relative change in dead biomass WRT diameter
     call bag_allom(currentCohort%dbh,currentCohort%hite,ipft,b_ag,db_ag_dd)
     call bcr_allom(currentCohort%dbh,currentCohort%hite,ipft,b_cr,db_cr_dd)
-    call bdead_allom( b_ag, b_cr, b_sap, b_dead, db_ag_dd, db_cr_dd, db_sap_dd, db_dead_dd )
+    call bdead_allom( b_ag, b_cr, b_sap, ipft, b_dead, db_ag_dd, db_cr_dd, db_sap_dd, db_dead_dd )
 
     !only if carbon balance is +ve
 
@@ -1171,7 +1171,7 @@ contains
 
        call bag_allom(temp_cohort%dbh,temp_cohort%hite,ft,b_aboveground)
        call bcr_allom(temp_cohort%dbh,temp_cohort%hite,ft,b_coarseroot)
-       call bdead_allom(b_aboveground,b_coarseroot,b_sapwood,temp_cohort%bdead)
+       call bdead_allom(b_aboveground,b_coarseroot,b_sapwood,ft,temp_cohort%bdead)
 
 
        ! Initialize balive (leaf+fineroot+sapwood)

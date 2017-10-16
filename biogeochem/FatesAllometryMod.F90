@@ -437,12 +437,13 @@ contains
   ! Dead biomass interface
   ! ============================================================================
   
-  subroutine bdead_allom(bag,bcr,bsap,bdead,dbagdd,dbcrdd,dbsapdd,dbdeaddd)
+  subroutine bdead_allom(bag,bcr,bsap,ipft,bdead,dbagdd,dbcrdd,dbsapdd,dbdeaddd)
 
 
     real(r8),intent(in)  :: bag       ! agb [kgC]
     real(r8),intent(in)  :: bcr       ! coarse root biomass [kgC]
     real(r8),intent(in)  :: bsap      ! sapwood biomass [kgC]
+    integer(i4),intent(in) :: ipft    ! PFT index
     real(r8),intent(out) :: bdead     ! dead biomass (heartw/struct) [kgC]
     
     real(r8),intent(in),optional  :: dbagdd    ! change in agb per d [kgC/cm]
@@ -450,27 +451,37 @@ contains
     real(r8),intent(in),optional  :: dbsapdd   ! change in bsap per d [kgC/cm]
     real(r8),intent(out),optional :: dbdeaddd  ! change in bdead per d [kgC/cm]
     
-    
-    
     ! bdead is diagnosed as the mass balance from all other pools
     ! and therefore, no options are necessary
     
-    if(test_b4b) then
-       bdead = bag+bcr
-    else
-       bdead = bag+bcr-bsap
-    end if    
-    
-    if(test_b4b) then
-       if(present(dbagdd) .and. present(dbcrdd) .and. present(dbdeaddd) )then
-          dbdeaddd = dbagdd+dbcrdd
-       end if
-    else
-       if(present(dbagdd) .and. present(dbcrdd) .and. present(dbdeaddd) .and. present(dbsapdd) )then
-          dbdeaddd = dbagdd+dbcrdd-dbsapdd
-       end if
-    end if
-    
+    associate( agb_fraction => EDPftvarcon_inst%allom_agb_frac(ipft))
+
+      select case(int(EDPftvarcon_inst%allom_amode(ipft)))
+      case(3) ! Saldariagga mass allometry originally calculated bdead directly.
+              ! we assume proportionality between bdead and bag
+       
+         bdead = bag/agb_fraction 
+         if(present(dbagdd) .and. present(dbdeaddd))then
+            dbdeaddd = dbagdd/agb_fraction
+         end if
+         
+      case(1,2)
+         
+         bdead = bag+bcr-bsap
+         if(present(dbagdd) .and. present(dbcrdd) .and. &
+            present(dbdeaddd) .and. present(dbsapdd) )then
+            dbdeaddd = dbagdd+dbcrdd-dbsapdd
+         end if
+         
+      case DEFAULT
+         
+         write(fates_log(),*) 'An undefined AGB allometry was specified: ',&
+                              EDPftvarcon_inst%allom_amode(ipft)
+         write(fates_log(),*) 'Aborting'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+       
+      end select
+    end associate
     return
   end subroutine bdead_allom
 

@@ -385,7 +385,7 @@ contains
        
        temp_cohort%balive = b_leaf + b_fineroot + b_sapwood
 
-       call bdead_allom( b_ag, b_cr, b_sapwood, temp_cohort%bdead )
+       call bdead_allom( b_ag, b_cr, b_sapwood, pft, temp_cohort%bdead )
 
        temp_cohort%b = temp_cohort%balive + temp_cohort%bdead
 

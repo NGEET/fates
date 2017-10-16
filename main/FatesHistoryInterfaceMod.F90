@@ -71,6 +71,8 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_bdead_pa
   integer, private :: ih_balive_pa
   integer, private :: ih_bleaf_pa
+  integer, private :: ih_bsapwood_pa
+  integer, private :: ih_bfineroot_pa
   integer, private :: ih_btotal_pa
   integer, private :: ih_npp_pa
   integer, private :: ih_gpp_pa
@@ -1170,6 +1172,8 @@ end subroutine flush_hvars
                hio_bdead_pa            => this%hvars(ih_bdead_pa)%r81d, &
                hio_balive_pa           => this%hvars(ih_balive_pa)%r81d, &
                hio_bleaf_pa            => this%hvars(ih_bleaf_pa)%r81d, &
+               hio_bsapwood_pa         => this%hvars(ih_bsapwood_pa)%r81d, &
+               hio_bfineroot_pa        => this%hvars(ih_bfineroot_pa)%r81d, &
                hio_btotal_pa           => this%hvars(ih_btotal_pa)%r81d, &
                hio_canopy_biomass_pa   => this%hvars(ih_canopy_biomass_pa)%r81d, &
                hio_understory_biomass_pa   => this%hvars(ih_understory_biomass_pa)%r81d, &
@@ -1376,11 +1380,13 @@ end subroutine flush_hvars
                     + ccohort%c_area * AREA_INV
 
                ! Update biomass components
-               hio_bleaf_pa(io_pa)  = hio_bleaf_pa(io_pa)  + n_density * ccohort%bl       * g_per_kg
-               hio_bstore_pa(io_pa) = hio_bstore_pa(io_pa) + n_density * ccohort%bstore   * g_per_kg
-               hio_btotal_pa(io_pa) = hio_btotal_pa(io_pa) + n_density * ccohort%b        * g_per_kg
-               hio_bdead_pa(io_pa)  = hio_bdead_pa(io_pa)  + n_density * ccohort%bdead    * g_per_kg
-               hio_balive_pa(io_pa) = hio_balive_pa(io_pa) + n_density * ccohort%balive   * g_per_kg
+               hio_bleaf_pa(io_pa)     = hio_bleaf_pa(io_pa)  + n_density * ccohort%bl       * g_per_kg
+               hio_bstore_pa(io_pa)    = hio_bstore_pa(io_pa) + n_density * ccohort%bstore   * g_per_kg
+               hio_btotal_pa(io_pa)    = hio_btotal_pa(io_pa) + n_density * ccohort%b        * g_per_kg
+               hio_bdead_pa(io_pa)     = hio_bdead_pa(io_pa)  + n_density * ccohort%bdead    * g_per_kg
+               hio_balive_pa(io_pa)    = hio_balive_pa(io_pa) + n_density * ccohort%balive   * g_per_kg
+               hio_bsapwood_pa(io_pa)  = hio_bsapwood_pa(io_pa)   + n_density * ccohort%bsw  * g_per_kg
+               hio_bfineroot_pa(io_pa) = hio_bfineroot_pa(io_pa) + n_density * ccohort%br    * g_per_kg
                
                ! Update PFT partitioned biomass components
                hio_leafbiomass_si_pft(io_si,ft) = hio_leafbiomass_si_pft(io_si,ft) + &
@@ -2744,6 +2750,16 @@ end subroutine flush_hvars
          long='Leaf biomass',  use_default='active',                            &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_bleaf_pa )
+
+    call this%set_history_var(vname='ED_bsapwood', units='gC m-2',                 &
+         long='Sapwood biomass',  use_default='active',                            &
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_bsapwood_pa )    
+
+    call this%set_history_var(vname='ED_bfineroot', units='gC m-2',                 &
+         long='Fine root biomass',  use_default='active',                            &
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_bfineroot_pa )    
 
     call this%set_history_var(vname='ED_biomass', units='gC m-2',                  &
          long='Total biomass',  use_default='active',                           &
