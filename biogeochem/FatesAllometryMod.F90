@@ -61,6 +61,7 @@
 ! OPEN QUESTIONS:
 !      SHOULD SAPWOOD ALLOMETRY SUBSUME TRIMMING, OR BE OFF OF BLMAX?
 !      WHAT IS CONTAINED IN THE AGB POOL?  
+!      UNBOUND CALLS TO BSW,BLEAF and BFR STILL EXIST IN CODE
 !
 ! Carbon Pool Configurations are as follows, and assume a constant proportionality
 !      between above and below-ground pools.  Sapwood (bsap) is both above and below
@@ -71,9 +72,11 @@
 !      Leaf biomass, height and above ground biomass typically have non-linear
 !      allometry models.  The default for sapwood is the pipe model.
 ! 
-!  bag   = (bdead+bsap)*agb_frac + bleaf
-!  bdead = bag - (bsap*agb_frac) - bleaf + bcr
-!  bcr   = bdead * (1-agb_frac) = (bag - (bsap*agb_frac) - bleaf)*(1-agb_frac)
+!  We ignore leaf biomass contributions in allometry to AGB:
+! 
+!  bag   = (bdead+bsap)*agb_frac 
+!  bdead = bag - (bsap*agb_frac) + bcr
+!  bcr   = bdead * (1-agb_frac) = (bag - (bsap*agb_frac) + bcr)*(1-agb_frac)
 !
 !
 ! Initial Implementation: Ryan Knox July 2017
@@ -348,7 +351,11 @@ contains
        ! ---------------------------------------------------------------------
     case(1,2) !"constant","dlinear") 
        call h_allom(d,ipft,h,dhdd)
-       call blmax_allom(d,h,ipft,blmax,dblmaxdd)
+       if(test_b4b)then
+          call bleaf(d,h,ipft,blmax,dblmaxdd)
+       else
+          call blmax_allom(d,h,ipft,blmax,dblmaxdd)
+       end if
        call bag_allom(d,h,ipft,bag,dbagdd)
        call bsap_dlinear(d,h,dhdd,blmax,dblmaxdd,bag,dbagdd,ipft,bsap,dbsapdd)
     case DEFAULT

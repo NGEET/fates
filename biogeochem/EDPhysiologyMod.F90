@@ -1034,6 +1034,8 @@ contains
        end if
        
        ! Tally up the relative change in alive biomass WRT diameter
+       ! These calculations will take into account any height capping
+       ! (if the user wanted it) and its implications to these pools
        call bleaf(currentCohort%dbh,currentCohort%hite,ipft, &
                   currentCohort%canopy_trim,b_leaf,db_leaf_dd)
        call bfineroot(currentCohort%dbh,currentCohort%hite,ipft, &
