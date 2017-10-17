@@ -659,17 +659,21 @@ real(r8),intent(out)   :: blmax     ! plant leaf biomass [kg]
 real(r8),intent(out),optional   :: dblmaxdd  ! change leaf bio per diam [kgC/cm]
 
 if( d<dbh_maxh) then
-blmax = p1 * d**p2 * rho**p3
+   blmax = p1 * d**p2 * rho**p3
 else
-blmax    = p1 * dbh_maxh**p2 * rho**p3
+   blmax    = p1 * dbh_maxh**p2 * rho**p3
 end if
 
 if(present(dblmaxdd))then
-if( d<dbh_maxh) then
-dblmaxdd = p1*p2 * d**(p2-1.0_r8) * rho**p3
-else
-dblmaxdd = 0.0
-end if
+   if( d<dbh_maxh) then
+      if(test_b4b)then
+         dblmaxdd = p1*p2 * d**(p2) * rho**p3
+      else
+         dblmaxdd = p1*p2 * d**(p2-1.0_r8) * rho**p3
+      end if
+   else
+      dblmaxdd = 0.0
+   end if
 end if
 
 return
@@ -979,6 +983,7 @@ dhdd = p1*10.0_r8**p2*d**(p1-1.0_r8)
 end if
 end if
 
+
 return
 end subroutine d2h_obrien
 
@@ -1168,17 +1173,23 @@ bag = allom_agb_frac*d2bag1*(h**d2bag2)*(d**d2bag3)*(wood_density**d2bag4)
 ! Add sapwood calculation to this
 
 ! bag     = a1 * h**a2 * d**a3 * r**a4
-! dbag/dd = a1*r**a4 * d/dd (h**a2*d**a3)
+! dbag/dd = a1*r**a4 * d/dd (h**a2 * d**a3)
 ! dbag/dd = a1*r**a4 * [ d**a3 *d/dd(h**a2) + h**a2*d/dd(d**a3) ]
 ! dbag/dd = a1*r**a4 * [ d**a3 * a2*h**(a2-1)dh/dd + h**a2*a3*d**(a3-1)]
 
-if(present(dbagdd)) then
-term1 = allom_agb_frac*d2bag1*(wood_density**d2bag4)
-term2 = (h**d2bag2)*d2bag3*d**(d2bag3-1.0_r8)
+! From code
+!   dbag/dd =  a3 * a1 *(h**a2)*(d**(a3-1))* (r**a4) + a2*a1*(h**(a2-1))*(d**a3)*(r**a4)*dhdd 
+!   dbag/dd =  a1*r**a4 * [ d**a3 * a2* h**(a2-1)*dhdd +  a3 * (h**a2)*(d**(a3-1)) ]
 
-call h_allom(d,ipft,hj,dhdd)
-term3 = d2bag2*h**(d2bag2-1)*(d**d2bag3)*dhdd
-dbagdd   = term1*(term2+term3)
+
+if(present(dbagdd)) then
+   term1 = allom_agb_frac*d2bag1*(wood_density**d2bag4)
+   term2 = (h**d2bag2)*d2bag3*d**(d2bag3-1.0_r8)
+
+   call h_allom(d,ipft,hj,dhdd)
+   term3  = d2bag2*h**(d2bag2-1.0_r8)*(d**d2bag3)*dhdd
+   dbagdd = term1*(term2+term3)
+
 end if
 
 return

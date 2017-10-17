@@ -10,7 +10,7 @@ module EDCohortDynamicsMod
   use FatesInterfaceMod     , only : bc_in_type
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
-  use FatesConstantsMod     , only : itrue
+  use FatesConstantsMod     , only : itrue,ifalse
   use FatesInterfaceMod     , only : hlm_days_per_year
   use EDPftvarcon           , only : EDPftvarcon_inst
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
@@ -210,6 +210,11 @@ contains
     real(r8)  :: new_bl
     real(r8)  :: new_br
     real(r8)  :: new_bsw
+    real(r8)  :: tar_bl       ! target leaf biomass when leaves are flushed (includes trimming)
+    real(r8)  :: tar_br       ! target fineroot biomass (includes trimming)
+    real(r8)  :: tar_bsw      ! target sapwood biomass  
+    real(r8)  :: bfr_per_leaf ! ratio of fine roots to leaf mass when plants are on allometry
+    real(r8)  :: bsw_per_leaf ! ratio of sapwood to leaf mass when plants are on allometry
                                             
     integer   :: ft           ! functional type
     integer   :: leaves_off_switch
@@ -217,7 +222,14 @@ contains
 
     currentCohort => cc_p
     ft = currentcohort%pft
-    leaf_frac = 1.0_r8/(1.0_r8 + EDpftvarcon_inst%allom_latosa_int(ft) * currentcohort%hite + EDPftvarcon_inst%allom_l2fr(ft))     
+    
+    call bleaf(currentcohort%dbh,currentcohort%hite,ft,currentcohort%canopy_trim,tar_bl)
+    call bfineroot(currentcohort%dbh,currentcohort%hite,ft,currentcohort%canopy_trim,tar_br)
+    call bsap_allom(currentcohort%dbh,ft,tar_bsw)
+
+    leaf_frac = tar_bl/(tar_bl+tar_br+tar_bsw)
+    bfr_per_leaf = tar_br/tar_bl
+    bsw_per_leaf = tar_bsw/tar_bl
 
     !currentcohort%bl = currentcohort%balive*leaf_frac    
     !for deciduous trees, there are no leaves  
@@ -242,14 +254,13 @@ contains
     endif
   
     ! Use different proportions if the leaves are on vs off
-    if(leaves_off_switch==0)then
+    if(leaves_off_switch.eq.ifalse)then  ! leaves are on
 
        new_bl = currentcohort%balive*leaf_frac
 
-       new_br = EDpftvarcon_inst%allom_l2fr(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
+       new_br = bfr_per_leaf * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
 
-       new_bsw = EDpftvarcon_inst%allom_latosa_int(ft) * currentcohort%hite *(currentcohort%balive + &
-            currentcohort%laimemory)*leaf_frac
+       new_bsw = bsw_per_leaf * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
 
        !diagnose the root and stem biomass from the functional balance hypothesis. This is used when the leaves are 
        !fully on. 
@@ -271,7 +282,7 @@ contains
        currentcohort%br = new_br
        currentcohort%bsw = new_bsw
 
-    else ! Leaves are off (leaves_off_switch==1)
+    else ! Leaves are off (leaves_off_switch==.itrue.)
 
        !the purpose of this section is to figure out the root and stem biomass when the leaves are off
        !at this point, we know the former leaf mass (laimemory) and the current alive mass
@@ -280,14 +291,13 @@ contains
        !not have enough live biomass to support the hypothesized root mass
        !thus, we use 'ratio_balive' to adjust br and bsw. Apologies that this is so complicated! RF
        
-       ideal_balive      = currentcohort%laimemory * EDPftvarcon_inst%allom_l2fr(ft) +  &
-            currentcohort%laimemory*  EDpftvarcon_inst%allom_latosa_int(ft) * currentcohort%hite
+       ideal_balive      = currentcohort%laimemory * bfr_per_leaf + currentcohort%laimemory * bsw_per_leaf
+
        ratio_balive      = currentcohort%balive / ideal_balive
 
-       new_br  = EDpftvarcon_inst%allom_l2fr(ft) * (ideal_balive + currentcohort%laimemory) * &
-             leaf_frac *  ratio_balive
-       new_bsw = EDpftvarcon_inst%allom_latosa_int(ft) * currentcohort%hite * &
-             (ideal_balive + currentcohort%laimemory) * leaf_frac * ratio_balive
+       new_br  = bfr_per_leaf * (ideal_balive + currentcohort%laimemory) * leaf_frac * ratio_balive
+       
+       new_bsw = bsw_per_leaf * (ideal_balive + currentcohort%laimemory) * leaf_frac * ratio_balive
 
        ! Diagnostics
        if(mode==1)then

@@ -789,7 +789,7 @@ contains
     real(r8) :: dhdbd_fn !rate of change of height per unit dbh
     real(r8) :: va       !fraction of growth going to alive biomass
     real(r8) :: vs       !fraction of growth going to structural biomass
-    real(r8) :: u,h      !intermediates 
+    real(r8) :: u
     real(r8) :: frac     !fraction the stored carbon is of target store amount
     real(r8) :: f_store  !fraction of NPP allocated to storage in this timestep (functionf of stored pool)
     real(r8) :: gr_fract !fraction of carbon balance that is allocated to growth (not reproduction)
@@ -1036,7 +1036,7 @@ contains
        ! Tally up the relative change in alive biomass WRT diameter
        ! These calculations will take into account any height capping
        ! (if the user wanted it) and its implications to these pools
-       call bleaf(currentCohort%dbh,currentCohort%hite,ipft, &
+       call bleaf(currentCohort%dbh,currentCohort%hite,ipft,     &
                   currentCohort%canopy_trim,b_leaf,db_leaf_dd)
        call bfineroot(currentCohort%dbh,currentCohort%hite,ipft, &
                       currentCohort%canopy_trim,b_fineroot,db_fineroot_dd)
