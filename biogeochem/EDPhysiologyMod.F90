@@ -1069,7 +1069,7 @@ contains
 
     do ft = 1,numpft
 
-       if ( EDpftvarcon_inst%pft_used == itrue ) then
+       if ( EDpftvarcon_inst%pft_used(ft) .eq. itrue ) then
           
           temp_cohort%canopy_trim = 0.8_r8  !starting with the canopy not fully expanded 
           temp_cohort%pft         = ft
