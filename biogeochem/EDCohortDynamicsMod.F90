@@ -29,7 +29,10 @@ module EDCohortDynamicsMod
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
-
+  use FatesAllometryMod  , only : bsap_allom
+  use FatesAllometryMod  , only : bleaf
+  use FatesAllometryMod  , only : bfineroot
+  use FatesAllometryMod  , only : h_allom
 
   ! CIME globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -216,6 +219,8 @@ contains
     real(r8)  :: bfr_per_leaf ! ratio of fine roots to leaf mass when plants are on allometry
     real(r8)  :: bsw_per_leaf ! ratio of sapwood to leaf mass when plants are on allometry
                                             
+    real(r8)  :: temp_h
+
     integer   :: ft           ! functional type
     integer   :: leaves_off_switch
     !----------------------------------------------------------------------
@@ -225,7 +230,7 @@ contains
     
     call bleaf(currentcohort%dbh,currentcohort%hite,ft,currentcohort%canopy_trim,tar_bl)
     call bfineroot(currentcohort%dbh,currentcohort%hite,ft,currentcohort%canopy_trim,tar_br)
-    call bsap_allom(currentcohort%dbh,ft,tar_bsw)
+    call bsap_allom(currentcohort%dbh,currentcohort%hite,ft,currentcohort%canopy_trim,tar_bsw)
 
     leaf_frac = tar_bl/(tar_bl+tar_br+tar_bsw)
     bfr_per_leaf = tar_br/tar_bl

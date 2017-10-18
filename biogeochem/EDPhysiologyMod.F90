@@ -176,7 +176,11 @@ contains
     type (ed_patch_type)  , pointer :: currentPatch
 
     integer  :: z          ! leaf layer
+    integer  :: ipft       ! pft index
     integer  :: trimmed    ! was this layer trimmed in this year? If not expand the canopy. 
+    real(r8) :: tar_bl     ! target leaf biomass       (leaves flushed, trimmed)
+    real(r8) :: tar_bfr    ! target fine-root biomass  (leaves flushed, trimmed)
+    real(r8) :: bfr_per_bleaf ! ratio of fine root per leaf biomass
 
     !----------------------------------------------------------------------
 
@@ -186,6 +190,7 @@ contains
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort)) 
           trimmed = 0    
+          ipft = currentCohort%pft
           currentCohort%treelai = tree_lai(currentCohort)    
           currentCohort%nv = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
           if (currentCohort%nv > nlevleaf)then
@@ -193,38 +198,44 @@ contains
                   currentCohort%c_area,currentCohort%n,currentCohort%bl
           endif
 
+          call bleaf(currentcohort%dbh,currentcohort%hite,ipft,currentcohort%canopy_trim,tar_bl)
+          call bfineroot(currentcohort%dbh,currentcohort%hite,ipft,currentcohort%canopy_trim,tar_bfr)
+
+          bfr_per_bleaf = tar_bfr/tar_bl
+
           !Leaf cost vs netuptake for each leaf layer. 
           do z = 1,nlevleaf
              if (currentCohort%year_net_uptake(z) /= 999._r8)then !there was activity this year in this leaf layer. 
                 !Leaf Cost kgC/m2/year-1
                 !decidous costs. 
-                if (EDPftvarcon_inst%season_decid(currentCohort%pft) == 1.or. &
-                     EDPftvarcon_inst%stress_decid(currentCohort%pft) == 1)then 
-                   currentCohort%leaf_cost =  1._r8/(EDPftvarcon_inst%slatop(currentCohort%pft)*1000.0_r8)
+                if (EDPftvarcon_inst%season_decid(ipft) == 1.or. &
+                     EDPftvarcon_inst%stress_decid(ipft) == 1)then 
+
+
+                   currentCohort%leaf_cost =  1._r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8)
                    currentCohort%leaf_cost = currentCohort%leaf_cost + &
-                        1.0_r8/(EDPftvarcon_inst%slatop(currentCohort%pft)*1000.0_r8) * &
-                        EDPftvarcon_inst%allom_l2fr(currentCohort%pft) / EDPftvarcon_inst%root_long(currentCohort%pft)
-                   currentCohort%leaf_cost = currentCohort%leaf_cost * (EDPftvarcon_inst%grperc(currentCohort%pft) + 1._r8)
+                        1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+
+                   currentCohort%leaf_cost = currentCohort%leaf_cost * (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 else !evergreen costs
-                   currentCohort%leaf_cost = 1.0_r8/(EDPftvarcon_inst%slatop(currentCohort%pft)* &
-                        EDPftvarcon_inst%leaf_long(currentCohort%pft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
+                   currentCohort%leaf_cost = 1.0_r8/(EDPftvarcon_inst%slatop(ipft)* &
+                        EDPftvarcon_inst%leaf_long(ipft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
                    currentCohort%leaf_cost = currentCohort%leaf_cost + &
-                        1.0_r8/(EDPftvarcon_inst%slatop(currentCohort%pft)*1000.0_r8) * &
-                        EDPftvarcon_inst%allom_l2fr(currentCohort%pft) / EDPftvarcon_inst%root_long(currentCohort%pft)
-                   currentCohort%leaf_cost = currentCohort%leaf_cost * (EDPftvarcon_inst%grperc(currentCohort%pft) + 1._r8)
+                        1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+                   currentCohort%leaf_cost = currentCohort%leaf_cost * (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 endif
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost)then
-                   if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(currentCohort%pft))then
+                   if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(ipft))then
 
                       if ( DEBUG ) then
                          write(fates_log(),*) 'trimming leaves',currentCohort%canopy_trim,currentCohort%leaf_cost
                       endif
 
                       ! keep trimming until none of the canopy is in negative carbon balance.              
-                      if (currentCohort%hite > EDPftvarcon_inst%hgt_min(currentCohort%pft))then
-                         currentCohort%canopy_trim = currentCohort%canopy_trim - EDPftvarcon_inst%trim_inc(currentCohort%pft)
-                         if (EDPftvarcon_inst%evergreen(currentCohort%pft) /= 1)then
-                            currentCohort%laimemory = currentCohort%laimemory*(1.0_r8 - EDPftvarcon_inst%trim_inc(currentCohort%pft)) 
+                      if (currentCohort%hite > EDPftvarcon_inst%hgt_min(ipft))then
+                         currentCohort%canopy_trim = currentCohort%canopy_trim - EDPftvarcon_inst%trim_inc(ipft)
+                         if (EDPftvarcon_inst%evergreen(ipft) /= 1)then
+                            currentCohort%laimemory = currentCohort%laimemory*(1.0_r8 - EDPftvarcon_inst%trim_inc(ipft)) 
                          endif
                          trimmed = 1
                       endif
@@ -240,7 +251,7 @@ contains
 
           currentCohort%year_net_uptake(:) = 999.0_r8
           if (trimmed == 0.and.currentCohort%canopy_trim < 1.0_r8)then
-             currentCohort%canopy_trim = currentCohort%canopy_trim + EDPftvarcon_inst%trim_inc(currentCohort%pft)
+             currentCohort%canopy_trim = currentCohort%canopy_trim + EDPftvarcon_inst%trim_inc(ipft)
           endif 
 
           if ( DEBUG ) then
@@ -869,7 +880,7 @@ contains
     call bfineroot(currentCohort%dbh,currentCohort%hite,ipft,currentCohort%canopy_trim,b_fineroot)
     
     ! Calculate sapwood biomass
-    call bsap_allom(currentCohort%dbh,ipft,b_sap)
+    call bsap_allom(currentCohort%dbh,currentCohort%hite,ipft,currentCohort%canopy_trim,b_sap)
 
     target_balive = b_leaf + b_fineroot + b_sap
 
@@ -1040,7 +1051,8 @@ contains
                   currentCohort%canopy_trim,b_leaf,db_leaf_dd)
        call bfineroot(currentCohort%dbh,currentCohort%hite,ipft, &
                       currentCohort%canopy_trim,b_fineroot,db_fineroot_dd)
-       call bsap_allom(currentCohort%dbh,ipft,b_sap,db_sap_dd)
+       call bsap_allom(currentCohort%dbh,currentCohort%hite,ipft, &
+                       currentCohort%canopy_trim,b_sap,db_sap_dd)
        
        ! Total change in alive biomass relative to dead biomass [kgC/kgC]
        dbalivedbd = (db_leaf_dd + db_fineroot_dd + db_sap_dd)/db_dead_dd
@@ -1179,7 +1191,7 @@ contains
        ! Initialize balive (leaf+fineroot+sapwood)
        call bleaf(temp_cohort%dbh,temp_cohort%hite,ft,temp_cohort%canopy_trim,b_leaf)
        call bfineroot(temp_cohort%dbh,temp_cohort%hite,ft,temp_cohort%canopy_trim,b_fineroot)
-       call bsap_allom(temp_cohort%dbh,ft,b_sapwood)
+       call bsap_allom(temp_cohort%dbh,temp_cohort%hite,ft,temp_cohort%canopy_trim,b_sapwood)
 
        temp_cohort%balive      = b_leaf + b_sapwood + b_fineroot
        temp_cohort%bstore      = EDPftvarcon_inst%cushion(ft) * b_leaf
