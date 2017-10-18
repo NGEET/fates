@@ -42,7 +42,6 @@ module EDMainMod
   use EDTypesMod               , only : do_ed_phenology
   use EDTypesMod               , only : AREA
   use FatesConstantsMod        , only : itrue,ifalse
-  use FatesAllometryMod        , only : h_allom
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
   use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydProps
   use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydStates
@@ -272,7 +271,6 @@ contains
           currentCohort%dbh    = max(small_no,currentCohort%dbh    + currentCohort%ddbhdt    * hlm_freq_day )
           currentCohort%balive = currentCohort%balive + currentCohort%dbalivedt * hlm_freq_day 
           currentCohort%bdead  = max(small_no,currentCohort%bdead  + currentCohort%dbdeaddt  * hlm_freq_day )
-!          call h_allom(currentcohort%dbh,currentCohort%pft,currentCohort%hite)
 
           if ( DEBUG ) then
              write(fates_log(),*) 'EDMainMod dbstoredt I ',currentCohort%bstore, &
