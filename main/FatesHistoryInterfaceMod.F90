@@ -1533,7 +1533,7 @@ end subroutine flush_hvars
                        hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%fmort + &
                             ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                            ccohort%b * ccohort%n * g_per_kg * days_per_sec * years_per_day * ha_per_m2 + &
+                            ccohort%b * ccohort%n * g_per_kg * days_per_sec * years_per_day * ha_per_m2
 
                        hio_leaf_md_canopy_si_scls(io_si,scls) = hio_leaf_md_canopy_si_scls(io_si,scls) + &
                             ccohort%leaf_md * ccohort%n
