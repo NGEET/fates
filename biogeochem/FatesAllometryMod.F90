@@ -148,14 +148,14 @@ contains
                 allom_hmode => EDPftvarcon_inst%allom_hmode(ipft))
 
       select case(int(allom_hmode))
-      case (1) ! chave 2014
-         call h2d_chave2014(h,p1,p2,p3,d,dddh)
+      case (1) ! Obrien et al. 199X BCI
+         call h2d_obrien(h,p1,p2,d,dddh)
       case (2)  ! poorter 2006
          call h2d_poorter2006(h,p1,p2,p3,d,dddh)
       case (3) ! 2 parameter power function
          call h2d_2pwr(h,p1,p2,d,dddh)
-      case (4) ! Obrien et al. 199X BCI
-         call h2d_obrien(h,p1,p2,d,dddh)
+      case (4) ! chave 2014
+         call h2d_chave2014(h,p1,p2,p3,d,dddh)
       case (5) ! Martinez-Cano
          call h2d_martcano(h,p1,p2,p3,d,dddh)
       case DEFAULT
@@ -187,14 +187,14 @@ contains
                allom_hmode => EDPftvarcon_inst%allom_hmode(ipft))
       
       select case(int(allom_hmode))
-      case (1)   ! "chave14")
-         call d2h_chave2014(d,p1,p2,p3,dbh_maxh,h,dhdd)
+      case (1)   ! "obrien"
+         call d2h_obrien(d,p1,p2,dbh_maxh,h,dhdd)
       case (2)   ! "poorter06"
          call d2h_poorter2006(d,p1,p2,p3,dbh_maxh,h,dhdd)
       case (3)   ! "2parameter power function h=a*d^b "
          call d2h_2pwr(d,p1,p2,dbh_maxh,h,dhdd)
-      case (4)   ! "obrien"
-         call d2h_obrien(d,p1,p2,dbh_maxh,h,dhdd)
+      case (4)   ! "chave14")
+         call d2h_chave2014(d,p1,p2,p3,dbh_maxh,h,dhdd)
       case (5)   ! Martinez-Cano
          call d2h_martcano(d,p1,p2,p3,dbh_maxh,h,dhdd)
       case DEFAULT
@@ -233,15 +233,15 @@ contains
                allom_amode  => EDPftvarcon_inst%allom_amode(ipft))
       
       select case(int(allom_amode))
-      case (1) !"chave14") 
+      case (1) !"salda")
          call h_allom(d,ipft,hj,dhdd)
-         call dh2bag_chave2014(d,h,dhdd,p1,p2,wood_density,c2b,bag,dbagdd)
+         call dh2bag_salda(d,h,dhdd,p1,p2,p3,p4,wood_density,c2b,agb_frac,bag,dbagdd) 
       case (2) !"2par_pwr")
          ! Switch for woodland dbh->drc
          call d2bag_2pwr(d,p1,p2,c2b,bag,dbagdd)
-      case (3) !"salda")
+      case (3) !"chave14") 
          call h_allom(d,ipft,hj,dhdd)
-         call dh2bag_salda(d,h,dhdd,p1,p2,p3,p4,wood_density,c2b,agb_frac,bag,dbagdd)
+         call dh2bag_chave2014(d,h,dhdd,p1,p2,wood_density,c2b,bag,dbagdd)
       case DEFAULT
          write(fates_log(),*) 'An undefined AGB allometry was specified: ',allom_amode
          write(fates_log(),*) 'Aborting'
@@ -470,7 +470,7 @@ contains
     associate( agb_fraction => EDPftvarcon_inst%allom_agb_frac(ipft))
 
       select case(int(EDPftvarcon_inst%allom_amode(ipft)))
-      case(3) ! Saldariagga mass allometry originally calculated bdead directly.
+      case(1) ! Saldariagga mass allometry originally calculated bdead directly.
               ! we assume proportionality between bdead and bag
        
          bdead = bag/agb_fraction 
@@ -478,7 +478,7 @@ contains
             dbdeaddd = dbagdd/agb_fraction
          end if
          
-      case(1,2)
+      case(2,3)
          
          bdead = bag+bcr-bsap
          if(present(dbagdd) .and. present(dbcrdd) .and. &
