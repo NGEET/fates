@@ -1181,7 +1181,7 @@ contains
               SF_val_CWD_frac(c) * currentCohort%n/currentPatch%area *(1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
       enddo
 
-      if (currentCohort%canopy_layer > 1)then   
+      !if (currentCohort%canopy_layer > 1)then   
 
           ! ================================================        
           ! Litter fluxes for understorey  mortality. KgC/m2/year
@@ -1280,7 +1280,7 @@ contains
                 currentSite%resources_management%delta_individual + &
                 (dead_n_dlogging+dead_n_ilogging) * hlm_freq_day * currentPatch%area
           
-       endif !canopy layer
+       !endif !canopy layer
        
        currentCohort => currentCohort%taller
     enddo  ! end loop over cohorts 
