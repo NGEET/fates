@@ -10,25 +10,26 @@ module EDCohortDynamicsMod
   use FatesInterfaceMod     , only : bc_in_type
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
+  use FatesConstantsMod     , only : itrue
   use FatesInterfaceMod     , only : hlm_days_per_year
   use EDPftvarcon           , only : EDPftvarcon_inst
-  use EDEcophysContype      , only : EDecophyscon
   use EDGrowthFunctionsMod  , only : c_area, tree_lai
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : ncwd
   use EDTypesMod            , only : maxCohortsPerPatch
-  use EDTypesMod            , only : sclass_ed,nlevsclass_ed,AREA
+  use EDTypesMod            , only : AREA
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
-  use EDTypesMod             , only : use_fates_plant_hydro
+  use FatesInterfaceMod      , only : hlm_use_planthydro
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
   use FatesPlantHydraulicsMod, only : CopyCohortHydraulics
   use FatesPlantHydraulicsMod, only : updateSizeDepTreeHydProps
   use FatesPlantHydraulicsMod, only : initTreeHydStates
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
-  use EDTypesMod             , only : sizetype_class_index
+  use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
+
 
   ! CIME globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -172,7 +173,7 @@ contains
     ! growth, disturbance and mortality.
     new_cohort%isnew = .true.
 
-    if( use_fates_plant_hydro ) then
+    if( hlm_use_planthydro.eq.itrue ) then
        call InitHydrCohort(new_cohort)
        call updateSizeDepTreeHydProps(new_cohort, bc_in) 
        call initTreeHydStates(new_cohort, bc_in) 
@@ -216,7 +217,7 @@ contains
 
     currentCohort => cc_p
     ft = currentcohort%pft
-    leaf_frac = 1.0_r8/(1.0_r8 + EDecophyscon%sapwood_ratio(ft) * currentcohort%hite + EDPftvarcon_inst%froot_leaf(ft))     
+    leaf_frac = 1.0_r8/(1.0_r8 + EDpftvarcon_inst%allom_latosa_int(ft) * currentcohort%hite + EDPftvarcon_inst%allom_l2fr(ft))     
 
     !currentcohort%bl = currentcohort%balive*leaf_frac    
     !for deciduous trees, there are no leaves  
@@ -228,8 +229,8 @@ contains
 
     ! iagnore the root and stem biomass from the functional balance hypothesis. This is used when the leaves are 
     !fully on. 
-    !currentcohort%br  = EDPftvarcon_inst%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
-    !currentcohort%bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
+    !currentcohort%br  = EDPftvarcon_inst%allom_l2fr(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
+    !currentcohort%bsw = EDpftvarcon_inst%allom_latosa_int(ft) * currentcohort%hite *(currentcohort%balive + &
     !     currentcohort%laimemory)*leaf_frac 
     
     leaves_off_switch = 0
@@ -245,9 +246,9 @@ contains
 
        new_bl = currentcohort%balive*leaf_frac
 
-       new_br = EDpftvarcon_inst%froot_leaf(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
+       new_br = EDpftvarcon_inst%allom_l2fr(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
 
-       new_bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite *(currentcohort%balive + &
+       new_bsw = EDpftvarcon_inst%allom_latosa_int(ft) * currentcohort%hite *(currentcohort%balive + &
             currentcohort%laimemory)*leaf_frac
 
        !diagnose the root and stem biomass from the functional balance hypothesis. This is used when the leaves are 
@@ -279,13 +280,13 @@ contains
        !not have enough live biomass to support the hypothesized root mass
        !thus, we use 'ratio_balive' to adjust br and bsw. Apologies that this is so complicated! RF
        
-       ideal_balive      = currentcohort%laimemory * EDPftvarcon_inst%froot_leaf(ft) +  &
-            currentcohort%laimemory*  EDecophyscon%sapwood_ratio(ft) * currentcohort%hite
+       ideal_balive      = currentcohort%laimemory * EDPftvarcon_inst%allom_l2fr(ft) +  &
+            currentcohort%laimemory*  EDpftvarcon_inst%allom_latosa_int(ft) * currentcohort%hite
        ratio_balive      = currentcohort%balive / ideal_balive
 
-       new_br  = EDpftvarcon_inst%froot_leaf(ft) * (ideal_balive + currentcohort%laimemory) * &
+       new_br  = EDpftvarcon_inst%allom_l2fr(ft) * (ideal_balive + currentcohort%laimemory) * &
              leaf_frac *  ratio_balive
-       new_bsw = EDecophyscon%sapwood_ratio(ft) * currentcohort%hite * &
+       new_bsw = EDpftvarcon_inst%allom_latosa_int(ft) * currentcohort%hite * &
              (ideal_balive + currentcohort%laimemory) * leaf_frac * ratio_balive
 
        ! Diagnostics
@@ -415,6 +416,11 @@ contains
     currentCohort%root_md            = nan ! root  maintenance demand: kgC/indiv/year
     currentCohort%carbon_balance     = nan ! carbon remaining for growth and storage: kg/indiv/year
     currentCohort%dmort              = nan ! proportional mortality rate. (year-1)
+    currentCohort%lmort_logging      = nan
+    currentCohort%lmort_infra        = nan
+    currentCohort%lmort_collateral   = nan
+
+
     currentCohort%seed_prod          = nan ! reproduction seed and clonal: KgC/indiv/year
     currentCohort%c_area             = nan ! areal extent of canopy (m2)
     currentCohort%treelai            = nan ! lai of tree (total leaf area (m2) / canopy area (m2)
@@ -488,7 +494,9 @@ contains
     currentcohort%dmort              = 0._r8 
     currentcohort%gscan              = 0._r8 
     currentcohort%treesai            = 0._r8  
-
+    currentCohort%lmort_logging      = 0._r8
+    currentCohort%lmort_infra        = 0._r8
+    currentCohort%lmort_collateral   = 0._r8
     !    currentCohort%npp_leaf  = 0._r8
     !    currentCohort%npp_froot = 0._r8
     !    currentCohort%npp_bsw   = 0._r8
@@ -505,7 +513,6 @@ contains
     ! terminates cohorts when they get too small      
     !
     ! !USES:
-    use EDParamsMod, only : ED_val_ag_biomass
     use SFParamsMod, only : SF_val_CWD_frac
     !
     ! !ARGUMENTS    
@@ -618,10 +625,10 @@ contains
 
                 currentPatch%CWD_AG(c)  = currentPatch%CWD_AG(c) + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) / &
                      currentPatch%area &
-                     * SF_val_CWD_frac(c) * ED_val_ag_biomass 
+                     * SF_val_CWD_frac(c) * EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) 
                 currentPatch%CWD_BG(c)  = currentPatch%CWD_BG(c) + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) / &
                      currentPatch%area &
-                     * SF_val_CWD_frac(c) * (1.0_r8 -  ED_val_ag_biomass) 
+                     * SF_val_CWD_frac(c) * (1.0_r8 -  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) 
              enddo
 
              currentPatch%leaf_litter(currentCohort%pft) = currentPatch%leaf_litter(currentCohort%pft) + currentCohort%n* &
@@ -633,10 +640,10 @@ contains
              do c=1,ncwd
                 currentSite%CWD_AG_diagnostic_input_carbonflux(c)  = currentSite%CWD_AG_diagnostic_input_carbonflux(c) &
                      + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
-                     SF_val_CWD_frac(c) * ED_val_ag_biomass * hlm_days_per_year / AREA
+                     SF_val_CWD_frac(c) * EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * hlm_days_per_year / AREA
                 currentSite%CWD_BG_diagnostic_input_carbonflux(c)  = currentSite%CWD_BG_diagnostic_input_carbonflux(c) &
                      + currentCohort%n*(currentCohort%bdead+currentCohort%bsw) * &
-                     SF_val_CWD_frac(c) * (1.0_r8 -  ED_val_ag_biomass)  * hlm_days_per_year / AREA
+                     SF_val_CWD_frac(c) * (1.0_r8 -  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))  * hlm_days_per_year / AREA
              enddo
              
              currentSite%leaf_litter_diagnostic_input_carbonflux(currentCohort%pft) = &
@@ -646,7 +653,7 @@ contains
                   currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) + &
                   currentCohort%n * (currentCohort%br+currentCohort%bstore) * hlm_days_per_year  / AREA
 
-             if (use_fates_plant_hydro) call DeallocateHydrCohort(currentCohort)
+             if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
 
              deallocate(currentCohort)     
           endif
@@ -676,8 +683,8 @@ contains
      type (ed_cohort_type) , pointer :: currentCohort, nextc, nextnextc
      integer  :: i  
      integer  :: fusion_took_place
-     integer  :: maxcohorts !maximum total no of cohorts. Needs to be >numpft_edx2 
-     integer  :: iterate    !do we need to keep fusing to get below maxcohorts?
+     integer  :: maxcohorts ! maximum total no of cohorts.
+     integer  :: iterate    ! do we need to keep fusing to get below maxcohorts?
      integer  :: nocohorts
      real(r8) :: newn
      real(r8) :: diff
@@ -799,7 +806,7 @@ contains
                                 call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
                                       currentCohort%size_class,currentCohort%size_by_pft_class)
 
-                                if(use_fates_plant_hydro) call FuseCohortHydraulics(currentCohort,nextc,bc_in,newn)
+                                if(hlm_use_planthydro.eq.itrue) call FuseCohortHydraulics(currentCohort,nextc,bc_in,newn)
 
                                 ! recent canopy history
                                 currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
@@ -840,6 +847,13 @@ contains
 
                                    currentCohort%dmort          = (currentCohort%n*currentCohort%dmort       + &
                                          nextc%n*nextc%dmort)/newn
+                                   currentCohort%lmort_logging          = (currentCohort%n*currentCohort%lmort_logging       + &
+                                         nextc%n*nextc%lmort_logging)/newn
+                                   currentCohort%lmort_infra          = (currentCohort%n*currentCohort%lmort_infra       + &
+                                         nextc%n*nextc%lmort_infra)/newn
+                                   currentCohort%lmort_collateral          = (currentCohort%n*currentCohort%lmort_collateral       + &
+                                         nextc%n*nextc%lmort_collateral)/newn
+
                                    currentCohort%fire_mort      = (currentCohort%n*currentCohort%fire_mort   + &
                                          nextc%n*nextc%fire_mort)/newn
                                    currentCohort%leaf_litter    = (currentCohort%n*currentCohort%leaf_litter + &
@@ -852,6 +866,14 @@ contains
                                    currentCohort%imort = (currentCohort%n*currentCohort%imort + nextc%n*nextc%imort)/newn
                                    currentCohort%fmort = (currentCohort%n*currentCohort%fmort + nextc%n*nextc%fmort)/newn
 
+                                   ! logging mortality, Yi Xu
+                                   currentCohort%lmort_logging = (currentCohort%n*currentCohort%lmort_logging + &
+                                         nextc%n*nextc%lmort_logging)/newn
+                                   currentCohort%lmort_collateral = (currentCohort%n*currentCohort%lmort_collateral + &
+                                         nextc%n*nextc%lmort_collateral)/newn
+                                   currentCohort%lmort_infra = (currentCohort%n*currentCohort%lmort_infra + &
+                                         nextc%n*nextc%lmort_infra)/newn
+                                   
                                    ! npp diagnostics
                                    currentCohort%npp_leaf  = (currentCohort%n*currentCohort%npp_leaf  + nextc%n*nextc%npp_leaf) &
                                                               /newn
@@ -897,7 +919,7 @@ contains
                                 endif
 
                                 if (associated(nextc)) then       
-                                   if(use_fates_plant_hydro) call DeallocateHydrCohort(nextc)
+                                   if(hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(nextc)
                                    deallocate(nextc)            
                                 endif
 
@@ -941,10 +963,11 @@ contains
               write(fates_log(),*) 'maxcohorts exceeded',dynamic_fusion_tolerance
 
            else
-              iterate = 0
-           endif
 
-           if ( dynamic_fusion_tolerance .gt. 100._r8) then
+              iterate = 0
+        endif
+
+        if ( dynamic_fusion_tolerance .gt. 100._r8) then
               ! something has gone terribly wrong and we need to report what
               write(fates_log(),*) 'exceeded reasonable expectation of cohort fusion.'
               currentCohort => currentPatch%tallest
@@ -1218,6 +1241,9 @@ contains
     n%root_md         = o%root_md
     n%carbon_balance  = o%carbon_balance
     n%dmort           = o%dmort
+    n%lmort_logging   = o%lmort_logging
+    n%lmort_infra     = o%lmort_infra
+    n%lmort_collateral= o%lmort_collateral
     n%seed_prod       = o%seed_prod
     n%treelai         = o%treelai
     n%treesai         = o%treesai
@@ -1231,6 +1257,11 @@ contains
     n%imort = o%imort
     n%fmort = o%fmort
     n%hmort = o%hmort
+
+    ! logging mortalities, Yi Xu
+    n%lmort_logging=o%lmort_logging
+    n%lmort_collateral =o%lmort_collateral
+    n%lmort_infra =o%lmort_infra
 
     ! Flags
     n%isnew = o%isnew
@@ -1255,7 +1286,7 @@ contains
 
     ! Plant Hydraulics
     
-    if( use_fates_plant_hydro ) call CopyCohortHydraulics(n,o)
+    if( hlm_use_planthydro.eq.itrue ) call CopyCohortHydraulics(n,o)
 
     ! indices for binning
     n%size_class      = o%size_class
