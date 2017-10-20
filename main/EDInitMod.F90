@@ -64,6 +64,7 @@ contains
     allocate(site_in%terminated_nindivs(1:nlevsclass,1:numpft,2))
     allocate(site_in%demotion_rate(1:nlevsclass))
     allocate(site_in%promotion_rate(1:nlevsclass))
+    allocate(site_in%imort_rate(1:nlevsclass,1:numpft))
     !
     end subroutine init_site_vars
 
@@ -115,6 +116,8 @@ contains
     site_in%terminated_nindivs(:,:,:) = 0._r8
     site_in%termination_carbonflux(:) = 0._r8
     site_in%recruitment_rate(:) = 0._r8
+    site_in%imort_rate(:,:) = 0._r8
+    site_in%imort_carbonflux = 0._r8
 
     ! demotion/promotion info
     site_in%demotion_rate(:) = 0._r8

@@ -31,6 +31,10 @@ module EDPatchDynamicsMod
   use EDLoggingMortalityMod, only : logging_litter_fluxes 
   use EDLoggingMortalityMod, only : logging_time
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
+  use FatesConstantsMod    , only : g_per_kg
+  use FatesConstantsMod    , only : ha_per_m2
+  use FatesConstantsMod    , only : days_per_sec
+  use FatesConstantsMod    , only : years_per_day
 
 
   ! CIME globals
@@ -414,7 +418,18 @@ contains
                       !          The number density per square are doesn't change, but since the patch is smaller
                       !          and cohort counts are absolute, reduce this number.
                       nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
-                      
+
+                      ! because the mortality rate due to impact for the cohorts which had been in the understory and are now in the newly-
+                      ! disturbed patch is very high, passing the imort directly to history results in large numerical errors, on account
+                      ! of the sharply reduced number densities.  so instead pass this info via a site-level diagnostic variable before reducing 
+                      ! the number density.
+                      currentSite%imort_rate(currentCohort%size_class, currentCohort%pft) = &
+                           currentSite%imort_rate(currentCohort%size_class, currentCohort%pft) + &
+                           nc%n * ED_val_understorey_death / hlm_freq_day
+                      currentSite%imort_carbonflux = currentSite%imort_carbonflux + &
+                           (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
+                           currentCohort%b * currentCohort%n * g_per_kg * days_per_sec * years_per_day * ha_per_m2
+
                       ! Step 2:  Apply survivor ship function based on the understory death fraction
                       ! remaining of understory plants of those that are knocked over by the overstorey trees dying...  
                       nc%n = nc%n * (1.0_r8 - ED_val_understorey_death)
@@ -443,6 +458,7 @@ contains
                       ! Besides, the current and newly created patch sum to unity                      
 
                       currentCohort%n = currentCohort%n * (1._r8 -  patch_site_areadis/currentPatch%area)
+                      
                    else 
                       ! grass is not killed by mortality disturbance events. Just move it into the new patch area. 
                       ! Just split the grass into the existing and new patch structures
