@@ -609,7 +609,6 @@ contains
           currentCohort%bmort = 0.0_r8
           currentCohort%hmort = 0.0_r8
           currentCohort%cmort = 0.0_r8
-          currentCohort%imort = 0.0_r8
           currentCohort%fmort = 0.0_r8
 
           currentCohort => currentCohort%taller

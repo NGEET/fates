@@ -226,7 +226,6 @@ module EDTypesMod
      real(r8) ::  bmort                                  ! background mortality rate        n/year
      real(r8) ::  cmort                                  ! carbon starvation mortality rate n/year
      real(r8) ::  hmort                                  ! hydraulic failure mortality rate n/year
-     real(r8) ::  imort                                  ! mortality from impacts by others n/year
      real(r8) ::  fmort                                  ! fire mortality                   n/year
 
       ! Logging Mortality Rate 
@@ -745,7 +744,6 @@ contains
      write(fates_log(),*) 'co%woody_turnover         = ', ccohort%woody_turnover
      write(fates_log(),*) 'co%cmort                  = ', ccohort%cmort
      write(fates_log(),*) 'co%bmort                  = ', ccohort%bmort
-     write(fates_log(),*) 'co%imort                  = ', ccohort%imort
      write(fates_log(),*) 'co%fmort                  = ', ccohort%fmort
      write(fates_log(),*) 'co%hmort                  = ', ccohort%hmort
      write(fates_log(),*) 'co%isnew                  = ', ccohort%isnew
