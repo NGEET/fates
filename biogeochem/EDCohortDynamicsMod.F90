@@ -874,18 +874,27 @@ contains
                                          nextc%n*nextc%lmort_infra)/newn
                                    
                                    ! npp diagnostics
-                                   currentCohort%npp_leaf  = (currentCohort%n*currentCohort%npp_leaf  + nextc%n*nextc%npp_leaf)/newn
-                                   currentCohort%npp_froot = (currentCohort%n*currentCohort%npp_froot + nextc%n*nextc%npp_froot)/newn
-                                   currentCohort%npp_bsw   = (currentCohort%n*currentCohort%npp_bsw   + nextc%n*nextc%npp_bsw)/newn
-                                   currentCohort%npp_bdead = (currentCohort%n*currentCohort%npp_bdead + nextc%n*nextc%npp_bdead)/newn
-                                   currentCohort%npp_bseed = (currentCohort%n*currentCohort%npp_bseed + nextc%n*nextc%npp_bseed)/newn
-                                   currentCohort%npp_store = (currentCohort%n*currentCohort%npp_store + nextc%n*nextc%npp_store)/newn
+                                   currentCohort%npp_leaf  = (currentCohort%n*currentCohort%npp_leaf  + nextc%n*nextc%npp_leaf) &
+                                                              /newn
+                                   currentCohort%npp_froot = (currentCohort%n*currentCohort%npp_froot + nextc%n*nextc%npp_froot) &
+                                                              /newn
+                                   currentCohort%npp_bsw   = (currentCohort%n*currentCohort%npp_bsw   + nextc%n*nextc%npp_bsw) &
+                                                              /newn
+                                   currentCohort%npp_bdead = (currentCohort%n*currentCohort%npp_bdead + nextc%n*nextc%npp_bdead) &
+                                                              /newn
+                                   currentCohort%npp_bseed = (currentCohort%n*currentCohort%npp_bseed + nextc%n*nextc%npp_bseed) &
+                                                              /newn
+                                   currentCohort%npp_store = (currentCohort%n*currentCohort%npp_store + nextc%n*nextc%npp_store) &
+                                                              /newn
 
                                    ! biomass and dbh tendencies
                                    currentCohort%ddbhdt     = (currentCohort%n*currentCohort%ddbhdt  + nextc%n*nextc%ddbhdt)/newn
-                                   currentCohort%dbalivedt  = (currentCohort%n*currentCohort%dbalivedt  + nextc%n*nextc%dbalivedt)/newn
-                                   currentCohort%dbdeaddt   = (currentCohort%n*currentCohort%dbdeaddt  + nextc%n*nextc%dbdeaddt)/newn
-                                   currentCohort%dbstoredt  = (currentCohort%n*currentCohort%dbstoredt  + nextc%n*nextc%dbstoredt)/newn
+                                   currentCohort%dbalivedt  = (currentCohort%n*currentCohort%dbalivedt  + nextc%n*nextc%dbalivedt) &
+                                                               /newn
+                                   currentCohort%dbdeaddt   = (currentCohort%n*currentCohort%dbdeaddt  + nextc%n*nextc%dbdeaddt) &
+                                                               /newn
+                                   currentCohort%dbstoredt  = (currentCohort%n*currentCohort%dbstoredt  + nextc%n*nextc%dbstoredt) &
+                                                               /newn
 
                                    do i=1, nlevleaf     
                                       if (currentCohort%year_net_uptake(i) == 999._r8 .or. nextc%year_net_uptake(i) == 999._r8) then
