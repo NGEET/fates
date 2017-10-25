@@ -66,7 +66,7 @@ module EDPatchDynamicsMod
 contains
 
   ! ============================================================================
-  subroutine disturbance_rates( site_in)
+  subroutine disturbance_rates( site_in, bc_in)
     !
     ! !DESCRIPTION:
     ! Calculates the fire and mortality related disturbance rates for each patch,
@@ -85,6 +85,7 @@ contains
   
     ! !ARGUMENTS:
     type(ed_site_type) , intent(inout), target :: site_in
+    type(bc_in_type) , intent(in) :: bc_in
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type) , pointer :: currentPatch
@@ -93,6 +94,7 @@ contains
     real(r8) :: cmort
     real(r8) :: bmort
     real(r8) :: hmort
+    real(r8) :: frmort
 
     real(r8) :: lmort_logging
     real(r8) :: lmort_collateral
@@ -113,14 +115,15 @@ contains
           ! Mortality for trees in the understorey.
           currentCohort%patchptr => currentPatch
 
-          call mortality_rates(currentCohort,cmort,hmort,bmort)
-          currentCohort%dmort  = cmort+hmort+bmort
+          call mortality_rates(currentCohort,cmort,hmort,bmort,frmort,bc_in)
+          currentCohort%dmort  = cmort+hmort+bmort+frmort
           currentCohort%c_area = c_area(currentCohort)
 
           ! Initialize diagnostic mortality rates
           currentCohort%cmort = cmort
           currentCohort%bmort = bmort
           currentCohort%hmort = hmort
+          currentCohort%hmort = frmort
           currentCohort%fmort = 0.0_r8 ! Fire mortality is initialized as zero, but may be changed
 
           call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, &
@@ -202,6 +205,7 @@ contains
                 currentCohort%hmort = currentCohort%hmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%bmort = currentCohort%bmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%dmort = currentCohort%dmort*(1.0_r8 - fates_mortality_disturbance_fraction)
+                currentCohort%frmort = currentCohort%frmort*(1.0_r8 - fates_mortality_disturbance_fraction)
              end if
              currentCohort => currentCohort%taller
           enddo !currentCohort
@@ -220,6 +224,7 @@ contains
                 currentCohort%hmort = currentCohort%hmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%bmort = currentCohort%bmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%dmort = currentCohort%dmort*(1.0_r8 - fates_mortality_disturbance_fraction)
+                currentCohort%frmort = currentCohort%frmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%lmort_logging    = 0.0_r8
                 currentCohort%lmort_collateral = 0.0_r8
                 currentCohort%lmort_infra      = 0.0_r8
@@ -390,7 +395,7 @@ contains
                    ! In the donor patch we are left with fewer trees because the area has decreased
                    ! the plant density for large trees does not actually decrease in the donor patch
                    ! because this is the part of the original patch where no trees have actually fallen
-                   ! The diagnostic cmort,bmort and hmort rates have already been saved         
+                   ! The diagnostic cmort,bmort,hmort, and frmort  rates have already been saved         
 
                    currentCohort%n = currentCohort%n * (1.0_r8 - fates_mortality_disturbance_fraction * &
                         min(1.0_r8,currentCohort%dmort * hlm_freq_day))
@@ -401,6 +406,7 @@ contains
                    nc%hmort = nan
                    nc%bmort = nan
                    nc%fmort = nan
+                   nc%frmort = nan
                    nc%lmort_logging    = nan
                    nc%lmort_collateral = nan
                    nc%lmort_infra      = nan
@@ -443,6 +449,7 @@ contains
                       nc%cmort            = currentCohort%cmort
                       nc%hmort            = currentCohort%hmort
                       nc%bmort            = currentCohort%bmort
+                      nc%frmort            = currentCohort%frmort
                       nc%dmort            = currentCohort%dmort
                       nc%lmort_logging    = currentCohort%lmort_logging
                       nc%lmort_collateral = currentCohort%lmort_collateral
@@ -467,6 +474,7 @@ contains
                       nc%cmort            = currentCohort%cmort
                       nc%hmort            = currentCohort%hmort
                       nc%bmort            = currentCohort%bmort
+                      nc%frmort            = currentCohort%frmort
                       nc%dmort            = currentCohort%dmort
                       nc%lmort_logging    = currentCohort%lmort_logging
                       nc%lmort_collateral = currentCohort%lmort_collateral
@@ -493,6 +501,7 @@ contains
                 nc%cmort            = currentCohort%cmort
                 nc%hmort            = currentCohort%hmort
                 nc%bmort            = currentCohort%bmort
+                nc%frmort            = currentCohort%frmort
                 nc%dmort            = currentCohort%dmort
                 nc%lmort_logging    = currentCohort%lmort_logging
                 nc%lmort_collateral = currentCohort%lmort_collateral
@@ -517,6 +526,7 @@ contains
                    nc%cmort            = nan
                    nc%hmort            = nan
                    nc%bmort            = nan
+                   nc%frmort           = nan
                    nc%fmort            = nan
                    nc%lmort_logging    = nan
                    nc%lmort_collateral = nan
@@ -563,6 +573,7 @@ contains
                       nc%cmort            = currentCohort%cmort
                       nc%hmort            = currentCohort%hmort
                       nc%bmort            = currentCohort%bmort
+                      nc%frmort           = currentCohort%frmort
                       nc%dmort            = currentCohort%dmort
                       nc%lmort_logging    = currentCohort%lmort_logging
                       nc%lmort_collateral = currentCohort%lmort_collateral
@@ -582,6 +593,7 @@ contains
                       nc%cmort            = currentCohort%cmort
                       nc%hmort            = currentCohort%hmort
                       nc%bmort            = currentCohort%bmort
+                      nc%frmort           = currentCohort%frmort
                       nc%dmort            = currentCohort%dmort
                       nc%lmort_logging    = currentCohort%lmort_logging
                       nc%lmort_collateral = currentCohort%lmort_collateral

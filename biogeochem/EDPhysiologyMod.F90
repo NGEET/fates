@@ -786,6 +786,7 @@ contains
     real(r8) :: cmort    ! starvation mortality rate (fraction per year)
     real(r8) :: bmort    ! background mortality rate (fraction per year)
     real(r8) :: hmort    ! hydraulic failure mortality rate (fraction per year)
+    real(r8) :: frmort   ! freezing tolerance  mortality rate (fraction per year)
 
     real(r8) :: lmort_logging     ! Mortality fraction associated with direct logging
     real(r8) :: lmort_collateral  ! Mortality fraction associated with logging collateral damage
@@ -797,7 +798,7 @@ contains
 
     ! Mortality for trees in the understorey. 
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
-    call mortality_rates(currentCohort,cmort,hmort,bmort)
+    call mortality_rates(currentCohort,cmort,hmort,bmort,frmort,bc_in)
     call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, &
                                currentCohort%lmort_logging,                       &
                                currentCohort%lmort_collateral,                    &
@@ -810,10 +811,10 @@ contains
                        currentCohort%lmort_collateral + &
                        currentCohort%lmort_infra)/hlm_freq_day
 
-       currentCohort%dndt = -1.0_r8 * (cmort+hmort+bmort+dndt_logging) * currentCohort%n
+       currentCohort%dndt = -1.0_r8 * (cmort+hmort+bmort+frmort+dndt_logging) * currentCohort%n
     else
        currentCohort%dndt = -(1.0_r8 - fates_mortality_disturbance_fraction) &
-            * (cmort+hmort+bmort) * currentCohort%n
+            * (cmort+hmort+bmort+frmort) * currentCohort%n
     endif
 
     ! Height

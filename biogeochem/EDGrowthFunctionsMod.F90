@@ -11,6 +11,7 @@ module EDGrowthFunctionsMod
   use EDPftvarcon        , only : EDPftvarcon_inst
   use EDTypesMod       , only : ed_cohort_type, nlevleaf, dinc_ed
   use FatesConstantsMod        , only : itrue,ifalse
+  use FatesInterfaceMod        , only : bc_in_type
 
   implicit none
   private
@@ -404,7 +405,7 @@ contains
 
 ! ============================================================================
 
-  subroutine mortality_rates( cohort_in,cmort,hmort,bmort )
+  subroutine mortality_rates( cohort_in,cmort,hmort,bmort,frmort,bc_in )
 
     ! ============================================================================
     !  Calculate mortality rates as a function of carbon storage       
@@ -412,15 +413,24 @@ contains
 
     use EDParamsMod,  only : ED_val_stress_mort
     use FatesInterfaceMod,  only : hlm_use_ed_prescribed_phys
+    use FatesConstantsMod,  only : tfrz => t_water_freeze_k_1atm
 
     type (ed_cohort_type), intent(in) :: cohort_in
+    type (bc_in_type), intent(in) :: bc_in
     real(r8),intent(out) :: bmort ! background mortality : Fraction per year
     real(r8),intent(out) :: cmort  ! carbon starvation mortality
     real(r8),intent(out) :: hmort  ! hydraulic failure mortality
+    real(r8),intent(out) :: frmort ! freezing stress mortality
 
     real(r8) :: frac  ! relativised stored carbohydrate
 
     real(r8) :: hf_sm_threshold    ! hydraulic failure soil moisture threshold 
+    real(r8) :: temp_dep           ! Temp. function (freezing mortality)
+    real(r8) :: temp_in_C          ! Daily averaged temperature in Celcius
+    real(r8) :: frost_mort         ! Scaling factor for freezing mortality
+
+    temp_in_C = bc_in%t_veg24_si - tfrz
+    frost_mort = 3.0_r8
 
 
     if (hlm_use_ed_prescribed_phys .eq. ifalse) then
@@ -451,7 +461,17 @@ contains
             cohort_in%dbh,cohort_in%pft,cohort_in%n,cohort_in%canopy_layer
     endif
 
-    !mortality_rates = bmort + hmort + cmort
+      !    Mortality due to cold and freezing stress (frmort), based on ED2 and:           
+      !      Albani, M.; D. Medvigy; G. C. Hurtt; P. R. Moorcroft, 2006: The contributions 
+      !           of land-use change, CO2 fertilization, and climate variability to the    
+      !           Eastern US carbon sink.  Glob. Change Biol., 12, 2370-2390,              
+      !           doi: 10.1111/j.1365-2486.2006.01254.x                                    
+     
+      temp_dep = max(0.0,min(1.0,1.0 - (temp_in_C - EDPftvarcon_inst%freezetol(cohort_in%pft))/5.0) )
+      frmort = frost_mort * temp_dep
+
+
+    !mortality_rates = bmort + hmort + cmort + frmort
 
     else ! i.e. hlm_use_ed_prescribed_phys is true
        if ( cohort_in%canopy_layer .eq. 1) then
@@ -461,6 +481,7 @@ contains
        endif
        cmort = 0._r8
        hmort = 0._r8
+       frmort = 0._r8
     endif
 
  end subroutine mortality_rates
