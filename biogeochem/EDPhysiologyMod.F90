@@ -41,6 +41,7 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : bfineroot
   use FatesAllometryMod  , only : bdead_allom
   use FatesAllometryMod  , only : bcr_allom
+  use FatesAllometryMod  , only : carea_allom
 
 
   implicit none
@@ -191,6 +192,7 @@ contains
        do while (associated(currentCohort)) 
           trimmed = 0    
           ipft = currentCohort%pft
+          call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
           currentCohort%treelai = tree_lai(currentCohort)    
           currentCohort%nv = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
           if (currentCohort%nv > nlevleaf)then
@@ -1053,7 +1055,7 @@ contains
                       currentCohort%canopy_trim,b_fineroot,db_fineroot_dd)
        call bsap_allom(currentCohort%dbh,currentCohort%hite,ipft, &
                        currentCohort%canopy_trim,b_sap,db_sap_dd)
-       
+
        ! Total change in alive biomass relative to dead biomass [kgC/kgC]
        dbalivedbd = (db_leaf_dd + db_fineroot_dd + db_sap_dd)/db_dead_dd
 
@@ -1101,7 +1103,7 @@ contains
 
     endif
     
-    ! calculate derivatives of living and dead carbon pools  
+    ! calculate derivatives of living and dead carbon pools
     currentCohort%dbalivedt = gr_fract * va * currentCohort%carbon_balance - balive_loss
     currentCohort%dbdeaddt  = gr_fract * vs * currentCohort%carbon_balance
     currentCohort%dbstoredt = currentCohort%storage_flux

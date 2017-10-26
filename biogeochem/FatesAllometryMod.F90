@@ -107,6 +107,7 @@ module FatesAllometryMod
   public :: bcr_allom     ! Generic coarse root wrapper
   public :: bfineroot     ! Generic actual fine root biomass wrapper
   public :: bdead_allom   ! Generic bdead wrapper
+  public :: carea_allom   ! Generic crown area wrapper
 
   character(len=*), parameter :: sourcefile = __FILE__
 
@@ -288,6 +289,49 @@ contains
     end associate
     return
   end subroutine blmax_allom
+
+  ! ============================================================================
+  ! Generic crown area allometry wrapper
+  ! ============================================================================
+  
+  subroutine carea_allom(d,nplant,site_spread,ipft,c_area)
+     
+     real(r8),intent(in)    :: d           ! plant diameter [cm]
+     real(r8),intent(in)    :: site_spread ! site level spread factor (crowdedness)
+     real(r8),intent(in)    :: nplant      ! number of plants [1/ha]
+     integer(i4),intent(in) :: ipft        ! PFT index
+     real(r8),intent(out)   :: c_area       ! crown area per plant (m2)
+
+     real(r8)               :: d_eff     ! Effective diameter (cm)
+     
+     associate( dbh_maxh    => EDPftvarcon_inst%allom_dbh_maxheight(ipft), &
+                allom_lmode => EDPftvarcon_inst%allom_lmode(ipft),  &
+                d2bl_p2     => EDPftvarcon_inst%allom_d2bl2(ipft),  &
+                d2bl_ediff  => EDPftvarcon_inst%allom_blca_expnt_diff(ipft), &
+                d2ca_min    => EDPftvarcon_inst%allom_d2ca_coefficient_min(ipft), &
+                d2ca_max    => EDPftvarcon_inst%allom_d2ca_coefficient_max(ipft))
+       
+       select case(int(allom_lmode))
+       case(1,3) ! "salda" and "height capped generic two power"
+          d_eff = min(d,dbh_maxh)
+          call carea_2pwr(d_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area)
+       case(2)   ! "2par_pwr")
+          call carea_2pwr(d,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area)
+       case DEFAULT
+         write(fates_log(),*) 'An undefined leaf allometry was specified: ', &
+               allom_lmode
+         write(fates_log(),*) 'Aborting'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end select
+
+      c_area = c_area * nplant
+
+
+    end associate
+    return
+ end subroutine carea_allom
+
+
 
   ! =====================================================================================
         
@@ -703,7 +747,7 @@ contains
     real(r8),intent(in)  :: p2        ! parameter 2
     real(r8),intent(in)  :: c2b       ! carbon to biomass multiplier
     
-    real(r8),intent(out) :: blmax     ! plant leaf biomass [kg]
+    real(r8),intent(out) :: blmax     ! plant leaf biomass [kgC]
     real(r8),intent(out),optional :: dblmaxdd  ! change leaf bio per diameter [kgC/cm]
     
     blmax    = p1*d**p2 / c2b
@@ -731,7 +775,7 @@ contains
     real(r8),intent(in)  :: c2b       ! carbon 2 biomass multiplier
     real(r8),intent(in)  :: dbh_maxh  ! dbh at maximum height
     
-    real(r8),intent(out) :: blmax     ! plant leaf biomass [kg]
+    real(r8),intent(out) :: blmax     ! plant leaf biomass [kgC]
     real(r8),intent(out),optional :: dblmaxdd  ! change leaf bio per diameter [kgC/cm]
     
     blmax    = p1*min(d,dbh_maxh)**p2/c2b
@@ -1329,6 +1373,53 @@ contains
     end if
     return
   end subroutine h2d_martcano
+
+  ! =============================================================================
+  ! Specific diameter to crown area allometries
+  ! =============================================================================
+
+  
+  subroutine carea_2pwr(d,spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area)
+
+     ! ============================================================================
+     ! Calculate area of ground covered by entire cohort. (m2)
+     ! Function of DBH (cm) canopy spread (m/cm) and number of individuals. 
+     ! ============================================================================
+
+     real(r8),intent(in) :: d           ! diameter [cm]
+     real(r8),intent(in) :: spread      ! site level relative spread score [0-1]
+     real(r8),intent(in) :: d2bl_p2     ! parameter 2 in the diameter->bleaf allometry (exponent)
+     real(r8),intent(in) :: d2bl_ediff  ! area difference factor in the diameter-bleaf allometry (exponent)
+     real(r8),intent(in) :: d2ca_min    ! minimum diameter to crown area scaling factor
+     real(r8),intent(in) :: d2ca_max    ! maximum diameter to crown area scaling factor
+     real(r8),intent(out) :: c_area     ! crown area for one plant [m2]
+     
+     real(r8)            :: crown_area_to_dbh_exponent
+     real(r8)            :: spreadterm  ! Effective 2bh to crown area scaling factor
+     
+     ! default is to use the same exponent as the dbh to bleaf exponent so that per-plant 
+     ! canopy depth remains invariant during growth, but allowed to vary via the 
+     ! allom_blca_expnt_diff term (which has default value of zero)
+     crown_area_to_dbh_exponent = d2bl_p2 + d2bl_ediff
+     
+     ! ----------------------------------------------------------------------------------
+     ! The function c_area is called during the process of canopy position demotion
+     ! and promotion. As such, some cohorts are temporarily elevated to canopy positions
+     ! that are outside the number of alloted canopy spaces.  Ie, a two story canopy
+     ! may have a third-story plant, if only for a moment.  However, these plants
+     ! still need to generate a crown area to complete the promotion, demotion process.
+     ! So we allow layer index exceedence here and force it down to max.
+     ! (rgk/cdk 05/2017)
+     ! ----------------------------------------------------------------------------------
+     
+     ! apply site-level spread elasticity to the cohort crown allometry term
+    
+     spreadterm = spread * d2ca_max + (1._r8 - spread) * d2ca_min
+     
+     c_area = spreadterm * d ** crown_area_to_dbh_exponent
+     
+  end subroutine carea_2pwr
+ 
   
   ! ===========================================================================
   

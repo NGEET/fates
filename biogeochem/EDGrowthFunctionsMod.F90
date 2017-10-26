@@ -18,7 +18,6 @@ module EDGrowthFunctionsMod
 
   public ::  tree_lai
   public ::  tree_sai
-  public ::  c_area
   public ::  mortality_rates
 
   logical :: DEBUG_growth = .false.
@@ -46,7 +45,6 @@ contains
 
     if( cohort_in%status_coh  ==  2 ) then ! are the leaves on? 
        slat = 1000.0_r8 * EDPftvarcon_inst%slatop(cohort_in%pft) ! m2/g to m2/kg
-       cohort_in%c_area = c_area(cohort_in) ! call the tree area
        leafc_per_unitarea = cohort_in%bl/(cohort_in%c_area/cohort_in%n) !KgC/m2
        if(leafc_per_unitarea > 0.0_r8)then
           tree_lai = leafc_per_unitarea * slat  !kg/m2 * m2/kg = unitless LAI 
@@ -88,7 +86,6 @@ contains
        write(fates_log(),*) 'problem in treesai',cohort_in%bdead,cohort_in%pft
     endif
 
-    cohort_in%c_area = c_area(cohort_in) ! call the tree area 
     bdead_per_unitarea = cohort_in%bdead/(cohort_in%c_area/cohort_in%n) !KgC/m2
     tree_sai = bdead_per_unitarea * sai_scaler !kg/m2 * m2/kg = unitless LAI 
    
@@ -105,59 +102,7 @@ contains
 
   end function tree_sai
   
-
-! ============================================================================
-
-  real(r8) function c_area( cohort_in )
-
-    ! ============================================================================
-    ! Calculate area of ground covered by entire cohort. (m2)
-    ! Function of DBH (cm) canopy spread (m/cm) and number of individuals. 
-    ! ============================================================================
-
-    use EDTypesMod               , only : nclmax
-
-    type(ed_cohort_type), intent(in) :: cohort_in       
-
-    real(r8) :: dbh ! Tree diameter at breat height. cm. 
-    real(r8) :: crown_area_to_dbh_exponent
-    real(r8) :: spreadterm
-
-    ! default is to use the same exponent as the dbh to bleaf exponent so that per-plant canopy depth remains invariant during growth,
-    ! but allowed to vary via the allom_blca_expnt_diff term (which has default value of zero)
-    crown_area_to_dbh_exponent = EDPftvarcon_inst%allom_d2bl2(cohort_in%pft) + &
-          EDPftvarcon_inst%allom_blca_expnt_diff(cohort_in%pft)
-    
-    if (DEBUG_growth) then
-       write(fates_log(),*) 'z_area 1',cohort_in%dbh,cohort_in%pft
-       write(fates_log(),*) 'z_area 2',EDPftvarcon_inst%allom_dbh_maxheight
-       write(fates_log(),*) 'z_area 3',EDPftvarcon_inst%woody
-       write(fates_log(),*) 'z_area 4',cohort_in%n
-       write(fates_log(),*) 'z_area 5',cohort_in%siteptr%spread
-       write(fates_log(),*) 'z_area 6',cohort_in%canopy_layer
-    end if
-    
-    dbh = min(cohort_in%dbh,EDPftvarcon_inst%allom_dbh_maxheight(cohort_in%pft))
-    
-    ! ----------------------------------------------------------------------------------
-    ! The function c_area is called during the process of canopy position demotion
-    ! and promotion. As such, some cohorts are temporarily elevated to canopy positions
-    ! that are outside the number of alloted canopy spaces.  Ie, a two story canopy
-    ! may have a third-story plant, if only for a moment.  However, these plants
-    ! still need to generate a crown area to complete the promotion, demotion process.
-    ! So we allow layer index exceedence here and force it down to max.
-    ! (rgk/cdk 05/2017)
-    ! ----------------------------------------------------------------------------------
-    
-    ! apply site-level spread elasticity to the cohort crown allometry term
-    spreadterm = cohort_in%siteptr%spread * EDPftvarcon_inst%allom_d2ca_coefficient_max(cohort_in%pft) + &
-         (1._r8 - cohort_in%siteptr%spread) * EDPftvarcon_inst%allom_d2ca_coefficient_min(cohort_in%pft)
-    !
-    c_area = cohort_in%n * spreadterm * dbh ** crown_area_to_dbh_exponent
-
-  end function c_area
-
-! ============================================================================
+  ! ============================================================================
 
   subroutine mortality_rates( cohort_in,cmort,hmort,bmort )
 

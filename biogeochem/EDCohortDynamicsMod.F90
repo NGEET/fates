@@ -13,7 +13,7 @@ module EDCohortDynamicsMod
   use FatesConstantsMod     , only : itrue,ifalse
   use FatesInterfaceMod     , only : hlm_days_per_year
   use EDPftvarcon           , only : EDPftvarcon_inst
-  use EDGrowthFunctionsMod  , only : c_area, tree_lai
+  use EDGrowthFunctionsMod  , only : tree_lai
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : ncwd
@@ -33,6 +33,7 @@ module EDCohortDynamicsMod
   use FatesAllometryMod  , only : bleaf
   use FatesAllometryMod  , only : bfineroot
   use FatesAllometryMod  , only : h_allom
+  use FatesAllometryMod  , only : carea_allom
 
   ! CIME globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -146,7 +147,8 @@ contains
     call allocate_live_biomass(new_cohort,0)
 
     ! Assign canopy extent and depth
-    new_cohort%c_area  = c_area(new_cohort)
+    call carea_allom(new_cohort%dbh,new_cohort%n,new_cohort%siteptr%spread,new_cohort%pft,new_cohort%c_area)
+
     new_cohort%treelai = tree_lai(new_cohort)
     new_cohort%lai     = new_cohort%treelai * new_cohort%c_area/patchptr%area
     new_cohort%treesai = 0.0_r8 !FIX(RF,032414)   
