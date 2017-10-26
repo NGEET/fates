@@ -13,7 +13,6 @@ module EDCohortDynamicsMod
   use FatesConstantsMod     , only : itrue,ifalse
   use FatesInterfaceMod     , only : hlm_days_per_year
   use EDPftvarcon           , only : EDPftvarcon_inst
-  use EDGrowthFunctionsMod  , only : tree_lai
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : ncwd
