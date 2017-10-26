@@ -32,6 +32,11 @@ module EDPatchDynamicsMod
   use EDLoggingMortalityMod, only : logging_time
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
   use FatesAllometryMod    , only : carea_allom
+  use FatesConstantsMod    , only : g_per_kg
+  use FatesConstantsMod    , only : ha_per_m2
+  use FatesConstantsMod    , only : days_per_sec
+  use FatesConstantsMod    , only : years_per_day
+
 
   ! CIME globals
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
@@ -118,7 +123,6 @@ contains
           currentCohort%cmort = cmort
           currentCohort%bmort = bmort
           currentCohort%hmort = hmort
-          currentCohort%imort = 0.0_r8 ! Impact mortality is always zero except in new patches
           currentCohort%fmort = 0.0_r8 ! Fire mortality is initialized as zero, but may be changed
 
           call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, &
@@ -200,7 +204,6 @@ contains
                 currentCohort%hmort = currentCohort%hmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%bmort = currentCohort%bmort*(1.0_r8 - fates_mortality_disturbance_fraction)
                 currentCohort%dmort = currentCohort%dmort*(1.0_r8 - fates_mortality_disturbance_fraction)
-                ! currentCohort%imort will likely exist with logging
              end if
              currentCohort => currentCohort%taller
           enddo !currentCohort
@@ -400,7 +403,6 @@ contains
                    nc%hmort = nan
                    nc%bmort = nan
                    nc%fmort = nan
-                   nc%imort = nan
                    nc%lmort_logging    = nan
                    nc%lmort_collateral = nan
                    nc%lmort_infra      = nan
@@ -415,7 +417,18 @@ contains
                       !          The number density per square are doesn't change, but since the patch is smaller
                       !          and cohort counts are absolute, reduce this number.
                       nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
-                      
+
+                      ! because the mortality rate due to impact for the cohorts which had been in the understory and are now in the newly-
+                      ! disturbed patch is very high, passing the imort directly to history results in large numerical errors, on account
+                      ! of the sharply reduced number densities.  so instead pass this info via a site-level diagnostic variable before reducing 
+                      ! the number density.
+                      currentSite%imort_rate(currentCohort%size_class, currentCohort%pft) = &
+                           currentSite%imort_rate(currentCohort%size_class, currentCohort%pft) + &
+                           nc%n * ED_val_understorey_death / hlm_freq_day
+                      currentSite%imort_carbonflux = currentSite%imort_carbonflux + &
+                           (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
+                           currentCohort%b * g_per_kg * days_per_sec * years_per_day * ha_per_m2
+
                       ! Step 2:  Apply survivor ship function based on the understory death fraction
                       ! remaining of understory plants of those that are knocked over by the overstorey trees dying...  
                       nc%n = nc%n * (1.0_r8 - ED_val_understorey_death)
@@ -429,7 +442,6 @@ contains
                       ! so with the number density must come the effective mortality rates.
 
                       nc%fmort            = 0.0_r8               ! Should had also been zero in the donor
-                      nc%imort            = ED_val_understorey_death/hlm_freq_day  ! This was zero in the donor
                       nc%cmort            = currentCohort%cmort
                       nc%hmort            = currentCohort%hmort
                       nc%bmort            = currentCohort%bmort
@@ -444,6 +456,7 @@ contains
                       ! Besides, the current and newly created patch sum to unity                      
 
                       currentCohort%n = currentCohort%n * (1._r8 -  patch_site_areadis/currentPatch%area)
+                      
                    else 
                       ! grass is not killed by mortality disturbance events. Just move it into the new patch area. 
                       ! Just split the grass into the existing and new patch structures
@@ -453,7 +466,6 @@ contains
                       currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area)
 
                       nc%fmort            = 0.0_r8
-                      nc%imort            = 0.0_r8
                       nc%cmort            = currentCohort%cmort
                       nc%hmort            = currentCohort%hmort
                       nc%bmort            = currentCohort%bmort
@@ -479,7 +491,6 @@ contains
                 nc%n = nc%n * (1.0_r8 - currentCohort%fire_mort) 
 
                 nc%fmort            = currentCohort%fire_mort/hlm_freq_day
-                nc%imort            = 0.0_r8
                 
                 nc%cmort            = currentCohort%cmort
                 nc%hmort            = currentCohort%hmort
@@ -509,7 +520,6 @@ contains
                    nc%hmort            = nan
                    nc%bmort            = nan
                    nc%fmort            = nan
-                   nc%imort            = nan
                    nc%lmort_logging    = nan
                    nc%lmort_collateral = nan
                    nc%lmort_infra      = nan
@@ -527,6 +537,17 @@ contains
                       !          The number density per square are doesn't change, but since the patch is smaller
                       !          and cohort counts are absolute, reduce this number.
                       nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
+
+                      ! because the mortality rate due to impact for the cohorts which had been in the understory and are now in the newly-
+                      ! disturbed patch is very high, passing the imort directly to history results in large numerical errors, on account
+                      ! of the sharply reduced number densities.  so instead pass this info via a site-level diagnostic variable before reducing 
+                      ! the number density.
+                      currentSite%imort_rate(currentCohort%size_class, currentCohort%pft) = &
+                           currentSite%imort_rate(currentCohort%size_class, currentCohort%pft) + &
+                           nc%n * ED_val_understorey_death / hlm_freq_day
+                      currentSite%imort_carbonflux = currentSite%imort_carbonflux + &
+                           (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
+                           currentCohort%b * g_per_kg * days_per_sec * years_per_day * ha_per_m2
                       
                       ! Step 2:  Apply survivor ship function based on the understory death fraction
                      
@@ -541,7 +562,6 @@ contains
 
 
                       nc%fmort = 0.0_r8
-                      nc%imort = ED_val_understorey_death/hlm_freq_day
                       nc%cmort            = currentCohort%cmort
                       nc%hmort            = currentCohort%hmort
                       nc%bmort            = currentCohort%bmort
@@ -561,7 +581,6 @@ contains
 
                       ! No grass impact mortality imposed on the newly created patch
                       nc%fmort            = 0.0_r8
-                      nc%imort            = 0.0_r8
                       nc%cmort            = currentCohort%cmort
                       nc%hmort            = currentCohort%hmort
                       nc%bmort            = currentCohort%bmort
@@ -742,8 +761,10 @@ contains
        ! some of their area has been carved out for this new patches which is receiving donations.
        ! Lets maintain conservation on that pre-existing mass flux in these newly disturbed patches
        
-       newPatch%root_litter_out(p) = newPatch%root_litter_out(p) + currentPatch%root_litter_out(p) * patch_site_areadis/newPatch%area
-       newPatch%leaf_litter_out(p) = newPatch%leaf_litter_out(p) + currentPatch%leaf_litter_out(p) * patch_site_areadis/newPatch%area
+       newPatch%root_litter_out(p) = newPatch%root_litter_out(p) + currentPatch%root_litter_out(p) * &
+                                     patch_site_areadis/newPatch%area
+       newPatch%leaf_litter_out(p) = newPatch%leaf_litter_out(p) + currentPatch%leaf_litter_out(p) * &
+                                     patch_site_areadis/newPatch%area
 
     enddo
 
@@ -990,7 +1011,7 @@ contains
              !currentCohort%dmort = mortality_rates(currentCohort) 
              !the disturbance calculations are done with the previous n, c_area and d_mort. So it's probably &
              !not right to recalcualte dmort here.
-             canopy_dead = currentCohort%n * min(1.0_r8,currentCohort%dmort * hlm_freq_day)
+             canopy_dead = currentCohort%n * min(1.0_r8,currentCohort%dmort * hlm_freq_day * fates_mortality_disturbance_fraction)
 
              canopy_mortality_woody_litter   = canopy_mortality_woody_litter  + &
                   canopy_dead*(currentCohort%bdead+currentCohort%bsw)
