@@ -17,6 +17,8 @@ module EDPhysiologyMod
   use FatesInterfaceMod, only    : bc_in_type
   use EDCohortDynamicsMod , only : allocate_live_biomass, zero_cohort
   use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
+  use EDCohortDynamicsMod , only : tree_lai
+  use EDCohortDynamicsMod , only : tree_sai
 
   use EDTypesMod          , only : numWaterMem
   use EDTypesMod          , only : dl_sf, dinc_ed
@@ -167,7 +169,6 @@ contains
     !
     ! !USES:
     !
-    use EDGrowthFunctionsMod, only : tree_lai
     !
     ! !ARGUMENTS    
     type (ed_site_type),intent(inout), target :: currentSite
@@ -785,7 +786,7 @@ contains
     !
     ! !USES:
 
-    use EDGrowthFunctionsMod , only : mortality_rates
+    use EDMortalityFunctionsMod , only : mortality_rates
     use FatesInterfaceMod, only : hlm_use_ed_prescribed_phys
     use EDLoggingMortalityMod, only : LoggingMortality_frac
 

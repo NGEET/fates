@@ -21,6 +21,8 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : AREA
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
+  use EDTypesMod            , only : nlevleaf
+  use EDTypesMod            , only : dinc_ed
   use FatesInterfaceMod      , only : hlm_use_planthydro
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
   use FatesPlantHydraulicsMod, only : CopyCohortHydraulics
@@ -51,6 +53,8 @@ module EDCohortDynamicsMod
   public :: copy_cohort
   public :: count_cohorts
   public :: allocate_live_biomass
+  public :: tree_lai
+  public :: tree_sai
 
   logical, parameter :: DEBUG  = .false. ! local debug flag
 
@@ -687,7 +691,6 @@ contains
      ! Join similar cohorts to reduce total number            
      !
      ! !USES:
-     use EDTypesMod  , only :  nlevleaf
      use EDParamsMod , only :  ED_val_cohort_fusion_tol
      use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
      !
@@ -1351,7 +1354,83 @@ contains
 
   end function count_cohorts
 
+  ! =====================================================================================
 
+  real(r8) function tree_lai( cohort_in )
+
+    ! ============================================================================
+    !  LAI of individual trees is a function of the total leaf area and the total canopy area.   
+    ! ============================================================================
+
+    type(ed_cohort_type), intent(inout) :: cohort_in       
+
+    real(r8) :: leafc_per_unitarea ! KgC of leaf per m2 area of ground.
+    real(r8) :: slat               ! the sla of the top leaf layer. m2/kgC
+
+    if( cohort_in%bl  <  0._r8 .or. cohort_in%pft  ==  0 ) then
+       write(fates_log(),*) 'problem in treelai',cohort_in%bl,cohort_in%pft
+    endif
+
+    if( cohort_in%status_coh  ==  2 ) then ! are the leaves on? 
+       slat = 1000.0_r8 * EDPftvarcon_inst%slatop(cohort_in%pft) ! m2/g to m2/kg
+       leafc_per_unitarea = cohort_in%bl/(cohort_in%c_area/cohort_in%n) !KgC/m2
+       if(leafc_per_unitarea > 0.0_r8)then
+          tree_lai = leafc_per_unitarea * slat  !kg/m2 * m2/kg = unitless LAI 
+       else
+          tree_lai = 0.0_r8
+       endif
+    else
+       tree_lai = 0.0_r8
+    endif !status
+    cohort_in%treelai = tree_lai
+
+    ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
+    ! at the moments nlevleaf default is 40, which is very large, so exceeding this would clearly illustrate a 
+    ! huge error 
+    if(cohort_in%treelai > nlevleaf*dinc_ed)then
+       write(fates_log(),*) 'too much lai' , cohort_in%treelai , cohort_in%pft , nlevleaf * dinc_ed
+    endif
+
+    return
+
+  end function tree_lai
+  
+  ! ============================================================================
+
+  real(r8) function tree_sai( cohort_in )
+
+    ! ============================================================================
+    !  SAI of individual trees is a function of the total dead biomass per unit canopy area.   
+    ! ============================================================================
+
+    type(ed_cohort_type), intent(inout) :: cohort_in       
+
+    real(r8) :: bdead_per_unitarea ! KgC of leaf per m2 area of ground.
+    real(r8) :: sai_scaler     
+
+    sai_scaler = EDPftvarcon_inst%allom_sai_scaler(cohort_in%pft) 
+
+    if( cohort_in%bdead  <  0._r8 .or. cohort_in%pft  ==  0 ) then
+       write(fates_log(),*) 'problem in treesai',cohort_in%bdead,cohort_in%pft
+    endif
+
+    bdead_per_unitarea = cohort_in%bdead/(cohort_in%c_area/cohort_in%n) !KgC/m2
+    tree_sai = bdead_per_unitarea * sai_scaler !kg/m2 * m2/kg = unitless LAI 
+   
+    cohort_in%treesai = tree_sai
+
+    ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
+    ! at the moments nlevleaf default is 40, which is very large, so exceeding this would clearly illustrate a 
+    ! huge error 
+    if(cohort_in%treesai > nlevleaf*dinc_ed)then
+       write(fates_log(),*) 'too much sai' , cohort_in%treesai , cohort_in%pft , nlevleaf * dinc_ed
+    endif
+
+    return
+
+  end function tree_sai
+  
+  ! ============================================================================
 
 
   !-------------------------------------------------------------------------------------!

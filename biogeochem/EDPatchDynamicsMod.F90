@@ -79,7 +79,7 @@ contains
 	! Modify to add logging disturbance
 	
     ! !USES:
-    use EDGrowthFunctionsMod , only : mortality_rates
+    use EDMortalityFunctionsMod , only : mortality_rates
     ! loging flux
     use EDLoggingMortalityMod , only : LoggingMortality_frac
 

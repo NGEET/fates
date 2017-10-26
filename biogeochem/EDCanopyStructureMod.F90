@@ -10,6 +10,8 @@ module EDCanopyStructureMod
   use EDPftvarcon           , only : EDPftvarcon_inst
   use FatesAllometryMod     , only : carea_allom
   use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
+  use EDCohortDynamicsMod   , only : tree_lai
+  use EDCohortDynamicsMod   , only : tree_sai
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type, ncwd
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : nlevleaf
@@ -864,7 +866,6 @@ contains
     use EDPatchDynamicsMod   , only : set_patchno
     use EDPatchDynamicsMod   , only : set_root_fraction
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
-    use EDGrowthFunctionsMod , only : tree_lai
     use EDtypesMod           , only : area
     use EDPftvarcon            , only : EDPftvarcon_inst
 
@@ -978,7 +979,6 @@ contains
     !
     ! !USES:
 
-    use EDGrowthFunctionsMod , only : tree_lai, tree_sai
     use EDtypesMod           , only : area, dinc_ed, hitemax, n_hite_bins
   
     !
