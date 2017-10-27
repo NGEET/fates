@@ -67,6 +67,9 @@ module EDPhysiologyMod
   logical, parameter :: DEBUG  = .false. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
+
+  logical, parameter :: test_b4b = .true.
+
   ! ============================================================================
 
 contains
@@ -889,11 +892,14 @@ contains
 
     !target balive without leaves. 
     if (currentCohort%status_coh == 1)then 
-       target_balive = b_fineroot + b_sap
-    endif
 
-    ! NPP 
-    if ( DEBUG ) write(fates_log(),*) 'EDphys 716 ',currentCohort%npp_acc
+       if(test_b4b) then
+          target_balive = b_fineroot + b_sap/b_leaf
+       else
+          target_balive = b_fineroot + b_sap
+       end if
+       
+    endif
 
     ! convert from kgC/indiv/day into kgC/indiv/year
     ! TODO: CONVERT DAYS_PER_YEAR TO DBLE (HOLDING FOR B4B COMPARISONS, RGK-01-2017)
@@ -903,11 +909,11 @@ contains
 
     if (hlm_use_ed_prescribed_phys .eq. itrue) then
        if (currentCohort%canopy_layer .eq. 1) then
-          currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_canopy(currentCohort%pft) &
+          currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_canopy(ipft) &
                 * currentCohort%c_area / currentCohort%n
           currentCohort%npp_acc = currentCohort%npp_acc_hold / hlm_days_per_year ! add these for balance checking purposes
        else
-          currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_understory(currentCohort%pft) &
+          currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_understory(ipft) &
                 * currentCohort%c_area / currentCohort%n
           currentCohort%npp_acc = currentCohort%npp_acc_hold / hlm_days_per_year ! add these for balance checking purposes
        endif

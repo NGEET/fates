@@ -1450,7 +1450,7 @@ contains
                 temp_cohort%bdead = 0.0_r8
                 temp_cohort%bstore = 0.0_r8
                 temp_cohort%laimemory = 0.0_r8
-                temp_cohort%canopy_trim = 0.0_r8
+                temp_cohort%canopy_trim = 1.0_r8
                 temp_cohort%canopy_layer = 1.0_r8
                 temp_cohort%canopy_layer_yesterday = 1.0_r8
 
