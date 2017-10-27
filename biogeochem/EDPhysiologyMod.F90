@@ -1041,7 +1041,7 @@ contains
     if ((currentCohort%balive >= target_balive).and.(currentCohort%carbon_balance >  0._r8))then 
        ! fraction of carbon going into active vs structural carbon        
 
-       ! fraction of carbon going into active vs structural carbon        
+       ! fraction of carbon not going towards reproduction
        if (currentCohort%dbh <= EDPftvarcon_inst%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
           gr_fract = 1.0_r8 - EDPftvarcon_inst%seed_alloc(ipft)
        else
@@ -1187,15 +1187,14 @@ contains
        temp_cohort%hite        = EDPftvarcon_inst%hgt_min(ft)
        call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
 
-       call bag_allom(temp_cohort%dbh,temp_cohort%hite,ft,b_aboveground)
-       call bcr_allom(temp_cohort%dbh,temp_cohort%hite,ft,b_coarseroot)
-       call bdead_allom(b_aboveground,b_coarseroot,b_sapwood,ft,temp_cohort%bdead)
-
-
        ! Initialize balive (leaf+fineroot+sapwood)
        call bleaf(temp_cohort%dbh,temp_cohort%hite,ft,temp_cohort%canopy_trim,b_leaf)
        call bfineroot(temp_cohort%dbh,temp_cohort%hite,ft,temp_cohort%canopy_trim,b_fineroot)
        call bsap_allom(temp_cohort%dbh,temp_cohort%hite,ft,temp_cohort%canopy_trim,b_sapwood)
+
+       call bag_allom(temp_cohort%dbh,temp_cohort%hite,ft,b_aboveground)
+       call bcr_allom(temp_cohort%dbh,temp_cohort%hite,ft,b_coarseroot)
+       call bdead_allom(b_aboveground,b_coarseroot,b_sapwood,ft,temp_cohort%bdead)
 
        temp_cohort%balive      = b_leaf + b_sapwood + b_fineroot
        temp_cohort%bstore      = EDPftvarcon_inst%cushion(ft) * b_leaf
