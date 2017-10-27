@@ -68,7 +68,6 @@ module EDPhysiologyMod
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
 
-  logical, parameter :: test_b4b = .true.
 
   ! ============================================================================
 
@@ -892,13 +891,7 @@ contains
 
     !target balive without leaves. 
     if (currentCohort%status_coh == 1)then 
-
-       if(test_b4b) then
-          target_balive = b_fineroot + b_sap/b_leaf
-       else
-          target_balive = b_fineroot + b_sap
-       end if
-       
+       target_balive = b_fineroot + b_sap
     endif
 
     ! convert from kgC/indiv/day into kgC/indiv/year
