@@ -18,7 +18,7 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : ncwd
   use EDTypesMod            , only : maxCohortsPerPatch
-  use EDTypesMod            , only : sclass_ed,nlevsclass_ed,AREA
+  use EDTypesMod            , only : AREA
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
   use FatesInterfaceMod      , only : hlm_use_planthydro
@@ -28,7 +28,8 @@ module EDCohortDynamicsMod
   use FatesPlantHydraulicsMod, only : initTreeHydStates
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
-  use EDTypesMod             , only : sizetype_class_index
+  use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
+
 
   ! CIME globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -415,6 +416,11 @@ contains
     currentCohort%root_md            = nan ! root  maintenance demand: kgC/indiv/year
     currentCohort%carbon_balance     = nan ! carbon remaining for growth and storage: kg/indiv/year
     currentCohort%dmort              = nan ! proportional mortality rate. (year-1)
+    currentCohort%lmort_logging      = nan
+    currentCohort%lmort_infra        = nan
+    currentCohort%lmort_collateral   = nan
+
+
     currentCohort%seed_prod          = nan ! reproduction seed and clonal: KgC/indiv/year
     currentCohort%c_area             = nan ! areal extent of canopy (m2)
     currentCohort%treelai            = nan ! lai of tree (total leaf area (m2) / canopy area (m2)
@@ -488,7 +494,9 @@ contains
     currentcohort%dmort              = 0._r8 
     currentcohort%gscan              = 0._r8 
     currentcohort%treesai            = 0._r8  
-
+    currentCohort%lmort_logging      = 0._r8
+    currentCohort%lmort_infra        = 0._r8
+    currentCohort%lmort_collateral   = 0._r8
     !    currentCohort%npp_leaf  = 0._r8
     !    currentCohort%npp_froot = 0._r8
     !    currentCohort%npp_bsw   = 0._r8
@@ -839,6 +847,13 @@ contains
 
                                    currentCohort%dmort          = (currentCohort%n*currentCohort%dmort       + &
                                          nextc%n*nextc%dmort)/newn
+                                   currentCohort%lmort_logging          = (currentCohort%n*currentCohort%lmort_logging       + &
+                                         nextc%n*nextc%lmort_logging)/newn
+                                   currentCohort%lmort_infra          = (currentCohort%n*currentCohort%lmort_infra       + &
+                                         nextc%n*nextc%lmort_infra)/newn
+                                   currentCohort%lmort_collateral          = (currentCohort%n*currentCohort%lmort_collateral       + &
+                                         nextc%n*nextc%lmort_collateral)/newn
+
                                    currentCohort%fire_mort      = (currentCohort%n*currentCohort%fire_mort   + &
                                          nextc%n*nextc%fire_mort)/newn
                                    currentCohort%leaf_litter    = (currentCohort%n*currentCohort%leaf_litter + &
@@ -848,22 +863,38 @@ contains
                                    currentCohort%cmort = (currentCohort%n*currentCohort%cmort + nextc%n*nextc%cmort)/newn
                                    currentCohort%hmort = (currentCohort%n*currentCohort%hmort + nextc%n*nextc%hmort)/newn
                                    currentCohort%bmort = (currentCohort%n*currentCohort%bmort + nextc%n*nextc%bmort)/newn
-                                   currentCohort%imort = (currentCohort%n*currentCohort%imort + nextc%n*nextc%imort)/newn
                                    currentCohort%fmort = (currentCohort%n*currentCohort%fmort + nextc%n*nextc%fmort)/newn
 
+                                   ! logging mortality, Yi Xu
+                                   currentCohort%lmort_logging = (currentCohort%n*currentCohort%lmort_logging + &
+                                         nextc%n*nextc%lmort_logging)/newn
+                                   currentCohort%lmort_collateral = (currentCohort%n*currentCohort%lmort_collateral + &
+                                         nextc%n*nextc%lmort_collateral)/newn
+                                   currentCohort%lmort_infra = (currentCohort%n*currentCohort%lmort_infra + &
+                                         nextc%n*nextc%lmort_infra)/newn
+                                   
                                    ! npp diagnostics
-                                   currentCohort%npp_leaf  = (currentCohort%n*currentCohort%npp_leaf  + nextc%n*nextc%npp_leaf)/newn
-                                   currentCohort%npp_froot = (currentCohort%n*currentCohort%npp_froot + nextc%n*nextc%npp_froot)/newn
-                                   currentCohort%npp_bsw   = (currentCohort%n*currentCohort%npp_bsw   + nextc%n*nextc%npp_bsw)/newn
-                                   currentCohort%npp_bdead = (currentCohort%n*currentCohort%npp_bdead + nextc%n*nextc%npp_bdead)/newn
-                                   currentCohort%npp_bseed = (currentCohort%n*currentCohort%npp_bseed + nextc%n*nextc%npp_bseed)/newn
-                                   currentCohort%npp_store = (currentCohort%n*currentCohort%npp_store + nextc%n*nextc%npp_store)/newn
+                                   currentCohort%npp_leaf  = (currentCohort%n*currentCohort%npp_leaf  + nextc%n*nextc%npp_leaf) &
+                                                              /newn
+                                   currentCohort%npp_froot = (currentCohort%n*currentCohort%npp_froot + nextc%n*nextc%npp_froot) &
+                                                              /newn
+                                   currentCohort%npp_bsw   = (currentCohort%n*currentCohort%npp_bsw   + nextc%n*nextc%npp_bsw) &
+                                                              /newn
+                                   currentCohort%npp_bdead = (currentCohort%n*currentCohort%npp_bdead + nextc%n*nextc%npp_bdead) &
+                                                              /newn
+                                   currentCohort%npp_bseed = (currentCohort%n*currentCohort%npp_bseed + nextc%n*nextc%npp_bseed) &
+                                                              /newn
+                                   currentCohort%npp_store = (currentCohort%n*currentCohort%npp_store + nextc%n*nextc%npp_store) &
+                                                              /newn
 
                                    ! biomass and dbh tendencies
                                    currentCohort%ddbhdt     = (currentCohort%n*currentCohort%ddbhdt  + nextc%n*nextc%ddbhdt)/newn
-                                   currentCohort%dbalivedt  = (currentCohort%n*currentCohort%dbalivedt  + nextc%n*nextc%dbalivedt)/newn
-                                   currentCohort%dbdeaddt   = (currentCohort%n*currentCohort%dbdeaddt  + nextc%n*nextc%dbdeaddt)/newn
-                                   currentCohort%dbstoredt  = (currentCohort%n*currentCohort%dbstoredt  + nextc%n*nextc%dbstoredt)/newn
+                                   currentCohort%dbalivedt  = (currentCohort%n*currentCohort%dbalivedt  + nextc%n*nextc%dbalivedt) &
+                                                               /newn
+                                   currentCohort%dbdeaddt   = (currentCohort%n*currentCohort%dbdeaddt  + nextc%n*nextc%dbdeaddt) &
+                                                               /newn
+                                   currentCohort%dbstoredt  = (currentCohort%n*currentCohort%dbstoredt  + nextc%n*nextc%dbstoredt) &
+                                                               /newn
 
                                    do i=1, nlevleaf     
                                       if (currentCohort%year_net_uptake(i) == 999._r8 .or. nextc%year_net_uptake(i) == 999._r8) then
@@ -931,10 +962,11 @@ contains
               write(fates_log(),*) 'maxcohorts exceeded',dynamic_fusion_tolerance
 
            else
-              iterate = 0
-           endif
 
-           if ( dynamic_fusion_tolerance .gt. 100._r8) then
+              iterate = 0
+        endif
+
+        if ( dynamic_fusion_tolerance .gt. 100._r8) then
               ! something has gone terribly wrong and we need to report what
               write(fates_log(),*) 'exceeded reasonable expectation of cohort fusion.'
               currentCohort => currentPatch%tallest
@@ -1208,6 +1240,9 @@ contains
     n%root_md         = o%root_md
     n%carbon_balance  = o%carbon_balance
     n%dmort           = o%dmort
+    n%lmort_logging   = o%lmort_logging
+    n%lmort_infra     = o%lmort_infra
+    n%lmort_collateral= o%lmort_collateral
     n%seed_prod       = o%seed_prod
     n%treelai         = o%treelai
     n%treesai         = o%treesai
@@ -1218,9 +1253,13 @@ contains
     ! Mortality diagnostics
     n%cmort = o%cmort
     n%bmort = o%bmort
-    n%imort = o%imort
     n%fmort = o%fmort
     n%hmort = o%hmort
+
+    ! logging mortalities, Yi Xu
+    n%lmort_logging=o%lmort_logging
+    n%lmort_collateral =o%lmort_collateral
+    n%lmort_infra =o%lmort_infra
 
     ! Flags
     n%isnew = o%isnew

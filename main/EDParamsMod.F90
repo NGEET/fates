@@ -23,11 +23,8 @@ module EDParamsMod
    real(r8),protected :: ED_size_diagnostic_scale             ! Flag to switch between a linear and exponential
                                                               ! scale on the plant size axis in diagnostics (NOT USED YET)
    real(r8),protected :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
-   real(r8),protected :: ED_val_grass_spread
    real(r8),protected :: ED_val_comp_excln
    real(r8),protected :: ED_val_stress_mort
-   real(r8),protected :: ED_val_maxspread                  ! maximum ratio of dbh to canopy area (cm/m2)
-   real(r8),protected :: ED_val_minspread                  ! minimum ratio of dbh to canopy area (cm/m2)
    real(r8),protected :: ED_val_init_litter
    real(r8),protected :: ED_val_nignitions
    real(r8),protected :: ED_val_understorey_death
@@ -47,14 +44,16 @@ module EDParamsMod
    real(r8),protected :: ED_val_phen_coldtemp
    real(r8),protected :: ED_val_cohort_fusion_tol
    real(r8),protected :: ED_val_patch_fusion_tol
+   real(r8),protected :: ED_val_canopy_closure_thresh ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
+
+   ! two special parameters whose size is defined in the parameter file
+   real(r8),protected,allocatable :: ED_val_history_sizeclass_bin_edges(:)
+   real(r8),protected,allocatable :: ED_val_history_ageclass_bin_edges(:)
 
    character(len=param_string_length),parameter :: ED_name_size_diagnostic_scale = "fates_size_diagnostic_scale"
    character(len=param_string_length),parameter :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
-   character(len=param_string_length),parameter :: ED_name_grass_spread = "fates_grass_spread"
    character(len=param_string_length),parameter :: ED_name_comp_excln = "fates_comp_excln"
    character(len=param_string_length),parameter :: ED_name_stress_mort = "fates_stress_mort"
-   character(len=param_string_length),parameter :: ED_name_maxspread = "fates_maxspread"
-   character(len=param_string_length),parameter :: ED_name_minspread = "fates_minspread"
    character(len=param_string_length),parameter :: ED_name_init_litter = "fates_init_litter"
    character(len=param_string_length),parameter :: ED_name_nignitions = "fates_nignitions"
    character(len=param_string_length),parameter :: ED_name_understorey_death = "fates_understorey_death"
@@ -73,7 +72,12 @@ module EDParamsMod
    character(len=param_string_length),parameter :: ED_name_phen_ncolddayslim= "fates_phen_ncolddayslim"   
    character(len=param_string_length),parameter :: ED_name_phen_coldtemp= "fates_phen_coldtemp"   
    character(len=param_string_length),parameter :: ED_name_cohort_fusion_tol= "fates_cohort_fusion_tol"   
-   character(len=param_string_length),parameter :: ED_name_patch_fusion_tol= "fates_patch_fusion_tol"   
+   character(len=param_string_length),parameter :: ED_name_patch_fusion_tol= "fates_patch_fusion_tol"
+   character(len=param_string_length),parameter :: ED_name_canopy_closure_thresh= "fates_canopy_closure_thresh"      
+
+   ! non-scalar parameter names
+   character(len=param_string_length),parameter :: ED_name_history_sizeclass_bin_edges= "fates_history_sizeclass_bin_edges"      
+   character(len=param_string_length),parameter :: ED_name_history_ageclass_bin_edges= "fates_history_ageclass_bin_edges"      
 
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
@@ -92,6 +96,10 @@ module EDParamsMod
 
    real(r8),protected :: logging_collateral_frac     ! Ratio of collateral mortality to direct logging mortality
    character(len=param_string_length),parameter :: logging_name_collateral_frac = "fates_logging_collateral_frac"
+
+   real(r8),protected :: logging_coll_under_frac ! Fraction of understory plants that die when logging disturbance
+                                                 ! is generated
+   character(len=param_string_length),parameter :: logging_name_coll_under_frac = "fates_logging_coll_under_frac"
    
    real(r8),protected :: logging_direct_frac         ! Fraction of stems logged per event
    character(len=param_string_length),parameter :: logging_name_direct_frac = "fates_logging_direct_frac"
@@ -121,11 +129,8 @@ contains
 
     ED_size_diagnostic_scale              = nan
     fates_mortality_disturbance_fraction  = nan
-    ED_val_grass_spread                   = nan
     ED_val_comp_excln                     = nan
     ED_val_stress_mort                    = nan
-    ED_val_maxspread                      = nan
-    ED_val_minspread                      = nan
     ED_val_init_litter                    = nan
     ED_val_nignitions                     = nan
     ED_val_understorey_death              = nan
@@ -145,6 +150,7 @@ contains
     ED_val_phen_coldtemp                  = nan
     ED_val_cohort_fusion_tol              = nan
     ED_val_patch_fusion_tol               = nan
+    ED_val_canopy_closure_thresh               = nan    
 
     hydr_psi0                             = nan
     hydr_psicap                           = nan
@@ -164,12 +170,15 @@ contains
     ! that need to be synced with host values.
 
     use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar1d, dimension_shape_1d
+    use FatesParametersInterface, only : dimension_name_history_size_bins, dimension_name_history_age_bins
 
     implicit none
 
     class(fates_parameters_type), intent(inout) :: fates_params
 
     character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_scalar1d/)
+    character(len=param_string_length), parameter :: dim_names_sizeclass(1) = (/dimension_name_history_size_bins/)
+    character(len=param_string_length), parameter :: dim_names_ageclass(1) = (/dimension_name_history_age_bins/)
 
     call FatesParamsInit()
 
@@ -179,25 +188,10 @@ contains
     call fates_params%RegisterParameter(name=ED_name_mort_disturb_frac, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    call fates_params%RegisterParameter(name=ED_name_grass_spread, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
-    call fates_params%RegisterParameter(name=ED_name_comp_excln, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
-    call fates_params%RegisterParameter(name=ED_name_grass_spread, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
     call fates_params%RegisterParameter(name=ED_name_comp_excln, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
     call fates_params%RegisterParameter(name=ED_name_stress_mort, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
-    call fates_params%RegisterParameter(name=ED_name_maxspread, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
-    call fates_params%RegisterParameter(name=ED_name_minspread, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
     call fates_params%RegisterParameter(name=ED_name_init_litter, dimension_shape=dimension_shape_1d, &
@@ -257,6 +251,9 @@ contains
     call fates_params%RegisterParameter(name=ED_name_patch_fusion_tol, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
+    call fates_params%RegisterParameter(name=ED_name_canopy_closure_thresh, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
     call fates_params%RegisterParameter(name=hydr_name_psi0, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
@@ -269,6 +266,9 @@ contains
     call fates_params%RegisterParameter(name=logging_name_collateral_frac, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
+    call fates_params%RegisterParameter(name=logging_name_coll_under_frac, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+
     call fates_params%RegisterParameter(name=logging_name_direct_frac, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
@@ -278,6 +278,13 @@ contains
     call fates_params%RegisterParameter(name=logging_name_event_code, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
+
+    ! non-scalar parameters
+    call fates_params%RegisterParameter(name=ED_name_history_sizeclass_bin_edges, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_sizeclass)
+
+    call fates_params%RegisterParameter(name=ED_name_history_ageclass_bin_edges, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_ageclass)
 
   end subroutine FatesRegisterParams
 
@@ -297,26 +304,11 @@ contains
     call fates_params%RetreiveParameter(name=ED_name_mort_disturb_frac, &
           data=fates_mortality_disturbance_fraction)
 
-    call fates_params%RetreiveParameter(name=ED_name_grass_spread, &
-         data=ED_val_grass_spread)
-
-    call fates_params%RetreiveParameter(name=ED_name_comp_excln, &
-         data=ED_val_comp_excln)
-
-    call fates_params%RetreiveParameter(name=ED_name_grass_spread, &
-         data=ED_val_grass_spread)
-
     call fates_params%RetreiveParameter(name=ED_name_comp_excln, &
          data=ED_val_comp_excln)
 
     call fates_params%RetreiveParameter(name=ED_name_stress_mort, &
          data=ED_val_stress_mort)
-
-    call fates_params%RetreiveParameter(name=ED_name_maxspread, &
-         data=ED_val_maxspread)
-
-    call fates_params%RetreiveParameter(name=ED_name_minspread, &
-         data=ED_val_minspread)
 
     call fates_params%RetreiveParameter(name=ED_name_init_litter, &
          data=ED_val_init_litter)
@@ -375,6 +367,9 @@ contains
     call fates_params%RetreiveParameter(name=ED_name_patch_fusion_tol, &
          data=ED_val_patch_fusion_tol)
     
+    call fates_params%RetreiveParameter(name=ED_name_canopy_closure_thresh, &
+         data=ED_val_canopy_closure_thresh)
+    
     call fates_params%RetreiveParameter(name=hydr_name_psi0, &
           data=hydr_psi0)
 
@@ -386,6 +381,9 @@ contains
     
     call fates_params%RetreiveParameter(name=logging_name_collateral_frac, &
           data=logging_collateral_frac)
+    
+    call fates_params%RetreiveParameter(name=logging_name_coll_under_frac, &
+          data=logging_coll_under_frac)
 
     call fates_params%RetreiveParameter(name=logging_name_direct_frac, &
           data=logging_direct_frac)
@@ -395,6 +393,14 @@ contains
     
     call fates_params%RetreiveParameter(name=logging_name_event_code, &
           data=logging_event_code)
+
+    ! parameters that are arrays of size defined within the params file and thus need allocating as well
+    call fates_params%RetreiveParameterAllocate(name=ED_name_history_sizeclass_bin_edges, &
+          data=ED_val_history_sizeclass_bin_edges)
+
+    call fates_params%RetreiveParameterAllocate(name=ED_name_history_ageclass_bin_edges, &
+          data=ED_val_history_ageclass_bin_edges)
+
 
   end subroutine FatesReceiveParams
   
@@ -412,13 +418,8 @@ contains
         write(fates_log(),*) '-----------  FATES Scalar Parameters -----------------'
         write(fates_log(),fmt0) 'ED_size_diagnostic_scale = ',ED_size_diagnostic_scale
         write(fates_log(),fmt0) 'fates_mortality_disturbance_fraction = ',fates_mortality_disturbance_fraction
-        write(fates_log(),fmt0) 'ED_val_grass_spread = ',ED_val_grass_spread
         write(fates_log(),fmt0) 'ED_val_comp_excln = ',ED_val_comp_excln
-        write(fates_log(),fmt0) 'ED_val_grass_spread = ',ED_val_grass_spread
-        write(fates_log(),fmt0) 'ED_val_comp_excln = ', ED_val_comp_excln
         write(fates_log(),fmt0) 'ED_val_stress_mort = ',ED_val_stress_mort
-        write(fates_log(),fmt0) 'ED_val_maxspread = ',ED_val_maxspread
-        write(fates_log(),fmt0) 'ED_val_minspread = ',ED_val_minspread
         write(fates_log(),fmt0) 'ED_val_init_litter = ',ED_val_init_litter
         write(fates_log(),fmt0) 'ED_val_nignitions = ',ED_val_nignitions
         write(fates_log(),fmt0) 'ED_val_understorey_death = ',ED_val_understorey_death
@@ -438,6 +439,7 @@ contains
         write(fates_log(),fmt0) 'ED_val_phen_coldtemp = ',ED_val_phen_coldtemp
         write(fates_log(),fmt0) 'ED_val_cohort_fusion_tol = ',ED_val_cohort_fusion_tol
         write(fates_log(),fmt0) 'ED_val_patch_fusion_tol = ',ED_val_patch_fusion_tol
+        write(fates_log(),fmt0) 'ED_val_canopy_closure_thresh = ',ED_val_canopy_closure_thresh        
         write(fates_log(),fmt0) 'hydr_psi0 = ',hydr_psi0
         write(fates_log(),fmt0) 'hydr_psicap = ',hydr_psicap
         write(fates_log(),fmt0) 'logging_dbhmin = ',logging_dbhmin

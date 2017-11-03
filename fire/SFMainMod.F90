@@ -469,7 +469,8 @@ contains
 
        if (DEBUG) then
           if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - c ',c
-          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - currentPatch%effect_wspeed ',currentPatch%effect_wspeed
+          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - currentPatch%effect_wspeed ', &
+                                                                         currentPatch%effect_wspeed
           if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - b ',b
           if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - beta_ratio ',beta_ratio
           if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - e ',e

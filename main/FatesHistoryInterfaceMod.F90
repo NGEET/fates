@@ -14,6 +14,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceMod        , only : hlm_use_ed_st3
   use FatesInterfaceMod        , only : numpft
   use EDParamsMod              , only : ED_val_comp_excln
+  use FatesInterfaceMod        , only : nlevsclass, nlevage
 
   ! FIXME(bja, 2016-10) need to remove CLM dependancy 
   use EDPftvarcon              , only : EDPftvarcon_inst
@@ -41,7 +42,6 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_trimming_pa
   integer, private :: ih_area_plant_pa
   integer, private :: ih_area_treespread_pa
-  integer, private :: ih_canopy_spread_pa
   integer, private :: ih_nesterov_fire_danger_pa
   integer, private :: ih_spitfire_ROS_pa
   integer, private :: ih_effect_wspeed_pa
@@ -121,6 +121,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_promotion_carbonflux_si
   integer, private :: ih_canopy_mortality_carbonflux_si
   integer, private :: ih_understory_mortality_carbonflux_si
+  integer, private :: ih_canopy_spread_si
   
   ! Indices to (site x scpf) variables
   integer, private :: ih_nplant_si_scpf
@@ -158,6 +159,9 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_m4_si_scpf
   integer, private :: ih_m5_si_scpf
   integer, private :: ih_m6_si_scpf
+
+   !LOGGING , make sure to add ih_m7_si_scpf and hio_m7_si_scpf
+  integer, private :: ih_m7_si_scpf  
 
   integer, private :: ih_ar_si_scpf
   integer, private :: ih_ar_grow_si_scpf
@@ -246,6 +250,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_ncl_si_age
   integer, private :: ih_npatches_si_age
   integer, private :: ih_zstar_si_age
+  integer, private :: ih_biomass_si_age
 
   ! Indices to hydraulics variables
   
@@ -866,20 +871,17 @@ contains
    class(fates_history_interface_type)        :: this
    integer,intent(in)                     :: nc
    integer,intent(in)                     :: upfreq_in
-
    integer                      :: ivar
-   type(fates_history_variable_type),pointer :: hvar
    integer                      :: lb1,ub1,lb2,ub2
 
    do ivar=1,ubound(this%hvars,1)
-      associate( hvar => this%hvars(ivar) )
-        if (hvar%upfreq == upfreq_in) then ! Only flush variables with update on dynamics step
-           call hvar%Flush(nc, this%dim_bounds, this%dim_kinds)
-        end if
-      end associate
+      if (this%hvars(ivar)%upfreq == upfreq_in) then ! Only flush variables with update on dynamics step
+         call this%hvars(ivar)%flush(nc, this%dim_bounds, this%dim_kinds)
+         
+      end if
    end do
    
- end subroutine flush_hvars
+end subroutine flush_hvars
 
   
   ! =====================================================================================
@@ -912,7 +914,6 @@ contains
                                            ! not used
 
     ! locals
-    type(fates_history_variable_type), pointer :: hvar
     integer :: ub1, lb1, ub2, lb2    ! Bounds for allocating the var
     integer :: ityp
 
@@ -1097,17 +1098,15 @@ contains
     use EDtypesMod          , only : ed_patch_type
     use EDtypesMod          , only : AREA
     use EDtypesMod          , only : AREA_INV
-    use EDtypesMod          , only : nlevsclass_ed
-    use EDtypesMod          , only : nlevage_ed
     use EDtypesMod          , only : nfsc
     use EDtypesMod          , only : ncwd
     use EDtypesMod          , only : ican_upper
     use EDtypesMod          , only : ican_ustory
-    use EDTypesMod        , only : get_sizeage_class_index
+    use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
     use EDTypesMod        , only : nlevleaf
 
     ! Arguments
-    class(fates_history_interface_type)                 :: this
+    class(fates_history_interface_type)             :: this
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
@@ -1132,7 +1131,6 @@ contains
     real(r8) :: patch_scaling_scalar ! ratio of canopy to patch area for counteracting patch scaling
     real(r8) :: dbh         ! diameter ("at breast height")
 
-    type(fates_history_variable_type),pointer :: hvar
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
 
@@ -1143,7 +1141,7 @@ contains
                hio_trimming_pa         => this%hvars(ih_trimming_pa)%r81d, &
                hio_area_plant_pa       => this%hvars(ih_area_plant_pa)%r81d, &
                hio_area_treespread_pa  => this%hvars(ih_area_treespread_pa)%r81d, & 
-               hio_canopy_spread_pa    => this%hvars(ih_canopy_spread_pa)%r81d, &
+               hio_canopy_spread_si    => this%hvars(ih_canopy_spread_si)%r81d, &
                hio_biomass_si_pft      => this%hvars(ih_biomass_si_pft)%r82d, &
                hio_leafbiomass_si_pft  => this%hvars(ih_leafbiomass_si_pft)%r82d, &
                hio_storebiomass_si_pft => this%hvars(ih_storebiomass_si_pft)%r82d, &
@@ -1210,6 +1208,9 @@ contains
                hio_m4_si_scpf          => this%hvars(ih_m4_si_scpf)%r82d, &
                hio_m5_si_scpf          => this%hvars(ih_m5_si_scpf)%r82d, &
                hio_m6_si_scpf          => this%hvars(ih_m6_si_scpf)%r82d, &
+
+               hio_m7_si_scpf          => this%hvars(ih_m7_si_scpf)%r82d, &                  
+
                hio_ba_si_scls          => this%hvars(ih_ba_si_scls)%r82d, &
                hio_nplant_canopy_si_scls         => this%hvars(ih_nplant_canopy_si_scls)%r82d, &
                hio_nplant_understory_si_scls     => this%hvars(ih_nplant_understory_si_scls)%r82d, &
@@ -1261,6 +1262,7 @@ contains
                hio_ncl_si_age          => this%hvars(ih_ncl_si_age)%r82d, &
                hio_npatches_si_age     => this%hvars(ih_npatches_si_age)%r82d, &
                hio_zstar_si_age        => this%hvars(ih_zstar_si_age)%r82d, &
+               hio_biomass_si_age        => this%hvars(ih_biomass_si_age)%r82d, &
                hio_litter_moisture_si_fuel        => this%hvars(ih_litter_moisture_si_fuel)%r82d, &
                hio_cwd_ag_si_cwdsc                  => this%hvars(ih_cwd_ag_si_cwdsc)%r82d, &
                hio_cwd_bg_si_cwdsc                  => this%hvars(ih_cwd_bg_si_cwdsc)%r82d, &
@@ -1305,6 +1307,8 @@ contains
          ! The seed bank is a site level variable
          hio_seed_bank_si(io_si) = sum(sites(s)%seed_bank) * g_per_kg
 
+         hio_canopy_spread_si(io_si)        = sites(s)%spread
+            
          ipa = 0
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
@@ -1328,7 +1332,7 @@ contains
                hio_zstar_si_age(io_si,cpatch%age_class) = hio_zstar_si_age(io_si,cpatch%age_class) &
                     + cpatch%zstar * cpatch%area * AREA_INV
             endif
-            
+
             ccohort => cpatch%shortest
             do while(associated(ccohort))
                
@@ -1391,6 +1395,11 @@ contains
                hio_biomass_si_pft(io_si, ft) = hio_biomass_si_pft(io_si, ft) + &
                     (ccohort%n * AREA_INV) * ccohort%b * g_per_kg
 
+               ! update total biomass per age bin
+               hio_biomass_si_age(io_si,cpatch%age_class) = hio_biomass_si_age(io_si,cpatch%age_class) &
+                    + ccohort%b * ccohort%n * AREA_INV
+
+
                ! Site by Size-Class x PFT (SCPF) 
                ! ------------------------------------------------------------------------
 
@@ -1450,9 +1459,14 @@ contains
                        hio_m1_si_scpf(io_si,scpf) = hio_m1_si_scpf(io_si,scpf) + ccohort%bmort*ccohort%n
                        hio_m2_si_scpf(io_si,scpf) = hio_m2_si_scpf(io_si,scpf) + ccohort%hmort*ccohort%n
                        hio_m3_si_scpf(io_si,scpf) = hio_m3_si_scpf(io_si,scpf) + ccohort%cmort*ccohort%n
-                       hio_m4_si_scpf(io_si,scpf) = hio_m4_si_scpf(io_si,scpf) + ccohort%imort*ccohort%n
                        hio_m5_si_scpf(io_si,scpf) = hio_m5_si_scpf(io_si,scpf) + ccohort%fmort*ccohort%n
                        
+
+                      !Y.X. 
+		       hio_m7_si_scpf(io_si,scpf) = hio_m7_si_scpf(io_si,scpf) + &
+		       	    (ccohort%lmort_logging+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n
+
+
                        ! basal area  [m2/ha]
                        hio_ba_si_scpf(io_si,scpf) = hio_ba_si_scpf(io_si,scpf) + &
                             0.25_r8*3.14159_r8*((dbh/100.0_r8)**2.0_r8)*ccohort%n
@@ -1486,8 +1500,16 @@ contains
                        hio_bleaf_canopy_si_scpf(io_si,scpf) = hio_bleaf_canopy_si_scpf(io_si,scpf) + &
                             ccohort%bl * ccohort%n
                        hio_canopy_biomass_pa(io_pa) = hio_canopy_biomass_pa(io_pa) + n_density * ccohort%b * g_per_kg
+
+                       !hio_mortality_canopy_si_scpf(io_si,scpf) = hio_mortality_canopy_si_scpf(io_si,scpf)+ &
+                       !    (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%fmort) * ccohort%n
+
                        hio_mortality_canopy_si_scpf(io_si,scpf) = hio_mortality_canopy_si_scpf(io_si,scpf)+ &
-                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%fmort) * ccohort%n
+                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%fmort) * ccohort%n + &
+			    (ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra) * &
+                            ccohort%n * sec_per_day * days_per_year
+                        
+
                        hio_nplant_canopy_si_scpf(io_si,scpf) = hio_nplant_canopy_si_scpf(io_si,scpf) + ccohort%n
                        hio_nplant_canopy_si_scls(io_si,scls) = hio_nplant_canopy_si_scls(io_si,scls) + ccohort%n
                        hio_trimming_canopy_si_scls(io_si,scls) = hio_trimming_canopy_si_scls(io_si,scls) + &
@@ -1503,13 +1525,19 @@ contains
                             ccohort%ddbhdt*ccohort%n
                        hio_ddbh_canopy_si_scls(io_si,scls) = hio_ddbh_canopy_si_scls(io_si,scls) + &
                             ccohort%ddbhdt*ccohort%n
+
                        ! sum of all mortality
                        hio_mortality_canopy_si_scls(io_si,scls) = hio_mortality_canopy_si_scls(io_si,scls) + &
-                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%fmort) * ccohort%n
+                             (ccohort%bmort + ccohort%hmort + ccohort%cmort  + ccohort%fmort ) * ccohort%n + &
+                             (ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra) * &
+                             ccohort%n * sec_per_day * days_per_year
+
                        hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%fmort) * &
-                            ccohort%b * ccohort%n * g_per_kg * days_per_sec * years_per_day * ha_per_m2
-                       !
+                            ccohort%b * ccohort%n * g_per_kg * days_per_sec * years_per_day * ha_per_m2 + &
+                            (ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra)* ccohort%b * &
+                            ccohort%n * g_per_kg * ha_per_m2
+                       
                        hio_leaf_md_canopy_si_scls(io_si,scls) = hio_leaf_md_canopy_si_scls(io_si,scls) + &
                             ccohort%leaf_md * ccohort%n
                        hio_root_md_canopy_si_scls(io_si,scls) = hio_root_md_canopy_si_scls(io_si,scls) + &
@@ -1552,8 +1580,14 @@ contains
                        hio_bleaf_understory_si_scpf(io_si,scpf) = hio_bleaf_understory_si_scpf(io_si,scpf) + &
                             ccohort%bl * ccohort%n
                        hio_understory_biomass_pa(io_pa) = hio_understory_biomass_pa(io_pa) + n_density * ccohort%b * g_per_kg
+                       !hio_mortality_understory_si_scpf(io_si,scpf) = hio_mortality_understory_si_scpf(io_si,scpf)+ &
+                        !    (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%fmort) * ccohort%n
+
                        hio_mortality_understory_si_scpf(io_si,scpf) = hio_mortality_understory_si_scpf(io_si,scpf)+ &
-                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%fmort) * ccohort%n
+                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%fmort ) * ccohort%n + &
+			    (ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra) * &
+                            ccohort%n * sec_per_day * days_per_year
+
                        hio_nplant_understory_si_scpf(io_si,scpf) = hio_nplant_understory_si_scpf(io_si,scpf) + ccohort%n
                        hio_nplant_understory_si_scls(io_si,scls) = hio_nplant_understory_si_scls(io_si,scls) + ccohort%n
                        hio_trimming_understory_si_scls(io_si,scls) = hio_trimming_understory_si_scls(io_si,scls) + &
@@ -1564,17 +1598,24 @@ contains
                             n_perm2*ccohort%gpp_acc_hold
                        hio_ar_understory_si_scpf(io_si,scpf)      = hio_ar_understory_si_scpf(io_si,scpf)      + &
                             n_perm2*ccohort%resp_acc_hold
+
                        ! growth increment
                        hio_ddbh_understory_si_scpf(io_si,scpf) = hio_ddbh_understory_si_scpf(io_si,scpf) + &
                             ccohort%ddbhdt*ccohort%n
                        hio_ddbh_understory_si_scls(io_si,scls) = hio_ddbh_understory_si_scls(io_si,scls) + &
                             ccohort%ddbhdt*ccohort%n
+
                        ! sum of all mortality
                        hio_mortality_understory_si_scls(io_si,scls) = hio_mortality_understory_si_scls(io_si,scls) + &
-                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%fmort) * ccohort%n
+                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%fmort ) * ccohort%n + &
+                             (ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra) * &
+                             ccohort%n * sec_per_day * days_per_year
+                       
                        hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
-                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%fmort) * &
-                            ccohort%b * ccohort%n * g_per_kg * days_per_sec * years_per_day * ha_per_m2
+                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%fmort) * &
+                             ccohort%b * ccohort%n * g_per_kg * days_per_sec * years_per_day * ha_per_m2 + &
+                             (ccohort%lmort_logging + ccohort%lmort_collateral + ccohort%lmort_infra) * ccohort%b * &
+                             ccohort%n * g_per_kg * ha_per_m2
                        !
                        hio_leaf_md_understory_si_scls(io_si,scls) = hio_leaf_md_understory_si_scls(io_si,scls) + &
                             ccohort%leaf_md * ccohort%n
@@ -1609,16 +1650,6 @@ contains
                             ccohort%canopy_layer_yesterday * ccohort%n
                     endif
                     !
-                    ! consider imort as understory mortality even if it happens in cohorts that may have been promoted as part of the patch creation...
-                    hio_mortality_understory_si_scpf(io_si,scpf) = hio_mortality_understory_si_scpf(io_si,scpf)+ &
-                            (ccohort%imort) * ccohort%n
-                    hio_mortality_understory_si_scls(io_si,scls) = hio_mortality_understory_si_scls(io_si,scls) + &
-                         (ccohort%imort) * ccohort%n
-                    hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
-                         (ccohort%imort) * &
-                         ccohort%b * ccohort%n * g_per_kg * days_per_sec * years_per_day * ha_per_m2
-                    hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
-                         (ccohort%imort) * ccohort%n
                     !
                     ccohort%canopy_layer_yesterday = real(ccohort%canopy_layer, r8)
                     
@@ -1686,8 +1717,6 @@ contains
                  g_per_kg * patch_scaling_scalar * years_per_day * days_per_sec 
 
             
-            hio_canopy_spread_pa(io_pa)        = cpatch%spread(1) 
-            
             do i_cwd = 1, ncwd
                hio_cwd_ag_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_si_cwdsc(io_si, i_cwd) + &
                     cpatch%CWD_AG(i_cwd)*cpatch%area * AREA_INV * g_per_kg
@@ -1708,7 +1737,7 @@ contains
          end do !patch loop
 
          ! divide so-far-just-summed but to-be-averaged patch-age-class variables by patch-age-class area to get mean values
-         do ipa2 = 1, nlevage_ed
+         do ipa2 = 1, nlevage
             if (hio_area_si_age(io_si, ipa2) .gt. tiny) then
                hio_lai_si_age(io_si, ipa2) = hio_lai_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
                hio_ncl_si_age(io_si, ipa2) = hio_ncl_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
@@ -1721,8 +1750,8 @@ contains
          ! pass the cohort termination mortality as a flux to the history, and then reset the termination mortality buffer
          ! note there are various ways of reporting the total mortality, so pass to these as well
          do i_pft = 1, numpft
-            do i_scls = 1,nlevsclass_ed
-               i_scpf = (i_pft-1)*nlevsclass_ed + i_scls
+            do i_scls = 1,nlevsclass
+               i_scpf = (i_pft-1)*nlevsclass + i_scls
                hio_m6_si_scpf(io_si,i_scpf) = (sites(s)%terminated_nindivs(i_scls,i_pft,1) + &
                     sites(s)%terminated_nindivs(i_scls,i_pft,2)) * days_per_year
                hio_mortality_canopy_si_scls(io_si,i_scls) = hio_mortality_canopy_si_scls(io_si,i_scls) + &
@@ -1733,9 +1762,31 @@ contains
                     sites(s)%terminated_nindivs(i_scls,i_pft,1) * days_per_year
                hio_mortality_understory_si_scpf(io_si,i_scpf) = hio_mortality_understory_si_scpf(io_si,i_scpf) + &
                     sites(s)%terminated_nindivs(i_scls,i_pft,2) * days_per_year
+               !
+               ! imort on its own
+               hio_m4_si_scpf(io_si,i_scpf) = hio_m4_si_scpf(io_si,i_scpf) + sites(s)%imort_rate(i_scls, i_pft)
+               !
+               ! add imort to other mortality terms. consider imort as understory mortality even if it happens in 
+               ! cohorts that may have been promoted as part of the patch creation, and use the pre-calculated site-level 
+               ! values to avoid biasing the results by the dramatically-reduced number densities in cohorts that are subject to imort
+               hio_mortality_understory_si_scpf(io_si,i_scpf) = hio_mortality_understory_si_scpf(io_si,i_scpf)+ &
+                    sites(s)%imort_rate(i_scls, i_pft)
+               hio_mortality_understory_si_scls(io_si,i_scls) = hio_mortality_understory_si_scls(io_si,i_scls) + &
+                    sites(s)%imort_rate(i_scls, i_pft)
+               !
+               iscag = i_scls ! since imort is by definition something that only happens in newly disturbed patches, treat as such
+               hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
+                    sites(s)%imort_rate(i_scls, i_pft)
             end do
          end do
+         !
+         ! treat carbon flux from imort the same way
+         hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
+              sites(s)%imort_carbonflux
+         !
          sites(s)%terminated_nindivs(:,:,:) = 0._r8
+         sites(s)%imort_carbonflux = 0._r8
+         sites(s)%imort_rate(:,:) = 0._r8
 
          ! pass the recruitment rate as a flux to the history, and then reset the recruitment buffer
          do i_pft = 1, numpft
@@ -1745,20 +1796,32 @@ contains
 
          ! summarize all of the mortality fluxes by PFT
          do i_pft = 1, numpft
-            do i_scls = 1,nlevsclass_ed
-               i_scpf = (i_pft-1)*nlevsclass_ed + i_scls
+            do i_scls = 1,nlevsclass
+               i_scpf = (i_pft-1)*nlevsclass + i_scls
+               !hio_mortality_si_pft(io_si,i_pft) = hio_mortality_si_pft(io_si,i_pft) + &
+               !     hio_m1_si_scpf(io_si,i_scpf) + &
+               !     hio_m2_si_scpf(io_si,i_scpf) + &
+               !     hio_m3_si_scpf(io_si,i_scpf) + &
+               !     hio_m4_si_scpf(io_si,i_scpf) + &
+               !     hio_m5_si_scpf(io_si,i_scpf) + &
+               !     hio_m6_si_scpf(io_si,i_scpf) 
+         
                hio_mortality_si_pft(io_si,i_pft) = hio_mortality_si_pft(io_si,i_pft) + &
                     hio_m1_si_scpf(io_si,i_scpf) + &
                     hio_m2_si_scpf(io_si,i_scpf) + &
                     hio_m3_si_scpf(io_si,i_scpf) + &
                     hio_m4_si_scpf(io_si,i_scpf) + &
                     hio_m5_si_scpf(io_si,i_scpf) + &
-                    hio_m6_si_scpf(io_si,i_scpf) 
+                    hio_m6_si_scpf(io_si,i_scpf) + &
+		    hio_m7_si_scpf(io_si,i_scpf)
+
+
+
             end do
          end do
 
          ! pass demotion rates and associated carbon fluxes to history
-         do i_scls = 1,nlevsclass_ed
+         do i_scls = 1,nlevsclass
             hio_demotion_rate_si_scls(io_si,i_scls) = sites(s)%demotion_rate(i_scls) * days_per_year
             hio_promotion_rate_si_scls(io_si,i_scls) = sites(s)%promotion_rate(i_scls) * days_per_year
          end do
@@ -1812,9 +1875,8 @@ contains
                                      ed_cohort_type, &
                                      ed_patch_type,  &
                                      AREA,           &
-                                     AREA_INV,       &
-                                     nlevage_ed,     &
-                                     nlevsclass_ed
+                                     AREA_INV
+
     use EDTypesMod          , only : nclmax, nlevleaf
     !
     ! Arguments
@@ -1836,11 +1898,10 @@ contains
     integer  :: ft               ! functional type index
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
-    real(r8) :: patch_area_by_age(nlevage_ed) ! patch area in each bin for normalizing purposes
+    real(r8) :: patch_area_by_age(nlevage) ! patch area in each bin for normalizing purposes
     real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
     integer  :: ipa2     ! patch incrementer
     integer :: cnlfpft_indx, cnlf_indx, ipft, ican, ileaf ! more iterators and indices
-    type(fates_history_variable_type),pointer :: hvar
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
     real(r8) :: per_dt_tstep          ! Time step in frequency units (/s)
@@ -2134,7 +2195,7 @@ contains
             cpatch => cpatch%younger
          end do !patch loop
 
-         do ipa2 = 1, nlevage_ed
+         do ipa2 = 1, nlevage
             if (patch_area_by_age(ipa2) .gt. tiny) then
                hio_gpp_si_age(io_si, ipa2) = hio_gpp_si_age(io_si, ipa2) / (patch_area_by_age(ipa2))
                hio_npp_si_age(io_si, ipa2) = hio_npp_si_age(io_si, ipa2) / (patch_area_by_age(ipa2))
@@ -2162,14 +2223,10 @@ contains
     use EDtypesMod          , only : ed_site_type,   &
                                      ed_cohort_type, &
                                      ed_patch_type,  &
-                                     AREA,           &
-                                     nlevage_ed,     &
-                                     sclass_ed,      &
-                                     nlevsclass_ed
+                                     AREA
 
     use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
     use FatesHydraulicsMemMod, only : nlevsoi_hyd
-    use EDTypesMod           , only : nlevsclass_ed
     use EDTypesMod           , only : maxpft
 
     
@@ -2191,14 +2248,13 @@ contains
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
     real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
-    real(r8) :: ncohort_scpf(nlevsclass_ed*maxpft)  ! Bins to count up cohorts counts used in weighting
+    real(r8) :: ncohort_scpf(nlevsclass*maxpft)  ! Bins to count up cohorts counts used in weighting
                                                    ! should be "hio_nplant_si_scpf"
     real(r8) :: number_fraction
     real(r8) :: number_fraction_rate
     integer  :: ipa2     ! patch incrementer
     integer  :: iscpf    ! index of the scpf group
 
-    type(fates_history_variable_type),pointer :: hvar
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
@@ -2381,7 +2437,7 @@ contains
          end do !patch loop
 
          if(hlm_use_ed_st3.eq.ifalse) then
-            do scpf=1,nlevsclass_ed*numpft
+            do scpf=1,nlevsclass*numpft
                if( abs(hio_nplant_si_scpf(io_si, scpf)-ncohort_scpf(scpf)) > 1.0E-8_r8 ) then
                   write(fates_log(),*) 'nplant check on hio_nplant_si_scpf fails during hydraulics history updates'
                   call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -2506,8 +2562,8 @@ contains
     call this%set_history_var(vname='CANOPY_SPREAD', units='0-1',               &
          long='Scaling factor between tree basal area and canopy area',         &
          use_default='active',                                                  &
-         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
-         ivar=ivar, initialize=initialize_variables, index = ih_canopy_spread_pa)
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
+         ivar=ivar, initialize=initialize_variables, index = ih_canopy_spread_si)
 
     call this%set_history_var(vname='PFTbiomass', units='gC/m2',                   &
          long='total PFT level biomass', use_default='active',                     &
@@ -2575,6 +2631,12 @@ contains
          use_default=trim(tempstring),                     &
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_zstar_si_age )
+
+    call this%set_history_var(vname='BIOMASS_BY_AGE', units='m',                   &
+         long='Total Biomass within a given patch age bin (kg C)', &
+         use_default='inactive',                     &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_biomass_si_age )
 
     ! Fire Variables
 
@@ -2986,8 +3048,8 @@ contains
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nplant_understory_si_scag )
 
     call this%set_history_var(vname='DDBH_CANOPY_SCAG',units = 'cm/yr/ha',               &
-          long='growth rate of canopy plantsnumber of plants per hectare in canopy in each size x age class', use_default='inactive',   &
-          avgflag='A', vtype=site_scag_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          long='growth rate of canopy plantsnumber of plants per hectare in canopy in each size x age class', &
+          use_default='inactive', avgflag='A', vtype=site_scag_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ddbh_canopy_si_scag )
 
     call this%set_history_var(vname='DDBH_UNDERSTORY_SCAG',units = 'cm/yr/ha',               &
@@ -3135,6 +3197,14 @@ contains
           long='termination mortality by pft/size',use_default='inactive', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m6_si_scpf )
+
+
+    !Logging
+    call this%set_history_var(vname='M7_SCPF', units = 'N/ha/event',               &
+          long='logging mortalities by pft/size',use_default='inactive',           &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m7_si_scpf )
+
 
     call this%set_history_var(vname='MORTALITY_CANOPY_SCPF', units = 'N/ha/yr',          &
           long='total mortality of canopy plants by pft/size', use_default='inactive', &

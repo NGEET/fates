@@ -15,14 +15,17 @@ module EDInitMod
   use EDGrowthFunctionsMod      , only : bdead, bleaf, dbh
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDPatchDynamicsMod        , only : create_patch
-  use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type, area
+  use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod                , only : ncwd
   use EDTypesMod                , only : nuMWaterMem
   use EDTypesMod                , only : maxpft
+  use EDTypesMod                , only : AREA
   use FatesInterfaceMod         , only : bc_in_type
   use FatesInterfaceMod         , only : hlm_use_planthydro
   use FatesInterfaceMod         , only : hlm_use_inventory_init
   use FatesInterfaceMod         , only : numpft
+  use ChecksBalancesMod         , only : SiteCarbonStock
+  use FatesInterfaceMod         , only : nlevsclass
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -36,6 +39,7 @@ module EDInitMod
         __FILE__
 
   public  :: zero_site
+  public  :: init_site_vars
   public  :: init_patches
   public  :: set_site_properties
   private :: init_cohorts
@@ -46,6 +50,25 @@ contains
 
   ! ============================================================================
 
+  subroutine init_site_vars( site_in )
+    !
+    ! !DESCRIPTION:
+    !
+    !
+    ! !ARGUMENTS    
+    type(ed_site_type), intent(inout) ::  site_in
+    !
+    ! !LOCAL VARIABLES:
+    !----------------------------------------------------------------------
+    !
+    allocate(site_in%terminated_nindivs(1:nlevsclass,1:numpft,2))
+    allocate(site_in%demotion_rate(1:nlevsclass))
+    allocate(site_in%promotion_rate(1:nlevsclass))
+    allocate(site_in%imort_rate(1:nlevsclass,1:numpft))
+    !
+    end subroutine init_site_vars
+
+  ! ============================================================================
   subroutine zero_site( site_in )
     !
     ! !DESCRIPTION:
@@ -63,9 +86,7 @@ contains
     site_in%youngest_patch   => null() ! pointer to yngest patch at the site
     
     ! DISTURBANCE
-    site_in%disturbance_rate = 0._r8  ! site level disturbance rates from mortality and fire.
-    site_in%dist_type        = 0      ! disturbance dist_type id.
-    site_in%total_burn_flux_to_atm = 0._r8 !
+    site_in%total_burn_flux_to_atm = 0._r8
 
     ! PHENOLOGY 
     site_in%status           = 0    ! are leaves in this pixel on or off?
@@ -95,6 +116,8 @@ contains
     site_in%terminated_nindivs(:,:,:) = 0._r8
     site_in%termination_carbonflux(:) = 0._r8
     site_in%recruitment_rate(:) = 0._r8
+    site_in%imort_rate(:,:) = 0._r8
+    site_in%imort_carbonflux = 0._r8
 
     ! demotion/promotion info
     site_in%demotion_rate(:) = 0._r8
@@ -107,6 +130,12 @@ contains
     site_in%CWD_BG_diagnostic_input_carbonflux(:) = 0._r8
     site_in%leaf_litter_diagnostic_input_carbonflux(:) = 0._r8
     site_in%root_litter_diagnostic_input_carbonflux(:) = 0._r8
+    
+    ! Resources management (logging/harvesting, etc)
+    site_in%resources_management%trunk_product_site  = 0.0_r8
+
+    ! canopy spread
+    site_in%spread = 0._r8
 
   end subroutine zero_site
 
@@ -184,7 +213,7 @@ contains
        sites(s)%frac_burnt = 0.0_r8
        sites(s)%old_stock  = 0.0_r8
 
-
+       sites(s)%spread     = 1.0_r8
     end do
 
     return
@@ -201,7 +230,6 @@ contains
      !
      
 
-     use EDParamsMod            , only : ED_val_maxspread
      use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydProps 
      use FatesInventoryInitMod,   only : initialize_sites_by_inventory
 
@@ -215,10 +243,15 @@ contains
      integer  :: s
      real(r8) :: cwd_ag_local(ncwd)
      real(r8) :: cwd_bg_local(ncwd)
-     real(r8) :: spread_local(nclmax)
      real(r8) :: leaf_litter_local(maxpft)
      real(r8) :: root_litter_local(maxpft)
      real(r8) :: age !notional age of this patch
+
+     ! dummy locals
+     real(r8) :: biomass_stock
+     real(r8) :: litter_stock
+     real(r8) :: seed_stock
+
      type(ed_patch_type), pointer :: newp
 
      ! List out some nominal patch values that are used for Near Bear Ground initializations
@@ -228,7 +261,6 @@ contains
      cwd_bg_local(:)      = 0.0_r8 !ED_val_init_litter
      leaf_litter_local(:) = 0.0_r8
      root_litter_local(:) = 0.0_r8
-     spread_local(:)      = ED_val_maxspread
      age                  = 0.0_r8
      ! ---------------------------------------------------------------------------------------------
 
@@ -240,6 +272,13 @@ contains
 
         call initialize_sites_by_inventory(nsites,sites,bc_in)
 
+        do s = 1, nsites
+
+           ! For carbon balance checks, we need to initialize the 
+           ! total carbon stock
+           call SiteCarbonStock(sites(s),sites(s)%old_stock,biomass_stock,litter_stock,seed_stock)
+           
+        enddo
      else
 
         !FIX(SPM,032414) clean this up...inits out of this loop
@@ -257,10 +296,14 @@ contains
 
            ! make new patch...
            call create_patch(sites(s), newp, age, AREA, &
-                 spread_local, cwd_ag_local, cwd_bg_local, leaf_litter_local,  &
+                 cwd_ag_local, cwd_bg_local, leaf_litter_local,  &
                  root_litter_local) 
 
            call init_cohorts(newp, bc_in(s))
+
+           ! For carbon balance checks, we need to initialize the 
+           ! total carbon stock
+           call SiteCarbonStock(sites(s),sites(s)%old_stock,biomass_stock,litter_stock,seed_stock)
 
         enddo
 
@@ -358,5 +401,8 @@ contains
     call sort_cohorts(patch_in)
 
   end subroutine init_cohorts
+
+  ! ===============================================================================================
+
 
 end module EDInitMod

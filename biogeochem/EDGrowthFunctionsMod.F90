@@ -10,6 +10,7 @@ module EDGrowthFunctionsMod
   use FatesGlobals     , only : fates_log
   use EDPftvarcon        , only : EDPftvarcon_inst
   use EDTypesMod       , only : ed_cohort_type, nlevleaf, dinc_ed
+  use FatesConstantsMod        , only : itrue,ifalse
 
   implicit none
   private
@@ -82,10 +83,10 @@ contains
     ! if the hite is larger than the maximum allowable height (set by dbhmax) then 
     ! set the height to the maximum value. 
     ! this could do with at least re-factoring and probably re-thinking. RF
-    if(cohort_in%dbh <= EDPftvarcon_inst%max_dbh(cohort_in%pft)) then
+    if(cohort_in%dbh <= EDPftvarcon_inst%allom_dbh_maxheight(cohort_in%pft)) then
        h = (10.0_r8**(log10(cohort_in%dbh) * m + c))
     else 
-       h = (10.0_r8**(log10(EDPftvarcon_inst%max_dbh(cohort_in%pft))*m + c))
+       h = (10.0_r8**(log10(EDPftvarcon_inst%allom_dbh_maxheight(cohort_in%pft))*m + c))
     endif
     Hite = h 
 
@@ -106,26 +107,22 @@ contains
     real(r8) :: dbh2bl_a 
     real(r8) :: dbh2bl_b
     real(r8) :: dbh2bl_c
-    real(r8) :: slascaler ! changes the target biomass according to the SLA
 
     dbh2bl_a  =  EDPftvarcon_inst%allom_d2bl1(cohort_in%pft)
     dbh2bl_b  =  EDPftvarcon_inst%allom_d2bl2(cohort_in%pft)
     dbh2bl_c  =  EDPftvarcon_inst%allom_d2bl3(cohort_in%pft)
-    slascaler = EDPftvarcon_inst%allom_d2bl_slascaler(cohort_in%pft)/EDPftvarcon_inst%slatop(cohort_in%pft)
     
     if(cohort_in%dbh < 0._r8.or.cohort_in%pft == 0.or.cohort_in%dbh > 1000.0_r8)then
        write(fates_log(),*) 'problems in bleaf',cohort_in%dbh,cohort_in%pft
     endif
 
-    if(cohort_in%dbh <= EDPftvarcon_inst%max_dbh(cohort_in%pft))then
+    if(cohort_in%dbh <= EDPftvarcon_inst%allom_dbh_maxheight(cohort_in%pft))then
        bleaf = dbh2bl_a * (cohort_in%dbh**dbh2bl_b) * EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bl_c 
     else  
-       bleaf = dbh2bl_a * (EDPftvarcon_inst%max_dbh(cohort_in%pft)**dbh2bl_b) * &
+       bleaf = dbh2bl_a * (EDPftvarcon_inst%allom_dbh_maxheight(cohort_in%pft)**dbh2bl_b) * &
             EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bl_c
     endif  
 
-    bleaf = bleaf * slascaler
-    
     !write(fates_log(),*) 'bleaf',bleaf, slascaler,cohort_in%pft
     
     !Adjust for canopies that have become so deep that their bottom layer is not producing any carbon... 
@@ -224,14 +221,13 @@ contains
     ! Function of DBH (cm) canopy spread (m/cm) and number of individuals. 
     ! ============================================================================
 
-    use EDParamsMod              , only : ED_val_grass_spread
     use EDTypesMod               , only : nclmax
 
     type(ed_cohort_type), intent(in) :: cohort_in       
 
     real(r8) :: dbh ! Tree diameter at breat height. cm. 
     real(r8) :: crown_area_to_dbh_exponent
-    integer  :: can_layer_index
+    real(r8) :: spreadterm
 
     ! default is to use the same exponent as the dbh to bleaf exponent so that per-plant canopy depth remains invariant during growth,
     ! but allowed to vary via the allom_blca_expnt_diff term (which has default value of zero)
@@ -240,15 +236,14 @@ contains
     
     if (DEBUG_growth) then
        write(fates_log(),*) 'z_area 1',cohort_in%dbh,cohort_in%pft
-       write(fates_log(),*) 'z_area 2',EDPftvarcon_inst%max_dbh
+       write(fates_log(),*) 'z_area 2',EDPftvarcon_inst%allom_dbh_maxheight
        write(fates_log(),*) 'z_area 3',EDPftvarcon_inst%woody
        write(fates_log(),*) 'z_area 4',cohort_in%n
-       write(fates_log(),*) 'z_area 5',cohort_in%patchptr%spread
+       write(fates_log(),*) 'z_area 5',cohort_in%siteptr%spread
        write(fates_log(),*) 'z_area 6',cohort_in%canopy_layer
-       write(fates_log(),*) 'z_area 7',ED_val_grass_spread
     end if
     
-    dbh = min(cohort_in%dbh,EDPftvarcon_inst%max_dbh(cohort_in%pft))
+    dbh = min(cohort_in%dbh,EDPftvarcon_inst%allom_dbh_maxheight(cohort_in%pft))
     
     ! ----------------------------------------------------------------------------------
     ! The function c_area is called during the process of canopy position demotion
@@ -259,15 +254,12 @@ contains
     ! So we allow layer index exceedence here and force it down to max.
     ! (rgk/cdk 05/2017)
     ! ----------------------------------------------------------------------------------
-
-    can_layer_index = min(cohort_in%canopy_layer,nclmax)
-
-    if(EDPftvarcon_inst%woody(cohort_in%pft) == 1)then 
-       c_area = 3.142_r8 * cohort_in%n * &
-            (cohort_in%patchptr%spread(can_layer_index)*dbh)**crown_area_to_dbh_exponent
-    else
-       c_area = 3.142_r8 * cohort_in%n * (ED_val_grass_spread*dbh)**crown_area_to_dbh_exponent
-    end if
+    
+    ! apply site-level spread elasticity to the cohort crown allometry term
+    spreadterm = cohort_in%siteptr%spread * EDPftvarcon_inst%allom_d2ca_coefficient_max(cohort_in%pft) + &
+         (1._r8 - cohort_in%siteptr%spread) * EDPftvarcon_inst%allom_d2ca_coefficient_min(cohort_in%pft)
+    !
+    c_area = cohort_in%n * spreadterm * dbh ** crown_area_to_dbh_exponent
 
   end function c_area
 
@@ -364,7 +356,7 @@ contains
     dBD_dDBH =  dbh2bd_c*dbh2bd_a*(cohort_in%hite**dbh2bd_b)*(cohort_in%dbh**(dbh2bd_c-1.0_r8))* &
          (EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bd_d)  
 
-    if(cohort_in%dbh < EDPftvarcon_inst%max_dbh(cohort_in%pft))then
+    if(cohort_in%dbh < EDPftvarcon_inst%allom_dbh_maxheight(cohort_in%pft))then
        dH_dDBH = (10.0_r8**c)*m*(cohort_in%dbh**(m-1.0_r8))          
 
        dBD_dDBH =  dBD_dDBH + dbh2bd_b*dbh2bd_a*(cohort_in%hite**(dbh2bd_b - 1.0_r8))* &
@@ -400,7 +392,7 @@ contains
     dblddbh = dbh2bl_b*dbh2bl_a*(cohort_in%dbh**dbh2bl_b)*(EDPftvarcon_inst%wood_density(cohort_in%pft)**dbh2bl_c)
     dblddbh = dblddbh*cohort_in%canopy_trim
 
-    if( cohort_in%dbh<EDPftvarcon_inst%max_dbh(cohort_in%pft) ) then
+    if( cohort_in%dbh<EDPftvarcon_inst%allom_dbh_maxheight(cohort_in%pft) ) then
         dDbhdBl = 1.0_r8/dblddbh
     else
         dDbhdBl = 1.0d15  ! At maximum size, the leaf biomass is saturated, dbl=0
@@ -419,6 +411,7 @@ contains
     ! ============================================================================
 
     use EDParamsMod,  only : ED_val_stress_mort
+    use FatesInterfaceMod,  only : hlm_use_ed_prescribed_phys
 
     type (ed_cohort_type), intent(in) :: cohort_in
     real(r8),intent(out) :: bmort ! background mortality : Fraction per year
@@ -428,6 +421,9 @@ contains
     real(r8) :: frac  ! relativised stored carbohydrate
 
     real(r8) :: hf_sm_threshold    ! hydraulic failure soil moisture threshold 
+
+
+    if (hlm_use_ed_prescribed_phys .eq. ifalse) then
 
     ! 'Background' mortality (can vary as a function of density as in ED1.0 and ED2.0, but doesn't here for tractability) 
     bmort = EDPftvarcon_inst%bmort(cohort_in%pft) 
@@ -456,6 +452,16 @@ contains
     endif
 
     !mortality_rates = bmort + hmort + cmort
+
+    else ! i.e. hlm_use_ed_prescribed_phys is true
+       if ( cohort_in%canopy_layer .eq. 1) then
+          bmort = EDPftvarcon_inst%prescribed_mortality_canopy(cohort_in%pft)
+       else
+          bmort = EDPftvarcon_inst%prescribed_mortality_understory(cohort_in%pft)
+       endif
+       cmort = 0._r8
+       hmort = 0._r8
+    endif
 
  end subroutine mortality_rates
 
