@@ -798,7 +798,7 @@ contains
 
     ! Mortality for trees in the understorey. 
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
-    call mortality_rates(currentCohort,cmort,hmort,bmort,frmort,bc_in)
+    call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort)
     call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, &
                                currentCohort%lmort_logging,                       &
                                currentCohort%lmort_collateral,                    &

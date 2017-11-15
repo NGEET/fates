@@ -405,7 +405,7 @@ contains
 
 ! ============================================================================
 
-  subroutine mortality_rates( cohort_in,cmort,hmort,bmort,frmort,bc_in )
+  subroutine mortality_rates( cohort_in,bc_in,cmort,hmort,bmort,frmort )
 
     ! ============================================================================
     !  Calculate mortality rates as a function of carbon storage       
@@ -427,10 +427,10 @@ contains
     real(r8) :: hf_sm_threshold    ! hydraulic failure soil moisture threshold 
     real(r8) :: temp_dep           ! Temp. function (freezing mortality)
     real(r8) :: temp_in_C          ! Daily averaged temperature in Celcius
-    real(r8) :: frost_mort         ! Scaling factor for freezing mortality
+    real(r8),parameter :: frost_mort_scaler = 3.0_r8  ! Scaling factor for freezing mortality
+    real(r8),parameter :: frost_mort_buffer = 5.0_r8  ! 5deg buffer for freezing mortality
 
     temp_in_C = bc_in%t_veg24_si - tfrz
-    frost_mort = 3.0_r8
 
 
     if (hlm_use_ed_prescribed_phys .eq. ifalse) then
@@ -467,9 +467,9 @@ contains
       !           Eastern US carbon sink.  Glob. Change Biol., 12, 2370-2390,              
       !           doi: 10.1111/j.1365-2486.2006.01254.x                                    
      
-      temp_dep = max(0.0,min(1.0,1.0 - (temp_in_C - EDPftvarcon_inst%freezetol(cohort_in%pft))/5.0) )
-      frmort = frost_mort * temp_dep
-
+      temp_dep = max(0.0,min(1.0,1.0 - (temp_in_C - EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
+      frmort = frost_mort_scaler * temp_dep
+     
 
     !mortality_rates = bmort + hmort + cmort + frmort
 
