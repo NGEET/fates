@@ -91,13 +91,13 @@ module FatesPlantHydraulicsMod
    integer, public :: use_ed_planthydraulics    =  1      ! 0 => use vanilla btran
                                                           ! 1 => use BC hydraulics; 
                                                           ! 2 => use CX hydraulics
-   logical, public :: do_dqtopdth_leaf          = .false. ! should a nonzero dqtopdth_leaf
+   logical, public :: do_dqtopdth_leaf          = .true.  ! should a nonzero dqtopdth_leaf
                                                           ! term be applied to the plant 
                                                           ! hydraulics numerical solution?
    logical, public :: do_dyn_xylemrefill        = .true.  ! should the dynamics of xylem refilling 
                                                           ! (i.e., non-instantaneous) be considered 
                                                           ! within plant hydraulics?
-   logical, public :: do_kbound_upstream        = .false. ! should the hydraulic conductance at the 
+   logical, public :: do_kbound_upstream        = .true.  ! should the hydraulic conductance at the 
                                                           ! boundary between nodes be taken to be a
                                                           ! function of the upstream loss of 
                                                           ! conductivity (flc)?
