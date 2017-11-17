@@ -862,8 +862,8 @@ contains
 
       temp_cohort%pft         = c_pft
       temp_cohort%n           = c_nplant * cpatch%area
-      temp_cohort%hite        = Hite(temp_cohort)
       temp_cohort%dbh         = c_dbh
+      temp_cohort%hite        = Hite(temp_cohort)
       temp_cohort%canopy_trim = 1.0_r8
       temp_cohort%bdead       = Bdead(temp_cohort)
       temp_cohort%balive      = Bleaf(temp_cohort)*(1.0_r8 + EDPftvarcon_inst%allom_l2fr(c_pft) &
