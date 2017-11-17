@@ -871,9 +871,10 @@ contains
 
       temp_cohort%pft         = c_pft
       temp_cohort%n           = c_nplant * cpatch%area
-      call h_allom(c_dbh,c_pft,temp_cohort%hite)
       temp_cohort%dbh         = c_dbh
+      call h_allom(c_dbh,c_pft,temp_cohort%hite)
       temp_cohort%canopy_trim = 1.0_r8
+
       ! Calculate total above-ground biomass from allometry
 
       call bag_allom(temp_cohort%dbh,temp_cohort%hite,c_pft,b_ag)
