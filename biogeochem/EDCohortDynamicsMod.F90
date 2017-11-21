@@ -10,10 +10,9 @@ module EDCohortDynamicsMod
   use FatesInterfaceMod     , only : bc_in_type
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
-  use FatesConstantsMod     , only : itrue
+  use FatesConstantsMod     , only : itrue,ifalse
   use FatesInterfaceMod     , only : hlm_days_per_year
   use EDPftvarcon           , only : EDPftvarcon_inst
-  use EDGrowthFunctionsMod  , only : c_area, tree_lai
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : ncwd
@@ -21,6 +20,8 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : AREA
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
+  use EDTypesMod            , only : nlevleaf
+  use EDTypesMod            , only : dinc_ed
   use FatesInterfaceMod      , only : hlm_use_planthydro
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
   use FatesPlantHydraulicsMod, only : CopyCohortHydraulics
@@ -29,7 +30,11 @@ module EDCohortDynamicsMod
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
-
+  use FatesAllometryMod  , only : bsap_allom
+  use FatesAllometryMod  , only : bleaf
+  use FatesAllometryMod  , only : bfineroot
+  use FatesAllometryMod  , only : h_allom
+  use FatesAllometryMod  , only : carea_allom
 
   ! CIME globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -47,6 +52,8 @@ module EDCohortDynamicsMod
   public :: copy_cohort
   public :: count_cohorts
   public :: allocate_live_biomass
+  public :: tree_lai
+  public :: tree_sai
 
   logical, parameter :: DEBUG  = .false. ! local debug flag
 
@@ -143,7 +150,8 @@ contains
     call allocate_live_biomass(new_cohort,0)
 
     ! Assign canopy extent and depth
-    new_cohort%c_area  = c_area(new_cohort)
+    call carea_allom(new_cohort%dbh,new_cohort%n,new_cohort%siteptr%spread,new_cohort%pft,new_cohort%c_area)
+
     new_cohort%treelai = tree_lai(new_cohort)
     new_cohort%lai     = new_cohort%treelai * new_cohort%c_area/patchptr%area
     new_cohort%treesai = 0.0_r8 !FIX(RF,032414)   
@@ -210,14 +218,28 @@ contains
     real(r8)  :: new_bl
     real(r8)  :: new_br
     real(r8)  :: new_bsw
+    real(r8)  :: tar_bl       ! target leaf biomass when leaves are flushed (includes trimming)
+    real(r8)  :: tar_br       ! target fineroot biomass (includes trimming)
+    real(r8)  :: tar_bsw      ! target sapwood biomass  
+    real(r8)  :: bfr_per_leaf ! ratio of fine roots to leaf mass when plants are on allometry
+    real(r8)  :: bsw_per_leaf ! ratio of sapwood to leaf mass when plants are on allometry
                                             
+    real(r8)  :: temp_h
+
     integer   :: ft           ! functional type
     integer   :: leaves_off_switch
     !----------------------------------------------------------------------
 
     currentCohort => cc_p
     ft = currentcohort%pft
-    leaf_frac = 1.0_r8/(1.0_r8 + EDpftvarcon_inst%allom_latosa_int(ft) * currentcohort%hite + EDPftvarcon_inst%allom_l2fr(ft))     
+    
+    call bleaf(currentcohort%dbh,currentcohort%hite,ft,currentcohort%canopy_trim,tar_bl)
+    call bfineroot(currentcohort%dbh,currentcohort%hite,ft,currentcohort%canopy_trim,tar_br)
+    call bsap_allom(currentcohort%dbh,currentcohort%hite,ft,currentcohort%canopy_trim,tar_bsw)
+
+    leaf_frac = tar_bl/(tar_bl+tar_br+tar_bsw)
+    bfr_per_leaf = tar_br/tar_bl
+    bsw_per_leaf = tar_bsw/tar_bl
 
     !currentcohort%bl = currentcohort%balive*leaf_frac    
     !for deciduous trees, there are no leaves  
@@ -242,14 +264,13 @@ contains
     endif
   
     ! Use different proportions if the leaves are on vs off
-    if(leaves_off_switch==0)then
+    if(leaves_off_switch.eq.ifalse)then  ! leaves are on
 
        new_bl = currentcohort%balive*leaf_frac
 
-       new_br = EDpftvarcon_inst%allom_l2fr(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
+       new_br = bfr_per_leaf * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
 
-       new_bsw = EDpftvarcon_inst%allom_latosa_int(ft) * currentcohort%hite *(currentcohort%balive + &
-            currentcohort%laimemory)*leaf_frac
+       new_bsw = bsw_per_leaf * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
 
        !diagnose the root and stem biomass from the functional balance hypothesis. This is used when the leaves are 
        !fully on. 
@@ -271,7 +292,7 @@ contains
        currentcohort%br = new_br
        currentcohort%bsw = new_bsw
 
-    else ! Leaves are off (leaves_off_switch==1)
+    else ! Leaves are off (leaves_off_switch==.itrue.)
 
        !the purpose of this section is to figure out the root and stem biomass when the leaves are off
        !at this point, we know the former leaf mass (laimemory) and the current alive mass
@@ -280,14 +301,13 @@ contains
        !not have enough live biomass to support the hypothesized root mass
        !thus, we use 'ratio_balive' to adjust br and bsw. Apologies that this is so complicated! RF
        
-       ideal_balive      = currentcohort%laimemory * EDPftvarcon_inst%allom_l2fr(ft) +  &
-            currentcohort%laimemory*  EDpftvarcon_inst%allom_latosa_int(ft) * currentcohort%hite
+       ideal_balive      = currentcohort%laimemory * bfr_per_leaf + currentcohort%laimemory * bsw_per_leaf
+
        ratio_balive      = currentcohort%balive / ideal_balive
 
-       new_br  = EDpftvarcon_inst%allom_l2fr(ft) * (ideal_balive + currentcohort%laimemory) * &
-             leaf_frac *  ratio_balive
-       new_bsw = EDpftvarcon_inst%allom_latosa_int(ft) * currentcohort%hite * &
-             (ideal_balive + currentcohort%laimemory) * leaf_frac * ratio_balive
+       new_br  = bfr_per_leaf * (ideal_balive + currentcohort%laimemory) * leaf_frac * ratio_balive
+       
+       new_bsw = bsw_per_leaf * (ideal_balive + currentcohort%laimemory) * leaf_frac * ratio_balive
 
        ! Diagnostics
        if(mode==1)then
@@ -670,7 +690,6 @@ contains
      ! Join similar cohorts to reduce total number            
      !
      ! !USES:
-     use EDTypesMod  , only :  nlevleaf
      use EDParamsMod , only :  ED_val_cohort_fusion_tol
      use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
      !
@@ -1334,7 +1353,83 @@ contains
 
   end function count_cohorts
 
+  ! =====================================================================================
 
+  real(r8) function tree_lai( cohort_in )
+
+    ! ============================================================================
+    !  LAI of individual trees is a function of the total leaf area and the total canopy area.   
+    ! ============================================================================
+
+    type(ed_cohort_type), intent(inout) :: cohort_in       
+
+    real(r8) :: leafc_per_unitarea ! KgC of leaf per m2 area of ground.
+    real(r8) :: slat               ! the sla of the top leaf layer. m2/kgC
+
+    if( cohort_in%bl  <  0._r8 .or. cohort_in%pft  ==  0 ) then
+       write(fates_log(),*) 'problem in treelai',cohort_in%bl,cohort_in%pft
+    endif
+
+    if( cohort_in%status_coh  ==  2 ) then ! are the leaves on? 
+       slat = 1000.0_r8 * EDPftvarcon_inst%slatop(cohort_in%pft) ! m2/g to m2/kg
+       leafc_per_unitarea = cohort_in%bl/(cohort_in%c_area/cohort_in%n) !KgC/m2
+       if(leafc_per_unitarea > 0.0_r8)then
+          tree_lai = leafc_per_unitarea * slat  !kg/m2 * m2/kg = unitless LAI 
+       else
+          tree_lai = 0.0_r8
+       endif
+    else
+       tree_lai = 0.0_r8
+    endif !status
+    cohort_in%treelai = tree_lai
+
+    ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
+    ! at the moments nlevleaf default is 40, which is very large, so exceeding this would clearly illustrate a 
+    ! huge error 
+    if(cohort_in%treelai > nlevleaf*dinc_ed)then
+       write(fates_log(),*) 'too much lai' , cohort_in%treelai , cohort_in%pft , nlevleaf * dinc_ed
+    endif
+
+    return
+
+  end function tree_lai
+  
+  ! ============================================================================
+
+  real(r8) function tree_sai( cohort_in )
+
+    ! ============================================================================
+    !  SAI of individual trees is a function of the total dead biomass per unit canopy area.   
+    ! ============================================================================
+
+    type(ed_cohort_type), intent(inout) :: cohort_in       
+
+    real(r8) :: bdead_per_unitarea ! KgC of leaf per m2 area of ground.
+    real(r8) :: sai_scaler     
+
+    sai_scaler = EDPftvarcon_inst%allom_sai_scaler(cohort_in%pft) 
+
+    if( cohort_in%bdead  <  0._r8 .or. cohort_in%pft  ==  0 ) then
+       write(fates_log(),*) 'problem in treesai',cohort_in%bdead,cohort_in%pft
+    endif
+
+    bdead_per_unitarea = cohort_in%bdead/(cohort_in%c_area/cohort_in%n) !KgC/m2
+    tree_sai = bdead_per_unitarea * sai_scaler !kg/m2 * m2/kg = unitless LAI 
+   
+    cohort_in%treesai = tree_sai
+
+    ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
+    ! at the moments nlevleaf default is 40, which is very large, so exceeding this would clearly illustrate a 
+    ! huge error 
+    if(cohort_in%treesai > nlevleaf*dinc_ed)then
+       write(fates_log(),*) 'too much sai' , cohort_in%treesai , cohort_in%pft , nlevleaf * dinc_ed
+    endif
+
+    return
+
+  end function tree_sai
+  
+  ! ============================================================================
 
 
   !-------------------------------------------------------------------------------------!
