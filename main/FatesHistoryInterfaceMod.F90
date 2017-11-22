@@ -3428,37 +3428,37 @@ end subroutine flush_hvars
 
     call this%set_history_var(vname='M1_SCLS', units = 'N/ha/yr',          &
           long='background mortality by size', use_default='active', &
-          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m1_si_scls )
     
     call this%set_history_var(vname='M2_SCLS', units = 'N/ha/yr',          &
           long='hydraulic mortality by size',use_default='active', &
-          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m2_si_scls )
 
     call this%set_history_var(vname='M3_SCLS', units = 'N/ha/yr',          &
           long='carbon starvation mortality by size', use_default='active', &
-          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m3_si_scls )
 
     call this%set_history_var(vname='M4_SCLS', units = 'N/ha/yr',          &
           long='impact mortality by size',use_default='active', &
-          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m4_si_scls )
 
     call this%set_history_var(vname='M5_SCLS', units = 'N/ha/yr',          &
           long='fire mortality by size',use_default='active', &
-          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m5_si_scls )
 
     call this%set_history_var(vname='M6_SCLS', units = 'N/ha/yr',          &
           long='termination mortality by size',use_default='active', &
-          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m6_si_scls )
 
     call this%set_history_var(vname='M7_SCLS', units = 'N/ha/event',               &
           long='logging mortality by size',use_default='active',           &
-          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m7_si_scls )
 
     call this%set_history_var(vname='MORTALITY_UNDERSTORY_SCLS', units = 'indiv/ha/yr',               &
