@@ -1788,10 +1788,15 @@ end subroutine flush_hvars
          do i_pft = 1, numpft
             do i_scls = 1,nlevsclass
                i_scpf = (i_pft-1)*nlevsclass + i_scls
+               !
+               ! termination mortality. sum of canopy and understory indices
                hio_m6_si_scpf(io_si,i_scpf) = (sites(s)%terminated_nindivs(i_scls,i_pft,1) + &
                     sites(s)%terminated_nindivs(i_scls,i_pft,2)) * days_per_year
-               hio_m6_si_scls(io_si,i_scls) = (sites(s)%terminated_nindivs(i_scls,i_pft,1) + &
+               hio_m6_si_scls(io_si,i_scls) = hio_m6_si_scls(io_si,i_scls) + &
+                    (sites(s)%terminated_nindivs(i_scls,i_pft,1) + &
                     sites(s)%terminated_nindivs(i_scls,i_pft,2)) * days_per_year
+               !
+               ! add termination mortality to canopy and understory mortality
                hio_mortality_canopy_si_scls(io_si,i_scls) = hio_mortality_canopy_si_scls(io_si,i_scls) + &
                     sites(s)%terminated_nindivs(i_scls,i_pft,1) * days_per_year
                hio_mortality_understory_si_scls(io_si,i_scls) = hio_mortality_understory_si_scls(io_si,i_scls) + &
@@ -1802,7 +1807,7 @@ end subroutine flush_hvars
                     sites(s)%terminated_nindivs(i_scls,i_pft,2) * days_per_year
                !
                ! imort on its own
-               hio_m4_si_scpf(io_si,i_scpf) = hio_m4_si_scpf(io_si,i_scpf) + sites(s)%imort_rate(i_scls, i_pft)
+               hio_m4_si_scpf(io_si,i_scpf) = sites(s)%imort_rate(i_scls, i_pft)
                hio_m4_si_scls(io_si,i_scls) = hio_m4_si_scls(io_si,i_scls) + sites(s)%imort_rate(i_scls, i_pft)
                !
                ! add imort to other mortality terms. consider imort as understory mortality even if it happens in 
