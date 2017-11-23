@@ -799,10 +799,6 @@ contains
     type(bc_in_type), intent(in)               :: bc_in
     !
     ! !LOCAL VARIABLES:
-    real(r8) :: dbldbd   !rate of change of dead biomass per unit dbh 
-    real(r8) :: dbrdbd   !rate of change of root biomass per unit dbh
-    real(r8) :: dbswdbd  !rate of change of sapwood biomass per unit dbh
-    real(r8) :: dhdbd_fn !rate of change of height per unit dbh
     real(r8) :: va       !fraction of growth going to alive biomass
     real(r8) :: vs       !fraction of growth going to structural biomass
     real(r8) :: u
