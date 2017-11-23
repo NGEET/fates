@@ -17,12 +17,16 @@ module FatesInterfaceMod
    use EDTypesMod          , only : inir
    use EDTypesMod          , only : nclmax
    use EDTypesMod          , only : nlevleaf
-   use EDTypesMod          , only : numpft_ed
+   use EDTypesMod          , only : maxpft
    use FatesConstantsMod   , only : r8 => fates_r8
+   use FatesConstantsMod   , only : itrue
    use FatesGlobals        , only : fates_global_verbose
    use FatesGlobals        , only : fates_log
-   use EDTypesMod          , only : use_fates_plant_hydro
    use FatesGlobals        , only : endrun => fates_endrun
+   use EDPftvarcon         , only : FatesReportPFTParams
+   use EDPftvarcon         , only : EDPftvarcon_inst
+   use EDParamsMod         , only : FatesReportParams
+
 
    ! CIME Globals
    use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -34,6 +38,7 @@ module FatesInterfaceMod
    public :: set_fates_ctrlparms
    public :: SetFatesTime
    public :: set_fates_global_elements
+   public :: FatesReportParameters
 
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
@@ -98,16 +103,61 @@ module FatesInterfaceMod
                                          ! between the pedotransfer functions of the HLM
                                          ! and how it moves and stores water in its
                                          ! rhizosphere shells
+   
+   integer, protected :: hlm_max_patch_per_site ! The HLM needs to exchange some patch
+                                                ! level quantities with FATES
+                                                ! FATES does not dictate those allocations
+                                                ! since it happens pretty early in
+                                                ! the model initialization sequence.
+                                                ! So we want to at least query it,
+                                                ! compare it to our maxpatchpersite,
+                                                ! and gracefully halt if we are over-allocating
 
    integer, protected :: hlm_use_vertsoilc ! This flag signals whether or not the 
                                            ! host model is using vertically discretized
                                            ! soil carbon
                                            ! 1 = TRUE,  0 = FALSE
    
-                                           ! SOON TO BE DEPRECATED, WILL BE READ IN VIA
-                                           ! FATES NL OR PARAM FILE.
    integer, protected :: hlm_use_spitfire  ! This flag signals whether or not to use SPITFIRE
                                            ! 1 = TRUE, 0 = FALSE
+
+   integer, protected :: hlm_use_planthydro    ! This flag signals whether or not to use
+                                               ! plant hydraulics (bchristo/xu methods)
+                                               ! 1 = TRUE, 0 = FALSE
+                                               ! THIS IS CURRENTLY NOT SUPPORTED 
+
+   integer, protected :: hlm_use_ed_st3        ! This flag signals whether or not to use
+                                               ! (ST)atic (ST)and (ST)ructure mode (ST3)
+                                               ! Essentially, this gives us the ability
+                                               ! to turn off "dynamics", ie growth, disturbance
+                                               ! recruitment and mortality.
+                                               ! (EXPERIMENTAL!!!!! - RGK 07-2017)
+                                               ! 1 = TRUE, 0 = FALSE
+                                               ! default should be FALSE (dynamics on)
+                                               ! cannot be true with prescribed_phys
+
+   integer, protected :: hlm_use_ed_prescribed_phys ! This flag signals whether or not to use
+                                                    ! prescribed physiology, somewhat the opposite
+                                                    ! to ST3, in this case can turn off
+                                                    ! fast processes like photosynthesis and respiration
+                                                    ! and prescribe NPP
+                                                    ! (NOT CURRENTLY IMPLEMENTED - PLACEHOLDER)
+                                                    ! 1 = TRUE, 0 = FALSE
+                                                    ! default should be FALSE (biophysics on)
+                                                    ! cannot be true with st3 mode
+
+   integer, protected :: hlm_use_inventory_init     ! Initialize this simulation from
+                                                    ! an inventory file. If this is toggled on
+                                                    ! an inventory control file must be specified
+                                                    ! as well.
+                                                    ! 1 = TRUE, 0 = FALSE
+   
+   character(len=256), protected :: hlm_inventory_ctrl_file ! This is the full path to the
+                                                            ! inventory control file that
+                                                            ! specifieds the availabel inventory datasets
+                                                            ! there locations and their formats
+                                                            ! This need only be defined when
+                                                            ! hlm_use_inventory_init = 1
 
    ! -------------------------------------------------------------------------------------
    ! Parameters that are dictated by FATES and known to be required knowledge
@@ -130,7 +180,30 @@ module FatesInterfaceMod
                                                    ! data as some fields are arrays where each array is
                                                    ! associated with one cohort
 
-
+   ! -------------------------------------------------------------------------------------
+   ! These vectors are used for history output mapping
+   ! CLM/ALM have limited support for multi-dimensional history output arrays.
+   ! FATES structure and composition is multi-dimensional, so we end up "multi-plexing"
+   ! multiple dimensions into one dimension.  These new dimensions need definitions,
+   ! mapping to component dimensions, and definitions for those component dimensions as
+   ! well.
+   ! -------------------------------------------------------------------------------------
+   
+   real(r8), allocatable :: fates_hdim_levsclass(:)        ! plant size class lower bound dimension
+   integer , allocatable :: fates_hdim_pfmap_levscpf(:)    ! map of pfts into size-class x pft dimension
+   integer , allocatable :: fates_hdim_scmap_levscpf(:)    ! map of size-class into size-class x pft dimension
+   real(r8), allocatable :: fates_hdim_levage(:)           ! patch age lower bound dimension
+   integer , allocatable :: fates_hdim_levpft(:)           ! plant pft dimension
+   integer , allocatable :: fates_hdim_levfuel(:)          ! fire fuel class dimension
+   integer , allocatable :: fates_hdim_levcwdsc(:)         ! cwd class dimension
+   integer , allocatable :: fates_hdim_levcan(:)           ! canopy-layer dimension 
+   integer , allocatable :: fates_hdim_canmap_levcnlf(:)   ! canopy-layer map into the canopy-layer x leaf-layer dim
+   integer , allocatable :: fates_hdim_lfmap_levcnlf(:)    ! leaf-layer map into the can-layer x leaf-layer dimension
+   integer , allocatable :: fates_hdim_canmap_levcnlfpf(:) ! can-layer map into the can-layer x pft x leaf-layer dim
+   integer , allocatable :: fates_hdim_lfmap_levcnlfpf(:)  ! leaf-layer map into the can-layer x pft x leaf-layer dim
+   integer , allocatable :: fates_hdim_pftmap_levcnlfpf(:) ! pft map into the canopy-layer x pft x leaf-layer dim
+   integer , allocatable :: fates_hdim_scmap_levscag(:)    ! map of size-class into size-class x patch age dimension
+   integer , allocatable :: fates_hdim_agmap_levscag(:)    ! map of patch-age into size-class x patch age dimension
 
    ! ------------------------------------------------------------------------------------
    !                              DYNAMIC BOUNDARY CONDITIONS
@@ -155,6 +228,16 @@ module FatesInterfaceMod
    real(r8), protected :: hlm_freq_day        ! fraction of year for daily time-step 
                                               ! (1/days_per_year_, this is a frequency
    
+
+   ! -------------------------------------------------------------------------------------
+   !
+   ! Constant parameters that are dictated by the fates parameter file
+   !
+   ! -------------------------------------------------------------------------------------
+
+   integer, protected :: numpft   ! The total number of PFTs defined in the simulation
+   
+
    ! -------------------------------------------------------------------------------------
    ! Structured Boundary Conditions (SITE/PATCH SCALE)
    ! For floating point arrays, it is sometimes the convention to define the arrays as
@@ -168,10 +251,6 @@ module FatesInterfaceMod
    !                       _pa  means patch dimensions
    !                       _rb  means radiation band
    ! ------------------------------------------------------------------------------------
-
-
-
-
 
    type, public :: bc_in_type
 
@@ -579,7 +658,7 @@ contains
       allocate(bc_in%albgr_dif_rb(hlm_numSWb))
 
       ! Plant-Hydro BC's
-      if (use_fates_plant_hydro) then
+      if (hlm_use_planthydro.eq.itrue) then
       
          allocate(bc_in%qflx_transp_pa(maxPatchesPerSite))
          allocate(bc_in%swrad_net_pa(maxPatchesPerSite))
@@ -650,7 +729,7 @@ contains
       allocate(bc_out%frac_veg_nosno_alb_pa(maxPatchesPerSite))
 
       ! Plant-Hydro BC's
-      if (use_fates_plant_hydro) then
+      if (hlm_use_planthydro.eq.itrue) then
          allocate(bc_out%qflx_soil2root_sisl(hlm_numlevsoil))
       end if
 
@@ -695,7 +774,7 @@ contains
       this%bc_in(s)%snow_depth_si       = 0.0_r8
       this%bc_in(s)%frac_sno_eff_si     = 0.0_r8
 
-      if (use_fates_plant_hydro) then
+      if (hlm_use_planthydro.eq.itrue) then
   
          this%bc_in(s)%qflx_transp_pa(:) = 0.0_r8
          this%bc_in(s)%swrad_net_pa(:) = 0.0_r8
@@ -744,7 +823,7 @@ contains
       this%bc_out(s)%canopy_fraction_pa(:) = 0.0_r8
       this%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
 
-      if (use_fates_plant_hydro) then
+      if (hlm_use_planthydro.eq.itrue) then
          this%bc_out(s)%qflx_soil2root_sisl(:) = 0.0_r8
       end if
       this%bc_out(s)%plant_stored_h2o_si = 0.0_r8
@@ -756,16 +835,64 @@ contains
     ! ===================================================================================
     
     subroutine set_fates_global_elements(use_fates)
+
+       ! --------------------------------------------------------------------------------
+       !
+       ! This subroutine is called directly from the HLM, and is the first FATES routine
+       ! that is called.
+       !
+       ! This subroutine MUST BE CALLED AFTER the FATES parameter file has been read in,
+       ! and the EDPftvarcon_inst structure has been made.
+       ! This subroutine must ALSO BE CALLED BEFORE the history file dimensions
+       ! are set.
+       ! 
+       ! This routine requires no information from the HLM. This routine is responsible
+       ! for generating the globals that are required by the HLM that are entirely
+       ! FATES derived.
+       !
+       ! --------------------------------------------------------------------------------
+
+
       implicit none
       
       logical,intent(in) :: use_fates    ! Is fates turned on?
       
       if (use_fates) then
 
+         ! Identify the number of PFTs by evaluating a pft array
+         ! Using wood density as that is not expected to be deprecated any time soon
+
+         if(lbound(EDPftvarcon_inst%wood_density(:),dim=1) .eq. 0 ) then
+            numpft = size(EDPftvarcon_inst%wood_density,dim=1)-1
+         elseif(lbound(EDPftvarcon_inst%wood_density(:),dim=1) .eq. 1 ) then
+            numpft = size(EDPftvarcon_inst%wood_density,dim=1)
+         else
+            write(fates_log(), *) 'While assessing the number of FATES PFTs,'
+            write(fates_log(), *) 'it was found that the lower bound was neither 0 or 1?'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(numpft>maxpft) then
+            write(fates_log(), *) 'The number of PFTs dictated by the FATES parameter file'
+            write(fates_log(), *) 'is larger than the maximum allowed. Increase the FATES parameter constant'
+            write(fates_log(), *) 'FatesInterfaceMod.F90:maxpft accordingly'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
+
+         ! These values are used to define the restart file allocations and general structure
+         ! of memory for the cohort arrays
+         
          fates_maxElementsPerPatch = max(maxCohortsPerPatch, &
-              numpft_ed * nclmax * nlevleaf)
-      
+               numpft * nclmax * nlevleaf)
+         
          fates_maxElementsPerSite = maxPatchesPerSite * fates_maxElementsPerPatch
+
+
+         ! Set Various Mapping Arrays used in history output as well
+         ! These will not be used if use_ed or use_fates is false
+         call fates_history_maps()
+
 
       else
          ! If we are not using FATES, the cohort dimension is still
@@ -781,6 +908,123 @@ contains
 
 
     end subroutine set_fates_global_elements
+
+    !==============================================================================================
+    
+    subroutine fates_history_maps
+       
+       use EDTypesMod, only : nlevsclass_ed
+       use EDTypesMod, only : NFSC
+       use EDTypesMod, only : NCWD
+       use EDTypesMod, only : nlevage_ed
+       use EDTypesMod, only : nlevsclass_ed
+       use EDTypesMod, only : nclmax
+       use EDTypesMod, only : nlevleaf
+       use EDTypesMod, only : sclass_ed
+       use EDTypesMod, only : ageclass_ed
+
+       ! ------------------------------------------------------------------------------------------
+       ! This subroutine allocates and populates the variables
+       ! that define the mapping of variables in history files in multiplexed dimensions liked
+       ! the "scpf" format
+       ! back to
+       ! their respective single component dimensions, like size-class "sc" and pft "pf"
+       ! ------------------------------------------------------------------------------------------
+
+       integer :: i
+       integer :: isc
+       integer :: ipft
+       integer :: icwd
+       integer :: ifuel
+       integer :: ican
+       integer :: ileaf
+       integer :: iage
+
+       allocate( fates_hdim_levsclass(1:nlevsclass_ed   ))
+       allocate( fates_hdim_pfmap_levscpf(1:nlevsclass_ed*numpft))
+       allocate( fates_hdim_scmap_levscpf(1:nlevsclass_ed*numpft))
+       allocate( fates_hdim_levpft(1:numpft   ))
+       allocate( fates_hdim_levfuel(1:NFSC   ))
+       allocate( fates_hdim_levcwdsc(1:NCWD   ))
+       allocate( fates_hdim_levage(1:nlevage_ed   ))
+
+       allocate( fates_hdim_levcan(nclmax))
+       allocate( fates_hdim_canmap_levcnlf(nlevleaf*nclmax))
+       allocate( fates_hdim_lfmap_levcnlf(nlevleaf*nclmax))
+       allocate( fates_hdim_canmap_levcnlfpf(nlevleaf*nclmax*numpft))
+       allocate( fates_hdim_lfmap_levcnlfpf(nlevleaf*nclmax*numpft))
+       allocate( fates_hdim_pftmap_levcnlfpf(nlevleaf*nclmax*numpft))
+       allocate( fates_hdim_scmap_levscag(nlevsclass_ed * nlevage_ed ))
+       allocate( fates_hdim_agmap_levscag(nlevsclass_ed * nlevage_ed ))
+
+       ! Fill the IO array of plant size classes
+       ! For some reason the history files did not like
+       ! a hard allocation of sclass_ed
+       fates_hdim_levsclass(:) = sclass_ed(:)
+
+       fates_hdim_levage(:) = ageclass_ed(:)
+
+       ! make pft array
+       do ipft=1,numpft
+          fates_hdim_levpft(ipft) = ipft
+       end do
+
+       ! make fuel array
+       do ifuel=1,NFSC
+          fates_hdim_levfuel(ifuel) = ifuel
+       end do
+
+       ! make cwd array
+       do icwd=1,NCWD
+          fates_hdim_levcwdsc(icwd) = icwd
+       end do
+
+       ! make canopy array
+       do ican = 1,nclmax
+          fates_hdim_levcan(ican) = ican
+       end do
+
+       ! Fill the IO arrays that match pft and size class to their combined array
+       i=0
+       do ipft=1,numpft
+          do isc=1,nlevsclass_ed
+             i=i+1
+             fates_hdim_pfmap_levscpf(i) = ipft
+             fates_hdim_scmap_levscpf(i) = isc
+          end do
+       end do
+
+       i=0
+       do ican=1,nclmax
+          do ileaf=1,nlevleaf
+             i=i+1
+             fates_hdim_canmap_levcnlf(i) = ican
+             fates_hdim_lfmap_levcnlf(i) = ileaf
+          end do
+       end do
+
+       i=0
+       do iage=1,nlevage_ed
+          do isc=1,nlevsclass_ed
+             i=i+1
+             fates_hdim_scmap_levscag(i) = isc
+             fates_hdim_agmap_levscag(i) = iage
+          end do
+       end do
+
+       i=0
+       do ipft=1,numpft
+          do ican=1,nclmax
+             do ileaf=1,nlevleaf
+                i=i+1
+                fates_hdim_canmap_levcnlfpf(i) = ican
+                fates_hdim_lfmap_levcnlfpf(i) = ileaf
+                fates_hdim_pftmap_levcnlfpf(i) = ipft
+             end do
+          end do
+       end do
+
+    end subroutine fates_history_maps
 
     ! ===================================================================================
 
@@ -872,8 +1116,14 @@ contains
          hlm_hio_ignore_val   = unset_double
          hlm_masterproc   = unset_int
          hlm_ipedof       = unset_int
+         hlm_max_patch_per_site = unset_int
          hlm_use_vertsoilc = unset_int
          hlm_use_spitfire  = unset_int
+         hlm_use_planthydro = unset_int
+         hlm_use_ed_st3    = unset_int
+         hlm_use_ed_prescribed_phys = unset_int
+         hlm_use_inventory_init = unset_int
+         hlm_inventory_ctrl_file = 'unset'
 
       case('check_allset')
          
@@ -903,11 +1153,54 @@ contains
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
+         
+         if (  .not.((hlm_use_planthydro.eq.1).or.(hlm_use_planthydro.eq.0))    ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'The FATES namelist planthydro flag must be 0 or 1, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if (  .not.((hlm_use_ed_st3.eq.1).or.(hlm_use_ed_st3.eq.0))    ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'The FATES namelist stand structure flag must be 0 or 1, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if (  .not.((hlm_use_ed_prescribed_phys.eq.1).or.(hlm_use_ed_prescribed_phys.eq.0))    ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'The FATES namelist prescribed physiology flag must be 0 or 1, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if ( hlm_use_ed_prescribed_phys.eq.1 .and. hlm_use_ed_st3.eq.1 ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'FATES ST3 and prescribed physiology cannot both be turned on.'
+               write(fates_log(), *) 'Review the namelist entries, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
+         if (  .not.((hlm_use_inventory_init.eq.1).or.(hlm_use_inventory_init.eq.0))    ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'The FATES NL inventory flag must be 0 or 1, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
+         if(trim(hlm_inventory_ctrl_file) .eq. 'unset') then
+            if (fates_global_verbose()) then
+               write(fates_log(),*) 'namelist entry for fates inventory control file is unset, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
 
          if(hlm_ivis .ne. ivis) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES assumption about the index of visible shortwave'
-               write(fates_log(), *) 'radiation is different from the HLM'
+               write(fates_log(), *) 'radiation is different from the HLM, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -915,49 +1208,49 @@ contains
          if(hlm_inir .ne. inir) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'FATES assumption about the index of NIR shortwave'
-               write(fates_log(), *) 'radiation is different from the HLM'
+               write(fates_log(), *) 'radiation is different from the HLM, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_is_restart .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES parameter unset: hlm_is_restart'
+               write(fates_log(), *) 'FATES parameter unset: hlm_is_restart, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_numlevgrnd .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES dimension/parameter unset: numlevground'
+               write(fates_log(), *) 'FATES dimension/parameter unset: numlevground, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_numlevsoil .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES dimension/parameter unset: numlevground'
+               write(fates_log(), *) 'FATES dimension/parameter unset: numlevground, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_numlevdecomp_full .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES dimension/parameter unset: numlevdecomp_full'
+               write(fates_log(), *) 'FATES dimension/parameter unset: numlevdecomp_full, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_numlevdecomp .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES dimension/parameter unset: numlevdecomp'
+               write(fates_log(), *) 'FATES dimension/parameter unset: numlevdecomp, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(trim(hlm_name) .eq. 'unset') then
             if (fates_global_verbose()) then
-               write(fates_log(),*) 'FATES dimension/parameter unset: hlm_name'
+               write(fates_log(),*) 'FATES dimension/parameter unset: hlm_name, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -971,21 +1264,36 @@ contains
 
          if(hlm_ipedof .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'index for the HLMs pedotransfer function unset: hlm_ipedof'
+               write(fates_log(), *) 'index for the HLMs pedotransfer function unset: hlm_ipedof, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_max_patch_per_site .eq. unset_int ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'the number of patch-space per site unset: hlm_max_patch_per_site, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         elseif(hlm_max_patch_per_site < maxPatchesPerSite ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'FATES is trying to allocate space for more patches per site, than the HLM has space for.'
+               write(fates_log(), *) 'hlm_max_patch_per_site (HLM side): ', hlm_max_patch_per_site
+               write(fates_log(), *) 'maxPatchesPerSite (FATES side): ', maxPatchesPerSite
+               write(fates_log(), *)
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_use_vertsoilc .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'switch for the HLMs soil carbon discretization unset: hlm_use_vertsoilc'
+               write(fates_log(), *) 'switch for the HLMs soil carbon discretization unset: hlm_use_vertsoilc, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_use_spitfire .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'switch for SPITFIRE unset: hlm_use_spitfire'
+               write(fates_log(), *) 'switch for SPITFIRE unset: hlm_use_spitfire, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -1060,6 +1368,12 @@ contains
                   write(fates_log(),*) 'Transfering hlm_ipedof = ',ival,' to FATES'
                end if
 
+            case('max_patch_per_site')
+               hlm_max_patch_per_site = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_max_patch_per_site = ',ival,' to FATES'
+               end if
+
             case('use_vertsoilc')
                hlm_use_vertsoilc = ival
                if (fates_global_verbose()) then
@@ -1070,6 +1384,30 @@ contains
                hlm_use_spitfire = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_spitfire= ',ival,' to FATES'
+               end if
+               
+            case('use_planthydro')
+               hlm_use_planthydro = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_planthydro= ',ival,' to FATES'
+               end if
+
+            case('use_ed_st3')
+               hlm_use_ed_st3 = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_ed_st3= ',ival,' to FATES'
+               end if
+
+            case('use_ed_prescribed_phys')
+               hlm_use_ed_prescribed_phys = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_ed_prescribed_phys= ',ival,' to FATES'
+               end if
+
+            case('use_inventory_init')
+               hlm_use_inventory_init = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_inventory_init= ',ival,' to FATES'
                end if
 
             case default
@@ -1105,6 +1443,12 @@ contains
                   write(fates_log(),*) 'Transfering the HLM name = ',trim(cval)
                end if
 
+            case('inventory_ctrl_file')
+               hlm_inventory_ctrl_file = trim(cval)
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering the name of the inventory control file = ',trim(cval)
+               end if
+               
             case default
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'tag not recognized:',trim(tag)
@@ -1117,6 +1461,23 @@ contains
             
       return
    end subroutine set_fates_ctrlparms
+   
+   ! ====================================================================================
 
+   subroutine FatesReportParameters(masterproc)
+      
+      ! -----------------------------------------------------
+      ! Simple parameter reporting functions
+      ! A debug like print flag is contained in each routine
+      ! -----------------------------------------------------
+
+      logical,intent(in) :: masterproc
+
+      call FatesReportPFTParams(masterproc)
+      call FatesReportParams(masterproc)
+      
+      
+      return
+   end subroutine FatesReportParameters
 
 end module FatesInterfaceMod

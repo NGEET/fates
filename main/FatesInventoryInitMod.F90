@@ -28,12 +28,12 @@ module FatesInventoryInitMod
    use FatesGlobals     , only : endrun => fates_endrun
    use FatesGlobals     , only : fates_log
    use FatesInterfaceMod, only : bc_in_type
+   use FatesInterfaceMod, only : hlm_inventory_ctrl_file
    use EDTypesMod       , only : ed_site_type
    use EDTypesMod       , only : ed_patch_type
    use EDTypesMod       , only : ed_cohort_type 
    use EDTypesMod       , only : area
    use EDPftvarcon      , only : EDPftvarcon_inst
-   use EDEcophysConType , only : EDecophyscon
 
    implicit none
    private
@@ -46,9 +46,6 @@ module FatesInventoryInitMod
    type pp_array
       type(ed_patch_type), pointer :: cpatch
    end type pp_array
-
-   ! For now we will use a hard-coded file name for the inventory file list
-   character(len=*), parameter          :: inv_file_list = 'inventory_file_list.txt'
 
    character(len=*), parameter, private :: sourcefile =  __FILE__
 
@@ -78,7 +75,6 @@ contains
       use shr_file_mod, only        : shr_file_getUnit
       use shr_file_mod, only        : shr_file_freeUnit
       use EDTypesMod, only          : nclmax
-      use EDTypesMod, only          : numpft_ed
       use EDTypesMod, only          : maxpft
       use EDTypesMod, only          : ncwd
       use EDParamsMod, only         : ED_val_maxspread
@@ -137,10 +133,10 @@ contains
       ! ------------------------------------------------------------------------------------------
 
       sitelist_file_unit = shr_file_getUnit()
-      inquire(file=trim(inv_file_list),exist=lexist,opened=lopen)
+      inquire(file=trim(hlm_inventory_ctrl_file),exist=lexist,opened=lopen)
       if( .not.lexist ) then   ! The inventory file list DNE
          write(fates_log(), *) 'An inventory Initialization was requested.'
-         write(fates_log(), *) 'However the inventory file: ',trim(inv_file_list),' DNE'
+         write(fates_log(), *) 'However the inventory file: ',trim(hlm_inventory_ctrl_file),' DNE'
          write(fates_log(), *) 'Aborting'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
@@ -150,7 +146,7 @@ contains
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
-      open(unit=sitelist_file_unit,file=trim(inv_file_list),status='OLD',action='READ',form='FORMATTED')
+      open(unit=sitelist_file_unit,file=trim(hlm_inventory_ctrl_file),status='OLD',action='READ',form='FORMATTED')
       rewind(sitelist_file_unit)
 
       ! There should be at least 1 line
@@ -254,12 +250,12 @@ contains
             spread_init(:)      = ED_val_maxspread
             cwd_ag_init(:)      = 0.0_r8
             cwd_bg_init(:)      = 0.0_r8
-            leaf_litter_init(1:numpft_ed) = 0.0_r8
-            root_litter_init(1:numpft_ed) = 0.0_r8
+            leaf_litter_init(:) = 0.0_r8
+            root_litter_init(:) = 0.0_r8
 
             call create_patch(sites(s), newpatch, age_init, area_init, spread_init, &
                   cwd_ag_init, cwd_bg_init, &
-                  leaf_litter_init(1:numpft_ed), root_litter_init(1:numpft_ed) )
+                  leaf_litter_init, root_litter_init )
 
             if( inv_format_list(invsite) == 1 ) then
                call set_inventory_edpatch_type1(newpatch,pss_file_unit,ipa,ios,patch_name)
@@ -646,10 +642,8 @@ contains
 
       use EDTypesMod, only: get_age_class_index
       use EDtypesMod, only: AREA
-      use EDTypesMod, only: numpft_ed
       use EDTypesMod, only: ncwd
       use SFParamsMod , only : SF_val_CWD_frac
-      use EDParamsMod , only : ED_val_ag_biomass
 
       ! Arguments
       type(ed_patch_type),intent(inout), target   :: newpatch      ! Patch structure
@@ -722,10 +716,10 @@ contains
          newpatch%cwd_bg(icwd) = 0.0_r8
       end do
 
-      do ipft = 1, numpft_ed
-         newpatch%leaf_litter(ipft) = 0.0_r8
-         newpatch%root_litter(ipft) = 0.0_r8
-      end do
+
+      newpatch%leaf_litter(:) = 0.0_r8
+      newpatch%root_litter(:) = 0.0_r8
+
 
       return
    end subroutine set_inventory_edpatch_type1
@@ -757,11 +751,11 @@ contains
       ! avgRG    (cm/yr?)   Average Radial Growth (NOT USED)
       ! --------------------------------------------------------------------------------------------
 
-      use EDTypesMod          , only : numpft_ed
       use EDGrowthFunctionsMod, only : hite
       use EDGrowthFunctionsMod, only : bleaf
       use EDGrowthFunctionsMod, only : bdead
       use EDCohortDynamicsMod , only : create_cohort
+      use FatesInterfaceMod   , only : numpft
 
       ! Arguments
       type(ed_site_type),intent(inout), target    :: csite         ! current site
@@ -827,10 +821,10 @@ contains
       ! pft, nplant and dbh are the critical ones in this format specification
       ! -------------------------------------------------------------------------------------------
 
-      if (c_pft > numpft_ed ) then
+      if (c_pft > numpft ) then
          write(fates_log(), *) 'inventory pft: ',c_pft
          write(fates_log(), *) 'An inventory cohort file specified a pft index'
-         write(fates_log(), *) 'greater than the maximum specified pfts ed_numpft'
+         write(fates_log(), *) 'greater than the maximum specified pfts numpft'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
@@ -875,18 +869,18 @@ contains
       temp_cohort%dbh         = c_dbh
       temp_cohort%canopy_trim = 1.0_r8
       temp_cohort%bdead       = Bdead(temp_cohort)
-      temp_cohort%balive      = Bleaf(temp_cohort)*(1.0_r8 + EDPftvarcon_inst%froot_leaf(c_pft) &
-            + EDecophyscon%sapwood_ratio(c_pft)*temp_cohort%hite)
+      temp_cohort%balive      = Bleaf(temp_cohort)*(1.0_r8 + EDPftvarcon_inst%allom_l2fr(c_pft) &
+            + EDpftvarcon_inst%allom_latosa_int(c_pft)*temp_cohort%hite)
       temp_cohort%b           = temp_cohort%balive + temp_cohort%bdead
       
       if( EDPftvarcon_inst%evergreen(c_pft) == 1) then
-         temp_cohort%bstore = Bleaf(temp_cohort) * EDecophyscon%cushion(c_pft)
+         temp_cohort%bstore = Bleaf(temp_cohort) * EDPftvarcon_inst%cushion(c_pft)
          temp_cohort%laimemory = 0._r8
          cstatus = 2
       endif
       
       if( EDPftvarcon_inst%season_decid(c_pft) == 1 ) then !for dorment places
-         temp_cohort%bstore = Bleaf(temp_cohort) * EDecophyscon%cushion(c_pft) !stored carbon in new seedlings.
+         temp_cohort%bstore = Bleaf(temp_cohort) * EDPftvarcon_inst%cushion(c_pft) !stored carbon in new seedlings.
          if(csite%status == 2)then 
             temp_cohort%laimemory = 0.0_r8
          else
@@ -898,7 +892,7 @@ contains
       endif
       
       if ( EDPftvarcon_inst%stress_decid(c_pft) == 1 ) then
-         temp_cohort%bstore = Bleaf(temp_cohort) * EDecophyscon%cushion(c_pft)
+         temp_cohort%bstore = Bleaf(temp_cohort) * EDPftvarcon_inst%cushion(c_pft)
          temp_cohort%laimemory = Bleaf(temp_cohort)
          temp_cohort%balive = temp_cohort%balive - temp_cohort%laimemory
          cstatus = csite%dstatus
