@@ -426,7 +426,7 @@ contains
           end if
        end if
 
-    case(9) ! deprecated
+    case(9) ! deprecated (9)
 
        call h_allom(d,ipft,h,dhdd)
        call bleaf(d,h,ipft,canopy_trim,bl,dbldd)

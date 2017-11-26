@@ -750,8 +750,8 @@ contains
 
       use FatesAllometryMod         , only : h_allom
       use FatesAllometryMod         , only : h2d_allom
-      use FatesAllometryMod         , only : bag_allom
-      use FatesAllometryMod         , only : bcr_allom
+      use FatesAllometryMod         , only : bagw_allom
+      use FatesAllometryMod         , only : bbgw_allom
       use FatesAllometryMod         , only : bleaf
       use FatesAllometryMod         , only : bfineroot
       use FatesAllometryMod         , only : bsap_allom
@@ -785,9 +785,9 @@ contains
       type(ed_cohort_type), pointer               :: temp_cohort   ! temporary patch (needed for allom funcs)
       integer                                     :: ipa           ! patch idex
       logical                                     :: matched_patch ! check if cohort was matched w/ patch
-      real(r8) :: b_ag    ! biomass above ground [kgC]
-      real(r8) :: b_cr    ! biomass in coarse roots [kgC]
-      real(r8) :: b_leaf  ! biomass in leaves [kgC]
+      real(r8) :: b_agw      ! biomass above ground non-leaf [kgC]
+      real(r8) :: b_bgw      ! biomass below ground non-leaf [kgC]
+      real(r8) :: b_leaf     ! biomass in leaves [kgC]
       real(r8) :: b_fineroot ! biomass in fine roots [kgC]
       real(r8) :: b_sapwood  ! biomass in sapwood [kgC]
 
@@ -877,9 +877,9 @@ contains
 
       ! Calculate total above-ground biomass from allometry
 
-      call bag_allom(temp_cohort%dbh,temp_cohort%hite,c_pft,b_ag)
+      call bagw_allom(temp_cohort%dbh,temp_cohort%hite,c_pft,b_agw)
       ! Calculate coarse root biomass from allometry
-      call bcr_allom(temp_cohort%dbh,temp_cohort%hite,c_pft,b_cr)
+      call bbgw_allom(temp_cohort%dbh,temp_cohort%hite,c_pft,b_bgw)
       
       ! Calculate the leaf biomass (calculates a maximum first, then applies canopy trim
       ! and sla scaling factors)
@@ -889,11 +889,11 @@ contains
       call bfineroot(temp_cohort%dbh,temp_cohort%hite,c_pft,temp_cohort%canopy_trim,b_fineroot)
       
       ! Calculate sapwood biomass
-      call bsap_allom(temp_cohort%dbh,temp_cohort%hite,c_pft,temp_cohort%canopy_trim,b_sapwood)
+      call bsap_allom(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim,b_sapwood)
       
       temp_cohort%balive = b_leaf + b_fineroot + b_sapwood
       
-      call bdead_allom( b_ag, b_cr, b_sapwood, c_pft, temp_cohort%bdead )
+      call bdead_allom( b_agw, b_bgw, b_sapwood, c_pft, temp_cohort%bdead )
       
       temp_cohort%b           = temp_cohort%balive + temp_cohort%bdead
       

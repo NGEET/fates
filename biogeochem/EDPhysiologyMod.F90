@@ -37,12 +37,12 @@ module EDPhysiologyMod
 
   use FatesAllometryMod  , only : h_allom
   use FatesAllometryMod  , only : h2d_allom
-  use FatesAllometryMod  , only : bag_allom
+  use FatesAllometryMod  , only : bagw_allom
   use FatesAllometryMod  , only : bsap_allom
   use FatesAllometryMod  , only : bleaf
   use FatesAllometryMod  , only : bfineroot
   use FatesAllometryMod  , only : bdead_allom
-  use FatesAllometryMod  , only : bcr_allom
+  use FatesAllometryMod  , only : bbgw_allom
   use FatesAllometryMod  , only : carea_allom
 
 
@@ -826,10 +826,10 @@ contains
     real(r8) :: db_fineroot_dd    ! change in fine root biomass wrt diameter (kgC/cm)
     real(r8) :: b_sap             ! sapwood biomass (kgC)
     real(r8) :: db_sap_dd         ! change in sapwood biomass wrt diameter (kgC/cm)
-    real(r8) :: b_ag              ! above ground biomass (kgC/cm)
-    real(r8) :: db_ag_dd          ! change in above ground biomass wrt diameter (kgC/cm)
-    real(r8) :: b_cr              ! coarse root biomass (kgC)
-    real(r8) :: db_cr_dd          ! change in coarse root biomass (kgC/cm)
+    real(r8) :: b_agw              ! above ground biomass (kgC/cm)
+    real(r8) :: db_agw_dd          ! change in above ground biomass wrt diameter (kgC/cm)
+    real(r8) :: b_bgw              ! coarse root biomass (kgC)
+    real(r8) :: db_bgw_dd          ! change in coarse root biomass (kgC/cm)
     real(r8) :: b_dead            ! dead (structural) biomass (kgC)
     real(r8) :: db_dead_dd        ! change in dead biomass wrt diameter (kgC/cm)
     real(r8) :: dbalivedbd        ! change in alive biomass wrt dead biomass (kgC/kgC)
@@ -881,7 +881,7 @@ contains
     call bfineroot(currentCohort%dbh,currentCohort%hite,ipft,currentCohort%canopy_trim,b_fineroot)
     
     ! Calculate sapwood biomass
-    call bsap_allom(currentCohort%dbh,currentCohort%hite,ipft,currentCohort%canopy_trim,b_sap)
+    call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,b_sap)
 
     target_balive = b_leaf + b_fineroot + b_sap
 
@@ -1028,9 +1028,11 @@ contains
     !Use remaining carbon to refill balive or to get larger. 
 
     ! Tally up the relative change in dead biomass WRT diameter
-    call bag_allom(currentCohort%dbh,currentCohort%hite,ipft,b_ag,db_ag_dd)
-    call bcr_allom(currentCohort%dbh,currentCohort%hite,ipft,b_cr,db_cr_dd)
-    call bdead_allom( b_ag, b_cr, b_sap, ipft, b_dead, db_ag_dd, db_cr_dd, db_sap_dd, db_dead_dd )
+    ! biomass above ground woody/fibrous (non-leaf) tissues
+    call bagw_allom(currentCohort%dbh,currentCohort%hite,ipft,b_agw,db_agw_dd)
+    ! biomass below ground in woody/fibrous (non-fineroot) tissues
+    call bbgw_allom(currentCohort%dbh,currentCohort%hite,ipft,b_bgw,db_bgw_dd)
+    call bdead_allom( b_agw, b_bgw, b_sap, ipft, b_dead, db_agw_dd, db_bgw_dd, db_sap_dd, db_dead_dd )
 
     !only if carbon balance is +ve
 
@@ -1051,8 +1053,8 @@ contains
                   currentCohort%canopy_trim,b_leaf,db_leaf_dd)
        call bfineroot(currentCohort%dbh,currentCohort%hite,ipft, &
                       currentCohort%canopy_trim,b_fineroot,db_fineroot_dd)
-       call bsap_allom(currentCohort%dbh,currentCohort%hite,ipft, &
-                       currentCohort%canopy_trim,b_sap,db_sap_dd)
+       call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim, &
+                       b_sap,db_sap_dd)
 
        ! Total change in alive biomass relative to dead biomass [kgC/kgC]
        dbalivedbd = (db_leaf_dd + db_fineroot_dd + db_sap_dd)/db_dead_dd
@@ -1166,10 +1168,10 @@ contains
     type (ed_cohort_type) , pointer :: temp_cohort
     integer :: cohortstatus
     real(r8) :: b_leaf
-    real(r8) :: b_fineroot
-    real(r8) :: b_sapwood
-    real(r8) :: b_aboveground
-    real(r8) :: b_coarseroot
+    real(r8) :: b_fineroot    ! fine root biomass [kgC]
+    real(r8) :: b_sapwood     ! sapwood biomass [kgC]
+    real(r8) :: b_agw         ! Above ground biomass [kgC]
+    real(r8) :: b_bgw         ! Below ground biomass [kgC]
 
     !----------------------------------------------------------------------
 
@@ -1186,11 +1188,11 @@ contains
        ! Initialize balive (leaf+fineroot+sapwood)
        call bleaf(temp_cohort%dbh,temp_cohort%hite,ft,temp_cohort%canopy_trim,b_leaf)
        call bfineroot(temp_cohort%dbh,temp_cohort%hite,ft,temp_cohort%canopy_trim,b_fineroot)
-       call bsap_allom(temp_cohort%dbh,temp_cohort%hite,ft,temp_cohort%canopy_trim,b_sapwood)
+       call bsap_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_sapwood)
 
-       call bag_allom(temp_cohort%dbh,temp_cohort%hite,ft,b_aboveground)
-       call bcr_allom(temp_cohort%dbh,temp_cohort%hite,ft,b_coarseroot)
-       call bdead_allom(b_aboveground,b_coarseroot,b_sapwood,ft,temp_cohort%bdead)
+       call bagw_allom(temp_cohort%dbh,temp_cohort%hite,ft,b_agw)
+       call bbgw_allom(temp_cohort%dbh,temp_cohort%hite,ft,b_bgw)
+       call bdead_allom(b_agw,b_bgw,b_sapwood,ft,temp_cohort%bdead)
 
        temp_cohort%balive      = b_leaf + b_sapwood + b_fineroot
        temp_cohort%bstore      = EDPftvarcon_inst%cushion(ft) * b_leaf

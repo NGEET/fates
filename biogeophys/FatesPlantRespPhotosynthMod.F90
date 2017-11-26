@@ -491,7 +491,7 @@ contains
                      ! Part VIII: Calculate maintenance respiration in the sapwood and
                      ! fine root pools.
                      ! ------------------------------------------------------------------
-                        
+                
                      ! Calculate the amount of nitrogen in the above and below ground 
                      ! stem and root pools, used for maint resp
                      ! We are using the fine-root C:N ratio as an approximation for
