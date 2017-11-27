@@ -49,12 +49,11 @@ module EDPhysiologyMod
   implicit none
   private
 
-  public :: canopy_derivs
   public :: non_canopy_derivs
   public :: trim_canopy
   public :: phenology
   private :: phenology_leafonoff
-  private :: Growth_Derivatives
+  public  :: Growth_Derivatives
   public :: recruitment
   private :: cwd_input
   private :: cwd_out
@@ -74,34 +73,7 @@ module EDPhysiologyMod
 contains
 
   ! ============================================================================
-  subroutine canopy_derivs( currentSite, currentPatch, bc_in )
-    !
-    ! !DESCRIPTION:
-    ! spawn new cohorts of juveniles of each PFT             
-    !
-    ! !USES:
-    !
-    ! !ARGUMENTS    
-    type(ed_site_type), intent(inout), target  :: currentSite
-    type(ed_patch_type) , intent(inout), target :: currentPatch
-    type(bc_in_type), intent(in)               :: bc_in
-    !
-    ! !LOCAL VARIABLES:
-    type(ed_cohort_type), pointer ::currentCohort
-    !----------------------------------------------------------------------
 
-    ! call plant growth functions
-
-    currentCohort => currentPatch%shortest
-
-    do while(associated(currentCohort))
-       call Growth_Derivatives(currentSite, currentCohort, bc_in )
-       currentCohort => currentCohort%taller
-    enddo
-
-  end subroutine canopy_derivs
-
-  ! ============================================================================
   subroutine non_canopy_derivs( currentSite, currentPatch, bc_in )
     !
     ! !DESCRIPTION:
@@ -862,9 +834,10 @@ contains
     endif
 
     ! Height
-    
+
+    ! When this model becomes fully prognostic for leaf, fineroot and sapwood
+    ! we will not need to call this routine here (RGK 11-2017)
     call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%hite)
-                       
     call allocate_live_biomass(currentCohort,0)
 
     ! -----------------------------------------------------------------------------------
@@ -873,15 +846,15 @@ contains
 
     ! Calculate leaf biomass, this wrapper finds the maximum per allometry, and then
     ! applies trimming
-    call bleaf(currentCohort%dbh,currentCohort%hite,ipft,currentCohort%canopy_trim,b_leaf)
+    call bleaf(currentCohort%dbh,currentCohort%hite,ipft,currentCohort%canopy_trim,b_leaf,db_leaf_dd)
 
     ! Calculate the fine root biomass, this wrapper finds the maximum per allometry,
     ! and in the current default case, will trim fine root biomass at the same proportion
     ! that it trims leaves
-    call bfineroot(currentCohort%dbh,currentCohort%hite,ipft,currentCohort%canopy_trim,b_fineroot)
+    call bfineroot(currentCohort%dbh,currentCohort%hite,ipft,currentCohort%canopy_trim,b_fineroot,db_fineroot_dd)
     
     ! Calculate sapwood biomass
-    call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,b_sap)
+    call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,b_sap,db_sap_dd)
 
     target_balive = b_leaf + b_fineroot + b_sap
 
@@ -1046,16 +1019,6 @@ contains
           gr_fract = 1.0_r8 - (EDPftvarcon_inst%seed_alloc(ipft) + EDPftvarcon_inst%clone_alloc(ipft))
        end if
        
-       ! Tally up the relative change in alive biomass WRT diameter
-       ! These calculations will take into account any height capping
-       ! (if the user wanted it) and its implications to these pools
-       call bleaf(currentCohort%dbh,currentCohort%hite,ipft,     &
-                  currentCohort%canopy_trim,b_leaf,db_leaf_dd)
-       call bfineroot(currentCohort%dbh,currentCohort%hite,ipft, &
-                      currentCohort%canopy_trim,b_fineroot,db_fineroot_dd)
-       call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim, &
-                       b_sap,db_sap_dd)
-
        ! Total change in alive biomass relative to dead biomass [kgC/kgC]
        dbalivedbd = (db_leaf_dd + db_fineroot_dd + db_sap_dd)/db_dead_dd
 
@@ -1093,7 +1056,7 @@ contains
        ! --------------------------------------------------------------------------------
        ! In this case, either there was not enough carbon generated, or the plant is off
        ! allometry (ie the alive pools are smaller than the maximums dictated by allometry
-       ! and timming).  So push all carbon into the alive pool (va = 1.0), and none
+       ! and trimming).  So push all carbon into the alive pool (va = 1.0), and none
        ! into structural (vs = 0.0) or seed (ie non-growth, gr_fract = 1.0).
        ! --------------------------------------------------------------------------------
 

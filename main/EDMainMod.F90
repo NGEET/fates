@@ -28,7 +28,7 @@ module EDMainMod
   use EDPatchDynamicsMod       , only : fuse_patches
   use EDPatchDynamicsMod       , only : spawn_patches
   use EDPatchDynamicsMod       , only : terminate_patches
-  use EDPhysiologyMod          , only : canopy_derivs
+  use EDPhysiologyMod          , only : Growth_Derivatives
   use EDPhysiologyMod          , only : non_canopy_derivs
   use EDPhysiologyMod          , only : phenology
   use EDPhysiologyMod          , only : recruitment
@@ -47,6 +47,7 @@ module EDMainMod
   use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydStates
   use FatesPlantHydraulicsMod  , only : initTreeHydStates
   use FatesPlantHydraulicsMod  , only : updateSizeDepRhizHydProps 
+  use FatesAllometryMod        , only : h_allom
 !  use FatesPlantHydraulicsMod , only : updateSizeDepRhizHydStates
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use FatesGlobals             , only : endrun => fates_endrun
@@ -260,17 +261,18 @@ contains
        ! check to see if the patch has moved to the next age class
        currentPatch%age_class = get_age_class_index(currentPatch%age)
 
-       ! Find the derivatives of the growth and litter processes. 
-       call canopy_derivs(currentSite, currentPatch, bc_in)
-       
        ! Update Canopy Biomass Pools
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort)) 
+
+          ! Calculate the rates of change of live and dead tissues
+          call Growth_Derivatives( currentSite, currentCohort, bc_in)
 
           cohort_biomass_store  = (currentCohort%balive+currentCohort%bdead+currentCohort%bstore)
           currentCohort%dbh    = max(small_no,currentCohort%dbh    + currentCohort%ddbhdt    * hlm_freq_day )
           currentCohort%balive = currentCohort%balive + currentCohort%dbalivedt * hlm_freq_day 
           currentCohort%bdead  = max(small_no,currentCohort%bdead  + currentCohort%dbdeaddt  * hlm_freq_day )
+          call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%hite)
 
           if ( DEBUG ) then
              write(fates_log(),*) 'EDMainMod dbstoredt I ',currentCohort%bstore, &
