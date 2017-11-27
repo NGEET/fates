@@ -370,10 +370,10 @@ contains
        temp_cohort%canopy_trim = 1.0_r8
 
        ! Calculate total above-ground biomass from allometry
-       call bagw_allom(temp_cohort%dbh,temp_cohort%hite,pft,b_agw)
+       call bagw_allom(temp_cohort%dbh,pft,b_agw)
 
        ! Calculate coarse root biomass from allometry
-       call bbgw_allom(temp_cohort%dbh,temp_cohort%hite,pft,b_bgw)
+       call bbgw_allom(temp_cohort%dbh,pft,b_bgw)
 
        ! Calculate the leaf biomass 
        ! (calculates a maximum first, then applies canopy trim)

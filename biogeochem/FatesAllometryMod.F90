@@ -210,16 +210,15 @@ contains
   ! Generic AGB interface
   ! ============================================================================
   
-  subroutine bagw_allom(d,h,ipft,bagw,dbagwdd)
+  subroutine bagw_allom(d,ipft,bagw,dbagwdd)
 
 
     real(r8),intent(in)    :: d       ! plant diameter [cm]
-    real(r8),intent(in)    :: h       ! plant height [m]
     integer(i4),intent(in) :: ipft    ! PFT index
     real(r8),intent(out)   :: bagw    ! biomass above ground woody tissues
     real(r8),intent(out),optional :: dbagwdd  ! change in agbw per diameter [kgC/cm]
 
-    real(r8)               :: hj      ! height (dummy arg)
+    real(r8)               :: h       ! height
     real(r8)               :: dhdd    ! change in height wrt d
 
     associate( p1           => EDPftvarcon_inst%allom_agb1(ipft), &
@@ -233,13 +232,13 @@ contains
       
       select case(int(allom_amode))
       case (1) !"salda")
-         call h_allom(d,ipft,hj,dhdd)
+         call h_allom(d,ipft,h,dhdd)
          call dh2bagw_salda(d,h,dhdd,p1,p2,p3,p4,wood_density,c2b,agb_frac,bagw,dbagwdd) 
       case (2) !"2par_pwr")
          ! Switch for woodland dbh->drc
          call d2bagw_2pwr(d,p1,p2,c2b,bagw,dbagwdd)
       case (3) !"chave14") 
-         call h_allom(d,ipft,hj,dhdd)
+         call h_allom(d,ipft,h,dhdd)
          call dh2bagw_chave2014(d,h,dhdd,p1,p2,wood_density,c2b,bagw,dbagwdd)
       case DEFAULT
          write(fates_log(),*) 'An undefined AGB allometry was specified: ',allom_amode
@@ -413,8 +412,8 @@ contains
        call bsap_dlinear(d,h,dhdd,bl,dbldd,ipft,bsap,dbsapdd)
 
        ! Perform a capping/check on total woody biomass
-       call bagw_allom(d,h,ipft,bagw,dbagwdd)
-       call bbgw_allom(d,h,ipft,bbgw,dbbgwdd)
+       call bagw_allom(d,ipft,bagw,dbagwdd)
+       call bbgw_allom(d,ipft,bbgw,dbbgwdd)
        
        ! Force sapwood to be less than a maximum fraction of total biomass
        ! (this comes into play typically in very small plants)
@@ -447,10 +446,9 @@ contains
   ! non-fineroot biomass.
   ! ============================================================================
 
-  subroutine bbgw_allom(d,h,ipft,bbgw,dbbgwdd)
+  subroutine bbgw_allom(d,ipft,bbgw,dbbgwdd)
 
     real(r8),intent(in)           :: d          ! plant diameter [cm]
-    real(r8),intent(in)           :: h          ! plant height [m]
     integer(i4),intent(in)        :: ipft       ! PFT index
     real(r8),intent(out)          :: bbgw       ! below ground woody biomass [kgC]
     real(r8),intent(out),optional :: dbbgwdd    ! change bbgw  per diam [kgC/cm]
@@ -460,7 +458,7 @@ contains
     
     select case(int(EDPftvarcon_inst%allom_cmode(ipft)))
     case(1) !"constant")
-       call bagw_allom(d,h,ipft,bagw,dbagwdd)
+       call bagw_allom(d,ipft,bagw,dbagwdd)
        call bbgw_const(d,bagw,dbagwdd,ipft,bbgw,dbbgwdd)
     case DEFAULT
        write(fates_log(),*) 'An undefined coarse root allometry was specified: ', &

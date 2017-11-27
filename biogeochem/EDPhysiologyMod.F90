@@ -1029,9 +1029,9 @@ contains
 
     ! Tally up the relative change in dead biomass WRT diameter
     ! biomass above ground woody/fibrous (non-leaf) tissues
-    call bagw_allom(currentCohort%dbh,currentCohort%hite,ipft,b_agw,db_agw_dd)
+    call bagw_allom(currentCohort%dbh,ipft,b_agw,db_agw_dd)
     ! biomass below ground in woody/fibrous (non-fineroot) tissues
-    call bbgw_allom(currentCohort%dbh,currentCohort%hite,ipft,b_bgw,db_bgw_dd)
+    call bbgw_allom(currentCohort%dbh,ipft,b_bgw,db_bgw_dd)
     call bdead_allom( b_agw, b_bgw, b_sap, ipft, b_dead, db_agw_dd, db_bgw_dd, db_sap_dd, db_dead_dd )
 
     !only if carbon balance is +ve
@@ -1190,8 +1190,8 @@ contains
        call bfineroot(temp_cohort%dbh,temp_cohort%hite,ft,temp_cohort%canopy_trim,b_fineroot)
        call bsap_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_sapwood)
 
-       call bagw_allom(temp_cohort%dbh,temp_cohort%hite,ft,b_agw)
-       call bbgw_allom(temp_cohort%dbh,temp_cohort%hite,ft,b_bgw)
+       call bagw_allom(temp_cohort%dbh,ft,b_agw)
+       call bbgw_allom(temp_cohort%dbh,ft,b_bgw)
        call bdead_allom(b_agw,b_bgw,b_sapwood,ft,temp_cohort%bdead)
 
        temp_cohort%balive      = b_leaf + b_sapwood + b_fineroot
