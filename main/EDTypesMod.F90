@@ -214,6 +214,7 @@ module EDTypesMod
      real(r8) ::  md                                     ! plant maintenance demand: kgC/indiv/year
      real(r8) ::  leaf_md                                ! leaf  maintenance demand: kgC/indiv/year
      real(r8) ::  root_md                                ! root  maintenance demand: kgC/indiv/year
+     real(r8) ::  stem_md                                ! stem maintenance demand:  kgC/indiv/year
      real(r8) ::  carbon_balance                         ! carbon remaining for growth and storage: kg/indiv/year
      real(r8) ::  seed_prod                              ! reproduction seed and clonal: KgC/indiv/year
      real(r8) ::  leaf_litter                            ! leaf litter from phenology: KgC/m2

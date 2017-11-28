@@ -4,27 +4,36 @@ module EDMortalityFunctionsMod
   ! Functions that control mortality.
   ! ============================================================================
 
-  use FatesConstantsMod, only : r8 => fates_r8
-  use FatesGlobals     , only : fates_log
-  use EDPftvarcon      , only : EDPftvarcon_inst
-  use EDTypesMod       , only : ed_cohort_type
-  use FatesConstantsMod, only : itrue,ifalse
-  use FatesAllometryMod, only : bleaf
-  use EDParamsMod      , only : ED_val_stress_mort
-  use FatesInterfaceMod, only : hlm_use_ed_prescribed_phys
+   use FatesConstantsMod     , only : r8 => fates_r8
+   use FatesGlobals          , only : fates_log
+   use EDPftvarcon           , only : EDPftvarcon_inst
+   use EDTypesMod            , only : ed_cohort_type
+   use EDTypesMod            , only : ed_site_type
+   use EDTypesMod            , only : ed_patch_type
+   use FatesConstantsMod     , only : itrue,ifalse
+   use FatesAllometryMod     , only : bleaf
+   use EDParamsMod           , only : ED_val_stress_mort
+   use FatesInterfaceMod     , only : bc_in_type
+   use FatesInterfaceMod     , only : hlm_use_ed_prescribed_phys
+   use FatesInterfaceMod     , only : hlm_freq_day
+   use EDLoggingMortalityMod , only : LoggingMortality_frac
+   use EDParamsMod           , only : fates_mortality_disturbance_fraction
+   use FatesInterfaceMod     , only : bc_in_type
 
-  implicit none
-  private
 
-
-  public ::  mortality_rates
-
-  logical :: DEBUG_growth = .false.
-
-  ! ============================================================================
-  ! 10/30/09: Created by Rosie Fisher
-  ! ============================================================================
-
+   implicit none
+   private
+   
+   
+   public :: mortality_rates
+   public :: Mortality_Derivative
+   
+   logical :: DEBUG_growth = .false.
+   
+   ! ============================================================================
+   ! 10/30/09: Created by Rosie Fisher
+   ! ============================================================================
+   
 contains
 
 
@@ -90,6 +99,60 @@ contains
 
  end subroutine mortality_rates
 
-! ============================================================================
+ ! ============================================================================
+
+ subroutine Mortality_Derivative( currentSite, currentCohort, bc_in)
+
+    !
+    ! !DESCRIPTION:
+    ! Calculate the change in number density per unit time from the contributing
+    ! rates.  These rates are not disturbance-inducing rates (that is handled
+    ! elsewhere).
+    !
+    ! !USES:
+
+    !
+    ! !ARGUMENTS    
+    type(ed_site_type), intent(inout), target  :: currentSite
+    type(ed_cohort_type),intent(inout), target :: currentCohort
+    type(bc_in_type), intent(in)               :: bc_in
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: cmort    ! starvation mortality rate (fraction per year)
+    real(r8) :: bmort    ! background mortality rate (fraction per year)
+    real(r8) :: hmort    ! hydraulic failure mortality rate (fraction per year)
+    real(r8) :: lmort_logging     ! Mortality fraction associated with direct logging
+    real(r8) :: lmort_collateral  ! Mortality fraction associated with logging collateral damage
+    real(r8) :: lmort_infra       ! Mortality fraction associated with logging infrastructure
+    real(r8) :: dndt_logging      ! Mortality rate (per day) associated with the a logging event
+    integer  :: ipft              ! local copy of the pft index
+    !----------------------------------------------------------------------
+
+    ipft = currentCohort%pft
+    
+    ! Mortality for trees in the understorey. 
+    !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
+    call mortality_rates(currentCohort,cmort,hmort,bmort)
+    call LoggingMortality_frac(ipft, currentCohort%dbh, &
+                               currentCohort%lmort_logging,                       &
+                               currentCohort%lmort_collateral,                    &
+                               currentCohort%lmort_infra )
+
+    if (currentCohort%canopy_layer > 1)then 
+       
+       ! Include understory logging mortality rates not associated with disturbance
+       dndt_logging = (currentCohort%lmort_logging    + &
+                       currentCohort%lmort_collateral + &
+                       currentCohort%lmort_infra)/hlm_freq_day
+
+       currentCohort%dndt = -1.0_r8 * (cmort+hmort+bmort+dndt_logging) * currentCohort%n
+    else
+       currentCohort%dndt = -(1.0_r8 - fates_mortality_disturbance_fraction) &
+            * (cmort+hmort+bmort) * currentCohort%n
+    endif
+
+    return
+
+ end subroutine Mortality_Derivative
 
 end module EDMortalityFunctionsMod

@@ -52,7 +52,7 @@ module EDMainMod
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteCarbonStock
-  
+  use EDMortalityFunctionsMod  , only : Mortality_Derivative
   ! CIME Globals
   use shr_log_mod         , only : errMsg => shr_log_errMsg
   use shr_infnan_mod      , only : nan => shr_infnan_nan, assignment(=)
@@ -265,8 +265,13 @@ contains
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort)) 
 
-          ! Calculate the rates of change of live and dead tissues
-          call Growth_Derivatives( currentSite, currentCohort, bc_in)
+
+          ! Calculate the mortality derivatives
+          call Mortality_Derivative( currentSite, currentCohort, bc_in )
+
+
+          ! Apply growth to potentially all carbon pools
+          call Growth_Derivatives( currentSite, currentCohort, bc_in )
 
           cohort_biomass_store  = (currentCohort%balive+currentCohort%bdead+currentCohort%bstore)
           currentCohort%dbh    = max(small_no,currentCohort%dbh    + currentCohort%ddbhdt    * hlm_freq_day )

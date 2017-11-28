@@ -233,7 +233,6 @@ contains
     currentCohort => cc_p
     ft = currentcohort%pft
     
-    
     call bleaf(currentcohort%dbh,currentcohort%hite,ft,currentcohort%canopy_trim,tar_bl)
     call bfineroot(currentcohort%dbh,currentcohort%hite,ft,currentcohort%canopy_trim,tar_br)
     call bsap_allom(currentcohort%dbh,ft,currentcohort%canopy_trim,tar_bsw)
