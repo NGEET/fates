@@ -44,6 +44,7 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : bdead_allom
   use FatesAllometryMod  , only : bbgw_allom
   use FatesAllometryMod  , only : carea_allom
+  use FatesAllometryMod  , only : check_integrated_allometries
 
 
   implicit none
@@ -771,12 +772,8 @@ contains
     type(bc_in_type), intent(in)               :: bc_in
     !
     ! !LOCAL VARIABLES:
-    real(r8) :: va       !fraction of growth going to alive biomass
-    real(r8) :: vs       !fraction of growth going to structural biomass
-    real(r8) :: u
-    real(r8) :: frac     !fraction the stored carbon is of target store amount
-    real(r8) :: f_store  !fraction of NPP allocated to storage in this timestep (functionf of stored pool)
-    real(r8) :: gr_fract !fraction of carbon balance that is allocated to growth (not reproduction)
+
+    integer  :: ipft               ! PFT index
 
     ! Per plant allocation targets
 
@@ -795,13 +792,49 @@ contains
     real(r8) :: bt_store           ! target storage biomass (kgC)
     real(r8) :: dbt_store_dd       ! target rate of change in storage (kgC/cm)
 
+    real(r8) :: leaf_below_target
+    real(r8) :: froot_below_target
+    real(r8) :: sap_below_target
+    real(r8) :: store_below_target
+    real(r8) :: dead_below_target
 
-    !----------------------------------------------------------------------
+    
+    real(r8) :: store_flux       ! carbon fluxing into storage [kgC]
+    real(r8) :: leaf_flux
+    real(r8) :: froot_flux
+    real(r8) :: sap_flux
+    real(r8) :: dead_flux
+    real(r8) :: repro_flux
+
+    real(r8) :: store_target_fraction
+    real(r8) :: store_flux_fraction
+    real(r8) :: repro_fraction
+
+    real(r8) :: leaf_turnover_demand
+    real(r8) :: root_turnover_demand
+    
+
+    real(r8) :: total_turnover_demand
+
+    ! Woody turnover timescale [years]
+    real(r8), parameter :: background_woody_turnover = 20.0_r8
 
     ipft = currentCohort%pft
 
+
+    ! Initialize NPP flux diagnostics
+    currentCohort%npp_bstore = 0.0_r8
+    currentCohort%npp_leaf   = 0.0_r8
+    currentCohort%npp_froot  = 0.0_r8
+    currentCohort%npp_bdead  = 0.0_r8
+    currentCohort%npp_bseed  = 0.0_r8
+
+
+
     ! -----------------------------------------------------------------------------------
     ! I. Identify the net carbon gain for this dynamics interval
+    !    Set the available carbon pool, identify allocation portions, and decrement
+    !    the available carbon pool to zero.
     ! -----------------------------------------------------------------------------------
     
     ! convert from kgC/indiv/day into kgC/indiv/year
@@ -830,7 +863,8 @@ contains
     currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
 
  
-
+    ! Available carbon for growth [kgC]
+    currentCohort%carbon_balance = currentCohort%npp_acc
 
 
     ! -----------------------------------------------------------------------------------
@@ -869,45 +903,45 @@ contains
     !          that carbon back into the carbon flux pool
     ! -----------------------------------------------------------------------------------
 
-    leaf_deficit  = bt_leaf - currentCohort%bl
-    froot_deficit = bt_fineroot - currentCohort%br
-    sap_deficit   = bt_sap - currentCohort%bsw
-    store_deficit = bt_leaf * EDPftvarcon_inst%cushion(ipft) - currentCohort%bstore
-    dead_deficit  = bt_dead - currentCohort%bdead
+    leaf_below_target  = bt_leaf - currentCohort%bl
+    froot_below_target = bt_fineroot - currentCohort%br
+    sap_below_target   = bt_sap - currentCohort%bsw
+    store_below_target = bt_leaf * EDPftvarcon_inst%cushion(ipft) - currentCohort%bstore
+    dead_below_target  = bt_dead - currentCohort%bdead
    
-    if(leaf_deficit<0.0_r8) then
-       currentCohort%carbon_balance = currentCohort%carbon_balance - leaf_deficit
-       currentCohort%bl             = currentCohort%bl + leaf_deficit
-       currentCohort%npp_leaf       = currentCohort%npp_leaf + leaf_deficit * hlm_freq_day
-       leaf_deficit                 = 0.0_r8
+    if(leaf_below_target<0.0_r8) then
+       currentCohort%carbon_balance = currentCohort%carbon_balance - leaf_below_target
+       currentCohort%bl             = currentCohort%bl + leaf_below_target
+       currentCohort%npp_leaf       = currentCohort%npp_leaf + leaf_below_target * hlm_freq_day
+       leaf_below_target            = 0.0_r8
     end if
 
-    if(froot_deficit<0.0_r8) then
-       currentCohort%carbon_balance = currentCohort%carbon_balance - froot_deficit
-       currentCohort%br             = currentCohort%br +  froot_deficit
-       currentCohort%npp_froot      = currentCohort%npp_froot + froot_deficit * hlm_freq_day
-       froot_deficit                = 0.0_r8
+    if(froot_below_target<0.0_r8) then
+       currentCohort%carbon_balance = currentCohort%carbon_balance - froot_below_target
+       currentCohort%br             = currentCohort%br +  froot_below_target
+       currentCohort%npp_froot      = currentCohort%npp_froot + froot_below_target * hlm_freq_day
+       froot_below_target           = 0.0_r8
     end if
     
-    if(sap_deficit<0.0_r8) then
-       currentCohort%carbon_balance = currentCohort%carbon_balance - sap_deficit
-       currentCohort%bsw            = currentCohort%bsw +  sap_deficit
-       currentCohort%npp_bsw        = currentCohort%npp_bsw + sap_deficit * hlm_freq_day
-       sap_deficit                  = 0.0_r8
+    if(sap_below_target<0.0_r8) then
+       currentCohort%carbon_balance = currentCohort%carbon_balance - sap_below_target
+       currentCohort%bsw            = currentCohort%bsw +  sap_below_target
+       currentCohort%npp_bsw        = currentCohort%npp_bsw + sap_below_target * hlm_freq_day
+       sap_below_target             = 0.0_r8
     end if
     
-    if(store_deficit<0.0_r8) then
-       currentCohort%carbon_balance = currentCohort%carbon_balance - store_deficit
-       currentCohort%bstore         = currentCohort%bstore +  store_deficit
-       currentCohort%npp_store      = currentCohort%npp_bsw + store_deficit * hlm_freq_day
-       store_deficit                = 0.0_r8
+    if(store_below_target<0.0_r8) then
+       currentCohort%carbon_balance = currentCohort%carbon_balance - store_below_target
+       currentCohort%bstore         = currentCohort%bstore + store_below_target
+       currentCohort%npp_bstore     = currentCohort%npp_bstore + store_below_target * hlm_freq_day
+       store_below_target           = 0.0_r8
     end if
 
-    if(dead_deficit<0.0_r8) then
-       currentCohort%carbon_balance = currentCohort%carbon_balance - dead_deficit
-       currentCohort%bdead          = currentCohort%bdead +  dead_deficit
-       currentCohort%npp_bdead      = currentCohort%npp_bdead + dead_deficit * hlm_freq_day
-       store_deficit                = 0.0_r8
+    if(dead_below_target<0.0_r8) then
+       currentCohort%carbon_balance = currentCohort%carbon_balance - dead_below_target
+       currentCohort%bdead          = currentCohort%bdead +  dead_below_target
+       currentCohort%npp_bdead      = currentCohort%npp_bdead + dead_below_target * hlm_freq_day
+       store_below_target           = 0.0_r8
     end if
 
 
@@ -961,18 +995,18 @@ contains
        currentCohort%leaf_md = 0._r8
     endif
 
-    ! Stem turnover is turned off for now. SHould make provisions for storms,
-    ! or for scenarios where stem wood turnover is high, it brings some leaf/root
-    ! with it.
-    currentCohort%stem_md = 0.0_r8
+    currentCohort%bsw_md    = currentCohort%bsw / background_woody_turnover
+    currentCohort%bdead_md  = currentCohort%bdead / background_woody_turnover
+    currentCohort%bstore_md = currentCohort%bstore / background_woody_turnover
 
-
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! COMPLETE THE ENTRIES FOR THESE THREE ABOVE, MUST FUSE, CREATE OUTPUT, COPY, ETC
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     ! -----------------------------------------------------------------------------------
     ! V. Remove turnover from the appropriate pools
     !
     ! Units: kgC/year / (1/days_per_year) = kgC/day -> (day elapsed) -> kgC
-    ! ADD THESE TO THE LITTER FLUX
     ! -----------------------------------------------------------------------------------
     
     ! leaf biomass
@@ -981,38 +1015,31 @@ contains
     ! fine-root biomass
     currentcohort%br = currentcohort%br - currentCohort%root_md/hlm_freq_day
     
+    ! sapwood biomass loss
+    currentcohort%bsw = currentcohort%bsw - currentCohort%bsw_md/hlm_freq_day
+
+    ! structural biomass loss
+    currentCohort%bdead = currentCohort%bdead - currentCohort%bdead_md/hlm_freq_day
+
+    ! storage biomass loss
+    currentCohort%bstore = currentCohort%bstore - currentCohort%bstore_md/hlm_freq_day
     
-
-    ! -----------------------------------------------------------------------------------
-    ! VI. Set the available carbon pool, identify allocation portions, and decrement
-    !    the available carbon pool to zero.
-    ! -----------------------------------------------------------------------------------
-
-    ! Available carbon, convert [kgC/year] to [kgC]
-    currentCohort%carbon_balance = currentCohort%npp_acc_hold/hlm_freq_day
-
-    ! Initialize some NPP flux diagnostics
-    currentCohort%npp_store  = 0.0_r8
-    currentCohort%npp_leaf   = 0.0_r8
-    currentCohort%npp_froot  = 0.0_r8
-
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! CHECK LITTER FLUXES AND SEE WHERE THE LITTER IS GENERATED
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    
     ! -----------------------------------------------------------------------------------
     ! VI(a) if carbon balance is negative, re-coup the losses from storage
-    !  ALLOW NEGATIVE STORAGE CARBON FOR NOW
     ! -----------------------------------------------------------------------------------
+
+
     if( currentCohort%carbon_balance < 0.0_r8 ) then
-       storage_flux = -currentCohort%carbon_balance
-       currentCohort%carbon_balance = currentCohort%carbon_balance + storage_flux
-       currentCohort%bstore         = currentCohort%bstore - storage_flux
-       currentCohort%npp_store      = currentCohort%npp_store - storage_flux * hlm_freq_day
-!       if( currentCohort%carbon_balance < -tiny(currentCohort%carbon_balance) ) then
-!          write(fates_log(),*) ' A cohort has a negative carbon balance (ie more respiration'
-!          write(fates_log(),*) '   than assimilate), and does not have enough storage to'
-!          write(fates_log(),*) '   accomodate the losses.  Maintenance respiration'
-!          write(fates_log(),*) '   SHOULD be attenuating at this point and driving up'
-!          write(fates_log9),*) '   mortality. Exiting.'
-!          call endrun(msg=errMsg(sourcefile, __LINE__))
-!       end if
+       store_flux = -currentCohort%carbon_balance
+       currentCohort%carbon_balance = currentCohort%carbon_balance + store_flux
+       currentCohort%bstore         = currentCohort%bstore - store_flux
+       currentCohort%npp_store      = currentCohort%npp_store - store_flux * hlm_freq_day
+       ! We have pushed to net-zero carbon, the rest of this routine can be ignored
+       return
     end if
     
 
@@ -1031,10 +1058,10 @@ contains
        currentCohort%bl             = currentCohort%bl +  leaf_flux
        currentCohort%npp_leaf       = currentCohort%npp_leaf + leaf_flux * hlm_freq_day
 
-       root_flux = min(root_turnover_demand, currentCohort%carbon_balance*(root_turnover_demand/total_turnover_demand))
-       currentCohort%carbon_balance = currentCohort%carbon_balance - root_flux
-       currentCohort%br             = currentCohort%br +  root_flux
-       currentCohort%npp_froot      = currentCohort%npp_froot + root_flux * hlm_freq_day
+       froot_flux = min(root_turnover_demand, currentCohort%carbon_balance*(root_turnover_demand/total_turnover_demand))
+       currentCohort%carbon_balance = currentCohort%carbon_balance - froot_flux
+       currentCohort%br             = currentCohort%br +  froot_flux
+       currentCohort%npp_froot      = currentCohort%npp_froot + froot_flux * hlm_freq_day
     end if
     
 
@@ -1042,12 +1069,12 @@ contains
     ! -----------------------------------------------------------------------------------
     ! VI(c).  If carbon is still available, prioritize some allocation to storage
     ! -----------------------------------------------------------------------------------
-    storage_target_fraction      = currentCohort%bstore/( bt_leaf * EDPftvarcon_inst%cushion(ipft)))
-    storage_flux_fraction        = max(exp(-1.*storage_target_fraction**4._r8) - exp( -1.0_r8 ),0.0_r8)  
-    storage_flux                 = currentCohort%carbon_balance * storage_flux_fraction
-    currentCohort%carbon_balance = currentCohort%carbon_balance - storage_flux
-    currentCohort%bstore         = currentCohort%bstore + storage_flux
-    currentCohort%npp_store      = currentCohort%npp_store + storage_flux * hlm_freq_day
+    store_target_fraction      = currentCohort%bstore/( bt_leaf * EDPftvarcon_inst%cushion(ipft)))
+    store_flux_fraction        = max(exp(-1.*store_target_fraction**4._r8) - exp( -1.0_r8 ),0.0_r8)  
+    store_flux                 = currentCohort%carbon_balance * store_flux_fraction
+    currentCohort%carbon_balance = currentCohort%carbon_balance - store_flux
+    currentCohort%bstore         = currentCohort%bstore + store_flux
+    currentCohort%npp_store      = currentCohort%npp_store + store_flux * hlm_freq_day
 
 
     ! -----------------------------------------------------------------------------------
@@ -1066,55 +1093,75 @@ contains
        currentCohort%bl             = currentCohort%bl +  leaf_flux
        currentCohort%npp_leaf       = currentCohort%npp_leaf + leaf_flux * hlm_freq_day
        
-       root_flux = min(root_turnover_demand, currentCohort%carbon_balance*(root_turnover_demand/total_turnover_demand))
-       currentCohort%carbon_balance = currentCohort%carbon_balance - root_flux
-       currentCohort%br             = currentCohort%br +  root_flux
-       currentCohort%npp_froot      = currentCohort%npp_froot + root_flux * hlm_freq_day
+       froot_flux = min(root_turnover_demand, currentCohort%carbon_balance*(root_turnover_demand/total_turnover_demand))
+       currentCohort%carbon_balance = currentCohort%carbon_balance - froot_flux
+       currentCohort%br             = currentCohort%br +  froot_flux
+       currentCohort%npp_froot      = currentCohort%npp_froot + froot_flux * hlm_freq_day
     end if
 
 
     ! -----------------------------------------------------------------------------------
-    ! V(e).  If carbon is still available, we try to push all alive pools back towards allometry
-    !
-    ! SUGGESTED VARIABLE NAMES: below_target
-    !
+    ! V(e).  If carbon is still available, we try to push all live 
+    !        pools back towards allometry
     ! -----------------------------------------------------------------------------------
 
-    leaf_deficit  = bt_leaf - currentCohort%bl
-    froot_deficit = bt_fineroot - currentCohort%br
-    sap_deficit   = bt_sap - currentCohort%bsw
-    store_deficit = bt_leaf * EDPftvarcon_inst%cushion(ipft) - currentCohort%bstore
-    total_deficit = leaf_deficit + froot_deficit + sap_deficit + store_deficit
+    leaf_below_target  = bt_leaf - currentCohort%bl
+    froot_below_target = bt_fineroot - currentCohort%br
+    sap_below_target   = bt_sap - currentCohort%bsw
+    store_below_target = bt_leaf * EDPftvarcon_inst%cushion(ipft) - currentCohort%bstore
+    total_below_target = leaf_below_target + froot_below_target + sap_below_target + store_below_target
     
-    if ( currentCohort%carbon_balance .and. total_deficit>0.0_r8) then
+    if ( currentCohort%carbon_balance > 0.0_r8 .and. total_below_target>0.0_r8) then
 
-       leaf_flux     = min(leaf_deficit,currentCohort%carbon_balance * leaf_deficit/total_deficit)
+       leaf_flux     = min(leaf_below_target,  &
+                           currentCohort%carbon_balance * leaf_below_target/total_below_target)
+       froot_flux    = min(froot_below_target, &
+                           currentCohort%carbon_balance * froot_below_target/total_below_target)
+       sap_flux      = min(sap_below_target,   &
+                           currentCohort%carbon_balance * sap_below_target/total_below_target)
+       store_flux  = min(store_below_target, &
+                           currentCohort%carbon_balance * store_below_target/total_below_target)
+
        currentCohort%carbon_balance = currentCohort%carbon_balance - leaf_flux
        currentCohort%bl             = currentCohort%bl + leaf_flux
        currentCohort%npp_leaf       = currentCohort%npp_leaf + leaf_flux * hlm_freq_day
-
-       froot_flux    = min(froot_deficit,currentCohort%carbon_balance * froot_deficit/total_deficit)
+       
        currentCohort%carbon_balance = currentCohort%carbon_balance - froot_flux
        currentCohort%br             = currentCohort%br +  froot_flux
        currentCohort%npp_froot      = currentCohort%npp_froot + froot_flux * hlm_freq_day
        
-       sap_flux      = min(sap_deficit,currentCohort%carbon_balance * sap_deficit/total_deficit)
        currentCohort%carbon_balance = currentCohort%carbon_balance - sap_flux
        currentCohort%bsw            = currentCohort%bsw +  sap_flux
        currentCohort%npp_bsw        = currentCohort%npp_bsw + sap_flux * hlm_freq_day
-
-       storage_flux  = min(store_deficit,currentCohort%carbon_balance * store_deficit/total_deficit)
+       
        currentCohort%carbon_balance = currentCohort%carbon_balance - store_flux
-       currentCohort%bstore         = currentCohort%store +  store_flux
-       currentCohort%npp_store      = currentCohort%npp_bsw + store_flux * hlm_freq_day
-
+       currentCohort%bstore         = currentCohort%bstore +  store_flux
+       currentCohort%npp_bstore     = currentCohort%npp_bdead + store_flux * hlm_freq_day
+       
     end if
-   
 
+    
+    ! -----------------------------------------------------------------------------------
+    ! V(f).  If carbon is still available, replenish the structural pool to get
+    !           back on allometry
+    ! -----------------------------------------------------------------------------------
+
+    dead_below_target  = bt_dead - currentCohort%bdead
+    
+    if ( currentCohort%carbon_balance > 0.0_r8 .and. dead_below_target>0.0_r8) then
+
+       dead_flux     = min(currentCohort%carbon_balance,dead_below_target)
+       currentCohort%carbon_balance = currentCohort%carbon_balance - dead_flux
+       currentCohort%bdead          = currentCohort%bdead +  dead_flux
+       currentCohort%npp_bdead      = currentCohort%npp_bdead + dead_flux * hlm_freq_day
+       
+    end if
+
+   
 
     ! -----------------------------------------------------------------------------------
     ! V(e).  If carbon is yet still available ...
-    !        Our alive pools are now on allometry, and we can increment all pools
+    !        Our pools are now on allometry, and we can increment all pools
     !        including structure and reproduction according to their rates
     ! -----------------------------------------------------------------------------------
 
@@ -1122,18 +1169,18 @@ contains
 
        ! fraction of carbon going towards reproduction
        if (currentCohort%dbh <= EDPftvarcon_inst%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
-          repro_frac = EDPftvarcon_inst%seed_alloc(ipft)
+          repro_fraction = EDPftvarcon_inst%seed_alloc(ipft)
        else
-          repro_frac = EDPftvarcon_inst%seed_alloc(ipft) + EDPftvarcon_inst%clone_alloc(ipft)
+          repro_fraction = EDPftvarcon_inst%seed_alloc(ipft) + EDPftvarcon_inst%clone_alloc(ipft)
        end if
        
        dbt_total_dd = db_leaf_dd + db_fineroot_dd + db_sap_dd + db_dead_dd + db_store_dd
        
-       leaf_flux  = currentCohort%carbon_balance * (db_leaf_dd/dbt_total_dd)*(1.0_repro_frac)
-       froot_flux = currentCohort%carbon_balance * (db_fineroot_dd/dbt_total_dd)*(1.0_repro_frac)
-       sap_flux   = currentCohort%carbon_balance * (db_sap_dd/dbt_total_dd)*(1.0_repro_frac)
-       dead_flux  = currentCohort%carbon_balance * (db_dead_dd/dbt_total_dd)*(1.0_repro_frac)
-       repro_flux = currentCohort%carbon_balance * repro_frac
+       leaf_flux  = currentCohort%carbon_balance * (db_leaf_dd/dbt_total_dd)*(1.0_repro_fraction)
+       froot_flux = currentCohort%carbon_balance * (db_fineroot_dd/dbt_total_dd)*(1.0_repro_fraction)
+       sap_flux   = currentCohort%carbon_balance * (db_sap_dd/dbt_total_dd)*(1.0_repro_fraction)
+       dead_flux  = currentCohort%carbon_balance * (db_dead_dd/dbt_total_dd)*(1.0_repro_fraction)
+       repro_flux = currentCohort%carbon_balance * repro_fraction
 
        ! Take an Euler Step to integrate all pools
 
@@ -1173,10 +1220,13 @@ contains
 
        ! ------------------------------------------------------------------------------------
        ! VIII. Run a post integration test to see if our integrated quantities match
-       !       the diagnostic quantities
+       !       the diagnostic quantities. (note we do not need to pass in leaf status
+       !       because we would not make it to this check if we were not on allometry
        ! ------------------------------------------------------------------------------------
        
-       call check_integrated_allometries(currentCohort%dbh,)
+       call check_integrated_allometries(currentCohort%dbh,ipft,currentCohort%canopy_trim, &
+                                         currentCohort%bl,currentCohort%br,                &
+                                         currentCohort%bsw,currentCohort%bdead)
 
 
     end if

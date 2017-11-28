@@ -130,6 +130,88 @@ contains
   ! Check to make sure Martinez-Cano height cap is not on, or explicitly allowed
 
 
+  subroutine check_integrated_allometries(dbh,ipft,bl,bfr,bsap,bdead)
+
+     ! This routine checks the error on the carbon allocation
+     ! integration step.  The integrated quantities should
+     ! be a close match on the diagnosed quantities.
+     ! We don't have to worry about small accumulating biases,
+     ! or small errors because the scheme automatically pushes
+     ! all carbon pools towards the allometric value corresponding
+     ! to the diameter on each step, prior to performing an integration.
+
+     real(r8),intent(in) :: dbh    ! diameter of plant [cm]
+     integer,intent(in)  :: ipft   ! plant functional type index
+     real(r8),intent(in) :: canopy_trim ! trimming function
+     real(r8),intent(in) :: bl     ! integrated leaf biomass [kgC]
+     real(r8),intent(in) :: bfr    ! integrated fine root biomass [kgC]
+     real(r8),intent(in) :: bsap   ! integrated sapwood biomass [kgC]
+     real(r8),intent(in) :: bdead  ! integrated structural biomass [kgc]
+     
+     real(r8) :: height            ! diagnosed height [m]
+     real(r8) :: bl_diag           ! diagnosed leaf biomass [kgC]
+     real(r8) :: bfr_diag          ! diagnosed fine-root biomass [kgC]
+     real(r8) :: bsap_diag         ! diagnosed sapwood biomass [kgC]
+     real(r8) :: bdead_diag        ! diagnosed structural biomass [kgC]
+     real(r8) :: bagw_diag         ! diagnosed agbw [kgC]
+     real(r8) :: bbgw_diag         ! diagnosed below ground wood [kgC]
+
+     real(r8) :: relative_err_thresh = 1.0e-4_r8
+
+     
+     call h_allom(dbh,ipft,height)
+     call bleaf(dbh,height,ipft,canopy_trim,bl_diag)
+     call bfineroot(dbh,height,ipft,canopy_trim,bfr_diag)
+     call bsap_allom(dbh,ipft,canopy_trim,bsap_diag)
+     call bagw_allom(dbh,ipft,bagw_diag)
+     call bbgw_allom(dbh,ipft,bbgw_diag)
+     call bdead_allom( bagw_diag, bbgw_diag, bsap_diag, ipft, bdead_diag )
+
+     if( abs(bl_diag-bl)/bl_diag > relative_err_thresh ) then
+        write(fates_log(),*) 'disparity in integrated/diagnosed leaf carbon'
+        write(fates_log(),*) 'resulting from the on-allometry growth integration step'
+        write(fates_log(),*) 'bl (integrated): ',bl
+        write(fates_log(),*) 'bl (diagnosed): ',bl_diag
+        write(fates_log(),*) 'relative error: ',abs(bl_diag-bl)/bl_diag
+        write(fates_log(),*) 'exiting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+     end if
+
+     if( abs(bfr_diag-bfr)/bfr_diag > relative_err_thresh ) then
+        write(fates_log(),*) 'disparity in integrated/diagnosed fineroot carbon'
+        write(fates_log(),*) 'resulting from the on-allometry growth integration step'
+        write(fates_log(),*) 'bfr (integrated): ',bfr
+        write(fates_log(),*) 'bfr (diagnosed): ',bfr_diag
+        write(fates_log(),*) 'relative error: ',abs(bfr_diag-bfr)/bfr_diag
+        write(fates_log(),*) 'exiting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+     end if
+     
+     if( abs(bsap_diag-bsap)/bsap_diag > relative_err_thresh ) then
+        write(fates_log(),*) 'disparity in integrated/diagnosed sapwood carbon'
+        write(fates_log(),*) 'resulting from the on-allometry growth integration step'
+        write(fates_log(),*) 'bsap (integrated): ',bsap
+        write(fates_log(),*) 'bsap (diagnosed): ',bsap_diag
+        write(fates_log(),*) 'relative error: ',abs(bsap_diag-bsap)/bsap_diag
+        write(fates_log(),*) 'exiting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+     end if
+
+     if( abs(bdead_diag-bdead)/bdead_diag > relative_err_thresh ) then
+        write(fates_log(),*) 'disparity in integrated/diagnosed structural carbon'
+        write(fates_log(),*) 'resulting from the on-allometry growth integration step'
+        write(fates_log(),*) 'bdead (integrated): ',bdead
+        write(fates_log(),*) 'bdead (diagnosed): ',bdead_diag
+        write(fates_log(),*) 'relative error: ',abs(bdead_diag-bdead)/bdead_diag
+        write(fates_log(),*) 'exiting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+     end if
+
+     return
+  end subroutine check_integrated_allometries
+
+
+
   ! ============================================================================
   ! Generic height to diameter interface
   ! ============================================================================
