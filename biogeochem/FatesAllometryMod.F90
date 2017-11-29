@@ -106,7 +106,7 @@ module FatesAllometryMod
   public :: bfineroot     ! Generic actual fine root biomass wrapper
   public :: bdead_allom   ! Generic bdead wrapper
   public :: carea_allom   ! Generic crown area wrapper
-  public :: check_integrated_allometries
+  public :: CheckIntegratedAllometries
 
   character(len=*), parameter :: sourcefile = __FILE__
 
@@ -131,7 +131,7 @@ contains
   ! Check to make sure Martinez-Cano height cap is not on, or explicitly allowed
 
 
-  subroutine check_integrated_allometries(dbh,ipft,canopy_trim,bl,bfr,bsap,bdead)
+  subroutine CheckIntegratedAllometries(dbh,ipft,canopy_trim,bl,bfr,bsap,bdead,ierr)
 
      ! This routine checks the error on the carbon allocation
      ! integration step.  The integrated quantities should
@@ -148,6 +148,7 @@ contains
      real(r8),intent(in) :: bfr    ! integrated fine root biomass [kgC]
      real(r8),intent(in) :: bsap   ! integrated sapwood biomass [kgC]
      real(r8),intent(in) :: bdead  ! integrated structural biomass [kgc]
+     integer,intent(out) :: ierr   ! Error flag (0=pass, 1=fail)
      
      real(r8) :: height            ! diagnosed height [m]
      real(r8) :: bl_diag           ! diagnosed leaf biomass [kgC]
@@ -157,9 +158,10 @@ contains
      real(r8) :: bagw_diag         ! diagnosed agbw [kgC]
      real(r8) :: bbgw_diag         ! diagnosed below ground wood [kgC]
 
-     real(r8) :: relative_err_thresh = 1.0e-3_r8
+     real(r8) :: relative_err_thresh = 1.0e-4_r8
 
-     
+     ierr = 0 
+
      call h_allom(dbh,ipft,height)
      call bleaf(dbh,height,ipft,canopy_trim,bl_diag)
      call bfineroot(dbh,height,ipft,canopy_trim,bfr_diag)
@@ -174,8 +176,10 @@ contains
         write(fates_log(),*) 'bl (integrated): ',bl
         write(fates_log(),*) 'bl (diagnosed): ',bl_diag
         write(fates_log(),*) 'relative error: ',abs(bl_diag-bl)/bl_diag
-        write(fates_log(),*) 'exiting'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
+        print*,'bl relative error: ',abs(bl_diag-bl)/bl_diag
+!        write(fates_log(),*) 'exiting'
+!        call endrun(msg=errMsg(sourcefile, __LINE__))
+        ierr = 1
      end if
 
      if( abs(bfr_diag-bfr)/bfr_diag > relative_err_thresh ) then
@@ -184,8 +188,10 @@ contains
         write(fates_log(),*) 'bfr (integrated): ',bfr
         write(fates_log(),*) 'bfr (diagnosed): ',bfr_diag
         write(fates_log(),*) 'relative error: ',abs(bfr_diag-bfr)/bfr_diag
-        write(fates_log(),*) 'exiting'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
+        print*,'bfr relative error: ',abs(bfr_diag-bfr)/bfr_diag
+!        write(fates_log(),*) 'exiting'
+!        call endrun(msg=errMsg(sourcefile, __LINE__))
+        ierr = 1
      end if
      
      if( abs(bsap_diag-bsap)/bsap_diag > relative_err_thresh ) then
@@ -194,8 +200,10 @@ contains
         write(fates_log(),*) 'bsap (integrated): ',bsap
         write(fates_log(),*) 'bsap (diagnosed): ',bsap_diag
         write(fates_log(),*) 'relative error: ',abs(bsap_diag-bsap)/bsap_diag
-        write(fates_log(),*) 'exiting'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
+        print*,'bsap relative error: ',abs(bsap_diag-bsap)/bsap_diag
+!        write(fates_log(),*) 'exiting'
+!        call endrun(msg=errMsg(sourcefile, __LINE__))
+        ierr = 1
      end if
 
      if( abs(bdead_diag-bdead)/bdead_diag > relative_err_thresh ) then
@@ -204,12 +212,14 @@ contains
         write(fates_log(),*) 'bdead (integrated): ',bdead
         write(fates_log(),*) 'bdead (diagnosed): ',bdead_diag
         write(fates_log(),*) 'relative error: ',abs(bdead_diag-bdead)/bdead_diag
-        write(fates_log(),*) 'exiting'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
+        print*,'bdead relative error: ',abs(bdead_diag-bdead)/bdead_diag
+!        write(fates_log(),*) 'exiting'
+!        call endrun(msg=errMsg(sourcefile, __LINE__))
+        ierr = 1
      end if
 
      return
-  end subroutine check_integrated_allometries
+   end subroutine CheckIntegratedAllometries
 
 
 
