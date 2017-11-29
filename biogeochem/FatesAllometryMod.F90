@@ -106,6 +106,7 @@ module FatesAllometryMod
   public :: bfineroot     ! Generic actual fine root biomass wrapper
   public :: bdead_allom   ! Generic bdead wrapper
   public :: carea_allom   ! Generic crown area wrapper
+  public :: check_integrated_allometries
 
   character(len=*), parameter :: sourcefile = __FILE__
 
@@ -130,7 +131,7 @@ contains
   ! Check to make sure Martinez-Cano height cap is not on, or explicitly allowed
 
 
-  subroutine check_integrated_allometries(dbh,ipft,bl,bfr,bsap,bdead)
+  subroutine check_integrated_allometries(dbh,ipft,canopy_trim,bl,bfr,bsap,bdead)
 
      ! This routine checks the error on the carbon allocation
      ! integration step.  The integrated quantities should
@@ -156,7 +157,7 @@ contains
      real(r8) :: bagw_diag         ! diagnosed agbw [kgC]
      real(r8) :: bbgw_diag         ! diagnosed below ground wood [kgC]
 
-     real(r8) :: relative_err_thresh = 1.0e-4_r8
+     real(r8) :: relative_err_thresh = 1.0e-3_r8
 
      
      call h_allom(dbh,ipft,height)

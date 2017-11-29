@@ -19,7 +19,6 @@ module EDMainMod
   use FatesInterfaceMod        , only : bc_in_type
   use FatesInterfaceMod        , only : hlm_masterproc
   use FatesInterfaceMod        , only : numpft
-  use EDCohortDynamicsMod      , only : allocate_live_biomass
   use EDCohortDynamicsMod      , only : terminate_cohorts
   use EDCohortDynamicsMod      , only : fuse_cohorts
   use EDCohortDynamicsMod      , only : sort_cohorts
@@ -523,7 +522,7 @@ contains
              write(fates_log(),*)'---'
              currentCohort => currentPatch%tallest
              do while(associated(currentCohort))
-                write(fates_log(),*) currentCohort%bdead,currentCohort%balive,currentCohort%bstore,currentCohort%n
+                write(fates_log(),*) currentCohort%bdead,currentCohort%bstore,currentCohort%n
                 currentCohort => currentCohort%shorter;
              enddo !end cohort loop 
              currentPatch => currentPatch%younger

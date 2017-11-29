@@ -396,8 +396,7 @@ contains
                      ! keep track of number and biomass of demoted cohort
                      currentSite%demotion_rate(currentCohort%size_class) = &
                            currentSite%demotion_rate(currentCohort%size_class) + currentCohort%n
-                     currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + &
-                           currentCohort%b * currentCohort%n
+                     currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + currentCohort%b_total() * currentCohort%n
 
                      !kill the ones which go into canopy layers that are not allowed... (default nclmax=2) 
                      if(i_lyr+1 > nclmax)then 
@@ -471,8 +470,7 @@ contains
                      ! keep track of number and biomass of demoted cohort
                      currentSite%demotion_rate(currentCohort%size_class) = &
                            currentSite%demotion_rate(currentCohort%size_class) + currentCohort%n
-                     currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + &
-                           currentCohort%b * currentCohort%n
+                     currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + currentCohort%b_total() * currentCohort%n
 
                      !kill the ones which go into canopy layers that are not allowed... (default nclmax=2) 
                      if(i_lyr+1 > nclmax)then  
@@ -628,8 +626,8 @@ contains
                   ! keep track of number and biomass of promoted cohort
                   currentSite%promotion_rate(currentCohort%size_class) = &
                         currentSite%promotion_rate(currentCohort%size_class) + currentCohort%n
-                  currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
-                        currentCohort%b * currentCohort%n
+                  currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + currentCohort%b_total() * currentCohort%n
+
                endif
                currentCohort => currentCohort%shorter   
             enddo
@@ -715,8 +713,7 @@ contains
                      ! keep track of number and biomass of promoted cohort
                      currentSite%promotion_rate(copyc%size_class) = &
                            currentSite%promotion_rate(copyc%size_class) + copyc%n
-                     currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
-                           copyc%b * copyc%n
+                     currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + copyc%b_total() * copyc%n
                          
                      ! seperate cohorts. 
                      ! needs to be a very small number to avoid causing non-linearity issues with c_area. 
@@ -747,8 +744,7 @@ contains
                      ! keep track of number and biomass of promoted cohort
                      currentSite%promotion_rate(currentCohort%size_class) = &
                            currentSite%promotion_rate(currentCohort%size_class) + currentCohort%n
-                     currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
-                           currentCohort%b * currentCohort%n
+                     currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + currentCohort%b_total() * currentCohort%n
                      
                   endif          ! if(cc_gain < currentCohort%c_area)then
 
@@ -922,8 +918,6 @@ contains
              call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
                                        currentCohort%size_class,currentCohort%size_by_pft_class)
 
-             
-             currentCohort%b = currentCohort%balive+currentCohort%bdead+currentCohort%bstore
              call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,currentCohort%pft,currentCohort%c_area)
              currentCohort%treelai = tree_lai(currentCohort)
 
@@ -945,9 +939,9 @@ contains
                 write(fates_log(),*) 'ED: PFT or trim is zero in canopy_summarization', &
                       currentCohort%pft,currentCohort%canopy_trim
              endif
-             if(currentCohort%balive <= 0._r8)then
-                write(fates_log(),*) 'ED: balive is zero in canopy_summarization', &
-                      currentCohort%balive
+             if( (currentCohort%bsw + currentCohort%bl + currentCohort%br) <= 0._r8)then
+                write(fates_log(),*) 'ED: alive biomass is zero in canopy_summarization', &
+                      currentCohort%bsw + currentCohort%bl + currentCohort%br
              endif
 
              currentCohort => currentCohort%taller
@@ -1181,7 +1175,7 @@ contains
              else
                 fleaf = 0._r8
                 write(fates_log(), *) 'ED: no stem or leaf area' ,currentCohort%pft,currentCohort%bl, &
-                      currentCohort%balive,currentCohort%treelai,currentCohort%treesai,currentCohort%dbh, &
+                      currentCohort%treelai,currentCohort%treesai,currentCohort%dbh, &
                       currentCohort%n,currentCohort%status_coh
              endif
              currentPatch%ncan(L,ft) = max(currentPatch%ncan(L,ft),currentCohort%NV)  
@@ -1229,6 +1223,9 @@ contains
              !Bottom layer
              iv = currentCohort%NV
              ! EDPftvarcon_inst%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile.
+             print*,currentCohort%hite,iv,currentCohort%NV,currentCohort%treelai,currentCohort%treesai,currentCohort%bl
+             print*,EDPftvarcon_inst%crown(currentCohort%pft)
+
              layer_top_hite = currentCohort%hite-((iv/currentCohort%NV) * currentCohort%hite * &
                    EDPftvarcon_inst%crown(currentCohort%pft) )
              ! EDPftvarcon_inst%vertical_canopy_frac(ft))
@@ -1276,12 +1273,15 @@ contains
              if ( DEBUG ) write(fates_log(), *) 'LHP', currentPatch%layer_height_profile(L,ft,iv)
              if(currentCohort%dbh <= 0._r8.or.currentCohort%n == 0._r8)then
                 write(fates_log(), *) 'ED: dbh or n is zero in clmedlink', currentCohort%dbh,currentCohort%n
+                call endrun(msg=errMsg(sourcefile, __LINE__))
              endif
              if(currentCohort%pft == 0.or.currentCohort%canopy_trim <= 0._r8)then
                 write(fates_log(), *) 'ED: PFT or trim is zero in clmedlink',currentCohort%pft,currentCohort%canopy_trim
+                call endrun(msg=errMsg(sourcefile, __LINE__))
              endif
-             if(currentCohort%balive <= 0._r8.or.currentCohort%bl < 0._r8)then
-                write(fates_log(), *) 'ED: balive is zero in clmedlink',currentCohort%balive,currentCohort%bl
+             if(currentCohort%bl < 0._r8)then
+                write(fates_log(), *) 'ED: bl (leaf biomass) is lt zero',currentCohort%bl
+                call endrun(msg=errMsg(sourcefile, __LINE__))
              endif
              
              currentCohort => currentCohort%taller

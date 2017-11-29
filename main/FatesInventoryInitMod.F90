@@ -891,11 +891,7 @@ contains
       ! Calculate sapwood biomass
       call bsap_allom(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim,b_sapwood)
       
-      temp_cohort%balive = b_leaf + b_fineroot + b_sapwood
-      
       call bdead_allom( b_agw, b_bgw, b_sapwood, c_pft, temp_cohort%bdead )
-      
-      temp_cohort%b           = temp_cohort%balive + temp_cohort%bdead
       
       if( EDPftvarcon_inst%evergreen(c_pft) == 1) then
          temp_cohort%bstore = b_leaf * EDPftvarcon_inst%cushion(c_pft)
@@ -911,14 +907,12 @@ contains
             temp_cohort%laimemory = b_leaf
          endif
          ! reduce biomass according to size of store, this will be recovered when elaves com on.
-         temp_cohort%balive = temp_cohort%balive - temp_cohort%laimemory
          cstatus = csite%status
       endif
       
       if ( EDPftvarcon_inst%stress_decid(c_pft) == 1 ) then
          temp_cohort%bstore = b_leaf * EDPftvarcon_inst%cushion(c_pft)
          temp_cohort%laimemory = b_leaf
-         temp_cohort%balive = temp_cohort%balive - temp_cohort%laimemory
          cstatus = csite%dstatus
       endif
       

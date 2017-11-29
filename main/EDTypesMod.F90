@@ -125,13 +125,13 @@ module EDTypesMod
      real(r8) ::  dbh                                    ! dbh: cm
      real(r8) ::  hite                                   ! height: meters
      integer  ::  indexnumber                            ! unique number for each cohort. (within clump?)
-     real(r8) ::  balive                                 ! total living biomass: kGC per indiv
      real(r8) ::  bdead                                  ! dead biomass:  kGC per indiv
      real(r8) ::  bstore                                 ! stored carbon: kGC per indiv
      real(r8) ::  laimemory                              ! target leaf biomass- set from previous year: kGC per indiv
      integer  ::  canopy_layer                           ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)
-     real(r8) ::  canopy_layer_yesterday                 ! recent canopy status of cohort (1 = canopy, 2 = understorey, etc.)  real to be conservative during fusion
-     real(r8) ::  b                                      ! total biomass: kGC per indiv
+     real(r8) ::  canopy_layer_yesterday                 ! recent canopy status of cohort
+                                                         ! (1 = canopy, 2 = understorey, etc.)  
+                                                         ! real to be conservative during fusion
      real(r8) ::  bsw                                    ! sapwood in stem and roots: kGC per indiv
      real(r8) ::  bl                                     ! leaf biomass: kGC per indiv
      real(r8) ::  br                                     ! fine root biomass: kGC per indiv
@@ -189,13 +189,13 @@ module EDTypesMod
 
      ! Net Primary Production Partitions
 
-     real(r8) ::  npp_leaf                               ! NPP into leaves (includes replacement of turnover):  KgC/indiv/year
-     real(r8) ::  npp_froot                              ! NPP into fine roots (includes replacement of turnover):  KgC/indiv/year
+     real(r8) ::  npp_leaf                              ! NPP into leaves (includes replacement of turnover):  KgC/indiv/year
+     real(r8) ::  npp_froot                             ! NPP into fine roots (includes replacement of turnover):  KgC/indiv/year
 
-     real(r8) ::  npp_bsw                                ! NPP into sapwood: KgC/indiv/year
-     real(r8) ::  npp_bdead                              ! NPP into deadwood (structure):  KgC/indiv/year
-     real(r8) ::  npp_bseed                              ! NPP into seeds: KgC/indiv/year
-     real(r8) ::  npp_store                              ! NPP into storage: KgC/indiv/year
+     real(r8) ::  npp_bsw                              ! NPP into sapwood: KgC/indiv/year
+     real(r8) ::  npp_bdead                            ! NPP into deadwood (structure):  KgC/indiv/year
+     real(r8) ::  npp_bseed                            ! NPP into seeds: KgC/indiv/year
+     real(r8) ::  npp_store                            ! NPP into storage: KgC/indiv/year
 
      real(r8) ::  ts_net_uptake(nlevleaf)              ! Net uptake of leaf layers: kgC/m2/s
      real(r8) ::  year_net_uptake(nlevleaf)            ! Net uptake of leaf layers: kgC/m2/year
@@ -249,7 +249,6 @@ module EDTypesMod
      real(r8) ::  dndt                                   ! time derivative of cohort size  : n/year
      real(r8) ::  dhdt                                   ! time derivative of height       : m/year
      real(r8) ::  ddbhdt                                 ! time derivative of dbh          : cm/year
-     real(r8) ::  dbalivedt                              ! time derivative of total living biomass : KgC/year
      real(r8) ::  dbdeaddt                               ! time derivative of dead biomass         : KgC/year
      real(r8) ::  dbstoredt                              ! time derivative of stored biomass       : KgC/year
      real(r8) ::  storage_flux                           ! flux from npp into bstore               : KgC/year
@@ -263,8 +262,15 @@ module EDTypesMod
      ! Hydraulics
      type(ed_cohort_hydr_type), pointer :: co_hydr       ! All cohort hydraulics data, see FatesHydraulicsMemMod.F90
 
+     contains
 
-  end type ed_cohort_type
+        procedure, public :: b_total
+
+     end type ed_cohort_type
+
+  
+     
+     
 
   !************************************
   !** Patch type structure           **
@@ -558,6 +564,18 @@ module EDTypesMod
 
 contains
 
+   function b_total(this)
+
+      ! Calculate total plant biomass
+
+      implicit none
+      class(ed_cohort_type), intent(inout) :: this
+      real(r8)  :: b_total
+
+      b_total = this%bl + this%br + this%bsw + this%bdead + this%bstore
+      
+   end function b_total
+   
   ! =====================================================================================
 
   subroutine val_check_ed_vars(currentPatch,var_aliases,return_code)
@@ -691,8 +709,6 @@ contains
      write(fates_log(),*) 'co%n                      = ', ccohort%n                         
      write(fates_log(),*) 'co%dbh                    = ', ccohort%dbh                                        
      write(fates_log(),*) 'co%hite                   = ', ccohort%hite                                
-     write(fates_log(),*) 'co%b                      = ', ccohort%b                            
-     write(fates_log(),*) 'co%balive                 = ', ccohort%balive
      write(fates_log(),*) 'co%bdead                  = ', ccohort%bdead                          
      write(fates_log(),*) 'co%bstore                 = ', ccohort%bstore
      write(fates_log(),*) 'co%laimemory              = ', ccohort%laimemory
@@ -747,7 +763,6 @@ contains
      write(fates_log(),*) 'co%treesai                = ', ccohort%treesai
      write(fates_log(),*) 'co%leaf_litter            = ', ccohort%leaf_litter
      write(fates_log(),*) 'co%c_area                 = ', ccohort%c_area
-     write(fates_log(),*) 'co%woody_turnover         = ', ccohort%woody_turnover
      write(fates_log(),*) 'co%cmort                  = ', ccohort%cmort
      write(fates_log(),*) 'co%bmort                  = ', ccohort%bmort
      write(fates_log(),*) 'co%fmort                  = ', ccohort%fmort
@@ -756,7 +771,6 @@ contains
      write(fates_log(),*) 'co%dndt                   = ', ccohort%dndt
      write(fates_log(),*) 'co%dhdt                   = ', ccohort%dhdt
      write(fates_log(),*) 'co%ddbhdt                 = ', ccohort%ddbhdt
-     write(fates_log(),*) 'co%dbalivedt              = ', ccohort%dbalivedt
      write(fates_log(),*) 'co%dbdeaddt               = ', ccohort%dbdeaddt
      write(fates_log(),*) 'co%dbstoredt              = ', ccohort%dbstoredt
      write(fates_log(),*) 'co%storage_flux           = ', ccohort%storage_flux

@@ -427,7 +427,11 @@ contains
                            nc%n * ED_val_understorey_death / hlm_freq_day
                       currentSite%imort_carbonflux = currentSite%imort_carbonflux + &
                            (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
-                           currentCohort%b * g_per_kg * days_per_sec * years_per_day * ha_per_m2
+                           (currentCohort%bdead + &
+                            currentCohort%bsw   + &
+                            currentCohort%bl    + &
+                            currentCohort%br    + &
+                            currentCohort%bstore) * g_per_kg * days_per_sec * years_per_day * ha_per_m2
 
                       ! Step 2:  Apply survivor ship function based on the understory death fraction
                       ! remaining of understory plants of those that are knocked over by the overstorey trees dying...  
@@ -547,7 +551,11 @@ contains
                            nc%n * ED_val_understorey_death / hlm_freq_day
                       currentSite%imort_carbonflux = currentSite%imort_carbonflux + &
                            (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
-                           currentCohort%b * g_per_kg * days_per_sec * years_per_day * ha_per_m2
+                           (currentCohort%bdead + &
+                            currentCohort%bsw   + &
+                            currentCohort%bl    + &
+                            currentCohort%br    + &
+                            currentCohort%bstore) * g_per_kg * days_per_sec * years_per_day * ha_per_m2
                       
                       ! Step 2:  Apply survivor ship function based on the understory death fraction
                      
@@ -940,14 +948,14 @@ contains
 
           call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
           if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
-             burned_leaves = (currentCohort%bl+currentCohort%bsw) * currentCohort%cfa
+             burned_leaves = min(currentCohort%bl, (currentCohort%bl+currentCohort%bsw) * currentCohort%cfa)
           else
-             burned_leaves = (currentCohort%bl+currentCohort%bsw) * currentPatch%burnt_frac_litter(6)
+             burned_leaves = min(currentCohort%bl, (currentCohort%bl+currentCohort%bsw) * currentPatch%burnt_frac_litter(6))
           endif
           if (burned_leaves > 0.0_r8) then
 
-             currentCohort%balive = max(currentCohort%br,currentCohort%balive - burned_leaves)
-             currentCohort%bl     = max(0.00001_r8,   currentCohort%bl - burned_leaves)
+             currentCohort%bl     = currentCohort%bl - burned_leaves
+
              !KgC/gridcell/day
              currentSite%flux_out = currentSite%flux_out + burned_leaves * currentCohort%n * &
                   patch_site_areadis/currentPatch%area * AREA 
