@@ -378,12 +378,12 @@ contains
     currentCohort%lmort_logging      = 0._r8
     currentCohort%lmort_infra        = 0._r8
     currentCohort%lmort_collateral   = 0._r8
-    !    currentCohort%npp_leaf  = 0._r8
-    !    currentCohort%npp_froot = 0._r8
-    !    currentCohort%npp_bsw   = 0._r8
-    !    currentCohort%npp_bdead = 0._r8
-    !    currentCohort%npp_bseed = 0._r8
-    !    currentCohort%npp_store = 0._r8
+    currentCohort%npp_leaf  = 0._r8
+    currentCohort%npp_froot = 0._r8
+    currentCohort%npp_bsw   = 0._r8
+    currentCohort%npp_bdead = 0._r8
+    currentCohort%npp_bseed = 0._r8
+    currentCohort%npp_store = 0._r8
 
   end subroutine zero_cohort
 

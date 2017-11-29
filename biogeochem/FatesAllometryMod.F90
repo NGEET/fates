@@ -176,7 +176,7 @@ contains
         write(fates_log(),*) 'bl (integrated): ',bl
         write(fates_log(),*) 'bl (diagnosed): ',bl_diag
         write(fates_log(),*) 'relative error: ',abs(bl_diag-bl)/bl_diag
-        print*,'bl relative error: ',abs(bl_diag-bl)/bl_diag
+!        print*,'bl relative error: ',abs(bl_diag-bl)/bl_diag
 !        write(fates_log(),*) 'exiting'
 !        call endrun(msg=errMsg(sourcefile, __LINE__))
         ierr = 1
@@ -188,7 +188,7 @@ contains
         write(fates_log(),*) 'bfr (integrated): ',bfr
         write(fates_log(),*) 'bfr (diagnosed): ',bfr_diag
         write(fates_log(),*) 'relative error: ',abs(bfr_diag-bfr)/bfr_diag
-        print*,'bfr relative error: ',abs(bfr_diag-bfr)/bfr_diag
+!        print*,'bfr relative error: ',abs(bfr_diag-bfr)/bfr_diag
 !        write(fates_log(),*) 'exiting'
 !        call endrun(msg=errMsg(sourcefile, __LINE__))
         ierr = 1
@@ -200,7 +200,7 @@ contains
         write(fates_log(),*) 'bsap (integrated): ',bsap
         write(fates_log(),*) 'bsap (diagnosed): ',bsap_diag
         write(fates_log(),*) 'relative error: ',abs(bsap_diag-bsap)/bsap_diag
-        print*,'bsap relative error: ',abs(bsap_diag-bsap)/bsap_diag
+!        print*,'bsap relative error: ',abs(bsap_diag-bsap)/bsap_diag
 !        write(fates_log(),*) 'exiting'
 !        call endrun(msg=errMsg(sourcefile, __LINE__))
         ierr = 1
@@ -212,7 +212,7 @@ contains
         write(fates_log(),*) 'bdead (integrated): ',bdead
         write(fates_log(),*) 'bdead (diagnosed): ',bdead_diag
         write(fates_log(),*) 'relative error: ',abs(bdead_diag-bdead)/bdead_diag
-        print*,'bdead relative error: ',abs(bdead_diag-bdead)/bdead_diag
+!        print*,'bdead relative error: ',abs(bdead_diag-bdead)/bdead_diag
 !        write(fates_log(),*) 'exiting'
 !        call endrun(msg=errMsg(sourcefile, __LINE__))
         ierr = 1
