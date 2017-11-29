@@ -375,11 +375,11 @@ contains
        ! Calculate coarse root biomass from allometry
        call bbgw_allom(temp_cohort%dbh,pft,b_bgw)
 
-       ! Calculate the leaf biomass 
+       ! Calculate the leaf biomass from allometry
        ! (calculates a maximum first, then applies canopy trim)
        call bleaf(temp_cohort%dbh,temp_cohort%hite,pft,temp_cohort%canopy_trim,b_leaf)
 
-       ! Calculate fine root biomass
+       ! Calculate fine root biomass from allometry
        ! (calculates a maximum and then trimming value)
        call bfineroot(temp_cohort%dbh,temp_cohort%hite,pft,temp_cohort%canopy_trim,b_fineroot)
 
@@ -420,7 +420,7 @@ contains
        if ( DEBUG ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
 
        call create_cohort(patch_in, pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-            temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore, &
+            b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore, &
             temp_cohort%laimemory,  cstatus, temp_cohort%canopy_trim, 1, bc_in)
 
        deallocate(temp_cohort) ! get rid of temporary cohort

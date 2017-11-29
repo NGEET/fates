@@ -214,11 +214,13 @@ module EDTypesMod
      real(r8) ::  md                                     ! plant maintenance demand: kgC/indiv/year
      real(r8) ::  leaf_md                                ! leaf  maintenance demand: kgC/indiv/year
      real(r8) ::  root_md                                ! root  maintenance demand: kgC/indiv/year
-     real(r8) ::  stem_md                                ! stem maintenance demand:  kgC/indiv/year
+     real(r8) ::  bsw_md                                 ! sawpwood maintenance demand:  kgC/indiv/year
+     real(r8) ::  bstore_md                              ! storage maintenance demand:  kgC/indiv/year
+     real(r8) ::  bdead_md                               ! structural (branch) maintenance demand:  kgC/indiv/year
+
      real(r8) ::  carbon_balance                         ! carbon remaining for growth and storage: kg/indiv/year
      real(r8) ::  seed_prod                              ! reproduction seed and clonal: KgC/indiv/year
      real(r8) ::  leaf_litter                            ! leaf litter from phenology: KgC/m2
-     real(r8) ::  woody_turnover                         ! amount of wood lost each day: kgC/indiv/year. Currently set to zero.
 
      !MORTALITY
      real(r8) ::  dmort                                  ! proportional mortality rate. (year-1)
@@ -735,6 +737,9 @@ contains
      write(fates_log(),*) 'co%md                     = ', ccohort%md
      write(fates_log(),*) 'co%leaf_md                = ', ccohort%leaf_md
      write(fates_log(),*) 'co%root_md                = ', ccohort%root_md
+     write(fates_log(),*) 'co%bstore_md              = ', ccohort%bstore_md
+     write(fates_log(),*) 'co%bdead_md               = ', ccohort%bdead_md
+     write(fates_log(),*) 'co%bsw_md                 = ', ccohort%bsw_md
      write(fates_log(),*) 'co%carbon_balance         = ', ccohort%carbon_balance
      write(fates_log(),*) 'co%dmort                  = ', ccohort%dmort
      write(fates_log(),*) 'co%seed_prod              = ', ccohort%seed_prod

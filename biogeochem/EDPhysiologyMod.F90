@@ -54,7 +54,7 @@ module EDPhysiologyMod
   public :: trim_canopy
   public :: phenology
   private :: phenology_leafonoff
-  public  :: Growth_Derivatives
+  public  :: PlantGrowth
   public :: recruitment
   private :: cwd_input
   private :: cwd_out
@@ -221,11 +221,6 @@ contains
                 endif
              endif !leaf activity? 
           enddo !z
-          if (currentCohort%NV.gt.2)then
-             ! leaf_cost may be uninitialized, removing its diagnostic from the log
-             ! to allow checking with fpe_traps (RGK)
-             write(fates_log(),*) 'nv>4',currentCohort%year_net_uptake(1:6),currentCohort%canopy_trim
-          endif
 
           currentCohort%year_net_uptake(:) = 999.0_r8
           if (trimmed == 0.and.currentCohort%canopy_trim < 1.0_r8)then
@@ -754,10 +749,10 @@ contains
   end subroutine seed_germination
 
   ! ============================================================================
-  subroutine Growth_Derivatives( currentSite, currentCohort, bc_in)
+  subroutine PlantGrowth( currentSite, currentCohort, bc_in )
     !
     ! !DESCRIPTION:
-    !  Main subroutine controlling growth and allocation derivatives    
+    !  Main subroutine for plant allocation and growth 
     !
     ! !USES:
     ! Original: Rosie Fisher
@@ -792,31 +787,31 @@ contains
     real(r8) :: bt_store           ! target storage biomass (kgC)
     real(r8) :: dbt_store_dd       ! target rate of change in storage (kgC/cm)
 
-    real(r8) :: leaf_below_target
-    real(r8) :: froot_below_target
-    real(r8) :: sap_below_target
-    real(r8) :: store_below_target
-    real(r8) :: dead_below_target
-
+    real(r8) :: leaf_below_target  ! leaf biomass below target amount [kgC]
+    real(r8) :: froot_below_target ! fineroot biomass below target amount [kgC]
+    real(r8) :: sap_below_target   ! sapwood biomass below target amount [kgC]
+    real(r8) :: store_below_target ! storage biomass below target amount [kgC]
+    real(r8) :: dead_below_target  ! dead (structural) biomass below target amount [kgC]
     
-    real(r8) :: store_flux       ! carbon fluxing into storage [kgC]
-    real(r8) :: leaf_flux
-    real(r8) :: froot_flux
-    real(r8) :: sap_flux
-    real(r8) :: dead_flux
-    real(r8) :: repro_flux
+    real(r8) :: store_flux         ! carbon fluxing into storage [kgC]
+    real(r8) :: leaf_flux          ! carbon fluxing into leaves  [kgC]
+    real(r8) :: froot_flux         ! carbon fluxing into fineroots [kgC]
+    real(r8) :: sap_flux           ! carbon fluxing into sapwood [kgC]
+    real(r8) :: dead_flux          ! carbon fluxing into structure [kgC]
+    real(r8) :: repro_flux         ! carbon fluxing into reproductive tissues [kgC]
 
-    real(r8) :: store_target_fraction
-    real(r8) :: store_flux_fraction
-    real(r8) :: repro_fraction
+    real(r8) :: store_target_fraction ! ratio between storage and leaf biomass when on allometry [kgC]
+    real(r8) :: repro_fraction        ! fraction of carbon gain sent to reproduction when on-allometry
 
-    real(r8) :: leaf_turnover_demand
-    real(r8) :: root_turnover_demand
-    
-
-    real(r8) :: total_turnover_demand
+    real(r8) :: leaf_turnover_demand  ! leaf carbon that is demanded to replace maintenance turnover [kgC]
+    real(r8) :: root_turnover_demand  ! fineroot carbon that is demanded to replace maintenance turnover [kgC]
+    real(r8) :: total_turnover_demand ! total carbon that is demanded to replace maintenance turnover [kgC]
 
     ! Woody turnover timescale [years]
+    ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! THIS NEEDS A PFT VARIABLE, OR LIKE OTHER POOLS SHOULD BE HOOKED INTO THE DISTURBANCE ALGORITHM
+    ! RGK 11-2017
+    ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     real(r8), parameter :: background_woody_turnover = 20.0_r8
 
     ipft = currentCohort%pft
@@ -828,8 +823,6 @@ contains
     currentCohort%npp_froot  = 0.0_r8
     currentCohort%npp_bdead  = 0.0_r8
     currentCohort%npp_bseed  = 0.0_r8
-
-
 
     ! -----------------------------------------------------------------------------------
     ! I. Identify the net carbon gain for this dynamics interval
@@ -978,8 +971,14 @@ contains
     
     ! -----------------------------------------------------------------------------------
     ! IV(b). Calculate the maintenance turnover demands 
+    ! NOTE(RGK): If branches are falling all year, even on deciduous trees, we should
+    !            be pulling some leaves with them when leaves are out...
     ! -----------------------------------------------------------------------------------
 
+    currentCohort%bsw_md    = currentCohort%bsw / background_woody_turnover
+    currentCohort%bdead_md  = currentCohort%bdead / background_woody_turnover
+    currentCohort%bstore_md = currentCohort%bstore / background_woody_turnover
+    
     if (EDPftvarcon_inst%evergreen(ipft) == 1)then
        currentCohort%leaf_md = currentCohort%bl / EDPftvarcon_inst%leaf_long(ipft)
        currentCohort%root_md = currentCohort%br / EDPftvarcon_inst%root_long(ipft)
@@ -995,14 +994,7 @@ contains
        currentCohort%leaf_md = 0._r8
     endif
 
-    currentCohort%bsw_md    = currentCohort%bsw / background_woody_turnover
-    currentCohort%bdead_md  = currentCohort%bdead / background_woody_turnover
-    currentCohort%bstore_md = currentCohort%bstore / background_woody_turnover
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! COMPLETE THE ENTRIES FOR THESE THREE ABOVE, MUST FUSE, CREATE OUTPUT, COPY, ETC
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+   
     ! -----------------------------------------------------------------------------------
     ! V. Remove turnover from the appropriate pools
     !
@@ -1069,9 +1061,9 @@ contains
     ! -----------------------------------------------------------------------------------
     ! VI(c).  If carbon is still available, prioritize some allocation to storage
     ! -----------------------------------------------------------------------------------
-    store_target_fraction      = currentCohort%bstore/( bt_leaf * EDPftvarcon_inst%cushion(ipft)))
-    store_flux_fraction        = max(exp(-1.*store_target_fraction**4._r8) - exp( -1.0_r8 ),0.0_r8)  
-    store_flux                 = currentCohort%carbon_balance * store_flux_fraction
+    store_target_fraction        = currentCohort%bstore/( bt_leaf * EDPftvarcon_inst%cushion(ipft)))
+    store_flux                   = currentCohort%carbon_balance * &
+                                   max(exp(-1.*store_target_fraction**4._r8) - exp( -1.0_r8 ),0.0_r8)  
     currentCohort%carbon_balance = currentCohort%carbon_balance - store_flux
     currentCohort%bstore         = currentCohort%bstore + store_flux
     currentCohort%npp_store      = currentCohort%npp_store + store_flux * hlm_freq_day
@@ -1231,12 +1223,16 @@ contains
 
     end if
     
+    
+    currentCohort%balive = currentCohort%bl + currentCohort%br + currentCohort%bsw 
+
+
     ! If the cohort has grown, it is not new
     currentCohort%isnew=.false.
     
 
     return
- end subroutine Growth_Derivatives
+ end subroutine PlantGrowth
 
   ! ============================================================================
   subroutine recruitment( currentSite, currentPatch, bc_in )
@@ -1315,9 +1311,9 @@ contains
        if (temp_cohort%n > 0.0_r8 )then
           if ( DEBUG ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
           call create_cohort(currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-               temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore,  &
-               temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, currentPatch%NCL_p, &
-               bc_in)
+                b_leaf, b_fineroot, b_sap, temp_cohort%bdead, temp_cohort%bstore,  &
+                temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, currentPatch%NCL_p, &
+                bc_in)
 
           ! keep track of how many individuals were recruited for passing to history
           currentSite%recruitment_rate(ft) = currentSite%recruitment_rate(ft) + temp_cohort%n
@@ -1370,17 +1366,25 @@ contains
                currentCohort%leaf_md * currentCohort%n/currentPatch%area !turnover
 
       currentPatch%root_litter_in(pft) = currentPatch%root_litter_in(pft) + &
-               currentCohort%root_md * currentCohort%n/currentPatch%area !turnover
+               (currentCohort%root_md + currentCohort%bstore_md)            &
+               * currentCohort%n/currentPatch%area !turnover
+
       currentPatch%leaf_litter_in(pft) = currentPatch%leaf_litter_in(pft) + &
          currentCohort%leaf_litter * currentCohort%n/currentPatch%area/hlm_freq_day
 
       !daily leaf loss needs to be scaled up to the annual scale here. 
-      
+
+      ! ---------------------------------------------------------------------------------
+      ! Assumption: turnover from deadwood and sapwood are lumped together in CWD pool
+      ! ---------------------------------------------------------------------------------
+
       do c = 1,ncwd
-         currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + currentCohort%woody_turnover * &
-              SF_val_CWD_frac(c) * currentCohort%n/currentPatch%area *EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
-         currentPatch%cwd_BG_in(c) = currentPatch%cwd_BG_in(c) + currentCohort%woody_turnover * &
-              SF_val_CWD_frac(c) * currentCohort%n/currentPatch%area *(1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
+         currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + &
+               (currentCohort%bdead_md + currentCohort%bsw_md) * &
+               SF_val_CWD_frac(c) * currentCohort%n/currentPatch%area *EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
+         currentPatch%cwd_BG_in(c) = currentPatch%cwd_BG_in(c) + &
+               (currentCohort%bdead_md + currentCohort%bsw_md) * &
+               SF_val_CWD_frac(c) * currentCohort%n/currentPatch%area *(1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
       enddo
 
       !if (currentCohort%canopy_layer > 1)then   

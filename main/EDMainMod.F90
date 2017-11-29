@@ -28,7 +28,7 @@ module EDMainMod
   use EDPatchDynamicsMod       , only : fuse_patches
   use EDPatchDynamicsMod       , only : spawn_patches
   use EDPatchDynamicsMod       , only : terminate_patches
-  use EDPhysiologyMod          , only : Growth_Derivatives
+  use EDPhysiologyMod          , only : PlantGrowth
   use EDPhysiologyMod          , only : non_canopy_derivs
   use EDPhysiologyMod          , only : phenology
   use EDPhysiologyMod          , only : recruitment
@@ -271,44 +271,15 @@ contains
 
 
           ! Apply growth to potentially all carbon pools
-          call Growth_Derivatives( currentSite, currentCohort, bc_in )
+          call PlantGrowth( currentSite, currentCohort, bc_in )
 
-          cohort_biomass_store  = (currentCohort%balive+currentCohort%bdead+currentCohort%bstore)
-          currentCohort%dbh    = max(small_no,currentCohort%dbh    + currentCohort%ddbhdt    * hlm_freq_day )
-          currentCohort%balive = currentCohort%balive + currentCohort%dbalivedt * hlm_freq_day 
-          currentCohort%bdead  = max(small_no,currentCohort%bdead  + currentCohort%dbdeaddt  * hlm_freq_day )
-          call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%hite)
+          ! Carbon assimilate has been spent at this point
+          ! and can now be safely zero'd
 
-          if ( DEBUG ) then
-             write(fates_log(),*) 'EDMainMod dbstoredt I ',currentCohort%bstore, &
-                  currentCohort%dbstoredt,hlm_freq_day
-          end if
-          currentCohort%bstore = currentCohort%bstore + currentCohort%dbstoredt * hlm_freq_day 
-          if ( DEBUG ) then
-             write(fates_log(),*) 'EDMainMod dbstoredt II ',currentCohort%bstore, &
-                  currentCohort%dbstoredt,hlm_freq_day
-          end if
-
-          if( (currentCohort%balive+currentCohort%bdead+currentCohort%bstore)*currentCohort%n<0._r8)then
-            write(fates_log(),*) 'biomass is negative', currentCohort%n,currentCohort%balive, &
-                 currentCohort%bdead,currentCohort%bstore
-          endif
-
-          if(abs((currentCohort%balive+currentCohort%bdead+currentCohort%bstore+hlm_freq_day*(currentCohort%md+ &
-               currentCohort%seed_prod)-cohort_biomass_store)-currentCohort%npp_acc) > 1e-8_r8)then
-             write(fates_log(),*) 'issue with c balance in integration', abs(currentCohort%balive+currentCohort%bdead+ &
-                  currentCohort%bstore+hlm_freq_day* &
-                 (currentCohort%md+currentCohort%seed_prod)-cohort_biomass_store-currentCohort%npp_acc)
-          endif  
-
-          ! THESE SHOULD BE MOVED TO A MORE "VISIBLE" LOCATION (RGK 10-2016)
           currentCohort%npp_acc  = 0.0_r8
           currentCohort%gpp_acc  = 0.0_r8
           currentCohort%resp_acc = 0.0_r8
           
-          
-          call allocate_live_biomass(currentCohort,1)
-
           ! BOC...update tree 'hydraulic geometry' 
           ! (size --> heights of elements --> hydraulic path lengths --> 
           ! maximum node-to-node conductances)

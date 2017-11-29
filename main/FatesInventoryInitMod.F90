@@ -923,7 +923,7 @@ contains
       endif
       
       call create_cohort(cpatch, c_pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-            temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore, &
+            b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore, &
             temp_cohort%laimemory,  cstatus, temp_cohort%canopy_trim, 1, bc_in)
       
       deallocate(temp_cohort) ! get rid of temporary cohort

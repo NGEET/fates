@@ -51,7 +51,6 @@ module EDCohortDynamicsMod
   public :: sort_cohorts
   public :: copy_cohort
   public :: count_cohorts
-  public :: allocate_live_biomass
   public :: tree_lai
   public :: tree_sai
 
@@ -67,7 +66,7 @@ contains
 
   !-------------------------------------------------------------------------------------!
   subroutine create_cohort(patchptr, pft, nn, hite, dbh, &
-       balive, bdead, bstore, laimemory, status, ctrim, clayer, bc_in)
+       bleaf, bfineroot, bsap, bdead, bstore, laimemory, status, ctrim, clayer, bc_in)
     !
     ! !DESCRIPTION:
     ! create new cohort
@@ -82,7 +81,9 @@ contains
     real(r8), intent(in)   :: nn        ! number of individuals in cohort per 'area' (10000m2 default)
     real(r8), intent(in)   :: hite      ! height: meters
     real(r8), intent(in)   :: dbh       ! dbh: cm
-    real(r8), intent(in)   :: balive    ! total living biomass: kGC per indiv
+    real(r8), intent(in)   :: bleaf     ! biomass in leaves: kgC
+    real(r8), intent(in)   :: bfineroot ! biomass in fineroots: kgC
+    real(r8), intent(in)   :: bsap      ! biomass in sapwood: kgC
     real(r8), intent(in)   :: bdead     ! total dead biomass: kGC per indiv
     real(r8), intent(in)   :: bstore    ! stored carbon: kGC per indiv
     real(r8), intent(in)   :: laimemory ! target leaf biomass- set from previous year: kGC per indiv
@@ -119,8 +120,11 @@ contains
     new_cohort%canopy_layer_yesterday = real(clayer, r8)
     new_cohort%laimemory    = laimemory
     new_cohort%bdead        = bdead
-    new_cohort%balive       = balive
     new_cohort%bstore       = bstore
+    new_cohort%bl           = bleaf
+    new_cohort%br           = bfineroot
+    new_cohort%bsw          = bsap
+    new_cohort%balive       = bleaf + bfineroot + bsap
 
     call sizetype_class_index(new_cohort%dbh,new_cohort%pft, &
                               new_cohort%size_class,new_cohort%size_by_pft_class)
@@ -145,9 +149,6 @@ contains
     if (new_cohort%siteptr%dstatus==2 .and. EDPftvarcon_inst%stress_decid(pft) == 1) then
       new_cohort%laimemory = 0.0_r8
     endif
-    
-    ! Calculate live biomass allocation
-    call allocate_live_biomass(new_cohort,0)
 
     ! Assign canopy extent and depth
     call carea_allom(new_cohort%dbh,new_cohort%n,new_cohort%siteptr%spread,new_cohort%pft,new_cohort%c_area)
@@ -434,6 +435,9 @@ contains
     currentCohort%md                 = nan ! plant maintenance demand: kgC/indiv/year
     currentCohort%leaf_md            = nan ! leaf  maintenance demand: kgC/indiv/year
     currentCohort%root_md            = nan ! root  maintenance demand: kgC/indiv/year
+    currentCohort%bsw_md             = nan
+    currentCohort%bdead_md           = nan
+    currentCohort%bstore_md          = nan
     currentCohort%carbon_balance     = nan ! carbon remaining for growth and storage: kg/indiv/year
     currentCohort%dmort              = nan ! proportional mortality rate. (year-1)
     currentCohort%lmort_logging      = nan
@@ -508,6 +512,9 @@ contains
     currentcohort%md                 = 0._r8
     currentcohort%root_md            = 0._r8
     currentcohort%leaf_md            = 0._r8
+    currentcohort%bstore_md          = 0._r8
+    currentcohort%bsw_md             = 0._r8
+    currentcohort%bdead_md           = 0._r8
     currentcohort%npp_acc_hold       = 0._r8 
     currentcohort%gpp_acc_hold       = 0._r8  
     currentcohort%storage_flux       = 0._r8   
@@ -844,6 +851,12 @@ contains
                                          nextc%n*nextc%root_md)/newn
                                    currentCohort%leaf_md        = (currentCohort%n*currentCohort%leaf_md   + &
                                          nextc%n*nextc%leaf_md)/newn
+                                   currentCohort%bstore_md        = (currentCohort%n*currentCohort%bstore_md   + &
+                                         nextc%n*nextc%bstore_md)/newn
+                                   currentCohort%bsw_md        = (currentCohort%n*currentCohort%bsw_md   + &
+                                         nextc%n*nextc%bsw_md)/newn
+                                   currentCohort%bdead_md        = (currentCohort%n*currentCohort%bdead_md   + &
+                                         nextc%n*nextc%bdead_md)/newn
                                    currentCohort%carbon_balance = (currentCohort%n*currentCohort%carbon_balance + &
                                          nextc%n*nextc%carbon_balance)/newn
                                    currentCohort%storage_flux   = (currentCohort%n*currentCohort%storage_flux + &
@@ -1257,6 +1270,9 @@ contains
     n%md              = o%md
     n%leaf_md         = o%leaf_md
     n%root_md         = o%root_md
+    n%bsw_md          = o%bsw_md
+    n%bdead_md        = o%bdead_md
+    n%bstore_md       = o%bstore_md
     n%carbon_balance  = o%carbon_balance
     n%dmort           = o%dmort
     n%lmort_logging   = o%lmort_logging
