@@ -1322,7 +1322,7 @@ contains
           currentCohort%npp_bseed      = currentCohort%npp_bseed + brepro_sub / hlm_freq_day
           currentCohort%seed_prod      = currentCohort%seed_prod + brepro_sub / hlm_freq_day
 
-          currentCohort%dbhdt          = (dbh_sub-currentCohort%dbh)/hlm_freq_day
+          currentCohort%ddbhdt          = (dbh_sub-currentCohort%dbh)/hlm_freq_day
           currentCohort%dbh            = dbh_sub
 
 
