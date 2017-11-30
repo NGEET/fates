@@ -806,6 +806,8 @@ contains
     ! integrator variables
     real(r8) :: deltaC     ! trial value for substep
     integer  :: ierr       ! error flag for allometric growth step
+    integer  :: nsteps     ! number of sub-steps
+    integer  :: istep      ! current substep index
     real(r8) :: totalC     ! total carbon allocated over alometric growth step
     real(r8) :: dbh_sub    ! substep dbh
     real(r8) :: h_sub      ! substep h
@@ -819,13 +821,18 @@ contains
 
     ! Woody turnover timescale [years]
     ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! THIS NEEDS A PFT VARIABLE, OR LIKE OTHER POOLS SHOULD BE HOOKED INTO THE DISTURBANCE ALGORITHM
+    ! THIS NEEDS A PFT VARIABLE, OR LIKE OTHER POOLS COULD 
+    ! BE HOOKED INTO THE DISTURBANCE ALGORITHM OR BE DYNAMIC
     ! RGK 11-2017
     ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     real(r8), parameter :: background_woody_turnover = 0.0_r8
     real(r8), parameter :: cbal_prec = 1.0e-15_r8     ! Desired precision in carbon balance
+    integer , parameter :: max_substeps = 16
 
     ipft = currentCohort%pft
+
+    ! Initialize seed production
+    currentCohort%seed_prod = 0.0_r8
 
     ! Initialize NPP flux diagnostics
     currentCohort%npp_store = 0.0_r8
@@ -834,6 +841,12 @@ contains
     currentCohort%npp_bdead  = 0.0_r8
     currentCohort%npp_bseed  = 0.0_r8
     currentCohort%npp_bsw    = 0.0_r8
+
+    ! Initialize rates of change
+    currentCohort%dhdt      = 0.0_r8
+    currentCohort%dbdeaddt  = 0.0_r8
+    currentCohort%dbstoredt = 0.0_r8
+    currentCohort%ddbhdt    = 0.0_r8
 
     ! -----------------------------------------------------------------------------------
     ! I. Identify the net carbon gain for this dynamics interval
@@ -915,11 +928,6 @@ contains
     store_below_target = bt_leaf * EDPftvarcon_inst%cushion(ipft) - currentCohort%bstore
     dead_below_target  = bt_dead - currentCohort%bdead
    
-    print*,"leaf III", bt_leaf , currentCohort%bl
-    print*,"fr III", bt_fineroot , currentCohort%br
-    print*,"sap III", bt_sap , currentCohort%bsw
-    print*,"store III",bt_leaf * EDPftvarcon_inst%cushion(ipft) , currentCohort%bstore
-
 
     if(leaf_below_target<0.0_r8) then
        currentCohort%carbon_balance = currentCohort%carbon_balance - leaf_below_target
@@ -951,10 +959,6 @@ contains
        currentCohort%npp_bdead      = currentCohort%npp_bdead + dead_below_target / hlm_freq_day
     end if
 
-    print*,"leaf IIIb", bt_leaf - currentCohort%bl
-    print*,"fr IIIb", bt_fineroot - currentCohort%br
-    print*,"sap IIIb", bt_sap - currentCohort%bsw
-    print*,"store IIIb",bt_leaf * EDPftvarcon_inst%cushion(ipft) - currentCohort%bstore
 
     ! -----------------------------------------------------------------------------------
     ! IV(a). Calculate the maintenance turnover demands 
@@ -1036,12 +1040,6 @@ contains
     currentCohort%bstore = currentCohort%bstore - currentCohort%bstore_md*hlm_freq_day
     
 
-    print*,"leaf V", bt_leaf , currentCohort%bl
-    print*,"fr V", bt_fineroot , currentCohort%br
-    print*,"sap V", bt_sap , currentCohort%bsw
-    print*,"store V",bt_leaf * EDPftvarcon_inst%cushion(ipft) , currentCohort%bstore
-    print*,"cbal V", currentCohort%carbon_balance
-
     ! -----------------------------------------------------------------------------------
     ! VI(a) if carbon balance is negative, re-coup the losses from storage
     ! -----------------------------------------------------------------------------------
@@ -1078,12 +1076,6 @@ contains
        currentCohort%npp_froot      = currentCohort%npp_froot + br_flux / hlm_freq_day
     end if
     
-    print*,"leaf VI", bt_leaf , currentCohort%bl
-    print*,"fr VI", bt_fineroot , currentCohort%br
-    print*,"sap VI", bt_sap , currentCohort%bsw
-    print*,"store VI",bt_leaf * EDPftvarcon_inst%cushion(ipft) , currentCohort%bstore
-    print*,"cbal VI", currentCohort%carbon_balance
-
     ! -----------------------------------------------------------------------------------
     ! VI(c).  If carbon is still available, prioritize some allocation to storage
     ! -----------------------------------------------------------------------------------
@@ -1124,7 +1116,7 @@ contains
     !        pools back towards allometry
     ! -----------------------------------------------------------------------------------
 
-    if(abs(currentCohort%carbon_balance)<cbal_prec) return
+    if( currentCohort%carbon_balance<cbal_prec) return
 
     leaf_below_target  = bt_leaf - currentCohort%bl
     froot_below_target = bt_fineroot - currentCohort%br
@@ -1132,12 +1124,6 @@ contains
     store_below_target = bt_leaf * EDPftvarcon_inst%cushion(ipft) - currentCohort%bstore
     total_below_target = leaf_below_target + froot_below_target + sap_below_target + store_below_target
     
-    print*,"leaf", bt_leaf , currentCohort%bl
-    print*,"fr", bt_fineroot , currentCohort%br
-    print*,"sap", bt_sap , currentCohort%bsw
-    print*,"store",bt_leaf * EDPftvarcon_inst%cushion(ipft) , currentCohort%bstore
-
-
     if ( total_below_target>0.0_r8) then
        
        if( total_below_target > currentCohort%carbon_balance) then
@@ -1151,9 +1137,6 @@ contains
           bsw_flux    = sap_below_target
           bstore_flux = store_below_target
        end if
-
-       print*,"leaf live targetting:",leaf_below_target,bt_leaf,currentCohort%bl,total_below_target,currentCohort%carbon_balance
-
 
        currentCohort%carbon_balance = currentCohort%carbon_balance - bl_flux
        currentCohort%bl             = currentCohort%bl + bl_flux
@@ -1173,15 +1156,12 @@ contains
        
     end if
     
-    print*,"REMAINING CARBON:",total_below_target,currentCohort%carbon_balance,bl_flux,br_flux,bsw_flux,bstore_flux
-    
-    
     ! -----------------------------------------------------------------------------------
     ! V(f).  If carbon is still available, replenish the structural pool to get
     !           back on allometry
     ! -----------------------------------------------------------------------------------
 
-    if(abs(currentCohort%carbon_balance)<cbal_prec) return
+    if( currentCohort%carbon_balance<cbal_prec) return
 
     dead_below_target  = bt_dead - currentCohort%bdead
     
@@ -1204,12 +1184,12 @@ contains
     !        the carbon balance sub-step (deltaC) will be halved and tried again
     ! -----------------------------------------------------------------------------------
 
-    if(abs(currentCohort%carbon_balance)<cbal_prec) return
+    if( currentCohort%carbon_balance<cbal_prec) return
+
     
     deltaC = currentCohort%carbon_balance
-    currentCohort%seed_prod = 0.0_r8
+    nsteps = 1
     ierr = 1
-    
     
     do while( ierr .ne. 0 )
        
@@ -1223,17 +1203,7 @@ contains
        bdead_sub  = currentCohort%bdead
        brepro_sub = 0.0_r8
 
-       call bleaf(dbh_sub,h_sub,ipft,currentCohort%canopy_trim,bt_leaf,dbt_leaf_dd)
-       print*,"leaf comparison:",currentCohort%bl,bt_leaf
-       print*,"root comparison:",currentCohort%br,bt_fineroot
-       print*,"sap comparison:",currentCohort%bsw,bt_sap
-       print*,"store comparison:",currentCohort%bstore,bt_leaf*EDPftvarcon_inst%cushion(ipft)
-       print*,"dead comparison:",currentCohort%bdead,bt_dead
-
-       print*,deltaC,totalC
-
-       
-       do while ( totalC > tiny(totalC) )
+       do istep=1,nsteps
           
           call bleaf(dbh_sub,h_sub,ipft,currentCohort%canopy_trim,bt_leaf,dbt_leaf_dd)
           call bfineroot(dbh_sub,h_sub,ipft,currentCohort%canopy_trim,bt_fineroot,dbt_fineroot_dd)
@@ -1273,6 +1243,7 @@ contains
           ! -----------------------------------------------------------------------------------
           
           dbh_sub = dbh_sub + bdead_flux / dbt_dead_dd
+          call h_allom(dbh_sub,ipft,h_sub)
           
           ! ------------------------------------------------------------------------------------
           ! VIII. Run a post integration test to see if our integrated quantities match
@@ -1283,13 +1254,19 @@ contains
           totalC = totalC - deltaC
           
        end do
+
+       if( abs(totalC)>1e-12_r8 ) then
+          print*,"TOTALC IS NON-ZERO,IT SHOULD BE ZERO",totalC,deltaC,tiny(totalC)
+          stop
+       end if
        
        call CheckIntegratedAllometries(dbh_sub,ipft,currentCohort%canopy_trim, &
             bl_sub,br_sub,bsw_sub,bdead_sub,ierr)
        
        
-       if(ierr.eq.0) then
-       
+       if(ierr.eq.0 .or. nsteps > max_substeps ) then
+
+          ierr = 0
           ! Reset this value for diagnostic
           totalC = currentCohort%carbon_balance
           
@@ -1322,29 +1299,35 @@ contains
           currentCohort%npp_bseed      = currentCohort%npp_bseed + brepro_sub / hlm_freq_day
           currentCohort%seed_prod      = currentCohort%seed_prod + brepro_sub / hlm_freq_day
 
-          currentCohort%ddbhdt          = (dbh_sub-currentCohort%dbh)/hlm_freq_day
+          ! Set derivatives used as diagnostics
+          currentCohort%dhdt           = (h_sub-currentCohort%hite)/hlm_freq_day
+          currentCohort%dbdeaddt       = bdead_flux/hlm_freq_day
+          currentCohort%dbstoredt      = bstore_flux/hlm_freq_day
+          currentCohort%ddbhdt         = (dbh_sub-currentCohort%dbh)/hlm_freq_day
+
           currentCohort%dbh            = dbh_sub
-
-
-          call h_allom(currentCohort%dbh,ipft,currentCohort%hite)
+          currentCohort%hite           = h_sub
           
           if( abs(currentCohort%carbon_balance)>1e-12_r8 ) then
              write(fates_log(),*) 'carbon conservation error while integrating pools'
              write(fates_log(),*) 'along alometric curve'
-             write(fates_log(),*) 'currentCohort%carbon_balance = ',currentCohort%carbon_balance
+             write(fates_log(),*) 'currentCohort%carbon_balance = ',currentCohort%carbon_balance,totalC
              write(fates_log(),*) 'exiting'
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
+          
+          
 
        else
           
-          deltaC = 0.5*deltaC
+          deltaC = 0.5_r8*deltaC
+          nsteps = nsteps*2
           
        end if
        
     end do
-    
-    print*,deltaC/totalC
+
+!    if(deltaC/totalC < 1.0_r8 )print*,deltaC/totalC
 
     
     ! If the cohort has grown, it is not new

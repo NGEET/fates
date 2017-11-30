@@ -1573,7 +1573,7 @@ end subroutine flush_hvars
                        hio_dbstoredt_canopy_si_scls(io_si,scls) = hio_dbstoredt_canopy_si_scls(io_si,scls) + &
                             ccohort%dbstoredt * ccohort%n
                        hio_storage_flux_canopy_si_scls(io_si,scls) = hio_storage_flux_canopy_si_scls(io_si,scls) + &
-                            ccohort%storage_flux * ccohort%n
+                            ccohort%npp_store * ccohort%n
                        hio_npp_leaf_canopy_si_scls(io_si,scls) = hio_npp_leaf_canopy_si_scls(io_si,scls) + &
                             ccohort%npp_leaf * ccohort%n
                        hio_npp_froot_canopy_si_scls(io_si,scls) = hio_npp_froot_canopy_si_scls(io_si,scls) + &
@@ -1657,7 +1657,7 @@ end subroutine flush_hvars
                        hio_dbstoredt_understory_si_scls(io_si,scls) = hio_dbstoredt_understory_si_scls(io_si,scls) + &
                             ccohort%dbstoredt * ccohort%n
                        hio_storage_flux_understory_si_scls(io_si,scls) = hio_storage_flux_understory_si_scls(io_si,scls) + &
-                            ccohort%storage_flux * ccohort%n
+                            ccohort%npp_store * ccohort%n
                        hio_npp_leaf_understory_si_scls(io_si,scls) = hio_npp_leaf_understory_si_scls(io_si,scls) + &
                             ccohort%npp_leaf * ccohort%n
                        hio_npp_froot_understory_si_scls(io_si,scls) = hio_npp_froot_understory_si_scls(io_si,scls) + &

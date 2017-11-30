@@ -1223,8 +1223,6 @@ contains
              !Bottom layer
              iv = currentCohort%NV
              ! EDPftvarcon_inst%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile.
-             print*,currentCohort%hite,iv,currentCohort%NV,currentCohort%treelai,currentCohort%treesai,currentCohort%bl
-             print*,EDPftvarcon_inst%crown(currentCohort%pft)
 
              layer_top_hite = currentCohort%hite-((iv/currentCohort%NV) * currentCohort%hite * &
                    EDPftvarcon_inst%crown(currentCohort%pft) )

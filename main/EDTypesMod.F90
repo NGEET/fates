@@ -3,7 +3,6 @@ module EDTypesMod
   use FatesConstantsMod,     only : r8 => fates_r8
   use FatesGlobals,          only : fates_log
   use shr_infnan_mod,        only : nan => shr_infnan_nan, assignment(=)
-
   use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
   use FatesHydraulicsMemMod, only : ed_patch_hydr_type
   use FatesHydraulicsMemMod, only : ed_site_hydr_type
@@ -251,7 +250,6 @@ module EDTypesMod
      real(r8) ::  ddbhdt                                 ! time derivative of dbh          : cm/year
      real(r8) ::  dbdeaddt                               ! time derivative of dead biomass         : KgC/year
      real(r8) ::  dbstoredt                              ! time derivative of stored biomass       : KgC/year
-     real(r8) ::  storage_flux                           ! flux from npp into bstore               : KgC/year
 
      ! FIRE
      real(r8) ::  cfa                                    ! proportion of crown affected by fire:-
@@ -773,7 +771,6 @@ contains
      write(fates_log(),*) 'co%ddbhdt                 = ', ccohort%ddbhdt
      write(fates_log(),*) 'co%dbdeaddt               = ', ccohort%dbdeaddt
      write(fates_log(),*) 'co%dbstoredt              = ', ccohort%dbstoredt
-     write(fates_log(),*) 'co%storage_flux           = ', ccohort%storage_flux
      write(fates_log(),*) 'co%cfa                    = ', ccohort%cfa
      write(fates_log(),*) 'co%fire_mort              = ', ccohort%fire_mort
      write(fates_log(),*) 'co%crownfire_mort         = ', ccohort%crownfire_mort

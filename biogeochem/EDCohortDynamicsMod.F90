@@ -156,8 +156,6 @@ contains
     new_cohort%lai     = new_cohort%treelai * new_cohort%c_area/patchptr%area
     new_cohort%treesai = 0.0_r8 !FIX(RF,032414)   
 
-    print*,"NEW COHORT:",new_cohort%treelai,new_cohort%bl
-
     ! Put cohort at the right place in the linked list
     storebigcohort   => patchptr%tallest
     storesmallcohort => patchptr%shortest 
@@ -313,7 +311,6 @@ contains
     currentCohort%ddbhdt             = nan ! time derivative of dbh 
     currentCohort%dbdeaddt           = nan ! time derivative of dead biomass 
     currentCohort%dbstoredt          = nan ! time derivative of stored biomass 
-    currentCohort%storage_flux       = nan ! flux from npp into bstore
 
     ! FIRE
     currentCohort%cfa                = nan ! proportion of crown affected by fire
@@ -371,7 +368,6 @@ contains
     currentcohort%bdead_md           = 0._r8
     currentcohort%npp_acc_hold       = 0._r8 
     currentcohort%gpp_acc_hold       = 0._r8  
-    currentcohort%storage_flux       = 0._r8   
     currentcohort%dmort              = 0._r8 
     currentcohort%gscan              = 0._r8 
     currentcohort%treesai            = 0._r8  
@@ -721,8 +717,6 @@ contains
                                          nextc%n*nextc%bdead_md)/newn
                                    currentCohort%carbon_balance = (currentCohort%n*currentCohort%carbon_balance + &
                                          nextc%n*nextc%carbon_balance)/newn
-                                   currentCohort%storage_flux   = (currentCohort%n*currentCohort%storage_flux + &
-                                         nextc%n*nextc%storage_flux)/newn
                                    currentCohort%gpp_acc        = (currentCohort%n*currentCohort%gpp_acc     + &
                                          nextc%n*nextc%gpp_acc)/newn
                                    currentCohort%npp_acc        = (currentCohort%n*currentCohort%npp_acc     + &
@@ -1164,8 +1158,6 @@ contains
     n%dbstoredt       = o%dbstoredt
 
     if ( DEBUG ) write(fates_log(),*) 'EDCohortDyn dpstoredt ',o%dbstoredt
-
-    n%storage_flux    = o%storage_flux
 
     ! FIRE 
     n%cfa             = o%cfa
