@@ -756,6 +756,7 @@ contains
       use FatesAllometryMod         , only : bfineroot
       use FatesAllometryMod         , only : bsap_allom
       use FatesAllometryMod         , only : bdead_allom
+      use FatesAllometryMod         , only : bstore_allom
 
       use EDCohortDynamicsMod , only : create_cohort
       use FatesInterfaceMod   , only : numpft
@@ -892,15 +893,16 @@ contains
       call bsap_allom(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim,b_sapwood)
       
       call bdead_allom( b_agw, b_bgw, b_sapwood, c_pft, temp_cohort%bdead )
+
+      call bstore_allom(temp_cohort%dbh,temp_cohort%hite, c_pft, &
+            temp_cohort%canopy_trim,temp_cohort%bstore)
       
       if( EDPftvarcon_inst%evergreen(c_pft) == 1) then
-         temp_cohort%bstore = b_leaf * EDPftvarcon_inst%cushion(c_pft)
          temp_cohort%laimemory = 0._r8
          cstatus = 2
       endif
       
       if( EDPftvarcon_inst%season_decid(c_pft) == 1 ) then !for dorment places
-         temp_cohort%bstore = b_leaf * EDPftvarcon_inst%cushion(c_pft) !stored carbon in new seedlings.
          if(csite%status == 2)then 
             temp_cohort%laimemory = 0.0_r8
          else
@@ -911,7 +913,6 @@ contains
       endif
       
       if ( EDPftvarcon_inst%stress_decid(c_pft) == 1 ) then
-         temp_cohort%bstore = b_leaf * EDPftvarcon_inst%cushion(c_pft)
          temp_cohort%laimemory = b_leaf
          cstatus = csite%dstatus
       endif

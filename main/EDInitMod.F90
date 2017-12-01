@@ -32,6 +32,7 @@ module EDInitMod
   use FatesAllometryMod         , only : bfineroot
   use FatesAllometryMod         , only : bsap_allom
   use FatesAllometryMod         , only : bdead_allom
+  use FatesAllometryMod         , only : bstore_allom
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -388,14 +389,16 @@ contains
        
        call bdead_allom( b_agw, b_bgw, b_sapwood, pft, temp_cohort%bdead )
 
+       call bstore_allom(temp_cohort%dbh,temp_cohort%hite, pft, &
+             temp_cohort%canopy_trim,temp_cohort%bstore)
+
+
        if( EDPftvarcon_inst%evergreen(pft) == 1) then
-          temp_cohort%bstore = b_leaf * EDPftvarcon_inst%cushion(pft)
           temp_cohort%laimemory = 0._r8
           cstatus = 2
        endif
 
        if( EDPftvarcon_inst%season_decid(pft) == 1 ) then !for dorment places
-          temp_cohort%bstore = b_leaf * EDPftvarcon_inst%cushion(pft) !stored carbon in new seedlings.
           if(patch_in%siteptr%status == 2)then 
              temp_cohort%laimemory = 0.0_r8
           else
@@ -406,7 +409,6 @@ contains
        endif
 
        if ( EDPftvarcon_inst%stress_decid(pft) == 1 ) then
-          temp_cohort%bstore = b_leaf * EDPftvarcon_inst%cushion(pft)
           temp_cohort%laimemory = b_leaf
           cstatus = patch_in%siteptr%dstatus
        endif

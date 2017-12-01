@@ -38,6 +38,7 @@
 ! allom_amode, integer, AGB allometry function type
 ! allom_cmode, integer, coarse root allometry function type
 ! allom_smode, integer, sapwood allometry function type
+! allom_stmode, integer, storage allometry function type
 !
 ! The following parameters (traits) are used
 !
@@ -74,10 +75,6 @@
 !
 ! ------------------------------------------------------------------------------
 !
-! 
-!
-!
-!
 ! Initial Implementation: Ryan Knox July 2017
 !
 !===============================================================================
@@ -102,13 +99,18 @@ module FatesAllometryMod
   public :: blmax_allom   ! Generic maximum leaf biomass wrapper
   public :: bleaf         ! Generic actual leaf biomass wrapper
   public :: bsap_allom    ! Generic sapwood wrapper
-  public :: bbgw_allom     ! Generic coarse root wrapper
+  public :: bbgw_allom    ! Generic coarse root wrapper
   public :: bfineroot     ! Generic actual fine root biomass wrapper
   public :: bdead_allom   ! Generic bdead wrapper
   public :: carea_allom   ! Generic crown area wrapper
+  public :: bstore_allom  ! Generic maximum storage carbon wrapper
+
   public :: CheckIntegratedAllometries
 
+
+  logical         , parameter :: verbose_logging = .false.
   character(len=*), parameter :: sourcefile = __FILE__
+
 
   ! If testing b4b with older versions, do not remove sapwood
   ! Our old methods with saldarriaga did not remove sapwood from the
@@ -171,50 +173,46 @@ contains
      call bdead_allom( bagw_diag, bbgw_diag, bsap_diag, ipft, bdead_diag )
 
      if( abs(bl_diag-bl)/bl_diag > relative_err_thresh ) then
-        write(fates_log(),*) 'disparity in integrated/diagnosed leaf carbon'
-        write(fates_log(),*) 'resulting from the on-allometry growth integration step'
-        write(fates_log(),*) 'bl (integrated): ',bl
-        write(fates_log(),*) 'bl (diagnosed): ',bl_diag
-        write(fates_log(),*) 'relative error: ',abs(bl_diag-bl)/bl_diag
-!        print*,'bl relative error: ',abs(bl_diag-bl)/bl_diag
-!        write(fates_log(),*) 'exiting'
-!        call endrun(msg=errMsg(sourcefile, __LINE__))
+        if(verbose_logging) then
+           write(fates_log(),*) 'disparity in integrated/diagnosed leaf carbon'
+           write(fates_log(),*) 'resulting from the on-allometry growth integration step'
+           write(fates_log(),*) 'bl (integrated): ',bl
+           write(fates_log(),*) 'bl (diagnosed): ',bl_diag
+           write(fates_log(),*) 'relative error: ',abs(bl_diag-bl)/bl_diag
+        end if
         ierr = 1
      end if
 
      if( abs(bfr_diag-bfr)/bfr_diag > relative_err_thresh ) then
-        write(fates_log(),*) 'disparity in integrated/diagnosed fineroot carbon'
-        write(fates_log(),*) 'resulting from the on-allometry growth integration step'
-        write(fates_log(),*) 'bfr (integrated): ',bfr
-        write(fates_log(),*) 'bfr (diagnosed): ',bfr_diag
-        write(fates_log(),*) 'relative error: ',abs(bfr_diag-bfr)/bfr_diag
-!        print*,'bfr relative error: ',abs(bfr_diag-bfr)/bfr_diag
-!        write(fates_log(),*) 'exiting'
-!        call endrun(msg=errMsg(sourcefile, __LINE__))
+        if(verbose_logging) then
+           write(fates_log(),*) 'disparity in integrated/diagnosed fineroot carbon'
+           write(fates_log(),*) 'resulting from the on-allometry growth integration step'
+           write(fates_log(),*) 'bfr (integrated): ',bfr
+           write(fates_log(),*) 'bfr (diagnosed): ',bfr_diag
+           write(fates_log(),*) 'relative error: ',abs(bfr_diag-bfr)/bfr_diag
+        end if
         ierr = 1
      end if
      
      if( abs(bsap_diag-bsap)/bsap_diag > relative_err_thresh ) then
-        write(fates_log(),*) 'disparity in integrated/diagnosed sapwood carbon'
-        write(fates_log(),*) 'resulting from the on-allometry growth integration step'
-        write(fates_log(),*) 'bsap (integrated): ',bsap
-        write(fates_log(),*) 'bsap (diagnosed): ',bsap_diag
-        write(fates_log(),*) 'relative error: ',abs(bsap_diag-bsap)/bsap_diag
-!        print*,'bsap relative error: ',abs(bsap_diag-bsap)/bsap_diag
-!        write(fates_log(),*) 'exiting'
-!        call endrun(msg=errMsg(sourcefile, __LINE__))
+        if(verbose_logging) then
+           write(fates_log(),*) 'disparity in integrated/diagnosed sapwood carbon'
+           write(fates_log(),*) 'resulting from the on-allometry growth integration step'
+           write(fates_log(),*) 'bsap (integrated): ',bsap
+           write(fates_log(),*) 'bsap (diagnosed): ',bsap_diag
+           write(fates_log(),*) 'relative error: ',abs(bsap_diag-bsap)/bsap_diag
+        end if
         ierr = 1
      end if
 
      if( abs(bdead_diag-bdead)/bdead_diag > relative_err_thresh ) then
-        write(fates_log(),*) 'disparity in integrated/diagnosed structural carbon'
-        write(fates_log(),*) 'resulting from the on-allometry growth integration step'
-        write(fates_log(),*) 'bdead (integrated): ',bdead
-        write(fates_log(),*) 'bdead (diagnosed): ',bdead_diag
-        write(fates_log(),*) 'relative error: ',abs(bdead_diag-bdead)/bdead_diag
-!        print*,'bdead relative error: ',abs(bdead_diag-bdead)/bdead_diag
-!        write(fates_log(),*) 'exiting'
-!        call endrun(msg=errMsg(sourcefile, __LINE__))
+        if(verbose_logging) then
+           write(fates_log(),*) 'disparity in integrated/diagnosed structural carbon'
+           write(fates_log(),*) 'resulting from the on-allometry growth integration step'
+           write(fates_log(),*) 'bdead (integrated): ',bdead
+           write(fates_log(),*) 'bdead (diagnosed): ',bdead_diag
+           write(fates_log(),*) 'relative error: ',abs(bdead_diag-bdead)/bdead_diag
+        end if
         ierr = 1
      end if
 
@@ -607,6 +605,48 @@ contains
 
 
   ! ============================================================================
+  ! Storage biomass interface
+  ! ============================================================================
+  
+  subroutine bstore_allom(d,h,ipft,canopy_trim,bstore,dbstoredd)
+
+     real(r8),intent(in)           :: d            ! plant diameter [cm]
+     real(r8),intent(in)           :: h            ! plant height [m]
+     integer(i4),intent(in)        :: ipft         ! PFT index
+     real(r8),intent(in)           :: canopy_trim  ! Crown trimming function [0-1]
+     real(r8),intent(out)          :: bstore       ! allometric target storage [kgC]
+     real(r8),intent(out),optional :: dbstoredd    ! change storage per cm [kgC/cm]
+     
+     real(r8) :: bl          ! Allometric target leaf biomass
+     real(r8) :: dbldd       ! Allometric target change in leaf biomass per cm
+    
+     
+     ! TODO: allom_stmode needs to be added to the parameter file
+     
+     associate( allom_stmode => EDPftvarcon_inst%allom_stmode(ipft), &
+                cushion      => EDPftvarcon_inst%cushion(ipft) )
+
+       select case(int(allom_stmode))
+       case(1) ! Storage is constant proportionality of trimmed maximum leaf
+          ! biomass (ie cushion * bleaf)
+          
+          call bleaf(d,h,ipft,canopy_trim,bl,dbldd)
+          call bstore_blcushion(d,bl,dbldd,cushion,ipft,bstore,dbstoredd)
+          
+       case DEFAULT 
+          write(fates_log(),*) 'An undefined fine storage allometry was specified: ', &
+                allom_stmode
+          write(fates_log(),*) 'Aborting'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end select
+       
+     end associate
+     return
+  end subroutine bstore_allom
+  
+
+
+  ! ============================================================================
   ! Dead biomass interface
   ! ============================================================================
   
@@ -835,7 +875,36 @@ contains
     end associate
     return
   end subroutine bsap_dlinear
+
+  ! ============================================================================
+  ! Specific storage relationships
+  ! ============================================================================
   
+  subroutine bstore_blcushion(d,bl,dbldd,cushion,ipft,bstore,dbstoredd)
+     
+     ! This discracefully simple subroutine calculates allometric target
+     ! storage biomass based on a constant-specified ratio (cushion)
+     ! of storage to target allometricc leaf biomass
+
+     real(r8),intent(in)    :: d                  ! plant diameter [cm]
+     real(r8),intent(in)    :: bl                 ! plant leaf biomass [kgC]
+     real(r8),intent(in)    :: dbldd              ! change in blmax per diam [kgC/cm]
+     real(r8),intent(in)    :: cushion            ! simple constant ration bstore/bleaf
+     integer(i4),intent(in) :: ipft               ! PFT index
+     real(r8),intent(out)   :: bstore             ! plant leaf biomass [kgC]
+     real(r8),intent(out),optional :: dbstoredd   ! change leaf bio per diameter [kgC/cm]
+     
+     
+     bstore = bl * cushion
+     
+     if(present(dbstoredd)) then
+        dbstoredd = dbldd * cushion
+     end if
+
+     return
+  end subroutine bstore_blcushion
+
+
   ! ============================================================================
   ! Specific d2blmax relationships
   ! ============================================================================
