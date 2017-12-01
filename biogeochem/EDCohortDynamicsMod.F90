@@ -269,13 +269,18 @@ contains
     currentCohort%resp_tstep         = nan ! RESP: kgC/indiv/timestep
     currentCohort%resp_acc           = nan ! RESP: kGC/cohort/day
 
-    currentCohort%npp_leaf  = nan
-    currentCohort%npp_froot = nan
-    currentCohort%npp_bsw   = nan
-    currentCohort%npp_bdead = nan
-    currentCohort%npp_bseed = nan
-    currentCohort%npp_store = nan
+    currentCohort%npp_leaf = nan
+    currentCohort%npp_fnrt = nan
+    currentCohort%npp_sapw = nan
+    currentCohort%npp_dead = nan
+    currentCohort%npp_seed = nan
+    currentCohort%npp_stor = nan
 
+    currentCohort%fcfix_leaf = nan
+    currentCohort%fcfix_fnrt = nan
+    currentCohort%fcfix_sapw = nan
+    currentCohort%fcfix_dead = nan
+    currentCohort%fcfix_stor = nan
 
     !RESPIRATION
     currentCohort%rdark              = nan
@@ -292,7 +297,6 @@ contains
     currentCohort%bsw_md             = nan
     currentCohort%bdead_md           = nan
     currentCohort%bstore_md          = nan
-    currentCohort%carbon_balance     = nan ! carbon remaining for growth and storage: kg/indiv/year
     currentCohort%dmort              = nan ! proportional mortality rate. (year-1)
     currentCohort%lmort_logging      = nan
     currentCohort%lmort_infra        = nan
@@ -354,7 +358,6 @@ contains
     currentcohort%gpp_tstep          = 0._r8
     currentcohort%resp_tstep         = 0._r8
     currentcohort%resp_acc_hold      = 0._r8
-    currentcohort%carbon_balance     = 0._r8
     currentcohort%leaf_litter        = 0._r8
     currentcohort%year_net_uptake(:) = 999._r8 ! this needs to be 999, or trimming of new cohorts will break. 
     currentcohort%ts_net_uptake(:)   = 0._r8
@@ -374,12 +377,18 @@ contains
     currentCohort%lmort_logging      = 0._r8
     currentCohort%lmort_infra        = 0._r8
     currentCohort%lmort_collateral   = 0._r8
-    currentCohort%npp_leaf  = 0._r8
-    currentCohort%npp_froot = 0._r8
-    currentCohort%npp_bsw   = 0._r8
-    currentCohort%npp_bdead = 0._r8
-    currentCohort%npp_bseed = 0._r8
-    currentCohort%npp_store = 0._r8
+    currentCohort%npp_leaf = 0._r8
+    currentCohort%npp_fnrt = 0._r8
+    currentCohort%npp_sapw = 0._r8
+    currentCohort%npp_dead = 0._r8
+    currentCohort%npp_seed = 0._r8
+    currentCohort%npp_stor = 0._r8
+    
+    currentCohort%fcfix_leaf = 0._r8
+    currentCohort%fcfix_fnrt = 0._r8
+    currentCohort%fcfix_sapw = 0._r8
+    currentCohort%fcfix_dead = 0._r8
+    currentCohort%fcfix_stor = 0._r8
 
   end subroutine zero_cohort
 
@@ -715,8 +724,6 @@ contains
                                          nextc%n*nextc%bsw_md)/newn
                                    currentCohort%bdead_md        = (currentCohort%n*currentCohort%bdead_md   + &
                                          nextc%n*nextc%bdead_md)/newn
-                                   currentCohort%carbon_balance = (currentCohort%n*currentCohort%carbon_balance + &
-                                         nextc%n*nextc%carbon_balance)/newn
                                    currentCohort%gpp_acc        = (currentCohort%n*currentCohort%gpp_acc     + &
                                          nextc%n*nextc%gpp_acc)/newn
                                    currentCohort%npp_acc        = (currentCohort%n*currentCohort%npp_acc     + &
@@ -762,18 +769,30 @@ contains
                                          nextc%n*nextc%lmort_infra)/newn
                                    
                                    ! npp diagnostics
-                                   currentCohort%npp_leaf  = (currentCohort%n*currentCohort%npp_leaf  + nextc%n*nextc%npp_leaf) &
+                                   currentCohort%npp_leaf = (currentCohort%n*currentCohort%npp_leaf + nextc%n*nextc%npp_leaf) &
                                                               /newn
-                                   currentCohort%npp_froot = (currentCohort%n*currentCohort%npp_froot + nextc%n*nextc%npp_froot) &
+                                   currentCohort%npp_fnrt = (currentCohort%n*currentCohort%npp_fnrt + nextc%n*nextc%npp_fnrt) &
                                                               /newn
-                                   currentCohort%npp_bsw   = (currentCohort%n*currentCohort%npp_bsw   + nextc%n*nextc%npp_bsw) &
+                                   currentCohort%npp_sapw = (currentCohort%n*currentCohort%npp_sapw + nextc%n*nextc%npp_sapw) &
                                                               /newn
-                                   currentCohort%npp_bdead = (currentCohort%n*currentCohort%npp_bdead + nextc%n*nextc%npp_bdead) &
+                                   currentCohort%npp_dead = (currentCohort%n*currentCohort%npp_dead + nextc%n*nextc%npp_dead) &
                                                               /newn
-                                   currentCohort%npp_bseed = (currentCohort%n*currentCohort%npp_bseed + nextc%n*nextc%npp_bseed) &
+                                   currentCohort%npp_seed = (currentCohort%n*currentCohort%npp_seed + nextc%n*nextc%npp_seed) &
                                                               /newn
-                                   currentCohort%npp_store = (currentCohort%n*currentCohort%npp_store + nextc%n*nextc%npp_store) &
+                                   currentCohort%npp_stor = (currentCohort%n*currentCohort%npp_stor + nextc%n*nextc%npp_stor) &
                                                               /newn
+
+                                   currentCohort%fcfix_leaf = (currentCohort%n*currentCohort%fcfix_leaf + nextc%n*nextc%fcfix_leaf) &
+                                                              /newn
+                                   currentCohort%fcfix_fnrt = (currentCohort%n*currentCohort%fcfix_fnrt + nextc%n*nextc%fcfix_fnrt) &
+                                                              /newn
+                                   currentCohort%fcfix_sapw = (currentCohort%n*currentCohort%fcfix_sapw + nextc%n*nextc%fcfix_sapw) &
+                                                              /newn
+                                   currentCohort%fcfix_dead = (currentCohort%n*currentCohort%fcfix_dead + nextc%n*nextc%fcfix_dead) &
+                                                              /newn
+                                   currentCohort%fcfix_stor = (currentCohort%n*currentCohort%fcfix_stor + nextc%n*nextc%fcfix_stor) &
+                                                              /newn
+
 
                                    ! biomass and dbh tendencies
                                    currentCohort%ddbhdt     = (currentCohort%n*currentCohort%ddbhdt  + nextc%n*nextc%ddbhdt)/newn
@@ -1103,12 +1122,18 @@ contains
     n%year_net_uptake = o%year_net_uptake
     n%ts_net_uptake   = o%ts_net_uptake
 
-    n%npp_leaf       = o%npp_leaf
-    n%npp_froot      = o%npp_froot
-    n%npp_bsw        = o%npp_bsw
-    n%npp_bdead      = o%npp_bdead
-    n%npp_bseed      = o%npp_bseed
-    n%npp_store      = o%npp_store
+    n%npp_leaf      = o%npp_leaf
+    n%npp_fnrt      = o%npp_fnrt
+    n%npp_sapw      = o%npp_sapw
+    n%npp_dead      = o%npp_dead
+    n%npp_seed      = o%npp_seed
+    n%npp_stor      = o%npp_stor
+
+    n%fcfix_leaf      = o%fcfix_leaf
+    n%fcfix_fnrt      = o%fcfix_fnrt
+    n%fcfix_sapw      = o%fcfix_sapw
+    n%fcfix_dead      = o%fcfix_dead
+    n%fcfix_stor      = o%fcfix_stor
 
     !RESPIRATION
     n%rdark           = o%rdark
@@ -1125,7 +1150,6 @@ contains
     n%bsw_md          = o%bsw_md
     n%bdead_md        = o%bdead_md
     n%bstore_md       = o%bstore_md
-    n%carbon_balance  = o%carbon_balance
     n%dmort           = o%dmort
     n%lmort_logging   = o%lmort_logging
     n%lmort_infra     = o%lmort_infra

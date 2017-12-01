@@ -578,12 +578,18 @@ contains
           currentCohort%gpp_acc  = 0.0_r8
           currentCohort%resp_acc = 0.0_r8
 
-          currentCohort%npp_leaf  = 0.0_r8
-          currentCohort%npp_froot = 0.0_r8
-          currentCohort%npp_bsw   = 0.0_r8
-          currentCohort%npp_bdead = 0.0_r8
-          currentCohort%npp_bseed = 0.0_r8
-          currentCohort%npp_store = 0.0_r8
+          currentCohort%npp_leaf = 0.0_r8
+          currentCohort%npp_fnrt = 0.0_r8
+          currentCohort%npp_sapw = 0.0_r8
+          currentCohort%npp_dead = 0.0_r8
+          currentCohort%npp_seed = 0.0_r8
+          currentCohort%npp_stor = 0.0_r8
+
+          currentCohort%fcfix_leaf = 0.0_r8
+          currentCohort%fcfix_fnrt = 0.0_r8
+          currentCohort%fcfix_sapw = 0.0_r8
+          currentCohort%fcfix_dead = 0.0_r8
+          currentCohort%fcfix_stor = 0.0_r8
 
           currentCohort%bmort = 0.0_r8
           currentCohort%hmort = 0.0_r8

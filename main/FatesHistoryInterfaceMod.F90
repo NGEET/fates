@@ -3,6 +3,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : r8 => fates_r8
   use FatesConstantsMod        , only : fates_avg_flag_length, fates_short_string_length, fates_long_string_length
   use FatesConstantsMod        , only : itrue,ifalse
+  use FatesConstantsMod        , only : calloc_abs_error
   use FatesGlobals             , only : fates_log
   use FatesGlobals             , only : endrun => fates_endrun
 
@@ -137,6 +138,12 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_npp_agsw_si_scpf
   integer, private :: ih_npp_agdw_si_scpf
   integer, private :: ih_npp_stor_si_scpf
+  
+  integer, private :: ih_fcfix_leaf_si_scpf
+  integer, private :: ih_fcfix_fnrt_si_scpf
+  integer, private :: ih_fcfix_stor_si_scpf
+  integer, private :: ih_fcfix_dead_si_scpf
+  integer, private :: ih_fcfix_sapw_si_scpf
 
   integer, private :: ih_bstor_canopy_si_scpf
   integer, private :: ih_bstor_understory_si_scpf
@@ -200,17 +207,16 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_bstore_md_canopy_si_scls
   integer, private :: ih_bdead_md_canopy_si_scls
   integer, private :: ih_bsw_md_canopy_si_scls
-  integer, private :: ih_carbon_balance_canopy_si_scls
   integer, private :: ih_seed_prod_canopy_si_scls
   integer, private :: ih_dbdeaddt_canopy_si_scls
   integer, private :: ih_dbstoredt_canopy_si_scls
   integer, private :: ih_storage_flux_canopy_si_scls
   integer, private :: ih_npp_leaf_canopy_si_scls
-  integer, private :: ih_npp_froot_canopy_si_scls
-  integer, private :: ih_npp_bsw_canopy_si_scls
-  integer, private :: ih_npp_bdead_canopy_si_scls
-  integer, private :: ih_npp_bseed_canopy_si_scls
-  integer, private :: ih_npp_store_canopy_si_scls
+  integer, private :: ih_npp_fnrt_canopy_si_scls
+  integer, private :: ih_npp_sapw_canopy_si_scls
+  integer, private :: ih_npp_dead_canopy_si_scls
+  integer, private :: ih_npp_seed_canopy_si_scls
+  integer, private :: ih_npp_stor_canopy_si_scls
 
   integer, private :: ih_rdark_understory_si_scls
   integer, private :: ih_livestem_mr_understory_si_scls
@@ -223,17 +229,16 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_bsw_md_understory_si_scls
   integer, private :: ih_bdead_md_understory_si_scls
   integer, private :: ih_bstore_md_understory_si_scls
-  integer, private :: ih_carbon_balance_understory_si_scls
   integer, private :: ih_seed_prod_understory_si_scls
   integer, private :: ih_dbdeaddt_understory_si_scls
   integer, private :: ih_dbstoredt_understory_si_scls
   integer, private :: ih_storage_flux_understory_si_scls
   integer, private :: ih_npp_leaf_understory_si_scls
-  integer, private :: ih_npp_froot_understory_si_scls
-  integer, private :: ih_npp_bsw_understory_si_scls
-  integer, private :: ih_npp_bdead_understory_si_scls
-  integer, private :: ih_npp_bseed_understory_si_scls
-  integer, private :: ih_npp_store_understory_si_scls
+  integer, private :: ih_npp_fnrt_understory_si_scls
+  integer, private :: ih_npp_sapw_understory_si_scls
+  integer, private :: ih_npp_dead_understory_si_scls
+  integer, private :: ih_npp_seed_understory_si_scls
+  integer, private :: ih_npp_stor_understory_si_scls
 
   integer, private :: ih_yesterdaycanopylevel_canopy_si_scls
   integer, private :: ih_yesterdaycanopylevel_understory_si_scls
@@ -1191,6 +1196,13 @@ end subroutine flush_hvars
                hio_npp_agsw_si_scpf    => this%hvars(ih_npp_agsw_si_scpf)%r82d, &
                hio_npp_agdw_si_scpf    => this%hvars(ih_npp_agdw_si_scpf)%r82d, &
                hio_npp_stor_si_scpf    => this%hvars(ih_npp_stor_si_scpf)%r82d, &
+
+               hio_fcfix_leaf_si_scpf   => this%hvars(ih_fcfix_leaf_si_scpf)%r82d, &
+               hio_fcfix_fnrt_si_scpf   => this%hvars(ih_fcfix_fnrt_si_scpf)%r82d, &
+               hio_fcfix_stor_si_scpf    => this%hvars(ih_fcfix_stor_si_scpf)%r82d, &
+               hio_fcfix_dead_si_scpf    => this%hvars(ih_fcfix_dead_si_scpf)%r82d, &
+               hio_fcfix_sapw_si_scpf    => this%hvars(ih_fcfix_sapw_si_scpf)%r82d, &
+      
                hio_bstor_canopy_si_scpf      => this%hvars(ih_bstor_canopy_si_scpf)%r82d, &
                hio_bstor_understory_si_scpf  => this%hvars(ih_bstor_understory_si_scpf)%r82d, &
                hio_bleaf_canopy_si_scpf      => this%hvars(ih_bleaf_canopy_si_scpf)%r82d, &
@@ -1210,13 +1222,13 @@ end subroutine flush_hvars
                hio_ddbh_si_scpf        => this%hvars(ih_ddbh_si_scpf)%r82d, &
                hio_ba_si_scpf          => this%hvars(ih_ba_si_scpf)%r82d, &
                hio_nplant_si_scpf      => this%hvars(ih_nplant_si_scpf)%r82d, &
+
                hio_m1_si_scpf          => this%hvars(ih_m1_si_scpf)%r82d, &
                hio_m2_si_scpf          => this%hvars(ih_m2_si_scpf)%r82d, &
                hio_m3_si_scpf          => this%hvars(ih_m3_si_scpf)%r82d, &
                hio_m4_si_scpf          => this%hvars(ih_m4_si_scpf)%r82d, &
                hio_m5_si_scpf          => this%hvars(ih_m5_si_scpf)%r82d, &
                hio_m6_si_scpf          => this%hvars(ih_m6_si_scpf)%r82d, &
-
                hio_m7_si_scpf          => this%hvars(ih_m7_si_scpf)%r82d, &                  
 
                hio_ba_si_scls          => this%hvars(ih_ba_si_scls)%r82d, &
@@ -1239,33 +1251,31 @@ end subroutine flush_hvars
                hio_bsw_md_canopy_si_scls            => this%hvars(ih_bsw_md_canopy_si_scls)%r82d, &
                hio_bdead_md_canopy_si_scls          => this%hvars(ih_bdead_md_canopy_si_scls)%r82d, &
                hio_bstore_md_canopy_si_scls         => this%hvars(ih_bstore_md_canopy_si_scls)%r82d, &
-               hio_carbon_balance_canopy_si_scls    => this%hvars(ih_carbon_balance_canopy_si_scls)%r82d, &
                hio_seed_prod_canopy_si_scls         => this%hvars(ih_seed_prod_canopy_si_scls)%r82d, &
                hio_dbdeaddt_canopy_si_scls          => this%hvars(ih_dbdeaddt_canopy_si_scls)%r82d, &
                hio_dbstoredt_canopy_si_scls         => this%hvars(ih_dbstoredt_canopy_si_scls)%r82d, &
                hio_storage_flux_canopy_si_scls      => this%hvars(ih_storage_flux_canopy_si_scls)%r82d, &
                hio_npp_leaf_canopy_si_scls          => this%hvars(ih_npp_leaf_canopy_si_scls)%r82d, &
-               hio_npp_froot_canopy_si_scls         => this%hvars(ih_npp_froot_canopy_si_scls)%r82d, &
-               hio_npp_bsw_canopy_si_scls           => this%hvars(ih_npp_bsw_canopy_si_scls)%r82d, &
-               hio_npp_bdead_canopy_si_scls         => this%hvars(ih_npp_bdead_canopy_si_scls)%r82d, &
-               hio_npp_bseed_canopy_si_scls         => this%hvars(ih_npp_bseed_canopy_si_scls)%r82d, &
-               hio_npp_store_canopy_si_scls         => this%hvars(ih_npp_store_canopy_si_scls)%r82d, &
+               hio_npp_fnrt_canopy_si_scls         => this%hvars(ih_npp_fnrt_canopy_si_scls)%r82d, &
+               hio_npp_sapw_canopy_si_scls           => this%hvars(ih_npp_sapw_canopy_si_scls)%r82d, &
+               hio_npp_dead_canopy_si_scls         => this%hvars(ih_npp_dead_canopy_si_scls)%r82d, &
+               hio_npp_seed_canopy_si_scls         => this%hvars(ih_npp_seed_canopy_si_scls)%r82d, &
+               hio_npp_stor_canopy_si_scls         => this%hvars(ih_npp_stor_canopy_si_scls)%r82d, &
                hio_leaf_md_understory_si_scls       => this%hvars(ih_leaf_md_understory_si_scls)%r82d, &
                hio_root_md_understory_si_scls       => this%hvars(ih_root_md_understory_si_scls)%r82d, &
                hio_bstore_md_understory_si_scls     => this%hvars(ih_bstore_md_understory_si_scls)%r82d, &
                hio_bsw_md_understory_si_scls        => this%hvars(ih_bsw_md_understory_si_scls)%r82d, &
                hio_bdead_md_understory_si_scls      => this%hvars(ih_bdead_md_understory_si_scls)%r82d, &
-               hio_carbon_balance_understory_si_scls=> this%hvars(ih_carbon_balance_understory_si_scls)%r82d, &
                hio_seed_prod_understory_si_scls     => this%hvars(ih_seed_prod_understory_si_scls)%r82d, &
                hio_dbdeaddt_understory_si_scls      => this%hvars(ih_dbdeaddt_understory_si_scls)%r82d, &
                hio_dbstoredt_understory_si_scls     => this%hvars(ih_dbstoredt_understory_si_scls)%r82d, &
                hio_storage_flux_understory_si_scls  => this%hvars(ih_storage_flux_understory_si_scls)%r82d, &
                hio_npp_leaf_understory_si_scls      => this%hvars(ih_npp_leaf_understory_si_scls)%r82d, &
-               hio_npp_froot_understory_si_scls     => this%hvars(ih_npp_froot_understory_si_scls)%r82d, &
-               hio_npp_bsw_understory_si_scls       => this%hvars(ih_npp_bsw_understory_si_scls)%r82d, &
-               hio_npp_bdead_understory_si_scls     => this%hvars(ih_npp_bdead_understory_si_scls)%r82d, &
-               hio_npp_bseed_understory_si_scls     => this%hvars(ih_npp_bseed_understory_si_scls)%r82d, &
-               hio_npp_store_understory_si_scls     => this%hvars(ih_npp_store_understory_si_scls)%r82d, &
+               hio_npp_fnrt_understory_si_scls     => this%hvars(ih_npp_fnrt_understory_si_scls)%r82d, &
+               hio_npp_sapw_understory_si_scls       => this%hvars(ih_npp_sapw_understory_si_scls)%r82d, &
+               hio_npp_dead_understory_si_scls     => this%hvars(ih_npp_dead_understory_si_scls)%r82d, &
+               hio_npp_seed_understory_si_scls     => this%hvars(ih_npp_seed_understory_si_scls)%r82d, &
+               hio_npp_stor_understory_si_scls     => this%hvars(ih_npp_stor_understory_si_scls)%r82d, &
                hio_yesterdaycanopylevel_canopy_si_scls     => this%hvars(ih_yesterdaycanopylevel_canopy_si_scls)%r82d, &
                hio_yesterdaycanopylevel_understory_si_scls => this%hvars(ih_yesterdaycanopylevel_understory_si_scls)%r82d, &
                hio_area_si_age         => this%hvars(ih_area_si_age)%r82d, &
@@ -1434,35 +1444,56 @@ end subroutine flush_hvars
                     hio_npp_leaf_si_scpf(io_si,scpf) = hio_npp_leaf_si_scpf(io_si,scpf) + &
                                                        ccohort%npp_leaf*n_perm2
                     hio_npp_fnrt_si_scpf(io_si,scpf) = hio_npp_fnrt_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_froot*n_perm2
+                                                       ccohort%npp_fnrt*n_perm2
                     hio_npp_bgsw_si_scpf(io_si,scpf) = hio_npp_bgsw_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_bsw*n_perm2*           &
+                                                       ccohort%npp_sapw*n_perm2*           &
                                                        (1._r8-EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
                     hio_npp_agsw_si_scpf(io_si,scpf) = hio_npp_agsw_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_bsw*n_perm2*           &
+                                                       ccohort%npp_sapw*n_perm2*           &
                                                        EDPftvarcon_inst%allom_agb_frac(ccohort%pft)
                     hio_npp_bgdw_si_scpf(io_si,scpf) = hio_npp_bgdw_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_bdead*n_perm2*         &
+                                                       ccohort%npp_dead*n_perm2*         &
                                                        (1._r8-EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
                     hio_npp_agdw_si_scpf(io_si,scpf) = hio_npp_agdw_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_bdead*n_perm2*         &
+                                                       ccohort%npp_dead*n_perm2*         &
                                                        EDPftvarcon_inst%allom_agb_frac(ccohort%pft)
                     hio_npp_seed_si_scpf(io_si,scpf) = hio_npp_seed_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_bseed*n_perm2
+                                                       ccohort%npp_seed*n_perm2
                     hio_npp_stor_si_scpf(io_si,scpf) = hio_npp_stor_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_store*n_perm2
+                                                       ccohort%npp_stor*n_perm2
 
-                    if( abs(ccohort%npp_acc_hold-(ccohort%npp_leaf+ccohort%npp_froot+ &
-                         ccohort%npp_bsw+ccohort%npp_bdead+ &
-                         ccohort%npp_bseed+ccohort%npp_store))>1.e-9)  then
+                    ! Track carbon fluxes from fusion corrections
+
+                    hio_fcfix_leaf_si_scpf(io_si,scpf) = hio_fcfix_leaf_si_scpf(io_si,scpf)+ &
+                                                       ccohort%fcfix_leaf*n_perm2
+                    hio_fcfix_fnrt_si_scpf(io_si,scpf) = hio_fcfix_fnrt_si_scpf(io_si,scpf)+ &
+                                                       ccohort%fcfix_fnrt*n_perm2
+                    hio_fcfix_stor_si_scpf(io_si,scpf) = hio_fcfix_stor_si_scpf(io_si,scpf)+ &
+                                                       ccohort%fcfix_stor*n_perm2
+                    hio_fcfix_dead_si_scpf(io_si,scpf) = hio_fcfix_dead_si_scpf(io_si,scpf)+ &
+                                                       ccohort%fcfix_dead*n_perm2
+                    hio_fcfix_sapw_si_scpf(io_si,scpf) = hio_fcfix_sapw_si_scpf(io_si,scpf)+ &
+                                                       ccohort%fcfix_sapw*n_perm2
+
+
+                    if( abs(ccohort%npp_acc_hold-(ccohort%npp_leaf+ccohort%npp_fnrt+ &
+                         ccohort%npp_sapw+ccohort%npp_dead+ &
+                         ccohort%npp_seed+ccohort%npp_stor+ &
+                         ccohort%fcfix_leaf + ccohort%fcfix_fnrt + &
+                         ccohort%fcfix_sapw + ccohort%fcfix_dead + ccohort%fcfix_stor)) > calloc_abs_error)  then
                        write(fates_log(),*) 'NPP Partitions are not balancing'
                        write(fates_log(),*) 'Fractional Error: ', &
-                            abs(ccohort%npp_acc_hold-(ccohort%npp_leaf+ccohort%npp_froot+ &
-                            ccohort%npp_bsw+ccohort%npp_bdead+ &
-                            ccohort%npp_bseed+ccohort%npp_store))/ccohort%npp_acc_hold
-                       write(fates_log(),*) 'Terms: ',ccohort%npp_acc_hold,ccohort%npp_leaf,ccohort%npp_froot, &
-                            ccohort%npp_bsw,ccohort%npp_bdead, &
-                            ccohort%npp_bseed,ccohort%npp_store
+                            abs(ccohort%npp_acc_hold-(ccohort%npp_leaf+ccohort%npp_fnrt+ &
+                            ccohort%npp_sapw+ccohort%npp_dead+ &
+                            ccohort%npp_seed+ccohort%npp_stor+ &
+                            ccohort%fcfix_leaf + ccohort%fcfix_fnrt + &
+                            ccohort%fcfix_sapw + ccohort%fcfix_dead + ccohort%fcfix_stor))/ccohort%npp_acc_hold
+                       write(fates_log(),*) 'Terms: ',ccohort%npp_acc_hold,ccohort%npp_leaf,ccohort%npp_fnrt, &
+                            ccohort%npp_sapw,ccohort%npp_dead, &
+                            ccohort%npp_seed,ccohort%npp_stor, &
+                            ccohort%fcfix_leaf + ccohort%fcfix_fnrt + &
+                            ccohort%fcfix_sapw + ccohort%fcfix_dead + &
+                            ccohort%fcfix_stor
                        write(fates_log(),*) ' NPP components during FATES-HLM linking does not balance '
                        stop ! we need termination control for FATES!!!
                        ! call endrun(msg=errMsg(__FILE__, __LINE__))
@@ -1564,8 +1595,6 @@ end subroutine flush_hvars
                             ccohort%bstore_md * ccohort%n
                        hio_bdead_md_canopy_si_scls(io_si,scls) = hio_bdead_md_canopy_si_scls(io_si,scls) + &
                             ccohort%bdead_md * ccohort%n
-                       hio_carbon_balance_canopy_si_scls(io_si,scls) = hio_carbon_balance_canopy_si_scls(io_si,scls) + &
-                            ccohort%carbon_balance * ccohort%n
                        hio_seed_prod_canopy_si_scls(io_si,scls) = hio_seed_prod_canopy_si_scls(io_si,scls) + &
                             ccohort%seed_prod * ccohort%n
                        hio_dbdeaddt_canopy_si_scls(io_si,scls) = hio_dbdeaddt_canopy_si_scls(io_si,scls) + &
@@ -1573,19 +1602,19 @@ end subroutine flush_hvars
                        hio_dbstoredt_canopy_si_scls(io_si,scls) = hio_dbstoredt_canopy_si_scls(io_si,scls) + &
                             ccohort%dbstoredt * ccohort%n
                        hio_storage_flux_canopy_si_scls(io_si,scls) = hio_storage_flux_canopy_si_scls(io_si,scls) + &
-                            ccohort%npp_store * ccohort%n
+                            ccohort%npp_stor * ccohort%n
                        hio_npp_leaf_canopy_si_scls(io_si,scls) = hio_npp_leaf_canopy_si_scls(io_si,scls) + &
                             ccohort%npp_leaf * ccohort%n
-                       hio_npp_froot_canopy_si_scls(io_si,scls) = hio_npp_froot_canopy_si_scls(io_si,scls) + &
-                            ccohort%npp_froot * ccohort%n
-                       hio_npp_bsw_canopy_si_scls(io_si,scls) = hio_npp_bsw_canopy_si_scls(io_si,scls) + &
-                            ccohort%npp_bsw * ccohort%n
-                       hio_npp_bdead_canopy_si_scls(io_si,scls) = hio_npp_bdead_canopy_si_scls(io_si,scls) + &
-                            ccohort%npp_bdead * ccohort%n
-                       hio_npp_bseed_canopy_si_scls(io_si,scls) = hio_npp_bseed_canopy_si_scls(io_si,scls) + &
-                            ccohort%npp_bseed * ccohort%n
-                       hio_npp_store_canopy_si_scls(io_si,scls) = hio_npp_store_canopy_si_scls(io_si,scls) + &
-                            ccohort%npp_store * ccohort%n
+                       hio_npp_fnrt_canopy_si_scls(io_si,scls) = hio_npp_fnrt_canopy_si_scls(io_si,scls) + &
+                            ccohort%npp_fnrt * ccohort%n
+                       hio_npp_sapw_canopy_si_scls(io_si,scls) = hio_npp_sapw_canopy_si_scls(io_si,scls) + &
+                            ccohort%npp_sapw * ccohort%n
+                       hio_npp_dead_canopy_si_scls(io_si,scls) = hio_npp_dead_canopy_si_scls(io_si,scls) + &
+                            ccohort%npp_dead * ccohort%n
+                       hio_npp_seed_canopy_si_scls(io_si,scls) = hio_npp_seed_canopy_si_scls(io_si,scls) + &
+                            ccohort%npp_seed * ccohort%n
+                       hio_npp_stor_canopy_si_scls(io_si,scls) = hio_npp_stor_canopy_si_scls(io_si,scls) + &
+                            ccohort%npp_stor * ccohort%n
                        hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) = &
                             hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) + &
                             ccohort%canopy_layer_yesterday * ccohort%n
@@ -1648,8 +1677,6 @@ end subroutine flush_hvars
                              ccohort%bstore_md * ccohort%n
                        hio_bdead_md_understory_si_scls(io_si,scls) = hio_bdead_md_understory_si_scls(io_si,scls) + &
                              ccohort%bdead_md * ccohort%n
-                       hio_carbon_balance_understory_si_scls(io_si,scls) = hio_carbon_balance_understory_si_scls(io_si,scls) + &
-                            ccohort%carbon_balance * ccohort%n
                        hio_seed_prod_understory_si_scls(io_si,scls) = hio_seed_prod_understory_si_scls(io_si,scls) + &
                             ccohort%seed_prod * ccohort%n
                        hio_dbdeaddt_understory_si_scls(io_si,scls) = hio_dbdeaddt_understory_si_scls(io_si,scls) + &
@@ -1657,19 +1684,19 @@ end subroutine flush_hvars
                        hio_dbstoredt_understory_si_scls(io_si,scls) = hio_dbstoredt_understory_si_scls(io_si,scls) + &
                             ccohort%dbstoredt * ccohort%n
                        hio_storage_flux_understory_si_scls(io_si,scls) = hio_storage_flux_understory_si_scls(io_si,scls) + &
-                            ccohort%npp_store * ccohort%n
+                            ccohort%npp_stor * ccohort%n
                        hio_npp_leaf_understory_si_scls(io_si,scls) = hio_npp_leaf_understory_si_scls(io_si,scls) + &
                             ccohort%npp_leaf * ccohort%n
-                       hio_npp_froot_understory_si_scls(io_si,scls) = hio_npp_froot_understory_si_scls(io_si,scls) + &
-                            ccohort%npp_froot * ccohort%n
-                       hio_npp_bsw_understory_si_scls(io_si,scls) = hio_npp_bsw_understory_si_scls(io_si,scls) + &
-                            ccohort%npp_bsw * ccohort%n
-                       hio_npp_bdead_understory_si_scls(io_si,scls) = hio_npp_bdead_understory_si_scls(io_si,scls) + &
-                            ccohort%npp_bdead * ccohort%n
-                       hio_npp_bseed_understory_si_scls(io_si,scls) = hio_npp_bseed_understory_si_scls(io_si,scls) + &
-                            ccohort%npp_bseed * ccohort%n
-                       hio_npp_store_understory_si_scls(io_si,scls) = hio_npp_store_understory_si_scls(io_si,scls) + &
-                            ccohort%npp_store * ccohort%n
+                       hio_npp_fnrt_understory_si_scls(io_si,scls) = hio_npp_fnrt_understory_si_scls(io_si,scls) + &
+                            ccohort%npp_fnrt * ccohort%n
+                       hio_npp_sapw_understory_si_scls(io_si,scls) = hio_npp_sapw_understory_si_scls(io_si,scls) + &
+                            ccohort%npp_sapw * ccohort%n
+                       hio_npp_dead_understory_si_scls(io_si,scls) = hio_npp_dead_understory_si_scls(io_si,scls) + &
+                            ccohort%npp_dead * ccohort%n
+                       hio_npp_seed_understory_si_scls(io_si,scls) = hio_npp_seed_understory_si_scls(io_si,scls) + &
+                            ccohort%npp_seed * ccohort%n
+                       hio_npp_stor_understory_si_scls(io_si,scls) = hio_npp_stor_understory_si_scls(io_si,scls) + &
+                            ccohort%npp_stor * ccohort%n
                        hio_yesterdaycanopylevel_understory_si_scls(io_si,scls) = &
                             hio_yesterdaycanopylevel_understory_si_scls(io_si,scls) + &
                             ccohort%canopy_layer_yesterday * ccohort%n
@@ -3137,7 +3164,6 @@ end subroutine flush_hvars
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_totl_si_scpf )
 
-
     call this%set_history_var(vname='NPP_LEAF_SCPF', units='kgC/m2/yr',       &
           long='NPP flux into leaves by pft/size', use_default='inactive',               &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
@@ -3177,6 +3203,31 @@ end subroutine flush_hvars
           long='NPP flux into storage by pft/size', use_default='inactive',              &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_stor_si_scpf )
+
+    call this%set_history_var(vname = 'FCFIX_STOR_SCPF', units='kgC/m2/yr',    &
+          long='flux into storage for fusion corrections by pft/size', use_default='inactive',&
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fcfix_stor_si_scpf )
+    
+    call this%set_history_var(vname = 'FCFIX_LEAF_SCPF', units='kgC/m2/yr',    &
+          long='flux into leaves for fusion corrections by pft/size', use_default='inactive',&
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fcfix_leaf_si_scpf )
+
+    call this%set_history_var(vname = 'FCFIX_FNRT_SCPF', units='kgC/m2/yr',    &
+          long='flux into fine-roots for fusion corrections by pft/size', use_default='inactive',&
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fcfix_fnrt_si_scpf )
+    
+    call this%set_history_var(vname = 'FCFIX_SAPW_SCPF', units='kgC/m2/yr',    &
+          long='flux into sapwood for fusion corrections by pft/size', use_default='inactive',&
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fcfix_sapw_si_scpf )
+
+    call this%set_history_var(vname = 'FCFIX_DEAD_SCPF', units='kgC/m2/yr',    &
+          long='flux into structure for fusion corrections by pft/size', use_default='inactive',&
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fcfix_dead_si_scpf )
 
     call this%set_history_var(vname='DDBH_SCPF', units = 'cm/yr/ha',         &
           long='diameter growth increment by pft/size',use_default='inactive', &
@@ -3450,11 +3501,6 @@ end subroutine flush_hvars
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_bsw_md_canopy_si_scls )
 
-    call this%set_history_var(vname='CARBON_BALANCE_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-          long='CARBON_BALANCE for canopy plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_carbon_balance_canopy_si_scls )
-    
     call this%set_history_var(vname='SEED_PROD_CANOPY_SCLS', units = 'kg C / ha / yr',               &
           long='SEED_PROD for canopy plants by size class', use_default='inactive',   &
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
@@ -3480,30 +3526,30 @@ end subroutine flush_hvars
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_leaf_canopy_si_scls )
     
-    call this%set_history_var(vname='NPP_FROOT_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-          long='NPP_FROOT for canopy plants by size class', use_default='inactive',   &
+    call this%set_history_var(vname='NPP_FNRT_CANOPY_SCLS', units = 'kg C / ha / yr',               &
+          long='NPP_FNRT for canopy plants by size class', use_default='inactive',   &
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_froot_canopy_si_scls )
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_fnrt_canopy_si_scls )
     
-    call this%set_history_var(vname='NPP_BSW_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-          long='NPP_BSW for canopy plants by size class', use_default='inactive',   &
+    call this%set_history_var(vname='NPP_SAPW_CANOPY_SCLS', units = 'kg C / ha / yr',               &
+          long='NPP_SAPW for canopy plants by size class', use_default='inactive',   &
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_bsw_canopy_si_scls )
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_sapw_canopy_si_scls )
     
-    call this%set_history_var(vname='NPP_BDEAD_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-          long='NPP_BDEAD for canopy plants by size class', use_default='inactive',   &
+    call this%set_history_var(vname='NPP_DEAD_CANOPY_SCLS', units = 'kg C / ha / yr',               &
+          long='NPP_DEAD for canopy plants by size class', use_default='inactive',   &
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_bdead_canopy_si_scls )
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_dead_canopy_si_scls )
     
-    call this%set_history_var(vname='NPP_BSEED_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-          long='NPP_BSEED for canopy plants by size class', use_default='inactive',   &
+    call this%set_history_var(vname='NPP_SEED_CANOPY_SCLS', units = 'kg C / ha / yr',               &
+          long='NPP_SEED for canopy plants by size class', use_default='inactive',   &
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_bseed_canopy_si_scls )
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_seed_canopy_si_scls )
     
-    call this%set_history_var(vname='NPP_STORE_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-          long='NPP_STORE for canopy plants by size class', use_default='inactive',   &
+    call this%set_history_var(vname='NPP_STOR_CANOPY_SCLS', units = 'kg C / ha / yr',               &
+          long='NPP_STOR for canopy plants by size class', use_default='inactive',   &
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_store_canopy_si_scls )
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_stor_canopy_si_scls )
     
     call this%set_history_var(vname='RDARK_CANOPY_SCLS', units = 'kg C / ha / yr',               &
           long='RDARK for canopy plants by size class', use_default='inactive',   &
@@ -3560,11 +3606,6 @@ end subroutine flush_hvars
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_bsw_md_understory_si_scls )
     
-    call this%set_history_var(vname='CARBON_BALANCE_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-          long='CARBON_BALANCE for understory plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_carbon_balance_understory_si_scls )
-    
     call this%set_history_var(vname='SEED_PROD_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
           long='SEED_PROD for understory plants by size class', use_default='inactive',   &
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
@@ -3590,30 +3631,30 @@ end subroutine flush_hvars
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_leaf_understory_si_scls )
     
-    call this%set_history_var(vname='NPP_FROOT_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-          long='NPP_FROOT for understory plants by size class', use_default='inactive',   &
+    call this%set_history_var(vname='NPP_FNRT_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
+          long='NPP_FNRT for understory plants by size class', use_default='inactive',   &
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_froot_understory_si_scls )
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_fnrt_understory_si_scls )
     
-    call this%set_history_var(vname='NPP_BSW_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-          long='NPP_BSW for understory plants by size class', use_default='inactive',   &
+    call this%set_history_var(vname='NPP_SAPW_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
+          long='NPP_SAPW for understory plants by size class', use_default='inactive',   &
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_bsw_understory_si_scls )
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_sapw_understory_si_scls )
     
-    call this%set_history_var(vname='NPP_BDEAD_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-          long='NPP_BDEAD for understory plants by size class', use_default='inactive',   &
+    call this%set_history_var(vname='NPP_DEAD_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
+          long='NPP_DEAD for understory plants by size class', use_default='inactive',   &
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_bdead_understory_si_scls )
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_dead_understory_si_scls )
     
-    call this%set_history_var(vname='NPP_BSEED_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-          long='NPP_BSEED for understory plants by size class', use_default='inactive',   &
+    call this%set_history_var(vname='NPP_SEED_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
+          long='NPP_SEED for understory plants by size class', use_default='inactive',   &
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_bseed_understory_si_scls )
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_seed_understory_si_scls )
     
-    call this%set_history_var(vname='NPP_STORE_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-          long='NPP_STORE for understory plants by size class', use_default='inactive',   &
+    call this%set_history_var(vname='NPP_STOR_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
+          long='NPP_STOR for understory plants by size class', use_default='inactive',   &
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_store_understory_si_scls )
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_stor_understory_si_scls )
     
     call this%set_history_var(vname='RDARK_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
           long='RDARK for understory plants by size class', use_default='inactive',   &

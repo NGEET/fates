@@ -186,15 +186,23 @@ module EDTypesMod
      real(r8) ::  resp_acc
      real(r8) ::  resp_acc_hold
 
-     ! Net Primary Production Partitions
+     ! Plant Tissue Carbon Fluxes
 
-     real(r8) ::  npp_leaf                              ! NPP into leaves (includes replacement of turnover):  KgC/indiv/year
-     real(r8) ::  npp_froot                             ! NPP into fine roots (includes replacement of turnover):  KgC/indiv/year
+     ! Fluxes in from Net Primary Production
+     real(r8) ::  npp_leaf          ! NPP into leaves (includes replacement of turnover):  KgC/indiv/year
+     real(r8) ::  npp_fnrt          ! NPP into fine roots (includes replacement of turnover):  KgC/indiv/year
+     real(r8) ::  npp_sapw          ! NPP into sapwood: KgC/indiv/year
+     real(r8) ::  npp_dead          ! NPP into deadwood (structure):  KgC/indiv/year
+     real(r8) ::  npp_seed          ! NPP into seeds: KgC/indiv/year
+     real(r8) ::  npp_stor          ! NPP into storage: KgC/indiv/year
 
-     real(r8) ::  npp_bsw                              ! NPP into sapwood: KgC/indiv/year
-     real(r8) ::  npp_bdead                            ! NPP into deadwood (structure):  KgC/indiv/year
-     real(r8) ::  npp_bseed                            ! NPP into seeds: KgC/indiv/year
-     real(r8) ::  npp_store                            ! NPP into storage: KgC/indiv/year
+     ! Fluxes due to fixing allometry breaking during fusion
+     real(r8) ::  fcfix_leaf ! Carbon leaving leaves into carbon gain after weird fusion KgC/indiv/year
+     real(r8) ::  fcfix_fnrt ! Carbon leaving froots into carbon gain "" KgC/indiv/year
+     real(r8) ::  fcfix_sapw ! Carbon leaving sapwood into carbon gain ""  KgC/indiv/year
+     real(r8) ::  fcfix_dead ! Carbon leaving deadwood into carbon gain "" KgC/indiv/year
+     real(r8) ::  fcfix_stor ! Carbon leaving storage into carbon gain "" KgC/indiv/year
+
 
      real(r8) ::  ts_net_uptake(nlevleaf)              ! Net uptake of leaf layers: kgC/m2/s
      real(r8) ::  year_net_uptake(nlevleaf)            ! Net uptake of leaf layers: kgC/m2/year
@@ -217,7 +225,6 @@ module EDTypesMod
      real(r8) ::  bstore_md                              ! storage maintenance demand:  kgC/indiv/year
      real(r8) ::  bdead_md                               ! structural (branch) maintenance demand:  kgC/indiv/year
 
-     real(r8) ::  carbon_balance                         ! carbon remaining for growth and storage: kg/indiv/year
      real(r8) ::  seed_prod                              ! reproduction seed and clonal: KgC/indiv/year
      real(r8) ::  leaf_litter                            ! leaf litter from phenology: KgC/m2
 
@@ -737,11 +744,18 @@ contains
      write(fates_log(),*) 'co%resp_acc               = ', ccohort%resp_acc
      write(fates_log(),*) 'co%resp_acc_hold          = ', ccohort%resp_acc_hold
      write(fates_log(),*) 'co%npp_leaf               = ', ccohort%npp_leaf
-     write(fates_log(),*) 'co%npp_froot              = ', ccohort%npp_froot
-     write(fates_log(),*) 'co%npp_bsw                = ', ccohort%npp_bsw
-     write(fates_log(),*) 'co%npp_bdead              = ', ccohort%npp_bdead
-     write(fates_log(),*) 'co%npp_bseed              = ', ccohort%npp_bseed
-     write(fates_log(),*) 'co%npp_store              = ', ccohort%npp_store
+     write(fates_log(),*) 'co%npp_fnrt              = ', ccohort%npp_fnrt
+     write(fates_log(),*) 'co%npp_sapw               = ', ccohort%npp_sapw
+     write(fates_log(),*) 'co%npp_dead              = ', ccohort%npp_dead
+     write(fates_log(),*) 'co%npp_seed              = ', ccohort%npp_seed
+     write(fates_log(),*) 'co%npp_stor              = ', ccohort%npp_stor
+
+     write(fates_log(),*) 'co%fcfix_leaf             = ', ccohort%fcfix_leaf
+     write(fates_log(),*) 'co%fcfix_fnrt             = ', ccohort%fcfix_fnrt
+     write(fates_log(),*) 'co%fcfix_sapw             = ', ccohort%fcfix_sapw
+     write(fates_log(),*) 'co%fcfix_dead             = ', ccohort%fcfix_dead
+     write(fates_log(),*) 'co%fcfix_stor             = ', ccohort%fcfix_stor
+
      write(fates_log(),*) 'co%rdark                  = ', ccohort%rdark
      write(fates_log(),*) 'co%resp_m                 = ', ccohort%resp_m
      write(fates_log(),*) 'co%resp_g                 = ', ccohort%resp_g
@@ -754,7 +768,6 @@ contains
      write(fates_log(),*) 'co%bstore_md              = ', ccohort%bstore_md
      write(fates_log(),*) 'co%bdead_md               = ', ccohort%bdead_md
      write(fates_log(),*) 'co%bsw_md                 = ', ccohort%bsw_md
-     write(fates_log(),*) 'co%carbon_balance         = ', ccohort%carbon_balance
      write(fates_log(),*) 'co%dmort                  = ', ccohort%dmort
      write(fates_log(),*) 'co%seed_prod              = ', ccohort%seed_prod
      write(fates_log(),*) 'co%treelai                = ', ccohort%treelai

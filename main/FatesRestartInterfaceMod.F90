@@ -98,6 +98,13 @@ module FatesRestartInterfaceMod
   integer, private :: ir_npp_dead_co
   integer, private :: ir_npp_seed_co
   integer, private :: ir_npp_store_co
+  
+  integer, private :: ir_fcfix_leaf_co
+  integer, private :: ir_fcfix_fnrt_co
+  integer, private :: ir_fcfix_sapw_co
+  integer, private :: ir_fcfix_dead_co
+  integer, private :: ir_fcfix_stor_co
+
   integer, private :: ir_bmort_co
   integer, private :: ir_hmort_co
   integer, private :: ir_cmort_co
@@ -740,6 +747,32 @@ contains
          units='kgC/indiv/day', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_store_co )
 
+    call this%set_restart_var(vname='fates_fcfix_stor', vtype=cohort_r8, &
+         long_name='ed cohort - fusion corrections sent to storage biomass', &
+         units='kgC/indiv/day', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fcfix_stor_co )
+
+    call this%set_restart_var(vname='fates_fcfix_sapw', vtype=cohort_r8, &
+         long_name='ed cohort - fusion corrections sent to sapwood biomass', &
+         units='kgC/indiv/day', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fcfix_sapw_co )
+
+    call this%set_restart_var(vname='fates_fcfix_fnrt', vtype=cohort_r8, &
+         long_name='ed cohort - fusion corrections sent to fineroot biomass', &
+         units='kgC/indiv/day', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fcfix_fnrt_co )
+
+    call this%set_restart_var(vname='fates_fcfix_leaf', vtype=cohort_r8, &
+         long_name='ed cohort - fusion corrections sent to leaf biomass', &
+         units='kgC/indiv/day', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fcfix_leaf_co )
+
+    call this%set_restart_var(vname='fates_fcfix_dead', vtype=cohort_r8, &
+         long_name='ed cohort - fusion corrections sent to storage biomass', &
+         units='kgC/indiv/day', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fcfix_dead_co )
+
+
     call this%set_restart_var(vname='fates_bmort', vtype=cohort_r8, &
          long_name='ed cohort - background mortality rate', &
          units='/year', flushval = flushzero, &
@@ -1071,7 +1104,11 @@ contains
            rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
            rio_fmort_co                => this%rvars(ir_fmort_co)%r81d, &
 
-
+           rio_fcfix_leaf_co           => this%rvars(ir_fcfix_leaf_co)%r81d, &
+           rio_fcfix_fnrt_co           => this%rvars(ir_fcfix_fnrt_co)%r81d, &
+           rio_fcfix_sapw_co           => this%rvars(ir_fcfix_sapw_co)%r81d, &
+           rio_fcfix_stor_co           => this%rvars(ir_fcfix_stor_co)%r81d, &
+           rio_fcfix_dead_co           => this%rvars(ir_fcfix_dead_co)%r81d, &
 
 	   rio_lmort_logging_co                => this%rvars(ir_lmort_logging_co)%r81d, &
 	   rio_lmort_collateral_co              => this%rvars(ir_lmort_collateral_co)%r81d, &
@@ -1184,15 +1221,21 @@ contains
                 rio_gpp_acc_hold_co(io_idx_co) = ccohort%gpp_acc_hold
                 rio_npp_acc_hold_co(io_idx_co) = ccohort%npp_acc_hold
                 rio_npp_leaf_co(io_idx_co)     = ccohort%npp_leaf
-                rio_npp_froot_co(io_idx_co)    = ccohort%npp_froot
-                rio_npp_sw_co(io_idx_co)       = ccohort%npp_bsw
-                rio_npp_dead_co(io_idx_co)     = ccohort%npp_bdead
-                rio_npp_seed_co(io_idx_co)     = ccohort%npp_bseed
-                rio_npp_store_co(io_idx_co)    = ccohort%npp_store
+                rio_npp_froot_co(io_idx_co)    = ccohort%npp_fnrt
+                rio_npp_sw_co(io_idx_co)       = ccohort%npp_sapw
+                rio_npp_dead_co(io_idx_co)     = ccohort%npp_dead
+                rio_npp_seed_co(io_idx_co)     = ccohort%npp_seed
+                rio_npp_store_co(io_idx_co)    = ccohort%npp_stor
                 rio_bmort_co(io_idx_co)        = ccohort%bmort
                 rio_hmort_co(io_idx_co)        = ccohort%hmort
                 rio_cmort_co(io_idx_co)        = ccohort%cmort
                 rio_fmort_co(io_idx_co)        = ccohort%fmort
+
+                rio_fcfix_leaf_co(io_idx_co)   = ccohort%fcfix_leaf
+                rio_fcfix_fnrt_co(io_idx_co)   = ccohort%fcfix_fnrt
+                rio_fcfix_sapw_co(io_idx_co)   = ccohort%fcfix_sapw
+                rio_fcfix_stor_co(io_idx_co)   = ccohort%fcfix_stor
+                rio_fcfix_dead_co(io_idx_co)   = ccohort%fcfix_dead
 
                 !Logging
 	        rio_lmort_logging_co(io_idx_co)    = ccohort%lmort_logging
@@ -1659,6 +1702,12 @@ contains
           rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
           rio_fmort_co                => this%rvars(ir_fmort_co)%r81d, &
 
+          rio_fcfix_leaf_co           => this%rvars(ir_fcfix_leaf_co)%r81d, &
+          rio_fcfix_fnrt_co           => this%rvars(ir_fcfix_fnrt_co)%r81d, &
+          rio_fcfix_sapw_co           => this%rvars(ir_fcfix_sapw_co)%r81d, &
+          rio_fcfix_stor_co           => this%rvars(ir_fcfix_stor_co)%r81d, &
+          rio_fcfix_dead_co           => this%rvars(ir_fcfix_dead_co)%r81d, &
+
 	  rio_lmort_logging_co                => this%rvars(ir_lmort_logging_co)%r81d, &
 	  rio_lmort_collateral_co                => this%rvars(ir_lmort_collateral_co)%r81d, &
 	  rio_lmort_infra_co                => this%rvars(ir_lmort_infra_co)%r81d, &
@@ -1753,15 +1802,21 @@ contains
                 ccohort%gpp_acc_hold = rio_gpp_acc_hold_co(io_idx_co)
                 ccohort%npp_acc_hold = rio_npp_acc_hold_co(io_idx_co)
                 ccohort%npp_leaf     = rio_npp_leaf_co(io_idx_co)
-                ccohort%npp_froot    = rio_npp_froot_co(io_idx_co)
-                ccohort%npp_bsw      = rio_npp_sw_co(io_idx_co)
-                ccohort%npp_bdead    = rio_npp_dead_co(io_idx_co)
-                ccohort%npp_bseed    = rio_npp_seed_co(io_idx_co)
-                ccohort%npp_store    = rio_npp_store_co(io_idx_co)
+                ccohort%npp_fnrt     = rio_npp_froot_co(io_idx_co)
+                ccohort%npp_sapw     = rio_npp_sw_co(io_idx_co)
+                ccohort%npp_dead     = rio_npp_dead_co(io_idx_co)
+                ccohort%npp_seed     = rio_npp_seed_co(io_idx_co)
+                ccohort%npp_stor     = rio_npp_store_co(io_idx_co)
                 ccohort%bmort        = rio_bmort_co(io_idx_co)
                 ccohort%hmort        = rio_hmort_co(io_idx_co)
                 ccohort%cmort        = rio_cmort_co(io_idx_co)
                 ccohort%fmort        = rio_fmort_co(io_idx_co)
+
+                ccohort%fcfix_leaf = rio_fcfix_leaf_co(io_idx_co)
+                ccohort%fcfix_fnrt = rio_fcfix_fnrt_co(io_idx_co)
+                ccohort%fcfix_sapw = rio_fcfix_sapw_co(io_idx_co)
+                ccohort%fcfix_stor = rio_fcfix_stor_co(io_idx_co)
+                ccohort%fcfix_dead = rio_fcfix_dead_co(io_idx_co)
 
 		!Logging
 		ccohort%lmort_logging        = rio_lmort_logging_co(io_idx_co)
