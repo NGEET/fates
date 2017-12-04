@@ -1663,7 +1663,7 @@ contains
       ! If this parameter is one, then there is a linear reduction in respiration below the storage point.
       ! Intermediate values will give some (concave-downwards) curvature.  
 
-      ! Arguments                                                                                                                                                            
+      ! Arguments
       ! ------------------------------------------------------------------------------
       real(r8), intent(in) :: bstore    ! the storage pool of a given cohort
       real(r8), intent(in) :: b_leaf    ! the leaf pool of a given cohort
@@ -1674,16 +1674,21 @@ contains
 
       real(r8) :: frac   ! ratio of bstor to bleaf
 
-      ! Parameters                                                                                                                                                           
-      ! ---------------------------------------------------------------------------------                                                                                    
-      real(r8), parameter :: maintresp_reduction_parameter = 0.1_r8
+      ! Parameters
+      ! ---------------------------------------------------------------------------------
+      real(r8), parameter :: maintresp_reduction_parameter = 1.0_r8  ! parameter value for curvature of respiration reduction term.  
       
        if( b_leaf > 0._r8 .and. bstore <= b_leaf )then
-          frac = bstore/ b_leaf
-          maintresp_reduction_factor = (1._r8 - maintresp_reduction_parameter**frac) &
-               / (1._r8-maintresp_reduction_parameter)
-        else
-           maintresp_reduction_factor = 1._r8
+          if ( maintresp_reduction_parameter .ne. 1._r8 ) then
+             frac = bstore/ b_leaf
+             maintresp_reduction_factor = (1._r8 - maintresp_reduction_parameter**frac) &
+                  / (1._r8-maintresp_reduction_parameter)
+          else  ! avoid nan answer for linear case
+             maintresp_reduction_factor = 1._r8 - frac
+          endif
+             
+       else
+          maintresp_reduction_factor = 1._r8
        endif
 
 
