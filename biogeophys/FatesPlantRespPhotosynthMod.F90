@@ -1684,7 +1684,7 @@ contains
              maintresp_reduction_factor = (1._r8 - maintresp_reduction_parameter**frac) &
                   / (1._r8-maintresp_reduction_parameter)
           else  ! avoid nan answer for linear case
-             maintresp_reduction_factor = 1._r8 - frac
+             maintresp_reduction_factor = frac
           endif
              
        else
