@@ -1679,8 +1679,8 @@ contains
       real(r8), parameter :: maintresp_reduction_parameter = 1.0_r8  ! parameter value for curvature of respiration reduction term.  
       
        if( b_leaf > 0._r8 .and. bstore <= b_leaf )then
+          frac = bstore/ b_leaf
           if ( maintresp_reduction_parameter .ne. 1._r8 ) then
-             frac = bstore/ b_leaf
              maintresp_reduction_factor = (1._r8 - maintresp_reduction_parameter**frac) &
                   / (1._r8-maintresp_reduction_parameter)
           else  ! avoid nan answer for linear case
