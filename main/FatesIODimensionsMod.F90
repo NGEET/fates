@@ -12,6 +12,8 @@ module FatesIODimensionsMod
     character(*), parameter :: column = 'column'           ! matches clm_varcon
     character(*), parameter :: levgrnd = 'levgrnd'         ! matches clm_varcon
     character(*), parameter :: levscag = 'fates_levscag'      ! matches histFileMod
+    character(*), parameter :: levscagpft = 'fates_levscagpf' ! matches histFileMod
+    character(*), parameter :: levagepft = 'fates_levagepft'  ! matches histFileMod
     character(*), parameter :: levscpf = 'fates_levscpf'      ! matches histFileMod
     character(*), parameter :: levscls = 'fates_levscls'      ! matches histFileMod
     character(*), parameter :: levpft = 'fates_levpft'        ! matches histFileMod
@@ -63,6 +65,12 @@ module FatesIODimensionsMod
     ! levscag = This is a strcture that records the boundaries for the 
     ! number of size-classes x patch age
 
+    ! levscagpft = This is a strcture that records the boundaries for the 
+    ! number of size-classes x patch age x pft
+
+    ! levagepft = This is a strcture that records the boundaries for the 
+    ! number of patch age x pft
+
 
     type, public :: fates_bounds_type
        integer :: patch_begin
@@ -75,6 +83,10 @@ module FatesIODimensionsMod
        integer :: ground_end
        integer :: sizeage_class_begin
        integer :: sizeage_class_end
+       integer :: sizeagepft_class_begin
+       integer :: sizeagepft_class_end
+       integer :: agepft_class_begin
+       integer :: agepft_class_end
        integer :: sizepft_class_begin
        integer :: sizepft_class_end
        integer :: size_class_begin

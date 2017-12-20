@@ -208,6 +208,11 @@ module FatesInterfaceMod
    integer , allocatable :: fates_hdim_pftmap_levcnlfpf(:) ! pft map into the canopy-layer x pft x leaf-layer dim
    integer , allocatable :: fates_hdim_scmap_levscag(:)    ! map of size-class into size-class x patch age dimension
    integer , allocatable :: fates_hdim_agmap_levscag(:)    ! map of patch-age into size-class x patch age dimension
+   integer , allocatable :: fates_hdim_scmap_levscagpft(:)     ! map of size-class into size-class x patch age x pft dimension
+   integer , allocatable :: fates_hdim_agmap_levscagpft(:)     ! map of patch-age into size-class x patch age x pft dimension
+   integer , allocatable :: fates_hdim_pftmap_levscagpft(:)    ! map of pft into size-class x patch age x pft dimension
+   integer , allocatable :: fates_hdim_agmap_levagepft(:)      ! map of patch-age into patch age x pft dimension
+   integer , allocatable :: fates_hdim_pftmap_levagepft(:)     ! map of pft into patch age x pft dimension
 
    ! ------------------------------------------------------------------------------------
    !                              DYNAMIC BOUNDARY CONDITIONS
@@ -992,6 +997,11 @@ contains
        allocate( fates_hdim_pftmap_levcnlfpf(nlevleaf*nclmax*numpft))
        allocate( fates_hdim_scmap_levscag(nlevsclass * nlevage ))
        allocate( fates_hdim_agmap_levscag(nlevsclass * nlevage ))
+       allocate( fates_hdim_scmap_levscagpft(nlevsclass * nlevage * numpft))
+       allocate( fates_hdim_agmap_levscagpft(nlevsclass * nlevage * numpft))
+       allocate( fates_hdim_pftmap_levscagpft(nlevsclass * nlevage * numpft))
+       allocate( fates_hdim_agmap_levagepft(nlevage * numpft))
+       allocate( fates_hdim_pftmap_levagepft(nlevage * numpft))
 
        ! Fill the IO array of plant size classes
        fates_hdim_levsclass(:) = ED_val_history_sizeclass_bin_edges(:)
@@ -1056,6 +1066,28 @@ contains
              end do
           end do
        end do
+
+       i=0
+       do ipft=1,numpft
+          do iage=1,nlevage
+             do isc=1,nlevsclass
+                i=i+1
+                fates_hdim_scmap_levscagpft(i) = isc
+                fates_hdim_agmap_levscagpft(i) = iage
+                fates_hdim_pftmap_levscagpft(i) = ipft
+             end do
+          end do
+       end do
+
+       i=0
+       do ipft=1,numpft
+          do iage=1,nlevage
+             i=i+1
+             fates_hdim_agmap_levagepft(i) = iage
+             fates_hdim_pftmap_levagepft(i) = ipft
+          end do
+       end do
+
 
     end subroutine fates_history_maps
 

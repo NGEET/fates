@@ -86,7 +86,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_canopy_biomass_pa
   integer, private :: ih_understory_biomass_pa
   
-  ! Indices to site by size-class by pft variables
+  ! Indices to site by size-class by age variables
   integer, private :: ih_nplant_si_scag
   integer, private :: ih_nplant_canopy_si_scag
   integer, private :: ih_nplant_understory_si_scag
@@ -94,6 +94,13 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_ddbh_understory_si_scag
   integer, private :: ih_mortality_canopy_si_scag
   integer, private :: ih_mortality_understory_si_scag
+
+  ! Indices to site by size-class by age by pft variables
+  integer, private :: ih_nplant_si_scagpft
+
+  ! Indices to site by patch age by pft variables
+  integer, private :: ih_biomass_si_agepft
+  integer, private :: ih_npp_si_agepft
 
   ! Indices to (site) variables
   integer, private :: ih_nep_si
@@ -340,8 +347,8 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_crownarea_si_can
 
   ! The number of variable dim/kind types we have defined (static)
-  integer, parameter :: fates_history_num_dimensions = 13
-  integer, parameter :: fates_history_num_dim_kinds = 15
+  integer, parameter :: fates_history_num_dimensions = 15
+  integer, parameter :: fates_history_num_dim_kinds = 17
   
 
   
@@ -378,6 +385,7 @@ module FatesHistoryInterfaceMod
      integer, private :: levscls_index_, levpft_index_, levage_index_
      integer, private :: levfuel_index_, levcwdsc_index_, levscag_index_
      integer, private :: levcan_index_, levcnlf_index_, levcnlfpft_index_
+     integer, private :: levscagpft_index_, levagepft_index_
    contains
      
      procedure, public :: Init
@@ -405,6 +413,8 @@ module FatesHistoryInterfaceMod
      procedure, public :: levcnlf_index
      procedure, public :: levcnlfpft_index
      procedure, public :: levscag_index
+     procedure, public :: levscagpft_index
+     procedure, public :: levagepft_index
 
      ! private work functions
      procedure, private :: define_history_vars
@@ -426,6 +436,8 @@ module FatesHistoryInterfaceMod
      procedure, private :: set_levcnlf_index
      procedure, private :: set_levcnlfpft_index
      procedure, private :: set_levscag_index
+     procedure, private :: set_levscagpft_index
+     procedure, private :: set_levagepft_index
 
   end type fates_history_interface_type
    
@@ -441,6 +453,7 @@ contains
     use FatesIODimensionsMod, only : patch, column, levgrnd, levscpf
     use FatesIODimensionsMod, only : levscls, levpft, levage
     use FatesIODimensionsMod, only : levfuel, levcwdsc, levscag
+    use FatesIODimensionsMod, only : levscagpft, levagepft
     use FatesIODimensionsMod, only : levcan, levcnlf, levcnlfpft
     use FatesIODimensionsMod, only : fates_bounds_type
 
@@ -517,6 +530,16 @@ contains
     call this%dim_bounds(dim_count)%Init(levscag, num_threads, &
          fates_bounds%sizeage_class_begin, fates_bounds%sizeage_class_end)
     
+    dim_count = dim_count + 1
+    call this%set_levscagpft_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levscagpft, num_threads, &
+         fates_bounds%sizeagepft_class_begin, fates_bounds%sizeagepft_class_end)
+    
+    dim_count = dim_count + 1
+    call this%set_levagepft_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levagepft, num_threads, &
+         fates_bounds%agepft_class_begin, fates_bounds%agepft_class_end)
+    
 
     ! FIXME(bja, 2016-10) assert(dim_count == FatesHistorydimensionmod::num_dimension_types)
 
@@ -591,6 +614,14 @@ contains
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
           thread_bounds%sizeage_class_begin, thread_bounds%sizeage_class_end)
     
+    index = this%levscagpft_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+          thread_bounds%sizeagepft_class_begin, thread_bounds%sizeagepft_class_end)
+    
+    index = this%levagepft_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+          thread_bounds%agepft_class_begin, thread_bounds%agepft_class_end)
+    
   end subroutine SetThreadBoundsEach
   
   ! ===================================================================================
@@ -600,6 +631,7 @@ contains
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
     use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
+    use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
     use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
 
    implicit none
@@ -650,6 +682,12 @@ contains
 
     call this%set_dim_indices(site_scag_r8, 1, this%column_index())
     call this%set_dim_indices(site_scag_r8, 2, this%levscag_index())
+
+    call this%set_dim_indices(site_scagpft_r8, 1, this%column_index())
+    call this%set_dim_indices(site_scagpft_r8, 2, this%levscagpft_index())
+
+    call this%set_dim_indices(site_agepft_r8, 1, this%column_index())
+    call this%set_dim_indices(site_agepft_r8, 2, this%levagepft_index())
 
   end subroutine assemble_history_output_types
   
@@ -875,6 +913,34 @@ contains
     class(fates_history_interface_type), intent(in) :: this
     levscag_index = this%levscag_index_
  end function levscag_index
+
+ ! ======================================================================================
+ subroutine set_levscagpft_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%levscagpft_index_ = index
+ end subroutine set_levscagpft_index
+
+ integer function levscagpft_index(this)
+    implicit none
+    class(fates_history_interface_type), intent(in) :: this
+    levscagpft_index = this%levscagpft_index_
+ end function levscagpft_index
+
+ ! ======================================================================================
+ subroutine set_levagepft_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%levagepft_index_ = index
+ end subroutine set_levagepft_index
+
+ integer function levagepft_index(this)
+    implicit none
+    class(fates_history_interface_type), intent(in) :: this
+    levagepft_index = this%levagepft_index_
+ end function levagepft_index
  ! ======================================================================================
 
 
@@ -967,6 +1033,7 @@ end subroutine flush_hvars
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
     use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
+    use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
     use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
     
     implicit none
@@ -1036,6 +1103,14 @@ end subroutine flush_hvars
     ! site x size-class x age class
     index = index + 1
     call this%dim_kinds(index)%Init(site_scag_r8, 2)
+
+    ! site x size-class x age class x pft
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_scagpft_r8, 2)
+
+    ! site x age class x pft
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_agepft_r8, 2)
 
     ! FIXME(bja, 2016-10) assert(index == fates_history_num_dim_kinds)
   end subroutine init_dim_kinds_maps
@@ -1115,6 +1190,8 @@ end subroutine flush_hvars
     use EDtypesMod          , only : ican_upper
     use EDtypesMod          , only : ican_ustory
     use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
+    use FatesSizeAgeTypeIndicesMod, only : get_sizeagepft_class_index
+    use FatesSizeAgeTypeIndicesMod, only : get_agepft_class_index
     use EDTypesMod        , only : nlevleaf
 
     ! Arguments
@@ -1136,6 +1213,8 @@ end subroutine flush_hvars
     integer  :: i_scpf,i_pft,i_scls     ! iterators for scpf, pft, and scls dims
     integer  :: i_cwd,i_fuel            ! iterators for cwd and fuel dims
     integer  :: iscag        ! size-class x age index
+    integer  :: iscagpft     ! size-class x age x pft index
+    integer  :: iagepft      ! age x pft index
     integer  :: ican, ileaf, cnlf_indx  ! iterators for leaf and canopy level
     
     real(r8) :: n_density   ! individual of cohort per m2.
@@ -1276,6 +1355,9 @@ end subroutine flush_hvars
                hio_npp_bdead_understory_si_scls     => this%hvars(ih_npp_bdead_understory_si_scls)%r82d, &
                hio_npp_bseed_understory_si_scls     => this%hvars(ih_npp_bseed_understory_si_scls)%r82d, &
                hio_npp_store_understory_si_scls     => this%hvars(ih_npp_store_understory_si_scls)%r82d, &
+               hio_nplant_si_scagpft                => this%hvars(ih_nplant_si_scagpft)%r82d, &
+               hio_npp_si_agepft                    => this%hvars(ih_npp_si_agepft)%r82d, &
+               hio_biomass_si_agepft                => this%hvars(ih_biomass_si_agepft)%r82d, &
                hio_yesterdaycanopylevel_canopy_si_scls     => this%hvars(ih_yesterdaycanopylevel_canopy_si_scls)%r82d, &
                hio_yesterdaycanopylevel_understory_si_scls => this%hvars(ih_yesterdaycanopylevel_understory_si_scls)%r82d, &
                hio_area_si_age         => this%hvars(ih_area_si_age)%r82d, &
@@ -1523,6 +1605,22 @@ end subroutine flush_hvars
                     hio_nplant_si_scag(io_si,iscag) = hio_nplant_si_scag(io_si,iscag) + ccohort%n
 
                     hio_nplant_si_scls(io_si,scls) = hio_nplant_si_scls(io_si,scls) + ccohort%n
+
+                    ! update size, age, and PFT - indexed quantities
+
+                    iscagpft = get_sizeagepft_class_index(ccohort%dbh,cpatch%age,ccohort%pft)
+                    
+                    hio_nplant_si_scagpft(io_si,iscagpft) = hio_nplant_si_scagpft(io_si,iscagpft) + ccohort%n
+
+                    ! update age and PFT - indexed quantities
+
+                    iagepft = get_agepft_class_index(cpatch%age,ccohort%pft)
+                    
+                    hio_npp_si_agepft(io_si,iagepft) = hio_npp_si_agepft(io_si,iagepft) + &
+                         ccohort%n * ccohort%npp_acc_hold * AREA_INV
+
+                    hio_biomass_si_agepft(io_si,iagepft) = hio_biomass_si_agepft(io_si,iagepft) + &
+                         ccohort%b * ccohort%n * AREA_INV
 
                     ! update SCPF/SCLS- and canopy/subcanopy- partitioned quantities
                     if (ccohort%canopy_layer .eq. 1) then
@@ -2564,6 +2662,7 @@ end subroutine flush_hvars
     
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
     use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
+    use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
 
     implicit none
     
@@ -2676,8 +2775,8 @@ end subroutine flush_hvars
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_zstar_si_age )
 
-    call this%set_history_var(vname='BIOMASS_BY_AGE', units='m',                   &
-         long='Total Biomass within a given patch age bin (kg C)', &
+    call this%set_history_var(vname='BIOMASS_BY_AGE', units='kgC/m2',                   &
+         long='Total Biomass within a given patch age bin', &
          use_default='inactive',                     &
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_biomass_si_age )
@@ -3120,6 +3219,23 @@ end subroutine flush_hvars
           long='mortality rate of understory plantsin each size x age class', use_default='inactive',   &
           avgflag='A', vtype=site_scag_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_mortality_understory_si_scag )
+
+    ! size x age x pft dimensioned
+    call this%set_history_var(vname='NPLANT_SCAGPFT',units = 'plants/ha',               &
+          long='number of plants per hectare in each size x age x pft class', use_default='inactive',   &
+          avgflag='A', vtype=site_scagpft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nplant_si_scagpft )
+
+    ! age x pft dimensioned
+    call this%set_history_var(vname='NPP_AGEPFT',units = 'kgC/m2/yr',               &
+          long='NPP per PFT in each age bin', use_default='inactive',   &
+          avgflag='A', vtype=site_agepft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_si_agepft )
+
+    call this%set_history_var(vname='BIOMASS_AGEPFT',units = 'kg C / m2',               &
+          long='biomass per PFT in each age bin', use_default='inactive',   &
+          avgflag='A', vtype=site_agepft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_biomass_si_agepft )
 
 
     ! Carbon Flux (grid dimension x scpf) (THESE ARE DEFAULT INACTIVE!!!

@@ -28,6 +28,8 @@ module FatesIOVariableKindMod
   character(*), parameter :: site_cnlf_r8 = 'SI_CNLF_R8'
   character(*), parameter :: site_cnlfpft_r8 = 'SI_CNLFPFT_R8'
   character(*), parameter :: site_scag_r8 = 'SI_SCAG_R8'
+  character(*), parameter :: site_scagpft_r8 = 'SI_SCAGPFT_R8'
+  character(*), parameter :: site_agepft_r8 = 'SI_AGEPFT_R8'
 
   ! NOTE(RGK, 2016) %active is not used yet. Was intended as a check on the HLM->FATES
   ! control parameter passing to ensure all active dimension types received all
