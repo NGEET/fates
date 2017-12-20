@@ -13,6 +13,7 @@ module EDTypesMod
 
   integer, parameter :: maxPatchesPerSite  = 10   ! maximum number of patches to live on a site
   integer, parameter :: maxCohortsPerPatch = 160  ! maximum number of cohorts per patch
+
   integer, parameter :: nclmax = 2                ! Maximum number of canopy layers
   integer, parameter :: ican_upper = 1            ! Nominal index for the upper canopy
   integer, parameter :: ican_ustory = 2           ! Nominal index for understory in two-canopy system
@@ -65,8 +66,10 @@ module EDTypesMod
   integer , parameter :: external_recruitment = 0          ! external recruitment flag 1=yes  
   integer , parameter :: SENES                = 10         ! Window of time over which we track temp for cold sensecence (days)
   real(r8), parameter :: DINC_ED              = 1.0_r8     ! size of LAI bins. 
-  integer , parameter :: N_DIST_TYPES         = 2          ! number of disturbance types (mortality, fire)
-  
+  integer , parameter :: N_DIST_TYPES         = 3          ! Disturbance Modes 1) tree-fall, 2) fire, 3) logging
+  integer , parameter :: dtype_ifall          = 1          ! index for naturally occuring tree-fall generated event
+  integer , parameter :: dtype_ifire          = 2          ! index for fire generated disturbance event
+  integer , parameter :: dtype_ilog           = 3          ! index for logging generated disturbance event
 
   ! SPITFIRE     
   integer,  parameter :: NCWD                 = 4          ! number of coarse woody debris pools (twig,s branch,l branch, trunk)
@@ -97,33 +100,12 @@ module EDTypesMod
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
   logical, parameter :: homogenize_seed_pfts  = .false.
 
-  !the lower limit of the size classes of ED cohorts
-  !0-10,10-20...
-  integer, parameter :: nlevsclass_ed = 13    ! Number of dbh size classes for size structure analysis
-                                              ! |0-1,1-2,2-3,3-4,4-5,5-10,10-20,20-30,30-40,40-50,50-60,60-70,70-80,80-90,90-100,100+|
-!  real(r8), parameter, dimension(16) ::  sclass_ed  = (/0.0_r8,1.0_r8,2.0_r8,3.0_r8,4.0_r8,5.0_r8,10.0_r8,20.0_r8,30.0_r8,40.0_r8, &
-!                                                       50.0_r8,60.0_r8,70.0_r8,80.0_r8,90.0_r8,100.0_r8/)
-
-  real(r8), parameter, dimension(nlevsclass_ed) ::  sclass_ed  = (/0.0_r8,5.0_r8,10.0_r8,15.0_r8,20.0_r8,30.0_r8,40.0_r8, &
-                                                       50.0_r8,60.0_r8,70.0_r8,80.0_r8,90.0_r8,100.0_r8/)
-
-  integer, parameter :: nlevage_ed = 7  ! Number of patch-age classes for age structured analyses
-  real(r8), parameter, dimension(nlevage_ed) ::  ageclass_ed  = (/0.0_r8,1.0_r8,2._r8,5.0_r8,10.0_r8,20.0_r8,50.0_r8/)
-  
-
- !  integer, parameter :: nlevsclass_ed = 17
- !  real(r8), parameter, dimension(17) ::  sclass_ed  = (/0.1_r8, 5.0_r8,10.0_r8,15.0_r8,20.0_r8,25.0_r8, & 
- !                                                       30.0_r8,35.0_r8,40.0_r8,45.0_r8,50.0_r8,55.0_r8, &
- !                                                       60.0_r8,65.0_r8,70.0_r8,75.0_r8,80.0_r8/)
-
   integer, parameter :: nlevmclass_ed = 5      ! nlev "mortality" classes in ED
                                                ! Number of ways to die
                                                ! (background,hydraulic,carbon,impact,fire)
 
   character(len = 10), parameter,dimension(nlevmclass_ed) :: char_list = &
        (/"background","hydraulic ","carbon    ","impact    ","fire      "/)
-
-
 
 
   !************************************
@@ -247,6 +229,13 @@ module EDTypesMod
      real(r8) ::  imort                                  ! mortality from impacts by others n/year
      real(r8) ::  fmort                                  ! fire mortality                   n/year
 
+      ! Logging Mortality Rate 
+	 ! Yi Xu
+     real(r8) ::  lmort_logging                          ! directly logging rate            %/per logging activity
+     real(r8) ::  lmort_collateral                       ! collaterally damaged rate        %/per logging activity
+     real(r8) ::  lmort_infra                            ! mechanically damaged rate        %/per logging activity
+	      
+
      ! NITROGEN POOLS      
      ! ----------------------------------------------------------------------------------
      ! Nitrogen pools are not prognostic in the current implementation.
@@ -299,7 +288,6 @@ module EDTypesMod
      integer  ::  ncl_p                                            ! Number of occupied canopy layers
 
      ! LEAF ORGANIZATION
-     real(r8) ::  spread(nclmax)                                   ! dynamic ratio of dbh to canopy area: cm/m2
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
      real(r8) ::  canopy_layer_lai(nclmax)                         ! lai that is shading this canopy layer: m2/m2 
      real(r8) ::  total_canopy_area                                ! area that is covered by vegetation : m2
@@ -368,7 +356,9 @@ module EDTypesMod
      real(r8) ::  btran_ft(maxpft)                              ! btran calculated seperately for each PFT:-   
 
      ! DISTURBANCE 
-     real(r8) ::  disturbance_rates(n_dist_types)                  ! disturbance rate from 1) mortality and 2) fire: fraction/day
+     real(r8) ::  disturbance_rates(n_dist_types)                  ! disturbance rate from 1) mortality 
+                                                                   !                       2) fire: fraction/day 
+                                                                   !                       3) logging mortatliy
      real(r8) ::  disturbance_rate                                 ! larger effective disturbance rate: fraction/day
 
      ! LITTER AND COARSE WOODY DEBRIS 
@@ -430,6 +420,7 @@ module EDTypesMod
      real(r8) ::  tfc_ros                                          ! total fuel consumed - no trunks.  KgC/m2/day
      real(r8) ::  burnt_frac_litter(nfsc)                          ! fraction of each litter pool burned:-
 
+
      ! PLANT HYDRAULICS     
      type(ed_patch_hydr_type) , pointer :: pa_hydr                 ! All patch hydraulics data, see FatesHydraulicsMemMod.F90
 
@@ -437,15 +428,38 @@ module EDTypesMod
 
   end type ed_patch_type
 
+  
+  !************************************
+  !** Resources management type      **
+  ! YX
+  !************************************
+  type ed_resources_management_type
+    
+     real(r8) ::  trunk_product_site                       ! Actual  trunk product at site level KgC/site
+
+     !debug variables
+     real(r8) ::  delta_litter_stock
+     real(r8) ::  delta_biomass_stock
+     real(r8) ::  delta_individual
+  
+  end type ed_resources_management_type
+
+
+
   !************************************
   !** Site type structure           **
   !************************************
 
   type ed_site_type
-
+     
      ! POINTERS  
      type (ed_patch_type), pointer :: oldest_patch => null()   ! pointer to oldest patch at the site  
      type (ed_patch_type), pointer :: youngest_patch => null() ! pointer to yngest patch at the site
+     
+     ! Resource management
+     type (ed_resources_management_type) :: resources_management ! resources_management at the site 
+
+
 
      ! INDICES 
      real(r8) ::  lat                                          ! latitude:  degrees 
@@ -488,12 +502,6 @@ module EDTypesMod
      real(r8) :: nbp_integrated                               ! Net biosphere production accumulated over model time-steps [gC/m2]
 
 
-     ! DISTURBANCE
-     real(r8) ::  disturbance_mortality                        ! site level disturbance rates from mortality.
-     real(r8) ::  disturbance_fire                             ! site level disturbance rates from fire.  
-     integer  ::  dist_type                                    ! disturbance dist_type id.
-     real(r8) ::  disturbance_rate                             ! site total dist rate
-
      ! PHENOLOGY 
      real(r8) ::  ED_GDD_site                                  ! ED Phenology growing degree days.
      integer  ::  status                                       ! are leaves in this pixel on or off for cold decid
@@ -525,12 +533,12 @@ module EDTypesMod
         
      ! TERMINATION, RECRUITMENT, DEMOTION, and DISTURBANCE
 
-     real(r8) :: terminated_nindivs(1:nlevsclass_ed,1:maxpft,2) ! number of individuals that were in cohorts which were terminated this timestep, on size x pft x canopy array. 
+     real(r8), allocatable :: terminated_nindivs(:,:,:) ! number of individuals that were in cohorts which were terminated this timestep, on size x pft x canopy array. 
      real(r8) :: termination_carbonflux(2)                     ! carbon flux from live to dead pools associated with termination mortality, per canopy level
      real(r8) :: recruitment_rate(1:maxpft)                     ! number of individuals that were recruited into new cohorts
-     real(r8) :: demotion_rate(1:nlevsclass_ed)                ! rate of individuals demoted from canopy to understory per FATES timestep
+     real(r8), allocatable :: demotion_rate(:)                ! rate of individuals demoted from canopy to understory per FATES timestep
      real(r8) :: demotion_carbonflux                           ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
-     real(r8) :: promotion_rate(1:nlevsclass_ed)               ! rate of individuals promoted from understory to canopy per FATES timestep
+     real(r8), allocatable :: promotion_rate(:)               ! rate of individuals promoted from understory to canopy per FATES timestep
      real(r8) :: promotion_carbonflux                          ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
 
      ! some diagnostic-only (i.e. not resolved by ODE solver) flux of carbon to CWD and litter pools from termination and canopy mortality
@@ -539,70 +547,12 @@ module EDTypesMod
      real(r8) :: leaf_litter_diagnostic_input_carbonflux(1:maxpft) ! diagnostic flux to AG litter [kg C / m2 / yr]
      real(r8) :: root_litter_diagnostic_input_carbonflux(1:maxpft) ! diagnostic flux to BG litter [kg C / m2 / yr]
 
+     ! Canopy Spread
+     real(r8) ::  spread                                          ! dynamic canopy allometric term [unitless]
+     
   end type ed_site_type
 
 contains
-
-  ! =====================================================================================
-  
-  function get_age_class_index(age) result( patch_age_class ) 
-
-     real(r8), intent(in) :: age
-     
-     integer :: patch_age_class
-
-     patch_age_class = count(age-ageclass_ed.ge.0.0_r8)
-
-  end function get_age_class_index
-
-  ! =====================================================================================
-
-  function get_sizeage_class_index(dbh,age) result(size_by_age_class)
-     
-     ! Arguments
-     real(r8),intent(in) :: dbh
-     real(r8),intent(in) :: age
-
-     integer             :: size_class
-     integer             :: age_class
-     integer             :: size_by_age_class
-     
-     size_class        = get_size_class_index(dbh)
-
-     age_class         = get_age_class_index(age)
-     
-     size_by_age_class = (age_class-1)*nlevsclass_ed + size_class
-
-  end function get_sizeage_class_index
-
-  ! =====================================================================================
-
-  subroutine sizetype_class_index(dbh,pft,size_class,size_by_pft_class)
-    
-    ! Arguments
-    real(r8),intent(in) :: dbh
-    integer,intent(in)  :: pft
-    integer,intent(out) :: size_class
-    integer,intent(out) :: size_by_pft_class
-    
-    size_class        = get_size_class_index(dbh)
-    
-    size_by_pft_class = (pft-1)*nlevsclass_ed+size_class
-
-    return
- end subroutine sizetype_class_index
-
-  ! =====================================================================================
-
-  function get_size_class_index(dbh) result(cohort_size_class)
-
-     real(r8), intent(in) :: dbh
-     
-     integer :: cohort_size_class
-     
-     cohort_size_class = count(dbh-sclass_ed.ge.0.0_r8)
-     
-  end function get_size_class_index
 
   ! =====================================================================================
 
