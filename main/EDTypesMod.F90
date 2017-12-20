@@ -1,7 +1,8 @@
 module EDTypesMod
 
-  use FatesConstantsMod , only : r8 => fates_r8
-  use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
+  use FatesConstantsMod,     only : r8 => fates_r8
+  use FatesGlobals,          only : fates_log
+  use shr_infnan_mod,        only : nan => shr_infnan_nan, assignment(=)
 
   use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
   use FatesHydraulicsMemMod, only : ed_patch_hydr_type
@@ -602,5 +603,215 @@ contains
      cohort_size_class = count(dbh-sclass_ed.ge.0.0_r8)
      
   end function get_size_class_index
-   
+
+  ! =====================================================================================
+
+  subroutine val_check_ed_vars(currentPatch,var_aliases,return_code)
+
+     ! ----------------------------------------------------------------------------------
+     ! Perform numerical checks on variables of interest.
+     ! The input string is of the form:  'VAR1_NAME:VAR2_NAME:VAR3_NAME'
+     ! ----------------------------------------------------------------------------------
+
+
+     use FatesUtilsMod,only : check_hlm_list
+     use FatesUtilsMod,only : check_var_real
+
+     ! Arguments
+     type(ed_patch_type),intent(in), target :: currentPatch
+     character(len=*),intent(in)            :: var_aliases
+     integer,intent(out)                    :: return_code ! return 0 for all fine
+                                                           ! return 1 if a nan detected
+                                                           ! return 10+ if an overflow
+                                                           ! return 100% if an underflow
+     ! Locals
+     type(ed_cohort_type), pointer          :: currentCohort
+
+     
+     ! Check through a registry of variables to check
+     
+     if ( check_hlm_list(trim(var_aliases),'co_n') ) then
+
+        currentCohort => currentPatch%shortest
+        do while(associated(currentCohort))
+           call check_var_real(currentCohort%n,'cohort%n',return_code)
+           if(.not.(return_code.eq.0)) then
+              call dump_site(currentPatch%siteptr)
+              call dump_patch(currentPatch)
+              call dump_cohort(currentCohort)
+              return
+           end if
+           currentCohort => currentCohort%taller
+        end do
+     end if
+     
+     if ( check_hlm_list(trim(var_aliases),'co_dbh') ) then
+
+        currentCohort => currentPatch%shortest
+        do while(associated(currentCohort))        
+           call check_var_real(currentCohort%dbh,'cohort%dbh',return_code)
+           if(.not.(return_code.eq.0)) then
+              call dump_site(currentPatch%siteptr)
+              call dump_patch(currentPatch)
+              call dump_cohort(currentCohort)
+              return
+           end if
+           currentCohort => currentCohort%taller
+        end do
+     end if
+
+     if ( check_hlm_list(trim(var_aliases),'pa_area') ) then
+
+        call check_var_real(currentPatch%area,'patch%area',return_code)
+        if(.not.(return_code.eq.0)) then
+           call dump_site(currentPatch%siteptr)
+           call dump_patch(currentPatch)
+           return
+        end if
+     end if
+     
+
+
+     return
+  end subroutine val_check_ed_vars
+
+  ! =====================================================================================
+
+  subroutine dump_site(csite) 
+
+     type(ed_site_type),intent(in),target :: csite
+
+
+     ! EDTypes is 
+
+     write(fates_log(),*) '----------------------------------------'
+     write(fates_log(),*) ' Site Coordinates                       '
+     write(fates_log(),*) '----------------------------------------'
+     write(fates_log(),*) 'latitude                    = ', csite%lat
+     write(fates_log(),*) 'longitude                   = ', csite%lon
+     write(fates_log(),*) '----------------------------------------'
+     return
+
+  end subroutine dump_site
+
+  ! =====================================================================================
+
+
+  subroutine dump_patch(cpatch)
+
+     type(ed_patch_type),intent(in),target :: cpatch
+
+     write(fates_log(),*) '----------------------------------------'
+     write(fates_log(),*) ' Dumping Patch Information              '
+     write(fates_log(),*) ' (omitting arrays)                      '
+     write(fates_log(),*) '----------------------------------------'
+     write(fates_log(),*) 'pa%patchno            = ',cpatch%patchno
+     write(fates_log(),*) 'pa%age                = ',cpatch%age
+     write(fates_log(),*) 'pa%age_class          = ',cpatch%age_class
+     write(fates_log(),*) 'pa%area               = ',cpatch%area
+     write(fates_log(),*) 'pa%countcohorts       = ',cpatch%countcohorts
+     write(fates_log(),*) 'pa%ncl_p              = ',cpatch%ncl_p
+     write(fates_log(),*) 'pa%total_canopy_area  = ',cpatch%total_canopy_area
+     write(fates_log(),*) 'pa%total_tree_area    = ',cpatch%total_tree_area
+     write(fates_log(),*) 'pa%canopy_area        = ',cpatch%canopy_area
+     write(fates_log(),*) 'pa%bare_frac_area     = ',cpatch%bare_frac_area
+     write(fates_log(),*) 'pa%lai                = ',cpatch%lai
+     write(fates_log(),*) 'pa%zstar              = ',cpatch%zstar
+     write(fates_log(),*) 'pa%disturbance_rate   = ',cpatch%disturbance_rate
+     write(fates_log(),*) '----------------------------------------'
+     return
+
+  end subroutine dump_patch
+
+  ! =====================================================================================
+  
+  subroutine dump_cohort(ccohort)
+
+
+     type(ed_cohort_type),intent(in),target :: ccohort
+     
+     write(fates_log(),*) '----------------------------------------'
+     write(fates_log(),*) ' Dumping Cohort Information             '
+     write(fates_log(),*) '----------------------------------------'
+     write(fates_log(),*) 'co%pft                    = ', ccohort%pft
+     write(fates_log(),*) 'co%n                      = ', ccohort%n                         
+     write(fates_log(),*) 'co%dbh                    = ', ccohort%dbh                                        
+     write(fates_log(),*) 'co%hite                   = ', ccohort%hite                                
+     write(fates_log(),*) 'co%b                      = ', ccohort%b                            
+     write(fates_log(),*) 'co%balive                 = ', ccohort%balive
+     write(fates_log(),*) 'co%bdead                  = ', ccohort%bdead                          
+     write(fates_log(),*) 'co%bstore                 = ', ccohort%bstore
+     write(fates_log(),*) 'co%laimemory              = ', ccohort%laimemory
+     write(fates_log(),*) 'co%bsw                    = ', ccohort%bsw                  
+     write(fates_log(),*) 'co%bl                     = ', ccohort%bl
+     write(fates_log(),*) 'co%br                     = ', ccohort%br
+     write(fates_log(),*) 'co%lai                    = ', ccohort%lai                         
+     write(fates_log(),*) 'co%sai                    = ', ccohort%sai  
+     write(fates_log(),*) 'co%gscan                  = ', ccohort%gscan
+     write(fates_log(),*) 'co%leaf_cost              = ', ccohort%leaf_cost
+     write(fates_log(),*) 'co%canopy_layer           = ', ccohort%canopy_layer
+     write(fates_log(),*) 'co%canopy_layer_yesterday = ', ccohort%canopy_layer_yesterday
+     write(fates_log(),*) 'co%nv                     = ', ccohort%nv
+     write(fates_log(),*) 'co%status_coh             = ', ccohort%status_coh
+     write(fates_log(),*) 'co%canopy_trim            = ', ccohort%canopy_trim
+     write(fates_log(),*) 'co%status_coh             = ', ccohort%status_coh               
+     write(fates_log(),*) 'co%excl_weight            = ', ccohort%excl_weight               
+     write(fates_log(),*) 'co%prom_weight            = ', ccohort%prom_weight               
+     write(fates_log(),*) 'co%size_class             = ', ccohort%size_class
+     write(fates_log(),*) 'co%size_by_pft_class      = ', ccohort%size_by_pft_class
+     write(fates_log(),*) 'co%gpp_acc_hold           = ', ccohort%gpp_acc_hold
+     write(fates_log(),*) 'co%gpp_acc                = ', ccohort%gpp_acc
+     write(fates_log(),*) 'co%gpp_tstep              = ', ccohort%gpp_tstep
+     write(fates_log(),*) 'co%npp_acc_hold           = ', ccohort%npp_acc_hold
+     write(fates_log(),*) 'co%npp_tstep              = ', ccohort%npp_tstep
+     write(fates_log(),*) 'co%npp_acc                = ', ccohort%npp_acc
+     write(fates_log(),*) 'co%resp_tstep             = ', ccohort%resp_tstep
+     write(fates_log(),*) 'co%resp_acc               = ', ccohort%resp_acc
+     write(fates_log(),*) 'co%resp_acc_hold          = ', ccohort%resp_acc_hold
+     write(fates_log(),*) 'co%npp_leaf               = ', ccohort%npp_leaf
+     write(fates_log(),*) 'co%npp_froot              = ', ccohort%npp_froot
+     write(fates_log(),*) 'co%npp_bsw                = ', ccohort%npp_bsw
+     write(fates_log(),*) 'co%npp_bdead              = ', ccohort%npp_bdead
+     write(fates_log(),*) 'co%npp_bseed              = ', ccohort%npp_bseed
+     write(fates_log(),*) 'co%npp_store              = ', ccohort%npp_store
+     write(fates_log(),*) 'co%rdark                  = ', ccohort%rdark
+     write(fates_log(),*) 'co%resp_m                 = ', ccohort%resp_m
+     write(fates_log(),*) 'co%resp_g                 = ', ccohort%resp_g
+     write(fates_log(),*) 'co%livestem_mr            = ', ccohort%livestem_mr
+     write(fates_log(),*) 'co%livecroot_mr           = ', ccohort%livecroot_mr
+     write(fates_log(),*) 'co%froot_mr               = ', ccohort%froot_mr
+     write(fates_log(),*) 'co%md                     = ', ccohort%md
+     write(fates_log(),*) 'co%leaf_md                = ', ccohort%leaf_md
+     write(fates_log(),*) 'co%root_md                = ', ccohort%root_md
+     write(fates_log(),*) 'co%carbon_balance         = ', ccohort%carbon_balance
+     write(fates_log(),*) 'co%dmort                  = ', ccohort%dmort
+     write(fates_log(),*) 'co%seed_prod              = ', ccohort%seed_prod
+     write(fates_log(),*) 'co%treelai                = ', ccohort%treelai
+     write(fates_log(),*) 'co%treesai                = ', ccohort%treesai
+     write(fates_log(),*) 'co%leaf_litter            = ', ccohort%leaf_litter
+     write(fates_log(),*) 'co%c_area                 = ', ccohort%c_area
+     write(fates_log(),*) 'co%woody_turnover         = ', ccohort%woody_turnover
+     write(fates_log(),*) 'co%cmort                  = ', ccohort%cmort
+     write(fates_log(),*) 'co%bmort                  = ', ccohort%bmort
+     write(fates_log(),*) 'co%imort                  = ', ccohort%imort
+     write(fates_log(),*) 'co%fmort                  = ', ccohort%fmort
+     write(fates_log(),*) 'co%hmort                  = ', ccohort%hmort
+     write(fates_log(),*) 'co%isnew                  = ', ccohort%isnew
+     write(fates_log(),*) 'co%dndt                   = ', ccohort%dndt
+     write(fates_log(),*) 'co%dhdt                   = ', ccohort%dhdt
+     write(fates_log(),*) 'co%ddbhdt                 = ', ccohort%ddbhdt
+     write(fates_log(),*) 'co%dbalivedt              = ', ccohort%dbalivedt
+     write(fates_log(),*) 'co%dbdeaddt               = ', ccohort%dbdeaddt
+     write(fates_log(),*) 'co%dbstoredt              = ', ccohort%dbstoredt
+     write(fates_log(),*) 'co%storage_flux           = ', ccohort%storage_flux
+     write(fates_log(),*) 'co%cfa                    = ', ccohort%cfa
+     write(fates_log(),*) 'co%fire_mort              = ', ccohort%fire_mort
+     write(fates_log(),*) 'co%crownfire_mort         = ', ccohort%crownfire_mort
+     write(fates_log(),*) 'co%cambial_mort           = ', ccohort%cambial_mort
+     write(fates_log(),*) 'co%size_class             = ', ccohort%size_class
+     write(fates_log(),*) 'co%size_by_pft_class      = ', ccohort%size_by_pft_class
+     write(fates_log(),*) '----------------------------------------'
+     return
+  end subroutine dump_cohort
+
 end module EDTypesMod
