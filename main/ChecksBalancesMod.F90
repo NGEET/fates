@@ -1,13 +1,16 @@
 module ChecksBalancesMod
 
-   use shr_kind_mod     , only : r8 => shr_kind_r8
+   use shr_kind_mod , only : r8 => shr_kind_r8
    use shr_const_mod, only: SHR_CONST_CDAY
- 
+   use EDtypesMod   , only : ed_site_type,ed_patch_type,ed_cohort_type
+   use EDTypesMod   , only : AREA
+
    implicit none
    
    private
    public :: SummarizeNetFluxes
    public :: FATES_BGC_Carbon_Balancecheck
+   public :: SiteCarbonStock
 
 contains
    
@@ -24,7 +27,7 @@ contains
       !
       ! !USES: 
       use FatesInterfaceMod , only : bc_in_type
-      use EDtypesMod        , only : ed_site_type,ed_patch_type,ed_cohort_type
+     
       use EDtypesMod        , only : AREA
       !
       implicit none   
@@ -234,5 +237,46 @@ contains
       return
    end subroutine FATES_BGC_Carbon_Balancecheck
    
+   ! ==============================================================================================
+
+   subroutine SiteCarbonStock(currentSite,total_stock,biomass_stock,litter_stock,seed_stock)
+     
+     type(ed_site_type),intent(inout),target :: currentSite
+     real(r8),intent(out)                    :: total_stock
+     real(r8),intent(out)                    :: litter_stock
+     real(r8),intent(out)                    :: biomass_stock
+     real(r8),intent(out)                    :: seed_stock
+
+     type(ed_patch_type), pointer :: currentPatch
+     type(ed_cohort_type), pointer :: currentCohort
+     
+     litter_stock  = 0.0_r8
+     biomass_stock = 0.0_r8
+     seed_stock   =  sum(currentSite%seed_bank)*AREA
+
+     currentPatch => currentSite%oldest_patch 
+     do while(associated(currentPatch))
+        litter_stock = litter_stock + currentPatch%area * &
+              (sum(currentPatch%cwd_ag)      + &
+               sum(currentPatch%cwd_bg)      + &
+               sum(currentPatch%leaf_litter) + &
+               sum(currentPatch%root_litter))
+
+        currentCohort => currentPatch%tallest
+        do while(associated(currentCohort))
+           biomass_stock =  biomass_stock + (currentCohort%bdead + currentCohort%balive + &
+                 currentCohort%bstore) * currentCohort%n
+           currentCohort => currentCohort%shorter
+        enddo !end cohort loop 
+        currentPatch => currentPatch%younger
+     enddo !end patch loop
+     
+     total_stock = biomass_stock + seed_stock + litter_stock
+
+     return
+  end subroutine SiteCarbonStock
+
+
+
    
 end module ChecksBalancesMod

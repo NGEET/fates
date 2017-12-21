@@ -77,7 +77,6 @@ contains
       use EDTypesMod, only          : nclmax
       use EDTypesMod, only          : maxpft
       use EDTypesMod, only          : ncwd
-      use EDParamsMod, only         : ED_val_maxspread
       use EDPatchDynamicsMod, only  : create_patch
       use EDPatchDynamicsMod, only  : fuse_patches
       use EDCohortDynamicsMod, only : fuse_cohorts
@@ -104,7 +103,6 @@ contains
       character(len=line_strlen)                   :: header_str           ! large string for whole lines
       real(r8)                                     :: age_init             ! dummy value for creating a patch
       real(r8)                                     :: area_init            ! dummy value for creating a patch
-      real(r8)                                     :: spread_init(nclmax)  ! dummy value for creating a patch
       real(r8)                                     :: cwd_ag_init(ncwd)    ! dummy value for creating a patch
       real(r8)                                     :: cwd_bg_init(ncwd)    ! dummy value for creating a patch
       real(r8)                                     :: leaf_litter_init(maxpft) ! dummy value for creating a patch
@@ -247,13 +245,12 @@ contains
 
             age_init            = 0.0_r8
             area_init           = 0.0_r8 
-            spread_init(:)      = ED_val_maxspread
             cwd_ag_init(:)      = 0.0_r8
             cwd_bg_init(:)      = 0.0_r8
             leaf_litter_init(:) = 0.0_r8
             root_litter_init(:) = 0.0_r8
 
-            call create_patch(sites(s), newpatch, age_init, area_init, spread_init, &
+            call create_patch(sites(s), newpatch, age_init, area_init, &
                   cwd_ag_init, cwd_bg_init, &
                   leaf_litter_init, root_litter_init )
 
@@ -640,7 +637,7 @@ contains
       ! fsn     (kg/m2)    Fast Soil Nitrogen
       ! --------------------------------------------------------------------------------------------
 
-      use EDTypesMod, only: get_age_class_index
+      use FatesSizeAgeTypeIndicesMod, only: get_age_class_index
       use EDtypesMod, only: AREA
       use EDTypesMod, only: ncwd
       use SFParamsMod , only : SF_val_CWD_frac
