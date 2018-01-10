@@ -524,15 +524,17 @@ module FatesInterfaceMod
 
       ! FATES Hydraulics
 
-      real(r8) :: plant_stored_h2o_si             ! stored water in vegetation (kg/m2 H2O)
-                                                  ! Assuming density of 1Mg/m3 ~= mm/m2 H2O
-                                                  ! This must be set and transfered prior to clm_drv()
-                                                  ! following the calls to ed_update_site()
-                                                  ! ed_update_site() is called during both the restart
-                                                  ! and coldstart process
-      
+      real(r8) :: plant_stored_h2o_si         ! stored water in LIVE+DEAD vegetation (kg/m2 H2O)
+                                              ! Assuming density of 1Mg/m3 ~= mm/m2 H2O
+                                              ! This must be set and transfered prior to clm_drv()
+                                              ! following the calls to ed_update_site()
+                                              ! ed_update_site() is called during both the restart
+                                              ! and coldstart process
+
       real(r8),allocatable :: qflx_soil2root_sisl(:)   ! Water flux from soil into root by site and soil layer
                                                        ! [mm H2O/s] [+ into root]
+      
+      
 
    end type bc_out_type
 

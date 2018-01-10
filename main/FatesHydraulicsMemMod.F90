@@ -123,7 +123,10 @@ module FatesHydraulicsMemMod
                                                     ! cohorts to column level (mm)
      real(r8) :: dwat_veg                           ! change in stored water in vegetation
                                                     ! column level (kg)
-     real(r8) :: h2oveg                             ! stored water in vegetation (kg)
+     real(r8) :: h2oveg                             ! stored water in vegetation (kg/site) [kg/ha]
+
+     real(r8) :: h2oveg_dead                        ! stored water in dead vegetation (kg/site) [kg/ha]
+
      
      !     Hold Until Van Genuchten is implemented
      ! col inverse of air-entry pressure     [MPa-1]  (for van Genuchten SWC only)
@@ -249,6 +252,7 @@ module FatesHydraulicsMemMod
        this%errh2o_hyd     = nan
        this%dwat_veg       = nan
        this%h2oveg         = nan
+       this%h2oveg_dead    = 0.0_r8
        return
     end subroutine InitHydrSite
     
