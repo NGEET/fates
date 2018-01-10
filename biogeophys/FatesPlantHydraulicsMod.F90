@@ -110,6 +110,7 @@ module FatesPlantHydraulicsMod
          __FILE__
    !
    ! !PUBLIC MEMBER FUNCTIONS:
+   public :: AccumulateMortalityWaterStorage
    public :: hydraulics_drive
    public :: InitHydrSites
    public :: HydrSiteColdStart
@@ -842,7 +843,11 @@ contains
         enddo !end patch loop
         
         csite_hydr%h2oveg = csite_hydr%h2oveg / AREA
-        bc_out(s)%plant_stored_h2o_si = csite_hydr%h2oveg
+
+        ! Note that h2oveg_dead is incremented wherever we have litter fluxes
+        ! and it will be reduced via an evaporation term
+        bc_out(s)%plant_stored_h2o_si = csite_hydr%h2oveg + csite_hydr%h2oveg_dead
+
      end do
      
     return
@@ -2165,14 +2170,54 @@ end subroutine updateSizeDepRhizHydStates
            ! The Host Land Model may need to know what the total stored vegetation water is
            ! in order for it to fill its balance checks
            
-           bc_out(s)%plant_stored_h2o_si = site_hydr%h2oveg
+           bc_out(s)%plant_stored_h2o_si = site_hydr%h2oveg + site_hydr%h2oveg_dead
            
 
            
         enddo !site
       
   end subroutine Hydraulics_BC
+
+  ! =====================================================================================
+
+
+  subroutine AccumulateMortalityWaterStorage(csite,ccohort,delta_n)
+
+     ! ---------------------------------------------------------------------------
+     ! This subroutine accounts for the water bound in plants that have
+     ! just died. This water is accumulated at the site level for all plants
+     ! that die.
+     ! In another routine, this pool is reduced as water vapor flux, and
+     ! passed to the HLM.
+     ! ---------------------------------------------------------------------------
+
+
+     ! Arguments
+     
+     type(ed_site_type), intent(inout), target     :: csite
+     type(ed_cohort_type) , intent(inout), target  :: ccohort
+     real(r8), intent(in)                          :: delta_n ! Loss in number density
+                                                              ! for this cohort /ha/day
+
+     ! Locals
+     type(ed_site_hydr_type), pointer              :: csite_hydr
+     type(ed_cohort_hydr_type), pointer            :: ccohort_hydr
+
+     ccohort_hydr => ccohort%co_hydr
+     csite_hydr   => csite%si_hydr
+     
+     csite_hydr%h2oveg_dead = csite_hydr%h2oveg_dead                   + &
+           (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:))            + &
+           sum(ccohort_hydr%th_bg(:)*ccohort_hydr%v_bg(:))             + &
+           sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
+           denh2o*delta_n/AREA
+     
+     return
+  end subroutine AccumulateMortalityWaterStorage
+
   
+
+
   !-------------------------------------------------------------------------------!
   
   subroutine Hydraulics_1DSolve(cc_p, ft, z_node, v_node, ths_node, thr_node, kmax_bound, kmax_upper, kmax_lower, &

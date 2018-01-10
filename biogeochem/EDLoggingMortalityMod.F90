@@ -36,12 +36,14 @@ module EDLoggingMortalityMod
    use FatesInterfaceMod , only : hlm_model_day
    use FatesInterfaceMod , only : hlm_day_of_year 
    use FatesInterfaceMod , only : hlm_days_per_year
-   use FatesInterfaceMod , only : hlm_use_logging
+   use FatesInterfaceMod , only : hlm_use_logging 
+   use FatesInterfaceMod , only : hlm_use_planthydro
    use FatesConstantsMod , only : itrue,ifalse
    use FatesGlobals      , only : endrun => fates_endrun 
    use FatesGlobals      , only : fates_log
    use shr_log_mod       , only : errMsg => shr_log_errMsg
-
+   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
+   
    implicit none
    private
 
@@ -289,6 +291,12 @@ contains
          litter_area = currentPatch%area 
          np_mult     = patch_site_areadis/newPatch%area
          
+         
+         if( hlm_use_planthydro == itrue ) then
+            call AccumulateMortalityWaterStorage(currentSite,currentCohort,(direct_dead+indirect_dead))
+         end if
+         
+
          ! ----------------------------------------------------------------------------------------
          ! Handle woody litter flux for non-bole components of biomass
          ! This litter is distributed between the current and new patches, &
