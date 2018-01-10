@@ -653,7 +653,10 @@ contains
                   currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) + &
                   currentCohort%n * (currentCohort%br+currentCohort%bstore) * hlm_days_per_year  / AREA
 
-             if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
+             if( hlm_use_planthydro == itrue ) then
+                call AccumulateMortalityWaterStorage(currentSite,currentCohort,currentCohort%n)
+                call DeallocateHydrCohort(currentCohort)
+             end if
 
              deallocate(currentCohort)     
           endif
