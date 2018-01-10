@@ -123,9 +123,9 @@ module FatesHydraulicsMemMod
                                                     ! cohorts to column level (mm)
      real(r8) :: dwat_veg                           ! change in stored water in vegetation
                                                     ! column level (kg)
-     real(r8) :: h2oveg                             ! stored water in vegetation (kg/site) [kg/ha]
+     real(r8) :: h2oveg                             ! stored water in vegetation (kg/m2)
 
-     real(r8) :: h2oveg_dead                        ! stored water in dead vegetation (kg/site) [kg/ha]
+     real(r8) :: h2oveg_dead                        ! stored water in dead vegetation (kg/m2)
 
      
      !     Hold Until Van Genuchten is implemented

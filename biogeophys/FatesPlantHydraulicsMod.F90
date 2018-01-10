@@ -2197,7 +2197,7 @@ end subroutine updateSizeDepRhizHydStates
      type(ed_site_type), intent(inout), target     :: csite
      type(ed_cohort_type) , intent(inout), target  :: ccohort
      real(r8), intent(in)                          :: delta_n ! Loss in number density
-                                                              ! for this cohort /m2/s
+                                                              ! for this cohort /ha/day
 
      ! Locals
      type(ed_site_hydr_type), pointer              :: csite_hydr
@@ -2210,7 +2210,7 @@ end subroutine updateSizeDepRhizHydStates
            (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:))            + &
            sum(ccohort_hydr%th_bg(:)*ccohort_hydr%v_bg(:))             + &
            sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
-           denh2o*delta_n
+           denh2o*delta_n/AREA
      
      return
   end subroutine AccumulateMortalityWaterStorage
