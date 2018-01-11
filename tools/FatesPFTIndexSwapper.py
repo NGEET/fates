@@ -1,4 +1,10 @@
 # =======================================================================================
+#
+# This python script will open an input FATES parameter file, and given a list of PFT
+# indices supplied by the user, will create a new parameter file with PFTs entries cloned
+# from the original file as-per the list of indices supplied by the user.
+#
+# First Added, Ryan Knox: Thu Jan 11 13:36:14 PST 2018
 # =======================================================================================
 
 import numpy as np
@@ -38,8 +44,7 @@ def usage():
      print('')
      print('=======================================================================')
      print('')
-     print(' python CloneFATESPFTFile.py -h --num-pfts=>n> ')
-     print('                                --pft-index=<integer position> ')
+     print(' python FatesPFTIndexSwapper.py -h --pft-indices=<integer position> ')
      print('                                --fin=<netcdf-file-in> ')
      print('                                --fout=<netcdf-file-out>')
      print('')
@@ -48,12 +53,11 @@ def usage():
      print('     print this help message')
      print('')
      print('')
-     print(' --pft-index=<integer position>')
-     print('     This is the PFT index of the base file that you want copied into the new file')
-     print('')
-     print('')
-     print(' --num-pfts=<n>')
-     print('     This is the desired number of pfts you want in the output file.')
+     print(' --pft-indices=<integer positions ie 1,1,2,3,5,7>')
+     print('     This is a comma delimited list of integer positions of the PFTs')
+     print('     to be copied into the new file. Note that first pft position')
+     print('     is treated as 1 (not C or python like), and any order or multiples')
+     print('     of indices can be chosen')
      print('')
      print('')
      print(' --fin=<netcdf-file-in>')
@@ -75,10 +79,10 @@ def interp_args(argv):
 
     input_fname = "none"
     output_fname = "none"
-    donor_pft_index = -9
-    num_pft_out = -9
+    donor_pft_indices = -9
+    donot_pft_indices_str = ''
     try:
-        opts, args = getopt.getopt(argv, 'h',["fin=","fout=","pft-index=","num-pfts="])
+        opts, args = getopt.getopt(argv, 'h',["fin=","fout=","pft-indices="])
 
     except getopt.GetoptError as err:
         print('Argument error, see usage')
@@ -92,36 +96,33 @@ def interp_args(argv):
             input_fname = a
         elif o in ("--fout"):
             output_fname = a
-        elif o in ("--pft-index"):
-            donor_pft_index = int(a.strip())
-        elif o in ("--num-pfts"):
-            num_pft_out = int(a.strip())
+        elif o in ("--pft-indices"):
+            donor_pft_indices_str = a.strip()
         else:
             assert False, "unhandled option"
 
 
     if (input_fname == "none"):
-        print("You must specify an input file:")
+        print("You must specify an input file:\n\n")
         usage()
         sys.exit(2)
 
     if (output_fname == "none"):
-        print("You must specify an output file:")
+        print("You must specify an output file:\n\n")
         usage()
         sys.exit(2)    
 
-    if (donor_pft_index == -9):
-        print("You must specify the donor pft index, > 0:")
+    if (donor_pft_indices_str == ''):
+        print("You must specify at least one donor pft index!\n\n")
         usage()
         sys.exit(2)
+    else:
+        donor_pft_indices = []
+        for strpft in donor_pft_indices_str.split(','):
+            donor_pft_indices.append(int(strpft))        
 
-    if (num_pft_out == -9):
-        print("You must specify the number of output pfts")
-        usage()
-        sys.exit(2)
 
-
-    return (input_fname,output_fname,donor_pft_index,num_pft_out)
+    return (input_fname,output_fname,donor_pft_indices)
 
 
 # ========================================================================================
@@ -133,22 +134,22 @@ def interp_args(argv):
 def main(argv):
 
     # Interpret the arguments to the script
-    [input_fname,output_fname,donor_pft_index,num_pft_out] = interp_args(argv)
-    
+    [input_fname,output_fname,donor_pft_indices] = interp_args(argv)
+
+    num_pft_out = len(donor_pft_indices)
 
     # Open the netcdf files
     fp_out = netcdf.netcdf_file(output_fname, 'w')
     
     fp_in  = netcdf.netcdf_file(input_fname, 'r')
 
-#    code.interact(local=locals())
-
     for key, value in sorted(fp_in.dimensions.iteritems()):
-        print('Creating Dimension: ',value)
         if(key==pft_dim_name):
             fp_out.createDimension(key,int(num_pft_out))
+            print('Creating Dimension: {}={}'.format(key,num_pft_out))
         else:
             fp_out.createDimension(key,int(value))
+            print('Creating Dimension: {}={}'.format(key,value))
 
     for key, value in sorted(fp_in.variables.iteritems()):
         print('Creating Variable: ',key)
@@ -175,13 +176,18 @@ def main(argv):
         elif(pft_dim_found==-1):
             out_var[:] = in_var[:]
         elif( (pft_dim_found==0) & (pft_dim_len==1) ):           # 1D fates_pft
-            tmp_out = fp_in.variables.get(key).data[donor_pft_index-1] * np.ones([num_pft_out])
+            tmp_out  = np.zeros([num_pft_out])
+            for id,ipft in enumerate(donor_pft_indices):
+                tmp_out[id] = fp_in.variables.get(key).data[ipft-1]
             out_var[:] = tmp_out
+
+
         elif( (pft_dim_found==1) & (pft_dim_len==2) ):           # 2D hdyro_organ - fate_pft
             dim2_len = fp_in.dimensions.get(fp_in.variables.get(key).dimensions[0])
-            tmp_out  = np.ones([dim2_len,num_pft_out])
-            for idim in range(0,dim2_len):
-                tmp_out[idim,:] = tmp_out[idim,:] * fp_in.variables.get(key).data[idim,donor_pft_index-1]
+            tmp_out  = np.zeros([dim2_len,num_pft_out])
+            for id,ipft in enumerate(donor_pft_indices):
+                for idim in range(0,dim2_len):
+                    tmp_out[idim,id] = fp_in.variables.get(key).data[idim,ipft-1]
             out_var[:] = tmp_out
         else:
             print('This variable has a dimensioning that we have not considered yet.')
@@ -189,8 +195,8 @@ def main(argv):
             print('Aborting')
             exit(2)
 
-    fp_out.history = "This file was made from CloneHLMPFTFile.py"
-
+        fp_out.history = "This file was made from FatesPFTIndexSwapper.py \n Input File = {} \n Indices = {}"\
+                         .format(input_fname,donor_pft_indices)
 
     #var_out.mode = var.mode
     #fp.flush()
