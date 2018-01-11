@@ -12,8 +12,6 @@ import sys
 import getopt
 import code  # For development: code.interact(local=locals())
 from datetime import datetime
-from matplotlib.dates import date2num, num2date
-import csv
 from scipy.io import netcdf
 import matplotlib.pyplot as plt
 
