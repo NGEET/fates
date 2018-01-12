@@ -235,7 +235,7 @@ contains
     
     call bleaf(currentcohort%dbh,currentcohort%hite,ft,currentcohort%canopy_trim,tar_bl)
     call bfineroot(currentcohort%dbh,currentcohort%hite,ft,currentcohort%canopy_trim,tar_br)
-    call bsap_allom(currentcohort%dbh,currentcohort%hite,ft,currentcohort%canopy_trim,tar_bsw)
+    call bsap_allom(currentcohort%dbh,ft,currentcohort%canopy_trim,tar_bsw)
 
     leaf_frac = tar_bl/(tar_bl+tar_br+tar_bsw)
     bfr_per_leaf = tar_br/tar_bl

@@ -377,15 +377,15 @@ contains
   ! Generic sapwood biomass interface
   ! ============================================================================
 
-  subroutine bsap_allom(d,h,ipft,canopy_trim,bsap,dbsapdd)
+  subroutine bsap_allom(d,ipft,canopy_trim,bsap,dbsapdd)
     
     real(r8),intent(in)           :: d         ! plant diameter [cm]
-    real(r8),intent(in)           :: h         ! plant height   [m]
     integer(i4),intent(in)        :: ipft      ! PFT index
     real(r8),intent(in)           :: canopy_trim
     real(r8),intent(out)          :: bsap      ! plant leaf biomass [kgC]
     real(r8),intent(out),optional :: dbsapdd   ! change leaf bio per d [kgC/cm]
 
+    real(r8) :: h         ! Plant height [m]
     real(r8) :: dhdd
     real(r8) :: blmax
     real(r8) :: dblmaxdd
@@ -401,6 +401,7 @@ contains
        ! ---------------------------------------------------------------------
     case(1,2) !"constant","dlinear") 
 
+       call h_allom(d,ipft,h,dhdd)
        if(test_b4b)then
           call bleaf(d,h,ipft,canopy_trim,blmax,dblmaxdd)
        else

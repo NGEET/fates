@@ -885,7 +885,7 @@ contains
     call bfineroot(currentCohort%dbh,currentCohort%hite,ipft,currentCohort%canopy_trim,b_fineroot)
     
     ! Calculate sapwood biomass
-    call bsap_allom(currentCohort%dbh,currentCohort%hite,ipft,currentCohort%canopy_trim,b_sap)
+    call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,b_sap)
 
     target_balive = b_leaf + b_fineroot + b_sap
 
@@ -1055,7 +1055,7 @@ contains
                   currentCohort%canopy_trim,b_leaf,db_leaf_dd)
        call bfineroot(currentCohort%dbh,currentCohort%hite,ipft, &
                       currentCohort%canopy_trim,b_fineroot,db_fineroot_dd)
-       call bsap_allom(currentCohort%dbh,currentCohort%hite,ipft, &
+       call bsap_allom(currentCohort%dbh,ipft, &
                        currentCohort%canopy_trim,b_sap,db_sap_dd)
 
        ! Total change in alive biomass relative to dead biomass [kgC/kgC]
@@ -1190,7 +1190,7 @@ contains
        ! Initialize balive (leaf+fineroot+sapwood)
        call bleaf(temp_cohort%dbh,temp_cohort%hite,ft,temp_cohort%canopy_trim,b_leaf)
        call bfineroot(temp_cohort%dbh,temp_cohort%hite,ft,temp_cohort%canopy_trim,b_fineroot)
-       call bsap_allom(temp_cohort%dbh,temp_cohort%hite,ft,temp_cohort%canopy_trim,b_sapwood)
+       call bsap_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_sapwood)
 
        call bag_allom(temp_cohort%dbh,temp_cohort%hite,ft,b_aboveground)
        call bcr_allom(temp_cohort%dbh,temp_cohort%hite,ft,b_coarseroot)
