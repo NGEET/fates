@@ -1071,23 +1071,16 @@ contains
     if(total_turnover_demand>0.0_r8)then
 
        ! If we are testing b4b, then we pay this even if we don't have the carbon
-       if(test_b4b) then
-          bl_flux = leaf_turnover_demand
-       else
-          bl_flux = min(leaf_turnover_demand, max(0.0_r8,carbon_balance*(leaf_turnover_demand/total_turnover_demand)))
-       end if
-
+       ! Just don't pay so much carbon that storage+carbon_balance can't pay for it
+       
+       bl_flux = min(leaf_turnover_demand, (currentCohort%bstore+carbon_balance)*(leaf_turnover_demand/total_turnover_demand))
+       
        carbon_balance               = carbon_balance - bl_flux
        currentCohort%bl             = currentCohort%bl +  bl_flux
        currentCohort%npp_leaf       = currentCohort%npp_leaf + bl_flux / hlm_freq_day
 
        ! If we are testing b4b, then we pay this even if we don't have the carbon
-       if(test_b4b) then
-          br_flux = root_turnover_demand
-       else
-          br_flux = min(root_turnover_demand, max(0.0_r8,carbon_balance*(root_turnover_demand/total_turnover_demand)))
-       end if
-
+       br_flux = min(root_turnover_demand, (currentCohort%bstore+carbon_balance)*(root_turnover_demand/total_turnover_demand))
 
        carbon_balance              = carbon_balance - br_flux
        currentCohort%br            = currentCohort%br +  br_flux
