@@ -165,8 +165,8 @@ contains
      ierr = 0 
 
      call h_allom(dbh,ipft,height)
-     call bleaf(dbh,height,ipft,canopy_trim,bl_diag)
-     call bfineroot(dbh,height,ipft,canopy_trim,bfr_diag)
+     call bleaf(dbh,ipft,canopy_trim,bl_diag)
+     call bfineroot(dbh,ipft,canopy_trim,bfr_diag)
      call bsap_allom(dbh,ipft,canopy_trim,bsap_diag)
      call bagw_allom(dbh,ipft,bagw_diag)
      call bbgw_allom(dbh,ipft,bbgw_diag)
@@ -345,10 +345,9 @@ contains
   ! Generic diameter to maximum leaf biomass interface
   ! ============================================================================
   
-  subroutine blmax_allom(d,h,ipft,blmax,dblmaxdd)
+  subroutine blmax_allom(d,ipft,blmax,dblmaxdd)
 
     real(r8),intent(in)    :: d         ! plant diameter [cm]
-    real(r8),intent(in)    :: h         ! plant height [m]
     integer(i4),intent(in) :: ipft      ! PFT index
     real(r8),intent(out)   :: blmax     ! plant leaf biomass [kg]
     real(r8),intent(out),optional :: dblmaxdd  ! change leaf bio per diameter [kgC/cm]
@@ -423,7 +422,7 @@ contains
 
   ! =====================================================================================
         
-  subroutine bleaf(d,h,ipft,canopy_trim,bl,dbldd)
+  subroutine bleaf(d,ipft,canopy_trim,bl,dbldd)
     
     ! -------------------------------------------------------------------------
     ! This subroutine calculates the actual target bleaf
@@ -433,7 +432,6 @@ contains
     ! -------------------------------------------------------------------------
     
     real(r8),intent(in)    :: d             ! plant diameter [cm]
-    real(r8),intent(in)    :: h             ! plant height [m]
     integer(i4),intent(in) :: ipft          ! PFT index
     real(r8),intent(in)    :: canopy_trim   ! trimming function
     real(r8),intent(out)   :: bl            ! plant leaf biomass [kg]
@@ -442,7 +440,7 @@ contains
     real(r8) :: blmax
     real(r8) :: dblmaxdd
     
-    call blmax_allom(d,h,ipft,blmax,dblmaxdd)
+    call blmax_allom(d,ipft,blmax,dblmaxdd)
     
     ! -------------------------------------------------------------------------
     ! Adjust for canopies that have become so deep that their bottom layer is 
@@ -499,7 +497,7 @@ contains
     case(1,2) !"constant","dlinear") 
 
        call h_allom(d,ipft,h,dhdd)
-       call bleaf(d,h,ipft,canopy_trim,bl,dbldd)
+       call bleaf(d,ipft,canopy_trim,bl,dbldd)
        call bsap_dlinear(d,h,dhdd,bl,dbldd,ipft,bsap,dbsapdd)
 
        ! Perform a capping/check on total woody biomass
@@ -519,7 +517,7 @@ contains
     case(9) ! deprecated (9)
 
        call h_allom(d,ipft,h,dhdd)
-       call bleaf(d,h,ipft,canopy_trim,bl,dbldd)
+       call bleaf(d,ipft,canopy_trim,bl,dbldd)
        call bsap_deprecated(d,h,dhdd,bl,dbldd,ipft,bsap,dbsapdd)
 
     case DEFAULT
@@ -564,7 +562,7 @@ contains
   ! Fine root biomass allometry wrapper
   ! ============================================================================
   
-  subroutine bfineroot(d,h,ipft,canopy_trim,bfr,dbfrdd)
+  subroutine bfineroot(d,ipft,canopy_trim,bfr,dbfrdd)
     
     ! -------------------------------------------------------------------------
     ! This subroutine calculates the actual target fineroot biomass
@@ -572,7 +570,6 @@ contains
     ! -------------------------------------------------------------------------
     
     real(r8),intent(in)    :: d              ! plant diameter [cm]
-    real(r8),intent(in)    :: h              ! plant height [m]
     integer(i4),intent(in) :: ipft           ! PFT index
     real(r8),intent(in)    :: canopy_trim    ! trimming function
     real(r8),intent(out)   :: bfr            ! fine root biomass [kgC]
@@ -587,7 +584,7 @@ contains
     select case(int(EDPftvarcon_inst%allom_fmode(ipft)))
     case(1) ! "constant proportionality with bleaf"
        
-       call blmax_allom(d,h,ipft,blmax,dblmaxdd)
+       call blmax_allom(d,ipft,blmax,dblmaxdd)
        call bfrmax_const(d,blmax,dblmaxdd,ipft,bfrmax,dbfrmaxdd)
        bfr    = bfrmax * canopy_trim
        if(present(dbfrdd))then
@@ -608,10 +605,9 @@ contains
   ! Storage biomass interface
   ! ============================================================================
   
-  subroutine bstore_allom(d,h,ipft,canopy_trim,bstore,dbstoredd)
+  subroutine bstore_allom(d,ipft,canopy_trim,bstore,dbstoredd)
 
      real(r8),intent(in)           :: d            ! plant diameter [cm]
-     real(r8),intent(in)           :: h            ! plant height [m]
      integer(i4),intent(in)        :: ipft         ! PFT index
      real(r8),intent(in)           :: canopy_trim  ! Crown trimming function [0-1]
      real(r8),intent(out)          :: bstore       ! allometric target storage [kgC]
@@ -630,7 +626,7 @@ contains
        case(1) ! Storage is constant proportionality of trimmed maximum leaf
           ! biomass (ie cushion * bleaf)
           
-          call bleaf(d,h,ipft,canopy_trim,bl,dbldd)
+          call bleaf(d,ipft,canopy_trim,bl,dbldd)
           call bstore_blcushion(d,bl,dbldd,cushion,ipft,bstore,dbstoredd)
           
        case DEFAULT 
@@ -756,9 +752,9 @@ contains
     return
  end subroutine bbgw_const
 
-  ! ============================================================================
-  ! Specific d2bsap relationships
-  ! ============================================================================
+ ! ============================================================================
+ ! Specific d2bsap relationships
+ ! ============================================================================
   
  subroutine bsap_deprecated(d,h,dhdd,bleaf,dbleafdd,ipft,bsap,dbsapdd)
     

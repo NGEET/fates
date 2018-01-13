@@ -182,8 +182,8 @@ contains
                   currentCohort%c_area,currentCohort%n,currentCohort%bl
           endif
 
-          call bleaf(currentcohort%dbh,currentcohort%hite,ipft,currentcohort%canopy_trim,tar_bl)
-          call bfineroot(currentcohort%dbh,currentcohort%hite,ipft,currentcohort%canopy_trim,tar_bfr)
+          call bleaf(currentcohort%dbh,ipft,currentcohort%canopy_trim,tar_bl)
+          call bfineroot(currentcohort%dbh,ipft,currentcohort%canopy_trim,tar_bfr)
 
           bfr_per_bleaf = tar_bfr/tar_bl
 
@@ -904,7 +904,7 @@ contains
     ! -----------------------------------------------------------------------------------
     
     ! Target leaf biomass according to allometry and trimming
-    call bleaf(currentCohort%dbh,currentCohort%hite,ipft,currentCohort%canopy_trim,bt_leaf,dbt_leaf_dd)
+    call bleaf(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_leaf,dbt_leaf_dd)
 
     ! If status_coh is 1, then leaves are in a dropped (off allometry)
     if( currentcohort%status_coh == 1 ) then
@@ -913,7 +913,7 @@ contains
     end if
 
     ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-    call bfineroot(currentCohort%dbh,currentCohort%hite,ipft,currentCohort%canopy_trim,bt_fineroot,dbt_fineroot_dd)
+    call bfineroot(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_fineroot,dbt_fineroot_dd)
 
     ! Target sapwood biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
     call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_sap,dbt_sap_dd)
@@ -928,8 +928,7 @@ contains
     call bdead_allom( bt_agw, bt_bgw, bt_sap, ipft, bt_dead, dbt_agw_dd, dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd )
 
     ! Target storage carbon [kgC,kgC/cm]
-    call bstore_allom(currentCohort%dbh,currentCohort%hite,ipft, &
-          currentCohort%canopy_trim,bt_store,dbt_store_dd)
+    call bstore_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_store,dbt_store_dd)
 
     ! -----------------------------------------------------------------------------------
     ! III. If fusion pushed a plant off allometry, we could have negatives
@@ -1260,13 +1259,14 @@ contains
 
        do istep=1,nsteps
           
-          call bleaf(dbh_sub,h_sub,ipft,currentCohort%canopy_trim,bt_leaf,dbt_leaf_dd)
-          call bfineroot(dbh_sub,h_sub,ipft,currentCohort%canopy_trim,bt_fineroot,dbt_fineroot_dd)
+          call bleaf(dbh_sub,ipft,currentCohort%canopy_trim,bt_leaf,dbt_leaf_dd)
+          call bfineroot(dbh_sub,ipft,currentCohort%canopy_trim,bt_fineroot,dbt_fineroot_dd)
           call bsap_allom(dbh_sub,ipft,currentCohort%canopy_trim,bt_sap,dbt_sap_dd)
           call bagw_allom(dbh_sub,ipft,bt_agw,dbt_agw_dd)
           call bbgw_allom(dbh_sub,ipft,bt_bgw,dbt_bgw_dd)
-          call bdead_allom(bt_agw, bt_bgw, bt_sap, ipft, bt_dead, dbt_agw_dd, dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd)
-          call bstore_allom(dbh_sub,h_sub,ipft,currentCohort%canopy_trim,bt_store,dbt_store_dd)
+          call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead, dbt_agw_dd, &
+                           dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd)
+          call bstore_allom(dbh_sub,ipft,currentCohort%canopy_trim,bt_store,dbt_store_dd)
           
           ! fraction of carbon going towards reproduction
           if (dbh_sub <= EDPftvarcon_inst%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
@@ -1426,16 +1426,15 @@ contains
        call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
 
        ! Initialize live pools
-       call bleaf(temp_cohort%dbh,temp_cohort%hite,ft,temp_cohort%canopy_trim,b_leaf)
-       call bfineroot(temp_cohort%dbh,temp_cohort%hite,ft,temp_cohort%canopy_trim,b_fineroot)
+       call bleaf(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_leaf)
+       call bfineroot(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_fineroot)
        call bsap_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_sapwood)
 
        call bagw_allom(temp_cohort%dbh,ft,b_agw)
        call bbgw_allom(temp_cohort%dbh,ft,b_bgw)
        call bdead_allom(b_agw,b_bgw,b_sapwood,ft,temp_cohort%bdead)
 
-       call bstore_allom(temp_cohort%dbh,temp_cohort%hite, ft, &
-             temp_cohort%canopy_trim,temp_cohort%bstore)
+       call bstore_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,temp_cohort%bstore)
 
        if (hlm_use_ed_prescribed_phys .eq. ifalse .or. EDPftvarcon_inst%prescribed_recruitment(ft) .lt. 0. ) then
           temp_cohort%n           = currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day &
