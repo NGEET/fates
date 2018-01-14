@@ -811,6 +811,12 @@ contains
     real(r8) :: root_turnover_demand  ! fineroot carbon that is demanded to replace maintenance turnover [kgC]
     real(r8) :: total_turnover_demand ! total carbon that is demanded to replace maintenance turnover [kgC]
 
+    logical  :: grow_leaf
+    logical  :: grow_froot
+    logical  :: grow_sap
+    logical  :: grow_store
+    logical  :: grow_dead
+
     ! integrator variables
     real(r8) :: deltaC     ! trial value for substep
     integer  :: ierr       ! error flag for allometric growth step
@@ -836,6 +842,8 @@ contains
     real(r8), parameter :: background_woody_turnover = 0.0_r8
     real(r8), parameter :: cbal_prec = 1.0e-15_r8     ! Desired precision in carbon balance
     integer , parameter :: max_substeps = 16
+
+    logical , parameter :: no_forced_allometry = .true.
 
     ipft = currentCohort%pft
 
@@ -939,43 +947,46 @@ contains
     !      track these npp partition diagnostics.
     ! -----------------------------------------------------------------------------------
 
-    leaf_below_target  = bt_leaf - currentCohort%bl
-    froot_below_target = bt_fineroot - currentCohort%br
-    sap_below_target   = bt_sap - currentCohort%bsw
-    store_below_target = bt_store - currentCohort%bstore
-    dead_below_target  = bt_dead - currentCohort%bdead
-   
+    if( no_forced_allometry ) then
 
-    if(leaf_below_target<0.0_r8) then
-       carbon_balance = carbon_balance - leaf_below_target
-       currentCohort%bl               = currentCohort%bl + leaf_below_target
-       currentCohort%fcfix_leaf       = currentCohort%fcfix_leaf + leaf_below_target / hlm_freq_day
-    end if
+       leaf_below_target  = bt_leaf - currentCohort%bl
+       froot_below_target = bt_fineroot - currentCohort%br
+       sap_below_target   = bt_sap - currentCohort%bsw
+       store_below_target = bt_store - currentCohort%bstore
+       dead_below_target  = bt_dead - currentCohort%bdead
+       
+       
+       if(leaf_below_target<0.0_r8) then
+          carbon_balance = carbon_balance - leaf_below_target
+          currentCohort%bl               = currentCohort%bl + leaf_below_target
+          currentCohort%fcfix_leaf       = currentCohort%fcfix_leaf + leaf_below_target / hlm_freq_day
+       end if
+       
+       if(froot_below_target<0.0_r8) then
+          carbon_balance = carbon_balance - froot_below_target
+          currentCohort%br               = currentCohort%br +  froot_below_target
+          currentCohort%fcfix_fnrt      = currentCohort%fcfix_fnrt + froot_below_target / hlm_freq_day
+       end if
+       
+       if(sap_below_target<0.0_r8) then
+          carbon_balance = carbon_balance - sap_below_target
+          currentCohort%bsw               = currentCohort%bsw +  sap_below_target 
+          currentCohort%fcfix_sapw        = currentCohort%fcfix_sapw + sap_below_target / hlm_freq_day
+       end if
+       
+       if(store_below_target<0.0_r8) then
+          carbon_balance = carbon_balance - store_below_target
+          currentCohort%bstore          = currentCohort%bstore + store_below_target
+          currentCohort%fcfix_stor      = currentCohort%fcfix_stor + store_below_target / hlm_freq_day
+       end if
 
-    if(froot_below_target<0.0_r8) then
-       carbon_balance = carbon_balance - froot_below_target
-       currentCohort%br               = currentCohort%br +  froot_below_target
-       currentCohort%fcfix_fnrt      = currentCohort%fcfix_fnrt + froot_below_target / hlm_freq_day
+       if(dead_below_target<0.0_r8) then
+          carbon_balance = carbon_balance - dead_below_target
+          currentCohort%bdead           = currentCohort%bdead +  dead_below_target
+          currentCohort%fcfix_dead      = currentCohort%fcfix_dead + dead_below_target / hlm_freq_day
+       end if
     end if
-    
-    if(sap_below_target<0.0_r8) then
-       carbon_balance = carbon_balance - sap_below_target
-       currentCohort%bsw               = currentCohort%bsw +  sap_below_target 
-       currentCohort%fcfix_sapw        = currentCohort%fcfix_sapw + sap_below_target / hlm_freq_day
-    end if
-    
-    if(store_below_target<0.0_r8) then
-       carbon_balance = carbon_balance - store_below_target
-       currentCohort%bstore          = currentCohort%bstore + store_below_target
-       currentCohort%fcfix_stor      = currentCohort%fcfix_stor + store_below_target / hlm_freq_day
-    end if
-
-    if(dead_below_target<0.0_r8) then
-       carbon_balance = carbon_balance - dead_below_target
-       currentCohort%bdead           = currentCohort%bdead +  dead_below_target
-       currentCohort%fcfix_dead      = currentCohort%fcfix_dead + dead_below_target / hlm_freq_day
-    end if
-
+       
 
     ! -----------------------------------------------------------------------------------
     ! IV(a). Calculate the maintenance turnover demands 
@@ -1060,7 +1071,7 @@ contains
     ! -----------------------------------------------------------------------------------
     ! VI(b).  Prioritize some amount of carbon to replace leaf/root turnover
     !         Make sure it isnt a negative payment, and either pay what is available
-    !         or forcefully pay from storage.
+    !         or forcefully pay from storage. 
     ! -----------------------------------------------------------------------------------
 
     leaf_turnover_demand  = currentCohort%leaf_md*EDPftvarcon_inst%leaf_stor_priority(ipft)*hlm_freq_day
@@ -1071,7 +1082,7 @@ contains
 
        ! If we are testing b4b, then we pay this even if we don't have the carbon
        ! Just don't pay so much carbon that storage+carbon_balance can't pay for it
-       
+
        bl_flux = min(leaf_turnover_demand, (currentCohort%bstore+carbon_balance)*(leaf_turnover_demand/total_turnover_demand))
        
        carbon_balance               = carbon_balance - bl_flux
@@ -1139,15 +1150,17 @@ contains
 
     ! -----------------------------------------------------------------------------------
     ! VII(e).  If carbon is still available, we try to push all live 
-    !        pools back towards allometry
+    !        pools back towards allometry. But only upwards, if fusion happened
+    !        to generate some pools above allometric target, don't reduce the pool,
+    !        just ignore it until the rest of the plant grows to meet it.
     ! -----------------------------------------------------------------------------------
 
     if( carbon_balance<cbal_prec) return
 
-    leaf_below_target  = bt_leaf - currentCohort%bl
-    froot_below_target = bt_fineroot - currentCohort%br
-    sap_below_target   = bt_sap - currentCohort%bsw
-    store_below_target = bt_store - currentCohort%bstore
+    leaf_below_target  = max(bt_leaf - currentCohort%bl,0.0_r8)
+    froot_below_target = max(bt_fineroot - currentCohort%br,0.0_r8)
+    sap_below_target   = max(bt_sap - currentCohort%bsw,0.0_r8)
+    store_below_target = max(bt_store - currentCohort%bstore,0.0_r8)
     total_below_target = leaf_below_target + froot_below_target + &
                          sap_below_target + store_below_target
     
@@ -1190,7 +1203,7 @@ contains
 
     if( carbon_balance<cbal_prec) return
 
-    dead_below_target  = bt_dead - currentCohort%bdead
+    dead_below_target  = max(bt_dead - currentCohort%bdead,0.0_r8)
     
     if ( carbon_balance > 0.0_r8 .and. dead_below_target>0.0_r8) then
 
@@ -1203,7 +1216,8 @@ contains
 
     ! -----------------------------------------------------------------------------------
     ! V(e).  If carbon is yet still available ...
-    !        Our pools are now on allometry, and we can increment all pools
+    !        Our pools are now either on allometry or above (from fusion).
+    !        We we can increment those pools at or below,
     !        including structure and reproduction according to their rates
     !        Use an adaptive euler integration. If the error is not nominal,
     !        the carbon balance sub-step (deltaC) will be halved and tried again
@@ -1211,36 +1225,57 @@ contains
 
     if( carbon_balance<cbal_prec) return
 
-    if(abs(currentCohort%bl - bt_leaf)>calloc_abs_error) then
+    if( (bt_leaf - currentCohort%bl)>calloc_abs_error) then
        write(fates_log(),*) 'leaves are not on-allometry at the growth step'
        write(fates_log(),*) 'exiting',currentCohort%bl,bt_leaf,currentCohort%bl - bt_leaf
        call endrun(msg=errMsg(sourcefile, __LINE__))
+    elseif( (currentCohort%bl - bt_leaf)>calloc_abs_error) then
+       ! leaf is above allometry, ignore
+       grow_leaf = .false.
+    else
+       grow_leaf = .true.
     end if
-
-    if(abs(currentCohort%br - bt_fineroot)>calloc_abs_error) then
+    
+    if( (bt_fineroot - currentCohort%br)>calloc_abs_error) then
        write(fates_log(),*) 'fineroots are not on-allometry at the growth step'
        write(fates_log(),*) 'exiting',currentCohort%br,bt_fineroot,currentCohort%br - bt_fineroot
        call endrun(msg=errMsg(sourcefile, __LINE__))
+    elseif( (currentCohort%br-bt_fineroot)>calloc_abs_error ) then
+       grow_froot = .false.
+    else
+       grow_froot = .true.
     end if
     
-    if(abs(currentCohort%bsw - bt_sap)>calloc_abs_error) then
+    if( (bt_sap - currentCohort%bsw)>calloc_abs_error) then
        write(fates_log(),*) 'sapwood is not on-allometry at the growth step'
        write(fates_log(),*) 'exiting',currentCohort%bsw,bt_sap,currentCohort%bsw - bt_sap
        call endrun(msg=errMsg(sourcefile, __LINE__))
+    elseif( (currentCohort%bsw-bt_sap)>calloc_abs_error ) then
+       grow_sap = .false.
+    else
+       grow_sap = .true.
     end if
-
-    if(abs(currentCohort%bdead - bt_dead)>calloc_abs_error) then
+    
+    if( (bt_dead - currentCohort%bdead)>calloc_abs_error) then
        write(fates_log(),*) 'dead wood is not on-allometry at the growth step'
        write(fates_log(),*) 'exiting',currentCohort%bdead,bt_dead,currentCohort%bdead - bt_dead
        call endrun(msg=errMsg(sourcefile, __LINE__))
+    elseif( (currentCohort%bdead-bt_dead)>calloc_abs_error   ) then
+       grow_dead = .false.
+    else
+       grow_dead = .true.
     end if
 
-    if(abs(currentCohort%bstore - bt_store)>calloc_abs_error) then
+    if( (bt_store - currentCohort%bstore)>calloc_abs_error) then
        write(fates_log(),*) 'storage is not on-allometry at the growth step'
        write(fates_log(),*) 'exiting',currentCohort%bstore,bt_store,currentCohort%bstore - bt_store
        call endrun(msg=errMsg(sourcefile, __LINE__))
+    elseif( (currentCohort%bstore-bt_store)>calloc_abs_error   ) then
+       grow_store = .false.
+    else
+       grow_store = .true.
     end if
-
+    
     deltaC = carbon_balance
     nsteps = 1
     ierr = 1
@@ -1275,30 +1310,45 @@ contains
              repro_fraction = EDPftvarcon_inst%seed_alloc(ipft) + EDPftvarcon_inst%clone_alloc(ipft)
           end if
           
-          dbt_total_dd = dbt_leaf_dd + dbt_fineroot_dd + dbt_sap_dd + dbt_dead_dd + dbt_store_dd
-          
-          bl_flux     = deltaC * (dbt_leaf_dd/dbt_total_dd)*(1.0_r8-repro_fraction)
-          br_flux     = deltaC * (dbt_fineroot_dd/dbt_total_dd)*(1.0_r8-repro_fraction)
-          bsw_flux    = deltaC * (dbt_sap_dd/dbt_total_dd)*(1.0_r8-repro_fraction)
-          bdead_flux  = deltaC * (dbt_dead_dd/dbt_total_dd)*(1.0_r8-repro_fraction)
-          bstore_flux = deltaC * (dbt_store_dd/dbt_total_dd)*(1.0_r8-repro_fraction)
-          brepro_flux = deltaC * repro_fraction
+          dbt_total_dd = 0.0_r8
 
-          ! Take a sub-step
+          if (grow_leaf)  dbt_total_dd = dbt_total_dd + dbt_leaf_dd 
+          if (grow_froot) dbt_total_dd = dbt_total_dd + dbt_fineroot_dd 
+          if (grow_sap)   dbt_total_dd = dbt_total_dd + dbt_sap_dd
+          if (grow_dead)  dbt_total_dd = dbt_total_dd + dbt_dead_dd 
+          if (grow_store) dbt_total_dd = dbt_total_dd + dbt_store_dd
           
-          bl_sub        = bl_sub        + bl_flux
-          br_sub        = br_sub        + br_flux
-          bsw_sub       = bsw_sub       + bsw_flux
-          bstore_sub    = bstore_sub    + bstore_flux
-          bdead_sub     = bdead_sub     + bdead_flux
+          if (grow_leaf) then
+             bl_flux     = deltaC * (dbt_leaf_dd/dbt_total_dd)*(1.0_r8-repro_fraction)
+             bl_sub      = bl_sub        + bl_flux
+          end if
+             
+          if (grow_froot) then
+             br_flux     = deltaC * (dbt_fineroot_dd/dbt_total_dd)*(1.0_r8-repro_fraction)
+             br_sub      = br_sub        + br_flux
+          end if
+
+          if (grow_sap) then
+             bsw_flux    = deltaC * (dbt_sap_dd/dbt_total_dd)*(1.0_r8-repro_fraction)
+             bsw_sub     = bsw_sub       + bsw_flux
+          end if
+
+          if (grow_store) then
+             bstore_flux = deltaC * (dbt_store_dd/dbt_total_dd)*(1.0_r8-repro_fraction)
+             bstore_sub    = bstore_sub    + bstore_flux
+          end if
+
+          if (grow_dead) then
+             bdead_flux  = deltaC * (dbt_dead_dd/dbt_total_dd)*(1.0_r8-repro_fraction)
+             bdead_sub   = bdead_sub     + bdead_flux
+             dbh_sub     = dbh_sub + bdead_flux / dbt_dead_dd
+             call h_allom(dbh_sub,ipft,h_sub)
+          end if
+
+
+          brepro_flux = deltaC * repro_fraction
           brepro_sub    = brepro_sub    + brepro_flux
 
-          ! -----------------------------------------------------------------------------------
-          ! VII. Update the diameter and height allometries if we had structural growth
-          ! -----------------------------------------------------------------------------------
-          
-          dbh_sub = dbh_sub + bdead_flux / dbt_dead_dd
-          call h_allom(dbh_sub,ipft,h_sub)
           
           ! ------------------------------------------------------------------------------------
           ! VIII. Run a post integration test to see if our integrated quantities match
@@ -1317,7 +1367,8 @@ contains
        end if
        
        call CheckIntegratedAllometries(dbh_sub,ipft,currentCohort%canopy_trim, &
-            bl_sub,br_sub,bsw_sub,bdead_sub,ierr)
+            bl_sub,br_sub,bsw_sub,bstore_sub,bdead_sub, &
+            grow_leaf, grow_froot, grow_sap, grow_store, grow_dead, ierr)
        
        
        if(ierr.eq.0 .or. nsteps > max_substeps ) then

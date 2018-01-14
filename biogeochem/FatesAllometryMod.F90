@@ -133,7 +133,10 @@ contains
   ! Check to make sure Martinez-Cano height cap is not on, or explicitly allowed
 
 
-  subroutine CheckIntegratedAllometries(dbh,ipft,canopy_trim,bl,bfr,bsap,bdead,ierr)
+  subroutine CheckIntegratedAllometries(dbh,ipft,canopy_trim, &
+       bl,bfr,bsap,bstore,bdead, &
+       grow_leaf, grow_fr, grow_sap, grow_store, grow_dead, &
+       ierr)
 
      ! This routine checks the error on the carbon allocation
      ! integration step.  The integrated quantities should
@@ -149,7 +152,14 @@ contains
      real(r8),intent(in) :: bl     ! integrated leaf biomass [kgC]
      real(r8),intent(in) :: bfr    ! integrated fine root biomass [kgC]
      real(r8),intent(in) :: bsap   ! integrated sapwood biomass [kgC]
+     real(r8),intent(in) :: bstore ! integrated storage biomass [kgC]
      real(r8),intent(in) :: bdead  ! integrated structural biomass [kgc]
+     logical,intent(in)  :: grow_leaf ! on-off switch for leaf growth
+     logical,intent(in)  :: grow_fr   ! on-off switch for root growth
+     logical,intent(in)  :: grow_sap  ! on-off switch for sapwood
+     logical,intent(in)  :: grow_store! on-off switch for storage
+     logical,intent(in)  :: grow_dead ! on-off switch for structure
+
      integer,intent(out) :: ierr   ! Error flag (0=pass, 1=fail)
      
      real(r8) :: height            ! diagnosed height [m]
@@ -157,6 +167,7 @@ contains
      real(r8) :: bfr_diag          ! diagnosed fine-root biomass [kgC]
      real(r8) :: bsap_diag         ! diagnosed sapwood biomass [kgC]
      real(r8) :: bdead_diag        ! diagnosed structural biomass [kgC]
+     real(r8) :: bstore_diag       ! diagnosed storage biomass [kgC]
      real(r8) :: bagw_diag         ! diagnosed agbw [kgC]
      real(r8) :: bbgw_diag         ! diagnosed below ground wood [kgC]
 
@@ -165,57 +176,83 @@ contains
      ierr = 0 
 
      call h_allom(dbh,ipft,height)
-     call bleaf(dbh,ipft,canopy_trim,bl_diag)
-     call bfineroot(dbh,ipft,canopy_trim,bfr_diag)
-     call bsap_allom(dbh,ipft,canopy_trim,bsap_diag)
-     call bagw_allom(dbh,ipft,bagw_diag)
-     call bbgw_allom(dbh,ipft,bbgw_diag)
-     call bdead_allom( bagw_diag, bbgw_diag, bsap_diag, ipft, bdead_diag )
-
-     if( abs(bl_diag-bl)/bl_diag > relative_err_thresh ) then
-        if(verbose_logging) then
-           write(fates_log(),*) 'disparity in integrated/diagnosed leaf carbon'
-           write(fates_log(),*) 'resulting from the on-allometry growth integration step'
-           write(fates_log(),*) 'bl (integrated): ',bl
-           write(fates_log(),*) 'bl (diagnosed): ',bl_diag
-           write(fates_log(),*) 'relative error: ',abs(bl_diag-bl)/bl_diag
-        end if
-        ierr = 1
-     end if
-
-     if( abs(bfr_diag-bfr)/bfr_diag > relative_err_thresh ) then
-        if(verbose_logging) then
-           write(fates_log(),*) 'disparity in integrated/diagnosed fineroot carbon'
-           write(fates_log(),*) 'resulting from the on-allometry growth integration step'
-           write(fates_log(),*) 'bfr (integrated): ',bfr
-           write(fates_log(),*) 'bfr (diagnosed): ',bfr_diag
-           write(fates_log(),*) 'relative error: ',abs(bfr_diag-bfr)/bfr_diag
-        end if
-        ierr = 1
-     end if
+    
      
-     if( abs(bsap_diag-bsap)/bsap_diag > relative_err_thresh ) then
-        if(verbose_logging) then
-           write(fates_log(),*) 'disparity in integrated/diagnosed sapwood carbon'
-           write(fates_log(),*) 'resulting from the on-allometry growth integration step'
-           write(fates_log(),*) 'bsap (integrated): ',bsap
-           write(fates_log(),*) 'bsap (diagnosed): ',bsap_diag
-           write(fates_log(),*) 'relative error: ',abs(bsap_diag-bsap)/bsap_diag
+
+     if (grow_leaf) then
+        call bleaf(dbh,ipft,canopy_trim,bl_diag)
+        if( abs(bl_diag-bl)/bl_diag > relative_err_thresh ) then
+           if(verbose_logging) then
+              write(fates_log(),*) 'disparity in integrated/diagnosed leaf carbon'
+              write(fates_log(),*) 'resulting from the on-allometry growth integration step'
+              write(fates_log(),*) 'bl (integrated): ',bl
+              write(fates_log(),*) 'bl (diagnosed): ',bl_diag
+              write(fates_log(),*) 'relative error: ',abs(bl_diag-bl)/bl_diag
+           end if
+           ierr = 1
         end if
-        ierr = 1
+     end if
+        
+     if (grow_fr) then
+        call bfineroot(dbh,ipft,canopy_trim,bfr_diag)
+        if( abs(bfr_diag-bfr)/bfr_diag > relative_err_thresh ) then
+           if(verbose_logging) then
+              write(fates_log(),*) 'disparity in integrated/diagnosed fineroot carbon'
+              write(fates_log(),*) 'resulting from the on-allometry growth integration step'
+              write(fates_log(),*) 'bfr (integrated): ',bfr
+              write(fates_log(),*) 'bfr (diagnosed): ',bfr_diag
+              write(fates_log(),*) 'relative error: ',abs(bfr_diag-bfr)/bfr_diag
+           end if
+           ierr = 1
+        end if
      end if
 
-     if( abs(bdead_diag-bdead)/bdead_diag > relative_err_thresh ) then
-        if(verbose_logging) then
-           write(fates_log(),*) 'disparity in integrated/diagnosed structural carbon'
-           write(fates_log(),*) 'resulting from the on-allometry growth integration step'
-           write(fates_log(),*) 'bdead (integrated): ',bdead
-           write(fates_log(),*) 'bdead (diagnosed): ',bdead_diag
-           write(fates_log(),*) 'relative error: ',abs(bdead_diag-bdead)/bdead_diag
+     if (grow_sap) then
+        call bsap_allom(dbh,ipft,canopy_trim,bsap_diag)
+        if( abs(bsap_diag-bsap)/bsap_diag > relative_err_thresh ) then
+           if(verbose_logging) then
+              write(fates_log(),*) 'disparity in integrated/diagnosed sapwood carbon'
+              write(fates_log(),*) 'resulting from the on-allometry growth integration step'
+              write(fates_log(),*) 'bsap (integrated): ',bsap
+              write(fates_log(),*) 'bsap (diagnosed): ',bsap_diag
+              write(fates_log(),*) 'relative error: ',abs(bsap_diag-bsap)/bsap_diag
+           end if
+           ierr = 1
         end if
-        ierr = 1
+     end if
+        
+     if (grow_store) then
+        call bstore_allom(dbh,ipft,canopy_trim,bstore_diag)
+        if( abs(bstore_diag-bstore)/bstore_diag > relative_err_thresh ) then
+           if(verbose_logging) then
+              write(fates_log(),*) 'disparity in integrated/diagnosed storage carbon'
+              write(fates_log(),*) 'resulting from the on-allometry growth integration step'
+              write(fates_log(),*) 'bsap (integrated): ',bstore
+              write(fates_log(),*) 'bsap (diagnosed): ',bstore_diag
+              write(fates_log(),*) 'relative error: ',abs(bstore_diag-bstore)/bstore_diag
+           end if
+           ierr = 1
+        end if
      end if
 
+
+     if (grow_dead) then
+        call bsap_allom(dbh,ipft,canopy_trim,bsap_diag)
+        call bagw_allom(dbh,ipft,bagw_diag)
+        call bbgw_allom(dbh,ipft,bbgw_diag)
+        call bdead_allom( bagw_diag, bbgw_diag, bsap_diag, ipft, bdead_diag )        
+        if( abs(bdead_diag-bdead)/bdead_diag > relative_err_thresh ) then
+           if(verbose_logging) then
+              write(fates_log(),*) 'disparity in integrated/diagnosed structural carbon'
+              write(fates_log(),*) 'resulting from the on-allometry growth integration step'
+              write(fates_log(),*) 'bdead (integrated): ',bdead
+              write(fates_log(),*) 'bdead (diagnosed): ',bdead_diag
+              write(fates_log(),*) 'relative error: ',abs(bdead_diag-bdead)/bdead_diag
+           end if
+           ierr = 1
+        end if
+     end if
+        
      return
    end subroutine CheckIntegratedAllometries
 
