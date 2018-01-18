@@ -1480,7 +1480,7 @@ end subroutine flush_hvars
                          ccohort%npp_sapw+ccohort%npp_dead+ &
                          ccohort%npp_seed+ccohort%npp_stor+ &
                          ccohort%fcfix_leaf + ccohort%fcfix_fnrt + &
-                         ccohort%fcfix_sapw + ccohort%fcfix_dead + ccohort%fcfix_stor)) > calloc_abs_error)  then
+                         ccohort%fcfix_sapw + ccohort%fcfix_dead + ccohort%fcfix_stor)) > 1.0e-9_r8 )  then
                        write(fates_log(),*) 'NPP Partitions are not balancing'
                        write(fates_log(),*) 'Fractional Error: ', &
                             abs(ccohort%npp_acc_hold-(ccohort%npp_leaf+ccohort%npp_fnrt+ &

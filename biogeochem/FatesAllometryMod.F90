@@ -118,7 +118,8 @@ module FatesAllometryMod
   ! which includes sapwood. Although a small quantity, it needs to be removed
   ! from the agb pool.
   ! Additionally, our calculation of sapwood biomass may be missing some unite conversions
-  !
+
+  logical, parameter :: test_b4b = .true.
 
 
 contains
@@ -931,7 +932,11 @@ contains
     
     if(present(dblmaxdd))then
        if( d<dbh_maxh) then
-          dblmaxdd = p1*p2 * d**(p2-1.0_r8) * rho**p3
+          if(test_b4b)then
+             dblmaxdd = p1*p2 * d**(p2) * rho**p3
+          else
+             dblmaxdd = p1*p2 * d**(p2-1.0_r8) * rho**p3
+          end if
        else
           dblmaxdd = 0.0
        end if
