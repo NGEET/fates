@@ -1,15 +1,15 @@
 <!--- Provide a general summary of your changes in the Title above -->
 
-### Description
+### Description:
 <!--- Describe your changes in detail -->
 <!--- please add issue number if one exists -->
 
-### Collaborators
+### Collaborators:
 <!--- List names of collaborators or people who have interacted -->
 <!--- in bringing about this set of changes -->
 <!--- consultation, discussions, etc. -->
 
-### Answer Changing/B4B
+### Expectation of Answer Changes:
 <!--- Please describe under what conditions, if any, -->
 <!--- the model is expected to generated different answers -->
 <!--- from the master version of the code -->
