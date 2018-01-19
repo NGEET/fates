@@ -1286,10 +1286,37 @@ contains
           if (grow_dead) then
              bdead_flux  = deltaC * (dbt_dead_dd/dbt_total_dd)*(1.0_r8-repro_fraction)
              bdead_sub   = bdead_sub     + bdead_flux
-             dbh_sub     = dbh_sub + bdead_flux / dbt_dead_dd
-             call h_allom(dbh_sub,ipft,h_sub)
+             
           end if
 
+          ! Increase diameter, which is in concept fairly tied in with
+          ! the amount of structure. But remember it is possible that the structural pool
+          ! is larger than target allometry, and if so, we have to grow the dbh
+          ! in sync with the other growing pools until it surpases structure again.
+          
+          if(grow_dead) then
+             dbh_sub     = dbh_sub + bdead_flux / dbt_dead_dd
+             call h_allom(dbh_sub,ipft,h_sub)
+          else if(grow_froot) then
+             dbh_sub     = dbh_sub + br_flux / dbt_fineroot_dd
+             call h_allom(dbh_sub,ipft,h_sub)
+          else if(grow_leaf) then
+             dbh_sub     = dbh_sub + bl_flux / dbt_leaf_dd
+             call h_allom(dbh_sub,ipft,h_sub)
+          else if(grow_store) then
+             dbh_sub     = dbh_sub + bstore_flux / dbt_store_dd
+             call h_allom(dbh_sub,ipft,h_sub)
+          else if(grow_sap) then
+             dbh_sub     = dbh_sub + bsw_flux / dbt_sap_dd
+             call h_allom(dbh_sub,ipft,h_sub)
+          else
+             write(fates_log(),*) 'During plant growth, it was determined that'
+             write(fates_log(),*) 'enough carbon was available to grow new tissues'
+             write(fates_log(),*) 'yet somehow none of the pools are on-allometry'
+             write(fates_log(),*) 'they all appear to be above or below?'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+             
 
           brepro_flux = deltaC * repro_fraction
           brepro_sub  = brepro_sub    + brepro_flux
