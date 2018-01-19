@@ -6,6 +6,9 @@ Thank you for considering contributing to the development of FATES. There are a 
 
 https://github.com/NGEET/fates/blob/master/LICENSE.txt
 
+## If working with unreleased code, please read the use policy that governs the developer repository:
+
+https://github.com/NGEET/fates/wiki/Use-and-distribution-policy-for-fates-developer-repository
 
 ## Getting Started
 
@@ -13,10 +16,9 @@ Those who wish to contribute code to FATES must have those changes integrated th
 
 * All developers should create a fork of the NGEET/fates repository into their personal space on github
 * Follow the developer work-flow described here: https://github.com/NGEET/fates/wiki/FATES-Development-Workflow
-
-* Each set of changes should have it's own feature branch that encapsulates your desired changes, following the conventions outlined here: https://github.com/NGEET/fates/wiki/Feature-Branch-Naming-Convention
+* Each set of changes should have its own feature branch that encapsulates your desired changes, following the conventions outlined here: https://github.com/NGEET/fates/wiki/Feature-Branch-Naming-Convention
 * The work-flow will lead you eventually to submit a Pull-Request to NGEET/fates:master, please follow the template in the Pull Request and communicate as best you can if you are unsure how to fill out the text
-* It is best to create an issue to describe the work your are undertaking prior to starting.  This helps the community sync with your efforts, prevents duplication of efforts, and science is not done in a vaccuum!
+* It is best to create an issue to describe the work you are undertaking prior to starting.  This helps the community sync with your efforts, prevents duplication of efforts, and science is not done in a vaccuum!
 * Expect peers to interact, help, discuss and eventually approve your submission (pull-request)
 
 
@@ -36,7 +38,7 @@ Please refer to the FATES style guide: https://github.com/NGEET/fates/wiki/Codin
 
 ## Trivial Changes
 
-If changes are trivial, its possible testing will not be required, conversations via the Pull Request will address if tests are not needed
+If changes are trivial, it's possible testing will not be required. Conversations via the Pull Request will address if tests are not needed
 
 ## Documentation
 
