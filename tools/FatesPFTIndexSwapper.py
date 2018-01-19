@@ -42,9 +42,9 @@ def usage():
      print('')
      print('=======================================================================')
      print('')
-     print(' python FatesPFTIndexSwapper.py -h --pft-indices=<integer position> ')
-     print('                                --fin=<netcdf-file-in> ')
-     print('                                --fout=<netcdf-file-out>')
+     print(' python FatesPFTIndexSwapper.py -h --pft-indices <integer position> ')
+     print('                                --fin <netcdf-file-in> ')
+     print('                                --fout <netcdf-file-out>')
      print('')
      print('')
      print(' -h --help ')
@@ -81,11 +81,11 @@ def interp_args(argv):
     donot_pft_indices_str = ''
     try:
         opts, args = getopt.getopt(argv, 'h',["fin=","fout=","pft-indices="])
-
     except getopt.GetoptError as err:
         print('Argument error, see usage')
         usage()
         sys.exit(2)
+
     for o, a in opts:
         if o in ("-h", "--help"):
             usage()
