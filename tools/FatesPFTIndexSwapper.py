@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # =======================================================================================
 #
 # This python script will open an input FATES parameter file, and given a list of PFT
