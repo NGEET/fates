@@ -1036,6 +1036,7 @@ contains
        carbon_balance              = carbon_balance - br_flux
        currentCohort%br            = currentCohort%br +  br_flux
        currentCohort%npp_fnrt      = currentCohort%npp_fnrt + br_flux / hlm_freq_day
+
     end if
 
     
@@ -1090,6 +1091,7 @@ contains
        carbon_balance         = carbon_balance - br_flux
        currentCohort%br       = currentCohort%br +  br_flux
        currentCohort%npp_fnrt = currentCohort%npp_fnrt + br_flux / hlm_freq_day
+
     end if
 
 
@@ -1138,7 +1140,7 @@ contains
        carbon_balance = carbon_balance - bstore_flux
        currentCohort%bstore         = currentCohort%bstore +  bstore_flux
        currentCohort%npp_stor     = currentCohort%npp_stor + bstore_flux / hlm_freq_day
-       
+
     end if
     
     ! -----------------------------------------------------------------------------------
@@ -1156,7 +1158,7 @@ contains
        carbon_balance = carbon_balance - bdead_flux
        currentCohort%bdead          = currentCohort%bdead +  bdead_flux
        currentCohort%npp_dead      = currentCohort%npp_dead + bdead_flux / hlm_freq_day
-       
+
     end if
 
     ! -----------------------------------------------------------------------------------
@@ -1221,6 +1223,7 @@ contains
        grow_store = .true.
     end if
     
+
     deltaC = carbon_balance
     nsteps = 1
     ierr = 1
@@ -1310,11 +1313,21 @@ contains
              dbh_sub     = dbh_sub + bsw_flux / dbt_sap_dd
              call h_allom(dbh_sub,ipft,h_sub)
           else
-             write(fates_log(),*) 'During plant growth, it was determined that'
-             write(fates_log(),*) 'enough carbon was available to grow new tissues'
-             write(fates_log(),*) 'yet somehow none of the pools are on-allometry'
-             write(fates_log(),*) 'they all appear to be above or below?'
-             call endrun(msg=errMsg(sourcefile, __LINE__))
+             ! If all other pools are larger than target, then we
+             ! set dbh to equal that which would generate current structure
+             dbh_sub     = dbh_sub + bdead_flux / dbt_dead_dd
+             call h_allom(dbh_sub,ipft,h_sub)
+             
+!             write(fates_log(),*) 'During plant growth, it was determined that'
+!             write(fates_log(),*) 'enough carbon was available to grow new tissues'
+!             write(fates_log(),*) 'yet somehow none of the pools are on-allometry'
+!             write(fates_log(),*) 'they all appear to be above or below?'
+!             write(fates_log(),*) grow_dead,bt_dead, currentCohort%bdead
+!             write(fates_log(),*) grow_froot,bt_fineroot, currentCohort%br
+!             write(fates_log(),*) grow_sap,bt_sap,currentCohort%bsw
+!             write(fates_log(),*) grow_store,bt_store,currentCohort%bstore
+!             write(fates_log(),*) grow_leaf,bt_leaf,currentCohort%bl
+!             call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
              
 
