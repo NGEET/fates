@@ -9,13 +9,14 @@ https://github.com/NGEET/fates/blob/master/LICENSE.txt
 
 ## Getting Started
 
-Those who wish to contribute code back FATES, must have those changes integrated through the developer repository NGEET/fates.  Changes that make it to public releases must go through this repository first, as well.  Here are some basic first steps.
+Those who wish to contribute code to FATES must have those changes integrated through the developer repository NGEET/fates.  Changes that make it to public releases must go through this repository first, as well.  Here are some basic first steps.
 
 * All developers should create a fork of the NGEET/fates repository into their personal space on github
-* Each set of changes should have it's own feature branch that encapsulates your desired changes, following the conventions outlined here: https://github.com/NGEET/fates/wiki/Feature-Branch-Naming-Convention
 * Follow the developer work-flow described here: https://github.com/NGEET/fates/wiki/FATES-Development-Workflow
+
+* Each set of changes should have it's own feature branch that encapsulates your desired changes, following the conventions outlined here: https://github.com/NGEET/fates/wiki/Feature-Branch-Naming-Convention
 * The work-flow will lead you eventually to submit a Pull-Request to NGEET/fates:master, please follow the template in the Pull Request and communicate as best you can if you are unsure how to fill out the text
-* It is best to create an issue to describe the work your are undertaking prior to starting.  This helps the community sync with your efforts, prevents duplication of efforts, and science is not done in a vaccuum.
+* It is best to create an issue to describe the work your are undertaking prior to starting.  This helps the community sync with your efforts, prevents duplication of efforts, and science is not done in a vaccuum!
 * Expect peers to interact, help, discuss and eventually approve your submission (pull-request)
 
 
@@ -39,7 +40,7 @@ If changes are trivial, its possible testing will not be required, conversations
 
 ## Documentation
 
-Yes please!  If you are creating new code, fixing existing code, anything.  Please add comments in the code itself.  Please also follow the style guide for comments.  Also, please create and/or modify wiki documentation on this stuff too.
+Yes please!  If you are creating new code, fixing existing code, anything.  Please add comments in the code itself.  Please also follow the style guide for comments.  Also, please create and/or modify existing wiki documentation.  You may be asked to add documtation prior to having a pull-request approved.
 
 
 ## Additional Resources

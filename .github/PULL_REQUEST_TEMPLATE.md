@@ -1,21 +1,21 @@
 <!--- Provide a general summary of your changes in the Title above -->
 
-## Description
+### Description
 <!--- Describe your changes in detail -->
 <!--- please add issue number if one exists -->
 
-## Collaborators
+### Collaborators
 <!--- List names of collaborators or people who have interacted -->
 <!--- in bringing about this set of changes -->
 <!--- consultation, discussions, etc. -->
 
-## Answer Changing/B4b
+### Answer Changing/B4B
 <!--- Please describe under what conditions, if any, -->
 <!--- the model is expected to generated different answers -->
 <!--- from the master version of the code -->
 
 
-## Checklist:
+### Checklist:
 <!--- Go over all the following points, and put an `x` in all the boxes that apply. -->
 <!--- If you're unsure about any of these, don't hesitate to ask. We're here to help! -->
 - [ ] My change requires a change to the documentation.
@@ -24,7 +24,7 @@
 - [ ] FATES PASS/FAIL regression tests were run
 - [ ] If answers were expected to change, evaluation was performed and provided
 
-## Test Results:
+### Test Results:
 <!--- Non-trivial changes require the PASS/FAIL regression tests. -->
 <!--- If changes to code are NOT expected to change answers, tests must -->
 <!--- be run against a baseline. -->
@@ -33,7 +33,7 @@ FATES-CLM (or) HLM test hash-tag:
 FATES-CLM (or) HLM baseline hash-tag:
 FATES baseline hash-tag:
 
-Test Results:
+Test Output:
 
 <!--- paste in test results here -->
 
