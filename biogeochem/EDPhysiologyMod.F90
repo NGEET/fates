@@ -843,8 +843,6 @@ contains
     real(r8), parameter :: cbal_prec = 1.0e-15_r8     ! Desired precision in carbon balance
     integer , parameter :: max_substeps = 16
 
-    logical , parameter :: no_forced_allometry = .true.
-
     ipft = currentCohort%pft
 
     ! Initialize seed production
@@ -857,13 +855,6 @@ contains
     currentCohort%npp_dead  = 0.0_r8
     currentCohort%npp_seed  = 0.0_r8
     currentCohort%npp_sapw  = 0.0_r8
-
-    ! Initialize the diagnostic that tracks corrections from fusion redistribution
-    currentCohort%fcfix_leaf = 0.0_r8
-    currentCohort%fcfix_fnrt = 0.0_r8
-    currentCohort%fcfix_dead = 0.0_r8
-    currentCohort%fcfix_stor = 0.0_r8
-    currentCohort%fcfix_sapw = 0.0_r8
 
     ! Initialize rates of change
     currentCohort%dhdt      = 0.0_r8
@@ -937,56 +928,6 @@ contains
 
     ! Target storage carbon [kgC,kgC/cm]
     call bstore_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_store,dbt_store_dd)
-
-    ! -----------------------------------------------------------------------------------
-    ! III. If fusion pushed a plant off allometry, we could have negatives
-    !          here. We allow negative deficits to push carbon downward too, and we take
-    !          that carbon back into the carbon flux pool
-    !      Note that since this is a carbon conservative process, ie has nothing to 
-    !      do with NPP, and because the values are hopefully small, we do not
-    !      track these npp partition diagnostics.
-    ! -----------------------------------------------------------------------------------
-
-    if( no_forced_allometry ) then
-
-       leaf_below_target  = bt_leaf - currentCohort%bl
-       froot_below_target = bt_fineroot - currentCohort%br
-       sap_below_target   = bt_sap - currentCohort%bsw
-       store_below_target = bt_store - currentCohort%bstore
-       dead_below_target  = bt_dead - currentCohort%bdead
-       
-       
-       if(leaf_below_target<0.0_r8) then
-          carbon_balance = carbon_balance - leaf_below_target
-          currentCohort%bl               = currentCohort%bl + leaf_below_target
-          currentCohort%fcfix_leaf       = currentCohort%fcfix_leaf + leaf_below_target / hlm_freq_day
-       end if
-       
-       if(froot_below_target<0.0_r8) then
-          carbon_balance = carbon_balance - froot_below_target
-          currentCohort%br               = currentCohort%br +  froot_below_target
-          currentCohort%fcfix_fnrt      = currentCohort%fcfix_fnrt + froot_below_target / hlm_freq_day
-       end if
-       
-       if(sap_below_target<0.0_r8) then
-          carbon_balance = carbon_balance - sap_below_target
-          currentCohort%bsw               = currentCohort%bsw +  sap_below_target 
-          currentCohort%fcfix_sapw        = currentCohort%fcfix_sapw + sap_below_target / hlm_freq_day
-       end if
-       
-       if(store_below_target<0.0_r8) then
-          carbon_balance = carbon_balance - store_below_target
-          currentCohort%bstore          = currentCohort%bstore + store_below_target
-          currentCohort%fcfix_stor      = currentCohort%fcfix_stor + store_below_target / hlm_freq_day
-       end if
-
-       if(dead_below_target<0.0_r8) then
-          carbon_balance = carbon_balance - dead_below_target
-          currentCohort%bdead           = currentCohort%bdead +  dead_below_target
-          currentCohort%fcfix_dead      = currentCohort%fcfix_dead + dead_below_target / hlm_freq_day
-       end if
-    end if
-       
 
     ! -----------------------------------------------------------------------------------
     ! IV(a). Calculate the maintenance turnover demands 
@@ -1083,14 +1024,14 @@ contains
        ! If we are testing b4b, then we pay this even if we don't have the carbon
        ! Just don't pay so much carbon that storage+carbon_balance can't pay for it
 
-       bl_flux = min(leaf_turnover_demand, (currentCohort%bstore+carbon_balance)*(leaf_turnover_demand/total_turnover_demand))
+       bl_flux = min(leaf_turnover_demand,max(0.0_r8, (currentCohort%bstore+carbon_balance)*(leaf_turnover_demand/total_turnover_demand)))
        
        carbon_balance               = carbon_balance - bl_flux
        currentCohort%bl             = currentCohort%bl +  bl_flux
        currentCohort%npp_leaf       = currentCohort%npp_leaf + bl_flux / hlm_freq_day
 
        ! If we are testing b4b, then we pay this even if we don't have the carbon
-       br_flux = min(root_turnover_demand, (currentCohort%bstore+carbon_balance)*(root_turnover_demand/total_turnover_demand))
+       br_flux = min(root_turnover_demand,max(0.0_r8, (currentCohort%bstore+carbon_balance)*(root_turnover_demand/total_turnover_demand)))
 
        carbon_balance              = carbon_balance - br_flux
        currentCohort%br            = currentCohort%br +  br_flux
@@ -1101,50 +1042,54 @@ contains
     ! -----------------------------------------------------------------------------------
     ! VI(a) if carbon balance is negative, re-coup the losses from storage
     !       if it is positive, give some love to storage carbon
+    !  NOTE:  WE ARE STILL ALLOWING STORAGE CARBON TO GO NEGATIVE, AT LEAST IN THIS
+    !  PART OF THE CODE.
     ! -----------------------------------------------------------------------------------
 
     if( carbon_balance < 0.0_r8 ) then
 
-       bstore_flux = carbon_balance
-       carbon_balance = carbon_balance - bstore_flux
-       currentCohort%bstore         = currentCohort%bstore + bstore_flux
-       currentCohort%npp_stor      = currentCohort%npp_stor + bstore_flux / hlm_freq_day
+       bstore_flux            = carbon_balance
+       carbon_balance         = carbon_balance - bstore_flux
+       currentCohort%bstore   = currentCohort%bstore + bstore_flux
+       currentCohort%npp_stor = currentCohort%npp_stor + bstore_flux / hlm_freq_day
        ! We have pushed to net-zero carbon, the rest of this routine can be ignored
        return
 
     else
 
-       store_below_target           = max(bt_store - currentCohort%bstore,0.0_r8)
-       store_target_fraction        = max(0.0_r8,currentCohort%bstore/bt_store)
-       bstore_flux                  = min(store_below_target,carbon_balance * &
-                                      max(exp(-1.*store_target_fraction**4._r8) - exp( -1.0_r8 ),0.0_r8))
-       carbon_balance = carbon_balance - bstore_flux
-       currentCohort%bstore         = currentCohort%bstore + bstore_flux
-       currentCohort%npp_stor       = currentCohort%npp_stor + bstore_flux / hlm_freq_day
+       store_below_target     = max(bt_store - currentCohort%bstore,0.0_r8)
+       store_target_fraction  = max(0.0_r8,currentCohort%bstore/bt_store)
+       bstore_flux            = min(store_below_target,carbon_balance * &
+                                max(exp(-1.*store_target_fraction**4._r8) - exp( -1.0_r8 ),0.0_r8))
+       carbon_balance         = carbon_balance - bstore_flux
+       currentCohort%bstore   = currentCohort%bstore + bstore_flux
+       currentCohort%npp_stor = currentCohort%npp_stor + bstore_flux / hlm_freq_day
 
     end if
 
     ! -----------------------------------------------------------------------------------
     ! VI(d).  If carbon is still available, prioritize some allocation to replace
     !        the rest of the leaf/fineroot turnover demand
-    !        carbon balance is gauranteed to be positive beyond this point
+    !        carbon balance is guaranteed to be >=0 beyond this point
     ! -----------------------------------------------------------------------------------
     
-    leaf_turnover_demand  = currentCohort%leaf_md*(1.0_r8-EDPftvarcon_inst%leaf_stor_priority(ipft))*hlm_freq_day
-    root_turnover_demand  = currentCohort%root_md*(1.0_r8-EDPftvarcon_inst%leaf_stor_priority(ipft))*hlm_freq_day
+    leaf_turnover_demand  = currentCohort%leaf_md * &
+                            (1.0_r8-EDPftvarcon_inst%leaf_stor_priority(ipft))*hlm_freq_day
+    root_turnover_demand  = currentCohort%root_md * &
+                            (1.0_r8-EDPftvarcon_inst%leaf_stor_priority(ipft))*hlm_freq_day
     total_turnover_demand = leaf_turnover_demand + root_turnover_demand
     
     if(total_turnover_demand>0.0_r8)then
 
        bl_flux = min(leaf_turnover_demand, carbon_balance*(leaf_turnover_demand/total_turnover_demand))
-       carbon_balance = carbon_balance - bl_flux
-       currentCohort%bl             = currentCohort%bl +  bl_flux
-       currentCohort%npp_leaf       = currentCohort%npp_leaf + bl_flux / hlm_freq_day
+       carbon_balance         = carbon_balance - bl_flux
+       currentCohort%bl       = currentCohort%bl +  bl_flux
+       currentCohort%npp_leaf = currentCohort%npp_leaf + bl_flux / hlm_freq_day
        
        br_flux = min(root_turnover_demand, carbon_balance*(root_turnover_demand/total_turnover_demand))
-       carbon_balance = carbon_balance - br_flux
-       currentCohort%br             = currentCohort%br +  br_flux
-       currentCohort%npp_fnrt      = currentCohort%npp_fnrt + br_flux / hlm_freq_day
+       carbon_balance         = carbon_balance - br_flux
+       currentCohort%br       = currentCohort%br +  br_flux
+       currentCohort%npp_fnrt = currentCohort%npp_fnrt + br_flux / hlm_freq_day
     end if
 
 
@@ -1347,7 +1292,7 @@ contains
 
 
           brepro_flux = deltaC * repro_fraction
-          brepro_sub    = brepro_sub    + brepro_flux
+          brepro_sub  = brepro_sub    + brepro_flux
 
           
           ! ------------------------------------------------------------------------------------

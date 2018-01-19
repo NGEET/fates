@@ -276,12 +276,6 @@ contains
     currentCohort%npp_seed = nan
     currentCohort%npp_stor = nan
 
-    currentCohort%fcfix_leaf = nan
-    currentCohort%fcfix_fnrt = nan
-    currentCohort%fcfix_sapw = nan
-    currentCohort%fcfix_dead = nan
-    currentCohort%fcfix_stor = nan
-
     !RESPIRATION
     currentCohort%rdark              = nan
     currentCohort%resp_m             = nan ! Maintenance respiration.  kGC/cohort/year
@@ -384,12 +378,6 @@ contains
     currentCohort%npp_seed = 0._r8
     currentCohort%npp_stor = 0._r8
     
-    currentCohort%fcfix_leaf = 0._r8
-    currentCohort%fcfix_fnrt = 0._r8
-    currentCohort%fcfix_sapw = 0._r8
-    currentCohort%fcfix_dead = 0._r8
-    currentCohort%fcfix_stor = 0._r8
-
   end subroutine zero_cohort
 
   !-------------------------------------------------------------------------------------!
@@ -782,18 +770,6 @@ contains
                                    currentCohort%npp_stor = (currentCohort%n*currentCohort%npp_stor + nextc%n*nextc%npp_stor) &
                                                               /newn
 
-                                   currentCohort%fcfix_leaf = (currentCohort%n*currentCohort%fcfix_leaf + nextc%n*nextc%fcfix_leaf) &
-                                                              /newn
-                                   currentCohort%fcfix_fnrt = (currentCohort%n*currentCohort%fcfix_fnrt + nextc%n*nextc%fcfix_fnrt) &
-                                                              /newn
-                                   currentCohort%fcfix_sapw = (currentCohort%n*currentCohort%fcfix_sapw + nextc%n*nextc%fcfix_sapw) &
-                                                              /newn
-                                   currentCohort%fcfix_dead = (currentCohort%n*currentCohort%fcfix_dead + nextc%n*nextc%fcfix_dead) &
-                                                              /newn
-                                   currentCohort%fcfix_stor = (currentCohort%n*currentCohort%fcfix_stor + nextc%n*nextc%fcfix_stor) &
-                                                              /newn
-
-
                                    ! biomass and dbh tendencies
                                    currentCohort%ddbhdt     = (currentCohort%n*currentCohort%ddbhdt  + nextc%n*nextc%ddbhdt)/newn
                                    currentCohort%dbdeaddt   = (currentCohort%n*currentCohort%dbdeaddt  + nextc%n*nextc%dbdeaddt) &
@@ -1128,12 +1104,6 @@ contains
     n%npp_dead      = o%npp_dead
     n%npp_seed      = o%npp_seed
     n%npp_stor      = o%npp_stor
-
-    n%fcfix_leaf      = o%fcfix_leaf
-    n%fcfix_fnrt      = o%fcfix_fnrt
-    n%fcfix_sapw      = o%fcfix_sapw
-    n%fcfix_dead      = o%fcfix_dead
-    n%fcfix_stor      = o%fcfix_stor
 
     !RESPIRATION
     n%rdark           = o%rdark

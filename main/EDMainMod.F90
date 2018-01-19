@@ -585,12 +585,6 @@ contains
           currentCohort%npp_seed = 0.0_r8
           currentCohort%npp_stor = 0.0_r8
 
-          currentCohort%fcfix_leaf = 0.0_r8
-          currentCohort%fcfix_fnrt = 0.0_r8
-          currentCohort%fcfix_sapw = 0.0_r8
-          currentCohort%fcfix_dead = 0.0_r8
-          currentCohort%fcfix_stor = 0.0_r8
-
           currentCohort%bmort = 0.0_r8
           currentCohort%hmort = 0.0_r8
           currentCohort%cmort = 0.0_r8

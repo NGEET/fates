@@ -196,14 +196,6 @@ module EDTypesMod
      real(r8) ::  npp_seed          ! NPP into seeds: KgC/indiv/year
      real(r8) ::  npp_stor          ! NPP into storage: KgC/indiv/year
 
-     ! Fluxes due to fixing allometry breaking during fusion
-     real(r8) ::  fcfix_leaf ! Carbon leaving leaves into carbon gain after weird fusion KgC/indiv/year
-     real(r8) ::  fcfix_fnrt ! Carbon leaving froots into carbon gain "" KgC/indiv/year
-     real(r8) ::  fcfix_sapw ! Carbon leaving sapwood into carbon gain ""  KgC/indiv/year
-     real(r8) ::  fcfix_dead ! Carbon leaving deadwood into carbon gain "" KgC/indiv/year
-     real(r8) ::  fcfix_stor ! Carbon leaving storage into carbon gain "" KgC/indiv/year
-
-
      real(r8) ::  ts_net_uptake(nlevleaf)              ! Net uptake of leaf layers: kgC/m2/s
      real(r8) ::  year_net_uptake(nlevleaf)            ! Net uptake of leaf layers: kgC/m2/year
 
@@ -749,12 +741,6 @@ contains
      write(fates_log(),*) 'co%npp_dead              = ', ccohort%npp_dead
      write(fates_log(),*) 'co%npp_seed              = ', ccohort%npp_seed
      write(fates_log(),*) 'co%npp_stor              = ', ccohort%npp_stor
-
-     write(fates_log(),*) 'co%fcfix_leaf             = ', ccohort%fcfix_leaf
-     write(fates_log(),*) 'co%fcfix_fnrt             = ', ccohort%fcfix_fnrt
-     write(fates_log(),*) 'co%fcfix_sapw             = ', ccohort%fcfix_sapw
-     write(fates_log(),*) 'co%fcfix_dead             = ', ccohort%fcfix_dead
-     write(fates_log(),*) 'co%fcfix_stor             = ', ccohort%fcfix_stor
 
      write(fates_log(),*) 'co%rdark                  = ', ccohort%rdark
      write(fates_log(),*) 'co%resp_m                 = ', ccohort%resp_m

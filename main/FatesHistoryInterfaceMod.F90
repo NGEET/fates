@@ -139,12 +139,6 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_npp_agdw_si_scpf
   integer, private :: ih_npp_stor_si_scpf
   
-  integer, private :: ih_fcfix_leaf_si_scpf
-  integer, private :: ih_fcfix_fnrt_si_scpf
-  integer, private :: ih_fcfix_stor_si_scpf
-  integer, private :: ih_fcfix_dead_si_scpf
-  integer, private :: ih_fcfix_sapw_si_scpf
-
   integer, private :: ih_bstor_canopy_si_scpf
   integer, private :: ih_bstor_understory_si_scpf
   integer, private :: ih_bleaf_canopy_si_scpf
@@ -1141,6 +1135,7 @@ end subroutine flush_hvars
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
     real(r8) :: patch_scaling_scalar ! ratio of canopy to patch area for counteracting patch scaling
     real(r8) :: dbh         ! diameter ("at breast height")
+    real(r8) :: npp_partition_error ! a check that the NPP partitions sum to carbon allocation
 
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
@@ -1197,12 +1192,6 @@ end subroutine flush_hvars
                hio_npp_agdw_si_scpf    => this%hvars(ih_npp_agdw_si_scpf)%r82d, &
                hio_npp_stor_si_scpf    => this%hvars(ih_npp_stor_si_scpf)%r82d, &
 
-               hio_fcfix_leaf_si_scpf   => this%hvars(ih_fcfix_leaf_si_scpf)%r82d, &
-               hio_fcfix_fnrt_si_scpf   => this%hvars(ih_fcfix_fnrt_si_scpf)%r82d, &
-               hio_fcfix_stor_si_scpf    => this%hvars(ih_fcfix_stor_si_scpf)%r82d, &
-               hio_fcfix_dead_si_scpf    => this%hvars(ih_fcfix_dead_si_scpf)%r82d, &
-               hio_fcfix_sapw_si_scpf    => this%hvars(ih_fcfix_sapw_si_scpf)%r82d, &
-      
                hio_bstor_canopy_si_scpf      => this%hvars(ih_bstor_canopy_si_scpf)%r82d, &
                hio_bstor_understory_si_scpf  => this%hvars(ih_bstor_understory_si_scpf)%r82d, &
                hio_bleaf_canopy_si_scpf      => this%hvars(ih_bleaf_canopy_si_scpf)%r82d, &
@@ -1462,41 +1451,18 @@ end subroutine flush_hvars
                     hio_npp_stor_si_scpf(io_si,scpf) = hio_npp_stor_si_scpf(io_si,scpf) + &
                                                        ccohort%npp_stor*n_perm2
 
-                    ! Track carbon fluxes from fusion corrections
-
-                    hio_fcfix_leaf_si_scpf(io_si,scpf) = hio_fcfix_leaf_si_scpf(io_si,scpf)+ &
-                                                       ccohort%fcfix_leaf*n_perm2
-                    hio_fcfix_fnrt_si_scpf(io_si,scpf) = hio_fcfix_fnrt_si_scpf(io_si,scpf)+ &
-                                                       ccohort%fcfix_fnrt*n_perm2
-                    hio_fcfix_stor_si_scpf(io_si,scpf) = hio_fcfix_stor_si_scpf(io_si,scpf)+ &
-                                                       ccohort%fcfix_stor*n_perm2
-                    hio_fcfix_dead_si_scpf(io_si,scpf) = hio_fcfix_dead_si_scpf(io_si,scpf)+ &
-                                                       ccohort%fcfix_dead*n_perm2
-                    hio_fcfix_sapw_si_scpf(io_si,scpf) = hio_fcfix_sapw_si_scpf(io_si,scpf)+ &
-                                                       ccohort%fcfix_sapw*n_perm2
-
-
-                    if( abs(ccohort%npp_acc_hold-(ccohort%npp_leaf+ccohort%npp_fnrt+ &
-                         ccohort%npp_sapw+ccohort%npp_dead+ &
-                         ccohort%npp_seed+ccohort%npp_stor+ &
-                         ccohort%fcfix_leaf + ccohort%fcfix_fnrt + &
-                         ccohort%fcfix_sapw + ccohort%fcfix_dead + ccohort%fcfix_stor)) > 1.0e-9_r8 )  then
+                    npp_partition_error = abs(ccohort%npp_acc_hold-(ccohort%npp_leaf+ccohort%npp_fnrt+ &
+                          ccohort%npp_sapw+ccohort%npp_dead+ &
+                          ccohort%npp_seed+ccohort%npp_stor))
+                    if( npp_partition_error > 1.0e-9_r8 )  then
                        write(fates_log(),*) 'NPP Partitions are not balancing'
-                       write(fates_log(),*) 'Fractional Error: ', &
-                            abs(ccohort%npp_acc_hold-(ccohort%npp_leaf+ccohort%npp_fnrt+ &
-                            ccohort%npp_sapw+ccohort%npp_dead+ &
-                            ccohort%npp_seed+ccohort%npp_stor+ &
-                            ccohort%fcfix_leaf + ccohort%fcfix_fnrt + &
-                            ccohort%fcfix_sapw + ccohort%fcfix_dead + ccohort%fcfix_stor))/ccohort%npp_acc_hold
+                       write(fates_log(),*) 'Absolute Error [kgC/day]: ',npp_partition_error
+                       write(fates_log(),*) 'Fractional Error: ', abs(npp_partition_error/ccohort%npp_acc_hold)
                        write(fates_log(),*) 'Terms: ',ccohort%npp_acc_hold,ccohort%npp_leaf,ccohort%npp_fnrt, &
-                            ccohort%npp_sapw,ccohort%npp_dead, &
-                            ccohort%npp_seed,ccohort%npp_stor, &
-                            ccohort%fcfix_leaf + ccohort%fcfix_fnrt + &
-                            ccohort%fcfix_sapw + ccohort%fcfix_dead + &
-                            ccohort%fcfix_stor
+                             ccohort%npp_sapw,ccohort%npp_dead, &
+                             ccohort%npp_seed,ccohort%npp_stor
                        write(fates_log(),*) ' NPP components during FATES-HLM linking does not balance '
-                       stop ! we need termination control for FATES!!!
-                       ! call endrun(msg=errMsg(__FILE__, __LINE__))
+                       call endrun(msg=errMsg(__FILE__, __LINE__))
                     end if
                   
                     ! Woody State Variables (basal area and number density and mortality)
@@ -3203,31 +3169,6 @@ end subroutine flush_hvars
           long='NPP flux into storage by pft/size', use_default='inactive',              &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_stor_si_scpf )
-
-    call this%set_history_var(vname = 'FCFIX_STOR_SCPF', units='kgC/m2/yr',    &
-          long='flux into storage for fusion corrections by pft/size', use_default='inactive',&
-          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fcfix_stor_si_scpf )
-    
-    call this%set_history_var(vname = 'FCFIX_LEAF_SCPF', units='kgC/m2/yr',    &
-          long='flux into leaves for fusion corrections by pft/size', use_default='inactive',&
-          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fcfix_leaf_si_scpf )
-
-    call this%set_history_var(vname = 'FCFIX_FNRT_SCPF', units='kgC/m2/yr',    &
-          long='flux into fine-roots for fusion corrections by pft/size', use_default='inactive',&
-          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fcfix_fnrt_si_scpf )
-    
-    call this%set_history_var(vname = 'FCFIX_SAPW_SCPF', units='kgC/m2/yr',    &
-          long='flux into sapwood for fusion corrections by pft/size', use_default='inactive',&
-          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fcfix_sapw_si_scpf )
-
-    call this%set_history_var(vname = 'FCFIX_DEAD_SCPF', units='kgC/m2/yr',    &
-          long='flux into structure for fusion corrections by pft/size', use_default='inactive',&
-          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fcfix_dead_si_scpf )
 
     call this%set_history_var(vname='DDBH_SCPF', units = 'cm/yr/ha',         &
           long='diameter growth increment by pft/size',use_default='inactive', &
