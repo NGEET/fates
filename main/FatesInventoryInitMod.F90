@@ -884,18 +884,17 @@ contains
       
       ! Calculate the leaf biomass (calculates a maximum first, then applies canopy trim
       ! and sla scaling factors)
-      call bleaf(temp_cohort%dbh,temp_cohort%hite,c_pft,temp_cohort%canopy_trim,b_leaf)
+      call bleaf(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim,b_leaf)
       
       ! Calculate fine root biomass
-      call bfineroot(temp_cohort%dbh,temp_cohort%hite,c_pft,temp_cohort%canopy_trim,b_fineroot)
+      call bfineroot(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim,b_fineroot)
       
       ! Calculate sapwood biomass
       call bsap_allom(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim,b_sapwood)
       
       call bdead_allom( b_agw, b_bgw, b_sapwood, c_pft, temp_cohort%bdead )
 
-      call bstore_allom(temp_cohort%dbh,temp_cohort%hite, c_pft, &
-            temp_cohort%canopy_trim,temp_cohort%bstore)
+      call bstore_allom(temp_cohort%dbh, c_pft, temp_cohort%canopy_trim,temp_cohort%bstore)
       
       if( EDPftvarcon_inst%evergreen(c_pft) == 1) then
          temp_cohort%laimemory = 0._r8
