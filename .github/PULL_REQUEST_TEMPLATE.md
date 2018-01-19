@@ -20,9 +20,10 @@
 <!--- If you're unsure about any of these, don't hesitate to ask. We're here to help! -->
 - [ ] My change requires a change to the documentation.
 - [ ] I have updated the in-code documentation AND wiki accordingly.
-- [ ] I have read the **CONTRIBUTING** document.
+- [ ] I have read the [**CONTRIBUTING**](https://github.com/rgknox/fates/blob/rgknox-new-PR-template/CONTRIBUTING.md) document.
 - [ ] FATES PASS/FAIL regression tests were run
 - [ ] If answers were expected to change, evaluation was performed and provided
+
 
 ### Test Results:
 <!--- Non-trivial changes require the PASS/FAIL regression tests. -->
