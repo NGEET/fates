@@ -7,6 +7,7 @@
 # --output or --fout: output filename.  If missing, will assume its directly modifying the input file, and will prompt unless -O is specified
 # --O or --overwrite: overwrite output file without asking.
 # --value or --val: value to put in variable
+# --s or --silent: don't write anything on successful execution.
 ####
 
 
@@ -34,6 +35,7 @@ def main():
     parser.add_argument('--fout','--output', dest='outputfname', type=str, help="Output filename.  Required.", required=True)
     parser.add_argument('--val', '--value', dest='val', type=float, help="New value of PFT variable.  Required.", required=True)
     parser.add_argument('--O','--overwrite', dest='overwrite', help="If present, automatically overwrite the output file.", action="store_true")
+    parser.add_argument('--silent', '--s', dest='silent', help="prevent writing of output.", action="store_true")
     #
     args = parser.parse_args()
     # print(args.varname, args.pftnum, args.inputfname, args.outputfname, args.val, args.overwrite)
@@ -41,7 +43,8 @@ def main():
     # check to see if output file exists
     if os.path.isfile(args.outputfname):
         if args.overwrite:
-            print('replacing file: '+args.outputfname)
+            if not args.silent:
+                print('replacing file: '+args.outputfname)
             os.remove(args.outputfname)
         else:
             raise ValueError('Output file already exists and overwrite flag not specified for filename: '+args.outputfname)
@@ -75,8 +78,12 @@ def main():
         if args.pftnum > npft_file:
             raise ValueError('PFT specified ('+str(args.pftnum)+') is larger than the number of PFTs in the file ('+str(npft_file)+').')
         if pftdim == 0:
+            if not args.silent:
+                print('replacing prior value of variable '+args.varname+', for PFT '+str(args.pftnum)+', which was '+str(var[args.pftnum-1])+', with new value of '+str(args.val))
             var[args.pftnum-1] = args.val
     elif args.pftnum == None and not ispftvar:
+        if not args.silent:
+            print('replacing prior value of variable '+args.varname+', which was '+str(var[:])+', with new value of '+str(args.val))
         var[:] = args.val
     else:
         raise ValueError('Nothing happened somehow.')
