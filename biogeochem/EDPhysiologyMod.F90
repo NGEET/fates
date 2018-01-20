@@ -901,7 +901,8 @@ contains
     ! II. Calculate target size of living biomass compartment for a given dbh.   
     ! -----------------------------------------------------------------------------------
 
-    !! call GetAllometricTargets(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_leaf,bt_fineroot,bt_sapwood,bt_store,bt_dead)
+    !! call GetAllometricTargets(currentCohort%dbh,currentCohort%canopy_trim,  &
+    !!                           bt_leaf,bt_fineroot,bt_sapwood,bt_store,bt_dead)
 
     ! Target leaf biomass according to allometry and trimming
     call bleaf(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_leaf,dbt_leaf_dd)
@@ -1026,14 +1027,16 @@ contains
        ! If we are testing b4b, then we pay this even if we don't have the carbon
        ! Just don't pay so much carbon that storage+carbon_balance can't pay for it
 
-       bl_flux = min(leaf_turnover_demand,max(0.0_r8, (currentCohort%bstore+carbon_balance)*(leaf_turnover_demand/total_turnover_demand)))
+       bl_flux = min(leaf_turnover_demand, &
+             max(0.0_r8,(currentCohort%bstore+carbon_balance)*(leaf_turnover_demand/total_turnover_demand)))
        
        carbon_balance               = carbon_balance - bl_flux
        currentCohort%bl             = currentCohort%bl +  bl_flux
        currentCohort%npp_leaf       = currentCohort%npp_leaf + bl_flux / hlm_freq_day
 
        ! If we are testing b4b, then we pay this even if we don't have the carbon
-       br_flux = min(root_turnover_demand,max(0.0_r8, (currentCohort%bstore+carbon_balance)*(root_turnover_demand/total_turnover_demand)))
+       br_flux = min(root_turnover_demand, &
+             max(0.0_r8, (currentCohort%bstore+carbon_balance)*(root_turnover_demand/total_turnover_demand)))
 
        carbon_balance              = carbon_balance - br_flux
        currentCohort%br            = currentCohort%br +  br_flux
