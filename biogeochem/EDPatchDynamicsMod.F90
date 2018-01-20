@@ -1332,7 +1332,6 @@ contains
     integer  :: fuse_flag   !do patches get fused (1) or not (0). 
     !---------------------------------------------------------------------
 
-    !maxpatch = 4  
     maxpatch = maxPatchesPerSite
 
     currentSite => csite 

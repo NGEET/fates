@@ -1299,8 +1299,20 @@ contains
                    
                    currentPatch%elai_profile(L,ft,iv) = currentPatch%elai_profile(L,ft,iv) / &
                          currentPatch%canopy_area_profile(L,ft,iv)
+
                    currentPatch%esai_profile(L,ft,iv) = currentPatch%esai_profile(L,ft,iv) / &
                          currentPatch%canopy_area_profile(L,ft,iv)
+
+                   if( currentPatch%tlai_profile(L,ft,iv)<tiny(currentPatch%tlai_profile(L,ft,iv)))then
+                      print*,"SMALL TLAI"
+                      print*,currentPatch%tlai_profile(L,ft,iv),L,ft,iv,currentPatch%total_canopy_area
+                      currentCohort => currentPatch%shortest
+                      do while(associated(currentCohort))   
+                         print*,currentCohort%bl,currentCohort%c_area,currentCohort%NV,currentCohort%treelai,currentCohort%treesai,currentCohort%status_coh,currentCohort%lai,EDPftvarcon_inst%evergreen(ft)
+                         currentCohort => currentCohort%taller
+                      end do
+                   end if
+                         
                    currentPatch%layer_height_profile(L,ft,iv) = currentPatch%layer_height_profile(L,ft,iv) &
                          /currentPatch%tlai_profile(L,ft,iv)
                 enddo

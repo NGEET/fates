@@ -721,7 +721,6 @@ contains
      write(fates_log(),*) 'co%nv                     = ', ccohort%nv
      write(fates_log(),*) 'co%status_coh             = ', ccohort%status_coh
      write(fates_log(),*) 'co%canopy_trim            = ', ccohort%canopy_trim
-     write(fates_log(),*) 'co%status_coh             = ', ccohort%status_coh               
      write(fates_log(),*) 'co%excl_weight            = ', ccohort%excl_weight               
      write(fates_log(),*) 'co%prom_weight            = ', ccohort%prom_weight               
      write(fates_log(),*) 'co%size_class             = ', ccohort%size_class

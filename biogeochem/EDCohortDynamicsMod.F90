@@ -35,6 +35,7 @@ module EDCohortDynamicsMod
   use FatesAllometryMod  , only : bfineroot
   use FatesAllometryMod  , only : h_allom
   use FatesAllometryMod  , only : carea_allom
+  use FatesAllometryMod  , only : StructureResetOfDH
 
   ! CIME globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -677,12 +678,22 @@ contains
                                       + nextc%n*nextc%bl)/newn
                                 currentCohort%br          = (currentCohort%n*currentCohort%br          &
                                       + nextc%n*nextc%br)/newn
-                                currentCohort%hite        = (currentCohort%n*currentCohort%hite        &
-                                      + nextc%n*nextc%hite)/newn         
                                 currentCohort%dbh         = (currentCohort%n*currentCohort%dbh         &
                                       + nextc%n*nextc%dbh)/newn
+
+                                call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%hite)
+                                
                                 currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim &
                                       + nextc%n*nextc%canopy_trim)/newn
+
+                                ! If fusion pushed structural biomass to be larger than
+                                ! the allometric target value derived by diameter, we
+                                ! then increase diameter and height until the allometric 
+                                ! target matches actual bdead. (if it is the other way around
+                                ! we then just let the carbon pools grow to fill-out allometry)
+
+                                call StructureResetOfDH( currentCohort%bdead, currentCohort%pft, &
+                                      currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
 
                                 call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
                                       currentCohort%size_class,currentCohort%size_by_pft_class)
@@ -1074,7 +1085,6 @@ contains
     n%nv              = o%nv
     n%status_coh      = o%status_coh
     n%canopy_trim     = o%canopy_trim
-    n%status_coh      = o%status_coh               
     n%excl_weight     = o%excl_weight               
     n%prom_weight     = o%prom_weight               
     n%size_class      = o%size_class

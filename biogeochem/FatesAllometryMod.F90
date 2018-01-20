@@ -104,7 +104,7 @@ module FatesAllometryMod
   public :: bdead_allom   ! Generic bdead wrapper
   public :: carea_allom   ! Generic crown area wrapper
   public :: bstore_allom  ! Generic maximum storage carbon wrapper
-
+  public :: StructureResetOfDH
   public :: CheckIntegratedAllometries
 
 
@@ -1668,7 +1668,58 @@ contains
      
   end subroutine carea_2pwr
  
-  
+  ! ============================================================================
+  ! Reverse, calculate the diameter from the structural biomass
+  ! ============================================================================
+
+  subroutine StructureResetOfDH( bdead, ipft, canopy_trim, d, h )
+
+     use FatesConstantsMod     , only : calloc_abs_error
+     ! Arguments
+
+     real(r8),intent(in)           :: bdead ! actual bdead [kgC]
+     integer(i4),intent(in)        :: ipft  ! PFT index
+     real(r8),intent(in)           :: canopy_trim
+     real(r8),intent(inout)        :: d     ! plant diameter [cm]
+     real(r8),intent(out)          :: h     ! plant height
+     
+     ! Locals
+     real(r8)  :: bt_sap,dbt_sap_dd  ! target sap wood at current d
+     real(r8)  :: bt_agw,dbt_agw_dd  ! target AG wood at current d
+     real(r8)  :: bt_bgw,dbt_bgw_dd  ! target BG wood at current d
+     real(r8)  :: bt_dead,dbt_dead_dd ! target struct wood at current d
+     real(r8)  :: dd                  ! diameter increment for each step
+
+     real(r8), parameter :: approx_partial_steps = 20.0_r8
+
+     call bsap_allom(d,ipft,canopy_trim,bt_sap,dbt_sap_dd)
+     call bagw_allom(d,ipft,bt_agw,dbt_agw_dd)
+     call bbgw_allom(d,ipft,bt_bgw,dbt_bgw_dd)
+     call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead, dbt_agw_dd, &
+                      dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd)
+
+     ! This calculates a diameter increment based on the difference
+     ! in structural mass and the target mass, and sets it to a 10th
+     ! of the diameter increment
+     dd = (bdead - bt_dead)/(dbt_dead_dd*approx_partial_steps)
+     
+     do while( (bdead-bt_dead) > calloc_abs_error )
+        d = d + dd 
+        call h_allom(d,ipft,h)
+        call bsap_allom(d,ipft,canopy_trim,bt_sap,dbt_sap_dd)
+        call bagw_allom(d,ipft,bt_agw,dbt_agw_dd)
+        call bbgw_allom(d,ipft,bt_bgw,dbt_bgw_dd)
+        call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead, dbt_agw_dd, &
+              dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd)
+
+     end do
+     
+     ! At this point, the diameter, height and their target structural biomass
+     ! should be pretty close to and greater than actual
+
+     return
+  end subroutine StructureResetofDH
+
   ! ===========================================================================
   
   subroutine cspline(x1,x2,y1,y2,dydx1,dydx2,x,y,dydx)
