@@ -509,7 +509,7 @@ contains
     real(r8),intent(out)          :: bsap      ! plant leaf biomass [kgC]
     real(r8),intent(out),optional :: dbsapdd   ! change leaf bio per d [kgC/cm]
 
-    real(r8) :: h
+    real(r8) :: h         ! Plant height [m]
     real(r8) :: dhdd
     real(r8) :: bl
     real(r8) :: dbldd
@@ -550,7 +550,6 @@ contains
           if ( bsap  >= bsap_cap ) then
              dbsapdd = max_frac*(dbagwdd+dbbgwdd)
           end if
-       end if
 
     case(9) ! deprecated (9)
 

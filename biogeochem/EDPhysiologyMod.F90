@@ -1130,7 +1130,7 @@ contains
        carbon_balance = carbon_balance - bl_flux
        currentCohort%bl             = currentCohort%bl + bl_flux
        currentCohort%npp_leaf       = currentCohort%npp_leaf + bl_flux / hlm_freq_day
-       
+
        carbon_balance = carbon_balance - br_flux
        currentCohort%br             = currentCohort%br +  br_flux
        currentCohort%npp_fnrt      = currentCohort%npp_fnrt + br_flux / hlm_freq_day
@@ -1459,11 +1459,9 @@ contains
        call bleaf(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_leaf)
        call bfineroot(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_fineroot)
        call bsap_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_sapwood)
-
        call bagw_allom(temp_cohort%dbh,ft,b_agw)
        call bbgw_allom(temp_cohort%dbh,ft,b_bgw)
        call bdead_allom(b_agw,b_bgw,b_sapwood,ft,temp_cohort%bdead)
-
        call bstore_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,temp_cohort%bstore)
 
        if (hlm_use_ed_prescribed_phys .eq. ifalse .or. EDPftvarcon_inst%prescribed_recruitment(ft) .lt. 0. ) then
