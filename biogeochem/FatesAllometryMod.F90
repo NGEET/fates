@@ -550,6 +550,7 @@ contains
           if ( bsap  >= bsap_cap ) then
              dbsapdd = max_frac*(dbagwdd+dbbgwdd)
           end if
+       end if
 
     case(9) ! deprecated (9)
 

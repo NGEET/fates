@@ -1473,7 +1473,7 @@ end subroutine flush_hvars
                     npp_partition_error = abs(ccohort%npp_acc_hold-(ccohort%npp_leaf+ccohort%npp_fnrt+ &
                           ccohort%npp_sapw+ccohort%npp_dead+ &
                           ccohort%npp_seed+ccohort%npp_stor))
-                    if( npp_partition_error > 1.0e-9_r8 )  then
+                    if( npp_partition_error > 100.0_r8*calloc_abs_error )  then
                        write(fates_log(),*) 'NPP Partitions are not balancing'
                        write(fates_log(),*) 'Absolute Error [kgC/day]: ',npp_partition_error
                        write(fates_log(),*) 'Fractional Error: ', abs(npp_partition_error/ccohort%npp_acc_hold)
@@ -1518,10 +1518,10 @@ end subroutine flush_hvars
                     end if
 
                     hio_agb_si_scls(io_si,scls) = hio_agb_si_scls(io_si,scls) + &
-                         ccohort%b * ccohort%n * EDPftvarcon_inst%allom_agb_frac(ccohort%pft) * AREA_INV
+                         ccohort%b_total() * ccohort%n * EDPftvarcon_inst%allom_agb_frac(ccohort%pft) * AREA_INV
 
                     hio_biomass_si_scls(io_si,scls) = hio_biomass_si_scls(io_si,scls) + &
-                         ccohort%b * ccohort%n * AREA_INV
+                         ccohort%b_total() * ccohort%n * AREA_INV
 
                     ! update size-class x patch-age related quantities
 
