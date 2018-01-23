@@ -256,6 +256,11 @@ module EDTypesMod
      real(r8) ::  crownfire_mort                         ! probability of tree post-fire mortality due to crown scorch:-
      real(r8) ::  fire_mort                              ! post-fire mortality from cambial and crown damage assuming two are independent:-
 
+     ! Integration
+     real(r8) :: ode_opt_step                            ! What is the current optimum step size
+                                                         ! for the integrator? (variable units, including kgC,
+                                                         ! and then time when we have multiple species)
+
      ! Hydraulics
      type(ed_cohort_hydr_type), pointer :: co_hydr       ! All cohort hydraulics data, see FatesHydraulicsMemMod.F90
 
@@ -740,7 +745,7 @@ contains
      write(fates_log(),*) 'co%npp_dead              = ', ccohort%npp_dead
      write(fates_log(),*) 'co%npp_seed              = ', ccohort%npp_seed
      write(fates_log(),*) 'co%npp_stor              = ', ccohort%npp_stor
-
+     write(fates_log(),*) 'co%ode_opt_step          = ', ccohort%ode_opt_step
      write(fates_log(),*) 'co%rdark                  = ', ccohort%rdark
      write(fates_log(),*) 'co%resp_m                 = ', ccohort%resp_m
      write(fates_log(),*) 'co%resp_g                 = ', ccohort%resp_g

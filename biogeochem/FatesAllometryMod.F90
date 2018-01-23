@@ -132,7 +132,31 @@ contains
   ! functions
 
   ! Check to make sure Martinez-Cano height cap is not on, or explicitly allowed
+   
 
+  ! ===========================================================================
+  ! Helper Routines
+  ! ===========================================================================
+
+
+
+!   subroutine GetAllometricTargets(currentCohort%dbh,currentCohort%canopy_trim,  &
+!         bt_leaf,bt_fineroot,bt_sapwood,bt_store,bt_dead)
+
+      ! ---------------------------------------------------------------------------------
+      ! This wrapper is used when all allometric targets are desired. When
+      ! each allometry are called independently, it is less efficient. This is because
+      ! there are dependencies, for instance sapwood needs to know how much leaf is
+      ! there, and there ends up being several redundant calls.
+      ! When we call all allometric targets simultaneously, we don't worry about
+      ! redundancy.
+      ! ---------------------------------------------------------------------------------
+
+
+
+
+
+!   end subroutine GetAllometricTargets
 
   subroutine CheckIntegratedAllometries(dbh,ipft,canopy_trim, &
        bl,bfr,bsap,bstore,bdead, &

@@ -125,6 +125,7 @@ contains
     new_cohort%bl           = bleaf
     new_cohort%br           = bfineroot
     new_cohort%bsw          = bsap
+    new_cohort%ode_opt_step = 1.0e6_r8   ! Initialize the integrator step size as super-huge
 
     call sizetype_class_index(new_cohort%dbh,new_cohort%pft, &
                               new_cohort%size_class,new_cohort%size_by_pft_class)
@@ -316,6 +317,8 @@ contains
     currentCohort%cambial_mort       = nan ! probability that trees dies due to cambial char P&R (1986)
     currentCohort%crownfire_mort     = nan ! probability of tree post-fire mortality due to crown scorch
     currentCohort%fire_mort          = nan ! post-fire mortality from cambial and crown damage assuming two are independent
+
+    currentCohort%ode_opt_step       = nan ! integrator step size
 
   end subroutine nan_cohort
 
@@ -787,6 +790,10 @@ contains
                                                                /newn
                                    currentCohort%dbstoredt  = (currentCohort%n*currentCohort%dbstoredt  + nextc%n*nextc%dbstoredt) &
                                                                /newn
+
+                                   ! Integration step size
+                                   currentCohort%ode_opt_step = (currentCohort%n*currentCohort%ode_opt_step  + &
+                                                                 nextc%n*nextc%ode_opt_step)/newn
 
                                    do i=1, nlevleaf     
                                       if (currentCohort%year_net_uptake(i) == 999._r8 .or. nextc%year_net_uptake(i) == 999._r8) then

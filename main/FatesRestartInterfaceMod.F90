@@ -98,6 +98,8 @@ module FatesRestartInterfaceMod
   integer, private :: ir_npp_dead_co
   integer, private :: ir_npp_seed_co
   integer, private :: ir_npp_store_co
+
+  integer, private :: ir_ode_opt_step_co
   
   integer, private :: ir_bmort_co
   integer, private :: ir_hmort_co
@@ -741,6 +743,11 @@ contains
          units='kgC/indiv/day', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_store_co )
 
+    call this%set_restart_var(vname='fates_ode_opt_step', vtype=cohort_r8, &
+         long_name='ed cohort - current ode integrator step size', &
+         units='-', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_ode_opt_step_co)
+
     call this%set_restart_var(vname='fates_bmort', vtype=cohort_r8, &
          long_name='ed cohort - background mortality rate', &
          units='/year', flushval = flushzero, &
@@ -1067,6 +1074,9 @@ contains
            rio_npp_dead_co             => this%rvars(ir_npp_dead_co)%r81d, &
            rio_npp_seed_co             => this%rvars(ir_npp_seed_co)%r81d, &
            rio_npp_store_co            => this%rvars(ir_npp_store_co)%r81d, &
+
+           rio_ode_opt_step_co         => this%rvars(ir_ode_opt_step_co)%r81d, &
+
            rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
            rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
            rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
@@ -1187,7 +1197,8 @@ contains
                 rio_npp_sw_co(io_idx_co)       = ccohort%npp_sapw
                 rio_npp_dead_co(io_idx_co)     = ccohort%npp_dead
                 rio_npp_seed_co(io_idx_co)     = ccohort%npp_seed
-                rio_npp_store_co(io_idx_co)    = ccohort%npp_stor
+                rio_npp_store_co(io_idx_co)    = ccohort%npp_stor 
+                rio_ode_opt_step_co(io_idx_co) = ccohort%ode_opt_step
                 rio_bmort_co(io_idx_co)        = ccohort%bmort
                 rio_hmort_co(io_idx_co)        = ccohort%hmort
                 rio_cmort_co(io_idx_co)        = ccohort%cmort
@@ -1652,7 +1663,10 @@ contains
           rio_npp_sw_co               => this%rvars(ir_npp_sw_co)%r81d, &
           rio_npp_dead_co             => this%rvars(ir_npp_dead_co)%r81d, &
           rio_npp_seed_co             => this%rvars(ir_npp_seed_co)%r81d, &
-          rio_npp_store_co            => this%rvars(ir_npp_store_co)%r81d, &
+          rio_npp_store_co            => this%rvars(ir_npp_store_co)%r81d, & 
+
+          rio_ode_opt_step_co         => this%rvars(ir_ode_opt_step_co)%r81d, & 
+       
           rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
           rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
           rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
@@ -1757,6 +1771,7 @@ contains
                 ccohort%npp_dead     = rio_npp_dead_co(io_idx_co)
                 ccohort%npp_seed     = rio_npp_seed_co(io_idx_co)
                 ccohort%npp_stor     = rio_npp_store_co(io_idx_co)
+                ccohort%ode_opt_step = rio_ode_opt_step_co(io_idx_co)
                 ccohort%bmort        = rio_bmort_co(io_idx_co)
                 ccohort%hmort        = rio_hmort_co(io_idx_co)
                 ccohort%cmort        = rio_cmort_co(io_idx_co)
