@@ -12,6 +12,7 @@ module EDPhysiologyMod
   use FatesInterfaceMod, only    : hlm_freq_day
   use FatesInterfaceMod, only    : hlm_day_of_year
   use FatesInterfaceMod, only    : numpft
+  use FatesInterfaceMod, only    : hlm_use_planthydro
   use FatesConstantsMod, only    : r8 => fates_r8
   use EDPftvarcon      , only    : EDPftvarcon_inst
   use FatesInterfaceMod, only    : bc_in_type
@@ -32,6 +33,7 @@ module EDPhysiologyMod
   use FatesGlobals          , only : endrun => fates_endrun
   use EDParamsMod           , only : fates_mortality_disturbance_fraction
   use FatesConstantsMod        , only : itrue,ifalse
+  use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
 
   implicit none
   private
@@ -1216,6 +1218,11 @@ contains
                 (currentCohort%bl+currentCohort%br+currentCohort%bstore) * &
                 (dead_n_ilogging+dead_n_dlogging) * & 
                 hlm_freq_day * currentPatch%area
+
+          if( hlm_use_planthydro == itrue ) then
+             call AccumulateMortalityWaterStorage(currentSite,currentCohort,dead_n)
+          end if
+          
 
           do c = 1,ncwd
              
