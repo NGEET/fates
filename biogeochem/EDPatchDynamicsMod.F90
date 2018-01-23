@@ -1322,6 +1322,10 @@ contains
     integer  :: nopatches   !number of patches presently in gridcell
     integer  :: iterate     !switch of patch reduction iteration scheme. 1 to keep going, 0 to stop
     integer  :: fuse_flag   !do patches get fused (1) or not (0). 
+    !
+    ! parameters
+    real(r8), parameter :: patch_fusion_tolerance_relaxation_increment = 1.1_r8
+    real(r8), parameter :: max_age_of_second_oldest_patch = 200._r8 ! age in years above which to combine all patches
     !---------------------------------------------------------------------
 
     !maxpatch = 4  
@@ -1372,33 +1376,44 @@ contains
                 fuse_flag = 1 !the default is to fuse the patches
                 if(currentPatch%patchno /= tpp%patchno) then   !these should be the same patch
 
-                   !---------------------------------------------------------------------!
-                   ! Calculate the difference criteria for each pft and dbh class        !
-                   !---------------------------------------------------------------------!   
-                   do ft = 1,numpft        ! loop over pfts
-                      do z = 1,n_dbh_bins      ! loop over hgt bins 
-                         !is there biomass in this category?
-                         if(currentPatch%pft_agb_profile(ft,z)  > 0.0_r8.or.tpp%pft_agb_profile(ft,z) > 0.0_r8)then 
-                            norm = abs(currentPatch%pft_agb_profile(ft,z) - tpp%pft_agb_profile(ft,z))/(0.5_r8*&
-                                 &(currentPatch%pft_agb_profile(ft,z) + tpp%pft_agb_profile(ft,z)))
-                            !---------------------------------------------------------------------!
-                            ! Look for differences in profile biomass, above the minimum biomass  !
-                            !---------------------------------------------------------------------!
+                   !-----------------------------------------------------------------------------------
+                   ! check to see if both patches are older than the age at which we force them to fuse
+                   !-----------------------------------------------------------------------------------
+                   
+                   if ( tpp%age .le. max_age_of_second_oldest_patch .or. &
+                      currentPatch%age .le. max_age_of_second_oldest_patch ) then
 
-                            if(norm  > profiletol)then
-                               !looking for differences between profile density.                   
-                               if(currentPatch%pft_agb_profile(ft,z) > NTOL.or.tpp%pft_agb_profile(ft,z) > NTOL)then
-                                  fuse_flag = 0 !do not fuse  - keep apart. 
-                               endif
-                            endif ! profile tol           
-                         endif ! NTOL 
-                      enddo !ht bins
-                   enddo ! PFT
+                      !---------------------------------------------------------------------!
+                      ! Calculate the difference criteria for each pft and dbh class        !
+                      !---------------------------------------------------------------------!   
+                      do ft = 1,numpft        ! loop over pfts
+                         do z = 1,n_dbh_bins      ! loop over hgt bins 
+                            !is there biomass in this category?
+                            if(currentPatch%pft_agb_profile(ft,z)  > 0.0_r8.or.tpp%pft_agb_profile(ft,z) > 0.0_r8)then 
 
-                   !---------------------------------------------------------------------!
-                   ! Call the patch fusion routine if there is a meaningful difference   !
-                   ! any of the pft x height categories                                  !
-                   !---------------------------------------------------------------------!
+                               norm = abs(currentPatch%pft_agb_profile(ft,z) - tpp%pft_agb_profile(ft,z))/(0.5_r8*&
+                                    &(currentPatch%pft_agb_profile(ft,z) + tpp%pft_agb_profile(ft,z)))
+
+                               !---------------------------------------------------------------------!
+                               ! Look for differences in profile biomass, above the minimum biomass  !
+                               !---------------------------------------------------------------------!
+
+                               if(norm  > profiletol)then
+                                  !looking for differences between profile density.                   
+                                  if(currentPatch%pft_agb_profile(ft,z) > NTOL.or.tpp%pft_agb_profile(ft,z) > NTOL)then
+                                     fuse_flag = 0 !do not fuse  - keep apart. 
+                                  endif
+                               endif ! profile tol           
+                            endif ! NTOL 
+                         enddo !ht bins
+                      enddo ! PFT
+
+                   endif ! maxage
+                   !-------------------------------------------------------------------------!
+                   ! Call the patch fusion routine if there is not a meaningful difference   !
+                   ! any of the pft x height categories                                      !
+                   ! or both are older than forced fusion age                                !
+                   !-------------------------------------------------------------------------!
 
                    if(fuse_flag  ==  1)then 
                       tmpptr => currentPatch%older       
@@ -1434,7 +1449,7 @@ contains
 
        if(nopatches > maxpatch)then
           iterate = 1
-          profiletol = profiletol * 1.1_r8
+          profiletol = profiletol * patch_fusion_tolerance_relaxation_increment
 
           !---------------------------------------------------------------------!
           ! Making profile tolerance larger means that more fusion will happen  !
