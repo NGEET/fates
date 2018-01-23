@@ -82,12 +82,14 @@ module EDTypesMod
   real(r8), parameter :: fire_threshold       = 50.0_r8    ! threshold for fires that spread or go out. KWm-2 (Pyne 1986)
 
   ! PATCH FUSION 
+  integer , parameter :: N_DBH_BINS           = 6          ! no. of dbh bins used when comparing patches
+  real(r8), parameter :: patchfusion_dbhbin_loweredges(N_DBH_BINS) = &
+       (/0._r8, 5._r8, 20._r8, 50._r8, 100._r8, 150._r8/)  ! array of bin lower edges for comparing patches
+
+  ! COHORT FUSION
   real(r8), parameter :: NTOL                 = 0.05_r8    ! min plant density for hgt bin to be used in height profile comparisons 
   real(r8), parameter :: HITEMAX              = 30.0_r8    ! max dbh value used in hgt profile comparison 
-  real(r8), parameter :: DBHMAX               = 150.0_r8   ! max dbh value used in hgt profile comparison 
   integer , parameter :: N_HITE_BINS          = 60         ! no. of hite bins used to distribute LAI
-  integer , parameter :: N_DBH_BINS           = 5          ! no. of dbh bins used when comparing patches
-
 
   real(r8), parameter :: min_npm2       = 1.0E-8_r8  ! minimum cohort number density per m2 before termination
   real(r8), parameter :: min_patch_area = 0.001_r8   ! smallest allowable patch area before termination

@@ -7,7 +7,7 @@ module EDPatchDynamicsMod
   use FatesInterfaceMod    , only : hlm_freq_day
   use EDPftvarcon          , only : EDPftvarcon_inst
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
-  use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, area, dbhmax
+  use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, area, patchfusion_dbhbin_loweredges
   use EDTypesMod           , only : maxPatchesPerSite
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod           , only : min_patch_area
@@ -1767,20 +1767,15 @@ contains
 
     currentPatch => cp_pnt
 
-    delta_dbh = (DBHMAX/N_DBH_BINS)
-
     currentPatch%pft_agb_profile(:,:) = 0.0_r8
 
     do j = 1,N_DBH_BINS   
-        if (j == 1) then
-           mind(j) = 0.0_r8
-           maxd(j) = delta_dbh
-        else if (j == N_DBH_BINS) then
-           mind(j) = (j-1) * delta_dbh
+        if (j == N_DBH_BINS) then
+           mind(j) = patchfusion_dbhbin_loweredges(j-1)
            maxd(j) = gigantictrees
         else 
-           mind(j) = (j-1) * delta_dbh
-           maxd(j) = (j)*delta_dbh
+           mind(j) = patchfusion_dbhbin_loweredges(j-1)
+           maxd(j) = patchfusion_dbhbin_loweredges(j)
         endif
     enddo
 
