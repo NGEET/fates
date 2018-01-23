@@ -2194,7 +2194,8 @@ end subroutine updateSizeDepRhizHydStates
 	   
 	   totalrootuptake = sum(bc_out(s)%qflx_soil2root_sisl(:))*dtime
 	   
-           total_e = bc_out(s)%plant_stored_h2o_si - site_hydr%h2oveg + totalrootuptake - totalqtop_dt
+           total_e = bc_out(s)%plant_stored_h2o_si - site_hydr%h2oveg - &
+	       site_hydr%h2oveg_dead + totalrootuptake - totalqtop_dt
 	   
            bc_out(s)%plant_stored_h2o_si = site_hydr%h2oveg + site_hydr%h2oveg_dead       
 
@@ -2215,7 +2216,7 @@ end subroutine updateSizeDepRhizHydStates
      ! In another routine, this pool is reduced as water vapor flux, and
      ! passed to the HLM.
      ! ---------------------------------------------------------------------------
-
+     use EDTypesMod        , only : AREA	
 
      ! Arguments
      
@@ -2223,19 +2224,23 @@ end subroutine updateSizeDepRhizHydStates
      type(ed_cohort_type) , intent(inout), target  :: ccohort
      real(r8), intent(in)                          :: delta_n ! Loss in number density
                                                               ! for this cohort /ha/day
-
+							      
+     real(r8) :: delta_w                                      !water change due to mortality Kg/m2
      ! Locals
      type(ed_site_hydr_type), pointer              :: csite_hydr
      type(ed_cohort_hydr_type), pointer            :: ccohort_hydr
 
      ccohort_hydr => ccohort%co_hydr
      csite_hydr   => csite%si_hydr
-     
-     csite_hydr%h2oveg_dead = csite_hydr%h2oveg_dead                   + &
-           (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:))            + &
+     delta_w =   (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:))      + &
            sum(ccohort_hydr%th_bg(:)*ccohort_hydr%v_bg(:))             + &
            sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
            denh2o*delta_n/AREA
+     
+     csite_hydr%h2oveg_dead = csite_hydr%h2oveg_dead + delta_w
+         
+	   
+     csite_hydr%h2oveg = csite_hydr%h2oveg - delta_w
      
      return
   end subroutine AccumulateMortalityWaterStorage
