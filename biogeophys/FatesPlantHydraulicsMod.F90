@@ -91,17 +91,17 @@ module FatesPlantHydraulicsMod
    integer, public :: use_ed_planthydraulics    =  1      ! 0 => use vanilla btran
                                                           ! 1 => use BC hydraulics; 
                                                           ! 2 => use CX hydraulics
-   logical, public :: do_dqtopdth_leaf          = .true.  ! should a nonzero dqtopdth_leaf
+   logical, public :: do_dqtopdth_leaf          = .false.  ! should a nonzero dqtopdth_leaf
                                                           ! term be applied to the plant 
                                                           ! hydraulics numerical solution?
-   logical, public :: do_dyn_xylemrefill        = .true.  ! should the dynamics of xylem refilling 
+   logical, public :: do_dyn_xylemrefill        = .false.  ! should the dynamics of xylem refilling 
                                                           ! (i.e., non-instantaneous) be considered 
                                                           ! within plant hydraulics?
    logical, public :: do_kbound_upstream        = .true.  ! should the hydraulic conductance at the 
                                                           ! boundary between nodes be taken to be a
                                                           ! function of the upstream loss of 
                                                           ! conductivity (flc)?
-   logical, public :: do_growthrecruiteffects   = .true. ! should size- or root length-dependent 
+   logical, public :: do_growthrecruiteffects   = .false. ! should size- or root length-dependent 
                                                           ! hydraulic properties and states be 
                                                           ! updated every day when trees grow or 
                                                           ! when recruitment happens?
@@ -345,7 +345,7 @@ contains
     ! but that may not be so forever. ie sla = slatop (RGK-082017)
     sla                        = EDPftvarcon_inst%slatop(FT) * cm2_per_m2 ! m2/gC * cm2/m2 -> cm2/gC
 
-    denleaf                    = -2.3231_r8*sla + 781.899_r8    ! empirical regression data from leaves at Caxiuana (~ 8 spp)
+    denleaf                    = -2.3231_r8*sla/C2B + 781.899_r8    ! empirical regression data from leaves at Caxiuana (~ 8 spp)
     v_canopy                   = b_canopy_biom / denleaf
     ccohort_hydr%v_ag(1:npool_leaf) = v_canopy / npool_leaf
 
@@ -362,7 +362,7 @@ contains
     b_stem_carb  = b_tot_carb - b_bg_carb - b_canopy_carb
     b_stem_biom  = b_stem_carb * C2B                               ! kg DM
     v_stem       = b_stem_biom / (EDPftvarcon_inst%wood_density(FT)*1.e3_r8) !BOC...may be needed for testing/comparison w/ v_sapwood
-    a_leaf_tot   = b_canopy_biom * sla * 1.e3_r8 / 1.e4_r8         ! m2 leaf = kg leaf DM * cm2/g * 1000g/1kg * 1m2/10000cm2
+    a_leaf_tot   = b_canopy_carb * sla * 1.e3_r8 / 1.e4_r8         ! m2 leaf = kg leaf DM * cm2/g * 1000g/1kg * 1m2/10000cm2
     a_sapwood    = a_leaf_tot / EDPftvarcon_inst%allom_latosa_int(FT)*1.e-4_r8            ! m2 sapwood = m2 leaf * cm2 sapwood/m2 leaf *1.0e-4m2
     v_sapwood    = a_sapwood * z_stem
     ccohort_hydr%v_ag(npool_leaf+1:npool_ag) = v_sapwood / npool_stem
@@ -433,8 +433,8 @@ contains
        else
           dz_node1_nodekplus1   = ccohort_hydr%z_node_ag(npool_leaf) - ccohort_hydr%z_node_bg(1)
        end if
-       kmax_node1_nodekplus1(k) = EDPftvarcon_inst%hydr_kmax_node(FT,1) * a_sapwood / dz_node1_nodekplus1
-       kmax_node1_lowerk(k)     = EDPftvarcon_inst%hydr_kmax_node(FT,1) * a_sapwood / dz_node1_lowerk
+       kmax_node1_nodekplus1(k) = EDPftvarcon_inst%hydr_kmax_node(FT,2) * a_sapwood / dz_node1_nodekplus1
+       kmax_node1_lowerk(k)     = EDPftvarcon_inst%hydr_kmax_node(FT,2) * a_sapwood / dz_node1_lowerk
        chi_node1_nodekplus1(k)  = xylemtaper(p, dz_node1_nodekplus1)
        chi_node1_lowerk(k)      = xylemtaper(p, dz_node1_lowerk)
        if(.not.do_kbound_upstream) then
@@ -1401,8 +1401,8 @@ end subroutine updateSizeDepRhizHydStates
      type (ed_cohort_type), pointer :: ccohort
      
      ! hydraulics global constants
-     real(r8), parameter :: thresh          = 1.e-5_r8  ! threshold for water balance error (warning only) [mm h2o]
-     real(r8), parameter :: thresh_break    = 1.e-1_r8  ! threshold for water balance error (stop model)   [mm h2o]
+     real(r8), parameter :: thresh          = 1.e-7_r8  ! threshold for water balance error (warning only) [mm h2o]
+     real(r8), parameter :: thresh_break    = 1.e-4_r8  ! threshold for water balance error (stop model)   [mm h2o]
      real(r8), parameter :: small_theta_num = 1.e-4_r8  ! avoids theta values equalling thr or ths         [m3 m-3]
      
      ! hydraulics timestep adjustments for acceptable water balance error
@@ -1478,6 +1478,10 @@ end subroutine updateSizeDepRhizHydStates
      real(r8) :: dqtopdth_dthdt
      real(r8) :: sapflow
      real(r8) :: rootuptake
+     real(r8) :: totalrootuptake               !total root uptake per unit area (kg h2o m-2 time step -1) 
+     real(r8) :: totaldqtopdth_dthdt
+     real(r8) :: totalqtop_dt                  !total transpriation per unit area (kg h2o m-2 time step -1) 
+     real(r8) :: total_e                       !mass balance error (kg h2o m-2 time step -1)     
      integer  :: ncoh_col                      ! number of cohorts across all non-veg patches within a column
      real(r8) :: transp_col                    ! Column mean transpiration rate [mm H2O/m2]
                                                ! as defined by the input boundary condition
@@ -1599,7 +1603,8 @@ end subroutine updateSizeDepRhizHydStates
 
               qflx_tran_veg_patch_coh      = bc_in(s)%qflx_transp_pa(ifp) * ccohort%gscan*ccohort%n/gscan_patch
 
-              qflx_tran_veg_indiv          = qflx_tran_veg_patch_coh * cpatch%area / ccohort%n !AREA / ccohort%n
+              qflx_tran_veg_indiv          = qflx_tran_veg_patch_coh * cpatch%area* &
+	                                     min(1.0_r8,cpatch%total_canopy_area/cpatch%area)/ccohort%n !AREA / ccohort%n
               
               ! [mm H2O/cohort/s] = [mm H2O / patch / s] / [cohort/patch]
 !!              qflx_tran_veg_patch_coh      = qflx_trans_patch_vol * qflx_rel_tran_coh
@@ -1754,13 +1759,14 @@ end subroutine updateSizeDepRhizHydStates
 		      site_hydr%dwat_veg         = site_hydr%dwat_veg + dwat_veg_coh*ccohort%n/AREA  !*patch_wgt
 
 		      site_hydr%h2oveg           = site_hydr%h2oveg + dwat_veg_coh*ccohort%n/AREA !*patch_wgt
-		      site_hydr%errh2o_hyd       = site_hydr%errh2o_hyd + ccohort_hydr%errh2o*(ccohort%c_area / ccohort%n)/AREA !*patch_wgt
+		      !site_hydr%errh2o_hyd       = site_hydr%errh2o_hyd + ccohort_hydr%errh2o*(ccohort%c_area / ccohort%n)/AREA !*patch_wgt
+		      site_hydr%errh2o_hyd       = site_hydr%errh2o_hyd + ccohort_hydr%errh2o*ccohort%c_area /AREA !*patch_wgt
 		
 		      ! ACCUMULATE CHANGE IN SOIL WATER CONTENT OF EACH COHORT TO COLUMN-LEVEL
 		      dth_layershell_col(nlevsoi_hyd,:) = dth_layershell_col(nlevsoi_hyd,:) + &
 		                                          dth_node((npool_tot-nshell+1):npool_tot) * &
-                                                          ccohort_hydr%l_aroot_tot * ccohort%n / site_hydr%l_aroot_1D * &
-							  patch_wgt
+                                                          ccohort_hydr%l_aroot_tot * ccohort%n / site_hydr%l_aroot_1D! * &
+							  !patch_wgt
 		   else if(nlevsoi_hyd > 1) then
                       ! VERTICAL LAYER CONTRIBUTION TO TOTAL ROOT WATER UPTAKE OR LOSS
 		      !    _____ 
@@ -1921,26 +1927,26 @@ end subroutine updateSizeDepRhizHydStates
                                site_hydr%kmax_bound_shell(ordered(jj),:) * ccohort_hydr%l_aroot_layer(ordered(jj)) / &
                                site_hydr%l_aroot_layer(ordered(jj))
                          kmax_bound_1l((         npool_ag+1)                    ) = &
-                               2._r8 * ccohort_hydr%kmax_treebg_layer(ordered(jj))   
+                               2.0_r8 * ccohort_hydr%kmax_treebg_layer(ordered(jj))   
                          ! transporting-to-absorbing root conductance: factor of 2 means 
                          ! one-half of the total belowground resistance in layer j
                          kmax_lower_1l((         npool_ag+1)                    ) = &
-                               4._r8 * ccohort_hydr%kmax_treebg_layer(ordered(jj))   
+                               4.0_r8 * ccohort_hydr%kmax_treebg_layer(ordered(jj))   
                          ! transporting-to-absorbing root conductance: factor of 2*2 means one-half of the total 
                          ! belowground resistance in layer j, split in half between transporting and absorbing root
                          kmax_bound_aroot_soil1                                   = &
-                               2._r8 * ccohort_hydr%kmax_treebg_layer(ordered(jj))   
+                               2.0_r8 * ccohort_hydr%kmax_treebg_layer(ordered(jj))   
                          ! radial absorbing root conductance: factor of 2 means one-half of 
                          ! the total belowground resistance in layer j
                          kmax_bound_aroot_soil2                                   = kmax_bound_shell_1l(1)                 
                          ! (root surface)-to-(soil shell#1) conductance
                          kmax_bound_1l((         npool_ag+2)                    ) = &
-                               1._r8/(1._r8/kmax_bound_aroot_soil1 + 1._r8/kmax_bound_aroot_soil2)  
+                               1.0_r8 /(1._r8/kmax_bound_aroot_soil1 + 1._r8/kmax_bound_aroot_soil2)  
                          ! combined (soil shell#1)-to-(absorbing root) conductance
                          kmax_upper_1l((         npool_ag+2)                    ) = &
                                kmax_lower_1l(npool_ag+1)
                          kmax_lower_1l((         npool_ag+2)                    ) = &
-                               2._r8 * ccohort_hydr%kmax_treebg_layer(ordered(jj))
+                               2.0_r8 * ccohort_hydr%kmax_treebg_layer(ordered(jj))
                          kmax_bound_1l((npool_tot-nshell+1 ):(npool_tot-1      )) = &
                                kmax_bound_shell_1l(2:nshell)          
                          ! REMEMBER: kmax_bound_shell_1l defined at the uppper (closer to atmosphere) boundary 
@@ -1977,7 +1983,8 @@ end subroutine updateSizeDepRhizHydStates
                          !! kg/m2 ground/individual
                          
                          site_hydr%errh2o_hyd               = site_hydr%errh2o_hyd + &
-                                                             we_area_outer*(ccohort%c_area / ccohort%n)/AREA!*patch_wgt
+			                                     we_area_outer*ccohort%c_area /AREA!*patch_wgt
+                                                             !we_area_outer*(ccohort%c_area / ccohort%n)/AREA!*patch_wgt
                          ccohort_hydr%qtop_dt                   = ccohort_hydr%qtop_dt  + qtop_dt                             ! 
                          ccohort_hydr%dqtopdth_dthdt            = ccohort_hydr%dqtopdth_dthdt + dqtopdth_dthdt                ! 
                          ccohort_hydr%sapflow                   = ccohort_hydr%sapflow + sapflow                              ! 
@@ -2148,6 +2155,7 @@ end subroutine updateSizeDepRhizHydStates
                 !qflx_rootsoi(c,j)              = -(sum(dth_layershell_col(j,:))*bc_in(s)%dz_sisl(j)*denh2o/dtime)
                 bc_out(s)%qflx_soil2root_sisl(j)               = &
                       -(sum(dth_layershell_col(j,:)*site_hydr%v_shell(j,:)) * &
+		!       site_hydr%l_aroot_layer(j)/AREA*denh2o/dtime)
                       site_hydr%l_aroot_layer(j)/bc_in(s)%dz_sisl(j)/AREA*denh2o/dtime)
 
                 ! h2osoi_liqvol =  min(bc_in(s)%eff_porosity_gl(j), &
@@ -2161,10 +2169,28 @@ end subroutine updateSizeDepRhizHydStates
 	     end if
              
            enddo !nlevsoi_hyd
-           
-           ! The Host Land Model may need to know what the total stored vegetation water is
+           !-----------------------------------------------------------------------
+           ! mass balance check and pass the total stored vegetation water to HLM
            ! in order for it to fill its balance checks
-           
+	   totalrootuptake = 0.0_r8
+	   totalqtop_dt = 0.0_r8
+	   cpatch => sites(s)%oldest_patch
+           do while (associated(cpatch))
+             cpatch_hydr => cpatch%pa_hydr
+	     ccohort=>cpatch%tallest
+	     do while(associated(ccohort))
+                ccohort_hydr => ccohort%co_hydr
+                totalrootuptake = totalrootuptake + ccohort_hydr%rootuptake* ccohort%n/AREA
+		totalqtop_dt= totalqtop_dt+  ccohort_hydr%qtop_dt* ccohort%n/AREA
+                ccohort => ccohort%shorter
+             enddo !cohort
+	     cpatch => cpatch%younger
+	   enddo !patch
+	   
+	   totalrootuptake = sum(bc_out(s)%qflx_soil2root_sisl(:))*dtime
+	   
+           total_e = bc_out(s)%plant_stored_h2o_si - site_hydr%h2oveg + totalrootuptake - totalqtop_dt
+	   
            bc_out(s)%plant_stored_h2o_si = site_hydr%h2oveg
            
 
@@ -2180,6 +2206,7 @@ end subroutine updateSizeDepRhizHydStates
                                 thresh, thresh_break, maxiter, imult, dtime, &
 				dth_node_outer, the_node, we_area_outer, qtop_dt, dqtopdth_dthdt, sapflow, rootuptake, &
                                 small_theta_num, mono_decr_Rn, site_hydr, bc_in)
+    use EDTypesMod        , only : AREA				
     !
     ! !DESCRIPTION: 
     !
@@ -2262,6 +2289,9 @@ end subroutine updateSizeDepRhizHydStates
     real(r8) :: dqtopdth_leaf                 ! derivative of transpiration rate wrt to leaf water content      [kgh2o indiv-1 s-1 m-3 m-3]
     real(r8) :: th_prev                       ! temporary                                                       [m3 m-3]
     real(r8) :: dth_prev                      ! temporary                                                       [m3 m-3]
+    real(r8) :: dw_total                      ! temporary                                                       [kg]
+    real(r8) :: we_k                          ! error for kth node (temporary)                                  [kg]
+    real(r8) :: the_k                         ! theta error for kth node (temporary)                            [m3 m-3]
     logical  :: catch_nan                     ! flag for nan returned from Tridiagaonal
     integer  :: index_nan                     ! highest k index possessing a nan
     integer  :: index_stem
@@ -2448,7 +2478,7 @@ end subroutine updateSizeDepRhizHydStates
           we_tot_inner    = dw_tot_inner/dt_new + (qtop + dqtopdth_leaf*dth_node_inner(1))
 	  we_area_inner   = we_tot_inner/(cCohort%c_area / cCohort%n)
 	  we_vol_inner    = we_tot_inner/sum(v_node(:))
-	  we_local        = we_vol_inner                   ! different water balance metrics can be chosen here (with an appropriate corresponding thresh)
+	  we_local        = we_tot_inner*cCohort%n/AREA     !we_vol_inner                   ! different water balance metrics can be chosen here (with an appropriate corresponding thresh)
 			
        end do ! loop over sub-timesteps
 
@@ -2468,11 +2498,27 @@ end subroutine updateSizeDepRhizHydStates
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
     
-    ! TOTAL NET WATER BALANCE
+    ! TOTAL NET WATER BALANCE AND ERROR ADJUST HACK
     w_tot_end_outer   = sum(th_node(:)*v_node(:))*denh2o                            ! kg
     dw_tot_outer      = w_tot_end_outer - w_tot_beg_outer                           ! kg/timestep
     we_tot_outer      = dw_tot_outer + (qtop_dt + dqtopdth_dthdt)                   ! kg/timestep
     we_area_outer     = we_tot_outer/(cCohort%c_area / cCohort%n)                   ! kg/m2 ground/individual
+    if(abs(we_tot_outer*cCohort%n)/AREA>1.0e-5_r8) then
+       write(fates_log(),*)'WARNING: plant hydraulics water balance error exceeds 1.0e-5 and is ajusted for error'
+       dth_node_outer(:) = th_node(:) - th_node_init(:)
+       dw_total = sum(dth_node_outer(:)*v_node(:))*denh2o 
+       if(abs(dw_total)>0)then 
+         do k = 1, npool_tot
+            we_k=we_tot_outer * (dth_node_outer(k)*v_node(k)*denh2o)/dw_total  
+	    the_k = we_k/(v_node(k)*denh2o)
+	    th_node(k) = th_node(k)-the_k
+         end do  
+       endif
+       w_tot_end_outer   = sum(th_node(:)*v_node(:))*denh2o                            ! kg
+       dw_tot_outer      = w_tot_end_outer - w_tot_beg_outer                           ! kg/timestep
+       we_tot_outer      = dw_tot_outer + (qtop_dt + dqtopdth_dthdt)                   ! kg/timestep
+       we_area_outer     = we_tot_outer/(cCohort%c_area / cCohort%n)                   ! kg/m2 ground/individual   
+    end if
     dth_node_outer(:) = th_node(:) - th_node_init(:)
 
  end subroutine Hydraulics_1DSolve
