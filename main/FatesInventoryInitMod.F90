@@ -774,7 +774,8 @@ contains
       real(r8)                                    :: c_bdead       ! dead biomass (kg)
       real(r8)                                    :: c_balive      ! live biomass (kg)
       real(r8)                                    :: c_avgRG       ! avg radial growth (NOT USED)
-      integer                                     :: cstatus       ! 
+      integer                                     :: cstatus      
+      integer                                     :: recruitstatus  
       type(ed_patch_type), pointer                :: cpatch        ! current patch pointer
       type(ed_cohort_type), pointer               :: temp_cohort   ! temporary patch (needed for allom funcs)
       integer                                     :: ipa           ! patch idex
@@ -894,10 +895,12 @@ contains
          temp_cohort%balive = temp_cohort%balive - temp_cohort%laimemory
          cstatus = csite%dstatus
       endif
+
+      recruitstatus  = 0
       
       call create_cohort(cpatch, c_pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
             temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore, &
-            temp_cohort%laimemory,  cstatus, temp_cohort%canopy_trim, 1, bc_in)
+            temp_cohort%laimemory,  cstatus,recruitstatus, temp_cohort%canopy_trim, 1, bc_in)
       
       deallocate(temp_cohort) ! get rid of temporary cohort
 
