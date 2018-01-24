@@ -1473,7 +1473,7 @@ end subroutine PlantGrowth
       ! Arguments
       real(r8),intent(in), dimension(:)   :: c_pools  ! Vector of carbon pools
                                                       ! dbh,leaf,root,sap,store,dead
-      logical(r8),intent(in), dimension(:):: c_mask   ! logical mask of active pools
+      logical,intent(in), dimension(:)    :: c_mask   ! logical mask of active pools
                                                       ! some may be turned off
       real(r8),intent(in)                 :: cbalance ! The carbon balance of the
                                                       ! partial step (independant var)

@@ -12,7 +12,7 @@ module FatesIntegratorsMod
 
 contains
 
-   subroutine RKF45(DerivFunction,Y,Ymask,dx,x,ccohort,Yout,l_err)
+  subroutine RKF45(DerivFunction,Y,Ymask,dx,x,ccohort,Yout,l_err)
 
       ! ---------------------------------------------------------------------------------
       ! Runge-Kutta-Fehlerg  4/5 order adaptive explicit integration
@@ -23,7 +23,7 @@ contains
       ! Arguments
       
       real(r8),intent(in), dimension(:)         :: Y        ! dependent variable (array)
-      logical(r8),intent(in), dimension(:)      :: Ymask    ! logical mask defining what is on
+      logical,intent(in), dimension(:)          :: Ymask    ! logical mask defining what is on
       real(r8),intent(in)                       :: dx       ! step size of independent variable
       real(r8),intent(in)                       :: x        ! independent variable (time?)
       type(ed_cohort_type),intent(inout),target :: ccohort  ! Cohort derived type
@@ -81,10 +81,10 @@ contains
               use EDTypesMod          , only : ed_patch_type
               use EDTypesMod          , only : ed_cohort_type
               use FatesConstantsMod, only    : r8 => fates_r8
-              real(r8),intent(in), dimension(:)    :: Y        ! dependent variable (array)
-              logical(r8),intent(in), dimension(:) :: Ymask    ! logical mask defining what is on
-              real(r8),intent(in)                  :: x        ! independent variable (time?)
-              type(ed_cohort_type),intent(in)      :: ccohort  ! Cohort derived type
+              real(r8),intent(in), dimension(:)        :: Y        ! dependent variable (array)
+              logical,intent(in), dimension(:)         :: Ymask    ! logical mask defining what is on
+              real(r8),intent(in)                      :: x        ! independent variable (time?)
+              type(ed_cohort_type),intent(in),target   :: ccohort  ! Cohort derived type
               real(r8),dimension(lbound(Y,dim=1):ubound(Y,dim=1)) :: dYdx     ! Derivative of dependent variable
           end function DerivFunction
        end interface
