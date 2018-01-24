@@ -115,6 +115,9 @@ module FatesHydraulicsMemMod
                                                     ! be equal to the sum of the water over the rhizosphere shells
      
      real(r8),allocatable :: psisoi_liq_innershell(:) ! Matric potential of the inner rhizosphere shell (MPa)
+     
+     real(r8),allocatable :: recruit_w_uptake(:)    ! recruitment water uptake (kg H2o/m2/s)
+
     
      real(r8) :: l_aroot_1D                         ! Total (across cohorts) absorbing root 
                                                     ! length across all layers
@@ -215,6 +218,8 @@ module FatesHydraulicsMemMod
      real(r8) ::  rootuptake08                           ! net flow into roots (+ into roots), soil layer 8                  [kg/indiv/timestep]
      real(r8) ::  rootuptake09                           ! net flow into roots (+ into roots), soil layer 9                  [kg/indiv/timestep]
      real(r8) ::  rootuptake10                           ! net flow into roots (+ into roots), soil layer 10                 [kg/indiv/timestep]
+     ! BC PLANT HYDRAULICS - flags
+     logical ::   is_newly_recuited                      !whether the new cohort is newly recuited
   end type ed_cohort_hydr_type
    
  contains
@@ -247,7 +252,8 @@ module FatesHydraulicsMemMod
        allocate(this%h2osoi_liq_prev(1:nlevsoi_hyd))          ; this%h2osoi_liq_prev = nan
        allocate(this%psisoi_liq_innershell(1:nlevsoi_hyd)); this%psisoi_liq_innershell = nan
        allocate(this%rs1(1:nlevsoi_hyd)); this%rs1(:) = fine_root_radius_const
-
+       allocate(this%recruit_w_uptake(1:nlevsoi_hyd)); this%recruit_w_uptake = nan
+       
        this%l_aroot_1D = nan
        this%errh2o_hyd     = nan
        this%dwat_veg       = nan
