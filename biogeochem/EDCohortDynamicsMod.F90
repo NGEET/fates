@@ -61,7 +61,7 @@ contains
 
   !-------------------------------------------------------------------------------------!
   subroutine create_cohort(patchptr, pft, nn, hite, dbh, &
-       balive, bdead, bstore, laimemory, status, ctrim, clayer, bc_in)
+       balive, bdead, bstore, laimemory, status,recruitstatus, ctrim, clayer, bc_in)
     !
     ! !DESCRIPTION:
     ! create new cohort
@@ -73,6 +73,7 @@ contains
     integer,  intent(in)   :: pft       ! Cohort Plant Functional Type
     integer,  intent(in)   :: clayer    ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)
     integer,  intent(in)   :: status    ! growth status of plant  (2 = leaves on , 1 = leaves off)
+    integer,  intent(in)   :: recruitstatus    ! recruit status of plant  (1 = recruitment , 0 = other)
     real(r8), intent(in)   :: nn        ! number of individuals in cohort per 'area' (10000m2 default)
     real(r8), intent(in)   :: hite      ! height: meters
     real(r8), intent(in)   :: dbh       ! dbh: cm
@@ -82,6 +83,7 @@ contains
     real(r8), intent(in)   :: laimemory ! target leaf biomass- set from previous year: kGC per indiv
     real(r8), intent(in)   :: ctrim     ! What is the fraction of the maximum leaf biomass that we are targeting? :-
     type(bc_in_type), intent(in) :: bc_in ! External boundary conditions
+     
     !
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer :: new_cohort         ! Pointer to New Cohort structure.
@@ -177,7 +179,10 @@ contains
     if( hlm_use_planthydro.eq.itrue ) then
        call InitHydrCohort(new_cohort)
        call updateSizeDepTreeHydProps(new_cohort, bc_in) 
-       call initTreeHydStates(new_cohort, bc_in) 
+       call initTreeHydStates(new_cohort, bc_in)
+       if(recruitstatus==1)then
+        new_cohort%co_hydr%is_newly_recuited = .true.
+       endif 
     endif
     
     call insert_cohort(new_cohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
