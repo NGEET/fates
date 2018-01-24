@@ -336,11 +336,14 @@ contains
     ! !LOCAL VARIABLES:
     type(ed_cohort_type),pointer :: temp_cohort
     integer :: cstatus
-    integer :: pft
+    integer :: recruitstatus
+    integer :: pft  
     !----------------------------------------------------------------------
 
     patch_in%tallest  => null()
     patch_in%shortest => null()
+    
+    recruitstatus = 0
 
     do pft =  1,numpft
 
@@ -389,7 +392,7 @@ contains
 
        call create_cohort(patch_in, pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
             temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore, &
-            temp_cohort%laimemory,  cstatus, temp_cohort%canopy_trim, 1, bc_in)
+            temp_cohort%laimemory,  cstatus,recruitstatus, temp_cohort%canopy_trim, 1, bc_in)
 
        deallocate(temp_cohort) ! get rid of temporary cohort
 
