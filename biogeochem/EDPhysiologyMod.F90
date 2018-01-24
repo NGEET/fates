@@ -1064,6 +1064,7 @@ contains
     integer :: ft
     type (ed_cohort_type) , pointer :: temp_cohort
     integer :: cohortstatus
+    integer :: recruitstatus
     !----------------------------------------------------------------------
 
     allocate(temp_cohort) ! create temporary cohort
@@ -1108,12 +1109,13 @@ contains
        if (EDPftvarcon_inst%stress_decid(ft) == 1)then !drought decidous, override status. 
           cohortstatus = currentSite%dstatus
        endif
-
+ 
        if (temp_cohort%n > 0.0_r8 )then
           if ( DEBUG ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
+	  recruitstatus = 1
           call create_cohort(currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore,  &
-               temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, currentPatch%NCL_p, &
+               temp_cohort%laimemory, cohortstatus,recruitstatus, temp_cohort%canopy_trim, currentPatch%NCL_p, &
                bc_in)
 
           ! keep track of how many individuals were recruited for passing to history
