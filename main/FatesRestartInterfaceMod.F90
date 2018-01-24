@@ -1371,6 +1371,7 @@ contains
      real(r8)                          :: root_litter_local(maxpft)
      real(r8)                          :: patch_age
      integer                           :: cohortstatus
+     integer                           :: recruitstatus
      integer                           :: s        ! site index
      integer                           :: idx_pa        ! local patch index
      integer                           :: io_idx_si     ! global site index in IO vector
@@ -1440,6 +1441,8 @@ contains
 
              ! give this patch a unique patch number
              newp%patchno = idx_pa
+	     
+	     recruitstatus = 0
 
              do fto = 1, rio_ncohort_pa( io_idx_co_1st )
 
@@ -1479,8 +1482,8 @@ contains
                 
                 call create_cohort(newp, ft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                      temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore,  &
-                     temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, newp%NCL_p, &
-                     bc_in(s))
+                     temp_cohort%laimemory, cohortstatus,recruitstatus,temp_cohort%canopy_trim, &
+		     newp%NCL_p,bc_in(s))
                 
                 deallocate(temp_cohort)
                 
