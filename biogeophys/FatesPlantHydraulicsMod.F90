@@ -101,7 +101,7 @@ module FatesPlantHydraulicsMod
                                                           ! boundary between nodes be taken to be a
                                                           ! function of the upstream loss of 
                                                           ! conductivity (flc)?
-   logical, public :: do_growthrecruiteffects   = .false. ! should size- or root length-dependent 
+   logical, public :: do_growthrecruiteffects   = .true. ! should size- or root length-dependent 
                                                           ! hydraulic properties and states be 
                                                           ! updated every day when trees grow or 
                                                           ! when recruitment happens?
@@ -529,7 +529,8 @@ contains
        ccohort_hydr%th_aroot(j) = ccohort_hydr%th_aroot(j)*ccohort_hydr%v_aroot_layer_init(j)/ccohort_hydr%v_aroot_layer(j)
     enddo
     
-    ! UPDATES OF WATER POTENTIALS ARE DONE PRIOR TO RICHARDS' SOLUTION WITHIN EDPLANTHYDRAULICSMOD.F90
+    ! UPDATES OF WATER POTENTIALS ARE DONE PRIOR TO RICHARDS' SOLUTION WITHIN FATESPLANTHYDRAULICSMOD.F90
+    
 
   end subroutine updateSizeDepTreeHydStates
 
@@ -649,6 +650,7 @@ contains
     if ( hlm_use_planthydro.eq.ifalse ) return
     allocate(ccohort_hydr)
     currentCohort%co_hydr => ccohort_hydr
+    ccohort_hydr%is_newly_recuited = .false. 
 
   end subroutine InitHydrCohort
 
@@ -1370,6 +1372,8 @@ end subroutine updateSizeDepRhizHydStates
      ! added by Brad Christoffersen Jan 2016 for use in ED hydraulics
      !    van Genuchten (1980)-specific functions for the swc (soil water characteristic)
      !    and for the kunsat (unsaturated hydraulic conductivity) curves. Test mod 06/20/2016
+     
+     ! resolved the mass-balance bugs and tested Jan, 2018 by C. XU
      !
      ! BOC...for quick implementation avoided JT's abstract interface,
      !    but these should be converted to interfaces in the future
@@ -1400,6 +1404,7 @@ end subroutine updateSizeDepRhizHydStates
      integer :: k   ! 1D plant-soil continuum array
      integer :: ft  ! plant functional type index
      integer :: t   ! previous timesteps (for lwp stability calculation)
+
      !----------------------------------------------------------------------
      
      type (ed_patch_type),  pointer :: cpatch
@@ -1499,7 +1504,8 @@ end subroutine updateSizeDepRhizHydStates
                                                ! area, and assumes that the HLM has it's own patch
                                                ! that is not tracked by FATES which accounts for all
                                                ! non-canopy areas across all patches
-
+					       
+     real(r8) :: recruitw                      !water uptake due to recruitment (kg/m2/s) 
      real(r8) :: smp                           ! temporary for matric potential (MPa)
      integer  :: tmp
      real(r8) :: tmp1
@@ -1508,7 +1514,8 @@ end subroutine updateSizeDepRhizHydStates
      real(r8) :: lwpdiff1, lwpdiff2, Rndiff1, Rndiff2, btran_prev
      logical  :: mono_decr_Rn                  ! flag indicating whether net Radiation is monotonically decreasing
      real(r8) :: refill_rate                   ! rate of xylem refilling  [fraction per unit time; s-1]
-
+     real(r8) :: roota, rootb                  ! parameters for root distribution                                      [m-1]
+     real(r8) :: rootfr                        ! root fraction at different soil layers
      type(ed_site_hydr_type), pointer :: site_hydr
      type(ed_patch_hydr_type), pointer :: cpatch_hydr
      type(ed_cohort_hydr_type), pointer :: ccohort_hydr
@@ -1531,6 +1538,7 @@ end subroutine updateSizeDepRhizHydStates
         dth_layershell_col(:,:) = 0._r8
         site_hydr%dwat_veg       = 0._r8
         site_hydr%errh2o_hyd     = 0._r8
+	site_hydr%recruit_w_uptake = 0._r8
         ncoh_col       = 0
 
         ! Calculate the mean site level transpiration flux
@@ -1602,6 +1610,32 @@ end subroutine updateSizeDepRhizHydStates
               ccohort_hydr%dqtopdth_dthdt  = 0._r8
               ccohort_hydr%sapflow         = 0._r8
               ccohort_hydr%rootuptake      = 0._r8
+	      !-----------------------------------------------------------
+              ! recruitment water uptake
+	      if(ccohort_hydr%is_newly_recuited) then
+	        roota    =  EDPftvarcon_inst%roota_par(ft)
+                rootb    =  EDPftvarcon_inst%rootb_par(ft)
+	        recruitw =  (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:))    + &
+                    sum(ccohort_hydr%th_bg(:)*ccohort_hydr%v_bg(:))             + &
+                    sum(ccohort_hydr%th_aroot(:)*ccohort_hydr%v_aroot_layer(:)))* &
+                    denh2o*ccohort%n/AREA/dtime
+                if(nlevsoi_hyd == 1) then
+                    site_hydr%recruit_w_uptake(1) = site_hydr%recruit_w_uptake(1)+ &
+		                                    recruitw
+                else
+                  do j=1,nlevsoi_hyd
+                    if(j == 1) then
+                       rootfr = zeng2001_crootfr(roota, rootb, bc_in(s)%zi_sisl(j))
+                     else
+                       rootfr = zeng2001_crootfr(roota, rootb, bc_in(s)%zi_sisl(j)) - &
+                          zeng2001_crootfr(roota, rootb, bc_in(s)%zi_sisl(j-1))
+                      end if
+		      site_hydr%recruit_w_uptake(j) = site_hydr%recruit_w_uptake(j) + &
+		                                    recruitw*rootfr
+                   end do
+                 end if
+		 ccohort_hydr%is_newly_recuited = .false.
+	       endif	      
               
               ! Relative transpiration of this cohort from the whole patch
 !!              qflx_rel_tran_coh = ccohort%gscan*ccohort%n/gscan_patch
@@ -2147,7 +2181,8 @@ end subroutine updateSizeDepRhizHydStates
                 !qflx_rootsoi(c,hlm_numlevsoil)        = -(sum(dth_layershell_col(j,:))*bc_in(s)%dz_sisl(j)*denh2o/dtime)
                 bc_out(s)%qflx_soil2root_sisl(hlm_numlevsoil)     = &
                       -(sum(dth_layershell_col(j,:)*site_hydr%v_shell_1D(:)) * &
-                      site_hydr%l_aroot_1D/bc_in(s)%dz_sisl(j)/AREA*denh2o/dtime)
+                      site_hydr%l_aroot_1D/bc_in(s)%dz_sisl(j)/AREA*denh2o/dtime)- &
+		      site_hydr%recruit_w_uptake(nlevsoi_hyd)
 
 !                h2osoi_liqvol = min(bc_in(s)%eff_porosity_gl(hlm_numlevsoil), &
 !                     bc_in(s)%h2o_liq_sisl(hlm_numlevsoil)/(bc_in(s)%dz_sisl(hlm_numlevsoil)*denh2o))
@@ -2160,8 +2195,8 @@ end subroutine updateSizeDepRhizHydStates
                 !qflx_rootsoi(c,j)              = -(sum(dth_layershell_col(j,:))*bc_in(s)%dz_sisl(j)*denh2o/dtime)
                 bc_out(s)%qflx_soil2root_sisl(j)               = &
                       -(sum(dth_layershell_col(j,:)*site_hydr%v_shell(j,:)) * &
-		!       site_hydr%l_aroot_layer(j)/AREA*denh2o/dtime)
-                      site_hydr%l_aroot_layer(j)/bc_in(s)%dz_sisl(j)/AREA*denh2o/dtime)
+                      site_hydr%l_aroot_layer(j)/bc_in(s)%dz_sisl(j)/AREA*denh2o/dtime)- &
+		      site_hydr%recruit_w_uptake(j)
 
                 ! h2osoi_liqvol =  min(bc_in(s)%eff_porosity_gl(j), &
                 !     bc_in(s)%h2o_liq_sisl(j)/(bc_in(s)%dz_sisl(j)*denh2o))
