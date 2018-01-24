@@ -1372,10 +1372,10 @@ contains
                 !--------------------------------------------------------------------------------------------
                 ! The default is to fuse the patches, unless some criteria is met which keeps them separated.
                 ! there are multiple criteria which all need to be met to keep them distinct:
-                ! (a) one of them is younger than the max age at which we force fusion.
-                ! (b) for at least one pft x size class, where there is biomass in at least one patch,
-                ! and the normalized differenve between the patches exceeds a threshold, and 
-                ! (c) there is more than a threshold (tiny) amount of biomass in at least one of the patches
+                ! (a) one of them is younger than the max age at which we force fusion;
+                ! (b) there is more than a threshold (tiny) amount of biomass in at least one of the patches;
+                ! (c) for at least one pft x size class, where there is biomass in that class in at least one patch,
+                ! and the normalized difference between the patches exceeds a threshold.
                 !--------------------------------------------------------------------------------------------
                 
                 fuse_flag = 1
@@ -1388,47 +1388,51 @@ contains
                    if ( tpp%age .le. max_age_of_second_oldest_patch .or. &
                       currentPatch%age .le. max_age_of_second_oldest_patch ) then
 
-                      !---------------------------------------------------------------------!
-                      ! Calculate the difference criteria for each pft and dbh class        !
-                      !---------------------------------------------------------------------!   
+                      
+                      !---------------------------------------------------------------------------------------------------------
+                      ! the next bit of logic forces fusion of two patches which both have tiny biomass densities. without this,
+                      ! fates gives a bunch of really young patches which all have almost no biomass and so don't need to be 
+                      ! distinguished from each other. but if NTOL is too big, it takes too long for the youngest patch to build
+                      ! up enough biomass to be its own distinct entity, which leads to large oscillations in the patch dynamics
+                      ! and dependent variables.
+                      !---------------------------------------------------------------------------------------------------------
+                      
+                      if(sum(currentPatch%pft_agb_profile(:,:)) > NTOL .or. &
+                           sum(tpp%pft_agb_profile(:,:)) > NTOL ) then
 
-                      do ft = 1,numpft        ! loop over pfts
-                         do z = 1,n_dbh_bins      ! loop over hgt bins 
+                         !---------------------------------------------------------------------!
+                         ! Calculate the difference criteria for each pft and dbh class        !
+                         !---------------------------------------------------------------------!   
 
-                            !----------------------------------
-                            !is there biomass in this category?
-                            !----------------------------------
+                         do ft = 1,numpft        ! loop over pfts
+                            do z = 1,n_dbh_bins      ! loop over hgt bins 
 
-                            if(currentPatch%pft_agb_profile(ft,z)  > 0.0_r8.or.tpp%pft_agb_profile(ft,z) > 0.0_r8)then 
+                               !----------------------------------
+                               !is there biomass in this category?
+                               !----------------------------------
 
-                               !-------------------------------------------------------------------------------------
-                               ! what is the relative difference in biomass i nthis category between the two patches?
-                               !-------------------------------------------------------------------------------------
+                               if(currentPatch%pft_agb_profile(ft,z)  > 0.0_r8.or.tpp%pft_agb_profile(ft,z) > 0.0_r8)then 
 
-                               norm = abs(currentPatch%pft_agb_profile(ft,z) - tpp%pft_agb_profile(ft,z))/(0.5_r8*&
-                                    &(currentPatch%pft_agb_profile(ft,z) + tpp%pft_agb_profile(ft,z)))
+                                  !-------------------------------------------------------------------------------------
+                                  ! what is the relative difference in biomass i nthis category between the two patches?
+                                  !-------------------------------------------------------------------------------------
 
-                               !---------------------------------------------------------------------!
-                               ! Look for differences in profile biomass, above the minimum biomass  !
-                               !---------------------------------------------------------------------!
+                                  norm = abs(currentPatch%pft_agb_profile(ft,z) - tpp%pft_agb_profile(ft,z))/(0.5_r8*&
+                                       &(currentPatch%pft_agb_profile(ft,z) + tpp%pft_agb_profile(ft,z)))
 
-                               if(norm  > profiletol)then
+                                  !---------------------------------------------------------------------!
+                                  ! Look for differences in profile biomass, above the minimum biomass  !
+                                  !---------------------------------------------------------------------!
 
-                                  !---------------------------------------------------------------------------------------------------------
-                                  ! the next bit of logic forces fusion of two patches which both have tiny biomass densities. without this,
-                                  ! fates gives a bunch of really young patches which all have almost no biomass and so don't need to be 
-                                  ! distinguished from each other. but if NTOL is too big, it takes too long for the youngest patch to build
-                                  ! up enough biomass to be its own distinct entity, which leads to large oscillations in the patch dynamics
-                                  ! and dependent variables.
-                                  !---------------------------------------------------------------------------------------------------------
+                                  if(norm  > profiletol)then
 
-                                  if(currentPatch%pft_agb_profile(ft,z) > NTOL.or.tpp%pft_agb_profile(ft,z) > NTOL)then
                                      fuse_flag = 0 !do not fuse  - keep apart. 
-                                  endif ! biomass .gt. NTOL 
-                               endif ! profile tol           
-                            endif ! biomass .gt. 0
-                         enddo !ht bins
-                      enddo ! PFT
+
+                                  endif ! profile tol           
+                               endif ! biomass(ft,z) .gt. 0
+                            enddo !ht bins
+                         enddo ! PFT
+                      endif ! sum(biomass(:,:) .gt. NTOL 
                    endif ! maxage
 
                    !-------------------------------------------------------------------------!
