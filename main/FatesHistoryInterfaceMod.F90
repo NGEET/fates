@@ -1436,10 +1436,10 @@ end subroutine flush_hvars
                   associate( scpf => ccohort%size_by_pft_class, &
                              scls => ccohort%size_class )
 
-!                    hio_gpp_si_scpf(io_si,scpf)      = hio_gpp_si_scpf(io_si,scpf)      + &
-!                                                       n_perm2*ccohort%gpp_acc_hold  ! [kgC/m2/yr]
-!                    hio_npp_totl_si_scpf(io_si,scpf) = hio_npp_totl_si_scpf(io_si,scpf) + &
-!                                                       ccohort%npp_acc_hold *n_perm2
+                    hio_gpp_si_scpf(io_si,scpf)      = hio_gpp_si_scpf(io_si,scpf)      + &
+                                                       n_perm2*ccohort%gpp_acc_hold  ! [kgC/m2/yr]
+                    hio_npp_totl_si_scpf(io_si,scpf) = hio_npp_totl_si_scpf(io_si,scpf) + &
+                                                       ccohort%npp_acc_hold *n_perm2
 !                    hio_npp_leaf_si_scpf(io_si,scpf) = hio_npp_leaf_si_scpf(io_si,scpf) + &
 !                                                       ccohort%npp_leaf*n_perm2
 !                    hio_npp_fnrt_si_scpf(io_si,scpf) = hio_npp_fnrt_si_scpf(io_si,scpf) + &
