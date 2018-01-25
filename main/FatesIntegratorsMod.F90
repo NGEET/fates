@@ -9,6 +9,7 @@ module FatesIntegratorsMod
    integer, parameter :: max_states = 20
    
    public :: RKF45
+   public :: Euler
 
 contains
 
@@ -158,5 +159,54 @@ contains
 
        return
     end subroutine RKF45
+
+    ! ===================================================================================
+
+    subroutine Euler(DerivFunction,Y,Ymask,dx,x,ccohort,Yout,l_err)
+
+      ! ---------------------------------------------------------------------------------
+      ! Simple Euler Integration
+      ! ---------------------------------------------------------------------------------
+
+      ! Arguments
+      
+      real(r8),intent(in), dimension(:)         :: Y        ! dependent variable (array)
+      logical(r8),intent(in), dimension(:)      :: Ymask    ! logical mask defining what is on
+      real(r8),intent(in)                       :: dx       ! step size of independent variable
+      real(r8),intent(in)                       :: x        ! independent variable (time?)
+      type(ed_cohort_type),intent(inout),target :: ccohort  ! Cohort derived type
+      real(r8),intent(inout), dimension(:)      :: Yout     ! The output vector
+      logical,intent(out)                       :: l_err    ! Was this a successfully step?
+
+      ! Locals
+      integer                             :: nY       ! size of Y
+      real(r8), dimension(max_states)     :: Ytemp    ! scratch space for the dependent variable
+      real(r8)                            :: xtemp
+      real(r8), dimension(max_states)     :: dYdx
+      real(r8)                            :: errE     ! Estimated integrator error
+      
+      ! Input Functional Argument
+      interface
+         function DerivFunction(Y,Ymask,x,ccohort) result(dYdx)
+              use EDTypesMod          , only : ed_site_type
+              use EDTypesMod          , only : ed_patch_type
+              use EDTypesMod          , only : ed_cohort_type
+              use FatesConstantsMod, only    : r8 => fates_r8
+              real(r8),intent(in), dimension(:)    :: Y        ! dependent variable (array)
+              logical(r8),intent(in), dimension(:) :: Ymask    ! logical mask defining what is on
+              real(r8),intent(in)                  :: x        ! independent variable (time?)
+              type(ed_cohort_type),intent(in)      :: ccohort  ! Cohort derived type
+              real(r8),dimension(lbound(Y,dim=1):ubound(Y,dim=1)) :: dYdx     ! Derivative of dependent variable
+          end function DerivFunction
+       end interface
+
+       
+       dYdx(1:nY)  = DerivFunction(Y(1:nY),Ymask,x,ccohort)
+       Yout(1:nY)  = Y(1:nY) + dx * dYdx(1:nY)
+       
+
+       return
+    end subroutine Euler
+
 
  end module FatesIntegratorsMod
