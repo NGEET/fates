@@ -3650,132 +3650,132 @@ end subroutine flush_hvars
        
        call this%set_history_var(vname='FATES_ERRH2O_SCPF', units='kg/indiv/s', &
              long='mean individual water balance error', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_errh2o_scpf )
 
        call this%set_history_var(vname='FATES_TRAN_SCPF', units='kg/indiv/s', &
              long='mean individual transpiration rate', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_tran_scpf )
 
        call this%set_history_var(vname='FATES_ROOTUPTAKE_SCPF', units='kg/indiv/s', &
              long='mean individual root uptake rate', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake_scpf )
 
        call this%set_history_var(vname='FATES_ROOTUPTAKE01_SCPF', units='kg/indiv/s', &
              long='mean individual root uptake rate, layer 1', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake01_scpf )
        
        call this%set_history_var(vname='FATES_ROOTUPTAKE02_SCPF', units='kg/indiv/s', &
              long='mean individual root uptake rate, layer 2', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake02_scpf )
        
        call this%set_history_var(vname='FATES_ROOTUPTAKE03_SCPF', units='kg/indiv/s', &
              long='mean individual root uptake rate, layer 3', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake03_scpf )
        
        call this%set_history_var(vname='FATES_ROOTUPTAKE04_SCPF', units='kg/indiv/s', &
              long='mean individual root uptake rate, layer 4', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake04_scpf )
        
        call this%set_history_var(vname='FATES_ROOTUPTAKE05_SCPF', units='kg/indiv/s', &
              long='mean individual root uptake rate, layer 5', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake05_scpf )
        
        call this%set_history_var(vname='FATES_ROOTUPTAKE06_SCPF', units='kg/indiv/s', &
              long='mean individual root uptake rate, layer 6', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake06_scpf )
           
        call this%set_history_var(vname='FATES_ROOTUPTAKE07_SCPF', units='kg/indiv/s', &
              long='mean individual root uptake rate, layer 7', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake07_scpf )
        
        call this%set_history_var(vname='FATES_ROOTUPTAKE08_SCPF', units='kg/indiv/s', &
              long='mean individual root uptake rate, layer 8', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake08_scpf )
        
        call this%set_history_var(vname='FATES_ROOTUPTAKE09_SCPF', units='kg/indiv/s', &
              long='mean individual root uptake rate, layer 9', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake09_scpf )
        
        call this%set_history_var(vname='FATES_ROOTUPTAKE10_SCPF', units='kg/indiv/s', &
              long='mean individual root uptake rate, layer 10', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_rootuptake10_scpf )
 
        call this%set_history_var(vname='FATES_SAPFLOW_COL_SCPF', units='kg/indiv/s', &
              long='individual sap flow rate', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_sapflow_scpf )
        
        call this%set_history_var(vname='FATES_ITERH1_COL_SCPF', units='count/indiv/step', &
              long='number of outer iterations required to achieve tolerable water balance error', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_iterh1_scpf )
        
        call this%set_history_var(vname='FATES_ITERH2_COL_SCPF', units='count/indiv/step', &
              long='number of inner iterations required to achieve tolerable water balance error', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_iterh2_scpf )
        
        call this%set_history_var(vname='FATES_ATH_COL_SCPF', units='m3 m-3', &
              long='absorbing root water content', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_ath_scpf )
        
        call this%set_history_var(vname='FATES_TTH_COL_SCPF', units='m3 m-3', &
              long='transporting root water content', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index =  ih_tth_scpf )
        
        call this%set_history_var(vname='FATES_STH_COL_SCPF', units='m3 m-3', &
              long='stem water contenet', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_sth_scpf )
        
        call this%set_history_var(vname='FATES_LTH_COL_SCPF', units='m3 m-3', &
              long='leaf water content', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_lth_scpf )
 
        call this%set_history_var(vname='FATES_AWP_COL_SCPF', units='MPa', &
              long='absorbing root water potential', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_awp_scpf )
        
        call this%set_history_var(vname='FATES_TWP_COL_SCPF', units='MPa', &
              long='transporting root water potential', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_twp_scpf )
        
        call this%set_history_var(vname='FATES_SWP_COL_SCPF', units='MPa', &
              long='stem water potential', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_swp_scpf )
        
        call this%set_history_var(vname='FATES_LWP_COL_SCPF', units='MPa', &
              long='leaf water potential', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_lwp_scpf )
        
-       call this%set_history_var(vname='FATES_BTRAN_COL_SCPF', units='MPa', &
+       call this%set_history_var(vname='FATES_BTRAN_COL_SCPF', units='unitless', &
              long='mean individual level btran', use_default='active', &
-             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_btran_scpf )
        
 !       call this%set_history_var(vname='FATES_LAROOT_COL_SCPF', units='kg/indiv/s', &
 !             long='Needs Description', use_default='active', &
-!             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
+!             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
 !             upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_laroot_scpf)
 
     end if
