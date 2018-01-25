@@ -58,22 +58,25 @@ def main():
     ### check to make sure that, if a PFT is specified, the variable has a PFT dimension, and if not, then it doesn't. and also that shape is reasonable.
     ndim_file = len(var.dimensions)
     ispftvar = False
+    # for purposes of current stat eof this script, assume 1D 
+    if ndim_file > 1:
+        raise ValueError('variable dimensionality is too high for this script')
+    if ndim_file < 1:
+        raise ValueError('variable dimensionality is too low for this script. FATES assumes even scalars have a 1-length dimension')
     for i in range(ndim_file):
         if var.dimensions[i] == 'fates_pft':
             ispftvar = True
             npft_file = var.shape[i]
             pftdim = 0
-        else:
+        elif var.dimensions[i] == 'fates_scalar':
             npft_file = None
             pftdim = None
+        else:
+            raise ValueError('variable is not on either the PFT or scalar dimension')
     if args.pftnum == None and ispftvar:
         raise ValueError('pft value is missing but variable has pft dimension.')
     if args.pftnum != None and not ispftvar:
         raise ValueError('pft value is present but variable does not have pft dimension.')
-    if ndim_file > 1:
-        raise ValueError('variable dimensionality is too high for this script')
-    if ndim_file == 1 and not ispftvar:
-        raise ValueError('variable dimensionality is too high for this script')
     if args.pftnum != None and ispftvar:
         if args.pftnum > npft_file:
             raise ValueError('PFT specified ('+str(args.pftnum)+') is larger than the number of PFTs in the file ('+str(npft_file)+').')
