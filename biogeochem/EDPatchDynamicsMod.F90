@@ -1797,11 +1797,11 @@ contains
 
     do j = 1,N_DBH_BINS   
         if (j == N_DBH_BINS) then
-           mind(j) = patchfusion_dbhbin_loweredges(j-1)
+           mind(j) = patchfusion_dbhbin_loweredges(j)
            maxd(j) = gigantictrees
         else 
-           mind(j) = patchfusion_dbhbin_loweredges(j-1)
-           maxd(j) = patchfusion_dbhbin_loweredges(j)
+           mind(j) = patchfusion_dbhbin_loweredges(j)
+           maxd(j) = patchfusion_dbhbin_loweredges(j+1)
         endif
     enddo
 
