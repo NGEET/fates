@@ -19,6 +19,8 @@ import os
 from scipy.io import netcdf as nc
 import argparse
 import shutil
+import tempfile
+
 
 # ========================================================================================
 # ========================================================================================
@@ -38,20 +40,13 @@ def main():
     parser.add_argument('--silent', '--s', dest='silent', help="prevent writing of output.", action="store_true")
     #
     args = parser.parse_args()
-    # print(args.varname, args.pftnum, args.inputfname, args.outputfname, args.val, args.overwrite)
     #
-    # check to see if output file exists
-    if os.path.isfile(args.outputfname):
-        if args.overwrite:
-            if not args.silent:
-                print('replacing file: '+args.outputfname)
-            os.remove(args.outputfname)
-        else:
-            raise ValueError('Output file already exists and overwrite flag not specified for filename: '+args.outputfname)
+    # work with the file in some random temprary place so that if something goes wrong nothing happens to original file and it doesn't make an output file
+    tempfilename = os.path.join(tempfile.mkdtemp(), 'temp_fates_param_file.nc')
     #
-    shutil.copyfile(args.inputfname, args.outputfname)
+    shutil.copyfile(args.inputfname, tempfilename)
     #
-    ncfile = nc.netcdf_file(args.outputfname, 'a')
+    ncfile = nc.netcdf_file(tempfilename, 'a')
     #
     var = ncfile.variables[args.varname]
     #
@@ -93,6 +88,20 @@ def main():
     #
     #
     ncfile.close()
+    #
+    #
+    # now move file from temprary location to final location
+    #
+    # check to see if output file exists
+    if os.path.isfile(args.outputfname):
+        if args.overwrite:
+            if not args.silent:
+                print('replacing file: '+args.outputfname)
+            os.remove(args.outputfname)
+        else:
+            raise ValueError('Output file already exists and overwrite flag not specified for filename: '+args.outputfname)
+    #
+    shutil.move(tempfilename, args.outputfname)
 
 
 
