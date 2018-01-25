@@ -161,7 +161,7 @@ contains
   subroutine CheckIntegratedAllometries(dbh,ipft,canopy_trim, &
        bl,bfr,bsap,bstore,bdead, &
        grow_leaf, grow_fr, grow_sap, grow_store, grow_dead, &
-       ierr)
+       max_err, l_pass)
 
      ! This routine checks the error on the carbon allocation
      ! integration step.  The integrated quantities should
@@ -184,8 +184,9 @@ contains
      logical,intent(in)  :: grow_sap  ! on-off switch for sapwood
      logical,intent(in)  :: grow_store! on-off switch for storage
      logical,intent(in)  :: grow_dead ! on-off switch for structure
+     real(r8),intent(in) :: max_err   ! maximum allowable error
 
-     integer,intent(out) :: ierr   ! Error flag (0=pass, 1=fail)
+     logical,intent(out) :: l_pass   ! Error flag (pass=true,no-pass=false)
      
      real(r8) :: height            ! diagnosed height [m]
      real(r8) :: bl_diag           ! diagnosed leaf biomass [kgC]
@@ -196,9 +197,9 @@ contains
      real(r8) :: bagw_diag         ! diagnosed agbw [kgC]
      real(r8) :: bbgw_diag         ! diagnosed below ground wood [kgC]
 
-     real(r8) :: relative_err_thresh = 1.0e-4_r8
 
-     ierr = 0 
+
+     l_pass = .true.  ! Default assumption is that step passed
 
      call h_allom(dbh,ipft,height)
     
@@ -206,7 +207,7 @@ contains
 
      if (grow_leaf) then
         call bleaf(dbh,ipft,canopy_trim,bl_diag)
-        if( abs(bl_diag-bl)/bl_diag > relative_err_thresh ) then
+        if( abs(bl_diag-bl) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed leaf carbon'
               write(fates_log(),*) 'resulting from the on-allometry growth integration step'
@@ -214,13 +215,13 @@ contains
               write(fates_log(),*) 'bl (diagnosed): ',bl_diag
               write(fates_log(),*) 'relative error: ',abs(bl_diag-bl)/bl_diag
            end if
-           ierr = 1
+           l_pass = .false.
         end if
      end if
         
      if (grow_fr) then
         call bfineroot(dbh,ipft,canopy_trim,bfr_diag)
-        if( abs(bfr_diag-bfr)/bfr_diag > relative_err_thresh ) then
+        if( abs(bfr_diag-bfr) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed fineroot carbon'
               write(fates_log(),*) 'resulting from the on-allometry growth integration step'
@@ -228,13 +229,13 @@ contains
               write(fates_log(),*) 'bfr (diagnosed): ',bfr_diag
               write(fates_log(),*) 'relative error: ',abs(bfr_diag-bfr)/bfr_diag
            end if
-           ierr = 1
+           l_pass = .false.
         end if
      end if
 
      if (grow_sap) then
         call bsap_allom(dbh,ipft,canopy_trim,bsap_diag)
-        if( abs(bsap_diag-bsap)/bsap_diag > relative_err_thresh ) then
+        if( abs(bsap_diag-bsap) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed sapwood carbon'
               write(fates_log(),*) 'resulting from the on-allometry growth integration step'
@@ -242,13 +243,13 @@ contains
               write(fates_log(),*) 'bsap (diagnosed): ',bsap_diag
               write(fates_log(),*) 'relative error: ',abs(bsap_diag-bsap)/bsap_diag
            end if
-           ierr = 1
+           l_pass = .false.
         end if
      end if
         
      if (grow_store) then
         call bstore_allom(dbh,ipft,canopy_trim,bstore_diag)
-        if( abs(bstore_diag-bstore)/bstore_diag > relative_err_thresh ) then
+        if( abs(bstore_diag-bstore) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed storage carbon'
               write(fates_log(),*) 'resulting from the on-allometry growth integration step'
@@ -256,7 +257,7 @@ contains
               write(fates_log(),*) 'bsap (diagnosed): ',bstore_diag
               write(fates_log(),*) 'relative error: ',abs(bstore_diag-bstore)/bstore_diag
            end if
-           ierr = 1
+           l_pass = .false.
         end if
      end if
 
@@ -266,7 +267,7 @@ contains
         call bagw_allom(dbh,ipft,bagw_diag)
         call bbgw_allom(dbh,ipft,bbgw_diag)
         call bdead_allom( bagw_diag, bbgw_diag, bsap_diag, ipft, bdead_diag )        
-        if( abs(bdead_diag-bdead)/bdead_diag > relative_err_thresh ) then
+        if( abs(bdead_diag-bdead) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed structural carbon'
               write(fates_log(),*) 'resulting from the on-allometry growth integration step'
@@ -274,7 +275,7 @@ contains
               write(fates_log(),*) 'bdead (diagnosed): ',bdead_diag
               write(fates_log(),*) 'relative error: ',abs(bdead_diag-bdead)/bdead_diag
            end if
-           ierr = 1
+           l_pass = .false.
         end if
      end if
         

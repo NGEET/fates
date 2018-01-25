@@ -13,7 +13,7 @@ module FatesIntegratorsMod
 
 contains
 
-  subroutine RKF45(DerivFunction,Y,Ymask,dx,x,ccohort,Yout,l_err)
+  subroutine RKF45(DerivFunction,Y,Ymask,dx,x,ccohort,max_err,Yout,l_pass)
 
       ! ---------------------------------------------------------------------------------
       ! Runge-Kutta-Fehlerg  4/5 order adaptive explicit integration
@@ -28,8 +28,9 @@ contains
       real(r8),intent(in)                       :: dx       ! step size of independent variable
       real(r8),intent(in)                       :: x        ! independent variable (time?)
       type(ed_cohort_type),intent(inout),target :: ccohort  ! Cohort derived type
+      real(r8),intent(in)                       :: max_err  ! Maximum allowable error (absolute)
       real(r8),intent(inout), dimension(:)      :: Yout     ! The output vector
-      logical,intent(out)                       :: l_err    ! Was this a successfully step?
+      logical,intent(out)                       :: l_pass   ! Was this a successfully step?
 
       ! Locals
       integer                             :: nY       ! size of Y
@@ -43,8 +44,6 @@ contains
       real(r8), dimension(max_states)     :: K5
       real(r8)                            :: err45    ! Estimated integrator error
       
-      real(r8), parameter :: max_err45 = 0.001         ! maximum allowable integrator error
-
       real(r8), parameter :: t1   = 1.0/4.0
       real(r8), parameter :: f1_0 = 1.0/4.0
       real(r8), parameter :: t2   = 3.0/8.0
@@ -149,12 +148,12 @@ contains
        ! to help decide the starting sub-step on the next full step
        ! --------------------------------------------------------------------------------
 
-       ccohort%ode_opt_step = dx * 0.840896 * ((max_err45 * dx)/err45)**0.25   ! Smooth recomended
+       ccohort%ode_opt_step = dx * 0.840896 * ((max_err * dx)/err45)**0.25   ! Smooth recomended
 
-       if(err45 > max_err45) then
-          l_err                 = .false.
+       if(err45 > max_err) then
+          l_pass                 = .false.
        else
-          l_err                 = .true.
+          l_pass                 = .true.
        end if
 
        return
@@ -162,7 +161,7 @@ contains
 
     ! ===================================================================================
 
-    subroutine Euler(DerivFunction,Y,Ymask,dx,x,ccohort,Yout,l_err)
+    subroutine Euler(DerivFunction,Y,Ymask,dx,x,ccohort,Yout)
 
       ! ---------------------------------------------------------------------------------
       ! Simple Euler Integration
@@ -171,19 +170,17 @@ contains
       ! Arguments
       
       real(r8),intent(in), dimension(:)         :: Y        ! dependent variable (array)
-      logical(r8),intent(in), dimension(:)      :: Ymask    ! logical mask defining what is on
+      logical,intent(in), dimension(:)          :: Ymask    ! logical mask defining what is on
       real(r8),intent(in)                       :: dx       ! step size of independent variable
       real(r8),intent(in)                       :: x        ! independent variable (time?)
       type(ed_cohort_type),intent(inout),target :: ccohort  ! Cohort derived type
       real(r8),intent(inout), dimension(:)      :: Yout     ! The output vector
-      logical,intent(out)                       :: l_err    ! Was this a successfully step?
 
       ! Locals
       integer                             :: nY       ! size of Y
       real(r8), dimension(max_states)     :: Ytemp    ! scratch space for the dependent variable
       real(r8)                            :: xtemp
       real(r8), dimension(max_states)     :: dYdx
-      real(r8)                            :: errE     ! Estimated integrator error
       
       ! Input Functional Argument
       interface
@@ -192,10 +189,10 @@ contains
               use EDTypesMod          , only : ed_patch_type
               use EDTypesMod          , only : ed_cohort_type
               use FatesConstantsMod, only    : r8 => fates_r8
-              real(r8),intent(in), dimension(:)    :: Y        ! dependent variable (array)
-              logical(r8),intent(in), dimension(:) :: Ymask    ! logical mask defining what is on
-              real(r8),intent(in)                  :: x        ! independent variable (time?)
-              type(ed_cohort_type),intent(in)      :: ccohort  ! Cohort derived type
+              real(r8),intent(in), dimension(:)      :: Y        ! dependent variable (array)
+              logical,intent(in), dimension(:)       :: Ymask    ! logical mask defining what is on
+              real(r8),intent(in)                    :: x        ! independent variable (time?)
+              type(ed_cohort_type),intent(in),target :: ccohort  ! Cohort derived type
               real(r8),dimension(lbound(Y,dim=1):ubound(Y,dim=1)) :: dYdx     ! Derivative of dependent variable
           end function DerivFunction
        end interface

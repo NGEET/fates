@@ -47,6 +47,7 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : bbgw_allom
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : CheckIntegratedAllometries
+  use FatesAllometryMod  , only : StructureResetOfDH
 
   use FatesIntegratorsMod, only : RKF45
 
@@ -824,7 +825,7 @@ contains
     real(r8),dimension(n_cplantpools) :: c_pool_out  ! Vector of carbon pools passed back from integrator
     logical,dimension(n_cplantpools)  :: c_mask      ! Mask of active pools during integration
     
-    logical                           :: rkf_err     ! Did the rkf45 pass?x
+    logical                           :: step_pass   ! Did the integration step pass?
 
     logical  :: grow_leaf
     logical  :: grow_froot
@@ -856,9 +857,10 @@ contains
     ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     real(r8), parameter :: background_woody_turnover = 0.0_r8
     real(r8), parameter :: cbal_prec = 1.0e-15_r8     ! Desired precision in carbon balance
-    integer , parameter :: max_substeps = 16
-
-    integer, parameter :: ODESolve = 1    ! 1=RKF45,  2=Euler
+                                                      ! non-integrator part
+    integer , parameter :: max_substeps = 300
+    real(r8), parameter :: max_trunc_error = 0.0001
+    integer,  parameter :: ODESolve = 1    ! 1=RKF45,  2=Euler
 
 
     ipft = currentCohort%pft
@@ -948,6 +950,13 @@ contains
 
     ! Target storage carbon [kgC,kgC/cm]
     call bstore_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_store,dbt_store_dd)
+
+    ! If structure is larger than target, then we need to correct some integration errors
+    ! by slightly increasing dbh
+    if((currentCohort%bdead-bt_dead) > calloc_abs_error) then
+       call StructureResetOfDH( currentCohort%bdead, currentCohort%pft, &
+             currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
+    end if
 
     ! -----------------------------------------------------------------------------------
     ! IV(a). Calculate the maintenance turnover demands 
@@ -1208,92 +1217,113 @@ contains
                               grow_leaf,grow_froot,grow_sap,grow_store,grow_dead)
 
 
-    if(ODESolve == 1) then
+    ! Initialize the adaptive integrator arrays and flags
+    ! -----------------------------------------------------------------------------------
+    ierr             = 1
+    totalC           = carbon_balance
+    nsteps           = 0
+    c_pool(i_dbh)    = currentCohort%dbh
+    c_pool(i_cleaf)  = currentCohort%bl
+    c_pool(i_cfroot) = currentCohort%br
+    c_pool(i_csap)   = currentCohort%bsw
+    c_pool(i_cstore) = currentCohort%bstore
+    c_pool(i_cdead)  = currentCohort%bdead
+    c_pool(i_crepro) = 0.0_r8 
+    c_mask(i_dbh)    = .true.                ! Always increment dbh on growth step
+    c_mask(i_cleaf)  = grow_leaf
+    c_mask(i_cfroot) = grow_froot
+    c_mask(i_csap)   = grow_sap
+    c_mask(i_cstore) = grow_store
+    c_mask(i_cdead)  = .true.                ! Always increment dead on growth step
+    c_mask(i_crepro) = .true.                ! Always calculate reproduction on growth
+    
+    do while( ierr .ne. 0 )
+       
+       deltaC = min(totalC,currentCohort%ode_opt_step)
+       if(ODESolve == 1) then
+          call RKF45(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC,currentCohort, &
+                max_trunc_error,c_pool_out,step_pass)
+!          if(step_pass)  then
+!             currentCohort%ode_opt_step = deltaC
+!          else
+!             currentCohort%ode_opt_step = 0.5*deltaC
+!          end if
 
-       ierr       = 1
-       totalC     = carbon_balance
-       nsteps     = 0
-       c_pool(i_dbh)    = currentCohort%dbh
-       c_pool(i_cleaf)  = currentCohort%bl
-       c_pool(i_cfroot)  = currentCohort%br
-       c_pool(i_csap)    = currentCohort%bsw
-       c_pool(i_cstore) = currentCohort%bstore
-       c_pool(i_cdead)  = currentCohort%bdead
-       c_pool(i_crepro) = 0.0_r8 
-       c_mask(i_dbh)    = .true.                ! Always increment dbh on growth step
-       c_mask(i_cleaf)  = grow_leaf
-       c_mask(i_cfroot)  = grow_froot
-       c_mask(i_csap)    = grow_sap
-       c_mask(i_cstore) = grow_store
-       c_mask(i_cdead)  = .true.                ! Always increment dead on growth step
-       c_mask(i_crepro) = .true.                ! Always calculate reproduction on growth
-
-       do while( ierr .ne. 0 )
-
-          deltaC = min(totalC,currentCohort%ode_opt_step)
-          
-          call RKF45(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC,currentCohort,c_pool_out,rkf_err)
-          
-          nsteps = nsteps + 1
-
-          if (rkf_err) then ! If true, then step is accepted
-             totalC    = totalC - deltaC
-             c_pool(:) = c_pool_out(:)
+       elseif(ODESolve == 2) then
+          call Euler(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC,currentCohort,c_pool_out)
+          call CheckIntegratedAllometries(c_pool_out(i_dbh),ipft,currentCohort%canopy_trim,  &
+                c_pool_out(i_cleaf), c_pool_out(i_cfroot), c_pool_out(i_csap), &
+                c_pool_out(i_cstore), c_pool_out(i_cdead), &
+                c_mask(i_cleaf), c_mask(i_cfroot), c_mask(i_csap), &
+                c_mask(i_cstore),c_mask(i_cdead),  max_trunc_error, step_pass)
+          if(step_pass)  then
+             currentCohort%ode_opt_step = deltaC
+          else
+             currentCohort%ode_opt_step = 0.5*deltaC
           end if
+       end if
+       
+       nsteps = nsteps + 1
+       
+       if (step_pass) then ! If true, then step is accepted
+          totalC    = totalC - deltaC
+          c_pool(:) = c_pool_out(:)
+       end if
+       
+       if(nsteps > max_substeps ) then
+          write(fates_log(),*) 'Plant Growth Integrator could not find'
+          write(fates_log(),*) 'a solution in less than ',max_substeps,' tries'
+          write(fates_log(),*) 'Aborting'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
 
-          if(nsteps > max_substeps ) then
-             write(fates_log(),*) 'Plant Growth Integrator could not find'
-             write(fates_log(),*) 'a solution in less than ',max_substeps,' tries'
-             write(fates_log(),*) 'Aborting'
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
+       ! TotalC should eventually be whittled down to near zero
+       ! At that point, update the actual states
+       ! --------------------------------------------------------------------------------
+       if( (totalC < calloc_abs_error) .and. (step_pass) )then
+          ierr = 0
+          bl_flux                 = c_pool(i_cleaf)  - currentCohort%bl
+          br_flux                 = c_pool(i_cfroot) - currentCohort%br
+          bsw_flux                = c_pool(i_csap)   - currentCohort%bsw
+          bstore_flux             = c_pool(i_cstore) - currentCohort%bstore
+          bdead_flux              = c_pool(i_cdead)  - currentCohort%bdead
+          brepro_flux             = c_pool(i_crepro)
           
-          if(totalC < calloc_abs_error)then
-             ierr = 0
-             bl_flux                 = c_pool(i_cleaf)  - currentCohort%bl
-             br_flux                 = c_pool(i_cfroot) - currentCohort%br
-             bsw_flux                = c_pool(i_csap)   - currentCohort%bsw
-             bstore_flux             = c_pool(i_cstore) - currentCohort%bstore
-             bdead_flux              = c_pool(i_cdead)  - currentCohort%bdead
-             brepro_flux             = c_pool(i_crepro)
-
-             carbon_balance          = carbon_balance - bl_flux
-             currentCohort%bl        = currentCohort%bl + bl_flux
-             currentCohort%npp_leaf  = currentCohort%npp_leaf + bl_flux / hlm_freq_day
-             
-             carbon_balance          = carbon_balance - br_flux
-             currentCohort%br        = currentCohort%br +  br_flux
-             currentCohort%npp_fnrt  = currentCohort%npp_fnrt + br_flux / hlm_freq_day
+          carbon_balance          = carbon_balance - bl_flux
+          currentCohort%bl        = currentCohort%bl + bl_flux
+          currentCohort%npp_leaf  = currentCohort%npp_leaf + bl_flux / hlm_freq_day
           
-             carbon_balance          = carbon_balance - bsw_flux
-             currentCohort%bsw       = currentCohort%bsw +  bsw_flux
-             currentCohort%npp_sapw  = currentCohort%npp_sapw + bsw_flux / hlm_freq_day
+          carbon_balance          = carbon_balance - br_flux
+          currentCohort%br        = currentCohort%br +  br_flux
+          currentCohort%npp_fnrt  = currentCohort%npp_fnrt + br_flux / hlm_freq_day
           
-             carbon_balance          = carbon_balance - bstore_flux
-             currentCohort%bstore    = currentCohort%bstore +  bstore_flux
-             currentCohort%npp_stor  = currentCohort%npp_stor + bstore_flux / hlm_freq_day
-             
-             carbon_balance          = carbon_balance - bdead_flux
-             currentCohort%bdead     = currentCohort%bdead +  bdead_flux
-             currentCohort%npp_dead  = currentCohort%npp_dead + bdead_flux / hlm_freq_day
-             
-             carbon_balance          = carbon_balance - brepro_flux
-             currentCohort%npp_seed  = currentCohort%npp_seed + brepro_flux / hlm_freq_day
-             currentCohort%seed_prod = currentCohort%seed_prod + brepro_flux / hlm_freq_day
-             
-             dbh_sub                 = c_pool(i_dbh)
-             call h_allom(dbh_sub,ipft,h_sub)
-
-             ! Set derivatives used as diagnostics
-             currentCohort%dhdt      = (h_sub-currentCohort%hite)/hlm_freq_day
-             currentCohort%dbdeaddt  = bdead_flux/hlm_freq_day
-             currentCohort%dbstoredt = bstore_flux/hlm_freq_day
-             currentCohort%ddbhdt    = (dbh_sub-currentCohort%dbh)/hlm_freq_day
-
-             currentCohort%dbh       = dbh_sub
-             currentCohort%hite      = h_sub
-
-          end if
+          carbon_balance          = carbon_balance - bsw_flux
+          currentCohort%bsw       = currentCohort%bsw +  bsw_flux
+          currentCohort%npp_sapw  = currentCohort%npp_sapw + bsw_flux / hlm_freq_day
+          
+          carbon_balance          = carbon_balance - bstore_flux
+          currentCohort%bstore    = currentCohort%bstore +  bstore_flux
+          currentCohort%npp_stor  = currentCohort%npp_stor + bstore_flux / hlm_freq_day
+          
+          carbon_balance          = carbon_balance - bdead_flux
+          currentCohort%bdead     = currentCohort%bdead +  bdead_flux
+          currentCohort%npp_dead  = currentCohort%npp_dead + bdead_flux / hlm_freq_day
+          
+          carbon_balance          = carbon_balance - brepro_flux
+          currentCohort%npp_seed  = currentCohort%npp_seed + brepro_flux / hlm_freq_day
+          currentCohort%seed_prod = currentCohort%seed_prod + brepro_flux / hlm_freq_day
+          
+          dbh_sub                 = c_pool(i_dbh)
+          call h_allom(dbh_sub,ipft,h_sub)
+          
+          ! Set derivatives used as diagnostics
+          currentCohort%dhdt      = (h_sub-currentCohort%hite)/hlm_freq_day
+          currentCohort%dbdeaddt  = bdead_flux/hlm_freq_day
+          currentCohort%dbstoredt = bstore_flux/hlm_freq_day
+          currentCohort%ddbhdt    = (dbh_sub-currentCohort%dbh)/hlm_freq_day
+          
+          currentCohort%dbh       = dbh_sub
+          currentCohort%hite      = h_sub
 
           if( abs(carbon_balance)>calloc_abs_error ) then
              write(fates_log(),*) 'carbon conservation error while integrating pools'
@@ -1303,156 +1333,10 @@ contains
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
 
-       end do
+       end if
+    end do
 
-
-    else
-
-
-       deltaC = carbon_balance
-       nsteps = 1
-       ierr   = 1
-       
-       do while( ierr .ne. 0 )
-          
-          totalC     = carbon_balance
-          dbh_sub    = currentCohort%dbh
-          h_sub      = currentCohort%hite
-          bl_sub     = currentCohort%bl
-          br_sub     = currentCohort%br
-          bsw_sub    = currentCohort%bsw
-          bstore_sub = currentCohort%bstore
-          bdead_sub  = currentCohort%bdead
-          brepro_sub = 0.0_r8
-          
-          do istep=1,nsteps
-             
-             call bleaf(dbh_sub,ipft,currentCohort%canopy_trim,bt_leaf,dbt_leaf_dd)
-             call bfineroot(dbh_sub,ipft,currentCohort%canopy_trim,bt_fineroot,dbt_fineroot_dd)
-             call bsap_allom(dbh_sub,ipft,currentCohort%canopy_trim,bt_sap,dbt_sap_dd)
-             call bagw_allom(dbh_sub,ipft,bt_agw,dbt_agw_dd)
-             call bbgw_allom(dbh_sub,ipft,bt_bgw,dbt_bgw_dd)
-             call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead, dbt_agw_dd, &
-                           dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd)
-             call bstore_allom(dbh_sub,ipft,currentCohort%canopy_trim,bt_store,dbt_store_dd)
-             
-             ! fraction of carbon going towards reproduction
-             if (dbh_sub <= EDPftvarcon_inst%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
-                repro_fraction = EDPftvarcon_inst%seed_alloc(ipft)
-             else
-                repro_fraction = EDPftvarcon_inst%seed_alloc(ipft) + EDPftvarcon_inst%clone_alloc(ipft)
-             end if
-          
-             dbt_total_dd = dbt_dead_dd 
-             if (grow_leaf)  dbt_total_dd = dbt_total_dd + dbt_leaf_dd 
-             if (grow_froot) dbt_total_dd = dbt_total_dd + dbt_fineroot_dd 
-             if (grow_sap)   dbt_total_dd = dbt_total_dd + dbt_sap_dd
-             if (grow_store) dbt_total_dd = dbt_total_dd + dbt_store_dd
-             
-             bdead_flux  = deltaC * (dbt_dead_dd/dbt_total_dd)*(1.0_r8-repro_fraction)
-             bdead_sub   = bdead_sub     + bdead_flux
-             dbh_sub     = dbh_sub + bdead_flux / dbt_dead_dd
-             call h_allom(dbh_sub,ipft,h_sub)
-             
-             if (grow_leaf) then
-                bl_flux     = deltaC * (dbt_leaf_dd/dbt_total_dd)*(1.0_r8-repro_fraction)
-                bl_sub      = bl_sub        + bl_flux
-             end if
-             
-             if (grow_froot) then
-                br_flux     = deltaC * (dbt_fineroot_dd/dbt_total_dd)*(1.0_r8-repro_fraction)
-                br_sub      = br_sub        + br_flux
-             end if
-             
-             if (grow_sap) then
-                bsw_flux    = deltaC * (dbt_sap_dd/dbt_total_dd)*(1.0_r8-repro_fraction)
-                bsw_sub     = bsw_sub       + bsw_flux
-             end if
-             
-             if (grow_store) then
-                bstore_flux = deltaC * (dbt_store_dd/dbt_total_dd)*(1.0_r8-repro_fraction)
-                bstore_sub    = bstore_sub    + bstore_flux
-             end if
-             
-             brepro_flux = deltaC * repro_fraction
-             brepro_sub  = brepro_sub    + brepro_flux
-             
-             totalC = totalC - deltaC
-             
-          end do
-
-          ! ------------------------------------------------------------------------------------
-          ! VIII. Run a post integration test to see if our integrated quantities match
-          !       the diagnostic quantities. (note we do not need to pass in leaf status
-          !       because we would not make it to this check if we were not on allometry
-          ! ------------------------------------------------------------------------------------
-          
-          call CheckIntegratedAllometries(dbh_sub,ipft,currentCohort%canopy_trim, &
-                bl_sub,br_sub,bsw_sub,bstore_sub,bdead_sub, &
-                grow_leaf, grow_froot, grow_sap, grow_store, grow_dead, ierr)
-          
-          
-          if(ierr.eq.0 .or. nsteps > max_substeps ) then
-             
-             ierr = 0
-             ! Reset this value for diagnostic
-             totalC                  = carbon_balance
-             
-             bl_flux                 = bl_sub - currentCohort%bl
-             carbon_balance          = carbon_balance - bl_flux
-             currentCohort%bl        = currentCohort%bl + bl_flux
-             currentCohort%npp_leaf  = currentCohort%npp_leaf + bl_flux / hlm_freq_day
-             
-             br_flux                 = br_sub - currentCohort%br
-             carbon_balance          = carbon_balance - br_flux
-             currentCohort%br        = currentCohort%br +  br_flux
-             currentCohort%npp_fnrt  = currentCohort%npp_fnrt + br_flux / hlm_freq_day
-             
-             bsw_flux                = bsw_sub - currentCohort%bsw
-             carbon_balance          = carbon_balance - bsw_flux
-             currentCohort%bsw       = currentCohort%bsw +  bsw_flux
-             currentCohort%npp_sapw  = currentCohort%npp_sapw + bsw_flux / hlm_freq_day
-             
-             bstore_flux             = bstore_sub - currentCohort%bstore
-             carbon_balance          = carbon_balance - bstore_flux
-             currentCohort%bstore    = currentCohort%bstore +  bstore_flux
-             currentCohort%npp_stor  = currentCohort%npp_stor + bstore_flux / hlm_freq_day
-             
-             bdead_flux              = bdead_sub - currentCohort%bdead
-             carbon_balance          = carbon_balance - bdead_flux
-             currentCohort%bdead     = currentCohort%bdead +  bdead_flux
-             currentCohort%npp_dead  = currentCohort%npp_dead + bdead_flux / hlm_freq_day
-             
-             carbon_balance          = carbon_balance - brepro_sub
-             currentCohort%npp_seed  = currentCohort%npp_seed + brepro_sub / hlm_freq_day
-             currentCohort%seed_prod = currentCohort%seed_prod + brepro_sub / hlm_freq_day
-             
-             ! Set derivatives used as diagnostics
-             currentCohort%dhdt      = (h_sub-currentCohort%hite)/hlm_freq_day
-             currentCohort%dbdeaddt  = bdead_flux/hlm_freq_day
-             currentCohort%dbstoredt = bstore_flux/hlm_freq_day
-             currentCohort%ddbhdt    = (dbh_sub-currentCohort%dbh)/hlm_freq_day
-             
-             currentCohort%dbh       = dbh_sub
-             currentCohort%hite      = h_sub
-             
-             if( abs(carbon_balance)>calloc_abs_error ) then
-                write(fates_log(),*) 'carbon conservation error while integrating pools'
-                write(fates_log(),*) 'along alometric curve'
-                write(fates_log(),*) 'carbon_balance = ',carbon_balance,totalC
-                write(fates_log(),*) 'exiting'
-                call endrun(msg=errMsg(sourcefile, __LINE__))
-             end if
-             
-          else
-             
-             deltaC = 0.5_r8*deltaC
-             nsteps = nsteps*2
-             
-          end if
-          
-       end do
-    end if
+    
     
     
     ! If the cohort has grown, it is not new
@@ -1538,7 +1422,9 @@ end subroutine PlantGrowth
         else
            repro_fraction = EDPftvarcon_inst%seed_alloc(ipft) + EDPftvarcon_inst%clone_alloc(ipft)
         end if
-        
+
+        dCdx = 0.0_r8
+
         ct_dtotaldd = ct_ddeaddd
         if (mask_leaf)  ct_dtotaldd = ct_dtotaldd + ct_dleafdd 
         if (mask_froot) ct_dtotaldd = ct_dtotaldd + ct_dfrootdd 
