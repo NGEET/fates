@@ -316,182 +316,182 @@ contains
     !rootb                      =  0.978_r8                           ! TESTING: deep (see Zeng 2001 Table 1)
     !roota                      =  8.992_r8                          ! TESTING: shallow (see Zeng 2001 Table 1)
     !rootb                      =  8.992_r8                          ! TESTING: shallow (see Zeng 2001 Table 1)
-    
-    b_woody_carb               = cCohort%bsw + cCohort%bdead
-    b_woody_bg_carb            = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(FT)) * b_woody_carb
-    
-    b_tot_carb                 = cCohort%bsw + cCohort%bdead + cCohort%bl + cCohort%br
-    b_canopy_carb              = cCohort%bl
-    b_bg_carb                  = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(FT)) * b_tot_carb
+    if(cCohort%bl>0.0) then !only update when bleaf >0
+     b_woody_carb               = cCohort%bsw + cCohort%bdead
+     b_woody_bg_carb            = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(FT)) * b_woody_carb
 
-    ! SAVE INITIAL VOLUMES
-    ccohort_hydr%v_ag_init(:)          =  ccohort_hydr%v_ag(:)
-    ccohort_hydr%v_bg_init(:)          =  ccohort_hydr%v_bg(:)
-    ccohort_hydr%v_aroot_layer_init(:) =  ccohort_hydr%v_aroot_layer(:)
-    
-    ! CANOPY HEIGHT & CANOPY LEAF VOLUME
-    !in special case where npool_leaf = 1, the node height of the canopy water pool is
-    !1/2 the distance from the bottom of the canopy to the top of the tree
-    !depth_canopy              = exp(-1.169_r8)*cCohort%hite**1.098_r8    !! crown depth from Poorter, Bongers & Bongers
-    depth_canopy               = min(cCohort%hite,0.1_r8)   ! 0.0_r8 was default, now changed 01/14/2017 (BOC)
-    dz_canopy                  = depth_canopy / npool_leaf
-    do k=1,npool_leaf
-       ccohort_hydr%z_lower_ag(k)   = cCohort%hite - dz_canopy*k
-       ccohort_hydr%z_node_ag(k)    = ccohort_hydr%z_lower_ag(k) + 0.5_r8*dz_canopy
-       ccohort_hydr%z_upper_ag(k)   = ccohort_hydr%z_lower_ag(k) + dz_canopy
-    enddo
-    b_canopy_biom              = b_canopy_carb * C2B
+     b_tot_carb                 = cCohort%bsw + cCohort%bdead + cCohort%bl + cCohort%br
+     b_canopy_carb              = cCohort%bl
+     b_bg_carb                  = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(FT)) * b_tot_carb
 
-    ! NOTE: SLATOP currently does not use any vertical scaling functions
-    ! but that may not be so forever. ie sla = slatop (RGK-082017)
-    sla                        = EDPftvarcon_inst%slatop(FT) * cm2_per_m2 ! m2/gC * cm2/m2 -> cm2/gC
+     ! SAVE INITIAL VOLUMES
+     ccohort_hydr%v_ag_init(:)          =  ccohort_hydr%v_ag(:)
+     ccohort_hydr%v_bg_init(:)          =  ccohort_hydr%v_bg(:)
+     ccohort_hydr%v_aroot_layer_init(:) =  ccohort_hydr%v_aroot_layer(:)
 
-    denleaf                    = -2.3231_r8*sla/C2B + 781.899_r8    ! empirical regression data from leaves at Caxiuana (~ 8 spp)
-    v_canopy                   = b_canopy_biom / denleaf
-    ccohort_hydr%v_ag(1:npool_leaf) = v_canopy / npool_leaf
+     ! CANOPY HEIGHT & CANOPY LEAF VOLUME
+     !in special case where npool_leaf = 1, the node height of the canopy water pool is
+     !1/2 the distance from the bottom of the canopy to the top of the tree
+     !depth_canopy              = exp(-1.169_r8)*cCohort%hite**1.098_r8    !! crown depth from Poorter, Bongers & Bongers
+     depth_canopy               = min(cCohort%hite,0.1_r8)   ! 0.0_r8 was default, now changed 01/14/2017 (BOC)
+     dz_canopy                  = depth_canopy / npool_leaf
+     do k=1,npool_leaf
+	ccohort_hydr%z_lower_ag(k)   = cCohort%hite - dz_canopy*k
+	ccohort_hydr%z_node_ag(k)    = ccohort_hydr%z_lower_ag(k) + 0.5_r8*dz_canopy
+	ccohort_hydr%z_upper_ag(k)   = ccohort_hydr%z_lower_ag(k) + dz_canopy
+     enddo
+     b_canopy_biom              = b_canopy_carb * C2B
 
-    ! STEM HEIGHT & VOLUME
-    !in special case where npool_stem = 1, the node height of the stem water pool is
-    !1/2 the height from the ground to the bottom of the canopy
-    z_stem                     = cCohort%hite - depth_canopy
-    dz_stem                    = z_stem / npool_stem
-    do k=npool_leaf+1,npool_ag
-       ccohort_hydr%z_upper_ag(k)   = (npool_stem - (k - 1 - npool_leaf))*dz_stem
-       ccohort_hydr%z_node_ag(k)    = ccohort_hydr%z_upper_ag(k) - 0.5_r8*dz_stem
-       ccohort_hydr%z_lower_ag(k)   = ccohort_hydr%z_upper_ag(k) - dz_stem
-    enddo
-    b_stem_carb  = b_tot_carb - b_bg_carb - b_canopy_carb
-    b_stem_biom  = b_stem_carb * C2B                               ! kg DM
-    v_stem       = b_stem_biom / (EDPftvarcon_inst%wood_density(FT)*1.e3_r8) !BOC...may be needed for testing/comparison w/ v_sapwood
-    a_leaf_tot   = b_canopy_carb * sla * 1.e3_r8 / 1.e4_r8         ! m2 leaf = kg leaf DM * cm2/g * 1000g/1kg * 1m2/10000cm2
-    a_sapwood    = a_leaf_tot / EDPftvarcon_inst%allom_latosa_int(FT)*1.e-4_r8            ! m2 sapwood = m2 leaf * cm2 sapwood/m2 leaf *1.0e-4m2
-    v_sapwood    = a_sapwood * z_stem
-    ccohort_hydr%v_ag(npool_leaf+1:npool_ag) = v_sapwood / npool_stem
+     ! NOTE: SLATOP currently does not use any vertical scaling functions
+     ! but that may not be so forever. ie sla = slatop (RGK-082017)
+     sla                        = EDPftvarcon_inst%slatop(FT) * cm2_per_m2 ! m2/gC * cm2/m2 -> cm2/gC
 
-    ! TRANSPORTING ROOT DEPTH & VOLUME
-    !in special case where npool_troot = npool_bg = 1, the node depth of the single troot pool
-    !is the depth at which 50% total root distribution is attained
-    dcumul_rf                  = 1._r8/npool_troot
-    do k=1,npool_troot
-       cumul_rf                = dcumul_rf*k
-       call bisect_rootfr(roota, rootb, 0._r8, 1.E10_r8, &
-                          0.001_r8, 0.001_r8, cumul_rf, z_cumul_rf)
-       z_cumul_rf =  min(z_cumul_rf, abs(bc_in%zi_sisl(nlevsoi_hyd)))
-       ccohort_hydr%z_lower_bg(k)   = -z_cumul_rf
-       call bisect_rootfr(roota, rootb, 0._r8, 1.E10_r8, &
-                          0.001_r8, 0.001_r8, cumul_rf-0.5_r8*dcumul_rf, z_cumul_rf)
-       z_cumul_rf =  min(z_cumul_rf, abs(bc_in%zi_sisl(nlevsoi_hyd)))
-       ccohort_hydr%z_node_bg(k)    = -z_cumul_rf
-       call bisect_rootfr(roota, rootb, 0._r8, 1.E10_r8, &
-                          0.001_r8, 0.001_r8, cumul_rf-1.0_r8*dcumul_rf+1.E-10_r8, z_cumul_rf)
-       z_cumul_rf =  min(z_cumul_rf, abs(bc_in%zi_sisl(nlevsoi_hyd)))
-       ccohort_hydr%z_upper_bg(k)   = -z_cumul_rf
-    enddo
-    
+     denleaf                    = -2.3231_r8*sla/C2B + 781.899_r8    ! empirical regression data from leaves at Caxiuana (~ 8 spp)
+     v_canopy                   = b_canopy_biom / denleaf
+     ccohort_hydr%v_ag(1:npool_leaf) = v_canopy / npool_leaf
 
-    !Determine belowground biomass as a function of total (sapwood, heartwood, leaf, fine root) biomass
-    !then subtract out the fine root biomass to get coarse (transporting) root biomass
-    !b_troot_carb               = b_bg_carb - cCohort%br   ! this can give negative values
-    b_troot_carb               = b_woody_bg_carb
-    b_troot_biom               = b_troot_carb * C2B 
-    v_troot                    = b_troot_biom / (EDPftvarcon_inst%wood_density(FT)*1.e3_r8)
-    ccohort_hydr%v_bg(:)            = v_troot / npool_troot    !! BOC not sure if/how we should multiply this by the sapwood fraction
-    
-    ! ABSORBING ROOT DEPTH, LENGTH & VOLUME
+     ! STEM HEIGHT & VOLUME
+     !in special case where npool_stem = 1, the node height of the stem water pool is
+     !1/2 the height from the ground to the bottom of the canopy
+     z_stem                     = cCohort%hite - depth_canopy
+     dz_stem                    = z_stem / npool_stem
+     do k=npool_leaf+1,npool_ag
+	ccohort_hydr%z_upper_ag(k)   = (npool_stem - (k - 1 - npool_leaf))*dz_stem
+	ccohort_hydr%z_node_ag(k)    = ccohort_hydr%z_upper_ag(k) - 0.5_r8*dz_stem
+	ccohort_hydr%z_lower_ag(k)   = ccohort_hydr%z_upper_ag(k) - dz_stem
+     enddo
+     b_stem_carb  = b_tot_carb - b_bg_carb - b_canopy_carb
+     b_stem_biom  = b_stem_carb * C2B                               ! kg DM
+     v_stem       = b_stem_biom / (EDPftvarcon_inst%wood_density(FT)*1.e3_r8) !BOC...may be needed for testing/comparison w/ v_sapwood
+     a_leaf_tot   = b_canopy_carb * sla * 1.e3_r8 / 1.e4_r8         ! m2 leaf = kg leaf DM * cm2/g * 1000g/1kg * 1m2/10000cm2
+     a_sapwood    = a_leaf_tot / EDPftvarcon_inst%allom_latosa_int(FT)*1.e-4_r8            ! m2 sapwood = m2 leaf * cm2 sapwood/m2 leaf *1.0e-4m2
+     v_sapwood    = a_sapwood * z_stem
+     ccohort_hydr%v_ag(npool_leaf+1:npool_ag) = v_sapwood / npool_stem
 
-    ccohort_hydr%z_node_aroot(:)    = -bc_in%z_sisl(:)
-    ccohort_hydr%l_aroot_tot        = cCohort%br*C2B*EDPftvarcon_inst%hydr_srl(FT)
-    !ccohort_hydr%v_aroot_tot       = cCohort%br/EDecophyscon%ccontent(FT)/EDecophyscon%rootdens(FT)
-    ccohort_hydr%v_aroot_tot        = pi_const*(EDPftvarcon_inst%hydr_rs2(FT)**2._r8)*ccohort_hydr%l_aroot_tot
-    !ccohort_hydr%l_aroot_tot       = ccohort_hydr%v_aroot_tot/(pi_const*EDecophyscon%rs2(FT)**2)
-    if(nlevsoi_hyd == 1) then
-       ccohort_hydr%l_aroot_layer(nlevsoi_hyd) = ccohort_hydr%l_aroot_tot
-       ccohort_hydr%v_aroot_layer(nlevsoi_hyd) = ccohort_hydr%v_aroot_tot
-    else
-!       ccohort_hydr%l_aroot_layer(:)   = cPatch%rootfr_ft(FT,:)*ccohort_hydr%l_aroot_tot
-!       ccohort_hydr%v_aroot_layer(:)   = cPatch%rootfr_ft(FT,:)*ccohort_hydr%v_aroot_tot
-       do j=1,nlevsoi_hyd
-          if(j == 1) then
-             rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j))
-          else
-             rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j)) - &
-                      zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j-1))
-          end if
-          ccohort_hydr%l_aroot_layer(j)   = rootfr*ccohort_hydr%l_aroot_tot
-          ccohort_hydr%v_aroot_layer(j)   = rootfr*ccohort_hydr%v_aroot_tot
-       end do
-    end if
-    if(nlevsoi_hyd == 1) then
-       ccohort_hydr%z_node_bg(:)    = ccohort_hydr%z_node_aroot(1)
-    end if
-    
-    ! MAXIMUM (SIZE-DEPENDENT) HYDRAULIC CONDUCTANCES
-    ! first estimate cumulative (petiole to node k) conductances without taper as well as the chi taper function
-    do k=npool_leaf,npool_ag
-       dz_node1_lowerk          = ccohort_hydr%z_node_ag(npool_leaf) - ccohort_hydr%z_lower_ag(k)
-       if(k < npool_ag) then
-          dz_node1_nodekplus1   = ccohort_hydr%z_node_ag(npool_leaf) - ccohort_hydr%z_node_ag(k+1)
-       else
-          dz_node1_nodekplus1   = ccohort_hydr%z_node_ag(npool_leaf) - ccohort_hydr%z_node_bg(1)
-       end if
-       kmax_node1_nodekplus1(k) = EDPftvarcon_inst%hydr_kmax_node(FT,2) * a_sapwood / dz_node1_nodekplus1
-       kmax_node1_lowerk(k)     = EDPftvarcon_inst%hydr_kmax_node(FT,2) * a_sapwood / dz_node1_lowerk
-       chi_node1_nodekplus1(k)  = xylemtaper(p, dz_node1_nodekplus1)
-       chi_node1_lowerk(k)      = xylemtaper(p, dz_node1_lowerk)
-       if(.not.do_kbound_upstream) then
-          if(depth_canopy == 0._r8) then 
-             write(fates_log(),*) 'do_kbound_upstream requires a nonzero canopy depth '
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
-       end if
-    enddo
-    ! then calculate the conductances at node boundaries as the difference of cumulative conductances
-    do k=npool_leaf,npool_ag
-       if(k == npool_leaf) then
-          ccohort_hydr%kmax_bound(k)    = kmax_node1_nodekplus1(k)  * chi_node1_nodekplus1(k)
-          ccohort_hydr%kmax_lower(k)    = kmax_node1_lowerk(k)      * chi_node1_lowerk(k)
-       else
-          ccohort_hydr%kmax_bound(k)    = ( 1._r8/(kmax_node1_nodekplus1(k)  *chi_node1_nodekplus1(k)  ) - &
-	                               1._r8/(kmax_node1_nodekplus1(k-1)*chi_node1_nodekplus1(k-1))     ) ** (-1._r8)
-          ccohort_hydr%kmax_lower(k)    = ( 1._r8/(kmax_node1_lowerk(k)      *chi_node1_lowerk(k)      ) - &
-	                               1._r8/(kmax_node1_nodekplus1(k-1)*chi_node1_nodekplus1(k-1))     ) ** (-1._r8)
-       end if
-       if(k < npool_ag) then
-          ccohort_hydr%kmax_upper(k+1)  = ( 1._r8/(kmax_node1_nodekplus1(k)  *chi_node1_nodekplus1(k)  ) - &
-	                               1._r8/(kmax_node1_lowerk(k)      *chi_node1_lowerk(k)      )     ) ** (-1._r8)
-       else if(k == npool_ag) then
-          ccohort_hydr%kmax_upper_troot = ( 1._r8/(kmax_node1_nodekplus1(k)  *chi_node1_nodekplus1(k)  ) - &
-	                               1._r8/(kmax_node1_lowerk(k)      *chi_node1_lowerk(k)      )     ) ** (-1._r8)
-       end if
-    !!!!!!!!!! FOR TESTING ONLY
-    !ccohort_hydr%kmax_bound(:) = 0.02_r8   ! Diurnal lwp variation in coldstart: -0.1 MPa
-                                       ! Diurnal lwp variation in large-tree (50cmDBH) coldstart: less than -0.01 MPa
-    !ccohort_hydr%kmax_bound(:) = 0.0016_r8 ! Diurnal lwp variation in coldstart: -0.8 - 1.0 MPa
-                                       ! Diurnal lwp variation in large-tree (50cmDBH) coldstart: -1.5 - 2.0 MPa [seemingly unstable]
-    !ccohort_hydr%kmax_bound(:) = 0.0008_r8 ! Diurnal lwp variation in coldstart: -1.5 - 2.0 MPa
-                                       ! Diurnal lwp variation in large-tree (50cmDBH) coldstart: -2.0 - 3.0 MPa [seemingly unstable]
-    !ccohort_hydr%kmax_bound(:) = 0.0005_r8 ! Diurnal lwp variation in coldstart: -2.0 - 3.0 MPa and one -5 MPa outlier
-                                       ! Diurnal lwp variation in large-tree (50cmDBH) coldstart: -3.0 - 4.0 MPa and one -10 MPa outlier [Unstable]
-    !!!!!!!!!!
-    enddo
-    ! finally, estimate the remaining tree conductance belowground as a residual
-    kmax_treeag_tot              = sum(1._r8/ccohort_hydr%kmax_bound(npool_leaf:npool_ag))**(-1._r8)
-    kmax_tot                     = EDPftvarcon_inst%hydr_rfrac_stem(FT) * kmax_treeag_tot
-    ccohort_hydr%kmax_treebg_tot      = ( 1._r8/kmax_tot - 1._r8/kmax_treeag_tot ) ** (-1._r8)
-    if(nlevsoi_hyd == 1) then
-       ccohort_hydr%kmax_treebg_layer(:) = ccohort_hydr%kmax_treebg_tot * cPatch%rootfr_ft(FT,:)
-    else
-       do j=1,nlevsoi_hyd
-          if(j == 1) then
-             rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j))
-          else
-             rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j)) - &
-                      zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j-1))
-          end if
-          ccohort_hydr%kmax_treebg_layer(j) = rootfr*ccohort_hydr%kmax_treebg_tot
-       end do
-    end if
+     ! TRANSPORTING ROOT DEPTH & VOLUME
+     !in special case where npool_troot = npool_bg = 1, the node depth of the single troot pool
+     !is the depth at which 50% total root distribution is attained
+     dcumul_rf                  = 1._r8/npool_troot
+     do k=1,npool_troot
+	cumul_rf                = dcumul_rf*k
+	call bisect_rootfr(roota, rootb, 0._r8, 1.E10_r8, &
+                           0.001_r8, 0.001_r8, cumul_rf, z_cumul_rf)
+	z_cumul_rf =  min(z_cumul_rf, abs(bc_in%zi_sisl(nlevsoi_hyd)))
+	ccohort_hydr%z_lower_bg(k)   = -z_cumul_rf
+	call bisect_rootfr(roota, rootb, 0._r8, 1.E10_r8, &
+                           0.001_r8, 0.001_r8, cumul_rf-0.5_r8*dcumul_rf, z_cumul_rf)
+	z_cumul_rf =  min(z_cumul_rf, abs(bc_in%zi_sisl(nlevsoi_hyd)))
+	ccohort_hydr%z_node_bg(k)    = -z_cumul_rf
+	call bisect_rootfr(roota, rootb, 0._r8, 1.E10_r8, &
+                           0.001_r8, 0.001_r8, cumul_rf-1.0_r8*dcumul_rf+1.E-10_r8, z_cumul_rf)
+	z_cumul_rf =  min(z_cumul_rf, abs(bc_in%zi_sisl(nlevsoi_hyd)))
+	ccohort_hydr%z_upper_bg(k)   = -z_cumul_rf
+     enddo
 
+
+     !Determine belowground biomass as a function of total (sapwood, heartwood, leaf, fine root) biomass
+     !then subtract out the fine root biomass to get coarse (transporting) root biomass
+     !b_troot_carb               = b_bg_carb - cCohort%br   ! this can give negative values
+     b_troot_carb               = b_woody_bg_carb
+     b_troot_biom               = b_troot_carb * C2B 
+     v_troot                    = b_troot_biom / (EDPftvarcon_inst%wood_density(FT)*1.e3_r8)
+     ccohort_hydr%v_bg(:)            = v_troot / npool_troot    !! BOC not sure if/how we should multiply this by the sapwood fraction
+
+     ! ABSORBING ROOT DEPTH, LENGTH & VOLUME
+
+     ccohort_hydr%z_node_aroot(:)    = -bc_in%z_sisl(:)
+     ccohort_hydr%l_aroot_tot        = cCohort%br*C2B*EDPftvarcon_inst%hydr_srl(FT)
+     !ccohort_hydr%v_aroot_tot       = cCohort%br/EDecophyscon%ccontent(FT)/EDecophyscon%rootdens(FT)
+     ccohort_hydr%v_aroot_tot        = pi_const*(EDPftvarcon_inst%hydr_rs2(FT)**2._r8)*ccohort_hydr%l_aroot_tot
+     !ccohort_hydr%l_aroot_tot       = ccohort_hydr%v_aroot_tot/(pi_const*EDecophyscon%rs2(FT)**2)
+     if(nlevsoi_hyd == 1) then
+	ccohort_hydr%l_aroot_layer(nlevsoi_hyd) = ccohort_hydr%l_aroot_tot
+	ccohort_hydr%v_aroot_layer(nlevsoi_hyd) = ccohort_hydr%v_aroot_tot
+     else
+ !       ccohort_hydr%l_aroot_layer(:)   = cPatch%rootfr_ft(FT,:)*ccohort_hydr%l_aroot_tot
+ !       ccohort_hydr%v_aroot_layer(:)   = cPatch%rootfr_ft(FT,:)*ccohort_hydr%v_aroot_tot
+	do j=1,nlevsoi_hyd
+           if(j == 1) then
+              rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j))
+           else
+              rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j)) - &
+                       zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j-1))
+           end if
+           ccohort_hydr%l_aroot_layer(j)   = rootfr*ccohort_hydr%l_aroot_tot
+           ccohort_hydr%v_aroot_layer(j)   = rootfr*ccohort_hydr%v_aroot_tot
+	end do
+     end if
+     if(nlevsoi_hyd == 1) then
+	ccohort_hydr%z_node_bg(:)    = ccohort_hydr%z_node_aroot(1)
+     end if
+
+     ! MAXIMUM (SIZE-DEPENDENT) HYDRAULIC CONDUCTANCES
+     ! first estimate cumulative (petiole to node k) conductances without taper as well as the chi taper function
+     do k=npool_leaf,npool_ag
+	dz_node1_lowerk          = ccohort_hydr%z_node_ag(npool_leaf) - ccohort_hydr%z_lower_ag(k)
+	if(k < npool_ag) then
+           dz_node1_nodekplus1   = ccohort_hydr%z_node_ag(npool_leaf) - ccohort_hydr%z_node_ag(k+1)
+	else
+           dz_node1_nodekplus1   = ccohort_hydr%z_node_ag(npool_leaf) - ccohort_hydr%z_node_bg(1)
+	end if
+	kmax_node1_nodekplus1(k) = EDPftvarcon_inst%hydr_kmax_node(FT,2) * a_sapwood / dz_node1_nodekplus1
+	kmax_node1_lowerk(k)     = EDPftvarcon_inst%hydr_kmax_node(FT,2) * a_sapwood / dz_node1_lowerk
+	chi_node1_nodekplus1(k)  = xylemtaper(p, dz_node1_nodekplus1)
+	chi_node1_lowerk(k)      = xylemtaper(p, dz_node1_lowerk)
+	if(.not.do_kbound_upstream) then
+           if(depth_canopy == 0._r8) then 
+              write(fates_log(),*) 'do_kbound_upstream requires a nonzero canopy depth '
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+	end if
+     enddo
+     ! then calculate the conductances at node boundaries as the difference of cumulative conductances
+     do k=npool_leaf,npool_ag
+	if(k == npool_leaf) then
+           ccohort_hydr%kmax_bound(k)    = kmax_node1_nodekplus1(k)  * chi_node1_nodekplus1(k)
+           ccohort_hydr%kmax_lower(k)    = kmax_node1_lowerk(k)      * chi_node1_lowerk(k)
+	else
+           ccohort_hydr%kmax_bound(k)    = ( 1._r8/(kmax_node1_nodekplus1(k)  *chi_node1_nodekplus1(k)  ) - &
+	                        	1._r8/(kmax_node1_nodekplus1(k-1)*chi_node1_nodekplus1(k-1))     ) ** (-1._r8)
+           ccohort_hydr%kmax_lower(k)    = ( 1._r8/(kmax_node1_lowerk(k)      *chi_node1_lowerk(k)      ) - &
+	                        	1._r8/(kmax_node1_nodekplus1(k-1)*chi_node1_nodekplus1(k-1))     ) ** (-1._r8)
+	end if
+	if(k < npool_ag) then
+           ccohort_hydr%kmax_upper(k+1)  = ( 1._r8/(kmax_node1_nodekplus1(k)  *chi_node1_nodekplus1(k)  ) - &
+	                        	1._r8/(kmax_node1_lowerk(k)      *chi_node1_lowerk(k)      )     ) ** (-1._r8)
+	else if(k == npool_ag) then
+           ccohort_hydr%kmax_upper_troot = ( 1._r8/(kmax_node1_nodekplus1(k)  *chi_node1_nodekplus1(k)  ) - &
+	                        	1._r8/(kmax_node1_lowerk(k)      *chi_node1_lowerk(k)      )     ) ** (-1._r8)
+	end if
+     !!!!!!!!!! FOR TESTING ONLY
+     !ccohort_hydr%kmax_bound(:) = 0.02_r8   ! Diurnal lwp variation in coldstart: -0.1 MPa
+                                	! Diurnal lwp variation in large-tree (50cmDBH) coldstart: less than -0.01 MPa
+     !ccohort_hydr%kmax_bound(:) = 0.0016_r8 ! Diurnal lwp variation in coldstart: -0.8 - 1.0 MPa
+                                	! Diurnal lwp variation in large-tree (50cmDBH) coldstart: -1.5 - 2.0 MPa [seemingly unstable]
+     !ccohort_hydr%kmax_bound(:) = 0.0008_r8 ! Diurnal lwp variation in coldstart: -1.5 - 2.0 MPa
+                                	! Diurnal lwp variation in large-tree (50cmDBH) coldstart: -2.0 - 3.0 MPa [seemingly unstable]
+     !ccohort_hydr%kmax_bound(:) = 0.0005_r8 ! Diurnal lwp variation in coldstart: -2.0 - 3.0 MPa and one -5 MPa outlier
+                                	! Diurnal lwp variation in large-tree (50cmDBH) coldstart: -3.0 - 4.0 MPa and one -10 MPa outlier [Unstable]
+     !!!!!!!!!!
+     enddo
+     ! finally, estimate the remaining tree conductance belowground as a residual
+     kmax_treeag_tot              = sum(1._r8/ccohort_hydr%kmax_bound(npool_leaf:npool_ag))**(-1._r8)
+     kmax_tot                     = EDPftvarcon_inst%hydr_rfrac_stem(FT) * kmax_treeag_tot
+     ccohort_hydr%kmax_treebg_tot      = ( 1._r8/kmax_tot - 1._r8/kmax_treeag_tot ) ** (-1._r8)
+     if(nlevsoi_hyd == 1) then
+	ccohort_hydr%kmax_treebg_layer(:) = ccohort_hydr%kmax_treebg_tot * cPatch%rootfr_ft(FT,:)
+     else
+	do j=1,nlevsoi_hyd
+           if(j == 1) then
+              rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j))
+           else
+              rootfr = zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j)) - &
+                       zeng2001_crootfr(roota, rootb, bc_in%zi_sisl(j-1))
+           end if
+           ccohort_hydr%kmax_treebg_layer(j) = rootfr*ccohort_hydr%kmax_treebg_tot
+	end do
+     end if
+    end if !check for bleaf
   end subroutine updateSizeDepTreeHydProps
 
   ! =====================================================================================
