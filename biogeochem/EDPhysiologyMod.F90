@@ -28,6 +28,7 @@ module EDPhysiologyMod
   use EDTypesMod          , only : senes
   use EDTypesMod          , only : maxpft
   use EDTypesMod          , only : ed_site_type, ed_patch_type, ed_cohort_type
+  use EDTypesMod          , only : dump_cohort
 
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use FatesGlobals          , only : fates_log
@@ -859,7 +860,7 @@ contains
     real(r8), parameter :: cbal_prec = 1.0e-15_r8     ! Desired precision in carbon balance
                                                       ! non-integrator part
     integer , parameter :: max_substeps = 300
-    real(r8), parameter :: max_trunc_error = 0.0001
+    real(r8), parameter :: max_trunc_error = 0.001
     integer,  parameter :: ODESolve = 1    ! 1=RKF45,  2=Euler
 
 
@@ -1240,32 +1241,28 @@ contains
     do while( ierr .ne. 0 )
        
        deltaC = min(totalC,currentCohort%ode_opt_step)
-       if(ODESolve == 1) then
-          call RKF45(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC,currentCohort, &
-                max_trunc_error,c_pool_out,step_pass)
-!          if(step_pass)  then
-!             currentCohort%ode_opt_step = deltaC
-!          else
-!             currentCohort%ode_opt_step = 0.5*deltaC
-!          end if
 
-       elseif(ODESolve == 2) then
-          call Euler(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC,currentCohort,c_pool_out)
-          call CheckIntegratedAllometries(c_pool_out(i_dbh),ipft,currentCohort%canopy_trim,  &
-                c_pool_out(i_cleaf), c_pool_out(i_cfroot), c_pool_out(i_csap), &
-                c_pool_out(i_cstore), c_pool_out(i_cdead), &
-                c_mask(i_cleaf), c_mask(i_cfroot), c_mask(i_csap), &
-                c_mask(i_cstore),c_mask(i_cdead),  max_trunc_error, step_pass)
-          if(step_pass)  then
-             currentCohort%ode_opt_step = deltaC
-          else
-             currentCohort%ode_opt_step = 0.5*deltaC
-          end if
-       end if
-       
-       nsteps = nsteps + 1
-       
-       if (step_pass) then ! If true, then step is accepted
+       if(ODESolve == 1) then
+           call RKF45(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC,currentCohort, &
+                 max_trunc_error,c_pool_out,step_pass)
+
+        elseif(ODESolve == 2) then
+           call Euler(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC,currentCohort,c_pool_out)
+           call CheckIntegratedAllometries(c_pool_out(i_dbh),ipft,currentCohort%canopy_trim,  &
+                 c_pool_out(i_cleaf), c_pool_out(i_cfroot), c_pool_out(i_csap), &
+                 c_pool_out(i_cstore), c_pool_out(i_cdead), &
+                 c_mask(i_cleaf), c_mask(i_cfroot), c_mask(i_csap), &
+                 c_mask(i_cstore),c_mask(i_cdead),  max_trunc_error, step_pass)
+           if(step_pass)  then
+              currentCohort%ode_opt_step = deltaC
+           else
+              currentCohort%ode_opt_step = 0.5*deltaC
+           end if
+        end if
+
+        nsteps = nsteps + 1
+
+        if (step_pass) then ! If true, then step is accepted
           totalC    = totalC - deltaC
           c_pool(:) = c_pool_out(:)
        end if
@@ -1274,6 +1271,10 @@ contains
           write(fates_log(),*) 'Plant Growth Integrator could not find'
           write(fates_log(),*) 'a solution in less than ',max_substeps,' tries'
           write(fates_log(),*) 'Aborting'
+          write(fates_log(),*) 'carbon_balance',carbon_balance
+          write(fates_log(),*) 'deltaC',deltaC
+          write(fates_log(),*) 'totalC',totalC
+          call dump_cohort(currentCohort)
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
 
@@ -1281,7 +1282,7 @@ contains
        ! At that point, update the actual states
        ! --------------------------------------------------------------------------------
        if( (totalC < calloc_abs_error) .and. (step_pass) )then
-          ierr = 0
+          ierr                    = 0
           bl_flux                 = c_pool(i_cleaf)  - currentCohort%bl
           br_flux                 = c_pool(i_cfroot) - currentCohort%br
           bsw_flux                = c_pool(i_csap)   - currentCohort%bsw
@@ -1432,7 +1433,7 @@ end subroutine PlantGrowth
         if (mask_store) ct_dtotaldd = ct_dtotaldd + ct_dstoredd
 
         dCdx(i_cdead) = (ct_ddeaddd/ct_dtotaldd)*(1.0_r8-repro_fraction)   
-        dCdx(i_dbh) = dCdx(i_cdead) / ct_ddeaddd                           
+        dCdx(i_dbh)   = (1.0_r8/ct_dtotaldd)*(1.0_r8-repro_fraction)
 
         if (mask_leaf) then
            dCdx(i_cleaf) = (ct_dleafdd/ct_dtotaldd)*(1.0_r8-repro_fraction)
