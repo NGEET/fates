@@ -1293,7 +1293,10 @@ contains
 
     ! Plant Hydraulics
     
-    if( hlm_use_planthydro.eq.itrue ) call CopyCohortHydraulics(n,o)
+    if( hlm_use_planthydro.eq.itrue ) then
+      if(.not.associated(n%co_hydr)) allocate(n%co_hydr)
+      call CopyCohortHydraulics(n,o)
+    endif
 
     ! indices for binning
     n%size_class      = o%size_class
