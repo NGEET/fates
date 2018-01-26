@@ -98,7 +98,6 @@ module FatesRestartInterfaceMod
   integer, private :: ir_bmort_co
   integer, private :: ir_hmort_co
   integer, private :: ir_cmort_co
-  integer, private :: ir_imort_co
   integer, private :: ir_fmort_co
 
    !Logging
@@ -739,11 +738,6 @@ contains
          units='/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cmort_co )
 
-    call this%set_restart_var(vname='fates_imort', vtype=cohort_r8, &
-         long_name='ed cohort - impact mortality rate', &
-         units='/year', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_imort_co )
-
     call this%set_restart_var(vname='fates_fmort', vtype=cohort_r8, &
          long_name='ed cohort - frost mortality rate', &
          units='/year', flushval = flushzero, &
@@ -1060,7 +1054,6 @@ contains
            rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
            rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
            rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
-           rio_imort_co                => this%rvars(ir_imort_co)%r81d, &
            rio_fmort_co                => this%rvars(ir_fmort_co)%r81d, &
 
 
@@ -1182,7 +1175,6 @@ contains
                 rio_bmort_co(io_idx_co)        = ccohort%bmort
                 rio_hmort_co(io_idx_co)        = ccohort%hmort
                 rio_cmort_co(io_idx_co)        = ccohort%cmort
-                rio_imort_co(io_idx_co)        = ccohort%imort
                 rio_fmort_co(io_idx_co)        = ccohort%fmort
 
                 !Logging
@@ -1644,7 +1636,6 @@ contains
           rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
           rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
           rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
-          rio_imort_co                => this%rvars(ir_imort_co)%r81d, &
           rio_fmort_co                => this%rvars(ir_fmort_co)%r81d, &
 
 	  rio_lmort_logging_co                => this%rvars(ir_lmort_logging_co)%r81d, &
@@ -1749,7 +1740,6 @@ contains
                 ccohort%bmort        = rio_bmort_co(io_idx_co)
                 ccohort%hmort        = rio_hmort_co(io_idx_co)
                 ccohort%cmort        = rio_cmort_co(io_idx_co)
-                ccohort%imort        = rio_imort_co(io_idx_co)
                 ccohort%fmort        = rio_fmort_co(io_idx_co)
 
 		!Logging
