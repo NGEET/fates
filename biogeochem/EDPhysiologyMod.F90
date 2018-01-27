@@ -1156,21 +1156,21 @@ contains
           bstore_flux = store_below_target
        end if
 
-       carbon_balance = carbon_balance - bl_flux
+       carbon_balance               = carbon_balance - bl_flux
        currentCohort%bl             = currentCohort%bl + bl_flux
        currentCohort%npp_leaf       = currentCohort%npp_leaf + bl_flux / hlm_freq_day
 
-       carbon_balance = carbon_balance - br_flux
+       carbon_balance               = carbon_balance - br_flux
        currentCohort%br             = currentCohort%br +  br_flux
-       currentCohort%npp_fnrt      = currentCohort%npp_fnrt + br_flux / hlm_freq_day
+       currentCohort%npp_fnrt       = currentCohort%npp_fnrt + br_flux / hlm_freq_day
        
-       carbon_balance = carbon_balance - bsw_flux
+       carbon_balance               = carbon_balance - bsw_flux
        currentCohort%bsw            = currentCohort%bsw +  bsw_flux
-       currentCohort%npp_sapw        = currentCohort%npp_sapw + bsw_flux / hlm_freq_day
+       currentCohort%npp_sapw       = currentCohort%npp_sapw + bsw_flux / hlm_freq_day
        
-       carbon_balance = carbon_balance - bstore_flux
+       carbon_balance               = carbon_balance - bstore_flux
        currentCohort%bstore         = currentCohort%bstore +  bstore_flux
-       currentCohort%npp_stor     = currentCohort%npp_stor + bstore_flux / hlm_freq_day
+       currentCohort%npp_stor       = currentCohort%npp_stor + bstore_flux / hlm_freq_day
 
     end if
     
@@ -1185,10 +1185,10 @@ contains
     
     if ( carbon_balance > 0.0_r8 .and. dead_below_target>0.0_r8) then
 
-       bdead_flux     = min(carbon_balance,dead_below_target)
-       carbon_balance = carbon_balance - bdead_flux
-       currentCohort%bdead          = currentCohort%bdead +  bdead_flux
-       currentCohort%npp_dead      = currentCohort%npp_dead + bdead_flux / hlm_freq_day
+       bdead_flux             = min(carbon_balance,dead_below_target)
+       carbon_balance         = carbon_balance - bdead_flux
+       currentCohort%bdead    = currentCohort%bdead +  bdead_flux
+       currentCohort%npp_dead = currentCohort%npp_dead + bdead_flux / hlm_freq_day
 
     end if
 
@@ -1274,6 +1274,11 @@ contains
           write(fates_log(),*) 'carbon_balance',carbon_balance
           write(fates_log(),*) 'deltaC',deltaC
           write(fates_log(),*) 'totalC',totalC
+          write(fates_log(),*) 'leaf:',grow_leaf,bt_leaf,bt_leaf-currentCohort%bl
+          write(fates_log(),*) 'froot:',grow_froot,bt_fineroot,bt_fineroot-currentCohort%br
+          write(fates_log(),*) 'sap:',grow_sap,bt_sap,bt_sap-currentCohort%bsw
+          write(fates_log(),*) 'store:',grow_store,bt_store,bt_store-currentCohort%bstore
+          write(fates_log(),*) 'dead:',bt_dead,bt_dead-currentCohort%bdead
           call dump_cohort(currentCohort)
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if

@@ -1161,6 +1161,9 @@ contains
     ! Flags
     n%isnew = o%isnew
 
+    ! Integrator memory
+    n%ode_opt_step    = o%ode_opt_step
+
     ! VARIABLES NEEDED FOR INTEGRATION 
     n%dndt            = o%dndt
     n%dhdt            = o%dhdt

@@ -44,6 +44,8 @@ contains
       real(r8), dimension(max_states)     :: K5
       real(r8)                            :: err45    ! Estimated integrator error
       
+      real(r8), parameter :: min_step_fraction = 0.25_r8
+
       real(r8), parameter :: t1   = 1.0/4.0
       real(r8), parameter :: f1_0 = 1.0/4.0
 
@@ -157,7 +159,8 @@ contains
        ! 1e-5, as an error ratio will shorten the timestep to ~5% of original
        ! --------------------------------------------------------------------------------
 
-       ccohort%ode_opt_step = dx * 0.840896 * (max_err/ max(err45,0.00001*max_err))**0.25
+       ccohort%ode_opt_step = dx * max(min_step_fraction, &
+                                       0.840896 * (max_err/ max(err45,0.00001*max_err))**0.25)
 
        if(err45 > max_err) then
           l_pass                 = .false.
