@@ -119,7 +119,7 @@ module FatesAllometryMod
   ! from the agb pool.
   ! Additionally, our calculation of sapwood biomass may be missing some unite conversions
 
-  logical, parameter :: test_b4b = .true.
+  logical, parameter :: test_b4b = .false.
 
 
 contains

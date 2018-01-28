@@ -814,6 +814,7 @@ contains
     real(r8) :: bsw_flux            ! carbon fluxing into sapwood [kgC]
     real(r8) :: bdead_flux          ! carbon fluxing into structure [kgC]
     real(r8) :: brepro_flux         ! carbon fluxing into reproductive tissues [kgC]
+    real(r8) :: flux_adj            ! adjustment made to growth flux term to minimize error [kgC]
 
     real(r8) :: store_target_fraction ! ratio between storage and leaf biomass when on allometry [kgC]
     real(r8) :: repro_fraction        ! fraction of carbon gain sent to reproduction when on-allometry
@@ -953,7 +954,7 @@ contains
     call bstore_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_store,dbt_store_dd)
 
     ! If structure is larger than target, then we need to correct some integration errors
-    ! by slightly increasing dbh
+    ! by slightly increasing dbh to match it.
     if((currentCohort%bdead-bt_dead) > calloc_abs_error) then
        call StructureResetOfDH( currentCohort%bdead, currentCohort%pft, &
              currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
@@ -1288,13 +1289,25 @@ contains
        ! --------------------------------------------------------------------------------
        if( (totalC < calloc_abs_error) .and. (step_pass) )then
           ierr                    = 0
+         
           bl_flux                 = c_pool(i_cleaf)  - currentCohort%bl
           br_flux                 = c_pool(i_cfroot) - currentCohort%br
           bsw_flux                = c_pool(i_csap)   - currentCohort%bsw
           bstore_flux             = c_pool(i_cstore) - currentCohort%bstore
           bdead_flux              = c_pool(i_cdead)  - currentCohort%bdead
           brepro_flux             = c_pool(i_crepro)
+         
+          ! Make an adjustment to flux partitions to make it match remaining c balance
+          flux_adj                = carbon_balance/(bl_flux+br_flux+bsw_flux + &
+                                                    bstore_flux+bdead_flux+brepro_flux)
           
+          bl_flux                 = bl_flux*flux_adj
+          br_flux                 = br_flux*flux_adj
+          bsw_flux                = bsw_flux*flux_adj
+          bstore_flux             = bstore_flux*flux_adj
+          bdead_flux              = bdead_flux*flux_adj
+          brepro_flux             = brepro_flux*flux_adj
+ 
           carbon_balance          = carbon_balance - bl_flux
           currentCohort%bl        = currentCohort%bl + bl_flux
           currentCohort%npp_leaf  = currentCohort%npp_leaf + bl_flux / hlm_freq_day
@@ -1540,11 +1553,6 @@ end subroutine PlantGrowth
        if( (bt_dead - bdead)>calloc_abs_error) then
           write(fates_log(),*) 'structure not on-allometry at the growth step'
           write(fates_log(),*) 'exiting',bdead,bt_dead
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       elseif( ( bdead-bt_dead)>calloc_abs_error ) then
-          write(fates_log(),*) 'structure is not allowed to be greater than target'
-          write(fates_log(),*) 'allometry during growth step, this is because DBH'
-          write(fates_log(),*) 'is intrinsicly tied to it'
           call endrun(msg=errMsg(sourcefile, __LINE__))
        else
           grow_dead = .true.
