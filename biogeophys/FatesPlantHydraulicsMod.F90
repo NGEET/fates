@@ -588,7 +588,10 @@ contains
      ncohort_hydr%dqtopdth_dthdt     = ocohort_hydr%dqtopdth_dthdt
      ncohort_hydr%sapflow            = ocohort_hydr%sapflow
      ncohort_hydr%rootuptake         = ocohort_hydr%rootuptake
-
+     
+     !refilling status--these are constants are should be moved the fates parameter file(Chonggang XU)
+      ncohort_hydr%refill_thresh    = ocohort_hydr%refill_thresh
+      ncohort_hydr%refill_days      = ocohort_hydr%refill_days
 
   end subroutine CopyCohortHydraulics
   
