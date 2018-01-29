@@ -1294,7 +1294,6 @@ contains
     ! Plant Hydraulics
     
     if( hlm_use_planthydro.eq.itrue ) then
-      if(.not.associated(n%co_hydr)) allocate(n%co_hydr)
       call CopyCohortHydraulics(n,o)
     endif
 
