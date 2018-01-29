@@ -19,7 +19,7 @@ module EDCanopyStructureMod
   use FatesInterfaceMod      , only : hlm_days_per_year
   use FatesInterfaceMod      , only : hlm_use_planthydro
   use FatesInterfaceMod      , only : numpft
-  use FatesPlantHydraulicsMod, only : UpdateH2OVeg
+  use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort
 
 
   ! CIME Globals
@@ -381,6 +381,9 @@ contains
                      ! otherwise currentPatch%spread(i_lyr+1) will be higher and the area will change...!!! 
 
                      allocate(copyc)
+		     if( hlm_use_planthydro.eq.itrue ) then
+                         call InitHydrCohort(copyc)
+                     endif
                      call copy_cohort(currentCohort, copyc) !
 
                      newarea = currentCohort%c_area - cc_loss
@@ -698,6 +701,9 @@ contains
                   !-----------Split and copy boundary cohort-----------------!
                   if(cc_gain < currentCohort%c_area)then
                      allocate(copyc)
+		     if( hlm_use_planthydro.eq.itrue ) then
+                         call InitHydrCohort(copyc)
+                     endif
                      
                      call copy_cohort(currentCohort, copyc) !makes an identical copy...
                      ! n.b this needs to happen BEFORE the cohort goes into the new layer, otherwise currentPatch
