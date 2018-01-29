@@ -610,7 +610,14 @@ contains
           currentCohort%hmort = 0.0_r8
           currentCohort%cmort = 0.0_r8
           currentCohort%fmort = 0.0_r8
-
+	  
+          currentCohort%dndt      = 0.0_r8
+	  currentCohort%dhdt      = 0.0_r8
+	  currentCohort%ddbhdt    = 0.0_r8
+          currentCohort%dbalivedt = 0.0_r8
+	  currentCohort%dbdeaddt  = 0.0_r8
+	  currentCohort%dbstoredt = 0.0_r8
+   
           currentCohort => currentCohort%taller
        enddo
        currentPatch => currentPatch%older
