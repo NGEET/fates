@@ -209,6 +209,7 @@ contains
           end function DerivFunction
        end interface
 
+       nY = size(Y,1)
        
        dYdx(1:nY)  = DerivFunction(Y(1:nY),Ymask,x,ccohort)
        Yout(1:nY)  = Y(1:nY) + dx * dYdx(1:nY)

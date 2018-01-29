@@ -108,7 +108,7 @@ module FatesAllometryMod
   public :: CheckIntegratedAllometries
 
 
-  logical         , parameter :: verbose_logging = .false.
+  logical         , parameter :: verbose_logging = .true.
   character(len=*), parameter :: sourcefile = __FILE__
 
 
@@ -201,10 +201,6 @@ contains
 
      l_pass = .true.  ! Default assumption is that step passed
 
-     call h_allom(dbh,ipft,height)
-    
-     
-
      if (grow_leaf) then
         call bleaf(dbh,ipft,canopy_trim,bl_diag)
         if( abs(bl_diag-bl) > max_err ) then
@@ -260,7 +256,6 @@ contains
            l_pass = .false.
         end if
      end if
-
 
      if (grow_dead) then
         call bsap_allom(dbh,ipft,canopy_trim,bsap_diag)

@@ -51,6 +51,7 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : StructureResetOfDH
 
   use FatesIntegratorsMod, only : RKF45
+  use FatesIntegratorsMod, only : Euler
 
 
   implicit none
@@ -861,8 +862,8 @@ contains
     real(r8), parameter :: cbal_prec = 1.0e-15_r8     ! Desired precision in carbon balance
                                                       ! non-integrator part
     integer , parameter :: max_substeps = 300
-    real(r8), parameter :: max_trunc_error = 0.001
-    integer,  parameter :: ODESolve = 1    ! 1=RKF45,  2=Euler
+    real(r8), parameter :: max_trunc_error = 10.0
+    integer,  parameter :: ODESolve = 2    ! 1=RKF45,  2=Euler
 
 
     ipft = currentCohort%pft
@@ -1238,11 +1239,13 @@ contains
     c_mask(i_cstore) = grow_store
     c_mask(i_cdead)  = .true.                ! Always increment dead on growth step
     c_mask(i_crepro) = .true.                ! Always calculate reproduction on growth
-    
+    if(ODESolve == 2) then
+       currentCohort%ode_opt_step = deltaC
+    end if
+
     do while( ierr .ne. 0 )
        
        deltaC = min(totalC,currentCohort%ode_opt_step)
-
        if(ODESolve == 1) then
            call RKF45(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC,currentCohort, &
                  max_trunc_error,c_pool_out,step_pass)
@@ -1259,6 +1262,10 @@ contains
            else
               currentCohort%ode_opt_step = 0.5*deltaC
            end if
+        else
+           write(fates_log(),*) 'An integrator was chosen that DNE'
+           write(fates_log(),*) 'ODESolve = ',ODESolve
+           call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 
         nsteps = nsteps + 1
