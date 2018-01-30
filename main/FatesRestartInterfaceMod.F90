@@ -98,7 +98,6 @@ module FatesRestartInterfaceMod
   integer, private :: ir_bmort_co
   integer, private :: ir_hmort_co
   integer, private :: ir_cmort_co
-  integer, private :: ir_imort_co
   integer, private :: ir_fmort_co
 
    !Logging
@@ -739,11 +738,6 @@ contains
          units='/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cmort_co )
 
-    call this%set_restart_var(vname='fates_imort', vtype=cohort_r8, &
-         long_name='ed cohort - impact mortality rate', &
-         units='/year', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_imort_co )
-
     call this%set_restart_var(vname='fates_fmort', vtype=cohort_r8, &
          long_name='ed cohort - frost mortality rate', &
          units='/year', flushval = flushzero, &
@@ -1060,7 +1054,6 @@ contains
            rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
            rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
            rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
-           rio_imort_co                => this%rvars(ir_imort_co)%r81d, &
            rio_fmort_co                => this%rvars(ir_fmort_co)%r81d, &
            rio_lmort_direct_co         => this%rvars(ir_lmort_direct_co)%r81d, &
            rio_lmort_collateral_co     => this%rvars(ir_lmort_collateral_co)%r81d, &
@@ -1177,7 +1170,6 @@ contains
                 rio_bmort_co(io_idx_co)        = ccohort%bmort
                 rio_hmort_co(io_idx_co)        = ccohort%hmort
                 rio_cmort_co(io_idx_co)        = ccohort%cmort
-                rio_imort_co(io_idx_co)        = ccohort%imort
                 rio_fmort_co(io_idx_co)        = ccohort%fmort
 
                 !Logging
@@ -1348,12 +1340,12 @@ contains
      use EDTypesMod,           only : maxpft
      use EDTypesMod,           only : area
      use EDPatchDynamicsMod,   only : zero_patch
-     use EDGrowthFunctionsMod, only : Dbh
      use EDCohortDynamicsMod,  only : create_cohort
      use EDInitMod,            only : zero_site
      use EDInitMod,            only : init_site_vars
      use EDPatchDynamicsMod,   only : create_patch
-     use EDPftvarcon,            only : EDPftvarcon_inst
+     use EDPftvarcon,          only : EDPftvarcon_inst
+     use FatesAllometryMod,    only : h2d_allom
 
      ! !ARGUMENTS:
      class(fates_restart_interface_type) , intent(inout) :: this
@@ -1451,7 +1443,7 @@ contains
                 temp_cohort%bdead = 0.0_r8
                 temp_cohort%bstore = 0.0_r8
                 temp_cohort%laimemory = 0.0_r8
-                temp_cohort%canopy_trim = 0.0_r8
+                temp_cohort%canopy_trim = 1.0_r8
                 temp_cohort%canopy_layer = 1.0_r8
                 temp_cohort%canopy_layer_yesterday = 1.0_r8
 
@@ -1470,10 +1462,9 @@ contains
                 endif
 
                 temp_cohort%hite = 1.25_r8
-                ! the dbh function should only take as an argument, the one
-                ! item it needs, not the entire cohort...refactor
-                temp_cohort%dbh = Dbh(temp_cohort) + 0.0001_r8*ft
-                
+                ! Solve for diameter from height
+                call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
+
                 if (DEBUG) then
                    write(fates_log(),*) 'EDRestVectorMod.F90::createPatchCohortStructure call create_cohort '
                 end if
@@ -1637,7 +1628,6 @@ contains
           rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
           rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
           rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
-          rio_imort_co                => this%rvars(ir_imort_co)%r81d, &
           rio_fmort_co                => this%rvars(ir_fmort_co)%r81d, &
 
           rio_lmort_direct_co         => this%rvars(ir_lmort_direct_co)%r81d, &
@@ -1740,7 +1730,6 @@ contains
                 ccohort%bmort        = rio_bmort_co(io_idx_co)
                 ccohort%hmort        = rio_hmort_co(io_idx_co)
                 ccohort%cmort        = rio_cmort_co(io_idx_co)
-                ccohort%imort        = rio_imort_co(io_idx_co)
                 ccohort%fmort        = rio_fmort_co(io_idx_co)
 
                 !Logging
