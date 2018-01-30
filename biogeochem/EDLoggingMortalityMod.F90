@@ -225,7 +225,8 @@ contains
       use EDtypesMod,   only : ed_site_type
       use EDtypesMod,   only : ed_patch_type
       use EDtypesMod,   only : ed_cohort_type
-      use EDGrowthFunctionsMod, only : c_area
+      use FatesAllometryMod , only : carea_allom
+
 
       ! !ARGUMENTS:
       type(ed_site_type)  , intent(inout), target  :: currentSite 
@@ -451,7 +452,7 @@ contains
 
       currentCohort => newPatch%shortest
       do while(associated(currentCohort))
-         currentCohort%c_area = c_area(currentCohort)
+         call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
          currentCohort => currentCohort%taller
       enddo
 

@@ -31,6 +31,7 @@ module EDPatchDynamicsMod
   use EDLoggingMortalityMod, only : logging_litter_fluxes 
   use EDLoggingMortalityMod, only : logging_time
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
+  use FatesAllometryMod    , only : carea_allom
   use FatesConstantsMod    , only : g_per_kg
   use FatesConstantsMod    , only : ha_per_m2
   use FatesConstantsMod    , only : days_per_sec
@@ -78,7 +79,7 @@ contains
 	! Modify to add logging disturbance
 	
     ! !USES:
-    use EDGrowthFunctionsMod , only : c_area, mortality_rates
+    use EDMortalityFunctionsMod , only : mortality_rates
     ! loging flux
     use EDLoggingMortalityMod , only : LoggingMortality_frac
 
@@ -98,7 +99,7 @@ contains
     real(r8) :: lmort_collateral
     real(r8) :: lmort_infra
 
-    integer :: threshold_sizeclass
+    integer  :: threshold_sizeclass
 
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
@@ -115,7 +116,8 @@ contains
 
           call mortality_rates(currentCohort,cmort,hmort,bmort)
           currentCohort%dmort  = cmort+hmort+bmort
-          currentCohort%c_area = c_area(currentCohort)
+
+          call carea_allom(currentCohort%dbh,currentCohort%n,site_in%spread,currentCohort%pft,currentCohort%c_area)
 
           ! Initialize diagnostic mortality rates
           currentCohort%cmort = cmort
@@ -779,7 +781,6 @@ contains
     !
     ! !USES:
     use SFParamsMod,          only : SF_VAL_CWD_FRAC
-    use EDGrowthFunctionsMod, only : c_area
     use EDtypesMod          , only : dl_sf
     !
     ! !ARGUMENTS:
@@ -937,7 +938,7 @@ contains
        currentCohort => new_patch%shortest
        do while(associated(currentCohort))
 
-          currentCohort%c_area = c_area(currentCohort) 
+          call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
           if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
              burned_leaves = (currentCohort%bl+currentCohort%bsw) * currentCohort%cfa
           else
