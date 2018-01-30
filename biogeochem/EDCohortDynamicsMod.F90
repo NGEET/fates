@@ -870,7 +870,7 @@ contains
                                          nextc%n*nextc%lmort_logging)/newn
                                    currentCohort%lmort_infra          = (currentCohort%n*currentCohort%lmort_infra       + &
                                          nextc%n*nextc%lmort_infra)/newn
-                                   currentCohort%lmort_collateral          = (currentCohort%n*currentCohort%lmort_collateral       + &
+                                   currentCohort%lmort_collateral          = (currentCohort%n*currentCohort%lmort_collateral + &
                                          nextc%n*nextc%lmort_collateral)/newn
 
                                    currentCohort%fire_mort      = (currentCohort%n*currentCohort%fire_mort   + &
