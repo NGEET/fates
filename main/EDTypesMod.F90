@@ -226,7 +226,6 @@ module EDTypesMod
      real(r8) ::  bmort                                  ! background mortality rate        n/year
      real(r8) ::  cmort                                  ! carbon starvation mortality rate n/year
      real(r8) ::  hmort                                  ! hydraulic failure mortality rate n/year
-     real(r8) ::  imort                                  ! mortality from impacts by others n/year
      real(r8) ::  fmort                                  ! fire mortality                   n/year
 
       ! Logging Mortality Rate 
@@ -539,6 +538,8 @@ module EDTypesMod
      real(r8) :: demotion_carbonflux                           ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
      real(r8), allocatable :: promotion_rate(:)               ! rate of individuals promoted from understory to canopy per FATES timestep
      real(r8) :: promotion_carbonflux                          ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
+     real(r8), allocatable :: imort_rate(:,:)                    ! rate of individuals killed due to impact mortality per year.  on size x pft array
+     real(r8) :: imort_carbonflux                                ! biomass of individuals killed due to impact mortality per year. [kgC/ha/day]
 
      ! some diagnostic-only (i.e. not resolved by ODE solver) flux of carbon to CWD and litter pools from termination and canopy mortality
      real(r8) :: CWD_AG_diagnostic_input_carbonflux(1:ncwd)       ! diagnostic flux to AG CWD [kg C / m2 / yr]
@@ -742,7 +743,6 @@ contains
      write(fates_log(),*) 'co%woody_turnover         = ', ccohort%woody_turnover
      write(fates_log(),*) 'co%cmort                  = ', ccohort%cmort
      write(fates_log(),*) 'co%bmort                  = ', ccohort%bmort
-     write(fates_log(),*) 'co%imort                  = ', ccohort%imort
      write(fates_log(),*) 'co%fmort                  = ', ccohort%fmort
      write(fates_log(),*) 'co%hmort                  = ', ccohort%hmort
      write(fates_log(),*) 'co%isnew                  = ', ccohort%isnew

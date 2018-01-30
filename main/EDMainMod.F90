@@ -271,6 +271,7 @@ contains
           currentCohort%dbh    = max(small_no,currentCohort%dbh    + currentCohort%ddbhdt    * hlm_freq_day )
           currentCohort%balive = currentCohort%balive + currentCohort%dbalivedt * hlm_freq_day 
           currentCohort%bdead  = max(small_no,currentCohort%bdead  + currentCohort%dbdeaddt  * hlm_freq_day )
+
           if ( DEBUG ) then
              write(fates_log(),*) 'EDMainMod dbstoredt I ',currentCohort%bstore, &
                   currentCohort%dbstoredt,hlm_freq_day
@@ -297,6 +298,7 @@ contains
           currentCohort%npp_acc  = 0.0_r8
           currentCohort%gpp_acc  = 0.0_r8
           currentCohort%resp_acc = 0.0_r8
+          
           
           call allocate_live_biomass(currentCohort,1)
 
@@ -609,7 +611,6 @@ contains
           currentCohort%bmort = 0.0_r8
           currentCohort%hmort = 0.0_r8
           currentCohort%cmort = 0.0_r8
-          currentCohort%imort = 0.0_r8
           currentCohort%fmort = 0.0_r8
 
           currentCohort => currentCohort%taller

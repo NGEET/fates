@@ -193,6 +193,10 @@ contains
     ! -----------------------------------------------------------------------------------
     real(r8), dimension(2) :: bbbopt 
 
+    logical, parameter :: test_b4b = .true.  ! Leave in place some questionable allometry
+                                             ! while modular allometry is being introduce
+                                             ! to preserve results with previous release
+
 
     associate(  &
          c3psn     => EDPftvarcon_inst%c3psn  , &
@@ -493,15 +497,16 @@ contains
                      ! fine root pools.
                      ! ------------------------------------------------------------------
                      
-                     leaf_frac = 1.0_r8/(currentCohort%canopy_trim + &
-                          EDPftvarcon_inst%allom_latosa_int(currentCohort%pft) * &
-                          currentCohort%hite + EDPftvarcon_inst%allom_l2fr(currentCohort%pft))
-                     
-                     
-                     currentCohort%bsw = EDPftvarcon_inst%allom_latosa_int(currentCohort%pft) * &
-                          currentCohort%hite * &
-                          (currentCohort%balive + currentCohort%laimemory)*leaf_frac
-                     
+                     if(test_b4b)then
+                        leaf_frac = 1.0_r8/(currentCohort%canopy_trim + &
+                             EDPftvarcon_inst%allom_latosa_int(currentCohort%pft) * &
+                             currentCohort%hite + EDPftvarcon_inst%allom_l2fr(currentCohort%pft))
+                        
+                        
+                        currentCohort%bsw = EDPftvarcon_inst%allom_latosa_int(currentCohort%pft) * &
+                             currentCohort%hite * &
+                             (currentCohort%balive + currentCohort%laimemory)*leaf_frac
+                     end if
                         
                      ! Calculate the amount of nitrogen in the above and below ground 
                      ! stem and root pools, used for maint resp
