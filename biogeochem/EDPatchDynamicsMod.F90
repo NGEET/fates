@@ -403,7 +403,6 @@ contains
                    nc%hmort = nan
                    nc%bmort = nan
                    nc%fmort = nan
-                   nc%imort = nan
                    nc%lmort_direct     = nan
                    nc%lmort_collateral = nan
                    nc%lmort_infra      = nan
@@ -521,7 +520,6 @@ contains
                    nc%hmort            = nan
                    nc%bmort            = nan
                    nc%fmort            = nan
-                   nc%imort            = nan
                    nc%lmort_direct     = nan
                    nc%lmort_collateral = nan
                    nc%lmort_infra      = nan
