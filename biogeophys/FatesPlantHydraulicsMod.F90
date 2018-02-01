@@ -68,6 +68,8 @@ module FatesPlantHydraulicsMod
    use FatesHydraulicsMemMod, only: rwcft
    use FatesHydraulicsMemMod, only: C2B
    use FatesHydraulicsMemMod, only: InitHydraulicsDerived
+   
+   use clm_time_manager  , only : get_step_size, get_nstep
 
    use FatesConstantsMod,     only: cm2_per_m2
 
@@ -883,7 +885,7 @@ contains
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
     real(r8)                       :: hksat_s                      ! hksat converted to units of 10^6sec which is equiv to       [kg m-1 s-1 MPa-1]
     integer                        :: j,k                          ! gridcell, soil layer, rhizosphere shell indices
-    real(r8)                       :: large_kmax_bound = 1.e15_r8  ! for replacing kmax_bound_shell wherever the 
+    real(r8)                       :: large_kmax_bound = 1.e4_r8   ! for replacing kmax_bound_shell wherever the 
                                                                    ! innermost shell radius is less than the assumed absorbing root radius rs1
     !-----------------------------------------------------------------------
     
@@ -929,9 +931,9 @@ contains
           do k = 1,nshell
 	     if(k == 1) then
                 if(csite_hydr%r_node_shell(j,k) <= csite_hydr%rs1(j)) then
-                   csite_hydr%kmax_upper_shell(j,k)     = large_kmax_bound
-                   csite_hydr%kmax_bound_shell(j,k)     = large_kmax_bound
-                   csite_hydr%kmax_lower_shell(j,k)     = large_kmax_bound
+                   csite_hydr%kmax_upper_shell(j,k)     = hksat_s*csite_hydr%l_aroot_layer(j) 
+                   csite_hydr%kmax_bound_shell(j,k)     = hksat_s*csite_hydr%l_aroot_layer(j) 
+                   csite_hydr%kmax_lower_shell(j,k)     = hksat_s*csite_hydr%l_aroot_layer(j) 
                 else
                    csite_hydr%kmax_upper_shell(j,k)     = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
                          log(csite_hydr%r_node_shell(j,k)/csite_hydr%rs1(j))*hksat_s
@@ -942,9 +944,9 @@ contains
                 end if
 		if(j == 1) then
                    if(csite_hydr%r_node_shell(j,k) <= csite_hydr%rs1(j)) then
-                      csite_hydr%kmax_upper_shell_1D(k) = large_kmax_bound
-                      csite_hydr%kmax_bound_shell_1D(k) = large_kmax_bound
-                      csite_hydr%kmax_lower_shell_1D(k) = large_kmax_bound
+                      csite_hydr%kmax_upper_shell(j,k)     = hksat_s*csite_hydr%l_aroot_layer(j) 
+                      csite_hydr%kmax_bound_shell(j,k)     = hksat_s*csite_hydr%l_aroot_layer(j) 
+                      csite_hydr%kmax_lower_shell(j,k)     = hksat_s*csite_hydr%l_aroot_layer(j) 
                    else
                       csite_hydr%kmax_upper_shell_1D(k) = 2._r8*pi_const*csite_hydr%l_aroot_1D / &
                             log(csite_hydr%r_node_shell_1D(k)/csite_hydr%rs1(j))*hksat_s
@@ -1407,6 +1409,7 @@ end subroutine updateSizeDepRhizHydStates
      integer :: k   ! 1D plant-soil continuum array
      integer :: ft  ! plant functional type index
      integer :: t   ! previous timesteps (for lwp stability calculation)
+     integer :: nstep !number of time steps
 
      !----------------------------------------------------------------------
      
@@ -1416,11 +1419,11 @@ end subroutine updateSizeDepRhizHydStates
      ! hydraulics global constants
      real(r8), parameter :: thresh          = 1.e-7_r8  ! threshold for water balance error (warning only) [mm h2o]
      real(r8), parameter :: thresh_break    = 1.e-4_r8  ! threshold for water balance error (stop model)   [mm h2o]
-     real(r8), parameter :: small_theta_num = 1.e-4_r8  ! avoids theta values equalling thr or ths         [m3 m-3]
+     real(r8), parameter :: small_theta_num = 1.e-7_r8  ! avoids theta values equalling thr or ths         [m3 m-3]
      
      ! hydraulics timestep adjustments for acceptable water balance error
      integer  :: maxiter        = 1            ! maximum iterations for timestep reduction                       [-]
-     integer  :: imult          = 2            ! iteration index multiplier                                      [-]
+     integer  :: imult          = 3            ! iteration index multiplier                                      [-]
      real(r8) :: we_area_outer                 ! 1D plant-soil continuum water error                             [kgh2o m-2 individual-1]
      
      ! cohort-specific arrays to hold 1D hydraulics geometric & state variables for entire continuum (leaf,stem,root,soil)
@@ -1532,6 +1535,13 @@ end subroutine updateSizeDepRhizHydStates
      ! ----------------------------------------------------------------------------------
 
      ! DEPRECATED: waterstate_inst%psisoi_liq_shell ! Input:  [real(r8) (:,:,:)] soil matric potential (MPa) by layer and rhizosphere shell
+     
+     !for debug only
+     !nstep = get_nstep()
+     
+     !if(nstep == 837)then
+     !   write(fates_log(),*) 'debug'
+     !endif
 	     
      do s = 1, nsites
           
@@ -2370,6 +2380,7 @@ end subroutine updateSizeDepRhizHydStates
     real(r8) :: bmx(npool_tot)                ! "b" diagonal of tridiagonal matrix                              [kg s-1]
     real(r8) :: cmx(npool_tot)                ! "c" right off diagonal of tridiagonal matrix                    [kg s-1]
     real(r8) :: rmx(npool_tot)                ! "r" forcing term of tridiagonal matrix                          [kg s-1]
+    real(r8) :: supsub_flag_node(npool_tot)   ! super saturation or sub residual flag                           [0-no,1-yes]
     real(r8) :: dflcgsdpsi                    ! derivative of stomatal vuln curve wrt to leaf water potential   [MPa-1]
     real(r8) :: dflcgsdth                     ! derivative of stomatal vuln curve wrt to leaf water content     [m-3 m3]
     real(r8) :: dqtopdflcgs                   ! derivative of cohort-level transpiration wrt btran              [kgh2o indiv-1 s-1]
@@ -2379,11 +2390,13 @@ end subroutine updateSizeDepRhizHydStates
     real(r8) :: dw_total                      ! temporary                                                       [kg]
     real(r8) :: we_k                          ! error for kth node (temporary)                                  [kg]
     real(r8) :: the_k                         ! theta error for kth node (temporary)                            [m3 m-3]
+    real(r8) :: supsub_adj_w                  ! water ajustment due to super saturation or sub residual flag 
     logical  :: catch_nan                     ! flag for nan returned from Tridiagaonal
     integer  :: index_nan                     ! highest k index possessing a nan
     integer  :: index_stem
     integer  :: index_aroot
     integer  :: supsub_flag = 0
+    integer  :: max_l                         !location of maximum water storage in the array
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
      !----------------------------------------------------------------------
 
@@ -2391,6 +2404,7 @@ end subroutine updateSizeDepRhizHydStates
     ccohort_hydr      => ccohort%co_hydr
     dth_node_outer(:) =  0._r8
     we_local          =  0._r8
+    supsub_flag_node  =  0._r8
     index_stem        =  npool_leaf + npool_stem
     index_aroot       =  npool_leaf + npool_stem + npool_troot + npool_aroot
 
@@ -2424,6 +2438,8 @@ end subroutine updateSizeDepRhizHydStates
        !! repeats, for dt_frac times, the removal of 1/dt_fac * transpiration (the top boundary flux condition)
        !! stops and returns to outer loop if at any point the water budget doesn't balance, so the timestep can be chopped in half again
        iterh2 = 0
+       we_local = 0._r8
+       supsub_flag = 0
        do while( iterh2 < dt_fac .and. ((abs(we_local) <= thresh .and. supsub_flag == 0) .or. iterh1 == (maxiter-1)))
           iterh2 = iterh2 + 1
 
@@ -2532,11 +2548,13 @@ end subroutine updateSizeDepRhizHydStates
 	     dth_prev    = dth_node_inner(k)
 	     if(     (th_node(k)+dth_node_inner(k)) > (ths_node(k)-small_theta_num)) then
 	        supsub_flag         =  k
+		supsub_flag_node(k) =  1._r8
 	        ccohort_hydr%supsub_flag =  real(k)
 		th_node(k)  = ths_node(k)-small_theta_num
 	     else if((th_node(k)+dth_node_inner(k)) < (thr_node(k)+small_theta_num)) then
 	        supsub_flag         = -k
 	        ccohort_hydr%supsub_flag = -real(k)
+		supsub_flag_node(k) =  -1._r8
 		th_node(k)  = thr_node(k)+small_theta_num
 	     else
                 th_node(k)  = th_node(k)+dth_node_inner(k)
@@ -2590,21 +2608,20 @@ end subroutine updateSizeDepRhizHydStates
     dw_tot_outer      = w_tot_end_outer - w_tot_beg_outer                           ! kg/timestep
     we_tot_outer      = dw_tot_outer + (qtop_dt + dqtopdth_dthdt)                   ! kg/timestep
     we_area_outer     = we_tot_outer/(cCohort%c_area / cCohort%n)                   ! kg/m2 ground/individual
-    if(abs(we_tot_outer*cCohort%n)/AREA>1.0e-5_r8) then
-       write(fates_log(),*)'WARNING: plant hydraulics water balance error exceeds 1.0e-5 and is ajusted for error'
-       dth_node_outer(:) = th_node(:) - th_node_init(:)
-       dw_total = sum(dth_node_outer(:)*v_node(:))*denh2o 
-       if(abs(dw_total)>0)then 
-         do k = 1, npool_tot
-            we_k=we_tot_outer * (dth_node_outer(k)*v_node(k)*denh2o)/dw_total  
-	    the_k = we_k/(v_node(k)*denh2o)
-	    th_node(k) = th_node(k)-the_k
-         end do  
-       endif
-       w_tot_end_outer   = sum(th_node(:)*v_node(:))*denh2o                            ! kg
-       dw_tot_outer      = w_tot_end_outer - w_tot_beg_outer                           ! kg/timestep
-       we_tot_outer      = dw_tot_outer + (qtop_dt + dqtopdth_dthdt)                   ! kg/timestep
-       we_area_outer     = we_tot_outer/(cCohort%c_area / cCohort%n)                   ! kg/m2 ground/individual   
+    if(abs(we_tot_outer*cCohort%n)/AREA>1.0e-7_r8) then
+       write(fates_log(),*)'WARNING: plant hydraulics water balance error exceeds 1.0e-7 and is ajusted for error'
+      !dump the error water to the bin with largest water storage
+      max_l  = maxloc(th_node(:)*v_node(:),dim=1)
+      th_node(max_l) = th_node(max_l)-  &
+	               we_tot_outer/(v_node(max_l)*denh2o)
+      th_node(max_l) = min (th_node(max_l),&
+	                   ths_node(max_l)-small_theta_num) 
+      th_node(max_l) = max(th_node(max_l),&
+	                   thr_node(max_l)+small_theta_num)	  
+      w_tot_end_outer   = sum(th_node(:)*v_node(:))*denh2o                            ! kg
+      dw_tot_outer      = w_tot_end_outer - w_tot_beg_outer                           ! kg/timestep
+      we_tot_outer      = dw_tot_outer + (qtop_dt + dqtopdth_dthdt)                   ! kg/timestep
+      we_area_outer     = we_tot_outer/(cCohort%c_area / cCohort%n)                   ! kg/m2 ground/individual   
     end if
     dth_node_outer(:) = th_node(:) - th_node_init(:)
 
