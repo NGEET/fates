@@ -931,9 +931,9 @@ contains
           do k = 1,nshell
 	     if(k == 1) then
                 if(csite_hydr%r_node_shell(j,k) <= csite_hydr%rs1(j)) then
-                   csite_hydr%kmax_upper_shell(j,k)     = hksat_s*csite_hydr%l_aroot_layer(j) 
-                   csite_hydr%kmax_bound_shell(j,k)     = hksat_s*csite_hydr%l_aroot_layer(j) 
-                   csite_hydr%kmax_lower_shell(j,k)     = hksat_s*csite_hydr%l_aroot_layer(j) 
+                   csite_hydr%kmax_upper_shell(j,k)     = 2._r8*pi_const*hksat_s*csite_hydr%l_aroot_layer(j) 
+                   csite_hydr%kmax_bound_shell(j,k)     = 2._r8*pi_const*hksat_s*csite_hydr%l_aroot_layer(j)
+                   csite_hydr%kmax_lower_shell(j,k)     = 2._r8*pi_const*hksat_s*csite_hydr%l_aroot_layer(j) 
                 else
                    csite_hydr%kmax_upper_shell(j,k)     = 2._r8*pi_const*csite_hydr%l_aroot_layer(j) / &
                          log(csite_hydr%r_node_shell(j,k)/csite_hydr%rs1(j))*hksat_s
@@ -944,9 +944,9 @@ contains
                 end if
 		if(j == 1) then
                    if(csite_hydr%r_node_shell(j,k) <= csite_hydr%rs1(j)) then
-                      csite_hydr%kmax_upper_shell(j,k)     = hksat_s*csite_hydr%l_aroot_layer(j) 
-                      csite_hydr%kmax_bound_shell(j,k)     = hksat_s*csite_hydr%l_aroot_layer(j) 
-                      csite_hydr%kmax_lower_shell(j,k)     = hksat_s*csite_hydr%l_aroot_layer(j) 
+                      csite_hydr%kmax_upper_shell(j,k)     = 2._r8*pi_const*hksat_s*csite_hydr%l_aroot_layer(j) 
+                      csite_hydr%kmax_bound_shell(j,k)     = 2._r8*pi_const*hksat_s*csite_hydr%l_aroot_layer(j)
+                      csite_hydr%kmax_lower_shell(j,k)     = 2._r8*pi_const*hksat_s*csite_hydr%l_aroot_layer(j) 
                    else
                       csite_hydr%kmax_upper_shell_1D(k) = 2._r8*pi_const*csite_hydr%l_aroot_1D / &
                             log(csite_hydr%r_node_shell_1D(k)/csite_hydr%rs1(j))*hksat_s
