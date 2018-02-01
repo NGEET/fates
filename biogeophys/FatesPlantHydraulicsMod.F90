@@ -908,11 +908,13 @@ contains
 
        do while(associated(cCohort))
           csite_hydr%l_aroot_layer(:) = csite_hydr%l_aroot_layer(:) + ccohort_hydr%l_aroot_layer(:)*cCohort%n
+	  kmax_root_surf = EDPftvarcon_inst%hydr_kmax_node(ccohort%pft,4)  !this assumes every pft have the same conductivity
+	  								   !need to be updated for the future (C XU)										
           cCohort => cCohort%shorter
        enddo !cohort
        cPatch => cPatch%older
     enddo !patch
-     csite_hydr%l_aroot_1D = sum( csite_hydr%l_aroot_layer(:))
+    csite_hydr%l_aroot_1D = sum( csite_hydr%l_aroot_layer(:))
     
     ! update outer radii of column-level rhizosphere shells (same across patches and cohorts)
     do j = 1,nlevsoi_hyd
