@@ -10,7 +10,9 @@ module EDGrowthFunctionsMod
   use FatesGlobals     , only : fates_log
   use EDPftvarcon        , only : EDPftvarcon_inst
   use EDTypesMod       , only : ed_cohort_type, nlevleaf, dinc_ed
+  use FatesHydraulicsMemMod, only: ed_cohort_hydr_type
   use FatesConstantsMod        , only : itrue,ifalse
+  use FatesInterfaceMod  , only : hlm_use_planthydro
 
   implicit none
   private
@@ -419,8 +421,9 @@ contains
     real(r8),intent(out) :: hmort  ! hydraulic failure mortality
 
     real(r8) :: frac  ! relativised stored carbohydrate
-
+    type(ed_cohort_hydr_type), pointer :: ccohort_hydr
     real(r8) :: hf_sm_threshold    ! hydraulic failure soil moisture threshold 
+    real(r8) :: flc_ag_min, flc_bg_min, flc_min !min fraction of conducitity for aboveground, belowground and whole tree 
 
 
     if (hlm_use_ed_prescribed_phys .eq. ifalse) then
@@ -431,11 +434,28 @@ contains
     ! Proxy for hydraulic failure induced mortality. 
     hf_sm_threshold = EDPftvarcon_inst%hf_sm_threshold(cohort_in%pft)
 
-    if(cohort_in%patchptr%btran_ft(cohort_in%pft) <= hf_sm_threshold)then 
-       hmort = ED_val_stress_mort
-     else
-       hmort = 0.0_r8
-     endif 
+    if(hlm_use_planthydro) then
+      ccohort_hydr => cohort_in%co_hydr
+      flc_ag_min = minval(ccohort_hydr%flc_ag(:),dim=1)
+      flc_bg_min = minval(ccohort_hydr%flc_bg(:),dim=1)
+      flc_min = min(flc_ag_min,flc_bg_min)
+      hmort = 0.0_r8
+      if(flc_min<0.30_r8)then  !this need to be updated into the fates parameter file (C. Xu)
+         hmort = ED_val_stress_mort
+      endif  
+      if(flc_min<0.05_r8)then
+         hmort = 1.0_r8  !kill all the trees if the fraction of conductivity is below 5%
+      endif    
+    else
+      ! Proxy for hydraulic failure induced mortality.
+       hf_sm_threshold = EDPftvarcon_inst%hf_sm_threshold(cohort_in%pft)
+
+       if(cohort_in%patchptr%btran_ft(cohort_in%pft) <= hf_sm_threshold)then
+          hmort = ED_val_stress_mort
+       else
+          hmort = 0.0_r8
+       endif
+    endif
     
     ! Carbon Starvation induced mortality.
     if ( cohort_in%dbh  >  0._r8 ) then
