@@ -100,14 +100,6 @@ module EDTypesMod
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
   logical, parameter :: homogenize_seed_pfts  = .false.
 
-  integer, parameter :: nlevmclass_ed = 6      ! nlev "mortality" classes in ED
-                                               ! Number of ways to die
-                                               ! (background,hydraulic,carbon,impact,fire,freezing)
-
-  character(len = 10), parameter,dimension(nlevmclass_ed) :: char_list = &
-       (/"background","hydraulic ","carbon    ","impact    ","fire      ","freezing  "/)
-
-
   !************************************
   !** COHORT type structure          **
   !************************************
