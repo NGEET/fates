@@ -17,6 +17,8 @@ module EDPhysiologyMod
   use FatesInterfaceMod, only    : bc_in_type
   use EDCohortDynamicsMod , only : allocate_live_biomass, zero_cohort
   use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
+  use EDCohortDynamicsMod , only : tree_lai
+  use EDCohortDynamicsMod , only : tree_sai
 
   use EDTypesMod          , only : numWaterMem
   use EDTypesMod          , only : dl_sf, dinc_ed
@@ -32,6 +34,17 @@ module EDPhysiologyMod
   use FatesGlobals          , only : endrun => fates_endrun
   use EDParamsMod           , only : fates_mortality_disturbance_fraction
   use FatesConstantsMod        , only : itrue,ifalse
+
+  use FatesAllometryMod  , only : h_allom
+  use FatesAllometryMod  , only : h2d_allom
+  use FatesAllometryMod  , only : bag_allom
+  use FatesAllometryMod  , only : bsap_allom
+  use FatesAllometryMod  , only : bleaf
+  use FatesAllometryMod  , only : bfineroot
+  use FatesAllometryMod  , only : bdead_allom
+  use FatesAllometryMod  , only : bcr_allom
+  use FatesAllometryMod  , only : carea_allom
+
 
   implicit none
   private
@@ -54,6 +67,8 @@ module EDPhysiologyMod
   logical, parameter :: DEBUG  = .false. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
+
+
   ! ============================================================================
 
 contains
@@ -156,7 +171,6 @@ contains
     !
     ! !USES:
     !
-    use EDGrowthFunctionsMod, only : tree_lai
     !
     ! !ARGUMENTS    
     type (ed_site_type),intent(inout), target :: currentSite
@@ -166,7 +180,11 @@ contains
     type (ed_patch_type)  , pointer :: currentPatch
 
     integer  :: z          ! leaf layer
+    integer  :: ipft       ! pft index
     integer  :: trimmed    ! was this layer trimmed in this year? If not expand the canopy. 
+    real(r8) :: tar_bl     ! target leaf biomass       (leaves flushed, trimmed)
+    real(r8) :: tar_bfr    ! target fine-root biomass  (leaves flushed, trimmed)
+    real(r8) :: bfr_per_bleaf ! ratio of fine root per leaf biomass
 
     !----------------------------------------------------------------------
 
@@ -176,6 +194,8 @@ contains
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort)) 
           trimmed = 0    
+          ipft = currentCohort%pft
+          call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
           currentCohort%treelai = tree_lai(currentCohort)    
           currentCohort%nv = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
           if (currentCohort%nv > nlevleaf)then
@@ -183,38 +203,44 @@ contains
                   currentCohort%c_area,currentCohort%n,currentCohort%bl
           endif
 
+          call bleaf(currentcohort%dbh,currentcohort%hite,ipft,currentcohort%canopy_trim,tar_bl)
+          call bfineroot(currentcohort%dbh,currentcohort%hite,ipft,currentcohort%canopy_trim,tar_bfr)
+
+          bfr_per_bleaf = tar_bfr/tar_bl
+
           !Leaf cost vs netuptake for each leaf layer. 
           do z = 1,nlevleaf
              if (currentCohort%year_net_uptake(z) /= 999._r8)then !there was activity this year in this leaf layer. 
                 !Leaf Cost kgC/m2/year-1
                 !decidous costs. 
-                if (EDPftvarcon_inst%season_decid(currentCohort%pft) == 1.or. &
-                     EDPftvarcon_inst%stress_decid(currentCohort%pft) == 1)then 
-                   currentCohort%leaf_cost =  1._r8/(EDPftvarcon_inst%slatop(currentCohort%pft)*1000.0_r8)
+                if (EDPftvarcon_inst%season_decid(ipft) == 1.or. &
+                     EDPftvarcon_inst%stress_decid(ipft) == 1)then 
+
+
+                   currentCohort%leaf_cost =  1._r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8)
                    currentCohort%leaf_cost = currentCohort%leaf_cost + &
-                        1.0_r8/(EDPftvarcon_inst%slatop(currentCohort%pft)*1000.0_r8) * &
-                        EDPftvarcon_inst%allom_l2fr(currentCohort%pft) / EDPftvarcon_inst%root_long(currentCohort%pft)
-                   currentCohort%leaf_cost = currentCohort%leaf_cost * (EDPftvarcon_inst%grperc(currentCohort%pft) + 1._r8)
+                        1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+
+                   currentCohort%leaf_cost = currentCohort%leaf_cost * (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 else !evergreen costs
-                   currentCohort%leaf_cost = 1.0_r8/(EDPftvarcon_inst%slatop(currentCohort%pft)* &
-                        EDPftvarcon_inst%leaf_long(currentCohort%pft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
+                   currentCohort%leaf_cost = 1.0_r8/(EDPftvarcon_inst%slatop(ipft)* &
+                        EDPftvarcon_inst%leaf_long(ipft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
                    currentCohort%leaf_cost = currentCohort%leaf_cost + &
-                        1.0_r8/(EDPftvarcon_inst%slatop(currentCohort%pft)*1000.0_r8) * &
-                        EDPftvarcon_inst%allom_l2fr(currentCohort%pft) / EDPftvarcon_inst%root_long(currentCohort%pft)
-                   currentCohort%leaf_cost = currentCohort%leaf_cost * (EDPftvarcon_inst%grperc(currentCohort%pft) + 1._r8)
+                        1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+                   currentCohort%leaf_cost = currentCohort%leaf_cost * (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 endif
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost)then
-                   if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(currentCohort%pft))then
+                   if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(ipft))then
 
                       if ( DEBUG ) then
                          write(fates_log(),*) 'trimming leaves',currentCohort%canopy_trim,currentCohort%leaf_cost
                       endif
 
                       ! keep trimming until none of the canopy is in negative carbon balance.              
-                      if (currentCohort%hite > EDPftvarcon_inst%hgt_min(currentCohort%pft))then
-                         currentCohort%canopy_trim = currentCohort%canopy_trim - EDPftvarcon_inst%trim_inc(currentCohort%pft)
-                         if (EDPftvarcon_inst%evergreen(currentCohort%pft) /= 1)then
-                            currentCohort%laimemory = currentCohort%laimemory*(1.0_r8 - EDPftvarcon_inst%trim_inc(currentCohort%pft)) 
+                      if (currentCohort%hite > EDPftvarcon_inst%hgt_min(ipft))then
+                         currentCohort%canopy_trim = currentCohort%canopy_trim - EDPftvarcon_inst%trim_inc(ipft)
+                         if (EDPftvarcon_inst%evergreen(ipft) /= 1)then
+                            currentCohort%laimemory = currentCohort%laimemory*(1.0_r8 - EDPftvarcon_inst%trim_inc(ipft)) 
                          endif
                          trimmed = 1
                       endif
@@ -230,7 +256,7 @@ contains
 
           currentCohort%year_net_uptake(:) = 999.0_r8
           if (trimmed == 0.and.currentCohort%canopy_trim < 1.0_r8)then
-             currentCohort%canopy_trim = currentCohort%canopy_trim + EDPftvarcon_inst%trim_inc(currentCohort%pft)
+             currentCohort%canopy_trim = currentCohort%canopy_trim + EDPftvarcon_inst%trim_inc(ipft)
           endif 
 
           if ( DEBUG ) then
@@ -761,7 +787,8 @@ contains
     !  Main subroutine controlling growth and allocation derivatives    
     !
     ! !USES:
-    use EDGrowthFunctionsMod , only : Bleaf, dDbhdBd, dhdbd, hite, mortality_rates,dDbhdBl
+
+    use EDMortalityFunctionsMod , only : mortality_rates
     use FatesInterfaceMod, only : hlm_use_ed_prescribed_phys
     use EDLoggingMortalityMod, only : LoggingMortality_frac
 
@@ -778,7 +805,7 @@ contains
     real(r8) :: dhdbd_fn !rate of change of height per unit dbh
     real(r8) :: va       !fraction of growth going to alive biomass
     real(r8) :: vs       !fraction of growth going to structural biomass
-    real(r8) :: u,h      !intermediates 
+    real(r8) :: u
     real(r8) :: frac     !fraction the stored carbon is of target store amount
     real(r8) :: f_store  !fraction of NPP allocated to storage in this timestep (functionf of stored pool)
     real(r8) :: gr_fract !fraction of carbon balance that is allocated to growth (not reproduction)
@@ -792,14 +819,37 @@ contains
     real(r8) :: lmort_collateral  ! Mortality fraction associated with logging collateral damage
     real(r8) :: lmort_infra       ! Mortality fraction associated with logging infrastructure
     real(r8) :: dndt_logging      ! Mortality rate (per day) associated with the a logging event
-    
-    real(r8) :: balive_loss
+    real(r8) :: balive_loss       ! Carbon that will be removed from the alive pool due to things
+                                  ! maintenance turnover
+    real(r8) :: height            ! plant height
+
+    ! Per plant allocation variables
+
+    real(r8) :: b_leaf            ! leaf biomass (kgC) 
+    real(r8) :: db_leaf_dd        ! change in leaf biomass wrt diameter (kgC/cm)
+    real(r8) :: b_fineroot        ! fine root biomass (kgC)
+    real(r8) :: db_fineroot_dd    ! change in fine root biomass wrt diameter (kgC/cm)
+    real(r8) :: b_sap             ! sapwood biomass (kgC)
+    real(r8) :: db_sap_dd         ! change in sapwood biomass wrt diameter (kgC/cm)
+    real(r8) :: b_ag              ! above ground biomass (kgC/cm)
+    real(r8) :: db_ag_dd          ! change in above ground biomass wrt diameter (kgC/cm)
+    real(r8) :: b_cr              ! coarse root biomass (kgC)
+    real(r8) :: db_cr_dd          ! change in coarse root biomass (kgC/cm)
+    real(r8) :: b_dead            ! dead (structural) biomass (kgC)
+    real(r8) :: db_dead_dd        ! change in dead biomass wrt diameter (kgC/cm)
+    real(r8) :: dbalivedbd        ! change in alive biomass wrt dead biomass (kgC/kgC)
+    real(r8) :: jh                ! plant height (unused)
+    real(r8) :: dh_dd             ! change in plant height WRT diameter (m/cm)
+    integer  :: ipft              ! local copy of the pft index
     !----------------------------------------------------------------------
+
+    ipft = currentCohort%pft
 
     ! Mortality for trees in the understorey. 
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
+
     call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort)
-    call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, &
+    call LoggingMortality_frac(ipft, currentCohort%dbh, &
                                currentCohort%lmort_logging,                       &
                                currentCohort%lmort_collateral,                    &
                                currentCohort%lmort_infra )
@@ -818,22 +868,33 @@ contains
     endif
 
     ! Height
-    currentCohort%hite = Hite(currentCohort) 
-    h = currentCohort%hite
+    
+    call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%hite)
                        
     call allocate_live_biomass(currentCohort,0)
 
-   ! calculate target size of living biomass compartment for a given dbh.   
-    target_balive = Bleaf(currentCohort) * (1.0_r8 + EDPftvarcon_inst%allom_l2fr(currentCohort%pft) + &
-         EDpftvarcon_inst%allom_latosa_int(currentCohort%pft)*h)
+    ! -----------------------------------------------------------------------------------
+    ! calculate target size of living biomass compartment for a given dbh.   
+    ! -----------------------------------------------------------------------------------
+
+    ! Calculate leaf biomass, this wrapper finds the maximum per allometry, and then
+    ! applies trimming
+    call bleaf(currentCohort%dbh,currentCohort%hite,ipft,currentCohort%canopy_trim,b_leaf)
+
+    ! Calculate the fine root biomass, this wrapper finds the maximum per allometry,
+    ! and in the current default case, will trim fine root biomass at the same proportion
+    ! that it trims leaves
+    call bfineroot(currentCohort%dbh,currentCohort%hite,ipft,currentCohort%canopy_trim,b_fineroot)
+    
+    ! Calculate sapwood biomass
+    call bsap_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,b_sap)
+
+    target_balive = b_leaf + b_fineroot + b_sap
+
     !target balive without leaves. 
     if (currentCohort%status_coh == 1)then 
-       target_balive = Bleaf(currentCohort) * (EDPftvarcon_inst%allom_l2fr(currentCohort%pft) + &
-            EDpftvarcon_inst%allom_latosa_int(currentCohort%pft) * h)
+       target_balive = b_fineroot + b_sap
     endif
-
-    ! NPP 
-    if ( DEBUG ) write(fates_log(),*) 'EDphys 716 ',currentCohort%npp_acc
 
     ! convert from kgC/indiv/day into kgC/indiv/year
     ! TODO: CONVERT DAYS_PER_YEAR TO DBLE (HOLDING FOR B4B COMPARISONS, RGK-01-2017)
@@ -843,10 +904,12 @@ contains
 
     if (hlm_use_ed_prescribed_phys .eq. itrue) then
        if (currentCohort%canopy_layer .eq. 1) then
-          currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_canopy(currentCohort%pft) * currentCohort%c_area / currentCohort%n
+          currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_canopy(ipft) &
+                * currentCohort%c_area / currentCohort%n
           currentCohort%npp_acc = currentCohort%npp_acc_hold / hlm_days_per_year ! add these for balance checking purposes
        else
-          currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_understory(currentCohort%pft) * currentCohort%c_area / currentCohort%n
+          currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_understory(ipft) &
+                * currentCohort%c_area / currentCohort%n
           currentCohort%npp_acc = currentCohort%npp_acc_hold / hlm_days_per_year ! add these for balance checking purposes
        endif
     endif
@@ -854,9 +917,9 @@ contains
     currentSite%flux_in = currentSite%flux_in + currentCohort%npp_acc * currentCohort%n
 
     ! Maintenance demands     
-    if (EDPftvarcon_inst%evergreen(currentCohort%pft) == 1)then !grass and EBT
-       currentCohort%leaf_md = currentCohort%bl / EDPftvarcon_inst%leaf_long(currentCohort%pft)
-       currentCohort%root_md = currentCohort%br / EDPftvarcon_inst%root_long(currentCohort%pft)
+    if (EDPftvarcon_inst%evergreen(ipft) == 1)then !grass and EBT
+       currentCohort%leaf_md = currentCohort%bl / EDPftvarcon_inst%leaf_long(ipft)
+       currentCohort%root_md = currentCohort%br / EDPftvarcon_inst%root_long(ipft)
        currentCohort%md      = currentCohort%root_md + currentCohort%leaf_md
     endif
 
@@ -865,24 +928,24 @@ contains
     !with which I am not especially comfortable, particularly as the concept of sapwood turnover is unclear for trees that 
     !are still in an expansion phase. 
 
-    if (EDPftvarcon_inst%season_decid(currentCohort%pft) == 1)then 
-       currentCohort%root_md = currentCohort%br /EDPftvarcon_inst%root_long(currentCohort%pft)
+    if (EDPftvarcon_inst%season_decid(ipft) == 1)then 
+       currentCohort%root_md = currentCohort%br /EDPftvarcon_inst%root_long(ipft)
        currentCohort%leaf_md = 0._r8
        currentCohort%md = currentCohort%root_md + currentCohort%leaf_md
     endif
 
-    if (EDPftvarcon_inst%stress_decid(currentCohort%pft) == 1)then 
-       currentCohort%root_md = currentCohort%br /EDPftvarcon_inst%root_long(currentCohort%pft)
+    if (EDPftvarcon_inst%stress_decid(ipft) == 1)then 
+       currentCohort%root_md = currentCohort%br /EDPftvarcon_inst%root_long(ipft)
        currentCohort%leaf_md = 0._r8
        currentCohort%md = currentCohort%root_md + currentCohort%leaf_md
     endif
 
-    if (EDPftvarcon_inst%stress_decid(currentCohort%pft) /= 1 &
-          .and.EDPftvarcon_inst%season_decid(currentCohort%pft) /= 1.and. &
-         EDPftvarcon_inst%evergreen(currentCohort%pft) /= 1)then
-       write(fates_log(),*) 'problem with phenology definitions',currentCohort%pft, &
-            EDPftvarcon_inst%stress_decid(currentCohort%pft), &
-            EDPftvarcon_inst%season_decid(currentCohort%pft),EDPftvarcon_inst%evergreen(currentCohort%pft)
+    if (EDPftvarcon_inst%stress_decid(ipft) /= 1 &
+          .and.EDPftvarcon_inst%season_decid(ipft) /= 1.and. &
+         EDPftvarcon_inst%evergreen(ipft) /= 1)then
+       write(fates_log(),*) 'problem with phenology definitions',ipft, &
+            EDPftvarcon_inst%stress_decid(ipft), &
+            EDPftvarcon_inst%season_decid(ipft),EDPftvarcon_inst%evergreen(ipft)
     endif
 
     ! FIX(RF,032414) -turned off for now as it makes balive go negative....
@@ -894,26 +957,26 @@ contains
     ! this is the fraction of maintenance demand we -have- to do...
 
     if ( DEBUG ) write(fates_log(),*) 'EDphys 760 ',currentCohort%npp_acc_hold, currentCohort%md, &
-                   EDPftvarcon_inst%leaf_stor_priority(currentCohort%pft)
+                   EDPftvarcon_inst%leaf_stor_priority(ipft)
 
     currentCohort%carbon_balance = currentCohort%npp_acc_hold - &
-          currentCohort%md * EDPftvarcon_inst%leaf_stor_priority(currentCohort%pft)
+          currentCohort%md * EDPftvarcon_inst%leaf_stor_priority(ipft)
 
     ! Allowing only carbon from NPP pool to account for npp flux into the maintenance turnover pools
     ! ie this does not include any use of storage carbon or balive to make up for missing carbon balance in the transfer
     currentCohort%npp_leaf  = max(0.0_r8,min(currentCohort%npp_acc_hold*currentCohort%leaf_md/currentCohort%md, &
-                                  currentCohort%leaf_md*EDPftvarcon_inst%leaf_stor_priority(currentCohort%pft)))
+                                  currentCohort%leaf_md*EDPftvarcon_inst%leaf_stor_priority(ipft)))
     currentCohort%npp_froot = max(0.0_r8,min(currentCohort%npp_acc_hold*currentCohort%root_md/currentCohort%md, &
-                                  currentCohort%root_md*EDPftvarcon_inst%leaf_stor_priority(currentCohort%pft)))
+                                  currentCohort%root_md*EDPftvarcon_inst%leaf_stor_priority(ipft)))
 
-    if (Bleaf(currentCohort) > 0._r8)then
+    if (b_leaf > 0._r8)then
 
        if ( DEBUG ) write(fates_log(),*) 'EDphys A ',currentCohort%carbon_balance
 
        if (currentCohort%carbon_balance > 0._r8)then !spend C on growing and storing
 
           !what fraction of the target storage do we have? 
-          frac = max(0.0_r8,currentCohort%bstore/(Bleaf(currentCohort) * EDPftvarcon_inst%cushion(currentCohort%pft)))
+          frac = max(0.0_r8,currentCohort%bstore/( b_leaf * EDPftvarcon_inst%cushion(ipft)))
           ! FIX(SPM,080514,fstore never used ) 
           f_store = max(exp(-1.*frac**4._r8) - exp( -1.0_r8 ),0.0_r8)  
           !what fraction of allocation do we divert to storage?
@@ -938,21 +1001,21 @@ contains
 
     else
 
-       write(fates_log(),*) 'No target leaf area in GrowthDerivs? Bleaf(cohort) <= 0?'
+       write(fates_log(),*) 'No target leaf area in GrowthDerivs? b_leaf <= 0?'
        call endrun(msg=errMsg(sourcefile, __LINE__))
 
     endif
 
     !Do we have enough carbon left over to make up the rest of the turnover demand? 
     balive_loss = 0._r8
-    if (currentCohort%carbon_balance > currentCohort%md*(1.0_r8- EDPftvarcon_inst%leaf_stor_priority(currentCohort%pft)))then ! Yes...
+    if (currentCohort%carbon_balance > currentCohort%md*(1.0_r8- EDPftvarcon_inst%leaf_stor_priority(ipft)))then ! Yes...
        currentCohort%carbon_balance = currentCohort%carbon_balance - currentCohort%md * (1.0_r8 - &
-             EDPftvarcon_inst%leaf_stor_priority(currentCohort%pft))
+             EDPftvarcon_inst%leaf_stor_priority(ipft))
 
        currentCohort%npp_leaf  = currentCohort%npp_leaf  + &
-            currentCohort%leaf_md *  (1.0_r8-EDPftvarcon_inst%leaf_stor_priority(currentCohort%pft))
+            currentCohort%leaf_md *  (1.0_r8-EDPftvarcon_inst%leaf_stor_priority(ipft))
        currentCohort%npp_froot = currentCohort%npp_froot + &
-            currentCohort%root_md *  (1.0_r8-EDPftvarcon_inst%leaf_stor_priority(currentCohort%pft))
+            currentCohort%root_md *  (1.0_r8-EDPftvarcon_inst%leaf_stor_priority(ipft))
 
     else ! we can't maintain constant leaf area and root area. Balive is reduced
 
@@ -960,8 +1023,7 @@ contains
              max(0.0_r8,currentCohort%carbon_balance*(currentCohort%leaf_md/currentCohort%md))
        currentCohort%npp_froot = currentCohort%npp_froot + &
              max(0.0_r8,currentCohort%carbon_balance*(currentCohort%root_md/currentCohort%md))
-
-       balive_loss = currentCohort%md *(1.0_r8- EDPftvarcon_inst%leaf_stor_priority(currentCohort%pft))- currentCohort%carbon_balance
+       balive_loss = currentCohort%md *(1.0_r8- EDPftvarcon_inst%leaf_stor_priority(ipft))- currentCohort%carbon_balance
        currentCohort%carbon_balance = 0._r8
     endif
 
@@ -970,38 +1032,81 @@ contains
     !********************************************/
     !Use remaining carbon to refill balive or to get larger. 
 
+    ! Tally up the relative change in dead biomass WRT diameter
+    call bag_allom(currentCohort%dbh,currentCohort%hite,ipft,b_ag,db_ag_dd)
+    call bcr_allom(currentCohort%dbh,currentCohort%hite,ipft,b_cr,db_cr_dd)
+    call bdead_allom( b_ag, b_cr, b_sap, ipft, b_dead, db_ag_dd, db_cr_dd, db_sap_dd, db_dead_dd )
+
     !only if carbon balance is +ve
-    if ((currentCohort%balive >= target_balive).AND.(currentCohort%carbon_balance >  0._r8))then 
+
+    if ((currentCohort%balive >= target_balive).and.(currentCohort%carbon_balance >  0._r8))then 
        ! fraction of carbon going into active vs structural carbon        
-       if (currentCohort%dbh <= EDPftvarcon_inst%allom_dbh_maxheight(currentCohort%pft))then ! cap on leaf biomass
-          dbldbd = dDbhdBd(currentCohort)/dDbhdBl(currentCohort) 
-          dbrdbd = EDPftvarcon_inst%allom_l2fr(currentCohort%pft) * dbldbd
-          dhdbd_fn = dhdbd(currentCohort)
-          dbswdbd = EDpftvarcon_inst%allom_latosa_int(currentCohort%pft) * (h*dbldbd + currentCohort%bl*dhdbd_fn)
-          u  = 1.0_r8 / (dbldbd + dbrdbd + dbswdbd)     
+
+       ! fraction of carbon not going towards reproduction
+       if (currentCohort%dbh <= EDPftvarcon_inst%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
+          gr_fract = 1.0_r8 - EDPftvarcon_inst%seed_alloc(ipft)
+       else
+          gr_fract = 1.0_r8 - (EDPftvarcon_inst%seed_alloc(ipft) + EDPftvarcon_inst%clone_alloc(ipft))
+       end if
+       
+       ! Tally up the relative change in alive biomass WRT diameter
+       ! These calculations will take into account any height capping
+       ! (if the user wanted it) and its implications to these pools
+       call bleaf(currentCohort%dbh,currentCohort%hite,ipft,     &
+                  currentCohort%canopy_trim,b_leaf,db_leaf_dd)
+       call bfineroot(currentCohort%dbh,currentCohort%hite,ipft, &
+                      currentCohort%canopy_trim,b_fineroot,db_fineroot_dd)
+       call bsap_allom(currentCohort%dbh,ipft, &
+                       currentCohort%canopy_trim,b_sap,db_sap_dd)
+
+       ! Total change in alive biomass relative to dead biomass [kgC/kgC]
+       dbalivedbd = (db_leaf_dd + db_fineroot_dd + db_sap_dd)/db_dead_dd
+
+       if(dbalivedbd>tiny(dbalivedbd))then
+       
+          ! In this case, the plant allometry module is telling us that
+          ! the plant is still expected to gain live (leaf,froot,sap) 
+          ! biomass as it grows in size, and therfore it should be 
+          ! allocated in proportion with structural
+
+          u  = 1.0_r8 / dbalivedbd
           va = 1.0_r8 / (1.0_r8 + u)
           vs = u / (1.0_r8 + u)
-          gr_fract = 1.0_r8 - EDPftvarcon_inst%seed_alloc(currentCohort%pft)
+          
        else
-          dbldbd = 0._r8; dbrdbd = 0._r8 ;dbswdbd = 0._r8      
+
+          ! If there is no change in alive biomass per change in dead,
+          ! most likely we are dealing with plants that have surpassed
+          ! an allometric threshold that limits alive biomass.
+          
           va = 0.0_r8
           vs = 1.0_r8
-          gr_fract = 1.0_r8 - (EDPftvarcon_inst%seed_alloc(currentCohort%pft) + EDPftvarcon_inst%clone_alloc(currentCohort%pft))
-       endif
+          
+       end if
 
-       !FIX(RF,032414) - to fix high bl's. needed to prevent numerical errors without the ODEINT.  
+       ! FIX(RF,032414) - to fix high bl's. needed to 
+       ! prevent numerical errors without the ODEINT.  
        if (currentCohort%balive > target_balive*1.1_r8)then  
           va = 0.0_r8; vs = 1._r8
-          if (DEBUG) write(fates_log(),*) 'using high bl cap',target_balive,currentCohort%balive                        
+          if (DEBUG) write(fates_log(),*) 'using high bl cap',target_balive,currentCohort%balive
        endif
 
     else         
-       dbldbd = 0._r8; dbrdbd = 0._r8; dbswdbd = 0._r8
-       va = 1.0_r8; vs = 0._r8                        
-       gr_fract = 1.0_r8
-    endif
 
-    ! calculate derivatives of living and dead carbon pools  
+       ! --------------------------------------------------------------------------------
+       ! In this case, either there was not enough carbon generated, or the plant is off
+       ! allometry (ie the alive pools are smaller than the maximums dictated by allometry
+       ! and timming).  So push all carbon into the alive pool (va = 1.0), and none
+       ! into structural (vs = 0.0) or seed (ie non-growth, gr_fract = 1.0).
+       ! --------------------------------------------------------------------------------
+
+       va = 1.0_r8
+       vs = 0.0_r8
+       gr_fract = 1.0_r8
+
+    endif
+    
+    ! calculate derivatives of living and dead carbon pools
     currentCohort%dbalivedt = gr_fract * va * currentCohort%carbon_balance - balive_loss
     currentCohort%dbdeaddt  = gr_fract * vs * currentCohort%carbon_balance
     currentCohort%dbstoredt = currentCohort%storage_flux
@@ -1035,14 +1140,17 @@ contains
 
     currentCohort%npp_bseed = currentCohort%seed_prod
 
-    ! calculate change in diameter and height 
-    currentCohort%ddbhdt = currentCohort%dbdeaddt * dDbhdBd(currentCohort)
-    currentCohort%dhdt   = currentCohort%dbdeaddt * dHdBd(currentCohort)
+    ! calculate change in diameter 
+    currentCohort%ddbhdt = currentCohort%dbdeaddt / db_dead_dd 
+
+    ! calculate change in hite
+    call h_allom(currentCohort%dbh,ipft,height,dh_dd)
+    currentCohort%dhdt   = currentCohort%ddbhdt * dh_dd
 
     ! If the cohort has grown, it is not new
     currentCohort%isnew=.false.
 
-  end subroutine Growth_Derivatives
+ end subroutine Growth_Derivatives
 
   ! ============================================================================
   subroutine recruitment( currentSite, currentPatch, bc_in )
@@ -1051,7 +1159,6 @@ contains
     ! spawn new cohorts of juveniles of each PFT             
     !
     ! !USES:
-    use EDGrowthFunctionsMod, only : bdead,dbh, Bleaf
     use FatesInterfaceMod, only : hlm_use_ed_prescribed_phys
     !
     ! !ARGUMENTS    
@@ -1063,6 +1170,12 @@ contains
     integer :: ft
     type (ed_cohort_type) , pointer :: temp_cohort
     integer :: cohortstatus
+    real(r8) :: b_leaf
+    real(r8) :: b_fineroot
+    real(r8) :: b_sapwood
+    real(r8) :: b_aboveground
+    real(r8) :: b_coarseroot
+
     !----------------------------------------------------------------------
 
     allocate(temp_cohort) ! create temporary cohort
@@ -1073,12 +1186,19 @@ contains
        temp_cohort%canopy_trim = 0.8_r8  !starting with the canopy not fully expanded 
        temp_cohort%pft         = ft
        temp_cohort%hite        = EDPftvarcon_inst%hgt_min(ft)
-       temp_cohort%dbh         = Dbh(temp_cohort)
-       temp_cohort%bdead       = Bdead(temp_cohort)
-       temp_cohort%balive      = Bleaf(temp_cohort)*(1.0_r8 + EDPftvarcon_inst%allom_l2fr(ft) &
-            + EDpftvarcon_inst%allom_latosa_int(ft)*temp_cohort%hite)
-       temp_cohort%bstore      = EDPftvarcon_inst%cushion(ft)*(temp_cohort%balive/ (1.0_r8 + EDPftvarcon_inst%allom_l2fr(ft) &
-            + EDpftvarcon_inst%allom_latosa_int(ft)*temp_cohort%hite))
+       call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
+
+       ! Initialize balive (leaf+fineroot+sapwood)
+       call bleaf(temp_cohort%dbh,temp_cohort%hite,ft,temp_cohort%canopy_trim,b_leaf)
+       call bfineroot(temp_cohort%dbh,temp_cohort%hite,ft,temp_cohort%canopy_trim,b_fineroot)
+       call bsap_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,b_sapwood)
+
+       call bag_allom(temp_cohort%dbh,temp_cohort%hite,ft,b_aboveground)
+       call bcr_allom(temp_cohort%dbh,temp_cohort%hite,ft,b_coarseroot)
+       call bdead_allom(b_aboveground,b_coarseroot,b_sapwood,ft,temp_cohort%bdead)
+
+       temp_cohort%balive      = b_leaf + b_sapwood + b_fineroot
+       temp_cohort%bstore      = EDPftvarcon_inst%cushion(ft) * b_leaf
 
        if (hlm_use_ed_prescribed_phys .eq. ifalse .or. EDPftvarcon_inst%prescribed_recruitment(ft) .lt. 0. ) then
           temp_cohort%n           = currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day &
@@ -1095,12 +1215,10 @@ contains
 
        temp_cohort%laimemory = 0.0_r8     
        if (EDPftvarcon_inst%season_decid(temp_cohort%pft) == 1.and.currentSite%status == 1)then
-          temp_cohort%laimemory = (1.0_r8/(1.0_r8 + EDPftvarcon_inst%allom_l2fr(ft) + &
-               EDpftvarcon_inst%allom_latosa_int(ft)*temp_cohort%hite))*temp_cohort%balive
+          temp_cohort%laimemory = b_leaf
        endif
        if (EDPftvarcon_inst%stress_decid(temp_cohort%pft) == 1.and.currentSite%dstatus == 1)then
-          temp_cohort%laimemory = (1.0_r8/(1.0_r8 + EDPftvarcon_inst%allom_l2fr(ft) + &
-               EDpftvarcon_inst%allom_latosa_int(ft)*temp_cohort%hite))*temp_cohort%balive
+          temp_cohort%laimemory = b_leaf
        endif
 
        cohortstatus = currentSite%status
@@ -1698,7 +1816,8 @@ contains
             currentCohort => currentPatch%tallest
             do while(associated(currentCohort))      
                biomass_bg_ft(currentCohort%pft) = biomass_bg_ft(currentCohort%pft) + &
-                    currentCohort%b * (currentCohort%n / currentPatch%area) * (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
+                    currentCohort%b * (currentCohort%n / currentPatch%area) * &
+                    (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
                currentCohort => currentCohort%shorter
             enddo !currentCohort
             ! 
