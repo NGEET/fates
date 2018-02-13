@@ -108,7 +108,7 @@ module FatesAllometryMod
   public :: CheckIntegratedAllometries
 
 
-  logical         , parameter :: verbose_logging = .true.
+  logical         , parameter :: verbose_logging = .false.
   character(len=*), parameter :: sourcefile = __FILE__
 
 

@@ -375,6 +375,11 @@ contains
     currentCohort%lmort_logging      = 0._r8
     currentCohort%lmort_infra        = 0._r8
     currentCohort%lmort_collateral   = 0._r8
+    currentCohort%leaf_cost          = 0._r8
+    currentcohort%excl_weight        = 0._r8
+    currentcohort%prom_weight        = 0._r8
+    currentcohort%crownfire_mort     = 0._r8
+    currentcohort%cambial_mort       = 0._r8
     currentCohort%npp_leaf = 0._r8
     currentCohort%npp_fnrt = 0._r8
     currentCohort%npp_sapw = 0._r8

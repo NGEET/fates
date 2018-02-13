@@ -862,7 +862,7 @@ contains
     real(r8), parameter :: cbal_prec = 1.0e-15_r8     ! Desired precision in carbon balance
                                                       ! non-integrator part
     integer , parameter :: max_substeps = 300
-    real(r8), parameter :: max_trunc_error = 10.0
+    real(r8), parameter :: max_trunc_error = 10.0_r8
     integer,  parameter :: ODESolve = 2    ! 1=RKF45,  2=Euler
 
 
@@ -1240,7 +1240,7 @@ contains
     c_mask(i_cdead)  = .true.                ! Always increment dead on growth step
     c_mask(i_crepro) = .true.                ! Always calculate reproduction on growth
     if(ODESolve == 2) then
-       currentCohort%ode_opt_step = deltaC
+       currentCohort%ode_opt_step = totalC
     end if
 
     do while( ierr .ne. 0 )
