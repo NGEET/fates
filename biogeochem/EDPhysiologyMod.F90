@@ -850,12 +850,6 @@ contains
 
 
     ! Woody turnover timescale [years]
-    ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! THIS NEEDS A PFT VARIABLE, OR LIKE OTHER POOLS COULD 
-    ! BE HOOKED INTO THE DISTURBANCE ALGORITHM OR BE DYNAMIC
-    ! RGK 11-2017
-    ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    real(r8), parameter :: background_woody_turnover = 0.0_r8
     real(r8), parameter :: cbal_prec = 1.0e-15_r8     ! Desired precision in carbon balance
                                                       ! non-integrator part
     integer , parameter :: max_substeps = 300
@@ -997,10 +991,10 @@ contains
     !
     ! -----------------------------------------------------------------------------------
 
-    if ( background_woody_turnover > tiny(background_woody_turnover) ) then
-       currentCohort%bsw_md    = currentCohort%bsw / background_woody_turnover
-       currentCohort%bdead_md  = currentCohort%bdead / background_woody_turnover
-       currentCohort%bstore_md = currentCohort%bstore / background_woody_turnover
+    if ( EDPftvarcon_inst%branch_turnover(ipft) > tiny(EDPftvarcon_inst%branch_turnover(ipft)) ) then
+       currentCohort%bsw_md    = currentCohort%bsw / EDPftvarcon_inst%branch_turnover(ipft)
+       currentCohort%bdead_md  = currentCohort%bdead / EDPftvarcon_inst%branch_turnover(ipft)
+       currentCohort%bstore_md = currentCohort%bstore / EDPftvarcon_inst%branch_turnover(ipft)
     else
        currentCohort%bsw_md    = 0.0_r8
        currentCohort%bdead_md  = 0.0_r8
