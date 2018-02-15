@@ -469,11 +469,7 @@ contains
          endif
 
          ! Total cohort biomass is negative
-         if ( (currentCohort%bsw   + &
-               currentCohort%bl    + &
-               currentCohort%br    + &
-               currentCohort%bdead + &
-               currentCohort%bstore) < 0._r8) then
+         if ( (currentCohort%b_total()) < 0._r8) then
             terminate = 1
             if ( DEBUG ) then
             write(fates_log(),*) 'terminating cohorts 4', & 
@@ -498,12 +494,7 @@ contains
                currentSite%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) + currentCohort%n
           !
           currentSite%termination_carbonflux(levcan) = currentSite%termination_carbonflux(levcan) + &
-                currentCohort%n * &
-                (currentCohort%bsw   + &
-                 currentCohort%bl    + &
-                 currentCohort%br    + &
-                 currentCohort%bdead + &
-                 currentCohort%bstore)
+                currentCohort%n * currentCohort%b_total()
 
           if (.not. associated(currentCohort%taller)) then
              currentPatch%tallest => currentCohort%shorter

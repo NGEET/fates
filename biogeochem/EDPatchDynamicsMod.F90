@@ -427,12 +427,8 @@ contains
                            nc%n * ED_val_understorey_death / hlm_freq_day
                       currentSite%imort_carbonflux = currentSite%imort_carbonflux + &
                            (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
-                           (currentCohort%bdead + &
-                            currentCohort%bsw   + &
-                            currentCohort%bl    + &
-                            currentCohort%br    + &
-                            currentCohort%bstore) * g_per_kg * days_per_sec * years_per_day * ha_per_m2
-
+                           currentCohort%b_total() * g_per_kg * days_per_sec * years_per_day * ha_per_m2
+                      
                       ! Step 2:  Apply survivor ship function based on the understory death fraction
                       ! remaining of understory plants of those that are knocked over by the overstorey trees dying...  
                       nc%n = nc%n * (1.0_r8 - ED_val_understorey_death)
@@ -551,11 +547,7 @@ contains
                            nc%n * ED_val_understorey_death / hlm_freq_day
                       currentSite%imort_carbonflux = currentSite%imort_carbonflux + &
                            (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
-                           (currentCohort%bdead + &
-                            currentCohort%bsw   + &
-                            currentCohort%bl    + &
-                            currentCohort%br    + &
-                            currentCohort%bstore) * g_per_kg * days_per_sec * years_per_day * ha_per_m2
+                           currentCohort%b_total() * g_per_kg * days_per_sec * years_per_day * ha_per_m2
                       
                       ! Step 2:  Apply survivor ship function based on the understory death fraction
                      

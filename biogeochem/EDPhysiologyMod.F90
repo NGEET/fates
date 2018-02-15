@@ -71,9 +71,7 @@ module EDPhysiologyMod
   private :: seed_germination
   public :: flux_into_litter_pools
 
-  logical, parameter :: test_b4b = .true.  ! flag used to test
-                                           ! hypothesese or just hold
-                                           ! change for later
+
   logical, parameter :: DEBUG  = .false. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
@@ -830,11 +828,10 @@ contains
     
     logical                           :: step_pass   ! Did the integration step pass?
 
-    logical  :: grow_leaf
-    logical  :: grow_froot
-    logical  :: grow_sap
-    logical  :: grow_store
-    logical  :: grow_dead
+    logical  :: grow_leaf   ! Are leaves at allometric target and should be grown?
+    logical  :: grow_froot  ! Are fine-roots at allometric target and should be grown?
+    logical  :: grow_sap    ! Is sapwood at allometric target and should be grown?
+    logical  :: grow_store  ! Is storage at allometric target and should be grown?
 
     ! integrator variables
     real(r8) :: deltaC     ! trial value for substep
@@ -1217,7 +1214,7 @@ contains
     call TargetAllometryCheck(currentCohort%bl,currentCohort%br,currentCohort%bsw, &
                               currentCohort%bstore,currentCohort%bdead, &
                               bt_leaf,bt_fineroot,bt_sap,bt_store,bt_dead, &
-                              grow_leaf,grow_froot,grow_sap,grow_store,grow_dead)
+                              grow_leaf,grow_froot,grow_sap,grow_store)
 
 
     ! Initialize the adaptive integrator arrays and flags
@@ -1369,15 +1366,17 @@ contains
     currentCohort%isnew=.false.
     
     return
-end subroutine PlantGrowth
+ end subroutine PlantGrowth
 
  ! ======================================================================================
 
-   function AllomCGrowthDeriv(c_pools,c_mask,cbalance,currentCohort) result(dCdx)
+ function AllomCGrowthDeriv(c_pools,c_mask,cbalance,currentCohort) result(dCdx)
 
       ! ---------------------------------------------------------------------------------
       ! This function calculates the derivatives for the carbon pools
-      ! relative to the amount of carbon balance.
+      ! relative to the amount of carbon balance.  This function is based completely
+      ! off of allometry, and assumes that there are no other species (ie nutrients) that
+      ! govern allocation.
       ! ---------------------------------------------------------------------------------
       
       ! Arguments
@@ -1395,24 +1394,24 @@ end subroutine PlantGrowth
       real(r8),dimension(lbound(c_pools,dim=1):ubound(c_pools,dim=1)) :: dCdx 
 
       ! locals
-      integer  :: ipft
-      real(r8) :: ct_leaf
-      real(r8) :: ct_froot
-      real(r8) :: ct_sap
-      real(r8) :: ct_agw
-      real(r8) :: ct_bgw
-      real(r8) :: ct_store
-      real(r8) :: ct_dead
+      integer  :: ipft       ! pft index
+      real(r8) :: ct_leaf    ! target leaf biomass, dummy var (kgC)
+      real(r8) :: ct_froot   ! target fine-root biomass, dummy var (kgC)
+      real(r8) :: ct_sap     ! target sapwood biomass, dummy var (kgC)
+      real(r8) :: ct_agw     ! target aboveground wood, dummy var (kgC)
+      real(r8) :: ct_bgw     ! target belowground wood, dummy var (kgC)
+      real(r8) :: ct_store   ! target storage, dummy var (kgC)
+      real(r8) :: ct_dead    ! target structural biomas, dummy var (kgC)
       
-      real(r8) :: ct_dleafdd
-      real(r8) :: ct_dfrootdd
-      real(r8) :: ct_dsapdd
-      real(r8) :: ct_dagwdd
-      real(r8) :: ct_dbgwdd
-      real(r8) :: ct_dstoredd
-      real(r8) :: ct_ddeaddd
-      real(r8) :: ct_dtotaldd
-      real(r8) :: repro_fraction
+      real(r8) :: ct_dleafdd     ! target leaf biomass derivative wrt d, (kgC/cm)
+      real(r8) :: ct_dfrootdd    ! target fine-root biomass derivative wrt d, (kgC/cm)
+      real(r8) :: ct_dsapdd      ! target sapwood biomass derivative wrt d, (kgC/cm)
+      real(r8) :: ct_dagwdd      ! target AG wood biomass derivative wrt d, (kgC/cm)
+      real(r8) :: ct_dbgwdd      ! target BG wood biomass derivative wrt d, (kgC/cm)
+      real(r8) :: ct_dstoredd    ! target storage biomass derivative wrt d, (kgC/cm)
+      real(r8) :: ct_ddeaddd     ! target structural biomass derivative wrt d, (kgC/cm)
+      real(r8) :: ct_dtotaldd    ! target total (not reproductive) biomass derivative wrt d, (kgC/cm)
+      real(r8) :: repro_fraction ! fraction of carbon balance directed towards reproduction (kgC/kgC)
 
 
      
@@ -1497,7 +1496,7 @@ end subroutine PlantGrowth
  
  subroutine TargetAllometryCheck(bleaf,bfroot,bsap,bstore,bdead, &
                                  bt_leaf,bt_froot,bt_sap,bt_store,bt_dead, &
-                                 grow_leaf,grow_froot,grow_sap,grow_store,grow_dead)
+                                 grow_leaf,grow_froot,grow_sap,grow_store)
 
        ! Arguments
        real(r8),intent(in) :: bleaf   !actual
@@ -1514,7 +1513,6 @@ end subroutine PlantGrowth
        logical,intent(out) :: grow_froot
        logical,intent(out) :: grow_sap
        logical,intent(out) :: grow_store
-       logical,intent(out) :: grow_dead
        
        if( (bt_leaf - bleaf)>calloc_abs_error) then
           write(fates_log(),*) 'leaves are not on-allometry at the growth step'
@@ -1561,8 +1559,6 @@ end subroutine PlantGrowth
           write(fates_log(),*) 'structure not on-allometry at the growth step'
           write(fates_log(),*) 'exiting',bdead,bt_dead
           call endrun(msg=errMsg(sourcefile, __LINE__))
-       else
-          grow_dead = .true.
        end if
     end subroutine TargetAllometryCheck
 

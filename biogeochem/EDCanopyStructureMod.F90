@@ -396,7 +396,8 @@ contains
                      ! keep track of number and biomass of demoted cohort
                      currentSite%demotion_rate(currentCohort%size_class) = &
                            currentSite%demotion_rate(currentCohort%size_class) + currentCohort%n
-                     currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + currentCohort%b_total() * currentCohort%n
+                     currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + &
+                           currentCohort%b_total() * currentCohort%n
 
                      !kill the ones which go into canopy layers that are not allowed... (default nclmax=2) 
                      if(i_lyr+1 > nclmax)then 
@@ -470,7 +471,8 @@ contains
                      ! keep track of number and biomass of demoted cohort
                      currentSite%demotion_rate(currentCohort%size_class) = &
                            currentSite%demotion_rate(currentCohort%size_class) + currentCohort%n
-                     currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + currentCohort%b_total() * currentCohort%n
+                     currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + &
+                           currentCohort%b_total() * currentCohort%n
 
                      !kill the ones which go into canopy layers that are not allowed... (default nclmax=2) 
                      if(i_lyr+1 > nclmax)then  
@@ -478,10 +480,12 @@ contains
                         !put the litter from the terminated cohorts into the fragmenting pools
                         do i_cwd=1,ncwd
 
-                           currentPatch%CWD_AG(i_cwd)  = currentPatch%CWD_AG(i_cwd) + (currentCohort%bdead+currentCohort%bsw) * &
+                           currentPatch%CWD_AG(i_cwd)  = currentPatch%CWD_AG(i_cwd) + &
+                                 (currentCohort%bdead+currentCohort%bsw) * &
                                  EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * &
                                  SF_val_CWD_frac(i_cwd)*currentCohort%n/currentPatch%area           
-                           currentPatch%CWD_BG(i_cwd)  = currentPatch%CWD_BG(i_cwd) + (currentCohort%bdead+currentCohort%bsw) * &
+                           currentPatch%CWD_BG(i_cwd)  = currentPatch%CWD_BG(i_cwd) + &
+                                 (currentCohort%bdead+currentCohort%bsw) * &
                                  (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * &
                                  SF_val_CWD_frac(i_cwd)*currentCohort%n/currentPatch%area !litter flux per m2.
 
@@ -622,11 +626,13 @@ contains
             do while (associated(currentCohort))            
                if(currentCohort%canopy_layer == i_lyr+1)then !look at the cohorts in the canopy layer below... 
                   currentCohort%canopy_layer = i_lyr   
-                  call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
+                  call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
+                        currentCohort%pft,currentCohort%c_area)
                   ! keep track of number and biomass of promoted cohort
                   currentSite%promotion_rate(currentCohort%size_class) = &
                         currentSite%promotion_rate(currentCohort%size_class) + currentCohort%n
-                  currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + currentCohort%b_total() * currentCohort%n
+                  currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
+                        currentCohort%b_total() * currentCohort%n
 
                endif
                currentCohort => currentCohort%shorter   
@@ -641,7 +647,8 @@ contains
          ! This is the opposite of the demotion weighting... 
          currentCohort => currentPatch%tallest 
          do while (associated(currentCohort))
-            call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
+            call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
+                  currentCohort%pft,currentCohort%c_area)
             if(currentCohort%canopy_layer == i_lyr+1)then !look at the cohorts in the canopy layer below... 
                if (ED_val_comp_excln .ge. 0.0_r8 ) then
                   ! normal (stochastic) case, as above.
@@ -713,7 +720,8 @@ contains
                      ! keep track of number and biomass of promoted cohort
                      currentSite%promotion_rate(copyc%size_class) = &
                            currentSite%promotion_rate(copyc%size_class) + copyc%n
-                     currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + copyc%b_total() * copyc%n
+                     currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
+                           copyc%b_total() * copyc%n
                          
                      ! seperate cohorts. 
                      ! needs to be a very small number to avoid causing non-linearity issues with c_area. 
@@ -721,7 +729,8 @@ contains
                      currentCohort%dbh = currentCohort%dbh - 0.000000000001_r8 
                      copyc%dbh = copyc%dbh + 0.000000000001_r8
                      
-                     call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
+                     call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
+                           currentCohort%pft,currentCohort%c_area)
                      call carea_allom(copyc%dbh,copyc%n,currentSite%spread,copyc%pft,copyc%c_area)
                          
                      !----------- Insert copy into linked list ------------------------!                         
@@ -739,12 +748,14 @@ contains
                      
                      ! update area AFTER we sum up the losses. the cohort may shrink at this point,
                      ! if the upper canopy spread is smaller. this shold be dealt with by the 'excess area' loop.  
-                     call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
+                     call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
+                           currentCohort%pft,currentCohort%c_area)
 
                      ! keep track of number and biomass of promoted cohort
                      currentSite%promotion_rate(currentCohort%size_class) = &
                            currentSite%promotion_rate(currentCohort%size_class) + currentCohort%n
-                     currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + currentCohort%b_total() * currentCohort%n
+                     currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
+                           currentCohort%b_total() * currentCohort%n
                      
                   endif          ! if(cc_gain < currentCohort%c_area)then
 
@@ -1215,7 +1226,7 @@ contains
                 if ( DEBUG ) then
                    write(fates_log(), *) 'calc snow 2', snow_depth_si , frac_sno_eff_si
                    write(fates_log(), *) 'LHP', currentPatch%layer_height_profile(L,ft,iv)
-                   write(fates_log(), *) 'EDCLMLink 1246 ', currentPatch%elai_profile(1,ft,iv)
+                   write(fates_log(), *) 'leaf_area_profile 1229 ', currentPatch%elai_profile(1,ft,iv)
                 end if
 
              end do
@@ -1303,16 +1314,6 @@ contains
                    currentPatch%esai_profile(L,ft,iv) = currentPatch%esai_profile(L,ft,iv) / &
                          currentPatch%canopy_area_profile(L,ft,iv)
 
-                   if( currentPatch%tlai_profile(L,ft,iv)<tiny(currentPatch%tlai_profile(L,ft,iv)))then
-                      print*,"SMALL TLAI"
-                      print*,currentPatch%tlai_profile(L,ft,iv),L,ft,iv,currentPatch%total_canopy_area
-                      currentCohort => currentPatch%shortest
-                      do while(associated(currentCohort))   
-                         print*,currentCohort%bl,currentCohort%c_area,currentCohort%NV,currentCohort%treelai,currentCohort%treesai,currentCohort%status_coh,currentCohort%lai,EDPftvarcon_inst%evergreen(ft)
-                         currentCohort => currentCohort%taller
-                      end do
-                   end if
-                         
                    currentPatch%layer_height_profile(L,ft,iv) = currentPatch%layer_height_profile(L,ft,iv) &
                          /currentPatch%tlai_profile(L,ft,iv)
                 enddo
@@ -1607,7 +1608,8 @@ contains
      layer_area = 0.0_r8
      currentCohort => currentPatch%tallest
      do while (associated(currentCohort))
-        call carea_allom(currentCohort%dbh,currentCohort%n,currentPatch%siteptr%spread,currentCohort%pft,currentCohort%c_area)
+        call carea_allom(currentCohort%dbh,currentCohort%n,currentPatch%siteptr%spread, &
+              currentCohort%pft,currentCohort%c_area)
         if (currentCohort%canopy_layer .eq. layer_index) then
            layer_area = layer_area + currentCohort%c_area
         end if
