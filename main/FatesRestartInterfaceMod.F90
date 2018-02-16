@@ -102,7 +102,7 @@ module FatesRestartInterfaceMod
   integer, private :: ir_frmort_co
 
    !Logging
-  integer, private :: ir_lmort_logging_co
+  integer, private :: ir_lmort_direct_co
   integer, private :: ir_lmort_collateral_co
   integer, private :: ir_lmort_infra_co
 
@@ -749,10 +749,10 @@ contains
          units='/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_frmort_co )
 
-    call this%set_restart_var(vname='fates_lmort_logging', vtype=cohort_r8, &
+    call this%set_restart_var(vname='fates_lmort_direct', vtype=cohort_r8, &
          long_name='ed cohort - directly logging mortality rate', &
          units='%/event', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_lmort_logging_co )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_lmort_direct_co )
 
     call this%set_restart_var(vname='fates_lmort_collateral', vtype=cohort_r8, &
          long_name='ed cohort - collateral mortality rate', &
@@ -1061,13 +1061,9 @@ contains
            rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
            rio_fmort_co                => this%rvars(ir_fmort_co)%r81d, &
            rio_frmort_co               => this%rvars(ir_frmort_co)%r81d, &
-
-
-	   rio_lmort_logging_co                => this%rvars(ir_lmort_logging_co)%r81d, &
-	   rio_lmort_collateral_co              => this%rvars(ir_lmort_collateral_co)%r81d, &
-	   rio_lmort_infra_co                => this%rvars(ir_lmort_infra_co)%r81d, &
-
-
+           rio_lmort_direct_co         => this%rvars(ir_lmort_direct_co)%r81d, &
+           rio_lmort_collateral_co     => this%rvars(ir_lmort_collateral_co)%r81d, &
+           rio_lmort_infra_co          => this%rvars(ir_lmort_infra_co)%r81d, &
            rio_ddbhdt_co               => this%rvars(ir_ddbhdt_co)%r81d, &
            rio_dbalivedt_co            => this%rvars(ir_dbalivedt_co)%r81d, &
            rio_dbdeaddt_co             => this%rvars(ir_dbdeaddt_co)%r81d, &
@@ -1184,11 +1180,9 @@ contains
                 rio_frmort_co(io_idx_co)       = ccohort%frmort                
 
                 !Logging
-	        rio_lmort_logging_co(io_idx_co)        = ccohort%lmort_logging
-	        rio_lmort_collateral_co(io_idx_co)     = ccohort%lmort_collateral
-	        rio_lmort_infra_co(io_idx_co)        = ccohort%lmort_infra
-
-
+                rio_lmort_direct_co(io_idx_co)       = ccohort%lmort_direct
+                rio_lmort_collateral_co(io_idx_co)   = ccohort%lmort_collateral
+                rio_lmort_infra_co(io_idx_co)        = ccohort%lmort_infra
 
                 rio_ddbhdt_co(io_idx_co)       = ccohort%ddbhdt
                 rio_dbalivedt_co(io_idx_co)    = ccohort%dbalivedt
@@ -1644,11 +1638,9 @@ contains
           rio_fmort_co                => this%rvars(ir_fmort_co)%r81d, &
           rio_frmort_co               => this%rvars(ir_frmort_co)%r81d, &
 
-	  rio_lmort_logging_co                => this%rvars(ir_lmort_logging_co)%r81d, &
-	  rio_lmort_collateral_co                => this%rvars(ir_lmort_collateral_co)%r81d, &
-	  rio_lmort_infra_co                => this%rvars(ir_lmort_infra_co)%r81d, &
-
-
+          rio_lmort_direct_co         => this%rvars(ir_lmort_direct_co)%r81d, &
+          rio_lmort_collateral_co     => this%rvars(ir_lmort_collateral_co)%r81d, &
+          rio_lmort_infra_co          => this%rvars(ir_lmort_infra_co)%r81d, &
 
           rio_ddbhdt_co               => this%rvars(ir_ddbhdt_co)%r81d, &
           rio_dbalivedt_co            => this%rvars(ir_dbalivedt_co)%r81d, &
@@ -1749,12 +1741,10 @@ contains
                 ccohort%fmort        = rio_fmort_co(io_idx_co)
                 ccohort%frmort        = rio_frmort_co(io_idx_co)
 
-		!Logging
-		ccohort%lmort_logging        = rio_lmort_logging_co(io_idx_co)
-		ccohort%lmort_collateral     = rio_lmort_collateral_co(io_idx_co)
-		ccohort%lmort_infra        = rio_lmort_infra_co(io_idx_co)
-
-
+                !Logging
+                ccohort%lmort_direct       = rio_lmort_direct_co(io_idx_co)
+                ccohort%lmort_collateral   = rio_lmort_collateral_co(io_idx_co)
+                ccohort%lmort_infra        = rio_lmort_infra_co(io_idx_co)
 
                 ccohort%ddbhdt       = rio_ddbhdt_co(io_idx_co)
                 ccohort%dbalivedt    = rio_dbalivedt_co(io_idx_co)
