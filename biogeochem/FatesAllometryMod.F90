@@ -119,9 +119,6 @@ module FatesAllometryMod
   ! from the agb pool.
   ! Additionally, our calculation of sapwood biomass may be missing some unite conversions
 
-  logical, parameter :: test_b4b = .false.
-
-
 contains
 
   ! ============================================================================
@@ -985,11 +982,7 @@ contains
     
     if(present(dblmaxdd))then
        if( d<dbh_maxh) then
-          if(test_b4b)then
-             dblmaxdd = p1*p2 * d**(p2) * rho**p3
-          else
              dblmaxdd = p1*p2 * d**(p2-1.0_r8) * rho**p3
-          end if
        else
           dblmaxdd = 0.0
        end if
@@ -1689,10 +1682,19 @@ contains
   end subroutine carea_2pwr
  
   ! ============================================================================
-  ! Reverse, calculate the diameter from the structural biomass
-  ! ============================================================================
+  
 
   subroutine StructureResetOfDH( bdead, ipft, canopy_trim, d, h )
+
+     ! =========================================================================
+     ! This subroutine estimates the diameter based on the structural biomass
+     ! using the allometric functions. Since allometry is specified with diameter
+     ! as the independant variable, we must do this through a search algorithm.
+     ! Here, we keep searching until the difference between actual structure and
+     ! the predicted structure based on the searched diameter is within a tolerance.
+     ! T
+     ! ============================================================================
+
 
      use FatesConstantsMod     , only : calloc_abs_error
      ! Arguments
@@ -1709,8 +1711,10 @@ contains
      real(r8)  :: bt_bgw,dbt_bgw_dd  ! target BG wood at current d
      real(r8)  :: bt_dead,dbt_dead_dd ! target struct wood at current d
      real(r8)  :: dd                  ! diameter increment for each step
-
-     real(r8), parameter :: approx_partial_steps = 20.0_r8
+     real(r8)  :: d_try               ! trial diameter
+     real(r8)  :: bt_dead_try         ! trial structure biomasss
+     real(r8)  :: step_frac           ! step fraction
+     real(r8), parameter :: step_frac0  = 0.9_r8
 
      call bsap_allom(d,ipft,canopy_trim,bt_sap,dbt_sap_dd)
      call bagw_allom(d,ipft,bt_agw,dbt_agw_dd)
@@ -1719,18 +1723,30 @@ contains
                       dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd)
 
      ! This calculates a diameter increment based on the difference
-     ! in structural mass and the target mass, and sets it to a 10th
+     ! in structural mass and the target mass, and sets it to a fraction
      ! of the diameter increment
-     dd = (bdead - bt_dead)/(dbt_dead_dd*approx_partial_steps)
-     
-     do while( (bdead-bt_dead) > calloc_abs_error )
-        d = d + dd 
-        call h_allom(d,ipft,h)
-        call bsap_allom(d,ipft,canopy_trim,bt_sap,dbt_sap_dd)
-        call bagw_allom(d,ipft,bt_agw,dbt_agw_dd)
-        call bbgw_allom(d,ipft,bt_bgw,dbt_bgw_dd)
-        call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead, dbt_agw_dd, &
+
+     step_frac = step_frac0
+     do while( (bdead-bt_dead) > 0.5_r8*calloc_abs_error )
+
+        dd    = step_frac*(bdead-bt_dead)/dbt_dead_dd
+        d_try = d + dd
+        
+        call h_allom(d_try,ipft,h)
+        call bsap_allom(d_try,ipft,canopy_trim,bt_sap,dbt_sap_dd)
+        call bagw_allom(d_try,ipft,bt_agw,dbt_agw_dd)
+        call bbgw_allom(d_try,ipft,bt_bgw,dbt_bgw_dd)
+        call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead_try, dbt_agw_dd, &
               dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd)
+
+        ! Prevent overshooting
+        if(bt_dead_try>bdead) then
+           step_frac = step_frac*0.5_r8
+        else
+           step_frac = step_frac0
+           d         = d_try
+           bt_dead   = bt_dead_try
+        end if
 
      end do
      
