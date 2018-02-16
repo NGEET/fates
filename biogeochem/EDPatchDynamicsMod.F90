@@ -764,17 +764,19 @@ contains
     enddo
 
     do p = 1,numpft !move litter pool en mass into the new patch
-       newPatch%root_litter(p) = newPatch%root_litter(p) + currentPatch%root_litter(p) * patch_site_areadis/newPatch%area
-       newPatch%leaf_litter(p) = newPatch%leaf_litter(p) + currentPatch%leaf_litter(p) * patch_site_areadis/newPatch%area
+       newPatch%root_litter(p) = newPatch%root_litter(p) + &
+             currentPatch%root_litter(p) * patch_site_areadis/newPatch%area
+       newPatch%leaf_litter(p) = newPatch%leaf_litter(p) + &
+             currentPatch%leaf_litter(p) * patch_site_areadis/newPatch%area
 
        ! The fragmentation/decomposition flux from donor patches has already occured in existing patches.  However
        ! some of their area has been carved out for this new patches which is receiving donations.
        ! Lets maintain conservation on that pre-existing mass flux in these newly disturbed patches
        
-       newPatch%root_litter_out(p) = newPatch%root_litter_out(p) + currentPatch%root_litter_out(p) * &
-                                     patch_site_areadis/newPatch%area
-       newPatch%leaf_litter_out(p) = newPatch%leaf_litter_out(p) + currentPatch%leaf_litter_out(p) * &
-                                     patch_site_areadis/newPatch%area
+       newPatch%root_litter_out(p) = newPatch%root_litter_out(p) + &
+             currentPatch%root_litter_out(p) * patch_site_areadis/newPatch%area
+       newPatch%leaf_litter_out(p) = newPatch%leaf_litter_out(p) + &
+             currentPatch%leaf_litter_out(p) * patch_site_areadis/newPatch%area
 
     enddo
 
@@ -822,17 +824,21 @@ contains
        !PART 1)  Burn the fractions of existing litter in the new patch that were consumed by the fire. 
        !************************************/ 
        do c = 1,ncwd
-          burned_litter = new_patch%cwd_ag(c) * patch_site_areadis/new_patch%area * currentPatch%burnt_frac_litter(c+1) !kG/m2/day
+          burned_litter = new_patch%cwd_ag(c) * patch_site_areadis/new_patch%area * &
+                currentPatch%burnt_frac_litter(c+1) !kG/m2/day
           new_patch%cwd_ag(c) = new_patch%cwd_ag(c) - burned_litter
           currentSite%flux_out = currentSite%flux_out + burned_litter * new_patch%area !kG/site/day
-          currentSite%total_burn_flux_to_atm = currentSite%total_burn_flux_to_atm + burned_litter * new_patch%area !kG/site/day
+          currentSite%total_burn_flux_to_atm = currentSite%total_burn_flux_to_atm + &
+                burned_litter * new_patch%area !kG/site/day
        enddo
 
        do p = 1,numpft
-          burned_litter = new_patch%leaf_litter(p) * patch_site_areadis/new_patch%area * currentPatch%burnt_frac_litter(dl_sf)
+          burned_litter = new_patch%leaf_litter(p) * patch_site_areadis/new_patch%area * &
+                currentPatch%burnt_frac_litter(dl_sf)
           new_patch%leaf_litter(p) = new_patch%leaf_litter(p) - burned_litter
           currentSite%flux_out = currentSite%flux_out + burned_litter * new_patch%area !kG/site/day
-          currentSite%total_burn_flux_to_atm = currentSite%total_burn_flux_to_atm + burned_litter * new_patch%area !kG/site/day
+          currentSite%total_burn_flux_to_atm = currentSite%total_burn_flux_to_atm + &
+                burned_litter * new_patch%area !kG/site/day
       enddo
 
        !************************************/     
