@@ -222,11 +222,10 @@ module EDTypesMod
      real(r8) ::  frmort                                 ! freezing mortality               n/year
 
       ! Logging Mortality Rate 
-	 ! Yi Xu
-     real(r8) ::  lmort_logging                          ! directly logging rate            %/per logging activity
+      ! Yi Xu & M. Huang
+     real(r8) ::  lmort_direct                           ! directly logging rate            %/per logging activity
      real(r8) ::  lmort_collateral                       ! collaterally damaged rate        %/per logging activity
      real(r8) ::  lmort_infra                            ! mechanically damaged rate        %/per logging activity
-	      
 
      ! NITROGEN POOLS      
      ! ----------------------------------------------------------------------------------
