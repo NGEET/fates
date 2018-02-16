@@ -120,7 +120,7 @@ contains
 
        ! Calculate disturbance and mortality based on previous timestep vegetation.
        ! disturbance_rates calls logging mortality and other mortalities, Yi Xu
-       call disturbance_rates(currentSite)
+       call disturbance_rates(currentSite, bc_in)
     end if
 
     if (hlm_use_ed_st3.eq.ifalse) then
@@ -612,6 +612,7 @@ contains
           currentCohort%hmort = 0.0_r8
           currentCohort%cmort = 0.0_r8
           currentCohort%fmort = 0.0_r8
+          currentCohort%frmort = 0.0_r8
 
           currentCohort => currentCohort%taller
        enddo
