@@ -883,6 +883,9 @@ contains
     currentCohort%dbstoredt = 0.0_r8
     currentCohort%ddbhdt    = 0.0_r8
 
+    ! If the cohort has grown, it is not new
+    currentCohort%isnew=.false.
+
     ! -----------------------------------------------------------------------------------
     ! I. Identify the net carbon gain for this dynamics interval
     !    Set the available carbon pool, identify allocation portions, and decrement
@@ -960,7 +963,7 @@ contains
     end if
 
     ! -----------------------------------------------------------------------------------
-    ! IV(a). Calculate the maintenance turnover demands 
+    ! III(a). Calculate the maintenance turnover demands 
     !       Pre-check, make sure phenology is mutually exclusive and at least one chosen
     !       (MOVE THIS TO THE PARAMETER READ-IN SECTION)
     ! -----------------------------------------------------------------------------------
@@ -990,7 +993,7 @@ contains
     
 
     ! -----------------------------------------------------------------------------------
-    ! IV(b). Calculate the maintenance turnover demands 
+    ! III(b). Calculate the maintenance turnover demands 
     ! NOTE(RGK): If branches are falling all year, even on deciduous trees, we should
     !            be pulling some leaves with them when leaves are out...
     !
@@ -1025,7 +1028,7 @@ contains
 
    
     ! -----------------------------------------------------------------------------------
-    ! V. Remove turnover from the appropriate pools
+    ! IV. Remove turnover from the appropriate pools
     !
     ! Units: kgC/year * (year/days_per_year) = kgC/day -> (day elapsed) -> kgC
     ! -----------------------------------------------------------------------------------
@@ -1039,7 +1042,7 @@ contains
 
     
     ! -----------------------------------------------------------------------------------
-    ! VI(b).  Prioritize some amount of carbon to replace leaf/root turnover
+    ! V.  Prioritize some amount of carbon to replace leaf/root turnover
     !         Make sure it isnt a negative payment, and either pay what is available
     !         or forcefully pay from storage. 
     ! -----------------------------------------------------------------------------------
@@ -1072,7 +1075,7 @@ contains
 
     
     ! -----------------------------------------------------------------------------------
-    ! VI(a) if carbon balance is negative, re-coup the losses from storage
+    ! VI. if carbon balance is negative, re-coup the losses from storage
     !       if it is positive, give some love to storage carbon
     !  NOTE:  WE ARE STILL ALLOWING STORAGE CARBON TO GO NEGATIVE, AT LEAST IN THIS
     !  PART OF THE CODE.
@@ -1100,7 +1103,7 @@ contains
     end if
 
     ! -----------------------------------------------------------------------------------
-    ! VI(d).  If carbon is still available, prioritize some allocation to replace
+    ! VII.  If carbon is still available, prioritize some allocation to replace
     !        the rest of the leaf/fineroot turnover demand
     !        carbon balance is guaranteed to be >=0 beyond this point
     ! -----------------------------------------------------------------------------------
@@ -1127,7 +1130,7 @@ contains
 
 
     ! -----------------------------------------------------------------------------------
-    ! VII(e).  If carbon is still available, we try to push all live 
+    ! VIII.  If carbon is still available, we try to push all live 
     !        pools back towards allometry. But only upwards, if fusion happened
     !        to generate some pools above allometric target, don't reduce the pool,
     !        just ignore it until the rest of the plant grows to meet it.
@@ -1175,7 +1178,7 @@ contains
     end if
     
     ! -----------------------------------------------------------------------------------
-    ! V(f).  If carbon is still available, replenish the structural pool to get
+    ! IX.  If carbon is still available, replenish the structural pool to get
     !           back on allometry
     ! -----------------------------------------------------------------------------------
 
@@ -1195,7 +1198,7 @@ contains
 
 
     ! -----------------------------------------------------------------------------------
-    ! V(e).  If carbon is yet still available ...
+    ! X.  If carbon is yet still available ...
     !        Our pools are now either on allometry or above (from fusion).
     !        We we can increment those pools at or below,
     !        including structure and reproduction according to their rates
@@ -1359,12 +1362,6 @@ contains
 
        end if
     end do
-
-    
-    
-    
-    ! If the cohort has grown, it is not new
-    currentCohort%isnew=.false.
     
     return
  end subroutine PlantGrowth
