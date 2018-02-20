@@ -294,7 +294,7 @@ contains
     currentCohort%bdead_md           = nan
     currentCohort%bstore_md          = nan
     currentCohort%dmort              = nan ! proportional mortality rate. (year-1)
-    currentCohort%lmort_logging      = nan
+    currentCohort%lmort_direct       = nan
     currentCohort%lmort_infra        = nan
     currentCohort%lmort_collateral   = nan
 
@@ -372,7 +372,7 @@ contains
     currentcohort%dmort              = 0._r8 
     currentcohort%gscan              = 0._r8 
     currentcohort%treesai            = 0._r8  
-    currentCohort%lmort_logging      = 0._r8
+    currentCohort%lmort_direct       = 0._r8
     currentCohort%lmort_infra        = 0._r8
     currentCohort%lmort_collateral   = 0._r8
     currentCohort%leaf_cost          = 0._r8
@@ -740,11 +740,11 @@ contains
 
                                    currentCohort%dmort          = (currentCohort%n*currentCohort%dmort       + &
                                          nextc%n*nextc%dmort)/newn
-                                   currentCohort%lmort_logging          = (currentCohort%n*currentCohort%lmort_logging       + &
-                                         nextc%n*nextc%lmort_logging)/newn
-                                   currentCohort%lmort_infra          = (currentCohort%n*currentCohort%lmort_infra       + &
+                                   currentCohort%lmort_direct     = (currentCohort%n*currentCohort%lmort_direct     + &
+                                         nextc%n*nextc%lmort_direct)/newn
+                                   currentCohort%lmort_infra      = (currentCohort%n*currentCohort%lmort_infra      + &
                                          nextc%n*nextc%lmort_infra)/newn
-                                   currentCohort%lmort_collateral          = (currentCohort%n*currentCohort%lmort_collateral       + &
+                                   currentCohort%lmort_collateral = (currentCohort%n*currentCohort%lmort_collateral + &
                                          nextc%n*nextc%lmort_collateral)/newn
 
                                    currentCohort%fire_mort      = (currentCohort%n*currentCohort%fire_mort   + &
@@ -757,35 +757,37 @@ contains
                                    currentCohort%hmort = (currentCohort%n*currentCohort%hmort + nextc%n*nextc%hmort)/newn
                                    currentCohort%bmort = (currentCohort%n*currentCohort%bmort + nextc%n*nextc%bmort)/newn
                                    currentCohort%fmort = (currentCohort%n*currentCohort%fmort + nextc%n*nextc%fmort)/newn
+                                   currentCohort%frmort = (currentCohort%n*currentCohort%frmort + nextc%n*nextc%frmort)/newn
 
                                    ! logging mortality, Yi Xu
-                                   currentCohort%lmort_logging = (currentCohort%n*currentCohort%lmort_logging + &
-                                         nextc%n*nextc%lmort_logging)/newn
+                                   currentCohort%lmort_direct = (currentCohort%n*currentCohort%lmort_direct + &
+                                         nextc%n*nextc%lmort_direct)/newn
                                    currentCohort%lmort_collateral = (currentCohort%n*currentCohort%lmort_collateral + &
                                          nextc%n*nextc%lmort_collateral)/newn
                                    currentCohort%lmort_infra = (currentCohort%n*currentCohort%lmort_infra + &
                                          nextc%n*nextc%lmort_infra)/newn
-                                   
+
                                    ! npp diagnostics
-                                   currentCohort%npp_leaf = (currentCohort%n*currentCohort%npp_leaf + nextc%n*nextc%npp_leaf) &
-                                                              /newn
-                                   currentCohort%npp_fnrt = (currentCohort%n*currentCohort%npp_fnrt + nextc%n*nextc%npp_fnrt) &
-                                                              /newn
-                                   currentCohort%npp_sapw = (currentCohort%n*currentCohort%npp_sapw + nextc%n*nextc%npp_sapw) &
-                                                              /newn
-                                   currentCohort%npp_dead = (currentCohort%n*currentCohort%npp_dead + nextc%n*nextc%npp_dead) &
-                                                              /newn
-                                   currentCohort%npp_seed = (currentCohort%n*currentCohort%npp_seed + nextc%n*nextc%npp_seed) &
-                                                              /newn
-                                   currentCohort%npp_stor = (currentCohort%n*currentCohort%npp_stor + nextc%n*nextc%npp_stor) &
-                                                              /newn
+                                   currentCohort%npp_leaf = (currentCohort%n*currentCohort%npp_leaf + &
+                                         nextc%n*nextc%npp_leaf)/newn
+                                   currentCohort%npp_fnrt = (currentCohort%n*currentCohort%npp_fnrt + &
+                                         nextc%n*nextc%npp_fnrt)/newn
+                                   currentCohort%npp_sapw = (currentCohort%n*currentCohort%npp_sapw + &
+                                         nextc%n*nextc%npp_sapw)/newn
+                                   currentCohort%npp_dead = (currentCohort%n*currentCohort%npp_dead + &
+                                         nextc%n*nextc%npp_dead)/newn
+                                   currentCohort%npp_seed = (currentCohort%n*currentCohort%npp_seed + &
+                                         nextc%n*nextc%npp_seed)/newn
+                                   currentCohort%npp_stor = (currentCohort%n*currentCohort%npp_stor + &
+                                         nextc%n*nextc%npp_stor)/newn
 
                                    ! biomass and dbh tendencies
-                                   currentCohort%ddbhdt     = (currentCohort%n*currentCohort%ddbhdt  + nextc%n*nextc%ddbhdt)/newn
-                                   currentCohort%dbdeaddt   = (currentCohort%n*currentCohort%dbdeaddt  + nextc%n*nextc%dbdeaddt) &
-                                                               /newn
-                                   currentCohort%dbstoredt  = (currentCohort%n*currentCohort%dbstoredt  + nextc%n*nextc%dbstoredt) &
-                                                               /newn
+                                   currentCohort%ddbhdt     = (currentCohort%n*currentCohort%ddbhdt  + &
+                                         nextc%n*nextc%ddbhdt)/newn
+                                   currentCohort%dbdeaddt   = (currentCohort%n*currentCohort%dbdeaddt + &
+                                         nextc%n*nextc%dbdeaddt)/newn
+                                   currentCohort%dbstoredt  = (currentCohort%n*currentCohort%dbstoredt + &
+                                         nextc%n*nextc%dbstoredt)/newn
 
                                    ! Integration step size
                                    currentCohort%ode_opt_step = (currentCohort%n*currentCohort%ode_opt_step  + &
@@ -1134,7 +1136,7 @@ contains
     n%bdead_md        = o%bdead_md
     n%bstore_md       = o%bstore_md
     n%dmort           = o%dmort
-    n%lmort_logging   = o%lmort_logging
+    n%lmort_direct    = o%lmort_direct
     n%lmort_infra     = o%lmort_infra
     n%lmort_collateral= o%lmort_collateral
     n%seed_prod       = o%seed_prod
@@ -1148,9 +1150,10 @@ contains
     n%bmort = o%bmort
     n%fmort = o%fmort
     n%hmort = o%hmort
+    n%frmort = o%frmort
 
     ! logging mortalities, Yi Xu
-    n%lmort_logging=o%lmort_logging
+    n%lmort_direct=o%lmort_direct
     n%lmort_collateral =o%lmort_collateral
     n%lmort_infra =o%lmort_infra
 

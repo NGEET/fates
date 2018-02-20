@@ -99,14 +99,6 @@ module EDTypesMod
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
   logical, parameter :: homogenize_seed_pfts  = .false.
 
-  integer, parameter :: nlevmclass_ed = 5      ! nlev "mortality" classes in ED
-                                               ! Number of ways to die
-                                               ! (background,hydraulic,carbon,impact,fire)
-
-  character(len = 10), parameter,dimension(nlevmclass_ed) :: char_list = &
-       (/"background","hydraulic ","carbon    ","impact    ","fire      "/)
-
-
   !************************************
   !** COHORT type structure          **
   !************************************
@@ -228,13 +220,13 @@ module EDTypesMod
      real(r8) ::  cmort                                  ! carbon starvation mortality rate n/year
      real(r8) ::  hmort                                  ! hydraulic failure mortality rate n/year
      real(r8) ::  fmort                                  ! fire mortality                   n/year
+     real(r8) ::  frmort                                 ! freezing mortality               n/year
 
       ! Logging Mortality Rate 
-	 ! Yi Xu
-     real(r8) ::  lmort_logging                          ! directly logging rate            %/per logging activity
+      ! Yi Xu & M. Huang
+     real(r8) ::  lmort_direct                           ! directly logging rate            %/per logging activity
      real(r8) ::  lmort_collateral                       ! collaterally damaged rate        %/per logging activity
      real(r8) ::  lmort_infra                            ! mechanically damaged rate        %/per logging activity
-	      
 
      ! NITROGEN POOLS      
      ! ----------------------------------------------------------------------------------
@@ -768,6 +760,7 @@ contains
      write(fates_log(),*) 'co%bmort                  = ', ccohort%bmort
      write(fates_log(),*) 'co%fmort                  = ', ccohort%fmort
      write(fates_log(),*) 'co%hmort                  = ', ccohort%hmort
+     write(fates_log(),*) 'co%frmort                 = ', ccohort%frmort
      write(fates_log(),*) 'co%isnew                  = ', ccohort%isnew
      write(fates_log(),*) 'co%dndt                   = ', ccohort%dndt
      write(fates_log(),*) 'co%dhdt                   = ', ccohort%dhdt

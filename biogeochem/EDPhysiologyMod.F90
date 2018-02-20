@@ -208,28 +208,35 @@ contains
 
                    currentCohort%leaf_cost =  1._r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8)
                    currentCohort%leaf_cost = currentCohort%leaf_cost + &
-                        1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+                        1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * &
+                        bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
 
-                   currentCohort%leaf_cost = currentCohort%leaf_cost * (EDPftvarcon_inst%grperc(ipft) + 1._r8)
+                   currentCohort%leaf_cost = currentCohort%leaf_cost * &
+                         (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 else !evergreen costs
                    currentCohort%leaf_cost = 1.0_r8/(EDPftvarcon_inst%slatop(ipft)* &
                         EDPftvarcon_inst%leaf_long(ipft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
                    currentCohort%leaf_cost = currentCohort%leaf_cost + &
-                        1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
-                   currentCohort%leaf_cost = currentCohort%leaf_cost * (EDPftvarcon_inst%grperc(ipft) + 1._r8)
+                        1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * &
+                        bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+                   currentCohort%leaf_cost = currentCohort%leaf_cost * &
+                         (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 endif
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost)then
                    if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(ipft))then
 
                       if ( DEBUG ) then
-                         write(fates_log(),*) 'trimming leaves',currentCohort%canopy_trim,currentCohort%leaf_cost
+                         write(fates_log(),*) 'trimming leaves', &
+                               currentCohort%canopy_trim,currentCohort%leaf_cost
                       endif
 
                       ! keep trimming until none of the canopy is in negative carbon balance.              
                       if (currentCohort%hite > EDPftvarcon_inst%hgt_min(ipft))then
-                         currentCohort%canopy_trim = currentCohort%canopy_trim - EDPftvarcon_inst%trim_inc(ipft)
+                         currentCohort%canopy_trim = currentCohort%canopy_trim - &
+                               EDPftvarcon_inst%trim_inc(ipft)
                          if (EDPftvarcon_inst%evergreen(ipft) /= 1)then
-                            currentCohort%laimemory = currentCohort%laimemory*(1.0_r8 - EDPftvarcon_inst%trim_inc(ipft)) 
+                            currentCohort%laimemory = currentCohort%laimemory * &
+                                  (1.0_r8 - EDPftvarcon_inst%trim_inc(ipft)) 
                          endif
                          trimmed = 1
                       endif
@@ -1723,7 +1730,7 @@ contains
 
           ! Total number of dead understory from direct logging
           ! (it is possible that large harvestable trees are in the understory)
-          dead_n_dlogging = ( currentCohort%lmort_logging) * &
+          dead_n_dlogging = ( currentCohort%lmort_direct) * &
                 currentCohort%n/hlm_freq_day/currentPatch%area
           
           ! Total number of dead understory from indirect logging

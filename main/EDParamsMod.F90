@@ -444,6 +444,7 @@ contains
         write(fates_log(),fmt0) 'hydr_psicap = ',hydr_psicap
         write(fates_log(),fmt0) 'logging_dbhmin = ',logging_dbhmin
         write(fates_log(),fmt0) 'logging_collateral_frac = ',logging_collateral_frac
+        write(fates_log(),fmt0) 'logging_coll_under_frac = ',logging_coll_under_frac
         write(fates_log(),fmt0) 'logging_direct_frac = ',logging_direct_frac
         write(fates_log(),fmt0) 'logging_mechanical_frac = ',logging_mechanical_frac
         write(fates_log(),fmt0) 'logging_event_code = ',logging_event_code
