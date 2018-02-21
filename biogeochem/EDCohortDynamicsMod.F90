@@ -691,8 +691,10 @@ contains
                                 ! target matches actual bdead. (if it is the other way around
                                 ! we then just let the carbon pools grow to fill-out allometry)
 
-                                call StructureResetOfDH( currentCohort%bdead, currentCohort%pft, &
-                                      currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
+                                if (EDPftvarcon_inst%woody(currentCohort%pft) == itrue) then
+                                   call StructureResetOfDH( currentCohort%bdead, currentCohort%pft, &
+                                         currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
+                                end if
 
                                 call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
                                       currentCohort%size_class,currentCohort%size_by_pft_class)

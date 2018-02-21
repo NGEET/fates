@@ -956,9 +956,10 @@ contains
     call bstore_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_store,dbt_store_dd)
 
     ! If structure is larger than target, then we need to correct some integration errors
-    ! by slightly increasing dbh to match it.
-    if((currentCohort%bdead-bt_dead) > calloc_abs_error) then
-       call StructureResetOfDH( currentCohort%bdead, currentCohort%pft, &
+    ! by slightly increasing dbh to match it. We only do this for woody vegetation
+    if( ((currentCohort%bdead-bt_dead) > calloc_abs_error) .and. &
+          (EDPftvarcon_inst%woody(ipft) == itrue) ) then
+       call StructureResetOfDH( currentCohort%bdead, ipft, &
              currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
     end if
 
