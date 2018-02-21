@@ -863,8 +863,14 @@ contains
     real(r8), parameter :: max_trunc_error = 10.0_r8
     integer,  parameter :: ODESolve = 2    ! 1=RKF45,  2=Euler
 
+    real(r8), parameter :: global_branch_turnover = 0.0_r8 ! Temporary branch turnover setting
+                                                           ! Branch-turnover control will be 
+                                                           ! introduced in a later PR
+
 
     ipft = currentCohort%pft
+
+    EDPftvarcon_inst%branch_turnover(ipft) = global_branch_turnover
 
     ! Initialize seed production
     currentCohort%seed_prod  = 0.0_r8
