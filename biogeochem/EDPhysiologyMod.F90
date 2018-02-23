@@ -756,8 +756,11 @@ contains
     max_germination = 1.0_r8 !this is arbitrary
 
     ! germination_timescale is being pulled to PFT parameter; units are 1/yr
-    ! thus the mortality rate of seed -> recruit (in units of carbon) is seed_decay_turnover(p)/germination_timescale(p)
-    ! and thus the mortlaity rate (in units of individuals) is the product of that times the ratio of (hypothetical) seed mass to recruit biomass
+    ! thus the mortality rate of seed -> recruit (in units of carbon) 
+    ! is seed_decay_turnover(p)/germination_timescale(p)
+    ! and thus the mortlaity rate (in units of individuals) is the product of 
+    ! that times the ratio of (hypothetical) seed mass to recruit biomass
+
     do p = 1,numpft
        currentPatch%seed_germination(p) =  min(currentSite%seed_bank(p) * &
              EDPftvarcon_inst%germination_timescale(p),max_germination)
@@ -930,9 +933,6 @@ contains
     ! -----------------------------------------------------------------------------------
     ! II. Calculate target size of living biomass compartment for a given dbh.   
     ! -----------------------------------------------------------------------------------
-
-    !! call GetAllometricTargets(currentCohort%dbh,currentCohort%canopy_trim,  &
-    !!                           bt_leaf,bt_fineroot,bt_sapwood,bt_store,bt_dead)
 
     ! Target leaf biomass according to allometry and trimming
     call bleaf(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_leaf,dbt_leaf_dd)
@@ -1218,9 +1218,8 @@ contains
 
     ! This routine checks that actual carbon is not below that targets. It does
     ! allow actual pools to be above the target, and in these cases, it sends
-    ! a false on the "grow_<>" flag, allowing the plant to grow into these pools
-    ! It also checks to make sure that structural biomass is not above the target
-    ! This is enforced at fusion.
+    ! a false on the "grow_<>" flag, allowing the plant to grow into these pools.
+    ! It also checks to make sure that structural biomass is not above the target.
     
     call TargetAllometryCheck(currentCohort%bl,currentCohort%br,currentCohort%bsw, &
                               currentCohort%bstore,currentCohort%bdead, &
@@ -1260,6 +1259,7 @@ contains
 
         elseif(ODESolve == 2) then
            call Euler(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC,currentCohort,c_pool_out)
+!           step_pass = .true.
            call CheckIntegratedAllometries(c_pool_out(i_dbh),ipft,currentCohort%canopy_trim,  &
                  c_pool_out(i_cleaf), c_pool_out(i_cfroot), c_pool_out(i_csap), &
                  c_pool_out(i_cstore), c_pool_out(i_cdead), &

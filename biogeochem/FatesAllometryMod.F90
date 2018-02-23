@@ -108,7 +108,7 @@ module FatesAllometryMod
   public :: CheckIntegratedAllometries
 
 
-  logical         , parameter :: verbose_logging = .false.
+  logical         , parameter :: verbose_logging = .true.
   character(len=*), parameter :: sourcefile = __FILE__
 
 
@@ -117,7 +117,7 @@ module FatesAllometryMod
   ! bdead pool.  But newer allometries are providing total agb
   ! which includes sapwood. Although a small quantity, it needs to be removed
   ! from the agb pool.
-  ! Additionally, our calculation of sapwood biomass may be missing some unite conversions
+  ! Additionally, our calculation of sapwood biomass may be missing some unit conversions
 
 contains
 
@@ -135,26 +135,9 @@ contains
   ! Helper Routines
   ! ===========================================================================
 
-
-
-!   subroutine GetAllometricTargets(currentCohort%dbh,currentCohort%canopy_trim,  &
-!         bt_leaf,bt_fineroot,bt_sapwood,bt_store,bt_dead)
-
-      ! ---------------------------------------------------------------------------------
-      ! This wrapper is used when all allometric targets are desired. When
-      ! each allometry are called independently, it is less efficient. This is because
-      ! there are dependencies, for instance sapwood needs to know how much leaf is
-      ! there, and there ends up being several redundant calls.
-      ! When we call all allometric targets simultaneously, we don't worry about
-      ! redundancy.
-      ! ---------------------------------------------------------------------------------
-
-
-
-
-
-!   end subroutine GetAllometricTargets
-
+   
+   ! ============================================================================
+   
   subroutine CheckIntegratedAllometries(dbh,ipft,canopy_trim, &
        bl,bfr,bsap,bstore,bdead, &
        grow_leaf, grow_fr, grow_sap, grow_store, grow_dead, &
@@ -563,6 +546,7 @@ contains
        ! (this comes into play typically in very small plants)
        bsap_cap = max_frac*(bagw+bbgw)
        bsap     = min( bsap_cap,bsap)
+
        if(present(dbsapdd))then
           if ( bsap  >= bsap_cap ) then
              dbsapdd = max_frac*(dbagwdd+dbbgwdd)
@@ -1714,6 +1698,7 @@ contains
      real(r8)  :: d_try               ! trial diameter
      real(r8)  :: bt_dead_try         ! trial structure biomasss
      real(r8)  :: step_frac           ! step fraction
+     integer   :: counter 
      real(r8), parameter :: step_frac0  = 0.9_r8
 
      call bsap_allom(d,ipft,canopy_trim,bt_sap,dbt_sap_dd)
@@ -1725,9 +1710,9 @@ contains
      ! This calculates a diameter increment based on the difference
      ! in structural mass and the target mass, and sets it to a fraction
      ! of the diameter increment
-
+     counter = 0
      step_frac = step_frac0
-     do while( (bdead-bt_dead) > 0.5_r8*calloc_abs_error )
+     do while( (bdead-bt_dead) > calloc_abs_error )
 
         dd    = step_frac*(bdead-bt_dead)/dbt_dead_dd
         d_try = d + dd
@@ -1747,9 +1732,13 @@ contains
            d         = d_try
            bt_dead   = bt_dead_try
         end if
-
+        counter = counter + 1
      end do
-     
+
+     if(counter>10)then
+        write(fates_log(),*) 'dbh counter: ',counter
+     end if
+
      ! At this point, the diameter, height and their target structural biomass
      ! should be pretty close to and greater than actual
 
