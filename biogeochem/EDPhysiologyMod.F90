@@ -1012,6 +1012,8 @@ contains
        currentCohort%bsw_md    = currentCohort%bsw / EDPftvarcon_inst%branch_turnover(ipft)
        currentCohort%bdead_md  = currentCohort%bdead / EDPftvarcon_inst%branch_turnover(ipft)
        currentCohort%bstore_md = currentCohort%bstore / EDPftvarcon_inst%branch_turnover(ipft)
+       print*,"BRANCH TURNOVER SHOULD BE OFF"
+       stop
     else
        currentCohort%bsw_md    = 0.0_r8
        currentCohort%bdead_md  = 0.0_r8

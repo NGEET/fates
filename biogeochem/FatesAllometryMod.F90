@@ -1665,8 +1665,6 @@ contains
      
   end subroutine carea_2pwr
  
-  ! ============================================================================
-  
 
   subroutine StructureResetOfDH( bdead, ipft, canopy_trim, d, h )
 
@@ -1697,6 +1695,7 @@ contains
      real(r8)  :: dd                  ! diameter increment for each step
      real(r8)  :: d_try               ! trial diameter
      real(r8)  :: bt_dead_try         ! trial structure biomasss
+     real(r8)  :: dbt_dead_dd_try     ! trial structural derivative
      real(r8)  :: step_frac           ! step fraction
      integer   :: counter 
      real(r8), parameter :: step_frac0  = 0.9_r8
@@ -1714,27 +1713,29 @@ contains
      step_frac = step_frac0
      do while( (bdead-bt_dead) > calloc_abs_error )
 
+        ! vulnerable to div0
         dd    = step_frac*(bdead-bt_dead)/dbt_dead_dd
         d_try = d + dd
         
-        call h_allom(d_try,ipft,h)
         call bsap_allom(d_try,ipft,canopy_trim,bt_sap,dbt_sap_dd)
         call bagw_allom(d_try,ipft,bt_agw,dbt_agw_dd)
         call bbgw_allom(d_try,ipft,bt_bgw,dbt_bgw_dd)
         call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead_try, dbt_agw_dd, &
-              dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd)
+              dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd_try)
 
         ! Prevent overshooting
-        if(bt_dead_try>bdead) then
+        if(bt_dead_try > (bdead+calloc_abs_error)) then
            step_frac = step_frac*0.5_r8
         else
            step_frac = step_frac0
            d         = d_try
            bt_dead   = bt_dead_try
+           dbt_dead_dd = dbt_dead_dd_try
         end if
         counter = counter + 1
      end do
 
+     call h_allom(d,ipft,h)
      if(counter>10)then
         write(fates_log(),*) 'dbh counter: ',counter
      end if
@@ -1743,7 +1744,7 @@ contains
      ! should be pretty close to and greater than actual
 
      return
-  end subroutine StructureResetofDH
+  end subroutine StructureResetOfDH
 
   ! ===========================================================================
   
