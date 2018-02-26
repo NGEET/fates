@@ -889,7 +889,7 @@ contains
       call bfineroot(temp_cohort%dbh,temp_cohort%hite,c_pft,temp_cohort%canopy_trim,b_fineroot)
       
       ! Calculate sapwood biomass
-      call bsap_allom(temp_cohort%dbh,temp_cohort%hite,c_pft,temp_cohort%canopy_trim,b_sapwood)
+      call bsap_allom(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim,b_sapwood)
       
       temp_cohort%balive = b_leaf + b_fineroot + b_sapwood
       
