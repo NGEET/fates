@@ -135,6 +135,9 @@ module EDPftvarcon
      real(r8), allocatable :: prescribed_mortality_understory(:)     ! this is only for the special prescribed_physiology_mode
      real(r8), allocatable :: prescribed_recruitment(:)              ! this is only for the special prescribed_physiology_mode
 
+     ! respiration throttling parameters
+     real(r8), allocatable :: maintresp_reduction_curvature(:)  ! parameter that controsl the curvature of resp as f(storage)
+     real(r8), allocatable :: maintresp_reduction_intercept(:)  ! fractional amount of respiration at storage equals zero
      
      ! Plant Hydraulic Parameters
      ! ---------------------------------------------------------------------------------------------
@@ -157,7 +160,7 @@ module EDPftvarcon
      real(r8), allocatable :: hydr_fcap_node(:,:)   ! fraction of (1-resid_node) that is capillary in source
      real(r8), allocatable :: hydr_pinot_node(:,:)  ! osmotic potential at full turgor
      real(r8), allocatable :: hydr_kmax_node(:,:)   ! maximum xylem conductivity per unit conducting xylem area
-
+     
    contains
      procedure, public :: Init => EDpftconInit
      procedure, public :: Register
@@ -426,6 +429,14 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_prescribed_recruitment'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+       
+    name = 'fates_maintresp_reduction_curvature'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+       
+    name = 'fates_maintresp_reduction_intercept'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
        
@@ -824,6 +835,14 @@ contains
     name = 'fates_prescribed_recruitment'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%prescribed_recruitment)
+
+    name = 'fates_maintresp_reduction_curvature'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%maintresp_reduction_curvature)
+
+    name = 'fates_maintresp_reduction_intercept'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%maintresp_reduction_intercept)
 
     name = 'fates_alpha_SH'
     call fates_params%RetreiveParameterAllocate(name=name, &

@@ -329,7 +329,8 @@ contains
                      cl = currentCohort%canopy_layer
                      
                      call bleaf(currentCohort%dbh,currentCohort%hite,currentCohort%pft,currentCohort%canopy_trim,b_leaf)
-                     call lowstorage_maintresp_reduction(currentCohort%bstore,b_leaf,maintresp_reduction_factor)
+                     call lowstorage_maintresp_reduction(currentCohort%bstore,b_leaf,currentCohort%pft, &
+                          maintresp_reduction_factor)
 
                      ! are there any leaves of this pft in this layer?
                      if(currentPatch%present(cl,ft) == 1)then 
@@ -1652,21 +1653,19 @@ contains
       return
     end subroutine LeafLayerBiophysicalRates
 
-    subroutine lowstorage_maintresp_reduction(bstore, b_leaf, maintresp_reduction_factor)
+    subroutine lowstorage_maintresp_reduction(bstore, b_leaf, pft, maintresp_reduction_factor)
 
       ! This subroutine reduces maintenance respiration rates when storage pool is low.  The premise
       ! of this is that mortality of plants increases when storage is low because they are not able
       ! to repair tissues, generate defense compounds, etc.  This reduction is reflected in a reduced
       ! maintenance demand.  The output of this function takes the form of a curve between 0 and 1, 
-      ! and the curvature of the function is determined by a parameter maintresp_reduction_parameter.
-      ! If this parameter is zero, then there is no reduction until the plant dies at storage = 0.
-      ! If this parameter is one, then there is a linear reduction in respiration below the storage point.
-      ! Intermediate values will give some (concave-downwards) curvature.  
+      ! and the curvature of the function is determined by a parameter.
 
       ! Arguments
       ! ------------------------------------------------------------------------------
       real(r8), intent(in) :: bstore    ! the storage pool of a given cohort
       real(r8), intent(in) :: b_leaf    ! the leaf pool of a given cohort
+      integer,  intent(in) :: pft       ! what pft is this cohort?
       real(r8), intent(out) :: maintresp_reduction_factor  ! the factor by which to reduce maintenance respiration
 
       ! Locals
@@ -1674,17 +1673,28 @@ contains
 
       real(r8) :: frac   ! ratio of bstor to bleaf
 
-      ! Parameters
+      ! --------------------------------------------------------------------------------
+      ! Parameters are at the PFT level:
+      ! fates_maintresp_reduction_curvature controls the curvature of this.  
+      ! If this parameter is zero, then there is no reduction until the plant dies at storage = 0.
+      ! If this parameter is one, then there is a linear reduction in respiration below the storage point.
+      ! Intermediate values will give some (concave-downwards) curvature.  
+      !
+      ! maintresp_reduction_intercept controls the maximum amount of throttling.  
+      ! zero means no throttling at any point, so it turns this mechanism off completely and so 
+      ! allows an entire cohort to die via negative carbon-induced termination mortality.
+      ! one means complete throttling, so no maintenance respiration at all, when out of carbon.
       ! ---------------------------------------------------------------------------------
-      real(r8), parameter :: maintresp_reduction_parameter = 1.0_r8  ! parameter value for curvature of respiration reduction term.  
       
        if( b_leaf > 0._r8 .and. bstore <= b_leaf )then
           frac = bstore/ b_leaf
-          if ( maintresp_reduction_parameter .ne. 1._r8 ) then
-             maintresp_reduction_factor = (1._r8 - maintresp_reduction_parameter**frac) &
-                  / (1._r8-maintresp_reduction_parameter)
+          if ( fates_maintresp_reduction_curvature(pft) .ne. 1._r8 ) then
+             maintresp_reduction_factor = (1._r8 - maintresp_reduction_intercept(pft)) + &
+                  maintresp_reduction_intercept(pft) * (1._r8 - fates_maintresp_reduction_curvature(pft)**frac) &
+                  / (1._r8-fates_maintresp_reduction_curvature(pft))
           else  ! avoid nan answer for linear case
-             maintresp_reduction_factor = frac
+             maintresp_reduction_factor = (1._r8 - maintresp_reduction_intercept(pft)) + &
+                  maintresp_reduction_intercept(pft) * frac
           endif
              
        else
