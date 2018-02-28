@@ -1661,6 +1661,9 @@ contains
       ! maintenance demand.  The output of this function takes the form of a curve between 0 and 1, 
       ! and the curvature of the function is determined by a parameter.
 
+      ! Uses
+      use EDPftvarcon         , only : EDPftvarcon_inst 
+
       ! Arguments
       ! ------------------------------------------------------------------------------
       real(r8), intent(in) :: bstore    ! the storage pool of a given cohort
@@ -1688,13 +1691,14 @@ contains
       
        if( b_leaf > 0._r8 .and. bstore <= b_leaf )then
           frac = bstore/ b_leaf
-          if ( fates_maintresp_reduction_curvature(pft) .ne. 1._r8 ) then
-             maintresp_reduction_factor = (1._r8 - maintresp_reduction_intercept(pft)) + &
-                  maintresp_reduction_intercept(pft) * (1._r8 - fates_maintresp_reduction_curvature(pft)**frac) &
-                  / (1._r8-fates_maintresp_reduction_curvature(pft))
+          if ( EDPftvarcon_inst%maintresp_reduction_curvature(pft) .ne. 1._r8 ) then
+             maintresp_reduction_factor = (1._r8 - EDPftvarcon_inst%maintresp_reduction_intercept(pft)) + &
+                  EDPftvarcon_inst%maintresp_reduction_intercept(pft) * &
+                  (1._r8 - EDPftvarcon_inst%maintresp_reduction_curvature(pft)**frac) &
+                  / (1._r8-EDPftvarcon_inst%maintresp_reduction_curvature(pft))
           else  ! avoid nan answer for linear case
-             maintresp_reduction_factor = (1._r8 - maintresp_reduction_intercept(pft)) + &
-                  maintresp_reduction_intercept(pft) * frac
+             maintresp_reduction_factor = (1._r8 - EDPftvarcon_inst%maintresp_reduction_intercept(pft)) + &
+                  EDPftvarcon_inst%maintresp_reduction_intercept(pft) * frac
           endif
              
        else
