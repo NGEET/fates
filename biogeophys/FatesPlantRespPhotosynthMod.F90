@@ -82,7 +82,7 @@ contains
     use FatesParameterDerivedMod, only : param_derived
     use EDPatchDynamicsMod, only: set_root_fraction
     use EDParamsMod, only : ED_val_bbopt_c3, ED_val_bbopt_c4, ED_val_base_mr_20
-    use FatesAllometryMod, only : bleaf
+    use FatesAllometryMod, only : bleaf, storage_fraction_of_target
 
 
     ! ARGUMENTS:
@@ -162,6 +162,7 @@ contains
     real(r8) :: gccanopy_pa        ! Patch level canopy stomatal conductance  [mmol m-2 s-1]
     real(r8) :: maintresp_reduction_factor  ! factor by which to reduce maintenance respiration when storage pools are low
     real(r8) :: b_leaf             ! leaf biomass kgC
+    real(r8) :: frac               ! storage pool as a fraction of target leaf biomass
     
     ! -----------------------------------------------------------------------------------
     ! Keeping these two definitions in case they need to be added later
@@ -329,7 +330,8 @@ contains
                      cl = currentCohort%canopy_layer
                      
                      call bleaf(currentCohort%dbh,currentCohort%hite,currentCohort%pft,currentCohort%canopy_trim,b_leaf)
-                     call lowstorage_maintresp_reduction(currentCohort%bstore,b_leaf,currentCohort%pft, &
+                     call storage_fraction_of_target(b_leaf, currentCohort%bstore, frac)
+                     call lowstorage_maintresp_reduction(frac,currentCohort%pft, &
                           maintresp_reduction_factor)
 
                      ! are there any leaves of this pft in this layer?
@@ -1653,7 +1655,7 @@ contains
       return
     end subroutine LeafLayerBiophysicalRates
 
-    subroutine lowstorage_maintresp_reduction(bstore, b_leaf, pft, maintresp_reduction_factor)
+    subroutine lowstorage_maintresp_reduction(frac, pft, maintresp_reduction_factor)
 
       ! This subroutine reduces maintenance respiration rates when storage pool is low.  The premise
       ! of this is that mortality of plants increases when storage is low because they are not able
@@ -1666,15 +1668,9 @@ contains
 
       ! Arguments
       ! ------------------------------------------------------------------------------
-      real(r8), intent(in) :: bstore    ! the storage pool of a given cohort
-      real(r8), intent(in) :: b_leaf    ! the leaf pool of a given cohort
+      real(r8), intent(in) :: frac      ! ratio of storage to target leaf biomass
       integer,  intent(in) :: pft       ! what pft is this cohort?
       real(r8), intent(out) :: maintresp_reduction_factor  ! the factor by which to reduce maintenance respiration
-
-      ! Locals
-      ! -------------------------------------------------------------------------------
-
-      real(r8) :: frac   ! ratio of bstor to bleaf
 
       ! --------------------------------------------------------------------------------
       ! Parameters are at the PFT level:
@@ -1689,8 +1685,7 @@ contains
       ! one means complete throttling, so no maintenance respiration at all, when out of carbon.
       ! ---------------------------------------------------------------------------------
       
-       if( b_leaf > 0._r8 .and. bstore <= b_leaf )then
-          frac = bstore/ b_leaf
+       if( frac .lt. 1._r8 )then
           if ( EDPftvarcon_inst%maintresp_reduction_curvature(pft) .ne. 1._r8 ) then
              maintresp_reduction_factor = (1._r8 - EDPftvarcon_inst%maintresp_reduction_intercept(pft)) + &
                   EDPftvarcon_inst%maintresp_reduction_intercept(pft) * &
