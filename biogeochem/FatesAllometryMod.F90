@@ -104,11 +104,11 @@ module FatesAllometryMod
   public :: bdead_allom   ! Generic bdead wrapper
   public :: carea_allom   ! Generic crown area wrapper
   public :: bstore_allom  ! Generic maximum storage carbon wrapper
-  public :: StructureResetOfDH
+  public :: StructureResetOfDH ! Method to set DBH to sync with structure biomass
   public :: CheckIntegratedAllometries
 
 
-  logical         , parameter :: verbose_logging = .true.
+  logical         , parameter :: verbose_logging = .false.
   character(len=*), parameter :: sourcefile = __FILE__
 
 
@@ -966,7 +966,7 @@ contains
     
     if(present(dblmaxdd))then
        if( d<dbh_maxh) then
-             dblmaxdd = p1*p2 * d**(p2-1.0_r8) * rho**p3
+          dblmaxdd = p1*p2 * d**(p2-1.0_r8) * rho**p3
        else
           dblmaxdd = 0.0
        end if
@@ -1664,7 +1664,8 @@ contains
      c_area = spreadterm * d ** crown_area_to_dbh_exponent
      
   end subroutine carea_2pwr
- 
+  
+  ! =========================================================================
 
   subroutine StructureResetOfDH( bdead, ipft, canopy_trim, d, h )
 
@@ -1699,6 +1700,7 @@ contains
      real(r8)  :: step_frac           ! step fraction
      integer   :: counter 
      real(r8), parameter :: step_frac0  = 0.9_r8
+     integer, parameter  :: max_counter = 200
 
      call bsap_allom(d,ipft,canopy_trim,bt_sap,dbt_sap_dd)
      call bagw_allom(d,ipft,bt_agw,dbt_agw_dd)
@@ -1733,6 +1735,10 @@ contains
            dbt_dead_dd = dbt_dead_dd_try
         end if
         counter = counter + 1
+        if (counter>max_counter) then
+           write(fates_log(),*) 'Having trouble converging on dbh reset'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
      end do
 
      call h_allom(d,ipft,h)
@@ -1746,7 +1752,7 @@ contains
      return
   end subroutine StructureResetOfDH
 
-  ! ===========================================================================
+  ! =========================================================================
   
   subroutine cspline(x1,x2,y1,y2,dydx1,dydx2,x,y,dydx)
     

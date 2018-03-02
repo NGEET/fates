@@ -49,6 +49,7 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : CheckIntegratedAllometries
   use FatesAllometryMod  , only : StructureResetOfDH
+  use FatesALlometryMod  , only : LeafResetOfDH
 
   use FatesIntegratorsMod, only : RKF45
   use FatesIntegratorsMod, only : Euler
@@ -532,10 +533,12 @@ contains
     currentPatch => CurrentSite%oldest_patch   
 
     store_output  = 0.5_r8
-
+    
     do while(associated(currentPatch))    
        currentCohort => currentPatch%tallest
        do while(associated(currentCohort))        
+
+          currentCohort%leaf_litter = 0.0_r8 !zero leaf litter for today.  
                 
           !COLD LEAF ON
           if (EDPftvarcon_inst%season_decid(currentCohort%pft) == 1)then
@@ -564,7 +567,7 @@ contains
              endif ! growing season 
 
              !COLD LEAF OFF
-             currentCohort%leaf_litter = 0.0_r8 !zero leaf litter for today. 
+!             currentCohort%leaf_litter = 0.0_r8 !zero leaf litter for today. 
              if (currentSite%status == 1)then !past leaf drop day? Leaves still on tree?  
                 if (currentCohort%status_coh == 2)then ! leaves have not dropped
                    currentCohort%status_coh      = 1                  
@@ -573,7 +576,12 @@ contains
 
                    ! add lost carbon to litter
                    currentCohort%leaf_litter = currentCohort%bl 
-                   currentCohort%bl          = 0.0_r8                            
+                   currentCohort%bl          = 0.0_r8   
+          
+!                   write(fates_log(),*) 'cold drop kicking in'
+!                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                   
+               
                 endif !leaf status
              endif !currentSite status
           endif  !season_decid
@@ -610,6 +618,10 @@ contains
                    ! add falling leaves to litter pools . convert to KgC/m2                    
                    currentCohort%leaf_litter = currentCohort%bl  
                    currentCohort%bl          = 0.0_r8                                        
+
+!                   write(fates_log(),*) 'drought drop kicking in'
+!                   call endrun(msg=errMsg(sourcefile, __LINE__))
+
                 endif
              endif !status
           endif !drought dec.
@@ -829,7 +841,8 @@ contains
     real(r8) :: repro_fraction        ! fraction of carbon gain sent to reproduction when on-allometry
 
     real(r8) :: leaf_turnover_demand  ! leaf carbon that is demanded to replace maintenance turnover [kgC]
-    real(r8) :: root_turnover_demand  ! fineroot carbon that is demanded to replace maintenance turnover [kgC]
+    real(r8) :: root_turnover_demand  ! fineroot carbon that is demanded to replace 
+                                      ! maintenance turnover [kgC]
     real(r8) :: total_turnover_demand ! total carbon that is demanded to replace maintenance turnover [kgC]
 
     real(r8),dimension(n_cplantpools) :: c_pool      ! Vector of carbon pools passed to integrator
@@ -863,9 +876,8 @@ contains
     real(r8), parameter :: cbal_prec = 1.0e-15_r8     ! Desired precision in carbon balance
                                                       ! non-integrator part
     integer , parameter :: max_substeps = 300
-    real(r8), parameter :: max_trunc_error = 10.0_r8
+    real(r8), parameter :: max_trunc_error = 0.1_r8
     integer,  parameter :: ODESolve = 2    ! 1=RKF45,  2=Euler
-
     real(r8), parameter :: global_branch_turnover = 0.0_r8 ! Temporary branch turnover setting
                                                            ! Branch-turnover control will be 
                                                            ! introduced in a later PR
@@ -937,11 +949,11 @@ contains
     ! Target leaf biomass according to allometry and trimming
     call bleaf(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_leaf,dbt_leaf_dd)
 
-    ! If status_coh is 1, then leaves are in a dropped (off allometry)
-    if( currentcohort%status_coh == 1 ) then
-       bt_leaf     = 0.0_r8
-       dbt_leaf_dd = 0.0_r8
-    end if
+!    ! If status_coh is 1, then leaves are in a dropped (off allometry)
+!    if( currentcohort%status_coh == 1 ) then
+!       bt_leaf     = 0.0_r8
+!       dbt_leaf_dd = 0.0_r8
+!    end if
 
     ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
     call bfineroot(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_fineroot,dbt_fineroot_dd)
@@ -956,17 +968,25 @@ contains
     call bbgw_allom(currentCohort%dbh,ipft,bt_bgw,dbt_bgw_dd)
 
     ! Target total dead (structrual) biomass and deriv. [kgC, kgC/cm]
-    call bdead_allom( bt_agw, bt_bgw, bt_sap, ipft, bt_dead, dbt_agw_dd, dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd )
+    call bdead_allom( bt_agw, bt_bgw, bt_sap, ipft, bt_dead, &
+                      dbt_agw_dd, dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd )
 
     ! Target storage carbon [kgC,kgC/cm]
     call bstore_allom(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_store,dbt_store_dd)
 
+    ! ------------------------------------------------------------------------------------
     ! If structure is larger than target, then we need to correct some integration errors
-    ! by slightly increasing dbh to match it. We only do this for woody vegetation
+    ! by slightly increasing dbh to match it.
+    ! For grasses, if leaf biomass is larger than target, then we reset dbh to match
+    ! -----------------------------------------------------------------------------------
     if( ((currentCohort%bdead-bt_dead) > calloc_abs_error) .and. &
           (EDPftvarcon_inst%woody(ipft) == itrue) ) then
        call StructureResetOfDH( currentCohort%bdead, ipft, &
              currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
+!    else if ( ((currentCohort%bl-bt_leaf) > calloc_abs_error) .and. &
+!             (EDPftvarcon_inst%woody(ipft) == ifalse) ) then
+!       call LeafResetOfDH( currentCohort%bl, ipft, &
+!             currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
     end if
 
     ! -----------------------------------------------------------------------------------
@@ -1007,17 +1027,16 @@ contains
     !        If the turnover time-scales are zero, that means there is no turnover.
     !
     ! -----------------------------------------------------------------------------------
+    currentCohort%leaf_md   = 0.0_r8
+    currentCohort%bsw_md    = 0.0_r8
+    currentCohort%bdead_md  = 0.0_r8
+    currentCohort%bstore_md = 0.0_r8
+    currentCohort%root_md   = 0.0_r8
 
     if ( EDPftvarcon_inst%branch_turnover(ipft) > tiny(EDPftvarcon_inst%branch_turnover(ipft)) ) then
        currentCohort%bsw_md    = currentCohort%bsw / EDPftvarcon_inst%branch_turnover(ipft)
        currentCohort%bdead_md  = currentCohort%bdead / EDPftvarcon_inst%branch_turnover(ipft)
        currentCohort%bstore_md = currentCohort%bstore / EDPftvarcon_inst%branch_turnover(ipft)
-       print*,"BRANCH TURNOVER SHOULD BE OFF"
-       stop
-    else
-       currentCohort%bsw_md    = 0.0_r8
-       currentCohort%bdead_md  = 0.0_r8
-       currentCohort%bstore_md = 0.0_r8
     end if
     
     if (EDPftvarcon_inst%evergreen(ipft) == 1)then
@@ -1027,15 +1046,18 @@ contains
 
     if (EDPftvarcon_inst%season_decid(ipft) == 1)then 
        currentCohort%root_md = currentCohort%br /EDPftvarcon_inst%root_long(ipft)
-       currentCohort%leaf_md = 0._r8
     endif
 
     if (EDPftvarcon_inst%stress_decid(ipft) == 1)then 
        currentCohort%root_md = currentCohort%br /EDPftvarcon_inst%root_long(ipft)
-       currentCohort%leaf_md = 0._r8
     endif
 
-   
+    currentCohort%leaf_md   = 0.0_r8
+    currentCohort%bsw_md    = 0.0_r8
+    currentCohort%bdead_md  = 0.0_r8
+    currentCohort%bstore_md = 0.0_r8
+    currentCohort%root_md   = 0.0_r8
+
     ! -----------------------------------------------------------------------------------
     ! IV. Remove turnover from the appropriate pools
     !
@@ -1064,9 +1086,9 @@ contains
 
        ! If we are testing b4b, then we pay this even if we don't have the carbon
        ! Just don't pay so much carbon that storage+carbon_balance can't pay for it
-
        bl_flux = min(leaf_turnover_demand, &
-             max(0.0_r8,(currentCohort%bstore+carbon_balance)*(leaf_turnover_demand/total_turnover_demand)))
+                 max(0.0_r8,(currentCohort%bstore+carbon_balance)* &
+                 (leaf_turnover_demand/total_turnover_demand)))
        
        carbon_balance               = carbon_balance - bl_flux
        currentCohort%bl             = currentCohort%bl +  bl_flux
@@ -1074,7 +1096,8 @@ contains
 
        ! If we are testing b4b, then we pay this even if we don't have the carbon
        br_flux = min(root_turnover_demand, &
-             max(0.0_r8, (currentCohort%bstore+carbon_balance)*(root_turnover_demand/total_turnover_demand)))
+                 max(0.0_r8, (currentCohort%bstore+carbon_balance)* &
+                 (root_turnover_demand/total_turnover_demand)))
 
        carbon_balance              = carbon_balance - br_flux
        currentCohort%br            = currentCohort%br +  br_flux
@@ -1103,8 +1126,10 @@ contains
 
        store_below_target     = max(bt_store - currentCohort%bstore,0.0_r8)
        store_target_fraction  = max(0.0_r8,currentCohort%bstore/bt_store)
+
        bstore_flux            = min(store_below_target,carbon_balance * &
                                 max(exp(-1.*store_target_fraction**4._r8) - exp( -1.0_r8 ),0.0_r8))
+
        carbon_balance         = carbon_balance - bstore_flux
        currentCohort%bstore   = currentCohort%bstore + bstore_flux
        currentCohort%npp_stor = currentCohort%npp_stor + bstore_flux / hlm_freq_day
@@ -1222,11 +1247,17 @@ contains
     ! allow actual pools to be above the target, and in these cases, it sends
     ! a false on the "grow_<>" flag, allowing the plant to grow into these pools.
     ! It also checks to make sure that structural biomass is not above the target.
-    
-    call TargetAllometryCheck(currentCohort%bl,currentCohort%br,currentCohort%bsw, &
+    if ( EDPftvarcon_inst%woody(ipft) == itrue ) then
+       call TargetAllometryCheck(currentCohort%bl,currentCohort%br,currentCohort%bsw, &
                               currentCohort%bstore,currentCohort%bdead, &
                               bt_leaf,bt_fineroot,bt_sap,bt_store,bt_dead, &
                               grow_leaf,grow_froot,grow_sap,grow_store)
+    else
+       grow_leaf  = .true.
+       grow_froot = .true.
+       grow_sap   = .true.
+       grow_store = .true.
+    end if
 
 
     ! Initialize the adaptive integrator arrays and flags
@@ -1261,12 +1292,12 @@ contains
 
         elseif(ODESolve == 2) then
            call Euler(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC,currentCohort,c_pool_out)
-!           step_pass = .true.
-           call CheckIntegratedAllometries(c_pool_out(i_dbh),ipft,currentCohort%canopy_trim,  &
-                 c_pool_out(i_cleaf), c_pool_out(i_cfroot), c_pool_out(i_csap), &
-                 c_pool_out(i_cstore), c_pool_out(i_cdead), &
-                 c_mask(i_cleaf), c_mask(i_cfroot), c_mask(i_csap), &
-                 c_mask(i_cstore),c_mask(i_cdead),  max_trunc_error, step_pass)
+           step_pass = .true.
+!           call CheckIntegratedAllometries(c_pool_out(i_dbh),ipft,currentCohort%canopy_trim,  &
+!                 c_pool_out(i_cleaf), c_pool_out(i_cfroot), c_pool_out(i_csap), &
+!                 c_pool_out(i_cstore), c_pool_out(i_cdead), &
+!                 c_mask(i_cleaf), c_mask(i_cfroot), c_mask(i_csap), &
+!                 c_mask(i_cstore),c_mask(i_cdead),  max_trunc_error, step_pass)
            if(step_pass)  then
               currentCohort%ode_opt_step = deltaC
            else
@@ -1463,35 +1494,57 @@ contains
         if (mask_sap)   ct_dtotaldd = ct_dtotaldd + ct_dsapdd
         if (mask_store) ct_dtotaldd = ct_dtotaldd + ct_dstoredd
 
-        dCdx(i_cdead) = (ct_ddeaddd/ct_dtotaldd)*(1.0_r8-repro_fraction)   
-        dCdx(i_dbh)   = (1.0_r8/ct_dtotaldd)*(1.0_r8-repro_fraction)
+        ! It is possible that with some asymptotic, or hard
+        ! capped allometries, that all growth rates reach zero.
+        ! In this case, if there is carbon, give it to reproduction
 
-        if (mask_leaf) then
-           dCdx(i_cleaf) = (ct_dleafdd/ct_dtotaldd)*(1.0_r8-repro_fraction)
-        else
-           dCdx(i_cleaf) = 0.0_r8
-        end if
-          
-        if (mask_froot) then
-           dCdx(i_cfroot) = (ct_dfrootdd/ct_dtotaldd)*(1.0_r8-repro_fraction)
-        else
+!        repro_fraction = 0.0_r8
+
+        if(ct_dtotaldd<=tiny(ct_dtotaldd))then
+
+           dCdx(i_cdead)  = 0.0_r8
+           dCdx(i_dbh)    = 0.0_r8
+           dCdx(i_cleaf)  = 0.0_r8
            dCdx(i_cfroot) = 0.0_r8
-        end if
-          
-        if (mask_sap) then
-           dCdx(i_csap) = (ct_dsapdd/ct_dtotaldd)*(1.0_r8-repro_fraction)
-        else
-           dCdx(i_csap) = 0.0_r8
-        end if
-        
-        if (mask_store) then
-           dCdx(i_cstore) = (ct_dstoredd/ct_dtotaldd)*(1.0_r8-repro_fraction)
-        else
+           dCdx(i_csap)   = 0.0_r8
            dCdx(i_cstore) = 0.0_r8
+           dCdx(i_crepro) = 1.0_r8
+
+           write(fates_log(),*) 'exiting because of forced seed 0'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+
+        else
+
+           dCdx(i_cdead) = (ct_ddeaddd/ct_dtotaldd)*(1.0_r8-repro_fraction)   
+           dCdx(i_dbh)   = (1.0_r8/ct_dtotaldd)*(1.0_r8-repro_fraction)
+        
+           if (mask_leaf) then
+              dCdx(i_cleaf) = (ct_dleafdd/ct_dtotaldd)*(1.0_r8-repro_fraction)
+           else
+              dCdx(i_cleaf) = 0.0_r8
+           end if
+           
+           if (mask_froot) then
+              dCdx(i_cfroot) = (ct_dfrootdd/ct_dtotaldd)*(1.0_r8-repro_fraction)
+           else
+              dCdx(i_cfroot) = 0.0_r8
+           end if
+           
+           if (mask_sap) then
+              dCdx(i_csap) = (ct_dsapdd/ct_dtotaldd)*(1.0_r8-repro_fraction)
+           else
+              dCdx(i_csap) = 0.0_r8
+           end if
+           
+           if (mask_store) then
+              dCdx(i_cstore) = (ct_dstoredd/ct_dtotaldd)*(1.0_r8-repro_fraction)
+           else
+              dCdx(i_cstore) = 0.0_r8
+           end if
+           
+           dCdx(i_crepro) = repro_fraction
+
         end if
-
-
-        dCdx(i_crepro) = repro_fraction
         
 
       end associate
@@ -1614,6 +1667,26 @@ contains
        call bdead_allom(b_agw,b_bgw,b_sapwood,ft,temp_cohort%bdead)
        call bstore_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,temp_cohort%bstore)
 
+       temp_cohort%laimemory = 0.0_r8     
+       if (EDPftvarcon_inst%season_decid(temp_cohort%pft) == 1.and.currentSite%status == 1)then
+          temp_cohort%laimemory = b_leaf
+          b_leaf = 0.0_r8
+       endif
+       if (EDPftvarcon_inst%stress_decid(temp_cohort%pft) == 1.and.currentSite%dstatus == 1)then
+          temp_cohort%laimemory = b_leaf
+          b_leaf = 0.0_r8
+       endif
+
+       cohortstatus = currentSite%status
+       if (EDPftvarcon_inst%stress_decid(ft) == 1)then !drought decidous, override status. 
+          cohortstatus = currentSite%dstatus
+       endif
+
+       if (EDPftvarcon_inst%evergreen(ft) == 1) then
+          temp_cohort%laimemory   = 0._r8
+          cohortstatus = 2      
+       endif
+
        if (hlm_use_ed_prescribed_phys .eq. ifalse .or. EDPftvarcon_inst%prescribed_recruitment(ft) .lt. 0. ) then
           temp_cohort%n           = currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day &
                / (temp_cohort%bdead+b_leaf+b_fineroot+b_sapwood+temp_cohort%bstore)
@@ -1628,23 +1701,6 @@ contains
           currentSite%flux_out = currentSite%flux_out + currentPatch%area * currentPatch%seed_germination(ft)*hlm_freq_day
        endif
 
-       temp_cohort%laimemory = 0.0_r8     
-       if (EDPftvarcon_inst%season_decid(temp_cohort%pft) == 1.and.currentSite%status == 1)then
-          temp_cohort%laimemory = b_leaf
-       endif
-       if (EDPftvarcon_inst%stress_decid(temp_cohort%pft) == 1.and.currentSite%dstatus == 1)then
-          temp_cohort%laimemory = b_leaf
-       endif
-
-       cohortstatus = currentSite%status
-       if (EDPftvarcon_inst%stress_decid(ft) == 1)then !drought decidous, override status. 
-          cohortstatus = currentSite%dstatus
-       endif
-
-       if (EDPftvarcon_inst%evergreen(ft) == 1) then
-          temp_cohort%laimemory   = 0._r8
-          cohortstatus = 2      
-       endif
 
        if (temp_cohort%n > 0.0_r8 )then
           if ( DEBUG ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
@@ -1719,7 +1775,7 @@ contains
       do c = 1,ncwd
          currentPatch%cwd_AG_in(c) = currentPatch%cwd_AG_in(c) + &
                (currentCohort%bdead_md + currentCohort%bsw_md) * &
-               SF_val_CWD_frac(c) * currentCohort%n/currentPatch%area *EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
+               SF_val_CWD_frac(c) * currentCohort%n/currentPatch%area * EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)
          currentPatch%cwd_BG_in(c) = currentPatch%cwd_BG_in(c) + &
                (currentCohort%bdead_md + currentCohort%bsw_md) * &
                SF_val_CWD_frac(c) * currentCohort%n/currentPatch%area *(1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
@@ -1747,7 +1803,12 @@ contains
 
 
           currentPatch%leaf_litter_in(pft) = currentPatch%leaf_litter_in(pft) + &
-               currentCohort%bl * dead_n          
+                (currentCohort%bl)* dead_n
+                ! %n has not been updated due to mortality yet, thus
+                ! the litter flux has already been counted since it captured
+                ! the losses of live trees and those flagged for death
+                !(currentCohort%bl+currentCohort%leaf_litter/hlm_freq_day)* dead_n
+
           currentPatch%root_litter_in(pft) = currentPatch%root_litter_in(pft) + &
                (currentCohort%br+currentCohort%bstore)     * dead_n
 

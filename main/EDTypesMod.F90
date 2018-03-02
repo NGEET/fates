@@ -18,7 +18,7 @@ module EDTypesMod
   integer, parameter :: ican_ustory = 2           ! Nominal index for understory in two-canopy system
 
   integer, parameter :: nlevleaf = 40             ! number of leaf layers in canopy layer
-  integer, parameter :: maxpft = 10               ! maximum number of PFTs allowed
+  integer, parameter :: maxpft = 15               ! maximum number of PFTs allowed
                                                   ! the parameter file may determine that fewer
                                                   ! are used, but this helps allocate scratch
                                                   ! space and output arrays.
@@ -349,8 +349,6 @@ module EDTypesMod
      ! PHOTOSYNTHESIS       
 
      real(r8) ::  psn_z(nclmax,maxpft,nlevleaf)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
-!     real(r8) ::  gpp                                              ! total patch gpp: KgC/m2/year
-!     real(r8) ::  npp                                              ! total patch npp: KgC/m2/year   
 
      ! ROOTS
      real(r8), allocatable ::  rootfr_ft(:,:)                      ! root fraction of each PFT in each soil layer:-
@@ -517,8 +515,8 @@ module EDTypesMod
      real(r8) ::  water_memory(numWaterMem)                             ! last 10 days of soil moisture memory...
 
      !SEED BANK
-     real(r8) :: seed_bank(maxpft)                              ! seed pool in KgC/m2/year
-     real(r8) :: dseed_dt(maxpft)
+     real(r8) :: seed_bank(maxpft)                              ! seed pool in KgC/m2
+     real(r8) :: dseed_dt(maxpft)                               ! change in seed pool in KgC/m2/year
      real(r8) :: seed_rain_flux(maxpft)                         ! flux of seeds from exterior KgC/m2/year (needed for C balance purposes)
 
      ! FIRE
