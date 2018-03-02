@@ -65,6 +65,10 @@ contains
     real(r8),parameter :: frost_mort_scaler = 3.0_r8  ! Scaling factor for freezing mortality
     real(r8),parameter :: frost_mort_buffer = 5.0_r8  ! 5deg buffer for freezing mortality
 
+    logical, parameter :: test_zero_mortality = .false. ! Developer test which
+                                                        ! may help to debug carbon imbalances
+                                                        ! and the like
+
     if (hlm_use_ed_prescribed_phys .eq. ifalse) then
 
     ! 'Background' mortality (can vary as a function of 
@@ -121,6 +125,14 @@ contains
        frmort = 0._r8
     endif
 
+    if (test_zero_mortality) then
+       cmort = 0.0_r8
+       hmort = 0.0_r8
+       frmort = 0.0_r8
+       bmort = 0.0_r8
+    end if
+       
+    return
  end subroutine mortality_rates
 
  ! ============================================================================
