@@ -1197,32 +1197,69 @@ contains
              
              !Whole layers.  Make a weighted average of the leaf area in each layer before dividing it by the total area. 
              !fill up layer for whole layers.  FIX(RF,032414)- for debugging jan 2012
-             do iv = 1,currentCohort%NV-1 
+
+             do iv = 1,currentCohort%NV
                 
-                ! what is the height of this layer? (for snow burial purposes...)  
-                ! EDPftvarcon_inst%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile. 
-                layer_top_hite = currentCohort%hite-((iv/currentCohort%NV) * currentCohort%hite * &
-                      EDPftvarcon_inst%crown(currentCohort%pft) )
-                layer_bottom_hite = currentCohort%hite-(((iv+1)/currentCohort%NV) * currentCohort%hite * &
-                      EDPftvarcon_inst%crown(currentCohort%pft)) ! EDPftvarcon_inst%vertical_canopy_frac(ft))
+                ! This loop builds the arrays that define the effective (not snow covered)
+                ! and total (includes snow covered) area indices for leaves and stems
+                ! We calculate the absolute elevation of each layer to help determine if the layer
+                ! is obscured by snow.
+                ! (RGK 03-01-2018 : we are not occulding any vegetation from snow right now)
+
+                layer_top_hite = currentCohort%hite - &
+                      ( dble(iv-1.0)/currentCohort%NV * currentCohort%hite * EDPftvarcon_inst%crown(currentCohort%pft) )
                 
-                fraction_exposed =1.0_r8
+                layer_bottom_hite = currentCohort%hite - &
+                      ( dble(iv)/currentCohort%NV * currentCohort%hite * EDPftvarcon_inst%crown(currentCohort%pft) )
                 
-                currentPatch%tlai_profile(L,ft,iv) = currentPatch%tlai_profile(L,ft,iv)+ dinc_ed * fleaf * &
-                      currentCohort%c_area/currentPatch%total_canopy_area
-                currentPatch%elai_profile(L,ft,iv) = currentPatch%elai_profile(L,ft,iv)+ dinc_ed * fleaf * &
-                      currentCohort%c_area/currentPatch%total_canopy_area * fraction_exposed
+                fraction_exposed = 1.0_r8
+                snow_depth_avg = snow_depth_si * frac_sno_eff_si
+                if(snow_depth_avg  > layer_top_hite)then
+                   fraction_exposed = 0._r8
+                endif
+                if(snow_depth_avg < layer_bottom_hite)then
+                   fraction_exposed = 1._r8
+                   
+                endif
+                if(snow_depth_avg>= layer_bottom_hite.and.snow_depth_avg <= layer_top_hite)then !only partly hidden...                                   
+                   fraction_exposed =  max(0._r8,(min(1.0_r8,(snow_depth_avg-layer_bottom_hite)/ &
+                         (layer_top_hite-layer_bottom_hite ))))
+                endif
+
+                ! =========== OVER-WRITE =================
+                fraction_exposed= 1.0_r8
+                ! =========== OVER-WRITE =================
+
+                if(iv==currentCohort%NV) then
+                   remainder = (currentCohort%treelai + currentCohort%treesai) - (dinc_ed*dble(currentCohort%NV-1.0_r8))
+                   if(remainder > dinc_ed )then
+                      write(fates_log(), *)'ED: issue with remainder',currentCohort%treelai,currentCohort%treesai,dinc_ed, & 
+                            currentCohort%NV,remainder
+                      call endrun(msg=errMsg(sourcefile, __LINE__))
+                   endif
+                else
+                   remainder = dinc_ed
+                end if
+
+                currentPatch%tlai_profile(L,ft,iv) = currentPatch%tlai_profile(L,ft,iv) + &
+                      remainder * fleaf * currentCohort%c_area/currentPatch%total_canopy_area
                 
-                currentPatch%tsai_profile(L,ft,iv) = currentPatch%tsai_profile(L,ft,iv)+ dinc_ed * (1._r8 - fleaf) * &
-                      currentCohort%c_area/currentPatch%total_canopy_area
-                currentPatch%esai_profile(L,ft,iv) = currentPatch%esai_profile(L,ft,iv)+ dinc_ed * (1._r8 - fleaf) * &
-                      currentCohort%c_area/currentPatch%total_canopy_area * fraction_exposed
+                currentPatch%elai_profile(L,ft,iv) = currentPatch%elai_profile(L,ft,iv) + &
+                      remainder * fleaf * currentCohort%c_area/currentPatch%total_canopy_area * fraction_exposed
+                
+                currentPatch%tsai_profile(L,ft,iv) = currentPatch%tsai_profile(L,ft,iv) + &
+                      remainder * (1._r8 - fleaf) * currentCohort%c_area/currentPatch%total_canopy_area
+                
+                currentPatch%esai_profile(L,ft,iv) = currentPatch%esai_profile(L,ft,iv) + &
+                      remainder * (1._r8 - fleaf) * currentCohort%c_area/currentPatch%total_canopy_area * fraction_exposed
                 
                 currentPatch%canopy_area_profile(L,ft,iv) =  min(1.0_r8,currentPatch%canopy_area_profile(L,ft,iv) + &
                       currentCohort%c_area/currentPatch%total_canopy_area)
-                currentPatch%layer_height_profile(L,ft,iv) = currentPatch%layer_height_profile(L,ft,iv) + (dinc_ed * fleaf * &
-                      currentCohort%c_area/currentPatch%total_canopy_area *(layer_top_hite+layer_bottom_hite)/2.0_r8) !average height of layer. 
                 
+                currentPatch%layer_height_profile(L,ft,iv) = currentPatch%layer_height_profile(L,ft,iv) + &
+                      (remainder * fleaf * currentCohort%c_area/currentPatch%total_canopy_area * &
+                      (layer_top_hite+layer_bottom_hite)/2.0_r8) !average height of layer. 
+
                 if ( DEBUG ) then
                    write(fates_log(), *) 'calc snow 2', snow_depth_si , frac_sno_eff_si
                    write(fates_log(), *) 'LHP', currentPatch%layer_height_profile(L,ft,iv)
@@ -1230,68 +1267,6 @@ contains
                 end if
 
              end do
-                  
-             !Bottom layer
-             iv = currentCohort%NV
-             ! EDPftvarcon_inst%vertical_canopy_frac(ft))! fudge - this should be pft specific but i cant get it to compile.
-
-             layer_top_hite = currentCohort%hite-((iv/currentCohort%NV) * currentCohort%hite * &
-                   EDPftvarcon_inst%crown(currentCohort%pft) )
-             ! EDPftvarcon_inst%vertical_canopy_frac(ft))
-             layer_bottom_hite = currentCohort%hite-(((iv+1)/currentCohort%NV) * currentCohort%hite * &
-                   EDPftvarcon_inst%crown(currentCohort%pft))
-             
-             fraction_exposed = 1.0_r8 !default. 
-             snow_depth_avg = snow_depth_si * frac_sno_eff_si
-             if(snow_depth_avg  > layer_top_hite)then
-                fraction_exposed = 0._r8
-             endif
-             if(snow_depth_avg < layer_bottom_hite)then
-                fraction_exposed = 1._r8
-                
-             endif
-             if(snow_depth_avg>= layer_bottom_hite.and.snow_depth_avg <= layer_top_hite)then !only partly hidden...                                   
-                fraction_exposed =  max(0._r8,(min(1.0_r8,(snow_depth_avg-layer_bottom_hite)/ &
-                      (layer_top_hite-layer_bottom_hite ))))
-             endif
-             fraction_exposed= 1.0_r8
-
-             
-             remainder = (currentCohort%treelai + currentCohort%treesai) - (dinc_ed*(currentCohort%NV-1))
-             if(remainder > 1.0_r8)then
-                write(fates_log(), *)'ED: issue with remainder',currentCohort%treelai,currentCohort%treesai,dinc_ed, & 
-                      currentCohort%NV
-             endif
-             !assumes that fleaf is unchanging FIX(RF,032414)
-             
-             currentPatch%tlai_profile(L,ft,iv) =  currentPatch%tlai_profile(L,ft,iv)+ remainder * fleaf * &
-                   currentCohort%c_area/currentPatch%total_canopy_area
-             currentPatch%elai_profile(L,ft,iv) = currentPatch%elai_profile(L,ft,iv) + remainder * fleaf * &
-                   currentCohort%c_area/currentPatch%total_canopy_area * fraction_exposed
-             !assumes that fleaf is unchanging FIX(RF,032414)
-             
-             currentPatch%tsai_profile(L,ft,iv) =  currentPatch%tsai_profile(L,ft,iv)+  remainder * &
-                   (1.0_r8-fleaf) * currentCohort%c_area/currentPatch%total_canopy_area
-             currentPatch%esai_profile(L,ft,iv) = currentPatch%esai_profile(L,ft,iv)+  remainder * &
-                   (1.0_r8-fleaf) * currentCohort%c_area/currentPatch%total_canopy_area * fraction_exposed
-             
-             currentPatch%canopy_area_profile(L,ft,iv) = min(1.0_r8,currentPatch%canopy_area_profile(L,ft,iv) + &
-                   currentCohort%c_area/currentPatch%total_canopy_area)
-             currentPatch%layer_height_profile(L,ft,iv) = currentPatch%layer_height_profile(L,ft,iv) + (remainder * fleaf * &
-                   currentCohort%c_area/currentPatch%total_canopy_area*(layer_top_hite+layer_bottom_hite)/2.0_r8)
-             if ( DEBUG ) write(fates_log(), *) 'LHP', currentPatch%layer_height_profile(L,ft,iv)
-             if(currentCohort%dbh <= 0._r8.or.currentCohort%n == 0._r8)then
-                write(fates_log(), *) 'ED: dbh or n is zero in clmedlink', currentCohort%dbh,currentCohort%n
-                call endrun(msg=errMsg(sourcefile, __LINE__))
-             endif
-             if(currentCohort%pft == 0.or.currentCohort%canopy_trim <= 0._r8)then
-                write(fates_log(), *) 'ED: PFT or trim is zero in clmedlink',currentCohort%pft,currentCohort%canopy_trim
-                call endrun(msg=errMsg(sourcefile, __LINE__))
-             endif
-             if(currentCohort%bl < 0._r8)then
-                write(fates_log(), *) 'ED: bl (leaf biomass) is lt zero',currentCohort%bl
-                call endrun(msg=errMsg(sourcefile, __LINE__))
-             endif
              
              currentCohort => currentCohort%taller
              
@@ -1301,21 +1276,26 @@ contains
              do ft = 1,numpft
                 do iv = 1,currentPatch%nrad(L,ft)
                    !account for total canopy area
-                   currentPatch%tlai_profile(L,ft,iv) = currentPatch%tlai_profile(L,ft,iv) / &
-                         currentPatch%canopy_area_profile(L,ft,iv)
-                   currentPatch%tsai_profile(L,ft,iv) = currentPatch%tsai_profile(L,ft,iv) / &
-                         currentPatch%canopy_area_profile(L,ft,iv)
+                   if(currentPatch%canopy_area_profile(L,ft,iv) > tiny(currentPatch%canopy_area_profile(L,ft,iv)))then
+                      
+                      currentPatch%tlai_profile(L,ft,iv) = currentPatch%tlai_profile(L,ft,iv) / &
+                            currentPatch%canopy_area_profile(L,ft,iv)
+                      
+                      currentPatch%tsai_profile(L,ft,iv) = currentPatch%tsai_profile(L,ft,iv) / &
+                            currentPatch%canopy_area_profile(L,ft,iv)
+                      
+                      currentPatch%elai_profile(L,ft,iv) = currentPatch%elai_profile(L,ft,iv) / &
+                            currentPatch%canopy_area_profile(L,ft,iv)
+                      
+                      currentPatch%esai_profile(L,ft,iv) = currentPatch%esai_profile(L,ft,iv) / &
+                            currentPatch%canopy_area_profile(L,ft,iv)
+                   end if
                    
-                   if ( DEBUG ) write(fates_log(), *) 'EDCLMLink 1293 ', currentPatch%elai_profile(L,ft,iv)
-                   
-                   currentPatch%elai_profile(L,ft,iv) = currentPatch%elai_profile(L,ft,iv) / &
-                         currentPatch%canopy_area_profile(L,ft,iv)
+                   if(currentPatch%tlai_profile(L,ft,iv)>tiny(currentPatch%tlai_profile(L,ft,iv)))then
+                      currentPatch%layer_height_profile(L,ft,iv) = currentPatch%layer_height_profile(L,ft,iv) &
+                            /currentPatch%tlai_profile(L,ft,iv)
+                   end if
 
-                   currentPatch%esai_profile(L,ft,iv) = currentPatch%esai_profile(L,ft,iv) / &
-                         currentPatch%canopy_area_profile(L,ft,iv)
-
-                   currentPatch%layer_height_profile(L,ft,iv) = currentPatch%layer_height_profile(L,ft,iv) &
-                         /currentPatch%tlai_profile(L,ft,iv)
                 enddo
                 
                 currentPatch%tlai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevleaf) = 0._r8
