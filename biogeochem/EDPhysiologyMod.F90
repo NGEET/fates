@@ -2301,7 +2301,7 @@ contains
             do while(associated(currentCohort))      
                biomass_bg_ft(currentCohort%pft) = biomass_bg_ft(currentCohort%pft) + &
                      ((currentCohort%bdead + currentCohort%bsw ) * (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) + &
-                     (currentCohort%br + currentCohort%bstore )) + & 
+                     (currentCohort%br + currentCohort%bstore )) * & 
                      (currentCohort%n / currentPatch%area)
                currentCohort => currentCohort%shorter
             enddo !currentCohort
