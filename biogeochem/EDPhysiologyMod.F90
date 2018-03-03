@@ -49,7 +49,6 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : CheckIntegratedAllometries
   use FatesAllometryMod  , only : StructureResetOfDH
-  use FatesALlometryMod  , only : LeafResetOfDH
 
   use FatesIntegratorsMod, only : RKF45
   use FatesIntegratorsMod, only : Euler
@@ -983,10 +982,6 @@ contains
           (EDPftvarcon_inst%woody(ipft) == itrue) ) then
        call StructureResetOfDH( currentCohort%bdead, ipft, &
              currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
-!    else if ( ((currentCohort%bl-bt_leaf) > calloc_abs_error) .and. &
-!             (EDPftvarcon_inst%woody(ipft) == ifalse) ) then
-!       call LeafResetOfDH( currentCohort%bl, ipft, &
-!             currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
     end if
 
     ! -----------------------------------------------------------------------------------

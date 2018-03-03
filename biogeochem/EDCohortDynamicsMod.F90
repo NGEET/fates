@@ -36,7 +36,6 @@ module EDCohortDynamicsMod
   use FatesAllometryMod  , only : h_allom
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : StructureResetOfDH
-  use FatesAllometryMod  , only : LeafResetOfDH
   ! CIME globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   !
@@ -696,9 +695,6 @@ contains
                                 if( EDPftvarcon_inst%woody(currentCohort%pft) == itrue ) then
                                    call StructureResetOfDH( currentCohort%bdead, currentCohort%pft, &
                                          currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
-!                                else if (EDPftvarcon_inst%woody(currentCohort%pft) == ifalse ) then
-!                                   call LeafResetOfDH( currentCohort%bl, currentCohort%pft, &
-!                                         currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
                                 end if
 
                                 call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
