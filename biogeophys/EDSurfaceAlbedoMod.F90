@@ -11,15 +11,15 @@ module EDSurfaceRadiationMod
 #include "shr_assert.h"
    
   use EDTypesMod        , only : ed_patch_type, ed_site_type
-  use EDTypesMod        , only : numpft_ed
   use EDTypesMod        , only : maxPatchesPerSite
+  use EDTypesMod        , only : maxpft
   use FatesConstantsMod , only : r8 => fates_r8
   use FatesInterfaceMod , only : bc_in_type
   use FatesInterfaceMod , only : bc_out_type
   use FatesInterfaceMod , only : hlm_numSWb
+  use FatesInterfaceMod , only : numpft
   use EDTypesMod        , only : maxSWb
   use EDTypesMod        , only : nclmax
-  use EDTypesMod        , only : numpft_ed
   use EDTypesMod        , only : nlevleaf
   use EDCanopyStructureMod, only: calc_areaindex
   use FatesGlobals      , only : fates_log
@@ -74,10 +74,10 @@ contains
       real(r8) :: sb
       real(r8) :: error                                         ! Error check
       real(r8) :: down_rad, up_rad                              ! Iterative solution do Dif_dn and Dif_up
-      real(r8) :: ftweight(nclmax,numpft_ed,nlevleaf)
-      real(r8) :: k_dir(numpft_ed)                              ! Direct beam extinction coefficient
-      real(r8) :: tr_dir_z(nclmax,numpft_ed,nlevleaf)         ! Exponential transmittance of direct beam radiation through a single layer
-      real(r8) :: tr_dif_z(nclmax,numpft_ed,nlevleaf)         ! Exponential transmittance of diffuse radiation through a single layer
+      real(r8) :: ftweight(nclmax,maxpft,nlevleaf)
+      real(r8) :: k_dir(maxpft)                              ! Direct beam extinction coefficient
+      real(r8) :: tr_dir_z(nclmax,maxpft,nlevleaf)         ! Exponential transmittance of direct beam radiation through a single layer
+      real(r8) :: tr_dif_z(nclmax,maxpft,nlevleaf)         ! Exponential transmittance of diffuse radiation through a single layer
       real(r8) :: forc_dir(maxPatchesPerSite,maxSWb)
       real(r8) :: forc_dif(maxPatchesPerSite,maxSWb)
       real(r8) :: weighted_dir_tr(nclmax)
@@ -85,25 +85,29 @@ contains
       real(r8) :: weighted_dif_ratio(nclmax,maxSWb)
       real(r8) :: weighted_dif_down(nclmax)
       real(r8) :: weighted_dif_up(nclmax)
-      real(r8) :: refl_dif(nclmax,numpft_ed,nlevleaf,maxSWb)  ! Term for diffuse radiation reflected by laye
-      real(r8) :: tran_dif(nclmax,numpft_ed,nlevleaf,maxSWb)  ! Term for diffuse radiation transmitted by layer
-      real(r8) :: dif_ratio(nclmax,numpft_ed,nlevleaf,maxSWb) ! Ratio of upward to forward diffuse fluxes
-      real(r8) :: Dif_dn(nclmax,numpft_ed,nlevleaf)           ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
-      real(r8) :: Dif_up(nclmax,numpft_ed,nlevleaf)           ! Upward diffuse flux above canopy layer J (W/m**2 ground area)
-      real(r8) :: lai_change(nclmax,numpft_ed,nlevleaf)       ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
-      real(r8) :: f_not_abs(numpft_ed,maxSWb)                   ! Fraction reflected + transmitted. 1-absorbtion.
-      real(r8) :: Abs_dir_z(numpft_ed,nlevleaf)
-      real(r8) :: Abs_dif_z(numpft_ed,nlevleaf)
+      real(r8) :: refl_dif(nclmax,maxpft,nlevleaf,maxSWb)  ! Term for diffuse radiation reflected by laye
+      real(r8) :: tran_dif(nclmax,maxpft,nlevleaf,maxSWb)  ! Term for diffuse radiation transmitted by layer
+      real(r8) :: dif_ratio(nclmax,maxpft,nlevleaf,maxSWb) ! Ratio of upward to forward diffuse fluxes
+      real(r8) :: Dif_dn(nclmax,maxpft,nlevleaf)           ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
+      real(r8) :: Dif_up(nclmax,maxpft,nlevleaf)           ! Upward diffuse flux above canopy layer J (W/m**2 ground area)
+      real(r8) :: lai_change(nclmax,maxpft,nlevleaf)       ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
+      real(r8) :: f_not_abs(maxpft,maxSWb)                   ! Fraction reflected + transmitted. 1-absorbtion.
+      real(r8) :: Abs_dir_z(maxpft,nlevleaf)
+      real(r8) :: Abs_dif_z(maxpft,nlevleaf)
       real(r8) :: abs_rad(maxSWb)                               !radiation absorbed by soil
       real(r8) :: tr_soili                                      ! Radiation transmitted to the soil surface.
       real(r8) :: tr_soild                                      ! Radiation transmitted to the soil surface.
-      real(r8) :: phi1b(maxPatchesPerSite,numpft_ed)      ! Radiation transmitted to the soil surface.
-      real(r8) :: phi2b(maxPatchesPerSite,numpft_ed)
+      real(r8) :: phi1b(maxPatchesPerSite,maxpft)      ! Radiation transmitted to the soil surface.
+      real(r8) :: phi2b(maxPatchesPerSite,maxpft)
       real(r8) :: laisum                                        ! cumulative lai+sai for canopy layer (at middle of layer)
       real(r8) :: angle
 
       real(r8),parameter :: tolerance = 0.000000001_r8
       real(r8), parameter :: pi   = 3.141592654                 ! PI
+
+      
+      integer, parameter :: max_diag_nlevleaf = 4
+      integer, parameter :: diag_nlevleaf = min(nlevleaf,max_diag_nlevleaf)  ! for diagnostics, write a small number of leaf layers
 
       real(r8) :: denom
       real(r8) :: lai_reduction(2)
@@ -192,7 +196,7 @@ contains
                     
                     ! Is this pft/canopy layer combination present in this patch?
                     do L = 1,nclmax
-                       do ft = 1,numpft_ed
+                       do ft = 1,numpft
                           currentPatch%present(L,ft) = 0
                           do  iv = 1, currentPatch%nrad(L,ft)
                              if (currentPatch%canopy_area_profile(L,ft,iv) > 0._r8)then
@@ -219,7 +223,7 @@ contains
                        !Extract information that needs to be provided by ED into local array.
                        ftweight(:,:,:) = 0._r8
                        do L = 1,currentPatch%NCL_p
-                          do ft = 1,numpft_ed
+                          do ft = 1,numpft
                              do  iv = 1, currentPatch%nrad(L,ft)
                                 !this is already corrected for area in CLAP
                                 ftweight(L,ft,iv) = currentPatch%canopy_area_profile(L,ft,iv) 
@@ -237,7 +241,7 @@ contains
                        ! Direct beam extinction coefficient, k_dir. PFT specific.
                        !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
                        cosz = max(0.001_r8, bc_in(s)%coszen_pa(ifp)) !copied from previous radiation code...
-                       do ft = 1,numpft_ed
+                       do ft = 1,numpft
                           sb = (90._r8 - (acos(cosz)*180/pi)) * (pi / 180._r8)
                           chil(ifp) = xl(ft) !min(max(xl(ft), -0.4_r8), 0.6_r8 )
                           if (abs(chil(ifp)) <= 0.01_r8) then
@@ -255,7 +259,7 @@ contains
                           weighted_fsun(L) = 0._r8
                           weighted_dif_ratio(L,1:hlm_numSWb) = 0._r8
                           !Each canopy layer (canopy, understorey) has multiple 'parallel' pft's
-                          do ft =1,numpft_ed
+                          do ft =1,numpft
                              if (currentPatch%present(L,ft) == 1)then !only do calculation if there are the appropriate leaves.
                                 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
                                 ! Diffuse transmittance, tr_dif, do each layer with thickness elai_z.
@@ -387,7 +391,7 @@ contains
                        end do !L
                        
                        do L = currentPatch%NCL_p,1, -1 !start at the bottom and work up.
-                          do ft = 1,numpft_ed
+                          do ft = 1,numpft
                              if (currentPatch%present(L,ft) == 1)then
                                 !==============================================================================!
                                 ! Iterative solution do scattering
@@ -445,7 +449,7 @@ contains
                           Dif_up(:,:,:) = 0.00_r8
                           do L = 1, currentPatch%NCL_p !work down from the top of the canopy.
                              weighted_dif_down(L) = 0._r8
-                             do ft = 1, numpft_ed
+                             do ft = 1, numpft
                                 if (currentPatch%present(L,ft) == 1)then
                                    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
                                    ! First estimates do downward and upward diffuse flux
@@ -501,7 +505,7 @@ contains
                           
                           do L = currentPatch%NCL_p,1 ,-1 !work up from the bottom.
                              weighted_dif_up(L) = 0._r8
-                             do ft = 1, numpft_ed
+                             do ft = 1, numpft
                                 if (currentPatch%present(L,ft) == 1)then
                                    !Bounce diffuse radiation off soil surface.
                                    iv = currentPatch%nrad(L,ft) + 1
@@ -535,11 +539,11 @@ contains
                              if (L == currentPatch%NCL_p.and.currentPatch%NCL_p > 1)then !is this the (incomplete) understorey?
                                 !Add on the radiation coming up through the canopy gaps.
                                 !diffuse to diffuse
-                                weighted_dif_up(L) = weighted_dif_up(L) +(1.0-sum(ftweight(L,:,1))) * &
+                                weighted_dif_up(L) = weighted_dif_up(L) +(1.0-sum(ftweight(L,1:numpft,1))) * &
                                      weighted_dif_down(L-1) * bc_in(s)%albgr_dif_rb(ib)
                                 !direct to diffuse
                                 weighted_dif_up(L) = weighted_dif_up(L) + forc_dir(ifp,ib) * &
-                                     weighted_dir_tr(L-1) * (1.0-sum(ftweight(L,:,1)))*bc_in(s)%albgr_dir_rb(ib)
+                                     weighted_dir_tr(L-1) * (1.0-sum(ftweight(L,1:numpft,1)))*bc_in(s)%albgr_dir_rb(ib)
                              endif
                           end do !L
                           !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
@@ -557,7 +561,7 @@ contains
                              irep = 0
                              do L = 1,currentPatch%NCL_p !working from the top down
                                 weighted_dif_down(L) = 0._r8
-                                do ft =1,numpft_ed
+                                do ft =1,numpft
                                    if (currentPatch%present(L,ft) == 1)then
                                       ! forward diffuse flux within the canopy and at soil, working forward through canopy
                                       ! with Dif_up -from previous iteration-. Dif_dn(1) is the forward diffuse flux onto the canopy.
@@ -606,13 +610,14 @@ contains
                                    endif !present
                                 end do!ft
                                 if (L == currentPatch%NCL_p.and.currentPatch%NCL_p > 1)then !is this the (incomplete) understorey?
-                                   weighted_dif_down(L) = weighted_dif_down(L) + weighted_dif_down(L-1)*(1.0-sum(ftweight(L,:,1)))
+                                   weighted_dif_down(L) = weighted_dif_down(L) + weighted_dif_down(L-1) * &
+                                         (1.0-sum(ftweight(L,1:numpft,1)))
                                 end if
                              end do ! do L loop
 
                              do L = 1, currentPatch%NCL_p ! working from the top down.
                                 weighted_dif_up(L) = 0._r8
-                                do ft =1,numpft_ed
+                                do ft =1,numpft
                                    if (currentPatch%present(L,ft) == 1)then
                                       ! Upward diffuse flux at soil or from lower canopy (forward diffuse and unscattered direct beam)
                                       iv = currentPatch%nrad(L,ft) + 1
@@ -650,10 +655,10 @@ contains
 
                                 if (L == currentPatch%NCL_p.and.currentPatch%NCL_p > 1)then  !is this the (incomplete) understorey?
                                    !Add on the radiation coming up through the canopy gaps.
-                                   weighted_dif_up(L) = weighted_dif_up(L) +(1.0_r8-sum(ftweight(L,:,1))) * &
+                                   weighted_dif_up(L) = weighted_dif_up(L) +(1.0_r8-sum(ftweight(L,1:numpft,1))) * &
                                         weighted_dif_down(L-1) * bc_in(s)%albgr_dif_rb(ib)
                                    weighted_dif_up(L) = weighted_dif_up(L) + forc_dir(ifp,ib) * &
-                                        weighted_dir_tr(L-1) * (1.0_r8-sum(ftweight(L,:,1)))*bc_in(s)%albgr_dir_rb(ib)
+                                        weighted_dir_tr(L-1) * (1.0_r8-sum(ftweight(L,1:numpft,1)))*bc_in(s)%albgr_dir_rb(ib)
                                 end if
                              end do!L
                           end do ! do while over iter
@@ -664,7 +669,7 @@ contains
                           do L = 1, currentPatch%NCL_p !working from the top down.
                              abs_dir_z(:,:) = 0._r8
                              abs_dif_z(:,:) = 0._r8
-                             do ft =1,numpft_ed
+                             do ft =1,numpft
                                 if (currentPatch%present(L,ft) == 1)then
                                    !==============================================================================!
                                    ! Compute absorbed flux densities
@@ -758,11 +763,11 @@ contains
                              !radiation absorbed from fluxes through unfilled part of lower canopy.
                              if (currentPatch%NCL_p > 1.and.L == currentPatch%NCL_p)then 
                                 abs_rad(ib) = abs_rad(ib) + weighted_dif_down(L-1) * &
-                                     (1.0_r8-sum(ftweight(L,:,1)))*(1.0_r8-bc_in(s)%albgr_dif_rb(ib))
+                                     (1.0_r8-sum(ftweight(L,1:numpft,1)))*(1.0_r8-bc_in(s)%albgr_dif_rb(ib))
                                 abs_rad(ib) = abs_rad(ib) + forc_dir(ifp,ib) * weighted_dir_tr(L-1) * &
-                                     (1.0_r8-sum(ftweight(L,:,1)))*(1.0_r8-bc_in(s)%albgr_dir_rb(ib))
-                                tr_soili = tr_soili + weighted_dif_down(L-1) * (1.0_r8-sum(ftweight(L,:,1)))
-                                tr_soild = tr_soild + forc_dir(ifp,ib) * weighted_dir_tr(L-1) * (1.0_r8-sum(ftweight(L,:,1)))
+                                     (1.0_r8-sum(ftweight(L,1:numpft,1)))*(1.0_r8-bc_in(s)%albgr_dir_rb(ib))
+                                tr_soili = tr_soili + weighted_dif_down(L-1) * (1.0_r8-sum(ftweight(L,1:numpft,1)))
+                                tr_soild = tr_soild + forc_dir(ifp,ib) * weighted_dir_tr(L-1) * (1.0_r8-sum(ftweight(L,1:numpft,1)))
                              endif
                              
                              if (radtype == 1)then
@@ -792,7 +797,7 @@ contains
                              if ( abs(error) > 0.0001)then
                                 write(fates_log(),*)'dir ground absorption error',ifp,s,error,currentPatch%sabs_dir(ib), &
                                      currentPatch%tr_soil_dir(ib)* &
-                                     (1.0_r8-bc_in(s)%albgr_dir_rb(ib)),currentPatch%NCL_p,ib,sum(ftweight(1,:,1))
+                                     (1.0_r8-bc_in(s)%albgr_dir_rb(ib)),currentPatch%NCL_p,ib,sum(ftweight(1,1:numpft,1))
                                 write(fates_log(),*) 'albedos',currentPatch%sabs_dir(ib) ,currentPatch%tr_soil_dir(ib), &
                                      (1.0_r8-bc_in(s)%albgr_dir_rb(ib)),currentPatch%lai
                                 
@@ -807,7 +812,7 @@ contains
                                   (1.0_r8-bc_in(s)%albgr_dif_rb(ib)))) > 0.0001)then
                                 write(fates_log(),*)'dif ground absorption error',ifp,s,currentPatch%sabs_dif(ib) , &
                                      (currentPatch%tr_soil_dif(ib)* &
-                                     (1.0_r8-bc_in(s)%albgr_dif_rb(ib))),currentPatch%NCL_p,ib,sum(ftweight(1,:,1))
+                                     (1.0_r8-bc_in(s)%albgr_dif_rb(ib))),currentPatch%NCL_p,ib,sum(ftweight(1,1:numpft,1))
                              endif
                           endif
                           
@@ -820,7 +825,7 @@ contains
                           endif
                           lai_reduction(:) = 0.0_r8
                           do L = 1, currentPatch%NCL_p
-                             do ft =1,numpft_ed
+                             do ft =1,numpft
                                 if (currentPatch%present(L,ft) == 1)then
                                    do iv = 1, currentPatch%nrad(L,ft)
                                       if (lai_change(L,ft,iv) > 0.0_r8)then
@@ -830,24 +835,6 @@ contains
                                 endif
                              enddo
                           enddo
-                          if (lai_change(1,2,1).gt.0.0.and.lai_change(1,2,2).gt.0.0)then
-                             !                           write(fates_log(),*) 'lai_change(1,2,12)',lai_change(1,2,1:4)
-                          endif
-                          if (lai_change(1,2,2).gt.0.0.and.lai_change(1,2,3).gt.0.0)then
-                             !                           write(fates_log(),*) ' lai_change (1,2,23)',lai_change(1,2,1:4)
-                          endif
-                          if (lai_change(1,1,3).gt.0.0.and.lai_change(1,1,2).gt.0.0)then
-                             ! NO-OP
-                             ! write(fates_log(),*) 'first layer of lai_change 2 3',lai_change(1,1,1:3)
-                          endif
-                          if (lai_change(1,1,3).gt.0.0.and.lai_change(1,1,4).gt.0.0)then
-                             ! NO-OP
-                             ! write(fates_log(),*) 'first layer of lai_change 3 4',lai_change(1,1,1:4)
-                          endif
-                          if (lai_change(1,1,4).gt.0.0.and.lai_change(1,1,5).gt.0.0)then
-                             ! NO-OP
-                             ! write(fates_log(),*) 'first layer of lai_change 4 5',lai_change(1,1,1:5)
-                          endif
                           
                           if (radtype == 1)then
                              !here we are adding a within-ED radiation scheme tolerance, and then adding the diffrence onto the albedo
@@ -865,10 +852,10 @@ contains
                                 write(fates_log(),*) 'Large Dir Radn consvn error',error ,ifp,ib
                                 write(fates_log(),*) 'diags', bc_out(s)%albd_parb(ifp,ib), bc_out(s)%ftdd_parb(ifp,ib), &
                                      bc_out(s)%ftid_parb(ifp,ib), bc_out(s)%fabd_parb(ifp,ib)
-                                write(fates_log(),*) 'lai_change',lai_change(currentpatch%ncl_p,1:2,1:4)
-                                write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:2,1:4)
-                                write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:2,1:4)
-                                write(fates_log(),*) 'ftweight',ftweight(1,1:2,1:4)
+                                write(fates_log(),*) 'lai_change',lai_change(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                                write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                                write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                                write(fates_log(),*) 'ftweight',ftweight(1,1:numpft,1:diag_nlevleaf)
                                 write(fates_log(),*) 'cp',currentPatch%area, currentPatch%patchno
                                 write(fates_log(),*) 'bc_in(s)%albgr_dir_rb(ib)',bc_in(s)%albgr_dir_rb(ib)
                                 
@@ -884,16 +871,16 @@ contains
                                 write(fates_log(),*)  '>5% Dif Radn consvn error',error ,ifp,ib
                                 write(fates_log(),*) 'diags', bc_out(s)%albi_parb(ifp,ib), bc_out(s)%ftii_parb(ifp,ib), &
                                      bc_out(s)%fabi_parb(ifp,ib)
-                                write(fates_log(),*) 'lai_change',lai_change(currentpatch%ncl_p,1:2,1:4)
-                                write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:2,1:4)
-                                write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:2,1:4)
-                                write(fates_log(),*) 'ftweight',ftweight(currentpatch%ncl_p,1:2,1:4)
+                                write(fates_log(),*) 'lai_change',lai_change(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                                write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                                write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                                write(fates_log(),*) 'ftweight',ftweight(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
                                 write(fates_log(),*) 'cp',currentPatch%area, currentPatch%patchno
                                 write(fates_log(),*) 'bc_in(s)%albgr_dif_rb(ib)',bc_in(s)%albgr_dif_rb(ib)
-                                write(fates_log(),*) 'rhol',rhol(1:2,:)
-                                write(fates_log(),*) 'ftw',sum(ftweight(1,:,1)),ftweight(1,1:2,1)
-                                write(fates_log(),*) 'present',currentPatch%present(1,1:2)
-                                write(fates_log(),*) 'CAP',currentPatch%canopy_area_profile(1,1:2,1)
+                                write(fates_log(),*) 'rhol',rhol(1:numpft,:)
+                                write(fates_log(),*) 'ftw',sum(ftweight(1,1:numpft,1)),ftweight(1,1:numpft,1)
+                                write(fates_log(),*) 'present',currentPatch%present(1,1:numpft)
+                                write(fates_log(),*) 'CAP',currentPatch%canopy_area_profile(1,1:numpft,1)
                                 
                                 bc_out(s)%albi_parb(ifp,ib) = bc_out(s)%albi_parb(ifp,ib) + error
                              end if
@@ -960,7 +947,7 @@ contains
           
           ifp=ifp+1
           
-          if( DEBUG ) write(fates_log(),*) 'edsurfRad_5600',ifp,s,cpatch%NCL_p,numpft_ed
+          if( DEBUG ) write(fates_log(),*) 'edsurfRad_5600',ifp,s,cpatch%NCL_p,numpft
           
           ! zero out various datas
           cpatch%ed_parsun_z(:,:,:) = 0._r8
@@ -981,7 +968,7 @@ contains
           ! cpatch%f_sun is calculated in the surface_albedo routine...
           
           do CL = 1, cpatch%NCL_p
-             do FT = 1,numpft_ed
+             do FT = 1,numpft
 
                 if( DEBUG ) write(fates_log(),*) 'edsurfRad_5601',CL,FT,cpatch%nrad(CL,ft)
                 
@@ -1028,10 +1015,10 @@ contains
          ! If sun/shade big leaf code, nrad=1 and fluxes from SurfaceAlbedo
          ! are canopy integrated so that layer values equal big leaf values.
          
-         if ( DEBUG ) write(fates_log(),*) 'edsurfRad 645 ',cpatch%NCL_p,numpft_ed
+         if ( DEBUG ) write(fates_log(),*) 'edsurfRad 645 ',cpatch%NCL_p,numpft
          
          do CL = 1, cpatch%NCL_p
-            do FT = 1,numpft_ed
+            do FT = 1,numpft
                
                if ( DEBUG ) write(fates_log(),*) 'edsurfRad 649 ',cpatch%nrad(CL,ft)
                

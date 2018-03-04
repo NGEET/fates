@@ -1,7 +1,7 @@
 # NGEE-T fates repository
 ------------------------------
 
-This is the developer repository of the Next Generation Ecosystem Experiment Tropics’ (NGEE-T) model: the Functionally Assembled Terrestrial Ecosystem Simulator (FATES).
+This is the developer repository of the Next Generation Ecosystem Experiment Tropics’ (NGEE-T) model: the Functionally Assembled Terrestrial Ecosystem Simulator (FATES). (https://github.com/NGEET/fates)
 
 For more information on the FATES model, see our wiki:  https://github.com/NGEET/fates/wiki
 
@@ -20,3 +20,5 @@ http://www.cesm.ucar.edu/
 The NGEE-T project maintains a mirror of CLM.  That software system will automatically pull in the FATES software, and is where most users should go to clone the code:
 
 https://github.com/NGEET/fates-clm
+
+

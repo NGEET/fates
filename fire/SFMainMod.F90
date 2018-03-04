@@ -14,7 +14,6 @@
   use FatesInterfaceMod     , only : bc_in_type
 
   use EDPftvarcon           , only : EDPftvarcon_inst
-  use EDEcophysconType      , only : EDecophyscon
 
   use EDtypesMod            , only : ed_site_type
   use EDtypesMod            , only : ed_patch_type
@@ -175,7 +174,7 @@ contains
        
        ! There are SIX fuel classes
        ! 1) Leaf litter, 2:5) four CWD_AG pools (twig, s branch, l branch, trunk) and  6) live grass
-       ! NCWD =4 
+       ! NCWD =4  NFSC = 6
        ! dl_sf = 1, tw_sf = 2, lb_sf = 4, tr_sf = 5, lg_sf = 6,
      
             ! zero fire arrays. 
@@ -305,7 +304,8 @@ contains
   !*****************************************************************.
 
     ! Routine called daily from within ED within a site loop.
-    ! Calculates the effective windspeed based on vegetation charecteristics. 
+    ! Calculates the effective windspeed based on vegetation charecteristics.
+    ! currentSite%wind is daily wind converted to m/min for Spitfire units 
 
     use FatesConstantsMod, only : sec_per_min
 
@@ -315,7 +315,6 @@ contains
     type(ed_patch_type) , pointer :: currentPatch
     type(ed_cohort_type), pointer :: currentCohort
 
-    real(r8) :: wind                 ! daily wind in m/min
     real(r8) :: total_grass_area     ! per patch,in m2
     real(r8) :: tree_fraction        !  site level. no units
     real(r8) :: grass_fraction       !  site level. no units
@@ -327,10 +326,10 @@ contains
     ! unless we decide to ever calculated the NI for each patch.  
 
     iofp = currentSite%oldest_patch%patchno
-    wind = bc_in%wind24_pa(iofp) * sec_per_min  ! Convert to m/min for SPITFIRE units.
+    currentSite%wind = bc_in%wind24_pa(iofp) * sec_per_min !Convert to m/min for SPITFIRE
 
     if(write_SF == itrue)then
-       if ( hlm_masterproc == itrue ) write(fates_log(),*) 'wind24', wind
+       if ( hlm_masterproc == itrue ) write(fates_log(),*) 'wind24', currentSite%wind
     endif
     ! --- influence of wind speed, corrected for surface roughness----
     ! --- averaged over the whole grid cell to prevent extreme divergence 
@@ -344,7 +343,7 @@ contains
        currentCohort => currentPatch%tallest
  
        do while(associated(currentCohort))
-          write(fates_log(),*) 'SF currentCohort%c_area ',currentCohort%c_area
+          if (DEBUG) write(fates_log(),*) 'SF currentCohort%c_area ',currentCohort%c_area
           if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
              currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
           else
@@ -378,7 +377,7 @@ contains
     do while(associated(currentPatch))       
        currentPatch%total_tree_area = min(currentPatch%total_tree_area,currentPatch%area)
        ! effect_wspeed in units m/min      
-       currentPatch%effect_wspeed = wind * (tree_fraction*0.4+(grass_fraction+bare_fraction)*0.6)
+       currentPatch%effect_wspeed = currentSite%wind * (tree_fraction*0.4+(grass_fraction+bare_fraction)*0.6)
       
        currentPatch => currentPatch%younger
     enddo !end patch loop
@@ -391,8 +390,11 @@ contains
     !Routine called daily from within ED within a site loop.
     !Returns the updated currentPatch%ROS_front value for each patch.
 
-    use SFParamsMod, only  : SF_val_miner_total, SF_val_part_dens, &
-         SF_val_miner_damp, SF_val_fuel_energy
+    use SFParamsMod, only  : SF_val_miner_total, &
+                             SF_val_part_dens,   &
+                             SF_val_miner_damp,  &
+                             SF_val_fuel_energy, &
+                             SF_val_wind_max
     use FatesInterfaceMod, only : hlm_current_day, hlm_current_month
 
     type(ed_site_type), intent(in), target :: currentSite
@@ -400,16 +402,15 @@ contains
     type(ed_patch_type), pointer :: currentPatch
 
     ! Rothermal fire spread model parameters. 
-    real(r8) beta,beta_op         !weighted average of packing ratio (unitless)
-    real(r8) ir                   !reaction intensity (kJ/m2/min)
-    real(r8) xi,eps,phi_wind      !all are unitless
-    real(r8) q_ig                 !heat of pre-ignition (kJ/kg)
+    real(r8) beta,beta_op         ! weighted average of packing ratio (unitless)
+    real(r8) ir                   ! reaction intensity (kJ/m2/min)
+    real(r8) xi,eps,phi_wind      ! all are unitless
+    real(r8) q_ig                 ! heat of pre-ignition (kJ/kg)
     real(r8) reaction_v_opt,reaction_v_max !reaction velocity (per min)!optimum and maximum
-    real(r8) moist_damp,mw_weight !moisture dampening coefficient and ratio fuel moisture to extinction
-    real(r8) beta_ratio           !ratio of beta/beta_op
-    real(r8) a_beta               !dummy variable for product of a* beta_ratio for react_v_opt equation
-    real(r8) a,b,c,e                         !function of fuel sav
-    real(r8),parameter::wind_max = 45.718_r8 !max wind speed (m/min)=150 ft/min per Lasslop etal 2014
+    real(r8) moist_damp,mw_weight ! moisture dampening coefficient and ratio fuel moisture to extinction
+    real(r8) beta_ratio           ! ratio of beta/beta_op
+    real(r8) a_beta               ! dummy variable for product of a* beta_ratio for react_v_opt equation
+    real(r8) a,b,c,e              ! function of fuel sav
     real(r8) wind_elev_fire                  !wind speed (m/min) at elevevation relevant for fire
 
     logical,parameter :: debug_windspeed = .false. !for debugging
@@ -468,7 +469,8 @@ contains
 
        if (DEBUG) then
           if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - c ',c
-          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - currentPatch%effect_wspeed ',currentPatch%effect_wspeed
+          if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - currentPatch%effect_wspeed ', &
+                                                                         currentPatch%effect_wspeed
           if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - b ',b
           if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - beta_ratio ',beta_ratio
           if ( hlm_masterproc == itrue .and.DEBUG) write(fates_log(),*) 'SF - e ',e
@@ -477,15 +479,15 @@ contains
        ! Equation A5 in Thonicke et al. 2010
        ! phi_wind (unitless)
        ! convert wind_elev_fire from m/min to ft/min for Rothermel ROS eqn
-       ! wind max per Lasslop et al 2014 to lenearly reduce ROS for high wind speeds
+       ! wind max per Lasslop et al 2014 to linearly reduce ROS for high wind speeds
        !OLD! phi_wind = c * ((3.281_r8*currentPatch%effect_wspeed)**b)*(beta_ratio**(-e))
-       if (currentPatch%effect_wspeed .le. wind_max) then
+       if (currentPatch%effect_wspeed .le. SF_val_wind_max) then
           wind_elev_fire = currentPatch%effect_wspeed
           phi_wind = c * ((3.281_r8*wind_elev_fire)**b)*(beta_ratio**(-e))
           if (debug_windspeed) write(fates_log(),*) 'SF wind LESS max ', currentPatch%effect_wspeed 
           if (debug_windspeed) write(fates_log(),*) 'month and day', hlm_current_month, hlm_current_day             
        else
-          ! max conditional 225 ft/min from Lasslop 2014 converted to 68.577 m/min 
+          !max condition 225 ft/min (FIREMIP Rabin table A10 JSBACH-Spitfire) convert to 68.577 m/min 
           wind_elev_fire = max(0.0_r8,(68.577-0.5*currentPatch%effect_wspeed))
           phi_wind = c * ((3.281_r8*wind_elev_fire)**b)*(beta_ratio**(-e))
           if (debug_windspeed) write(fates_log(),*) 'SF wind GREATER max ', currentPatch%effect_wspeed
@@ -493,7 +495,7 @@ contains
        endif 
 
        ! ---propagating flux----
-       ! Equation A2 in Thonicke et al.2010
+       ! Equation A2 in Thonicke et al.2010 and Eq. 42 Rothermal 1972
        ! xi (unitless)       
        xi = (exp((0.792_r8 + 3.7597_r8 * (currentPatch%fuel_sav**0.5_r8)) * (beta+0.1_r8))) / &
             (192_r8+7.9095_r8 * currentPatch%fuel_sav)      
@@ -540,7 +542,8 @@ contains
        endif
        ! Equation 10 in Thonicke et al. 2010
        ! backward ROS from Can FBP System (1992) in m/min
-       currentPatch%ROS_back = currentPatch%ROS_front*exp(-0.012_r8*currentPatch%effect_wspeed) 
+       ! backward ROS wind not changed by vegetation 
+       currentPatch%ROS_back = currentPatch%ROS_front*exp(-0.012_r8*currentSite%wind) 
 
        currentPatch => currentPatch%younger
 
@@ -554,8 +557,8 @@ contains
     !returns the  the hypothetic fuel consumed by the fire
 
     use SFParamsMod, only : SF_val_miner_total, SF_val_min_moisture, &
-         SF_val_mid_moisture, SF_val_low_moisture_C, SF_val_low_moisture_S, &
-         SF_val_mid_moisture_C, SF_val_mid_moisture_S
+         SF_val_mid_moisture, SF_val_low_moisture_Coeff, SF_val_low_moisture_Slope, &
+         SF_val_mid_moisture_Coeff, SF_val_mid_moisture_Slope
 
     type(ed_site_type) , intent(in), target :: currentSite
 
@@ -581,13 +584,13 @@ contains
           endif
           ! 2. Low to medium moistures
           if (moist > SF_val_min_moisture(c).and.moist <= SF_val_mid_moisture(c)) then
-             currentPatch%burnt_frac_litter(c) = max(0.0_r8,min(1.0_r8,SF_val_low_moisture_C(c)- &
-                  SF_val_low_moisture_S(c)*moist)) 
+             currentPatch%burnt_frac_litter(c) = max(0.0_r8,min(1.0_r8,SF_val_low_moisture_Coeff(c)- &
+                  SF_val_low_moisture_Slope(c)*moist)) 
           else
           ! For medium to high moistures. 
              if (moist > SF_val_mid_moisture(c).and.moist <= 1.0_r8) then
-                currentPatch%burnt_frac_litter(c) = max(0.0_r8,min(1.0_r8,SF_val_mid_moisture_C(c)- &
-                     SF_val_mid_moisture_S(c)*moist))
+                currentPatch%burnt_frac_litter(c) = max(0.0_r8,min(1.0_r8,SF_val_mid_moisture_Coeff(c)- &
+                     SF_val_mid_moisture_Slope(c)*moist))
              endif
 
           endif
@@ -637,6 +640,7 @@ contains
     !returns the updated currentPatch%FI value for each patch.
 
     !currentPatch%FI  average fire intensity of flaming front during day.  Backward ROS plays no role here. kJ/m/s or kW/m.
+    !currentSite%FDI  probability that an ignition will start a fire
     !currentPatch%ROS_front  forward ROS (m/min) 
     !currentPatch%TFC_ROS total fuel consumed by flaming front (kgC/m2)
 
@@ -644,13 +648,12 @@ contains
     use SFParamsMod,  only : SF_val_fdi_alpha,SF_val_fuel_energy, &
          SF_val_max_durat, SF_val_durat_slope
 
-    type(ed_site_type), intent(in), target :: currentSite
+    type(ed_site_type), intent(inout), target :: currentSite
 
     type(ed_patch_type), pointer :: currentPatch
 
     real(r8) ROS !m/s
     real(r8) W   !kgBiomass/m2
-    real(r8) :: d_fdi      !change in the NI on this day to give fire duration. 
 
     currentPatch => currentSite%oldest_patch;  
 
@@ -665,11 +668,15 @@ contains
        if (currentPatch%FI >= fire_threshold) then  ! 50kW/m is the threshold for a self-sustaining fire
           currentPatch%fire = 1 ! Fire...    :D
           
-          ! This is like but not identical to equation 7 in Thonicke et al. 2010.  WHY? 
-          d_FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI) !follows Venevsky et al GCB 2002 
+          ! Equation 7 from Venevsky et al GCB 2002 (modification of equation 8 in Thonicke et al. 2010) 
+          ! FDI 0.1 = low, 0.3 moderate, 0.75 high, and 1 = extreme ignition potential for alpha 0.000337
+          currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI)  
           ! Equation 14 in Thonicke et al. 2010
           ! fire duration in minutes
-          currentPatch%FD = SF_val_max_durat / (1.0_r8 + SF_val_max_durat * exp(SF_val_durat_slope*d_FDI))
+
+          currentPatch%FD = (SF_val_max_durat+1) / (1.0_r8 + SF_val_max_durat * &
+                            exp(SF_val_durat_slope*currentSite%FDI))
+
           if(write_SF == itrue)then
              if ( hlm_masterproc == itrue ) write(fates_log(),*) 'fire duration minutes',currentPatch%fd
           endif
@@ -747,40 +754,44 @@ contains
              ! THIS SHOULD HAVE THE COLUMN AND LU AREA WEIGHT ALSO, NO?
 
              gridarea = km2_to_m2     ! 1M m2 in a km2
-             currentPatch%NF = ED_val_nignitions * currentPatch%area/area /365
+             !NF = number of lighting strikes per day per km2
+             currentPatch%NF = ED_val_nignitions * currentPatch%area/area /365 
 
              ! If there are 15  lightening strickes per year, per km2. (approx from NASA product) 
              ! then there are 15/365 s/km2 each day. 
      
              ! Equation 1 in Thonicke et al. 2010
              ! To Do: Connect here with the Li & Levis GDP fire suppression algorithm. 
-             ! Equation 16 in arora and boer model.
+             ! Equation 16 in arora and boer model JGR 2005
              !currentPatch%AB = currentPatch%AB *3.0_r8
+
+             !size of fire = equation 14 Arora and Boer JGR 2005
              size_of_fire = ((3.1416_r8/(4.0_r8*lb))*((df+db)**2.0_r8))
 
-             !AB is daily area burnt = size of fires in m2 * number of ignitions 
-             currentPatch%AB = size_of_fire * currentPatch%NF 
+             !AB = daily area burnt = size fires in m2 * num ignitions * prob ignition starts fire
+             currentPatch%AB = size_of_fire * currentPatch%NF * currentSite%FDI
              
              patch_area_in_m2 = gridarea*currentPatch%area/area
-             if (currentPatch%AB > patch_area_in_m2 ) then !all of patch burnt. 
-
-                if ( hlm_masterproc == itrue ) write(fates_log(),*) 'burnt all of patch',currentPatch%patchno, &
-                     currentPatch%area/area,currentPatch%ab,patch_area_in_m2   
-                if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ros',currentPatch%ROS_front,currentPatch%FD, &
-                     currentPatch%NF,currentPatch%FI,size_of_fire
-
-                if ( hlm_masterproc == itrue ) write(fates_log(),*) 'litter', &
-                      currentPatch%sum_fuel,currentPatch%CWD_AG,currentPatch%leaf_litter
-                ! turn km2 into m2. work out total area burnt. 
-                currentPatch%AB = patch_area_in_m2 
-             endif
+             
              currentPatch%frac_burnt = currentPatch%AB / patch_area_in_m2
              if(write_SF == itrue)then
                 if ( hlm_masterproc == itrue ) write(fates_log(),*) 'frac_burnt',currentPatch%frac_burnt
              endif
+
+             if (currentPatch%frac_burnt > 1 ) then !all of patch burnt. 
+                
+                currentPatch%frac_burnt = 1.0 ! capping at 1 same as %AB/patch_area_in_m2 
+
+                if ( hlm_masterproc == itrue ) write(fates_log(),*) 'burnt all of patch',currentPatch%patchno
+                if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ros',currentPatch%ROS_front,currentPatch%FD, &
+                     currentPatch%NF,currentPatch%FI,size_of_fire
+
+             endif           
+
+
           endif
        endif! fire
-       currentSite%frac_burnt = currentSite%frac_burnt + currentPatch%frac_burnt     
+       currentSite%frac_burnt = currentSite%frac_burnt + currentPatch%frac_burnt * currentPatch%area/area     
 
        currentPatch => currentPatch%younger
 
@@ -793,9 +804,6 @@ contains
   !*****************************************************************
     !currentPatch%SH !average scorch height for the patch(m)
     !currentPatch%FI  average fire intensity of flaming front during day.  kW/m.
-
-    use SFParamsMod,  only : SF_val_alpha_SH
-    use EDParamsMod,  only : ED_val_ag_biomass
 
     type(ed_site_type), intent(in), target :: currentSite
 
@@ -814,7 +822,7 @@ contains
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
-                tree_ag_biomass = tree_ag_biomass+(currentCohort%bl+ED_val_ag_biomass* &
+                tree_ag_biomass = tree_ag_biomass+(currentCohort%bl+EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)* &
                      (currentCohort%bsw + currentCohort%bdead))*currentCohort%n
              endif !trees only
 
@@ -830,14 +838,16 @@ contains
           do while(associated(currentCohort))
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1 &
                   .and. (tree_ag_biomass > 0.0_r8)) then !trees only
-                f_ag_bmass = ((currentCohort%bl+ED_val_ag_biomass*(currentCohort%bsw + &
+                f_ag_bmass = ((currentCohort%bl+EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)*(currentCohort%bsw + &
                      currentCohort%bdead))*currentCohort%n)/tree_ag_biomass
                 !equation 16 in Thonicke et al. 2010
                 if(write_SF == itrue)then
                    if ( hlm_masterproc == itrue ) write(fates_log(),*) 'currentPatch%SH',currentPatch%SH,f_ag_bmass
                 endif
                 !2/3 Byram (1959)
-                currentPatch%SH = currentPatch%SH + f_ag_bmass * SF_val_alpha_SH * (currentPatch%FI**0.667_r8) 
+                currentPatch%SH = currentPatch%SH + f_ag_bmass * &
+                      EDPftvarcon_inst%fire_alpha_SH(currentCohort%pft) * (currentPatch%FI**0.667_r8) 
+
              endif !trees only
              currentCohort=>currentCohort%shorter;
           enddo !end cohort loop
@@ -872,18 +882,18 @@ contains
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 ! Flames lower than bottom of canopy. 
                 ! c%hite is height of cohort
-                if (currentPatch%SH < (currentCohort%hite-currentCohort%hite*EDecophyscon%crown(currentCohort%pft))) then 
+                if (currentPatch%SH < (currentCohort%hite-currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft))) then 
                    currentCohort%cfa = 0.0_r8
                 else
                    ! Flames part of way up canopy. 
                    ! Equation 17 in Thonicke et al. 2010. 
                    ! flames over bottom of canopy but not over top.
                    if ((currentCohort%hite > 0.0_r8).and.(currentPatch%SH >=  &
-                        (currentCohort%hite-currentCohort%hite*EDecophyscon%crown(currentCohort%pft)))) then 
+                        (currentCohort%hite-currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft)))) then 
 
-                           currentCohort%cfa =  (currentPatch%SH-currentCohort%hite* &
-                                EDecophyscon%crown(currentCohort%pft))/(currentCohort%hite-currentCohort%hite* &
-                                EDecophyscon%crown(currentCohort%pft)) 
+                           currentCohort%cfa =  (currentPatch%SH-currentCohort%hite*(1- &
+                                EDPftvarcon_inst%crown(currentCohort%pft)))/(currentCohort%hite* &
+                                EDPftvarcon_inst%crown(currentCohort%pft)) 
 
                    else 
                       ! Flames over top of canopy. 
@@ -932,7 +942,7 @@ contains
           do while(associated(currentCohort))  
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
                 ! Equation 21 in Thonicke et al 2010
-                bt = EDecophyscon%bark_scaler(currentCohort%pft)*currentCohort%dbh ! bark thickness. 
+                bt = EDPftvarcon_inst%bark_scaler(currentCohort%pft)*currentCohort%dbh ! bark thickness. 
                 ! Equation 20 in Thonicke et al. 2010. 
                 tau_c = 2.9_r8*bt**2.0_r8 !calculate time it takes to kill cambium (min)
                 ! Equation 19 in Thonicke et al. 2010
@@ -984,7 +994,7 @@ contains
              currentCohort%crownfire_mort = 0.0_r8
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then
                 ! Equation 22 in Thonicke et al. 2010. 
-                currentCohort%crownfire_mort = EDecophyscon%crown_kill(currentCohort%pft)*currentCohort%cfa**3.0_r8
+                currentCohort%crownfire_mort = EDPftvarcon_inst%crown_kill(currentCohort%pft)*currentCohort%cfa**3.0_r8
                 ! Equation 18 in Thonicke et al. 2010. 
                 currentCohort%fire_mort = currentCohort%crownfire_mort+currentCohort%cambial_mort- &
                      (currentCohort%crownfire_mort*currentCohort%cambial_mort)  !joint prob.   

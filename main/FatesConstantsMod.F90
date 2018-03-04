@@ -8,6 +8,7 @@ module FatesConstantsMod
 
   ! kinds
   integer, parameter :: fates_r8 = selected_real_kind(12) ! 8 byte real
+  integer, parameter :: fates_int = selected_int_kind(8)  ! 4 byte int
 
   ! string lengths
   integer, parameter :: fates_avg_flag_length = 3
@@ -37,6 +38,9 @@ module FatesConstantsMod
   ! Conversion factor: miligrams per grams
   real(fates_r8), parameter :: mg_per_g = 1000.0_fates_r8
 
+  ! Conversion factor: kilograms per Megagram
+  real(fates_r8), parameter :: kg_per_Megag = 1000.0_fates_r8
+
   ! Conversion factor: micromoles per milimole
   real(fates_r8), parameter :: umol_per_mmol = 1000.0_fates_r8
 
@@ -48,6 +52,9 @@ module FatesConstantsMod
 
   ! Conversion factor: m2 per ha
   real(fates_r8), parameter :: m2_per_ha = 1.0e4_fates_r8
+
+  ! Conversion factor: cm2 per m2
+  real(fates_r8), parameter :: cm2_per_m2 = 10000.0_fates_r8
 
   ! Conversion factor :: ha per m2
   real(fates_r8), parameter :: ha_per_m2 = 1.0e-4_fates_r8
@@ -61,10 +68,12 @@ module FatesConstantsMod
   ! Conversion: days per second
   real(fates_r8), parameter :: days_per_sec = 1.0_fates_r8/86400.0_fates_r8
 
-  ! Conversion: days per year. assume HLM uses 365 day calendar.  If we need to link to 365.25-day-calendared HLM, rewire to pass through interface
+  ! Conversion: days per year. assume HLM uses 365 day calendar.  
+  ! If we need to link to 365.25-day-calendared HLM, rewire to pass through interface
   real(fates_r8), parameter :: days_per_year = 365.00_fates_r8
   
-   ! Conversion: years per day. assume HLM uses 365 day calendar.  If we need to link to 365.25-day-calendared HLM, rewire to pass through interface
+  ! Conversion: years per day. assume HLM uses 365 day calendar.  
+  ! If we need to link to 365.25-day-calendared HLM, rewire to pass through interface
   real(fates_r8), parameter :: years_per_day = 1.0_fates_r8/365.00_fates_r8
   
   ! Physical constants

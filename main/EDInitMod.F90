@@ -6,28 +6,46 @@ module EDInitMod
 
   use FatesConstantsMod         , only : r8 => fates_r8
   use FatesConstantsMod         , only : ifalse
+  use FatesConstantsMod         , only : itrue
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax
   use FatesGlobals              , only : fates_log
   use FatesInterfaceMod         , only : hlm_is_restart
   use EDPftvarcon               , only : EDPftvarcon_inst
-  use EDEcophysConType          , only : EDecophyscon
-  use EDGrowthFunctionsMod      , only : bdead, bleaf, dbh
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDPatchDynamicsMod        , only : create_patch
-  use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type, area
+  use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod                , only : ncwd
   use EDTypesMod                , only : nuMWaterMem
-  use EDTypesMod                , only : numpft_ed
+  use EDTypesMod                , only : maxpft
+  use EDTypesMod                , only : AREA
   use FatesInterfaceMod         , only : bc_in_type
-  use EDTypesMod                , only : use_fates_plant_hydro
-  
+  use FatesInterfaceMod         , only : hlm_use_planthydro
+  use FatesInterfaceMod         , only : hlm_use_inventory_init
+  use FatesInterfaceMod         , only : numpft
+  use ChecksBalancesMod         , only : SiteCarbonStock
+  use FatesInterfaceMod         , only : nlevsclass
+  use FatesAllometryMod         , only : h2d_allom
+  use FatesAllometryMod         , only : bag_allom
+  use FatesAllometryMod         , only : bcr_allom
+  use FatesAllometryMod         , only : bleaf
+  use FatesAllometryMod         , only : bfineroot
+  use FatesAllometryMod         , only : bsap_allom
+  use FatesAllometryMod         , only : bdead_allom
+
+  ! CIME GLOBALS
+  use shr_log_mod               , only : errMsg => shr_log_errMsg
+
   implicit none
   private
 
   logical   ::  DEBUG = .false.
 
+  character(len=*), parameter, private :: sourcefile = &
+        __FILE__
+
   public  :: zero_site
+  public  :: init_site_vars
   public  :: init_patches
   public  :: set_site_properties
   private :: init_cohorts
@@ -38,6 +56,25 @@ contains
 
   ! ============================================================================
 
+  subroutine init_site_vars( site_in )
+    !
+    ! !DESCRIPTION:
+    !
+    !
+    ! !ARGUMENTS    
+    type(ed_site_type), intent(inout) ::  site_in
+    !
+    ! !LOCAL VARIABLES:
+    !----------------------------------------------------------------------
+    !
+    allocate(site_in%terminated_nindivs(1:nlevsclass,1:numpft,2))
+    allocate(site_in%demotion_rate(1:nlevsclass))
+    allocate(site_in%promotion_rate(1:nlevsclass))
+    allocate(site_in%imort_rate(1:nlevsclass,1:numpft))
+    !
+    end subroutine init_site_vars
+
+  ! ============================================================================
   subroutine zero_site( site_in )
     !
     ! !DESCRIPTION:
@@ -55,9 +92,7 @@ contains
     site_in%youngest_patch   => null() ! pointer to yngest patch at the site
     
     ! DISTURBANCE
-    site_in%disturbance_rate = 0._r8  ! site level disturbance rates from mortality and fire.
-    site_in%dist_type        = 0      ! disturbance dist_type id.
-    site_in%total_burn_flux_to_atm = 0._r8 !
+    site_in%total_burn_flux_to_atm = 0._r8
 
     ! PHENOLOGY 
     site_in%status           = 0    ! are leaves in this pixel on or off?
@@ -87,6 +122,8 @@ contains
     site_in%terminated_nindivs(:,:,:) = 0._r8
     site_in%termination_carbonflux(:) = 0._r8
     site_in%recruitment_rate(:) = 0._r8
+    site_in%imort_rate(:,:) = 0._r8
+    site_in%imort_carbonflux = 0._r8
 
     ! demotion/promotion info
     site_in%demotion_rate(:) = 0._r8
@@ -99,6 +136,12 @@ contains
     site_in%CWD_BG_diagnostic_input_carbonflux(:) = 0._r8
     site_in%leaf_litter_diagnostic_input_carbonflux(:) = 0._r8
     site_in%root_litter_diagnostic_input_carbonflux(:) = 0._r8
+    
+    ! Resources management (logging/harvesting, etc)
+    site_in%resources_management%trunk_product_site  = 0.0_r8
+
+    ! canopy spread
+    site_in%spread = 0._r8
 
   end subroutine zero_site
 
@@ -176,7 +219,7 @@ contains
        sites(s)%frac_burnt = 0.0_r8
        sites(s)%old_stock  = 0.0_r8
 
-
+       sites(s)%spread     = 1.0_r8
     end do
 
     return
@@ -184,65 +227,104 @@ contains
 
   ! ============================================================================
   subroutine init_patches( nsites, sites, bc_in)
-    !
-    ! !DESCRIPTION:
-    !initialize patches on new ground
-    !
-    ! !USES:
-    use EDParamsMod ,  only : ED_val_maxspread  
-    use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydProps 
-    !
-    ! !ARGUMENTS    
-    integer, intent(in)                        :: nsites
-    type(ed_site_type) , intent(inout), target :: sites(nsites)
-    type(bc_in_type), intent(in)               :: bc_in(nsites)
-    !
-    ! !LOCAL VARIABLES:
-    integer  :: s
-    real(r8) :: cwd_ag_local(ncwd)
-    real(r8) :: cwd_bg_local(ncwd)
-    real(r8) :: spread_local(nclmax)
-    real(r8) :: leaf_litter_local(numpft_ed)
-    real(r8) :: root_litter_local(numpft_ed)
-    real(r8) :: age !notional age of this patch
-    type(ed_patch_type), pointer :: newp
-    !----------------------------------------------------------------------
+     !
+     ! !DESCRIPTION:
+     ! initialize patches
+     ! This may be call a near bare ground initialization, or it may
+     ! load patches from an inventory.
 
-    cwd_ag_local(:)      = 0.0_r8 !ED_val_init_litter -- arbitrary value for litter pools. kgC m-2
-    cwd_bg_local(:)      = 0.0_r8 !ED_val_init_litter
-    leaf_litter_local(:) = 0.0_r8
-    root_litter_local(:) = 0.0_r8
-    spread_local(:)      = ED_val_maxspread
-    age                  = 0.0_r8
+     !
+     
 
-    !FIX(SPM,032414) clean this up...inits out of this loop
-    do s = 1, nsites
+     use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydProps 
+     use FatesInventoryInitMod,   only : initialize_sites_by_inventory
 
-       allocate(newp)
+     !
+     ! !ARGUMENTS    
+     integer, intent(in)                        :: nsites
+     type(ed_site_type) , intent(inout), target :: sites(nsites)
+     type(bc_in_type), intent(in)               :: bc_in(nsites)
+     !
+     ! !LOCAL VARIABLES:
+     integer  :: s
+     real(r8) :: cwd_ag_local(ncwd)
+     real(r8) :: cwd_bg_local(ncwd)
+     real(r8) :: leaf_litter_local(maxpft)
+     real(r8) :: root_litter_local(maxpft)
+     real(r8) :: age !notional age of this patch
 
-       newp%patchno = 1
-       newp%younger => null()
-       newp%older   => null()
+     ! dummy locals
+     real(r8) :: biomass_stock
+     real(r8) :: litter_stock
+     real(r8) :: seed_stock
 
-       sites(s)%youngest_patch => newp
-       sites(s)%youngest_patch => newp
-       sites(s)%oldest_patch   => newp
+     type(ed_patch_type), pointer :: newp
 
-       ! make new patch...
-       call create_patch(sites(s), newp, age, AREA, &
-            spread_local, cwd_ag_local, cwd_bg_local, leaf_litter_local,  &
-            root_litter_local) 
+     ! List out some nominal patch values that are used for Near Bear Ground initializations
+     ! as well as initializing inventory
+     ! ---------------------------------------------------------------------------------------------
+     cwd_ag_local(:)      = 0.0_r8 !ED_val_init_litter -- arbitrary value for litter pools. kgC m-2
+     cwd_bg_local(:)      = 0.0_r8 !ED_val_init_litter
+     leaf_litter_local(:) = 0.0_r8
+     root_litter_local(:) = 0.0_r8
+     age                  = 0.0_r8
+     ! ---------------------------------------------------------------------------------------------
 
-       call init_cohorts(newp, bc_in(s))
-       
-       ! This sets the rhizosphere shells based on the plant initialization
-       ! The initialization of the plant-relevant hydraulics variables
-       ! were set from a call inside of the init_cohorts()->create_cohort() subroutine
-       if (use_fates_plant_hydro) then
-          call updateSizeDepRhizHydProps(sites(s), bc_in(s))
-       end if
+     ! ---------------------------------------------------------------------------------------------
+     ! Two primary options, either a Near Bear Ground (NBG) or Inventory based cold-start
+     ! ---------------------------------------------------------------------------------------------
 
-    enddo
+     if ( hlm_use_inventory_init.eq.itrue ) then
+
+        call initialize_sites_by_inventory(nsites,sites,bc_in)
+
+        do s = 1, nsites
+           if (hlm_use_planthydro.eq.itrue) then
+              call updateSizeDepRhizHydProps(sites(s), bc_in(s))
+           end if
+           ! For carbon balance checks, we need to initialize the 
+           ! total carbon stock
+           call SiteCarbonStock(sites(s),sites(s)%old_stock,biomass_stock,litter_stock,seed_stock)
+           
+        enddo
+        
+     else
+
+        !FIX(SPM,032414) clean this up...inits out of this loop
+        do s = 1, nsites
+
+           allocate(newp)
+
+           newp%patchno = 1
+           newp%younger => null()
+           newp%older   => null()
+
+           sites(s)%youngest_patch => newp
+           sites(s)%youngest_patch => newp
+           sites(s)%oldest_patch   => newp
+
+           ! make new patch...
+           call create_patch(sites(s), newp, age, AREA, &
+                 cwd_ag_local, cwd_bg_local, leaf_litter_local,  &
+                 root_litter_local) 
+
+           call init_cohorts(newp, bc_in(s))
+
+           ! This sets the rhizosphere shells based on the plant initialization
+           ! The initialization of the plant-relevant hydraulics variables
+           ! were set from a call inside of the init_cohorts()->create_cohort() subroutine
+           if (hlm_use_planthydro.eq.itrue) then
+              call updateSizeDepRhizHydProps(sites(s), bc_in(s))
+           end if
+
+
+           ! For carbon balance checks, we need to initialize the 
+           ! total carbon stock
+           call SiteCarbonStock(sites(s),sites(s)%old_stock,biomass_stock,litter_stock,seed_stock)
+
+        enddo
+
+     end if
 
   end subroutine init_patches
 
@@ -260,43 +342,68 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(ed_cohort_type),pointer :: temp_cohort
-    integer :: cstatus
-    integer :: pft
+    integer  :: cstatus
+    integer  :: pft
+    real(r8) :: b_ag    ! biomass above ground [kgC]
+    real(r8) :: b_cr    ! biomass in coarse roots [kgC]
+    real(r8) :: b_leaf  ! biomass in leaves [kgC]
+    real(r8) :: b_fineroot ! biomass in fine roots [kgC]
+    real(r8) :: b_sapwood  ! biomass in sapwood [kgC]
     !----------------------------------------------------------------------
 
     patch_in%tallest  => null()
     patch_in%shortest => null()
 
-    do pft =  1,numpft_ed !FIX(RF,032414) - turning off veg dynamics
+    do pft =  1,numpft
 
-       if(EDecophyscon%initd(pft)>1.0E-7) then
+       if(EDPftvarcon_inst%initd(pft)>1.0E-7) then
 
        allocate(temp_cohort) ! temporary cohort
 
        temp_cohort%pft         = pft
-       temp_cohort%n           = EDecophyscon%initd(pft) * patch_in%area
-       temp_cohort%hite        = EDecophyscon%hgt_min(pft)
-       !temp_cohort%n           = 0.5_r8 * 0.0028_r8 * patch_in%area  ! BOC for fixed size runs EDecophyscon%initd(pft) * patch_in%area
-       !temp_cohort%hite        = 28.65_r8                            ! BOC translates to DBH of 50cm. EDecophyscon%hgt_min(pft)
-       temp_cohort%dbh         = Dbh(temp_cohort) ! FIX(RF, 090314) - comment out addition of ' + 0.0001_r8*pft   '  - seperate out PFTs a little bit...
+       temp_cohort%n           = EDPftvarcon_inst%initd(pft) * patch_in%area
+       temp_cohort%hite        = EDPftvarcon_inst%hgt_min(pft)
+
+       ! Calculate the plant diameter from height
+       call h2d_allom(temp_cohort%hite,pft,temp_cohort%dbh)
+
        temp_cohort%canopy_trim = 1.0_r8
-       temp_cohort%bdead       = Bdead(temp_cohort)
-       temp_cohort%balive      = Bleaf(temp_cohort)*(1.0_r8 + EDPftvarcon_inst%froot_leaf(pft) &
-            + EDecophyscon%sapwood_ratio(temp_cohort%pft)*temp_cohort%hite)
-       temp_cohort%b           = temp_cohort%balive + temp_cohort%bdead
+
+       ! Calculate total above-ground biomass from allometry
+       call bag_allom(temp_cohort%dbh,temp_cohort%hite,pft,b_ag)
+
+       ! Calculate coarse root biomass from allometry
+       call bcr_allom(temp_cohort%dbh,temp_cohort%hite,pft,b_cr)
+
+       ! Calculate the leaf biomass 
+       ! (calculates a maximum first, then applies canopy trim)
+       call bleaf(temp_cohort%dbh,temp_cohort%hite,pft,temp_cohort%canopy_trim,b_leaf)
+
+       ! Calculate fine root biomass
+       ! (calculates a maximum and then trimming value)
+       call bfineroot(temp_cohort%dbh,temp_cohort%hite,pft,temp_cohort%canopy_trim,b_fineroot)
+
+       ! Calculate sapwood biomass
+       call bsap_allom(temp_cohort%dbh,pft,temp_cohort%canopy_trim,b_sapwood)
+       
+       temp_cohort%balive = b_leaf + b_fineroot + b_sapwood
+
+       call bdead_allom( b_ag, b_cr, b_sapwood, pft, temp_cohort%bdead )
+
+       temp_cohort%b = temp_cohort%balive + temp_cohort%bdead
 
        if( EDPftvarcon_inst%evergreen(pft) == 1) then
-          temp_cohort%bstore = Bleaf(temp_cohort) * EDecophyscon%cushion(pft)
+          temp_cohort%bstore = b_leaf * EDPftvarcon_inst%cushion(pft)
           temp_cohort%laimemory = 0._r8
           cstatus = 2
        endif
 
        if( EDPftvarcon_inst%season_decid(pft) == 1 ) then !for dorment places
-          temp_cohort%bstore = Bleaf(temp_cohort) * EDecophyscon%cushion(pft) !stored carbon in new seedlings.
+          temp_cohort%bstore = b_leaf * EDPftvarcon_inst%cushion(pft) !stored carbon in new seedlings.
           if(patch_in%siteptr%status == 2)then 
              temp_cohort%laimemory = 0.0_r8
           else
-             temp_cohort%laimemory = Bleaf(temp_cohort)
+             temp_cohort%laimemory = b_leaf
           endif
           ! reduce biomass according to size of store, this will be recovered when elaves com on.
           temp_cohort%balive = temp_cohort%balive - temp_cohort%laimemory
@@ -304,8 +411,8 @@ contains
        endif
 
        if ( EDPftvarcon_inst%stress_decid(pft) == 1 ) then
-          temp_cohort%bstore = Bleaf(temp_cohort) * EDecophyscon%cushion(pft)
-          temp_cohort%laimemory = Bleaf(temp_cohort)
+          temp_cohort%bstore = b_leaf * EDPftvarcon_inst%cushion(pft)
+          temp_cohort%laimemory = b_leaf
           temp_cohort%balive = temp_cohort%balive - temp_cohort%laimemory
           cstatus = patch_in%siteptr%dstatus
        endif
@@ -326,5 +433,8 @@ contains
     call sort_cohorts(patch_in)
 
   end subroutine init_cohorts
+
+  ! ===============================================================================================
+
 
 end module EDInitMod
