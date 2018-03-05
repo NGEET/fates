@@ -576,10 +576,6 @@ contains
                    ! add lost carbon to litter
                    currentCohort%leaf_litter = currentCohort%bl 
                    currentCohort%bl          = 0.0_r8   
-          
-!                   write(fates_log(),*) 'cold drop kicking in'
-!                   call endrun(msg=errMsg(sourcefile, __LINE__))
-                   
                
                 endif !leaf status
              endif !currentSite status
@@ -593,7 +589,9 @@ contains
                    if (currentCohort%laimemory <= currentCohort%bstore)then
                       currentCohort%bl = currentCohort%laimemory !extract stored carbon to make new leaves.
                    else
-                    currentCohort%bl = currentCohort%bstore * store_output    !we can only put on as much carbon as there is in the store...
+
+                    !we can only put on as much carbon as there is in the store.
+                    currentCohort%bl = currentCohort%bstore * store_output
                     endif
 
                    if ( DEBUG ) write(fates_log(),*) 'EDPhysMod 3 ',currentCohort%bstore
@@ -617,9 +615,6 @@ contains
                    ! add falling leaves to litter pools . convert to KgC/m2                    
                    currentCohort%leaf_litter = currentCohort%bl  
                    currentCohort%bl          = 0.0_r8                                        
-
-!                   write(fates_log(),*) 'drought drop kicking in'
-!                   call endrun(msg=errMsg(sourcefile, __LINE__))
 
                 endif
              endif !status
@@ -875,7 +870,7 @@ contains
     real(r8), parameter :: cbal_prec = 1.0e-15_r8     ! Desired precision in carbon balance
                                                       ! non-integrator part
     integer , parameter :: max_substeps = 300
-    real(r8), parameter :: max_trunc_error = 0.1_r8
+    real(r8), parameter :: max_trunc_error = 1.0_r8
     integer,  parameter :: ODESolve = 2    ! 1=RKF45,  2=Euler
     real(r8), parameter :: global_branch_turnover = 0.0_r8 ! Temporary branch turnover setting
                                                            ! Branch-turnover control will be 
@@ -947,12 +942,6 @@ contains
 
     ! Target leaf biomass according to allometry and trimming
     call bleaf(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_leaf,dbt_leaf_dd)
-
-!    ! If status_coh is 1, then leaves are in a dropped (off allometry)
-!    if( currentcohort%status_coh == 1 ) then
-!       bt_leaf     = 0.0_r8
-!       dbt_leaf_dd = 0.0_r8
-!    end if
 
     ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
     call bfineroot(currentCohort%dbh,ipft,currentCohort%canopy_trim,bt_fineroot,dbt_fineroot_dd)
@@ -1047,23 +1036,16 @@ contains
        currentCohort%root_md = currentCohort%br /EDPftvarcon_inst%root_long(ipft)
     endif
 
-    currentCohort%leaf_md   = 0.0_r8
-    currentCohort%bsw_md    = 0.0_r8
-    currentCohort%bdead_md  = 0.0_r8
-    currentCohort%bstore_md = 0.0_r8
-    currentCohort%root_md   = 0.0_r8
-
     ! -----------------------------------------------------------------------------------
     ! IV. Remove turnover from the appropriate pools
     !
     ! Units: kgC/year * (year/days_per_year) = kgC/day -> (day elapsed) -> kgC
     ! -----------------------------------------------------------------------------------
-    
 
-    currentCohort%bl = currentCohort%bl - currentCohort%leaf_md*hlm_freq_day
-    currentcohort%br = currentcohort%br - currentCohort%root_md*hlm_freq_day
-    currentcohort%bsw = currentcohort%bsw - currentCohort%bsw_md*hlm_freq_day
-    currentCohort%bdead = currentCohort%bdead - currentCohort%bdead_md*hlm_freq_day
+    currentCohort%bl     = currentCohort%bl - currentCohort%leaf_md*hlm_freq_day
+    currentcohort%br     = currentcohort%br - currentCohort%root_md*hlm_freq_day
+    currentcohort%bsw    = currentcohort%bsw - currentCohort%bsw_md*hlm_freq_day
+    currentCohort%bdead  = currentCohort%bdead - currentCohort%bdead_md*hlm_freq_day
     currentCohort%bstore = currentCohort%bstore - currentCohort%bstore_md*hlm_freq_day
 
     
@@ -1287,12 +1269,12 @@ contains
 
         elseif(ODESolve == 2) then
            call Euler(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC,currentCohort,c_pool_out)
-           step_pass = .true.
-!           call CheckIntegratedAllometries(c_pool_out(i_dbh),ipft,currentCohort%canopy_trim,  &
-!                 c_pool_out(i_cleaf), c_pool_out(i_cfroot), c_pool_out(i_csap), &
-!                 c_pool_out(i_cstore), c_pool_out(i_cdead), &
-!                 c_mask(i_cleaf), c_mask(i_cfroot), c_mask(i_csap), &
-!                 c_mask(i_cstore),c_mask(i_cdead),  max_trunc_error, step_pass)
+!           step_pass = .true.
+           call CheckIntegratedAllometries(c_pool_out(i_dbh),ipft,currentCohort%canopy_trim,  &
+                 c_pool_out(i_cleaf), c_pool_out(i_cfroot), c_pool_out(i_csap), &
+                 c_pool_out(i_cstore), c_pool_out(i_cdead), &
+                 c_mask(i_cleaf), c_mask(i_cfroot), c_mask(i_csap), &
+                 c_mask(i_cstore),c_mask(i_cdead),  max_trunc_error, step_pass)
            if(step_pass)  then
               currentCohort%ode_opt_step = deltaC
            else
@@ -1504,9 +1486,6 @@ contains
            dCdx(i_csap)   = 0.0_r8
            dCdx(i_cstore) = 0.0_r8
            dCdx(i_crepro) = 1.0_r8
-
-           write(fates_log(),*) 'exiting because of forced seed 0'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
 
         else
 
