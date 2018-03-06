@@ -27,7 +27,7 @@ module EDPftvarcon
   type, public ::  EDPftvarcon_type
      real(r8), allocatable :: pft_used           (:) ! Switch to turn on and off PFTs
     
-     real(r8), allocatable :: freezetol          (:) ! minimum temperature tolerance (NOT CURRENTY USED)
+     real(r8), allocatable :: freezetol          (:) ! minimum temperature tolerance
      real(r8), allocatable :: wood_density       (:) ! wood density  g cm^-3  ...
      real(r8), allocatable :: hgt_min            (:) ! sapling height m
      real(r8), allocatable :: dbh_repro_threshold(:) ! diameter at which mature plants shift allocation

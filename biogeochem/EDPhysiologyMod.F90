@@ -219,28 +219,35 @@ contains
 
                    currentCohort%leaf_cost =  1._r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8)
                    currentCohort%leaf_cost = currentCohort%leaf_cost + &
-                        1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+                        1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * &
+                        bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
 
-                   currentCohort%leaf_cost = currentCohort%leaf_cost * (EDPftvarcon_inst%grperc(ipft) + 1._r8)
+                   currentCohort%leaf_cost = currentCohort%leaf_cost * &
+                         (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 else !evergreen costs
                    currentCohort%leaf_cost = 1.0_r8/(EDPftvarcon_inst%slatop(ipft)* &
                         EDPftvarcon_inst%leaf_long(ipft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
                    currentCohort%leaf_cost = currentCohort%leaf_cost + &
-                        1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
-                   currentCohort%leaf_cost = currentCohort%leaf_cost * (EDPftvarcon_inst%grperc(ipft) + 1._r8)
+                        1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * &
+                        bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+                   currentCohort%leaf_cost = currentCohort%leaf_cost * &
+                         (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 endif
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost)then
                    if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(ipft))then
 
                       if ( DEBUG ) then
-                         write(fates_log(),*) 'trimming leaves',currentCohort%canopy_trim,currentCohort%leaf_cost
+                         write(fates_log(),*) 'trimming leaves', &
+                               currentCohort%canopy_trim,currentCohort%leaf_cost
                       endif
 
                       ! keep trimming until none of the canopy is in negative carbon balance.              
                       if (currentCohort%hite > EDPftvarcon_inst%hgt_min(ipft))then
-                         currentCohort%canopy_trim = currentCohort%canopy_trim - EDPftvarcon_inst%trim_inc(ipft)
+                         currentCohort%canopy_trim = currentCohort%canopy_trim - &
+                               EDPftvarcon_inst%trim_inc(ipft)
                          if (EDPftvarcon_inst%evergreen(ipft) /= 1)then
-                            currentCohort%laimemory = currentCohort%laimemory*(1.0_r8 - EDPftvarcon_inst%trim_inc(ipft)) 
+                            currentCohort%laimemory = currentCohort%laimemory * &
+                                  (1.0_r8 - EDPftvarcon_inst%trim_inc(ipft)) 
                          endif
                          trimmed = 1
                       endif
@@ -813,8 +820,9 @@ contains
     real(r8) :: cmort    ! starvation mortality rate (fraction per year)
     real(r8) :: bmort    ! background mortality rate (fraction per year)
     real(r8) :: hmort    ! hydraulic failure mortality rate (fraction per year)
+    real(r8) :: frmort   ! freezing tolerance  mortality rate (fraction per year)
 
-    real(r8) :: lmort_logging     ! Mortality fraction associated with direct logging
+    real(r8) :: lmort_direct      ! Mortality fraction associated with direct logging
     real(r8) :: lmort_collateral  ! Mortality fraction associated with logging collateral damage
     real(r8) :: lmort_infra       ! Mortality fraction associated with logging infrastructure
     real(r8) :: dndt_logging      ! Mortality rate (per day) associated with the a logging event
@@ -845,24 +853,26 @@ contains
     ipft = currentCohort%pft
 
     ! Mortality for trees in the understorey. 
-    !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
-    call mortality_rates(currentCohort,cmort,hmort,bmort)
+    ! if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
+
+    call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort)
+
     call LoggingMortality_frac(ipft, currentCohort%dbh, &
-                               currentCohort%lmort_logging,                       &
-                               currentCohort%lmort_collateral,                    &
+                               currentCohort%lmort_direct,           &
+                               currentCohort%lmort_collateral,       &
                                currentCohort%lmort_infra )
 
     if (currentCohort%canopy_layer > 1)then 
        
        ! Include understory logging mortality rates not associated with disturbance
-       dndt_logging = (currentCohort%lmort_logging    + &
+       dndt_logging = (currentCohort%lmort_direct    + &
                        currentCohort%lmort_collateral + &
                        currentCohort%lmort_infra)/hlm_freq_day
 
-       currentCohort%dndt = -1.0_r8 * (cmort+hmort+bmort+dndt_logging) * currentCohort%n
+       currentCohort%dndt = -1.0_r8 * (cmort+hmort+bmort+frmort+dndt_logging) * currentCohort%n
     else
        currentCohort%dndt = -(1.0_r8 - fates_mortality_disturbance_fraction) &
-            * (cmort+hmort+bmort) * currentCohort%n
+            * (cmort+hmort+bmort+frmort) * currentCohort%n
     endif
 
     ! Height
@@ -1021,8 +1031,8 @@ contains
              max(0.0_r8,currentCohort%carbon_balance*(currentCohort%leaf_md/currentCohort%md))
        currentCohort%npp_froot = currentCohort%npp_froot + &
              max(0.0_r8,currentCohort%carbon_balance*(currentCohort%root_md/currentCohort%md))
-
-       balive_loss = currentCohort%md *(1.0_r8- EDPftvarcon_inst%leaf_stor_priority(ipft))- currentCohort%carbon_balance
+       balive_loss = currentCohort%md * (1.0_r8- EDPftvarcon_inst%leaf_stor_priority(ipft)) - &
+             currentCohort%carbon_balance
        currentCohort%carbon_balance = 0._r8
     endif
 
@@ -1307,7 +1317,7 @@ contains
 
           ! Total number of dead understory from direct logging
           ! (it is possible that large harvestable trees are in the understory)
-          dead_n_dlogging = ( currentCohort%lmort_logging) * &
+          dead_n_dlogging = ( currentCohort%lmort_direct) * &
                 currentCohort%n/hlm_freq_day/currentPatch%area
           
           ! Total number of dead understory from indirect logging
@@ -1815,7 +1825,8 @@ contains
             currentCohort => currentPatch%tallest
             do while(associated(currentCohort))      
                biomass_bg_ft(currentCohort%pft) = biomass_bg_ft(currentCohort%pft) + &
-                    currentCohort%b * (currentCohort%n / currentPatch%area) * (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
+                    currentCohort%b * (currentCohort%n / currentPatch%area) * &
+                    (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft))
                currentCohort => currentCohort%shorter
             enddo !currentCohort
             ! 
