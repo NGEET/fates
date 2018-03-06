@@ -316,6 +316,16 @@ module EDTypesMod
      real(r8) ::  ed_parsha_z(nclmax,maxpft,nlevleaf)         ! PAR absorbed  in the shade in each canopy layer,
      real(r8) ::  f_sun(nclmax,maxpft,nlevleaf)               ! fraction of leaves in the sun in each canopy layer, pft, 
 
+     ! radiation profiles for comparison against observations
+     real(r8) ::  nrmlzd_radprof_pft_dir_z(2,nclmax,maxpft,nlevleaf)
+     real(r8) ::  nrmlzd_radprof_pft_dif_z(2,nclmax,maxpft,nlevleaf)
+     real(r8) ::  nrmlzd_radprof_dir_z(2,nclmax,nlevleaf)
+     real(r8) ::  nrmlzd_radprof_dif_z(2,nclmax,nlevleaf)
+     real(r8) ::  parprof_pft_dir_z(nclmax,maxpft,nlevleaf)
+     real(r8) ::  parprof_pft_dif_z(nclmax,maxpft,nlevleaf)
+     real(r8) ::  parprof_dir_z(nclmax,nlevleaf)
+     real(r8) ::  parprof_dif_z(nclmax,nlevleaf)
+
      ! and leaf layer. m2/m2
      real(r8),allocatable ::  tr_soil_dir(:)                              ! fraction of incoming direct  radiation that (cm_numSWb)
      ! is transmitted to the soil as direct

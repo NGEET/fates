@@ -318,7 +318,8 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_ts_net_uptake_si_cnlf
   integer, private :: ih_year_net_uptake_si_cnlf
   integer, private :: ih_crownarea_si_cnlf
-
+  integer, private :: ih_parprof_dir_si_cnlf
+  integer, private :: ih_parprof_dif_si_cnlf
 
   ! indices to (site x [canopy layer x leaf layer x pft]) variables
   integer, private :: ih_parsun_z_si_cnlfpft
@@ -329,6 +330,8 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_fabd_sha_si_cnlfpft
   integer, private :: ih_fabi_sun_si_cnlfpft
   integer, private :: ih_fabi_sha_si_cnlfpft
+  integer, private :: ih_parprof_dir_si_cnlfpft
+  integer, private :: ih_parprof_dif_si_cnlfpft
 
   ! indices to (site x canopy layer) variables
   integer, private :: ih_parsun_top_si_can
@@ -2003,6 +2006,10 @@ end subroutine flush_hvars
                hio_fabd_sha_si_cnlf  => this%hvars(ih_fabd_sha_si_cnlf)%r82d, &
                hio_fabi_sun_si_cnlf  => this%hvars(ih_fabi_sun_si_cnlf)%r82d, &
                hio_fabi_sha_si_cnlf  => this%hvars(ih_fabi_sha_si_cnlf)%r82d, &
+               hio_parprof_dir_si_cnlf  => this%hvars(ih_parprof_dir_si_cnlf)%r82d, &
+               hio_parprof_dif_si_cnlf  => this%hvars(ih_parprof_dif_si_cnlf)%r82d, &
+               hio_parprof_dir_si_cnlfpft  => this%hvars(ih_parprof_dir_si_cnlfpft)%r82d, &
+               hio_parprof_dif_si_cnlfpft  => this%hvars(ih_parprof_dif_si_cnlfpft)%r82d, &
                hio_fabd_sun_top_si_can  => this%hvars(ih_fabd_sun_top_si_can)%r82d, &
                hio_fabd_sha_top_si_can  => this%hvars(ih_fabd_sha_top_si_can)%r82d, &
                hio_fabi_sun_top_si_can  => this%hvars(ih_fabi_sun_top_si_can)%r82d, &
@@ -2191,6 +2198,11 @@ end subroutine flush_hvars
                      hio_fabi_sha_si_cnlfpft(io_si,cnlfpft_indx) = hio_fabi_sha_si_cnlfpft(io_si,cnlfpft_indx) + &
                           cpatch%fabi_sha_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
                      !
+                     hio_parprof_dir_si_cnlfpft(io_si,cnlfpft_indx) = hio_parprof_dir_si_cnlfpft(io_si,cnlfpft_indx) + &
+                          cpatch%parprof_pft_dir_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
+                     hio_parprof_dif_si_cnlfpft(io_si,cnlfpft_indx) = hio_parprof_dif_si_cnlfpft(io_si,cnlfpft_indx) + &
+                          cpatch%parprof_pft_dif_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
+                     !
                      ! summarize across all PFTs
                      hio_parsun_z_si_cnlf(io_si,cnlf_indx) = hio_parsun_z_si_cnlf(io_si,cnlf_indx) + &
                           cpatch%ed_parsun_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
@@ -2236,6 +2248,18 @@ end subroutine flush_hvars
                end do
             end do
 
+            ! PFT-mean radiation profiles
+            do ican=1,nclmax
+               do ileaf=1,nlevleaf
+                  ! calculate where we are on multiplexed dimensions
+                  cnlf_indx = ileaf + (ican-1) * nlevleaf
+                  !
+                  hio_parprof_dir_si_cnlf(io_si,cnlf_indx) = hio_parprof_dir_si_cnlf(io_si,cnlf_indx) + &
+                       cpatch%parprof_dir_z(ican,ileaf) * cpatch%area * AREA_INV
+                  hio_parprof_dif_si_cnlf(io_si,cnlf_indx) = hio_parprof_dif_si_cnlf(io_si,cnlf_indx) + &
+                       cpatch%parprof_dif_z(ican,ileaf) * cpatch%area * AREA_INV
+               end do
+            end do
 
             ipa = ipa + 1
             cpatch => cpatch%younger
@@ -3016,6 +3040,30 @@ end subroutine flush_hvars
          use_default='inactive',       &
          avgflag='A', vtype=site_cnlf_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fabi_sha_si_cnlf )
+
+    call this%set_history_var(vname='PARPROF_DIR_CNLFPFT', units='W/m2',                 &
+         long='Radiative profile of direct PAR through each canopy, leaf, and PFT', &
+         use_default='inactive',       &
+         avgflag='A', vtype=site_cnlfpft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_parprof_dir_si_cnlfpft )
+
+    call this%set_history_var(vname='PARPROF_DIF_CNLFPFT', units='W/m2',                 &
+         long='Radiative profile of diffuse PAR through each canopy, leaf, and PFT', &
+         use_default='inactive',       &
+         avgflag='A', vtype=site_cnlfpft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_parprof_dif_si_cnlfpft )
+
+    call this%set_history_var(vname='PARPROF_DIR_CNLF', units='W/m2',                 &
+         long='Radiative profile of direct PAR through each canopy and leaf layer (averaged across PFTs)', &
+         use_default='active',       &
+         avgflag='A', vtype=site_cnlf_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_parprof_dir_si_cnlf )
+
+    call this%set_history_var(vname='PARPROF_DIF_CNLF', units='W/m2',                 &
+         long='Radiative profile of diffuse PAR through each canopy and leaf layer (averaged across PFTs)', &
+         use_default='active',       &
+         avgflag='A', vtype=site_cnlf_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_parprof_dif_si_cnlf )
 
     call this%set_history_var(vname='FABD_SUN_TOPLF_BYCANLAYER', units='fraction',                 &
          long='sun fraction of direct light absorbed by the top leaf layer of each canopy layer', &

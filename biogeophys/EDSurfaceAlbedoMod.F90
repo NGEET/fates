@@ -158,6 +158,12 @@ contains
               currentPatch%fabd       (:)     = 0._r8
               currentPatch%fabi       (:)     = 0._r8
 
+              ! zero diagnostic radiation profiles
+              currentPatch%nrmlzd_radprof_pft_dir_z(:,:,:,:) = 0._r8
+              currentPatch%nrmlzd_radprof_pft_dif_z(:,:,:,:) = 0._r8
+              currentPatch%nrmlzd_radprof_dir_z(:,:,:) = 0._r8
+              currentPatch%nrmlzd_radprof_dif_z(:,:,:) = 0._r8
+
               if(bc_in(s)%filter_vegzen_pa(ifp))then
 
                  weighted_dir_tr(:)   = 0._r8
@@ -666,6 +672,7 @@ contains
                           abs_rad(ib) = 0._r8
                           tr_soili = 0._r8
                           tr_soild = 0._r8
+
                           do L = 1, currentPatch%NCL_p !working from the top down.
                              abs_dir_z(:,:) = 0._r8
                              abs_dif_z(:,:) = 0._r8
@@ -751,6 +758,20 @@ contains
                                               Dif_up(L,ft,1) * ftweight(L,ft,1)
                                       end if
                                    end if
+
+                                   ! pass normalized radiation profiles for use in diagnostic averaging for history fields
+                                   do iv = 1, currentPatch%nrad(L,ft)
+                                      currentPatch%nrmlzd_radprof_pft_dir_z(radtype,L,ft,iv) = forc_dir(ifp,ib) * tr_dir_z(L,ft,iv)
+                                      currentPatch%nrmlzd_radprof_pft_dif_z(radtype,L,ft,iv) = Dif_dn(L,ft,iv) + Dif_up(L,ft,iv+1)
+                                      !
+                                      currentPatch%nrmlzd_radprof_dir_z(radtype,L,iv) = currentPatch%nrmlzd_radprof_dir_z(radtype,L,iv) + &
+                                           (forc_dir(ifp,ib) * tr_dir_z(L,ft,iv)) * &
+                                           (ftweight(L,ft,iv) / sum(ftweight(L,1:numpft,iv)))
+                                      currentPatch%nrmlzd_radprof_dif_z(radtype,L,iv) = currentPatch%nrmlzd_radprof_dif_z(radtype,L,iv) + &
+                                           (Dif_dn(L,ft,iv) + Dif_up(L,ft,iv+1)) * &
+                                           (ftweight(L,ft,iv) / sum(ftweight(L,1:numpft,iv)))
+                                   end do
+
                                 end if ! present
                              end do !ft
                              if (radtype == 1)then
@@ -960,6 +981,11 @@ contains
           sunlai  = 0._r8
           shalai  = 0._r8
 
+          cpatch%parprof_pft_dir_z(:,:,:) = 0._r8
+          cpatch%parprof_pft_dif_z(:,:,:) = 0._r8
+          cpatch%parprof_dir_z(:,:) = 0._r8
+          cpatch%parprof_dif_z(:,:) = 0._r8
+
           ! Loop over patches to calculate laisun_z and laisha_z for each layer.
           ! Derive canopy laisun, laisha, and fsun from layer sums.
           ! If sun/shade big leaf code, nrad=1 and fsun_z(p,1) and tlai_z(p,1) from
@@ -1047,6 +1073,36 @@ contains
                end do !iv
             end do !FT
          end do !CL
+
+         ! output the actual PAR profiles through the canopy for diagnostic purposes
+         
+         do CL = 1, cpatch%NCL_p
+            do FT = 1,numpft
+               do iv = 1, cpatch%nrad(CL,ft)
+                  cpatch%parprof_pft_dir_z(CL,FT,iv) = (bc_in(s)%solad_parb(ifp,ipar) * &
+                       cpatch%nrmlzd_radprof_pft_dir_z(1,CL,FT,iv)) + &
+                       (bc_in(s)%solai_parb(ifp,ipar) * &
+                       cpatch%nrmlzd_radprof_pft_dir_z(2,CL,FT,iv))
+                  cpatch%parprof_pft_dif_z(CL,FT,iv) = (bc_in(s)%solad_parb(ifp,ipar) * &
+                       cpatch%nrmlzd_radprof_pft_dif_z(1,CL,FT,iv)) + &
+                       (bc_in(s)%solai_parb(ifp,ipar) * &
+                       cpatch%nrmlzd_radprof_pft_dif_z(2,CL,FT,iv))
+               end do ! iv
+            end do    ! FT
+         end do       ! CL
+
+         do CL = 1, cpatch%NCL_p
+            do iv = 1, maxval(cpatch%nrad(CL,:))
+               cpatch%parprof_dir_z(CL,iv) = (bc_in(s)%solad_parb(ifp,ipar) * &
+                    cpatch%nrmlzd_radprof_dir_z(1,CL,iv)) + &
+                    (bc_in(s)%solai_parb(ifp,ipar) * &
+                    cpatch%nrmlzd_radprof_dir_z(2,CL,iv))
+               cpatch%parprof_dif_z(CL,iv) = (bc_in(s)%solad_parb(ifp,ipar) * &
+                    cpatch%nrmlzd_radprof_dif_z(1,CL,iv)) + &
+                    (bc_in(s)%solai_parb(ifp,ipar) * &
+                    cpatch%nrmlzd_radprof_dif_z(2,CL,iv))
+            end do    ! iv
+         end do       ! CL
          
          cpatch => cpatch%younger
       enddo
