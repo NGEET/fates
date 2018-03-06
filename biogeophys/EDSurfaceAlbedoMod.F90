@@ -125,7 +125,8 @@ contains
             rhos         =>    EDPftvarcon_inst%rhos                     , & ! Input:  [real(r8) (:)   ] stem reflectance: 1=vis, 2=nir
             taul         =>    EDPftvarcon_inst%taul                     , & ! Input:  [real(r8) (:)   ] leaf transmittance: 1=vis, 2=nir
             taus         =>    EDPftvarcon_inst%taus                     , & ! Input:  [real(r8) (:)   ] stem transmittance: 1=vis, 2=nir
-            xl           =>    EDPftvarcon_inst%xl)                          ! Input:  [real(r8) (:)   ] ecophys const - leaf/stem orientation index
+            xl           =>    EDPftvarcon_inst%xl                       , & ! Input:  [real(r8) (:)   ] ecophys const - leaf/stem orientation index
+            clumping_index  => EDPftvarcon_inst%clumping_index)              ! Input:  [real(r8) (:)   ] ecophys const - leaf/stem clumping index
             
 !            albd         =>    surfalb_inst%albd_patch         , & ! Output: [real(r8) (:,:) ] surface albedo (direct) (USED IN LND2ATM,BALANCE_CHECK)
 !            albi         =>    surfalb_inst%albi_patch         , & ! Output: [real(r8) (:,:) ] surface albedo (diffuse) (LND2ATM,BALANCE_CHECK)
@@ -257,7 +258,7 @@ contains
                           phi2b(ifp,ft) = 0.877_r8 * (1._r8 - 2._r8*phi1b(ifp,ft)) !0 = horiz leaves, 1 - vert leaves.
                           gdir(ifp) = phi1b(ifp,ft) + phi2b(ifp,ft) * sin(sb)
                           !how much direct light penetrates a singleunit of lai?
-                          k_dir(ft) = gdir(ifp) / sin(sb)
+                          k_dir(ft) = clumping_index(ft) * gdir(ifp) / sin(sb)
                        end do !FT
                        
                        do L = 1,currentPatch%NCL_p !start at the top canopy layer (1 is the top layer.)
@@ -276,8 +277,9 @@ contains
                                 do iv = 1,currentPatch%nrad(L,ft)
                                    do j = 1,9
                                       angle = (5._r8 + (j - 1) * 10._r8) * 3.142 / 180._r8
-                                      gdir(ifp) = phi1b(ifp,ft) + phi2b(ifp,ft) * sin(angle) !This line is redundant FIX(RF,032414). 
-                                      tr_dif_z(L,ft,iv) = tr_dif_z(L,ft,iv) + exp(-gdir(ifp) / sin(angle) * &
+                                      gdir(ifp) = phi1b(ifp,ft) + phi2b(ifp,ft) * sin(angle)
+                                      tr_dif_z(L,ft,iv) = tr_dif_z(L,ft,iv) + exp(-clumping_index(ft) * &
+                                           gdir(ifp) / sin(angle) * &
                                            (currentPatch%elai_profile(L,ft,iv)+currentPatch%esai_profile(L,ft,iv))) * &
                                            sin(angle)*cos(angle)
                                    end do
