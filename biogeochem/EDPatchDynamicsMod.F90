@@ -118,7 +118,8 @@ contains
 
           call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort)
           currentCohort%dmort  = cmort+hmort+bmort+frmort
-          call carea_allom(currentCohort%dbh,currentCohort%n,site_in%spread,currentCohort%pft,currentCohort%c_area)
+          call carea_allom(currentCohort%dbh,currentCohort%n,site_in%spread,currentCohort%pft, &
+               currentCohort%c_area)
 
           ! Initialize diagnostic mortality rates
           currentCohort%cmort = cmort
@@ -1425,13 +1426,15 @@ contains
                                !is there biomass in this category?
                                !----------------------------------
 
-                               if(currentPatch%pft_agb_profile(ft,z)  > 0.0_r8.or.tpp%pft_agb_profile(ft,z) > 0.0_r8)then 
+                               if(currentPatch%pft_agb_profile(ft,z)  > 0.0_r8 .or.  &
+                                    tpp%pft_agb_profile(ft,z) > 0.0_r8)then 
 
                                   !-------------------------------------------------------------------------------------
                                   ! what is the relative difference in biomass i nthis category between the two patches?
                                   !-------------------------------------------------------------------------------------
 
-                                  norm = abs(currentPatch%pft_agb_profile(ft,z) - tpp%pft_agb_profile(ft,z))/(0.5_r8*&
+                                  norm = abs(currentPatch%pft_agb_profile(ft,z) - &
+                                       tpp%pft_agb_profile(ft,z))/(0.5_r8 * &
                                        &(currentPatch%pft_agb_profile(ft,z) + tpp%pft_agb_profile(ft,z)))
 
                                   !---------------------------------------------------------------------!
