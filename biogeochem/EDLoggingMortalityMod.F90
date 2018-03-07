@@ -3,15 +3,16 @@ module EDLoggingMortalityMod
 
    ! ====================================================================================
    !  Purpose: 1. create logging mortalities: 
-   !           (a)logging mortality (cohort level)
-   !           (b)collateral mortality (cohort level)
-   !           (c)infrastructure mortality (cohort level)
+   !           (a) direct logging mortality (cohort level)
+   !           (b) collateral mortality (cohort level)
+   !           (c) infrastructure mortality (cohort level)
    !           2. move the logged trunk fluxes from live into product pool 
    !           3. move logging-associated mortality fluxes from live to CWD
    !           4. keep carbon balance (in ed_total_balance_check)
    !
-   !  Yi Xu
-   !  Date: 2017
+   !  Yi Xu & M.Huang
+   !  Date: 09/2017
+   !  Last updated: 10/2017
    ! ====================================================================================
 
    use FatesConstantsMod , only : r8 => fates_r8
@@ -29,7 +30,7 @@ module EDLoggingMortalityMod
    use EDParamsMod       , only : logging_collateral_frac 
    use EDParamsMod       , only : logging_direct_frac
    use EDParamsMod       , only : logging_mechanical_frac 
-   use EDParamsMod       , only : ED_val_understorey_death
+   use EDParamsMod       , only : logging_coll_under_frac 
    use FatesInterfaceMod , only : hlm_current_year
    use FatesInterfaceMod , only : hlm_current_month
    use FatesInterfaceMod , only : hlm_current_day
@@ -144,44 +145,49 @@ contains
 
    ! ======================================================================================
 
-   subroutine LoggingMortality_frac( pft_i, dbh, lmort_logging,lmort_collateral,lmort_infra )
+   subroutine LoggingMortality_frac( pft_i, dbh, lmort_direct,lmort_collateral,lmort_infra )
 
       ! Arguments
       integer,  intent(in)  :: pft_i            ! pft index 
       real(r8), intent(in)  :: dbh              ! diameter at breast height (cm)
-      real(r8), intent(out) :: lmort_logging    ! direct (harvestable) mortality fraction
+      real(r8), intent(out) :: lmort_direct     ! direct (harvestable) mortality fraction
       real(r8), intent(out) :: lmort_collateral ! collateral damage mortality fraction
       real(r8), intent(out) :: lmort_infra      ! infrastructure mortality fraction
 
       ! Parameters
       real(r8), parameter   :: adjustment = 1.0 ! adjustment for mortality rates
-
+      real(r8), parameter   :: logging_dbhmax_infra = 35 !(cm), based on Feldpaush et al. (2005) and Ferry et al. (2010)
+ 
       if (logging_time) then 
          if(EDPftvarcon_inst%woody(pft_i) == 1)then ! only set logging rates for trees
 
             ! Pass logging rates to cohort level 
 
             if (dbh >= logging_dbhmin ) then
-               lmort_logging = logging_direct_frac * adjustment
+               lmort_direct = logging_direct_frac * adjustment
                lmort_collateral = logging_collateral_frac * adjustment
             else
-               lmort_logging = 0.0_r8 
+               lmort_direct = 0.0_r8 
                lmort_collateral = 0.0_r8
             end if
            
-            lmort_infra      = logging_mechanical_frac * adjustment
+            if (dbh >= logging_dbhmax_infra) then
+               lmort_infra      = 0.0_r8
+            else
+               lmort_infra      = logging_mechanical_frac * adjustment
+            end if
             !damage rates for size class < & > threshold_size need to be specified seperately
 
             ! Collateral damage to smaller plants below the direct logging size threshold
             ! will be applied via "understory_death" via the disturbance algorithm
 
          else
-            lmort_logging    = 0.0_r8
+            lmort_direct    = 0.0_r8
             lmort_collateral = 0.0_r8
             lmort_infra      = 0.0_r8
          end if
       else 
-         lmort_logging    = 0.0_r8
+         lmort_direct    = 0.0_r8
          lmort_collateral = 0.0_r8
          lmort_infra      = 0.0_r8
       end if
@@ -227,7 +233,8 @@ contains
       use EDtypesMod,   only : ed_site_type
       use EDtypesMod,   only : ed_patch_type
       use EDtypesMod,   only : ed_cohort_type
-      use EDGrowthFunctionsMod, only : c_area
+      use FatesAllometryMod , only : carea_allom
+
 
       ! !ARGUMENTS:
       type(ed_site_type)  , intent(inout), target  :: currentSite 
@@ -270,14 +277,14 @@ contains
          
         
          if(currentCohort%canopy_layer == 1)then         
-            direct_dead   = currentCohort%n * currentCohort%lmort_logging
+            direct_dead   = currentCohort%n * currentCohort%lmort_direct
             indirect_dead = currentCohort%n * &
                   (currentCohort%lmort_collateral + currentCohort%lmort_infra)
 
          else
             if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
                direct_dead   = 0.0_r8
-               indirect_dead = ED_val_understorey_death * currentCohort%n * &
+               indirect_dead = logging_coll_under_frac * currentCohort%n * &
                      (patch_site_areadis/currentPatch%area)  !kgC/site/day
             else
                ! If the cohort of interest is grass, it will not experience
@@ -459,7 +466,7 @@ contains
 
       currentCohort => newPatch%shortest
       do while(associated(currentCohort))
-         currentCohort%c_area = c_area(currentCohort)
+         call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
          currentCohort => currentCohort%taller
       enddo
 

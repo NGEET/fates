@@ -19,7 +19,6 @@ module EDMainMod
   use FatesInterfaceMod        , only : bc_in_type
   use FatesInterfaceMod        , only : hlm_masterproc
   use FatesInterfaceMod        , only : numpft
-  use EDCohortDynamicsMod      , only : allocate_live_biomass
   use EDCohortDynamicsMod      , only : terminate_cohorts
   use EDCohortDynamicsMod      , only : fuse_cohorts
   use EDCohortDynamicsMod      , only : sort_cohorts
@@ -28,7 +27,7 @@ module EDMainMod
   use EDPatchDynamicsMod       , only : fuse_patches
   use EDPatchDynamicsMod       , only : spawn_patches
   use EDPatchDynamicsMod       , only : terminate_patches
-  use EDPhysiologyMod          , only : canopy_derivs
+  use EDPhysiologyMod          , only : PlantGrowth
   use EDPhysiologyMod          , only : non_canopy_derivs
   use EDPhysiologyMod          , only : phenology
   use EDPhysiologyMod          , only : recruitment
@@ -47,11 +46,12 @@ module EDMainMod
   use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydStates
   use FatesPlantHydraulicsMod  , only : initTreeHydStates
   use FatesPlantHydraulicsMod  , only : updateSizeDepRhizHydProps 
+  use FatesAllometryMod        , only : h_allom
 !  use FatesPlantHydraulicsMod , only : updateSizeDepRhizHydStates
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteCarbonStock
-  
+  use EDMortalityFunctionsMod  , only : Mortality_Derivative
   ! CIME Globals
   use shr_log_mod         , only : errMsg => shr_log_errMsg
   use shr_infnan_mod      , only : nan => shr_infnan_nan, assignment(=)
@@ -120,7 +120,7 @@ contains
 
        ! Calculate disturbance and mortality based on previous timestep vegetation.
        ! disturbance_rates calls logging mortality and other mortalities, Yi Xu
-       call disturbance_rates(currentSite)
+       call disturbance_rates(currentSite, bc_in)
     end if
 
     if (hlm_use_ed_st3.eq.ifalse) then
@@ -260,46 +260,25 @@ contains
        ! check to see if the patch has moved to the next age class
        currentPatch%age_class = get_age_class_index(currentPatch%age)
 
-       ! Find the derivatives of the growth and litter processes. 
-       call canopy_derivs(currentSite, currentPatch, bc_in)
-       
        ! Update Canopy Biomass Pools
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort)) 
 
-          cohort_biomass_store  = (currentCohort%balive+currentCohort%bdead+currentCohort%bstore)
-          currentCohort%dbh    = max(small_no,currentCohort%dbh    + currentCohort%ddbhdt    * hlm_freq_day )
-          currentCohort%balive = currentCohort%balive + currentCohort%dbalivedt * hlm_freq_day 
-          currentCohort%bdead  = max(small_no,currentCohort%bdead  + currentCohort%dbdeaddt  * hlm_freq_day )
-          if ( DEBUG ) then
-             write(fates_log(),*) 'EDMainMod dbstoredt I ',currentCohort%bstore, &
-                  currentCohort%dbstoredt,hlm_freq_day
-          end if
-          currentCohort%bstore = currentCohort%bstore + currentCohort%dbstoredt * hlm_freq_day 
-          if ( DEBUG ) then
-             write(fates_log(),*) 'EDMainMod dbstoredt II ',currentCohort%bstore, &
-                  currentCohort%dbstoredt,hlm_freq_day
-          end if
 
-          if( (currentCohort%balive+currentCohort%bdead+currentCohort%bstore)*currentCohort%n<0._r8)then
-            write(fates_log(),*) 'biomass is negative', currentCohort%n,currentCohort%balive, &
-                 currentCohort%bdead,currentCohort%bstore
-          endif
+          ! Calculate the mortality derivatives
+          call Mortality_Derivative( currentSite, currentCohort, bc_in )
 
-          if(abs((currentCohort%balive+currentCohort%bdead+currentCohort%bstore+hlm_freq_day*(currentCohort%md+ &
-               currentCohort%seed_prod)-cohort_biomass_store)-currentCohort%npp_acc) > 1e-8_r8)then
-             write(fates_log(),*) 'issue with c balance in integration', abs(currentCohort%balive+currentCohort%bdead+ &
-                  currentCohort%bstore+hlm_freq_day* &
-                 (currentCohort%md+currentCohort%seed_prod)-cohort_biomass_store-currentCohort%npp_acc)
-          endif  
 
-          ! THESE SHOULD BE MOVED TO A MORE "VISIBLE" LOCATION (RGK 10-2016)
+          ! Apply growth to potentially all carbon pools
+          call PlantGrowth( currentSite, currentCohort, bc_in )
+
+          ! Carbon assimilate has been spent at this point
+          ! and can now be safely zero'd
+
           currentCohort%npp_acc  = 0.0_r8
           currentCohort%gpp_acc  = 0.0_r8
           currentCohort%resp_acc = 0.0_r8
           
-          call allocate_live_biomass(currentCohort,1)
-
           ! BOC...update tree 'hydraulic geometry' 
           ! (size --> heights of elements --> hydraulic path lengths --> 
           ! maximum node-to-node conductances)
@@ -543,7 +522,7 @@ contains
              write(fates_log(),*)'---'
              currentCohort => currentPatch%tallest
              do while(associated(currentCohort))
-                write(fates_log(),*) currentCohort%bdead,currentCohort%balive,currentCohort%bstore,currentCohort%n
+                write(fates_log(),*) currentCohort%bdead,currentCohort%bstore,currentCohort%n
                 currentCohort => currentCohort%shorter;
              enddo !end cohort loop 
              currentPatch => currentPatch%younger
@@ -599,25 +578,25 @@ contains
           currentCohort%gpp_acc  = 0.0_r8
           currentCohort%resp_acc = 0.0_r8
 
-          currentCohort%npp_leaf  = 0.0_r8
-          currentCohort%npp_froot = 0.0_r8
-          currentCohort%npp_bsw   = 0.0_r8
-          currentCohort%npp_bdead = 0.0_r8
-          currentCohort%npp_bseed = 0.0_r8
-          currentCohort%npp_store = 0.0_r8
+          currentCohort%npp_leaf = 0.0_r8
+          currentCohort%npp_fnrt = 0.0_r8
+          currentCohort%npp_sapw = 0.0_r8
+          currentCohort%npp_dead = 0.0_r8
+          currentCohort%npp_seed = 0.0_r8
+          currentCohort%npp_stor = 0.0_r8
 
           currentCohort%bmort = 0.0_r8
           currentCohort%hmort = 0.0_r8
           currentCohort%cmort = 0.0_r8
           currentCohort%fmort = 0.0_r8
-	  
+          currentCohort%frmort = 0.0_r8
+
           currentCohort%dndt      = 0.0_r8
 	  currentCohort%dhdt      = 0.0_r8
 	  currentCohort%ddbhdt    = 0.0_r8
-          currentCohort%dbalivedt = 0.0_r8
 	  currentCohort%dbdeaddt  = 0.0_r8
 	  currentCohort%dbstoredt = 0.0_r8
-   
+
           currentCohort => currentCohort%taller
        enddo
        currentPatch => currentPatch%older
