@@ -81,7 +81,7 @@ module EDTypesMod
   real(r8), parameter :: fire_threshold       = 50.0_r8    ! threshold for fires that spread or go out. KWm-2 (Pyne 1986)
 
   ! PATCH FUSION 
-  real(r8), parameter :: NTOL                 = 0.005_r8   ! min biomass (kg / m2 patch area) below which to force-fuse patches
+  real(r8), parameter :: force_patchfuse_min_biomass = 0.005_r8   ! min biomass (kg / m2 patch area) below which to force-fuse patches
   integer , parameter :: N_DBH_BINS           = 6          ! no. of dbh bins used when comparing patches
   real(r8), parameter :: patchfusion_dbhbin_loweredges(N_DBH_BINS) = &
        (/0._r8, 5._r8, 20._r8, 50._r8, 100._r8, 150._r8/)  ! array of bin lower edges for comparing patches

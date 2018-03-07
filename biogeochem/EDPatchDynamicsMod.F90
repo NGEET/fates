@@ -7,7 +7,8 @@ module EDPatchDynamicsMod
   use FatesInterfaceMod    , only : hlm_freq_day
   use EDPftvarcon          , only : EDPftvarcon_inst
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
-  use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, area, patchfusion_dbhbin_loweredges
+  use EDtypesMod           , only : ncwd, n_dbh_bins, area, patchfusion_dbhbin_loweredges
+  use EDtypesMod           , only : force_patchfuse_min_biomass
   use EDTypesMod           , only : maxPatchesPerSite
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod           , only : min_patch_area
@@ -1407,13 +1408,13 @@ contains
                       !---------------------------------------------------------------------------------------------------------
                       ! the next bit of logic forces fusion of two patches which both have tiny biomass densities. without this,
                       ! fates gives a bunch of really young patches which all have almost no biomass and so don't need to be 
-                      ! distinguished from each other. but if NTOL is too big, it takes too long for the youngest patch to build
-                      ! up enough biomass to be its own distinct entity, which leads to large oscillations in the patch dynamics
-                      ! and dependent variables.
+                      ! distinguished from each other. but if force_patchfuse_min_biomass is too big, it takes too long for the 
+                      ! youngest patch to build up enough biomass to be its own distinct entity, which leads to large oscillations 
+                      ! in the patch dynamics and dependent variables.
                       !---------------------------------------------------------------------------------------------------------
                       
-                      if(sum(currentPatch%pft_agb_profile(:,:)) > NTOL .or. &
-                           sum(tpp%pft_agb_profile(:,:)) > NTOL ) then
+                      if(sum(currentPatch%pft_agb_profile(:,:)) > force_patchfuse_min_biomass .or. &
+                           sum(tpp%pft_agb_profile(:,:)) > force_patchfuse_min_biomass ) then
 
                          !---------------------------------------------------------------------!
                          ! Calculate the difference criteria for each pft and dbh class        !
@@ -1449,7 +1450,7 @@ contains
                                endif ! biomass(ft,z) .gt. 0
                             enddo !ht bins
                          enddo ! PFT
-                      endif ! sum(biomass(:,:) .gt. NTOL 
+                      endif ! sum(biomass(:,:) .gt. force_patchfuse_min_biomass 
                    endif ! maxage
 
                    !-------------------------------------------------------------------------!
