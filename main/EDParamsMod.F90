@@ -110,6 +110,8 @@ module EDParamsMod
    real(r8),protected :: logging_event_code          ! Code that options how logging events are structured 
    character(len=param_string_length),parameter :: logging_name_event_code = "fates_logging_event_code"
    
+   real(r8),protected :: logging_dbhmax_infra        ! "Tree diameter, above which infrastructure from logging does not impact damage or mortality.
+   character(len=param_string_length),parameter :: logging_name_dbhmax_infra = "fates_logging_dbhmax_infra"
    
    public :: FatesParamsInit
    public :: FatesRegisterParams
@@ -160,6 +162,7 @@ contains
     logging_direct_frac                   = nan
     logging_mechanical_frac               = nan
     logging_event_code                    = nan
+    logging_dbhmax_infra                  = nan
 
   end subroutine FatesParamsInit
 
@@ -278,6 +281,8 @@ contains
     call fates_params%RegisterParameter(name=logging_name_event_code, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
+    call fates_params%RegisterParameter(name=logging_name_dbhmax_infra, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
 
     ! non-scalar parameters
     call fates_params%RegisterParameter(name=ED_name_history_sizeclass_bin_edges, dimension_shape=dimension_shape_1d, &
@@ -394,6 +399,9 @@ contains
     call fates_params%RetreiveParameter(name=logging_name_event_code, &
           data=logging_event_code)
 
+    call fates_params%RetreiveParameter(name=logging_name_dbhmax_infra, &
+          data=logging_dbhmax_infra)
+
     ! parameters that are arrays of size defined within the params file and thus need allocating as well
     call fates_params%RetreiveParameterAllocate(name=ED_name_history_sizeclass_bin_edges, &
           data=ED_val_history_sizeclass_bin_edges)
@@ -448,6 +456,7 @@ contains
         write(fates_log(),fmt0) 'logging_direct_frac = ',logging_direct_frac
         write(fates_log(),fmt0) 'logging_mechanical_frac = ',logging_mechanical_frac
         write(fates_log(),fmt0) 'logging_event_code = ',logging_event_code
+        write(fates_log(),fmt0) 'logging_dbhmax_infra = ',logging_dbhmax_infra
         write(fates_log(),*) '------------------------------------------------------'
 
      end if

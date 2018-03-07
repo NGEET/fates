@@ -44,7 +44,7 @@ module EDPftvarcon
      real(r8), allocatable :: seed_rain          (:) ! seeds that come from outside the gridbox.
      real(r8), allocatable :: BB_slope           (:) ! ball berry slope parameter
      real(r8), allocatable :: root_long          (:) ! root longevity (yrs)
-     real(r8), allocatable :: clone_alloc        (:) ! fraction of carbon balance allocated to clonal reproduction.
+     real(r8), allocatable :: seed_alloc_mature  (:) ! fraction of carbon balance allocated to clonal reproduction.
      real(r8), allocatable :: seed_alloc         (:) ! fraction of carbon balance allocated to seeds.
      real(r8), allocatable :: c2b                (:) ! Carbon to biomass multiplier [kg/kgC]
      real(r8), allocatable :: woody(:)
@@ -69,6 +69,8 @@ module EDPftvarcon
      real(r8), allocatable :: smpso(:)
      real(r8), allocatable :: smpsc(:)
      real(r8), allocatable :: grperc(:) 
+     real(r8), allocatable :: maintresp_reduction_curvature(:)   ! curvature of MR reduction as f(carbon storage), 1=linear, 0=very curved
+     real(r8), allocatable :: maintresp_reduction_intercept(:)   ! intercept of MR reduction as f(carbon storage), 0=no throttling, 1=max throttling
      real(r8), allocatable :: bmort(:)
      real(r8), allocatable :: hf_sm_threshold(:)
      real(r8), allocatable :: vcmaxha(:)
@@ -188,6 +190,7 @@ module EDPftvarcon
   !
   ! !PUBLIC MEMBER FUNCTIONS:
   public :: FatesReportPFTParams
+  public :: FatesCheckParams
   !-----------------------------------------------------------------------
 
 contains
@@ -314,7 +317,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_clone_alloc'
+    name = 'fates_seed_alloc_mature'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -418,6 +421,14 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_maintresp_reduction_curvature'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_maintresp_reduction_intercept'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -462,10 +473,9 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-! THIS VARIABLE IS NOT YET IN THE DEFAULT PARAMETER FILE    
-!    name = 'fates_allom_stmode'
-!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-!          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    name = 'fates_allom_stmode'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_allom_cmode'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -719,9 +729,9 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%root_long)
 
-    name = 'fates_clone_alloc'
+    name = 'fates_seed_alloc_mature'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%clone_alloc)
+         data=this%seed_alloc_mature)
 
     name = 'fates_seed_alloc'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -819,6 +829,14 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%grperc)
 
+    name = 'fates_maintresp_reduction_curvature'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%maintresp_reduction_curvature)
+
+    name = 'fates_maintresp_reduction_intercept'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%maintresp_reduction_intercept)
+
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%prescribed_npp_canopy)
@@ -863,13 +881,9 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%allom_amode)
 
-    ! THIS PARAMETER IS NOT YET IN THE DEFAULT FILE
-    ! USE AMODE TO TEMPORARILY FILL AND ALLOCATE
-    !    name = 'fates_allom_stmode'
-    name = 'fates_allom_amode'   
+    name = 'fates_allom_stmode'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%allom_stmode)
-    this%allom_stmode(:) = 1.0_r8
 
     name = 'fates_allom_cmode'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1426,7 +1440,7 @@ contains
         write(fates_log(),fmt0) 'seed_rain = ',EDPftvarcon_inst%seed_rain
         write(fates_log(),fmt0) 'BB_slope = ',EDPftvarcon_inst%BB_slope
         write(fates_log(),fmt0) 'root_long = ',EDPftvarcon_inst%root_long
-        write(fates_log(),fmt0) 'clone_alloc = ',EDPftvarcon_inst%clone_alloc
+        write(fates_log(),fmt0) 'seed_alloc_mature = ',EDPftvarcon_inst%seed_alloc_mature
         write(fates_log(),fmt0) 'seed_alloc = ',EDPftvarcon_inst%seed_alloc
         write(fates_log(),fmt0) 'woody = ',EDPftvarcon_inst%woody
         write(fates_log(),fmt0) 'stress_decid = ',EDPftvarcon_inst%stress_decid
@@ -1517,6 +1531,144 @@ contains
      end if
 
   end subroutine FatesReportPFTParams
+
+
+  ! =====================================================================================
+
+  subroutine FatesCheckParams(is_master)
+
+     ! ----------------------------------------------------------------------------------
+     !
+     ! This subroutine performs logical checks on user supplied parameters.  It cross
+     ! compares various parameters and will fail if they don't make sense.  
+     ! Examples:
+     ! A tree can not be defined as both evergreen and deciduous.  A woody plant
+     ! cannot have a structural biomass allometry intercept of 0, and a non-woody
+     ! plant (grass) can't have a non-zero intercept...
+     ! -----------------------------------------------------------------------------------
+
+
+     ! Argument
+     logical, intent(in) :: is_master  ! Only log if this is the master proc
+     
+     character(len=32),parameter :: fmt0 = '(a,100(F12.4,1X))'
+
+     integer :: npft,ipft
+
+     npft = size(EDPftvarcon_inst%pft_used,1)
+
+     if(.not.is_master) return
+     
+     do ipft = 1,npft
+        
+        ! Check to see if evergreen, deciduous flags are mutually exclusive
+        ! ----------------------------------------------------------------------------------
+
+        if ( int(EDPftvarcon_inst%evergreen(ipft) +    &
+                 EDPftvarcon_inst%season_decid(ipft) + &
+                 EDPftvarcon_inst%stress_decid(ipft)) .ne. 1 ) then
+           
+           write(fates_log(),*) 'PFT # ',ipft,' must be defined as having one of three'
+           write(fates_log(),*) 'phenology habits, ie == 1'
+           write(fates_log(),*) 'stress_decid: ',EDPftvarcon_inst%stress_decid(ipft)
+           write(fates_log(),*) 'season_decid: ',EDPftvarcon_inst%season_decid(ipft)
+           write(fates_log(),*) 'evergreen: ',EDPftvarcon_inst%evergreen(ipft)
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+           
+        end if
+
+
+        ! Check to see if mature and base seed allocation is greater than 1
+        ! ----------------------------------------------------------------------------------
+        if ( ( EDPftvarcon_inst%seed_alloc(ipft) + &
+               EDPftvarcon_inst%seed_alloc_mature(ipft)) > 1.0 ) then
+
+           write(fates_log(),*) 'The sum of seed allocation from base and mature trees may'
+           write(fates_log(),*) ' not exceed 1.'
+           write(fates_log(),*) ' PFT#: ',ipft
+           write(fates_log(),*) ' seed_alloc: ',EDPftvarcon_inst%seed_alloc(ipft)
+           write(fates_log(),*) ' seed_alloc_mature: ',EDPftvarcon_inst%seed_alloc_mature(ipft)
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+           
+        end if
+
+        ! Check if woody plants have a structural biomass (agb) intercept
+        ! ----------------------------------------------------------------------------------
+        if ( ( EDPftvarcon_inst%allom_agb1(ipft) <= tiny(EDPftvarcon_inst%allom_agb1(ipft)) ) .and. &
+             ( int(EDPftvarcon_inst%woody(ipft)) .eq. 1 ) ) then
+
+           write(fates_log(),*) 'Woody plants are expected to have a non-zero intercept'
+           write(fates_log(),*) ' in the diameter to AGB allometry equations'
+           write(fates_log(),*) ' PFT#: ',ipft
+           write(fates_log(),*) ' allom_agb1: ',EDPftvarcon_inst%allom_agb1(ipft)
+           write(fates_log(),*) ' woody: ',int(EDPftvarcon_inst%woody(ipft))
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+
+        end if
+
+        ! Check if non-woody plants have structural biomass (agb) intercept
+        ! ----------------------------------------------------------------------------------
+        if ( ( EDPftvarcon_inst%allom_agb1(ipft) > tiny(EDPftvarcon_inst%allom_agb1(ipft)) ) .and. &
+              ( int(EDPftvarcon_inst%woody(ipft)) .ne. 1 ) ) then
+
+           write(fates_log(),*) 'Non-woody plants are expected to have a non-zero intercept'
+           write(fates_log(),*) ' in the diameter to AGB allometry equations'
+           write(fates_log(),*) ' This is because the definition of AGB (as far as allometry)'
+           write(fates_log(),*) ' is concerned, ignores leaf and fine-roots, and only contains'
+           write(fates_log(),*) ' woody tissues (sap and structural dead wood).'
+           write(fates_log(),*) ' PFT#: ',ipft
+           write(fates_log(),*) ' allom_agb1: ',EDPftvarcon_inst%allom_agb1(ipft)
+           write(fates_log(),*) ' woody: ',int(EDPftvarcon_inst%woody(ipft))
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+
+        end if
+ 
+        ! Check if freezing tolerance is within reasonable bounds
+        ! ----------------------------------------------------------------------------------
+        
+        if ( ( EDPftvarcon_inst%freezetol(ipft) > 60 ) .or. &
+             ( EDPFtvarcon_inst%freezetol(ipft) < -273.1 ) ) then
+
+           write(fates_log(),*) 'Freezing tolerance was set to a strange value'
+           write(fates_log(),*) ' Units should be degrees celcius. It cannot'
+           write(fates_log(),*) ' be less than absolute zero, and we check to see'
+           write(fates_log(),*) ' if it is greater than 60C, which would be ludicrous as well'
+           write(fates_log(),*) ' PFT#: ',ipft
+           write(fates_log(),*) ' freezetol: ', EDPFtvarcon_inst%freezetol(ipft)
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+
+        end if
+
+        ! Check if leaf storage priority is between 0-1
+        ! ----------------------------------------------------------------------------------
+        
+        if ( ( EDPftvarcon_inst%leaf_stor_priority(ipft) < 0.0 ) .or. &
+             ( EDPftvarcon_inst%leaf_stor_priority(ipft) > 1.0 ) ) then
+
+           write(fates_log(),*) 'Prioritization of carbon allocation to leaf'
+           write(fates_log(),*) ' and root turnover replacement, must be between'
+           write(fates_log(),*) ' 0 and 1'
+           write(fates_log(),*) ' PFT#: ',ipft
+           write(fates_log(),*) 'leaf_stor_priority: ',EDPftvarcon_inst%leaf_stor_priority(ipft)
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+
+        end if
+        
+     end do
+     
+     
+
+     return
+  end subroutine FatesCheckParams
+
+
+
 
 end module EDPftvarcon
 

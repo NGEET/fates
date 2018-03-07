@@ -31,6 +31,7 @@ module EDLoggingMortalityMod
    use EDParamsMod       , only : logging_direct_frac
    use EDParamsMod       , only : logging_mechanical_frac 
    use EDParamsMod       , only : logging_coll_under_frac 
+   use EDParamsMod       , only : logging_dbhmax_infra
    use FatesInterfaceMod , only : hlm_current_year
    use FatesInterfaceMod , only : hlm_current_month
    use FatesInterfaceMod , only : hlm_current_day
@@ -154,7 +155,6 @@ contains
 
       ! Parameters
       real(r8), parameter   :: adjustment = 1.0 ! adjustment for mortality rates
-      real(r8), parameter   :: logging_dbhmax_infra = 35 !(cm), based on Feldpaush et al. (2005) and Ferry et al. (2010)
  
       if (logging_time) then 
          if(EDPftvarcon_inst%woody(pft_i) == 1)then ! only set logging rates for trees
