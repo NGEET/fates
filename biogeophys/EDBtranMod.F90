@@ -113,8 +113,7 @@ contains
       real(r8) :: rresis            ! suction limitation to transpiration independent
                                     ! of root density
       real(r8) :: pftgs(maxpft)     ! pft weighted stomatal conductance s/m
-      real(r8) :: temprootr              
-      real(r8) :: balive_patch
+      real(r8) :: temprootr
       real(r8) :: sum_pftgs         ! sum of weighted conductances (for normalization)
       !------------------------------------------------------------------------------
       
