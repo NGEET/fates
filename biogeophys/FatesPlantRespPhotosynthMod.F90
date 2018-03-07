@@ -324,7 +324,7 @@ contains
                      ft = currentCohort%pft
                      cl = currentCohort%canopy_layer
                      
-                     call bleaf(currentCohort%dbh,currentCohort%hite,currentCohort%pft,currentCohort%canopy_trim,b_leaf)
+                     call bleaf(currentCohort%dbh,currentCohort%pft,currentCohort%canopy_trim,b_leaf)
                      call storage_fraction_of_target(b_leaf, currentCohort%bstore, frac)
                      call lowstorage_maintresp_reduction(frac,currentCohort%pft, &
                           maintresp_reduction_factor)
