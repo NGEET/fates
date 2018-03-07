@@ -78,8 +78,11 @@ contains
                
                ! map biomass pools to column level
                sites(s)%biomass_stock = sites(s)%biomass_stock + &
-                     (currentCohort%bdead + currentCohort%balive + &
-                     currentCohort%bstore) * n_perm2 * 1.e3_r8
+                     (currentCohort%bdead + &
+                      currentCohort%bsw   + &
+                      currentCohort%bl    + &
+                      currentCohort%br    + &
+                      currentCohort%bstore) * n_perm2 * 1.e3_r8
                
                currentCohort => currentCohort%shorter
             enddo !currentCohort
@@ -264,8 +267,12 @@ contains
 
         currentCohort => currentPatch%tallest
         do while(associated(currentCohort))
-           biomass_stock =  biomass_stock + (currentCohort%bdead + currentCohort%balive + &
-                 currentCohort%bstore) * currentCohort%n
+           biomass_stock =  biomass_stock + &
+                 (currentCohort%bdead     + &
+                  currentCohort%bsw       + &
+                  currentCohort%br        + &
+                  currentCohort%bl        + &
+                  currentCohort%bstore) * currentCohort%n
            currentCohort => currentCohort%shorter
         enddo !end cohort loop 
         currentPatch => currentPatch%younger

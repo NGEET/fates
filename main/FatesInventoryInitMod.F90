@@ -748,9 +748,16 @@ contains
       ! avgRG    (cm/yr?)   Average Radial Growth (NOT USED)
       ! --------------------------------------------------------------------------------------------
 
-      use EDGrowthFunctionsMod, only : hite
-      use EDGrowthFunctionsMod, only : bleaf
-      use EDGrowthFunctionsMod, only : bdead
+      use FatesAllometryMod         , only : h_allom
+      use FatesAllometryMod         , only : h2d_allom
+      use FatesAllometryMod         , only : bagw_allom
+      use FatesAllometryMod         , only : bbgw_allom
+      use FatesAllometryMod         , only : bleaf
+      use FatesAllometryMod         , only : bfineroot
+      use FatesAllometryMod         , only : bsap_allom
+      use FatesAllometryMod         , only : bdead_allom
+      use FatesAllometryMod         , only : bstore_allom
+
       use EDCohortDynamicsMod , only : create_cohort
       use FatesInterfaceMod   , only : numpft
 
@@ -775,17 +782,22 @@ contains
       real(r8)                                    :: c_balive      ! live biomass (kg)
       real(r8)                                    :: c_avgRG       ! avg radial growth (NOT USED)
       integer                                     :: cstatus      
-      integer                                     :: recruitstatus  
       type(ed_patch_type), pointer                :: cpatch        ! current patch pointer
       type(ed_cohort_type), pointer               :: temp_cohort   ! temporary patch (needed for allom funcs)
       integer                                     :: ipa           ! patch idex
       logical                                     :: matched_patch ! check if cohort was matched w/ patch
+      real(r8) :: b_agw      ! biomass above ground non-leaf [kgC]
+      real(r8) :: b_bgw      ! biomass below ground non-leaf [kgC]
+      real(r8) :: b_leaf     ! biomass in leaves [kgC]
+      real(r8) :: b_fineroot ! biomass in fine roots [kgC]
+      real(r8) :: b_sapwood  ! biomass in sapwood [kgC]
 
       character(len=128),parameter    :: wr_fmt = &
            '(F7.1,2X,A20,2X,A20,2X,F5.2,2X,F5.2,2X,I4,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2)'
 
       real(r8), parameter :: abnormal_large_nplant = 1000.0_r8  ! Used to catch bad values
       real(r8), parameter :: abnormal_large_dbh    = 500.0_r8   ! I've never heard of a tree > 3m
+      integer,  parameter :: recruitstatus = 0
 
       read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_name, c_dbh, c_height, &
             c_pft, c_nplant, c_bdead, c_balive, c_avgRG
@@ -858,49 +870,57 @@ contains
       
       allocate(temp_cohort)   ! A temporary cohort is needed because we want to make
                               ! use of the allometry functions
-      
-     
 
       temp_cohort%pft         = c_pft
       temp_cohort%n           = c_nplant * cpatch%area
-      temp_cohort%hite        = Hite(temp_cohort)
       temp_cohort%dbh         = c_dbh
+      call h_allom(c_dbh,c_pft,temp_cohort%hite)
       temp_cohort%canopy_trim = 1.0_r8
-      temp_cohort%bdead       = Bdead(temp_cohort)
-      temp_cohort%balive      = Bleaf(temp_cohort)*(1.0_r8 + EDPftvarcon_inst%allom_l2fr(c_pft) &
-            + EDpftvarcon_inst%allom_latosa_int(c_pft)*temp_cohort%hite)
-      temp_cohort%b           = temp_cohort%balive + temp_cohort%bdead
+
+      ! Calculate total above-ground biomass from allometry
+
+      call bagw_allom(temp_cohort%dbh,c_pft,b_agw)
+      ! Calculate coarse root biomass from allometry
+      call bbgw_allom(temp_cohort%dbh,c_pft,b_bgw)
+      
+      ! Calculate the leaf biomass (calculates a maximum first, then applies canopy trim
+      ! and sla scaling factors)
+      call bleaf(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim,b_leaf)
+      
+      ! Calculate fine root biomass
+      call bfineroot(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim,b_fineroot)
+      
+      ! Calculate sapwood biomass
+      call bsap_allom(temp_cohort%dbh,c_pft,temp_cohort%canopy_trim,b_sapwood)
+      
+      call bdead_allom( b_agw, b_bgw, b_sapwood, c_pft, temp_cohort%bdead )
+
+      call bstore_allom(temp_cohort%dbh, c_pft, temp_cohort%canopy_trim,temp_cohort%bstore)
       
       if( EDPftvarcon_inst%evergreen(c_pft) == 1) then
-         temp_cohort%bstore = Bleaf(temp_cohort) * EDPftvarcon_inst%cushion(c_pft)
          temp_cohort%laimemory = 0._r8
          cstatus = 2
       endif
       
       if( EDPftvarcon_inst%season_decid(c_pft) == 1 ) then !for dorment places
-         temp_cohort%bstore = Bleaf(temp_cohort) * EDPftvarcon_inst%cushion(c_pft) !stored carbon in new seedlings.
          if(csite%status == 2)then 
             temp_cohort%laimemory = 0.0_r8
          else
-            temp_cohort%laimemory = Bleaf(temp_cohort)
+            temp_cohort%laimemory = b_leaf
          endif
          ! reduce biomass according to size of store, this will be recovered when elaves com on.
-         temp_cohort%balive = temp_cohort%balive - temp_cohort%laimemory
          cstatus = csite%status
       endif
       
       if ( EDPftvarcon_inst%stress_decid(c_pft) == 1 ) then
-         temp_cohort%bstore = Bleaf(temp_cohort) * EDPftvarcon_inst%cushion(c_pft)
-         temp_cohort%laimemory = Bleaf(temp_cohort)
-         temp_cohort%balive = temp_cohort%balive - temp_cohort%laimemory
+         temp_cohort%laimemory = b_leaf
          cstatus = csite%dstatus
       endif
 
-      recruitstatus  = 0
-      
+
       call create_cohort(cpatch, c_pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-            temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore, &
-            temp_cohort%laimemory,  cstatus,recruitstatus, temp_cohort%canopy_trim, 1, bc_in)
+           b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore, &
+           temp_cohort%laimemory,  cstatus, recruitstatus, temp_cohort%canopy_trim, 1, bc_in)
       
       deallocate(temp_cohort) ! get rid of temporary cohort
 

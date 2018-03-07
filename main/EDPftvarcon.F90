@@ -27,7 +27,7 @@ module EDPftvarcon
   type, public ::  EDPftvarcon_type
      real(r8), allocatable :: pft_used           (:) ! Switch to turn on and off PFTs
     
-     real(r8), allocatable :: freezetol          (:) ! minimum temperature tolerance (NOT CURRENTY USED)
+     real(r8), allocatable :: freezetol          (:) ! minimum temperature tolerance
      real(r8), allocatable :: wood_density       (:) ! wood density  g cm^-3  ...
      real(r8), allocatable :: hgt_min            (:) ! sapling height m
      real(r8), allocatable :: dbh_repro_threshold(:) ! diameter at which mature plants shift allocation
@@ -69,8 +69,6 @@ module EDPftvarcon
      real(r8), allocatable :: smpso(:)
      real(r8), allocatable :: smpsc(:)
      real(r8), allocatable :: grperc(:) 
-     
-     
      real(r8), allocatable :: bmort(:)
      real(r8), allocatable :: hf_sm_threshold(:)
      real(r8), allocatable :: vcmaxha(:)
@@ -109,6 +107,8 @@ module EDPftvarcon
      real(r8), allocatable :: allom_amode(:)        ! AGB allometry function type
      real(r8), allocatable :: allom_cmode(:)        ! Coarse root allometry function type
      real(r8), allocatable :: allom_smode(:)        ! sapwood allometry function type
+     real(r8), allocatable :: allom_stmode(:)       ! storage allometry functional type 
+                                                    ! (HARD-CODED FOR TIME BEING, RGK 11-2017)
      real(r8), allocatable :: allom_latosa_int(:)   ! Leaf area to sap area ratio, intercept [m2/cm2]
      real(r8), allocatable :: allom_latosa_slp(:)   ! Leaf area to sap area ratio, slope on diameter
                                                     ! [m2/cm2/cm]
@@ -123,19 +123,26 @@ module EDPftvarcon
      real(r8), allocatable :: allom_sai_scaler(:)      ! 
      real(r8), allocatable :: allom_blca_expnt_diff(:) ! Any difference in the exponent between the leaf
                                                        ! biomass and crown area scaling
-     real(r8), allocatable :: allom_d2ca_coefficient_max(:)  ! upper (savanna) value for crown area to dbh coefficient
-     real(r8), allocatable :: allom_d2ca_coefficient_min(:)  ! lower (closed-canopy forest) value for crown area to dbh coefficient
+     real(r8), allocatable :: allom_d2ca_coefficient_max(:)  ! upper (savanna) value for crown 
+                                                             ! area to dbh coefficient
+     real(r8), allocatable :: allom_d2ca_coefficient_min(:)  ! lower (closed-canopy forest) value for crown 
+                                                             ! area to dbh coefficient
      real(r8), allocatable :: allom_agb1(:)         ! Parameter 1 for agb allometry
      real(r8), allocatable :: allom_agb2(:)         ! Parameter 2 for agb allometry
      real(r8), allocatable :: allom_agb3(:)         ! Parameter 3 for agb allometry
      real(r8), allocatable :: allom_agb4(:)         ! Parameter 3 for agb allometry
 
      ! Prescribed Physiology Mode Parameters
-     real(r8), allocatable :: prescribed_npp_canopy(:)               ! this is only for the special prescribed_physiology_mode
-     real(r8), allocatable :: prescribed_npp_understory(:)           ! this is only for the special prescribed_physiology_mode
-     real(r8), allocatable :: prescribed_mortality_canopy(:)         ! this is only for the special prescribed_physiology_mode
-     real(r8), allocatable :: prescribed_mortality_understory(:)     ! this is only for the special prescribed_physiology_mode
-     real(r8), allocatable :: prescribed_recruitment(:)              ! this is only for the special prescribed_physiology_mode
+     real(r8), allocatable :: prescribed_npp_canopy(:)           ! this is only for the special 
+                                                                 ! prescribed_physiology_mode
+     real(r8), allocatable :: prescribed_npp_understory(:)       ! this is only for the special 
+                                                                 ! prescribed_physiology_mode
+     real(r8), allocatable :: prescribed_mortality_canopy(:)     ! this is only for the special
+                                                                 ! prescribed_physiology_mode
+     real(r8), allocatable :: prescribed_mortality_understory(:) ! this is only for the special 
+                                                                 ! prescribed_physiology_mode
+     real(r8), allocatable :: prescribed_recruitment(:)          ! this is only for the special 
+                                                                 ! prescribed_physiology_mode
 
      
      ! Plant Hydraulic Parameters
@@ -455,6 +462,11 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+! THIS VARIABLE IS NOT YET IN THE DEFAULT PARAMETER FILE    
+!    name = 'fates_allom_stmode'
+!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+!          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_allom_cmode'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -486,7 +498,7 @@ contains
     name = 'fates_allom_d2h3'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
+    
     name = 'fates_allom_d2bl1'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -850,6 +862,14 @@ contains
     name = 'fates_allom_amode'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%allom_amode)
+
+    ! THIS PARAMETER IS NOT YET IN THE DEFAULT FILE
+    ! USE AMODE TO TEMPORARILY FILL AND ALLOCATE
+    !    name = 'fates_allom_stmode'
+    name = 'fates_allom_amode'   
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%allom_stmode)
+    this%allom_stmode(:) = 1.0_r8
 
     name = 'fates_allom_cmode'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1408,7 +1428,6 @@ contains
         write(fates_log(),fmt0) 'root_long = ',EDPftvarcon_inst%root_long
         write(fates_log(),fmt0) 'clone_alloc = ',EDPftvarcon_inst%clone_alloc
         write(fates_log(),fmt0) 'seed_alloc = ',EDPftvarcon_inst%seed_alloc
-        write(fates_log(),fmt0) 'C2B = ',EDPftvarcon_inst%c2b
         write(fates_log(),fmt0) 'woody = ',EDPftvarcon_inst%woody
         write(fates_log(),fmt0) 'stress_decid = ',EDPftvarcon_inst%stress_decid
         write(fates_log(),fmt0) 'season_decid = ',EDPftvarcon_inst%season_decid
@@ -1431,6 +1450,7 @@ contains
         write(fates_log(),fmt0) 'smpso = ',EDPftvarcon_inst%smpso
         write(fates_log(),fmt0) 'smpsc = ',EDPftvarcon_inst%smpsc
         write(fates_log(),fmt0) 'grperc = ',EDPftvarcon_inst%grperc
+        write(fates_log(),fmt0) 'c2b = ',EDPftvarcon_inst%c2b
         write(fates_log(),fmt0) 'bmort = ',EDPftvarcon_inst%bmort
         write(fates_log(),fmt0) 'hf_sm_threshold = ',EDPftvarcon_inst%hf_sm_threshold
         write(fates_log(),fmt0) 'vcmaxha = ',EDPftvarcon_inst%vcmaxha
