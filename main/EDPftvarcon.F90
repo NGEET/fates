@@ -62,6 +62,8 @@ module EDPftvarcon
      real(r8), allocatable :: fr_fcel(:)
      real(r8), allocatable :: fr_flig(:)
      real(r8), allocatable :: xl(:)
+     real(r8), allocatable :: clumping_index(:) ! factor describing how much self-occlusion 
+                                                ! of leaf scattering elements decreases light interception
      real(r8), allocatable :: c3psn(:)
      real(r8), allocatable :: vcmax25top(:)
      real(r8), allocatable :: leafcn(:)
@@ -69,8 +71,10 @@ module EDPftvarcon
      real(r8), allocatable :: smpso(:)
      real(r8), allocatable :: smpsc(:)
      real(r8), allocatable :: grperc(:) 
-     real(r8), allocatable :: maintresp_reduction_curvature(:)   ! curvature of MR reduction as f(carbon storage), 1=linear, 0=very curved
-     real(r8), allocatable :: maintresp_reduction_intercept(:)   ! intercept of MR reduction as f(carbon storage), 0=no throttling, 1=max throttling
+     real(r8), allocatable :: maintresp_reduction_curvature(:)   ! curvature of MR reduction as f(carbon storage), 
+                                                                 ! 1=linear, 0=very curved
+     real(r8), allocatable :: maintresp_reduction_intercept(:)   ! intercept of MR reduction as f(carbon storage), 
+                                                                 ! 0=no throttling, 1=max throttling
      real(r8), allocatable :: bmort(:)
      real(r8), allocatable :: hf_sm_threshold(:)
      real(r8), allocatable :: vcmaxha(:)
@@ -390,6 +394,10 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_xl'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_clumping_index'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -800,6 +808,10 @@ contains
     name = 'fates_xl'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%xl)
+
+    name = 'fates_clumping_index'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%clumping_index)
 
     name = 'fates_c3psn'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1457,6 +1469,7 @@ contains
         write(fates_log(),fmt0) 'fr_fcel = ',EDPftvarcon_inst%fr_fcel
         write(fates_log(),fmt0) 'fr_flig = ',EDPftvarcon_inst%fr_flig
         write(fates_log(),fmt0) 'xl = ',EDPftvarcon_inst%xl
+        write(fates_log(),fmt0) 'clumping_index = ',EDPftvarcon_inst%clumping_index
         write(fates_log(),fmt0) 'c3psn = ',EDPftvarcon_inst%c3psn
         write(fates_log(),fmt0) 'vcmax25top = ',EDPftvarcon_inst%vcmax25top
         write(fates_log(),fmt0) 'leafcn = ',EDPftvarcon_inst%leafcn
