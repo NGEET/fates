@@ -62,6 +62,7 @@ module EDPftvarcon
      real(r8), allocatable :: fr_fcel(:)
      real(r8), allocatable :: fr_flig(:)
      real(r8), allocatable :: xl(:)
+     real(r8), allocatable :: clumping_index(:)
      real(r8), allocatable :: c3psn(:)
      real(r8), allocatable :: vcmax25top(:)
      real(r8), allocatable :: leafcn(:)
@@ -378,6 +379,10 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_xl'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_clumping_index'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -776,6 +781,10 @@ contains
     name = 'fates_xl'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%xl)
+
+    name = 'fates_clumping_index'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%clumping_index)
 
     name = 'fates_c3psn'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1421,6 +1430,7 @@ contains
         write(fates_log(),fmt0) 'fr_fcel = ',EDPftvarcon_inst%fr_fcel
         write(fates_log(),fmt0) 'fr_flig = ',EDPftvarcon_inst%fr_flig
         write(fates_log(),fmt0) 'xl = ',EDPftvarcon_inst%xl
+        write(fates_log(),fmt0) 'clumping_index = ',EDPftvarcon_inst%clumping_index
         write(fates_log(),fmt0) 'c3psn = ',EDPftvarcon_inst%c3psn
         write(fates_log(),fmt0) 'vcmax25top = ',EDPftvarcon_inst%vcmax25top
         write(fates_log(),fmt0) 'leafcn = ',EDPftvarcon_inst%leafcn
