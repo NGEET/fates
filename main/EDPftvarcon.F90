@@ -1624,21 +1624,21 @@ contains
 
         ! Check if non-woody plants have structural biomass (agb) intercept
         ! ----------------------------------------------------------------------------------
-        if ( ( EDPftvarcon_inst%allom_agb1(ipft) > tiny(EDPftvarcon_inst%allom_agb1(ipft)) ) .and. &
-              ( int(EDPftvarcon_inst%woody(ipft)) .ne. 1 ) ) then
-
-           write(fates_log(),*) 'Non-woody plants are expected to have a non-zero intercept'
-           write(fates_log(),*) ' in the diameter to AGB allometry equations'
-           write(fates_log(),*) ' This is because the definition of AGB (as far as allometry)'
-           write(fates_log(),*) ' is concerned, ignores leaf and fine-roots, and only contains'
-           write(fates_log(),*) ' woody tissues (sap and structural dead wood).'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' allom_agb1: ',EDPftvarcon_inst%allom_agb1(ipft)
-           write(fates_log(),*) ' woody: ',int(EDPftvarcon_inst%woody(ipft))
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-
-        end if
+!        if ( ( EDPftvarcon_inst%allom_agb1(ipft) > tiny(EDPftvarcon_inst%allom_agb1(ipft)) ) .and. &
+!              ( int(EDPftvarcon_inst%woody(ipft)) .ne. 1 ) ) then
+!
+!           write(fates_log(),*) 'Non-woody plants are expected to have a zero intercept'
+!           write(fates_log(),*) ' in the diameter to AGB allometry equations'
+!           write(fates_log(),*) ' This is because the definition of AGB (as far as allometry)'
+!           write(fates_log(),*) ' is concerned, ignores leaf and fine-roots, and only contains'
+!           write(fates_log(),*) ' woody tissues (sap and structural dead wood).'
+!           write(fates_log(),*) ' PFT#: ',ipft
+!           write(fates_log(),*) ' allom_agb1: ',EDPftvarcon_inst%allom_agb1(ipft)
+!           write(fates_log(),*) ' woody: ',int(EDPftvarcon_inst%woody(ipft))
+!           write(fates_log(),*) ' Aborting'
+!           call endrun(msg=errMsg(sourcefile, __LINE__))
+!
+!        end if
  
         ! Check if freezing tolerance is within reasonable bounds
         ! ----------------------------------------------------------------------------------
