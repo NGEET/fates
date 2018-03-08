@@ -10,8 +10,8 @@ module EDCanopyStructureMod
   use EDPftvarcon           , only : EDPftvarcon_inst
   use FatesAllometryMod     , only : carea_allom
   use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
-  use EDCohortDynamicsMod   , only : tree_lai
-  use EDCohortDynamicsMod   , only : tree_sai
+  use FatesAllometryMod     , only : tree_lai
+  use FatesAllometryMod     , only : tree_sai
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type, ncwd
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : nlevleaf
@@ -930,7 +930,8 @@ contains
                                        currentCohort%size_class,currentCohort%size_by_pft_class)
 
              call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,currentCohort%pft,currentCohort%c_area)
-             currentCohort%treelai = tree_lai(currentCohort)
+             currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%status_coh, currentCohort%pft, &
+                  currentCohort%c_area, currentCohort%n )
 
              canopy_leaf_area = canopy_leaf_area + currentCohort%treelai *currentCohort%c_area
                   
@@ -1048,8 +1049,10 @@ contains
        currentPatch%lai = 0._r8
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort)) 
-          currentCohort%treelai = tree_lai(currentCohort)    
-          currentCohort%treesai = tree_sai(currentCohort)
+          currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%status_coh, currentCohort%pft, &
+               currentCohort%c_area, currentCohort%n )
+          currentCohort%treesai = tree_sai(currentCohort%dbh, currentCohort%pft, currentCohort%canopy_trim, &
+               currentCohort%c_area, currentCohort%n)
           currentCohort%lai =  currentCohort%treelai *currentCohort%c_area/currentPatch%canopy_area 
           currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/currentPatch%canopy_area  
           !Calculate the LAI plus SAI in each canopy storey. 
