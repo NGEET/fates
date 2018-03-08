@@ -541,7 +541,7 @@ variables:
 		:history = "This file was made from FatesPFTIndexSwapper.py \n",
 			" Input File = fates_params_2troppftclones.c171018.nc \n",
 			" Indices = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]\n",
-			" Wed Feb 28 13:43:44 PST 2018  Values from Jennifer Holms 13pft test file fates_params.c170929_13pfts.nc were then manually converted over into positions 2-13, position 1 kept the tropical broadleaf evergreen.  Wed Mar  7 15:53:33 PST 2018 (RGK) added fates_logging_dbhmax_infra, fates_maintresp_reduction_curvature, fates_maintresp_reduction_intercept, and fates_clumping_index. CHanged fates_clone_alloc to fates_seed_alloc_mature. Updated minimum grass sizes per J Shuman notes. Set grass AGB intercepts and latosa to zero. --- fates_params_13pfts.c180228 --- \n",
+			" Wed Feb 28 13:43:44 PST 2018  Values from Jennifer Holms 13pft test file fates_params.c170929_13pfts.nc were then manually converted over into positions 2-13, position 1 kept the tropical broadleaf evergreen.  Wed Mar  7 15:53:33 PST 2018 (RGK) added fates_logging_dbhmax_infra, fates_maintresp_reduction_curvature, fates_maintresp_reduction_intercept, and fates_clumping_index. CHanged fates_clone_alloc to fates_seed_alloc_mature. Updated minimum grass sizes per J Shuman notes. Set grass AGB intercepts and latosa to zero. Updated clumping to have more substanteated starter values per suggestions by Shawn Serbin. --- fates_params_13pfts.c180228 --- \n",
 			"" ;
 data:
 
@@ -586,8 +586,8 @@ data:
  fates_xl = 0.1, 0.01, 0.01, 0.01, 0.1, 0.01, 0.25, 0.25, 0.01, 0.25, 0.25, 
     -0.3, -0.3 ;
 
- fates_clumping_index = 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 
-    0.85, 0.85, 0.85, 0.85 ;
+ fates_clumping_index = 0.85, 0.85, 0.675, 0.8, 0.85, 0.85, 0.9, 0.75, 0.85, 
+    0.9, 0.9, 0.75, 0.75 ;
 
  fates_woody = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ;
 
@@ -1023,7 +1023,7 @@ data:
     0.572, 0.572, 0.572, 0.572, 0.572 ;
 
  fates_allom_agb1 = 0.06896, 0.06896, 0.06896, 0.06896, 0.06896, 0.06896, 
-    0.06896, 0.06896, 0.06896, 0.06896, 0.06896, 0, 0 ;
+    0.06896, 0.06896, 0.06896, 0.06896, 0.06896, 0.01, 0.01 ;
 
  fates_SAV = 66, 13, 3.58, 0.98, 0.2, 66 ;
 
