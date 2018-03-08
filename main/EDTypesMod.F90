@@ -126,8 +126,8 @@ module EDTypesMod
      real(r8) ::  bsw                                    ! sapwood in stem and roots: kGC per indiv
      real(r8) ::  bl                                     ! leaf biomass: kGC per indiv
      real(r8) ::  br                                     ! fine root biomass: kGC per indiv
-     real(r8) ::  lai                                    ! leaf area index of cohort   m2/m2
-     real(r8) ::  sai                                    ! stem area index of cohort   m2/m2
+     real(r8) ::  lai                                    ! leaf area index of cohort: m2 leaf area of entire cohort per m2 of patch area
+     real(r8) ::  sai                                    ! stem area index of cohort: m2 leaf area of entire cohort per m2 of patch area
      real(r8) ::  gscan                                  ! Stomatal resistance of cohort. 
      real(r8) ::  canopy_trim                            ! What is the fraction of the maximum leaf biomass that we are targeting? :-
      real(r8) ::  leaf_cost                              ! How much does it cost to maintain leaves: kgC/m2/year-1
@@ -136,8 +136,8 @@ module EDTypesMod
      integer  ::  nv                                     ! Number of leaf layers: -
      integer  ::  status_coh                             ! growth status of plant  (2 = leaves on , 1 = leaves off)
      real(r8) ::  c_area                                 ! areal extent of canopy (m2)
-     real(r8) ::  treelai                                ! lai of tree (total leaf area (m2) / canopy area (m2)
-     real(r8) ::  treesai                                ! stem area index of tree (total stem area (m2) / canopy area (m2)
+     real(r8) ::  treelai                                ! lai of an individual within cohort leaf area (m2) / crown area (m2)
+     real(r8) ::  treesai                                ! stem area index of an indiv. within cohort: stem area (m2) / crown area (m2)
      logical  ::  isnew                                  ! flag to signify a new cohort, new cohorts have not experienced
                                                          ! npp or mortality and should therefore not be fused or averaged
      integer  ::  size_class                             ! An index that indicates which diameter size bin the cohort currently resides in
