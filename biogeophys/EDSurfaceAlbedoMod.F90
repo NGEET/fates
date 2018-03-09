@@ -160,10 +160,10 @@ contains
               currentPatch%fabi       (:)     = 0._r8
 
               ! zero diagnostic radiation profiles
-              currentPatch%nrmlzd_radprof_pft_dir_z(:,:,:,:) = 0._r8
-              currentPatch%nrmlzd_radprof_pft_dif_z(:,:,:,:) = 0._r8
-              currentPatch%nrmlzd_radprof_dir_z(:,:,:) = 0._r8
-              currentPatch%nrmlzd_radprof_dif_z(:,:,:) = 0._r8
+              currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
+              currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
+              currentPatch%nrmlzd_parprof_dir_z(:,:,:) = 0._r8
+              currentPatch%nrmlzd_parprof_dif_z(:,:,:) = 0._r8
 
               if(bc_in(s)%filter_vegzen_pa(ifp))then
 
@@ -761,19 +761,24 @@ contains
                                       end if
                                    end if
 
-                                   ! pass normalized radiation profiles for use in diagnostic averaging for history fields
-                                   do iv = 1, currentPatch%nrad(L,ft)
-                                      currentPatch%nrmlzd_radprof_pft_dir_z(radtype,L,ft,iv) = forc_dir(ifp,ib) * tr_dir_z(L,ft,iv)
-                                      currentPatch%nrmlzd_radprof_pft_dif_z(radtype,L,ft,iv) = Dif_dn(L,ft,iv) + Dif_up(L,ft,iv+1)
-                                      !
-                                      currentPatch%nrmlzd_radprof_dir_z(radtype,L,iv) = currentPatch%nrmlzd_radprof_dir_z(radtype,L,iv) + &
-                                           (forc_dir(ifp,ib) * tr_dir_z(L,ft,iv)) * &
-                                           (ftweight(L,ft,iv) / sum(ftweight(L,1:numpft,iv)))
-                                      currentPatch%nrmlzd_radprof_dif_z(radtype,L,iv) = currentPatch%nrmlzd_radprof_dif_z(radtype,L,iv) + &
-                                           (Dif_dn(L,ft,iv) + Dif_up(L,ft,iv+1)) * &
-                                           (ftweight(L,ft,iv) / sum(ftweight(L,1:numpft,iv)))
-                                   end do
-
+                                   ! pass normalized PAR profiles for use in diagnostic averaging for history fields
+                                   if (ib == 1) then ! only diagnose PAR profiles for the visible band
+                                      do iv = 1, currentPatch%nrad(L,ft)
+                                         currentPatch%nrmlzd_parprof_pft_dir_z(radtype,L,ft,iv) = &
+                                              forc_dir(ifp,ib) * tr_dir_z(L,ft,iv)
+                                         currentPatch%nrmlzd_parprof_pft_dif_z(radtype,L,ft,iv) = &
+                                              Dif_dn(L,ft,iv) + Dif_up(L,ft,iv)
+                                         !
+                                         currentPatch%nrmlzd_parprof_dir_z(radtype,L,iv) = &
+                                              currentPatch%nrmlzd_parprof_dir_z(radtype,L,iv) + &
+                                              (forc_dir(ifp,ib) * tr_dir_z(L,ft,iv)) * &
+                                              (ftweight(L,ft,iv) / sum(ftweight(L,1:numpft,iv)))
+                                         currentPatch%nrmlzd_parprof_dif_z(radtype,L,iv) = &
+                                              currentPatch%nrmlzd_parprof_dif_z(radtype,L,iv) + &
+                                              (Dif_dn(L,ft,iv) + Dif_up(L,ft,iv)) * &
+                                              (ftweight(L,ft,iv) / sum(ftweight(L,1:numpft,iv)))
+                                      end do
+                                   end if ! ib = visible
                                 end if ! present
                              end do !ft
                              if (radtype == 1)then
@@ -1082,13 +1087,13 @@ contains
             do FT = 1,numpft
                do iv = 1, cpatch%nrad(CL,ft)
                   cpatch%parprof_pft_dir_z(CL,FT,iv) = (bc_in(s)%solad_parb(ifp,ipar) * &
-                       cpatch%nrmlzd_radprof_pft_dir_z(1,CL,FT,iv)) + &
+                       cpatch%nrmlzd_parprof_pft_dir_z(1,CL,FT,iv)) + &
                        (bc_in(s)%solai_parb(ifp,ipar) * &
-                       cpatch%nrmlzd_radprof_pft_dir_z(2,CL,FT,iv))
+                       cpatch%nrmlzd_parprof_pft_dir_z(2,CL,FT,iv))
                   cpatch%parprof_pft_dif_z(CL,FT,iv) = (bc_in(s)%solad_parb(ifp,ipar) * &
-                       cpatch%nrmlzd_radprof_pft_dif_z(1,CL,FT,iv)) + &
+                       cpatch%nrmlzd_parprof_pft_dif_z(1,CL,FT,iv)) + &
                        (bc_in(s)%solai_parb(ifp,ipar) * &
-                       cpatch%nrmlzd_radprof_pft_dif_z(2,CL,FT,iv))
+                       cpatch%nrmlzd_parprof_pft_dif_z(2,CL,FT,iv))
                end do ! iv
             end do    ! FT
          end do       ! CL
@@ -1096,13 +1101,13 @@ contains
          do CL = 1, cpatch%NCL_p
             do iv = 1, maxval(cpatch%nrad(CL,:))
                cpatch%parprof_dir_z(CL,iv) = (bc_in(s)%solad_parb(ifp,ipar) * &
-                    cpatch%nrmlzd_radprof_dir_z(1,CL,iv)) + &
+                    cpatch%nrmlzd_parprof_dir_z(1,CL,iv)) + &
                     (bc_in(s)%solai_parb(ifp,ipar) * &
-                    cpatch%nrmlzd_radprof_dir_z(2,CL,iv))
+                    cpatch%nrmlzd_parprof_dir_z(2,CL,iv))
                cpatch%parprof_dif_z(CL,iv) = (bc_in(s)%solad_parb(ifp,ipar) * &
-                    cpatch%nrmlzd_radprof_dif_z(1,CL,iv)) + &
+                    cpatch%nrmlzd_parprof_dif_z(1,CL,iv)) + &
                     (bc_in(s)%solai_parb(ifp,ipar) * &
-                    cpatch%nrmlzd_radprof_dif_z(2,CL,iv))
+                    cpatch%nrmlzd_parprof_dif_z(2,CL,iv))
             end do    ! iv
          end do       ! CL
          
