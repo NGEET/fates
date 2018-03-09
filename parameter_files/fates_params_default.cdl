@@ -433,7 +433,7 @@ variables:
 		fates_bbopt_c4:long_name = "Ball-Berry minimum unstressed leaf conductance for C4" ;
 	float fates_bbopt_c3(fates_scalar) ;
 		fates_bbopt_c3:units = "umol H2O/m**2/s" ;
-		fates_bbopt_c3:long_name = "Ball-Berry minimum unstressed leaf conductance for C4" ;
+		fates_bbopt_c3:long_name = "Ball-Berry minimum unstressed leaf conductance for C3" ;
 	float fates_base_mr_20(fates_scalar) ;
 		fates_base_mr_20:units = "gC/gN/s" ;
 		fates_base_mr_20:long_name = "Base maintenance respiration rate for plant tissues, using Ryan 1991" ;
