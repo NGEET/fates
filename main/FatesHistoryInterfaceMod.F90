@@ -3098,13 +3098,13 @@ end subroutine flush_hvars
 
     call this%set_history_var(vname='PARPROF_DIR_CNLF', units='W/m2',                 &
          long='Radiative profile of direct PAR through each canopy and leaf layer (averaged across PFTs)', &
-         use_default='active',       &
+         use_default='inactive',       &
          avgflag='A', vtype=site_cnlf_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_parprof_dir_si_cnlf )
 
     call this%set_history_var(vname='PARPROF_DIF_CNLF', units='W/m2',                 &
          long='Radiative profile of diffuse PAR through each canopy and leaf layer (averaged across PFTs)', &
-         use_default='active',       &
+         use_default='inactive',       &
          avgflag='A', vtype=site_cnlf_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_parprof_dif_si_cnlf )
 
@@ -3513,7 +3513,7 @@ end subroutine flush_hvars
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_lai_canopy_si_scls )
 
     call this%set_history_var(vname='SAI_CANOPY_SCLS', units = 'indiv/ha',               &
-          long='number of canopy plants by size class', use_default='active',   &
+          long='number of canopy plants by size class', use_default='inactive',   &
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_sai_canopy_si_scls )
 
@@ -3533,7 +3533,7 @@ end subroutine flush_hvars
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_lai_understory_si_scls )
 
     call this%set_history_var(vname='SAI_UNDERSTORY_SCLS', units = 'indiv/ha',               &
-          long='number of understory plants by size class', use_default='active',   &
+          long='number of understory plants by size class', use_default='inactive',   &
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_sai_understory_si_scls )
 
