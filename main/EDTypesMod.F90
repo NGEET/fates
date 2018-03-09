@@ -188,7 +188,7 @@ module EDTypesMod
      real(r8) ::  npp_seed          ! NPP into seeds: KgC/indiv/year
      real(r8) ::  npp_stor          ! NPP into storage: KgC/indiv/year
 
-     real(r8) ::  ts_net_uptake(nlevleaf)              ! Net uptake of leaf layers: kgC/m2/s
+     real(r8) ::  ts_net_uptake(nlevleaf)              ! Net uptake of leaf layers: kgC/m2/timestep
      real(r8) ::  year_net_uptake(nlevleaf)            ! Net uptake of leaf layers: kgC/m2/year
 
      ! RESPIRATION COMPONENTS
@@ -328,14 +328,18 @@ module EDTypesMod
      real(r8) ::  f_sun(nclmax,maxpft,nlevleaf)               ! fraction of leaves in the sun in each canopy layer, pft, 
 
      ! radiation profiles for comparison against observations
-     real(r8) ::  nrmlzd_radprof_pft_dir_z(2,nclmax,maxpft,nlevleaf)
-     real(r8) ::  nrmlzd_radprof_pft_dif_z(2,nclmax,maxpft,nlevleaf)
-     real(r8) ::  nrmlzd_radprof_dir_z(2,nclmax,nlevleaf)
-     real(r8) ::  nrmlzd_radprof_dif_z(2,nclmax,nlevleaf)
-     real(r8) ::  parprof_pft_dir_z(nclmax,maxpft,nlevleaf)
-     real(r8) ::  parprof_pft_dif_z(nclmax,maxpft,nlevleaf)
-     real(r8) ::  parprof_dir_z(nclmax,nlevleaf)
-     real(r8) ::  parprof_dif_z(nclmax,nlevleaf)
+     real(r8) ::  nrmlzd_radprof_pft_dir_z(2,nclmax,maxpft,nlevleaf)  ! normalized direct radiation profiles by 
+                                                                      ! incident type (direct/diffuse at top of canopy),leaf,pft,leaf (unitless)
+     real(r8) ::  nrmlzd_radprof_pft_dif_z(2,nclmax,maxpft,nlevleaf)  ! normalized diffuse radiation profiles by 
+                                                                      ! incident type (direct/diffuse at top of canopy),leaf,pft,leaf (unitless)
+     real(r8) ::  nrmlzd_radprof_dir_z(2,nclmax,nlevleaf)     ! normalized direct  radiation profiles by 
+                                                              ! incident type (direct/diffuse at top of canopy),leaf,leaf (unitless)     
+     real(r8) ::  nrmlzd_radprof_dif_z(2,nclmax,nlevleaf)     ! normalized diffuse radiation profiles by 
+                                                              ! incident type (direct/diffuse at top of canopy),leaf,leaf (unitless)     
+     real(r8) ::  parprof_pft_dir_z(nclmax,maxpft,nlevleaf)   ! direct-beam PAR profile through canopy, by canopy,PFT,leaf level (w/m2)
+     real(r8) ::  parprof_pft_dif_z(nclmax,maxpft,nlevleaf)   ! diffuse     PAR profile through canopy, by canopy,PFT,leaf level (w/m2)
+     real(r8) ::  parprof_dir_z(nclmax,nlevleaf)              ! direct-beam PAR profile through canopy, by canopy,leaf level (w/m2)
+     real(r8) ::  parprof_dif_z(nclmax,nlevleaf)              ! diffuse     PAR profile through canopy, by canopy,leaf level (w/m2)
 
      ! and leaf layer. m2/m2
      real(r8),allocatable ::  tr_soil_dir(:)                              ! fraction of incoming direct  radiation that (cm_numSWb)

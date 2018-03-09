@@ -520,23 +520,22 @@ contains
        write(fates_log(),*) 'problem in treelai',bl,pft
     endif
 
-    if( status_coh  ==  2 ) then ! are the leaves on? 
-       slat = 1000.0_r8 * EDPftvarcon_inst%slatop(pft) ! m2/g to m2/kg
-       leafc_per_unitarea = bl/(c_area/n) !KgC/m2
-       if(leafc_per_unitarea > 0.0_r8)then
-          tree_lai = leafc_per_unitarea * slat  !kg/m2 * m2/kg = unitless LAI 
-       else
-          tree_lai = 0.0_r8
-       endif
+    slat = 1000.0_r8 * EDPftvarcon_inst%slatop(pft) ! m2/g to m2/kg
+    leafc_per_unitarea = bl/(c_area/n) !KgC/m2
+    if(leafc_per_unitarea > 0.0_r8)then
+       tree_lai = leafc_per_unitarea * slat  !kg/m2 * m2/kg = unitless LAI 
     else
        tree_lai = 0.0_r8
-    endif !status
+    endif
+
 
     ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
     ! at the moments nlevleaf default is 40, which is very large, so exceeding this would clearly illustrate a 
     ! huge error 
     if(tree_lai > nlevleaf*dinc_ed)then
        write(fates_log(),*) 'too much lai' , tree_lai , pft , nlevleaf * dinc_ed
+       write(fates_log(),*) 'Aborting'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
 
     return
@@ -574,6 +573,8 @@ contains
     ! huge error 
     if(tree_sai > nlevleaf*dinc_ed)then
        write(fates_log(),*) 'too much sai' , tree_sai , pft , nlevleaf * dinc_ed
+       write(fates_log(),*) 'Aborting'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
 
     return
