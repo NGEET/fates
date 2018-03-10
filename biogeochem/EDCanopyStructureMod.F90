@@ -1020,8 +1020,7 @@ contains
     real(r8) :: fleaf                    ! fraction of cohort incepting area that is leaves.  
     integer  :: ft                       ! Plant functional type index. 
     integer  :: iv                       ! Vertical leaf layer index   
-    integer  :: L                        ! Canopy layer index
-    integer  :: p                        ! clm patch index  
+    integer  :: cl                       ! Canopy layer index
     real(r8) :: fraction_exposed         ! how much of this layer is not covered by snow?
     real(r8) :: layer_top_hite           ! notional top height of this canopy layer (m)
     real(r8) :: layer_bottom_hite        ! notional bottom height of this canopy layer (m)
@@ -1061,6 +1060,7 @@ contains
        do while(associated(currentCohort)) 
 
           ft = currentCohort%pft
+          cl = currentCohort%canopy_layer
 
           currentCohort%treelai = tree_lai(currentCohort)    
           currentCohort%treesai = tree_sai(currentCohort)
@@ -1070,17 +1070,12 @@ contains
           ! Number of actual vegetation layers in this cohort's crown
           currentCohort%NV =  ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)  
           
-          currentPatch%ncan(currentCohort%canopy_layer,ft) = &
-                max(currentPatch%ncan(currentCohort%canopy_layer,ft),currentCohort%NV)
+          currentPatch%ncan(cl,ft) = max(currentPatch%ncan(cl,ft),currentCohort%NV)
 
           currentPatch%lai = currentPatch%lai + currentCohort%lai
           
-          do L = 1,nclmax-1
-             if(currentCohort%canopy_layer == L)then
-                currentPatch%canopy_layer_tai(L) = currentPatch%canopy_layer_tai(L) + currentCohort%lai + &
-                      currentCohort%sai
-             endif
-          enddo
+          currentPatch%canopy_layer_tai(cl) = currentPatch%canopy_layer_tai(cl) + &
+                currentCohort%lai + currentCohort%sai
           
           currentCohort => currentCohort%taller 
           
@@ -1088,8 +1083,13 @@ contains
        currentPatch%nrad = currentPatch%ncan
 
        if(smooth_leaf_distribution == 1)then
-          ! we are going to ignore the concept of canopy layers, and put all of the leaf area into height banded bins. 
-          ! using the same domains as we had before, except that CL always = 1
+
+          ! -----------------------------------------------------------------------------
+          ! we are going to ignore the concept of canopy layers, and put all of the leaf 
+          ! area into height banded bins.  using the same domains as we had before, except 
+          ! that CL always = 1
+          ! -----------------------------------------------------------------------------
+
           currentPatch%tlai_profile = 0._r8
           currentPatch%tsai_profile = 0._r8  
           currentPatch%elai_profile = 0._r8
@@ -1180,7 +1180,13 @@ contains
           
           
        else ! smooth leaf distribution  
-          !Go through all cohorts and add their leaf area and canopy area to the accumulators. 
+
+          ! -----------------------------------------------------------------------------
+          ! Standard canopy layering model.
+          ! Go through all cohorts and add their leaf area 
+          ! and canopy area to the accumulators. 
+
+
           currentPatch%tlai_profile = 0._r8
           currentPatch%tsai_profile = 0._r8  
           currentPatch%elai_profile = 0._r8
@@ -1192,8 +1198,10 @@ contains
           currentCohort => currentPatch%shortest
           
           do while(associated(currentCohort))   
-             L = currentCohort%canopy_layer
+
              ft = currentCohort%pft 
+             cl = currentCohort%canopy_layer
+
              !Calculate the number of layers of thickness dlai, including the last one. 
              currentCohort%NV =  ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
              !how much of each tree is stem area index? Assuming that there is 
@@ -1205,9 +1213,9 @@ contains
                       currentCohort%treelai,currentCohort%treesai,currentCohort%dbh, &
                       currentCohort%n,currentCohort%status_coh
              endif
-             currentPatch%ncan(L,ft) = max(currentPatch%ncan(L,ft),currentCohort%NV)  
-             currentPatch%nrad(L,ft) = currentPatch%ncan(L,ft)  !fudge - this needs to be altered for snow burial
-             if(currentCohort%NV > currentPatch%nrad(L,ft))then
+             currentPatch%ncan(cl,ft) = max(currentPatch%ncan(cl,ft),currentCohort%NV)  
+             currentPatch%nrad(cl,ft) = currentPatch%ncan(cl,ft)  !fudge - this needs to be altered for snow burial
+             if(currentCohort%NV > currentPatch%nrad(cl,ft))then
                 write(fates_log(), *) 'ED: issue with NV',currentCohort%NV,currentCohort%pft,currentCohort%canopy_layer
              endif
              
@@ -1257,28 +1265,28 @@ contains
                    remainder = dinc_ed
                 end if
 
-                currentPatch%tlai_profile(L,ft,iv) = currentPatch%tlai_profile(L,ft,iv) + &
+                currentPatch%tlai_profile(cl,ft,iv) = currentPatch%tlai_profile(cl,ft,iv) + &
                       remainder * fleaf * currentCohort%c_area/currentPatch%total_canopy_area
                 
-                currentPatch%elai_profile(L,ft,iv) = currentPatch%elai_profile(L,ft,iv) + &
+                currentPatch%elai_profile(cl,ft,iv) = currentPatch%elai_profile(cl,ft,iv) + &
                       remainder * fleaf * currentCohort%c_area/currentPatch%total_canopy_area * fraction_exposed
                 
-                currentPatch%tsai_profile(L,ft,iv) = currentPatch%tsai_profile(L,ft,iv) + &
+                currentPatch%tsai_profile(cl,ft,iv) = currentPatch%tsai_profile(cl,ft,iv) + &
                       remainder * (1._r8 - fleaf) * currentCohort%c_area/currentPatch%total_canopy_area
                 
-                currentPatch%esai_profile(L,ft,iv) = currentPatch%esai_profile(L,ft,iv) + &
+                currentPatch%esai_profile(cl,ft,iv) = currentPatch%esai_profile(cl,ft,iv) + &
                       remainder * (1._r8 - fleaf) * currentCohort%c_area/currentPatch%total_canopy_area * fraction_exposed
                 
-                currentPatch%canopy_area_profile(L,ft,iv) =  min(1.0_r8,currentPatch%canopy_area_profile(L,ft,iv) + &
+                currentPatch%canopy_area_profile(cl,ft,iv) =  min(1.0_r8,currentPatch%canopy_area_profile(cl,ft,iv) + &
                       currentCohort%c_area/currentPatch%total_canopy_area)
                 
-                currentPatch%layer_height_profile(L,ft,iv) = currentPatch%layer_height_profile(L,ft,iv) + &
+                currentPatch%layer_height_profile(cl,ft,iv) = currentPatch%layer_height_profile(cl,ft,iv) + &
                       (remainder * fleaf * currentCohort%c_area/currentPatch%total_canopy_area * &
                       (layer_top_hite+layer_bottom_hite)/2.0_r8) !average height of layer. 
 
                 if ( DEBUG ) then
                    write(fates_log(), *) 'calc snow 2', snow_depth_si , frac_sno_eff_si
-                   write(fates_log(), *) 'LHP', currentPatch%layer_height_profile(L,ft,iv)
+                   write(fates_log(), *) 'LHP', currentPatch%layer_height_profile(cl,ft,iv)
                    write(fates_log(), *) 'leaf_area_profile 1229 ', currentPatch%elai_profile(1,ft,iv)
                 end if
 
@@ -1288,72 +1296,72 @@ contains
              
           enddo !cohort
           
-          do L = 1,currentPatch%NCL_p
+          do cl = 1,currentPatch%NCL_p
              do ft = 1,numpft
-                do iv = 1,currentPatch%nrad(L,ft)
+                do iv = 1,currentPatch%nrad(cl,ft)
                    !account for total canopy area
-                   if(currentPatch%canopy_area_profile(L,ft,iv) > tiny(currentPatch%canopy_area_profile(L,ft,iv)))then
+                   if(currentPatch%canopy_area_profile(cl,ft,iv) > tiny(currentPatch%canopy_area_profile(cl,ft,iv)))then
                       
-                      currentPatch%tlai_profile(L,ft,iv) = currentPatch%tlai_profile(L,ft,iv) / &
-                            currentPatch%canopy_area_profile(L,ft,iv)
+                      currentPatch%tlai_profile(cl,ft,iv) = currentPatch%tlai_profile(cl,ft,iv) / &
+                            currentPatch%canopy_area_profile(cl,ft,iv)
                       
-                      currentPatch%tsai_profile(L,ft,iv) = currentPatch%tsai_profile(L,ft,iv) / &
-                            currentPatch%canopy_area_profile(L,ft,iv)
+                      currentPatch%tsai_profile(cl,ft,iv) = currentPatch%tsai_profile(cl,ft,iv) / &
+                            currentPatch%canopy_area_profile(cl,ft,iv)
                       
-                      currentPatch%elai_profile(L,ft,iv) = currentPatch%elai_profile(L,ft,iv) / &
-                            currentPatch%canopy_area_profile(L,ft,iv)
+                      currentPatch%elai_profile(cl,ft,iv) = currentPatch%elai_profile(cl,ft,iv) / &
+                            currentPatch%canopy_area_profile(cl,ft,iv)
                       
-                      currentPatch%esai_profile(L,ft,iv) = currentPatch%esai_profile(L,ft,iv) / &
-                            currentPatch%canopy_area_profile(L,ft,iv)
+                      currentPatch%esai_profile(cl,ft,iv) = currentPatch%esai_profile(cl,ft,iv) / &
+                            currentPatch%canopy_area_profile(cl,ft,iv)
                    end if
                    
-                   if(currentPatch%tlai_profile(L,ft,iv)>tiny(currentPatch%tlai_profile(L,ft,iv)))then
-                      currentPatch%layer_height_profile(L,ft,iv) = currentPatch%layer_height_profile(L,ft,iv) &
-                            /currentPatch%tlai_profile(L,ft,iv)
+                   if(currentPatch%tlai_profile(cl,ft,iv)>tiny(currentPatch%tlai_profile(cl,ft,iv)))then
+                      currentPatch%layer_height_profile(cl,ft,iv) = currentPatch%layer_height_profile(cl,ft,iv) &
+                            /currentPatch%tlai_profile(cl,ft,iv)
                    end if
 
                 enddo
                 
-                currentPatch%tlai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevleaf) = 0._r8
-                currentPatch%tsai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevleaf) = 0._r8
-                currentPatch%elai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevleaf) = 0._r8 
-                currentPatch%esai_profile(L,ft,currentPatch%nrad(L,ft)+1: nlevleaf) = 0._r8
+                currentPatch%tlai_profile(cl,ft,currentPatch%nrad(cl,ft)+1: nlevleaf) = 0._r8
+                currentPatch%tsai_profile(cl,ft,currentPatch%nrad(cl,ft)+1: nlevleaf) = 0._r8
+                currentPatch%elai_profile(cl,ft,currentPatch%nrad(cl,ft)+1: nlevleaf) = 0._r8 
+                currentPatch%esai_profile(cl,ft,currentPatch%nrad(cl,ft)+1: nlevleaf) = 0._r8
                 
              enddo
           enddo
           
           currentPatch%nrad = currentPatch%ncan
-          do L = 1,currentPatch%NCL_p
+          do cl = 1,currentPatch%NCL_p
              do ft = 1,numpft
-                if(currentPatch%nrad(L,ft) > 30)then
+                if(currentPatch%nrad(cl,ft) > 30)then
                    write(fates_log(), *) 'ED: issue w/ nrad'
                 endif
-                currentPatch%present(L,ft) = 0
-                do  iv = 1, currentPatch%nrad(L,ft);
-                   if(currentPatch%canopy_area_profile(L,ft,iv) > 0._r8)then
-                      currentPatch%present(L,ft) = 1     
+                currentPatch%present(cl,ft) = 0
+                do  iv = 1, currentPatch%nrad(cl,ft);
+                   if(currentPatch%canopy_area_profile(cl,ft,iv) > 0._r8)then
+                      currentPatch%present(cl,ft) = 1     
                    endif
                 end do !iv
              enddo !ft
              
-             if ( L == 1 .and. abs(sum(currentPatch%canopy_area_profile(1,1:numpft,1))) < 0.99999  &
+             if ( cl == 1 .and. abs(sum(currentPatch%canopy_area_profile(1,1:numpft,1))) < 0.99999  &
                    .and. currentPatch%NCL_p > 1 ) then
                 write(fates_log(), *) 'ED: canopy area too small',sum(currentPatch%canopy_area_profile(1,1:numpft,1))
                 write(fates_log(), *) 'ED: cohort areas', currentPatch%canopy_area_profile(1,1:numpft,:)
              endif
              
-             if (L == 1 .and. currentPatch%NCL_p > 1 .and.  &
+             if (cl == 1 .and. currentPatch%NCL_p > 1 .and.  &
                    abs(sum(currentPatch%canopy_area_profile(1,1:numpft,1))) < 0.99999) then
                 write(fates_log(), *) 'ED: not enough area in the top canopy', &
-                      sum(currentPatch%canopy_area_profile(L,1:numpft,1)), &
-                      currentPatch%canopy_area_profile(L,1:numpft,1)
+                      sum(currentPatch%canopy_area_profile(cl,1:numpft,1)), &
+                      currentPatch%canopy_area_profile(cl,1:numpft,1)
              endif
              
-             if(abs(sum(currentPatch%canopy_area_profile(L,1:numpft,1))) > 1.00001)then
+             if(abs(sum(currentPatch%canopy_area_profile(cl,1:numpft,1))) > 1.00001)then
                 write(fates_log(), *) 'ED: canopy-area-profile wrong', &
-                      sum(currentPatch%canopy_area_profile(L,1:numpft,1)), &
-                      currentPatch%patchno, L
-                write(fates_log(), *) 'ED: areas',currentPatch%canopy_area_profile(L,1:numpft,1),currentPatch%patchno
+                      sum(currentPatch%canopy_area_profile(cl,1:numpft,1)), &
+                      currentPatch%patchno, cl
+                write(fates_log(), *) 'ED: areas',currentPatch%canopy_area_profile(cl,1:numpft,1),currentPatch%patchno
                 
                 currentCohort => currentPatch%shortest
                 
@@ -1372,11 +1380,11 @@ contains
              endif
           enddo ! loop over L
           
-          do L = 1,currentPatch%NCL_p
+          do cl = 1,currentPatch%NCL_p
              do ft = 1,numpft
-                if(currentPatch%present(L,FT) > 1)then
-                   write(fates_log(), *) 'ED: present issue',L,ft,currentPatch%present(L,FT)
-                   currentPatch%present(L,ft) = 1
+                if(currentPatch%present(cl,FT) > 1)then
+                   write(fates_log(), *) 'ED: present issue',cl,ft,currentPatch%present(cl,FT)
+                   currentPatch%present(cl,ft) = 1
                 endif
              enddo
           enddo
