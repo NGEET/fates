@@ -324,7 +324,7 @@ contains
                      ! are there any leaves of this pft in this layer?
                      if(currentPatch%present(cl,ft) == 1)then 
                         
-                        if(cl==NCL_p)then !are we in the top canopy layer or a shaded layer?
+                        if(cl==1)then !are we in the top canopy layer or a shaded layer?
                            laican = 0._r8
                         else
                            laican = sum(currentPatch%canopy_layer_lai(cl+1:NCL_p)) 
@@ -366,7 +366,7 @@ contains
                                  laican = laican + 0.5_r8 * vai
                               else
                                  laican = laican + 0.5_r8 * (currentPatch%elai_profile(cl,ft,iv-1)+ &
-                                       currentPatch%esai_profile(cl,ft,iv-1))+vai
+                                       currentPatch%esai_profile(cl,ft,iv-1)+vai)
                               end if
                               
                               ! Scale for leaf nitrogen profile
