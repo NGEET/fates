@@ -291,10 +291,11 @@ module EDTypesMod
 
      ! LEAF ORGANIZATION
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
-     real(r8) ::  canopy_layer_lai(nclmax)                         ! lai that is shading this canopy layer: m2/m2 
+     real(r8) ::  canopy_layer_tai(nclmax)                      ! total area index of each canopy layer
+                                                                ! used to determine attenuation of parameters during
+                                                                ! photosynthesis m2 veg / m2 of canopy area (patch without bare ground)
      real(r8) ::  total_canopy_area                                ! area that is covered by vegetation : m2
      real(r8) ::  total_tree_area                                  ! area that is covered by woody vegetation : m2
-     real(r8) ::  canopy_area                                      ! area that is covered by vegetation : m2 (is this different to total_canopy_area?
      real(r8) ::  bare_frac_area                                   ! bare soil in this patch expressed as a fraction of the total soil surface.
      real(r8) ::  lai                                              ! leaf area index of patch
      real(r8) ::  zstar                                            ! height of smallest canopy tree -- only meaningful in "strict PPA" mode
@@ -677,7 +678,6 @@ contains
      write(fates_log(),*) 'pa%ncl_p              = ',cpatch%ncl_p
      write(fates_log(),*) 'pa%total_canopy_area  = ',cpatch%total_canopy_area
      write(fates_log(),*) 'pa%total_tree_area    = ',cpatch%total_tree_area
-     write(fates_log(),*) 'pa%canopy_area        = ',cpatch%canopy_area
      write(fates_log(),*) 'pa%bare_frac_area     = ',cpatch%bare_frac_area
      write(fates_log(),*) 'pa%lai                = ',cpatch%lai
      write(fates_log(),*) 'pa%zstar              = ',cpatch%zstar
