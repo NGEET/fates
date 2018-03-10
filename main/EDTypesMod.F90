@@ -126,8 +126,8 @@ module EDTypesMod
      real(r8) ::  bsw                                    ! sapwood in stem and roots: kGC per indiv
      real(r8) ::  bl                                     ! leaf biomass: kGC per indiv
      real(r8) ::  br                                     ! fine root biomass: kGC per indiv
-     real(r8) ::  lai                                    ! leaf area index of cohort: m2 leaf area of entire cohort per m2 of patch area
-     real(r8) ::  sai                                    ! stem area index of cohort: m2 leaf area of entire cohort per m2 of patch area
+     real(r8) ::  lai                                    ! leaf area index of cohort: m2 leaf area of entire cohort per m2 of canopy area of a patch
+     real(r8) ::  sai                                    ! stem area index of cohort: m2 leaf area of entire cohort per m2 of canopy area of a patch
      real(r8) ::  gscan                                  ! Stomatal resistance of cohort. 
      real(r8) ::  canopy_trim                            ! What is the fraction of the maximum leaf biomass that we are targeting? :-
      real(r8) ::  leaf_cost                              ! How much does it cost to maintain leaves: kgC/m2/year-1
