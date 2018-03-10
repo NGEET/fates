@@ -930,7 +930,6 @@ contains
           !zero cohort-summed variables. 
           currentPatch%total_canopy_area = 0.0_r8
           currentPatch%total_tree_area = 0.0_r8
-          currentPatch%lai = 0.0_r8
           canopy_leaf_area = 0.0_r8
           
           !update cohort quantitie s                                  
@@ -999,9 +998,37 @@ contains
  ! =====================================================================================
 
  subroutine leaf_area_profile( currentSite , snow_depth_si, frac_sno_eff_si)
+    
+    ! -----------------------------------------------------------------------------------
+    ! This subroutine calculates how leaf and stem areas are distributed 
+    ! in vertical and horizontal space.
     !
-    ! !DESCRIPTION:
+    ! The following cohort level diagnostics are updated here:
+    ! 
+    ! currentCohort%treelai    ! LAI per unit crown area  (m2/m2)
+    ! currentCohort%treesai    ! SAI per unit crown area  (m2/m2)
+    ! currentCohort%lai        ! LAI per unit canopy area (m2/m2)
+    ! currentCohort%sai        ! SAI per unit canopy area (m2/m2)
+    ! currentCohort%NV         ! The number of discrete vegetation
+    !                          ! layers needed to describe this crown
     !
+    ! The following patch level diagnostics are updated here:
+    ! 
+    ! currentPatch%canopy_layer_tai(cl)    ! TAI of each canopy layer
+    ! currentPatch%ncan(cl,ft)             ! number of vegetation layers needed
+    !                                      ! in this patch's pft/canopy-layer 
+    ! currentPatch%nrad(cl,ft)             ! same as ncan, but does not include
+    !                                      ! layers occluded by snow
+    !                                      ! CURRENTLY SAME AS NCAN
+    ! currentPatch%tlai_profile(cl,ft,iv)  ! 
+    ! currentPatch%elai_profile(cl,ft,iv)
+    ! currentPatch%tsai_profile(cl,ft,iv)
+    ! currentPatch%esai_profile(cl,ft,iv)
+    ! currentPatch%canopy_area_profile(cl,ft,iv)
+    ! currentPatch%layer_height_profile(cl,ft,iv)
+    !
+    ! -----------------------------------------------------------------------------------
+
     ! !USES:
 
     use EDtypesMod           , only : area, dinc_ed, hitemax, n_hite_bins
@@ -1026,6 +1053,7 @@ contains
     real(r8) :: layer_bottom_hite        ! notional bottom height of this canopy layer (m)
     integer  :: smooth_leaf_distribution ! is the leaf distribution this option (1) or not (0)
     real(r8) :: frac_canopy(N_HITE_BINS) ! amount of canopy in each height class
+    real(r8) :: patch_lai                ! LAI summed over the patch in m2/m2 of canopy area
     real(r8) :: minh(N_HITE_BINS)        ! minimum height in height class (m)
     real(r8) :: maxh(N_HITE_BINS)        ! maximum height in height class (m)
     real(r8) :: dh                       ! vertical detph of height class (m)
@@ -1035,6 +1063,8 @@ contains
     real(r8) :: snow_depth_avg           ! avg snow over whole site
     
     !----------------------------------------------------------------------
+
+
 
     smooth_leaf_distribution = 0
 
@@ -1054,7 +1084,7 @@ contains
        currentPatch%canopy_layer_tai(:) = 0._r8
        currentPatch%ncan(:,:)           = 0 
        currentPatch%nrad(:,:)           = 0 
-       currentPatch%lai                 = 0._r8
+       patch_lai                        = 0._r8
 
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort)) 
@@ -1072,7 +1102,7 @@ contains
           
           currentPatch%ncan(cl,ft) = max(currentPatch%ncan(cl,ft),currentCohort%NV)
 
-          currentPatch%lai = currentPatch%lai + currentCohort%lai
+          patch_lai = patch_lai + currentCohort%lai
           
           currentPatch%canopy_layer_tai(cl) = currentPatch%canopy_layer_tai(cl) + &
                 currentCohort%lai + currentCohort%sai
@@ -1162,20 +1192,16 @@ contains
              
           enddo !currentCohort 
           
-          !check
-          currentPatch%lai = 0._r8
-          currentCohort => currentPatch%shortest
-          do while(associated(currentCohort)) 
-             currentPatch%lai = currentPatch%lai +currentCohort%lai
-             currentCohort => currentCohort%taller   
-          enddo !currentCohort
+          ! -----------------------------------------------------------------------------
+          ! Perform a leaf area conservation check on the LAI profile
           lai = 0.0_r8
           do ft = 1,numpft
              lai = lai+ sum(currentPatch%tlai_profile(1,ft,:))
           enddo
           
-          if(lai > currentPatch%lai)then
-             write(fates_log(), *) 'ED: problem with lai assignments'
+          if(lai > patch_lai)then
+             write(fates_log(), *) 'FATES: problem with lai assignments'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
           endif
           
           

@@ -297,7 +297,6 @@ module EDTypesMod
      real(r8) ::  total_canopy_area                                ! area that is covered by vegetation : m2
      real(r8) ::  total_tree_area                                  ! area that is covered by woody vegetation : m2
      real(r8) ::  bare_frac_area                                   ! bare soil in this patch expressed as a fraction of the total soil surface.
-     real(r8) ::  lai                                              ! leaf area index of patch
      real(r8) ::  zstar                                            ! height of smallest canopy tree -- only meaningful in "strict PPA" mode
 
      real(r8) ::  tlai_profile(nclmax,maxpft,nlevleaf)        ! total   leaf area in each canopy layer, pft, and leaf layer. m2/m2
@@ -679,7 +678,6 @@ contains
      write(fates_log(),*) 'pa%total_canopy_area  = ',cpatch%total_canopy_area
      write(fates_log(),*) 'pa%total_tree_area    = ',cpatch%total_tree_area
      write(fates_log(),*) 'pa%bare_frac_area     = ',cpatch%bare_frac_area
-     write(fates_log(),*) 'pa%lai                = ',cpatch%lai
      write(fates_log(),*) 'pa%zstar              = ',cpatch%zstar
      write(fates_log(),*) 'pa%disturbance_rate   = ',cpatch%disturbance_rate
      write(fates_log(),*) '----------------------------------------'

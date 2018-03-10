@@ -799,7 +799,7 @@ contains
                                      currentPatch%tr_soil_dir(ib)* &
                                      (1.0_r8-bc_in(s)%albgr_dir_rb(ib)),currentPatch%NCL_p,ib,sum(ftweight(1,1:numpft,1))
                                 write(fates_log(),*) 'albedos',currentPatch%sabs_dir(ib) ,currentPatch%tr_soil_dir(ib), &
-                                     (1.0_r8-bc_in(s)%albgr_dir_rb(ib)),currentPatch%lai
+                                     (1.0_r8-bc_in(s)%albgr_dir_rb(ib))
                                 
                                 do ft =1,3
                                    iv = currentPatch%nrad(1,ft) + 1
@@ -1003,7 +1003,7 @@ contains
           
           if(bc_out(s)%fsun_pa(ifp) > 1._r8)then
              write(fates_log(),*) 'too much leaf area in profile',  bc_out(s)%fsun_pa(ifp), &
-                   cpatch%lai,sunlai,shalai
+                   sunlai,shalai
           endif
 
           elai = calc_areaindex(cpatch,'elai')

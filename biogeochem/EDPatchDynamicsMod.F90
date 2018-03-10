@@ -1248,7 +1248,6 @@ contains
     currentPatch%present(:,:)               = 999    ! is there any of this pft in this layer?
     currentPatch%nrad(:,:)                  = 999    ! number of exposed leaf layers for each canopy layer and pft
     currentPatch%ncan(:,:)                  = 999    ! number of total leaf layers for each canopy layer and pft
-    currentPatch%lai                        = nan    ! leaf area index of patch
     currentPatch%pft_agb_profile(:,:)       = nan    
 
     ! DISTURBANCE 
@@ -1667,13 +1666,13 @@ contains
             ! This is only really meant for very old patches. 
              if(associated(currentPatch%older) )then
                 write(fates_log(),*) 'fusing to older patch because this one is too small',&
-                     currentPatch%area, currentPatch%lai, &
-                     currentPatch%older%area,currentPatch%older%lai
+                     currentPatch%area, &
+                     currentPatch%older%area
                 call fuse_2_patches(currentPatch%older, currentPatch)
                 write(fates_log(),*) 'after fusion to older patch',currentPatch%area
              else
                 write(fates_log(),*) 'fusing to younger patch because oldest one is too small',&
-                     currentPatch%area, currentPatch%lai
+                     currentPatch%area
                 tmpptr => currentPatch%younger
                 call fuse_2_patches(currentPatch, currentPatch%younger)
                 write(fates_log(),*) 'after fusion to younger patch'
