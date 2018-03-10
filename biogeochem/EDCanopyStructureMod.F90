@@ -1361,7 +1361,7 @@ contains
                    
                    if(currentCohort%canopy_layer==1)then
                       write(fates_log(), *) 'ED: cohorts',currentCohort%dbh,currentCohort%c_area, &
-                            currentPatch%total_canopy_area,currentPatch%area,currentPatch%canopy_area
+                            currentPatch%total_canopy_area,currentPatch%area
                       write(fates_log(), *) 'ED: fracarea', currentCohort%pft, &
                             currentCohort%c_area/currentPatch%total_canopy_area
                    endif
