@@ -1020,12 +1020,13 @@ contains
     ! currentPatch%nrad(cl,ft)             ! same as ncan, but does not include
     !                                      ! layers occluded by snow
     !                                      ! CURRENTLY SAME AS NCAN
-    ! currentPatch%tlai_profile(cl,ft,iv)  ! m2 of leaves per m2 of canopy area
-    ! currentPatch%elai_profile(cl,ft,iv)  ! non-snow covered m2 of leaves per m2 of canopy area
-    ! currentPatch%tsai_profile(cl,ft,iv)  ! m2 of stems per m2 of canopy area
-    ! currentPatch%esai_profile(cl,ft,iv)  ! non-snow covered m2 of stems per m2 of canopy area
-    ! currentPatch%canopy_area_profile(cl,ft,iv)   
-    ! currentPatch%layer_height_profile(cl,ft,iv)
+    ! currentPatch%tlai_profile(cl,ft,iv)  ! m2 of leaves per m2 of the PFT's footprint
+    ! currentPatch%elai_profile(cl,ft,iv)  ! non-snow covered m2 of leaves per m2 of PFT footprint
+    ! currentPatch%tsai_profile(cl,ft,iv)  ! m2 of stems per m2 of PFT footprint
+    ! currentPatch%esai_profile(cl,ft,iv)  ! non-snow covered m2 of stems per m2 of PFT footprint
+    ! currentPatch%canopy_area_profile(cl,ft,iv)  ! Fractional area of leaf layer 
+    !                                             ! relative to vegetated area
+    ! currentPatch%layer_height_profile(cl,ft,iv) ! Elevation of layer in m
     !
     ! -----------------------------------------------------------------------------------
 
@@ -1081,10 +1082,16 @@ contains
        ! calculate tree lai and sai.
        ! --------------------------------------------------------------------------------
 
-       currentPatch%canopy_layer_tai(:) = 0._r8
-       currentPatch%ncan(:,:)           = 0 
-       currentPatch%nrad(:,:)           = 0 
-       patch_lai                        = 0._r8
+       currentPatch%canopy_layer_tai(:)         = 0._r8
+       currentPatch%ncan(:,:)                   = 0 
+       currentPatch%nrad(:,:)                   = 0 
+       patch_lai                                = 0._r8
+       currentPatch%tlai_profile(:,:,:)         = 0._r8
+       currentPatch%tsai_profile(:,:,:)         = 0._r8  
+       currentPatch%elai_profile(:,:,:)         = 0._r8
+       currentPatch%esai_profile(:,:,:)         = 0._r8 
+       currentPatch%layer_height_profile(:,:,:) = 0._r8
+       currentPatch%canopy_area_profile(:,:,:)  = 0._r8       
 
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort)) 
@@ -1118,11 +1125,6 @@ contains
           ! area into height banded bins.  using the same domains as we had before, except 
           ! that CL always = 1
           ! -----------------------------------------------------------------------------
-
-          currentPatch%tlai_profile = 0._r8
-          currentPatch%tsai_profile = 0._r8  
-          currentPatch%elai_profile = 0._r8
-          currentPatch%esai_profile = 0._r8  
           
           ! this is a crude way of dividing up the bins. Should it be a function of actual maximum height? 
           dh = 1.0_r8*(HITEMAX/N_HITE_BINS) 
@@ -1212,12 +1214,7 @@ contains
           ! and canopy area to the accumulators. 
           ! -----------------------------------------------------------------------------
 
-          currentPatch%tlai_profile = 0._r8
-          currentPatch%tsai_profile = 0._r8  
-          currentPatch%elai_profile = 0._r8
-          currentPatch%esai_profile = 0._r8 
-          currentPatch%layer_height_profile = 0._r8
-          currentPatch%canopy_area_profile(:,:,:) = 0._r8       
+         
 
           ! ------------------------------------------------------------------------------
           ! It is remotely possible that in deserts we will not have any canopy
@@ -1388,11 +1385,6 @@ contains
                       
                    enddo
                    
-                   currentPatch%tlai_profile(cl,ft,currentPatch%nrad(cl,ft)+1: nlevleaf) = 0._r8
-                   currentPatch%tsai_profile(cl,ft,currentPatch%nrad(cl,ft)+1: nlevleaf) = 0._r8
-                   currentPatch%elai_profile(cl,ft,currentPatch%nrad(cl,ft)+1: nlevleaf) = 0._r8 
-                   currentPatch%esai_profile(cl,ft,currentPatch%nrad(cl,ft)+1: nlevleaf) = 0._r8
-                   
                 enddo
              enddo
              
@@ -1407,7 +1399,7 @@ contains
 
                 do ft = 1,numpft
                    currentPatch%canopy_mask(cl,ft) = 0
-                   do  iv = 1, currentPatch%nrad(cl,ft);
+                   do  iv = 1, currentPatch%nrad(cl,ft)
                       if(currentPatch%canopy_area_profile(cl,ft,iv) > 0._r8)then
                          currentPatch%canopy_mask(cl,ft) = 1     
                       endif
