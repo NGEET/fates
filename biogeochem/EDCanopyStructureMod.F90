@@ -1110,7 +1110,6 @@ contains
           currentCohort => currentCohort%taller 
           
        enddo !currentCohort
-       currentPatch%nrad = currentPatch%ncan
 
        if(smooth_leaf_distribution == 1)then
 
@@ -1246,10 +1245,23 @@ contains
                 
                 ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
                 ! SNOW BURIAL IS CURRENTLY TURNED OFF
+                ! WHEN IT IS TURNED ON, IT WILL HAVE TO BE COMPARED
+                ! WITH SNOW HEIGHTS CALCULATED BELOW.
                 ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
                 
                 currentPatch%nrad(cl,ft) = currentPatch%ncan(cl,ft) 
-                
+
+                if (currentPatch%nrad(cl,ft) > nlevleaf ) then
+                   write(fates_log(), *) 'Number of radiative leaf layers is larger'
+                   write(fates_log(), *) ' than the maximum allowed.'
+                   write(fates_log(), *) ' cl: ',cl
+                   write(fates_log(), *) ' ft: ',ft
+                   write(fates_log(), *) ' nlevleaf: ',nlevleaf
+                   write(fates_log(), *) ' currentPatch%nrad(cl,ft): ', currentPatch%nrad(cl,ft)
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                end if
+
+
                 ! --------------------------------------------------------------------------
                 ! Whole layers.  Make a weighted average of the leaf area in each layer 
                 ! before dividing it by the total area. Fill up layer for whole layers.  
@@ -1327,6 +1339,15 @@ contains
                 currentCohort => currentCohort%taller
                 
              enddo !cohort
+
+             ! --------------------------------------------------------------------------
+             ! In the following loop we are now normalizing the effective and
+             ! total area profiles to convert from units of leaf/stem area per vegetated
+             ! canopy area, into leaf/stem area per area of their own radiative column
+             ! which is typically the footprint of all cohorts contained in the canopy
+             ! layer x pft bins.
+             ! Also perform some checks on area normalization.
+             ! --------------------------------------------------------------------------
           
              do cl = 1,currentPatch%NCL_p
 
@@ -1341,15 +1362,9 @@ contains
                    call endrun(msg=errMsg(sourcefile, __LINE__))
                 end if
                 
-                
-                ! NOTES:  IT SEEMS LIKE THESE FOLLOWING SHOULD BE m2 leaf / m2 of group footprint
-                !         IT SEEMS LIKE EACH LAYER-PFT SHOULD HAVE ITS OWN PARTIAL AREA
-
-
                 do ft = 1,numpft
-                   do iv = 1,currentPatch%nrad(cl,ft)
+                   do iv = 1,currentPatch%ncan(cl,ft)
 
-                      !account for total canopy area ?
                       if( currentPatch%canopy_area_profile(cl,ft,iv) > &
                           tiny(currentPatch%canopy_area_profile(cl,ft,iv)) )then
                          
@@ -1381,16 +1396,20 @@ contains
                 enddo
              enddo
              
-             currentPatch%nrad = currentPatch%ncan
+             ! --------------------------------------------------------------------------
+             ! 1) Set the mask that identifies which PFT x can-layer combinations have
+             ! scattering elements in them.
+             ! 2) Run some final checks to see if canopy_area_profiles have summed up to
+             ! expected ranges
+             ! --------------------------------------------------------------------------
+
              do cl = 1,currentPatch%NCL_p
+
                 do ft = 1,numpft
-                   if(currentPatch%nrad(cl,ft) > 30)then
-                      write(fates_log(), *) 'ED: issue w/ nrad'
-                   endif
-                   currentPatch%present(cl,ft) = 0
+                   currentPatch%canopy_mask(cl,ft) = 0
                    do  iv = 1, currentPatch%nrad(cl,ft);
                       if(currentPatch%canopy_area_profile(cl,ft,iv) > 0._r8)then
-                         currentPatch%present(cl,ft) = 1     
+                         currentPatch%canopy_mask(cl,ft) = 1     
                       endif
                    end do !iv
                 enddo !ft
@@ -1399,13 +1418,7 @@ contains
                       .and. currentPatch%NCL_p > 1 ) then
                    write(fates_log(), *) 'ED: canopy area too small',sum(currentPatch%canopy_area_profile(1,1:numpft,1))
                    write(fates_log(), *) 'ED: cohort areas', currentPatch%canopy_area_profile(1,1:numpft,:)
-                endif
-                
-                if (cl == 1 .and. currentPatch%NCL_p > 1 .and.  &
-                      abs(sum(currentPatch%canopy_area_profile(1,1:numpft,1))) < 0.99999) then
-                   write(fates_log(), *) 'ED: not enough area in the top canopy', &
-                         sum(currentPatch%canopy_area_profile(cl,1:numpft,1)), &
-                         currentPatch%canopy_area_profile(cl,1:numpft,1)
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
                 endif
                 
                 if(abs(sum(currentPatch%canopy_area_profile(cl,1:numpft,1))) > 1.00001)then
@@ -1413,32 +1426,19 @@ contains
                          sum(currentPatch%canopy_area_profile(cl,1:numpft,1)), &
                          currentPatch%patchno, cl
                    write(fates_log(), *) 'ED: areas',currentPatch%canopy_area_profile(cl,1:numpft,1),currentPatch%patchno
-                   
                    currentCohort => currentPatch%shortest
-                   
                    do while(associated(currentCohort))
-                      
                       if(currentCohort%canopy_layer==1)then
                          write(fates_log(), *) 'ED: cohorts',currentCohort%dbh,currentCohort%c_area, &
                                currentPatch%total_canopy_area,currentPatch%area
                          write(fates_log(), *) 'ED: fracarea', currentCohort%pft, &
                                currentCohort%c_area/currentPatch%total_canopy_area
                       endif
-                      
                       currentCohort => currentCohort%taller  
-                      
                    enddo !currentCohort
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
                 endif
              enddo ! loop over cl
-             
-             do cl = 1,currentPatch%NCL_p
-                do ft = 1,numpft
-                   if(currentPatch%present(cl,FT) > 1)then
-                      write(fates_log(), *) 'ED: present issue',cl,ft,currentPatch%present(cl,FT)
-                      currentPatch%present(cl,ft) = 1
-                   endif
-                enddo
-             enddo
              
           endif !leaf distribution
           
@@ -1449,7 +1449,7 @@ contains
     enddo !patch       
     
     return
-end subroutine leaf_area_profile
+ end subroutine leaf_area_profile
 
  ! ======================================================================================
 

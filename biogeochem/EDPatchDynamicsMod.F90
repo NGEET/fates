@@ -1245,7 +1245,7 @@ contains
     currentPatch%fabd(:)                    = nan    ! fraction of incoming direct  radiation that is absorbed by the canopy
     currentPatch%fabi(:)                    = nan    ! fraction of incoming diffuse radiation that is absorbed by the canopy
 
-    currentPatch%present(:,:)               = 999    ! is there any of this pft in this layer?
+    currentPatch%canopy_mask(:,:)           = 999    ! is there any of this pft in this layer?
     currentPatch%nrad(:,:)                  = 999    ! number of exposed leaf layers for each canopy layer and pft
     currentPatch%ncan(:,:)                  = 999    ! number of total leaf layers for each canopy layer and pft
     currentPatch%pft_agb_profile(:,:)       = nan    

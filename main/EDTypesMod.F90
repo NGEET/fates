@@ -315,7 +315,7 @@ module EDTypesMod
 
 
      ! layer, pft, and leaf layer:-
-     integer  ::  present(nclmax,maxpft)                        ! is there any of this pft in this canopy layer?      
+     integer  ::  canopy_mask(nclmax,maxpft)                    ! is there any of this pft in this canopy layer?      
      integer  ::  nrad(nclmax,maxpft)                           ! number of exposed leaf layers for each canopy layer and pft
      integer  ::  ncan(nclmax,maxpft)                           ! number of total   leaf layers for each canopy layer and pft
 
