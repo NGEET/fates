@@ -454,7 +454,7 @@ variables:
 		fates_allom_stmode:long_name = "storage allometry function index" ;
 	float fates_allom_sai_scaler(fates_pft) ;
 		fates_allom_sai_scaler:units = "m2/gC" ;
-		fates_allom_sai_scaler:long_name = "allometric ratio of SAI to bdead" ;
+		fates_allom_sai_scaler:long_name = "allometric ratio of SAI to target bleaf" ;
 	float fates_allom_lmode(fates_pft) ;
 		fates_allom_lmode:units = "index" ;
 		fates_allom_lmode:long_name = "leaf biomass allometry function index" ;
@@ -955,7 +955,7 @@ data:
 
  fates_alpha_FMC = 0.0050769, 0.001, 0.0002754, 7.54e-05, 1.54e-05, 999 ;
 
- fates_allom_smode = 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9 ;
+ fates_allom_smode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_allom_stmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
