@@ -1110,10 +1110,17 @@ contains
           currentPatch%ncan(cl,ft) = max(currentPatch%ncan(cl,ft),currentCohort%NV)
 
           patch_lai = patch_lai + currentCohort%lai
-          
+
           currentPatch%canopy_layer_tai(cl) = currentPatch%canopy_layer_tai(cl) + &
                 currentCohort%lai + currentCohort%sai
-          
+
+!          do cl = 1,nclmax-1
+!             if(currentCohort%canopy_layer == cl)then
+!                currentPatch%canopy_layer_tai(cl) = currentPatch%canopy_layer_tai(cl) + &
+!                      currentCohort%lai + currentCohort%sai
+!             endif
+!          enddo
+
           currentCohort => currentCohort%taller 
           
        enddo !currentCohort
@@ -1214,14 +1221,12 @@ contains
           ! and canopy area to the accumulators. 
           ! -----------------------------------------------------------------------------
 
-         
-
           ! ------------------------------------------------------------------------------
           ! It is remotely possible that in deserts we will not have any canopy
           ! area, ie not plants at all...
           ! ------------------------------------------------------------------------------
           
-          if (currentPatch%total_canopy_area < tiny(currentPatch%total_canopy_area)) then
+          if (currentPatch%total_canopy_area > tiny(currentPatch%total_canopy_area)) then
              
              currentCohort => currentPatch%shortest
              do while(associated(currentCohort))   
