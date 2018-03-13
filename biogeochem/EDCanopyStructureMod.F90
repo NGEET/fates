@@ -1354,16 +1354,17 @@ contains
              do cl = 1,currentPatch%NCL_p
 
                 ! Check the canopy area profile
-                if( sum(currentPatch%canopy_area_profile(cl,:,:)) > 1.00000001_r8 ) then
-                   write(fates_log(), *) 'FATES: A canopy_area_profile exceeded 1.0'
-                   write(fates_log(), *) 'cl: ',cl
-                   write(fates_log(), *) 'ft: ',ft
-                   write(fates_log(), *) 'iv: ',iv
-                   write(fates_log(), *) 'cpatch%canopy_area_profile(cl,ft,iv): ', &
-                         currentPatch%canopy_area_profile(cl,ft,iv)
-                   call endrun(msg=errMsg(sourcefile, __LINE__))
-                end if
-                
+                do iv = 1,currentPatch%ncan(cl,ft)
+                   if( sum(currentPatch%canopy_area_profile(cl,:,iv)) > 1.00000001_r8 ) then
+                      write(fates_log(), *) 'FATES: A canopy_area_profile exceeded 1.0'
+                      write(fates_log(), *) 'cl: ',cl
+                      write(fates_log(), *) 'iv: ',iv
+                      write(fates_log(), *) 'sum(cpatch%canopy_area_profile(cl,:,iv)): ', &
+                            sum(currentPatch%canopy_area_profile(cl,:,iv))
+                      call endrun(msg=errMsg(sourcefile, __LINE__))
+                   end if
+                end do
+                   
                 do ft = 1,numpft
                    do iv = 1,currentPatch%ncan(cl,ft)
 
