@@ -540,7 +540,9 @@ variables:
 // global attributes:
 		:history = "This file was made from FatesPFTIndexSwapper.py \n",
 			" Input File = fates_params_13pfts.c180315.nc \n",
-			" Indices = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 13]" ;
+			" Indices = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 13] \n",
+			"  Wed Feb 28 13:43:44 PST 2018  Values from Jennifer Holms 13pft test file fates_params.c170929_13pfts.nc were then manually converted over into positions 2-13, position 1 kept the tropical broadleaf evergreen.  Wed Mar  7 15:53:33 PST 2018 (RGK) added fates_logging_dbhmax_infra, fates_maintresp_reduction_curvature, fates_maintresp_reduction_intercept, and fates_clumping_index. CHanged fates_clone_alloc to fates_seed_alloc_mature. Updated minimum grass sizes per J Shuman notes. Set grass AGB intercepts and latosa to zero. Updated clumping to have more substanteated starter values per suggestions by Shawn Serbin. --- fates_params_13pfts.c180228 --- \n", 
+			" Thu Mar 15 13:48:11 PDT 2018 Added C4 plants via suggestions by @huitang_earth \n";
 data:
 
  fates_part_dens = 513 ;
