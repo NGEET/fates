@@ -7,7 +7,7 @@ dimensions:
 	fates_litterclass = 6 ;
 	fates_pft = 14 ;
 	fates_scalar = 1 ;
-	fates_string_length = 40 ;
+	fates_string_length = 60 ;
 	fates_variants = 2 ;
 	string_length = 40 ;
 variables:
@@ -618,7 +618,7 @@ data:
 
  fates_stress_mort = 0.6 ;
 
- fates_stress_decid = 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1 ;
+ fates_stress_decid = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_smpso = -66000, -66000, -66000, -66000, -66000, -66000, -66000, 
     -66000, -66000, -66000, -66000, -66000, -66000, -66000 ;
@@ -643,7 +643,7 @@ data:
  fates_seed_alloc = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 
     0.1, 0.1, 0.1 ;
 
- fates_season_decid = 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0 ;
+ fates_season_decid = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_rootprof_beta =
   0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 0.976, 
@@ -703,20 +703,20 @@ data:
  fates_phen_a = -68 ;
 
  fates_pftname =
-  "broadleaf_evergreen_tropical_tree       ",
-  "needleleaf_evergreen_temperate_tree     ",
-  "needleleaf_evergreen_boreal_tree        ",
-  "needleleaf_deciduous_boreal_tree        ",
-  "broadleaf_evergreen_temperate_tree      ",
-  "broadleaf_deciduous_tropical_tree       ",
-  "broadleaf_deciduous_temperate_tree      ",
-  "broadleaf_deciduous_boreal_tree         ",
-  "broadleaf_evergreen_temperate_shrub     ",
-  "broadleaf_deciduous_temperate_shrub     ",
-  "broadleaf_deciduous_boreal_shrub        ",
-  "arctic_c3_grass                         ",
-  "cool_c3_grass                           ",
-  "c4_grass                                " ;
+  "broadleaf_evergreen_tropical_tree                ",
+  "needleleaf_evergreen_temperate_tree              ",
+  "needleleaf_evergreen_boreal_tree                 ",
+  "needleleaf_deciduous_boreal_tree    (force evgrn)",
+  "broadleaf_evergreen_temperate_tree               ",
+  "broadleaf_deciduous_tropical_tree   (force evgrn)",
+  "broadleaf_deciduous_temperate_tree  (force evgrn)",
+  "broadleaf_deciduous_boreal_tree     (force evgrn)",
+  "broadleaf_evergreen_temperate_shrub              ",
+  "broadleaf_deciduous_temperate_shrub (force evgrn)",
+  "broadleaf_deciduous_boreal_shrub    (force evgrn)",
+  "arctic_c3_grass                     (force evgrn)",
+  "cool_c3_grass                       (force evgrn)",
+  "c4_grass                            (force evgrn)" ;
 
  fates_pft_used = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
@@ -921,7 +921,7 @@ data:
  fates_fr_fcel = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
     0.5, 0.5 ;
 
- fates_evergreen = 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0 ;
+ fates_evergreen = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_dleaf = 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 
     0.04, 0.04, 0.04, 0.04 ;
