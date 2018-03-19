@@ -6,6 +6,7 @@ module EDCanopyStructureMod
   ! ============================================================================
 
   use FatesConstantsMod     , only : r8 => fates_r8
+  use FatesConstantsMod     , only : itrue, ifalse
   use FatesGlobals          , only : fates_log
   use EDPftvarcon           , only : EDPftvarcon_inst
   use FatesAllometryMod     , only : carea_allom
@@ -18,6 +19,7 @@ module EDCanopyStructureMod
   use EDtypesMod            , only : AREA
   use FatesGlobals          , only : endrun => fates_endrun
   use FatesInterfaceMod     , only : hlm_days_per_year
+  use FatesInterfaceMod     , only : hlm_use_planthydro
   use FatesInterfaceMod     , only : numpft
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort
 
