@@ -9,8 +9,11 @@ dimensions:
 	fates_scalar = 1 ;
 	fates_string_length = 60 ;
 	fates_variants = 2 ;
-	string_length = 40 ;
+	fates_history_height_bins = 6 ;
 variables:
+	float fates_history_height_bin_edges(fates_history_height_bins) ;
+		fates_history_height_bin_edges:long_name = "Lower edges for height bins used in height-resolved history output" ;
+		fates_history_height_bin_edges:units = "m" ;
 	float fates_part_dens ;
 		fates_part_dens:units = "kg/m2" ;
 		fates_part_dens:long_name = "spitfire parameter, oven dry particle density, Table A1 Thonicke et al 2010" ;
@@ -194,7 +197,7 @@ variables:
 	float fates_phen_a(fates_scalar) ;
 		fates_phen_a:units = "none" ;
 		fates_phen_a:long_name = "GDD accumulation function, intercept parameter: gdd_thesh = a + b exp(c*ncd)" ;
-	char fates_pftname(fates_pft, string_length) ;
+	char fates_pftname(fates_pft, fates_string_length) ;
 		fates_pftname:units = "unitless - string" ;
 		fates_pftname:long_name = "Description of plant type" ;
 	float fates_pft_used(fates_pft) ;
@@ -542,8 +545,12 @@ variables:
 			" Input File = fates_params_13pfts.c180315.nc \n",
 			" Indices = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 13] \n",
 			"  Wed Feb 28 13:43:44 PST 2018  Values from Jennifer Holms 13pft test file fates_params.c170929_13pfts.nc were then manually converted over into positions 2-13, position 1 kept the tropical broadleaf evergreen.  Wed Mar  7 15:53:33 PST 2018 (RGK) added fates_logging_dbhmax_infra, fates_maintresp_reduction_curvature, fates_maintresp_reduction_intercept, and fates_clumping_index. CHanged fates_clone_alloc to fates_seed_alloc_mature. Updated minimum grass sizes per J Shuman notes. Set grass AGB intercepts and latosa to zero. Updated clumping to have more substanteated starter values per suggestions by Shawn Serbin. --- fates_params_13pfts.c180228 --- \n", 
-			" Thu Mar 15 13:48:11 PDT 2018 Added C4 plants via suggestions by @huitang_earth \n";
+			" Thu Mar 15 13:48:11 PDT 2018 Added C4 plants via suggestions by @huitang_earth.\n",
+			" Mon Mar 19 19:05:44 EDT 2018 forced all plants to be evergreen till carbon-imbalances are fixed.\n",
+			" Mon Mar 19 19:05:44 EDT 2018 added entry for fates_history_height_bin_edges.\n";
 data:
+
+ fates_history_height_bin_edges = 0, 0.1, 0.3, 1, 3, 10 ;
 
  fates_part_dens = 513 ;
 
