@@ -631,6 +631,10 @@ contains
        
        call blmax_allom(d,ipft,blmax,dblmaxdd)
        call bfrmax_const(d,blmax,dblmaxdd,ipft,bfrmax,dbfrmaxdd)
+       bfr    = bfrmax
+       if(present(dbfrdd))then
+          dbfrdd = dbfrmaxdd
+       end if
 
     case DEFAULT 
        write(fates_log(),*) 'An undefined fine root allometry was specified: ', &
