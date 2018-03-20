@@ -327,7 +327,7 @@ contains
                         if(cl==1)then !are we in the top canopy layer or a shaded layer?
                            laican = 0._r8
                         else
-                           laican = sum(currentPatch%canopy_layer_lai(cl+1:NCL_p)) 
+                           laican = sum(currentPatch%canopy_layer_lai(1:cl-1)) 
                         end if
                         
                         ! Loop over leaf-layers
