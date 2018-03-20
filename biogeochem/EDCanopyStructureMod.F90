@@ -979,9 +979,11 @@ contains
           enddo ! ends 'do while(associated(currentCohort))
           
           if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
-             write(fates_log(),*) 'FATES: canopy area bigger than area', &
-                   currentPatch%total_canopy_area ,currentPatch%area
-             call endrun(msg=errMsg(sourcefile, __LINE__))
+             if ( currentPatch%total_canopy_area-currentPatch%area > 0.001_r8 ) then
+                write(fates_log(),*) 'FATES: canopy area bigger than area', &
+                     currentPatch%total_canopy_area ,currentPatch%area
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+             end if
              currentPatch%total_canopy_area = currentPatch%area
           endif
 
