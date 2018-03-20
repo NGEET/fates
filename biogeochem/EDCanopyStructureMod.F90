@@ -1020,6 +1020,8 @@ contains
     ! currentPatch%nrad(cl,ft)             ! same as ncan, but does not include
     !                                      ! layers occluded by snow
     !                                      ! CURRENTLY SAME AS NCAN
+    ! currentPatch%canopy_mask(cl,ft)      ! are there canopy elements in this pft-layer?
+    !                                      ! (This is redundant with nrad though...)
     ! currentPatch%tlai_profile(cl,ft,iv)  ! m2 of leaves per m2 of the PFT's footprint
     ! currentPatch%elai_profile(cl,ft,iv)  ! non-snow covered m2 of leaves per m2 of PFT footprint
     ! currentPatch%tsai_profile(cl,ft,iv)  ! m2 of stems per m2 of PFT footprint
@@ -1092,6 +1094,7 @@ contains
        currentPatch%esai_profile(:,:,:)         = 0._r8 
        currentPatch%layer_height_profile(:,:,:) = 0._r8
        currentPatch%canopy_area_profile(:,:,:)  = 0._r8       
+       currentPatch%canopy_mask(:,:)            = 0
 
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort)) 
@@ -1404,7 +1407,6 @@ contains
              do cl = 1,currentPatch%NCL_p
 
                 do ft = 1,numpft
-                   currentPatch%canopy_mask(cl,ft) = 0
                    do  iv = 1, currentPatch%nrad(cl,ft)
                       if(currentPatch%canopy_area_profile(cl,ft,iv) > 0._r8)then
                          currentPatch%canopy_mask(cl,ft) = 1     
@@ -1414,20 +1416,20 @@ contains
                 
                 if ( cl == 1 .and. abs(sum(currentPatch%canopy_area_profile(1,1:numpft,1))) < 0.99999  &
                       .and. currentPatch%NCL_p > 1 ) then
-                   write(fates_log(), *) 'ED: canopy area too small',sum(currentPatch%canopy_area_profile(1,1:numpft,1))
-                   write(fates_log(), *) 'ED: cohort areas', currentPatch%canopy_area_profile(1,1:numpft,:)
+                   write(fates_log(), *) 'FATES: canopy area too small',sum(currentPatch%canopy_area_profile(1,1:numpft,1))
+                   write(fates_log(), *) 'FATES: cohort areas', currentPatch%canopy_area_profile(1,1:numpft,:)
                    call endrun(msg=errMsg(sourcefile, __LINE__))
                 endif
                 
                 if(abs(sum(currentPatch%canopy_area_profile(cl,1:numpft,1))) > 1.00001)then
-                   write(fates_log(), *) 'ED: canopy-area-profile wrong', &
+                   write(fates_log(), *) 'FATES: canopy-area-profile wrong', &
                          sum(currentPatch%canopy_area_profile(cl,1:numpft,1)), &
                          currentPatch%patchno, cl
-                   write(fates_log(), *) 'ED: areas',currentPatch%canopy_area_profile(cl,1:numpft,1),currentPatch%patchno
+                   write(fates_log(), *) 'FATES: areas',currentPatch%canopy_area_profile(cl,1:numpft,1),currentPatch%patchno
                    currentCohort => currentPatch%shortest
                    do while(associated(currentCohort))
                       if(currentCohort%canopy_layer==1)then
-                         write(fates_log(), *) 'ED: cohorts',currentCohort%dbh,currentCohort%c_area, &
+                         write(fates_log(), *) 'FATES: cohorts',currentCohort%dbh,currentCohort%c_area, &
                                currentPatch%total_canopy_area,currentPatch%area
                          write(fates_log(), *) 'ED: fracarea', currentCohort%pft, &
                                currentCohort%c_area/currentPatch%total_canopy_area
