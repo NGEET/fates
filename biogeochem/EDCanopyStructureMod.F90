@@ -1116,15 +1116,15 @@ contains
 
           patch_lai = patch_lai + currentCohort%lai
 
-          currentPatch%canopy_layer_tai(cl) = currentPatch%canopy_layer_tai(cl) + &
-                currentCohort%lai + currentCohort%sai
+!          currentPatch%canopy_layer_tai(cl) = currentPatch%canopy_layer_tai(cl) + &
+!                currentCohort%lai + currentCohort%sai
 
-!          do cl = 1,nclmax-1
-!             if(currentCohort%canopy_layer == cl)then
-!                currentPatch%canopy_layer_tai(cl) = currentPatch%canopy_layer_tai(cl) + &
-!                      currentCohort%lai + currentCohort%sai
-!             endif
-!          enddo
+          do cl = 1,nclmax-1
+             if(currentCohort%canopy_layer == cl)then
+                currentPatch%canopy_layer_tai(cl) = currentPatch%canopy_layer_tai(cl) + &
+                     currentCohort%lai + currentCohort%sai
+             endif
+          enddo
 
           currentCohort => currentCohort%taller 
           
