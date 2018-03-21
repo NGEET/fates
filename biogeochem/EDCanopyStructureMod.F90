@@ -1360,7 +1360,7 @@ contains
 
                 ! Check the canopy area profile
                 do iv = 1,currentPatch%ncan(cl,ft)
-                   if( sum(currentPatch%canopy_area_profile(cl,:,iv)) > 1.00000001_r8 ) then
+                   if( sum(currentPatch%canopy_area_profile(cl,:,iv)) > 1.0001_r8 ) then
                       write(fates_log(), *) 'FATES: A canopy_area_profile exceeded 1.0'
                       write(fates_log(), *) 'cl: ',cl
                       write(fates_log(), *) 'iv: ',iv
