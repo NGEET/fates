@@ -1353,7 +1353,7 @@ contains
              ! should have a value of exactly 1.0 in its top leaf layer
              ! --------------------------------------------------------------------------
              
-             if ( (curentPatch%NLC_p > 1) .and. &
+             if ( (currentPatch%NCL_p > 1) .and. &
                   (sum(currentPatch%canopy_area_profile(1,:,1)) < 0.9999 )) then
                 write(fates_log(), *) 'FATES: canopy_area_profile was less than 1 at the canopy top'
                 write(fates_log(), *) 'cl: ',1
@@ -1399,7 +1399,7 @@ contains
                        currentCohort => currentPatch%shortest
                        do while(associated(currentCohort))
                           if(currentCohort%canopy_layer==cl)then
-                             write(fates_log(), *) 'FATES: cohorts in layer cl = 'cl, &
+                             write(fates_log(), *) 'FATES: cohorts in layer cl = ',cl, &
                                   currentCohort%dbh,currentCohort%c_area, &
                                   currentPatch%total_canopy_area,currentPatch%area
                              write(fates_log(), *) 'ED: fracarea', currentCohort%pft, &
