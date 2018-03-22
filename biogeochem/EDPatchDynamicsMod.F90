@@ -1219,9 +1219,8 @@ contains
     currentPatch%age                        = nan                          
     currentPatch%age_class                  = 1
     currentPatch%area                       = nan                                           
-    currentPatch%canopy_layer_lai(:)        = nan               
+    currentPatch%canopy_layer_tai(:)        = nan               
     currentPatch%total_canopy_area          = nan
-    currentPatch%canopy_area                = nan                                 
     currentPatch%bare_frac_area             = nan                             
 
     currentPatch%tlai_profile(:,:,:)        = nan 
@@ -1248,10 +1247,9 @@ contains
     currentPatch%fabd(:)                    = nan    ! fraction of incoming direct  radiation that is absorbed by the canopy
     currentPatch%fabi(:)                    = nan    ! fraction of incoming diffuse radiation that is absorbed by the canopy
 
-    currentPatch%present(:,:)               = 999    ! is there any of this pft in this layer?
+    currentPatch%canopy_mask(:,:)           = 999    ! is there any of this pft in this layer?
     currentPatch%nrad(:,:)                  = 999    ! number of exposed leaf layers for each canopy layer and pft
     currentPatch%ncan(:,:)                  = 999    ! number of total leaf layers for each canopy layer and pft
-    currentPatch%lai                        = nan    ! leaf area index of patch
     currentPatch%pft_agb_profile(:,:)       = nan    
 
     ! DISTURBANCE 
@@ -1302,7 +1300,7 @@ contains
     currentPatch%burnt_frac_litter(:)       = 0.0_r8 
     currentPatch%btran_ft(:)                = 0.0_r8
 
-    currentPatch%canopy_layer_lai(:)        = 0.0_r8
+    currentPatch%canopy_layer_tai(:)        = 0.0_r8
 
     currentPatch%seeds_in(:)                = 0.0_r8
     currentPatch%seed_decay(:)              = 0.0_r8
@@ -1714,13 +1712,13 @@ contains
             ! This is only really meant for very old patches. 
              if(associated(currentPatch%older) )then
                 write(fates_log(),*) 'fusing to older patch because this one is too small',&
-                     currentPatch%area, currentPatch%lai, &
-                     currentPatch%older%area,currentPatch%older%lai
+                     currentPatch%area, &
+                     currentPatch%older%area
                 call fuse_2_patches(currentPatch%older, currentPatch)
                 write(fates_log(),*) 'after fusion to older patch',currentPatch%area
              else
                 write(fates_log(),*) 'fusing to younger patch because oldest one is too small',&
-                     currentPatch%area, currentPatch%lai
+                     currentPatch%area
                 tmpptr => currentPatch%younger
                 call fuse_2_patches(currentPatch, currentPatch%younger)
                 write(fates_log(),*) 'after fusion to younger patch'
