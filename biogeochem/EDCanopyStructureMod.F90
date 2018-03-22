@@ -1346,6 +1346,34 @@ contains
                 currentCohort => currentCohort%taller
                 
              enddo !cohort
+         
+             ! --------------------------------------------------------------------------
+            
+             ! If there is an upper-story, the top canopy layer
+             ! should have a value of exactly 1.0 in its top leaf layer
+             ! --------------------------------------------------------------------------
+             
+             if ( (curentPatch%NLC_p > 1) .and. &
+                  (sum(currentPatch%canopy_area_profile(1,:,1)) < 0.9999 )) then
+                write(fates_log(), *) 'FATES: canopy_area_profile was less than 1 at the canopy top'
+                write(fates_log(), *) 'cl: ',1
+                write(fates_log(), *) 'iv: ',1
+                write(fates_log(), *) 'sum(cpatch%canopy_area_profile(1,:,1)): ', &
+                     sum(currentPatch%canopy_area_profile(1,:,1))
+                currentCohort => currentPatch%shortest
+                do while(associated(currentCohort))
+                   if(currentCohort%canopy_layer==1)then
+                      write(fates_log(), *) 'FATES: cohorts',currentCohort%dbh,currentCohort%c_area, &
+                           currentPatch%total_canopy_area,currentPatch%area
+                      write(fates_log(), *) 'ED: fracarea', currentCohort%pft, &
+                           currentCohort%c_area/currentPatch%total_canopy_area
+                   endif
+                   currentCohort => currentCohort%taller  
+                enddo !currentCohort
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+                
+             end if
+         
 
              ! --------------------------------------------------------------------------
              ! In the following loop we are now normalizing the effective and
@@ -1354,20 +1382,33 @@ contains
              ! which is typically the footprint of all cohorts contained in the canopy
              ! layer x pft bins.
              ! Also perform some checks on area normalization.
+             ! Check the area of each leaf layer, across pfts.
+             ! It should never be larger than 1 or less than 0.
              ! --------------------------------------------------------------------------
-          
-             do cl = 1,currentPatch%NCL_p
 
-                ! Check the canopy area profile
+             do cl = 1,currentPatch%NCL_p
                 do iv = 1,currentPatch%ncan(cl,ft)
+                   
                    if( sum(currentPatch%canopy_area_profile(cl,:,iv)) > 1.0001_r8 ) then
+                      
                       write(fates_log(), *) 'FATES: A canopy_area_profile exceeded 1.0'
                       write(fates_log(), *) 'cl: ',cl
                       write(fates_log(), *) 'iv: ',iv
                       write(fates_log(), *) 'sum(cpatch%canopy_area_profile(cl,:,iv)): ', &
                             sum(currentPatch%canopy_area_profile(cl,:,iv))
-                      call endrun(msg=errMsg(sourcefile, __LINE__))
-                   end if
+                       currentCohort => currentPatch%shortest
+                       do while(associated(currentCohort))
+                          if(currentCohort%canopy_layer==cl)then
+                             write(fates_log(), *) 'FATES: cohorts in layer cl = 'cl, &
+                                  currentCohort%dbh,currentCohort%c_area, &
+                                  currentPatch%total_canopy_area,currentPatch%area
+                             write(fates_log(), *) 'ED: fracarea', currentCohort%pft, &
+                                  currentCohort%c_area/currentPatch%total_canopy_area
+                          endif
+                          currentCohort => currentCohort%taller  
+                       enddo !currentCohort
+                       call endrun(msg=errMsg(sourcefile, __LINE__))
+                    end if
                 end do
                    
                 do ft = 1,numpft
@@ -1400,14 +1441,11 @@ contains
              enddo
              
              ! --------------------------------------------------------------------------
-             ! 1) Set the mask that identifies which PFT x can-layer combinations have
+             ! Set the mask that identifies which PFT x can-layer combinations have
              ! scattering elements in them.
-             ! 2) Run some final checks to see if canopy_area_profiles have summed up to
-             ! expected ranges
              ! --------------------------------------------------------------------------
 
              do cl = 1,currentPatch%NCL_p
-
                 do ft = 1,numpft
                    do  iv = 1, currentPatch%nrad(cl,ft)
                       if(currentPatch%canopy_area_profile(cl,ft,iv) > 0._r8)then
@@ -1415,31 +1453,6 @@ contains
                       endif
                    end do !iv
                 enddo !ft
-                
-                if ( cl == 1 .and. abs(sum(currentPatch%canopy_area_profile(1,1:numpft,1))) < 0.99999  &
-                      .and. currentPatch%NCL_p > 1 ) then
-                   write(fates_log(), *) 'FATES: canopy area too small',sum(currentPatch%canopy_area_profile(1,1:numpft,1))
-                   write(fates_log(), *) 'FATES: cohort areas', currentPatch%canopy_area_profile(1,1:numpft,:)
-                   call endrun(msg=errMsg(sourcefile, __LINE__))
-                endif
-                
-                if(abs(sum(currentPatch%canopy_area_profile(cl,1:numpft,1))) > 1.00001)then
-                   write(fates_log(), *) 'FATES: canopy-area-profile wrong', &
-                         sum(currentPatch%canopy_area_profile(cl,1:numpft,1)), &
-                         currentPatch%patchno, cl
-                   write(fates_log(), *) 'FATES: areas',currentPatch%canopy_area_profile(cl,1:numpft,1),currentPatch%patchno
-                   currentCohort => currentPatch%shortest
-                   do while(associated(currentCohort))
-                      if(currentCohort%canopy_layer==1)then
-                         write(fates_log(), *) 'FATES: cohorts',currentCohort%dbh,currentCohort%c_area, &
-                               currentPatch%total_canopy_area,currentPatch%area
-                         write(fates_log(), *) 'ED: fracarea', currentCohort%pft, &
-                               currentCohort%c_area/currentPatch%total_canopy_area
-                      endif
-                      currentCohort => currentCohort%taller  
-                   enddo !currentCohort
-                   call endrun(msg=errMsg(sourcefile, __LINE__))
-                endif
              enddo ! loop over cl
              
           endif !leaf distribution
