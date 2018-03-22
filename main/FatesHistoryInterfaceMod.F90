@@ -1378,9 +1378,10 @@ end subroutine flush_hvars
 
             ! Increment some patch-age-resolved diagnostics
             hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
-                 + cpatch%lai * cpatch%area
+                  + sum(cpatch%tlai_profile(:,:,:)) * cpatch%area
+
             hio_ncl_si_age(io_si,cpatch%age_class) = hio_ncl_si_age(io_si,cpatch%age_class) &
-                 + cpatch%ncl_p * cpatch%area
+                  + cpatch%ncl_p * cpatch%area
             hio_npatches_si_age(io_si,cpatch%age_class) = hio_npatches_si_age(io_si,cpatch%age_class) + 1._r8
             if ( ED_val_comp_excln .lt. 0._r8 ) then ! only valid when "strict ppa" enabled
                hio_zstar_si_age(io_si,cpatch%age_class) = hio_zstar_si_age(io_si,cpatch%age_class) &
@@ -2647,12 +2648,12 @@ end subroutine flush_hvars
     ! Site level counting variables
     call this%set_history_var(vname='ED_NPATCHES', units='none',                &
          long='Total number of ED patches per site', use_default='active',      &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=1.0_r8, upfreq=1,    &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_npatches_si)
 
     call this%set_history_var(vname='ED_NCOHORTS', units='none',                &
          long='Total number of ED cohorts per site', use_default='active',      &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=1.0_r8, upfreq=1,    &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_ncohorts_si)
     
     ! Patch variables

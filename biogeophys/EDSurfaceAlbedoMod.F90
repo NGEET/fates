@@ -204,10 +204,10 @@ contains
                     ! Is this pft/canopy layer combination present in this patch?
                     do L = 1,nclmax
                        do ft = 1,numpft
-                          currentPatch%present(L,ft) = 0
+                          currentPatch%canopy_mask(L,ft) = 0
                           do  iv = 1, currentPatch%nrad(L,ft)
                              if (currentPatch%canopy_area_profile(L,ft,iv) > 0._r8)then
-                                currentPatch%present(L,ft) = 1
+                                currentPatch%canopy_mask(L,ft) = 1
                                 !I think 'present' is only used here...
                              endif
                           end do !iv
@@ -267,7 +267,7 @@ contains
                           weighted_dif_ratio(L,1:hlm_numSWb) = 0._r8
                           !Each canopy layer (canopy, understorey) has multiple 'parallel' pft's
                           do ft =1,numpft
-                             if (currentPatch%present(L,ft) == 1)then !only do calculation if there are the appropriate leaves.
+                             if (currentPatch%canopy_mask(L,ft) == 1)then !only do calculation if there are the appropriate leaves.
                                 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
                                 ! Diffuse transmittance, tr_dif, do each layer with thickness elai_z.
                                 ! Estimated do nine sky angles in increments of 10 degrees
@@ -400,7 +400,7 @@ contains
                        
                        do L = currentPatch%NCL_p,1, -1 !start at the bottom and work up.
                           do ft = 1,numpft
-                             if (currentPatch%present(L,ft) == 1)then
+                             if (currentPatch%canopy_mask(L,ft) == 1)then
                                 !==============================================================================!
                                 ! Iterative solution do scattering
                                 !==============================================================================!
@@ -448,7 +448,7 @@ contains
                                          dif_ratio(L,ft,1,ib) * ftweight(L,ft,1)
                                    !instance where the first layer ftweight is used a proxy for the whole column. FTWA
                                 end do!hlm_numSWb
-                             endif ! currentPatch%present
+                             endif ! currentPatch%canopy_mask
                           end do!ft
                        end do!L
                        
@@ -458,7 +458,7 @@ contains
                           do L = 1, currentPatch%NCL_p !work down from the top of the canopy.
                              weighted_dif_down(L) = 0._r8
                              do ft = 1, numpft
-                                if (currentPatch%present(L,ft) == 1)then
+                                if (currentPatch%canopy_mask(L,ft) == 1)then
                                    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
                                    ! First estimates do downward and upward diffuse flux
                                    !
@@ -514,7 +514,7 @@ contains
                           do L = currentPatch%NCL_p,1 ,-1 !work up from the bottom.
                              weighted_dif_up(L) = 0._r8
                              do ft = 1, numpft
-                                if (currentPatch%present(L,ft) == 1)then
+                                if (currentPatch%canopy_mask(L,ft) == 1)then
                                    !Bounce diffuse radiation off soil surface.
                                    iv = currentPatch%nrad(L,ft) + 1
                                    if (L==currentPatch%NCL_p)then !is this the bottom layer ?
@@ -570,7 +570,7 @@ contains
                              do L = 1,currentPatch%NCL_p !working from the top down
                                 weighted_dif_down(L) = 0._r8
                                 do ft =1,numpft
-                                   if (currentPatch%present(L,ft) == 1)then
+                                   if (currentPatch%canopy_mask(L,ft) == 1)then
                                       ! forward diffuse flux within the canopy and at soil, working forward through canopy
                                       ! with Dif_up -from previous iteration-. Dif_dn(1) is the forward diffuse flux onto the canopy.
                                       ! Note: down = forward flux onto next layer
@@ -626,7 +626,7 @@ contains
                              do L = 1, currentPatch%NCL_p ! working from the top down.
                                 weighted_dif_up(L) = 0._r8
                                 do ft =1,numpft
-                                   if (currentPatch%present(L,ft) == 1)then
+                                   if (currentPatch%canopy_mask(L,ft) == 1)then
                                       ! Upward diffuse flux at soil or from lower canopy (forward diffuse and unscattered direct beam)
                                       iv = currentPatch%nrad(L,ft) + 1
                                       if (L==currentPatch%NCL_p)then  !In the bottom canopy layer, reflect off the soil
@@ -679,7 +679,7 @@ contains
                              abs_dir_z(:,:) = 0._r8
                              abs_dif_z(:,:) = 0._r8
                              do ft =1,numpft
-                                if (currentPatch%present(L,ft) == 1)then
+                                if (currentPatch%canopy_mask(L,ft) == 1)then
                                    !==============================================================================!
                                    ! Compute absorbed flux densities
                                    !==============================================================================!
@@ -827,7 +827,7 @@ contains
                                      currentPatch%tr_soil_dir(ib)* &
                                      (1.0_r8-bc_in(s)%albgr_dir_rb(ib)),currentPatch%NCL_p,ib,sum(ftweight(1,1:numpft,1))
                                 write(fates_log(),*) 'albedos',currentPatch%sabs_dir(ib) ,currentPatch%tr_soil_dir(ib), &
-                                     (1.0_r8-bc_in(s)%albgr_dir_rb(ib)),currentPatch%lai
+                                     (1.0_r8-bc_in(s)%albgr_dir_rb(ib))
                                 
                                 do ft =1,3
                                    iv = currentPatch%nrad(1,ft) + 1
@@ -854,7 +854,7 @@ contains
                           lai_reduction(:) = 0.0_r8
                           do L = 1, currentPatch%NCL_p
                              do ft =1,numpft
-                                if (currentPatch%present(L,ft) == 1)then
+                                if (currentPatch%canopy_mask(L,ft) == 1)then
                                    do iv = 1, currentPatch%nrad(L,ft)
                                       if (lai_change(L,ft,iv) > 0.0_r8)then
                                          lai_reduction(L) = max(lai_reduction(L),lai_change(L,ft,iv))
@@ -907,7 +907,7 @@ contains
                                 write(fates_log(),*) 'bc_in(s)%albgr_dif_rb(ib)',bc_in(s)%albgr_dif_rb(ib)
                                 write(fates_log(),*) 'rhol',rhol(1:numpft,:)
                                 write(fates_log(),*) 'ftw',sum(ftweight(1,1:numpft,1)),ftweight(1,1:numpft,1)
-                                write(fates_log(),*) 'present',currentPatch%present(1,1:numpft)
+                                write(fates_log(),*) 'present',currentPatch%canopy_mask(1,1:numpft)
                                 write(fates_log(),*) 'CAP',currentPatch%canopy_area_profile(1,1:numpft,1)
                                 
                                 bc_out(s)%albi_parb(ifp,ib) = bc_out(s)%albi_parb(ifp,ib) + error
@@ -1036,7 +1036,7 @@ contains
           
           if(bc_out(s)%fsun_pa(ifp) > 1._r8)then
              write(fates_log(),*) 'too much leaf area in profile',  bc_out(s)%fsun_pa(ifp), &
-                   cpatch%lai,sunlai,shalai
+                   sunlai,shalai
           endif
 
           elai = calc_areaindex(cpatch,'elai')
