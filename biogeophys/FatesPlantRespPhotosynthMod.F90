@@ -328,7 +328,7 @@ contains
                            laican = 0._r8
                         else
 
-                           laican = sum(currentPatch%canopy_layertlai(1:cl-1)) 
+                           laican = sum(currentPatch%canopy_layer_tai(1:cl-1)) 
 
                         end if
                         
