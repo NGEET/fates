@@ -242,7 +242,7 @@ contains
                ! And then identify which layer/pft combinations have things in them.  
                ! Output:
                ! currentPatch%ncan(:,:)
-               ! currentPatch%present(:,:)
+               ! currentPatch%canopy_mask(:,:)
                call UpdateCanopyNCanNRadPresent(currentPatch)
 
 
@@ -322,12 +322,14 @@ contains
                      
 
                      ! are there any leaves of this pft in this layer?
-                     if(currentPatch%present(cl,ft) == 1)then 
+                     if(currentPatch%canopy_mask(cl,ft) == 1)then 
                         
                         if(cl==1)then !are we in the top canopy layer or a shaded layer?
                            laican = 0._r8
                         else
-                           laican = sum(currentPatch%canopy_layer_lai(1:cl-1)) 
+
+                           laican = sum(currentPatch%canopy_layertlai(1:cl-1)) 
+
                         end if
                         
                         ! Loop over leaf-layers
@@ -484,7 +486,7 @@ contains
                         currentCohort%gscan = 0.0_r8 
                         currentCohort%ts_net_uptake(:) = 0.0_r8
                         
-                     end if  ! if(currentPatch%present(cl,ft) == 1)then
+                     end if  ! if(currentPatch%canopy_mask(cl,ft) == 1)then
                      
 
                      ! ------------------------------------------------------------------
@@ -1281,7 +1283,7 @@ contains
       ! ---------------------------------------------------------------------------------
       ! This subroutine calculates two patch level quanities:
       ! currentPatch%ncan   and
-      ! currentPatch%present
+      ! currentPatch%canopy_mask
       !
       ! currentPatch%ncan(:,:) is a two dimensional array that indicates
       ! the total number of leaf layers (including those that are not exposed to light)
@@ -1291,7 +1293,7 @@ contains
       ! the total number of EXPOSED leaf layers, but for all intents and purposes
       ! in the photosynthesis routine, this appears to be the same as %ncan...
       !
-      ! currentPatch%present(:,:) has the same dimensions, is binary, and
+      ! currentPatch%canopy_mask(:,:) has the same dimensions, is binary, and
       ! indicates whether or not leaf layers are present (by evaluating the canopy area
       ! profile).
       ! ---------------------------------------------------------------------------------
@@ -1334,10 +1336,10 @@ contains
       ! Now loop through and identify which layer and pft combo has scattering elements
       do cl = 1,nclmax
          do ft = 1,numpft
-            currentPatch%present(cl,ft) = 0
+            currentPatch%canopy_mask(cl,ft) = 0
             do iv = 1, currentPatch%nrad(cl,ft);
                if(currentPatch%canopy_area_profile(cl,ft,iv) > 0._r8)then
-                  currentPatch%present(cl,ft) = 1
+                  currentPatch%canopy_mask(cl,ft) = 1
                end if
             end do !iv     
          enddo !ft
