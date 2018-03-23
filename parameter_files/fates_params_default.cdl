@@ -100,7 +100,7 @@ variables:
 		fates_taulnir:long_name = "Leaf transmittance: near-IR" ;
 	float fates_stress_mort(fates_scalar) ;
 		fates_stress_mort:units = "/yr" ;
-		fates_stress_mort:long_name = "maximum mortality rate from carbon starvation" ;
+		fates_stress_mort:long_name = "maximum mortality rate from either carbon starvation or hydraulic mortality" ;
 	float fates_phen_stress_decid(fates_pft) ;
 		fates_phen_stress_decid:units = "logical flag" ;
 		fates_phen_stress_decid:long_name = "Binary flag for stress-deciduous leaf habit" ;
