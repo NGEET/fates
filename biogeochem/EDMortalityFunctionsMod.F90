@@ -12,7 +12,6 @@ module EDMortalityFunctionsMod
    use EDTypesMod            , only : ed_patch_type
    use FatesConstantsMod     , only : itrue,ifalse
    use FatesAllometryMod     , only : bleaf
-   use EDParamsMod           , only : ED_val_stress_mort
    use FatesInterfaceMod     , only : bc_in_type
    use FatesInterfaceMod     , only : hlm_use_ed_prescribed_phys
    use FatesInterfaceMod     , only : hlm_freq_day
