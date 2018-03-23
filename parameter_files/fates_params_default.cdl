@@ -113,9 +113,6 @@ variables:
 	float fates_phen_ncolddayslim(fates_scalar) ;
 		fates_phen_ncolddayslim:units = "days" ;
 		fates_phen_ncolddayslim:long_name = "day threshold exceedance for temperature leaf-drop" ;
-	float fates_stress_mort(fates_scalar) ;
-		fates_stress_mort:units = "/yr" ;
-		fates_stress_mort:long_name = "maximum mortality rate from either carbon starvation or hydraulic mortality" ;
 	char fates_pftname(fates_pft, fates_string_length) ;
 		fates_pftname:units = "unitless - string" ;
 		fates_pftname:long_name = "Description of plant type" ;
@@ -359,6 +356,15 @@ variables:
 	float fates_mort_hf_sm_threshold(fates_pft) ;
 		fates_mort_hf_sm_threshold:units = "unitless" ;
 		fates_mort_hf_sm_threshold:long_name = "soil moisture (btran units) at which drought mortality begins for non-hydraulic model" ;
+	float fates_mort_scalar_coldstress(fates_pft) ;
+		fates_mort_scalar_coldstress:units = "1/yr" ;
+		fates_mort_scalar_coldstress:long_name = "maximum mortality rate from cold stress" ;
+	float fates_mort_scalar_cstarvation(fates_pft) ;
+		fates_mort_scalar_cstarvation:units = "1/yr" ;
+		fates_mort_scalar_cstarvation:long_name = "maximum mortality rate from carbon starvation" ;
+	float fates_mort_scalar_hydrfailure(fates_pft) ;
+		fates_mort_scalar_hydrfailure:units = "1/yr" ;
+		fates_mort_scalar_hydrfailure:long_name = "maximum mortality rate from hydraulic failure" ;
 	float fates_pft_used(fates_pft) ;
 		fates_pft_used:units = "0 = off (dont use), 1 = on (use)" ;
 		fates_pft_used:long_name = "Switch to turn on and off PFTs (also see fates_initd for cold-start)" ;
@@ -613,8 +619,6 @@ data:
  fates_phen_mindayson = 30 ;
 
  fates_phen_ncolddayslim = 5 ;
-
- fates_stress_mort = 0.6 ;
 
  fates_pftname =
   "broadleaf_evergreen_tropical_tree                ",
@@ -906,6 +910,12 @@ data:
 
  fates_mort_hf_sm_threshold = 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 
     1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06 ;
+
+ fates_mort_scalar_coldstress = 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 ;
+
+ fates_mort_scalar_cstarvation = 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6 ;
+
+ fates_mort_scalar_hydrfailure = 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6 ;
 
  fates_pft_used = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 

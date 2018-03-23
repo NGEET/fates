@@ -62,7 +62,6 @@ contains
     real(r8) :: hf_sm_threshold    ! hydraulic failure soil moisture threshold 
     real(r8) :: temp_dep           ! Temp. function (freezing mortality)
     real(r8) :: temp_in_C          ! Daily averaged temperature in Celcius
-    real(r8),parameter :: frost_mort_scaler = 3.0_r8  ! Scaling factor for freezing mortality
     real(r8),parameter :: frost_mort_buffer = 5.0_r8  ! 5deg buffer for freezing mortality
 
     logical, parameter :: test_zero_mortality = .false. ! Developer test which
@@ -79,7 +78,7 @@ contains
     hf_sm_threshold = EDPftvarcon_inst%hf_sm_threshold(cohort_in%pft)
 
     if(cohort_in%patchptr%btran_ft(cohort_in%pft) <= hf_sm_threshold)then 
-       hmort = ED_val_stress_mort
+       hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
      else
        hmort = 0.0_r8
      endif 
@@ -89,7 +88,8 @@ contains
        call bleaf(cohort_in%dbh,cohort_in%pft,cohort_in%canopy_trim,b_leaf)
        if( b_leaf > 0._r8 .and. cohort_in%bstore <= b_leaf )then
           frac = cohort_in%bstore/ b_leaf
-          cmort = max(0.0_r8,ED_val_stress_mort*(1.0_r8 - frac))
+          cmort = max(0.0_r8,EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft) * &
+               (1.0_r8 - frac))
         else
           cmort = 0.0_r8
        endif
@@ -109,7 +109,7 @@ contains
     temp_in_C = bc_in%t_veg24_si - tfrz
     temp_dep  = max(0.0,min(1.0,1.0 - (temp_in_C - &
                 EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
-    frmort    = frost_mort_scaler * temp_dep
+    frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft) * temp_dep
 
 
     !mortality_rates = bmort + hmort + cmort
