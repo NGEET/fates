@@ -284,7 +284,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_seed_hgt_min'
+    name = 'fates_recruit_hgt_min'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -308,7 +308,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_seed_initd'
+    name = 'fates_recruit_initd'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -412,11 +412,11 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_leafcn'
+    name = 'fates_leaf_c2n_ratio'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_root_frootcn'
+    name = 'fates_froot_c2n_ratio'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -712,7 +712,7 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%wood_density)
 
-    name = 'fates_seed_hgt_min'
+    name = 'fates_recruit_hgt_min'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%hgt_min)
 
@@ -736,7 +736,7 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%crown_kill)
 
-    name = 'fates_seed_initd'
+    name = 'fates_recruit_initd'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%initd)
 
@@ -836,11 +836,11 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%vcmax25top)
 
-    name = 'fates_leafcn'
+    name = 'fates_leaf_c2n_ratio'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%leafcn)
 
-    name = 'fates_root_frootcn'
+    name = 'fates_froot_c2n_ratio'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%frootcn)
 

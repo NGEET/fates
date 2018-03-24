@@ -1,4 +1,4 @@
-netcdf fates_params_default {
+netcdf fates_params_default_sorted {
 dimensions:
 	fates_pft = 14 ;
 	fates_history_age_bins = 7 ;
@@ -227,6 +227,9 @@ variables:
 	float fates_fr_flig(fates_pft) ;
 		fates_fr_flig:units = "fraction" ;
 		fates_fr_flig:long_name = "Fine root litter lignin fraction" ;
+	float fates_froot_c2n_ratio(fates_pft) ;
+		fates_froot_c2n_ratio:units = "gC/gN" ;
+		fates_froot_c2n_ratio:long_name = "Fine root C:N" ;
 	float fates_grperc(fates_pft) ;
 		fates_grperc:units = "unitless" ;
 		fates_grperc:long_name = "Growth respiration factor" ;
@@ -278,6 +281,9 @@ variables:
 	float fates_leaf_BB_slope(fates_pft) ;
 		fates_leaf_BB_slope:units = "unitless" ;
 		fates_leaf_BB_slope:long_name = "stomatal slope parameter, as per Ball-Berry" ;
+	float fates_leaf_c2n_ratio(fates_pft) ;
+		fates_leaf_c2n_ratio:units = "gC/gN" ;
+		fates_leaf_c2n_ratio:long_name = "Leaf C:N" ;
 	float fates_leaf_c3psn(fates_pft) ;
 		fates_leaf_c3psn:units = "flag" ;
 		fates_leaf_c3psn:long_name = "Photosynthetic pathway" ;
@@ -329,9 +335,6 @@ variables:
 	float fates_leaf_xl(fates_pft) ;
 		fates_leaf_xl:units = "unitless" ;
 		fates_leaf_xl:long_name = "Leaf/stem orientation index" ;
-	float fates_leafcn(fates_pft) ;
-		fates_leafcn:units = "gC/gN" ;
-		fates_leafcn:long_name = "Leaf C:N" ;
 	float fates_lf_fcel(fates_pft) ;
 		fates_lf_fcel:units = "fraction" ;
 		fates_lf_fcel:long_name = "Leaf litter cellulose fraction" ;
@@ -392,6 +395,12 @@ variables:
 	float fates_prescribed_recruitment(fates_pft) ;
 		fates_prescribed_recruitment:units = "n/yr" ;
 		fates_prescribed_recruitment:long_name = "recruitment rate for prescribed physiology mode" ;
+	float fates_recruit_hgt_min(fates_pft) ;
+		fates_recruit_hgt_min:units = "m" ;
+		fates_recruit_hgt_min:long_name = "the minimum height (ie starting height) of a newly recruited plant" ;
+	float fates_recruit_initd(fates_pft) ;
+		fates_recruit_initd:units = "stems/m2" ;
+		fates_recruit_initd:long_name = "initial seedling density for a cold-start near-bare-ground simulation" ;
 	float fates_rholnir(fates_pft) ;
 		fates_rholnir:units = "fraction" ;
 		fates_rholnir:long_name = "Leaf reflectance: near-IR" ;
@@ -404,9 +413,6 @@ variables:
 	float fates_rhosvis(fates_pft) ;
 		fates_rhosvis:units = "fraction" ;
 		fates_rhosvis:long_name = "Stem reflectance: visible" ;
-	float fates_root_frootcn(fates_pft) ;
-		fates_root_frootcn:units = "gC/gN" ;
-		fates_root_frootcn:long_name = "Fine root C:N" ;
 	float fates_root_long(fates_pft) ;
 		fates_root_long:units = "yr" ;
 		fates_root_long:long_name = "root longevity (alternatively, turnover time)" ;
@@ -434,12 +440,6 @@ variables:
 	float fates_seed_germination_timescale(fates_pft) ;
 		fates_seed_germination_timescale:units = "1/yr" ;
 		fates_seed_germination_timescale:long_name = "turnover time for seeds with respect to decay" ;
-	float fates_seed_hgt_min(fates_pft) ;
-		fates_seed_hgt_min:units = "m" ;
-		fates_seed_hgt_min:long_name = "the minimum height (ie starting height) of a newly recruited plant" ;
-	float fates_seed_initd(fates_pft) ;
-		fates_seed_initd:units = "stems/m2" ;
-		fates_seed_initd:long_name = "initial seedling density for a cold-start near-bare-ground simulation" ;
 	float fates_seed_rain(fates_pft) ;
 		fates_seed_rain:units = "KgC/m2/yr" ;
 		fates_seed_rain:long_name = "External seed rain from outside site (non-mass conserving)" ;
@@ -737,6 +737,8 @@ data:
  fates_fr_flig = 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 
     0.25, 0.25, 0.25, 0.25 ;
 
+ fates_froot_c2n_ratio = 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42 ;
+
  fates_grperc = 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 
     0.11, 0.11, 0.11, 0.11 ;
 
@@ -838,6 +840,8 @@ data:
 
  fates_leaf_BB_slope = 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8 ;
 
+ fates_leaf_c2n_ratio = 30, 35, 40, 25, 30, 25, 25, 25, 30, 25, 25, 25, 25, 25 ;
+
  fates_leaf_c3psn = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2 ;
 
  fates_leaf_clumping_index = 0.85, 0.85, 0.675, 0.8, 0.85, 0.85, 0.9, 0.75, 
@@ -886,8 +890,6 @@ data:
  fates_leaf_xl = 0.1, 0.01, 0.01, 0.01, 0.1, 0.01, 0.25, 0.25, 0.01, 0.25, 
     0.25, -0.3, -0.3, -0.3 ;
 
- fates_leafcn = 30, 35, 40, 25, 30, 25, 25, 25, 30, 25, 25, 25, 25, 25 ;
-
  fates_lf_fcel = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
     0.5, 0.5 ;
 
@@ -913,9 +915,11 @@ data:
 
  fates_mort_scalar_coldstress = 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 ;
 
- fates_mort_scalar_cstarvation = 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6 ;
+ fates_mort_scalar_cstarvation = 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 
+    0.6, 0.6, 0.6, 0.6, 0.6 ;
 
- fates_mort_scalar_hydrfailure = 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6 ;
+ fates_mort_scalar_hydrfailure = 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 
+    0.6, 0.6, 0.6, 0.6, 0.6 ;
 
  fates_pft_used = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
@@ -941,6 +945,12 @@ data:
  fates_prescribed_recruitment = 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 
     0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02 ;
 
+ fates_recruit_hgt_min = 1.25, 1.25, 1.25, 1.25, 1.25, 1.25, 1.25, 1.25, 
+    0.75, 0.75, 0.75, 0.75, 0.75, 0.75 ;
+
+ fates_recruit_initd = 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 
+    20, 20, 20 ;
+
  fates_rholnir = 0.45, 0.35, 0.35, 0.35, 0.45, 0.45, 0.45, 0.45, 0.35, 0.45, 
     0.45, 0.35, 0.35, 0.35 ;
 
@@ -952,8 +962,6 @@ data:
 
  fates_rhosvis = 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 
     0.16, 0.31, 0.31, 0.31 ;
-
- fates_root_frootcn = 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42 ;
 
  fates_root_long = 1, 2, 3, 1, 1.5, 1, 1, 1, 1.5, 1, 1, 1, 1, 1 ;
 
@@ -980,12 +988,6 @@ data:
 
  fates_seed_germination_timescale = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
     0.5, 0.5, 0.5, 0.5, 0.5, 0.5 ;
-
- fates_seed_hgt_min = 1.25, 1.25, 1.25, 1.25, 1.25, 1.25, 1.25, 1.25, 0.75, 
-    0.75, 0.75, 0.75, 0.75, 0.75 ;
-
- fates_seed_initd = 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 
-    20, 20, 20 ;
 
  fates_seed_rain = 0.28, 0.28, 0.28, 0.28, 0.28, 0.28, 0.28, 0.28, 0.28, 
     0.28, 0.28, 0.28, 0.28, 0.28 ;
