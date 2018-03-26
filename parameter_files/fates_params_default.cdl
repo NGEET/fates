@@ -227,9 +227,9 @@ variables:
 	float fates_fr_flig(fates_pft) ;
 		fates_fr_flig:units = "fraction" ;
 		fates_fr_flig:long_name = "Fine root litter lignin fraction" ;
-	float fates_froot_c2n_ratio(fates_pft) ;
-		fates_froot_c2n_ratio:units = "gC/gN" ;
-		fates_froot_c2n_ratio:long_name = "Fine root C:N" ;
+	float fates_froot_cn_ratio(fates_pft) ;
+		fates_froot_cn_ratio:units = "gC/gN" ;
+		fates_froot_cn_ratio:long_name = "Fine root C:N" ;
 	float fates_grperc(fates_pft) ;
 		fates_grperc:units = "unitless" ;
 		fates_grperc:long_name = "Growth respiration factor" ;
@@ -281,9 +281,9 @@ variables:
 	float fates_leaf_BB_slope(fates_pft) ;
 		fates_leaf_BB_slope:units = "unitless" ;
 		fates_leaf_BB_slope:long_name = "stomatal slope parameter, as per Ball-Berry" ;
-	float fates_leaf_c2n_ratio(fates_pft) ;
-		fates_leaf_c2n_ratio:units = "gC/gN" ;
-		fates_leaf_c2n_ratio:long_name = "Leaf C:N" ;
+	float fates_leaf_cn_ratio(fates_pft) ;
+		fates_leaf_cn_ratio:units = "gC/gN" ;
+		fates_leaf_cn_ratio:long_name = "Leaf C:N" ;
 	float fates_leaf_c3psn(fates_pft) ;
 		fates_leaf_c3psn:units = "flag" ;
 		fates_leaf_c3psn:long_name = "Photosynthetic pathway" ;
@@ -737,7 +737,7 @@ data:
  fates_fr_flig = 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 
     0.25, 0.25, 0.25, 0.25 ;
 
- fates_froot_c2n_ratio = 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42 ;
+ fates_froot_cn_ratio = 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42 ;
 
  fates_grperc = 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 
     0.11, 0.11, 0.11, 0.11 ;
@@ -840,7 +840,7 @@ data:
 
  fates_leaf_BB_slope = 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8 ;
 
- fates_leaf_c2n_ratio = 30, 35, 40, 25, 30, 25, 25, 25, 30, 25, 25, 25, 25, 25 ;
+ fates_leaf_cn_ratio = 30, 35, 40, 25, 30, 25, 25, 25, 30, 25, 25, 25, 25, 25 ;
 
  fates_leaf_c3psn = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2 ;
 
