@@ -131,7 +131,7 @@ module EDTypesMod
      type (ed_cohort_type) , pointer :: taller   => null()       ! pointer to next tallest cohort     
      type (ed_cohort_type) , pointer :: shorter  => null()       ! pointer to next shorter cohort     
      type (ed_patch_type)  , pointer :: patchptr => null()       ! pointer to patch that cohort is in
-     type (ed_site_type)   , pointer :: siteptr  => null()       ! pointer to site that cohort is in
+
 
      ! VEGETATION STRUCTURE
      integer  ::  pft                                    ! pft number
