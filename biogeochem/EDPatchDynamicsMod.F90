@@ -151,7 +151,8 @@ contains
        
        currentPatch%disturbance_rates(dtype_ifall) = 0.0_r8
        currentPatch%disturbance_rates(dtype_ilog)  = 0.0_r8
-
+       currentPatch%disturbance_rates(dtype_ifire) = 0.0_r8
+       
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))   
 
