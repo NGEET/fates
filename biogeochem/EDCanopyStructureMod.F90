@@ -148,20 +148,6 @@ contains
          enddo
 
 
-         ! ------------------------------------------------------------------------------
-         ! Check patch area to prevent numerical weirdness
-         ! ------------------------------------------------------------------------------
-         
-         if (currentPatch%area .lt. min_patch_area) then  
-            
-            write(fates_log(),*) 'An incredibly small patch exists that should'
-            write(fates_log(),*) 'had been fused or culled already'
-            write(fates_log(),*) 'currentPatch%area: ',currentPatch%area
-            write(fates_log(),*) 'min_patch_area: ',min_patch_area
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-            
-         end if
-
          ! Does any layer have excess area in it? Keep going until it does not...
          patch_area_counter = 0
          area_not_balanced = .true.
