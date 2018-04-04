@@ -1084,6 +1084,13 @@ contains
        currentPatch%canopy_area_profile(:,:,:)  = 0._r8       
        currentPatch%canopy_mask(:,:)            = 0
 
+       ! ------------------------------------------------------------------------------
+       ! It is remotely possible that in deserts we will not have any canopy
+       ! area, ie not plants at all...
+       ! ------------------------------------------------------------------------------
+       
+       if (currentPatch%total_canopy_area > tiny(currentPatch%total_canopy_area)) then
+
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort)) 
 
@@ -1212,12 +1219,6 @@ contains
           ! and canopy area to the accumulators. 
           ! -----------------------------------------------------------------------------
 
-          ! ------------------------------------------------------------------------------
-          ! It is remotely possible that in deserts we will not have any canopy
-          ! area, ie not plants at all...
-          ! ------------------------------------------------------------------------------
-          
-          if (currentPatch%total_canopy_area > tiny(currentPatch%total_canopy_area)) then
              
              currentCohort => currentPatch%shortest
              do while(associated(currentCohort))   
