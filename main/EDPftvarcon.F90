@@ -64,7 +64,7 @@ module EDPftvarcon
      real(r8), allocatable :: xl(:)
      real(r8), allocatable :: clumping_index(:) ! factor describing how much self-occlusion 
                                                 ! of leaf scattering elements decreases light interception
-     real(r8), allocatable :: c3psn(:)
+     real(r8), allocatable :: c3psn(:)          ! index defining the photosynthetic pathway C4 = 0,  C3 = 1
      real(r8), allocatable :: vcmax25top(:)
      real(r8), allocatable :: leafcn(:)
      real(r8), allocatable :: frootcn(:)
@@ -1595,7 +1595,7 @@ contains
         ! Check to see if mature and base seed allocation is greater than 1
         ! ----------------------------------------------------------------------------------
         if ( ( EDPftvarcon_inst%seed_alloc(ipft) + &
-               EDPftvarcon_inst%seed_alloc_mature(ipft)) > 1.0 ) then
+               EDPftvarcon_inst%seed_alloc_mature(ipft)) > 1.0_r8 ) then
 
            write(fates_log(),*) 'The sum of seed allocation from base and mature trees may'
            write(fates_log(),*) ' not exceed 1.'
@@ -1643,8 +1643,8 @@ contains
         ! Check if freezing tolerance is within reasonable bounds
         ! ----------------------------------------------------------------------------------
         
-        if ( ( EDPftvarcon_inst%freezetol(ipft) > 60 ) .or. &
-             ( EDPFtvarcon_inst%freezetol(ipft) < -273.1 ) ) then
+        if ( ( EDPftvarcon_inst%freezetol(ipft) > 60.0_r8 ) .or. &
+             ( EDPFtvarcon_inst%freezetol(ipft) < -273.1_r8 ) ) then
 
            write(fates_log(),*) 'Freezing tolerance was set to a strange value'
            write(fates_log(),*) ' Units should be degrees celcius. It cannot'
@@ -1660,8 +1660,8 @@ contains
         ! Check if leaf storage priority is between 0-1
         ! ----------------------------------------------------------------------------------
         
-        if ( ( EDPftvarcon_inst%leaf_stor_priority(ipft) < 0.0 ) .or. &
-             ( EDPftvarcon_inst%leaf_stor_priority(ipft) > 1.0 ) ) then
+        if ( ( EDPftvarcon_inst%leaf_stor_priority(ipft) < 0.0_r8 ) .or. &
+             ( EDPftvarcon_inst%leaf_stor_priority(ipft) > 1.0_r8 ) ) then
 
            write(fates_log(),*) 'Prioritization of carbon allocation to leaf'
            write(fates_log(),*) ' and root turnover replacement, must be between'
@@ -1672,7 +1672,23 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
 
         end if
+
+        ! Check if photosynthetic pathway is neither C3/C4
+        ! ----------------------------------------------------------------------------------
         
+        if ( ( EDPftvarcon_inst%c3psn(ipft) < 0.0_r8 ) .or. &
+             ( EDPftvarcon_inst%c3psn(ipft) > 1.0_r8 ) ) then
+
+           write(fates_log(),*) ' Two photosynthetic pathways are currently supported'
+           write(fates_log(),*) ' C4 plants have c3psn = 0'
+           write(fates_log(),*) ' C3 plants have c3psn = 1'
+           write(fates_log(),*) ' PFT#: ',ipft
+           write(fates_log(),*) ' c3psn(pft): ',EDPftvarcon_inst%c3psn(ipft)
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+
+        end if
+
      end do
      
      

@@ -421,7 +421,7 @@ variables:
 		fates_canopy_closure_thresh:long_name = "tree canopy coverage at which crown area allometry changes from savanna to forest value" ;
 	float fates_c3psn(fates_pft) ;
 		fates_c3psn:units = "flag" ;
-		fates_c3psn:long_name = "Photosynthetic pathway" ;
+		fates_c3psn:long_name = "Photosynthetic pathway 0 = C4, 1 = C3" ;
 	float fates_c2b(fates_pft) ;
 		fates_c2b:units = "ratio" ;
 		fates_c2b:long_name = "Carbon to biomass multiplier of bulk structural tissues" ;
@@ -961,7 +961,7 @@ data:
 
  fates_canopy_closure_thresh = 0.8 ;
 
- fates_c3psn = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2 ;
+ fates_c3psn = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 ;
 
  fates_c2b = 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ;
 
