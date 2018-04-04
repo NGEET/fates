@@ -20,11 +20,8 @@ module EDParamsMod
    ! this is what the user can use for the actual values
    !
    
-   real(r8),protected :: ED_size_diagnostic_scale             ! Flag to switch between a linear and exponential
-                                                              ! scale on the plant size axis in diagnostics (NOT USED YET)
    real(r8),protected :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
    real(r8),protected :: ED_val_comp_excln
-   real(r8),protected :: ED_val_stress_mort
    real(r8),protected :: ED_val_init_litter
    real(r8),protected :: ED_val_nignitions
    real(r8),protected :: ED_val_understorey_death
@@ -50,13 +47,11 @@ module EDParamsMod
    real(r8),protected,allocatable :: ED_val_history_sizeclass_bin_edges(:)
    real(r8),protected,allocatable :: ED_val_history_ageclass_bin_edges(:)
 
-   character(len=param_string_length),parameter :: ED_name_size_diagnostic_scale = "fates_size_diagnostic_scale"
    character(len=param_string_length),parameter :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
    character(len=param_string_length),parameter :: ED_name_comp_excln = "fates_comp_excln"
-   character(len=param_string_length),parameter :: ED_name_stress_mort = "fates_stress_mort"
    character(len=param_string_length),parameter :: ED_name_init_litter = "fates_init_litter"
-   character(len=param_string_length),parameter :: ED_name_nignitions = "fates_nignitions"
-   character(len=param_string_length),parameter :: ED_name_understorey_death = "fates_understorey_death"
+   character(len=param_string_length),parameter :: ED_name_nignitions = "fates_fire_nignitions"
+   character(len=param_string_length),parameter :: ED_name_understorey_death = "fates_mort_understorey_death"
    character(len=param_string_length),parameter :: ED_name_cwd_fcel= "fates_cwd_fcel"   
    character(len=param_string_length),parameter :: ED_name_cwd_flig= "fates_cwd_flig"   
    character(len=param_string_length),parameter :: ED_name_bbopt_c3= "fates_bbopt_c3"   
@@ -129,10 +124,8 @@ contains
 
     implicit none
 
-    ED_size_diagnostic_scale              = nan
     fates_mortality_disturbance_fraction  = nan
     ED_val_comp_excln                     = nan
-    ED_val_stress_mort                    = nan
     ED_val_init_litter                    = nan
     ED_val_nignitions                     = nan
     ED_val_understorey_death              = nan
@@ -185,16 +178,10 @@ contains
 
     call FatesParamsInit()
 
-    call fates_params%RegisterParameter(name=ED_name_size_diagnostic_scale, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
     call fates_params%RegisterParameter(name=ED_name_mort_disturb_frac, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
     call fates_params%RegisterParameter(name=ED_name_comp_excln, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
-    call fates_params%RegisterParameter(name=ED_name_stress_mort, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
     call fates_params%RegisterParameter(name=ED_name_init_litter, dimension_shape=dimension_shape_1d, &
@@ -303,17 +290,11 @@ contains
 
     class(fates_parameters_type), intent(inout) :: fates_params
 
-    call fates_params%RetreiveParameter(name=ED_name_size_diagnostic_scale, &
-         data=ED_size_diagnostic_scale)
-
     call fates_params%RetreiveParameter(name=ED_name_mort_disturb_frac, &
           data=fates_mortality_disturbance_fraction)
 
     call fates_params%RetreiveParameter(name=ED_name_comp_excln, &
          data=ED_val_comp_excln)
-
-    call fates_params%RetreiveParameter(name=ED_name_stress_mort, &
-         data=ED_val_stress_mort)
 
     call fates_params%RetreiveParameter(name=ED_name_init_litter, &
          data=ED_val_init_litter)
@@ -424,10 +405,8 @@ contains
      if(debug_report .and. is_master) then
         
         write(fates_log(),*) '-----------  FATES Scalar Parameters -----------------'
-        write(fates_log(),fmt0) 'ED_size_diagnostic_scale = ',ED_size_diagnostic_scale
         write(fates_log(),fmt0) 'fates_mortality_disturbance_fraction = ',fates_mortality_disturbance_fraction
         write(fates_log(),fmt0) 'ED_val_comp_excln = ',ED_val_comp_excln
-        write(fates_log(),fmt0) 'ED_val_stress_mort = ',ED_val_stress_mort
         write(fates_log(),fmt0) 'ED_val_init_litter = ',ED_val_init_litter
         write(fates_log(),fmt0) 'ED_val_nignitions = ',ED_val_nignitions
         write(fates_log(),fmt0) 'ED_val_understorey_death = ',ED_val_understorey_death

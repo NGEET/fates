@@ -76,6 +76,9 @@ module EDPftvarcon
      real(r8), allocatable :: maintresp_reduction_intercept(:)   ! intercept of MR reduction as f(carbon storage), 
                                                                  ! 0=no throttling, 1=max throttling
      real(r8), allocatable :: bmort(:)
+     real(r8), allocatable :: mort_scalar_coldstress(:)
+     real(r8), allocatable :: mort_scalar_cstarvation(:)
+     real(r8), allocatable :: mort_scalar_hydrfailure(:)
      real(r8), allocatable :: hf_sm_threshold(:)
      real(r8), allocatable :: vcmaxha(:)
      real(r8), allocatable :: jmaxha(:)
@@ -269,11 +272,11 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_dbh_repro_threshold'
+    name = 'fates_seed_dbh_repro_threshold'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_freezetol'
+    name = 'fates_mort_freezetol'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -281,11 +284,11 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hgt_min'
+    name = 'fates_recruit_hgt_min'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_cushion'
+    name = 'fates_alloc_storage_cushion'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -293,19 +296,19 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_crown_depth_frac'
+    name = 'fates_fire_crown_depth_frac'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_bark_scaler'
+    name = 'fates_fire_bark_scaler'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_crown_kill'
+    name = 'fates_fire_crown_kill'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_initd'
+    name = 'fates_recruit_initd'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -313,7 +316,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_BB_slope'
+    name = 'fates_leaf_BB_slope'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -337,15 +340,15 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_stress_decid'
+    name = 'fates_phen_stress_decid'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_season_decid'
+    name = 'fates_phen_season_decid'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_evergreen'
+    name = 'fates_phen_evergreen'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -353,7 +356,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_slatop'
+    name = 'fates_leaf_slatop'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -393,27 +396,27 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_xl'
+    name = 'fates_leaf_xl'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_clumping_index'
+    name = 'fates_leaf_clumping_index'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_c3psn'
+    name = 'fates_leaf_c3psn'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_vcmax25top'
+    name = 'fates_leaf_vcmax25top'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_leafcn'
+    name = 'fates_leaf_cn_ratio'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_frootcn'
+    name = 'fates_froot_cn_ratio'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -457,7 +460,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
        
-    name = 'fates_alpha_SH'
+    name = 'fates_fire_alpha_SH'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -585,51 +588,63 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
-    name = 'fates_bmort'
+    name = 'fates_mort_bmort'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hf_sm_threshold'
+    name = 'fates_mort_scalar_coldstress'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_vcmaxha'
+    name = 'fates_mort_scalar_cstarvation'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_jmaxha'
+    name = 'fates_mort_scalar_hydrfailure'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_tpuha'
+    name = 'fates_mort_hf_sm_threshold'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_vcmaxhd'
+    name = 'fates_leaf_vcmaxha'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_jmaxhd'
+    name = 'fates_leaf_jmaxha'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_tpuhd'
+    name = 'fates_leaf_tpuha'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_vcmaxse'
+    name = 'fates_leaf_vcmaxhd'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_jmaxse'
+    name = 'fates_leaf_jmaxhd'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_tpuse'
+    name = 'fates_leaf_tpuhd'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_germination_timescale'
+    name = 'fates_leaf_vcmaxse'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_leaf_jmaxse'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_leaf_tpuse'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_seed_germination_timescale'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -649,7 +664,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
-    name = 'fates_dleaf'
+    name = 'fates_leaf_diameter'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -685,11 +700,11 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%pft_used)
 
-    name = 'fates_dbh_repro_threshold'
+    name = 'fates_seed_dbh_repro_threshold'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%dbh_repro_threshold)
 
-    name = 'fates_freezetol'
+    name = 'fates_mort_freezetol'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%freezetol)
 
@@ -697,11 +712,11 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%wood_density)
 
-    name = 'fates_hgt_min'
+    name = 'fates_recruit_hgt_min'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%hgt_min)
 
-    name = 'fates_cushion'
+    name = 'fates_alloc_storage_cushion'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%cushion)
 
@@ -709,19 +724,19 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%leaf_stor_priority)
 
-    name = 'fates_crown_depth_frac'
+    name = 'fates_fire_crown_depth_frac'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%crown)
 
-    name = 'fates_bark_scaler'
+    name = 'fates_fire_bark_scaler'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%bark_scaler)
 
-    name = 'fates_crown_kill'
+    name = 'fates_fire_crown_kill'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%crown_kill)
 
-    name = 'fates_initd'
+    name = 'fates_recruit_initd'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%initd)
 
@@ -729,7 +744,7 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seed_rain)
 
-    name = 'fates_BB_slope'
+    name = 'fates_leaf_BB_slope'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%BB_slope)
 
@@ -753,19 +768,19 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%woody)
 
-    name = 'fates_stress_decid'
+    name = 'fates_phen_stress_decid'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%stress_decid)
 
-    name = 'fates_season_decid'
+    name = 'fates_phen_season_decid'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%season_decid)
 
-    name = 'fates_evergreen'
+    name = 'fates_phen_evergreen'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%evergreen)
 
-    name = 'fates_slatop'
+    name = 'fates_leaf_slatop'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%slatop)
 
@@ -805,27 +820,27 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%fr_flig)
 
-    name = 'fates_xl'
+    name = 'fates_leaf_xl'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%xl)
 
-    name = 'fates_clumping_index'
+    name = 'fates_leaf_clumping_index'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%clumping_index)
 
-    name = 'fates_c3psn'
+    name = 'fates_leaf_c3psn'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%c3psn)
 
-    name = 'fates_vcmax25top'
+    name = 'fates_leaf_vcmax25top'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%vcmax25top)
 
-    name = 'fates_leafcn'
+    name = 'fates_leaf_cn_ratio'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%leafcn)
 
-    name = 'fates_frootcn'
+    name = 'fates_froot_cn_ratio'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%frootcn)
 
@@ -869,7 +884,7 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%prescribed_recruitment)
 
-    name = 'fates_alpha_SH'
+    name = 'fates_fire_alpha_SH'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%fire_alpha_SH)
 
@@ -1001,51 +1016,63 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%hydr_p50_gs)
 
-    name = 'fates_bmort'
+    name = 'fates_mort_bmort'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%bmort)
 
-    name = 'fates_hf_sm_threshold'
+    name = 'fates_mort_scalar_coldstress'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%mort_scalar_coldstress)
+
+    name = 'fates_mort_scalar_cstarvation'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%mort_scalar_cstarvation)
+
+    name = 'fates_mort_scalar_hydrfailure'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%mort_scalar_hydrfailure)
+
+    name = 'fates_mort_hf_sm_threshold'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%hf_sm_threshold)
 
-    name = 'fates_vcmaxha'
+    name = 'fates_leaf_vcmaxha'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%vcmaxha)
 
-    name = 'fates_jmaxha'
+    name = 'fates_leaf_jmaxha'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%jmaxha)
 
-    name = 'fates_tpuha'
+    name = 'fates_leaf_tpuha'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%tpuha)
 
-    name = 'fates_vcmaxhd'
+    name = 'fates_leaf_vcmaxhd'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%vcmaxhd)
 
-    name = 'fates_jmaxhd'
+    name = 'fates_leaf_jmaxhd'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%jmaxhd)
 
-    name = 'fates_tpuhd'
+    name = 'fates_leaf_tpuhd'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%tpuhd)
 
-    name = 'fates_vcmaxse'
+    name = 'fates_leaf_vcmaxse'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%vcmaxse)
 
-    name = 'fates_jmaxse'
+    name = 'fates_leaf_jmaxse'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%jmaxse)
 
-    name = 'fates_tpuse'
+    name = 'fates_leaf_tpuse'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%tpuse)
 
-    name = 'fates_germination_timescale'
+    name = 'fates_seed_germination_timescale'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%germination_timescale)
 
@@ -1065,7 +1092,7 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%trim_inc)
 
-    name = 'fates_dleaf'
+    name = 'fates_leaf_diameter'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%dleaf)
 
@@ -1479,6 +1506,9 @@ contains
         write(fates_log(),fmt0) 'grperc = ',EDPftvarcon_inst%grperc
         write(fates_log(),fmt0) 'c2b = ',EDPftvarcon_inst%c2b
         write(fates_log(),fmt0) 'bmort = ',EDPftvarcon_inst%bmort
+        write(fates_log(),fmt0) 'mort_scalar_coldstress = ',EDPftvarcon_inst%mort_scalar_coldstress
+        write(fates_log(),fmt0) 'mort_scalar_cstarvation = ',EDPftvarcon_inst%mort_scalar_cstarvation
+        write(fates_log(),fmt0) 'mort_scalar_hydrfailure = ',EDPftvarcon_inst%mort_scalar_hydrfailure
         write(fates_log(),fmt0) 'hf_sm_threshold = ',EDPftvarcon_inst%hf_sm_threshold
         write(fates_log(),fmt0) 'vcmaxha = ',EDPftvarcon_inst%vcmaxha
         write(fates_log(),fmt0) 'jmaxha = ',EDPftvarcon_inst%jmaxha
