@@ -286,7 +286,7 @@ variables:
 		fates_leaf_cn_ratio:long_name = "Leaf C:N" ;
 	float fates_leaf_c3psn(fates_pft) ;
 		fates_leaf_c3psn:units = "flag" ;
-		fates_leaf_c3psn:long_name = "Photosynthetic pathway" ;
+		fates_leaf_c3psn:long_name = "Photosynthetic pathway (1=c3, 0=c4)" ;
 	float fates_leaf_clumping_index(fates_pft) ;
 		fates_leaf_clumping_index:units = "fraction (0-1)" ;
 		fates_leaf_clumping_index:long_name = "factor describing how much self-occlusion of leaf scattering elements decreases light interception" ;
@@ -842,7 +842,7 @@ data:
 
  fates_leaf_cn_ratio = 30, 35, 40, 25, 30, 25, 25, 25, 30, 25, 25, 25, 25, 25 ;
 
- fates_leaf_c3psn = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2 ;
+ fates_leaf_c3psn = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 ;
 
  fates_leaf_clumping_index = 0.85, 0.85, 0.675, 0.8, 0.85, 0.85, 0.9, 0.75, 
     0.85, 0.9, 0.9, 0.75, 0.75, 0.75 ;
