@@ -902,21 +902,12 @@ contains
 
     if (hlm_use_ed_prescribed_phys .eq. itrue) then
        if (currentCohort%canopy_layer .eq. 1) then
-<<<<<<< HEAD
-          currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_canopy(currentCohort%pft) &
-                                       * currentCohort%c_area / currentCohort%n
-          currentCohort%npp_acc = currentCohort%npp_acc_hold / hlm_days_per_year ! add these for balance checking purposes
-       else
-          currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_understory(currentCohort%pft) &
-                                       * currentCohort%c_area / currentCohort%n
-=======
           currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_canopy(ipft) &
                 * currentCohort%c_area / currentCohort%n
           currentCohort%npp_acc = currentCohort%npp_acc_hold / hlm_days_per_year ! add these for balance checking purposes
        else
           currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_understory(ipft) &
                 * currentCohort%c_area / currentCohort%n
->>>>>>> sci.1.5.0_api.3.0.0
           currentCohort%npp_acc = currentCohort%npp_acc_hold / hlm_days_per_year ! add these for balance checking purposes
        endif
     endif
@@ -1031,12 +1022,7 @@ contains
        currentCohort%npp_froot = currentCohort%npp_froot + &
              max(0.0_r8,currentCohort%carbon_balance*(currentCohort%root_md/currentCohort%md))
 
-<<<<<<< HEAD
-       balive_loss = currentCohort%md *(1.0_r8- EDPftvarcon_inst%leaf_stor_priority(currentCohort%pft)) - &
-                     currentCohort%carbon_balance
-=======
        balive_loss = currentCohort%md *(1.0_r8- EDPftvarcon_inst%leaf_stor_priority(ipft))- currentCohort%carbon_balance
->>>>>>> sci.1.5.0_api.3.0.0
        currentCohort%carbon_balance = 0._r8
     endif
 
