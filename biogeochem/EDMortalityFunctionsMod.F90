@@ -12,6 +12,7 @@ module EDMortalityFunctionsMod
   use FatesAllometryMod, only : bleaf
   use EDParamsMod      , only : ED_val_stress_mort
   use FatesInterfaceMod, only : hlm_use_ed_prescribed_phys
+  use FatesInterfaceMod, only : bc_in_type
 
   implicit none
   private
@@ -29,27 +30,35 @@ contains
 
 
 
-  subroutine mortality_rates( cohort_in,cmort,hmort,bmort )
+  subroutine mortality_rates( cohort_in,bc_in,cmort,hmort,bmort,frmort )
 
     ! ============================================================================
-    !  Calculate mortality rates as a function of carbon storage       
+    !  Calculate mortality rates from carbon storage, hydraulic cavitation, 
+    !  background and freezing
     ! ============================================================================
-
+    
+    use FatesConstantsMod,  only : tfrz => t_water_freeze_k_1atm
    
 
-    type (ed_cohort_type), intent(in) :: cohort_in
+    type (ed_cohort_type), intent(in) :: cohort_in 
+    type (bc_in_type), intent(in) :: bc_in
     real(r8),intent(out) :: bmort ! background mortality : Fraction per year
     real(r8),intent(out) :: cmort  ! carbon starvation mortality
     real(r8),intent(out) :: hmort  ! hydraulic failure mortality
+    real(r8),intent(out) :: frmort ! freezing stress mortality
 
     real(r8) :: frac  ! relativised stored carbohydrate
     real(r8) :: b_leaf ! leaf biomass kgC
     real(r8) :: hf_sm_threshold    ! hydraulic failure soil moisture threshold 
-
+    real(r8) :: temp_dep           ! Temp. function (freezing mortality)
+    real(r8) :: temp_in_C          ! Daily averaged temperature in Celcius
+    real(r8),parameter :: frost_mort_scaler = 3.0_r8  ! Scaling factor for freezing mortality
+    real(r8),parameter :: frost_mort_buffer = 5.0_r8  ! 5deg buffer for freezing mortality
 
     if (hlm_use_ed_prescribed_phys .eq. ifalse) then
 
-    ! 'Background' mortality (can vary as a function of density as in ED1.0 and ED2.0, but doesn't here for tractability) 
+    ! 'Background' mortality (can vary as a function of 
+    !  density as in ED1.0 and ED2.0, but doesn't here for tractability) 
     bmort = EDPftvarcon_inst%bmort(cohort_in%pft) 
 
     ! Proxy for hydraulic failure induced mortality. 
@@ -76,6 +85,19 @@ contains
             cohort_in%dbh,cohort_in%pft,cohort_in%n,cohort_in%canopy_layer
     endif
 
+
+    !    Mortality due to cold and freezing stress (frmort), based on ED2 and:           
+    !      Albani, M.; D. Medvigy; G. C. Hurtt; P. R. Moorcroft, 2006: The contributions 
+    !           of land-use change, CO2 fertilization, and climate variability to the    
+    !           Eastern US carbon sink.  Glob. Change Biol., 12, 2370-2390,              
+    !           doi: 10.1111/j.1365-2486.2006.01254.x                                    
+
+    temp_in_C = bc_in%t_veg24_si - tfrz
+    temp_dep  = max(0.0,min(1.0,1.0 - (temp_in_C - &
+                EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
+    frmort    = frost_mort_scaler * temp_dep
+
+
     !mortality_rates = bmort + hmort + cmort
 
     else ! i.e. hlm_use_ed_prescribed_phys is true
@@ -84,8 +106,9 @@ contains
        else
           bmort = EDPftvarcon_inst%prescribed_mortality_understory(cohort_in%pft)
        endif
-       cmort = 0._r8
-       hmort = 0._r8
+       cmort  = 0._r8
+       hmort  = 0._r8
+       frmort = 0._r8
     endif
 
  end subroutine mortality_rates

@@ -436,7 +436,7 @@ contains
     currentCohort%root_md            = nan ! root  maintenance demand: kgC/indiv/year
     currentCohort%carbon_balance     = nan ! carbon remaining for growth and storage: kg/indiv/year
     currentCohort%dmort              = nan ! proportional mortality rate. (year-1)
-    currentCohort%lmort_logging      = nan
+    currentCohort%lmort_direct       = nan
     currentCohort%lmort_infra        = nan
     currentCohort%lmort_collateral   = nan
 
@@ -514,7 +514,7 @@ contains
     currentcohort%dmort              = 0._r8 
     currentcohort%gscan              = 0._r8 
     currentcohort%treesai            = 0._r8  
-    currentCohort%lmort_logging      = 0._r8
+    currentCohort%lmort_direct       = 0._r8
     currentCohort%lmort_infra        = 0._r8
     currentCohort%lmort_collateral   = 0._r8
     !    currentCohort%npp_leaf  = 0._r8
@@ -866,8 +866,8 @@ contains
 
                                    currentCohort%dmort          = (currentCohort%n*currentCohort%dmort       + &
                                          nextc%n*nextc%dmort)/newn
-                                   currentCohort%lmort_logging          = (currentCohort%n*currentCohort%lmort_logging       + &
-                                         nextc%n*nextc%lmort_logging)/newn
+                                   currentCohort%lmort_direct         = (currentCohort%n*currentCohort%lmort_direct       + &
+                                         nextc%n*nextc%lmort_direct)/newn
                                    currentCohort%lmort_infra          = (currentCohort%n*currentCohort%lmort_infra       + &
                                          nextc%n*nextc%lmort_infra)/newn
                                    currentCohort%lmort_collateral          = (currentCohort%n*currentCohort%lmort_collateral + &
@@ -883,10 +883,11 @@ contains
                                    currentCohort%hmort = (currentCohort%n*currentCohort%hmort + nextc%n*nextc%hmort)/newn
                                    currentCohort%bmort = (currentCohort%n*currentCohort%bmort + nextc%n*nextc%bmort)/newn
                                    currentCohort%fmort = (currentCohort%n*currentCohort%fmort + nextc%n*nextc%fmort)/newn
+                                   currentCohort%frmort = (currentCohort%n*currentCohort%frmort + nextc%n*nextc%frmort)/newn
 
                                    ! logging mortality, Yi Xu
-                                   currentCohort%lmort_logging = (currentCohort%n*currentCohort%lmort_logging + &
-                                         nextc%n*nextc%lmort_logging)/newn
+                                   currentCohort%lmort_direct = (currentCohort%n*currentCohort%lmort_direct + &
+                                         nextc%n*nextc%lmort_direct)/newn
                                    currentCohort%lmort_collateral = (currentCohort%n*currentCohort%lmort_collateral + &
                                          nextc%n*nextc%lmort_collateral)/newn
                                    currentCohort%lmort_infra = (currentCohort%n*currentCohort%lmort_infra + &
@@ -1259,7 +1260,7 @@ contains
     n%root_md         = o%root_md
     n%carbon_balance  = o%carbon_balance
     n%dmort           = o%dmort
-    n%lmort_logging   = o%lmort_logging
+    n%lmort_direct    = o%lmort_direct
     n%lmort_infra     = o%lmort_infra
     n%lmort_collateral= o%lmort_collateral
     n%seed_prod       = o%seed_prod
@@ -1274,9 +1275,10 @@ contains
     n%bmort = o%bmort
     n%fmort = o%fmort
     n%hmort = o%hmort
+    n%frmort = o%frmort
 
     ! logging mortalities, Yi Xu
-    n%lmort_logging=o%lmort_logging
+    n%lmort_direct=o%lmort_direct
     n%lmort_collateral =o%lmort_collateral
     n%lmort_infra =o%lmort_infra
 

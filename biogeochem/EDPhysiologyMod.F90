@@ -813,8 +813,9 @@ contains
     real(r8) :: cmort    ! starvation mortality rate (fraction per year)
     real(r8) :: bmort    ! background mortality rate (fraction per year)
     real(r8) :: hmort    ! hydraulic failure mortality rate (fraction per year)
+    real(r8) :: frmort   ! freezing tolerance  mortality rate (fraction per year)
 
-    real(r8) :: lmort_logging     ! Mortality fraction associated with direct logging
+    real(r8) :: lmort_direct      ! Mortality fraction associated with direct logging
     real(r8) :: lmort_collateral  ! Mortality fraction associated with logging collateral damage
     real(r8) :: lmort_infra       ! Mortality fraction associated with logging infrastructure
     real(r8) :: dndt_logging      ! Mortality rate (per day) associated with the a logging event
@@ -845,24 +846,26 @@ contains
     ipft = currentCohort%pft
 
     ! Mortality for trees in the understorey. 
-    !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
-    call mortality_rates(currentCohort,cmort,hmort,bmort)
+    ! if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
+
+    call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort)
+
     call LoggingMortality_frac(ipft, currentCohort%dbh, &
-                               currentCohort%lmort_logging,                       &
-                               currentCohort%lmort_collateral,                    &
+                               currentCohort%lmort_direct,           &
+                               currentCohort%lmort_collateral,       &
                                currentCohort%lmort_infra )
 
     if (currentCohort%canopy_layer > 1)then 
        
        ! Include understory logging mortality rates not associated with disturbance
-       dndt_logging = (currentCohort%lmort_logging    + &
+       dndt_logging = (currentCohort%lmort_direct    + &
                        currentCohort%lmort_collateral + &
                        currentCohort%lmort_infra)/hlm_freq_day
 
-       currentCohort%dndt = -1.0_r8 * (cmort+hmort+bmort+dndt_logging) * currentCohort%n
+       currentCohort%dndt = -1.0_r8 * (cmort+hmort+bmort+frmort+dndt_logging) * currentCohort%n
     else
        currentCohort%dndt = -(1.0_r8 - fates_mortality_disturbance_fraction) &
-            * (cmort+hmort+bmort) * currentCohort%n
+            * (cmort+hmort+bmort+frmort) * currentCohort%n
     endif
 
     ! Height
@@ -1021,7 +1024,6 @@ contains
              max(0.0_r8,currentCohort%carbon_balance*(currentCohort%leaf_md/currentCohort%md))
        currentCohort%npp_froot = currentCohort%npp_froot + &
              max(0.0_r8,currentCohort%carbon_balance*(currentCohort%root_md/currentCohort%md))
-
        balive_loss = currentCohort%md *(1.0_r8- EDPftvarcon_inst%leaf_stor_priority(ipft))- currentCohort%carbon_balance
        currentCohort%carbon_balance = 0._r8
     endif
@@ -1307,7 +1309,7 @@ contains
 
           ! Total number of dead understory from direct logging
           ! (it is possible that large harvestable trees are in the understory)
-          dead_n_dlogging = ( currentCohort%lmort_logging) * &
+          dead_n_dlogging = ( currentCohort%lmort_direct) * &
                 currentCohort%n/hlm_freq_day/currentPatch%area
           
           ! Total number of dead understory from indirect logging
