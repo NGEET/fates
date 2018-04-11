@@ -1503,7 +1503,7 @@ end subroutine flush_hvars
 		       hio_m7_si_scls(io_si,scls) = hio_m7_si_scls(io_si,scls) + &
                              (ccohort%lmort_direct+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n
                        hio_m8_si_scls(io_si,scls) = hio_m8_si_scls(io_si,scls) + &
-                             + ccohort%frmort*ccohort%n
+                             ccohort%frmort*ccohort%n
 
                        ! basal area  [m2/ha]
                        hio_ba_si_scpf(io_si,scpf) = hio_ba_si_scpf(io_si,scpf) + &
