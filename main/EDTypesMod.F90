@@ -266,6 +266,7 @@ module EDTypesMod
         procedure, public :: b_total
 
      end type ed_cohort_type
+
   
      
      
