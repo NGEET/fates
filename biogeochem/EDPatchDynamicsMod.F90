@@ -432,8 +432,8 @@ contains
                            nc%n * ED_val_understorey_death / hlm_freq_day
                       currentSite%imort_carbonflux = currentSite%imort_carbonflux + &
                            (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
-                           currentCohort%b * g_per_kg * days_per_sec * years_per_day * ha_per_m2
-
+                           currentCohort%b_total() * g_per_kg * days_per_sec * years_per_day * ha_per_m2
+                      
                       ! Step 2:  Apply survivor ship function based on the understory death fraction
                       ! remaining of understory plants of those that are knocked over by the overstorey trees dying...  
                       nc%n = nc%n * (1.0_r8 - ED_val_understorey_death)
@@ -556,7 +556,8 @@ contains
                            nc%n * logging_coll_under_frac / hlm_freq_day
                       currentSite%imort_carbonflux = currentSite%imort_carbonflux + &
                            (nc%n * logging_coll_under_frac/ hlm_freq_day ) * &
-                           currentCohort%b * g_per_kg * days_per_sec * years_per_day * ha_per_m2
+                           currentCohort%b_total() * g_per_kg * days_per_sec * years_per_day * ha_per_m2
+
                       
                       ! Step 2:  Apply survivor ship function based on the understory death fraction
                      
@@ -764,17 +765,19 @@ contains
     enddo
 
     do p = 1,numpft !move litter pool en mass into the new patch
-       newPatch%root_litter(p) = newPatch%root_litter(p) + currentPatch%root_litter(p) * patch_site_areadis/newPatch%area
-       newPatch%leaf_litter(p) = newPatch%leaf_litter(p) + currentPatch%leaf_litter(p) * patch_site_areadis/newPatch%area
+       newPatch%root_litter(p) = newPatch%root_litter(p) + &
+             currentPatch%root_litter(p) * patch_site_areadis/newPatch%area
+       newPatch%leaf_litter(p) = newPatch%leaf_litter(p) + &
+             currentPatch%leaf_litter(p) * patch_site_areadis/newPatch%area
 
        ! The fragmentation/decomposition flux from donor patches has already occured in existing patches.  However
        ! some of their area has been carved out for this new patches which is receiving donations.
        ! Lets maintain conservation on that pre-existing mass flux in these newly disturbed patches
        
-       newPatch%root_litter_out(p) = newPatch%root_litter_out(p) + currentPatch%root_litter_out(p) * &
-                                     patch_site_areadis/newPatch%area
-       newPatch%leaf_litter_out(p) = newPatch%leaf_litter_out(p) + currentPatch%leaf_litter_out(p) * &
-                                     patch_site_areadis/newPatch%area
+       newPatch%root_litter_out(p) = newPatch%root_litter_out(p) + &
+             currentPatch%root_litter_out(p) * patch_site_areadis/newPatch%area
+       newPatch%leaf_litter_out(p) = newPatch%leaf_litter_out(p) + &
+             currentPatch%leaf_litter_out(p) * patch_site_areadis/newPatch%area
 
     enddo
 
@@ -822,17 +825,21 @@ contains
        !PART 1)  Burn the fractions of existing litter in the new patch that were consumed by the fire. 
        !************************************/ 
        do c = 1,ncwd
-          burned_litter = new_patch%cwd_ag(c) * patch_site_areadis/new_patch%area * currentPatch%burnt_frac_litter(c+1) !kG/m2/day
+          burned_litter = new_patch%cwd_ag(c) * patch_site_areadis/new_patch%area * &
+                currentPatch%burnt_frac_litter(c+1) !kG/m2/day
           new_patch%cwd_ag(c) = new_patch%cwd_ag(c) - burned_litter
           currentSite%flux_out = currentSite%flux_out + burned_litter * new_patch%area !kG/site/day
-          currentSite%total_burn_flux_to_atm = currentSite%total_burn_flux_to_atm + burned_litter * new_patch%area !kG/site/day
+          currentSite%total_burn_flux_to_atm = currentSite%total_burn_flux_to_atm + &
+                burned_litter * new_patch%area !kG/site/day
        enddo
 
        do p = 1,numpft
-          burned_litter = new_patch%leaf_litter(p) * patch_site_areadis/new_patch%area * currentPatch%burnt_frac_litter(dl_sf)
+          burned_litter = new_patch%leaf_litter(p) * patch_site_areadis/new_patch%area * &
+                currentPatch%burnt_frac_litter(dl_sf)
           new_patch%leaf_litter(p) = new_patch%leaf_litter(p) - burned_litter
           currentSite%flux_out = currentSite%flux_out + burned_litter * new_patch%area !kG/site/day
-          currentSite%total_burn_flux_to_atm = currentSite%total_burn_flux_to_atm + burned_litter * new_patch%area !kG/site/day
+          currentSite%total_burn_flux_to_atm = currentSite%total_burn_flux_to_atm + &
+                burned_litter * new_patch%area !kG/site/day
       enddo
 
        !************************************/     
@@ -950,14 +957,14 @@ contains
 
           call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
           if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
-             burned_leaves = (currentCohort%bl+currentCohort%bsw) * currentCohort%cfa
+             burned_leaves = min(currentCohort%bl, (currentCohort%bl+currentCohort%bsw) * currentCohort%cfa)
           else
-             burned_leaves = (currentCohort%bl+currentCohort%bsw) * currentPatch%burnt_frac_litter(6)
+             burned_leaves = min(currentCohort%bl, (currentCohort%bl+currentCohort%bsw) * currentPatch%burnt_frac_litter(6))
           endif
           if (burned_leaves > 0.0_r8) then
 
-             currentCohort%balive = max(currentCohort%br,currentCohort%balive - burned_leaves)
-             currentCohort%bl     = max(0.00001_r8,   currentCohort%bl - burned_leaves)
+             currentCohort%bl     = currentCohort%bl - burned_leaves
+
              !KgC/gridcell/day
              currentSite%flux_out = currentSite%flux_out + burned_leaves * currentCohort%n * &
                   patch_site_areadis/currentPatch%area * AREA 
@@ -1334,7 +1341,6 @@ contains
     integer  :: fuse_flag   !do patches get fused (1) or not (0). 
     !---------------------------------------------------------------------
 
-    !maxpatch = 4  
     maxpatch = maxPatchesPerSite
 
     currentSite => csite 
