@@ -3,7 +3,6 @@ module EDTypesMod
   use FatesConstantsMod,     only : r8 => fates_r8
   use FatesGlobals,          only : fates_log
   use shr_infnan_mod,        only : nan => shr_infnan_nan, assignment(=)
-
   use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
   use FatesHydraulicsMemMod, only : ed_patch_hydr_type
   use FatesHydraulicsMemMod, only : ed_site_hydr_type
@@ -19,7 +18,7 @@ module EDTypesMod
   integer, parameter :: ican_ustory = 2           ! Nominal index for understory in two-canopy system
 
   integer, parameter :: nlevleaf = 40             ! number of leaf layers in canopy layer
-  integer, parameter :: maxpft = 10               ! maximum number of PFTs allowed
+  integer, parameter :: maxpft = 15               ! maximum number of PFTs allowed
                                                   ! the parameter file may determine that fewer
                                                   ! are used, but this helps allocate scratch
                                                   ! space and output arrays.
@@ -82,13 +81,18 @@ module EDTypesMod
   real(r8), parameter :: fire_threshold       = 50.0_r8    ! threshold for fires that spread or go out. KWm-2 (Pyne 1986)
 
   ! PATCH FUSION 
-  real(r8), parameter :: NTOL                 = 0.05_r8    ! min plant density for hgt bin to be used in height profile comparisons 
+  real(r8), parameter :: force_patchfuse_min_biomass = 0.005_r8   ! min biomass (kg / m2 patch area) below which to force-fuse patches
+  integer , parameter :: N_DBH_BINS           = 6          ! no. of dbh bins used when comparing patches
+  real(r8), parameter :: patchfusion_dbhbin_loweredges(N_DBH_BINS) = &
+       (/0._r8, 5._r8, 20._r8, 50._r8, 100._r8, 150._r8/)  ! array of bin lower edges for comparing patches
+  real(r8), parameter :: patch_fusion_tolerance_relaxation_increment = 1.1_r8 ! amount by which to increment patch fusion threshold
+  real(r8), parameter :: max_age_of_second_oldest_patch = 200._r8 ! age in years above which to combine all patches
+
+  ! COHORT FUSION
   real(r8), parameter :: HITEMAX              = 30.0_r8    ! max dbh value used in hgt profile comparison 
-  real(r8), parameter :: DBHMAX               = 150.0_r8   ! max dbh value used in hgt profile comparison 
   integer , parameter :: N_HITE_BINS          = 60         ! no. of hite bins used to distribute LAI
-  integer , parameter :: N_DBH_BINS           = 5          ! no. of dbh bins used when comparing patches
 
-
+  ! COHORT TERMINATION
   real(r8), parameter :: min_npm2       = 1.0E-8_r8  ! minimum cohort number density per m2 before termination
   real(r8), parameter :: min_patch_area = 0.001_r8   ! smallest allowable patch area before termination
   real(r8), parameter :: min_nppatch    = 1.0E-11_r8 ! minimum number of cohorts per patch (min_npm2*min_patch_area)
@@ -117,13 +121,13 @@ module EDTypesMod
      real(r8) ::  dbh                                    ! dbh: cm
      real(r8) ::  hite                                   ! height: meters
      integer  ::  indexnumber                            ! unique number for each cohort. (within clump?)
-     real(r8) ::  balive                                 ! total living biomass: kGC per indiv
      real(r8) ::  bdead                                  ! dead biomass:  kGC per indiv
      real(r8) ::  bstore                                 ! stored carbon: kGC per indiv
      real(r8) ::  laimemory                              ! target leaf biomass- set from previous year: kGC per indiv
      integer  ::  canopy_layer                           ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)
-     real(r8) ::  canopy_layer_yesterday                 ! recent canopy status of cohort (1 = canopy, 2 = understorey, etc.)  real to be conservative during fusion
-     real(r8) ::  b                                      ! total biomass: kGC per indiv
+     real(r8) ::  canopy_layer_yesterday                 ! recent canopy status of cohort
+                                                         ! (1 = canopy, 2 = understorey, etc.)  
+                                                         ! real to be conservative during fusion
      real(r8) ::  bsw                                    ! sapwood in stem and roots: kGC per indiv
      real(r8) ::  bl                                     ! leaf biomass: kGC per indiv
      real(r8) ::  br                                     ! fine root biomass: kGC per indiv
@@ -179,15 +183,15 @@ module EDTypesMod
      real(r8) ::  resp_acc
      real(r8) ::  resp_acc_hold
 
-     ! Net Primary Production Partitions
+     ! Plant Tissue Carbon Fluxes
 
-     real(r8) ::  npp_leaf                               ! NPP into leaves (includes replacement of turnover):  KgC/indiv/year
-     real(r8) ::  npp_froot                              ! NPP into fine roots (includes replacement of turnover):  KgC/indiv/year
-
-     real(r8) ::  npp_bsw                                ! NPP into sapwood: KgC/indiv/year
-     real(r8) ::  npp_bdead                              ! NPP into deadwood (structure):  KgC/indiv/year
-     real(r8) ::  npp_bseed                              ! NPP into seeds: KgC/indiv/year
-     real(r8) ::  npp_store                              ! NPP into storage: KgC/indiv/year
+     ! Fluxes in from Net Primary Production
+     real(r8) ::  npp_leaf          ! NPP into leaves (includes replacement of turnover):  KgC/indiv/year
+     real(r8) ::  npp_fnrt          ! NPP into fine roots (includes replacement of turnover):  KgC/indiv/year
+     real(r8) ::  npp_sapw          ! NPP into sapwood: KgC/indiv/year
+     real(r8) ::  npp_dead          ! NPP into deadwood (structure):  KgC/indiv/year
+     real(r8) ::  npp_seed          ! NPP into seeds: KgC/indiv/year
+     real(r8) ::  npp_stor          ! NPP into storage: KgC/indiv/year
 
      real(r8) ::  ts_net_uptake(nlevleaf)              ! Net uptake of leaf layers: kgC/m2/s
      real(r8) ::  year_net_uptake(nlevleaf)            ! Net uptake of leaf layers: kgC/m2/year
@@ -206,10 +210,12 @@ module EDTypesMod
      real(r8) ::  md                                     ! plant maintenance demand: kgC/indiv/year
      real(r8) ::  leaf_md                                ! leaf  maintenance demand: kgC/indiv/year
      real(r8) ::  root_md                                ! root  maintenance demand: kgC/indiv/year
-     real(r8) ::  carbon_balance                         ! carbon remaining for growth and storage: kg/indiv/year
+     real(r8) ::  bsw_md                                 ! sawpwood maintenance demand:  kgC/indiv/year
+     real(r8) ::  bstore_md                              ! storage maintenance demand:  kgC/indiv/year
+     real(r8) ::  bdead_md                               ! structural (branch) maintenance demand:  kgC/indiv/year
+
      real(r8) ::  seed_prod                              ! reproduction seed and clonal: KgC/indiv/year
      real(r8) ::  leaf_litter                            ! leaf litter from phenology: KgC/m2
-     real(r8) ::  woody_turnover                         ! amount of wood lost each day: kgC/indiv/year. Currently set to zero.
 
      !MORTALITY
      real(r8) ::  dmort                                  ! proportional mortality rate. (year-1)
@@ -238,10 +244,8 @@ module EDTypesMod
      real(r8) ::  dndt                                   ! time derivative of cohort size  : n/year
      real(r8) ::  dhdt                                   ! time derivative of height       : m/year
      real(r8) ::  ddbhdt                                 ! time derivative of dbh          : cm/year
-     real(r8) ::  dbalivedt                              ! time derivative of total living biomass : KgC/year
      real(r8) ::  dbdeaddt                               ! time derivative of dead biomass         : KgC/year
      real(r8) ::  dbstoredt                              ! time derivative of stored biomass       : KgC/year
-     real(r8) ::  storage_flux                           ! flux from npp into bstore               : KgC/year
 
      ! FIRE
      real(r8) ::  cfa                                    ! proportion of crown affected by fire:-
@@ -249,11 +253,23 @@ module EDTypesMod
      real(r8) ::  crownfire_mort                         ! probability of tree post-fire mortality due to crown scorch:-
      real(r8) ::  fire_mort                              ! post-fire mortality from cambial and crown damage assuming two are independent:-
 
+     ! Integration
+     real(r8) :: ode_opt_step                            ! What is the current optimum step size
+                                                         ! for the integrator? (variable units, including kgC,
+                                                         ! and then time when we have multiple species)
+
      ! Hydraulics
      type(ed_cohort_hydr_type), pointer :: co_hydr       ! All cohort hydraulics data, see FatesHydraulicsMemMod.F90
 
+     contains
 
-  end type ed_cohort_type
+        procedure, public :: b_total
+
+     end type ed_cohort_type
+
+  
+     
+     
 
   !************************************
   !** Patch type structure           **
@@ -338,8 +354,6 @@ module EDTypesMod
      ! PHOTOSYNTHESIS       
 
      real(r8) ::  psn_z(nclmax,maxpft,nlevleaf)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
-!     real(r8) ::  gpp                                              ! total patch gpp: KgC/m2/year
-!     real(r8) ::  npp                                              ! total patch npp: KgC/m2/year   
 
      ! ROOTS
      real(r8), allocatable ::  rootfr_ft(:,:)                      ! root fraction of each PFT in each soil layer:-
@@ -506,8 +520,8 @@ module EDTypesMod
      real(r8) ::  water_memory(numWaterMem)                             ! last 10 days of soil moisture memory...
 
      !SEED BANK
-     real(r8) :: seed_bank(maxpft)                              ! seed pool in KgC/m2/year
-     real(r8) :: dseed_dt(maxpft)
+     real(r8) :: seed_bank(maxpft)                              ! seed pool in KgC/m2
+     real(r8) :: dseed_dt(maxpft)                               ! change in seed pool in KgC/m2/year
      real(r8) :: seed_rain_flux(maxpft)                         ! flux of seeds from exterior KgC/m2/year (needed for C balance purposes)
 
      ! FIRE
@@ -547,6 +561,18 @@ module EDTypesMod
 
 contains
 
+   function b_total(this)
+
+      ! Calculate total plant biomass
+
+      implicit none
+      class(ed_cohort_type), intent(inout) :: this
+      real(r8)  :: b_total
+
+      b_total = this%bl + this%br + this%bsw + this%bdead + this%bstore
+      
+   end function b_total
+   
   ! =====================================================================================
 
   subroutine val_check_ed_vars(currentPatch,var_aliases,return_code)
@@ -680,8 +706,6 @@ contains
      write(fates_log(),*) 'co%n                      = ', ccohort%n                         
      write(fates_log(),*) 'co%dbh                    = ', ccohort%dbh                                        
      write(fates_log(),*) 'co%hite                   = ', ccohort%hite                                
-     write(fates_log(),*) 'co%b                      = ', ccohort%b                            
-     write(fates_log(),*) 'co%balive                 = ', ccohort%balive
      write(fates_log(),*) 'co%bdead                  = ', ccohort%bdead                          
      write(fates_log(),*) 'co%bstore                 = ', ccohort%bstore
      write(fates_log(),*) 'co%laimemory              = ', ccohort%laimemory
@@ -697,7 +721,6 @@ contains
      write(fates_log(),*) 'co%nv                     = ', ccohort%nv
      write(fates_log(),*) 'co%status_coh             = ', ccohort%status_coh
      write(fates_log(),*) 'co%canopy_trim            = ', ccohort%canopy_trim
-     write(fates_log(),*) 'co%status_coh             = ', ccohort%status_coh               
      write(fates_log(),*) 'co%excl_weight            = ', ccohort%excl_weight               
      write(fates_log(),*) 'co%prom_weight            = ', ccohort%prom_weight               
      write(fates_log(),*) 'co%size_class             = ', ccohort%size_class
@@ -712,11 +735,12 @@ contains
      write(fates_log(),*) 'co%resp_acc               = ', ccohort%resp_acc
      write(fates_log(),*) 'co%resp_acc_hold          = ', ccohort%resp_acc_hold
      write(fates_log(),*) 'co%npp_leaf               = ', ccohort%npp_leaf
-     write(fates_log(),*) 'co%npp_froot              = ', ccohort%npp_froot
-     write(fates_log(),*) 'co%npp_bsw                = ', ccohort%npp_bsw
-     write(fates_log(),*) 'co%npp_bdead              = ', ccohort%npp_bdead
-     write(fates_log(),*) 'co%npp_bseed              = ', ccohort%npp_bseed
-     write(fates_log(),*) 'co%npp_store              = ', ccohort%npp_store
+     write(fates_log(),*) 'co%npp_fnrt              = ', ccohort%npp_fnrt
+     write(fates_log(),*) 'co%npp_sapw               = ', ccohort%npp_sapw
+     write(fates_log(),*) 'co%npp_dead              = ', ccohort%npp_dead
+     write(fates_log(),*) 'co%npp_seed              = ', ccohort%npp_seed
+     write(fates_log(),*) 'co%npp_stor              = ', ccohort%npp_stor
+     write(fates_log(),*) 'co%ode_opt_step          = ', ccohort%ode_opt_step
      write(fates_log(),*) 'co%rdark                  = ', ccohort%rdark
      write(fates_log(),*) 'co%resp_m                 = ', ccohort%resp_m
      write(fates_log(),*) 'co%resp_g                 = ', ccohort%resp_g
@@ -726,14 +750,15 @@ contains
      write(fates_log(),*) 'co%md                     = ', ccohort%md
      write(fates_log(),*) 'co%leaf_md                = ', ccohort%leaf_md
      write(fates_log(),*) 'co%root_md                = ', ccohort%root_md
-     write(fates_log(),*) 'co%carbon_balance         = ', ccohort%carbon_balance
+     write(fates_log(),*) 'co%bstore_md              = ', ccohort%bstore_md
+     write(fates_log(),*) 'co%bdead_md               = ', ccohort%bdead_md
+     write(fates_log(),*) 'co%bsw_md                 = ', ccohort%bsw_md
      write(fates_log(),*) 'co%dmort                  = ', ccohort%dmort
      write(fates_log(),*) 'co%seed_prod              = ', ccohort%seed_prod
      write(fates_log(),*) 'co%treelai                = ', ccohort%treelai
      write(fates_log(),*) 'co%treesai                = ', ccohort%treesai
      write(fates_log(),*) 'co%leaf_litter            = ', ccohort%leaf_litter
      write(fates_log(),*) 'co%c_area                 = ', ccohort%c_area
-     write(fates_log(),*) 'co%woody_turnover         = ', ccohort%woody_turnover
      write(fates_log(),*) 'co%cmort                  = ', ccohort%cmort
      write(fates_log(),*) 'co%bmort                  = ', ccohort%bmort
      write(fates_log(),*) 'co%fmort                  = ', ccohort%fmort
@@ -743,10 +768,8 @@ contains
      write(fates_log(),*) 'co%dndt                   = ', ccohort%dndt
      write(fates_log(),*) 'co%dhdt                   = ', ccohort%dhdt
      write(fates_log(),*) 'co%ddbhdt                 = ', ccohort%ddbhdt
-     write(fates_log(),*) 'co%dbalivedt              = ', ccohort%dbalivedt
      write(fates_log(),*) 'co%dbdeaddt               = ', ccohort%dbdeaddt
      write(fates_log(),*) 'co%dbstoredt              = ', ccohort%dbstoredt
-     write(fates_log(),*) 'co%storage_flux           = ', ccohort%storage_flux
      write(fates_log(),*) 'co%cfa                    = ', ccohort%cfa
      write(fates_log(),*) 'co%fire_mort              = ', ccohort%fire_mort
      write(fates_log(),*) 'co%crownfire_mort         = ', ccohort%crownfire_mort
