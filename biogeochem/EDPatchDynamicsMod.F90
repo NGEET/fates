@@ -1345,6 +1345,8 @@ contains
     !
     !---------------------------------------------------------------------
 
+    maxpatch = maxPatchesPerSite
+
     currentSite => csite 
 
     profiletol = ED_val_patch_fusion_tol
