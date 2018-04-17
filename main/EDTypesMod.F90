@@ -22,11 +22,25 @@ module EDTypesMod
                                                   ! the parameter file may determine that fewer
                                                   ! are used, but this helps allocate scratch
                                                   ! space and output arrays.
+
+
+  ! -------------------------------------------------------------------------------------
+  ! Radiation parameters
+  ! These should be part of the radiation module, but since we only have one option
+  ! this is ok for now. (RGK 04-2018)
+  ! -------------------------------------------------------------------------------------
+
+
+  integer, parameter :: n_rad_stream_types = 2    ! The number of radiation streams used (direct/diffuse)
  
+  integer, parameter :: idirect   = 1           ! This is the array index for direct radiation
+  integer, parameter :: idiffuse  = 2           ! This is the array index for diffuse radiation
+
 
   ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
   ! land-ice abledo for vis and nir.  This should be a parameter, which would
   ! get us on track to start using multi-spectral or hyper-spectral (RGK 02-2017)
+
   integer, parameter :: maxSWb = 2      ! maximum number of broad-bands in the
                                         ! shortwave spectrum cp_numSWb <= cp_maxSWb
                                         ! this is just for scratch-array purposes
@@ -43,6 +57,10 @@ module EDTypesMod
                                         ! in boundary condition files and parameter
                                         ! files.  This will be compared with 
                                         ! the HLM's expectation in FatesInterfaceMod
+
+  integer, parameter :: ipar = ivis     ! The photosynthetically active band
+                                        ! can be approximated to be equal to the visible band
+
 
   ! Switches that turn on/off ED dynamics process (names are self explanatory)
   ! IMPORTANT NOTE!!! THESE SWITCHES ARE EXPERIMENTAL.  
@@ -342,14 +360,23 @@ module EDTypesMod
      real(r8) ::  f_sun(nclmax,maxpft,nlevleaf)               ! fraction of leaves in the sun in each canopy layer, pft, 
 
      ! radiation profiles for comparison against observations
-     real(r8) ::  nrmlzd_parprof_pft_dir_z(2,nclmax,maxpft,nlevleaf)  ! normalized direct photosynthetically active radiation profiles by 
-                                                                      ! incident type (direct/diffuse at top of canopy),leaf,pft,leaf (unitless)
-     real(r8) ::  nrmlzd_parprof_pft_dif_z(2,nclmax,maxpft,nlevleaf)  ! normalized diffuse photosynthetically active radiation profiles by 
-                                                                      ! incident type (direct/diffuse at top of canopy),leaf,pft,leaf (unitless)
-     real(r8) ::  nrmlzd_parprof_dir_z(2,nclmax,nlevleaf)     ! normalized direct photosynthetically active radiation profiles by 
-                                                              ! incident type (direct/diffuse at top of canopy),leaf,leaf (unitless)     
-     real(r8) ::  nrmlzd_parprof_dif_z(2,nclmax,nlevleaf)     ! normalized diffuse photosynthetically active radiation profiles by 
-                                                              ! incident type (direct/diffuse at top of canopy),leaf,leaf (unitless)     
+
+     ! normalized direct photosynthetically active radiation profiles by 
+     ! incident type (direct/diffuse at top of canopy),leaf,pft,leaf (unitless)
+     real(r8) ::  nrmlzd_parprof_pft_dir_z(n_rad_stream_types,nclmax,maxpft,nlevleaf)  
+
+     ! normalized diffuse photosynthetically active radiation profiles by 
+     ! incident type (direct/diffuse at top of canopy),leaf,pft,leaf (unitless)
+     real(r8) ::  nrmlzd_parprof_pft_dif_z(n_rad_stream_types,nclmax,maxpft,nlevleaf)  
+
+     ! normalized direct photosynthetically active radiation profiles by 
+     ! incident type (direct/diffuse at top of canopy),leaf,leaf (unitless) 
+     real(r8) ::  nrmlzd_parprof_dir_z(n_rad_stream_types,nclmax,nlevleaf)         
+
+     ! normalized diffuse photosynthetically active radiation profiles by 
+     ! incident type (direct/diffuse at top of canopy),leaf,leaf (unitless) 
+     real(r8) ::  nrmlzd_parprof_dif_z(n_rad_stream_types,nclmax,nlevleaf)
+         
      real(r8) ::  parprof_pft_dir_z(nclmax,maxpft,nlevleaf)   ! direct-beam PAR profile through canopy, by canopy,PFT,leaf level (w/m2)
      real(r8) ::  parprof_pft_dif_z(nclmax,maxpft,nlevleaf)   ! diffuse     PAR profile through canopy, by canopy,PFT,leaf level (w/m2)
      real(r8) ::  parprof_dir_z(nclmax,nlevleaf)              ! direct-beam PAR profile through canopy, by canopy,leaf level (w/m2)

@@ -196,9 +196,12 @@ contains
           endif
 
           call bleaf(currentcohort%dbh,ipft,currentcohort%canopy_trim,tar_bl)
-          call bfineroot(currentcohort%dbh,ipft,currentcohort%canopy_trim,tar_bfr)
 
-          bfr_per_bleaf = tar_bfr/tar_bl
+          if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
+             ! only query fine root biomass if using a fine root allometric model that takes leaf trim into account
+             call bfineroot(currentcohort%dbh,ipft,currentcohort%canopy_trim,tar_bfr)
+             bfr_per_bleaf = tar_bfr/tar_bl
+          endif
 
           !Leaf cost vs netuptake for each leaf layer. 
           do z = 1,nlevleaf
@@ -210,18 +213,27 @@ contains
 
 
                    currentCohort%leaf_cost =  1._r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8)
-                   currentCohort%leaf_cost = currentCohort%leaf_cost + &
-                        1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * &
-                        bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+
+                   if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
+                      ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
+                      ! to the leaf increment; otherwise do not.
+                      currentCohort%leaf_cost = currentCohort%leaf_cost + &
+                           1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * &
+                           bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+                   endif
 
                    currentCohort%leaf_cost = currentCohort%leaf_cost * &
                          (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 else !evergreen costs
                    currentCohort%leaf_cost = 1.0_r8/(EDPftvarcon_inst%slatop(ipft)* &
                         EDPftvarcon_inst%leaf_long(ipft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
-                   currentCohort%leaf_cost = currentCohort%leaf_cost + &
-                        1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * &
-                        bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+                   if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
+                      ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
+                      ! to the leaf increment; otherwise do not.
+                      currentCohort%leaf_cost = currentCohort%leaf_cost + &
+                           1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * &
+                           bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+                   endif
                    currentCohort%leaf_cost = currentCohort%leaf_cost * &
                          (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 endif
@@ -875,14 +887,8 @@ contains
     integer , parameter :: max_substeps = 300
     real(r8), parameter :: max_trunc_error = 1.0_r8
     integer,  parameter :: ODESolve = 2    ! 1=RKF45,  2=Euler
-    real(r8), parameter :: global_branch_turnover = 0.0_r8 ! Temporary branch turnover setting
-                                                           ! Branch-turnover control will be 
-                                                           ! introduced in a later PR
-
 
     ipft = currentCohort%pft
-
-    EDPftvarcon_inst%branch_turnover(ipft) = global_branch_turnover
 
     ! Initialize seed production
     currentCohort%seed_prod  = 0.0_r8
@@ -976,35 +982,6 @@ contains
              currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
     end if
 
-    ! -----------------------------------------------------------------------------------
-    ! III(a). Calculate the maintenance turnover demands 
-    !       Pre-check, make sure phenology is mutually exclusive and at least one chosen
-    !       (MOVE THIS TO THE PARAMETER READ-IN SECTION)
-    ! -----------------------------------------------------------------------------------
-
-    if (EDPftvarcon_inst%evergreen(ipft) == 1) then
-       if (EDPftvarcon_inst%season_decid(ipft) == 1)then 
-          write(fates_log(),*) 'PFT # ',ipft,' was specified as being both evergreen'
-          write(fates_log(),*) '       and seasonally deciduous, impossible, aborting'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-       if (EDPftvarcon_inst%stress_decid(ipft) == 1)then 
-          write(fates_log(),*) 'PFT # ',ipft,' was specified as being both evergreen'
-          write(fates_log(),*) '       and stress deciduous, impossible, aborting'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-    end if
-    if (EDPftvarcon_inst%stress_decid(ipft) /= 1 .and. &
-        EDPftvarcon_inst%season_decid(ipft) /= 1 .and. &
-        EDPftvarcon_inst%evergreen(ipft)    /= 1) then
-       write(fates_log(),*) 'PFT # ',ipft,' must be defined as having one of three'
-       write(fates_log(),*) 'phenology habits, ie == 1'
-       write(fates_log(),*) 'stress_decid: ',EDPftvarcon_inst%stress_decid(ipft)
-       write(fates_log(),*) 'season_decid: ',EDPftvarcon_inst%season_decid(ipft)
-       write(fates_log(),*) 'evergreen: ',EDPftvarcon_inst%evergreen(ipft)
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    endif
-    
 
     ! -----------------------------------------------------------------------------------
     ! III(b). Calculate the maintenance turnover demands 
@@ -1463,7 +1440,7 @@ contains
         if (dbh <= EDPftvarcon_inst%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
            repro_fraction = EDPftvarcon_inst%seed_alloc(ipft)
         else
-           repro_fraction = EDPftvarcon_inst%seed_alloc(ipft) + EDPftvarcon_inst%clone_alloc(ipft)
+           repro_fraction = EDPftvarcon_inst%seed_alloc(ipft) + EDPftvarcon_inst%seed_alloc_mature(ipft)
         end if
 
         dCdx = 0.0_r8
