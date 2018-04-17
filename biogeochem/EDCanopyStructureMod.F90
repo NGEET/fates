@@ -148,20 +148,6 @@ contains
          enddo
 
 
-         ! ------------------------------------------------------------------------------
-         ! Check patch area to prevent numerical weirdness
-         ! ------------------------------------------------------------------------------
-         
-         if (currentPatch%area .lt. min_patch_area) then  
-            
-            write(fates_log(),*) 'An incredibly small patch exists that should'
-            write(fates_log(),*) 'had been fused or culled already'
-            write(fates_log(),*) 'currentPatch%area: ',currentPatch%area
-            write(fates_log(),*) 'min_patch_area: ',min_patch_area
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-            
-         end if
-
          ! Does any layer have excess area in it? Keep going until it does not...
          patch_area_counter = 0
          area_not_balanced = .true.
@@ -1098,6 +1084,13 @@ contains
        currentPatch%canopy_area_profile(:,:,:)  = 0._r8       
        currentPatch%canopy_mask(:,:)            = 0
 
+       ! ------------------------------------------------------------------------------
+       ! It is remotely possible that in deserts we will not have any canopy
+       ! area, ie not plants at all...
+       ! ------------------------------------------------------------------------------
+       
+       if (currentPatch%total_canopy_area > tiny(currentPatch%total_canopy_area)) then
+
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort)) 
 
@@ -1226,12 +1219,6 @@ contains
           ! and canopy area to the accumulators. 
           ! -----------------------------------------------------------------------------
 
-          ! ------------------------------------------------------------------------------
-          ! It is remotely possible that in deserts we will not have any canopy
-          ! area, ie not plants at all...
-          ! ------------------------------------------------------------------------------
-          
-          if (currentPatch%total_canopy_area > tiny(currentPatch%total_canopy_area)) then
              
              currentCohort => currentPatch%shortest
              do while(associated(currentCohort))   
@@ -1389,7 +1376,7 @@ contains
              do cl = 1,currentPatch%NCL_p
                 do iv = 1,currentPatch%ncan(cl,ft)
                    
-                   if( sum(currentPatch%canopy_area_profile(cl,:,iv)) > 1.0001_r8 ) then
+                   if( DEBUG .and. sum(currentPatch%canopy_area_profile(cl,:,iv)) > 1.0001_r8 ) then
                       
                       write(fates_log(), *) 'FATES: A canopy_area_profile exceeded 1.0'
                       write(fates_log(), *) 'cl: ',cl
