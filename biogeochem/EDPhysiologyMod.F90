@@ -17,8 +17,8 @@ module EDPhysiologyMod
   use FatesInterfaceMod, only    : bc_in_type
   use EDCohortDynamicsMod , only : zero_cohort
   use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
-  use EDCohortDynamicsMod , only : tree_lai
-  use EDCohortDynamicsMod , only : tree_sai
+  use FatesAllometryMod   , only : tree_lai
+  use FatesAllometryMod   , only : tree_sai
 
   use EDTypesMod          , only : numWaterMem
   use EDTypesMod          , only : dl_sf, dinc_ed
@@ -185,7 +185,10 @@ contains
           trimmed = 0    
           ipft = currentCohort%pft
           call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
-          currentCohort%treelai = tree_lai(currentCohort)    
+          currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%status_coh, currentCohort%pft, &
+               currentCohort%c_area, currentCohort%n )    
+          currentCohort%treesai = tree_sai(currentCohort%dbh, currentCohort%pft, currentCohort%canopy_trim, &
+               currentCohort%c_area, currentCohort%n)    
           currentCohort%nv = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
           if (currentCohort%nv > nlevleaf)then
              write(fates_log(),*) 'nv > nlevleaf',currentCohort%nv,currentCohort%treelai,currentCohort%treesai, &

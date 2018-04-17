@@ -22,11 +22,25 @@ module EDTypesMod
                                                   ! the parameter file may determine that fewer
                                                   ! are used, but this helps allocate scratch
                                                   ! space and output arrays.
+
+
+  ! -------------------------------------------------------------------------------------
+  ! Radiation parameters
+  ! These should be part of the radiation module, but since we only have one option
+  ! this is ok for now. (RGK 04-2018)
+  ! -------------------------------------------------------------------------------------
+
+
+  integer, parameter :: n_rad_stream_types = 2    ! The number of radiation streams used (direct/diffuse)
  
+  integer, parameter :: idirect   = 1           ! This is the array index for direct radiation
+  integer, parameter :: idiffuse  = 2           ! This is the array index for diffuse radiation
+
 
   ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
   ! land-ice abledo for vis and nir.  This should be a parameter, which would
   ! get us on track to start using multi-spectral or hyper-spectral (RGK 02-2017)
+
   integer, parameter :: maxSWb = 2      ! maximum number of broad-bands in the
                                         ! shortwave spectrum cp_numSWb <= cp_maxSWb
                                         ! this is just for scratch-array purposes
@@ -43,6 +57,10 @@ module EDTypesMod
                                         ! in boundary condition files and parameter
                                         ! files.  This will be compared with 
                                         ! the HLM's expectation in FatesInterfaceMod
+
+  integer, parameter :: ipar = ivis     ! The photosynthetically active band
+                                        ! can be approximated to be equal to the visible band
+
 
   ! Switches that turn on/off ED dynamics process (names are self explanatory)
   ! IMPORTANT NOTE!!! THESE SWITCHES ARE EXPERIMENTAL.  
@@ -131,8 +149,8 @@ module EDTypesMod
      real(r8) ::  bsw                                    ! sapwood in stem and roots: kGC per indiv
      real(r8) ::  bl                                     ! leaf biomass: kGC per indiv
      real(r8) ::  br                                     ! fine root biomass: kGC per indiv
-     real(r8) ::  lai                                    ! leaf area index of cohort   m2/m2
-     real(r8) ::  sai                                    ! stem area index of cohort   m2/m2
+     real(r8) ::  lai                                    ! leaf area index of cohort: m2 leaf area of entire cohort per m2 of canopy area of a patch
+     real(r8) ::  sai                                    ! stem area index of cohort: m2 leaf area of entire cohort per m2 of canopy area of a patch
      real(r8) ::  gscan                                  ! Stomatal resistance of cohort. 
      real(r8) ::  canopy_trim                            ! What is the fraction of the maximum leaf biomass that we are targeting? :-
      real(r8) ::  leaf_cost                              ! How much does it cost to maintain leaves: kgC/m2/year-1
@@ -141,8 +159,8 @@ module EDTypesMod
      integer  ::  nv                                     ! Number of leaf layers: -
      integer  ::  status_coh                             ! growth status of plant  (2 = leaves on , 1 = leaves off)
      real(r8) ::  c_area                                 ! areal extent of canopy (m2)
-     real(r8) ::  treelai                                ! lai of tree (total leaf area (m2) / canopy area (m2)
-     real(r8) ::  treesai                                ! stem area index of tree (total stem area (m2) / canopy area (m2)
+     real(r8) ::  treelai                                ! lai of an individual within cohort leaf area (m2) / crown area (m2)
+     real(r8) ::  treesai                                ! stem area index of an indiv. within cohort: stem area (m2) / crown area (m2)
      logical  ::  isnew                                  ! flag to signify a new cohort, new cohorts have not experienced
                                                          ! npp or mortality and should therefore not be fused or averaged
      integer  ::  size_class                             ! An index that indicates which diameter size bin the cohort currently resides in
@@ -193,7 +211,7 @@ module EDTypesMod
      real(r8) ::  npp_seed          ! NPP into seeds: KgC/indiv/year
      real(r8) ::  npp_stor          ! NPP into storage: KgC/indiv/year
 
-     real(r8) ::  ts_net_uptake(nlevleaf)              ! Net uptake of leaf layers: kgC/m2/s
+     real(r8) ::  ts_net_uptake(nlevleaf)              ! Net uptake of leaf layers: kgC/m2/timestep
      real(r8) ::  year_net_uptake(nlevleaf)            ! Net uptake of leaf layers: kgC/m2/year
 
      ! RESPIRATION COMPONENTS
@@ -340,6 +358,29 @@ module EDTypesMod
      real(r8) ::  ed_parsun_z(nclmax,maxpft,nlevleaf)         ! PAR absorbed  in the sun   in each canopy layer,
      real(r8) ::  ed_parsha_z(nclmax,maxpft,nlevleaf)         ! PAR absorbed  in the shade in each canopy layer,
      real(r8) ::  f_sun(nclmax,maxpft,nlevleaf)               ! fraction of leaves in the sun in each canopy layer, pft, 
+
+     ! radiation profiles for comparison against observations
+
+     ! normalized direct photosynthetically active radiation profiles by 
+     ! incident type (direct/diffuse at top of canopy),leaf,pft,leaf (unitless)
+     real(r8) ::  nrmlzd_parprof_pft_dir_z(n_rad_stream_types,nclmax,maxpft,nlevleaf)  
+
+     ! normalized diffuse photosynthetically active radiation profiles by 
+     ! incident type (direct/diffuse at top of canopy),leaf,pft,leaf (unitless)
+     real(r8) ::  nrmlzd_parprof_pft_dif_z(n_rad_stream_types,nclmax,maxpft,nlevleaf)  
+
+     ! normalized direct photosynthetically active radiation profiles by 
+     ! incident type (direct/diffuse at top of canopy),leaf,leaf (unitless) 
+     real(r8) ::  nrmlzd_parprof_dir_z(n_rad_stream_types,nclmax,nlevleaf)         
+
+     ! normalized diffuse photosynthetically active radiation profiles by 
+     ! incident type (direct/diffuse at top of canopy),leaf,leaf (unitless) 
+     real(r8) ::  nrmlzd_parprof_dif_z(n_rad_stream_types,nclmax,nlevleaf)
+         
+     real(r8) ::  parprof_pft_dir_z(nclmax,maxpft,nlevleaf)   ! direct-beam PAR profile through canopy, by canopy,PFT,leaf level (w/m2)
+     real(r8) ::  parprof_pft_dif_z(nclmax,maxpft,nlevleaf)   ! diffuse     PAR profile through canopy, by canopy,PFT,leaf level (w/m2)
+     real(r8) ::  parprof_dir_z(nclmax,nlevleaf)              ! direct-beam PAR profile through canopy, by canopy,leaf level (w/m2)
+     real(r8) ::  parprof_dif_z(nclmax,nlevleaf)              ! diffuse     PAR profile through canopy, by canopy,leaf level (w/m2)
 
      ! and leaf layer. m2/m2
      real(r8),allocatable ::  tr_soil_dir(:)                              ! fraction of incoming direct  radiation that (cm_numSWb)
