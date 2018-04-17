@@ -191,7 +191,7 @@ contains
     ! Ball-Berry minimum leaf conductance, unstressed (umol H2O/m**2/s)
     ! For C3 and C4 plants
     ! -----------------------------------------------------------------------------------
-    real(r8), dimension(2) :: bbbopt 
+    real(r8), dimension(0:1) :: bbbopt 
 
     associate(  &
          c3psn     => EDPftvarcon_inst%c3psn  , &
@@ -202,9 +202,9 @@ contains
          frootcn   => EDPftvarcon_inst%frootcn, & ! froot C:N (gc/gN)   ! slope of BB relationship
          q10       => FatesSynchronizedParamsInst%Q10 )
 
+      bbbopt(0) = ED_val_bbopt_c4
       bbbopt(1) = ED_val_bbopt_c3
-      bbbopt(2) = ED_val_bbopt_c4
-
+      
       do s = 1,nsites
 
          ! Multi-layer parameters scaled by leaf nitrogen profile.
@@ -324,10 +324,12 @@ contains
                      ! are there any leaves of this pft in this layer?
                      if(currentPatch%canopy_mask(cl,ft) == 1)then 
                         
-                        if(cl==NCL_p)then !are we in the top canopy layer or a shaded layer?
+                        if(cl==1)then !are we in the top canopy layer or a shaded layer?
                            laican = 0._r8
                         else
-                           laican = sum(currentPatch%canopy_layer_tai(cl+1:NCL_p)) 
+
+                           laican = sum(currentPatch%canopy_layer_tai(1:cl-1)) 
+
                         end if
                         
                         ! Loop over leaf-layers
@@ -366,7 +368,7 @@ contains
                                  laican = laican + 0.5_r8 * vai
                               else
                                  laican = laican + 0.5_r8 * (currentPatch%elai_profile(cl,ft,iv-1)+ &
-                                       currentPatch%esai_profile(cl,ft,iv-1))+vai
+                                       currentPatch%esai_profile(cl,ft,iv-1)+vai)
                               end if
                               
                               ! Scale for leaf nitrogen profile
@@ -719,7 +721,8 @@ contains
 
    ! Locals
    ! ------------------------------------------------------------------------
-   integer :: pp_type            ! Index for the different photosynthetic pathways C3,C4
+   integer :: c3c4_path_index    ! Index for which photosynthetic pathway 
+                                 ! is active.  C4 = 0,  C3 = 1
    integer :: sunsha             ! Index for differentiating sun and shade
    real(r8) :: gstoma            ! Stomatal Conductance of this leaf layer (m/s)
    real(r8) :: agross            ! co-limited gross leaf photosynthesis (umol CO2/m**2/s)
@@ -756,22 +759,23 @@ contains
    real(r8),parameter :: init_a2l_co2_c3 = 0.7_r8
    real(r8),parameter :: init_a2l_co2_c4 = 0.4_r8
 
-   ! quantum efficiency, used only for C4 (mol CO2 / mol photons)
-   real(r8),parameter,dimension(2) :: quant_eff = [0.0_r8,0.05_r8]
+   ! quantum efficiency, used only for C4 (mol CO2 / mol photons) (index 0)
+   real(r8),parameter,dimension(0:1) :: quant_eff = [0.05_r8,0.0_r8]
 
    ! empirical curvature parameter for ac, aj photosynthesis co-limitation
-   real(r8),parameter,dimension(2) :: theta_cj  = [0.98_r8,0.80_r8]
+   real(r8),parameter,dimension(0:1) :: theta_cj  = [0.80_r8,0.98_r8]
 
    ! empirical curvature parameter for ap photosynthesis co-limitation
    real(r8),parameter :: theta_ip = 0.95_r8
 
-   associate( bb_slope  => EDPftvarcon_inst%BB_slope ) ! slope of BB relationship
+   associate( bb_slope  => EDPftvarcon_inst%BB_slope)    ! slope of BB relationship
+
+     ! photosynthetic pathway: 0. = c4, 1. = c3
+     c3c4_path_index = nint(EDPftvarcon_inst%c3psn(ft))
      
-     if (nint(EDPftvarcon_inst%c3psn(ft)) == 1) then! photosynthetic pathway: 0. = c4, 1. = c3
-        pp_type = 1
+     if (c3c4_path_index == 1) then
         init_co2_intra_c = init_a2l_co2_c3 * can_co2_ppress
      else
-        pp_type = 2
         init_co2_intra_c = init_a2l_co2_c4 * can_co2_ppress
      end if
 
@@ -843,7 +847,7 @@ contains
                  co2_intra_c_old = co2_intra_c
                  
                  ! Photosynthesis limitation rate calculations 
-                 if (pp_type == 1)then    
+                 if (c3c4_path_index == 1)then    
 
                     ! C3: Rubisco-limited photosynthesis
                     ac = vcmax * max(co2_intra_c-co2_cpoint, 0._r8) / &
@@ -865,14 +869,14 @@ contains
                     if(sunsha == 1)then !sunlit
                        !guard against /0's in the night.
                        if((laisun_lsl * canopy_area_lsl) > 0.0000000001_r8) then   
-                          aj = quant_eff(pp_type) * parsun_lsl * 4.6_r8
+                          aj = quant_eff(c3c4_path_index) * parsun_lsl * 4.6_r8
                           !convert from per cohort to per m2 of leaf)
                           aj = aj / (laisun_lsl * canopy_area_lsl)
                        else
                           aj = 0._r8
                        end if
                     else
-                       aj = quant_eff(pp_type) * parsha_lsl * 4.6_r8
+                       aj = quant_eff(c3c4_path_index) * parsha_lsl * 4.6_r8
                        aj = aj / (laisha_lsl * canopy_area_lsl)
                     end if
 
@@ -882,7 +886,7 @@ contains
                  end if
 
                  ! Gross photosynthesis smoothing calculations. First co-limit ac and aj. Then co-limit ap
-                 aquad = theta_cj(pp_type)
+                 aquad = theta_cj(c3c4_path_index)
                  bquad = -(ac + aj)
                  cquad = ac * aj
                  call quadratic_f (aquad, bquad, cquad, r1, r2)
