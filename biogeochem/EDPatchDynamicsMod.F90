@@ -7,7 +7,8 @@ module EDPatchDynamicsMod
   use FatesInterfaceMod    , only : hlm_freq_day
   use EDPftvarcon          , only : EDPftvarcon_inst
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
-  use EDtypesMod           , only : ncwd, n_dbh_bins, ntol, area, dbhmax
+  use EDtypesMod           , only : ncwd, n_dbh_bins, area, patchfusion_dbhbin_loweredges
+  use EDtypesMod           , only : force_patchfuse_min_biomass
   use EDTypesMod           , only : maxPatchesPerSite
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod           , only : min_patch_area
@@ -118,7 +119,8 @@ contains
 
           call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort)
           currentCohort%dmort  = cmort+hmort+bmort+frmort
-          call carea_allom(currentCohort%dbh,currentCohort%n,site_in%spread,currentCohort%pft,currentCohort%c_area)
+          call carea_allom(currentCohort%dbh,currentCohort%n,site_in%spread,currentCohort%pft, &
+               currentCohort%c_area)
 
           ! Initialize diagnostic mortality rates
           currentCohort%cmort = cmort
@@ -1217,9 +1219,8 @@ contains
     currentPatch%age                        = nan                          
     currentPatch%age_class                  = 1
     currentPatch%area                       = nan                                           
-    currentPatch%canopy_layer_lai(:)        = nan               
+    currentPatch%canopy_layer_tai(:)        = nan               
     currentPatch%total_canopy_area          = nan
-    currentPatch%canopy_area                = nan                                 
     currentPatch%bare_frac_area             = nan                             
 
     currentPatch%tlai_profile(:,:,:)        = nan 
@@ -1246,10 +1247,9 @@ contains
     currentPatch%fabd(:)                    = nan    ! fraction of incoming direct  radiation that is absorbed by the canopy
     currentPatch%fabi(:)                    = nan    ! fraction of incoming diffuse radiation that is absorbed by the canopy
 
-    currentPatch%present(:,:)               = 999    ! is there any of this pft in this layer?
+    currentPatch%canopy_mask(:,:)           = 999    ! is there any of this pft in this layer?
     currentPatch%nrad(:,:)                  = 999    ! number of exposed leaf layers for each canopy layer and pft
     currentPatch%ncan(:,:)                  = 999    ! number of total leaf layers for each canopy layer and pft
-    currentPatch%lai                        = nan    ! leaf area index of patch
     currentPatch%pft_agb_profile(:,:)       = nan    
 
     ! DISTURBANCE 
@@ -1300,7 +1300,7 @@ contains
     currentPatch%burnt_frac_litter(:)       = 0.0_r8 
     currentPatch%btran_ft(:)                = 0.0_r8
 
-    currentPatch%canopy_layer_lai(:)        = 0.0_r8
+    currentPatch%canopy_layer_tai(:)        = 0.0_r8
 
     currentPatch%seeds_in(:)                = 0.0_r8
     currentPatch%seed_decay(:)              = 0.0_r8
@@ -1321,6 +1321,8 @@ contains
     !
     ! !USES:
     use EDParamsMod , only : ED_val_patch_fusion_tol
+    use EDTypesMod , only : patch_fusion_tolerance_relaxation_increment
+    use EDTypesMod , only : max_age_of_second_oldest_patch
     !
     ! !ARGUMENTS:
     type(ed_site_type), intent(inout), target  :: csite
@@ -1332,13 +1334,11 @@ contains
     integer  :: ft,z        !counters for pft and height class
     real(r8) :: norm        !normalized difference between biomass profiles
     real(r8) :: profiletol  !tolerance of patch fusion routine. Starts off high and is reduced if there are too many patches.
-    integer  :: maxpatch    !maximum number of allowed patches. FIX-RF. These should be namelist variables. 
     integer  :: nopatches   !number of patches presently in gridcell
     integer  :: iterate     !switch of patch reduction iteration scheme. 1 to keep going, 0 to stop
     integer  :: fuse_flag   !do patches get fused (1) or not (0). 
+    !
     !---------------------------------------------------------------------
-
-    maxpatch = maxPatchesPerSite
 
     currentSite => csite 
 
@@ -1356,7 +1356,7 @@ contains
     iterate = 1
 
     !---------------------------------------------------------------------!
-    !  Keep doing this until nopatches >= maxpatch                         !
+    !  Keep doing this until nopatches >= maxPatchesPerSite                         !
     !---------------------------------------------------------------------!
 
     do while(iterate == 1)
@@ -1382,36 +1382,80 @@ contains
              endif
 
              if(associated(tpp).and.associated(currentPatch))then
-                fuse_flag = 1 !the default is to fuse the patches
+
+                !--------------------------------------------------------------------------------------------
+                ! The default is to fuse the patches, unless some criteria is met which keeps them separated.
+                ! there are multiple criteria which all need to be met to keep them distinct:
+                ! (a) one of them is younger than the max age at which we force fusion;
+                ! (b) there is more than a threshold (tiny) amount of biomass in at least one of the patches;
+                ! (c) for at least one pft x size class, where there is biomass in that class in at least one patch,
+                ! and the normalized difference between the patches exceeds a threshold.
+                !--------------------------------------------------------------------------------------------
+                
+                fuse_flag = 1
                 if(currentPatch%patchno /= tpp%patchno) then   !these should be the same patch
 
-                   !---------------------------------------------------------------------!
-                   ! Calculate the difference criteria for each pft and dbh class        !
-                   !---------------------------------------------------------------------!   
-                   do ft = 1,numpft        ! loop over pfts
-                      do z = 1,n_dbh_bins      ! loop over hgt bins 
-                         !is there biomass in this category?
-                         if(currentPatch%pft_agb_profile(ft,z)  > 0.0_r8.or.tpp%pft_agb_profile(ft,z) > 0.0_r8)then 
-                            norm = abs(currentPatch%pft_agb_profile(ft,z) - tpp%pft_agb_profile(ft,z))/(0.5_r8*&
-                                 &(currentPatch%pft_agb_profile(ft,z) + tpp%pft_agb_profile(ft,z)))
-                            !---------------------------------------------------------------------!
-                            ! Look for differences in profile biomass, above the minimum biomass  !
-                            !---------------------------------------------------------------------!
+                   !-----------------------------------------------------------------------------------
+                   ! check to see if both patches are older than the age at which we force them to fuse
+                   !-----------------------------------------------------------------------------------
+                   
+                   if ( tpp%age .le. max_age_of_second_oldest_patch .or. &
+                      currentPatch%age .le. max_age_of_second_oldest_patch ) then
 
-                            if(norm  > profiletol)then
-                               !looking for differences between profile density.                   
-                               if(currentPatch%pft_agb_profile(ft,z) > NTOL.or.tpp%pft_agb_profile(ft,z) > NTOL)then
-                                  fuse_flag = 0 !do not fuse  - keep apart. 
-                               endif
-                            endif ! profile tol           
-                         endif ! NTOL 
-                      enddo !ht bins
-                   enddo ! PFT
+                      
+                      !---------------------------------------------------------------------------------------------------------
+                      ! the next bit of logic forces fusion of two patches which both have tiny biomass densities. without this,
+                      ! fates gives a bunch of really young patches which all have almost no biomass and so don't need to be 
+                      ! distinguished from each other. but if force_patchfuse_min_biomass is too big, it takes too long for the 
+                      ! youngest patch to build up enough biomass to be its own distinct entity, which leads to large oscillations 
+                      ! in the patch dynamics and dependent variables.
+                      !---------------------------------------------------------------------------------------------------------
+                      
+                      if(sum(currentPatch%pft_agb_profile(:,:)) > force_patchfuse_min_biomass .or. &
+                           sum(tpp%pft_agb_profile(:,:)) > force_patchfuse_min_biomass ) then
 
-                   !---------------------------------------------------------------------!
-                   ! Call the patch fusion routine if there is a meaningful difference   !
-                   ! any of the pft x height categories                                  !
-                   !---------------------------------------------------------------------!
+                         !---------------------------------------------------------------------!
+                         ! Calculate the difference criteria for each pft and dbh class        !
+                         !---------------------------------------------------------------------!   
+
+                         do ft = 1,numpft        ! loop over pfts
+                            do z = 1,n_dbh_bins      ! loop over hgt bins 
+
+                               !----------------------------------
+                               !is there biomass in this category?
+                               !----------------------------------
+
+                               if(currentPatch%pft_agb_profile(ft,z)  > 0.0_r8 .or.  &
+                                    tpp%pft_agb_profile(ft,z) > 0.0_r8)then 
+
+                                  !-------------------------------------------------------------------------------------
+                                  ! what is the relative difference in biomass i nthis category between the two patches?
+                                  !-------------------------------------------------------------------------------------
+
+                                  norm = abs(currentPatch%pft_agb_profile(ft,z) - &
+                                       tpp%pft_agb_profile(ft,z))/(0.5_r8 * &
+                                       &(currentPatch%pft_agb_profile(ft,z) + tpp%pft_agb_profile(ft,z)))
+
+                                  !---------------------------------------------------------------------!
+                                  ! Look for differences in profile biomass, above the minimum biomass  !
+                                  !---------------------------------------------------------------------!
+
+                                  if(norm  > profiletol)then
+
+                                     fuse_flag = 0 !do not fuse  - keep apart. 
+
+                                  endif ! profile tol           
+                               endif ! biomass(ft,z) .gt. 0
+                            enddo !ht bins
+                         enddo ! PFT
+                      endif ! sum(biomass(:,:) .gt. force_patchfuse_min_biomass 
+                   endif ! maxage
+
+                   !-------------------------------------------------------------------------!
+                   ! Call the patch fusion routine if there is not a meaningful difference   !
+                   ! any of the pft x height categories                                      !
+                   ! or both are older than forced fusion age                                !
+                   !-------------------------------------------------------------------------!
 
                    if(fuse_flag  ==  1)then 
                       tmpptr => currentPatch%older       
@@ -1445,9 +1489,9 @@ contains
           currentPatch => currentPatch%older
        enddo
 
-       if(nopatches > maxpatch)then
+       if(nopatches > maxPatchesPerSite)then
           iterate = 1
-          profiletol = profiletol * 1.1_r8
+          profiletol = profiletol * patch_fusion_tolerance_relaxation_increment
 
           !---------------------------------------------------------------------!
           ! Making profile tolerance larger means that more fusion will happen  !
@@ -1456,7 +1500,7 @@ contains
           iterate = 0
        endif
 
-    enddo !do while nopatches>maxpatch
+    enddo !do while nopatches>maxPatchesPerSite
  
   end subroutine fuse_patches
 
@@ -1668,13 +1712,13 @@ contains
             ! This is only really meant for very old patches. 
              if(associated(currentPatch%older) )then
                 write(fates_log(),*) 'fusing to older patch because this one is too small',&
-                     currentPatch%area, currentPatch%lai, &
-                     currentPatch%older%area,currentPatch%older%lai
+                     currentPatch%area, &
+                     currentPatch%older%area
                 call fuse_2_patches(currentPatch%older, currentPatch)
                 write(fates_log(),*) 'after fusion to older patch',currentPatch%area
              else
                 write(fates_log(),*) 'fusing to younger patch because oldest one is too small',&
-                     currentPatch%area, currentPatch%lai
+                     currentPatch%area
                 tmpptr => currentPatch%younger
                 call fuse_2_patches(currentPatch, currentPatch%younger)
                 write(fates_log(),*) 'after fusion to younger patch'
@@ -1765,20 +1809,15 @@ contains
 
     currentPatch => cp_pnt
 
-    delta_dbh = (DBHMAX/N_DBH_BINS)
-
     currentPatch%pft_agb_profile(:,:) = 0.0_r8
 
     do j = 1,N_DBH_BINS   
-        if (j == 1) then
-           mind(j) = 0.0_r8
-           maxd(j) = delta_dbh
-        else if (j == N_DBH_BINS) then
-           mind(j) = (j-1) * delta_dbh
+        if (j == N_DBH_BINS) then
+           mind(j) = patchfusion_dbhbin_loweredges(j)
            maxd(j) = gigantictrees
         else 
-           mind(j) = (j-1) * delta_dbh
-           maxd(j) = (j)*delta_dbh
+           mind(j) = patchfusion_dbhbin_loweredges(j)
+           maxd(j) = patchfusion_dbhbin_loweredges(j+1)
         endif
     enddo
 
