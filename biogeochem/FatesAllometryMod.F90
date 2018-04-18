@@ -102,6 +102,7 @@ module FatesAllometryMod
   public :: bagw_allom    ! Generic AGWB (above grnd. woody bio) wrapper
   public :: blmax_allom   ! Generic maximum leaf biomass wrapper
   public :: bleaf         ! Generic actual leaf biomass wrapper
+  public :: storage_fraction_of_target ! storage as fraction of leaf biomass
   public :: tree_lai      ! Calculate tree-level LAI from actual leaf biomass
   public :: tree_sai      ! Calculate tree-level SAI from target leaf biomass
   public :: bsap_allom    ! Generic sapwood wrapper
@@ -458,9 +459,7 @@ contains
 
     end associate
     return
- end subroutine carea_allom
-
-
+  end subroutine carea_allom
 
   ! =====================================================================================
         
@@ -500,6 +499,27 @@ contains
     return
   end subroutine bleaf
   
+  ! =====================================================================================
+
+  subroutine storage_fraction_of_target(b_leaf, bstore, frac)
+
+    !--------------------------------------------------------------------------------
+    ! returns the storage pool as a fraction of its target (only if it is below its target)
+    ! used in both the carbon starvation mortlaity scheme as wella s the optional respiration throttling logic
+    !--------------------------------------------------------------------------------
+
+    real(r8),intent(in)    :: b_leaf
+    real(r8),intent(in)    :: bstore
+    real(r8),intent(out)   :: frac
+
+    if( b_leaf > 0._r8 .and. bstore <= b_leaf )then
+       frac = bstore/ b_leaf
+    else
+       frac = 1._r8
+    endif
+
+  end subroutine storage_fraction_of_target
+
   ! =====================================================================================
   
   real(r8) function tree_lai( bl, status_coh, pft, c_area, n )
