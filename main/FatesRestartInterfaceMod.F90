@@ -1408,7 +1408,6 @@ contains
      real(r8)                          :: b_sapwood     ! sapwood dummy var (kgC)
      real(r8)                          :: site_spread   ! site sprea dummy var (0-1)
      integer                           :: fto
-     integer                           :: ft
 
      ! Dummy arguments used for calling create patch, these will be overwritten before
      ! run-time.  Just used now for allocation.
@@ -1490,7 +1489,7 @@ contains
 
                 temp_cohort%hite = 1.25_r8
                 ! Solve for diameter from height
-                call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
+                call h2d_allom(temp_cohort%hite,temp_cohort%pft,temp_cohort%dbh)
 
                 if (DEBUG) then
                    write(fates_log(),*) 'EDRestVectorMod.F90::createPatchCohortStructure call create_cohort '
@@ -1501,7 +1500,7 @@ contains
                 b_sapwood  = 0.0_r8
                 site_spread = 0.5_r8
                 
-                call create_cohort(newp, ft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
+                call create_cohort(newp, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                      b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore,  &
                      temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, newp%NCL_p, &
                      site_spread, bc_in(s))
