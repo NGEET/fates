@@ -10,7 +10,8 @@ module FatesRestartInterfaceMod
   use FatesIODimensionsMod, only : fates_io_dimension_type
   use FatesIOVariableKindMod, only : fates_io_variable_kind_type
   use FatesRestartVariableMod, only : fates_restart_variable_type
-  use FatesInterfaceMod, only : bc_in_type
+  use FatesInterfaceMod, only : bc_in_type 
+  use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
 
   ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -90,8 +91,10 @@ module FatesRestartInterfaceMod
   integer, private :: ir_nplant_co
   integer, private :: ir_gpp_acc_co
   integer, private :: ir_npp_acc_co
+  integer, private :: ir_resp_acc_co
   integer, private :: ir_gpp_acc_hold_co
   integer, private :: ir_npp_acc_hold_co
+  integer, private :: ir_resp_acc_hold_co
   integer, private :: ir_npp_leaf_co
   integer, private :: ir_npp_froot_co
   integer, private :: ir_npp_sw_co
@@ -704,6 +707,11 @@ contains
          units='kgC/indiv', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_acc_co )
 
+    call this%set_restart_var(vname='fates_resp_acc', vtype=cohort_r8, &
+         long_name='ed cohort - accumulated respiration over dynamics step', &
+         units='kgC/indiv', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_acc_co )
+
     call this%set_restart_var(vname='fates_gpp_acc_hold', vtype=cohort_r8, &
          long_name='ed cohort - current step gpp', &
          units='kgC/indiv/year', flushval = flushzero, &
@@ -713,6 +721,11 @@ contains
          long_name='ed cohort - current step npp', &
          units='kgC/indiv/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_acc_hold_co )
+
+    call this%set_restart_var(vname='fates_resp_acc_hold', vtype=cohort_r8, &
+         long_name='ed cohort - current step resp', &
+         units='kgC/indiv/year', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_acc_hold_co )
 
     call this%set_restart_var(vname='fates_npp_leaf', vtype=cohort_r8, &
          long_name='ed cohort - npp sent to leaves', &
@@ -1071,7 +1084,9 @@ contains
            rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
            rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
            rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
+           rio_resp_acc_co             => this%rvars(ir_resp_acc_co)%r81d, &
            rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
+           rio_resp_acc_hold_co        => this%rvars(ir_resp_acc_hold_co)%r81d, &
            rio_npp_acc_hold_co         => this%rvars(ir_npp_acc_hold_co)%r81d, &
            rio_npp_leaf_co             => this%rvars(ir_npp_leaf_co)%r81d, &
            rio_npp_froot_co            => this%rvars(ir_npp_froot_co)%r81d, &
@@ -1193,7 +1208,9 @@ contains
                 rio_nplant_co(io_idx_co)       = ccohort%n
                 rio_gpp_acc_co(io_idx_co)      = ccohort%gpp_acc
                 rio_npp_acc_co(io_idx_co)      = ccohort%npp_acc
+                rio_resp_acc_co(io_idx_co)     = ccohort%resp_acc
                 rio_gpp_acc_hold_co(io_idx_co) = ccohort%gpp_acc_hold
+                rio_resp_acc_hold_co(io_idx_co) = ccohort%resp_acc_hold
                 rio_npp_acc_hold_co(io_idx_co) = ccohort%npp_acc_hold
                 rio_npp_leaf_co(io_idx_co)     = ccohort%npp_leaf
                 rio_npp_froot_co(io_idx_co)    = ccohort%npp_fnrt
@@ -1243,6 +1260,20 @@ contains
              rio_age_pa(io_idx_co_1st)         = cpatch%age
              rio_area_pa(io_idx_co_1st)        = cpatch%area
              
+!             ! spitfire patch level variables
+!             rio_spitfire_ros_front_pa(io_idx_co_1st)      = cpatch%ROS_front 
+!             rio_sptifire_effect_wspeed_pa(io_idx_co_1st)  = cpatch%effect_wspeed
+!             rio_spitfire_tfc_ros_pa(io_idx_co_1st)        = cpatch%TFC_ROS
+!             rio_spitfire_fi_pa(io_idx_co_1st)             = cpatch%FI
+!             rio_spitfire_frac_burnt_pa(io_idx_co_1st)     = cpatch%frac_burnt
+!             rio_spitfire_sh_pa(io_idx_co_1st)             = cpatch%SH
+!             rio_spitfire_fuel_bulkd_pa(io_idx_co_1st)     = cpatch%fuel_bulkd
+!             rio_spitfire_fuel_eff_moist_pa(io_idx_co_1st) = cpatch%fuel_eff_moist
+!             rio_spitfire_fuel_sav_pa(io_idx_co_1st)       = cpatch%fuel_sav
+!             rio_spitfire_fuel_mef_pa(io_idx_co_1st)       = cpatch%fuel_mef
+!             rio_spitfire_sum_fuel_pa(io_idx_co_1st)       = cpatch%sum_fuel
+
+
              ! set cohorts per patch for IO
              rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
              
@@ -1381,6 +1412,7 @@ contains
      use EDPatchDynamicsMod,   only : create_patch
      use EDPftvarcon,          only : EDPftvarcon_inst
      use FatesAllometryMod,    only : h2d_allom
+     
 
      ! !ARGUMENTS:
      class(fates_restart_interface_type) , intent(inout) :: this
@@ -1576,6 +1608,7 @@ contains
      use FatesInterfaceMod, only : numpft
      use FatesInterfaceMod, only : fates_maxElementsPerPatch
      use EDTypesMod, only : numWaterMem
+     use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
 
      ! !ARGUMENTS:
      class(fates_restart_interface_type) , intent(inout) :: this
@@ -1660,7 +1693,9 @@ contains
           rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
           rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
           rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
+          rio_resp_acc_co             => this%rvars(ir_resp_acc_co)%r81d, &
           rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
+          rio_resp_acc_hold_co        => this%rvars(ir_resp_acc_hold_co)%r81d, &
           rio_npp_acc_hold_co         => this%rvars(ir_npp_acc_hold_co)%r81d, &
           rio_npp_leaf_co             => this%rvars(ir_npp_leaf_co)%r81d, &
           rio_npp_froot_co            => this%rvars(ir_npp_froot_co)%r81d, &
@@ -1768,7 +1803,9 @@ contains
                 ccohort%n            = rio_nplant_co(io_idx_co)
                 ccohort%gpp_acc      = rio_gpp_acc_co(io_idx_co)
                 ccohort%npp_acc      = rio_npp_acc_co(io_idx_co)
+                ccohort%resp_acc     = rio_resp_acc_co(io_idx_co)
                 ccohort%gpp_acc_hold = rio_gpp_acc_hold_co(io_idx_co)
+                ccohort%resp_acc_hold = rio_resp_acc_hold_co(io_idx_co)
                 ccohort%npp_acc_hold = rio_npp_acc_hold_co(io_idx_co)
                 ccohort%npp_leaf     = rio_npp_leaf_co(io_idx_co)
                 ccohort%npp_fnrt     = rio_npp_froot_co(io_idx_co)
@@ -1820,7 +1857,8 @@ contains
              !
              cpatch%livegrass  = rio_livegrass_pa(io_idx_co_1st)
              cpatch%age        = rio_age_pa(io_idx_co_1st) 
-             cpatch%area       = rio_area_pa(io_idx_co_1st) 
+             cpatch%area       = rio_area_pa(io_idx_co_1st)
+             cpatch%age_class  = get_age_class_index(cpatch%age)
              
              ! set cohorts per patch for IO
              
