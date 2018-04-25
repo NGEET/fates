@@ -104,6 +104,7 @@ contains
       type(ed_cohort_type), pointer :: currentCohort
       integer  :: i_lyr                  ! current layer index
       integer  :: z                      ! Current number of canopy layers. (1= canopy, 2 = understorey) 
+      integer  :: ipft
       real(r8) :: arealayer(nclmax+2)    ! Amount of plant area currently in each canopy layer
       integer  :: patch_area_counter     ! count iterations used to solve canopy areas
       logical  :: area_not_balanced      ! logical controlling if the patch layer areas
@@ -139,8 +140,8 @@ contains
          currentCohort => currentPatch%tallest
          do while (associated(currentCohort))
             if( currentCohort%canopy_layer < 1 .or. currentCohort%canopy_layer > nclmax+1 ) then 
-               write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
-               write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
+               write(fates_log(),*) 'lat:',currentSite%lat
+               write(fates_log(),*) 'lon:',currentSite%lon
                write(fates_log(),*) 'BOGUS CANOPY LAYER: ',currentCohort%canopy_layer
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
@@ -162,7 +163,7 @@ contains
             ! Calculate how many layers we have in this canopy
             ! This also checks the understory to see if its crown 
             ! area is large enough to warrant a temporary sub-understory layer
-            z = NumPotentialCanopyLayers(currentPatch,include_substory=.true.)
+            z = NumPotentialCanopyLayers(currentPatch,currentSite%spread,include_substory=.true.)
             
             do i_lyr = 1,z ! Loop around the currently occupied canopy layers. 
                call DemoteFromLayer(currentSite, currentPatch, i_lyr)
@@ -183,7 +184,7 @@ contains
             ! ---------------------------------------------------------------------------------------
             
             ! Re-calculate Number of layers without the false substory
-            z = NumPotentialCanopyLayers(currentPatch,include_substory=.false.)
+            z = NumPotentialCanopyLayers(currentPatch,currentSite%spread,include_substory=.false.)
 
             ! We only promote if we have at least two layers
             if (z>1) then
@@ -208,10 +209,10 @@ contains
             ! that cohort fusion has nudged the areas a little bit.
             ! ---------------------------------------------------------------------------------------
             
-            z = NumPotentialCanopyLayers(currentPatch,include_substory=.false.)
+            z = NumPotentialCanopyLayers(currentPatch,currentSite%spread,include_substory=.false.)
             area_not_balanced = .false.
             do i_lyr = 1,z
-               call CanopyLayerArea(currentPatch,i_lyr,arealayer(i_lyr))
+               call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer(i_lyr))
                if( (arealayer(i_lyr)-currentPatch%area)  >  area_check_precision )then
                   area_not_balanced = .true.
                endif
@@ -225,8 +226,9 @@ contains
             if(patch_area_counter > max_patch_iterations) then
                write(fates_log(),*) 'PATCH AREA CHECK NOT CLOSING'
                write(fates_log(),*) 'patch area:',currentpatch%area
-               write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
-               write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
+               write(fates_log(),*) 'lat:',currentSite%lat
+               write(fates_log(),*) 'lon:',currentSite%lon
+	       write(fates_log(),*) 'spread:',currentSite%spread
                currentCohort => currentPatch%tallest
                do while (associated(currentCohort))  
                   write(fates_log(),*) 'coh ilayer:',currentCohort%canopy_layer
@@ -234,6 +236,13 @@ contains
                   write(fates_log(),*) 'coh pft:',currentCohort%pft
                   write(fates_log(),*) 'coh n:',currentCohort%n
                   write(fates_log(),*) 'coh carea:',currentCohort%c_area
+		  ipft=currentCohort%pft
+		  write(fates_log(),*) 'maxh:',EDPftvarcon_inst%allom_dbh_maxheight(ipft)
+                  write(fates_log(),*) 'lmode: ',EDPftvarcon_inst%allom_lmode(ipft)
+		  write(fates_log(),*) 'd2bl2: ',EDPftvarcon_inst%allom_d2bl2(ipft)
+		  write(fates_log(),*) 'd2bl_ediff: ',EDPftvarcon_inst%allom_blca_expnt_diff(ipft)
+		  write(fates_log(),*) 'd2ca_min: ',EDPftvarcon_inst%allom_d2ca_coefficient_min(ipft)
+		  write(fates_log(),*) 'd2ca_max: ',EDPftvarcon_inst%allom_d2ca_coefficient_max(ipft)
                   currentCohort => currentCohort%shorter
                enddo
                call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -304,7 +313,7 @@ contains
 
       ! First, determine how much total canopy area we have in this layer
 
-      call CanopyLayerArea(currentPatch,i_lyr,arealayer)
+      call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer)
 
 
       layer_area_counter = 0
@@ -544,14 +553,14 @@ contains
          ! And the layer below that may or may not had recieved
          ! Demotions
 
-         call CanopyLayerArea(currentPatch,i_lyr,arealayer)
+         call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer)
 
          layer_area_counter=layer_area_counter+1
          if(layer_area_counter > max_layer_iterations) then
             write(fates_log(),*) 'Layer demotion area not closing,i_lyr: ',i_lyr
             write(fates_log(),*) 'patch area:',currentpatch%area
-            write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
-            write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
+            write(fates_log(),*) 'lat:',currentSite%lat
+            write(fates_log(),*) 'lon:',currentSite%lon
             write(fates_log(),*) 'arealayer:',arealayer
             currentCohort => currentPatch%tallest
             do while (associated(currentCohort))  
@@ -610,8 +619,8 @@ contains
       
       
 
-      call CanopyLayerArea(currentPatch,i_lyr,arealayer_current)
-      call CanopyLayerArea(currentPatch,i_lyr+1,arealayer_below)
+      call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer_current)
+      call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr+1,arealayer_below)
 
 
       layer_area_counter = 0
@@ -640,7 +649,7 @@ contains
                currentCohort => currentCohort%shorter   
             enddo
             arealayer_below = 0.0_r8
-            call CanopyLayerArea(currentPatch,i_lyr,arealayer_current)
+            call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer_current)
          endif                 
          
          sumdiff = 0.0_r8    
@@ -767,8 +776,8 @@ contains
             currentCohort => currentCohort%shorter
          enddo !currentCohort 
 
-         call CanopyLayerArea(currentPatch,i_lyr,arealayer_current)
-         call CanopyLayerArea(currentPatch,i_lyr+1,arealayer_below)
+         call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer_current)
+         call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr+1,arealayer_below)
 
          ! Only continue trying to promote if
          ! there is enough canopy area in the layer below
@@ -784,8 +793,8 @@ contains
          if(layer_area_counter > max_layer_iterations) then
             write(fates_log(),*) 'Layer promotion area not closing,i_lyr: ',i_lyr
             write(fates_log(),*) 'patch area:',currentpatch%area
-            write(fates_log(),*) 'lat:',currentpatch%siteptr%lat
-            write(fates_log(),*) 'lon:',currentpatch%siteptr%lon
+            write(fates_log(),*) 'lat:',currentSite%lat
+            write(fates_log(),*) 'lon:',currentSite%lon
             write(fates_log(),*) 'arealayer_current:',arealayer_current
             write(fates_log(),*) 'arealayer_below:',arealayer_below
             currentCohort => currentPatch%tallest
@@ -1652,7 +1661,7 @@ contains
 
   ! ===============================================================================================
   
-  subroutine CanopyLayerArea(currentPatch,layer_index,layer_area)
+  subroutine CanopyLayerArea(currentPatch,site_spread,layer_index,layer_area)
      
      ! --------------------------------------------------------------------------------------------
      ! This function calculates the total crown area footprint for a desired layer of the canopy
@@ -1662,6 +1671,7 @@ contains
                    
      ! Arguments
      type(ed_patch_type),intent(inout), target   :: currentPatch
+     real(r8),intent(in)                         :: site_spread
      integer,intent(in)                          :: layer_index
      real(r8),intent(inout)                      :: layer_area
 
@@ -1671,7 +1681,7 @@ contains
      layer_area = 0.0_r8
      currentCohort => currentPatch%tallest
      do while (associated(currentCohort))
-        call carea_allom(currentCohort%dbh,currentCohort%n,currentPatch%siteptr%spread, &
+        call carea_allom(currentCohort%dbh,currentCohort%n,site_spread, &
               currentCohort%pft,currentCohort%c_area)
         if (currentCohort%canopy_layer .eq. layer_index) then
            layer_area = layer_area + currentCohort%c_area
@@ -1683,7 +1693,7 @@ contains
 
   ! ===============================================================================================
   
-  function NumPotentialCanopyLayers(currentPatch,include_substory) result(z)
+  function NumPotentialCanopyLayers(currentPatch,site_spread,include_substory) result(z)
 
      ! --------------------------------------------------------------------------------------------
      ! Calculate the number of canopy layers in this patch.
@@ -1695,6 +1705,7 @@ contains
      ! --------------------------------------------------------------------------------------------
 
      type(ed_patch_type),target   :: currentPatch
+     real(r8),intent(in)          :: site_spread
      logical                      :: include_substory
 
      type(ed_cohort_type),pointer :: currentCohort
@@ -1702,7 +1713,7 @@ contains
      integer :: z
      real(r8) :: c_area
      real(r8) :: arealayer
-     
+
      z = 1
      currentCohort => currentPatch%tallest
      do while (associated(currentCohort))  
@@ -1715,7 +1726,7 @@ contains
         currentCohort => currentPatch%tallest
         do while (associated(currentCohort))  
            if(currentCohort%canopy_layer == z) then
-              call carea_allom(currentCohort%dbh,currentCohort%n,currentPatch%siteptr%spread,currentCohort%pft,c_area)
+              call carea_allom(currentCohort%dbh,currentCohort%n,site_spread,currentCohort%pft,c_area)
               arealayer = arealayer + c_area
            end if
            currentCohort => currentCohort%shorter

@@ -1466,8 +1466,6 @@ contains
                   cwd_ag_local, cwd_bg_local,  &
                   leaf_litter_local, root_litter_local) 
              
-             newp%siteptr => sites(s)
-
              ! give this patch a unique patch number
              newp%patchno = idx_pa
 

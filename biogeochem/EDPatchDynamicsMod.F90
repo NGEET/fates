@@ -1151,11 +1151,9 @@ contains
     new_patch%shortest => null() ! pointer to patch's shortest cohort   
     new_patch%older    => null() ! pointer to next older patch   
     new_patch%younger  => null() ! pointer to next shorter patch      
-    new_patch%siteptr  => null() ! pointer to the site that the patch is in
 
     ! assign known patch attributes 
 
-    new_patch%siteptr            => currentSite 
     new_patch%age                = age   
     new_patch%age_class          = 1
     new_patch%area               = areap 
@@ -1213,7 +1211,6 @@ contains
     currentPatch%shortest => null()         
     currentPatch%older    => null()               
     currentPatch%younger  => null()           
-    currentPatch%siteptr  => null()             
 
     currentPatch%patchno  = 999                            
 
@@ -1460,7 +1457,7 @@ contains
 
                    if(fuse_flag  ==  1)then 
                       tmpptr => currentPatch%older       
-                      call fuse_2_patches(currentPatch, tpp)
+                      call fuse_2_patches(csite, currentPatch, tpp)
                       call fuse_cohorts(tpp, bc_in)
                       call sort_cohorts(tpp)
                       currentPatch => tmpptr
@@ -1507,7 +1504,7 @@ contains
 
   ! ============================================================================
 
-  subroutine fuse_2_patches(dp, rp)
+  subroutine fuse_2_patches(csite, dp, rp)
     !
     ! !DESCRIPTION:
     ! This function fuses the two patches specified in the argument.
@@ -1519,6 +1516,7 @@ contains
     use FatesSizeAgeTypeIndicesMod, only: get_age_class_index
     !
     ! !ARGUMENTS:
+    type (ed_site_type), intent(inout),target :: csite  ! Current site 
     type (ed_patch_type) , intent(inout), pointer :: dp ! Donor Patch
     type (ed_patch_type) , intent(inout), pointer :: rp ! Recipient Patch
     !
@@ -1531,7 +1529,6 @@ contains
     integer                        :: tnull,snull  ! are the tallest and shortest cohorts associated?
     type(ed_patch_type), pointer   :: youngerp     ! pointer to the patch younger than donor
     type(ed_patch_type), pointer   :: olderp       ! pointer to the patch older than donor
-    type(ed_site_type),  pointer   :: csite        ! pointer to the donor patch's site
     real(r8)                       :: inv_sum_area ! Inverse of the sum of the two patches areas
     !-----------------------------------------------------------------------------------------------
 
@@ -1641,7 +1638,6 @@ contains
     ! Define some aliases for the donor patches younger and older neighbors
     ! which may or may not exist.  After we set them, we will remove the donor
     ! And then we will go about re-setting the map.
-    csite => dp%siteptr
     if(associated(dp%older))then
        olderp => dp%older
     else
@@ -1714,13 +1710,13 @@ contains
                 write(fates_log(),*) 'fusing to older patch because this one is too small',&
                      currentPatch%area, &
                      currentPatch%older%area
-                call fuse_2_patches(currentPatch%older, currentPatch)
+                call fuse_2_patches(cs_pnt,currentPatch%older, currentPatch)
                 write(fates_log(),*) 'after fusion to older patch',currentPatch%area
              else
                 write(fates_log(),*) 'fusing to younger patch because oldest one is too small',&
                      currentPatch%area
                 tmpptr => currentPatch%younger
-                call fuse_2_patches(currentPatch, currentPatch%younger)
+                call fuse_2_patches(cs_pnt,currentPatch, currentPatch%younger)
                 write(fates_log(),*) 'after fusion to younger patch'
                 currentPatch => tmpptr
              endif
