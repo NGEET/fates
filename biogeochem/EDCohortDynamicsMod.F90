@@ -64,8 +64,8 @@ module EDCohortDynamicsMod
 contains
 
   !-------------------------------------------------------------------------------------!
-  subroutine create_cohort(patchptr, pft, nn, hite, dbh, &
-       bleaf, bfineroot, bsap, bdead, bstore, laimemory, status, ctrim, clayer, bc_in)
+  subroutine create_cohort(patchptr, pft, nn, hite, dbh, bleaf, bfineroot, bsap, &
+                           bdead, bstore, laimemory, status, ctrim, clayer, spread, bc_in)
     !
     ! !DESCRIPTION:
     ! create new cohort
@@ -87,6 +87,7 @@ contains
     real(r8), intent(in)   :: bstore    ! stored carbon: kGC per indiv
     real(r8), intent(in)   :: laimemory ! target leaf biomass- set from previous year: kGC per indiv
     real(r8), intent(in)   :: ctrim     ! What is the fraction of the maximum leaf biomass that we are targeting? :-
+    real(r8), intent(in)   :: spread    ! The community assembly effects how spread crowns are in horizontal space
     type(bc_in_type), intent(in) :: bc_in ! External boundary conditions
     !
     ! !LOCAL VARIABLES:
@@ -107,8 +108,9 @@ contains
  
     new_cohort%indexnumber  = fates_unset_int ! Cohort indexing was not thread-safe, setting
                                               ! bogus value for the time being (RGK-012017)
-    new_cohort%siteptr      => patchptr%siteptr
+
     new_cohort%patchptr     => patchptr
+
     new_cohort%pft          = pft     
     new_cohort%status_coh   = status
     new_cohort%n            = nn
@@ -135,22 +137,14 @@ contains
     ! However, in this part of the code, we will pass in nominal values for size, number and type
     
     if (new_cohort%dbh <= 0.0_r8 .or. new_cohort%n == 0._r8 .or. new_cohort%pft == 0 ) then
-             write(fates_log(),*) 'ED: something is zero in create_cohort', &
+       write(fates_log(),*) 'ED: something is zero in create_cohort', &
                              new_cohort%dbh,new_cohort%n, &
                              new_cohort%pft
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-    endif
-
-    if (new_cohort%siteptr%status==2 .and. EDPftvarcon_inst%season_decid(pft) == 1) then
-      new_cohort%laimemory = 0.0_r8
-    endif
-
-    if (new_cohort%siteptr%dstatus==2 .and. EDPftvarcon_inst%stress_decid(pft) == 1) then
-      new_cohort%laimemory = 0.0_r8
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
 
     ! Assign canopy extent and depth
-    call carea_allom(new_cohort%dbh,new_cohort%n,new_cohort%siteptr%spread,new_cohort%pft,new_cohort%c_area)
+    call carea_allom(new_cohort%dbh,new_cohort%n,spread,new_cohort%pft,new_cohort%c_area)
 
     new_cohort%treelai = tree_lai(new_cohort%bl, new_cohort%status_coh, new_cohort%pft, &
          new_cohort%c_area, new_cohort%n)
@@ -221,12 +215,10 @@ contains
     currentCohort%taller      => null()       ! pointer to next tallest cohort     
     currentCohort%shorter     => null()       ! pointer to next shorter cohort     
     currentCohort%patchptr    => null()       ! pointer to patch that cohort is in
-    currentCohort%siteptr     => null()       ! pointer to site that cohort is in
 
     nullify(currentCohort%taller) 
     nullify(currentCohort%shorter) 
     nullify(currentCohort%patchptr) 
-    nullify(currentCohort%siteptr) 
 
     ! VEGETATION STRUCTURE
     currentCohort%pft                = fates_unset_int  ! pft number                           
@@ -1194,7 +1186,6 @@ contains
     n%taller          => NULL()     ! pointer to next tallest cohort     
     n%shorter         => NULL()     ! pointer to next shorter cohort     
     n%patchptr        => o%patchptr ! pointer to patch that cohort is in 
-    n%siteptr         => o%siteptr  ! pointer to site that cohort is in  
 
   end subroutine copy_cohort
 

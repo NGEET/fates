@@ -781,6 +781,8 @@ contains
       real(r8)                                    :: c_bdead       ! dead biomass (kg)
       real(r8)                                    :: c_balive      ! live biomass (kg)
       real(r8)                                    :: c_avgRG       ! avg radial growth (NOT USED)
+      real(r8)                                    :: site_spread   ! initial guess of site spread
+                                                                   ! should be quickly re-calculated
       integer                                     :: cstatus       ! 
       type(ed_patch_type), pointer                :: cpatch        ! current patch pointer
       type(ed_cohort_type), pointer               :: temp_cohort   ! temporary patch (needed for allom funcs)
@@ -912,13 +914,20 @@ contains
       endif
       
       if ( EDPftvarcon_inst%stress_decid(c_pft) == 1 ) then
-         temp_cohort%laimemory = b_leaf
+         if(csite%dstatus == 2)then 
+            temp_cohort%laimemory = 0.0_r8
+         else
+            temp_cohort%laimemory = b_leaf
+         endif
          cstatus = csite%dstatus
       endif
+
+      ! Since spread is a canopy level calculation, we need to provide an initial guess here.
+      site_spread = 0.5_r8
       
       call create_cohort(cpatch, c_pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
             b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore, &
-            temp_cohort%laimemory,  cstatus, temp_cohort%canopy_trim, 1, bc_in)
+            temp_cohort%laimemory,  cstatus, temp_cohort%canopy_trim, 1, site_spread, bc_in)
       
       deallocate(temp_cohort) ! get rid of temporary cohort
 

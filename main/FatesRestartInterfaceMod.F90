@@ -1406,8 +1406,8 @@ contains
      real(r8)                          :: b_leaf        ! leaf biomass dummy var (kgC)
      real(r8)                          :: b_fineroot    ! fineroot dummy var (kgC)
      real(r8)                          :: b_sapwood     ! sapwood dummy var (kgC)
+     real(r8)                          :: site_spread   ! site sprea dummy var (0-1)
      integer                           :: fto
-     integer                           :: ft
 
      ! Dummy arguments used for calling create patch, these will be overwritten before
      ! run-time.  Just used now for allocation.
@@ -1466,8 +1466,6 @@ contains
                   cwd_ag_local, cwd_bg_local,  &
                   leaf_litter_local, root_litter_local) 
              
-             newp%siteptr => sites(s)
-
              ! give this patch a unique patch number
              newp%patchno = idx_pa
 
@@ -1483,23 +1481,13 @@ contains
                 temp_cohort%canopy_layer = 1.0_r8
                 temp_cohort%canopy_layer_yesterday = 1.0_r8
 
-                ! set the pft (only 2 used in ed) based on odd/even cohort
-                ! number
-                ft=2
-                if ((mod(fto, 2)  ==  0 )) then
-                   ft=1
-                endif
-                temp_cohort%pft = ft
+                temp_cohort%pft = 1   ! Give it a nominal PFT value for allocation
 
-                cohortstatus = newp%siteptr%status
-
-                if(EDPftvarcon_inst%stress_decid(ft) == 1)then !drought decidous, override status. 
-                   cohortstatus = newp%siteptr%dstatus
-                endif
+                cohortstatus    = 2   ! status of 2 means leaves are out (dummy var)
 
                 temp_cohort%hite = 1.25_r8
                 ! Solve for diameter from height
-                call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
+                call h2d_allom(temp_cohort%hite,temp_cohort%pft,temp_cohort%dbh)
 
                 if (DEBUG) then
                    write(fates_log(),*) 'EDRestVectorMod.F90::createPatchCohortStructure call create_cohort '
@@ -1508,11 +1496,12 @@ contains
                 b_leaf     = 0.0_r8
                 b_fineroot = 0.0_r8
                 b_sapwood  = 0.0_r8
+                site_spread = 0.5_r8
                 
-                call create_cohort(newp, ft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
+                call create_cohort(newp, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                      b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore,  &
                      temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, newp%NCL_p, &
-                     bc_in(s))
+                     site_spread, bc_in(s))
                 
                 deallocate(temp_cohort)
                 

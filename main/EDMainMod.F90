@@ -411,7 +411,7 @@ contains
        ! and so there are radiation errors instead. 
        ! Fixing this would likely require a re-work of how seed germination works which would be tricky. 
        if(currentPatch%countcohorts < 1)then
-          !write(fates_log(),*) 'ED: calling recruitment for no cohorts',currentPatch%siteptr%clmgcell,currentPatch%patchno
+          !write(fates_log(),*) 'ED: calling recruitment for no cohorts',currentSite%clmgcell,currentPatch%patchno
           !call recruitment(1, currentSite, currentPatch)
           ! write(fates_log(),*) 'patch empty',currentPatch%area,currentPatch%age
        endif

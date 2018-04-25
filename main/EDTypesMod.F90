@@ -131,7 +131,7 @@ module EDTypesMod
      type (ed_cohort_type) , pointer :: taller   => null()       ! pointer to next tallest cohort     
      type (ed_cohort_type) , pointer :: shorter  => null()       ! pointer to next shorter cohort     
      type (ed_patch_type)  , pointer :: patchptr => null()       ! pointer to patch that cohort is in
-     type (ed_site_type)   , pointer :: siteptr  => null()       ! pointer to site that cohort is in
+
 
      ! VEGETATION STRUCTURE
      integer  ::  pft                                    ! pft number
@@ -300,7 +300,6 @@ module EDTypesMod
      type (ed_cohort_type), pointer :: shortest => null()          ! pointer to patch's shortest cohort
      type (ed_patch_type),  pointer :: older => null()             ! pointer to next older patch   
      type (ed_patch_type),  pointer :: younger => null()           ! pointer to next younger patch      
-     type (ed_site_type),   pointer :: siteptr => null()           ! pointer to the site that the patch is in
 
      !INDICES
      integer  :: patchno                                           ! unique number given to each new patch created for tracking
@@ -655,7 +654,6 @@ contains
         do while(associated(currentCohort))
            call check_var_real(currentCohort%n,'cohort%n',return_code)
            if(.not.(return_code.eq.0)) then
-              call dump_site(currentPatch%siteptr)
               call dump_patch(currentPatch)
               call dump_cohort(currentCohort)
               return
@@ -670,7 +668,6 @@ contains
         do while(associated(currentCohort))        
            call check_var_real(currentCohort%dbh,'cohort%dbh',return_code)
            if(.not.(return_code.eq.0)) then
-              call dump_site(currentPatch%siteptr)
               call dump_patch(currentPatch)
               call dump_cohort(currentCohort)
               return
@@ -683,7 +680,6 @@ contains
 
         call check_var_real(currentPatch%area,'patch%area',return_code)
         if(.not.(return_code.eq.0)) then
-           call dump_site(currentPatch%siteptr)
            call dump_patch(currentPatch)
            return
         end if
