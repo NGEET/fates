@@ -1687,7 +1687,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type), target, intent(in) :: cs_pnt
+    type(ed_site_type), target, intent(inout) :: cs_pnt
     !
     ! !LOCAL VARIABLES:
     type(ed_site_type),  pointer :: currentSite
