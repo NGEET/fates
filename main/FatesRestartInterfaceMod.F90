@@ -1260,20 +1260,6 @@ contains
              rio_age_pa(io_idx_co_1st)         = cpatch%age
              rio_area_pa(io_idx_co_1st)        = cpatch%area
              
-!             ! spitfire patch level variables
-!             rio_spitfire_ros_front_pa(io_idx_co_1st)      = cpatch%ROS_front 
-!             rio_sptifire_effect_wspeed_pa(io_idx_co_1st)  = cpatch%effect_wspeed
-!             rio_spitfire_tfc_ros_pa(io_idx_co_1st)        = cpatch%TFC_ROS
-!             rio_spitfire_fi_pa(io_idx_co_1st)             = cpatch%FI
-!             rio_spitfire_frac_burnt_pa(io_idx_co_1st)     = cpatch%frac_burnt
-!             rio_spitfire_sh_pa(io_idx_co_1st)             = cpatch%SH
-!             rio_spitfire_fuel_bulkd_pa(io_idx_co_1st)     = cpatch%fuel_bulkd
-!             rio_spitfire_fuel_eff_moist_pa(io_idx_co_1st) = cpatch%fuel_eff_moist
-!             rio_spitfire_fuel_sav_pa(io_idx_co_1st)       = cpatch%fuel_sav
-!             rio_spitfire_fuel_mef_pa(io_idx_co_1st)       = cpatch%fuel_mef
-!             rio_spitfire_sum_fuel_pa(io_idx_co_1st)       = cpatch%sum_fuel
-
-
              ! set cohorts per patch for IO
              rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
              
