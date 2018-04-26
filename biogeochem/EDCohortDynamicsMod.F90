@@ -382,7 +382,7 @@ contains
   end subroutine zero_cohort
 
   !-------------------------------------------------------------------------------------!
-  subroutine terminate_cohorts( currentSite, patchptr, level )
+  subroutine terminate_cohorts( currentSite, currentPatch, level )
     !
     ! !DESCRIPTION:
     ! terminates cohorts when they get too small      
@@ -392,7 +392,7 @@ contains
     !
     ! !ARGUMENTS    
     type (ed_site_type) , intent(inout), target :: currentSite
-    type (ed_patch_type), intent(inout), target :: patchptr
+    type (ed_patch_type), intent(inout), target :: currentPatch
     integer             , intent(in)            :: level
 
     ! Important point regarding termination levels.  Termination is typically
@@ -405,20 +405,21 @@ contains
 
     !
     ! !LOCAL VARIABLES:
-    type (ed_patch_type)  , pointer :: currentPatch
     type (ed_cohort_type) , pointer :: currentCohort
-    type (ed_cohort_type) , pointer :: nextc
+    type (ed_cohort_type) , pointer :: shorterCohort
+    type (ed_cohort_type) , pointer :: tallerCohort
+
     integer :: terminate   ! do we terminate (1) or not (0) 
     integer :: c           ! counter for litter size class. 
     integer :: levcan      ! canopy level
     !----------------------------------------------------------------------
 
-    currentPatch  => patchptr
-    currentCohort => currentPatch%tallest  
 
+    currentCohort => currentPatch%shortest  
     do while (associated(currentCohort))
-       nextc      => currentCohort%shorter    
+
        terminate = 0 
+       tallerCohort => currentCohort%taller
 
        ! Check if number density is so low is breaks math (level 1)
        if (currentcohort%n <  min_n_safemath .and. level == 1) then
@@ -488,16 +489,7 @@ contains
           currentSite%termination_carbonflux(levcan) = currentSite%termination_carbonflux(levcan) + &
                 currentCohort%n * currentCohort%b_total()
 
-          if (.not. associated(currentCohort%taller)) then
-             currentPatch%tallest => currentCohort%shorter
-          else 
-             currentCohort%taller%shorter => currentCohort%shorter
-          endif
-          if (.not. associated(currentCohort%shorter)) then
-             currentPatch%shortest => currentCohort%taller
-          else 
-             currentCohort%shorter%taller => currentCohort%taller
-          endif
+          
 
           !put the litter from the terminated cohorts straight into the fragmenting pools
           if (currentCohort%n.gt.0.0_r8) then
@@ -533,18 +525,40 @@ contains
                   currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) + &
                   currentCohort%n * (currentCohort%br+currentCohort%bstore) * hlm_days_per_year  / AREA
 
-             if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
 
-             deallocate(currentCohort)     
+             ! Set pointers and remove the current cohort from the list
+             
+             shorterCohort => currentCohort%shorter
+             
+             if (.not. associated(tallerCohort)) then
+                currentPatch%tallest => shorterCohort
+                if(associated(shorterCohort)) shorterCohort%taller => null()
+             else 
+                tallerCohort%shorter => shorterCohort
+             endif
+
+             if (.not. associated(shorterCohort)) then
+                currentPatch%shortest => tallerCohort
+                if(associated(tallerCohort)) tallerCohort%shorter => null()
+             else 
+                shorterCohort%taller => tallerCohort
+             endif
+             
+             ! At this point, nothing should be pointing to current Cohort
+             if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
+             deallocate(currentCohort)
+
           endif
        endif
-       currentCohort => nextc
+       currentCohort => tallerCohort
     enddo
 
   end subroutine terminate_cohorts
 
   !-------------------------------------------------------------------------------------!
-  subroutine fuse_cohorts(patchptr, bc_in)  
+
+  subroutine fuse_cohorts(currentPatch, bc_in)  
+
      !
      ! !DESCRIPTION:
      ! Join similar cohorts to reduce total number            
@@ -554,15 +568,20 @@ contains
      use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
      !
      ! !ARGUMENTS    
-     type (ed_patch_type), intent(inout), target :: patchptr
+     type (ed_patch_type), intent(inout), target :: currentPatch
      type (bc_in_type), intent(in)               :: bc_in
      !
+
      ! !LOCAL VARIABLES:
-     type (ed_patch_type)  , pointer :: currentPatch
-     type (ed_cohort_type) , pointer :: currentCohort, nextc, nextnextc
+     type (ed_cohort_type) , pointer :: currentCohort
+     type (ed_cohort_type) , pointer :: nextc
+     type (ed_cohort_type) , pointer :: nextnextc
+
+     type (ed_cohort_type) , pointer :: shorterCohort
+     type (ed_cohort_type) , pointer :: tallerCohort
+
      integer  :: i  
      integer  :: fusion_took_place
-     integer  :: maxcohorts ! maximum total no of cohorts.
      integer  :: iterate    ! do we need to keep fusing to get below maxcohorts?
      integer  :: nocohorts
      real(r8) :: newn
@@ -582,25 +601,24 @@ contains
      !because c_area and biomass are non-linear with dbh, this causes several mass inconsistancies
      !in theory, all of this routine therefore causes minor losses of C and area, but these are below 
      !detection limit normally. 
+
      iterate = 1
      fusion_took_place = 0   
-     currentPatch => patchptr
-     maxcohorts = maxCohortsPerPatch
 
      !---------------------------------------------------------------------!
      !  Keep doing this until nocohorts <= maxcohorts                         !
      !---------------------------------------------------------------------!
-
+     
      if (associated(currentPatch%shortest)) then  
         do while(iterate == 1)
-
+           
            currentCohort => currentPatch%tallest
-
+           
            ! The following logic continues the loop while the current cohort is not the shortest cohort
            ! if they point to the same target (ie equivalence), then the loop ends.
            ! This loop is different than the simple "continue while associated" loop in that
            ! it omits the last cohort (because it has already been compared by that point)
-
+           
            do while ( .not.associated(currentCohort,currentPatch%shortest) )
 
               nextc => currentPatch%tallest
@@ -698,10 +716,10 @@ contains
                                 ! recent canopy history
                                 currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
                                       nextc%n*nextc%canopy_layer_yesterday)/newn
-
+                                
                                 ! Flux and biophysics variables have not been calculated for recruits we just default to 
                                 ! their initization values, which should be the same for eahc
-
+                                
                                 if ( .not.currentCohort%isnew) then
 
                                    currentCohort%md             = (currentCohort%n*currentCohort%md        + &
@@ -798,41 +816,56 @@ contains
                                                nextc%n*nextc%year_net_uptake(i))/newn                
                                       endif
                                    enddo
-
+                                   
                                 end if !(currentCohort%isnew)
 
                                 currentCohort%n = newn     
-                                !remove fused cohort from the list
-                                nextc%taller%shorter => nextnextc        
-                                if (.not. associated(nextc%shorter)) then !this is the shortest cohort. 
-                                   currentPatch%shortest => nextc%taller
-                                else
-                                   nextnextc%taller => nextc%taller
-                                endif
 
-                                if (associated(nextc)) then       
-                                   if(hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(nextc)
-                                   deallocate(nextc)            
+                                ! Set pointers and remove the current cohort from the list
+                                
+                                shorterCohort => nextc%shorter
+                                tallerCohort  => nextc%taller
+                                
+                                if (.not. associated(tallerCohort)) then
+                                   currentPatch%tallest => shorterCohort
+                                   if(associated(shorterCohort)) shorterCohort%taller => null()
+                                else 
+                                   tallerCohort%shorter => shorterCohort
                                 endif
+                                
+                                if (.not. associated(shorterCohort)) then
+                                   currentPatch%shortest => tallerCohort
+                                   if(associated(tallerCohort)) tallerCohort%shorter => null()
+                                else 
+                                   shorterCohort%taller => tallerCohort
+                                endif
+                                
+                                ! At this point, nothing should be pointing to current Cohort
+                                if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(nextc)
+                                deallocate(nextc)
+
 
                              endif ! if( currentCohort%isnew.eqv.nextc%isnew ) then
-
                           endif !canopy layer
                        endif !pft
                     endif  !index no. 
                  endif !diff   
-
-                 if (associated(nextc)) then             
-                    nextc => nextc%shorter    
-                 else
-                    nextc => nextnextc !if we have removed next
-                 endif
-
+                 
+                 nextc => nextnextc
+                 
               enddo !end checking nextc cohort loop
+
+              ! Ususally we always point to the next cohort. But remember ...
+              ! this loop exits when current becomes the shortest, not when
+              ! it finishes and becomes the null pointer.  If there is no
+              ! shorter cohort, then it is shortest, and will exit
+              ! Note also that it is possible that it entered here as the shortest
+              ! which is possible if nextc was the shortest and was removed.
 
               if (associated (currentCohort%shorter)) then
                  currentCohort => currentCohort%shorter
               endif
+              
            enddo !end currentCohort cohort loop
 
            !---------------------------------------------------------------------!
@@ -845,7 +878,7 @@ contains
               currentCohort => currentCohort%shorter
            enddo
 
-           if (nocohorts > maxcohorts) then
+           if (nocohorts > maxCohortsPerPatch) then
               iterate = 1
               !---------------------------------------------------------------------!
               ! Making profile tolerance larger means that more fusion will happen  !
