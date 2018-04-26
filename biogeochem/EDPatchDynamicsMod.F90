@@ -1665,6 +1665,7 @@ contains
        ! to be set, and it is set as the patch older than dp.  That patch
        ! already knows it's older patch (so no need to set or change it)
        csite%youngest_patch => olderp
+       olderp%younger       => null()
     end if
 
     
@@ -1676,6 +1677,7 @@ contains
        ! to be set, and it is set as the patch younger than dp.  That patch already
        ! knows it's younger patch, no need to set
        csite%oldest_patch => youngerp
+       youngerp%older     => null()
     end if
 
 
