@@ -415,7 +415,7 @@ contains
     !----------------------------------------------------------------------
 
 
-    currentCohort => currentPatch%shortest  
+    currentCohort => currentPatch%shortest
     do while (associated(currentCohort))
 
        terminate = 0 
@@ -525,30 +525,30 @@ contains
                   currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) + &
                   currentCohort%n * (currentCohort%br+currentCohort%bstore) * hlm_days_per_year  / AREA
 
-
-             ! Set pointers and remove the current cohort from the list
-             
-             shorterCohort => currentCohort%shorter
-             
-             if (.not. associated(tallerCohort)) then
-                currentPatch%tallest => shorterCohort
-                if(associated(shorterCohort)) shorterCohort%taller => null()
-             else 
-                tallerCohort%shorter => shorterCohort
-             endif
-
-             if (.not. associated(shorterCohort)) then
-                currentPatch%shortest => tallerCohort
-                if(associated(tallerCohort)) tallerCohort%shorter => null()
-             else 
-                shorterCohort%taller => tallerCohort
-             endif
-             
-             ! At this point, nothing should be pointing to current Cohort
-             if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
-             deallocate(currentCohort)
-
+          end if
+          
+          ! Set pointers and remove the current cohort from the list
+          shorterCohort => currentCohort%shorter
+          
+          if (.not. associated(tallerCohort)) then
+             currentPatch%tallest => shorterCohort
+             if(associated(shorterCohort)) shorterCohort%taller => null()
+          else 
+             tallerCohort%shorter => shorterCohort
           endif
+          
+          if (.not. associated(shorterCohort)) then
+             currentPatch%shortest => tallerCohort
+             if(associated(tallerCohort)) tallerCohort%shorter => null()
+          else 
+             shorterCohort%taller => tallerCohort
+          endif
+          
+          ! At this point, nothing should be pointing to current Cohort
+          if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
+          deallocate(currentCohort)
+          nullify(currentCohort)
+          
        endif
        currentCohort => tallerCohort
     enddo
@@ -624,7 +624,7 @@ contains
               nextc => currentPatch%tallest
 
               do while (associated(nextc))
-                 nextnextc => nextc%shorter                      
+                 nextnextc => nextc%shorter
                  diff = abs((currentCohort%dbh - nextc%dbh)/(0.5*(currentCohort%dbh + nextc%dbh)))  
 
                  !Criteria used to divide up the height continuum into different cohorts.
@@ -843,7 +843,7 @@ contains
                                 ! At this point, nothing should be pointing to current Cohort
                                 if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(nextc)
                                 deallocate(nextc)
-
+                                nullify(nextc)
 
                              endif ! if( currentCohort%isnew.eqv.nextc%isnew ) then
                           endif !canopy layer

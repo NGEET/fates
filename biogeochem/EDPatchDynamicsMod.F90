@@ -1690,12 +1690,6 @@ contains
     ! !DESCRIPTION:
     !  Terminate Patches if they  are too small                          
     !
-    ! Note that we are not going to apply this to the youngest patch
-    ! We do this because the youngest patches are constantly being created
-    ! and fused with other new patches each day, each with small areas. If we
-    ! terminate them immediately, then we will constantly be culling off
-    ! these new areas before they can contribute to the pool.
-    ! This is really intended for older, established patches.
     !
     ! !ARGUMENTS:
     type(ed_site_type), target, intent(inout) :: currentSite
@@ -1709,41 +1703,36 @@ contains
     !---------------------------------------------------------------------
  
     currentPatch => currentSite%youngest_patch
-    if(associated(currentPatch%older)) then
-
-
-       ! We ignore the youngest patch, immediately go to the next
-       ! If it is not associated (DNE..) then we are done.
-
-       currentPatch => currentPatch%older
-       do while(associated(currentPatch)) 
+    do while(associated(currentPatch)) 
+       
+       if(currentPatch%area <= min_patch_area)then
           
-          if(currentPatch%area <= min_patch_area)then
+          if ( .not.associated(currentPatch,currentSite%youngest_patch) ) then
              
              if(associated(currentPatch%older) )then
-
+                
                 if(debug) &
                      write(fates_log(),*) 'fusing to older patch because this one is too small',&
                      currentPatch%area, &
                      currentPatch%older%area
                 
                 ! We set a pointer to this patch, because
-                ! it will be returned by the subtoutine as de-referenced
-
+                ! it will be returned by the subroutine as de-referenced
+                
                 olderPatch => currentPatch%older
                 call fuse_2_patches(currentSite, olderPatch, currentPatch)
                 
                 ! The fusion process has updated the "older" pointer on currentPatch
                 ! for us.
-
+                
                 ! This logic checks to make sure that the younger patch is not the youngest
                 ! patch. As mentioned earlier, we try not to fuse it.
-
+                
              elseif( .not. associated(currentPatch%younger,currentSite%youngest_patch) ) then
-
+                
                 if(debug) &
-                     write(fates_log(),*) 'fusing to younger patch because oldest one is too small', &
-                     currentPatch%area
+                      write(fates_log(),*) 'fusing to younger patch because oldest one is too small', &
+                      currentPatch%area
                 
                 youngerPatch => currentPatch%younger
                 call fuse_2_patches(currentSite, youngerPatch, currentPatch)
@@ -1752,12 +1741,12 @@ contains
                 
              endif
           endif
+       endif
           
-          currentPatch => currentPatch%older
-          
-       enddo
-    end if
-
+       currentPatch => currentPatch%older
+       
+    enddo
+    
     !check area is not exceeded
     areatot = 0._r8
     currentPatch => currentSite%oldest_patch
