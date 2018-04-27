@@ -1130,6 +1130,7 @@ end subroutine flush_hvars
     use EDtypesMod          , only : ican_upper
     use EDtypesMod          , only : ican_ustory
     use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
+    use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
     use EDTypesMod        , only : nlevleaf
 
     ! Arguments
@@ -1371,6 +1372,8 @@ end subroutine flush_hvars
 
             ! Increment the number of patches per site
             hio_npatches_si(io_si) = hio_npatches_si(io_si) + 1._r8
+
+            cpatch%age_class  = get_age_class_index(cpatch%age)
 
             ! Increment the fractional area in each age class bin
             hio_area_si_age(io_si,cpatch%age_class) = hio_area_si_age(io_si,cpatch%age_class) &
@@ -1796,7 +1799,8 @@ end subroutine flush_hvars
             end do
             ! Update Litter Flux Variables
 
-            ! put litter_in flux onto site level variable so as to be able to append site-level distubance-related input flux after patch loop
+            ! put litter_in flux onto site level variable so as to be able to append site-level 
+            ! distubance-related input flux after patch loop
             hio_litter_in_si(io_si) = hio_litter_in_si(io_si) + &
                  (sum(cpatch%CWD_AG_in) +sum(cpatch%leaf_litter_in) + sum(cpatch%root_litter_in)) &
                  * g_per_kg * cpatch%area * AREA_INV * years_per_day * days_per_sec
