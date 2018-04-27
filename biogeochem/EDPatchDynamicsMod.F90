@@ -62,6 +62,8 @@ module EDPatchDynamicsMod
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
 
+  logical, parameter :: debug = .false.
+
   ! 10/30/09: Created by Rosie Fisher
   ! ============================================================================
 
@@ -1517,8 +1519,9 @@ contains
     !
     ! !ARGUMENTS:
     type (ed_site_type), intent(inout),target :: csite  ! Current site 
-    type (ed_patch_type) , intent(inout), pointer :: dp ! Donor Patch
-    type (ed_patch_type) , intent(inout), pointer :: rp ! Recipient Patch
+    type (ed_patch_type) , pointer :: dp                ! Donor Patch
+    type (ed_patch_type) , target, intent(inout) :: rp  ! Recipient Patch
+
     !
     ! !LOCAL VARIABLES:
     type (ed_cohort_type), pointer :: currentCohort ! Current Cohort
@@ -1662,6 +1665,7 @@ contains
        ! to be set, and it is set as the patch older than dp.  That patch
        ! already knows it's older patch (so no need to set or change it)
        csite%youngest_patch => olderp
+       olderp%younger       => null()
     end if
 
     
@@ -1673,60 +1677,76 @@ contains
        ! to be set, and it is set as the patch younger than dp.  That patch already
        ! knows it's younger patch, no need to set
        csite%oldest_patch => youngerp
+       youngerp%older     => null()
     end if
 
 
   end subroutine fuse_2_patches
 
   ! ============================================================================
-  subroutine terminate_patches(cs_pnt)
+
+  subroutine terminate_patches(currentSite)
     !
     ! !DESCRIPTION:
     !  Terminate Patches if they  are too small                          
     !
-    ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type), target, intent(inout) :: cs_pnt
+    type(ed_site_type), target, intent(inout) :: currentSite
     !
     ! !LOCAL VARIABLES:
-    type(ed_site_type),  pointer :: currentSite
-    type(ed_patch_type), pointer :: currentPatch, tmpptr
+    type(ed_patch_type), pointer :: currentPatch
+    type(ed_patch_type), pointer :: olderPatch
+    type(ed_patch_type), pointer :: youngerPatch
+
     real(r8) areatot ! variable for checking whether the total patch area is wrong. 
     !---------------------------------------------------------------------
  
-    currentSite => cs_pnt
-
-    currentPatch => currentSite%oldest_patch
-    
-    !fuse patches if one of them is very small.... 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch)) 
+       
        if(currentPatch%area <= min_patch_area)then
-          if ( currentPatch%patchno /= currentSite%youngest_patch%patchno) then
-            ! Do not force the fusion of the youngest patch to its neighbour. 
-            ! This is only really meant for very old patches. 
+          
+          if ( .not.associated(currentPatch,currentSite%youngest_patch) ) then
+             
              if(associated(currentPatch%older) )then
-                write(fates_log(),*) 'fusing to older patch because this one is too small',&
+                
+                if(debug) &
+                     write(fates_log(),*) 'fusing to older patch because this one is too small',&
                      currentPatch%area, &
                      currentPatch%older%area
-                call fuse_2_patches(cs_pnt,currentPatch%older, currentPatch)
-                write(fates_log(),*) 'after fusion to older patch',currentPatch%area
-             else
-                write(fates_log(),*) 'fusing to younger patch because oldest one is too small',&
-                     currentPatch%area
-                tmpptr => currentPatch%younger
-                call fuse_2_patches(cs_pnt,currentPatch, currentPatch%younger)
-                write(fates_log(),*) 'after fusion to younger patch'
-                currentPatch => tmpptr
+                
+                ! We set a pointer to this patch, because
+                ! it will be returned by the subroutine as de-referenced
+                
+                olderPatch => currentPatch%older
+                call fuse_2_patches(currentSite, olderPatch, currentPatch)
+                
+                ! The fusion process has updated the "older" pointer on currentPatch
+                ! for us.
+                
+                ! This logic checks to make sure that the younger patch is not the youngest
+                ! patch. As mentioned earlier, we try not to fuse it.
+                
+             elseif( .not. associated(currentPatch%younger,currentSite%youngest_patch) ) then
+                
+                if(debug) &
+                      write(fates_log(),*) 'fusing to younger patch because oldest one is too small', &
+                      currentPatch%area
+                
+                youngerPatch => currentPatch%younger
+                call fuse_2_patches(currentSite, youngerPatch, currentPatch)
+                
+                ! The fusion process has updated the "younger" pointer on currentPatch
+                
              endif
           endif
        endif
-
+          
        currentPatch => currentPatch%older
-
+       
     enddo
-
+    
     !check area is not exceeded
     areatot = 0._r8
     currentPatch => currentSite%oldest_patch
