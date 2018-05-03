@@ -125,6 +125,13 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_canopy_mortality_carbonflux_si
   integer, private :: ih_understory_mortality_carbonflux_si
   integer, private :: ih_canopy_spread_si
+  integer, private :: ih_npp_leaf_si
+  integer, private :: ih_npp_seed_si
+  integer, private :: ih_npp_stem_si
+  integer, private :: ih_npp_froot_si
+  integer, private :: ih_npp_croot_si
+  integer, private :: ih_alloc_stor_si
+
   
   ! Indices to (site x scpf) variables
   integer, private :: ih_nplant_si_scpf
@@ -1214,6 +1221,12 @@ end subroutine flush_hvars
                hio_npp_agsw_si_scpf    => this%hvars(ih_npp_agsw_si_scpf)%r82d, &
                hio_npp_agdw_si_scpf    => this%hvars(ih_npp_agdw_si_scpf)%r82d, &
                hio_npp_stor_si_scpf    => this%hvars(ih_npp_stor_si_scpf)%r82d, &
+               hio_npp_leaf_si         => this%hvars(ih_npp_leaf_si)%r81d, &
+               hio_npp_seed_si         => this%hvars(ih_npp_seed_si)%r81d, &
+               hio_npp_stem_si         => this%hvars(ih_npp_stem_si)%r81d, &
+               hio_npp_froot_si        => this%hvars(ih_npp_froot_si)%r81d, &
+               hio_npp_croot_si        => this%hvars(ih_npp_croot_si)%r81d, &
+               hio_alloc_stor_si       => this%hvars(ih_alloc_stor_si)%r81d, &
 
                hio_bstor_canopy_si_scpf      => this%hvars(ih_bstor_canopy_si_scpf)%r82d, &
                hio_bstor_understory_si_scpf  => this%hvars(ih_bstor_understory_si_scpf)%r82d, &
@@ -1460,6 +1473,16 @@ end subroutine flush_hvars
                hio_biomass_si_age(io_si,cpatch%age_class) = hio_biomass_si_age(io_si,cpatch%age_class) &
                     + ccohort%b_total() * ccohort%n * AREA_INV
 
+
+               ! ecosystem-level, organ-partitioned NPP/allocation fluxes
+               hio_npp_leaf_si(io_si) = hio_npp_leaf_si(io_si) + ccohort%npp_leaf * n_perm2
+               hio_npp_seed_si(io_si) = hio_npp_seed_si(io_si) + ccohort%npp_seed * n_perm2
+               hio_npp_stem_si(io_si) = hio_npp_stem_si(io_si) + (ccohort%npp_sapw + ccohort%npp_dead) * n_perm2 * &
+                    (EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
+               hio_npp_froot_si(io_si) = hio_npp_froot_si(io_si) + ccohort%npp_fnrt * n_perm2
+               hio_npp_croot_si(io_si) = hio_npp_croot_si(io_si) + (ccohort%npp_sapw + ccohort%npp_dead) * n_perm2 * &
+                    (1.-EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
+               hio_alloc_stor_si(io_si) = hio_alloc_stor_si(io_si) + ccohort%npp_stor * n_perm2
 
                ! Site by Size-Class x PFT (SCPF) 
                ! ------------------------------------------------------------------------
@@ -3895,7 +3918,38 @@ end subroutine flush_hvars
           long='total CWD carbon at the column level', use_default='active', &
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
           upfreq=3, ivar=ivar, initialize=initialize_variables, index = ih_cwd_stock_si )
-   
+
+    ! organ-partitioned NPP / allocation fluxes
+    call this%set_history_var(vname='NPP_LEAF', units='kgC/m2/yr',       &
+          long='NPP flux into leaves', use_default='active',               &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_leaf_si )
+
+    call this%set_history_var(vname='NPP_SEED', units='kgC/m2/yr',       &
+          long='NPP flux into seeds', use_default='active',               &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_seed_si )
+
+    call this%set_history_var(vname='NPP_STEM', units='kgC/m2/yr',       &
+          long='NPP flux into stem', use_default='active',               &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_stem_si )
+
+    call this%set_history_var(vname='NPP_FROOT', units='kgC/m2/yr',       &
+          long='NPP flux into fine roots', use_default='active',               &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_froot_si )
+
+    call this%set_history_var(vname='NPP_CROOT', units='kgC/m2/yr',       &
+          long='NPP flux into coarse roots', use_default='active',               &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_croot_si )
+
+    call this%set_history_var(vname='ALLOC_STOR', units='kgC/m2/yr',       &
+          long='Allocation flux into storage tissues', use_default='active',               &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_alloc_stor_si )
+
 
     ! PLANT HYDRAULICS
 
