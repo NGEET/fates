@@ -9,7 +9,9 @@
 # --value or --val: value to put in variable
 # --s or --silent: don't write anything on successful execution.
 ####
-
+#
+# Written by C. Koven, 2018
+#
 
 # =======================================================================================
 # =======================================================================================
@@ -40,11 +42,11 @@ def main():
     parser.add_argument('--val', '--value', dest='val', type=float, help="New value of PFT variable.  Required.", required=True)
     parser.add_argument('--O','--overwrite', dest='overwrite', help="If present, automatically overwrite the output file.", action="store_true")
     parser.add_argument('--silent', '--s', dest='silent', help="prevent writing of output.", action="store_true")
-    parser.add_argument('--nohist', dest='silent', help="prevent recording of the edit in the history attribute of the output file", action="store_true")
+    parser.add_argument('--nohist', dest='nohist', help="prevent recording of the edit in the history attribute of the output file", action="store_true")
     #
     args = parser.parse_args()
     #
-    # work with the file in some random temprary place so that if something goes wrong nothing happens to original file and it doesn't make an output file
+    # work with the file in some random temporary place so that if something goes wrong, then nothing happens to original file and it doesn't make a persistent output file
     tempdir = tempfile.mkdtemp()
     tempfilename = os.path.join(tempdir, 'temp_fates_param_file.nc')
     #
@@ -98,14 +100,19 @@ def main():
         else:
             raise ValueError('Nothing happened somehow.')
         #
-        # write to the history file what you just did.
-        actionstring = sys.argv[:]
-        timestampstring = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+        if not args.nohist:
+            # write to the netcdf file history attribute what you just did.
+            actionstring = 'modify_fates_paramfile.py '+' '.join(sys.argv[1:])
+            timestampstring = datetime.datetime.fromtimestamp(time.time()).strftime('%a %b %d %Y, %H:%M:%S')
+            #
+            oldhiststr = ncfile.history
+            newhiststr = oldhiststr + "\n "+timestampstring + ': ' + actionstring
+            ncfile.history = newhiststr
         #
-        ncfile.close(history=timestampstring + ': ' + actionstring)
+        ncfile.close()
         #
         #
-        # now move file from temprary location to final location
+        # now move file from temporary location to final location
         #
         # check to see if output file exists
         if os.path.isfile(args.outputfname):
