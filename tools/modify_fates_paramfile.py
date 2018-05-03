@@ -19,7 +19,9 @@ from scipy.io import netcdf as nc
 import argparse
 import shutil
 import tempfile
-
+import sys
+import datetime
+import time
 
 # ========================================================================================
 # ========================================================================================
@@ -31,13 +33,14 @@ def main():
     parser = argparse.ArgumentParser(description='Parse command line arguments to this script.')
     #
     parser.add_argument('--var','--variable', dest='varname', type=str, help="What variable to modify? Required.", required=True)
-    parser.add_argument('--pft','--PFT', dest='pftnum', type=int, help="PFT number to modify. If this is missing, will assume a global variable.")
-    parser.add_argument('--allPFTs', '--allpfts', dest='allpfts', help="apply to all PFT indices", action="store_true")
+    parser.add_argument('--pft','--PFT', dest='pftnum', type=int, help="PFT number to modify. If this is missing and --allPFTs is not specified, will assume a global variable.")
+    parser.add_argument('--allPFTs', '--allpfts', dest='allpfts', help="apply to all PFT indices. Cannot use at same time as --pft argument.", action="store_true")
     parser.add_argument('--fin', '--input', dest='inputfname', type=str, help="Input filename.  Required.", required=True)
     parser.add_argument('--fout','--output', dest='outputfname', type=str, help="Output filename.  Required.", required=True)
     parser.add_argument('--val', '--value', dest='val', type=float, help="New value of PFT variable.  Required.", required=True)
     parser.add_argument('--O','--overwrite', dest='overwrite', help="If present, automatically overwrite the output file.", action="store_true")
     parser.add_argument('--silent', '--s', dest='silent', help="prevent writing of output.", action="store_true")
+    parser.add_argument('--nohist', dest='silent', help="prevent recording of the edit in the history attribute of the output file", action="store_true")
     #
     args = parser.parse_args()
     #
@@ -95,8 +98,11 @@ def main():
         else:
             raise ValueError('Nothing happened somehow.')
         #
+        # write to the history file what you just did.
+        actionstring = sys.argv[:]
+        timestampstring = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
         #
-        ncfile.close()
+        ncfile.close(history=timestampstring + ': ' + actionstring)
         #
         #
         # now move file from temprary location to final location
