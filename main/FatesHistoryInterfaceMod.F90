@@ -130,7 +130,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_npp_stem_si
   integer, private :: ih_npp_froot_si
   integer, private :: ih_npp_croot_si
-  integer, private :: ih_alloc_stor_si
+  integer, private :: ih_npp_stor_si
 
   
   ! Indices to (site x scpf) variables
@@ -1226,7 +1226,7 @@ end subroutine flush_hvars
                hio_npp_stem_si         => this%hvars(ih_npp_stem_si)%r81d, &
                hio_npp_froot_si        => this%hvars(ih_npp_froot_si)%r81d, &
                hio_npp_croot_si        => this%hvars(ih_npp_croot_si)%r81d, &
-               hio_alloc_stor_si       => this%hvars(ih_alloc_stor_si)%r81d, &
+               hio_npp_stor_si         => this%hvars(ih_npp_stor_si)%r81d, &
 
                hio_bstor_canopy_si_scpf      => this%hvars(ih_bstor_canopy_si_scpf)%r82d, &
                hio_bstor_understory_si_scpf  => this%hvars(ih_bstor_understory_si_scpf)%r82d, &
@@ -1482,7 +1482,7 @@ end subroutine flush_hvars
                hio_npp_froot_si(io_si) = hio_npp_froot_si(io_si) + ccohort%npp_fnrt * n_perm2
                hio_npp_croot_si(io_si) = hio_npp_croot_si(io_si) + (ccohort%npp_sapw + ccohort%npp_dead) * n_perm2 * &
                     (1.-EDPftvarcon_inst%allom_agb_frac(ccohort%pft))
-               hio_alloc_stor_si(io_si) = hio_alloc_stor_si(io_si) + ccohort%npp_stor * n_perm2
+               hio_npp_stor_si(io_si) = hio_npp_stor_si(io_si) + ccohort%npp_stor * n_perm2
 
                ! Site by Size-Class x PFT (SCPF) 
                ! ------------------------------------------------------------------------
@@ -3945,10 +3945,10 @@ end subroutine flush_hvars
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_croot_si )
 
-    call this%set_history_var(vname='ALLOC_STOR', units='kgC/m2/yr',       &
-          long='Allocation flux into storage tissues', use_default='active',               &
+    call this%set_history_var(vname='NPP_STOR', units='kgC/m2/yr',       &
+          long='NPP flux into storage tissues', use_default='active',               &
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_alloc_stor_si )
+          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_stor_si )
 
 
     ! PLANT HYDRAULICS
