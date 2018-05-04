@@ -152,14 +152,15 @@ contains
     real(r8) :: vai                ! leaf and steam area in ths layer. 
     real(r8) :: tcsoi              ! Temperature response function for root respiration. 
     real(r8) :: tcwood             ! Temperature response function for wood
-    real(r8) :: rscanopy           ! Canopy resistance [s/m]
+    real(r8) :: rstoma_canopy      ! Canopy stomatal resistance [s/m]
+    real(r8) :: rbulk_canopy       ! Canopy bulk resistance (stomatal + boundary layer) [s/m]
     real(r8) :: elai               ! exposed LAI (patch scale)
     real(r8) :: live_stem_n        ! Live stem (above-ground sapwood) 
                                    ! nitrogen content (kgN/plant)
     real(r8) :: live_croot_n       ! Live coarse root (below-ground sapwood) 
                                    ! nitrogen content (kgN/plant)
     real(r8) :: froot_n            ! Fine root nitrogen content (kgN/plant)
-    real(r8) :: gccanopy_pa        ! Patch level canopy stomatal conductance  [mmol m-2 s-1]
+    real(r8) :: gccanopy_pa        ! Patch level canopy stomatal conductance  [m/s] [m2-leaf / m2]
     real(r8) :: maintresp_reduction_factor  ! factor by which to reduce maintenance respiration when storage pools are low
     real(r8) :: b_leaf             ! leaf biomass kgC
     real(r8) :: frac               ! storage pool as a fraction of target leaf biomass
@@ -603,6 +604,8 @@ contains
                                                 currentCohort%resp_tstep  ! kgC/indiv/ts
 
                      ! Accumulate stomatal conductance over the patch
+                     ! [m/s] [m2-leaf / plant] * plant / m2            = [m/s] [m2-leaf / m2]
+
                      gccanopy_pa  = gccanopy_pa + &
                                     currentCohort%gscan * &
                                     currentCohort%n /currentPatch%total_canopy_area
@@ -621,14 +624,30 @@ contains
                !psncanopy_pa(ifp) = psncanopy_pa(ifp) / currentPatch%area
                !lmrcanopy_pa(ifp) = lmrcanopy_pa(ifp) / currentPatch%area
 
-               if(gccanopy_pa > 1._r8/rsmax0 .and. elai > 0.0_r8)then
-                  rscanopy  = (1.0_r8/gccanopy_pa)-bc_in(s)%rb_pa(ifp)/elai  
+               if( gccanopy_pa > elai*(1._r8/rsmax0) .and. elai > tiny(elai) )then
+                  
+                  ! This first converts the gccanopy_pa to units of m/s
+                  ! because it was just being area weighted by cohort LAI
+                  ! Then, the canopy resistance is calculated
+                  ! Then the boundary layer resistance is backed out
+                  ! to leave the stomatal resistance
+                  
+                  rbulk_canopy  = 1.0_r8/(gccanopy_pa/elai)
+                  
+                  if (rbulk_canopy<bc_in(s)%rb_pa(ifp)) then
+                     write(fates_log(),*) 'Bulk canopy resistance was somehow smaller than'
+                     write(fates_log(),*) 'its boundary layer resistance component'
+                     write(fates_log(),*) 'rbulk_canopy [s/m]: ',rbulk_canopy
+                     write(fates_log(),*) 'bc_in(s)%rb_pa(ifp) [s/m]: ',bc_in(s)%rb_pa(ifp)
+                     call endrun(msg=errMsg(sourcefile, __LINE__))
+                  end if
+                  rstoma_canopy = rbulk_canopy - bc_in(s)%rb_pa(ifp)
                else
-                  rscanopy = rsmax0
+                  rstoma_canopy = rsmax0
                end if
 
-               bc_out(s)%rssun_pa(ifp) = rscanopy
-               bc_out(s)%rssha_pa(ifp) = rscanopy
+               bc_out(s)%rssun_pa(ifp) = rstoma_canopy
+               bc_out(s)%rssha_pa(ifp) = rstoma_canopy
 
 
             end if
@@ -1026,7 +1045,7 @@ contains
                                         treesai,     & ! in   currentCohort%treesai
                                         rb,          & ! in   bc_in(s)%rb_pa(ifp)
                                         maintresp_reduction_factor, & ! in 
-                                        gscan,       & ! out  currentCohort%gscan
+                                        gscan,       & ! out  currentCohort%gscan [m/s] [m2-leaf / plant]
                                         gpp,         & ! out  currentCohort%gpp_tstep
                                         rdark)         ! out  currentCohort%rdark
    
@@ -1047,11 +1066,11 @@ contains
     real(r8), intent(in) :: lmr_llz(nv)      ! umolC/m2leaf/s 
     real(r8), intent(in) :: rs_llz(nv)       ! s/m
     real(r8), intent(in) :: anet_av_llz(nv)  ! umolC/m2leaf/s 
-    real(r8), intent(in) :: elai_llz(nv)     ! exposed LAI per layer
+    real(r8), intent(in) :: elai_llz(nv)     ! exposed LAI per layer [m2 leaf/ m2 pft footprint]
     real(r8), intent(in) :: c_area           ! crown area m2/m2
     real(r8), intent(in) :: nplant           ! indiv/m2
-    real(r8), intent(in) :: treelai          ! m2/m2
-    real(r8), intent(in) :: treesai          ! m2/m2
+    real(r8), intent(in) :: treelai          ! m2/m2 -  m2 of leaf per m2 of ground
+    real(r8), intent(in) :: treesai          ! m2/m2 -  m2 of stem per m2 of ground
     real(r8), intent(in) :: rb               ! boundary layer resistance (s/m)
     real(r8), intent(in) :: maintresp_reduction_factor  ! factor by which to reduce maintenance respiration
     real(r8), intent(out) :: gscan      ! Canopy conductance of the cohort m/s
@@ -1066,27 +1085,33 @@ contains
     real(r8) :: laifrac
     
     ! Convert from umolC/m2leaf/s to umolC/indiv/s ( x canopy area x 1m2 leaf area). 
+    ! Units [m2 of crown area/ plant]
     tree_area = c_area/nplant
     
     ! The routine is only called if there are leaves.  If there are leaves,
     ! there is at least 1 layer
-    
+    ! LAI of just the bottom partial layer  [m2 leaf per m2 of ground]
     laifrac = (treelai+treesai)-dble(nv-1)*dinc_ed
     
-    ! Canopy Conductance
-    gscan = 1.0_r8/(rs_llz(nv)+rb)*laifrac*tree_area   
+    ! Canopy Conductance  
+    ! [m/s] * [m2 leaf / m2 ground] * [m2 ground / plant] =  [m/s] [m2-leaf / plant]
+    gscan = 1.0_r8/(rs_llz(nv)+rb) * laifrac * tree_area   
     
-    ! GPP
+    ! GPP    [umolC/m2leaf/s] * [m2 leaf / indiv]                            -> [umolC/indiv/s]
+    !        [umolC/m2leaf/s] * [m2 leaf / m2 ground] * [m2 ground / indiv]  -> [umolC/indiv/s]
     gpp = psn_llz(nv) * elai_llz(nv) * laifrac * tree_area
     
     ! Dark respiration
+    ! [umolC/m2leaf/s] * [m2 leaf / indiv]                            -> [umolC/indiv/s]
+    ! [umolC/m2leaf/s] * [m2 leaf / m2 ground] * [m2 ground / indiv]  -> [umolC/indiv/s]
     rdark = lmr_llz(nv) * elai_llz(nv) * laifrac * tree_area 
     
     ! If there is more than one layer, add the sum over the others
     if ( nv>1 ) then
-       gpp   = gpp + sum(psn_llz(1:nv-1) * elai_llz(1:nv-1)) * tree_area
-       rdark = rdark + sum(lmr_llz(1:nv-1) * elai_llz(1:nv-1)) * tree_area 
-       gscan = gscan + sum((1.0_r8/(rs_llz(1:nv-1) + rb ))) * tree_area 
+       laifrac = dinc_ed
+       gpp     = gpp + sum(psn_llz(1:nv-1) * elai_llz(1:nv-1)) * tree_area 
+       rdark   = rdark + sum(lmr_llz(1:nv-1) * elai_llz(1:nv-1)) * tree_area 
+       gscan   = gscan + sum((1.0_r8/(rs_llz(1:nv-1) + rb )) * laifrac ) * tree_area 
     end if
 
     rdark = rdark * maintresp_reduction_factor
