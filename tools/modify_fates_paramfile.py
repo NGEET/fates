@@ -9,7 +9,9 @@
 # --value or --val: value to put in variable
 # --s or --silent: don't write anything on successful execution.
 ####
-
+#
+# Written by C. Koven, 2018
+#
 
 # =======================================================================================
 # =======================================================================================
@@ -19,7 +21,9 @@ from scipy.io import netcdf as nc
 import argparse
 import shutil
 import tempfile
-
+import sys
+import datetime
+import time
 
 # ========================================================================================
 # ========================================================================================
@@ -31,17 +35,18 @@ def main():
     parser = argparse.ArgumentParser(description='Parse command line arguments to this script.')
     #
     parser.add_argument('--var','--variable', dest='varname', type=str, help="What variable to modify? Required.", required=True)
-    parser.add_argument('--pft','--PFT', dest='pftnum', type=int, help="PFT number to modify. If this is missing, will assume a global variable.")
-    parser.add_argument('--allPFTs', '--allpfts', dest='allpfts', help="apply to all PFT indices", action="store_true")
+    parser.add_argument('--pft','--PFT', dest='pftnum', type=int, help="PFT number to modify. If this is missing and --allPFTs is not specified, will assume a global variable.")
+    parser.add_argument('--allPFTs', '--allpfts', dest='allpfts', help="apply to all PFT indices. Cannot use at same time as --pft argument.", action="store_true")
     parser.add_argument('--fin', '--input', dest='inputfname', type=str, help="Input filename.  Required.", required=True)
     parser.add_argument('--fout','--output', dest='outputfname', type=str, help="Output filename.  Required.", required=True)
     parser.add_argument('--val', '--value', dest='val', type=float, help="New value of PFT variable.  Required.", required=True)
     parser.add_argument('--O','--overwrite', dest='overwrite', help="If present, automatically overwrite the output file.", action="store_true")
     parser.add_argument('--silent', '--s', dest='silent', help="prevent writing of output.", action="store_true")
+    parser.add_argument('--nohist', dest='nohist', help="prevent recording of the edit in the history attribute of the output file", action="store_true")
     #
     args = parser.parse_args()
     #
-    # work with the file in some random temprary place so that if something goes wrong nothing happens to original file and it doesn't make an output file
+    # work with the file in some random temporary place so that if something goes wrong, then nothing happens to original file and it doesn't make a persistent output file
     tempdir = tempfile.mkdtemp()
     tempfilename = os.path.join(tempdir, 'temp_fates_param_file.nc')
     #
@@ -95,11 +100,19 @@ def main():
         else:
             raise ValueError('Nothing happened somehow.')
         #
+        if not args.nohist:
+            # write to the netcdf file history attribute what you just did.
+            actionstring = 'modify_fates_paramfile.py '+' '.join(sys.argv[1:])
+            timestampstring = datetime.datetime.fromtimestamp(time.time()).strftime('%a %b %d %Y, %H:%M:%S')
+            #
+            oldhiststr = ncfile.history
+            newhiststr = oldhiststr + "\n "+timestampstring + ': ' + actionstring
+            ncfile.history = newhiststr
         #
         ncfile.close()
         #
         #
-        # now move file from temprary location to final location
+        # now move file from temporary location to final location
         #
         # check to see if output file exists
         if os.path.isfile(args.outputfname):
