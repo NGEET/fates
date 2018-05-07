@@ -160,13 +160,13 @@ contains
     real(r8) :: live_croot_n       ! Live coarse root (below-ground sapwood) 
                                    ! nitrogen content (kgN/plant)
     real(r8) :: froot_n            ! Fine root nitrogen content (kgN/plant)
-    real(r8) :: gccanopy_pa        ! Patch level canopy stomatal conductance  [m/s] [m2-leaf / m2]
+    real(r8) :: gccanopy_pa        ! Patch level canopy stomatal conductance  [m/s] [m2-leaf]
     real(r8) :: maintresp_reduction_factor  ! factor by which to reduce maintenance respiration when storage pools are low
     real(r8) :: b_leaf             ! leaf biomass kgC
     real(r8) :: frac               ! storage pool as a fraction of target leaf biomass
     real(r8) :: check_elai         ! This is a check on the effective LAI that is calculated
                                    ! over each cohort x layer.
-    real(r8) :: cohort_eleaf_area  ! This is the effective leaf area [m2] reported by each layer and cohort
+    real(r8) :: cohort_eleaf_area  ! This is the effective leaf area [m2] reported by each cohort
     
     ! -----------------------------------------------------------------------------------
     ! Keeping these two definitions in case they need to be added later
@@ -1056,7 +1056,7 @@ contains
                                         nplant,      & ! in   currentCohort%n
                                         rb,          & ! in   bc_in(s)%rb_pa(ifp)
                                         maintresp_reduction_factor, & ! in 
-                                        gscan,       & ! out  currentCohort%gscan [m/s] [m2-leaf / plant]
+                                        gscan,       & ! out  currentCohort%gscan [m/s] [m2-leaf]
                                         gpp,         & ! out  currentCohort%gpp_tstep
                                         rdark,       & ! out  currentCohort%rdark
                                         cohort_eleaf_area ) ! out [m2]
@@ -1129,7 +1129,7 @@ contains
     ! We DO NOT normalize gscan right now
     ! The units that we are passing back are [m/s] * [m2 effective leaf]
     ! We will add these up over the whole patch, and then normalized
-    ! by the patch elai in the calling routine
+    ! by the patch's total leaf area in the calling routine
     ! -----------------------------------------------------------------------------------
 
     ! -----------------------------------------------------------------------------------
@@ -1428,6 +1428,7 @@ contains
       
       use FatesConstantsMod, only: umol_per_mol
       use FatesConstantsMod, only: mmol_per_mol
+      use FatesConstantsMod, only: umol_per_kmol
       use FatesConstantsMod, only : rgas => rgas_J_K_kmol
 
       ! Arguments
@@ -1517,7 +1518,7 @@ contains
       ! 
       ! --------------------------------------------------------------------------------
 
-      cf = can_press/(rgas*1.e-3_r8 * air_tempk )*1.e06_r8
+      cf = can_press/(rgas * air_tempk )*umol_per_kmol
       gb_mol = (1._r8/ rb) * cf           
       
       ! Constrain eair >= 0.05*esat_tv so that solution does not blow up. This ensures
