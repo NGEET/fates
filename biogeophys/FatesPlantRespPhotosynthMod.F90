@@ -70,7 +70,6 @@ contains
     use EDTypesMod        , only : ed_cohort_type
     use EDTypesMod        , only : ed_site_type
     use EDTypesMod        , only : maxpft
-    use FatesInterfaceMod , only : hlm_numlevsoil
     use FatesInterfaceMod , only : bc_in_type
     use FatesInterfaceMod , only : bc_out_type
     use EDCanopyStructureMod, only : calc_areaindex
@@ -549,8 +548,8 @@ contains
                      ! Fine Root MR  (kgC/plant/s)
                      ! ------------------------------------------------------------------
                      currentCohort%froot_mr = 0._r8
-                     do j = 1,hlm_numlevsoil
-                        tcsoi  = q10**((bc_in(s)%t_soisno_gl(j)-tfrz - 20.0_r8)/10.0_r8)
+                     do j = 1,bc_in(s)%nlevsoil
+                        tcsoi  = q10**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
                         currentCohort%froot_mr = currentCohort%froot_mr + &
                               froot_n * ED_val_base_mr_20 * tcsoi * currentPatch%rootfr_ft(ft,j) * maintresp_reduction_factor
                      enddo
@@ -559,9 +558,9 @@ contains
                      ! ------------------------------------------------------------------
                      if (woody(ft) == 1) then
                         currentCohort%livecroot_mr = 0._r8
-                        do j = 1,hlm_numlevsoil
+                        do j = 1,bc_in(s)%nlevsoil
                            ! Soil temperature used to adjust base rate of MR
-                           tcsoi  = q10**((bc_in(s)%t_soisno_gl(j)-tfrz - 20.0_r8)/10.0_r8)
+                           tcsoi  = q10**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
                            currentCohort%livecroot_mr = currentCohort%livecroot_mr + &
                                  live_croot_n * ED_val_base_mr_20 * tcsoi * &
                                  currentPatch%rootfr_ft(ft,j) * maintresp_reduction_factor

@@ -454,7 +454,7 @@ contains
     do i = 1,numWaterMem-1 !shift memory along one
        currentSite%water_memory(numWaterMem+1-i) = currentSite%water_memory(numWaterMem-i)
     enddo
-    currentSite%water_memory(1) = bc_in%h2o_liqvol_gl(1)   !waterstate_inst%h2osoi_vol_col(coli,1)
+    currentSite%water_memory(1) = bc_in%h2o_liqvol_sl(1)   !waterstate_inst%h2osoi_vol_col(coli,1)
 
     !In drought phenology, we often need to force the leaves to stay on or off as moisture fluctuates...     
     timesincedleafoff = 0
@@ -2005,7 +2005,6 @@ contains
     
 
     use EDTypesMod, only : AREA
-    use FatesInterfaceMod, only : hlm_numlevdecomp_full
     use FatesInterfaceMod, only : hlm_numlevdecomp
     use EDPftvarcon, only : EDPftvarcon_inst
     use FatesConstantsMod, only : sec_per_day
@@ -2034,11 +2033,14 @@ contains
     integer           :: begp,endp
     integer           :: begc,endc                                    !bounds 
     !------------------------------------------------------------------------
-    real(r8) :: cinput_rootfr(1:maxpft, 1:hlm_numlevdecomp_full)      ! column by pft root fraction used for calculating inputs
-    real(r8) :: croot_prof_perpatch(1:hlm_numlevdecomp_full)
-    real(r8) :: surface_prof(1:hlm_numlevdecomp_full)
+    ! The following scratch arrays are allocated for maximum possible
+    ! pft and layer usage
+    real(r8) :: cinput_rootfr(1:maxpft, 1:hlm_numlevgrnd)      ! column by pft root fraction used for calculating inputs
+    real(r8) :: croot_prof_perpatch(1:hlm_numlevgrnd)
+    real(r8) :: surface_prof(1:hlm_numlevgrnd)
     integer  :: ft
-    real(r8) :: rootfr_tot(1:maxpft), biomass_bg_ft(1:maxpft)
+    real(r8) :: rootfr_tot(1:maxpft)
+    real(r8) :: biomass_bg_ft(1:maxpft)
     real(r8) :: surface_prof_tot, leaf_prof_sum, stem_prof_sum, froot_prof_sum, biomass_bg_tot
     real(r8) :: delta
 
@@ -2126,6 +2128,10 @@ contains
                 end do
              endif
           else
+
+             
+
+
              do ft = 1,numpft 
                 do j = 1, hlm_numlevdecomp
                    ! use standard CLM root fraction profiles;

@@ -18,8 +18,6 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : dtype_ilog
   use EDTypesMod           , only : dtype_ifire
   use FatesInterfaceMod    , only : hlm_use_planthydro
-  use FatesInterfaceMod    , only : hlm_numlevgrnd
-  use FatesInterfaceMod    , only : hlm_numlevsoil
   use FatesInterfaceMod    , only : hlm_numSWb
   use FatesInterfaceMod    , only : bc_in_type
   use FatesInterfaceMod    , only : hlm_days_per_year
@@ -345,7 +343,7 @@ contains
        allocate(new_patch)
        call create_patch(currentSite, new_patch, age, site_areadis, &
             cwd_ag_local, cwd_bg_local, leaf_litter_local, &
-            root_litter_local)
+            root_litter_local, bc_in%nlevsoil)
 
        new_patch%tallest  => null()
        new_patch%shortest => null()
@@ -1116,7 +1114,7 @@ contains
 
   ! ============================================================================
   subroutine create_patch(currentSite, new_patch, age, areap,cwd_ag_local,cwd_bg_local, &
-       leaf_litter_local,root_litter_local)
+       leaf_litter_local,root_litter_local,nlevsoil)
     !
     ! !DESCRIPTION:
     !  Set default values for creating a new patch
@@ -1126,12 +1124,13 @@ contains
     ! !ARGUMENTS:
     type(ed_site_type) , intent(inout), target :: currentSite
     type(ed_patch_type), intent(inout), target :: new_patch
-    real(r8), intent(in) :: age                 ! notional age of this patch in years
-    real(r8), intent(in) :: areap               ! initial area of this patch in m2. 
-    real(r8), intent(in) :: cwd_ag_local(:)     ! initial value of above ground coarse woody debris. KgC/m2
-    real(r8), intent(in) :: cwd_bg_local(:)     ! initial value of below ground coarse woody debris. KgC/m2
-    real(r8), intent(in) :: root_litter_local(:)! initial value of root litter. KgC/m2
-    real(r8), intent(in) :: leaf_litter_local(:)! initial value of leaf litter. KgC/m2
+    real(r8), intent(in) :: age                  ! notional age of this patch in years
+    real(r8), intent(in) :: areap                ! initial area of this patch in m2. 
+    real(r8), intent(in) :: cwd_ag_local(:)      ! initial value of above ground coarse woody debris. KgC/m2
+    real(r8), intent(in) :: cwd_bg_local(:)      ! initial value of below ground coarse woody debris. KgC/m2
+    real(r8), intent(in) :: root_litter_local(:) ! initial value of root litter. KgC/m2
+    real(r8), intent(in) :: leaf_litter_local(:) ! initial value of leaf litter. KgC/m2
+    integer, intent(in)  :: nlevsoil             ! number of soil layers
     !
     ! !LOCAL VARIABLES:
     !---------------------------------------------------------------------
@@ -1144,8 +1143,8 @@ contains
     allocate(new_patch%fabi(hlm_numSWb))
     allocate(new_patch%sabs_dir(hlm_numSWb))
     allocate(new_patch%sabs_dif(hlm_numSWb))
-    allocate(new_patch%rootfr_ft(numpft,hlm_numlevgrnd))
-    allocate(new_patch%rootr_ft(numpft,hlm_numlevgrnd)) 
+    allocate(new_patch%rootfr_ft(numpft,nlevsoil)
+    allocate(new_patch%rootr_ft(numpft,nlevsoil)
     
     call zero_patch(new_patch) !The nan value in here is not working??
 
@@ -1892,36 +1891,55 @@ contains
 
    ! ====================================================================================
 
-  subroutine set_root_fraction( cpatch , zi )
+  subroutine set_root_fraction( root_fraction , zi )
     !
     ! !DESCRIPTION:
     !  Calculates the fractions of the root biomass in each layer for each pft. 
+    !  It assumes an exponential decay.  If the soil depth is shallower than
+    !  then exponential attenuation function, then it will normalize
+    !  the profile and divide through.
     !
     ! !USES:
 
     !
     ! !ARGUMENTS
-    type(ed_patch_type),intent(inout), target :: cpatch
-    real(r8),intent(in)  :: zi(0:hlm_numlevsoil)
+    real(r8),intent(out) :: root_fraction(:,:)
+    real(r8),intent(in)  :: zi(:)
     !
     ! !LOCAL VARIABLES:
     integer :: lev,p,c,ft
+    integer :: nlevsoil
+    real(r8) :: sum_rootfr
     !----------------------------------------------------------------------
     
+    if(lbound(zi,1).ne.0) then
+       write(fates_log(),*) 'layer interface levels should have 0 index'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+
+    nlevsoil = ubound(zi,1)
+    
     do ft = 1,numpft
-       do lev = 1, hlm_numlevgrnd
-          cpatch%rootfr_ft(ft,lev) = 0._r8
-       enddo
+       
+       sum_rootfr = 0.0_r8
 
-       do lev = 1, hlm_numlevsoil-1
-          cpatch%rootfr_ft(ft,lev) = .5_r8*( &
-                 exp(-EDPftvarcon_inst%roota_par(ft) * zi(lev-1))  &
-               + exp(-EDPftvarcon_inst%rootb_par(ft) * zi(lev-1))  &
-               - exp(-EDPftvarcon_inst%roota_par(ft) * zi(lev))    &
-               - exp(-EDPftvarcon_inst%rootb_par(ft) * zi(lev)))
+       do lev = 1, nlevsoil
+          
+          root_fraction(ft,lev) = .5_r8*( &
+                  exp(-EDPftvarcon_inst%roota_par(ft) * zi(lev-1))  &
+                + exp(-EDPftvarcon_inst%rootb_par(ft) * zi(lev-1))  &
+                - exp(-EDPftvarcon_inst%roota_par(ft) * zi(lev))    &
+                - exp(-EDPftvarcon_inst%rootb_par(ft) * zi(lev)))
+          
+          sum_rootfr = sum_rootfr + cpatch%rootfr_ft(ft,lev)
+          
        end do
+       
+       ! Normalize the root profile
+       root_fraction(ft,:) = cpatch%rootfr_ft(ft,:)/sum_rootfr
+       
     end do
-
-  end subroutine set_root_fraction
+    
+ end subroutine set_root_fraction
 
  end module EDPatchDynamicsMod
