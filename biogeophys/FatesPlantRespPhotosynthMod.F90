@@ -655,15 +655,31 @@ contains
                         write(fates_log(),*) 'bc_in(s)%rb_pa(ifp) [s/m]: ',bc_in(s)%rb_pa(ifp)
                         call endrun(msg=errMsg(sourcefile, __LINE__))
                      end if
-                     rstoma_canopy = rbulk_canopy - bc_in(s)%rb_pa(ifp)
+                     
+                     currentPatch%r_stomata = rbulk_canopy - bc_in(s)%rb_pa(ifp)
+                                          
                   else
-                     rstoma_canopy = rsmax0
+                     
+                     currentPatch%r_stomata = rsmax0
+                     
                   end if
                   
-                  bc_out(s)%rssun_pa(ifp) = rstoma_canopy
-                  bc_out(s)%rssha_pa(ifp) = rstoma_canopy
-               end if
+                  bc_out(s)%rssun_pa(ifp) = currentPatch%r_stomata
+                  bc_out(s)%rssha_pa(ifp) = currentPatch%r_stomata
 
+               else
+
+                  ! This will be multiplied by effective LAI in the host model
+                  ! But this will prevent it from using an unintialized value
+                  ! This will also be used in the diagnostics
+                  bc_out(s)%rssun_pa(ifp) = rsmax0
+                  bc_out(s)%rssha_pa(ifp) = rsmax0
+                  currentPatch%r_stomata  = rsmax0
+                  
+               end if
+               
+               currentPatch%r_lblayer = bc_in(s)%rb_pa(ifp)
+               
             end if
             
             currentPatch => currentPatch%younger
