@@ -153,7 +153,7 @@ contains
     real(r8) :: tcsoi              ! Temperature response function for root respiration. 
     real(r8) :: tcwood             ! Temperature response function for wood
     real(r8) :: rstoma_canopy      ! Canopy stomatal resistance [s/m]
-    real(r8) :: rbulk_canopy       ! Canopy bulk resistance (stomatal + boundary layer) [s/m]
+    real(r8) :: rcombined_canopy   ! Canopy combined leaf resistance (stomatal + boundary layer) [s/m]
     real(r8) :: elai               ! exposed LAI (patch scale)
     real(r8) :: live_stem_n        ! Live stem (above-ground sapwood) 
                                    ! nitrogen content (kgN/plant)
@@ -604,7 +604,7 @@ contains
                      currentCohort%npp_tstep  = currentCohort%gpp_tstep - &
                                                 currentCohort%resp_tstep  ! kgC/indiv/ts
                      
-                     ! Accumulate the bulk conductance (across stoma and boundary layer)
+                     ! Accumulate the combined conductance (across stoma and boundary layer)
                      ! [m/s] * [m2 leaf] 
 
                      gccanopy_pa  = gccanopy_pa + currentCohort%gscan
@@ -630,7 +630,7 @@ contains
                end if
 
 
-               ! Normalize canopy bulk conductance by the effective LAI
+               ! Normalize canopy total conductance by the effective LAI
                ! The value here was integrated over each cohort x leaf layer
                ! and was weighted by m2 of effective leaf area for each layer
                
@@ -642,21 +642,21 @@ contains
                   
                   if( gccanopy_pa > (1._r8/rsmax0) ) then 
                      
-                     ! Bulk canopy resistance is the inverse of canopy conductance
+                     ! Combined canopy resistance is the inverse of canopy conductance
                      ! Then the boundary layer resistance is backed out
                      ! to leave the stomatal resistance
                      
-                     rbulk_canopy  = 1.0_r8/gccanopy_pa
+                     rcombined_canopy  = 1.0_r8/gccanopy_pa
                      
-                     if (rbulk_canopy<bc_in(s)%rb_pa(ifp)) then
-                        write(fates_log(),*) 'Bulk canopy resistance was somehow smaller than'
+                     if (rcombined_canopy<bc_in(s)%rb_pa(ifp)) then
+                        write(fates_log(),*) 'Combined canopy resistance was somehow smaller than'
                         write(fates_log(),*) 'its boundary layer resistance component'
-                        write(fates_log(),*) 'rbulk_canopy [s/m]: ',rbulk_canopy
+                        write(fates_log(),*) 'rcombined_canopy [s/m]: ',rcombined_canopy
                         write(fates_log(),*) 'bc_in(s)%rb_pa(ifp) [s/m]: ',bc_in(s)%rb_pa(ifp)
                         call endrun(msg=errMsg(sourcefile, __LINE__))
                      end if
                      
-                     currentPatch%r_stomata = rbulk_canopy - bc_in(s)%rb_pa(ifp)
+                     currentPatch%r_stomata = rcombined_canopy - bc_in(s)%rb_pa(ifp)
                                           
                   else
                      
@@ -1098,7 +1098,7 @@ contains
     real(r8), intent(in) :: nplant           ! indiv/m2
     real(r8), intent(in) :: rb               ! boundary layer resistance (s/m)
     real(r8), intent(in) :: maintresp_reduction_factor  ! factor by which to reduce maintenance respiration
-    real(r8), intent(out) :: gscan      ! Bulk conductance (stomatal + boundary layer) for the cohort 
+    real(r8), intent(out) :: gscan      ! Combined conductance (stomatal + boundary layer) for the cohort 
                                         ! weighted by leaf area [m/s]*[m2]
     real(r8), intent(out) :: gpp        ! GPP (kgC/indiv/s)
     real(r8), intent(out) :: rdark      ! Dark Leaf Respiration (kgC/indiv/s)
