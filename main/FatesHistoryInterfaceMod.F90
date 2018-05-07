@@ -75,6 +75,7 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_bsapwood_pa
   integer, private :: ih_bfineroot_pa
   integer, private :: ih_btotal_pa
+  integer, private :: ih_agb_pa
   integer, private :: ih_npp_pa
   integer, private :: ih_gpp_pa
   integer, private :: ih_aresp_pa
@@ -1209,6 +1210,7 @@ end subroutine flush_hvars
                hio_bsapwood_pa         => this%hvars(ih_bsapwood_pa)%r81d, &
                hio_bfineroot_pa        => this%hvars(ih_bfineroot_pa)%r81d, &
                hio_btotal_pa           => this%hvars(ih_btotal_pa)%r81d, &
+               hio_agb_pa              => this%hvars(ih_agb_pa)%r81d, &
                hio_canopy_biomass_pa   => this%hvars(ih_canopy_biomass_pa)%r81d, &
                hio_understory_biomass_pa   => this%hvars(ih_understory_biomass_pa)%r81d, &
                hio_gpp_si_scpf         => this%hvars(ih_gpp_si_scpf)%r82d, &
@@ -1455,6 +1457,8 @@ end subroutine flush_hvars
                hio_bsapwood_pa(io_pa)  = hio_bsapwood_pa(io_pa)   + n_density * ccohort%bsw  * g_per_kg
                hio_bfineroot_pa(io_pa) = hio_bfineroot_pa(io_pa) + n_density * ccohort%br    * g_per_kg
                hio_btotal_pa(io_pa)    = hio_btotal_pa(io_pa) + n_density * ccohort%b_total() * g_per_kg
+               hio_agb_pa(io_pa)       = hio_agb_pa(io_pa) + n_density * g_per_kg * &
+                    ( ccohort%bl + (ccohort%bsw + ccohort%bdead) * EDPftvarcon_inst%allom_agb_frac(ccohort%pft) )
 
                ! Update PFT partitioned biomass components
                hio_leafbiomass_si_pft(io_si,ft) = hio_leafbiomass_si_pft(io_si,ft) + &
@@ -2914,6 +2918,11 @@ end subroutine flush_hvars
          long='Total biomass',  use_default='active',                           &
          avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_btotal_pa )
+
+    call this%set_history_var(vname='AGB', units='gC m-2',                  &
+         long='Aboveground biomass',  use_default='active',                           &
+         avgflag='A', vtype=patch_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_agb_pa )
 
     call this%set_history_var(vname='BIOMASS_CANOPY', units='gC m-2',                   &
          long='Biomass of canopy plants',  use_default='active',                            &
