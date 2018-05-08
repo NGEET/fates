@@ -616,7 +616,7 @@ contains
                      ! Note that currentCohort%g_sb_laweight is weighted by the leaf area 
                      ! of each cohort and has units of [m/s] * [m2 leaf]
 
-                     g_sb_leaves  = g_sb_leaves + currentCohort%g_sb_laweighted
+                     g_sb_leaves  = g_sb_leaves + currentCohort%g_sb_laweight
                      
                      ! Accumulate the total effective leaf area from all cohorts
                      ! in this patch. Normalize by canopy area outside the loop
