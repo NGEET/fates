@@ -152,7 +152,7 @@ contains
     real(r8) :: vai                ! leaf and steam area in ths layer. 
     real(r8) :: tcsoi              ! Temperature response function for root respiration. 
     real(r8) :: tcwood             ! Temperature response function for wood
-    real(r8) :: rstoma_canopy      ! Canopy stomatal resistance [s/m]
+    real(r8) :: r_stomata          ! Canopy stomatal resistance [s/m]
     real(r8) :: rcombined_canopy   ! Canopy combined leaf resistance (stomatal + boundary layer) [s/m]
     real(r8) :: elai               ! exposed LAI (patch scale)
     real(r8) :: live_stem_n        ! Live stem (above-ground sapwood) 
@@ -656,17 +656,18 @@ contains
                         call endrun(msg=errMsg(sourcefile, __LINE__))
                      end if
                      
-                     currentPatch%r_stomata = rcombined_canopy - bc_in(s)%rb_pa(ifp)
+                     r_stomata = (rcombined_canopy - bc_in(s)%rb_pa(ifp))
                                           
                   else
                      
-                     currentPatch%r_stomata = rsmax0
+                     r_stomata = rsmax0
                      
                   end if
                   
-                  bc_out(s)%rssun_pa(ifp) = currentPatch%r_stomata
-                  bc_out(s)%rssha_pa(ifp) = currentPatch%r_stomata
-
+                  bc_out(s)%rssun_pa(ifp) = r_stomata
+                  bc_out(s)%rssha_pa(ifp) = r_stomata
+                  currentPatch%c_stomata  = cf / r_stomata
+                  
                else
 
                   ! This will be multiplied by effective LAI in the host model
@@ -674,11 +675,11 @@ contains
                   ! This will also be used in the diagnostics
                   bc_out(s)%rssun_pa(ifp) = rsmax0
                   bc_out(s)%rssha_pa(ifp) = rsmax0
-                  currentPatch%r_stomata  = rsmax0
+                  currentPatch%c_stomata  = cf / rsmax0
                   
                end if
                
-               currentPatch%r_lblayer = bc_in(s)%rb_pa(ifp)
+               currentPatch%c_lblayer = cf / bc_in(s)%rb_pa(ifp)
                
             end if
             

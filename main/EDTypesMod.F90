@@ -321,8 +321,8 @@ module EDTypesMod
      real(r8) ::  bare_frac_area                                   ! bare soil in this patch expressed as a fraction of the total soil surface.
      real(r8) ::  zstar                                            ! height of smallest canopy tree -- only meaningful in "strict PPA" mode
 
-     real(r8) :: r_stomata                                    ! Patch mean stomatal resistance [s/m]
-     real(r8) :: r_lblayer                                    ! Patch mean leaf boundary layer resistance [s/m]
+     real(r8) :: c_stomata                                    ! Patch mean stomatal conductance             [umol/m2/s]
+     real(r8) :: c_lblayer                                    ! Patch mean leaf boundary layer conductance  [umol/m2/s]
 
                                                               ! UNITS for the ai profiles
                                                               ! [ m2 leaf / m2 contributing crown footprints]
@@ -732,8 +732,8 @@ contains
      write(fates_log(),*) 'pa%total_tree_area    = ',cpatch%total_tree_area
      write(fates_log(),*) 'pa%bare_frac_area     = ',cpatch%bare_frac_area
      write(fates_log(),*) 'pa%zstar              = ',cpatch%zstar
-     write(fates_log(),*) 'pa%r_stomata          = ',cpatch%r_stomata
-     write(fates_log(),*) 'pa%r_lblayer          = ',cpatch%r_lblayer
+     write(fates_log(),*) 'pa%c_stomata          = ',cpatch%c_stomata
+     write(fates_log(),*) 'pa%c_lblayer          = ',cpatch%c_lblayer
      write(fates_log(),*) 'pa%disturbance_rate   = ',cpatch%disturbance_rate
      write(fates_log(),*) '----------------------------------------'
      return
