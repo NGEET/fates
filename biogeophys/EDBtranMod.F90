@@ -112,7 +112,7 @@ contains
       real(r8) :: smp_node          ! matrix potential
       real(r8) :: rresis            ! suction limitation to transpiration independent
                                     ! of root density
-      real(r8) :: pftgs(maxpft)     ! pft weighted stomatal conductance s/m
+      real(r8) :: pftgs(maxpft)     ! pft weighted stomatal conductance m/s
       real(r8) :: temprootr
       real(r8) :: sum_pftgs         ! sum of weighted conductances (for normalization)
       !------------------------------------------------------------------------------
@@ -173,11 +173,13 @@ contains
               end do !PFT
               
               ! PFT-averaged point level root fraction for extraction purposese.
-              ! This probably needs to be weighted by actual transpiration from each pft. FIX(RF,032414).
-              pftgs(:) = 0._r8
+              ! The cohort's conductance g_sb_laweighted, contains a weighting factor
+              ! based on the cohort's leaf area. units: [m/s] * [m2]
+              
+              pftgs(1:maxpft) = 0._r8
               ccohort => cpatch%tallest
               do while(associated(ccohort))
-                 pftgs(ccohort%pft) = pftgs(ccohort%pft) + ccohort%gscan * ccohort%n    
+                 pftgs(ccohort%pft) = pftgs(ccohort%pft) + ccohort%g_sb_laweight
                  ccohort => ccohort%shorter
               enddo
               
@@ -196,7 +198,7 @@ contains
                             cpatch%rootr_ft(ft,j) * pftgs(ft)/sum_pftgs
                     else
                        bc_out(s)%rootr_pagl(ifp,j) = bc_out(s)%rootr_pagl(ifp,j) + &
-                            cpatch%rootr_ft(ft,j) * 1./numpft
+                            cpatch%rootr_ft(ft,j) * 1._r8/dble(numpft)
                     end if
                  enddo
               enddo

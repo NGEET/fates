@@ -151,7 +151,7 @@ module EDTypesMod
      real(r8) ::  br                                     ! fine root biomass: kGC per indiv
      real(r8) ::  lai                                    ! leaf area index of cohort: m2 leaf area of entire cohort per m2 of canopy area of a patch
      real(r8) ::  sai                                    ! stem area index of cohort: m2 leaf area of entire cohort per m2 of canopy area of a patch
-     real(r8) ::  gscan                                  ! Stomatal resistance of cohort. 
+     real(r8) ::  g_sb_laweight                          ! Total conductance (stomata+boundary layer) of the cohort, weighted by its leaf area [m/s]*[m2]
      real(r8) ::  canopy_trim                            ! What is the fraction of the maximum leaf biomass that we are targeting? :-
      real(r8) ::  leaf_cost                              ! How much does it cost to maintain leaves: kgC/m2/year-1
      real(r8) ::  excl_weight                            ! How much of this cohort is demoted each year, as a proportion of all cohorts:-
@@ -321,6 +321,8 @@ module EDTypesMod
      real(r8) ::  bare_frac_area                                   ! bare soil in this patch expressed as a fraction of the total soil surface.
      real(r8) ::  zstar                                            ! height of smallest canopy tree -- only meaningful in "strict PPA" mode
 
+     real(r8) :: c_stomata                                    ! Mean stomatal conductance of all leaves in the patch   [umol/m2/s]
+     real(r8) :: c_lblayer                                    ! Mean boundary layer conductance of all leaves in the patch [umol/m2/s]
 
                                                               ! UNITS for the ai profiles
                                                               ! [ m2 leaf / m2 contributing crown footprints]
@@ -730,6 +732,8 @@ contains
      write(fates_log(),*) 'pa%total_tree_area    = ',cpatch%total_tree_area
      write(fates_log(),*) 'pa%bare_frac_area     = ',cpatch%bare_frac_area
      write(fates_log(),*) 'pa%zstar              = ',cpatch%zstar
+     write(fates_log(),*) 'pa%c_stomata          = ',cpatch%c_stomata
+     write(fates_log(),*) 'pa%c_lblayer          = ',cpatch%c_lblayer
      write(fates_log(),*) 'pa%disturbance_rate   = ',cpatch%disturbance_rate
      write(fates_log(),*) '----------------------------------------'
      return
@@ -758,7 +762,7 @@ contains
      write(fates_log(),*) 'co%br                     = ', ccohort%br
      write(fates_log(),*) 'co%lai                    = ', ccohort%lai                         
      write(fates_log(),*) 'co%sai                    = ', ccohort%sai  
-     write(fates_log(),*) 'co%gscan                  = ', ccohort%gscan
+     write(fates_log(),*) 'co%g_sb_laweight          = ', ccohort%g_sb_laweight
      write(fates_log(),*) 'co%leaf_cost              = ', ccohort%leaf_cost
      write(fates_log(),*) 'co%canopy_layer           = ', ccohort%canopy_layer
      write(fates_log(),*) 'co%canopy_layer_yesterday = ', ccohort%canopy_layer_yesterday
