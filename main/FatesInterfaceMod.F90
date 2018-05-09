@@ -1156,6 +1156,7 @@ contains
          hlm_is_restart = unset_int
          hlm_numlevdecomp_full = unset_int
          hlm_numlevdecomp = unset_int
+         hlm_numlevgrnd   = unset_int
          hlm_name         = 'unset'
          hlm_hio_ignore_val   = unset_double
          hlm_masterproc   = unset_int
