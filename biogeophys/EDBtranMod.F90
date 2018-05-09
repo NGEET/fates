@@ -176,7 +176,7 @@ contains
               ! The cohort's conductance g_sb_laweighted, contains a weighting factor
               ! based on the cohort's leaf area. units: [m/s] * [m2]
               
-              pftgs(:) = 0._r8
+              pftgs(1:maxpft) = 0._r8
               ccohort => cpatch%tallest
               do while(associated(ccohort))
                  pftgs(ccohort%pft) = pftgs(ccohort%pft) + ccohort%g_sb_laweight

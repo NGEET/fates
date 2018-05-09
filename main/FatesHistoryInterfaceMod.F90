@@ -2091,8 +2091,8 @@ end subroutine flush_hvars
          ipa = 0
          cpatch => sites(s)%oldest_patch
 
-         patch_area_by_age(:) = 0._r8
-         canopy_area_by_age(:) = 0._r8
+         patch_area_by_age(1:nlevage) = 0._r8
+         canopy_area_by_age(1:nlevage) = 0._r8
 
          do while(associated(cpatch))
             
@@ -2369,9 +2369,9 @@ end subroutine flush_hvars
          end do
          
          ! Normalize resistance diagnostics
-         if ( sum(canopy_area_by_age(:)) .gt. tiny) then
-            hio_c_stomata_si(io_si) = hio_c_stomata_si(io_si) / sum(canopy_area_by_age(:))
-            hio_c_lblayer_si(io_si) = hio_c_lblayer_si(io_si) / sum(canopy_area_by_age(:))
+         if ( sum(canopy_area_by_age(1:nlevage)) .gt. tiny) then
+            hio_c_stomata_si(io_si) = hio_c_stomata_si(io_si) / sum(canopy_area_by_age(1:nlevage))
+            hio_c_lblayer_si(io_si) = hio_c_lblayer_si(io_si) / sum(canopy_area_by_age(1:nlevage))
          else
             hio_c_stomata_si(io_si) = 0._r8
             hio_c_lblayer_si(io_si) = 0._r8
