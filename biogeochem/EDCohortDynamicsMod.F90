@@ -35,7 +35,8 @@ module EDCohortDynamicsMod
   use FatesAllometryMod  , only : bfineroot
   use FatesAllometryMod  , only : h_allom
   use FatesAllometryMod  , only : carea_allom
-
+  use FatesAllometryMod  , only : StructureResetOfDH
+  use FatesAllometryMod  , only : tree_lai, tree_sai
   ! CIME globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   !
@@ -51,9 +52,6 @@ module EDCohortDynamicsMod
   public :: sort_cohorts
   public :: copy_cohort
   public :: count_cohorts
-  public :: allocate_live_biomass
-  public :: tree_lai
-  public :: tree_sai
 
   logical, parameter :: DEBUG  = .false. ! local debug flag
 
@@ -66,8 +64,8 @@ module EDCohortDynamicsMod
 contains
 
   !-------------------------------------------------------------------------------------!
-  subroutine create_cohort(patchptr, pft, nn, hite, dbh, &
-       balive, bdead, bstore, laimemory, status, ctrim, clayer, bc_in)
+  subroutine create_cohort(patchptr, pft, nn, hite, dbh, bleaf, bfineroot, bsap, &
+                           bdead, bstore, laimemory, status, ctrim, clayer, spread, bc_in)
     !
     ! !DESCRIPTION:
     ! create new cohort
@@ -82,11 +80,14 @@ contains
     real(r8), intent(in)   :: nn        ! number of individuals in cohort per 'area' (10000m2 default)
     real(r8), intent(in)   :: hite      ! height: meters
     real(r8), intent(in)   :: dbh       ! dbh: cm
-    real(r8), intent(in)   :: balive    ! total living biomass: kGC per indiv
+    real(r8), intent(in)   :: bleaf     ! biomass in leaves: kgC
+    real(r8), intent(in)   :: bfineroot ! biomass in fineroots: kgC
+    real(r8), intent(in)   :: bsap      ! biomass in sapwood: kgC
     real(r8), intent(in)   :: bdead     ! total dead biomass: kGC per indiv
     real(r8), intent(in)   :: bstore    ! stored carbon: kGC per indiv
     real(r8), intent(in)   :: laimemory ! target leaf biomass- set from previous year: kGC per indiv
     real(r8), intent(in)   :: ctrim     ! What is the fraction of the maximum leaf biomass that we are targeting? :-
+    real(r8), intent(in)   :: spread    ! The community assembly effects how spread crowns are in horizontal space
     type(bc_in_type), intent(in) :: bc_in ! External boundary conditions
     !
     ! !LOCAL VARIABLES:
@@ -107,8 +108,9 @@ contains
  
     new_cohort%indexnumber  = fates_unset_int ! Cohort indexing was not thread-safe, setting
                                               ! bogus value for the time being (RGK-012017)
-    new_cohort%siteptr      => patchptr%siteptr
+
     new_cohort%patchptr     => patchptr
+
     new_cohort%pft          = pft     
     new_cohort%status_coh   = status
     new_cohort%n            = nn
@@ -119,8 +121,11 @@ contains
     new_cohort%canopy_layer_yesterday = real(clayer, r8)
     new_cohort%laimemory    = laimemory
     new_cohort%bdead        = bdead
-    new_cohort%balive       = balive
     new_cohort%bstore       = bstore
+    new_cohort%bl           = bleaf
+    new_cohort%br           = bfineroot
+    new_cohort%bsw          = bsap
+    new_cohort%ode_opt_step = 1.0e6_r8   ! Initialize the integrator step size as super-huge
 
     call sizetype_class_index(new_cohort%dbh,new_cohort%pft, &
                               new_cohort%size_class,new_cohort%size_by_pft_class)
@@ -132,29 +137,20 @@ contains
     ! However, in this part of the code, we will pass in nominal values for size, number and type
     
     if (new_cohort%dbh <= 0.0_r8 .or. new_cohort%n == 0._r8 .or. new_cohort%pft == 0 ) then
-             write(fates_log(),*) 'ED: something is zero in create_cohort', &
+       write(fates_log(),*) 'ED: something is zero in create_cohort', &
                              new_cohort%dbh,new_cohort%n, &
                              new_cohort%pft
-             call endrun(msg=errMsg(sourcefile, __LINE__))
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
-
-    if (new_cohort%siteptr%status==2 .and. EDPftvarcon_inst%season_decid(pft) == 1) then
-      new_cohort%laimemory = 0.0_r8
-    endif
-
-    if (new_cohort%siteptr%dstatus==2 .and. EDPftvarcon_inst%stress_decid(pft) == 1) then
-      new_cohort%laimemory = 0.0_r8
-    endif
-    
-    ! Calculate live biomass allocation
-    call allocate_live_biomass(new_cohort,0)
 
     ! Assign canopy extent and depth
-    call carea_allom(new_cohort%dbh,new_cohort%n,new_cohort%siteptr%spread,new_cohort%pft,new_cohort%c_area)
+    call carea_allom(new_cohort%dbh,new_cohort%n,spread,new_cohort%pft,new_cohort%c_area)
 
-    new_cohort%treelai = tree_lai(new_cohort)
+    new_cohort%treelai = tree_lai(new_cohort%bl, new_cohort%status_coh, new_cohort%pft, &
+         new_cohort%c_area, new_cohort%n)
     new_cohort%lai     = new_cohort%treelai * new_cohort%c_area/patchptr%area
-    new_cohort%treesai = 0.0_r8 !FIX(RF,032414)   
+    new_cohort%treesai = tree_sai(new_cohort%dbh, new_cohort%pft, new_cohort%canopy_trim, &
+         new_cohort%c_area, new_cohort%n)
 
     ! Put cohort at the right place in the linked list
     storebigcohort   => patchptr%tallest
@@ -196,150 +192,7 @@ contains
   end subroutine create_cohort
 
   !-------------------------------------------------------------------------------------!
-  subroutine allocate_live_biomass(cc_p,mode)
-    !
-    ! !DESCRIPTION:
-    ! Divide alive biomass between leaf, root and sapwood parts. 
-    ! Needs to be called whenver balive changes. 
-    !
-    ! !USES:
-    !
-    ! !ARGUMENTS    
-    type (ed_cohort_type), intent(inout), target  :: cc_p ! current cohort pointer
-    integer              , intent(in)             :: mode
-    !
-    ! !LOCAL VARIABLES:
-    type (ed_cohort_type), pointer :: currentCohort
-    real(r8)  :: leaf_frac    ! fraction of live biomass in leaves
-    real(r8)  :: ideal_balive ! theoretical ideal (root and stem) biomass for deciduous trees with leaves off. 
-                              ! accounts for the fact that live biomass may decline in the off-season, 
-                              ! making leaf_memory unrealistic.    
-    real(r8)  :: ratio_balive ! ratio between root+shoot biomass now and root+shoot biomass when leaves fell off. 
-    real(r8)  :: new_bl
-    real(r8)  :: new_br
-    real(r8)  :: new_bsw
-    real(r8)  :: tar_bl       ! target leaf biomass when leaves are flushed (includes trimming)
-    real(r8)  :: tar_br       ! target fineroot biomass (includes trimming)
-    real(r8)  :: tar_bsw      ! target sapwood biomass  
-    real(r8)  :: bfr_per_leaf ! ratio of fine roots to leaf mass when plants are on allometry
-    real(r8)  :: bsw_per_leaf ! ratio of sapwood to leaf mass when plants are on allometry
-                                            
-    real(r8)  :: temp_h
 
-    integer   :: ft           ! functional type
-    integer   :: leaves_off_switch
-    !----------------------------------------------------------------------
-
-    currentCohort => cc_p
-    ft = currentcohort%pft
-    
-    call bleaf(currentcohort%dbh,currentcohort%hite,ft,currentcohort%canopy_trim,tar_bl)
-    call bfineroot(currentcohort%dbh,currentcohort%hite,ft,currentcohort%canopy_trim,tar_br)
-    call bsap_allom(currentcohort%dbh,currentcohort%hite,ft,currentcohort%canopy_trim,tar_bsw)
-
-    leaf_frac = tar_bl/(tar_bl+tar_br+tar_bsw)
-    bfr_per_leaf = tar_br/tar_bl
-    bsw_per_leaf = tar_bsw/tar_bl
-
-    !currentcohort%bl = currentcohort%balive*leaf_frac    
-    !for deciduous trees, there are no leaves  
-    
-    if (EDPftvarcon_inst%evergreen(ft) == 1) then
-       currentcohort%laimemory = 0._r8
-       currentcohort%status_coh    = 2      
-    endif    
-
-    ! iagnore the root and stem biomass from the functional balance hypothesis. This is used when the leaves are 
-    !fully on. 
-    !currentcohort%br  = EDPftvarcon_inst%allom_l2fr(ft) * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
-    !currentcohort%bsw = EDpftvarcon_inst%allom_latosa_int(ft) * currentcohort%hite *(currentcohort%balive + &
-    !     currentcohort%laimemory)*leaf_frac 
-    
-    leaves_off_switch = 0
-    if (currentcohort%status_coh == 1.and.EDPftvarcon_inst%stress_decid(ft) == 1.and.currentcohort%siteptr%dstatus==1) then !no leaves 
-      leaves_off_switch = 1 !drought decid
-    endif
-    if (currentcohort%status_coh == 1.and.EDPftvarcon_inst%season_decid(ft) == 1.and.currentcohort%siteptr%status==1) then !no leaves
-      leaves_off_switch = 1 !cold decid
-    endif
-  
-    ! Use different proportions if the leaves are on vs off
-    if(leaves_off_switch.eq.ifalse)then  ! leaves are on
-
-       new_bl = currentcohort%balive*leaf_frac
-
-       new_br = bfr_per_leaf * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
-
-       new_bsw = bsw_per_leaf * (currentcohort%balive + currentcohort%laimemory) * leaf_frac
-
-       !diagnose the root and stem biomass from the functional balance hypothesis. This is used when the leaves are 
-       !fully on. 
-       if(mode==1)then 
-
-          currentcohort%npp_leaf = currentcohort%npp_leaf + &
-                max(0.0_r8,new_bl - currentcohort%bl) / hlm_freq_day
-          
-          currentcohort%npp_froot = currentcohort%npp_froot + &
-                max(0._r8,new_br - currentcohort%br) / hlm_freq_day
-
-          currentcohort%npp_bsw =  max(0.0_r8, new_bsw - currentcohort%bsw)/hlm_freq_day
-
-          currentcohort%npp_bdead =  currentCohort%dbdeaddt
-
-       end if
-       
-       currentcohort%bl = new_bl
-       currentcohort%br = new_br
-       currentcohort%bsw = new_bsw
-
-    else ! Leaves are off (leaves_off_switch==.itrue.)
-
-       !the purpose of this section is to figure out the root and stem biomass when the leaves are off
-       !at this point, we know the former leaf mass (laimemory) and the current alive mass
-       !because balive may decline in the off-season, we need to adjust the 
-       !root and stem biomass that are predicted from the laimemory, for the fact that we now might 
-       !not have enough live biomass to support the hypothesized root mass
-       !thus, we use 'ratio_balive' to adjust br and bsw. Apologies that this is so complicated! RF
-       
-       ideal_balive      = currentcohort%laimemory * bfr_per_leaf + currentcohort%laimemory * bsw_per_leaf
-
-       ratio_balive      = currentcohort%balive / ideal_balive
-
-       new_br  = bfr_per_leaf * (ideal_balive + currentcohort%laimemory) * leaf_frac * ratio_balive
-       
-       new_bsw = bsw_per_leaf * (ideal_balive + currentcohort%laimemory) * leaf_frac * ratio_balive
-
-       ! Diagnostics
-       if(mode==1)then
-
-          currentcohort%npp_froot = currentcohort%npp_froot + &
-                max(0.0_r8,new_br-currentcohort%br)/hlm_freq_day
-
-          currentcohort%npp_bsw = max(0.0_r8, new_bsw-currentcohort%bsw)/hlm_freq_day
-
-          currentcohort%npp_bdead =  currentCohort%dbdeaddt
-
-       end if
-
-       currentcohort%bl  = 0.0_r8
-       currentcohort%br  = new_br
-       currentcohort%bsw = new_bsw
-
-    endif
-    
-    if (abs(currentcohort%balive -currentcohort%bl- currentcohort%br - currentcohort%bsw)>1e-12) then
-       write(fates_log(),*) 'issue with carbon allocation in create_cohort,allocate_live_biomass',&
-            currentcohort%balive -currentcohort%bl- currentcohort%br - currentcohort%bsw, &
-            currentcohort%status_coh,currentcohort%balive
-       write(fates_log(),*) 'actual vs predicted balive',ideal_balive,currentcohort%balive ,ratio_balive,leaf_frac
-       write(fates_log(),*) 'leaf,root,stem',currentcohort%bl,currentcohort%br,currentcohort%bsw
-       write(fates_log(),*) 'pft',ft,EDPftvarcon_inst%evergreen(ft),EDPftvarcon_inst%season_decid(ft),leaves_off_switch
-    endif
-    currentCohort%b   = currentCohort%bdead + currentCohort%balive
-
-  end subroutine allocate_live_biomass
-
-  !-------------------------------------------------------------------------------------!
   subroutine nan_cohort(cc_p)
     !
     ! !DESCRIPTION:
@@ -362,12 +215,10 @@ contains
     currentCohort%taller      => null()       ! pointer to next tallest cohort     
     currentCohort%shorter     => null()       ! pointer to next shorter cohort     
     currentCohort%patchptr    => null()       ! pointer to patch that cohort is in
-    currentCohort%siteptr     => null()       ! pointer to site that cohort is in
 
     nullify(currentCohort%taller) 
     nullify(currentCohort%shorter) 
     nullify(currentCohort%patchptr) 
-    nullify(currentCohort%siteptr) 
 
     ! VEGETATION STRUCTURE
     currentCohort%pft                = fates_unset_int  ! pft number                           
@@ -382,17 +233,15 @@ contains
     currentCohort%n                  = nan ! number of individuals in cohort per 'area' (10000m2 default)     
     currentCohort%dbh                = nan ! 'diameter at breast height' in cm                            
     currentCohort%hite               = nan ! height: meters                   
-    currentCohort%balive             = nan ! total living biomass: kGC per indiv  
     currentCohort%bdead              = nan ! dead biomass:  kGC per indiv          
     currentCohort%bstore             = nan ! stored carbon: kGC per indiv
     currentCohort%laimemory          = nan ! target leaf biomass- set from previous year: kGC per indiv
-    currentCohort%b                  = nan ! total biomass: kGC per indiv        
     currentCohort%bsw                = nan ! sapwood in stem and roots: kGC per indiv
     currentCohort%bl                 = nan ! leaf biomass: kGC per indiv       
     currentCohort%br                 = nan ! fine root biomass: kGC per indiv
     currentCohort%lai                = nan ! leaf area index of cohort   m2/m2      
     currentCohort%sai                = nan ! stem area index of cohort   m2/m2
-    currentCohort%gscan              = nan ! Stomatal resistance of cohort. 
+    currentCohort%g_sb_laweight      = nan ! Total leaf conductance of cohort (stomata+blayer) weighted by leaf-area [m/s]*[m2]
     currentCohort%canopy_trim        = nan ! What is the fraction of the maximum leaf biomass that we are targeting? :-
     currentCohort%leaf_cost          = nan ! How much does it cost to maintain leaves: kgC/m2/year-1
     currentCohort%excl_weight        = nan ! How much of this cohort is demoted each year, as a proportion of all cohorts:-
@@ -414,13 +263,12 @@ contains
     currentCohort%resp_tstep         = nan ! RESP: kgC/indiv/timestep
     currentCohort%resp_acc           = nan ! RESP: kGC/cohort/day
 
-    currentCohort%npp_leaf  = nan
-    currentCohort%npp_froot = nan
-    currentCohort%npp_bsw   = nan
-    currentCohort%npp_bdead = nan
-    currentCohort%npp_bseed = nan
-    currentCohort%npp_store = nan
-
+    currentCohort%npp_leaf = nan
+    currentCohort%npp_fnrt = nan
+    currentCohort%npp_sapw = nan
+    currentCohort%npp_dead = nan
+    currentCohort%npp_seed = nan
+    currentCohort%npp_stor = nan
 
     !RESPIRATION
     currentCohort%rdark              = nan
@@ -434,9 +282,11 @@ contains
     currentCohort%md                 = nan ! plant maintenance demand: kgC/indiv/year
     currentCohort%leaf_md            = nan ! leaf  maintenance demand: kgC/indiv/year
     currentCohort%root_md            = nan ! root  maintenance demand: kgC/indiv/year
-    currentCohort%carbon_balance     = nan ! carbon remaining for growth and storage: kg/indiv/year
+    currentCohort%bsw_md             = nan
+    currentCohort%bdead_md           = nan
+    currentCohort%bstore_md          = nan
     currentCohort%dmort              = nan ! proportional mortality rate. (year-1)
-    currentCohort%lmort_logging      = nan
+    currentCohort%lmort_direct       = nan
     currentCohort%lmort_infra        = nan
     currentCohort%lmort_collateral   = nan
 
@@ -446,22 +296,21 @@ contains
     currentCohort%treelai            = nan ! lai of tree (total leaf area (m2) / canopy area (m2)
     currentCohort%treesai            = nan ! stem area index of tree (total stem area (m2) / canopy area (m2)
     currentCohort%leaf_litter        = nan ! leaf litter from phenology: KgC/m2
-    currentCohort%woody_turnover     = nan ! amount of wood lost each day: kgC/indiv/year. Currently set to zero.
 
     ! VARIABLES NEEDED FOR INTEGRATION 
     currentCohort%dndt               = nan ! time derivative of cohort size 
     currentCohort%dhdt               = nan ! time derivative of height 
     currentCohort%ddbhdt             = nan ! time derivative of dbh 
-    currentCohort%dbalivedt          = nan ! time derivative of total living biomass 
     currentCohort%dbdeaddt           = nan ! time derivative of dead biomass 
     currentCohort%dbstoredt          = nan ! time derivative of stored biomass 
-    currentCohort%storage_flux       = nan ! flux from npp into bstore
 
     ! FIRE
     currentCohort%cfa                = nan ! proportion of crown affected by fire
     currentCohort%cambial_mort       = nan ! probability that trees dies due to cambial char P&R (1986)
     currentCohort%crownfire_mort     = nan ! probability of tree post-fire mortality due to crown scorch
     currentCohort%fire_mort          = nan ! post-fire mortality from cambial and crown damage assuming two are independent
+
+    currentCohort%ode_opt_step       = nan ! integrator step size
 
   end subroutine nan_cohort
 
@@ -499,7 +348,6 @@ contains
     currentcohort%gpp_tstep          = 0._r8
     currentcohort%resp_tstep         = 0._r8
     currentcohort%resp_acc_hold      = 0._r8
-    currentcohort%carbon_balance     = 0._r8
     currentcohort%leaf_litter        = 0._r8
     currentcohort%year_net_uptake(:) = 999._r8 ! this needs to be 999, or trimming of new cohorts will break. 
     currentcohort%ts_net_uptake(:)   = 0._r8
@@ -508,26 +356,33 @@ contains
     currentcohort%md                 = 0._r8
     currentcohort%root_md            = 0._r8
     currentcohort%leaf_md            = 0._r8
+    currentcohort%bstore_md          = 0._r8
+    currentcohort%bsw_md             = 0._r8
+    currentcohort%bdead_md           = 0._r8
     currentcohort%npp_acc_hold       = 0._r8 
     currentcohort%gpp_acc_hold       = 0._r8  
-    currentcohort%storage_flux       = 0._r8   
     currentcohort%dmort              = 0._r8 
-    currentcohort%gscan              = 0._r8 
+    currentcohort%g_sb_laweight      = 0._r8 
     currentcohort%treesai            = 0._r8  
-    currentCohort%lmort_logging      = 0._r8
+    currentCohort%lmort_direct       = 0._r8
     currentCohort%lmort_infra        = 0._r8
     currentCohort%lmort_collateral   = 0._r8
-    !    currentCohort%npp_leaf  = 0._r8
-    !    currentCohort%npp_froot = 0._r8
-    !    currentCohort%npp_bsw   = 0._r8
-    !    currentCohort%npp_bdead = 0._r8
-    !    currentCohort%npp_bseed = 0._r8
-    !    currentCohort%npp_store = 0._r8
-
+    currentCohort%leaf_cost          = 0._r8
+    currentcohort%excl_weight        = 0._r8
+    currentcohort%prom_weight        = 0._r8
+    currentcohort%crownfire_mort     = 0._r8
+    currentcohort%cambial_mort       = 0._r8
+    currentCohort%npp_leaf = 0._r8
+    currentCohort%npp_fnrt = 0._r8
+    currentCohort%npp_sapw = 0._r8
+    currentCohort%npp_dead = 0._r8
+    currentCohort%npp_seed = 0._r8
+    currentCohort%npp_stor = 0._r8
+    
   end subroutine zero_cohort
 
   !-------------------------------------------------------------------------------------!
-  subroutine terminate_cohorts( currentSite, patchptr, level )
+  subroutine terminate_cohorts( currentSite, currentPatch, level )
     !
     ! !DESCRIPTION:
     ! terminates cohorts when they get too small      
@@ -537,7 +392,7 @@ contains
     !
     ! !ARGUMENTS    
     type (ed_site_type) , intent(inout), target :: currentSite
-    type (ed_patch_type), intent(inout), target :: patchptr
+    type (ed_patch_type), intent(inout), target :: currentPatch
     integer             , intent(in)            :: level
 
     ! Important point regarding termination levels.  Termination is typically
@@ -550,20 +405,21 @@ contains
 
     !
     ! !LOCAL VARIABLES:
-    type (ed_patch_type)  , pointer :: currentPatch
     type (ed_cohort_type) , pointer :: currentCohort
-    type (ed_cohort_type) , pointer :: nextc
+    type (ed_cohort_type) , pointer :: shorterCohort
+    type (ed_cohort_type) , pointer :: tallerCohort
+
     integer :: terminate   ! do we terminate (1) or not (0) 
     integer :: c           ! counter for litter size class. 
     integer :: levcan      ! canopy level
     !----------------------------------------------------------------------
 
-    currentPatch  => patchptr
-    currentCohort => currentPatch%tallest  
 
+    currentCohort => currentPatch%shortest
     do while (associated(currentCohort))
-       nextc      => currentCohort%shorter    
+
        terminate = 0 
+       tallerCohort => currentCohort%taller
 
        ! Check if number density is so low is breaks math (level 1)
        if (currentcohort%n <  min_n_safemath .and. level == 1) then
@@ -596,22 +452,26 @@ contains
          endif
 
          ! live biomass pools are terminally depleted
-         if (currentCohort%balive < 1e-10_r8 .or. currentCohort%bstore < 1e-10_r8) then 
+         if ( (currentCohort%bsw+currentCohort%bl+currentCohort%br) < 1e-10_r8  .or.  &
+               currentCohort%bstore < 1e-10_r8) then 
             terminate = 1  
             if ( DEBUG ) then
-              write(fates_log(),*) 'terminating cohorts 3', currentCohort%balive,currentCohort%bstore
+              write(fates_log(),*) 'terminating cohorts 3', &
+                    currentCohort%bsw,currentCohort%bl,currentCohort%br,currentCohort%bstore
             endif
          endif
 
          ! Total cohort biomass is negative
-         if (currentCohort%balive+currentCohort%bdead+currentCohort%bstore < 0._r8) then
+         if ( (currentCohort%b_total()) < 0._r8) then
             terminate = 1
             if ( DEBUG ) then
-            write(fates_log(),*) 'terminating cohorts 4', currentCohort%balive, &
-                           currentCohort%bstore, currentCohort%bdead, &
-                           currentCohort%balive+currentCohort%bdead+&
-                           currentCohort%bstore, currentCohort%n
-            endif
+            write(fates_log(),*) 'terminating cohorts 4', & 
+                  currentCohort%bsw,   &
+                  currentCohort%bl,    &
+                  currentCohort%br,    &
+                  currentCohort%bdead, &
+                  currentCohort%bstore
+         endif
 
          endif 
       endif    !  if (.not.currentCohort%isnew .and. level == 2) then
@@ -627,17 +487,9 @@ contains
                currentSite%terminated_nindivs(currentCohort%size_class,currentCohort%pft,levcan) + currentCohort%n
           !
           currentSite%termination_carbonflux(levcan) = currentSite%termination_carbonflux(levcan) + &
-               currentCohort%n * currentCohort%b
-          if (.not. associated(currentCohort%taller)) then
-             currentPatch%tallest => currentCohort%shorter
-          else 
-             currentCohort%taller%shorter => currentCohort%shorter
-          endif
-          if (.not. associated(currentCohort%shorter)) then
-             currentPatch%shortest => currentCohort%taller
-          else 
-             currentCohort%shorter%taller => currentCohort%taller
-          endif
+                currentCohort%n * currentCohort%b_total()
+
+          
 
           !put the litter from the terminated cohorts straight into the fragmenting pools
           if (currentCohort%n.gt.0.0_r8) then
@@ -673,18 +525,40 @@ contains
                   currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) + &
                   currentCohort%n * (currentCohort%br+currentCohort%bstore) * hlm_days_per_year  / AREA
 
-             if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
-
-             deallocate(currentCohort)     
+          end if
+          
+          ! Set pointers and remove the current cohort from the list
+          shorterCohort => currentCohort%shorter
+          
+          if (.not. associated(tallerCohort)) then
+             currentPatch%tallest => shorterCohort
+             if(associated(shorterCohort)) shorterCohort%taller => null()
+          else 
+             tallerCohort%shorter => shorterCohort
           endif
+          
+          if (.not. associated(shorterCohort)) then
+             currentPatch%shortest => tallerCohort
+             if(associated(tallerCohort)) tallerCohort%shorter => null()
+          else 
+             shorterCohort%taller => tallerCohort
+          endif
+          
+          ! At this point, nothing should be pointing to current Cohort
+          if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
+          deallocate(currentCohort)
+          nullify(currentCohort)
+          
        endif
-       currentCohort => nextc
+       currentCohort => tallerCohort
     enddo
 
   end subroutine terminate_cohorts
 
   !-------------------------------------------------------------------------------------!
-  subroutine fuse_cohorts(patchptr, bc_in)  
+
+  subroutine fuse_cohorts(currentPatch, bc_in)  
+
      !
      ! !DESCRIPTION:
      ! Join similar cohorts to reduce total number            
@@ -694,15 +568,20 @@ contains
      use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
      !
      ! !ARGUMENTS    
-     type (ed_patch_type), intent(inout), target :: patchptr
+     type (ed_patch_type), intent(inout), target :: currentPatch
      type (bc_in_type), intent(in)               :: bc_in
      !
+
      ! !LOCAL VARIABLES:
-     type (ed_patch_type)  , pointer :: currentPatch
-     type (ed_cohort_type) , pointer :: currentCohort, nextc, nextnextc
+     type (ed_cohort_type) , pointer :: currentCohort
+     type (ed_cohort_type) , pointer :: nextc
+     type (ed_cohort_type) , pointer :: nextnextc
+
+     type (ed_cohort_type) , pointer :: shorterCohort
+     type (ed_cohort_type) , pointer :: tallerCohort
+
      integer  :: i  
      integer  :: fusion_took_place
-     integer  :: maxcohorts ! maximum total no of cohorts.
      integer  :: iterate    ! do we need to keep fusing to get below maxcohorts?
      integer  :: nocohorts
      real(r8) :: newn
@@ -722,31 +601,30 @@ contains
      !because c_area and biomass are non-linear with dbh, this causes several mass inconsistancies
      !in theory, all of this routine therefore causes minor losses of C and area, but these are below 
      !detection limit normally. 
+
      iterate = 1
      fusion_took_place = 0   
-     currentPatch => patchptr
-     maxcohorts = maxCohortsPerPatch
 
      !---------------------------------------------------------------------!
      !  Keep doing this until nocohorts <= maxcohorts                         !
      !---------------------------------------------------------------------!
-
+     
      if (associated(currentPatch%shortest)) then  
         do while(iterate == 1)
-
+           
            currentCohort => currentPatch%tallest
-
+           
            ! The following logic continues the loop while the current cohort is not the shortest cohort
            ! if they point to the same target (ie equivalence), then the loop ends.
            ! This loop is different than the simple "continue while associated" loop in that
            ! it omits the last cohort (because it has already been compared by that point)
-
+           
            do while ( .not.associated(currentCohort,currentPatch%shortest) )
 
               nextc => currentPatch%tallest
 
               do while (associated(nextc))
-                 nextnextc => nextc%shorter                      
+                 nextnextc => nextc%shorter
                  diff = abs((currentCohort%dbh - nextc%dbh)/(0.5*(currentCohort%dbh + nextc%dbh)))  
 
                  !Criteria used to divide up the height continuum into different cohorts.
@@ -779,11 +657,9 @@ contains
                                    write(fates_log(),*) 'Cohort I, Cohort II' 
                                    write(fates_log(),*) 'n:',currentCohort%n,nextc%n
                                    write(fates_log(),*) 'isnew:',currentCohort%isnew,nextc%isnew
-                                   write(fates_log(),*) 'balive:',currentCohort%balive,nextc%balive
                                    write(fates_log(),*) 'bdead:',currentCohort%bdead,nextc%bdead
                                    write(fates_log(),*) 'bstore:',currentCohort%bstore,nextc%bstore
                                    write(fates_log(),*) 'laimemory:',currentCohort%laimemory,nextc%laimemory
-                                   write(fates_log(),*) 'b:',currentCohort%b,nextc%b
                                    write(fates_log(),*) 'bsw:',currentCohort%bsw,nextc%bsw
                                    write(fates_log(),*) 'bl:',currentCohort%bl ,nextc%bl
                                    write(fates_log(),*) 'br:',currentCohort%br,nextc%br
@@ -799,28 +675,38 @@ contains
                                    end do
                                 end if
                                 
-                                currentCohort%balive      = (currentCohort%n*currentCohort%balive      &
-                                      + nextc%n*nextc%balive)/newn
                                 currentCohort%bdead       = (currentCohort%n*currentCohort%bdead       &
                                       + nextc%n*nextc%bdead)/newn
                                 currentCohort%bstore      = (currentCohort%n*currentCohort%bstore      &
                                       + nextc%n*nextc%bstore)/newn   
                                 currentCohort%laimemory   = (currentCohort%n*currentCohort%laimemory   &
                                       + nextc%n*nextc%laimemory)/newn
-                                currentCohort%b           = (currentCohort%n*currentCohort%b           &
-                                      + nextc%n*nextc%b)/newn
                                 currentCohort%bsw         = (currentCohort%n*currentCohort%bsw         &
                                       + nextc%n*nextc%bsw)/newn
                                 currentCohort%bl          = (currentCohort%n*currentCohort%bl          &
                                       + nextc%n*nextc%bl)/newn
                                 currentCohort%br          = (currentCohort%n*currentCohort%br          &
                                       + nextc%n*nextc%br)/newn
-                                currentCohort%hite        = (currentCohort%n*currentCohort%hite        &
-                                      + nextc%n*nextc%hite)/newn         
                                 currentCohort%dbh         = (currentCohort%n*currentCohort%dbh         &
                                       + nextc%n*nextc%dbh)/newn
+
+                                call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%hite)
+                                
                                 currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim &
                                       + nextc%n*nextc%canopy_trim)/newn
+
+                                ! -----------------------------------------------------------------
+                                ! If fusion pushed structural biomass to be larger than
+                                ! the allometric target value derived by diameter, we
+                                ! then increase diameter and height until the allometric 
+                                ! target matches actual bdead. (if it is the other way around
+                                ! we then just let the carbon pools grow to fill-out allometry)
+                                ! -----------------------------------------------------------------
+                                
+                                if( EDPftvarcon_inst%woody(currentCohort%pft) == itrue ) then
+                                   call StructureResetOfDH( currentCohort%bdead, currentCohort%pft, &
+                                         currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
+                                end if
 
                                 call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
                                       currentCohort%size_class,currentCohort%size_by_pft_class)
@@ -830,10 +716,10 @@ contains
                                 ! recent canopy history
                                 currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
                                       nextc%n*nextc%canopy_layer_yesterday)/newn
-
+                                
                                 ! Flux and biophysics variables have not been calculated for recruits we just default to 
                                 ! their initization values, which should be the same for eahc
-
+                                
                                 if ( .not.currentCohort%isnew) then
 
                                    currentCohort%md             = (currentCohort%n*currentCohort%md        + &
@@ -844,10 +730,12 @@ contains
                                          nextc%n*nextc%root_md)/newn
                                    currentCohort%leaf_md        = (currentCohort%n*currentCohort%leaf_md   + &
                                          nextc%n*nextc%leaf_md)/newn
-                                   currentCohort%carbon_balance = (currentCohort%n*currentCohort%carbon_balance + &
-                                         nextc%n*nextc%carbon_balance)/newn
-                                   currentCohort%storage_flux   = (currentCohort%n*currentCohort%storage_flux + &
-                                         nextc%n*nextc%storage_flux)/newn
+                                   currentCohort%bstore_md        = (currentCohort%n*currentCohort%bstore_md   + &
+                                         nextc%n*nextc%bstore_md)/newn
+                                   currentCohort%bsw_md        = (currentCohort%n*currentCohort%bsw_md   + &
+                                         nextc%n*nextc%bsw_md)/newn
+                                   currentCohort%bdead_md        = (currentCohort%n*currentCohort%bdead_md   + &
+                                         nextc%n*nextc%bdead_md)/newn
                                    currentCohort%gpp_acc        = (currentCohort%n*currentCohort%gpp_acc     + &
                                          nextc%n*nextc%gpp_acc)/newn
                                    currentCohort%npp_acc        = (currentCohort%n*currentCohort%npp_acc     + &
@@ -866,11 +754,11 @@ contains
 
                                    currentCohort%dmort          = (currentCohort%n*currentCohort%dmort       + &
                                          nextc%n*nextc%dmort)/newn
-                                   currentCohort%lmort_logging          = (currentCohort%n*currentCohort%lmort_logging       + &
-                                         nextc%n*nextc%lmort_logging)/newn
-                                   currentCohort%lmort_infra          = (currentCohort%n*currentCohort%lmort_infra       + &
+                                   currentCohort%lmort_direct     = (currentCohort%n*currentCohort%lmort_direct     + &
+                                         nextc%n*nextc%lmort_direct)/newn
+                                   currentCohort%lmort_infra      = (currentCohort%n*currentCohort%lmort_infra      + &
                                          nextc%n*nextc%lmort_infra)/newn
-                                   currentCohort%lmort_collateral          = (currentCohort%n*currentCohort%lmort_collateral       + &
+                                   currentCohort%lmort_collateral = (currentCohort%n*currentCohort%lmort_collateral + &
                                          nextc%n*nextc%lmort_collateral)/newn
 
                                    currentCohort%fire_mort      = (currentCohort%n*currentCohort%fire_mort   + &
@@ -883,37 +771,41 @@ contains
                                    currentCohort%hmort = (currentCohort%n*currentCohort%hmort + nextc%n*nextc%hmort)/newn
                                    currentCohort%bmort = (currentCohort%n*currentCohort%bmort + nextc%n*nextc%bmort)/newn
                                    currentCohort%fmort = (currentCohort%n*currentCohort%fmort + nextc%n*nextc%fmort)/newn
+                                   currentCohort%frmort = (currentCohort%n*currentCohort%frmort + nextc%n*nextc%frmort)/newn
 
                                    ! logging mortality, Yi Xu
-                                   currentCohort%lmort_logging = (currentCohort%n*currentCohort%lmort_logging + &
-                                         nextc%n*nextc%lmort_logging)/newn
+                                   currentCohort%lmort_direct = (currentCohort%n*currentCohort%lmort_direct + &
+                                         nextc%n*nextc%lmort_direct)/newn
                                    currentCohort%lmort_collateral = (currentCohort%n*currentCohort%lmort_collateral + &
                                          nextc%n*nextc%lmort_collateral)/newn
                                    currentCohort%lmort_infra = (currentCohort%n*currentCohort%lmort_infra + &
                                          nextc%n*nextc%lmort_infra)/newn
-                                   
+
                                    ! npp diagnostics
-                                   currentCohort%npp_leaf  = (currentCohort%n*currentCohort%npp_leaf  + nextc%n*nextc%npp_leaf) &
-                                                              /newn
-                                   currentCohort%npp_froot = (currentCohort%n*currentCohort%npp_froot + nextc%n*nextc%npp_froot) &
-                                                              /newn
-                                   currentCohort%npp_bsw   = (currentCohort%n*currentCohort%npp_bsw   + nextc%n*nextc%npp_bsw) &
-                                                              /newn
-                                   currentCohort%npp_bdead = (currentCohort%n*currentCohort%npp_bdead + nextc%n*nextc%npp_bdead) &
-                                                              /newn
-                                   currentCohort%npp_bseed = (currentCohort%n*currentCohort%npp_bseed + nextc%n*nextc%npp_bseed) &
-                                                              /newn
-                                   currentCohort%npp_store = (currentCohort%n*currentCohort%npp_store + nextc%n*nextc%npp_store) &
-                                                              /newn
+                                   currentCohort%npp_leaf = (currentCohort%n*currentCohort%npp_leaf + &
+                                         nextc%n*nextc%npp_leaf)/newn
+                                   currentCohort%npp_fnrt = (currentCohort%n*currentCohort%npp_fnrt + &
+                                         nextc%n*nextc%npp_fnrt)/newn
+                                   currentCohort%npp_sapw = (currentCohort%n*currentCohort%npp_sapw + &
+                                         nextc%n*nextc%npp_sapw)/newn
+                                   currentCohort%npp_dead = (currentCohort%n*currentCohort%npp_dead + &
+                                         nextc%n*nextc%npp_dead)/newn
+                                   currentCohort%npp_seed = (currentCohort%n*currentCohort%npp_seed + &
+                                         nextc%n*nextc%npp_seed)/newn
+                                   currentCohort%npp_stor = (currentCohort%n*currentCohort%npp_stor + &
+                                         nextc%n*nextc%npp_stor)/newn
 
                                    ! biomass and dbh tendencies
-                                   currentCohort%ddbhdt     = (currentCohort%n*currentCohort%ddbhdt  + nextc%n*nextc%ddbhdt)/newn
-                                   currentCohort%dbalivedt  = (currentCohort%n*currentCohort%dbalivedt  + nextc%n*nextc%dbalivedt) &
-                                                               /newn
-                                   currentCohort%dbdeaddt   = (currentCohort%n*currentCohort%dbdeaddt  + nextc%n*nextc%dbdeaddt) &
-                                                               /newn
-                                   currentCohort%dbstoredt  = (currentCohort%n*currentCohort%dbstoredt  + nextc%n*nextc%dbstoredt) &
-                                                               /newn
+                                   currentCohort%ddbhdt     = (currentCohort%n*currentCohort%ddbhdt  + &
+                                         nextc%n*nextc%ddbhdt)/newn
+                                   currentCohort%dbdeaddt   = (currentCohort%n*currentCohort%dbdeaddt + &
+                                         nextc%n*nextc%dbdeaddt)/newn
+                                   currentCohort%dbstoredt  = (currentCohort%n*currentCohort%dbstoredt + &
+                                         nextc%n*nextc%dbstoredt)/newn
+
+                                   ! Integration step size
+                                   currentCohort%ode_opt_step = (currentCohort%n*currentCohort%ode_opt_step  + &
+                                                                 nextc%n*nextc%ode_opt_step)/newn
 
                                    do i=1, nlevleaf     
                                       if (currentCohort%year_net_uptake(i) == 999._r8 .or. nextc%year_net_uptake(i) == 999._r8) then
@@ -924,41 +816,56 @@ contains
                                                nextc%n*nextc%year_net_uptake(i))/newn                
                                       endif
                                    enddo
-
+                                   
                                 end if !(currentCohort%isnew)
 
                                 currentCohort%n = newn     
-                                !remove fused cohort from the list
-                                nextc%taller%shorter => nextnextc        
-                                if (.not. associated(nextc%shorter)) then !this is the shortest cohort. 
-                                   currentPatch%shortest => nextc%taller
-                                else
-                                   nextnextc%taller => nextc%taller
-                                endif
 
-                                if (associated(nextc)) then       
-                                   if(hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(nextc)
-                                   deallocate(nextc)            
+                                ! Set pointers and remove the current cohort from the list
+                                
+                                shorterCohort => nextc%shorter
+                                tallerCohort  => nextc%taller
+                                
+                                if (.not. associated(tallerCohort)) then
+                                   currentPatch%tallest => shorterCohort
+                                   if(associated(shorterCohort)) shorterCohort%taller => null()
+                                else 
+                                   tallerCohort%shorter => shorterCohort
                                 endif
+                                
+                                if (.not. associated(shorterCohort)) then
+                                   currentPatch%shortest => tallerCohort
+                                   if(associated(tallerCohort)) tallerCohort%shorter => null()
+                                else 
+                                   shorterCohort%taller => tallerCohort
+                                endif
+                                
+                                ! At this point, nothing should be pointing to current Cohort
+                                if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(nextc)
+                                deallocate(nextc)
+                                nullify(nextc)
 
                              endif ! if( currentCohort%isnew.eqv.nextc%isnew ) then
-
                           endif !canopy layer
                        endif !pft
                     endif  !index no. 
                  endif !diff   
-
-                 if (associated(nextc)) then             
-                    nextc => nextc%shorter    
-                 else
-                    nextc => nextnextc !if we have removed next
-                 endif
-
+                 
+                 nextc => nextnextc
+                 
               enddo !end checking nextc cohort loop
+
+              ! Ususally we always point to the next cohort. But remember ...
+              ! this loop exits when current becomes the shortest, not when
+              ! it finishes and becomes the null pointer.  If there is no
+              ! shorter cohort, then it is shortest, and will exit
+              ! Note also that it is possible that it entered here as the shortest
+              ! which is possible if nextc was the shortest and was removed.
 
               if (associated (currentCohort%shorter)) then
                  currentCohort => currentCohort%shorter
               endif
+              
            enddo !end currentCohort cohort loop
 
            !---------------------------------------------------------------------!
@@ -971,7 +878,7 @@ contains
               currentCohort => currentCohort%shorter
            enddo
 
-           if (nocohorts > maxcohorts) then
+           if (nocohorts > maxCohortsPerPatch) then
               iterate = 1
               !---------------------------------------------------------------------!
               ! Making profile tolerance larger means that more fusion will happen  !
@@ -1196,25 +1103,22 @@ contains
     n%pft             = o%pft
     n%n               = o%n                         
     n%dbh             = o%dbh                                        
-    n%hite            = o%hite                                
-    n%b               = o%b                            
-    n%balive          = o%balive
+    n%hite            = o%hite
     n%bdead           = o%bdead                          
     n%bstore          = o%bstore
     n%laimemory       = o%laimemory
-    n%bsw             = o%bsw                  
+    n%bsw             = o%bsw
     n%bl              = o%bl
     n%br              = o%br
     n%lai             = o%lai                         
     n%sai             = o%sai  
-    n%gscan           = o%gscan
+    n%g_sb_laweight   = o%g_sb_laweight
     n%leaf_cost       = o%leaf_cost
     n%canopy_layer    = o%canopy_layer
     n%canopy_layer_yesterday    = o%canopy_layer_yesterday
     n%nv              = o%nv
     n%status_coh      = o%status_coh
     n%canopy_trim     = o%canopy_trim
-    n%status_coh      = o%status_coh               
     n%excl_weight     = o%excl_weight               
     n%prom_weight     = o%prom_weight               
     n%size_class      = o%size_class
@@ -1238,12 +1142,12 @@ contains
     n%year_net_uptake = o%year_net_uptake
     n%ts_net_uptake   = o%ts_net_uptake
 
-    n%npp_leaf       = o%npp_leaf
-    n%npp_froot      = o%npp_froot
-    n%npp_bsw        = o%npp_bsw
-    n%npp_bdead      = o%npp_bdead
-    n%npp_bseed      = o%npp_bseed
-    n%npp_store      = o%npp_store
+    n%npp_leaf      = o%npp_leaf
+    n%npp_fnrt      = o%npp_fnrt
+    n%npp_sapw      = o%npp_sapw
+    n%npp_dead      = o%npp_dead
+    n%npp_seed      = o%npp_seed
+    n%npp_stor      = o%npp_stor
 
     !RESPIRATION
     n%rdark           = o%rdark
@@ -1257,9 +1161,11 @@ contains
     n%md              = o%md
     n%leaf_md         = o%leaf_md
     n%root_md         = o%root_md
-    n%carbon_balance  = o%carbon_balance
+    n%bsw_md          = o%bsw_md
+    n%bdead_md        = o%bdead_md
+    n%bstore_md       = o%bstore_md
     n%dmort           = o%dmort
-    n%lmort_logging   = o%lmort_logging
+    n%lmort_direct    = o%lmort_direct
     n%lmort_infra     = o%lmort_infra
     n%lmort_collateral= o%lmort_collateral
     n%seed_prod       = o%seed_prod
@@ -1267,33 +1173,33 @@ contains
     n%treesai         = o%treesai
     n%leaf_litter     = o%leaf_litter
     n%c_area          = o%c_area
-    n%woody_turnover  = o%woody_turnover
 
     ! Mortality diagnostics
     n%cmort = o%cmort
     n%bmort = o%bmort
     n%fmort = o%fmort
     n%hmort = o%hmort
+    n%frmort = o%frmort
 
     ! logging mortalities, Yi Xu
-    n%lmort_logging=o%lmort_logging
+    n%lmort_direct=o%lmort_direct
     n%lmort_collateral =o%lmort_collateral
     n%lmort_infra =o%lmort_infra
 
     ! Flags
     n%isnew = o%isnew
 
+    ! Integrator memory
+    n%ode_opt_step    = o%ode_opt_step
+
     ! VARIABLES NEEDED FOR INTEGRATION 
     n%dndt            = o%dndt
     n%dhdt            = o%dhdt
     n%ddbhdt          = o%ddbhdt
-    n%dbalivedt       = o%dbalivedt
     n%dbdeaddt        = o%dbdeaddt
     n%dbstoredt       = o%dbstoredt
 
     if ( DEBUG ) write(fates_log(),*) 'EDCohortDyn dpstoredt ',o%dbstoredt
-
-    n%storage_flux    = o%storage_flux
 
     ! FIRE 
     n%cfa             = o%cfa
@@ -1313,7 +1219,6 @@ contains
     n%taller          => NULL()     ! pointer to next tallest cohort     
     n%shorter         => NULL()     ! pointer to next shorter cohort     
     n%patchptr        => o%patchptr ! pointer to patch that cohort is in 
-    n%siteptr         => o%siteptr  ! pointer to site that cohort is in  
 
   end subroutine copy_cohort
 
@@ -1352,127 +1257,7 @@ contains
     endif
 
   end function count_cohorts
-
-  ! =====================================================================================
-
-  real(r8) function tree_lai( cohort_in )
-
-    ! ============================================================================
-    !  LAI of individual trees is a function of the total leaf area and the total canopy area.   
-    ! ============================================================================
-
-    type(ed_cohort_type), intent(inout) :: cohort_in       
-
-    real(r8) :: leafc_per_unitarea ! KgC of leaf per m2 area of ground.
-    real(r8) :: slat               ! the sla of the top leaf layer. m2/kgC
-
-    if( cohort_in%bl  <  0._r8 .or. cohort_in%pft  ==  0 ) then
-       write(fates_log(),*) 'problem in treelai',cohort_in%bl,cohort_in%pft
-    endif
-
-    if( cohort_in%status_coh  ==  2 ) then ! are the leaves on? 
-       slat = 1000.0_r8 * EDPftvarcon_inst%slatop(cohort_in%pft) ! m2/g to m2/kg
-       leafc_per_unitarea = cohort_in%bl/(cohort_in%c_area/cohort_in%n) !KgC/m2
-       if(leafc_per_unitarea > 0.0_r8)then
-          tree_lai = leafc_per_unitarea * slat  !kg/m2 * m2/kg = unitless LAI 
-       else
-          tree_lai = 0.0_r8
-       endif
-    else
-       tree_lai = 0.0_r8
-    endif !status
-    cohort_in%treelai = tree_lai
-
-    ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
-    ! at the moments nlevleaf default is 40, which is very large, so exceeding this would clearly illustrate a 
-    ! huge error 
-    if(cohort_in%treelai > nlevleaf*dinc_ed)then
-       write(fates_log(),*) 'too much lai' , cohort_in%treelai , cohort_in%pft , nlevleaf * dinc_ed
-    endif
-
-    return
-
-  end function tree_lai
   
   ! ============================================================================
-
-  real(r8) function tree_sai( cohort_in )
-
-    ! ============================================================================
-    !  SAI of individual trees is a function of the total dead biomass per unit canopy area.   
-    ! ============================================================================
-
-    type(ed_cohort_type), intent(inout) :: cohort_in       
-
-    real(r8) :: bdead_per_unitarea ! KgC of leaf per m2 area of ground.
-    real(r8) :: sai_scaler     
-
-    sai_scaler = EDPftvarcon_inst%allom_sai_scaler(cohort_in%pft) 
-
-    if( cohort_in%bdead  <  0._r8 .or. cohort_in%pft  ==  0 ) then
-       write(fates_log(),*) 'problem in treesai',cohort_in%bdead,cohort_in%pft
-    endif
-
-    bdead_per_unitarea = cohort_in%bdead/(cohort_in%c_area/cohort_in%n) !KgC/m2
-    tree_sai = bdead_per_unitarea * sai_scaler !kg/m2 * m2/kg = unitless LAI 
-   
-    cohort_in%treesai = tree_sai
-
-    ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
-    ! at the moments nlevleaf default is 40, which is very large, so exceeding this would clearly illustrate a 
-    ! huge error 
-    if(cohort_in%treesai > nlevleaf*dinc_ed)then
-       write(fates_log(),*) 'too much sai' , cohort_in%treesai , cohort_in%pft , nlevleaf * dinc_ed
-    endif
-
-    return
-
-  end function tree_sai
-  
-  ! ============================================================================
-
-
-  !-------------------------------------------------------------------------------------!
-!  function countCohorts( bounds, ed_allsites_inst ) result ( totNumCohorts ) 
-    !
-    ! !DESCRIPTION:
-    !  counts the total number of cohorts over all p levels (ed_patch_type) so we
-    ! can allocate vectors, copy from LL -> vector and read/write restarts.
-    !
-    ! !USES:
-!    use decompMod, only : bounds_type
-    !
-    ! !ARGUMENTS    
-!    type(bounds_type)  , intent(in)            :: bounds 
-!    type(ed_site_type) , intent(inout), target :: ed_allsites_inst( bounds%begg: )
-    !
-    ! !LOCAL VARIABLES:
-!    type (ed_patch_type)  , pointer :: currentPatch
-!    type (ed_cohort_type) , pointer :: currentCohort
-!    integer :: g, totNumCohorts
-!    logical :: error
-    !----------------------------------------------------------------------
-
-!    totNumCohorts = 0
-
-!    do g = bounds%begg,bounds%endg
-
-!       if (ed_allsites_inst(g)%istheresoil) then   
-
-!          currentPatch => ed_allsites_inst(g)%oldest_patch
-!          do while(associated(currentPatch))
-
-!             currentCohort => currentPatch%shortest
-!             do while(associated(currentCohort))        
-!                totNumCohorts = totNumCohorts + 1
-!                currentCohort => currentCohort%taller
-!             enddo !currentCohort
-!             currentPatch => currentPatch%younger
-!          end do
-
-!       end if
-!    end do
-
-!  end function countCohorts
 
 end module EDCohortDynamicsMod

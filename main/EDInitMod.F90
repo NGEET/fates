@@ -26,12 +26,13 @@ module EDInitMod
   use ChecksBalancesMod         , only : SiteCarbonStock
   use FatesInterfaceMod         , only : nlevsclass
   use FatesAllometryMod         , only : h2d_allom
-  use FatesAllometryMod         , only : bag_allom
-  use FatesAllometryMod         , only : bcr_allom
+  use FatesAllometryMod         , only : bagw_allom
+  use FatesAllometryMod         , only : bbgw_allom
   use FatesAllometryMod         , only : bleaf
   use FatesAllometryMod         , only : bfineroot
   use FatesAllometryMod         , only : bsap_allom
   use FatesAllometryMod         , only : bdead_allom
+  use FatesAllometryMod         , only : bstore_allom
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -308,7 +309,7 @@ contains
                  cwd_ag_local, cwd_bg_local, leaf_litter_local,  &
                  root_litter_local) 
 
-           call init_cohorts(newp, bc_in(s))
+           call init_cohorts(sites(s), newp, bc_in(s))
 
            ! This sets the rhizosphere shells based on the plant initialization
            ! The initialization of the plant-relevant hydraulics variables
@@ -329,7 +330,7 @@ contains
   end subroutine init_patches
 
   ! ============================================================================
-  subroutine init_cohorts( patch_in, bc_in)
+  subroutine init_cohorts( site_in, patch_in, bc_in)
     !
     ! !DESCRIPTION:
     ! initialize new cohorts on bare ground
@@ -337,6 +338,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS    
+    type(ed_site_type), intent(inout)            :: site_in
     type(ed_patch_type), intent(inout), pointer  :: patch_in
     type(bc_in_type), intent(in)                 :: bc_in
     !
@@ -344,9 +346,9 @@ contains
     type(ed_cohort_type),pointer :: temp_cohort
     integer  :: cstatus
     integer  :: pft
-    real(r8) :: b_ag    ! biomass above ground [kgC]
-    real(r8) :: b_cr    ! biomass in coarse roots [kgC]
-    real(r8) :: b_leaf  ! biomass in leaves [kgC]
+    real(r8) :: b_agw      ! biomass above ground (non-leaf)     [kgC]
+    real(r8) :: b_bgw      ! biomass below ground (non-fineroot) [kgC]
+    real(r8) :: b_leaf     ! biomass in leaves [kgC]
     real(r8) :: b_fineroot ! biomass in fine roots [kgC]
     real(r8) :: b_sapwood  ! biomass in sapwood [kgC]
     !----------------------------------------------------------------------
@@ -370,58 +372,56 @@ contains
        temp_cohort%canopy_trim = 1.0_r8
 
        ! Calculate total above-ground biomass from allometry
-       call bag_allom(temp_cohort%dbh,temp_cohort%hite,pft,b_ag)
+       call bagw_allom(temp_cohort%dbh,pft,b_agw)
 
        ! Calculate coarse root biomass from allometry
-       call bcr_allom(temp_cohort%dbh,temp_cohort%hite,pft,b_cr)
+       call bbgw_allom(temp_cohort%dbh,pft,b_bgw)
 
-       ! Calculate the leaf biomass 
+       ! Calculate the leaf biomass from allometry
        ! (calculates a maximum first, then applies canopy trim)
-       call bleaf(temp_cohort%dbh,temp_cohort%hite,pft,temp_cohort%canopy_trim,b_leaf)
+       call bleaf(temp_cohort%dbh,pft,temp_cohort%canopy_trim,b_leaf)
 
-       ! Calculate fine root biomass
+       ! Calculate fine root biomass from allometry
        ! (calculates a maximum and then trimming value)
-       call bfineroot(temp_cohort%dbh,temp_cohort%hite,pft,temp_cohort%canopy_trim,b_fineroot)
+       call bfineroot(temp_cohort%dbh,pft,temp_cohort%canopy_trim,b_fineroot)
 
        ! Calculate sapwood biomass
-       call bsap_allom(temp_cohort%dbh,temp_cohort%hite,pft,temp_cohort%canopy_trim,b_sapwood)
+       call bsap_allom(temp_cohort%dbh,pft,temp_cohort%canopy_trim,b_sapwood)
        
-       temp_cohort%balive = b_leaf + b_fineroot + b_sapwood
+       call bdead_allom( b_agw, b_bgw, b_sapwood, pft, temp_cohort%bdead )
 
-       call bdead_allom( b_ag, b_cr, b_sapwood, pft, temp_cohort%bdead )
+       call bstore_allom(temp_cohort%dbh, pft, temp_cohort%canopy_trim,temp_cohort%bstore)
 
-       temp_cohort%b = temp_cohort%balive + temp_cohort%bdead
 
        if( EDPftvarcon_inst%evergreen(pft) == 1) then
-          temp_cohort%bstore = b_leaf * EDPftvarcon_inst%cushion(pft)
           temp_cohort%laimemory = 0._r8
           cstatus = 2
        endif
 
        if( EDPftvarcon_inst%season_decid(pft) == 1 ) then !for dorment places
-          temp_cohort%bstore = b_leaf * EDPftvarcon_inst%cushion(pft) !stored carbon in new seedlings.
-          if(patch_in%siteptr%status == 2)then 
+          if(site_in%status == 2)then 
              temp_cohort%laimemory = 0.0_r8
           else
              temp_cohort%laimemory = b_leaf
           endif
           ! reduce biomass according to size of store, this will be recovered when elaves com on.
-          temp_cohort%balive = temp_cohort%balive - temp_cohort%laimemory
-          cstatus = patch_in%siteptr%status
+          cstatus = site_in%status
        endif
 
        if ( EDPftvarcon_inst%stress_decid(pft) == 1 ) then
-          temp_cohort%bstore = b_leaf * EDPftvarcon_inst%cushion(pft)
-          temp_cohort%laimemory = b_leaf
-          temp_cohort%balive = temp_cohort%balive - temp_cohort%laimemory
-          cstatus = patch_in%siteptr%dstatus
+          if(site_in%dstatus == 2)then 
+             temp_cohort%laimemory = 0.0_r8
+          else
+             temp_cohort%laimemory = b_leaf
+          endif
+          cstatus = site_in%dstatus
        endif
 
        if ( DEBUG ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
 
        call create_cohort(patch_in, pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
-            temp_cohort%balive, temp_cohort%bdead, temp_cohort%bstore, &
-            temp_cohort%laimemory,  cstatus, temp_cohort%canopy_trim, 1, bc_in)
+            b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore, &
+            temp_cohort%laimemory,  cstatus, temp_cohort%canopy_trim, 1, site_in%spread, bc_in)
 
        deallocate(temp_cohort) ! get rid of temporary cohort
 

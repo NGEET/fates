@@ -26,6 +26,14 @@ module FatesConstantsMod
   integer, parameter :: ifalse = 0
 
   
+  ! Error Tolerances
+
+  ! Allowable error in carbon allocations, should be applied to estimates
+  ! of carbon conservation in units of kgC/plant.  This gives an effective
+  ! error tolerance of 1 microgram.
+  real(fates_r8), parameter :: calloc_abs_error = 1.0e-9_fates_r8
+
+
   ! Unit conversion constants:
 
   ! Conversion factor umols of Carbon -> kg of Carbon (1 mol = 12g)
@@ -49,6 +57,9 @@ module FatesConstantsMod
   
   ! Conversion factor: micromoles per mole
   real(fates_r8), parameter :: umol_per_mol = 1.0E6_fates_r8
+
+  ! Conversion factor: umols per kilomole
+  real(fates_r8), parameter :: umol_per_kmol = 1.0E9_fates_r8
 
   ! Conversion factor: m2 per ha
   real(fates_r8), parameter :: m2_per_ha = 1.0e4_fates_r8
