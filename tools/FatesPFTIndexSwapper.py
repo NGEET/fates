@@ -155,10 +155,9 @@ def main(argv):
         print('Creating Variable: ',key)
         #   code.interact(local=locals())
         
-        out_var = fp_out.createVariable(key,'f',(fp_in.variables.get(key).dimensions))
+        
         in_var  = fp_in.variables.get(key)
-        out_var.units     = in_var.units
-        out_var.long_name = in_var.long_name
+        
 
         # Idenfity if this variable has pft dimension
         pft_dim_found = -1
@@ -172,10 +171,13 @@ def main(argv):
         # Copy over the input data
         # Tedious, but I have to permute through all combinations of dimension position
         if( pft_dim_len == 0 ):
+            out_var = fp_out.createVariable(key,'f',(fp_in.variables.get(key).dimensions))
             out_var.assignValue(float(fp_in.variables.get(key).data))
         elif(pft_dim_found==-1):
+            out_var = fp_out.createVariable(key,'f',(fp_in.variables.get(key).dimensions))
             out_var[:] = in_var[:]
         elif( (pft_dim_found==0) & (pft_dim_len==1) ):           # 1D fates_pft
+            out_var = fp_out.createVariable(key,'f',(fp_in.variables.get(key).dimensions))
             tmp_out  = np.zeros([num_pft_out])
             for id,ipft in enumerate(donor_pft_indices):
                 tmp_out[id] = fp_in.variables.get(key).data[ipft-1]
@@ -183,20 +185,34 @@ def main(argv):
 
 
         elif( (pft_dim_found==1) & (pft_dim_len==2) ):           # 2D hdyro_organ - fate_pft
+            out_var = fp_out.createVariable(key,'f',(fp_in.variables.get(key).dimensions))
             dim2_len = fp_in.dimensions.get(fp_in.variables.get(key).dimensions[0])
             tmp_out  = np.zeros([dim2_len,num_pft_out])
             for id,ipft in enumerate(donor_pft_indices):
                 for idim in range(0,dim2_len):
                     tmp_out[idim,id] = fp_in.variables.get(key).data[idim,ipft-1]
             out_var[:] = tmp_out
+
+        elif( (pft_dim_found==0) & (pft_dim_len==2) ):          # fates_pft - string_length
+            out_var = fp_out.createVariable(key,'c',(fp_in.variables.get(key).dimensions))
+            dim2_len = fp_in.dimensions.get(fp_in.variables.get(key).dimensions[1])
+            out_var[:] = np.empty([num_pft_out,dim2_len], dtype="S{}".format(dim2_len))
+            for id,ipft in enumerate(donor_pft_indices):
+                out_var[id] = fp_in.variables.get(key).data[ipft-1]
+
         else:
             print('This variable has a dimensioning that we have not considered yet.')
             print('Please add this condition to the logic above this statement.')
             print('Aborting')
+            for idim, name in enumerate(fp_in.variables.get(key).dimensions):
+               print("idim: {}, name: {}".format(idim,name))
             exit(2)
 
-        fp_out.history = "This file was made from FatesPFTIndexSwapper.py \n Input File = {} \n Indices = {}"\
-                         .format(input_fname,donor_pft_indices)
+        out_var.units     = in_var.units
+        out_var.long_name = in_var.long_name
+
+    fp_out.history = "This file was made from FatesPFTIndexSwapper.py \n Input File = {} \n Indices = {}"\
+          .format(input_fname,donor_pft_indices)
 
     #var_out.mode = var.mode
     #fp.flush()

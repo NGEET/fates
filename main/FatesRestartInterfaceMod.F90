@@ -10,7 +10,8 @@ module FatesRestartInterfaceMod
   use FatesIODimensionsMod, only : fates_io_dimension_type
   use FatesIOVariableKindMod, only : fates_io_variable_kind_type
   use FatesRestartVariableMod, only : fates_restart_variable_type
-  use FatesInterfaceMod, only : bc_in_type
+  use FatesInterfaceMod, only : bc_in_type 
+  use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
 
   ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -90,8 +91,10 @@ module FatesRestartInterfaceMod
   integer, private :: ir_nplant_co
   integer, private :: ir_gpp_acc_co
   integer, private :: ir_npp_acc_co
+  integer, private :: ir_resp_acc_co
   integer, private :: ir_gpp_acc_hold_co
   integer, private :: ir_npp_acc_hold_co
+  integer, private :: ir_resp_acc_hold_co
   integer, private :: ir_npp_leaf_co
   integer, private :: ir_npp_froot_co
   integer, private :: ir_npp_sw_co
@@ -704,6 +707,11 @@ contains
          units='kgC/indiv', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_acc_co )
 
+    call this%set_restart_var(vname='fates_resp_acc', vtype=cohort_r8, &
+         long_name='ed cohort - accumulated respiration over dynamics step', &
+         units='kgC/indiv', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_acc_co )
+
     call this%set_restart_var(vname='fates_gpp_acc_hold', vtype=cohort_r8, &
          long_name='ed cohort - current step gpp', &
          units='kgC/indiv/year', flushval = flushzero, &
@@ -713,6 +721,11 @@ contains
          long_name='ed cohort - current step npp', &
          units='kgC/indiv/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_acc_hold_co )
+
+    call this%set_restart_var(vname='fates_resp_acc_hold', vtype=cohort_r8, &
+         long_name='ed cohort - current step resp', &
+         units='kgC/indiv/year', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_acc_hold_co )
 
     call this%set_restart_var(vname='fates_npp_leaf', vtype=cohort_r8, &
          long_name='ed cohort - npp sent to leaves', &
@@ -1071,7 +1084,9 @@ contains
            rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
            rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
            rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
+           rio_resp_acc_co             => this%rvars(ir_resp_acc_co)%r81d, &
            rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
+           rio_resp_acc_hold_co        => this%rvars(ir_resp_acc_hold_co)%r81d, &
            rio_npp_acc_hold_co         => this%rvars(ir_npp_acc_hold_co)%r81d, &
            rio_npp_leaf_co             => this%rvars(ir_npp_leaf_co)%r81d, &
            rio_npp_froot_co            => this%rvars(ir_npp_froot_co)%r81d, &
@@ -1193,7 +1208,9 @@ contains
                 rio_nplant_co(io_idx_co)       = ccohort%n
                 rio_gpp_acc_co(io_idx_co)      = ccohort%gpp_acc
                 rio_npp_acc_co(io_idx_co)      = ccohort%npp_acc
+                rio_resp_acc_co(io_idx_co)     = ccohort%resp_acc
                 rio_gpp_acc_hold_co(io_idx_co) = ccohort%gpp_acc_hold
+                rio_resp_acc_hold_co(io_idx_co) = ccohort%resp_acc_hold
                 rio_npp_acc_hold_co(io_idx_co) = ccohort%npp_acc_hold
                 rio_npp_leaf_co(io_idx_co)     = ccohort%npp_leaf
                 rio_npp_froot_co(io_idx_co)    = ccohort%npp_fnrt
@@ -1381,6 +1398,7 @@ contains
      use EDPatchDynamicsMod,   only : create_patch
      use EDPftvarcon,          only : EDPftvarcon_inst
      use FatesAllometryMod,    only : h2d_allom
+     
 
      ! !ARGUMENTS:
      class(fates_restart_interface_type) , intent(inout) :: this
@@ -1406,8 +1424,8 @@ contains
      real(r8)                          :: b_leaf        ! leaf biomass dummy var (kgC)
      real(r8)                          :: b_fineroot    ! fineroot dummy var (kgC)
      real(r8)                          :: b_sapwood     ! sapwood dummy var (kgC)
+     real(r8)                          :: site_spread   ! site sprea dummy var (0-1)
      integer                           :: fto
-     integer                           :: ft
 
      ! Dummy arguments used for calling create patch, these will be overwritten before
      ! run-time.  Just used now for allocation.
@@ -1466,8 +1484,6 @@ contains
                   cwd_ag_local, cwd_bg_local,  &
                   leaf_litter_local, root_litter_local) 
              
-             newp%siteptr => sites(s)
-
              ! give this patch a unique patch number
              newp%patchno = idx_pa
 
@@ -1483,23 +1499,13 @@ contains
                 temp_cohort%canopy_layer = 1.0_r8
                 temp_cohort%canopy_layer_yesterday = 1.0_r8
 
-                ! set the pft (only 2 used in ed) based on odd/even cohort
-                ! number
-                ft=2
-                if ((mod(fto, 2)  ==  0 )) then
-                   ft=1
-                endif
-                temp_cohort%pft = ft
+                temp_cohort%pft = 1   ! Give it a nominal PFT value for allocation
 
-                cohortstatus = newp%siteptr%status
-
-                if(EDPftvarcon_inst%stress_decid(ft) == 1)then !drought decidous, override status. 
-                   cohortstatus = newp%siteptr%dstatus
-                endif
+                cohortstatus    = 2   ! status of 2 means leaves are out (dummy var)
 
                 temp_cohort%hite = 1.25_r8
                 ! Solve for diameter from height
-                call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
+                call h2d_allom(temp_cohort%hite,temp_cohort%pft,temp_cohort%dbh)
 
                 if (DEBUG) then
                    write(fates_log(),*) 'EDRestVectorMod.F90::createPatchCohortStructure call create_cohort '
@@ -1508,11 +1514,12 @@ contains
                 b_leaf     = 0.0_r8
                 b_fineroot = 0.0_r8
                 b_sapwood  = 0.0_r8
+                site_spread = 0.5_r8
                 
-                call create_cohort(newp, ft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
+                call create_cohort(newp, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                      b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore,  &
                      temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, newp%NCL_p, &
-                     bc_in(s))
+                     site_spread, bc_in(s))
                 
                 deallocate(temp_cohort)
                 
@@ -1576,6 +1583,7 @@ contains
      use FatesInterfaceMod, only : numpft
      use FatesInterfaceMod, only : fates_maxElementsPerPatch
      use EDTypesMod, only : numWaterMem
+     use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
 
      ! !ARGUMENTS:
      class(fates_restart_interface_type) , intent(inout) :: this
@@ -1660,7 +1668,9 @@ contains
           rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
           rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
           rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
+          rio_resp_acc_co             => this%rvars(ir_resp_acc_co)%r81d, &
           rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
+          rio_resp_acc_hold_co        => this%rvars(ir_resp_acc_hold_co)%r81d, &
           rio_npp_acc_hold_co         => this%rvars(ir_npp_acc_hold_co)%r81d, &
           rio_npp_leaf_co             => this%rvars(ir_npp_leaf_co)%r81d, &
           rio_npp_froot_co            => this%rvars(ir_npp_froot_co)%r81d, &
@@ -1768,7 +1778,9 @@ contains
                 ccohort%n            = rio_nplant_co(io_idx_co)
                 ccohort%gpp_acc      = rio_gpp_acc_co(io_idx_co)
                 ccohort%npp_acc      = rio_npp_acc_co(io_idx_co)
+                ccohort%resp_acc     = rio_resp_acc_co(io_idx_co)
                 ccohort%gpp_acc_hold = rio_gpp_acc_hold_co(io_idx_co)
+                ccohort%resp_acc_hold = rio_resp_acc_hold_co(io_idx_co)
                 ccohort%npp_acc_hold = rio_npp_acc_hold_co(io_idx_co)
                 ccohort%npp_leaf     = rio_npp_leaf_co(io_idx_co)
                 ccohort%npp_fnrt     = rio_npp_froot_co(io_idx_co)
@@ -1820,7 +1832,8 @@ contains
              !
              cpatch%livegrass  = rio_livegrass_pa(io_idx_co_1st)
              cpatch%age        = rio_age_pa(io_idx_co_1st) 
-             cpatch%area       = rio_area_pa(io_idx_co_1st) 
+             cpatch%area       = rio_area_pa(io_idx_co_1st)
+             cpatch%age_class  = get_age_class_index(cpatch%age)
              
              ! set cohorts per patch for IO
              
