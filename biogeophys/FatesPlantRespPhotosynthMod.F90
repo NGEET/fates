@@ -299,11 +299,15 @@ contains
                   else
                      kn(ft) = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(ft) - 2.43_r8)
                   end if
+
+                  ! This is probably unnecessary and already calculated (RGK 05-2018)
+                  call set_root_fraction(currentPatch%rootfr_ft(ft,1:bc_in(s)%nlevsoil), ft, &
+                        bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1))
                   
+
                end do !ft 
 
-               call set_root_fraction(currentPatch%rootfr_ft, &
-                    bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1))
+               
 
                ! ------------------------------------------------------------------------
                ! Part VI: Loop over all leaf layers.

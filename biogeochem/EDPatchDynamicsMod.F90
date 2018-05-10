@@ -1891,7 +1891,7 @@ contains
 
    ! ====================================================================================
 
-  subroutine set_root_fraction( root_fraction , zi, lowerb )
+  subroutine set_root_fraction(root_fraction, ft, zi, lowerb )
     !
     ! !DESCRIPTION:
     !  Calculates the fractions of the root biomass in each layer for each pft. 
@@ -1903,7 +1903,8 @@ contains
 
     !
     ! !ARGUMENTS
-    real(r8),intent(out) :: root_fraction(:,:)
+    real(r8),intent(inout) :: root_fraction(:)
+    integer, intent(in)    :: ft
     real(r8),intent(in)    :: zi(lowerb:)
     integer,intent(in)     :: lowerb
 
@@ -1925,76 +1926,69 @@ contains
     
     select case(root_profile_type)
     case ( exponential_1p_profile_type ) 
-       call exponential_1p_root_profile(root_fraction , zi, lowerb)
+       call exponential_1p_root_profile(root_fraction, ft, zi) 
     case ( jackson_beta_profile_type )
-       call jackson_beta_root_profile(root_fraction , zi, lowerb)
+       call jackson_beta_root_profile(root_fraction, ft, zi)
     case ( exponential_2p_profile_type ) 
-       call exponential_2p_root_profile(root_fraction , zi, lowerb)
+       call exponential_2p_root_profile(root_fraction, ft, zi)
     case default
        write(fates_log(),*) 'An undefined root profile type was specified'
        write(fates_log(),*) 'Aborting'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
-    
+
+    return
   end subroutine set_root_fraction
 
   ! =====================================================================================
     
-  subroutine exponential_2p_root_profile(root_fraction , zi, lowerb )
+  subroutine exponential_2p_root_profile(root_fraction, ft, zi )
     !
     ! !ARGUMENTS
-    real(r8),intent(out) :: root_fraction(:,:)
-    real(r8),intent(in)  :: zi(lowerb:)
-    integer,intent(in)   :: lowerb
+    real(r8),intent(out) :: root_fraction(:)
+    integer,intent(in)   :: ft
+    real(r8),intent(in)  :: zi(0:)
 
     ! Locals
-    
     integer  :: nlevsoil    ! Number of soil layers
-    integer  :: ft          ! pft index
     integer  :: lev         ! soil layer index
     real(r8) :: sum_rootfr  ! sum of root fraction for normalization
     
     nlevsoil = ubound(zi,1)
     
-    root_fraction = 0.0_r8
-
-    do ft = 1,numpft
+    sum_rootfr = 0.0_r8
+    do lev = 1, nlevsoil
+       root_fraction(lev) = .5_r8*( &
+             exp(-EDPftvarcon_inst%roota_par(ft) * zi(lev-1))  &
+             + exp(-EDPftvarcon_inst%rootb_par(ft) * zi(lev-1))  &
+             - exp(-EDPftvarcon_inst%roota_par(ft) * zi(lev))    &
+             - exp(-EDPftvarcon_inst%rootb_par(ft) * zi(lev)))
        
-       sum_rootfr = 0.0_r8
-       do lev = 1, nlevsoil
-          
-          root_fraction(ft,lev) = .5_r8*( &
-               exp(-EDPftvarcon_inst%roota_par(ft) * zi(lev-1))  &
-               + exp(-EDPftvarcon_inst%rootb_par(ft) * zi(lev-1))  &
-               - exp(-EDPftvarcon_inst%roota_par(ft) * zi(lev))    &
-               - exp(-EDPftvarcon_inst%rootb_par(ft) * zi(lev)))
-          
-          sum_rootfr = sum_rootfr + root_fraction(ft,lev)
-          
-       end do
-       
-       ! Normalize the root profile
-       root_fraction(ft,:) = root_fraction(ft,:)/sum_rootfr
-       
+       sum_rootfr = sum_rootfr + root_fraction(lev)
     end do
+    
+    ! Normalize the root profile
+    root_fraction(1:nlevsoil) = root_fraction(1:nlevsoil)/sum_rootfr
+    
     return
   end subroutine exponential_2p_root_profile
 
   ! =====================================================================================
   
-  subroutine exponential_1p_root_profile(root_fraction , zi, lowerb)
+  subroutine exponential_1p_root_profile(root_fraction, ft, zi)
 
     !
     ! !ARGUMENTS
-    real(r8),intent(out) :: root_fraction(:,:)
-    real(r8),intent(in)  :: zi(lowerb:)
-    integer,intent(in)   :: lowerb
-
+    real(r8),intent(out) :: root_fraction(:)
+    integer,intent(in)   :: ft
+    real(r8),intent(in)  :: zi(0:)
+    
     !
     ! LOCAL VARIABLES:
-    integer :: ft     ! pft index
-    integer :: lev      ! soil depth layer index
-    integer :: nlevsoil ! 
+    integer :: lev         ! soil depth layer index
+    integer :: nlevsoil    ! number of soil layers
+    real(r8) :: depth      ! Depth to middle of layer [m]
+    real(r8) :: sum_rootfr ! sum of rooting profile for normalization
 
     real(r8), parameter :: rootprof_exp  = 3.  ! how steep profile is
     ! for root C inputs (1/ e-folding depth) (1/m)
@@ -2002,24 +1996,53 @@ contains
     nlevsoil = ubound(zi,1)
     
     ! define rooting profile from exponential parameters
-    do ft = 1, numpft
-       depth = 0.0_r8
-       do j = 1,  nlevsoil
-          depth = depth + 0.5*(zi(j)+zi(j-1))
-          root_fraction(ft,j) = exp(-rootprof_exp * depth)
-       end do
+    sum_rootfr = 0.0_r8
+    do lev = 1,  nlevsoil
+       root_fraction(lev) = exp(-rootprof_exp * 0.5*(zi(lev)+zi(lev-1)) )
+       sum_rootfr = sum_rootfr + root_fraction(lev)
     end do
-       
+    
     ! Normalize the root profile
-    root_fraction(ft,:) = root_fraction(ft,:)/sum_rootfr
+    root_fraction(1:nlevsoil) = root_fraction(1:nlevsoil)/sum_rootfr
     
     
     return
   end subroutine exponential_1p_root_profile
     
+  ! =====================================================================================
 
+  subroutine jackson_beta_root_profile(root_fraction, ft, zi)
 
+     
+    ! !ARGUMENTS
+    real(r8),intent(out) :: root_fraction(:) ! fraction of root mass in each soil layer
+    integer,intent(in)   :: ft               ! functional type
+    real(r8),intent(in)  :: zi(0:)           ! depth of layer interfaces 0-nlevsoil
+    
+    !
+    ! LOCAL VARIABLES:
+    integer :: lev         ! soil depth layer index
+    integer :: nlevsoil    ! number of soil layers
+    real(r8) :: sum_rootfr ! sum of rooting profile, for normalization 
 
+    integer, parameter :: rooting_profile_varindex_water = 1
+
+    nlevsoil = ubound(zi,1)
+    ! use beta distribution parameter from Jackson et al., 1996
+    sum_rootfr = 0.0_r8
+    do lev = 1, nlevsoil
+       root_fraction(lev) = &
+             ( EDPftvarcon_inst%rootprof_beta(ft, rooting_profile_varindex_water) ** & 
+             ( zi(lev-1)*100._r8) - &
+             EDPftvarcon_inst%rootprof_beta(ft, rooting_profile_varindex_water) ** & 
+             ( zi(lev)*100._r8) )
+       sum_rootfr = sum_rootfr + root_fraction(lev)
+    end do
+    
+    ! Normalize the root profile
+    root_fraction(1:nlevsoil) = root_fraction(1:nlevsoil)/sum_rootfr
+
+    return
   end subroutine jackson_beta_root_profile
 
 

@@ -2013,6 +2013,7 @@ contains
     use FatesConstantsMod, only : itrue
     use FatesGlobals, only : endrun => fates_endrun
     use EDParamsMod , only : ED_val_cwd_flig, ED_val_cwd_fcel
+    use EDPatchDynamicsMod, only : set_root_fraction
 
 
     implicit none   
@@ -2114,38 +2115,13 @@ contains
           ! -----------------------------------------------------------------------------
 
           cinput_rootfr(:,:)     = 0._r8
-          
-
-
-
-          ! calculate pft-specific rooting profiles in the absence of permafrost or bedrock limitations
-          if ( exponential_rooting_profile ) then
-             if ( .not. pftspecific_rootingprofile ) then
-                ! define rooting profile from exponential parameters
-                do ft = 1, numpft
-                   do j = 1,  bc_in(s)%nlevdecomp
-                      cinput_rootfr(ft,j) = exp(-rootprof_exp *  bc_in(s)%z_sisl(j))
-                   end do
-                end do
-             else
-                ! use beta distribution parameter from Jackson et al., 1996
-                do ft = 1, numpft
-                   do j = 1, bc_in(s)%nlevdecomp
-                      cinput_rootfr(ft,j) = &
-                            ( EDPftvarcon_inst%rootprof_beta(ft, rooting_profile_varindex_water) ** & 
-                            (bc_in(s)%zi_sisl(j-1)*100._r8) - &
-                            EDPftvarcon_inst%rootprof_beta(ft, rooting_profile_varindex_water) ** & 
-                            (bc_in(s)%zi_sisl(j)*100._r8) )
-                   end do
-                end do
-             endif
-          else
-
-             ! This generates a rooting profile over the whole soil column
-             call set_root_fraction(cinput_rootfr(:,1:bc_in(s)%nlevsoil), &
-                  bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1))
+          do ft = 1, numpft
              
-          endif
+             ! This generates a rooting profile over the whole soil column
+             call set_root_fraction(cinput_rootfr(ft,1:bc_in(s)%nlevsoil), ft, &
+                   bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1))
+
+          end do
 
           !
           ! now add permafrost constraint: integrate rootfr over active layer of soil site,
