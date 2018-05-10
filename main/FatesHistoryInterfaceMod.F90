@@ -1545,7 +1545,7 @@ end subroutine flush_hvars
                        (ccohort%hite * EDPftvarcon_inst%crown(ft))
                   !
                   hio_leaf_height_dist_si_height(io_si,i) = hio_leaf_height_dist_si_height(io_si,i) + &
-                       ccohort%n * ccohort%treelai * frac_canopy_in_bin
+                       ccohort%c_area * AREA_INV * ccohort%treelai * frac_canopy_in_bin
                end do
                
                if (ccohort%canopy_layer .eq. 1) then
@@ -2939,12 +2939,12 @@ end subroutine flush_hvars
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_zstar_si_age )
 
-    call this%set_history_var(vname='CANOPY_HEIGHT_DIST', units='m',                   &
+    call this%set_history_var(vname='CANOPY_HEIGHT_DIST', units='m2/m2',                   &
          long='canopy height distribution', use_default='active',                     &
          avgflag='A', vtype=site_height_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_canopy_height_dist_si_height )
 
-    call this%set_history_var(vname='LEAF_HEIGHT_DIST', units='m',                   &
+    call this%set_history_var(vname='LEAF_HEIGHT_DIST', units='m2/m2',                   &
          long='leaf height distribution', use_default='active',                     &
          avgflag='A', vtype=site_height_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_leaf_height_dist_si_height )
