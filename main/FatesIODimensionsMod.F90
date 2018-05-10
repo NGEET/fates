@@ -18,6 +18,7 @@ module FatesIODimensionsMod
     character(*), parameter :: levscls = 'fates_levscls'      ! matches histFileMod
     character(*), parameter :: levpft = 'fates_levpft'        ! matches histFileMod
     character(*), parameter :: levage = 'fates_levage'        ! matches histFileMod
+    character(*), parameter :: levheight = 'fates_levheight'  ! matches histFileMod
     character(*), parameter :: levfuel = 'fates_levfuel'      ! matches histFileMod
     character(*), parameter :: levcwdsc = 'fates_levcwdsc'    ! matches histFileMod
     character(*), parameter :: levcan = 'fates_levcan'        ! matches histFileMod
@@ -46,6 +47,9 @@ module FatesIODimensionsMod
 
     ! levage = This is a structure that records the boundaries for the
     ! number of patch-age-class dimension
+
+    ! levheight = This is a structure that records the boundaries for the
+    ! number of height dimension
 
     ! levfuel = This is a structure that records the boundaries for the
     ! number of fuel-size-class dimension
@@ -95,6 +99,8 @@ module FatesIODimensionsMod
        integer :: pft_class_end
        integer :: age_class_begin
        integer :: age_class_end
+       integer :: height_begin
+       integer :: height_end
        integer :: fuel_begin
        integer :: fuel_end
        integer :: cwdsc_begin

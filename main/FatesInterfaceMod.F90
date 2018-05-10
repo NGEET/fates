@@ -198,6 +198,7 @@ module FatesInterfaceMod
    integer , allocatable :: fates_hdim_pfmap_levscpf(:)    ! map of pfts into size-class x pft dimension
    integer , allocatable :: fates_hdim_scmap_levscpf(:)    ! map of size-class into size-class x pft dimension
    real(r8), allocatable :: fates_hdim_levage(:)           ! patch age lower bound dimension
+   real(r8), allocatable :: fates_hdim_levheight(:)           ! height lower bound dimension
    integer , allocatable :: fates_hdim_levpft(:)           ! plant pft dimension
    integer , allocatable :: fates_hdim_levfuel(:)          ! fire fuel class dimension
    integer , allocatable :: fates_hdim_levcwdsc(:)         ! cwd class dimension
@@ -245,9 +246,10 @@ module FatesInterfaceMod
    !
    ! -------------------------------------------------------------------------------------
 
-   integer, protected :: numpft          ! The total number of PFTs defined in the simulation
+   integer, protected :: numpft       ! The total number of PFTs defined in the simulation
    integer, protected :: nlevsclass   ! The total number of cohort size class bins output to history
    integer, protected :: nlevage      ! The total number of patch age bins output to history
+   integer, protected :: nlevheight   ! The total number of height bins output to history
    
 
    ! -------------------------------------------------------------------------------------
@@ -865,6 +867,7 @@ contains
        ! --------------------------------------------------------------------------------
 
       use EDParamsMod, only : ED_val_history_sizeclass_bin_edges, ED_val_history_ageclass_bin_edges
+      use EDParamsMod, only : ED_val_history_height_bin_edges
       use CLMFatesParamInterfaceMod         , only : FatesReadParameters
       implicit none
       
@@ -910,6 +913,7 @@ contains
          ! assume these arrays are 1-indexed
          nlevsclass = size(ED_val_history_sizeclass_bin_edges,dim=1)
          nlevage = size(ED_val_history_ageclass_bin_edges,dim=1)
+         nlevheight = size(ED_val_history_height_bin_edges,dim=1)
 
          ! do some checks on the size and age bin arrays to make sure they make sense:
          ! make sure that both start at zero, and that both are monotonically increasing
@@ -921,6 +925,10 @@ contains
             write(fates_log(), *) 'age class bins specified in parameter file must start at zero'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          endif
+         if ( ED_val_history_height_bin_edges(1) .ne. 0._r8 ) then
+            write(fates_log(), *) 'height class bins specified in parameter file must start at zero'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         endif
          do i = 2,nlevsclass
             if ( (ED_val_history_sizeclass_bin_edges(i) - ED_val_history_sizeclass_bin_edges(i-1)) .le. 0._r8) then
                write(fates_log(), *) 'size class bins specified in parameter file must be monotonically increasing'
@@ -930,6 +938,12 @@ contains
          do i = 2,nlevage
             if ( (ED_val_history_ageclass_bin_edges(i) - ED_val_history_ageclass_bin_edges(i-1)) .le. 0._r8) then
                write(fates_log(), *) 'age class bins specified in parameter file must be monotonically increasing'
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
+         end do
+         do i = 2,nlevheight
+            if ( (ED_val_history_height_bin_edges(i) - ED_val_history_height_bin_edges(i-1)) .le. 0._r8) then
+               write(fates_log(), *) 'height class bins specified in parameter file must be monotonically increasing'
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end do
@@ -964,6 +978,7 @@ contains
        use EDTypesMod, only : nlevleaf
        use EDParamsMod, only : ED_val_history_sizeclass_bin_edges
        use EDParamsMod, only : ED_val_history_ageclass_bin_edges
+       use EDParamsMod, only : ED_val_history_height_bin_edges
 
        ! ------------------------------------------------------------------------------------------
        ! This subroutine allocates and populates the variables
@@ -981,6 +996,7 @@ contains
        integer :: ican
        integer :: ileaf
        integer :: iage
+       integer :: iheight
 
        allocate( fates_hdim_levsclass(1:nlevsclass   ))
        allocate( fates_hdim_pfmap_levscpf(1:nlevsclass*numpft))
@@ -989,6 +1005,7 @@ contains
        allocate( fates_hdim_levfuel(1:NFSC   ))
        allocate( fates_hdim_levcwdsc(1:NCWD   ))
        allocate( fates_hdim_levage(1:nlevage   ))
+       allocate( fates_hdim_levheight(1:nlevheight   ))
 
        allocate( fates_hdim_levcan(nclmax))
        allocate( fates_hdim_canmap_levcnlf(nlevleaf*nclmax))
@@ -1007,6 +1024,7 @@ contains
        ! Fill the IO array of plant size classes
        fates_hdim_levsclass(:) = ED_val_history_sizeclass_bin_edges(:)
        fates_hdim_levage(:) = ED_val_history_ageclass_bin_edges(:)
+       fates_hdim_levheight(:) = ED_val_history_height_bin_edges(:)
 
        ! make pft array
        do ipft=1,numpft

@@ -18,6 +18,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceMod        , only : numpft
   use EDParamsMod              , only : ED_val_comp_excln
   use FatesInterfaceMod        , only : nlevsclass, nlevage
+  use FatesInterfaceMod        , only : nlevheight
 
   ! FIXME(bja, 2016-10) need to remove CLM dependancy 
   use EDPftvarcon              , only : EDPftvarcon_inst
@@ -286,6 +287,10 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_biomass_si_age
   integer, private :: ih_c_stomata_si_age
   integer, private :: ih_c_lblayer_si_age
+
+  ! indices to (site x height) variables
+  integer, private :: ih_canopy_height_dist_si_height
+  integer, private :: ih_leaf_height_dist_si_height
 
   ! Indices to hydraulics variables
   
@@ -1211,7 +1216,9 @@ end subroutine flush_hvars
     use FatesSizeAgeTypeIndicesMod, only : get_sizeagepft_class_index
     use FatesSizeAgeTypeIndicesMod, only : get_agepft_class_index
     use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
+    use FatesSizeAgeTypeIndicesMod, only : get_height_index
     use EDTypesMod        , only : nlevleaf
+    use EDParamsMod,           only : ED_val_history_height_bin_edges
 
     ! Arguments
     class(fates_history_interface_type)             :: this
@@ -1235,12 +1242,15 @@ end subroutine flush_hvars
     integer  :: iscagpft     ! size-class x age x pft index
     integer  :: iagepft      ! age x pft index
     integer  :: ican, ileaf, cnlf_indx  ! iterators for leaf and canopy level
+    integer  :: height_bin_max, height_bin_min   ! which height bin a given cohort's canopy is in
     
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
     real(r8) :: patch_scaling_scalar ! ratio of canopy to patch area for counteracting patch scaling
     real(r8) :: dbh         ! diameter ("at breast height")
     real(r8) :: npp_partition_error ! a check that the NPP partitions sum to carbon allocation
+    real(r8) :: frac_canopy_in_bin  ! fraction of a leaf's canopy that is within a given height bin
+    real(r8) :: binbottom           ! bottom of height bin
 
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
@@ -1403,6 +1413,8 @@ end subroutine flush_hvars
                hio_npatches_si_age     => this%hvars(ih_npatches_si_age)%r82d, &
                hio_zstar_si_age        => this%hvars(ih_zstar_si_age)%r82d, &
                hio_biomass_si_age        => this%hvars(ih_biomass_si_age)%r82d, &
+               hio_canopy_height_dist_si_height   => this%hvars(ih_canopy_height_dist_si_height)%r82d, &
+               hio_leaf_height_dist_si_height     => this%hvars(ih_leaf_height_dist_si_height)%r82d, &
                hio_litter_moisture_si_fuel        => this%hvars(ih_litter_moisture_si_fuel)%r82d, &
                hio_cwd_ag_si_cwdsc                  => this%hvars(ih_cwd_ag_si_cwdsc)%r82d, &
                hio_cwd_bg_si_cwdsc                  => this%hvars(ih_cwd_bg_si_cwdsc)%r82d, &
@@ -1517,6 +1529,30 @@ end subroutine flush_hvars
                
                hio_canopy_area_si_age(io_si,cpatch%age_class) = hio_canopy_area_si_age(io_si,cpatch%age_class) &
                     + ccohort%c_area * AREA_INV
+
+               ! calculate leaf height distribution, assuming leaf area is evenly distributed thru crown depth
+               height_bin_max = get_height_index(ccohort%hite)
+               height_bin_min = get_height_index(ccohort%hite * (1._r8 - EDPftvarcon_inst%crown(ft)))
+               do i = height_bin_min, height_bin_max
+                  if (i .eq. 1) then
+                     binbottom = 0._r8
+                  else
+                     binbottom = ED_val_history_height_bin_edges(i-1)
+                  endif
+                  ! what fraction of a cohort's crown is in this height bin?
+                  frac_canopy_in_bin = (min(ED_val_history_height_bin_edges(i),ccohort%hite) - &
+                       max(binbottom,ccohort%hite * EDPftvarcon_inst%crown(ft))) / &
+                       (ccohort%hite * EDPftvarcon_inst%crown(ft))
+                  !
+                  hio_leaf_height_dist_si_height(io_si,i) = hio_leaf_height_dist_si_height(io_si,i) + &
+                       ccohort%n * ccohort%treelai * frac_canopy_in_bin
+               end do
+               
+               if (ccohort%canopy_layer .eq. 1) then
+                  ! calculate the area of canopy that is within each height bin
+                  hio_canopy_height_dist_si_height(io_si,height_bin_max) = &
+                       hio_canopy_height_dist_si_height(io_si,height_bin_max) + ccohort%c_area * AREA_INV
+               endif
 
                ! Update biomass components
                hio_bleaf_pa(io_pa)     = hio_bleaf_pa(io_pa)  + n_density * ccohort%bl       * g_per_kg
@@ -2902,6 +2938,16 @@ end subroutine flush_hvars
          use_default=trim(tempstring),                     &
          avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_zstar_si_age )
+
+    call this%set_history_var(vname='CANOPY_HEIGHT_DIST', units='m',                   &
+         long='canopy height distribution', use_default='active',                     &
+         avgflag='A', vtype=site_height_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_canopy_height_dist_si_height )
+
+    call this%set_history_var(vname='LEAF_HEIGHT_DIST', units='m',                   &
+         long='leaf height distribution', use_default='active',                     &
+         avgflag='A', vtype=site_height_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_leaf_height_dist_si_height )
 
     call this%set_history_var(vname='BIOMASS_BY_AGE', units='kgC/m2',                   &
          long='Total Biomass within a given patch age bin', &
