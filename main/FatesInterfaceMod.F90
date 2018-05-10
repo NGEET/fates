@@ -65,17 +65,6 @@ module FatesInterfaceMod
                                           ! NOTE! SOIL LAYERS ARE NOT A GLOBAL, THEY 
                                           ! ARE VARIABLE BY SITE
 
-   
-   integer, protected :: hlm_numlevdecomp_full ! Number of GROUND layers for the purposes
-                                               ! of biogeochemistry; can be either 1 
-                                               ! or the total number of soil layers
-                                               ! (includes bedrock)
-   
-   
-   integer, protected :: hlm_numlevdecomp ! Number of SOIL layers for the purposes of 
-                                          ! biogeochemistry; can be either 1 or the total
-                                          ! number of soil layers
-
    integer, protected :: hlm_is_restart   ! Is the HLM signalling that this is a restart
                                           ! type simulation?
                                           ! 1=TRUE, 0=FALSE
@@ -270,6 +259,8 @@ module FatesInterfaceMod
       ! Soil layer structure
 
       integer              :: nlevsoil           ! the number of soil layers in this column
+      integer              :: nlevdecomp         ! the number of soil layers in the column
+                                                 ! that are biogeochemically active
       real(r8),allocatable :: zi_sisl(:)         ! interface level below a "z" level (m)
                                                  ! this contains a zero index for surface.
       real(r8),allocatable :: dz_sisl(:)         ! layer thickness (m)
@@ -423,8 +414,8 @@ module FatesInterfaceMod
       real(r8),allocatable :: lwrad_net_pa(:)      ! Net absorbed longwave radiation (W/m2)
       real(r8),allocatable :: watsat_sisl(:)       ! volumetric soil water at saturation (porosity)
       real(r8),allocatable :: watres_sisl(:)       ! volumetric residual soil water
-      real(r8),allocatable :: sucsat_sisl(:)       ! minimum soil suction (mm) (hlm_nlevsoil) 
-      real(r8),allocatable :: bsw_sisl(:)          ! Clapp and Hornberger "b" (hlm_nlevsoil)
+      real(r8),allocatable :: sucsat_sisl(:)       ! minimum soil suction (mm) 
+      real(r8),allocatable :: bsw_sisl(:)          ! Clapp and Hornberger "b"
       real(r8),allocatable :: hksat_sisl(:)        ! hydraulic conductivity at saturation (mm H2O /s)
       real(r8),allocatable :: h2o_liq_sisl(:)      ! Liquid water mass in each layer (kg/m2)
       real(r8) :: smpmin_si                        ! restriction for min of soil potential (mm)
@@ -619,7 +610,7 @@ contains
    ! ====================================================================================
    
 
-   subroutine allocate_bcin(bc_in, nlevsoil_in)
+   subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in)
       
       ! ---------------------------------------------------------------------------------
       ! Allocate and Initialze the FATES boundary condition vectors
@@ -628,17 +619,19 @@ contains
       implicit none
       type(bc_in_type), intent(inout) :: bc_in
       integer,intent(in)              :: nlevsoil_in
+      integer,intent(in)              :: nlevdecomp_in
       
       ! Allocate input boundaries
 
 
-      bc_in%nlevsoil = nlevsoil_in
+      bc_in%nlevsoil   = nlevsoil_in
+      bc_in%nlevdecomp = nlevdecomp_in
 
       allocate(bc_in%zi_sisl(0:nlevsoil_in))
       allocate(bc_in%dz_sisl(nlevsoil_in))
       allocate(bc_in%z_sisl(nlevsoil_in))
 
-      allocate(bc_in%dz_decomp_sisl(hlm_numlevdecomp_full))
+      allocate(bc_in%dz_decomp_sisl(nlevdecomp_in))
 
       ! Vegetation Dynamics
       allocate(bc_in%t_veg24_pa(maxPatchesPerSite))
@@ -693,7 +686,7 @@ contains
       return
    end subroutine allocate_bcin
    
-   subroutine allocate_bcout(bc_out, nlevsoil_in)
+   subroutine allocate_bcout(bc_out, nlevsoil_in, nlevdecomp_in)
 
       ! ---------------------------------------------------------------------------------
       ! Allocate and Initialze the FATES boundary condition vectors
@@ -702,6 +695,7 @@ contains
       implicit none
       type(bc_out_type), intent(inout) :: bc_out
       integer,intent(in)               :: nlevsoil_in
+      integer,intent(in)               :: nlevdecomp_in
       
       ! Radiation
       allocate(bc_out%fsun_pa(maxPatchesPerSite))
@@ -728,9 +722,9 @@ contains
       allocate(bc_out%ftii_parb(maxPatchesPerSite,hlm_numSWb))
 
       ! biogeochemistry
-      allocate(bc_out%FATES_c_to_litr_lab_c_col(hlm_numlevdecomp_full))        
-      allocate(bc_out%FATES_c_to_litr_cel_c_col(hlm_numlevdecomp_full))
-      allocate(bc_out%FATES_c_to_litr_lig_c_col(hlm_numlevdecomp_full))
+      allocate(bc_out%FATES_c_to_litr_lab_c_col(nlevdecomp_in))
+      allocate(bc_out%FATES_c_to_litr_cel_c_col(nlevdecomp_in))
+      allocate(bc_out%FATES_c_to_litr_lig_c_col(nlevdecomp_in))
 
       ! Canopy Structure
       allocate(bc_out%elai_pa(maxPatchesPerSite))
@@ -764,6 +758,10 @@ contains
       integer, intent(in) :: s
 
       ! Input boundaries
+      ! Warning: these "z" type variables
+      ! are written only once at the beginning
+      ! so THIS ROUTINE SHOULD NOT BE CALLED AFTER
+      ! INITIALIZATION
       this%bc_in(s)%zi_sisl(:)     = 0.0_r8
       this%bc_in(s)%dz_sisl(:)     = 0.0_r8
       this%bc_in(s)%z_sisl(:)      = 0.0_r8
@@ -1154,8 +1152,6 @@ contains
          hlm_inir       = unset_int
          hlm_ivis       = unset_int
          hlm_is_restart = unset_int
-         hlm_numlevdecomp_full = unset_int
-         hlm_numlevdecomp = unset_int
          hlm_numlevgrnd   = unset_int
          hlm_name         = 'unset'
          hlm_hio_ignore_val   = unset_double
@@ -1280,20 +1276,6 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_numlevdecomp_full .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES dimension/parameter unset: numlevdecomp_full, exiting'
-            end if
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-
-         if(hlm_numlevdecomp .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES dimension/parameter unset: numlevdecomp, exiting'
-            end if
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-
          if(trim(hlm_name) .eq. 'unset') then
             if (fates_global_verbose()) then
                write(fates_log(),*) 'FATES dimension/parameter unset: hlm_name, exiting'
@@ -1388,18 +1370,6 @@ contains
                hlm_numlevgrnd = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering num_lev_ground = ',ival,' to FATES'
-               end if
-
-            case('num_levdecomp_full')
-               hlm_numlevdecomp_full = ival
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering num_levdecomp_full = ',ival,' to FATES'
-               end if
-            
-            case('num_levdecomp')
-               hlm_numlevdecomp = ival
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering num_levdecomp = ',ival,' to FATES'
                end if
 
             case('soilwater_ipedof')

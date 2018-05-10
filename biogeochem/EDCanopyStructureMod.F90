@@ -920,7 +920,7 @@ contains
 
        do while(associated(currentPatch))
           
-          call set_root_fraction(currentPatch,bc_in(s)%zi_sisl)
+          call set_root_fraction(currentPatch%rootfr_ft,bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1))
 
           !zero cohort-summed variables. 
           currentPatch%total_canopy_area = 0.0_r8

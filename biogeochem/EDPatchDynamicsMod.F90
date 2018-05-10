@@ -1143,8 +1143,8 @@ contains
     allocate(new_patch%fabi(hlm_numSWb))
     allocate(new_patch%sabs_dir(hlm_numSWb))
     allocate(new_patch%sabs_dif(hlm_numSWb))
-    allocate(new_patch%rootfr_ft(numpft,nlevsoil)
-    allocate(new_patch%rootr_ft(numpft,nlevsoil)
+    allocate(new_patch%rootfr_ft(numpft,nlevsoil))
+    allocate(new_patch%rootr_ft(numpft,nlevsoil))
     
     call zero_patch(new_patch) !The nan value in here is not working??
 
@@ -1891,7 +1891,7 @@ contains
 
    ! ====================================================================================
 
-  subroutine set_root_fraction( root_fraction , zi )
+  subroutine set_root_fraction( root_fraction , zi, lowerb )
     !
     ! !DESCRIPTION:
     !  Calculates the fractions of the root biomass in each layer for each pft. 
@@ -1904,42 +1904,123 @@ contains
     !
     ! !ARGUMENTS
     real(r8),intent(out) :: root_fraction(:,:)
-    real(r8),intent(in)  :: zi(:)
-    !
-    ! !LOCAL VARIABLES:
-    integer :: lev,p,c,ft
-    integer :: nlevsoil
-    real(r8) :: sum_rootfr
+    real(r8),intent(in)    :: zi(lowerb:)
+    integer,intent(in)     :: lowerb
+
+    ! Parameters
+    integer, parameter :: exponential_1p_profile_type = 1
+    integer, parameter :: jackson_beta_profile_type   = 2
+    integer, parameter :: exponential_2p_profile_type = 3
+
+    integer, parameter :: root_profile_type = exponential_2p_profile_type
+
     !----------------------------------------------------------------------
     
     if(lbound(zi,1).ne.0) then
+       write(fates_log(),*) 'lbound:',lbound(zi)
+       write(fates_log(),*) 'ubound:',ubound(zi)
        write(fates_log(),*) 'layer interface levels should have 0 index'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
+    
+    select case(root_profile_type)
+    case ( exponential_1p_profile_type ) 
+       call exponential_1p_root_profile(root_fraction , zi, lowerb)
+    case ( jackson_beta_profile_type )
+       call jackson_beta_root_profile(root_fraction , zi, lowerb)
+    case ( exponential_2p_profile_type ) 
+       call exponential_2p_root_profile(root_fraction , zi, lowerb)
+    case default
+       write(fates_log(),*) 'An undefined root profile type was specified'
+       write(fates_log(),*) 'Aborting'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end select
+    
+  end subroutine set_root_fraction
 
+  ! =====================================================================================
+    
+  subroutine exponential_2p_root_profile(root_fraction , zi, lowerb )
+    !
+    ! !ARGUMENTS
+    real(r8),intent(out) :: root_fraction(:,:)
+    real(r8),intent(in)  :: zi(lowerb:)
+    integer,intent(in)   :: lowerb
+
+    ! Locals
+    
+    integer  :: nlevsoil    ! Number of soil layers
+    integer  :: ft          ! pft index
+    integer  :: lev         ! soil layer index
+    real(r8) :: sum_rootfr  ! sum of root fraction for normalization
+    
     nlevsoil = ubound(zi,1)
     
+    root_fraction = 0.0_r8
+
     do ft = 1,numpft
        
        sum_rootfr = 0.0_r8
-
        do lev = 1, nlevsoil
           
           root_fraction(ft,lev) = .5_r8*( &
-                  exp(-EDPftvarcon_inst%roota_par(ft) * zi(lev-1))  &
-                + exp(-EDPftvarcon_inst%rootb_par(ft) * zi(lev-1))  &
-                - exp(-EDPftvarcon_inst%roota_par(ft) * zi(lev))    &
-                - exp(-EDPftvarcon_inst%rootb_par(ft) * zi(lev)))
+               exp(-EDPftvarcon_inst%roota_par(ft) * zi(lev-1))  &
+               + exp(-EDPftvarcon_inst%rootb_par(ft) * zi(lev-1))  &
+               - exp(-EDPftvarcon_inst%roota_par(ft) * zi(lev))    &
+               - exp(-EDPftvarcon_inst%rootb_par(ft) * zi(lev)))
           
-          sum_rootfr = sum_rootfr + cpatch%rootfr_ft(ft,lev)
+          sum_rootfr = sum_rootfr + root_fraction(ft,lev)
           
        end do
        
        ! Normalize the root profile
-       root_fraction(ft,:) = cpatch%rootfr_ft(ft,:)/sum_rootfr
+       root_fraction(ft,:) = root_fraction(ft,:)/sum_rootfr
        
     end do
+    return
+  end subroutine exponential_2p_root_profile
+
+  ! =====================================================================================
+  
+  subroutine exponential_1p_root_profile(root_fraction , zi, lowerb)
+
+    !
+    ! !ARGUMENTS
+    real(r8),intent(out) :: root_fraction(:,:)
+    real(r8),intent(in)  :: zi(lowerb:)
+    integer,intent(in)   :: lowerb
+
+    !
+    ! LOCAL VARIABLES:
+    integer :: ft     ! pft index
+    integer :: lev      ! soil depth layer index
+    integer :: nlevsoil ! 
+
+    real(r8), parameter :: rootprof_exp  = 3.  ! how steep profile is
+    ! for root C inputs (1/ e-folding depth) (1/m)
     
- end subroutine set_root_fraction
+    nlevsoil = ubound(zi,1)
+    
+    ! define rooting profile from exponential parameters
+    do ft = 1, numpft
+       depth = 0.0_r8
+       do j = 1,  nlevsoil
+          depth = depth + 0.5*(zi(j)+zi(j-1))
+          root_fraction(ft,j) = exp(-rootprof_exp * depth)
+       end do
+    end do
+       
+    ! Normalize the root profile
+    root_fraction(ft,:) = root_fraction(ft,:)/sum_rootfr
+    
+    
+    return
+  end subroutine exponential_1p_root_profile
+    
+
+
+
+  end subroutine jackson_beta_root_profile
+
 
  end module EDPatchDynamicsMod

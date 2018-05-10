@@ -302,7 +302,8 @@ contains
                   
                end do !ft 
 
-               call set_root_fraction(currentPatch,bc_in(s)%zi_sisl)
+               call set_root_fraction(currentPatch%rootfr_ft, &
+                    bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1))
 
                ! ------------------------------------------------------------------------
                ! Part VI: Loop over all leaf layers.

@@ -22,7 +22,6 @@ module FatesPlantHydraulicsMod
 
    use FatesInterfaceMod  , only : bc_in_type
    use FatesInterfaceMod  , only : bc_out_type
-   use FatesInterfaceMod  , only : hlm_numlevsoil
    
    use FatesHydraulicsMemMod, only: ed_site_hydr_type
    use FatesHydraulicsMemMod, only: ed_patch_hydr_type
