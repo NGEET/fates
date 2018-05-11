@@ -306,7 +306,7 @@ contains
                  cwd_ag_local, cwd_bg_local, leaf_litter_local,  &
                  root_litter_local) 
 
-           call init_cohorts(newp, bc_in(s))
+           call init_cohorts(sites(s), newp, bc_in(s))
 
            ! For carbon balance checks, we need to initialize the 
            ! total carbon stock
@@ -329,7 +329,7 @@ contains
   end subroutine init_patches
 
   ! ============================================================================
-  subroutine init_cohorts( patch_in, bc_in)
+  subroutine init_cohorts( site_in, patch_in, bc_in)
     !
     ! !DESCRIPTION:
     ! initialize new cohorts on bare ground
@@ -337,6 +337,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS    
+    type(ed_site_type), intent(inout)            :: site_in
     type(ed_patch_type), intent(inout), pointer  :: patch_in
     type(bc_in_type), intent(in)                 :: bc_in
     !
@@ -400,25 +401,31 @@ contains
        endif
 
        if( EDPftvarcon_inst%season_decid(pft) == 1 ) then !for dorment places
-          if(patch_in%siteptr%status == 2)then 
+          if(site_in%status == 2)then 
              temp_cohort%laimemory = 0.0_r8
           else
              temp_cohort%laimemory = b_leaf
           endif
           ! reduce biomass according to size of store, this will be recovered when elaves com on.
-          cstatus = patch_in%siteptr%status
+          cstatus = site_in%status
        endif
 
        if ( EDPftvarcon_inst%stress_decid(pft) == 1 ) then
-          temp_cohort%laimemory = b_leaf
-          cstatus = patch_in%siteptr%dstatus
+          if(site_in%dstatus == 2)then 
+             temp_cohort%laimemory = 0.0_r8
+          else
+             temp_cohort%laimemory = b_leaf
+          endif
+          cstatus = site_in%dstatus
        endif
 
        if ( DEBUG ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
 
        call create_cohort(patch_in, pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
             b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore, &
-            temp_cohort%laimemory,  cstatus, recruitstatus, temp_cohort%canopy_trim, 1, bc_in)
+
+            temp_cohort%laimemory,  cstatus, temp_cohort%canopy_trim, 1, site_in%spread, bc_in)
+
 
        deallocate(temp_cohort) ! get rid of temporary cohort
 

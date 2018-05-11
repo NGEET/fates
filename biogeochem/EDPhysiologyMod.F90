@@ -18,8 +18,8 @@ module EDPhysiologyMod
   use FatesInterfaceMod, only    : bc_in_type
   use EDCohortDynamicsMod , only : zero_cohort
   use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
-  use EDCohortDynamicsMod , only : tree_lai
-  use EDCohortDynamicsMod , only : tree_sai
+  use FatesAllometryMod   , only : tree_lai
+  use FatesAllometryMod   , only : tree_sai
 
   use EDTypesMod          , only : numWaterMem
   use EDTypesMod          , only : dl_sf, dinc_ed
@@ -188,7 +188,10 @@ contains
           trimmed = 0    
           ipft = currentCohort%pft
           call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
-          currentCohort%treelai = tree_lai(currentCohort)    
+          currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%status_coh, currentCohort%pft, &
+               currentCohort%c_area, currentCohort%n )    
+          currentCohort%treesai = tree_sai(currentCohort%dbh, currentCohort%pft, currentCohort%canopy_trim, &
+               currentCohort%c_area, currentCohort%n)    
           currentCohort%nv = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
           if (currentCohort%nv > nlevleaf)then
              write(fates_log(),*) 'nv > nlevleaf',currentCohort%nv,currentCohort%treelai,currentCohort%treesai, &
@@ -196,9 +199,12 @@ contains
           endif
 
           call bleaf(currentcohort%dbh,ipft,currentcohort%canopy_trim,tar_bl)
-          call bfineroot(currentcohort%dbh,ipft,currentcohort%canopy_trim,tar_bfr)
 
-          bfr_per_bleaf = tar_bfr/tar_bl
+          if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
+             ! only query fine root biomass if using a fine root allometric model that takes leaf trim into account
+             call bfineroot(currentcohort%dbh,ipft,currentcohort%canopy_trim,tar_bfr)
+             bfr_per_bleaf = tar_bfr/tar_bl
+          endif
 
           !Leaf cost vs netuptake for each leaf layer. 
           do z = 1,nlevleaf
@@ -210,18 +216,27 @@ contains
 
 
                    currentCohort%leaf_cost =  1._r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8)
-                   currentCohort%leaf_cost = currentCohort%leaf_cost + &
-                        1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * &
-                        bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+
+                   if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
+                      ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
+                      ! to the leaf increment; otherwise do not.
+                      currentCohort%leaf_cost = currentCohort%leaf_cost + &
+                           1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * &
+                           bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+                   endif
 
                    currentCohort%leaf_cost = currentCohort%leaf_cost * &
                          (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 else !evergreen costs
                    currentCohort%leaf_cost = 1.0_r8/(EDPftvarcon_inst%slatop(ipft)* &
                         EDPftvarcon_inst%leaf_long(ipft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
-                   currentCohort%leaf_cost = currentCohort%leaf_cost + &
-                        1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * &
-                        bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+                   if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
+                      ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
+                      ! to the leaf increment; otherwise do not.
+                      currentCohort%leaf_cost = currentCohort%leaf_cost + &
+                           1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * &
+                           bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
+                   endif
                    currentCohort%leaf_cost = currentCohort%leaf_cost * &
                          (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 endif
@@ -875,14 +890,8 @@ contains
     integer , parameter :: max_substeps = 300
     real(r8), parameter :: max_trunc_error = 1.0_r8
     integer,  parameter :: ODESolve = 2    ! 1=RKF45,  2=Euler
-    real(r8), parameter :: global_branch_turnover = 0.0_r8 ! Temporary branch turnover setting
-                                                           ! Branch-turnover control will be 
-                                                           ! introduced in a later PR
-
 
     ipft = currentCohort%pft
-
-    EDPftvarcon_inst%branch_turnover(ipft) = global_branch_turnover
 
     ! Initialize seed production
     currentCohort%seed_prod  = 0.0_r8
@@ -976,35 +985,6 @@ contains
              currentCohort%canopy_trim, currentCohort%dbh, currentCohort%hite )
     end if
 
-    ! -----------------------------------------------------------------------------------
-    ! III(a). Calculate the maintenance turnover demands 
-    !       Pre-check, make sure phenology is mutually exclusive and at least one chosen
-    !       (MOVE THIS TO THE PARAMETER READ-IN SECTION)
-    ! -----------------------------------------------------------------------------------
-
-    if (EDPftvarcon_inst%evergreen(ipft) == 1) then
-       if (EDPftvarcon_inst%season_decid(ipft) == 1)then 
-          write(fates_log(),*) 'PFT # ',ipft,' was specified as being both evergreen'
-          write(fates_log(),*) '       and seasonally deciduous, impossible, aborting'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-       if (EDPftvarcon_inst%stress_decid(ipft) == 1)then 
-          write(fates_log(),*) 'PFT # ',ipft,' was specified as being both evergreen'
-          write(fates_log(),*) '       and stress deciduous, impossible, aborting'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-    end if
-    if (EDPftvarcon_inst%stress_decid(ipft) /= 1 .and. &
-        EDPftvarcon_inst%season_decid(ipft) /= 1 .and. &
-        EDPftvarcon_inst%evergreen(ipft)    /= 1) then
-       write(fates_log(),*) 'PFT # ',ipft,' must be defined as having one of three'
-       write(fates_log(),*) 'phenology habits, ie == 1'
-       write(fates_log(),*) 'stress_decid: ',EDPftvarcon_inst%stress_decid(ipft)
-       write(fates_log(),*) 'season_decid: ',EDPftvarcon_inst%season_decid(ipft)
-       write(fates_log(),*) 'evergreen: ',EDPftvarcon_inst%evergreen(ipft)
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    endif
-    
 
     ! -----------------------------------------------------------------------------------
     ! III(b). Calculate the maintenance turnover demands 
@@ -1463,7 +1443,7 @@ contains
         if (dbh <= EDPftvarcon_inst%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
            repro_fraction = EDPftvarcon_inst%seed_alloc(ipft)
         else
-           repro_fraction = EDPftvarcon_inst%seed_alloc(ipft) + EDPftvarcon_inst%clone_alloc(ipft)
+           repro_fraction = EDPftvarcon_inst%seed_alloc(ipft) + EDPftvarcon_inst%seed_alloc_mature(ipft)
         end if
 
         dCdx = 0.0_r8
@@ -1681,11 +1661,12 @@ contains
 
        if (temp_cohort%n > 0.0_r8 )then
           if ( DEBUG ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
-	  recruitstatus = 1
-          call create_cohort(currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh,   &
-               b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore,                            &
-               temp_cohort%laimemory, cohortstatus, recruitstatus, temp_cohort%canopy_trim, currentPatch%NCL_p, &
-               bc_in)
+
+          call create_cohort(currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
+                b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore,  &
+                temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, currentPatch%NCL_p, &
+                currentSite%spread, bc_in)
+
 
           ! keep track of how many individuals were recruited for passing to history
           currentSite%recruitment_rate(ft) = currentSite%recruitment_rate(ft) + temp_cohort%n

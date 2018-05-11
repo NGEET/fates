@@ -37,6 +37,7 @@ module EDCohortDynamicsMod
   use FatesAllometryMod  , only : h_allom
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : StructureResetOfDH
+  use FatesAllometryMod  , only : tree_lai, tree_sai
   ! CIME globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   !
@@ -52,8 +53,6 @@ module EDCohortDynamicsMod
   public :: sort_cohorts
   public :: copy_cohort
   public :: count_cohorts
-  public :: tree_lai
-  public :: tree_sai
 
   logical, parameter :: DEBUG  = .false. ! local debug flag
 
@@ -66,8 +65,9 @@ module EDCohortDynamicsMod
 contains
 
   !-------------------------------------------------------------------------------------!
-  subroutine create_cohort(patchptr, pft, nn, hite, dbh, &
-       bleaf, bfineroot, bsap, bdead, bstore, laimemory, status, recruitstatus, ctrim, clayer, bc_in)
+
+  subroutine create_cohort(patchptr, pft, nn, hite, dbh, bleaf, bfineroot, bsap, &
+                           bdead, bstore, laimemory, status, ctrim, clayer, spread, bc_in)
 
     !
     ! !DESCRIPTION:
@@ -91,6 +91,7 @@ contains
     real(r8), intent(in)   :: bstore    ! stored carbon: kGC per indiv
     real(r8), intent(in)   :: laimemory ! target leaf biomass- set from previous year: kGC per indiv
     real(r8), intent(in)   :: ctrim     ! What is the fraction of the maximum leaf biomass that we are targeting? :-
+    real(r8), intent(in)   :: spread    ! The community assembly effects how spread crowns are in horizontal space
     type(bc_in_type), intent(in) :: bc_in ! External boundary conditions
      
     !
@@ -112,8 +113,9 @@ contains
  
     new_cohort%indexnumber  = fates_unset_int ! Cohort indexing was not thread-safe, setting
                                               ! bogus value for the time being (RGK-012017)
-    new_cohort%siteptr      => patchptr%siteptr
+
     new_cohort%patchptr     => patchptr
+
     new_cohort%pft          = pft     
     new_cohort%status_coh   = status
     new_cohort%n            = nn
@@ -140,26 +142,20 @@ contains
     ! However, in this part of the code, we will pass in nominal values for size, number and type
     
     if (new_cohort%dbh <= 0.0_r8 .or. new_cohort%n == 0._r8 .or. new_cohort%pft == 0 ) then
-             write(fates_log(),*) 'ED: something is zero in create_cohort', &
+       write(fates_log(),*) 'ED: something is zero in create_cohort', &
                              new_cohort%dbh,new_cohort%n, &
                              new_cohort%pft
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-    endif
-
-    if (new_cohort%siteptr%status==2 .and. EDPftvarcon_inst%season_decid(pft) == 1) then
-      new_cohort%laimemory = 0.0_r8
-    endif
-
-    if (new_cohort%siteptr%dstatus==2 .and. EDPftvarcon_inst%stress_decid(pft) == 1) then
-      new_cohort%laimemory = 0.0_r8
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
 
     ! Assign canopy extent and depth
-    call carea_allom(new_cohort%dbh,new_cohort%n,new_cohort%siteptr%spread,new_cohort%pft,new_cohort%c_area)
+    call carea_allom(new_cohort%dbh,new_cohort%n,spread,new_cohort%pft,new_cohort%c_area)
 
-    new_cohort%treelai = tree_lai(new_cohort)
+    new_cohort%treelai = tree_lai(new_cohort%bl, new_cohort%status_coh, new_cohort%pft, &
+         new_cohort%c_area, new_cohort%n)
     new_cohort%lai     = new_cohort%treelai * new_cohort%c_area/patchptr%area
-    new_cohort%treesai = 0.0_r8 !FIX(RF,032414)   
+    new_cohort%treesai = tree_sai(new_cohort%dbh, new_cohort%pft, new_cohort%canopy_trim, &
+         new_cohort%c_area, new_cohort%n)
 
     ! Put cohort at the right place in the linked list
     storebigcohort   => patchptr%tallest
@@ -227,12 +223,10 @@ contains
     currentCohort%taller      => null()       ! pointer to next tallest cohort     
     currentCohort%shorter     => null()       ! pointer to next shorter cohort     
     currentCohort%patchptr    => null()       ! pointer to patch that cohort is in
-    currentCohort%siteptr     => null()       ! pointer to site that cohort is in
 
     nullify(currentCohort%taller) 
     nullify(currentCohort%shorter) 
     nullify(currentCohort%patchptr) 
-    nullify(currentCohort%siteptr) 
 
     ! VEGETATION STRUCTURE
     currentCohort%pft                = fates_unset_int  ! pft number                           
@@ -255,7 +249,7 @@ contains
     currentCohort%br                 = nan ! fine root biomass: kGC per indiv
     currentCohort%lai                = nan ! leaf area index of cohort   m2/m2      
     currentCohort%sai                = nan ! stem area index of cohort   m2/m2
-    currentCohort%gscan              = nan ! Stomatal resistance of cohort. 
+    currentCohort%g_sb_laweight      = nan ! Total leaf conductance of cohort (stomata+blayer) weighted by leaf-area [m/s]*[m2]
     currentCohort%canopy_trim        = nan ! What is the fraction of the maximum leaf biomass that we are targeting? :-
     currentCohort%leaf_cost          = nan ! How much does it cost to maintain leaves: kgC/m2/year-1
     currentCohort%excl_weight        = nan ! How much of this cohort is demoted each year, as a proportion of all cohorts:-
@@ -376,7 +370,7 @@ contains
     currentcohort%npp_acc_hold       = 0._r8 
     currentcohort%gpp_acc_hold       = 0._r8  
     currentcohort%dmort              = 0._r8 
-    currentcohort%gscan              = 0._r8 
+    currentcohort%g_sb_laweight      = 0._r8 
     currentcohort%treesai            = 0._r8  
     currentCohort%lmort_direct       = 0._r8
     currentCohort%lmort_infra        = 0._r8
@@ -396,7 +390,7 @@ contains
   end subroutine zero_cohort
 
   !-------------------------------------------------------------------------------------!
-  subroutine terminate_cohorts( currentSite, patchptr, level )
+  subroutine terminate_cohorts( currentSite, currentPatch, level )
     !
     ! !DESCRIPTION:
     ! terminates cohorts when they get too small      
@@ -406,7 +400,7 @@ contains
     !
     ! !ARGUMENTS    
     type (ed_site_type) , intent(inout), target :: currentSite
-    type (ed_patch_type), intent(inout), target :: patchptr
+    type (ed_patch_type), intent(inout), target :: currentPatch
     integer             , intent(in)            :: level
 
     ! Important point regarding termination levels.  Termination is typically
@@ -419,20 +413,21 @@ contains
 
     !
     ! !LOCAL VARIABLES:
-    type (ed_patch_type)  , pointer :: currentPatch
     type (ed_cohort_type) , pointer :: currentCohort
-    type (ed_cohort_type) , pointer :: nextc
+    type (ed_cohort_type) , pointer :: shorterCohort
+    type (ed_cohort_type) , pointer :: tallerCohort
+
     integer :: terminate   ! do we terminate (1) or not (0) 
     integer :: c           ! counter for litter size class. 
     integer :: levcan      ! canopy level
     !----------------------------------------------------------------------
 
-    currentPatch  => patchptr
-    currentCohort => currentPatch%tallest  
 
+    currentCohort => currentPatch%shortest
     do while (associated(currentCohort))
-       nextc      => currentCohort%shorter    
+
        terminate = 0 
+       tallerCohort => currentCohort%taller
 
        ! Check if number density is so low is breaks math (level 1)
        if (currentcohort%n <  min_n_safemath .and. level == 1) then
@@ -502,16 +497,7 @@ contains
           currentSite%termination_carbonflux(levcan) = currentSite%termination_carbonflux(levcan) + &
                 currentCohort%n * currentCohort%b_total()
 
-          if (.not. associated(currentCohort%taller)) then
-             currentPatch%tallest => currentCohort%shorter
-          else 
-             currentCohort%taller%shorter => currentCohort%shorter
-          endif
-          if (.not. associated(currentCohort%shorter)) then
-             currentPatch%shortest => currentCohort%taller
-          else 
-             currentCohort%shorter%taller => currentCohort%taller
-          endif
+          
 
           !put the litter from the terminated cohorts straight into the fragmenting pools
           if (currentCohort%n.gt.0.0_r8) then
@@ -547,21 +533,41 @@ contains
                   currentSite%root_litter_diagnostic_input_carbonflux(currentCohort%pft) + &
                   currentCohort%n * (currentCohort%br+currentCohort%bstore) * hlm_days_per_year  / AREA
 
-             if( hlm_use_planthydro == itrue ) then
-                call AccumulateMortalityWaterStorage(currentSite,currentCohort,currentCohort%n)
-                call DeallocateHydrCohort(currentCohort)
-             end if
+          end if
+          
+          ! Set pointers and remove the current cohort from the list
+          shorterCohort => currentCohort%shorter
+          
+          if (.not. associated(tallerCohort)) then
+             currentPatch%tallest => shorterCohort
+             if(associated(shorterCohort)) shorterCohort%taller => null()
+          else 
+             tallerCohort%shorter => shorterCohort
 
-             deallocate(currentCohort)     
           endif
+          
+          if (.not. associated(shorterCohort)) then
+             currentPatch%shortest => tallerCohort
+             if(associated(tallerCohort)) tallerCohort%shorter => null()
+          else 
+             shorterCohort%taller => tallerCohort
+          endif
+          
+          ! At this point, nothing should be pointing to current Cohort
+          if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
+          deallocate(currentCohort)
+          nullify(currentCohort)
+          
        endif
-       currentCohort => nextc
+       currentCohort => tallerCohort
     enddo
 
   end subroutine terminate_cohorts
 
   !-------------------------------------------------------------------------------------!
-  subroutine fuse_cohorts(patchptr, bc_in)  
+
+  subroutine fuse_cohorts(currentPatch, bc_in)  
+
      !
      ! !DESCRIPTION:
      ! Join similar cohorts to reduce total number            
@@ -571,15 +577,20 @@ contains
      use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
      !
      ! !ARGUMENTS    
-     type (ed_patch_type), intent(inout), target :: patchptr
+     type (ed_patch_type), intent(inout), target :: currentPatch
      type (bc_in_type), intent(in)               :: bc_in
      !
+
      ! !LOCAL VARIABLES:
-     type (ed_patch_type)  , pointer :: currentPatch
-     type (ed_cohort_type) , pointer :: currentCohort, nextc, nextnextc
+     type (ed_cohort_type) , pointer :: currentCohort
+     type (ed_cohort_type) , pointer :: nextc
+     type (ed_cohort_type) , pointer :: nextnextc
+
+     type (ed_cohort_type) , pointer :: shorterCohort
+     type (ed_cohort_type) , pointer :: tallerCohort
+
      integer  :: i  
      integer  :: fusion_took_place
-     integer  :: maxcohorts ! maximum total no of cohorts.
      integer  :: iterate    ! do we need to keep fusing to get below maxcohorts?
      integer  :: nocohorts
      real(r8) :: newn
@@ -599,31 +610,30 @@ contains
      !because c_area and biomass are non-linear with dbh, this causes several mass inconsistancies
      !in theory, all of this routine therefore causes minor losses of C and area, but these are below 
      !detection limit normally. 
+
      iterate = 1
      fusion_took_place = 0   
-     currentPatch => patchptr
-     maxcohorts = maxCohortsPerPatch
 
      !---------------------------------------------------------------------!
      !  Keep doing this until nocohorts <= maxcohorts                         !
      !---------------------------------------------------------------------!
-
+     
      if (associated(currentPatch%shortest)) then  
         do while(iterate == 1)
-
+           
            currentCohort => currentPatch%tallest
-
+           
            ! The following logic continues the loop while the current cohort is not the shortest cohort
            ! if they point to the same target (ie equivalence), then the loop ends.
            ! This loop is different than the simple "continue while associated" loop in that
            ! it omits the last cohort (because it has already been compared by that point)
-
+           
            do while ( .not.associated(currentCohort,currentPatch%shortest) )
 
               nextc => currentPatch%tallest
 
               do while (associated(nextc))
-                 nextnextc => nextc%shorter                      
+                 nextnextc => nextc%shorter
                  diff = abs((currentCohort%dbh - nextc%dbh)/(0.5*(currentCohort%dbh + nextc%dbh)))  
 
                  !Criteria used to divide up the height continuum into different cohorts.
@@ -715,10 +725,10 @@ contains
                                 ! recent canopy history
                                 currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
                                       nextc%n*nextc%canopy_layer_yesterday)/newn
-
+                                
                                 ! Flux and biophysics variables have not been calculated for recruits we just default to 
                                 ! their initization values, which should be the same for eahc
-
+                                
                                 if ( .not.currentCohort%isnew) then
 
                                    currentCohort%md             = (currentCohort%n*currentCohort%md        + &
@@ -815,41 +825,56 @@ contains
                                                nextc%n*nextc%year_net_uptake(i))/newn                
                                       endif
                                    enddo
-
+                                   
                                 end if !(currentCohort%isnew)
 
                                 currentCohort%n = newn     
-                                !remove fused cohort from the list
-                                nextc%taller%shorter => nextnextc        
-                                if (.not. associated(nextc%shorter)) then !this is the shortest cohort. 
-                                   currentPatch%shortest => nextc%taller
-                                else
-                                   nextnextc%taller => nextc%taller
-                                endif
 
-                                if (associated(nextc)) then       
-                                   if(hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(nextc)
-                                   deallocate(nextc)            
+                                ! Set pointers and remove the current cohort from the list
+                                
+                                shorterCohort => nextc%shorter
+                                tallerCohort  => nextc%taller
+                                
+                                if (.not. associated(tallerCohort)) then
+                                   currentPatch%tallest => shorterCohort
+                                   if(associated(shorterCohort)) shorterCohort%taller => null()
+                                else 
+                                   tallerCohort%shorter => shorterCohort
                                 endif
+                                
+                                if (.not. associated(shorterCohort)) then
+                                   currentPatch%shortest => tallerCohort
+                                   if(associated(tallerCohort)) tallerCohort%shorter => null()
+                                else 
+                                   shorterCohort%taller => tallerCohort
+                                endif
+                                
+                                ! At this point, nothing should be pointing to current Cohort
+                                if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(nextc)
+                                deallocate(nextc)
+                                nullify(nextc)
 
                              endif ! if( currentCohort%isnew.eqv.nextc%isnew ) then
-
                           endif !canopy layer
                        endif !pft
                     endif  !index no. 
                  endif !diff   
-
-                 if (associated(nextc)) then             
-                    nextc => nextc%shorter    
-                 else
-                    nextc => nextnextc !if we have removed next
-                 endif
-
+                 
+                 nextc => nextnextc
+                 
               enddo !end checking nextc cohort loop
+
+              ! Ususally we always point to the next cohort. But remember ...
+              ! this loop exits when current becomes the shortest, not when
+              ! it finishes and becomes the null pointer.  If there is no
+              ! shorter cohort, then it is shortest, and will exit
+              ! Note also that it is possible that it entered here as the shortest
+              ! which is possible if nextc was the shortest and was removed.
 
               if (associated (currentCohort%shorter)) then
                  currentCohort => currentCohort%shorter
               endif
+              
            enddo !end currentCohort cohort loop
 
            !---------------------------------------------------------------------!
@@ -862,7 +887,7 @@ contains
               currentCohort => currentCohort%shorter
            enddo
 
-           if (nocohorts > maxcohorts) then
+           if (nocohorts > maxCohortsPerPatch) then
               iterate = 1
               !---------------------------------------------------------------------!
               ! Making profile tolerance larger means that more fusion will happen  !
@@ -1096,7 +1121,7 @@ contains
     n%br              = o%br
     n%lai             = o%lai                         
     n%sai             = o%sai  
-    n%gscan           = o%gscan
+    n%g_sb_laweight   = o%g_sb_laweight
     n%leaf_cost       = o%leaf_cost
     n%canopy_layer    = o%canopy_layer
     n%canopy_layer_yesterday    = o%canopy_layer_yesterday
@@ -1205,7 +1230,6 @@ contains
     n%taller          => NULL()     ! pointer to next tallest cohort     
     n%shorter         => NULL()     ! pointer to next shorter cohort     
     n%patchptr        => o%patchptr ! pointer to patch that cohort is in 
-    n%siteptr         => o%siteptr  ! pointer to site that cohort is in  
 
   end subroutine copy_cohort
 
@@ -1244,82 +1268,6 @@ contains
     endif
 
   end function count_cohorts
-
-  ! =====================================================================================
-
-  real(r8) function tree_lai( cohort_in )
-
-    ! ============================================================================
-    !  LAI of individual trees is a function of the total leaf area and the total canopy area.   
-    ! ============================================================================
-
-    type(ed_cohort_type), intent(inout) :: cohort_in       
-
-    real(r8) :: leafc_per_unitarea ! KgC of leaf per m2 area of ground.
-    real(r8) :: slat               ! the sla of the top leaf layer. m2/kgC
-
-    if( cohort_in%bl  <  0._r8 .or. cohort_in%pft  ==  0 ) then
-       write(fates_log(),*) 'problem in treelai',cohort_in%bl,cohort_in%pft
-    endif
-
-    if( cohort_in%status_coh  ==  2 ) then ! are the leaves on? 
-       slat = 1000.0_r8 * EDPftvarcon_inst%slatop(cohort_in%pft) ! m2/g to m2/kg
-       leafc_per_unitarea = cohort_in%bl/(cohort_in%c_area/cohort_in%n) !KgC/m2
-       if(leafc_per_unitarea > 0.0_r8)then
-          tree_lai = leafc_per_unitarea * slat  !kg/m2 * m2/kg = unitless LAI 
-       else
-          tree_lai = 0.0_r8
-       endif
-    else
-       tree_lai = 0.0_r8
-    endif !status
-    cohort_in%treelai = tree_lai
-
-    ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
-    ! at the moments nlevleaf default is 40, which is very large, so exceeding this would clearly illustrate a 
-    ! huge error 
-    if(cohort_in%treelai > nlevleaf*dinc_ed)then
-       write(fates_log(),*) 'too much lai' , cohort_in%treelai , cohort_in%pft , nlevleaf * dinc_ed
-    endif
-
-    return
-
-  end function tree_lai
-  
-  ! ============================================================================
-
-  real(r8) function tree_sai( cohort_in )
-
-    ! ============================================================================
-    !  SAI of individual trees is a function of the total dead biomass per unit canopy area.   
-    ! ============================================================================
-
-    type(ed_cohort_type), intent(inout) :: cohort_in       
-
-    real(r8) :: bdead_per_unitarea ! KgC of leaf per m2 area of ground.
-    real(r8) :: sai_scaler     
-
-    sai_scaler = EDPftvarcon_inst%allom_sai_scaler(cohort_in%pft) 
-
-    if( cohort_in%bdead  <  0._r8 .or. cohort_in%pft  ==  0 ) then
-       write(fates_log(),*) 'problem in treesai',cohort_in%bdead,cohort_in%pft
-    endif
-
-    bdead_per_unitarea = cohort_in%bdead/(cohort_in%c_area/cohort_in%n) !KgC/m2
-    tree_sai = bdead_per_unitarea * sai_scaler !kg/m2 * m2/kg = unitless LAI 
-   
-    cohort_in%treesai = tree_sai
-
-    ! here, if the LAI exceeeds the maximum size of the possible array, then we have no way of accomodating it
-    ! at the moments nlevleaf default is 40, which is very large, so exceeding this would clearly illustrate a 
-    ! huge error 
-    if(cohort_in%treesai > nlevleaf*dinc_ed)then
-       write(fates_log(),*) 'too much sai' , cohort_in%treesai , cohort_in%pft , nlevleaf * dinc_ed
-    endif
-
-    return
-
-  end function tree_sai
   
   ! ============================================================================
 
