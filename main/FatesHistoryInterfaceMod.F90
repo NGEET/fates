@@ -370,8 +370,8 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_crownarea_si_can
 
   ! The number of variable dim/kind types we have defined (static)
-  integer, parameter :: fates_history_num_dimensions = 15
-  integer, parameter :: fates_history_num_dim_kinds = 17
+  integer, parameter :: fates_history_num_dimensions = 16
+  integer, parameter :: fates_history_num_dim_kinds = 18
   
 
   
@@ -409,6 +409,7 @@ module FatesHistoryInterfaceMod
      integer, private :: levfuel_index_, levcwdsc_index_, levscag_index_
      integer, private :: levcan_index_, levcnlf_index_, levcnlfpft_index_
      integer, private :: levscagpft_index_, levagepft_index_
+     integer, private :: levheight_index_
    contains
      
      procedure, public :: Init
@@ -438,6 +439,7 @@ module FatesHistoryInterfaceMod
      procedure, public :: levscag_index
      procedure, public :: levscagpft_index
      procedure, public :: levagepft_index
+     procedure, public :: levheight_index
 
      ! private work functions
      procedure, private :: define_history_vars
@@ -461,6 +463,7 @@ module FatesHistoryInterfaceMod
      procedure, private :: set_levscag_index
      procedure, private :: set_levscagpft_index
      procedure, private :: set_levagepft_index
+     procedure, private :: set_levheight_index
 
   end type fates_history_interface_type
    
@@ -479,6 +482,7 @@ contains
     use FatesIODimensionsMod, only : levscagpft, levagepft
     use FatesIODimensionsMod, only : levcan, levcnlf, levcnlfpft
     use FatesIODimensionsMod, only : fates_bounds_type
+    use FatesIODimensionsMod, only : levheight
 
     implicit none
 
@@ -563,6 +567,11 @@ contains
     call this%dim_bounds(dim_count)%Init(levagepft, num_threads, &
          fates_bounds%agepft_class_begin, fates_bounds%agepft_class_end)
     
+    dim_count = dim_count + 1
+    call this%set_levheight_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levheight, num_threads, &
+         fates_bounds%height_begin, fates_bounds%height_end)
+    
 
     ! FIXME(bja, 2016-10) assert(dim_count == FatesHistorydimensionmod::num_dimension_types)
 
@@ -645,6 +654,10 @@ contains
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
           thread_bounds%agepft_class_begin, thread_bounds%agepft_class_end)
     
+    index = this%levheight_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+          thread_bounds%height_begin, thread_bounds%height_end)
+    
   end subroutine SetThreadBoundsEach
   
   ! ===================================================================================
@@ -656,6 +669,7 @@ contains
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
     use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
     use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
+    use FatesIOVariableKindMod, only : site_height_r8
 
    implicit none
 
@@ -711,6 +725,9 @@ contains
 
     call this%set_dim_indices(site_agepft_r8, 1, this%column_index())
     call this%set_dim_indices(site_agepft_r8, 2, this%levagepft_index())
+
+    call this%set_dim_indices(site_height_r8, 1, this%column_index())
+    call this%set_dim_indices(site_height_r8, 2, this%levheight_index())
 
   end subroutine assemble_history_output_types
   
@@ -964,7 +981,22 @@ contains
     class(fates_history_interface_type), intent(in) :: this
     levagepft_index = this%levagepft_index_
  end function levagepft_index
+
  ! ======================================================================================
+ subroutine set_levheight_index(this, index)
+   implicit none
+   class(fates_history_interface_type), intent(inout) :: this
+   integer, intent(in) :: index
+   this%levheight_index_ = index
+ end subroutine set_levheight_index
+
+ integer function levheight_index(this)
+    implicit none
+    class(fates_history_interface_type), intent(in) :: this
+    levheight_index = this%levheight_index_
+ end function levheight_index
+ ! ======================================================================================                                                                                                                          
+
 
 
  subroutine flush_hvars(this,nc,upfreq_in)
@@ -1058,6 +1090,7 @@ end subroutine flush_hvars
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
     use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
     use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
+    use FatesIOVariableKindMod, only : site_height_r8
     
     implicit none
     
@@ -1134,6 +1167,10 @@ end subroutine flush_hvars
     ! site x age class x pft
     index = index + 1
     call this%dim_kinds(index)%Init(site_agepft_r8, 2)
+
+    ! site x height
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_height_r8, 2)
 
     ! FIXME(bja, 2016-10) assert(index == fates_history_num_dim_kinds)
   end subroutine init_dim_kinds_maps
@@ -1243,6 +1280,7 @@ end subroutine flush_hvars
     integer  :: iagepft      ! age x pft index
     integer  :: ican, ileaf, cnlf_indx  ! iterators for leaf and canopy level
     integer  :: height_bin_max, height_bin_min   ! which height bin a given cohort's canopy is in
+    integer  :: i_heightbin  ! iterator for height bins
     
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
@@ -1250,12 +1288,13 @@ end subroutine flush_hvars
     real(r8) :: dbh         ! diameter ("at breast height")
     real(r8) :: npp_partition_error ! a check that the NPP partitions sum to carbon allocation
     real(r8) :: frac_canopy_in_bin  ! fraction of a leaf's canopy that is within a given height bin
-    real(r8) :: binbottom           ! bottom of height bin
+    real(r8) :: binbottom,bintop    ! edges of height bins
 
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
 
     real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
+    real(r8), parameter :: reallytalltrees = 1000.   ! some large number (m)
     
     associate( hio_npatches_si         => this%hvars(ih_npatches_si)%r81d, &
                hio_ncohorts_si         => this%hvars(ih_ncohorts_si)%r81d, &
@@ -1533,19 +1572,26 @@ end subroutine flush_hvars
                ! calculate leaf height distribution, assuming leaf area is evenly distributed thru crown depth
                height_bin_max = get_height_index(ccohort%hite)
                height_bin_min = get_height_index(ccohort%hite * (1._r8 - EDPftvarcon_inst%crown(ft)))
-               do i = height_bin_min, height_bin_max
-                  if (i .eq. 1) then
-                     binbottom = 0._r8
+               do i_heightbin = height_bin_min, height_bin_max
+                  binbottom = ED_val_history_height_bin_edges(i_heightbin)
+                  if (i_heightbin .eq. nlevheight) then
+                     bintop = reallytalltrees
                   else
-                     binbottom = ED_val_history_height_bin_edges(i-1)
+                     bintop = ED_val_history_height_bin_edges(i_heightbin+1)
                   endif
                   ! what fraction of a cohort's crown is in this height bin?
-                  frac_canopy_in_bin = (min(ED_val_history_height_bin_edges(i),ccohort%hite) - &
-                       max(binbottom,ccohort%hite * EDPftvarcon_inst%crown(ft))) / &
+                  frac_canopy_in_bin = (min(bintop,ccohort%hite) - &
+                       max(binbottom,ccohort%hite * (1._r8 - EDPftvarcon_inst%crown(ft)))) / &
                        (ccohort%hite * EDPftvarcon_inst%crown(ft))
                   !
-                  hio_leaf_height_dist_si_height(io_si,i) = hio_leaf_height_dist_si_height(io_si,i) + &
+                  hio_leaf_height_dist_si_height(io_si,i_heightbin) = &
+                       hio_leaf_height_dist_si_height(io_si,i_heightbin) + &
                        ccohort%c_area * AREA_INV * ccohort%treelai * frac_canopy_in_bin
+
+                  ! if ( ( ccohort%c_area * AREA_INV * ccohort%treelai * frac_canopy_in_bin) .lt. 0._r8) then
+                  !    write(fates_log(),*) ' negative hio_leaf_height_dist_si_height:'
+                  !    write(fates_log(),*) '   c_area, treelai, frac_canopy_in_bin:', ccohort%c_area, ccohort%treelai, frac_canopy_in_bin
+                  ! endif
                end do
                
                if (ccohort%canopy_layer .eq. 1) then
@@ -1696,7 +1742,7 @@ end subroutine flush_hvars
                          ccohort%n * ccohort%npp_acc_hold * AREA_INV
 
                     hio_biomass_si_agepft(io_si,iagepft) = hio_biomass_si_agepft(io_si,iagepft) + &
-                         ccohort%b * ccohort%n * AREA_INV
+                         ccohort%b_total() * ccohort%n * AREA_INV
 
                     ! update SCPF/SCLS- and canopy/subcanopy- partitioned quantities
                     if (ccohort%canopy_layer .eq. 1) then
@@ -2822,6 +2868,7 @@ end subroutine flush_hvars
     use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
     use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8    
     use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
+    use FatesIOVariableKindMod, only : site_height_r8
     use FatesInterfaceMod     , only : hlm_use_planthydro
     
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
