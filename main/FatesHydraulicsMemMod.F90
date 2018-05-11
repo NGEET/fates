@@ -27,7 +27,7 @@ module FatesHydraulicsMemMod
    integer, parameter                            :: npool_bg    = npool_troot
 
    ! total number of water storage nodes
-   integer, parameter                            :: npool_tot   = npool_ag + 2 + nshell
+   integer, parameter                            :: npool_tot   = npool_ag + npool_troot + npool_aroot + nshell
 
    ! vector indexing the type of porous medium over an arbitrary number of plant pools
    integer, parameter,dimension(npool_tot)       :: porous_media = (/1,2,3,4,5,5,5,5,5/) 
@@ -147,79 +147,87 @@ module FatesHydraulicsMemMod
      
   end type ed_site_hydr_type
 
-  type ed_patch_hydr_type
-     real(r8) ::  netRad_mem(numLWPmem)                            ! patch-level net radiation for the previous numLWPmem timesteps [W m-2]
-  end type ed_patch_hydr_type
+  ! This whole structure is actually not used, because netRad_mem() is actually not used
+  ! Keeping the code in place in case a patch-level hydraulics variable is desired (RGK 03-2018)
+
+  !type ed_patch_hydr_type
+  !   real(r8) ::  netRad_mem(numLWPmem)          ! patch-level net radiation for the previous numLWPmem timesteps [W m-2]
+  !end type ed_patch_hydr_type
 
 
   type ed_cohort_hydr_type
      
-     ! BC...PLANT HYDRAULICS - "constants" that change with size. Heights are referenced to soil surface (+ = above; - = below)
-     real(r8) ::  z_node_ag(npool_ag)                    ! nodal height of aboveground water storage compartments            [m]
-     real(r8) ::  z_node_bg(npool_bg)                    ! nodal height of belowground water storage compartments            [m]
-     real(r8) ::  z_node_aroot(nlevsoi_hyd)              ! nodal height of absorbing root water storage compartments         [m]
-     real(r8) ::  z_upper_ag(npool_ag)                   ! upper boundary height of aboveground water storage compartments   [m]
-     real(r8) ::  z_upper_bg(npool_bg)                   ! upper boundary height of belowground water storage compartments   [m]
-     real(r8) ::  z_lower_ag(npool_ag)                   ! lower boundary height of aboveground water storage compartments   [m]
-     real(r8) ::  z_lower_bg(npool_bg)                   ! lower boundary height of belowground water storage compartments   [m]
-     real(r8) ::  kmax_upper(npool_ag)                   ! maximum hydraulic conductance from node to upper boundary         [kg s-1 MPa-1]
-     real(r8) ::  kmax_lower(npool_ag)                   ! maximum hydraulic conductance from node to lower boundary         [kg s-1 MPa-1]
-     real(r8) ::  kmax_upper_troot                       ! maximum hydraulic conductance from troot node to upper boundary   [kg s-1 MPa-1]
-     real(r8) ::  kmax_bound(npool_ag)                   ! maximum hydraulic conductance at lower boundary (canopy to troot) [kg s-1 MPa-1]
-     real(r8) ::  kmax_treebg_tot                        ! total belowground tree kmax (troot to surface of absorbing roots) [kg s-1 MPa-1]
-     real(r8) ::  kmax_treebg_layer(nlevsoi_hyd)         ! total belowground tree kmax partitioned by soil layer             [kg s-1 MPa-1]
-     real(r8) ::  v_ag_init(npool_ag)                    ! previous day's volume of aboveground water storage compartments   [m3]
-     real(r8) ::  v_ag(npool_ag)                         ! volume of aboveground water storage compartments                  [m3]
-     real(r8) ::  v_bg_init(npool_bg)                    ! previous day's volume of belowground water storage compartments   [m3]
-     real(r8) ::  v_bg(npool_bg)                         ! volume of belowground water storage compartments                  [m3]
-     real(r8) ::  v_aroot_tot                            ! total volume of absorbing roots                                   [m3]
-     real(r8) ::  v_aroot_layer_init(nlevsoi_hyd)        ! previous day's volume of absorbing roots by soil layer            [m3]
-     real(r8) ::  v_aroot_layer(nlevsoi_hyd)             ! volume of absorbing roots by soil layer                           [m3]
-     real(r8) ::  l_aroot_tot                            ! total length of absorbing roots                                   [m]
-     real(r8) ::  l_aroot_layer(nlevsoi_hyd)             ! length of absorbing roots by soil layer                           [m]
+                                                  ! BC...PLANT HYDRAULICS - "constants" that change with size. 
+                                                  ! Heights are referenced to soil surface (+ = above; - = below)
+     real(r8) ::  z_node_ag(npool_ag)             ! nodal height of aboveground water storage compartments            [m]
+     real(r8) ::  z_node_bg(npool_bg)             ! nodal height of belowground water storage compartments            [m]
+     real(r8) ::  z_node_aroot(nlevsoi_hyd)       ! nodal height of absorbing root water storage compartments         [m]
+     real(r8) ::  z_upper_ag(npool_ag)            ! upper boundary height of aboveground water storage compartments   [m]
+     real(r8) ::  z_upper_bg(npool_bg)            ! upper boundary height of belowground water storage compartments   [m]
+     real(r8) ::  z_lower_ag(npool_ag)            ! lower boundary height of aboveground water storage compartments   [m]
+     real(r8) ::  z_lower_bg(npool_bg)            ! lower boundary height of belowground water storage compartments   [m]
+     real(r8) ::  kmax_upper(npool_ag)            ! maximum hydraulic conductance from node to upper boundary         [kg s-1 MPa-1]
+     real(r8) ::  kmax_lower(npool_ag)            ! maximum hydraulic conductance from node to lower boundary         [kg s-1 MPa-1]
+     real(r8) ::  kmax_upper_troot                ! maximum hydraulic conductance from troot node to upper boundary   [kg s-1 MPa-1]
+     real(r8) ::  kmax_bound(npool_ag)            ! maximum hydraulic conductance at lower boundary (canopy to troot) [kg s-1 MPa-1]
+     real(r8) ::  kmax_treebg_tot                 ! total belowground tree kmax (troot to surface of absorbing roots) [kg s-1 MPa-1]
+     real(r8) ::  kmax_treebg_layer(nlevsoi_hyd)  ! total belowground tree kmax partitioned by soil layer             [kg s-1 MPa-1]
+     real(r8) ::  v_ag_init(npool_ag)             ! previous day's volume of aboveground water storage compartments   [m3]
+     real(r8) ::  v_ag(npool_ag)                  ! volume of aboveground water storage compartments                  [m3]
+     real(r8) ::  v_bg_init(npool_bg)             ! previous day's volume of belowground water storage compartments   [m3]
+     real(r8) ::  v_bg(npool_bg)                  ! volume of belowground water storage compartments                  [m3]
+     real(r8) ::  v_aroot_tot                     ! total volume of absorbing roots                                   [m3]
+     real(r8) ::  v_aroot_layer_init(nlevsoi_hyd) ! previous day's volume of absorbing roots by soil layer            [m3]
+     real(r8) ::  v_aroot_layer(nlevsoi_hyd)      ! volume of absorbing roots by soil layer                           [m3]
+     real(r8) ::  l_aroot_tot                     ! total length of absorbing roots                                   [m]
+     real(r8) ::  l_aroot_layer(nlevsoi_hyd)      ! length of absorbing roots by soil layer                           [m]
 
-     ! BC PLANT HYDRAULICS - state variables
-     real(r8) ::  th_ag(npool_ag)                        ! water in aboveground compartments                                 [kgh2o/indiv]
-     real(r8) ::  th_bg(npool_bg)                        ! water in belowground compartments                                 [kgh2o/indiv]
-     real(r8) ::  th_aroot(nlevsoi_hyd)                  ! water in absorbing roots                                          [kgh2o/indiv]
-     real(r8) ::  lwp_mem(numLWPmem)                     ! leaf water potential over the previous numLWPmem timesteps        [MPa]
-     real(r8) ::  lwp_stable                             ! leaf water potential just before it became unstable               [MPa]
-     logical  ::  lwp_is_unstable                        ! flag for instability of leaf water potential over previous timesteps
-     real(r8) ::  psi_ag(npool_ag)                       ! water potential in aboveground compartments                       [MPa]
-     real(r8) ::  psi_bg(npool_bg)                       ! water potential in belowground compartments                       [MPa]
-     real(r8) ::  psi_aroot(nlevsoi_hyd)                 ! water potential in absorbing roots                                [MPa]
-     real(r8) ::  flc_ag(npool_ag)                       ! fractional loss of conductivity in aboveground compartments       [-]
-     real(r8) ::  flc_bg(npool_bg)                       ! fractional loss of conductivity in belowground compartments       [-]
-     real(r8) ::  flc_aroot(nlevsoi_hyd)                 ! fractional loss of conductivity in absorbing roots                [-]
-     real(r8) ::  flc_min_ag(npool_ag)                   ! min attained fractional loss of conductivity in aboveground compartments (for tracking xylem refilling dynamics) [-]
-     real(r8) ::  flc_min_bg(npool_bg)                   ! min attained fractional loss of conductivity in belowground compartments (for tracking xylem refilling dynamics) [-]
-     real(r8) ::  flc_min_aroot(nlevsoi_hyd)             ! min attained fractional loss of conductivity in absorbing roots (for tracking xylem refilling dynamics)          [-]
-     real(r8) ::  refill_thresh                          ! water potential threshold for xylem refilling to occur            [MPa]
-     real(r8) ::  refill_days                            ! number of days required for 50% of xylem refilling to occur       [days]
-     real(r8) ::  btran(nlevcan_hyd)                          ! leaf water potential limitation on gs                             [0-1]
-     real(r8) ::  supsub_flag                            ! k index of last node to encounter supersaturation or sub-residual water content  (+ supersaturation; - subsaturation)
-     real(r8) ::  iterh1                                 ! number of iterations required to achieve tolerable water balance error
-     real(r8) ::  iterh2                                 ! number of inner iterations
-     real(r8) ::  errh2o                                 ! total water balance error per unit crown area                     [kgh2o/m2]
+                                                  ! BC PLANT HYDRAULICS - state variables
+     real(r8) ::  th_ag(npool_ag)                 ! water in aboveground compartments                                 [kgh2o/indiv]
+     real(r8) ::  th_bg(npool_bg)                 ! water in belowground compartments                                 [kgh2o/indiv]
+     real(r8) ::  th_aroot(nlevsoi_hyd)           ! water in absorbing roots                                          [kgh2o/indiv]
+     real(r8) ::  lwp_mem(numLWPmem)              ! leaf water potential over the previous numLWPmem timesteps        [MPa]
+     real(r8) ::  lwp_stable                      ! leaf water potential just before it became unstable               [MPa]
+     logical  ::  lwp_is_unstable                 ! flag for instability of leaf water potential over previous timesteps
+     real(r8) ::  psi_ag(npool_ag)                ! water potential in aboveground compartments                       [MPa]
+     real(r8) ::  psi_bg(npool_bg)                ! water potential in belowground compartments                       [MPa]
+     real(r8) ::  psi_aroot(nlevsoi_hyd)          ! water potential in absorbing roots                                [MPa]
+     real(r8) ::  flc_ag(npool_ag)                ! fractional loss of conductivity in aboveground compartments       [-]
+     real(r8) ::  flc_bg(npool_bg)                ! fractional loss of conductivity in belowground compartments       [-]
+     real(r8) ::  flc_aroot(nlevsoi_hyd)          ! fractional loss of conductivity in absorbing roots                [-]
+     real(r8) ::  flc_min_ag(npool_ag)            ! min attained fractional loss of conductivity in 
+                                                  ! aboveground compartments (for tracking xylem refilling dynamics) [-]
+     real(r8) ::  flc_min_bg(npool_bg)            ! min attained fractional loss of conductivity in 
+                                                  ! belowground compartments (for tracking xylem refilling dynamics) [-]
+     real(r8) ::  flc_min_aroot(nlevsoi_hyd)      ! min attained fractional loss of conductivity in absorbing roots 
+                                                  ! (for tracking xylem refilling dynamics)          [-]
+     real(r8) ::  refill_thresh                   ! water potential threshold for xylem refilling to occur            [MPa]
+     real(r8) ::  refill_days                     ! number of days required for 50% of xylem refilling to occur       [days]
+     real(r8) ::  btran(nlevcan_hyd)              ! leaf water potential limitation on gs                             [0-1]
+     real(r8) ::  supsub_flag                     ! k index of last node to encounter supersaturation or 
+                                                  ! sub-residual water content  (+ supersaturation; - subsaturation)
+     real(r8) ::  iterh1                          ! number of iterations required to achieve tolerable water balance error
+     real(r8) ::  iterh2                          ! number of inner iterations
+     real(r8) ::  errh2o                          ! total water balance error per unit crown area                     [kgh2o/m2]
      
-     ! BC PLANT HYDRAULICS - fluxes
-     real(r8) ::  qtop_dt                                ! transpiration boundary condition (+ to atm)                       [kg/indiv/timestep]
-     real(r8) ::  dqtopdth_dthdt                         ! transpiration tendency term (+ to atm)                            [kg/indiv/timestep]
-                                                         ! NOTE: total transpiration is given by qtop_dt + dqtopdth_dthdt
-     real(r8) ::  sapflow                                ! flow at base of tree (+ upward)                                   [kg/indiv/timestep]
-     real(r8) ::  rootuptake                             ! net flow into roots (+ into roots)                                [kg/indiv/timestep]
-     real(r8) ::  rootuptake01                           ! net flow into roots (+ into roots), soil layer 1                  [kg/indiv/timestep]
-     real(r8) ::  rootuptake02                           ! net flow into roots (+ into roots), soil layer 2                  [kg/indiv/timestep]
-     real(r8) ::  rootuptake03                           ! net flow into roots (+ into roots), soil layer 3                  [kg/indiv/timestep]
-     real(r8) ::  rootuptake04                           ! net flow into roots (+ into roots), soil layer 4                  [kg/indiv/timestep]
-     real(r8) ::  rootuptake05                           ! net flow into roots (+ into roots), soil layer 5                  [kg/indiv/timestep]
-     real(r8) ::  rootuptake06                           ! net flow into roots (+ into roots), soil layer 6                  [kg/indiv/timestep]
-     real(r8) ::  rootuptake07                           ! net flow into roots (+ into roots), soil layer 7                  [kg/indiv/timestep]
-     real(r8) ::  rootuptake08                           ! net flow into roots (+ into roots), soil layer 8                  [kg/indiv/timestep]
-     real(r8) ::  rootuptake09                           ! net flow into roots (+ into roots), soil layer 9                  [kg/indiv/timestep]
-     real(r8) ::  rootuptake10                           ! net flow into roots (+ into roots), soil layer 10                 [kg/indiv/timestep]
-     ! BC PLANT HYDRAULICS - flags
-     logical ::   is_newly_recuited                      !whether the new cohort is newly recuited
+                                                  ! BC PLANT HYDRAULICS - fluxes
+     real(r8) ::  qtop_dt                         ! transpiration boundary condition (+ to atm)                       [kg/indiv/timestep]
+     real(r8) ::  dqtopdth_dthdt                  ! transpiration tendency term (+ to atm)                            [kg/indiv/timestep]
+                                                  ! NOTE: total transpiration is given by qtop_dt + dqtopdth_dthdt
+     real(r8) ::  sapflow                         ! flow at base of tree (+ upward)                                   [kg/indiv/timestep]
+     real(r8) ::  rootuptake                      ! net flow into roots (+ into roots)                                [kg/indiv/timestep]
+     real(r8) ::  rootuptake01                    ! net flow into roots (+ into roots), soil layer 1                  [kg/indiv/timestep]
+     real(r8) ::  rootuptake02                    ! net flow into roots (+ into roots), soil layer 2                  [kg/indiv/timestep]
+     real(r8) ::  rootuptake03                    ! net flow into roots (+ into roots), soil layer 3                  [kg/indiv/timestep]
+     real(r8) ::  rootuptake04                    ! net flow into roots (+ into roots), soil layer 4                  [kg/indiv/timestep]
+     real(r8) ::  rootuptake05                    ! net flow into roots (+ into roots), soil layer 5                  [kg/indiv/timestep]
+     real(r8) ::  rootuptake06                    ! net flow into roots (+ into roots), soil layer 6                  [kg/indiv/timestep]
+     real(r8) ::  rootuptake07                    ! net flow into roots (+ into roots), soil layer 7                  [kg/indiv/timestep]
+     real(r8) ::  rootuptake08                    ! net flow into roots (+ into roots), soil layer 8                  [kg/indiv/timestep]
+     real(r8) ::  rootuptake09                    ! net flow into roots (+ into roots), soil layer 9                  [kg/indiv/timestep]
+     real(r8) ::  rootuptake10                    ! net flow into roots (+ into roots), soil layer 10                 [kg/indiv/timestep]
+                                                  ! BC PLANT HYDRAULICS - flags
+     logical ::   is_newly_recuited               !whether the new cohort is newly recuited
   end type ed_cohort_hydr_type
    
  contains
@@ -281,21 +289,6 @@ module FatesHydraulicsMemMod
           end if
        end do
 
-       ! FOR SOME STRANGE REASON, GENERATES INTERNAL COMPILER ERRORS IN GNU 5.4
-       ! (RGK: 08-2017)
-!       do k = 1,npool_tot
-!          if(k <= npool_leaf) then
-!             porous_media(k) = 1
-!          else if(k <= (npool_leaf+npool_stem)) then
-!             porous_media(k) = 2
-!          else if(k <= (npool_leaf+npool_stem+npool_troot)) then
-!             porous_media(k) = 3
-!          else if(k <= (npool_leaf+npool_stem+npool_troot+npool_aroot)) then
-!             porous_media(k) = 4
-!          else
-!             porous_media(k) = 5
-!          end if
-!       enddo!
        return
     end subroutine InitHydraulicsDerived
 
