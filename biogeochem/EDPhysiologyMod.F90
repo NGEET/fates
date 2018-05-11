@@ -2041,32 +2041,15 @@ contains
     real(r8) :: croot_prof_perpatch(1:hlm_numlevgrnd)
     real(r8) :: surface_prof(1:hlm_numlevgrnd)
     integer  :: ft
+    integer  :: nlev_eff_decomp
     real(r8) :: rootfr_tot(1:maxpft)
     real(r8) :: biomass_bg_ft(1:maxpft)
     real(r8) :: surface_prof_tot, leaf_prof_sum, stem_prof_sum, froot_prof_sum, biomass_bg_tot
     real(r8) :: delta
 
-    ! NOTE(bja, 201608) these were removed from clm in clm4_5_10_r187
-!    logical, parameter :: exponential_rooting_profile = .true.
-!    logical, parameter :: pftspecific_rootingprofile = .true.
-
-    ! NOTE(bja, 201608) as of clm4_5_10_r187 rootprof_exp is now a
-    ! private function level parameter in RootBiophysMod.F90::exponential_rootfr()
-!    real(r8), parameter :: rootprof_exp  = 3.  ! how steep profile is
-    ! for root C inputs (1/ e-folding depth) (1/m)
-
     ! NOTE(rgk, 201705) this parameter was brought over from SoilBiogeochemVerticalProfile
     ! how steep profile is for surface components (1/ e_folding depth) (1/m) 
     real(r8),  parameter :: surfprof_exp  = 10.
-
-    ! NOTE(bja, 201608) as of clm4_5_10_r187 rootprof_beta is now a
-    ! two dimensional array with the second dimension being water,1,
-    ! or carbon,2,. These are currently hard coded, but may be
-    ! overwritten by the namelist.
-
-    ! Note cdk 2016/08 we actually want to use the carbon index here rather than the water index.  
-    ! Doing so will be answer changing though so perhaps easiest to do this in steps.
-    integer, parameter :: rooting_profile_varindex_water = 1
 
     real(r8) :: leaf_prof(1:nsites, 1:hlm_numlevgrnd)
     real(r8) :: froot_prof(1:nsites,  1:maxpft, 1:hlm_numlevgrnd)
@@ -2100,6 +2083,11 @@ contains
        
        do s = 1,nsites
 
+          ! Calculate the number of effective decomposition layers
+          ! This takes into account if vertical soil biogeochem is on, how deep the soil column
+          ! is, and also which layers may be frozen
+          nlev_eff_decomp = min(max(bc_in(s)%max_rooting_depth_index_col, 1), bc_in(s)%nlevdecomp)
+
           ! define a single shallow surface profile for surface additions (leaves, stems, and N deposition)
           surface_prof(:) = 0._r8
           do j = 1,  bc_in(s)%nlevdecomp
@@ -2118,10 +2106,14 @@ contains
           cinput_rootfr(:,:)     = 0._r8
           do ft = 1, numpft
              
-             ! This generates a rooting profile over the whole soil column
+             ! This generates a rooting profile over the whole soil column for each pft
              call set_root_fraction(cinput_rootfr(ft,1:bc_in(s)%nlevsoil), ft, &
-                   bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1), &
-                   icontext=i_biomass_rootprof_context)
+                  bc_in(s)%zi_sisl, lowerb=lbound(bc_in(s)%zi_sisl,1), &
+                  icontext=i_biomass_rootprof_context)
+             
+             do j=1,nlev_eff_decomp
+                cinput_rootfr(ft,j) = cinput_rootfr(ft,j)/bc_in(s)%dz_decomp_sisl(j)
+             end do
 
           end do
 
@@ -2132,13 +2124,13 @@ contains
           
           surface_prof_tot = 0._r8
           !
-          do j = 1, min(max(bc_in(s)%max_rooting_depth_index_col, 1), bc_in(s)%nlevdecomp)
+          do j = 1, nlev_eff_decomp
              surface_prof_tot = surface_prof_tot + surface_prof(j)  * bc_in(s)%dz_decomp_sisl(j)
           end do
 
           do ft = 1,numpft
-             do j = 1, min(max(bc_in(s)%max_rooting_depth_index_col, 1), bc_in(s)%nlevdecomp)
-                rootfr_tot(ft) = rootfr_tot(ft) + cinput_rootfr(ft,j)
+             do j = 1, nlev_eff_decomp
+                rootfr_tot(ft) = rootfr_tot(ft) + cinput_rootfr(ft,j)*bc_in(s)%dz_decomp_sisl(j)
              end do
           end do
           !
@@ -2147,7 +2139,7 @@ contains
              if ( (bc_in(s)%max_rooting_depth_index_col > 0) .and. (rootfr_tot(ft) > 0._r8) ) then
                 ! where there is not permafrost extending to the surface, integrate the profiles over the active layer
                 ! this is equivalent to integrating over all soil layers outside of permafrost regions
-                do j = 1, min(max(bc_in(s)%max_rooting_depth_index_col, 1), bc_in(s)%nlevdecomp)
+                do j = 1, nlev_eff_decomp
                    froot_prof(s,ft,j) = cinput_rootfr(ft,j) / rootfr_tot(ft)
                 end do
              else
@@ -2161,7 +2153,7 @@ contains
           if ( (bc_in(s)%max_rooting_depth_index_col > 0) .and. (surface_prof_tot > 0._r8) ) then
              ! where there is not permafrost extending to the surface, integrate the profiles over the active layer
              ! this is equivalent to integrating over all soil layers outside of permafrost regions
-             do j = 1, min(max(bc_in(s)%max_rooting_depth_index_col, 1), bc_in(s)%nlevdecomp)
+             do j = 1, nlev_eff_decomp
                 ! set all surface processes to shallower profile
                 leaf_prof(s,j) = surface_prof(j)/ surface_prof_tot
                 stem_prof(s,j) = surface_prof(j)/ surface_prof_tot
@@ -2228,16 +2220,14 @@ contains
        end do
     end do
     
-      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      ! now disaggregate the inputs vertically, using the vertical profiles
-      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! now disaggregate the inputs vertically, using the vertical profiles
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      do s = 1,nsites
+    do s = 1,nsites
          
-         !      do g = bounds%begg,bounds%endg
-         !         if (firstsoilpatch(g) >= 0 .and. ed_allsites_inst(g)%istheresoil) then 
+
          currentPatch => sites(s)%oldest_patch
-         
          do while(associated(currentPatch))
             
             ! the CWD pools lose information about which PFT they came from; for the stems this doesn't matter as they all have the same profile, 

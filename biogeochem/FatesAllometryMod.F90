@@ -120,7 +120,10 @@ module FatesAllometryMod
   character(len=*), parameter :: sourcefile = __FILE__
 
   
-  integer, parameter, public :: i_hydro_rootprof__context  = 1
+  ! These are public contexts that other routines
+  ! should pass as arguments to the generic root profile
+  ! wrapper.
+  integer, parameter, public :: i_hydro_rootprof_context  = 1
   integer, parameter, public :: i_biomass_rootprof_context = 2
 
 
@@ -1824,11 +1827,11 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
-    if(icontext == i_hydro_rootprof__context) then
+    if(icontext == i_hydro_rootprof_context) then
        
        root_profile_type = exponential_2p_profile_type
        
-    else if(icontext == i_biomass_rootprof_context)
+    else if(icontext == i_biomass_rootprof_context) then
 
        root_profile_type = jackson_beta_profile_type
 
@@ -1940,7 +1943,9 @@ contains
     integer :: lev         ! soil depth layer index
     integer :: nlevsoil    ! number of soil layers
     real(r8) :: sum_rootfr ! sum of rooting profile, for normalization 
-
+    
+    ! Note cdk 2016/08 we actually want to use the carbon index here rather than the water index.  
+    ! Doing so will be answer changing though so perhaps easiest to do this in steps.
     integer, parameter :: rooting_profile_varindex_water = 1
 
     nlevsoil = ubound(zi,1)

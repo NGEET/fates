@@ -309,7 +309,7 @@ contains
                   call set_root_fraction(currentPatch%rootfr_ft(ft,1:bc_in(s)%nlevsoil), ft, &
                        bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1), &
                        icontext = i_hydro_rootprof_context)
-
+                  
                end do !ft 
 
                

@@ -886,7 +886,7 @@ contains
     use FatesAllometryMod    , only : i_hydro_rootprof_context
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
     use EDtypesMod           , only : area
-    use EDPftvarcon            , only : EDPftvarcon_inst
+    use EDPftvarcon          , only : EDPftvarcon_inst
 
     ! !ARGUMENTS    
     integer                 , intent(in)            :: nsites
@@ -921,10 +921,14 @@ contains
 
        do while(associated(currentPatch))
           
-          call set_root_fraction(currentPatch%rootfr_ft(ft,1:bc_in(s)%nlevsoil), ft, &
-               bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1), &
-               icontext=i_hydro_rootprof_context)
-
+          ! Calculate rooting depth fractions for the patch x pft
+          do ft = 1, numpft
+             call set_root_fraction(currentPatch%rootfr_ft(ft,1:bc_in(s)%nlevsoil), ft, &
+                  bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1), &
+                  icontext=i_hydro_rootprof_context)
+          end do
+          
+          
           !zero cohort-summed variables. 
           currentPatch%total_canopy_area = 0.0_r8
           currentPatch%total_tree_area = 0.0_r8
@@ -936,6 +940,7 @@ contains
              
              ft = currentCohort%pft
 
+             
              
              ! Update the cohort's index within the size bin classes
              ! Update the cohort's index within the SCPF classification system
