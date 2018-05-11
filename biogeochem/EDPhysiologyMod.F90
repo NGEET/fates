@@ -2013,8 +2013,9 @@ contains
     use FatesConstantsMod, only : itrue
     use FatesGlobals, only : endrun => fates_endrun
     use EDParamsMod , only : ED_val_cwd_flig, ED_val_cwd_fcel
-    use EDPatchDynamicsMod, only : set_root_fraction
-
+    use FatesAllometryMod, only : set_root_fraction
+    use FatesAllometryMod, only : i_biomass_rootprof_context
+    
 
     implicit none   
 
@@ -2119,7 +2120,8 @@ contains
              
              ! This generates a rooting profile over the whole soil column
              call set_root_fraction(cinput_rootfr(ft,1:bc_in(s)%nlevsoil), ft, &
-                   bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1))
+                   bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1), &
+                   icontext=i_biomass_rootprof_context)
 
           end do
 

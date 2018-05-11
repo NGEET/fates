@@ -79,10 +79,11 @@ contains
     use FatesConstantsMod, only : rgas => rgas_J_K_kmol
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use FatesParameterDerivedMod, only : param_derived
-    use EDPatchDynamicsMod, only: set_root_fraction
     use EDParamsMod, only : ED_val_bbopt_c3, ED_val_bbopt_c4, ED_val_base_mr_20
-    use FatesAllometryMod, only : bleaf, storage_fraction_of_target
-
+    use FatesAllometryMod, only : bleaf
+    use FatesAllometryMod, only : storage_fraction_of_target
+    use FatesAllometryMod, only : set_root_fraction
+    use FatesAllometryMod, only : i_hydro_rootprof_context
 
     ! ARGUMENTS:
     ! -----------------------------------------------------------------------------------
@@ -300,10 +301,14 @@ contains
                      kn(ft) = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(ft) - 2.43_r8)
                   end if
 
-                  ! This is probably unnecessary and already calculated (RGK 05-2018)
+                  ! This is probably unnecessary and already calculated
+                  ! ALSO, THIS ROOTING PROFILE IS USED TO CALCULATE RESPIRATION
+                  ! YET IT USES THE PROFILE THAT IS CONSISTENT WITH WATER UPTAKE
+                  ! AND NOT THE PROFILE WE USE FOR DECOMPOSITION
+                  ! SEEMS LIKE THE LATTER WOULD BE MORE APPROPRIATE, RIGHT? (RGK 05-2018)
                   call set_root_fraction(currentPatch%rootfr_ft(ft,1:bc_in(s)%nlevsoil), ft, &
-                        bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1))
-                  
+                       bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1), &
+                       icontext = i_hydro_rootprof_context)
 
                end do !ft 
 

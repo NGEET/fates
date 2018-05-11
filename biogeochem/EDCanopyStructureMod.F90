@@ -882,7 +882,8 @@ contains
 
     use FatesInterfaceMod    , only : bc_in_type
     use EDPatchDynamicsMod   , only : set_patchno
-    use EDPatchDynamicsMod   , only : set_root_fraction
+    use FatesAllometryMod    , only : set_root_fraction
+    use FatesAllometryMod    , only : i_hydro_rootprof_context
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
     use EDtypesMod           , only : area
     use EDPftvarcon            , only : EDPftvarcon_inst
@@ -920,10 +921,9 @@ contains
 
        do while(associated(currentPatch))
           
-          
-
           call set_root_fraction(currentPatch%rootfr_ft(ft,1:bc_in(s)%nlevsoil), ft, &
-                bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1))
+               bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1), &
+               icontext=i_hydro_rootprof_context)
 
           !zero cohort-summed variables. 
           currentPatch%total_canopy_area = 0.0_r8

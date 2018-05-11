@@ -113,9 +113,16 @@ module FatesAllometryMod
   public :: bstore_allom  ! Generic maximum storage carbon wrapper
   public :: StructureResetOfDH ! Method to set DBH to sync with structure biomass
   public :: CheckIntegratedAllometries
+  public :: set_root_fraction  ! Generic wrapper to calculate normalized
+                               ! root profiles
 
   logical         , parameter :: verbose_logging = .false.
   character(len=*), parameter :: sourcefile = __FILE__
+
+  
+  integer, parameter, public :: i_hydro_rootprof__context  = 1
+  integer, parameter, public :: i_biomass_rootprof_context = 2
+
 
   ! If testing b4b with older versions, do not remove sapwood
   ! Our old methods with saldarriaga did not remove sapwood from the
@@ -1774,6 +1781,188 @@ contains
   end subroutine carea_2pwr
   
   ! =========================================================================
+
+  subroutine set_root_fraction(root_fraction, ft, zi, lowerb, icontext )
+    !
+    ! !DESCRIPTION:
+    !  Calculates the fractions of the root biomass in each layer for each pft. 
+    !  It assumes an exponential decay.  If the soil depth is shallower than
+    !  then exponential attenuation function, then it will normalize
+    !  the profile and divide through.
+    !
+    ! !USES:
+
+    !
+    ! !ARGUMENTS
+    real(r8),intent(inout) :: root_fraction(:)
+    integer, intent(in)    :: ft
+    real(r8),intent(in)    :: zi(lowerb:)
+    integer,intent(in)     :: lowerb
+    integer,intent(in)     :: icontext
+
+    ! Parameters
+    !
+    ! TO-DO: NEXT TIME WE ROLL OUT A NEW PARAMETER INTERFACE, ADD
+    ! PROFILE SWAPPING FLAGS.  OR IF THERE IS NO DEMAND< LEAVE AS IS.
+    !
+    !
+    ! Two context exist 'hydraulic' and 'biomass'
+    ! These two contexts are allowed to have different profiles
+
+    integer, parameter :: exponential_1p_profile_type = 1
+    integer, parameter :: jackson_beta_profile_type   = 2
+    integer, parameter :: exponential_2p_profile_type = 3
+
+    integer :: root_profile_type
+
+    !----------------------------------------------------------------------
+    
+    if(lbound(zi,1).ne.0) then
+       write(fates_log(),*) 'lbound:',lbound(zi)
+       write(fates_log(),*) 'ubound:',ubound(zi)
+       write(fates_log(),*) 'layer interface levels should have 0 index'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+
+    if(icontext == i_hydro_rootprof__context) then
+       
+       root_profile_type = exponential_2p_profile_type
+       
+    else if(icontext == i_biomass_rootprof_context)
+
+       root_profile_type = jackson_beta_profile_type
+
+    else
+       write(fates_log(),*) 'An undefined context for calculating root profiles was provided'
+       write(fates_log(),*) 'There are only two contexts, hydraulic and biomass, pick one.'
+       write(fates_log(),*) 'Aborting'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+
+    
+    select case(root_profile_type)
+    case ( exponential_1p_profile_type ) 
+       call exponential_1p_root_profile(root_fraction, ft, zi) 
+    case ( jackson_beta_profile_type )
+       call jackson_beta_root_profile(root_fraction, ft, zi)
+    case ( exponential_2p_profile_type ) 
+       call exponential_2p_root_profile(root_fraction, ft, zi)
+    case default
+       write(fates_log(),*) 'An undefined root profile type was specified'
+       write(fates_log(),*) 'Aborting'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end select
+
+    return
+  end subroutine set_root_fraction
+
+  ! =====================================================================================
+    
+  subroutine exponential_2p_root_profile(root_fraction, ft, zi )
+    !
+    ! !ARGUMENTS
+    real(r8),intent(out) :: root_fraction(:)
+    integer,intent(in)   :: ft
+    real(r8),intent(in)  :: zi(0:)
+
+    ! Locals
+    integer  :: nlevsoil    ! Number of soil layers
+    integer  :: lev         ! soil layer index
+    real(r8) :: sum_rootfr  ! sum of root fraction for normalization
+    
+    nlevsoil = ubound(zi,1)
+    
+    sum_rootfr = 0.0_r8
+    do lev = 1, nlevsoil
+       root_fraction(lev) = .5_r8*( &
+             exp(-EDPftvarcon_inst%roota_par(ft) * zi(lev-1))  &
+             + exp(-EDPftvarcon_inst%rootb_par(ft) * zi(lev-1))  &
+             - exp(-EDPftvarcon_inst%roota_par(ft) * zi(lev))    &
+             - exp(-EDPftvarcon_inst%rootb_par(ft) * zi(lev)))
+       
+       sum_rootfr = sum_rootfr + root_fraction(lev)
+    end do
+    
+    ! Normalize the root profile
+    root_fraction(1:nlevsoil) = root_fraction(1:nlevsoil)/sum_rootfr
+    
+    return
+  end subroutine exponential_2p_root_profile
+
+  ! =====================================================================================
+  
+  subroutine exponential_1p_root_profile(root_fraction, ft, zi)
+
+    !
+    ! !ARGUMENTS
+    real(r8),intent(out) :: root_fraction(:)
+    integer,intent(in)   :: ft
+    real(r8),intent(in)  :: zi(0:)
+    
+    !
+    ! LOCAL VARIABLES:
+    integer :: lev         ! soil depth layer index
+    integer :: nlevsoil    ! number of soil layers
+    real(r8) :: depth      ! Depth to middle of layer [m]
+    real(r8) :: sum_rootfr ! sum of rooting profile for normalization
+
+    real(r8), parameter :: rootprof_exp  = 3.  ! how steep profile is
+    ! for root C inputs (1/ e-folding depth) (1/m)
+    
+    nlevsoil = ubound(zi,1)
+    
+    ! define rooting profile from exponential parameters
+    sum_rootfr = 0.0_r8
+    do lev = 1,  nlevsoil
+       root_fraction(lev) = exp(-rootprof_exp * 0.5*(zi(lev)+zi(lev-1)) )
+       sum_rootfr = sum_rootfr + root_fraction(lev)
+    end do
+    
+    ! Normalize the root profile
+    root_fraction(1:nlevsoil) = root_fraction(1:nlevsoil)/sum_rootfr
+    
+    
+    return
+  end subroutine exponential_1p_root_profile
+    
+  ! =====================================================================================
+
+  subroutine jackson_beta_root_profile(root_fraction, ft, zi)
+
+     
+    ! !ARGUMENTS
+    real(r8),intent(out) :: root_fraction(:) ! fraction of root mass in each soil layer
+    integer,intent(in)   :: ft               ! functional type
+    real(r8),intent(in)  :: zi(0:)           ! depth of layer interfaces 0-nlevsoil
+    
+    !
+    ! LOCAL VARIABLES:
+    integer :: lev         ! soil depth layer index
+    integer :: nlevsoil    ! number of soil layers
+    real(r8) :: sum_rootfr ! sum of rooting profile, for normalization 
+
+    integer, parameter :: rooting_profile_varindex_water = 1
+
+    nlevsoil = ubound(zi,1)
+    ! use beta distribution parameter from Jackson et al., 1996
+    sum_rootfr = 0.0_r8
+    do lev = 1, nlevsoil
+       root_fraction(lev) = &
+             ( EDPftvarcon_inst%rootprof_beta(ft, rooting_profile_varindex_water) ** & 
+             ( zi(lev-1)*100._r8) - &
+             EDPftvarcon_inst%rootprof_beta(ft, rooting_profile_varindex_water) ** & 
+             ( zi(lev)*100._r8) )
+       sum_rootfr = sum_rootfr + root_fraction(lev)
+    end do
+    
+    ! Normalize the root profile
+    root_fraction(1:nlevsoil) = root_fraction(1:nlevsoil)/sum_rootfr
+
+    return
+  end subroutine jackson_beta_root_profile
+
+  
+  ! =====================================================================================
 
   subroutine StructureResetOfDH( bdead, ipft, canopy_trim, d, h )
 
