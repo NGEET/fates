@@ -1985,24 +1985,35 @@ contains
 
   end subroutine cwd_out
 
-
+  ! =====================================================================================
 
   subroutine flux_into_litter_pools(nsites, sites, bc_in, bc_out)
+    
+    ! -----------------------------------------------------------------------------------
     ! Created by Charlie Koven and Rosie Fisher, 2014-2015
-    ! take the flux out of the fragmenting litter pools and port into the decomposing litter pools. 
-    ! in this implementation, decomposing pools are assumed to be humus and non-flammable, whereas fragmenting pools
-    ! are assumed to be physically fragmenting but not respiring. This is a simplification, but allows us to 
-    ! a) reconcile the need to track both chemical fractions (lignin, cellulose, labile) and size fractions (trunk, branch, etc.)
-    ! b) to impose a realistic delay on the surge of nutrients into the litter pools when large CWD is added to the system via mortality
-    
-    ! because of the different subgrid structure, this subroutine includes the functionality that in the big-leaf BGC model, is calculated in SoilBiogeochemVerticalProfileMod
-    
-    ! The ED code is resolved at a daily timestep, but all of the CN-BGC fluxes are passed in as derivatives per second, 
-    ! and then accumulated in the CNStateUpdate routines. One way of doing this is to pass back the CN fluxes per second, 
-    ! and keep them constant for the whole day (making sure they are not overwritten.
-    ! This means that the carbon gets passed back and forth between the photosynthesis code (fast timestepping) to the ED code (slow timestepping), back to the BGC code (fast timestepping).
-    ! This means that the state update for the litter pools and for the CWD pools occurs at different timescales. 
-    
+    ! take the flux out of the fragmenting litter pools and port into the decomposing 
+    ! litter pools. 
+    ! in this implementation, decomposing pools are assumed to be humus and non-flammable, 
+    ! whereas fragmenting pools are assumed to be physically fragmenting but not 
+    ! respiring. This is a simplification, but allows us to 
+    !
+    ! a) reconcile the need to track both chemical fractions (lignin, cellulose, labile) 
+    !    and size fractions (trunk, branch, etc.)
+    ! b) to impose a realistic delay on the surge of nutrients into the litter pools 
+    !    when large CWD is added to the system via mortality
+    !
+    ! Because of the different subgrid structure, this subroutine includes the functionality
+    ! that in the big-leaf BGC model, is calculated in SoilBiogeochemVerticalProfileMod
+    !
+    ! The ED code is resolved at a daily timestep, but all of the CN-BGC fluxes are passed 
+    ! in as derivatives per second, and then accumulated in the CNStateUpdate routines.  
+    ! One way of doing this is to pass back the CN fluxes per second, and keep them 
+    ! constant for the whole day (making sure they are not overwritten.  This means that 
+    ! the carbon gets passed back and forth between the photosynthesis code 
+    ! (fast timestepping) to the ED code (slow timestepping), back to the BGC code 
+    ! (fast timestepping).  This means that the state update for the litter pools and 
+    ! for the CWD pools occurs at different timescales. 
+    ! -----------------------------------------------------------------------------------
 
     use EDTypesMod, only : AREA
     use EDPftvarcon, only : EDPftvarcon_inst
@@ -2034,10 +2045,12 @@ contains
     real(r8) mass_convert    ! ED uses kg, CLM uses g
     integer           :: begp,endp
     integer           :: begc,endc                                    !bounds 
+
     !------------------------------------------------------------------------
     ! The following scratch arrays are allocated for maximum possible
     ! pft and layer usage
-    real(r8) :: cinput_rootfr(1:maxpft, 1:hlm_numlevgrnd)      ! column by pft root fraction used for calculating inputs
+    
+    real(r8) :: cinput_rootfr(1:maxpft, 1:hlm_numlevgrnd)
     real(r8) :: croot_prof_perpatch(1:hlm_numlevgrnd)
     real(r8) :: surface_prof(1:hlm_numlevgrnd)
     integer  :: ft
@@ -2137,8 +2150,9 @@ contains
           ! rescale the fine root profile
           do ft = 1,numpft
              if ( (bc_in(s)%max_rooting_depth_index_col > 0) .and. (rootfr_tot(ft) > 0._r8) ) then
-                ! where there is not permafrost extending to the surface, integrate the profiles over the active layer
-                ! this is equivalent to integrating over all soil layers outside of permafrost regions
+                ! where there is not permafrost extending to the surface, integrate the profiles 
+                ! over the active layer this is equivalent to integrating over all soil layers 
+                ! outside of permafrost regions
                 do j = 1, nlev_eff_decomp
                    froot_prof(s,ft,j) = cinput_rootfr(ft,j) / rootfr_tot(ft)
                 end do
@@ -2151,8 +2165,9 @@ contains
           !
           ! rescale the shallow profiles
           if ( (bc_in(s)%max_rooting_depth_index_col > 0) .and. (surface_prof_tot > 0._r8) ) then
-             ! where there is not permafrost extending to the surface, integrate the profiles over the active layer
-             ! this is equivalent to integrating over all soil layers outside of permafrost regions
+             ! where there is not permafrost extending to the surface, integrate the profiles over 
+             ! the active layer this is equivalent to integrating over all soil layers outside of 
+             ! permafrost regions
              do j = 1, nlev_eff_decomp
                 ! set all surface processes to shallower profile
                 leaf_prof(s,j) = surface_prof(j)/ surface_prof_tot
@@ -2230,14 +2245,18 @@ contains
          currentPatch => sites(s)%oldest_patch
          do while(associated(currentPatch))
             
-            ! the CWD pools lose information about which PFT they came from; for the stems this doesn't matter as they all have the same profile, 
-            ! however for the coarse roots they may have different profiles.  to approximately recover this information, loop over all cohorts in patch 
-            ! to calculate the total root biomass in that patch of each pft, and then rescale the croot_prof as the weighted average of the froot_prof
-            biomass_bg_ft(:) = 0._r8
+            ! the CWD pools lose information about which PFT they came from; 
+            ! for the stems this doesn't matter as they all have the same profile, 
+            ! however for the coarse roots they may have different profiles.  
+            ! to approximately recover this information, loop over all cohorts in patch 
+            ! to calculate the total root biomass in that patch of each pft, and then 
+            ! rescale the croot_prof as the weighted average of the froot_prof
+            biomass_bg_ft(1:numpft) = 0._r8
             currentCohort => currentPatch%tallest
             do while(associated(currentCohort))      
                biomass_bg_ft(currentCohort%pft) = biomass_bg_ft(currentCohort%pft) + &
-                     ((currentCohort%bdead + currentCohort%bsw ) * (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) + &
+                     ((currentCohort%bdead + currentCohort%bsw ) * &
+                     (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) + &
                      (currentCohort%br + currentCohort%bstore )) * & 
                      (currentCohort%n / currentPatch%area)
                currentCohort => currentCohort%shorter
@@ -2256,7 +2275,8 @@ contains
             if ( biomass_bg_tot .gt. 0._r8) then
                do ft = 1,numpft 
                   do j = 1, bc_in(s)%nlevdecomp
-                     croot_prof_perpatch(j) = croot_prof_perpatch(j) + froot_prof(s,ft,j) * biomass_bg_ft(ft) / biomass_bg_tot
+                     croot_prof_perpatch(j) = croot_prof_perpatch(j) + &
+                          froot_prof(s,ft,j) * biomass_bg_ft(ft) / biomass_bg_tot
                   end do
                end do
             else ! no biomass
@@ -2269,29 +2289,38 @@ contains
                croot_prof(s, j) = croot_prof(s, j) + croot_prof_perpatch(j) * currentPatch%area / AREA
             end do
             !
-            ! now disaggregate, vertically and by decomposition substrate type, the actual fluxes from CWD and litter pools
+            ! now disaggregate, vertically and by decomposition substrate type, the 
+            ! actual fluxes from CWD and litter pools
             !
             ! do c = 1, ncwd
-            !    write(fates_log(),*)'cdk CWD_AG_out', c, currentpatch%CWD_AG_out(c), ED_val_cwd_fcel, currentpatch%area/AREA
-            !    write(fates_log(),*)'cdk CWD_BG_out', c, currentpatch%CWD_BG_out(c), ED_val_cwd_fcel, currentpatch%area/AREA
+            !    write(fates_log(),*)'cdk CWD_AG_out', c, currentpatch%CWD_AG_out(c), 
+            !                         ED_val_cwd_fcel, currentpatch%area/AREA
+            !    write(fates_log(),*)'cdk CWD_BG_out', c, currentpatch%CWD_BG_out(c), 
+            !                         ED_val_cwd_fcel, currentpatch%area/AREA
             ! end do
             ! do ft = 1,numpft
-            !    write(fates_log(),*)'cdk leaf_litter_out', ft, currentpatch%leaf_litter_out(ft), ED_val_cwd_fcel, currentpatch%area/AREA
-            !    write(fates_log(),*)'cdk root_litter_out', ft, currentpatch%root_litter_out(ft), ED_val_cwd_fcel, currentpatch%area/AREA
+            !    write(fates_log(),*)'cdk leaf_litter_out', ft, currentpatch%leaf_litter_out(ft), 
+            !                         ED_val_cwd_fcel, currentpatch%area/AREA
+            !    write(fates_log(),*)'cdk root_litter_out', ft, currentpatch%root_litter_out(ft), 
+            !                         ED_val_cwd_fcel, currentpatch%area/AREA
             ! end do
             ! !
             ! CWD pools fragmenting into decomposing litter pools. 
             do ci = 1, ncwd
                do j = 1, bc_in(s)%nlevdecomp
                   bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + &
-                       currentpatch%CWD_AG_out(ci) * ED_val_cwd_fcel * currentpatch%area/AREA * stem_prof(s,j)  
+                       currentpatch%CWD_AG_out(ci) * ED_val_cwd_fcel * &
+                       currentpatch%area/AREA * stem_prof(s,j)
                   bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + &
-                       currentpatch%CWD_AG_out(ci) * ED_val_cwd_flig * currentpatch%area/AREA * stem_prof(s,j)
+                       currentpatch%CWD_AG_out(ci) * ED_val_cwd_flig * &
+                       currentpatch%area/AREA * stem_prof(s,j)
                   !
                   bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + &
-                       currentpatch%CWD_BG_out(ci) * ED_val_cwd_fcel * currentpatch%area/AREA * croot_prof_perpatch(j)
+                       currentpatch%CWD_BG_out(ci) * ED_val_cwd_fcel * &
+                       currentpatch%area/AREA * croot_prof_perpatch(j)
                   bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + &
-                       currentpatch%CWD_BG_out(ci) * ED_val_cwd_flig * currentpatch%area/AREA * croot_prof_perpatch(j)
+                       currentpatch%CWD_BG_out(ci) * ED_val_cwd_flig * &
+                       currentpatch%area/AREA * croot_prof_perpatch(j)
                end do
             end do
             
@@ -2299,26 +2328,35 @@ contains
             do ft = 1,numpft
                do j = 1, bc_in(s)%nlevdecomp
                   bc_out(s)%FATES_c_to_litr_lab_c_col(j) = bc_out(s)%FATES_c_to_litr_lab_c_col(j) + &
-                       currentpatch%leaf_litter_out(ft) * EDPftvarcon_inst%lf_flab(ft) * currentpatch%area/AREA * leaf_prof(s,j)
+                       currentpatch%leaf_litter_out(ft) * EDPftvarcon_inst%lf_flab(ft) * &
+                       currentpatch%area/AREA * leaf_prof(s,j)
                   bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + &
-                       currentpatch%leaf_litter_out(ft) * EDPftvarcon_inst%lf_fcel(ft) * currentpatch%area/AREA * leaf_prof(s,j)
+                       currentpatch%leaf_litter_out(ft) * EDPftvarcon_inst%lf_fcel(ft) * &
+                       currentpatch%area/AREA * leaf_prof(s,j)
                   bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + &
-                       currentpatch%leaf_litter_out(ft) * EDPftvarcon_inst%lf_flig(ft) * currentpatch%area/AREA * leaf_prof(s,j)
+                       currentpatch%leaf_litter_out(ft) * EDPftvarcon_inst%lf_flig(ft) * &
+                       currentpatch%area/AREA * leaf_prof(s,j)
                   !
                   bc_out(s)%FATES_c_to_litr_lab_c_col(j) = bc_out(s)%FATES_c_to_litr_lab_c_col(j) + &
-                       currentpatch%root_litter_out(ft) * EDPftvarcon_inst%fr_flab(ft) * currentpatch%area/AREA * froot_prof(s,ft,j)
+                       currentpatch%root_litter_out(ft) * EDPftvarcon_inst%fr_flab(ft) * &
+                       currentpatch%area/AREA * froot_prof(s,ft,j)
                   bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + &
-                       currentpatch%root_litter_out(ft) * EDPftvarcon_inst%fr_fcel(ft) * currentpatch%area/AREA * froot_prof(s,ft,j)
+                       currentpatch%root_litter_out(ft) * EDPftvarcon_inst%fr_fcel(ft) * &
+                       currentpatch%area/AREA * froot_prof(s,ft,j)
                   bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + &
-                       currentpatch%root_litter_out(ft) * EDPftvarcon_inst%fr_flig(ft) * currentpatch%area/AREA * froot_prof(s,ft,j)
+                       currentpatch%root_litter_out(ft) * EDPftvarcon_inst%fr_flig(ft) * &
+                       currentpatch%area/AREA * froot_prof(s,ft,j)
                   !
                   !! and seed_decay too.  for now, use the same lability fractions as for leaf litter
                   bc_out(s)%FATES_c_to_litr_lab_c_col(j) = bc_out(s)%FATES_c_to_litr_lab_c_col(j) + &
-                       currentpatch%seed_decay(ft) * EDPftvarcon_inst%lf_flab(ft) * currentpatch%area/AREA * leaf_prof(s,j)
+                       currentpatch%seed_decay(ft) * EDPftvarcon_inst%lf_flab(ft) * &
+                       currentpatch%area/AREA * leaf_prof(s,j)
                   bc_out(s)%FATES_c_to_litr_cel_c_col(j) = bc_out(s)%FATES_c_to_litr_cel_c_col(j) + &
-                       currentpatch%seed_decay(ft) * EDPftvarcon_inst%lf_fcel(ft) * currentpatch%area/AREA * leaf_prof(s,j)
+                       currentpatch%seed_decay(ft) * EDPftvarcon_inst%lf_fcel(ft) * &
+                       currentpatch%area/AREA * leaf_prof(s,j)
                   bc_out(s)%FATES_c_to_litr_lig_c_col(j) = bc_out(s)%FATES_c_to_litr_lig_c_col(j) + &
-                       currentpatch%seed_decay(ft) * EDPftvarcon_inst%lf_flig(ft) * currentpatch%area/AREA * leaf_prof(s,j)
+                       currentpatch%seed_decay(ft) * EDPftvarcon_inst%lf_flig(ft) * &
+                       currentpatch%area/AREA * leaf_prof(s,j)
                   !
                enddo
             end do
@@ -2331,9 +2369,12 @@ contains
         do s = 1, nsites
            do j = 1, bc_in(s)%nlevdecomp
               ! time unit conversion
-              bc_out(s)%FATES_c_to_litr_lab_c_col(j)=bc_out(s)%FATES_c_to_litr_lab_c_col(j) * mass_convert / time_convert
-              bc_out(s)%FATES_c_to_litr_cel_c_col(j)=bc_out(s)%FATES_c_to_litr_cel_c_col(j) * mass_convert / time_convert
-              bc_out(s)%FATES_c_to_litr_lig_c_col(j)=bc_out(s)%FATES_c_to_litr_lig_c_col(j) * mass_convert / time_convert
+              bc_out(s)%FATES_c_to_litr_lab_c_col(j)=bc_out(s)%FATES_c_to_litr_lab_c_col(j) * &
+                   mass_convert / time_convert
+              bc_out(s)%FATES_c_to_litr_cel_c_col(j)=bc_out(s)%FATES_c_to_litr_cel_c_col(j) * &
+                   mass_convert / time_convert
+              bc_out(s)%FATES_c_to_litr_lig_c_col(j)=bc_out(s)%FATES_c_to_litr_lig_c_col(j) * &
+                   mass_convert / time_convert
            end do
         end do
         
