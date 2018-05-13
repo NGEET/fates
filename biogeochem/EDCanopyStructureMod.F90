@@ -1615,7 +1615,7 @@ contains
      real(r8) :: ai
      ! TODO: THIS MIN LAI IS AN ARTIFACT FROM TESTING LONG-AGO AND SHOULD BE REMOVED
      ! THIS HAS BEEN KEPT THUS FAR TO MAINTAIN B4B IN TESTING OTHER COMMITS
-     real(r8),parameter :: ai_min = 0.0_r8
+     real(r8),parameter :: ai_min = 0.1_r8
      real(r8),pointer   :: ai_profile
 
      ai = 0._r8
