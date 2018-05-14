@@ -23,9 +23,6 @@ module FatesHydraulicsMemMod
    ! number of aboveground plant water storage nodes
    integer, parameter                            :: n_hypool_ag    = n_hypool_leaf+n_hypool_stem
 
-   ! number of belowground plant water storage nodes
-   integer, parameter                            :: n_hypool_bg    = n_hypool_troot
-
    ! total number of water storage nodes
    integer, parameter                            :: n_hypool_tot   = n_hypool_ag + n_hypool_troot + n_hypool_aroot + nshell
 
@@ -159,23 +156,23 @@ module FatesHydraulicsMemMod
      
                                                   ! BC...PLANT HYDRAULICS - "constants" that change with size. 
                                                   ! Heights are referenced to soil surface (+ = above; - = below)
-     real(r8) ::  z_node_ag(n_hypool_ag)             ! nodal height of aboveground water storage compartments            [m]
-     real(r8) ::  z_node_bg(n_hypool_bg)             ! nodal height of belowground water storage compartments            [m]
+     real(r8) ::  z_node_ag(n_hypool_ag)          ! nodal height of aboveground water storage compartments            [m]
+     real(r8) ::  z_node_troot(n_hypool_troot)    ! nodal height of belowground water storage compartments            [m]
      real(r8) ::  z_node_aroot(nlevsoi_hyd)       ! nodal height of absorbing root water storage compartments         [m]
-     real(r8) ::  z_upper_ag(n_hypool_ag)            ! upper boundary height of aboveground water storage compartments   [m]
-     real(r8) ::  z_upper_bg(n_hypool_bg)            ! upper boundary height of belowground water storage compartments   [m]
-     real(r8) ::  z_lower_ag(n_hypool_ag)            ! lower boundary height of aboveground water storage compartments   [m]
-     real(r8) ::  z_lower_bg(n_hypool_bg)            ! lower boundary height of belowground water storage compartments   [m]
-     real(r8) ::  kmax_upper(n_hypool_ag)            ! maximum hydraulic conductance from node to upper boundary         [kg s-1 MPa-1]
-     real(r8) ::  kmax_lower(n_hypool_ag)            ! maximum hydraulic conductance from node to lower boundary         [kg s-1 MPa-1]
+     real(r8) ::  z_upper_ag(n_hypool_ag)         ! upper boundary height of aboveground water storage compartments   [m]
+     real(r8) ::  z_upper_troot(n_hypool_troot)   ! upper boundary height of belowground water storage compartments   [m]
+     real(r8) ::  z_lower_ag(n_hypool_ag)         ! lower boundary height of aboveground water storage compartments   [m]
+     real(r8) ::  z_lower_troot(n_hypool_troot)   ! lower boundary height of belowground water storage compartments   [m]
+     real(r8) ::  kmax_upper(n_hypool_ag)         ! maximum hydraulic conductance from node to upper boundary         [kg s-1 MPa-1]
+     real(r8) ::  kmax_lower(n_hypool_ag)         ! maximum hydraulic conductance from node to lower boundary         [kg s-1 MPa-1]
      real(r8) ::  kmax_upper_troot                ! maximum hydraulic conductance from troot node to upper boundary   [kg s-1 MPa-1]
-     real(r8) ::  kmax_bound(n_hypool_ag)            ! maximum hydraulic conductance at lower boundary (canopy to troot) [kg s-1 MPa-1]
+     real(r8) ::  kmax_bound(n_hypool_ag)         ! maximum hydraulic conductance at lower boundary (canopy to troot) [kg s-1 MPa-1]
      real(r8) ::  kmax_treebg_tot                 ! total belowground tree kmax (troot to surface of absorbing roots) [kg s-1 MPa-1]
      real(r8) ::  kmax_treebg_layer(nlevsoi_hyd)  ! total belowground tree kmax partitioned by soil layer             [kg s-1 MPa-1]
-     real(r8) ::  v_ag_init(n_hypool_ag)             ! previous day's volume of aboveground water storage compartments   [m3]
-     real(r8) ::  v_ag(n_hypool_ag)                  ! volume of aboveground water storage compartments                  [m3]
-     real(r8) ::  v_bg_init(n_hypool_bg)             ! previous day's volume of belowground water storage compartments   [m3]
-     real(r8) ::  v_bg(n_hypool_bg)                  ! volume of belowground water storage compartments                  [m3]
+     real(r8) ::  v_ag_init(n_hypool_ag)          ! previous day's volume of aboveground water storage compartments   [m3]
+     real(r8) ::  v_ag(n_hypool_ag)               ! volume of aboveground water storage compartments                  [m3]
+     real(r8) ::  v_troot_init(n_hypool_troot)    ! previous day's volume of belowground water storage compartments   [m3]
+     real(r8) ::  v_troot(n_hypool_troot)         ! volume of belowground water storage compartments                  [m3]
      real(r8) ::  v_aroot_tot                     ! total volume of absorbing roots                                   [m3]
      real(r8) ::  v_aroot_layer_init(nlevsoi_hyd) ! previous day's volume of absorbing roots by soil layer            [m3]
      real(r8) ::  v_aroot_layer(nlevsoi_hyd)      ! volume of absorbing roots by soil layer                           [m3]
@@ -183,21 +180,21 @@ module FatesHydraulicsMemMod
      real(r8) ::  l_aroot_layer(nlevsoi_hyd)      ! length of absorbing roots by soil layer                           [m]
 
                                                   ! BC PLANT HYDRAULICS - state variables
-     real(r8) ::  th_ag(n_hypool_ag)                 ! water in aboveground compartments                                 [kgh2o/indiv]
-     real(r8) ::  th_bg(n_hypool_bg)                 ! water in belowground compartments                                 [kgh2o/indiv]
+     real(r8) ::  th_ag(n_hypool_ag)              ! water in aboveground compartments                                 [kgh2o/indiv]
+     real(r8) ::  th_troot(n_hypool_troot)        ! water in belowground compartments                                 [kgh2o/indiv]
      real(r8) ::  th_aroot(nlevsoi_hyd)           ! water in absorbing roots                                          [kgh2o/indiv]
      real(r8) ::  lwp_mem(numLWPmem)              ! leaf water potential over the previous numLWPmem timesteps        [MPa]
      real(r8) ::  lwp_stable                      ! leaf water potential just before it became unstable               [MPa]
      logical  ::  lwp_is_unstable                 ! flag for instability of leaf water potential over previous timesteps
-     real(r8) ::  psi_ag(n_hypool_ag)                ! water potential in aboveground compartments                       [MPa]
-     real(r8) ::  psi_bg(n_hypool_bg)                ! water potential in belowground compartments                       [MPa]
+     real(r8) ::  psi_ag(n_hypool_ag)             ! water potential in aboveground compartments                       [MPa]
+     real(r8) ::  psi_troot(n_hypool_troot)       ! water potential in belowground compartments                       [MPa]
      real(r8) ::  psi_aroot(nlevsoi_hyd)          ! water potential in absorbing roots                                [MPa]
-     real(r8) ::  flc_ag(n_hypool_ag)                ! fractional loss of conductivity in aboveground compartments       [-]
-     real(r8) ::  flc_bg(n_hypool_bg)                ! fractional loss of conductivity in belowground compartments       [-]
+     real(r8) ::  flc_ag(n_hypool_ag)             ! fractional loss of conductivity in aboveground compartments       [-]
+     real(r8) ::  flc_troot(n_hypool_troot)       ! fractional loss of conductivity in belowground compartments       [-]
      real(r8) ::  flc_aroot(nlevsoi_hyd)          ! fractional loss of conductivity in absorbing roots                [-]
-     real(r8) ::  flc_min_ag(n_hypool_ag)            ! min attained fractional loss of conductivity in 
+     real(r8) ::  flc_min_ag(n_hypool_ag)         ! min attained fractional loss of conductivity in 
                                                   ! aboveground compartments (for tracking xylem refilling dynamics) [-]
-     real(r8) ::  flc_min_bg(n_hypool_bg)            ! min attained fractional loss of conductivity in 
+     real(r8) ::  flc_min_troot(n_hypool_troot)   ! min attained fractional loss of conductivity in 
                                                   ! belowground compartments (for tracking xylem refilling dynamics) [-]
      real(r8) ::  flc_min_aroot(nlevsoi_hyd)      ! min attained fractional loss of conductivity in absorbing roots 
                                                   ! (for tracking xylem refilling dynamics)          [-]
