@@ -1589,7 +1589,7 @@ contains
     use FatesInterfaceMod, only : hlm_use_ed_prescribed_phys
     !
     ! !ARGUMENTS    
-    type(ed_site_type), intent(inout), target  :: currentSite
+    type(ed_site_type), intent(inout), target   :: currentSite
     type(ed_patch_type), intent(inout), pointer :: currentPatch
     type(bc_in_type), intent(in)                :: bc_in
     !
@@ -1597,7 +1597,7 @@ contains
     integer :: ft
     type (ed_cohort_type) , pointer :: temp_cohort
     integer :: cohortstatus
-    integer :: recruitstatus
+    integer,parameter :: recruitstatus = 1 !weather it the new created cohorts is recruited or initialized
     real(r8) :: b_leaf
     real(r8) :: b_fineroot    ! fine root biomass [kgC]
     real(r8) :: b_sapwood     ! sapwood biomass [kgC]
@@ -1661,10 +1661,9 @@ contains
 
        if (temp_cohort%n > 0.0_r8 )then
           if ( DEBUG ) write(fates_log(),*) 'EDPhysiologyMod.F90 call create_cohort '
-
-          call create_cohort(currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
+          call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
                 b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore,  &
-                temp_cohort%laimemory, cohortstatus, temp_cohort%canopy_trim, currentPatch%NCL_p, &
+                temp_cohort%laimemory, cohortstatus,recruitstatus, temp_cohort%canopy_trim, currentPatch%NCL_p, &
                 currentSite%spread, bc_in)
 
 
