@@ -1702,7 +1702,7 @@ end subroutine updateSizeDepRhizHydStates
               ! Relative transpiration of this cohort from the whole patch
 !!              qflx_rel_tran_coh = ccohort%g_sb_laweight*ccohort%n/gscan_patch
 
-              qflx_tran_veg_patch_coh      = bc_in(s)%qflx_transp_pa(ifp) * ccohort%g_sb_laweight*ccohort%n/gscan_patch
+              qflx_tran_veg_patch_coh      = bc_in(s)%qflx_transp_pa(ifp) * ccohort%g_sb_laweight/gscan_patch
 
               qflx_tran_veg_indiv          = qflx_tran_veg_patch_coh * cpatch%area* &
 	                                     min(1.0_r8,cpatch%total_canopy_area/cpatch%area)/ccohort%n !AREA / ccohort%n
