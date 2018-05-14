@@ -2585,7 +2585,7 @@ end subroutine flush_hvars
                         ccohort_hydr%th_aroot(1)   * number_fraction      ! [m3 m-3]
                   
                   hio_tth_scpf(io_si,iscpf)             = hio_tth_scpf(io_si,iscpf) + &
-                        ccohort_hydr%th_bg(1)  * number_fraction         ! [m3 m-3]
+                        ccohort_hydr%th_troot(1)  * number_fraction         ! [m3 m-3]
                   
                   hio_sth_scpf(io_si,iscpf)             = hio_sth_scpf(io_si,iscpf) + &
                         ccohort_hydr%th_ag(2)  * number_fraction        ! [m3 m-3]
@@ -2597,7 +2597,7 @@ end subroutine flush_hvars
                         ccohort_hydr%psi_aroot(1)   * number_fraction     ! [MPa]
                   
                   hio_twp_scpf(io_si,iscpf)             = hio_twp_scpf(io_si,iscpf) + &
-                        ccohort_hydr%psi_bg(1)  * number_fraction       ! [MPa]
+                        ccohort_hydr%psi_troot(1)  * number_fraction       ! [MPa]
                   
                   hio_swp_scpf(io_si,iscpf)             = hio_swp_scpf(io_si,iscpf) + &
                         ccohort_hydr%psi_ag(2)  * number_fraction       ! [MPa]
@@ -2609,7 +2609,7 @@ end subroutine flush_hvars
                         ccohort_hydr%flc_aroot(1)   * number_fraction     
                   
                   hio_tflc_scpf(io_si,iscpf)             = hio_tflc_scpf(io_si,iscpf) + &
-                        ccohort_hydr%flc_bg(1)  * number_fraction     
+                        ccohort_hydr%flc_troot(1)  * number_fraction     
                   
                   hio_sflc_scpf(io_si,iscpf)             = hio_sflc_scpf(io_si,iscpf) + &
                         ccohort_hydr%flc_ag(2)  * number_fraction       
