@@ -166,7 +166,7 @@ contains
           call terminate_cohorts(currentSite, currentPatch, 1)
 
           ! fuses similar cohorts
-          call fuse_cohorts(currentPatch, bc_in )
+          call fuse_cohorts(currentSite,currentPatch, bc_in )
           
           ! kills cohorts for various other reasons
           call terminate_cohorts(currentSite, currentPatch, 2)
