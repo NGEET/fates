@@ -1655,7 +1655,7 @@ end subroutine updateSizeDepRhizHydStates
            ccohort=>cpatch%tallest
            do while(associated(ccohort))
               ccohort_hydr => ccohort%co_hydr
-              gscan_patch       = gscan_patch + ccohort%g_sb_laweight*ccohort%n
+              gscan_patch       = gscan_patch + ccohort%g_sb_laweight
               if (gscan_patch < 0._r8) then
                  write(fates_log(),*) 'ERROR: negative gscan_patch!'
                  call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1700,7 +1700,7 @@ end subroutine updateSizeDepRhizHydStates
 	       endif	      
               
               ! Relative transpiration of this cohort from the whole patch
-!!              qflx_rel_tran_coh = ccohort%g_sb_laweight*ccohort%n/gscan_patch
+!!              qflx_rel_tran_coh = ccohort%g_sb_laweight/gscan_patch
 
               qflx_tran_veg_patch_coh      = bc_in(s)%qflx_transp_pa(ifp) * ccohort%g_sb_laweight/gscan_patch
 
