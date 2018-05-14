@@ -66,8 +66,8 @@ contains
 
   !-------------------------------------------------------------------------------------!
 
-  subroutine create_cohort(patchptr, pft, nn, hite, dbh, bleaf, bfineroot, bsap, &
-                           bdead, bstore, laimemory, status, ctrim, clayer, spread, bc_in)
+  subroutine create_cohort(currentSite, patchptr, pft, nn, hite, dbh, bleaf, bfineroot, bsap, &
+                           bdead, bstore, laimemory, status, recruitstatus,ctrim, clayer, spread, bc_in)
 
     !
     ! !DESCRIPTION:
@@ -76,6 +76,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS    
+    type(ed_site_type), intent(inout),   target :: currentSite
     type(ed_patch_type), intent(inout), pointer :: patchptr
     integer,  intent(in)   :: pft       ! Cohort Plant Functional Type
     integer,  intent(in)   :: clayer    ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)
@@ -185,7 +186,7 @@ contains
     if( hlm_use_planthydro.eq.itrue ) then
        call InitHydrCohort(new_cohort)
        call updateSizeDepTreeHydProps(new_cohort, bc_in) 
-       call initTreeHydStates(new_cohort, bc_in)
+       call initTreeHydStates(currentSite,new_cohort, bc_in)
        if(recruitstatus==1)then
           new_cohort%co_hydr%is_newly_recuited = .true.
        endif
@@ -566,7 +567,7 @@ contains
 
   !-------------------------------------------------------------------------------------!
 
-  subroutine fuse_cohorts(currentPatch, bc_in)  
+  subroutine fuse_cohorts(currentSite, currentPatch, bc_in)  
 
      !
      ! !DESCRIPTION:
@@ -576,7 +577,8 @@ contains
      use EDParamsMod , only :  ED_val_cohort_fusion_tol
      use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
      !
-     ! !ARGUMENTS    
+     ! !ARGUMENTS   
+     type (ed_site_type), intent(inout),  target :: currentSite 
      type (ed_patch_type), intent(inout), target :: currentPatch
      type (bc_in_type), intent(in)               :: bc_in
      !
@@ -720,7 +722,7 @@ contains
                                 call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
                                       currentCohort%size_class,currentCohort%size_by_pft_class)
 
-                                if(hlm_use_planthydro.eq.itrue) call FuseCohortHydraulics(currentCohort,nextc,bc_in,newn)
+                                if(hlm_use_planthydro.eq.itrue) call FuseCohortHydraulics(currentSite,currentCohort,nextc,bc_in,newn)
 
                                 ! recent canopy history
                                 currentCohort%canopy_layer_yesterday  = (currentCohort%n*currentCohort%canopy_layer_yesterday  + &
