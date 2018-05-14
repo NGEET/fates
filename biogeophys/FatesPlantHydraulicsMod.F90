@@ -164,13 +164,14 @@ contains
   
  ! =====================================================================================
 
- subroutine initTreeHydStates(cc_p, bc_in)
+ subroutine initTreeHydStates(site_p, cc_p, bc_in)
     !
     ! !DESCRIPTION: 
     !
     ! !USES:
 
     ! !ARGUMENTS:
+    type(ed_site_type), intent(inout), target  :: site_p ! current cohort pointer
     type(ed_cohort_type), intent(inout), target  :: cc_p ! current cohort pointer
     type(bc_in_type)    , intent(in)             :: bc_in 
     !
@@ -184,7 +185,7 @@ contains
 
     cCohort                    => cc_p
     ccohort_hydr               => cCohort%co_hydr
-    csite                      => cCohort%patchptr%siteptr ! Is this sketchy? Maybe...
+    csite                      => site_p ! Is this sketchy? Maybe...d
     FT                         =  cCohort%pft
 
     !convert soil water contents to water potential in each soil layer and
@@ -601,11 +602,13 @@ contains
   end subroutine CopyCohortHydraulics
   
   ! =====================================================================================
-  subroutine FuseCohortHydraulics(currentCohort, nextCohort, bc_in, newn)
+  subroutine FuseCohortHydraulics(currentSite,currentCohort, nextCohort, bc_in, newn)
 
      
      type(ed_cohort_type), intent(inout), target :: currentCohort ! current cohort
      type(ed_cohort_type), intent(inout), target :: nextCohort    ! next (donor) cohort
+     type(ed_site_type), intent(inout), target :: currentSite    ! current site
+
      type(bc_in_type), intent(in)                :: bc_in
      real(r8), intent(in)                        :: newn
 
@@ -615,7 +618,7 @@ contains
      type(ed_cohort_hydr_type), pointer :: ncohort_hydr  ! donor (next) cohort hydraulics d type
      integer  :: j,k                                     ! indices
 
-     site_hydr => currentCohort%siteptr%si_hydr
+     site_hydr => currentSite%si_hydr
 
      ccohort_hydr => currentCohort%co_hydr
      ncohort_hydr => nextCohort%co_hydr
@@ -1652,7 +1655,7 @@ end subroutine updateSizeDepRhizHydStates
            ccohort=>cpatch%tallest
            do while(associated(ccohort))
               ccohort_hydr => ccohort%co_hydr
-              gscan_patch       = gscan_patch + ccohort%gscan*ccohort%n
+              gscan_patch       = gscan_patch + ccohort%g_sb_laweight*ccohort%n
               if (gscan_patch < 0._r8) then
                  write(fates_log(),*) 'ERROR: negative gscan_patch!'
                  call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1697,9 +1700,9 @@ end subroutine updateSizeDepRhizHydStates
 	       endif	      
               
               ! Relative transpiration of this cohort from the whole patch
-!!              qflx_rel_tran_coh = ccohort%gscan*ccohort%n/gscan_patch
+!!              qflx_rel_tran_coh = ccohort%g_sb_laweight*ccohort%n/gscan_patch
 
-              qflx_tran_veg_patch_coh      = bc_in(s)%qflx_transp_pa(ifp) * ccohort%gscan*ccohort%n/gscan_patch
+              qflx_tran_veg_patch_coh      = bc_in(s)%qflx_transp_pa(ifp) * ccohort%g_sb_laweight*ccohort%n/gscan_patch
 
               qflx_tran_veg_indiv          = qflx_tran_veg_patch_coh * cpatch%area* &
 	                                     min(1.0_r8,cpatch%total_canopy_area/cpatch%area)/ccohort%n !AREA / ccohort%n
@@ -1707,11 +1710,7 @@ end subroutine updateSizeDepRhizHydStates
               ! [mm H2O/cohort/s] = [mm H2O / patch / s] / [cohort/patch]
 !!              qflx_tran_veg_patch_coh      = qflx_trans_patch_vol * qflx_rel_tran_coh
 
-              ! [mm H2O/plant/s] =  [mm H2O/cohort/s] * [plants/patch]
-!!              qflx_tran_veg_indiv = qflx_tran_veg_patch_coh * 
 
-
-!              transp_col_check             = transp_col_check +  ...
 		   
               if(nlevsoi_hyd > 1) then
                  ! BUCKET APPROXIMATION OF THE SOIL-ROOT HYDRAULIC GRADIENT (weighted average across layers)
