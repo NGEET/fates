@@ -185,7 +185,7 @@ contains
 
     cCohort                    => cc_p
     ccohort_hydr               => cCohort%co_hydr
-    csite                      => site_p ! Is this sketchy? Maybe...d
+    csite                      => site_p 
     FT                         =  cCohort%pft
 
     !convert soil water contents to water potential in each soil layer and
