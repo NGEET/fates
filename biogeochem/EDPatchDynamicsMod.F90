@@ -656,7 +656,7 @@ contains
           ! the second call removes for all other reasons (sparse culling must happen
           ! before fusion)
           call terminate_cohorts(currentSite, currentPatch, 1)
-          call fuse_cohorts(currentPatch, bc_in)
+          call fuse_cohorts(currentSite,currentPatch, bc_in)
           call terminate_cohorts(currentSite, currentPatch, 2)
           call sort_cohorts(currentPatch)
 
@@ -679,7 +679,7 @@ contains
        ! the second call removes for all other reasons (sparse culling must happen
        ! before fusion)
        call terminate_cohorts(currentSite, new_patch, 1)
-       call fuse_cohorts(new_patch, bc_in)
+       call fuse_cohorts(currentSite,new_patch, bc_in)
        call terminate_cohorts(currentSite, new_patch, 2)
        call sort_cohorts(new_patch)
 
@@ -1478,7 +1478,7 @@ contains
                    if(fuse_flag  ==  1)then 
                       tmpptr => currentPatch%older       
                       call fuse_2_patches(csite, currentPatch, tpp)
-                      call fuse_cohorts(tpp, bc_in)
+                      call fuse_cohorts(csite,tpp, bc_in)
                       call sort_cohorts(tpp)
                       currentPatch => tmpptr
                    else
