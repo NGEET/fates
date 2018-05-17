@@ -327,7 +327,12 @@ contains
     do while(associated(currentPatch))
 
        !FIX(RF,032414) Does using the max(fire,mort) actually make sense here?
-       site_areadis = site_areadis + currentPatch%area * min(1.0_r8,currentPatch%disturbance_rate) 
+       if(currentPatch%disturbance_rate>1.0_r8) then
+          write(fates_log(),*) 'patch disturbance rate > 1 ?',currentPatch%disturbance_rate
+          call endrun(msg=errMsg(sourcefile, __LINE__))          
+       end if
+
+       site_areadis = site_areadis + currentPatch%area * currentPatch%disturbance_rate
        currentPatch => currentPatch%older     
 
     enddo ! end loop over patches. sum area disturbed for all patches. 
@@ -669,7 +674,7 @@ contains
        new_patch%younger          => NULL()
        currentPatch%younger       => new_patch
        currentSite%youngest_patch => new_patch
-
+       
        ! sort out the cohorts, since some of them may be so small as to need removing. 
        ! the first call to terminate cohorts removes sparse number densities,
        ! the second call removes for all other reasons (sparse culling must happen
