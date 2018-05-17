@@ -37,6 +37,8 @@ module FatesPlantHydraulicsMod
    use FatesConstantsMod, only : denh2o => dens_fresh_liquid_water
    use FatesConstantsMod, only : grav => grav_earth
    use FatesConstantsMod, only : ifalse, itrue
+   
+   use EDParamsMod       , only : hydr_kmax_rsurf
 
    use EDTypesMod        , only : ed_site_type
    use EDTypesMod        , only : ed_patch_type
@@ -558,19 +560,19 @@ contains
      ! BC...PLANT HYDRAULICS - "constants" that change with size. 
      ! Heights are referenced to soil surface (+ = above; - = below)
      ncohort_hydr%z_node_ag          = ocohort_hydr%z_node_ag
-     ncohort_hydr%z_node_troot          = ocohort_hydr%z_node_troot
+     ncohort_hydr%z_node_troot       = ocohort_hydr%z_node_troot
      ncohort_hydr%z_node_aroot       = ocohort_hydr%z_node_aroot
      ncohort_hydr%z_upper_ag         = ocohort_hydr%z_upper_ag
-     ncohort_hydr%z_upper_troot         = ocohort_hydr%z_upper_troot
+     ncohort_hydr%z_upper_troot      = ocohort_hydr%z_upper_troot
      ncohort_hydr%z_lower_ag         = ocohort_hydr%z_lower_ag
-     ncohort_hydr%z_lower_troot         = ocohort_hydr%z_lower_troot
+     ncohort_hydr%z_lower_troot      = ocohort_hydr%z_lower_troot
      ncohort_hydr%kmax_bound         = ocohort_hydr%kmax_bound
      ncohort_hydr%kmax_treebg_tot    = ocohort_hydr%kmax_treebg_tot
      ncohort_hydr%kmax_treebg_layer  = ocohort_hydr%kmax_treebg_layer
      ncohort_hydr%v_ag_init          = ocohort_hydr%v_ag_init
      ncohort_hydr%v_ag               = ocohort_hydr%v_ag
-     ncohort_hydr%v_troot_init          = ocohort_hydr%v_troot_init
-     ncohort_hydr%v_troot               = ocohort_hydr%v_troot
+     ncohort_hydr%v_troot_init       = ocohort_hydr%v_troot_init
+     ncohort_hydr%v_troot            = ocohort_hydr%v_troot
      ncohort_hydr%v_aroot_tot        = ocohort_hydr%v_aroot_tot
      ncohort_hydr%v_aroot_layer_init = ocohort_hydr%v_aroot_layer_init
      ncohort_hydr%v_aroot_layer      = ocohort_hydr%v_aroot_layer
@@ -579,10 +581,10 @@ contains
      
      ! BC PLANT HYDRAULICS - state variables
      ncohort_hydr%th_ag              = ocohort_hydr%th_ag
-     ncohort_hydr%th_troot              = ocohort_hydr%th_troot
+     ncohort_hydr%th_troot           = ocohort_hydr%th_troot
      ncohort_hydr%th_aroot           = ocohort_hydr%th_aroot
      ncohort_hydr%psi_ag             = ocohort_hydr%psi_ag
-     ncohort_hydr%psi_troot             = ocohort_hydr%psi_troot
+     ncohort_hydr%psi_troot          = ocohort_hydr%psi_troot
      ncohort_hydr%psi_aroot          = ocohort_hydr%psi_aroot
      ncohort_hydr%btran              = ocohort_hydr%btran
      ncohort_hydr%supsub_flag        = ocohort_hydr%supsub_flag
@@ -905,7 +907,7 @@ contains
     real(r8)                       :: large_kmax_bound = 1.e4_r8   ! for replacing kmax_bound_shell wherever the 
                                                                    ! innermost shell radius is less than the assumed 
                                                                    ! absorbing root radius rs1
-    real(r8)                       :: kmax_root_surf = 1.e-3_r8    ! maximum conducitivity for unit root surface
+    real(r8)                       :: kmax_root_surf               ! maximum conducitivity for unit root surface
                                                                    ! (kg water/m2 root area/Mpa/s)
                                                                    ! 1.e-5_r8 from Rudinger et al 1994             	
     real(r8)                       :: kmax_root_surf_total         !maximum conducitivity for total root surface(kg water/Mpa/s)
@@ -927,12 +929,11 @@ contains
 
        do while(associated(cCohort))
           csite_hydr%l_aroot_layer(:) = csite_hydr%l_aroot_layer(:) + ccohort_hydr%l_aroot_layer(:)*cCohort%n
-	  kmax_root_surf = EDPftvarcon_inst%hydr_kmax_node(ccohort%pft,4)  !this assumes every pft have the same conductivity
-	  								   !need to be updated for the future (C XU)
           cCohort => cCohort%shorter
        enddo !cohort
        cPatch => cPatch%older
     enddo !patch
+    kmax_root_surf = hydr_kmax_rsurf
     csite_hydr%l_aroot_1D = sum( csite_hydr%l_aroot_layer(:))
     
     ! update outer radii of column-level rhizosphere shells (same across patches and cohorts)
