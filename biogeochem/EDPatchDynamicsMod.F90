@@ -710,6 +710,12 @@ contains
        if (( areatot - area ) > 0._r8 ) then 
           write(fates_log(),*) 'trimming patch area - is too big' , areatot-area
           currentSite%oldest_patch%area = currentSite%oldest_patch%area - (areatot - area)
+
+          if(currentSite%oldest_patch%area<0.0) then
+             write(fates_log(),*) 'patch area correction produced negative area' , areatot,areatot-area,currentSite%oldest_patch%area
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+
        endif
     enddo
 
@@ -1219,7 +1225,6 @@ contains
     currentPatch%area                       = nan                                           
     currentPatch%canopy_layer_tai(:)        = nan               
     currentPatch%total_canopy_area          = nan
-    currentPatch%bare_frac_area             = nan                             
 
     currentPatch%tlai_profile(:,:,:)        = nan 
     currentPatch%elai_profile(:,:,:)        = 0._r8 

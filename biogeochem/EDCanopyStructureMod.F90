@@ -982,7 +982,7 @@ contains
              
           enddo ! ends 'do while(associated(currentCohort))
           
-          if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
+          if ( currentPatch%total_canopy_area>currentPatch%area ) then
              if ( currentPatch%total_canopy_area-currentPatch%area > 0.001_r8 ) then
                 write(fates_log(),*) 'FATES: canopy area bigger than area', &
                      currentPatch%total_canopy_area ,currentPatch%area
@@ -1502,6 +1502,7 @@ contains
      type (ed_patch_type)  , pointer :: currentPatch
      real(r8) :: bare_frac_area
      real(r8) :: total_patch_area
+     real(r8) :: total_canopy_area
      real(r8) :: weight  ! Weighting for cohort variables in patch
 
 
@@ -1509,6 +1510,8 @@ contains
 
         ifp = 0
         total_patch_area = 0._r8 
+        total_canopy_area = 0._r8
+        bc_out(s)%canopy_fraction_pa(:) = 0._r8
         currentPatch => sites(s)%oldest_patch
         c = fcolumn(s)
         do while(associated(currentPatch))
@@ -1559,14 +1562,14 @@ contains
            ! currentPatch%total_canopy_area/currentPatch%area is fraction of this patch cover by plants 
            ! currentPatch%area/AREA is the fraction of the soil covered by this patch. 
            
-           bc_out(s)%canopy_fraction_pa(ifp) = min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area) * &
-                 (currentPatch%area/AREA)
+           bc_out(s)%canopy_fraction_pa(ifp) = currentPatch%total_canopy_area/AREA
 
-           bare_frac_area = (1.0_r8-min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area))* &
-                 (currentPatch%area/AREA)
+           bare_frac_area = (1.0_r8-currentPatch%total_canopy_area/currentPatch%area)*(currentPatch%area/AREA)
            
            total_patch_area = total_patch_area + bc_out(s)%canopy_fraction_pa(ifp) + bare_frac_area
-    
+   
+           total_canopy_area = total_canopy_area + bc_out(s)%canopy_fraction_pa(ifp)
+ 
            ! Calculate area indices for output boundary to HLM
            ! It is assumed that cpatch%canopy_area_profile and cpat%xai_profiles
            ! have been updated (ie ed_leaf_area_profile has been called since dynamics has been called)
@@ -1592,10 +1595,36 @@ contains
            
            currentPatch => currentPatch%younger
         end do
+
+
+        ! Apply patch and canopy area corrections (THIS SHOULD BE UNECESSARY....)
         
-        if(abs(total_patch_area-1.0_r8)>1e-9)then
-           write(fates_log(),*) 'total area is wrong in update_hlm_dynamics',total_patch_area
+        if(abs(total_patch_area-1.0_r8) > tiny(total_patch_area) )then
+
+           if(abs(total_patch_area-1.0_r8) > 1.0e-8_r8 )then
+              write(fates_log(),*) 'total area is wrong in update_hlm_dynamics',total_patch_area
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+           
+           write(fates_log(),*) 'correcting patch area in update_hlm_dynamics',total_patch_area
+           
+           currentPatch => sites(s)%oldest_patch
+           ifp = 0
+           do while(associated(currentPatch))
+              ifp = ifp+1
+              currentPatch%area                 = currentPatch%area/total_patch_area
+              bc_out(s)%canopy_fraction_pa(ifp) = bc_out(s)%canopy_fraction_pa(ifp)/total_patch_area
+              currentPatch => currentPatch%younger
+           end do
+           total_canopy_area = total_canopy_area/total_patch_area
+           
         endif
+        
+        ! This should really be impossible at this point
+        if ( (total_canopy_area-1.0_r8)>tiny(total_canopy_area) ) then
+           write(fates_log(),*) 'total canopy area is wrong in update_hlm_dynamics',total_canopy_area
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
         
 
      end do
