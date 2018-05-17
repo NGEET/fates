@@ -443,6 +443,9 @@ variables:
 	float fates_fire_nignitions(fates_scalar) ;
 		fates_fire_nignitions:units = "/m2 (?)" ;
 		fates_fire_nignitions:long_name = "number of daily ignitions (nfires = nignitions*FDI*area_scaling)" ;
+	float fates_hydr_kmax_rsurf(fates_scalar) ;
+		fates_hydr_kmax_rsurf:units = "kg water/m2 root area/Mpa/s" ;
+		fates_hydr_kmax_rsurf:long_name = "maximum conducitivity for unit root surface" ;				
 	float fates_hydr_psi0(fates_scalar) ;
 		fates_hydr_psi0:units = "MPa" ;
 		fates_hydr_psi0:long_name = "sapwood water potential at saturation" ;
@@ -881,6 +884,8 @@ data:
  fates_cwd_flig = 0.24 ;
 
  fates_fire_nignitions = 15 ;
+ 
+ fates_hydr_kmax_rsurf = 0.001;
 
  fates_hydr_psi0 = 0 ;
 
