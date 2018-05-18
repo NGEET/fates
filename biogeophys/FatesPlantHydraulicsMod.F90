@@ -924,10 +924,9 @@ contains
     csite_hydr%l_aroot_layer(:)  = 0._r8
     cPatch => currentSite%youngest_patch
     do while(associated(cPatch))
-       cCohort => cPatch%tallest
-       ccohort_hydr => cCohort%co_hydr
-
+       cCohort => cPatch%tallest     
        do while(associated(cCohort))
+          ccohort_hydr => cCohort%co_hydr
           csite_hydr%l_aroot_layer(:) = csite_hydr%l_aroot_layer(:) + ccohort_hydr%l_aroot_layer(:)*cCohort%n
           cCohort => cCohort%shorter
        enddo !cohort
