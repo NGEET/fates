@@ -89,6 +89,7 @@ contains
       type(bc_in_type),   intent(in)               :: bc_in(nsites)
 
       ! Locals
+      type(ed_site_type), pointer                  :: currentSite
       type(ed_patch_type), pointer                 :: currentpatch
       type(ed_cohort_type), pointer                :: currentcohort
       type(ed_patch_type), pointer                 :: newpatch
@@ -390,7 +391,7 @@ contains
             ipa=ipa+1
             
             ! Perform Cohort Fusion
-            call fuse_cohorts(currentpatch,bc_in(s))
+            call fuse_cohorts(sites(s), currentpatch,bc_in(s))
             call sort_cohorts(currentpatch)
             total_cohorts = total_cohorts + count_cohorts(currentpatch)
 
@@ -783,7 +784,9 @@ contains
       real(r8)                                    :: c_avgRG       ! avg radial growth (NOT USED)
       real(r8)                                    :: site_spread   ! initial guess of site spread
                                                                    ! should be quickly re-calculated
-      integer                                     :: cstatus       ! 
+      integer                                     :: cstatus       ! cohort status
+      integer,parameter                           :: rstatus = 0   ! recruit status
+
       type(ed_patch_type), pointer                :: cpatch        ! current patch pointer
       type(ed_cohort_type), pointer               :: temp_cohort   ! temporary patch (needed for allom funcs)
       integer                                     :: ipa           ! patch idex
@@ -799,6 +802,7 @@ contains
 
       real(r8), parameter :: abnormal_large_nplant = 1000.0_r8  ! Used to catch bad values
       real(r8), parameter :: abnormal_large_dbh    = 500.0_r8   ! I've never heard of a tree > 3m
+      integer,  parameter :: recruitstatus = 0
 
       read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_name, c_dbh, c_height, &
             c_pft, c_nplant, c_bdead, c_balive, c_avgRG
@@ -924,10 +928,10 @@ contains
 
       ! Since spread is a canopy level calculation, we need to provide an initial guess here.
       site_spread = 0.5_r8
-      
-      call create_cohort(cpatch, c_pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
+      call create_cohort(csite, cpatch, c_pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
             b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore, &
-            temp_cohort%laimemory,  cstatus, temp_cohort%canopy_trim, 1, site_spread, bc_in)
+            temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, 1, site_spread, bc_in)
+
       
       deallocate(temp_cohort) ! get rid of temporary cohort
 
