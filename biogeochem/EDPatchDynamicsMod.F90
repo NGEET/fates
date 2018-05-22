@@ -26,6 +26,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue
   use FatesPlantHydraulicsMod, only : InitHydrCohort
+  use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
   use EDLoggingMortalityMod, only : logging_litter_fluxes 
   use EDLoggingMortalityMod, only : logging_time
@@ -652,7 +653,7 @@ contains
           ! the second call removes for all other reasons (sparse culling must happen
           ! before fusion)
           call terminate_cohorts(currentSite, currentPatch, 1)
-          call fuse_cohorts(currentPatch, bc_in)
+          call fuse_cohorts(currentSite,currentPatch, bc_in)
           call terminate_cohorts(currentSite, currentPatch, 2)
           call sort_cohorts(currentPatch)
 
@@ -675,7 +676,7 @@ contains
        ! the second call removes for all other reasons (sparse culling must happen
        ! before fusion)
        call terminate_cohorts(currentSite, new_patch, 1)
-       call fuse_cohorts(new_patch, bc_in)
+       call fuse_cohorts(currentSite,new_patch, bc_in)
        call terminate_cohorts(currentSite, new_patch, 2)
        call sort_cohorts(new_patch)
 
@@ -863,6 +864,10 @@ contains
              bcroot = (currentCohort%bsw + currentCohort%bdead) * (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(p) )
              ! density of dead trees per m2. 
              dead_tree_density  = (currentCohort%fire_mort * currentCohort%n*patch_site_areadis/currentPatch%area) / AREA  
+             
+             if( hlm_use_planthydro == itrue ) then
+                call AccumulateMortalityWaterStorage(currentSite,currentCohort,dead_tree_density*AREA)
+             end if
 
              ! Unburned parts of dead tree pool. 
              ! Unburned leaves and roots    
@@ -1038,6 +1043,10 @@ contains
              canopy_mortality_root_litter(p) = canopy_mortality_root_litter(p) + &
                   canopy_dead*(currentCohort%br+currentCohort%bstore)
 
+             if( hlm_use_planthydro == itrue ) then
+                call AccumulateMortalityWaterStorage(currentSite,currentCohort, canopy_dead)
+             end if
+
          else 
              if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
 
@@ -1048,6 +1057,10 @@ contains
                      understorey_dead* currentCohort%bl 
                 canopy_mortality_root_litter(p)= canopy_mortality_root_litter(p)+ &
                       understorey_dead*(currentCohort%br+currentCohort%bstore)
+                
+                if( hlm_use_planthydro == itrue ) then
+                   call AccumulateMortalityWaterStorage(currentSite,currentCohort, understorey_dead)
+                end if
 
              ! FIX(SPM,040114) - clarify this comment
              ! grass is not killed by canopy mortality disturbance events.
@@ -1056,6 +1069,9 @@ contains
                 ! no-op
              endif
           endif
+
+          
+
        
 
        currentCohort => currentCohort%taller      
@@ -1460,7 +1476,7 @@ contains
                    if(fuse_flag  ==  1)then 
                       tmpptr => currentPatch%older       
                       call fuse_2_patches(csite, currentPatch, tpp)
-                      call fuse_cohorts(tpp, bc_in)
+                      call fuse_cohorts(csite,tpp, bc_in)
                       call sort_cohorts(tpp)
                       currentPatch => tmpptr
                    else

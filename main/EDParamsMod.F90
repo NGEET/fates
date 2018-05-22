@@ -76,6 +76,9 @@ module EDParamsMod
 
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
+   real(r8),protected :: hydr_kmax_rsurf         !  maximum conducitivity for unit root surface (kg water/m2 root area/Mpa/s)
+   character(len=param_string_length),parameter :: hydr_name_kmax_rsurf = "fates_hydr_kmax_rsurf"  
+   
    real(r8),protected :: hydr_psi0          !  sapwood water potential at saturation (MPa)
    character(len=param_string_length),parameter :: hydr_name_psi0 = "fates_hydr_psi0"
 
@@ -145,8 +148,9 @@ contains
     ED_val_phen_coldtemp                  = nan
     ED_val_cohort_fusion_tol              = nan
     ED_val_patch_fusion_tol               = nan
-    ED_val_canopy_closure_thresh               = nan    
-
+    ED_val_canopy_closure_thresh          = nan    
+    
+    hydr_kmax_rsurf                       = nan
     hydr_psi0                             = nan
     hydr_psicap                           = nan
 
@@ -242,6 +246,9 @@ contains
          dimension_names=dim_names)
 
     call fates_params%RegisterParameter(name=ED_name_canopy_closure_thresh, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
+	 
+    call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
     call fates_params%RegisterParameter(name=hydr_name_psi0, dimension_shape=dimension_shape_1d, &
@@ -355,6 +362,9 @@ contains
     
     call fates_params%RetreiveParameter(name=ED_name_canopy_closure_thresh, &
          data=ED_val_canopy_closure_thresh)
+
+    call fates_params%RetreiveParameter(name=hydr_name_kmax_rsurf, &
+          data=hydr_kmax_rsurf)	 
     
     call fates_params%RetreiveParameter(name=hydr_name_psi0, &
           data=hydr_psi0)
@@ -426,7 +436,8 @@ contains
         write(fates_log(),fmt0) 'ED_val_phen_coldtemp = ',ED_val_phen_coldtemp
         write(fates_log(),fmt0) 'ED_val_cohort_fusion_tol = ',ED_val_cohort_fusion_tol
         write(fates_log(),fmt0) 'ED_val_patch_fusion_tol = ',ED_val_patch_fusion_tol
-        write(fates_log(),fmt0) 'ED_val_canopy_closure_thresh = ',ED_val_canopy_closure_thresh        
+        write(fates_log(),fmt0) 'ED_val_canopy_closure_thresh = ',ED_val_canopy_closure_thresh      
+	write(fates_log(),fmt0) 'hydr_kmax_rsurf = ',hydr_kmax_rsurf  
         write(fates_log(),fmt0) 'hydr_psi0 = ',hydr_psi0
         write(fates_log(),fmt0) 'hydr_psicap = ',hydr_psicap
         write(fates_log(),fmt0) 'logging_dbhmin = ',logging_dbhmin
