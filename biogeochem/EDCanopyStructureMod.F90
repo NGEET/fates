@@ -393,7 +393,7 @@ contains
 
                      allocate(copyc)
 		     if( hlm_use_planthydro.eq.itrue ) then
-                         call InitHydrCohort(copyc)
+                         call InitHydrCohort(currentSite,copyc)
                      endif
                      call copy_cohort(currentCohort, copyc) !
 
@@ -721,7 +721,7 @@ contains
                   if(cc_gain < currentCohort%c_area)then
                      allocate(copyc)
 		     if( hlm_use_planthydro.eq.itrue ) then
-                         call InitHydrCohort(copyc)
+                         call InitHydrCohort(CurrentSite,copyc)
                      endif
                      
                      call copy_cohort(currentCohort, copyc) !makes an identical copy...

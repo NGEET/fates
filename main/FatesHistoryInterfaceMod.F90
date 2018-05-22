@@ -2408,7 +2408,6 @@ end subroutine flush_hvars
                                      AREA
 
     use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
-    use FatesHydraulicsMemMod, only : nlevsoi_hyd
     use EDTypesMod           , only : maxpft
 
     
@@ -2443,6 +2442,17 @@ end subroutine flush_hvars
 
     real(r8), parameter :: daysecs = 86400.0_r8 ! What modeler doesn't recognize 86400?
     real(r8), parameter :: yeardays = 365.0_r8  ! Should this be 365.25?
+
+    logical :: layer1_present
+    logical :: layer2_present
+    logical :: layer3_present
+    logical :: layer4_present
+    logical :: layer5_present
+    logical :: layer6_present
+    logical :: layer7_present
+    logical :: layer8_present
+    logical :: layer9_present
+    logical :: layer10_present
     
     if(hlm_use_planthydro.eq.ifalse) return
 
@@ -2489,6 +2499,69 @@ end subroutine flush_hvars
                                    ! factors for cohort mean propoerties
                                    ! This is actually used as a check
                                    ! on hio_nplant_si_scpf
+
+
+         ! Determine which hydraulic soil layers are present
+         if( sites(s)%si_hydr%nlevsoi_hyd >=1 ) then
+            layer1_present = .true.
+         else
+            layer1_present = .false.
+         end if
+         ! Determine which hydraulic soil layers are present
+         if( sites(s)%si_hydr%nlevsoi_hyd >=2 ) then
+            layer2_present = .true.
+         else
+            layer2_present = .false.
+         end if
+         ! Determine which hydraulic soil layers are present
+         if( sites(s)%si_hydr%nlevsoi_hyd >=3 ) then
+            layer3_present = .true.
+         else
+            layer3_present = .false.
+         end if
+         ! Determine which hydraulic soil layers are present
+         if( sites(s)%si_hydr%nlevsoi_hyd >=4 ) then
+            layer4_present = .true.
+         else
+            layer4_present = .false.
+         end if
+         ! Determine which hydraulic soil layers are present
+         if( sites(s)%si_hydr%nlevsoi_hyd >=5 ) then
+            layer5_present = .true.
+         else
+            layer5_present = .false.
+         end if
+         ! Determine which hydraulic soil layers are present
+         if( sites(s)%si_hydr%nlevsoi_hyd >=6 ) then
+            layer6_present = .true.
+         else
+            layer6_present = .false.
+         end if
+         ! Determine which hydraulic soil layers are present
+         if( sites(s)%si_hydr%nlevsoi_hyd >=7 ) then
+            layer7_present = .true.
+         else
+            layer7_present = .false.
+         end if
+         ! Determine which hydraulic soil layers are present
+         if( sites(s)%si_hydr%nlevsoi_hyd >=8 ) then
+            layer8_present = .true.
+         else
+            layer8_present = .false.
+         end if
+         ! Determine which hydraulic soil layers are present
+         if( sites(s)%si_hydr%nlevsoi_hyd >=9 ) then
+            layer9_present = .true.
+         else
+            layer9_present = .false.
+         end if
+         ! Determine which hydraulic soil layers are present
+         if( sites(s)%si_hydr%nlevsoi_hyd >=10 ) then
+            layer10_present = .true.
+         else
+            layer10_present = .false.
+         end if
+
 
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
@@ -2545,37 +2618,49 @@ end subroutine flush_hvars
                   hio_rootuptake_scpf(io_si,iscpf) = hio_rootuptake_scpf(io_si,iscpf) + &
                         ccohort_hydr%rootuptake * number_fraction_rate       ! [kg/indiv/s]
                   
-                  if(nlevsoi_hyd == 10) then
+
+                  ! Not sure how to simplify this
+                  ! All of these if's inside a cohort loop is not good....
+                  
+                  if (layer1_present)then
                      hio_rootuptake01_scpf(io_si,iscpf) = hio_rootuptake01_scpf(io_si,iscpf) + &
                            ccohort_hydr%rootuptake01 * number_fraction_rate   ! [kg/indiv/s]
-
+                  end if
+                  if (layer2_present) then
                      hio_rootuptake02_scpf(io_si,iscpf) = hio_rootuptake02_scpf(io_si,iscpf) + &
                            ccohort_hydr%rootuptake02 * number_fraction_rate     ! [kg/indiv/s]
-                     
+                  end if
+                  if (layer3_present) then
                      hio_rootuptake03_scpf(io_si,iscpf) = hio_rootuptake03_scpf(io_si,iscpf) + &
                            ccohort_hydr%rootuptake03 * number_fraction_rate     ! [kg/indiv/s]
-                     
+                  end if
+                  if (layer4_present) then
                      hio_rootuptake04_scpf(io_si,iscpf) = hio_rootuptake04_scpf(io_si,iscpf) + &
                            ccohort_hydr%rootuptake04 * number_fraction_rate     ! [kg/indiv/s]
-
+                  end if
+                  if (layer5_present) then
                      hio_rootuptake05_scpf(io_si,iscpf) = hio_rootuptake05_scpf(io_si,iscpf) + &
                            ccohort_hydr%rootuptake05 * number_fraction_rate     ! [kg/indiv/s]
-                     
+                  end if
+                  if (layer6_present) then
                      hio_rootuptake06_scpf(io_si,iscpf) = hio_rootuptake06_scpf(io_si,iscpf) + &
                            ccohort_hydr%rootuptake06 * number_fraction_rate     ! [kg/indiv/s]
-                     
+                  end if
+                  if (layer7_present) then
                      hio_rootuptake07_scpf(io_si,iscpf) = hio_rootuptake07_scpf(io_si,iscpf) + &
                              ccohort_hydr%rootuptake07 * number_fraction_rate    ! [kg/indiv/s]
-                     
+                  end if
+                  if (layer8_present) then
                      hio_rootuptake08_scpf(io_si,iscpf) = hio_rootuptake08_scpf(io_si,iscpf) + &
                            ccohort_hydr%rootuptake08 * number_fraction_rate     ! [kg/indiv/s]
-                     
+                  end if
+                  if (layer9_present) then
                      hio_rootuptake09_scpf(io_si,iscpf) = hio_rootuptake09_scpf(io_si,iscpf) + &
-                           ccohort_hydr%rootuptake09 * number_fraction_rate    ! [kg/indiv/s] 
-                     
+                           ccohort_hydr%rootuptake09 * number_fraction_rate     ! [kg/indiv/s] 
+                  end if
+                  if (layer10_present) then
                      hio_rootuptake10_scpf(io_si,iscpf) = hio_rootuptake10_scpf(io_si,iscpf) + &
                            ccohort_hydr%rootuptake10 * number_fraction_rate     ! [kg/indiv/s]
-                     
                   end if
                   
                   hio_sapflow_scpf(io_si,iscpf)         = hio_sapflow_scpf(io_si,iscpf)  + &

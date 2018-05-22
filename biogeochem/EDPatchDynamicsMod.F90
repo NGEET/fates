@@ -378,7 +378,7 @@ contains
           do while(associated(currentCohort))       
 
              allocate(nc)             
-             if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(nc)
+             if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,nc)
              call zero_cohort(nc)
 
              ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort
