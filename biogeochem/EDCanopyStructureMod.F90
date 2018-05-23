@@ -930,6 +930,10 @@ contains
        do while(associated(currentPatch))
           
           ! Calculate rooting depth fractions for the patch x pft
+          ! Note that we are calling for the root fractions in the hydrologic context.
+          ! See explanation in FatesAllometryMod.  In other locations, this
+          ! function is called to return the profile of biomass as used for litter
+
           do ft = 1, numpft
              call set_root_fraction(currentPatch%rootfr_ft(ft,1:bc_in(s)%nlevsoil), ft, &
                   bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1), &
