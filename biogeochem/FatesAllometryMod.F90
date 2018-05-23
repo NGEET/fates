@@ -1818,8 +1818,14 @@ contains
     ! PROFILE SWAPPING FLAGS.  OR IF THERE IS NO DEMAND< LEAVE AS IS.
     !
     !
-    ! Two context exist 'hydraulic' and 'biomass'
-    ! These two contexts are allowed to have different profiles
+    ! Two context exist 'hydraulic' and 'biomass'.  This allows us to
+    ! allow different profiles for how water is drawn from the soil
+    ! and different profiles to define the biomass for litter flux.
+    ! These two context can currently choose 1 of the following three
+    ! methods of defining the profile: 1) A 1 parameter exponential, 2)
+    ! a beta profile defined by Jackson et al. and 3) a 2 parameter
+    ! exponential.
+    ! All methods return a normalized profile.
 
     integer, parameter :: exponential_1p_profile_type = 1
     integer, parameter :: jackson_beta_profile_type   = 2
