@@ -6,6 +6,7 @@ module EDCanopyStructureMod
   ! =====================================================================================
 
   use FatesConstantsMod     , only : r8 => fates_r8
+  use FatesConstantsMod     , only : itrue, ifalse
   use FatesGlobals          , only : fates_log
   use EDPftvarcon           , only : EDPftvarcon_inst
   use FatesAllometryMod     , only : carea_allom
@@ -18,8 +19,9 @@ module EDCanopyStructureMod
   use EDtypesMod            , only : AREA
   use FatesGlobals          , only : endrun => fates_endrun
   use FatesInterfaceMod     , only : hlm_days_per_year
+  use FatesInterfaceMod     , only : hlm_use_planthydro
   use FatesInterfaceMod     , only : numpft
-
+  use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort
 
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -172,7 +174,7 @@ contains
             ! Remove cohorts that are incredibly sparse
             call terminate_cohorts(currentSite, currentPatch, 1)
             
-            call fuse_cohorts(currentPatch, bc_in)
+            call fuse_cohorts(currentSite, currentPatch, bc_in)
             
             ! Remove cohorts for various other reasons
             call terminate_cohorts(currentSite, currentPatch, 2)
@@ -196,7 +198,7 @@ contains
                ! Remove cohorts that are incredibly sparse
                call terminate_cohorts(currentSite, currentPatch, 1)
                
-               call fuse_cohorts(currentPatch, bc_in)
+               call fuse_cohorts(currentSite, currentPatch, bc_in)
                
                ! Remove cohorts for various other reasons
                call terminate_cohorts(currentSite, currentPatch, 2)
@@ -390,6 +392,9 @@ contains
                      ! otherwise currentPatch%spread(i_lyr+1) will be higher and the area will change...!!! 
 
                      allocate(copyc)
+		     if( hlm_use_planthydro.eq.itrue ) then
+                         call InitHydrCohort(copyc)
+                     endif
                      call copy_cohort(currentCohort, copyc) !
 
                      newarea = currentCohort%c_area - cc_loss
@@ -716,6 +721,9 @@ contains
                   !-----------Split and copy boundary cohort-----------------!
                   if(cc_gain < currentCohort%c_area)then
                      allocate(copyc)
+		     if( hlm_use_planthydro.eq.itrue ) then
+                         call InitHydrCohort(copyc)
+                     endif
                      
                      call copy_cohort(currentCohort, copyc) !makes an identical copy...
                      ! n.b this needs to happen BEFORE the cohort goes into the new layer, otherwise currentPatch
@@ -1589,9 +1597,13 @@ contains
         if(abs(total_patch_area-1.0_r8)>1e-9)then
            write(fates_log(),*) 'total area is wrong in update_hlm_dynamics',total_patch_area
         endif
-        
 
      end do
+
+     ! If hydraulics is turned on, update the amount of water bound in vegetation
+     if (hlm_use_planthydro.eq.itrue) then
+        call UpdateH2OVeg(nsites,sites,bc_out)
+     end if
 
 
   end subroutine update_hlm_dynamics
