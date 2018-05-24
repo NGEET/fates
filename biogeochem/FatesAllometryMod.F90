@@ -120,9 +120,18 @@ module FatesAllometryMod
   character(len=*), parameter :: sourcefile = __FILE__
 
   
-  ! These are public contexts that other routines
-  ! should pass as arguments to the generic root profile
-  ! wrapper.
+  ! The code will call the wrapper routine "set_root_fraction"
+  ! in at least two different context.  In one context it will query
+  ! set_root_fraction to describe the depth profile of hydraulicly
+  ! active roots.  In the other context, it will ask the wrapper
+  ! to define the profile of roots as litter.  We allow these
+  ! two contexts to differ.  While not fully implemented, the use
+  ! will have control parameters to choose from different relationships
+  ! in these two contexts.  The calling function, therefore
+  ! has to tell the wrapper function which context (water or biomass)
+  ! is being querried.  So that we don't have to do messy string
+  ! parsing, we have two pre-defined flags.
+
   integer, parameter, public :: i_hydro_rootprof_context  = 1
   integer, parameter, public :: i_biomass_rootprof_context = 2
 
@@ -1809,8 +1818,14 @@ contains
     ! PROFILE SWAPPING FLAGS.  OR IF THERE IS NO DEMAND< LEAVE AS IS.
     !
     !
-    ! Two context exist 'hydraulic' and 'biomass'
-    ! These two contexts are allowed to have different profiles
+    ! Two context exist 'hydraulic' and 'biomass'.  This allows us to
+    ! allow different profiles for how water is drawn from the soil
+    ! and different profiles to define the biomass for litter flux.
+    ! These two context can currently choose 1 of the following three
+    ! methods of defining the profile: 1) A 1 parameter exponential, 2)
+    ! a beta profile defined by Jackson et al. and 3) a 2 parameter
+    ! exponential.
+    ! All methods return a normalized profile.
 
     integer, parameter :: exponential_1p_profile_type = 1
     integer, parameter :: jackson_beta_profile_type   = 2
