@@ -61,7 +61,6 @@ module FatesPlantHydraulicsMod
    use FatesHydraulicsMemMod, only: n_porous_media
    use FatesHydraulicsMemMod, only: nshell
    use FatesHydraulicsMemMod, only: n_hypool_ag
-   use FatesHydraulicsMemMod, only: n_hypool_troot
    use FatesHydraulicsMemMod, only: porous_media
    use FatesHydraulicsMemMod, only: cap_slp
    use FatesHydraulicsMemMod, only: cap_int
@@ -311,12 +310,13 @@ contains
     real(r8) :: dz_node1_nodekplus1          ! cumulative distance between canopy node and node k + 1                [m]
     real(r8) :: dz_node1_lowerk              ! cumulative distance between canopy node and upper boundary of node k  [m]
     integer  :: nlevsoi_hyd                  ! Number of soil hydraulic layers
+    integer  :: nlevsoil                     ! Number of total soil layers
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
     !-----------------------------------------------------------------------
     
 
-    nlevsoi_hyd = currentSite%si_hydr%nlevsoi_hyd
-
+    nlevsoi_hyd                = currentSite%si_hydr%nlevsoi_hyd
+    nlevsoil                   = bc_in%nlevsoil
     cCohort                    => cc_p
     ccohort_hydr               => cc_p%co_hydr
     cPatch                     => cCohort%patchptr
@@ -382,7 +382,8 @@ contains
      ! TRANSPORTING ROOT DEPTH & VOLUME
      !in special case where n_hypool_troot = 1, the node depth of the single troot pool
      !is the depth at which 50% total root distribution is attained
-     dcumul_rf                  = 1._r8/n_hypool_troot
+     dcumul_rf                  = 1._r8/dble(n_hypool_troot)
+
      do k=1,n_hypool_troot
 	cumul_rf                = dcumul_rf*k
 	call bisect_rootfr(roota, rootb, 0._r8, 1.E10_r8, &
@@ -410,7 +411,12 @@ contains
 
      ! ABSORBING ROOT DEPTH, LENGTH & VOLUME
 
-     ccohort_hydr%z_node_aroot(:)    = -bc_in%z_sisl(:)
+     if ( nlevsoi_hyd == 1) then
+        ccohort_hydr%z_node_aroot(nlevsoi_hyd)   = -bc_in%z_sisl(nlevsoi_hyd)
+     else
+        ccohort_hydr%z_node_aroot(1:nlevsoi_hyd) = -bc_in%z_sisl(1:nlevsoi_hyd)
+     end if
+
      ccohort_hydr%l_aroot_tot        = cCohort%br*C2B*EDPftvarcon_inst%hydr_srl(FT)
      !ccohort_hydr%v_aroot_tot       = cCohort%br/EDecophyscon%ccontent(FT)/EDecophyscon%rootdens(FT)
      ccohort_hydr%v_aroot_tot        = pi_const*(EDPftvarcon_inst%hydr_rs2(FT)**2._r8)*ccohort_hydr%l_aroot_tot
@@ -433,7 +439,7 @@ contains
 	end do
      end if
      if(nlevsoi_hyd == 1) then
-	ccohort_hydr%z_node_troot(:)    = ccohort_hydr%z_node_aroot(1)
+	ccohort_hydr%z_node_troot(:)    = ccohort_hydr%z_node_aroot(nlevsoi_hyd)
      end if
 
      ! MAXIMUM (SIZE-DEPENDENT) HYDRAULIC CONDUCTANCES
@@ -786,7 +792,7 @@ contains
            
         end do
         site_hydr%l_aroot_layer(1:site_hydr%nlevsoi_hyd) = 0.0_r8
-
+        
      end do
 
      ! 
@@ -929,10 +935,13 @@ contains
                                                                    ! (kg water/m2 root area/Mpa/s)
                                                                    ! 1.e-5_r8 from Rudinger et al 1994             	
     real(r8)                       :: kmax_root_surf_total         !maximum conducitivity for total root surface(kg water/Mpa/s)
-    real(r8)                       :: kmax_soil_total              !maximum conducitivity for total root surface(kg water/Mpa/s)						  
+    real(r8)                       :: kmax_soil_total              !maximum conducitivity for total root surface(kg water/Mpa/s)
+    integer                        :: nlevsoi_hyd	  
+
     !-----------------------------------------------------------------------
     
     csite_hydr => currentSite%si_hydr
+    nlevsoi_hyd = csite_hydr%nlevsoi_hyd
 
     csite_hydr%l_aroot_layer_init(:)  = csite_hydr%l_aroot_layer(:)
     csite_hydr%r_node_shell_init(:,:) = csite_hydr%r_node_shell(:,:)
@@ -954,14 +963,14 @@ contains
     csite_hydr%l_aroot_1D = sum( csite_hydr%l_aroot_layer(:))
     
     ! update outer radii of column-level rhizosphere shells (same across patches and cohorts)
-    do j = 1,csite_hydr%nlevsoi_hyd
+    do j = 1,nlevsoi_hyd
        ! proceed only if l_aroot_coh has changed
        if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
           call shellGeom( csite_hydr%l_aroot_layer(j), csite_hydr%rs1(j), AREA, bc_in%dz_sisl(j), &
                 csite_hydr%r_out_shell(j,:), csite_hydr%r_node_shell(j,:),csite_hydr%v_shell(j,:))
        end if !has l_aroot_layer changed?
     enddo
-    call shellGeom( csite_hydr%l_aroot_1D, csite_hydr%rs1(1), AREA, sum(bc_in%dz_sisl(1:csite_hydr%nlevsoi_hyd)), &
+    call shellGeom( csite_hydr%l_aroot_1D, csite_hydr%rs1(1), AREA, sum(bc_in%dz_sisl(1:nlevsoi_hyd)), &
           csite_hydr%r_out_shell_1D(:), csite_hydr%r_node_shell_1D(:), csite_hydr%v_shell_1D(:))
     
     do j = 1,csite_hydr%nlevsoi_hyd
@@ -1353,7 +1362,7 @@ end subroutine updateSizeDepRhizHydStates
           
           if(csite_hydr%nlevsoi_hyd == 1) then
              dwat_kgm2 = bc_in(s)%h2o_liq_sisl(bc_in(s)%nlevsoil) - csite_hydr%h2osoi_liq_prev(csite_hydr%nlevsoi_hyd)
-          else if(csite_hydr%nlevsoi_hyd == bc_in(s)%nlevsoil ) then
+          else    !  if(csite_hydr%nlevsoi_hyd == bc_in(s)%nlevsoil ) then
              dwat_kgm2 = bc_in(s)%h2o_liq_sisl(j) - csite_hydr%h2osoi_liq_prev(j)
           end if
 
@@ -1421,7 +1430,7 @@ end subroutine updateSizeDepRhizHydStates
        enddo
        
        ! balance check
-       if(csite_hydr%nlevsoi_hyd == bc_in(s)%nlevsoil) then
+       if(csite_hydr%nlevsoi_hyd .ne. 1) then
           do j = 1,csite_hydr%nlevsoi_hyd
              errh2o(j) = sum(h2osoi_liq_shell(j,:))/AREA - bc_in(s)%h2o_liq_sisl(j)
              
@@ -1435,7 +1444,7 @@ end subroutine updateSizeDepRhizHydStates
                 end if
              end if
           enddo
-       else if(csite_hydr%nlevsoi_hyd == 1) then
+       else
           errh2o(csite_hydr%nlevsoi_hyd) = sum(h2osoi_liq_shell(csite_hydr%nlevsoi_hyd,:))/AREA - sum( bc_in(s)%h2o_liq_sisl(:) )
        end if
        
