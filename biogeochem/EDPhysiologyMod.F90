@@ -73,6 +73,7 @@ module EDPhysiologyMod
   private :: seed_decay
   private :: seed_germination
   public :: flux_into_litter_pools
+  public :: decay_coeff_kn
 
 
   logical, parameter :: DEBUG  = .false. ! local debug flag
@@ -177,6 +178,12 @@ contains
     real(r8) :: tar_bl     ! target leaf biomass       (leaves flushed, trimmed)
     real(r8) :: tar_bfr    ! target fine-root biomass  (leaves flushed, trimmed)
     real(r8) :: bfr_per_bleaf ! ratio of fine root per leaf biomass
+    real(r8) :: sla_levleaf ! sla at leaf level z
+    real(r8) :: nscaler_levleaf ! nscaler value at leaf level z
+    integer  :: cl			! canopy layer index
+    real(r8) :: laican      ! canopy sum of lai_z
+    real(r8) :: vai			! leaf and stem area in this layer
+    real(r8) :: kn			! nitrogen decay coefficient
 
     !----------------------------------------------------------------------
 
@@ -206,35 +213,65 @@ contains
              bfr_per_bleaf = tar_bfr/tar_bl
           endif
 
+          ! Identify current canopy layer (cl)
+          cl = currentCohort%canopy_layer
+          
+          ! Calculate the lai+sai of overlying canopy layers (laican)
+          if (cl==1) then !are we in the top canopy layer or a shaded layer?
+               laican = 0._r8
+          else
+               laican = sum(currentPatch%canopy_layer_tai(1:cl-1)) 
+          end if
+
+
           !Leaf cost vs netuptake for each leaf layer. 
           do z = 1,nlevleaf
-             if (currentCohort%year_net_uptake(z) /= 999._r8)then !there was activity this year in this leaf layer. 
+
+             ! Vegetation area index
+             vai = (currentPatch%elai_profile(cl,ipft,z)+currentPatch%esai_profile(cl,ipft,z))  
+             if (z == 1) then
+                laican = laican + 0.5_r8 * vai
+             else
+                laican = laican + 0.5_r8 * (currentPatch%elai_profile(cl,ipft,z-1)+ &
+                     currentPatch%esai_profile(cl,ipft,z-1)+vai)
+             end if           
+             
+             if (currentCohort%year_net_uptake(z) /= 999._r8)then !there was activity this year in this leaf layer.
+             
+                ! Scale for leaf nitrogen profile
+                kn = decay_coeff_kn(ipft)
+                ! Nscaler value at leaf level z
+                nscaler_levleaf = exp(-kn * laican)
+                ! Sla value at leaf level z after nitrogen profile scaling
+                sla_levleaf = EDPftvarcon_inst%slatop(ipft)/nscaler_levleaf                                
+              
                 !Leaf Cost kgC/m2/year-1
                 !decidous costs. 
                 if (EDPftvarcon_inst%season_decid(ipft) == 1.or. &
                      EDPftvarcon_inst%stress_decid(ipft) == 1)then 
 
-
-                   currentCohort%leaf_cost =  1._r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8)
+				   ! Leaf cost at leaf level z accounting for sla profile
+                   currentCohort%leaf_cost =  1._r8/(sla_levleaf*1000.0_r8)
 
                    if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
                       ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
                       ! to the leaf increment; otherwise do not.
                       currentCohort%leaf_cost = currentCohort%leaf_cost + &
-                           1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * &
+                           1.0_r8/(sla_levleaf*1000.0_r8) * &
                            bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
                    endif
 
                    currentCohort%leaf_cost = currentCohort%leaf_cost * &
                          (EDPftvarcon_inst%grperc(ipft) + 1._r8)
                 else !evergreen costs
-                   currentCohort%leaf_cost = 1.0_r8/(EDPftvarcon_inst%slatop(ipft)* &
+                   ! Leaf cost at leaf level z accounting for sla profile
+                   currentCohort%leaf_cost = 1.0_r8/(sla_levleaf* &
                         EDPftvarcon_inst%leaf_long(ipft)*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
                    if ( int(EDPftvarcon_inst%allom_fmode(ipft)) .eq. 1 ) then
                       ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
                       ! to the leaf increment; otherwise do not.
                       currentCohort%leaf_cost = currentCohort%leaf_cost + &
-                           1.0_r8/(EDPftvarcon_inst%slatop(ipft)*1000.0_r8) * &
+                           1.0_r8/(sla_levleaf*1000.0_r8) * &
                            bfr_per_bleaf / EDPftvarcon_inst%root_long(ipft)
                    endif
                    currentCohort%leaf_cost = currentCohort%leaf_cost * &
@@ -2379,5 +2416,28 @@ contains
         ! write(fates_log(),*)'cdk croot_prof: ', croot_prof
 
     end subroutine flux_into_litter_pools
+
+    
+    real(r8) function decay_coeff_kn(pft)
+    
+      ! ============================================================================
+      ! Decay coefficient (kn) is a function of vcmax25top for each pft.
+      ! ============================================================================
+
+      !ARGUMENTS
+      integer, intent(in) :: pft
+
+      !LOCAL VARIABLES
+      ! -----------------------------------------------------------------------------------
+
+      ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 used
+      ! kn = 0.11. Here, we derive kn from vcmax25 as in Lloyd et al 
+      ! (2010) Biogeosciences, 7, 1833-1859
+	
+      decay_coeff_kn = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(pft) - 2.43_r8)
+
+      return
+
+    end function decay_coeff_kn    
 
 end module EDPhysiologyMod

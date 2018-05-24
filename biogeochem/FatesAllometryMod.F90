@@ -522,12 +522,16 @@ contains
 
   ! =====================================================================================
   
-  real(r8) function tree_lai( bl, status_coh, pft, c_area, n )
+  real(r8) function tree_lai( bl, status_coh, pft, c_area, n, currenPatch, currentCohort )
 
     ! ============================================================================
     !  LAI of individual trees is a function of the total leaf area and the total canopy area.   
     ! ============================================================================
-
+	! !ARGUMENTS
+	type (ed_patch_type) , intent(in) :: currentPatch
+	type (ed_cohort_type), intent(in) :: currentCohort
+	
+	! !LOCAL VARIABLES:
     real(r8), intent(in) :: bl            ! plant leaf biomass [kg]     
     integer, intent(in)  :: status_coh    ! growth status of plant  (2 = leaves on , 1 = leaves off)
     integer, intent(in)  :: pft
@@ -536,6 +540,13 @@ contains
 
     real(r8) :: leafc_per_unitarea ! KgC of leaf per m2 area of ground.
     real(r8) :: slat               ! the sla of the top leaf layer. m2/kgC
+    integer  :: cl 				   ! canopy layer index
+    real(r8) :: laican 			   ! lai + sai of canopy layer overlying this tree
+    real(r8) :: tai_to_lai 		   ! ratio of total area index (ie. sai + lai) to lai for individual tree
+    real(r8) :: kn 				   ! coefficient for exponential decay of 1/sla and vcmax with canopy depth
+
+    !----------------------------------------------------------------------
+
 
     if( bl  <  0._r8 .or. pft  ==  0 ) then
        write(fates_log(),*) 'problem in treelai',bl,pft
@@ -543,8 +554,27 @@ contains
 
     slat = g_per_kg * EDPftvarcon_inst%slatop(pft) ! m2/g to m2/kg
     leafc_per_unitarea = bl/(c_area/n) !KgC/m2
+    
     if(leafc_per_unitarea > 0.0_r8)then
-       tree_lai = leafc_per_unitarea * slat  !kg/m2 * m2/kg = unitless LAI 
+    
+       ! Laican = LAI + SAI of overlying canopy layer
+       cl = currentCohort%canopy_layer
+       if (cl==1) then ! are we in the top canopy layer?
+           laican = 0._r8
+       else
+           laican = sum(currentPatch%canopy_layer_tai(1:cl-1))
+       end if
+       
+       ! Ratio of total area index (ie. lai + sai) to lai for individual tree        
+       tai_to_lai = 1.0_r8 + (EDPftvarcon_inst%allom_sai_scaler(pft) / EDPftvarcon_inst%slatop(pft))
+       ! Coefficient for 1/sla profile
+       kn = exp(0.00963_r8 * EDPftvarcon_inst%vcmax25top(pft) - 2.43_r8)
+       ! Tree_lai (kg/m2 * m2/kg) = unitless LAI
+       ! Following equation derived by setting 
+       ! leafc_per_unitarea = integral of [e^(-kn(tai_to_lai * tree_lai(x) + laican)) / slatop]
+       ! over x = 0 to tree_lai
+       ! Then rearranging to solve for tree_lai.
+       tree_lai = (log(1.0_r8 - kn * tai_to_lai * slat * leafc_per_unitarea) + (kn * laican)) / (-1.0_r8 * kn * tai_to_lai)
     else
        tree_lai = 0.0_r8
     endif
