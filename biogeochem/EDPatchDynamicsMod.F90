@@ -28,6 +28,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue
   use FatesPlantHydraulicsMod, only : InitHydrCohort
+  use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
   use EDLoggingMortalityMod, only : logging_litter_fluxes 
   use EDLoggingMortalityMod, only : logging_time
@@ -61,6 +62,8 @@ module EDPatchDynamicsMod
 
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
+
+  logical, parameter :: debug = .false.
 
   ! 10/30/09: Created by Rosie Fisher
   ! ============================================================================
@@ -151,7 +154,8 @@ contains
        
        currentPatch%disturbance_rates(dtype_ifall) = 0.0_r8
        currentPatch%disturbance_rates(dtype_ilog)  = 0.0_r8
-
+       currentPatch%disturbance_rates(dtype_ifire) = 0.0_r8
+       
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))   
 
@@ -652,7 +656,7 @@ contains
           ! the second call removes for all other reasons (sparse culling must happen
           ! before fusion)
           call terminate_cohorts(currentSite, currentPatch, 1)
-          call fuse_cohorts(currentPatch, bc_in)
+          call fuse_cohorts(currentSite,currentPatch, bc_in)
           call terminate_cohorts(currentSite, currentPatch, 2)
           call sort_cohorts(currentPatch)
 
@@ -675,7 +679,7 @@ contains
        ! the second call removes for all other reasons (sparse culling must happen
        ! before fusion)
        call terminate_cohorts(currentSite, new_patch, 1)
-       call fuse_cohorts(new_patch, bc_in)
+       call fuse_cohorts(currentSite,new_patch, bc_in)
        call terminate_cohorts(currentSite, new_patch, 2)
        call sort_cohorts(new_patch)
 
@@ -863,6 +867,10 @@ contains
              bcroot = (currentCohort%bsw + currentCohort%bdead) * (1.0_r8 - EDPftvarcon_inst%allom_agb_frac(p) )
              ! density of dead trees per m2. 
              dead_tree_density  = (currentCohort%fire_mort * currentCohort%n*patch_site_areadis/currentPatch%area) / AREA  
+             
+             if( hlm_use_planthydro == itrue ) then
+                call AccumulateMortalityWaterStorage(currentSite,currentCohort,dead_tree_density*AREA)
+             end if
 
              ! Unburned parts of dead tree pool. 
              ! Unburned leaves and roots    
@@ -1038,6 +1046,10 @@ contains
              canopy_mortality_root_litter(p) = canopy_mortality_root_litter(p) + &
                   canopy_dead*(currentCohort%br+currentCohort%bstore)
 
+             if( hlm_use_planthydro == itrue ) then
+                call AccumulateMortalityWaterStorage(currentSite,currentCohort, canopy_dead)
+             end if
+
          else 
              if(EDPftvarcon_inst%woody(currentCohort%pft) == 1)then
 
@@ -1048,6 +1060,10 @@ contains
                      understorey_dead* currentCohort%bl 
                 canopy_mortality_root_litter(p)= canopy_mortality_root_litter(p)+ &
                       understorey_dead*(currentCohort%br+currentCohort%bstore)
+                
+                if( hlm_use_planthydro == itrue ) then
+                   call AccumulateMortalityWaterStorage(currentSite,currentCohort, understorey_dead)
+                end if
 
              ! FIX(SPM,040114) - clarify this comment
              ! grass is not killed by canopy mortality disturbance events.
@@ -1056,6 +1072,9 @@ contains
                 ! no-op
              endif
           endif
+
+          
+
        
 
        currentCohort => currentCohort%taller      
@@ -1153,11 +1172,9 @@ contains
     new_patch%shortest => null() ! pointer to patch's shortest cohort   
     new_patch%older    => null() ! pointer to next older patch   
     new_patch%younger  => null() ! pointer to next shorter patch      
-    new_patch%siteptr  => null() ! pointer to the site that the patch is in
 
     ! assign known patch attributes 
 
-    new_patch%siteptr            => currentSite 
     new_patch%age                = age   
     new_patch%age_class          = 1
     new_patch%area               = areap 
@@ -1215,7 +1232,6 @@ contains
     currentPatch%shortest => null()         
     currentPatch%older    => null()               
     currentPatch%younger  => null()           
-    currentPatch%siteptr  => null()             
 
     currentPatch%patchno  = 999                            
 
@@ -1313,6 +1329,8 @@ contains
     currentPatch%sabs_dir(:)                = 0.0_r8
     currentPatch%sabs_dif(:)                = 0.0_r8
     currentPatch%zstar                      = 0.0_r8
+    currentPatch%c_stomata                  = 0.0_r8 ! This is calculated immediately before use
+    currentPatch%c_lblayer                  = 0.0_r8
 
   end subroutine zero_patch
 
@@ -1462,8 +1480,8 @@ contains
 
                    if(fuse_flag  ==  1)then 
                       tmpptr => currentPatch%older       
-                      call fuse_2_patches(currentPatch, tpp)
-                      call fuse_cohorts(tpp, bc_in)
+                      call fuse_2_patches(csite, currentPatch, tpp)
+                      call fuse_cohorts(csite,tpp, bc_in)
                       call sort_cohorts(tpp)
                       currentPatch => tmpptr
                    else
@@ -1509,7 +1527,7 @@ contains
 
   ! ============================================================================
 
-  subroutine fuse_2_patches(dp, rp)
+  subroutine fuse_2_patches(csite, dp, rp)
     !
     ! !DESCRIPTION:
     ! This function fuses the two patches specified in the argument.
@@ -1521,8 +1539,10 @@ contains
     use FatesSizeAgeTypeIndicesMod, only: get_age_class_index
     !
     ! !ARGUMENTS:
-    type (ed_patch_type) , intent(inout), pointer :: dp ! Donor Patch
-    type (ed_patch_type) , intent(inout), pointer :: rp ! Recipient Patch
+    type (ed_site_type), intent(inout),target :: csite  ! Current site 
+    type (ed_patch_type) , pointer :: dp                ! Donor Patch
+    type (ed_patch_type) , target, intent(inout) :: rp  ! Recipient Patch
+
     !
     ! !LOCAL VARIABLES:
     type (ed_cohort_type), pointer :: currentCohort ! Current Cohort
@@ -1533,7 +1553,6 @@ contains
     integer                        :: tnull,snull  ! are the tallest and shortest cohorts associated?
     type(ed_patch_type), pointer   :: youngerp     ! pointer to the patch younger than donor
     type(ed_patch_type), pointer   :: olderp       ! pointer to the patch older than donor
-    type(ed_site_type),  pointer   :: csite        ! pointer to the donor patch's site
     real(r8)                       :: inv_sum_area ! Inverse of the sum of the two patches areas
     !-----------------------------------------------------------------------------------------------
 
@@ -1590,7 +1609,9 @@ contains
     rp%burnt_frac_litter(:) = (dp%burnt_frac_litter(:)*dp%area + rp%burnt_frac_litter(:)*rp%area) * inv_sum_area
     rp%btran_ft(:)          = (dp%btran_ft(:)*dp%area + rp%btran_ft(:)*rp%area) * inv_sum_area
     rp%zstar                = (dp%zstar*dp%area + rp%zstar*rp%area) * inv_sum_area
-
+    rp%c_stomata            = (dp%c_stomata*dp%area + rp%c_stomata*rp%area) * inv_sum_area
+    rp%c_lblayer            = (dp%c_lblayer*dp%area + rp%c_lblayer*rp%area) * inv_sum_area
+    
     rp%area = rp%area + dp%area !THIS MUST COME AT THE END!
 
     !insert donor cohorts into recipient patch
@@ -1626,7 +1647,6 @@ contains
           rp%shortest => storesmallcohort    
 
           currentCohort%patchptr => rp
-          currentCohort%siteptr  => rp%siteptr
 
           currentCohort => nextc
 
@@ -1644,7 +1664,6 @@ contains
     ! Define some aliases for the donor patches younger and older neighbors
     ! which may or may not exist.  After we set them, we will remove the donor
     ! And then we will go about re-setting the map.
-    csite => dp%siteptr
     if(associated(dp%older))then
        olderp => dp%older
     else
@@ -1669,6 +1688,7 @@ contains
        ! to be set, and it is set as the patch older than dp.  That patch
        ! already knows it's older patch (so no need to set or change it)
        csite%youngest_patch => olderp
+       olderp%younger       => null()
     end if
 
     
@@ -1680,60 +1700,76 @@ contains
        ! to be set, and it is set as the patch younger than dp.  That patch already
        ! knows it's younger patch, no need to set
        csite%oldest_patch => youngerp
+       youngerp%older     => null()
     end if
 
 
   end subroutine fuse_2_patches
 
   ! ============================================================================
-  subroutine terminate_patches(cs_pnt)
+
+  subroutine terminate_patches(currentSite)
     !
     ! !DESCRIPTION:
     !  Terminate Patches if they  are too small                          
     !
-    ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type), target, intent(in) :: cs_pnt
+    type(ed_site_type), target, intent(inout) :: currentSite
     !
     ! !LOCAL VARIABLES:
-    type(ed_site_type),  pointer :: currentSite
-    type(ed_patch_type), pointer :: currentPatch, tmpptr
+    type(ed_patch_type), pointer :: currentPatch
+    type(ed_patch_type), pointer :: olderPatch
+    type(ed_patch_type), pointer :: youngerPatch
+
     real(r8) areatot ! variable for checking whether the total patch area is wrong. 
     !---------------------------------------------------------------------
  
-    currentSite => cs_pnt
-
-    currentPatch => currentSite%oldest_patch
-    
-    !fuse patches if one of them is very small.... 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch)) 
+       
        if(currentPatch%area <= min_patch_area)then
-          if ( currentPatch%patchno /= currentSite%youngest_patch%patchno) then
-            ! Do not force the fusion of the youngest patch to its neighbour. 
-            ! This is only really meant for very old patches. 
+          
+          if ( .not.associated(currentPatch,currentSite%youngest_patch) ) then
+             
              if(associated(currentPatch%older) )then
-                write(fates_log(),*) 'fusing to older patch because this one is too small',&
+                
+                if(debug) &
+                     write(fates_log(),*) 'fusing to older patch because this one is too small',&
                      currentPatch%area, &
                      currentPatch%older%area
-                call fuse_2_patches(currentPatch%older, currentPatch)
-                write(fates_log(),*) 'after fusion to older patch',currentPatch%area
-             else
-                write(fates_log(),*) 'fusing to younger patch because oldest one is too small',&
-                     currentPatch%area
-                tmpptr => currentPatch%younger
-                call fuse_2_patches(currentPatch, currentPatch%younger)
-                write(fates_log(),*) 'after fusion to younger patch'
-                currentPatch => tmpptr
+                
+                ! We set a pointer to this patch, because
+                ! it will be returned by the subroutine as de-referenced
+                
+                olderPatch => currentPatch%older
+                call fuse_2_patches(currentSite, olderPatch, currentPatch)
+                
+                ! The fusion process has updated the "older" pointer on currentPatch
+                ! for us.
+                
+                ! This logic checks to make sure that the younger patch is not the youngest
+                ! patch. As mentioned earlier, we try not to fuse it.
+                
+             elseif( .not. associated(currentPatch%younger,currentSite%youngest_patch) ) then
+                
+                if(debug) &
+                      write(fates_log(),*) 'fusing to younger patch because oldest one is too small', &
+                      currentPatch%area
+                
+                youngerPatch => currentPatch%younger
+                call fuse_2_patches(currentSite, youngerPatch, currentPatch)
+                
+                ! The fusion process has updated the "younger" pointer on currentPatch
+                
              endif
           endif
        endif
-
+          
        currentPatch => currentPatch%older
-
+       
     enddo
-
+    
     !check area is not exceeded
     areatot = 0._r8
     currentPatch => currentSite%oldest_patch

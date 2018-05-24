@@ -20,11 +20,8 @@ module EDParamsMod
    ! this is what the user can use for the actual values
    !
    
-   real(r8),protected :: ED_size_diagnostic_scale             ! Flag to switch between a linear and exponential
-                                                              ! scale on the plant size axis in diagnostics (NOT USED YET)
    real(r8),protected :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
    real(r8),protected :: ED_val_comp_excln
-   real(r8),protected :: ED_val_stress_mort
    real(r8),protected :: ED_val_init_litter
    real(r8),protected :: ED_val_nignitions
    real(r8),protected :: ED_val_understorey_death
@@ -50,13 +47,11 @@ module EDParamsMod
    real(r8),protected,allocatable :: ED_val_history_sizeclass_bin_edges(:)
    real(r8),protected,allocatable :: ED_val_history_ageclass_bin_edges(:)
 
-   character(len=param_string_length),parameter :: ED_name_size_diagnostic_scale = "fates_size_diagnostic_scale"
    character(len=param_string_length),parameter :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
    character(len=param_string_length),parameter :: ED_name_comp_excln = "fates_comp_excln"
-   character(len=param_string_length),parameter :: ED_name_stress_mort = "fates_stress_mort"
    character(len=param_string_length),parameter :: ED_name_init_litter = "fates_init_litter"
-   character(len=param_string_length),parameter :: ED_name_nignitions = "fates_nignitions"
-   character(len=param_string_length),parameter :: ED_name_understorey_death = "fates_understorey_death"
+   character(len=param_string_length),parameter :: ED_name_nignitions = "fates_fire_nignitions"
+   character(len=param_string_length),parameter :: ED_name_understorey_death = "fates_mort_understorey_death"
    character(len=param_string_length),parameter :: ED_name_cwd_fcel= "fates_cwd_fcel"   
    character(len=param_string_length),parameter :: ED_name_cwd_flig= "fates_cwd_flig"   
    character(len=param_string_length),parameter :: ED_name_bbopt_c3= "fates_bbopt_c3"   
@@ -81,6 +76,9 @@ module EDParamsMod
 
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
+   real(r8),protected :: hydr_kmax_rsurf         !  maximum conducitivity for unit root surface (kg water/m2 root area/Mpa/s)
+   character(len=param_string_length),parameter :: hydr_name_kmax_rsurf = "fates_hydr_kmax_rsurf"  
+   
    real(r8),protected :: hydr_psi0          !  sapwood water potential at saturation (MPa)
    character(len=param_string_length),parameter :: hydr_name_psi0 = "fates_hydr_psi0"
 
@@ -110,6 +108,8 @@ module EDParamsMod
    real(r8),protected :: logging_event_code          ! Code that options how logging events are structured 
    character(len=param_string_length),parameter :: logging_name_event_code = "fates_logging_event_code"
    
+   real(r8),protected :: logging_dbhmax_infra        ! "Tree diameter, above which infrastructure from logging does not impact damage or mortality.
+   character(len=param_string_length),parameter :: logging_name_dbhmax_infra = "fates_logging_dbhmax_infra"
    
    public :: FatesParamsInit
    public :: FatesRegisterParams
@@ -127,10 +127,8 @@ contains
 
     implicit none
 
-    ED_size_diagnostic_scale              = nan
     fates_mortality_disturbance_fraction  = nan
     ED_val_comp_excln                     = nan
-    ED_val_stress_mort                    = nan
     ED_val_init_litter                    = nan
     ED_val_nignitions                     = nan
     ED_val_understorey_death              = nan
@@ -150,8 +148,9 @@ contains
     ED_val_phen_coldtemp                  = nan
     ED_val_cohort_fusion_tol              = nan
     ED_val_patch_fusion_tol               = nan
-    ED_val_canopy_closure_thresh               = nan    
-
+    ED_val_canopy_closure_thresh          = nan    
+    
+    hydr_kmax_rsurf                       = nan
     hydr_psi0                             = nan
     hydr_psicap                           = nan
 
@@ -160,6 +159,7 @@ contains
     logging_direct_frac                   = nan
     logging_mechanical_frac               = nan
     logging_event_code                    = nan
+    logging_dbhmax_infra                  = nan
 
   end subroutine FatesParamsInit
 
@@ -182,16 +182,10 @@ contains
 
     call FatesParamsInit()
 
-    call fates_params%RegisterParameter(name=ED_name_size_diagnostic_scale, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
     call fates_params%RegisterParameter(name=ED_name_mort_disturb_frac, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
     call fates_params%RegisterParameter(name=ED_name_comp_excln, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
-    call fates_params%RegisterParameter(name=ED_name_stress_mort, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
     call fates_params%RegisterParameter(name=ED_name_init_litter, dimension_shape=dimension_shape_1d, &
@@ -253,6 +247,9 @@ contains
 
     call fates_params%RegisterParameter(name=ED_name_canopy_closure_thresh, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
+	 
+    call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
 
     call fates_params%RegisterParameter(name=hydr_name_psi0, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
@@ -278,6 +275,8 @@ contains
     call fates_params%RegisterParameter(name=logging_name_event_code, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
+    call fates_params%RegisterParameter(name=logging_name_dbhmax_infra, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names)
 
     ! non-scalar parameters
     call fates_params%RegisterParameter(name=ED_name_history_sizeclass_bin_edges, dimension_shape=dimension_shape_1d, &
@@ -298,17 +297,11 @@ contains
 
     class(fates_parameters_type), intent(inout) :: fates_params
 
-    call fates_params%RetreiveParameter(name=ED_name_size_diagnostic_scale, &
-         data=ED_size_diagnostic_scale)
-
     call fates_params%RetreiveParameter(name=ED_name_mort_disturb_frac, &
           data=fates_mortality_disturbance_fraction)
 
     call fates_params%RetreiveParameter(name=ED_name_comp_excln, &
          data=ED_val_comp_excln)
-
-    call fates_params%RetreiveParameter(name=ED_name_stress_mort, &
-         data=ED_val_stress_mort)
 
     call fates_params%RetreiveParameter(name=ED_name_init_litter, &
          data=ED_val_init_litter)
@@ -369,6 +362,9 @@ contains
     
     call fates_params%RetreiveParameter(name=ED_name_canopy_closure_thresh, &
          data=ED_val_canopy_closure_thresh)
+
+    call fates_params%RetreiveParameter(name=hydr_name_kmax_rsurf, &
+          data=hydr_kmax_rsurf)	 
     
     call fates_params%RetreiveParameter(name=hydr_name_psi0, &
           data=hydr_psi0)
@@ -394,6 +390,9 @@ contains
     call fates_params%RetreiveParameter(name=logging_name_event_code, &
           data=logging_event_code)
 
+    call fates_params%RetreiveParameter(name=logging_name_dbhmax_infra, &
+          data=logging_dbhmax_infra)
+
     ! parameters that are arrays of size defined within the params file and thus need allocating as well
     call fates_params%RetreiveParameterAllocate(name=ED_name_history_sizeclass_bin_edges, &
           data=ED_val_history_sizeclass_bin_edges)
@@ -416,10 +415,8 @@ contains
      if(debug_report .and. is_master) then
         
         write(fates_log(),*) '-----------  FATES Scalar Parameters -----------------'
-        write(fates_log(),fmt0) 'ED_size_diagnostic_scale = ',ED_size_diagnostic_scale
         write(fates_log(),fmt0) 'fates_mortality_disturbance_fraction = ',fates_mortality_disturbance_fraction
         write(fates_log(),fmt0) 'ED_val_comp_excln = ',ED_val_comp_excln
-        write(fates_log(),fmt0) 'ED_val_stress_mort = ',ED_val_stress_mort
         write(fates_log(),fmt0) 'ED_val_init_litter = ',ED_val_init_litter
         write(fates_log(),fmt0) 'ED_val_nignitions = ',ED_val_nignitions
         write(fates_log(),fmt0) 'ED_val_understorey_death = ',ED_val_understorey_death
@@ -439,7 +436,8 @@ contains
         write(fates_log(),fmt0) 'ED_val_phen_coldtemp = ',ED_val_phen_coldtemp
         write(fates_log(),fmt0) 'ED_val_cohort_fusion_tol = ',ED_val_cohort_fusion_tol
         write(fates_log(),fmt0) 'ED_val_patch_fusion_tol = ',ED_val_patch_fusion_tol
-        write(fates_log(),fmt0) 'ED_val_canopy_closure_thresh = ',ED_val_canopy_closure_thresh        
+        write(fates_log(),fmt0) 'ED_val_canopy_closure_thresh = ',ED_val_canopy_closure_thresh      
+	write(fates_log(),fmt0) 'hydr_kmax_rsurf = ',hydr_kmax_rsurf  
         write(fates_log(),fmt0) 'hydr_psi0 = ',hydr_psi0
         write(fates_log(),fmt0) 'hydr_psicap = ',hydr_psicap
         write(fates_log(),fmt0) 'logging_dbhmin = ',logging_dbhmin
@@ -448,6 +446,7 @@ contains
         write(fates_log(),fmt0) 'logging_direct_frac = ',logging_direct_frac
         write(fates_log(),fmt0) 'logging_mechanical_frac = ',logging_mechanical_frac
         write(fates_log(),fmt0) 'logging_event_code = ',logging_event_code
+        write(fates_log(),fmt0) 'logging_dbhmax_infra = ',logging_dbhmax_infra
         write(fates_log(),*) '------------------------------------------------------'
 
      end if

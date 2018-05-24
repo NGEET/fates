@@ -44,7 +44,7 @@ module EDPftvarcon
      real(r8), allocatable :: seed_rain          (:) ! seeds that come from outside the gridbox.
      real(r8), allocatable :: BB_slope           (:) ! ball berry slope parameter
      real(r8), allocatable :: root_long          (:) ! root longevity (yrs)
-     real(r8), allocatable :: clone_alloc        (:) ! fraction of carbon balance allocated to clonal reproduction.
+     real(r8), allocatable :: seed_alloc_mature  (:) ! fraction of carbon balance allocated to clonal reproduction.
      real(r8), allocatable :: seed_alloc         (:) ! fraction of carbon balance allocated to seeds.
      real(r8), allocatable :: c2b                (:) ! Carbon to biomass multiplier [kg/kgC]
      real(r8), allocatable :: woody(:)
@@ -62,14 +62,23 @@ module EDPftvarcon
      real(r8), allocatable :: fr_fcel(:)
      real(r8), allocatable :: fr_flig(:)
      real(r8), allocatable :: xl(:)
-     real(r8), allocatable :: c3psn(:)
+     real(r8), allocatable :: clumping_index(:) ! factor describing how much self-occlusion 
+                                                ! of leaf scattering elements decreases light interception
+     real(r8), allocatable :: c3psn(:)          ! index defining the photosynthetic pathway C4 = 0,  C3 = 1
      real(r8), allocatable :: vcmax25top(:)
      real(r8), allocatable :: leafcn(:)
      real(r8), allocatable :: frootcn(:)
      real(r8), allocatable :: smpso(:)
      real(r8), allocatable :: smpsc(:)
      real(r8), allocatable :: grperc(:) 
+     real(r8), allocatable :: maintresp_reduction_curvature(:)   ! curvature of MR reduction as f(carbon storage), 
+                                                                 ! 1=linear, 0=very curved
+     real(r8), allocatable :: maintresp_reduction_intercept(:)   ! intercept of MR reduction as f(carbon storage), 
+                                                                 ! 0=no throttling, 1=max throttling
      real(r8), allocatable :: bmort(:)
+     real(r8), allocatable :: mort_scalar_coldstress(:)
+     real(r8), allocatable :: mort_scalar_cstarvation(:)
+     real(r8), allocatable :: mort_scalar_hydrfailure(:)
      real(r8), allocatable :: hf_sm_threshold(:)
      real(r8), allocatable :: vcmaxha(:)
      real(r8), allocatable :: jmaxha(:)
@@ -166,7 +175,7 @@ module EDPftvarcon
      real(r8), allocatable :: hydr_fcap_node(:,:)   ! fraction of (1-resid_node) that is capillary in source
      real(r8), allocatable :: hydr_pinot_node(:,:)  ! osmotic potential at full turgor
      real(r8), allocatable :: hydr_kmax_node(:,:)   ! maximum xylem conductivity per unit conducting xylem area
-
+     
    contains
      procedure, public :: Init => EDpftconInit
      procedure, public :: Register
@@ -188,6 +197,7 @@ module EDPftvarcon
   !
   ! !PUBLIC MEMBER FUNCTIONS:
   public :: FatesReportPFTParams
+  public :: FatesCheckParams
   !-----------------------------------------------------------------------
 
 contains
@@ -262,11 +272,11 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_dbh_repro_threshold'
+    name = 'fates_seed_dbh_repro_threshold'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_freezetol'
+    name = 'fates_mort_freezetol'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -274,11 +284,11 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hgt_min'
+    name = 'fates_recruit_hgt_min'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_cushion'
+    name = 'fates_alloc_storage_cushion'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -286,19 +296,19 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_crown_depth_frac'
+    name = 'fates_fire_crown_depth_frac'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_bark_scaler'
+    name = 'fates_fire_bark_scaler'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_crown_kill'
+    name = 'fates_fire_crown_kill'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_initd'
+    name = 'fates_recruit_initd'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -306,7 +316,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_BB_slope'
+    name = 'fates_leaf_BB_slope'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -314,7 +324,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_clone_alloc'
+    name = 'fates_seed_alloc_mature'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -330,15 +340,15 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_stress_decid'
+    name = 'fates_phen_stress_decid'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_season_decid'
+    name = 'fates_phen_season_decid'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_evergreen'
+    name = 'fates_phen_evergreen'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -346,7 +356,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_slatop'
+    name = 'fates_leaf_slatop'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -386,23 +396,28 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_xl'
+    name = 'fates_leaf_xl'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_c3psn'
+
+    name = 'fates_leaf_clumping_index'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_vcmax25top'
+    name = 'fates_leaf_c3psn'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_leafcn'
+    name = 'fates_leaf_vcmax25top'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_frootcn'
+    name = 'fates_leaf_cn_ratio'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_froot_cn_ratio'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -415,6 +430,14 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_grperc'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_maintresp_reduction_curvature'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_maintresp_reduction_intercept'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -438,7 +461,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
        
-    name = 'fates_alpha_SH'
+    name = 'fates_fire_alpha_SH'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -462,10 +485,9 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-! THIS VARIABLE IS NOT YET IN THE DEFAULT PARAMETER FILE    
-!    name = 'fates_allom_stmode'
-!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-!          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    name = 'fates_allom_stmode'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_allom_cmode'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -567,51 +589,63 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
-    name = 'fates_bmort'
+    name = 'fates_mort_bmort'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hf_sm_threshold'
+    name = 'fates_mort_scalar_coldstress'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_vcmaxha'
+    name = 'fates_mort_scalar_cstarvation'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_jmaxha'
+    name = 'fates_mort_scalar_hydrfailure'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_tpuha'
+    name = 'fates_mort_hf_sm_threshold'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_vcmaxhd'
+    name = 'fates_leaf_vcmaxha'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_jmaxhd'
+    name = 'fates_leaf_jmaxha'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_tpuhd'
+    name = 'fates_leaf_tpuha'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_vcmaxse'
+    name = 'fates_leaf_vcmaxhd'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_jmaxse'
+    name = 'fates_leaf_jmaxhd'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_tpuse'
+    name = 'fates_leaf_tpuhd'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_germination_timescale'
+    name = 'fates_leaf_vcmaxse'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_leaf_jmaxse'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_leaf_tpuse'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_seed_germination_timescale'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -631,7 +665,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
-    name = 'fates_dleaf'
+    name = 'fates_leaf_diameter'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -667,11 +701,11 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%pft_used)
 
-    name = 'fates_dbh_repro_threshold'
+    name = 'fates_seed_dbh_repro_threshold'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%dbh_repro_threshold)
 
-    name = 'fates_freezetol'
+    name = 'fates_mort_freezetol'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%freezetol)
 
@@ -679,11 +713,11 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%wood_density)
 
-    name = 'fates_hgt_min'
+    name = 'fates_recruit_hgt_min'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%hgt_min)
 
-    name = 'fates_cushion'
+    name = 'fates_alloc_storage_cushion'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%cushion)
 
@@ -691,19 +725,19 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%leaf_stor_priority)
 
-    name = 'fates_crown_depth_frac'
+    name = 'fates_fire_crown_depth_frac'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%crown)
 
-    name = 'fates_bark_scaler'
+    name = 'fates_fire_bark_scaler'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%bark_scaler)
 
-    name = 'fates_crown_kill'
+    name = 'fates_fire_crown_kill'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%crown_kill)
 
-    name = 'fates_initd'
+    name = 'fates_recruit_initd'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%initd)
 
@@ -711,7 +745,7 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seed_rain)
 
-    name = 'fates_BB_slope'
+    name = 'fates_leaf_BB_slope'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%BB_slope)
 
@@ -719,9 +753,9 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%root_long)
 
-    name = 'fates_clone_alloc'
+    name = 'fates_seed_alloc_mature'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%clone_alloc)
+         data=this%seed_alloc_mature)
 
     name = 'fates_seed_alloc'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -735,19 +769,19 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%woody)
 
-    name = 'fates_stress_decid'
+    name = 'fates_phen_stress_decid'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%stress_decid)
 
-    name = 'fates_season_decid'
+    name = 'fates_phen_season_decid'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%season_decid)
 
-    name = 'fates_evergreen'
+    name = 'fates_phen_evergreen'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%evergreen)
 
-    name = 'fates_slatop'
+    name = 'fates_leaf_slatop'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%slatop)
 
@@ -787,23 +821,27 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%fr_flig)
 
-    name = 'fates_xl'
+    name = 'fates_leaf_xl'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%xl)
 
-    name = 'fates_c3psn'
+    name = 'fates_leaf_clumping_index'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%clumping_index)
+
+    name = 'fates_leaf_c3psn'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%c3psn)
 
-    name = 'fates_vcmax25top'
+    name = 'fates_leaf_vcmax25top'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%vcmax25top)
 
-    name = 'fates_leafcn'
+    name = 'fates_leaf_cn_ratio'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%leafcn)
 
-    name = 'fates_frootcn'
+    name = 'fates_froot_cn_ratio'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%frootcn)
 
@@ -818,6 +856,14 @@ contains
     name = 'fates_grperc'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%grperc)
+
+    name = 'fates_maintresp_reduction_curvature'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%maintresp_reduction_curvature)
+
+    name = 'fates_maintresp_reduction_intercept'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%maintresp_reduction_intercept)
 
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -839,7 +885,7 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%prescribed_recruitment)
 
-    name = 'fates_alpha_SH'
+    name = 'fates_fire_alpha_SH'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%fire_alpha_SH)
 
@@ -863,13 +909,9 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%allom_amode)
 
-    ! THIS PARAMETER IS NOT YET IN THE DEFAULT FILE
-    ! USE AMODE TO TEMPORARILY FILL AND ALLOCATE
-    !    name = 'fates_allom_stmode'
-    name = 'fates_allom_amode'   
+    name = 'fates_allom_stmode'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%allom_stmode)
-    this%allom_stmode(:) = 1.0_r8
 
     name = 'fates_allom_cmode'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -975,51 +1017,63 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%hydr_p50_gs)
 
-    name = 'fates_bmort'
+    name = 'fates_mort_bmort'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%bmort)
 
-    name = 'fates_hf_sm_threshold'
+    name = 'fates_mort_scalar_coldstress'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%mort_scalar_coldstress)
+
+    name = 'fates_mort_scalar_cstarvation'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%mort_scalar_cstarvation)
+
+    name = 'fates_mort_scalar_hydrfailure'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%mort_scalar_hydrfailure)
+
+    name = 'fates_mort_hf_sm_threshold'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%hf_sm_threshold)
 
-    name = 'fates_vcmaxha'
+    name = 'fates_leaf_vcmaxha'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%vcmaxha)
 
-    name = 'fates_jmaxha'
+    name = 'fates_leaf_jmaxha'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%jmaxha)
 
-    name = 'fates_tpuha'
+    name = 'fates_leaf_tpuha'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%tpuha)
 
-    name = 'fates_vcmaxhd'
+    name = 'fates_leaf_vcmaxhd'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%vcmaxhd)
 
-    name = 'fates_jmaxhd'
+    name = 'fates_leaf_jmaxhd'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%jmaxhd)
 
-    name = 'fates_tpuhd'
+    name = 'fates_leaf_tpuhd'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%tpuhd)
 
-    name = 'fates_vcmaxse'
+    name = 'fates_leaf_vcmaxse'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%vcmaxse)
 
-    name = 'fates_jmaxse'
+    name = 'fates_leaf_jmaxse'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%jmaxse)
 
-    name = 'fates_tpuse'
+    name = 'fates_leaf_tpuse'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%tpuse)
 
-    name = 'fates_germination_timescale'
+    name = 'fates_seed_germination_timescale'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%germination_timescale)
 
@@ -1039,7 +1093,7 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%trim_inc)
 
-    name = 'fates_dleaf'
+    name = 'fates_leaf_diameter'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%dleaf)
 
@@ -1426,7 +1480,7 @@ contains
         write(fates_log(),fmt0) 'seed_rain = ',EDPftvarcon_inst%seed_rain
         write(fates_log(),fmt0) 'BB_slope = ',EDPftvarcon_inst%BB_slope
         write(fates_log(),fmt0) 'root_long = ',EDPftvarcon_inst%root_long
-        write(fates_log(),fmt0) 'clone_alloc = ',EDPftvarcon_inst%clone_alloc
+        write(fates_log(),fmt0) 'seed_alloc_mature = ',EDPftvarcon_inst%seed_alloc_mature
         write(fates_log(),fmt0) 'seed_alloc = ',EDPftvarcon_inst%seed_alloc
         write(fates_log(),fmt0) 'woody = ',EDPftvarcon_inst%woody
         write(fates_log(),fmt0) 'stress_decid = ',EDPftvarcon_inst%stress_decid
@@ -1443,6 +1497,7 @@ contains
         write(fates_log(),fmt0) 'fr_fcel = ',EDPftvarcon_inst%fr_fcel
         write(fates_log(),fmt0) 'fr_flig = ',EDPftvarcon_inst%fr_flig
         write(fates_log(),fmt0) 'xl = ',EDPftvarcon_inst%xl
+        write(fates_log(),fmt0) 'clumping_index = ',EDPftvarcon_inst%clumping_index
         write(fates_log(),fmt0) 'c3psn = ',EDPftvarcon_inst%c3psn
         write(fates_log(),fmt0) 'vcmax25top = ',EDPftvarcon_inst%vcmax25top
         write(fates_log(),fmt0) 'leafcn = ',EDPftvarcon_inst%leafcn
@@ -1452,6 +1507,9 @@ contains
         write(fates_log(),fmt0) 'grperc = ',EDPftvarcon_inst%grperc
         write(fates_log(),fmt0) 'c2b = ',EDPftvarcon_inst%c2b
         write(fates_log(),fmt0) 'bmort = ',EDPftvarcon_inst%bmort
+        write(fates_log(),fmt0) 'mort_scalar_coldstress = ',EDPftvarcon_inst%mort_scalar_coldstress
+        write(fates_log(),fmt0) 'mort_scalar_cstarvation = ',EDPftvarcon_inst%mort_scalar_cstarvation
+        write(fates_log(),fmt0) 'mort_scalar_hydrfailure = ',EDPftvarcon_inst%mort_scalar_hydrfailure
         write(fates_log(),fmt0) 'hf_sm_threshold = ',EDPftvarcon_inst%hf_sm_threshold
         write(fates_log(),fmt0) 'vcmaxha = ',EDPftvarcon_inst%vcmaxha
         write(fates_log(),fmt0) 'jmaxha = ',EDPftvarcon_inst%jmaxha
@@ -1517,6 +1575,160 @@ contains
      end if
 
   end subroutine FatesReportPFTParams
+
+
+  ! =====================================================================================
+
+  subroutine FatesCheckParams(is_master)
+
+     ! ----------------------------------------------------------------------------------
+     !
+     ! This subroutine performs logical checks on user supplied parameters.  It cross
+     ! compares various parameters and will fail if they don't make sense.  
+     ! Examples:
+     ! A tree can not be defined as both evergreen and deciduous.  A woody plant
+     ! cannot have a structural biomass allometry intercept of 0, and a non-woody
+     ! plant (grass) can't have a non-zero intercept...
+     ! -----------------------------------------------------------------------------------
+
+
+     ! Argument
+     logical, intent(in) :: is_master  ! Only log if this is the master proc
+     
+     character(len=32),parameter :: fmt0 = '(a,100(F12.4,1X))'
+
+     integer :: npft,ipft
+
+     npft = size(EDPftvarcon_inst%pft_used,1)
+
+     if(.not.is_master) return
+     
+     do ipft = 1,npft
+        
+        ! Check to see if evergreen, deciduous flags are mutually exclusive
+        ! ----------------------------------------------------------------------------------
+
+        if ( int(EDPftvarcon_inst%evergreen(ipft) +    &
+                 EDPftvarcon_inst%season_decid(ipft) + &
+                 EDPftvarcon_inst%stress_decid(ipft)) .ne. 1 ) then
+           
+           write(fates_log(),*) 'PFT # ',ipft,' must be defined as having one of three'
+           write(fates_log(),*) 'phenology habits, ie == 1'
+           write(fates_log(),*) 'stress_decid: ',EDPftvarcon_inst%stress_decid(ipft)
+           write(fates_log(),*) 'season_decid: ',EDPftvarcon_inst%season_decid(ipft)
+           write(fates_log(),*) 'evergreen: ',EDPftvarcon_inst%evergreen(ipft)
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+           
+        end if
+
+
+        ! Check to see if mature and base seed allocation is greater than 1
+        ! ----------------------------------------------------------------------------------
+        if ( ( EDPftvarcon_inst%seed_alloc(ipft) + &
+               EDPftvarcon_inst%seed_alloc_mature(ipft)) > 1.0_r8 ) then
+
+           write(fates_log(),*) 'The sum of seed allocation from base and mature trees may'
+           write(fates_log(),*) ' not exceed 1.'
+           write(fates_log(),*) ' PFT#: ',ipft
+           write(fates_log(),*) ' seed_alloc: ',EDPftvarcon_inst%seed_alloc(ipft)
+           write(fates_log(),*) ' seed_alloc_mature: ',EDPftvarcon_inst%seed_alloc_mature(ipft)
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+           
+        end if
+
+        ! Check if woody plants have a structural biomass (agb) intercept
+        ! ----------------------------------------------------------------------------------
+        if ( ( EDPftvarcon_inst%allom_agb1(ipft) <= tiny(EDPftvarcon_inst%allom_agb1(ipft)) ) .and. &
+             ( int(EDPftvarcon_inst%woody(ipft)) .eq. 1 ) ) then
+
+           write(fates_log(),*) 'Woody plants are expected to have a non-zero intercept'
+           write(fates_log(),*) ' in the diameter to AGB allometry equations'
+           write(fates_log(),*) ' PFT#: ',ipft
+           write(fates_log(),*) ' allom_agb1: ',EDPftvarcon_inst%allom_agb1(ipft)
+           write(fates_log(),*) ' woody: ',int(EDPftvarcon_inst%woody(ipft))
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+
+        end if
+
+        ! Check if non-woody plants have structural biomass (agb) intercept
+        ! ----------------------------------------------------------------------------------
+!        if ( ( EDPftvarcon_inst%allom_agb1(ipft) > tiny(EDPftvarcon_inst%allom_agb1(ipft)) ) .and. &
+!              ( int(EDPftvarcon_inst%woody(ipft)) .ne. 1 ) ) then
+!
+!           write(fates_log(),*) 'Non-woody plants are expected to have a zero intercept'
+!           write(fates_log(),*) ' in the diameter to AGB allometry equations'
+!           write(fates_log(),*) ' This is because the definition of AGB (as far as allometry)'
+!           write(fates_log(),*) ' is concerned, ignores leaf and fine-roots, and only contains'
+!           write(fates_log(),*) ' woody tissues (sap and structural dead wood).'
+!           write(fates_log(),*) ' PFT#: ',ipft
+!           write(fates_log(),*) ' allom_agb1: ',EDPftvarcon_inst%allom_agb1(ipft)
+!           write(fates_log(),*) ' woody: ',int(EDPftvarcon_inst%woody(ipft))
+!           write(fates_log(),*) ' Aborting'
+!           call endrun(msg=errMsg(sourcefile, __LINE__))
+!
+!        end if
+ 
+        ! Check if freezing tolerance is within reasonable bounds
+        ! ----------------------------------------------------------------------------------
+        
+        if ( ( EDPftvarcon_inst%freezetol(ipft) > 60.0_r8 ) .or. &
+             ( EDPFtvarcon_inst%freezetol(ipft) < -273.1_r8 ) ) then
+
+           write(fates_log(),*) 'Freezing tolerance was set to a strange value'
+           write(fates_log(),*) ' Units should be degrees celcius. It cannot'
+           write(fates_log(),*) ' be less than absolute zero, and we check to see'
+           write(fates_log(),*) ' if it is greater than 60C, which would be ludicrous as well'
+           write(fates_log(),*) ' PFT#: ',ipft
+           write(fates_log(),*) ' freezetol: ', EDPFtvarcon_inst%freezetol(ipft)
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+
+        end if
+
+        ! Check if leaf storage priority is between 0-1
+        ! ----------------------------------------------------------------------------------
+        
+        if ( ( EDPftvarcon_inst%leaf_stor_priority(ipft) < 0.0_r8 ) .or. &
+             ( EDPftvarcon_inst%leaf_stor_priority(ipft) > 1.0_r8 ) ) then
+
+           write(fates_log(),*) 'Prioritization of carbon allocation to leaf'
+           write(fates_log(),*) ' and root turnover replacement, must be between'
+           write(fates_log(),*) ' 0 and 1'
+           write(fates_log(),*) ' PFT#: ',ipft
+           write(fates_log(),*) 'leaf_stor_priority: ',EDPftvarcon_inst%leaf_stor_priority(ipft)
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+
+        end if
+
+        ! Check if photosynthetic pathway is neither C3/C4
+        ! ----------------------------------------------------------------------------------
+        
+        if ( ( EDPftvarcon_inst%c3psn(ipft) < 0.0_r8 ) .or. &
+             ( EDPftvarcon_inst%c3psn(ipft) > 1.0_r8 ) ) then
+
+           write(fates_log(),*) ' Two photosynthetic pathways are currently supported'
+           write(fates_log(),*) ' C4 plants have c3psn = 0'
+           write(fates_log(),*) ' C3 plants have c3psn = 1'
+           write(fates_log(),*) ' PFT#: ',ipft
+           write(fates_log(),*) ' c3psn(pft): ',EDPftvarcon_inst%c3psn(ipft)
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+
+        end if
+
+     end do
+     
+     
+
+     return
+  end subroutine FatesCheckParams
+
+
+
 
 end module EDPftvarcon
 

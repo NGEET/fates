@@ -24,6 +24,7 @@ module FatesInterfaceMod
    use FatesGlobals        , only : fates_log
    use FatesGlobals        , only : endrun => fates_endrun
    use EDPftvarcon         , only : FatesReportPFTParams
+   use EDPftvarcon         , only : FatesCheckParams
    use EDPftvarcon         , only : EDPftvarcon_inst
    use EDParamsMod         , only : FatesReportParams
 
@@ -524,15 +525,17 @@ module FatesInterfaceMod
 
       ! FATES Hydraulics
 
-      real(r8) :: plant_stored_h2o_si             ! stored water in vegetation (kg/m2 H2O)
-                                                  ! Assuming density of 1Mg/m3 ~= mm/m2 H2O
-                                                  ! This must be set and transfered prior to clm_drv()
-                                                  ! following the calls to ed_update_site()
-                                                  ! ed_update_site() is called during both the restart
-                                                  ! and coldstart process
-      
+      real(r8) :: plant_stored_h2o_si         ! stored water in LIVE+DEAD vegetation (kg/m2 H2O)
+                                              ! Assuming density of 1Mg/m3 ~= mm/m2 H2O
+                                              ! This must be set and transfered prior to clm_drv()
+                                              ! following the calls to ed_update_site()
+                                              ! ed_update_site() is called during both the restart
+                                              ! and coldstart process
+
       real(r8),allocatable :: qflx_soil2root_sisl(:)   ! Water flux from soil into root by site and soil layer
                                                        ! [mm H2O/s] [+ into root]
+      
+      
 
    end type bc_out_type
 
@@ -1193,6 +1196,14 @@ contains
                write(fates_log(), *) 'The FATES namelist planthydro flag must be 0 or 1, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
+         elseif (hlm_use_planthydro.eq.1 ) then
+               write(fates_log(), *) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+               write(fates_log(), *) ''
+               write(fates_log(), *) ' use_fates_planthydro is an      EXPERIMENTAL FEATURE        '
+               write(fates_log(), *) ' please see header of fates/biogeophys/FatesHydraulicsMod.F90'
+               write(fates_log(), *) ' for more information.'
+               write(fates_log(), *) ''
+               write(fates_log(), *) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
          end if
 
          if ( .not.((hlm_use_logging .eq.1).or.(hlm_use_logging.eq.0))    ) then
@@ -1522,7 +1533,7 @@ contains
 
       call FatesReportPFTParams(masterproc)
       call FatesReportParams(masterproc)
-      
+      call FatesCheckParams(masterproc)
       
       return
    end subroutine FatesReportParameters

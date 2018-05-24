@@ -31,18 +31,21 @@ module EDLoggingMortalityMod
    use EDParamsMod       , only : logging_direct_frac
    use EDParamsMod       , only : logging_mechanical_frac 
    use EDParamsMod       , only : logging_coll_under_frac 
+   use EDParamsMod       , only : logging_dbhmax_infra
    use FatesInterfaceMod , only : hlm_current_year
    use FatesInterfaceMod , only : hlm_current_month
    use FatesInterfaceMod , only : hlm_current_day
    use FatesInterfaceMod , only : hlm_model_day
    use FatesInterfaceMod , only : hlm_day_of_year 
    use FatesInterfaceMod , only : hlm_days_per_year
-   use FatesInterfaceMod , only : hlm_use_logging
+   use FatesInterfaceMod , only : hlm_use_logging 
+   use FatesInterfaceMod , only : hlm_use_planthydro
    use FatesConstantsMod , only : itrue,ifalse
    use FatesGlobals      , only : endrun => fates_endrun 
    use FatesGlobals      , only : fates_log
    use shr_log_mod       , only : errMsg => shr_log_errMsg
-
+   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
+   
    implicit none
    private
 
@@ -154,7 +157,6 @@ contains
 
       ! Parameters
       real(r8), parameter   :: adjustment = 1.0 ! adjustment for mortality rates
-      real(r8), parameter   :: logging_dbhmax_infra = 35 !(cm), based on Feldpaush et al. (2005) and Ferry et al. (2010)
  
       if (logging_time) then 
          if(EDPftvarcon_inst%woody(pft_i) == 1)then ! only set logging rates for trees
@@ -296,6 +298,12 @@ contains
          litter_area = currentPatch%area 
          np_mult     = patch_site_areadis/newPatch%area
          
+         
+         if( hlm_use_planthydro == itrue ) then
+            call AccumulateMortalityWaterStorage(currentSite,currentCohort,(direct_dead+indirect_dead))
+         end if
+         
+
          ! ----------------------------------------------------------------------------------------
          ! Handle woody litter flux for non-bole components of biomass
          ! This litter is distributed between the current and new patches, &

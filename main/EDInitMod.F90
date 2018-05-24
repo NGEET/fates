@@ -258,7 +258,8 @@ contains
      real(r8) :: biomass_stock
      real(r8) :: litter_stock
      real(r8) :: seed_stock
-
+     
+     type(ed_site_type),  pointer :: sitep
      type(ed_patch_type), pointer :: newp
 
      ! List out some nominal patch values that are used for Near Bear Ground initializations
@@ -280,15 +281,12 @@ contains
         call initialize_sites_by_inventory(nsites,sites,bc_in)
 
         do s = 1, nsites
-           if (hlm_use_planthydro.eq.itrue) then
-              call updateSizeDepRhizHydProps(sites(s), bc_in(s))
-           end if
+
            ! For carbon balance checks, we need to initialize the 
            ! total carbon stock
            call SiteCarbonStock(sites(s),sites(s)%old_stock,biomass_stock,litter_stock,seed_stock)
            
         enddo
-        
      else
 
         !FIX(SPM,032414) clean this up...inits out of this loop
@@ -308,16 +306,8 @@ contains
            call create_patch(sites(s), newp, age, AREA, &
                  cwd_ag_local, cwd_bg_local, leaf_litter_local,  &
                  root_litter_local) 
-
-           call init_cohorts(newp, bc_in(s))
-
-           ! This sets the rhizosphere shells based on the plant initialization
-           ! The initialization of the plant-relevant hydraulics variables
-           ! were set from a call inside of the init_cohorts()->create_cohort() subroutine
-           if (hlm_use_planthydro.eq.itrue) then
-              call updateSizeDepRhizHydProps(sites(s), bc_in(s))
-           end if
-
+           sitep => sites(s)
+           call init_cohorts(sitep, newp, bc_in(s))
 
            ! For carbon balance checks, we need to initialize the 
            ! total carbon stock
@@ -327,10 +317,21 @@ contains
 
      end if
 
+     ! This sets the rhizosphere shells based on the plant initialization
+     ! The initialization of the plant-relevant hydraulics variables
+     ! were set from a call inside of the init_cohorts()->create_cohort() subroutine
+     if (hlm_use_planthydro.eq.itrue) then 
+        do s = 1, nsites
+	   sitep => sites(s)
+           call updateSizeDepRhizHydProps(sitep, bc_in(s))
+        end do
+     end if
+
+     return
   end subroutine init_patches
 
   ! ============================================================================
-  subroutine init_cohorts( patch_in, bc_in)
+  subroutine init_cohorts( site_in, patch_in, bc_in)
     !
     ! !DESCRIPTION:
     ! initialize new cohorts on bare ground
@@ -338,11 +339,13 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS    
+    type(ed_site_type), intent(inout),  pointer  :: site_in
     type(ed_patch_type), intent(inout), pointer  :: patch_in
     type(bc_in_type), intent(in)                 :: bc_in
     !
     ! !LOCAL VARIABLES:
     type(ed_cohort_type),pointer :: temp_cohort
+
     integer  :: cstatus
     integer  :: pft
     real(r8) :: b_agw      ! biomass above ground (non-leaf)     [kgC]
@@ -350,11 +353,13 @@ contains
     real(r8) :: b_leaf     ! biomass in leaves [kgC]
     real(r8) :: b_fineroot ! biomass in fine roots [kgC]
     real(r8) :: b_sapwood  ! biomass in sapwood [kgC]
+    integer, parameter :: rstatus = 0
+
     !----------------------------------------------------------------------
 
     patch_in%tallest  => null()
     patch_in%shortest => null()
-
+    
     do pft =  1,numpft
 
        if(EDPftvarcon_inst%initd(pft)>1.0E-7) then
@@ -398,25 +403,30 @@ contains
        endif
 
        if( EDPftvarcon_inst%season_decid(pft) == 1 ) then !for dorment places
-          if(patch_in%siteptr%status == 2)then 
+          if(site_in%status == 2)then 
              temp_cohort%laimemory = 0.0_r8
           else
              temp_cohort%laimemory = b_leaf
           endif
           ! reduce biomass according to size of store, this will be recovered when elaves com on.
-          cstatus = patch_in%siteptr%status
+          cstatus = site_in%status
        endif
 
        if ( EDPftvarcon_inst%stress_decid(pft) == 1 ) then
-          temp_cohort%laimemory = b_leaf
-          cstatus = patch_in%siteptr%dstatus
+          if(site_in%dstatus == 2)then 
+             temp_cohort%laimemory = 0.0_r8
+          else
+             temp_cohort%laimemory = b_leaf
+          endif
+          cstatus = site_in%dstatus
        endif
 
        if ( DEBUG ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
 
-       call create_cohort(patch_in, pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
+       call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, temp_cohort%dbh, &
             b_leaf, b_fineroot, b_sapwood, temp_cohort%bdead, temp_cohort%bstore, &
-            temp_cohort%laimemory,  cstatus, temp_cohort%canopy_trim, 1, bc_in)
+            temp_cohort%laimemory, cstatus, rstatus, temp_cohort%canopy_trim, 1, site_in%spread, bc_in)
+
 
        deallocate(temp_cohort) ! get rid of temporary cohort
 
@@ -424,7 +434,7 @@ contains
 
     enddo !numpft
 
-    call fuse_cohorts(patch_in,bc_in)
+    call fuse_cohorts(site_in, patch_in,bc_in)
     call sort_cohorts(patch_in)
 
   end subroutine init_cohorts
