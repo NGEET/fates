@@ -9,7 +9,14 @@ module FatesHydraulicsMemMod
    implicit none
 
    ! Number of soil layers for indexing cohort fine root quanitities
-   integer, parameter                            :: nlevsoi_hyd_max = 10
+   ! NOTE: The hydraulics code does have some capacity to run a single soil
+   ! layer that was developed for comparisons with TFS. However, this has 
+   ! not maintained support through the integration with FATES and its
+   ! communications with the LSM.  Please do not set nlevsoi_hyd_max
+   ! to 1 unless you are developing and testing.
+
+
+   integer, parameter                            :: nlevsoi_hyd_max = 40
 
    ! number of distinct types of plant porous media (leaf, stem, troot, aroot)
    integer, parameter                            :: n_porous_media = 4
