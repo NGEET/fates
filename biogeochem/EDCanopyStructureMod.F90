@@ -176,7 +176,7 @@ contains
             ! Calculate how many layers we have in this canopy
             ! This also checks the understory to see if its crown 
             ! area is large enough to warrant a temporary sub-understory layer
-            z = NumPotentialCanopyLayers(currentPatch,currentSite%spread,include_substory=.true.)
+            z = NumPotentialCanopyLayers(currentPatch,currentSite%spread,include_substory=.false.)
             
             do i_lyr = 1,z ! Loop around the currently occupied canopy layers. 
                call DemoteFromLayer(currentSite, currentPatch, i_lyr)
@@ -226,11 +226,11 @@ contains
             area_not_balanced = .false.
             do i_lyr = 1,z
                call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer(i_lyr))
-               if( (arealayer(i_lyr)-currentPatch%area)  >  area_check_precision )then
+               if( (arealayer(i_lyr)-currentPatch%area)/currentPatch%area  >  area_check_precision )then
                   area_not_balanced = .true.
                endif
             enddo
-            
+
             ! ---------------------------------------------------------------------------------------
             ! Gracefully exit if too many iterations have gone by
             ! ---------------------------------------------------------------------------------------
@@ -239,6 +239,10 @@ contains
             if(patch_area_counter > max_patch_iterations) then
                write(fates_log(),*) 'PATCH AREA CHECK NOT CLOSING'
                write(fates_log(),*) 'patch area:',currentpatch%area
+               do i_lyr = 1,z
+                  write(fates_log(),*) 'layer: ',i_lyr,' area: ',arealayer(i_lyr)
+                  write(fates_log(),*) 'rel error: ',(arealayer(i_lyr)-currentPatch%area)/currentPatch%area
+               enddo
                write(fates_log(),*) 'lat:',currentSite%lat
                write(fates_log(),*) 'lon:',currentSite%lon
 	       write(fates_log(),*) 'spread:',currentSite%spread
@@ -317,11 +321,11 @@ contains
       real(r8) :: lossarea
       real(r8) :: newarea
       real(r8) :: demote_area
-      real(r8) :: demarea_remainder
-      real(r8) :: sumdiff
+      real(r8) :: remainder_area
       real(r8) :: sumweights
+      real(r8) :: sumweights_old
       real(r8) :: arealayer              ! the area of the current canopy layer
-      integer  :: overage_counter        ! when seeking to rebalance demotion overage
+      integer  :: exceedance_counter        ! when seeking to rebalance demotion exceedance
                                          ! keep a loop counter to check for hangs
       
 
@@ -335,8 +339,9 @@ contains
          
          ! Is this layer currently over-occupied? 
          ! In that case, we need to work out which cohorts to demote. 
+         ! We go in order from shortest to tallest for ranked demotion
          
-         sumdiff  = 0.0_r8    
+         sumweights  = 0.0_r8    
          currentCohort => currentPatch%shortest
          do while (associated(currentCohort))
             
@@ -352,9 +357,9 @@ contains
                else
                   ! Rank ordered deterministic method
                   currentCohort%excl_weight = &
-                       max(min(currentCohort%c_area, demote_area - sumdiff ), 0._r8)
+                       max(min(currentCohort%c_area, demote_area - sumweights ), 0._r8)
                endif
-               sumdiff = sumdiff + currentCohort%excl_weight
+               sumweights = sumweights + currentCohort%excl_weight
             endif
             currentCohort => currentCohort%taller
          enddo
@@ -362,34 +367,36 @@ contains
          ! If this is probabalistic demotion, we need to do a round of normalization.
          ! And then a few rounds where we pre-calculate the demotion areas
          ! and adjust things if the demoted area wants to be greater than
-         ! what is available.
+         ! what is available.  sumweights_old is used to sum up the exclusion
+         ! area of those cohorts that have not reached their total canopy area 
+         ! yet.
          
          if (ED_val_comp_excln .ge. 0.0_r8 ) then
             
-            demarea_remainder = 0.0_r8
-            sumweights        = 0.0_r8
-            currentCohort => currentPatch%tallest    !start from the tallest cohort
+            remainder_area      = 0.0_r8
+            sumweights_old = 0.0_r8
+            currentCohort => currentPatch%tallest
             do while (associated(currentCohort))
-               ! still looking at the layer beneath. 
+
                if(currentCohort%canopy_layer  ==  i_lyr) then 
-                  currentCohort%excl_weight = demote_area*currentCohort%excl_weight/sumdiff
+                  currentCohort%excl_weight = demote_area*currentCohort%excl_weight/sumweights
                   if( currentCohort%excl_weight >  currentCohort%c_area ) then
-                     demarea_remainder = demarea_remainder + currentCohort%excl_weight-currentCohort%c_area
+                     remainder_area = remainder_area + currentCohort%excl_weight-currentCohort%c_area
                      currentCohort%excl_weight = currentCohort%c_area
                   else
-                     sumweights = sumweights + currentCohort%excl_weight
+                     sumweights_old = sumweights_old + currentCohort%excl_weight
                   end if
                endif
                currentCohort => currentCohort%shorter      
             enddo
 
-            overage_counter = 0
-            do while(demarea_remainder>nearzero)
+            exceedance_counter = 0
+            do while(remainder_area>nearzero)
                
-               ! Keep attempting to add overage to members that have not
+               ! Keep attempting to add exceedance to members that have not
                ! lost more area than they started with..
                
-               sumdiff = 0.0_r8
+               sumweights = 0.0_r8
                currentCohort => currentPatch%tallest
                do while (associated(currentCohort))      
                   if(currentCohort%canopy_layer == i_lyr)then
@@ -397,19 +404,20 @@ contains
 
                         ! This is how demotion is transferred to this cohort
                         cc_loss = min(currentCohort%c_area,  &
-                                      currentCohort%excl_weight + demarea_remainder* currentCohort%excl_weight/sumweights) - &
+                                      currentCohort%excl_weight + &
+                                      remainder_area * currentCohort%excl_weight/sumweights_old) - &
                                   currentCohort%excl_weight
 
-                        ! Reduce the remainder
-                        demarea_remainder = demarea_remainder - cc_loss
+                        ! Reduce the remainder_area
+                        remainder_area = remainder_area - cc_loss
 
                         ! Update this cohorts exclusion
                         currentCohort%excl_weight = currentCohort%excl_weight + cc_loss
                         
-                        ! Update the sum of weights for cohorts where overage can
+                        ! Update the sum of weights for cohorts where exceedance can
                         ! still be spread to
                         if( currentCohort%excl_weight < (currentCohort%c_area-nearzero) ) then
-                           sumdiff = sumdiff + currentCohort%excl_weight
+                           sumweights = sumweights + currentCohort%excl_weight
                         end if
                         
                      end if
@@ -417,35 +425,17 @@ contains
                   currentCohort => currentCohort%shorter 
                end do
                ! Update the sum of weights for the next loop
-               sumweights = sumdiff
+               sumweights_old = sumweights
 
-               overage_counter = overage_counter + 1
-               if( overage_counter > 100 ) then
-                  write(fates_log(),*) 'It is taking a long time to distribute demotion overage'
+               exceedance_counter = exceedance_counter + 1
+               if( exceedance_counter > 100 ) then
+                  write(fates_log(),*) 'It is taking a long time to distribute demotion exceedance'
                   write(fates_log(),*) '(ie greater than c_area) to neighbors... exiting'
                   call endrun(msg=errMsg(sourcefile, __LINE__))
                end if
 
             end do
-            
-            ! Seems that math precision errors hover around e-15
-!            if( abs(sumdiff-demote_area)/sumdiff > 1.0e-12_r8 ) then
-!               write(fates_log(),*) 'error balancing demotion probablistic weights'
-!               write(fates_log(),*) 'layer index',i_lyr
-!               write(fates_log(),*) 'error:',abs(sumdiff-demote_area)
-!               write(fates_log(),*) 'sumdiff: ', sumdiff
-!               write(fates_log(),*) 'demote_area',demote_area
-!               write(fates_log(),*) 'demarea_remainder',demarea_remainder
-!               currentCohort => currentPatch%tallest
-!               do while (associated(currentCohort))      
-!                  if(currentCohort%canopy_layer == i_lyr)then
-!                     write(fates_log(),*) 'c:', currentCohort%excl_weight, currentCohort%c_area
-!                  end if
-!                  currentCohort => currentCohort%shorter 
-!               end do
-!               call endrun(msg=errMsg(sourcefile, __LINE__))
-!            end if
-            
+
          end if
          
          ! Weights have been calculated. Now move them to the lower layer
@@ -630,12 +620,13 @@ contains
       type(ed_cohort_type), pointer :: currentCohort
       type(ed_cohort_type), pointer :: copyc
 
-      real(r8) :: sumdiff
+
       real(r8) :: promote_area
-      real(r8) :: promote_area_remainder
       real(r8) :: newarea
-      real(r8) :: sum_weights
-      real(r8) :: weight
+      real(r8) :: sumweights
+      real(r8) :: sumweights_old
+      integer  :: exceedance_counter
+      real(r8) :: remainder_area
       real(r8) :: cc_gain
       real(r8) :: arealayer_current      ! area (m2) of the current canopy layer
       real(r8) :: arealayer_below        ! area (m2) of the layer below the current layer
@@ -648,7 +639,7 @@ contains
       ! how much do we need to gain?
       promote_area    =  currentPatch%area - arealayer_current 
 
-      if( promote_area > nearzero ) then
+      if( promote_area/currentPatch%area > nearzero ) then
          
          if(arealayer_below <= promote_area ) then
          
@@ -685,7 +676,7 @@ contains
             ! figure out with what weighting we need to promote cohorts.
             ! This is the opposite of the demotion weighting... 
 
-            sumdiff = 0.0_r8
+            sumweights = 0.0_r8
             currentCohort => currentPatch%tallest 
             do while (associated(currentCohort))
                call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
@@ -696,9 +687,9 @@ contains
                      currentCohort%prom_weight = currentCohort%n*currentCohort%dbh**ED_val_comp_excln
                   else
                      currentCohort%prom_weight = max(min(currentCohort%c_area, &
-                          promote_area - sumdiff ), 0._r8)
+                           promote_area - sumweights ), 0._r8)
                   endif
-                  sumdiff = sumdiff + currentCohort%prom_weight
+                  sumweights = sumweights + currentCohort%prom_weight
                endif
                currentCohort => currentCohort%shorter  
             enddo !currentCohort
@@ -711,52 +702,68 @@ contains
             
             if (ED_val_comp_excln .ge. 0.0_r8 ) then
                
+               remainder_area = 0.0_r8
+               sumweights_old = 0.0_r8
+
                currentCohort => currentPatch%tallest    !start from the tallest cohort
                do while (associated(currentCohort))
                   if(currentCohort%canopy_layer  ==  i_lyr+1) then !still looking at the layer beneath. 
-                     currentCohort%prom_weight = promote_area*currentCohort%prom_weight/sumdiff
+
+                     currentCohort%prom_weight = promote_area*currentCohort%prom_weight/sumweights
+                     
+                     if( currentCohort%prom_weight > currentCohort%c_area ) then
+                        remainder_area = remainder_area + currentCohort%prom_weight-currentCohort%c_area
+                        currentCohort%prom_weight = currentCohort%c_area
+                     else
+                        sumweights_old = sumweights_old + currentCohort%prom_weight
+                     end if
+                     
                   endif
                   currentCohort => currentCohort%shorter      
                enddo
 
-               
-               promote_area_remainder = promote_area
-               do while(promote_area_remainder > nearzero )
+               exceedance_counter = 0
+               do while(remainder_area>nearzero)
                   
-                  promote_area_remainder = 0.0_r8
-                  sumdiff = 0.0_r8
+                  sumweights = 0.0_r8
                   currentCohort => currentPatch%tallest
                   do while (associated(currentCohort))      
                      if(currentCohort%canopy_layer == i_lyr+1)then
-                        if ( currentCohort%prom_weight > currentCohort%c_area ) then
-                           promote_area_remainder = promote_area_remainder + &
-                                (currentCohort%prom_weight - currentCohort%c_area )
-                           currentCohort%prom_weight = currentCohort%c_area
-                        else
-                           sumdiff = sumdiff + currentCohort%prom_weight
+
+                        if ( currentCohort%prom_weight < (currentCohort%c_area-nearzero) ) then
+
+                           ! This is how promotion is transferred from this cohort
+                           cc_gain = min(currentCohort%c_area,  &
+                                         currentCohort%prom_weight + &
+                                         remainder_area * currentCohort%prom_weight/sumweights_old) - &
+                                         currentCohort%prom_weight
+
+                           ! Reduce the remainder_area
+                           remainder_area = remainder_area - cc_gain
+                           
+                           ! Update this cohort's promotion
+                           currentCohort%prom_weight = currentCohort%prom_weight + cc_gain
+                           
+                           ! Update the sum of weights for cohorts where exceedance can
+                           ! still be spread to
+                           if( currentCohort%prom_weight < (currentCohort%c_area-nearzero) ) then
+                              sumweights = sumweights + currentCohort%prom_weight
+                           end if
+
                         end if
                      end if
                      currentCohort => currentCohort%shorter 
                   end do
+                  sumweights_old = sumweights
                   
-                  currentCohort => currentPatch%tallest
-                  do while (associated(currentCohort))      
-                     if(currentCohort%canopy_layer == i_lyr+1)then
-                        if ( currentCohort%prom_weight < (currentCohort%c_area - &
-                             currentCohort%prom_weight*promote_area_remainder/sumdiff)) then
-                           currentCohort%prom_weight = &
-                                currentCohort%prom_weight * (sumdiff+promote_area_remainder)/sumdiff
-                        end if
-                     end if
-                     currentCohort => currentCohort%shorter 
-                  end do
+                  exceedance_counter = exceedance_counter + 1
+                  if( exceedance_counter > 100 ) then
+                     write(fates_log(),*) 'It is taking a long time to distribute promotion exceedance'
+                     write(fates_log(),*) '(ie greater than c_area) to neighbors... exiting'
+                     call endrun(msg=errMsg(sourcefile, __LINE__))
+                  end if
                   
                end do
-
-               if( abs(sumdiff-promote_area)/sumdiff>1.0e-12_r8 ) then
-                  write(fates_log(),*) 'error balancing promotion probablistic weights'
-                  call endrun(msg=errMsg(sourcefile, __LINE__))
-               end if
                
             end if
          
@@ -876,8 +883,10 @@ contains
        !calculate canopy area in each patch...
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
-          call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
-          if(EDPftvarcon_inst%woody(currentCohort%pft) .eq. 1 .and. currentCohort%canopy_layer .eq. 1 ) then
+          call carea_allom(currentCohort%dbh,currentCohort%n, &
+                currentSite%spread,currentCohort%pft,currentCohort%c_area)
+          if( (EDPftvarcon_inst%woody(currentCohort%pft) .eq. 1 ) .and. &
+              (currentCohort%canopy_layer .eq. 1 ) ) then
              sitelevel_canopyarea = sitelevel_canopyarea + currentCohort%c_area
           endif
           currentCohort => currentCohort%shorter
