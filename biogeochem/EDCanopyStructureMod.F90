@@ -46,9 +46,10 @@ module EDCanopyStructureMod
   
   real(r8), parameter :: area_target_precision = 1.0E-11_r8  ! Area conservation must be within this tolerance
   real(r8), parameter :: area_check_precision  = 1.0E-9_r8  ! Area conservation checks must be within this tolerance
-  integer, parameter  :: max_layer_iterations  = 100        ! Don't let these loop hang indefinitely
+
 
   ! 10/30/09: Created by Rosie Fisher
+  ! 2017/2018: Modifications and updates by Ryan Knox
   ! ============================================================================
 
 contains
