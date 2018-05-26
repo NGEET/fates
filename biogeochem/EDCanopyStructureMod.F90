@@ -374,14 +374,14 @@ contains
          
          if (ED_val_comp_excln .ge. 0.0_r8 ) then
             
-            remainder_area      = 0.0_r8
+            remainder_area = 0.0_r8
             sumweights_old = 0.0_r8
             currentCohort => currentPatch%tallest
             do while (associated(currentCohort))
 
                if(currentCohort%canopy_layer  ==  i_lyr) then 
                   currentCohort%excl_weight = demote_area*currentCohort%excl_weight/sumweights
-                  if( currentCohort%excl_weight >  currentCohort%c_area ) then
+                  if( currentCohort%excl_weight > currentCohort%c_area ) then
                      remainder_area = remainder_area + currentCohort%excl_weight-currentCohort%c_area
                      currentCohort%excl_weight = currentCohort%c_area
                   else
@@ -392,7 +392,7 @@ contains
             enddo
 
             exceedance_counter = 0
-            do while(remainder_area>nearzero)
+            do while(remainder_area/demote_area > area_target_precision )
                
                ! Keep attempting to add exceedance to members that have not
                ! lost more area than they started with..
@@ -403,11 +403,17 @@ contains
                   if(currentCohort%canopy_layer == i_lyr)then
                      if ( currentCohort%excl_weight < (currentCohort%c_area-nearzero) ) then
 
-                        ! This is how demotion is transferred to this cohort
-                        cc_loss = min(currentCohort%c_area,  &
-                                      currentCohort%excl_weight + &
-                                      remainder_area * currentCohort%excl_weight/sumweights_old) - &
-                                  currentCohort%excl_weight
+                        ! Calculate how much exceeded demotion from filled
+                        ! cohorts must be transferred to this cohort
+                        ! Two requirements: 1) the tacked-on demotion can not also
+                        !     exceed this cohort's area.  And, 2) the tacked-on
+                        !     demotion can't exceed the amount left
+
+                        cc_loss = min(remainder_area,             &
+                                       min(currentCohort%c_area,  &
+                                            currentCohort%excl_weight + &
+                                            remainder_area * currentCohort%excl_weight/sumweights_old) - &
+                                            currentCohort%excl_weight)
 
                         ! Reduce the remainder_area
                         remainder_area = remainder_area - cc_loss
@@ -427,11 +433,13 @@ contains
                end do
                ! Update the sum of weights for the next loop
                sumweights_old = sumweights
-
+               
                exceedance_counter = exceedance_counter + 1
                if( exceedance_counter > 100 ) then
                   write(fates_log(),*) 'It is taking a long time to distribute demotion exceedance'
                   write(fates_log(),*) '(ie greater than c_area) to neighbors... exiting'
+                  write(fates_log(),*) 'sumweights:',sumweights
+                  write(fates_log(),*) 'remainder_area:',remainder_area
                   call endrun(msg=errMsg(sourcefile, __LINE__))
                end if
 
@@ -724,7 +732,7 @@ contains
                enddo
 
                exceedance_counter = 0
-               do while(remainder_area>nearzero)
+               do while(remainder_area/promote_area > area_target_precision ) 
                   
                   sumweights = 0.0_r8
                   currentCohort => currentPatch%tallest
@@ -733,11 +741,17 @@ contains
 
                         if ( currentCohort%prom_weight < (currentCohort%c_area-nearzero) ) then
 
+                           ! Calculate how much exceeded promotion from filled
+                           ! cohorts must be transferred to this cohort
+                           ! Two requirements: 1) the tacked-on promotion can not also
+                           !     exceed this cohort's area.  And, 2) the tacked-on
+                           !     promotion can't exceed the amount left
                            ! This is how promotion is transferred from this cohort
-                           cc_gain = min(currentCohort%c_area,  &
-                                         currentCohort%prom_weight + &
-                                         remainder_area * currentCohort%prom_weight/sumweights_old) - &
-                                         currentCohort%prom_weight
+                           cc_gain =  min(remainder_area,             &
+                                             min(currentCohort%c_area,  &
+                                             currentCohort%prom_weight + &
+                                             remainder_area * currentCohort%prom_weight/sumweights_old) - &
+                                             currentCohort%prom_weight)
 
                            ! Reduce the remainder_area
                            remainder_area = remainder_area - cc_gain
