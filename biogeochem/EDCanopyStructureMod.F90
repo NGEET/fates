@@ -456,7 +456,7 @@ contains
             
             if(currentCohort%canopy_layer == i_lyr .and. cc_loss>nearzero )then                   
                
-               if ( abs(cc_loss-currentCohort%c_area)<nearzero ) then
+               if ( abs(cc_loss-currentCohort%c_area) < area_target_precision ) then
                   
                   ! If the whole cohort is being demoted, just change its
                   ! layer index
@@ -648,7 +648,7 @@ contains
       ! how much do we need to gain?
       promote_area    =  currentPatch%area - arealayer_current 
 
-      if( promote_area/currentPatch%area > nearzero ) then
+      if( promote_area/currentPatch%area > area_target_precision ) then
          
          if(arealayer_below <= promote_area ) then
          
@@ -790,7 +790,7 @@ contains
                
                   cc_gain = currentCohort%prom_weight
                   
-                  if ( abs(cc_gain-currentCohort%c_area)< nearzero ) then
+                  if ( abs(cc_gain-currentCohort%c_area) < area_target_precision ) then
 
                      currentCohort%canopy_layer = i_lyr
                      
@@ -842,6 +842,13 @@ contains
                         copyc%taller => null()
                      endif
                      currentCohort%taller => copyc                  
+
+                  elseif(cc_gain > currentCohort%c_area)then
+
+                     write(fates_log(),*) 'more area than the cohort has is being promoted'
+                     write(fates_log(),*) 'loss:',cc_gain
+                     write(fates_log(),*) 'existing area:',currentCohort%c_area
+                     call endrun(msg=errMsg(sourcefile, __LINE__))
 
                   endif
                
