@@ -323,6 +323,7 @@ contains
       real(r8) :: newarea
       real(r8) :: demote_area
       real(r8) :: remainder_area
+      real(r8) :: remainder_area_hold
       real(r8) :: sumweights
       real(r8) :: sumweights_old
       real(r8) :: arealayer              ! the area of the current canopy layer
@@ -397,7 +398,8 @@ contains
                ! Keep attempting to add exceedance to members that have not
                ! lost more area than they started with..
                
-               sumweights = 0.0_r8
+               sumweights          = 0.0_r8
+               remainder_area_hold = remainder_area
                currentCohort => currentPatch%tallest
                do while (associated(currentCohort))      
                   if(currentCohort%canopy_layer == i_lyr)then
@@ -409,11 +411,10 @@ contains
                         !     exceed this cohort's area.  And, 2) the tacked-on
                         !     demotion can't exceed the amount left
 
-                        cc_loss = min(remainder_area,             &
-                                       min(currentCohort%c_area,  &
-                                            currentCohort%excl_weight + &
-                                            remainder_area * currentCohort%excl_weight/sumweights_old) - &
-                                            currentCohort%excl_weight)
+                        cc_loss = min(remainder_area, &
+                                      remainder_area_hold * currentCohort%excl_weight/sumweights_old, &
+                                      currentCohort%c_area-currentCohort%excl_weight)
+
 
                         ! Reduce the remainder_area
                         remainder_area = remainder_area - cc_loss
@@ -454,9 +455,10 @@ contains
             
             cc_loss = currentCohort%excl_weight
             
-            if(currentCohort%canopy_layer == i_lyr .and. cc_loss>nearzero )then                   
+            if(currentCohort%canopy_layer == i_lyr .and. cc_loss>nearzero )then
                
-               if ( abs(cc_loss-currentCohort%c_area) < area_target_precision ) then
+               if ( (cc_loss-currentCohort%c_area) > -nearzero .and. &
+                    (cc_loss-currentCohort%c_area) < area_target_precision ) then
                   
                   ! If the whole cohort is being demoted, just change its
                   ! layer index
@@ -469,7 +471,7 @@ contains
                   currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + &
                        currentCohort%b_total() * currentCohort%n
                   
-               elseif(cc_loss < currentCohort%c_area)then
+               elseif(cc_loss > nearzero .and. cc_loss < currentCohort%c_area )then
                   
                   ! If only part of the cohort is demoted
                   ! then it must be split (little more complicated)
@@ -636,6 +638,7 @@ contains
       real(r8) :: sumweights_old
       integer  :: exceedance_counter
       real(r8) :: remainder_area
+      real(r8) :: remainder_area_hold    
       real(r8) :: cc_gain
       real(r8) :: arealayer_current      ! area (m2) of the current canopy layer
       real(r8) :: arealayer_below        ! area (m2) of the layer below the current layer
@@ -735,6 +738,7 @@ contains
                do while(remainder_area/promote_area > area_target_precision ) 
                   
                   sumweights = 0.0_r8
+                  remainder_area_hold = remainder_area
                   currentCohort => currentPatch%tallest
                   do while (associated(currentCohort))      
                      if(currentCohort%canopy_layer == i_lyr+1)then
@@ -747,11 +751,11 @@ contains
                            !     exceed this cohort's area.  And, 2) the tacked-on
                            !     promotion can't exceed the amount left
                            ! This is how promotion is transferred from this cohort
-                           cc_gain =  min(remainder_area,             &
-                                             min(currentCohort%c_area,  &
-                                             currentCohort%prom_weight + &
-                                             remainder_area * currentCohort%prom_weight/sumweights_old) - &
-                                             currentCohort%prom_weight)
+
+                           cc_gain = min(remainder_area, &
+                                         remainder_area_hold * currentCohort%prom_weight/sumweights_old, &
+                                         currentCohort%c_area-currentCohort%prom_weight)
+
 
                            ! Reduce the remainder_area
                            remainder_area = remainder_area - cc_gain
@@ -790,7 +794,8 @@ contains
                
                   cc_gain = currentCohort%prom_weight
                   
-                  if ( abs(cc_gain-currentCohort%c_area) < area_target_precision ) then
+                  if ( (cc_gain-currentCohort%c_area) > -nearzero .and. &
+                       (cc_gain-currentCohort%c_area) < area_target_precision ) then
 
                      currentCohort%canopy_layer = i_lyr
                      
@@ -800,7 +805,7 @@ contains
                      currentSite%promotion_carbonflux = currentSite%promotion_carbonflux + &
                           currentCohort%b_total() * currentCohort%n
 
-                  elseif ( cc_gain > nearzero ) then
+                  elseif ( cc_gain > nearzero .and. cc_gain < currentCohort%c_area) then
                      
                      allocate(copyc)
                      call copy_cohort(currentCohort, copyc) !makes an identical copy...
@@ -1670,25 +1675,17 @@ contains
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
            
-           write(fates_log(),*) 'correcting patch area in update_hlm_dynamics',total_patch_area
-           
+           write(fates_log(),*) 'imprecise patch areas in update_hlm_dynamics',total_patch_area
+
            currentPatch => sites(s)%oldest_patch
            ifp = 0
            do while(associated(currentPatch))
               ifp = ifp+1
-              currentPatch%area                 = currentPatch%area/total_patch_area
               bc_out(s)%canopy_fraction_pa(ifp) = bc_out(s)%canopy_fraction_pa(ifp)/total_patch_area
               currentPatch => currentPatch%younger
            end do
-           total_canopy_area = total_canopy_area/total_patch_area
            
         endif
-        
-        ! This should really be impossible at this point
-        if ( (total_canopy_area-1.0_r8)> rsnbl_math_prec ) then
-           write(fates_log(),*) 'total canopy area is wrong in update_hlm_dynamics',total_canopy_area
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
         
      end do
 
