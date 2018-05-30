@@ -888,7 +888,7 @@ contains
     real(r8), parameter :: cbal_prec = 1.0e-15_r8     ! Desired precision in carbon balance
                                                       ! non-integrator part
     integer , parameter :: max_substeps = 300
-    real(r8), parameter :: max_trunc_error = 1.0_r8
+    real(r8), parameter :: max_trunc_error = 1000.0_r8  ! Effectively turned off right now (RGK  05-2018)
     integer,  parameter :: ODESolve = 2    ! 1=RKF45,  2=Euler
 
     ipft = currentCohort%pft
@@ -1283,11 +1283,11 @@ contains
           write(fates_log(),*) 'carbon_balance',carbon_balance
           write(fates_log(),*) 'deltaC',deltaC
           write(fates_log(),*) 'totalC',totalC
-          write(fates_log(),*) 'leaf:',grow_leaf,bt_leaf,bt_leaf-currentCohort%bl
-          write(fates_log(),*) 'froot:',grow_froot,bt_fineroot,bt_fineroot-currentCohort%br
-          write(fates_log(),*) 'sap:',grow_sap,bt_sap,bt_sap-currentCohort%bsw
-          write(fates_log(),*) 'store:',grow_store,bt_store,bt_store-currentCohort%bstore
-          write(fates_log(),*) 'dead:',bt_dead,bt_dead-currentCohort%bdead
+          write(fates_log(),*) 'leaf:',grow_leaf,c_pool_out(i_cleaf),bt_leaf,bt_leaf-currentCohort%bl
+          write(fates_log(),*) 'froot:',grow_froot,c_pool_out(i_cfroot),bt_fineroot,currentCohort%br
+          write(fates_log(),*) 'sap:',grow_sap,c_pool_out(i_csap),bt_sap,currentCohort%bsw
+          write(fates_log(),*) 'store:',grow_store, c_pool_out(i_cstore),bt_store,currentCohort%bstore
+          write(fates_log(),*) 'dead:',c_pool_out(i_cdead),bt_dead,currentCohort%bdead
           call dump_cohort(currentCohort)
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
