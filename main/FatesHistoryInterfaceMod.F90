@@ -132,7 +132,10 @@ module FatesHistoryInterfaceMod
   integer, private :: ih_npp_froot_si
   integer, private :: ih_npp_croot_si
   integer, private :: ih_npp_stor_si
-
+  integer, private :: ih_leaf_mr_si
+  integer, private :: ih_froot_mr_si
+  integer, private :: ih_livestem_mr_si
+  integer, private :: ih_livecroot_mr_si
   
   ! Indices to (site x scpf) variables
   integer, private :: ih_nplant_si_scpf
@@ -2062,6 +2065,10 @@ end subroutine flush_hvars
                hio_froot_mr_understory_si_scls      => this%hvars(ih_froot_mr_understory_si_scls)%r82d, &
                hio_resp_g_understory_si_scls        => this%hvars(ih_resp_g_understory_si_scls)%r82d, &
                hio_resp_m_understory_si_scls        => this%hvars(ih_resp_m_understory_si_scls)%r82d, &
+               hio_leaf_mr_si         => this%hvars(ih_leaf_mr_si)%r81d, &
+               hio_froot_mr_si        => this%hvars(ih_froot_mr_si)%r81d, &
+               hio_livecroot_mr_si    => this%hvars(ih_livecroot_mr_si)%r81d, &
+               hio_livestem_mr_si     => this%hvars(ih_livestem_mr_si)%r81d, &
                hio_gpp_si_age         => this%hvars(ih_gpp_si_age)%r82d, &
                hio_npp_si_age         => this%hvars(ih_npp_si_age)%r82d, &
                hio_parsun_z_si_cnlf     => this%hvars(ih_parsun_z_si_cnlf)%r82d, &
@@ -2151,6 +2158,15 @@ end subroutine flush_hvars
                   ! map ed cohort-level npp fluxes to clm column fluxes
                   hio_npp_si(io_si) = hio_npp_si(io_si) + ccohort%npp_tstep * n_perm2 * g_per_kg * per_dt_tstep
 
+                  ! aggregate MR fluxes to the site level
+                  hio_leaf_mr_si(io_si) = hio_leaf_mr_si(io_si) + ccohort%rdark &
+                       * n_perm2 *  sec_per_day * days_per_year
+                  hio_froot_mr_si(io_si) = hio_froot_mr_si(io_si) + ccohort%froot_mr &
+                       * n_perm2 *  sec_per_day * days_per_year
+                  hio_livecroot_mr_si(io_si) = hio_livecroot_mr_si(io_si) + ccohort%livecroot_mr &
+                       * n_perm2 *  sec_per_day * days_per_year
+                  hio_livestem_mr_si(io_si) = hio_livestem_mr_si(io_si) + ccohort%livestem_mr &
+                       * n_perm2 *  sec_per_day * days_per_year
 
                   ! Total AR (kgC/m2/yr) = (kgC/plant/step) / (s/step) * (plant/m2) * (s/yr)
                   hio_ar_si_scpf(io_si,scpf)    =   hio_ar_si_scpf(io_si,scpf) + &
@@ -3738,7 +3754,26 @@ end subroutine flush_hvars
          long='NPP_STORE for canopy plants by size class', use_default='inactive',   &
          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_stor_canopy_si_scls )
-
+    
+    call this%set_history_var(vname='LEAF_MR', units = 'kg C / ha / yr',               &
+          long='RDARK (leaf maintenance respiration)', use_default='active',   &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_leaf_mr_si )
+    
+    call this%set_history_var(vname='FROOT_MR', units = 'kg C / ha / yr',               &
+          long='fine root maintenance respiration)', use_default='active',   &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_froot_mr_si )
+    
+    call this%set_history_var(vname='LIVECROOT_MR', units = 'kg C / ha / yr',               &
+          long='live coarse root maintenance respiration)', use_default='active',   &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_livecroot_mr_si )
+    
+    call this%set_history_var(vname='LIVESTEM_MR', units = 'kg C / ha / yr',               &
+          long='live stem maintenance respiration)', use_default='active',   &
+          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_livestem_mr_si )
     
     call this%set_history_var(vname='RDARK_CANOPY_SCLS', units = 'kg C / ha / yr',               &
           long='RDARK for canopy plants by size class', use_default='inactive',   &
