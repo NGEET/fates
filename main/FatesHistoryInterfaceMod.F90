@@ -3755,22 +3755,22 @@ end subroutine flush_hvars
          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_stor_canopy_si_scls )
     
-    call this%set_history_var(vname='LEAF_MR', units = 'kg C / ha / yr',               &
+    call this%set_history_var(vname='LEAF_MR', units = 'kg C / m2 / yr',               &
           long='RDARK (leaf maintenance respiration)', use_default='active',   &
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_leaf_mr_si )
     
-    call this%set_history_var(vname='FROOT_MR', units = 'kg C / ha / yr',               &
+    call this%set_history_var(vname='FROOT_MR', units = 'kg C / m2 / yr',               &
           long='fine root maintenance respiration)', use_default='active',   &
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_froot_mr_si )
     
-    call this%set_history_var(vname='LIVECROOT_MR', units = 'kg C / ha / yr',               &
+    call this%set_history_var(vname='LIVECROOT_MR', units = 'kg C / m2 / yr',               &
           long='live coarse root maintenance respiration)', use_default='active',   &
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_livecroot_mr_si )
     
-    call this%set_history_var(vname='LIVESTEM_MR', units = 'kg C / ha / yr',               &
+    call this%set_history_var(vname='LIVESTEM_MR', units = 'kg C / m2 / yr',               &
           long='live stem maintenance respiration)', use_default='active',   &
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_livestem_mr_si )
