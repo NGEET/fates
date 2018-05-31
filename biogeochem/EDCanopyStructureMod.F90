@@ -123,7 +123,7 @@ contains
       ! try to re-balance 3 times.  If that doesn't give layer areas
       ! within tolerance of canopy area, there is something wrong
 
-      integer, parameter  :: max_patch_iterations = 3 
+      integer, parameter  :: max_patch_iterations = 10
       
 
       !----------------------------------------------------------------------
@@ -237,7 +237,7 @@ contains
             ! ---------------------------------------------------------------------------------------
             
             patch_area_counter = patch_area_counter + 1
-            if(patch_area_counter > max_patch_iterations) then
+            if(patch_area_counter > max_patch_iterations .and. area_not_balanced) then
                write(fates_log(),*) 'PATCH AREA CHECK NOT CLOSING'
                write(fates_log(),*) 'patch area:',currentpatch%area
                do i_lyr = 1,z
