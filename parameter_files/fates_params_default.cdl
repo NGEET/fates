@@ -407,6 +407,9 @@ variables:
 	float fates_trim_limit(fates_pft) ;
 		fates_trim_limit:units = "m2/m2" ;
 		fates_trim_limit:long_name = "Arbitrary limit to reductions in leaf area with stress" ;
+	float fates_wood_cn_ratio(fates_pft) ;
+		fates_wood_cn_ratio:units = "gC/gN" ;
+		fates_wood_cn_ratio:long_name = "Wood C:N" ;
 	float fates_wood_density(fates_pft) ;
 		fates_wood_density:units = "g/cm3" ;
 		fates_wood_density:long_name = "mean density of woody tissue in plant" ;
@@ -689,7 +692,7 @@ data:
 
  fates_allom_l2fr = 1, 1 ;
 
- fates_allom_latosa_int = 0.001, 0.001 ;
+ fates_allom_latosa_int = 0.5, 0.5 ;
 
  fates_allom_latosa_slp = 0, 0 ;
 
@@ -860,6 +863,8 @@ data:
  fates_trim_inc = 0.03, 0.03 ;
 
  fates_trim_limit = 0.3, 0.3 ;
+
+ fates_wood_cn_ratio = 210, 210 ;
 
  fates_wood_density = 0.7, 0.7 ;
 

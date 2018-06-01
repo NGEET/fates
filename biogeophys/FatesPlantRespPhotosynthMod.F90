@@ -215,7 +215,8 @@ contains
                                                   ! projected area basis [m^2/gC]
          woody     => EDPftvarcon_inst%woody  , & ! Is vegetation woody or not? 
          leafcn    => EDPftvarcon_inst%leafcn , & ! leaf C:N (gC/gN)
-         frootcn   => EDPftvarcon_inst%frootcn, & ! froot C:N (gc/gN)   ! slope of BB relationship
+         frootcn   => EDPftvarcon_inst%frootcn, & ! froot C:N (gc/gN)
+         woodcn    => EDPftvarcon_inst%woodcn,  & ! wood C:N (gc/gN)
          q10       => FatesSynchronizedParamsInst%Q10 )
 
       bbbopt(0) = ED_val_bbopt_c4
@@ -520,9 +521,9 @@ contains
                      ! Units are in (kgN/plant)
                      ! ------------------------------------------------------------------
                      live_stem_n = EDPftvarcon_inst%allom_agb_frac(currentCohort%pft) * currentCohort%bsw / &
-                           frootcn(currentCohort%pft)
+                           woodcn(currentCohort%pft)
                      live_croot_n = (1.0_r8-EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)) * currentCohort%bsw  / &
-                           frootcn(currentCohort%pft)
+                           woodcn(currentCohort%pft)
                      froot_n       = currentCohort%br / frootcn(currentCohort%pft) 
                      
                      
