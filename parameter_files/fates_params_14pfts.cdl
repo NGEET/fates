@@ -192,8 +192,8 @@ variables:
 		fates_allom_lmode:units = "index" ;
 		fates_allom_lmode:long_name = "leaf biomass allometry function index" ;
 	float fates_allom_sai_scaler(fates_pft) ;
-		fates_allom_sai_scaler:units = "m2/gC" ;
-		fates_allom_sai_scaler:long_name = "allometric ratio of SAI to target bleaf" ;
+		fates_allom_sai_scaler:units = "fraction" ;
+		fates_allom_sai_scaler:long_name = "allometric ratio of SAI to LAI" ;
 	float fates_allom_smode(fates_pft) ;
 		fates_allom_smode:units = "index" ;
 		fates_allom_smode:long_name = "sapwood allometry function index" ;
