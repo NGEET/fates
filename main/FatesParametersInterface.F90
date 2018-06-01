@@ -31,6 +31,7 @@ module FatesParametersInterface
   character(len=*), parameter, public :: dimension_name_hydr_organs = 'fates_hydr_organs'
   character(len=*), parameter, public :: dimension_name_history_size_bins = 'fates_history_size_bins'
   character(len=*), parameter, public :: dimension_name_history_age_bins = 'fates_history_age_bins'
+  character(len=*), parameter, public :: dimension_name_history_height_bins = 'fates_history_height_bins'
 
   ! Dimensions in the host namespace:
   character(len=*), parameter, public :: dimension_name_host_allpfts = 'allpfts'

@@ -465,7 +465,7 @@ contains
                         call carea_allom(currentCohort%dbh,currentCohort%n, &
                               currentSite%spread,currentCohort%pft,currentCohort%c_area)
                      endif
-                     
+
                      call carea_allom(copyc%dbh,copyc%n,currentSite%spread,copyc%pft,copyc%c_area)
 
 
@@ -540,7 +540,8 @@ contains
                         currentCohort%c_area = 0._r8
 
                      else  
-                        call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
+                        call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
+                                         currentCohort%pft,currentCohort%c_area)
                      endif
 
                   endif ! matches: if (cc_loss < currentCohort%c_area)then
