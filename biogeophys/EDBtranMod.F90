@@ -12,7 +12,6 @@ module EDBtranMod
                                   ed_patch_type,      &
                                   ed_cohort_type,     &
                                   maxpft
-   use FatesInterfaceMod , only : hlm_numlevgrnd
    use shr_kind_mod      , only : r8 => shr_kind_r8
    use FatesInterfaceMod , only : bc_in_type, &
                                   bc_out_type, &
@@ -66,11 +65,11 @@ contains
     
       do s = 1,nsites
          if (bc_in(s)%filter_btran) then
-            do j = 1,hlm_numlevgrnd
-               bc_out(s)%active_suction_gl(j) = check_layer_water( bc_in(s)%h2o_liqvol_gl(j),bc_in(s)%tempk_gl(j) )
+            do j = 1,bc_in(s)%nlevsoil
+               bc_out(s)%active_suction_sl(j) = check_layer_water( bc_in(s)%h2o_liqvol_sl(j),bc_in(s)%tempk_sl(j) )
             end do
          else
-            bc_out(s)%active_suction_gl(:) = .false.
+            bc_out(s)%active_suction_sl(:) = .false.
          end if
       end do
 
@@ -86,11 +85,11 @@ contains
       ! ---------------------------------------------------------------------------------
       ! Calculate the transpiration wetness function (BTRAN) and the root uptake
       ! distribution (ROOTR).
-      ! Boundary conditions in: bc_in(s)%eff_porosity_gl(j)    unfrozen porosity
-      !                         bc_in(s)%watsat_gl(j)          porosity
-      !                         bc_in(s)%active_uptake_gl(j)   frozen/not frozen
-      !                         bc_in(s)%smp_gl(j)             suction
-      ! Boundary conditions out: bc_out(s)%rootr_pagl          root uptake distribution
+      ! Boundary conditions in: bc_in(s)%eff_porosity_sl(j)    unfrozen porosity
+      !                         bc_in(s)%watsat_sl(j)          porosity
+      !                         bc_in(s)%active_uptake_sl(j)   frozen/not frozen
+      !                         bc_in(s)%smp_sl(j)             suction
+      ! Boundary conditions out: bc_out(s)%rootr_pasl          root uptake distribution
       !                          bc_out(s)%btran_pa            wetness factor
       ! ---------------------------------------------------------------------------------
       
@@ -124,7 +123,7 @@ contains
         
         do s = 1,nsites
 
-           bc_out(s)%rootr_pagl(:,:) = 0._r8
+           bc_out(s)%rootr_pasl(:,:) = 0._r8
 
            ifp = 0
            cpatch => sites(s)%oldest_patch
@@ -135,16 +134,16 @@ contains
               
               do ft = 1,numpft
                  cpatch%btran_ft(ft) = 0.0_r8
-                 do j = 1,hlm_numlevgrnd
+                 do j = 1,bc_in(s)%nlevsoil
                     
                     ! Calculations are only relevant where liquid water exists
                     ! see clm_fates%wrap_btran for calculation with CLM/ALM
                     
-                    if ( check_layer_water(bc_in(s)%h2o_liqvol_gl(j),bc_in(s)%tempk_gl(j)) )  then
+                    if ( check_layer_water(bc_in(s)%h2o_liqvol_sl(j),bc_in(s)%tempk_sl(j)) )  then
                        
-                       smp_node = max(smpsc(ft), bc_in(s)%smp_gl(j))
+                       smp_node = max(smpsc(ft), bc_in(s)%smp_sl(j))
                        
-                       rresis  = min( (bc_in(s)%eff_porosity_gl(j)/bc_in(s)%watsat_gl(j))*               &
+                       rresis  = min( (bc_in(s)%eff_porosity_sl(j)/bc_in(s)%watsat_sl(j))*               &
                             (smp_node - smpsc(ft)) / (smpso(ft) - smpsc(ft)), 1._r8)
                        
                        cpatch%rootr_ft(ft,j) = cpatch%rootfr_ft(ft,j)*rresis
@@ -152,7 +151,7 @@ contains
                        ! root water uptake is not linearly proportional to root density,
                        ! to allow proper deep root funciton. Replace with equations from SPA/Newman. FIX(RF,032414)
                        ! cpatch%rootr_ft(ft,j) = cpatch%rootfr_ft(ft,j)**0.3*rresis_ft(ft,j)/ &
-                       ! sum(cpatch%rootfr_ft(ft,1:nlevgrnd)**0.3)
+                       ! sum(cpatch%rootfr_ft(ft,1:nlevsoil)**0.3)
                        cpatch%btran_ft(ft) = cpatch%btran_ft(ft) + cpatch%rootr_ft(ft,j)
                        
                     else
@@ -162,7 +161,7 @@ contains
                  end do !j
                  
                  ! Normalize root resistances to get layer contribution to ET
-                 do j = 1,hlm_numlevgrnd    
+                 do j = 1,bc_in(s)%nlevsoil  
                     if (cpatch%btran_ft(ft)  >  0.0_r8) then
                        cpatch%rootr_ft(ft,j) = cpatch%rootr_ft(ft,j)/cpatch%btran_ft(ft)
                     else
@@ -189,15 +188,15 @@ contains
               ! distributed over the soil layers.
               sum_pftgs = sum(pftgs(1:numpft))
 
-              do j = 1,hlm_numlevgrnd
-                 bc_out(s)%rootr_pagl(ifp,j) = 0._r8
+              do j = 1, bc_in(s)%nlevsoil
+                 bc_out(s)%rootr_pasl(ifp,j) = 0._r8
                  do ft = 1,numpft
                     if( sum_pftgs > 0._r8)then !prevent problem with the first timestep - might fail
                        !bit-retart test as a result? FIX(RF,032414)  
-                       bc_out(s)%rootr_pagl(ifp,j) = bc_out(s)%rootr_pagl(ifp,j) + &
+                       bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j) + &
                             cpatch%rootr_ft(ft,j) * pftgs(ft)/sum_pftgs
                     else
-                       bc_out(s)%rootr_pagl(ifp,j) = bc_out(s)%rootr_pagl(ifp,j) + &
+                       bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j) + &
                             cpatch%rootr_ft(ft,j) * 1._r8/dble(numpft)
                     end if
                  enddo
@@ -220,12 +219,12 @@ contains
                  enddo
               end if
 
-              temprootr = sum(bc_out(s)%rootr_pagl(ifp,1:hlm_numlevgrnd))
+              temprootr = sum(bc_out(s)%rootr_pasl(ifp,1:bc_in(s)%nlevsoil))
 
               if(abs(1.0_r8-temprootr) > 1.0e-10_r8 .and. temprootr > 1.0e-10_r8)then
                  write(fates_log(),*) 'error with rootr in canopy fluxes',temprootr,sum_pftgs
-                 do j = 1,hlm_numlevgrnd
-                    bc_out(s)%rootr_pagl(ifp,j) = bc_out(s)%rootr_pagl(ifp,j)/temprootr
+                 do j = 1,bc_in(s)%nlevsoil
+                    bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j)/temprootr
                  enddo
               end if
               

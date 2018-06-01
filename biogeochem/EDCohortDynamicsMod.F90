@@ -184,9 +184,9 @@ contains
     new_cohort%isnew = .true.
 
     if( hlm_use_planthydro.eq.itrue ) then
-       call InitHydrCohort(new_cohort)
-       call updateSizeDepTreeHydProps(new_cohort, bc_in) 
-       call initTreeHydStates(currentSite,new_cohort, bc_in)
+       call InitHydrCohort(CurrentSite,new_cohort)
+       call updateSizeDepTreeHydProps(CurrentSite,new_cohort, bc_in) 
+       call initTreeHydStates(CurrentSite,new_cohort, bc_in)
        if(recruitstatus==1)then
           new_cohort%co_hydr%is_newly_recuited = .true.
        endif

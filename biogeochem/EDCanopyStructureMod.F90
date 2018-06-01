@@ -393,7 +393,7 @@ contains
 
                      allocate(copyc)
 		     if( hlm_use_planthydro.eq.itrue ) then
-                         call InitHydrCohort(copyc)
+                         call InitHydrCohort(currentSite,copyc)
                      endif
                      call copy_cohort(currentCohort, copyc) !
 
@@ -722,7 +722,7 @@ contains
                   if(cc_gain < currentCohort%c_area)then
                      allocate(copyc)
 		     if( hlm_use_planthydro.eq.itrue ) then
-                         call InitHydrCohort(copyc)
+                         call InitHydrCohort(CurrentSite,copyc)
                      endif
                      
                      call copy_cohort(currentCohort, copyc) !makes an identical copy...
@@ -891,10 +891,11 @@ contains
 
     use FatesInterfaceMod    , only : bc_in_type
     use EDPatchDynamicsMod   , only : set_patchno
-    use EDPatchDynamicsMod   , only : set_root_fraction
+    use FatesAllometryMod    , only : set_root_fraction
+    use FatesAllometryMod    , only : i_hydro_rootprof_context
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
     use EDtypesMod           , only : area
-    use EDPftvarcon            , only : EDPftvarcon_inst
+    use EDPftvarcon          , only : EDPftvarcon_inst
 
     ! !ARGUMENTS    
     integer                 , intent(in)            :: nsites
@@ -929,8 +930,18 @@ contains
 
        do while(associated(currentPatch))
           
-          call set_root_fraction(currentPatch,bc_in(s)%zi_sisl)
+          ! Calculate rooting depth fractions for the patch x pft
+          ! Note that we are calling for the root fractions in the hydrologic context.
+          ! See explanation in FatesAllometryMod.  In other locations, this
+          ! function is called to return the profile of biomass as used for litter
 
+          do ft = 1, numpft
+             call set_root_fraction(currentPatch%rootfr_ft(ft,1:bc_in(s)%nlevsoil), ft, &
+                  bc_in(s)%zi_sisl,lowerb=lbound(bc_in(s)%zi_sisl,1), &
+                  icontext=i_hydro_rootprof_context)
+          end do
+          
+          
           !zero cohort-summed variables. 
           currentPatch%total_canopy_area = 0.0_r8
           currentPatch%total_tree_area = 0.0_r8
@@ -942,6 +953,7 @@ contains
              
              ft = currentCohort%pft
 
+             
              
              ! Update the cohort's index within the size bin classes
              ! Update the cohort's index within the SCPF classification system

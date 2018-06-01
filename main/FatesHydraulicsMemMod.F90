@@ -9,7 +9,14 @@ module FatesHydraulicsMemMod
    implicit none
 
    ! Number of soil layers for indexing cohort fine root quanitities
-   integer, parameter                            :: nlevsoi_hyd = 10
+   ! NOTE: The hydraulics code does have some capacity to run a single soil
+   ! layer that was developed for comparisons with TFS. However, this has 
+   ! not maintained support through the integration with FATES and its
+   ! communications with the LSM.  Please do not set nlevsoi_hyd_max
+   ! to 1 unless you are developing and testing.
+
+
+   integer, parameter                            :: nlevsoi_hyd_max = 40
 
    ! number of distinct types of plant porous media (leaf, stem, troot, aroot)
    integer, parameter                            :: n_porous_media = 4
@@ -68,6 +75,12 @@ module FatesHydraulicsMemMod
 
       ! Plant Hydraulics
      
+     integer              :: nlevsoi_hyd            ! The number of soil hydraulic layers
+                                                    ! the host model may offer different number of
+                                                    ! layers for every site, and hydraulics
+                                                    ! may or may not cross that with a simple or
+                                                    ! non-simple layering
+
      real(r8),allocatable :: v_shell(:,:)           ! Volume of rhizosphere compartment (m) 
      real(r8),allocatable :: v_shell_init(:,:)      ! Previous volume of rhizosphere compartment (m) 
      real(r8),allocatable :: v_shell_1D(:)          ! Volume of rhizosphere compartment (m)
@@ -158,7 +171,6 @@ module FatesHydraulicsMemMod
                                                   ! Heights are referenced to soil surface (+ = above; - = below)
      real(r8) ::  z_node_ag(n_hypool_ag)          ! nodal height of aboveground water storage compartments            [m]
      real(r8) ::  z_node_troot(n_hypool_troot)    ! nodal height of belowground water storage compartments            [m]
-     real(r8) ::  z_node_aroot(nlevsoi_hyd)       ! nodal height of absorbing root water storage compartments         [m]
      real(r8) ::  z_upper_ag(n_hypool_ag)         ! upper boundary height of aboveground water storage compartments   [m]
      real(r8) ::  z_upper_troot(n_hypool_troot)   ! upper boundary height of belowground water storage compartments   [m]
      real(r8) ::  z_lower_ag(n_hypool_ag)         ! lower boundary height of aboveground water storage compartments   [m]
@@ -168,36 +180,34 @@ module FatesHydraulicsMemMod
      real(r8) ::  kmax_upper_troot                ! maximum hydraulic conductance from troot node to upper boundary   [kg s-1 MPa-1]
      real(r8) ::  kmax_bound(n_hypool_ag)         ! maximum hydraulic conductance at lower boundary (canopy to troot) [kg s-1 MPa-1]
      real(r8) ::  kmax_treebg_tot                 ! total belowground tree kmax (troot to surface of absorbing roots) [kg s-1 MPa-1]
-     real(r8) ::  kmax_treebg_layer(nlevsoi_hyd)  ! total belowground tree kmax partitioned by soil layer             [kg s-1 MPa-1]
      real(r8) ::  v_ag_init(n_hypool_ag)          ! previous day's volume of aboveground water storage compartments   [m3]
      real(r8) ::  v_ag(n_hypool_ag)               ! volume of aboveground water storage compartments                  [m3]
      real(r8) ::  v_troot_init(n_hypool_troot)    ! previous day's volume of belowground water storage compartments   [m3]
      real(r8) ::  v_troot(n_hypool_troot)         ! volume of belowground water storage compartments                  [m3]
      real(r8) ::  v_aroot_tot                     ! total volume of absorbing roots                                   [m3]
-     real(r8) ::  v_aroot_layer_init(nlevsoi_hyd) ! previous day's volume of absorbing roots by soil layer            [m3]
-     real(r8) ::  v_aroot_layer(nlevsoi_hyd)      ! volume of absorbing roots by soil layer                           [m3]
      real(r8) ::  l_aroot_tot                     ! total length of absorbing roots                                   [m]
-     real(r8) ::  l_aroot_layer(nlevsoi_hyd)      ! length of absorbing roots by soil layer                           [m]
+    
+
+     real(r8),allocatable :: z_node_aroot(:)       ! nodal height of absorbing root water storage compartments [m]   
+     real(r8),allocatable :: kmax_treebg_layer(:)  ! total belowground tree kmax partitioned by soil layer     [kg s-1 MPa-1]
+     real(r8),allocatable :: v_aroot_layer_init(:) ! previous day's volume of absorbing roots by soil layer    [m3]
+     real(r8),allocatable :: v_aroot_layer(:)      ! volume of absorbing roots by soil layer                   [m3]
+     real(r8),allocatable :: l_aroot_layer(:)      ! length of absorbing roots by soil layer                   [m]
 
                                                   ! BC PLANT HYDRAULICS - state variables
      real(r8) ::  th_ag(n_hypool_ag)              ! water in aboveground compartments                                 [kgh2o/indiv]
      real(r8) ::  th_troot(n_hypool_troot)        ! water in belowground compartments                                 [kgh2o/indiv]
-     real(r8) ::  th_aroot(nlevsoi_hyd)           ! water in absorbing roots                                          [kgh2o/indiv]
      real(r8) ::  lwp_mem(numLWPmem)              ! leaf water potential over the previous numLWPmem timesteps        [MPa]
      real(r8) ::  lwp_stable                      ! leaf water potential just before it became unstable               [MPa]
      logical  ::  lwp_is_unstable                 ! flag for instability of leaf water potential over previous timesteps
      real(r8) ::  psi_ag(n_hypool_ag)             ! water potential in aboveground compartments                       [MPa]
      real(r8) ::  psi_troot(n_hypool_troot)       ! water potential in belowground compartments                       [MPa]
-     real(r8) ::  psi_aroot(nlevsoi_hyd)          ! water potential in absorbing roots                                [MPa]
      real(r8) ::  flc_ag(n_hypool_ag)             ! fractional loss of conductivity in aboveground compartments       [-]
      real(r8) ::  flc_troot(n_hypool_troot)       ! fractional loss of conductivity in belowground compartments       [-]
-     real(r8) ::  flc_aroot(nlevsoi_hyd)          ! fractional loss of conductivity in absorbing roots                [-]
      real(r8) ::  flc_min_ag(n_hypool_ag)         ! min attained fractional loss of conductivity in 
                                                   ! aboveground compartments (for tracking xylem refilling dynamics) [-]
      real(r8) ::  flc_min_troot(n_hypool_troot)   ! min attained fractional loss of conductivity in 
                                                   ! belowground compartments (for tracking xylem refilling dynamics) [-]
-     real(r8) ::  flc_min_aroot(nlevsoi_hyd)      ! min attained fractional loss of conductivity in absorbing roots 
-                                                  ! (for tracking xylem refilling dynamics)          [-]
      real(r8) ::  refill_thresh                   ! water potential threshold for xylem refilling to occur            [MPa]
      real(r8) ::  refill_days                     ! number of days required for 50% of xylem refilling to occur       [days]
      real(r8) ::  btran(nlevcan_hyd)              ! leaf water potential limitation on gs                             [0-1]
@@ -206,7 +216,13 @@ module FatesHydraulicsMemMod
      real(r8) ::  iterh1                          ! number of iterations required to achieve tolerable water balance error
      real(r8) ::  iterh2                          ! number of inner iterations
      real(r8) ::  errh2o                          ! total water balance error per unit crown area                     [kgh2o/m2]
-     
+
+     real(r8),allocatable ::  th_aroot(:)         ! water in absorbing roots                                          [kgh2o/indiv]
+     real(r8),allocatable ::  psi_aroot(:)        ! water potential in absorbing roots                                [MPa]
+     real(r8),allocatable ::  flc_aroot(:)        ! fractional loss of conductivity in absorbing roots                [-]
+     real(r8),allocatable ::  flc_min_aroot(:)    ! min attained fractional loss of conductivity in absorbing roots 
+                                                  ! (for tracking xylem refilling dynamics)          [-]
+
                                                   ! BC PLANT HYDRAULICS - fluxes
      real(r8) ::  qtop_dt                         ! transpiration boundary condition (+ to atm)                       [kg/indiv/timestep]
      real(r8) ::  dqtopdth_dthdt                  ! transpiration tendency term (+ to atm)                            [kg/indiv/timestep]
@@ -225,9 +241,52 @@ module FatesHydraulicsMemMod
      real(r8) ::  rootuptake10                    ! net flow into roots (+ into roots), soil layer 10                 [kg/indiv/timestep]
                                                   ! BC PLANT HYDRAULICS - flags
      logical ::   is_newly_recuited               !whether the new cohort is newly recuited
+     
+  contains
+     
+     procedure :: AllocateHydrCohortArrays
+     procedure :: DeallocateHydrCohortArrays
+     
   end type ed_cohort_hydr_type
    
  contains
+    
+    subroutine AllocateHydrCohortArrays(this,nlevsoil_hydr)
+       
+       ! Arguments
+       class(ed_cohort_hydr_type),intent(inout) :: this
+       integer, intent(in)                      :: nlevsoil_hydr
+
+       allocate(this%z_node_aroot(1:nlevsoil_hydr))
+       allocate(this%kmax_treebg_layer(1:nlevsoil_hydr))
+       allocate(this%v_aroot_layer_init(1:nlevsoil_hydr))
+       allocate(this%v_aroot_layer(1:nlevsoil_hydr))
+       allocate(this%l_aroot_layer(1:nlevsoil_hydr))
+       allocate(this%th_aroot(1:nlevsoil_hydr))
+       allocate(this%psi_aroot(1:nlevsoil_hydr))
+       allocate(this%flc_aroot(1:nlevsoil_hydr))
+       allocate(this%flc_min_aroot(1:nlevsoil_hydr))
+       
+       return
+    end subroutine AllocateHydrCohortArrays
+
+    ! ===================================================================================
+
+    subroutine DeallocateHydrCohortArrays(this)
+
+       class(ed_cohort_hydr_type),intent(inout) :: this
+       deallocate(this%z_node_aroot)
+       deallocate(this%kmax_treebg_layer)
+       deallocate(this%v_aroot_layer_init)
+       deallocate(this%v_aroot_layer)
+       deallocate(this%l_aroot_layer)
+       deallocate(this%th_aroot)
+       deallocate(this%psi_aroot)
+       deallocate(this%flc_aroot)
+       deallocate(this%flc_min_aroot)
+
+       return
+    end subroutine DeallocateHydrCohortArrays
 
     ! ===================================================================================
 
@@ -236,34 +295,39 @@ module FatesHydraulicsMemMod
        ! Arguments
        class(ed_site_hydr_type),intent(inout) :: this
 
-       allocate(this%v_shell(1:nlevsoi_hyd,1:nshell))         ; this%v_shell = nan
-       allocate(this%v_shell_init(1:nlevsoi_hyd,1:nshell))    ; this%v_shell_init = nan
-       allocate(this%v_shell_1D(1:nshell))                    ; this%v_shell_1D = nan
-       allocate(this%r_node_shell(1:nlevsoi_hyd,1:nshell))    ; this%r_node_shell = nan
-       allocate(this%r_node_shell_init(1:nlevsoi_hyd,1:nshell)); this%r_node_shell_init = nan
-       allocate(this%r_out_shell(1:nlevsoi_hyd,1:nshell))     ; this%r_out_shell = nan
-       allocate(this%l_aroot_layer(1:nlevsoi_hyd))            ; this%l_aroot_layer = nan
-       allocate(this%l_aroot_layer_init(1:nlevsoi_hyd))       ; this%l_aroot_layer_init = nan
-       allocate(this%kmax_upper_shell(1:nlevsoi_hyd,1:nshell)); this%kmax_upper_shell = nan
-       allocate(this%kmax_bound_shell(1:nlevsoi_hyd,1:nshell)); this%kmax_bound_shell = nan
-       allocate(this%kmax_lower_shell(1:nlevsoi_hyd,1:nshell)); this%kmax_lower_shell = nan
-       allocate(this%r_out_shell_1D(1:nshell))                ; this%r_out_shell_1D = nan
-       allocate(this%r_node_shell_1D(1:nshell))               ; this%r_node_shell_1D = nan
-       allocate(this%kmax_upper_shell_1D(1:nshell))           ; this%kmax_upper_shell_1D = nan
-       allocate(this%kmax_bound_shell_1D(1:nshell))           ; this%kmax_bound_shell_1D = nan
-       allocate(this%kmax_lower_shell_1D(1:nshell))           ; this%kmax_lower_shell_1D = nan
-       allocate(this%supsub_flag(nlevsoi_hyd))                ; this%supsub_flag = -999
-       allocate(this%h2osoi_liqvol_shell(1:nlevsoi_hyd,1:nshell)) ; this%h2osoi_liqvol_shell = nan
-       allocate(this%h2osoi_liq_prev(1:nlevsoi_hyd))          ; this%h2osoi_liq_prev = nan
-       allocate(this%psisoi_liq_innershell(1:nlevsoi_hyd)); this%psisoi_liq_innershell = nan
-       allocate(this%rs1(1:nlevsoi_hyd)); this%rs1(:) = fine_root_radius_const
-       allocate(this%recruit_w_uptake(1:nlevsoi_hyd)); this%recruit_w_uptake = nan
-       
-       this%l_aroot_1D = nan
-       this%errh2o_hyd     = nan
-       this%dwat_veg       = nan
-       this%h2oveg         = nan
-       this%h2oveg_dead    = 0.0_r8
+       associate( nlevsoil_hyd => this%nlevsoi_hyd )
+         
+         allocate(this%v_shell(1:nlevsoil_hyd,1:nshell))         ; this%v_shell = nan
+         allocate(this%v_shell_init(1:nlevsoil_hyd,1:nshell))    ; this%v_shell_init = nan
+         allocate(this%v_shell_1D(1:nshell))                    ; this%v_shell_1D = nan
+         allocate(this%r_node_shell(1:nlevsoil_hyd,1:nshell))    ; this%r_node_shell = nan
+         allocate(this%r_node_shell_init(1:nlevsoil_hyd,1:nshell)); this%r_node_shell_init = nan
+         allocate(this%r_out_shell(1:nlevsoil_hyd,1:nshell))     ; this%r_out_shell = nan
+         allocate(this%l_aroot_layer(1:nlevsoil_hyd))            ; this%l_aroot_layer = nan
+         allocate(this%l_aroot_layer_init(1:nlevsoil_hyd))       ; this%l_aroot_layer_init = nan
+         allocate(this%kmax_upper_shell(1:nlevsoil_hyd,1:nshell)); this%kmax_upper_shell = nan
+         allocate(this%kmax_bound_shell(1:nlevsoil_hyd,1:nshell)); this%kmax_bound_shell = nan
+         allocate(this%kmax_lower_shell(1:nlevsoil_hyd,1:nshell)); this%kmax_lower_shell = nan
+         allocate(this%r_out_shell_1D(1:nshell))                ; this%r_out_shell_1D = nan
+         allocate(this%r_node_shell_1D(1:nshell))               ; this%r_node_shell_1D = nan
+         allocate(this%kmax_upper_shell_1D(1:nshell))           ; this%kmax_upper_shell_1D = nan
+         allocate(this%kmax_bound_shell_1D(1:nshell))           ; this%kmax_bound_shell_1D = nan
+         allocate(this%kmax_lower_shell_1D(1:nshell))           ; this%kmax_lower_shell_1D = nan
+         allocate(this%supsub_flag(1:nlevsoil_hyd))                ; this%supsub_flag = -999
+         allocate(this%h2osoi_liqvol_shell(1:nlevsoil_hyd,1:nshell)) ; this%h2osoi_liqvol_shell = nan
+         allocate(this%h2osoi_liq_prev(1:nlevsoil_hyd))          ; this%h2osoi_liq_prev = nan
+         allocate(this%psisoi_liq_innershell(1:nlevsoil_hyd)); this%psisoi_liq_innershell = nan
+         allocate(this%rs1(1:nlevsoil_hyd)); this%rs1(:) = fine_root_radius_const
+         allocate(this%recruit_w_uptake(1:nlevsoil_hyd)); this%recruit_w_uptake = nan
+
+         this%l_aroot_1D = nan
+         this%errh2o_hyd     = nan
+         this%dwat_veg       = nan
+         this%h2oveg         = nan
+         this%h2oveg_dead    = 0.0_r8
+         
+       end associate
+
        return
     end subroutine InitHydrSite
     
