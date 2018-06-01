@@ -951,7 +951,8 @@ contains
              call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
                   currentCohort%pft,currentCohort%c_area)
              currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%status_coh, &
-                  currentCohort%pft, currentCohort%c_area, currentCohort%n )
+                  currentCohort%pft, currentCohort%c_area, currentCohort%n, &
+                  currentCohort%canopy_layer, currentPatch%canopy_layer_tai )
 
              canopy_leaf_area = canopy_leaf_area + currentCohort%treelai *currentCohort%c_area
                   
@@ -1117,9 +1118,8 @@ contains
           cl = currentCohort%canopy_layer
 
           currentCohort%treelai = tree_lai(currentCohort%bl, currentCohort%status_coh, currentCohort%pft, &
-               currentCohort%c_area, currentCohort%n )
-          currentCohort%treesai = tree_sai(currentCohort%dbh, currentCohort%pft, currentCohort%canopy_trim, &
-               currentCohort%c_area, currentCohort%n)
+               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, currentPatch%canopy_layer_tai )
+          currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%treelai)
 
           currentCohort%lai =  currentCohort%treelai *currentCohort%c_area/currentPatch%total_canopy_area 
           currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/currentPatch%total_canopy_area  
