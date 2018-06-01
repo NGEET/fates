@@ -153,10 +153,9 @@ contains
     call carea_allom(new_cohort%dbh,new_cohort%n,spread,new_cohort%pft,new_cohort%c_area)
 
     new_cohort%treelai = tree_lai(new_cohort%bl, new_cohort%status_coh, new_cohort%pft, &
-         new_cohort%c_area, new_cohort%n)
+         new_cohort%c_area, new_cohort%n, currentCohort%canopy_layer, currentPatch%canopy_layer_tai )
     new_cohort%lai     = new_cohort%treelai * new_cohort%c_area/patchptr%area
-    new_cohort%treesai = tree_sai(new_cohort%dbh, new_cohort%pft, new_cohort%canopy_trim, &
-         new_cohort%c_area, new_cohort%n)
+    new_cohort%treesai = tree_sai(new_cohort%pft, new_cohort%treelai)
 
     ! Put cohort at the right place in the linked list
     storebigcohort   => patchptr%tallest
